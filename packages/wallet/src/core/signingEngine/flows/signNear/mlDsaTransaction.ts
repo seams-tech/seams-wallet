@@ -1,3 +1,4 @@
+import { MlDsaSigningError } from '@shared/near/mlDsaSigning';
 import {
   resolveMlDsaSigningOwner,
   prepareMlDsaEmailPrompt,
@@ -195,7 +196,7 @@ export async function signMlDsaNearTransaction(
         actor: owner.actor,
       },
     });
-    if (prepared.kind !== 'prepared') throw new Error(prepared.message);
+    if (prepared.kind !== 'prepared') throw new MlDsaSigningError(prepared);
     assertSigningNotCancelled(input.shouldAbort);
     const preparation = prepared.preparation;
     const approval = await prepareMlDsaTransactionApproval({
@@ -258,7 +259,7 @@ export async function signMlDsaNearTransaction(
     });
     if (result.kind === 'refused') {
       forgetMlDsaTransactionApproval(approval);
-      throw new Error(result.message);
+      throw new MlDsaSigningError(result);
     }
     const decoded = requireRecord(
       threshold_ed25519_decode_signed_near_tx_borsh({

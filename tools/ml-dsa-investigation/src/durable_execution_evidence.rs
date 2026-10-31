@@ -385,7 +385,9 @@ pub(super) fn run(
             }
             (
                 json!({"status":"generic-refused", "consumed_batches":1, "evaluated_candidates":0, "burned_candidates":2}),
-                Completion::Failed,
+                Completion::Failed {
+                    failure: m::failure::SigningFailure::ProtocolFailed,
+                },
                 pool::Settlement::Failed,
             )
         } else {
@@ -402,7 +404,15 @@ pub(super) fn run(
                         signature: signature.clone(),
                     }
                 }
-                execution::Outcome::Exhausted { .. } => Completion::Failed,
+                execution::Outcome::Exhausted {
+                    consumed_batches,
+                    evaluated_candidates,
+                } => Completion::Failed {
+                    failure: m::failure::SigningFailure::CandidatesExhausted {
+                        consumed_batches: *consumed_batches,
+                        evaluated_candidates: *evaluated_candidates,
+                    },
+                },
             };
             let settlement = if matches!(outcome, execution::Outcome::Signed { .. }) {
                 pool::Settlement::Succeeded

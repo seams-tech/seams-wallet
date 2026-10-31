@@ -2,6 +2,7 @@
 //! Store implementations execute one command in one atomic transaction.
 pub mod admission;
 pub mod execution;
+pub mod failure;
 pub mod material;
 pub mod policy;
 pub mod pool;

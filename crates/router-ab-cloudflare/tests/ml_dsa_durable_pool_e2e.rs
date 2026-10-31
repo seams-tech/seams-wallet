@@ -3,6 +3,7 @@ use ::ml_dsa::Keypair;
 use router_ab_cloudflare::ml_dsa::{
     self as m,
     admission::{self, Claim, Completion, Decision, Status, UnavailableReason},
+    failure::SigningFailure,
     policy::Policy,
     pool, sealing, *,
 };
@@ -374,7 +375,14 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     // An admitted failure consumes the cooldown and burns its reserved material.
     tx(
         &router,
-        admission::finish(&router, &permit, Completion::Failed, 1_005),
+        admission::finish(
+            &router,
+            &permit,
+            Completion::Failed {
+                failure: SigningFailure::TransportInterrupted,
+            },
+            1_005,
+        ),
     )
     .unwrap();
     assert!(matches!(
@@ -454,9 +462,44 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         )
         .unwrap(),
         Decision::Existing {
-            operation: Status::Failed
+            operation: Status::Failed {
+                failure: SigningFailure::TransportInterrupted
+            }
         }
     ));
+    // Persisted pre-cause failures remain terminal after restart. New wire results
+    // require a cause, so this normalization cannot admit ambiguous new replies.
+    let record_key = first.record_key().unwrap();
+    let mut historical: serde_json::Value = tx(&router, router.get(&record_key)).unwrap().unwrap();
+    historical["status"]
+        .as_object_mut()
+        .unwrap()
+        .remove("failure");
+    assert!(serde_json::from_value::<Status>(historical["status"].clone()).is_err());
+    tx(&router, router.put(&record_key, &historical)).unwrap();
+    let ready_before = tx(&a, pool::inventory(&a, &key, 10, 1_006, 1_006))
+        .unwrap()
+        .ready;
+    drop(router);
+    let router = Db::open(&service_path);
+    assert!(matches!(
+        tx(
+            &router,
+            admission::begin(&router, &policy, first.clone(), 1_006)
+        )
+        .unwrap(),
+        Decision::Existing {
+            operation: Status::Failed {
+                failure: SigningFailure::ProtocolFailed
+            }
+        }
+    ));
+    assert_eq!(
+        tx(&a, pool::inventory(&a, &key, 10, 1_006, 1_006))
+            .unwrap()
+            .ready,
+        ready_before
+    );
     let mut other_key = key.clone();
     other_key.key_id = id("another-key");
     activate(&router, &other_key);
@@ -517,7 +560,14 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     };
     tx(
         &router,
-        admission::finish(&router, &long, Completion::Failed, 61_008),
+        admission::finish(
+            &router,
+            &long,
+            Completion::Failed {
+                failure: SigningFailure::TransportInterrupted,
+            },
+            61_008,
+        ),
     )
     .unwrap();
     assert!(matches!(
@@ -1131,6 +1181,12 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     evidence["refill_backoff"] = refill_backoff;
     evidence["unopened_after_failure"] = unopened_after_failure;
     evidence["generic_registration"] = generic_registration;
+    evidence["terminal_failures"] = serde_json::json!({
+        "typed_cause_survives_restart": true,
+        "historical_failure_stays_terminal": true,
+        "historical_replay_consumes_no_new_material": true,
+        "wire_results_require_explicit_cause": true,
+    });
     evidence["expiry_and_contention"] = serde_json::json!({
         "preflight_and_empty_wait_leave_capacity_free": true,
         "ready_wallet_claims_while_other_wallet_waits": true,

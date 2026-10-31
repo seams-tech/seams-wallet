@@ -214,14 +214,53 @@ class Gateway {
   }
 }
 
+function signingControlRequest(original, path, body) {
+  const url = new URL(original.url);
+  url.pathname = path;
+  return new Request(url, {
+    method: 'POST',
+    headers: original.headers,
+    body: JSON.stringify(body),
+  });
+}
+
 class CompletionLossProxy {
   constructor(proxy) {
     this.proxy = proxy;
     this.internalServiceAuthSecret = proxy.internalServiceAuthSecret;
     this.loseKeyId = null;
     this.completion = null;
+    this.signingFault = { kind: 'idle' };
   }
   async fetch(request) {
+    if (
+      this.signingFault.kind === 'armed' &&
+      new URL(request.url).pathname === '/router-ab/ml-dsa/sign'
+    ) {
+      const fault = this.signingFault;
+      const input = await request.clone().json();
+      const admitted = await this.proxy.fetch(
+        signingControlRequest(request, '/router-ab/ml-dsa/admit', input.request),
+      );
+      if (admitted.status !== 200) return admitted;
+      const decision = await admitted.clone().json();
+      if (decision.status !== 'admitted') return admitted;
+      this.signingFault = { kind: 'idle' };
+      const count = fault.reason === 'candidates_exhausted' ? decision.permit.batches.length : 1;
+      await fault.consume(decision.permit, count);
+      const failure =
+        fault.reason === 'candidates_exhausted'
+          ? { reason: fault.reason, consumed_batches: count, evaluated_candidates: count * 2 }
+          : { reason: fault.reason };
+      const completed = await this.proxy.fetch(
+        signingControlRequest(request, '/router-ab/ml-dsa/complete', {
+          permit: decision.permit,
+          completion: { outcome: 'failed', failure },
+        }),
+      );
+      assert.equal(completed.status, 200, await completed.clone().text());
+      assert.deepEqual((await completed.json()).failure, failure);
+    }
     const input =
       this.loseKeyId && new URL(request.url).pathname === '/router-ab/ml-dsa/register'
         ? await request.clone().json()
@@ -288,6 +327,7 @@ export async function verifyMlDsaGatewayRegistration({
   proxy,
   privatePost,
   loseParticipantMaterial,
+  consumePreparedForFailure,
 }) {
   const delivery = new CompletionLossProxy(proxy);
   const folder = join(directory, 'gateway');
@@ -547,6 +587,8 @@ export async function verifyMlDsaGatewayRegistration({
       database,
       claimDatabase: traced,
       scope,
+      delivery,
+      consumePreparedForFailure,
     });
     key.counter = publicSigning.lastCounter;
     const signature = publicSigning.signature;

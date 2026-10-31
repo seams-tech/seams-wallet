@@ -1,3 +1,4 @@
+import { isMlDsaSigningErrorCode } from '@shared/near/mlDsaSigning';
 import type { SignerKind } from '@shared/utils/signerDomain';
 import type { ParentToChildType } from '../shared/messages';
 
@@ -331,6 +332,8 @@ function resolveCanonicalWalletSignerErrorCode(args: {
   rawCode?: unknown;
   message?: unknown;
 }): CanonicalWalletSignerErrorCode | null {
+  // Exact typed ML-DSA codes outrank message heuristics at this wire boundary.
+  if (isMlDsaSigningErrorCode(args.rawCode)) return null;
   const fromMessage = isWalletSignerBoundaryRequestType(args.requestType)
     ? inferCanonicalCodeFromMessage({
         message: normalizeMessage(args.message),

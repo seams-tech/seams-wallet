@@ -1,3 +1,4 @@
+import { MlDsaSigningError } from '@shared/near/mlDsaSigning';
 import { assertSigningNotCancelled } from '../shared/cancellation';
 import { executeMlDsaNearSigning } from '@/core/rpcClients/relayer/mlDsaSigning';
 import type { Variant } from '@shared/utils/variant';
@@ -21,7 +22,12 @@ async function waitForRetry(
   for (;;) {
     assertSigningNotCancelled(shouldAbort);
     const nowMs = Date.now();
-    if (nowMs >= deadlineAtMs) throw new Error('ML-DSA signing approval expired');
+    if (nowMs >= deadlineAtMs)
+      throw new MlDsaSigningError({
+        kind: 'refused',
+        code: 'expired',
+        message: 'ML-DSA signing approval expired',
+      });
     if (nowMs >= wakeAtMs) return;
     const seconds = Math.ceil((wakeAtMs - nowMs) / 1000);
     if (seconds !== displayedSeconds) {
@@ -42,12 +48,22 @@ export async function executeMlDsaSigningUntilSettled(input: {
 }): Promise<SettledMlDsaSigningOutcome> {
   for (;;) {
     assertSigningNotCancelled(input.shouldAbort);
-    if (Date.now() >= input.deadlineAtMs) throw new Error('ML-DSA signing approval expired');
+    if (Date.now() >= input.deadlineAtMs)
+      throw new MlDsaSigningError({
+        kind: 'refused',
+        code: 'expired',
+        message: 'ML-DSA signing approval expired',
+      });
     input.onDispatch();
     const result = await executeMlDsaNearSigning(input.request);
     if (result.kind !== 'retry') return result;
     assertSigningNotCancelled(input.shouldAbort);
-    if (result.retryAtMs >= input.deadlineAtMs) throw new Error('ML-DSA signing approval expired');
+    if (result.retryAtMs >= input.deadlineAtMs)
+      throw new MlDsaSigningError({
+        kind: 'refused',
+        code: 'expired',
+        message: 'ML-DSA signing approval expired',
+      });
     await waitForRetry(
       result.retryAtMs,
       input.deadlineAtMs,

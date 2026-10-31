@@ -1,3 +1,4 @@
+import { nearSigningFailureCause } from '@shared/near/signingFailure';
 import { resolveNearNetwork, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { OwnerOperationNearClient } from '@/core/rpcClients/near/NearClient';
@@ -322,7 +323,12 @@ class HostedOwnerNearOperation {
         const rejection = result.kind === 'unresolved' ? result.rejection : undefined;
         // Invalid signed bytes never reach a block, whatever the account state.
         if (rejection?.permanence === 'permanent') {
-          outcome = { kind: 'not_submitted', error: result.error, rejection };
+          outcome = {
+            kind: 'not_submitted',
+            error: result.error,
+            cause: { kind: 'unclassified' },
+            rejection,
+          };
         } else if (result.kind !== 'not_submitted') {
           if (rejection) {
             await this.store({
@@ -343,7 +349,7 @@ class HostedOwnerNearOperation {
             ...(rejection ? { rejection } : {}),
           };
         } else {
-          outcome = { kind: 'not_submitted', error: result.error };
+          outcome = { kind: 'not_submitted', error: result.error, cause: result.cause };
         }
       } else {
         return await this.settleTransaction(result.transactionId, result.result, requestDigest);
@@ -356,6 +362,7 @@ class HostedOwnerNearOperation {
         outcome = {
           kind: 'not_submitted',
           error: this.refusal.message,
+          cause: { kind: 'unclassified' },
           shortfall: this.refusal.shortfall,
         };
       else if (isUserCancelledUserConfirm(error)) outcome = { kind: 'cancelled' };
@@ -437,6 +444,7 @@ class HostedOwnerNearOperation {
     if (receipt.kind === 'approving' || receipt.kind === 'signed') {
       const outcome: SettledOwnerNearOutcome = {
         kind: 'not_submitted',
+        cause: { kind: 'unclassified' },
         error:
           'This operation did not reach broadcast. Prepare a new operation for another approval.',
       };
@@ -1017,6 +1025,7 @@ function admissionFailure(command: OwnerNearCommand, error: unknown): OwnerNearO
   if (isUserCancelledUserConfirm(error)) return { kind: 'cancelled' };
   return {
     kind: 'not_submitted',
+    cause: nearSigningFailureCause(error),
     error: safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
   };
 }

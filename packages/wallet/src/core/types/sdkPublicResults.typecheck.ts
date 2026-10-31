@@ -89,6 +89,7 @@ void actionSuccess;
 const actionFailure: ActionResult = {
   success: false,
   kind: 'not_submitted',
+  cause: { kind: 'unclassified' },
   error: 'Action failed',
 };
 void actionFailure;
@@ -97,6 +98,7 @@ void actionFailure;
 const invalidActionFailure: ActionResult = {
   success: false,
   kind: 'not_submitted',
+  cause: { kind: 'unclassified' },
   error: 'Action failed',
   transactionId: 'txid',
 };
@@ -389,3 +391,15 @@ const invalidCombinedSignerAddedSuccess: RegistrationResult = {
   capabilities: [addedNearCapability, addedEcdsaCapability],
 };
 void invalidCombinedSignerAddedSuccess;
+
+// @ts-expect-error core non-submission results require a classified or explicitly unknown cause.
+const missingSigningFailureCause: ActionResult = { success: false, kind: 'not_submitted', error: 'Stopped' };
+void missingSigningFailureCause;
+
+// @ts-expect-error an ML-DSA cause cannot omit its typed failure.
+const incompleteMlDsaCause: ActionResult = { success: false, kind: 'not_submitted', error: 'Stopped', cause: { kind: 'ml_dsa' } };
+void incompleteMlDsaCause;
+
+// @ts-expect-error a broad spread cannot attach a failure cause to success.
+const successWithFailureCause: ActionResult = { ...actionSuccess, cause: { kind: 'unclassified' } };
+void successWithFailureCause;

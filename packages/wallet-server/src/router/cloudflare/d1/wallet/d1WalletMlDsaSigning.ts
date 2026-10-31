@@ -1,3 +1,4 @@
+import { parseMlDsaRouterFailure, parseMlDsaSigningFailure } from '@shared/near/mlDsaSigning';
 import type { MlDsaSignerInventoryEntry } from '@shared/near/mlDsaInventory';
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
 import { resolveMlDsaEmailOtpOwner, type MlDsaEmailOtpServices } from './mlDsaEmailOtpApproval';
@@ -734,7 +735,7 @@ export class D1WalletMlDsaSigning {
     if (operation.state === 'preparing' || operation.state === 'running')
       return { kind: 'retry', reason: 'running', retryAtMs: Date.now() + 500 };
     if (operation.state === 'failed' || operation.state === 'declined')
-      return refusal('protocol_failed', 'ML-DSA signing failed');
+      return parseMlDsaRouterFailure(operation.failure);
     if (operation.state !== 'succeeded') throw new Error('Invalid Router state');
     const signature = base64UrlEncode(
       Uint8Array.from(requireBytes(operation.signature, 'ML-DSA signature', 3309, 3309)),
@@ -819,7 +820,6 @@ function parseSigningOutcome(raw: unknown): MlDsaSigningOutcome {
   const r = requireRecord(raw, 'stored ML-DSA signing outcome');
   if (r.kind === 'signed')
     return { kind: 'signed', transaction: parseMlDsaSignedTransaction(r.transaction) };
-  if (r.kind === 'refused' && (r.code === 'protocol_failed' || r.code === 'invalid_signature'))
-    return refusal(r.code, typeof r.message === 'string' ? r.message : 'ML-DSA signing failed');
+  if (r.kind === 'refused') return parseMlDsaSigningFailure(r);
   throw new Error('Invalid stored ML-DSA outcome');
 }

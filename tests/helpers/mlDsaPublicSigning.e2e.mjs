@@ -1,3 +1,4 @@
+import { verifyMlDsaTerminalFailures } from './mlDsaTerminalFailures.e2e.mjs';
 import assert from 'node:assert/strict';
 import { createHash, createPublicKey, randomBytes, sign, verify } from 'node:crypto';
 import { verifyMlDsaSigningSessions } from './mlDsaSigningSessions.e2e.mjs';
@@ -112,13 +113,15 @@ export async function verifyMlDsaPublicSigning({
   database,
   claimDatabase,
   scope,
+  delivery,
+  consumePreparedForFailure,
 }) {
   const transport = new GatewayTransport(gateway);
   const original = globalThis.fetch;
   globalThis.fetch = transport.fetch.bind(transport);
   const checks = {};
   try {
-    const signingRequest = {
+    let signingRequest = {
       walletId,
       signingKeyId,
       operationIdB64u: randomBytes(32).toString('base64url'),
@@ -132,7 +135,7 @@ export async function verifyMlDsaPublicSigning({
       publicKeyB64u,
     });
     assert.equal(prepared.kind, 'prepared', JSON.stringify(prepared));
-    const preparation = prepared.preparation;
+    let preparation = prepared.preparation;
     assert.equal(preparation.transaction.nonce, '9007199254740993');
     assert.deepEqual(
       await api.prepareMlDsaNearSigning({
@@ -165,8 +168,9 @@ export async function verifyMlDsaPublicSigning({
       403,
     );
     checks.wrongWalletRejected = true;
-    const credential = signingAssertion(key, preparation.challengeB64u, 1);
-    const execute = {
+    let approvalCounter = 1;
+    let credential = signingAssertion(key, preparation.challengeB64u, approvalCounter);
+    let execute = {
       walletId,
       operationIdB64u: signingRequest.operationIdB64u,
       authorization: { kind: 'passkey', credential },
@@ -187,7 +191,7 @@ export async function verifyMlDsaPublicSigning({
     };
     assert.equal((await request(gateway, walletId, 'sign', disclosed)).body.code, 'invalid_body');
     checks.prfOutputRejectedAtPublicBoundary = true;
-    const executeInput = {
+    let executeInput = {
       relayerUrl: base,
       preparation,
       authorization: { kind: 'passkey', credential },
@@ -214,6 +218,43 @@ export async function verifyMlDsaPublicSigning({
       await waitUntil(signed.retryAtMs);
       signed = await api.executeMlDsaNearSigning(executeInput);
     }
+    const exhaustedOperations = [];
+    while (
+      signed.kind === 'refused' &&
+      signed.code === 'candidates_exhausted' &&
+      exhaustedOperations.length < 5
+    ) {
+      assert.deepEqual(await api.executeMlDsaNearSigning(executeInput), signed);
+      exhaustedOperations.push({
+        operationIdB64u: signingRequest.operationIdB64u,
+        outcome: signed,
+      });
+      signingRequest = {
+        ...signingRequest,
+        operationIdB64u: randomBytes(32).toString('base64url'),
+      };
+      const fresh = await api.prepareMlDsaNearSigning({
+        access: { kind: 'public' },
+        relayerUrl: base,
+        request: signingRequest,
+        publicKeyB64u,
+      });
+      assert.equal(fresh.kind, 'prepared');
+      preparation = fresh.preparation;
+      credential = signingAssertion(key, preparation.challengeB64u, ++approvalCounter);
+      execute = {
+        walletId,
+        operationIdB64u: signingRequest.operationIdB64u,
+        authorization: { kind: 'passkey', credential },
+      };
+      executeInput = { relayerUrl: base, preparation, authorization: execute.authorization };
+      signed = await api.executeMlDsaNearSigning(executeInput);
+      for (let retry = 0; signed.kind === 'retry' && retry < 30; retry += 1) {
+        attempts.push(signed);
+        await waitUntil(signed.retryAtMs);
+        signed = await api.executeMlDsaNearSigning(executeInput);
+      }
+    }
     assert.equal(signed.kind, 'signed', JSON.stringify(signed));
     transport.loseReply = true;
     await assert.rejects(api.executeMlDsaNearSigning(executeInput), /Injected lost signing reply/);
@@ -225,7 +266,7 @@ export async function verifyMlDsaPublicSigning({
     ]);
     assert.deepEqual(duplicates, [signed, signed]);
     checks.concurrentDuplicatesReturnSameSignature = true;
-    const altered = signingAssertion(key, preparation.challengeB64u, 2);
+    const altered = signingAssertion(key, preparation.challengeB64u, approvalCounter + 1);
     assert.equal(
       (
         await request(gateway, walletId, 'sign', {
@@ -294,7 +335,7 @@ export async function verifyMlDsaPublicSigning({
       )
       .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId, key.credentialId)
       .first();
-    assert.equal(counter.counter, 1);
+    assert.equal(counter.counter, approvalCounter);
     checks.counterAndClaimCommitTogether = true;
     const second = { ...signingRequest, operationIdB64u: randomBytes(32).toString('base64url') };
     const next = await api.prepareMlDsaNearSigning({
@@ -309,7 +350,7 @@ export async function verifyMlDsaPublicSigning({
       preparation: next.preparation,
       authorization: {
         kind: 'passkey',
-        credential: signingAssertion(key, next.preparation.challengeB64u, 2),
+        credential: signingAssertion(key, next.preparation.challengeB64u, approvalCounter + 1),
       },
     });
     assert.equal(cooldown.kind, 'retry', JSON.stringify(cooldown));
@@ -322,11 +363,22 @@ export async function verifyMlDsaPublicSigning({
       signingRequest,
       publicKeyB64u,
       relayerUrl: base,
-      counter: 3,
+      counter: approvalCounter + 2,
       signingAssertion,
     });
+    const terminalFailures = await verifyMlDsaTerminalFailures({
+      api,
+      key,
+      signingRequest,
+      publicKeyB64u,
+      relayerUrl: base,
+      delivery,
+      consumePreparedForFailure,
+      signingAssertion,
+      counter: approvalCounter + 2,
+    });
     return {
-      lastCounter: 3,
+      lastCounter: terminalFailures.lastCounter,
       replay: executeInput,
       signature: {
         verified: true,
@@ -336,6 +388,8 @@ export async function verifyMlDsaPublicSigning({
       evidence: {
         checks,
         sessionChecks,
+        terminalFailures,
+        exhaustedOperations,
         attempts,
         transaction: signed.transaction,
         operationIdB64u: signingRequest.operationIdB64u,

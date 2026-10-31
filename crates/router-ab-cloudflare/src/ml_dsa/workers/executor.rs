@@ -1,6 +1,8 @@
 //! Private Worker signing. Only each role can read its material and prepared pool.
 use super::super::execution::{self, Host, Request, RoleSecrets};
+use super::super::failure::SigningFailure;
 use super::*;
+type SigningResult<T> = core::result::Result<T, SigningFailure>;
 use std::cell::RefCell;
 use worker::{Context, WebSocket, WebSocketPair};
 use zeroize::Zeroizing;
@@ -115,14 +117,16 @@ async fn execute(
     env: &Env,
     input: &Request,
     socket: &WebSocket,
-) -> Result<(Vec<u8>, execution::Outcome)> {
-    let role = configured_role(env).map_err(storage_error)?;
+) -> SigningResult<(Vec<u8>, execution::Outcome)> {
+    let role = configured_role(env).map_err(|_| SigningFailure::ConfigurationInvalid)?;
     let mut trace = signing_trace::SigningTrace::new(input.permit.request.operation, role);
     // Both entrypoints authenticated the permit before opening this socket.
     // Accept before fallible initialization so failures can close the peer.
-    let mut transport =
-        transport::Duplex::new(socket, input.permit.expires_at_ms).map_err(storage_error)?;
-    require_permit(env, input).await?;
+    let mut transport = transport::Duplex::new(socket, input.permit.expires_at_ms)
+        .map_err(|_| SigningFailure::TransportInterrupted)?;
+    require_permit(env, input)
+        .await
+        .map_err(|_| SigningFailure::AdmissionRejected)?;
     trace.mark("permit_checked");
     let mut response = local_call(
         env,
@@ -131,25 +135,31 @@ async fn execute(
         },
         None,
     )
-    .await?;
+    .await
+    .map_err(|_| SigningFailure::MaterialUnavailable)?;
     if response.status_code() != 200 {
-        return Err(invalid("ML-DSA key material is unavailable"));
+        return Err(SigningFailure::MaterialUnavailable);
     }
-    let inputs = material_delivery::signing_inputs(&mut response).await?;
+    let inputs = material_delivery::signing_inputs(&mut response)
+        .await
+        .map_err(|_| SigningFailure::InvalidMaterial)?;
     let record = inputs.metadata.material;
     trace.mark("material_loaded");
     if record.activation.key != input.permit.request.key {
-        return Err(invalid("ML-DSA role key changed"));
+        return Err(SigningFailure::KeyChanged);
     }
-    let (version, wrapping_seed) = wrapping_key(env)?;
-    let material = record.open(role, &version, &wrapping_seed)?;
+    let (version, wrapping_seed) =
+        wrapping_key(env).map_err(|_| SigningFailure::ConfigurationInvalid)?;
+    let material = record
+        .open(role, &version, &wrapping_seed)
+        .map_err(|_| SigningFailure::InvalidMaterial)?;
     trace.mark("material_opened");
     let public_key = record
         .public_key
         .as_slice()
         .try_into()
-        .map_err(|_| invalid("Invalid ML-DSA public key"))?;
-    let schedules = schedules::load()?;
+        .map_err(|_| SigningFailure::InvalidMaterial)?;
+    let schedules = schedules::load().map_err(|_| SigningFailure::ConfigurationInvalid)?;
     trace.mark("schedules_loaded");
     let outcome = execution::run(
         input,
@@ -160,7 +170,9 @@ async fn execute(
             wrapping_seed,
             wrapping_key_version: version,
         },
-        policy(env)?.candidate_group_size(),
+        policy(env)
+            .map_err(|_| SigningFailure::ConfigurationInvalid)?
+            .candidate_group_size(),
         &schedules,
         &WorkerHost {
             env,
@@ -175,46 +187,47 @@ async fn execute(
     )
     .await;
     trace.transport(transport.metrics());
-    let outcome = outcome?;
+    let outcome = outcome.map_err(|_| transport.failure(SigningFailure::ProtocolFailed))?;
     trace.mark("protocol_completed");
     // Both roles acknowledge the complete public result before A reports success.
-    let digest = digest(b"seams/ml-dsa/execution-result/v1", &outcome)?;
+    let digest = digest(b"seams/ml-dsa/execution-result/v1", &outcome)
+        .map_err(|_| SigningFailure::ProtocolFailed)?;
     let peer = match role {
         Participant::A => {
             transport
                 .send(&digest)
                 .await
-                .map_err(|_| invalid("ML-DSA result delivery failed"))?;
+                .map_err(|_| transport.failure(SigningFailure::TransportInterrupted))?;
             transport
                 .receive(32)
                 .await
-                .map_err(|_| invalid("ML-DSA result acknowledgement failed"))?
+                .map_err(|_| transport.failure(SigningFailure::TransportInterrupted))?
         }
         Participant::B => {
             let peer = transport
                 .receive(32)
                 .await
-                .map_err(|_| invalid("ML-DSA result delivery failed"))?;
+                .map_err(|_| transport.failure(SigningFailure::TransportInterrupted))?;
             transport
                 .send(&digest)
                 .await
-                .map_err(|_| invalid("ML-DSA result acknowledgement failed"))?;
+                .map_err(|_| transport.failure(SigningFailure::TransportInterrupted))?;
             peer
         }
     };
     if peer != digest {
-        return Err(invalid("ML-DSA participants returned different results"));
+        return Err(SigningFailure::InvalidParticipantResponse);
     }
     if role == Participant::B {
         transport
             .flush()
             .await
-            .map_err(|_| invalid("ML-DSA final delivery acknowledgement failed"))?;
+            .map_err(|_| transport.failure(SigningFailure::TransportInterrupted))?;
     } else {
         let was_clean = transport
             .peer_closed()
             .await
-            .map_err(|_| invalid("ML-DSA peer did not close normally"))?;
+            .map_err(|_| transport.failure(SigningFailure::TransportInterrupted))?;
         worker::console_log!(
             "{}",
             serde_json::json!({
@@ -248,16 +261,15 @@ pub(crate) async fn handle_execute(
             .await
             .map_err(protocol_error)?
     };
-    require_permit(&env, &input).await.map_err(protocol_error)?;
     match (configured_role(&env)?, path.as_str()) {
         (Participant::A, EXECUTE_PATH) => {
-            let (public_key, outcome) =
-                before_deadline(input.permit.expires_at_ms, execute_a(&env, &input))
-                    .await
-                    .map_err(protocol_error)?;
-            Response::from_json(&(public_key, outcome))
+            match before_deadline(input.permit.expires_at_ms, execute_a(&env, &input)).await {
+                Ok(result) => Response::from_json(&result),
+                Err(failure) => Ok(Response::from_json(&failure)?.with_status(503)),
+            }
         }
         (Participant::B, SOCKET_PATH) => {
+            require_permit(&env, &input).await.map_err(protocol_error)?;
             if request.headers().get("upgrade")?.as_deref() != Some("websocket") {
                 return Response::error("ML-DSA execution requires a WebSocket", 400);
             }
@@ -269,9 +281,8 @@ pub(crate) async fn handle_execute(
                 )
                 .await;
                 let code = if result.is_ok() { 1000 } else { 1011 };
-                let closed = pair
-                    .server
-                    .close(Some(code), Some("ML-DSA execution ended"));
+                let reason = signing_close_reason(&result);
+                let closed = pair.server.close(Some(code), Some(&reason));
                 worker::console_log!(
                     "{}",
                     serde_json::json!({
@@ -293,24 +304,38 @@ pub(crate) fn is_execution_path(path: &str) -> bool {
     path == EXECUTE_PATH || path == SOCKET_PATH
 }
 
-async fn execute_a(env: &Env, input: &Request) -> Result<(Vec<u8>, execution::Outcome)> {
-    let forwarded = socket_request(env, SOCKET_PATH, input)?;
+async fn execute_a(env: &Env, input: &Request) -> SigningResult<(Vec<u8>, execution::Outcome)> {
+    require_permit(env, input)
+        .await
+        .map_err(|_| SigningFailure::AdmissionRejected)?;
+    let forwarded = socket_request(env, SOCKET_PATH, input)
+        .map_err(|_| SigningFailure::ConfigurationInvalid)?;
     let response = env
         .service("DERIVER_B")
-        .map_err(storage_error)?
+        .map_err(|_| SigningFailure::TransportInterrupted)?
         .fetch_request(forwarded)
         .await
-        .map_err(storage_error)?;
+        .map_err(|_| SigningFailure::TransportInterrupted)?;
     if response.status_code() != 101 {
-        return Err(invalid("ML-DSA peer execution refused"));
+        return Err(SigningFailure::from_http_status(response.status_code()));
     }
     let socket = response
         .websocket()
-        .ok_or_else(|| invalid("ML-DSA peer socket is absent"))?;
+        .ok_or(SigningFailure::InvalidParticipantResponse)?;
     let result = execute(env, input, &socket).await;
+    let reason = signing_close_reason(&result);
     let _ = socket.close(
         Some(if result.is_ok() { 1000 } else { 1011 }),
-        Some("ML-DSA execution ended"),
+        Some(&reason),
     );
     result
+}
+
+fn signing_close_reason<T>(result: &SigningResult<T>) -> String {
+    match result {
+        Ok(_) => "ML-DSA execution ended".into(),
+        Err(failure) => {
+            serde_json::to_string(failure).unwrap_or_else(|_| "ML-DSA execution failed".into())
+        }
+    }
 }

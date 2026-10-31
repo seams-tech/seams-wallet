@@ -1,3 +1,4 @@
+import type { NearSigningFailureCause } from '@shared/near/signingFailure';
 import { SigningSessionIds } from '@/core/signingEngine/session/operationState/types';
 import { toAccountId } from '@/core/types/accountIds';
 import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
@@ -59,6 +60,7 @@ export type OwnerNearOperationState = Readonly<{ recovery: OwnerNearRecovery }> 
     | {
         kind: 'not_submitted';
         error: string;
+        cause: NearSigningFailureCause;
         rejection?: NearTransactionRejection;
         shortfall?: OwnerNearShortfall;
       }
@@ -410,6 +412,7 @@ class OwnerNearTransaction implements OwnerNearOperation {
           kind: 'not_submitted',
           recovery,
           error: outcome.error,
+          cause: outcome.cause,
           ...(outcome.rejection ? { rejection: outcome.rejection } : {}),
           ...(outcome.shortfall ? { shortfall: outcome.shortfall } : {}),
         });

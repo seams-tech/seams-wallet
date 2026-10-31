@@ -1,3 +1,4 @@
+import { parseNearSigningFailureCause, type NearSigningFailureCause } from '@shared/near/signingFailure';
 import {
   SigningSessionIds,
   type SigningOperationId,
@@ -145,6 +146,7 @@ export type OwnerNearOutcome = ReadonlyExclusiveUnion<
   | {
       kind: 'not_submitted';
       error: string;
+      cause: NearSigningFailureCause;
       /** NEAR refused the signed bytes themselves, so it can never include them. */
       rejection?: NearTransactionRejection;
       /** The account could not pay, so the wallet did not sign. Amounts are yoctoNEAR. */
@@ -250,6 +252,7 @@ export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
       return {
         kind: 'not_submitted',
         error: requireCanonicalString(value.error, 'error'),
+        cause: parseNearSigningFailureCause(value.cause),
         ...optionalRejection(value.rejection),
         ...(value.shortfall === undefined ? {} : { shortfall: parseShortfall(value.shortfall) }),
       };

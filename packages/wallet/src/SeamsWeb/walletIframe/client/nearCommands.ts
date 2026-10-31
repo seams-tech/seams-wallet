@@ -1,3 +1,4 @@
+import { nearSigningFailureCause } from '@shared/near/signingFailure';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
 import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
@@ -43,7 +44,7 @@ class ApplicationNearCommands {
       if (command.action === 'recover') {
         return { kind: 'recovery_unavailable', recovery: command.recovery, error: message };
       }
-      return { kind: 'not_submitted', error: message };
+      return { kind: 'not_submitted', error: message, cause: nearSigningFailureCause(error) };
     }
     return await router.ownerNearOperation(this.transactionDispatch, ...args);
   }

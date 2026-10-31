@@ -313,3 +313,7 @@ export {
   buildSigningOnlyDelegatedWalletAuthorityV1,
 } from '../../packages/shared-ts/src/authorization/delegatedAuthority';
 export { mlDsaInventoryChallenge } from '../../packages/shared-ts/src/near/mlDsaInventory';
+
+export { MlDsaSigningError } from '../../packages/shared-ts/src/near/mlDsaSigning';
+export { nearTransactionFailure, parseNearTransactionResult, notifyNearTransactionResult } from '../../packages/wallet/src/core/signingEngine/nearTransactionSubmission';
+export { resolveWalletBoundaryErrorCode } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/canonicalSignerErrorCode';

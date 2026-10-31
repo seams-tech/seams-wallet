@@ -57,7 +57,24 @@ export type MlDsaSignedTransaction = {
   readonly transactionHash: string;
   readonly signatureB64u: string;
 };
+export type MlDsaTerminalFailureCode =
+  | 'candidates_exhausted'
+  | 'deadline_exceeded'
+  | 'transport_interrupted'
+  | 'participant_rejected'
+  | 'participant_unavailable'
+  | 'invalid_participant_response'
+  | 'admission_rejected'
+  | 'material_unavailable'
+  | 'invalid_material'
+  | 'configuration_invalid'
+  | 'clock_unavailable'
+  | 'key_changed'
+  | 'cancelled'
+  | 'protocol_failed';
+
 export type MlDsaSigningFailureCode =
+  | MlDsaTerminalFailureCode
   | 'not_configured'
   | 'invalid_body'
   | 'unauthorized'
@@ -65,7 +82,6 @@ export type MlDsaSigningFailureCode =
   | 'idempotency_conflict'
   | 'expired'
   | 'conflict'
-  | 'protocol_failed'
   | 'invalid_signature';
 export type MlDsaSigningFailure = {
   readonly kind: 'refused';
@@ -191,10 +207,9 @@ export function parseMlDsaSignedTransaction(raw: unknown): MlDsaSignedTransactio
     signatureB64u: mlDsaSigningBytes(r.signatureB64u, 'signature', 3309, 3309),
   };
 }
-export function parseMlDsaSigningFailure(raw: unknown): MlDsaSigningFailure {
-  const r = exactRecord(raw, ['kind', 'code', 'message'], 'ML-DSA signing refusal');
-  if (r.kind !== 'refused') throw new Error('Invalid ML-DSA refusal');
-  switch (r.code) {
+function signingFailureCode(raw: unknown): MlDsaSigningFailureCode {
+  if (isTerminalFailureCode(raw)) return raw;
+  switch (raw) {
     case 'not_configured':
     case 'invalid_body':
     case 'unauthorized':
@@ -202,14 +217,103 @@ export function parseMlDsaSigningFailure(raw: unknown): MlDsaSigningFailure {
     case 'idempotency_conflict':
     case 'expired':
     case 'conflict':
-    case 'protocol_failed':
     case 'invalid_signature':
-      return {
-        kind: 'refused',
-        code: r.code,
-        message: requireCanonicalString(r.message, 'message'),
-      };
+      return raw;
     default:
       throw new Error('Unknown ML-DSA signing refusal');
+  }
+}
+
+export function parseMlDsaSigningFailure(raw: unknown): MlDsaSigningFailure {
+  const r = exactRecord(raw, ['kind', 'code', 'message'], 'ML-DSA signing refusal');
+  if (r.kind !== 'refused') throw new Error('Invalid ML-DSA refusal');
+  return {
+    kind: 'refused',
+    code: signingFailureCode(r.code),
+    message: requireCanonicalString(r.message, 'message'),
+  };
+}
+
+export function isMlDsaSigningErrorCode(raw: unknown): boolean {
+  if (typeof raw !== 'string' || !raw.startsWith('ml_dsa_signing_')) return false;
+  try {
+    signingFailureCode(raw.slice('ml_dsa_signing_'.length));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A terminal refusal keeps its stable code through Wallet-origin RPC errors. */
+export class MlDsaSigningError extends Error {
+  readonly code: `ml_dsa_signing_${MlDsaSigningFailureCode}`;
+  constructor(readonly failure: MlDsaSigningFailure) {
+    super(failure.message);
+    this.name = 'MlDsaSigningError';
+    this.code = `ml_dsa_signing_${failure.code}`;
+  }
+}
+
+const TERMINAL_MESSAGES: Record<MlDsaTerminalFailureCode, string> = {
+  candidates_exhausted:
+    'Signing could not complete. Please try again.',
+  deadline_exceeded: 'The signing operation exceeded its deadline.',
+  transport_interrupted: 'Signing was interrupted. Please try again.',
+  participant_rejected: 'A signing participant rejected this operation.',
+  participant_unavailable: 'A signing participant is unavailable.',
+  invalid_participant_response: 'A signing participant returned an invalid response.',
+  admission_rejected: 'The signing permit is no longer valid.',
+  material_unavailable: 'Signing could not start. Please try again.',
+  invalid_material: 'Stored signing material could not be authenticated.',
+  configuration_invalid: 'The signing service configuration is invalid.',
+  clock_unavailable: 'The signing service clock is unavailable.',
+  key_changed: 'The signing key was restored or replaced during this operation.',
+  cancelled: 'Signing admission was cancelled.',
+  protocol_failed: 'The signing protocol could not complete.',
+};
+
+function isTerminalFailureCode(value: unknown): value is MlDsaTerminalFailureCode {
+  return typeof value === 'string' && Object.hasOwn(TERMINAL_MESSAGES, value);
+}
+
+/** Decode the authenticated Router's public cause once at the Gateway boundary. */
+export function parseMlDsaRouterFailure(raw: unknown): MlDsaSigningFailure {
+  const value = requireRecord(raw, 'ML-DSA terminal failure');
+  if (!isTerminalFailureCode(value.reason)) throw new Error('Unknown ML-DSA terminal failure');
+  switch (value.reason) {
+    case 'candidates_exhausted': {
+      const failure = exactRecord(
+        raw,
+        ['reason', 'consumed_batches', 'evaluated_candidates'],
+        'ML-DSA exhaustion',
+      );
+      if (
+        typeof failure.consumed_batches !== 'number' ||
+        !Number.isSafeInteger(failure.consumed_batches) ||
+        failure.consumed_batches < 1 ||
+        failure.consumed_batches > 20 ||
+        typeof failure.evaluated_candidates !== 'number' ||
+        !Number.isSafeInteger(failure.evaluated_candidates) ||
+        failure.evaluated_candidates < failure.consumed_batches ||
+        failure.evaluated_candidates > 640
+      )
+        throw new Error('Invalid ML-DSA exhaustion counts');
+      return { kind: 'refused', code: value.reason, message: TERMINAL_MESSAGES[value.reason] };
+    }
+    case 'participant_rejected':
+    case 'participant_unavailable': {
+      const failure = exactRecord(raw, ['reason', 'status'], 'ML-DSA participant failure');
+      if (
+        typeof failure.status !== 'number' ||
+        !Number.isInteger(failure.status) ||
+        failure.status < 100 ||
+        failure.status > 599
+      )
+        throw new Error('Invalid participant HTTP status');
+      return { kind: 'refused', code: value.reason, message: TERMINAL_MESSAGES[value.reason] };
+    }
+    default:
+      exactRecord(raw, ['reason'], 'ML-DSA terminal failure');
+      return { kind: 'refused', code: value.reason, message: TERMINAL_MESSAGES[value.reason] };
   }
 }
