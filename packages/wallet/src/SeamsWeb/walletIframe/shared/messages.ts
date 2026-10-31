@@ -1,3 +1,4 @@
+import type { Variant } from '@shared/utils/variant';
 import {
   parseAuthMenuFooterBrand,
   parseAuthMenuRecoveryOptions,
@@ -1819,6 +1820,17 @@ export type ParentToChildEnvelope =
     >
   | RpcEnvelope<'PM_CANCEL_DEVICE_LINKING'>
   | RpcEnvelope<'PM_SYNC_ACCOUNT_FLOW', { walletId?: string }>;
+
+/** Requests governed by the wallet's selected authentication method. */
+export type WalletAuthMethodSigningRequest = Variant<
+  ParentToChildEnvelope,
+  'type',
+  | 'PM_SIGN_TX_WITH_ACTIONS'
+  | 'PM_SIGN_AND_SEND_TX'
+  | 'PM_SIGN_DELEGATE_ACTION'
+  | 'PM_SIGN_NEP413'
+  | 'PM_SIGN_TEMPO'
+>;
 
 export type ChildToParentEnvelope =
   | RpcEnvelope<'TRANSACTION_REVIEW_STATE', TransactionReviewStateMessage>

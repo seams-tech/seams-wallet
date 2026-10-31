@@ -1,4 +1,6 @@
 import { expect, type Page } from '@playwright/test';
+import { ActionType } from '@shared/near/actions';
+import type {} from '../../intended-app/src/nearSigningHelpers';
 import { intendedTest as test } from './harness';
 import {
   allowBrowserMicrophone,
@@ -82,7 +84,29 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
     kind: 'authenticated',
     authMethod: 'voiceid',
   });
+  await expect(dialog).toBeHidden();
   const unlockedCaptureCount = await wallet.locator('body').evaluate(microphoneCount);
+  await expect(page.evaluate(signUnsupportedMessage, identity.accountId)).rejects.toThrow(
+    'requires a reviewed NEAR or Arc testnet transfer',
+  );
+  const delegate: Parameters<NonNullable<Window['__seamsIntendedE2ESignDelegate']>>[0] = {
+    senderId: identity.accountId,
+    receiverId: 'receiver.testnet',
+    actions: [{ type: ActionType.Transfer, amount: '1' }],
+    nonce: '1',
+    maxBlockHeight: '999999999',
+    publicKey: identity.publicKey,
+  };
+  await expect(page.evaluate(signUnsupportedDelegate, delegate)).rejects.toThrow(
+    'requires a reviewed NEAR or Arc testnet transfer',
+  );
+  const deniedTransfer = await page.evaluate(sendUnreviewedTransfer, identity.accountId);
+  expect(deniedTransfer).toMatchObject({
+    success: false,
+    error: expect.stringContaining('requires a reviewed NEAR or Arc testnet transfer'),
+  });
+  expect(evidence.transfers).toHaveLength(2);
+  expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount);
   await signTransfer(page);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount + 1);
 
@@ -104,6 +128,7 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
       'voice_unlock_selects_voice_approval',
       'first_click_starts_listening_with_back_and_footer',
       'back_stops_microphone_and_restores_menu',
+      'voice_rejects_message_delegate_and_unreviewed_transfer_before_capture',
       'fresh_passkey_unlock_skips_voice_even_when_enrolled',
     ],
     downloads: downloads.requests,
@@ -111,7 +136,7 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
     coldPasskeyDownloadsAfterVoiceUse: 0,
     transfers: evidence.transfers,
     chain: 'deterministic_near_rpc',
-    inference: 'real_browser_redimnet_b1_and_aurora',
+    inference: 'real_browser_redimnet_b1_and_citrinet',
     signing: 'real_ed25519_yao_mpc',
   });
 });
@@ -123,11 +148,34 @@ function isSpeakerModel(value: string): boolean {
   return value.endsWith('redimnet-b1.onnx');
 }
 function isPhraseModel(value: string): boolean {
-  return value.endsWith('aurora-int8.onnx');
+  return value.endsWith('citrinet-int8.onnx');
 }
 function activate() {
   if (!window.__seamsIntendedVoiceId) throw new Error('VoiceID helper is unavailable');
   return window.__seamsIntendedVoiceId.activate();
+}
+
+function signUnsupportedMessage(nearAccountId: string) {
+  const sign = window.__seamsIntendedE2ESignMessage;
+  if (!sign) throw new Error('The message-signing helper is unavailable');
+  return sign({
+    nearAccountId,
+    params: { message: 'Check signing policy', recipient: 'wallet.example' },
+  });
+}
+
+function signUnsupportedDelegate(
+  delegate: Parameters<NonNullable<Window['__seamsIntendedE2ESignDelegate']>>[0],
+) {
+  const sign = window.__seamsIntendedE2ESignDelegate;
+  if (!sign) throw new Error('The delegate-signing helper is unavailable');
+  return sign(delegate);
+}
+
+function sendUnreviewedTransfer(accountId: string) {
+  const send = window.__seamsIntendedE2ESendNear;
+  if (!send) throw new Error('The transaction helper is unavailable');
+  return send(accountId);
 }
 
 function microphoneStates(): MediaStreamTrackState[] {

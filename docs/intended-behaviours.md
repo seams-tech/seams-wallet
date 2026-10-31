@@ -526,6 +526,10 @@ The plugin receives scoped activation, unlock, owner-confirmation, and enrollmen
 Wallet core owns authority checks, device persistence, custody resealing, server exchanges, and session installation.
 The plugin cannot import database managers, database schemas, session credential stores, or custody worker transports from the host API.
 Core validates transaction requests and supplies the plugin with a bounded review identity and phrase-family selection.
+Every host route declares its signing policy. Selected-method signing and fresh-owner operations have separate request types.
+New protocol messages require an explicit routing decision. New selected-method signing requests must also satisfy the exhaustive VoiceID policy switch.
+New authentication methods and Tempo operation variants also require explicit signing-policy decisions.
+Unsupported VoiceID signing requests fail before capture or signing. Broadcasting existing signed bytes keeps its ordinary transport path.
 The plugin owns audio capture, model inference, template normalization, and presentation. Its record parser runs at the scoped storage boundary.
 The core review UI receives copy from the plugin and knows no voice commands.
 

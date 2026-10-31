@@ -1,6 +1,7 @@
 import type { WalletAuthMethodHostPlugin, AuthMethodReviewPolicy } from '../hostPlugin';
+import type { Variant } from '@shared/utils/variant';
 import { parseVoiceConfirmation, type VoiceConfirmation } from './confirmationCommand';
-import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
+import type { WalletAuthMethodSigningRequest } from '@/SeamsWeb/walletIframe/shared/messages';
 import {
   walletHostExecutionFingerprint,
   type ConfiguredWalletHost,
@@ -23,10 +24,10 @@ function freezeRequestValue(value: unknown): void {
 // The iframe receives a structured clone. Hash the complete request and execution
 // configuration before runtime code can normalize or change either value.
 export async function voiceIdPolicyForRequest(
-  request: ParentToChildEnvelope,
+  request: WalletAuthMethodSigningRequest,
   configuration: ConfiguredWalletHost,
   plugin: WalletAuthMethodHostPlugin,
-): Promise<AuthMethodReviewPolicy> {
+): Promise<Variant<AuthMethodReviewPolicy, 'kind', 'required'>> {
   switch (request.type) {
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_DELEGATE_ACTION':
@@ -34,8 +35,16 @@ export async function voiceIdPolicyForRequest(
       throw unsupportedVoiceOperation();
     case 'PM_SIGN_TEMPO': {
       const payload = request.payload;
-      if (!payload || payload.operationKind !== 'evm_transaction')
-        throw unsupportedVoiceOperation();
+      if (!payload) throw unsupportedVoiceOperation();
+      switch (payload.operationKind) {
+        case 'tempo_transaction':
+        case 'tempo_fee_token_preference':
+          throw unsupportedVoiceOperation();
+        case 'evm_transaction':
+          break;
+        default:
+          return assertNever(payload);
+      }
       const { tx } = payload.request;
       const target = payload.chainTarget;
       const configured = configuration.config.network.chains.some(isConfiguredArcTestnet);
@@ -88,7 +97,7 @@ export async function voiceIdPolicyForRequest(
       );
     }
     default:
-      return { kind: 'disabled' };
+      return assertNever(request);
   }
 }
 
@@ -103,11 +112,11 @@ function encodeOperationValue(_key: string, value: unknown): unknown {
 }
 
 async function reviewedVoiceIdPolicy(
-  request: Extract<ParentToChildEnvelope, { type: 'PM_SIGN_AND_SEND_TX' | 'PM_SIGN_TEMPO' }>,
+  request: Variant<WalletAuthMethodSigningRequest, 'type', 'PM_SIGN_AND_SEND_TX' | 'PM_SIGN_TEMPO'>,
   configuration: ConfiguredWalletHost,
   confirmation: VoiceConfirmation,
   plugin: WalletAuthMethodHostPlugin,
-): Promise<AuthMethodReviewPolicy> {
+): Promise<Variant<AuthMethodReviewPolicy, 'kind', 'required'>> {
   const review = parseTransactionReviewWire(request.transactionReview);
   if (review.validity.kind !== 'expires_at') {
     throw new TransactionReviewError('review_invalid_input', 'VoiceID requires a review deadline.');
@@ -145,4 +154,8 @@ function unsupportedVoiceOperation(): TransactionReviewError {
     'review_unsupported_mode',
     'VoiceID requires a reviewed NEAR or Arc testnet transfer.',
   );
+}
+
+function assertNever(_request: never): never {
+  throw unsupportedVoiceOperation();
 }

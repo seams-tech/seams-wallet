@@ -23,7 +23,7 @@ export class VoiceDownloads {
 
 export async function voiceEntryName(): Promise<string> {
   await access(path.resolve(import.meta.dirname, '../../../packages/voiceid/dist/public/sdk/voiceid/host.js'));
-  return 'host.js';
+  return 'voiceid/host.js';
 }
 
 export async function signTransfer(page: Page): Promise<void> {

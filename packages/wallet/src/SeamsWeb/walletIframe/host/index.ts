@@ -1,4 +1,5 @@
 import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistrationSetupPrewarm';
+import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
 import {
   applyWalletConfigurationUpdate,
   parseWalletConfigurationUpdate,
@@ -274,9 +275,22 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     let reviewAdmission: TransactionReviewAdmission | null = null;
     let execution: 'admission' | 'runtime' = 'admission';
     try {
-      const authMethodPolicy = req.type.startsWith('PM_SIGN_')
-        ? await (await import('./runtimeContext')).walletAuthMethodReviewPolicy(state, req)
-        : { kind: 'disabled' as const };
+      const route = routeWalletHostRequest(req);
+      let authMethodPolicy: AuthMethodReviewPolicy;
+      switch (route.signingPolicy) {
+        case 'wallet_auth_method':
+          authMethodPolicy = await (await import('./runtimeContext')).walletAuthMethodReviewPolicy(
+            state,
+            route.request,
+          );
+          break;
+        case 'owner_operation':
+        case 'none':
+          authMethodPolicy = { kind: 'disabled' };
+          break;
+        default:
+          assertNever(route);
+      }
       if (state.executionGeneration !== requestExecutionGeneration || isCancelled(requestId))
         return;
       if ('transactionReview' in req) {
@@ -315,8 +329,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
           new TransactionReviewError('review_identity_changed', 'The wallet session changed'),
         );
       }
-      const route = routeWalletHostRequest(req);
-
       if (!routeRequiresRuntime(route)) {
         switch (route.type) {
           case 'PING':
@@ -583,6 +595,10 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   };
 
   window.addEventListener('message', onWindowMessage);
+}
+
+function assertNever(_route: never): never {
+  throw new Error('Unsupported wallet signing policy');
 }
 
 try {

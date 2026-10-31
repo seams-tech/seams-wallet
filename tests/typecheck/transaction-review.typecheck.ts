@@ -141,6 +141,47 @@ const signingPreparation: TransactionReviewReservationState = { ...prepared, kin
 void settledReservation;
 void signingPreparation;
 
+import { routeWalletHostRequest } from '@/SeamsWeb/walletIframe/host/requestRouter';
+import { voiceIdPolicyForRequest } from '@/core/authMethods/voiceId/reviewPolicy';
+import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
+import type { ConfiguredWalletHost } from '@/SeamsWeb/walletIframe/shared/configuration';
+import type { WalletAuthMethodHostPlugin } from '@/core/authMethods/hostPlugin';
+import type { Variant } from '@shared/utils/variant';
+
+type HostRoute = ReturnType<typeof routeWalletHostRequest>;
+type SelectedMethodRoute = Variant<HostRoute, 'signingPolicy', 'wallet_auth_method'>;
+type OtherRoute = Variant<HostRoute, 'signingPolicy', 'none'>;
+declare const signingRoute: SelectedMethodRoute;
+declare const hostConfiguration: ConfiguredWalletHost;
+declare const authPlugin: WalletAuthMethodHostPlugin;
+declare const ownerRequest: Variant<ParentToChildEnvelope, 'type', 'PM_OWNER_NEAR_TRANSACTION'>;
+declare const broadcastRequest: Variant<ParentToChildEnvelope, 'type', 'PM_SEND_TRANSACTION'>;
+
+// @ts-expect-error Signing routes require an explicit policy on direct construction.
+const missingSigningPolicy: HostRoute = {
+  kind: signingRoute.kind,
+  type: signingRoute.type,
+  request: signingRoute.request,
+};
+// @ts-expect-error A broad spread cannot reclassify a signing request as an ordinary request.
+const disabledSigningRoute: HostRoute = { ...signingRoute, signingPolicy: 'none' };
+// @ts-expect-error A direct cast cannot remove the selected-method policy.
+const castSigningRoute = signingRoute as OtherRoute;
+// @ts-expect-error Fresh owner operations use their own approval lifecycle.
+void voiceIdPolicyForRequest(ownerRequest, hostConfiguration, authPlugin);
+// @ts-expect-error Broadcasting previously signed bytes cannot enter signing approval.
+void voiceIdPolicyForRequest(broadcastRequest, hostConfiguration, authPlugin);
+const skippedVoicePolicy: Awaited<ReturnType<typeof voiceIdPolicyForRequest>> = {
+  // @ts-expect-error A selected VoiceID signing operation cannot silently disable its policy.
+  kind: 'disabled',
+};
+void [
+  missingSigningPolicy,
+  disabledSigningRoute,
+  castSigningRoute,
+  skippedVoicePolicy,
+];
+
 import type { TransactionReviewWire } from '@/SeamsWeb/walletIframe/shared/transactionReview';
 declare const wire: TransactionReviewWire;
 // @ts-expect-error A renderer cannot enter the serialized request through a spread.

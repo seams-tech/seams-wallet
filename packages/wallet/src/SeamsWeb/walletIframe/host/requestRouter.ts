@@ -1,7 +1,12 @@
 import { parseWalletConnectionResolution } from '../shared/walletAlternatives';
 import { parseOwnerNearCommand } from '../shared/ownerNearOperation';
 import { parseExternalAuthCommand } from '@shared/auth/externalAuth';
-import type { ParentToChildEnvelope, ParentToChildType } from '../shared/messages';
+import type {
+  ParentToChildEnvelope,
+  ParentToChildType,
+  WalletAuthMethodSigningRequest,
+} from '../shared/messages';
+import type { Variant } from '@shared/utils/variant';
 import {
   parseHostedAuthMenuCancelPayload,
   parseHostedAuthMenuExternalAuthResolution,
@@ -90,7 +95,7 @@ type PreferencesWalletRequestType =
   | 'PM_SET_CONFIRMATION_CONFIG'
   | 'PM_GET_CONFIRMATION_CONFIG';
 
-type WalletHostRoute =
+type WalletHostDestination =
   | {
       kind: 'boot';
       type: BootWalletRequestType;
@@ -137,6 +142,35 @@ type WalletHostRoute =
       request: WalletHostRequest<PreferencesWalletRequestType>;
     };
 
+// Routing requires an explicit signing decision for every protocol message.
+// Fresh owner operations carry their own approval and recovery lifecycle.
+// Other requests retain their request-specific authorization.
+type OwnerSigningRequest = Variant<ParentToChildEnvelope, 'type', 'PM_OWNER_NEAR_TRANSACTION'>;
+type WalletHostRoute = WalletHostDestination &
+  (
+    | {
+        readonly signingPolicy: 'wallet_auth_method';
+        readonly type: WalletAuthMethodSigningRequest['type'];
+        readonly request: WalletAuthMethodSigningRequest;
+      }
+    | {
+        readonly signingPolicy: 'owner_operation';
+        readonly type: OwnerSigningRequest['type'];
+        readonly request: OwnerSigningRequest;
+      }
+    | {
+        readonly signingPolicy: 'none';
+        readonly type: Exclude<
+          ParentToChildType,
+          WalletAuthMethodSigningRequest['type'] | OwnerSigningRequest['type']
+        >;
+        readonly request: Exclude<
+          ParentToChildEnvelope,
+          WalletAuthMethodSigningRequest | OwnerSigningRequest
+        >;
+      }
+  );
+
 function assertNever(value: never): never {
   throw new Error(`Unhandled wallet host route: ${String(value)}`);
 }
@@ -163,10 +197,25 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_CANCEL':
     case 'PM_SET_TRANSACTION_VIEW':
     case 'PM_TRANSACTION_BROADCAST_STARTED':
-      return { kind: 'boot', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'boot', type: request.type, request };
 
     case 'PM_OWNER_NEAR_TRANSACTION':
-      return { kind: 'near', type: request.type, request: { type: request.type, requestId: walletIframeRequestIdFromBoundary(request.requestId), payload: parseOwnerNearCommand(request.payload) } };
+      return {
+        signingPolicy: 'owner_operation',
+        kind: 'near',
+        type: request.type,
+        request: {
+          type: request.type,
+          requestId: walletIframeRequestIdFromBoundary(request.requestId),
+          payload: parseOwnerNearCommand(request.payload),
+        },
+      };
+
+    case 'PM_SIGN_TX_WITH_ACTIONS':
+    case 'PM_SIGN_AND_SEND_TX':
+    case 'PM_SIGN_DELEGATE_ACTION':
+    case 'PM_SIGN_NEP413':
+      return { signingPolicy: 'wallet_auth_method', kind: 'near', type: request.type, request };
 
     case 'PM_REGISTER_WALLET':
     case 'PM_ADD_WALLET_SIGNER':
@@ -177,16 +226,13 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_ADD_EMAIL_OTP':
     case 'PM_REVOKE_AUTH_METHOD':
     case 'PM_GET_NEAR_PROVISIONING_STATE':
-    case 'PM_SIGN_TX_WITH_ACTIONS':
-    case 'PM_SIGN_AND_SEND_TX':
     case 'PM_SEND_TRANSACTION':
-    case 'PM_SIGN_DELEGATE_ACTION':
-    case 'PM_SIGN_NEP413':
-      return { kind: 'near', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'near', type: request.type, request };
 
     case 'PM_OPEN_AUTH_MENU': {
       const requestId = requireHostedAuthMenuRequestId(request.requestId);
       return {
+        signingPolicy: 'none',
         kind: 'auth',
         type: request.type,
         request: {
@@ -202,6 +248,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_CANCEL_AUTH_MENU': {
       const requestId = requireHostedAuthMenuRequestId(request.requestId);
       return {
+        signingPolicy: 'none',
         kind: 'auth',
         type: request.type,
         request: {
@@ -217,6 +264,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_RESOLVE_WALLET_CONNECTION': {
       const requestId = requireHostedAuthMenuRequestId(request.requestId);
       return {
+        signingPolicy: 'none',
         kind: 'auth',
         type: request.type,
         request: {
@@ -232,6 +280,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH': {
       const requestId = requireHostedAuthMenuRequestId(request.requestId);
       return {
+        signingPolicy: 'none',
         kind: 'auth',
         type: request.type,
         request: {
@@ -246,12 +295,17 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     }
     case 'PM_EXTERNAL_OWNER_AUTH': {
       const command = parseExternalAuthCommand(request.payload);
-      if (command.action !== 'associate' && command.action !== 'unlink') throw new Error('Owner request is invalid');
+      if (command.action !== 'associate' && command.action !== 'unlink')
+        throw new Error('Owner request is invalid');
       return {
-        kind: 'auth', type: request.type,
+        signingPolicy: 'none',
+        kind: 'auth',
+        type: request.type,
         request: {
-          type: request.type, requestId: walletIframeRequestIdFromBoundary(request.requestId),
-          payload: command, options: request.options,
+          type: request.type,
+          requestId: walletIframeRequestIdFromBoundary(request.requestId),
+          payload: command,
+          options: request.options,
         },
       };
     }
@@ -267,15 +321,17 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_GET_WALLET_SESSION':
     case 'PM_GET_EXACT_WALLET_SESSION_STATE':
     case 'PM_GET_RECENT_UNLOCKS':
-      return { kind: 'auth', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'auth', type: request.type, request };
 
     case 'PM_SIGN_TEMPO':
+      return { signingPolicy: 'wallet_auth_method', kind: 'ecdsa', type: request.type, request };
+
     case 'PM_REPORT_TEMPO_BROADCAST_ACCEPTED':
     case 'PM_REPORT_TEMPO_BROADCAST_REJECTED':
     case 'PM_REPORT_TEMPO_FINALIZED':
     case 'PM_REPORT_TEMPO_DROPPED_OR_REPLACED':
     case 'PM_RECONCILE_TEMPO_NONCE_LANE':
-      return { kind: 'ecdsa', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'ecdsa', type: request.type, request };
 
     case 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION':
     case 'PM_REQUEST_EMAIL_OTP_CHALLENGE':
@@ -289,14 +345,14 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP':
     case 'PM_ROTATE_WALLET_RECOVERY_CODES':
     case 'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE':
-      return { kind: 'email_otp', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'email_otp', type: request.type, request };
 
     case 'PM_SYNC_ACCOUNT_FLOW':
-      return { kind: 'recovery', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'recovery', type: request.type, request };
 
     case 'PM_RESOLVE_EXACT_KEY_EXPORT_LANE':
     case 'PM_EXPORT_KEYPAIR_UI':
-      return { kind: 'export', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'export', type: request.type, request };
 
     case 'PM_HAS_PASSKEY':
     case 'PM_LIST_LINKED_DEVICES':
@@ -306,12 +362,12 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_DEVICE_LINK_TARGET_FACTOR_ACTION':
     case 'PM_DEVICE_LINK_EMAIL_OTP_BASE_FACTOR_ACTION':
     case 'PM_CANCEL_DEVICE_LINKING':
-      return { kind: 'device_link', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'device_link', type: request.type, request };
 
     case 'PM_SET_CONFIRM_BEHAVIOR':
     case 'PM_SET_CONFIRMATION_CONFIG':
     case 'PM_GET_CONFIRMATION_CONFIG':
-      return { kind: 'preferences', type: request.type, request };
+      return { signingPolicy: 'none', kind: 'preferences', type: request.type, request };
   }
   return assertNever(request);
 }
