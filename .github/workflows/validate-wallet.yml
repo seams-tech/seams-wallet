@@ -58,8 +58,31 @@ jobs:
           name: wallet-browser-${{ github.run_id }}
           path: tests/test-results/**
           if-no-files-found: ignore
+      - name: Verify BYO authentication exchange
+        run: node tests/e2e/external-auth.e2e.mjs
+      - name: Upload BYO exchange evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wallet-external-auth-${{ github.run_id }}
+          path: |
+            .artifacts/external-auth/result.json
+            .artifacts/external-auth/settings.png
+          include-hidden-files: true
+          if-no-files-found: ignore
       - run: pnpm -C tests test:wallet-unit
       - run: pnpm -C tests test:intended:representative
+      - name: Upload representative lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wallet-intended-${{ github.run_id }}
+          path: |
+            tests/test-results/wallet-intended/**
+            tests/.artifacts/application-auth/receipt.json
+            tests/.artifacts/application-auth/example.png
+          include-hidden-files: true
+          if-no-files-found: ignore
       - run: pnpm check:packed-wallet
       - name: Validate documentation links and snippets
         run: |

@@ -58,6 +58,10 @@ const browserBundle = await build({
   platform: 'browser',
   format: 'esm',
   write: false,
+  alias: {
+    react: resolve('packages/wallet/node_modules/react'),
+    'react-dom': resolve('packages/wallet/node_modules/react-dom'),
+  },
   outfile: `${output}/probe.js`,
   tsconfig: 'packages/wallet/tsconfig.json',
   stdin: {
@@ -397,6 +401,7 @@ try {
   );
   const settingsPage = await browser.newPage();
   await settingsPage.goto(serverState.origin.replace('127.0.0.1', 'localhost'));
+  assert.equal(await settingsPage.evaluate(appReady), false);
   await settingsPage.evaluate(mountSettings, serverState.origin);
   await settingsPage.waitForFunction(appReady);
   const sdkResult = await settingsPage.evaluate(authenticateSdk, { walletId, token });
@@ -685,7 +690,7 @@ function mountSettings(origin) {
   window.mountSettings(origin);
 }
 function appReady() {
-  return Boolean(window.app);
+  return typeof window.app?.auth?.authenticate === 'function';
 }
 function isWalletFrame(frame) {
   return frame.url().includes('/wallet-service');

@@ -16,6 +16,7 @@ import {
 } from './intended-google-oidc-env.mjs';
 
 const testsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const resultsRoot = path.join(testsRoot, 'test-results', 'wallet-intended');
 const listCasesOnly = process.argv.includes('--list-cases');
 const requireGoogleToken = process.argv.includes('--require-google-token');
 const selectionArgs = process.argv.slice(2).filter(isSelectionArgument);
@@ -51,6 +52,7 @@ function listCases(casesToList) {
 }
 
 function runCases(casesToRun) {
+  rmSync(resultsRoot, { recursive: true, force: true });
   console.log(`[wallet-intended] running ${casesToRun.length} case(s) with fresh Wallet state`);
   for (const [index, testCase] of casesToRun.entries()) runCase(testCase, index, casesToRun.length);
 }
@@ -101,6 +103,8 @@ function runCase(testCase, index, total) {
         '--grep',
         `${escapeRegex(testCase.title)}$`,
         '--reporter=line',
+        '--output',
+        path.join(resultsRoot, String(caseNumber)),
       ],
       environment,
     );
