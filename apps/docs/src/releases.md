@@ -1,9 +1,29 @@
 ---
-title: Release 0.35.0
-description: Compact NEAR amounts with a clickable display threshold.
+title: Release 0.36.0
+description: Typed owner-operation recovery, retained transaction hashes, and bounded RPC waits.
 ---
 
-# Release 0.35.0
+# Release 0.36.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.36.0**.
+
+- Owner NEAR operations replace `failed` with `not_submitted` and `recovery_unavailable`.
+- `unresolved` retains the exact transaction hash and recovery identity. Applications must save the identity returned by the SDK.
+- Submission events expose the hash before broadcast. Missing browser storage cannot prove non-submission.
+- Broadcast and status requests stop waiting after 30 seconds. Timeouts preserve uncertainty and never trigger a second broadcast.
+- Confirmed reverts settle immediately. Receipt write failures preserve known outcomes.
+- The example retains hashes across reload and prevents replacement of unresolved operations.
+- Interrupted application authentication and owner-proof retries preserve their original authorization and connection.
+- VoiceID uses explicit wallet-host lifecycle inputs for enrollment, activation, and approval.
+
+The Wallet iframe protocol advances to **22.0.0**. Update browser SDKs and hosted Wallet assets together.
+Older iframe protocols fail the handshake and require an application SDK update.
+Update the server SDK and enabled VoiceID plugin to the matching package version.
+The signed recovery CLI remains **0.29.0**, and the wallet-management protocol remains **5**.
+This release adds no database migrations.
+See [owner-operation recovery](/guides/application-auth#observe-and-recover) for the outcome contract.
+
+## Release 0.35.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.35.0**.
 

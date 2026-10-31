@@ -4,17 +4,17 @@ This package owns the reusable signer server surface: route adapters,
 WebAuthn verification policy, threshold signing services, signer storage
 adapters, and server wasm bindings.
 
-The current release is `@seams/wallet-server@0.35.0`. Pair it with
-`@seams/wallet@0.35.0` and matching hosted assets. Use `@seams/wallet-cli@0.29.0`.
-The wallet iframe protocol is **21.0.0**.
+The current release is `@seams/wallet-server@0.36.0`. Pair it with
+`@seams/wallet@0.36.0` and matching hosted assets. Use `@seams/wallet-cli@0.29.0`.
+The wallet iframe protocol is **22.0.0**.
 
 ```sh
-pnpm add @seams/wallet-server@0.35.0
+pnpm add @seams/wallet-server@0.36.0
 ```
 
 ## Google BYO authentication
 
-Version 0.35.0 verifies a configured application's signed session assertion or the app's Google ID token or exchanges it for a browser-bound handoff.
+Version 0.36.0 verifies a configured application's signed session assertion or the app's Google ID token or exchanges it for a browser-bound handoff.
 An environment-specific Google client configuration and an owner-approved wallet association are required.
 Apply the packaged signer migrations before enabling the feature.
 External sessions grant settings reads and remain separate from owner and signing credentials.
