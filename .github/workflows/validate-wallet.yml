@@ -38,6 +38,18 @@ jobs:
       - run: pnpm check:cargo-locks
       - run: pnpm build
       - run: pnpm type-check
+      - name: Verify hosted signing credit and login refusal
+        run: node tests/e2e/signing-credit.e2e.mjs
+      - name: Upload hosted billing admission evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wallet-billing-admission-${{ github.run_id }}
+          path: |
+            .artifacts/signing-credit/signing-credit.json
+            .artifacts/signing-credit/login-refusal.json
+          include-hidden-files: true
+          if-no-files-found: ignore
       - name: Verify unused tenant authorization renewal on real Workers
         env:
           ROUTER_AB_WORKER_BUILD_PROFILE: release
