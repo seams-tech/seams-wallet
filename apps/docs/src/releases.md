@@ -1,11 +1,25 @@
 ---
-title: Release 0.37.0
-description: Hosted billing credit admission and Wallet-owned VoiceID enrollment records.
+title: Release 0.39.0
+description: Nonblocking wallet surfaces and bounded owner transaction recovery.
 ---
 
-# Release 0.37.0
+# Release 0.39.0
 
-Prepared for publication. The browser SDK, server SDK, and VoiceID plugin use **0.37.0**.
+The browser SDK, server SDK, and VoiceID plugin use **0.39.0**.
+
+- Loading wallet surfaces preserve page clicks, typing, and focus. A modal opens only when its content is ready.
+- Owner NEAR recovery has no modal or approval queue reservation. Approvals retain their interactive modal.
+- Recovery has a fixed 35-second transport deadline. Progress cannot extend it, and late replies cannot disturb another approval.
+- Recovery queries `tx` with `wait_until: 'NONE'`. Unknown and nonfinal outcomes preserve the pending operation and never trigger rebroadcast.
+- Recovery exposes the stored hash before querying status. A blocked handle retains the earlier operation's identity during progress and after errors.
+
+The Wallet iframe protocol remains **22.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. Update the SDK, hosted assets, server, and enabled VoiceID plugin together.
+This release adds no database migrations. An unknown transaction does not prove non-submission and cannot safely retire a historical receipt.
+
+## Release 0.37.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.37.0**.
 
 - Hosted billing refusals return `billing_credit_exhausted` before a new session credential reaches the caller.
 - Hosts can reserve signing credit in the operation-claim transaction. Exact retries consume no extra unit.
@@ -19,7 +33,6 @@ Package publication alone does not activate billing. Coordinate the Console migr
 
 The Wallet iframe protocol remains **22.0.0**. The wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. Update the SDK, hosted assets, server, and enabled VoiceID plugin together.
-Publication and deployment remain pending.
 
 ## Release 0.36.0
 
