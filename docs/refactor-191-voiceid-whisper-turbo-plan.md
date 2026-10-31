@@ -1,8 +1,23 @@
-# Refactor 191 — Whisper turbo in the browser VoiceID package
+# Refactor 191 — Whisper turbo integration (deferred)
 
-Status: plan, 2026-10-30. Not started. Four decisions wait for the user (see the end).
+Status: deferred by the user on 2026-10-31. Browser integration will not proceed.
 
-## Result
+## Current decision
+
+Do not integrate Whisper into the browser VoiceID package or distribute its model
+files to Wallet clients. The proposed first-use download is about 602 MB. This
+download is too large for users who only want to use a wallet.
+
+An alternative voice modal that uses Whisper through an API may be considered
+in the future. That option would run inference remotely and require no client
+download of Whisper model files. It is a future possibility, with no approved
+implementation or schedule.
+
+The browser design, implementation steps, and acceptance gates below are retained
+as historical research. They are inactive and do not authorize implementation.
+The former browser decisions are superseded by this decision.
+
+## Historical browser proposal
 
 Add Whisper large-v3-turbo to `@seams/voiceid` as a third transcription model,
 beside Citrinet and Aurora. It runs in the Wallet iframe on WebGPU through the
@@ -193,16 +208,8 @@ Each gate produces a repeatable artifact under `docs/evidence/`.
   fearful" and "be fearful when others are retarded". Many people find this
   word offensive. Remove them from the Citrinet bank in a separate change.
 
-## Decisions for the user
+## Superseded browser decisions
 
-1. Who turns Whisper on. Recommendation: the person, in Manage voice, with
-   Citrinet as the default. Cost: two phrase paths stay in the package.
-   Default if no answer: this recommendation.
-2. Where the files come from. Recommendation: chunks on the Wallet origin.
-   Cost: 37 more files in each Wallet deployment and a longer compose step.
-   Default: this recommendation.
-3. Device scope. Recommendation: desktop browsers first, phones after their
-   gates pass. Default: desktop first.
-4. Japanese. Recommendation: English only in this plan. Whisper turbo had a 4.8%
-   character error rate on clean Japanese in the bench, so a Japanese phrase
-   set can follow. Default: English only.
+Browser opt-in, model-file hosting, device scope, and language scope are no longer
+pending decisions. The 2026-10-31 decision defers this work and limits any future
+Whisper integration to an API-backed alternative voice modal.

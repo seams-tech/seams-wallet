@@ -113,6 +113,8 @@ cutoff and phrase bounds remain experimental.
    separately and pass a short `confirmationCommand` after they construct a
    transaction.
 
-The [Whisper browser proposal](refactor-191-voiceid-whisper-turbo-plan.md) is
-research with a much larger download and pending decisions. It is not part of
-the current VoiceID package.
+The [Whisper integration plan](refactor-191-voiceid-whisper-turbo-plan.md) is
+deferred by the user as of 2026-10-31. Browser integration will not proceed
+because its roughly 602 MB download is too large for Wallet users. An API-backed
+alternative voice modal remains a possible future option, with no approved
+implementation or schedule.
