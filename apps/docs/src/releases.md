@@ -1,9 +1,27 @@
 ---
-title: Release 0.36.0
-description: Typed owner-operation recovery, retained transaction hashes, and bounded RPC waits.
+title: Release 1.0.0
+description: Hosted billing credit admission and Wallet-owned VoiceID enrollment records.
 ---
 
-# Release 0.36.0
+# Release 1.0.0
+
+Prepared for publication. The browser SDK, server SDK, and VoiceID plugin use **1.0.0**.
+
+- Hosted billing refusals return `billing_credit_exhausted` before a new session credential reaches the caller.
+- Hosts can reserve signing credit in the operation-claim transaction. Exact retries consume no extra unit.
+- Confirmed failures before execution release their commitment. Uncertain execution outcomes retain it.
+- Recovery and key export remain available under the hosted billing policy.
+- Wallet core constructs VoiceID enrollment records from verified enrollment results.
+
+Apply server migration `0088_signing_credit_commitments.sql` before enabling hosted signing credit.
+This migration supplies runtime accounting. The Seams Console release supplies credit policy, login-based MAU, and monthly collection.
+Package publication alone does not activate billing. Coordinate the Console migrations and runtime rollout before enabling postpaid accounts.
+
+The Wallet iframe protocol remains **22.0.0**. The wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. Update the SDK, hosted assets, server, and enabled VoiceID plugin together.
+Publication and deployment remain pending.
+
+## Release 0.36.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.36.0**.
 
