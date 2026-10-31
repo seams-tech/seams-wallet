@@ -14,7 +14,7 @@ use ml_dsa_threshold::{
     signing::{
         OwnSigningShare, SigningRole,
         prepared_signing::gmw::{
-            ConsumedGmwPreparation, PreparedGmwReservation, commit_gmw_reservations,
+            CommittedGmwReservation, PreparedGmwReservation, commit_gmw_reservations,
             prepare_gmw_reservations,
         },
     },
@@ -538,7 +538,7 @@ fn check_committed_storage(
         (role, binding.batch, 2, schedules, extended),
     ] {
         require(
-            ConsumedGmwPreparation::from_consumed_storage(
+            CommittedGmwReservation::from_consumed_storage(
                 expected_role,
                 id,
                 count,
@@ -556,7 +556,7 @@ fn check_committed_storage(
     let mut wrong_epoch = epoch;
     wrong_epoch[0] ^= 1;
     for (expected_key, expected_epoch) in [(&wrong_key, epoch), (public_key, wrong_epoch)] {
-        let restored = ConsumedGmwPreparation::from_consumed_storage(
+        let restored = CommittedGmwReservation::from_consumed_storage(
             role,
             binding.batch,
             2,

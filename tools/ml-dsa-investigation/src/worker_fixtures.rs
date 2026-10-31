@@ -11,7 +11,7 @@ use ed25519_yao_generator::{
 };
 use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use ml_dsa_threshold::runtime::TrustedMlDsaSchedule;
-use ml_dsa_threshold::signing::{SigningKernel, keygen::KeygenKernel};
+use ml_dsa_threshold::signing::{keygen::KeygenKernel, reference::SigningKernel};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, path::Path};

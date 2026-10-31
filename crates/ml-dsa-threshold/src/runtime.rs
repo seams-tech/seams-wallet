@@ -1,4 +1,4 @@
-//! Resumable investigation-only private ML-DSA circuits.
+//! Resumable passive two-party ML-DSA circuits.
 //!
 //! The caller pins the complete schedule digest, provides one role's inputs,
 //! and transports exact messages. This module has no I/O, clock, persistence,
@@ -9,10 +9,10 @@ use core::{fmt, mem::size_of};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-/// Experimental Boolean-engine comparison with genuine two-party preprocessing.
+/// Boolean GMW preparation and the feature-gated comparison engine.
 pub mod boolean_mpc;
 
-/// Input-independent half-gate preparation for isolated performance experiments.
+/// Input-independent half-gates preparation used by canonical key generation.
 pub mod prepared;
 
 use two_party_primitives::arena::{empty_arena, install_inputs, required_wire};

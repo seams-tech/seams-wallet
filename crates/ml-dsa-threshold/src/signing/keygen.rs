@@ -107,10 +107,7 @@ pub enum KeygenError {
 
 impl fmt::Display for KeygenError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "experimental ML-DSA key generation failed: {self:?}"
-        )
+        write!(formatter, "ML-DSA key generation failed: {self:?}")
     }
 }
 impl core::error::Error for KeygenError {}
@@ -253,14 +250,14 @@ impl KeygenCircuit {
     #[cfg(feature = "benchmarks")]
     pub async fn run_boolean(
         self,
-        engine: crate::runtime::boolean_mpc::Engine,
+        engine: crate::runtime::boolean_mpc::comparison::Engine,
         schedule: &TrustedMlDsaSchedule<'_>,
         transport: &mut impl crate::runtime::boolean_mpc::Transport,
     ) -> Result<KeygenStep> {
         if schedule.circuit_id() != self.kernel.circuit_id() {
             return Err(KeygenError::Schedule);
         }
-        let output = crate::runtime::boolean_mpc::run(
+        let output = crate::runtime::boolean_mpc::comparison::run(
             engine,
             self.machine.role,
             schedule,

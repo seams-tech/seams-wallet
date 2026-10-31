@@ -1,4 +1,4 @@
-//! Bounded passive silent-OT correlations for the experimental GMW signer.
+//! Bounded passive silent-OT correlations for prepared GMW signing.
 //!
 //! The ExConv7x24 encoder comes from the pinned CryProt dependency. PPRF
 //! expansion follows CryProt/libOTe, with fixed dimensions and oblivious

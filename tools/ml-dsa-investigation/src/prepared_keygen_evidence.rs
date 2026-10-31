@@ -380,6 +380,9 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "crates/ml-dsa-threshold/src/signing/wallet_seed.rs",
         "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
         "crates/ml-dsa-threshold/src/signing/prepared_signing.rs",
+        "crates/ml-dsa-threshold/src/signing/reference.rs",
+        "crates/ml-dsa-threshold/src/signing/prepared_signing/half_gates.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/comparison.rs",
         "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw.rs",
         "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw/commitment.rs",
         "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw/nonce.rs",
@@ -411,10 +414,10 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         output,
         serde_json::to_vec_pretty(&json!({
             "schema": "seams.ml-dsa-prepared-keygen-native.v1", "production_eligible": false, "prepared_signing_schedules": prepared_signing_schedules, "prepared_component_checks": prepared_components,
-            "scope": "Input-independent fresh garbling and random OT, followed by wallet-derived canonical keygen. Separate native roles, role-local disk tables, and private input correction. No production storage or hosted latency claim.",
+            "scope": "Input-independent fresh garbling and random OT, followed by wallet-derived canonical keygen. Separate native roles, role-local disk tables, private input correction, and fixture-authorized SQLite lifecycle checks. No hosted latency or deployment-security claim.",
             "cases": cases, "sampler_evidence": sampler_evidence, "schedules": identities, "signing_schedules": signing_schedules, "sources": sources,
             "executable_sha256": digest(&fs::read(env::current_exe()?)?), "temporary_files_removed": true,
-            "limits": ["Three zero-delay measured samples follow warm-up. Delay cases inject half the declared RTT before each outgoing online message; they do not emulate a real network.", "Native timings do not predict Wasm or Cloudflare latency. Tables are read from local disk, not remote object storage.", "The consuming handles enforce single use in memory. No durable pool, rollback protection, peer authentication, or admission is implemented."]
+            "limits": ["Three zero-delay measured samples follow warm-up. Delay cases inject half the declared RTT before each outgoing online message; they do not emulate a real network.", "Native timings do not predict Wasm or Cloudflare latency. Tables are read from local disk, not remote object storage.", "Native lifecycle checks use isolated SQLite stores and fixture authority. They do not qualify database rollback protection, HTTP peer authentication, or hosted capacity."]
         }))?,
     )?;
     Ok(())

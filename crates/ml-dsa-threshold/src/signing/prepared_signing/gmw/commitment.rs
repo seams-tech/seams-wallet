@@ -113,22 +113,6 @@ impl<'a> CommittedGmwReservation<'a> {
     }
 }
 
-impl<'a> ConsumedGmwPreparation<'a> {
-    /// Consumes either valid storage state and produces one message-ready signer.
-    pub async fn activate<T: Transport + BooleanTransport>(
-        self,
-        own: OwnSigningShare,
-        public_key: &[u8; PUBLIC_KEY_BYTES],
-        epoch: [u8; 32],
-        transport: &mut T,
-    ) -> Result<PreparedGmwSigner<'a>> {
-        match self {
-            Self::Generic(prepared) => prepared.activate(own, public_key, epoch, transport).await,
-            Self::Committed(prepared) => prepared.activate(own, public_key, epoch, transport).await,
-        }
-    }
-}
-
 /// Independent key-bound reservations and the complete co-evaluation cost.
 pub struct CommittedGmwGroup<'a> {
     /// Each reservation remains a separately consumable signing pair.

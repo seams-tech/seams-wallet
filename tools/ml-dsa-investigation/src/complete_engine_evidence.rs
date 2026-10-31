@@ -5,7 +5,7 @@ use crate::{
     require,
 };
 use ml_dsa_threshold::{
-    runtime::boolean_mpc::Engine as BooleanEngine,
+    runtime::boolean_mpc::comparison::Engine as BooleanEngine,
     signing::{CircuitMetrics, SigningRole},
 };
 use serde::{Deserialize, Serialize};

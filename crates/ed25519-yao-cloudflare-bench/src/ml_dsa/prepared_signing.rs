@@ -16,7 +16,8 @@ use ml_dsa_threshold::{
     signing::{
         prepared_signing::{
             gmw::{prepare_gmw_reservation, GmwSignature, PreparedGmwReservation},
-            prepare_signer, PreparedSignature, PreparedSigner, Reservation,
+            half_gates::{prepare_signer, PreparedSignature, PreparedSigner},
+            Reservation,
         },
         OwnSigningShare, SigningError,
     },

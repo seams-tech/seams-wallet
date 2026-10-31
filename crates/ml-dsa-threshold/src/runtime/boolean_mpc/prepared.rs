@@ -3,7 +3,7 @@
 
 mod batched;
 pub(crate) mod storage;
-pub(crate) use batched::{PreparedGmwRequest, run_batches};
+pub(crate) use batched::{run_batches, PreparedGmwRequest};
 
 use super::silent::CorrelationStream;
 use super::*;
@@ -259,7 +259,7 @@ pub async fn prepare_batch<'a>(
     for instance in &mut instances {
         let group = &mut groups[instance.group];
         context.set_phase(Phase::Binding);
-        instance.binding = bind(Engine::Gmw, group.schedule, &mut context).await?;
+        instance.binding = bind(GMW_ENGINE_CODE, group.schedule, &mut context).await?;
         context.set_phase(Phase::Preprocessing);
         let byte = instance.lane / 8;
         let shift = instance.lane % 8;

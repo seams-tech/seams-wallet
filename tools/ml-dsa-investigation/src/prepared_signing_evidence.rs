@@ -23,7 +23,7 @@ use sha2::{Digest, Sha256};
 use std::{env, ffi::OsStr, fs, path::Path, time::Instant};
 
 enum Prepared<'a> {
-    HalfGates(prepared_signing::PreparedSigner<'a>),
+    HalfGates(prepared_signing::half_gates::PreparedSigner<'a>),
     Gmw(prepared_signing::gmw::PreparedGmwSigner<'a>),
 }
 
@@ -63,9 +63,9 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         .map_err(|_| "Invalid public key size")?;
     let material = material_storage_evidence::open(Path::new(&args[2]), role, &public_key)?;
     let own = OwnSigningShare::parse(&material)?;
-    let bytes = prepared_signing::SCHEDULES
+    let bytes = ml_dsa_threshold::circuits::SIGNING
         .iter()
-        .map(|(name, _)| fs::read(Path::new(&args[1]).join(format!("{name}.bin"))))
+        .map(|circuit| fs::read(Path::new(&args[1]).join(format!("{}.bin", circuit.name()))))
         .collect::<Result<Vec<_>, _>>()?;
     let schedules = bytes
         .iter()
@@ -129,14 +129,16 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     let mut activation_ns = 0;
     let mut preparation_traffic = json!(null);
     let prepared = match operation["engine"].as_str() {
-        Some("half-gates") => Prepared::HalfGates(run_ready(prepared_signing::prepare_signer(
-            role,
-            own,
-            &public_key,
-            reservation,
-            &schedules,
-            &mut transport,
-        ))??),
+        Some("half-gates") => {
+            Prepared::HalfGates(run_ready(prepared_signing::half_gates::prepare_signer(
+                role,
+                own,
+                &public_key,
+                reservation,
+                &schedules,
+                &mut transport,
+            ))??)
+        }
         Some("gmw") => {
             let generic = run_ready(prepared_signing::gmw::prepare_gmw_reservation(
                 role,

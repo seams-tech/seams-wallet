@@ -2,7 +2,7 @@
 //!
 //! No wallet inputs enter preparation. Each consuming handle is single-use in
 //! memory. Durable reservation, replay protection, and storage authentication
-//! are adapter responsibilities and are not implemented by this prototype.
+//! are host responsibilities.
 
 /// Complete wallet-derived key-generation preparation.
 pub mod keygen;

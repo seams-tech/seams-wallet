@@ -12,8 +12,8 @@ use ml_dsa::{MlDsa65, SigningKey};
 use ml_dsa_threshold::{
     runtime::{RuntimeOutput, Step, TrustedMlDsaSchedule},
     signing::{
-        OwnSigningShare, PUBLIC_KEY_BYTES, SigningKernel, SigningMode, SigningRole, SigningStep,
-        ThresholdSignature, begin_signing,
+        OwnSigningShare, PUBLIC_KEY_BYTES, SigningRole,
+        reference::{SigningKernel, SigningMode, SigningStep, ThresholdSignature, begin_signing},
     },
 };
 use serde::{Deserialize, Serialize};

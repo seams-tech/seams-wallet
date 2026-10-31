@@ -5,36 +5,6 @@ use crate::runtime::RuntimeError;
 const GENERIC_MAGIC: &[u8; 8] = b"MDGMW001";
 const COMMITTED_MAGIC: &[u8; 8] = b"MDGMC001";
 
-impl<'a> ConsumedGmwPreparation<'a> {
-    /// Parses the actual lifecycle state after durable, irreversible consumption.
-    /// Generic registration stock and committed refill remain distinct states.
-    pub fn from_consumed_storage(
-        role: SigningRole,
-        id: [u8; 32],
-        candidates: u16,
-        schedules: &'a [TrustedMlDsaSchedule<'a>],
-        topologies: &mut PublicTopologies,
-        bytes: Zeroizing<Vec<u8>>,
-    ) -> Result<Self> {
-        if candidates == 0 || candidates > 32 || bytes.len() > 16 * 1024 * 1024 {
-            return Err(SigningError::CircuitOutput);
-        }
-        match bytes.get(..8) {
-            Some(magic) if magic == GENERIC_MAGIC => {
-                PreparedGmwReservation::decode(role, id, candidates, schedules, topologies, &bytes)
-                    .map(Self::Generic)
-                    .map_err(runtime_error)
-            }
-            Some(magic) if magic == COMMITTED_MAGIC => {
-                CommittedGmwReservation::decode(role, id, candidates, schedules, topologies, &bytes)
-                    .map(Self::Committed)
-                    .map_err(runtime_error)
-            }
-            _ => Err(SigningError::RequestBinding),
-        }
-    }
-}
-
 impl<'a> PreparedGmwReservation<'a> {
     /// Moves private preparation into a wiping buffer for role-private sealing.
     /// Persist only encrypted bytes. The live preparation handle is destroyed.
@@ -115,6 +85,26 @@ impl<'a> PreparedGmwReservation<'a> {
 }
 
 impl<'a> CommittedGmwReservation<'a> {
+    /// Restores key-bound signing material after irreversible durable consumption.
+    /// Generic registration stock is rejected. Role, identity, and width come from admission.
+    /// This parser validates the record and cannot establish storage freshness.
+    pub fn from_consumed_storage(
+        role: SigningRole,
+        id: [u8; 32],
+        candidates: u16,
+        schedules: &'a [TrustedMlDsaSchedule<'a>],
+        topologies: &mut PublicTopologies,
+        bytes: Zeroizing<Vec<u8>>,
+    ) -> Result<Self> {
+        if candidates == 0 || candidates > 32 || bytes.len() > 16 * 1024 * 1024 {
+            return Err(SigningError::CircuitOutput);
+        }
+        if bytes.starts_with(GENERIC_MAGIC) {
+            return Err(SigningError::PreparationState);
+        }
+        Self::decode(role, id, candidates, schedules, topologies, &bytes).map_err(runtime_error)
+    }
+
     /// Destroys the live handle and emits role-private bytes for authenticated sealing.
     /// Commitment correlations are already consumed and are absent from this format.
     pub fn into_storage(self) -> Zeroizing<Vec<u8>> {

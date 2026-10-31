@@ -3,6 +3,7 @@
 mod commitment;
 mod nonce;
 /// Bounded ready reservations with automatic rollover and consuming lifecycle.
+#[cfg(feature = "benchmarks")]
 pub mod pool;
 mod storage;
 
@@ -17,6 +18,7 @@ use crate::runtime::boolean_mpc::{
     silent::CorrelationStream,
     Transport as BooleanTransport,
 };
+#[cfg(feature = "benchmarks")]
 use commitment::commitment_binding;
 pub use commitment::{commit_gmw_reservations, CommittedGmwGroup};
 
@@ -50,15 +52,6 @@ pub struct PreparedGmwReservation<'a> {
     bounds: PreparedGmwBatch<'a>,
     decisions: PreparedGmwBatch<'a>,
     masks: BatchMetrics,
-}
-
-/// The two stored lifecycle states: generic registration stock or keyed refill.
-/// Both variants must leave durable storage exactly once before use.
-pub enum ConsumedGmwPreparation<'a> {
-    /// Stock created before the public key exists; commitment work remains.
-    Generic(PreparedGmwReservation<'a>),
-    /// Refill whose private commitment work finished before publication.
-    Committed(CommittedGmwReservation<'a>),
 }
 
 /// A standard signature with every evaluated candidate included in its metrics.
@@ -99,6 +92,7 @@ pub enum GmwBatchResult {
 
 /// Prepares nonce shares and correlations before a wallet key exists.
 /// Both roles must use the same fresh preparation identifier.
+#[cfg(feature = "benchmarks")]
 pub async fn prepare_gmw_reservation<'a>(
     role: SigningRole,
     id: [u8; 32],
@@ -228,6 +222,7 @@ impl<'a> PreparedGmwReservation<'a> {
     /// Consumes preparation before opening public t0 or evaluating commitments.
     /// A persistent adapter must durably burn this reservation before activation.
     /// Errors and cancellation destroy all private handles in this reservation.
+    #[cfg(feature = "benchmarks")]
     pub async fn activate<T: Transport + BooleanTransport>(
         self,
         own: OwnSigningShare,
@@ -260,6 +255,7 @@ impl<'a> PreparedGmwReservation<'a> {
             + self.decisions.private_bytes()
     }
 
+    #[cfg(feature = "benchmarks")]
     async fn activate_for_key<T: Transport + BooleanTransport>(
         self,
         key: Rc<Box<SigningKeyState>>,
