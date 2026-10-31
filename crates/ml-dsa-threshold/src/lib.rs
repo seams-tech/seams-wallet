@@ -2,6 +2,7 @@
 //! Passive two-party ML-DSA-65 key generation, preparation, and signing.
 //! Host admission, authenticated transport, and durable storage live in adapters.
 
+pub mod circuits;
 pub mod runtime;
 pub mod signing;
 

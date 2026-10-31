@@ -43,25 +43,8 @@ pub(super) fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule
         .as_array()
         .ok_or_else(missing_fixture_field)?;
     let mut output = Vec::new();
-    for (filename, bytes) in [
-        (
-            "wallet-seed.bin",
-            include_bytes!("../ml_dsa_schedules/wallet-seed.bin").as_slice(),
-        ),
-        ("seed.bin", super::SEED_SCHEDULE),
-        (
-            "sampling-two-blocks.bin",
-            super::SAMPLING_TWO_BLOCKS_SCHEDULE,
-        ),
-        (
-            "sampling-three-blocks.bin",
-            super::SAMPLING_THREE_BLOCKS_SCHEDULE,
-        ),
-        (
-            "sampling-final-bound.bin",
-            super::SAMPLING_FINAL_BOUND_SCHEDULE,
-        ),
-    ] {
+    for circuit in ml_dsa_threshold::circuits::KEY_GENERATION {
+        let filename = format!("{}.bin", circuit.name());
         let record = records
             .iter()
             .find(|record| record["schedule_filename"] == filename)
@@ -69,7 +52,10 @@ pub(super) fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule
         let digest: [u8; 32] = decode_hex(required_string(record, "schedule_sha256")?)?
             .try_into()
             .map_err(|_| missing_fixture_field())?;
-        output.push(TrustedMlDsaSchedule::parse(bytes, digest).map_err(runtime_failure)?);
+        if digest != circuit.digest() {
+            return Err(missing_fixture_field());
+        }
+        output.push(circuit.parse().map_err(runtime_failure)?);
     }
     Ok(output)
 }

@@ -27,15 +27,15 @@ const MAX_COMPLETION_BYTES: usize = 262_144;
 const DATA: u8 = 0;
 const ACK: u8 = 1;
 const COMPLETE: u8 = 2;
-static COMMITMENT_HASH_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/commitment-hash.bin");
-static RESPONSE_CHECK_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/response-check.bin");
-static SEED_SCHEDULE: &[u8] = include_bytes!("ml_dsa_schedules/seed.bin");
+static COMMITMENT_HASH_SCHEDULE: &[u8] = ml_dsa_threshold::circuits::COMMITMENT_HASH.bytes();
+static RESPONSE_CHECK_SCHEDULE: &[u8] = ml_dsa_threshold::circuits::RESPONSE_CHECK.bytes();
+static SEED_SCHEDULE: &[u8] = ml_dsa_threshold::circuits::SEED.bytes();
 static SAMPLING_TWO_BLOCKS_SCHEDULE: &[u8] =
-    include_bytes!("ml_dsa_schedules/sampling-two-blocks.bin");
+    ml_dsa_threshold::circuits::SAMPLING_TWO_BLOCKS.bytes();
 static SAMPLING_THREE_BLOCKS_SCHEDULE: &[u8] =
-    include_bytes!("ml_dsa_schedules/sampling-three-blocks.bin");
+    ml_dsa_threshold::circuits::SAMPLING_THREE_BLOCKS.bytes();
 static SAMPLING_FINAL_BOUND_SCHEDULE: &[u8] =
-    include_bytes!("ml_dsa_schedules/sampling-final-bound.bin");
+    ml_dsa_threshold::circuits::SAMPLING_FINAL_BOUND.bytes();
 #[cfg(feature = "ml-dsa-a")]
 const ROLE: &str = "a";
 #[cfg(feature = "ml-dsa-b")]
