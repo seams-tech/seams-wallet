@@ -104,7 +104,7 @@ export function ReviewMiddleTruncated({
 
 function TokenIcon({ symbol }: { symbol: string }) {
   // Symbol from NEAR's official documentation assets: github.com/near/docs/blob/master/assets/logo.svg
-  if (symbol === 'NEAR')
+  if (symbol === 'NEAR' || symbol === 'yoctoNEAR')
     return (
       <svg class="seams-review-token" viewBox="0 0 48 48" aria-hidden="true">
         <circle cx="24" cy="24" r="24" fill="#000" />
@@ -154,23 +154,53 @@ function TokenIcon({ symbol }: { symbol: string }) {
   );
 }
 
-export function ReviewAmount({
-  model,
-  compact = false,
-}: {
-  model: TxDisplayModel | null;
-  compact?: boolean;
-}) {
-  const amount = reviewAmount(model);
-  if (!amount) return null;
-  return (
-    <div class={`seams-review-amount${compact ? ' seams-review-amount--compact' : ''}`}>
-      <TokenIcon symbol={amount.symbol} />
-      <div>
-        <span>{amount.value}</span> <small>{amount.symbol}</small>
+export class ReviewAmount extends Component<
+  { model: TxDisplayModel | null; compact?: boolean },
+  { showThreshold: boolean }
+> {
+  state = { showThreshold: false };
+
+  private toggleAmount = (): void => {
+    this.setState({ showThreshold: !this.state.showThreshold });
+  };
+
+  componentDidUpdate(previous: { model: TxDisplayModel | null }): void {
+    if (previous.model !== this.props.model && this.state.showThreshold) {
+      this.setState({ showThreshold: false });
+    }
+  }
+
+  render() {
+    const amount = reviewAmount(this.props.model);
+    if (!amount) return null;
+    const rawAmount = this.props.model?.totals;
+    const canToggle =
+      rawAmount?.nativeSymbol === 'yoctoNEAR' &&
+      Boolean(rawAmount.nativeValue && /^[1-9]\d{0,17}$/.test(rawAmount.nativeValue));
+    const showThreshold = this.state.showThreshold && canToggle;
+    const content = (
+      <>
+        <span>{showThreshold ? '< 0.000001' : amount.value}</span>{' '}
+        <small>{showThreshold ? 'NEAR' : amount.symbol}</small>
+      </>
+    );
+    return (
+      <div class={`seams-review-amount${this.props.compact ? ' seams-review-amount--compact' : ''}`}>
+        <TokenIcon symbol={amount.symbol} />
+        {canToggle ? (
+          <button
+            type="button"
+            class="seams-review-amount-value seams-review-amount-toggle"
+            onClick={this.toggleAmount}
+          >
+            {content}
+          </button>
+        ) : (
+          <div class="seams-review-amount-value">{content}</div>
+        )}
       </div>
-    </div>
-  );
+    );
+  }
 }
 
 export function WalletReceiptFooter() {
@@ -194,8 +224,14 @@ function decimalUnits(value: string, decimals: number): string {
 function reviewAmount(model: TxDisplayModel | null): { value: string; symbol: string } | null {
   const total = model?.totals;
   if (!total?.nativeValue) return null;
-  if (total.nativeSymbol === 'yoctoNEAR')
-    return { value: decimalUnits(total.nativeValue, 24), symbol: 'NEAR' };
+  if (total.nativeSymbol === 'yoctoNEAR') {
+    const near = decimalUnits(total.nativeValue, 24);
+    // Keep the exact denomination that requires fewer characters, including its unit.
+    if (total.nativeValue !== '0' && total.nativeValue.length + 5 < near.length) {
+      return { value: total.nativeValue, symbol: 'yoctoNEAR' };
+    }
+    return { value: near, symbol: 'NEAR' };
+  }
   if (
     model?.chain === 'evm' &&
     (model.chainId === 5042 || model.chainId === 5042002) &&
