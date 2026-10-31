@@ -3274,3 +3274,33 @@ freshness remain application checks on the selected network.
 tamper rejection, nonce copying, concurrent requests, and cancellation across a
 reconnect. It independently encodes and verifies NEP-413 with Node.js crypto.
 Each run writes JSON evidence with the public request, signature, and digest.
+
+
+## Hosted signing credit commitments
+
+A host can allocate signing credit to a runtime before execution. The allocation
+contains an immutable identity, operation capacity, and expiry. The runtime claims
+one unit in the same transaction that admits a signing operation. Concurrent
+operations cannot consume the same final unit. An exact replay consumes no new unit.
+
+Both session-authorized and step-up operations enforce the allocation. Step-up
+scope comes from its verified evidence. An exhausted, expired, sealed, or blocked
+allocation returns `billing_credit_exhausted`. The client must not request a new
+owner proof to repair an application billing restriction.
+
+Completion records the grant and wallet with the durable signing outcome. A known
+failure before side effects can release its commitment through the host's delivery
+flow. An uncertain outcome after side effects retains its commitment. Previously
+accepted operations can persist their terminal result after a new-work block.
+
+Unlock, recovery, and key export do not consume signing credit. A standalone host
+without a signing-credit policy retains included signing. Host billing prices stay
+outside Wallet. The Console host meters production registration and session
+activity as MAU. A newly billable login must fit its approved credit limit. The
+existing session-publication call carries that refusal before the credential is
+returned. Repeated logins by an already-counted user add no MAU charge. Recovery
+and key export remain available.
+
+`node tests/e2e/signing-credit.e2e.mjs` exercises concurrent admission, exact replay,
+blocked completion, known failure, and indeterminate retention on migrated D1.
+It writes repeatable evidence under `.artifacts/signing-credit/`.

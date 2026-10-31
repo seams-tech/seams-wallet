@@ -1,3 +1,4 @@
+import { isBillingCreditFailure } from '../../../../authorization/sessionRouting';
 import {
   extractBearerCredential,
   resolveSourceIpFromFetchHeaders,
@@ -458,7 +459,8 @@ export async function handleHostedWalletSessionExchangeIssue(
       issuedAtMs,
       expiresAtMs: issuedAtMs + HOSTED_WALLET_EXCHANGE_TTL_MS,
     });
-  } catch {
+  } catch (error: unknown) {
+    if (isBillingCreditFailure(error)) throw error;
     return json(
       { ok: false, code: 'wallet_session_unavailable', message: 'Wallet Session is unavailable' },
       { status: 503 },

@@ -23,3 +23,10 @@ export interface WalletSessionRoutingPublisher {
   home(): WalletSessionHome;
   publish(input: WalletSessionLocatorPublication): Promise<void>;
 }
+
+/** Preserve an authenticated host's billing refusal at the HTTP boundary. */
+export function isBillingCreditFailure(
+  error: unknown,
+): error is Error & { readonly code: 'billing_credit_exhausted' } {
+  return error instanceof Error && 'code' in error && error.code === 'billing_credit_exhausted';
+}

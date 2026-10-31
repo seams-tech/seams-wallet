@@ -1,3 +1,4 @@
+import { isBillingCreditFailure } from '../../../../authorization/sessionRouting';
 import { D1WalletOperationStore } from '../registration/d1WalletOperationStore';
 import { createD1EmailOtpRouteService } from './d1EmailOtpRouteService';
 import type { WalletRelocationEmailOtpServices } from '../wallet/d1WalletRelocationEmailOtp';
@@ -1887,6 +1888,7 @@ async function issueWalletSessionForActiveAuthority(input: {
       operationCredential: directIssue.operationCredential,
     };
   } catch (error: unknown) {
+    if (isBillingCreditFailure(error)) throw error;
     return {
       kind: 'rejected',
       code: 'internal',

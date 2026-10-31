@@ -1,3 +1,4 @@
+import { isBillingCreditFailure } from '../../../../authorization/sessionRouting';
 import { parsePrincipalId, parseTenantId, type TenantId } from '@shared/authorization/capabilityKinds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
@@ -142,7 +143,8 @@ export class D1VoiceIdSessions {
           input.nowMs +
           (deviceLinked ? LINKED_DEVICE_WALLET_SESSION_TTL_MS : DEFAULT_WALLET_SESSION_TTL_MS),
       });
-    } catch {
+    } catch (error: unknown) {
+      if (isBillingCreditFailure(error)) throw error;
       return { kind: 'rejected', code: 'issuance_unavailable' };
     }
     if (issued.kind !== 'issued') return { kind: 'rejected', code: 'issuance_unavailable' };

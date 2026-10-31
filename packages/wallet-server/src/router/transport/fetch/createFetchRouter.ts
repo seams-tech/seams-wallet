@@ -1,3 +1,4 @@
+import { isBillingCreditFailure } from '../../../authorization/sessionRouting';
 import { coerceRouterLogger } from '../../framework/logger';
 import { json, jsonFailure, withCors } from '../../framework/http';
 import { handleHealth, handleReady } from './routes/health';
@@ -130,7 +131,7 @@ async function signingSessionSealRecordFromExactAdmission(input: {
   switch (admission.curve) {
     case 'ecdsa': {
       const active = await input.walletRegistration.resolveEcdsaMaterialActivation({
-      source: { kind: 'database' },
+        source: { kind: 'database' },
         walletId,
         materialActivation,
       });
@@ -464,8 +465,11 @@ export function createFetchRouter(
       return res;
     } catch (e: unknown) {
       const res = json(
-        { code: 'internal', message: e instanceof Error ? e.message : String(e) },
-        { status: 500 },
+        {
+          code: isBillingCreditFailure(e) ? e.code : 'internal',
+          message: e instanceof Error ? e.message : String(e),
+        },
+        { status: isBillingCreditFailure(e) ? 402 : 500 },
       );
       withCors(res.headers, effectiveOpts, request);
       return res;
