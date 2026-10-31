@@ -1,30 +1,10 @@
-import {
-  readWalletOperationEvidence,
-  prepareWalletOperationEvidence,
-  prepareWalletOperationCompletion,
-} from './walletOperationPersistence';
-import {
-  D1EcdsaAdmissionPolicyRead,
-  D1Ed25519AdmissionPolicyRead,
-  ECDSA_CREDENTIAL_POLICY_PROJECTION,
-  ED25519_CREDENTIAL_POLICY_PROJECTION,
-} from '../signingAdmission/d1RouterAbNormalSigningAdmissionStore';
-import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { parseInstalledEcdsaCustodySnapshotV1 } from '../deviceLinking/d1LinkedDeviceAuthorityInstallService';
-import { ECDSA_INSTALLATION_SNAPSHOT_COLUMNS } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
   EcdsaWalletSessionAdmissionRead,
   Ed25519WalletSessionAdmissionRead,
   DirectWalletSessionCommitPurpose,
 } from '../../../../authorization/service';
-import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
-import { D1RegistrationSessionTransaction } from '../registration/d1RegistrationSessionTransaction';
 import type { D1RegistrationCommitBatch } from '../registration/d1WalletRegistrationCommitStore';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
-import { EcdsaMaterialRead } from '../../../../core/d1EcdsaSignerRead';
-import { Ed25519SignerRead } from '../../../../core/d1Ed25519SignerRead';
-import { ED25519_SIGNER_ACTIVATION_ID_PATH } from '../../../../core/d1WalletStore';
-import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
   EcdsaWalletSessionAdmissionInput,
   EcdsaWalletSessionAdmissionResult,
@@ -38,30 +18,11 @@ import type {
   Ed25519WalletSessionResolutionResult,
 } from '../../../../authorization/ed25519WalletSessionAdmission';
 import {
-  mpcMaterialActivationRefsEqual,
-  type MpcMaterialActivationRef,
   type WalletAuthorityId,
   type WalletAuthMethodId,
   type WalletId,
 } from '@shared/utils/domainIds';
-import {
-  CAPABILITY_KINDS,
-  parseAuthorizationAuditEventId,
-  parseAuthorizationGrantRef,
-  parseAuthorizedOperationId,
-  parseCapabilityId,
-  parseCapabilityOperationId,
-  parseCapabilityOperationRef,
-  parseMpcWalletSigningQuotaId,
-  parsePrincipalId,
-  parseTenantId,
-  parseWalletSessionAuthorizationId,
-  parseWalletSessionId,
-  type AuthorizationParseResult,
-  type AuthorizedOperationId,
-  type TenantId,
-} from '@shared/authorization/capabilityKinds';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { type AuthorizedOperationId, type TenantId } from '@shared/authorization/capabilityKinds';
 import type {
   AuthorizedOperation,
   AuthorizedOperationInput,
@@ -87,219 +48,33 @@ import type {
   VerifiedAuthorizationEvidenceSet,
   VerifiedOwnerProof,
 } from '../../../../authorization/domain';
-import type { WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import {
-  buildActiveWalletSessionQuota,
-  buildExactWalletSessionQuotaProjectionV1,
-  exactWalletSessionCapabilitySubjectsResolveAuthority,
-  parseWalletSessionAuthorizationV2,
-  walletSessionAuthorizationV2RecordsEqual,
-  computeAuthorizedOperationResultDigest,
-  parseAuthorizedOperationReplayResponse,
-  parseSessionOrigin,
-  parseHostedWalletSessionCredentialId,
-} from '../../../../authorization/domain';
-import { buildAuthorizedOperation } from '../../../../authorization/domain';
-import {
-  buildCapabilityOperationEnvelope,
-  computeCapabilityOperationFingerprintDigest,
-  parseCapabilityOperationFingerprintDigest,
-  type CapabilityOperationFingerprintDigest,
-} from '@shared/authorization/operationFingerprint';
+import { type CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 import type {
   AuthorizedOperationAdmissionRejection,
-  AuthorizedOperationPort,
-  AuthorizationEvidencePort,
-  AuthorizationGrantPort,
-  AuthorizationSessionPort,
   AuthorizedOperationMaterialScope,
   AuthorizedOperationAdmissionResult,
   PreparedAuthorizedOperationAdmission,
 } from '../../../../authorization/service';
-import {
-  prepareAuthorizedOperationAdmissionRead,
-  prepareAuthorizedOperationCommittedRead,
-  prepareAuthorizedOperationInsert,
-  prepareAuthorizedOperationRead,
-} from './authorizedOperationStatements';
-import { D1WalletStore } from '../../../../core/d1WalletStore';
-import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
-import { parseD1WalletAuthorityRow } from '../wallet/d1WalletAuthorityStore';
-import { normalizeWalletAuthMethodV2 } from '../../../../core/d1WalletAuthMethodStore';
-import { prepareD1WalletSessionAuthorityProjectionStatements } from './walletSessionAuthorityProjection';
-import { d1ChangedRows, parseD1JsonColumn, type D1Row } from '../../../../storage/d1Sql';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type {
-  D1DatabaseLike,
-  D1PreparedStatementLike,
-  D1ResultLike,
-} from '../../../../storage/tenantRoute';
+  AuthorizationSessionPort,
+  AuthorizationEvidencePort,
+  AuthorizationGrantPort,
+  AuthorizedOperationPort,
+} from '../../../../authorization/service';
 import {
-  routerAbMpcMaterialActivationRefToWire,
-  sameRouterAbMpcMaterialActivationRef,
-} from '@shared/utils/routerAbNormalSigningIdentity';
-import { parsePersistedWalletSessionAuthorizationV2 } from './persistedWalletSessionAuthorization';
-/**
- * Linked-device lane material is installed on the linked authority projection
- * rather than the wallet signer rows, so the exact-status material check needs
- * this reader to recognize a linked session's capability subjects.
- */
-type D1AuthorizationLinkedAuthorityMaterialReader = {
-  readInstalledEd25519AuthorityByMaterialActivationV1(input: {
-    readonly walletId: WalletId;
-    readonly materialActivation: MpcMaterialActivationRef;
-  }): Promise<D1AuthorizationLinkedAuthorityMaterialProjection | null>;
-  readInstalledEcdsaAuthorityByMaterialActivationV1(input: {
-    readonly walletId: WalletId;
-    readonly materialActivation: MpcMaterialActivationRef;
-  }): Promise<D1AuthorizationLinkedAuthorityMaterialProjection | null>;
-};
+  createD1AuthorizationContext,
+  type D1AuthorizationContext,
+  type D1AuthorizationStoreOptions,
+} from './authorizationStore/context';
+import * as retirement from './authorizationStore/retirement';
+import * as hostedSessions from './authorizationStore/hostedSessions';
+import * as evidence from './authorizationStore/evidence';
+import * as issuance from './authorizationStore/issuance';
+import * as sessions from './authorizationStore/sessions';
+import * as operations from './authorizationStore/operations';
 
-type D1AuthorizationLinkedAuthorityMaterialProjection = {
-  readonly walletId: string;
-  readonly materialActivation: MpcMaterialActivationRef;
-};
-
-export type D1AuthorizationStoreOptions = {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly walletSignerScope: D1WalletStoreScope;
-  readonly getLinkedDeviceAuthorityReader?: () => D1AuthorizationLinkedAuthorityMaterialReader | null;
-};
-
-type SessionStatusMaterialSubject =
-  | {
-      readonly keyFamily: 'ed25519';
-      readonly materialActivation: MpcMaterialActivationRef;
-      readonly materialRead?: never;
-    }
-  | {
-      readonly keyFamily: 'ecdsa_secp256k1';
-      readonly materialActivation: MpcMaterialActivationRef;
-      readonly materialRead: EcdsaMaterialRead;
-    };
-
-type DirectV2CommitMode = { readonly kind: 'strict' } | { readonly kind: 'replayable' };
-
-type HostedWalletExchangeV2Row = {
-  readonly namespace?: unknown;
-  readonly org_id?: unknown;
-  readonly project_id?: unknown;
-  readonly env_id?: unknown;
-  readonly tenant_id?: unknown;
-  readonly exchange_code_id?: unknown;
-  readonly authorization_id?: unknown;
-  readonly wallet_session_id?: unknown;
-  readonly quota_id?: unknown;
-  readonly principal_id?: unknown;
-  readonly wallet_id?: unknown;
-  readonly authority_id?: unknown;
-  readonly wallet_auth_method_id?: unknown;
-  readonly code_hash?: unknown;
-  readonly nonce_digest?: unknown;
-  readonly app_origin?: unknown;
-  readonly wallet_origin?: unknown;
-  readonly issued_at_ms?: unknown;
-  readonly lifecycle_kind?: unknown;
-  readonly expires_at_ms?: unknown;
-  readonly hosted_credential_id?: unknown;
-  readonly consumed_at_ms?: unknown;
-  readonly credential_digest_b64u?: unknown;
-  readonly session_record_json?: unknown;
-  readonly credential_lifecycle_kind?: unknown;
-  readonly credential_retired_at_ms?: unknown;
-  readonly session_operation_credential_hash?: unknown;
-  readonly session_retired_at_ms?: unknown;
-  readonly session_expires_at_ms?: unknown;
-  readonly quota_remaining_uses?: unknown;
-  readonly quota_lifecycle_kind?: unknown;
-  readonly quota_expires_at_ms?: unknown;
-};
-
-const ACTIVE_V2_AUTHORITY_METHOD_EXISTS_SQL = `
-  EXISTS (
-    SELECT 1
-      FROM wallet_authorities AS authority
-      JOIN wallet_auth_methods AS auth_method
-        ON auth_method.namespace = authority.namespace
-       AND auth_method.org_id = authority.org_id
-       AND auth_method.project_id = authority.project_id
-       AND auth_method.env_id = authority.env_id
-       AND auth_method.wallet_authority_id = authority.authority_id
-       AND auth_method.wallet_id = authority.wallet_id
-       AND auth_method.wallet_auth_method_id = ?
-       AND auth_method.status = 'active'
-     WHERE authority.namespace = ?
-       AND authority.org_id = ?
-       AND authority.project_id = ?
-       AND authority.env_id = ?
-       AND authority.authority_id = ?
-       AND authority.wallet_id = ?
-       AND authority.lifecycle_state = 'active'
-       AND authority.authority_digest_b64u = ?
-       AND authority.revocation_epoch = ?
-  )`;
-
-const ACTIVE_V2_HOSTED_PARENT_PROVENANCE_SQL = `
-  EXISTS (
-    SELECT 1
-      FROM wallet_authorities AS authority
-      JOIN wallet_auth_methods AS auth_method
-        ON auth_method.namespace = authority.namespace
-       AND auth_method.org_id = authority.org_id
-       AND auth_method.project_id = authority.project_id
-       AND auth_method.env_id = authority.env_id
-       AND auth_method.wallet_authority_id = authority.authority_id
-       AND auth_method.wallet_id = authority.wallet_id
-       AND auth_method.wallet_auth_method_id = session.wallet_auth_method_id
-       AND auth_method.status = 'active'
-     WHERE authority.namespace = session.namespace
-       AND authority.org_id = session.org_id
-       AND authority.project_id = session.project_id
-       AND authority.env_id = session.env_id
-       AND authority.authority_id = session.authority_id
-       AND authority.wallet_id = session.wallet_id
-       AND authority.lifecycle_state = 'active'
-       AND authority.authority_digest_b64u = session.authority_digest_b64u
-       AND authority.revocation_epoch = session.authority_revocation_epoch
-  )`;
-
-function activeV2AuthorityMethodBindings(
-  scope: D1WalletStoreScope,
-  session: WalletSessionAuthorizationV2,
-): readonly unknown[] {
-  return [
-    String(session.walletAuthMethodId),
-    scope.namespace,
-    scope.orgId,
-    scope.projectId,
-    scope.envId,
-    String(session.authorityId),
-    String(session.walletId),
-    String(session.authorityDigestB64u),
-    session.authorityRevocationEpoch,
-  ];
-}
-
-type WalletSessionAuthorizationV2Read =
-  | {
-      readonly expected: WalletSessionAuthorizationV2;
-      readonly nowMs: number;
-    }
-  | {
-      readonly identity: {
-        readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
-        readonly walletId: WalletSessionAuthorizationV2['walletId'];
-        readonly walletSessionId: WalletSessionAuthorizationV2['walletSessionId'];
-        readonly authorizationId: WalletSessionAuthorizationV2['authorizationId'];
-      };
-      readonly nowMs: number;
-    }
-  | {
-      readonly operationCredentialHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
-      readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
-      readonly nowMs: number;
-    };
+export type { D1AuthorizationStoreOptions } from './authorizationStore/context';
 
 export class CloudflareD1AuthorizationStore
   implements
@@ -308,45 +83,17 @@ export class CloudflareD1AuthorizationStore
     AuthorizationGrantPort,
     AuthorizedOperationPort
 {
-  private readonly database: D1DatabaseLike;
-  private readonly namespace: string;
-  private readonly walletSignerScope: D1WalletStoreScope;
-  private readonly walletStore: D1WalletStore;
-  private readonly getLinkedDeviceAuthorityReader: () => D1AuthorizationLinkedAuthorityMaterialReader | null;
-
+  private readonly context: D1AuthorizationContext;
   constructor(options: D1AuthorizationStoreOptions) {
-    this.getLinkedDeviceAuthorityReader = options.getLinkedDeviceAuthorityReader ?? (() => null);
-    this.database = options.database;
-    this.namespace = requireOpaqueString(options.namespace, 'namespace');
-    this.walletSignerScope = {
-      namespace: requireOpaqueString(
-        options.walletSignerScope.namespace,
-        'walletSignerScope.namespace',
-      ),
-      orgId: requireOpaqueString(options.walletSignerScope.orgId, 'walletSignerScope.orgId'),
-      projectId: requireOpaqueString(
-        options.walletSignerScope.projectId,
-        'walletSignerScope.projectId',
-      ),
-      envId: requireOpaqueString(options.walletSignerScope.envId, 'walletSignerScope.envId'),
-    };
-    this.walletStore = new D1WalletStore({
-      database: this.database,
-      namespace: this.walletSignerScope.namespace,
-      orgId: this.walletSignerScope.orgId,
-      projectId: this.walletSignerScope.projectId,
-      envId: this.walletSignerScope.envId,
-      ensureSchema: false,
-    });
+    this.context = createD1AuthorizationContext(options);
   }
-
-  async retireWalletSessionAuthorizationsForAuthMethod(input: {
+  retireWalletSessionAuthorizationsForAuthMethod(input: {
     readonly tenantId: TenantId;
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly nowMs: number;
   }): Promise<void> {
-    await this.database.batch(this.prepareRetireWalletSessionAuthorizationsForAuthMethod(input));
+    return retirement.retireWalletSessionAuthorizationsForAuthMethod(this.context, input);
   }
 
   prepareRetireWalletSessionAuthorizationsForAuthMethod(input: {
@@ -355,78 +102,7 @@ export class CloudflareD1AuthorizationStore
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly nowMs: number;
   }): readonly D1PreparedStatementLike[] {
-    requirePositiveInteger(input.nowMs, 'auth-method session retirement time');
-    const exhaustExactQuotas = this.database
-      .prepare(
-        `UPDATE authorization_wallet_session_quotas
-            SET remaining_uses = 0,
-                lifecycle_kind = 'exhausted'
-          WHERE namespace = ?
-            AND tenant_id = ?
-            AND lifecycle_kind = 'active'
-            AND quota_id IN (
-              SELECT quota_id
-                FROM wallet_session_authorizations_v2
-               WHERE namespace = ?
-                 AND org_id = ?
-                 AND project_id = ?
-                 AND env_id = ?
-                 AND tenant_id = ?
-                 AND wallet_id = ?
-                 AND wallet_auth_method_id = ?
-                 AND retired_at_ms IS NULL
-            )`,
-      )
-      .bind(
-        this.namespace,
-        input.tenantId,
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        input.walletId,
-        input.walletAuthMethodId,
-      );
-    const retireExactSessions = this.database
-      .prepare(
-        `UPDATE wallet_session_authorizations_v2
-            SET retired_at_ms = MAX(issued_at_ms, ?)
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND tenant_id = ?
-            AND wallet_id = ?
-            AND wallet_auth_method_id = ?
-            AND retired_at_ms IS NULL`,
-      )
-      .bind(
-        input.nowMs,
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        input.walletId,
-        input.walletAuthMethodId,
-      );
-    const [deleteHostedExchanges, retireHostedCredentials] =
-      this.prepareRetireHostedChildrenForParentSelection({
-        tenantId: input.tenantId,
-        nowMs: input.nowMs,
-        parentSelectionSql: `
-          predecessor.wallet_id = ?
-          AND predecessor.wallet_auth_method_id = ?
-          AND predecessor.retired_at_ms IS NULL`,
-        parentSelectionBindings: [input.walletId, input.walletAuthMethodId],
-      });
-    return [
-      exhaustExactQuotas,
-      deleteHostedExchanges,
-      retireHostedCredentials,
-      retireExactSessions,
-    ];
+    return retirement.prepareRetireWalletSessionAuthorizationsForAuthMethod(this.context, input);
   }
 
   prepareRetireWalletSessionAuthorizationsV2ForAuthority(input: {
@@ -435,979 +111,95 @@ export class CloudflareD1AuthorizationStore
     readonly authorityId: WalletAuthorityId;
     readonly nowMs: number;
   }): readonly D1PreparedStatementLike[] {
-    requirePositiveInteger(input.nowMs, 'authority session revocation time');
-    const remainingMethodFilter = `
-      SELECT 1
-        FROM wallet_auth_methods AS remaining_method
-       WHERE remaining_method.namespace = ?
-         AND remaining_method.org_id = ?
-         AND remaining_method.project_id = ?
-         AND remaining_method.env_id = ?
-         AND remaining_method.wallet_id = ?
-         AND remaining_method.wallet_authority_id = ?
-         AND remaining_method.status = 'active'`;
-    const remainingMethodBindings = [
-      this.namespace,
-      this.walletSignerScope.orgId,
-      this.walletSignerScope.projectId,
-      this.walletSignerScope.envId,
-      input.walletId,
-      input.authorityId,
-    ] as const;
-    const exhaustExactQuotas = this.database
-      .prepare(
-        `UPDATE authorization_wallet_session_quotas
-            SET remaining_uses = 0,
-                lifecycle_kind = 'exhausted'
-          WHERE namespace = ?
-            AND tenant_id = ?
-            AND lifecycle_kind = 'active'
-            AND quota_id IN (
-              SELECT session.quota_id
-                FROM wallet_session_authorizations_v2 AS session
-               WHERE session.namespace = ?
-                 AND session.org_id = ?
-                 AND session.project_id = ?
-                 AND session.env_id = ?
-                 AND session.tenant_id = ?
-                 AND session.wallet_id = ?
-                 AND session.authority_id = ?
-                 AND session.retired_at_ms IS NULL
-                 AND NOT EXISTS (${remainingMethodFilter})
-            )`,
-      )
-      .bind(
-        this.namespace,
-        input.tenantId,
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        input.walletId,
-        input.authorityId,
-        ...remainingMethodBindings,
-      );
-    const retireExactSessions = this.database
-      .prepare(
-        `UPDATE wallet_session_authorizations_v2
-            SET retired_at_ms = MAX(issued_at_ms, ?)
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND tenant_id = ?
-            AND wallet_id = ?
-            AND authority_id = ?
-            AND retired_at_ms IS NULL
-            AND NOT EXISTS (${remainingMethodFilter})`,
-      )
-      .bind(
-        input.nowMs,
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        input.walletId,
-        input.authorityId,
-        ...remainingMethodBindings,
-      );
-    const [deleteHostedExchanges, retireHostedCredentials] =
-      this.prepareRetireHostedChildrenForParentSelection({
-        tenantId: input.tenantId,
-        nowMs: input.nowMs,
-        parentSelectionSql: `
-          predecessor.wallet_id = ?
-          AND predecessor.authority_id = ?
-          AND predecessor.retired_at_ms IS NULL
-          AND NOT EXISTS (${remainingMethodFilter})`,
-        parentSelectionBindings: [input.walletId, input.authorityId, ...remainingMethodBindings],
-      });
-    return [
-      exhaustExactQuotas,
-      deleteHostedExchanges,
-      retireHostedCredentials,
-      retireExactSessions,
-    ];
+    return retirement.prepareRetireWalletSessionAuthorizationsV2ForAuthority(this.context, input);
   }
 
-  private prepareRetireHostedChildrenForParentSelection(input: {
-    readonly tenantId: TenantId;
-    readonly nowMs: number;
-    readonly parentSelectionSql: string;
-    readonly parentSelectionBindings: readonly unknown[];
-  }): readonly [D1PreparedStatementLike, D1PreparedStatementLike] {
-    const parentIdentityJoin = `
-      predecessor.namespace = hosted.namespace
-      AND predecessor.org_id = hosted.org_id
-      AND predecessor.project_id = hosted.project_id
-      AND predecessor.env_id = hosted.env_id
-      AND predecessor.tenant_id = hosted.tenant_id
-      AND predecessor.authorization_id = hosted.authorization_id
-      AND predecessor.wallet_session_id = hosted.wallet_session_id
-      AND predecessor.quota_id = hosted.quota_id
-      AND predecessor.principal_id = hosted.principal_id
-      AND predecessor.wallet_id = hosted.wallet_id
-      AND predecessor.authority_id = hosted.authority_id
-      AND predecessor.wallet_auth_method_id = hosted.wallet_auth_method_id`;
-    const scopeBindings = [
-      this.namespace,
-      this.walletSignerScope.orgId,
-      this.walletSignerScope.projectId,
-      this.walletSignerScope.envId,
-      input.tenantId,
-    ] as const;
-    const deleteHostedExchanges = this.database
-      .prepare(
-        `DELETE FROM wallet_session_hosted_exchange_codes_v2 AS hosted
-          WHERE hosted.namespace = ?
-            AND hosted.org_id = ?
-            AND hosted.project_id = ?
-            AND hosted.env_id = ?
-            AND hosted.tenant_id = ?
-            AND hosted.lifecycle_kind = 'issued'
-            AND EXISTS (
-              SELECT 1
-                FROM wallet_session_authorizations_v2 AS predecessor
-               WHERE ${parentIdentityJoin}
-                 AND ${input.parentSelectionSql}
-            )`,
-      )
-      .bind(...scopeBindings, ...input.parentSelectionBindings);
-    const retireHostedCredentials = this.database
-      .prepare(
-        `UPDATE wallet_session_hosted_credentials_v2 AS hosted
-            SET lifecycle_kind = 'retired',
-                retired_at_ms = MAX(hosted.issued_at_ms, ?)
-          WHERE hosted.namespace = ?
-            AND hosted.org_id = ?
-            AND hosted.project_id = ?
-            AND hosted.env_id = ?
-            AND hosted.tenant_id = ?
-            AND hosted.lifecycle_kind = 'active'
-            AND hosted.retired_at_ms IS NULL
-            AND EXISTS (
-              SELECT 1
-                FROM wallet_session_authorizations_v2 AS predecessor
-               WHERE ${parentIdentityJoin}
-                 AND ${input.parentSelectionSql}
-            )`,
-      )
-      .bind(input.nowMs, ...scopeBindings, ...input.parentSelectionBindings);
-    return [deleteHostedExchanges, retireHostedCredentials];
-  }
-
-  async putIssuedHostedWalletSeamsSessionExchange(
+  putIssuedHostedWalletSeamsSessionExchange(
     exchange: IssuedHostedWalletSeamsSessionExchangeV2,
   ): Promise<void> {
-    if (exchange.kind !== 'issued_hosted_wallet_session_exchange_v2') {
-      throw new Error('hosted-wallet exchange kind is invalid');
-    }
-    const result = await this.database
-      .prepare(
-        `INSERT INTO wallet_session_hosted_exchange_codes_v2 (
-          namespace,
-          org_id,
-          project_id,
-          env_id,
-          tenant_id,
-          exchange_code_id,
-          authorization_id,
-          wallet_session_id,
-          quota_id,
-          principal_id,
-          wallet_id,
-          authority_id,
-          wallet_auth_method_id,
-          code_hash,
-          nonce_digest,
-          app_origin,
-          wallet_origin,
-          issued_at_ms,
-          expires_at_ms,
-          lifecycle_kind,
-          hosted_credential_id,
-          consumed_at_ms
-        )
-        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', NULL, NULL
-          FROM wallet_session_authorizations_v2 AS session
-          JOIN authorization_wallet_session_quotas AS quota
-            ON quota.namespace = session.namespace
-           AND quota.tenant_id = session.tenant_id
-           AND quota.quota_id = session.quota_id
-           AND quota.wallet_session_id = session.wallet_session_id
-           AND quota.principal_id = session.principal_id
-         WHERE session.namespace = ?
-           AND session.org_id = ?
-           AND session.project_id = ?
-           AND session.env_id = ?
-           AND session.tenant_id = ?
-           AND session.authorization_id = ?
-           AND session.wallet_session_id = ?
-           AND session.quota_id = ?
-           AND session.principal_id = ?
-           AND session.wallet_id = ?
-           AND session.authority_id = ?
-           AND session.wallet_auth_method_id = ?
-           AND session.operation_credential_hash IS NOT NULL
-           AND session.retired_at_ms IS NULL
-           AND session.expires_at_ms >= ?
-           AND quota.lifecycle_kind = 'active'
-           AND quota.remaining_uses > 0
-           AND quota.expires_at_ms >= ?
-           AND ${ACTIVE_V2_HOSTED_PARENT_PROVENANCE_SQL}`,
-      )
-      .bind(
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        exchange.tenantId,
-        exchange.exchangeCodeId,
-        exchange.authorizationId,
-        exchange.walletSessionId,
-        exchange.quotaId,
-        exchange.principalId,
-        exchange.walletId,
-        exchange.authorityId,
-        exchange.walletAuthMethodId,
-        exchange.codeHash,
-        exchange.nonceDigest,
-        exchange.appOrigin,
-        exchange.walletOrigin,
-        requirePositiveInteger(exchange.issuedAtMs, 'exchange.issuedAtMs'),
-        requirePositiveInteger(exchange.expiresAtMs, 'exchange.expiresAtMs'),
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        exchange.tenantId,
-        exchange.authorizationId,
-        exchange.walletSessionId,
-        exchange.quotaId,
-        exchange.principalId,
-        exchange.walletId,
-        exchange.authorityId,
-        exchange.walletAuthMethodId,
-        exchange.expiresAtMs,
-        exchange.expiresAtMs,
-      )
-      .run();
-    requireOneChangedRow(result, 'hosted-wallet Seams session exchange code');
+    return hostedSessions.putIssuedHostedWalletSeamsSessionExchange(this.context, exchange);
   }
 
-  async redeemHostedWalletSeamsSessionExchange(
+  redeemHostedWalletSeamsSessionExchange(
     input: RedeemHostedWalletSeamsSessionExchangeV2Input,
     publishCredentialLocator?: () => Promise<void>,
   ): Promise<PersistedHostedWalletSeamsSessionExchangeV2Result> {
-    const current = await this.readHostedWalletExchangeV2(input.codeHash);
-    const rejected = classifyHostedWalletExchangeV2(current, input);
-    if (rejected) return rejected;
-    if (!current) throw new Error('hosted-wallet exchange disappeared');
-    // Publish after validation and before consuming the one-use exchange.
-    await publishCredentialLocator?.();
-    try {
-      const insertCredential = this.database
-        .prepare(
-          `INSERT INTO wallet_session_hosted_credentials_v2 (
-            namespace,
-            org_id,
-            project_id,
-            env_id,
-            tenant_id,
-            hosted_credential_id,
-            authorization_id,
-            wallet_session_id,
-            quota_id,
-            principal_id,
-            wallet_id,
-            authority_id,
-            wallet_auth_method_id,
-            credential_digest_b64u,
-            app_origin,
-            wallet_origin,
-            issued_at_ms,
-            expires_at_ms,
-            lifecycle_kind,
-            retired_at_ms
-          )
-          SELECT exchange.namespace,
-                 exchange.org_id,
-                 exchange.project_id,
-                 exchange.env_id,
-                 exchange.tenant_id,
-                 ?,
-                 exchange.authorization_id,
-                 exchange.wallet_session_id,
-                 exchange.quota_id,
-                 exchange.principal_id,
-                 exchange.wallet_id,
-                 exchange.authority_id,
-                 exchange.wallet_auth_method_id,
-                 ?,
-                 exchange.app_origin,
-                 exchange.wallet_origin,
-                 exchange.issued_at_ms,
-                 exchange.expires_at_ms,
-                 'active',
-                 NULL
-            FROM wallet_session_hosted_exchange_codes_v2 AS exchange
-            JOIN wallet_session_authorizations_v2 AS session
-              ON session.namespace = exchange.namespace
-             AND session.org_id = exchange.org_id
-             AND session.project_id = exchange.project_id
-             AND session.env_id = exchange.env_id
-             AND session.tenant_id = exchange.tenant_id
-             AND session.authorization_id = exchange.authorization_id
-             AND session.wallet_session_id = exchange.wallet_session_id
-             AND session.quota_id = exchange.quota_id
-             AND session.principal_id = exchange.principal_id
-             AND session.wallet_id = exchange.wallet_id
-             AND session.authority_id = exchange.authority_id
-             AND session.wallet_auth_method_id = exchange.wallet_auth_method_id
-            JOIN authorization_wallet_session_quotas AS quota
-              ON quota.namespace = exchange.namespace
-             AND quota.tenant_id = exchange.tenant_id
-             AND quota.quota_id = exchange.quota_id
-             AND quota.wallet_session_id = exchange.wallet_session_id
-             AND quota.principal_id = exchange.principal_id
-           WHERE exchange.namespace = ?
-             AND exchange.org_id = ?
-             AND exchange.project_id = ?
-             AND exchange.env_id = ?
-             AND exchange.tenant_id = ?
-             AND exchange.code_hash = ?
-             AND exchange.nonce_digest = ?
-             AND exchange.app_origin = ?
-             AND exchange.wallet_origin = ?
-             AND exchange.lifecycle_kind = 'issued'
-             AND exchange.hosted_credential_id IS NULL
-             AND exchange.consumed_at_ms IS NULL
-             AND exchange.expires_at_ms > ?
-             AND session.operation_credential_hash IS NOT NULL
-             AND session.retired_at_ms IS NULL
-             AND session.expires_at_ms >= exchange.expires_at_ms
-             AND quota.lifecycle_kind = 'active'
-             AND quota.remaining_uses > 0
-             AND quota.expires_at_ms >= exchange.expires_at_ms
-             AND ${ACTIVE_V2_HOSTED_PARENT_PROVENANCE_SQL}`,
-        )
-        .bind(
-          input.hostedCredentialId,
-          input.tokenHash,
-          this.namespace,
-          this.walletSignerScope.orgId,
-          this.walletSignerScope.projectId,
-          this.walletSignerScope.envId,
-          current.tenant_id,
-          input.codeHash,
-          input.nonceDigest,
-          input.appOrigin,
-          input.walletOrigin,
-          requirePositiveInteger(input.redeemedAtMs, 'exchange.redeemedAtMs'),
-        );
-      const updateStatement = this.database
-        .prepare(
-          `UPDATE wallet_session_hosted_exchange_codes_v2 AS exchange
-              SET lifecycle_kind = 'consumed',
-                  hosted_credential_id = ?,
-                  consumed_at_ms = ?
-            WHERE exchange.namespace = ?
-              AND exchange.org_id = ?
-              AND exchange.project_id = ?
-              AND exchange.env_id = ?
-              AND exchange.tenant_id = ?
-              AND exchange.code_hash = ?
-              AND exchange.nonce_digest = ?
-              AND exchange.app_origin = ?
-              AND exchange.wallet_origin = ?
-              AND exchange.lifecycle_kind = 'issued'
-              AND exchange.hosted_credential_id IS NULL
-              AND exchange.consumed_at_ms IS NULL
-              AND exchange.expires_at_ms > ?
-              AND EXISTS (
-                SELECT 1
-                  FROM wallet_session_authorizations_v2 AS session
-                 WHERE session.namespace = exchange.namespace
-                   AND session.org_id = exchange.org_id
-                   AND session.project_id = exchange.project_id
-                   AND session.env_id = exchange.env_id
-                   AND session.tenant_id = exchange.tenant_id
-                   AND session.authorization_id = exchange.authorization_id
-                   AND session.wallet_session_id = exchange.wallet_session_id
-                   AND session.quota_id = exchange.quota_id
-                   AND session.principal_id = exchange.principal_id
-                   AND session.wallet_id = exchange.wallet_id
-                   AND session.authority_id = exchange.authority_id
-                   AND session.wallet_auth_method_id = exchange.wallet_auth_method_id
-                   AND session.operation_credential_hash IS NOT NULL
-                   AND session.retired_at_ms IS NULL
-                   AND session.expires_at_ms >= exchange.expires_at_ms
-                   AND session.expires_at_ms > ?
-                   AND ${ACTIVE_V2_HOSTED_PARENT_PROVENANCE_SQL}
-              )
-              AND EXISTS (
-                SELECT 1
-                  FROM authorization_wallet_session_quotas AS quota
-                 WHERE quota.namespace = exchange.namespace
-                   AND quota.tenant_id = exchange.tenant_id
-                   AND quota.quota_id = exchange.quota_id
-                   AND quota.wallet_session_id = exchange.wallet_session_id
-                   AND quota.principal_id = exchange.principal_id
-                   AND quota.lifecycle_kind = 'active'
-                   AND quota.remaining_uses > 0
-                   AND quota.expires_at_ms >= exchange.expires_at_ms
-              )
-              AND EXISTS (
-                SELECT 1
-                  FROM wallet_session_hosted_credentials_v2 AS credential
-                 WHERE credential.namespace = exchange.namespace
-                   AND credential.org_id = exchange.org_id
-                   AND credential.project_id = exchange.project_id
-                   AND credential.env_id = exchange.env_id
-                   AND credential.tenant_id = exchange.tenant_id
-                   AND credential.hosted_credential_id = ?
-                   AND credential.authorization_id = exchange.authorization_id
-                   AND credential.wallet_session_id = exchange.wallet_session_id
-                   AND credential.quota_id = exchange.quota_id
-                   AND credential.principal_id = exchange.principal_id
-                   AND credential.wallet_id = exchange.wallet_id
-                   AND credential.authority_id = exchange.authority_id
-                   AND credential.wallet_auth_method_id = exchange.wallet_auth_method_id
-                   AND credential.credential_digest_b64u = ?
-                   AND credential.lifecycle_kind = 'active'
-                   AND credential.retired_at_ms IS NULL
-                   AND credential.expires_at_ms >= exchange.expires_at_ms
-              )`,
-        )
-        .bind(
-          input.hostedCredentialId,
-          requirePositiveInteger(input.redeemedAtMs, 'exchange.redeemedAtMs'),
-          this.namespace,
-          this.walletSignerScope.orgId,
-          this.walletSignerScope.projectId,
-          this.walletSignerScope.envId,
-          current.tenant_id,
-          input.codeHash,
-          input.nonceDigest,
-          input.appOrigin,
-          input.walletOrigin,
-          input.redeemedAtMs,
-          input.redeemedAtMs,
-          input.hostedCredentialId,
-          input.tokenHash,
-        );
-      // A zero-row CAS result is not a D1 statement error, so remove a child
-      // inserted by this batch if the exchange CAS no longer accepts it.
-      const deleteOrphanedCredential = this.database
-        .prepare(
-          `DELETE FROM wallet_session_hosted_credentials_v2 AS credential
-            WHERE credential.namespace = ?
-              AND credential.org_id = ?
-              AND credential.project_id = ?
-              AND credential.env_id = ?
-              AND credential.tenant_id = ?
-              AND credential.hosted_credential_id = ?
-              AND credential.authorization_id = ?
-              AND credential.wallet_session_id = ?
-              AND credential.quota_id = ?
-              AND credential.principal_id = ?
-              AND credential.wallet_id = ?
-              AND credential.authority_id = ?
-              AND credential.wallet_auth_method_id = ?
-              AND credential.credential_digest_b64u = ?
-              AND EXISTS (
-                SELECT 1
-                  FROM wallet_session_hosted_exchange_codes_v2 AS exchange
-                 WHERE exchange.namespace = credential.namespace
-                   AND exchange.org_id = credential.org_id
-                   AND exchange.project_id = credential.project_id
-                   AND exchange.env_id = credential.env_id
-                   AND exchange.tenant_id = credential.tenant_id
-                   AND exchange.code_hash = ?
-                   AND exchange.lifecycle_kind = 'issued'
-                   AND exchange.hosted_credential_id IS NULL
-                   AND exchange.consumed_at_ms IS NULL
-              )`,
-        )
-        .bind(
-          this.namespace,
-          this.walletSignerScope.orgId,
-          this.walletSignerScope.projectId,
-          this.walletSignerScope.envId,
-          current.tenant_id,
-          input.hostedCredentialId,
-          current.authorization_id,
-          current.wallet_session_id,
-          current.quota_id,
-          current.principal_id,
-          current.wallet_id,
-          current.authority_id,
-          current.wallet_auth_method_id,
-          input.tokenHash,
-          input.codeHash,
-        );
-      const results = await this.database.batch([
-        insertCredential,
-        updateStatement,
-        deleteOrphanedCredential,
-      ]);
-      const inserted = results[0] as D1ResultLike;
-      const updated = results[1] as D1ResultLike;
-      if (d1ChangedRows(inserted) !== 1 || d1ChangedRows(updated) !== 1) {
-        return (
-          classifyHostedWalletExchangeV2(
-            await this.readHostedWalletExchangeV2(input.codeHash),
-            input,
-          ) ?? { kind: 'wallet_session_unavailable' }
-        );
-      }
-    } catch {
-      return { kind: 'wallet_session_unavailable' };
-    }
-    if (!current) throw new Error('hosted-wallet Seams session exchange disappeared');
-    return {
-      kind: 'redeemed',
-      tenantId: requireParsed(current.tenant_id, parseTenantId, 'exchange.tenantId'),
-      authorizationId: requireParsed(
-        current.authorization_id,
-        parseWalletSessionAuthorizationId,
-        'exchange.authorizationId',
-      ),
-      walletSessionId: requireParsed(
-        current.wallet_session_id,
-        parseWalletSessionId,
-        'exchange.walletSessionId',
-      ),
-      hostedCredentialId: parseHostedWalletSessionCredentialId(input.hostedCredentialId),
-      expiresAtMs: integerColumn(current.expires_at_ms, 'exchange.expiresAtMs'),
-    };
+    return hostedSessions.redeemHostedWalletSeamsSessionExchange(
+      this.context,
+      input,
+      publishCredentialLocator,
+    );
   }
 
-  async readHostedWalletSessionOperationCredentialV2(input: {
+  readHostedWalletSessionOperationCredentialV2(input: {
     readonly tenantId: TenantId;
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly requestOrigin: import('../../../../authorization/domain').SessionOrigin;
     readonly nowMs: number;
   }): Promise<ResolvedHostedWalletSessionOperationCredentialV2 | null> {
-    const row = await this.database
-      .prepare(
-        `SELECT credential.hosted_credential_id,
-                credential.authorization_id,
-                credential.wallet_session_id,
-                credential.quota_id,
-                credential.principal_id,
-                credential.wallet_id,
-                credential.authority_id,
-                credential.wallet_auth_method_id,
-                credential.app_origin,
-                credential.wallet_origin,
-                credential.expires_at_ms,
-                credential.retired_at_ms,
-                session.record_json AS session_record_json,
-                session.retired_at_ms AS session_retired_at_ms,
-                session.expires_at_ms AS session_expires_at_ms,
-                session.operation_credential_hash AS session_operation_credential_hash,
-                quota.lifecycle_kind AS quota_lifecycle_kind,
-                quota.remaining_uses AS quota_remaining_uses,
-                quota.expires_at_ms AS quota_expires_at_ms
-           FROM wallet_session_hosted_credentials_v2 AS credential
-           LEFT JOIN wallet_session_authorizations_v2 AS session
-             ON session.namespace = credential.namespace
-            AND session.org_id = credential.org_id
-            AND session.project_id = credential.project_id
-            AND session.env_id = credential.env_id
-            AND session.tenant_id = credential.tenant_id
-            AND session.authorization_id = credential.authorization_id
-            AND session.wallet_session_id = credential.wallet_session_id
-            AND session.quota_id = credential.quota_id
-            AND session.principal_id = credential.principal_id
-            AND session.wallet_id = credential.wallet_id
-            AND session.authority_id = credential.authority_id
-            AND session.wallet_auth_method_id = credential.wallet_auth_method_id
-           LEFT JOIN authorization_wallet_session_quotas AS quota
-             ON quota.namespace = credential.namespace
-            AND quota.tenant_id = credential.tenant_id
-            AND quota.quota_id = credential.quota_id
-            AND quota.wallet_session_id = credential.wallet_session_id
-            AND quota.principal_id = credential.principal_id
-          WHERE credential.namespace = ?
-            AND credential.org_id = ?
-            AND credential.project_id = ?
-            AND credential.env_id = ?
-            AND credential.tenant_id = ?
-            AND credential.credential_digest_b64u = ?
-            AND credential.lifecycle_kind = 'active'
-            AND credential.retired_at_ms IS NULL
-          LIMIT 1`,
-      )
-      .bind(
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        input.tokenHash,
-      )
-      .first<HostedWalletExchangeV2Row>();
-    if (!row) return null;
-    const appOrigin = parseSessionOrigin(row.app_origin);
-    const walletOrigin = parseSessionOrigin(row.wallet_origin);
-    if (walletOrigin !== input.requestOrigin) return null;
-    if (
-      row.session_record_json === null ||
-      row.session_record_json === undefined ||
-      row.session_operation_credential_hash === null ||
-      row.session_operation_credential_hash === undefined ||
-      (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) ||
-      (row.credential_retired_at_ms !== null && row.credential_retired_at_ms !== undefined) ||
-      row.quota_lifecycle_kind !== 'active' ||
-      integerColumn(row.quota_remaining_uses, 'hosted credential quota remaining uses') <= 0 ||
-      integerColumn(row.expires_at_ms, 'hosted credential expiry') <= input.nowMs ||
-      integerColumn(row.session_expires_at_ms, 'hosted parent expiry') <= input.nowMs ||
-      integerColumn(row.session_expires_at_ms, 'hosted parent expiry') <
-        integerColumn(row.expires_at_ms, 'hosted credential expiry') ||
-      integerColumn(row.quota_expires_at_ms, 'hosted quota expiry') <= input.nowMs ||
-      integerColumn(row.quota_expires_at_ms, 'hosted quota expiry') <
-        integerColumn(row.expires_at_ms, 'hosted credential expiry')
-    ) {
-      return null;
-    }
-    const expected = parsePersistedWalletSessionAuthorizationV2(
-      parseD1JsonColumn(row.session_record_json),
-    );
-    let authorization: IssuedWalletSessionAuthorizationV2 | null;
-    try {
-      authorization = await this.readWalletSessionAuthorizationV2ByAuthorizationId({
-        expected,
-        nowMs: input.nowMs,
-      });
-    } catch {
-      return null;
-    }
-    if (!authorization) return null;
-    return {
-      kind: 'resolved_hosted_wallet_session_operation_credential_v2',
-      authorization,
-      hostedCredentialId: parseHostedWalletSessionCredentialId(row.hosted_credential_id),
-      appOrigin,
-      walletOrigin,
-      expiresAtMs: integerColumn(row.expires_at_ms, 'hosted credential expiry'),
-    };
+    return hostedSessions.readHostedWalletSessionOperationCredentialV2(this.context, input);
   }
 
   readWalletOperationEvidence(
     input: import('../../../../authorization/service').WalletOperationEvidenceLookup,
   ) {
-    return readWalletOperationEvidence(this.database, this.walletSignerScope, input);
+    return evidence.readRecordedWalletOperationEvidence(this.context, input);
   }
 
-  async putVerifiedEvidenceSet(evidenceSet: VerifiedAuthorizationEvidenceSet): Promise<void> {
-    await prepareWalletOperationEvidence(this.database, this.walletSignerScope, evidenceSet).run();
+  putVerifiedEvidenceSet(evidenceSet: VerifiedAuthorizationEvidenceSet): Promise<void> {
+    return evidence.putVerifiedEvidenceSet(this.context, evidenceSet);
   }
 
-  async commitWalletOperationEvidence(input: {
+  commitWalletOperationEvidence(input: {
     readonly evidenceSet: VerifiedAuthorizationEvidenceSet;
     readonly consumeInBatch: readonly D1PreparedStatementLike[];
   }): Promise<void> {
-    await this.database.batch([
-      ...input.consumeInBatch,
-      prepareWalletOperationEvidence(this.database, this.walletSignerScope, input.evidenceSet),
-      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
-    ]);
+    return evidence.commitWalletOperationEvidence(this.context, input);
   }
 
-  async consumeVerifiedOwnerProof(
+  consumeVerifiedOwnerProof(
     proof: VerifiedOwnerProof,
     consumedAtMs: number,
     consumptionScopeId: string,
   ): Promise<boolean> {
-    const consumedAt = requirePositiveInteger(consumedAtMs, 'owner proof consumedAtMs');
-    const scopeId = consumptionScopeId.trim();
-    if (!scopeId) throw new Error('owner proof consumption scope is required');
-    if (proof.verifiedAtMs > consumedAt || proof.expiresAtMs <= consumedAt) {
-      throw new Error('owner proof is outside its verification window');
-    }
-    const result = await this.database
-      .prepare(
-        `INSERT OR IGNORE INTO verified_owner_proof_consumptions (
-          namespace,
-          tenant_id,
-          proof_id,
-          purpose,
-          method,
-          principal_id,
-          wallet_id,
-          authority_digest,
-          replay_identity,
-          consumption_scope_id,
-          consumed_at_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        this.namespace,
-        proof.tenantId,
-        proof.proofId,
-        proof.purpose,
-        proof.method,
-        proof.principalId,
-        proof.walletId,
-        proof.authority.authorityDigest,
-        proof.replayIdentity,
-        scopeId,
-        consumedAt,
-      )
-      .run();
-    if (d1ChangedRows(result) === 1) return true;
-    const existing = await this.database
-      .prepare(
-        `SELECT
-           purpose,
-           method,
-           principal_id,
-           wallet_id,
-           authority_digest,
-           replay_identity,
-           consumption_scope_id
-           FROM verified_owner_proof_consumptions
-          WHERE namespace = ?
-            AND tenant_id = ?
-            AND proof_id = ?
-            AND replay_identity = ?`,
-      )
-      .bind(this.namespace, proof.tenantId, proof.proofId, proof.replayIdentity)
-      .first<{
-        purpose: string;
-        method: string;
-        principal_id: string;
-        wallet_id: string;
-        authority_digest: string;
-        replay_identity: string;
-        consumption_scope_id: string;
-      }>();
-    return (
-      existing?.purpose === proof.purpose &&
-      existing.method === proof.method &&
-      existing.principal_id === proof.principalId &&
-      existing.wallet_id === proof.walletId &&
-      existing.authority_digest === proof.authority.authorityDigest &&
-      existing.replay_identity === proof.replayIdentity &&
-      existing.consumption_scope_id === scopeId
+    return evidence.consumeVerifiedOwnerProof(
+      this.context,
+      proof,
+      consumedAtMs,
+      consumptionScopeId,
     );
   }
 
-  async commitDirectWalletSessionAuthorizationV2(input: {
+  commitDirectWalletSessionAuthorizationV2(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
   }): Promise<DirectV2CommitResult> {
-    return await this.commitDirectWalletSessionAuthorizationV2WithMode({
-      persisted: input.persisted,
-      mode: { kind: 'strict' },
-      purpose: { kind: 'ordinary' },
-    });
+    return issuance.commitDirectWalletSessionAuthorizationV2(this.context, input);
   }
 
-  async readWalletSessionIssuanceGeneration(walletId: WalletId): Promise<number> {
-    const row = await this.prepareWalletSessionIssuanceGenerationRead(walletId).first<D1Row>();
-    if (!row) throw new Error('Wallet session issuance requires an open execution generation');
-    return requirePositiveInteger(row.generation, 'Wallet Session ownership generation');
-  }
-
-  private prepareWalletSessionIssuanceGenerationRead(walletId: WalletId): D1PreparedStatementLike {
-    return this.database
-      .prepare(
-        `SELECT generation, state FROM wallet_execution_generations
-       WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-         AND wallet_id = ? AND state IN ('registering', 'active')`,
-      )
-      .bind(
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        walletId,
-      );
+  readWalletSessionIssuanceGeneration(walletId: WalletId): Promise<number> {
+    return issuance.readWalletSessionIssuanceGeneration(this.context, walletId);
   }
 
   /** The service validates the committed winner against its caller-specific replay contract. */
-  async commitDirectReplayableWalletSessionAuthorizationV2(input: {
+  commitDirectReplayableWalletSessionAuthorizationV2(input: {
     readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
     readonly purpose: DirectWalletSessionCommitPurpose;
   }): Promise<DirectV2CommitResult> {
-    return await this.commitDirectWalletSessionAuthorizationV2WithMode({
-      persisted: input.persisted,
-      mode: { kind: 'replayable' },
-      purpose: input.purpose,
-    });
+    return issuance.commitDirectReplayableWalletSessionAuthorizationV2(this.context, input);
   }
 
-  async commitRegistrationWalletSessionAuthorizationV2(
+  commitRegistrationWalletSessionAuthorizationV2(
     commitWallet: (executeBatch: D1RegistrationCommitBatch) => Promise<void>,
     input: {
       readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
       readonly purpose: DirectWalletSessionCommitPurpose;
     },
   ): Promise<DirectV2CommitResult> {
-    if (input.purpose.kind !== 'registration') {
-      throw new Error('A wallet registration transaction requires a registration session');
-    }
-    const transaction = new D1RegistrationSessionTransaction(this.database, commitWallet);
-    return this.commitDirectWalletSessionAuthorizationV2WithMode(
-      { persisted: input.persisted, purpose: input.purpose, mode: { kind: 'replayable' } },
-      transaction.execute.bind(transaction),
+    return issuance.commitRegistrationWalletSessionAuthorizationV2(
+      this.context,
+      commitWallet,
+      input,
     );
-  }
-
-  private async commitDirectWalletSessionAuthorizationV2WithMode(
-    input: {
-      readonly persisted: PersistedActiveWalletSessionAuthorizationV2;
-      readonly mode: DirectV2CommitMode;
-      readonly purpose: DirectWalletSessionCommitPurpose;
-    },
-    executeBatch?: (
-      statements: readonly D1PreparedStatementLike[],
-    ) => Promise<readonly D1ResultLike<D1Row>[]>,
-  ): Promise<DirectV2CommitResult> {
-    const { persisted, mode } = input;
-    requireExactPersistedActiveWalletSessionAuthorizationV2(persisted);
-    const lookup: WalletSessionAuthorizationV2MintLookup = {
-      tenantId: persisted.session.tenantId,
-      principalId: persisted.session.principalId,
-      walletId: persisted.session.walletId,
-      authorityId: persisted.session.authorityId,
-      walletAuthMethodId: persisted.session.walletAuthMethodId,
-      mintId: persisted.session.mintId,
-    };
-    const completionStatements = this.prepareRegistrationSessionCompletion(input.purpose, lookup);
-    const statements = [
-      ...this.prepareDirectWalletSessionAuthorizationV2Statements(persisted),
-      this.prepareWalletSessionAuthorizationV2ByMintRead(lookup),
-      this.prepareWalletSessionIssuanceGenerationRead(persisted.session.walletId),
-      ...completionStatements,
-    ];
-    const results = executeBatch
-      ? await executeBatch(statements)
-      : await this.database.batch<D1ResultLike<D1Row>>(statements);
-    if (results.length !== 8 + completionStatements.length) {
-      throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
-    }
-    const quotaResult = results[4];
-    const sessionResult = results[5];
-    const committedResult = results[6];
-    if (!quotaResult || !sessionResult || !committedResult?.success) {
-      throw new Error('Direct V2 Wallet Session transaction returned incomplete results');
-    }
-    const quotaChanges = d1ChangedRows(quotaResult);
-    const sessionChanges = d1ChangedRows(sessionResult);
-    if (quotaChanges !== sessionChanges) {
-      throw new Error('Direct V2 Wallet Session transaction persisted an incomplete identity');
-    }
-    // Read the committed winner in the same transaction, including a concurrent mint replay.
-    const committed = parseWalletSessionAuthorizationV2MintRow(
-      committedResult.results?.[0] ?? null,
-      lookup,
-    );
-    const generationResult = results[7];
-    const generation = generationResult?.results?.[0];
-    let registration: DirectV2CommitResult['registration'] = null;
-    if (input.purpose.kind === 'registration') {
-      if (
-        !generationResult?.success ||
-        (generation?.state !== 'registering' && generation?.state !== 'active')
-      ) {
-        throw new Error('Registration session commit requires an open execution generation');
-      }
-      registration = {
-        ceremonyId: input.purpose.ceremonyId,
-        walletId: lookup.walletId,
-        state: generation.state,
-      };
-    }
-    if (!committed) {
-      if (!generationResult?.success || !generation) {
-        throw new Error('Wallet session issuance requires an open execution generation');
-      }
-      throw new Error('Direct V2 Wallet Session authorization commit was not readable');
-    }
-    if (sessionChanges === 0) {
-      switch (mode.kind) {
-        case 'strict':
-          break;
-        case 'replayable':
-          return { kind: 'already_committed', committed, registration };
-        default:
-          return assertNeverDirectV2CommitMode(mode);
-      }
-    }
-    if (committed.session.walletSessionId !== persisted.session.walletSessionId) {
-      throw new Error('Direct V2 Wallet Session commit returned a different session identity');
-    }
-    if (
-      committed.primaryOperationCredentialDigestB64u !==
-      persisted.primaryOperationCredentialDigestB64u
-    ) {
-      throw new Error('Direct V2 Wallet Session commit returned a different credential digest');
-    }
-    if (sessionChanges === 0) {
-      return { kind: 'already_committed', committed, registration };
-    }
-    if (sessionChanges !== 1) {
-      throw new Error('Direct V2 Wallet Session transaction changed more than one session');
-    }
-    if (!generationResult?.success || !generation) {
-      throw new Error('Wallet session issuance requires an open execution generation');
-    }
-    return {
-      kind: 'inserted',
-      registration,
-      ownershipGeneration: requirePositiveInteger(
-        generation.generation,
-        'Wallet Session ownership generation',
-      ),
-    };
-  }
-
-  private prepareRegistrationSessionCompletion(
-    purpose: DirectWalletSessionCommitPurpose,
-    session: WalletSessionAuthorizationV2MintLookup,
-  ): readonly D1PreparedStatementLike[] {
-    switch (purpose.kind) {
-      case 'ordinary':
-        return [];
-      case 'registration':
-        return [
-          this.database
-            .prepare(
-              `UPDATE wallet_execution_generations SET registration_completion = 'established'
-             WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-               AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
-               AND state IN ('registering', 'active')
-               AND registration_completion IN ('pending', 'established')
-               AND EXISTS (
-                 SELECT 1 FROM wallet_session_authorizations_v2
-                 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
-                   AND wallet_id = ?5 AND tenant_id = ?7 AND principal_id = ?8
-                   AND authority_id = ?9 AND wallet_auth_method_id = ?10 AND mint_id = ?11
-               )`,
-            )
-            .bind(
-              this.namespace,
-              this.walletSignerScope.orgId,
-              this.walletSignerScope.projectId,
-              this.walletSignerScope.envId,
-              session.walletId,
-              purpose.ceremonyId,
-              session.tenantId,
-              String(session.principalId),
-              session.authorityId,
-              session.walletAuthMethodId,
-              session.mintId,
-            ),
-          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
-        ];
-      default:
-        return assertNeverDirectWalletSessionCommitPurpose(purpose);
-    }
   }
 
   /**
@@ -1425,423 +217,72 @@ export class CloudflareD1AuthorizationStore
     D1PreparedStatementLike,
     D1PreparedStatementLike,
   ] {
-    requireExactPersistedActiveWalletSessionAuthorizationV2(persisted);
-    const { session, quota, primaryOperationCredentialDigestB64u } = persisted;
-    const capabilitySubjectsJson = JSON.stringify(session.capabilitySubjects);
-    const recordJson = JSON.stringify(session);
-    if (!capabilitySubjectsJson || !recordJson) {
-      throw new Error('Direct V2 Wallet Session authorization serialization is required');
-    }
-    const availabilitySql = directV2IdentityAvailabilitySql();
-    const availabilityBindings = directV2IdentityAvailabilityBindings(
-      this.namespace,
-      this.walletSignerScope,
-      session,
-    );
-    const sessionIdentityAvailabilitySql = directV2SessionIdentityAvailabilitySql();
-    const sessionIdentityAvailabilityBindings = directV2SessionIdentityAvailabilityBindings(
-      this.namespace,
-      this.walletSignerScope,
-      session,
-    );
-    const retirePredecessorSessions = this.database
-      .prepare(
-        `UPDATE wallet_session_authorizations_v2
-            SET retired_at_ms = MAX(issued_at_ms, ?)
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND tenant_id = ?
-            AND wallet_id = ?
-            AND authority_id = ?
-            AND wallet_auth_method_id = ?
-            AND retired_at_ms IS NULL
-            AND mint_id != ?
-            AND ${availabilitySql}`,
-      )
-      .bind(
-        requirePositiveInteger(session.createdAtMs, 'Direct V2 issuance time'),
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        session.tenantId,
-        String(session.walletId),
-        String(session.authorityId),
-        String(session.walletAuthMethodId),
-        String(session.mintId),
-        ...availabilityBindings,
-      );
-    const exhaustPredecessorQuotas = this.database
-      .prepare(
-        `UPDATE authorization_wallet_session_quotas
-            SET remaining_uses = 0,
-                lifecycle_kind = 'exhausted'
-          WHERE namespace = ?
-            AND tenant_id = ?
-            AND quota_id IN (
-              SELECT predecessor.quota_id
-                FROM wallet_session_authorizations_v2 AS predecessor
-               WHERE predecessor.namespace = ?
-                 AND predecessor.org_id = ?
-                 AND predecessor.project_id = ?
-                 AND predecessor.env_id = ?
-                 AND predecessor.tenant_id = ?
-                 AND predecessor.wallet_id = ?
-                 AND predecessor.authority_id = ?
-                 AND predecessor.wallet_auth_method_id = ?
-                 AND predecessor.mint_id != ?
-                 AND predecessor.retired_at_ms IS NULL
-            )
-            AND ${availabilitySql}`,
-      )
-      .bind(
-        this.namespace,
-        session.tenantId,
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        session.tenantId,
-        String(session.walletId),
-        String(session.authorityId),
-        String(session.walletAuthMethodId),
-        String(session.mintId),
-        ...availabilityBindings,
-      );
-    const quotaStatement = this.database
-      .prepare(
-        `INSERT OR IGNORE INTO authorization_wallet_session_quotas (
-          namespace,
-          tenant_id,
-          quota_id,
-          wallet_session_id,
-          principal_id,
-          remaining_uses,
-          lifecycle_kind,
-          expires_at_ms
-        )
-        SELECT ?, ?, ?, ?, ?, ?, 'active', ?
-         WHERE ${availabilitySql}`,
-      )
-      .bind(
-        this.namespace,
-        quota.tenantId,
-        String(quota.quotaId),
-        String(quota.walletSessionId),
-        String(quota.principalId),
-        requirePositiveInteger(quota.remainingUses, 'Direct V2 quota.remainingUses'),
-        requirePositiveInteger(quota.expiresAtMs, 'Direct V2 quota.expiresAtMs'),
-        ...availabilityBindings,
-      );
-    const sessionStatement = this.database
-      .prepare(
-        `INSERT OR IGNORE INTO wallet_session_authorizations_v2 (
-          namespace,
-          org_id,
-          project_id,
-          env_id,
-          tenant_id,
-          authorization_id,
-          mint_id,
-          wallet_session_id,
-          quota_id,
-          principal_id,
-          wallet_id,
-          authority_id,
-          wallet_auth_method_id,
-          authority_digest_b64u,
-          authority_revocation_epoch,
-          capability_subjects_json,
-          issued_at_ms,
-          expires_at_ms,
-          retired_at_ms,
-          record_json,
-          operation_credential_hash
-        )
-        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?
-         WHERE ${sessionIdentityAvailabilitySql}
-           AND EXISTS (
-             SELECT 1
-               FROM authorization_wallet_session_quotas AS quota
-              WHERE quota.namespace = ?
-                AND quota.tenant_id = ?
-                AND quota.quota_id = ?
-                AND quota.wallet_session_id = ?
-                AND quota.principal_id = ?
-                AND quota.remaining_uses = ?
-                AND quota.lifecycle_kind = 'active'
-                AND quota.expires_at_ms = ?
-           )`,
-      )
-      .bind(
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        session.tenantId,
-        String(session.authorizationId),
-        String(session.mintId),
-        String(session.walletSessionId),
-        String(session.quotaId),
-        String(session.principalId),
-        String(session.walletId),
-        String(session.authorityId),
-        String(session.walletAuthMethodId),
-        String(session.authorityDigestB64u),
-        session.authorityRevocationEpoch,
-        capabilitySubjectsJson,
-        requirePositiveInteger(session.createdAtMs, 'Direct V2 session.createdAtMs'),
-        requirePositiveInteger(session.expiresAtMs, 'Direct V2 session.expiresAtMs'),
-        recordJson,
-        String(primaryOperationCredentialDigestB64u),
-        ...sessionIdentityAvailabilityBindings,
-        this.namespace,
-        quota.tenantId,
-        String(quota.quotaId),
-        String(quota.walletSessionId),
-        String(quota.principalId),
-        requirePositiveInteger(quota.remainingUses, 'Direct V2 quota.remainingUses'),
-        requirePositiveInteger(quota.expiresAtMs, 'Direct V2 quota.expiresAtMs'),
-      );
-    const [deleteHostedExchanges, retireHostedCredentials] =
-      this.prepareRetireHostedChildrenForParentSelection({
-        tenantId: session.tenantId,
-        nowMs: session.createdAtMs,
-        parentSelectionSql: `
-          predecessor.wallet_id = ?
-          AND predecessor.authority_id = ?
-          AND predecessor.wallet_auth_method_id = ?
-          AND predecessor.mint_id != ?
-          AND predecessor.retired_at_ms IS NULL
-          AND ${availabilitySql}`,
-        parentSelectionBindings: [
-          session.walletId,
-          session.authorityId,
-          session.walletAuthMethodId,
-          session.mintId,
-          ...availabilityBindings,
-        ],
-      });
-    return [
-      exhaustPredecessorQuotas,
-      deleteHostedExchanges,
-      retireHostedCredentials,
-      retirePredecessorSessions,
-      quotaStatement,
-      sessionStatement,
-    ];
+    return issuance.prepareDirectWalletSessionAuthorizationV2Statements(this.context, persisted);
   }
 
-  async replaceWalletSessionAuthorizationV2AuthorityProjection(input: {
+  replaceWalletSessionAuthorizationV2AuthorityProjection(input: {
     readonly session: WalletSessionAuthorizationV2;
     readonly quota: ActiveWalletSessionQuota | ExactWalletSessionQuotaProjectionV1;
   }): Promise<void> {
-    requireExactWalletSessionAuthorizationV2Quota(input);
-    const statements = this.prepareWalletSessionAuthorizationV2AuthorityProjectionStatements({
-      session: input.session,
-      promotionAtMs: input.session.createdAtMs,
-    });
-    const results = await this.database.batch(statements);
-    if (results.length !== statements.length) {
-      throw new Error(
-        'V2 Wallet Session authority projection transaction returned incomplete results',
-      );
-    }
-    const result = results.at(-1) as D1ResultLike | undefined;
-    if (!result || d1ChangedRows(result) === 0) {
-      throw new Error('V2 Wallet Session authority projection was not replaced');
-    }
-    const persisted = await this.readLiveWalletSessionAuthorizationProjectionV2({
-      expected: input.session,
-      nowMs: input.session.createdAtMs,
-    });
-    if (!persisted || persisted.quota.remainingUses > input.quota.remainingUses) {
-      throw new Error('V2 Wallet Session authority projection was not replaced');
-    }
+    return issuance.replaceWalletSessionAuthorizationV2AuthorityProjection(this.context, input);
   }
 
   prepareWalletSessionAuthorizationV2AuthorityProjectionStatements(input: {
     readonly session: WalletSessionAuthorizationV2;
     readonly promotionAtMs: number;
   }): readonly [D1PreparedStatementLike, D1PreparedStatementLike, D1PreparedStatementLike] {
-    return prepareD1WalletSessionAuthorityProjectionStatements({
-      database: this.database,
-      scope: this.walletSignerScope,
-      projection: {
-        walletId: input.session.walletId,
-        authorityId: input.session.authorityId,
-        authorityDigestB64u: input.session.authorityDigestB64u,
-        authorityRevocationEpoch: input.session.authorityRevocationEpoch,
-        capabilitySubjects: input.session.capabilitySubjects,
-        promotionAtMs: input.promotionAtMs,
-      },
-    });
+    return issuance.prepareWalletSessionAuthorizationV2AuthorityProjectionStatements(
+      this.context,
+      input,
+    );
   }
 
-  async readWalletSessionAuthorizationV2ByMint(
+  readWalletSessionAuthorizationV2ByMint(
     input: WalletSessionAuthorizationV2MintLookup,
   ): Promise<WalletSessionAuthorizationV2MintRead | null> {
-    const row = await this.prepareWalletSessionAuthorizationV2ByMintRead(input).first<D1Row>();
-    return parseWalletSessionAuthorizationV2MintRow(row, input);
+    return sessions.readWalletSessionAuthorizationV2ByMint(this.context, input);
   }
 
-  private prepareWalletSessionAuthorizationV2ByMintRead(
-    input: WalletSessionAuthorizationV2MintLookup,
-  ): D1PreparedStatementLike {
-    return this.database
-      .prepare(
-        `SELECT
-           record_json,
-           capability_subjects_json,
-           tenant_id,
-           authorization_id,
-           mint_id,
-           wallet_session_id,
-           quota_id,
-           principal_id,
-           wallet_id,
-           authority_id,
-           wallet_auth_method_id,
-           authority_digest_b64u,
-           authority_revocation_epoch,
-           issued_at_ms,
-           expires_at_ms,
-           retired_at_ms,
-           operation_credential_hash
-         FROM wallet_session_authorizations_v2
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND tenant_id = ?
-          AND principal_id = ?
-          AND wallet_id = ?
-          AND authority_id = ?
-          AND wallet_auth_method_id = ?
-          AND mint_id = ?
-        LIMIT 1`,
-      )
-      .bind(
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        String(input.principalId),
-        String(input.walletId),
-        String(input.authorityId),
-        String(input.walletAuthMethodId),
-        String(input.mintId),
-      );
-  }
-
-  async readLiveWalletSessionAuthorizationProjectionV2(input: {
+  readLiveWalletSessionAuthorizationProjectionV2(input: {
     readonly expected: WalletSessionAuthorizationV2;
     readonly nowMs: number;
   }): Promise<LiveWalletSessionAuthorizationProjectionV2 | null> {
-    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'session' },
-      lookupColumn: 'authorization_id',
-      tenantId: input.expected.tenantId,
-      lookupValue: input.expected.authorizationId,
-    });
-    if (!row) return null;
-    const session = parseLiveWalletSessionAuthorizationV2Row(row, input);
-    return { session, quota: parseExactWalletSessionQuotaProjectionRow(row, session) };
+    return sessions.readLiveWalletSessionAuthorizationProjectionV2(this.context, input);
   }
 
-  async readWalletSessionAuthorizationV2ByAuthorizationId(input: {
+  readWalletSessionAuthorizationV2ByAuthorizationId(input: {
     readonly expected: WalletSessionAuthorizationV2;
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null> {
-    return await this.readWalletSessionAuthorizationV2(input, 'authorization_id');
+    return sessions.readWalletSessionAuthorizationV2ByAuthorizationId(this.context, input);
   }
 
-  async readWalletSessionAuthorizationV2ByIdentity(input: {
+  readWalletSessionAuthorizationV2ByIdentity(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly walletId: WalletSessionAuthorizationV2['walletId'];
     readonly walletSessionId: WalletSessionAuthorizationV2['walletSessionId'];
     readonly authorizationId: WalletSessionAuthorizationV2['authorizationId'];
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null> {
-    return await this.readWalletSessionAuthorizationV2(
-      {
-        identity: {
-          tenantId: input.tenantId,
-          walletId: input.walletId,
-          walletSessionId: input.walletSessionId,
-          authorizationId: input.authorizationId,
-        },
-        nowMs: input.nowMs,
-      },
-      'authorization_id',
-    );
+    return sessions.readWalletSessionAuthorizationV2ByIdentity(this.context, input);
   }
 
-  async readActiveWalletSessionAuthorizationV2ByIdentity(input: {
+  readActiveWalletSessionAuthorizationV2ByIdentity(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly walletId: WalletSessionAuthorizationV2['walletId'];
     readonly walletSessionId: WalletSessionAuthorizationV2['walletSessionId'];
     readonly authorizationId: WalletSessionAuthorizationV2['authorizationId'];
     readonly nowMs: number;
   }): Promise<WalletSessionAuthorizationV2 | null> {
-    const row = await this.database
-      .prepare(
-        `SELECT record_json, retired_at_ms
-           FROM wallet_session_authorizations_v2
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND tenant_id = ?
-            AND wallet_id = ?
-            AND wallet_session_id = ?
-            AND authorization_id = ?
-          LIMIT 1`,
-      )
-      .bind(
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        input.walletId,
-        input.walletSessionId,
-        input.authorizationId,
-      )
-      .first<D1Row>();
-    if (!row) return null;
-    if (row.retired_at_ms !== null && row.retired_at_ms !== undefined) return null;
-    const session = parsePersistedWalletSessionAuthorizationV2(
-      parseD1JsonColumn(row.record_json),
-    );
-    if (
-      session.tenantId !== input.tenantId ||
-      session.walletId !== input.walletId ||
-      session.walletSessionId !== input.walletSessionId ||
-      session.authorizationId !== input.authorizationId
-    ) {
-      throw new Error('Stored V2 Wallet Session identity does not match the request');
-    }
-    const nowMs = requirePositiveInteger(input.nowMs, 'V2 authorization read time');
-    return session.expiresAtMs > nowMs ? session : null;
+    return sessions.readActiveWalletSessionAuthorizationV2ByIdentity(this.context, input);
   }
 
-  async readWalletSessionAuthorizationV2ByOperationCredential(input: {
+  readWalletSessionAuthorizationV2ByOperationCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null> {
-    return await this.readWalletSessionAuthorizationV2(
-      {
-        operationCredentialHash: input.tokenHash,
-        tenantId: input.tenantId,
-        nowMs: input.nowMs,
-      },
-      'operation_credential_hash',
-    );
+    return sessions.readWalletSessionAuthorizationV2ByOperationCredential(this.context, input);
   }
 
   /**
@@ -1849,57 +290,24 @@ export class CloudflareD1AuthorizationStore
    * A commit between separate reads could pair the session with an authority
    * it was never bound to; one statement cannot.
    */
-  async readWalletSessionAdmissionSnapshotByOperationCredential(input: {
+  readWalletSessionAdmissionSnapshotByOperationCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
   }): Promise<WalletSessionAdmissionSnapshotV2 | null> {
-    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'session' },
-      lookupColumn: 'operation_credential_hash',
-      tenantId: input.tenantId,
-      lookupValue: input.tokenHash,
-    });
-    if (!row || row.session_retired_at_ms !== null) return null;
-    return parseWalletSessionAdmissionRow(row, input);
+    return sessions.readWalletSessionAdmissionSnapshotByOperationCredential(this.context, input);
   }
 
-  async readEcdsaWalletSessionAdmissionSnapshotByOperationCredential(input: {
+  readEcdsaWalletSessionAdmissionSnapshotByOperationCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<EcdsaWalletSessionAdmissionRead | null> {
-    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'ecdsa_material', materialActivation: input.materialActivation },
-      lookupColumn: 'operation_credential_hash',
-      tenantId: input.tenantId,
-      lookupValue: input.tokenHash,
-    });
-    if (!row || row.session_retired_at_ms !== null) return null;
-    const snapshot = await parseWalletSessionAdmissionRow(row, input);
-    const session = snapshot.kind === 'active' ? snapshot.authorization.session : snapshot.session;
-    return {
-      snapshot,
-      materialRead: EcdsaMaterialRead.fromRows(
-        this.walletSignerScope, session.walletId, input.materialActivation,
-        parseD1JsonColumn(row.ecdsa_material_records_json),
-        await parseInstalledEcdsaCustodySnapshotV1({
-          scope: this.walletSignerScope,
-          walletId: session.walletId,
-          materialActivation: routerAbMpcMaterialActivationRefFromWire(input.materialActivation),
-          installations: parseD1JsonColumn(row.ecdsa_installations_json),
-          signers: parseD1JsonColumn(row.ecdsa_source_signers_json),
-        }),
-      ),
-      policyRead: D1EcdsaAdmissionPolicyRead.fromRows(
-        this.database,
-        this.namespace,
-        session.walletId,
-        input.materialActivation.activation_id,
-        parseD1JsonColumn(row.ecdsa_policy_records_json),
-      ),
-    };
+    return sessions.readEcdsaWalletSessionAdmissionSnapshotByOperationCredential(
+      this.context,
+      input,
+    );
   }
 
   /**
@@ -1907,95 +315,24 @@ export class CloudflareD1AuthorizationStore
    * needs, in one statement. The signer and the policy are those of the
    * session's own wallet, whatever wallet the request names.
    */
-  async readEd25519WalletSessionAdmissionSnapshotByOperationCredential(input: {
+  readEd25519WalletSessionAdmissionSnapshotByOperationCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
     readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<Ed25519WalletSessionAdmissionRead | null> {
-    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'ed25519_material', materialActivation: input.materialActivation },
-      lookupColumn: 'operation_credential_hash',
-      tenantId: input.tenantId,
-      lookupValue: input.tokenHash,
-    });
-    if (!row || row.session_retired_at_ms !== null) return null;
-    const snapshot = await parseWalletSessionAdmissionRow(row, input);
-    const session = snapshot.kind === 'active' ? snapshot.authorization.session : snapshot.session;
-    return {
-      snapshot,
-      signerRead: Ed25519SignerRead.fromRows(
-        session.walletId,
-        input.materialActivation,
-        parseD1JsonColumn(row.ed25519_material_records_json),
-      ),
-      policyRead: D1Ed25519AdmissionPolicyRead.fromRows(
-        this.database,
-        this.namespace,
-        session.walletId,
-        session.authorityId,
-        parseD1JsonColumn(row.ed25519_policy_records_json),
-      ),
-    };
+    return sessions.readEd25519WalletSessionAdmissionSnapshotByOperationCredential(
+      this.context,
+      input,
+    );
   }
 
-  async readWalletSessionExactOperationContextByCredential(input: {
+  readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
   }): Promise<WalletSessionExactOperationContext | null> {
-    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'session' },
-      lookupColumn: 'operation_credential_hash',
-      tenantId: input.tenantId,
-      lookupValue: input.tokenHash,
-    });
-    if (!row) return null;
-    if (
-      (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) ||
-      integerColumn(row.session_expires_at_ms, 'session.expiresAtMs') <= input.nowMs
-    ) {
-      return null;
-    }
-    const session = parseLiveWalletSessionAuthorizationV2Row(row, {
-      operationCredentialHash: input.tokenHash,
-      tenantId: input.tenantId,
-      nowMs: input.nowMs,
-    });
-    // Exhaustion permits identity resolution; exact-operation admission grants authority.
-    parseExactWalletSessionQuotaProjectionRow(row, session);
-    const authority = await parseD1WalletAuthorityRow(row);
-    const authMethod = normalizeWalletAuthMethodV2(parseD1JsonColumn(row.auth_method_record_json));
-    if (
-      authority.state !== 'active' ||
-      !authMethod ||
-      authMethod.status !== 'active' ||
-      authority.walletId !== session.walletId ||
-      authority.authorityId !== session.authorityId ||
-      authority.authorityDigestB64u !== session.authorityDigestB64u ||
-      authority.revocationEpoch !== session.authorityRevocationEpoch ||
-      authMethod.walletId !== session.walletId ||
-      authMethod.walletAuthorityId !== session.authorityId ||
-      authMethod.walletAuthMethodId !== session.walletAuthMethodId
-    ) {
-      return null;
-    }
-    return {
-      session,
-      authority,
-      authMethod,
-      retiredAtMs: null,
-      ownerWalletScope: {
-        ownershipGeneration: requirePositiveInteger(row.execution_generation, 'session.ownershipGeneration'),
-        orgId: requireString(row.session_org_id, 'session.ownerWalletScope.orgId'),
-        projectId: requireString(row.session_project_id, 'session.ownerWalletScope.projectId'),
-        projectEnvironmentId: requireString(
-          row.session_env_id,
-          'session.ownerWalletScope.projectEnvironmentId',
-        ),
-        walletId: session.walletId,
-      },
-    };
+    return sessions.readWalletSessionExactOperationContextByCredential(this.context, input);
   }
 
   /**
@@ -2005,594 +342,45 @@ export class CloudflareD1AuthorizationStore
    * are lifecycle states, not failures. Corrupt rows, columns disagreeing with
    * their record, and broken foreign-key identity still throw.
    */
-  async readExactWalletSessionStatusByOperationCredential(input: {
+  readExactWalletSessionStatusByOperationCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
   }): Promise<ExactWalletSessionStatusV2> {
-    return (await this.readExactWalletSessionStatusSnapshotByOperationCredential(input)).status;
+    return sessions.readExactWalletSessionStatusByOperationCredential(this.context, input);
   }
 
   /**
    * The exact status with the authority and auth method it was judged
    * against, all from the one joined read.
    */
-  async readExactWalletSessionStatusSnapshotByOperationCredential(input: {
+  readExactWalletSessionStatusSnapshotByOperationCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
   }): Promise<ExactWalletSessionStatusSnapshotV2> {
-    const unjudged = (status: ExactWalletSessionStatusV2): ExactWalletSessionStatusSnapshotV2 => ({
-      status,
-      authority: null,
-      authMethod: null,
-    });
-    const nowMs = requirePositiveInteger(input.nowMs, 'exact Wallet Session status time');
-    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'session_status' },
-      lookupColumn: 'operation_credential_hash',
-      tenantId: input.tenantId,
-      lookupValue: input.tokenHash,
-    });
-    if (!row) return unjudged({ kind: 'missing' });
-
-    const session = parsePersistedWalletSessionAuthorizationV2(
-      parseD1JsonColumn(row.session_record_json),
-    );
-    if (!walletSessionAuthorizationV2RowMatches(row, session)) {
-      throw new Error('Stored V2 Wallet Session authorization columns disagree with record');
-    }
-    const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
-      row,
-      parseD1JsonColumn(row.session_capability_subjects_json),
-    );
-    if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
-      throw new Error('Stored V2 Wallet Session capability subjects disagree with record');
-    }
-    if (session.tenantId !== input.tenantId) {
-      throw new Error('Stored V2 Wallet Session tenant does not match the request');
-    }
-    const quota = parseExactWalletSessionQuotaProjectionRow(row, session);
-    if (session.expiresAtMs <= nowMs) return unjudged({ kind: 'expired', session, quota });
-
-    if (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) {
-      return unjudged({
-        kind: 'retired',
-        session,
-        quota,
-        retiredAtMs: requirePositiveInteger(row.session_retired_at_ms, 'V2 session.retiredAtMs'),
-      });
-    }
-
-    // The authority and method come from the same row as the session: a
-    // separate read could see an authority committed after the session read.
-    const joined = await joinedAuthorityAndMethod(row);
-    const judged = (status: ExactWalletSessionStatusV2): ExactWalletSessionStatusSnapshotV2 => ({
-      status,
-      ...joined,
-    });
-    if (quota.lifecycle === 'exhausted') return judged({ kind: 'exhausted', session, quota });
-
-    const authority = joined.authority;
-    if (!authority) return judged({ kind: 'authority_unavailable', session, quota });
-    if (
-      authority.authorityId !== session.authorityId ||
-      authority.walletId !== session.walletId ||
-      authority.state !== row.authority_lifecycle_state ||
-      authority.authorityDigestB64u !== row.authority_digest_b64u ||
-      authority.revocationEpoch !==
-        integerColumn(row.authority_revocation_epoch, 'authority.revocationEpoch')
-    ) {
-      throw new Error('Stored V2 Wallet Session authority identity does not match the record');
-    }
-    if (
-      authority.authorityId !== session.authorityId ||
-      authority.walletId !== session.walletId ||
-      authority.authorityDigestB64u !== session.authorityDigestB64u ||
-      authority.revocationEpoch !== session.authorityRevocationEpoch ||
-      authority.state !== 'active'
-    ) {
-      return judged({ kind: 'authority_unavailable', session, quota });
-    }
-
-    if (row.auth_method_id === null || row.auth_method_id === undefined) {
-      return judged({ kind: 'method_unavailable', session, quota });
-    }
-    if (
-      row.auth_method_id !== String(session.walletAuthMethodId) ||
-      row.auth_method_wallet_id !== String(session.walletId) ||
-      row.auth_method_authority_id !== String(session.authorityId)
-    ) {
-      throw new Error('Stored V2 Wallet Session auth method identity does not match the record');
-    }
-    if (row.auth_method_status !== 'active') {
-      return judged({ kind: 'method_unavailable', session, quota });
-    }
-
-    if (
-      !exactWalletSessionCapabilitySubjectsResolveAuthority({
-        session,
-        signerActivations: authority.signerActivations,
-      })
-    ) {
-      return judged({ kind: 'capability_unavailable', session, quota });
-    }
-    if (
-      !(await this.exactWalletSessionCapabilitySubjectsResolveMaterial(
-        session,
-        parseD1JsonColumn(row.status_ecdsa_material_records_json),
-      ))
-    ) {
-      return judged({ kind: 'capability_unavailable', session, quota });
-    }
-    return judged({ kind: 'active', session, quota });
+    return sessions.readExactWalletSessionStatusSnapshotByOperationCredential(this.context, input);
   }
 
-  private async exactWalletSessionCapabilitySubjectsResolveMaterial(
-    session: WalletSessionAuthorizationV2,
-    ecdsaMaterialRows: unknown,
-  ): Promise<boolean> {
-    const materials: SessionStatusMaterialSubject[] = [];
-    for (const subject of session.capabilitySubjects) {
-      switch (subject.kind) {
-        case 'sign':
-        case 'export_keys': {
-          const alreadyRead = materials.some(
-            (material) =>
-              material.keyFamily === subject.keyFamily &&
-              mpcMaterialActivationRefsEqual(
-                material.materialActivation,
-                subject.materialActivation,
-              ),
-          );
-          if (!alreadyRead) {
-            if (subject.keyFamily === 'ed25519') {
-              materials.push({
-                keyFamily: 'ed25519',
-                materialActivation: subject.materialActivation,
-              });
-            } else {
-              materials.push({
-                keyFamily: 'ecdsa_secp256k1',
-                materialActivation: subject.materialActivation,
-                materialRead: EcdsaMaterialRead.fromRows(
-                  this.walletSignerScope,
-                  session.walletId,
-                  routerAbMpcMaterialActivationRefToWire(subject.materialActivation),
-                  ecdsaMaterialRows,
-                  null,
-                ),
-              });
-            }
-          }
-          break;
-        }
-        case 'link_devices':
-        case 'revoke_devices':
-          break;
-        default:
-          return false;
-      }
-    }
-    const resolved = await Promise.all(
-      materials.map(this.exactWalletSessionMaterialResolves.bind(this, session.walletId)),
-    );
-    return resolved.every(Boolean);
-  }
-
-  private async exactWalletSessionMaterialResolves(
-    walletId: WalletId,
-    subject: SessionStatusMaterialSubject,
-  ): Promise<boolean> {
-    const materialActivation = routerAbMpcMaterialActivationRefToWire(subject.materialActivation);
-    const signer =
-      subject.keyFamily === 'ed25519'
-        ? await this.walletStore.getEd25519SignerByMaterialActivation({
-            walletId,
-            materialActivation,
-          })
-        : subject.materialRead.resolve(this.walletSignerScope, walletId, materialActivation)?.signer;
-
-    if (!signer) {
-      // Linked-device material lives on its installed authority projection.
-      return (await this.readLinkedAuthorityMaterial(walletId, subject)) !== null;
-    }
-    if (signer.walletId !== walletId) {
-      throw new Error('Stored wallet signer material identity does not match the session');
-    }
-    return true;
-  }
-
-  private async readLinkedAuthorityMaterial(
-    walletId: WalletId,
-    subject: {
-      readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
-      readonly materialActivation: MpcMaterialActivationRef;
-    },
-  ): Promise<D1AuthorizationLinkedAuthorityMaterialProjection | null> {
-    const reader = this.getLinkedDeviceAuthorityReader();
-    if (!reader) return null;
-    const projection =
-      subject.keyFamily === 'ed25519'
-        ? await reader.readInstalledEd25519AuthorityByMaterialActivationV1({
-            walletId,
-            materialActivation: subject.materialActivation,
-          })
-        : await reader.readInstalledEcdsaAuthorityByMaterialActivationV1({
-            walletId,
-            materialActivation: subject.materialActivation,
-          });
-    if (!projection) return null;
-    if (projection.walletId !== String(walletId)) {
-      throw new Error('Installed linked authority material identity does not match the session');
-    }
-    if (
-      !sameRouterAbMpcMaterialActivationRef(
-        routerAbMpcMaterialActivationRefToWire(projection.materialActivation),
-        routerAbMpcMaterialActivationRefToWire(subject.materialActivation),
-      )
-    ) {
-      throw new Error('Installed linked authority material does not match the session subject');
-    }
-    return projection;
-  }
-
-  private async readJoinedWalletSessionAuthorizationV2Row(input: {
-    readonly projection:
-      | { readonly kind: 'session' | 'session_status'; readonly materialActivation?: never }
-      | {
-          readonly kind: 'ecdsa_material' | 'ed25519_material';
-          readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
-        };
-    readonly lookupColumn: 'mint_id' | 'authorization_id' | 'operation_credential_hash';
-    readonly tenantId: unknown;
-    readonly lookupValue: unknown;
-  }): Promise<D1Row | null> {
-    const installationProjection = ECDSA_INSTALLATION_SNAPSHOT_COLUMNS
-      .map(installationJsonColumn).join(', ');
-    let materialProjection = '';
-    let materialBindings: readonly string[] = [];
-    if (input.projection.kind === 'ecdsa_material') {
-      materialProjection = `
-           (SELECT json_group_array(json_object('record_json', signer.record_json))
-              FROM wallet_signers AS signer
-             WHERE signer.namespace = session.namespace
-               AND signer.org_id = session.org_id
-               AND signer.project_id = session.project_id
-               AND signer.env_id = session.env_id
-               AND signer.wallet_id = session.wallet_id
-               AND signer.signer_family = 'ecdsa'
-               AND CASE WHEN json_valid(signer.record_json) THEN
-                 json_extract(signer.record_json,
-                   '$.walletKey.publicCapability.material_activation.activation_id') = ?
-                 ELSE 1 END
-           ) AS ecdsa_material_records_json,
-           CASE WHEN authority.provenance_kind = 'device_link' THEN
-             (SELECT json_group_array(json_object(${installationProjection}))
-                FROM linked_device_authority_installations AS installation
-               WHERE installation.namespace = session.namespace
-                 AND installation.org_id = session.org_id
-                 AND installation.project_id = session.project_id
-                 AND installation.env_id = session.env_id
-                 AND installation.wallet_id = session.wallet_id)
-           END AS ecdsa_installations_json,
-           CASE WHEN authority.provenance_kind = 'device_link' THEN
-             (SELECT json_group_array(json_object('record_json', source_signer.record_json))
-                FROM wallet_signers AS source_signer
-               WHERE source_signer.namespace = session.namespace
-                 AND source_signer.org_id = session.org_id
-                 AND source_signer.project_id = session.project_id
-                 AND source_signer.env_id = session.env_id
-                 AND source_signer.wallet_id = session.wallet_id
-                 AND source_signer.signer_family = 'ecdsa')
-           END AS ecdsa_source_signers_json,
-           ${ECDSA_CREDENTIAL_POLICY_PROJECTION}`;
-      materialBindings = [
-        input.projection.materialActivation.activation_id,
-        input.projection.materialActivation.activation_id,
-      ];
-    } else if (input.projection.kind === 'ed25519_material') {
-      // The wallet store reads Ed25519 signers under the configured signer scope.
-      const signerScope = [
-        this.walletSignerScope.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-      ];
-      materialProjection = `
-           (SELECT json_group_array(json_object('record_json', signer.record_json))
-              FROM wallet_signers AS signer
-             WHERE signer.namespace = ? AND signer.org_id = ?
-               AND signer.project_id = ? AND signer.env_id = ?
-               AND signer.wallet_id = session.wallet_id
-               AND signer.signer_family = 'ed25519'
-               AND CASE WHEN json_valid(signer.record_json) THEN
-                 json_extract(signer.record_json, '${ED25519_SIGNER_ACTIVATION_ID_PATH}') = ?
-                 ELSE 0 END
-           ) AS ed25519_material_records_json,
-           ${ED25519_CREDENTIAL_POLICY_PROJECTION}`;
-      materialBindings = [
-        ...signerScope,
-        input.projection.materialActivation.activation_id,
-        ...signerScope,
-        input.projection.materialActivation.activation_id,
-      ];
-    } else if (input.projection.kind === 'session_status') {
-      // Canonical ECDSA material shares the status snapshot. The configured
-      // signer scope may use a different namespace from session storage.
-      materialProjection = `
-        (SELECT json_group_array(json_object('record_json', signer.record_json))
-           FROM wallet_signers AS signer
-          WHERE signer.namespace = ? AND signer.org_id = ?
-            AND signer.project_id = ? AND signer.env_id = ?
-            AND signer.wallet_id = session.wallet_id
-            AND signer.signer_family = 'ecdsa'
-        ) AS status_ecdsa_material_records_json,`;
-      materialBindings = [
-        this.walletSignerScope.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-      ];
-    }
-    return await this.database
-      .prepare(
-        `SELECT ${materialProjection}
-           authority.*,
-           (SELECT execution.generation FROM wallet_execution_generations AS execution
-             WHERE execution.namespace = session.namespace
-               AND execution.org_id = session.org_id
-               AND execution.project_id = session.project_id
-               AND execution.env_id = session.env_id
-               AND execution.wallet_id = session.wallet_id
-               AND execution.state = 'active') AS execution_generation,
-           session.namespace AS session_namespace,
-           session.record_json AS session_record_json,
-           session.capability_subjects_json AS session_capability_subjects_json,
-           session.tenant_id AS session_tenant_id,
-           session.authorization_id AS session_authorization_id,
-           session.mint_id AS session_mint_id,
-           session.wallet_session_id AS session_wallet_session_id,
-           session.quota_id AS session_quota_id,
-           session.principal_id AS session_principal_id,
-           session.wallet_id AS session_wallet_id,
-           session.org_id AS session_org_id,
-           session.project_id AS session_project_id,
-           session.env_id AS session_env_id,
-           session.authority_id AS session_authority_id,
-           session.wallet_auth_method_id AS session_wallet_auth_method_id,
-           session.authority_digest_b64u AS session_authority_digest_b64u,
-           session.authority_revocation_epoch AS session_authority_revocation_epoch,
-           session.issued_at_ms AS session_issued_at_ms,
-           session.expires_at_ms AS session_expires_at_ms,
-           session.retired_at_ms AS session_retired_at_ms,
-           authority.wallet_id AS authority_wallet_id,
-           authority.lifecycle_state AS authority_lifecycle_state,
-           authority.authority_digest_b64u AS authority_digest_b64u,
-           authority.revocation_epoch AS authority_revocation_epoch,
-           authority.signer_activations_json AS authority_signer_activations_json,
-           auth_method.record_json AS auth_method_record_json,
-           auth_method.wallet_auth_method_id AS auth_method_id,
-           auth_method.wallet_id AS auth_method_wallet_id,
-           auth_method.wallet_authority_id AS auth_method_authority_id,
-           auth_method.status AS auth_method_status,
-           quota.tenant_id AS quota_tenant_id,
-           quota.principal_id AS quota_principal_id,
-           quota.wallet_session_id AS quota_wallet_session_id,
-           quota.quota_id AS quota_id,
-           quota.remaining_uses AS quota_remaining_uses,
-           quota.lifecycle_kind AS quota_lifecycle_kind,
-           quota.expires_at_ms AS quota_expires_at_ms
-         FROM wallet_session_authorizations_v2 AS session
-         LEFT JOIN wallet_authorities AS authority
-           ON authority.namespace = session.namespace
-          AND authority.org_id = ?
-          AND authority.project_id = ?
-          AND authority.env_id = ?
-          AND authority.authority_id = session.authority_id
-          AND authority.wallet_id = session.wallet_id
-         LEFT JOIN wallet_auth_methods AS auth_method
-           ON auth_method.namespace = session.namespace
-          AND auth_method.org_id = ?
-          AND auth_method.project_id = ?
-          AND auth_method.env_id = ?
-          AND auth_method.wallet_auth_method_id = session.wallet_auth_method_id
-          AND auth_method.wallet_id = session.wallet_id
-          AND auth_method.wallet_authority_id = session.authority_id
-         LEFT JOIN authorization_wallet_session_quotas AS quota
-           ON quota.namespace = session.namespace
-          AND quota.tenant_id = session.tenant_id
-          AND quota.quota_id = session.quota_id
-        WHERE session.namespace = ?
-          AND session.org_id = ?
-          AND session.project_id = ?
-          AND session.env_id = ?
-          AND session.tenant_id = ?
-          AND session.${input.lookupColumn} = ?
-        LIMIT 1`,
-      )
-      .bind(
-        ...materialBindings,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        input.tenantId,
-        input.lookupValue,
-      )
-      .first<D1Row>();
-  }
-
-  private async readWalletSessionAuthorizationV2(
-    input: WalletSessionAuthorizationV2Read,
-    lookupColumn: 'mint_id' | 'authorization_id' | 'operation_credential_hash',
-  ): Promise<IssuedWalletSessionAuthorizationV2 | null> {
-    const lookup =
-      'expected' in input ? input.expected : 'identity' in input ? input.identity : null;
-    const operationCredentialHash =
-      'operationCredentialHash' in input ? input.operationCredentialHash : null;
-    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
-      projection: { kind: 'session' },
-      lookupColumn,
-      tenantId: 'operationCredentialHash' in input ? input.tenantId : lookup?.tenantId,
-      lookupValue:
-        lookupColumn === 'mint_id'
-          ? String('expected' in input ? input.expected.mintId : lookup?.authorizationId)
-          : lookupColumn === 'authorization_id'
-            ? String(lookup?.authorizationId)
-            : operationCredentialHash,
-    });
-    if (!row) return null;
-    const session = parseLiveWalletSessionAuthorizationV2Row(row, input);
-    const quota = parseWalletSessionAuthorizationV2QuotaRow(row, session);
-    return { session, quota };
-  }
-
-  async readAuthorizedOperation(input: {
+  readAuthorizedOperation(input: {
     readonly tenantId: TenantId;
     readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
   }): Promise<AuthorizedOperation | null> {
-    const row = await prepareAuthorizedOperationRead(
-      this.database,
-      this.namespace,
-      input,
-    ).first<D1Row>();
-    return row ? await parseAuthorizedOperationRow(row) : null;
+    return operations.readAuthorizedOperation(this.context, input);
   }
 
-  async readAuthorizedOperationById(input: {
+  readAuthorizedOperationById(input: {
     readonly tenantId: TenantId;
     readonly authorizedOperationId: AuthorizedOperationId;
   }): Promise<AuthorizedOperation | null> {
-    const row = await this.database
-      .prepare(
-        `SELECT * FROM authorized_operations
-          WHERE namespace = ? AND tenant_id = ? AND authorized_operation_id = ?
-          LIMIT 1`,
-      )
-      .bind(this.namespace, input.tenantId, input.authorizedOperationId)
-      .first<D1Row>();
-    return row ? await parseAuthorizedOperationRow(row) : null;
+    return operations.readAuthorizedOperationById(this.context, input);
   }
 
-  async readPinnedOwnerWalletScope(input: {
+  readPinnedOwnerWalletScope(input: {
     readonly operation: AuthorizedOperation;
     readonly walletId: WalletId;
   }): Promise<PinnedOwnerWalletScope> {
-    const { operation, walletId } = input;
-    if (
-      operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.nearEd25519MpcSigning &&
-      operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.evmEcdsaMpcSigning
-    ) {
-      throw new Error('Pinned owner wallet scope requires a signing operation');
-    }
-    const row = await prepareAuthorizedOperationCommittedRead(
-      this.database,
-      this.namespace,
-      operation,
-    ).first<D1Row>();
-    if (
-      !row ||
-      row.authorized_operation_id !== operation.authorizedOperationId ||
-      row.authorization_source_kind !== operation.authorization.kind
-    ) {
-      throw new Error('Pinned owner operation is not claimed');
-    }
-    if (operation.authorization.kind === 'verified_step_up') {
-      if (
-        row.evidence_set_digest !== operation.authorization.evidenceSetDigest ||
-        row.pinned_owner_wallet_id !== walletId ||
-        row.step_up_org_id !== this.walletSignerScope.orgId ||
-        row.step_up_project_id !== this.walletSignerScope.projectId ||
-        row.step_up_env_id !== this.walletSignerScope.envId
-      ) {
-        throw new Error('Verified step-up operation is not claimed');
-      }
-      return {
-        ownershipGeneration: requirePositiveInteger(
-          row.ownership_generation,
-          'operation.ownershipGeneration',
-        ),
-        orgId: this.walletSignerScope.orgId,
-        projectId: this.walletSignerScope.projectId,
-        projectEnvironmentId: this.walletSignerScope.envId,
-      };
-    }
-    if (row.authorization_id !== operation.authorization.authorizationGrantRef.authorizationId) {
-      throw new Error('Pinned owner Wallet Session scope is unavailable');
-    }
-    return this.pinnedWalletSessionOwnerScope(row, walletId);
-  }
-
-  private pinnedWalletSessionOwnerScope(row: D1Row, walletId: WalletId): PinnedOwnerWalletScope {
-    if (row.pinned_owner_wallet_id !== walletId) {
-      throw new Error('Pinned owner Wallet Session scope is unavailable');
-    }
-    return {
-      ownershipGeneration: requirePositiveInteger(
-        row.ownership_generation,
-        'operation.ownershipGeneration',
-      ),
-      orgId: requireString(row.owner_scope_org_id, 'operation.ownerScope.orgId'),
-      projectId: requireString(row.owner_scope_project_id, 'operation.ownerScope.projectId'),
-      projectEnvironmentId: requireString(
-        row.owner_scope_env_id,
-        'operation.ownerScope.projectEnvironmentId',
-      ),
-    };
-  }
-
-  private async readAuthorizedOperationForAdmission(input: {
-    readonly tenantId: TenantId;
-    readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
-    readonly nowMs: number;
-    readonly materialSnapshot: EcdsaMaterialReadSnapshot | null;
-  }): Promise<AuthorizedOperationAdmissionRecord | null> {
-    const row = await prepareAuthorizedOperationAdmissionRead({
-      database: this.database,
-      namespace: this.namespace,
-      walletSignerScope: this.walletSignerScope,
-      materialSnapshot: input.materialSnapshot,
-      tenantId: input.tenantId,
-      operationFingerprintDigest: input.operationFingerprintDigest,
-      nowMs: requirePositiveInteger(input.nowMs, 'operation replay time'),
-    }).first<D1Row>();
-    return row ? parseAuthorizedOperationAdmissionRecord(row) : null;
-  }
-
-  /** How an operation already admitted for this fingerprint answers another admission. */
-  private answerExistingAuthorizedOperation(
-    existing: AuthorizedOperationAdmissionRecord,
-    operation: AuthorizedOperation,
-    material: AuthorizedOperationMaterialScope | undefined,
-  ): ExistingAuthorizedOperationAnswer {
-    if (!existing.materialActive) return { kind: 'material_mismatch' };
-    const replayMismatch = authorizedOperationReplayMismatch({
-      existing: existing.row,
-      incoming: operation,
-      material,
-      scope: this.walletSignerScope,
-    });
-    if (replayMismatch) return replayMismatch;
-    if (existing.operation.lifecycle === 'completed') {
-      if (
-        existing.operation.authorization.kind === 'authorization_grant' &&
-        !existing.sourceActive
-      ) {
-        return { kind: 'authorization_grant_rejected' };
-      }
-      return { kind: 'replayed', operation: existing.operation, row: existing.row };
-    }
-    if (!existing.sourceActive) {
-      return authorizationSourceRejected(operation.authorization);
-    }
-    return { kind: 'operation_in_progress', operation: existing.operation, row: existing.row };
+    return operations.readPinnedOwnerWalletScope(this.context, input);
   }
 
   /**
@@ -2600,1104 +388,59 @@ export class CloudflareD1AuthorizationStore
    * another store owns, after the same reads. It admits no ECDSA material:
    * that admission is conditional on the signer row, not a plain insert.
    */
-  async prepareAuthorizedOperationAdmission(input: {
+  prepareAuthorizedOperationAdmission(input: {
     readonly operation: AuthorizedOperationInput;
   }): Promise<PreparedAuthorizedOperationAdmission> {
-    const operation = await buildAuthorizedOperation(input.operation);
-    if (operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning) {
-      return { kind: 'material_mismatch' };
-    }
-    const existing = await this.readAuthorizedOperationForAdmission({
-      tenantId: operation.tenantId,
-      operationFingerprintDigest: operation.operationFingerprintDigest,
-      nowMs: operation.claimedAtMs,
-      materialSnapshot: null,
-    });
-    if (existing) {
-      const result = this.answerExistingAuthorizedOperation(existing, operation, undefined);
-      if (result.kind === 'replayed' || result.kind === 'operation_in_progress') {
-        return { kind: result.kind, operation: result.operation };
-      }
-      return result;
-    }
-    return {
-      kind: 'prepared',
-      statements: [
-        prepareAuthorizedOperationInsert({
-          database: this.database,
-          namespace: this.namespace,
-          walletSignerScope: this.walletSignerScope,
-          operation,
-          material: null,
-          materialSnapshot: null,
-          existingOperation: 'reject',
-        }),
-      ],
-    };
+    return operations.prepareAuthorizedOperationAdmission(this.context, input);
   }
 
   classifyAuthorizedOperationAdmissionFailure(
     error: unknown,
   ): AuthorizedOperationAdmissionRejection | null {
-    return classifyAuthorizedOperationAdmissionError(error);
+    return operations.classifyAuthorizedOperationAdmissionFailure(error);
   }
 
-  async admitAuthorizedOperation(input: {
+  admitAuthorizedOperation(input: {
     readonly operation: AuthorizedOperationInput;
     readonly material?: AuthorizedOperationMaterialScope;
   }): Promise<AuthorizedOperationAdmissionResult> {
-    const result = await this.admitAuthorizedOperationRecord({
-      operation: input.operation,
-      material: input.material,
-      materialSnapshot: null,
-    });
-    if (
-      result.kind === 'claimed' ||
-      result.kind === 'replayed' ||
-      result.kind === 'operation_in_progress'
-    ) {
-      return { kind: result.kind, operation: result.operation };
-    }
-    return result;
+    return operations.admitAuthorizedOperation(this.context, input);
   }
 
-  async resolveEcdsaWalletSessionOperation(
+  resolveEcdsaWalletSessionOperation(
     input: EcdsaWalletSessionAdmissionInput,
   ): Promise<EcdsaWalletSessionResolutionResult> {
-    const operation = await buildAuthorizedOperation(input.operation);
-    if (!authorizedOperationMaterialScopeMatches(operation, input.material, input.material.readSnapshot)) {
-      return { kind: 'material_mismatch' };
-    }
-    const existing = await this.readAuthorizedOperationForAdmission({
-      tenantId: operation.tenantId,
-      operationFingerprintDigest: operation.operationFingerprintDigest,
-      nowMs: operation.claimedAtMs,
-      materialSnapshot: input.material.readSnapshot,
-    });
-    if (!existing) return { kind: 'authorized_operation_missing' };
-    return this.pinExistingWalletSessionOperation(
-      this.answerExistingAuthorizedOperation(existing, operation, input.material),
-      input.material.walletId,
-    );
+    return operations.resolveEcdsaWalletSessionOperation(this.context, input);
   }
 
   /**
    * The stored operation answers for itself: its own grant must still be
    * active, as when a finalize request admitted it again.
    */
-  async resolveEd25519WalletSessionOperation(
+  resolveEd25519WalletSessionOperation(
     input: Ed25519WalletSessionResolutionInput,
   ): Promise<Ed25519WalletSessionResolutionResult> {
-    const existing = await this.readAuthorizedOperationForAdmission({
-      tenantId: input.tenantId,
-      operationFingerprintDigest: input.operationFingerprintDigest,
-      nowMs: input.nowMs,
-      materialSnapshot: null,
-    });
-    if (!existing) return { kind: 'authorized_operation_missing' };
-    if (existing.operation.authorization.kind !== 'authorization_grant') {
-      return { kind: 'authorization_grant_rejected' };
-    }
-    return this.pinExistingWalletSessionOperation(
-      this.answerExistingAuthorizedOperation(existing, existing.operation, undefined),
-      input.walletId,
-    );
+    return operations.resolveEd25519WalletSessionOperation(this.context, input);
   }
 
-  private pinExistingWalletSessionOperation(
-    result: ExistingAuthorizedOperationAnswer,
-    walletId: WalletId,
-  ): Exclude<
-    EcdsaWalletSessionResolutionResult,
-    { readonly kind: 'authorized_operation_missing' }
-  > {
-    switch (result.kind) {
-      case 'operation_in_progress':
-        return {
-          kind: result.kind,
-          operation: result.operation,
-          ownerScope: this.pinnedWalletSessionOwnerScope(result.row, walletId),
-        };
-      case 'replayed':
-        return { kind: result.kind, operation: result.operation };
-      case 'authorization_grant_rejected':
-      case 'verified_step_up_rejected':
-      case 'billing_credit_exhausted':
-      case 'wallet_session_quota_exhausted':
-      case 'material_mismatch':
-        return result;
-      default: {
-        const unexpected: never = result;
-        throw new Error(`Unexpected Wallet Session resolution: ${unexpected}`);
-      }
-    }
-  }
-
-  async admitEcdsaWalletSessionOperation(
+  admitEcdsaWalletSessionOperation(
     input: EcdsaWalletSessionAdmissionInput,
   ): Promise<EcdsaWalletSessionAdmissionResult> {
-    return this.pinWalletSessionAdmission(
-      await this.admitAuthorizedOperationRecord({
-        operation: input.operation,
-        material: input.material,
-        materialSnapshot: input.material.readSnapshot,
-      }),
-      input.material.walletId,
-    );
+    return operations.admitEcdsaWalletSessionOperation(this.context, input);
   }
 
-  async admitEd25519WalletSessionOperation(
+  admitEd25519WalletSessionOperation(
     input: Ed25519WalletSessionAdmissionInput,
   ): Promise<Ed25519WalletSessionAdmissionResult> {
-    return this.pinWalletSessionAdmission(
-      await this.admitAuthorizedOperationRecord({
-        operation: input.operation,
-        material: undefined,
-        materialSnapshot: null,
-      }),
-      input.walletId,
-    );
+    return operations.admitEd25519WalletSessionOperation(this.context, input);
   }
 
-  /** A live operation's owner scope comes from the row its own admission read back. */
-  private pinWalletSessionAdmission(
-    result: AuthorizedOperationAdmissionOutcome,
-    walletId: WalletId,
-  ): EcdsaWalletSessionAdmissionResult {
-    if (result.kind !== 'claimed') return this.pinExistingWalletSessionOperation(result, walletId);
-    return {
-      kind: 'claimed',
-      operation: result.operation,
-      ownerScope: this.pinnedWalletSessionOwnerScope(result.row, walletId),
-    };
-  }
-
-  private async admitAuthorizedOperationRecord(input: {
-    readonly operation: AuthorizedOperationInput;
-  } & (
-    | {
-        readonly material: AuthorizedOperationMaterialScope | undefined;
-        readonly materialSnapshot: null;
-      }
-    | {
-        readonly material: EcdsaWalletSessionAdmissionInput['material'];
-        readonly materialSnapshot: EcdsaMaterialReadSnapshot;
-      }
-  )): Promise<AuthorizedOperationAdmissionOutcome> {
-    const operation = await buildAuthorizedOperation(input.operation);
-    if (!authorizedOperationMaterialScopeMatches(operation, input.material, input.materialSnapshot)) {
-      return { kind: 'material_mismatch' };
-    }
-    let committedRow: D1Row | null;
-    let claimed: boolean;
-    try {
-      const statement = prepareAuthorizedOperationInsert({
-        database: this.database,
-        namespace: this.namespace,
-        walletSignerScope: this.walletSignerScope,
-        operation,
-        material: input.material ?? null,
-        materialSnapshot: input.materialSnapshot,
-        existingOperation: 'preserve',
-      });
-      const [result, readback] = await this.database.batch<D1ResultLike<D1Row>>([
-        statement,
-        prepareAuthorizedOperationAdmissionRead({
-          database: this.database,
-          namespace: this.namespace,
-          walletSignerScope: this.walletSignerScope,
-          tenantId: operation.tenantId,
-          operationFingerprintDigest: operation.operationFingerprintDigest,
-          nowMs: operation.claimedAtMs,
-          materialSnapshot: input.materialSnapshot,
-        }),
-      ]);
-      if (!result?.success || !readback?.success) {
-        throw new Error('authorized operation admission batch returned incomplete results');
-      }
-      claimed = d1ChangedRows(result) !== 0;
-      committedRow = readback.results?.[0] ?? null;
-    } catch (error: unknown) {
-      const raced = await this.readAuthorizedOperationForAdmission({
-        tenantId: operation.tenantId,
-        operationFingerprintDigest: operation.operationFingerprintDigest,
-        nowMs: operation.claimedAtMs,
-        materialSnapshot: input.materialSnapshot,
-      });
-      if (raced) {
-        return this.answerExistingAuthorizedOperation(raced, operation, input.material);
-      }
-      const triggerFailure = classifyAuthorizedOperationAdmissionError(error);
-      if (triggerFailure) return triggerFailure;
-      throw error;
-    }
-    if (!committedRow) {
-      if (!claimed && input.material) return { kind: 'material_mismatch' };
-      if (!claimed && operation.authorization.kind === 'verified_step_up')
-        return { kind: 'verified_step_up_rejected' };
-      throw new Error('authorized operation admission could not be read back');
-    }
-    const admitted = await parseAuthorizedOperationAdmissionRecord(committedRow);
-    if (!claimed) return this.answerExistingAuthorizedOperation(admitted, operation, input.material);
-    return {
-      kind: 'claimed',
-      operation: admitted.operation,
-      row: committedRow,
-    };
-  }
-
-  async completeAuthorizedOperation(input: {
+  completeAuthorizedOperation(input: {
     readonly operation: AuthorizedOperation;
     readonly result: CompletedCapabilityOperationResult;
     readonly response: AuthorizedOperationReplayResponse;
     readonly completedAtMs: number;
   }): Promise<AuthorizedOperation> {
-    const operation = input.operation;
-    const statement = await prepareWalletOperationCompletion(this.database, this.namespace, input);
-    const completed = await statement.first<D1Row>();
-    if (completed) return await parseAuthorizedOperationRow(completed);
-    const existing = await this.readAuthorizedOperation({
-      tenantId: operation.tenantId,
-      operationFingerprintDigest: operation.operationFingerprintDigest,
-    });
-    if (!existing) throw new Error('authorized operation completion claim is missing');
-    return existing;
+    return operations.completeAuthorizedOperation(this.context, input);
   }
-
-  private async readHostedWalletExchangeV2(
-    codeHash: RedeemHostedWalletSeamsSessionExchangeV2Input['codeHash'],
-  ): Promise<HostedWalletExchangeV2Row | null> {
-    return await this.database
-      .prepare(
-        `SELECT exchange.*,
-                session.operation_credential_hash AS session_operation_credential_hash,
-                session.retired_at_ms AS session_retired_at_ms,
-                session.expires_at_ms AS session_expires_at_ms,
-                quota.remaining_uses AS quota_remaining_uses,
-                quota.lifecycle_kind AS quota_lifecycle_kind,
-                quota.expires_at_ms AS quota_expires_at_ms
-           FROM wallet_session_hosted_exchange_codes_v2 AS exchange
-           LEFT JOIN wallet_session_authorizations_v2 AS session
-             ON session.namespace = exchange.namespace
-            AND session.org_id = exchange.org_id
-            AND session.project_id = exchange.project_id
-            AND session.env_id = exchange.env_id
-            AND session.tenant_id = exchange.tenant_id
-            AND session.authorization_id = exchange.authorization_id
-            AND session.wallet_session_id = exchange.wallet_session_id
-            AND session.quota_id = exchange.quota_id
-            AND session.principal_id = exchange.principal_id
-            AND session.wallet_id = exchange.wallet_id
-            AND session.authority_id = exchange.authority_id
-            AND session.wallet_auth_method_id = exchange.wallet_auth_method_id
-           LEFT JOIN authorization_wallet_session_quotas AS quota
-             ON quota.namespace = exchange.namespace
-            AND quota.tenant_id = exchange.tenant_id
-            AND quota.quota_id = exchange.quota_id
-            AND quota.wallet_session_id = exchange.wallet_session_id
-            AND quota.principal_id = exchange.principal_id
-          WHERE exchange.namespace = ?
-            AND exchange.org_id = ?
-            AND exchange.project_id = ?
-            AND exchange.env_id = ?
-            AND exchange.code_hash = ?
-          LIMIT 1`,
-      )
-      .bind(
-        this.namespace,
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        codeHash,
-      )
-      .first<HostedWalletExchangeV2Row>();
-  }
-}
-
-type AuthorizedOperationAdmissionRecord = {
-  readonly row: D1Row;
-  readonly operation: AuthorizedOperation;
-  readonly sourceActive: boolean;
-  readonly materialActive: boolean;
-};
-
-/** How a stored operation answers an admission or a resolution, with its row. */
-type ExistingAuthorizedOperationAnswer =
-  | {
-      readonly kind: 'replayed' | 'operation_in_progress';
-      readonly operation: AuthorizedOperation;
-      readonly row: D1Row;
-    }
-  | AuthorizedOperationAdmissionRejection;
-
-/** What one admission did, with the row it read back in the same batch. */
-type AuthorizedOperationAdmissionOutcome =
-  | { readonly kind: 'claimed'; readonly operation: AuthorizedOperation; readonly row: D1Row }
-  | ExistingAuthorizedOperationAnswer;
-
-async function parseAuthorizedOperationAdmissionRecord(row: D1Row): Promise<AuthorizedOperationAdmissionRecord> {
-  if (row.authorization_source_active !== 0 && row.authorization_source_active !== 1) {
-    throw new Error('Authorized operation source status must be a SQL boolean');
-  }
-  return {
-    row,
-    operation: await parseAuthorizedOperationRow(row),
-    sourceActive: row.authorization_source_active === 1,
-    materialActive: row.material_snapshot_active === 1,
-  };
-}
-
-function authorizedOperationMaterialScopeMatches(
-  operation: AuthorizedOperation,
-  material: AuthorizedOperationMaterialScope | undefined,
-  snapshot: EcdsaMaterialReadSnapshot | null,
-): boolean {
-  if (snapshot && snapshot.walletId !== material?.walletId) return false;
-  const requiresMaterial =
-    operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning;
-  if (!material) return !requiresMaterial;
-  return requiresMaterial &&
-    material.runtimePolicyScope.orgId === operation.tenantId &&
-    material.materialActivation.capability === operation.operation.capabilityId &&
-    material.materialActivation.material_owner === material.walletId;
-}
-
-type AuthorizedOperationReplayMismatch =
-  | { readonly kind: 'authorization_grant_rejected' }
-  | { readonly kind: 'verified_step_up_rejected' }
-  | { readonly kind: 'material_mismatch' };
-
-function classifyAuthorizedOperationAdmissionError(
-  error: unknown,
-):
-  | { readonly kind: 'authorization_grant_rejected' }
-  | { readonly kind: 'verified_step_up_rejected' }
-  | { readonly kind: 'wallet_session_quota_exhausted' }
-  | { readonly kind: 'billing_credit_exhausted' }
-  | null {
-  const message = error instanceof Error ? error.message : String(error);
-  if (message.includes('billing_credit_exhausted')) return { kind: 'billing_credit_exhausted' };
-  if (message.includes('authorization_wallet_session_quota_rejected')) {
-    return { kind: 'wallet_session_quota_exhausted' };
-  }
-  if (message.includes('authorization_wallet_session_rejected')) {
-    return { kind: 'authorization_grant_rejected' };
-  }
-  if (message.includes('authorization_evidence_claim_rejected')) {
-    return { kind: 'verified_step_up_rejected' };
-  }
-  return null;
-}
-
-function authorizedOperationReplayMismatch(input: {
-  readonly existing: D1Row;
-  readonly incoming: AuthorizedOperation;
-  readonly material?: AuthorizedOperationMaterialScope;
-  readonly scope: D1WalletStoreScope;
-}): AuthorizedOperationReplayMismatch | null {
-  const sourceKind = requireString(
-    input.existing.authorization_source_kind,
-    'operation.authorization.kind',
-  );
-  if (sourceKind !== input.incoming.authorization.kind) {
-    return authorizationSourceRejected(input.incoming.authorization);
-  }
-  if (input.incoming.authorization.kind === 'authorization_grant') {
-    if (
-      input.existing.owner_scope_org_id !== input.scope.orgId ||
-      input.existing.owner_scope_project_id !== input.scope.projectId ||
-      input.existing.owner_scope_env_id !== input.scope.envId
-    ) {
-      return { kind: 'authorization_grant_rejected' };
-    }
-    const expectedGrantKind = input.incoming.authorization.authorizationGrantRef.kind;
-    if (input.existing.authorization_grant_kind !== expectedGrantKind) {
-      return { kind: 'authorization_grant_rejected' };
-    }
-    if (
-      input.existing.authorization_id !==
-      input.incoming.authorization.authorizationGrantRef.authorizationId
-    ) {
-      return { kind: 'authorization_grant_rejected' };
-    }
-  } else if (
-    input.existing.evidence_set_digest !== input.incoming.authorization.evidenceSetDigest ||
-    input.existing.step_up_org_id !== input.scope.orgId ||
-    input.existing.step_up_project_id !== input.scope.projectId ||
-    input.existing.step_up_env_id !== input.scope.envId
-  ) {
-    return { kind: 'verified_step_up_rejected' };
-  }
-
-  const existingQuotaKind = requireString(input.existing.quota_kind, 'operation.quota.kind');
-  if (existingQuotaKind !== input.incoming.quota.kind) {
-    return authorizationSourceRejected(input.incoming.authorization);
-  }
-  if (
-    existingQuotaKind === 'consume_reusable_wallet_session' &&
-    input.existing.quota_id !== input.incoming.quota.quotaId
-  ) {
-    return { kind: 'authorization_grant_rejected' };
-  }
-  if (existingQuotaKind === 'quota_neutral' && input.existing.quota_id !== null) {
-    return { kind: 'authorization_grant_rejected' };
-  }
-
-  if (!authorizedOperationMaterialMatches(input.existing, input.material)) {
-    return { kind: 'material_mismatch' };
-  }
-  return null;
-}
-
-function authorizedOperationMaterialMatches(
-  existing: D1Row,
-  incoming: AuthorizedOperationMaterialScope | undefined,
-): boolean {
-  const material = incoming?.materialActivation;
-  return (
-    existing.material_activation_id === (material?.activation_id ?? null) &&
-    existing.material_activation_capability === (material?.capability ?? null) &&
-    existing.material_activation_owner === (material?.material_owner ?? null) &&
-    existing.material_activation_key_binding === (material?.key_binding ?? null) &&
-    existing.material_activation_lifecycle_binding === (material?.lifecycle_binding ?? null) &&
-    existing.material_activation_signing_worker === (material?.signing_worker ?? null)
-  );
-}
-
-function authorizationSourceRejected(
-  source: AuthorizedOperation['authorization'],
-): AuthorizedOperationReplayMismatch {
-  return source.kind === 'verified_step_up'
-    ? { kind: 'verified_step_up_rejected' }
-    : { kind: 'authorization_grant_rejected' };
-}
-
-function classifyHostedWalletExchangeV2(
-  row: HostedWalletExchangeV2Row | null,
-  input: RedeemHostedWalletSeamsSessionExchangeV2Input,
-): PersistedHostedWalletSeamsSessionExchangeV2Result | null {
-  if (!row) return { kind: 'invalid_code' };
-  if (row.lifecycle_kind === 'consumed') return { kind: 'already_consumed' };
-  if (row.lifecycle_kind !== 'issued') return { kind: 'invalid_code' };
-  if (integerColumn(row.expires_at_ms, 'exchange.expiresAtMs') <= input.redeemedAtMs) {
-    return { kind: 'expired' };
-  }
-  if (row.nonce_digest !== input.nonceDigest) return { kind: 'nonce_mismatch' };
-  if (row.app_origin !== input.appOrigin) return { kind: 'app_origin_mismatch' };
-  if (row.wallet_origin !== input.walletOrigin) return { kind: 'wallet_origin_mismatch' };
-  if (
-    row.session_operation_credential_hash === null ||
-    row.session_operation_credential_hash === undefined ||
-    (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) ||
-    row.quota_lifecycle_kind !== 'active' ||
-    integerColumn(row.quota_remaining_uses, 'exchange.quotaRemainingUses') <= 0 ||
-    integerColumn(row.session_expires_at_ms, 'exchange.sessionExpiresAtMs') <= input.redeemedAtMs ||
-    integerColumn(row.session_expires_at_ms, 'exchange.sessionExpiresAtMs') <
-      integerColumn(row.expires_at_ms, 'exchange.expiresAtMs') ||
-    integerColumn(row.quota_expires_at_ms, 'exchange.quotaExpiresAtMs') <= input.redeemedAtMs ||
-    integerColumn(row.quota_expires_at_ms, 'exchange.quotaExpiresAtMs') <
-      integerColumn(row.expires_at_ms, 'exchange.expiresAtMs')
-  ) {
-    return { kind: 'wallet_session_unavailable' };
-  }
-  return null;
-}
-
-async function parseAuthorizedOperationRow(row: D1Row): Promise<AuthorizedOperation> {
-  const tenantId = requireParsed(row.tenant_id, parseTenantId, 'operation.tenantId');
-  const operation = buildCapabilityOperationEnvelope({
-    tenantId,
-    principalId: requireParsed(row.principal_id, parsePrincipalId, 'operation.principalId'),
-    capabilityId: requireParsed(row.capability_id, parseCapabilityId, 'operation.capabilityId'),
-    operationId: requireParsed(
-      row.operation_id,
-      parseCapabilityOperationId,
-      'operation.operationId',
-    ),
-    operation: requireParsed(
-      { capabilityKind: row.capability_kind, operationKind: row.operation_kind },
-      parseCapabilityOperationRef,
-      'operation.operation',
-    ),
-    digests: {
-      laneDigest: parseDigestB64u(requireString(row.lane_digest, 'operation.laneDigest')),
-      intentDigest: parseDigestB64u(requireString(row.intent_digest, 'operation.intentDigest')),
-      displayDigest: parseDigestB64u(requireString(row.display_digest, 'operation.displayDigest')),
-    },
-  });
-  const sourceKind = requireString(row.authorization_source_kind, 'operation.authorization.kind');
-  let authorization: AuthorizedOperation['authorization'];
-  if (sourceKind === 'authorization_grant') {
-    if (row.evidence_set_digest != null) {
-      throw new Error('operation.authorization grant row cannot contain evidenceSetDigest');
-    }
-    if (row.authorization_grant_kind !== 'wallet_session_authorization') {
-      throw new Error('operation.authorization grant kind is invalid');
-    }
-    authorization = {
-      kind: 'authorization_grant',
-      authorizationGrantRef: requireParsed(
-        {
-          kind: 'wallet_session_authorization',
-          authorizationId: row.authorization_id,
-        },
-        parseAuthorizationGrantRef,
-        'operation.authorization.authorizationGrantRef',
-      ),
-    };
-  } else if (sourceKind === 'verified_step_up') {
-    if (row.authorization_id != null) {
-      throw new Error('operation.authorization step-up row cannot contain authorizationId');
-    }
-    authorization = {
-      kind: 'verified_step_up' as const,
-      evidenceSetDigest: parseDigestB64u(
-        requireString(row.evidence_set_digest, 'operation.authorization.evidenceSetDigest'),
-      ),
-    };
-  } else {
-    throw new Error('operation.authorization.kind is invalid');
-  }
-  const lifecycle = requireString(row.lifecycle_kind, 'operation.lifecycle');
-  const base = {
-    kind: 'authorized_operation' as const,
-    tenantId,
-    authorizedOperationId: requireParsed(
-      row.authorized_operation_id,
-      parseAuthorizedOperationId,
-      'operation.authorizedOperationId',
-    ),
-    auditEventId: requireParsed(
-      row.audit_event_id,
-      parseAuthorizationAuditEventId,
-      'operation.auditEventId',
-    ),
-    operation,
-    operationFingerprintDigest: parseOperationFingerprint(row.operation_fingerprint_digest),
-    authorization,
-    claimedAtMs: requirePositiveInteger(row.claimed_at_ms, 'operation.claimedAtMs'),
-    quota: (() => {
-      const quotaKind = requireString(row.quota_kind, 'operation.quota.kind');
-      if (quotaKind === 'consume_reusable_wallet_session') {
-        return {
-          kind: 'consume_reusable_wallet_session' as const,
-          quotaId: requireParsed(row.quota_id, parseMpcWalletSigningQuotaId, 'operation.quotaId'),
-        };
-      }
-      if (quotaKind === 'quota_neutral') {
-        if (row.quota_id != null)
-          throw new Error('operation.quota-neutral row cannot contain quotaId');
-        return { kind: 'quota_neutral' as const };
-      }
-      throw new Error('operation.quota.kind is invalid');
-    })(),
-  };
-  const expectedFingerprint = await computeCapabilityOperationFingerprintDigest(operation);
-  if (expectedFingerprint !== base.operationFingerprintDigest) {
-    throw new Error('operation.operationFingerprintDigest does not match operation envelope');
-  }
-  if (lifecycle === 'claimed') return { ...base, lifecycle: 'claimed' };
-  if (lifecycle !== 'completed') throw new Error('operation.lifecycle is invalid');
-  const result = requireString(row.result_kind, 'operation.result');
-  if (
-    result !== 'succeeded' &&
-    result !== 'failed_before_side_effect' &&
-    result !== 'failed_after_side_effect'
-  ) {
-    throw new Error('operation.result is invalid');
-  }
-  const response = parseAuthorizedOperationReplayResponse({
-    status: integerColumn(row.result_status, 'operation.response.status'),
-    contentType: requiredText(row.result_content_type, 'operation.response.contentType'),
-    bodyText: requiredText(row.result_body_text, 'operation.response.bodyText'),
-  });
-  const resultDigest = parseDigestB64u(requireString(row.result_digest, 'operation.resultDigest'));
-  const expectedResultDigest = await computeAuthorizedOperationResultDigest(response);
-  if (expectedResultDigest !== resultDigest) {
-    throw new Error('operation.resultDigest does not match replay response');
-  }
-  return {
-    ...base,
-    lifecycle: 'completed',
-    result,
-    response,
-    resultDigest,
-    completedAtMs: requirePositiveInteger(row.completed_at_ms, 'operation.completedAtMs'),
-  };
-}
-
-function requiredText(value: unknown, label: string): string {
-  if (typeof value !== 'string') throw new Error(`${label} must be text`);
-  return value;
-}
-
-function requireParsed<T>(
-  value: unknown,
-  parser: (raw: unknown) => AuthorizationParseResult<T>,
-  label: string,
-): T {
-  const parsed = parser(value);
-  if (!parsed.ok) throw new Error(`${label}: ${parsed.error.message}`);
-  return parsed.value;
-}
-
-function parseOperationFingerprint(value: unknown): CapabilityOperationFingerprintDigest {
-  try {
-    return parseCapabilityOperationFingerprintDigest(value);
-  } catch (error) {
-    throw new Error(
-      `operation.operationFingerprintDigest: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-}
-
-function integerColumn(value: unknown, label: string): number {
-  const parsed = typeof value === 'number' ? value : Number(value);
-  if (!Number.isSafeInteger(parsed)) throw new Error(`${label} must be a safe integer`);
-  return parsed;
-}
-
-function requirePositiveInteger(value: unknown, label: string): number {
-  const parsed = integerColumn(value, label);
-  if (parsed <= 0) throw new Error(`${label} must be positive`);
-  return parsed;
-}
-
-function requireOpaqueString<T extends string = string>(value: unknown, label: string): T {
-  if (
-    typeof value !== 'string' ||
-    value.trim() !== value ||
-    value.length === 0 ||
-    value.length > 512 ||
-    // eslint-disable-next-line no-control-regex
-    /[\s\u0000-\u001f\u007f]/.test(value)
-  ) {
-    throw new Error(`${label} must be a compact opaque identifier`);
-  }
-  return value as T;
-}
-
-function requireString(value: unknown, label: string): string {
-  return requireOpaqueString(value, label);
-}
-
-function requireOneChangedRow(
-  result: { readonly meta?: { readonly changes?: number } },
-  label: string,
-): void {
-  if (d1ChangedRows({ success: true, meta: result.meta }) !== 1) {
-    throw new Error(`${label} was not persisted`);
-  }
-}
-
-function requireExactWalletSessionAuthorizationV2Quota(input: {
-  readonly session: WalletSessionAuthorizationV2;
-  readonly quota: ActiveWalletSessionQuota | ExactWalletSessionQuotaProjectionV1;
-}): void {
-  if (
-    input.session.tenantId !== input.quota.tenantId ||
-    input.session.principalId !== input.quota.principalId ||
-    input.session.walletSessionId !== input.quota.walletSessionId ||
-    input.session.quotaId !== input.quota.quotaId ||
-    input.session.expiresAtMs !== input.quota.expiresAtMs
-  ) {
-    throw new Error('V2 Wallet Session authorization and quota must have one exact identity');
-  }
-}
-
-function requireExactPersistedActiveWalletSessionAuthorizationV2(
-  input: PersistedActiveWalletSessionAuthorizationV2,
-): void {
-  if (input.kind !== 'persisted_active_wallet_session_authorization_v2') {
-    throw new Error('Direct V2 Wallet Session aggregate kind is invalid');
-  }
-  requireExactWalletSessionAuthorizationV2Quota(input);
-  parseDigestB64u(input.primaryOperationCredentialDigestB64u);
-  if (input.retiredAtMs !== undefined) {
-    throw new Error('Direct V2 Wallet Session aggregate cannot be retired');
-  }
-}
-
-function directV2IdentityAvailabilitySql(): string {
-  return `${directV2SessionIdentityAvailabilitySql()}
-      AND NOT EXISTS (
-        SELECT 1
-          FROM authorization_wallet_session_quotas AS existing_quota
-         WHERE existing_quota.namespace = ?
-           AND existing_quota.tenant_id = ?
-           AND existing_quota.quota_id = ?
-      )`;
-}
-
-function directV2IdentityAvailabilityBindings(
-  namespace: string,
-  scope: D1WalletStoreScope,
-  session: WalletSessionAuthorizationV2,
-): readonly unknown[] {
-  return [
-    ...directV2SessionIdentityAvailabilityBindings(namespace, scope, session),
-    namespace,
-    String(session.tenantId),
-    String(session.quotaId),
-  ];
-}
-
-function directV2SessionIdentityAvailabilitySql(): string {
-  return `
-      ${ACTIVE_V2_AUTHORITY_METHOD_EXISTS_SQL}
-      AND EXISTS (
-        SELECT 1 FROM wallet_execution_generations
-         WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-           AND wallet_id = ? AND state IN ('registering', 'active')
-      )
-      AND NOT EXISTS (
-        SELECT 1
-          FROM (
-            SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id, ? AS tenant_id,
-                   ? AS authorization_id, ? AS mint_id, ? AS wallet_session_id, ? AS quota_id
-          ) AS candidate
-         WHERE ${existingSessionWithCandidateSql('authorization_id')}
-            OR ${existingSessionWithCandidateSql('mint_id')}
-            OR ${existingSessionWithCandidateSql('wallet_session_id')}
-            OR ${existingSessionWithCandidateSql('quota_id')}
-      )`;
-}
-
-/**
- * Each of the four session identifiers has its own unique key. One lookup for
- * each key reads one row. A single lookup with the four identifiers in an OR
- * reads every session of the tenant.
- */
-function existingSessionWithCandidateSql(
-  identifier: 'authorization_id' | 'mint_id' | 'wallet_session_id' | 'quota_id',
-): string {
-  return `EXISTS (
-              SELECT 1
-                FROM wallet_session_authorizations_v2 AS existing
-               WHERE existing.namespace = candidate.namespace
-                 AND existing.org_id = candidate.org_id
-                 AND existing.project_id = candidate.project_id
-                 AND existing.env_id = candidate.env_id
-                 AND existing.tenant_id = candidate.tenant_id
-                 AND existing.${identifier} = candidate.${identifier}
-            )`;
-}
-
-function directV2SessionIdentityAvailabilityBindings(
-  namespace: string,
-  scope: D1WalletStoreScope,
-  session: WalletSessionAuthorizationV2,
-): readonly unknown[] {
-  return [
-    ...activeV2AuthorityMethodBindings(scope, session),
-    namespace,
-    scope.orgId,
-    scope.projectId,
-    scope.envId,
-    String(session.walletId),
-    namespace,
-    scope.orgId,
-    scope.projectId,
-    scope.envId,
-    String(session.tenantId),
-    String(session.authorizationId),
-    String(session.mintId),
-    String(session.walletSessionId),
-    String(session.quotaId),
-  ];
-}
-
-function parseWalletSessionAuthorizationV2MintRow(
-  row: D1Row | null,
-  input: WalletSessionAuthorizationV2MintLookup,
-): WalletSessionAuthorizationV2MintRead | null {
-  if (!row) return null;
-  const session = parsePersistedWalletSessionAuthorizationV2(parseD1JsonColumn(row.record_json));
-  const sessionColumns: D1Row = {
-    session_tenant_id: row.tenant_id,
-    session_authorization_id: row.authorization_id,
-    session_mint_id: row.mint_id,
-    session_wallet_session_id: row.wallet_session_id,
-    session_quota_id: row.quota_id,
-    session_principal_id: row.principal_id,
-    session_wallet_id: row.wallet_id,
-    session_authority_id: row.authority_id,
-    session_wallet_auth_method_id: row.wallet_auth_method_id,
-    session_authority_digest_b64u: row.authority_digest_b64u,
-    session_authority_revocation_epoch: row.authority_revocation_epoch,
-    session_issued_at_ms: row.issued_at_ms,
-    session_expires_at_ms: row.expires_at_ms,
-  };
-  if (!walletSessionAuthorizationV2RowMatches(sessionColumns, session)) {
-    throw new Error('Stored V2 Wallet Session mint columns disagree with record');
-  }
-  const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
-    sessionColumns,
-    parseD1JsonColumn(row.capability_subjects_json),
-  );
-  if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
-    throw new Error('Stored V2 Wallet Session mint subjects disagree with record');
-  }
-  if (
-    session.tenantId !== input.tenantId ||
-    session.principalId !== input.principalId ||
-    session.walletId !== input.walletId ||
-    session.authorityId !== input.authorityId ||
-    session.walletAuthMethodId !== input.walletAuthMethodId ||
-    session.mintId !== input.mintId
-  ) {
-    throw new Error('Stored V2 Wallet Session mint identity does not match the request');
-  }
-  const primaryOperationCredentialDigestB64u = parseDigestB64u(row.operation_credential_hash);
-  const retiredAtMs =
-    row.retired_at_ms === null || row.retired_at_ms === undefined
-      ? null
-      : requirePositiveInteger(row.retired_at_ms, 'V2 session.retiredAtMs');
-  return {
-    kind: 'committed',
-    session,
-    primaryOperationCredentialDigestB64u,
-    retiredAtMs,
-  };
-}
-
-function walletSessionAuthorizationV2RowMatches(
-  row: D1Row,
-  session: WalletSessionAuthorizationV2,
-): boolean {
-  return (
-    row.session_tenant_id === String(session.tenantId) &&
-    row.session_authorization_id === String(session.authorizationId) &&
-    row.session_mint_id === String(session.mintId) &&
-    row.session_wallet_session_id === String(session.walletSessionId) &&
-    row.session_quota_id === String(session.quotaId) &&
-    row.session_principal_id === String(session.principalId) &&
-    row.session_wallet_id === String(session.walletId) &&
-    row.session_authority_id === String(session.authorityId) &&
-    row.session_wallet_auth_method_id === String(session.walletAuthMethodId) &&
-    row.session_authority_digest_b64u === String(session.authorityDigestB64u) &&
-    integerColumn(row.session_authority_revocation_epoch, 'session.authorityRevocationEpoch') ===
-      session.authorityRevocationEpoch &&
-    integerColumn(row.session_issued_at_ms, 'session.createdAtMs') === session.createdAtMs &&
-    integerColumn(row.session_expires_at_ms, 'session.expiresAtMs') === session.expiresAtMs
-  );
-}
-
-function parseWalletSessionAuthorizationV2WithSubjects(
-  row: D1Row,
-  capabilitySubjects: unknown,
-): WalletSessionAuthorizationV2 {
-  return parseWalletSessionAuthorizationV2({
-    kind: 'wallet_session_authorization_v2',
-    tenantId: row.session_tenant_id,
-    principalId: row.session_principal_id,
-    walletId: row.session_wallet_id,
-    authorityId: row.session_authority_id,
-    walletAuthMethodId: row.session_wallet_auth_method_id,
-    authorityDigestB64u: row.session_authority_digest_b64u,
-    authorityRevocationEpoch: row.session_authority_revocation_epoch,
-    mintId: row.session_mint_id,
-    authorizationId: row.session_authorization_id,
-    walletSessionId: row.session_wallet_session_id,
-    quotaId: row.session_quota_id,
-    capabilitySubjects,
-    createdAtMs: row.session_issued_at_ms,
-    expiresAtMs: row.session_expires_at_ms,
-  });
-}
-
-/** The authority and auth method a joined session row carries, as read with it. */
-async function joinedAuthorityAndMethod(row: D1Row): Promise<{
-  readonly authority: WalletAuthorityV1 | null;
-  readonly authMethod: WalletAuthMethodRecordV2 | null;
-}> {
-  const authority =
-    row.authority_id === null || row.authority_id === undefined
-      ? null
-      : await parseD1WalletAuthorityRow(row);
-  const authMethod =
-    row.auth_method_record_json === null || row.auth_method_record_json === undefined
-      ? null
-      : normalizeWalletAuthMethodV2(parseD1JsonColumn(row.auth_method_record_json));
-  return { authority, authMethod };
-}
-
-function parseLiveWalletSessionAuthorizationV2Row(
-  row: D1Row,
-  input: WalletSessionAuthorizationV2Read,
-): WalletSessionAuthorizationV2 {
-  if (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) {
-    throw new Error('Stored V2 Wallet Session authorization is retired');
-  }
-  const session = parsePersistedWalletSessionAuthorizationV2(
-    parseD1JsonColumn(row.session_record_json),
-  );
-  if (!walletSessionAuthorizationV2RowMatches(row, session)) {
-    throw new Error('Stored V2 Wallet Session authorization columns disagree with record');
-  }
-  const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
-    row,
-    parseD1JsonColumn(row.session_capability_subjects_json),
-  );
-  if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
-    throw new Error('Stored V2 Wallet Session capability subjects disagree with record');
-  }
-  if (
-    row.authority_id !== String(session.authorityId) ||
-    row.authority_wallet_id !== String(session.walletId) ||
-    row.authority_lifecycle_state !== 'active' ||
-    row.authority_digest_b64u !== String(session.authorityDigestB64u) ||
-    integerColumn(row.authority_revocation_epoch, 'authority.revocationEpoch') !==
-      session.authorityRevocationEpoch ||
-    row.auth_method_id !== String(session.walletAuthMethodId) ||
-    row.auth_method_wallet_id !== String(session.walletId) ||
-    row.auth_method_authority_id !== String(session.authorityId) ||
-    row.auth_method_status !== 'active'
-  ) {
-    throw new Error('Stored V2 Wallet Session authority provenance is no longer active');
-  }
-  if (
-    'identity' in input &&
-    (session.walletId !== input.identity.walletId ||
-      session.walletSessionId !== input.identity.walletSessionId ||
-      session.authorizationId !== input.identity.authorizationId)
-  ) {
-    throw new Error('Stored V2 Wallet Session identity does not match the request');
-  }
-  if ('expected' in input && !walletSessionAuthorizationV2RecordsEqual(session, input.expected)) {
-    throw new Error('Stored V2 Wallet Session authorization replay does not match');
-  }
-  const nowMs = requirePositiveInteger(input.nowMs, 'V2 authorization read time');
-  if (session.expiresAtMs <= nowMs) {
-    throw new Error('Stored V2 Wallet Session authorization has expired');
-  }
-  return session;
-}
-
-function parseWalletSessionAuthorizationV2QuotaRow(
-  row: D1Row,
-  session: WalletSessionAuthorizationV2,
-): ActiveWalletSessionQuota {
-  if (row.quota_lifecycle_kind !== 'active') {
-    throw new Error('Stored V2 Wallet Session quota is no longer active');
-  }
-  const quotaTenantId = requireParsed(row.quota_tenant_id, parseTenantId, 'V2 quota.tenantId');
-  const quotaPrincipalId = requireParsed(
-    row.quota_principal_id,
-    parsePrincipalId,
-    'V2 quota.principalId',
-  );
-  const quotaWalletSessionId = requireParsed(
-    row.quota_wallet_session_id,
-    parseWalletSessionId,
-    'V2 quota.walletSessionId',
-  );
-  const quotaId = requireParsed(row.quota_id, parseMpcWalletSigningQuotaId, 'V2 quota.quotaId');
-  const remainingUses = requirePositiveInteger(row.quota_remaining_uses, 'V2 quota.remainingUses');
-  const expiresAtMs = requirePositiveInteger(row.quota_expires_at_ms, 'V2 quota.expiresAtMs');
-  if (
-    quotaTenantId !== session.tenantId ||
-    quotaPrincipalId !== session.principalId ||
-    quotaWalletSessionId !== session.walletSessionId ||
-    quotaId !== session.quotaId ||
-    expiresAtMs !== session.expiresAtMs
-  ) {
-    throw new Error('Stored V2 Wallet Session quota identity does not match');
-  }
-  return buildActiveWalletSessionQuota({
-    tenantId: quotaTenantId,
-    principalId: quotaPrincipalId,
-    walletSessionId: quotaWalletSessionId,
-    quotaId,
-    remainingUses,
-    expiresAtMs,
-  });
-}
-
-/**
- * Reads the quota joined to an exact authorization without collapsing an
- * exhausted quota into an error. Identity disagreement remains a corrupt-row
- * exception because the quota is the authorization's own committed row.
- */
-function parseExactWalletSessionQuotaProjectionRow(
-  row: D1Row,
-  session: WalletSessionAuthorizationV2,
-): ExactWalletSessionQuotaProjectionV1 {
-  if (row.quota_id === null || row.quota_id === undefined) {
-    throw new Error('Stored V2 Wallet Session quota row is missing');
-  }
-  if (row.quota_lifecycle_kind !== 'active' && row.quota_lifecycle_kind !== 'exhausted') {
-    throw new Error('Stored V2 Wallet Session quota lifecycle is unsupported');
-  }
-  const quotaTenantId = requireParsed(row.quota_tenant_id, parseTenantId, 'V2 quota.tenantId');
-  const quotaPrincipalId = requireParsed(
-    row.quota_principal_id,
-    parsePrincipalId,
-    'V2 quota.principalId',
-  );
-  const quotaWalletSessionId = requireParsed(
-    row.quota_wallet_session_id,
-    parseWalletSessionId,
-    'V2 quota.walletSessionId',
-  );
-  const quotaId = requireParsed(row.quota_id, parseMpcWalletSigningQuotaId, 'V2 quota.quotaId');
-  const remainingUses = integerColumn(row.quota_remaining_uses, 'V2 quota.remainingUses');
-  const expiresAtMs = requirePositiveInteger(row.quota_expires_at_ms, 'V2 quota.expiresAtMs');
-  if (
-    quotaTenantId !== session.tenantId ||
-    quotaPrincipalId !== session.principalId ||
-    quotaWalletSessionId !== session.walletSessionId ||
-    quotaId !== session.quotaId ||
-    expiresAtMs !== session.expiresAtMs
-  ) {
-    throw new Error('Stored V2 Wallet Session quota identity does not match');
-  }
-  return buildExactWalletSessionQuotaProjectionV1({
-    lifecycle: row.quota_lifecycle_kind,
-    tenantId: quotaTenantId,
-    principalId: quotaPrincipalId,
-    walletSessionId: quotaWalletSessionId,
-    quotaId,
-    remainingUses,
-    expiresAtMs,
-  });
-}
-
-function assertNeverDirectV2CommitMode(value: never): never {
-  throw new Error(`Unsupported direct V2 Wallet Session commit mode: ${String(value)}`);
-}
-
-function assertNeverDirectWalletSessionCommitPurpose(value: never): never {
-  throw new Error(`Unsupported Wallet Session commit purpose: ${String(value)}`);
-}
-
-async function parseWalletSessionAdmissionRow(
-  row: D1Row,
-  input: {
-    readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
-    readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
-    readonly nowMs: number;
-  },
-): Promise<WalletSessionAdmissionSnapshotV2> {
-  const session = parseLiveWalletSessionAuthorizationV2Row(row, {
-    operationCredentialHash: input.tokenHash,
-    tenantId: input.tenantId,
-    nowMs: input.nowMs,
-  });
-  const { authority, authMethod } = await joinedAuthorityAndMethod(row);
-  if (row.quota_lifecycle_kind === 'exhausted') {
-    return {
-      kind: 'exhausted',
-      session,
-      quota: parseExactWalletSessionQuotaProjectionRow(row, session),
-      authority,
-      authMethod,
-    };
-  }
-  const quota = parseWalletSessionAuthorizationV2QuotaRow(row, session);
-  return { kind: 'active', authorization: { session, quota }, authority, authMethod };
-}
-
-function installationJsonColumn(column: typeof ECDSA_INSTALLATION_SNAPSHOT_COLUMNS[number]): string {
-  return `'${column}', installation.${column}`;
 }

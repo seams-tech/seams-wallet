@@ -115,3 +115,31 @@ declare const emailOtpExportLogin: Variant<RequestEmailOtpExportChallengeArgs, '
 // @ts-expect-error Transaction signing cannot use an unauthenticated login challenge.
 const transactionLoginChallenge: RequestEmailOtpTransactionChallengeArgs = emailOtpExportLogin;
 void transactionLoginChallenge;
+
+
+import { resolveLoginWarmEd25519ProvisioningIdentity } from '../../packages/wallet/src/SeamsWeb/operations/auth/login/unlockPlanning';
+type LoginProvisioningIdentity = ReturnType<typeof resolveLoginWarmEd25519ProvisioningIdentity>;
+declare const freshLoginProvisioning: Variant<
+  LoginProvisioningIdentity,
+  'kind',
+  'fresh_ed25519_provisioning'
+>;
+declare const exactLoginProvisioning: Variant<
+  LoginProvisioningIdentity,
+  'kind',
+  'exact_ed25519_provisioning'
+>;
+// @ts-expect-error A fresh provisioning identity cannot carry an existing session credential.
+const mixedLoginProvisioning: LoginProvisioningIdentity = {
+  kind: 'fresh_ed25519_provisioning',
+  materialActivation: freshLoginProvisioning.materialActivation,
+  operationCredential: exactLoginProvisioning.operationCredential,
+};
+// @ts-expect-error A spread cannot attach fresh material to an exact-session identity.
+const spreadLoginProvisioning: LoginProvisioningIdentity = {
+  ...exactLoginProvisioning,
+  materialActivation: freshLoginProvisioning.materialActivation,
+};
+// @ts-expect-error A direct cast cannot turn fresh provisioning into an exact-session identity.
+const castLoginProvisioning = freshLoginProvisioning as typeof exactLoginProvisioning;
+void [mixedLoginProvisioning, spreadLoginProvisioning, castLoginProvisioning];
