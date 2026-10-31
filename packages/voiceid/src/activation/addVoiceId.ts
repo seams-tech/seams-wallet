@@ -16,17 +16,21 @@ type Activated = Variant<AuthMethodActivationResult, 'kind', 'activated'>;
 export async function prepareActivationSurface(
   input: Parameters<WalletAuthMethodHostPlugin['activate']>[0],
   signal: AbortSignal,
+  parent: HTMLElement,
   model: VoiceIdTranscriptionModel,
 ): Promise<PreparedVoiceCapture<Activated>> {
   signal.throwIfAborted();
   const prepared = await input.prepareActivation();
   signal.throwIfAborted();
   if (prepared.kind === 'enroll_existing') {
-    return { kind: 'management', action: managePreparedVoiceId.bind(null, model, prepared) };
+    return {
+      kind: 'management',
+      action: managePreparedVoiceId.bind(null, model, prepared, parent),
+    };
   }
   return {
     kind: 'recording',
-    action: activatePreparedVoiceId.bind(null, model, prepared),
+    action: activatePreparedVoiceId.bind(null, model, prepared, parent),
     expiresAtMs: null,
   };
 }
@@ -34,9 +38,10 @@ export async function prepareActivationSurface(
 async function managePreparedVoiceId(
   model: VoiceIdTranscriptionModel,
   prepared: Variant<VoiceIdActivationPreparation, 'kind', 'enroll_existing'>,
+  parent: HTMLElement,
   signal: AbortSignal,
 ): Promise<Activated> {
-  await manageVoiceEnrollment(prepared.confirmChange, prepared.scope, signal, model);
+  await manageVoiceEnrollment(parent, prepared.confirmChange, prepared.scope, signal, model);
   signal.throwIfAborted();
   return {
     kind: 'activated',
@@ -48,12 +53,13 @@ async function managePreparedVoiceId(
 function activatePreparedVoiceId(
   model: VoiceIdTranscriptionModel,
   prepared: Variant<VoiceIdActivationPreparation, 'kind', 'activate'>,
+  parent: HTMLElement,
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<Activated> {
   return prepared.activate(
-    captureVoiceIdActivation.bind(null, model, { onCapture, phrase }),
+    captureVoiceIdActivation.bind(null, model, { parent, onCapture, phrase }),
     signal,
   );
 }

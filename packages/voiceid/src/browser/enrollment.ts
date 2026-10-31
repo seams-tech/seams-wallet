@@ -1,18 +1,7 @@
-import {
-  newSpokenPhrase,
-  checkSpokenPhrase,
-  VoicePhraseMismatchError,
-  type SpokenPhrase,
-} from './phrase';
+import { newSpokenPhrase, checkSpokenPhrase, VoicePhraseMismatchError } from './phrase';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 import { prepareVoiceModelWithProgress } from './progress';
-import {
-  recordVoice,
-  requireVoiceUserAction,
-  voiceQualityMessage,
-  type VoiceCaptureQuality,
-  type VoiceCaptureObserver,
-} from './microphone';
+import { recordVoice, requireVoiceUserAction, voiceQualityMessage } from './microphone';
 import { VoicePrompt } from '../capture/prompt';
 import {
   normalizeVoiceVector,
@@ -21,47 +10,25 @@ import {
   VOICE_MATCH_THRESHOLD,
 } from './model';
 
-import { commitVoiceEnrollment, readVoiceTemplate } from './enrollmentStore';
+import { commitVoiceEnrollment } from './enrollmentStore';
 import {
   assertVoiceOwner,
   type VoiceEnrollmentScope,
-  type VoiceEnrollmentSnapshot,
-  type VoiceOwnerGuard,
-  type VoiceTemplateAccess,
+  type VoiceEnrollmentAuthorization,
 } from '@seams/wallet/voiceid-host';
-import type { ConfirmedVoiceChange } from '@seams/wallet/voiceid-host';
 import { toError } from '@seams/wallet/voiceid-host';
 import type { Variant } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
-type EnrollmentCapturePlan = {
-  readonly scope: VoiceEnrollmentScope;
-  readonly guard: VoiceOwnerGuard;
-} & (
-  | {
-      readonly kind: 'activate';
-      readonly snapshot: { readonly kind: 'missing' };
-      readonly confirmation?: never;
-    }
-  | {
-      readonly kind: 'replace';
-      readonly snapshot: VoiceEnrollmentSnapshot;
-      readonly confirmation: ConfirmedVoiceChange;
-    }
-  | {
-      readonly kind: 'improve';
-      readonly snapshot: Variant<VoiceEnrollmentSnapshot, 'kind', 'present'>;
-      readonly confirmation: ConfirmedVoiceChange;
-    }
-);
+type EnrollmentCapturePlan = Readonly<{ scope: VoiceEnrollmentScope }> &
+  Variant<VoiceEnrollmentAuthorization, 'kind', 'activate' | 'replace' | 'improve'>;
 
 export async function enrollBrowserVoice(
+  parent: HTMLElement,
   plan: EnrollmentCapturePlan,
   signal: AbortSignal,
   model: VoiceIdTranscriptionModel,
 ): Promise<void> {
-  const parent = document.querySelector('.seams-voiceid-activation-surface');
-  if (!(parent instanceof HTMLElement)) throw new Error('Open VoiceID activation in the Wallet.');
   await prepareVoiceModelWithProgress(parent, signal, model);
   signal.throwIfAborted();
   const surface = new VoiceEnrollmentSurface(parent, plan, signal, model);
@@ -95,7 +62,11 @@ class VoiceEnrollmentSurface {
     private readonly signal: AbortSignal,
     private readonly model: VoiceIdTranscriptionModel,
   ) {
-    this.prompt = new VoicePrompt(document, 'Enroll your voice in this browser', this.phrase);
+    this.prompt = new VoicePrompt(
+      parent.ownerDocument,
+      'Enroll your voice in this browser',
+      this.phrase,
+    );
     this.prompt.title.textContent = 'Read aloud · 0 of 3 accepted';
     this.status = this.prompt.status;
     this.record = this.prompt.record;
@@ -189,36 +160,39 @@ class VoiceEnrollmentSurface {
       const plan = this.plan;
       switch (plan.kind) {
         case 'activate':
-          await commitVoiceEnrollment(
-            plan.scope,
-            plan.guard,
-            plan.snapshot,
-            { kind: 'activate', baseline: normalizeVoiceVector(mean) },
-            this.controller.signal,
-          );
+          await commitVoiceEnrollment({
+            kind: 'activate',
+            scope: plan.scope,
+            guard: plan.guard,
+            snapshot: plan.snapshot,
+            baseline: normalizeVoiceVector(mean),
+            signal: this.controller.signal,
+          });
           break;
         case 'replace':
-          await commitVoiceEnrollment(
-            plan.scope,
-            plan.guard,
-            plan.snapshot,
-            {
-              kind: 'replace',
-              baseline: normalizeVoiceVector(mean),
-              confirmation: plan.confirmation,
-            },
-            this.controller.signal,
-          );
+          await commitVoiceEnrollment({
+            kind: 'replace',
+            scope: plan.scope,
+            guard: plan.guard,
+            snapshot: plan.snapshot,
+            baseline: normalizeVoiceVector(mean),
+            confirmation: plan.confirmation,
+            signal: this.controller.signal,
+          });
           break;
         case 'improve':
-          await commitVoiceEnrollment(
-            plan.scope,
-            plan.guard,
-            plan.snapshot,
-            { kind: 'improve', samples: this.samples, confirmation: plan.confirmation },
-            this.controller.signal,
-          );
+          await commitVoiceEnrollment({
+            kind: 'improve',
+            scope: plan.scope,
+            guard: plan.guard,
+            snapshot: plan.snapshot,
+            samples: this.samples,
+            confirmation: plan.confirmation,
+            signal: this.controller.signal,
+          });
           break;
+        default:
+          return assertNever(plan);
       }
       if (this.signal.aborted || this.closed) return;
       this.phase = 'closed';
@@ -287,43 +261,6 @@ class VoiceEnrollmentSurface {
   }
 }
 
-export async function verifyBrowserVoice(
-  access: VoiceTemplateAccess,
-  signal: AbortSignal,
-  onCapture: VoiceCaptureObserver,
-  phrase: SpokenPhrase,
-  model: VoiceIdTranscriptionModel,
-): Promise<
-  | { kind: 'matched' }
-  | { kind: 'mismatch'; quality: VoiceCaptureQuality }
-  | { kind: 'phrase_mismatch' }
-  | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
-> {
-  const pcm = await recordVoice(signal, onCapture);
-  if (pcm.kind === 'insufficient_audio') {
-    signal.throwIfAborted();
-    return pcm;
-  }
-  try {
-    signal.throwIfAborted();
-    const phraseCheck = await checkSpokenPhrase(pcm.samples, phrase, model);
-    const embedding = await voiceEmbedding(pcm.samples);
-    let similarity: number;
-    try {
-      signal.throwIfAborted();
-      const reference = await readVoiceTemplate(access, signal);
-      try {
-        similarity = voiceSimilarity(embedding, reference.template);
-      } finally {
-        reference.template.fill(0);
-        reference.baseline.fill(0);
-      }
-    } finally {
-      embedding.fill(0);
-    }
-    if (similarity < VOICE_MATCH_THRESHOLD) return { kind: 'mismatch', quality: pcm.quality };
-    return phraseCheck.kind === 'matched' ? { kind: 'matched' } : { kind: 'phrase_mismatch' };
-  } finally {
-    pcm.samples.fill(0);
-  }
+function assertNever(_plan: never): never {
+  throw new Error('Unsupported VoiceID enrollment capture.');
 }

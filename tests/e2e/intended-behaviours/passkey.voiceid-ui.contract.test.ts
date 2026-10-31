@@ -39,6 +39,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
     await enrollBrowserMicrophone(page);
     await expect(toggle).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
+    await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');
     await page
       .locator('.seams-profile-button-morphable.open')
       .screenshot({ path: testInfo.outputPath('voiceid-settings-enabled.png') });
@@ -264,11 +265,12 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await expect(enrollmentState).toContainText('Improved');
     await expect(enrollmentState).toContainText('Saved on this device');
     await expect(wallet.getByRole('button', { name: 'Improve again', exact: true })).toBeVisible();
-    await expect(wallet.locator('.seams-voiceid-activation-surface')).toHaveCSS(
+    const managementDialog = wallet.getByRole('dialog', { name: 'Manage voice', exact: true });
+    await expect(managementDialog).toHaveCSS(
       'background-color',
       'rgba(0, 0, 0, 0)',
     );
-    await wallet.locator('.seams-voiceid-activation-surface').screenshot({
+    await managementDialog.screenshot({
       path: testInfo.outputPath('voiceid-adaptation-management.png'),
       animations: 'disabled',
     });
@@ -338,6 +340,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await expect(
       wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId),
     ).rejects.toThrow('Scoped voice enrollment is unavailable');
+    await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');
     await saveEvidence(testInfo, 'voiceid-ui-flows.json', {
       status: 'passed',
       passkeyCredentialAlgorithm: passkeyAlgorithm,
@@ -345,6 +348,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       passkeyCoseAlgorithm: passkeyAlgorithm === 'rs256' ? -257 : -7,
       settings: 'enroll_disable_reenable_and_lock_active_voice_session',
       managementBackLeavesNoMessage: true,
+      explicitContainerPreservedUnrelatedSurface: true,
       login: 'one_wallet_with_method_choices_and_cancel_restores_menu',
       menuStatesThroughVoiceUnlock: menuStates,
       disabledSdkUnlockRejected: true,
@@ -465,6 +469,20 @@ async function openSettings(page: Page): Promise<void> {
   await menu.getByRole('button', { name: 'Show account menu', exact: true }).click();
   await menu.locator('[aria-haspopup="menu"]').click();
   await page.getByRole('button', { name: /Authentication methods/ }).click();
+  await page
+    .frameLocator('iframe.seams-wallet-overlay-iframe')
+    .locator('body')
+    .evaluate(installUnrelatedVoiceSurface);
+}
+
+function installUnrelatedVoiceSurface(): void {
+  if (document.getElementById('unrelated-voice-surface')) return;
+  const unrelated = document.createElement('section');
+  unrelated.id = 'unrelated-voice-surface';
+  unrelated.className = 'seams-voiceid-activation-surface';
+  unrelated.hidden = true;
+  unrelated.textContent = 'Unrelated surface';
+  document.body.prepend(unrelated);
 }
 async function readAuthentication(page: Page): Promise<string> {
   const state = await page.evaluate(session);

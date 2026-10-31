@@ -1,5 +1,5 @@
 // Scoped operations and data contracts for the trusted VoiceID plugin.
-export const VOICE_ID_HOST_API_VERSION = 4;
+export const VOICE_ID_HOST_API_VERSION = 5;
 export {
   type WalletAuthMethodHostPlugin,
   type AuthMethodActivationResult,
@@ -20,10 +20,7 @@ export {
   type VoiceIdAuthMethodPlugin,
 } from './core/authMethods/plugins';
 export { WorkerDeferred } from './core/signingEngine/workerManager/workerDeferred';
-export {
-  prepareVoiceOwner,
-  type ConfirmedVoiceChange,
-} from './core/authMethods/voiceId/ownerConfirmation';
+export { prepareVoiceOwner } from './core/authMethods/voiceId/ownerConfirmation';
 export { toError } from '@shared/utils/errors';
 export {
   voiceEnrollmentStorage,
@@ -34,9 +31,10 @@ export {
 } from './core/authMethods/voiceId/enrollmentStorage';
 export {
   type VoiceEnrollment,
+  type VoiceEnrollmentAuthorization,
+  type VoiceEnrollmentConfirmationRequest,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
-  type VoiceOwnerGuard,
   type VoiceTemplateAccess,
   type VoiceIdActivationCapture,
   type VoiceIdUnlockCapture,

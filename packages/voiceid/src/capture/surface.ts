@@ -34,9 +34,13 @@ export type PreparedVoiceCapture<T> =
       action: (signal: AbortSignal) => Promise<T>;
       expiresAtMs?: never;
     }>;
+export type VoiceCaptureElements = Readonly<{
+  parent: HTMLElement;
+  progress: HTMLElement;
+}>;
 type CapturePreparation<T> = (
   signal: AbortSignal,
-  parent: HTMLElement,
+  elements: VoiceCaptureElements,
 ) => Promise<PreparedVoiceCapture<T>>;
 type CaptureState<T> =
   | { kind: 'preparing' }
@@ -130,7 +134,10 @@ class VoiceIdCaptureSurface<T> {
     try {
       await new Promise<void>(afterPromptPaint);
       this.controller.signal.throwIfAborted();
-      const capture = await prepare(this.controller.signal, this.prompt.progress);
+      const capture = await prepare(this.controller.signal, {
+        parent: this.element,
+        progress: this.prompt.progress,
+      });
       if (this.state.kind === 'closed') return;
       if (capture.kind === 'management') {
         this.element.setAttribute('aria-label', 'Manage voice');

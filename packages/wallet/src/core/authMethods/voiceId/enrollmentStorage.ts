@@ -14,7 +14,6 @@ import {
   availabilityKey,
   parseStoredAuthMethodAvailability,
 } from '@/core/authMethods/availability';
-import type { ConfirmedVoiceChange } from './ownerConfirmation';
 import {
   buildDelegatedWalletAuthorityV1,
   buildFullOwnerPermissionsV1,
@@ -23,8 +22,8 @@ import {
 
 import type {
   VoiceEnrollmentScope,
+  VoiceEnrollmentAuthorization,
   VoiceEnrollment,
-  VoiceEnrollmentSnapshot,
   VoiceOwnerGuard,
   VoiceTemplateAccess,
 } from './contracts';
@@ -184,33 +183,7 @@ type WriteBase = Readonly<{
   next: VoiceEnrollment;
   signal: AbortSignal;
 }>;
-export type VoiceEnrollmentWrite = WriteBase &
-  (
-    | {
-        readonly kind: 'activate';
-        readonly guard: import('./contracts').VoiceActivationGuard;
-        readonly snapshot: { readonly kind: 'missing' };
-        readonly confirmation?: never;
-      }
-    | {
-        readonly kind: 'import';
-        readonly guard: import('./contracts').VoiceChangeGuard;
-        readonly snapshot: { readonly kind: 'missing' };
-        readonly confirmation: ConfirmedVoiceChange;
-      }
-    | {
-        readonly kind: 'replace';
-        readonly guard: import('./contracts').VoiceChangeGuard;
-        readonly snapshot: VoiceEnrollmentSnapshot;
-        readonly confirmation: ConfirmedVoiceChange;
-      }
-    | {
-        readonly kind: 'improve' | 'reset';
-        readonly guard: import('./contracts').VoiceChangeGuard;
-        readonly snapshot: { readonly kind: 'present'; readonly enrollment: VoiceEnrollment };
-        readonly confirmation: ConfirmedVoiceChange;
-      }
-  );
+export type VoiceEnrollmentWrite = WriteBase & VoiceEnrollmentAuthorization;
 
 export function voiceEnrollmentStorage(parseEnrollment: VoiceEnrollmentParser) {
   return {
@@ -260,8 +233,6 @@ async function readTemplateEnrollment(
 ): Promise<VoiceEnrollment> {
   const scope = access.scope;
   const guard = access.kind === 'activation' ? access.owner : null;
-  if (guard && guard.target !== 'activating')
-    throw new Error('VoiceID activation requires its owner scope.');
   const database = await IndexedDBManager.seamsWalletDB.getDB();
   const transaction = database.transaction(transactionStores, 'readwrite');
   try {
@@ -301,7 +272,7 @@ async function commitEnrollment(
 ): Promise<void> {
   const { scope, guard, snapshot, next, signal } = input;
   if (input.kind !== 'activate') {
-    await input.confirmation.consume(input.scope, input.guard, input.snapshot, input.kind, signal);
+    await input.confirmation.consume(input.scope, input);
   }
   if (new TextEncoder().encode(JSON.stringify(next)).length > MAX_RECORD_BYTES)
     throw new Error('VoiceID enrollment exceeds its storage limit.');

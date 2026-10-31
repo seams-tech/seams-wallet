@@ -3,7 +3,7 @@ import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { voiceQualityMessage, type VoiceCaptureObserver } from '../browser/microphone';
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@seams/wallet/voiceid-host';
-import { verifyBrowserVoice } from '../browser/enrollment';
+import { verifyBrowserVoice } from '../browser/verification';
 import type { VoiceEnrollmentScope } from '@seams/wallet/voiceid-host';
 import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 

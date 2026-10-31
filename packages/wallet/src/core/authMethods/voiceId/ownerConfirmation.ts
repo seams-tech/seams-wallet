@@ -25,13 +25,12 @@ import {
 import { assertVoiceOwner } from './enrollmentStorage';
 import type {
   VoiceEnrollmentScope,
-  VoiceEnrollmentSnapshot,
+  VoiceEnrollmentChangeIntent,
+  VoiceEnrollmentConfirmationRequest,
   VoiceOwnerGuard,
   VoiceChangeGuard,
   VoiceActivationGuard,
 } from './contracts';
-
-type VoiceChangeAction = 'replace' | 'improve' | 'reset' | 'import';
 
 export function prepareVoiceOwner(
   scope: VoiceEnrollmentScope,
@@ -121,12 +120,8 @@ function matchesConfirmingPasskey(
   );
 }
 
-function changeBinding(
-  scope: VoiceEnrollmentScope,
-  guard: VoiceChangeGuard,
-  snapshot: VoiceEnrollmentSnapshot,
-  action: VoiceChangeAction,
-): string {
+function changeBinding(scope: VoiceEnrollmentScope, change: VoiceEnrollmentChangeIntent): string {
+  const { guard, snapshot, kind } = change;
   return JSON.stringify([
     'seams-voiceid-enrollment-change-v1',
     location.origin,
@@ -140,7 +135,7 @@ function changeBinding(
     guard.lockGeneration,
     guard.availabilityRevision,
     guard.expiresAtMs,
-    action,
+    kind,
     snapshot.kind === 'present' ? snapshot.enrollment.generation : null,
     snapshot.kind === 'present' ? snapshot.enrollment.revision : null,
   ]);
@@ -158,11 +153,9 @@ export class ConfirmedVoiceChange {
   static async request(
     context: RegistrationWebContext,
     scope: VoiceEnrollmentScope,
-    guard: VoiceChangeGuard,
-    snapshot: VoiceEnrollmentSnapshot,
-    action: VoiceChangeAction,
-    signal: AbortSignal,
+    request: VoiceEnrollmentConfirmationRequest,
   ): Promise<ConfirmedVoiceChange> {
+    const { guard, signal } = request;
     await assertVoiceOwner(scope, guard);
     const assertCurrentOwner = assertServerOwner.bind(
       null,
@@ -182,7 +175,7 @@ export class ConfirmedVoiceChange {
     ) {
       throw new Error('The confirming passkey is unavailable for this wallet.');
     }
-    const binding = changeBinding(scope, guard, snapshot, action);
+    const binding = changeBinding(scope, request);
     const challenge = await sha256DigestB64u(
       new TextEncoder().encode(
         JSON.stringify({
@@ -250,15 +243,13 @@ export class ConfirmedVoiceChange {
 
   async consume(
     scope: VoiceEnrollmentScope,
-    guard: VoiceChangeGuard,
-    snapshot: VoiceEnrollmentSnapshot,
-    action: VoiceChangeAction,
-    signal: AbortSignal,
+    request: VoiceEnrollmentConfirmationRequest,
   ): Promise<void> {
+    const { signal } = request;
     if (
       this.consumed ||
       this.expiresAtMs <= Date.now() ||
-      this.binding !== changeBinding(scope, guard, snapshot, action)
+      this.binding !== changeBinding(scope, request)
     ) {
       throw new Error('Passkey confirmation expired or was already used. Start again.');
     }

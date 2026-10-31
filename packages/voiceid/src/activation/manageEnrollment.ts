@@ -11,11 +11,20 @@ import {
   type VoiceEnrollment,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
+  type VoiceEnrollmentConfirmationRequest,
+  type Variant,
 } from '@seams/wallet/voiceid-host';
 import { prepareVoiceOwner } from '@seams/wallet/voiceid-host';
 import { toError } from '@seams/wallet/voiceid-host';
 
-type ManagementAction = 'replace' | 'improve' | 'reset' | 'import';
+type ManagementAction = VoiceEnrollmentConfirmationRequest['kind'];
+type PreparedManagementChange =
+  | (Variant<VoiceEnrollmentConfirmationRequest, 'kind', 'replace' | 'improve' | 'reset'> & {
+      readonly baseline?: never;
+    })
+  | (Variant<VoiceEnrollmentConfirmationRequest, 'kind', 'import'> & {
+      readonly baseline: readonly number[];
+    });
 // `frame` carries the pending or error state; `detail` shows its message.
 type ActionView = Readonly<{
   button: HTMLButtonElement;
@@ -28,13 +37,12 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const PASSKEY_PROMPT = 'Confirm with your passkey to continue.';
 
 export async function manageVoiceEnrollment(
+  parent: HTMLElement,
   confirmChange: VoiceOwnerConfirmation,
   scope: VoiceEnrollmentScope,
   signal: AbortSignal,
   model: VoiceIdTranscriptionModel,
 ): Promise<void> {
-  const parent = document.querySelector('.seams-voiceid-activation-surface');
-  if (!(parent instanceof HTMLElement)) throw new Error('Open VoiceID management in the Wallet.');
   const surface = new VoiceEnrollmentManagement(parent, confirmChange, scope, signal, model);
   try {
     await surface.result;
@@ -46,11 +54,13 @@ export async function manageVoiceEnrollment(
 class VoiceEnrollmentManagement {
   private readonly completion = new WorkerDeferred<void>();
   readonly result = this.completion.promise;
-  private readonly element = document.createElement('div');
-  private readonly enrollment = document.createElement('div');
-  private readonly enrollmentValue = document.createElement('span');
-  private readonly startOver = document.createElement('p');
-  private readonly status = document.createElement('p');
+  private readonly document: Document;
+  private readonly element: HTMLDivElement;
+  private readonly enrollment: HTMLDivElement;
+  private readonly enrollmentValue: HTMLSpanElement;
+  private readonly enrollmentSummary: HTMLSpanElement;
+  private readonly startOver: HTMLParagraphElement;
+  private readonly status: HTMLParagraphElement;
   private readonly actions: Readonly<Record<ManagementAction, ActionView>>;
   private busy = false;
   private closed = false;
@@ -62,19 +72,26 @@ class VoiceEnrollmentManagement {
     private readonly signal: AbortSignal,
     private readonly model: VoiceIdTranscriptionModel,
   ) {
+    this.document = parent.ownerDocument;
+    this.element = this.document.createElement('div');
+    this.enrollment = this.document.createElement('div');
+    this.enrollmentValue = this.document.createElement('span');
+    this.enrollmentSummary = this.document.createElement('span');
+    this.startOver = this.document.createElement('p');
+    this.status = this.document.createElement('p');
     this.element.className = 'seams-voiceid-prompt seams-voiceid-management';
-    const header = document.createElement('div');
+    const header = this.document.createElement('div');
     header.className = 'seams-voiceid-management-header';
-    const back = document.createElement('button');
+    const back = this.document.createElement('button');
     back.type = 'button';
     back.className = 'seams-voiceid-management-back';
     back.setAttribute('aria-label', 'Back');
-    back.append(chevron('M15 6l-6 6 6 6', 20));
+    back.append(chevron(this.document, 'M15 6l-6 6 6 6', 20));
     back.addEventListener('click', this.cancel);
-    const heading = document.createElement('h2');
+    const heading = this.document.createElement('h2');
     heading.textContent = 'Manage voice';
     header.append(back, heading);
-    const intro = document.createElement('p');
+    const intro = this.document.createElement('p');
     intro.className = 'seams-voiceid-management-intro';
     intro.textContent = 'Voice unlock on this device. Each change asks for your passkey.';
     this.element.append(header, intro, this.enrollmentRow());
@@ -97,26 +114,25 @@ class VoiceEnrollmentManagement {
 
   private enrollmentRow(): HTMLElement {
     this.enrollment.className = 'seams-voiceid-management-enrollment';
-    const label = document.createElement('span');
+    const label = this.document.createElement('span');
     label.textContent = 'Enrollment';
     this.enrollmentValue.className = 'seams-voiceid-management-value';
-    const summary = document.createElement('span');
-    summary.className = 'seams-voiceid-management-summary';
-    summary.append(this.enrollmentValue);
-    this.enrollment.append(label, summary);
+    this.enrollmentSummary.className = 'seams-voiceid-management-summary';
+    this.enrollmentSummary.append(this.enrollmentValue);
+    this.enrollment.append(label, this.enrollmentSummary);
     return this.enrollment;
   }
 
   private resetAction(): ActionView {
-    const button = document.createElement('button');
+    const button = this.document.createElement('button');
     button.type = 'button';
     button.className = 'seams-voiceid-management-reset';
     button.textContent = 'Reset';
     button.setAttribute('aria-label', 'Reset improvements');
     button.addEventListener('click', this.begin.bind(this, 'reset'));
-    const detail = document.createElement('span');
+    const detail = this.document.createElement('span');
     detail.className = 'seams-voiceid-management-enrollment-detail';
-    this.enrollment.querySelector('.seams-voiceid-management-summary')?.append(detail);
+    this.enrollmentSummary.append(detail);
     this.enrollment.append(button);
     return { button, title: button, detail, frame: this.enrollment };
   }
@@ -129,31 +145,31 @@ class VoiceEnrollmentManagement {
   }
 
   private action(action: ManagementAction, label: string, experimental: boolean): ActionView {
-    const button = document.createElement('button');
+    const button = this.document.createElement('button');
     button.type = 'button';
     button.className = 'seams-voiceid-management-action';
-    const text = document.createElement('span');
-    const heading = document.createElement('span');
+    const text = this.document.createElement('span');
+    const heading = this.document.createElement('span');
     heading.className = 'seams-voiceid-management-action-heading';
-    const title = document.createElement('span');
+    const title = this.document.createElement('span');
     title.id = `seams-voiceid-management-${action}-title`;
     title.textContent = label;
     heading.append(title);
     const described: string[] = [];
     if (experimental) {
-      const chip = document.createElement('span');
+      const chip = this.document.createElement('span');
       chip.id = `seams-voiceid-management-${action}-chip`;
       chip.className = 'seams-voiceid-management-chip';
       chip.textContent = 'Experimental';
       heading.append(chip);
       described.push(chip.id);
     }
-    const detail = document.createElement('span');
+    const detail = this.document.createElement('span');
     detail.id = `seams-voiceid-management-${action}-detail`;
     detail.className = 'seams-voiceid-management-action-detail';
     described.push(detail.id);
     text.append(heading, detail);
-    button.append(text, chevron('M9 6l6 6-6 6', 16));
+    button.append(text, chevron(this.document, 'M9 6l6 6-6 6', 16));
     button.setAttribute('aria-labelledby', title.id);
     button.setAttribute('aria-describedby', described.join(' '));
     button.disabled = true;
@@ -237,54 +253,61 @@ class VoiceEnrollmentManagement {
       const snapshot: VoiceEnrollmentSnapshot = enrollment
         ? { kind: 'present', enrollment }
         : { kind: 'missing' };
-      if (action === 'improve' && snapshot.kind === 'missing')
-        throw new Error('Record or import your original voice first.');
-      const previous = action === 'import' ? await readImportableVoiceBaseline() : null;
-      if (action === 'import' && (!previous || snapshot.kind !== 'missing'))
-        throw new Error('The previous enrollment is unavailable.');
-      const confirmation = await this.confirmChange(
-        guard,
-        snapshot,
-        action,
-        this.signal,
-      );
+      const request = await prepareEnrollmentChange(action, guard, snapshot, this.signal);
+      const confirmation = await this.confirmChange(request);
       this.signal.throwIfAborted();
-      switch (action) {
+      switch (request.kind) {
         case 'improve':
-          if (snapshot.kind !== 'present')
-            throw new Error('Original voice enrollment is unavailable.');
           await enrollBrowserVoice(
-            { kind: 'improve', scope: this.scope, guard, snapshot, confirmation },
+            this.parent,
+            {
+              kind: 'improve',
+              scope: this.scope,
+              guard: request.guard,
+              snapshot: request.snapshot,
+              confirmation,
+            },
             this.signal,
             this.model,
           );
           break;
         case 'replace':
           await enrollBrowserVoice(
-            { kind: 'replace', scope: this.scope, guard, snapshot, confirmation },
+            this.parent,
+            {
+              kind: 'replace',
+              scope: this.scope,
+              guard: request.guard,
+              snapshot: request.snapshot,
+              confirmation,
+            },
             this.signal,
             this.model,
           );
           break;
         case 'reset':
-          await commitVoiceEnrollment(
-            this.scope,
-            guard,
-            snapshot,
-            { kind: 'reset', confirmation },
-            this.signal,
-          );
+          await commitVoiceEnrollment({
+            kind: 'reset',
+            scope: this.scope,
+            guard: request.guard,
+            snapshot: request.snapshot,
+            confirmation,
+            signal: this.signal,
+          });
           break;
         case 'import':
-          if (!previous) throw new Error('Previous voice enrollment is unavailable.');
-          await commitVoiceEnrollment(
-            this.scope,
-            guard,
-            snapshot,
-            { kind: 'import', baseline: previous, confirmation },
-            this.signal,
-          );
+          await commitVoiceEnrollment({
+            kind: 'import',
+            scope: this.scope,
+            guard: request.guard,
+            snapshot: request.snapshot,
+            baseline: request.baseline,
+            confirmation,
+            signal: this.signal,
+          });
           break;
+        default:
+          return assertNever(request);
       }
       if (!this.closed) this.completion.resolve();
     } catch (error) {
@@ -316,7 +339,7 @@ class VoiceEnrollmentManagement {
   }
 }
 
-function chevron(path: string, size: number): SVGSVGElement {
+function chevron(document: Document, path: string, size: number): SVGSVGElement {
   const icon = document.createElementNS(SVG_NS, 'svg');
   icon.setAttribute('viewBox', '0 0 24 24');
   icon.setAttribute('width', String(size));
@@ -331,4 +354,33 @@ function chevron(path: string, size: number): SVGSVGElement {
   line.setAttribute('stroke-linejoin', 'round');
   icon.append(line);
   return icon;
+}
+
+async function prepareEnrollmentChange(
+  kind: ManagementAction,
+  guard: VoiceEnrollmentConfirmationRequest['guard'],
+  snapshot: VoiceEnrollmentSnapshot,
+  signal: AbortSignal,
+): Promise<PreparedManagementChange> {
+  switch (kind) {
+    case 'replace':
+      return { kind, guard, snapshot, signal };
+    case 'import': {
+      if (snapshot.kind !== 'missing') throw new Error('The previous enrollment is unavailable.');
+      const baseline = await readImportableVoiceBaseline();
+      if (!baseline) throw new Error('The previous enrollment is unavailable.');
+      return { kind, guard, snapshot, signal, baseline };
+    }
+    case 'improve':
+    case 'reset':
+      if (snapshot.kind !== 'present')
+        throw new Error('Record or import your original voice first.');
+      return { kind, guard, snapshot, signal };
+    default:
+      return assertNever(kind);
+  }
+}
+
+function assertNever(_action: never): never {
+  throw new Error('Unsupported VoiceID enrollment management action.');
 }

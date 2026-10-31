@@ -2,6 +2,7 @@ import type { WalletId, WalletAuthMethodId, WalletAuthorityId } from '@shared/ut
 import type { WalletSessionId } from '@shared/authorization/capabilityKinds';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { Variant } from '@shared/utils/variant';
+import type { ConfirmedVoiceChange } from './ownerConfirmation';
 import type {
   VoiceIdDevicePublicKeyB64u,
   VoiceIdDeviceAssertion,
@@ -52,12 +53,41 @@ export type VoiceOwnerGuard = Readonly<
 export type VoiceChangeGuard = Variant<VoiceOwnerGuard, 'target', 'enrolled'>;
 export type VoiceActivationGuard = Variant<VoiceOwnerGuard, 'target', 'activating'>;
 
+export type VoiceEnrollmentChangeIntent = Readonly<{ guard: VoiceChangeGuard }> &
+  (
+    | {
+        readonly kind: 'import';
+        readonly snapshot: Variant<VoiceEnrollmentSnapshot, 'kind', 'missing'>;
+      }
+    | { readonly kind: 'replace'; readonly snapshot: VoiceEnrollmentSnapshot }
+    | {
+        readonly kind: 'improve';
+        readonly snapshot: Variant<VoiceEnrollmentSnapshot, 'kind', 'present'>;
+      }
+    | {
+        readonly kind: 'reset';
+        readonly snapshot: Variant<VoiceEnrollmentSnapshot, 'kind', 'present'>;
+      }
+  );
+
+export type VoiceEnrollmentConfirmationRequest = VoiceEnrollmentChangeIntent &
+  Readonly<{ signal: AbortSignal }>;
+
+export type VoiceEnrollmentAuthorization =
+  | {
+      readonly kind: 'activate';
+      readonly guard: VoiceActivationGuard;
+      readonly snapshot: Variant<VoiceEnrollmentSnapshot, 'kind', 'missing'>;
+      readonly confirmation?: never;
+    }
+  | (VoiceEnrollmentChangeIntent & Readonly<{ confirmation: ConfirmedVoiceChange }>);
+
 export type VoiceTemplateAccess =
   | { readonly kind: 'active'; readonly scope: VoiceEnrollmentScope; readonly owner?: never }
   | {
       readonly kind: 'activation';
       readonly scope: VoiceEnrollmentScope;
-      readonly owner: VoiceOwnerGuard;
+      readonly owner: VoiceActivationGuard;
     };
 
 export type VoiceIdActivationCapture = (input: {

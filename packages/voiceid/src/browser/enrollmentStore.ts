@@ -3,10 +3,9 @@ import {
   voiceEnrollmentStorage,
   type VoiceEnrollment,
   type VoiceEnrollmentScope,
-  type VoiceEnrollmentSnapshot,
-  type VoiceOwnerGuard,
   type VoiceTemplateAccess,
-  type ConfirmedVoiceChange,
+  type VoiceEnrollmentAuthorization,
+  type Variant,
   requireRecord,
   isFiniteNumber,
 } from '@seams/wallet/voiceid-host';
@@ -139,112 +138,101 @@ export async function readImportableVoiceBaseline(): Promise<readonly number[] |
   return vector(record.template);
 }
 
-export type VoiceEnrollmentChange =
-  | {
-      readonly kind: 'activate';
-      readonly baseline: readonly number[];
-      readonly samples?: never;
-      readonly confirmation?: never;
-    }
-  | {
-      readonly kind: 'replace' | 'import';
-      readonly baseline: readonly number[];
-      readonly samples?: never;
-      readonly confirmation: ConfirmedVoiceChange;
-    }
-  | {
-      readonly kind: 'improve';
-      readonly samples: readonly (readonly number[])[];
-      readonly baseline?: never;
-      readonly confirmation: ConfirmedVoiceChange;
-    }
-  | {
-      readonly kind: 'reset';
-      readonly samples?: never;
-      readonly baseline?: never;
-      readonly confirmation: ConfirmedVoiceChange;
-    };
+export type VoiceEnrollmentChange = Readonly<{
+  scope: VoiceEnrollmentScope;
+  signal: AbortSignal;
+}> &
+  (
+    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'activate' | 'replace' | 'import'> & {
+        readonly baseline: readonly number[];
+        readonly samples?: never;
+      })
+    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'improve'> & {
+        readonly samples: readonly (readonly number[])[];
+        readonly baseline?: never;
+      })
+    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'reset'> & {
+        readonly baseline?: never;
+        readonly samples?: never;
+      })
+  );
 
-export async function commitVoiceEnrollment(
-  scope: VoiceEnrollmentScope,
-  guard: VoiceOwnerGuard,
-  snapshot: VoiceEnrollmentSnapshot,
-  change: VoiceEnrollmentChange,
-  signal: AbortSignal,
-): Promise<void> {
-  let next: VoiceEnrollment;
-  if (change.kind === 'activate') {
-    if (guard.target !== 'activating' || snapshot.kind !== 'missing')
-      throw new Error('VoiceID activation cannot replace an enrollment.');
-  } else {
-    if (guard.target !== 'enrolled')
-      throw new Error('VoiceID changes require a confirmation guard.');
-  }
-  if (change.kind === 'import' && (guard.target !== 'enrolled' || snapshot.kind !== 'missing')) {
-    throw new Error('Import requires an existing method without a scoped enrollment.');
-  }
-  if (change.kind === 'replace' || change.kind === 'activate' || change.kind === 'import') {
-    next = {
-      kind: 'browser_voiceid_enrollment_v2',
-      scope,
-      model: VOICE_MODEL_ID,
-      generation: crypto.randomUUID(),
-      revision: 0,
-      baseline: vector(change.baseline),
-      adaptation: { kind: 'baseline' },
-    };
-  } else {
-    if (snapshot.kind !== 'present') throw new Error('Record or import your original voice first.');
-    if (change.kind === 'improve') {
-      requireBoundedSamples(snapshot.enrollment.baseline, change.samples);
-      next = reviseVoiceEnrollment(snapshot.enrollment, {
-        kind: 'adapted',
-        samples: change.samples,
-      });
-    } else {
-      next = reviseVoiceEnrollment(snapshot.enrollment, { kind: 'baseline' });
-    }
-  }
+export async function commitVoiceEnrollment(change: VoiceEnrollmentChange): Promise<void> {
+  const { scope, signal } = change;
   switch (change.kind) {
     case 'activate':
-      if (guard.target !== 'activating' || snapshot.kind !== 'missing')
-        throw new Error('Invalid activation scope.');
-      return storage.commit({ kind: 'activate', scope, guard, snapshot, next, signal });
+      return storage.commit({
+        kind: 'activate',
+        scope,
+        signal,
+        guard: change.guard,
+        snapshot: change.snapshot,
+        next: initialVoiceEnrollment(scope, change.baseline),
+      });
     case 'import':
-      if (guard.target !== 'enrolled' || snapshot.kind !== 'missing')
-        throw new Error('Invalid import scope.');
       return storage.commit({
         kind: 'import',
         scope,
-        guard,
-        snapshot,
-        next,
         signal,
+        guard: change.guard,
+        snapshot: change.snapshot,
         confirmation: change.confirmation,
+        next: initialVoiceEnrollment(scope, change.baseline),
       });
     case 'replace':
-      if (guard.target !== 'enrolled') throw new Error('Invalid replacement scope.');
       return storage.commit({
         kind: 'replace',
         scope,
-        guard,
-        snapshot,
-        next,
         signal,
+        guard: change.guard,
+        snapshot: change.snapshot,
         confirmation: change.confirmation,
+        next: initialVoiceEnrollment(scope, change.baseline),
       });
     case 'improve':
-    case 'reset':
-      if (guard.target !== 'enrolled' || snapshot.kind !== 'present')
-        throw new Error('Invalid improvement scope.');
+      requireBoundedSamples(change.snapshot.enrollment.baseline, change.samples);
       return storage.commit({
-        kind: change.kind,
+        kind: 'improve',
         scope,
-        guard,
-        snapshot,
-        next,
         signal,
+        guard: change.guard,
+        snapshot: change.snapshot,
         confirmation: change.confirmation,
+        next: reviseVoiceEnrollment(change.snapshot.enrollment, {
+          kind: 'adapted',
+          samples: change.samples,
+        }),
       });
+    case 'reset':
+      return storage.commit({
+        kind: 'reset',
+        scope,
+        signal,
+        guard: change.guard,
+        snapshot: change.snapshot,
+        confirmation: change.confirmation,
+        next: reviseVoiceEnrollment(change.snapshot.enrollment, { kind: 'baseline' }),
+      });
+    default:
+      return assertNever(change);
   }
+}
+
+function initialVoiceEnrollment(
+  scope: VoiceEnrollmentScope,
+  baseline: readonly number[],
+): VoiceEnrollment {
+  return {
+    kind: 'browser_voiceid_enrollment_v2',
+    scope,
+    model: VOICE_MODEL_ID,
+    generation: crypto.randomUUID(),
+    revision: 0,
+    baseline: vector(baseline),
+    adaptation: { kind: 'baseline' },
+  };
+}
+
+function assertNever(_change: never): never {
+  throw new Error('Unsupported VoiceID enrollment change.');
 }

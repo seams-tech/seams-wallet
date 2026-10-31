@@ -4,18 +4,14 @@ import type { Variant } from '@shared/utils/variant';
 import type { ConfirmedVoiceChange } from './ownerConfirmation';
 import type {
   VoiceEnrollmentScope,
-  VoiceEnrollmentSnapshot,
-  VoiceChangeGuard,
+  VoiceEnrollmentConfirmationRequest,
   VoiceIdActivationCapture,
   VoiceIdUnlockCapture,
 } from './contracts';
 import type { VoiceConfirmation } from './confirmationCommand';
 
 export type VoiceOwnerConfirmation = (
-  guard: VoiceChangeGuard,
-  snapshot: VoiceEnrollmentSnapshot,
-  action: 'replace' | 'improve' | 'reset' | 'import',
-  signal: AbortSignal,
+  request: VoiceEnrollmentConfirmationRequest,
 ) => Promise<ConfirmedVoiceChange>;
 
 export type VoiceIdActivationPreparation =

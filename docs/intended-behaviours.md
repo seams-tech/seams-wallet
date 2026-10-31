@@ -531,6 +531,8 @@ New protocol messages require an explicit routing decision. New selected-method 
 New authentication methods and Tempo operation variants also require explicit signing-policy decisions.
 Unsupported VoiceID signing requests fail before capture or signing. Broadcasting existing signed bytes keeps its ordinary transport path.
 The plugin owns audio capture, model inference, template normalization, and presentation. Its record parser runs at the scoped storage boundary.
+Enrollment actions bind their guard, snapshot, confirmation, and sample requirements in one typed command. Import requires a missing enrollment. Improvement and reset require an existing enrollment.
+Enrollment and management receive their owning surface explicitly. An unrelated element with the same CSS class cannot receive their UI.
 The core review UI receives copy from the plugin and knows no voice commands.
 
 Enabling a plugin does not fetch its implementation. First use loads it after

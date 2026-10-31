@@ -1,9 +1,10 @@
 import type { WalletAuthMethodHostPlugin } from '@seams/wallet/voiceid-host';
 import { showVoiceIdCaptureSurface, VoiceIdCaptureCancelledError } from './capture/surface';
+import type { VoiceCaptureElements } from './capture/surface';
 import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
-export const hostApiVersion = 4;
+export const hostApiVersion = 5;
 if (VOICE_ID_HOST_API_VERSION !== hostApiVersion) {
   throw new Error('VoiceID requires a matching Wallet host API.');
 }
@@ -37,11 +38,11 @@ async function prepareUnlock(
   model: VoiceIdTranscriptionModel,
   input: UnlockInput,
   signal: AbortSignal,
-  parent: HTMLElement,
+  elements: VoiceCaptureElements,
 ) {
   const implementation = await import('./session/unlock');
   signal.throwIfAborted();
-  return implementation.prepareUnlockSurface(input, signal, parent, model);
+  return implementation.prepareUnlockSurface(input, signal, elements.progress, model);
 }
 
 async function activate(
@@ -64,10 +65,11 @@ async function prepareActivation(
   model: VoiceIdTranscriptionModel,
   input: ActivationInput,
   signal: AbortSignal,
+  elements: VoiceCaptureElements,
 ) {
   const implementation = await import('./activation/addVoiceId');
   signal.throwIfAborted();
-  return implementation.prepareActivationSurface(input, signal, model);
+  return implementation.prepareActivationSurface(input, signal, elements.parent, model);
 }
 
 async function review(

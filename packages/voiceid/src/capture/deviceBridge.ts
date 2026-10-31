@@ -13,7 +13,8 @@ import {
   readBrowserVoiceDevice,
   openBrowserVoiceFactor,
 } from '@seams/wallet/voiceid-host';
-import { enrollBrowserVoice, verifyBrowserVoice } from '../browser/enrollment';
+import { enrollBrowserVoice } from '../browser/enrollment';
+import { verifyBrowserVoice } from '../browser/verification';
 import { readVoiceEnrollment } from '../browser/enrollmentStore';
 import { resolveVoiceEnrollmentScope, type VoiceTemplateAccess } from '@seams/wallet/voiceid-host';
 import {
@@ -31,7 +32,7 @@ type VoiceCapturePresentation = Readonly<{ onCapture: VoiceCaptureObserver; phra
 
 export async function captureVoiceIdActivation(
   model: VoiceIdTranscriptionModel,
-  presentation: VoiceCapturePresentation,
+  presentation: VoiceCapturePresentation & Readonly<{ parent: HTMLElement }>,
   input: Parameters<VoiceIdActivationCapture>[0],
 ): ReturnType<VoiceIdActivationCapture> {
   requireVoiceUserAction();
@@ -50,6 +51,7 @@ export async function captureVoiceIdActivation(
   } else {
     const guard = await prepareVoiceOwner(scope, 'activating');
     await enrollBrowserVoice(
+      presentation.parent,
       { kind: 'activate', scope, guard, snapshot: { kind: 'missing' } },
       input.signal,
       model,
