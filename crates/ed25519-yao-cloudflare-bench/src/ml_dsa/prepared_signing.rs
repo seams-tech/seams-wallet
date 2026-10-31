@@ -149,35 +149,19 @@ pub(super) fn schedules(book: &Value) -> worker::Result<Vec<TrustedMlDsaSchedule
         .as_array()
         .ok_or_else(missing_fixture_field)?;
     let mut schedules = Vec::new();
-    for (name, bytes) in [
-        (
-            "fresh-mask",
-            include_bytes!("../ml_dsa_schedules/fresh-mask.bin").as_slice(),
-        ),
-        (
-            "prepared-commitment",
-            include_bytes!("../ml_dsa_schedules/prepared-commitment.bin"),
-        ),
-        ("commitment-hash", super::COMMITMENT_HASH_SCHEDULE),
-        ("response-check", super::RESPONSE_CHECK_SCHEDULE),
-        (
-            "low-response-check",
-            include_bytes!("../ml_dsa_schedules/low-response-check.bin"),
-        ),
-        (
-            "bounds-decision",
-            include_bytes!("../ml_dsa_schedules/bounds-decision.bin"),
-        ),
-    ] {
+    for circuit in ml_dsa_threshold::circuits::SIGNING {
         let record = records
             .iter()
-            .find(|record| record["name"] == name)
+            .find(|record| record["name"] == circuit.name())
             .ok_or_else(missing_fixture_field)?;
         let digest: [u8; 32] = decode_hex(required_string(record, "schedule_sha256")?)?
             .as_slice()
             .try_into()
             .map_err(runtime_failure)?;
-        schedules.push(TrustedMlDsaSchedule::parse(bytes, digest).map_err(runtime_failure)?);
+        if digest != circuit.digest() {
+            return Err(missing_fixture_field());
+        }
+        schedules.push(circuit.parse().map_err(runtime_failure)?);
     }
     Ok(schedules)
 }

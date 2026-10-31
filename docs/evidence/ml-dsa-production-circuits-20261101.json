@@ -1,0 +1,88 @@
+{
+  "circuits": [
+    {
+      "name": "fresh-mask",
+      "sha256": "f9c8027fbd968d55fa0418d0473e11eb511c19b2418d4ea356a79bd29c72a5ed",
+      "bytes": 798522,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/fresh-mask.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/fresh-mask.bin"
+    },
+    {
+      "name": "prepared-commitment",
+      "sha256": "b579f57b089e7ed31abe7a96940ea8787502f3029972f5436f666d5b2440432e",
+      "bytes": 1572922,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/prepared-commitment.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/prepared-commitment.bin"
+    },
+    {
+      "name": "commitment-hash",
+      "sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361",
+      "bytes": 9454746,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/commitment-hash.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/commitment-hash.bin"
+    },
+    {
+      "name": "response-check",
+      "sha256": "22d8f22555ec0149ce158913443672150a5091ae8c3d9210f127f7b7d09e04b6",
+      "bytes": 629052,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/response-check.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/response-check.bin"
+    },
+    {
+      "name": "low-response-check",
+      "sha256": "ad63ee91661532b0a84c883f8f289a8a290ff6f682e80e92d3bed533ec4ca687",
+      "bytes": 630844,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/low-response-check.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/low-response-check.bin"
+    },
+    {
+      "name": "bounds-decision",
+      "sha256": "dbe96ab2435584c3082ec4f2bddf59bbd059af039497d14cf345003786c214b1",
+      "bytes": 207,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/bounds-decision.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/bounds-decision.bin"
+    },
+    {
+      "name": "wallet-seed",
+      "sha256": "0750096d3ce30b04df6037467f2f506045fd5b109da392259a6e5ba4de0c4fa9",
+      "bytes": 1294520,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/wallet-seed.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/wallet-seed.bin"
+    },
+    {
+      "name": "seed",
+      "sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657",
+      "bytes": 1319583,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/seed.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/seed.bin"
+    },
+    {
+      "name": "sampling-two-blocks",
+      "sha256": "38dd48a74443f7393e48f274a57a65ceddf579ff51463d0fec0f4167804fb96e",
+      "bytes": 3878690,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/sampling-two-blocks.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/sampling-two-blocks.bin"
+    },
+    {
+      "name": "sampling-three-blocks",
+      "sha256": "24f24f2ccfce88ad3d9ba2a97609d9fa24b46864c5361a2d66de8777c9b171ff",
+      "bytes": 5830396,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/sampling-three-blocks.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/sampling-three-blocks.bin"
+    },
+    {
+      "name": "sampling-final-bound",
+      "sha256": "a84e145dd62436186c7b5f6200a5981aef6d8101fbf513026f1d1e8ad34d46d6",
+      "bytes": 7486350,
+      "oldPath": "crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/sampling-final-bound.bin",
+      "newPath": "crates/ml-dsa-threshold/circuits/sampling-final-bound.bin"
+    }
+  ],
+  "allBytesUnchanged": true,
+  "setDigests": {
+    "SIGNING": "f770465262ee8801dce07c8e33cf61e06721b59c57d1a7a260c4a6e00ae41952",
+    "KEY_GENERATION": "4d1967d61ca423a28c6d5c690dab451adbe02326d74438900f77e382fc05de90"
+  },
+  "regeneratedAllCircuits": true,
+  "scope": "Production circuit ownership move. All eleven byte hashes and ordered set digests match the previous production loaders and fresh output from the existing compiler."
+}

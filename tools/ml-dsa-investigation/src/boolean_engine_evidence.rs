@@ -308,7 +308,10 @@ fn run_role(
     )?
     .try_into()
     .map_err(|_| "Invalid schedule digest size.")?;
-    let artifact = fs::read(fixtures.join(format!("{kernel}.bin")))?;
+    let artifact = match kernel {
+        "seed" => ml_dsa_threshold::circuits::SEED.bytes().to_vec(),
+        _ => fs::read(fixtures.join(format!("{kernel}.bin")))?,
+    };
     let schedule = TrustedMlDsaSchedule::parse(&artifact, digest_bytes)?;
     let mut transport = PipeTransport::new(io::stdin().lock(), io::stdout().lock());
     let output = run_ready(boolean_mpc::run(

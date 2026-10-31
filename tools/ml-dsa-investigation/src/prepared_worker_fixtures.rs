@@ -20,6 +20,17 @@ pub(super) fn export(directory: &Path) -> InvestigationResult<()> {
         directory,
     )?);
     let signing_schedules = crate::prepared_signing_evidence::compile_schedules(directory)?;
+    for circuit in ml_dsa_threshold::circuits::KEY_GENERATION
+        .iter()
+        .chain(ml_dsa_threshold::circuits::SIGNING.iter())
+    {
+        let compiled = fs::read(directory.join(format!("{}.bin", circuit.name())))?;
+        crate::require(
+            compiled.as_slice() == circuit.bytes(),
+            "Compiled production circuit differs from its pinned artifact",
+        )?;
+        circuit.parse()?;
+    }
     let mut a = Vec::new();
     let mut b = Vec::new();
     let mut public = Vec::new();
