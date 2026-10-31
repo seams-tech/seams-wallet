@@ -1,3 +1,5 @@
+import { MlDsaSigningError } from '@shared/near/mlDsaSigning';
+import { nearSigningFailureCause, parseNearSigningFailureCause } from '@shared/near/signingFailure';
 import type { ActionResult } from '@/core/types/seams';
 import type { ActionHooksOptions } from '@/core/types/sdkSentEvents';
 import type { FinalExecutionOutcome } from '@near-js/types';
@@ -61,6 +63,7 @@ export function parseNearTransactionResult(raw: unknown): ActionResult {
         success: false,
         kind: 'not_submitted',
         error,
+        cause: parseNearSigningFailureCause(result.cause),
         ...optionalRejection(result.rejection),
       };
     case 'reverted': {
@@ -73,7 +76,12 @@ export function parseNearTransactionResult(raw: unknown): ActionResult {
       return { ...executed, error };
     }
     case 'submission_unknown':
-      return { success: false, kind: 'submission_unknown', error };
+      return {
+        success: false,
+        kind: 'submission_unknown',
+        error,
+        cause: parseNearSigningFailureCause(result.cause),
+      };
     case 'unresolved':
       return {
         success: false,
@@ -116,11 +124,9 @@ export function nearTransactionFailure(
   error: unknown,
   fallback: 'not_submitted' | 'submission_unknown',
 ): NearTransactionFailure {
-  return {
-    success: false,
-    kind: fallback,
-    error: safeErrorMessage(error) || 'NEAR transaction failed',
-  };
+  const cause = nearSigningFailureCause(error);
+  const message = safeErrorMessage(error) || 'NEAR transaction failed';
+  return { success: false, kind: fallback, error: message, cause };
 }
 
 /**
@@ -142,6 +148,7 @@ export function broadcastNearTransactionFailure(
       success: false,
       kind: 'not_submitted',
       error: nearTransactionRejectionMessage(rejection, 'not_submitted'),
+      cause: { kind: 'unclassified' },
       rejection,
     };
   }
@@ -161,7 +168,7 @@ export async function notifyNearTransactionResult(
   options: Pick<ActionHooksOptions, 'onError' | 'afterCall'> | undefined,
   result: ActionResult,
 ): Promise<void> {
-  const error = result.success ? undefined : new Error(result.error);
+  const error = transactionResultError(result);
   if (error) {
     try {
       await options?.onError?.(error);
@@ -171,4 +178,14 @@ export async function notifyNearTransactionResult(
     if (result.success) await options?.afterCall?.(true, result);
     else await options?.afterCall?.(false, undefined, error);
   } catch {}
+}
+
+function transactionResultError(result: ActionResult): Error | undefined {
+  if (result.success) return undefined;
+  if (
+    (result.kind === 'not_submitted' || result.kind === 'submission_unknown') &&
+    result.cause.kind === 'ml_dsa'
+  )
+    return new MlDsaSigningError(result.cause.failure);
+  return new Error(result.error);
 }

@@ -807,9 +807,9 @@ async fn recover_expired_reservations(env: &Env, state: &State, key: &KeyScope) 
         )
         .await?;
         let settlement = match status {
-            Some(Status::Declined) => pool::Settlement::Declined,
+            Some(Status::Declined { .. }) => pool::Settlement::Declined,
             // Once admitted, peer consumption can be unknown. Preserve conservative retirement.
-            Some(Status::Failed | Status::Succeeded { .. }) => pool::Settlement::Failed,
+            Some(Status::Failed { .. } | Status::Succeeded { .. }) => pool::Settlement::Failed,
             _ => continue,
         };
         let operation = reservation.request.operation;
@@ -968,7 +968,9 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             )
             .await?;
             return match actual {
-                Some(Status::Succeeded { .. } | Status::Failed | Status::Declined) => Ok(()),
+                Some(
+                    Status::Succeeded { .. } | Status::Failed { .. } | Status::Declined { .. },
+                ) => Ok(()),
                 _ => Err(invalid("ML-DSA operation is still active")),
             };
         }
@@ -987,8 +989,8 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
             .await?;
             let expected = match actual {
                 Some(Status::Succeeded { .. }) => pool::Settlement::Succeeded,
-                Some(Status::Failed) => pool::Settlement::Failed,
-                Some(Status::Declined) => pool::Settlement::Declined,
+                Some(Status::Failed { .. }) => pool::Settlement::Failed,
+                Some(Status::Declined { .. }) => pool::Settlement::Declined,
                 _ => return Err(invalid("ML-DSA operation is still active")),
             };
             return if *settlement == expected {
@@ -1422,22 +1424,44 @@ fn socket_input<T: serde::de::DeserializeOwned>(request: &worker::Request) -> Re
     serde_json::from_slice(&bytes).map_err(|_| invalid("Invalid ML-DSA socket input"))
 }
 
-async fn before_deadline<T>(
+enum DeadlineFailure {
+    Expired,
+    ClockUnavailable,
+}
+impl From<DeadlineFailure> for RouterAbProtocolError {
+    fn from(value: DeadlineFailure) -> Self {
+        match value {
+            DeadlineFailure::Expired => invalid("ML-DSA operation deadline expired"),
+            DeadlineFailure::ClockUnavailable => invalid("ML-DSA clock is unavailable"),
+        }
+    }
+}
+impl From<DeadlineFailure> for super::failure::SigningFailure {
+    fn from(value: DeadlineFailure) -> Self {
+        match value {
+            DeadlineFailure::Expired => Self::DeadlineExceeded,
+            DeadlineFailure::ClockUnavailable => Self::ClockUnavailable,
+        }
+    }
+}
+async fn before_deadline<T, E: From<DeadlineFailure>>(
     deadline: u64,
-    future: impl core::future::Future<Output = Result<T>>,
-) -> Result<T> {
+    future: impl core::future::Future<Output = core::result::Result<T, E>>,
+) -> core::result::Result<T, E> {
     use futures::future::{select, Either};
-    let now = crate::cloudflare_now_unix_ms_v1()?;
+    let now = crate::cloudflare_now_unix_ms_v1().map_err(|_| DeadlineFailure::ClockUnavailable)?;
     if now >= deadline {
-        return Err(invalid("ML-DSA operation deadline expired"));
+        return Err(DeadlineFailure::Expired.into());
     }
     let timeout = worker::Delay::from(std::time::Duration::from_millis(deadline - now));
     let result = match select(Box::pin(future), Box::pin(timeout)).await {
         Either::Left((result, _)) => result,
-        Either::Right(_) => return Err(invalid("ML-DSA operation deadline expired")),
+        Either::Right(_) => return Err(DeadlineFailure::Expired.into()),
     };
-    if crate::cloudflare_now_unix_ms_v1()? >= deadline {
-        return Err(invalid("ML-DSA operation deadline expired"));
+    if crate::cloudflare_now_unix_ms_v1().map_err(|_| DeadlineFailure::ClockUnavailable)?
+        >= deadline
+    {
+        return Err(DeadlineFailure::Expired.into());
     }
     result
 }

@@ -1,3 +1,4 @@
+import { nearSigningFailureCause } from '@shared/near/signingFailure';
 import { resolveNearNetwork, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { OwnerOperationNearClient } from '@/core/rpcClients/near/NearClient';
@@ -341,6 +342,7 @@ class HostedOwnerNearOperation {
         outcome = {
           kind: 'not_submitted',
           error: result.error,
+          cause: result.cause,
           ...(result.rejection ? { rejection: result.rejection } : {}),
         };
       } else {
@@ -372,6 +374,7 @@ class HostedOwnerNearOperation {
         outcome = {
           kind: 'not_submitted',
           error: this.refusal.message,
+          cause: { kind: 'unclassified' },
           shortfall: this.refusal.shortfall,
         };
       else if (isUserCancelledUserConfirm(error)) outcome = { kind: 'cancelled' };
@@ -453,6 +456,7 @@ class HostedOwnerNearOperation {
     if (receipt.kind === 'approving' || receipt.kind === 'signed') {
       const outcome: SettledOwnerNearOutcome = {
         kind: 'not_submitted',
+        cause: { kind: 'unclassified' },
         error:
           'This operation did not reach broadcast. Prepare a new operation for another approval.',
       };
@@ -1040,6 +1044,7 @@ function admissionFailure(command: OwnerNearCommand, error: unknown): OwnerNearO
   if (isUserCancelledUserConfirm(error)) return { kind: 'cancelled' };
   return {
     kind: 'not_submitted',
+    cause: nearSigningFailureCause(error),
     error: safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
   };
 }

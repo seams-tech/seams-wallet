@@ -434,6 +434,7 @@ try {
       proxy: new RegistrationRouterProxy(gatewayAuth),
       privatePost: post,
       loseParticipantMaterial,
+      consumePreparedForFailure,
       sign,
     });
     observations.scope +=
@@ -1263,4 +1264,20 @@ async function loseParticipantMaterial(walletScope) {
   const result = await response.json();
   assert.equal(result.deleted, 1, 'The lost participant must contain exactly one encrypted signer record');
   return result;
+}
+
+// Inject only the terminal outcome. Real role stores consume the admitted material.
+async function consumePreparedForFailure(permit, count) {
+  for (const batch of permit.batches.slice(0, count)) {
+    for (const role of ['a', 'b']) {
+      const participant = await runtime.getWorker(role);
+      const response = await participant.fetch('https://ml-dsa.internal/router-ab/ml-dsa/role', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-router-ab-internal-service-auth': serviceAuth },
+        body: JSON.stringify({ command: 'take', permit, batch }),
+      });
+      assert.equal(response.status, 200, 'Failure fixture could not consume admitted role material');
+      new Uint8Array(await response.arrayBuffer()).fill(0);
+    }
+  }
 }

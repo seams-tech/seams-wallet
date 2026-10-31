@@ -294,12 +294,26 @@ function refusalStatus(outcome: MlDsaSigningFailure): number {
       return 403;
     case 'not_found':
       return 404;
+    case 'candidates_exhausted':
+    case 'deadline_exceeded':
+    case 'key_changed':
+    case 'cancelled':
+    case 'admission_rejected':
     case 'expired':
     case 'conflict':
     case 'idempotency_conflict':
       return 409;
     case 'not_configured':
       return 501;
+    case 'transport_interrupted':
+    case 'participant_unavailable':
+    case 'material_unavailable':
+    case 'clock_unavailable':
+      return 503;
+    case 'participant_rejected':
+    case 'invalid_participant_response':
+    case 'invalid_material':
+    case 'configuration_invalid':
     case 'protocol_failed':
     case 'invalid_signature':
       return 502;

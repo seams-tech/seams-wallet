@@ -618,7 +618,9 @@ async function runDurableCases(emptyInput) {
       observations.preparationFailure.replacementAdmittedAtMs = replacement.expires_at_ms - 90000;
     }
     if (result.operation.state === 'failed') {
-      observations.failedOperations.push({ operationHex: Buffer.from(input.request.operation).toString('hex'), elapsedMs });
+      assert.equal(result.operation.failure.reason, 'candidates_exhausted');
+      assert.equal(result.operation.failure.evaluated_candidates, result.operation.failure.consumed_batches * policy.candidate_group_size);
+      observations.failedOperations.push({ operationHex: Buffer.from(input.request.operation).toString('hex'), elapsedMs, failure: result.operation.failure });
       assert.deepEqual(await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared)).json(), result);
       continue;
     }
@@ -848,6 +850,7 @@ async function runDurableCases(emptyInput) {
   assert.ok(observations.concurrentTimerMs < 2000, 'Background work delayed the independent timer');
   const expired = await post('router', '/router-ab/ml-dsa/status', stalled, gatewayAuth);
   assert.equal(expired.state, 'failed');
+  assert.deepEqual(expired.failure, { reason: 'deadline_exceeded' });
   observations.stalledOperationExpiredWithoutSignature = true;
   const stopped = [];
   for (const trace of signingEvents) {
@@ -1875,8 +1878,8 @@ async function checkUnopenedAfterFailure(fault) {
   const operationId = batchId(failed.operation);
   const closeEvents = executionCompletionEvents.filter(isFailedSocketClose, operationId);
   assert.ok(closeEvents.length > 0, 'Initialization failure did not request peer closure');
-  const outcomes = executionCompletionEvents.filter(isDispatchFailure, operationId);
-  assert.ok(outcomes.length > 0, 'Initialization failure reached the signing deadline');
+  const expectedFailure = fault === 'truncated' ? 'invalid_material' : 'material_unavailable';
+  assert.equal(failed.result.operation.failure.reason, expectedFailure);
   const lost = await (await barrier.fetch('https://fault.internal/lost')).json();
   assert.ok(lost && lost.batches.length === policy.refill_target_batches);
   const rows = await inventories();
@@ -1910,7 +1913,7 @@ async function checkUnopenedAfterFailure(fault) {
   takeFaultEnabled = false;
   runtime = await createRuntime();
   await runtime.ready;
-  return { failureSettledMs, failureRequestedPeerClose: true, failureOutcome: outcomes[0].outcome, retainedPairs: retained.length, consumedRetainedPairs: aConsumed.length,
+  return { failureSettledMs, failureRequestedPeerClose: true, failureOutcome: failed.result.operation.failure, retainedPairs: retained.length, consumedRetainedPairs: aConsumed.length,
     failedOperation: batchId(failed.operation), freshOperation: freshId, retainedIds: [...retainedIds],
     committedTakesA: aConsumed, committedTakesB: bConsumed,
     lostReplyAfterConsumption: true, oldTakeRejected: true, freshSignatureVerifiedByOpenSsl: true,
@@ -1920,10 +1923,6 @@ async function checkUnopenedAfterFailure(fault) {
 function isFailedSocketClose(event) {
   return event.event === 'ml_dsa_socket_completion_v1' && event.kind === 'signing'
     && event.id === this && event.close_code === 1011 && event.close_requested === true;
-}
-function isDispatchFailure(event) {
-  return event.event === 'ml_dsa_signing_outcome_v1' && event.operation === this
-    && event.outcome.status === 'dispatch_error';
 }
 function retainedTake(operation, retained, event) {
   return batchId(event.operation) === operation && retained.has(batchId(event.material));

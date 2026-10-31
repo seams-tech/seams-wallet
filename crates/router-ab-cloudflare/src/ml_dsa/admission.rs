@@ -1,5 +1,5 @@
 //! One service-wide transaction admits an exact operation and charges its wallet.
-use super::{policy::Policy, *};
+use super::{failure::SigningFailure, policy::Policy, *};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -15,13 +15,14 @@ pub enum Status {
     Preparing { claim: Claim },
     Running { permit: Permit },
     Succeeded { signature: Vec<u8> },
-    Failed,
-    Declined,
+    Failed { failure: SigningFailure },
+    Declined { failure: SigningFailure },
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Record {
     request: SigningRequest,
+    #[serde(deserialize_with = "super::failure::stored_status")]
     status: Status,
 }
 #[derive(Serialize, Deserialize)]
@@ -163,7 +164,9 @@ pub async fn authorize_key(store: &impl Store, activation: KeyActivation) -> Res
                     record.status,
                     Status::Preparing { .. } | Status::Running { .. }
                 ) {
-                    record.status = Status::Failed;
+                    record.status = Status::Failed {
+                        failure: SigningFailure::KeyChanged,
+                    };
                     store.put(&slot.record_key, &record).await?;
                 }
             } else {
@@ -199,13 +202,17 @@ pub async fn lookup(
         Status::Running { permit } => now_ms >= permit.expires_at_ms,
         Status::AwaitingStock { .. }
         | Status::Succeeded { .. }
-        | Status::Failed
-        | Status::Declined => false,
+        | Status::Failed { .. }
+        | Status::Declined { .. } => false,
     };
     if expired {
         record.status = match record.status {
-            Status::Preparing { .. } => Status::Declined,
-            _ => Status::Failed,
+            Status::Preparing { .. } => Status::Declined {
+                failure: SigningFailure::DeadlineExceeded,
+            },
+            _ => Status::Failed {
+                failure: SigningFailure::DeadlineExceeded,
+            },
         };
         store.put(&key, &record).await?;
     }
@@ -431,7 +438,9 @@ async fn release_claim(store: &impl Store, claim: &Claim, outcome: ClaimRelease)
         return Err(invalid("ML-DSA cancellation does not own the claim"));
     }
     record.status = match outcome {
-        ClaimRelease::Cancelled => Status::Declined,
+        ClaimRelease::Cancelled => Status::Declined {
+            failure: SigningFailure::Cancelled,
+        },
         ClaimRelease::AwaitingStock { retry_at_ms } => Status::AwaitingStock { retry_at_ms },
     };
     let mut active = store.get::<Vec<Slot>>("active").await?.unwrap_or_default();
@@ -449,7 +458,9 @@ pub enum Completion {
         context: Vec<u8>,
         signature: Vec<u8>,
     },
-    Failed,
+    Failed {
+        failure: SigningFailure,
+    },
 }
 
 /// Completion accepts a verified signature from the authenticated coordinator.
@@ -473,7 +484,9 @@ pub async fn finish(
         Status::AwaitingStock { .. } | Status::Preparing { .. } => {
             return Err(invalid("ML-DSA signing has not been admitted"))
         }
-        Status::Succeeded { .. } | Status::Failed | Status::Declined => return Ok(record.status),
+        Status::Succeeded { .. } | Status::Failed { .. } | Status::Declined { .. } => {
+            return Ok(record.status)
+        }
     };
     if current != permit {
         return Err(invalid("ML-DSA permit changed"));
@@ -512,7 +525,7 @@ pub async fn finish(
             }
             Status::Succeeded { signature }
         }
-        Completion::Failed => Status::Failed,
+        Completion::Failed { failure } => Status::Failed { failure },
     };
     // Keep capacity until both pools are fenced and settled. A crashed coordinator
     // still releases capacity at the original operation deadline.
@@ -541,7 +554,7 @@ pub async fn settled(store: &impl Store, request: &SigningRequest) -> Result<()>
     if record.request != *request
         || !matches!(
             record.status,
-            Status::Succeeded { .. } | Status::Failed | Status::Declined
+            Status::Succeeded { .. } | Status::Failed { .. } | Status::Declined { .. }
         )
     {
         return Err(invalid(

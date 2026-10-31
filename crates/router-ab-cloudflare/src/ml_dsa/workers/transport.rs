@@ -1,4 +1,5 @@
 //! Bounded binary messages. Every blocked receive ends at the operation deadline.
+use super::super::failure::SigningFailure;
 use futures::{
     future::{select, Either},
     StreamExt,
@@ -31,6 +32,12 @@ struct PhaseBoundary {
     received_frames: u32,
 }
 
+enum PeerState {
+    Open,
+    Completed,
+    Failed(SigningFailure),
+}
+
 enum Scheduling {
     Online,
     Preparation { remaining: u8 },
@@ -46,6 +53,7 @@ pub(super) struct Duplex<'a> {
     acknowledged_to_peer: u32,
     pending: VecDeque<Vec<u8>>,
     scheduling: Scheduling,
+    peer: PeerState,
     metrics: Metrics,
     waits: Option<std::rc::Rc<super::wait_trace::WaitTrace>>,
 }
@@ -82,12 +90,20 @@ impl<'a> Duplex<'a> {
             acknowledged_to_peer: 0,
             pending: VecDeque::new(),
             scheduling,
+            peer: PeerState::Open,
             metrics: Metrics::default(),
             waits: None,
         })
     }
     pub(super) fn trace_waits(&mut self, waits: Option<std::rc::Rc<super::wait_trace::WaitTrace>>) {
         self.waits = waits;
+    }
+    /// A received terminal peer cause survives the cryptographic transport adapter.
+    pub(super) fn failure(&self, fallback: SigningFailure) -> SigningFailure {
+        match &self.peer {
+            PeerState::Failed(failure) => failure.clone(),
+            PeerState::Open | PeerState::Completed => fallback,
+        }
     }
     pub(super) fn metrics(&self) -> Metrics {
         self.metrics.clone()
@@ -138,13 +154,31 @@ impl<'a> Duplex<'a> {
         frame.extend_from_slice(&self.sent.to_le_bytes());
         frame.extend_from_slice(&self.received.to_le_bytes());
         frame.extend_from_slice(bytes);
-        self.socket
-            .send_with_bytes(frame)
-            .map_err(transport_error)?;
+        self.write_frame(frame).await?;
         self.sent = next;
         self.acknowledged_to_peer = self.received;
         self.metrics.sent_bytes += bytes.len();
         Ok(())
+    }
+    async fn write_frame(&mut self, frame: Vec<u8>) -> core::result::Result<(), RuntimeError> {
+        if self.socket.send_with_bytes(frame).is_err() {
+            return Err(self.failed_send().await);
+        }
+        Ok(())
+    }
+    async fn failed_send(&mut self) -> RuntimeError {
+        self.peer = PeerState::Failed(SigningFailure::TransportInterrupted);
+        // A peer may close during local setup, before the first protocol send.
+        // Drain its queued terminal event only on this failure path. The existing
+        // event reader retains the absolute deadline and never resumes signing.
+        if self.socket.as_ref().ready_state() != worker::web_sys::WebSocket::OPEN {
+            while let Ok(event) = self.event().await {
+                if matches!(event, WebsocketEvent::Close(_)) {
+                    break;
+                }
+            }
+        }
+        RuntimeError::MessageLength
     }
     pub(super) async fn receive(
         &mut self,
@@ -167,7 +201,7 @@ impl<'a> Duplex<'a> {
     }
     /// Wait for delivery acknowledgments before the server closes its socket.
     pub(super) async fn flush(&mut self) -> core::result::Result<(), RuntimeError> {
-        self.send_ack()?;
+        self.send_ack().await?;
         while self.acknowledged < self.sent {
             self.poll().await?;
         }
@@ -177,7 +211,7 @@ impl<'a> Duplex<'a> {
         Ok(())
     }
     pub(super) async fn peer_closed(&mut self) -> core::result::Result<bool, RuntimeError> {
-        self.send_ack()?;
+        self.send_ack().await?;
         if self.acknowledged != self.sent || !self.pending.is_empty() {
             return Err(RuntimeError::SessionBinding);
         }
@@ -188,12 +222,32 @@ impl<'a> Duplex<'a> {
     }
     async fn event(&mut self) -> core::result::Result<WebsocketEvent, RuntimeError> {
         let waits = self.waits.clone();
-        super::wait_trace::observe(
+        let result = super::wait_trace::observe(
             waits.as_deref(),
             super::wait_trace::Kind::PeerEvent,
             self.next_event(),
         )
-        .await
+        .await;
+        match &result {
+            Ok(WebsocketEvent::Close(event)) if event.code() == 1000 => {
+                self.peer = PeerState::Completed;
+            }
+            Ok(WebsocketEvent::Close(event)) => {
+                let failure = serde_json::from_str(&event.reason())
+                    .unwrap_or(SigningFailure::TransportInterrupted);
+                self.peer = PeerState::Failed(failure);
+            }
+            Err(_) => {
+                let failure = match crate::cloudflare_now_unix_ms_v1() {
+                    Ok(now) if now >= self.deadline => SigningFailure::DeadlineExceeded,
+                    Ok(_) => SigningFailure::TransportInterrupted,
+                    Err(_) => SigningFailure::ClockUnavailable,
+                };
+                self.peer = PeerState::Failed(failure);
+            }
+            _ => {}
+        }
+        result
     }
     async fn next_event(&mut self) -> core::result::Result<WebsocketEvent, RuntimeError> {
         let started = crate::cloudflare_now_unix_ms_v1().map_err(transport_error)?;
@@ -250,7 +304,7 @@ impl<'a> Duplex<'a> {
                 // One-way streams receive bounded credits; alternating exchanges
                 // carry their cumulative acknowledgments in the next data frame.
                 if self.received - self.acknowledged_to_peer >= WINDOW / 2 {
-                    self.send_ack()?;
+                    self.send_ack().await?;
                 }
                 Ok(())
             }
@@ -262,11 +316,11 @@ impl<'a> Duplex<'a> {
             _ => Err(RuntimeError::SessionBinding),
         }
     }
-    fn send_ack(&mut self) -> core::result::Result<(), RuntimeError> {
+    async fn send_ack(&mut self) -> core::result::Result<(), RuntimeError> {
         if self.acknowledged_to_peer < self.received {
             let mut ack = vec![1];
             ack.extend_from_slice(&self.received.to_le_bytes());
-            self.socket.send_with_bytes(ack).map_err(transport_error)?;
+            self.write_frame(ack).await?;
             self.acknowledged_to_peer = self.received;
             self.metrics.acknowledgments_sent += 1;
         }

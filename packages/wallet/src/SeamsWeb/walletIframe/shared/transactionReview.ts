@@ -1,4 +1,5 @@
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
+import { nearSigningFailureCause, type NearSigningFailureCause } from '@shared/near/signingFailure';
 import { safeErrorMessage } from '@shared/utils/errors';
 import { isPlainObject } from '@shared/utils/validation';
 
@@ -47,13 +48,18 @@ export function ownerNearOutcomeBeforeSigning(
 ):
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'expired' }
-  | { readonly kind: 'not_submitted'; readonly error: string } {
+  | {
+      readonly kind: 'not_submitted';
+      readonly error: string;
+      readonly cause: NearSigningFailureCause;
+    } {
   if (error instanceof TransactionReviewError) {
     if (error.code === 'cancelled') return { kind: 'cancelled' };
     if (error.code === 'review_expired') return { kind: 'expired' };
   }
   return {
     kind: 'not_submitted',
+    cause: nearSigningFailureCause(error),
     error: safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
   };
 }

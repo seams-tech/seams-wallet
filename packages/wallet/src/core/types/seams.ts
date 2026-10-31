@@ -1,3 +1,4 @@
+import type { NearSigningFailureCause } from '@shared/near/signingFailure';
 import type { NearTransactionRejection } from '@/core/rpcClients/near/nearTransactionRejection';
 import type { FinalExecutionOutcome } from '@near-js/types';
 import type { AccountId } from './accountIds';
@@ -677,6 +678,7 @@ export type ActionResult = ExclusiveUnion<
       /** This attempt did not submit a transaction. A new review is safe. */
       kind: 'not_submitted';
       error: string;
+      cause: NearSigningFailureCause;
       /** NEAR refused the signed transaction before it ran. Its fields explain why. */
       rejection?: NearTransactionRejection;
     }
@@ -693,6 +695,7 @@ export type ActionResult = ExclusiveUnion<
       /** Signing or submission may have completed. Never automatically resend. */
       kind: 'submission_unknown';
       error: string;
+      cause: NearSigningFailureCause;
     }
   | {
       success: false;

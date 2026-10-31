@@ -1,4 +1,5 @@
 //! Gateway-authenticated admission. The Router never receives private preparation.
+use super::super::failure::SigningFailure;
 use super::*;
 
 enum PairReservation {
@@ -309,8 +310,8 @@ pub(crate) async fn handle_complete(
     .map_err(protocol_error)?;
     let settlement = match result {
         Status::Succeeded { .. } => pool::Settlement::Succeeded,
-        Status::Failed => pool::Settlement::Failed,
-        Status::Declined => pool::Settlement::Declined,
+        Status::Failed { .. } => pool::Settlement::Failed,
+        Status::Declined { .. } => pool::Settlement::Declined,
         Status::AwaitingStock { .. } | Status::Preparing { .. } | Status::Running { .. } => {
             return Response::error("ML-DSA completion is not terminal", 409)
         }
@@ -513,21 +514,29 @@ async fn sign_request(
         message: input.message,
         context: input.context,
     };
-    let result = before_deadline(permit.expires_at_ms, dispatch_execution(env, &execution)).await;
+    let result = before_deadline(permit.expires_at_ms, dispatch_response(env, &execution)).await;
     trace.mark("execution_done");
     log_execution(&permit.request.operation, &result);
     let completion = match result {
-        Ok(Ok((public_key, execution::Outcome::Signed { signature, .. }))) => {
-            Completion::Succeeded {
-                public_key,
-                message: execution.message,
-                context: execution.context,
-                signature,
-            }
-        }
-        Ok(Ok((_, execution::Outcome::Exhausted { .. }))) | Ok(Err(_)) | Err(_) => {
-            Completion::Failed
-        }
+        Ok((public_key, execution::Outcome::Signed { signature, .. })) => Completion::Succeeded {
+            public_key,
+            message: execution.message,
+            context: execution.context,
+            signature,
+        },
+        Ok((
+            _,
+            execution::Outcome::Exhausted {
+                consumed_batches,
+                evaluated_candidates,
+            },
+        )) => Completion::Failed {
+            failure: SigningFailure::CandidatesExhausted {
+                consumed_batches,
+                evaluated_candidates,
+            },
+        },
+        Err(failure) => Completion::Failed { failure },
     };
     let status: Status = service_call(
         env,
@@ -542,7 +551,7 @@ async fn sign_request(
     trace.mark("completion_recorded");
     let settlement = match &status {
         Status::Succeeded { .. } => pool::Settlement::Succeeded,
-        Status::Failed => pool::Settlement::Failed,
+        Status::Failed { .. } => pool::Settlement::Failed,
         _ => return Response::error("ML-DSA execution did not settle", 503),
     };
     release_pair(env, &permit.request, permit.batches, settlement)
@@ -561,20 +570,7 @@ async fn sign_request(
     trace.mark("settled");
     Response::from_json(&Decision::Existing { operation: status })
 }
-async fn dispatch_execution(env: &Env, input: &execution::Request) -> Result<DispatchResult> {
-    Ok(dispatch_response(env, input).await)
-}
-
-type DispatchResult = std::result::Result<(Vec<u8>, execution::Outcome), DispatchFailure>;
-
-#[derive(Serialize)]
-#[serde(tag = "reason", rename_all = "snake_case")]
-enum DispatchFailure {
-    Request,
-    Http { status: u16 },
-    ResponseBody,
-    ResponseDecode,
-}
+type DispatchResult = core::result::Result<(Vec<u8>, execution::Outcome), SigningFailure>;
 
 async fn dispatch_response(env: &Env, input: &execution::Request) -> DispatchResult {
     let mut response = crate::router_coordinator::post_role_request(
@@ -587,42 +583,43 @@ async fn dispatch_response(env: &Env, input: &execution::Request) -> DispatchRes
         None,
     )
     .await
-    .map_err(|_| DispatchFailure::Request)?;
+    .map_err(|_| SigningFailure::TransportInterrupted)?;
     if response.status_code() != 200 {
-        return Err(DispatchFailure::Http {
-            status: response.status_code(),
-        });
+        let status = response.status_code();
+        return Err(response
+            .json::<SigningFailure>()
+            .await
+            .unwrap_or_else(|_| SigningFailure::from_http_status(status)));
     }
     let bytes = response
         .bytes()
         .await
-        .map_err(|_| DispatchFailure::ResponseBody)?;
-    serde_json::from_slice(&bytes).map_err(|_| DispatchFailure::ResponseDecode)
+        .map_err(|_| SigningFailure::TransportInterrupted)?;
+    serde_json::from_slice(&bytes).map_err(|_| SigningFailure::InvalidParticipantResponse)
 }
 
-fn log_execution(operation: &[u8; 32], result: &Result<DispatchResult>) {
+fn log_execution(operation: &[u8; 32], result: &DispatchResult) {
     let outcome = match result {
-        Ok(Ok((
+        Ok((
             _,
             execution::Outcome::Signed {
                 consumed_batches,
                 evaluated_candidates,
                 ..
             },
-        ))) => {
+        )) => {
             serde_json::json!({"status": "signed", "consumed_batches": consumed_batches, "evaluated_candidates": evaluated_candidates})
         }
-        Ok(Ok((
+        Ok((
             _,
             execution::Outcome::Exhausted {
                 consumed_batches,
                 evaluated_candidates,
             },
-        ))) => {
+        )) => {
             serde_json::json!({"status": "exhausted", "consumed_batches": consumed_batches, "evaluated_candidates": evaluated_candidates})
         }
-        Ok(Err(failure)) => serde_json::json!({"status": "dispatch_error", "failure": failure}),
-        Err(_) => serde_json::json!({"status": "deadline_or_clock_error"}),
+        Err(failure) => serde_json::json!({"status": "failed", "failure": failure}),
     };
     worker::console_log!(
         "{}",
