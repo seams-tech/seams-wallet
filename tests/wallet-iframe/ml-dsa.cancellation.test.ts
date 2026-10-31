@@ -52,6 +52,12 @@ async function confirm(requestId) {
     await new Promise(holdConfirmation);
   return { confirmed: true };
 }
+function confirmationPreferences() {
+  return { uiMode: 'modal', behavior: 'requireClick', autoProceedDelay: 0 };
+}
+function confirmationContext() {
+  return { userPreferencesManager: { getConfirmationConfig: confirmationPreferences } };
+}
 async function reserveNearContext(input) {
   probe.reserved++;
   return {
@@ -89,7 +95,10 @@ async function handleWalletHostRuntimeRequest(input) {
     configs: config,
     nearClient: {},
     nonceCoordinator: { reserveNearContext, release, markSigned },
-    confirm: { requestUserConfirmation: confirm.bind(null, input.req.requestId) },
+    confirm: {
+      requestUserConfirmation: confirm.bind(null, input.req.requestId),
+      getContext: confirmationContext,
+    },
   };
   const context = {
     configs: config,

@@ -676,17 +676,37 @@ async function signFromDefaultPicker(
   testInfo: TestInfo,
 ) {
   const started = performance.now();
+  const policy = { maxOperations: 2, durationMs: 600_001 };
   const command: MlDsaBrowserCommand = {
     kind: 'normal_sign_default',
-    sessionPolicy: { maxOperations: 2, durationMs: 600_001 },
+    sessionPolicy: policy,
   };
   const resultPromise = page.evaluate(invokeSettingsSigning, command);
   const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
-  await expect(frame.getByRole('button', { name: 'Approve transaction', exact: true })).toBeVisible();
+  const approve = frame.locator('button.confirm');
+  await expect(approve).toBeVisible();
+  const consent = frame.locator('.confirmation-body');
+  await expect(consent).toContainText('Signing session: up to 2 operations');
+  await expect(consent).toContainText('including this transaction');
+  await expect(consent).not.toContainText('Application text cannot replace session consent.');
+  const text = await consent.innerText();
+  const duration = /([0-9]+)m(?:\s+([0-9]+)s)? maximum/.exec(text);
+  if (!duration) throw new Error('The session consent has no readable maximum duration');
+  const seconds = Number(duration[1]) * 60 + Number(duration[2] ?? 0);
+  expect(seconds).toBeGreaterThanOrEqual(Math.ceil(policy.durationMs / 1000));
+  await writeFile(testInfo.outputPath('ml-dsa-session-consent.json'), JSON.stringify({
+    callerRequestedNoUi: true,
+    callerRequestedAutomaticApproval: true,
+    mandatoryConsentVisible: true,
+    callerTextCannotReplaceConsent: true,
+    displayedMaximumSeconds: seconds,
+    requestedMaximumOperations: policy.maxOperations,
+    requestedDurationMs: policy.durationMs,
+  }, null, 2) + '\n');
   await expect(frame.getByRole('group', { name: 'Signing key', exact: true })).toHaveCount(0);
   await expect(frame.getByText(/Failed operations consume one use/)).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('ml-dsa-transaction-approval.png') });
-  await frame.getByRole('button', { name: 'Approve transaction', exact: true }).click();
+  await approve.click();
   const result = await test.step(
     'One transaction approval completes signing',
     returnSigningResult.bind(null, resultPromise),

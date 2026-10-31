@@ -1,8 +1,5 @@
 import { alphabetizeStringify } from '@shared/utils/digests';
-import {
-  parseMlDsaSigningSessionPolicy,
-  type MlDsaSigningSessionPolicy,
-} from '@shared/near/mlDsaSigningSession';
+import type { MlDsaSigningSessionPolicy } from '@shared/near/mlDsaSigningSession';
 import { resolveWalletRpId } from '@/SeamsWeb/walletIframe/shared/configuration';
 import { requireBrowserCapabilityOperation } from '@/SeamsWeb/publicApi/capabilitySelection';
 import {
@@ -24,7 +21,6 @@ import { mountConfirmUI, type MountedConfirmUIHandle } from '../../uiConfirm/ui/
 
 type Choice = {
   readonly id: string;
-  readonly label: string;
   readonly signer: NearTransactionSignerSelection;
 };
 export type NearSignerSelectionInput = {
@@ -62,7 +58,7 @@ export async function selectNearTransactionSigner(
     relayerUrl: deps.configs.network.relayer.url,
   });
   const choices: Choice[] = [
-    { id: 'ed25519', label: 'Ed25519 · Standard signing', signer: { kind: 'ed25519' } },
+    { id: 'ed25519', signer: { kind: 'ed25519' } },
   ];
   if (inventory.kind === 'inventory') {
     for (const entry of inventory.entries) {
@@ -89,7 +85,6 @@ export async function selectNearTransactionSigner(
       if (enrollment.kind === 'enrolled')
         choices.push({
           id: signer.signingKeyId,
-          label: `ML-DSA-65 · ${signer.signingKeyId}`,
           signer,
         });
     }
@@ -103,6 +98,9 @@ export async function selectNearTransactionSigner(
     );
   requireSignerCapability(deps.configs, selected.signer);
   if (input.shouldAbort()) throw new Error('Request cancelled');
+  // A new session is reviewed once in Wallet origin after its exact grant exists.
+  if (selected.signer.kind === 'near_ml_dsa_65' && input.sessionPolicy !== null)
+    return { kind: 'unreviewed', signer: selected.signer };
   const config = {
     ...deps.ui.userPreferencesManager.getConfirmationConfig(),
     ...input.confirmationConfig,
@@ -115,11 +113,7 @@ export async function selectNearTransactionSigner(
       actions: input.transaction.actions.map(toActionArgsWasm),
     },
   ];
-  const policy =
-    input.sessionPolicy === null ? null : parseMlDsaSigningSessionPolicy(input.sessionPolicy);
-  const bindings = new Map<string, string>();
-  for (const choice of choices)
-    bindings.set(choice.id, transactionReviewBinding(input, choice.signer));
+  const binding = transactionReviewBinding(input, selected.signer);
   const handle = await mountConfirmUI({
     ctx: deps.ui,
     summary: {
@@ -131,36 +125,21 @@ export async function selectNearTransactionSigner(
     uiMode: config.uiMode === 'drawer' ? 'drawer' : 'modal',
     securityContext: { rpId: resolveWalletRpId(deps.configs) },
   });
-  const selection = { selected, choices, handle, policy };
+  handle.update({ confirmText: 'Approve transaction' });
   const timer = setInterval(cancelSelectionIfRequested.bind(null, input, handle), 100);
   try {
-    updateChoice(selection);
     const decision = await handle.takeDecision();
     if (decision.kind === 'cancelled' || input.shouldAbort()) throw new Error('Request cancelled');
-    requireSignerCapability(deps.configs, selection.selected.signer);
-    const binding = bindings.get(selection.selected.id);
-    if (!binding) throw new Error('The selected key has no transaction review');
+    requireSignerCapability(deps.configs, selected.signer);
     return {
       kind: 'reviewed',
-      signer: selection.selected.signer,
+      signer: selected.signer,
       review: new ConfirmedNearTransactionReview(binding),
     };
   } finally {
     clearInterval(timer);
     handle.close(false);
   }
-}
-type Selection = {
-  selected: Choice;
-  readonly choices: readonly Choice[];
-  readonly handle: MountedConfirmUIHandle;
-  readonly policy: MlDsaSigningSessionPolicy | null;
-};
-function updateChoice(selection: Selection): void {
-  selection.handle.update({
-    confirmText: 'Approve transaction',
-    body: 'Approve this transaction.',
-  });
 }
 function cancelSelectionIfRequested(
   input: NearSignerSelectionInput,
