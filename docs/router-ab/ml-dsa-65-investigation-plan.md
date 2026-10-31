@@ -1,7 +1,13 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: public SDK lifecycle integrated; production release remains gated, 2026-10-26.
-Current priority: reduce preparation CPU cost and material loss after admitted signing failures.
+Status: public SDK lifecycle integrated; final hosted qualification remains gated, 2026-10-31.
+Current priority: complete the corrected hosted lifecycle and larger wallet-group screen before pilot selection.
+The [current MVP gate report](ml-dsa-65-mvp-gates-report.md) records passing local lifecycle, modular loading, and exact package acceptance.
+A missing signing-session scope notice is corrected and verified through the full browser lifecycle.
+Fresh hosted credential approval remains pending. Earlier performance campaigns below retain their original scope and dates.
+
+### Preparation checkpoint — October 26, 2026
+
 The [admission/refill candidate](ml-dsa-65-admission-refill-report.md) preserves all sixteen untouched pairs in the local interrupted-admission scenario.
 The [hosted result](ml-dsa-65-admission-refill-hosted-report.md) verifies 75 retained signatures. Both four-wallet availability ledgers balance.
 Three setup failures prevent the planned eight-wallet cohort. One warm-up signing failure follows B loadShed and retires thirteen pairs without an observed take.

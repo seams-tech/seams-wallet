@@ -4,7 +4,18 @@ The MVP connects the existing hybrid Yao/GMW signer to real Wallet registration,
 The current private Worker signer and local approval gate are experimental components.
 The first public registration flow adds ML-DSA to an existing passkey wallet. New wallets whose only signer is ML-DSA remain outside this scope.
 
-## Current focus — October 27, 2026
+## Current release gates — October 31, 2026
+
+The [MVP gate report](ml-dsa-65-mvp-gates-report.md) records passing current local lifecycle, onward linking, ordinary-signer loading, and exact package acceptance.
+A new reusable ML-DSA session now requires visible Wallet-origin consent for its operation budget and maximum duration.
+Caller hidden or automatic approval settings cannot suppress that review. Signer configuration stays in Signing keys settings.
+
+Remaining high-impact work is the corrected full Cloudflare lifecycle and an eight-active-wallet, two-group capacity screen with idle return and reserve accounting.
+Fresh credential approval is pending. All fifteen temporary deployment configurations pass local dry runs.
+The current source review remains bounded to the accepted passive model. The full composition proof remains incomplete.
+Wallet-seed recovery, FIPS export, four-candidate preparation, two-at-once consumption, and per-wallet capacity remain unchanged.
+
+## UX checkpoint — October 27, 2026
 
 The current priority is signer UX and preparation efficiency. Earlier sections that defer UI work describe previous checkpoints.
 The shared Signing keys screen and transaction-approval picker are implemented on `ml-dsa`.
