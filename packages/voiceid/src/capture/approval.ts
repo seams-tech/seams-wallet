@@ -1,32 +1,16 @@
+import { TransactionReviewError } from '@seams/wallet/voiceid-host';
 import { VoicePrompt } from './prompt';
 import { newConfirmationPhrase, type SpokenPhrase } from '../browser/phrase';
-import { parseVoiceConfirmation, type VoiceConfirmation } from '../browser/confirmationCommand';
 import { prepareVoiceModelWithProgress } from '../browser/progress';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
-import type { AuthMethodApprovalResult } from '@seams/wallet/voiceid-host';
-import type { ParentToChildEnvelope } from '@seams/wallet/voiceid-host';
-import {
-  walletHostExecutionFingerprint,
-  type ConfiguredWalletHost,
-} from '@seams/wallet/voiceid-host';
-import { resolveNearNetwork } from '@seams/wallet/voiceid-host';
-import {
-  parseTransactionReviewWire,
-  TransactionReviewError,
-  type TransactionReviewWire,
-} from '@seams/wallet/voiceid-host';
-import { ActionType } from '@seams/wallet/voiceid-host';
-import { isPlainObject } from '@seams/wallet/voiceid-host';
 import { listenForVoiceApproval, sameVoiceBinding, type VoiceBinding } from './bridge';
-import { walletForHostRequest } from '@seams/wallet/voiceid-host';
-import { IndexedDBManager } from '@seams/wallet/voiceid-host';
-import { resolveVoiceEnrollmentScope } from '../browser/enrollmentStore';
-import type { WalletId } from '@seams/wallet/voiceid-host';
-
-export type VoiceIdPolicy =
-  | { readonly kind: 'disabled'; readonly approval?: never }
-  | { readonly kind: 'required'; readonly approval: VoiceIdApproval };
-
+import {
+  resolveSelectedVoiceEnrollmentScope,
+  type VoiceIdReviewRequest,
+  type VoiceConfirmation,
+  type VoiceIdTranscriptionModel,
+  type AuthMethodApprovalResult,
+  type WalletId,
+} from '@seams/wallet/voiceid-host';
 type ApprovalState =
   | { readonly kind: 'pending' }
   | { readonly kind: 'preparing' }
@@ -49,134 +33,6 @@ type ApprovalState =
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected voice outcome: ${String(value)}`);
-}
-
-function freezeRequestValue(value: unknown): void {
-  if (!isPlainObject(value) && !Array.isArray(value)) return;
-  for (const child of Object.values(value)) freezeRequestValue(child);
-  Object.freeze(value);
-}
-
-// The iframe receives a structured clone. Hash the complete request and execution
-// configuration before runtime code can normalize or change either value.
-export async function voiceIdPolicyForRequest(
-  request: ParentToChildEnvelope,
-  configuration: ConfiguredWalletHost,
-  model: VoiceIdTranscriptionModel,
-): Promise<VoiceIdPolicy> {
-  switch (request.type) {
-    case 'PM_SIGN_TX_WITH_ACTIONS':
-    case 'PM_SIGN_DELEGATE_ACTION':
-    case 'PM_SIGN_NEP413':
-      throw unsupportedVoiceOperation();
-    case 'PM_SIGN_TEMPO': {
-      const payload = request.payload;
-      if (!payload || payload.operationKind !== 'evm_transaction')
-        throw unsupportedVoiceOperation();
-      const { tx } = payload.request;
-      const target = payload.chainTarget;
-      const configured = configuration.config.network.chains.some(isConfiguredArcTestnet);
-      if (
-        !configured ||
-        target.kind !== 'evm' ||
-        target.namespace !== 'eip155' ||
-        target.networkSlug !== 'arc-testnet' ||
-        target.chainId !== 5_042_002 ||
-        payload.request.chain !== 'evm' ||
-        payload.request.kind !== 'eip1559' ||
-        payload.request.senderSignatureAlgorithm !== 'secp256k1' ||
-        tx.chainId !== target.chainId ||
-        typeof tx.to !== 'string' ||
-        !/^0x[0-9a-fA-F]{40}$/.test(tx.to) ||
-        (tx.data !== undefined && tx.data !== '0x') ||
-        (tx.accessList !== undefined && tx.accessList.length !== 0) ||
-        tx.abi !== undefined
-      ) {
-        throw unsupportedVoiceOperation();
-      }
-      return await reviewedVoiceIdPolicy(
-        request,
-        configuration,
-        parseVoiceConfirmation(payload.options?.voiceId),
-        model,
-      );
-    }
-    case 'PM_SIGN_AND_SEND_TX': {
-      if (resolveNearNetwork(configuration.config.network.chains) !== 'testnet') {
-        throw new TransactionReviewError(
-          'review_unsupported_mode',
-          'This VoiceID prototype requires NEAR testnet.',
-        );
-      }
-      const payload = request.payload;
-      if (
-        !payload ||
-        payload.transaction.actions.length !== 1 ||
-        payload.transaction.actions[0].type !== ActionType.Transfer ||
-        !('transactionReview' in request)
-      ) {
-        throw unsupportedVoiceOperation();
-      }
-      return await reviewedVoiceIdPolicy(
-        request,
-        configuration,
-        parseVoiceConfirmation(payload.options.voiceId),
-        model,
-      );
-    }
-    default:
-      return { kind: 'disabled' };
-  }
-}
-
-function isConfiguredArcTestnet(
-  chain: ConfiguredWalletHost['config']['network']['chains'][number],
-): boolean {
-  return chain.network === 'arc-testnet' && chain.chainId === 5_042_002;
-}
-
-function encodeOperationValue(_key: string, value: unknown): unknown {
-  return typeof value === 'bigint' ? { bigint: value.toString() } : value;
-}
-
-async function reviewedVoiceIdPolicy(
-  request: Extract<ParentToChildEnvelope, { type: 'PM_SIGN_AND_SEND_TX' | 'PM_SIGN_TEMPO' }>,
-  configuration: ConfiguredWalletHost,
-  confirmation: VoiceConfirmation,
-  model: VoiceIdTranscriptionModel,
-): Promise<VoiceIdPolicy> {
-  const review = parseTransactionReviewWire(request.transactionReview);
-  if (review.validity.kind !== 'expires_at') {
-    throw new TransactionReviewError('review_invalid_input', 'VoiceID requires a review deadline.');
-  }
-  freezeRequestValue(request);
-  const bytes = new TextEncoder().encode(
-    JSON.stringify(
-      {
-        domain: 'seams-voiceid-operation-v1',
-        origin: location.origin,
-        executionFingerprint: walletHostExecutionFingerprint(configuration.config),
-        request,
-      },
-      encodeOperationValue,
-    ),
-  );
-  const hash = await crypto.subtle.digest('SHA-256', bytes);
-  let operationHash = '';
-  for (const byte of new Uint8Array(hash)) operationHash += byte.toString(16).padStart(2, '0');
-  const walletId = walletForHostRequest(request, null);
-  if (!walletId) throw new Error('VoiceID review requires a wallet identity.');
-  return {
-    kind: 'required',
-    approval: VoiceIdApproval.forReview(review, operationHash, walletId, confirmation, model),
-  };
-}
-
-function unsupportedVoiceOperation(): TransactionReviewError {
-  return new TransactionReviewError(
-    'review_unsupported_mode',
-    'VoiceID requires a reviewed NEAR or Arc testnet transfer.',
-  );
 }
 
 export class VoiceIdApproval {
@@ -213,19 +69,16 @@ export class VoiceIdApproval {
   }
 
   static forReview(
-    review: TransactionReviewWire,
-    operationHash: string,
-    walletId: WalletId,
-    confirmation: VoiceConfirmation,
+    request: VoiceIdReviewRequest,
     model: VoiceIdTranscriptionModel,
   ): VoiceIdApproval {
-    if (review.validity.kind !== 'expires_at' || !/^[0-9a-f]{64}$/.test(operationHash)) {
-      throw new TransactionReviewError(
-        'review_invalid_input',
-        'VoiceID requires a bounded operation.',
-      );
-    }
-    return new VoiceIdApproval(review.validity.atMs, operationHash, walletId, confirmation, model);
+    return new VoiceIdApproval(
+      request.expiresAtMs,
+      request.operationHash,
+      request.walletId,
+      request.confirmation,
+      model,
+    );
   }
 
   async prepare(signal: AbortSignal): Promise<void> {
@@ -270,18 +123,7 @@ export class VoiceIdApproval {
     }
     this.state = { kind: 'authorizing' };
     try {
-      const selected = await IndexedDBManager.resolveSelectedWalletAuthority(this.walletId);
-      if (
-        selected.kind !== 'resolved' ||
-        selected.authMethod.kind !== 'voiceid' ||
-        selected.selection.lockState !== 'unlocked'
-      ) {
-        throw new Error('Unlock this wallet with VoiceID before voice approval.');
-      }
-      const scope = await resolveVoiceEnrollmentScope(
-        this.walletId,
-        selected.authMethod.walletAuthMethodId,
-      );
+      const scope = await resolveSelectedVoiceEnrollmentScope(this.walletId);
       let attempt = this.beginAttempt(signal);
       for (;;) {
         const { binding, deadline, remaining } = attempt;

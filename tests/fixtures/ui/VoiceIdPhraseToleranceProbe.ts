@@ -1,5 +1,5 @@
 import { checkSpokenPhrase, newConfirmationPhrase } from '@voiceid/browser/phrase';
-import { parseVoiceConfirmation } from '@voiceid/browser/confirmationCommand';
+import { parseVoiceConfirmation } from '@/core/authMethods/voiceId/confirmationCommand';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 
 async function checkAudio(base64: string, expectedIndex: number) {

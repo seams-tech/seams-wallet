@@ -11,12 +11,15 @@ defines the Wallet flow. [Release notes](../../../apps/docs/src/releases.md) ret
 
 - [`descriptor.ts`](descriptor.ts) exposes the application descriptor without loading capture code or inference assets.
 - [`host.ts`](host.ts) implements the trusted Wallet host plugin.
-- [`browser/`](browser/) owns microphone capture, inference, phrase matching, enrollment, and device storage.
-- [`activation/`](activation/) owns activation and owner-confirmed enrollment management.
+- [`browser/`](browser/) owns microphone capture, inference, phrase matching, and enrollment-template normalization.
+- [`activation/`](activation/) presents enrollment and management through scoped core operations.
 - [`capture/`](capture/) owns the trusted prompt, transaction approval surface, and Wallet measurement bindings.
-- [`session/`](session/) owns the device assertion exchange and Wallet session installation.
+- [`session/`](session/) presents unlock and passes a device assertion to the bound core unlock operation.
 
-SDK core owns custody installation, quotas, and NEAR/ECDSA threshold signing.
+SDK core owns authority checks, passkey confirmation, device persistence, guarded enrollment transactions,
+custody resealing, server proof exchanges, session installation, quotas, and NEAR/ECDSA threshold signing.
+The host API exposes scoped operations and data contracts. It exposes no database schemas, signing contexts,
+session credential stores, or worker transports. Wallet and VoiceID must use matching host API version 4.
 Preserve `WalletAuthMethodHostPlugin`, the device assertion contract, and method-bound custody envelopes when changing this implementation.
 
 ## Enrollment storage and owner confirmation

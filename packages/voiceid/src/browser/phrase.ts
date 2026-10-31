@@ -5,7 +5,7 @@ import {
   SPOKEN_PHRASES,
   PHRASE_TOKEN_PIECES,
 } from './phraseVocabulary';
-import type { VoiceConfirmation } from './confirmationCommand';
+import type { VoiceConfirmation } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { PHRASE_TOKEN_PIECES as CITRINET_TOKEN_PIECES } from './phraseTokens';
 

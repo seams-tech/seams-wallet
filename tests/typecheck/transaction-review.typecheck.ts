@@ -105,19 +105,17 @@ void ordinaryWithReservation;
 void ordinaryWithSpread;
 void disabledReview;
 
-import type {
-  VoiceIdApproval,
-  VoiceIdPolicy,
-} from '@voiceid/capture/approval';
+import type { VoiceIdApproval } from '@voiceid/capture/approval';
+import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
 declare const voiceApproval: VoiceIdApproval;
-const requiredVoice: VoiceIdPolicy = { kind: 'required', approval: voiceApproval };
+const requiredVoice: AuthMethodReviewPolicy = { kind: 'required', approval: voiceApproval };
 // @ts-expect-error A required voice policy must carry its operation-bound approval.
-const missingVoiceApproval: VoiceIdPolicy = { kind: 'required' };
+const missingVoiceApproval: AuthMethodReviewPolicy = { kind: 'required' };
 // @ts-expect-error A disabled policy cannot carry an approval.
-const disabledWithVoice: VoiceIdPolicy = { kind: 'disabled', approval: voiceApproval };
+const disabledWithVoice: AuthMethodReviewPolicy = { kind: 'disabled', approval: voiceApproval };
 const voiceFields = { approval: voiceApproval };
 // @ts-expect-error A spread cannot carry approval into the disabled branch.
-const disabledVoiceSpread: VoiceIdPolicy = { kind: 'disabled', ...voiceFields };
+const disabledVoiceSpread: AuthMethodReviewPolicy = { kind: 'disabled', ...voiceFields };
 // @ts-expect-error Object literals cannot construct a voice approval's private lifecycle.
 const fabricatedVoice: VoiceIdApproval = { approve: async () => {}, consume: () => {} };
 // @ts-expect-error A spread loses the private lifecycle and cannot construct a voice approval.

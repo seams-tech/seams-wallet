@@ -1,29 +1,19 @@
-import { readAuthMethodEnabled } from '@seams/wallet/voiceid-host';
 import { requireVoiceUserAction } from '../browser/microphone';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type {
-  AuthMethodSessionInstaller,
+  VoiceIdTranscriptionModel,
   AuthMethodUnlockSuccess,
   WalletAuthMethodHostPlugin,
+  VoiceIdUnlockChallenge,
 } from '@seams/wallet/voiceid-host';
-import { IndexedDBManager } from '@seams/wallet/voiceid-host';
-import { fetchWithWalletHomeDiscovery } from '@seams/wallet/voiceid-host';
-import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@seams/wallet/voiceid-host';
-import type { VoiceIdWalletSessionChallenge } from '@seams/wallet/voiceid-host';
 import { prepareVoiceModelWithProgress } from '../browser/progress';
-import { readVoiceEnrollment, resolveVoiceEnrollmentScope } from '../browser/enrollmentStore';
+import { readVoiceEnrollment } from '../browser/enrollmentStore';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';
 import type { PreparedVoiceCapture } from '../capture/surface';
-import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from './httpClient';
-import { verifyVoiceIdChallengeWithDevice } from './unlockFromDevice';
 
 type PreparedVoiceIdUnlock = Readonly<{
-  authMethod: ActiveVoiceIdWalletAuthMethodRecordV2;
-  challenge: VoiceIdWalletSessionChallenge;
-  http: VoiceIdHttpClient;
-  install: AuthMethodSessionInstaller;
+  challenge: VoiceIdUnlockChallenge;
   initiation: 'hosted_menu' | 'sdk_request';
 }>;
 
@@ -33,25 +23,8 @@ export async function prepareUnlockSurface(
   parent: HTMLElement,
   model: VoiceIdTranscriptionModel,
 ): Promise<PreparedVoiceCapture<AuthMethodUnlockSuccess>> {
-  if (!(await readAuthMethodEnabled(input.walletId, input.walletAuthMethodId)))
-    throw new Error('VoiceID is turned off in this browser. Enable it in Authentication methods.');
-  const install = await input.prepareSession(signal);
-  const authMethod = await IndexedDBManager.getWalletAuthMethodV2(input.walletAuthMethodId);
-  if (
-    !authMethod ||
-    authMethod.kind !== 'voiceid' ||
-    authMethod.status !== 'active' ||
-    authMethod.walletId !== input.walletId ||
-    authMethod.walletAuthMethodId !== input.walletAuthMethodId
-  ) {
-    throw new Error('Activate VoiceID on this device before unlocking this wallet.');
-  }
-  const http = new VoiceIdHttpClient(
-    input.relayerUrl,
-    location.origin,
-    fetchWithWalletHomeDiscovery,
-  );
-  const scope = await resolveVoiceEnrollmentScope(input.walletId, input.walletAuthMethodId);
+  const preparation = await input.prepareUnlock(signal);
+  const scope = preparation.scope;
   if (!(await readVoiceEnrollment(scope))) {
     throw new Error(
       'Unlock with a passkey, then open Manage voice to import or record your enrollment.',
@@ -59,18 +32,9 @@ export async function prepareUnlockSurface(
   }
   await prepareVoiceModelWithProgress(parent, signal, model);
   signal.throwIfAborted();
-  input.assertActive();
-  const challenge = await http.challenge({
-    walletId: input.walletId,
-    walletAuthMethodId: input.walletAuthMethodId,
-    signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
-  });
-  input.assertActive();
+  const challenge = await preparation.challenge(signal);
   const prepared: PreparedVoiceIdUnlock = {
-    authMethod,
     challenge,
-    http,
-    install,
     initiation: input.mountCapture ? 'hosted_menu' : 'sdk_request',
   };
   signal.throwIfAborted();
@@ -80,23 +44,6 @@ export async function prepareUnlockSurface(
     action: captureAndInstall.bind(null, model, prepared),
   };
 }
-
-function installVerifiedSession(
-  install: AuthMethodSessionInstaller,
-  signal: AbortSignal,
-  verified: VoiceIdVerifiedSession,
-  factorSecret32: Uint8Array,
-): Promise<AuthMethodUnlockSuccess> {
-  return install({
-    walletSession: verified.walletSession,
-    operationCredential: verified.operationCredential,
-    custodyEnvelope: verified.custodyEnvelope,
-    factorSecret32,
-    signal,
-    near: verified.near,
-  });
-}
-
 async function captureAndInstall(
   model: VoiceIdTranscriptionModel,
   prepared: PreparedVoiceIdUnlock,
@@ -113,16 +60,10 @@ async function captureAndInstall(
     default:
       return assertNever(prepared.initiation);
   }
-  return await verifyVoiceIdChallengeWithDevice({
-    authMethod: prepared.authMethod,
-    challenge: prepared.challenge,
-    http: prepared.http,
-    capture: captureVoiceIdUnlock.bind(null, model),
-    install: installVerifiedSession.bind(null, prepared.install, signal),
+  return prepared.challenge.complete(
+    captureVoiceIdUnlock.bind(null, model, { onCapture, phrase }),
     signal,
-    onCapture,
-    phrase,
-  });
+  );
 }
 
 function assertNever(value: never): never {

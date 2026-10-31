@@ -1,6 +1,6 @@
 import type { VoiceIdConfirmationOptions } from '@seams/wallet';
 import type { BoundNearSigner, BoundEvmSigner } from '@seams/wallet/react';
-import type { VoiceConfirmation } from '@voiceid/browser/confirmationCommand';
+import type { VoiceConfirmation } from '@/core/authMethods/voiceId/confirmationCommand';
 
 const voiceId: VoiceIdConfirmationOptions = {
   confirmationCommand: 'Sell 100 NEAR for USDC at $5.5',

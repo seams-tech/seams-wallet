@@ -1,9 +1,9 @@
-import { isPlainObject, TransactionReviewError } from '@seams/wallet/voiceid-host';
-import type { CONFIRMATION_PHRASES } from './phraseVocabulary';
+import { isPlainObject } from '@shared/utils/validation';
+import { TransactionReviewError } from '@/SeamsWeb/walletIframe/shared/transactionReview';
 
 export type VoiceConfirmation =
   | { readonly kind: 'random'; readonly action?: never }
-  | { readonly kind: 'action'; readonly action: keyof typeof CONFIRMATION_PHRASES };
+  | { readonly kind: 'action'; readonly action: 'sale' | 'purchase' | 'swap' | 'transfer' };
 
 /** App copy selects a phrase family. It never supplies transaction terms or permissions. */
 export function parseVoiceConfirmation(value: unknown): VoiceConfirmation {

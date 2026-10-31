@@ -1,5 +1,3 @@
-import type { VoiceCaptureObserver } from '../browser/microphone';
-import type { SpokenPhrase } from '../browser/phrase';
 import {
   buildMethodBoundEnvelopeOwnership,
   buildWalletCustodySeedBinding,
@@ -10,27 +8,31 @@ import {
   parseEnvelopeRevision,
   parsePasskeyCustodyEnvelopeRecord,
   type VoiceIdSeedEnvelope,
-} from '@seams/wallet/voiceid-host';
-import { parseDigestB64u, sha256DigestB64u, type DigestB64u } from '@seams/wallet/voiceid-host';
-import { base64UrlDecode } from '@seams/wallet/voiceid-host';
-import type { WalletSessionOperationCredentialV1 } from '@seams/wallet/voiceid-host';
+} from '@shared/passkey-custody';
+import {
+  parseDigestB64u,
+  sha256DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
+import { base64UrlDecode } from '@shared/utils/base64';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import {
   parseWalletAuthMethodId,
   parseWalletId,
   type PasskeyEnvelopeId,
   type WalletAuthMethodId,
   type WalletId,
-} from '@seams/wallet/voiceid-host';
+} from '@shared/utils/domainIds';
 import {
   parseVoiceIdDevicePublicKeyB64u,
   type VoiceIdDevicePublicKeyB64u,
-} from '@seams/wallet/voiceid-host';
-import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@seams/wallet/voiceid-host';
-import { rejectUnknownFields } from '@seams/wallet/voiceid-host';
-import { requireRecord } from '@seams/wallet/voiceid-host';
-import { parseResealedEnvelopeResult } from '@seams/wallet/voiceid-host';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@seams/wallet/voiceid-host';
-import { captureVoiceIdActivation, type VoiceIdActivationCapture } from '../capture/deviceBridge';
+} from '@shared/authorization/voiceIdDeviceAssertion';
+import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
+import { requireRecord } from '@shared/utils/validation';
+import { parseResealedEnvelopeResult } from '@/core/signingEngine/walletCustody/resealedEnvelopeResult';
+import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
+import type { VoiceIdActivationCapture } from './contracts';
 import type { VoiceIdHttpClient } from './httpClient';
 
 export type PendingVoiceIdActivation = Readonly<{
@@ -42,11 +44,20 @@ export type PendingVoiceIdActivation = Readonly<{
   custodyEnvelope: VoiceIdSeedEnvelope;
 }>;
 
-export async function parsePendingVoiceIdActivation(raw: unknown): Promise<PendingVoiceIdActivation> {
+export async function parsePendingVoiceIdActivation(
+  raw: unknown,
+): Promise<PendingVoiceIdActivation> {
   const record = requireRecord(raw, 'pending VoiceID activation');
   rejectUnknownFields(
     record,
-    ['kind', 'walletId', 'walletAuthMethodId', 'devicePublicKeyB64u', 'deviceKeyId', 'custodyEnvelope'],
+    [
+      'kind',
+      'walletId',
+      'walletAuthMethodId',
+      'devicePublicKeyB64u',
+      'deviceKeyId',
+      'custodyEnvelope',
+    ],
     'pending VoiceID activation',
   );
   if (record.kind !== 'pending_voiceid_activation_v1') {
@@ -66,7 +77,7 @@ export async function parsePendingVoiceIdActivation(raw: unknown): Promise<Pendi
     custodyEnvelope.ownership.walletAuthMethodId !== walletAuthMethodId.value ||
     custodyEnvelope.factor.deviceKeyId !== deviceKeyId ||
     Number(custodyEnvelope.envelopeRevision) !== 1 ||
-    await sha256DigestB64u(base64UrlDecode(devicePublicKeyB64u)) !== deviceKeyId
+    (await sha256DigestB64u(base64UrlDecode(devicePublicKeyB64u))) !== deviceKeyId
   ) {
     throw new Error('Pending VoiceID activation binding is invalid.');
   }
@@ -133,7 +144,7 @@ function requireNewActivationSource(
 
 async function sealNewActivation(
   plan: NewVoiceIdActivation,
-  capture: Awaited<ReturnType<typeof captureVoiceIdActivation>>,
+  capture: Awaited<ReturnType<VoiceIdActivationCapture>>,
 ): Promise<PendingVoiceIdActivation> {
   const factor = buildVoiceIdEnvelopeFactor({ deviceKeyId: capture.deviceKeyId });
   const binding = buildWalletCustodySeedBinding();
@@ -150,11 +161,13 @@ async function sealNewActivation(
   const workerSecret = capture.factorSecret32.slice();
   let sealed: ReturnType<typeof parseResealedEnvelopeResult>;
   try {
-    sealed = parseResealedEnvelopeResult(await plan.reseal({
-      capability: plan.capability,
-      bindingJson,
-      factorSecret: workerSecret.buffer,
-    }));
+    sealed = parseResealedEnvelopeResult(
+      await plan.reseal({
+        capability: plan.capability,
+        bindingJson,
+        factorSecret: workerSecret.buffer,
+      }),
+    );
   } finally {
     if (workerSecret.byteLength > 0) workerSecret.fill(0);
   }
@@ -163,21 +176,23 @@ async function sealNewActivation(
     throw new Error('VoiceID worker returned a mismatched ciphertext digest.');
   }
   const nowMs = Date.now();
-  const envelope = parsePasskeyCustodyEnvelopeRecord(buildPasskeyCustodyEnvelopeRecord({
-    envelopeId: plan.envelopeId,
-    walletId: plan.walletId,
-    ownership,
-    binding,
-    factor,
-    envelopeRevision,
-    nonceB64u: sealed.nonceB64u,
-    sealedCustodySecretB64u: sealed.sealedCustodySecretB64u,
-    ciphertextDigestB64u: sealed.ciphertextDigestB64u,
-    aadHashB64u: sealed.aadHashB64u,
-    lifecycle: { state: 'active', activatedAtMs: nowMs },
-    createdAtMs: nowMs,
-    updatedAtMs: nowMs,
-  }));
+  const envelope = parsePasskeyCustodyEnvelopeRecord(
+    buildPasskeyCustodyEnvelopeRecord({
+      envelopeId: plan.envelopeId,
+      walletId: plan.walletId,
+      ownership,
+      binding,
+      factor,
+      envelopeRevision,
+      nonceB64u: sealed.nonceB64u,
+      sealedCustodySecretB64u: sealed.sealedCustodySecretB64u,
+      ciphertextDigestB64u: sealed.ciphertextDigestB64u,
+      aadHashB64u: sealed.aadHashB64u,
+      lifecycle: { state: 'active', activatedAtMs: nowMs },
+      createdAtMs: nowMs,
+      updatedAtMs: nowMs,
+    }),
+  );
   if (!isVoiceIdSeedEnvelope(envelope)) {
     throw new Error('VoiceID worker produced an invalid seed envelope.');
   }
@@ -196,8 +211,6 @@ export async function activateVoiceIdForUnlockedWallet(input: {
   readonly ownerCredential: WalletSessionOperationCredentialV1;
   readonly http: Pick<VoiceIdHttpClient, 'activate'>;
   readonly signal: AbortSignal;
-  readonly onCapture: VoiceCaptureObserver;
-  readonly phrase: SpokenPhrase;
   readonly capture: VoiceIdActivationCapture;
   readonly persistPending: (pending: PendingVoiceIdActivation) => Promise<void>;
   readonly persistActive: (
@@ -216,15 +229,12 @@ export async function activateVoiceIdForUnlockedWallet(input: {
       return assertNever(plan);
   }
   const walletId = plan.kind === 'new' ? plan.walletId : plan.pending.walletId;
-  const walletAuthMethodId = plan.kind === 'new'
-    ? plan.walletAuthMethodId
-    : plan.pending.walletAuthMethodId;
+  const walletAuthMethodId =
+    plan.kind === 'new' ? plan.walletAuthMethodId : plan.pending.walletAuthMethodId;
   const capture = await input.capture({
     walletId,
     walletAuthMethodId,
     signal: input.signal,
-    onCapture: input.onCapture,
-    phrase: input.phrase,
   });
   let pending: PendingVoiceIdActivation;
   try {

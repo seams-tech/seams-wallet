@@ -1,15 +1,15 @@
-import { IndexedDBManager, isPlainObject } from '@seams/wallet/voiceid-host';
+import type { VoiceMicrophonePreference } from '@seams/wallet/voiceid-host';
+import {
+  readVoiceMicrophonePreference,
+  saveVoiceMicrophonePreference,
+  isPlainObject,
+} from '@seams/wallet/voiceid-host';
 
-const PREFERENCE_KEY = 'voiceid-microphone-v1';
-
-type MicrophonePreference =
-  | { readonly kind: 'system_default'; readonly deviceId?: never }
-  | { readonly kind: 'device'; readonly deviceId: string };
-let preference: MicrophonePreference | { readonly kind: 'unread' } = { kind: 'unread' };
+let preference: VoiceMicrophonePreference | { readonly kind: 'unread' } = { kind: 'unread' };
 
 export type VoiceMicrophone = Readonly<{
   stream: MediaStream;
-  preference: MicrophonePreference;
+  preference: VoiceMicrophonePreference;
   selection: 'default' | 'preferred' | 'replacement';
   label: string;
   processing: Readonly<{
@@ -29,11 +29,11 @@ function concreteDeviceId(value: unknown): value is string {
   );
 }
 
-async function readPreference(): Promise<MicrophonePreference> {
+async function readPreference(): Promise<VoiceMicrophonePreference> {
   if (preference.kind !== 'unread') return preference;
-  let saved: MicrophonePreference = { kind: 'system_default' };
+  let saved: VoiceMicrophonePreference = { kind: 'system_default' };
   try {
-    const raw = await IndexedDBManager.getAppState(PREFERENCE_KEY);
+    const raw = await readVoiceMicrophonePreference();
     if (isPlainObject(raw) && raw.kind === 'device' && concreteDeviceId(raw.deviceId)) {
       saved = { kind: 'device', deviceId: raw.deviceId };
     }
@@ -44,7 +44,7 @@ async function readPreference(): Promise<MicrophonePreference> {
   return preference;
 }
 
-function constraints(preference: MicrophonePreference): MediaStreamConstraints {
+function constraints(preference: VoiceMicrophonePreference): MediaStreamConstraints {
   const audio: MediaTrackConstraints = {
     channelCount: 1,
     echoCancellation: true,
@@ -56,7 +56,9 @@ function constraints(preference: MicrophonePreference): MediaStreamConstraints {
 }
 
 /** Select the concrete input behind a browser's moving default-device alias. */
-async function resolvedPreference(settings: MediaTrackSettings): Promise<MicrophonePreference> {
+async function resolvedPreference(
+  settings: MediaTrackSettings,
+): Promise<VoiceMicrophonePreference> {
   if (concreteDeviceId(settings.deviceId)) return { kind: 'device', deviceId: settings.deviceId };
   if (settings.groupId) {
     try {
@@ -82,7 +84,8 @@ export async function openVoiceMicrophone(signal: AbortSignal): Promise<VoiceMic
   const preference = await readPreference();
   signal.throwIfAborted();
   let stream: MediaStream;
-  let selection: VoiceMicrophone['selection'] = preference.kind === 'device' ? 'preferred' : 'default';
+  let selection: VoiceMicrophone['selection'] =
+    preference.kind === 'device' ? 'preferred' : 'default';
   try {
     stream = await navigator.mediaDevices.getUserMedia(constraints(preference));
   } catch (error) {
@@ -141,10 +144,10 @@ export async function useSystemVoiceMicrophone(): Promise<void> {
   await savePreference({ kind: 'system_default' });
 }
 
-async function savePreference(selected: MicrophonePreference): Promise<void> {
+async function savePreference(selected: VoiceMicrophonePreference): Promise<void> {
   preference = selected;
   try {
-    await IndexedDBManager.setAppState(PREFERENCE_KEY, selected);
+    await saveVoiceMicrophonePreference(selected);
   } catch {
     // Capture remains usable when preference storage is unavailable.
   }

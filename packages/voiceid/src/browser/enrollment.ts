@@ -21,16 +21,15 @@ import {
   VOICE_MATCH_THRESHOLD,
 } from './model';
 
+import { commitVoiceEnrollment, readVoiceTemplate } from './enrollmentStore';
 import {
   assertVoiceOwner,
-  commitVoiceEnrollment,
-  readVoiceTemplate,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
   type VoiceOwnerGuard,
   type VoiceTemplateAccess,
-} from './enrollmentStore';
-import type { ConfirmedVoiceChange } from '../activation/ownerConfirmation';
+} from '@seams/wallet/voiceid-host';
+import type { ConfirmedVoiceChange } from '@seams/wallet/voiceid-host';
 import { toError } from '@seams/wallet/voiceid-host';
 import type { Variant } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';

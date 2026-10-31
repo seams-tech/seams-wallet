@@ -35,7 +35,7 @@ async function loadVoiceIdHost(
   }
   if (
     !isPlainObject(module) ||
-    module.hostApiVersion !== 3 ||
+    module.hostApiVersion !== 4 ||
     typeof module.createVoiceIdHostPlugin !== 'function'
   ) {
     throw new Error(

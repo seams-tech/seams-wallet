@@ -1,8 +1,6 @@
-import type { VoiceCaptureObserver } from '../browser/microphone';
-import type { SpokenPhrase } from '../browser/phrase';
-import type { VoiceIdWalletSessionChallenge } from '@seams/wallet/voiceid-host';
-import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@seams/wallet/voiceid-host';
-import type { VoiceIdUnlockCapture } from '../capture/deviceBridge';
+import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
+import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type { VoiceIdUnlockCapture } from './contracts';
 import type { VoiceIdHttpClient, VoiceIdVerifiedSession } from './httpClient';
 
 /** The installer must finish custody activation before the caller reports unlock. */
@@ -13,8 +11,6 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
   readonly capture: VoiceIdUnlockCapture;
   readonly install: (verified: VoiceIdVerifiedSession, factorSecret32: Uint8Array) => Promise<T>;
   readonly signal: AbortSignal;
-  readonly onCapture: VoiceCaptureObserver;
-  readonly phrase: SpokenPhrase;
 }): Promise<T> {
   const { authMethod, challenge } = input;
   if (
@@ -28,8 +24,6 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
   const captured = await input.capture({
     challenge,
     signal: input.signal,
-    onCapture: input.onCapture,
-    phrase: input.phrase,
   });
   try {
     if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');

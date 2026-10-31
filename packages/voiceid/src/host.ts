@@ -3,7 +3,7 @@ import { showVoiceIdCaptureSurface, VoiceIdCaptureCancelledError } from './captu
 import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
-export const hostApiVersion = 3;
+export const hostApiVersion = 4;
 if (VOICE_ID_HOST_API_VERSION !== hostApiVersion) {
   throw new Error('VoiceID requires a matching Wallet host API.');
 }
@@ -51,7 +51,7 @@ async function activate(
   try {
     return await showVoiceIdCaptureSurface({
       purpose: 'activation',
-      measurement: input.context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
+      measurement: input.surfaceMeasurementBinding,
       prepare: prepareActivation.bind(null, model, input),
     });
   } catch (error) {
@@ -73,8 +73,7 @@ async function prepareActivation(
 async function review(
   model: VoiceIdTranscriptionModel,
   request: Parameters<WalletAuthMethodHostPlugin['review']>[0],
-  configuration: Parameters<WalletAuthMethodHostPlugin['review']>[1],
 ): ReturnType<WalletAuthMethodHostPlugin['review']> {
   const implementation = await import('./capture/approval');
-  return implementation.voiceIdPolicyForRequest(request, configuration, model);
+  return implementation.VoiceIdApproval.forReview(request, model);
 }

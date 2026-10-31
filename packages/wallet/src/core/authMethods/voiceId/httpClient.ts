@@ -3,36 +3,36 @@ import {
   type VoiceIdDeviceAssertion,
   type VoiceIdDevicePublicKeyB64u,
   type VoiceIdWalletSessionChallenge,
-} from '@seams/wallet/voiceid-host';
+} from '@shared/authorization/voiceIdDeviceAssertion';
 import {
   isVoiceIdSeedEnvelope,
   parsePasskeyCustodyEnvelopeRecord,
   type VoiceIdSeedEnvelope,
-} from '@seams/wallet/voiceid-host';
+} from '@shared/passkey-custody';
 import {
   parseActiveWalletSessionV1,
   parseWalletSessionOperationCredentialV1,
-} from '@seams/wallet/voiceid-host';
+} from '@shared/device-linking/activeWalletSession';
 import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
-} from '@seams/wallet/voiceid-host';
-import type { DigestB64u } from '@seams/wallet/voiceid-host';
-import type { WalletAuthMethodId, WalletId } from '@seams/wallet/voiceid-host';
+} from '@shared/device-linking/contracts';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import {
   parseWalletAuthMethodRecordV2,
   type ActiveVoiceIdWalletAuthMethodRecordV2,
-} from '@seams/wallet/voiceid-host';
-import { rejectUnknownFields } from '@seams/wallet/voiceid-host';
-import { joinNormalizedUrl } from '@seams/wallet/voiceid-host';
-import { requireRecord } from '@seams/wallet/voiceid-host';
-import { parseEd25519YaoRecoveryCapabilityV1 } from '@seams/wallet/voiceid-host';
-import type { AuthMethodNearInstallation } from '@seams/wallet/voiceid-host';
-import { mpcMaterialActivationRefsEqual } from '@seams/wallet/voiceid-host';
+} from '@shared/utils/walletAuthMethodRecord';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
+import { joinNormalizedUrl } from '@shared/utils/normalize';
+import { requireRecord } from '@shared/utils/validation';
+import { parseEd25519YaoRecoveryCapabilityV1 } from '@/core/signingEngine/session/passkey/ed25519YaoRecoveryCapability';
+import type { AuthMethodNearInstallation } from '@/core/authMethods/hostPlugin';
+import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import {
   buildRelayerJsonPostRequestInit,
   buildWalletSessionAuthorizationHeaders,
-} from '@seams/wallet/voiceid-host';
+} from '@/core/rpcClients/relayer/relayerHttp';
 
 export type VoiceIdHttpSend = (request: Request) => Promise<Response>;
 
@@ -220,8 +220,8 @@ function parseNearInstallation(raw: unknown): AuthMethodNearInstallation {
 }
 
 function isMatchingNearSubject(
-  activation: import('@seams/wallet/voiceid-host').MpcMaterialActivationRef,
-  subject: import('@seams/wallet/voiceid-host').WalletCapabilitySubjectV1,
+  activation: import('@shared/utils/domainIds').MpcMaterialActivationRef,
+  subject: import('@shared/device-linking/contracts').WalletCapabilitySubjectV1,
 ): boolean {
   return (
     subject.kind === 'sign' &&

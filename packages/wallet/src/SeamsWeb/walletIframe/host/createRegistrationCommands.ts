@@ -1,3 +1,4 @@
+import { prepareVoiceIdActivation } from '@/core/authMethods/voiceId/prepareActivation';
 import {
   readVoiceIdAvailability,
   writeAuthMethodEnabled,
@@ -102,7 +103,12 @@ async function activateAuthMethod(
 ): ReturnType<RegistrationCapability['activateAuthMethod']> {
   const context = getContext();
   const plugin = await loadWalletAuthMethodHostPlugin(context.configs.authMethods, args.method);
-  return await plugin.activate({ context, walletId: toWalletId(args.walletId) });
+  const walletId = toWalletId(args.walletId);
+  return await plugin.activate({
+    walletId,
+    surfaceMeasurementBinding: context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
+    prepareActivation: prepareVoiceIdActivation.bind(null, context, walletId),
+  });
 }
 
 async function removeAuthMethod(

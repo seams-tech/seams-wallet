@@ -1,4 +1,4 @@
-import type { RegistrationWebContext } from '@seams/wallet/voiceid-host';
+import type { VoiceOwnerConfirmation } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 import { enrollBrowserVoice } from '../browser/enrollment';
@@ -6,11 +6,13 @@ import {
   commitVoiceEnrollment,
   readVoiceEnrollment,
   readImportableVoiceBaseline,
+} from '../browser/enrollmentStore';
+import {
   type VoiceEnrollment,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
-} from '../browser/enrollmentStore';
-import { ConfirmedVoiceChange, prepareVoiceOwner } from './ownerConfirmation';
+} from '@seams/wallet/voiceid-host';
+import { prepareVoiceOwner } from '@seams/wallet/voiceid-host';
 import { toError } from '@seams/wallet/voiceid-host';
 
 type ManagementAction = 'replace' | 'improve' | 'reset' | 'import';
@@ -26,14 +28,14 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const PASSKEY_PROMPT = 'Confirm with your passkey to continue.';
 
 export async function manageVoiceEnrollment(
-  context: RegistrationWebContext,
+  confirmChange: VoiceOwnerConfirmation,
   scope: VoiceEnrollmentScope,
   signal: AbortSignal,
   model: VoiceIdTranscriptionModel,
 ): Promise<void> {
   const parent = document.querySelector('.seams-voiceid-activation-surface');
   if (!(parent instanceof HTMLElement)) throw new Error('Open VoiceID management in the Wallet.');
-  const surface = new VoiceEnrollmentManagement(parent, context, scope, signal, model);
+  const surface = new VoiceEnrollmentManagement(parent, confirmChange, scope, signal, model);
   try {
     await surface.result;
   } finally {
@@ -55,7 +57,7 @@ class VoiceEnrollmentManagement {
 
   constructor(
     private readonly parent: HTMLElement,
-    private readonly context: RegistrationWebContext,
+    private readonly confirmChange: VoiceOwnerConfirmation,
     private readonly scope: VoiceEnrollmentScope,
     private readonly signal: AbortSignal,
     private readonly model: VoiceIdTranscriptionModel,
@@ -240,9 +242,7 @@ class VoiceEnrollmentManagement {
       const previous = action === 'import' ? await readImportableVoiceBaseline() : null;
       if (action === 'import' && (!previous || snapshot.kind !== 'missing'))
         throw new Error('The previous enrollment is unavailable.');
-      const confirmation = await ConfirmedVoiceChange.request(
-        this.context,
-        this.scope,
+      const confirmation = await this.confirmChange(
         guard,
         snapshot,
         action,

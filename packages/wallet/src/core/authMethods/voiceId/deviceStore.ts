@@ -1,9 +1,9 @@
-import { IndexedDBManager } from '@seams/wallet/voiceid-host';
-import { requireRecord } from '@seams/wallet/voiceid-host';
-import { base64UrlEncode, base64UrlDecode } from '@seams/wallet/voiceid-host';
-import { parseVoiceIdDevicePublicKeyB64u } from '@seams/wallet/voiceid-host';
-import { sha256DigestB64u, type DigestB64u } from '@seams/wallet/voiceid-host';
-import type { WalletId, WalletAuthMethodId } from '@seams/wallet/voiceid-host';
+import { IndexedDBManager } from '@/core/indexedDB';
+import { requireRecord } from '@shared/utils/validation';
+import { base64UrlEncode, base64UrlDecode } from '@shared/utils/base64';
+import { parseVoiceIdDevicePublicKeyB64u } from '@shared/authorization/voiceIdDeviceAssertion';
+import { sha256DigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { WalletId, WalletAuthMethodId } from '@shared/utils/domainIds';
 
 export type BrowserVoiceDevice = Readonly<{
   kind: 'browser_voiceid_device_v1';

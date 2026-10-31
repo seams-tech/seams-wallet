@@ -1,3 +1,4 @@
+import { voiceIdPolicyForRequest } from '@/core/authMethods/voiceId/reviewPolicy';
 import { readAuthMethodEnabled } from '@/core/authMethods/availability';
 import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
 import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
@@ -412,5 +413,5 @@ export async function walletAuthMethodReviewPolicy(
   if (!(await readAuthMethodEnabled(walletId, selected.authMethod.walletAuthMethodId)))
     throw new Error('VoiceID is turned off. Unlock with another method.');
   const plugin = await loadWalletAuthMethodHostPlugin(configuration.config.authMethods, 'voiceid');
-  return await plugin.review(request, configuration);
+  return await voiceIdPolicyForRequest(request, configuration, plugin);
 }

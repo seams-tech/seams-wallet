@@ -1,35 +1,35 @@
-import { parseLinkedDeviceListResultV1, type OwnerDeviceSummaryV1 } from '@seams/wallet/voiceid-host';
-import type { WalletAuthMethodRecordV2 } from '@seams/wallet/voiceid-host';
-import { IndexedDBManager } from '@seams/wallet/voiceid-host';
+import { parseLinkedDeviceListResultV1, type OwnerDeviceSummaryV1 } from '@shared/device-linking';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import { IndexedDBManager } from '@/core/indexedDB';
 import { decodeCBOR } from '@levischuck/tiny-cbor';
-import type { WorkerOperationContext } from '@seams/wallet/voiceid-host';
-import { createRelayerExactWalletSessionStatusPort } from '@seams/wallet/voiceid-host';
+import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
+import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   buildWalletSessionAuthorizationHeaders,
   normalizeRelayerBaseUrl,
   fetchWithWalletHomeDiscovery,
-} from '@seams/wallet/voiceid-host';
-import { walletSessionAuthorizations } from '@seams/wallet/voiceid-host';
+} from '@/core/rpcClients/relayer/relayerHttp';
+import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import {
   availabilityKey,
   parseStoredAuthMethodAvailability,
-} from '@seams/wallet/voiceid-host';
-import type { RegistrationWebContext } from '@seams/wallet/voiceid-host';
-import { base64UrlDecode, base64UrlEncode } from '@seams/wallet/voiceid-host';
-import { requireRecord } from '@seams/wallet/voiceid-host';
-import { sha256DigestB64u } from '@seams/wallet/voiceid-host';
+} from '@/core/authMethods/availability';
+import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
+import { requireRecord } from '@shared/utils/validation';
+import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   decodeCoseP256PublicKeyWasm,
   buildWebauthnP256SignatureWasm,
-} from '@seams/wallet/voiceid-host';
-import {
-  assertVoiceOwner,
-  type VoiceEnrollmentScope,
-  type VoiceEnrollmentSnapshot,
-  type VoiceOwnerGuard,
-  type VoiceChangeGuard,
-  type VoiceActivationGuard,
-} from '../browser/enrollmentStore';
+} from '@/core/signingEngine/chains/evm/evmCryptoWasm';
+import { assertVoiceOwner } from './enrollmentStorage';
+import type {
+  VoiceEnrollmentScope,
+  VoiceEnrollmentSnapshot,
+  VoiceOwnerGuard,
+  VoiceChangeGuard,
+  VoiceActivationGuard,
+} from './contracts';
 
 type VoiceChangeAction = 'replace' | 'improve' | 'reset' | 'import';
 

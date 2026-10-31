@@ -1,4 +1,3 @@
-import { newSpokenPhrase } from '../../../packages/voiceid/src/browser/phrase';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -20,17 +19,17 @@ import {
   type VoiceIdSeedEnvelope,
 } from '@shared/passkey-custody/custodyEnvelope';
 import { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from '@server/core/d1WalletAuthMethodStore';
-import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from '@voiceid/session/httpClient';
-import { verifyVoiceIdChallengeWithDevice } from '@voiceid/session/unlockFromDevice';
+import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from '@/core/authMethods/voiceId/httpClient';
+import { verifyVoiceIdChallengeWithDevice } from '@/core/authMethods/voiceId/unlockFromDevice';
 import {
   activateVoiceIdForUnlockedWallet,
   type VoiceIdSeedResealPort,
-} from '@voiceid/session/activation';
+} from '@/core/authMethods/voiceId/activation';
 import type {
   VoiceIdActivationCapture,
   VoiceIdUnlockCapture,
-} from '@voiceid/capture/deviceBridge';
-import { VoiceIdActivationStore, type VoiceIdActivationStoragePort } from '@voiceid/session/activationStore';
+} from '@/core/authMethods/voiceId/contracts';
+import { VoiceIdActivationStore, type VoiceIdActivationStoragePort } from '@/core/authMethods/voiceId/activationStore';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import { AuthorizationService } from '@server/authorization/service';
@@ -277,7 +276,6 @@ function unlockedSeedCapabilityForTest(input: {
   };
 }
 
-function onVoiceCapture(): void {}
 
 class GeneratedVoiceIdCapture {
   factorSecret32: Uint8Array | null = null;
@@ -290,7 +288,6 @@ class GeneratedVoiceIdCapture {
   async capture(
     input: Parameters<VoiceIdUnlockCapture>[0],
   ): ReturnType<VoiceIdUnlockCapture> {
-    input.onCapture({ kind: 'processing' });
     const signature = await crypto.subtle.sign(
       'Ed25519',
       this.privateKey,
@@ -509,8 +506,6 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       ownerCredential: issued.operationCredential,
       http: lostReply,
       signal,
-      onCapture: onVoiceCapture,
-      phrase: newSpokenPhrase(null),
       capture: retriedCapture.capture.bind(retriedCapture),
       persistPending: pendingStore.persistPending.bind(pendingStore),
       persistActive: pendingStore.persistActive.bind(pendingStore),
@@ -684,8 +679,6 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       capture: deviceCapture.capture.bind(deviceCapture),
       install: installer.install.bind(installer),
       signal,
-      onCapture: onVoiceCapture,
-      phrase: newSpokenPhrase(null),
     });
     expect(verifiedFromDevice.walletSession.authMethodId).toBe(methodId);
     expect(verifiedFromDevice.custodyEnvelope.envelopeId).toBe(envelopeId);
@@ -704,8 +697,6 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       capture: cancelledCapture.capture.bind(cancelledCapture),
       install: installer.install.bind(installer),
       signal: cancelledController.signal,
-      onCapture: onVoiceCapture,
-      phrase: newSpokenPhrase(null),
     })).rejects.toThrow('cancelled');
     expect(cancelledCapture.factorSecret32?.every((value) => value === 0)).toBe(true);
     const afterCancelSignature = await crypto.subtle.sign(

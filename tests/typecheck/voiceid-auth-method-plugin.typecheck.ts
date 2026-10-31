@@ -1,6 +1,37 @@
 import { type WalletAuthMethodPlugin } from '../../packages/wallet/src/core/authMethods/plugins';
 import { voiceIdAuthMethod } from '../../packages/voiceid/src/descriptor';
-import { ConfirmedVoiceChange } from '../../packages/voiceid/src/activation/ownerConfirmation';
+import * as voiceHost from '../../packages/wallet/src/voiceid-host';
+import type { VoiceIdActivationPreparation } from '../../packages/wallet/src/core/authMethods/voiceId/boundary';
+import type { VoiceEnrollmentWrite } from '../../packages/wallet/src/core/authMethods/voiceId/enrollmentStorage';
+
+// @ts-expect-error The optional plugin cannot access the wallet database manager.
+void voiceHost.IndexedDBManager;
+// @ts-expect-error Session credentials remain inside core.
+void voiceHost.walletSessionAuthorizations;
+// @ts-expect-error The plugin cannot obtain a custody worker transport.
+void voiceHost.walletCustodyCeremonyTransportFromWorkerContextV1;
+// @ts-expect-error The plugin cannot obtain an unlocked custody capability.
+void voiceHost.readUnlockedWalletEd25519ExportRootCapabilityV1;
+// @ts-expect-error Storage schemas remain inside core.
+void voiceHost.SEAMS_WALLET_STORES;
+
+declare const activatePreparation: Extract<VoiceIdActivationPreparation, { kind: 'activate' }>;
+declare const managePreparation: Extract<VoiceIdActivationPreparation, { kind: 'enroll_existing' }>;
+// @ts-expect-error Management cannot acquire custody activation through a broad spread.
+const crossedPreparation: VoiceIdActivationPreparation = { ...managePreparation, activate: activatePreparation.activate };
+// @ts-expect-error A management preparation cannot be cast into activation.
+const castPreparation = managePreparation as typeof activatePreparation;
+// @ts-expect-error A new activation requires its bound core operation.
+const missingActivation: VoiceIdActivationPreparation = { kind: 'activate', walletId: activatePreparation.walletId, walletAuthMethodId: activatePreparation.walletAuthMethodId };
+
+declare const activationWrite: Extract<VoiceEnrollmentWrite, { kind: 'activate' }>;
+declare const changeWrite: Extract<VoiceEnrollmentWrite, { kind: 'replace' }>;
+// @ts-expect-error An owner activation guard cannot authorize a later enrollment change.
+const crossedWrite: VoiceEnrollmentWrite = { ...changeWrite, guard: activationWrite.guard };
+// @ts-expect-error Activation cannot acquire an enrollment-change confirmation.
+const confirmedActivation: VoiceEnrollmentWrite = { ...activationWrite, confirmation: changeWrite.confirmation };
+void [crossedPreparation, castPreparation, missingActivation, crossedWrite, confirmedActivation];
+import { ConfirmedVoiceChange } from '../../packages/wallet/src/core/authMethods/voiceId/ownerConfirmation';
 import type { VoiceEnrollmentChange } from '../../packages/voiceid/src/browser/enrollmentStore';
 
 declare const assertCurrentOwner: (signal: AbortSignal) => Promise<void>;
@@ -88,13 +119,10 @@ void disabledWithApproval;
 declare const hostPlugin: WalletAuthMethodHostPlugin;
 declare const walletId: WalletId;
 declare const walletAuthMethodId: WalletAuthMethodId;
-declare const assertUnlockActive: () => void;
-// @ts-expect-error A plugin unlock must prepare its core signing installer after its prompt opens.
+// @ts-expect-error A plugin unlock must prepare its scoped core unlock after its prompt opens.
 hostPlugin.unlock({
-  relayerUrl: 'https://router.example.test',
   walletId,
   walletAuthMethodId,
-  assertActive: assertUnlockActive,
   surfaceMeasurementBinding: { kind: 'disabled' },
 });
 // @ts-expect-error An installer can return only a successful installed unlock.

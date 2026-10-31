@@ -3,7 +3,7 @@ import type {
   VoiceOwnerGuard,
   VoiceActivationGuard,
   VoiceChangeGuard,
-} from '../../packages/voiceid/src/browser/enrollmentStore';
+} from '../../packages/wallet/src/core/authMethods/voiceId/contracts';
 
 declare const samples: readonly (readonly number[])[];
 

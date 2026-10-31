@@ -1,3 +1,4 @@
+import { prepareVoiceIdUnlock } from '@/core/authMethods/voiceId/prepareUnlock';
 import { unlockPendingRegistration } from '@/SeamsWeb/operations/auth/unlockPendingRegistration';
 import { HostedExternalAuth } from './externalAuth';
 import {
@@ -131,11 +132,15 @@ async function unlockWithAuthMethod(
   return await plugin.unlock({
     walletId,
     walletAuthMethodId: methodId.value,
-    relayerUrl: context.configs.network.relayer.url,
-    assertActive,
     mountCapture,
     surfaceMeasurementBinding: context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
-    prepareSession: prepareAuthMethodSession.bind(null, context, walletId, assertActive),
+    prepareUnlock: prepareVoiceIdUnlock.bind(null, {
+      walletId,
+      walletAuthMethodId: methodId.value,
+      relayerUrl: context.configs.network.relayer.url,
+      assertActive,
+      prepareSession: prepareAuthMethodSession.bind(null, context, walletId, assertActive),
+    }),
   });
 }
 

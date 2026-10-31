@@ -522,7 +522,11 @@ ONNX Runtime, or voice-glow dependency and ships no VoiceID engine or model file
 The operator explicitly composes VoiceID assets into a new Wallet deployment tree.
 The loader uses the fixed same-origin `/sdk/voiceid/host.js` URL and checks its host
 API version. Missing installation fails explicitly. App input cannot select code URLs.
-The plugin imports the Wallet's host API, sharing its storage and worker instances.
+The plugin receives scoped activation, unlock, owner-confirmation, and enrollment-storage operations.
+Wallet core owns authority checks, device persistence, custody resealing, server exchanges, and session installation.
+The plugin cannot import database managers, database schemas, session credential stores, or custody worker transports from the host API.
+Core validates transaction requests and supplies the plugin with a bounded review identity and phrase-family selection.
+The plugin owns audio capture, model inference, template normalization, and presentation. Its record parser runs at the scoped storage boundary.
 The core review UI receives copy from the plugin and knows no voice commands.
 
 Enabling a plugin does not fetch its implementation. First use loads it after

@@ -25,8 +25,9 @@ registration, login, and local session material (see
 Applications enable the separately installed `@seams/voiceid` package by configuration.
 The Wallet operator explicitly deploys its assets. The Wallet iframe loads its
 implementation on first use through a fixed same-origin URL. The package imports
-the Wallet host API and shares existing storage and worker instances. This package
-split moves no signing or custody operation between workers.
+scoped Wallet host operations. Wallet core owns storage transactions and worker access.
+The plugin receives no database manager, session credential store, or custody worker transport.
+This package split moves no signing or custody operation between workers.
 Browser MediaRecorder captures deliberate
 samples, and local ONNX Runtime Web inference verifies the speaker. Inference
 uses one WebAssembly thread. A same-origin AudioWorklet supplies 16 kHz frames

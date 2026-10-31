@@ -1,12 +1,12 @@
-import { parseWalletAuthMethodRecordV2, type ActiveVoiceIdWalletAuthMethodRecordV2 } from '@seams/wallet/voiceid-host';
-import type { WalletAuthMethodId, WalletId } from '@seams/wallet/voiceid-host';
-import { alphabetizeStringify } from '@seams/wallet/voiceid-host';
-import { rejectUnknownFields } from '@seams/wallet/voiceid-host';
-import { requireRecord } from '@seams/wallet/voiceid-host';
 import {
-  parsePendingVoiceIdActivation,
-  type PendingVoiceIdActivation,
-} from './activation';
+  parseWalletAuthMethodRecordV2,
+  type ActiveVoiceIdWalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
+import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
+import { alphabetizeStringify } from '@shared/utils/digests';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
+import { requireRecord } from '@shared/utils/validation';
+import { parsePendingVoiceIdActivation, type PendingVoiceIdActivation } from './activation';
 
 const ACTIVATION_KEY_PREFIX = 'voiceid-activation-v1:';
 
@@ -21,7 +21,9 @@ type StoredActivation =
 export type VoiceIdActivationStoragePort = {
   getAppState(key: string): Promise<unknown | undefined>;
   setAppState(key: string, value: unknown): Promise<void>;
-  listAppStateEntriesByPrefix(prefix: string): Promise<ReadonlyArray<{ key: string; value: unknown }>>;
+  listAppStateEntriesByPrefix(
+    prefix: string,
+  ): Promise<ReadonlyArray<{ key: string; value: unknown }>>;
   upsertWalletAuthMethodV2(record: ActiveVoiceIdWalletAuthMethodRecordV2): Promise<void>;
 };
 
@@ -108,20 +110,27 @@ export class VoiceIdActivationStore {
       await this.storage.getAppState(activationKey(walletId, walletAuthMethodId)),
     );
     if (!record || record.kind === 'active') return null;
-    if (record.pending.walletId !== walletId || record.pending.walletAuthMethodId !== walletAuthMethodId) {
+    if (
+      record.pending.walletId !== walletId ||
+      record.pending.walletAuthMethodId !== walletAuthMethodId
+    ) {
       throw new Error('Stored VoiceID activation key does not match its record.');
     }
     return record.pending;
   }
 
   async listPending(walletId: WalletId): Promise<readonly PendingVoiceIdActivation[]> {
-    const entries = await this.storage.listAppStateEntriesByPrefix(walletActivationPrefix(walletId));
+    const entries = await this.storage.listAppStateEntriesByPrefix(
+      walletActivationPrefix(walletId),
+    );
     const pending: PendingVoiceIdActivation[] = [];
     for (const entry of entries) {
       const record = await parseStoredActivation(entry.value);
       if (!record) continue;
-      if (record.pending.walletId !== walletId ||
-          activationKey(walletId, record.pending.walletAuthMethodId) !== entry.key) {
+      if (
+        record.pending.walletId !== walletId ||
+        activationKey(walletId, record.pending.walletAuthMethodId) !== entry.key
+      ) {
         throw new Error('Stored VoiceID activation key does not match its record.');
       }
       if (record.kind === 'pending') pending.push(record.pending);

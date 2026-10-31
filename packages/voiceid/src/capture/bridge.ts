@@ -4,7 +4,7 @@ import { voiceQualityMessage, type VoiceCaptureObserver } from '../browser/micro
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@seams/wallet/voiceid-host';
 import { verifyBrowserVoice } from '../browser/enrollment';
-import type { VoiceEnrollmentScope } from '../browser/enrollmentStore';
+import type { VoiceEnrollmentScope } from '@seams/wallet/voiceid-host';
 import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 
 export type VoiceBinding = Readonly<{

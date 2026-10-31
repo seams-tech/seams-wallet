@@ -1,9 +1,8 @@
 import { walletSessionRefFromSession } from '@/boundary/walletRefs';
 import { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
-import {
-  voiceIdPolicyForRequest,
-  type VoiceIdPolicy,
-} from '@voiceid/capture/approval';
+import { voiceIdPolicyForRequest } from '@/core/authMethods/voiceId/reviewPolicy';
+import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
+import { createVoiceIdHostPlugin } from '@voiceid/host';
 import {
   mountConfirmUI,
   type MountedConfirmUIHandle,
@@ -27,7 +26,7 @@ type TransferRequest = Variant<ParentToChildEnvelope, 'type', 'PM_SIGN_AND_SEND_
 type MountedReview = {
   kind: 'mounted';
   admission: TransactionReviewAdmission;
-  policy: VoiceIdPolicy;
+  policy: AuthMethodReviewPolicy;
   handle: MountedConfirmUIHandle;
   request: TransferRequest;
 };
@@ -37,7 +36,7 @@ type JourneyState =
   | MountedReview
   | {
       kind: 'settled';
-      policy: VoiceIdPolicy;
+      policy: AuthMethodReviewPolicy;
       result: 'ready_to_sign' | 'cancelled';
       error: string;
     };
@@ -55,7 +54,7 @@ class WalletJourney {
     this.error = '';
     this.generation += 1;
     const request = transferRequest(this.generation, timeoutMs, amount);
-    const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), 'citrinet');
+    const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), createVoiceIdHostPlugin('citrinet'));
     const metadata = parseTransactionReviewWire(request.transactionReview);
     const admission = new TransactionReviewAdmission(
       metadata,
@@ -167,7 +166,7 @@ class WalletJourney {
   async checkArcPolicy(mode: ArcPolicyCase): Promise<{ accepted: boolean; frozen: boolean; error: string }> {
     const request = arcRequest(mode);
     try {
-      const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), 'citrinet');
+      const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), createVoiceIdHostPlugin('citrinet'));
       if (policy.kind !== 'required') throw new Error('Arc did not require voice approval');
       let error = '';
       try { policy.approval.consume(); } catch (failure) { error = errorText(failure); }
@@ -179,7 +178,7 @@ class WalletJourney {
 
   async requestMainnetApproval(): Promise<void> {
     const request = transferRequest(++this.generation, 10_000, '1000');
-    await voiceIdPolicyForRequest(request, journeyConfiguration('near-mainnet'), 'citrinet');
+    await voiceIdPolicyForRequest(request, journeyConfiguration('near-mainnet'), createVoiceIdHostPlugin('citrinet'));
   }
 
   async requestWithoutReview(): Promise<void> {
@@ -189,7 +188,7 @@ class WalletJourney {
       requestId: reviewed.requestId,
       payload: reviewed.payload,
     };
-    await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), 'citrinet');
+    await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), createVoiceIdHostPlugin('citrinet'));
   }
 
   trySecondConsumption(): string {

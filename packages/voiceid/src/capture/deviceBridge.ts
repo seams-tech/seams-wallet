@@ -5,66 +5,46 @@ import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import {
   voiceIdWalletSessionChallengeBytes,
   parseVoiceIdDeviceAssertion,
-  type VoiceIdWalletSessionChallenge,
 } from '@seams/wallet/voiceid-host';
-import type { WalletId, WalletAuthMethodId } from '@seams/wallet/voiceid-host';
-import type {
-  VoiceIdDeviceAssertion,
-  VoiceIdDevicePublicKeyB64u,
-} from '@seams/wallet/voiceid-host';
-import type { DigestB64u } from '@seams/wallet/voiceid-host';
+
 import { base64UrlEncode } from '@seams/wallet/voiceid-host';
 import {
   createBrowserVoiceDevice,
   readBrowserVoiceDevice,
   openBrowserVoiceFactor,
-} from '../browser/deviceStore';
+} from '@seams/wallet/voiceid-host';
 import { enrollBrowserVoice, verifyBrowserVoice } from '../browser/enrollment';
+import { readVoiceEnrollment } from '../browser/enrollmentStore';
+import { resolveVoiceEnrollmentScope, type VoiceTemplateAccess } from '@seams/wallet/voiceid-host';
 import {
-  readVoiceEnrollment,
-  voiceEnrollmentScope,
-  resolveVoiceEnrollmentScope,
-  type VoiceTemplateAccess,
-} from '../browser/enrollmentStore';
-import { prepareVoiceOwner } from '../activation/ownerConfirmation';
-import { IndexedDBManager } from '@seams/wallet/voiceid-host';
+  prepareVoiceOwner,
+  resolveActivatingVoiceEnrollmentScope,
+} from '@seams/wallet/voiceid-host';
 import {
   requireVoiceUserAction,
   requireVoiceForeground,
   InsufficientVoiceAudioError,
 } from '../browser/microphone';
 
-export type VoiceIdActivationCapture = (input: {
-  readonly walletId: WalletId;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly signal: AbortSignal;
-  readonly onCapture: VoiceCaptureObserver;
-  readonly phrase: SpokenPhrase;
-}) => Promise<{
-  kind: 'activated';
-  publicKeyB64u: VoiceIdDevicePublicKeyB64u;
-  deviceKeyId: DigestB64u;
-  factorSecret32: Uint8Array;
-}>;
+import type { VoiceIdActivationCapture, VoiceIdUnlockCapture } from '@seams/wallet/voiceid-host';
+type VoiceCapturePresentation = Readonly<{ onCapture: VoiceCaptureObserver; phrase: SpokenPhrase }>;
 
 export async function captureVoiceIdActivation(
   model: VoiceIdTranscriptionModel,
+  presentation: VoiceCapturePresentation,
   input: Parameters<VoiceIdActivationCapture>[0],
 ): ReturnType<VoiceIdActivationCapture> {
   requireVoiceUserAction();
   const device = await createBrowserVoiceDevice(input.walletId, input.walletAuthMethodId);
-  const selected = await IndexedDBManager.resolveSelectedWalletAuthority(input.walletId);
-  if (selected.kind !== 'resolved')
-    throw new Error('Select the owner wallet before enrolling VoiceID.');
-  const scope = voiceEnrollmentScope(device, selected.authority.authorityId);
+  const scope = await resolveActivatingVoiceEnrollmentScope(device);
   const enrollment = await readVoiceEnrollment(scope);
   if (enrollment) {
     const owner = await prepareVoiceOwner(scope, 'activating');
     await requireVoiceMatch(
       { kind: 'activation', scope, owner },
       input.signal,
-      input.onCapture,
-      input.phrase,
+      presentation.onCapture,
+      presentation.phrase,
       model,
     );
   } else {
@@ -89,15 +69,9 @@ export async function captureVoiceIdActivation(
   };
 }
 
-export type VoiceIdUnlockCapture = (input: {
-  readonly challenge: VoiceIdWalletSessionChallenge;
-  readonly signal: AbortSignal;
-  readonly onCapture: VoiceCaptureObserver;
-  readonly phrase: SpokenPhrase;
-}) => Promise<{ kind: 'unlocked'; assertion: VoiceIdDeviceAssertion; factorSecret32: Uint8Array }>;
-
 export async function captureVoiceIdUnlock(
   model: VoiceIdTranscriptionModel,
+  presentation: VoiceCapturePresentation,
   input: Parameters<VoiceIdUnlockCapture>[0],
 ): ReturnType<VoiceIdUnlockCapture> {
   requireVoiceForeground();
@@ -111,8 +85,8 @@ export async function captureVoiceIdUnlock(
   await requireVoiceMatch(
     { kind: 'active', scope },
     input.signal,
-    input.onCapture,
-    input.phrase,
+    presentation.onCapture,
+    presentation.phrase,
     model,
   );
   input.signal.throwIfAborted();

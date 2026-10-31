@@ -1,0 +1,92 @@
+import type { WalletId, WalletAuthMethodId, WalletAuthorityId } from '@shared/utils/domainIds';
+import type { WalletSessionId } from '@shared/authorization/capabilityKinds';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { Variant } from '@shared/utils/variant';
+import type {
+  VoiceIdDevicePublicKeyB64u,
+  VoiceIdDeviceAssertion,
+  VoiceIdWalletSessionChallenge,
+} from '@shared/authorization/voiceIdDeviceAssertion';
+export type VoiceEnrollmentScope = Readonly<{
+  walletId: WalletId;
+  authorityId: WalletAuthorityId;
+  walletAuthMethodId: WalletAuthMethodId;
+  deviceKeyId: DigestB64u;
+}>;
+
+export type VoiceEnrollment = Readonly<{
+  kind: 'browser_voiceid_enrollment_v2';
+  scope: VoiceEnrollmentScope;
+  model: string;
+  generation: string;
+  revision: number;
+  baseline: readonly number[];
+  adaptation:
+    | {
+        readonly kind: 'baseline';
+        readonly samples?: never;
+      }
+    | {
+        readonly kind: 'adapted';
+        readonly samples: readonly (readonly number[])[];
+      };
+}>;
+
+export type VoiceEnrollmentSnapshot =
+  | { readonly kind: 'missing'; readonly enrollment?: never }
+  | { readonly kind: 'present'; readonly enrollment: VoiceEnrollment };
+
+export type VoiceOwnerGuard = Readonly<
+  {
+    sessionMethodId: WalletAuthMethodId;
+    walletSessionId: WalletSessionId;
+    lockGeneration: number;
+    expiresAtMs: number;
+    availabilityRevision: string;
+  } & (
+    | { target: 'activating'; confirmationMethodId?: never }
+    | { target: 'enrolled'; confirmationMethodId: WalletAuthMethodId }
+  )
+>;
+
+export type VoiceChangeGuard = Variant<VoiceOwnerGuard, 'target', 'enrolled'>;
+export type VoiceActivationGuard = Variant<VoiceOwnerGuard, 'target', 'activating'>;
+
+export type VoiceTemplateAccess =
+  | { readonly kind: 'active'; readonly scope: VoiceEnrollmentScope; readonly owner?: never }
+  | {
+      readonly kind: 'activation';
+      readonly scope: VoiceEnrollmentScope;
+      readonly owner: VoiceOwnerGuard;
+    };
+
+export type VoiceIdActivationCapture = (input: {
+  readonly walletId: WalletId;
+  readonly walletAuthMethodId: WalletAuthMethodId;
+  readonly signal: AbortSignal;
+}) => Promise<{
+  kind: 'activated';
+  publicKeyB64u: VoiceIdDevicePublicKeyB64u;
+  deviceKeyId: DigestB64u;
+  factorSecret32: Uint8Array;
+}>;
+
+export type VoiceIdUnlockCapture = (input: {
+  readonly challenge: VoiceIdWalletSessionChallenge;
+  readonly signal: AbortSignal;
+}) => Promise<{ kind: 'unlocked'; assertion: VoiceIdDeviceAssertion; factorSecret32: Uint8Array }>;
+
+export function reviseVoiceEnrollment(
+  enrollment: VoiceEnrollment,
+  adaptation: VoiceEnrollment['adaptation'],
+): VoiceEnrollment {
+  return {
+    kind: 'browser_voiceid_enrollment_v2',
+    scope: enrollment.scope,
+    model: enrollment.model,
+    generation: enrollment.generation,
+    revision: enrollment.revision + 1,
+    baseline: enrollment.baseline,
+    adaptation,
+  };
+}
