@@ -1,5 +1,7 @@
 //! Bounded generic pool and exact registration claims. Commands are transactional.
 use super::*;
+pub mod queue;
+pub(super) const PREPARATION_LIFETIME_MS: u64 = 900_000;
 use signer_core::ml_dsa_custody::{SealedMlDsaRoleInputV1, SealedMlDsaRoleResultV1};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -117,6 +119,12 @@ fn operation_key(request: &Request) -> Result<String> {
         hex(&request.operation)
     ))
 }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PreparationAllocation {
+    Allocated { job: Job },
+    Waiting { retry_at_ms: u64 },
+}
+
 pub async fn prepare(
     store: &impl Store,
     scope: [u8; 32],
@@ -125,7 +133,7 @@ pub async fn prepare(
     signing_schedule: [u8; 32],
     signing_batches: usize,
     now: u64,
-) -> Result<Job> {
+) -> Result<PreparationAllocation> {
     if scope == [0; 32]
         || schedule == [0; 32]
         || signing_schedule == [0; 32]
@@ -135,19 +143,34 @@ pub async fn prepare(
     }
     let ids: Vec<[u8; 32]> = store.get("registration-stock").await?.unwrap_or_default();
     let mut retained = Vec::new();
+    let mut preparing_until = None;
+    let mut earliest_expiry = u64::MAX;
     for id in ids {
         match store.get::<Stock>(&job_key(&id)).await? {
             Some(Stock::Preparing { job, .. }) if now < job.prepare_until => {
-                return Err(invalid("Registration preprocessing is already running"));
+                preparing_until = Some(job.prepare_until);
+                retained.push(id);
             }
-            Some(Stock::Ready { job }) if now < job.expires_at => retained.push(id),
+            Some(Stock::Ready { job }) if now < job.expires_at => {
+                earliest_expiry = earliest_expiry.min(job.expires_at);
+                retained.push(id);
+            }
+            Some(Stock::Claimed { .. }) => {}
             _ => {
                 store.put(&job_key(&id), &Stock::Retired).await?;
             }
         }
     }
+    store.put("registration-stock", &retained).await?;
+    if let Some(deadline) = preparing_until {
+        return Ok(PreparationAllocation::Waiting {
+            retry_at_ms: deadline.min(now.saturating_add(1_000)),
+        });
+    }
     if retained.len() >= 4 {
-        return Err(invalid("Registration ready pool is full"));
+        return Ok(PreparationAllocation::Waiting {
+            retry_at_ms: earliest_expiry.max(now.saturating_add(1_000)),
+        });
     }
     let mut id = [0; 32];
     getrandom::getrandom(&mut id).map_err(|_| invalid("Registration randomness unavailable"))?;
@@ -159,7 +182,7 @@ pub async fn prepare(
         signing_schedule,
         signing_batches,
         prepare_until: now.saturating_add(300_000),
-        expires_at: now.saturating_add(900_000),
+        expires_at: now.saturating_add(PREPARATION_LIFETIME_MS),
     };
     store
         .put(
@@ -172,7 +195,7 @@ pub async fn prepare(
         .await?;
     retained.push(id);
     store.put("registration-stock", &retained).await?;
-    Ok(job)
+    Ok(PreparationAllocation::Allocated { job })
 }
 pub async fn ready(store: &impl Store, job: &Job, role: Participant, now: u64) -> Result<()> {
     let current = store.get::<Stock>(&job_key(&job.id)).await?;

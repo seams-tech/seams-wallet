@@ -9,12 +9,13 @@ import {
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
-import { IntendedBehaviourHarness } from './harness';
+import { IntendedBehaviourHarness, autoConfirmWalletIframeUntil } from './harness';
 import {
   runMlDsaBrowserLifecycle,
   runMlDsaDeviceOwnerParity,
   prepareMlDsaPool,
   signMlDsaTransaction,
+  openSigningKeys,
 } from './ml-dsa-lifecycle-scenario';
 import { mlDsaHostedTarget, forwardMlDsaHostedRequest } from '../../helpers/mlDsaHostedFixture';
 import { requireCanonicalString } from '@shared/utils/validation';
@@ -244,4 +245,67 @@ function registrationUnderTarget(wallet: { registrationMs: number }): boolean {
 }
 function signingUnderTarget(sample: SigningMeasurement): boolean {
   return sample.kind === 'signed' && sample.sdkElapsedMs < 5000;
+}
+
+
+test('Hosted Signing keys creates ML-DSA without fixture preparation', runColdSigningKeyCreation);
+
+async function runColdSigningKeyCreation(
+  { harness, page }: { harness: IntendedBehaviourHarness; page: Page },
+  testInfo: TestInfo,
+): Promise<void> {
+  testInfo.setTimeout(600_000);
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  const actor = await harness.runMlDsaCommand({ kind: 'context' });
+  if (!('nearAccountId' in actor)) throw new Error('The cold setup wallet has no NEAR identity');
+  await fundImplicitWallet(requireCanonicalString(actor.nearAccountId, 'NEAR account'));
+  await harness.useLiveNearTestnetRpc();
+  const before = await harness.runMlDsaCommand({ kind: 'default_signer' });
+  await openSigningKeys(page);
+  await page.getByRole('button', { name: 'Add signer', exact: true }).click();
+  const startedAtMs = Date.now();
+  const publishedResponse = page.waitForResponse(isMlDsaPublication, { timeout: 300_000 });
+  const confirming = autoConfirmWalletIframeUntil(page, publishedResponse, { timeoutMs: 300_000 });
+  await page.getByRole('button', { name: 'Create key', exact: true }).click();
+  const response = await confirming;
+  expect(response.status()).toBe(200);
+  const creationElapsedMs = Date.now() - startedAtMs;
+  const key = await readColdPublishedKey(harness);
+  expect(await harness.runMlDsaCommand({ kind: 'default_signer' })).toEqual(before);
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.unlockPasskeyWallet();
+  expect(await readColdPublishedKey(harness)).toEqual(key);
+  expect(await harness.runMlDsaCommand({ kind: 'default_signer' })).toEqual(before);
+  const evidence = {
+    observedAt: new Date().toISOString(),
+    scope: 'Normal Signing keys settings against Cloudflare. This case never calls the private preparation fixture. Backend stock may already exist; Worker traces determine whether preparation was cold.',
+    walletId: harness.walletId,
+    createClickedAtMs: startedAtMs,
+    publishedAtMs: startedAtMs + creationElapsedMs,
+    creationElapsedMs,
+    signer: key,
+    fixturePreparationCalled: false,
+    signerPersistsAfterReload: true,
+    defaultSignerUnchanged: true,
+  };
+  const text = JSON.stringify(evidence, null, 2) + '\n';
+  await writeFile(testInfo.outputPath('ml-dsa-cold-ui-creation.json'), text);
+  const directory = requireCanonicalString(process.env.SEAMS_INTENDED_TRACE_DIR, 'evidence directory');
+  await writeFile(path.join(directory, 'ml-dsa-cold-ui-creation.json'), text);
+  await testInfo.attach('ml-dsa-cold-ui-creation', { body: text, contentType: 'application/json' });
+}
+
+function isMlDsaPublication(response: import('@playwright/test').Response): boolean {
+  return response.request().method() === 'POST' &&
+    new URL(response.url()).pathname.endsWith('/signers/ml-dsa/publish');
+}
+
+async function readColdPublishedKey(harness: IntendedBehaviourHarness) {
+  const metadata = await harness.runMlDsaCommand({ kind: 'metadata' });
+  if (!('kind' in metadata) || metadata.kind !== 'inventory' || metadata.entries.length !== 1)
+    throw new Error('Cold UI creation did not publish exactly one signer');
+  const entry = metadata.entries[0];
+  if (entry.kind !== 'published') throw new Error('Cold UI creation remains unpublished');
+  return entry.key;
 }

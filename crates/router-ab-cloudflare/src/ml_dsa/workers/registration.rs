@@ -194,51 +194,112 @@ async fn prepare_request(
     let input: PrepareRequest = decode_bounded_json_request(&mut request, 4096)
         .await
         .map_err(protocol_error)?;
-    let job: core::Job = service_call(
-        env,
-        CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::PrepareRegistration {
-            wallet: input.wallet,
-            schedule: schedules::DIGEST,
-            signing_schedule: signing_schedule_digest(env).map_err(protocol_error)?,
-            // Registration needs admissible stock. The durable refill loop builds
-            // the remaining reserve after activation. The generic format requires two.
-            signing_batches: policy(env)
-                .map_err(protocol_error)?
-                .minimum_ready_batches()
-                .max(2),
-        },
-    )
-    .await
-    .map_err(protocol_error)?;
-    trace.bind_job(job.id);
-    let prepared: Result<bool> =
-        role_call(env, "DERIVER_A", &Command::Prepare { job: job.clone() }).await;
-    match prepared {
-        Ok(true) => Response::from_json(&serde_json::json!({"ready":true,"job":job})),
-        outcome => {
-            let failure = outcome
-                .err()
-                .unwrap_or_else(|| invalid("Registration preparation did not complete"));
-            let retirement: Result<core::PreparationRetirement> = service_call(
-                env,
-                CallAuthority::Gateway(request.headers()),
-                &AdmissionCommand::RetireRegistration { job: job.clone() },
-            )
-            .await;
-            worker::console_log!(
-                "{}",
-                serde_json::json!({
-                    "event": "ml_dsa_registration_retirement_v1", "job": hex(&job.id),
-                    "preparation_failed": true, "retirement": retirement.as_ref().ok(),
-                    "retirement_failed": retirement.is_err(),
-                })
-            );
-            retirement.map_err(protocol_error)?;
-            Err(protocol_error(failure))
+    let deadline = crate::cloudflare_now_unix_ms_v1()
+        .map_err(protocol_error)?
+        .saturating_add(300_000);
+    loop {
+        let status: core::queue::Status = service_call(
+            env,
+            CallAuthority::Gateway(request.headers()),
+            &AdmissionCommand::PrepareRegistration {
+                wallet: input.wallet.clone(),
+                schedule: schedules::DIGEST,
+                signing_schedule: signing_schedule_digest(env).map_err(protocol_error)?,
+                signing_batches: policy(env)
+                    .map_err(protocol_error)?
+                    .minimum_ready_batches()
+                    .max(2),
+            },
+        )
+        .await
+        .map_err(protocol_error)?;
+        match status {
+            core::queue::Status::Ready { job } => {
+                trace.bind_job(job.id);
+                return Response::from_json(&serde_json::json!({"ready":true,"job":job}));
+            }
+            core::queue::Status::Pending { retry_at_ms } => {
+                let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+                if now >= deadline {
+                    return Err(protocol_error(invalid(
+                        "Registration preparation deadline expired",
+                    )));
+                }
+                let delay = retry_at_ms
+                    .saturating_sub(now)
+                    .clamp(50, 1_000)
+                    .min(deadline - now);
+                worker::Delay::from(std::time::Duration::from_millis(delay)).await;
+            }
         }
     }
 }
+
+pub(super) async fn prepare_job(env: &Env, job: &core::Job) -> Result<bool> {
+    role_call(env, "DERIVER_A", &Command::Prepare { job: job.clone() }).await
+}
+
+pub(super) async fn run_preparation_queue(
+    env: &Env,
+    state: &State,
+    storage_gate: &futures::lock::Mutex<()>,
+) -> worker::Result<Response> {
+    let configured = policy(env).map_err(protocol_error)?;
+    let configuration = core::queue::Configuration::new(
+        schedules::DIGEST,
+        signing_schedule_digest(env).map_err(protocol_error)?,
+        configured.minimum_ready_batches().max(2),
+    )
+    .map_err(protocol_error)?;
+    let work = {
+        let _storage = storage_gate.lock().await;
+        schedule_refill_alarm(state, 5_000).await?;
+        let work = transaction(state, move |store| async move {
+            core::queue::next(&store, &configuration, crate::cloudflare_now_unix_ms_v1()?).await
+        })
+        .await
+        .map_err(protocol_error)?;
+        match &work {
+            core::queue::Work::Idle => state.storage().delete_alarm().await?,
+            core::queue::Work::Wait { retry_at_ms } => {
+                let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+                schedule_refill_alarm(state, retry_at_ms.saturating_sub(now).max(1)).await?;
+            }
+            core::queue::Work::Prepare { .. } => {}
+        }
+        work
+    };
+    if let core::queue::Work::Prepare { job } = work {
+        let expected = env
+            .durable_object(SERVICE_BINDING)?
+            .id_from_name(&job.service_group.admission_name())?
+            .to_string();
+        if expected != state.id().to_string() {
+            return Err(protocol_error(invalid(
+                "Registration preparation reached the wrong group",
+            )));
+        }
+        worker::console_log!(
+            "{}",
+            serde_json::json!({"event":"ml_dsa_generic_preparation_v1","job":hex(&job.id),"stage":"started"})
+        );
+        let outcome = before_deadline(job.prepare_until, prepare_job(env, &job)).await;
+        let completed_job = job.clone();
+        let _storage = storage_gate.lock().await;
+        transaction(state, move |store| async move {
+            core::queue::finish(&store, &completed_job, crate::cloudflare_now_unix_ms_v1()?).await
+        })
+        .await
+        .map_err(protocol_error)?;
+        schedule_refill_alarm(state, 50).await?;
+        worker::console_log!(
+            "{}",
+            serde_json::json!({"event":"ml_dsa_generic_preparation_v1","job":hex(&job.id),"stage":"settled","transport_succeeded":matches!(outcome,Ok(true))})
+        );
+    }
+    Response::from_json(&true)
+}
+
 pub(crate) async fn handle_register(
     request: worker::Request,
     env: &Env,
@@ -439,6 +500,20 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
             .map_err(protocol_error);
         }
         check(&self.env, &command).await.map_err(protocol_error)?;
+        let preparation_guard = if matches!(
+            &command,
+            Command::Prepare { .. } | Command::PreparePeer { .. }
+        ) {
+            let guard = before_deadline(command.job().prepare_until, async {
+                Ok(super::preparation::compute_slot().lock_owned().await)
+            })
+            .await
+            .map_err(protocol_error)?;
+            check(&self.env, &command).await.map_err(protocol_error)?;
+            Some(guard)
+        } else {
+            None
+        };
         if matches!(
             &command,
             Command::PreparePeer { .. } | Command::ExecutePeer { .. }
@@ -450,6 +525,7 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
             let state = Rc::clone(&self.state);
             let env = self.env.clone();
             self.state.wait_until(async move {
+                let _preparation = preparation_guard;
                 let result = engine::connected(&env, &state, &command, &pair.server, waits).await;
                 let _ = pair.server.close(
                     Some(if result.is_ok() { 1000 } else { 1011 }),
@@ -458,6 +534,7 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
             });
             return Response::from_websocket(pair.client);
         }
+        let _preparation = preparation_guard;
         let value = match &command {
             Command::Result { .. } => {
                 let value: Option<core::RoleResult> =
