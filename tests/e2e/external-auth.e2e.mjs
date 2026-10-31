@@ -13,6 +13,76 @@ import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
+class InterruptedOwnerWrites {
+  statements = new WeakMap();
+  failure = null;
+  cases = [];
+
+  constructor(database) {
+    this.database = database;
+  }
+
+  prepare(sql) {
+    const statement = this.database.prepare(sql);
+    return new TrackedStatement(statement, sql, this.statements);
+  }
+
+  async batch(statements) {
+    const consumption = statements.findIndex(this.isConsumption.bind(this));
+    const failure = consumption < 0 ? null : this.failure;
+    if (failure) this.failure = null;
+    const batch = statements.map(unwrapStatement);
+    if (failure === 'after_consumption' || failure === 'after_mutation') {
+      const position = failure === 'after_consumption' ? consumption + 1 : batch.length - 2;
+      batch.splice(
+        position,
+        0,
+        this.database.prepare(
+          'INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id) VALUES (1)',
+        ),
+      );
+    }
+    const results = await this.database.batch(batch);
+    if (failure === 'after_commit') {
+      throw new Error('Injected loss of committed D1 response');
+    }
+    return results;
+  }
+
+  isConsumption(statement) {
+    return (
+      this.statements
+        .get(statement)
+        ?.includes("UPDATE external_auth_attempts SET status = 'consumed'") === true
+    );
+  }
+}
+
+class TrackedStatement {
+  constructor(statement, sql, statements) {
+    this.statement = statement;
+    this.sql = sql;
+    this.statements = statements;
+    statements.set(this, sql);
+  }
+  bind(...values) {
+    return new TrackedStatement(this.statement.bind(...values), this.sql, this.statements);
+  }
+  run() {
+    return this.statement.run();
+  }
+  first(...args) {
+    return this.statement.first(...args);
+  }
+  all() {
+    return this.statement.all();
+  }
+}
+
+function unwrapStatement(statement) {
+  return statement instanceof TrackedStatement ? statement.statement : statement;
+}
+
 const output = resolve('.artifacts/external-auth');
 await mkdir(output, { recursive: true });
 const bundle = await build({
@@ -95,7 +165,10 @@ const browserBundle = await build({
       }, lockOwner, readOwnerUnavailable, window.location.origin);
     };
     async function lockOwner() {}
-    async function readOwnerUnavailable() { throw new Error('Use the seeded owner session for association'); }
+    async function readOwnerUnavailable(input) {
+      if (window.testOwnerApproval) return window.testOwnerApproval(input.challenge);
+      throw new Error('Use the seeded owner session for association');
+    }
   `,
   },
 });
@@ -106,6 +179,7 @@ const worker = new Miniflare({
   d1Databases: { DB: 'external-auth' },
 });
 const database = await worker.getD1Database('DB');
+const faultedDatabase = new InterruptedOwnerWrites(database);
 const scope = {
   namespace: 'external',
   orgId: 'external-org',
@@ -197,7 +271,7 @@ try {
   });
   serverState.service = {
     externalAuth: new api.ExternalAuthService(
-      new api.ExternalAuthStore(database, scope),
+      new api.ExternalAuthStore(faultedDatabase, scope),
       new api.D1WalletStore({ database, ...scope, ensureSchema: false }),
       new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false }),
     ),
@@ -220,6 +294,7 @@ try {
     true,
     `Association returned ${associated.status}:${associated.body.code}`,
   );
+  await verifyOwnerWriteRecovery(walletId, fixture);
   const before = await database
     .prepare('SELECT authority_digest_b64u FROM wallet_authorities')
     .all();
@@ -231,6 +306,8 @@ try {
   const direct = await page.evaluate(authenticateGoogle, { walletId, token });
   assert.equal(direct.ok, true);
   assert.equal(direct.value.permission, 'wallet_settings_read');
+  await verifyTemporarySettingsFailure(page, direct.value);
+  await verifyBrowserOwnerRetry(page, walletId, fixture, direct.value);
   const session = await page.evaluate(readSession);
   assert.equal(session.authentication.kind, 'external_authenticated');
   assert.equal(session.capabilityProjection.kind, 'not_requested');
@@ -415,6 +492,14 @@ try {
   const walletFrame = settingsPage.frames().find(isWalletFrame);
   assert.ok(walletFrame);
   const embeddedSession = await walletFrame.evaluate(readStoredSession);
+  await settingsPage.route('**/wallet/external-auth/settings', unavailableSettings);
+  await assert.rejects(settingsPage.evaluate(readSdkSession));
+  assert.deepEqual(await walletFrame.evaluate(readStoredSession), embeddedSession);
+  await settingsPage.unroute('**/wallet/external-auth/settings', unavailableSettings);
+  assert.equal(
+    (await settingsPage.evaluate(readSdkSession)).authentication.sessionId,
+    sdkResult.value.sessionId,
+  );
   assert.equal(
     (
       await request('settings', {
@@ -502,6 +587,9 @@ try {
       'lock and account switch defeat a delayed exchange response',
       'embedding-origin binding prevents cross-app restoration',
       'reassociation under current owner authority revokes earlier sessions',
+      ...faultedDatabase.cases,
+      'temporary_settings_failures_preserve_connection_and_block_owner_operations',
+      'packaged_iframe_restores_same_connection_after_service_failure',
     ],
     limitations: [
       'Uses a canonical registered-owner fixture and generated Google-shaped tokens with test-only JWKS interception.',
@@ -872,10 +960,13 @@ async function unlinkIdentity(walletId, associationId, owner) {
   }, owner);
 }
 
-async function completeIdentityAction(action, binding, owner) {
+async function signedIdentityAction(binding, owner) {
   const response = await request('owner-challenge', binding);
   assert.equal(response.body.ok, true);
-  const challenge = response.body.value;
+  return { ...binding, factorProof: signOwnerChallenge(owner, response.body.value) };
+}
+
+function signOwnerChallenge(owner, challenge) {
   const rpId = owner.authMethod.rpId;
   const credentialId = owner.authMethod.credentialIdB64u;
   const key = ownerKeys.get(credentialId);
@@ -885,7 +976,7 @@ async function completeIdentityAction(action, binding, owner) {
   const authenticatorData = Buffer.concat([createHash('sha256').update(rpId).digest(), Buffer.from([5]), counter]);
   const signed = Buffer.concat([authenticatorData, createHash('sha256').update(clientData).digest()]);
   const factorProof = {
-    kind: 'passkey', walletId: binding.walletId, rpId, credentialIdB64u: credentialId,
+    kind: 'passkey', walletId: challenge.walletId, rpId, credentialIdB64u: credentialId,
     challenge_digest: challenge.challengeB64u,
     webauthn_authentication: {
       id: credentialId, rawId: credentialId, type: 'public-key', authenticatorAttachment: 'platform',
@@ -893,9 +984,14 @@ async function completeIdentityAction(action, binding, owner) {
       clientExtensionResults: {},
     },
   };
-  const result = await request(action, { ...binding, factorProof });
+  return factorProof;
+}
+
+async function completeIdentityAction(action, binding, owner) {
+  const body = await signedIdentityAction(binding, owner);
+  const result = await request(action, body);
   assert.equal(result.body.ok, true, JSON.stringify(result));
-  const replay = await request(action, { ...binding, factorProof });
+  const replay = await request(action, body);
   assert.deepEqual(replay.body, result.body);
   const sessions = await database.prepare('SELECT COUNT(*) AS count FROM wallet_session_authorizations_v2').first();
   assert.equal(sessions.count, 0);
@@ -911,5 +1007,215 @@ function ownerOperationService(authorization, tenantId) {
     recordVerifiedWalletOperationFactorEvidenceSet: authorization.recordVerifiedWalletOperationFactorEvidenceSet.bind(authorization),
     admitAuthorizedOperation: authorization.admitAuthorizedOperation.bind(authorization),
     completeAuthorizedOperation: authorization.completeAuthorizedOperation.bind(authorization),
+    readWalletOperationEvidence: authorization.readWalletOperationEvidence.bind(authorization),
+    prepareAuthorizedOperationAdmission: authorization.prepareAuthorizedOperationAdmission.bind(authorization),
+    classifyAuthorizedOperationAdmissionFailure: authorization.classifyAuthorizedOperationAdmissionFailure.bind(authorization),
   };
+}
+
+async function verifyOwnerWriteRecovery(walletId, owner) {
+  for (const failure of ['after_consumption', 'after_mutation', 'after_commit']) {
+    const subject = `interrupted-${failure}`;
+    const binding = ownerAttemptSecrets(walletId);
+    const prepared = await request('prepare-association', binding);
+    assert.equal(prepared.body.ok, true);
+    const exchange = await request('exchange', {
+      walletId,
+      attemptId: prepared.body.value.attemptId,
+      idToken: googleToken({ sub: subject }),
+    });
+    assert.equal(exchange.body.ok, true);
+    const association = await signedIdentityAction(
+      {
+        ...binding,
+        attemptId: prepared.body.value.attemptId,
+        code: exchange.body.value.code,
+      },
+      owner,
+    );
+    await verifyInterruptedIdentityAction('associate', association, failure);
+    const stored = await database
+      .prepare(
+        'SELECT association_id, status FROM external_auth_associations WHERE wallet_id = ? AND provider_subject = ?',
+      )
+      .bind(walletId, JSON.stringify(['google', 'https://accounts.google.com', subject]))
+      .all();
+    assert.equal(stored.results.length, 1);
+    assert.equal(stored.results[0].status, 'active');
+
+    const unlinkBinding = ownerAttemptSecrets(walletId);
+    const unlink = await request('prepare-unlink', {
+      ...unlinkBinding,
+      associationId: stored.results[0].association_id,
+    });
+    assert.equal(unlink.body.ok, true);
+    const removal = await signedIdentityAction(
+      {
+        ...unlinkBinding,
+        attemptId: unlink.body.value.attemptId,
+        code: unlink.body.value.code,
+      },
+      owner,
+    );
+    await verifyInterruptedIdentityAction('unlink', removal, failure);
+    const removed = await database
+      .prepare('SELECT status FROM external_auth_associations WHERE association_id = ?')
+      .bind(stored.results[0].association_id)
+      .first();
+    assert.equal(removed.status, 'revoked');
+  }
+}
+
+async function verifyInterruptedIdentityAction(action, body, failure) {
+  const before = await database
+    .prepare(
+      'SELECT association_id, authority_id, authority_epoch, status FROM external_auth_associations ORDER BY association_id',
+    )
+    .all();
+  faultedDatabase.failure = failure;
+  const interrupted = await request(action, body);
+  assert.equal(
+    faultedDatabase.failure,
+    null,
+    'The injection must reach the production commit batch',
+  );
+  if (failure === 'after_commit') {
+    assert.equal(interrupted.body.ok, true, JSON.stringify(interrupted));
+  } else {
+    assert.equal(interrupted.status, 503, JSON.stringify(interrupted));
+    const attempt = await database
+      .prepare('SELECT status FROM external_auth_attempts WHERE attempt_id = ?')
+      .bind(body.attemptId)
+      .first();
+    assert.equal(attempt.status, 'verified');
+    const after = await database
+      .prepare(
+        'SELECT association_id, authority_id, authority_epoch, status FROM external_auth_associations ORDER BY association_id',
+      )
+      .all();
+    assert.deepEqual(after.results, before.results, 'Every association write must roll back');
+    const forged = structuredClone(body);
+    forged.factorProof.webauthn_authentication.response.signature =
+      Buffer.alloc(64).toString('base64url');
+    assert.equal(
+      (await request(action, forged)).status,
+      403,
+      'Recorded evidence cannot authorize a different proof',
+    );
+  }
+  const results = await Promise.all([request(action, body), request(action, body)]);
+  for (const result of results) assert.deepEqual(result.body, { ok: true, value: null });
+  const attempt = await database
+    .prepare('SELECT status FROM external_auth_attempts WHERE attempt_id = ?')
+    .bind(body.attemptId)
+    .first();
+  assert.equal(attempt.status, 'consumed');
+  const unfinished = await database
+    .prepare(
+      "SELECT COUNT(*) AS count FROM authorized_operations WHERE lifecycle_kind != 'completed'",
+    )
+    .first();
+  assert.equal(unfinished.count, 0);
+  faultedDatabase.cases.push(`${action}_${failure}`);
+}
+
+async function verifyTemporarySettingsFailure(page, authentication) {
+  const saved = await page.evaluate(readStoredSession);
+  await page.evaluate(captureOwnerCheck, authentication);
+  const settings = '**/wallet/external-auth/settings';
+  for (const handler of [
+    unavailableSettings,
+    rateLimitedSettings,
+    disconnectedSettings,
+    malformedSettings,
+  ]) {
+    await page.route(settings, handler);
+    await assert.rejects(page.evaluate(readSession));
+    assert.deepEqual(await page.evaluate(readStoredSession), saved);
+    assert.match(await page.evaluate(checkCapturedOwner), /changed or expired/);
+    await assert.rejects(page.evaluate(captureOwnerCheck, authentication));
+    await page.unroute(settings, handler);
+    assert.equal(
+      (await page.evaluate(readSession)).authentication.sessionId,
+      authentication.sessionId,
+    );
+    assert.match(await page.evaluate(checkCapturedOwner), /changed or expired/);
+  }
+  await page.route(settings, unavailableSettings);
+  await page.reload();
+  await page.evaluate(createBrowserWallet, serverState.origin);
+  await assert.rejects(page.evaluate(readSession));
+  assert.deepEqual(await page.evaluate(readStoredSession), saved);
+  await page.unroute(settings, unavailableSettings);
+  assert.equal(
+    (await page.evaluate(readSession)).authentication.sessionId,
+    authentication.sessionId,
+  );
+  const stored = await database
+    .prepare('SELECT status FROM external_auth_attempts WHERE attempt_id = ?')
+    .bind(authentication.sessionId)
+    .first();
+  assert.equal(stored.status, 'consumed', 'Temporary failures must not revoke the server session');
+}
+
+function unavailableSettings(route) {
+  return route.fulfill({ status: 503, contentType: 'text/html', body: 'Temporarily unavailable' });
+}
+
+function rateLimitedSettings(route) {
+  return route.fulfill({ status: 429, json: { ok: false, code: 'rate_limited' } });
+}
+
+function disconnectedSettings(route) {
+  return route.abort('failed');
+}
+
+function malformedSettings(route) {
+  return route.fulfill({ status: 200, json: { ok: true, value: {} } });
+}
+
+async function captureOwnerCheck(authentication) {
+  window.ownerCheck = await window.wallet.captureOwnerOperation(authentication);
+}
+
+function checkCapturedOwner() {
+  try {
+    window.ownerCheck();
+    return 'accepted';
+  } catch (error) {
+    return error.message;
+  }
+}
+
+async function verifyBrowserOwnerRetry(page, walletId, owner, authentication) {
+  await page.exposeFunction('testOwnerApproval', signOwnerChallenge.bind(null, owner));
+  const prepared = await page.evaluate(prepareBrowserAssociation, walletId);
+  assert.equal(prepared.ok, true);
+  const exchange = await request('exchange', {
+    walletId,
+    attemptId: prepared.value.attemptId,
+    idToken: googleToken({ sub: 'browser-retry-owner' }),
+  });
+  assert.equal(exchange.body.ok, true);
+  faultedDatabase.failure = 'after_mutation';
+  const result = await page.evaluate(associateBrowserHandoff, {
+    walletId,
+    attemptId: prepared.value.attemptId,
+    code: exchange.body.value.code,
+  });
+  assert.deepEqual(result, { ok: true, value: null });
+  assert.equal(faultedDatabase.failure, null);
+  assert.equal(
+    (await page.evaluate(readSession)).authentication.sessionId,
+    authentication.sessionId,
+  );
+  faultedDatabase.cases.push('browser_retries_same_owner_proof_after_rollback');
+}
+
+function prepareBrowserAssociation(walletId) {
+  return window.wallet.prepareAssociation(walletId);
+}
+
+function associateBrowserHandoff(input) {
+  return window.wallet.associate({ method: 'handoff', ...input });
 }

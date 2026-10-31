@@ -108,8 +108,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { ExternalAuthStore } from './packages/wallet-server/src/auth/externalAuthStore';
-      export { buildSessionSigningOperationInputFixture, buildStepUpSigningOperationFixture, buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
+        export { buildSessionSigningOperationInputFixture, buildStepUpSigningOperationFixture, buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { reserveWalletCustodyRegistration } from './packages/wallet-server/src/router/domains/passkeyCustody/walletCustodyRegistrationCommit';
       export { CloudflareD1WalletCustodyCommitStore } from './packages/wallet-server/src/router/cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
       export { registrationCommitCompletionWrite } from './packages/wallet-server/src/router/cloudflare/d1/registration/registrationCompletionWrite';
@@ -215,13 +214,17 @@ try {
     walletId: fixture.authority.walletId,
   });
   const issued = await issueDeviceSession(source, sourceService, fixture, issuedAtMs);
-  const settingsStore = new api.ExternalAuthStore(source, scope);
-  assert.equal(await settingsStore.associate({
-    walletId: fixture.authority.walletId,
-    identity: { provider: 'google', issuer: 'https://accounts.google.com', subject: 'external-transfer-subject' },
-    authorityId: fixture.authority.authorityId,
-    authorityEpoch: fixture.authority.revocationEpoch,
-  }), true);
+  await source.prepare(
+    `INSERT INTO external_auth_associations
+      (namespace, org_id, project_id, env_id, association_id, wallet_id,
+       provider_subject, authority_id, authority_epoch, status)
+     SELECT namespace, org_id, project_id, env_id, ?, wallet_id, ?, authority_id, revocation_epoch, 'active'
+       FROM wallet_authorities WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+         AND authority_id = ? AND lifecycle_state = 'active'`,
+  ).bind(
+    crypto.randomUUID(), JSON.stringify(['google', 'https://accounts.google.com', 'external-transfer-subject']),
+    scope.namespace, scope.orgId, scope.projectId, scope.envId, fixture.authority.authorityId,
+  ).run();
   assert.equal(issued.operationCredential.ownershipGeneration, 1);
   const relocationChallenges = await verifyRelocationChallenges(source, fixture, issued, issuedAtMs);
   const offlineFixture = await api.buildLinkedDeviceManagementAuthorityFixture({

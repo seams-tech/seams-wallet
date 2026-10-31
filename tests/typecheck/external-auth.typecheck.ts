@@ -66,3 +66,23 @@ const spreadProvider: ExternalAuthProvider = { ...googleProvider, issuer: 'https
 const assertedGoogle = applicationIdentity as Extract<ExternalIdentity, { provider: 'google' }>;
 
 void [mixedProvider, spreadProvider, assertedGoogle];
+
+import type { ExternalAuthStore } from '../../packages/wallet-server/src/auth/externalAuthStore';
+import type { PreparedAuthorizedOperationAdmission } from '../../packages/wallet-server/src/authorization/service';
+
+declare const commit: Parameters<ExternalAuthStore['commitOwnerOperation']>[0];
+declare const replay: Extract<PreparedAuthorizedOperationAdmission, { kind: 'replayed' }>;
+declare const rejection: Exclude<
+  PreparedAuthorizedOperationAdmission,
+  { kind: 'prepared' | 'replayed' | 'operation_in_progress' }
+>;
+
+// @ts-expect-error A stored replay cannot execute the association mutation again.
+const replayedCommit: typeof commit = { ...commit, admission: replay };
+// @ts-expect-error A rejected admission cannot become a prepared batch through a cast.
+const rejectedAdmission = rejection as typeof commit.admission;
+const replayFields = { operation: replay.operation };
+// Prepared admission contains SQL statements, never a replay result.
+// @ts-expect-error Direct construction must carry prepared statements.
+const missingStatements: typeof commit.admission = { kind: 'prepared', ...replayFields };
+void [replayedCommit, rejectedAdmission, missingStatements];

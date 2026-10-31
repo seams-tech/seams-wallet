@@ -1,3 +1,6 @@
+import { buildAuthorizedOperation, type AuthorizedOperationInput } from '../authorization/domain';
+import type { PreparedAuthorizedOperationAdmission } from '../authorization/service';
+import { prepareWalletOperationCompletion } from '../router/cloudflare/d1/authorization/walletOperationPersistence';
 import type {
   ExternalWalletAuthentication,
   ExternalAuthConfiguration,
@@ -13,9 +16,9 @@ import type { WalletId, WalletAuthorityId } from '@shared/utils/domainIds';
 import { requireCanonicalString } from '@shared/utils/validation';
 import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import { prepareD1TenantStatement, type D1TenantScope } from '../core/d1TenantStore';
-import { d1ChangedRows, type D1Row } from '../storage/d1Sql';
-import type { D1DatabaseLike, D1PreparedStatementLike, D1ResultLike } from '../storage/tenantRoute';
-import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
+import { d1ChangedRows, D1_BATCH_CAS_GUARD_SQL, type D1Row } from '../storage/d1Sql';
+import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 
 const SCOPE = 'namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4';
@@ -107,12 +110,12 @@ export class ExternalAuthStore {
     return d1ChangedRows(result) === 1;
   }
 
-  async associate(input: {
+  private prepareAssociation(input: {
     walletId: WalletId;
     identity: ExternalIdentity;
     authorityId: WalletAuthorityId;
     authorityEpoch: number;
-  }): Promise<boolean> {
+  }): readonly D1PreparedStatementLike[] {
     const subject = serializeExternalIdentity(input.identity);
     const revokePriorAuthority = this.prepare(
       `UPDATE external_auth_associations SET status = 'revoked'
@@ -132,39 +135,24 @@ export class ExternalAuthStore {
          AND authority_id = ?8 AND wallet_id = ?6 AND lifecycle_state = 'active'
          AND revocation_epoch = ?9)
        ON CONFLICT(namespace, org_id, project_id, env_id, wallet_id, provider_subject)
-         WHERE status = 'active' DO NOTHING`,
+         WHERE status = 'active' DO UPDATE SET status = 'active'`,
       [crypto.randomUUID(), input.walletId, subject, input.authorityId, input.authorityEpoch],
     );
-    const [revoked, inserted] = await this.database.batch<D1ResultLike>([
-      revokePriorAuthority,
-      createAssociation,
-    ]);
-    if (!revoked?.success || !inserted?.success) throw new Error('Association update failed');
-    if (d1ChangedRows(inserted) === 1) return true;
-    const existing = await this.prepare(
-      `SELECT association_id FROM external_auth_associations WHERE ${SCOPE}
-       AND wallet_id = ?5 AND provider_subject = ?6 AND authority_id = ?7
-       AND authority_epoch = ?8 AND status = 'active'
-       AND EXISTS (SELECT 1 FROM wallet_authorities WHERE ${SCOPE}
-         AND wallet_id = ?5 AND authority_id = ?7 AND lifecycle_state = 'active'
-         AND revocation_epoch = ?8)`,
-      [input.walletId, subject, input.authorityId, input.authorityEpoch],
-    ).first<D1Row>();
-    return existing !== null;
+    return [revokePriorAuthority, createAssociation];
   }
 
-  async revokeAssociation(input: {
+  private prepareAssociationRemoval(input: {
     walletId: WalletId;
     associationId: string;
     owner: ActiveWalletAuthorityV1;
-  }): Promise<void> {
-    await this.prepare(
+  }): D1PreparedStatementLike {
+    return this.prepare(
       `UPDATE external_auth_associations SET status = 'revoked'
        WHERE ${SCOPE} AND wallet_id = ?5 AND association_id = ?6
          AND EXISTS (SELECT 1 FROM wallet_authorities WHERE ${SCOPE}
            AND wallet_id = ?5 AND authority_id = ?7 AND revocation_epoch = ?8 AND lifecycle_state = 'active')`,
       [input.walletId, input.associationId, input.owner.authorityId, input.owner.revocationEpoch],
-    ).run();
+    );
   }
 
   async prepareUnlink(input: {
@@ -245,8 +233,11 @@ export class ExternalAuthStore {
     return this.readOwnerAttempt(input);
   }
 
-  async consumeOwnerAttempt(input: ExternalOwnerAttemptBinding, owner: ActiveWalletAuthorityV1): Promise<boolean> {
-    const result = await this.prepare(
+  private prepareOwnerConsumption(
+    input: ExternalOwnerAttemptBinding,
+    owner: ActiveWalletAuthorityV1,
+  ): D1PreparedStatementLike {
+    return this.prepare(
       `UPDATE external_auth_attempts SET status = 'consumed'
        WHERE ${SCOPE} AND wallet_id = ?5 AND attempt_id = ?6 AND origin = ?7
          AND binding_hash = ?8 AND session_token_hash = ?9 AND code_hash = ?10
@@ -255,12 +246,64 @@ export class ExternalAuthStore {
          AND EXISTS (SELECT 1 FROM wallet_authorities WHERE ${SCOPE}
            AND wallet_id = ?5 AND authority_id = ?13 AND revocation_epoch = ?14 AND lifecycle_state = 'active')`,
       [
-        input.walletId, input.attemptId, input.originBinding, input.bindingHash,
-        input.sessionTokenHash, input.codeHash, input.trustRevision, input.nowMs,
-        owner.authorityId, owner.revocationEpoch,
+        input.walletId,
+        input.attemptId,
+        input.originBinding,
+        input.bindingHash,
+        input.sessionTokenHash,
+        input.codeHash,
+        input.trustRevision,
+        input.nowMs,
+        owner.authorityId,
+        owner.revocationEpoch,
       ],
-    ).run();
-    return d1ChangedRows(result) === 1;
+    );
+  }
+
+  async commitOwnerOperation(input: {
+    readonly binding: ExternalOwnerAttemptBinding;
+    readonly attempt: ExternalOwnerAttempt;
+    readonly owner: ActiveWalletAuthorityV1;
+    readonly operation: AuthorizedOperationInput;
+    readonly admission: Variant<PreparedAuthorizedOperationAdmission, 'kind', 'prepared'>;
+  }): Promise<void> {
+    const operation = await buildAuthorizedOperation(input.operation);
+    const completion = await prepareWalletOperationCompletion(this.database, this.scope.namespace, {
+      operation,
+      result: 'succeeded',
+      response: {
+        status: 200,
+        contentType: 'application/json',
+        bodyText: JSON.stringify({ ok: true, value: null }),
+      },
+      completedAtMs: input.binding.nowMs,
+    });
+    const attempt = input.attempt;
+    const mutation =
+      attempt.purpose === 'associate'
+        ? this.prepareAssociation({
+            walletId: attempt.walletId,
+            identity: attempt.identity,
+            authorityId: input.owner.authorityId,
+            authorityEpoch: input.owner.revocationEpoch,
+          })
+        : [
+            this.prepareAssociationRemoval({
+              walletId: attempt.walletId,
+              associationId: attempt.associationId,
+              owner: input.owner,
+            }),
+          ];
+    await this.database.batch([
+      ...input.admission.statements,
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+      this.prepareOwnerConsumption(input.binding, input.owner),
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+      ...mutation,
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+      completion,
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ]);
   }
 
   async prepareAttempt(input: ExternalAuthPreparedAttempt): Promise<void> {

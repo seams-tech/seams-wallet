@@ -1,6 +1,6 @@
 import type { ExternalOwnerAttemptBinding } from '../../../../auth/externalAuthStore';
 import { externalOwnerChallenge, readExternalOwnerOperation } from '../../../../auth/externalOwnerOperations';
-import { authorizeWalletOwnerOperation, completeWalletOwnerOperation, walletOwnerOperationAuthorizationId } from '../walletOwnerOperationAuthorization';
+import { prepareWalletOwnerOperation, walletOwnerOperationAuthorizationId } from '../walletOwnerOperationAuthorization';
 import {
   EXTERNAL_AUTH_PATH,
   externalAuthFailure,
@@ -294,56 +294,119 @@ async function dispatch(
   }
   if (command.action === 'owner-challenge' || command.action === 'associate' || command.action === 'unlink') {
     const binding: ExternalOwnerAttemptBinding = {
-      walletId, attemptId: command.attemptId, originBinding,
+      walletId,
+      attemptId: command.attemptId,
+      originBinding,
       bindingHash: await sha256HexUtf8(command.binding),
       sessionTokenHash: await sha256HexUtf8(command.sessionToken),
-      codeHash: await sha256HexUtf8(command.code), trustRevision: trust.revision, nowMs: Date.now(),
+      codeHash: await sha256HexUtf8(command.code),
+      trustRevision: trust.revision,
+      nowMs: Date.now(),
     };
     const result = await readExternalOwnerOperation({
-      store: service.store, binding, requestOrigin: ctx.request.headers.get('origin') || '',
+      store: service.store,
+      binding,
+      requestOrigin: ctx.request.headers.get('origin') || '',
       phase: command.action === 'owner-challenge' ? 'prepare' : 'complete',
     });
     if (!result.ok) return json(result, { status: 403 });
     const ownerOperation = result.value;
-    if (command.action === 'owner-challenge') return json({ ok: true, value: externalOwnerChallenge(ownerOperation) });
+    if (command.action === 'owner-challenge')
+      return json({ ok: true, value: externalOwnerChallenge(ownerOperation) });
     if (command.action !== ownerOperation.attempt.purpose) return failure(403, 'access_denied');
     if (ownerOperation.attempt.status === 'consumed') {
       const stored = await ctx.service.authorizedOperations.readAuthorizedOperationById({
         tenantId: ctx.service.authorizedOperations.tenantId,
-        authorizedOperationId: walletOwnerOperationAuthorizationId(ownerOperation.operation, ownerOperation.challengeB64u),
+        authorizedOperationId: walletOwnerOperationAuthorizationId(
+          ownerOperation.operation,
+          ownerOperation.challengeB64u,
+        ),
       });
-      if (!stored || stored.authorization.kind !== 'verified_step_up' || stored.quota.kind !== 'quota_neutral' || stored.lifecycle !== 'completed') {
+      if (
+        !stored ||
+        stored.authorization.kind !== 'verified_step_up' ||
+        stored.quota.kind !== 'quota_neutral' ||
+        stored.lifecycle !== 'completed'
+      ) {
         return failure(503, 'unavailable');
       }
       return new Response(stored.response.bodyText, {
-        status: stored.response.status, headers: { 'Content-Type': stored.response.contentType, 'Cache-Control': 'no-store' },
+        status: stored.response.status,
+        headers: { 'Content-Type': stored.response.contentType, 'Cache-Control': 'no-store' },
       });
     }
-    const authorized = await authorizeWalletOwnerOperation({
-      ctx, walletId, operation: ownerOperation.operation,
-      payload: ownerOperation.payload, factorProof: command.factorProof,
+    const authorized = await prepareWalletOwnerOperation({
+      ctx,
+      walletId,
+      operation: ownerOperation.operation,
+      payload: ownerOperation.payload,
+      factorProof: command.factorProof,
     });
     if (!authorized.ok) return authorized.response;
-    const consumed = await service.store.consumeOwnerAttempt({
-      walletId, attemptId: binding.attemptId, originBinding,
-      bindingHash: binding.bindingHash, sessionTokenHash: binding.sessionTokenHash,
-      codeHash: binding.codeHash, trustRevision: binding.trustRevision, nowMs: Date.now(),
-    }, authorized.ownerAuthority);
-    if (!consumed) return completeWalletOwnerOperation(ctx, authorized.operation, 403,
-      externalAuthFailure('access_denied'), 'failed_before_side_effect');
-    const attempt = ownerOperation.attempt;
-    if (attempt.purpose === 'associate') {
-      const associated = await service.store.associate({
-        walletId, identity: attempt.identity,
-        authorityId: authorized.ownerAuthority.authorityId,
-        authorityEpoch: authorized.ownerAuthority.revocationEpoch,
-      });
-      if (!associated) return completeWalletOwnerOperation(ctx, authorized.operation, 403,
-        externalAuthFailure('access_denied'), 'failed_before_side_effect');
-    } else {
-      await service.store.revokeAssociation({ walletId, associationId: attempt.associationId, owner: authorized.ownerAuthority });
+    const admission = await ctx.service.authorizedOperations.prepareAuthorizedOperationAdmission({
+      operation: authorized.operation,
+    });
+    switch (admission.kind) {
+      case 'prepared':
+        break;
+      case 'replayed':
+        if (admission.operation.lifecycle !== 'completed') return failure(503, 'unavailable');
+        return new Response(admission.operation.response.bodyText, {
+          status: admission.operation.response.status,
+          headers: {
+            'Content-Type': admission.operation.response.contentType,
+            'Cache-Control': 'no-store',
+          },
+        });
+      case 'operation_in_progress':
+        return failure(503, 'unavailable');
+      case 'authorization_grant_rejected':
+      case 'verified_step_up_rejected':
+      case 'wallet_session_quota_exhausted':
+      case 'material_mismatch':
+        return failure(403, 'access_denied');
+      default:
+        return assertNever(admission);
     }
-    return completeWalletOwnerOperation(ctx, authorized.operation, 200, { ok: true, value: null });
+    try {
+      await service.store.commitOwnerOperation({
+        binding: {
+          walletId: binding.walletId,
+          attemptId: binding.attemptId,
+          originBinding: binding.originBinding,
+          bindingHash: binding.bindingHash,
+          sessionTokenHash: binding.sessionTokenHash,
+          codeHash: binding.codeHash,
+          trustRevision: binding.trustRevision,
+          nowMs: Date.now(),
+        },
+        attempt: ownerOperation.attempt,
+        owner: authorized.ownerAuthority,
+        operation: authorized.operation,
+        admission,
+      });
+    } catch (error) {
+      // A concurrent commit or a lost D1 response can already have stored the result.
+      const stored = await ctx.service.authorizedOperations.readAuthorizedOperationById({
+        tenantId: authorized.operation.tenantId,
+        authorizedOperationId: authorized.operation.authorizedOperationId,
+      });
+      if (
+        stored?.lifecycle === 'completed' &&
+        stored.authorization.kind === 'verified_step_up' &&
+        stored.quota.kind === 'quota_neutral'
+      ) {
+        return new Response(stored.response.bodyText, {
+          status: stored.response.status,
+          headers: { 'Content-Type': stored.response.contentType, 'Cache-Control': 'no-store' },
+        });
+      }
+      if (ctx.service.authorizedOperations.classifyAuthorizedOperationAdmissionFailure(error)) {
+        return failure(403, 'access_denied');
+      }
+      throw error;
+    }
+    return json({ ok: true, value: null }, { headers: { 'Cache-Control': 'no-store' } });
   }
   if (trust.kind === 'disabled') return failure(403, 'access_denied');
   if (command.action === 'prepare' || command.action === 'prepare-association') {

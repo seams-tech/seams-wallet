@@ -1,4 +1,8 @@
 import {
+  readWalletOperationEvidence,
+  prepareWalletOperationCompletion,
+} from './walletOperationPersistence';
+import {
   D1EcdsaAdmissionPolicyRead,
   D1Ed25519AdmissionPolicyRead,
   ECDSA_CREDENTIAL_POLICY_PROJECTION,
@@ -1090,6 +1094,12 @@ export class CloudflareD1AuthorizationStore
       walletOrigin,
       expiresAtMs: integerColumn(row.expires_at_ms, 'hosted credential expiry'),
     };
+  }
+
+  readWalletOperationEvidence(
+    input: import('../../../../authorization/service').WalletOperationEvidenceLookup,
+  ) {
+    return readWalletOperationEvidence(this.database, this.walletSignerScope, input);
   }
 
   async putVerifiedEvidenceSet(evidenceSet: VerifiedAuthorizationEvidenceSet): Promise<void> {
@@ -2880,32 +2890,8 @@ export class CloudflareD1AuthorizationStore
     readonly completedAtMs: number;
   }): Promise<AuthorizedOperation> {
     const operation = input.operation;
-    const response = parseAuthorizedOperationReplayResponse(input.response);
-    const resultDigest = await computeAuthorizedOperationResultDigest(response);
-    const completed = await this.database
-      .prepare(
-        `UPDATE authorized_operations
-            SET lifecycle_kind = 'completed', result_kind = ?, result_digest = ?,
-                result_status = ?, result_content_type = ?, result_body_text = ?,
-                completed_at_ms = ?
-          WHERE namespace = ? AND tenant_id = ?
-            AND authorized_operation_id = ? AND operation_fingerprint_digest = ?
-            AND lifecycle_kind = 'claimed'
-          RETURNING *`,
-      )
-      .bind(
-        input.result,
-        resultDigest,
-        response.status,
-        response.contentType,
-        response.bodyText,
-        requirePositiveInteger(input.completedAtMs, 'operation.completedAtMs'),
-        this.namespace,
-        operation.tenantId,
-        operation.authorizedOperationId,
-        operation.operationFingerprintDigest,
-      )
-      .first<D1Row>();
+    const statement = await prepareWalletOperationCompletion(this.database, this.namespace, input);
+    const completed = await statement.first<D1Row>();
     if (completed) return await parseAuthorizedOperationRow(completed);
     const existing = await this.readAuthorizedOperation({
       tenantId: operation.tenantId,
@@ -3024,8 +3010,10 @@ function classifyAuthorizedOperationAdmissionError(
   | { readonly kind: 'authorization_grant_rejected' }
   | { readonly kind: 'verified_step_up_rejected' }
   | { readonly kind: 'wallet_session_quota_exhausted' }
+  | { readonly kind: 'billing_credit_exhausted' }
   | null {
   const message = error instanceof Error ? error.message : String(error);
+  if (message.includes('billing_credit_exhausted')) return { kind: 'billing_credit_exhausted' };
   if (message.includes('authorization_wallet_session_quota_rejected')) {
     return { kind: 'wallet_session_quota_exhausted' };
   }

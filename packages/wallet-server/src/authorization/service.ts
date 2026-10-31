@@ -60,6 +60,7 @@ import {
   parseHostedWalletSessionExchangeCodeId,
   parseWalletSessionAuthorizationId,
   type AuthorizedOperationId,
+  type AuthorizationEvidenceSetId,
   type PrincipalId,
   type WalletSessionMintId,
   type TenantId,
@@ -117,6 +118,9 @@ export interface AuthorizationSessionPort {
 }
 
 export interface AuthorizationEvidencePort {
+  readWalletOperationEvidence(
+    input: WalletOperationEvidenceLookup,
+  ): Promise<StoredWalletOperationEvidence | null>;
   putVerifiedEvidenceSet(evidenceSet: VerifiedAuthorizationEvidenceSet): Promise<void>;
   consumeVerifiedOwnerProof(
     proof: VerifiedOwnerProof,
@@ -124,6 +128,17 @@ export interface AuthorizationEvidencePort {
     consumptionScopeId: string,
   ): Promise<boolean>;
 }
+
+export type WalletOperationEvidenceLookup = Readonly<{
+  tenantId: TenantId;
+  evidenceSetId: AuthorizationEvidenceSetId;
+}>;
+
+export type StoredWalletOperationEvidence = Readonly<{
+  evidenceSetDigest: DigestB64u;
+  verifiedAtMs: number;
+  expiresAtMs: number;
+}>;
 
 export interface AuthorizationGrantPort {
   readWalletSessionIssuanceGeneration(walletId: WalletId): Promise<number>;
@@ -235,6 +250,7 @@ export type AuthorizedOperationAdmissionRejection = {
   readonly kind:
     | 'authorization_grant_rejected'
     | 'verified_step_up_rejected'
+    | 'billing_credit_exhausted'
     | 'wallet_session_quota_exhausted'
     | 'material_mismatch';
 };
@@ -435,6 +451,12 @@ export class AuthorizationService {
     const evidenceSet = await buildVerifiedWalletOperationFactorEvidenceSet(input);
     await this.ports.evidence.putVerifiedEvidenceSet(evidenceSet);
     return evidenceSet;
+  }
+
+  async readWalletOperationEvidence(
+    input: WalletOperationEvidenceLookup,
+  ): Promise<StoredWalletOperationEvidence | null> {
+    return this.ports.evidence.readWalletOperationEvidence(input);
   }
 
   async buildVerifiedOwnerProof(input: VerifiedOwnerProofInput): Promise<VerifiedOwnerProof> {

@@ -1662,6 +1662,9 @@ export interface RouterApiAuthorizedOperationService {
   recordVerifiedWalletOperationFactorEvidenceSet(
     input: VerifiedWalletOperationFactorEvidenceSetInput,
   ): Promise<VerifiedAuthorizationEvidenceSet>;
+  readWalletOperationEvidence(
+    input: import('../../authorization/service').WalletOperationEvidenceLookup,
+  ): Promise<import('../../authorization/service').StoredWalletOperationEvidence | null>;
   readAuthorizedOperationById(input: {
     readonly tenantId: TenantId;
     readonly authorizedOperationId: import('@shared/authorization/capabilityKinds').AuthorizedOperationId;

@@ -30,6 +30,7 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - Settings expose public addresses, active authentication-method summaries, and active device summaries.
 - Owner operations retain their authorization requirements. A settings credential fails owner-session admission.
 - Reload restores only a server-valid session for the same application environment and embedding origin.
+- Temporary service failures preserve the external connection binding. Reads and owner operations require a successful server check before resuming. Expiry and rejected credentials clear the connection.
 - Logout, explicit lock, and account switching supersede pending exchanges. A late response cannot reinstall an earlier session.
 - Sessions expire within one hour and no later than their Google credential or attested application session. Trust revision changes, association removal, and authority revocation deny subsequent reads.
 - Relocation preserves durable identity associations through the authorization snapshot. External sessions and handoffs are re-established at the new home.
@@ -38,6 +39,8 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 ## Application-connected owner operations
 
 - Association and unlink require a fresh, expiring wallet-owner proof bound to the exact identity change. A reusable Wallet Session is unnecessary.
+- Association and unlink commit authorization admission, attempt consumption, the identity change, and the replay response in one transaction. An interrupted transaction preserves the prior association and permits the same approved request to retry within its original deadline.
+- A retry can reuse recorded evidence only for the same proof and operation while its owner authority remains current. A lost commit response returns the stored result without repeating the identity change.
 - A NEAR-only passkey wallet can complete `registerOwnerWallet` without issuing a Wallet Session, quota, credential, or export capability.
 - The registration intent binds its completion policy. The local profile, locked owner selection, and sealed signing material publish together.
 - An external read connection can prepare a NEAR transaction after cold start or reload when its enrolled passkey and encrypted material remain available.

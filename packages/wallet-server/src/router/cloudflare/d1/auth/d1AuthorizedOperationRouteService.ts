@@ -49,6 +49,9 @@ export function createD1AuthorizedOperationRouteService(
       assembly.authorizationService.recordVerifiedWalletOperationFactorEvidenceSet.bind(
         assembly.authorizationService,
       ),
+    readWalletOperationEvidence: assembly.authorizationService.readWalletOperationEvidence.bind(
+      assembly.authorizationService,
+    ),
     readAuthorizedOperationById: assembly.authorizationService.readAuthorizedOperationById.bind(
       assembly.authorizationService,
     ),
