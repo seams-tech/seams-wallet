@@ -7,8 +7,8 @@ use ml_dsa_threshold::{
         TrustedMlDsaSchedule,
     },
     signing::{
-        prepared_signing::gmw::{ConsumedGmwPreparation, GmwBatchResult},
-        OwnSigningShare, SigningRole,
+        prepared_signing::gmw::{CommittedGmwReservation, GmwBatchResult},
+        OwnSigningShare, SigningError, SigningRole,
     },
 };
 use zeroize::Zeroizing;
@@ -167,7 +167,7 @@ pub async fn run<T: Transport + BooleanTransport>(
             return Err(invalid("ML-DSA consumed material binding changed"));
         }
         let bytes = sealing::open(sealed, &stored, &secrets.wrapping_seed)?;
-        let reservation = ConsumedGmwPreparation::from_consumed_storage(
+        let reservation = CommittedGmwReservation::from_consumed_storage(
             role,
             *batch,
             candidates,
@@ -175,12 +175,7 @@ pub async fn run<T: Transport + BooleanTransport>(
             &mut topologies,
             bytes,
         )
-        .map_err(protocol_failure)?;
-        let ConsumedGmwPreparation::Committed(reservation) = reservation else {
-            return Err(invalid(
-                "ML-DSA signing requires prepared key-bound commitments",
-            ));
-        };
+        .map_err(restoration_failure)?;
         host.retain_public_topologies(&topologies);
         let (topology_builds, topology_hits) = topologies.cache_statistics();
         host.note_stage(ExecutionStage::Restored {
@@ -278,4 +273,13 @@ async fn agree(
 }
 fn protocol_failure(_: impl core::fmt::Display) -> RouterAbProtocolError {
     invalid("ML-DSA role protocol failed")
+}
+
+fn restoration_failure(error: SigningError) -> RouterAbProtocolError {
+    match error {
+        SigningError::PreparationState => {
+            invalid("ML-DSA signing requires prepared key-bound commitments")
+        }
+        _ => protocol_failure(error),
+    }
 }

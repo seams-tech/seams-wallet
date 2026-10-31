@@ -3,7 +3,7 @@
 use crate::{InvestigationResult, digest, private_execution, private_signing, require};
 use ml_dsa_threshold::{
     runtime::MessageKind,
-    signing::{SigningKernel, SigningRole},
+    signing::{SigningRole, reference::SigningKernel},
 };
 use private_signing::{Operation, Randomness};
 use serde_json::{Value, json};

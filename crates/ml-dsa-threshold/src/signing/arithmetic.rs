@@ -1,4 +1,4 @@
-//! Fixed-size public expansion and linear arithmetic for the investigation.
+//! Fixed-size public expansion and linear arithmetic for ML-DSA-65.
 //!
 //! NTT loops use public indices. Reduced-residue arithmetic uses fixed
 //! division-free operations. Target constant-time qualification remains open.

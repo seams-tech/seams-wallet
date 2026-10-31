@@ -6,7 +6,7 @@ use crate::{
 use ml_dsa_threshold::{
     runtime::{
         RuntimeError, TrustedMlDsaSchedule,
-        boolean_mpc::{self, Engine, Phase, Transport},
+        boolean_mpc::{self, Phase, Transport, comparison::Engine},
     },
     signing::SigningRole,
 };
@@ -314,7 +314,7 @@ fn run_role(
     };
     let schedule = TrustedMlDsaSchedule::parse(&artifact, digest_bytes)?;
     let mut transport = PipeTransport::new(io::stdin().lock(), io::stdout().lock());
-    let output = run_ready(boolean_mpc::run(
+    let output = run_ready(boolean_mpc::comparison::run(
         engine,
         role,
         &schedule,
@@ -351,9 +351,9 @@ fn run_role(
                 * 2
                 * (2 * 4144
                     + 48
-                    + 16 * boolean_mpc::CORRELATION_BATCH_BITS
+                    + 16 * boolean_mpc::comparison::CORRELATION_BATCH_BITS
                     + 48
-                    + boolean_mpc::CORRELATION_BATCH_BITS * 2),
+                    + boolean_mpc::comparison::CORRELATION_BATCH_BITS * 2),
         "Complete fresh-base OT traffic differs from the fixed batch formula.",
     )?;
     let mut phases = serde_json::Map::new();
