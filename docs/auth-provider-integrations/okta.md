@@ -1,8 +1,6 @@
 # Okta
 
-Use Okta for application login. Store the user's wallet locator in your
-application, then let the wallet SDK complete passkey or Email OTP owner
-authentication. Okta assertions do not cross the wallet authorization
-boundary.
-
-See [Application Auth Provider Integrations](./README.md).
+Use Okta for application login.
+Follow [Application sessions and owner approval](../../apps/docs/src/guides/application-auth.md)
+to connect the verified backend session through a trusted application-issuer handoff.
+See the [integration index](README.md) for other supported paths.

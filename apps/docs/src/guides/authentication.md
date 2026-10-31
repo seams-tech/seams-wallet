@@ -11,6 +11,9 @@ authentication method and handle each resulting state.
 
 ## Choose a flow
 
+- **Application sessions** — follow [Application sessions and owner approval](/guides/application-auth)
+  for trusted backend handoffs and fresh owner approval for each NEAR operation.
+
 - **Reuse Google login for settings** — a configured Google identity and an owner-authorized wallet association can open settings without another login.
   Call `seams.auth.authenticate({ method: 'google', walletId, idToken })` after the app's login.
   This grants settings reads. Signing and security changes still require wallet owner authentication.
@@ -22,16 +25,15 @@ authentication method and handle each resulting state.
 - **Google plus email OTP** — account discovery with a recoverable second
   factor. The application supplies the Google token. The wallet flow manages OTP
   and recovery state.
-- **VoiceID** — optional browser enrollment, unlock, and reviewed transfer approval in SDK 0.28.0.
-  Install `@seams/voiceid`, enable its descriptor, and prepare the Wallet host.
-  See [VoiceID setup](/concepts/auth-methods/voiceid) for code examples and enrollment steps.
+- **VoiceID** — follow [VoiceID setup](/concepts/auth-methods/voiceid)
+  for optional browser enrollment, unlock, and reviewed transfer approval.
 
 ## Keep auth state explicit
 
 - Preserve the same wallet identity when someone registers, unlocks, or adds
   a factor.
-- Create an exact wallet session before signing. Authentication alone does not
-  authorize an operation.
+- Follow the selected signing API's authorization flow.
+  Each operation needs its required owner proof and signing permissions.
 - Render cancellation, expiry, retryable delivery failure, and policy denial as
   separate outcomes.
 - Keep passkeys, session tokens, and factor material out of application or agent

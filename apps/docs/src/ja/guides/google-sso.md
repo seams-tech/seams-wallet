@@ -1,33 +1,27 @@
 ---
 title: Google認証を持ち込む
-description: SDK 0.35.0で、アプリのGoogle SSOログインを関連付けたウォレットの設定表示に再利用します。
+description: アプリのGoogle SSOログインを関連付けたウォレットの設定表示に再利用します。
 ---
 
 # Google認証を持ち込む {#bring-your-own-google-authentication}
 
 アプリのGoogle IDトークンを使うと、関連付けたウォレットの設定を、再ログインなしで開けます。
 署名と鍵管理には、引き続き所有者の認証が必要です。
-SDK **0.35.0**では、Googleが最初のBYO認証プロバイダーです。
+SDKは、Googleの直接信頼と[アプリセッションの引き継ぎ](/ja/guides/application-auth)に対応しています。
 設定したOAuthクライアント向けの**IDトークン**を渡してください。
 このAPIは、Googleアクセストークンや任意のWebAuthnアサーションには対応していません。
 
 ## 信頼するクライアントを設定 {#configure-trust}
 
-Consoleの管理者セッションで、`PUT /console/environments/:environmentId/external-auth`を呼び出します。
-
-```json [部分的な実装例]
-{
-  "kind": "google",
-  "clientId": "YOUR_CLIENT_ID.apps.googleusercontent.com"
-}
-```
+ウォレットの運用者に、OAuthクライアントIDを使ったGoogleの直接信頼設定を依頼してください。
 
 設定のリビジョンはサーバーが管理します。呼び出し側では指定できません。
 環境の公開キーでは、アプリとホストするウォレットの両方のオリジンを許可してください。
 SDKの設定には、その環境IDと公開キーが必要です。
 
-`{ "kind": "disabled" }`を送ると、交換処理を無効にし、既存のセッションを拒否します。
+プロバイダーの信頼を無効にすると、交換処理を停止し、既存の外部セッションを拒否します。
 設定を変更するとリビジョンが増加し、それ以前の外部認証セッションが無効になります。
+Consoleの管理手順は、運用者向けの非公開ドキュメントで管理します。
 自社運用の環境では、既存の静的デプロイ設定の`externalAuth`で同じ設定を指定します。
 信頼設定を変更するたびに、静的設定のリビジョンも増加させてください。
 
@@ -141,7 +135,7 @@ await seams.auth.removeExternalAuth({ walletId, associationId });
 
 ## 検証 {#verification}
 
-対象は、SDK **0.35.0**とウォレットiframeプロトコル**21.0.0**です。
+パッケージの対応バージョンとウォレットiframeプロトコルは、[リリースノート](/ja/releases)を参照してください。
 リポジトリのルートで、`pnpm -C packages/wallet build:sdk`の後に`node tests/e2e/external-auth.e2e.mjs`を実行します。
 構造化された結果と設定画面の画像を、`.artifacts/external-auth/`に保存します。
 E2Eは生成したテストトークンと、テスト専用のGoogle公開鍵の差し替えを使います。

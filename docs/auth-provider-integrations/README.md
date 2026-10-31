@@ -1,13 +1,14 @@
 # Application Auth Provider Integrations
 
-Applications can reuse a configured provider's login to open wallet settings.
-Google ID tokens are the first supported external credentials.
-The server verifies the token and an explicit, owner-authorized wallet association.
-The resulting session grants settings reads and has no signing permission or custody material.
+Use the maintained public integration guides:
 
-Use the [Google integration](./google-oidc.md) for browser tokens and backend handoffs.
-Other providers, app-issued tokens, and arbitrary WebAuthn responses do not yet have external-session adapters.
-Those integrations continue to use wallet passkey or Email OTP authentication for wallet access.
+- [Application sessions and owner approval](../../apps/docs/src/guides/application-auth.md)
+  covers trusted application-issuer handoffs and approval for each NEAR operation.
+- [Google authentication](../../apps/docs/src/guides/google-sso.md)
+  covers direct Google credentials and backend handoffs.
+- [Authentication](../../apps/docs/src/guides/authentication.md)
+  covers Wallet authentication methods and their authorization requirements.
 
-Signing, key export, recovery, and security changes retain their wallet authorization requirements.
-An app session cookie or an API secret alone cannot establish a user's wallet association.
+Applications using Better Auth, Auth0, Okta, or another login provider can use the application-backend handoff guide.
+Console administration procedures remain in private operator documentation.
+Use the [release notes](../../apps/docs/src/releases.md) for package history.

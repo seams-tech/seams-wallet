@@ -5,26 +5,19 @@ description: Connect an application account and approve each NEAR operation with
 
 # Application sessions and owner approval
 
-SDK **0.35.0** accepts a handoff from an explicitly trusted application backend.
+The SDK accepts a handoff from an explicitly trusted application backend.
 Google and application-passkey login can use the same stable application user ID.
 The wallet connection grants settings access. Each transaction requires fresh wallet owner proof.
 
 ## Configure the application issuer
 
-Set `PUT /console/environments/:environmentId/external-auth` through an authenticated Console administration session:
-
-```json [Partial example]
-{
-  "kind": "application",
-  "issuer": "https://app.example.com",
-  "publicKeyB64u": "YOUR_ED25519_PUBLIC_KEY_BASE64URL"
-}
-```
-
-The issuer must be a canonical HTTPS origin. The public key contains 32 Ed25519 bytes in canonical base64url.
+Ask the Wallet operator to configure trust for your application issuer and Ed25519 public key.
+The issuer must be a canonical HTTPS origin.
+The public key contains 32 Ed25519 bytes in canonical base64url.
 Keep the private key on the application backend.
 The environment must allow the application origin and the hosted wallet origin.
 Trust changes increment the environment revision and revoke earlier external sessions.
+Console administration procedures remain in the operator's private documentation.
 
 An application identity consists of the provider, issuer, and stable subject.
 Email matching never establishes wallet ownership.
@@ -116,3 +109,5 @@ See [`examples/seams-auth-menu/application-auth.html`](https://github.com/seams-
 Its browser component covers onboarding, association, connection, approval, cancellation, and recovery.
 Its backend handler accepts the application's verified session reader.
 The SDK does not require GetSignal's source or retained Google tokens.
+
+Use the [release notes](/releases) to select matching package versions.

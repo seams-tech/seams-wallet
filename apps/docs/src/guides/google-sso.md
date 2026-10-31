@@ -1,33 +1,25 @@
 ---
 title: Bring your own Google authentication
-description: Reuse an application's Google SSO login for associated wallet settings in SDK 0.35.0.
+description: Reuse an application's Google SSO login for associated wallet settings.
 ---
 
 # Bring your own Google authentication
 
 Use the application's existing Google ID token to open an associated wallet without another login prompt.
 This flow grants settings access. Signing and custody operations retain their existing authentication requirements.
-SDK **0.35.0** supports direct Google trust and [application-session handoff](/guides/application-auth).
+The SDK supports direct Google trust and [application-session handoff](/guides/application-auth).
 Pass the Google **ID token** issued for the configured OAuth client. Google access tokens and arbitrary WebAuthn assertions are not supported by this API.
 
 ## Configure trust
 
-Through the authenticated Console environment update API, set:
-
-```json [Partial example]
-{
-  "kind": "google",
-  "clientId": "YOUR_CLIENT_ID.apps.googleusercontent.com"
-}
-```
-
-Use `PUT /console/environments/:environmentId/external-auth` with the existing Console administration session.
+Ask the Wallet operator to configure direct Google trust with your OAuth client ID.
 The environment owns its configuration revision. Callers cannot choose that revision.
 The environment's publishable key must allow the application origin and the hosted wallet origin.
 The SDK configuration must include the environment ID and its publishable key.
 
-Send `{ "kind": "disabled" }` to disable exchanges and deny existing sessions.
+Disabling provider trust blocks exchanges and denies existing external sessions.
 Changing the configuration increments its revision and invalidates earlier external sessions.
+Console administration procedures remain in the operator's private documentation.
 Self-hosted deployments provide the same `externalAuth` configuration through their existing static deployment configuration.
 Increase the static configuration revision whenever trust changes.
 
@@ -136,7 +128,7 @@ Wallet relocation preserves associations. External sessions and pending handoffs
 
 ## Verification
 
-SDK **0.35.0** uses wallet iframe protocol **21.0.0**.
+Use the [release notes](/releases) for matching package versions and the Wallet iframe protocol.
 
 Run `pnpm -C packages/wallet build:sdk`, then `node tests/e2e/external-auth.e2e.mjs` from the repository root.
 The scenario writes `.artifacts/external-auth/result.json` and a settings screenshot.
