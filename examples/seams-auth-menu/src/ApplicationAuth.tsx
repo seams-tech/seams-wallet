@@ -11,6 +11,10 @@ import { useOwnerNearOperation, useSeams } from '@seams/wallet/react';
 import React from 'react';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
+type SavedOwnerTransaction = { readonly recovery: OwnerNearRecovery } & (
+  | { readonly kind: 'unknown'; readonly transactionId?: never }
+  | { readonly kind: 'known'; readonly transactionId: string }
+);
 type Connection =
   | { kind: 'disconnected' }
   | { kind: 'working'; message: string }
@@ -138,14 +142,13 @@ class ApplicationWallet extends React.Component<
       !session.appIdentity.nearAccountId
     )
       throw new Error('The readable wallet has no NEAR account.');
-    const recovery = readRecovery(String(authentication.walletId));
-    const operation =
-      recovery && recovery.walletId === String(authentication.walletId)
-        ? this.props.seams.near.resumeOwnerTransaction({
-            authentication: session.authentication,
-            recovery,
-          })
-        : null;
+    const saved = readRecovery(String(authentication.walletId));
+    const operation = saved
+      ? this.props.seams.near.resumeOwnerTransaction({
+          authentication: session.authentication,
+          recovery: saved.recovery,
+        })
+      : null;
     this.setState({
       walletId: String(authentication.walletId),
       connection: {
@@ -160,6 +163,7 @@ class ApplicationWallet extends React.Component<
   transfer(): void {
     const connection = this.state.connection;
     if (connection.kind !== 'readable') return;
+    if (connection.operation && blocksNewTransfer(connection.operation.getState())) return;
     const operation = this.props.seams.near.prepareOwnerTransaction({
       authentication: connection.authentication,
       nearAccountId: connection.nearAccountId,
@@ -170,7 +174,7 @@ class ApplicationWallet extends React.Component<
     });
     sessionStorage.setItem(
       recoveryKey(operation.getState().recovery.walletId),
-      JSON.stringify(operation.getState().recovery),
+      JSON.stringify({ kind: 'unknown', recovery: operation.getState().recovery }),
     );
     this.setState({
       connection: {
@@ -213,8 +217,16 @@ class ApplicationWallet extends React.Component<
         {connection.kind === 'readable' ? (
           <>
             <p role="status">Wallet connected for reading.</p>
-            <button onClick={this.transfer.bind(this)}>Prepare one yoctoNEAR self-transfer</button>
-            {connection.operation ? <OwnerTransaction operation={connection.operation} /> : null}
+            {connection.operation ? (
+              <OwnerTransaction
+                operation={connection.operation}
+                prepare={this.transfer.bind(this)}
+              />
+            ) : (
+              <button onClick={this.transfer.bind(this)}>
+                Prepare one yoctoNEAR self-transfer
+              </button>
+            )}
           </>
         ) : null}
       </section>
@@ -222,11 +234,21 @@ class ApplicationWallet extends React.Component<
   }
 }
 
-function OwnerTransaction({ operation }: { operation: OwnerNearOperation }): React.ReactNode {
+function OwnerTransaction({
+  operation,
+  prepare,
+}: {
+  operation: OwnerNearOperation;
+  prepare: () => void;
+}): React.ReactNode {
   const state = useOwnerNearOperation(operation);
+  const transactionId = displayedTransactionId(state);
   React.useEffect(persistRecovery.bind(null, state), [state]);
   return (
     <section aria-label="Owner transaction" data-state={state.kind}>
+      <button onClick={prepare} disabled={blocksNewTransfer(state)}>
+        Prepare one yoctoNEAR self-transfer
+      </button>
       <p role="status">{state.kind}</p>
       {state.kind === 'prepared' ? (
         <button onClick={operation.approve.bind(operation)}>Review and approve transfer</button>
@@ -239,10 +261,7 @@ function OwnerTransaction({ operation }: { operation: OwnerNearOperation }): Rea
       state.kind === 'recovery_unavailable' ? (
         <button onClick={operation.recover.bind(operation)}>Check existing transaction</button>
       ) : null}
-      {state.kind === 'completed' ? <p>Transaction: {state.result.transactionId}</p> : null}
-      {state.kind === 'submitting' || state.kind === 'unresolved' ? (
-        <p>Transaction: {state.transactionId}</p>
-      ) : null}
+      {transactionId ? <p>Transaction: {transactionId}</p> : null}
       {state.kind === 'not_submitted' ||
       state.kind === 'reverted' ||
       state.kind === 'unresolved' ||
@@ -251,6 +270,30 @@ function OwnerTransaction({ operation }: { operation: OwnerNearOperation }): Rea
       ) : null}
     </section>
   );
+}
+
+function blocksNewTransfer(state: OwnerNearOperationState): boolean {
+  switch (state.kind) {
+    case 'approval':
+    case 'submitting':
+    case 'unknown':
+    case 'unresolved':
+    case 'recovery_unavailable':
+      return true;
+    case 'prepared':
+    case 'completed':
+    case 'reverted':
+    case 'cancelled':
+    case 'expired':
+    case 'not_submitted':
+      return false;
+    default:
+      return assertNeverOperationState(state);
+  }
+}
+
+function assertNeverOperationState(state: never): never {
+  throw new Error(`Unsupported owner operation state: ${String(state)}`);
 }
 
 async function handoff(attempt: {
@@ -279,13 +322,28 @@ function recoveryKey(walletId: string): string {
   return `application-owner-near-recovery:${walletId}`;
 }
 
-function readRecovery(walletId: string): OwnerNearRecovery | null {
+function readRecovery(walletId: string): SavedOwnerTransaction | null {
   const key = recoveryKey(walletId);
   try {
     const stored = sessionStorage.getItem(key);
     if (!stored) return null;
-    const recovery = parseOwnerNearRecovery(JSON.parse(stored));
-    if (String(recovery.walletId) === walletId) return recovery;
+    const raw: unknown = JSON.parse(stored);
+    if (!raw || typeof raw !== 'object') throw new Error('Invalid saved operation.');
+    const kind: unknown = Reflect.get(raw, 'kind');
+    // Older examples persisted the identity alone. Normalize that storage shape here.
+    const recovery = parseOwnerNearRecovery(
+      kind === undefined ? raw : Reflect.get(raw, 'recovery'),
+    );
+    if (String(recovery.walletId) !== walletId) throw new Error('Saved operation wallet mismatch.');
+    if (kind === undefined || kind === 'unknown') return { kind: 'unknown', recovery };
+    const transactionId: unknown = Reflect.get(raw, 'transactionId');
+    if (
+      kind === 'known' &&
+      typeof transactionId === 'string' &&
+      transactionId.length > 0 &&
+      transactionId.trim() === transactionId
+    )
+      return { kind: 'known', recovery, transactionId };
   } catch {}
   sessionStorage.removeItem(key);
   return null;
@@ -293,25 +351,47 @@ function readRecovery(walletId: string): OwnerNearRecovery | null {
 
 function persistRecovery(state: OwnerNearOperationState): void {
   const key = recoveryKey(state.recovery.walletId);
+  const saved = readRecovery(state.recovery.walletId);
   switch (state.kind) {
+    case 'submitting':
+    case 'unresolved':
+      sessionStorage.setItem(
+        key,
+        JSON.stringify({
+          kind: 'known',
+          recovery: state.recovery,
+          transactionId: state.transactionId,
+        }),
+      );
+      return;
     case 'prepared':
     case 'approval':
-    case 'submitting':
     case 'unknown':
-    case 'unresolved':
     case 'recovery_unavailable':
-      sessionStorage.setItem(key, JSON.stringify(state.recovery));
+      if (saved?.kind === 'known' && saved.recovery.operationId === state.recovery.operationId)
+        return;
+      sessionStorage.setItem(key, JSON.stringify({ kind: 'unknown', recovery: state.recovery }));
       return;
     case 'completed':
     case 'reverted':
     case 'cancelled':
     case 'expired':
     case 'not_submitted':
-      if (readRecovery(state.recovery.walletId)?.operationId === state.recovery.operationId)
+      if (saved?.recovery.operationId === state.recovery.operationId)
         sessionStorage.removeItem(key);
       return;
     default:
       state satisfies never;
       throw new Error('Unsupported owner transaction state.');
   }
+}
+
+function displayedTransactionId(state: OwnerNearOperationState): string | null {
+  if (state.kind === 'completed') return state.result.transactionId;
+  if (state.kind === 'submitting' || state.kind === 'unresolved' || state.kind === 'reverted')
+    return state.transactionId;
+  const saved = readRecovery(state.recovery.walletId);
+  if (saved?.kind === 'known' && saved.recovery.operationId === state.recovery.operationId)
+    return saved.transactionId;
+  return null;
 }

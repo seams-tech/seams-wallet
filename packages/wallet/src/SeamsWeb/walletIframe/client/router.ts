@@ -4630,6 +4630,9 @@ export class WalletIframeRouter {
     }
 
     try {
+      if (postOpts?.shouldContinue && !postOpts.shouldContinue()) {
+        throw walletIframeRequestCancelledError();
+      }
       if (this.state.connectionId !== connectionId || !this.state.port) {
         throw new WalletIframeConnectionClosedRequestError(requestId, connectionId, envelope.type);
       }

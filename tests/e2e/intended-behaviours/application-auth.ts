@@ -7,6 +7,8 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { parseStaticWalletConsoleBindingConfigV1 } from '@server/router/cloudflare/runtime/staticWalletConsoleBinding';
+import { ActionType } from '../../../packages/wallet/src/core/types/actions';
+import type { PrepareOwnerNearTransaction } from '../../../packages/wallet/src/SeamsWeb/publicApi/ownerNearOperation';
 import { base58Encode } from '@shared/utils/base58';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { execFileSync } from 'node:child_process';
@@ -20,6 +22,7 @@ import { authenticateApplicationPasskey } from './application-login';
 import { addWebAuthnVirtualAuthenticator, fulfillNearRpcStub } from './harness';
 import { isolatedGatewayDatabasePath, loadIsolatedDatabaseSync } from './local-gateway-database';
 import { nearTransactionHash } from './near-transaction-hash';
+import { failOwnerReceiptWrites, restoreOwnerReceiptWrites } from './owner-receipt-storage';
 
 class ApplicationBackend {
   readonly session = { subject: 'getsignal-user-42', expiresAtMs: Date.now() + 3_600_000 };
@@ -27,7 +30,10 @@ class ApplicationBackend {
   loseNextBroadcast = false;
   lostBroadcast = false;
   pendingBroadcast: Route | null = null;
+  revertNextBroadcast = false;
   statusUnavailable = false;
+  pendingStatus: Route | null = null;
+  statusFinality: 'EXECUTED' | 'FINAL' = 'FINAL';
   statusRequests = 0;
   lastHandoff: { url: string; headers: Record<string, string>; body: string } | null = null;
 
@@ -87,6 +93,23 @@ class ApplicationBackend {
 
   async rpc(route: Route): Promise<void> {
     const request = requireRecord(route.request().postDataJSON(), 'RPC request');
+    if (request.method === 'send_tx') {
+      const params = requireRecord(request.params, 'transaction submission params');
+      expect(params.wait_until).toBe('FINAL');
+      if (this.revertNextBroadcast) {
+        this.revertNextBroadcast = false;
+        await fulfillOwnerTransactionOutcome(
+          route,
+          request.id,
+          nearTransactionHash(
+            requireCanonicalString(params.signed_tx_base64, 'signed transaction'),
+          ),
+          'FINAL',
+          { Failure: { error_type: 'ActionError', error_message: 'Injected contract failure' } },
+        );
+        return;
+      }
+    }
     if (request.method === 'send_tx' && this.loseNextBroadcast) {
       this.loseNextBroadcast = false;
       this.lostBroadcast = true;
@@ -96,36 +119,20 @@ class ApplicationBackend {
     if (request.method === 'EXPERIMENTAL_tx_status') {
       this.statusRequests += 1;
       if (this.statusUnavailable) {
-        await route.fulfill({ status: 503, body: 'Transaction status unavailable' });
+        this.pendingStatus = route;
         return;
       }
       const encoded = this.broadcasts.at(-1);
       if (!encoded) throw new Error('No transaction exists for recovery.');
       const params = requireRecord(request.params, 'transaction status params');
       expect(params.tx_hash).toBe(nearTransactionHash(encoded));
-      await route.fulfill({
-        json: {
-          jsonrpc: '2.0',
-          id: request.id,
-          result: {
-            final_execution_status: 'FINAL',
-            status: { SuccessValue: '' },
-            transaction: { hash: nearTransactionHash(encoded) },
-            transaction_outcome: {
-              id: nearTransactionHash(encoded),
-              outcome: {
-                status: { SuccessValue: '' },
-                logs: [],
-                receipt_ids: [],
-                gas_burnt: 0,
-                tokens_burnt: '0',
-                executor_id: 'fixture',
-              },
-            },
-            receipts_outcome: [],
-          },
-        },
-      });
+      await fulfillOwnerTransactionOutcome(
+        route,
+        request.id,
+        nearTransactionHash(encoded),
+        this.statusFinality,
+        { SuccessValue: '' },
+      );
       return;
     }
     if (request.method === 'query') {
@@ -156,6 +163,13 @@ class ApplicationBackend {
     await route.abort('failed');
   }
 
+  async releaseLostStatus(): Promise<void> {
+    const route = this.pendingStatus;
+    if (!route) throw new Error('No transaction status request is held.');
+    this.pendingStatus = null;
+    await route.abort('failed');
+  }
+
   observe(route: import('@playwright/test').Request): void {
     if (route.method() !== 'POST') return;
     if (!new URL(route.url()).hostname.endsWith('fastnear.com')) return;
@@ -169,6 +183,40 @@ class ApplicationBackend {
     )
       this.broadcasts.push(Reflect.get(params, 'signed_tx_base64'));
   }
+}
+
+async function fulfillOwnerTransactionOutcome(
+  route: Route,
+  requestId: unknown,
+  transactionId: string,
+  finality: 'EXECUTED' | 'FINAL',
+  status:
+    | { SuccessValue: string; Failure?: never }
+    | { Failure: { error_type: string; error_message: string }; SuccessValue?: never },
+): Promise<void> {
+  await route.fulfill({
+    json: {
+      jsonrpc: '2.0',
+      id: requestId,
+      result: {
+        final_execution_status: finality,
+        status,
+        transaction: { hash: transactionId },
+        transaction_outcome: {
+          id: transactionId,
+          outcome: {
+            status,
+            logs: [],
+            receipt_ids: [],
+            gas_burnt: 0,
+            tokens_burnt: '0',
+            executor_id: 'fixture',
+          },
+        },
+        receipts_outcome: [],
+      },
+    },
+  });
 }
 
 export async function verifyApplicationAuth(
@@ -242,6 +290,40 @@ export async function verifyApplicationAuth(
     expect(await freshSigningAdmissions(walletId)).toBe(1);
     console.info('[application-auth] first transaction complete');
 
+    const disconnectedPage = await context.newPage();
+    const walletOrigin = process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202';
+    let unavailableConnection;
+    try {
+      await disconnectedPage.route(`${walletOrigin}/wallet-service**`, unavailableWalletService);
+      await disconnectedPage.goto(`${appOrigin}/application-auth`, {
+        waitUntil: 'domcontentloaded',
+      });
+      await expect.poll(ownerApiAvailable.bind(null, disconnectedPage)).toBe(true);
+      const unavailableInput: PrepareOwnerNearTransaction = {
+        authentication: firstSession.authentication,
+        nearAccountId: nearAccount.address,
+        transaction: {
+          receiverId: nearAccount.address,
+          actions: [{ type: ActionType.Transfer, amount: '1' }],
+        },
+      };
+      unavailableConnection = await disconnectedPage.evaluate(
+        approveDisconnectedOperation,
+        unavailableInput,
+      );
+      expect(unavailableConnection.kind).toBe('not_submitted');
+      expect(backend.broadcasts.length).toBe(1);
+    } finally {
+      await disconnectedPage.close();
+    }
+
+    await page.evaluate(prepareApiOperation);
+    await failOwnerReceiptWrites(page, 'approving');
+    const failedPreparationWrite = await page.evaluate(approveApiOnce);
+    expect(failedPreparationWrite).toBe('not_submitted');
+    expect(await restoreOwnerReceiptWrites(page)).toBe(1);
+    expect(backend.broadcasts.length).toBe(1);
+
     // A cancelled review preserves the readable connection and spends no approval.
     await page
       .getByRole('button', { name: 'Prepare one yoctoNEAR self-transfer', exact: true })
@@ -251,11 +333,13 @@ export async function verifyApplicationAuth(
       'data-state',
       'approval',
     );
+    await failOwnerReceiptWrites(page, 'settled');
     await clickNearCancellation(page);
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
       'cancelled',
     );
+    expect(await restoreOwnerReceiptWrites(page)).toBe(1);
     expect((await page.evaluate(readSession)).authentication.kind).toBe('external_authenticated');
     expect(backend.broadcasts.length).toBe(1);
     console.info('[application-auth] cancellation complete');
@@ -284,11 +368,13 @@ export async function verifyApplicationAuth(
     await page
       .getByRole('button', { name: 'Prepare one yoctoNEAR self-transfer', exact: true })
       .click();
+    await failOwnerReceiptWrites(page, 'settled');
     await Promise.all([
       runButton(page, 'Review and approve transfer'),
       clickNearConfirmation(page),
     ]);
     expect(backend.broadcasts.length).toBe(2);
+    expect(await restoreOwnerReceiptWrites(page)).toBe(1);
     expect(await freshSigningAdmissions(walletId)).toBe(2);
     console.info('[application-auth] second transaction complete');
 
@@ -322,12 +408,15 @@ export async function verifyApplicationAuth(
     );
     const unresolvedHash = nearTransactionHash(backend.broadcasts[2]);
     await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
-    await backend.releaseLostBroadcast();
+    await expect(
+      page.getByRole('button', { name: 'Prepare one yoctoNEAR self-transfer', exact: true }),
+    ).toBeDisabled();
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
       'unresolved',
-      { timeout: 90_000 },
+      { timeout: 45_000 },
     );
+    await backend.releaseLostBroadcast();
     expect(backend.lostBroadcast).toBe(true);
     const broadcastsAfterLoss = backend.broadcasts.length;
     await page.evaluate(prepareApiOperation);
@@ -354,21 +443,30 @@ export async function verifyApplicationAuth(
       'data-state',
       'unknown',
     );
+    await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
     await context.route('**/wallet/external-auth/settings', unavailableOwnerSettings);
     await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
       'recovery_unavailable',
     );
+    await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
     await context.unroute('**/wallet/external-auth/settings', unavailableOwnerSettings);
     backend.statusUnavailable = true;
     await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
       'unresolved',
+      { timeout: 45_000 },
     );
     await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
     backend.statusUnavailable = false;
+    await backend.releaseLostStatus();
+    backend.statusFinality = 'EXECUTED';
+    const nonfinalRecovery = await page.evaluate(recoverApiOperation, blockingState.recovery);
+    expect(nonfinalRecovery.kind).toBe('unresolved');
+    expect(nonfinalRecovery.transactionId).toBe(unresolvedHash);
+    backend.statusFinality = 'FINAL';
     await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
@@ -382,9 +480,12 @@ export async function verifyApplicationAuth(
 
     // The same handle shares one in-flight approval and cannot replay after completion.
     await page.evaluate(prepareApiOperation);
+    backend.revertNextBroadcast = true;
+    const statusRequestsBeforeRevert = backend.statusRequests;
     const duplicateApproval = page.evaluate(approveApiTwice);
     await clickNearConfirmation(page);
-    expect(await duplicateApproval).toEqual(['completed', 'completed']);
+    expect(await duplicateApproval).toEqual(['reverted', 'reverted']);
+    expect(backend.statusRequests).toBe(statusRequestsBeforeRevert);
     expect(backend.broadcasts.length).toBe(broadcastsAfterLoss + 1);
     expect(await page.evaluate(replayApiOperation)).toBe(true);
 
@@ -428,10 +529,23 @@ export async function verifyApplicationAuth(
         missingReceipt,
         failedRecovery,
         settledRecovery,
+        failedPreparationWrite,
+        unavailableConnection,
+        nonfinalRecovery,
       },
       freshSigningAdmissions: await freshSigningAdmissions(walletId),
       checks: [
         'reload',
+        'known_hash_survives_reload_and_failed_recovery',
+        'confirmed_revert_needs_no_extra_recovery',
+        'unavailable_iframe_is_not_submitted',
+        'failed_preparation_write_is_not_submitted',
+        'failed_receipt_write_preserves_cancellation',
+        'failed_receipt_write_preserves_completion',
+        'broadcast_timeout_retains_hash',
+        'recovery_timeout_retains_hash',
+        'nonfinal_recovery_stays_unresolved',
+        'pending_recovery_cannot_be_overwritten_by_preparation',
         'fresh_second_approval',
         'cancel_preserves_connection',
         'interrupted_approval_proves_non_submission',
@@ -692,6 +806,24 @@ async function prepareApiOperation(): Promise<void> {
 
 function readBroadcastCount(backend: ApplicationBackend): number {
   return backend.broadcasts.length;
+}
+
+async function unavailableWalletService(route: Route): Promise<void> {
+  await route.fulfill({ status: 503, body: 'Wallet service unavailable' });
+}
+
+async function ownerApiAvailable(page: Page): Promise<boolean> {
+  return await page.evaluate(hasOwnerApi);
+}
+
+function hasOwnerApi(): boolean {
+  return window.ownerAuthApi !== undefined;
+}
+
+async function approveDisconnectedOperation(input: PrepareOwnerNearTransaction) {
+  const seams = window.ownerAuthApi;
+  if (!seams) throw new Error('Missing application API.');
+  return await seams.near.prepareOwnerTransaction(input).approve();
 }
 
 async function unavailableOwnerSettings(route: Route): Promise<void> {

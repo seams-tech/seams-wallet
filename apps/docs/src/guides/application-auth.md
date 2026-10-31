@@ -116,11 +116,14 @@ The `submitting` state exposes `transactionId` before broadcast begins.
 The SDK field `transactionId` contains the NEAR transaction hash.
 Persist that hash as soon as it appears.
 Recovery failures retain a hash already known to the operation handle.
+Broadcast and status requests stop waiting after 30 seconds.
+A timeout returns `unresolved` and does not prove transaction failure.
 
 If another operation blocks approval, the result names that existing operation in `recovery`.
 Persist the returned identity or the updated `operation.getState().recovery`.
 Do not continue checking the newly prepared operation's original ID.
 Keep explicit recovery controls available, and allow reads and unrelated wallet actions.
+Keep the unresolved record when preparing another operation. The maintained example disables new transfers until the current operation settles.
 If authentication expires, reconnect and resume the saved operation with the new authentication.
 
 ## Maintained example

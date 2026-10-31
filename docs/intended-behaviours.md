@@ -53,9 +53,13 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - A missing receipt cannot prove non-submission. An intact pre-broadcast receipt can establish `not_submitted` while the wallet holds its operation lock.
 - The wallet persists a public transaction hash before broadcasting and exposes it in the `submitting` state. An uncertain broadcast returns `unresolved` with that exact hash and recovery identity.
 - Recovery queries that transaction and never rebroadcasts it. RPC failures retain the hash and permit another recovery check.
+- Owner broadcast and status requests stop waiting after 30 seconds. A timeout returns `unresolved` with the hash and preserves the pending operation.
+- Only a final network outcome settles an owner transaction. A receipt write failure cannot replace an observed completion, cancellation, or non-submission with uncertainty.
+- Failure to initialize the iframe before an approval request is dispatched returns `not_submitted`. Cancellation while waiting for a review surface prevents dispatch.
 - An unresolved broadcast blocks another owner transaction on the same wallet connection until recovery settles it. Reads and unrelated wallet operations remain available.
 - A blocked approval returns the existing operation's recovery identity and its hash when available. Applications must persist the returned identity, which can differ from the newly prepared operation.
 - Applications clear pending attempts on `cancelled`, `expired`, or `not_submitted`. They reconcile known hashes and expose recovery actions for uncertain outcomes instead of an endless busy indicator.
+- The application-auth example prevents a new transfer from replacing an approving, submitting, or unresolved operation and its saved recovery identity.
 - Application passkeys authenticate their application relying party. The initial owner-approval API requires an enrolled wallet-origin owner passkey.
 
 ## Wallet display language

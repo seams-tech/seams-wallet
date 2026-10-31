@@ -232,10 +232,11 @@ export interface NearClient<SignedTx = SignedTransaction> {
   }>;
 }
 
-export abstract class NearJsonRpcClient<SignedTx extends SignedTransaction = SignedTransaction>
-  implements NearClient<SignedTx>
-{
+export abstract class NearJsonRpcClient<
+  SignedTx extends SignedTransaction = SignedTransaction,
+> implements NearClient<SignedTx> {
   private readonly rpcUrls: string[];
+  protected readonly requestTimeoutMs: number | null = null;
 
   constructor(rpcUrl: string | string[]) {
     this.rpcUrls = NearJsonRpcClient.normalizeRpcUrls(rpcUrl);
@@ -300,6 +301,16 @@ export abstract class NearJsonRpcClient<SignedTx extends SignedTransaction = Sig
     return send();
   }
 
+  protected broadcastOutcome(
+    outcome: DecodedNearFinalExecutionOutcome,
+  ): DecodedNearFinalExecutionOutcome {
+    const status = outcome.status;
+    if (typeof status === 'object' && 'Failure' in status) {
+      throw this.errorFromOutcome('Send Transaction', outcome, status.Failure);
+    }
+    return outcome;
+  }
+
   // ===========================
   // PRIVATE HELPER FUNCTIONS
   // ===========================
@@ -320,6 +331,8 @@ export abstract class NearJsonRpcClient<SignedTx extends SignedTransaction = Sig
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: requestBody,
+      signal:
+        this.requestTimeoutMs === null ? undefined : AbortSignal.timeout(this.requestTimeoutMs),
     });
 
     if (!response.ok) {
@@ -472,12 +485,7 @@ export abstract class NearJsonRpcClient<SignedTx extends SignedTransaction = Sig
         'Send Transaction',
         decodeNearFinalExecutionOutcome,
       );
-      // near-api-js throws on Failure; replicate that for clearer UX
-      const status = outcome.status;
-      if (status && typeof status === 'object' && 'Failure' in status) {
-        throw this.errorFromOutcome('Send Transaction', outcome, status.Failure);
-      }
-      return outcome;
+      return this.broadcastOutcome(outcome);
     });
   }
 

@@ -2,7 +2,7 @@ import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget'
 import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
 import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
-import { toError } from '@shared/utils/errors';
+import { safeErrorMessage, toError } from '@shared/utils/errors';
 import {
   nearTransactionFailure,
   notifyNearTransactionResult,
@@ -28,8 +28,21 @@ class ApplicationNearCommands {
     private readonly beforeSigning: (walletId: WalletId) => Promise<void>,
     private readonly transactionDispatch: TransactionDispatch,
   ) {}
-  async ownerOperation(...args: Parameters<NearCommands['ownerOperation']>): ReturnType<NearCommands['ownerOperation']> {
-    return await (await this.walletIframe.requireRouter()).ownerNearOperation(...args);
+  async ownerOperation(
+    ...args: Parameters<NearCommands['ownerOperation']>
+  ): ReturnType<NearCommands['ownerOperation']> {
+    let router: Awaited<ReturnType<WalletIframeCoordinator['requireRouter']>>;
+    try {
+      router = await this.walletIframe.requireRouter();
+    } catch (error) {
+      const [command] = args;
+      const message = safeErrorMessage(error).trim() || 'The wallet connection is unavailable.';
+      if (command.action === 'recover') {
+        return { kind: 'recovery_unavailable', recovery: command.recovery, error: message };
+      }
+      return { kind: 'not_submitted', error: message };
+    }
+    return await router.ownerNearOperation(...args);
   }
 
   async signAndSendTransaction(

@@ -116,6 +116,15 @@ export class MinimalNearClient extends NearJsonRpcClient<SignedTransaction> {
 
 /** An owner operation records its hash before one broadcast and then recovers by status. */
 export class OwnerOperationNearClient extends MinimalNearClient {
+  protected override readonly requestTimeoutMs = 30_000;
+
+  protected override broadcastOutcome(
+    outcome: DecodedNearFinalExecutionOutcome,
+  ): DecodedNearFinalExecutionOutcome {
+    // Owner operations classify confirmed failures as reverted and persist the exact hash.
+    return outcome;
+  }
+
   protected override sendWithRetry<T>(send: () => Promise<T>): Promise<T> {
     return send();
   }
