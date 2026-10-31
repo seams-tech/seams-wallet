@@ -3,13 +3,13 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.34.0**. [Read the documentation](https://wallet.seams.sh/docs/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.35.0**. [Read the documentation](https://wallet.seams.sh/docs/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.34.0` — browser SDK and React components.
-- `@seams/wallet-server@0.34.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.34.0` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.35.0` — browser SDK and React components.
+- `@seams/wallet-server@0.35.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.35.0` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -17,7 +17,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `21.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, and VoiceID plugin use version **0.34.0**.
+The browser SDK, server SDK, and VoiceID plugin use version **0.35.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,21 +27,20 @@ changes that npm does not yet publish.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
-## Release 0.34.0
+## Release 0.35.0
 
-- SDK runtime and development dependencies retain exact versions to reduce exposure to unreviewed dependency updates.
-- React and React DOM remain optional peers with `>=19.0.0`, including future major versions.
-- SDK development uses exact React and React DOM `19.2.9`.
-- Application lockfiles control the React version installed by each application.
+- Tiny NEAR amounts use yoctoNEAR when it gives a shorter exact display.
+- Click an amount below `0.000001 NEAR` to toggle between its exact amount and `< 0.000001 NEAR`.
+- The amount and unit stay on one line. The toggle also supports Enter and Space.
 
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.34.0
+npm install @seams/wallet@0.35.0
 # Server applications:
-npm install @seams/wallet-server@0.34.0
+npm install @seams/wallet-server@0.35.0
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.34.0
+npm install @seams/voiceid@0.35.0
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.

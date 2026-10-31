@@ -1,9 +1,21 @@
 ---
-title: Release 0.34.0
-description: Exact SDK dependencies and open React peer versions.
+title: Release 0.35.0
+description: Compact NEAR amounts with a clickable display threshold.
 ---
 
-# Release 0.34.0
+# Release 0.35.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.35.0**.
+
+- Tiny NEAR amounts use yoctoNEAR when it gives a shorter exact display.
+- Click an amount below `0.000001 NEAR` to toggle between its exact amount and `< 0.000001 NEAR`.
+- The amount and unit stay on one line. The toggle also supports Enter and Space.
+
+Update the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together.
+The signed recovery CLI remains **0.29.0**, the Wallet iframe protocol remains **21.0.0**, and the wallet-management protocol remains **5**.
+This release adds no database migrations or protocol changes.
+
+## Release 0.34.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.34.0**.
 
