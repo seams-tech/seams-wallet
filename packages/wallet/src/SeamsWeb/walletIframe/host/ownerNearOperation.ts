@@ -12,6 +12,7 @@ import type { SeamsWebContext } from '@/SeamsWeb/signingSurface/types';
 import { alphabetizeStringify, sha256HexUtf8 } from '@shared/utils/digests';
 import { safeErrorMessage } from '@shared/utils/errors';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import {
   parseOwnerNearOutcome,
   parseOwnerNearRecovery,
@@ -27,34 +28,41 @@ type OwnerNearPorts = {
   readonly parentOrigin: string;
 };
 
+type SettledOwnerNearOutcome = Variant<
+  OwnerNearOutcome,
+  'kind',
+  'completed' | 'reverted' | 'cancelled' | 'expired' | 'not_submitted'
+>;
+
 type OwnerNearReceipt = Readonly<{
   binding: string;
   requestDigest: string;
 }> &
-  (
+  ReadonlyExclusiveUnion<
     | { readonly kind: 'approving' }
     | { readonly kind: 'submitting'; readonly transactionId: string }
-    | { readonly kind: 'settled'; readonly outcome: OwnerNearOutcome }
-  );
+    | { readonly kind: 'settled'; readonly outcome: SettledOwnerNearOutcome }
+  >;
 
 export async function runOwnerNearOperation(
   ports: OwnerNearPorts,
   command: OwnerNearCommand,
   assertActive: () => void,
   onEvent: (event: SigningFlowEvent) => void,
-  onSubmission: () => void,
+  onSubmission: (transactionId: string) => void,
 ): Promise<OwnerNearOutcome> {
   let assertConnection: () => void;
   try {
     assertConnection = await ports.captureConnection(command.authentication);
     assertActive();
   } catch (error) {
-    if (isUserCancelledUserConfirm(error)) return { kind: 'cancelled' };
-    return { kind: 'failed', error: safeErrorMessage(error) };
+    return admissionFailure(command, error);
   }
   const context = ports.getContext();
   const locks = globalThis.navigator.locks;
-  if (!locks) return { kind: 'failed', error: 'This browser cannot coordinate owner operations.' };
+  if (!locks) {
+    return admissionFailure(command, new Error('This browser cannot coordinate owner operations.'));
+  }
   const binding = await sha256HexUtf8(
     alphabetizeStringify({
       walletId: command.authentication.walletId,
@@ -81,7 +89,9 @@ class HostedOwnerNearOperation {
   private readonly key: string;
   private readonly pendingKey: string;
   private readonly broadcastContext: SeamsWebContext;
-  private submission: 'not_started' | 'dispatched' = 'not_started';
+  private submission: ReadonlyExclusiveUnion<
+    { kind: 'not_started' } | { kind: 'dispatched'; transactionId: string }
+  > = { kind: 'not_started' };
 
   constructor(
     private readonly context: SeamsWebContext,
@@ -90,7 +100,7 @@ class HostedOwnerNearOperation {
     private readonly assertConnection: () => void,
     private readonly assertActive: () => void,
     private readonly onEvent: (event: SigningFlowEvent) => void,
-    private readonly onSubmission: () => void,
+    private readonly onSubmission: (transactionId: string) => void,
   ) {
     this.broadcastContext = {
       signingEngine: context.signingEngine,
@@ -116,15 +126,13 @@ class HostedOwnerNearOperation {
     try {
       return await this.execute();
     } catch (error) {
-      if (this.submission === 'dispatched') return this.unknown();
-      if (error instanceof OwnerNearExpired) return { kind: 'expired' };
-      if (isUserCancelledUserConfirm(error)) return { kind: 'cancelled' };
-      return { kind: 'failed', error: safeErrorMessage(error) };
+      if (this.submission.kind === 'dispatched')
+        return unresolved(this.command.recovery, this.submission.transactionId, error);
+      return recoveryUnavailable(this.command.recovery, error);
     }
   }
 
   private async execute(): Promise<OwnerNearOutcome> {
-    this.assertCurrent();
     const stored = await IndexedDBManager.getAppState(this.key);
     const receipt = stored === undefined ? null : parseReceipt(stored);
     if (receipt && receipt.binding !== this.binding)
@@ -132,7 +140,7 @@ class HostedOwnerNearOperation {
     if (this.command.action === 'recover') return await this.recover(receipt);
     const pending = await this.readPending();
     if (pending && pending.operationId !== this.command.recovery.operationId) {
-      return { kind: 'unknown', recovery: pending };
+      return await this.pendingOutcome(pending);
     }
     const command = this.command;
     if (command.expiresAtMs > Date.now() + 120_000)
@@ -144,8 +152,9 @@ class HostedOwnerNearOperation {
       return await this.recover(receipt);
     }
     await this.store({ kind: 'approving', binding: this.binding, requestDigest });
-    let outcome: OwnerNearOutcome;
+    let outcome: SettledOwnerNearOutcome;
     try {
+      this.assertCurrent();
       const session = await this.context.signingEngine.signNearOwnerTransaction(
         command,
         this.assertCurrent.bind(this),
@@ -153,20 +162,23 @@ class HostedOwnerNearOperation {
       );
       this.assertCurrent();
       // Persist the hash before the first broadcast. Recovery only reads this transaction.
-      await IndexedDBManager.setAppState(this.pendingKey, {
-        kind: 'pending',
-        recovery: command.recovery,
-      });
       await this.store({
         kind: 'submitting',
         binding: this.binding,
         requestDigest,
         transactionId: session.signedTransaction.transactionHash,
       });
+      await IndexedDBManager.setAppState(this.pendingKey, {
+        kind: 'pending',
+        recovery: command.recovery,
+      });
       this.assertCurrent();
-      this.submission = 'dispatched';
+      this.submission = {
+        kind: 'dispatched',
+        transactionId: session.signedTransaction.transactionHash,
+      };
       try {
-        this.onSubmission();
+        this.onSubmission(session.signedTransaction.transactionHash);
       } catch {}
       const result = await sendTransaction({
         context: this.broadcastContext,
@@ -179,19 +191,26 @@ class HostedOwnerNearOperation {
         options: { onEvent: this.onEvent },
       });
       if (!result.success) {
-        if (result.kind !== 'not_submitted') return this.unknown();
-        outcome = { kind: 'failed', error: result.error };
+        if (result.kind !== 'not_submitted')
+          return unresolved(
+            command.recovery,
+            session.signedTransaction.transactionHash,
+            result.error,
+          );
+        outcome = { kind: 'not_submitted', error: result.error };
       } else {
         outcome = { kind: 'completed', result };
       }
     } catch (error) {
-      if (this.submission === 'dispatched') return this.unknown();
+      if (this.submission.kind === 'dispatched')
+        return unresolved(command.recovery, this.submission.transactionId, error);
       if (error instanceof OwnerNearExpired) outcome = { kind: 'expired' };
       else if (isUserCancelledUserConfirm(error)) outcome = { kind: 'cancelled' };
       else
         outcome = {
-          kind: 'failed',
-          error: safeErrorMessage(error) || 'The owner operation failed.',
+          kind: 'not_submitted',
+          error:
+            safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
         };
     }
     await this.store({ kind: 'settled', binding: this.binding, requestDigest, outcome });
@@ -199,18 +218,66 @@ class HostedOwnerNearOperation {
     return outcome;
   }
 
-  unknown(): OwnerNearOutcome {
-    return { kind: 'unknown', recovery: this.command.recovery };
+  private async pendingOutcome(recovery: OwnerNearRecovery): Promise<OwnerNearOutcome> {
+    try {
+      this.assertActive();
+      this.assertConnection();
+      const raw = await IndexedDBManager.getAppState(`owner-near:${recovery.operationId}`);
+      if (raw === undefined)
+        return recoveryUnavailable(recovery, 'The pending operation receipt is missing.');
+      const receipt = parseReceipt(raw);
+      if (receipt.binding !== this.binding)
+        throw new Error('The pending operation belongs to another connection.');
+      if (receipt.kind === 'submitting') {
+        return unresolved(
+          recovery,
+          receipt.transactionId,
+          'A previous transaction requires recovery.',
+        );
+      }
+      if (receipt.kind === 'settled') {
+        if (receipt.outcome.kind === 'completed')
+          return unresolved(
+            recovery,
+            receipt.outcome.result.transactionId,
+            'Recover the previous transaction result.',
+          );
+        if (receipt.outcome.kind === 'reverted')
+          return unresolved(
+            recovery,
+            receipt.outcome.transactionId,
+            'Recover the previous transaction result.',
+          );
+      }
+      return { kind: 'unknown', recovery };
+    } catch (error) {
+      return recoveryUnavailable(recovery, error);
+    }
   }
 
   async recover(receipt: OwnerNearReceipt | null): Promise<OwnerNearOutcome> {
-    if (!receipt || receipt.kind === 'approving') {
-      await this.clearPending();
-      return {
-        kind: 'failed',
+    this.assertActive();
+    this.assertConnection();
+    if (!receipt) {
+      return recoveryUnavailable(
+        this.command.recovery,
+        'The operation receipt is missing. Its submission status is unavailable.',
+      );
+    }
+    if (receipt.kind === 'approving') {
+      const outcome: SettledOwnerNearOutcome = {
+        kind: 'not_submitted',
         error:
           'This operation did not reach broadcast. Prepare a new operation for another approval.',
       };
+      await this.store({
+        kind: 'settled',
+        binding: receipt.binding,
+        requestDigest: receipt.requestDigest,
+        outcome,
+      });
+      await this.clearPending();
+      return outcome;
     }
     if (receipt.kind === 'settled') {
       await this.clearPending();
@@ -224,8 +291,12 @@ class HostedOwnerNearOperation {
       if (result.transaction.hash !== receipt.transactionId)
         throw new Error('Transaction recovery identity mismatch.');
       if (result.final_execution_status !== 'FINAL' || typeof result.status !== 'object')
-        return this.unknown();
-      const outcome: OwnerNearOutcome =
+        return unresolved(
+          this.command.recovery,
+          receipt.transactionId,
+          'The transaction is not final. Check this transaction again.',
+        );
+      const outcome: SettledOwnerNearOutcome =
         'Failure' in result.status
           ? {
               kind: 'reverted',
@@ -244,8 +315,8 @@ class HostedOwnerNearOperation {
       });
       await this.clearPending();
       return outcome;
-    } catch {
-      return this.unknown();
+    } catch (error) {
+      return unresolved(this.command.recovery, receipt.transactionId, error);
     }
   }
 
@@ -263,9 +334,13 @@ class HostedOwnerNearOperation {
   }
 
   async clearPending(): Promise<void> {
-    const pending = await this.readPending();
-    if (pending?.operationId === this.command.recovery.operationId) {
-      await IndexedDBManager.setAppState(this.pendingKey, { kind: 'clear' });
+    try {
+      const pending = await this.readPending();
+      if (pending?.operationId === this.command.recovery.operationId) {
+        await IndexedDBManager.setAppState(this.pendingKey, { kind: 'clear' });
+      }
+    } catch {
+      // The durable terminal receipt remains authoritative. A later recovery can retry cleanup.
     }
   }
 }
@@ -289,11 +364,69 @@ function parseReceipt(raw: unknown): OwnerNearReceipt {
         kind: 'settled',
         binding,
         requestDigest,
-        outcome: parseOwnerNearOutcome(value.outcome),
+        outcome: parseSettledOutcome(value.outcome),
       };
     default:
       throw new Error('Invalid owner transaction receipt.');
   }
+}
+
+function parseSettledOutcome(raw: unknown): SettledOwnerNearOutcome {
+  const stored = requireRecord(raw, 'settled owner outcome');
+  // Persisted failures predate the explicit non-submission outcome. Only settled
+  // receipts used this branch, after the host proved that no broadcast occurred.
+  const outcome =
+    stored.kind === 'failed'
+      ? parseOwnerNearOutcome({ kind: 'not_submitted', error: stored.error })
+      : parseOwnerNearOutcome(stored);
+  switch (outcome.kind) {
+    case 'completed':
+    case 'reverted':
+    case 'cancelled':
+    case 'expired':
+    case 'not_submitted':
+      return outcome;
+    case 'unknown':
+    case 'unresolved':
+    case 'recovery_unavailable':
+      throw new Error('A settled owner receipt requires a terminal outcome.');
+    default:
+      return assertNeverOutcome(outcome);
+  }
+}
+
+function assertNeverOutcome(outcome: never): never {
+  throw new Error(`Unsupported owner outcome: ${String(outcome)}`);
+}
+
+function admissionFailure(command: OwnerNearCommand, error: unknown): OwnerNearOutcome {
+  if (command.action === 'recover') return recoveryUnavailable(command.recovery, error);
+  if (isUserCancelledUserConfirm(error)) return { kind: 'cancelled' };
+  return {
+    kind: 'not_submitted',
+    error: safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
+  };
+}
+
+function recoveryUnavailable(recovery: OwnerNearRecovery, error: unknown): OwnerNearOutcome {
+  return {
+    kind: 'recovery_unavailable',
+    recovery,
+    error: safeErrorMessage(error).trim() || 'The operation recovery is unavailable.',
+  };
+}
+
+function unresolved(
+  recovery: OwnerNearRecovery,
+  transactionId: string,
+  error: unknown,
+): OwnerNearOutcome {
+  return {
+    kind: 'unresolved',
+    recovery,
+    transactionId,
+    error: safeErrorMessage(error).trim() || 'The transaction outcome is unavailable.',
+  };
 }
 
 class OwnerNearExpired extends Error {

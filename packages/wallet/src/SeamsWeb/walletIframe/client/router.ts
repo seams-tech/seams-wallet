@@ -4444,6 +4444,7 @@ export class WalletIframeRouter {
         !this.reviews.has(requestId) &&
         this.state.pending.get(requestId)?.requestType !== 'PM_SIGN_AND_SEND_TX' &&
         this.state.pending.get(requestId)?.requestType !== 'PM_SEND_TRANSACTION' &&
+        this.state.pending.get(requestId)?.requestType !== 'PM_OWNER_NEAR_TRANSACTION' &&
         isWalletFlowEvent(payload) &&
         payload.status === 'cancelled'
       ) {

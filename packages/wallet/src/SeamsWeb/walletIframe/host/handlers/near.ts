@@ -298,8 +298,16 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   };
 }
 
-async function handleOwnerNearTransaction(deps: HandlerDeps, request: Req<'PM_OWNER_NEAR_TRANSACTION'>): Promise<void> {
-  const result = await deps.getWalletRuntime().runOwnerNearOperation(request.payload, assertOwnerRequestActive.bind(null, deps, request.requestId), deps.postProgress.bind(deps, request.requestId), postOwnerNearSubmission.bind(null, deps, request));
+async function handleOwnerNearTransaction(
+  deps: HandlerDeps,
+  request: Req<'PM_OWNER_NEAR_TRANSACTION'>,
+): Promise<void> {
+  const result = await deps.getWalletRuntime().runOwnerNearOperation(
+    request.payload,
+    assertOwnerRequestActive.bind(null, deps, request.requestId),
+    deps.postProgress.bind(deps, request.requestId),
+    postOwnerNearSubmission.bind(null, deps, request),
+  );
   respondOkResult(deps, request.requestId, result);
 }
 
@@ -307,6 +315,14 @@ function assertOwnerRequestActive(deps: HandlerDeps, requestId: string | undefin
   if (deps.isCancelled(requestId)) throw new DOMException('The owner operation was cancelled.', 'AbortError');
 }
 
-function postOwnerNearSubmission(deps: HandlerDeps, request: Req<'PM_OWNER_NEAR_TRANSACTION'>): void {
-  deps.postProgress(request.requestId, { event: 'owner_near_submitting', operationId: request.payload.recovery.operationId });
+function postOwnerNearSubmission(
+  deps: HandlerDeps,
+  request: Req<'PM_OWNER_NEAR_TRANSACTION'>,
+  transactionId: string,
+): void {
+  deps.postProgress(request.requestId, {
+    event: 'owner_near_submitting',
+    operationId: request.payload.recovery.operationId,
+    transactionId,
+  });
 }

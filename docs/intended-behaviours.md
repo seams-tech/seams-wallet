@@ -49,8 +49,13 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - Temporary signing material is disposed after signing. The operation creates no reusable authority.
 - Cancellation, expiry, account switching, and configuration revocation cannot install authority or replace the read connection.
 - SDK and React states distinguish readable access, approval, submission, cancellation, expiry, and unknown outcomes.
-- The wallet persists a public transaction hash before broadcasting. Recovery queries that transaction and never rebroadcasts it.
-- An unresolved broadcast blocks a subsequent operation on the same wallet connection until recovery settles it.
+- `not_submitted` proves this attempt did not broadcast. A fresh approval is safe. `recovery_unavailable` means recovery could not establish submission status and remains retryable.
+- A missing receipt cannot prove non-submission. An intact pre-broadcast receipt can establish `not_submitted` while the wallet holds its operation lock.
+- The wallet persists a public transaction hash before broadcasting and exposes it in the `submitting` state. An uncertain broadcast returns `unresolved` with that exact hash and recovery identity.
+- Recovery queries that transaction and never rebroadcasts it. RPC failures retain the hash and permit another recovery check.
+- An unresolved broadcast blocks another owner transaction on the same wallet connection until recovery settles it. Reads and unrelated wallet operations remain available.
+- A blocked approval returns the existing operation's recovery identity and its hash when available. Applications must persist the returned identity, which can differ from the newly prepared operation.
+- Applications clear pending attempts on `cancelled`, `expired`, or `not_submitted`. They reconcile known hashes and expose recovery actions for uncertain outcomes instead of an endless busy indicator.
 - Application passkeys authenticate their application relying party. The initial owner-approval API requires an enrolled wallet-origin owner passkey.
 
 ## Wallet display language

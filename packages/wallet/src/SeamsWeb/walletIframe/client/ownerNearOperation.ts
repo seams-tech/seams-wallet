@@ -1,11 +1,9 @@
 import type { ExecuteOwnerNearOperation } from '@/SeamsWeb/publicApi/ownerNearOperation';
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
+import { safeErrorMessage } from '@shared/utils/errors';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import type { ProgressPayload } from '../shared/messages';
-import {
-  parseOwnerNearOutcome,
-  parseOwnerNearSubmissionProgress,
-  type OwnerNearCommand,
-} from '../shared/ownerNearOperation';
+import { parseOwnerNearOutcome, type OwnerNearCommand } from '../shared/ownerNearOperation';
 
 type OwnerNearRequestPorts = {
   allocateRequestId(): WalletIframeRequestId;
@@ -36,7 +34,9 @@ export async function executeOwnerNearRequest(
 
 class OwnerNearRequest {
   private readonly requestId: WalletIframeRequestId;
-  private state: 'preparing' | 'dispatched' | 'submitting' = 'preparing';
+  private state: ReadonlyExclusiveUnion<
+    { kind: 'preparing' } | { kind: 'dispatched' } | { kind: 'submitting'; transactionId: string }
+  > = { kind: 'preparing' };
 
   constructor(
     private readonly ports: OwnerNearRequestPorts,
@@ -50,13 +50,16 @@ class OwnerNearRequest {
     return !this.execution.signal.aborted;
   }
   dispatched(): void {
-    this.state = 'dispatched';
+    this.state = { kind: 'dispatched' };
   }
   progress(payload: ProgressPayload): void {
-    const submission = parseOwnerNearSubmissionProgress(payload);
-    if (submission?.operationId === this.command.recovery.operationId) {
-      this.state = 'submitting';
-      this.execution.onSubmission();
+    if (
+      'event' in payload &&
+      payload.event === 'owner_near_submitting' &&
+      payload.operationId === this.command.recovery.operationId
+    ) {
+      this.state = { kind: 'submitting', transactionId: payload.transactionId };
+      this.execution.onSubmission(payload.transactionId);
     }
   }
   cancel(): void {
@@ -83,9 +86,29 @@ class OwnerNearRequest {
       );
       return parseOwnerNearOutcome(response.result);
     } catch (error) {
-      if (this.state !== 'submitting' && isOwnerRequestCancellation(error))
-        return { kind: 'cancelled' };
-      if (this.state === 'preparing' && !this.current()) return { kind: 'cancelled' };
+      if (this.state.kind === 'submitting') {
+        return {
+          kind: 'unresolved',
+          recovery: this.command.recovery,
+          transactionId: this.state.transactionId,
+          error: safeErrorMessage(error).trim() || 'The transaction outcome is unavailable.',
+        };
+      }
+      if (this.command.action === 'recover') {
+        return {
+          kind: 'recovery_unavailable',
+          recovery: this.command.recovery,
+          error: safeErrorMessage(error).trim() || 'The operation recovery is unavailable.',
+        };
+      }
+      if (this.state.kind === 'preparing') {
+        if (!this.current() || isOwnerRequestCancellation(error)) return { kind: 'cancelled' };
+        return {
+          kind: 'not_submitted',
+          error:
+            safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
+        };
+      }
       return { kind: 'unknown', recovery: this.command.recovery };
     } finally {
       this.execution.signal.removeEventListener('abort', cancel);

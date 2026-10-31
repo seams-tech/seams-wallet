@@ -39,7 +39,9 @@ export type OwnerNearOutcome = ReadonlyExclusiveUnion<
   | { kind: 'cancelled' }
   | { kind: 'expired' }
   | { kind: 'unknown'; recovery: OwnerNearRecovery }
-  | { kind: 'failed'; error: string }
+  | { kind: 'unresolved'; recovery: OwnerNearRecovery; transactionId: string; error: string }
+  | { kind: 'not_submitted'; error: string }
+  | { kind: 'recovery_unavailable'; recovery: OwnerNearRecovery; error: string }
 >;
 
 export function parseOwnerNearRecovery(raw: unknown): OwnerNearRecovery {
@@ -101,7 +103,8 @@ export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
   switch (value.kind) {
     case 'completed': {
       const result = parseNearTransactionResult(value.result);
-      if (!result.success) throw new Error('A completed owner operation requires a successful transaction.');
+      if (!result.success)
+        throw new Error('A completed owner operation requires a successful transaction.');
       return { kind: 'completed', result };
     }
     case 'reverted':
@@ -114,8 +117,21 @@ export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
       return { kind: 'cancelled' };
     case 'expired':
       return { kind: 'expired' };
-    case 'failed':
-      return { kind: 'failed', error: requireCanonicalString(value.error, 'error') };
+    case 'not_submitted':
+      return { kind: 'not_submitted', error: requireCanonicalString(value.error, 'error') };
+    case 'recovery_unavailable':
+      return {
+        kind: 'recovery_unavailable',
+        recovery: parseOwnerNearRecovery(value.recovery),
+        error: requireCanonicalString(value.error, 'error'),
+      };
+    case 'unresolved':
+      return {
+        kind: 'unresolved',
+        recovery: parseOwnerNearRecovery(value.recovery),
+        transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
+        error: requireCanonicalString(value.error, 'error'),
+      };
     case 'unknown':
       return { kind: 'unknown', recovery: parseOwnerNearRecovery(value.recovery) };
     default:
@@ -172,6 +188,7 @@ function ownerNearAction(action: ThresholdEd25519NearAction): ActionArgsWasm {
 export type OwnerNearSubmissionProgress = Readonly<{
   event: 'owner_near_submitting';
   operationId: SigningOperationId;
+  transactionId: string;
 }>;
 
 export function parseOwnerNearSubmissionProgress(raw: unknown): OwnerNearSubmissionProgress | null {
@@ -188,5 +205,6 @@ export function parseOwnerNearSubmissionProgress(raw: unknown): OwnerNearSubmiss
   return {
     event: 'owner_near_submitting',
     operationId: SigningSessionIds.signingOperation(operationId),
+    transactionId: requireCanonicalString(Reflect.get(raw, 'transactionId'), 'transactionId'),
   };
 }

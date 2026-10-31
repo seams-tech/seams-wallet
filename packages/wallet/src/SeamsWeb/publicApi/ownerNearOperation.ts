@@ -4,6 +4,7 @@ import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
 import type { ActionResult } from '@/core/types/seams';
 import type { ExternalWalletAuthentication } from '@shared/auth/externalAuth';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
+import { safeErrorMessage } from '@shared/utils/errors';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import {
   parseOwnerNearCommand,
@@ -22,13 +23,15 @@ export type OwnerNearOperationState = Readonly<{ recovery: OwnerNearRecovery }> 
   ReadonlyExclusiveUnion<
     | { kind: 'prepared'; expiresAtMs: number }
     | { kind: 'approval'; expiresAtMs: number }
-    | { kind: 'submitting' }
+    | { kind: 'submitting'; transactionId: string }
     | { kind: 'unknown' }
+    | { kind: 'unresolved'; transactionId: string; error: string }
+    | { kind: 'recovery_unavailable'; error: string }
     | { kind: 'completed'; result: Extract<ActionResult, { success: true }> }
     | { kind: 'reverted'; transactionId: string; error: string }
     | { kind: 'cancelled' }
     | { kind: 'expired' }
-    | { kind: 'failed'; error: string }
+    | { kind: 'not_submitted'; error: string }
   >;
 
 export interface OwnerNearOperation {
@@ -52,7 +55,10 @@ export type ResumeOwnerNearTransaction = {
 
 export type ExecuteOwnerNearOperation = (
   command: OwnerNearCommand,
-  execution: { readonly signal: AbortSignal; readonly onSubmission: () => void },
+  execution: {
+    readonly signal: AbortSignal;
+    readonly onSubmission: (transactionId: string) => void;
+  },
 ) => Promise<OwnerNearOutcome>;
 
 export function prepareOwnerNearTransaction(
@@ -158,8 +164,12 @@ class OwnerNearTransaction implements OwnerNearOperation {
 
   recover(): Promise<OwnerNearOutcome> {
     if (this.inFlight) return this.inFlight;
-    if (this.state.kind !== 'unknown')
-      throw new Error('Only an unknown outcome requires recovery.');
+    if (
+      this.state.kind !== 'unknown' &&
+      this.state.kind !== 'unresolved' &&
+      this.state.kind !== 'recovery_unavailable'
+    )
+      throw new Error('Only an unresolved outcome requires recovery.');
     this.inFlight = this.run({
       action: 'recover',
       authentication: this.command.authentication,
@@ -168,8 +178,8 @@ class OwnerNearTransaction implements OwnerNearOperation {
     return this.inFlight;
   }
 
-  private submitted(): void {
-    this.transition({ kind: 'submitting', recovery: this.command.recovery });
+  private submitted(transactionId: string): void {
+    this.transition({ kind: 'submitting', recovery: this.command.recovery, transactionId });
   }
 
   private async run(command: OwnerNearCommand): Promise<OwnerNearOutcome> {
@@ -180,8 +190,25 @@ class OwnerNearTransaction implements OwnerNearOperation {
           command.action === 'recover' ? new AbortController().signal : this.controller.signal,
         onSubmission: this.submitted.bind(this),
       });
-    } catch {
-      outcome = { kind: 'unknown', recovery: command.recovery };
+    } catch (error) {
+      outcome = {
+        kind: 'recovery_unavailable',
+        recovery: command.recovery,
+        error: safeErrorMessage(error).trim() || 'The operation recovery is unavailable.',
+      };
+    }
+    if (
+      (outcome.kind === 'unknown' || outcome.kind === 'recovery_unavailable') &&
+      outcome.recovery.operationId === this.state.recovery.operationId &&
+      (this.state.kind === 'submitting' || this.state.kind === 'unresolved')
+    ) {
+      outcome = {
+        kind: 'unresolved',
+        recovery: outcome.recovery,
+        transactionId: this.state.transactionId,
+        error:
+          outcome.error || 'The transaction outcome is unavailable. Check this transaction again.',
+      };
     }
     this.settle(outcome, command.recovery);
     this.inFlight = null;
@@ -210,8 +237,23 @@ class OwnerNearTransaction implements OwnerNearOperation {
       case 'unknown':
         this.transition({ kind: 'unknown', recovery: outcome.recovery });
         return;
-      case 'failed':
-        this.transition({ kind: 'failed', recovery, error: outcome.error });
+      case 'unresolved':
+        this.transition({
+          kind: 'unresolved',
+          recovery: outcome.recovery,
+          transactionId: outcome.transactionId,
+          error: outcome.error,
+        });
+        return;
+      case 'recovery_unavailable':
+        this.transition({
+          kind: 'recovery_unavailable',
+          recovery: outcome.recovery,
+          error: outcome.error,
+        });
+        return;
+      case 'not_submitted':
+        this.transition({ kind: 'not_submitted', recovery, error: outcome.error });
         return;
       default:
         outcome satisfies never;

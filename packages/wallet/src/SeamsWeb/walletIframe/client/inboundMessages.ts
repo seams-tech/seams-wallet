@@ -1,5 +1,6 @@
 import { parseWalletConnectionRequest } from '../shared/walletAlternatives';
 import { parseTransactionReviewState } from '../shared/transactionReview';
+import { parseOwnerNearSubmissionProgress } from '../shared/ownerNearOperation';
 import {
   type ProgressPayload,
   type PreferencesChangedPayload,
@@ -155,6 +156,12 @@ function isClientDeviceLinkProgressCandidate(
 function parseClientProgressPayload(value: unknown): ProgressPayload | null {
   if (isWalletFlowEvent(value)) return value;
   if (isRegistrationTimingSpanV1(value)) return value;
+  try {
+    const submission = parseOwnerNearSubmissionProgress(value);
+    if (submission) return submission;
+  } catch {
+    return null;
+  }
   if (!isClientDeviceLinkProgressCandidate(value)) return null;
   if (isDeviceLinkEmailOtpBaseFactorSelectionProgressV1(value)) return value;
   return isDeviceLinkTargetFactorActivationProgressV1(value) ? value : null;

@@ -26,6 +26,9 @@ class ApplicationBackend {
   readonly broadcasts: string[] = [];
   loseNextBroadcast = false;
   lostBroadcast = false;
+  pendingBroadcast: Route | null = null;
+  statusUnavailable = false;
+  statusRequests = 0;
   lastHandoff: { url: string; headers: Record<string, string>; body: string } | null = null;
 
   constructor(
@@ -87,10 +90,15 @@ class ApplicationBackend {
     if (request.method === 'send_tx' && this.loseNextBroadcast) {
       this.loseNextBroadcast = false;
       this.lostBroadcast = true;
-      await route.abort('failed');
+      this.pendingBroadcast = route;
       return;
     }
     if (request.method === 'EXPERIMENTAL_tx_status') {
+      this.statusRequests += 1;
+      if (this.statusUnavailable) {
+        await route.fulfill({ status: 503, body: 'Transaction status unavailable' });
+        return;
+      }
       const encoded = this.broadcasts.at(-1);
       if (!encoded) throw new Error('No transaction exists for recovery.');
       const params = requireRecord(request.params, 'transaction status params');
@@ -139,6 +147,13 @@ class ApplicationBackend {
       }
     }
     await fulfillNearRpcStub(route);
+  }
+
+  async releaseLostBroadcast(): Promise<void> {
+    const route = this.pendingBroadcast;
+    if (!route) throw new Error('The broadcast has not reached the RPC boundary.');
+    this.pendingBroadcast = null;
+    await route.abort('failed');
   }
 
   observe(route: import('@playwright/test').Request): void {
@@ -245,6 +260,26 @@ export async function verifyApplicationAuth(
     expect(backend.broadcasts.length).toBe(1);
     console.info('[application-auth] cancellation complete');
 
+    // Reload destroys an approval before signing. Its intact receipt proves non-submission.
+    await page
+      .getByRole('button', { name: 'Prepare one yoctoNEAR self-transfer', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Review and approve transfer', exact: true }).click();
+    await page
+      .locator('iframe[allow*="publickey-credentials-get"]')
+      .last()
+      .contentFrame()
+      .locator('#seams-confirm-portal')
+      .getByRole('button', { name: 'Cancel', exact: true })
+      .waitFor();
+    await page.reload();
+    await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
+      'data-state',
+      'not_submitted',
+    );
+    expect(backend.broadcasts.length).toBe(1);
+
     // The next operation needs a new owner assertion even though material was just opened.
     await page
       .getByRole('button', { name: 'Prepare one yoctoNEAR self-transfer', exact: true })
@@ -280,27 +315,70 @@ export async function verifyApplicationAuth(
       .click();
     await page.getByRole('button', { name: 'Review and approve transfer', exact: true }).click();
     await clickNearConfirmation(page);
+    await expect.poll(readBroadcastCount.bind(null, backend), { timeout: 90_000 }).toBe(3);
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
-      'unknown',
+      'submitting',
+    );
+    const unresolvedHash = nearTransactionHash(backend.broadcasts[2]);
+    await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
+    await backend.releaseLostBroadcast();
+    await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
+      'data-state',
+      'unresolved',
       { timeout: 90_000 },
     );
     expect(backend.lostBroadcast).toBe(true);
     const broadcastsAfterLoss = backend.broadcasts.length;
     await page.evaluate(prepareApiOperation);
-    expect(await page.evaluate(approveApiOnce)).toBe('unknown');
+    const newRecovery = await page.evaluate(readApiRecovery);
+    expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
+    const blockingState = await page.evaluate(readApiState);
+    expect(blockingState.transactionId).toBe(unresolvedHash);
+    expect(blockingState.recovery.operationId).not.toBe(newRecovery.operationId);
+    const missingReceipt = await page.evaluate(recoverApiOperation, newRecovery);
+    expect(missingReceipt.kind).toBe('recovery_unavailable');
+    await page.evaluate(prepareApiOperation);
+    expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
+    expect((await page.evaluate(readApiState)).recovery).toEqual(blockingState.recovery);
     expect(backend.broadcasts.length).toBe(broadcastsAfterLoss);
+
+    // Failure to authenticate recovery must retain the known hash and remain retryable.
+    await context.route('**/wallet/external-auth/settings', unavailableOwnerSettings);
+    const failedRecovery = await page.evaluate(recoverCurrentApiOperation);
+    expect(failedRecovery.kind).toBe('unresolved');
+    expect(failedRecovery.transactionId).toBe(unresolvedHash);
+    await context.unroute('**/wallet/external-auth/settings', unavailableOwnerSettings);
     await page.reload();
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
       'unknown',
     );
+    await context.route('**/wallet/external-auth/settings', unavailableOwnerSettings);
+    await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
+      'data-state',
+      'recovery_unavailable',
+    );
+    await context.unroute('**/wallet/external-auth/settings', unavailableOwnerSettings);
+    backend.statusUnavailable = true;
+    await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
+      'data-state',
+      'unresolved',
+    );
+    await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
+    backend.statusUnavailable = false;
     await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
       'data-state',
       'completed',
     );
     expect(backend.broadcasts.length).toBe(broadcastsAfterLoss);
+    const statusRequestsAfterSettlement = backend.statusRequests;
+    const settledRecovery = await page.evaluate(recoverApiOperation, blockingState.recovery);
+    expect(settledRecovery.kind).toBe('completed');
+    expect(backend.statusRequests).toBe(statusRequestsAfterSettlement);
 
     // The same handle shares one in-flight approval and cannot replay after completion.
     await page.evaluate(prepareApiOperation);
@@ -326,7 +404,7 @@ export async function verifyApplicationAuth(
     await expect(
       page.getByRole('region', { name: 'Application authentication', exact: true }),
     ).toHaveAttribute('data-state', 'failed');
-    expect(await page.evaluate(approveApiOnce)).toBe('failed');
+    expect(await page.evaluate(approveApiOnce)).toBe('not_submitted');
     expect(backend.broadcasts.length).toBe(broadcastsAfterLoss + 1);
     backend.session.subject = 'getsignal-user-42';
     await page.getByRole('button', { name: 'Connect wallet', exact: true }).click();
@@ -343,12 +421,28 @@ export async function verifyApplicationAuth(
       walletId,
       sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
       verifiedTransactions,
+      recoveryEvidence: {
+        unresolvedHash,
+        newRecovery,
+        blockingState,
+        missingReceipt,
+        failedRecovery,
+        settledRecovery,
+      },
       freshSigningAdmissions: await freshSigningAdmissions(walletId),
       checks: [
         'reload',
         'fresh_second_approval',
         'cancel_preserves_connection',
-        'unknown_recovers_without_broadcast',
+        'interrupted_approval_proves_non_submission',
+        'hash_visible_before_broadcast_response',
+        'unresolved_recovers_without_broadcast',
+        'missing_receipt_cannot_prove_non_submission',
+        'recovery_unavailable_remains_retryable',
+        'recovery_error_retains_known_hash',
+        'rpc_error_retains_known_hash',
+        'settled_recovery_uses_durable_result',
+        'blocked_approval_returns_original_identity',
         'concurrent_same_handle',
         'replay_rejected',
         'expired_handle',
@@ -379,6 +473,14 @@ export async function verifyApplicationAuth(
       contentType: 'application/json',
     });
   } catch (error) {
+    await testInfo.attach('application-auth-rpc-state', {
+      body: JSON.stringify({
+        transactionHashes: backend.broadcasts.map(nearTransactionHash),
+        broadcastResponseHeld: backend.pendingBroadcast !== null,
+        statusRequests: backend.statusRequests,
+      }),
+      contentType: 'application/json',
+    });
     await testInfo.attach('application-auth-page.html', {
       body: await page.content(),
       contentType: 'text/html',
@@ -586,6 +688,42 @@ async function freshSigningAdmissions(walletId: string): Promise<number> {
 async function prepareApiOperation(): Promise<void> {
   if (!window.ownerAuthPrepare) throw new Error('Missing application operation fixture.');
   await window.ownerAuthPrepare();
+}
+
+function readBroadcastCount(backend: ApplicationBackend): number {
+  return backend.broadcasts.length;
+}
+
+async function unavailableOwnerSettings(route: Route): Promise<void> {
+  await route.fulfill({ status: 503, json: { ok: false, code: 'temporarily_unavailable' } });
+}
+
+function readApiState() {
+  if (!window.ownerAuthOperation) throw new Error('Missing owner operation.');
+  return window.ownerAuthOperation.getState();
+}
+
+function readApiRecovery() {
+  if (!window.ownerAuthOperation) throw new Error('Missing owner operation.');
+  return window.ownerAuthOperation.getState().recovery;
+}
+
+async function recoverApiOperation(recovery: import('@seams/wallet').OwnerNearRecovery) {
+  const seams = window.ownerAuthApi;
+  if (!seams) throw new Error('Missing application API.');
+  const session = await seams.auth.getSession();
+  if (session.authentication.kind !== 'external_authenticated')
+    throw new Error('Missing read connection.');
+  const operation = seams.near.resumeOwnerTransaction({
+    authentication: session.authentication,
+    recovery,
+  });
+  return await operation.recover();
+}
+
+async function recoverCurrentApiOperation() {
+  if (!window.ownerAuthOperation) throw new Error('Missing owner operation.');
+  return await window.ownerAuthOperation.recover();
 }
 
 async function approveApiTwice(): Promise<string[]> {

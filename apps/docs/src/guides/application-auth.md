@@ -95,13 +95,33 @@ Direct approval with another relying party's passkey is outside this API.
 ## Observe and recover
 
 Use `operation.getState()` or React's `useOwnerNearOperation(operation)`.
-States distinguish `prepared`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `failed`, `reverted`, and `unknown`.
+States distinguish `prepared`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `not_submitted`, `reverted`, `unresolved`, `recovery_unavailable`, and `unknown`.
 A React wallet with `access: 'external'` exposes owner-operation handles separately from reusable signing controls.
 
 Persist `state.recovery` as non-secret transaction metadata before starting an operation.
 After reload, use `near.resumeOwnerTransaction({ authentication, recovery })`, then call `recover()`.
 Recovery reads the recorded transaction hash and queries its outcome. It never broadcasts again.
 An unresolved submission blocks another transaction for that wallet connection until recovery settles it.
+
+Handle outcomes by their typed `kind`. Do not interpret error-message text.
+
+| Outcome | Application action |
+| --- | --- |
+| `cancelled`, `expired`, `not_submitted` | Clear this attempt's pending state and offer a fresh approval. |
+| `completed`, `reverted` | Record the final transaction outcome and clear its pending state. |
+| `unresolved` | Persist `transactionId` and `recovery`. Check that transaction before another owner transaction. |
+| `unknown`, `recovery_unavailable` | Keep an unresolved entry and offer `recover()` again. Missing storage or a timeout does not prove failure. |
+
+The `submitting` state exposes `transactionId` before broadcast begins.
+The SDK field `transactionId` contains the NEAR transaction hash.
+Persist that hash as soon as it appears.
+Recovery failures retain a hash already known to the operation handle.
+
+If another operation blocks approval, the result names that existing operation in `recovery`.
+Persist the returned identity or the updated `operation.getState().recovery`.
+Do not continue checking the newly prepared operation's original ID.
+Keep explicit recovery controls available, and allow reads and unrelated wallet actions.
+If authentication expires, reconnect and resume the saved operation with the new authentication.
 
 ## Maintained example
 

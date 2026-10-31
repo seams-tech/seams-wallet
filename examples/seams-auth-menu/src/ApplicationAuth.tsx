@@ -234,11 +234,21 @@ function OwnerTransaction({ operation }: { operation: OwnerNearOperation }): Rea
       {state.kind === 'prepared' || state.kind === 'approval' ? (
         <button onClick={operation.cancel.bind(operation)}>Cancel transfer</button>
       ) : null}
-      {state.kind === 'unknown' ? (
+      {state.kind === 'unknown' ||
+      state.kind === 'unresolved' ||
+      state.kind === 'recovery_unavailable' ? (
         <button onClick={operation.recover.bind(operation)}>Check existing transaction</button>
       ) : null}
       {state.kind === 'completed' ? <p>Transaction: {state.result.transactionId}</p> : null}
-      {state.kind === 'failed' || state.kind === 'reverted' ? <p>{state.error}</p> : null}
+      {state.kind === 'submitting' || state.kind === 'unresolved' ? (
+        <p>Transaction: {state.transactionId}</p>
+      ) : null}
+      {state.kind === 'not_submitted' ||
+      state.kind === 'reverted' ||
+      state.kind === 'unresolved' ||
+      state.kind === 'recovery_unavailable' ? (
+        <p>{state.error}</p>
+      ) : null}
     </section>
   );
 }
@@ -288,13 +298,15 @@ function persistRecovery(state: OwnerNearOperationState): void {
     case 'approval':
     case 'submitting':
     case 'unknown':
+    case 'unresolved':
+    case 'recovery_unavailable':
       sessionStorage.setItem(key, JSON.stringify(state.recovery));
       return;
     case 'completed':
     case 'reverted':
     case 'cancelled':
     case 'expired':
-    case 'failed':
+    case 'not_submitted':
       if (readRecovery(state.recovery.walletId)?.operationId === state.recovery.operationId)
         sessionStorage.removeItem(key);
       return;

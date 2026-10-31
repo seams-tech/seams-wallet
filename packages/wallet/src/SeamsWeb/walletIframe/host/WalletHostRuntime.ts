@@ -311,8 +311,23 @@ export class WalletHostRuntime {
   onSdkLifecycleEvent(listener: SdkLifecycleEventListener): () => void {
     return this.signingEngine.onSdkLifecycleEvent(listener);
   }
-  async runOwnerNearOperation(command: OwnerNearCommand, assertActive: () => void, onEvent: (event: import('@/core/types/sdkSentEvents').SigningFlowEvent) => void, onSubmission: () => void): Promise<OwnerNearOutcome> {
-    return await runOwnerNearOperation({ getContext: this.getContext.bind(this), captureConnection: this.captureExternalOwnerOperation, parentOrigin: this.parentOrigin }, command, assertActive, onEvent, onSubmission);
+  async runOwnerNearOperation(
+    command: OwnerNearCommand,
+    assertActive: () => void,
+    onEvent: (event: import('@/core/types/sdkSentEvents').SigningFlowEvent) => void,
+    onSubmission: (transactionId: string) => void,
+  ): Promise<OwnerNearOutcome> {
+    return await runOwnerNearOperation(
+      {
+        getContext: this.getContext.bind(this),
+        captureConnection: this.captureExternalOwnerOperation,
+        parentOrigin: this.parentOrigin,
+      },
+      command,
+      assertActive,
+      onEvent,
+      onSubmission,
+    );
   }
 
   getContext(): SeamsWebContextWithDeviceLinkingResumeV1 {
