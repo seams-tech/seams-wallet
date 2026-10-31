@@ -388,8 +388,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     page,
   }) => {
     await startHostedAuthMenu(page, 'compact-measurement-session');
-    await waitForMeasuredDialog(page);
-    const fallbackGeometry = await readDialogGeometry(page);
+    const pendingGeometry = await readDialogGeometry(page);
 
     await postSurfaceMeasurement(page, {
       kind: 'measured_auth_menu_v1',
@@ -402,9 +401,9 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     });
     await page.waitForTimeout(40);
     const malformedGeometry = await readDialogGeometry(page);
-    expect(malformedGeometry.className).toContain('is-viewport-fallback');
-    expect(malformedGeometry.width).toBeCloseTo(fallbackGeometry.width, 0);
-    expect(malformedGeometry.height).toBeCloseTo(fallbackGeometry.height, 0);
+    expect(malformedGeometry.className).toContain('is-provisional');
+    expect(malformedGeometry.width).toBeCloseTo(pendingGeometry.width, 0);
+    expect(malformedGeometry.height).toBeCloseTo(pendingGeometry.height, 0);
 
     await postSurfaceMeasurement(page, {
       kind: 'measured_auth_menu_v1',
@@ -632,8 +631,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     await completeCurrentSurface(page);
 
     await startHostedAuthMenu(page, 'compact-replacement-second');
-    await waitForMeasuredDialog(page);
-    const replacementFallback = await readDialogGeometry(page);
+    const pendingReplacement = await readDialogGeometry(page);
 
     await postSurfaceMeasurement(page, {
       kind: 'measured_auth_menu_v1',
@@ -645,9 +643,9 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     });
     await page.waitForTimeout(40);
     const staleReplacementGeometry = await readDialogGeometry(page);
-    expect(staleReplacementGeometry.className).toContain('is-viewport-fallback');
-    expect(staleReplacementGeometry.width).toBeCloseTo(replacementFallback.width, 0);
-    expect(staleReplacementGeometry.height).toBeCloseTo(replacementFallback.height, 0);
+    expect(staleReplacementGeometry.className).toContain('is-provisional');
+    expect(staleReplacementGeometry.width).toBeCloseTo(pendingReplacement.width, 0);
+    expect(staleReplacementGeometry.height).toBeCloseTo(pendingReplacement.height, 0);
   });
 
   test('uses viewport fallback when a compact surface cannot fit a mobile viewport', async ({
@@ -655,6 +653,16 @@ test.describe('wallet iframe compact surface measurement routing', () => {
   }) => {
     await page.setViewportSize({ width: 320, height: 240 });
     await startHostedAuthMenu(page, 'compact-mobile-session');
+    expect((await readDialogGeometry(page)).className).toContain('is-provisional');
+    await postSurfaceMeasurement(page, {
+      kind: 'measured_auth_menu_v1',
+      requestId: '__current__',
+      authMenuSessionId: '__current__',
+      sequence: 1,
+      widthCssPx: 360,
+      heightCssPx: 400,
+    });
+    await waitForMeasuredDialog(page);
     const geometry = await readDialogGeometry(page);
     expect(geometry.className).toContain('is-viewport-fallback');
     expect(geometry.width).toBeCloseTo(288, 0);

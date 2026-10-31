@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
@@ -6,14 +6,17 @@ import { routePreactModules } from '../setup/preact';
 
 const parentScript = `
 import OverlayController from '/_test-sdk/esm/SeamsWeb/walletIframe/client/overlay/overlay-controller.js';
-import { modalWalletIframeSurfacePresentation, requestSurfaceIdentity } from '/_test-sdk/esm/SeamsWeb/walletIframe/client/surface/domain.js';
+import { modalWalletIframeSurfacePresentation, drawerWalletIframeSurfacePresentation, requestSurfaceIdentity } from '/_test-sdk/esm/SeamsWeb/walletIframe/client/surface/domain.js';
 import { provisionalWalletIframeSurfaceGeometry, measuredWalletIframeSurfaceGeometry } from '/_test-sdk/esm/SeamsWeb/walletIframe/client/surface/geometry.js';
 import { walletIframeRequestIdFromBoundary, walletIframeSurfaceIdFromBoundary } from '/_test-sdk/esm/core/types/walletIframeIdentity.js';
 
 const iframe = document.createElement('iframe');
 iframe.src = '/confirmation-overlay-child' + location.search;
 iframe.title = 'Wallet confirmation';
-const presentation = modalWalletIframeSurfacePresentation('Transaction receipt');
+const parameters = new URLSearchParams(location.search);
+const presentation = parameters.get('presentation') === 'drawer'
+  ? drawerWalletIframeSurfacePresentation('Transaction receipt')
+  : modalWalletIframeSurfacePresentation('Transaction receipt');
 const identity = requestSurfaceIdentity({
   requestId: walletIframeRequestIdFromBoundary('confirmation-overlay'),
   surfaceId: walletIframeSurfaceIdFromBoundary('confirmation-overlay'),
@@ -21,6 +24,10 @@ const identity = requestSurfaceIdentity({
 const overlay = new OverlayController({ ensureIframe });
 let measurement = null;
 let view = 'expanded';
+let holdMeasurement = parameters.has('hold');
+let open = true;
+let releaseStartedAt = 0;
+window.overlayRevealLatencyMs = null;
 
 function ensureIframe() {
   return iframe;
@@ -34,8 +41,12 @@ function viewport() {
   };
 }
 function render() {
+  if (!open) {
+    overlay.apply({ kind: 'hidden' });
+    return;
+  }
   overlay.apply({
-    kind: 'compact_request_modal',
+    kind: presentation.kind === 'drawer' ? 'compact_request_drawer' : 'compact_request_modal',
     identity,
     presentation,
     focusTrap: view === 'expanded',
@@ -48,8 +59,13 @@ function receive(event) {
   if (event.source !== iframe.contentWindow || event.origin !== location.origin) return;
   if (event.data.kind === 'measurement') {
     measurement = event.data.value;
+    if (holdMeasurement) return;
   } else if (event.data.kind === 'view') {
     view = event.data.value;
+  } else if (event.data.kind === 'closed') {
+    open = false;
+    render();
+    return;
   } else {
     return;
   }
@@ -58,6 +74,33 @@ function receive(event) {
 function clicked() {
   document.querySelector('#background').textContent = 'Clicked';
 }
+function releaseMeasurement() {
+  open = true;
+  holdMeasurement = false;
+  releaseStartedAt = performance.now();
+  render();
+  requestAnimationFrame(recordRevealLatency);
+}
+function recordRevealLatency() {
+  const dialog = iframe.closest('dialog');
+  if (dialog && !dialog.inert && getComputedStyle(dialog).opacity === '1') {
+    window.overlayRevealLatencyMs = performance.now() - releaseStartedAt;
+  } else {
+    requestAnimationFrame(recordRevealLatency);
+  }
+}
+function hasMeasurement() {
+  return measurement !== null;
+}
+function cancelMeasuredReveal() {
+  holdMeasurement = false;
+  render();
+  open = false;
+  render();
+}
+window.releaseMeasurement = releaseMeasurement;
+window.hasMeasurement = hasMeasurement;
+window.cancelMeasuredReveal = cancelMeasuredReveal;
 window.addEventListener('message', receive);
 window.addEventListener('resize', render);
 document.querySelector('#background').addEventListener('click', clicked);
@@ -83,7 +126,10 @@ const model = {
 
 const surface = mountConfirmationSurface({
   parent: document.body,
-  presentation: { variant: 'modal', context: 'wallet-iframe' },
+  presentation: {
+    variant: new URLSearchParams(location.search).get('presentation') === 'drawer' ? 'drawer' : 'modal',
+    context: 'wallet-iframe',
+  },
   model: {
     appearance: { palette: 'default', theme: { id: 'default', mode: new URLSearchParams(location.search).get('theme') === 'dark' ? 'dark' : 'light', colors: {} } },
     content: {
@@ -165,6 +211,7 @@ function confirm() {
 }
 function dismiss() {
   surface.dispose();
+  parent.postMessage({ kind: 'closed' }, location.origin);
 }
 function showReceipt(view) {
   window.__receiptTransition = { frames: [], done: false };
@@ -190,8 +237,9 @@ function serveOverlayPage(route: Route) {
         body { margin: 0; }
         #background { position: fixed; inset: 0; width: 100%; height: 100%; }
         #spacer { height: 2400px; }
+        #background-input { position: fixed; top: 8px; left: 8px; z-index: 1; }
       </style></head><body>
-      ${child ? '' : '<button id="background">Background control</button><div id="spacer"></div>'}
+      ${child ? '' : '<button id="background">Background control</button><input id="background-input" aria-label="Background input"><div id="spacer"></div>'}
       <script type="module">${child ? childScript : parentScript}</script>
       </body></html>`,
   });
@@ -287,6 +335,80 @@ function scrollHorizontally() {
 }
 function readScroll(page: Page) {
   return page.evaluate(browserScroll);
+}
+
+test(
+  'loading wallet surfaces preserve page clicks and typing until their content is ready',
+  verifyLoadingInteractions,
+);
+
+async function verifyLoadingInteractions(
+  { page }: { page: Page },
+  testInfo: TestInfo,
+): Promise<void> {
+  await injectImportMap(page);
+  await routePreactModules(page);
+  await page.route('**/confirmation-overlay-*', serveOverlayPage);
+  const evidence = [];
+  for (const scenario of [
+    { presentation: 'modal', width: 1024, height: 900 },
+    { presentation: 'drawer', width: 390, height: 844 },
+    { presentation: 'modal', width: 320, height: 220 },
+  ]) {
+    await page.setViewportSize({ width: scenario.width, height: scenario.height });
+    await page.goto(`/confirmation-overlay-parent?hold=1&presentation=${scenario.presentation}`);
+    const dialog = page.locator('dialog[data-seams-root]');
+    await expect(dialog).toHaveCSS('opacity', '0');
+    await expect(page.locator('dialog:modal')).toHaveCount(0);
+    await page.mouse.click(scenario.width / 2, scenario.height / 2);
+    await expect(page.locator('#background')).toHaveText('Clicked');
+    const input = page.getByRole('textbox', { name: 'Background input' });
+    await input.fill('Page remains usable');
+    await expect(input).toBeFocused();
+
+    const child = page.frameLocator('iframe');
+    const dismissName = scenario.presentation === 'drawer' ? 'Close' : 'Cancel';
+    // The hidden iframe still renders the real confirmation and reports its size.
+    await expect(
+      child.getByRole('button', { name: dismissName, exact: true, includeHidden: true }),
+    ).toHaveCount(1);
+    await expect.poll(page.evaluate.bind(page, 'window.hasMeasurement()')).toBe(true);
+    await page.evaluate('window.releaseMeasurement()');
+    await expect(dialog).toHaveCSS('opacity', '1');
+    await expect(page.locator('dialog:modal')).toHaveCount(1);
+    await expect(input).not.toBeFocused();
+    await child.getByRole('button', { name: dismissName, exact: true }).click();
+    await expect(page.locator('dialog:modal')).toHaveCount(0);
+    await expect(input).toBeFocused();
+    await input.fill('Page remains usable after cancellation');
+    const revealLatencyMs: number = await page.evaluate('window.overlayRevealLatencyMs');
+    evidence.push({
+      ...scenario,
+      loadingInteractive: true,
+      visibleModal: true,
+      cancelledInteractive: true,
+      revealLatencyMs,
+    });
+  }
+  await page.goto('/confirmation-overlay-parent?hold=1');
+  await expect.poll(page.evaluate.bind(page, 'window.hasMeasurement()')).toBe(true);
+  await page.evaluate('window.cancelMeasuredReveal()');
+  await expect(page.locator('dialog:modal')).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Background input' }).fill('Reveal cancelled');
+  await page.evaluate('window.releaseMeasurement()');
+  await expect(page.locator('dialog:modal')).toHaveCount(1);
+  await expect(page.locator('dialog[data-seams-root]')).toHaveCSS('opacity', '1');
+  await page.frameLocator('iframe').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.locator('dialog:modal')).toHaveCount(0);
+  const artifact = testInfo.outputPath('loading-surface-interactions.json');
+  await writeFile(
+    artifact,
+    JSON.stringify({ browser: testInfo.project.name, evidence }, null, 2) + '\n',
+  );
+  await testInfo.attach('loading-surface-interactions', {
+    path: artifact,
+    contentType: 'application/json',
+  });
 }
 
 type ReceiptFrame = {

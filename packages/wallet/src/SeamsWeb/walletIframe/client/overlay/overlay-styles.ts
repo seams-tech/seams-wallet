@@ -216,19 +216,17 @@ const BASE_CSS = `
   ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}.${CLASS_RESIZE_ANIMATED} {
     transition: none;
   }
-  /* A provisional drawer already owns the full visual viewport. Modals,
-     the hosted auth menu included, stay invisible until their measured
-     bounds are ready, so the card first paints at its final size and place.
+  /* Loading surfaces, including drawers and the hosted auth menu, stay
+     invisible until their measured bounds are ready. The dialog stays
+     nonmodal and inert so the page remains usable during layout.
 
      Invisible means opacity, never visibility. Chrome stops rendering a
      cross-origin iframe whose ancestor is visibility:hidden (no animation
      frames, no ResizeObserver delivery), so a modal hidden that way could not
      lay out its confirmer or post the measurement the reveal waits for: the
-     card appeared only when the 4s measurement fallback forced the box
-     visible. Playwright's bundled Chromium keeps rendering such frames, which
-     is why no browser test noticed. An opacity:0 dialog is painted normally
+     card could never appear. An opacity:0 dialog is painted normally
      (the frame is not throttled), just fully transparent. */
-  ${DIALOG_SELECTOR}.${CLASS_PROVISIONAL}.${CLASS_MODAL} {
+  ${DIALOG_SELECTOR}.${CLASS_PROVISIONAL} {
     opacity: 0;
     pointer-events: none;
   }

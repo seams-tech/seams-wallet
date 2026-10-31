@@ -1094,6 +1094,12 @@ sizing path. With normal motion, expanding or collapsing content announces one
 target height before the card changes size. The card must fit within the iframe
 throughout the resize. Reduced-motion behavior remains immediate.
 
+Wallet confirmation surfaces remain transparent and nonmodal until their content
+reports its size. Loading surfaces cannot block page clicks, typing, or focus.
+Elapsed time alone cannot open a modal. This applies to drawers and small viewports
+as well as desktop modals. Visible confirmations retain modal focus containment.
+Closing a confirmation restores the control focused immediately before it appeared.
+
 ## Registration
 
 ### Wallet-management protocol

@@ -341,18 +341,13 @@ export class OverlayController {
       this.cancelSurfaceResize();
       this.generation += 1;
       this.pointerCapture = null;
-      this.captureFocusForDialog();
     }
     this.mode = mode;
     this.visible = true;
 
-    if (revealMeasuredRequestModal) {
-      dialog.classList.add(OverlayStyleClasses.REVEAL_PENDING);
-    }
     setVisible(iframe);
     setDialogPresentation(dialog, presentationKind(mode), geometryKind(mode.geometry));
     setDialogAuthMenu(dialog, authMenu, animateAuthMenuResize);
-    dialog.setAttribute('aria-modal', authMenu || !mode.focusTrap ? 'false' : 'true');
     if (geometryChanged || authMenuScaleChanged) {
       if (geometryChanged) this.cancelSurfaceResize();
       // Keep the iframe at the origin while the destination is written and
@@ -406,17 +401,30 @@ export class OverlayController {
     dialog.setAttribute('aria-label', mode.presentation.title);
     dialog.classList.remove(OverlayStyleClasses.HIDDEN);
 
-    const requestedDisplayMode = authMenu || !mode.focusTrap ? 'nonmodal' : 'modal';
-    if (dialog.open && this.dialogDisplayMode !== requestedDisplayMode) {
-      this.closeDialogProgrammatically(dialog);
-      this.dialogDisplayMode = null;
-    }
-    if (!dialog.open) {
-      this.showDialog(dialog, requestedDisplayMode);
-    }
     if (revealMeasuredRequestModal) {
       this.scheduleMeasuredReveal();
     }
+    this.syncDialogInteractivity();
+  }
+
+  private syncDialogInteractivity(): void {
+    const dialog = this.dialog;
+    const mode = this.mode;
+    if (!dialog || mode.kind === 'hidden') return;
+    const preparing =
+      geometryKind(mode.geometry) === 'provisional' || this.pendingRevealFrame !== null;
+    if (!preparing && (dialog.inert || !dialog.open)) this.captureFocusForDialog();
+    dialog.inert = preparing;
+    dialog.setAttribute('aria-hidden', String(preparing));
+    const modal = !preparing && mode.kind !== 'compact_auth_menu' && mode.focusTrap;
+    dialog.setAttribute('aria-modal', String(modal));
+    const displayMode = modal ? 'modal' : 'nonmodal';
+    if (dialog.open && this.dialogDisplayMode !== displayMode) {
+      this.closeDialogProgrammatically(dialog);
+      this.dialogDisplayMode = null;
+    }
+    // A loading iframe must remain rendered for measurement without blocking its parent page.
+    if (!dialog.open) this.showDialog(dialog, displayMode);
   }
 
   activateAfterReviewHandoff(onReady: () => void): void {
@@ -522,21 +530,14 @@ export class OverlayController {
 
   private scheduleMeasuredReveal(): void {
     this.cancelPendingReveal();
+    this.dialog?.classList.add(OverlayStyleClasses.REVEAL_PENDING);
     this.pendingRevealFrame = window.requestAnimationFrame(this.revealMeasuredSurface);
   }
 
   private readonly revealMeasuredSurface = (): void => {
     this.pendingRevealFrame = null;
-    const dialog = this.dialog;
-    if (
-      !dialog ||
-      !this.visible ||
-      this.mode.kind !== 'compact_request_modal' ||
-      geometryKind(this.mode.geometry) === 'provisional'
-    ) {
-      return;
-    }
-    dialog.classList.remove(OverlayStyleClasses.REVEAL_PENDING);
+    this.dialog?.classList.remove(OverlayStyleClasses.REVEAL_PENDING);
+    this.syncDialogInteractivity();
   };
 
   private startSurfaceResize(origin: SurfaceRect, destination: SurfaceRect, duration: number): void {
@@ -561,9 +562,9 @@ export class OverlayController {
   };
 
   private cancelPendingReveal(): void {
-    if (this.pendingRevealFrame === null) return;
-    window.cancelAnimationFrame(this.pendingRevealFrame);
+    if (this.pendingRevealFrame !== null) window.cancelAnimationFrame(this.pendingRevealFrame);
     this.pendingRevealFrame = null;
+    this.dialog?.classList.remove(OverlayStyleClasses.REVEAL_PENDING);
   }
 
   private cancelSurfaceResize(): void {
@@ -672,11 +673,11 @@ export class OverlayController {
   };
 
   private handleClose = (): void => {
-    this.dialogDisplayMode = null;
     if (this.pendingProgrammaticCloseEvents > 0) {
       this.pendingProgrammaticCloseEvents -= 1;
       return;
     }
+    this.dialogDisplayMode = null;
     if (this.visible) this.requestDismiss('escape');
   };
 

@@ -596,20 +596,6 @@ function dispatchHostedAuthMenuError(
 }
 
 const WALLET_IFRAME_PROGRESS_TIMEOUT_EXTENSION_FACTOR = 4;
-/**
- * Grace period before an unmeasured surface falls back to filling the viewport.
- *
- * Every in-iframe mounter binds a measurement reporter, and the reporter posts
- * as soon as its element exists, so "no measurement" means "nothing is mounted
- * yet" — not "mounted but unmeasurable". Plenty of surfaces mount behind a
- * network round-trip (the email OTP export prompt waits for its challenge to be
- * issued and mailed), so a short deadline declared them broken mid-flight and
- * swapped a hidden provisional box for a full-viewport, unshadowed one that
- * then snapped back once the card finally reported. The deadline is a backstop
- * for a child that never reports at all, so it is sized to outlast a slow
- * request rather than to race one, and progress on the request restarts it.
- */
-const WALLET_IFRAME_SURFACE_MEASUREMENT_FALLBACK_TIMEOUT_MS = 4_000;
 const WALLET_IFRAME_REGISTRATION_TIMEOUT_MS = 180_000;
 const WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS = 30_000;
 
@@ -1287,13 +1273,10 @@ export class WalletIframeRouter {
   private transactionReceipt: { requestId: string; view: 'expanded' | 'toast' } | null = null;
   private surfaceRenderer: WalletIframeSurfaceRenderer;
   private activeSurfaceMeasurement: WalletIframeTrustedSurfaceMeasurement | null = null;
-  private activeSurfaceMeasurementUnavailable = false;
   private surfaceGeneration = 0;
   private activeSurfaceMeasurementGeneration = 0;
   private surfaceViewportListenersAttached = false;
   private surfaceLayoutObserver: ResizeObserver | null = null;
-  private measurementFallbackTimer: number | null = null;
-  private measurementFallbackGeneration = 0;
   private disposed = false;
   private readonly reviews = new Map<
     string,
@@ -1508,7 +1491,6 @@ export class WalletIframeRouter {
         presentation: { kind: 'modal', title: args.title },
       });
       if (result.kind === 'rejected') throw walletIframeSurfaceBusyError(result.error);
-      this.cancelMeasurementFallback();
       this.reviewResizeObserver = new ResizeObserver(this.refreshReviewGeometry);
       this.reviewMutationObserver = new MutationObserver(this.refreshReviewGeometry);
       this.reviewMutationObserver.observe(slot, {
@@ -1710,7 +1692,6 @@ export class WalletIframeRouter {
       if (!this.surfaceIdentityEqual(previousSurface, result.surface)) {
         this.surfaceGeneration += 1;
         this.activeSurfaceMeasurement = null;
-        this.activeSurfaceMeasurementUnavailable = false;
         this.activeSurfaceMeasurementGeneration = this.surfaceGeneration;
       }
       this.updateSurfaceViewportListeners();
@@ -1720,9 +1701,6 @@ export class WalletIframeRouter {
         this.hostedAuthMenuAnchors.has(result.surface.authMenuSessionId)
       ) {
         this.startHostedAuthMenuAnchorTracking(result.surface.authMenuSessionId);
-      }
-      if (result.surface.kind !== 'hidden' && !this.activeSurfaceMeasurement) {
-        this.scheduleMeasurementFallback(this.surfaceGeneration);
       }
     }
     return result;
@@ -1756,54 +1734,12 @@ export class WalletIframeRouter {
     this.surfaceLayoutObserver?.disconnect();
     this.surfaceLayoutObserver = null;
     this.surfaceViewportListenersAttached = false;
-    this.cancelMeasurementFallback();
   }
 
   private handleSurfaceViewportChange = (): void => {
     if (this.walletIframeSurface.kind === 'hidden') return;
     this.renderActiveWalletIframeSurface();
   };
-
-  private scheduleMeasurementFallback(generation: number): void {
-    this.cancelMeasurementFallback();
-    if (this.walletIframeSurface.kind === 'hidden') return;
-    this.measurementFallbackGeneration = generation;
-    this.measurementFallbackTimer = window.setTimeout(
-      this.handleMeasurementFallbackTimeout,
-      WALLET_IFRAME_SURFACE_MEASUREMENT_FALLBACK_TIMEOUT_MS,
-    );
-  }
-
-  private handleMeasurementFallbackTimeout = (): void => {
-    this.measurementFallbackTimer = null;
-    this.markMeasurementUnavailable(this.measurementFallbackGeneration);
-  };
-
-  /**
-   * A request that is still reporting progress has not stalled, so its surface
-   * must not be declared unmeasurable while it works toward mounting.
-   */
-  private extendMeasurementFallbackOnProgress(requestId: string): void {
-    if (this.measurementFallbackTimer === null) return;
-    const surface = this.walletIframeSurface;
-    if (surface.kind === 'hidden' || surface.identity.requestId !== requestId) return;
-    this.scheduleMeasurementFallback(this.measurementFallbackGeneration);
-  }
-
-  private markMeasurementUnavailable(generation: number): void {
-    if (generation !== this.surfaceGeneration || this.walletIframeSurface.kind === 'hidden') return;
-    if (this.activeSurfaceMeasurement) return;
-    this.activeSurfaceMeasurementUnavailable = true;
-    this.cancelMeasurementFallback();
-    this.renderActiveWalletIframeSurface();
-  }
-
-  private cancelMeasurementFallback(): void {
-    if (this.measurementFallbackTimer !== null) {
-      window.clearTimeout(this.measurementFallbackTimer);
-      this.measurementFallbackTimer = null;
-    }
-  }
 
   private handleOverlayDismiss = (event: {
     identity: RequestSurfaceIdentity;
@@ -1904,9 +1840,7 @@ export class WalletIframeRouter {
           widthCssPx: this.activeSurfaceMeasurement.widthCssPx,
           heightCssPx: this.activeSurfaceMeasurement.heightCssPx,
         }
-      : this.activeSurfaceMeasurementUnavailable
-        ? { kind: 'unavailable' }
-        : undefined;
+      : undefined;
     if (surface.kind === 'modal_transaction_review') {
       const slot = this.reviews.get(surface.identity.requestId)?.reservation.slot;
       const content = slot?.firstElementChild;
@@ -1939,18 +1873,13 @@ export class WalletIframeRouter {
     if (
       surface.kind === 'modal_auth_menu' &&
       anchorMetrics &&
-      isWalletIframeModalGeometry(resolvedGeometry) &&
-      !(
-        resolvedGeometry.kind === 'viewport_fallback' &&
-        resolvedGeometry.reason === 'measurement_unavailable'
-      )
+      isWalletIframeModalGeometry(resolvedGeometry)
     ) {
       // The anchored menu is inline content, so the visual viewport never
       // sizes it: browser zoom shrinks the viewport's CSS px, and deriving
       // height (or taking the small_visual_viewport fallback) from it made the
       // menu reflow under zoom while the rest of the page just scaled. Height
-      // comes from the child's own measurement; only measurement_unavailable
-      // (a child that never reported) still falls back to the viewport box.
+      // comes from the child's own measurement.
       // Before the measurement the dialog covers whatever the anchor reserves
       // itself: a guessed height would move the app's layout twice.
       const measuredHeightCssPx = this.activeSurfaceMeasurement?.heightCssPx;
@@ -2086,9 +2015,7 @@ export class WalletIframeRouter {
       return;
     }
     this.activeSurfaceMeasurement = trusted;
-    this.activeSurfaceMeasurementUnavailable = false;
     this.activeSurfaceMeasurementGeneration = this.surfaceGeneration;
-    this.cancelMeasurementFallback();
     const review = this.reviews.get(measurement.requestId);
     if (review) this.maybeActivateReview(review.reservation);
     this.renderActiveWalletIframeSurface();
@@ -2694,7 +2621,6 @@ export class WalletIframeRouter {
     this.disposed = true;
     const connectionId = this.state.connectionId;
     if (connectionId) this.handleConnectionClosed(connectionId);
-    this.cancelMeasurementFallback();
     this.updateSurfaceViewportListeners();
     this.overlayState.controller.dispose();
     this.transport.dispose();
@@ -4453,7 +4379,6 @@ export class WalletIframeRouter {
         this.sendBestEffortCancel(requestId);
         return;
       }
-      this.extendMeasurementFallbackOnProgress(requestId);
       if (!this.reviews.has(requestId) && shouldHideWalletIframeSurface(payload)) {
         this.hideRequestSurface(requestId as WalletIframeRequestId);
       }

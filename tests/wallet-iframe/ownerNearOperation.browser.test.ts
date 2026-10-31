@@ -2,6 +2,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import type { WalletHostConfig } from '@/SeamsWeb/walletIframe/shared/configuration';
+import type { TransactionReviewReservation } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 import type { OwnerNearOperation, OwnerNearOutcome } from '@/SeamsWeb/publicApi/ownerNearOperation';
 import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import { DEFAULT_TEST_CONFIG } from '../setup/config';
@@ -10,6 +11,7 @@ import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
 
 declare global {
   interface Window {
+    __ownerRecoveryReview: TransactionReviewReservation;
     __ownerRecoveryTest: {
       router: WalletIframeRouter;
       recovery: OwnerNearOperation;
@@ -34,16 +36,6 @@ const OWNER_SERVICE_SCRIPT = `
     document.body.append(marker);
     if (request.payload.action === 'approve') {
       approvalRequestId = request.requestId;
-      adoptedPort.postMessage({
-        type: 'SURFACE_MEASUREMENT',
-        payload: {
-          kind: 'measured_v1',
-          requestId: request.requestId,
-          sequence: 1,
-          widthCssPx: 420,
-          heightCssPx: 380,
-        },
-      });
       return;
     }
     recoveryAttempts += 1;
@@ -67,6 +59,21 @@ const OWNER_SERVICE_SCRIPT = `
     }
   }
 
+  function showOwnerApproval(event) {
+    if (event.data?.type === 'TEST_SHOW_APPROVAL' && approvalRequestId) {
+      adoptedPort.postMessage({
+        type: 'SURFACE_MEASUREMENT',
+        payload: {
+          kind: 'measured_v1',
+          requestId: approvalRequestId,
+          sequence: 1,
+          widthCssPx: 420,
+          heightCssPx: 380,
+        },
+      });
+    }
+  }
+
   function connectOwnerObserver(event) {
     if (event.data?.type === 'CONNECT' && event.ports[0]) {
       event.ports[0].addEventListener('message', observeOwnerRequest);
@@ -81,6 +88,7 @@ const OWNER_SERVICE_SCRIPT = `
   }
 
   window.addEventListener('message', connectOwnerObserver);
+  window.addEventListener('message', showOwnerApproval);
   window.addEventListener('message', finishOwnerApproval);
 `;
 
@@ -93,7 +101,14 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
   await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
   await registerWalletServiceRoute(
     page,
-    buildWalletServiceHtml({ extraScript: OWNER_SERVICE_SCRIPT }),
+    buildWalletServiceHtml({
+      extraScript: OWNER_SERVICE_SCRIPT,
+      exactSessionState: {
+        kind: 'wallet_unlocked_without_signing_session',
+        walletId: 'owner.testnet',
+        reason: 'absent',
+      },
+    }),
     '**://wallet.example.localhost/wallet-service*',
   );
   await page.evaluate(initializeOwnerOperations, {
@@ -116,8 +131,21 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
   // A pending recovery cannot reserve the approval queue.
   await page.evaluate(startApproval);
   await expect(wallet.locator('[data-action="approve"]')).toHaveCount(1);
+  const preparing = await page.evaluate(readDialogState);
+  await testInfo.attach('approval-before-content', {
+    body: JSON.stringify(preparing, null, 2),
+    contentType: 'application/json',
+  });
+  expect(preparing).toMatchObject({ modal: false, opacity: '0' });
+  await backgroundButton.click({ timeout: 2_000 });
+  // Slow preparation must not turn into a blank modal after the old four-second fallback.
+  await page.clock.fastForward(5_001);
+  await expect(page.locator('dialog:modal')).toHaveCount(0);
+  await backgroundButton.click({ timeout: 2_000 });
+  await wallet.locator('body').evaluate(showApproval);
+  await expect(page.locator('dialog[data-seams-root]')).toHaveCSS('width', '420px');
+  await page.clock.runFor(32);
   await expect(page.locator('dialog:modal')).toHaveCount(1);
-  await page.clock.fastForward(1_001);
   const unavailable = await page.evaluate(readRequestOutcome, 'recover' as const);
   expect(unavailable).toMatchObject({ kind: 'recovery_unavailable', recovery });
   expect(unavailable.error).toContain('Wallet request timeout');
@@ -158,6 +186,17 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
   });
   await expect(page.locator('dialog:modal')).toHaveCount(0);
 
+  await page.clock.resume();
+  await page.evaluate(reserveEmptyReview);
+  await expect(page.locator('dialog:modal')).toHaveCount(0);
+  await backgroundButton.click({ timeout: 2_000 });
+  await page.evaluate(mountReviewContent);
+  await expect(page.getByRole('heading', { name: 'Ready purchase review' })).toBeVisible();
+  await expect(page.locator('dialog:modal')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Cancel reserved review' }).click();
+  await expect(page.locator('dialog:modal')).toHaveCount(0);
+  await backgroundButton.click({ timeout: 2_000 });
+
   const artifact = testInfo.outputPath('owner-recovery.json');
   await writeFile(
     artifact,
@@ -167,16 +206,19 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
         transport: 'built SDK and MessageChannel with a controlled wallet host',
         clock: 'browser clock advances across the configured 1000 ms request timeout',
         recovery,
+        preparing,
         unavailable,
         unresolved,
         retried,
         settled,
         checks: [
           'background page accepts clicks during pending recovery',
+          'approval preparation remains nonmodal until content is measured',
           'recovery does not reserve the approval queue',
           'recovery bypasses an active approval',
           'recovery timeout does not close or expire an approval',
           'operation identity and known hash survive timeouts and retries',
+          'an empty application review does not block the page before content mounts',
         ],
         reproduce:
           'pnpm -C tests test:wallet-browser wallet-iframe/ownerNearOperation.browser.test.ts',
@@ -287,6 +329,43 @@ function finishApproval(): void {
   window.postMessage({ type: 'TEST_FINISH_APPROVAL' }, window.location.origin);
 }
 
+function showApproval(): void {
+  window.postMessage({ type: 'TEST_SHOW_APPROVAL' }, window.location.origin);
+}
+
+function readDialogState() {
+  const dialog = document.querySelector('dialog[data-seams-root]');
+  if (!(dialog instanceof HTMLDialogElement)) throw new Error('Missing wallet dialog.');
+  return { modal: dialog.matches(':modal'), opacity: getComputedStyle(dialog).opacity };
+}
+
 function disposeRouter(): void {
   window.__ownerRecoveryTest.router.dispose();
+}
+
+async function reserveEmptyReview(): Promise<void> {
+  const controller = new AbortController();
+  window.__ownerRecoveryReview = await window.__ownerRecoveryTest.router.reserveTransactionReview({
+    walletId: 'owner.testnet',
+    title: 'Purchase review',
+    validity: { kind: 'unbounded' },
+    confirmationConfig: undefined,
+    signal: controller.signal,
+    onCancel: controller.abort.bind(controller),
+  });
+}
+
+function mountReviewContent(): void {
+  const reservation = window.__ownerRecoveryReview;
+  const article = document.createElement('article');
+  const heading = document.createElement('h2');
+  heading.textContent = 'Ready purchase review';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel reserved review';
+  cancel.addEventListener(
+    'click',
+    reservation.cancel.bind(reservation, new Error('Review cancelled')),
+  );
+  article.append(heading, cancel);
+  reservation.slot.append(article);
 }

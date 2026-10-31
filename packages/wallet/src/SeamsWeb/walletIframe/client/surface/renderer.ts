@@ -146,14 +146,10 @@ function renderWalletIframeSurface(
   switch (surface.kind) {
     case 'modal_transaction_review': {
       if (!isModalGeometry(resolvedGeometry)) throw new Error('Review requires modal geometry');
-      const geometry =
-        resolvedGeometry.kind === 'provisional_centered_modal'
-          ? { ...resolvedGeometry, kind: 'centered_modal' as const }
-          : resolvedGeometry;
       return {
         kind: 'compact_transaction_review',
         presentation: surface.presentation,
-        geometry,
+        geometry: resolvedGeometry,
         focusTrap: true,
         identity: surface.identity,
       };

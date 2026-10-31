@@ -203,3 +203,38 @@ const returnedPreparation: TransactionReviewReservationState = {
   kind: 'reviewing_again',
 };
 void returnedPreparation;
+
+import type { WalletIframeSurfaceMeasurementState } from '@/SeamsWeb/walletIframe/client/surface/geometry';
+declare const measuredSurface: Variant<WalletIframeSurfaceMeasurementState, 'kind', 'measured'>;
+
+// @ts-expect-error An unmeasured surface cannot carry measured bounds through a spread.
+const pendingWithBounds: WalletIframeSurfaceMeasurementState = {
+  ...measuredSurface,
+  kind: 'pending',
+};
+// @ts-expect-error A timeout cannot establish that a surface has visible content.
+const timedOutSurface: WalletIframeSurfaceMeasurementState = { kind: 'unavailable' };
+// @ts-expect-error Measured surfaces require both dimensions.
+const incompleteMeasurement: WalletIframeSurfaceMeasurementState = {
+  kind: 'measured',
+  widthCssPx: 400,
+};
+// @ts-expect-error Pending measurement cannot include ready dimensions in a literal.
+const literalPendingBounds: WalletIframeSurfaceMeasurementState = {
+  kind: 'pending',
+  widthCssPx: 400,
+  heightCssPx: 300,
+};
+// @ts-expect-error An assertion cannot combine pending measurement with ready dimensions.
+const castPendingBounds = { kind: 'pending', widthCssPx: 400, heightCssPx: 300 } as Variant<
+  WalletIframeSurfaceMeasurementState,
+  'kind',
+  'pending'
+>;
+void [
+  pendingWithBounds,
+  timedOutSurface,
+  incompleteMeasurement,
+  literalPendingBounds,
+  castPendingBounds,
+];
