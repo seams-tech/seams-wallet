@@ -16,6 +16,9 @@ use std::{
 };
 use zeroize::Zeroizing;
 
+#[path = "ml_dsa_durable_pool/generic_registration.rs"]
+mod generic_registration;
+
 #[path = "ml_dsa_durable_pool/refill_backoff.rs"]
 mod refill_backoff;
 
@@ -1098,6 +1101,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     .unwrap();
     assert!(expired.ready.is_empty());
     drop(refill_store);
+    let generic_registration = generic_registration::run(&directory);
     registration_allocator_campaign(&directory);
     registration_retirement_campaign(&directory);
     let refill_fairness = refill_fairness_campaign(&directory);
@@ -1126,6 +1130,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     evidence["parallel_refill"] = parallel_refill;
     evidence["refill_backoff"] = refill_backoff;
     evidence["unopened_after_failure"] = unopened_after_failure;
+    evidence["generic_registration"] = generic_registration;
     evidence["expiry_and_contention"] = serde_json::json!({
         "preflight_and_empty_wait_leave_capacity_free": true,
         "ready_wallet_claims_while_other_wallet_waits": true,
@@ -1471,6 +1476,7 @@ fn registration_retirement_campaign(directory: &Path) {
         &db,
         registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 100),
     )
+    .map(allocated_registration)
     .unwrap();
     for role in [Participant::A, Participant::B] {
         tx(&db, registration::ready(&db, &retained, role, 101)).unwrap();
@@ -1479,6 +1485,7 @@ fn registration_retirement_campaign(directory: &Path) {
         &db,
         registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 102),
     )
+    .map(allocated_registration)
     .unwrap();
     tx(&db, registration::ready(&db, &failed, Participant::A, 103)).unwrap();
     let mut changed = failed.clone();
@@ -1503,6 +1510,7 @@ fn registration_retirement_campaign(directory: &Path) {
         &db,
         registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 106),
     )
+    .map(allocated_registration)
     .unwrap();
     assert_ne!(replacement.id, failed.id);
     tx(&db, registration::retire_preparation(&db, &failed)).unwrap();
@@ -1531,6 +1539,7 @@ fn registration_retirement_campaign(directory: &Path) {
         &db,
         registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 110),
     )
+    .map(allocated_registration)
     .unwrap();
     for role in [Participant::A, Participant::B] {
         tx(&db, registration::ready(&db, &completed, role, 111)).unwrap();
@@ -1564,12 +1573,16 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
         &db,
         registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 100),
     )
+    .map(allocated_registration)
     .unwrap();
-    assert!(tx(
-        &db,
-        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 101)
-    )
-    .is_err());
+    assert!(matches!(
+        tx(
+            &db,
+            registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 101)
+        )
+        .unwrap(),
+        registration::PreparationAllocation::Waiting { .. }
+    ));
     tx(&db, registration::ready(&db, &job, Participant::A, 102)).unwrap();
     assert!(matches!(
         tx(
@@ -1634,6 +1647,7 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
         &db,
         registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 107),
     )
+    .map(allocated_registration)
     .unwrap();
     tx(&db, registration::ready(&db, &next, Participant::A, 108)).unwrap();
     tx(&db, registration::ready(&db, &next, Participant::B, 108)).unwrap();
@@ -1678,6 +1692,7 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
                 40_000 + ordinal,
             ),
         )
+        .map(allocated_registration)
         .unwrap();
         tx(
             &db,
@@ -1690,11 +1705,14 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
         )
         .unwrap();
     }
-    assert!(tx(
-        &db,
-        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 40_100)
-    )
-    .is_err());
+    assert!(matches!(
+        tx(
+            &db,
+            registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 40_100)
+        )
+        .unwrap(),
+        registration::PreparationAllocation::Waiting { .. }
+    ));
 }
 fn registration_request(wallet: &str, operation: u8) -> m::registration::Request {
     let encrypted = serde_json::json!({"encapsulated_key":vec![0u8;32],"ciphertext":vec![0u8;80]});
@@ -1746,4 +1764,13 @@ fn aes_envelope(binding: &sealing::Binding, seed: &[u8; 32], domain: &[u8]) -> s
         "ciphertext_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(ciphertext),
     }))
     .unwrap()
+}
+
+fn allocated_registration(value: m::registration::PreparationAllocation) -> m::registration::Job {
+    match value {
+        m::registration::PreparationAllocation::Allocated { job } => job,
+        m::registration::PreparationAllocation::Waiting { .. } => {
+            panic!("Fixture registration capacity is unavailable")
+        }
+    }
 }

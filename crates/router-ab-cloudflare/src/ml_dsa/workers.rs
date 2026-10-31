@@ -422,11 +422,16 @@ where
 pub struct RouterAbMlDsaAdmissionDurableObject {
     state: State,
     env: Env,
+    storage_gate: futures::lock::Mutex<()>,
 }
 #[cfg(feature = "strict-worker-router-entrypoint")]
 impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
     fn new(state: State, env: Env) -> Self {
-        Self { state, env }
+        Self {
+            state,
+            env,
+            storage_gate: futures::lock::Mutex::new(()),
+        }
     }
     async fn fetch(&self, mut request: worker::Request) -> worker::Result<Response> {
         if request.method() != Method::Post {
@@ -484,6 +489,16 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
         durable_trace::mark(trace.as_ref(), "authorized");
         let callback_trace = trace.clone();
         let policy = policy(&self.env).map_err(protocol_error)?;
+        let wake_registration = matches!(
+            &command,
+            AdmissionCommand::PrepareRegistration { .. }
+                | AdmissionCommand::ClaimRegistration { .. }
+                | AdmissionCommand::FinishRegistration { .. }
+        );
+        let _storage = self.storage_gate.lock().await;
+        if wake_registration {
+            schedule_refill_alarm(&self.state, 50).await?;
+        }
         let output = Rc::new(RefCell::new(None));
         let captured = Rc::clone(&output);
         durable_trace::observe(
@@ -512,6 +527,9 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
         })?;
         Response::from_json(&value)
     }
+    async fn alarm(&self) -> worker::Result<Response> {
+        registration::run_preparation_queue(&self.env, &self.state, &self.storage_gate).await
+    }
 }
 async fn execute_admission(
     store: &impl Store,
@@ -527,13 +545,15 @@ async fn execute_admission(
             signing_schedule,
             signing_batches,
         } => json(
-            super::registration::prepare(
+            super::registration::queue::request(
                 store,
-                super::registration::scope(&wallet)?,
+                wallet,
                 group,
-                schedule,
-                signing_schedule,
-                signing_batches,
+                super::registration::queue::Configuration::new(
+                    schedule,
+                    signing_schedule,
+                    signing_batches,
+                )?,
                 now,
             )
             .await?,
@@ -548,17 +568,37 @@ async fn execute_admission(
         AdmissionCommand::CheckRegistrationJob { job } => {
             json(super::registration::check_job(store, &job, now).await?)
         }
-        AdmissionCommand::ClaimRegistration { request, schedule } => json(
-            super::registration::claim(
+        AdmissionCommand::ClaimRegistration { request, schedule } => {
+            let wallet = request.wallet.clone();
+            let signing_schedule =
+                execution::signing_layout_digest(schedules::DIGEST, policy.candidate_group_size());
+            let signing_batches = policy.minimum_ready_batches().max(2);
+            let configuration = super::registration::queue::Configuration::new(
+                schedule,
+                signing_schedule,
+                signing_batches,
+            )?;
+            let decision = super::registration::claim(
                 store,
                 request,
                 schedule,
-                execution::signing_layout_digest(schedules::DIGEST, policy.candidate_group_size()),
-                policy.minimum_ready_batches().max(2),
+                signing_schedule,
+                signing_batches,
                 now,
             )
-            .await?,
-        ),
+            .await?;
+            match &decision {
+                super::registration::Decision::Unavailable { .. } => {
+                    super::registration::queue::request(store, wallet, group, configuration, now)
+                        .await?;
+                }
+                super::registration::Decision::Admitted { claim } => {
+                    super::registration::queue::replenish(store, claim, now).await?;
+                }
+                super::registration::Decision::Existing { .. } => {}
+            }
+            json(decision)
+        }
         AdmissionCommand::CheckRegistrationClaim { claim } => {
             json(super::registration::check_claim(store, &claim, now).await?)
         }

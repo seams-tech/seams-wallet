@@ -13,7 +13,7 @@ thread_local! {
     static COMPUTE_SLOT: std::sync::Arc<futures::lock::Mutex<()>> =
         std::sync::Arc::new(futures::lock::Mutex::new(()));
 }
-fn compute_slot() -> std::sync::Arc<futures::lock::Mutex<()>> {
+pub(super) fn compute_slot() -> std::sync::Arc<futures::lock::Mutex<()>> {
     COMPUTE_SLOT.with(std::sync::Arc::clone)
 }
 struct CryptoActivity;
