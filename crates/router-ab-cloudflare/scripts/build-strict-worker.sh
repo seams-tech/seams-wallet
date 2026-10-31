@@ -74,7 +74,7 @@ if [[ "$role" != "tenant-root-control-plane" ]]; then
 fi
 # Use the same millisecond precision as the harness filesystem timestamps.
 # Rounding to seconds incorrectly rejects sources saved just before this build.
-started_at_ms="$(node -p 'Date.now()')"
+started_at_ms="$(node -p 'String(Date.now())')"
 
 run_worker_build \
   "${worker_build_flags[@]}" \
