@@ -71,7 +71,10 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
       - run: pnpm -C tests test:wallet-unit
-      - run: pnpm -C tests test:intended:representative
+      - name: Verify representative Wallet lifecycle
+        env:
+          SEAMS_INTENDED_SKIP_BUILD: '1'
+        run: pnpm -C tests test:intended:representative
       - name: Upload representative lifecycle evidence
         if: always()
         uses: actions/upload-artifact@v7
