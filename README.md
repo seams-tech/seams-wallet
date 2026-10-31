@@ -3,13 +3,13 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **1.0.0**. [Read the documentation](https://wallet.seams.sh/docs/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.37.0**. [Read the documentation](https://wallet.seams.sh/docs/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@1.0.0` — browser SDK and React components.
-- `@seams/wallet-server@1.0.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@1.0.0` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.37.0` — browser SDK and React components.
+- `@seams/wallet-server@0.37.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.37.0` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -17,7 +17,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `22.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, and VoiceID plugin use version **1.0.0**.
+The browser SDK, server SDK, and VoiceID plugin use version **0.37.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,7 +27,7 @@ changes that npm does not yet publish.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
-## Release 1.0.0 (prepared)
+## Release 0.37.0 (prepared)
 
 - Hosted billing can refuse newly billable logins before returning a session credential.
 - Signing claims reserve credit atomically. Retries retain the original commitment.
@@ -38,11 +38,11 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@1.0.0
+npm install @seams/wallet@0.37.0
 # Server applications:
-npm install @seams/wallet-server@1.0.0
+npm install @seams/wallet-server@0.37.0
 # Applications that enable VoiceID:
-npm install @seams/voiceid@1.0.0
+npm install @seams/voiceid@0.37.0
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.

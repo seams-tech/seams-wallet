@@ -1,11 +1,11 @@
 ---
-title: Release 1.0.0
+title: Release 0.37.0
 description: Hosted billing credit admission and Wallet-owned VoiceID enrollment records.
 ---
 
-# Release 1.0.0
+# Release 0.37.0
 
-Prepared for publication. The browser SDK, server SDK, and VoiceID plugin use **1.0.0**.
+Prepared for publication. The browser SDK, server SDK, and VoiceID plugin use **0.37.0**.
 
 - Hosted billing refusals return `billing_credit_exhausted` before a new session credential reaches the caller.
 - Hosts can reserve signing credit in the operation-claim transaction. Exact retries consume no extra unit.
