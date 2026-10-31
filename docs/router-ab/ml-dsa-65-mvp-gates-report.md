@@ -1,7 +1,7 @@
 # ML-DSA MVP release gates — October 31, 2026
 
-The current local lifecycle and package gates pass. The final Cloudflare lifecycle and larger wallet-group screen remain open.
-This campaign found and corrected a missing signing-session consent notice.
+The local and hosted public lifecycle gates pass. The [final hosted report](ml-dsa-65-mvp-hosted-report.md) records the remaining performance and scaling limits.
+This campaign corrected missing signing-session consent and a cold-registration preparation gap.
 
 ## Implementation
 
@@ -16,12 +16,12 @@ This may allocate an unnecessary surface for a warm request. It preserves the re
 
 Two obsolete browser checks also changed. The drawer now opens Signing keys instead of the retired Export keys item.
 The removed Signing key / Change picker test no longer specifies transaction UI.
-No CSS, cryptographic code, wire format, recovery policy, or pool setting changed.
+The consent correction changes no CSS, cryptographic code, wire format, recovery policy, or pool setting.
 
 ## Verification
 
-The [public evidence](../evidence/ml-dsa-65-mvp-gates-20261031.json) records exact source and artifact hashes.
-The implementation is committed as `0fb7fb4df4ee34c0e9b34edf1bd2ef80e8247881` on `ml-dsa`.
+The [initial local evidence](../evidence/ml-dsa-65-mvp-gates-20261031.json) records exact source and artifact hashes.
+The consent implementation is committed as `0fb7fb4df4ee34c0e9b34edf1bd2ef80e8247881` on `ml-dsa`.
 The browser runs started at `cd714be06` with the recorded fix applied. Their evidence retains that original revision.
 
 | Gate | Result | Scope |
@@ -35,10 +35,10 @@ The browser runs started at `cd714be06` with the recorded fix applied. Their evi
 | Exact package acceptance | Pass | Real pack, install, runtime entries, and static assets for Wallet, Wallet Server, and VoiceID 0.34.0 |
 | Worker package identity | Pass | All 48 files across five ordinary and three dedicated ML-DSA Worker builds match the final package |
 | Browser Wasm identity | Pass | All eight module hashes remain unchanged through the consent fix |
-| Bloat check | Inherited failure | Rust duplicated lines remain 13,992 against a 13,754 baseline. This task changes no Rust source |
-| Current hosted qualification | Pending | Fifteen local Wrangler deployment dry runs pass. No new cloud resources or credentials were uploaded |
+| Bloat check | Inherited failure | Rust duplicated lines remain 13,992 against a 13,754 baseline. The cold-preparation correction retains this same inherited count |
+| Final hosted lifecycle | Pass | Final public SDK lifecycle, recovery, export, device linking, restoration, and NEAR finality pass. Capacity and latency limits remain in the final hosted report |
 
-The full lifecycle independently verifies eight standard ML-DSA signatures.
+The initial local lifecycle independently verifies eight standard ML-DSA signatures.
 It covers warm sessions, budget exhaustion, Email OTP challenge binding and rollback, recovery, owner revocation, canonical export, and participant restoration.
 A restored signer completes a finalized NEAR testnet transaction.
 The app also requests hidden automatic approval and supplies replacement text. Wallet still presents the required session notice.
@@ -52,7 +52,9 @@ node docs/evidence/ml-dsa-65-mvp-gates-20261031.mjs
 This verifies all eight retained signatures and rejects altered messages. It checks the recorded receipt invariants.
 It does not rerun browser execution, package installation, source review, or hosted tests.
 Use the existing isolated intended-behaviour runner to repeat those browser cases.
-Exact unpublished tarballs remain in `/private/tmp/ml-dsa-mvp-gates-20261031/packages`.
+The initial accepted tarballs remain in `/private/tmp/ml-dsa-mvp-gates-20261031/packages-before-cold-fix`.
+Final unpublished tarballs remain in `/private/tmp/ml-dsa-mvp-gates-20261031/packages`.
+The earlier local receipt predates the authorized hosted campaign and retains its historical zero-deployment counts.
 Raw development logs and secret credentials stay outside the public evidence.
 
 An initial claim that the package used outdated Worker builds was withdrawn.
@@ -77,15 +79,16 @@ It does not prove this implementation's complete combined view.
 
 ## Remaining high-impact steps
 
-1. Run the corrected public SDK lifecycle against fresh Cloudflare Workers. Keep exact versions and package hashes with the receipt.
-2. Compare four active wallets in one group with eight active wallets in two groups. Add inactive wallets and test short idle return.
-   Count verified signatures, failed work, empty-pool waits, and complete reserve restoration. A short idle window does not qualify one-hour expiry behavior.
-3. Select the bounded pilot configuration from those results. Integrate the reviewed changes into `dev` when authorized.
+1. Handle candidate exhaustion without losing the user's transaction context. Preserve operation binding, cooldown accounting, and single-use material.
+2. Reduce cold generic preparation cost and idle expiry-maintenance work. Measure complete useful output with unchanged per-wallet capacity.
+3. Repeat a fresh balanced two-group cohort after verifying directory rollout. Qualify the selected operational profile before expansion.
 
-The concrete deployment and credential scope is ready at `/private/tmp/ml-dsa-mvp-gates-20261031/hosted/hosted-upload-scope.md`.
-It includes cleanup for the new fifteen Workers, four databases, and two buckets.
-Specific approval for these fresh payloads and destinations remains pending.
-The earlier eight quiet-producer Workers also retain their separate cleanup-approval requirement.
+The [final hosted evidence](../evidence/ml-dsa-65-mvp-hosted-20261031.json) records the completed campaign and exact implementation commit.
+The cold settings case now starts preparation automatically and completes in 69.23 seconds.
+Prepared registration and consistent three-to-five-second SDK signing remain optimization targets.
+The fifteen approved temporary Workers, their Durable Objects, four databases, and two buckets are deleted.
+Authenticated resource lists verify their absence. The earlier quiet-producer fleet remains outside this cleanup approval.
+No production release or merge occurred.
 
 Wallet-seed recovery, standard FIPS export, two-at-once consumption, and per-wallet capacity remain unchanged.
 Preparation stays on Workers. Default operation remains one service group, one preparation slot, one signing slot, and a sixty-second cooldown.
