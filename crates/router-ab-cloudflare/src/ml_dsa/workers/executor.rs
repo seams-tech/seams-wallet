@@ -45,20 +45,9 @@ impl Host for WorkerHost<'_> {
             configured_role(self.env).map_err(storage_error)?,
             stage_trace::Context::TakeCaller { material: batch },
         );
-        let mut response = local_call(
-            self.env,
-            &RoleCommand::Take {
-                permit: permit.clone(),
-                batch,
-            },
-            None,
-        )
-        .await?;
-        trace.mark("response_headers");
-        if response.status_code() != 200 {
-            return Err(invalid("ML-DSA material consumption failed"));
-        }
-        let result = material_delivery::take(&mut response).await?;
+        let result =
+            local_call(self.env, &role_requests::take(permit.clone(), batch), None).await?;
+        trace.mark("response_decoded");
         trace.finish();
         Ok(result)
     }
@@ -99,9 +88,7 @@ async fn require_permit(env: &Env, input: &Request) -> Result<()> {
     let status: Option<Status> = service_call(
         env,
         CallAuthority::Internal,
-        &AdmissionCommand::Lookup {
-            request: input.permit.request.clone(),
-        },
+        &admission_requests::lookup(input.permit.request.clone()),
     )
     .await?;
     if status
@@ -128,21 +115,18 @@ async fn execute(
         .await
         .map_err(|_| SigningFailure::AdmissionRejected)?;
     trace.mark("permit_checked");
-    let mut response = local_call(
+    let inputs = local_call(
         env,
-        &RoleCommand::LoadSigningInputs {
-            permit: input.permit.clone(),
-        },
+        &role_requests::load_signing_inputs(input.permit.clone()),
         None,
     )
     .await
-    .map_err(|_| SigningFailure::MaterialUnavailable)?;
-    if response.status_code() != 200 {
-        return Err(SigningFailure::MaterialUnavailable);
-    }
-    let inputs = material_delivery::signing_inputs(&mut response)
-        .await
-        .map_err(|_| SigningFailure::InvalidMaterial)?;
+    .map_err(|failure| match failure {
+        rpc::Failure::Decode(_) => SigningFailure::InvalidMaterial,
+        rpc::Failure::Transport(_) | rpc::Failure::Refused { .. } => {
+            SigningFailure::MaterialUnavailable
+        }
+    })?;
     let record = inputs.metadata.material;
     trace.mark("material_loaded");
     if record.activation.key != input.permit.request.key {

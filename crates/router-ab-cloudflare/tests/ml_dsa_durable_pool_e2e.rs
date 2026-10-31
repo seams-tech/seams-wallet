@@ -20,6 +20,9 @@ use zeroize::Zeroizing;
 #[path = "ml_dsa_durable_pool/generic_registration.rs"]
 mod generic_registration;
 
+#[path = "ml_dsa_durable_pool/producer.rs"]
+mod producer_lifecycle;
+
 #[path = "ml_dsa_durable_pool/refill_backoff.rs"]
 mod refill_backoff;
 
@@ -1157,6 +1160,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let refill_fairness = refill_fairness_campaign(&directory);
     let parallel_refill = parallel_refill::campaign(&directory);
     let refill_backoff = refill_backoff::campaign(&directory);
+    let producer_lifecycle = producer_lifecycle::campaign(&directory);
     let unopened_after_failure = unopened_failure::campaign(&directory);
     let retirement_evidence = serde_json::json!({ "restart": true, "late_ready_rejected": true, "changed_identity_rejected": true, "claimed_job_preserved": true, "other_stock_preserved": true, "fresh_replacement": true });
     let output = std::env::var_os("ML_DSA_E2E_REPORT")
@@ -1179,6 +1183,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     evidence["failed_registration_retirement"] = retirement_evidence;
     evidence["parallel_refill"] = parallel_refill;
     evidence["refill_backoff"] = refill_backoff;
+    evidence["producer_lifecycle"] = producer_lifecycle;
     evidence["unopened_after_failure"] = unopened_after_failure;
     evidence["generic_registration"] = generic_registration;
     evidence["terminal_failures"] = serde_json::json!({

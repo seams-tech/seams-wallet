@@ -35,9 +35,7 @@ async fn admit(
     let preflight: admission::Preflight = service_call(
         env,
         CallAuthority::Gateway(headers),
-        &AdmissionCommand::Preflight {
-            request: input.clone(),
-        },
+        &admission_requests::preflight(input.clone()),
     )
     .await?;
     if let admission::Preflight::Decided { decision } = preflight {
@@ -62,17 +60,14 @@ async fn admit(
         return service_call(
             env,
             CallAuthority::Gateway(headers),
-            &AdmissionCommand::DeferEmpty {
-                request: input,
-                retry_at_ms: a.retry_at_ms.max(b.retry_at_ms),
-            },
+            &admission_requests::defer_empty(input, a.retry_at_ms.max(b.retry_at_ms)),
         )
         .await;
     }
     let decision: Decision = service_call(
         env,
         CallAuthority::Gateway(headers),
-        &AdmissionCommand::Begin { request: input },
+        &admission_requests::begin(input),
     )
     .await?;
     let Decision::Claimed { claim } = decision else {
@@ -92,7 +87,7 @@ async fn admit(
             service_call(
                 env,
                 CallAuthority::Gateway(headers),
-                &AdmissionCommand::Admit { claim, batches },
+                &admission_requests::admit(claim, batches),
             )
             .await
         }
@@ -100,10 +95,7 @@ async fn admit(
             let _: bool = service_call(
                 env,
                 CallAuthority::Gateway(headers),
-                &AdmissionCommand::AwaitStock {
-                    claim: claim.clone(),
-                    retry_at_ms,
-                },
+                &admission_requests::await_stock(claim.clone(), retry_at_ms),
             )
             .await?;
             Ok(Decision::Unavailable {
@@ -116,9 +108,7 @@ async fn admit(
             let _: bool = service_call(
                 env,
                 CallAuthority::Gateway(headers),
-                &AdmissionCommand::Cancel {
-                    claim: claim.clone(),
-                },
+                &admission_requests::cancel(claim.clone()),
             )
             .await?;
             // A partial reservation expires without ever exposing private material.
@@ -132,14 +122,11 @@ async fn inventory_pair(
     key: &KeyScope,
     ready_until_ms: u64,
 ) -> Result<(pool::Inventory, pool::Inventory)> {
-    let query = RoleCommand::Inventory {
-        key: key.clone(),
-        target: policy.refill_target_batches(),
-        ready_until_ms: ready_until_ms,
-    };
+    let query =
+        role_requests::inventory(key.clone(), policy.refill_target_batches(), ready_until_ms);
     let (a, b) = futures::join!(
-        role_call::<pool::Inventory>(env, "DERIVER_A", &query),
-        role_call::<pool::Inventory>(env, "DERIVER_B", &query)
+        role_call(env, "DERIVER_A", &query),
+        role_call(env, "DERIVER_B", &query)
     );
     let (a, b) = (a?, b?);
     preparation::log_inventory(key, &a, &b);
@@ -177,13 +164,10 @@ async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<PairR
     if batches.len() < policy.minimum_ready_batches() {
         return Ok(PairReservation::Empty { retry_at_ms: retry });
     }
-    let command = RoleCommand::Reserve {
-        claim: claim.clone(),
-        batches: batches.clone(),
-    };
+    let command = role_requests::reserve(claim.clone(), batches.clone());
     let (a, b) = futures::join!(
-        role_call::<bool>(env, "DERIVER_A", &command),
-        role_call::<bool>(env, "DERIVER_B", &command)
+        role_call(env, "DERIVER_A", &command),
+        role_call(env, "DERIVER_B", &command)
     );
     if !a? || !b? {
         return Err(invalid("ML-DSA role refused reservation"));
@@ -196,13 +180,10 @@ async fn release_pair(
     batches: Vec<[u8; 32]>,
     settlement: pool::Settlement,
 ) -> Result<()> {
-    let fence = RoleCommand::Fence {
-        request: request.clone(),
-        batches: batches.clone(),
-    };
+    let fence = role_requests::fence(request.clone(), batches.clone());
     let (a, b) = futures::join!(
-        role_call::<pool::FencedBatches>(env, "DERIVER_A", &fence),
-        role_call::<pool::FencedBatches>(env, "DERIVER_B", &fence)
+        role_call(env, "DERIVER_A", &fence),
+        role_call(env, "DERIVER_B", &fence)
     );
     let a = a?;
     let b = b?;
@@ -226,57 +207,21 @@ async fn release_pair(
             consumed_union.push(id);
         }
     }
-    let command = RoleCommand::Release {
-        request: request.clone(),
+    let command = role_requests::release(
+        request.clone(),
         batches,
         settlement,
         consumed_union,
         unopened_intersection,
-    };
+    );
     let (a, b) = futures::join!(
-        role_call::<bool>(env, "DERIVER_A", &command),
-        role_call::<bool>(env, "DERIVER_B", &command)
+        role_call(env, "DERIVER_A", &command),
+        role_call(env, "DERIVER_B", &command)
     );
     if !a? || !b? {
         return Err(invalid("ML-DSA reservation release failed"));
     }
     Ok(())
-}
-pub(super) async fn role_call<T: serde::de::DeserializeOwned>(
-    env: &Env,
-    binding: &str,
-    command: &RoleCommand,
-) -> Result<T> {
-    let operation = match command {
-        RoleCommand::InitializeRegistrationStorage { .. } => {
-            "ML-DSA registration storage initialization"
-        }
-        RoleCommand::Inventory { .. } => "ML-DSA inventory",
-        RoleCommand::Reserve { .. } => "ML-DSA reservation",
-        RoleCommand::Fence { .. } => "ML-DSA settlement fence",
-        RoleCommand::Release { .. } => "ML-DSA settlement release",
-        _ => "ML-DSA role storage",
-    };
-    let call = wait_trace::call_id();
-    let trace = durable_trace::DurableTrace::role(env, command, call)?;
-    let mut response = durable_trace::observe(
-        trace.as_ref(),
-        "role_dispatch",
-        crate::router_coordinator::post_role_request(
-            env,
-            binding,
-            "https://ml-dsa-role.internal",
-            ROLE_PATH,
-            operation,
-            command,
-            call,
-        ),
-    )
-    .await?;
-    if response.status_code() != 200 {
-        return Err(invalid("ML-DSA role storage refused the request"));
-    }
-    response.json().await.map_err(storage_error)
 }
 
 #[derive(Deserialize)]
@@ -301,10 +246,7 @@ pub(crate) async fn handle_complete(
     let result: Status = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::Finish {
-            permit: input.permit.clone(),
-            completion: input.completion,
-        },
+        &admission_requests::finish(input.permit.clone(), input.completion),
     )
     .await
     .map_err(protocol_error)?;
@@ -322,9 +264,7 @@ pub(crate) async fn handle_complete(
     let _: bool = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::Settled {
-            request: input.permit.request,
-        },
+        &admission_requests::settled(input.permit.request),
     )
     .await
     .map_err(protocol_error)?;
@@ -346,7 +286,7 @@ pub(crate) async fn handle_status(
     let result: Option<Status> = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::Lookup { request: input },
+        &admission_requests::lookup(input),
     )
     .await
     .map_err(protocol_error)?;
@@ -375,31 +315,25 @@ pub(super) async fn activate(
     headers: &worker::Headers,
     activation: admission::KeyActivation,
 ) -> worker::Result<Response> {
-    let command = RoleCommand::Install {
-        key: activation.key.clone(),
-    };
+    let command = role_requests::install(activation.key.clone());
     let _: bool = service_call(
         env,
         CallAuthority::Gateway(headers),
-        &AdmissionCommand::AuthorizeKey {
-            activation: activation.clone(),
-        },
+        &admission_requests::authorize_key(activation.clone()),
     )
     .await
     .map_err(protocol_error)?;
     let (a, b) = futures::join!(
-        role_call::<bool>(env, "DERIVER_A", &command),
-        role_call::<bool>(env, "DERIVER_B", &command)
+        role_call(env, "DERIVER_A", &command),
+        role_call(env, "DERIVER_B", &command)
     );
     if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
         return Response::error("ML-DSA key activation is incomplete", 503);
     }
-    let check = RoleCommand::CheckMaterial {
-        activation: activation.clone(),
-    };
+    let check = role_requests::check_material(activation.clone());
     let (a, b) = futures::join!(
-        role_call::<bool>(env, "DERIVER_A", &check),
-        role_call::<bool>(env, "DERIVER_B", &check)
+        role_call(env, "DERIVER_A", &check),
+        role_call(env, "DERIVER_B", &check)
     );
     if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
         return Response::from_json(&admission::KeyState::Installing { activation });
@@ -407,14 +341,14 @@ pub(super) async fn activate(
     let state: admission::KeyState = service_call(
         env,
         CallAuthority::Gateway(headers),
-        &AdmissionCommand::CommitKey { activation },
+        &admission_requests::commit_key(activation),
     )
     .await
     .map_err(protocol_error)?;
     // Re-enqueue after commit: an earlier alarm may have observed Installing.
     let (a, b) = futures::join!(
-        role_call::<bool>(env, "DERIVER_A", &command),
-        role_call::<bool>(env, "DERIVER_B", &command)
+        role_call(env, "DERIVER_A", &command),
+        role_call(env, "DERIVER_B", &command)
     );
     if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
         return Response::error("ML-DSA activation refill scheduling is incomplete", 503);
@@ -435,10 +369,7 @@ async fn reconcile_unpaired(
     let states: Vec<pool::BatchAvailability> = role_call(
         env,
         peer,
-        &RoleCommand::Inspect {
-            key: key.clone(),
-            batches: batches.clone(),
-        },
+        &role_requests::inspect(key.clone(), batches.clone()),
     )
     .await?;
     if states.len() != batches.len() {
@@ -454,10 +385,7 @@ async fn reconcile_unpaired(
         let accepted: bool = role_call(
             env,
             owner,
-            &RoleCommand::RetireUnpaired {
-                key: key.clone(),
-                batches: retired,
-            },
+            &role_requests::retire_unpaired(key.clone(), retired),
         )
         .await?;
         if !accepted {
@@ -541,10 +469,7 @@ async fn sign_request(
     let status: Status = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::Finish {
-            permit: permit.clone(),
-            completion,
-        },
+        &admission_requests::finish(permit.clone(), completion),
     )
     .await
     .map_err(protocol_error)?;
@@ -561,9 +486,7 @@ async fn sign_request(
     let _: bool = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::Settled {
-            request: permit.request,
-        },
+        &admission_requests::settled(permit.request),
     )
     .await
     .map_err(protocol_error)?;
