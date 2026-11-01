@@ -183,7 +183,7 @@ async fn execute_admission(
             let configuration = registration_core::queue::Configuration::new(
                 schedule,
                 signing_schedule,
-                policy.minimum_ready_batches().max(2),
+                policy::REGISTRATION_SIGNING_BATCHES,
             )?;
             json::<admission_requests::claim_registration::Reply>(
                 registration_core::queue::claim_or_prepare(

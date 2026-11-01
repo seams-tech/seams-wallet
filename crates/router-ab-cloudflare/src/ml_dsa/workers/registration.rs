@@ -197,10 +197,7 @@ async fn prepare_request(
                 input.wallet.clone(),
                 schedules::DIGEST,
                 signing_schedule_digest(env).map_err(protocol_error)?,
-                policy(env)
-                    .map_err(protocol_error)?
-                    .minimum_ready_batches()
-                    .max(2),
+                policy::REGISTRATION_SIGNING_BATCHES,
             ),
         )
         .await
@@ -248,10 +245,7 @@ pub(crate) async fn handle_activity(
             input.wallet,
             schedules::DIGEST,
             signing_schedule_digest(env).map_err(protocol_error)?,
-            policy(env)
-                .map_err(protocol_error)?
-                .minimum_ready_batches()
-                .max(2),
+            policy::REGISTRATION_SIGNING_BATCHES,
         ),
     )
     .await
@@ -273,11 +267,10 @@ pub(super) async fn run_preparation_queue(
     state: &State,
     storage_gate: &futures::lock::Mutex<()>,
 ) -> worker::Result<Response> {
-    let configured = policy(env).map_err(protocol_error)?;
     let configuration = core::queue::Configuration::new(
         schedules::DIGEST,
         signing_schedule_digest(env).map_err(protocol_error)?,
-        configured.minimum_ready_batches().max(2),
+        policy::REGISTRATION_SIGNING_BATCHES,
     )
     .map_err(protocol_error)?;
     let work = {

@@ -306,7 +306,7 @@ try {
     }
     assert.equal(ready.ready, true);
     if (losePreparation && epoch === 1) assert.notDeepEqual(ready.job.id, observations.preparationRetirement.retiredJob.id);
-    assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
+    assert.equal(ready.job.signing_batches, 2);
     let preparationMs = performance.now() - prepareStarted;
     if (epoch === 1 && stallExecution) {
       observations.executionDeadline = await checkExecutionDeadline(payload.request);
@@ -326,7 +326,7 @@ try {
       const refillStarted = performance.now();
       ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
       assert.equal(ready.ready, true);
-      assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
+      assert.equal(ready.job.signing_batches, 2);
       preparationMs = performance.now() - refillStarted;
       assert.notDeepEqual(ready.job.id, consumedJob);
       observations.executionDeadline.freshPreparation = true;
@@ -798,8 +798,8 @@ async function checkDeliveryRecovery(input) {
   const after = await deliveryState();
   assert.equal(after.active, 0);
   assert.equal(after.maximumActive, 2, 'Concurrent retries exceeded the two-delivery bound');
-  assert.equal(Object.keys(after.deliveries).length, policy.minimum_ready_batches);
-  for (let ordinal = 0; ordinal < policy.minimum_ready_batches; ordinal += 1) {
+  assert.equal(Object.keys(after.deliveries).length, 2);
+  for (let ordinal = 0; ordinal < 2; ordinal += 1) {
     const item = after.deliveries['delivery/1/' + ordinal];
     assert.equal(item.attempts, ordinal < 2 ? 2 : 1);
     if (ordinal < 2) assert.equal(item.hash, before.deliveries['delivery/1/' + ordinal].hash);
@@ -1158,7 +1158,13 @@ async function sign(result) {
     context_digest: digest([]),
   };
   const started = performance.now();
-  const response = await post('/router-ab/ml-dsa/sign', { request, message, context: [] });
+  let response = await post('/router-ab/ml-dsa/sign', { request, message, context: [] });
+  // Registration leaves two batches. Admission waits until refill reaches its minimum.
+  while (response.status === 'unavailable' && response.reason === 'empty_pool') {
+    assert.ok(performance.now() - started < 120_000, 'Refill did not reach the signing minimum');
+    await waitFor(Math.max(100, response.retry_at_ms - Date.now()));
+    response = await post('/router-ab/ml-dsa/sign', { request, message, context: [] });
+  }
   const elapsedMs = performance.now() - started;
   // Recovery preserves wallet cooldown. A cooldown response is valid for the second case.
   if (response.status === 'unavailable') {

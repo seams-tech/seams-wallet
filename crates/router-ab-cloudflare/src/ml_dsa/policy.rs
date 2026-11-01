@@ -7,6 +7,9 @@ pub enum WalletCooldown {
     Enabled { interval_ms: u64 },
 }
 
+/// Signing batches in one generic registration job. Key-bound refill adds the rest after publication.
+pub const REGISTRATION_SIGNING_BATCHES: usize = 2;
+
 /// Public, deployment-fixed width of each independently consumed signing group.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(try_from = "u16", into = "u16")]
