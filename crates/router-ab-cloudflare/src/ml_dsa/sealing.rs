@@ -33,6 +33,14 @@ impl Sealed {
         }
         Ok(())
     }
+    /// Hashes the raw envelope. Encoding one first would briefly hold four copies of it.
+    pub(crate) fn digest(&self, domain: &[u8]) -> [u8; 32] {
+        let mut hash = Sha256::new();
+        hash.update(domain);
+        hash.update(self.encapsulated_key);
+        hash.update(&self.ciphertext);
+        hash.finalize().into()
+    }
 }
 pub fn seal(
     bytes: Zeroizing<Vec<u8>>,

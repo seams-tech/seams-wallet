@@ -89,7 +89,7 @@ pub async fn publish(
             ..
         } = current
         {
-            if existing == binding && envelope_digest == digest(DOMAIN, &sealed)? {
+            if existing == binding && envelope_digest == sealed.digest(DOMAIN) {
                 return Ok(());
             }
         }
@@ -101,7 +101,7 @@ pub async fn publish(
     let chunks = sealed
         .store_chunks(store, &format!("{key}/ciphertext"))
         .await?;
-    let envelope_digest = digest(DOMAIN, &sealed)?;
+    let envelope_digest = sealed.digest(DOMAIN);
     store
         .put(
             &key,
