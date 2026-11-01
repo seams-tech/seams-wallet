@@ -1,9 +1,23 @@
 ---
-title: Release 0.39.0
-description: Nonblocking wallet surfaces and bounded owner transaction recovery.
+title: Release 0.40.0
+description: Owner-authorized retirement for expired unresolved NEAR operations.
 ---
 
-# Release 0.39.0
+# Release 0.40.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.40.0**.
+
+- Owner NEAR receipts retain the signing key, nonce, reference block, and broadcast milestone before the first broadcast attempt.
+- Recovery returns `retired` with `proof.execution: 'not_executed'` when a finalized block proves that an expired transaction never executed.
+- Recovery returns `retirement_available` when NEAR prevents future execution but cannot prove past non-execution. `retire()` requires a fresh wallet-origin owner passkey approval.
+- Hash-only receipts from SDK 0.39.0 and earlier remain unresolved until their validity period passes after their first recovery with SDK 0.40.0.
+- Retirement never rebroadcasts and releases only the matching pending operation.
+
+The Wallet iframe protocol advances to **23.0.0**, and the wallet-management protocol remains **5**.
+Older browser SDKs cannot connect to the 0.40.0 hosted wallet. Upgrade browser SDKs, hosted assets, server SDK, and enabled VoiceID plugin together.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.39.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.39.0**.
 
