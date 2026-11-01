@@ -69,7 +69,18 @@ class RegistrationTrace {
         atMs: Date.now(),
       };
       this.network.push(mark);
-      void this.mark('network', { wallet, method: response.request().method(), ...mark });
+      if (mark.status === 400 && mark.path.endsWith('/signers/ml-dsa/execute'))
+        void this.markRetryTime(response, wallet, mark.atMs);
+      const { requestStart, responseStart, responseEnd } = response.request().timing();
+      void this.mark('network', {
+        wallet,
+        method: response.request().method(),
+        ...mark,
+        requestBytes: response.request().postDataBuffer()?.length ?? 0,
+        requestStart,
+        responseStart,
+        responseEnd,
+      });
     });
     context.on('request', (request) => {
       if (!/rpc\.testnet\./.test(request.url()) || request.method() !== 'POST') return;
@@ -91,6 +102,15 @@ class RegistrationTrace {
   }
   statusesOf(wallet: string): string[] {
     return this.statuses.filter((status) => status.wallet === wallet).map(({ text }) => text);
+  }
+  private async markRetryTime(
+    response: import('@playwright/test').Response,
+    wallet: string,
+    receivedAtMs: number,
+  ): Promise<void> {
+    const body = (await response.json().catch(() => null)) as { retryAtMs?: number } | null;
+    if (typeof body?.retryAtMs === 'number')
+      await this.mark('retry_time', { wallet, waitMs: body.retryAtMs - receivedAtMs });
   }
   /** Lists registration keys. Tagged state names stay readable in the stored bytes. */
   async storage(): Promise<StoredKey[]> {
@@ -244,6 +264,21 @@ async function createKey(
     .filter((mark) => mark.path.endsWith('/signers/ml-dsa/execute'))
     .map((mark) => mark.status);
   return { elapsedMs, executeStatuses };
+}
+
+function readExecuteTimings(): { startTime: number; responseEnd: number }[] {
+  const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+  return entries
+    .filter((entry) => entry.name.endsWith('/signers/ml-dsa/execute'))
+    .map(({ startTime, responseEnd }) => ({ startTime, responseEnd }));
+}
+
+/** Browser timings separate the SDK retry wait from the request itself. */
+async function markExecuteTimings(page: Page, trace: RegistrationTrace, wallet: string) {
+  for (const frame of page.frames()) {
+    const timings = await frame.evaluate(readExecuteTimings).catch(() => []);
+    if (timings.length > 0) await trace.mark('execute_timings', { wallet, timings });
+  }
 }
 
 async function addKeyToNear(page: Page, trace: RegistrationTrace, wallet: string): Promise<void> {
@@ -456,7 +491,9 @@ type HostedInput = Pick<CaseInput, 'browser' | 'request'> & {
 };
 const HOSTED_EMPTY_WALLETS = ['empty-1', 'empty-2', 'empty-3'];
 const HOSTED_READY_WALLETS = ['ready-1', 'ready-2', 'ready-3'];
-const HOSTED_READY_WAIT_MS = 300_000;
+const HOSTED_READY_WAIT_MS = Number(
+  process.env.SEAMS_INTENDED_ML_DSA_HOSTED_READY_WAIT_MS ?? 300_000,
+);
 // The testnet faucet has a daily limit. Creation times need no NEAR funds.
 const HOSTED_SIGNS = process.env.SEAMS_INTENDED_ML_DSA_HOSTED_SKIP_SIGNATURE !== '1';
 const HOSTED_READY_ONLY = process.env.SEAMS_INTENDED_ML_DSA_HOSTED_READY_ONLY === '1';
@@ -487,6 +524,7 @@ export async function runMlDsaHostedSettingsTimes(
     await openKeys(page, trace, label);
     const creation = await createKey(page, trace, label);
     await trace.mark('creation_measured', { wallet: label, ...creation });
+    await markExecuteTimings(page, trace, label);
   };
   try {
     if (!HOSTED_READY_ONLY) {
