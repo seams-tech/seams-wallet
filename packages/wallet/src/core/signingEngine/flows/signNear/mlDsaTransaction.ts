@@ -8,6 +8,7 @@ import { mlDsaConfirmationRequest } from './mlDsaConfirmation';
 import type { EmailOtpWalletSessionCoordinator } from '../../session/emailOtp/EmailOtpWalletSessionCoordinator';
 import { assertSigningNotCancelled } from '../shared/cancellation';
 import { SignedTransaction, type NearClient } from '@/core/rpcClients/near/NearClient';
+import type { TransactionContext } from '@/core/types/rpc';
 import type {
   AddedMlDsaSignerCapability,
   SeamsConfigsReadonly,
@@ -66,6 +67,15 @@ type Dependencies = {
 };
 
 type SigningDispatch = { kind: 'approved' | 'dispatched' };
+
+function referenceBlockFromContext(
+  context: Pick<TransactionContext, 'txBlockHash' | 'txBlockHeight'>,
+): SignTransactionResult['referenceBlock'] {
+  const height = Number(context.txBlockHeight);
+  if (!Number.isSafeInteger(height) || height <= 0)
+    throw new Error('ML-DSA signed transaction is missing its reference block height');
+  return { hash: context.txBlockHash, height };
+}
 
 function markDispatched(dispatch: SigningDispatch, input: MlDsaNearTransactionInput): void {
   dispatch.kind = 'dispatched';
@@ -281,9 +291,10 @@ export async function signMlDsaNearTransaction(
       operationFingerprint: fingerprint,
     });
     assertSigningNotCancelled(input.shouldAbort);
-    const signedResult = {
+    const signedResult: SignTransactionResult = {
       signedTransaction,
       nearAccountId: String(input.nearAccount.accountId),
+      referenceBlock: referenceBlockFromContext(reserved.context),
       nonceLease,
     };
     emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
