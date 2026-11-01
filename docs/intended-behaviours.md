@@ -3532,7 +3532,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Deliver initial signing stock in typed requests containing one or two batches. Keep at most two prepared batches awaiting delivery per participant. Validate every batch against the exact live claim, then install the complete request atomically.
 - Serialize exact installation retries. Retain each batch's persisted ciphertext and commit the delivery's installed markers together after acknowledgement. An invalid second batch must not publish the first batch.
 - Bound installation by its registration claim deadline, including gate waiting. Drain both preparation futures on ordinary errors; late remote replies must not complete an expired registration.
-- Prepare the minimum admission-ready signing reserve during registration, with at least two batches required by the current generic format. Refill the remaining target after activation.
+- Prepare two signing batches in each generic registration job, the minimum of the current format. Start key-bound refill at publication. Signing admission still requires its minimum ready batches, so a signature before refill reaches that minimum waits for material.
 - Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
 - Default to one shared ML-DSA service group. Optional `service_groups` configuration enables up to sixty-four groups in the same participant deployments.
 - Persist one group assignment for the full wallet scope. Route registration, activation, signing, replay, recovery epochs, and refill to that group. Keep signing keys and linked devices together.

@@ -900,9 +900,8 @@ async function verifyRestoredSigning(input, restored, unsignedTransactionBorshB6
       },
     };
     let signed = await input.api.executeMlDsaNearSigning(request);
-    let attempts = 1;
     while (signed.kind === 'retry') {
-      assert.ok(attempts++ < 30 && signed.retryAtMs < prepared.preparation.expiresAtMs);
+      assert.ok(signed.retryAtMs < prepared.preparation.expiresAtMs);
       await new Promise(waitUntil.bind(undefined, signed.retryAtMs));
       signed = await input.api.executeMlDsaNearSigning(request);
     }

@@ -213,7 +213,7 @@ export async function verifyMlDsaPublicSigning({
     assert.equal(delayed.code, 'conflict');
     checks.concurrentFirstApprovalsCommitOnce = true;
     const attempts = [];
-    for (let index = 0; signed.kind === 'retry' && index < 10; index += 1) {
+    while (signed.kind === 'retry' && signed.retryAtMs < preparation.expiresAtMs) {
       attempts.push(signed);
       await waitUntil(signed.retryAtMs);
       signed = await api.executeMlDsaNearSigning(executeInput);
@@ -249,7 +249,7 @@ export async function verifyMlDsaPublicSigning({
       };
       executeInput = { relayerUrl: base, preparation, authorization: execute.authorization };
       signed = await api.executeMlDsaNearSigning(executeInput);
-      for (let retry = 0; signed.kind === 'retry' && retry < 30; retry += 1) {
+      while (signed.kind === 'retry' && signed.retryAtMs < preparation.expiresAtMs) {
         attempts.push(signed);
         await waitUntil(signed.retryAtMs);
         signed = await api.executeMlDsaNearSigning(executeInput);

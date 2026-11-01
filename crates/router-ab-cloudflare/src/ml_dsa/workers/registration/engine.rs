@@ -65,7 +65,7 @@ pub(super) async fn connected(
         return Err(invalid("Registration circuit schedule changed"));
     }
     if signing_schedule_digest(env)? != job.signing_schedule
-        || job.signing_batches != policy(env)?.minimum_ready_batches().max(2)
+        || job.signing_batches != policy::REGISTRATION_SIGNING_BATCHES
     {
         return Err(invalid("Registration signing group configuration changed"));
     }

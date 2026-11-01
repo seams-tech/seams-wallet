@@ -122,7 +122,7 @@ async function signRetainedKey(input, key) {
   const retries = [];
   let signed = await input.api.executeMlDsaNearSigning(request);
   while (signed.kind === 'retry') {
-    assert.ok(retries.length < 20 && signed.retryAtMs < prepared.preparation.expiresAtMs);
+    assert.ok(signed.retryAtMs < prepared.preparation.expiresAtMs);
     retries.push(signed);
     await waitUntil(signed.retryAtMs);
     signed = await input.api.executeMlDsaNearSigning(request);
