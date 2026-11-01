@@ -38,7 +38,7 @@ pub(super) async fn prepare(
     let participant = configured_role(env).map_err(storage_error)?;
     let policy = policy(env)?;
     let candidates = policy.candidate_group_size();
-    let mut topologies = Default::default();
+    let mut topologies = super::super::schedules::public_topologies();
     let mut next = 0;
     while next < job.signing_batches {
         let count = policy
