@@ -338,7 +338,7 @@ pub async fn claim(
         }
     }
     Ok(Decision::Unavailable {
-        retry_at_ms: now.saturating_add(5_000),
+        retry_at_ms: now.saturating_add(1_000),
     })
 }
 pub(super) async fn active_until(store: &impl Store, now: u64) -> Result<Option<u64>> {
