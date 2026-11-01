@@ -19,7 +19,6 @@ import {
 } from './harness';
 import { openSigningKeys, signMlDsaTransaction } from './ml-dsa-lifecycle-scenario';
 import { fundImplicitWallet } from './ml-dsa-testnet';
-import { requireCanonicalString } from '@shared/utils/validation';
 
 const run = promisify(execFile);
 const PUBLICATION_LIMIT_MS = 420_000;
@@ -33,7 +32,7 @@ const STATUS_RECORDER = 'recordMlDsaSetupStatus';
 
 type StatusObserver = { readonly recorder: string; readonly stages: readonly string[] };
 type StoredKey = { readonly store: string; readonly key: string; readonly text: string };
-type NetworkMark = { readonly path: string; readonly status: number };
+type NetworkMark = { readonly path: string; readonly status: number; readonly atMs: number };
 
 /** Records one timeline from the Settings flow, the network, and local admission storage. */
 class RegistrationTrace {
@@ -41,7 +40,7 @@ class RegistrationTrace {
   readonly statuses: { readonly wallet: string; readonly text: string }[] = [];
   private constructor(
     private readonly file: string,
-    private readonly runtimeRoot: string,
+    private readonly runtimeRoot: string | null,
     private readonly copyRoot: string,
   ) {}
   static async open(testInfo: TestInfo): Promise<RegistrationTrace> {
@@ -49,7 +48,7 @@ class RegistrationTrace {
     await mkdir(directory, { recursive: true });
     return new RegistrationTrace(
       path.join(directory, 'ml-dsa-registration.jsonl'),
-      requireCanonicalString(process.env.SEAMS_INTENDED_ROUTER_AB_ROOT, 'runtime directory'),
+      process.env.SEAMS_INTENDED_ROUTER_AB_ROOT ?? null,
       await mkdtemp(path.join(tmpdir(), 'ml-dsa-trace-')),
     );
   }
@@ -67,6 +66,7 @@ class RegistrationTrace {
       const mark = {
         path: url.pathname.replace(/wallets\/[^/]+/, 'wallets/*'),
         status: response.status(),
+        atMs: Date.now(),
       };
       this.network.push(mark);
       void this.mark('network', { wallet, method: response.request().method(), ...mark });
@@ -94,6 +94,7 @@ class RegistrationTrace {
   }
   /** Lists registration keys. Tagged state names stay readable in the stored bytes. */
   async storage(): Promise<StoredKey[]> {
+    if (!this.runtimeRoot) throw new Error('Hosted runs have no local admission storage');
     const stored: StoredKey[] = [];
     for (const file of await sqliteFiles(this.runtimeRoot)) {
       const rows = await readRegistrationKeys(file, this.copyRoot);
@@ -205,7 +206,10 @@ async function registerWallet(
 
 /** The real screen sends the signal. This case never calls the private preparation route. */
 async function openKeys(page: Page, trace: RegistrationTrace, wallet: string): Promise<void> {
-  const signal = page.context().waitForEvent('response', isRegistrationActivity);
+  const signal = page.context().waitForEvent('response', {
+    predicate: isRegistrationActivity,
+    timeout: 60_000,
+  });
   await trace.mark('signing_keys_opening', { wallet });
   await openSigningKeys(page);
   expect((await signal).status()).toBe(200);
@@ -231,10 +235,12 @@ async function createKey(
   await create.click();
   const response = await confirming;
   expect(response.status()).toBe(200);
-  const elapsedMs = Date.now() - clickedAtMs;
+  // The auto-confirm loop returns late. The network mark holds the real publication time.
+  const marks = trace.network.slice(networkStart);
+  const publication = marks.find((mark) => mark.path.endsWith('/signers/ml-dsa/publish'));
+  const elapsedMs = (publication?.atMs ?? Date.now()) - clickedAtMs;
   await trace.mark('published', { wallet, elapsedMs });
-  const executeStatuses = trace.network
-    .slice(networkStart)
+  const executeStatuses = marks
     .filter((mark) => mark.path.endsWith('/signers/ml-dsa/execute'))
     .map((mark) => mark.status);
   return { elapsedMs, executeStatuses };
@@ -434,4 +440,77 @@ export async function runMlDsaActiveScopeWindow(
     lateElapsedMs: late.elapsedMs,
     lateExecuteStatuses: late.executeStatuses,
   });
+}
+
+type HostedWallet = {
+  readonly label: string;
+  readonly harness: IntendedBehaviourHarness;
+  readonly page: Page;
+};
+type HostedInput = Pick<CaseInput, 'browser' | 'request'> & {
+  readonly openHarness: (
+    context: BrowserContext,
+    page: Page,
+    request: APIRequestContext,
+  ) => Promise<IntendedBehaviourHarness>;
+};
+const HOSTED_EMPTY_WALLETS = ['empty-1', 'empty-2', 'empty-3'];
+const HOSTED_READY_WALLETS = ['ready-1', 'ready-2', 'ready-3'];
+const HOSTED_READY_WAIT_MS = 300_000;
+// The testnet faucet has a daily limit. Creation times need no NEAR funds.
+const HOSTED_SIGNS = process.env.SEAMS_INTENDED_ML_DSA_HOSTED_SKIP_SIGNATURE !== '1';
+const HOSTED_READY_ONLY = process.env.SEAMS_INTENDED_ML_DSA_HOSTED_READY_ONLY === '1';
+
+/**
+ * Times the real Settings flow on Cloudflare. Empty wallets register first, so registration
+ * traffic never overlaps a measured click, and each clicks as the previous one publishes.
+ * Ready wallets register after a long wait, because an idle wallet page can lose its session.
+ */
+export async function runMlDsaHostedSettingsTimes(
+  { browser, request, openHarness }: HostedInput,
+  testInfo: TestInfo,
+): Promise<void> {
+  testInfo.setTimeout(3_000_000);
+  const trace = await RegistrationTrace.open(testInfo);
+  const contexts: BrowserContext[] = [];
+  const openWallet = async (label: string): Promise<HostedWallet> => {
+    const context = await browser.newContext();
+    contexts.push(context);
+    const page = await context.newPage();
+    trace.watch(context, label);
+    const harness = await openHarness(context, page, request);
+    await registerWallet(harness, trace, label);
+    await trace.watchStatus(page, label);
+    return { label, harness, page };
+  };
+  const create = async ({ label, page }: HostedWallet): Promise<void> => {
+    await openKeys(page, trace, label);
+    const creation = await createKey(page, trace, label);
+    await trace.mark('creation_measured', { wallet: label, ...creation });
+  };
+  try {
+    if (!HOSTED_READY_ONLY) {
+      const wallets: HostedWallet[] = [];
+      for (const label of HOSTED_EMPTY_WALLETS) wallets.push(await openWallet(label));
+      for (const wallet of wallets) await create(wallet);
+    }
+    for (const label of HOSTED_READY_WALLETS) {
+      await trace.mark('ready_wait_started', { wallet: label });
+      await delay(HOSTED_READY_WAIT_MS);
+      const wallet = await openWallet(label);
+      if (HOSTED_SIGNS) {
+        const identity = await wallet.harness.runMlDsaCommand({ kind: 'context' });
+        if (!('nearAccountId' in identity) || typeof identity.nearAccountId !== 'string')
+          throw new Error('Missing browser wallet account');
+        await fundImplicitWallet(identity.nearAccountId);
+      }
+      await create(wallet);
+      if (HOSTED_SIGNS) {
+        await addKeyToNear(wallet.page, trace, label);
+        await signFirstTransaction(wallet.harness, wallet.page, trace, label);
+      }
+    }
+  } finally {
+    await Promise.all(contexts.map((context) => context.close()));
+  }
 }
