@@ -49,6 +49,7 @@ export { default } from './router/worker/shim.mjs';
 import { RouterAbMlDsaAdmissionDurableObject as Core } from './router/worker/shim.mjs';
 export class RouterAbMlDsaAdmissionDurableObject {
   constructor(state, env) { this.core = new Core(state, env); this.state = state; this.env = env; }
+  alarm() { return this.core.alarm(); }
   async fetch(request) {
     if (new URL(request.url).pathname === '/__remove-placement-metadata') {
       if (request.headers.get('x-router-ab-internal-service-auth') !== this.env.INTERNAL_AUTH) return new Response('Denied', { status: 403 });
