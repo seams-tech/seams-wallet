@@ -27,6 +27,7 @@ type PublicationInput = {
   readonly walletSession: WalletSessionRef;
   readonly rpId: WebAuthnRpId;
   readonly signerSlot: number;
+  readonly options?: Parameters<SeamsWebPublicApi['registration']['addSigner']>[0]['options'];
 };
 type PublishMlDsaNearSignerOutcome = ReadonlyExclusiveUnion<
   | { readonly kind: 'registration_failed'; readonly message: string }
@@ -48,6 +49,7 @@ export async function publishMlDsaNearSigner(
       mode: 'ml_dsa_65',
       mlDsa: { signerSlot: input.signerSlot, purpose: { kind: 'create' } },
     },
+    options: input.options,
   });
   if (!registered.success) return { kind: 'registration_failed', message: registered.error };
   if (

@@ -45,6 +45,7 @@ type Target = {
   readonly nearAccount: NearAccountRef;
 };
 type ExportOptions = Parameters<Wallet['keys']['exportKey']>[0]['options'];
+type CreationOptions = Parameters<Wallet['registration']['addSigner']>[0]['options'];
 
 /** Shared application lifecycle for settings and headless clients. No UI state or secrets. */
 export class NearSigningKeysLifecycle {
@@ -85,7 +86,7 @@ export class NearSigningKeysLifecycle {
     }
     return { kind: 'ready', snapshot: { rows, preference } };
   }
-  async create(): Promise<NearSigningKeyCreation> {
+  async create(options?: CreationOptions): Promise<NearSigningKeyCreation> {
     const { supportsMlDsaNearNetwork } =
       await import('@/core/signingEngine/walletCustody/mlDsaEnrollment');
     if (!(await supportsMlDsaNearNetwork(this.nearClient)))
@@ -97,6 +98,7 @@ export class NearSigningKeysLifecycle {
       walletSession,
       rpId: resolveWalletRpId(configs),
       signerSlot: 1,
+      options,
     });
     if (result.kind === 'registration_failed') return result;
     return { kind: 'created' } as const;

@@ -170,7 +170,7 @@ test('ML-DSA setup resumes after cancellation and checks enrollment without chan
   ).toHaveCount(0);
   scene.observation = 'enrolled';
   await page.getByRole('button', { name: 'Check status', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Signing key added', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Key active', exact: true })).toBeVisible();
   await expect(
     page.getByText('Your key is active on NEAR. Signing can still require preparation.', {
       exact: true,

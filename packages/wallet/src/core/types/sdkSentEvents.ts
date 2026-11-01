@@ -321,6 +321,7 @@ export enum RegistrationEventPhase {
   STEP_05_ED25519_SIGNER_PROVISION_SKIPPED = 'registration.signer.ed25519.provision.skipped',
   /** The custody execution has not answered after a few seconds; the request continues. */
   STEP_05_ED25519_SIGNER_PROVISION_DELAYED = 'registration.signer.ed25519.provision.delayed',
+  STEP_05_ML_DSA_SIGNER_CREATE_STARTED = 'registration.signer.ml_dsa.create.started',
   STEP_06_RELAY_BOOTSTRAP_STARTED = 'registration.relay.bootstrap.started',
   STEP_06_RELAY_BOOTSTRAP_SUCCEEDED = 'registration.relay.bootstrap.succeeded',
   /** Wallet account creation has not answered after a few seconds; the request continues. */
@@ -520,6 +521,7 @@ export const WALLET_FLOW_EVENT_STEPS: Record<WalletFlowEventPhase, number> = {
   [RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_SUCCEEDED]: 5,
   [RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_SKIPPED]: 5,
   [RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED]: 5,
+  [RegistrationEventPhase.STEP_05_ML_DSA_SIGNER_CREATE_STARTED]: 5,
   [RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_STARTED]: 6,
   [RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_SUCCEEDED]: 6,
   [RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_DELAYED]: 6,
@@ -653,6 +655,7 @@ export const WALLET_FLOW_EVENT_MESSAGES: Record<WalletFlowEventPhase, string> = 
   [RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_SUCCEEDED]: 'NEAR signer ready',
   [RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_SKIPPED]: 'NEAR signer setup skipped',
   [RegistrationEventPhase.STEP_05_ED25519_SIGNER_PROVISION_DELAYED]: REGISTRATION_DELAYED_MESSAGE,
+  [RegistrationEventPhase.STEP_05_ML_DSA_SIGNER_CREATE_STARTED]: 'Creating ML-DSA key',
   [RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_STARTED]: 'Creating wallet account',
   [RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_SUCCEEDED]: 'Wallet account created',
   [RegistrationEventPhase.STEP_06_RELAY_BOOTSTRAP_DELAYED]: REGISTRATION_DELAYED_MESSAGE,

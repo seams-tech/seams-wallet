@@ -2,6 +2,7 @@ import type { WalletSessionCapabilityLaneReadiness } from '@/core/types/seams';
 import { signingKeyReadinessLabel } from './signingKeyReadiness';
 import type { AccountMenuButtonProps } from './types';
 import type { NearSignerPreference } from '@/core/types/nearSigningKeys';
+import { RegistrationEventPhase, type RegistrationFlowEvent } from '@/core/types/sdkSentEvents';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSeams } from '../../context';
 import { WalletText } from '../../context/WalletLocale';
@@ -163,12 +164,18 @@ async function readKeys(context: Context): Promise<void> {
       preference: result.snapshot.preference,
     });
 }
+function showCreationStage(context: Context, event: RegistrationFlowEvent): void {
+  if (event.phase === RegistrationEventPhase.STEP_05_ML_DSA_SIGNER_CREATE_STARTED)
+    context.setState({ kind: 'working', message: 'Creating ML-DSA key' });
+}
 async function addSigner(context: Context): Promise<void> {
   if (context.busy.current) return;
   context.busy.current = true;
-  context.setState({ kind: 'working', message: 'Creating your signing key…' });
+  context.setState({ kind: 'working', message: 'Preparing secure key material' });
   try {
-    const result = await context.lifecycle.create();
+    const result = await context.lifecycle.create({
+      onEvent: showCreationStage.bind(null, context),
+    });
     switch (result.kind) {
       case 'unsupported_network':
         throw new Error('This NEAR network does not support ML-DSA yet.');
@@ -189,7 +196,7 @@ async function addSigner(context: Context): Promise<void> {
 async function activateSigner(context: Context, signer: AddedMlDsaSignerCapability): Promise<void> {
   if (context.busy.current) return;
   context.busy.current = true;
-  context.setState({ kind: 'working', message: 'Approve adding this signing key to NEAR…' });
+  context.setState({ kind: 'working', message: 'Add key to NEAR' });
   try {
     const outcome = await context.lifecycle.activate(signer);
     if (outcome.kind === 'refused')
@@ -449,7 +456,7 @@ function renderScreen(
         const complete = state.rows.every(isEnrolledKey);
         return (
           <AccountMenuScreen
-            title={complete ? 'Signing key added' : 'Add key to NEAR'}
+            title={complete ? 'Key active' : 'Add key to NEAR'}
             onBack={back}
           >
             <p className="seams-signing-key-account">{context.nearAccountId}</p>
