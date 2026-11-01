@@ -112,6 +112,28 @@ function parseInventoryEntry(walletId: WalletId, raw: unknown) {
   return parseMlDsaSignerInventoryEntry(raw, walletId);
 }
 
+/** Best effort: Signing keys is open. The result never affects the screen or key creation. */
+export async function signalMlDsaRegistrationActivity(input: {
+  readonly relayerUrl: string;
+  readonly walletId: string;
+  readonly credential: WalletSessionOperationCredentialV1;
+}): Promise<void> {
+  try {
+    await fetch(
+      `${normalizeRelayerBaseUrl(input.relayerUrl)}/wallets/${encodeURIComponent(input.walletId)}/ml-dsa/registration-activity`,
+      buildRelayerJsonPostRequestInit({
+        headers: {
+          ...buildWalletSessionAuthorizationHeaders(input.credential),
+          [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION,
+        },
+        body: { walletId: input.walletId },
+      }),
+    );
+  } catch {
+    // A later claim records the same activity and prepares on demand.
+  }
+}
+
 /** Read display metadata without a new passkey assertion or any signing allowance. */
 export async function readMlDsaSignerMetadata(input: {
   readonly relayerUrl: string;

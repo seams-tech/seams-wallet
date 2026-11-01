@@ -1,6 +1,9 @@
 import { walletSessionAuthorizations } from '@/core/indexedDB';
 import { resolveFullWalletOwner } from './walletSigningOwner';
-import { readMlDsaSignerMetadata } from '@/core/rpcClients/relayer/mlDsaInventory';
+import {
+  readMlDsaSignerMetadata,
+  signalMlDsaRegistrationActivity,
+} from '@/core/rpcClients/relayer/mlDsaInventory';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { MlDsaSignerInventoryOutcome } from '@shared/near/mlDsaInventory';
 
@@ -8,6 +11,8 @@ import type { MlDsaSignerInventoryOutcome } from '@shared/near/mlDsaInventory';
 export async function readNearSignerMetadata(input: {
   readonly walletId: WalletId;
   readonly relayerUrl: string;
+  /** Only Signing keys sets this. Signer selection during signing is not registration activity. */
+  readonly signalRegistrationActivity?: boolean;
 }): Promise<MlDsaSignerInventoryOutcome> {
   const owner = await resolveFullWalletOwner(input.walletId);
   if (owner.kind !== 'owner')
@@ -32,6 +37,13 @@ export async function readNearSignerMetadata(input: {
       code: 'unauthorized',
       message: 'Unlock this wallet again to read its signing keys.',
     };
+  if (input.signalRegistrationActivity) {
+    void signalMlDsaRegistrationActivity({
+      relayerUrl: input.relayerUrl,
+      walletId: input.walletId,
+      credential: exact.operationCredential,
+    });
+  }
   const inventory = await readMlDsaSignerMetadata({
     relayerUrl: input.relayerUrl,
     walletId: input.walletId,

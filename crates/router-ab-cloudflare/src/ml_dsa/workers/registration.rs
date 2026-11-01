@@ -17,6 +17,7 @@ use ml_dsa_threshold::signing::SigningRole;
 use worker::{WebSocket, WebSocketPair};
 use zeroize::Zeroizing;
 pub const PREPARE_PATH: &str = "/router-ab/ml-dsa/registration/prepare";
+pub const ACTIVITY_PATH: &str = "/router-ab/ml-dsa/registration/activity";
 pub const REGISTER_PATH: &str = "/router-ab/ml-dsa/register";
 pub const ROLE_PATH: &str = "/router-ab/ml-dsa/registration/role";
 const BINDING: &str = "ML_DSA_REGISTRATION_DO";
@@ -226,6 +227,38 @@ async fn prepare_request(
     }
 }
 
+/// Records owner activity in Signing keys. It returns without any preparation wait.
+pub(crate) async fn handle_activity(
+    mut request: worker::Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
+        return crate::cloudflare_private_service_auth_error_response_v1(error);
+    }
+    if request.method() != Method::Post {
+        return Response::error("Registration activity requires POST", 405);
+    }
+    let input: PrepareRequest = decode_bounded_json_request(&mut request, 4096)
+        .await
+        .map_err(protocol_error)?;
+    let recorded: bool = service_call(
+        env,
+        CallAuthority::Gateway(request.headers()),
+        &admission_requests::activate_registration(
+            input.wallet,
+            schedules::DIGEST,
+            signing_schedule_digest(env).map_err(protocol_error)?,
+            policy(env)
+                .map_err(protocol_error)?
+                .minimum_ready_batches()
+                .max(2),
+        ),
+    )
+    .await
+    .map_err(protocol_error)?;
+    Response::from_json(&recorded)
+}
+
 pub(super) async fn prepare_job(env: &Env, job: &core::Job) -> Result<bool> {
     role_call(
         env,
@@ -256,10 +289,24 @@ pub(super) async fn run_preparation_queue(
         .await
         .map_err(protocol_error)?;
         match &work {
-            core::queue::Work::Idle => state.storage().delete_alarm().await?,
+            core::queue::Work::Idle => {
+                state.storage().delete_alarm().await?;
+                worker::console_log!(
+                    "{}",
+                    serde_json::json!({"event":"ml_dsa_generic_preparation_v1","stage":"idle"})
+                );
+            }
+            // The gate excludes fetch wakes here. Replace the five-second handler guard.
             core::queue::Work::Wait { retry_at_ms } => {
-                let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-                schedule_refill_alarm(state, retry_at_ms.saturating_sub(now).max(1)).await?;
+                let date = worker::Date::new(worker::DateInit::Millis(*retry_at_ms));
+                state
+                    .storage()
+                    .set_alarm(worker::ScheduledTime::new(date.into()))
+                    .await?;
+                worker::console_log!(
+                    "{}",
+                    serde_json::json!({"event":"ml_dsa_generic_preparation_v1","stage":"wait","retry_at_ms":retry_at_ms})
+                );
             }
             core::queue::Work::Prepare { .. } => {}
         }
@@ -277,7 +324,7 @@ pub(super) async fn run_preparation_queue(
         }
         worker::console_log!(
             "{}",
-            serde_json::json!({"event":"ml_dsa_generic_preparation_v1","job":hex(&job.id),"stage":"started"})
+            serde_json::json!({"event":"ml_dsa_generic_preparation_v1","job":hex(&job.id),"stage":"started","expires_at":job.expires_at})
         );
         let outcome = before_deadline(job.prepare_until, prepare_job(env, &job)).await;
         let completed_job = job.clone();

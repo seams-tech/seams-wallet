@@ -1308,6 +1308,7 @@ export interface RouterApiWalletAuthMethodService {
     input: import('../domains/voiceId/voiceIdActivation').VoiceIdActivationCommand,
   ): Promise<import('../domains/voiceId/voiceIdActivation').VoiceIdActivationResult>;
   readMlDsaSignerMetadata: D1WalletMlDsaSigning['metadata'];
+  recordMlDsaRegistrationActivity: D1WalletMlDsaSigning['recordRegistrationActivity'];
   prepareMlDsaSignerInventory: D1WalletMlDsaSigning['prepareInventory'];
   readMlDsaSignerInventory: D1WalletMlDsaSigning['inventory'];
   prepareMlDsaSigning: D1WalletMlDsaSigning['prepare'];

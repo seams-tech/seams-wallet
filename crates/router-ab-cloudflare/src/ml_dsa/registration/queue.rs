@@ -3,6 +3,14 @@ use super::*;
 
 const KEY: &str = "registration-preparation-demand";
 const MAX_PENDING: usize = 4;
+const ACTIVE_SCOPES_KEY: &str = "registration-active-scopes";
+/// Two scopes with one replacement each stay inside the four-job stock bound.
+const MAX_ACTIVE_SCOPES: usize = 2;
+const ACTIVITY_LIFETIME_MS: u64 = 3_600_000;
+/// A replacement starts while the old job stays claimable. Hosted jobs took 54-108 s.
+const RENEW_BEFORE_EXPIRY_MS: u64 = 150_000;
+/// A failing scope stops renewal until the next activity signal.
+const MAX_ACTIVE_FAILURES: u8 = 6;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -92,6 +100,29 @@ pub enum Status {
     Ready { job: Job },
     Pending { retry_at_ms: u64 },
 }
+
+/// A scope with recent registration activity keeps one generic job ready.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ActiveScope {
+    wallet: WalletScope,
+    group: service_group::ServiceGroup,
+    configuration: Configuration,
+    active_until_ms: u64,
+    failures: u8,
+}
+impl ActiveScope {
+    fn demand(&self, now: u64) -> Demand {
+        Demand {
+            wallet: self.wallet.clone(),
+            group: self.group,
+            configuration: self.configuration.clone(),
+            failures: 0,
+            retry_at_ms: now,
+            expires_at_ms: now.saturating_add(PREPARATION_LIFETIME_MS),
+        }
+    }
+}
 pub enum Work {
     Idle,
     Wait { retry_at_ms: u64 },
@@ -148,6 +179,28 @@ async fn ready_job(store: &impl Store, demand: &Demand, now: u64) -> Result<Opti
     }
     Ok(None)
 }
+/// The latest expiry of ready stock for this demand. The oldest job stays first to claim.
+async fn latest_ready_expiry(store: &impl Store, demand: &Demand) -> Result<Option<u64>> {
+    let pool_scope = scope(&demand.wallet)?;
+    let ids: Vec<[u8; 32]> = store.get("registration-stock").await?.unwrap_or_default();
+    let mut latest = None;
+    for id in ids {
+        if let Some(Stock::Ready { job }) = store.get(&job_key(&id)).await? {
+            if job.scope == pool_scope
+                && job.service_group == demand.group
+                && job.schedule == demand.configuration.schedule
+                && job.signing_schedule == demand.configuration.signing_schedule
+                && job.signing_batches == demand.configuration.signing_batches
+            {
+                latest = latest.max(Some(job.expires_at));
+            }
+        }
+    }
+    Ok(latest)
+}
+fn outlives_renewal(expires_at: Option<u64>, now: u64) -> bool {
+    expires_at.is_some_and(|expiry| expiry > now.saturating_add(RENEW_BEFORE_EXPIRY_MS))
+}
 enum Trigger {
     Missing,
     Consumed { job: [u8; 32] },
@@ -190,6 +243,104 @@ async fn enqueue(store: &impl Store, demand: Demand, trigger: Trigger) -> Result
         }
     }
 }
+/// Record registration activity. The scope keeps a ready job until this window ends.
+pub async fn activate(
+    store: &impl Store,
+    wallet: WalletScope,
+    group: service_group::ServiceGroup,
+    configuration: Configuration,
+    now: u64,
+) -> Result<()> {
+    let active_scope = scope(&wallet)?;
+    let mut scopes: Vec<ActiveScope> = store.get(ACTIVE_SCOPES_KEY).await?.unwrap_or_default();
+    let mut failures = 0;
+    let mut retained = Vec::with_capacity(scopes.len());
+    for candidate in scopes.drain(..) {
+        if scope(&candidate.wallet)? == active_scope {
+            failures = candidate.failures;
+        } else if now < candidate.active_until_ms {
+            retained.push(candidate);
+        }
+    }
+    if retained.len() >= MAX_ACTIVE_SCOPES {
+        retained.sort_by_key(|candidate| candidate.active_until_ms);
+        retained.remove(0);
+    }
+    retained.push(ActiveScope {
+        wallet,
+        group,
+        configuration,
+        active_until_ms: now.saturating_add(ACTIVITY_LIFETIME_MS),
+        failures,
+    });
+    store.put(ACTIVE_SCOPES_KEY, &retained).await
+}
+async fn record_failure(store: &impl Store, demand: &Demand) -> Result<()> {
+    let failed_scope = scope(&demand.wallet)?;
+    let Some(mut scopes) = store.get::<Vec<ActiveScope>>(ACTIVE_SCOPES_KEY).await? else {
+        return Ok(());
+    };
+    let mut retained = Vec::with_capacity(scopes.len());
+    for mut candidate in scopes.drain(..) {
+        if scope(&candidate.wallet)? == failed_scope {
+            candidate.failures = candidate.failures.saturating_add(1);
+            if candidate.failures >= MAX_ACTIVE_FAILURES {
+                continue;
+            }
+        }
+        retained.push(candidate);
+    }
+    store.put(ACTIVE_SCOPES_KEY, &retained).await
+}
+enum Reserve {
+    Idle,
+    Enqueued,
+    Wake { at_ms: u64 },
+}
+/// Queue each active scope that needs a replacement. Otherwise name the next renewal time.
+async fn reconcile_active_scopes(
+    store: &impl Store,
+    configuration: &Configuration,
+    now: u64,
+) -> Result<Reserve> {
+    let Some(stored) = store.get::<Vec<ActiveScope>>(ACTIVE_SCOPES_KEY).await? else {
+        return Ok(Reserve::Idle);
+    };
+    let previous_count = stored.len();
+    let scopes: Vec<ActiveScope> = stored
+        .into_iter()
+        .filter(|active| now < active.active_until_ms && active.configuration == *configuration)
+        .collect();
+    if scopes.is_empty() {
+        store.delete(ACTIVE_SCOPES_KEY).await?;
+        return Ok(Reserve::Idle);
+    }
+    if scopes.len() != previous_count {
+        store.put(ACTIVE_SCOPES_KEY, &scopes).await?;
+    }
+    let mut enqueued = false;
+    let mut wake = u64::MAX;
+    for active in scopes {
+        let demand = active.demand(now);
+        let expires_at = latest_ready_expiry(store, &demand).await?;
+        match expires_at {
+            Some(expiry) if outlives_renewal(expires_at, now) => {
+                wake = wake
+                    .min(expiry - RENEW_BEFORE_EXPIRY_MS)
+                    .min(active.active_until_ms);
+            }
+            _ => {
+                enqueue(store, demand, Trigger::Missing).await?;
+                enqueued = true;
+            }
+        }
+    }
+    Ok(if enqueued {
+        Reserve::Enqueued
+    } else {
+        Reserve::Wake { at_ms: wake }
+    })
+}
 /// Claim ready stock or record durable preparation demand under the same transaction.
 pub async fn claim_or_prepare(
     store: &impl Store,
@@ -199,6 +350,7 @@ pub async fn claim_or_prepare(
     now: u64,
 ) -> Result<super::Decision> {
     let wallet = request.wallet.clone();
+    let active_configuration = configuration.clone();
     let decision = super::claim(
         store,
         request,
@@ -210,9 +362,13 @@ pub async fn claim_or_prepare(
     .await?;
     match &decision {
         super::Decision::Unavailable { .. } => {
-            self::request(store, wallet, group, configuration, now).await?;
+            self::request(store, wallet.clone(), group, configuration, now).await?;
+            activate(store, wallet, group, active_configuration, now).await?;
         }
-        super::Decision::Admitted { claim } => replenish(store, claim, now).await?,
+        super::Decision::Admitted { claim } => {
+            replenish(store, claim, now).await?;
+            activate(store, wallet, group, active_configuration, now).await?;
+        }
         super::Decision::Existing { .. } => {}
     }
     Ok(decision)
@@ -285,6 +441,7 @@ async fn retry(
     now: u64,
 ) -> Result<u64> {
     retire_preparation(store, job).await?;
+    record_failure(store, &demand).await?;
     if now >= demand.expires_at_ms {
         pop(store, rest).await?;
         return Ok(now.saturating_add(1));
@@ -305,7 +462,15 @@ async fn retry(
 pub async fn next(store: &impl Store, configuration: &Configuration, now: u64) -> Result<Work> {
     for _ in 0..=(MAX_PENDING * 2) {
         let Some(mut state) = load(store).await? else {
-            return Ok(Work::Idle);
+            match reconcile_active_scopes(store, configuration, now).await? {
+                Reserve::Idle => return Ok(Work::Idle),
+                Reserve::Enqueued => continue,
+                Reserve::Wake { at_ms } => {
+                    return Ok(Work::Wait {
+                        retry_at_ms: at_ms.max(now.saturating_add(1)),
+                    })
+                }
+            }
         };
         let previous_count = state.rest().len();
         state.rest_mut().retain(|pending| {
@@ -330,7 +495,7 @@ pub async fn next(store: &impl Store, configuration: &Configuration, now: u64) -
             Controller::Queued { demand, mut rest } => {
                 if demand.configuration != *configuration
                     || now >= demand.expires_at_ms
-                    || ready_job(store, &demand, now).await?.is_some()
+                    || outlives_renewal(latest_ready_expiry(store, &demand).await?, now)
                 {
                     pop(store, rest).await?;
                     continue;

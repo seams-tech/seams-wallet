@@ -842,6 +842,19 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(
+      'wallet_ml_dsa_registration_activity',
+      'POST',
+      '/wallets/:walletId/ml-dsa/registration-activity',
+      'Keep generic ML-DSA registration stock ready for an owner in Signing keys',
+      {
+        plane: 'public',
+        proof: 'threshold_protocol_state',
+        rationale:
+          'An existing primary Wallet Session credential resolves current full-owner authority. The signal carries no key input and grants no signing permission.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
       'wallet_ml_dsa_inventory',
       'POST',
       '/wallets/:walletId/ml-dsa/inventory',
