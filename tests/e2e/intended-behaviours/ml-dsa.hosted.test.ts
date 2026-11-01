@@ -17,6 +17,7 @@ import {
   signMlDsaTransaction,
   openSigningKeys,
 } from './ml-dsa-lifecycle-scenario';
+import { runMlDsaHostedSettingsTimes } from './ml-dsa-registration-reserve-scenario';
 import { mlDsaHostedTarget, forwardMlDsaHostedRequest } from '../../helpers/mlDsaHostedFixture';
 import { requireCanonicalString } from '@shared/utils/validation';
 import { fundImplicitWallet } from './ml-dsa-testnet';
@@ -31,6 +32,16 @@ const test = base.extend<{ harness: IntendedBehaviourHarness; assets: WalletAsse
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 test('Hosted ML-DSA completes the normal SDK lifecycle', runMlDsaBrowserLifecycle);
 test('Hosted ML-DSA owner export survives onward linking and recovery', runMlDsaDeviceOwnerParity);
+
+test('Hosted Settings times the empty pool, ready job and first signature', async (
+  { browser, request },
+  testInfo,
+) => {
+  await runMlDsaHostedSettingsTimes(
+    { browser, request, openHarness: initializeHostedHarness },
+    testInfo,
+  );
+});
 
 test('Hosted ECDSA-only lifecycle skips optional ML-DSA cryptography', async ({
   harness,
