@@ -5978,6 +5978,16 @@ async function dispatchPasskeyWalletAddSigner(args: {
         started: args.started,
         relayerUrl: args.input.relayerUrl,
         passkeyPrfFirstB64u: args.input.passkeyPrfFirstB64u,
+        onRoundFinished: emitAddSignerEventSafely.bind(
+          undefined,
+          args.input.onEvent,
+          args.input.eventAccountId,
+          {
+            authMethod: 'passkey',
+            phase: RegistrationEventPhase.STEP_05_ML_DSA_SIGNER_CREATE_STARTED,
+            status: 'running',
+          },
+        ),
       });
     }
     case 'ed25519':

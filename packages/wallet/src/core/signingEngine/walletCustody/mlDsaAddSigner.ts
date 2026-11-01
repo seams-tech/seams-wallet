@@ -18,7 +18,11 @@ import { joinCustodyWireFromEnvelopeRecord } from './joinCustodyWire';
 import { retainMlDsaPublication, clearMlDsaPublication } from './pendingMlDsaPublication';
 
 type Started = Variant<WalletAddSignerStartResponse, 'kind', 'near_ml_dsa_65'>;
-type Round = { readonly relayerUrl: string; readonly started: Started };
+type Round = {
+  readonly relayerUrl: string;
+  readonly started: Started;
+  readonly onRoundFinished: () => void;
+};
 
 class MlDsaAddSignerRejected extends Error {
   constructor(readonly failure: MlDsaRegistrationFailure) {
@@ -83,7 +87,10 @@ async function runRound(round: Round, roleInputsJson: string): Promise<string> {
   while (Date.now() < round.started.mlDsa.expiresAtMs) {
     try {
       const response = await executeWalletAddSignerMlDsa(target, inputs);
-      if (response.ok) return response.protocolResultJson;
+      if (response.ok) {
+        round.onRoundFinished();
+        return response.protocolResultJson;
+      }
       await waitForRetry(round, response);
     } catch (error: unknown) {
       if (!(error instanceof TypeError)) throw error;
@@ -102,11 +109,16 @@ export async function addPasskeyMlDsaWalletSigner(input: {
   readonly started: Started;
   readonly relayerUrl: string;
   readonly passkeyPrfFirstB64u: string;
+  readonly onRoundFinished: () => void;
 }): Promise<RegistrationResult> {
   const custody = joinCustodyWireFromEnvelopeRecord(input.started.mlDsa.custodyEnvelope);
   if (!custody.ok) throw new Error(custody.reason);
   const factor = Uint8Array.from(base64UrlDecode(input.passkeyPrfFirstB64u));
-  const round: Round = { relayerUrl: input.relayerUrl, started: input.started };
+  const round: Round = {
+    relayerUrl: input.relayerUrl,
+    started: input.started,
+    onRoundFinished: input.onRoundFinished,
+  };
   try {
     const commit = await input.signingEngine.joinWalletCustodyMlDsaKeySet({
       ceremonyId: input.started.addSignerCeremonyId,

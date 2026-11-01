@@ -121,7 +121,7 @@ export async function runMlDsaBrowserLifecycle(
   await expect
     .poll(readDefaultSigner.bind(null, harness))
     .toEqual({ kind: 'near_ml_dsa_65', signingKeyId: signer.signingKeyId });
-  await expect(page.getByRole('heading', { name: 'Signing key added', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Key active', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath('ml-dsa-signing-keys.png') });
   await page.keyboard.press('Escape');
