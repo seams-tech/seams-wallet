@@ -85,7 +85,29 @@ const unsafeNonSubmission = {
   transactionId: 'hash',
 } as Variant<OwnerNearOutcome, 'kind', 'not_submitted'>;
 
+declare const retirementAvailable: Variant<OwnerNearOutcome, 'kind', 'retirement_available'>;
+
+// @ts-expect-error Unverified execution cannot retire an operation without owner approval.
+const retiredWithoutOwner: OwnerNearOutcome = { ...retirementAvailable, kind: 'retired' };
+
+const unsignedNotExecuted: OwnerNearOutcome = {
+  kind: 'retired',
+  recovery,
+  transactionId: 'hash',
+  proof: {
+    execution: 'not_executed',
+    finalBlockHeight: 2,
+    finalBlockHash: 'hash',
+    lastAcceptedBlockHeight: 1,
+    accessKeyNonce: '1',
+    // @ts-expect-error Non-execution requires the nonce from a signed receipt.
+    submission: { kind: 'hash_only', firstObservedBlockHeight: 1 },
+  },
+};
+
 void [
+  retiredWithoutOwner,
+  unsignedNotExecuted,
   unresolvedWithoutHash,
   nonSubmissionWithHash,
   recoveryWithoutIdentity,

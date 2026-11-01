@@ -111,7 +111,8 @@ class OwnerNearRequest {
           error: safeErrorMessage(error).trim() || 'The transaction outcome is unavailable.',
         };
       }
-      if (this.command.action === 'recover') {
+      // Only an approval can end as cancelled. Any other request leaves its operation pending.
+      if (this.command.action !== 'approve') {
         return {
           kind: 'recovery_unavailable',
           recovery: this.command.recovery,

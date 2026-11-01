@@ -6,6 +6,7 @@ import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnA
 import { passkeyCredentialIdB64uFromAuthentication } from '@/SeamsWeb/operations/authMethods/passkey/ecdsaBootstrap';
 import type { WalletCustodyFactorProof } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import type { ExternalOwnerChallenge } from '@shared/auth/externalAuth';
+import type { WalletId } from '@shared/utils/domainIds';
 
 type OwnerApprovalContext = {
   readonly configs: Pick<SeamsConfigsReadonly, 'ui'>;
@@ -25,6 +26,15 @@ export type ExternalOwnerApproval = (
   input: ExternalOwnerApprovalRequest,
 ) => Promise<WalletCustodyFactorProof>;
 
+type OwnerPasskeyApprovalResult = Readonly<{
+  rpId: string;
+  credentialIdB64u: string;
+  webauthnAuthentication: Extract<
+    WalletCustodyFactorProof,
+    { kind: 'passkey' }
+  >['webauthn_authentication'];
+}>;
+
 export class ExternalOwnerApprovalError extends Error {
   constructor(readonly code: 'cancelled' | 'expired') {
     super(code === 'expired' ? 'Owner approval expired' : 'Owner approval was cancelled');
@@ -32,7 +42,22 @@ export class ExternalOwnerApprovalError extends Error {
   }
 }
 
-class ExternalIdentityApproval {
+/** A wallet-origin review followed by a passkey assertion over one fresh challenge. */
+export type OwnerPasskeyApprovalRequest = Readonly<{
+  title: string;
+  body: string;
+  confirmText: string;
+  surfaceMarker: Readonly<{ name: string; value: string }>;
+  subjectId: WalletId;
+  challengeB64u: string;
+  /** Limits the browser prompt to this passkey. Without it, any passkey for the RP can answer. */
+  credentialIdB64u?: string;
+  expiresAtMs: number;
+  signal: AbortSignal;
+  assertCurrent: () => void;
+}>;
+
+class OwnerPasskeyApproval {
   private state: 'reviewing' | 'collecting_proof' | 'approved' | 'cancelled' | 'expired' =
     'reviewing';
   private surface: MountedConfirmUIHandle | null = null;
@@ -41,7 +66,7 @@ class ExternalIdentityApproval {
   private readonly expireBound = this.expire.bind(this);
 
   constructor(
-    private readonly input: ExternalOwnerApprovalRequest,
+    private readonly input: OwnerPasskeyApprovalRequest,
     private readonly appearance: AppearanceConfig,
     private readonly measurement: UiConfirmSurfaceMeasurementBinding,
     private readonly rpId: string,
@@ -49,7 +74,7 @@ class ExternalIdentityApproval {
 
   private assertCurrent(): void {
     this.input.assertCurrent();
-    if (this.input.challenge.expiresAtMs <= Date.now()) this.expire();
+    if (this.input.expiresAtMs <= Date.now()) this.expire();
     if (this.state === 'expired') throw new ExternalOwnerApprovalError('expired');
     if (this.input.signal.aborted || this.controller.signal.aborted || this.state === 'cancelled') {
       this.cancel();
@@ -71,10 +96,10 @@ class ExternalIdentityApproval {
     this.surface?.close(false);
   }
 
-  async approve(): Promise<WalletCustodyFactorProof> {
+  async approve(): Promise<OwnerPasskeyApprovalResult> {
     this.assertCurrent();
-    const challenge = this.input.challenge;
-    const timeout = setTimeout(this.expireBound, Math.max(0, challenge.expiresAtMs - Date.now()));
+    const request = this.input;
+    const timeout = setTimeout(this.expireBound, Math.max(0, request.expiresAtMs - Date.now()));
     this.input.signal.addEventListener('abort', this.cancelBound, { once: true });
     let unsubscribe: (() => void) | undefined;
     try {
@@ -84,30 +109,13 @@ class ExternalIdentityApproval {
       this.assertCurrent();
       this.surface = await mountConfirmUI({
         ctx: { surfaceMeasurementBinding: this.measurement },
-        summary: {
-          title:
-            challenge.kind === 'associate'
-              ? 'Connect this app to your wallet?'
-              : 'Remove this app connection?',
-          body: [
-            `Application: ${challenge.identity.issuer}`,
-            `Account: ${JSON.stringify(challenge.identity.subject)}`,
-            `Wallet: ${challenge.walletId}`,
-            '',
-            challenge.kind === 'associate'
-              ? 'Allow this account to view wallet settings. Signing still requires your confirmation.'
-              : 'Remove settings access for this account.',
-          ].join('\n'),
-        },
+        summary: { title: request.title, body: request.body },
         securityContext: { rpId: this.rpId },
         appearance: this.appearance,
         uiMode: 'modal',
       });
-      this.surface.element.dataset.seamsExternalOwnerApproval = challenge.kind;
-      this.surface.update({
-        confirmText: challenge.kind === 'associate' ? 'Connect app' : 'Remove connection',
-        cancelText: 'Cancel',
-      });
+      this.surface.element.dataset[request.surfaceMarker.name] = request.surfaceMarker.value;
+      this.surface.update({ confirmText: request.confirmText, cancelText: 'Cancel' });
       unsubscribe = this.surface.onCancel?.(this.cancelBound);
       const decision = await this.surface.takeDecision();
       if (decision.kind !== 'confirmed') this.cancel();
@@ -117,8 +125,15 @@ class ExternalIdentityApproval {
       const credential = await new TouchIdPrompt(
         this.rpId,
       ).getAuthenticationCredentialsSerializedForChallengeB64u({
-        subjectId: challenge.walletId,
-        challengeB64u: challenge.challengeB64u,
+        subjectId: request.subjectId,
+        challengeB64u: request.challengeB64u,
+        ...(request.credentialIdB64u
+          ? {
+              allowCredentials: [
+                { id: request.credentialIdB64u, type: 'public-key' as const, transports: [] },
+              ],
+            }
+          : {}),
         includeSecondPrfOutput: false,
         cancellation: { kind: 'abort_signal', signal: this.controller.signal },
       });
@@ -127,12 +142,9 @@ class ExternalIdentityApproval {
       if (!credentialIdB64u) throw new Error('Owner approval did not receive a passkey credential');
       this.state = 'approved';
       return {
-        kind: 'passkey',
-        walletId: challenge.walletId,
         rpId: this.rpId,
         credentialIdB64u,
-        challenge_digest: challenge.challengeB64u,
-        webauthn_authentication: redactCredentialExtensionOutputs(credential),
+        webauthnAuthentication: redactCredentialExtensionOutputs(credential),
       };
     } catch (error) {
       if (this.state === 'expired') throw new ExternalOwnerApprovalError('expired');
@@ -154,16 +166,52 @@ class ExternalIdentityApproval {
   }
 }
 
-export async function approveExternalOwnerOperation(
-  getContext: () => OwnerApprovalContext,
-  input: ExternalOwnerApprovalRequest,
-): Promise<WalletCustodyFactorProof> {
-  const context = getContext();
-  const approval = new ExternalIdentityApproval(
+export async function approveWithOwnerPasskey(
+  context: OwnerApprovalContext,
+  input: OwnerPasskeyApprovalRequest,
+): Promise<OwnerPasskeyApprovalResult> {
+  const approval = new OwnerPasskeyApproval(
     input,
     context.configs.ui.appearance,
     context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
     context.signingEngine.getRpId(),
   );
-  return approval.approve();
+  return await approval.approve();
+}
+
+export async function approveExternalOwnerOperation(
+  getContext: () => OwnerApprovalContext,
+  input: ExternalOwnerApprovalRequest,
+): Promise<WalletCustodyFactorProof> {
+  const { challenge } = input;
+  const approved = await approveWithOwnerPasskey(getContext(), {
+    title:
+      challenge.kind === 'associate'
+        ? 'Connect this app to your wallet?'
+        : 'Remove this app connection?',
+    body: [
+      `Application: ${challenge.identity.issuer}`,
+      `Account: ${JSON.stringify(challenge.identity.subject)}`,
+      `Wallet: ${challenge.walletId}`,
+      '',
+      challenge.kind === 'associate'
+        ? 'Allow this account to view wallet settings. Signing still requires your confirmation.'
+        : 'Remove settings access for this account.',
+    ].join('\n'),
+    confirmText: challenge.kind === 'associate' ? 'Connect app' : 'Remove connection',
+    surfaceMarker: { name: 'seamsExternalOwnerApproval', value: challenge.kind },
+    subjectId: challenge.walletId,
+    challengeB64u: challenge.challengeB64u,
+    expiresAtMs: challenge.expiresAtMs,
+    signal: input.signal,
+    assertCurrent: input.assertCurrent,
+  });
+  return {
+    kind: 'passkey',
+    walletId: challenge.walletId,
+    rpId: approved.rpId,
+    credentialIdB64u: approved.credentialIdB64u,
+    challenge_digest: challenge.challengeB64u,
+    webauthn_authentication: approved.webauthnAuthentication,
+  };
 }

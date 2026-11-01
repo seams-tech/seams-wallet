@@ -22,7 +22,15 @@ import { authenticateApplicationPasskey } from './application-login';
 import { addWebAuthnVirtualAuthenticator, fulfillNearRpcStub } from './harness';
 import { isolatedGatewayDatabasePath, loadIsolatedDatabaseSync } from './local-gateway-database';
 import { nearTransactionHash } from './near-transaction-hash';
-import { failOwnerReceiptWrites, restoreOwnerReceiptWrites } from './owner-receipt-storage';
+import {
+  failOwnerReceiptWrites,
+  restoreOwnerReceiptWrites,
+  stripOwnerReceiptEvidence,
+} from './owner-receipt-storage';
+
+const TRANSACTION_VALIDITY_PERIOD = 86_400;
+// The stubbed reference block is 1, and the wallet adds a margin of 3,600 blocks.
+const LAST_ACCEPTED_BLOCK = 1 + TRANSACTION_VALIDITY_PERIOD + 3_600;
 
 class ApplicationBackend {
   readonly session = { subject: 'getsignal-user-42', expiresAtMs: Date.now() + 3_600_000 };
@@ -36,6 +44,8 @@ class ApplicationBackend {
   pendingStatus: Route | null = null;
   statusFinality: 'EXECUTED' | 'FINAL' = 'FINAL';
   statusRequests = 0;
+  finalBlockHeight = 1;
+  accessKeyNonce: bigint | null = null;
   lastHandoff: { url: string; headers: Record<string, string>; body: string } | null = null;
 
   constructor(
@@ -130,6 +140,7 @@ class ApplicationBackend {
               code: -32000,
               name: 'HANDLER_ERROR',
               message: 'Server error',
+              data: `Transaction ${String(params.tx_hash)} doesn't exist`,
               cause: { name: 'UNKNOWN_TRANSACTION', info: {} },
             },
           },
@@ -152,6 +163,34 @@ class ApplicationBackend {
       );
       return;
     }
+    if (request.method === 'EXPERIMENTAL_genesis_config') {
+      await route.fulfill({
+        json: {
+          jsonrpc: '2.0',
+          id: request.id,
+          result: { transaction_validity_period: TRANSACTION_VALIDITY_PERIOD },
+        },
+      });
+      return;
+    }
+    if (request.method === 'block' && this.finalBlockHeight !== 1) {
+      await route.fulfill({
+        json: {
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            author: 'intended-e2e',
+            chunks: [],
+            header: {
+              hash: '11111111111111111111111111111111',
+              height: this.finalBlockHeight,
+              prev_hash: '11111111111111111111111111111111',
+            },
+          },
+        },
+      });
+      return;
+    }
     if (request.method === 'query') {
       const params = requireRecord(request.params, 'query params');
       if (params.request_type === 'view_access_key') {
@@ -160,8 +199,8 @@ class ApplicationBackend {
             jsonrpc: '2.0',
             id: request.id,
             result: {
-              nonce: 1 + this.broadcasts.length,
-              block_height: 1,
+              nonce: Number(this.accessKeyNonce ?? BigInt(1 + this.broadcasts.length)),
+              block_height: this.finalBlockHeight,
               block_hash: '11111111111111111111111111111111',
               permission: 'FullAccess',
             },
@@ -476,7 +515,7 @@ export async function verifyApplicationAuth(
       recovery: blockingState.recovery,
       transactionId: unresolvedHash,
     });
-    expect(unknownRecovery.error).toContain('UNKNOWN_TRANSACTION');
+    expect(unknownRecovery.error).toContain(`until block ${LAST_ACCEPTED_BLOCK}`);
     await page.evaluate(prepareApiOperation);
     expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
     expect((await page.evaluate(readApiState)).recovery).toEqual(blockingState.recovery);
@@ -526,14 +565,18 @@ export async function verifyApplicationAuth(
     expect(await page.evaluate(replayApiOperation)).toBe(true);
 
     console.info('[application-auth] recovery and concurrent calls complete');
+    const retirementEvidence = await verifyOwnerRetirement(page, backend);
+    console.info('[application-auth] owner retirement complete');
+    const broadcastsBeforeExpiry = backend.broadcasts.length;
+    const admissionsBeforeExpiry = await freshSigningAdmissions(walletId);
     // An expired prepared handle cannot prompt or sign.
     await page.evaluate(prepareApiOperation);
     await page.clock.install();
     await page.clock.fastForward(121_000);
     expect(await page.evaluate(approveApiOnce)).toBe('expired');
     await page.clock.resume();
-    expect(backend.broadcasts.length).toBe(broadcastsAfterLoss + 1);
-    expect(await freshSigningAdmissions(walletId)).toBe(4);
+    expect(backend.broadcasts.length).toBe(broadcastsBeforeExpiry);
+    expect(await freshSigningAdmissions(walletId)).toBe(admissionsBeforeExpiry);
 
     await page.evaluate(prepareApiOperation);
     backend.session.subject = 'getsignal-other-user';
@@ -542,7 +585,7 @@ export async function verifyApplicationAuth(
       page.getByRole('region', { name: 'Application authentication', exact: true }),
     ).toHaveAttribute('data-state', 'failed');
     expect(await page.evaluate(approveApiOnce)).toBe('not_submitted');
-    expect(backend.broadcasts.length).toBe(broadcastsAfterLoss + 1);
+    expect(backend.broadcasts.length).toBe(broadcastsBeforeExpiry);
     backend.session.subject = 'getsignal-user-42';
     await page.getByRole('button', { name: 'Connect wallet', exact: true }).click();
     await expect(page.getByText('Wallet connected for reading.', { exact: true })).toBeVisible();
@@ -570,6 +613,7 @@ export async function verifyApplicationAuth(
         nonfinalRecovery,
         unknownRecovery,
         stalledRecovery,
+        retirementEvidence,
       },
       freshSigningAdmissions: await freshSigningAdmissions(walletId),
       checks: [
@@ -585,6 +629,13 @@ export async function verifyApplicationAuth(
         'nonfinal_recovery_stays_unresolved',
         'unknown_transaction_remains_pending_without_rebroadcast',
         'recovery_queries_current_status_without_waiting',
+        'unknown_transaction_within_validity_stays_pending',
+        'expired_transaction_with_unused_nonce_is_retired',
+        'expired_transaction_with_used_nonce_requires_owner_approval',
+        'cancelled_retirement_keeps_the_operation_pending',
+        'hash_only_receipt_waits_from_its_first_observation_across_reload',
+        'unrelated_settled_recovery_cannot_release_a_pending_operation',
+        'fresh_approval_follows_authoritative_retirement',
         'blocked_handle_recovery_progress_retains_original_operation_identity',
         'pending_recovery_cannot_be_overwritten_by_preparation',
         'fresh_second_approval',
@@ -921,6 +972,170 @@ async function replayApiOperation(): Promise<boolean> {
   } catch {
     return true;
   }
+}
+
+async function loseOwnerBroadcast(page: Page, backend: ApplicationBackend) {
+  backend.finalBlockHeight = 1;
+  backend.accessKeyNonce = null;
+  await page.evaluate(prepareApiOperation);
+  const recovery = await page.evaluate(readApiRecovery);
+  backend.loseNextBroadcast = true;
+  const broadcasts = backend.broadcasts.length;
+  const approval = page.evaluate(approveApiOnce);
+  await confirmApproval(page, approval);
+  await expect.poll(readBroadcastCount.bind(null, backend), { timeout: 90_000 }).toBe(broadcasts + 1);
+  await expect.poll(backendHoldsBroadcast.bind(null, backend)).toBe(true);
+  await backend.releaseLostBroadcast();
+  expect(await approval).toBe('unresolved');
+  const encoded = backend.broadcasts[broadcasts];
+  if (!encoded) throw new Error('Missing lost broadcast.');
+  return { recovery, encoded, transactionId: nearTransactionHash(encoded) };
+}
+
+function backendHoldsBroadcast(backend: ApplicationBackend): boolean {
+  return backend.pendingBroadcast !== null;
+}
+
+function signedNonce(encoded: string): bigint {
+  const bytes = Buffer.from(encoded, 'base64');
+  return bytes.readBigUInt64LE(4 + bytes.readUInt32LE(0) + 33);
+}
+
+/** Fresh approval must succeed only after each pending operation reaches its own end. */
+async function verifyFreshApproval(page: Page, backend: ApplicationBackend): Promise<void> {
+  backend.finalBlockHeight = 1;
+  backend.accessKeyNonce = null;
+  await page.evaluate(prepareApiOperation);
+  const approval = page.evaluate(approveApiOnce);
+  await confirmApproval(page, approval);
+  expect(await approval).toBe('completed');
+}
+
+/** Report an approval that ended without a review instead of waiting for a missing button. */
+async function confirmApproval(page: Page, approval: Promise<string>): Promise<void> {
+  const early = await Promise.race([approval, clickNearConfirmation(page)]);
+  if (early !== undefined)
+    throw new Error(`Approval ended early: ${JSON.stringify(await page.evaluate(readApiState))}`);
+}
+
+async function verifyOwnerRetirement(page: Page, backend: ApplicationBackend) {
+  const firstBroadcasts = backend.broadcasts.length;
+  backend.statusUnknown = true;
+
+  // An expired transaction whose nonce was never used cannot have executed.
+  const unused = await loseOwnerBroadcast(page, backend);
+  backend.accessKeyNonce = signedNonce(unused.encoded) - 1n;
+  backend.finalBlockHeight = LAST_ACCEPTED_BLOCK;
+  const withinValidity = await page.evaluate(recoverApiOperation, unused.recovery);
+  expect(withinValidity.kind).toBe('unresolved');
+  backend.finalBlockHeight = LAST_ACCEPTED_BLOCK + 1;
+  const notExecuted = await page.evaluate(recoverApiOperation, unused.recovery);
+  expect(notExecuted).toMatchObject({
+    kind: 'retired',
+    recovery: unused.recovery,
+    transactionId: unused.transactionId,
+    proof: {
+      execution: 'not_executed',
+      finalBlockHeight: LAST_ACCEPTED_BLOCK + 1,
+      lastAcceptedBlockHeight: LAST_ACCEPTED_BLOCK,
+      accessKeyNonce: String(signedNonce(unused.encoded) - 1n),
+      submission: {
+        kind: 'signed',
+        signedNonce: String(signedNonce(unused.encoded)),
+        referenceBlockHeight: 1,
+      },
+    },
+  });
+  await verifyFreshApproval(page, backend);
+
+  // A used nonce ends the transaction, but only the owner can accept the uncertain past.
+  const used = await loseOwnerBroadcast(page, backend);
+  backend.accessKeyNonce = signedNonce(used.encoded);
+  backend.finalBlockHeight = LAST_ACCEPTED_BLOCK + 1;
+  const available = await page.evaluate(recoverApiOperation, used.recovery);
+  expect(available).toMatchObject({
+    kind: 'retirement_available',
+    recovery: used.recovery,
+    transactionId: used.transactionId,
+    proof: { execution: 'unverified', accessKeyNonce: String(signedNonce(used.encoded)) },
+  });
+  await page.evaluate(prepareApiOperation);
+  expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
+  expect((await page.evaluate(readApiState)).recovery).toEqual(used.recovery);
+  const cancelledRetirement = page.evaluate(retireApiOperation, used.recovery);
+  await clickNearCancellation(page);
+  expect(await cancelledRetirement).toMatchObject({
+    kind: 'unresolved',
+    recovery: used.recovery,
+    transactionId: used.transactionId,
+  });
+  const retirement = page.evaluate(retireApiOperation, used.recovery);
+  await clickNearConfirmation(page);
+  const ownerRetired = await retirement;
+  expect(ownerRetired).toMatchObject({
+    kind: 'retired',
+    recovery: used.recovery,
+    transactionId: used.transactionId,
+    proof: { execution: 'unverified', ownerApproval: {} },
+  });
+  const statusRequests = backend.statusRequests;
+  expect(await page.evaluate(recoverApiOperation, used.recovery)).toEqual(ownerRetired);
+  expect(backend.statusRequests).toBe(statusRequests);
+  await verifyFreshApproval(page, backend);
+
+  // A receipt from an earlier SDK has only its hash. Its wait starts at the first observation.
+  const hashOnly = await loseOwnerBroadcast(page, backend);
+  await stripOwnerReceiptEvidence(page, hashOnly.recovery.operationId);
+  const firstObservation = 500_000;
+  backend.finalBlockHeight = firstObservation;
+  expect((await page.evaluate(recoverApiOperation, hashOnly.recovery)).kind).toBe('unresolved');
+  // Reading another operation's durable result leaves this one pending.
+  expect((await page.evaluate(recoverApiOperation, used.recovery)).kind).toBe('retired');
+  await page.evaluate(prepareApiOperation);
+  expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
+  expect((await page.evaluate(readApiState)).recovery).toEqual(hashOnly.recovery);
+  await page.reload();
+  await expect.poll(ownerApiAvailable.bind(null, page)).toBe(true);
+  const hashOnlyLastBlock = firstObservation + TRANSACTION_VALIDITY_PERIOD + 3_600;
+  backend.finalBlockHeight = hashOnlyLastBlock;
+  expect((await page.evaluate(recoverApiOperation, hashOnly.recovery)).kind).toBe('unresolved');
+  backend.finalBlockHeight = hashOnlyLastBlock + 1;
+  expect(await page.evaluate(recoverApiOperation, hashOnly.recovery)).toMatchObject({
+    kind: 'retirement_available',
+    transactionId: hashOnly.transactionId,
+    proof: {
+      execution: 'unverified',
+      accessKeyNonce: null,
+      lastAcceptedBlockHeight: hashOnlyLastBlock,
+      submission: { kind: 'hash_only', firstObservedBlockHeight: firstObservation },
+    },
+  });
+  const hashOnlyRetirement = page.evaluate(retireApiOperation, hashOnly.recovery);
+  await clickNearConfirmation(page);
+  const hashOnlyRetired = await hashOnlyRetirement;
+  expect(hashOnlyRetired.kind).toBe('retired');
+
+  backend.statusUnknown = false;
+  await verifyFreshApproval(page, backend);
+  // Three lost broadcasts and three fresh approvals. Recovery and retirement send nothing.
+  expect(backend.broadcasts.length).toBe(firstBroadcasts + 6);
+  return { notExecuted, ownerRetired, hashOnlyRetired };
+}
+
+async function retireApiOperation(recovery: import('@seams/wallet').OwnerNearRecovery) {
+  const seams = window.ownerAuthApi;
+  if (!seams) throw new Error('Missing application API.');
+  const session = await seams.auth.getSession();
+  if (session.authentication.kind !== 'external_authenticated')
+    throw new Error('Missing read connection.');
+  const operation = seams.near.resumeOwnerTransaction({
+    authentication: session.authentication,
+    recovery,
+  });
+  const checked = await operation.recover();
+  if (checked.kind !== 'retirement_available')
+    throw new Error(`The transaction cannot be released: ${checked.kind}`);
+  return await operation.retire();
 }
 
 async function clickNearCancellation(page: Page): Promise<void> {

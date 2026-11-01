@@ -84,3 +84,41 @@ function installReceiptWriteFault(receiptKind: ReceiptKind): void {
 function restoreReceiptWriteFault(): number {
   return OwnerReceiptWriteFault.restore();
 }
+
+/** Rewrite a real receipt to the hash-only shape that earlier SDK versions stored. */
+export async function stripOwnerReceiptEvidence(page: Page, operationId: string): Promise<void> {
+  await (await walletFrame(page)).evaluate(stripReceiptEvidence, `owner-near:${operationId}`);
+}
+
+async function stripReceiptEvidence(key: string): Promise<void> {
+  for (const { name } of await indexedDB.databases()) {
+    if (!name?.startsWith('seams')) continue;
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(name);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      if (!database.objectStoreNames.contains('app_state')) continue;
+      const store = database.transaction('app_state', 'readwrite').objectStore('app_state');
+      const stripped = await new Promise<boolean>((resolve, reject) => {
+        const read = store.get(key);
+        read.onerror = () => reject(read.error);
+        read.onsuccess = () => {
+          const row: unknown = read.result;
+          if (!row || typeof row !== 'object') return resolve(false);
+          const value: unknown = Reflect.get(row, 'value');
+          if (!value || typeof value !== 'object') return resolve(false);
+          Reflect.deleteProperty(value, 'evidence');
+          const write = store.put(row);
+          write.onerror = () => reject(write.error);
+          write.onsuccess = () => resolve(true);
+        };
+      });
+      if (stripped) return;
+    } finally {
+      database.close();
+    }
+  }
+  throw new Error('The owner receipt does not exist.');
+}

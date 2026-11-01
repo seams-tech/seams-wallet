@@ -9,7 +9,7 @@ import {
 import { NearRpcError } from './NearRpcError';
 import type { WasmTransaction, WasmSignature } from '@/core/types/signer-worker';
 import type { NonceLeaseRef } from '@/core/signingEngine/nonce/NonceCoordinator';
-import { requireCanonicalString } from '@shared/utils/validation';
+import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 
 export { encodeSignedTransactionBase64 } from '@shared/near/nearClient';
 // re-export near-js types
@@ -128,4 +128,21 @@ export class OwnerOperationNearClient extends MinimalNearClient {
   protected override sendWithRetry<T>(send: () => Promise<T>): Promise<T> {
     return send();
   }
+
+  /** NEAR rejects a transaction when its reference block is older than this many blocks. */
+  async transactionValidityPeriod(): Promise<number> {
+    return await this.makeRpcCall(
+      'EXPERIMENTAL_genesis_config',
+      [],
+      'Genesis Config',
+      decodeTransactionValidityPeriod,
+    );
+  }
+}
+
+function decodeTransactionValidityPeriod(raw: unknown): number {
+  const period = requireRecord(raw, 'NEAR genesis config').transaction_validity_period;
+  if (typeof period !== 'number' || !Number.isSafeInteger(period) || period <= 0)
+    throw new Error('Invalid NEAR transaction validity period');
+  return period;
 }

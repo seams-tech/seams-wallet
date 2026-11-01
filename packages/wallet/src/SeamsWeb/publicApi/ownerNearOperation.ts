@@ -12,11 +12,16 @@ import {
   type OwnerNearCommand,
   type OwnerNearOutcome,
   type OwnerNearRecovery,
+  type OwnerNearRetirementProof,
+  type OwnerNearUnverifiedExecutionProof,
 } from '../walletIframe/shared/ownerNearOperation';
 
 export type {
   OwnerNearOutcome,
   OwnerNearRecovery,
+  OwnerNearRetirementProof,
+  OwnerNearSubmissionEvidence,
+  OwnerNearUnverifiedExecutionProof,
 } from '../walletIframe/shared/ownerNearOperation';
 
 export type OwnerNearOperationState = Readonly<{ recovery: OwnerNearRecovery }> &
@@ -32,6 +37,12 @@ export type OwnerNearOperationState = Readonly<{ recovery: OwnerNearRecovery }> 
     | { kind: 'cancelled' }
     | { kind: 'expired' }
     | { kind: 'not_submitted'; error: string }
+    | {
+        kind: 'retirement_available' | 'retirement_approval';
+        transactionId: string;
+        proof: OwnerNearUnverifiedExecutionProof;
+      }
+    | { kind: 'retired'; transactionId: string; proof: OwnerNearRetirementProof }
   >;
 
 export interface OwnerNearOperation {
@@ -40,6 +51,8 @@ export interface OwnerNearOperation {
   approve(): Promise<OwnerNearOutcome>;
   cancel(): void;
   recover(): Promise<OwnerNearOutcome>;
+  /** Ask the owner to release an expired transaction whose execution remains unverified. */
+  retire(): Promise<OwnerNearOutcome>;
 }
 
 export type PrepareOwnerNearTransaction = {
@@ -167,13 +180,29 @@ class OwnerNearTransaction implements OwnerNearOperation {
     if (
       this.state.kind !== 'unknown' &&
       this.state.kind !== 'unresolved' &&
-      this.state.kind !== 'recovery_unavailable'
+      this.state.kind !== 'recovery_unavailable' &&
+      this.state.kind !== 'retirement_available'
     )
       throw new Error('Only an unresolved outcome requires recovery.');
     this.inFlight = this.run({
       action: 'recover',
       authentication: this.command.authentication,
       recovery: this.state.recovery,
+    });
+    return this.inFlight;
+  }
+
+  retire(): Promise<OwnerNearOutcome> {
+    if (this.inFlight) return this.inFlight;
+    if (this.state.kind !== 'retirement_available')
+      throw new Error('Check the transaction before releasing it.');
+    const { recovery, transactionId, proof } = this.state;
+    this.transition({ kind: 'retirement_approval', recovery, transactionId, proof });
+    this.inFlight = this.run({
+      action: 'retire',
+      authentication: this.command.authentication,
+      recovery,
+      transactionId,
     });
     return this.inFlight;
   }
@@ -186,8 +215,8 @@ class OwnerNearTransaction implements OwnerNearOperation {
     let outcome: OwnerNearOutcome;
     try {
       outcome = await this.execute(command, {
-        signal:
-          command.action === 'recover' ? new AbortController().signal : this.controller.signal,
+        // The owner ends a retirement review in the wallet surface.
+        signal: command.action === 'approve' ? this.controller.signal : new AbortController().signal,
         onSubmission: this.submitted.bind(this, command.recovery),
       });
     } catch (error) {
@@ -200,7 +229,9 @@ class OwnerNearTransaction implements OwnerNearOperation {
     if (
       (outcome.kind === 'unknown' || outcome.kind === 'recovery_unavailable') &&
       outcome.recovery.operationId === this.state.recovery.operationId &&
-      (this.state.kind === 'submitting' || this.state.kind === 'unresolved')
+      (this.state.kind === 'submitting' ||
+        this.state.kind === 'unresolved' ||
+        this.state.kind === 'retirement_approval')
     ) {
       outcome = {
         kind: 'unresolved',
@@ -254,6 +285,22 @@ class OwnerNearTransaction implements OwnerNearOperation {
         return;
       case 'not_submitted':
         this.transition({ kind: 'not_submitted', recovery, error: outcome.error });
+        return;
+      case 'retirement_available':
+        this.transition({
+          kind: 'retirement_available',
+          recovery: outcome.recovery,
+          transactionId: outcome.transactionId,
+          proof: outcome.proof,
+        });
+        return;
+      case 'retired':
+        this.transition({
+          kind: 'retired',
+          recovery: outcome.recovery,
+          transactionId: outcome.transactionId,
+          proof: outcome.proof,
+        });
         return;
       default:
         outcome satisfies never;

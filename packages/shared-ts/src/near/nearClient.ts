@@ -392,7 +392,7 @@ export abstract class NearJsonRpcClient<
   /**
    * Execute RPC call with proper error handling and result extraction
    */
-  private async makeRpcCall<P, T>(
+  protected async makeRpcCall<P, T>(
     method: string,
     params: P,
     operationName: string,

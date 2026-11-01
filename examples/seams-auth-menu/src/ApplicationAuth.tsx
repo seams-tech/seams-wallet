@@ -258,8 +258,18 @@ function OwnerTransaction({
       ) : null}
       {state.kind === 'unknown' ||
       state.kind === 'unresolved' ||
-      state.kind === 'recovery_unavailable' ? (
+      state.kind === 'recovery_unavailable' ||
+      state.kind === 'retirement_available' ? (
         <button onClick={operation.recover.bind(operation)}>Check existing transaction</button>
+      ) : null}
+      {state.kind === 'retirement_available' ? (
+        <>
+          <p>
+            NEAR can no longer execute this transaction. It may have executed earlier. Check your
+            balance before you release it.
+          </p>
+          <button onClick={operation.retire.bind(operation)}>Release transaction</button>
+        </>
       ) : null}
       {transactionId ? <p>Transaction: {transactionId}</p> : null}
       {state.kind === 'not_submitted' ||
@@ -279,6 +289,8 @@ function blocksNewTransfer(state: OwnerNearOperationState): boolean {
     case 'unknown':
     case 'unresolved':
     case 'recovery_unavailable':
+    case 'retirement_available':
+    case 'retirement_approval':
       return true;
     case 'prepared':
     case 'completed':
@@ -286,6 +298,7 @@ function blocksNewTransfer(state: OwnerNearOperationState): boolean {
     case 'cancelled':
     case 'expired':
     case 'not_submitted':
+    case 'retired':
       return false;
     default:
       return assertNeverOperationState(state);
@@ -355,6 +368,8 @@ function persistRecovery(state: OwnerNearOperationState): void {
   switch (state.kind) {
     case 'submitting':
     case 'unresolved':
+    case 'retirement_available':
+    case 'retirement_approval':
       sessionStorage.setItem(
         key,
         JSON.stringify({
@@ -377,6 +392,7 @@ function persistRecovery(state: OwnerNearOperationState): void {
     case 'cancelled':
     case 'expired':
     case 'not_submitted':
+    case 'retired':
       if (saved?.recovery.operationId === state.recovery.operationId)
         sessionStorage.removeItem(key);
       return;

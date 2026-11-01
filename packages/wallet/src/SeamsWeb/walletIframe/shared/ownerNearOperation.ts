@@ -16,7 +16,7 @@ import {
   type ThresholdEd25519NearAction,
 } from '@shared/threshold/ed25519OperationFingerprint';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
-import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 
 export type OwnerNearRecovery = Readonly<{
   operationId: SigningOperationId;
@@ -31,7 +31,59 @@ export type OwnerNearCommand = Readonly<{
   ReadonlyExclusiveUnion<
     | { action: 'approve'; transaction: TransactionInputWasm; expiresAtMs: number }
     | { action: 'recover' }
+    | { action: 'retire'; transactionId: string }
   >;
+
+/** What the wallet knows about a submitted transaction from its durable receipt. */
+export type OwnerNearSubmissionEvidence = ReadonlyExclusiveUnion<
+  | {
+      kind: 'signed';
+      signerPublicKey: string;
+      signedNonce: string;
+      referenceBlockHash: string;
+      referenceBlockHeight: number;
+    }
+  | {
+      // Older receipts keep only the hash. The reference block cannot be newer than this
+      // first observation, because the receipt already held the signed transaction's hash.
+      kind: 'hash_only';
+      firstObservedBlockHeight: number;
+    }
+>;
+
+type OwnerNearChainPosition = Readonly<{
+  finalBlockHeight: number;
+  finalBlockHash: string;
+  /** NEAR cannot accept the transaction after this block. It includes a safety margin. */
+  lastAcceptedBlockHeight: number;
+}>;
+
+/** The transaction expired, and a finalized nonce shows that it never executed. */
+export type OwnerNearNotExecutedProof = OwnerNearChainPosition &
+  Readonly<{
+    execution: 'not_executed';
+    submission: Variant<OwnerNearSubmissionEvidence, 'kind', 'signed'>;
+    accessKeyNonce: string;
+  }>;
+
+/** The transaction expired, but the chain facts cannot show whether it executed first. */
+export type OwnerNearUnverifiedExecutionProof = OwnerNearChainPosition &
+  Readonly<{
+    execution: 'unverified';
+    submission: OwnerNearSubmissionEvidence;
+    /** `null` means the wallet has no nonce to compare, or the access key no longer exists. */
+    accessKeyNonce: string | null;
+  }>;
+
+export type OwnerNearRetirementApproval = Readonly<{
+  credentialIdB64u: string;
+  challengeB64u: string;
+  approvedAtMs: number;
+}>;
+
+export type OwnerNearRetirementProof =
+  | OwnerNearNotExecutedProof
+  | (OwnerNearUnverifiedExecutionProof & Readonly<{ ownerApproval: OwnerNearRetirementApproval }>);
 
 export type OwnerNearOutcome = ReadonlyExclusiveUnion<
   | { kind: 'completed'; result: Extract<ActionResult, { success: true }> }
@@ -42,6 +94,18 @@ export type OwnerNearOutcome = ReadonlyExclusiveUnion<
   | { kind: 'unresolved'; recovery: OwnerNearRecovery; transactionId: string; error: string }
   | { kind: 'not_submitted'; error: string }
   | { kind: 'recovery_unavailable'; recovery: OwnerNearRecovery; error: string }
+  | {
+      kind: 'retirement_available';
+      recovery: OwnerNearRecovery;
+      transactionId: string;
+      proof: OwnerNearUnverifiedExecutionProof;
+    }
+  | {
+      kind: 'retired';
+      recovery: OwnerNearRecovery;
+      transactionId: string;
+      proof: OwnerNearRetirementProof;
+    }
 >;
 
 export function parseOwnerNearRecovery(raw: unknown): OwnerNearRecovery {
@@ -67,6 +131,13 @@ export function parseOwnerNearCommand(raw: unknown): OwnerNearCommand {
   switch (value.action) {
     case 'recover':
       return { action: 'recover', authentication, recovery };
+    case 'retire':
+      return {
+        action: 'retire',
+        authentication,
+        recovery,
+        transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
+      };
     case 'approve': {
       const rawTransaction = requireRecord(value.transaction, 'transaction');
       const transaction = parseThresholdEd25519NearTransaction(
@@ -134,9 +205,114 @@ export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
       };
     case 'unknown':
       return { kind: 'unknown', recovery: parseOwnerNearRecovery(value.recovery) };
+    case 'retirement_available': {
+      const proof = parseRetirementProof(value.proof);
+      if (proof.execution !== 'unverified' || proof.ownerApproval)
+        throw new Error('An available retirement requires unverified execution.');
+      return {
+        kind: 'retirement_available',
+        recovery: parseOwnerNearRecovery(value.recovery),
+        transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
+        proof,
+      };
+    }
+    case 'retired': {
+      const proof = parseRetirementProof(value.proof);
+      if (proof.execution === 'unverified' && !proof.ownerApproval)
+        throw new Error('A retirement with unverified execution requires owner approval.');
+      return {
+        kind: 'retired',
+        recovery: parseOwnerNearRecovery(value.recovery),
+        transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
+        proof: proof as OwnerNearRetirementProof,
+      };
+    }
     default:
       throw new Error('Invalid owner operation outcome.');
   }
+}
+
+export function parseOwnerNearSubmissionEvidence(raw: unknown): OwnerNearSubmissionEvidence {
+  const value = requireRecord(raw, 'owner submission evidence');
+  switch (value.kind) {
+    case 'signed':
+      return {
+        kind: 'signed',
+        signerPublicKey: requireCanonicalString(value.signerPublicKey, 'signerPublicKey'),
+        signedNonce: requireDecimalString(value.signedNonce, 'signedNonce'),
+        referenceBlockHash: requireCanonicalString(value.referenceBlockHash, 'referenceBlockHash'),
+        referenceBlockHeight: requirePositiveInteger(value.referenceBlockHeight, 'referenceBlockHeight'),
+      };
+    case 'hash_only':
+      return {
+        kind: 'hash_only',
+        firstObservedBlockHeight: requirePositiveInteger(
+          value.firstObservedBlockHeight,
+          'firstObservedBlockHeight',
+        ),
+      };
+    default:
+      throw new Error('Invalid owner submission evidence.');
+  }
+}
+
+type ParsedRetirementProof =
+  | OwnerNearNotExecutedProof
+  | (OwnerNearUnverifiedExecutionProof &
+      Readonly<{ ownerApproval?: OwnerNearRetirementApproval }>);
+
+function parseRetirementProof(raw: unknown): ParsedRetirementProof {
+  const value = requireRecord(raw, 'owner retirement proof');
+  const position: OwnerNearChainPosition = {
+    finalBlockHeight: requirePositiveInteger(value.finalBlockHeight, 'finalBlockHeight'),
+    finalBlockHash: requireCanonicalString(value.finalBlockHash, 'finalBlockHash'),
+    lastAcceptedBlockHeight: requirePositiveInteger(
+      value.lastAcceptedBlockHeight,
+      'lastAcceptedBlockHeight',
+    ),
+  };
+  const submission = parseOwnerNearSubmissionEvidence(value.submission);
+  if (value.execution === 'not_executed') {
+    if (submission.kind !== 'signed') throw new Error('A nonce proof requires signed evidence.');
+    return {
+      ...position,
+      execution: 'not_executed',
+      submission,
+      accessKeyNonce: requireDecimalString(value.accessKeyNonce, 'accessKeyNonce'),
+    };
+  }
+  if (value.execution !== 'unverified') throw new Error('Invalid owner retirement proof.');
+  const proof: OwnerNearUnverifiedExecutionProof = {
+    ...position,
+    execution: 'unverified',
+    submission,
+    accessKeyNonce:
+      value.accessKeyNonce === null
+        ? null
+        : requireDecimalString(value.accessKeyNonce, 'accessKeyNonce'),
+  };
+  if (value.ownerApproval === undefined) return proof;
+  const approval = requireRecord(value.ownerApproval, 'owner retirement approval');
+  return {
+    ...proof,
+    ownerApproval: {
+      credentialIdB64u: requireCanonicalString(approval.credentialIdB64u, 'credentialIdB64u'),
+      challengeB64u: requireCanonicalString(approval.challengeB64u, 'challengeB64u'),
+      approvedAtMs: requirePositiveInteger(approval.approvedAtMs, 'approvedAtMs'),
+    },
+  };
+}
+
+function requirePositiveInteger(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)
+    throw new Error(`Invalid ${label}.`);
+  return value;
+}
+
+function requireDecimalString(value: unknown, label: string): string {
+  const text = requireCanonicalString(value, label);
+  if (!/^(0|[1-9][0-9]*)$/.test(text)) throw new Error(`Invalid ${label}.`);
+  return text;
 }
 
 function ownerNearAction(action: ThresholdEd25519NearAction): ActionArgsWasm {

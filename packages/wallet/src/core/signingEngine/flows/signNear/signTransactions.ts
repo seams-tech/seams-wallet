@@ -11,6 +11,8 @@ import {
   type WorkerSuccessResponse,
 } from '@/core/types/signer-worker';
 import { AccountId, toAccountId } from '@/core/types/accountIds';
+import type { TransactionContext } from '@/core/types/rpc';
+import type { SignTransactionResult } from '@/core/types/seams';
 import type { NearSigningRuntimeDeps } from '../../interfaces/runtime';
 import type {
   NearEd25519YaoOperationMaterial,
@@ -699,6 +701,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
     const signed = toSignedTransactionResult({
       okResponse: result.okResponse,
       nearAccountId,
+      transactionContext: confirmation.readiness.transactionContext,
       warnings,
       nonceLeases: confirmation.readiness.nonceLeases,
     });
@@ -1298,6 +1301,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         const signedResult = toSignedTransactionResult({
           okResponse,
           nearAccountId,
+          transactionContext,
           warnings,
           nonceLeases: nonceLeaseRefs,
         });
@@ -1374,11 +1378,13 @@ async function markNearNonceLeasesSigned(
 function toSignedTransactionResult(args: {
   okResponse: WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions>;
   nearAccountId: string;
+  transactionContext: Pick<TransactionContext, 'txBlockHash' | 'txBlockHeight'>;
   warnings: string[];
   nonceLeases?: readonly NonceLeaseRef[];
 }): {
   signedTransaction: SignedTransaction;
   nearAccountId: AccountId;
+  referenceBlock: SignTransactionResult['referenceBlock'];
   logs?: string[];
   nonceLease?: NonceLeaseRef;
 } {
@@ -1404,9 +1410,13 @@ function toSignedTransactionResult(args: {
     ...(nonceLease ? { nonceLease } : {}),
     ...(serverDispatch ? { serverDispatch } : {}),
   });
+  const referenceBlockHeight = Number(args.transactionContext.txBlockHeight);
+  if (!Number.isSafeInteger(referenceBlockHeight) || referenceBlockHeight <= 0)
+    throw new Error('Signed transaction is missing its reference block height');
   return {
     signedTransaction,
     nearAccountId: toAccountId(args.nearAccountId),
+    referenceBlock: { hash: args.transactionContext.txBlockHash, height: referenceBlockHeight },
     logs: [...(args.okResponse.payload.logs || []), ...args.warnings],
     ...(nonceLease ? { nonceLease } : {}),
   };

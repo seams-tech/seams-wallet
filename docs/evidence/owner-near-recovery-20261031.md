@@ -53,3 +53,26 @@ Implementation commits: `1790df609`, `b6fa19d13`.
 The customer-reported deposit's on-chain outcome remains unverified.
 The report contained different original and recovery operation IDs.
 The browser reproduction validates the SDK behavior; it does not establish the customer's transaction history.
+
+## Retirement of unknown transactions
+
+Date: 2026-11-01
+
+Issue 57 asked for an owner-authorized way to end a historical pending receipt.
+The node rule comes from nearcore `check_transaction_validity_period` and `verify_nonce`.
+Testnet and mainnet both report `transaction_validity_period` as 86,400 blocks.
+Live testnet nodes report an unknown hash in `error.cause.name` and also send a string in `error.data`.
+
+Expiry proves only that NEAR cannot accept the transaction in the future.
+A used nonce proves the same fact. It cannot show which transaction used that nonce.
+Only an expired transaction with an unused nonce proves non-execution, so only that case settles without the owner.
+
+The application-auth contract case verifies all three retirement paths with real MPC signatures,
+a virtual authenticator, and controlled RPC responses. It passed three consecutive runs.
+Live chain retirement remains unverified, because the first real expiry takes about 25 hours.
+The wallet asks only for the enrolled owner passkey. Without that limit, a different passkey for the
+same RP answered the prompt and returned no PRF output.
+
+Earlier runs placed the scenario after the test's `page.clock.install()` step. Two of five failed
+because a fresh approval showed no review. After the scenario moved before that step, the failure
+did not recur. The moved order supports a test-clock cause but does not prove it.

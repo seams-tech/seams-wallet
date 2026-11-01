@@ -310,5 +310,5 @@ export type {
 export type { AccountMenuButtonMockProps } from './components/AccountMenuButton';
 
 export { useOwnerNearOperation } from './hooks/useOwnerNearOperation';
-export type { OwnerNearOperation, OwnerNearOperationState, OwnerNearRecovery, OwnerNearOutcome } from '../SeamsWeb/publicApi/ownerNearOperation';
+export type { OwnerNearOperation, OwnerNearOperationState, OwnerNearRecovery, OwnerNearOutcome, OwnerNearRetirementProof, OwnerNearSubmissionEvidence, OwnerNearUnverifiedExecutionProof } from '../SeamsWeb/publicApi/ownerNearOperation';
 export type { ReadableBoundWallet, SigningBoundWallet } from './boundWallet';

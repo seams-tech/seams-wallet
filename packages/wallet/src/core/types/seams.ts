@@ -679,6 +679,8 @@ export type ActionResult = ExclusiveUnion<
 export interface SignTransactionResult {
   signedTransaction: SignedTransaction;
   nearAccountId: string;
+  /** The block whose hash the signed transaction names. NEAR measures its validity from it. */
+  referenceBlock: { readonly hash: string; readonly height: number };
   nonceLease?: NonceLeaseRef;
   logs?: string[];
 }

@@ -19,6 +19,8 @@ export class NearRpcError extends Error {
   short: string;
   details?: unknown;
   operation?: string;
+  /** The JSON-RPC `cause.name`. Nodes also send `data`, so `details` can omit it. */
+  causeName?: string;
 
   constructor(params: {
     message: string;
@@ -30,6 +32,7 @@ export class NearRpcError extends Error {
     name?: string;
     operation?: string;
     details?: unknown;
+    causeName?: string;
   }) {
     super(params.message);
     this.name = params.name || 'NearRpcError';
@@ -40,6 +43,7 @@ export class NearRpcError extends Error {
     this.short = params.short;
     this.details = params.details;
     this.operation = params.operation;
+    this.causeName = params.causeName;
   }
 
   static fromOutcome(operationName: string, outcome: any, failure: any): NearRpcError {
@@ -73,6 +77,7 @@ export class NearRpcError extends Error {
       name: err.name || 'NearRpcError',
       operation: operationName,
       details,
+      causeName: isObj(err.cause) && typeof err.cause.name === 'string' ? err.cause.name : undefined,
     });
   }
 }

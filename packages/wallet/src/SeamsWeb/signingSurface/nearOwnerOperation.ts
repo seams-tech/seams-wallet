@@ -47,6 +47,25 @@ type OwnerOperationInput = {
   readonly assertCurrent: () => void;
 };
 
+/** Resolve the wallet-origin passkey that may approve an owner operation on this device. */
+export async function resolveOwnerPasskeyAuthority(walletId: WalletId) {
+  const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId));
+  if (
+    selected.kind !== 'resolved' ||
+    selected.authMethod.kind !== 'passkey' ||
+    selected.authMethod.status !== 'active' ||
+    selected.authority.state !== 'active' ||
+    selected.authMethod.walletId !== walletId ||
+    selected.authority.walletId !== walletId ||
+    selected.authMethod.walletAuthorityId !== selected.authority.authorityId
+  ) {
+    throw new Error(
+      'Enroll a wallet-origin owner passkey on this device before approving a transaction.',
+    );
+  }
+  return { authMethod: selected.authMethod, authority: selected.authority };
+}
+
 /** This projection contains durable material and fresh owner proof. It has no reusable authority. */
 export async function createNearOwnerOperationDeps(
   base: NearSigningApiDeps,
@@ -54,20 +73,7 @@ export async function createNearOwnerOperationDeps(
   input: OwnerOperationInput,
 ): Promise<NearSigningApiDeps> {
   input.assertCurrent();
-  const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(input.walletId));
-  if (
-    selected.kind !== 'resolved' ||
-    selected.authMethod.kind !== 'passkey' ||
-    selected.authMethod.status !== 'active' ||
-    selected.authority.state !== 'active' ||
-    selected.authMethod.walletId !== input.walletId ||
-    selected.authority.walletId !== input.walletId ||
-    selected.authMethod.walletAuthorityId !== selected.authority.authorityId
-  ) {
-    throw new Error(
-      'Enroll a wallet-origin owner passkey on this device before approving a transaction.',
-    );
-  }
+  const selected = await resolveOwnerPasskeyAuthority(input.walletId);
   const access: OwnerOperationAccess = {
     kind: 'owner_operation',
     authMethod: selected.authMethod,

@@ -95,7 +95,7 @@ Direct approval with another relying party's passkey is outside this API.
 ## Observe and recover
 
 Use `operation.getState()` or React's `useOwnerNearOperation(operation)`.
-States distinguish `prepared`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `not_submitted`, `reverted`, `unresolved`, `recovery_unavailable`, and `unknown`.
+States distinguish `prepared`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `not_submitted`, `reverted`, `unresolved`, `recovery_unavailable`, `unknown`, `retirement_available`, `retirement_approval`, and `retired`.
 A React wallet with `access: 'external'` exposes owner-operation handles separately from reusable signing controls.
 
 Persist `state.recovery` as non-secret transaction metadata before starting an operation.
@@ -111,6 +111,9 @@ Handle outcomes by their typed `kind`. Do not interpret error-message text.
 | `completed`, `reverted` | Record the final transaction outcome and clear its pending state. |
 | `unresolved` | Persist `transactionId` and `recovery`. Check that transaction before another owner transaction. |
 | `unknown`, `recovery_unavailable` | Keep an unresolved entry and offer `recover()` again. Missing storage or a timeout does not prove failure. |
+| `retirement_available` | NEAR can no longer execute the transaction, but it may have executed earlier. Keep the operation pending. Check your balance or ledger, then offer `retire()`. |
+| `retired` with `proof.execution: 'not_executed'` | The transaction expired and never executed. Clear this operation only, and offer a fresh approval. |
+| `retired` with `proof.execution: 'unverified'` | The owner released an expired transaction. Check your balance or ledger before you offer a fresh approval. |
 
 The `submitting` state exposes `transactionId` before broadcast begins.
 The SDK field `transactionId` contains the NEAR transaction hash.
@@ -123,6 +126,13 @@ If another operation blocks approval, the result names that existing operation i
 Persist the returned identity or the updated `operation.getState().recovery`.
 Do not continue checking the newly prepared operation's original ID.
 Keep explicit recovery controls available, and allow reads and unrelated wallet actions.
+
+`UNKNOWN_TRANSACTION` alone cannot end an operation. A transaction stays `unresolved` until a finalized
+block passes its validity period, which is about 25 hours on NEAR. The `unresolved` error names the last
+block. Receipts from SDK 0.39.0 and earlier keep only a hash, so this period starts at the first `recover()`
+after you upgrade. `retire()` opens a wallet review and a passkey request. If the owner cancels, the result
+is `unresolved` and the operation stays pending. `retire()` never rebroadcasts. Do not clear a pending
+record for a different operation.
 Keep the unresolved record when preparing another operation. The maintained example disables new transfers until the current operation settles.
 If authentication expires, reconnect and resume the saved operation with the new authentication.
 
