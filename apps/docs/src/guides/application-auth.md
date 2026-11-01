@@ -128,13 +128,20 @@ Do not continue checking the newly prepared operation's original ID.
 Keep explicit recovery controls available, and allow reads and unrelated wallet actions.
 
 `UNKNOWN_TRANSACTION` alone cannot end an operation. A transaction stays `unresolved` until a finalized
-block passes its validity period, which is about 25 hours on NEAR. The `unresolved` error names the last
-block. Receipts from SDK 0.39.0 and earlier keep only a hash, so this period starts at the first `recover()`
-after you upgrade. `retire()` opens a wallet review and a passkey request. If the owner cancels, the result
+block passes its validity period, which is about 25 hours on NEAR. While it waits, `unresolved` has
+`retirementWait`. Call `recover()` again after `retirementWait.lastAcceptedBlockHeight`, because the block
+ends nothing by itself. Do not read this block from the error text. Other `unresolved` results have no
+`retirementWait`. Receipts from SDK 0.39.0 and earlier keep only a hash, so `retirementWait.submission.kind`
+is `hash_only` and this period starts at the first `recover()` after you upgrade. That limit is a safety
+wait, not a NEAR limit, and the transaction's real validity can end much earlier. `retire()` opens a wallet review and a passkey request. If the owner cancels, the result
 is `unresolved` and the operation stays pending. `retire()` never rebroadcasts. Do not clear a pending
 record for a different operation.
 Keep the unresolved record when preparing another operation. The maintained example disables new transfers until the current operation settles.
 If authentication expires, reconnect and resume the saved operation with the new authentication.
+You can change the NEAR RPC URL while an operation is pending, if the new RPC serves the same network.
+Operations from SDK 0.40.0 and earlier are an exception: finish them or open them once with their original
+URL before you change it. After another URL, they return `recovery_unavailable` and no longer block new
+transactions.
 
 ## Maintained example
 

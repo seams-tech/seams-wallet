@@ -129,20 +129,29 @@ export class OwnerOperationNearClient extends MinimalNearClient {
     return send();
   }
 
-  /** NEAR rejects a transaction when its reference block is older than this many blocks. */
-  async transactionValidityPeriod(): Promise<number> {
+  /**
+   * The chain that this node serves, and its validity rule: NEAR rejects a transaction
+   * when its reference block is older than `validityPeriod` blocks.
+   */
+  async transactionValidity(): Promise<NearTransactionValidity> {
     return await this.makeRpcCall(
       'EXPERIMENTAL_genesis_config',
       [],
       'Genesis Config',
-      decodeTransactionValidityPeriod,
+      decodeTransactionValidity,
     );
   }
 }
 
-function decodeTransactionValidityPeriod(raw: unknown): number {
-  const period = requireRecord(raw, 'NEAR genesis config').transaction_validity_period;
+type NearTransactionValidity = Readonly<{ chainId: string; validityPeriod: number }>;
+
+function decodeTransactionValidity(raw: unknown): NearTransactionValidity {
+  const genesis = requireRecord(raw, 'NEAR genesis config');
+  const period = genesis.transaction_validity_period;
   if (typeof period !== 'number' || !Number.isSafeInteger(period) || period <= 0)
     throw new Error('Invalid NEAR transaction validity period');
-  return period;
+  return {
+    chainId: requireCanonicalString(genesis.chain_id, 'NEAR chain ID'),
+    validityPeriod: period,
+  };
 }

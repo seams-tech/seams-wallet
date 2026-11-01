@@ -25,12 +25,15 @@ import { nearTransactionHash } from './near-transaction-hash';
 import {
   failOwnerReceiptWrites,
   restoreOwnerReceiptWrites,
+  rewriteOwnerRecordsToLegacyBinding,
   stripOwnerReceiptEvidence,
 } from './owner-receipt-storage';
 
 const TRANSACTION_VALIDITY_PERIOD = 86_400;
 // The stubbed reference block is 1, and the wallet adds a margin of 3,600 blocks.
 const LAST_ACCEPTED_BLOCK = 1 + TRANSACTION_VALIDITY_PERIOD + 3_600;
+const DEFAULT_NEAR_RPC_URL = 'https://rpc.testnet.fastnear.com';
+const ALTERNATE_NEAR_RPC_URL = `${DEFAULT_NEAR_RPC_URL}/alternate`;
 
 class ApplicationBackend {
   readonly session = { subject: 'getsignal-user-42', expiresAtMs: Date.now() + 3_600_000 };
@@ -46,6 +49,8 @@ class ApplicationBackend {
   statusRequests = 0;
   finalBlockHeight = 1;
   accessKeyNonce: bigint | null = null;
+  chainId = 'testnet';
+  readonly rpcUrls = new Set<string>();
   lastHandoff: { url: string; headers: Record<string, string>; body: string } | null = null;
 
   constructor(
@@ -103,6 +108,7 @@ class ApplicationBackend {
   }
 
   async rpc(route: Route): Promise<void> {
+    this.rpcUrls.add(route.request().url());
     const request = requireRecord(route.request().postDataJSON(), 'RPC request');
     if (request.method === 'send_tx') {
       const params = requireRecord(request.params, 'transaction submission params');
@@ -168,7 +174,10 @@ class ApplicationBackend {
         json: {
           jsonrpc: '2.0',
           id: request.id,
-          result: { transaction_validity_period: TRANSACTION_VALIDITY_PERIOD },
+          result: {
+            chain_id: this.chainId,
+            transaction_validity_period: TRANSACTION_VALIDITY_PERIOD,
+          },
         },
       });
       return;
@@ -515,7 +524,8 @@ export async function verifyApplicationAuth(
       recovery: blockingState.recovery,
       transactionId: unresolvedHash,
     });
-    expect(unknownRecovery.error).toContain(`until block ${LAST_ACCEPTED_BLOCK}`);
+    expect(unknownRecovery.error).toContain(`after block ${LAST_ACCEPTED_BLOCK}`);
+    expect(unknownRecovery.retirementWait?.lastAcceptedBlockHeight).toBe(LAST_ACCEPTED_BLOCK);
     await page.evaluate(prepareApiOperation);
     expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
     expect((await page.evaluate(readApiState)).recovery).toEqual(blockingState.recovery);
@@ -634,6 +644,10 @@ export async function verifyApplicationAuth(
         'expired_transaction_with_used_nonce_requires_owner_approval',
         'cancelled_retirement_keeps_the_operation_pending',
         'hash_only_receipt_waits_from_its_first_observation_across_reload',
+        'unresolved_wait_names_its_block_and_evidence',
+        'another_rpc_on_the_network_keeps_the_receipt_and_guard',
+        'rpc_for_another_chain_cannot_end_an_operation',
+        'legacy_url_bound_records_keep_the_guard',
         'unrelated_settled_recovery_cannot_release_a_pending_operation',
         'fresh_approval_follows_authoritative_retirement',
         'blocked_handle_recovery_progress_retains_original_operation_identity',
@@ -1027,7 +1041,16 @@ async function verifyOwnerRetirement(page: Page, backend: ApplicationBackend) {
   backend.accessKeyNonce = signedNonce(unused.encoded) - 1n;
   backend.finalBlockHeight = LAST_ACCEPTED_BLOCK;
   const withinValidity = await page.evaluate(recoverApiOperation, unused.recovery);
-  expect(withinValidity.kind).toBe('unresolved');
+  expect(withinValidity).toMatchObject({
+    kind: 'unresolved',
+    transactionId: unused.transactionId,
+    error: expect.stringContaining(`cannot accept this transaction after block ${LAST_ACCEPTED_BLOCK}.`),
+    retirementWait: {
+      finalBlockHeight: LAST_ACCEPTED_BLOCK,
+      lastAcceptedBlockHeight: LAST_ACCEPTED_BLOCK,
+      submission: { kind: 'signed', referenceBlockHeight: 1 },
+    },
+  });
   backend.finalBlockHeight = LAST_ACCEPTED_BLOCK + 1;
   const notExecuted = await page.evaluate(recoverApiOperation, unused.recovery);
   expect(notExecuted).toMatchObject({
@@ -1088,7 +1111,16 @@ async function verifyOwnerRetirement(page: Page, backend: ApplicationBackend) {
   await stripOwnerReceiptEvidence(page, hashOnly.recovery.operationId);
   const firstObservation = 500_000;
   backend.finalBlockHeight = firstObservation;
-  expect((await page.evaluate(recoverApiOperation, hashOnly.recovery)).kind).toBe('unresolved');
+  const hashOnlyWaitBlock = firstObservation + TRANSACTION_VALIDITY_PERIOD + 3_600;
+  expect(await page.evaluate(recoverApiOperation, hashOnly.recovery)).toMatchObject({
+    kind: 'unresolved',
+    error: expect.stringContaining('safety wait'),
+    retirementWait: {
+      finalBlockHeight: firstObservation,
+      lastAcceptedBlockHeight: hashOnlyWaitBlock,
+      submission: { kind: 'hash_only', firstObservedBlockHeight: firstObservation },
+    },
+  });
   // Reading another operation's durable result leaves this one pending.
   expect((await page.evaluate(recoverApiOperation, used.recovery)).kind).toBe('retired');
   await page.evaluate(prepareApiOperation);
@@ -1096,7 +1128,7 @@ async function verifyOwnerRetirement(page: Page, backend: ApplicationBackend) {
   expect((await page.evaluate(readApiState)).recovery).toEqual(hashOnly.recovery);
   await page.reload();
   await expect.poll(ownerApiAvailable.bind(null, page)).toBe(true);
-  const hashOnlyLastBlock = firstObservation + TRANSACTION_VALIDITY_PERIOD + 3_600;
+  const hashOnlyLastBlock = hashOnlyWaitBlock;
   backend.finalBlockHeight = hashOnlyLastBlock;
   expect((await page.evaluate(recoverApiOperation, hashOnly.recovery)).kind).toBe('unresolved');
   backend.finalBlockHeight = hashOnlyLastBlock + 1;
@@ -1114,12 +1146,81 @@ async function verifyOwnerRetirement(page: Page, backend: ApplicationBackend) {
   await clickNearConfirmation(page);
   const hashOnlyRetired = await hashOnlyRetirement;
   expect(hashOnlyRetired.kind).toBe('retired');
+  const { networkBound, legacyRetired } = await verifyOwnerBinding(page, backend);
 
   backend.statusUnknown = false;
   await verifyFreshApproval(page, backend);
-  // Three lost broadcasts and three fresh approvals. Recovery and retirement send nothing.
-  expect(backend.broadcasts.length).toBe(firstBroadcasts + 6);
-  return { notExecuted, ownerRetired, hashOnlyRetired };
+  // Four lost broadcasts and four fresh approvals. Recovery and retirement send nothing.
+  expect(backend.broadcasts.length).toBe(firstBroadcasts + 8);
+  return { notExecuted, ownerRetired, hashOnlyRetired, networkBound, legacyRetired };
+}
+
+/** The receipt and the pending guard follow the network, not one RPC URL. */
+async function verifyOwnerBinding(page: Page, backend: ApplicationBackend) {
+  const moved = await loseOwnerBroadcast(page, backend);
+  backend.accessKeyNonce = signedNonce(moved.encoded) - 1n;
+  backend.finalBlockHeight = LAST_ACCEPTED_BLOCK;
+  await page.goto(
+    `${backend.appOrigin}/application-auth?nearRpcUrl=${encodeURIComponent(ALTERNATE_NEAR_RPC_URL)}`,
+    { waitUntil: 'domcontentloaded' },
+  );
+  await expect.poll(ownerApiAvailable.bind(null, page)).toBe(true);
+  const networkBound = await page.evaluate(recoverApiOperation, moved.recovery);
+  expect(networkBound).toMatchObject({
+    kind: 'unresolved',
+    recovery: moved.recovery,
+    transactionId: moved.transactionId,
+    retirementWait: { lastAcceptedBlockHeight: LAST_ACCEPTED_BLOCK },
+  });
+  expect(backend.rpcUrls.has(ALTERNATE_NEAR_RPC_URL)).toBe(true);
+  await page.evaluate(prepareApiOperation);
+  expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
+  expect((await page.evaluate(readApiState)).recovery).toEqual(moved.recovery);
+
+  // An RPC for another chain cannot supply the block heights that end an operation.
+  backend.chainId = 'mainnet';
+  backend.finalBlockHeight = LAST_ACCEPTED_BLOCK + 1;
+  const wrongChain = await page.evaluate(recoverApiOperation, moved.recovery);
+  expect(wrongChain).toMatchObject({
+    kind: 'unresolved',
+    error: expect.stringContaining('serves mainnet'),
+  });
+  expect(wrongChain).not.toHaveProperty('retirementWait');
+  backend.chainId = 'testnet';
+
+  // SDK 0.40.0 and earlier bound the RPC URL. The current URL still matches those records.
+  await page.goto(`${backend.appOrigin}/application-auth`, { waitUntil: 'domcontentloaded' });
+  await expect.poll(ownerApiAvailable.bind(null, page)).toBe(true);
+  const { authentication } = await page.evaluate(readSession);
+  if (authentication.kind !== 'external_authenticated')
+    throw new Error('The read connection disappeared.');
+  await rewriteOwnerRecordsToLegacyBinding(
+    page,
+    moved.recovery.operationId,
+    createHash('sha256')
+      .update(
+        JSON.stringify({
+          associationId: authentication.associationId,
+          environmentId: authentication.environmentId,
+          nearAccountId: moved.recovery.nearAccountId,
+          nearRpcUrl: DEFAULT_NEAR_RPC_URL,
+          parentOrigin: backend.appOrigin,
+          walletId: moved.recovery.walletId,
+        }),
+      )
+      .digest('hex'),
+  );
+  await page.evaluate(prepareApiOperation);
+  expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
+  expect((await page.evaluate(readApiState)).recovery).toEqual(moved.recovery);
+  const legacyRetired = await page.evaluate(recoverApiOperation, moved.recovery);
+  expect(legacyRetired).toMatchObject({
+    kind: 'retired',
+    transactionId: moved.transactionId,
+    proof: { execution: 'not_executed' },
+  });
+  await verifyFreshApproval(page, backend);
+  return { networkBound, legacyRetired };
 }
 
 async function retireApiOperation(recovery: import('@seams/wallet').OwnerNearRecovery) {

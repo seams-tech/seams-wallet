@@ -54,9 +54,23 @@ export type OwnerNearSubmissionEvidence = ReadonlyExclusiveUnion<
 type OwnerNearChainPosition = Readonly<{
   finalBlockHeight: number;
   finalBlockHash: string;
-  /** NEAR cannot accept the transaction after this block. It includes a safety margin. */
+  /**
+   * NEAR cannot accept the transaction after this block. It includes a safety margin.
+   * For `hash_only` evidence it is a safety limit from the first observation, and the
+   * transaction's own validity can end much earlier.
+   */
   lastAcceptedBlockHeight: number;
 }>;
+
+/**
+ * The transaction is still inside its validity limit. After `lastAcceptedBlockHeight`,
+ * another `recover()` can end the operation or offer `retire()`. Nothing ends by itself.
+ */
+export type OwnerNearRetirementWait = Pick<
+  OwnerNearChainPosition,
+  'finalBlockHeight' | 'lastAcceptedBlockHeight'
+> &
+  Readonly<{ submission: OwnerNearSubmissionEvidence }>;
 
 /** The transaction expired, and a finalized nonce shows that it never executed. */
 export type OwnerNearNotExecutedProof = OwnerNearChainPosition &
@@ -91,7 +105,14 @@ export type OwnerNearOutcome = ReadonlyExclusiveUnion<
   | { kind: 'cancelled' }
   | { kind: 'expired' }
   | { kind: 'unknown'; recovery: OwnerNearRecovery }
-  | { kind: 'unresolved'; recovery: OwnerNearRecovery; transactionId: string; error: string }
+  | {
+      kind: 'unresolved';
+      recovery: OwnerNearRecovery;
+      transactionId: string;
+      error: string;
+      /** Absent when this check reached no validity limit, such as after an RPC failure. */
+      retirementWait?: OwnerNearRetirementWait;
+    }
   | { kind: 'not_submitted'; error: string }
   | { kind: 'recovery_unavailable'; recovery: OwnerNearRecovery; error: string }
   | {
@@ -202,6 +223,9 @@ export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
         recovery: parseOwnerNearRecovery(value.recovery),
         transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
         error: requireCanonicalString(value.error, 'error'),
+        ...(value.retirementWait === undefined
+          ? {}
+          : { retirementWait: parseRetirementWait(value.retirementWait) }),
       };
     case 'unknown':
       return { kind: 'unknown', recovery: parseOwnerNearRecovery(value.recovery) };
@@ -254,6 +278,18 @@ export function parseOwnerNearSubmissionEvidence(raw: unknown): OwnerNearSubmiss
     default:
       throw new Error('Invalid owner submission evidence.');
   }
+}
+
+function parseRetirementWait(raw: unknown): OwnerNearRetirementWait {
+  const value = requireRecord(raw, 'owner retirement wait');
+  return {
+    finalBlockHeight: requirePositiveInteger(value.finalBlockHeight, 'finalBlockHeight'),
+    lastAcceptedBlockHeight: requirePositiveInteger(
+      value.lastAcceptedBlockHeight,
+      'lastAcceptedBlockHeight',
+    ),
+    submission: parseOwnerNearSubmissionEvidence(value.submission),
+  };
 }
 
 type ParsedRetirementProof =

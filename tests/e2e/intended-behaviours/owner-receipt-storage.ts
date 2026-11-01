@@ -122,3 +122,64 @@ async function stripReceiptEvidence(key: string): Promise<void> {
   }
   throw new Error('The owner receipt does not exist.');
 }
+
+/** Rewrite real records to the RPC URL binding that SDK 0.40.0 and earlier stored. */
+export async function rewriteOwnerRecordsToLegacyBinding(
+  page: Page,
+  operationId: string,
+  legacyBinding: string,
+): Promise<void> {
+  await (await walletFrame(page)).evaluate(rewriteRecordsToLegacyBinding, {
+    operationId,
+    legacyBinding,
+  });
+}
+
+async function rewriteRecordsToLegacyBinding(input: {
+  operationId: string;
+  legacyBinding: string;
+}): Promise<void> {
+  const receiptKey = `owner-near:${input.operationId}`;
+  const settled = <T>(request: IDBRequest<T>) =>
+    new Promise<T>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  for (const { name } of await indexedDB.databases()) {
+    if (!name?.startsWith('seams')) continue;
+    const database = await settled(indexedDB.open(name));
+    try {
+      if (!database.objectStoreNames.contains('app_state')) continue;
+      const store = database.transaction('app_state', 'readwrite').objectStore('app_state');
+      const receipt: unknown = await settled(store.get(receiptKey));
+      if (!receipt || typeof receipt !== 'object') continue;
+      await settled(
+        store.put({
+          key: receiptKey,
+          value: { ...Reflect.get(receipt, 'value'), binding: input.legacyBinding },
+        }),
+      );
+      const rows: unknown[] = await settled(store.getAll());
+      for (const row of rows) {
+        if (!row || typeof row !== 'object') continue;
+        const key: unknown = Reflect.get(row, 'key');
+        const value: unknown = Reflect.get(row, 'value');
+        if (
+          typeof key !== 'string' ||
+          !key.startsWith('owner-near-pending:') ||
+          !value ||
+          typeof value !== 'object' ||
+          Reflect.get(Reflect.get(value, 'recovery') ?? {}, 'operationId') !== input.operationId
+        )
+          continue;
+        await settled(store.delete(key));
+        await settled(store.put({ key: `owner-near-pending:${input.legacyBinding}`, value }));
+        return;
+      }
+      throw new Error('The pending owner record does not exist.');
+    } finally {
+      database.close();
+    }
+  }
+  throw new Error('The owner receipt does not exist.');
+}

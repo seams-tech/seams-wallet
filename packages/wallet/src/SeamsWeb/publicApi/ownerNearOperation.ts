@@ -13,6 +13,7 @@ import {
   type OwnerNearOutcome,
   type OwnerNearRecovery,
   type OwnerNearRetirementProof,
+  type OwnerNearRetirementWait,
   type OwnerNearUnverifiedExecutionProof,
 } from '../walletIframe/shared/ownerNearOperation';
 
@@ -20,6 +21,7 @@ export type {
   OwnerNearOutcome,
   OwnerNearRecovery,
   OwnerNearRetirementProof,
+  OwnerNearRetirementWait,
   OwnerNearSubmissionEvidence,
   OwnerNearUnverifiedExecutionProof,
 } from '../walletIframe/shared/ownerNearOperation';
@@ -30,7 +32,12 @@ export type OwnerNearOperationState = Readonly<{ recovery: OwnerNearRecovery }> 
     | { kind: 'approval'; expiresAtMs: number }
     | { kind: 'submitting'; transactionId: string }
     | { kind: 'unknown' }
-    | { kind: 'unresolved'; transactionId: string; error: string }
+    | {
+        kind: 'unresolved';
+        transactionId: string;
+        error: string;
+        retirementWait?: OwnerNearRetirementWait;
+      }
     | { kind: 'recovery_unavailable'; error: string }
     | { kind: 'completed'; result: Extract<ActionResult, { success: true }> }
     | { kind: 'reverted'; transactionId: string; error: string }
@@ -274,6 +281,7 @@ class OwnerNearTransaction implements OwnerNearOperation {
           recovery: outcome.recovery,
           transactionId: outcome.transactionId,
           error: outcome.error,
+          ...(outcome.retirementWait ? { retirementWait: outcome.retirementWait } : {}),
         });
         return;
       case 'recovery_unavailable':

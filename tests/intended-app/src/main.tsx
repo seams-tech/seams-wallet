@@ -58,6 +58,7 @@ function signingSessionPersistenceModeFromUrl(): 'none' | 'sealed_refresh_v1' | 
 
 const walletOrigin = requiredEnvironmentValue('VITE_WALLET_ORIGIN');
 const signingSessionPersistenceMode = signingSessionPersistenceModeFromUrl();
+const nearRpcUrl = new URL(window.location.href).searchParams.get('nearRpcUrl');
 const config = defineSeamsConfig({
   walletOrigin,
   authMethods:
@@ -72,7 +73,7 @@ const config = defineSeamsConfig({
     rpIdOverride: new URL(walletOrigin).hostname,
   },
   chains: [
-    { network: 'near-testnet' },
+    { network: 'near-testnet', ...(nearRpcUrl ? { rpcUrl: nearRpcUrl } : {}) },
     { network: 'tempo-testnet', chainId: 42_431 },
     {
       network: 'arc-testnet',

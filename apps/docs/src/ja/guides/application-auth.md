@@ -78,7 +78,8 @@ Reactの `access: 'external'` のウォレットは、操作専用の承認ハ�
 `recovery_unavailable` は送信状態を確認できない状態です。保留中の記録を保持し、`recover()` で再確認できます。
 `submitting` と `unresolved` は既知の `transactionId` を返します。このハッシュを保存し、チェーン上の結果を確認してください。
 別の操作が承認をブロックした場合は、返された `recovery` を保存してください。新しく準備した操作とはIDが異なる場合があります。
-`UNKNOWN_TRANSACTION` だけでは操作を終了できません。確定ブロックが有効期間(NEARでは約25時間)を過ぎるまで `unresolved` のままです。エラーには最後のブロックが示されます。SDK 0.39.0以前のレシートはハッシュのみを保持するため、更新後の最初の `recover()` から期間を数えます。
+`UNKNOWN_TRANSACTION` だけでは操作を終了できません。確定ブロックが有効期間(NEARでは約25時間)を過ぎるまで `unresolved` のままです。待機中の `unresolved` には `retirementWait` が含まれます。`retirementWait.lastAcceptedBlockHeight` を過ぎても自動では終了しないため、その後に `recover()` を再度呼び出してください。このブロックをエラー文から読み取らないでください。他の `unresolved` には `retirementWait` がありません。SDK 0.39.0以前のレシートはハッシュのみを保持するため、`retirementWait.submission.kind` は `hash_only` となり、更新後の最初の `recover()` から期間を数えます。この上限はNEARの制限ではなく安全のための待機で、実際の有効期間はより早く終わっている場合があります。
+保留中でも、同じネットワークのRPCであればNEAR RPC URLを変更できます。ただしSDK 0.40.0以前の操作は、URLを変更する前に完了するか、元のURLで一度開いてください。別のURLでは `recovery_unavailable` を返し、新しい取引をブロックしなくなります。
 `retired` で `proof.execution` が `not_executed` の場合、取引は期限切れで未実行です。この操作の保留だけを解除し、新しい承認を提示できます。
 `retirement_available` は、NEARが今後この取引を実行できないものの、以前に実行された可能性がある状態です。保留を維持し、残高または台帳を確認してから `retire()` を提示してください。`retire()` はWalletの確認画面とパスキーを求め、再送信しません。キャンセルすると `unresolved` を返します。
 `retired` で `proof.execution` が `unverified` の場合、所有者が期限切れの取引を解放しました。新しい承認を提示する前に残高または台帳を確認してください。

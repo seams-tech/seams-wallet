@@ -1,4 +1,4 @@
-import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
+import { resolveNearNetwork, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { OwnerOperationNearClient } from '@/core/rpcClients/near/NearClient';
 import { NearRpcError } from '@/core/rpcClients/near/NearRpcError';
@@ -90,20 +90,28 @@ export async function runOwnerNearOperation(
   if (!locks) {
     return admissionFailure(command, new Error('This browser cannot coordinate owner operations.'));
   }
-  const binding = await sha256HexUtf8(
-    alphabetizeStringify({
-      walletId: command.authentication.walletId,
-      associationId: command.authentication.associationId,
-      environmentId: command.authentication.environmentId,
-      nearAccountId: command.recovery.nearAccountId,
-      parentOrigin: ports.parentOrigin,
-      nearRpcUrl: resolvePrimaryNearRpcUrl(context.configs.network.chains),
-    }),
+  const connection = {
+    walletId: command.authentication.walletId,
+    associationId: command.authentication.associationId,
+    environmentId: command.authentication.environmentId,
+    nearAccountId: command.recovery.nearAccountId,
+    parentOrigin: ports.parentOrigin,
+  };
+  const { chains } = context.configs.network;
+  const network = resolveNearNetwork(chains);
+  // The network names the chain that holds the transaction. Another RPC for that chain
+  // must find the same receipt and the same pending guard.
+  const binding = await sha256HexUtf8(alphabetizeStringify({ ...connection, network }));
+  // SDK 0.40.0 and earlier bound the RPC URL, so only the current URL can match their records.
+  const legacyBinding = await sha256HexUtf8(
+    alphabetizeStringify({ ...connection, nearRpcUrl: resolvePrimaryNearRpcUrl(chains) }),
   );
   const operation = new HostedOwnerNearOperation(
     context,
     command,
     binding,
+    legacyBinding,
+    network,
     assertConnection,
     assertActive,
     onEvent,
@@ -125,6 +133,8 @@ class HostedOwnerNearOperation {
     private readonly context: SeamsWebContext,
     private readonly command: OwnerNearCommand,
     private readonly binding: string,
+    private readonly legacyBinding: string,
+    private readonly network: 'testnet' | 'mainnet',
     private readonly assertConnection: () => void,
     private readonly assertActive: () => void,
     private readonly onEvent: (event: SigningFlowEvent) => void,
@@ -161,10 +171,8 @@ class HostedOwnerNearOperation {
   }
 
   private async execute(): Promise<OwnerNearOutcome> {
-    const stored = await IndexedDBManager.getAppState(this.key);
-    const receipt = stored === undefined ? null : parseReceipt(stored);
-    if (receipt && receipt.binding !== this.binding)
-      throw new Error('The owner operation belongs to another connection.');
+    await this.adoptLegacyPending();
+    const receipt = await this.readReceipt(this.key);
     if (this.command.action === 'recover') return await this.recover(receipt);
     if (this.command.action === 'retire') return await this.retire(receipt, this.command.transactionId);
     const pending = await this.readPending();
@@ -255,16 +263,34 @@ class HostedOwnerNearOperation {
     return await this.settle({ kind: 'settled', binding: this.binding, requestDigest, outcome });
   }
 
+  private async readReceipt(key: string): Promise<OwnerNearReceipt | null> {
+    const stored = await IndexedDBManager.getAppState(key);
+    if (stored === undefined) return null;
+    const receipt = parseReceipt(stored);
+    if (receipt.binding === this.binding) return receipt;
+    if (receipt.binding !== this.legacyBinding)
+      throw new Error('The owner operation belongs to another connection.');
+    const current: OwnerNearReceipt = { ...receipt, binding: this.binding };
+    await IndexedDBManager.setAppState(key, current);
+    return current;
+  }
+
+  /** Another operation's current guard stays first. Its settlement exposes this one. */
+  private async adoptLegacyPending(): Promise<void> {
+    const legacyKey = `owner-near-pending:${this.legacyBinding}`;
+    const legacy = await this.readPending(legacyKey);
+    if (!legacy || (await this.readPending())) return;
+    await IndexedDBManager.setAppState(this.pendingKey, { kind: 'pending', recovery: legacy });
+    await IndexedDBManager.setAppState(legacyKey, { kind: 'clear' });
+  }
+
   private async pendingOutcome(recovery: OwnerNearRecovery): Promise<OwnerNearOutcome> {
     try {
       this.assertActive();
       this.assertConnection();
-      const raw = await IndexedDBManager.getAppState(`owner-near:${recovery.operationId}`);
-      if (raw === undefined)
+      const receipt = await this.readReceipt(`owner-near:${recovery.operationId}`);
+      if (!receipt)
         return recoveryUnavailable(recovery, 'The pending operation receipt is missing.');
-      const receipt = parseReceipt(raw);
-      if (receipt.binding !== this.binding)
-        throw new Error('The pending operation belongs to another connection.');
       if (receipt.kind === 'submitting') {
         return unresolved(
           recovery,
@@ -352,20 +378,29 @@ class HostedOwnerNearOperation {
     unknown: NearRpcError,
   ): Promise<OwnerNearOutcome> {
     const submission = receipt.evidence ?? (await this.observeHashOnlyReceipt(receipt));
-    const validityPeriod = await this.nearClient.transactionValidityPeriod();
+    const validity = await this.nearClient.transactionValidity();
+    // The binding no longer pins the URL, so block heights must come from the bound chain.
+    if (validity.chainId !== this.network)
+      throw new Error(`The NEAR RPC serves ${validity.chainId}, not ${this.network}.`);
     const chain = await this.readChainPosition(submission);
     const lastAcceptedBlockHeight =
       (submission.kind === 'signed'
         ? submission.referenceBlockHeight
         : submission.firstObservedBlockHeight) +
-      validityPeriod +
+      validity.validityPeriod +
       RETIREMENT_MARGIN_BLOCKS;
     if (chain.finalBlockHeight <= lastAcceptedBlockHeight) {
-      return unresolved(
-        this.command.recovery,
-        receipt.transactionId,
-        `${safeErrorMessage(unknown)} NEAR can accept this transaction until block ${lastAcceptedBlockHeight}.`,
-      );
+      return {
+        kind: 'unresolved',
+        recovery: this.command.recovery,
+        transactionId: receipt.transactionId,
+        error: retirementWaitMessage(unknown, submission, lastAcceptedBlockHeight),
+        retirementWait: {
+          finalBlockHeight: chain.finalBlockHeight,
+          lastAcceptedBlockHeight,
+          submission,
+        },
+      };
     }
     const position = {
       finalBlockHeight: chain.finalBlockHeight,
@@ -599,8 +634,8 @@ class HostedOwnerNearOperation {
     return receipt.outcome;
   }
 
-  async readPending(): Promise<OwnerNearRecovery | null> {
-    const raw = await IndexedDBManager.getAppState(this.pendingKey);
+  async readPending(key = this.pendingKey): Promise<OwnerNearRecovery | null> {
+    const raw = await IndexedDBManager.getAppState(key);
     if (raw === undefined) return null;
     const value = requireRecord(raw, 'pending owner transaction');
     if (value.kind === 'clear') return null;
@@ -717,6 +752,20 @@ function unresolved(
     transactionId,
     error: safeErrorMessage(error).trim() || 'The transaction outcome is unavailable.',
   };
+}
+
+function retirementWaitMessage(
+  unknown: NearRpcError,
+  submission: OwnerNearSubmissionEvidence,
+  lastAcceptedBlockHeight: number,
+): string {
+  const status = safeErrorMessage(unknown).replace(/\.?$/, '.');
+  if (submission.kind === 'signed')
+    return `${status} NEAR cannot accept this transaction after block ${lastAcceptedBlockHeight}.`;
+  return (
+    `${status} This older receipt has no reference block, so this is a safety wait and not a NEAR limit. ` +
+    `The wallet measures it from block ${submission.firstObservedBlockHeight}. Check again after block ${lastAcceptedBlockHeight}.`
+  );
 }
 
 class OwnerNearExpired extends Error {

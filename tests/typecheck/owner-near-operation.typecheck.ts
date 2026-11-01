@@ -2,6 +2,7 @@ import type { ActionResult } from '../../packages/wallet/src/core/types/seams';
 import type {
   OwnerNearOutcome,
   OwnerNearOperationState,
+  OwnerNearRetirementWait,
   PrepareOwnerNearTransaction,
 } from '../../packages/wallet/src/SeamsWeb/publicApi/ownerNearOperation';
 import type { ExternalWalletAuthentication } from '../../packages/shared-ts/src/auth/externalAuth';
@@ -105,7 +106,20 @@ const unsignedNotExecuted: OwnerNearOutcome = {
   },
 };
 
+declare const retirementWait: OwnerNearRetirementWait;
+
+const unresolvedWithWait: OwnerNearOutcome = { ...unresolved, retirementWait };
+
+// @ts-expect-error Only an unresolved transaction can wait for its validity limit.
+const nonSubmissionWithWait: OwnerNearOutcome = {
+  kind: 'not_submitted',
+  error: 'Not sent',
+  retirementWait,
+};
+
 void [
+  unresolvedWithWait,
+  nonSubmissionWithWait,
   retiredWithoutOwner,
   unsignedNotExecuted,
   unresolvedWithoutHash,

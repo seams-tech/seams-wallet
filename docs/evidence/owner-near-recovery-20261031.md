@@ -76,3 +76,19 @@ same RP answered the prompt and returned no PRF output.
 Earlier runs placed the scenario after the test's `page.clock.install()` step. Two of five failed
 because a fresh approval showed no review. After the scenario moved before that step, the failure
 did not recur. The moved order supports a test-clock cause but does not prove it.
+
+## Retirement wait and network binding
+
+Date: 2026-11-01
+
+Issue 59 reported a false acceptance message for a hash-only receipt and asked for the limit block as a field.
+Its block numbers fit only hash-only evidence: a request at block 275587511 was already blocked,
+so the reference block cannot be the implied 275721284. A 0.39 receipt holds only `binding`,
+`requestDigest`, and `transactionId`, and its storage row has no timestamp, so the wait cannot be shortened.
+
+The application-auth contract case passed twice with `retirementWait`, the new messages, another RPC URL on the
+same network, an RPC that reports another chain, and records rewritten to the URL binding.
+A negative control put the URL back in the binding. The case then failed at the first recovery after the URL
+change with `recovery_unavailable`, which confirms the reported orphaned receipt. The control stopped at that
+step, so the release of the pending guard rests on code reading.
+Testnet and mainnet nodes report `testnet` and `mainnet` as `chain_id`.

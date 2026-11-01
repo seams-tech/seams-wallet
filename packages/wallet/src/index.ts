@@ -284,7 +284,7 @@ export type {
   ConfirmationBehavior,
 } from './core/types/signer-worker';
 
-export type { OwnerNearOperation, OwnerNearOperationState, OwnerNearRecovery, OwnerNearOutcome, OwnerNearRetirementProof, OwnerNearSubmissionEvidence, OwnerNearUnverifiedExecutionProof, PrepareOwnerNearTransaction, ResumeOwnerNearTransaction } from './SeamsWeb/publicApi/ownerNearOperation';
+export type { OwnerNearOperation, OwnerNearOperationState, OwnerNearRecovery, OwnerNearOutcome, OwnerNearRetirementProof, OwnerNearRetirementWait, OwnerNearSubmissionEvidence, OwnerNearUnverifiedExecutionProof, PrepareOwnerNearTransaction, ResumeOwnerNearTransaction } from './SeamsWeb/publicApi/ownerNearOperation';
 
 export { parseOwnerNearRecovery } from './SeamsWeb/walletIframe/shared/ownerNearOperation';
 
