@@ -17,7 +17,7 @@ import {
   autoConfirmWalletIframeUntil,
   waitForWalletIframeConfirmationSettlement,
 } from './harness';
-import { openSigningKeys } from './ml-dsa-lifecycle-scenario';
+import { openSigningKeys, signMlDsaTransaction } from './ml-dsa-lifecycle-scenario';
 import { fundImplicitWallet } from './ml-dsa-testnet';
 import { requireCanonicalString } from '@shared/utils/validation';
 
@@ -255,6 +255,33 @@ async function addKeyToNear(page: Page, trace: RegistrationTrace, wallet: string
   await waitForWalletIframeConfirmationSettlement(page);
 }
 
+/** Signs at once after activation, while refill may still be below the admission minimum. */
+async function signFirstTransaction(
+  harness: IntendedBehaviourHarness,
+  page: Page,
+  trace: RegistrationTrace,
+  wallet: string,
+): Promise<void> {
+  const inventory = await harness.runMlDsaCommand({ kind: 'metadata' });
+  if (!('kind' in inventory) || inventory.kind !== 'inventory') throw new Error('Missing signer');
+  const entry = inventory.entries[0];
+  if (entry?.kind !== 'published') throw new Error('The signer is not published');
+  const { signingKeyId, publicKeyB64u, keyManifestDigestB64u, materialEpoch } = entry.key;
+  const signer = {
+    kind: 'near_ml_dsa_65',
+    signingKeyId,
+    publicKeyB64u,
+    keyManifestDigestB64u,
+    materialEpoch,
+  } as const;
+  const startedAtMs = Date.now();
+  await trace.mark('first_signature_started', { wallet });
+  await autoConfirmWalletIframeUntil(page, signMlDsaTransaction(harness, signer), {
+    timeoutMs: PUBLICATION_LIMIT_MS,
+  });
+  await trace.mark('first_signature_finished', { wallet, elapsedMs: Date.now() - startedAtMs });
+}
+
 async function waitForReadyJob(
   trace: RegistrationTrace,
   label: string,
@@ -333,6 +360,7 @@ export async function runMlDsaActiveScopeRegistration(
   const first = await createKey(page, trace, 'first');
   expect(first.executeStatuses).toEqual([200]);
   await addKeyToNear(page, trace, 'first');
+  await signFirstTransaction(harness, page, trace, 'first');
   const replaced = await waitForReadyJob(trace, 'first:replacement', stocked);
   expect(replaced).toHaveLength(1);
   expect(trace.statusesOf('first')).toEqual([...CREATION_STAGES, ADD_TO_NEAR_STAGE]);
