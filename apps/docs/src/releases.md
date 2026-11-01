@@ -1,9 +1,22 @@
 ---
-title: Release 0.40.0
-description: Owner-authorized retirement for expired unresolved NEAR operations.
+title: Release 0.41.0
+description: Structured retirement waits and network-bound owner NEAR operations.
 ---
 
-# Release 0.40.0
+# Release 0.41.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.41.0**.
+
+- `unresolved` owner NEAR outcomes carry `retirementWait` while a transaction waits for its limit. It holds `lastAcceptedBlockHeight`, `finalBlockHeight`, and `submission`. Read this field, not the error text. Other `unresolved` results do not have it.
+- A hash-only receipt now reports a safety wait. Its limit counts from the first observation and is not a NEAR limit.
+- Owner operations bind to the NEAR network, not the RPC URL. Another RPC on the same network finds the same receipt and the same pending guard.
+- Recovery cannot end an operation through an RPC that reports another chain.
+- Records from SDK 0.40.0 and earlier move to the network binding when they open under the URL that wrote them. Open or finish them before you change the RPC URL.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.40.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.40.0**.
 
