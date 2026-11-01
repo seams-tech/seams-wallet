@@ -68,6 +68,7 @@ import {
   prepareMlDsaSessionOwnerOperation,
 } from '../../../domains/signingOperations/mlDsaOwnerAdmission';
 import { dispatchMlDsaOwnerOperation } from '../../../transport/fetch/routes/mlDsaSigning';
+import { signalMlDsaRegistrationActivity } from '../../../transport/fetch/routes/mlDsaRegistration';
 import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
 import { CloudflareD1VersionedJsonRecordStore } from '../versionedJson/d1VersionedJsonRecordStore';
 import { prepareAuthorizedOperationInsert } from '../authorization/authorizedOperationStatements';
@@ -248,6 +249,39 @@ export class D1WalletMlDsaSigning {
     )
       return refusal('unauthorized', 'The signer metadata session changed');
     return { kind: 'inventory', entries: visibleMlDsaSigners(owner.authority, entries) };
+  }
+
+  /** The full owner opened Signing keys. Router stock stays generic and receives no key input. */
+  async recordRegistrationActivity(input: {
+    readonly walletId: WalletId;
+    readonly token: string;
+  }): Promise<{ readonly kind: 'recorded' } | MlDsaSigningFailure> {
+    const owner =
+      await this.options.authorizations.readWalletSessionExactOperationContextByCredential({
+        tenantId: requireParsed(parseTenantId(this.options.scope.orgId), 'tenantId'),
+        token: input.token,
+        nowMs: Date.now(),
+      });
+    if (
+      !owner ||
+      owner.session.walletId !== input.walletId ||
+      !permitsMlDsaSigning(owner.authority)
+    )
+      return refusal(
+        'unauthorized',
+        'Registration activity requires an unlocked full-owner session',
+      );
+    if (!this.options.proxy || !this.options.registration)
+      return refusal('not_configured', 'ML-DSA is not enabled for this wallet service');
+    const recorded = await signalMlDsaRegistrationActivity(this.options.proxy, {
+      org: this.options.scope.orgId,
+      project: this.options.scope.projectId,
+      environment: this.options.scope.envId,
+      wallet: input.walletId,
+    });
+    return recorded
+      ? { kind: 'recorded' }
+      : refusal('participant_unavailable', 'ML-DSA registration activity was not recorded');
   }
 
   /** Read retained server signers after recovery or full-owner device activation. */

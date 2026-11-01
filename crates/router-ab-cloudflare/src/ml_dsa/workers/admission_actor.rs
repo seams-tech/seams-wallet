@@ -76,6 +76,7 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
         let wake_registration = matches!(
             &command,
             AdmissionCommand::PrepareRegistration { .. }
+                | AdmissionCommand::ActivateRegistration { .. }
                 | AdmissionCommand::ClaimRegistration { .. }
                 | AdmissionCommand::FinishRegistration { .. }
         );
@@ -142,6 +143,26 @@ async fn execute_admission(
             )
             .await?,
         ),
+        AdmissionCommand::ActivateRegistration {
+            wallet,
+            schedule,
+            signing_schedule,
+            signing_batches,
+        } => {
+            registration_core::queue::activate(
+                store,
+                wallet,
+                group,
+                registration_core::queue::Configuration::new(
+                    schedule,
+                    signing_schedule,
+                    signing_batches,
+                )?,
+                now,
+            )
+            .await?;
+            json::<admission_requests::activate_registration::Reply>(true)
+        }
         AdmissionCommand::RetireRegistration { job } => {
             json::<admission_requests::retire_registration::Reply>(
                 registration_core::retire_preparation(store, &job).await?,

@@ -60,6 +60,7 @@ class WalletHostNearCommands {
     return readNearSignerMetadata({
       walletId: input.walletSession.walletId,
       relayerUrl: this.getContext().configs.network.relayer.url,
+      signalRegistrationActivity: true,
     });
   }
   async signAndSendTransaction(

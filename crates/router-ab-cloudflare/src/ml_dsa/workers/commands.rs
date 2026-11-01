@@ -117,6 +117,12 @@ command_family! { AdmissionCommand, admission_requests {
         signing_schedule: [u8; 32],
         signing_batches: usize,
     } => registration_core::queue::Status, Json;
+    ActivateRegistration(activate_registration) {
+        wallet: WalletScope,
+        schedule: [u8; 32],
+        signing_schedule: [u8; 32],
+        signing_batches: usize,
+    } => bool, Json;
     RetireRegistration(retire_registration) {
         job: registration_core::Job,
     } => registration_core::PreparationRetirement, Json;

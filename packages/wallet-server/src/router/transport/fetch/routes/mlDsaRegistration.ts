@@ -68,6 +68,35 @@ export async function discoverMlDsaRecipientKeys(
   }
 }
 
+/** Private Gateway transport for a best-effort owner signal. Failure never blocks key creation. */
+export async function signalMlDsaRegistrationActivity(
+  proxy: RouterAbNormalSigningRouterProxy,
+  wallet: {
+    readonly org: string;
+    readonly project: string;
+    readonly environment: string;
+    readonly wallet: string;
+  },
+): Promise<boolean> {
+  const headers = new Headers({ 'content-type': 'application/json' });
+  headers.set(
+    ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+    normalizeRouterAbInternalServiceAuthSecret(proxy.internalServiceAuthSecret),
+  );
+  try {
+    const response = await proxy.fetch(
+      new Request('https://router-ab.internal/router-ab/ml-dsa/registration/activity', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ wallet }),
+      }),
+    );
+    return response.status === 200;
+  } catch {
+    return false;
+  }
+}
+
 type SealedRoleValue = {
   readonly encapsulated_key: readonly number[];
   readonly ciphertext: readonly number[];

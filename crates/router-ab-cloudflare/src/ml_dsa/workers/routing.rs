@@ -28,7 +28,8 @@ enum Destination<'a> {
 impl AdmissionCommand {
     fn destination(&self) -> Destination<'_> {
         match self {
-            Self::PrepareRegistration { wallet, .. } => Destination::Wallet(wallet),
+            Self::PrepareRegistration { wallet, .. }
+            | Self::ActivateRegistration { wallet, .. } => Destination::Wallet(wallet),
             Self::RetireRegistration { job }
             | Self::ReadyRegistration { job, .. }
             | Self::CheckRegistrationJob { job } => Destination::Registration(job.service_group),

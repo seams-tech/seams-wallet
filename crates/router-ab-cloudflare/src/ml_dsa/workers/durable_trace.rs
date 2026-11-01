@@ -18,6 +18,7 @@ impl DurableTrace {
     ) -> Result<Option<Self>> {
         let (command, job, operation) = match command {
             AdmissionCommand::PrepareRegistration { .. } => ("prepare_registration", None, None),
+            AdmissionCommand::ActivateRegistration { .. } => ("activate_registration", None, None),
             AdmissionCommand::RetireRegistration { job } => {
                 ("retire_registration", Some(job.id), None)
             }

@@ -1753,6 +1753,9 @@ function createD1WalletAuthMethodRouteService(
       assembly.mlDsaSigning,
     ),
     readMlDsaSignerMetadata: assembly.mlDsaSigning.metadata.bind(assembly.mlDsaSigning),
+    recordMlDsaRegistrationActivity: assembly.mlDsaSigning.recordRegistrationActivity.bind(
+      assembly.mlDsaSigning,
+    ),
     readMlDsaSignerInventory: assembly.mlDsaSigning.inventory.bind(assembly.mlDsaSigning),
     prepareMlDsaSignerInventory: assembly.mlDsaSigning.prepareInventory.bind(assembly.mlDsaSigning),
     signMlDsaTransaction: assembly.mlDsaSigning.sign.bind(assembly.mlDsaSigning),

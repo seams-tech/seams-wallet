@@ -488,6 +488,9 @@ pub(super) async fn handle_strict_router_fetch_v1(
         if path == crate::ml_dsa::workers::registration::PREPARE_PATH {
             return crate::ml_dsa::workers::registration::handle_prepare(request, &env).await;
         }
+        if path == crate::ml_dsa::workers::registration::ACTIVITY_PATH {
+            return crate::ml_dsa::workers::registration::handle_activity(request, &env).await;
+        }
         if path == crate::ml_dsa::workers::registration::REGISTER_PATH {
             return crate::ml_dsa::workers::registration::handle_register(request, &env).await;
         }
