@@ -138,6 +138,8 @@ fn binding(key: &KeyScope, role: Participant, batch: u8) -> sealing::Binding {
         batch: [batch; 32],
         expires_at_ms: 1_000_000,
         wrapping_key_version: id("kek-1"),
+        generation: 1,
+        format: sealing::STOCK_FORMAT,
     }
 }
 fn fill(db: &Db, key: &KeyScope, role: Participant, seed: &[u8; 32], start: u8, count: u8) {

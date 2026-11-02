@@ -168,7 +168,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     recover_expired_reservations(env, state, &key)
         .await
         .map_err(protocol_error)?;
-    let mut a = controller_inventory(state, &key, &policy)
+    let mut a = controller_inventory(env, state, &key, &policy)
         .await
         .map_err(protocol_error)?;
     let mut local_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
@@ -202,7 +202,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         .await
         .map_err(protocol_error)?
     {
-        a = controller_inventory(state, &key, &policy)
+        a = controller_inventory(env, state, &key, &policy)
             .await
             .map_err(protocol_error)?;
         local_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
@@ -291,6 +291,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     }
 }
 async fn controller_inventory(
+    env: &Env,
     state: &State,
     key: &KeyScope,
     policy: &Policy,
@@ -298,6 +299,7 @@ async fn controller_inventory(
     role_transaction(
         state,
         policy.clone(),
+        stock_stamp(env)?,
         Participant::A,
         role_requests::live_inventory(key.clone(), policy.refill_target_batches()),
         None,
@@ -494,6 +496,8 @@ async fn prepare(
             batch,
             expires_at_ms: job.material_expires_at_ms,
             wrapping_key_version: version.clone(),
+            generation: policy(env)?.stock_generation,
+            format: sealing::STOCK_FORMAT,
         };
         let bytes = prepared.into_storage();
         log_stage(job, participant, batch, "serialized");
@@ -738,6 +742,7 @@ async fn reconcile_unpaired(
         role_transaction(
             state,
             policy(env)?,
+            stock_stamp(env)?,
             Participant::A,
             role_requests::retire_unpaired(key.clone(), retired),
             None,
@@ -749,6 +754,7 @@ async fn reconcile_unpaired(
         let states: Vec<pool::BatchAvailability> = role_transaction(
             state,
             policy(env)?,
+            stock_stamp(env)?,
             Participant::A,
             role_requests::inspect(key.clone(), only_b.clone()),
             None,
