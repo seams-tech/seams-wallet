@@ -620,6 +620,26 @@ pub async fn retire_unpaired(
     store.put("index", &ids).await
 }
 
+/// Router admission recorded these batches as spent, so a role that still holds them was
+/// restored from an earlier state. They must never open again.
+pub async fn retire_spent(store: &impl Store, key: &KeyScope, batches: &[[u8; 32]]) -> Result<()> {
+    check_key(store, key).await?;
+    if batches.len() > MAX_BATCHES {
+        return Err(invalid("Too many ML-DSA batches"));
+    }
+    let mut ids = index(store).await?;
+    for batch in batches {
+        if let Some(mut record) = store.get::<Record>(&batch_name(batch)).await? {
+            if record.binding.key == *key {
+                record.state = State::Burned;
+                erase(store, &mut record).await?;
+                ids.retain(|id| id != batch);
+            }
+        }
+    }
+    store.put("index", &ids).await
+}
+
 /// Settlement comes from the Router's authoritative terminal operation state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

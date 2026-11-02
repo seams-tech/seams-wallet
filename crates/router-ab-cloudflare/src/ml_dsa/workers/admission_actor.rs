@@ -257,7 +257,7 @@ async fn execute_admission(
             admission::begin(store, policy, request, now).await?,
         ),
         AdmissionCommand::Admit { claim, batches } => json::<admission_requests::admit::Reply>(
-            admission::admit(store, policy, claim, batches, now).await?,
+            admission::admit_unspent(store, policy, claim, batches, now).await?,
         ),
         AdmissionCommand::Cancel { claim } => {
             admission::cancel(store, &claim).await?;
@@ -273,8 +273,9 @@ async fn execute_admission(
                 admission::finish(store, &permit, completion, now).await?,
             )
         }
-        AdmissionCommand::Settled { request } => {
+        AdmissionCommand::Settled { request, returned } => {
             admission::settled(store, &request).await?;
+            admission::return_unspent(store, &returned).await?;
             json::<admission_requests::settled::Reply>(true)
         }
         AdmissionCommand::Lookup { request } => json::<admission_requests::lookup::Reply>(

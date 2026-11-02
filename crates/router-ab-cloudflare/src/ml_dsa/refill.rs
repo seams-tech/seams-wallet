@@ -125,7 +125,7 @@ const MAX_WAITING_KEYS: usize = 64;
 const DEMAND_LIFETIME_MS: u64 = 30_000;
 // Untouched material remains key/epoch-bound and single-use. Producer and operation
 // leases stay short; this deadline only limits encrypted stock retention.
-const MATERIAL_LIFETIME_MS: u64 = 60 * 60 * 1_000;
+pub(super) const MATERIAL_LIFETIME_MS: u64 = 60 * 60 * 1_000;
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Waiting {

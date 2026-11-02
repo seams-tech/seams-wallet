@@ -412,6 +412,104 @@ pub async fn admit(
         .await?;
     Ok(Decision::Admitted { permit })
 }
+/// Admission's answer to the coordinator. Spent stock never reaches a Gateway.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum AdmitOutcome {
+    Decided { decision: Decision },
+    SpentStock { batches: Vec<[u8; 32]> },
+}
+
+// Each role tracks single use in its own store, so restoring both roles brings used
+// masks back. This record lives in another store, and it outlasts any batch it names.
+const SPENT_LOG_HEAD: &str = "spent-log-head";
+const SPENT_LOG_TAIL: &str = "spent-log-tail";
+const SPENT_SWEEP_PER_ADMISSION: usize = 2;
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SpentSpan {
+    expires_at_ms: u64,
+    batches: Vec<[u8; 32]>,
+}
+fn spent_name(batch: &[u8; 32]) -> String {
+    format!("spent/{}", hex(batch))
+}
+fn spent_span_name(sequence: u64) -> String {
+    format!("spent-log/{sequence}")
+}
+/// A permit can open any batch it names, so all of them count as spent until settlement.
+pub async fn admit_unspent(
+    store: &impl Store,
+    policy: &Policy,
+    claim: Claim,
+    batches: Vec<[u8; 32]>,
+    now_ms: u64,
+) -> Result<AdmitOutcome> {
+    let mut spent = Vec::new();
+    for batch in &batches {
+        if store.get::<u64>(&spent_name(batch)).await?.is_some() {
+            spent.push(*batch);
+        }
+    }
+    if !spent.is_empty() {
+        cancel(store, &claim).await?;
+        return Ok(AdmitOutcome::SpentStock { batches: spent });
+    }
+    let decision = admit(store, policy, claim, batches, now_ms).await?;
+    if let Decision::Admitted { permit } = &decision {
+        record_spent(store, &permit.batches, now_ms).await?;
+    }
+    Ok(AdmitOutcome::Decided { decision })
+}
+async fn record_spent(store: &impl Store, batches: &[[u8; 32]], now_ms: u64) -> Result<()> {
+    let sequence = store.get::<u64>(SPENT_LOG_TAIL).await?.unwrap_or(0);
+    for batch in batches {
+        store.put(&spent_name(batch), &sequence).await?;
+    }
+    store
+        .put(
+            &spent_span_name(sequence),
+            &SpentSpan {
+                expires_at_ms: now_ms.saturating_add(refill::MATERIAL_LIFETIME_MS),
+                batches: batches.to_vec(),
+            },
+        )
+        .await?;
+    store.put(SPENT_LOG_TAIL, &(sequence + 1)).await?;
+    sweep_spent(store, now_ms).await
+}
+/// Each admission retires at most a few old spans, so a backlog drains in steps.
+async fn sweep_spent(store: &impl Store, now_ms: u64) -> Result<()> {
+    let mut head = store.get::<u64>(SPENT_LOG_HEAD).await?.unwrap_or(0);
+    let start = head;
+    for _ in 0..SPENT_SWEEP_PER_ADMISSION {
+        let Some(span) = store.get::<SpentSpan>(&spent_span_name(head)).await? else {
+            break;
+        };
+        if span.expires_at_ms > now_ms {
+            break;
+        }
+        for batch in &span.batches {
+            // A returned batch can be admitted again under a later span, which keeps it.
+            if store.get::<u64>(&spent_name(batch)).await? == Some(head) {
+                store.delete(&spent_name(batch)).await?;
+            }
+        }
+        store.delete(&spent_span_name(head)).await?;
+        head += 1;
+    }
+    if head != start {
+        store.put(SPENT_LOG_HEAD, &head).await?;
+    }
+    Ok(())
+}
+/// Settlement names the pairs that both roles returned unopened.
+pub async fn return_unspent(store: &impl Store, batches: &[[u8; 32]]) -> Result<()> {
+    for batch in batches {
+        store.delete(&spent_name(batch)).await?;
+    }
+    Ok(())
+}
 pub async fn cancel(store: &impl Store, claim: &Claim) -> Result<()> {
     release_claim(store, claim, ClaimRelease::Cancelled).await
 }

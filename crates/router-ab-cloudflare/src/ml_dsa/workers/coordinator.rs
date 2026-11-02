@@ -84,12 +84,18 @@ async fn admit(
     match outcome {
         Ok(PairReservation::Ready { batches }) => {
             // A lost reply can follow durable admission. Keep the reservations.
-            service_call(
+            let outcome: admission::AdmitOutcome = service_call(
                 env,
                 CallAuthority::Gateway(headers),
-                &admission_requests::admit(claim, batches),
+                &admission_requests::admit(claim.clone(), batches.clone()),
             )
-            .await
+            .await?;
+            match outcome {
+                admission::AdmitOutcome::Decided { decision } => Ok(decision),
+                admission::AdmitOutcome::SpentStock { batches: spent } => {
+                    retire_spent_stock(env, headers, claim, batches, spent).await
+                }
+            }
         }
         Ok(PairReservation::Empty { retry_at_ms }) => {
             let _: bool = service_call(
@@ -115,6 +121,43 @@ async fn admit(
             Err(error)
         }
     }
+}
+/// Both roles offered batches that Router admission recorded as spent, which means that
+/// their storage went back in time. The refusal retires them, and a new operation signs.
+async fn retire_spent_stock(
+    env: &Env,
+    headers: &worker::Headers,
+    claim: Claim,
+    batches: Vec<[u8; 32]>,
+    spent: Vec<[u8; 32]>,
+) -> Result<Decision> {
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_spent_stock_refused_v1", "operation": hex(&claim.request.operation),
+            "batches": spent.iter().map(|batch| hex(batch)).collect::<Vec<_>>(),
+        })
+    );
+    let command = role_requests::retire_spent(claim.request.key.clone(), spent);
+    let (a, b) = futures::join!(
+        role_call(env, "DERIVER_A", &command),
+        role_call(env, "DERIVER_B", &command)
+    );
+    if !a? || !b? {
+        return Err(invalid("ML-DSA role refused spent stock retirement"));
+    }
+    let returned = release_pair(env, &claim.request, batches, pool::Settlement::Declined).await?;
+    let _: bool = service_call(
+        env,
+        CallAuthority::Gateway(headers),
+        &admission_requests::settled(claim.request, returned),
+    )
+    .await?;
+    Ok(Decision::Existing {
+        operation: Status::Declined {
+            failure: SigningFailure::Cancelled,
+        },
+    })
 }
 async fn inventory_pair(
     env: &Env,
@@ -179,7 +222,7 @@ async fn release_pair(
     request: &super::super::SigningRequest,
     batches: Vec<[u8; 32]>,
     settlement: pool::Settlement,
-) -> Result<()> {
+) -> Result<Vec<[u8; 32]>> {
     let fence = role_requests::fence(request.clone(), batches.clone());
     let (a, b) = futures::join!(
         role_call(env, "DERIVER_A", &fence),
@@ -195,7 +238,7 @@ async fn release_pair(
     {
         return Err(invalid("ML-DSA fence scope changed"));
     }
-    let unopened_intersection = a
+    let unopened_intersection: Vec<[u8; 32]> = a
         .unopened
         .iter()
         .filter(|id| b.unopened.contains(id))
@@ -207,6 +250,18 @@ async fn release_pair(
             consumed_union.push(id);
         }
     }
+    let returned = match settlement {
+        pool::Settlement::Succeeded | pool::Settlement::Declined => batches
+            .iter()
+            .filter(|id| !consumed_union.contains(id))
+            .copied()
+            .collect(),
+        pool::Settlement::Failed => unopened_intersection
+            .iter()
+            .filter(|id| !consumed_union.contains(id))
+            .copied()
+            .collect(),
+    };
     let command = role_requests::release(
         request.clone(),
         batches,
@@ -221,7 +276,7 @@ async fn release_pair(
     if !a? || !b? {
         return Err(invalid("ML-DSA reservation release failed"));
     }
-    Ok(())
+    Ok(returned)
 }
 
 #[derive(Deserialize)]
@@ -258,13 +313,13 @@ pub(crate) async fn handle_complete(
             return Response::error("ML-DSA completion is not terminal", 409)
         }
     };
-    release_pair(env, &input.permit.request, input.permit.batches, settlement)
+    let returned = release_pair(env, &input.permit.request, input.permit.batches, settlement)
         .await
         .map_err(protocol_error)?;
     let _: bool = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &admission_requests::settled(input.permit.request),
+        &admission_requests::settled(input.permit.request, returned),
     )
     .await
     .map_err(protocol_error)?;
@@ -479,14 +534,14 @@ async fn sign_request(
         Status::Failed { .. } => pool::Settlement::Failed,
         _ => return Response::error("ML-DSA execution did not settle", 503),
     };
-    release_pair(env, &permit.request, permit.batches, settlement)
+    let returned = release_pair(env, &permit.request, permit.batches, settlement)
         .await
         .map_err(protocol_error)?;
     trace.mark("roles_released");
     let _: bool = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &admission_requests::settled(permit.request),
+        &admission_requests::settled(permit.request, returned),
     )
     .await
     .map_err(protocol_error)?;
