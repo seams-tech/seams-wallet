@@ -24,6 +24,7 @@ import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { computeThresholdEd25519DelegateSigningDigestWasm } from '../../chains/near/nearSignerWasm';
 import { resolveNearSigningMaterials } from './shared/signingMaterials';
 import { buildNearDelegateSigningPayloads } from '../../chains/near/payloads';
+import { resolveNearTokenMetadata } from '../../chains/near/tokenTransfers';
 import { isWarmSessionSigningAuthPlan } from '@/core/signingEngine/stepUpConfirmation/types';
 import {
   SigningOperationIntent,
@@ -247,6 +248,11 @@ export async function runNearDelegateActionSigning({
     message: 'Opening confirmation prompt',
     interaction: { kind: 'transaction_confirmation', overlay: 'show' },
   });
+  const tokenMetadata = await resolveNearTokenMetadata({
+    nearClient: ctx.nearClient,
+    network: resolveNearNetwork(ctx.chains || PASSKEY_MANAGER_DEFAULT_CONFIGS.network.chains),
+    txSigningRequests: [delegateSigningPayloads.confirmationDelegate],
+  });
   const confirmation = await confirmNearSignatureOnlyOperation(operation, {
     touchConfirm,
     signingAuthPlan: confirmationAuthPayload.signingAuthPlan,
@@ -258,6 +264,7 @@ export async function runNearDelegateActionSigning({
     request: {
       kind: 'delegate',
       delegate: delegateSigningPayloads.confirmationDelegate,
+      tokenMetadata,
       rpcCall: resolvedRpcCall,
     },
   });

@@ -3,13 +3,24 @@ import type {
   TxDisplayField,
   TxDisplayModel,
   TxDisplayOperation,
+  TxDisplayTokenTransfer,
+  TxDisplayTokenTransfers,
+  TxDisplayWarning,
   NearActionOperation,
   NearMessageOperation,
   GenericContractCallOperation,
 } from '@/core/signingEngine/interfaces/display';
+import {
+  NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO,
+  formatNearTokenAmount,
+  isImpersonatedNearTokenSymbol,
+  parseNearTokenTransferCall,
+  type NearTokenMetadataByContract,
+} from './tokenTransfers';
 
 type BuildNearDisplayModelArgs = {
   txSigningRequests: TransactionInputWasm[];
+  tokenMetadata: NearTokenMetadataByContract;
   intentDigest?: string;
   signerAccount?: string;
   title?: string;
@@ -291,6 +302,62 @@ function buildTransactionOperation(
   };
 }
 
+function tokenTransfersForDisplay(
+  txSigningRequests: readonly TransactionInputWasm[],
+  tokenMetadata: NearTokenMetadataByContract,
+): TxDisplayTokenTransfer[] {
+  return txSigningRequests.flatMap((tx) =>
+    (Array.isArray(tx.actions) ? tx.actions : []).flatMap((action) => {
+      const call = parseNearTokenTransferCall(tx.receiverId, action);
+      if (!call) return [];
+      const token = tokenMetadata.get(call.tokenContract);
+      return [
+        {
+          ...call,
+          ...(token
+            ? {
+                amount: {
+                  value: formatNearTokenAmount(call.baseUnits, token.decimals),
+                  symbol: token.symbol,
+                  verified: token.verified,
+                },
+              }
+            : {}),
+        },
+      ];
+    }),
+  );
+}
+
+function tokenTransferLayout(args: {
+  transfers: TxDisplayTokenTransfer[];
+  txSigningRequests: readonly TransactionInputWasm[];
+  totalAttachedValue: bigint;
+}): TxDisplayTokenTransfers | undefined {
+  const { transfers, txSigningRequests, totalAttachedValue } = args;
+  if (transfers.length === 0) return undefined;
+  // Any other action or attached value must stay visible, so the NEAR amount keeps the headline.
+  return txSigningRequests.length === 1 &&
+    txSigningRequests[0].actions.length === 1 &&
+    totalAttachedValue.toString() === NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO
+    ? { layout: 'headline', transfer: transfers[0] }
+    : { layout: 'rows', transfers };
+}
+
+function tokenSymbolWarnings(tokenMetadata: NearTokenMetadataByContract): TxDisplayWarning[] {
+  return [...tokenMetadata].flatMap(([contract, token]) =>
+    isImpersonatedNearTokenSymbol(token)
+      ? [
+          {
+            code: `near_token_symbol_unverified.${contract}`,
+            severity: 'warning' as const,
+            message: `This contract is not a known issuer of ${token.symbol}.`,
+          },
+        ]
+      : [],
+  );
+}
+
 export function buildNearDisplayModel(args: BuildNearDisplayModelArgs): TxDisplayModel {
   const txSigningRequests = Array.isArray(args.txSigningRequests) ? args.txSigningRequests : [];
   const operations = txSigningRequests.map((tx, txIndex) =>
@@ -307,6 +374,12 @@ export function buildNearDisplayModel(args: BuildNearDisplayModelArgs): TxDispla
         : BigInt(0)),
     BigInt(0),
   );
+  const tokenTransfers = tokenTransferLayout({
+    transfers: tokenTransfersForDisplay(txSigningRequests, args.tokenMetadata),
+    txSigningRequests,
+    totalAttachedValue,
+  });
+  const warnings = tokenTransfers ? tokenSymbolWarnings(args.tokenMetadata) : [];
 
   return {
     chain: 'near',
@@ -315,7 +388,9 @@ export function buildNearDisplayModel(args: BuildNearDisplayModelArgs): TxDispla
     title: args.title || 'NEAR Transaction',
     subtitle: args.subtitle,
     operations,
-    ...(totalAttachedValue > 0
+    ...(tokenTransfers ? { tokenTransfers } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
+    ...(totalAttachedValue > 0 && tokenTransfers?.layout !== 'headline'
       ? {
           totals: {
             nativeValue: totalAttachedValue.toString(),

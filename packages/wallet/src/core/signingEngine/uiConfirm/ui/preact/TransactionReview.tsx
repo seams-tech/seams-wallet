@@ -8,7 +8,10 @@ import { walletText, walletDisplayText } from '@/core/ui/messages';
 import type { WalletLocale } from '@/core/ui/locale';
 import { Component } from 'preact';
 import type { TreeNode } from '../transaction-display/tree';
-import type { TxDisplayModel } from '@/core/signingEngine/interfaces/display';
+import type {
+  TxDisplayModel,
+  TxDisplayTokenTransfer,
+} from '@/core/signingEngine/interfaces/display';
 import { copySurfaceText } from './clipboard';
 import { CopyStatusIcon } from './CopyStatusIcon';
 import { ReviewDisclosure } from './ReviewDisclosure';
@@ -74,6 +77,7 @@ export function reviewNetwork(model: TxDisplayModel | null): string {
 }
 
 export function reviewRecipient(model: TxDisplayModel | null): string | null {
+  if (model?.tokenTransfers?.layout === 'headline') return model.tokenTransfers.transfer.recipient;
   if (model?.operations.length !== 1) return null;
   const operation = model.operations[0];
   return operation.kind === 'generic.contractCall' || operation.kind === 'tempo.eip2718'
@@ -99,6 +103,14 @@ export function ReviewMiddleTruncated({
       <span>{value.slice(0, -8)}</span>
       <span>{value.slice(-8)}</span>
     </bdi>
+  );
+}
+
+function UnbrandedTokenIcon({ symbol }: { symbol: string }) {
+  return (
+    <span class="seams-review-token seams-review-token-fallback" aria-hidden="true">
+      {symbol.slice(0, 1)}
+    </span>
   );
 }
 
@@ -147,10 +159,84 @@ function TokenIcon({ symbol }: { symbol: string }) {
         />
       </svg>
     );
+  return <UnbrandedTokenIcon symbol={symbol} />;
+}
+
+function tokenTransferAmount(transfer: TxDisplayTokenTransfer): { value: string; symbol: string } {
+  return transfer.amount ?? { value: transfer.baseUnits, symbol: 'base units' };
+}
+
+function TokenTransferHeadline({
+  transfer,
+  compact,
+}: {
+  transfer: TxDisplayTokenTransfer;
+  compact?: boolean;
+}) {
+  const amount = tokenTransferAmount(transfer);
   return (
-    <span class="seams-review-token seams-review-token-fallback" aria-hidden="true">
-      {symbol.slice(0, 1)}
-    </span>
+    <div class={`seams-review-amount${compact ? ' seams-review-amount--compact' : ''}`}>
+      {/* A contract chooses its own symbol, so only a wallet-listed token gets official artwork. */}
+      {transfer.amount?.verified ? (
+        <TokenIcon symbol={amount.symbol} />
+      ) : (
+        <UnbrandedTokenIcon symbol={transfer.amount?.symbol ?? '?'} />
+      )}
+      <div class="seams-review-amount-value seams-review-amount-value--token">
+        <span>{amount.value}</span>{' '}
+        <small>
+          <WalletText copy={amount.symbol} />
+        </small>
+      </div>
+    </div>
+  );
+}
+
+function TokenContractRow({ transfer }: { transfer: TxDisplayTokenTransfer }) {
+  const locale = useWalletLocale();
+  return (
+    <div>
+      <dt>
+        <WalletText message="Token contract" />
+      </dt>
+      <dd class="seams-review-recipient">
+        <CopyReviewValue
+          value={transfer.tokenContract}
+          address
+          label={walletDisplayText(locale, `Copy contract address ${transfer.tokenContract}`)}
+        />
+      </dd>
+    </div>
+  );
+}
+
+function TokenTransferRows({ transfer }: { transfer: TxDisplayTokenTransfer }) {
+  const locale = useWalletLocale();
+  const amount = tokenTransferAmount(transfer);
+  return (
+    <>
+      <div>
+        <dt>
+          <WalletText message="Token" />
+        </dt>
+        <dd>
+          {amount.value} <WalletText copy={amount.symbol} />
+        </dd>
+      </div>
+      <div>
+        <dt>
+          <WalletText message="Token recipient" />
+        </dt>
+        <dd class="seams-review-recipient">
+          <CopyReviewValue
+            value={transfer.recipient}
+            address
+            label={walletDisplayText(locale, `Copy recipient address ${transfer.recipient}`)}
+          />
+        </dd>
+      </div>
+      <TokenContractRow transfer={transfer} />
+    </>
   );
 }
 
@@ -171,6 +257,12 @@ export class ReviewAmount extends Component<
   }
 
   render() {
+    const tokenTransfers = this.props.model?.tokenTransfers;
+    if (tokenTransfers?.layout === 'headline') {
+      return (
+        <TokenTransferHeadline transfer={tokenTransfers.transfer} compact={this.props.compact} />
+      );
+    }
     const amount = reviewAmount(this.props.model);
     if (!amount) return null;
     const rawAmount = this.props.model?.totals;
@@ -403,6 +495,7 @@ export function TransactionReview({
   const model = data.model;
   const operation = model?.operations[0];
   const recipient = reviewRecipient(model);
+  const tokenTransfers = model?.tokenTransfers;
   return (
     <div class="seams-transaction-review">
       <ReviewAmount model={model} />
@@ -426,6 +519,13 @@ export function TransactionReview({
             </dd>
           </div>
         )}
+        {tokenTransfers?.layout === 'headline' && (
+          <TokenContractRow transfer={tokenTransfers.transfer} />
+        )}
+        {tokenTransfers?.layout === 'rows' &&
+          tokenTransfers.transfers.map((transfer, index) => (
+            <TokenTransferRows key={index} transfer={transfer} />
+          ))}
         {model && (
           <div>
             <dt>

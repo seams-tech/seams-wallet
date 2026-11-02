@@ -12,6 +12,7 @@ export interface TxDisplayModel {
   operations: TxDisplayOperation[];
   warnings?: TxDisplayWarning[];
   totals?: TxDisplayTotals;
+  tokenTransfers?: TxDisplayTokenTransfers;
   raw?: { format: string; value: string };
 }
 
@@ -27,6 +28,22 @@ interface TxDisplayTotals {
   estimatedFee?: string;
   feeSymbol?: string;
 }
+
+export interface TxDisplayTokenTransfer {
+  tokenContract: string;
+  recipient: string;
+  baseUnits: string;
+  /** Absent when the wallet could not read the token's metadata. */
+  amount?: { value: string; symbol: string; verified: boolean };
+}
+
+/**
+ * `headline` replaces the native amount, so it is only valid when the request moves nothing else.
+ * `rows` sits beside the native amount.
+ */
+export type TxDisplayTokenTransfers =
+  | { layout: 'headline'; transfer: TxDisplayTokenTransfer }
+  | { layout: 'rows'; transfers: TxDisplayTokenTransfer[] };
 
 export interface TxDisplayField {
   label: string;

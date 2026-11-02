@@ -1,4 +1,5 @@
 import type { TransactionInputWasm } from '@/core/types/actions';
+import type { NearTokenMetadataByContract } from '../chains/near/tokenTransfers';
 import type { RpcCallPayload, ConfirmationConfig } from '@/core/types/signer-worker';
 import type { EmailOtpConfirmPrompt, SigningAuthPlan, UserConfirmProgressEvent } from './types';
 import { SigningAuthPlanKind as SigningAuthPlanKinds } from './types';
@@ -130,6 +131,7 @@ type OrchestrateNearTransactionSigningConfirmationBaseParams =
     kind: 'transaction';
     walletId: string;
     txSigningRequests: TransactionInputWasm[];
+    tokenMetadata: NearTokenMetadataByContract;
     rpcCall: RpcCallPayload;
     nearPublicKeyStr: string;
     nearFundingRequest: NearFundingRequest;
@@ -159,6 +161,7 @@ type OrchestrateNearDelegateSigningConfirmationParams = OrchestrateSigningConfir
       nonce: string | number | bigint;
       maxBlockHeight: string | number | bigint;
     };
+    tokenMetadata: NearTokenMetadataByContract;
     rpcCall: RpcCallPayload;
     nearPublicKeyStr?: string;
   };

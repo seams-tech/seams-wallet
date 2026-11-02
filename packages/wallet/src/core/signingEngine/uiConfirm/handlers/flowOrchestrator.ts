@@ -19,6 +19,7 @@ import {
   buildNearDisplayModel,
   buildNearMessageDisplayModel,
 } from '../../chains/near/display';
+import type { NearTokenMetadataByContract } from '../../chains/near/tokenTransfers';
 import type {
   OrchestrateIntentDigestSigningConfirmationParams,
   OrchestrateNearSignatureOnlySigningConfirmationParams,
@@ -194,6 +195,7 @@ function buildSignIntentDigestPayload(args: {
 
 function buildNearDisplayModelWithFallback(args: {
   txSigningRequests: TransactionInputWasm[];
+  tokenMetadata: NearTokenMetadataByContract;
   intentDigest?: string;
   signerAccountId: string;
   title?: string;
@@ -202,6 +204,7 @@ function buildNearDisplayModelWithFallback(args: {
   try {
     return buildNearDisplayModel({
       txSigningRequests: args.txSigningRequests,
+      tokenMetadata: args.tokenMetadata,
       intentDigest: args.intentDigest || '',
       signerAccount: args.signerAccountId,
       title: args.title,
@@ -276,6 +279,7 @@ export async function orchestrateSigningConfirmation(
       };
       const displayModel = buildNearDisplayModelWithFallback({
         txSigningRequests,
+        tokenMetadata: params.tokenMetadata,
         intentDigest,
         signerAccountId: params.rpcCall.nearAccountId,
         title: summary.title,
@@ -328,6 +332,7 @@ export async function orchestrateSigningConfirmation(
       };
       const displayModel = buildNearDisplayModelWithFallback({
         txSigningRequests,
+        tokenMetadata: params.tokenMetadata,
         intentDigest,
         signerAccountId: params.nearAccountId,
         title: summary.title,

@@ -56,6 +56,11 @@
   white-space: nowrap;
   overflow-x: auto;
 }
+/* The exact token amount must stay readable, so a long value wraps instead of scrolling away. */
+:where(.seams-wallet-ui) .seams-review-amount-value--token {
+  white-space: normal;
+  overflow-x: visible;
+}
 :where(.seams-wallet-ui) .seams-review-amount-toggle {
   border: 0;
   padding: 0;
@@ -142,6 +147,8 @@
   max-block-size: 16rem;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--seams-colors-borderPrimary) transparent;
 }
 :where(.seams-wallet-ui) .seams-review-raw > div {
   display: flow-root;

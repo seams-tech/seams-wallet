@@ -29,9 +29,9 @@ export function formatDeposit(deposit?: string): string {
     // Trim trailing zeros
     fracStr = fracStr.replace(/0+$/g, '');
 
-    // If trimming removed all digits, omit decimal part
+    // A smaller deposit than this precision is still not zero, so keep its exact amount.
     if (fracStr.length === 0) {
-      return `${whole.toString()} NEAR`;
+      return whole === BigInt(0) ? `${yocto.toString()} yoctoNEAR` : `${whole.toString()} NEAR`;
     }
 
     return `${whole.toString()}.${fracStr} NEAR`;

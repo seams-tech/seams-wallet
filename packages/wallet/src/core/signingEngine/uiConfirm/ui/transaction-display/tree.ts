@@ -6,6 +6,10 @@ import type {
   TxDisplayFileContentVariants,
 } from '@/core/signingEngine/interfaces/display';
 import type { ActionArgs, TransactionInput } from '@/core/types/actions';
+import {
+  NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO,
+  isNearTokenTransferMethod,
+} from '@/core/signingEngine/chains/near/tokenTransfers';
 import { formatArgs, formatCodeSize, shortenPubkey } from './formatters';
 import { isString } from '@shared/utils/validation';
 import { renderFallbackDisplayOperation } from './renderers/fallback';
@@ -149,6 +153,18 @@ function buildActionNode(action: ActionArgs, idx: number): TreeNode {
   switch (action.type) {
     case 'FunctionCall':
       actionNodes = [
+        ...(isNearTokenTransferMethod(action.methodName) &&
+        action.deposit === NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO
+          ? [
+              {
+                id: `a${idx}-security-deposit`,
+                label: `Required security deposit: ${NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO} yoctoNEAR`,
+                fieldLabel: 'Required security deposit:',
+                type: 'file' as const,
+                open: false,
+              },
+            ]
+          : []),
         {
           id: `a${idx}-args`,
           label: 'using args:',
