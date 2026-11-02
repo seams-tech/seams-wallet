@@ -82,6 +82,9 @@ pub struct Job {
     pub groups: Groups,
     pub expires_at_ms: u64,
     pub material_expires_at_ms: u64,
+    /// Stock when this lease started. Settlement uses it to keep a key's priority.
+    #[serde(default)]
+    pub occupied_batches: usize,
 }
 impl Job {
     pub fn batch_ids(&self) -> Vec<[u8; 32]> {
@@ -128,6 +131,13 @@ const MATERIAL_LIFETIME_MS: u64 = 60 * 60 * 1_000;
 struct Waiting {
     key: KeyScope,
     expires_at_ms: u64,
+    #[serde(default)]
+    below_minimum: bool,
+}
+/// A key below the signing minimum cannot sign, so it goes ahead of keys that can.
+/// The sort is stable, so each group keeps its queue order.
+fn order_waiting(waiting: &mut [Waiting]) {
+    waiting.sort_by_key(|entry| !entry.below_minimum);
 }
 pub async fn claim(
     store: &impl Store,
@@ -151,9 +161,11 @@ pub async fn claim(
         .filter(|job| job.key == key)
         .cloned()
         .collect();
+    let occupied_batches = occupied.include_pending(&own_jobs).len();
+    let below_minimum = occupied_batches < policy.minimum_ready_batches();
     let remaining = policy
         .refill_target_batches()
-        .saturating_sub(occupied.include_pending(&own_jobs).len());
+        .saturating_sub(occupied_batches);
     if remaining == 0 {
         withdraw(store, &key).await?;
         return Ok(Claim::Busy {
@@ -173,6 +185,7 @@ pub async fn claim(
                 continue;
             }
             entry.expires_at_ms = now.saturating_add(DEMAND_LIFETIME_MS);
+            entry.below_minimum = below_minimum;
             queued = true;
         } else if admission::active_key(store, &entry.key)
             .await?
@@ -188,8 +201,10 @@ pub async fn claim(
         waiting.push(Waiting {
             key: key.clone(),
             expires_at_ms: now.saturating_add(DEMAND_LIFETIME_MS),
+            below_minimum,
         });
     }
+    order_waiting(&mut waiting);
     let busy = Claim::Busy {
         retry_at_ms: now.saturating_add(5_000),
     };
@@ -256,6 +271,7 @@ pub async fn claim(
         groups,
         expires_at_ms: now.saturating_add(90_000),
         material_expires_at_ms: now.saturating_add(MATERIAL_LIFETIME_MS),
+        occupied_batches,
     };
     if !owns_producer {
         waiting.remove(0);
@@ -354,6 +370,7 @@ pub async fn finish(
                 }
             }
             store.delete(job.producer_slot.storage_key()).await?;
+            keep_turn_below_minimum(store, policy, job, outcome, now).await?;
         }
         None => {}
     }
@@ -376,6 +393,38 @@ pub async fn finish(
         wake.push(job.key.clone());
     }
     Ok(wake)
+}
+
+/// Wake hints follow queue order, so a key that still cannot sign must queue before
+/// settlement returns them. Otherwise a key that can sign takes the free slot first.
+async fn keep_turn_below_minimum(
+    store: &impl Store,
+    policy: &policy::Policy,
+    job: &Job,
+    outcome: Outcome,
+    now: u64,
+) -> Result<()> {
+    let added = match outcome {
+        Outcome::Published => job.batch_ids().len(),
+        Outcome::Unused | Outcome::Failed | Outcome::Interrupted => 0,
+    };
+    if job.occupied_batches.saturating_add(added) >= policy.minimum_ready_batches()
+        || !key_is_active(store, &job.key).await?
+    {
+        return Ok(());
+    }
+    let original: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
+    if original.len() >= MAX_WAITING_KEYS || original.iter().any(|entry| entry.key == job.key) {
+        return Ok(());
+    }
+    let mut waiting = original.clone();
+    waiting.push(Waiting {
+        key: job.key.clone(),
+        expires_at_ms: now.saturating_add(DEMAND_LIFETIME_MS),
+        below_minimum: true,
+    });
+    order_waiting(&mut waiting);
+    persist_waiting(store, &original, &waiting).await
 }
 
 async fn record_failure(store: &impl Store, slot: ProducerSlot, now: u64) -> Result<()> {

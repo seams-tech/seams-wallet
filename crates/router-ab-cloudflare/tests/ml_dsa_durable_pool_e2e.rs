@@ -1157,7 +1157,8 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let generic_registration = generic_registration::run(&directory);
     registration_allocator_campaign(&directory);
     registration_retirement_campaign(&directory);
-    let refill_fairness = refill_fairness_campaign(&directory);
+    let mut refill_fairness = refill_fairness_campaign(&directory);
+    refill_fairness["signing_minimum"] = refill_signing_minimum_campaign(&directory);
     let parallel_refill = parallel_refill::campaign(&directory);
     let refill_backoff = refill_backoff::campaign(&directory);
     let producer_lifecycle = producer_lifecycle::campaign(&directory);
@@ -1506,6 +1507,90 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
         "bounded_waiting_keys": entries.len(),
         "distinct_grant_batches": batches.len(),
         "grants": grants,
+    })
+}
+
+/// A key that cannot sign yet keeps the slot until it reaches the signing minimum.
+fn refill_signing_minimum_campaign(directory: &Path) -> serde_json::Value {
+    let router = Db::open(&directory.join("refill-signing-minimum.sqlite"));
+    let target = Policy::default().refill_target_batches();
+    let claim = |key: &KeyScope, batches: usize, now: u64| {
+        tx(
+            &router,
+            m::refill::claim(
+                &router,
+                &Policy::default(),
+                key.clone(),
+                observed_stock(target - batches),
+                now,
+            ),
+        )
+        .unwrap()
+    };
+    let finish = |job: &m::refill::Job, now: u64| {
+        tx(
+            &router,
+            m::refill::finish(
+                &router,
+                &Policy::default(),
+                job,
+                m::refill::Outcome::Published,
+                now,
+            ),
+        )
+        .unwrap()
+    };
+    let acquired = |claimed: m::refill::Claim| match claimed {
+        m::refill::Claim::Acquired { job } => job,
+        other => panic!("The refill turn was not granted: {other:?}"),
+    };
+    let busy = |claimed: m::refill::Claim| matches!(claimed, m::refill::Claim::Busy { .. });
+    let (running, older, fresh, second) = (
+        key("minimum-running"),
+        key("minimum-older"),
+        key("minimum-fresh"),
+        key("minimum-second"),
+    );
+    for key in [&running, &older, &fresh, &second] {
+        activate(&router, key);
+    }
+
+    // The fresh key arrives last and still goes ahead of the key that can sign.
+    let job = acquired(claim(&running, 10, 1_000));
+    assert!(busy(claim(&older, 10, 1_001)));
+    assert!(busy(claim(&fresh, 2, 1_002)));
+    assert_eq!(finish(&job, 1_003), vec![fresh.clone(), running.clone()]);
+    assert!(busy(claim(&older, 10, 1_004)));
+
+    // It keeps the turn after each job. At the minimum, the older key is next.
+    let mut grants = Vec::new();
+    for (index, stock) in [2_usize, 4, 6].into_iter().enumerate() {
+        let now = 1_010 + index as u64 * 10;
+        let job = acquired(claim(&fresh, stock, now));
+        assert_eq!(job.occupied_batches, stock);
+        grants.push(stock);
+        let wake = finish(&job, now + 1);
+        if stock < 6 {
+            assert_eq!(wake, vec![fresh.clone()]);
+            assert!(busy(claim(&older, 10, now + 2)));
+        } else {
+            assert_eq!(wake, vec![older.clone(), fresh.clone()]);
+        }
+    }
+    let job = acquired(claim(&older, 10, 1_050));
+    assert_eq!(finish(&job, 1_051), vec![older.clone()]);
+
+    // Two keys that cannot sign share the slot in queue order.
+    let job = acquired(claim(&fresh, 2, 1_060));
+    assert!(busy(claim(&second, 2, 1_061)));
+    assert_eq!(finish(&job, 1_062), vec![second.clone(), fresh.clone()]);
+    assert!(busy(claim(&fresh, 4, 1_063)));
+    let job = acquired(claim(&second, 2, 1_064));
+    assert_eq!(finish(&job, 1_065), vec![fresh.clone(), second.clone()]);
+    serde_json::json!({
+        "below_minimum_goes_first": true,
+        "turn_kept_until_minimum": grants,
+        "keys_below_minimum_alternate": true,
     })
 }
 
