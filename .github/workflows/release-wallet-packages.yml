@@ -61,6 +61,8 @@ jobs:
     environment: npm-release
     env:
       SEAMS_RELEASE_PACKAGE: ${{ inputs.package }}
+      # A pre-release version must not become the default install.
+      NPM_DIST_TAG: ${{ contains(inputs.version, '-') && 'next' || 'latest' }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -158,11 +160,11 @@ jobs:
       - name: Publish @seams/wallet-server
         if: inputs.package == 'all'
         working-directory: packages/wallet-server
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
       - name: Publish @seams/wallet
         if: inputs.package != 'voiceid'
         working-directory: packages/wallet
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
       - name: Publish @seams/voiceid
         working-directory: packages/voiceid
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
