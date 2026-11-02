@@ -102,6 +102,9 @@ async function runSettingsPresentation(
   });
   await injectImportMap(page, { frontendUrl: baseURL });
   await page.goto(baseURL);
+  // The bounds below assume overlay scrollbars. A classic scrollbar's stable gutter
+  // narrows fixed layout by its width, which Linux Chromium shows and macOS hides.
+  await page.addStyleTag({ content: 'html { scrollbar-width: none; }' });
   await page.evaluate(setPreviewSearch, `?theme=dark&presentation=${presentation}`);
   await page.addScriptTag({ type: 'module', content: bundle.outputFiles[0].text });
   const opener = page.getByRole('button', { name: 'App wallet settings', exact: true });
