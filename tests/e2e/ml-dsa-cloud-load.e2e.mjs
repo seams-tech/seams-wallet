@@ -78,7 +78,7 @@ async function registrations(count) {
 
 async function start(name, count, durationMs) {
   assert.match(name, /^[a-z0-9-]{1,60}$/);
-  assert.ok([2, 4, 8].includes(count));
+  assert.ok([2, 4, 8, 16].includes(count));
   assert.ok(durationMs >= 60000 && durationMs <= 1800000);
   await mkdir(folder);
   const wallets = await registrations(count);
