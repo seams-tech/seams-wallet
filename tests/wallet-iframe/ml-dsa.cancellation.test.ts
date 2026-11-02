@@ -215,7 +215,8 @@ function resolveControl(args: { path: string; importer: string }) {
   }
   if (
     /\/mlDsa(Transaction|SigningExecution)\.ts$/.test(importer) &&
-    args.path.endsWith('/mlDsaSigning')
+    args.path.endsWith('/mlDsaSigning') &&
+    !args.path.startsWith('@shared/')
   )
     return { path: 'rpc', namespace: 'ml-dsa-control' };
   if (/\/host\/createNearCommands\.ts$/.test(importer) && args.path.endsWith('/near/actions'))
