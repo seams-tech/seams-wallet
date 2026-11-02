@@ -66,6 +66,7 @@ const baseTransaction = {
   kind: 'transaction',
   walletId,
   txSigningRequests,
+  tokenMetadata: new Map(),
   rpcCall,
   nearPublicKeyStr,
   nearFundingRequest,

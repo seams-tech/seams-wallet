@@ -43,7 +43,13 @@ import type {
   NearEd25519MaterialIdentity,
   NearSigningApiDeps,
 } from '../../interfaces/operationDeps';
+import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
+import { resolveNearNetwork } from '@/core/config/chains';
 import { buildNearPreparationDisplayModel } from '../../chains/near/display';
+import {
+  immediateNearTokenMetadata,
+  resolveNearTokenMetadata,
+} from '../../chains/near/tokenTransfers';
 import { signNearWithUiConfirm } from './nearSigningFlow';
 import { resolveThresholdEd25519CommitQueueKey } from '../../threshold/ed25519/commitQueue';
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
@@ -1431,12 +1437,24 @@ async function signTransaction(
   args: SignTransactionWithActionsInput,
 ): Promise<SignTransactionResult> {
   const modalStartedAt = performance.now();
+  const runtime = deps.getSignerWorkerContext();
+  const network = resolveNearNetwork(runtime.chains || PASSKEY_MANAGER_DEFAULT_CONFIGS.network.chains);
+  // The confirmation prompt waits for this lookup, so it starts before the preparation modal opens.
+  void resolveNearTokenMetadata({
+    nearClient: runtime.nearClient,
+    network,
+    txSigningRequests: [args.transaction],
+  });
   await deps.touchConfirm.openTransactionPreparationModal({
     chain: 'near',
     walletLabel: String(args.commandSubject.nearAccount.accountId),
     txSigningRequests: [args.transaction],
     model: buildNearPreparationDisplayModel({
       txSigningRequests: [args.transaction],
+      tokenMetadata: immediateNearTokenMetadata({
+        network,
+        txSigningRequests: [args.transaction],
+      }),
       signerAccount: String(args.commandSubject.nearAccount.accountId),
       title: args.title,
       subtitle: args.body,

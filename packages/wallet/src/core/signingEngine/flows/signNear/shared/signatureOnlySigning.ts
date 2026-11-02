@@ -148,7 +148,7 @@ type NearSignatureOnlySigningMaterial =
 type SignatureOnlyConfirmationRequest =
   | Pick<
       Extract<ConfirmSignatureOnlySigningOperationRequest, { kind: 'delegate' }>,
-      'kind' | 'delegate' | 'rpcCall'
+      'kind' | 'delegate' | 'tokenMetadata' | 'rpcCall'
     >
   | Pick<
       Extract<ConfirmSignatureOnlySigningOperationRequest, { kind: 'nep413' }>,

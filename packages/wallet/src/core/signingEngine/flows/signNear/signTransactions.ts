@@ -33,6 +33,7 @@ import {
   type ResolvedRouterAbEd25519WalletSessionState,
 } from '../../session/warmCapabilities/routerAbEd25519WalletSessionState';
 import { buildNearTransactionSigningPayload } from '../../chains/near/payloads';
+import { resolveNearTokenMetadata } from '../../chains/near/tokenTransfers';
 import {
   SigningOperationIntent,
   SigningSessionIds,
@@ -580,6 +581,11 @@ async function runNearAuthorizationRequiredTransactionSigning(
       signatureUses: signingOperationUses,
     },
   });
+  const tokenMetadata = await resolveNearTokenMetadata({
+    nearClient: ctx.nearClient,
+    network: resolveNearNetwork(ctx.chains || PASSKEY_MANAGER_DEFAULT_CONFIGS.network.chains),
+    txSigningRequests: [confirmationTransaction],
+  });
   let confirmation: ConfirmTransactionSigningOperationResult;
   try {
     confirmation = await runTransactionSigningConfirmationCommand({
@@ -597,6 +603,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
         }),
         walletId: candidate.walletId,
         txSigningRequests: [confirmationTransaction],
+        tokenMetadata,
         rpcCall: resolvedRpcCall,
         nearPublicKeyStr: signingContext.signingNearPublicKeyStr,
         nearFundingRequest: {
@@ -970,6 +977,11 @@ async function runAuthorizedNearTransactionWithActionsSigning({
     }).catch(ignoreStartedPrepareFailure);
   };
   const confirmationStartedAt = performance.now();
+  const tokenMetadata = await resolveNearTokenMetadata({
+    nearClient: ctx.nearClient,
+    network: resolveNearNetwork(ctx.chains || PASSKEY_MANAGER_DEFAULT_CONFIGS.network.chains),
+    txSigningRequests: [confirmationTransaction],
+  });
   let confirmation: ConfirmTransactionSigningOperationResult;
   try {
     confirmation = await runTransactionSigningConfirmationCommand({
@@ -990,6 +1002,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
           : {}),
         walletId: String(signingLane.identity.signer.account.wallet.walletId),
         txSigningRequests: [confirmationTransaction],
+        tokenMetadata,
         rpcCall: resolvedRpcCall,
         nearPublicKeyStr: signingContext.signingNearPublicKeyStr,
         nearFundingRequest: {

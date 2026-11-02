@@ -104,6 +104,13 @@ The account-menu browser flow verifies host CSS, standalone components, portal r
 Overlay browser checks verify frame geometry with hostile host CSS in Chromium, Firefox, and WebKit.
 Application content supplied to a custom transaction review retains application styling. SDK review titles and fallback controls use scoped defaults.
 
+## NEAR token transfer review
+
+A request with one `ft_transfer` or `ft_transfer_call` action and an attached deposit of exactly 1 yoctoNEAR headlines the token amount. The wallet review shows the final recipient and the token contract, and its details show the deposit as a required security deposit.
+The wallet takes the symbol and decimals from its own list or from `ft_metadata` on the receiver, never from the application. If the metadata is not available within 2 seconds, the review shows the exact base units and the token contract.
+Only a token on the wallet's list uses official artwork. A contract outside the list that claims a listed symbol gets a warning.
+Any other action or attached NEAR keeps the NEAR amount as the headline, and the token transfers appear as rows beside it.
+
 ## Application confirmation preferences
 
 Preference setters update the application's display immediately. Each write captures

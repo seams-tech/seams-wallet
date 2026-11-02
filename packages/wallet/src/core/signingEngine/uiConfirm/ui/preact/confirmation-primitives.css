@@ -10,6 +10,16 @@
   scrollbar-width: thin;
 }
 
+/* Native scrollbars and controls follow the theme. The page root keeps color-scheme: normal so the
+   iframe canvas stays transparent. */
+:where(.seams-wallet-ui[data-theme='dark']) {
+  color-scheme: dark;
+}
+
+:where(.seams-wallet-ui[data-theme='light']) {
+  color-scheme: light;
+}
+
 :where(.seams-wallet-ui).seams-confirmation-surface {
   --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
   outline: none;
