@@ -126,12 +126,21 @@ class ExportViewerHost {
     if (binding.kind === 'disabled') return;
     const reporter = createWalletIframeSurfaceMeasurementReporter({
       kind: 'request_surface',
-      element: this.surface.element,
+      element: this.measuredElement(),
       requestId: binding.requestId,
       postMeasurement: binding.postMeasurement,
     });
     if (this.state === state) state.reporter = reporter;
     else reporter.disconnect();
+  }
+
+  private measuredElement(): HTMLElement {
+    // A standalone drawer's fixed card gives the surface element no height of its own.
+    if (this.context === 'wallet-iframe') return this.surface.element;
+    return (
+      this.surface.element.querySelector<HTMLElement>('.seams-confirmation-drawer') ??
+      this.surface.element
+    );
   }
 }
 

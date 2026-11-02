@@ -444,7 +444,7 @@ export class OverlayController {
     if (!dialog || mode.kind === 'hidden') return;
     const preparing =
       geometryKind(mode.geometry) === 'provisional' || this.pendingRevealFrame !== null;
-    if (!preparing && (dialog.inert || !dialog.open)) this.captureFocusForDialog();
+    if (!dialog.open || (!preparing && dialog.inert)) this.captureFocusForDialog();
     dialog.inert = preparing;
     dialog.setAttribute('aria-hidden', String(preparing));
     const modal = !preparing && mode.kind !== 'compact_auth_menu' && mode.focusTrap;
