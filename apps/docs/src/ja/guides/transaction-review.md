@@ -60,7 +60,7 @@ review: {
 `origin` を渡すと、アプリの要素の位置から確認画面が広がります。`onVisible` を使うと、
 確認画面やウォレット承認が表示された時点を取得できます。
 
-```tsx
+```tsx [部分的な実装例]
 review: {
   title: '入金の確認',
   validity: { kind: 'unbounded' },

@@ -71,7 +71,7 @@ GetSignalのパスキーはGetSignalを認証します。
 読み取り用の `useSeams().wallet` で `review` を渡すと、ウォレットの承認の前にReactコンポーネントを表示できます。
 呼び出し元の上に [`TransactionReviewHost`](/ja/guides/transaction-review#mount-the-host) を配置してください。
 
-```tsx [部分的な例]
+```tsx [部分的な実装例]
 const operation = wallet.near.prepareOwnerTransaction({
   transaction,
   review: {

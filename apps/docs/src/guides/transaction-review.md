@@ -61,7 +61,7 @@ buttons without another dialog or focus trap.
 Pass `origin` to grow the review from your own element. Use `onVisible` to learn when the
 review or the wallet approval is on screen.
 
-```tsx
+```tsx [Partial example]
 review: {
   title: 'Review deposit',
   validity: { kind: 'unbounded' },
