@@ -623,6 +623,7 @@ for (const [variant, context, closeName] of [
 ] as const) {
   test(`a ${context} ${variant} opens without a focus ring and tabs to its close button`, async ({
     page,
+    browserName,
   }) => {
     await page.evaluate(
       ({ variant, context }) => window.__confirmationMount.mount(variant, context),
@@ -634,7 +635,9 @@ for (const [variant, context, closeName] of [
     });
     expect(focused.tag).not.toBe('BUTTON');
     expect(focused.outline).toBe('none');
-    await page.keyboard.press('Tab');
+    // macOS WebKit uses Option-Tab to include buttons with default keyboard settings.
+    const nextControl = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
+    await page.keyboard.press(nextControl);
     await expect(page.getByRole('button', { name: closeName, exact: true })).toBeFocused();
   });
 }

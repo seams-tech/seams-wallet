@@ -74,8 +74,12 @@ async function check(page: Page, file: string, expected: number) {
 }
 
 test('natural speech matches its challenge and rejects other challenges and unrelated speech', run);
-async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
-  testInfo.setTimeout(180_000);
+async function run(
+  { page, browserName }: { page: Page; browserName: string },
+  testInfo: TestInfo,
+): Promise<void> {
+  // Firefox takes about 110 ms per check and Chromium about 10 ms, across 1,925 checks.
+  testInfo.setTimeout(browserName === 'firefox' ? 600_000 : 180_000);
   await page.route('**/phrase-probe/*', serveChunk);
   await page.route('**/sdk/**', serveAsset);
   await page.route('**/phrase-tolerance', servePage);
