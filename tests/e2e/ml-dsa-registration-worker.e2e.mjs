@@ -288,9 +288,12 @@ try {
     let payload = await registrationInput(client, epoch, continuity);
     if (epoch === 1) {
       const empty = await post('/router-ab/ml-dsa/register', payload.request);
-      assert.equal(empty.status, 'unavailable');
-      assert.ok(empty.retry_at_ms > Date.now() - 10000);
-      observations.emptyPoolRetryTime = true;
+      // A hosted group can hold a job that an earlier wallet's active scope kept ready.
+      if (!hostedUrl || empty.status !== 'existing') {
+        assert.equal(empty.status, 'unavailable');
+        assert.ok(empty.retry_at_ms > Date.now() - 10000);
+        observations.emptyPoolRetryTime = true;
+      }
       firstRequest = payload.request;
     }
     if (losePreparation && epoch === 1) observations.preparationRetirement = await checkPreparationRetirement();
