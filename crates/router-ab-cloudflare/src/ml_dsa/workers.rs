@@ -140,7 +140,15 @@ fn protocol_error(error: impl Into<RouterAbProtocolError>) -> worker::Error {
     worker::Error::RustError(error.into().to_string())
 }
 fn storage_error(error: worker::Error) -> RouterAbProtocolError {
-    let _ = error;
+    // Callers receive one fixed message. The host's own text stays in the Worker log.
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_host_error_v1",
+            "kind": <&'static str>::from(&error),
+            "error": error.to_string(),
+        })
+    );
     invalid("ML-DSA storage operation failed")
 }
 fn json<T: Serialize>(value: T) -> Result<serde_json::Value> {
