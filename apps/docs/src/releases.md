@@ -1,9 +1,28 @@
 ---
-title: Release 0.41.1
-description: Token amounts and artwork in the NEAR and EVM confirmation reviews.
+title: Release 0.42.0
+description: Application review for owner NEAR operations, review origin and visibility events, and the export keys drawer fix.
 ---
 
-# Release 0.41.1
+# Release 0.42.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.42.0**.
+
+- `prepareOwnerTransaction` on a readable React wallet accepts `review`. See [Show your review first](/guides/application-auth#show-your-review-first). The operation state is `reviewing` until **Continue to wallet**. A `switch` on the state must handle `reviewing`.
+- `review.origin` starts the first review from a rectangle in your page. It never applies to wallet approval. With reduced motion, the review appears in place. See [Start from your own modal](/guides/transaction-review#start-from-your-own-modal).
+- `review.onVisible({ stage, rect })` reports `review` or `wallet` when that surface is on screen. **Back to review** reports `review` again. An error in the callback cannot change the transaction.
+- The export keys drawer appears again. SDK 0.39.0 to 0.41.1 kept it hidden, so export could not finish in the default drawer.
+- A loading wallet no longer clears the focus of your page. A visible review takes keyboard focus on its heading.
+- A focused control stays in view after transaction details expand in a short viewport. This fault started in 0.30.0.
+- In Firefox, a standalone modal or drawer no longer opens with a focus ring on its close button.
+- A page load makes one session read less when the first preference snapshot names the wallet that the read already answered.
+- `review` on `prepareOwnerTransaction` needs a 0.42.0 wallet host. An older host answers `review_invalid_input`. Keep package code and hosted assets on the same version.
+
+`0.42.0-rc.1` was a test version under the npm `next` tag. Use 0.42.0.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.41.1
 
 The browser SDK, server SDK, and VoiceID plugin use **0.41.1**.
 
