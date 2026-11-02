@@ -176,7 +176,7 @@ const hostScript = `
         return;
       }
       if (message.type === 'PM_CANCEL' && message.payload?.transactionReview) {
-        reviewRequests.get(message.payload.requestId)?.admission.cancel(Object.assign(new Error('Cancelled'), { code: message.payload.reviewErrorCode ?? 'cancelled' }));
+        reviewRequests.get(message.payload.requestId)?.admission.cancel(Object.assign(new Error('Reviewed request cancelled'), { code: message.payload.reviewErrorCode ?? 'cancelled' }));
         return;
       }
       if (!message.transactionReview) { ordinary(event); return; }
@@ -187,7 +187,7 @@ const hostScript = `
       }
       const metadata = message.transactionReview;
         const { prepareReview } = await import(location.origin + '/review-wallet-probe.js');
-      const admission = prepareReview(metadata, postReviewMessage);
+      const admission = prepareReview(metadata, postReviewMessage, message.type);
       reviewRequests.set(message.requestId, { admission });
       window.parent.postMessage({ type: 'TEST_REVIEW_DISPATCH', message }, '*');
     };
@@ -243,14 +243,6 @@ async function mountReviewApplication(page: Page): Promise<void> {
   );
   await page.evaluate(
     async ({ walletOrigin }) => {
-      const React = await import('react');
-      const { createRoot } = await import('react-dom/client');
-      const { SeamsWebProvider } = await import('/_test-sdk/esm/react/context/SeamsWebProvider.js');
-      const { TransactionReviewHost } =
-        await import('/_test-sdk/esm/react/transactionReview/TransactionReviewHost.js');
-      const { useSeams } = await import('/_test-sdk/esm/react/context/index.js');
-      const h = React.createElement;
-      const PurchaseContext = React.createContext('missing-context');
       const state = window as any;
       state.reviewResults = [];
       state.reviewViolations = [];
@@ -262,6 +254,14 @@ async function mountReviewApplication(page: Page): Promise<void> {
           blocked: event.blockedURI,
         }),
       );
+      const React = await import('react');
+      const { createRoot } = await import('react-dom/client');
+      const { SeamsWebProvider } = await import('/_test-sdk/esm/react/context/SeamsWebProvider.js');
+      const { TransactionReviewHost } =
+        await import('/_test-sdk/esm/react/transactionReview/TransactionReviewHost.js');
+      const { useSeams } = await import('/_test-sdk/esm/react/context/index.js');
+      const h = React.createElement;
+      const PurchaseContext = React.createContext('missing-context');
       state.reviewDispatches = [];
       state.reviewSigned = 0;
       window.addEventListener('message', (event) => {
@@ -355,6 +355,17 @@ async function mountReviewApplication(page: Page): Promise<void> {
 }
 
 test.setTimeout(25_000);
+
+async function expectNearFailure(
+  page: Page,
+  index: number,
+  error: string,
+  kind: 'not_submitted' | 'submission_unknown' = 'not_submitted',
+): Promise<void> {
+  await expect
+    .poll(() => page.evaluate((index) => (window as any).reviewResults[index], index))
+    .toEqual({ kind: 'result', value: { success: false, kind, error } });
+}
 
 test.beforeEach(async ({ page }) => {
   await mountReviewApplication(page);
@@ -522,9 +533,7 @@ test('one hook locks, unlocks, provisions NEAR, and replaces disposed review own
     await state.reviewContext.lock();
   });
   await expect.poll(() => page.evaluate(() => (window as any).reviewWallet)).toBeNull();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('review_identity_changed');
+  await expectNearFailure(page, 0, 'The wallet or signing session changed');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 
   const unlockResult = await page.evaluate(async () => {
@@ -555,27 +564,25 @@ test('one hook locks, unlocks, provisions NEAR, and replaces disposed review own
   });
   await expect(page.getByRole('button', { name: 'Buy', exact: true })).toBeEnabled();
 
-  const staleOwnerCode = await page.evaluate(async () => {
-    const { previousNear } = window as any;
-    try {
-      await previousNear.signAndSendTransaction({
-        receiverId: 'receiver.testnet',
-        actions: [],
-        review: { title: 'Old wallet', validity: { kind: 'unbounded' }, render: () => null },
-      });
-      return null;
-    } catch (error: any) {
-      return error.code;
-    }
+  const staleOwnerResult = await page.evaluate(() =>
+    (window as any).previousNear.signAndSendTransaction({
+      receiverId: 'receiver.testnet',
+      actions: [],
+      review: { title: 'Old wallet', validity: { kind: 'unbounded' }, render: () => null },
+    }),
+  );
+  expect(staleOwnerResult).toEqual({
+    success: false,
+    kind: 'not_submitted',
+    error: 'This useSeams wallet owner has been disposed',
   });
-  expect(staleOwnerCode).toBe('review_owner_disposed');
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
   await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults[1]))
-    .toEqual({ kind: 'result', value: { success: true, transactionId: 'review-transaction' } });
+    .toMatchObject({ kind: 'result', value: { success: true, transactionId: 'review-transaction' } });
   const evidence = await page.evaluate(() => {
     const state = window as any;
     return {
@@ -591,7 +598,7 @@ test('one hook locks, unlocks, provisions NEAR, and replaces disposed review own
   const evidencePath = testInfo.outputPath('seams-context-lifecycle.json');
   await writeFile(
     evidencePath,
-    JSON.stringify({ unlockResult, pendingNear, staleOwnerCode, ...evidence }, null, 2),
+    JSON.stringify({ unlockResult, pendingNear, staleOwnerResult, ...evidence }, null, 2),
   );
   await testInfo.attach('seams-context-lifecycle.json', {
     path: evidencePath,
@@ -649,7 +656,9 @@ test('context, immutable intent, continuous iframe handoff and explicit wallet a
   await wallet.locator('button.confirm').click();
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults))
-    .toEqual([{ kind: 'result', value: { success: true, transactionId: 'review-transaction' } }]);
+    .toMatchObject([
+      { kind: 'result', value: { success: true, transactionId: 'review-transaction' } },
+    ]);
   await expect(page.getByRole('button', { name: 'Buy', exact: true })).toBeFocused();
   expect(await page.evaluate(() => (window as any).reviewViolations)).toEqual([]);
 });
@@ -693,9 +702,7 @@ test('cancelling after Back settles the pending request and releases the review 
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   await wallet.getByRole('button', { name: 'Back to review', exact: true }).click();
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('cancelled');
+  await expectNearFailure(page, 0, 'Reviewed request cancelled');
   expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Purchase note' })).toBeVisible();
@@ -713,8 +720,8 @@ test('Back keeps the original quote deadline and rejects an expired Continue', a
     function render(controls: any) {
       return createElement('button', { onClick: controls.continueToWallet }, 'Continue quote');
     }
-    function captureError(error: any) {
-      state.reviewResults.push({ kind: 'error', code: error.code });
+    function capture(value: unknown) {
+      state.reviewResults.push({ kind: 'result', value });
     }
     void state.reviewWallet.near
       .signAndSendTransaction({
@@ -722,7 +729,7 @@ test('Back keeps the original quote deadline and rejects an expired Continue', a
         actions: [{ type: 'Transfer', amount: '1' }],
         review: { title: 'Expiring quote', validity: { kind: 'expires_at', atMs }, render },
       })
-      .catch(captureError);
+      .then(capture);
   }, deadline);
   await page.getByRole('button', { name: 'Continue quote', exact: true }).click();
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
@@ -730,9 +737,7 @@ test('Back keeps the original quote deadline and rejects an expired Continue', a
   await expect(page.getByRole('button', { name: 'Continue quote', exact: true })).toBeVisible();
   await page.clock.setFixedTime(new Date(deadline + 1));
   await page.getByRole('button', { name: 'Continue quote', exact: true }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults))
-    .toEqual([{ kind: 'error', code: 'review_expired' }]);
+  await expectNearFailure(page, 0, 'Reviewed request cancelled');
   expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
   expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
 });
@@ -755,9 +760,7 @@ test('double Continue dispatches once and releases the lease after approval', as
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[1]?.code))
-    .toBe('cancelled');
+  await expectNearFailure(page, 1, 'Transaction review cancelled');
   expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
 });
 
@@ -784,13 +787,16 @@ for (const phase of ['reviewing', 'wallet_approval'] as const) {
       state.reviewControls.continueToWallet();
       state.reviewControls.cancel();
     });
-    const expectedError =
-      phase === 'reviewing'
-        ? { kind: 'error', message: 'Wallet iframe connection closed' }
-        : { kind: 'error', code: 'connection_closed' };
-    await expect
-      .poll(() => page.evaluate(() => (window as any).reviewResults))
-      .toMatchObject([expectedError]);
+    if (phase === 'reviewing') {
+      await expectNearFailure(page, 0, 'Wallet iframe connection closed');
+    } else {
+      await expectNearFailure(
+        page,
+        0,
+        'Wallet iframe connection closed while handling PM_SIGN_AND_SEND_TX',
+        'submission_unknown',
+      );
+    }
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
     expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(
@@ -811,9 +817,7 @@ test('iframe reload cancels its review and a fresh connection can review again',
   await frame.evaluate(() => {
     location.reload();
   });
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults))
-    .toMatchObject([{ kind: 'error', message: 'Wallet iframe connection closed' }]);
+  await expectNearFailure(page, 0, 'Wallet iframe connection closed');
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
@@ -914,14 +918,18 @@ test('settled receipt is replaced atomically and late activity cannot reclaim th
   const receiptId = await page.evaluate(() => (window as any).reviewDispatches[0].requestId);
   await page.evaluate(() => {
     const state = window as any;
-    state.reviewDialogOpenChanges = 0;
-    function recordChanges(records: MutationRecord[]) {
-      state.reviewDialogOpenChanges += records.length;
+    const dialog = document.querySelector<HTMLDialogElement>('dialog[open]')!;
+    state.reviewDialogFrames = 0;
+    state.reviewDialogGaps = 0;
+    state.reviewDialogSampling = true;
+    function sample() {
+      state.reviewDialogFrames += 1;
+      if (!dialog.matches(':modal') || dialog.inert || getComputedStyle(dialog).opacity !== '1') {
+        state.reviewDialogGaps += 1;
+      }
+      if (state.reviewDialogSampling) requestAnimationFrame(sample);
     }
-    new MutationObserver(recordChanges).observe(document.querySelector('dialog[open]')!, {
-      attributes: true,
-      attributeFilter: ['open'],
-    });
+    requestAnimationFrame(sample);
   });
   await page.getByRole('button', { name: 'Buy', exact: true }).dispatchEvent('click');
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
@@ -937,7 +945,14 @@ test('settled receipt is replaced atomically and late activity cannot reclaim th
     );
     await expect(page.getByText('Purchase context preserved')).toBeVisible();
   }
-  expect(await page.evaluate(() => (window as any).reviewDialogOpenChanges)).toBe(0);
+  await expect(page.getByRole('heading', { name: 'Review purchase', exact: true })).toBeFocused();
+  const dialogFrames = await page.evaluate(() => {
+    const state = window as any;
+    state.reviewDialogSampling = false;
+    return { frames: state.reviewDialogFrames, gaps: state.reviewDialogGaps };
+  });
+  expect(dialogFrames.frames).toBeGreaterThan(0);
+  expect(dialogFrames.gaps).toBe(0);
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(2);
 });
@@ -945,17 +960,13 @@ test('settled receipt is replaced atomically and late activity cannot reclaim th
 test('review cancellation and owner disposal never dispatch a wallet request', async ({ page }) => {
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('cancelled');
+  await expectNearFailure(page, 0, 'Transaction review cancelled');
   await page.evaluate(() => (window as any).reviewControls.continueToWallet());
   expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
   await page.evaluate(() => (window as any).reviewRoot.unmount());
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[1]?.code))
-    .toBe('review_owner_disposed');
+  await expectNearFailure(page, 1, 'The transaction review owner was disposed');
   expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
 });
 
@@ -974,11 +985,13 @@ test('FIFO reviews keep one owner, expire queued quotes and ignore old controls'
     };
     state.reviewWallet.near
       .signAndSendTransaction({ receiverId: 'receiver.testnet', actions: [], review })
-      .catch((error: any) => {
-        state.queuedError = error.code;
+      .then((result: any) => {
+        state.queuedError = result.error;
       });
   });
-  await expect.poll(() => page.evaluate(() => (window as any).queuedError)).toBe('review_expired');
+  await expect
+    .poll(() => page.evaluate(() => (window as any).queuedError))
+    .toBe('This review has expired. Refresh the quote and try again.');
   await expect(page.getByText('Queued content')).toHaveCount(0);
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
@@ -999,15 +1012,11 @@ test('async failures stay visible until dismissal and the next review can render
   );
   expect(await page.evaluate(() => (window as any).reviewResults)).toEqual([]);
   await page.getByRole('button', { name: 'Dismiss', exact: true }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('review_render_failed');
+  await expectNearFailure(page, 0, 'The application review could not be displayed');
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[1]?.code))
-    .toBe('cancelled');
+  await expectNearFailure(page, 1, 'Review cancelled');
 });
 
 test('review geometry fits narrow screens and large content with reduced motion', async ({
@@ -1256,7 +1265,18 @@ test('all transaction methods forward one core failure and preserve callback own
     await page.evaluate(() => (window as any).methodControls.continueToWallet());
     await expect
       .poll(() => page.evaluate(() => (window as any).methodOutcome))
-      .toMatchObject({ kind: 'error', message: 'Core signing rejected' });
+      .toEqual(
+        method.startsWith('near')
+          ? {
+              kind: 'result',
+              value: {
+                success: false,
+                kind: 'submission_unknown',
+                error: 'Core signing rejected',
+              },
+            }
+          : { kind: 'error', message: 'Core signing rejected' },
+      );
     const expectedCallbacks = method.startsWith('near') ? ['onError', 'afterCall'] : [];
     expect(await page.evaluate(() => (window as any).methodCallbacks)).toEqual(expectedCallbacks);
   }
@@ -1286,43 +1306,41 @@ test('missing and duplicate hosts reject before dispatch and disposed methods st
       host: null,
       owner: new ReviewOwner(),
     });
-    let missingCode = '';
-    try {
-      await calls.nearSign({
-        receiverId: 'receiver.testnet',
-        actions: [],
-        review: {
-          title: 'Unavailable',
-          validity: { kind: 'unbounded' },
-          render: () => null,
-        },
-      });
-    } catch (error: any) {
-      missingCode = error.code;
-    }
+    const missing = await calls.nearSign({
+      receiverId: 'receiver.testnet',
+      actions: [],
+      review: {
+        title: 'Unavailable',
+        validity: { kind: 'unbounded' },
+        render: () => null,
+      },
+    });
     const disposedMethod = state.reviewWallet.near.signAndSendTransaction;
     state.reviewRoot.unmount();
     await Promise.resolve();
-    let disposedCode = '';
-    try {
-      await disposedMethod({
-        receiverId: 'receiver.testnet',
-        actions: [],
-        review: {
-          title: 'Disposed',
-          validity: { kind: 'unbounded' },
-          render: () => null,
-        },
-      });
-    } catch (error: any) {
-      disposedCode = error.code;
-    }
-    return { duplicateCode, missingCode, disposedCode, dispatches: state.reviewDispatches.length };
+    const disposed = await disposedMethod({
+      receiverId: 'receiver.testnet',
+      actions: [],
+      review: {
+        title: 'Disposed',
+        validity: { kind: 'unbounded' },
+        render: () => null,
+      },
+    });
+    return { duplicateCode, missing, disposed, dispatches: state.reviewDispatches.length };
   });
   expect(result).toEqual({
     duplicateCode: 'review_host_unavailable',
-    missingCode: 'review_host_unavailable',
-    disposedCode: 'review_owner_disposed',
+    missing: {
+      success: false,
+      kind: 'not_submitted',
+      error: 'Wrap this useSeams component in TransactionReviewHost inside SeamsWebProvider',
+    },
+    disposed: {
+      success: false,
+      kind: 'not_submitted',
+      error: 'This useSeams wallet owner has been disposed',
+    },
     dispatches: 0,
   });
 });
@@ -1348,16 +1366,16 @@ test('Suspense loading is cancellable and has a bounded lifetime', async ({ page
           render,
         },
       })
-      .catch((error: any) => {
-        state.loadingCode = error.code;
+      .then((result: any) => {
+        state.loadingError = result.error;
       });
   });
   await expect(page.getByRole('status')).toHaveText('Loading review…');
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeEnabled();
   await page.clock.fastForward(30_001);
   await expect
-    .poll(() => page.evaluate(() => (window as any).loadingCode))
-    .toBe('review_prepare_timeout');
+    .poll(() => page.evaluate(() => (window as any).loadingError))
+    .toBe('The application review did not finish loading');
   expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
 });
 
@@ -1373,9 +1391,7 @@ test('missing wallet activation acknowledgement cancels and releases the lease',
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
   await page.clock.fastForward(30_001);
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('review_prepare_timeout');
+  await expectNearFailure(page, 0, 'Reviewed request cancelled');
   expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
@@ -1408,9 +1424,7 @@ test('keyboard review preserves local input and wallet Escape cancels before sig
   await expect(wallet.locator('button.confirm')).toBeVisible();
   await wallet.locator('button.confirm').focus();
   await page.keyboard.press('Escape');
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('cancelled');
+  await expectNearFailure(page, 0, 'Reviewed request cancelled');
   expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
   await expect(buy).toBeFocused();
 });
@@ -1454,8 +1468,8 @@ test('same-wallet session replacement cancels active and queued reviews and rele
           render: () => 'Queued purchase content',
         },
       })
-      .catch((error: any) => {
-        state.queuedReplacementError = error.code;
+      .then((result: any) => {
+        state.queuedReplacementError = result.error;
       });
   });
   await frame.evaluate(() => {
@@ -1470,19 +1484,15 @@ test('same-wallet session replacement cancels active and queued reviews and rele
     });
   });
   await page.evaluate(() => (window as any).reviewRouter.getExactSessionState());
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('review_identity_changed');
+  await expectNearFailure(page, 0, 'The wallet or signing session changed');
   await expect
     .poll(() => page.evaluate(() => (window as any).queuedReplacementError))
-    .toBe('review_identity_changed');
+    .toBe('The wallet or signing session changed');
   expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[1]?.code))
-    .toBe('cancelled');
+  await expectNearFailure(page, 1, 'Transaction review cancelled');
 });
 
 test('host disposal after signing preserves the eventual wallet result', async ({ page }) => {
@@ -1504,7 +1514,9 @@ test('host disposal after signing preserves the eventual wallet result', async (
   await frame.evaluate(() => (window as any).releaseReviewResult());
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults))
-    .toEqual([{ kind: 'result', value: { success: true, transactionId: 'review-transaction' } }]);
+    .toMatchObject([
+      { kind: 'result', value: { success: true, transactionId: 'review-transaction' } },
+    ]);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
 
@@ -1525,8 +1537,8 @@ test('a thrown renderer shows the error boundary until dismissal without dispatc
           },
         },
       })
-      .catch((error: any) => {
-        state.renderFailure = error.code;
+      .then((result: any) => {
+        state.renderFailure = result.error;
       });
   });
   await expect(page.getByRole('alert')).toHaveText(
@@ -1537,7 +1549,7 @@ test('a thrown renderer shows the error boundary until dismissal without dispatc
   await page.getByRole('button', { name: 'Dismiss', exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => (window as any).renderFailure))
-    .toBe('review_render_failed');
+    .toBe('The application review could not be displayed');
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
@@ -1555,9 +1567,7 @@ test('Escape during a paused handoff cancels without waiting for animation compl
   await expect(page.locator('iframe.seams-wallet-overlay-iframe')).toHaveAttribute('inert', '');
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0, { timeout: 1000 });
-  await expect
-    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-    .toBe('cancelled');
+  await expectNearFailure(page, 0, 'Reviewed request cancelled');
   expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
 });
 
@@ -1594,9 +1604,7 @@ for (const dismissal of ['escape', 'backdrop'] as const) {
     await expect(page.getByRole('alert')).toBeVisible();
     if (dismissal === 'escape') await page.keyboard.press('Escape');
     else await page.mouse.click(10, 10);
-    await expect
-      .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
-      .toBe('review_render_failed');
+    await expectNearFailure(page, 0, 'The application review could not be displayed');
     expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
     await expect(page.locator('dialog[open]')).toHaveCount(0);
   });
@@ -1627,7 +1635,9 @@ test('cancelAll preserves a signing review until its real result settles', async
   await frame.evaluate(() => (window as any).releaseReviewResult());
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults))
-    .toEqual([{ kind: 'result', value: { success: true, transactionId: 'review-transaction' } }]);
+    .toMatchObject([
+      { kind: 'result', value: { success: true, transactionId: 'review-transaction' } },
+    ]);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
 
@@ -1651,7 +1661,7 @@ test('cancelAll removes queued reviews before releasing the active review', asyn
   await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(2);
   expect(
     await page.evaluate(() =>
-      (window as any).reviewResults.every((result: any) => result.kind === 'error'),
+      (window as any).reviewResults.every((result: any) => result.value?.kind === 'not_submitted'),
     ),
   ).toBe(true);
   await expect(page.locator('dialog[open]')).toHaveCount(0);

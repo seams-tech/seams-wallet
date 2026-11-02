@@ -62,15 +62,19 @@ function shouldServeCssAsModule(route: Route, filePath: string): boolean {
   return route.request().resourceType() === 'script';
 }
 
-function buildCssModuleFixture(filePath: string): string {
-  const css = fs.readFileSync(filePath, 'utf8');
+/** Loads the sheet as a bundled SDK would, so a strict style-src page accepts it. */
+function buildCssModuleFixture(): string {
   return [
-    `const css = ${JSON.stringify(css)};`,
-    'const style = document.createElement("style");',
-    'style.setAttribute("data-seams-test-css-module", "1");',
-    'style.textContent = css;',
-    'document.head.appendChild(style);',
-    'export default css;',
+    'const link = document.createElement("link");',
+    'link.rel = "stylesheet";',
+    'link.href = import.meta.url;',
+    'link.setAttribute("data-seams-test-css-module", "1");',
+    'await new Promise((resolve, reject) => {',
+    '  link.onload = resolve;',
+    '  link.onerror = reject;',
+    '  document.head.appendChild(link);',
+    '});',
+    'export default "";',
     '',
   ].join('\n');
 }
@@ -94,7 +98,7 @@ async function installTestEsmDynamicModuleRoute(page: Page): Promise<void> {
     if (shouldServeCssAsModule(route, filePath)) {
       return route.fulfill({
         status: 200,
-        body: buildCssModuleFixture(filePath),
+        body: buildCssModuleFixture(),
         headers: {
           'content-type': 'application/javascript; charset=utf-8',
           'cache-control': 'no-store, max-age=0',
