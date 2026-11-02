@@ -143,6 +143,19 @@ pub(super) async fn authorize_role_command(env: &Env, command: &RoleCommand) -> 
             }
             return Ok(());
         }
+        RoleCommand::EraseKeyStock { key } => {
+            let actual: Option<admission::KeyState> = service_call(
+                env,
+                CallAuthority::Internal,
+                &admission_requests::key_state(key.clone()),
+            )
+            .await?;
+            return if actual.as_ref().map(|state| &state.activation().key) == Some(key) {
+                Err(invalid("ML-DSA stock erasure names the current key"))
+            } else {
+                Ok(())
+            };
+        }
         RoleCommand::WakeRefill { key } => {
             check_signing_scope(env, key)?;
             let active: Option<admission::KeyActivation> = service_call(

@@ -153,6 +153,11 @@ pub(super) async fn recover_expired_reservations(
             Some(Status::Declined { .. }) => pool::Settlement::Declined,
             // Once admitted, peer consumption can be unknown. Preserve conservative retirement.
             Some(Status::Failed { .. } | Status::Succeeded { .. }) => pool::Settlement::Failed,
+            None | Some(Status::AwaitingStock { .. })
+                if now >= reservation.expired_at_ms.saturating_add(pool::STUCK_RESERVATION_MS) =>
+            {
+                pool::Settlement::Failed
+            }
             _ => continue,
         };
         let operation = reservation.request.operation;
@@ -329,6 +334,10 @@ async fn execute_role(
             material_delivery::json::<role_requests::inspect::Reply>(
                 pool::inspect(store, &key, &batches).await?,
             )
+        }
+        RoleCommand::EraseKeyStock { key } => {
+            pool::erase_key_stock(store, &key).await?;
+            material_delivery::json::<role_requests::erase_key_stock::Reply>(true)
         }
         RoleCommand::RetireSpent { key, batches } => {
             pool::retire_spent(store, &key, &batches).await?;
