@@ -111,6 +111,7 @@ impl RoleCommand {
             | Self::RefillStatus { key }
             | Self::WakeRefill { key }
             | Self::Inspect { key, .. }
+            | Self::EraseKeyStock { key }
             | Self::RetireSpent { key, .. }
             | Self::RetireUnpaired { key, .. } => &key.wallet,
             Self::Reserve { claim, .. } => &claim.request.key.wallet,

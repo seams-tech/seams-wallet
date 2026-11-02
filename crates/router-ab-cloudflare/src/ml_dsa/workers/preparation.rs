@@ -12,6 +12,8 @@ const DEMAND: &str = "preprocessing-demand";
 const DEMAND_LIFETIME_MS: u64 = 60 * 60 * 1_000;
 // A coarse stamp keeps signing reads from adding a storage write on every request.
 const DEMAND_REFRESH_MS: u64 = 5 * 60 * 1_000;
+// A settled key wakes at its next stock expiry, and at least this often.
+const MAINTENANCE_LIMIT_MS: u64 = 6 * 60 * 60 * 1_000;
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct KeyDemand {
@@ -141,6 +143,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     );
     // Arm recovery before network work. A crash never loses the refill request.
     schedule_refill_alarm(state, 30_000).await?;
+    let recovery = state.storage().get_alarm().await?;
     let active: Option<admission::KeyActivation> = service_call(
         env,
         CallAuthority::Internal,
@@ -151,6 +154,9 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     let active_at = crate::cloudflare_now_unix_ms_v1().ok();
     if active.map(|value| value.key).as_ref() != Some(&key) {
         withdraw(env, &key).await.map_err(protocol_error)?;
+        erase_replaced_key(env, state, &key)
+            .await
+            .map_err(protocol_error)?;
         remove_queued(state, &key).await?;
         schedule_refill_alarm(state, 1_000).await?;
         return Response::from_json(&false);
@@ -230,7 +236,19 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
             return Response::from_json(&false);
         }
         rotate_queued(state, &key).await?;
-        schedule_refill_alarm(state, 30_000).await?;
+        let settled = queue.len() == 1
+            && a.reserved.is_empty()
+            && b.reserved.is_empty()
+            && latest.is_empty();
+        match a.earliest_expiry_ms.into_iter().chain(b.earliest_expiry_ms).min() {
+            Some(expiry) if settled => {
+                let wake = expiry
+                    .max(now.saturating_add(30_000))
+                    .min(now.saturating_add(MAINTENANCE_LIMIT_MS));
+                defer_alarm(state, recovery, wake).await?;
+            }
+            _ => schedule_refill_alarm(state, 30_000).await?,
+        }
         return Response::from_json(&true);
     }
     let claim: refill::Claim = service_call(
@@ -331,6 +349,45 @@ async fn remove_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
             store.put(QUEUE, &queue).await.map_err(protocol_error)
         })
         .await
+}
+/// Replaces only the recovery alarm armed by this handler. An alarm that any request
+/// moved earlier in the meantime stays, so new demand is never postponed.
+async fn defer_alarm(state: &State, recovery: Option<i64>, wake_at_ms: u64) -> worker::Result<()> {
+    if state.storage().get_alarm().await? == recovery {
+        let date = worker::Date::new(worker::DateInit::Millis(wake_at_ms));
+        state
+            .storage()
+            .set_alarm(worker::ScheduledTime::new(date.into()))
+            .await?;
+    }
+    Ok(())
+}
+/// Installation also passes through an inactive state, and that stock must stay.
+async fn erase_replaced_key(env: &Env, state: &State, key: &KeyScope) -> Result<()> {
+    let current: Option<admission::KeyState> = service_call(
+        env,
+        CallAuthority::Internal,
+        &admission_requests::key_state(key.clone()),
+    )
+    .await?;
+    if current.as_ref().map(|value| &value.activation().key) == Some(key) {
+        return Ok(());
+    }
+    let command = role_requests::erase_key_stock(key.clone());
+    let peer = rpc::role_call(env, "DERIVER_B", &command).await?;
+    let local = role_transaction(
+        state,
+        policy(env)?,
+        stock_stamp(env)?,
+        Participant::A,
+        command,
+        None,
+    )
+    .await?;
+    if !peer || !local {
+        return Err(invalid("ML-DSA stock erasure was refused"));
+    }
+    Ok(())
 }
 async fn has_demand(state: &State, key: &KeyScope, now: u64) -> worker::Result<bool> {
     let demand: Vec<KeyDemand> = state.storage().get(DEMAND).await?.unwrap_or_default();

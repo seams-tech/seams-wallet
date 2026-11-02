@@ -236,6 +236,9 @@ command_family! { RoleCommand, role_requests {
         key: KeyScope,
         batches: Vec<[u8; 32]>,
     } => Vec<pool::BatchAvailability>, Json;
+    EraseKeyStock(erase_key_stock) {
+        key: KeyScope,
+    } => bool, Json;
     RetireSpent(retire_spent) {
         key: KeyScope,
         batches: Vec<[u8; 32]>,

@@ -35,6 +35,9 @@ pub struct Inventory {
     pub reserved: Vec<[u8; 32]>,
     pub retry_at_ms: u64,
     pub refill_due: bool,
+    /// When the next stored batch of this wallet expires. Only a later read erases it.
+    #[serde(default)]
+    pub earliest_expiry_ms: Option<u64>,
 }
 impl Inventory {
     pub(crate) fn stock_batches(&self) -> Vec<[u8; 32]> {
@@ -169,7 +172,11 @@ fn reservation_name(request_digest: &[u8; 32]) -> String {
 pub struct ExpiredReservation {
     pub request: SigningRequest,
     pub batches: Vec<[u8; 32]>,
+    pub expired_at_ms: u64,
 }
+/// A reservation that Router admission cannot settle after this long never will settle.
+/// Without a bound, it would hold its stock until the stock itself expires.
+pub const STUCK_RESERVATION_MS: u64 = 60 * 60 * 1_000;
 
 /// Recovery uses the exact request to distinguish an unadmitted claim from signing.
 pub async fn expired_reservations(
@@ -206,10 +213,12 @@ pub async fn expired_reservations(
         }
         if let Some(existing) = expired.iter_mut().find(|item| item.request == request) {
             existing.batches.push(id);
+            existing.expired_at_ms = existing.expired_at_ms.max(expires_at_ms);
         } else {
             expired.push(ExpiredReservation {
                 request,
                 batches: vec![id],
+                expired_at_ms: expires_at_ms,
             });
         }
     }
@@ -371,6 +380,7 @@ pub async fn inventory(
     let mut ready = Vec::new();
     let mut reserved = Vec::new();
     let mut retained = Vec::new();
+    let mut earliest_expiry_ms: Option<u64> = None;
     let original = index(store).await?;
     for &id in &original {
         let mut record = store
@@ -382,6 +392,8 @@ pub async fn inventory(
             erase(store, &mut record).await?;
             continue;
         }
+        let expiry = record.binding.expires_at_ms;
+        earliest_expiry_ms = Some(earliest_expiry_ms.map_or(expiry, |earliest| earliest.min(expiry)));
         if let State::Reserved {
             request_digest,
             expires_at_ms,
@@ -451,6 +463,7 @@ pub async fn inventory(
         reserved,
         retry_at_ms,
         refill_due,
+        earliest_expiry_ms,
     })
 }
 /// Reserves only encrypted, untouched batches. No key material is opened here.
@@ -660,6 +673,29 @@ pub async fn retire_spent(store: &impl Store, key: &KeyScope, batches: &[[u8; 32
         }
     }
     store.put("index", &ids).await
+}
+
+/// The authenticated controller calls this after Router admission stops naming the key.
+/// An inactive key is never read again, so its stock would otherwise stay until expiry.
+pub async fn erase_key_stock(store: &impl Store, key: &KeyScope) -> Result<()> {
+    let original = index(store).await?;
+    let mut retained = Vec::with_capacity(original.len());
+    for &id in &original {
+        let mut record = store
+            .get::<Record>(&batch_name(&id))
+            .await?
+            .ok_or_else(|| invalid("Missing preparation record"))?;
+        if record.binding.key == *key {
+            record.state = State::Burned;
+            erase(store, &mut record).await?;
+        } else {
+            retained.push(id);
+        }
+    }
+    if retained != original {
+        store.put("index", &retained).await?;
+    }
+    Ok(())
 }
 
 /// Settlement comes from the Router's authoritative terminal operation state.
