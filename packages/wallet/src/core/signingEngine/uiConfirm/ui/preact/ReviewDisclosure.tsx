@@ -1,7 +1,10 @@
 /** @jsxImportSource preact */
 import { WalletText } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import { Component, createRef, type ComponentChildren } from 'preact';
-import { announceClampedSurfaceResize } from '../confirm-surface-resize';
+import {
+  announceClampedSurfaceResize,
+  revealFocusedSurfaceControl,
+} from '../confirm-surface-resize';
 import { confirmationDocumentStyles } from './confirmation-styles';
 
 let nextDisclosureId = 0;
@@ -56,17 +59,9 @@ export class ReviewDisclosure extends Component<{
       this.root.current.removeAttribute('data-closing');
     }
     this.clearMotion();
+    // A hosted motion reveals focus when its pin comes off.
     if (local) {
-      const surface = this.root.current?.closest('.seams-confirmation-surface');
-      const focused = surface?.ownerDocument.activeElement;
-      // Expansion can move a control after the browser scrolls it into view on focus.
-      if (focused instanceof HTMLElement && focused.tabIndex >= 0 && surface?.contains(focused)) {
-        const bounds = focused.getBoundingClientRect();
-        const viewportHeight = focused.ownerDocument.documentElement.clientHeight;
-        if (bounds.top < 0 || bounds.bottom > viewportHeight) {
-          focused.scrollIntoView({ block: 'center', inline: 'nearest' });
-        }
-      }
+      revealFocusedSurfaceControl(this.root.current?.closest('.seams-confirmation-surface'));
     }
   };
 

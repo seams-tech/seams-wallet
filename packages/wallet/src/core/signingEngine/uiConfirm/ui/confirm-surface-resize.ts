@@ -326,6 +326,23 @@ export function announceClampedSurfaceResize(args: {
 }
 
 /**
+ * Expansion can move a control after the browser scrolls it into view on focus.
+ * Call this once the surface has its final size: a pinned surface does not
+ * scroll, so a reveal inside the motion is lost when the pin comes off.
+ */
+export function revealFocusedSurfaceControl(surface: Element | null | undefined): void {
+  const focused = surface?.ownerDocument.activeElement;
+  if (!(focused instanceof HTMLElement) || focused.tabIndex < 0 || !surface?.contains(focused)) {
+    return;
+  }
+  const bounds = focused.getBoundingClientRect();
+  const viewportHeight = focused.ownerDocument.documentElement.clientHeight;
+  if (bounds.top < 0 || bounds.bottom > viewportHeight) {
+    focused.scrollIntoView({ block: 'center', inline: 'nearest' });
+  }
+}
+
+/**
  * A per-frame view of the one thing that matters when this goes wrong: what
  * the box is doing and whether the content is being held for it. The bug this
  * module exists to prevent was only ever visible in a real browser, frame by
@@ -483,6 +500,11 @@ export function attachConfirmSurfaceResizeChoreographer(
     pin?.release();
   };
 
+  const land = (): void => {
+    settle();
+    revealFocusedSurfaceControl(element);
+  };
+
   const step = (): void => {
     const current = active;
     if (!current) return;
@@ -503,7 +525,7 @@ export function attachConfirmSurfaceResizeChoreographer(
     if (viewportPx === targetPx) {
       current.framesAtTarget += 1;
       if (current.sawIntermediate || current.framesAtTarget >= LANDING_CONFIRM_FRAMES) {
-        settle();
+        land();
         return;
       }
       // Hold the content where it is: this may be the destination blip.
@@ -520,7 +542,7 @@ export function attachConfirmSurfaceResizeChoreographer(
       ? SETTLED_FRAMES_AFTER_MOTION
       : SETTLED_FRAMES_WITHOUT_MOTION;
     if (current.framesSinceChange >= settledFrames) {
-      settle();
+      land();
       return;
     }
     current.frame = requestAnimationFrame(step);
