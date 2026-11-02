@@ -213,9 +213,9 @@ export async function verifyMlDsaPublicSigning({
     assert.equal(delayed.code, 'conflict');
     checks.concurrentFirstApprovalsCommitOnce = true;
     const attempts = [];
-    while (signed.kind === 'retry' && signed.retryAtMs < preparation.expiresAtMs) {
+    while (signed.kind === 'retry' && Date.now() + signed.retryAfterMs < preparation.expiresAtMs) {
       attempts.push(signed);
-      await waitUntil(signed.retryAtMs);
+      await waitFor(signed.retryAfterMs);
       signed = await api.executeMlDsaNearSigning(executeInput);
     }
     const exhaustedOperations = [];
@@ -249,9 +249,12 @@ export async function verifyMlDsaPublicSigning({
       };
       executeInput = { relayerUrl: base, preparation, authorization: execute.authorization };
       signed = await api.executeMlDsaNearSigning(executeInput);
-      while (signed.kind === 'retry' && signed.retryAtMs < preparation.expiresAtMs) {
+      while (
+        signed.kind === 'retry' &&
+        Date.now() + signed.retryAfterMs < preparation.expiresAtMs
+      ) {
         attempts.push(signed);
-        await waitUntil(signed.retryAtMs);
+        await waitFor(signed.retryAfterMs);
         signed = await api.executeMlDsaNearSigning(executeInput);
       }
     }
@@ -355,7 +358,7 @@ export async function verifyMlDsaPublicSigning({
     });
     assert.equal(cooldown.kind, 'retry', JSON.stringify(cooldown));
     assert.equal(cooldown.reason, 'wallet_cooldown');
-    assert.ok(cooldown.retryAtMs > Date.now());
+    assert.ok(cooldown.retryAfterMs > 0);
     checks.cooldownReturnsExplicitRetryTime = true;
     const sessionChecks = await verifyMlDsaSigningSessions({
       api,
@@ -404,8 +407,8 @@ export async function verifyMlDsaPublicSigning({
 function timer(milliseconds, resolve) {
   setTimeout(resolve, milliseconds);
 }
-async function waitUntil(atMs) {
-  await new Promise(timer.bind(undefined, Math.max(100, atMs - Date.now())));
+async function waitFor(delayMs) {
+  await new Promise(timer.bind(undefined, Math.max(100, delayMs)));
 }
 export async function replayPublicMlDsaSigning(api, gateway, input, expectedKind) {
   const original = globalThis.fetch;

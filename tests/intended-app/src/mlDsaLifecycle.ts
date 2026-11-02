@@ -221,8 +221,11 @@ export class IntendedMlDsaLifecycle {
           },
         };
         let result = await executeMlDsaNearSigning(input);
-        while (result.kind === 'retry' && result.retryAtMs < prepared.preparation.expiresAtMs) {
-          await pause(Math.max(100, result.retryAtMs - Date.now()));
+        while (
+          result.kind === 'retry' &&
+          Date.now() + result.retryAfterMs < prepared.preparation.expiresAtMs
+        ) {
+          await pause(Math.max(100, result.retryAfterMs));
           result = await executeMlDsaNearSigning(input);
         }
         return result;

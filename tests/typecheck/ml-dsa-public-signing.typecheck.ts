@@ -25,7 +25,7 @@ const missingRetry: MlDsaSigningOutcome = { kind: 'retry', reason: 'unavailable'
 void missingRetry;
 declare const signed: Variant<MlDsaSigningOutcome, 'kind', 'signed'>;
 // @ts-expect-error A retry cannot retain a completed transaction through a spread.
-const mixed: MlDsaSigningOutcome = { ...signed, kind: 'retry', reason: 'running', retryAtMs: 1 };
+const mixed: MlDsaSigningOutcome = { ...signed, kind: 'retry', reason: 'running', retryAfterMs: 1 };
 void mixed;
 
 declare const withoutCancellation: Omit<MlDsaNearTransactionInput, 'shouldAbort'>;

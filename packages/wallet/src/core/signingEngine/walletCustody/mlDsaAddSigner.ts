@@ -38,23 +38,23 @@ function delay(milliseconds: number): Promise<void> {
 }
 
 async function waitForRetry(round: Round, failure: MlDsaRegistrationFailure): Promise<void> {
-  const now = Date.now();
-  let at: number;
+  let waitMs: number;
   switch (failure.code) {
     case 'pool_unavailable':
-      at = Math.max(now + 100, failure.retryAtMs);
+      waitMs = Math.max(100, failure.retryAfterMs);
       break;
     case 'pending':
     case 'conflict':
     case 'ml_dsa_transport':
     case 'ml_dsa_refused':
-      at = now + 500;
+      waitMs = 500;
       break;
     default:
       throw new MlDsaAddSignerRejected(failure);
   }
-  if (at >= round.started.mlDsa.expiresAtMs) throw new MlDsaAddSignerRejected(failure);
-  await delay(at - now);
+  if (Date.now() + waitMs >= round.started.mlDsa.expiresAtMs)
+    throw new MlDsaAddSignerRejected(failure);
+  await delay(waitMs);
 }
 
 async function runRound(round: Round, roleInputsJson: string): Promise<string> {

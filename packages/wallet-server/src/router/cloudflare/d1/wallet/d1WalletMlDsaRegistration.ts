@@ -425,7 +425,7 @@ export class D1WalletMlDsaRegistration {
             ok: false as const,
             code: 'pool_unavailable' as const,
             message: 'ML-DSA preparation is unavailable',
-            retryAtMs: result.retryAtMs,
+            retryAfterMs: result.retryAfterMs,
           };
         case 'pending':
           return failure('pending', 'ML-DSA execution is running; retry the same operation');

@@ -122,9 +122,9 @@ async function signRetainedKey(input, key) {
   const retries = [];
   let signed = await input.api.executeMlDsaNearSigning(request);
   while (signed.kind === 'retry') {
-    assert.ok(signed.retryAtMs < prepared.preparation.expiresAtMs);
+    assert.ok(Date.now() + signed.retryAfterMs < prepared.preparation.expiresAtMs);
     retries.push(signed);
-    await waitUntil(signed.retryAtMs);
+    await waitFor(signed.retryAfterMs);
     signed = await input.api.executeMlDsaNearSigning(request);
   }
   assert.equal(signed.kind, 'signed', JSON.stringify(signed));
@@ -149,8 +149,8 @@ async function signRetainedKey(input, key) {
 function timer(milliseconds, resolve) {
   setTimeout(resolve, milliseconds);
 }
-async function waitUntil(atMs) {
-  await new Promise(timer.bind(undefined, Math.max(100, atMs - Date.now())));
+async function waitFor(delayMs) {
+  await new Promise(timer.bind(undefined, Math.max(100, delayMs)));
 }
 function publishedIdentity(entry) {
   return entry.kind === 'published';
