@@ -354,8 +354,6 @@ export async function verifyApplicationAuth(
     if (!nearAccount) throw new Error('Missing NEAR public identity.');
     expect(await freshSigningAdmissions(walletId)).toBe(1);
     console.info('[application-auth] first transaction complete');
-    await verifyOwnerReview(page, backend);
-    console.info('[application-auth] reviewed transaction complete');
 
     const disconnectedPage = await context.newPage();
     const walletOrigin = process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202';
@@ -579,6 +577,8 @@ export async function verifyApplicationAuth(
     console.info('[application-auth] recovery and concurrent calls complete');
     const retirementEvidence = await verifyOwnerRetirement(page, backend);
     console.info('[application-auth] owner retirement complete');
+    await verifyOwnerReview(page, backend);
+    console.info('[application-auth] reviewed transaction complete');
     const broadcastsBeforeExpiry = backend.broadcasts.length;
     const admissionsBeforeExpiry = await freshSigningAdmissions(walletId);
     // An expired prepared handle cannot prompt or sign.
@@ -1023,6 +1023,8 @@ function signedNonce(encoded: string): bigint {
 
 /** Fresh approval must succeed only after each pending operation reaches its own end. */
 async function verifyOwnerReview(page: Page, backend: ApplicationBackend): Promise<void> {
+  backend.finalBlockHeight = 1;
+  backend.accessKeyNonce = null;
   const broadcasts = backend.broadcasts.length;
   const review = page.locator('.seams-transaction-review-slot');
   const wallet = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
