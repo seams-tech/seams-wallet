@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash, createPublicKey, verify } from 'node:crypto';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { appendFile, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -78,7 +78,7 @@ async function registrations(count) {
 
 async function start(name, count, durationMs) {
   assert.match(name, /^[a-z0-9-]{1,60}$/);
-  assert.ok([2, 4, 8, 16].includes(count));
+  assert.ok([2, 4, 8, 16, 32].includes(count));
   assert.ok(durationMs >= 60000 && durationMs <= 1800000);
   await mkdir(folder);
   const wallets = await registrations(count);
@@ -300,15 +300,16 @@ async function traces() {
   const roles = scope.workers.map(workerRole).filter(capturedRole);
   for (const role of roles) {
     let cursor = null;
-    const rows = [];
+    const file = join(folder, role + '-raw.jsonl');
+    await writeFile(file, '');
     do {
       const path = `/__benchmark/traces/${role}${cursor ? '?cursor=' + encodeURIComponent(cursor) : ''}`;
       const response = await call(path);
-      rows.push(...response.rows);
+      // A long campaign exceeds the largest string that one write can hold.
+      if (response.rows.length) await appendFile(file, response.rows.map(JSON.stringify).join('\n') + '\n');
+      count += response.rows.length;
       cursor = response.cursor;
     } while (cursor !== null);
-    await writeFile(join(folder, role + '-raw.jsonl'), rows.map(JSON.stringify).join('\n') + '\n');
-    count += rows.length;
   }
   const args = [
     'tools/ml-dsa-investigation/research/collect_worker_traces.py',
