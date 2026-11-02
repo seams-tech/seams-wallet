@@ -2697,12 +2697,16 @@ export class WalletIframeRouter {
       if (this.state.connectionId !== connectionId) {
         throw new Error('Wallet iframe connection changed during session request');
       }
-      if (selectionGeneration !== this.sessionSelectionGeneration) {
+      const snapshot = parseWalletIframeExactSessionSnapshot(response.result);
+      // The first preference snapshot often names the wallet this read already answered.
+      if (
+        selectionGeneration !== this.sessionSelectionGeneration &&
+        snapshot.walletId !== (this.lastPreferencesChangedPayload?.walletId ?? null)
+      ) {
         requestedWallet = { kind: 'current' };
         readMode = 'current';
         continue;
       }
-      const snapshot = parseWalletIframeExactSessionSnapshot(response.result);
       const changed = this.acceptSessionSnapshot(snapshot);
       const state = this.getMirroredExactSessionState();
       if (emitChange && changed) {

@@ -70,6 +70,10 @@ window.emitExpiry = function(session) {
   };
   adoptedPort.postMessage({ type: 'SDK_LIFECYCLE_EVENT', payload: { revision: ++observationRevision, event } });
 };
+window.publishSelectedWallet = function(walletId) {
+  selectionRevision++;
+  adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: { ...preferences(), walletId } });
+};
 window.sessionHostState = function() { return { held: heldSession !== null, requests: sessionRequests }; };
 `;
 
@@ -149,6 +153,59 @@ function readHost(): unknown {
 function walletFrame(frame: { url(): string }): boolean {
   return frame.url().startsWith('https://wallet.example.localhost/wallet-service');
 }
+
+async function initializeClientWithoutRead(): Promise<void> {
+  const path = '/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js';
+  const { WalletIframeRouter } = await import(path);
+  const router = new WalletIframeRouter({
+    hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
+    walletOrigin: 'https://wallet.example.localhost',
+    servicePath: '/wallet-service',
+    sdkBasePath: '/sdk',
+  });
+  (window as any).sessionProbe = { router, events: [], read: null };
+  await router.init();
+}
+
+function readSelectionState(): unknown {
+  return (window as any).sessionProbe.router.lastPreferencesChangedPayload?.walletId ?? null;
+}
+
+function publishSelectedWallet(walletId: string | null): void {
+  (window as any).publishSelectedWallet(walletId);
+}
+
+test('the first preference snapshot for the answered wallet does not repeat the session read', async ({
+  page,
+}) => {
+  await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+  await registerWalletServiceRoute(
+    page,
+    buildWalletServiceHtml({ extraScript: hostScript }),
+    '**://wallet.example.localhost/wallet-service*',
+  );
+  await page.addScriptTag({ content: [readSucceeded, readFailed].map(String).join('\n') });
+  await page.evaluate(initializeClientWithoutRead);
+  const frame = page.frames().find(walletFrame)!;
+  // The parent has no selected wallet until the host finishes restoring its preferences.
+  await frame.evaluate(publishSelectedWallet, null);
+  await expect.poll(page.evaluate.bind(page, readSelectionState)).toBeNull();
+  const before = (await frame.evaluate(readHost)) as { requests: unknown[] };
+  await frame.evaluate(holdSession);
+  await page.evaluate(beginRead);
+  await expect.poll(frame.evaluate.bind(frame, readHost)).toMatchObject({ held: true });
+  await frame.evaluate(publishSelectedWallet, 'alice.testnet');
+  await expect.poll(page.evaluate.bind(page, readSelectionState)).toBe('alice.testnet');
+  await frame.evaluate(releaseSession);
+  expect(await page.evaluate(finishRead)).toMatchObject({
+    kind: 'resolved',
+    state: { walletId: 'alice.testnet' },
+  });
+  const after = (await frame.evaluate(readHost)) as { requests: unknown[] };
+  expect(after.requests.slice(before.requests.length)).toEqual([
+    { authenticationRead: 'current', wallet: { kind: 'current' } },
+  ]);
+});
 
 test('delayed session reads follow the current wallet and cannot revive disconnected state', async ({
   page,
