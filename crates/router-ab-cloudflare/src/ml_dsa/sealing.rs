@@ -6,6 +6,8 @@ use zeroize::Zeroizing;
 // cannot authenticate under this suite and must be replaced with fresh stock.
 type Cipher = Hpke<DhKemX25519HkdfSha256, HkdfSha256, ChaCha20Poly1305>;
 const INFO: &[u8] = b"seams/ml-dsa/prepared-storage/v2";
+/// Advance this when stored stock changes shape. Older stock burns on its next read.
+pub const STOCK_FORMAT: u16 = 1;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Binding {
@@ -14,6 +16,24 @@ pub struct Binding {
     pub batch: [u8; 32],
     pub expires_at_ms: u64,
     pub wrapping_key_version: Identifier,
+    #[serde(default)]
+    pub generation: u32,
+    #[serde(default)]
+    pub format: u16,
+}
+/// What current stock must carry. Deployment configuration holds these values, so a
+/// storage restore cannot bring an older value back.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StockStamp {
+    pub generation: u32,
+    pub wrapping_key_version: Identifier,
+}
+impl StockStamp {
+    pub fn is_current(&self, binding: &Binding) -> bool {
+        binding.generation == self.generation
+            && binding.format == STOCK_FORMAT
+            && binding.wrapping_key_version == self.wrapping_key_version
+    }
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -125,6 +125,16 @@ pub fn policy(env: &Env) -> Result<Policy> {
         Err(_) => Ok(Policy::default()),
     }
 }
+fn stock_stamp(env: &Env) -> Result<sealing::StockStamp> {
+    Ok(sealing::StockStamp {
+        generation: policy(env)?.stock_generation,
+        wrapping_key_version: Identifier::try_from(
+            env.var("DERIVER_ROLE_PRIVATE_D1_KEK_VERSION")
+                .map_err(storage_error)?
+                .to_string(),
+        )?,
+    })
+}
 fn signing_schedule_digest(env: &Env) -> Result<[u8; 32]> {
     Ok(execution::signing_layout_digest(
         schedules::DIGEST,

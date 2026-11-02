@@ -54,6 +54,8 @@ pub struct Policy {
     preparation_group_size: CandidateGroupSize,
     pub(crate) minimum_ready_batches: usize,
     pub(crate) refill_target_batches: usize,
+    /// Advance this after a storage restore or an incident. Older stock burns on its next read.
+    pub(crate) stock_generation: u32,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -69,8 +71,13 @@ struct PolicyWire {
     preparation_group_size: CandidateGroupSize,
     minimum_ready_batches: usize,
     refill_target_batches: usize,
+    #[serde(default = "first_stock_generation")]
+    stock_generation: u32,
 }
 const fn single_service_group() -> u8 {
+    1
+}
+const fn first_stock_generation() -> u32 {
     1
 }
 const fn serial_preparation() -> usize {
@@ -108,6 +115,7 @@ impl TryFrom<PolicyWire> for Policy {
             preparation_group_size: value.preparation_group_size,
             minimum_ready_batches: value.minimum_ready_batches,
             refill_target_batches: value.refill_target_batches,
+            stock_generation: value.stock_generation,
         })
     }
 }
@@ -125,6 +133,7 @@ impl Default for Policy {
             preparation_group_size: CandidateGroupSize::Four,
             minimum_ready_batches: 8,
             refill_target_batches: 16,
+            stock_generation: first_stock_generation(),
         }
     }
 }

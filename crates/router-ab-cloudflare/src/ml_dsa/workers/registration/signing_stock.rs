@@ -148,7 +148,8 @@ pub(super) async fn commit(
             .map_err(runtime_error)?;
         let mut outputs = Vec::with_capacity(group.reservations.len());
         for (ordinal, committed) in (start..end).zip(group.reservations) {
-            let binding = stock_binding(claim, key, participant, &version, ordinal)?;
+            let generation = policy(env)?.stock_generation;
+            let binding = stock_binding(claim, key, participant, &version, generation, ordinal)?;
             let sealed = sealing::seal(committed.into_storage(), &binding, &seed)?;
             outputs.push((binding, sealed));
         }
@@ -219,14 +220,15 @@ pub(super) async fn install(
     }
     let participant = configured_role(env).map_err(storage_error)?;
     let (version, _) = executor::wrapping_key(env)?;
+    let generation = policy(env)?.stock_generation;
     let mut ordinal = 0;
     while ordinal < claim.job.signing_batches {
-        let first = prepare_delivery(state, claim, key, participant, &version, ordinal);
+        let first = prepare_delivery(state, claim, key, participant, &version, generation, ordinal);
         let (first, second) = if ordinal + 1 < claim.job.signing_batches {
             // Prepare at most the same two batches held by the original delivery window.
             futures::join!(
                 first,
-                prepare_delivery(state, claim, key, participant, &version, ordinal + 1)
+                prepare_delivery(state, claim, key, participant, &version, generation, ordinal + 1)
             )
         } else {
             (first.await, Ok(StockPreparation::Installed))
@@ -322,6 +324,7 @@ async fn prepare_delivery(
     key: &KeyScope,
     participant: Participant,
     version: &Identifier,
+    generation: u32,
     ordinal: usize,
 ) -> Result<StockPreparation> {
     let trace = stage_trace::StageTrace::new(
@@ -344,7 +347,7 @@ async fn prepare_delivery(
         return Ok(StockPreparation::Installed);
     }
     trace.mark("installation_checked");
-    let binding = stock_binding(claim, key, participant, version, ordinal)?;
+    let binding = stock_binding(claim, key, participant, version, generation, ordinal)?;
     let expected = binding.clone();
     let sealed = transaction(state, move |store| async move {
         let prefix = format!("registration-signing/{ordinal}");
@@ -376,6 +379,7 @@ fn stock_binding(
     key: &KeyScope,
     participant: Participant,
     version: &Identifier,
+    generation: u32,
     ordinal: usize,
 ) -> Result<Binding> {
     Ok(Binding {
@@ -384,6 +388,8 @@ fn stock_binding(
         batch: core::signing_batch_id(&claim.job, ordinal)?,
         expires_at_ms: claim.job.expires_at,
         wrapping_key_version: version.clone(),
+        generation,
+        format: sealing::STOCK_FORMAT,
     })
 }
 

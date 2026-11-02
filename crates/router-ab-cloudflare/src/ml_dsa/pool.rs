@@ -1,7 +1,7 @@
 //! Role-local lifecycle. A take destroys ciphertext before returning it.
 use super::{
     admission::Permit,
-    sealing::{Binding, Sealed},
+    sealing::{Binding, Sealed, StockStamp},
     *,
 };
 const MAX_BATCHES: usize = 20;
@@ -334,6 +334,28 @@ pub async fn put(store: &impl Store, binding: Binding, sealed: Sealed, now_ms: u
         .await?;
     ids.push(batch);
     store.put("index", &ids).await
+}
+/// A restore, a wrapping key change or a format change makes older stock unusable.
+/// Burning it here also frees its capacity for fresh stock.
+pub async fn burn_stale(store: &impl Store, stamp: &StockStamp) -> Result<usize> {
+    let original = index(store).await?;
+    let mut retained = Vec::with_capacity(original.len());
+    for &id in &original {
+        let mut record = store
+            .get::<Record>(&batch_name(&id))
+            .await?
+            .ok_or_else(|| invalid("Missing preparation record"))?;
+        if stamp.is_current(&record.binding) {
+            retained.push(id);
+        } else {
+            record.state = State::Burned;
+            erase(store, &mut record).await?;
+        }
+    }
+    if retained != original {
+        store.put("index", &retained).await?;
+    }
+    Ok(original.len() - retained.len())
 }
 pub async fn inventory(
     store: &impl Store,

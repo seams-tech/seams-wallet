@@ -76,6 +76,7 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
             dispatch_role_transaction(
                 &self.state,
                 policy(&self.env).map_err(protocol_error)?,
+                stock_stamp(&self.env).map_err(protocol_error)?,
                 role,
                 command,
                 durable.clone(),
@@ -174,11 +175,12 @@ pub(super) async fn recover_expired_reservations(
 pub(super) async fn role_transaction<R, C: Codec<R>>(
     state: &State,
     policy: Policy,
+    stamp: sealing::StockStamp,
     role: Participant,
     command: Request<RoleCommand, R, C>,
     trace: Option<durable_trace::DurableTrace>,
 ) -> Result<R> {
-    let output = dispatch_role_transaction(state, policy, role, command.into_wire(), trace)
+    let output = dispatch_role_transaction(state, policy, stamp, role, command.into_wire(), trace)
         .await
         .map_err(storage_error)?;
     C::local(output)
@@ -187,6 +189,7 @@ pub(super) async fn role_transaction<R, C: Codec<R>>(
 async fn dispatch_role_transaction(
     state: &State,
     policy: Policy,
+    stamp: sealing::StockStamp,
     role: Participant,
     command: RoleCommand,
     trace: Option<durable_trace::DurableTrace>,
@@ -214,7 +217,7 @@ async fn dispatch_role_transaction(
                     }
                 }
             }
-            let value = execute_role(&store, &policy, role, command, now)
+            let value = execute_role(&store, &policy, &stamp, role, command, now)
                 .await
                 .map_err(protocol_error)?;
             captured.replace(Some(value));
@@ -229,9 +232,31 @@ async fn dispatch_role_transaction(
     Ok(value)
 }
 
+async fn burn_stale_stock(store: &impl Store, stamp: &sealing::StockStamp) -> Result<()> {
+    let burned = pool::burn_stale(store, stamp).await?;
+    if burned > 0 {
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_stale_stock_burned_v1", "batches": burned,
+                "generation": stamp.generation,
+            })
+        );
+    }
+    Ok(())
+}
+
+fn require_current(stamp: &sealing::StockStamp, binding: &sealing::Binding) -> Result<()> {
+    if !stamp.is_current(binding) {
+        return Err(invalid("ML-DSA stock generation, format or wrapping key changed"));
+    }
+    Ok(())
+}
+
 async fn execute_role(
     store: &impl Store,
     policy: &Policy,
+    stamp: &sealing::StockStamp,
     role: Participant,
     command: RoleCommand,
     now: u64,
@@ -248,6 +273,7 @@ async fn execute_role(
                 if batch.binding.role != role {
                     return Err(invalid("Registration stock belongs to another role"));
                 }
+                require_current(stamp, &batch.binding)?;
                 pool::install_registration_batch(store, batch.binding, batch.sealed, now).await?;
             }
             material_delivery::json::<role_requests::install_registration_stock::Reply>(true)
@@ -276,6 +302,7 @@ async fn execute_role(
                 .ok_or_else(|| invalid("ML-DSA permit has no prepared pair"))?;
             let (binding, sealed): role_requests::take::Reply =
                 pool::take(store, role, &permit, batch, now).await?;
+            require_current(stamp, &binding)?;
             Ok(RoleOutput::SigningInputs(
                 material_delivery::SigningInputs {
                     metadata: material_delivery::SigningMetadata {
@@ -344,6 +371,7 @@ async fn execute_role(
             }
             // The transaction publishes the bounded job together or rolls back every pair.
             for (binding, sealed) in batches {
+                require_current(stamp, &binding)?;
                 refill::publish_role(store, policy, &job, binding, sealed, now).await?;
             }
             material_delivery::json::<role_requests::put::Reply>(true)
@@ -352,6 +380,7 @@ async fn execute_role(
             if target == 0 || target > 20 {
                 return Err(invalid("Invalid ML-DSA refill target"));
             }
+            burn_stale_stock(store, stamp).await?;
             material_delivery::json::<role_requests::live_inventory::Reply>(
                 pool::inventory(store, &key, target, now, now).await?,
             )
@@ -364,6 +393,7 @@ async fn execute_role(
             if target == 0 || target > 20 {
                 return Err(invalid("Invalid ML-DSA refill target"));
             }
+            burn_stale_stock(store, stamp).await?;
             material_delivery::json::<role_requests::inventory::Reply>(
                 pool::inventory(store, &key, target, now, ready_until_ms).await?,
             )
@@ -375,6 +405,7 @@ async fn execute_role(
         RoleCommand::Take { permit, batch } => {
             let (binding, sealed): role_requests::take::Reply =
                 pool::take(store, role, &permit, batch, now).await?;
+            require_current(stamp, &binding)?;
             Ok(RoleOutput::Taken { binding, sealed })
         }
         RoleCommand::Release {
