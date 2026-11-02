@@ -23,11 +23,14 @@ class ModalShell extends Component<ConfirmationModalProps> {
 
   private readonly dialog = createRef<HTMLDialogElement>();
   private readonly hosted = createRef<HTMLDivElement>();
+  private readonly card = createRef<HTMLDivElement>();
   private readonly containerId = `seams-confirmation-modal-${++nextModalId}`;
 
   componentDidMount(): void {
     if (this.props.context === 'standalone') {
       this.dialog.current?.showModal();
+      // Firefox gives the initial focus to the first tabbable control, past the card.
+      this.card.current?.focus({ preventScroll: true });
     } else {
       this.hosted.current?.focus({ preventScroll: true });
     }
@@ -73,9 +76,9 @@ class ModalShell extends Component<ConfirmationModalProps> {
           onCancel={this.cancel}
           onClick={this.backdropClick}
         >
-          {/* As the dialog's first focusable element, the card takes the initial focus,
-              so opening rings no control and Tab reaches the close button next. */}
-          <div id={this.containerId} class="modal-container-root" tabIndex={-1}>
+          {/* The card takes the initial focus, so opening rings no control and Tab
+              reaches the close button next. */}
+          <div ref={this.card} id={this.containerId} class="modal-container-root" tabIndex={-1}>
             {this.props.children}
           </div>
         </dialog>

@@ -69,7 +69,8 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
     const sheet = this.sheet.current!;
     const win = sheet.ownerDocument.defaultView!;
     this.dialog.current?.showModal();
-    if (!this.dialog.current) sheet.focus({ preventScroll: true });
+    // Firefox gives a dialog's initial focus to the first tabbable control, past the sheet.
+    sheet.focus({ preventScroll: true });
     this.observer = new ResizeObserver(this.measureContent);
     this.observer.observe(this.content.current!);
     this.observer.observe(sheet);
