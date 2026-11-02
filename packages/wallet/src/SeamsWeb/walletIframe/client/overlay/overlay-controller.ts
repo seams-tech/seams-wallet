@@ -423,8 +423,18 @@ export class OverlayController {
       this.closeDialogProgrammatically(dialog);
       this.dialogDisplayMode = null;
     }
-    // A loading iframe must remain rendered for measurement without blocking its parent page.
-    if (!dialog.open) this.showDialog(dialog, displayMode);
+    if (!dialog.open) {
+      if (preparing) {
+        // A loading iframe stays rendered for measurement. The open property leaves
+        // page focus in place, while show() in Chromium clears it for an inert dialog.
+        dialog.open = true;
+        this.dialogDisplayMode = displayMode;
+        return;
+      }
+      this.showDialog(dialog, displayMode);
+      // Each browser's showModal() picks a different initial control.
+      if (mode.kind === 'compact_transaction_review') this.focusReview();
+    }
   }
 
   activateAfterReviewHandoff(onReady: () => void): void {
@@ -636,7 +646,12 @@ export class OverlayController {
 
   private captureFocusForDialog(): void {
     const active = document.activeElement;
-    if (active instanceof HTMLElement && this.dialog && !this.dialog.contains(active)) {
+    if (
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      this.dialog &&
+      !this.dialog.contains(active)
+    ) {
       this.restoreFocus = active;
     }
   }
