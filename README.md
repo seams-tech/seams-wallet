@@ -32,6 +32,9 @@ in the private `seams-tech/seams-monorepo` repository.
 - A NEAR request with one `ft_transfer` or `ft_transfer_call` action and exactly 1 yoctoNEAR attached now headlines the token amount, with the final recipient and the token contract.
 - The wallet reads the symbol and decimals from its own list or from `ft_metadata`, never from the application. Without metadata the review shows the exact base units.
 - Any other action or attached NEAR keeps the NEAR headline, and the token transfer appears as rows beside it.
+- An EVM `transfer` call with no native value headlines the token amount in the same way. A token outside the wallet's list shows its base units.
+- Native value on Ethereum and Base shows as ETH instead of wei.
+- The review has artwork for BTC, ETH, stNEAR, NEAR, USDC, USDT, SOL, and ZEC.
 - The transaction details state a small deposit exactly, and their scrollbar follows the wallet theme.
 - Wallet iframe protocol remains **23.0.0**. This release adds no database migrations.
 

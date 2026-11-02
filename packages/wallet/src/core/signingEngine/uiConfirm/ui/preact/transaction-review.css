@@ -52,14 +52,8 @@
   overflow-wrap: anywhere;
 }
 :where(.seams-wallet-ui) .seams-review-amount-value {
+  /* The exact amount must stay readable, so a long value wraps instead of scrolling away. */
   min-width: 0;
-  white-space: nowrap;
-  overflow-x: auto;
-}
-/* The exact token amount must stay readable, so a long value wraps instead of scrolling away. */
-:where(.seams-wallet-ui) .seams-review-amount-value--token {
-  white-space: normal;
-  overflow-x: visible;
 }
 :where(.seams-wallet-ui) .seams-review-amount-toggle {
   border: 0;

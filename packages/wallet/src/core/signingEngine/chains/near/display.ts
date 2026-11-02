@@ -12,11 +12,11 @@ import type {
 } from '@/core/signingEngine/interfaces/display';
 import {
   NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO,
-  formatNearTokenAmount,
   isImpersonatedNearTokenSymbol,
   parseNearTokenTransferCall,
   type NearTokenMetadataByContract,
 } from './tokenTransfers';
+import { formatTokenBaseUnits } from '../tokenAmounts';
 
 type BuildNearDisplayModelArgs = {
   txSigningRequests: TransactionInputWasm[];
@@ -317,7 +317,7 @@ function tokenTransfersForDisplay(
           ...(token
             ? {
                 amount: {
-                  value: formatNearTokenAmount(call.baseUnits, token.decimals),
+                  value: formatTokenBaseUnits(call.baseUnits, token.decimals),
                   symbol: token.symbol,
                   verified: token.verified,
                 },

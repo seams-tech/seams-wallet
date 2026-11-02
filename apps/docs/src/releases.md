@@ -1,6 +1,6 @@
 ---
 title: Release 0.41.1
-description: Token amounts in the NEAR confirmation review.
+description: Token amounts and artwork in the NEAR and EVM confirmation reviews.
 ---
 
 # Release 0.41.1
@@ -11,6 +11,10 @@ The browser SDK, server SDK, and VoiceID plugin use **0.41.1**.
 - The wallet reads the symbol and decimals from its own list or from `ft_metadata` on the token contract. It never takes them from the application. If the metadata is not available within 2 seconds, the review shows the exact base units.
 - Only a token on the wallet's list uses official artwork. A contract outside the list that claims a listed symbol gets a warning.
 - Any other action or attached NEAR keeps the NEAR amount as the headline, and the token transfer appears as rows beside it.
+- An ERC-20 `transfer` call with no native value headlines the token amount, with the final recipient and the token contract. The wallet names only tokens on its own list for that chain. Any other token shows its exact base units, because a contract's own symbol proves nothing.
+- Native value on Ethereum and Base shows as ETH instead of wei.
+- The review has artwork for BTC, ETH, stNEAR, NEAR, USDC, USDT, SOL, and ZEC, and for listed wrapped forms such as WBTC.
+- A long amount wraps, so every digit stays visible.
 - The transaction details state a deposit below 0.00001 NEAR exactly, instead of `0 NEAR`. Their scrollbar follows the wallet theme.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
