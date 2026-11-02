@@ -672,7 +672,7 @@ async function runDurableCases(emptyInput) {
       assert.equal(retry.status, 202, 'A duplicate producer receipt was rejected');
       const changedJob = structuredClone(job);
       changedJob.expires_at_ms += 1;
-      await assert.rejects(producerReceipt(changedJob, serviceAuth), /ML-DSA preprocessing lease is inactive/);
+      await assertProducerRefused(changedJob);
       observations.producerQueueRetryAndBindingChecks = true;
       const held = await waitForHeldPublication(barrier);
       assert.equal(held.stage, 'after');
@@ -1053,6 +1053,14 @@ async function producerReceipt(job, credential) {
   });
 }
 
+async function assertProducerRefused(job) {
+  const before = await producerSnapshot(job.batch);
+  const response = await producerReceipt(job, serviceAuth);
+  assert.equal(response.status, 202);
+  assert.equal(await response.json(), false, 'A producer queued a job without a live lease');
+  assert.deepEqual(await producerSnapshot(job.batch), before, 'A refused job changed producer state');
+}
+
 async function raw(worker, path, input, credential) {
   const fetcher = clients.workers.get(worker);
   return fetcher.fetch(`https://ml-dsa.internal${path}`, {
@@ -1261,7 +1269,7 @@ async function checkPrepublicationFallback() {
   assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
   assert.deepEqual(await admissionCheck({ command: 'finish_refill', job, outcome: 'interrupted' }), []);
   assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
-  await assert.rejects(producerReceipt(job, serviceAuth), /ML-DSA preprocessing lease is inactive/);
+  await assertProducerRefused(job);
   return { batch: job.batch, freshBatch: fresh.batch, beforeReset, retainedLeaseMs, elapsedMs: performance.now() - started,
     unknownPublicationRetainedLease: true, deadlineFallback: true, staleSettlementPreservedNewLease: true, expiredProducerRetryRejected: true };
 }
@@ -1411,7 +1419,7 @@ async function checkProducerHandoff(restart) {
     runtime = await createRuntime();
     await runtime.ready;
   }
-  await assert.rejects(producerReceipt(held, serviceAuth), /ML-DSA preprocessing lease is inactive/);
+  await assertProducerRefused(held);
   assert.deepEqual(await admissionCheck({ command: 'finish_refill', job: held, outcome: 'interrupted' }), []);
   assert.equal(await admissionCheck({ command: 'check_refill', job: next.job }), true);
   const releaseDeadline = performance.now() + 15000;
