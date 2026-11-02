@@ -7,7 +7,13 @@ use std::sync::atomic::{AtomicU32, Ordering};
 const RECOVERY_CHECK_MS: u64 = 5_000;
 static CONSTRUCTIONS: AtomicU32 = AtomicU32::new(0);
 
-pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
+/// The producer's own answer. A lost reply is an error instead, because the job can still run.
+pub(super) enum Dispatched {
+    Queued,
+    Refused,
+}
+
+pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<Dispatched> {
     let stub = env
         .durable_object(job.producer_slot.namespace())
         .map_err(storage_error)?
@@ -27,10 +33,11 @@ pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
     if response.status_code() != 202 {
         return Err(invalid("ML-DSA durable preparation queue refused the job"));
     }
-    if !response.json::<bool>().await.map_err(storage_error)? {
-        return Err(invalid("ML-DSA producer queue was not acknowledged"));
-    }
-    Ok(())
+    Ok(if response.json::<bool>().await.map_err(storage_error)? {
+        Dispatched::Queued
+    } else {
+        Dispatched::Refused
+    })
 }
 
 #[cfg_attr(not(feature = "strict-worker-router-entrypoint"), durable_object)]
@@ -76,7 +83,17 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
             .await
             .map_err(protocol_error)?;
         log_stage(&job, Participant::A, job.batch, "producer_received");
-        check_job(&self.env, &job).await.map_err(protocol_error)?;
+        // Nothing is queued yet, so the controller can release the lease on this answer.
+        if let Err(error) = check_job(&self.env, &job).await {
+            worker::console_log!(
+                "{}",
+                serde_json::json!({
+                    "event": "ml_dsa_producer_refused_v1", "batch": hex(&job.batch),
+                    "error": error.to_string(),
+                })
+            );
+            return Ok(Response::from_json(&false)?.with_status(202));
+        }
         log_stage(&job, Participant::A, job.batch, "producer_authorized");
         self.log_job(&job, "queued");
         let receipt_job = job.clone();
