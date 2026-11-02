@@ -746,8 +746,8 @@ async function reusableAuthorityCount(walletId: string) {
       .prepare('SELECT COUNT(*) AS count FROM wallet_session_authorizations_v2 WHERE wallet_id = ?')
       .all(walletId)[0];
     const quotas = database
-      .prepare('SELECT COUNT(*) AS count FROM authorization_wallet_session_quotas')
-      .all()[0];
+      .prepare('SELECT COUNT(*) AS count FROM authorization_wallet_session_quotas WHERE principal_id = ?')
+      .all(walletId)[0];
     return { sessions: sessions?.count, quotas: quotas?.count };
   } finally {
     database.close();
