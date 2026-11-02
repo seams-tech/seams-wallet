@@ -232,6 +232,8 @@ class ReviewCall<T> {
         walletId: this.walletId,
         title: this.review.title,
         validity: this.review.validity,
+        ...(this.review.origin ? { origin: this.review.origin } : {}),
+        ...(this.review.onVisible ? { onVisible: this.review.onVisible } : {}),
         confirmationConfig: this.confirmationConfig,
         signal: this.abort.signal,
         onCancel: this.rejectBeforeDispatch,

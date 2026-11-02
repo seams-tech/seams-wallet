@@ -23,10 +23,32 @@ const missingDeadline: TransactionReviewValidity = { kind: 'expires_at' };
 // @ts-expect-error An unbounded review cannot have a deadline.
 const contradictoryValidity: TransactionReviewValidity = { kind: 'unbounded', atMs: 1 };
 
+const surfaceAware: TransactionReview = {
+  title: 'Review purchase',
+  validity: { kind: 'unbounded' },
+  origin: { x: 0, y: 0, width: 120, height: 40 },
+  onVisible(surface) {
+    const stage: 'review' | 'wallet' = surface.stage;
+    void stage;
+    void surface.rect.width;
+  },
+  render,
+};
+
+const incompleteOrigin: TransactionReview = {
+  title: 'Review purchase',
+  validity: { kind: 'unbounded' },
+  // @ts-expect-error An origin requires a complete rectangle.
+  origin: { x: 0, y: 0 },
+  render,
+};
+
 // @ts-expect-error Reviewed calls require explicit validity.
 const missingValidity: TransactionReview = { title: 'Review purchase', render };
 
 void unbounded;
+void surfaceAware;
+void incompleteOrigin;
 void expiring;
 void missingDeadline;
 void contradictoryValidity;

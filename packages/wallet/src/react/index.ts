@@ -302,6 +302,8 @@ export { TransactionReviewError } from './transactionReview/contract';
 export type {
   TransactionReview,
   TransactionReviewControls,
+  TransactionReviewRect,
+  TransactionReviewSurface,
   TransactionReviewValidity,
   TransactionReviewErrorCode,
   ReviewedTransactionInput,

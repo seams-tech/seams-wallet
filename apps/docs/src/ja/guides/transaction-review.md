@@ -55,6 +55,36 @@ review: {
 | `cancel()`           | 確認処理をキャンセルします。                                                                        |
 | `fail(error)`        | 閉じることができるSDK標準のエラー画面を表示します。イベントハンドラーやデータ取得の失敗に使います。 |
 
+## 独自のモーダルから始める {#start-from-your-own-modal}
+
+`origin` を渡すと、アプリの要素の位置から確認画面が広がります。`onVisible` を使うと、
+確認画面やウォレット承認が表示された時点を取得できます。
+
+```tsx
+review: {
+  title: '入金の確認',
+  validity: { kind: 'unbounded' },
+  origin: amountCard.getBoundingClientRect(),
+  onVisible: ({ stage, rect }) => {
+    if (stage === 'review') closeAmountModal();
+    trackSurface(stage, rect);
+  },
+  render: (controls) => <DepositReview controls={controls} />,
+}
+```
+
+`origin` はビューポート基準のピクセルで指定する矩形です。SDK はメソッドの呼び出し時に一度だけ
+読み取ります。最初の確認画面にだけ適用され、ウォレット承認がアプリの座標から始まることはありません。
+動きを減らす設定では、確認画面はその場で表示されます。
+
+`onVisible` は `stage` と `rect` を受け取ります。`stage` は、コンポーネントが表示されると `review`、
+ウォレット承認の準備ができると `wallet` になります。「確認に戻る」でも再び `review` を通知します。
+`rect` は確定した位置をビューポート基準のピクセルで示します。このコールバックのエラーは取引に影響しません。
+
+確認画面はアプリのモーダルの上に開きます。空のページが見えるフレームを防ぐため、`onVisible` の中で
+アプリのモーダルを閉じてください。そのモーダルがフォーカスを持っていた場合、削除後に SDK はフォーカスを
+戻せないため、操作の終了時にアプリ側でフォーカスを移動してください。
+
 ## 有効期限を明示する {#choose-validity-explicitly}
 
 `validity`は必須です。各呼び出しで、確認対象の取引に期限を設けるかを明示します。

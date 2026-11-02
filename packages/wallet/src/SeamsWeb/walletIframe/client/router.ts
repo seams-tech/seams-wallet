@@ -30,6 +30,8 @@ import {
   TransactionReviewError,
   parseTransactionReviewState,
   sameTransactionReviewIdentity,
+  type TransactionReviewRect,
+  type TransactionReviewSurface,
   type TransactionReviewValidity,
 } from '../shared/transactionReview';
 import {
@@ -1280,7 +1282,11 @@ export class WalletIframeRouter {
   private disposed = false;
   private readonly reviews = new Map<
     string,
-    { reservation: TransactionReviewReservation; onCancel: (error: Error) => void }
+    {
+      reservation: TransactionReviewReservation;
+      onCancel: (error: Error) => void;
+      onVisible: ((surface: TransactionReviewSurface) => void) | undefined;
+    }
   >();
   private readonly reviewCancellationTimers = new Map<string, number>();
   private reviewIdentityGeneration = 0;
@@ -1398,6 +1404,8 @@ export class WalletIframeRouter {
     walletId: string;
     title: string;
     validity: TransactionReviewValidity;
+    origin?: TransactionReviewRect;
+    onVisible?: (surface: TransactionReviewSurface) => void;
     confirmationConfig: Partial<ConfirmationConfig> | undefined;
     signal: AbortSignal;
     onCancel: (error: Error) => void;
@@ -1483,7 +1491,15 @@ export class WalletIframeRouter {
         this.finishReviewReservation.bind(this, requestId),
         this.resumeReviewReservation.bind(this, requestId),
       );
-      this.reviews.set(requestId, { reservation, onCancel: args.onCancel });
+      this.reviews.set(requestId, {
+        reservation,
+        onCancel: args.onCancel,
+        onVisible: args.onVisible,
+      });
+      this.overlayState.controller.setTransactionReviewReveal({
+        origin: args.origin ?? null,
+        onVisible: this.notifyReviewVisible.bind(this, requestId, 'review'),
+      });
       const result = this.transitionWalletIframeSurface({
         kind: 'transaction_review_started',
         connectionId,
@@ -1501,9 +1517,22 @@ export class WalletIframeRouter {
       return reservation;
     } catch (error) {
       this.reviews.delete(requestId);
+      this.overlayState.controller.setTransactionReviewReveal(null);
       lease.release();
       throw error;
     }
+  }
+
+  private notifyReviewVisible(
+    requestId: string,
+    stage: TransactionReviewSurface['stage'],
+    rect: TransactionReviewRect | null = this.overlayState.controller.getSurfaceRect(),
+  ): void {
+    const onVisible = this.reviews.get(requestId)?.onVisible;
+    if (!onVisible || !rect) return;
+    try {
+      onVisible({ stage, rect });
+    } catch {}
   }
 
   private invalidateReviews(): void {
@@ -1617,6 +1646,7 @@ export class WalletIframeRouter {
         return;
       case 'activated':
         entry.reservation.activated();
+        this.notifyReviewVisible(message.requestId, 'wallet');
         return;
       case 'reviewing':
         if (!entry.reservation.returnToReview()) return;
@@ -1626,6 +1656,9 @@ export class WalletIframeRouter {
           identity: entry.reservation.identity,
           presentation: { kind: 'modal', title: entry.reservation.title },
         });
+        this.overlayState.controller.activateAfterReviewHandoff(
+          this.notifyReviewVisible.bind(this, message.requestId, 'review', undefined),
+        );
         return;
       case 'signing':
         this.clearReviewCancellationTimer(message.requestId);
@@ -1844,10 +1877,11 @@ export class WalletIframeRouter {
     if (surface.kind === 'modal_transaction_review') {
       const slot = this.reviews.get(surface.identity.requestId)?.reservation.slot;
       const content = slot?.firstElementChild;
-      if (content && !slot.hidden) {
+      if (slot && content instanceof HTMLElement && !slot.hidden) {
         this.reviewSurfaceMeasurement = {
           kind: 'measured',
-          widthCssPx: content.getBoundingClientRect().width,
+          // Layout size, because the origin animation scales the surface's visual size.
+          widthCssPx: content.offsetWidth,
           heightCssPx: content.scrollHeight,
         };
       }

@@ -50,6 +50,8 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - The review reports `reviewing`. It creates no receipt and takes no operation lock. Cancellation or unmount before **Continue to wallet** returns a final outcome without a wallet request.
 - The 120-second approval deadline starts at **Continue to wallet**, so review time cannot consume it. A reviewed `prepared` state reports the authentication expiry. **Back to review** keeps the same pending approval and its deadline.
 - Reviewed approval always uses the modal and an explicit click, and it ignores saved confirmation preferences. A cancellation or review expiry before signing returns `cancelled` or `expired`. After signing starts, the operation keeps the wallet's actual result.
+- `review.origin` starts the first review surface from an application rectangle, and it never applies to wallet approval. Reduced motion shows the review in place.
+- `review.onVisible` reports `review` when the component is visible and `wallet` when wallet approval is ready. **Back to review** reports `review` again. A callback error cannot change the transaction.
 - Temporary signing material is disposed after signing. The operation creates no reusable authority.
 - Cancellation, expiry, account switching, and configuration revocation cannot install authority or replace the read connection.
 - SDK and React states distinguish readable access, approval, submission, cancellation, expiry, and unknown outcomes.

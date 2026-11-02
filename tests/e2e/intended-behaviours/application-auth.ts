@@ -1022,6 +1022,14 @@ function signedNonce(encoded: string): bigint {
 }
 
 /** Fresh approval must succeed only after each pending operation reaches its own end. */
+function clearReviewSurfaces(): void {
+  window.ownerAuthReviewSurfaces = [];
+}
+
+function readReviewSurfaces(): string[] {
+  return window.ownerAuthReviewSurfaces ?? [];
+}
+
 async function verifyOwnerReview(page: Page, backend: ApplicationBackend): Promise<void> {
   backend.finalBlockHeight = 1;
   backend.accessKeyNonce = null;
@@ -1030,11 +1038,13 @@ async function verifyOwnerReview(page: Page, backend: ApplicationBackend): Promi
   const wallet = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
   const reviewHeading = review.getByRole('heading', { name: 'Review deposit', exact: true });
   const openReview = async (): Promise<{ approval: Promise<string> }> => {
+    await page.evaluate(clearReviewSurfaces);
     await page.evaluate(prepareReviewedApiOperation);
     expect((await page.evaluate(readApiState))?.kind).toBe('prepared');
     const approval = page.evaluate(approveApiOnce);
     await expect(reviewHeading).toBeVisible({ timeout: 30_000 });
     expect((await page.evaluate(readApiState))?.kind).toBe('reviewing');
+    await expect.poll(() => page.evaluate(readReviewSurfaces)).toEqual(['review']);
     return { approval };
   };
   const continueToWallet = async (): Promise<void> => {
@@ -1042,6 +1052,7 @@ async function verifyOwnerReview(page: Page, backend: ApplicationBackend): Promi
     await expect(wallet.getByRole('button', { name: 'Back to review', exact: true })).toBeVisible({
       timeout: 30_000,
     });
+    await expect.poll(() => page.evaluate(readReviewSurfaces)).toContain('wallet');
   };
 
   // The owner ends the review, and the application ends it. Neither reaches the wallet.

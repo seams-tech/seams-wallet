@@ -1,5 +1,6 @@
 import type { AppearanceConfigInput } from '@/core/types/seams';
 import type { HostedAuthMenuSessionId } from '../../shared/messages';
+import type { TransactionReviewRect } from '../../shared/transactionReview';
 import type { RequestSurfaceIdentity } from '../surface/domain';
 import {
   walletIframeSurfaceGeometryEqual,
@@ -61,6 +62,11 @@ type ReviewHandoff =
       onReady: (() => void) | null;
     };
 
+type TransactionReviewReveal = {
+  readonly origin: TransactionReviewRect | null;
+  readonly onVisible: (rect: TransactionReviewRect | null) => void;
+};
+
 type SurfaceRect = {
   top: number;
   left: number;
@@ -103,6 +109,21 @@ function surfaceResizeKeyframes(origin: SurfaceRect, destination: SurfaceRect): 
       width: `${destination.width}px`,
       height: `${destination.height}px`,
     },
+  ];
+}
+
+function surfaceViewportRect(rect: SurfaceRect): TransactionReviewRect {
+  return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+}
+
+function reviewOriginKeyframes(origin: TransactionReviewRect, destination: SurfaceRect): Keyframe[] {
+  const x = origin.x - destination.left;
+  const y = origin.y - destination.top;
+  const scaleX = origin.width / destination.width;
+  const scaleY = origin.height / destination.height;
+  return [
+    { transformOrigin: 'top left', transform: `translate(${x}px, ${y}px) scale(${scaleX}, ${scaleY})` },
+    { transformOrigin: 'top left', transform: 'none' },
   ];
 }
 
@@ -213,6 +234,7 @@ export class OverlayController {
   private reviewHandoff: ReviewHandoff = { kind: 'idle' };
   private surfaceResizeAnimation: Animation | null = null;
   private surfaceResizeTimer: ReturnType<typeof setTimeout> | null = null;
+  private reviewReveal: TransactionReviewReveal | null = null;
 
   constructor(opts: OverlayControllerOptions) {
     this.ensureIframe = opts.ensureIframe;
@@ -238,6 +260,15 @@ export class OverlayController {
       dialog.appendChild(this.reviewSlot);
     }
     return this.reviewSlot;
+  }
+
+  setTransactionReviewReveal(reveal: TransactionReviewReveal | null): void {
+    this.reviewReveal = reveal;
+  }
+
+  getSurfaceRect(): TransactionReviewRect | null {
+    const rect = this.dialog && finiteSurfaceRect(this.dialog.getBoundingClientRect());
+    return rect ? surfaceViewportRect(rect) : null;
   }
 
   setReviewAppearance(appearance: AppearanceConfigInput | undefined): void {
@@ -435,6 +466,37 @@ export class OverlayController {
       // Each browser's showModal() picks a different initial control.
       if (mode.kind === 'compact_transaction_review') this.focusReview();
     }
+    if (mode.kind === 'compact_transaction_review') this.finishReviewReveal(dialog);
+  }
+
+  private finishReviewReveal(dialog: HTMLDialogElement): void {
+    const reveal = this.reviewReveal;
+    if (!reveal) return;
+    this.reviewReveal = null;
+    const destination = finiteSurfaceRect(dialog.getBoundingClientRect());
+    if (reveal.origin && destination) this.startReviewOrigin(reveal.origin, destination);
+    reveal.onVisible(destination ? surfaceViewportRect(destination) : null);
+  }
+
+  private startReviewOrigin(origin: TransactionReviewRect, destination: SurfaceRect): void {
+    const dialog = this.dialog;
+    if (!dialog || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.cancelSurfaceResize();
+    // A transform leaves layout alone, so the review keeps its width and its measurement.
+    const animation = dialog.animate(reviewOriginKeyframes(origin, destination), {
+      duration: REVIEW_HANDOFF_DURATION_MS,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    });
+    this.reviewSlot?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], {
+      duration: REVIEW_HANDOFF_DURATION_MS,
+      easing: 'ease-out',
+    });
+    this.surfaceResizeAnimation = animation;
+    this.surfaceResizeTimer = setTimeout(
+      this.cancelSurfaceResize.bind(this),
+      REVIEW_HANDOFF_DURATION_MS,
+    );
+    animation.addEventListener('finish', this.handleSurfaceResizeFinished, { once: true });
   }
 
   activateAfterReviewHandoff(onReady: () => void): void {
@@ -614,6 +676,7 @@ export class OverlayController {
     this.pointerCapture = null;
     this.mode = { kind: 'hidden' };
     this.visible = false;
+    this.reviewReveal = null;
     this.lastAppliedGeometry = null;
     this.authMenuVisualScale = 1;
     this.lastAppliedAuthMenuVisualScale = 1;

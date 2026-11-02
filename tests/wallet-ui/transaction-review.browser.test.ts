@@ -1699,6 +1699,90 @@ test('a replacement review host can register in the same commit as the previous 
   expect(result).toEqual({ replacementError: null, duplicateError: 'review_host_unavailable' });
 });
 
+async function startSurfaceReview(page: Page, origin: unknown): Promise<void> {
+  await page.evaluate(async (origin) => {
+    const { createElement, Fragment } = await import('react');
+    const state = window as any;
+    state.reviewSurfaces = [];
+    state.reviewOriginFrames = null;
+    function onVisible(surface: unknown) {
+      state.reviewSurfaces.push(surface);
+      if (state.reviewSurfaces.length > 1) return;
+      const dialog = document.querySelector('dialog[open]')!;
+      state.reviewOriginFrames = dialog.getAnimations().map((animation) => {
+        const effect = animation.effect as KeyframeEffect;
+        return String(effect.getKeyframes()[0]?.transform ?? '');
+      });
+      throw new Error('An application callback failure stays in the application');
+    }
+    function render(controls: any) {
+      return createElement(
+        Fragment,
+        null,
+        createElement('button', { onClick: controls.continueToWallet }, 'Continue surface'),
+        createElement('button', { onClick: controls.cancel }, 'Cancel surface'),
+      );
+    }
+    function capture(value: unknown) {
+      state.reviewResults.push({ kind: 'result', value });
+    }
+    void state.reviewWallet.near
+      .signAndSendTransaction({
+        receiverId: 'receiver.testnet',
+        actions: [{ type: 'Transfer', amount: '1' }],
+        review: {
+          title: 'Surface review',
+          validity: { kind: 'unbounded' },
+          origin,
+          onVisible,
+          render,
+        },
+      })
+      .then(capture);
+  }, origin);
+}
+
+function readSurfaceStages(): string[] {
+  return (window as any).reviewSurfaces.map((surface: { stage: string }) => surface.stage);
+}
+
+test('review origin and visibility events follow each surface', async ({ page }) => {
+  await startSurfaceReview(page, { x: 20, y: 30, width: 120, height: 40 });
+  await expect.poll(() => page.evaluate(readSurfaceStages)).toEqual(['review']);
+  const frames = await page.evaluate(() => (window as any).reviewOriginFrames as string[]);
+  expect(frames).toHaveLength(1);
+  expect(frames[0]).toContain('scale');
+  const dialog = page.locator('dialog[open]');
+  await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
+  const box = await dialog.boundingBox();
+  const [reported] = await page.evaluate(() => (window as any).reviewSurfaces);
+  expect(reported.rect).toEqual({ x: box!.x, y: box!.y, width: box!.width, height: box!.height });
+
+  await page.getByRole('button', { name: 'Continue surface', exact: true }).click();
+  await expect.poll(() => page.evaluate(readSurfaceStages)).toEqual(['review', 'wallet']);
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await wallet.getByRole('button', { name: 'Back to review', exact: true }).click();
+  await expect.poll(() => page.evaluate(readSurfaceStages)).toEqual(['review', 'wallet', 'review']);
+  await page.getByRole('button', { name: 'Cancel surface', exact: true }).click();
+  await expectNearFailure(page, 0, 'Reviewed request cancelled');
+});
+
+test('reduced motion and an invalid origin keep the review contract', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await startSurfaceReview(page, { x: 20, y: 30, width: 120, height: 40 });
+  await expect.poll(() => page.evaluate(readSurfaceStages)).toEqual(['review']);
+  expect(await page.evaluate(() => (window as any).reviewOriginFrames)).toEqual([]);
+  await page.getByRole('button', { name: 'Cancel surface', exact: true }).click();
+  await expectNearFailure(page, 0, 'Transaction review cancelled');
+  await startSurfaceReview(page, { x: 0, y: 0, width: 0, height: 40 });
+  await expectNearFailure(
+    page,
+    1,
+    'Review origin requires a finite position and a positive size',
+  );
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+});
+
 function focusGeometry(element: Element) {
   const view = element.ownerDocument.defaultView;
   if (!view) throw new Error('Focus geometry needs a live document');

@@ -17,6 +17,18 @@ export type TransactionReviewErrorCode =
   | 'review_render_failed'
   | 'review_prepare_timeout';
 
+export type TransactionReviewRect = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+
+export type TransactionReviewSurface = {
+  readonly stage: 'review' | 'wallet';
+  readonly rect: TransactionReviewRect;
+};
+
 export class TransactionReviewError extends Error {
   constructor(
     readonly code: TransactionReviewErrorCode,

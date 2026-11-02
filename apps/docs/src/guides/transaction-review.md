@@ -56,6 +56,37 @@ buttons without another dialog or focus trap.
 | `cancel()` | Cancels the review. |
 | `fail(error)` | Shows the SDK's dismissible error fallback. Use for event-handler or fetch failures. |
 
+## Start from your own modal
+
+Pass `origin` to grow the review from your own element. Use `onVisible` to learn when the
+review or the wallet approval is on screen.
+
+```tsx
+review: {
+  title: 'Review deposit',
+  validity: { kind: 'unbounded' },
+  origin: amountCard.getBoundingClientRect(),
+  onVisible: ({ stage, rect }) => {
+    if (stage === 'review') closeAmountModal();
+    trackSurface(stage, rect);
+  },
+  render: (controls) => <DepositReview controls={controls} />,
+}
+```
+
+`origin` is a rectangle in viewport pixels. The SDK reads it once when you call the method.
+It applies only to the first review. Wallet approval never starts from application
+geometry. With reduced motion, the review appears in place.
+
+`onVisible` receives `stage` and `rect`. `stage` is `review` when your component is
+visible, and `wallet` when wallet approval is ready. **Back to review** reports `review`
+again. `rect` is the settled position in viewport pixels. An error from this callback does
+not change the transaction.
+
+The review opens above your modal. Close your modal in `onVisible`, so that no frame
+shows an empty page. If your modal held focus, the SDK cannot return focus to it after you
+remove it, so move focus yourself when the operation ends.
+
 ## Choose validity explicitly
 
 `validity` is required so each call explicitly chooses whether the reviewed

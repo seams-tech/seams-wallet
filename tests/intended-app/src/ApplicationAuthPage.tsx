@@ -1,5 +1,9 @@
 import { ActionType, type OwnerNearOperation, type WalletSession } from '@seams/wallet';
-import { useSeams, type TransactionReviewControls } from '@seams/wallet/react';
+import {
+  useSeams,
+  type TransactionReviewControls,
+  type TransactionReviewSurface,
+} from '@seams/wallet/react';
 import React from 'react';
 import { ApplicationAuthExample } from '../../../examples/seams-auth-menu/src/ApplicationAuth';
 
@@ -8,6 +12,7 @@ declare global {
     ownerAuthApi: ReturnType<typeof useSeams>['seams'] | undefined;
     ownerAuthPrepare: (() => Promise<void>) | undefined;
     ownerAuthPrepareReviewed: (() => void) | undefined;
+    ownerAuthReviewSurfaces: string[] | undefined;
     ownerAuthOperation: OwnerNearOperation | undefined;
     ownerAuthSession: (() => Promise<WalletSession>) | undefined;
   }
@@ -54,9 +59,15 @@ function prepareReviewedOperation(
     review: {
       title: 'Review deposit',
       validity: { kind: 'unbounded' },
+      origin: { x: 16, y: 16, width: 160, height: 48 },
+      onVisible: recordReviewSurface,
       render: renderDepositReview,
     },
   });
+}
+
+function recordReviewSurface(surface: TransactionReviewSurface): void {
+  window.ownerAuthReviewSurfaces = [...(window.ownerAuthReviewSurfaces ?? []), surface.stage];
 }
 
 function renderDepositReview(controls: TransactionReviewControls): React.ReactNode {
