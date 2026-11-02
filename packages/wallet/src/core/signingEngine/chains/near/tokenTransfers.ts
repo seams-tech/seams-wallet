@@ -43,6 +43,20 @@ const KNOWN_NEAR_TOKENS: Readonly<
     },
     'usdt.tether-token.near': { symbol: 'USDt', decimals: 6 },
     'wrap.near': { symbol: 'wNEAR', decimals: 24 },
+    'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near': {
+      symbol: 'USDT.e',
+      decimals: 6,
+    },
+    'meta-pool.near': { symbol: 'stNEAR', decimals: 24 },
+    'eth.bridge.near': { symbol: 'ETH', decimals: 18 },
+    'btc.omft.near': { symbol: 'BTC', decimals: 8 },
+    'nbtc.bridge.near': { symbol: 'nBTC', decimals: 8 },
+    '2260fac5e5542a773aa44fbcfedf7c193bc2c599.factory.bridge.near': {
+      symbol: 'WBTC',
+      decimals: 8,
+    },
+    'sol.omft.near': { symbol: 'SOL', decimals: 9 },
+    'zec.omft.near': { symbol: 'ZEC', decimals: 8 },
   },
   testnet: {
     '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af': {
@@ -50,11 +64,26 @@ const KNOWN_NEAR_TOKENS: Readonly<
       decimals: 6,
     },
     'wrap.testnet': { symbol: 'wNEAR', decimals: 24 },
+    'meta-v2.pool.testnet': { symbol: 'stNEAR', decimals: 24 },
   },
 };
 
 // A contract outside the known list that claims one of these symbols gets a warning.
-const IMPERSONATED_TOKEN_SYMBOLS = new Set(['NEAR', 'WNEAR', 'USDC', 'USDT', 'ETH']);
+const IMPERSONATED_TOKEN_SYMBOLS = new Set([
+  'NEAR',
+  'WNEAR',
+  'STNEAR',
+  'USDC',
+  'USDT',
+  'USDT.E',
+  'ETH',
+  'BTC',
+  'WBTC',
+  'NBTC',
+  'CBBTC',
+  'SOL',
+  'ZEC',
+]);
 
 const resolvedMetadata = new Map<string, NearTokenMetadata>();
 const metadataLookups = new Map<string, Promise<NearTokenMetadata | null>>();
@@ -89,13 +118,6 @@ export function parseNearTokenTransferCall(
   const baseUnits = parseBaseUnits(args.amount);
   if (baseUnits === null) return null;
   return { tokenContract: receiverId, recipient: args.receiver_id, baseUnits };
-}
-
-export function formatNearTokenAmount(baseUnits: string, decimals: number): string {
-  if (decimals === 0) return baseUnits;
-  const padded = baseUnits.padStart(decimals + 1, '0');
-  const fraction = padded.slice(-decimals).replace(/0+$/, '');
-  return `${padded.slice(0, -decimals)}${fraction ? `.${fraction}` : ''}`;
 }
 
 function decodeTokenMetadata(value: unknown): NearTokenMetadata | null {

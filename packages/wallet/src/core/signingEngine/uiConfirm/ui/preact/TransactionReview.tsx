@@ -16,6 +16,7 @@ import { copySurfaceText } from './clipboard';
 import { CopyStatusIcon } from './CopyStatusIcon';
 import { ReviewDisclosure } from './ReviewDisclosure';
 import { SeamsWordmark } from './SeamsWordmark';
+import { TokenIcon, UnbrandedTokenIcon } from './TokenIcon';
 import { contractPrefix, transactionLabelTitle } from './TransactionLabel';
 
 export type TransactionReviewData = {
@@ -106,62 +107,6 @@ export function ReviewMiddleTruncated({
   );
 }
 
-function UnbrandedTokenIcon({ symbol }: { symbol: string }) {
-  return (
-    <span class="seams-review-token seams-review-token-fallback" aria-hidden="true">
-      {symbol.slice(0, 1)}
-    </span>
-  );
-}
-
-function TokenIcon({ symbol }: { symbol: string }) {
-  // Symbol from NEAR's official documentation assets: github.com/near/docs/blob/master/assets/logo.svg
-  if (symbol === 'NEAR' || symbol === 'yoctoNEAR')
-    return (
-      <svg class="seams-review-token" viewBox="0 0 48 48" aria-hidden="true">
-        <circle cx="24" cy="24" r="24" fill="#000" />
-        <svg x="9" y="9" width="30" height="30" viewBox="108 108 351 351">
-          <path
-            d="m421.61,108c-13,0-25.07,6.74-31.88,17.82l-73.37,108.93c-2.39,3.59-1.42,8.43,2.17,10.82,2.91,1.94,6.76,1.7,9.41-.58l72.22-62.64c1.2-1.08,3.05-.97,4.13.23.49.55.75,1.26.75,1.99v196.12c0,1.62-1.31,2.92-2.93,2.92-.87,0-1.69-.38-2.24-1.05L181.56,121.24c-7.11-8.39-17.55-13.23-28.54-13.24h-7.63c-20.65,0-37.39,16.74-37.39,37.39v276.22c0,20.65,16.74,37.39,37.39,37.39,13,0,25.07-6.74,31.88-17.82l73.37-108.93c2.39-3.59,1.42-8.43-2.17-10.82-2.91-1.94-6.76-1.7-9.41.58l-72.22,62.64c-1.2,1.08-3.05.97-4.13-.23-.49-.55-.75-1.26-.74-1.99v-196.17c0-1.62,1.31-2.92,2.93-2.92.86,0,1.69.38,2.24,1.05l218.28,261.37c7.11,8.39,17.55,13.23,28.54,13.24h7.63c20.65.01,37.4-16.72,37.42-37.37V145.39c0-20.65-16.74-37.39-37.39-37.39Z"
-            fill="#fff"
-          />
-        </svg>
-      </svg>
-    );
-  if (symbol === 'ETH')
-    return (
-      <svg class="seams-review-token" viewBox="0 0 42 42" aria-hidden="true">
-        <circle cx="21" cy="21" r="21" fill="#eef0fb" />
-        <path d="m21 6-9 15 9 5 9-5Z" fill="#627eea" />
-        <path d="m21 6 9 15-9 5Z" fill="#465da9" />
-        <path d="m12 23 9 13 9-13-9 5Z" fill="#627eea" />
-      </svg>
-    );
-  // Circle's USDC Token artwork: https://www.circle.com/pressroom#brand-kit
-  if (symbol === 'USDC')
-    return (
-      <svg class="seams-review-token" viewBox="0 0 96 96" fill="none" aria-hidden="true">
-        <path
-          d="M48 95C73.9574 95 95 73.9574 95 48C95 22.0426 73.9574 1 48 1C22.0426 1 1 22.0426 1 48C1 73.9574 22.0426 95 48 95Z"
-          fill="#0B53BF"
-        />
-        <path
-          d="M56.4609 13.7778V19.8291C68.5341 23.4716 77.3759 34.6928 77.3759 47.9997C77.3759 61.3066 68.5341 72.5278 56.4609 76.1703V82.2216C71.8534 78.4616 83.2509 64.5672 83.2509 47.9997C83.2509 31.4322 71.8534 17.5378 56.4609 13.7778Z"
-          fill="white"
-        />
-        <path
-          d="M18.625 47.9997C18.625 34.6928 27.4669 23.4716 39.54 19.8291V13.7778C24.1475 17.5378 12.75 31.4322 12.75 47.9997C12.75 64.5672 24.1475 78.4616 39.54 82.2216V76.1703C27.4669 72.5572 18.625 61.3066 18.625 47.9997Z"
-          fill="white"
-        />
-        <path
-          d="M60.6319 54.5506C60.6319 42.5362 41.8025 47.4713 41.8025 40.8325C41.8025 38.4531 43.7119 36.9256 47.3544 36.9256C51.7019 36.9256 53.2 39.0406 53.67 41.89H59.6625C59.1279 36.5426 56.0588 33.1662 50.9382 32.1604V27.4375H45.0632V31.9918C39.4534 32.7062 35.9275 35.973 35.9275 40.8325C35.9275 52.9056 54.7863 48.3819 54.7863 54.9031C54.7863 57.3706 52.4069 59.0156 48.3825 59.0156C43.1244 59.0156 41.3913 56.695 40.745 53.4931H34.8994C35.2781 59.3502 38.8897 63.0159 45.0632 63.9307V68.5625H50.9382V63.9923C56.9633 63.2139 60.6319 59.7089 60.6319 54.5506Z"
-          fill="white"
-        />
-      </svg>
-    );
-  return <UnbrandedTokenIcon symbol={symbol} />;
-}
-
 function tokenTransferAmount(transfer: TxDisplayTokenTransfer): { value: string; symbol: string } {
   return transfer.amount ?? { value: transfer.baseUnits, symbol: 'base units' };
 }
@@ -182,7 +127,7 @@ function TokenTransferHeadline({
       ) : (
         <UnbrandedTokenIcon symbol={transfer.amount?.symbol ?? '?'} />
       )}
-      <div class="seams-review-amount-value seams-review-amount-value--token">
+      <div class="seams-review-amount-value">
         <span>{amount.value}</span>{' '}
         <small>
           <WalletText copy={amount.symbol} />
@@ -306,6 +251,8 @@ export function WalletReceiptFooter() {
   );
 }
 
+const ETH_NATIVE_CHAIN_IDS: ReadonlySet<number> = new Set([1, 8453, 84532, 11155111]);
+
 function decimalUnits(value: string, decimals: number): string {
   if (!/^\d+$/.test(value)) return value;
   const padded = value.padStart(decimals + 1, '0');
@@ -330,6 +277,13 @@ function reviewAmount(model: TxDisplayModel | null): { value: string; symbol: st
     total.nativeSymbol === 'wei'
   )
     return { value: decimalUnits(total.nativeValue, 18), symbol: 'USDC' };
+  if (
+    model?.chain === 'evm' &&
+    model.chainId !== undefined &&
+    ETH_NATIVE_CHAIN_IDS.has(model.chainId) &&
+    total.nativeSymbol === 'wei'
+  )
+    return { value: decimalUnits(total.nativeValue, 18), symbol: 'ETH' };
   // A chain's native denomination cannot be inferred from EVM compatibility alone.
   return { value: total.nativeValue, symbol: total.nativeSymbol ?? '' };
 }

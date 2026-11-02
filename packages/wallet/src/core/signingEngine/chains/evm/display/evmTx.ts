@@ -9,6 +9,7 @@ import type {
   GenericContractCallOperation,
   TxDisplayOperation,
 } from '@/core/signingEngine/interfaces/display';
+import { parseErc20TransferForDisplay } from './tokenTransfers';
 
 type BuildEvmDisplayModelArgs = {
   request: EvmSigningRequest;
@@ -150,6 +151,7 @@ export function buildEvmDisplayModel(args: BuildEvmDisplayModelArgs): TxDisplayM
     selector,
   });
   const totalValueWei = tx.value > 0n ? tx.value : undefined;
+  const tokenTransfer = parseErc20TransferForDisplay({ chainId: tx.chainId, to, dataHex });
 
   return {
     chain: 'evm',
@@ -159,6 +161,15 @@ export function buildEvmDisplayModel(args: BuildEvmDisplayModelArgs): TxDisplayM
     title: args.title || 'EVM Transaction',
     subtitle: args.subtitle,
     operations: [operation],
+    // Attached native value must stay visible, so it keeps the headline.
+    ...(tokenTransfer
+      ? {
+          tokenTransfers:
+            totalValueWei != null
+              ? { layout: 'rows' as const, transfers: [tokenTransfer] }
+              : { layout: 'headline' as const, transfer: tokenTransfer },
+        }
+      : {}),
     ...(totalValueWei != null
       ? {
           totals: {
