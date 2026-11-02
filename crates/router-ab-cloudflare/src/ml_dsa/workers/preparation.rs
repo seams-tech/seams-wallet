@@ -229,8 +229,21 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
     // A lost queue reply can still mean the job started. Keep its lease until
     // the independent producer finishes or the existing deadline expires.
     schedule_refill_alarm(state, if result.is_ok() { 1_000 } else { 5_000 }).await?;
-    result.map_err(protocol_error)?;
-    Response::from_json(&true)
+    match result.map_err(protocol_error)? {
+        producer::Dispatched::Queued => Response::from_json(&true),
+        // Each lease is dispatched once and this producer queued nothing, so no
+        // work can run under it. Other waiting keys retry within their 5 s wait.
+        producer::Dispatched::Refused => {
+            let _: Vec<KeyScope> = service_call(
+                env,
+                CallAuthority::Internal,
+                &admission_requests::finish_refill(job, refill::Outcome::Failed),
+            )
+            .await
+            .map_err(protocol_error)?;
+            Response::from_json(&false)
+        }
+    }
 }
 async fn controller_inventory(
     state: &State,
@@ -675,11 +688,15 @@ async fn reconcile_unpaired(
     Ok(changed)
 }
 
-async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
+async fn dispatch(env: &Env, job: &refill::Job) -> Result<producer::Dispatched> {
     log_stage(job, Participant::A, job.batch, "dispatch_started");
-    producer::dispatch(env, job).await?;
-    log_stage(job, Participant::A, job.batch, "dispatch_acknowledged");
-    Ok(())
+    let dispatched = producer::dispatch(env, job).await?;
+    let stage = match dispatched {
+        producer::Dispatched::Queued => "dispatch_acknowledged",
+        producer::Dispatched::Refused => "dispatch_refused",
+    };
+    log_stage(job, Participant::A, job.batch, stage);
+    Ok(dispatched)
 }
 
 /// Public stock identities let throughput evidence account for initial and final reserves.
