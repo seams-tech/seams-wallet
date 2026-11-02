@@ -1,5 +1,5 @@
 import { defineConfig, type DefaultTheme, type MarkdownRenderer } from 'vitepress';
-import { docPagePath, japaneseSidebarItem, localizedDocLink } from './i18n';
+import { docPagePath, japaneseSidebarItem, localizedDocLink, releaseLabel } from './i18n';
 
 const docsOrigin = (process.env.VITE_DOCS_ORIGIN || 'https://wallet.seams.sh/docs').replace(
   /\/$/,
@@ -47,7 +47,7 @@ const getStartedSection: DefaultTheme.SidebarItem = {
   text: 'Get started',
   items: [
     { text: 'Installation', link: '/' },
-    { text: 'Release 0.29.0', link: '/releases' },
+    { text: releaseLabel, link: '/releases' },
     { text: 'Create a wallet', link: '/getting-started/create-wallet' },
     { text: 'Sign with policy', link: '/getting-started/sign-with-policy' },
     {

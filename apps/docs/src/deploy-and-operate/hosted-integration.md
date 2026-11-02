@@ -82,14 +82,14 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Release 0.28.0
+## Release 0.42.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.28.0**.
-Pin `@seams/wallet-cli` to **0.28.0**. See the [recovery CLI guide](/deploy-and-operate/recovery-cli) for its signed native assets.
-VoiceID hosts also install `@seams/voiceid` **0.28.0** and compose the static deployment with
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.42.0**.
+Pin `@seams/wallet-cli` to **0.29.0**. See the [recovery CLI guide](/deploy-and-operate/recovery-cli) for its signed native assets.
+VoiceID hosts also install `@seams/voiceid` **0.42.0** and compose the static deployment with
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`.
 See [VoiceID setup](/concepts/auth-methods/voiceid#prepare-the-wallet-host) for the app and host steps.
-See [Release 0.28.0](/releases) for the supported integration.
+See [Release 0.42.0](/releases) for the supported integration.
 
 APAC wallet objects request Southeast Asia placement through `apac-se`.
 Verify the actual object and database locations before accepting a hosted
@@ -103,7 +103,7 @@ Deploy the matching wallet host, Gateway, Wallet Runtime, Router, control plane,
 both Derivers, and Signing Worker.
 The private address-allocation response carries a batch, so the custody
 Workers must move together. The application and wallet host both use public
-wallet iframe protocol **18.0.0**.
+wallet iframe protocol **23.0.0**.
 
 Registration reuses committed admission, commits custody with its completion
 receipt, and can finish after A's validated completion without waiting for B's

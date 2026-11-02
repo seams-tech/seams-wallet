@@ -1,6 +1,10 @@
 import type { DefaultTheme } from 'vitepress';
+import { version as sdkVersion } from '../../../../packages/wallet/package.json';
 
 export type DocsLocale = 'en' | 'ja';
+
+export const releaseLabel = `Release ${sdkVersion}`;
+const japaneseReleaseLabel = `リリース ${sdkVersion}`;
 
 export function docPagePath(relativePath: string): string {
   return `/${relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`;
@@ -32,7 +36,7 @@ export const docsMessages = {
     architecture: 'Architecture',
     authentication: 'Authentication',
     policies: 'Policies',
-    release: 'Release 0.29.0',
+    release: releaseLabel,
     pricing: 'Pricing',
     support: 'Support',
     diagram: 'Architecture diagram',
@@ -57,7 +61,7 @@ export const docsMessages = {
     architecture: 'アーキテクチャ',
     authentication: '認証',
     policies: 'ポリシー',
-    release: 'リリース 0.29.0',
+    release: japaneseReleaseLabel,
     pricing: '料金',
     support: 'サポート',
     diagram: '構成図',
@@ -72,8 +76,7 @@ export const docsMessages = {
 const japaneseSidebarLabels: Record<string, string> = {
   'Get started': 'はじめに',
   Installation: 'インストール',
-  'Release 0.29.0': 'リリース 0.29.0',
-  'Release 0.28.0': 'リリース 0.28.0',
+  [releaseLabel]: japaneseReleaseLabel,
   'Create a wallet': 'ウォレットを作成',
   'Sign with policy': 'ポリシーに従って署名',
   'Devices, export, and recovery': 'デバイス連携・鍵のエクスポート・復元',

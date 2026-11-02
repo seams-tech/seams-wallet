@@ -11,8 +11,8 @@ Owner authentication controls custody and signing. Google BYO auth provides a se
 | --- | --- | --- |
 | Passkeys | Released | Cryptographic authenticator and user-presence factor |
 | Email OTP | Released | Server-verified channel challenge and worker-owned secret flow |
-| Google BYO auth | 0.28.0 | Reuse app login for settings reads after an owner-approved association |
-| VoiceID | 0.28.0 · optional package | Local speaker and phrase checks with device-bound unlock and reviewed approval |
+| Google BYO auth | Released | Reuse app login for settings reads after an owner-approved association |
+| VoiceID | Released · optional package | Local speaker and phrase checks with device-bound unlock and reviewed approval |
 
 VoiceID requires the optional `@seams/voiceid` package in the app and on the Wallet host.
 The [VoiceID page](/concepts/auth-methods/voiceid) includes installation, enrollment, and unlock examples.

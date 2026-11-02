@@ -34,6 +34,8 @@ Wallet site when either surface changes.
    Update `src/releases.md` with a dated baseline. Label prepared changes explicitly.
 2. Update installation, package READMEs, examples, affected API reference, and
    deployment instructions. Preserve historical evidence and migration conditions.
+   Search `src` outside `releases.md` for the previous SDK, CLI, and iframe protocol
+   versions. The sidebar and footer labels read the version from `packages/wallet`.
 3. Reconcile concepts and diagrams with the numbered specifications and
    `docs/intended-behaviours.md`. Proposed capabilities need explicit availability.
 4. Run the checks above. Compile examples against the exact published packages
