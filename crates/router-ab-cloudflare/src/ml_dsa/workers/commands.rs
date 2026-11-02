@@ -186,7 +186,7 @@ command_family! { AdmissionCommand, admission_requests {
     Admit(admit) {
         claim: Claim,
         batches: Vec<[u8; 32]>,
-    } => Decision, Json;
+    } => admission::AdmitOutcome, Json;
     Cancel(cancel) {
         claim: Claim,
     } => bool, Json;
@@ -200,6 +200,7 @@ command_family! { AdmissionCommand, admission_requests {
     } => Status, Json;
     Settled(settled) {
         request: SigningRequest,
+        returned: Vec<[u8; 32]>,
     } => bool, Json;
     Lookup(lookup) {
         request: SigningRequest,
@@ -235,6 +236,10 @@ command_family! { RoleCommand, role_requests {
         key: KeyScope,
         batches: Vec<[u8; 32]>,
     } => Vec<pool::BatchAvailability>, Json;
+    RetireSpent(retire_spent) {
+        key: KeyScope,
+        batches: Vec<[u8; 32]>,
+    } => bool, Json;
     RetireUnpaired(retire_unpaired) {
         key: KeyScope,
         batches: Vec<[u8; 32]>,

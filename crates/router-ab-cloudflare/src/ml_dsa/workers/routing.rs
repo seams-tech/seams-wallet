@@ -51,7 +51,7 @@ impl AdmissionCommand {
             Self::Preflight { request }
             | Self::DeferEmpty { request, .. }
             | Self::Begin { request }
-            | Self::Settled { request }
+            | Self::Settled { request, .. }
             | Self::Lookup { request } => Destination::Wallet(&request.key.wallet),
             Self::Admit { claim, .. } | Self::Cancel { claim } | Self::AwaitStock { claim, .. } => {
                 Destination::Wallet(&claim.request.key.wallet)

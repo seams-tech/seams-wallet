@@ -303,6 +303,10 @@ async fn execute_role(
                 pool::inspect(store, &key, &batches).await?,
             )
         }
+        RoleCommand::RetireSpent { key, batches } => {
+            pool::retire_spent(store, &key, &batches).await?;
+            material_delivery::json::<role_requests::retire_spent::Reply>(true)
+        }
         RoleCommand::RetireUnpaired { key, batches } => {
             pool::retire_unpaired(store, &key, &batches).await?;
             material_delivery::json::<role_requests::retire_unpaired::Reply>(true)

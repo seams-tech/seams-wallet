@@ -163,6 +163,7 @@ pub(super) async fn authorize_role_command(env: &Env, command: &RoleCommand) -> 
         | RoleCommand::RefillStatus { .. }
         | RoleCommand::PublicationRecorded { .. }
         | RoleCommand::Inspect { .. }
+        | RoleCommand::RetireSpent { .. }
         | RoleCommand::RetireUnpaired { .. } => return Ok(()),
     };
     check_signing_scope(env, &request.key)?;
