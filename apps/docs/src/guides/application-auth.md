@@ -92,10 +92,34 @@ An existing enrolled passkey and encrypted signing material must be available on
 A GetSignal passkey authenticates GetSignal. Wallet approval initially uses a wallet-origin owner passkey.
 Direct approval with another relying party's passkey is outside this API.
 
+## Show your review first
+
+Pass `review` on a readable `useSeams().wallet` to show your React component before wallet approval.
+Mount [`TransactionReviewHost`](/guides/transaction-review#mount-the-host) above the caller.
+
+```tsx [Partial example]
+const operation = wallet.near.prepareOwnerTransaction({
+  transaction,
+  review: {
+    title: 'Review deposit',
+    validity: { kind: 'unbounded' },
+    render: (controls) => <DepositReview quote={quote} controls={controls} />,
+  },
+});
+await saveDepositRecord(depositId, operation.getState().recovery);
+const outcome = await operation.approve();
+```
+
+Here, `DepositReview`, `quote`, `depositId`, and `saveDepositRecord` belong to your application.
+`approve()` opens the review, and the state becomes `reviewing`. **Continue to wallet** moves the shared modal to wallet approval.
+The state then becomes `approval`, and its 120-second deadline starts. Review time cannot consume that deadline.
+A cancelled review returns `cancelled`. An expired quote returns `expired`. Other review failures return `not_submitted`.
+Core `seams.near.prepareOwnerTransaction` does not accept `review`.
+
 ## Observe and recover
 
 Use `operation.getState()` or React's `useOwnerNearOperation(operation)`.
-States distinguish `prepared`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `not_submitted`, `reverted`, `unresolved`, `recovery_unavailable`, `unknown`, `retirement_available`, `retirement_approval`, and `retired`.
+States distinguish `prepared`, `reviewing`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `not_submitted`, `reverted`, `unresolved`, `recovery_unavailable`, `unknown`, `retirement_available`, `retirement_approval`, and `retired`.
 A React wallet with `access: 'external'` exposes owner-operation handles separately from reusable signing controls.
 
 Persist `state.recovery` as non-secret transaction metadata before starting an operation.

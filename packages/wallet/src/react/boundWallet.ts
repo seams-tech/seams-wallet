@@ -2,8 +2,9 @@ import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import type { ExternalWalletAuthentication } from '@shared/auth/externalAuth';
 import type { OwnerNearOperation, OwnerNearRecovery } from '../SeamsWeb/publicApi/ownerNearOperation';
 import type { TransactionInput } from '@/core/types/actions';
-import type { ReviewedTransactionInput } from './transactionReview/contract';
+import type { ReviewedTransactionInput, TransactionReview } from './transactionReview/contract';
 import { createReviewedBoundCalls } from './transactionReview/boundCalls';
+import { prepareReviewedOwnerTransaction } from './transactionReview/ownerOperation';
 import type { ReviewOwner, ReviewHostController } from './transactionReview/controller';
 import type { AuthenticatedLoginState } from './types';
 import {
@@ -84,7 +85,11 @@ export interface ReadableBoundWallet {
   readonly authentication: ExternalWalletAuthentication;
   readonly near: {
     readonly accountId: string;
-    prepareOwnerTransaction(input: { readonly transaction: TransactionInput }): OwnerNearOperation;
+    /** With `review`, `approve()` shows that component before wallet approval. */
+    prepareOwnerTransaction(input: {
+      readonly transaction: TransactionInput;
+      readonly review?: TransactionReview;
+    }): OwnerNearOperation;
     resumeOwnerTransaction(input: { readonly recovery: OwnerNearRecovery }): OwnerNearOperation;
   } | null;
 }
@@ -104,7 +109,7 @@ export function createBoundWallet(
       authentication: loginState.externalSettings.authentication,
       near: loginState.nearAccountId ? {
         accountId: loginState.nearAccountId,
-        prepareOwnerTransaction: prepareReadableOwnerTransaction.bind(null, seams, loginState.externalSettings.authentication, loginState.nearAccountId),
+        prepareOwnerTransaction: prepareReadableOwnerTransaction.bind(null, seams, loginState.externalSettings.authentication, loginState.nearAccountId, host, owner),
         resumeOwnerTransaction: resumeReadableOwnerTransaction.bind(null, seams, loginState.externalSettings.authentication),
       } : null,
     };
@@ -177,8 +182,10 @@ function exportKey(
   return seams.keys.exportKey({ ...input, walletSession });
 }
 
-function prepareReadableOwnerTransaction(seams: SeamsWeb, authentication: ExternalWalletAuthentication, nearAccountId: string, input: { readonly transaction: TransactionInput }): OwnerNearOperation {
-  return seams.near.prepareOwnerTransaction({ authentication, nearAccountId, transaction: input.transaction });
+function prepareReadableOwnerTransaction(seams: SeamsWeb, authentication: ExternalWalletAuthentication, nearAccountId: string, host: ReviewHostController | null, owner: ReviewOwner, input: { readonly transaction: TransactionInput; readonly review?: TransactionReview }): OwnerNearOperation {
+  const prepared = { authentication, nearAccountId, transaction: input.transaction };
+  if (input.review === undefined) return seams.near.prepareOwnerTransaction(prepared);
+  return prepareReviewedOwnerTransaction({ seams, host, owner }, prepared, input.review);
 }
 
 function resumeReadableOwnerTransaction(seams: SeamsWeb, authentication: ExternalWalletAuthentication, input: { readonly recovery: OwnerNearRecovery }): OwnerNearOperation {

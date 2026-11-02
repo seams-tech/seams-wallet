@@ -83,6 +83,10 @@ review: {
 | `evm`                       | `signTransaction`、`signAndSendTransaction` |
 | `tempo`                     | `signTransaction`、`signAndSendTransaction` |
 
+読み取り用のウォレット（`access: 'external'`）では、`near.prepareOwnerTransaction` が `review` を受け付けます。
+確認画面は `operation.approve()` で開き、結果は型付きで返ります。詳しくは[所有者の承認](/ja/guides/application-auth)を参照してください。
+この呼び出しは常にモーダルと明示的なクリックを使い、確認設定を受け取りません。
+
 独自の確認画面には、ホストされたウォレットiframeと、実効値が`uiMode: 'modal'`、`behavior: 'requireClick'`となる確認設定が必要です。
 保存済みの設定と互換性がない場合も上書きできるよう、実装例のとおり明示的に設定してください。
 遅延後の自動承認には対応しません。Core SDKの呼び出し、メッセージ署名、エクスポート、認証は、このReactの確認APIを受け付けません。

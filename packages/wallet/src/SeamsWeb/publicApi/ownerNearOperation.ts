@@ -5,7 +5,7 @@ import type { ActionResult } from '@/core/types/seams';
 import type { ExternalWalletAuthentication } from '@shared/auth/externalAuth';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { safeErrorMessage } from '@shared/utils/errors';
-import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import {
   parseOwnerNearCommand,
   parseOwnerNearRecovery,
@@ -28,7 +28,12 @@ export type {
 
 export type OwnerNearOperationState = Readonly<{ recovery: OwnerNearRecovery }> &
   ReadonlyExclusiveUnion<
-    | { kind: 'prepared'; expiresAtMs: number }
+    | {
+        kind: 'prepared';
+        /** A reviewed operation has no approval deadline yet, so this is its authentication expiry. */
+        expiresAtMs: number;
+      }
+    | { kind: 'reviewing' }
     | { kind: 'approval'; expiresAtMs: number }
     | { kind: 'submitting'; transactionId: string }
     | { kind: 'unknown' }
@@ -81,10 +86,22 @@ export type ExecuteOwnerNearOperation = (
   },
 ) => Promise<OwnerNearOutcome>;
 
-export function prepareOwnerNearTransaction(
-  execute: ExecuteOwnerNearOperation,
-  input: PrepareOwnerNearTransaction,
-): OwnerNearOperation {
+/**
+ * Shows an application review before wallet approval. The review calls `dispatch` when the
+ * owner continues to the wallet, with the executor that owns the review's surface.
+ */
+export type OwnerNearReview = (
+  signal: AbortSignal,
+  dispatch: (execute: ExecuteOwnerNearOperation) => Promise<OwnerNearOutcome>,
+) => Promise<OwnerNearOutcome>;
+
+type OwnerNearApprovalCommand = Variant<OwnerNearCommand, 'action', 'approve'>;
+
+function ownerApprovalDeadline(authentication: ExternalWalletAuthentication): number {
+  return Math.min(authentication.expiresAtMs, Date.now() + 120_000);
+}
+
+function ownerApprovalCommand(input: PrepareOwnerNearTransaction): OwnerNearApprovalCommand {
   const recovery: OwnerNearRecovery = {
     operationId: SigningSessionIds.signingOperation(
       `owner-near:${secureRandomBase64Url(32, 'owner NEAR operation IDs')}`,
@@ -96,18 +113,40 @@ export function prepareOwnerNearTransaction(
     action: 'approve',
     authentication: input.authentication,
     recovery,
-    expiresAtMs: Math.min(input.authentication.expiresAtMs, Date.now() + 120_000),
+    expiresAtMs: ownerApprovalDeadline(input.authentication),
     transaction: {
       receiverId: input.transaction.receiverId,
       actions: input.transaction.actions.map(toActionArgsWasm),
     },
   });
   if (command.action !== 'approve') throw new Error('Invalid prepared owner operation.');
+  return command;
+}
+
+export function prepareOwnerNearTransaction(
+  execute: ExecuteOwnerNearOperation,
+  input: PrepareOwnerNearTransaction,
+): OwnerNearOperation {
+  const command = ownerApprovalCommand(input);
   return new OwnerNearTransaction(execute, command, {
     kind: 'prepared',
-    recovery,
+    recovery: command.recovery,
     expiresAtMs: command.expiresAtMs,
   });
+}
+
+export function prepareReviewedOwnerNearTransaction(
+  execute: ExecuteOwnerNearOperation,
+  input: PrepareOwnerNearTransaction,
+  review: OwnerNearReview,
+): OwnerNearOperation {
+  const command = ownerApprovalCommand(input);
+  return new OwnerNearTransaction(
+    execute,
+    command,
+    { kind: 'prepared', recovery: command.recovery, expiresAtMs: input.authentication.expiresAtMs },
+    review,
+  );
 }
 
 export function resumeOwnerNearTransaction(
@@ -132,6 +171,7 @@ class OwnerNearTransaction implements OwnerNearOperation {
     private readonly execute: ExecuteOwnerNearOperation,
     private readonly command: OwnerNearCommand,
     private state: OwnerNearOperationState,
+    private readonly review?: OwnerNearReview,
   ) {}
 
   getState(): OwnerNearOperationState {
@@ -160,9 +200,17 @@ class OwnerNearTransaction implements OwnerNearOperation {
     if (this.inFlight) return this.inFlight;
     if (this.command.action !== 'approve' || this.state.kind !== 'prepared')
       throw new Error('This operation cannot request another approval.');
-    if (this.command.expiresAtMs <= Date.now()) {
+    if (this.state.expiresAtMs <= Date.now()) {
       this.transition({ kind: 'expired', recovery: this.command.recovery });
       return Promise.resolve({ kind: 'expired' });
+    }
+    if (this.review) {
+      this.transition({ kind: 'reviewing', recovery: this.command.recovery });
+      this.inFlight = this.run(
+        this.command,
+        this.openReview.bind(this, this.review, this.command),
+      );
+      return this.inFlight;
     }
     this.transition({
       kind: 'approval',
@@ -177,7 +225,7 @@ class OwnerNearTransaction implements OwnerNearOperation {
     if (this.state.kind === 'prepared') {
       this.controller.abort();
       this.transition({ kind: 'cancelled', recovery: this.command.recovery });
-    } else if (this.state.kind === 'approval') {
+    } else if (this.state.kind === 'reviewing' || this.state.kind === 'approval') {
       this.controller.abort();
     }
   }
@@ -214,14 +262,39 @@ class OwnerNearTransaction implements OwnerNearOperation {
     return this.inFlight;
   }
 
+  private openReview(
+    review: OwnerNearReview,
+    command: OwnerNearApprovalCommand,
+    execution: Parameters<ExecuteOwnerNearOperation>[1],
+  ): Promise<OwnerNearOutcome> {
+    return review(execution.signal, this.dispatchReviewed.bind(this, command, execution));
+  }
+
+  private async dispatchReviewed(
+    command: OwnerNearApprovalCommand,
+    execution: Parameters<ExecuteOwnerNearOperation>[1],
+    execute: ExecuteOwnerNearOperation,
+  ): Promise<OwnerNearOutcome> {
+    // The deadline starts when the owner continues, so review time cannot consume approval time.
+    const expiresAtMs = ownerApprovalDeadline(command.authentication);
+    if (expiresAtMs <= Date.now()) return { kind: 'expired' };
+    this.transition({ kind: 'approval', recovery: command.recovery, expiresAtMs });
+    return await execute(parseOwnerNearCommand({ ...command, expiresAtMs }), execution);
+  }
+
   private submitted(recovery: OwnerNearRecovery, transactionId: string): void {
     this.transition({ kind: 'submitting', recovery, transactionId });
   }
 
-  private async run(command: OwnerNearCommand): Promise<OwnerNearOutcome> {
+  private async run(
+    command: OwnerNearCommand,
+    execute: (
+      execution: Parameters<ExecuteOwnerNearOperation>[1],
+    ) => Promise<OwnerNearOutcome> = this.execute.bind(null, command),
+  ): Promise<OwnerNearOutcome> {
     let outcome: OwnerNearOutcome;
     try {
-      outcome = await this.execute(command, {
+      outcome = await execute({
         // The owner ends a retirement review in the wallet surface.
         signal: command.action === 'approve' ? this.controller.signal : new AbortController().signal,
         onSubmission: this.submitted.bind(this, command.recovery),

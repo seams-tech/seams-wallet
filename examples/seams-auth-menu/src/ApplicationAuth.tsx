@@ -253,7 +253,7 @@ function OwnerTransaction({
       {state.kind === 'prepared' ? (
         <button onClick={operation.approve.bind(operation)}>Review and approve transfer</button>
       ) : null}
-      {state.kind === 'prepared' || state.kind === 'approval' ? (
+      {state.kind === 'prepared' || state.kind === 'reviewing' || state.kind === 'approval' ? (
         <button onClick={operation.cancel.bind(operation)}>Cancel transfer</button>
       ) : null}
       {state.kind === 'unknown' ||
@@ -284,6 +284,7 @@ function OwnerTransaction({
 
 function blocksNewTransfer(state: OwnerNearOperationState): boolean {
   switch (state.kind) {
+    case 'reviewing':
     case 'approval':
     case 'submitting':
     case 'unknown':
@@ -380,6 +381,7 @@ function persistRecovery(state: OwnerNearOperationState): void {
       );
       return;
     case 'prepared':
+    case 'reviewing':
     case 'approval':
     case 'unknown':
     case 'recovery_unavailable':

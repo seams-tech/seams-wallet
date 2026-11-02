@@ -1,4 +1,5 @@
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
+import { safeErrorMessage } from '@shared/utils/errors';
 import { isPlainObject } from '@shared/utils/validation';
 
 export type TransactionReviewValidity =
@@ -25,6 +26,23 @@ export class TransactionReviewError extends Error {
     super(message, options);
     this.name = 'TransactionReviewError';
   }
+}
+
+/** A review that ends before signing proves that this attempt never broadcast. */
+export function ownerNearOutcomeBeforeSigning(
+  error: unknown,
+):
+  | { readonly kind: 'cancelled' }
+  | { readonly kind: 'expired' }
+  | { readonly kind: 'not_submitted'; readonly error: string } {
+  if (error instanceof TransactionReviewError) {
+    if (error.code === 'cancelled') return { kind: 'cancelled' };
+    if (error.code === 'review_expired') return { kind: 'expired' };
+  }
+  return {
+    kind: 'not_submitted',
+    error: safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
+  };
 }
 
 type TransactionReviewIdentity = {

@@ -28,6 +28,7 @@ import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinato
 import type { TransactionReviewReservation } from '../walletIframe/client/transactionReviewReservation';
 import type { CreateEvmFamilyCommands } from './evmFamilyCommands';
 import type { CreateNearCommands } from './nearCommands';
+import { prepareReviewedOwnerNearTransaction } from './ownerNearOperation';
 import { registerTransactionReviewBridge } from './transactionReview';
 import type { RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
 import type { RegistrationSignerSetSelection } from '@shared/utils/registrationSignerPlan';
@@ -187,6 +188,10 @@ export function createApplicationPublicApi(
       createEvmFamilyCommands: deps.createEvmFamilyCommands,
       currentWallet,
     }),
+    prepareOwnerTransaction: prepareReviewedOwnerNearTransaction.bind(
+      null,
+      deps.createNearCommands({ kind: 'ordinary' }).ownerOperation,
+    ),
   });
   const coordinator = deps.getWalletIframe();
   return {
@@ -207,8 +212,10 @@ function createReviewedCapabilities(
   const dispatch = { kind: 'reviewed', reservation } as const;
   const commands = deps.createEvmFamilyCommands(dispatch);
   const evmFamily = createEvmFamilyCapabilities({ ...deps, commands });
+  const nearCommands = deps.createNearCommands(dispatch);
   return {
-    near: createNearSignerCapability({ ...deps, commands: deps.createNearCommands(dispatch) }),
+    near: createNearSignerCapability({ ...deps, commands: nearCommands }),
+    ownerNear: nearCommands.ownerOperation,
     tempo: evmFamily.tempo,
     evm: evmFamily.evm,
   };

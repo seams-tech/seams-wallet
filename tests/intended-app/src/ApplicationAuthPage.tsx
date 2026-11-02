@@ -1,5 +1,5 @@
 import { ActionType, type OwnerNearOperation, type WalletSession } from '@seams/wallet';
-import { useSeams } from '@seams/wallet/react';
+import { useSeams, type TransactionReviewControls } from '@seams/wallet/react';
 import React from 'react';
 import { ApplicationAuthExample } from '../../../examples/seams-auth-menu/src/ApplicationAuth';
 
@@ -7,14 +7,16 @@ declare global {
   interface Window {
     ownerAuthApi: ReturnType<typeof useSeams>['seams'] | undefined;
     ownerAuthPrepare: (() => Promise<void>) | undefined;
+    ownerAuthPrepareReviewed: (() => void) | undefined;
     ownerAuthOperation: OwnerNearOperation | undefined;
     ownerAuthSession: (() => Promise<WalletSession>) | undefined;
   }
 }
 
 export function ApplicationAuthPage({ walletRpId }: { walletRpId: string }): React.ReactNode {
-  const { seams } = useSeams();
+  const { seams, wallet } = useSeams();
   React.useEffect(exposeSessionReader.bind(null, seams), [seams]);
+  React.useEffect(exposeReviewedPreparation.bind(null, wallet), [wallet]);
   return <ApplicationAuthExample walletRpId={walletRpId} />;
 }
 
@@ -29,6 +31,54 @@ function clearSessionReader(): void {
   window.ownerAuthSession = undefined;
   window.ownerAuthApi = undefined;
   window.ownerAuthOperation = undefined;
+}
+
+function exposeReviewedPreparation(wallet: ReturnType<typeof useSeams>['wallet']): () => void {
+  if (wallet?.access === 'external' && wallet.near)
+    window.ownerAuthPrepareReviewed = prepareReviewedOperation.bind(null, wallet.near);
+  return clearReviewedPreparation;
+}
+
+function clearReviewedPreparation(): void {
+  window.ownerAuthPrepareReviewed = undefined;
+}
+
+function prepareReviewedOperation(
+  near: NonNullable<Extract<ReturnType<typeof useSeams>['wallet'], { access: 'external' }>['near']>,
+): void {
+  window.ownerAuthOperation = near.prepareOwnerTransaction({
+    transaction: {
+      receiverId: near.accountId,
+      actions: [{ type: ActionType.Transfer, amount: '1' }],
+    },
+    review: {
+      title: 'Review deposit',
+      validity: { kind: 'unbounded' },
+      render: renderDepositReview,
+    },
+  });
+}
+
+function renderDepositReview(controls: TransactionReviewControls): React.ReactNode {
+  return <DepositReview controls={controls} />;
+}
+
+function DepositReview({ controls }: { controls: TransactionReviewControls }): React.ReactNode {
+  const [marks, setMarks] = React.useState(0);
+  return (
+    <>
+      <p>Marks: {marks}</p>
+      <button type="button" onClick={setMarks.bind(null, marks + 1)}>
+        Add mark
+      </button>
+      <button type="button" onClick={controls.continueToWallet}>
+        Continue to wallet
+      </button>
+      <button type="button" onClick={controls.cancel}>
+        Cancel review
+      </button>
+    </>
+  );
 }
 
 async function prepareApiOperation(): Promise<void> {

@@ -12,6 +12,7 @@ import {
 } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
 import {
   parseTransactionReviewWire,
+  ownerNearOutcomeBeforeSigning,
   transactionReviewCancellationCode,
   parseTransactionReviewState,
   sameTransactionReviewIdentity,
@@ -161,6 +162,14 @@ function postReviewCancellation(
     });
     return;
   }
+  if (requestType === 'PM_OWNER_NEAR_TRANSACTION') {
+    post({
+      type: 'PM_RESULT',
+      requestId,
+      payload: { ok: true, result: ownerNearOutcomeBeforeSigning(error) },
+    });
+    return;
+  }
   post({
     type: 'ERROR',
     requestId,
@@ -294,7 +303,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       if (state.executionGeneration !== requestExecutionGeneration || isCancelled(requestId))
         return;
       if ('transactionReview' in req) {
-        if (req.type !== 'PM_SIGN_AND_SEND_TX' && req.type !== 'PM_SIGN_TEMPO') {
+        if (
+          req.type !== 'PM_SIGN_AND_SEND_TX' &&
+          req.type !== 'PM_SIGN_TEMPO' &&
+          (req.type !== 'PM_OWNER_NEAR_TRANSACTION' || req.payload?.action !== 'approve')
+        ) {
           throw new TransactionReviewError(
             'review_invalid_input',
             'Review is unsupported for this request',
@@ -306,12 +319,15 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             'review_invalid_input',
             'Review request identity mismatch',
           );
-        const config = req.payload?.options?.confirmationConfig;
-        if (config?.uiMode !== 'modal' || config.behavior !== 'requireClick') {
-          throw new TransactionReviewError(
-            'review_unsupported_mode',
-            'Review requires modal presentation and explicit approval',
-          );
+        // A reviewed owner operation carries no settings: its signing call sets these values.
+        if (req.type !== 'PM_OWNER_NEAR_TRANSACTION') {
+          const config = req.payload?.options?.confirmationConfig;
+          if (config?.uiMode !== 'modal' || config.behavior !== 'requireClick') {
+            throw new TransactionReviewError(
+              'review_unsupported_mode',
+              'Review requires modal presentation and explicit approval',
+            );
+          }
         }
         reviewAdmission = new TransactionReviewAdmission(
           metadata,

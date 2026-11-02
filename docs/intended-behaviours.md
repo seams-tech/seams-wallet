@@ -46,6 +46,10 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - An external read connection can prepare a NEAR transaction after cold start or reload when its enrolled passkey and encrypted material remain available.
 - `near.prepareOwnerTransaction` always requests fresh owner proof, including when reusable authority exists elsewhere in the runtime.
 - Proof binds the wallet, signer, network, exact transaction, and expiry. One approval authorizes one operation.
+- A readable React wallet accepts `review` on `near.prepareOwnerTransaction`. `approve()` shows that component in the shared wallet modal before the wallet approval. The handle and its `recovery` exist before the review opens, so an application can record them first.
+- The review reports `reviewing`. It creates no receipt and takes no operation lock. Cancellation or unmount before **Continue to wallet** returns a final outcome without a wallet request.
+- The 120-second approval deadline starts at **Continue to wallet**, so review time cannot consume it. A reviewed `prepared` state reports the authentication expiry. **Back to review** keeps the same pending approval and its deadline.
+- Reviewed approval always uses the modal and an explicit click, and it ignores saved confirmation preferences. A cancellation or review expiry before signing returns `cancelled` or `expired`. After signing starts, the operation keeps the wallet's actual result.
 - Temporary signing material is disposed after signing. The operation creates no reusable authority.
 - Cancellation, expiry, account switching, and configuration revocation cannot install authority or replace the read connection.
 - SDK and React states distinguish readable access, approval, submission, cancellation, expiry, and unknown outcomes.
@@ -103,6 +107,13 @@ Applications can customize theme tokens and CSS variables. A later rule with the
 The account-menu browser flow verifies host CSS, standalone components, portal rendering, native fields, RTL navigation, and deliberate customization.
 Overlay browser checks verify frame geometry with hostile host CSS in Chromium, Firefox, and WebKit.
 Application content supplied to a custom transaction review retains application styling. SDK review titles and fallback controls use scoped defaults.
+
+## NEAR token transfer review
+
+A request with one `ft_transfer` or `ft_transfer_call` action and an attached deposit of exactly 1 yoctoNEAR headlines the token amount. The wallet review shows the final recipient and the token contract, and its details show the deposit as a required security deposit.
+The wallet takes the symbol and decimals from its own list or from `ft_metadata` on the receiver, never from the application. If the metadata is not available within 2 seconds, the review shows the exact base units and the token contract.
+Only a token on the wallet's list uses official artwork. A contract outside the list that claims a listed symbol gets a warning.
+Any other action or attached NEAR keeps the NEAR amount as the headline, and the token transfers appear as rows beside it.
 
 ## Application confirmation preferences
 

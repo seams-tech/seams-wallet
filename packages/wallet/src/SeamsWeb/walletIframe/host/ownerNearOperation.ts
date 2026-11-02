@@ -29,6 +29,7 @@ import {
   type OwnerNearRetirementApproval,
   type OwnerNearSubmissionEvidence,
 } from '../shared/ownerNearOperation';
+import { ownerNearOutcomeBeforeSigning } from '../shared/transactionReview';
 import type { HostedExternalAuth } from './externalAuth';
 import { approveWithOwnerPasskey, ExternalOwnerApprovalError } from './externalOwnerApproval';
 import { ownerNearSignedEvidence } from './ownerNearSignedEvidence';
@@ -253,12 +254,7 @@ class HostedOwnerNearOperation {
         return unresolved(command.recovery, this.submission.transactionId, error);
       if (error instanceof OwnerNearExpired) outcome = { kind: 'expired' };
       else if (isUserCancelledUserConfirm(error)) outcome = { kind: 'cancelled' };
-      else
-        outcome = {
-          kind: 'not_submitted',
-          error:
-            safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
-        };
+      else outcome = ownerNearOutcomeBeforeSigning(error);
     }
     return await this.settle({ kind: 'settled', binding: this.binding, requestDigest, outcome });
   }

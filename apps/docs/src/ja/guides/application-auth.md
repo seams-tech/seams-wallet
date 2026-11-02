@@ -66,10 +66,34 @@ GetSignalのパスキーはGetSignalを認証します。
 ウォレットの操作承認には、ウォレットのオリジンで登録した所有者のパスキーを使います。
 このAPIは、別のRPのパスキーをウォレット所有者の証明として受け付けません。
 
+## 承認の前に独自の確認画面を表示する
+
+読み取り用の `useSeams().wallet` で `review` を渡すと、ウォレットの承認の前にReactコンポーネントを表示できます。
+呼び出し元の上に [`TransactionReviewHost`](/ja/guides/transaction-review#mount-the-host) を配置してください。
+
+```tsx [部分的な例]
+const operation = wallet.near.prepareOwnerTransaction({
+  transaction,
+  review: {
+    title: '入金の確認',
+    validity: { kind: 'unbounded' },
+    render: (controls) => <DepositReview quote={quote} controls={controls} />,
+  },
+});
+await saveDepositRecord(depositId, operation.getState().recovery);
+const outcome = await operation.approve();
+```
+
+`DepositReview`、`quote`、`depositId`、`saveDepositRecord` はアプリケーション側で用意します。
+`approve()` で確認画面が開き、状態は `reviewing` になります。「ウォレットへ進む」を選ぶと、同じモーダルがウォレットの承認に切り替わります。
+このとき状態は `approval` になり、120秒の期限が始まります。確認画面の表示時間は、この期限に含まれません。
+確認画面をキャンセルすると `cancelled` を返します。見積もりの期限切れでは `expired` を返します。その他の失敗では `not_submitted` を返します。
+Coreの `seams.near.prepareOwnerTransaction` は `review` を受け付けません。
+
 ## 状態と結果の復元
 
 `operation.getState()` またはReactの `useOwnerNearOperation(operation)` で状態を取得します。
-準備、承認、送信、完了、キャンセル、期限切れ、失敗、結果不明を区別します。
+準備、独自の確認、承認、送信、完了、キャンセル、期限切れ、失敗、結果不明を区別します。
 Reactの `access: 'external'` のウォレットは、操作専用の承認ハンドルを提供します。
 
 操作前に、秘密情報を含まない `state.recovery` を保存してください。

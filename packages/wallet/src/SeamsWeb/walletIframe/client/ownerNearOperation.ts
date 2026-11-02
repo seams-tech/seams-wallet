@@ -4,6 +4,8 @@ import { safeErrorMessage } from '@shared/utils/errors';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import type { ProgressPayload } from '../shared/messages';
 import { parseOwnerNearOutcome, type OwnerNearCommand } from '../shared/ownerNearOperation';
+import { ownerNearOutcomeBeforeSigning } from '../shared/transactionReview';
+import type { TransactionDispatch } from './transactionReviewReservation';
 
 type OwnerNearRequestPorts = {
   allocateRequestId(): WalletIframeRequestId;
@@ -16,6 +18,7 @@ type OwnerNearRequestPorts = {
     },
     options: {
       requestId: WalletIframeRequestId;
+      transactionDispatch: TransactionDispatch;
       shouldContinue: () => boolean;
       onDispatched: () => void;
     } & ReadonlyExclusiveUnion<
@@ -27,10 +30,11 @@ type OwnerNearRequestPorts = {
 
 export async function executeOwnerNearRequest(
   ports: OwnerNearRequestPorts,
+  dispatch: TransactionDispatch,
   ...args: Parameters<ExecuteOwnerNearOperation>
 ): ReturnType<ExecuteOwnerNearOperation> {
   const [command, execution] = args;
-  const request = new OwnerNearRequest(ports, command, execution);
+  const request = new OwnerNearRequest(ports, dispatch, command, execution);
   return await request.run();
 }
 
@@ -42,10 +46,13 @@ class OwnerNearRequest {
 
   constructor(
     private readonly ports: OwnerNearRequestPorts,
+    private readonly dispatch: TransactionDispatch,
     private readonly command: OwnerNearCommand,
     private readonly execution: Parameters<ExecuteOwnerNearOperation>[1],
   ) {
-    this.requestId = ports.allocateRequestId();
+    // A reviewed request keeps its reservation's identity, so cancellation reaches that review.
+    this.requestId =
+      dispatch.kind === 'reviewed' ? dispatch.reservation.identity.requestId : ports.allocateRequestId();
   }
 
   current(): boolean {
@@ -72,6 +79,7 @@ class OwnerNearRequest {
     if (this.command.action === 'recover') {
       return {
         requestId: this.requestId,
+        transactionDispatch: this.dispatch,
         timeout: 'deadline',
         // Leave room for the host's 30-second RPC deadline and message delivery.
         timeoutMs: 35_000,
@@ -82,6 +90,7 @@ class OwnerNearRequest {
     }
     return {
       requestId: this.requestId,
+      transactionDispatch: this.dispatch,
       timeout: 'interactive',
       shouldContinue: this.current.bind(this),
       onDispatched: this.dispatched.bind(this),
@@ -121,11 +130,7 @@ class OwnerNearRequest {
       }
       if (this.state.kind === 'preparing') {
         if (!this.current() || isOwnerRequestCancellation(error)) return { kind: 'cancelled' };
-        return {
-          kind: 'not_submitted',
-          error:
-            safeErrorMessage(error).trim() || 'The owner operation did not submit a transaction.',
-        };
+        return ownerNearOutcomeBeforeSigning(error);
       }
       return { kind: 'unknown', recovery: this.command.recovery };
     } finally {

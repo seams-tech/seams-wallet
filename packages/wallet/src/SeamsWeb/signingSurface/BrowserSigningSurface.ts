@@ -1,3 +1,4 @@
+import { reviewAdmissionForBinding } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
 import { createNearOwnerOperationDeps } from './nearOwnerOperation';
 import type { OwnerNearCommand } from '@/SeamsWeb/walletIframe/shared/ownerNearOperation';
 import {
@@ -3438,6 +3439,9 @@ export class BrowserSigningSurface {
         assertCurrent,
       },
     );
+    const reviewed = reviewAdmissionForBinding(
+      deps.getSignerWorkerContext().touchConfirm?.getContext().surfaceMeasurementBinding,
+    );
     return await signNearOperation(deps, {
       chain: 'near',
       kind: 'transactionWithActions',
@@ -3446,6 +3450,9 @@ export class BrowserSigningSurface {
           walletSession: { walletId, walletSessionUserId: String(walletId) },
           nearAccount: nearAccountRefFromAccountId(nearAccountId),
         },
+        ...(reviewed
+          ? { confirmationConfigOverride: { uiMode: 'modal', behavior: 'requireClick' } as const }
+          : {}),
         transaction: command.transaction,
         rpcCall: { nearRpcUrl: deps.nearRpcUrl, nearAccountId },
         onEvent,

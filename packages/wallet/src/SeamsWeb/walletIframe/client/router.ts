@@ -3979,8 +3979,8 @@ export class WalletIframeRouter {
     };
   }
 
-  async ownerNearOperation(...args: Parameters<ExecuteOwnerNearOperation>): ReturnType<ExecuteOwnerNearOperation> {
-    return await executeOwnerNearRequest({ post: this.post.bind(this), cancelRequest: this.cancelRequest.bind(this), allocateRequestId: this.allocateRequestId.bind(this) }, ...args);
+  async ownerNearOperation(dispatch: TransactionDispatch, ...args: Parameters<ExecuteOwnerNearOperation>): ReturnType<ExecuteOwnerNearOperation> {
+    return await executeOwnerNearRequest({ post: this.post.bind(this), cancelRequest: this.cancelRequest.bind(this), allocateRequestId: this.allocateRequestId.bind(this) }, dispatch, ...args);
   }
 
   async signAndSendTransaction(

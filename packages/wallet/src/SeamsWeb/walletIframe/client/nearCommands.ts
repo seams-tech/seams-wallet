@@ -42,7 +42,7 @@ class ApplicationNearCommands {
       }
       return { kind: 'not_submitted', error: message };
     }
-    return await router.ownerNearOperation(...args);
+    return await router.ownerNearOperation(this.transactionDispatch, ...args);
   }
 
   async signAndSendTransaction(

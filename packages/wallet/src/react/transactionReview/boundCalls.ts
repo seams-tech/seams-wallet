@@ -25,7 +25,9 @@ type BoundReviewEnvironment = {
   readonly owner: ReviewOwner;
 };
 
-function requireHost(env: BoundReviewEnvironment): ReviewHostController {
+export function requireHost(
+  env: Pick<BoundReviewEnvironment, 'host' | 'owner'>,
+): ReviewHostController {
   env.owner.assertLive();
   if (!env.host)
     throw new TransactionReviewError(

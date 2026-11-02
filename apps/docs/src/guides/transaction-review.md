@@ -85,6 +85,11 @@ self-transfer. Gas fees apply. Use a testnet wallet to try it.
 | `evm` | `signTransaction`, `signAndSendTransaction` |
 | `tempo` | `signTransaction`, `signAndSendTransaction` |
 
+A readable wallet (`access: 'external'`) accepts `review` on
+`near.prepareOwnerTransaction`. The review opens at `operation.approve()`, and the
+outcome is typed. See [owner approval with an application session](/guides/application-auth#show-your-review-first).
+That call always uses the modal with an explicit click, and it takes no confirmation settings.
+
 Custom reviews require a hosted wallet iframe and effective confirmation
 settings of `uiMode: 'modal'` and `behavior: 'requireClick'`. Set them explicitly
 as in the example to override incompatible saved preferences. Automatic approval

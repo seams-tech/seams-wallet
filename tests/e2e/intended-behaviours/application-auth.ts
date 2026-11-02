@@ -354,6 +354,8 @@ export async function verifyApplicationAuth(
     if (!nearAccount) throw new Error('Missing NEAR public identity.');
     expect(await freshSigningAdmissions(walletId)).toBe(1);
     console.info('[application-auth] first transaction complete');
+    await verifyOwnerReview(page, backend);
+    console.info('[application-auth] reviewed transaction complete');
 
     const disconnectedPage = await context.newPage();
     const walletOrigin = process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202';
@@ -652,6 +654,10 @@ export async function verifyApplicationAuth(
         'fresh_approval_follows_authoritative_retirement',
         'blocked_handle_recovery_progress_retains_original_operation_identity',
         'pending_recovery_cannot_be_overwritten_by_preparation',
+        'review_cancel_never_opens_wallet_approval',
+        'review_time_does_not_consume_the_approval_deadline',
+        'back_to_review_keeps_review_state_and_one_broadcast',
+        'wallet_cancel_after_review_settles_as_cancelled',
         'fresh_second_approval',
         'cancel_preserves_connection',
         'interrupted_approval_proves_non_submission',
@@ -1016,6 +1022,73 @@ function signedNonce(encoded: string): bigint {
 }
 
 /** Fresh approval must succeed only after each pending operation reaches its own end. */
+async function verifyOwnerReview(page: Page, backend: ApplicationBackend): Promise<void> {
+  const broadcasts = backend.broadcasts.length;
+  const review = page.locator('.seams-transaction-review-slot');
+  const wallet = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
+  const reviewHeading = review.getByRole('heading', { name: 'Review deposit', exact: true });
+  const openReview = async (): Promise<{ approval: Promise<string> }> => {
+    await page.evaluate(prepareReviewedApiOperation);
+    expect((await page.evaluate(readApiState))?.kind).toBe('prepared');
+    const approval = page.evaluate(approveApiOnce);
+    await expect(reviewHeading).toBeVisible({ timeout: 30_000 });
+    expect((await page.evaluate(readApiState))?.kind).toBe('reviewing');
+    return { approval };
+  };
+  const continueToWallet = async (): Promise<void> => {
+    await review.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
+    await expect(wallet.getByRole('button', { name: 'Back to review', exact: true })).toBeVisible({
+      timeout: 30_000,
+    });
+  };
+
+  // The owner ends the review, and the application ends it. Neither reaches the wallet.
+  const reviewCancelled = await openReview();
+  await review.getByRole('button', { name: 'Cancel review', exact: true }).click();
+  expect(await reviewCancelled.approval).toBe('cancelled');
+  const applicationCancelled = await openReview();
+  await page.evaluate(cancelApiOperation);
+  expect(await applicationCancelled.approval).toBe('cancelled');
+  await expect(reviewHeading).toBeHidden();
+
+  // The application and the wallet can each end the approval after the review.
+  const approvalCancelled = await openReview();
+  await continueToWallet();
+  await page.evaluate(cancelApiOperation);
+  expect(await approvalCancelled.approval).toBe('cancelled');
+  const walletCancelled = await openReview();
+  await continueToWallet();
+  await clickNearCancellation(page);
+  expect(await walletCancelled.approval).toBe('cancelled');
+  expect(backend.broadcasts.length).toBe(broadcasts);
+
+  // Review time stays outside the deadline, and Back to review keeps the same pending approval.
+  const reviewedAtMs = Date.now();
+  const { approval } = await openReview();
+  await review.getByRole('button', { name: 'Add mark', exact: true }).click();
+  await page.waitForTimeout(3_000);
+  await continueToWallet();
+  const pending = await page.evaluate(readApiState);
+  if (pending?.kind !== 'approval') throw new Error('The reviewed operation is not in approval.');
+  expect(pending.expiresAtMs).toBeGreaterThan(reviewedAtMs + 120_000);
+  await wallet.getByRole('button', { name: 'Back to review', exact: true }).click();
+  await expect(review.getByText('Marks: 1', { exact: true })).toBeVisible();
+  await continueToWallet();
+  await confirmApproval(page, approval);
+  expect(await approval).toBe('completed');
+  await expect(reviewHeading).toBeHidden();
+  expect(backend.broadcasts.length).toBe(broadcasts + 1);
+}
+
+function prepareReviewedApiOperation(): void {
+  if (!window.ownerAuthPrepareReviewed) throw new Error('Missing reviewed operation fixture.');
+  window.ownerAuthPrepareReviewed();
+}
+
+function cancelApiOperation(): void {
+  window.ownerAuthOperation?.cancel();
+}
+
 async function verifyFreshApproval(page: Page, backend: ApplicationBackend): Promise<void> {
   backend.finalBlockHeight = 1;
   backend.accessKeyNonce = null;

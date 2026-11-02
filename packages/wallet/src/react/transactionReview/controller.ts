@@ -139,6 +139,7 @@ export class ReviewHostController {
     review: TransactionReview,
     confirmationConfig: Partial<ConfirmationConfig> | undefined,
     execute: (capabilities: TransactionReviewCapabilities) => Promise<T>,
+    cancellation?: AbortSignal,
   ): Promise<T> {
     owner.assertLive();
     if (!this.live)
@@ -153,7 +154,15 @@ export class ReviewHostController {
         'Transaction review requires the hosted wallet iframe',
       );
     }
-    const call = new ReviewCall(this, owner, walletId, review, confirmationConfig, execute);
+    const call = new ReviewCall(
+      this,
+      owner,
+      walletId,
+      review,
+      confirmationConfig,
+      execute,
+      cancellation,
+    );
     this.calls.add(call);
     owner.calls.add(call);
     void call.start();
@@ -179,6 +188,7 @@ class ReviewCall<T> {
     readonly review: TransactionReview,
     private readonly confirmationConfig: Partial<ConfirmationConfig> | undefined,
     private readonly execute: (capabilities: TransactionReviewCapabilities) => Promise<T>,
+    private readonly cancellation?: AbortSignal,
   ) {
     this.result = new Promise<T>(this.captureResult);
     this.controls = Object.freeze({
@@ -211,6 +221,7 @@ class ReviewCall<T> {
   async start(): Promise<void> {
     try {
       document.addEventListener('visibilitychange', this.checkDeadline);
+      this.cancellation?.addEventListener('abort', this.cancelled, { once: true });
       this.scheduleDeadline();
       if (this.state.kind === 'settled') return;
       const bridge = getTransactionReviewBridge(this.host.seams.near);
@@ -295,6 +306,10 @@ class ReviewCall<T> {
     this.rejectBeforeDispatch(
       new TransactionReviewError('cancelled', 'Transaction review cancelled'),
     );
+  };
+
+  private readonly cancelled = (): void => {
+    this.cancelOutstanding(new TransactionReviewError('cancelled', 'Transaction review cancelled'));
   };
 
   readonly fail = (cause: unknown): void => {
@@ -389,6 +404,7 @@ class ReviewCall<T> {
     if (this.deadline) clearTimeout(this.deadline);
     if (this.prepareTimer) clearTimeout(this.prepareTimer);
     document.removeEventListener('visibilitychange', this.checkDeadline);
+    this.cancellation?.removeEventListener('abort', this.cancelled);
     this.owner.calls.delete(this);
     this.host.remove(this);
     if (previous.kind !== 'queued') previous.reservation.finish();
