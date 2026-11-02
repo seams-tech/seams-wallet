@@ -65,6 +65,16 @@ const staleGenericCloseAfterExportViewerScript = String.raw`
           const data = event.data || {};
           if (!data || typeof data !== 'object') return;
           if (data.type !== 'PM_EXPORT_KEYPAIR_UI' || typeof data.requestId !== 'string') return;
+          adoptedPort.postMessage({
+            type: 'SURFACE_MEASUREMENT',
+            payload: {
+              kind: 'measured_v1',
+              requestId: data.requestId,
+              sequence: 1,
+              widthCssPx: 384,
+              heightCssPx: 480,
+            },
+          });
 
           setTimeout(() => {
             try {

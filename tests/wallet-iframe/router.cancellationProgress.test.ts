@@ -12,7 +12,7 @@ const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 const CAPTURE_OVERLAY_SOURCE = `(${captureOverlay.toString()})`;
 const WAIT_FOR_SOURCE = `(${waitFor.toString()})`;
-const CANCEL_SIGNING_PROGRESS_SCRIPT = String.raw`
+const CANCEL_UNLOCK_PROGRESS_SCRIPT = String.raw`
   const originalAdoptPort = adoptPort;
   adoptPort = function patchedAdoptPort(port) {
     originalAdoptPort(port);
@@ -21,21 +21,21 @@ const CANCEL_SIGNING_PROGRESS_SCRIPT = String.raw`
     adoptedPort.onmessage = (event) => {
       originalHandler?.(event);
       const data = event.data || {};
-      if (data.type !== 'PM_SIGN_AND_SEND_TX' || typeof data.requestId !== 'string') return;
+      if (data.type !== 'PM_UNLOCK' || typeof data.requestId !== 'string') return;
       setTimeout(() => {
         adoptedPort.postMessage({
           type: 'PROGRESS',
           requestId: data.requestId,
           payload: {
             version: 2,
-            flow: 'signing',
+            flow: 'unlock',
             step: 5,
-            phase: 'signing.confirmation.cancelled',
+            phase: 'unlock.cancelled',
             status: 'cancelled',
             message: 'Request cancelled.',
-            flowId: 'signing:test:' + data.requestId,
+            flowId: 'unlock:test:' + data.requestId,
             requestId: data.requestId,
-            interaction: { kind: 'transaction_confirmation', overlay: 'hide' },
+            interaction: { kind: 'none', overlay: 'hide' },
           },
         });
       }, 20);
@@ -111,8 +111,11 @@ test.describe('WalletIframeRouter cancellation progress', () => {
           _name: keyof typeof events,
           run: () => Promise<unknown>,
         ): Promise<{
-          message: string;
+          message?: string;
           code?: string;
+          success?: boolean;
+          kind?: string;
+          error?: string;
           overlayHidden: boolean;
         }> => {
           const pending = run().catch((error: any) => ({
@@ -125,7 +128,13 @@ test.describe('WalletIframeRouter cancellation progress', () => {
             const state = capture();
             return !state.exists || !state.visible;
           }, 3000);
-          const settled = (await pending) as { message: string; code?: string };
+          const settled = (await pending) as {
+            message?: string;
+            code?: string;
+            success?: boolean;
+            kind?: string;
+            error?: string;
+          };
           return { ...settled, overlayHidden };
         };
 
@@ -182,9 +191,11 @@ test.describe('WalletIframeRouter cancellation progress', () => {
       code: 'cancelled',
       overlayHidden: true,
     });
+    // A NEAR send returns its outcome. Other flows reject with the cancellation.
     expect(result.signing).toMatchObject({
-      message: 'Request cancelled.',
-      code: 'cancelled',
+      success: false,
+      kind: 'submission_unknown',
+      error: 'Request cancelled.',
       overlayHidden: true,
     });
 
@@ -284,7 +295,7 @@ test.describe('WalletIframeRouter cancellation progress', () => {
     expect(result.requestSettlementMs).toBeLessThan(100);
   });
 
-  test('settles the request when cancellation progress arrives before service cleanup', async ({
+  test('settles an unlock when cancellation progress arrives before service cleanup', async ({
     page,
   }) => {
     await page.unroute(WALLET_SERVICE_ROUTE);
@@ -292,7 +303,7 @@ test.describe('WalletIframeRouter cancellation progress', () => {
       page,
       buildWalletServiceHtml({
         cancelResponseDelayMs: 1_000,
-        extraScript: CANCEL_SIGNING_PROGRESS_SCRIPT,
+        extraScript: CANCEL_UNLOCK_PROGRESS_SCRIPT,
       }),
       WALLET_SERVICE_ROUTE,
     );
@@ -318,14 +329,10 @@ test.describe('WalletIframeRouter cancellation progress', () => {
         const events: Array<{ status?: string }> = [];
         const requestStartedAt = performance.now();
         const request = router
-          .signAndSendTransaction({
+          .unlock({
+            kind: 'custom_options',
             walletId: 'alice.testnet',
-            nearAccountId: 'alice.testnet',
-            transaction: {
-              receiverId: 'seams-v1.testnet',
-              actions: [{ type: 'Transfer', amount: '1' } as any],
-            },
-            options: { onEvent: (event) => events.push(event) },
+            options: { onEvent: (event: any) => events.push(event) },
           })
           .then(
             () => ({ message: '', code: '' }),

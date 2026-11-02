@@ -314,11 +314,11 @@ async function initializeOwnerOperations(args: {
   await router.init();
   window.__ownerRecoveryTest = {
     router,
-    recovery: resumeOwnerNearTransaction(router.ownerNearOperation.bind(router), {
+    recovery: resumeOwnerNearTransaction(router.ownerNearOperation.bind(router, { kind: 'ordinary' }), {
       authentication: command.authentication,
       recovery: command.recovery,
     }),
-    approval: prepareOwnerNearTransaction(router.ownerNearOperation.bind(router), {
+    approval: prepareOwnerNearTransaction(router.ownerNearOperation.bind(router, { kind: 'ordinary' }), {
       authentication: command.authentication,
       nearAccountId: 'owner.testnet',
       transaction: {

@@ -86,24 +86,6 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
             },
             options: {},
           })
-          .then(
-            () => ({ kind: 'resolved' as const }),
-            (error: unknown) => {
-              const candidate = error as {
-                name?: unknown;
-                message?: unknown;
-                failure?: { code?: unknown; walletId?: unknown; walletSessionId?: unknown };
-              };
-              return {
-                kind: 'rejected' as const,
-                name: String(candidate.name || ''),
-                message: String(candidate.message || ''),
-                code: String(candidate.failure?.code || ''),
-                walletId: String(candidate.failure?.walletId || ''),
-                walletSessionId: String(candidate.failure?.walletSessionId || ''),
-              };
-            },
-          )
           .finally(() => {
             requestSettled = true;
           });
@@ -166,12 +148,9 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
       { isLoggedIn: true, walletId: WALLET_ID },
     ]);
     expect(result.requestResult).toEqual({
-      kind: 'rejected',
-      name: 'WalletIframeSessionExpiredRequestError',
-      message: 'Wallet session expired',
-      code: 'wallet_session_expired',
-      walletId: WALLET_ID,
-      walletSessionId: ACTIVE_SESSION_ID,
+      success: false,
+      kind: 'submission_unknown',
+      error: 'Wallet session expired',
     });
     expect(result.finalMirroredState).toEqual({
       kind: 'expired_session',
@@ -216,20 +195,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
                 actions: [{ type: 'Transfer', amount: '1' } as any],
               },
               options: {},
-            })
-            .then(
-              () => ({ kind: 'resolved' as const }),
-              (error: unknown) => {
-                const candidate = error as {
-                  failure?: { code?: unknown; walletSessionId?: unknown };
-                };
-                return {
-                  kind: 'rejected' as const,
-                  code: String(candidate.failure?.code || ''),
-                  walletSessionId: String(candidate.failure?.walletSessionId || ''),
-                };
-              },
-            );
+            });
 
         const firstRequest = execute();
         await new Promise((resolve) => window.setTimeout(resolve, 30));
@@ -279,20 +245,20 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     );
 
     expect(result.firstResult).toEqual({
-      kind: 'rejected',
-      code: 'wallet_session_expired',
-      walletSessionId: ACTIVE_SESSION_ID,
+      success: false,
+      kind: 'submission_unknown',
+      error: 'Wallet session expired',
     });
     expect(result.queuedResult).toEqual({
-      kind: 'rejected',
-      code: 'wallet_session_expired',
-      walletSessionId: ACTIVE_SESSION_ID,
+      success: false,
+      kind: 'not_submitted',
+      error: 'Wallet session expired',
     });
     expect(result.postExpirySettledBeforeCancel).toBe(false);
     expect(result.postExpiryResult).toEqual({
-      kind: 'rejected',
-      code: '',
-      walletSessionId: '',
+      success: false,
+      kind: 'submission_unknown',
+      error: 'Request cancelled.',
     });
   });
 
@@ -519,14 +485,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           state.connectionId,
         );
 
-        const requestResult = await request.then(
-          () => ({ kind: 'resolved' as const }),
-          (error: unknown) => ({
-            kind: 'rejected' as const,
-            code: String((error as { code?: unknown }).code || ''),
-            message: String((error as { message?: unknown }).message || ''),
-          }),
-        );
+        const requestResult = await request;
         return {
           requestResult,
           mirroredState: router.getMirroredExactSessionState(),
@@ -541,9 +500,9 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     );
 
     expect(result.requestResult).toEqual({
-      kind: 'rejected',
-      code: 'wallet_operation_step_up_cancelled',
-      message: 'Request cancelled.',
+      success: false,
+      kind: 'submission_unknown',
+      error: 'Request cancelled.',
     });
     expect(result.loginStatuses).toEqual([
       { isLoggedIn: true, walletId: WALLET_ID },

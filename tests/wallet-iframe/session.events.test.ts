@@ -66,7 +66,7 @@ function createObserver() {
   preferences.setCurrentWallet(fixture.authority.walletId);
   globalThis.fetch = statusFetch;
   observer = new WalletHostSessionObserver({
-    preferences, configs: { network: { relayer: { url: 'https://relay.example.test' } } },
+    preferences, configs: { network: { relayer: { url: 'https://relay.example.test' } } }, readExternalSession: async () => null,
   }, post, expired, readSession);
 }
 export function state() { return { held: held !== null, messages }; }

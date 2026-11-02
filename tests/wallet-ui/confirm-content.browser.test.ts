@@ -578,18 +578,18 @@ test('tree replacement and removal release content height clamps', async ({ page
   await page.evaluate((model) => window.__contentTest.setTree(model), tree);
   await expect(page.locator('.file-content')).toHaveText('First payload');
   await expect(page.locator('.seams-surface-height-driven')).toHaveCount(0);
-  expect(
-    await page.locator('.txc-root').evaluate((element) => element.getBoundingClientRect().height),
-  ).toBeGreaterThan(originalHeight);
+  await expect
+    .poll(() => page.locator('.txc-root').evaluate((element) => element.getBoundingClientRect().height))
+    .toBeGreaterThan(originalHeight);
   tree.children![0].content = 'Replacement payload';
   await page.evaluate((model) => window.__contentTest.setTree(model), tree);
   await expect(page.locator('.file-content')).toHaveText('Replacement payload');
   await page.evaluate(() => window.__contentTest.setTree(null));
   await expect(page.locator('.seams-tx-tree')).toHaveCount(0);
   await expect(page.locator('.seams-surface-height-driven')).toHaveCount(0);
-  expect(
-    await page.locator('.txc-root').evaluate((element) => element.getBoundingClientRect().height),
-  ).toBeCloseTo(originalHeight, 1);
+  await expect
+    .poll(() => page.locator('.txc-root').evaluate((element) => element.getBoundingClientRect().height))
+    .toBeCloseTo(originalHeight, 1);
   await expect(page.locator('main [style]')).toHaveCount(0);
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });

@@ -46,6 +46,7 @@ test('reveals and cancels the recovery summary without a child animation frame o
         testOptions: { ownerTag: 'recovery-code-host-test' },
       });
       const initialization = router.init();
+      await initialization;
       const testWindow = window as typeof window & {
         __recoveryCodeHostTest?: {
           readonly startedAt: number;

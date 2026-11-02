@@ -4,13 +4,14 @@ import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { alphabetizeStringify } from '../../packages/shared-ts/src/utils/digests';
+import { WALLET_MANAGEMENT_PROTOCOL_VERSION } from '../../packages/shared-ts/src/utils/walletManagementProtocol';
 
 class SetupServer {
   readonly requests: Array<{ operationId: string; environment: string }> = [];
   mode: 'lost' | 'accepted' | 'changed' | 'changed_ceremony' = 'lost';
 
   async handle(route: Route): Promise<void> {
-    expect(route.request().headers()['x-seams-wallet-protocol']).toBe('4');
+    expect(route.request().headers()['x-seams-wallet-protocol']).toBe(WALLET_MANAGEMENT_PROTOCOL_VERSION);
     const body = route.request().postDataJSON();
     const environment = route.request().headers()['x-seams-environment-id'];
     this.requests.push({ operationId: body.registrationOperationId, environment });
@@ -24,6 +25,7 @@ class SetupServer {
       walletId,
       authMethod: body.authMethod,
       signerSelection: body.signerSelection,
+      completion: 'wallet_session',
       foundingWalletAuthMethodId: 'wallet-auth-method:fixture',
       nonceB64u: 'A'.repeat(43),
     };

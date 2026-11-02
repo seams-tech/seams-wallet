@@ -128,10 +128,10 @@ function startSigning(): void {
       receiverId: 'alice.testnet',
       actions: [{ type: 'Transfer', amount: '0' }],
     })
-    .then(
-      (window as any).prefSucceeded.bind(null, 'sign'),
-      (window as any).prefFailed.bind(null, 'sign'),
-    );
+    .then((result: { success: boolean; error?: string }) => {
+      if (result.success) (window as any).prefSucceeded('sign');
+      else (window as any).prefFailed('sign', new Error(result.error));
+    });
 }
 function startDisposal(): void {
   const { seams } = (window as any).preferenceProbe;

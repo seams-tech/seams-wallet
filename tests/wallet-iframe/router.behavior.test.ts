@@ -467,8 +467,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
               actions: [{ type: 'Transfer', amount: '1' } as any],
             },
             options: {},
-          })
-          .catch((error: unknown) => String((error as Error)?.message || error));
+          });
 
         const shown = await waitFor(() => {
           const state = capture();
@@ -496,7 +495,8 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
     expect(result.shown).toBe(true);
     expect(result.hidden).toBe(true);
-    expect(result.requestResult).toContain('Wallet request timeout');
+    expect(result.requestResult).toMatchObject({ success: false, kind: 'submission_unknown' });
+    expect(result.requestResult.error).toContain('Wallet request timeout');
   });
 
   test('signAndSendTransaction still times out when host keeps sending PROGRESS frames', async ({
@@ -563,13 +563,15 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
               },
               options: {},
             })
-            .then(
-              () => ({ ok: true as const }),
-              (error: unknown) => ({
-                ok: false as const,
-                error: String((error as { message?: unknown })?.message || error || ''),
-                elapsedMs: Date.now() - start,
-              }),
+            .then((settled) =>
+              settled.success
+                ? { ok: true as const }
+                : {
+                    ok: false as const,
+                    kind: settled.kind,
+                    error: settled.error,
+                    elapsedMs: Date.now() - start,
+                  },
             );
 
           return { success: true as const, outcome };
@@ -590,6 +592,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
 
     expect(result.outcome.ok).toBe(false);
     if (result.outcome.ok) return;
+    expect(result.outcome.kind).toBe('submission_unknown');
     expect(result.outcome.error).toContain('Wallet request timeout for PM_SIGN_AND_SEND_TX');
     expect(result.outcome.elapsedMs).toBeGreaterThanOrEqual(500);
     expect(result.outcome.elapsedMs).toBeLessThan(2500);

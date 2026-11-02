@@ -66,6 +66,7 @@ async function initializeSelection() {
     auth: { getRecentUnlocks },
     configs: { network: { relayer: { url: 'https://relay.example.localhost' } } },
     prefillRestoredWalletSession: noPrefill,
+    readExternalSession: async () => null,
   };
   sessionObserver = new sdk.WalletHostSessionObserver(selectionRuntime, selectionPost, new Map(), readSession);
   selectionHandlers = sdk.createAuthWalletIframeHandlers({
