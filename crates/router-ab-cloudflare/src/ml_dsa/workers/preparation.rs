@@ -7,6 +7,17 @@ use worker::{Context, WebSocket, WebSocketPair};
 pub(crate) const START_PATH: &str = "/router-ab/ml-dsa/prepare";
 pub(crate) const PREPARE_PATH: &str = "/router-ab/ml-dsa/prepare-connect";
 const QUEUE: &str = "preprocessing-queue";
+const DEMAND: &str = "preprocessing-demand";
+// Stock is renewed only for this long after a key's last signing use or its activation.
+const DEMAND_LIFETIME_MS: u64 = 60 * 60 * 1_000;
+// A coarse stamp keeps signing reads from adding a storage write on every request.
+const DEMAND_REFRESH_MS: u64 = 5 * 60 * 1_000;
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct KeyDemand {
+    key: KeyScope,
+    active_until_ms: u64,
+}
 static ACTIVE_CRYPTO: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 thread_local! {
     // Several producer objects can share one Wasm heap. One real preparation fits its memory budget.
@@ -72,6 +83,32 @@ pub(super) async fn enqueue(store: &impl Store, key: &KeyScope) -> Result<()> {
         store.put(QUEUE, &queue).await?;
     }
     Ok(())
+}
+/// The controller's own reads and wake hints name a key too, but only these show a user.
+pub(super) fn signals_demand(command: &RoleCommand) -> bool {
+    matches!(
+        command,
+        RoleCommand::Install { .. }
+            | RoleCommand::Inventory { .. }
+            | RoleCommand::Take { .. }
+            | RoleCommand::LoadSigningInputs { .. }
+    )
+}
+pub(super) async fn record_demand(store: &impl Store, key: &KeyScope, now: u64) -> Result<()> {
+    let mut demand: Vec<KeyDemand> = store.get(DEMAND).await?.unwrap_or_default();
+    let fresh_until = now.saturating_add(DEMAND_LIFETIME_MS - DEMAND_REFRESH_MS);
+    if demand
+        .iter()
+        .any(|entry| entry.key == *key && entry.active_until_ms > fresh_until)
+    {
+        return Ok(());
+    }
+    demand.retain(|entry| entry.key != *key && entry.active_until_ms > now);
+    demand.push(KeyDemand {
+        key: key.clone(),
+        active_until_ms: now.saturating_add(DEMAND_LIFETIME_MS),
+    });
+    store.put(DEMAND, &demand).await
 }
 pub(super) async fn check_job(env: &Env, job: &refill::Job) -> Result<()> {
     check_signing_scope(env, &job.key)?;
@@ -181,9 +218,17 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         .iter()
         .filter(|batch| stock_b.contains(batch))
         .count();
-    if paired >= policy.refill_target_batches() {
+    let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+    let demanded = has_demand(state, &key, now).await?;
+    if !demanded || paired >= policy.refill_target_batches() {
         withdraw(env, &key).await.map_err(protocol_error)?;
-        // Keep a durable timer so idle wallets replace expiring preparation.
+        // Stock without a reader outlives its expiry, so an idle key stays queued until
+        // these reads have erased it. The next signing request queues the key again.
+        if !demanded && stock_a.is_empty() && stock_b.is_empty() && latest.is_empty() {
+            retire_idle(state, &key, now).await?;
+            schedule_refill_alarm(state, 1_000).await?;
+            return Response::from_json(&false);
+        }
         rotate_queued(state, &key).await?;
         schedule_refill_alarm(state, 30_000).await?;
         return Response::from_json(&true);
@@ -282,6 +327,50 @@ async fn remove_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
                 .unwrap_or_default();
             queue.retain(|current| current != &key);
             store.put(QUEUE, &queue).await.map_err(protocol_error)
+        })
+        .await
+}
+async fn has_demand(state: &State, key: &KeyScope, now: u64) -> worker::Result<bool> {
+    let demand: Vec<KeyDemand> = state.storage().get(DEMAND).await?.unwrap_or_default();
+    Ok(demand
+        .iter()
+        .any(|entry| entry.key == *key && entry.active_until_ms > now))
+}
+/// A signing request can arrive during the controller's network reads, and it wins.
+async fn retire_idle(state: &State, key: &KeyScope, now: u64) -> worker::Result<()> {
+    let key = key.clone();
+    state
+        .storage()
+        .transaction(move |transaction| async move {
+            let store = TransactionStore::untraced(transaction);
+            let mut demand: Vec<KeyDemand> = store
+                .get(DEMAND)
+                .await
+                .map_err(protocol_error)?
+                .unwrap_or_default();
+            if demand
+                .iter()
+                .any(|entry| entry.key == key && entry.active_until_ms > now)
+            {
+                return Ok(());
+            }
+            let mut queue: Vec<KeyScope> = store
+                .get(QUEUE)
+                .await
+                .map_err(protocol_error)?
+                .unwrap_or_default();
+            queue.retain(|current| current != &key);
+            store.put(QUEUE, &queue).await.map_err(protocol_error)?;
+            demand.retain(|entry| entry.key != key);
+            store.put(DEMAND, &demand).await.map_err(protocol_error)?;
+            worker::console_log!(
+                "{}",
+                serde_json::json!({
+                    "event": "ml_dsa_refill_retired_idle_v1", "key": hex(&key.public_key_digest),
+                    "epoch": key.epoch, "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+                })
+            );
+            Ok(())
         })
         .await
 }
