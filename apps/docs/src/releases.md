@@ -1,9 +1,22 @@
 ---
-title: Release 0.41.0
-description: Structured retirement waits and network-bound owner NEAR operations.
+title: Release 0.41.1
+description: Token amounts in the NEAR confirmation review.
 ---
 
-# Release 0.41.0
+# Release 0.41.1
+
+The browser SDK, server SDK, and VoiceID plugin use **0.41.1**.
+
+- A NEAR request with one `ft_transfer` or `ft_transfer_call` action and exactly 1 yoctoNEAR attached now headlines the token amount. The review shows the final recipient and the token contract, and the details name the deposit as a required security deposit.
+- The wallet reads the symbol and decimals from its own list or from `ft_metadata` on the token contract. It never takes them from the application. If the metadata is not available within 2 seconds, the review shows the exact base units.
+- Only a token on the wallet's list uses official artwork. A contract outside the list that claims a listed symbol gets a warning.
+- Any other action or attached NEAR keeps the NEAR amount as the headline, and the token transfer appears as rows beside it.
+- The transaction details state a deposit below 0.00001 NEAR exactly, instead of `0 NEAR`. Their scrollbar follows the wallet theme.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.41.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.41.0**.
 
