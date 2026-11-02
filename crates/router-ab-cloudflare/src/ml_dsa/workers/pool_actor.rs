@@ -207,6 +207,11 @@ async fn dispatch_role_transaction(
                     preparation::enqueue(&store, key)
                         .await
                         .map_err(protocol_error)?;
+                    if preparation::signals_demand(&command) {
+                        preparation::record_demand(&store, key, now)
+                            .await
+                            .map_err(protocol_error)?;
+                    }
                 }
             }
             let value = execute_role(&store, &policy, role, command, now)
