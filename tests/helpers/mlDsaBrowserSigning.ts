@@ -118,10 +118,10 @@ async function run() {
       const retries: Variant<MlDsaSigningOutcome, 'kind', 'retry'>[] = [];
       while (result.kind === 'retry') {
         retries.push(result);
-        if (result.retryAtMs >= prepared.preparation.expiresAtMs)
+        if (Date.now() + result.retryAfterMs >= prepared.preparation.expiresAtMs)
           throw new Error('Signing material outlives the approval');
         status.textContent = `Waiting for material or cooldown (${index + 1}/3)`;
-        await pause(Math.max(100, result.retryAtMs - Date.now()));
+        await pause(Math.max(100, result.retryAfterMs));
         result = await executeMlDsaNearSigning(request);
       }
       if (result.kind !== 'signed') throw new Error(JSON.stringify(result));

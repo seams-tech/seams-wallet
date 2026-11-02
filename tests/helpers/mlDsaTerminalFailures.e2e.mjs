@@ -32,8 +32,10 @@ export async function verifyMlDsaTerminalFailures(input) {
     let outcome = await input.api.executeMlDsaNearSigning(request);
     let waits = 0;
     while (outcome.kind === 'retry') {
-      assert.ok(waits++ < 30 && outcome.retryAtMs < prepared.preparation.expiresAtMs);
-      await new Promise(waitUntil.bind(undefined, outcome.retryAtMs));
+      assert.ok(
+        waits++ < 30 && Date.now() + outcome.retryAfterMs < prepared.preparation.expiresAtMs,
+      );
+      await new Promise(waitFor.bind(undefined, outcome.retryAfterMs));
       outcome = await input.api.executeMlDsaNearSigning(request);
     }
     assert.equal(outcome.kind, 'refused');
@@ -82,8 +84,8 @@ export async function verifyMlDsaTerminalFailures(input) {
       'Public Gateway/SDK with WebAuthn and real Worker admission, paired material consumption, completion, and exact replay. Terminal causes are injected at the authenticated completion boundary. Cryptographic rejection is not simulated as a successful signature.',
   };
 }
-function waitUntil(atMs, resolve) {
-  setTimeout(resolve, Math.max(100, atMs - Date.now()));
+function waitFor(delayMs, resolve) {
+  setTimeout(resolve, Math.max(100, delayMs));
 }
 function recordError(codes, error) {
   codes.push(error.code);

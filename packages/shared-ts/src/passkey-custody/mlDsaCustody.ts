@@ -140,7 +140,7 @@ export type MlDsaRegistrationFailure = {
   readonly message: string;
 } & ReadonlyExclusiveUnion<
   | { readonly code: MlDsaRegistrationFailureCode }
-  | { readonly code: 'pool_unavailable'; readonly retryAtMs: number }
+  | { readonly code: 'pool_unavailable'; readonly retryAfterMs: number }
 >;
 
 function isMlDsaFailureCode(value: unknown): value is MlDsaRegistrationFailureCode {
@@ -152,7 +152,7 @@ export function parseMlDsaRegistrationFailure(raw: unknown): MlDsaRegistrationFa
   const record = exactRecord(
     value,
     value.code === 'pool_unavailable'
-      ? ['ok', 'code', 'message', 'retryAtMs']
+      ? ['ok', 'code', 'message', 'retryAfterMs']
       : ['ok', 'code', 'message'],
     'ML-DSA registration failure',
   );
@@ -160,12 +160,12 @@ export function parseMlDsaRegistrationFailure(raw: unknown): MlDsaRegistrationFa
   const message = requireCanonicalString(record.message, 'ML-DSA failure message');
   if (record.code === 'pool_unavailable') {
     if (
-      typeof record.retryAtMs !== 'number' ||
-      !Number.isSafeInteger(record.retryAtMs) ||
-      record.retryAtMs < 0
+      typeof record.retryAfterMs !== 'number' ||
+      !Number.isSafeInteger(record.retryAfterMs) ||
+      record.retryAfterMs < 0
     )
-      throw new Error('Invalid ML-DSA retry time');
-    return { ok: false, code: 'pool_unavailable', message, retryAtMs: record.retryAtMs };
+      throw new Error('Invalid ML-DSA retry delay');
+    return { ok: false, code: 'pool_unavailable', message, retryAfterMs: record.retryAfterMs };
   }
   if (!isMlDsaFailureCode(record.code)) throw new Error('Unknown ML-DSA failure');
   return { ok: false, code: record.code, message };

@@ -186,7 +186,7 @@ async function completedRole(raw: unknown, expected: MlDsaAddSignerPreparation) 
 type RegistrationExecution = ReadonlyExclusiveUnion<
   | { readonly kind: 'installed'; readonly result: MlDsaInstalledRegistration }
   | { readonly kind: 'pending' }
-  | { readonly kind: 'unavailable'; readonly retryAtMs: number }
+  | { readonly kind: 'unavailable'; readonly retryAfterMs: number }
   | {
       readonly kind: 'failed';
       readonly reason: 'transport' | 'refused' | 'invalid_response' | 'terminal';
@@ -255,7 +255,10 @@ export async function executeMlDsaRegistration(
         unavailable.retry_at_ms < 0
       )
         throw new Error('Invalid retry time');
-      return { kind: 'unavailable', retryAtMs: unavailable.retry_at_ms };
+      return {
+        kind: 'unavailable',
+        retryAfterMs: Math.max(0, unavailable.retry_at_ms - Date.now()),
+      };
     }
     const existing = exactRecord(status, ['status', 'operation'], 'ML-DSA registration decision');
     if (existing.status !== 'existing') throw new Error('Invalid registration decision');

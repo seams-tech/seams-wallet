@@ -70,7 +70,7 @@ class RegistrationTrace {
       };
       this.network.push(mark);
       if (mark.status === 400 && mark.path.endsWith('/signers/ml-dsa/execute'))
-        void this.markRetryTime(response, wallet, mark.atMs);
+        void this.markRetryTime(response, wallet);
       const { requestStart, responseStart, responseEnd } = response.request().timing();
       void this.mark('network', {
         wallet,
@@ -106,11 +106,10 @@ class RegistrationTrace {
   private async markRetryTime(
     response: import('@playwright/test').Response,
     wallet: string,
-    receivedAtMs: number,
   ): Promise<void> {
-    const body = (await response.json().catch(() => null)) as { retryAtMs?: number } | null;
-    if (typeof body?.retryAtMs === 'number')
-      await this.mark('retry_time', { wallet, waitMs: body.retryAtMs - receivedAtMs });
+    const body = (await response.json().catch(() => null)) as { retryAfterMs?: number } | null;
+    if (typeof body?.retryAfterMs === 'number')
+      await this.mark('retry_time', { wallet, waitMs: body.retryAfterMs });
   }
   /** Lists registration keys. Tagged state names stay readable in the stored bytes. */
   async storage(): Promise<StoredKey[]> {

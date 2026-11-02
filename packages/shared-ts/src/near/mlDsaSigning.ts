@@ -92,7 +92,8 @@ export type MlDsaSigningOutcome = ReadonlyExclusiveUnion<
   | { readonly kind: 'signed'; readonly transaction: MlDsaSignedTransaction }
   | {
       readonly kind: 'retry';
-      readonly retryAtMs: number;
+      /** Relative, because the browser clock can differ from the server clock. */
+      readonly retryAfterMs: number;
       readonly reason: 'empty_pool' | 'service_capacity' | 'wallet_cooldown' | 'running';
     }
   | MlDsaSigningFailure

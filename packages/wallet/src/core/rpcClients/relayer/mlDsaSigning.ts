@@ -132,18 +132,18 @@ export async function executeMlDsaNearSigning(input: {
     case 'refused':
       return parseMlDsaSigningFailure(raw);
     case 'retry': {
-      const retry = exactRecord(raw, ['kind', 'reason', 'retryAtMs'], 'ML-DSA signing retry');
+      const retry = exactRecord(raw, ['kind', 'reason', 'retryAfterMs'], 'ML-DSA signing retry');
       if (
         (retry.reason !== 'empty_pool' &&
           retry.reason !== 'service_capacity' &&
           retry.reason !== 'wallet_cooldown' &&
           retry.reason !== 'running') ||
-        typeof retry.retryAtMs !== 'number' ||
-        !Number.isSafeInteger(retry.retryAtMs) ||
-        retry.retryAtMs < 0
+        typeof retry.retryAfterMs !== 'number' ||
+        !Number.isSafeInteger(retry.retryAfterMs) ||
+        retry.retryAfterMs < 0
       )
         throw new Error('Invalid ML-DSA retry');
-      return { kind: 'retry', reason: retry.reason, retryAtMs: retry.retryAtMs };
+      return { kind: 'retry', reason: retry.reason, retryAfterMs: retry.retryAfterMs };
     }
     case 'signed': {
       const signed = exactRecord(raw, ['kind', 'transaction'], 'ML-DSA signing success');

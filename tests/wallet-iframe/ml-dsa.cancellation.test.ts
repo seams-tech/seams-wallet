@@ -400,13 +400,11 @@ async function executeGateway(gateway: Gateway, route: Route): Promise<void> {
             : gateway.mode === 'wait_ui' && gateway.executions.length === 3
               ? 'wallet_cooldown'
               : 'empty_pool',
-      retryAtMs:
-        Date.now() +
-        (gateway.mode.endsWith('_ui')
-          ? 2000
-          : gateway.mode === 'stock_wait' || gateway.mode === 'rpc_timeout'
-            ? 3000
-            : 100),
+      retryAfterMs: gateway.mode.endsWith('_ui')
+        ? 2000
+        : gateway.mode === 'stock_wait' || gateway.mode === 'rpc_timeout'
+          ? 3000
+          : 100,
     },
   });
 }

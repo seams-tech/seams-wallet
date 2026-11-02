@@ -677,7 +677,7 @@ export class D1WalletMlDsaSigning {
     try {
       response = await dispatchMlDsaOwnerOperation(this.options.proxy, admitted.operation);
     } catch {
-      return { kind: 'retry', reason: 'running', retryAtMs: Date.now() + 1000 };
+      return { kind: 'retry', reason: 'running', retryAfterMs: 1000 };
     }
     let outcome: MlDsaSigningOutcome;
     try {
@@ -729,7 +729,7 @@ export class D1WalletMlDsaSigning {
     try {
       response = await dispatchMlDsaOwnerOperation(this.options.proxy, operation);
     } catch {
-      return { kind: 'retry', reason: 'running', retryAtMs: Date.now() + 1000 };
+      return { kind: 'retry', reason: 'running', retryAfterMs: 1000 };
     }
     const outcome = await this.routerOutcome(approved.admission.record, response);
     if (outcome.kind === 'retry') return outcome;
@@ -757,17 +757,17 @@ export class D1WalletMlDsaSigning {
         raw.retry_at_ms < 0
       )
         throw new Error('Invalid retry');
-      let retryAtMs = raw.retry_at_ms;
+      let retryAfterMs = Math.max(0, raw.retry_at_ms - Date.now());
       if (raw.reason === 'service_capacity') {
         // A completed operation releases capacity before its lease deadline.
-        retryAtMs = Math.min(retryAtMs, Date.now() + 500);
+        retryAfterMs = Math.min(retryAfterMs, 500);
       }
-      return { kind: 'retry', reason: raw.reason, retryAtMs };
+      return { kind: 'retry', reason: raw.reason, retryAfterMs };
     }
     if (raw.status !== 'existing') throw new Error('Invalid Router operation');
     const operation = requireRecord(raw.operation, 'ML-DSA operation');
     if (operation.state === 'preparing' || operation.state === 'running')
-      return { kind: 'retry', reason: 'running', retryAtMs: Date.now() + 500 };
+      return { kind: 'retry', reason: 'running', retryAfterMs: 500 };
     if (operation.state === 'failed' || operation.state === 'declined')
       return parseMlDsaRouterFailure(operation.failure);
     if (operation.state !== 'succeeded') throw new Error('Invalid Router state');

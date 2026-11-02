@@ -495,7 +495,7 @@ export async function verifyMlDsaGatewayRegistration({
     };
     const empty = await gateway.post(walletId, 'ml-dsa/execute', execution);
     assert.equal(empty.body.code, 'pool_unavailable', JSON.stringify(empty.body));
-    assert.ok(empty.body.retryAtMs > 0);
+    assert.ok(empty.body.retryAfterMs >= 0);
     checks.emptyPoolReturnsRetryTime = true;
     const changed = structuredClone(execution);
     changed.encryptedInputs.a.ciphertext[0] ^= 1;
@@ -901,8 +901,8 @@ async function verifyRestoredSigning(input, restored, unsignedTransactionBorshB6
     };
     let signed = await input.api.executeMlDsaNearSigning(request);
     while (signed.kind === 'retry') {
-      assert.ok(signed.retryAtMs < prepared.preparation.expiresAtMs);
-      await new Promise(waitUntil.bind(undefined, signed.retryAtMs));
+      assert.ok(Date.now() + signed.retryAfterMs < prepared.preparation.expiresAtMs);
+      await new Promise(waitFor.bind(undefined, signed.retryAfterMs));
       signed = await input.api.executeMlDsaNearSigning(request);
     }
     assert.equal(signed.kind, 'signed', JSON.stringify(signed));
@@ -928,8 +928,8 @@ async function verifyRestoredSigning(input, restored, unsignedTransactionBorshB6
     globalThis.fetch = previous;
   }
 }
-function waitUntil(atMs, resolve) {
-  setTimeout(resolve, Math.max(100, atMs - Date.now()));
+function waitFor(delayMs, resolve) {
+  setTimeout(resolve, Math.max(100, delayMs));
 }
 
 async function verifyRestoringInventory(input, expected) {

@@ -11,13 +11,13 @@ function scheduleRetry(milliseconds: number, resolve: () => void): void {
 }
 
 async function waitForRetry(
-  retryAtMs: number,
+  retryAfterMs: number,
   deadlineAtMs: number,
   shouldAbort: () => boolean,
   onRetry: (retry: Variant<MlDsaSigningOutcome, 'kind', 'retry'>, seconds: number) => void,
   retry: Variant<MlDsaSigningOutcome, 'kind', 'retry'>,
 ): Promise<void> {
-  const wakeAtMs = Math.max(Date.now() + 100, retryAtMs);
+  const wakeAtMs = Date.now() + Math.max(100, retryAfterMs);
   let displayedSeconds = -1;
   for (;;) {
     assertSigningNotCancelled(shouldAbort);
@@ -58,14 +58,14 @@ export async function executeMlDsaSigningUntilSettled(input: {
     const result = await executeMlDsaNearSigning(input.request);
     if (result.kind !== 'retry') return result;
     assertSigningNotCancelled(input.shouldAbort);
-    if (result.retryAtMs >= input.deadlineAtMs)
+    if (Date.now() + result.retryAfterMs >= input.deadlineAtMs)
       throw new MlDsaSigningError({
         kind: 'refused',
         code: 'expired',
         message: 'ML-DSA signing approval expired',
       });
     await waitForRetry(
-      result.retryAtMs,
+      result.retryAfterMs,
       input.deadlineAtMs,
       input.shouldAbort,
       input.onRetry,
