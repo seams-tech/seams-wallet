@@ -421,7 +421,7 @@ export class LoadWallet extends DurableObject {
 }
 
 function validateStart(value) {
-  if (!value || !Number.isSafeInteger(value.index) || value.index < 0 || value.index > 31)
+  if (!value || !Number.isSafeInteger(value.index) || value.index < 0 || value.index > 63)
     throw new Error('Invalid wallet index');
   if (
     !Number.isSafeInteger(value.startAtMs) ||
