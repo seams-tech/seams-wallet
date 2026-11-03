@@ -61,7 +61,7 @@ function confirmationContext() {
 async function reserveNearContext(input) {
   probe.reserved++;
   return {
-    context: { txBlockHash: '11111111111111111111111111111111' },
+    context: { txBlockHash: '11111111111111111111111111111111', txBlockHeight: '1' },
     leases: [
       {
         lane: input.lane,
@@ -526,6 +526,14 @@ for (const mode of [
               success: false,
               kind: 'not_submitted',
               error: 'ML-DSA signing approval expired',
+              cause: {
+                kind: 'ml_dsa',
+                failure: {
+                  kind: 'refused',
+                  code: 'expired',
+                  message: 'ML-DSA signing approval expired',
+                },
+              },
             },
           },
         }),
