@@ -1,9 +1,23 @@
 ---
-title: Release 0.44.0
-description: A VoiceID unlock signs like a passkey session, the direct VoiceID unlock button shows again, and the settings dialog opens in StrictMode development builds.
+title: Release 0.45.0
+description: A VoiceID session steps up with VoiceID, key export works from a VoiceID session, and a confirmation card waits as long as the person needs.
 ---
 
-# Release 0.44.0
+# Release 0.45.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.45.0**.
+
+- **Breaking:** the VoiceID host API moves from version 7 to 8. Install `@seams/voiceid` 0.45.0 with `@seams/wallet` 0.45.0, and compose the wallet host again.
+- When a VoiceID session is missing, expired, or used up, the next signing operation asks for VoiceID again inside the Wallet, then signs. It never asks for a passkey. A reviewed request runs the voice check before its review opens.
+- If the owner already approved a request when the session needs a step-up, the retry after the voice check signs without a second **Confirm**.
+- A wallet whose selected method is VoiceID exports its NEAR Ed25519 and EVM ECDSA keys after one more voice check, bound to that export. It never asks for a passkey or Email OTP. Deploy `@seams/wallet-server` 0.45.0 first: the Router accepts the new `voiceid_device` export authorization from that version.
+- A confirmation card now waits as long as the person needs. Review expiry and cancellation still end the request, and the other steps keep their 60 second limit.
+- A VoiceID session no longer reads as invalid in the exact session state.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.44.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.44.0**.
 

@@ -82,15 +82,15 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Release 0.44.0
+## Release 0.45.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.44.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.45.0**.
 Pin `@seams/wallet-cli` to **0.29.0**. See the [recovery CLI guide](/deploy-and-operate/recovery-cli) for its signed native assets.
-VoiceID hosts also install `@seams/voiceid` **0.44.0** and compose the static deployment with
+VoiceID hosts also install `@seams/voiceid` **0.45.0** and compose the static deployment with
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`.
-0.44.0 moves the VoiceID host API to version 7, so a 0.43.0 VoiceID host does not load with 0.44.0 Wallet assets.
+0.45.0 moves the VoiceID host API to version 8, so a 0.44.0 VoiceID host does not load with 0.45.0 Wallet assets.
 See [VoiceID setup](/concepts/auth-methods/voiceid#prepare-the-wallet-host) for the app and host steps.
-See [Release 0.44.0](/releases) for the supported integration.
+See [Release 0.45.0](/releases) for the supported integration.
 
 APAC wallet objects request Southeast Asia placement through `apac-se`.
 Verify the actual object and database locations before accepting a hosted
