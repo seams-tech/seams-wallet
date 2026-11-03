@@ -48,11 +48,21 @@ import type {
 } from './uiConfirm.types';
 import { normalizeConfirmationConfig } from '@/core/types/confirmationConfig';
 
+/**
+ * A worker request is answered within its timeout, except while a person answers
+ * a confirmation surface. Their time has no limit, like the interactive parent
+ * request: the surface's decision, cancellation or review expiry ends it.
+ */
+type PendingWorkerDeadline =
+  | { readonly kind: 'running'; readonly timeoutId: ReturnType<typeof setTimeout> }
+  | { readonly kind: 'paused_for_person'; readonly openWaits: number };
+
 type PendingWorkerRequest = {
   id: string;
   messageType: string;
   worker: Worker;
-  timeoutId: ReturnType<typeof setTimeout>;
+  timeoutMs: number;
+  deadline: PendingWorkerDeadline;
   settle?: () => void;
   resolve: (response: UserConfirmWorkerResponse<unknown>) => void;
   reject: (error: Error) => void;
@@ -101,6 +111,10 @@ function roundUiConfirmDurationMs(startedAt: number): number {
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected UI confirmation state: ${String(value)}`);
+}
+
+function clearWorkerDeadline(deadline: PendingWorkerDeadline): void {
+  if (deadline.kind === 'running') clearTimeout(deadline.timeoutId);
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -712,6 +726,7 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       void handlePromptFromWorker(ctx, promptEnv, sourceWorker, {
         signingSurface,
         onDecision: this.capturePendingConfirmationDecision.bind(this, pending),
+        beginPersonWait: this.beginPersonWait.bind(this, pending.requestToken),
         ...(pending.onSigningOperationInteractionEvent
           ? {
               onSigningOperationInteractionEvent: pending.onSigningOperationInteractionEvent,
@@ -779,7 +794,7 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     if (!pending || pending.worker !== sourceWorker) {
       return;
     }
-    clearTimeout(pending.timeoutId);
+    clearWorkerDeadline(pending.deadline);
     pending.settle?.();
     this.pendingWorkerRequests.delete(id);
     pending.resolve(response);
@@ -790,7 +805,7 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     if (!pending) {
       return;
     }
-    clearTimeout(pending.timeoutId);
+    clearWorkerDeadline(pending.deadline);
     pending.settle?.();
     this.pendingWorkerRequests.delete(id);
     pending.reject(error);
@@ -800,10 +815,53 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     for (const req of this.pendingWorkerRequests.values()) {
       if (req.worker !== worker) continue;
       this.pendingWorkerRequests.delete(req.id);
-      clearTimeout(req.timeoutId);
+      clearWorkerDeadline(req.deadline);
       req.settle?.();
       req.reject(error);
     }
+  }
+
+  private startWorkerDeadline(
+    id: string,
+    messageType: string,
+    timeoutMs: number,
+  ): PendingWorkerDeadline {
+    const timeoutId = setTimeout(() => {
+      this.rejectPendingWorkerRequest(
+        id,
+        new Error(
+          `UserConfirm worker communication timeout (${timeoutMs}ms) for message type: ${messageType}`,
+        ),
+      );
+    }, timeoutMs);
+    return { kind: 'running', timeoutId };
+  }
+
+  /** Pauses the request's deadline until every person wait it opened has ended. */
+  private beginPersonWait(id: string): () => void {
+    const pending = this.pendingWorkerRequests.get(id);
+    if (!pending) return () => {};
+    clearWorkerDeadline(pending.deadline);
+    pending.deadline = {
+      kind: 'paused_for_person',
+      openWaits: pending.deadline.kind === 'paused_for_person' ? pending.deadline.openWaits + 1 : 1,
+    };
+    let ended = false;
+    return () => {
+      if (ended) return;
+      ended = true;
+      this.endPersonWait(pending);
+    };
+  }
+
+  private endPersonWait(pending: PendingWorkerRequest): void {
+    const deadline = pending.deadline;
+    if (this.pendingWorkerRequests.get(pending.id) !== pending) return;
+    if (deadline.kind !== 'paused_for_person') return;
+    pending.deadline =
+      deadline.openWaits > 1
+        ? { kind: 'paused_for_person', openWaits: deadline.openWaits - 1 }
+        : this.startWorkerDeadline(pending.id, pending.messageType, pending.timeoutMs);
   }
 
   /**
@@ -838,14 +896,6 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       }
 
       const timeoutMs = customTimeout ?? this.config.workerTimeout ?? 60_000;
-      const timeoutId = setTimeout(() => {
-        this.rejectPendingWorkerRequest(
-          requestId,
-          new Error(
-            `UserConfirm worker communication timeout (${timeoutMs}ms) for message type: ${message.type}`,
-          ),
-        );
-      }, timeoutMs);
 
       let settle: (() => void) | undefined;
       if (signal) {
@@ -862,7 +912,8 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
         id: requestId,
         messageType: message.type,
         worker,
-        timeoutId,
+        timeoutMs,
+        deadline: this.startWorkerDeadline(requestId, message.type, timeoutMs),
         settle,
         resolve,
         reject,

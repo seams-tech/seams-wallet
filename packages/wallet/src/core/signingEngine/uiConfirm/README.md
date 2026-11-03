@@ -67,6 +67,12 @@ The shared display model lives in `packages/wallet/src/core/signingEngine/interf
 6. Worker resolves `awaitUserConfirmationV2` and returns the decision payload.
 7. The bridge/runtime `requestUserConfirmation(...)` path receives that worker response and resolves the original main-thread request.
 
+The worker timeout (`workerTimeout`, 60 s by default) bounds every step above except the time a
+person spends answering the surface. `createConfirmSession(...).promptUser` opens a person wait
+through the response port, and the manager pauses the request's deadline until the wait ends. The
+surface's decision, cancellation or review expiry ends a person's turn, as the parent's interactive
+request expects.
+
 ## Message Contract
 
 - Worker -> main thread: `PROMPT_USER_CONFIRM_IN_JS_MAIN_THREAD` with `UserConfirmRequest`

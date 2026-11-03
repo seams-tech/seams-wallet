@@ -11,6 +11,7 @@ import {
   createUserConfirmScopedWorker,
   sendConfirmResponse,
   sanitizeForPostMessage,
+  type BeginPersonWait,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmCommon';
 import { getIntentDigest } from './flows/adapters/request';
 import {
@@ -37,6 +38,7 @@ export async function handlePromptFromWorker(
   options?: {
     signingSurface: ConfirmUISurfaceSource;
     onDecision?: (decision: UserConfirmDecision) => void;
+    beginPersonWait?: BeginPersonWait;
     onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
     onNearTransactionContextReady?: (readiness: NearTransactionContextReady) => void;
   },
@@ -44,6 +46,7 @@ export async function handlePromptFromWorker(
   const scopedWorker = createUserConfirmScopedWorker(worker, {
     channelToken: message.channelToken,
     onDecision: options?.onDecision,
+    beginPersonWait: options?.beginPersonWait,
   });
 
   const request = message.data;

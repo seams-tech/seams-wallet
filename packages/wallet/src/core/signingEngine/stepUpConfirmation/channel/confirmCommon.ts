@@ -63,9 +63,17 @@ export const ERROR_MESSAGES = {
   nearRpcFailed: 'Failed to fetch NEAR data',
 } as const;
 
+/**
+ * Marks the time a person spends answering a confirmation surface. The returned
+ * function ends that wait. The requester stops its worker deadline meanwhile:
+ * the surface's own decision, cancellation or review expiry ends a person's turn.
+ */
+export type BeginPersonWait = () => () => void;
+
 export type UserConfirmResponsePort = Pick<Worker, 'postMessage'> & {
   channelToken?: string;
   onDecision?: (decision: UserConfirmDecision) => void;
+  beginPersonWait?: BeginPersonWait;
 };
 
 function getWorkerChannelToken(worker: UserConfirmResponsePort): string | undefined {
@@ -77,16 +85,18 @@ export function createUserConfirmScopedWorker(
   options?: {
     channelToken?: string;
     onDecision?: (decision: UserConfirmDecision) => void;
+    beginPersonWait?: BeginPersonWait;
   },
 ): UserConfirmResponsePort {
   const channelToken = normalizeOptionalNonEmptyString(options?.channelToken);
-  if (!channelToken && !options?.onDecision) {
+  if (!channelToken && !options?.onDecision && !options?.beginPersonWait) {
     return worker;
   }
   const scopedWorker: UserConfirmResponsePort = {
     postMessage: worker.postMessage.bind(worker),
     ...(channelToken ? { channelToken } : {}),
     ...(options?.onDecision ? { onDecision: options.onDecision } : {}),
+    ...(options?.beginPersonWait ? { beginPersonWait: options.beginPersonWait } : {}),
   };
   return scopedWorker;
 }

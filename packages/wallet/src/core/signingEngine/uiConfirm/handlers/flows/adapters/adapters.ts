@@ -524,28 +524,33 @@ export function createConfirmSession({
     loading?: boolean;
     onMounted?: (handle: ConfirmUIHandle) => void;
   }) => {
-    const {
-      confirmed,
-      confirmHandle: handle,
-      error,
-      otpCode,
-      emailOtpChallengeId,
-      diagnostics,
-    } = await adapters.ui.renderConfirmUI({
-      request,
-      confirmationConfig,
-      transactionSummary,
-      securityContext,
-      loading,
-      theme,
-      surface,
-      onMounted: (mountedHandle) => {
-        confirmHandle = mountedHandle;
-        onMounted?.(mountedHandle);
-      },
-    });
-    confirmHandle = handle;
-    return { confirmed, error, otpCode, emailOtpChallengeId, diagnostics };
+    const endPersonWait = worker.beginPersonWait?.();
+    try {
+      const {
+        confirmed,
+        confirmHandle: handle,
+        error,
+        otpCode,
+        emailOtpChallengeId,
+        diagnostics,
+      } = await adapters.ui.renderConfirmUI({
+        request,
+        confirmationConfig,
+        transactionSummary,
+        securityContext,
+        loading,
+        theme,
+        surface,
+        onMounted: (mountedHandle) => {
+          confirmHandle = mountedHandle;
+          onMounted?.(mountedHandle);
+        },
+      });
+      confirmHandle = handle;
+      return { confirmed, error, otpCode, emailOtpChallengeId, diagnostics };
+    } finally {
+      endPersonWait?.();
+    }
   };
 
   const confirmAndCloseModal = (decision: UserConfirmDecision) => {
