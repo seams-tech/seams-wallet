@@ -1785,6 +1785,9 @@ The experimental ML-DSA service defaults to preparing four candidates together a
 Its default reserve holds thirty-two candidates per wallet. Admission requires sixteen ready candidates.
 The default wallet cooldown remains sixty seconds. Internal rejection retries belong to the admitted operation.
 An unconsumed pair remains available for a later operation. Each consumed pair is permanently spent.
+Prepared stock lasts thirty days. A key renews stock only for one hour after its activation or its last signing use. A key that stays idle longer keeps its stock until expiry, erases it and leaves the refill queue. Its next signing request starts refill and waits for stock.
+Router admission records every batch of a permit in a store separate from the roles, until that batch could no longer be valid. Pairs that settlement returns unopened leave the record. If both roles offer a recorded batch, which means that their storage went back in time, signing declines the operation and both roles burn the batch.
+Each batch carries a stock generation from deployment settings, a format version and a wrapping key version. Stock that differs in any of them burns on the next inventory read, and publication and use refuse it. After a restore of ML-DSA storage or a storage incident, advance `stock_generation` in the admission policy before signing resumes, because a restore of every store defeats the record above.
 Wallet-seed recovery and standard FIPS seed/key export remain required.
 
 NEAR nonce recovery reads current chain state once per exact wallet/key lane in
