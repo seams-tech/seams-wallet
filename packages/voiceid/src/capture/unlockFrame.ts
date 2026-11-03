@@ -32,6 +32,31 @@ const CSS = `
   width: 14px;
   height: 14px;
 }
+/* The menu's dismiss control, copied with the origin row: it keeps the menu's
+   look and sits at the row's end without changing the row's height. */
+.seams-voiceid-unlock-header .seams-menu-dismiss {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-block: -13px;
+  /* 12px from the card edge, as in the menu: the header pads 1.25rem */
+  margin-inline: auto -8px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.seams-voiceid-unlock-header .seams-menu-dismiss:focus-visible {
+  outline: 2px solid var(--seams-colors-primary, currentColor);
+  outline-offset: -2px;
+}
 .seams-voiceid-unlock-back {
   display: grid;
   place-items: center;
