@@ -55,14 +55,15 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 公開アセットの`@seams/wallet/web/wallet-iframe-client-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
 
-## リリース 0.43.0 {#release-0-43-0}
+## リリース 0.44.0 {#release-0-44-0}
 
-`@seams/wallet`と`@seams/wallet-server`を**0.43.0**に固定してください。
+`@seams/wallet`と`@seams/wallet-server`を**0.44.0**に固定してください。
 `@seams/wallet-cli`も**0.29.0**を使用します。署名済みネイティブアセットは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
-VoiceIDをホストする場合は、`@seams/voiceid` **0.43.0**もインストールします。
+VoiceIDをホストする場合は、`@seams/voiceid` **0.44.0**もインストールします。
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`で静的デプロイ用のディレクトリーを作成してください。
+0.44.0ではVoiceIDのホストAPIがバージョン7になるため、0.43.0のVoiceIDホストは0.44.0のWalletアセットと一緒に読み込めません。
 アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
-対応する導入方法は、[リリース 0.43.0](/ja/releases)を参照してください。
+対応する導入方法は、[リリース 0.44.0](/ja/releases)を参照してください。
 
 APACのウォレットオブジェクトは、`apac-se`で東南アジアへの配置を要求します。
 ホスト環境を受け入れる前に、実際のオブジェクトとデータベースの配置を確認してください。

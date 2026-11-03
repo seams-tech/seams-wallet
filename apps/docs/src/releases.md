@@ -1,9 +1,24 @@
 ---
-title: Release 0.43.0
-description: VoiceID approves a reviewed NEAR testnet contract call, a quieter QR scanner error, and a confirm card fix.
+title: Release 0.44.0
+description: A VoiceID unlock signs like a passkey session, the direct VoiceID unlock button shows again, and the settings dialog opens in StrictMode development builds.
 ---
 
-# Release 0.43.0
+# Release 0.44.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.44.0**.
+
+- **Breaking:** VoiceID now works like a passkey. A VoiceID unlock opens a normal signing session. That session signs every operation a passkey session can sign, on every chain and network, with the ordinary **Confirm** and no voice check per transaction. See [VoiceID](/concepts/auth-methods/voiceid#unlock-and-approve-transfers).
+- A voice match therefore approves mainnet value. VoiceID remains experimental: the speaker similarity threshold is **0.45**, and resistance to recorded or synthetic speech is not a production guarantee.
+- **Breaking:** the public `options.voiceId` signing option and the per-transaction VoiceID approval are removed. Remove `options.voiceId` from signing calls.
+- **Breaking:** the VoiceID host API moves from version 6 to 7. Install `@seams/voiceid` 0.44.0 with `@seams/wallet` 0.44.0, and compose the wallet host again.
+- When a VoiceID session needs fresh authentication, the owner unlocks with VoiceID again. Key export still needs a passkey or Email OTP.
+- The direct VoiceID unlock shows **Unlock with VoiceID** again. In 0.43.0 the button stayed hidden, so a direct VoiceID unlock could not start.
+- The settings dialog opens again in React StrictMode development builds.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.43.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.43.0**.
 
