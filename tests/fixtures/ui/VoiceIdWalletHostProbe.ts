@@ -13,7 +13,7 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/transactionReview';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIdentity';
-import { ActionType, toActionArgsWasm } from '@shared/near/actions';
+import { ActionType, toActionArgsWasm, type ActionArgs } from '@shared/near/actions';
 import type { Variant } from '@shared/utils/variant';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
 import { voiceIdAuthMethod } from '@voiceid/descriptor';
@@ -176,6 +176,26 @@ class WalletJourney {
     }
   }
 
+  async checkNearPolicy(mode: NearPolicyCase): Promise<{ accepted: boolean; frozen: boolean; error: string }> {
+    const reviewed = transferRequest(++this.generation, 10_000, '1');
+    const request: TransferRequest = {
+      ...reviewed,
+      payload: {
+        ...reviewed.payload!,
+        transaction: { receiverId: 'receiver.testnet', actions: nearPolicyActions(mode) },
+      },
+    };
+    try {
+      const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), createVoiceIdHostPlugin('citrinet'));
+      if (policy.kind !== 'required') throw new Error('NEAR did not require voice approval');
+      let error = '';
+      try { policy.approval.consume(); } catch (failure) { error = errorText(failure); }
+      return { accepted: true, frozen: Object.isFrozen(request.payload?.transaction.actions[0]), error };
+    } catch (failure) {
+      return { accepted: false, frozen: false, error: errorText(failure) };
+    }
+  }
+
   async requestMainnetApproval(): Promise<void> {
     const request = transferRequest(++this.generation, 10_000, '1000');
     await voiceIdPolicyForRequest(request, journeyConfiguration('near-mainnet'), createVoiceIdHostPlugin('citrinet'));
@@ -260,6 +280,26 @@ function transferRequest(generation: number, timeoutMs: number, amount: string):
       options: { confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' } },
     },
   };
+}
+
+type NearPolicyCase = 'function_call' | 'two_actions' | 'stake';
+
+function nearPolicyActions(mode: NearPolicyCase): ActionArgs[] {
+  const call: ActionArgs = {
+    type: ActionType.FunctionCall,
+    methodName: 'set_greeting',
+    args: { greeting: 'Hello from VoiceID' },
+    gas: '10000000000000',
+    deposit: '0',
+  };
+  switch (mode) {
+    case 'function_call':
+      return [call];
+    case 'two_actions':
+      return [call, { type: ActionType.Transfer, amount: '1' }];
+    case 'stake':
+      return [{ type: ActionType.Stake, stake: '1', publicKey: 'ed25519:11111111111111111111111111111111' }];
+  }
 }
 
 type ArcPolicyCase = 'transfer' | 'mainnet' | 'wrong_chain' | 'calldata' | 'creation' | 'access_list' | 'unreviewed';

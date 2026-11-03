@@ -40,7 +40,7 @@ These docs target `@seams/wallet` **0.42.0**. Keep the wallet-origin assets and
 before updating an existing integration.
 
 [VoiceID](/concepts/auth-methods/voiceid) is an optional package for voice enrollment,
-unlock, and reviewed transfer approval. Its engine and models load only when VoiceID is used.
+unlock, and reviewed transaction approval. Its engine and models load only when VoiceID is used.
 
 The wallet iframe protocol is **23.0.0**. The recovery CLI uses **0.29.0**.
 See [Release 0.42.0](/releases) for integration and deployment requirements.

@@ -339,7 +339,7 @@ function prepareReviewBoundNearMaterial(
   const auth = input.materialIdentity ? input.materialIdentity.auth : input.auth;
   const method = signingLaneAuthMethod(auth);
   if (method === 'voiceid' && !admission) {
-    throw new Error('VoiceID requires a reviewed NEAR transfer.');
+    throw new Error('VoiceID requires a reviewed NEAR transaction.');
   }
   admission?.assertAuthMethodPolicy(method);
   return prepare(input);

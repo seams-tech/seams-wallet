@@ -87,7 +87,7 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   await expect(dialog).toBeHidden();
   const unlockedCaptureCount = await wallet.locator('body').evaluate(microphoneCount);
   await expect(page.evaluate(signUnsupportedMessage, identity.accountId)).rejects.toThrow(
-    'requires a reviewed NEAR or Arc testnet transfer',
+    'requires a reviewed NEAR testnet transfer or contract call',
   );
   const delegate: Parameters<NonNullable<Window['__seamsIntendedE2ESignDelegate']>>[0] = {
     senderId: identity.accountId,
@@ -98,12 +98,12 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
     publicKey: identity.publicKey,
   };
   await expect(page.evaluate(signUnsupportedDelegate, delegate)).rejects.toThrow(
-    'requires a reviewed NEAR or Arc testnet transfer',
+    'requires a reviewed NEAR testnet transfer or contract call',
   );
   const deniedTransfer = await page.evaluate(sendUnreviewedTransfer, identity.accountId);
   expect(deniedTransfer).toMatchObject({
     success: false,
-    error: expect.stringContaining('requires a reviewed NEAR or Arc testnet transfer'),
+    error: expect.stringContaining('requires a reviewed NEAR testnet transfer or contract call'),
   });
   expect(evidence.transfers).toHaveLength(2);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount);

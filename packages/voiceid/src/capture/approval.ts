@@ -58,7 +58,7 @@ export class VoiceIdApproval {
     // The receipt that follows a signature takes the checking segments over as its tracks.
     this.prompt = new VoicePrompt(
       document,
-      'Approve transfer with VoiceID',
+      'Approve with VoiceID',
       this.phrase,
       'segments',
     );

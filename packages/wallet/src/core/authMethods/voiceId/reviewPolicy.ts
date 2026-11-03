@@ -81,10 +81,14 @@ export async function voiceIdPolicyForRequest(
         );
       }
       const payload = request.payload;
+      // One reviewed action: a transfer or a contract call. The operation hash and
+      // the review both cover the complete action, deposit and gas included.
+      const action =
+        payload?.transaction.actions.length === 1 ? payload.transaction.actions[0] : null;
       if (
         !payload ||
-        payload.transaction.actions.length !== 1 ||
-        payload.transaction.actions[0].type !== ActionType.Transfer ||
+        !action ||
+        (action.type !== ActionType.Transfer && action.type !== ActionType.FunctionCall) ||
         !('transactionReview' in request)
       ) {
         throw unsupportedVoiceOperation();
@@ -152,7 +156,7 @@ async function reviewedVoiceIdPolicy(
 function unsupportedVoiceOperation(): TransactionReviewError {
   return new TransactionReviewError(
     'review_unsupported_mode',
-    'VoiceID requires a reviewed NEAR or Arc testnet transfer.',
+    'VoiceID requires a reviewed NEAR testnet transfer or contract call, or a reviewed Arc testnet transfer.',
   );
 }
 

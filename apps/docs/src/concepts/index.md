@@ -26,7 +26,7 @@ agents](/use-cases/ecommerce-agents). Seams provides self-hostable threshold
 wallet infrastructure that deploys to Cloudflare.
 
 The published SDK ships wallet lifecycle, signing, and owner-selected region moves.
-SDK 0.42.0 supports optional [VoiceID](/concepts/auth-methods/voiceid) enrollment, unlock, and reviewed transfer approval.
+SDK 0.42.0 supports optional [VoiceID](/concepts/auth-methods/voiceid) enrollment, unlock, and reviewed transaction approval.
 Delegated-agent issuance and virtual cards are planned capabilities. Their concept pages do not imply a released API.
 
 See [release status](/releases) for the published baseline and upgrade boundaries.

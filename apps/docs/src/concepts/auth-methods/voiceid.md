@@ -1,6 +1,6 @@
 ---
 title: VoiceID
-description: Install the optional VoiceID package, prepare the Wallet host, and let wallet owners enroll, unlock, and approve transfers with their voice.
+description: Install the optional VoiceID package, prepare the Wallet host, and let wallet owners enroll, unlock, and approve reviewed transactions with their voice.
 ---
 
 # VoiceID
@@ -69,15 +69,16 @@ A rejected sample can be retried. Closing the surface returns `kind: 'cancelled'
 Successful enrollment returns `walletAuthMethodId` and preserves the current authentication method.
 Calling activation again for an enrolled method opens **Manage voice**.
 
-## Unlock and approve transfers
+## Unlock and approve transactions {#unlock-and-approve-transfers}
 
 The owner can select VoiceID in the Wallet sign-in menu. A custom unlock action uses
 the wallet ID and the enrolled `walletAuthMethodId`:
 
 <<< ../../examples/voiceid.ts#unlock
 
-After VoiceID unlock, use the existing [transaction APIs](/examples/signing).
-Reviewed NEAR and Arc testnet transfers show **Confirm with VoiceID**.
+After VoiceID unlock, use the existing [transaction APIs](/examples/signing) with a `review`.
+VoiceID approves one reviewed NEAR testnet transfer or contract call, or one reviewed Arc testnet transfer.
+These reviews show **Confirm with VoiceID**. VoiceID rejects other operations and calls without a `review`.
 The owner reads the displayed short English phrase at a normal pace.
 Each review requires a fresh voice check. The experimental speaker similarity threshold is **0.45**.
 Phrase recognition allows bounded differences to handle natural speech.

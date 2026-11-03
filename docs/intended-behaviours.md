@@ -179,7 +179,7 @@ Back restores the menu and stops capture. Retry retains the chosen voice method.
 menu cancels capture. Successful voice unlock reports `method: 'voiceid'` through
 the authenticated outcome; VoiceID is invalid as a wallet-registration outcome.
 
-Voice-selected transfers show “Confirm with VoiceID” before replacing the review
+Voice-selected reviewed transactions show “Confirm with VoiceID” before replacing the review
 with the existing minimal phrase and live waveform. Passkey and Email OTP sessions
 retain their own approval paths. These APIs use the current Wallet iframe
 protocol, version 21.0.0.
@@ -197,7 +197,10 @@ authentication method from its trusted authority selection. Passkey and Email OT
 signing bypass VoiceID policy, UI, model, and inference-runtime loading, even when
 VoiceID is available or enrolled. Enrollment preserves the owner's current method.
 Unlocking with VoiceID selects its method; unlocking with a passkey selects passkey.
-A VoiceID-selected wallet requires the enabled plugin and a reviewed NEAR or Arc testnet transfer.
+A VoiceID-selected wallet requires the enabled plugin and one reviewed operation: a NEAR testnet
+transfer or contract call with exactly one action, or an Arc testnet transfer. The review and the
+voice operation hash cover the complete action, including its deposit and gas.
+Browser enforcement: `tests/wallet-ui/voiceid-approval.browser.test.ts`.
 The prepared signing method must match the admitted review policy. Switching between
 voice and built-in methods during preparation requires another review; a VoiceID lane cannot sign through a review without voice
 approval or through an unreviewed path.

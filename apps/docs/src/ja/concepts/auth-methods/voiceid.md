@@ -1,6 +1,6 @@
 ---
 title: VoiceID
-description: 任意のVoiceIDパッケージとWalletホストを設定し、所有者が音声で登録、アンロック、送金承認を行う手順を説明します。
+description: 任意のVoiceIDパッケージとWalletホストを設定し、所有者が音声で登録、アンロック、トランザクション承認を行う手順を説明します。
 ---
 
 # VoiceID {#voiceid}
@@ -69,15 +69,16 @@ Walletは、マイクの許可と、受け入れた3つのサンプルを管理�
 登録に成功すると`walletAuthMethodId`を返します。現在の認証方法は変わりません。
 登録済みの方法で再度有効化を呼ぶと、**音声の管理**を開きます。
 
-## アンロックと送金承認 {#unlock-and-approve-transfers}
+## アンロックとトランザクション承認 {#unlock-and-approve-transfers}
 
 所有者はWalletのサインインメニューでVoiceIDを選べます。
 独自のアンロック操作には、ウォレットIDと登録済みの`walletAuthMethodId`を渡します。
 
 <<< ../../../examples/voiceid.ts#unlock
 
-VoiceIDでアンロックした後も、既存の[トランザクションAPI](/ja/examples/signing)を使います。
-NEARとArcのテストネット送金の確認画面に、**VoiceIDで確認**を表示します。
+VoiceIDでアンロックした後も、既存の[トランザクションAPI](/ja/examples/signing)に`review`を渡して使います。
+VoiceIDが承認できるのは、確認済みのNEARテストネットの送金またはコントラクト呼び出し1件と、確認済みのArcテストネットの送金1件です。
+これらの確認画面に、**VoiceIDで確認**を表示します。それ以外の操作と、`review`のない呼び出しは拒否します。
 所有者は、表示された短い英語の発話を普段の速さで読みます。
 各確認で新しい音声照合が必要です。実験用の話者の類似度しきい値は**0.45**です。
 発話認識では、自然な発話に対応するため、一定範囲の違いを許容します。

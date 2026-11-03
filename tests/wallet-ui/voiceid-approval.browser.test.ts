@@ -75,9 +75,18 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
 
   await expect(page.evaluate(mainnetApproval)).rejects.toThrow('requires NEAR testnet');
   await expect(page.evaluate(unreviewedApproval)).rejects.toThrow(
-    'requires a reviewed NEAR or Arc testnet transfer',
+    'requires a reviewed NEAR testnet transfer or contract call',
   );
   cases.push('mainnet_and_unreviewed_requests_rejected');
+  const call = await page.evaluate(checkNearPolicy, 'function_call');
+  expect(call.accepted).toBe(true);
+  expect(call.frozen).toBe(true);
+  expect(call.error).toContain('current voice approval');
+  cases.push('near_contract_call_frozen_and_requires_fresh_voice');
+  for (const mode of ['two_actions', 'stake'] as const) {
+    expect((await page.evaluate(checkNearPolicy, mode)).accepted).toBe(false);
+    cases.push(`near_${mode}_rejected`);
+  }
   const arc = await page.evaluate(checkArcPolicy, 'transfer');
   expect(arc.accepted).toBe(true);
   expect(arc.frozen).toBe(true);
@@ -162,6 +171,10 @@ async function settled(page: Page, result: string, count: number): Promise<void>
 
 function tryPasskeySelection(): string {
   return window.voiceJourney.trySelectingPasskey();
+}
+
+function checkNearPolicy(mode: Parameters<Window['voiceJourney']['checkNearPolicy']>[0]) {
+  return window.voiceJourney.checkNearPolicy(mode);
 }
 
 function checkArcPolicy(mode: Parameters<Window['voiceJourney']['checkArcPolicy']>[0]) {
