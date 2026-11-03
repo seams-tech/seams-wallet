@@ -1,5 +1,16 @@
+/** Prepared signing material for the key, against what one signature needs. */
+export type ReceiptStock = { readonly ready: number; readonly needed: number };
+
 export type TransactionReceiptState =
-  | { kind: 'waiting'; reason: 'material' | 'capacity' | 'cooldown'; message: string; hash?: never }
+  | {
+      kind: 'waiting';
+      reason: 'material' | 'capacity' | 'cooldown';
+      message: string;
+      /** When the first wait of this request began, so the receipt shows the time spent. */
+      sinceMs: number;
+      stock: ReceiptStock | null;
+      hash?: never;
+    }
   | { kind: 'cancelled'; hash?: never; message?: never }
   | { kind: 'signing'; hash?: never; message?: never }
   | { kind: 'signed'; hash?: never; message?: never }

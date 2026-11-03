@@ -385,6 +385,12 @@
   font-size: 0.8125rem;
   color: var(--seams-colors-textSecondary);
 }
+:where(.seams-wallet-ui) .seams-receipt-heading .seams-receipt-wait {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0;
+  font-variant-numeric: tabular-nums;
+}
 :where(.seams-wallet-ui) .seams-receipt-symbol {
   display: grid;
   place-items: center;
@@ -477,6 +483,9 @@
 }
 :where(.seams-wallet-ui) .seams-receipt-step[data-state='complete'] .seams-receipt-track::after {
   transform: scaleX(1);
+}
+:where(.seams-wallet-ui) .seams-receipt-step[data-state='filling'] .seams-receipt-track::after {
+  transform: scaleX(var(--seams-receipt-fill, 0));
 }
 :where(.seams-wallet-ui) .seams-receipt-step[data-state='active'] .seams-receipt-track::after {
   transform: none;

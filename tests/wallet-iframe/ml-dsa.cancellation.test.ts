@@ -390,22 +390,26 @@ async function executeGateway(gateway: Gateway, route: Route): Promise<void> {
     await respondSigned(route);
     return;
   }
+  const reason =
+    gateway.mode === 'cancel_ui'
+      ? 'wallet_cooldown'
+      : gateway.mode === 'wait_ui' && gateway.executions.length === 2
+        ? 'service_capacity'
+        : gateway.mode === 'wait_ui' && gateway.executions.length === 3
+          ? 'wallet_cooldown'
+          : 'empty_pool';
   await route.fulfill({
     json: {
       kind: 'retry',
-      reason:
-        gateway.mode === 'cancel_ui'
-          ? 'wallet_cooldown'
-          : gateway.mode === 'wait_ui' && gateway.executions.length === 2
-            ? 'service_capacity'
-            : gateway.mode === 'wait_ui' && gateway.executions.length === 3
-              ? 'wallet_cooldown'
-              : 'empty_pool',
+      reason,
       retryAfterMs: gateway.mode.endsWith('_ui')
         ? 2000
         : gateway.mode === 'stock_wait' || gateway.mode === 'rpc_timeout'
           ? 3000
           : 100,
+      ...(reason === 'empty_pool'
+        ? { stock: gateway.mode === 'wait_ui' ? { ready: 3, needed: 8 } : null }
+        : {}),
     },
   });
 }
@@ -684,6 +688,14 @@ async function verifyWaitingUi(
         { exact: true },
       ),
     ).toBeVisible();
+    const wait = frame.locator('.seams-receipt-wait');
+    await expect(wait.getByText('3 of 8 ready', { exact: true })).toBeVisible();
+    await expect(wait.locator('time')).toHaveText(/^0:0\d$/);
+    const signingStep = frame.locator('.seams-receipt-step[data-stage="signing"]');
+    await expect(signingStep).toHaveAttribute('data-state', 'filling');
+    expect(await signingStep.evaluate(readReceiptFill)).toBe('0.375');
+    await expect(frame.locator('[data-receipt-morphing]')).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath('ml-dsa-material-wait-ui.png') });
     await expect(
       frame
         .locator('.seams-receipt-heading h2')
@@ -731,6 +743,12 @@ async function verifyWaitingUi(
     ),
   );
   await info.attach('ml-dsa-wait-ui', { path: artifact, contentType: 'application/json' });
+}
+
+function readReceiptFill(element: Element): string {
+  return element instanceof HTMLElement
+    ? element.style.getPropertyValue('--seams-receipt-fill')
+    : '';
 }
 
 async function serveWalletUiStyles(root: string, route: Route): Promise<void> {

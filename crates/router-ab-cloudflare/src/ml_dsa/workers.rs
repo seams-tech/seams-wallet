@@ -38,7 +38,7 @@ use super::{
 };
 use crate::durable_object::tenant_root_creation::decode_bounded_json_request;
 pub(crate) use coordinator::{
-    handle_activate, handle_admit, handle_complete, handle_sign, handle_status,
+    handle_activate, handle_admit, handle_complete, handle_sign, handle_status, handle_stock,
 };
 use executor::{handle_execute, is_execution_path, EXECUTE_PATH};
 pub use preparation::RouterAbMlDsaProducerDurableObject;
@@ -52,6 +52,7 @@ pub const ACTIVATE_PATH: &str = "/router-ab/ml-dsa/activate";
 pub const ADMIT_PATH: &str = "/router-ab/ml-dsa/admit";
 pub const COMPLETE_PATH: &str = "/router-ab/ml-dsa/complete";
 pub const STATUS_PATH: &str = "/router-ab/ml-dsa/status";
+pub const STOCK_PATH: &str = "/router-ab/ml-dsa/stock";
 pub const ROLE_PATH: &str = "/router-ab/ml-dsa/role";
 const SERVICE_BINDING: &str = "ML_DSA_ADMISSION_DO";
 const POOL_BINDING: &str = "ML_DSA_POOL_DO";

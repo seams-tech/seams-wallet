@@ -88,16 +88,42 @@ export type MlDsaSigningFailure = {
   readonly code: MlDsaSigningFailureCode;
   readonly message: string;
 };
+/** Paired batches ready for the key, against the count that one signature needs. */
+export type MlDsaStockProgress = { readonly ready: number; readonly needed: number };
 export type MlDsaSigningOutcome = ReadonlyExclusiveUnion<
   | { readonly kind: 'signed'; readonly transaction: MlDsaSignedTransaction }
   | {
       readonly kind: 'retry';
       /** Relative, because the browser clock can differ from the server clock. */
       readonly retryAfterMs: number;
-      readonly reason: 'empty_pool' | 'service_capacity' | 'wallet_cooldown' | 'running';
+      readonly reason: 'empty_pool';
+      /** Null when the private signer did not report its stock. */
+      readonly stock: MlDsaStockProgress | null;
+    }
+  | {
+      readonly kind: 'retry';
+      readonly retryAfterMs: number;
+      readonly reason: 'service_capacity' | 'wallet_cooldown' | 'running';
     }
   | MlDsaSigningFailure
 >;
+
+/** The Router's admission needs at most twenty batches, which bounds the count. */
+export function parseMlDsaStockProgress(raw: unknown): MlDsaStockProgress {
+  const r = exactRecord(raw, ['ready', 'needed'], 'ML-DSA stock progress');
+  if (
+    typeof r.needed !== 'number' ||
+    !Number.isSafeInteger(r.needed) ||
+    r.needed < 1 ||
+    r.needed > 20 ||
+    typeof r.ready !== 'number' ||
+    !Number.isSafeInteger(r.ready) ||
+    r.ready < 0 ||
+    r.ready > r.needed
+  )
+    throw new Error('Invalid ML-DSA stock progress');
+  return { ready: r.ready, needed: r.needed };
+}
 export type MlDsaSigningPreparationOutcome = ReadonlyExclusiveUnion<
   { readonly kind: 'prepared'; readonly preparation: MlDsaSigningPreparation } | MlDsaSigningFailure
 >;

@@ -1,4 +1,8 @@
-import { parseMlDsaRouterFailure, parseMlDsaSigningFailure } from '@shared/near/mlDsaSigning';
+import {
+  parseMlDsaRouterFailure,
+  parseMlDsaSigningFailure,
+  parseMlDsaStockProgress,
+} from '@shared/near/mlDsaSigning';
 import type { MlDsaSignerInventoryEntry } from '@shared/near/mlDsaInventory';
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
 import { resolveMlDsaEmailOtpOwner, type MlDsaEmailOtpServices } from './mlDsaEmailOtpApproval';
@@ -67,7 +71,10 @@ import {
   prepareMlDsaOwnerOperation,
   prepareMlDsaSessionOwnerOperation,
 } from '../../../domains/signingOperations/mlDsaOwnerAdmission';
-import { dispatchMlDsaOwnerOperation } from '../../../transport/fetch/routes/mlDsaSigning';
+import {
+  dispatchMlDsaOwnerOperation,
+  readMlDsaStock,
+} from '../../../transport/fetch/routes/mlDsaSigning';
 import { signalMlDsaRegistrationActivity } from '../../../transport/fetch/routes/mlDsaRegistration';
 import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
 import { CloudflareD1VersionedJsonRecordStore } from '../versionedJson/d1VersionedJsonRecordStore';
@@ -401,6 +408,7 @@ export class D1WalletMlDsaSigning {
     origin: SessionOrigin,
     access: { readonly kind: 'passkey' } | { readonly kind: 'email_otp'; readonly token: string },
     services: MlDsaEmailOtpServices,
+    background: ((promise: Promise<unknown>) => void) | undefined,
   ): Promise<MlDsaSigningPreparationOutcome> {
     if (!this.options.proxy || !this.options.registration)
       return refusal('not_configured', 'ML-DSA signing is not configured');
@@ -496,6 +504,10 @@ export class D1WalletMlDsaSigning {
     );
     if (result.kind !== 'stored')
       return refusal('conflict', 'Signing preparation changed; retry the same operation');
+    // Stock refills while the owner reads the review. Its count is not needed here.
+    const warming = readMlDsaStock(this.options.proxy, target);
+    if (background) background(warming);
+    else await warming;
     return { kind: 'prepared', preparation: record.preparation };
   }
   private async resolveSigningOwner(
@@ -762,6 +774,13 @@ export class D1WalletMlDsaSigning {
         // A completed operation releases capacity before its lease deadline.
         retryAfterMs = Math.min(retryAfterMs, 500);
       }
+      if (raw.reason === 'empty_pool')
+        return {
+          kind: 'retry',
+          reason: 'empty_pool',
+          retryAfterMs,
+          stock: raw.stock === undefined ? null : parseMlDsaStockProgress(raw.stock),
+        };
       return { kind: 'retry', reason: raw.reason, retryAfterMs };
     }
     if (raw.status !== 'existing') throw new Error('Invalid Router operation');

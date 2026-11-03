@@ -4,7 +4,69 @@ use super::*;
 
 enum PairReservation {
     Ready { batches: Vec<[u8; 32]> },
-    Empty { retry_at_ms: u64 },
+    Empty { retry_at_ms: u64, stock: StockProgress },
+}
+
+/// Paired batches ready for one key, against the count that admission needs.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub(super) struct StockProgress {
+    ready: usize,
+    needed: usize,
+}
+impl StockProgress {
+    fn of(policy: &Policy, paired: usize) -> Self {
+        let needed = policy.minimum_ready_batches();
+        Self {
+            ready: paired.min(needed),
+            needed,
+        }
+    }
+}
+/// A decision, with the stock count when the pool was too empty to admit.
+struct Admission {
+    decision: Decision,
+    stock: Option<StockProgress>,
+}
+#[derive(Serialize)]
+struct UnadmittedReply<'a> {
+    #[serde(flatten)]
+    decision: &'a Decision,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stock: Option<StockProgress>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StockRequest {
+    key: KeyScope,
+}
+/// The Gateway reads stock for a published key when its owner opens a review. The read
+/// counts as signing demand, so a key that went idle refills while the owner reads.
+pub(crate) async fn handle_stock(
+    mut request: worker::Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
+        return crate::cloudflare_private_service_auth_error_response_v1(error);
+    }
+    if request.method() != Method::Post {
+        return Response::error("ML-DSA stock requires POST", 405);
+    }
+    let input: StockRequest = decode_bounded_json_request(&mut request, 16_384)
+        .await
+        .map_err(protocol_error)?;
+    let progress = stock_progress(env, &input.key)
+        .await
+        .map_err(protocol_error)?;
+    Response::from_json(&progress)
+}
+async fn stock_progress(env: &Env, key: &KeyScope) -> Result<StockProgress> {
+    check_signing_scope(env, key)?;
+    let policy = policy(env)?;
+    let deadline = policy.deadline(crate::cloudflare_now_unix_ms_v1()?)?;
+    let (a, b) = inventory_pair(env, &policy, key, deadline).await?;
+    let paired = a.ready.iter().filter(|id| b.ready.contains(id)).count();
+    Ok(StockProgress::of(&policy, paired))
 }
 
 pub(crate) async fn handle_admit(
@@ -23,13 +85,13 @@ pub(crate) async fn handle_admit(
     let result = admit(env, request.headers(), input)
         .await
         .map_err(protocol_error)?;
-    Response::from_json(&result)
+    Response::from_json(&result.decision)
 }
 async fn admit(
     env: &Env,
     headers: &worker::Headers,
     input: super::super::SigningRequest,
-) -> Result<Decision> {
+) -> Result<Admission> {
     check_signing_scope(env, &input.key)?;
     let policy = policy(env)?;
     let preflight: admission::Preflight = service_call(
@@ -39,7 +101,10 @@ async fn admit(
     )
     .await?;
     if let admission::Preflight::Decided { decision } = preflight {
-        return Ok(decision);
+        return Ok(Admission {
+            decision,
+            stock: None,
+        });
     }
     let (a, b) = inventory_pair(
         env,
@@ -57,12 +122,16 @@ async fn admit(
         })
     );
     if paired < policy.minimum_ready_batches() {
-        return service_call(
+        let decision = service_call(
             env,
             CallAuthority::Gateway(headers),
             &admission_requests::defer_empty(input, a.retry_at_ms.max(b.retry_at_ms)),
         )
-        .await;
+        .await?;
+        return Ok(Admission {
+            decision,
+            stock: Some(StockProgress::of(&policy, paired)),
+        });
     }
     let decision: Decision = service_call(
         env,
@@ -71,7 +140,10 @@ async fn admit(
     )
     .await?;
     let Decision::Claimed { claim } = decision else {
-        return Ok(decision);
+        return Ok(Admission {
+            decision,
+            stock: None,
+        });
     };
     worker::console_log!(
         "{}",
@@ -90,23 +162,30 @@ async fn admit(
                 &admission_requests::admit(claim.clone(), batches.clone()),
             )
             .await?;
-            match outcome {
-                admission::AdmitOutcome::Decided { decision } => Ok(decision),
+            let decision = match outcome {
+                admission::AdmitOutcome::Decided { decision } => decision,
                 admission::AdmitOutcome::SpentStock { batches: spent } => {
-                    retire_spent_stock(env, headers, claim, batches, spent).await
+                    retire_spent_stock(env, headers, claim, batches, spent).await?
                 }
-            }
+            };
+            Ok(Admission {
+                decision,
+                stock: None,
+            })
         }
-        Ok(PairReservation::Empty { retry_at_ms }) => {
+        Ok(PairReservation::Empty { retry_at_ms, stock }) => {
             let _: bool = service_call(
                 env,
                 CallAuthority::Gateway(headers),
                 &admission_requests::await_stock(claim.clone(), retry_at_ms),
             )
             .await?;
-            Ok(Decision::Unavailable {
-                reason: admission::UnavailableReason::EmptyPool,
-                retry_at_ms,
+            Ok(Admission {
+                decision: Decision::Unavailable {
+                    reason: admission::UnavailableReason::EmptyPool,
+                    retry_at_ms,
+                },
+                stock: Some(stock),
             })
         }
         Err(error) => {
@@ -205,7 +284,10 @@ async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<PairR
         .collect();
     let retry = a.retry_at_ms.max(b.retry_at_ms);
     if batches.len() < policy.minimum_ready_batches() {
-        return Ok(PairReservation::Empty { retry_at_ms: retry });
+        return Ok(PairReservation::Empty {
+            retry_at_ms: retry,
+            stock: StockProgress::of(policy, batches.len()),
+        });
     }
     let command = role_requests::reserve(claim.clone(), batches.clone());
     let (a, b) = futures::join!(
@@ -485,12 +567,23 @@ async fn sign_request(
         return Response::error("ML-DSA message differs from authorization", 400);
     }
     trace.bind(input.request.operation);
-    let decision = admit(env, request.headers(), input.request)
+    let Admission { decision, stock } = admit(env, request.headers(), input.request)
         .await
         .map_err(protocol_error)?;
     trace.mark("admission_done");
     let Decision::Admitted { permit } = decision else {
-        return Response::from_json(&decision);
+        // Only an empty pool reports stock. The owner sees how much of it is ready.
+        let stock = match decision {
+            Decision::Unavailable {
+                reason: admission::UnavailableReason::EmptyPool,
+                ..
+            } => stock,
+            _ => None,
+        };
+        return Response::from_json(&UnadmittedReply {
+            decision: &decision,
+            stock,
+        });
     };
     let execution = execution::Request {
         permit: permit.clone(),

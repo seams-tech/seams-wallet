@@ -33,8 +33,15 @@ void [transactionReceipt, broadcastMessage, confirmedMessage];
 
 const waitingWithHash: ReceiptProgress = {
   subject: 'transaction',
-  // @ts-expect-error A material wait has no transaction hash before signing.
-  state: { kind: 'waiting', reason: 'material', message: 'Waiting', hash: 'tx' },
+  state: {
+    kind: 'waiting',
+    reason: 'material',
+    message: 'Waiting',
+    sinceMs: 0,
+    stock: null,
+    // @ts-expect-error A material wait has no transaction hash before signing.
+    hash: 'tx',
+  },
 };
 // @ts-expect-error Waiting requires an explicit reason and display message.
 const missingWaitReason: ReceiptProgress = { subject: 'transaction', state: { kind: 'waiting' } };
@@ -42,6 +49,6 @@ const waitingMessage: ReceiptProgress = {
   ...transactionReceipt,
   subject: 'message',
   // @ts-expect-error A message receipt cannot acquire transaction-only wait state through a spread.
-  state: { kind: 'waiting', reason: 'cooldown', message: 'Waiting' },
+  state: { kind: 'waiting', reason: 'cooldown', message: 'Waiting', sinceMs: 0, stock: null },
 };
 void [waitingWithHash, missingWaitReason, waitingMessage];
