@@ -27,6 +27,7 @@ import {
   type RouterAbEd25519YaoExportAdmissionClaimV1,
   type RouterAbEd25519YaoExportAuthorizationAdapter,
   type RouterAbEd25519YaoExportEmailOtpFactorReleaseV1,
+  type RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1,
   type RouterAbEd25519YaoExportOperationAdmissionV1,
   type RouterAbEd25519YaoExportAuthorizationResult,
   type RouterAbEd25519YaoExportBackend,
@@ -89,6 +90,7 @@ type AuthorizationRunResult =
       readonly ok: true;
       readonly authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
       readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
+      readonly custodyRelease?: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1;
     }
   | AuthorizationFailure;
 
@@ -285,6 +287,9 @@ async function handleAdmissionRequest(
       {
         protocol: result.value,
         ...(admission.factorRelease ? { factorRelease: admission.factorRelease } : {}),
+        ...(admission.custodyRelease
+          ? { voiceIdCustodyEnvelope: admission.custodyRelease.envelope }
+          : {}),
       },
       { status: result.status },
     );
@@ -402,6 +407,7 @@ async function runAuthorization(
       ownershipGeneration: authorized.ownershipGeneration,
       admission: authorized.admission,
       ...(authorized.factorRelease ? { factorRelease: authorized.factorRelease } : {}),
+      ...(authorized.custodyRelease ? { custodyRelease: authorized.custodyRelease } : {}),
     };
   }
   const authorizationFingerprint = await authorizationFingerprintForIdentity(
@@ -425,6 +431,7 @@ async function runAuthorization(
             ...(decision.value.factorRelease
               ? { factorRelease: decision.value.factorRelease }
               : {}),
+            ...(verified.custodyRelease ? { custodyRelease: verified.custodyRelease } : {}),
           })
         : decision.value;
     }
@@ -473,6 +480,8 @@ type VerifiedAuthorization = {
   /** Null when the export was already authorized and only its identity was checked. */
   readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1 | null;
   readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
+  /* Returned only by the request that verified the voice check; a replay has none. */
+  readonly custodyRelease?: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1;
 };
 
 function authorizedRun(verified: VerifiedAuthorization): AuthorizationRunResult {
@@ -480,6 +489,7 @@ function authorizedRun(verified: VerifiedAuthorization): AuthorizationRunResult 
     ok: true,
     authorizationIdentity: verified.identity,
     ...(verified.factorRelease ? { factorRelease: verified.factorRelease } : {}),
+    ...(verified.custodyRelease ? { custodyRelease: verified.custodyRelease } : {}),
   };
 }
 

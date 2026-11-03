@@ -1539,6 +1539,7 @@ export function createStagingExportRequestScopedDependencies(
     authorization: new RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter(
       service.webAuthn,
       service.emailOtp,
+      service.walletUnlock,
       service.walletAuthMethods,
       service.authorizedOperations,
       service.walletRegistration.resolveEd25519MaterialActivation.bind(service.walletRegistration),

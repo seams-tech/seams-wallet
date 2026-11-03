@@ -1,4 +1,11 @@
-import type { VoiceIdDeviceAssertion, VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
+import type {
+  VoiceIdDeviceAssertion,
+  VoiceIdOperationKind,
+  VoiceIdWalletSessionChallenge,
+} from '@shared/authorization/voiceIdDeviceAssertion';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { VoiceIdWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
+import type { VerifiedVoiceIdOperationProof } from '../../../authorization/voiceIdDeviceProof';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { VoiceIdSeedEnvelope } from '@shared/passkey-custody/custodyEnvelope';
 import type { DirectV2IssueResult, IssuedWalletSessionAuthorizationV2 } from '../../../authorization/domain';
@@ -35,4 +42,28 @@ export type VoiceIdVerifyResult =
         | 'method_unavailable'
         | 'invalid_assertion'
         | 'issuance_unavailable';
+    };
+
+/** A fresh voice check for one operation, verified against the active VoiceID method. */
+export type VoiceIdOperationVerifyRequest = Readonly<{
+  walletId: WalletId;
+  walletAuthMethodId: WalletAuthMethodId;
+  assertion: unknown;
+  operationKind: VoiceIdOperationKind;
+  operationChallenge: DigestB64u;
+  requestOrigin: SessionOrigin;
+  nowMs: number;
+}>;
+
+export type VoiceIdOperationVerifyResult =
+  | {
+      readonly kind: 'verified';
+      readonly proof: VerifiedVoiceIdOperationProof;
+      readonly authority: VoiceIdWalletAuthAuthority;
+      /* Sealed under the device's voice factor; the server releases it only after this check. */
+      readonly custodyEnvelope: VoiceIdSeedEnvelope;
+    }
+  | {
+      readonly kind: 'rejected';
+      readonly code: 'method_unavailable' | 'invalid_assertion';
     };

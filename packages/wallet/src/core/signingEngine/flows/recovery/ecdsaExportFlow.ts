@@ -18,6 +18,7 @@ import {
   type ExactEcdsaExportLane,
   type FreshEmailOtpEcdsaExportMaterial,
   type FreshPasskeyEcdsaExportMaterial,
+  type FreshVoiceIdEcdsaExportMaterial,
   type ActiveWalletAuthorityEcdsaExportMaterial,
   resolveEcdsaExportMaterialForLane,
   resolveFreshEmailOtpEcdsaExportMaterialForLane,
@@ -26,7 +27,11 @@ import {
   type ActiveWalletAuthorityEcdsaExportAuthorization,
   exportActiveWalletAuthorityEcdsaHolderKey,
   exportEcdsaDerivationKey,
+  exportVoiceIdEcdsaDerivationKey,
 } from './ecdsaDerivationExport';
+import type { VoiceIdOperationConfirm } from '@/core/authMethods/voiceId/operationProof';
+import type { VoiceIdOperationAssertion } from '@shared/authorization/voiceIdDeviceAssertion';
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   buildEcdsaExportActivation,
   type ThresholdEcdsaPasskeyExportActivationRequest,
@@ -60,6 +65,7 @@ import {
   walletAuthAuthoritiesMatch,
   type EmailOtpWalletAuthAuthority as CanonicalEmailOtpWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
+  type VoiceIdWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 import { sameWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { alphabetizeStringify } from '@shared/utils/digests';
@@ -109,6 +115,10 @@ export type EcdsaExportFlowDeps = {
   provisionPasskeyEcdsaExplicitExportSession: (
     args: ThresholdEcdsaPasskeyExportActivationRequest,
   ) => Promise<ThresholdEcdsaExplicitKeyExportBootstrapResult>;
+  voiceId: {
+    /** The fresh voice check that the Wallet host runs; never a passkey or Email OTP. */
+    confirmOperation: VoiceIdOperationConfirm;
+  };
   getSignerWorkerContext: () => WorkerOperationContext;
   withThresholdEcdsaSigningQueue: <T>(args: {
     queueKey: string;
@@ -295,7 +305,15 @@ async function prepareAndShowEcdsaExportArtifact(
             deps.sessionStore,
             args.exportLane,
           );
-          if (current.kind !== 'fresh_passkey_needs_authorization') {
+          const expectedKind =
+            args.exportLane.authMethod === 'voiceid'
+              ? 'fresh_voiceid_needs_authorization'
+              : 'fresh_passkey_needs_authorization';
+          if (
+            current.kind !== expectedKind ||
+            (current.kind !== 'fresh_passkey_needs_authorization' &&
+              current.kind !== 'fresh_voiceid_needs_authorization')
+          ) {
             throw new Error('[SigningEngine][ecdsa-export] prepared export authority changed');
           }
           if (
@@ -440,8 +458,16 @@ async function assertEcdsaExportMaterialStillActive(args: {
   readonly expectedMaterialActivation: PersistedEcdsaRoleLocalMaterial['materialActivation'];
 }): Promise<void> {
   const current = await resolveEcdsaExportMaterialForLane(args.deps.sessionStore, args.exportLane);
-  if (current.kind !== 'fresh_passkey_needs_authorization') {
-    throw new Error('[SigningEngine][ecdsa-export] passkey export authority changed');
+  const expectedKind =
+    args.exportLane.authMethod === 'voiceid'
+      ? 'fresh_voiceid_needs_authorization'
+      : 'fresh_passkey_needs_authorization';
+  if (
+    current.kind !== expectedKind ||
+    (current.kind !== 'fresh_passkey_needs_authorization' &&
+      current.kind !== 'fresh_voiceid_needs_authorization')
+  ) {
+    throw new Error(`[SigningEngine][ecdsa-export] ${args.exportLane.authMethod} export authority changed`);
   }
   if (
     !mpcMaterialActivationRefsEqual(
@@ -628,10 +654,28 @@ function emailOtpExportProof(args: {
   };
 }
 
+function voiceIdExportProof(args: {
+  readonly authority: VoiceIdWalletAuthAuthority;
+  readonly assertion: VoiceIdOperationAssertion;
+}) {
+  const statement = args.assertion.statement;
+  if (
+    statement.walletAuthMethodId !== args.authority.bindingId ||
+    statement.deviceKeyId !== args.authority.factor.deviceKeyId ||
+    statement.operationKind !== 'evm.export_key'
+  ) {
+    throw new Error('[SigningEngine][ecdsa-export] VoiceID proof does not match authority');
+  }
+  return { kind: 'voiceid' as const, authority: args.authority, assertion: args.assertion };
+}
+
 async function issueExplicitEcdsaExportAuthorization(args: {
   readonly relayerUrl: string;
   readonly prepared: PreparedEcdsaOperationStepUp;
-  readonly proof: ReturnType<typeof passkeyExportProof> | ReturnType<typeof emailOtpExportProof>;
+  readonly proof:
+    | ReturnType<typeof passkeyExportProof>
+    | ReturnType<typeof emailOtpExportProof>
+    | ReturnType<typeof voiceIdExportProof>;
   readonly transport: EcdsaOperationStepUpTransport;
 }): Promise<ActiveWalletAuthorityEcdsaExportAuthorization> {
   const authorization = await issueEcdsaOperationStepUpAuthorization({
@@ -663,14 +707,15 @@ async function issueExplicitEcdsaExportAuthorization(args: {
 }
 
 function normalizeIssuedEcdsaExportUnseal(args: {
-  proofKind: 'passkey' | 'email_otp';
+  proofKind: 'passkey' | 'email_otp' | 'voiceid';
   unseal: RouterAbEcdsaOperationStepUpAuthorizationV1Wire['unseal'];
 }): RouterAbEcdsaOperationStepUpAuthorizationV1Wire['unseal'] {
   switch (args.proofKind) {
     case 'passkey':
+    case 'voiceid':
       if (args.unseal.kind !== 'not_requested') {
         throw new Error(
-          '[SigningEngine][ecdsa-export] passkey step-up returned Email OTP unseal material',
+          `[SigningEngine][ecdsa-export] ${args.proofKind} step-up returned Email OTP unseal material`,
         );
       }
       return { kind: 'not_requested' };
@@ -1149,5 +1194,81 @@ export async function exportThresholdEcdsaKeyWithFreshPasskeyAuthorization(
         },
       );
     },
+  });
+}
+
+/**
+ * Exports a VoiceID canonical lane after a fresh voice check. The device key
+ * signs the step-up challenge that a passkey would sign, and the Router claims
+ * the operation once. The voice check never falls back to a passkey prompt.
+ */
+export async function exportThresholdEcdsaKeyWithFreshVoiceId(
+  deps: EcdsaExportFlowDeps,
+  args: {
+    walletId: string;
+    exportLane: CanonicalEcdsaExportLane;
+    material: FreshVoiceIdEcdsaExportMaterial;
+    options: KeyExportUiOptions;
+    flowId: string;
+    onEvent?: KeyExportEventCallback;
+  },
+): Promise<{ accountId: string; exportedSchemes: ExportedKeySchemes }> {
+  if (args.exportLane.authMethod !== 'voiceid') {
+    throw new Error('[SigningEngine][ecdsa-export] fresh VoiceID export requires a VoiceID lane');
+  }
+  const authority = args.material.factorAuthority;
+  const exportPublicKey = String(args.material.publicFacts.publicKeyB64u);
+  const prepared = await prepareExplicitEcdsaExportOperation({
+    walletId: args.walletId,
+    chainTarget: args.exportLane.chainTarget,
+    requestId: createExportUiRequestId('tecdsa-voiceid-export'),
+    keyHandle: args.material.existingRoleLocalMaterial.publicFacts.keyHandle,
+    displayPublicKey: args.material.existingRoleLocalMaterial.publicFacts.groupPublicKey33B64u,
+    displayAddress: args.material.existingRoleLocalMaterial.publicFacts.ethereumAddress,
+    materialActivation: args.material.existingRoleLocalMaterial.materialActivation,
+    operationRuntime: args.material,
+    operationExpiresAtMs: Date.now() + 5 * 60_000,
+  });
+  const proof = await deps.voiceId.confirmOperation({
+    walletId: authority.walletId,
+    walletAuthMethodId: authority.bindingId,
+    operationKind: 'evm.export_key',
+    begin: async () => ({
+      operationChallenge: parseDigestB64u(prepared.challengeB64u),
+      expiresAtMs: prepared.operation.expires_at_ms,
+    }),
+  });
+  // The ECDSA export opens role-local material; it never needs the seed factor.
+  proof.factorSecret32.fill(0);
+  if (proof.assertion.statement.operationChallenge !== prepared.challengeB64u) {
+    throw new Error('[SigningEngine][ecdsa-export] VoiceID signed another export');
+  }
+  await assertEcdsaExportMaterialStillActive({
+    deps,
+    exportLane: args.exportLane,
+    expectedMaterialActivation: args.material.existingRoleLocalMaterial.materialActivation,
+  });
+  const authorization = await issueExplicitEcdsaExportAuthorization({
+    relayerUrl: args.material.relayerUrl,
+    prepared,
+    transport: { kind: 'factor_proof' },
+    proof: voiceIdExportProof({ authority, assertion: proof.assertion }),
+  });
+  return await prepareAndShowEcdsaExportArtifact(deps, {
+    walletId: args.walletId,
+    exportLane: args.exportLane,
+    exportPublicKey,
+    options: args.options,
+    flowId: args.flowId,
+    onEvent: args.onEvent,
+    prepareArtifact: () =>
+      exportVoiceIdEcdsaDerivationKey(
+        { getSignerWorkerContext: deps.getSignerWorkerContext },
+        {
+          persistedMaterial: args.material.existingRoleLocalMaterial,
+          relayerUrl: args.material.relayerUrl,
+          operationAuthorization: authorization,
+        },
+      ),
   });
 }

@@ -141,6 +141,9 @@ async function verifyActiveEcdsaOperationStepUpAuthority(
       return await walletAuthMethods.verifyActivePasskeyAuthority(proof.authority);
     case 'email_otp':
       return await walletAuthMethods.verifyActiveEmailOtpAuthority(proof.authority);
+    case 'voiceid':
+      /* The device proof check resolves the exact active VoiceID method and its key. */
+      return { ok: true } as const;
     default:
       proof satisfies never;
       throw new Error('Unsupported ECDSA operation step-up proof');
@@ -1036,6 +1039,7 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
     expiresAtMs,
     webAuthn: input.ctx.service.webAuthn,
     emailOtp: input.ctx.service.emailOtp,
+    voiceId: input.ctx.service.walletUnlock,
   });
   if (!verifiedFactor.ok) return verifiedFactor.response;
   const evidenceSet =

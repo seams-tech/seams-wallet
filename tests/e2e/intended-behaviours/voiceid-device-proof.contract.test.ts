@@ -3,19 +3,23 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import {
+  buildVoiceIdOperationStatement,
   buildVoiceIdWalletSessionChallenge,
   parseVoiceIdDevicePublicKeyB64u,
+  voiceIdOperationStatementBytes,
   voiceIdWalletSessionChallengeBytes,
+  type VoiceIdOperationStatement,
   type VoiceIdWalletSessionChallenge,
 } from '@shared/authorization/voiceIdDeviceAssertion';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { sha256DigestB64u, sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
 } from '@shared/utils/domainIds';
 import {
+  verifyVoiceIdOperationAssertion,
   verifyVoiceIdWalletSessionAssertion,
   type RegisteredVoiceIdDeviceKey,
 } from '@server/authorization/voiceIdDeviceProof';
@@ -287,3 +291,90 @@ async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise
     await runtime.close();
   }
 }
+
+async function operationAssertion(statement: VoiceIdOperationStatement, privateKey: CryptoKey) {
+  const signature = await crypto.subtle.sign(
+    'Ed25519',
+    privateKey,
+    voiceIdOperationStatementBytes(statement),
+  );
+  return {
+    kind: 'voiceid_operation_assertion_v1',
+    statement,
+    signatureB64u: base64UrlEncode(new Uint8Array(signature)),
+  };
+}
+
+test('a VoiceID operation proof covers one export digest and no Wallet Session', async () => {
+  const runtime = await openSignerD1();
+  try {
+    const store = new D1VoiceIdWalletSessionChallenges(runtime.database, SCOPE);
+    const current = await fixture(store);
+    const requestOrigin = 'https://wallet.example.test';
+    const exportDigest = await sha256Utf8DigestB64u('near export confirmation digest');
+    const otherDigest = await sha256Utf8DigestB64u('another export confirmation digest');
+    const nowMs = Date.now();
+    const statement = buildVoiceIdOperationStatement({
+      walletId: current.registered.walletId,
+      walletAuthMethodId: current.registered.walletAuthMethodId,
+      walletAuthorityId: current.registered.walletAuthorityId,
+      deviceKeyId: current.registered.deviceKeyId,
+      operationKind: 'near.export_key',
+      operationChallenge: exportDigest,
+      requestOrigin,
+      issuedAtMs: nowMs,
+      expiresAtMs: nowMs + 60_000,
+    });
+    const signed = await operationAssertion(statement, current.privateKey);
+    const expected = {
+      registered: current.registered,
+      operationKind: 'near.export_key' as const,
+      operationChallenge: exportDigest,
+      requestOrigin,
+      nowMs: nowMs + 1_000,
+    };
+    const proof = await verifyVoiceIdOperationAssertion({ ...expected, assertion: signed });
+    expect(proof.statement.operationChallenge).toBe(exportDigest);
+    expect(proof.deviceKeyId).toBe(current.registered.deviceKeyId);
+
+    await expect(
+      verifyVoiceIdOperationAssertion({ ...expected, operationChallenge: otherDigest, assertion: signed }),
+    ).rejects.toThrow('does not match this operation');
+    await expect(
+      verifyVoiceIdOperationAssertion({ ...expected, operationKind: 'evm.export_key', assertion: signed }),
+    ).rejects.toThrow('does not match this operation');
+    await expect(
+      verifyVoiceIdOperationAssertion({
+        ...expected,
+        requestOrigin: 'https://attacker.example.test',
+        assertion: signed,
+      }),
+    ).rejects.toThrow('does not match this operation');
+    await expect(
+      verifyVoiceIdOperationAssertion({ ...expected, nowMs: statement.expiresAtMs, assertion: signed }),
+    ).rejects.toThrow('does not match this operation');
+
+    // The device key's Wallet Session signature never stands in for an operation statement.
+    const sessionSignature = await assertion(current.challenge, current.privateKey);
+    await expect(
+      verifyVoiceIdOperationAssertion({ ...expected, assertion: sessionSignature }),
+    ).rejects.toThrow('Invalid VoiceID operation assertion');
+    await expect(
+      verifyVoiceIdOperationAssertion({
+        ...expected,
+        assertion: { ...signed, signatureB64u: sessionSignature.signatureB64u },
+      }),
+    ).rejects.toThrow('signature is invalid');
+    await expect(
+      verifyVoiceIdWalletSessionAssertion({
+        registered: current.registered,
+        expectedChallenge: current.challenge,
+        assertion: { ...sessionSignature, signatureB64u: signed.signatureB64u },
+        nowMs: current.challenge.issuedAtMs + 1_000,
+        consumeChallenge: store.consume.bind(store),
+      }),
+    ).rejects.toThrow('signature is invalid');
+  } finally {
+    await runtime.close();
+  }
+});

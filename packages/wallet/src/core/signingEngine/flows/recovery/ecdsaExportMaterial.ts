@@ -1,10 +1,12 @@
 import type {
   EmailOtpWalletAuthAuthority,
   PasskeyWalletAuthAuthority,
+  VoiceIdWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 import {
   isEmailOtpWalletAuthAuthority,
   isPasskeyWalletAuthAuthority,
+  isVoiceIdWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 import {
   assertMatchingVerifiedEcdsaPublicFacts,
@@ -53,7 +55,7 @@ type ExactEcdsaExportLaneBase = {
   key: EvmFamilyEcdsaKeyIdentity;
   publicFacts: VerifiedEcdsaPublicFacts;
   chainTarget: ThresholdEcdsaChainTarget;
-  authMethod: 'email_otp' | 'passkey';
+  authMethod: 'email_otp' | 'passkey' | 'voiceid';
   material: EcdsaExportMaterialAvailability;
   state: Exclude<ConcreteAvailableEcdsaSigningLane['state'], 'expired' | 'exhausted'>;
 };
@@ -128,6 +130,22 @@ export type FreshPasskeyEcdsaExportMaterial = {
   factorAuthority?: never;
 };
 
+/** A VoiceID session's canonical lane: its role-local material opened at the voice unlock. */
+export type FreshVoiceIdEcdsaExportMaterial = {
+  source: 'canonical_capability';
+  kind: 'fresh_voiceid_needs_authorization';
+  chainTarget: ThresholdEcdsaChainTarget;
+  publicFacts: VerifiedEcdsaPublicFacts;
+  runtimePolicyScope: ThresholdRuntimePolicyScope;
+  existingRoleLocalMaterial: PersistedEcdsaRoleLocalMaterial;
+  normalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
+  relayerKeyId: string;
+  participantIds: readonly [number, number];
+  relayerUrl: string;
+  factorAuthority: VoiceIdWalletAuthAuthority;
+  runtime?: never;
+};
+
 export type ActiveWalletAuthorityEcdsaExportMaterial =
   | {
       source: 'active_wallet_authority';
@@ -159,6 +177,7 @@ export type ActiveWalletAuthorityEcdsaExportMaterial =
 export type EcdsaExportMaterial =
   | FreshEmailOtpEcdsaExportMaterial
   | FreshPasskeyEcdsaExportMaterial
+  | FreshVoiceIdEcdsaExportMaterial
   | ActiveWalletAuthorityEcdsaExportMaterial;
 
 export function ecdsaExportBoundaryChain(lane: ExactEcdsaExportLane): 'evm' | 'tempo' {
@@ -171,9 +190,7 @@ export function ecdsaSigningTargetFromChainTarget(
   return chainTarget;
 }
 
-export type ConcreteEcdsaExportAvailableLane = ConcreteAvailableEcdsaSigningLane & {
-  auth: Exclude<ConcreteAvailableEcdsaSigningLane['auth'], { kind: 'voiceid' }>;
-};
+export type ConcreteEcdsaExportAvailableLane = ConcreteAvailableEcdsaSigningLane;
 
 export function isConcreteEcdsaExportLane(
   lane: AvailableEcdsaSigningLane | null | undefined,
@@ -183,7 +200,7 @@ export function isConcreteEcdsaExportLane(
     lane.curve !== 'ecdsa' ||
     !lane.chainTarget ||
     !isConcreteAvailableSigningLane(lane) ||
-    lane.auth.kind === 'voiceid' ||
+    (lane.auth.kind === 'voiceid' && lane.source === 'active_wallet_authority') ||
     !String(lane.publicFacts.keyHandle || '').trim()
   ) {
     return false;
@@ -222,7 +239,7 @@ function exactEcdsaParticipantIds(value: readonly number[]): readonly [number, n
 function requireCanonicalEcdsaExportLane(args: {
   deps: EcdsaExportSessionStoreDeps;
   exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
-  label: 'Email OTP' | 'passkey';
+  label: 'Email OTP' | 'passkey' | 'VoiceID';
   authMatches: () => boolean;
 }): {
   durable: CanonicalEvmFamilyEcdsaSigningCapability['manifest']['durableMaterial'];
@@ -348,6 +365,40 @@ function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
     relayerKeyId: String(durable.roleLocalBinding.relayerKeyId),
     participantIds: exactEcdsaParticipantIds(durable.roleLocalBinding.participantIds),
     relayerUrl,
+  };
+}
+
+function resolveCanonicalVoiceIdEcdsaExportMaterialForLane(args: {
+  deps: EcdsaExportSessionStoreDeps;
+  exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
+}): FreshVoiceIdEcdsaExportMaterial {
+  const { exportLane } = args;
+  const capability = exportLane.capability;
+  const authority = capability.authority;
+  if (!isVoiceIdWalletAuthAuthority(authority)) {
+    throw new Error('[SigningEngine][ecdsa-export] VoiceID capability authority mismatch');
+  }
+  const { durable, runtimePolicyScope, relayerUrl } = requireCanonicalEcdsaExportLane({
+    deps: args.deps,
+    exportLane,
+    label: 'VoiceID',
+    authMatches: () =>
+      exportLane.laneIdentity.auth.kind === 'voiceid' &&
+      exportLane.laneIdentity.auth.deviceKeyId === authority.factor.deviceKeyId &&
+      exportLane.laneIdentity.auth.walletAuthMethodId === authority.bindingId,
+  });
+  return {
+    source: 'canonical_capability',
+    kind: 'fresh_voiceid_needs_authorization',
+    chainTarget: exportLane.chainTarget,
+    publicFacts: exportLane.publicFacts,
+    runtimePolicyScope,
+    existingRoleLocalMaterial: capability.material,
+    normalSigning: durable.routerAbEcdsaDerivationNormalSigning,
+    relayerKeyId: String(durable.roleLocalBinding.relayerKeyId),
+    participantIds: exactEcdsaParticipantIds(durable.roleLocalBinding.participantIds),
+    relayerUrl,
+    factorAuthority: authority,
   };
 }
 
@@ -538,6 +589,9 @@ export async function resolveEcdsaExportMaterialForLane(
   }
   if (exportLane.authMethod === 'email_otp') {
     return await resolveFreshEmailOtpEcdsaExportMaterialForLane(deps, exportLane);
+  }
+  if (exportLane.authMethod === 'voiceid') {
+    return resolveCanonicalVoiceIdEcdsaExportMaterialForLane({ deps, exportLane });
   }
   const resolution = await deps.resolveActiveEcdsaCapabilityRuntime({
     walletId: exportLane.key.walletId,

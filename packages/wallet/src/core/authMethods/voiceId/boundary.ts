@@ -6,8 +6,10 @@ import type {
   VoiceEnrollmentScope,
   VoiceEnrollmentConfirmationRequest,
   VoiceIdActivationCapture,
+  VoiceIdOperationCapture,
   VoiceIdUnlockCapture,
 } from './contracts';
+import type { VoiceIdOperationProof } from './operationProof';
 
 export type VoiceOwnerConfirmation = (
   request: VoiceEnrollmentConfirmationRequest,
@@ -46,3 +48,15 @@ export type VoiceIdUnlockPreparation = Readonly<{
   challenge: (signal: AbortSignal) => Promise<VoiceIdUnlockChallenge>;
 }>;
 
+
+export type VoiceIdOperationChallenge = Readonly<{
+  expiresAtMs: number;
+  complete: (
+    capture: VoiceIdOperationCapture,
+    signal: AbortSignal,
+  ) => Promise<VoiceIdOperationProof>;
+}>;
+export type VoiceIdOperationPreparation = Readonly<{
+  scope: VoiceEnrollmentScope;
+  challenge: (signal: AbortSignal) => Promise<VoiceIdOperationChallenge>;
+}>;

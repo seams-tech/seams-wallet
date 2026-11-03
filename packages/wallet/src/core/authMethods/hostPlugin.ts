@@ -1,9 +1,11 @@
-export const VOICE_ID_HOST_API_VERSION = 7;
+export const VOICE_ID_HOST_API_VERSION = 8;
 
 import type {
   VoiceIdActivationPreparation,
+  VoiceIdOperationPreparation,
   VoiceIdUnlockPreparation,
 } from './voiceId/boundary';
+import type { VoiceIdOperationProof } from './voiceId/operationProof';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type {
@@ -64,4 +66,11 @@ export interface WalletAuthMethodHostPlugin {
     readonly prepareActivation: () => Promise<VoiceIdActivationPreparation>;
     readonly walletId: WalletId;
   }): Promise<AuthMethodActivationResult>;
+  /** A fresh voice check for one operation, such as key export; it never unlocks. */
+  confirmOperation(input: {
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+    readonly prepareOperation: (signal: AbortSignal) => Promise<VoiceIdOperationPreparation>;
+  }): Promise<VoiceIdOperationProof>;
 }

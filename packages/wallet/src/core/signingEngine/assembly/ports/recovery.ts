@@ -61,6 +61,10 @@ export function createRecoveryPublicDeps(args: {
   getWalletSessionStatus: WalletSigningSessionStatusDeps['getAvailableStatus'];
   resolvePasskeyEd25519YaoExportContext: RecoveryPublicDeps['ed25519Yao']['resolvePasskeyExportContext'];
   resolveEmailOtpEd25519YaoExportContext: RecoveryPublicDeps['ed25519Yao']['emailOtp']['resolveExportContext'];
+  voiceId: {
+    confirmOperation: RecoveryPublicDeps['ed25519Yao']['voiceId']['confirmOperation'];
+    resolveEd25519ExportContext: RecoveryPublicDeps['ed25519Yao']['voiceId']['resolveExportContext'];
+  };
   sessionLifecycle: RecoveryPublicDeps['sessionLifecycle'];
 }): RecoveryPublicDeps {
   const configuredChainTargets = configuredThresholdEcdsaChainTargets(
@@ -139,6 +143,7 @@ export function createRecoveryPublicDeps(args: {
         args.provisionPasskeyEcdsaExplicitExportSession(request),
       getSignerWorkerContext: () => args.signerWorkerManager.getContext(),
       withThresholdEcdsaSigningQueue: args.withThresholdEcdsaSigningQueue,
+      voiceId: { confirmOperation: args.voiceId.confirmOperation },
     },
     ed25519Yao: {
       touchConfirm: args.touchConfirm,
@@ -150,6 +155,10 @@ export function createRecoveryPublicDeps(args: {
         resolveExportContext: (subject) => args.resolveEmailOtpEd25519YaoExportContext(subject),
         exportSeedWithFreshAuthorization: (request) =>
           args.emailOtpSessions.exportEd25519YaoSeedWithFreshEmailOtpLane(request),
+      },
+      voiceId: {
+        confirmOperation: args.voiceId.confirmOperation,
+        resolveExportContext: args.voiceId.resolveEd25519ExportContext,
       },
     },
     getTheme: args.getTheme,

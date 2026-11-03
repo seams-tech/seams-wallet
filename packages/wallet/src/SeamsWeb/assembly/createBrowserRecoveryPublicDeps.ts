@@ -114,6 +114,10 @@ export function createBrowserRecoveryPublicDeps(args: {
   getWalletSessionActivationDeps: () => WalletSessionActivationDeps;
   resolvePasskeyEd25519YaoExportContext: RecoveryPublicDeps['ed25519Yao']['resolvePasskeyExportContext'];
   resolveEmailOtpEd25519YaoExportContext: RecoveryPublicDeps['ed25519Yao']['emailOtp']['resolveExportContext'];
+  voiceId: {
+    confirmOperation: RecoveryPublicDeps['ed25519Yao']['voiceId']['confirmOperation'];
+    resolveEd25519ExportContext: RecoveryPublicDeps['ed25519Yao']['voiceId']['resolveExportContext'];
+  };
   getSigningSessionCoordinator: () => SigningSessionCoordinator;
   getTheme: () => ThemeMode;
   readActiveWalletSessionAuthorization: PersistedAvailableSigningLanesDeps['readActiveWalletSessionAuthorization'];
@@ -173,6 +177,7 @@ export function createBrowserRecoveryPublicDeps(args: {
     getWalletSessionStatus: (statusArgs) => readCanonicalWalletSessionStatus(statusArgs),
     resolvePasskeyEd25519YaoExportContext: args.resolvePasskeyEd25519YaoExportContext,
     resolveEmailOtpEd25519YaoExportContext: args.resolveEmailOtpEd25519YaoExportContext,
+    voiceId: args.voiceId,
     sessionLifecycle: {
       readAuthorization: readBrowserClientWalletSessionAuthorization,
       invalidateExpiredAuthorization: async (request) => {

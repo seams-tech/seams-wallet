@@ -12,7 +12,9 @@ export {
   type VoiceIdActivationPreparation,
   type VoiceOwnerConfirmation,
   type VoiceIdUnlockChallenge,
+  type VoiceIdOperationChallenge,
 } from './core/authMethods/voiceId/boundary';
+export { type VoiceIdOperationProof } from './core/authMethods/voiceId/operationProof';
 export {
   type VoiceIdTranscriptionModel,
   type VoiceIdAuthMethodPlugin,
@@ -37,6 +39,7 @@ export {
   type VoiceTemplateAccess,
   type VoiceIdActivationCapture,
   type VoiceIdUnlockCapture,
+  type VoiceIdOperationCapture,
 } from './core/authMethods/voiceId/contracts';
 export { requireRecord, isFiniteNumber, isPlainObject } from '@shared/utils/validation';
 export {
@@ -47,6 +50,8 @@ export { type WalletId } from '@shared/utils/domainIds';
 export {
   voiceIdWalletSessionChallengeBytes,
   parseVoiceIdDeviceAssertion,
+  voiceIdOperationStatementBytes,
+  parseVoiceIdOperationAssertion,
 } from '@shared/authorization/voiceIdDeviceAssertion';
 export { base64UrlEncode } from '@shared/utils/base64';
 export {

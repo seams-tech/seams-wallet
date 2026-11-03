@@ -181,3 +181,126 @@ export function voiceIdWalletSessionChallengeBytes(
   const payload = alphabetizeStringify(challenge);
   return new TextEncoder().encode(`${CHALLENGE_DOMAIN}|${payload}`);
 }
+
+const OPERATION_DOMAIN = 'seams:wallet-operation:voiceid-device:v1';
+
+/** The operations a fresh voice check can authorize; signing uses a Wallet Session. */
+export type VoiceIdOperationKind = 'near.export_key' | 'evm.export_key';
+
+/**
+ * What the enrolled device key signs after a local voice match for one
+ * operation. `operationChallenge` is the digest that a passkey signs for the
+ * same operation, and the server accepts that operation only once. It is a
+ * different statement from a Wallet Session challenge, under its own domain,
+ * so neither proof can stand in for the other.
+ */
+export type VoiceIdOperationStatement = Readonly<{
+  kind: 'voiceid_operation_statement_v1';
+  walletId: WalletId;
+  walletAuthMethodId: WalletAuthMethodId;
+  walletAuthorityId: WalletAuthorityId;
+  deviceKeyId: DigestB64u;
+  operationKind: VoiceIdOperationKind;
+  operationChallenge: DigestB64u;
+  requestOrigin: string;
+  issuedAtMs: number;
+  expiresAtMs: number;
+}>;
+
+export type VoiceIdOperationAssertion = Readonly<{
+  kind: 'voiceid_operation_assertion_v1';
+  statement: VoiceIdOperationStatement;
+  signatureB64u: string;
+}>;
+
+function parseVoiceIdOperationKind(value: unknown): VoiceIdOperationKind {
+  if (value === 'near.export_key' || value === 'evm.export_key') return value;
+  throw new Error('VoiceID operation kind is unsupported');
+}
+
+export function buildVoiceIdOperationStatement(
+  fields: Omit<VoiceIdOperationStatement, 'kind'>,
+): VoiceIdOperationStatement {
+  requireWindow(fields.issuedAtMs, fields.expiresAtMs);
+  requireOrigin(fields.requestOrigin, 'VoiceID requestOrigin');
+  return {
+    kind: 'voiceid_operation_statement_v1',
+    walletId: fields.walletId,
+    walletAuthMethodId: fields.walletAuthMethodId,
+    walletAuthorityId: fields.walletAuthorityId,
+    deviceKeyId: fields.deviceKeyId,
+    operationKind: parseVoiceIdOperationKind(fields.operationKind),
+    operationChallenge: parseDigestB64u(fields.operationChallenge),
+    requestOrigin: fields.requestOrigin,
+    issuedAtMs: fields.issuedAtMs,
+    expiresAtMs: fields.expiresAtMs,
+  };
+}
+
+export function parseVoiceIdOperationStatement(raw: unknown): VoiceIdOperationStatement {
+  if (
+    !isPlainObject(raw) ||
+    !exactKeys(raw, [
+      'kind',
+      'walletId',
+      'walletAuthMethodId',
+      'walletAuthorityId',
+      'deviceKeyId',
+      'operationKind',
+      'operationChallenge',
+      'requestOrigin',
+      'issuedAtMs',
+      'expiresAtMs',
+    ]) ||
+    raw.kind !== 'voiceid_operation_statement_v1'
+  ) {
+    throw new Error('Invalid VoiceID operation statement');
+  }
+  const walletId = parseWalletId(raw.walletId);
+  const walletAuthMethodId = parseWalletAuthMethodId(raw.walletAuthMethodId);
+  const walletAuthorityId = parseWalletAuthorityId(raw.walletAuthorityId);
+  if (!walletId.ok || !walletAuthMethodId.ok || !walletAuthorityId.ok) {
+    throw new Error('VoiceID operation identity is invalid');
+  }
+  if (typeof raw.issuedAtMs !== 'number' || typeof raw.expiresAtMs !== 'number') {
+    throw new Error('VoiceID operation times must be numbers');
+  }
+  return buildVoiceIdOperationStatement({
+    walletId: walletId.value,
+    walletAuthMethodId: walletAuthMethodId.value,
+    walletAuthorityId: walletAuthorityId.value,
+    deviceKeyId: parseDigestB64u(raw.deviceKeyId),
+    operationKind: parseVoiceIdOperationKind(raw.operationKind),
+    operationChallenge: parseDigestB64u(raw.operationChallenge),
+    requestOrigin: requireOrigin(raw.requestOrigin, 'VoiceID requestOrigin'),
+    issuedAtMs: raw.issuedAtMs,
+    expiresAtMs: raw.expiresAtMs,
+  });
+}
+
+export function parseVoiceIdOperationAssertion(raw: unknown): VoiceIdOperationAssertion {
+  if (
+    !isPlainObject(raw) ||
+    !exactKeys(raw, ['kind', 'statement', 'signatureB64u']) ||
+    raw.kind !== 'voiceid_operation_assertion_v1' ||
+    typeof raw.signatureB64u !== 'string'
+  ) {
+    throw new Error('Invalid VoiceID operation assertion');
+  }
+  const signature = base64UrlDecode(raw.signatureB64u);
+  if (signature.length !== 64 || base64UrlEncode(signature) !== raw.signatureB64u) {
+    throw new Error('VoiceID signature must be canonical Ed25519 bytes');
+  }
+  return {
+    kind: 'voiceid_operation_assertion_v1',
+    statement: parseVoiceIdOperationStatement(raw.statement),
+    signatureB64u: raw.signatureB64u,
+  };
+}
+
+export function voiceIdOperationStatementBytes(
+  statement: VoiceIdOperationStatement,
+): Uint8Array<ArrayBuffer> {
+  const payload = alphabetizeStringify(statement);
+  return new TextEncoder().encode(`${OPERATION_DOMAIN}|${payload}`);
+}

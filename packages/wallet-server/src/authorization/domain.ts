@@ -106,6 +106,7 @@ export type VerifiedOwnerProofCommon = {
   readonly method: VerifiedOwnerProofMethod;
   readonly authSource:
     | { readonly kind: 'passkey'; readonly credentialIdB64u: WebAuthnCredentialIdB64u }
+    | { readonly kind: 'voiceid'; readonly deviceKeyId: DigestB64u }
     | {
         readonly kind: 'oidc_provider';
         readonly providerId: 'google_oidc' | 'oidc';

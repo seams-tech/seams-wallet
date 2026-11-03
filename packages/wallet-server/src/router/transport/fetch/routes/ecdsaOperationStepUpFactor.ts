@@ -19,14 +19,17 @@ import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   buildVerifiedWalletOperationEmailOtpFactorResult,
   buildVerifiedWalletOperationPasskeyFactorResult,
+  buildVerifiedWalletOperationVoiceIdFactorResult,
   type VerifiedWalletOperationFactorResult,
 } from '../../../../authorization/factorEvidence';
 import type { SessionOrigin } from '../../../../authorization/domain';
 import type { WalletExecutionLaneAuthSource } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
 import type {
   RouterApiEmailOtpRouteService,
+  RouterApiWalletUnlockService,
   RouterApiWebAuthnService,
 } from '../../../framework/authServicePort';
+import { walletAuthAuthoritiesMatch } from '@shared/utils/walletAuthAuthority';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
 import { json } from '../../../framework/http';
 
@@ -56,6 +59,7 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
     RouterApiEmailOtpRouteService,
     'verifyEmailOtpChallenge' | 'consumeEmailOtpGrant'
   >;
+  readonly voiceId: Pick<RouterApiWalletUnlockService, 'verifyVoiceIdOperation'>;
 }): Promise<VerifiedStepUpFactorResult> {
   const proof = input.proof;
   switch (proof.kind) {
@@ -227,6 +231,64 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
               challenge_id: verified.challengeId,
             }
           : { kind: 'not_requested' },
+      };
+    }
+    case 'voiceid': {
+      /* A VoiceID session signs without a step-up; a fresh voice check covers export only. */
+      if (
+        input.operation.operation.operationKind !== 'evm.export_key' ||
+        input.authSource.kind !== 'voiceid' ||
+        proof.authority.factor.deviceKeyId !== input.authSource.deviceKeyId
+      ) {
+        return {
+          ok: false,
+          response: json(
+            { ok: false, code: 'scope_mismatch', message: 'VoiceID authority changed' },
+            { status: 403 },
+          ),
+        };
+      }
+      const verified = await input.voiceId.verifyVoiceIdOperation({
+        walletId: input.walletId,
+        walletAuthMethodId: proof.authority.bindingId,
+        assertion: proof.assertion,
+        operationKind: 'evm.export_key',
+        operationChallenge: parseDigestB64u(input.expectedChallenge),
+        requestOrigin: input.requestOrigin,
+        nowMs: Date.now(),
+      });
+      if (verified.kind === 'rejected' || !walletAuthAuthoritiesMatch(verified.authority, proof.authority)) {
+        return {
+          ok: false,
+          response: json(
+            { ok: false, code: 'not_verified', message: 'VoiceID operation proof was not verified' },
+            { status: 401 },
+          ),
+        };
+      }
+      const verifiedAtMs = Date.now();
+      const expiresAtMs = Math.min(input.expiresAtMs, verified.proof.statement.expiresAtMs);
+      if (expiresAtMs <= verifiedAtMs) {
+        return expiredStepUpFactor();
+      }
+      const factorId = parseAuthFactorId(`voiceid:${proof.authority.factor.deviceKeyId}`);
+      if (!factorId.ok) throw new Error(factorId.error.message);
+      return {
+        ok: true,
+        factor: buildVerifiedWalletOperationVoiceIdFactorResult({
+          tenantId: input.operation.tenantId,
+          principalId: input.operation.principalId,
+          walletId: input.walletId,
+          requestOrigin: input.requestOrigin,
+          audience: input.requestOrigin,
+          factorId: factorId.value,
+          authorityRef: input.authorityRef,
+          operation: input.operation,
+          proof: verified.proof,
+          verifiedAtMs,
+          expiresAtMs,
+        }),
+        unseal: { kind: 'not_requested' },
       };
     }
     default:

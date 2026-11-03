@@ -42,6 +42,7 @@ import {
 import { buildCapabilityOperationEnvelope } from '@shared/authorization/operationFingerprint';
 import {
   parseEmailOtpChallengeId,
+  parseWalletAuthMethodId,
   parseWalletId,
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
@@ -59,6 +60,12 @@ import { WALLET_EMAIL_OTP_EXPORT_OPERATION } from '@shared/utils/emailOtpDomain'
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { isPlainObject } from '@shared/utils/validation';
+import {
+  parseVoiceIdOperationAssertion,
+  type VoiceIdOperationAssertion,
+} from '@shared/authorization/voiceIdDeviceAssertion';
+import type { VoiceIdSeedEnvelope } from '@shared/passkey-custody/custodyEnvelope';
+import type { VerifiedVoiceIdOperationProof } from '../../../../authorization/voiceIdDeviceProof';
 import type { WebAuthnAuthenticationCredential } from '../../../../core/types';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
 import {
@@ -70,6 +77,7 @@ import type {
   RouterApiEmailOtpRouteService,
   RouterApiWalletAuthMethodService,
   RouterApiWalletRegistrationService,
+  RouterApiWalletUnlockService,
   RouterApiWebAuthnService,
 } from '../../../framework/authServicePort';
 import { json, readJson } from '../../../framework/http';
@@ -84,6 +92,7 @@ import {
 import {
   buildVerifiedWalletOperationEmailOtpFactorResult,
   buildVerifiedWalletOperationPasskeyFactorResult,
+  buildVerifiedWalletOperationVoiceIdFactorResult,
 } from '../../../../authorization/factorEvidence';
 import type {
   RouterApiFetchRouteExtensionInput,
@@ -263,8 +272,10 @@ export type RouterAbEd25519YaoExportAdmissionAuthorization =
       readonly kind: 'passkey';
       readonly webauthnAuthentication: WebAuthnAuthenticationCredential;
       readonly providerSubjectId?: never;
+      readonly walletAuthMethodId?: never;
       readonly challengeId?: never;
       readonly otpCode?: never;
+      readonly assertion?: never;
     }
   | {
       readonly kind: 'email_otp_factor';
@@ -276,7 +287,27 @@ export type RouterAbEd25519YaoExportAdmissionAuthorization =
       readonly challengeId: string;
       readonly otpCode: string;
       readonly webauthnAuthentication?: never;
+      readonly assertion?: never;
+    }
+  | {
+      readonly kind: 'voiceid_device';
+      /* The exact VoiceID method; its enrolled device key signed the statement. */
+      readonly walletAuthMethodId: string;
+      readonly assertion: VoiceIdOperationAssertion;
+      readonly webauthnAuthentication?: never;
+      readonly providerSubjectId?: never;
+      readonly challengeId?: never;
+      readonly otpCode?: never;
     };
+
+/**
+ * The VoiceID seed envelope the admission returns after a voice check. The
+ * browser opens it with the factor secret from the same check.
+ */
+export type RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1 = {
+  readonly kind: 'voiceid_custody_envelope';
+  readonly envelope: VoiceIdSeedEnvelope;
+};
 
 export type RouterAbEd25519YaoExportAdmissionAuthorizationInputV1 = {
   readonly request: Request;
@@ -345,6 +376,7 @@ export type RouterAbEd25519YaoExportAdmissionAuthorizationResultV1 =
       readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1;
       readonly ownershipGeneration: number;
       readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
+      readonly custodyRelease?: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1;
     }
   | RouterAbEd25519YaoExportAuthorizationFailure;
 
@@ -1355,6 +1387,7 @@ function exportPasskeyCredentialId(
       return parsed.ok ? parsed.credentialIdB64u : null;
     }
     case 'email_otp_factor':
+    case 'voiceid_device':
       return null;
     default:
       return assertNeverExportAdmissionAuthorization(authorization);
@@ -1375,6 +1408,11 @@ function exportAuthorizationDigestAuthority(
       return {
         kind: 'email_otp' as const,
         providerSubjectId: authorization.providerSubjectId,
+      };
+    case 'voiceid_device':
+      return {
+        kind: 'voiceid' as const,
+        deviceKeyId: authorization.assertion.statement.deviceKeyId,
       };
     default:
       return assertNeverExportAdmissionAuthorization(authorization);
@@ -1504,6 +1542,7 @@ async function authorizeExportAdmission(args: {
   readonly input: ExportAdmissionAuthorizationInput;
   readonly webAuthn: Pick<RouterApiWebAuthnService, 'verifyWebAuthnAuthenticationLite'>;
   readonly emailOtp: Pick<RouterApiEmailOtpRouteService, 'verifyEmailOtpChallenge'>;
+  readonly voiceId: Pick<RouterApiWalletUnlockService, 'verifyVoiceIdOperation'>;
   readonly walletAuthMethods: Pick<
     RouterApiWalletAuthMethodService,
     | 'resolveActivePasskeyAuthorityForVerifiedCredential'
@@ -1612,6 +1651,16 @@ async function authorizeExportAdmission(args: {
     });
     return recorded;
   }
+  if (args.input.authorization.kind === 'voiceid_device') {
+    return await authorizeVoiceIdExportAdmission({
+      walletId: walletId.value,
+      input: args.input,
+      authorization: args.input.authorization,
+      voiceId: args.voiceId,
+      authorizedOperations: args.authorizedOperations,
+      nowMs,
+    });
+  }
   /* The exact method the request names, not the wallet's only one: linking
      gives a wallet several active Email methods sharing its verified email. */
   const authority = await args.walletAuthMethods.resolveActiveEmailOtpAuthorityForVerifiedMethod({
@@ -1646,6 +1695,87 @@ async function authorizeExportAdmission(args: {
   };
 }
 
+async function authorizeVoiceIdExportAdmission(args: {
+  readonly walletId: WalletId;
+  readonly input: ExportAdmissionAuthorizationInput;
+  readonly authorization: Extract<
+    RouterAbEd25519YaoExportAdmissionAuthorization,
+    { readonly kind: 'voiceid_device' }
+  >;
+  readonly voiceId: Pick<RouterApiWalletUnlockService, 'verifyVoiceIdOperation'>;
+  readonly authorizedOperations: RouterApiAuthorizedOperationService;
+  readonly nowMs: number;
+}): Promise<VerifiedExportAdmission> {
+  const walletAuthMethodId = parseWalletAuthMethodId(args.authorization.walletAuthMethodId);
+  let requestOrigin: SessionOrigin;
+  let operationChallenge: DigestB64u;
+  try {
+    requestOrigin = parseSessionOrigin(args.input.expectedOrigin);
+    operationChallenge = parseDigestB64u(
+      base64UrlEncode(Uint8Array.from(args.input.body.authorization.confirmation_digest)),
+    );
+  } catch {
+    return authorizationFailure({
+      status: 403,
+      code: 'export_authorization_invalid',
+      message: 'Ed25519 Yao export VoiceID scope is invalid',
+    });
+  }
+  if (!walletAuthMethodId.ok) {
+    return authorizationFailure({
+      status: 403,
+      code: 'invalid_body',
+      message: walletAuthMethodId.error.message,
+    });
+  }
+  /* The statement signs the confirmation digest that a passkey would sign, and
+     the export nonce claim makes it single use. */
+  let verified: Awaited<ReturnType<RouterApiWalletUnlockService['verifyVoiceIdOperation']>>;
+  try {
+    verified = await args.voiceId.verifyVoiceIdOperation({
+      walletId: args.walletId,
+      walletAuthMethodId: walletAuthMethodId.value,
+      assertion: args.authorization.assertion,
+      operationKind: 'near.export_key',
+      operationChallenge,
+      requestOrigin,
+      nowMs: args.nowMs,
+    });
+  } catch {
+    return authorizationFailure({
+      status: 503,
+      code: 'export_voiceid_unavailable',
+      message: 'VoiceID export verification is unavailable',
+    });
+  }
+  if (verified.kind === 'rejected') {
+    return authorizationFailure({
+      status: 403,
+      code: verified.code === 'method_unavailable' ? 'export_voiceid_method_unavailable' : 'export_voiceid_not_verified',
+      message: 'Fresh VoiceID export proof was not verified',
+    });
+  }
+  const recorded = await recordFreshExportProof({
+    walletId: args.walletId,
+    input: args.input,
+    authority: verified.authority,
+    authorizedOperations: args.authorizedOperations,
+    voiceIdProof: verified.proof,
+    verifiedAtMs: args.nowMs,
+    expiresAtMs: Math.min(
+      args.input.body.authorization.expires_at_ms,
+      verified.proof.statement.expiresAtMs,
+    ),
+  });
+  if (!recorded.ok) return recorded;
+  return {
+    ok: true,
+    admission: recorded.admission,
+    walletId: recorded.walletId,
+    custodyRelease: { kind: 'voiceid_custody_envelope', envelope: verified.custodyEnvelope },
+  };
+}
+
 async function recordFreshExportProof(args: {
   readonly walletId: WalletId;
   readonly input: ExportAdmissionAuthorizationInput;
@@ -1655,6 +1785,7 @@ async function recordFreshExportProof(args: {
   readonly expiresAtMs: number;
   readonly assertionDigest?: string;
   readonly challengeId?: string;
+  readonly voiceIdProof?: VerifiedVoiceIdOperationProof;
 }): Promise<VerifiedExportAdmission> {
   const authorizationIdentitySuffix = base64UrlEncode(
     Uint8Array.from(args.input.body.authorization.authorization_digest),
@@ -1701,7 +1832,8 @@ async function recordFreshExportProof(args: {
   let assertionDigest: DigestB64u | null = null;
   switch (args.authority.factor.kind) {
     case 'voiceid':
-      return authorizationFailure({ status: 403, code: 'export_authorization_invalid', message: 'Use a passkey or Email OTP to export keys.' });
+      factorId = parseAuthFactorId(`voiceid:${args.authority.factor.deviceKeyId}`);
+      break;
     case 'passkey':
       factorId = parseAuthFactorId(`passkey:${args.authority.factor.credentialIdB64u}`);
       try {
@@ -1719,6 +1851,7 @@ async function recordFreshExportProof(args: {
             rawChallengeId = args.input.authorization.challengeId;
             break;
           case 'passkey':
+          case 'voiceid_device':
             break;
           default:
             assertNeverExportAdmissionAuthorization(args.input.authorization);
@@ -1738,7 +1871,8 @@ async function recordFreshExportProof(args: {
     !auditEventId.ok ||
     !factorId.ok ||
     (challengeId !== null && !challengeId.ok) ||
-    (args.authority.factor.kind === 'passkey' && assertionDigest === null)
+    (args.authority.factor.kind === 'passkey' && assertionDigest === null) ||
+    (args.authority.factor.kind === 'voiceid' && !args.voiceIdProof)
   ) {
     return authorizationFailure({
       status: 403,
@@ -1797,6 +1931,21 @@ async function recordFreshExportProof(args: {
         expiresAtMs: args.expiresAtMs,
       });
       break;
+    case 'voiceid':
+      factor = buildVerifiedWalletOperationVoiceIdFactorResult({
+        tenantId: args.authorizedOperations.tenantId,
+        principalId: principalId.value,
+        walletId: args.walletId,
+        requestOrigin,
+        audience: requestOrigin,
+        factorId: factorId.value,
+        authorityRef,
+        operation,
+        proof: requireVoiceIdProof(args.voiceIdProof),
+        verifiedAtMs: args.verifiedAtMs,
+        expiresAtMs: args.expiresAtMs,
+      });
+      break;
   }
   const evidence = await args.authorizedOperations.recordVerifiedWalletOperationFactorEvidenceSet({
     operation,
@@ -1824,12 +1973,20 @@ async function recordFreshExportProof(args: {
   };
 }
 
+function requireVoiceIdProof(
+  proof: VerifiedVoiceIdOperationProof | undefined,
+): VerifiedVoiceIdOperationProof {
+  if (!proof) throw new Error('VoiceID export proof is required');
+  return proof;
+}
+
 type VerifiedExportAdmission =
   | {
       readonly ok: true;
       readonly walletId: WalletId;
       readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1;
       readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
+      readonly custodyRelease?: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1;
     }
   | RouterAbEd25519YaoExportAuthorizationFailure;
 
@@ -1899,6 +2056,7 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
   constructor(
     private readonly webAuthn: Pick<RouterApiWebAuthnService, 'verifyWebAuthnAuthenticationLite'>,
     private readonly emailOtp: Pick<RouterApiEmailOtpRouteService, 'verifyEmailOtpChallenge'>,
+    private readonly voiceId: Pick<RouterApiWalletUnlockService, 'verifyVoiceIdOperation'>,
     private readonly walletAuthMethods: Pick<
       RouterApiWalletAuthMethodService,
       | 'resolveActivePasskeyAuthorityForVerifiedCredential'
@@ -1921,6 +2079,7 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
       input,
       webAuthn: this.webAuthn,
       emailOtp: this.emailOtp,
+      voiceId: this.voiceId,
       walletAuthMethods: this.walletAuthMethods,
       authorizedOperations: this.authorizedOperations,
     });
@@ -1943,6 +2102,7 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
       ownershipGeneration: home.ownershipGeneration,
       admission: checked.admission,
       ...(checked.factorRelease ? { factorRelease: checked.factorRelease } : {}),
+      ...(checked.custodyRelease ? { custodyRelease: checked.custodyRelease } : {}),
     };
   }
 
@@ -1983,7 +2143,7 @@ const ROUTES = Object.freeze([
       plane: 'public',
       proof: 'challenge_exchange',
       rationale:
-        'Exact-seed export requires fresh passkey assertion or Email OTP factor possession.',
+        'Exact-seed export requires a fresh passkey assertion, Email OTP factor possession or VoiceID device proof.',
     },
     metering: { kind: 'none' },
     requiredServices: [],
@@ -2106,6 +2266,48 @@ function parseEmailOtpExportAdmissionAuthorization(
   };
 }
 
+function parseVoiceIdExportAdmissionAuthorization(
+  authorization: Record<string, unknown>,
+): ExportAdmissionAuthorizationParseResult {
+  const unexpectedField = firstUnexpectedField(authorization, [
+    'kind',
+    'walletAuthMethodId',
+    'assertion',
+  ]);
+  if (unexpectedField) {
+    return {
+      ok: false,
+      message: `VoiceID export authorization has unknown field: ${unexpectedField}`,
+    };
+  }
+  let assertion: VoiceIdOperationAssertion;
+  try {
+    assertion = parseVoiceIdOperationAssertion(authorization.assertion);
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'VoiceID export assertion is invalid',
+    };
+  }
+  if (
+    typeof authorization.walletAuthMethodId !== 'string' ||
+    authorization.walletAuthMethodId !== assertion.statement.walletAuthMethodId
+  ) {
+    return { ok: false, message: 'walletAuthMethodId must name the signing VoiceID method' };
+  }
+  if (assertion.statement.operationKind !== 'near.export_key') {
+    return { ok: false, message: 'VoiceID export assertion names another operation' };
+  }
+  return {
+    ok: true,
+    value: {
+      kind: 'voiceid_device',
+      walletAuthMethodId: authorization.walletAuthMethodId,
+      assertion,
+    },
+  };
+}
+
 function parseExportAdmissionAuthorization(
   value: unknown,
 ): ExportAdmissionAuthorizationParseResult {
@@ -2117,6 +2319,8 @@ function parseExportAdmissionAuthorization(
       return parsePasskeyExportAdmissionAuthorization(value);
     case 'email_otp_factor':
       return parseEmailOtpExportAdmissionAuthorization(value);
+    case 'voiceid_device':
+      return parseVoiceIdExportAdmissionAuthorization(value);
     default:
       return { ok: false, message: 'export admission authorization kind is invalid' };
   }
@@ -2235,6 +2439,9 @@ class RouterAbEd25519YaoExportRouteExtension implements RouterApiRouteExtension 
             {
               protocol: result.value,
               ...(authorized.factorRelease ? { factorRelease: authorized.factorRelease } : {}),
+              ...(authorized.custodyRelease
+                ? { voiceIdCustodyEnvelope: authorized.custodyRelease.envelope }
+                : {}),
             },
             { status: result.status },
           )

@@ -34,6 +34,11 @@ import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
+import type { VoiceIdOperationConfirm } from '@/core/authMethods/voiceId/operationProof';
+import {
+  exportVoiceIdEd25519YaoSeed,
+  type VoiceIdEd25519YaoExportContextV1,
+} from './voiceIdEd25519YaoExport';
 
 export type Ed25519YaoExportFlowDeps = {
   touchConfirm: Pick<UiConfirmRuntimeBridgePort, 'initialize' | 'requestUserConfirmation'>;
@@ -63,6 +68,14 @@ export type Ed25519YaoExportFlowDeps = {
       publicKey: string;
       privateKey: string;
     }>;
+  };
+  voiceId: {
+    /** The fresh voice check that the Wallet host runs; never a passkey or Email OTP. */
+    confirmOperation: VoiceIdOperationConfirm;
+    resolveExportContext: (args: {
+      laneIdentity: ExactEd25519ExportMaterialIdentity<VoiceIdEd25519LaneAuth>;
+      materialActivation: MpcMaterialActivationRef;
+    }) => Promise<VoiceIdEd25519YaoExportContextV1>;
   };
   theme?: 'dark' | 'light';
 };
@@ -105,6 +118,17 @@ type EmailOtpEd25519LaneAuth = Extract<
   ExactEd25519ExportMaterialIdentity['auth'],
   { kind: 'email_otp' }
 >;
+
+type VoiceIdEd25519LaneAuth = Extract<
+  ExactEd25519ExportMaterialIdentity['auth'],
+  { kind: 'voiceid' }
+>;
+
+function isExactVoiceIdEd25519SigningLaneIdentity(
+  laneIdentity: ExactEd25519ExportMaterialIdentity,
+): laneIdentity is ExactEd25519ExportMaterialIdentity<VoiceIdEd25519LaneAuth> {
+  return laneIdentity.auth.kind === 'voiceid';
+}
 
 function isExactPasskeyEd25519SigningLaneIdentity(
   laneIdentity: ExactEd25519ExportMaterialIdentity,
@@ -340,7 +364,7 @@ export async function exportEd25519YaoKeyWithFreshAuthorization(
 ): Promise<{ accountId: string; exportedSchemes: Array<'ed25519'> }> {
   switch (args.laneIdentity.auth.kind) {
     case 'voiceid':
-      throw new Error('Unlock with a passkey or Email OTP before exporting keys.');
+      return await exportEd25519YaoKeyWithFreshVoiceId(deps, args);
     case 'passkey':
       break;
     case 'email_otp':
@@ -510,4 +534,80 @@ async function exportEd25519YaoKeyWithFreshEmailOtp(
     removeExportViewerHostIfPresent();
     throw error;
   }
+}
+
+async function exportEd25519YaoKeyWithFreshVoiceId(
+  deps: Ed25519YaoExportFlowDeps,
+  args: ExportEd25519YaoKeyArgs,
+): Promise<{ accountId: string; exportedSchemes: Array<'ed25519'> }> {
+  const laneIdentity = args.laneIdentity;
+  if (
+    !isExactVoiceIdEd25519SigningLaneIdentity(laneIdentity) ||
+    laneIdentity.signer.account.wallet.walletId !== args.walletId ||
+    String(laneIdentity.signer.account.nearAccountId) !== String(args.nearAccountId)
+  ) {
+    throw new Error('[SigningEngine][ed25519-export] exact VoiceID lane subject mismatch');
+  }
+  const context = await deps.voiceId.resolveExportContext({
+    laneIdentity,
+    materialActivation: args.materialActivation,
+  });
+  if (!mpcMaterialActivationRefsEqual(args.materialActivation, context.capability.materialActivation)) {
+    throw new Error('[SigningEngine][ed25519-export] VoiceID Yao context activation mismatch');
+  }
+  const accountId = String(args.nearAccountId);
+  emitKeyExportEvent(args.onEvent, {
+    phase: KeyExportEventPhase.STEP_03_MATERIAL_PREPARE_STARTED,
+    status: 'running',
+    flowId: args.flowId,
+    accountId,
+    interaction: { kind: 'none', overlay: 'none' },
+    data: { chain: 'near', curve: 'ed25519' },
+  });
+  const artifact = await deps.withThresholdEd25519CommitQueue({
+    queueKey: resolveThresholdEd25519CommitQueueKey({
+      materialActivation: context.capability.materialActivation,
+    }),
+    nearAccountId: args.nearAccountId,
+    enabled: true,
+    task: () =>
+      exportVoiceIdEd25519YaoSeed({
+        walletId: args.walletId,
+        walletAuthMethodId: laneIdentity.auth.walletAuthMethodId,
+        deviceKeyId: laneIdentity.auth.deviceKeyId,
+        context,
+        confirmOperation: deps.voiceId.confirmOperation,
+      }),
+  });
+  emitKeyExportEvent(args.onEvent, {
+    phase: KeyExportEventPhase.STEP_03_MATERIAL_PREPARE_SUCCEEDED,
+    status: 'succeeded',
+    flowId: args.flowId,
+    accountId,
+    interaction: { kind: 'none', overlay: 'none' },
+    data: { chain: 'near', curve: 'ed25519' },
+  });
+  await deps.touchConfirm.initialize();
+  const viewerSessionId = createExportUiRequestId('export-ed25519-yao-viewer-session');
+  try {
+    await showEd25519ExportViewer(
+      { touchConfirm: deps.touchConfirm, theme: deps.theme },
+      {
+        state: 'ready',
+        walletId: String(args.walletId),
+        nearAccountId: accountId,
+        publicKey: artifact.publicKey,
+        privateKey: artifact.privateKey,
+        variant: args.options.variant,
+        theme: args.options.theme,
+        viewerSessionId,
+        flowId: args.flowId,
+        onEvent: args.onEvent,
+      },
+    );
+  } catch (error: unknown) {
+    removeExportViewerHostIfPresent();
+    throw error;
+  }
+  return { accountId, exportedSchemes: ['ed25519'] };
 }

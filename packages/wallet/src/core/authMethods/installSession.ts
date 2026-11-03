@@ -32,6 +32,7 @@ type InstallationPorts = {
   readonly transport: WalletCustodyCeremonyTransportPort;
   readonly rememberNearSession: (
     state: Awaited<ReturnType<typeof prepareAuthMethodNearSession>>['state'],
+    capability: Awaited<ReturnType<typeof prepareAuthMethodNearSession>>['capability'],
   ) => void;
 };
 
@@ -149,7 +150,7 @@ async function installPreparedAuthMethodSession(
       expectedLockGeneration,
     });
     if (unlocked.signal.aborted) throw new Error('Wallet unlock was cancelled.');
-    if (prepared) ports.rememberNearSession(prepared.state);
+    if (prepared) ports.rememberNearSession(prepared.state, prepared.capability);
     ports.engine.setWalletAuthenticated({ kind: 'authenticated', walletId, authMethod: 'voiceid' });
     if (!cap) return { success: true, kind: 'ecdsa_wallet_unlocked', walletId };
     return {

@@ -29,6 +29,7 @@ import type {
   VerifiedOwnerProofId,
   VerifiedOwnerProofMethod,
 } from './domain';
+import type { VerifiedVoiceIdOperationProof } from './voiceIdDeviceProof';
 
 const FACTOR_EVIDENCE_DIGEST_DOMAIN_V1 = 'seams:authorization:factor-evidence:v1';
 const EVIDENCE_SET_DIGEST_DOMAIN_V1 = 'seams:authorization:evidence-set:v1';
@@ -123,9 +124,16 @@ type VerifiedWalletOperationEmailOtpFactorResult = VerifiedWalletOperationFactor
   readonly verificationReceiptDigest: DigestB64u;
 };
 
+type VerifiedWalletOperationVoiceIdFactorResult = VerifiedWalletOperationFactorBinding & {
+  readonly kind: 'verified_wallet_operation_voiceid_factor';
+  readonly deviceKeyId: DigestB64u;
+  readonly assertionDigest: DigestB64u;
+};
+
 export type VerifiedWalletOperationFactorResult =
   | VerifiedWalletOperationPasskeyFactorResult
-  | VerifiedWalletOperationEmailOtpFactorResult;
+  | VerifiedWalletOperationEmailOtpFactorResult
+  | VerifiedWalletOperationVoiceIdFactorResult;
 
 type VerifiedWalletSessionFactorBinding = {
   readonly tenantId: TenantId;
@@ -188,6 +196,34 @@ export function buildVerifiedWalletOperationEmailOtpFactorResult(
 ): VerifiedWalletOperationEmailOtpFactorResult {
   requireVerificationWindow(fields.verifiedAtMs, fields.expiresAtMs);
   return { kind: 'verified_wallet_operation_email_otp_factor', ...fields };
+}
+
+/** Only a verified operation statement yields this factor; its proof supplies the key and digest. */
+export function buildVerifiedWalletOperationVoiceIdFactorResult(
+  fields: Omit<
+    VerifiedWalletOperationVoiceIdFactorResult,
+    'kind' | 'deviceKeyId' | 'assertionDigest'
+  > & { readonly proof: VerifiedVoiceIdOperationProof },
+): VerifiedWalletOperationVoiceIdFactorResult {
+  requireVerificationWindow(fields.verifiedAtMs, fields.expiresAtMs);
+  if (fields.expiresAtMs > fields.proof.statement.expiresAtMs) {
+    throw new Error('VoiceID factor cannot outlive its operation statement');
+  }
+  return {
+    kind: 'verified_wallet_operation_voiceid_factor',
+    tenantId: fields.tenantId,
+    principalId: fields.principalId,
+    walletId: fields.walletId,
+    authorityRef: fields.authorityRef,
+    requestOrigin: fields.requestOrigin,
+    audience: fields.audience,
+    factorId: fields.factorId,
+    operation: fields.operation,
+    deviceKeyId: fields.proof.deviceKeyId,
+    assertionDigest: fields.proof.assertionDigest,
+    verifiedAtMs: fields.verifiedAtMs,
+    expiresAtMs: fields.expiresAtMs,
+  };
 }
 
 export function buildVerifiedWalletSessionPasskeyFactorResult(
@@ -419,6 +455,16 @@ async function buildWalletOperationFactorEvidence(
           challengeId: factor.challengeId,
           verificationReceiptDigest: factor.verificationReceiptDigest,
         }),
+      };    case 'verified_wallet_operation_voiceid_factor':
+      return {
+        evidenceId,
+        evidenceKind: AUTHORIZATION_EVIDENCE_KINDS.voiceIdDevice,
+        evidenceDigest: await digestCanonicalEvidence({
+          kind: factor.kind,
+          ...common,
+          deviceKeyId: factor.deviceKeyId,
+          assertionDigest: factor.assertionDigest,
+        }),
       };
   }
 }
@@ -482,6 +528,8 @@ function ownerProofMethod(
     case 'verified_wallet_session_email_otp_factor':
     case 'verified_wallet_operation_email_otp_factor':
       return 'email_otp';
+    case 'verified_wallet_operation_voiceid_factor':
+      return 'voiceid';
   }
 }
 
@@ -502,6 +550,8 @@ function ownerProofAuthSource(
         providerSubject: providerSubject.value,
       };
     }
+    case 'verified_wallet_operation_voiceid_factor':
+      return { kind: 'voiceid', deviceKeyId: factor.deviceKeyId };
   }
 }
 
@@ -515,6 +565,8 @@ function ownerProofReplayIdentity(
     case 'verified_wallet_session_email_otp_factor':
     case 'verified_wallet_operation_email_otp_factor':
       return `email_otp:${String(factor.factorId)}:${String(factor.challengeId)}:${String(factor.verificationReceiptDigest)}`;
+    case 'verified_wallet_operation_voiceid_factor':
+      return `voiceid:${String(factor.factorId)}:${String(factor.assertionDigest)}`;
   }
 }
 

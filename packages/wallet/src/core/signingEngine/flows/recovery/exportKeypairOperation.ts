@@ -9,11 +9,13 @@ import {
   type ExactEcdsaExportLane,
   type FreshEmailOtpEcdsaExportMaterial,
   type FreshPasskeyEcdsaExportMaterial,
+  type FreshVoiceIdEcdsaExportMaterial,
 } from './ecdsaExportMaterial';
 import {
   exportThresholdEcdsaKeyWithActiveWalletAuthority,
   exportThresholdEcdsaKeyWithFreshEmailOtpRouteAuth,
   exportThresholdEcdsaKeyWithFreshPasskeyAuthorization,
+  exportThresholdEcdsaKeyWithFreshVoiceId,
   type EcdsaExportFlowDeps,
 } from './ecdsaExportFlow';
 import {
@@ -68,7 +70,10 @@ type PreparedEcdsaExport =
   | {
       readonly kind: 'canonical_capability';
       readonly exportLane: Extract<ExactEcdsaExportLane, { source: 'canonical_capability' }>;
-      readonly exportMaterial: FreshEmailOtpEcdsaExportMaterial | FreshPasskeyEcdsaExportMaterial;
+      readonly exportMaterial:
+        | FreshEmailOtpEcdsaExportMaterial
+        | FreshPasskeyEcdsaExportMaterial
+        | FreshVoiceIdEcdsaExportMaterial;
     }
   | {
       readonly kind: 'active_wallet_authority';
@@ -237,6 +242,19 @@ async function executePreparedEcdsaExport(
   }
   if (prepared.exportMaterial.kind === 'fresh_passkey_needs_authorization') {
     return await exportThresholdEcdsaKeyWithFreshPasskeyAuthorization(deps.ecdsa, {
+      walletId,
+      exportLane: prepared.exportLane,
+      material: prepared.exportMaterial,
+      options: {
+        variant: args.options.variant,
+        theme: args.options.theme,
+      },
+      flowId: args.flowId,
+      onEvent: args.options.onEvent,
+    });
+  }
+  if (prepared.exportMaterial.kind === 'fresh_voiceid_needs_authorization') {
+    return await exportThresholdEcdsaKeyWithFreshVoiceId(deps.ecdsa, {
       walletId,
       exportLane: prepared.exportLane,
       material: prepared.exportMaterial,

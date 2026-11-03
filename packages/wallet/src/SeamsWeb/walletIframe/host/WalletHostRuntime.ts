@@ -229,6 +229,8 @@ export class WalletHostRuntime {
       });
       if (!unlocked.success) throw new Error(unlocked.error || 'VoiceID step-up did not finish.');
     });
+    // Key export with VoiceID asks for a fresh voice check, never another method.
+    browserSigningSurface.setVoiceIdOperationConfirm(sessionCommands.confirmVoiceIdOperation);
     this.readExternalSession = sessionCommands.readExternalSession;
     this.captureExternalOwnerOperation = sessionCommands.captureExternalOwnerOperation;
     const registrationCommands = createWalletHostRegistrationCommands(

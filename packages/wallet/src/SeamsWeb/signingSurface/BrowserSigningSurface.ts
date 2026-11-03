@@ -483,6 +483,9 @@ import {
   isVoiceIdStepUpRequired,
   VoiceIdStepUpRequiredError,
 } from '@/core/signingEngine/stepUpConfirmation/voiceIdStepUp';
+import type { VoiceIdOperationConfirm } from '@/core/authMethods/voiceId/operationProof';
+import type { ParsedYaoRecoveryCapabilityV1 } from '@/core/signingEngine/session/passkey/ed25519YaoRecoveryCapability';
+import type { VoiceIdEd25519YaoExportContextV1 } from '@/core/signingEngine/flows/recovery/voiceIdEd25519YaoExport';
 
 /** Runs the VoiceID unlock in the Wallet and installs a fresh VoiceID session. */
 export type VoiceIdStepUp = (input: {
@@ -2297,6 +2300,9 @@ export class BrowserSigningSurface {
     WalletId,
     ResolvedRouterAbEd25519WalletSessionState
   >();
+  // The NEAR capability each VoiceID session installed; key export binds to it.
+  private readonly voiceIdNearCapabilities = new Map<WalletId, ParsedYaoRecoveryCapabilityV1>();
+  private voiceIdOperationConfirm: VoiceIdOperationConfirm | null = null;
   private volatileWarmSigningMaterialCleanupInFlight: Promise<void> | null = null;
 
   readonly seamsWebConfigs: SeamsConfigsReadonly;
@@ -2553,6 +2559,10 @@ export class BrowserSigningSurface {
         this.resolveExactPasskeyEd25519YaoExportContext.bind(this),
       resolveEmailOtpEd25519YaoExportContext:
         this.resolveEmailOtpEd25519YaoExportContext.bind(this),
+      voiceId: {
+        confirmOperation: this.confirmVoiceIdOperation.bind(this),
+        resolveEd25519ExportContext: this.resolveVoiceIdEd25519YaoExportContext.bind(this),
+      },
       getSigningSessionCoordinator: () => this.enginePorts.signingSessionCoordinator,
       getTheme: () => this.appearance.theme.mode,
       ed25519YaoPublicCapabilityLanes: deps.ed25519YaoPublicCapabilityReferences,
@@ -3496,6 +3506,43 @@ export class BrowserSigningSurface {
   /** The Wallet host provides the VoiceID unlock, so a VoiceID session steps up with voice. */
   setVoiceIdStepUp(stepUp: VoiceIdStepUp): void {
     this.voiceIdStepUp = stepUp;
+  }
+
+  /** The Wallet host provides the fresh voice check that key export needs. */
+  setVoiceIdOperationConfirm(confirm: VoiceIdOperationConfirm): void {
+    this.voiceIdOperationConfirm = confirm;
+  }
+
+  private async confirmVoiceIdOperation(
+    request: Parameters<VoiceIdOperationConfirm>[0],
+  ): ReturnType<VoiceIdOperationConfirm> {
+    if (!this.voiceIdOperationConfirm) {
+      throw new Error('VoiceID is unavailable in this Wallet host.');
+    }
+    return await this.voiceIdOperationConfirm(request);
+  }
+
+  private async resolveVoiceIdEd25519YaoExportContext(args: {
+    laneIdentity: Parameters<
+      RecoveryPublicDeps['ed25519Yao']['voiceId']['resolveExportContext']
+    >[0]['laneIdentity'];
+    materialActivation: MpcMaterialActivationRef;
+  }): Promise<VoiceIdEd25519YaoExportContextV1> {
+    const walletId = args.laneIdentity.signer.account.wallet.walletId;
+    const state = this.voiceIdNearSessions.get(walletId);
+    const capability = this.voiceIdNearCapabilities.get(walletId);
+    if (
+      !state ||
+      !capability ||
+      !nearEd25519AuthBindingsEqual(args.laneIdentity.auth, state.signingLane.auth) ||
+      String(capability.nearAccountId) !==
+        String(args.laneIdentity.signer.account.nearAccountId) ||
+      capability.applicationBinding.near_ed25519_signing_key_id !==
+        String(args.laneIdentity.signer.nearEd25519SigningKeyId)
+    ) {
+      throw new Error('Unlock this wallet with VoiceID before exporting keys.');
+    }
+    return { relayerUrl: state.relayerUrl, capability };
   }
 
   /**
@@ -6080,6 +6127,15 @@ export class BrowserSigningSurface {
     return await this.enginePorts.ed25519YaoActiveClients.activate(material);
   }
 
+  private rememberVoiceIdNearSession(
+    walletId: WalletId,
+    state: ResolvedRouterAbEd25519WalletSessionState,
+    capability: ParsedYaoRecoveryCapabilityV1,
+  ): void {
+    this.voiceIdNearSessions.set(walletId, state);
+    this.voiceIdNearCapabilities.set(walletId, capability);
+  }
+
   async installAuthMethodSession(
     expectedLockGeneration: number,
     unlocked: Parameters<AuthMethodSessionInstaller>[0],
@@ -6090,8 +6146,8 @@ export class BrowserSigningSurface {
         relayerUrl: this.seamsWebConfigs.network.relayer.url,
         nearClient: this.nearClient,
         transport: this.walletCustodyCeremonyTransportV1(),
-        rememberNearSession: this.voiceIdNearSessions.set.bind(
-          this.voiceIdNearSessions,
+        rememberNearSession: this.rememberVoiceIdNearSession.bind(
+          this,
           unlocked.walletSession.walletId,
         ),
       },
@@ -6821,8 +6877,13 @@ export class BrowserSigningSurface {
   }
 
   private async clearVolatileWarmSigningMaterialInternal(walletId?: WalletId): Promise<void> {
-    if (walletId) this.voiceIdNearSessions.delete(walletId);
-    else this.voiceIdNearSessions.clear();
+    if (walletId) {
+      this.voiceIdNearSessions.delete(walletId);
+      this.voiceIdNearCapabilities.delete(walletId);
+    } else {
+      this.voiceIdNearSessions.clear();
+      this.voiceIdNearCapabilities.clear();
+    }
     try {
       if (walletId) {
         this.enginePorts.ed25519YaoActiveClients.disposeWallet(walletId);

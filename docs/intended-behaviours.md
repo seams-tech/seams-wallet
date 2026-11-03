@@ -442,7 +442,8 @@ an older unlock from committing. Failure leaves the wallet locked and clears
 volatile signing state. The plugin erases its factor buffer after installation.
 
 Missing custody requires another owner unlock. Reload requires a fresh VoiceID
-unlock. Key export retains its supported owner methods.
+unlock. Key export with VoiceID requires a fresh voice check; see
+[Key Export: VoiceID authentication](#voiceid-authentication).
 
 ### Signing after a VoiceID unlock
 
@@ -2035,6 +2036,43 @@ Failure behaviour:
 - Wallet-unlock authorization must not be accepted for key export.
 - If export material is unavailable, export fails with an exact export-lane or
   material error.
+
+### VoiceID authentication
+
+Expected behaviour:
+
+- Key export from a VoiceID session requires a fresh voice check inside the
+  Wallet. The unlocked VoiceID session alone is not enough, and the Wallet never
+  asks for a passkey or Email OTP instead.
+- The voice check signs a VoiceID operation statement with the enrolled device
+  key. The statement names the wallet, method, authority, device key, origin,
+  operation kind, and the digest a passkey would sign for the same export: the
+  Ed25519 export confirmation digest, or the ECDSA step-up challenge. Its window
+  is at most 60 seconds and opens after the voice models load.
+- The operation statement is a different proof from a Wallet Session challenge,
+  under its own signing domain. Neither proof is accepted in place of the other.
+- The Router verifies the statement against the active VoiceID method and
+  records VoiceID operation evidence. The export nonce (Ed25519) or the step-up
+  operation (ECDSA) is claimed once, so the statement is single use.
+- Ed25519 export: the admission returns the method's sealed VoiceID seed
+  envelope. The Wallet opens it with the factor secret from the same voice check
+  and runs the exact Yao export. The factor secret is erased afterwards.
+- ECDSA export: the step-up authorizes the exact canonical export lane, and the
+  export uses the role-local material that the VoiceID unlock opened.
+- Export opens the export viewer only after authorization and material
+  preparation succeed.
+
+Failure behaviour:
+
+- Cancelling the voice check fails the export before any admission request.
+- A statement for another digest, operation kind, origin, method, or device key,
+  or an expired statement, is rejected.
+- Export without an unlocked VoiceID session on this device fails and asks for a
+  VoiceID unlock first.
+
+Contract enforcement: `tests/e2e/intended-behaviours/voiceid.key-export.contract.test.ts`
+and the operation-proof case in
+`tests/e2e/intended-behaviours/voiceid-device-proof.contract.test.ts`.
 
 ### Page Refresh During Export
 

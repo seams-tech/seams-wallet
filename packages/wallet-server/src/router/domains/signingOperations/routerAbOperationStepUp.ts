@@ -601,6 +601,9 @@ function walletExecutionLaneAuthSourceFromAuthority(
       credentialIdB64u: authority.factor.credentialIdB64u,
     };
   }
+  if (authority.factor.kind === 'voiceid') {
+    return { kind: 'voiceid', deviceKeyId: authority.factor.deviceKeyId };
+  }
   const providerSubject = parseProviderSubject(authority.factor.providerUserId);
   return providerSubject.ok
     ? {

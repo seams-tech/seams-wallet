@@ -2000,6 +2000,7 @@ function createD1WalletUnlockRouteService(
   return {
     issueVoiceIdChallenge: voiceIdSessions.issueChallenge.bind(voiceIdSessions),
     verifyAndIssueVoiceId: voiceIdSessions.verifyAndIssue.bind(voiceIdSessions),
+    verifyVoiceIdOperation: voiceIdSessions.verifyOperation.bind(voiceIdSessions),
     createEmailOtpUnlockChallenge:
       assembly.emailOtpRecoveryService.createEmailOtpUnlockChallenge.bind(
         assembly.emailOtpRecoveryService,

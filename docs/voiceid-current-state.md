@@ -24,6 +24,8 @@ defines the Wallet flow.
 - A VoiceID unlock selects the voice method for that Wallet Session. The session
   signs like a passkey session: every operation on every chain and network, with
   the ordinary **Confirm** and no further voice check, within its uses and expiry.
+- Key export from a VoiceID session asks for one more voice check, bound to that
+  export. It never falls back to a passkey or Email OTP.
 - Capture uses 16 kHz mono audio and a local speech detector. It stops after a
   pause or at eight seconds. Audio that fails the quality check never reaches
   phrase matching, speaker matching, or device-key use. Raw audio is discarded
@@ -103,9 +105,12 @@ cutoff and phrase bounds remain experimental.
    possession of that key. A claim that hardware verified the voice would need
    a capture and attestation path that can make that claim. Hashing a voice
    template or recording on-chain would not provide it.
-5. **Allow key export with VoiceID.** A used-up or expired VoiceID session steps
-   up with VoiceID inside the signing flow. Key export still needs a passkey or
-   Email OTP, because it requires fresh authentication bound to the export.
+5. **Key export with VoiceID (done).** Key export from a VoiceID session asks for
+   a fresh voice check. The device key signs the export's own single-use digest,
+   and the Router releases the sealed seed envelope only after it verifies that
+   proof. Ed25519 and ECDSA export never ask for a passkey or Email OTP. The
+   limits in [What the checks establish](#what-the-checks-establish) also apply
+   to export: the server verifies the device key, not the recording.
 
 The [Whisper integration plan](refactor-191-voiceid-whisper-turbo-plan.md) is
 deferred by the user as of 2026-10-31. Browser integration will not proceed

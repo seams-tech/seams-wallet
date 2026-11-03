@@ -53,7 +53,8 @@ VoiceID works like a passkey. A VoiceID unlock opens a normal signing session.
 Each operation on any chain shows the ordinary **Confirm**, with no further voice
 check, within the session's uses and expiry. When the session runs out or
 expires, the next operation asks for VoiceID again inside the Wallet, then signs.
-It never asks for a passkey. Key export needs a passkey or Email OTP.
+It never asks for a passkey. Key export asks for one more voice check, bound to
+that export, and never for a passkey or Email OTP.
 
 ## Install on the Wallet host
 

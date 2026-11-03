@@ -60,12 +60,14 @@ export const AUTHORIZATION_EVIDENCE_KINDS = {
   seamsSession: 'seams_session',
   passkeyAssertion: 'passkey_assertion',
   emailOtp: 'email_otp',
+  voiceIdDevice: 'voiceid_device',
 } as const;
 
 type SessionAuthorizationEvidenceKind = typeof AUTHORIZATION_EVIDENCE_KINDS.seamsSession;
 type InteractiveAuthorizationEvidenceKind =
   | typeof AUTHORIZATION_EVIDENCE_KINDS.passkeyAssertion
-  | typeof AUTHORIZATION_EVIDENCE_KINDS.emailOtp;
+  | typeof AUTHORIZATION_EVIDENCE_KINDS.emailOtp
+  | typeof AUTHORIZATION_EVIDENCE_KINDS.voiceIdDevice;
 export type AuthorizationEvidenceKind =
   | SessionAuthorizationEvidenceKind
   | InteractiveAuthorizationEvidenceKind;

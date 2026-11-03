@@ -1440,6 +1440,9 @@ export interface RouterApiWalletUnlockService {
   verifyAndIssueVoiceId(
     input: import('../domains/voiceId/voiceIdSessions').VoiceIdVerifyRequest,
   ): Promise<import('../domains/voiceId/voiceIdSessions').VoiceIdVerifyResult>;
+  verifyVoiceIdOperation(
+    input: import('../domains/voiceId/voiceIdSessions').VoiceIdOperationVerifyRequest,
+  ): Promise<import('../domains/voiceId/voiceIdSessions').VoiceIdOperationVerifyResult>;
   createEmailOtpUnlockChallenge(
     input: RouterApiMethodTypes['createEmailOtpUnlockChallenge']['input'],
   ): Promise<RouterApiMethodTypes['createEmailOtpUnlockChallenge']['result']>;

@@ -58,10 +58,16 @@ import {
 import {
   isEmailOtpWalletAuthAuthority,
   isPasskeyWalletAuthAuthority,
+  isVoiceIdWalletAuthAuthority,
   parseWalletAuthAuthority,
   type EmailOtpWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
+  type VoiceIdWalletAuthAuthority,
 } from './walletAuthAuthority';
+import {
+  parseVoiceIdOperationAssertion,
+  type VoiceIdOperationAssertion,
+} from '../authorization/voiceIdDeviceAssertion';
 import { requireRecord } from './validation';
 
 
@@ -700,6 +706,7 @@ type RouterAbEcdsaOperationStepUpProofV1Wire =
       readonly webauthn_authentication: RouterAbEcdsaOperationStepUpWebAuthnCredentialV1Wire;
       readonly challenge_id?: never;
       readonly otp_code?: never;
+      readonly assertion?: never;
     }
   | {
       readonly kind: 'email_otp';
@@ -707,6 +714,16 @@ type RouterAbEcdsaOperationStepUpProofV1Wire =
       readonly challenge_id: string;
       readonly otp_code: string;
       readonly webauthn_authentication?: never;
+      readonly assertion?: never;
+    }
+  | {
+      /* The enrolled device key signed the step-up challenge after a voice match. */
+      readonly kind: 'voiceid';
+      readonly authority: VoiceIdWalletAuthAuthority;
+      readonly assertion: VoiceIdOperationAssertion;
+      readonly webauthn_authentication?: never;
+      readonly challenge_id?: never;
+      readonly otp_code?: never;
     };
 
 export type RouterAbEcdsaOperationStepUpAuthorizationRequestV1Wire = {
@@ -3434,6 +3451,28 @@ export function parseRouterAbEcdsaOperationStepUpAuthorizationRequestV1(
         ),
       };
       break;
+    case 'voiceid': {
+      requireExactKeys(proof, 'operationStepUpAuthorizationRequest.proof', [
+        'kind',
+        'authority',
+        'assertion',
+      ]);
+      if (!authority || !isVoiceIdWalletAuthAuthority(authority)) {
+        throw new Error(
+          'operationStepUpAuthorizationRequest.proof requires an exact VoiceID authority',
+        );
+      }
+      const assertion = parseVoiceIdOperationAssertion(proof.assertion);
+      if (
+        assertion.statement.walletId !== authority.walletId ||
+        assertion.statement.walletAuthMethodId !== authority.bindingId ||
+        assertion.statement.deviceKeyId !== authority.factor.deviceKeyId
+      ) {
+        throw new Error('operationStepUpAuthorizationRequest.proof names another VoiceID method');
+      }
+      parsedProof = { kind: 'voiceid', authority, assertion };
+      break;
+    }
     default:
       throw new Error('operationStepUpAuthorizationRequest.proof.kind is invalid');
   }

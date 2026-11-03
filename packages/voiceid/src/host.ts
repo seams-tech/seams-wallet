@@ -4,13 +4,14 @@ import type { VoiceCaptureElements } from './capture/surface';
 import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
-export const hostApiVersion = 7;
+export const hostApiVersion = 8;
 if (VOICE_ID_HOST_API_VERSION !== hostApiVersion) {
   throw new Error('VoiceID requires a matching Wallet host API.');
 }
 
 type UnlockInput = Parameters<WalletAuthMethodHostPlugin['unlock']>[0];
 type ActivationInput = Parameters<WalletAuthMethodHostPlugin['activate']>[0];
+type OperationInput = Parameters<WalletAuthMethodHostPlugin['confirmOperation']>[0];
 
 export function createVoiceIdHostPlugin(
   model: VoiceIdTranscriptionModel,
@@ -18,7 +19,30 @@ export function createVoiceIdHostPlugin(
   return {
     unlock: unlock.bind(null, model),
     activate: activate.bind(null, model),
+    confirmOperation: confirmOperation.bind(null, model),
   };
+}
+
+function confirmOperation(
+  model: VoiceIdTranscriptionModel,
+  input: OperationInput,
+): ReturnType<WalletAuthMethodHostPlugin['confirmOperation']> {
+  return showVoiceIdCaptureSurface({
+    purpose: 'export',
+    measurement: input.surfaceMeasurementBinding,
+    prepare: prepareOperation.bind(null, model, input),
+  });
+}
+
+async function prepareOperation(
+  model: VoiceIdTranscriptionModel,
+  input: OperationInput,
+  signal: AbortSignal,
+  elements: VoiceCaptureElements,
+) {
+  const implementation = await import('./session/operation');
+  signal.throwIfAborted();
+  return implementation.prepareOperationSurface(input, signal, elements.progress, model);
 }
 
 function unlock(

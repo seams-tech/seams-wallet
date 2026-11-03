@@ -5,6 +5,8 @@ import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import {
   voiceIdWalletSessionChallengeBytes,
   parseVoiceIdDeviceAssertion,
+  voiceIdOperationStatementBytes,
+  parseVoiceIdOperationAssertion,
 } from '@seams/wallet/voiceid-host';
 
 import { base64UrlEncode } from '@seams/wallet/voiceid-host';
@@ -27,7 +29,11 @@ import {
   InsufficientVoiceAudioError,
 } from '../browser/microphone';
 
-import type { VoiceIdActivationCapture, VoiceIdUnlockCapture } from '@seams/wallet/voiceid-host';
+import type {
+  VoiceIdActivationCapture,
+  VoiceIdOperationCapture,
+  VoiceIdUnlockCapture,
+} from '@seams/wallet/voiceid-host';
 type VoiceCapturePresentation = Readonly<{ onCapture: VoiceCaptureObserver; phrase: SpokenPhrase }>;
 
 export async function captureVoiceIdActivation(
@@ -109,6 +115,50 @@ export async function captureVoiceIdUnlock(
     assertion: parseVoiceIdDeviceAssertion({
       kind: 'voiceid_device_assertion_v1',
       challenge,
+      signatureB64u: base64UrlEncode(new Uint8Array(signature)),
+    }),
+    factorSecret32,
+  };
+}
+
+export async function captureVoiceIdOperation(
+  model: VoiceIdTranscriptionModel,
+  presentation: VoiceCapturePresentation,
+  input: Parameters<VoiceIdOperationCapture>[0],
+): ReturnType<VoiceIdOperationCapture> {
+  requireVoiceUserAction();
+  const { statement } = input;
+  if (statement.requestOrigin !== location.origin || statement.expiresAtMs <= Date.now())
+    throw new Error('VoiceID check is expired or belongs to another Wallet origin.');
+  const device = await readBrowserVoiceDevice(statement.walletId, statement.walletAuthMethodId);
+  if (!device || device.deviceKeyId !== statement.deviceKeyId)
+    throw new Error('VoiceID device key is unavailable in this browser.');
+  const scope = await resolveVoiceEnrollmentScope(statement.walletId, statement.walletAuthMethodId);
+  await requireVoiceMatch(
+    { kind: 'active', scope },
+    input.signal,
+    presentation.onCapture,
+    presentation.phrase,
+    model,
+  );
+  input.signal.throwIfAborted();
+  if (statement.expiresAtMs <= Date.now())
+    throw new Error('VoiceID check expired. Start again.');
+  const signature = await crypto.subtle.sign(
+    'Ed25519',
+    device.privateKey,
+    voiceIdOperationStatementBytes(statement),
+  );
+  const factorSecret32 = await openBrowserVoiceFactor(device);
+  if (input.signal.aborted || statement.expiresAtMs <= Date.now()) {
+    factorSecret32.fill(0);
+    throw new Error('VoiceID check expired or was cancelled.');
+  }
+  return {
+    kind: 'confirmed' as const,
+    assertion: parseVoiceIdOperationAssertion({
+      kind: 'voiceid_operation_assertion_v1',
+      statement,
       signatureB64u: base64UrlEncode(new Uint8Array(signature)),
     }),
     factorSecret32,

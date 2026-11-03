@@ -1,7 +1,11 @@
 import {
   parseVoiceIdDeviceAssertion,
+  parseVoiceIdOperationAssertion,
+  voiceIdOperationStatementBytes,
   voiceIdWalletSessionChallengeBytes,
   type VoiceIdDevicePublicKeyB64u,
+  type VoiceIdOperationKind,
+  type VoiceIdOperationStatement,
   type VoiceIdWalletSessionChallenge,
 } from '@shared/authorization/voiceIdDeviceAssertion';
 import { base64UrlDecode } from '@shared/utils/base64';
@@ -82,9 +86,25 @@ export async function verifyVoiceIdWalletSessionAssertion(input: {
   if (!sameChallenge(assertion.challenge, challenge)) {
     throw new Error('VoiceID assertion names a different challenge');
   }
-  const publicKeyBytes = base64UrlDecode(input.registered.publicKeyB64u);
+  await requireRegisteredDeviceSignature(
+    input.registered,
+    assertion.signatureB64u,
+    voiceIdWalletSessionChallengeBytes(challenge),
+  );
+  if (!(await input.consumeChallenge(challenge, input.nowMs))) {
+    throw new Error('VoiceID challenge was already consumed');
+  }
+  return new VerifiedVoiceIdWalletSessionProof(challenge, input.registered.deviceKeyId);
+}
+
+async function requireRegisteredDeviceSignature(
+  registered: RegisteredVoiceIdDeviceKey,
+  signatureB64u: string,
+  signedBytes: Uint8Array<ArrayBuffer>,
+): Promise<void> {
+  const publicKeyBytes = base64UrlDecode(registered.publicKeyB64u);
   const publicKeyId = await sha256DigestB64u(publicKeyBytes);
-  if (publicKeyId !== input.registered.deviceKeyId) {
+  if (publicKeyId !== registered.deviceKeyId) {
     throw new Error('VoiceID device key identity is invalid');
   }
   const publicKey = await crypto.subtle.importKey(
@@ -97,12 +117,68 @@ export async function verifyVoiceIdWalletSessionAssertion(input: {
   const verified = await crypto.subtle.verify(
     'Ed25519',
     publicKey,
-    base64UrlDecode(assertion.signatureB64u),
-    voiceIdWalletSessionChallengeBytes(challenge),
+    base64UrlDecode(signatureB64u),
+    signedBytes,
   );
   if (!verified) throw new Error('VoiceID device signature is invalid');
-  if (!(await input.consumeChallenge(challenge, input.nowMs))) {
-    throw new Error('VoiceID challenge was already consumed');
+}
+
+class VerifiedVoiceIdOperationStatementProof {
+  private readonly proofBrand = true;
+
+  constructor(
+    readonly statement: VoiceIdOperationStatement,
+    readonly deviceKeyId: DigestB64u,
+    readonly assertionDigest: DigestB64u,
+  ) {
+    void this.proofBrand;
   }
-  return new VerifiedVoiceIdWalletSessionProof(challenge, input.registered.deviceKeyId);
+}
+
+/**
+ * A voice check for one operation. It is not a Wallet Session proof, and no
+ * conversion exists between the two: a session assertion signs a different
+ * statement under a different domain.
+ */
+export type VerifiedVoiceIdOperationProof = VerifiedVoiceIdOperationStatementProof;
+
+/**
+ * Only this server boundary turns a signed operation statement into verified
+ * proof. The caller supplies the digest the operation expects and owns its
+ * single use, as it does for a passkey assertion over the same digest.
+ */
+export async function verifyVoiceIdOperationAssertion(input: {
+  registered: RegisteredVoiceIdDeviceKey;
+  assertion: unknown;
+  operationKind: VoiceIdOperationKind;
+  operationChallenge: DigestB64u;
+  requestOrigin: string;
+  nowMs: number;
+}): Promise<VerifiedVoiceIdOperationProof> {
+  const assertion = parseVoiceIdOperationAssertion(input.assertion);
+  const statement = assertion.statement;
+  if (
+    !Number.isSafeInteger(input.nowMs) ||
+    input.nowMs < statement.issuedAtMs - 5_000 ||
+    input.nowMs >= statement.expiresAtMs ||
+    statement.walletId !== input.registered.walletId ||
+    statement.walletAuthMethodId !== input.registered.walletAuthMethodId ||
+    statement.walletAuthorityId !== input.registered.walletAuthorityId ||
+    statement.deviceKeyId !== input.registered.deviceKeyId ||
+    statement.operationKind !== input.operationKind ||
+    statement.operationChallenge !== input.operationChallenge ||
+    statement.requestOrigin !== input.requestOrigin
+  ) {
+    throw new Error('VoiceID operation statement does not match this operation');
+  }
+  const signedBytes = voiceIdOperationStatementBytes(statement);
+  await requireRegisteredDeviceSignature(input.registered, assertion.signatureB64u, signedBytes);
+  const assertionDigest = await sha256DigestB64u(
+    new TextEncoder().encode(`${statement.operationChallenge}|${assertion.signatureB64u}`),
+  );
+  return new VerifiedVoiceIdOperationStatementProof(
+    statement,
+    input.registered.deviceKeyId,
+    assertionDigest,
+  );
 }

@@ -62,6 +62,7 @@ type EcdsaDerivationExportAuthorization = ExclusiveUnion<
       credential: WebAuthnAuthenticationCredential;
     }
   | { kind: 'email_otp_verified' }
+  | { kind: 'voiceid_verified' }
 >;
 
 type ActiveWalletAuthorityEcdsaExportTopology = RouterAbEcdsaOperationStepUpExportTopologyV1Wire;
@@ -359,6 +360,7 @@ async function executeEcdsaDerivationExport(
       break;
     }
     case 'email_otp_verified':
+    case 'voiceid_verified':
       break;
     default: {
       const exhaustive: never = material.factorAuthorization;
@@ -524,6 +526,37 @@ export async function exportEcdsaDerivationKey(
     relayerUrl,
     operationAuthorization: args.exportProvision.authorization,
     factorAuthorization: args.factorAuthorization,
+  });
+}
+
+/**
+ * Exports a VoiceID canonical lane. The voice check already authorized the
+ * operation on the Router; the role-local material opened at the voice unlock.
+ */
+export async function exportVoiceIdEcdsaDerivationKey(
+  deps: EcdsaDerivationExportDeps,
+  args: {
+    readonly persistedMaterial: PersistedEcdsaRoleLocalMaterial;
+    readonly relayerUrl: string;
+    readonly operationAuthorization: EcdsaExplicitExportOperationAuthorization;
+  },
+): Promise<{
+  publicKeyHex: string;
+  privateKeyHex: string;
+  ethereumAddress: string;
+}> {
+  const relayerUrl = String(args.relayerUrl || '').trim();
+  if (!relayerUrl) throw new Error('[SigningEngine][ecdsa-export] relayer URL is required');
+  const liveMaterial = await hydrateEcdsaRoleLocalMaterialForExport({
+    persistedMaterial: args.persistedMaterial,
+    workerCtx: deps.getSignerWorkerContext(),
+  });
+  return await executeEcdsaDerivationExport(deps, {
+    persistedMaterial: args.persistedMaterial,
+    liveMaterial,
+    relayerUrl,
+    operationAuthorization: args.operationAuthorization,
+    factorAuthorization: { kind: 'voiceid_verified' },
   });
 }
 

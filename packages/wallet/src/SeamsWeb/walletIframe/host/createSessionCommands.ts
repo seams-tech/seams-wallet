@@ -1,4 +1,9 @@
 import { prepareVoiceIdUnlock } from '@/core/authMethods/voiceId/prepareUnlock';
+import {
+  prepareVoiceIdOperation,
+  type VoiceIdOperationProof,
+  type VoiceIdOperationRequest,
+} from '@/core/authMethods/voiceId/operationProof';
 import { unlockPendingRegistration } from '@/SeamsWeb/operations/auth/unlockPendingRegistration';
 import { HostedExternalAuth } from './externalAuth';
 import {
@@ -82,6 +87,7 @@ export type WalletHostSessionCommands = Omit<
     assertActive?: () => void,
     mountCapture?: AuthMethodCaptureMount,
   ): ReturnType<WalletSessionCommands['unlockWithAuthMethod']>;
+  confirmVoiceIdOperation(request: VoiceIdOperationRequest): Promise<VoiceIdOperationProof>;
 };
 
 export function createWalletHostSessionCommands(
@@ -104,6 +110,7 @@ export function createWalletHostSessionCommands(
     removeExternalAuth: external.remove.bind(external),
     unlock: unlock.bind(null, getContext, external),
     unlockWithAuthMethod: unlockWithAuthMethod.bind(null, getContext, external),
+    confirmVoiceIdOperation: confirmVoiceIdOperation.bind(null, getContext),
     lock: lock.bind(null, getContext, external),
     getSession: getSession.bind(null, getContext, external),
     getRecentUnlocks: getRecentUnlocks.bind(null, getContext),
@@ -141,6 +148,21 @@ async function unlockWithAuthMethod(
       assertActive,
       prepareSession: prepareAuthMethodSession.bind(null, context, walletId, assertActive),
     }),
+  });
+}
+
+/** A fresh voice check for one operation; it leaves the Wallet Session as it is. */
+async function confirmVoiceIdOperation(
+  getContext: () => WalletHostAuthContext,
+  request: VoiceIdOperationRequest,
+): Promise<VoiceIdOperationProof> {
+  const context = getContext();
+  const plugin = await loadWalletAuthMethodHostPlugin(context.configs.authMethods, 'voiceid');
+  return await plugin.confirmOperation({
+    walletId: request.walletId,
+    walletAuthMethodId: request.walletAuthMethodId,
+    surfaceMeasurementBinding: context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
+    prepareOperation: prepareVoiceIdOperation.bind(null, request),
   });
 }
 

@@ -10,7 +10,12 @@ import {
 } from '@shared/threshold/sessionPolicy';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { AuthorizationService } from '../../../../authorization/service';
-import { verifyVoiceIdWalletSessionAssertion, type RegisteredVoiceIdDeviceKey } from '../../../../authorization/voiceIdDeviceProof';
+import {
+  verifyVoiceIdOperationAssertion,
+  verifyVoiceIdWalletSessionAssertion,
+  type RegisteredVoiceIdDeviceKey,
+} from '../../../../authorization/voiceIdDeviceProof';
+import { buildVoiceIdWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import type { CloudflareD1PasskeyCustodyEnvelopeStore } from '../passkeyCustody/d1PasskeyCustodyEnvelopeStore';
 import type { D1WalletAuthorityStore } from './d1WalletAuthorityStore';
@@ -18,6 +23,8 @@ import { isFullOwnerAuthorityV1 } from './d1WalletAuthMethodService';
 import type {
   VoiceIdChallengeRequest,
   VoiceIdChallengeResult,
+  VoiceIdOperationVerifyRequest,
+  VoiceIdOperationVerifyResult,
   VoiceIdVerifyRequest,
   VoiceIdVerifyResult,
 } from '../../../domains/voiceId/voiceIdSessions';
@@ -154,5 +161,33 @@ export class D1VoiceIdSessions {
       operationCredential: issued.operationCredential,
       custodyEnvelope: active.custodyEnvelope,
     };
+  }
+
+  /** Verifies a voice check for one operation; the operation's own claim makes it single use. */
+  async verifyOperation(input: VoiceIdOperationVerifyRequest): Promise<VoiceIdOperationVerifyResult> {
+    const active = await this.resolveActiveMethod(input.walletId, input.walletAuthMethodId);
+    if (!active) return { kind: 'rejected', code: 'method_unavailable' };
+    try {
+      const proof = await verifyVoiceIdOperationAssertion({
+        registered: active.registered,
+        assertion: input.assertion,
+        operationKind: input.operationKind,
+        operationChallenge: input.operationChallenge,
+        requestOrigin: input.requestOrigin,
+        nowMs: input.nowMs,
+      });
+      return {
+        kind: 'verified',
+        proof,
+        authority: buildVoiceIdWalletAuthAuthority({
+          walletId: input.walletId,
+          walletAuthMethodId: input.walletAuthMethodId,
+          deviceKeyId: active.authMethod.deviceKeyId,
+        }),
+        custodyEnvelope: active.custodyEnvelope,
+      };
+    } catch {
+      return { kind: 'rejected', code: 'invalid_assertion' };
+    }
   }
 }

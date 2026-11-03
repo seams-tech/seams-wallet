@@ -33,6 +33,7 @@ import {
   type RouterAbEd25519YaoExportExecuteRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
+import type { VoiceIdOperationAssertion } from '@shared/authorization/voiceIdDeviceAssertion';
 import { type MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
@@ -152,6 +153,13 @@ type RouterAbEd25519YaoExportFreshAuthorizationV1 =
       challengeId: string;
       otpCode: string;
       webauthnAuthentication?: never;
+    }
+  | {
+      kind: 'voiceid_device';
+      walletAuthMethodId: string;
+      assertion: VoiceIdOperationAssertion;
+      providerSubjectId?: never;
+      webauthnAuthentication?: never;
     };
 
 export type RouterAbEd25519YaoExportArtifactV1 = {
@@ -208,6 +216,15 @@ function buildRouterAbEd25519YaoExportAdmissionBodyV1(args: {
           walletAuthMethodId: args.authorization.walletAuthMethodId,
           challengeId: args.authorization.challengeId,
           otpCode: args.authorization.otpCode,
+        },
+      };
+    case 'voiceid_device':
+      return {
+        protocol: args.protocol,
+        authorization: {
+          kind: 'voiceid_device',
+          walletAuthMethodId: args.authorization.walletAuthMethodId,
+          assertion: args.authorization.assertion,
         },
       };
   }
@@ -378,9 +395,27 @@ type RouterAbEd25519YaoEmailOtpExportSeedInputV1 = {
   ) => Promise<RouterAbEd25519YaoExportCustodyEnvelopeV1>;
 };
 
+type RouterAbEd25519YaoVoiceIdExportSeedInputV1 = {
+  request: RouterAbEd25519YaoExportAdmissionRequestV1;
+  transport: RouterAbEd25519YaoExportTransportV1;
+  authorization: Extract<RouterAbEd25519YaoExportFreshAuthorizationV1, { kind: 'voiceid_device' }>;
+  custodyEnvelope?: never;
+  /** Opens the VoiceID seed envelope that the admission released after the voice check. */
+  resolveCustodyEnvelope: (
+    releasedEnvelope: unknown,
+  ) => Promise<RouterAbEd25519YaoExportCustodyEnvelopeV1>;
+};
+
 export type RouterAbEd25519YaoExportSeedInputV1 =
   | RouterAbEd25519YaoPasskeyExportSeedInputV1
-  | RouterAbEd25519YaoEmailOtpExportSeedInputV1;
+  | RouterAbEd25519YaoEmailOtpExportSeedInputV1
+  | RouterAbEd25519YaoVoiceIdExportSeedInputV1;
+
+function isVoiceIdExportSeedInput(
+  input: RouterAbEd25519YaoExportSeedInputV1,
+): input is RouterAbEd25519YaoVoiceIdExportSeedInputV1 {
+  return input.authorization.kind === 'voiceid_device';
+}
 
 function isPasskeyExportSeedInput(
   input: RouterAbEd25519YaoExportSeedInputV1,
@@ -444,6 +479,11 @@ type RouterAbEd25519YaoExportAdmissionEnvelopeV1 =
       readonly kind: 'protocol_with_factor_release';
       readonly protocol: RouterAbEd25519YaoExportAdmissionReceiptV1;
       readonly factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null;
+    }
+  | {
+      readonly kind: 'protocol_with_voiceid_envelope';
+      readonly protocol: RouterAbEd25519YaoExportAdmissionReceiptV1;
+      readonly voiceIdCustodyEnvelope: unknown;
     };
 
 function parseRouterAbEd25519YaoClientEmailOtpFactorReleaseV1(
@@ -491,13 +531,22 @@ function parseRouterAbEd25519YaoClientExportAdmissionEnvelopeV1(
   const protocolOnly = fields.length === 1 && fields[0] === 'protocol';
   const protocolWithFactorRelease =
     fields.length === 2 && fields.includes('protocol') && fields.includes('factorRelease');
-  if (!protocolOnly && !protocolWithFactorRelease) {
+  const protocolWithVoiceIdEnvelope =
+    fields.length === 2 && fields.includes('protocol') && fields.includes('voiceIdCustodyEnvelope');
+  if (!protocolOnly && !protocolWithFactorRelease && !protocolWithVoiceIdEnvelope) {
     throw new Error('Router export admission response contains unexpected fields');
   }
   const admission = parseRouterAbEd25519YaoExportAdmissionReceiptV1(Reflect.get(value, 'protocol'));
   if (!admission.ok) throw new Error(admission.message);
   if (protocolOnly) {
     return { kind: 'protocol_only', protocol: admission.value };
+  }
+  if (protocolWithVoiceIdEnvelope) {
+    return {
+      kind: 'protocol_with_voiceid_envelope',
+      protocol: admission.value,
+      voiceIdCustodyEnvelope: Reflect.get(value, 'voiceIdCustodyEnvelope'),
+    };
   }
   return {
     kind: 'protocol_with_factor_release',
@@ -1132,7 +1181,24 @@ export class RouterAbEd25519YaoClientV1 {
     }
 
     let custodyEnvelope: RouterAbEd25519YaoExportCustodyEnvelopeV1;
-    if (isPasskeyExportSeedInput(args)) {
+    if (isVoiceIdExportSeedInput(args)) {
+      if (admissionEnvelope.kind !== 'protocol_with_voiceid_envelope') {
+        return {
+          ok: false,
+          message: 'VoiceID export admission did not return the VoiceID custody envelope',
+        };
+      }
+      try {
+        custodyEnvelope = await args.resolveCustodyEnvelope(
+          admissionEnvelope.voiceIdCustodyEnvelope,
+        );
+      } catch (error) {
+        return {
+          ok: false,
+          message: error instanceof Error ? error.message : String(error),
+        };
+      }
+    } else if (isPasskeyExportSeedInput(args)) {
       if (admissionEnvelope.kind !== 'protocol_only') {
         return {
           ok: false,

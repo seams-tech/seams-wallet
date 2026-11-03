@@ -10,6 +10,7 @@ import type { ReadonlyExclusiveUnion } from './variant';
 type RouterAbEd25519YaoExportAuthorityBindingV1 = ReadonlyExclusiveUnion<
   | { readonly kind: 'passkey'; readonly credentialIdB64u: string }
   | { readonly kind: 'email_otp'; readonly providerSubjectId: string }
+  | { readonly kind: 'voiceid'; readonly deviceKeyId: string }
 >;
 
 const APPLICATION_BINDING_DOMAIN = 'seams/router-ab/ed25519-yao/application-binding/v1';
@@ -218,6 +219,17 @@ export async function deriveRouterAbEd25519YaoExportConfirmationDigestV1(input: 
   return Array.from(await sha256(encoded));
 }
 
+function exportAuthoritySubject(authority: RouterAbEd25519YaoExportAuthorityBindingV1): string {
+  switch (authority.kind) {
+    case 'passkey':
+      return requireVisibleIdentifier(authority.credentialIdB64u, 'credentialIdB64u');
+    case 'email_otp':
+      return requireVisibleIdentifier(authority.providerSubjectId, 'providerSubjectId');
+    case 'voiceid':
+      return requireVisibleIdentifier(authority.deviceKeyId, 'deviceKeyId');
+  }
+}
+
 export async function deriveRouterAbEd25519YaoExportAuthorizationDigestV1(input: {
   readonly identity: RouterAbEd25519YaoExportAuthorizationIdentityV1;
   readonly confirmationDigest: RouterAbEd25519YaoBytes32V1;
@@ -242,11 +254,7 @@ export async function deriveRouterAbEd25519YaoExportAuthorizationDigestV1(input:
     labeledField('authorityKind', UTF8.encode(input.authority.kind)),
     labeledField(
       'authoritySubject',
-      UTF8.encode(
-        input.authority.kind === 'passkey'
-          ? requireVisibleIdentifier(input.authority.credentialIdB64u, 'credentialIdB64u')
-          : requireVisibleIdentifier(input.authority.providerSubjectId, 'providerSubjectId'),
-      ),
+      UTF8.encode(exportAuthoritySubject(input.authority)),
     ),
   ]);
   return Array.from(await sha256(encoded));

@@ -48,6 +48,12 @@ type CaptureState<T> =
   | { kind: 'capturing' }
   | { kind: 'succeeding' }
   | { kind: 'closed' };
+type VoiceCapturePurpose = 'activation' | 'unlock' | 'export';
+const VOICE_CAPTURE_ACTION_LABELS: Readonly<Record<VoiceCapturePurpose, string>> = {
+  activation: 'Activate VoiceID',
+  unlock: 'Unlock with VoiceID',
+  export: 'Export keys with VoiceID',
+};
 // The unlock success holds and fades on the auth menu's clock.
 const SUCCESS_HOLD_MS = 1300;
 const SUCCESS_FADE_MS = 240;
@@ -71,11 +77,11 @@ class VoiceIdCaptureSurface<T> {
 
   constructor(
     prepare: CapturePreparation<T>,
-    purpose: 'activation' | 'unlock',
+    purpose: VoiceCapturePurpose,
     binding: UiConfirmSurfaceMeasurementBinding,
     mountCapture?: AuthMethodCaptureMount,
   ) {
-    const actionLabel = purpose === 'activation' ? 'Activate VoiceID' : 'Unlock with VoiceID';
+    const actionLabel = VOICE_CAPTURE_ACTION_LABELS[purpose];
     const parent = document.getElementById('root') ?? document.body;
     if (!parent) throw new Error('Wallet activation surface has no mount root.');
     this.element = document.createElement('section');
@@ -262,7 +268,7 @@ export class VoiceIdCaptureCancelledError extends Error {
 
 export async function showVoiceIdCaptureSurface<T>(input: {
   readonly prepare: CapturePreparation<T>;
-  readonly purpose: 'activation' | 'unlock';
+  readonly purpose: VoiceCapturePurpose;
   readonly measurement: UiConfirmSurfaceMeasurementBinding;
   readonly mountCapture?: AuthMethodCaptureMount;
 }): Promise<T> {

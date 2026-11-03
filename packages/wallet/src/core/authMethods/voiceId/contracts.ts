@@ -6,6 +6,8 @@ import type { ConfirmedVoiceChange } from './ownerConfirmation';
 import type {
   VoiceIdDevicePublicKeyB64u,
   VoiceIdDeviceAssertion,
+  VoiceIdOperationAssertion,
+  VoiceIdOperationStatement,
   VoiceIdWalletSessionChallenge,
 } from '@shared/authorization/voiceIdDeviceAssertion';
 export type VoiceEnrollmentScope = Readonly<{
@@ -125,3 +127,13 @@ export type VoiceIdUnlockCapture = (input: {
   readonly challenge: VoiceIdWalletSessionChallenge;
   readonly signal: AbortSignal;
 }) => Promise<{ kind: 'unlocked'; assertion: VoiceIdDeviceAssertion; factorSecret32: Uint8Array }>;
+
+/** Signs one operation statement after a local voice match; the caller zeroes the factor. */
+export type VoiceIdOperationCapture = (input: {
+  readonly statement: VoiceIdOperationStatement;
+  readonly signal: AbortSignal;
+}) => Promise<{
+  kind: 'confirmed';
+  assertion: VoiceIdOperationAssertion;
+  factorSecret32: Uint8Array;
+}>;
