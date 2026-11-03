@@ -85,8 +85,9 @@ VoiceID works like a passkey. A VoiceID unlock opens a normal signing session. U
 existing [transaction APIs](/examples/signing) on any chain and network: transfers, contract
 calls, delegate actions, and message signing. Each operation shows the ordinary **Confirm**,
 with no further voice check, within the session's uses and expiry.
-When the session needs fresh authentication, the owner unlocks with VoiceID again.
-Key export needs a passkey or Email OTP.
+When the session runs out or expires, the next operation asks for VoiceID again inside the
+Wallet, then signs. A VoiceID session never asks for a passkey. Key export needs a passkey or
+Email OTP.
 
 Enabling or enrolling VoiceID does not select it for passkey or Email OTP signing.
 Adding signers or authentication methods and changing enrollment retain their action-level authorization checks.

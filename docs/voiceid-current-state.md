@@ -103,10 +103,9 @@ cutoff and phrase bounds remain experimental.
    possession of that key. A claim that hardware verified the voice would need
    a capture and attestation path that can make that claim. Hashing a voice
    template or recording on-chain would not provide it.
-5. **Add an inline voice step-up.** A passkey re-authenticates inside a signing
-   flow when its session runs out, and for key export. VoiceID asks the owner to
-   unlock again, and key export needs a passkey or Email OTP. An inline voice
-   capture with a fresh server challenge would close both gaps.
+5. **Allow key export with VoiceID.** A used-up or expired VoiceID session steps
+   up with VoiceID inside the signing flow. Key export still needs a passkey or
+   Email OTP, because it requires fresh authentication bound to the export.
 
 The [Whisper integration plan](refactor-191-voiceid-whisper-turbo-plan.md) is
 deferred by the user as of 2026-10-31. Browser integration will not proceed

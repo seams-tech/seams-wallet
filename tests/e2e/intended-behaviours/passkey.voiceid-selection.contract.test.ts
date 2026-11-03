@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type Request } from '@playwright/test';
 import { ActionType } from '@shared/near/actions';
 import type {} from '../../intended-app/src/nearSigningHelpers';
 import {
@@ -17,6 +17,7 @@ import {
   voiceEntryName,
   signTransfer,
   microphoneCount,
+  beginDirectVoiceUnlock,
   session,
   saveEvidence,
 } from './voiceid-selection';
@@ -119,6 +120,23 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   expect(evidence.transfers).toHaveLength(3);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount);
 
+  // The next signature steps up with VoiceID inside the wallet, never with a passkey.
+  const passkeyUnlocks = new PasskeyUnlockRequests();
+  context.on('request', passkeyUnlocks.observe);
+  const steppedUp = page.evaluate(sendUnreviewedTransfer, identity.accountId);
+  await beginDirectVoiceUnlock(page);
+  const afterStepUp = await autoConfirmWalletIframeUntil(page, steppedUp);
+  context.off('request', passkeyUnlocks.observe);
+  expect(afterStepUp).toMatchObject({ success: true });
+  await waitForWalletIframeConfirmationSettlement(page);
+  expect(passkeyUnlocks.count).toBe(0);
+  expect(evidence.transfers).toHaveLength(4);
+  expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount + 1);
+  expect((await page.evaluate(session)).authentication).toMatchObject({
+    kind: 'authenticated',
+    authMethod: 'voiceid',
+  });
+
   const beforeOwnerUnlock = downloads.requests.length;
   await harness.unlockPasskeyWallet();
   expect((await page.evaluate(session)).authentication).toMatchObject({
@@ -128,7 +146,7 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   await signTransfer(page);
   expect(downloads.requests.slice(beforeOwnerUnlock)).toEqual([]);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(0);
-  expect(evidence.transfers).toHaveLength(4);
+  expect(evidence.transfers).toHaveLength(5);
   await saveEvidence(testInfo, 'voiceid-session-selection.json', {
     status: 'passed',
     cases: [
@@ -138,6 +156,7 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
       'first_click_starts_listening_with_back_and_footer',
       'back_stops_microphone_and_restores_menu',
       'voice_session_signs_message_delegate_and_unreviewed_transfer_without_capture',
+      'used_up_voice_session_steps_up_with_voice_not_passkey',
       'fresh_passkey_unlock_skips_voice_even_when_enrolled',
     ],
     downloads: downloads.requests,
@@ -149,6 +168,14 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
     signing: 'real_ed25519_yao_mpc',
   });
 });
+
+/** Counts passkey unlock requests; a VoiceID step-up must never make one. */
+class PasskeyUnlockRequests {
+  count = 0;
+  readonly observe = (request: Request): void => {
+    if (new URL(request.url()).pathname.startsWith('/wallet/unlock/')) this.count += 1;
+  };
+}
 
 function useNaturalPhrases(): void {
   window.voiceIdUseNaturalPhrases();

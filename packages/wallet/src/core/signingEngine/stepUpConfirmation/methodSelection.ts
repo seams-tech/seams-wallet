@@ -1,5 +1,6 @@
 import type { StepUpMethodRunners } from './methodRunners';
 import type { StepUpMethod, StepUpPolicy, StepUpWarmSessionAuthorization } from './types';
+import { VoiceIdStepUpRequiredError } from './voiceIdStepUp';
 
 class StepUpMethodSelectionError extends Error {
   readonly code: 'missing_step_up_runner' | 'unsupported_step_up_method';
@@ -66,7 +67,7 @@ function methodFromPolicy<TLane extends SelectableLane>(
   policy: StepUpPolicy,
 ): StepUpMethod | 'warm_session' {
   if (policy.kind === 'reuse_warm_session') return 'warm_session';
-  if (selectedLane.authMethod === 'voiceid') throw new Error('Unlock with VoiceID again before signing.');
+  if (selectedLane.authMethod === 'voiceid') throw new VoiceIdStepUpRequiredError();
   if (policy.kind === 'force_method') return policy.method;
   return selectedLane.authMethod;
 }

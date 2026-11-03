@@ -220,6 +220,15 @@ export class WalletHostRuntime {
     this.deviceLinkingDispose = deviceDomain.dispose;
     this.resumePendingAcknowledgementsV1 = deviceDomain.resumePendingAcknowledgementsV1;
     const sessionCommands = createWalletHostSessionCommands(this.getContext.bind(this), parentOrigin);
+    // A VoiceID session that cannot sign re-authenticates with VoiceID, never another method.
+    browserSigningSurface.setVoiceIdStepUp(async ({ walletId, walletAuthMethodId }) => {
+      const unlocked = await sessionCommands.unlockWithAuthMethod({
+        walletId,
+        walletAuthMethodId,
+        method: 'voiceid',
+      });
+      if (!unlocked.success) throw new Error(unlocked.error || 'VoiceID step-up did not finish.');
+    });
     this.readExternalSession = sessionCommands.readExternalSession;
     this.captureExternalOwnerOperation = sessionCommands.captureExternalOwnerOperation;
     const registrationCommands = createWalletHostRegistrationCommands(

@@ -19,6 +19,7 @@ import {
   signingLaneAuthMethod,
   type SigningLaneAuthBinding,
 } from '@/core/signingEngine/session/identity/signingLaneAuthBinding';
+import { VoiceIdStepUpRequiredError } from '@/core/signingEngine/stepUpConfirmation/voiceIdStepUp';
 
 type NearPreparedStepUpAuthBase = {
   confirmationAuthPayload: { signingAuthPlan: SigningAuthPlan };
@@ -158,7 +159,7 @@ export function signingAuthPlanForNearMaterialRequirement(
 ): SigningAuthPlan {
   switch (auth.kind) {
     case 'voiceid':
-      throw new Error('Unlock with VoiceID again before signing.');
+      throw new VoiceIdStepUpRequiredError();
     case 'passkey':
       return { kind: 'passkeyReauth', method: 'passkey' };
     case 'email_otp':

@@ -198,8 +198,10 @@ signing bypass VoiceID policy, UI, model, and inference-runtime loading, even wh
 VoiceID is available or enrolled. Enrollment preserves the owner's current method.
 Unlocking with VoiceID selects its method; unlocking with a passkey selects passkey.
 A VoiceID session signs only while VoiceID stays turned on for that wallet. When the
-session needs fresh authentication, the owner unlocks with VoiceID again; VoiceID
-has no in-flow step-up yet.
+session is missing, expired, used up, or superseded, the next signing operation first
+shows the VoiceID unlock inside the Wallet. A successful voice check installs a fresh
+VoiceID session, and the operation then signs on it. A VoiceID session never steps up
+with a passkey or Email OTP. Cancelling the voice check cancels the operation.
 Contract enforcement: `tests/e2e/intended-behaviours/passkey.voiceid-selection.contract.test.ts`.
 
 

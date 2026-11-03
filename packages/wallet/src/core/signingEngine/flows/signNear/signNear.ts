@@ -142,6 +142,7 @@ import {
   type TransactionReadinessClassifiedState,
 } from '../../session/operationState/transactionState';
 import { requiredNearTransactionSignatureUses } from './signatureUses';
+import { VoiceIdStepUpRequiredError } from '../../stepUpConfirmation/voiceIdStepUp';
 
 function nearOwnerOperationAuthorizationDecisionFromError(
   error: unknown,
@@ -1675,7 +1676,7 @@ async function signTransactionWithActionsAttempt(
         expiresAtMs: preparationAuthorization.authorization.status.expiresAtMs,
       });
       if (transactionLane.auth.kind === 'voiceid') {
-        throw new Error('Unlock with VoiceID again to renew the NEAR Wallet Session.');
+        throw new VoiceIdStepUpRequiredError('Unlock with VoiceID again to renew the NEAR Wallet Session.');
       }
       const isEmailOtpSession = transactionLane.auth.kind === 'email_otp';
       const ownerStepUpReason =

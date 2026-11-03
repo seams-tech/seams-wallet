@@ -476,6 +476,20 @@ import type {
   JoinedWalletCustodyNearEd25519KeySetV1,
   RejoinedWalletCustodyEvmFamilyKeySetV1,
 } from './ports';
+import {
+  isVoiceIdStepUpRequired,
+  VoiceIdStepUpRequiredError,
+} from '@/core/signingEngine/stepUpConfirmation/voiceIdStepUp';
+
+/** Runs the VoiceID unlock in the Wallet and installs a fresh VoiceID session. */
+export type VoiceIdStepUp = (input: {
+  readonly walletId: WalletId;
+  readonly walletAuthMethodId: string;
+}) => Promise<void>;
+
+// A VoiceID session in one of these states signs again only after a voice step-up.
+const VOICE_ID_STEP_UP_READS = new Set(['missing', 'expired', 'exhausted', 'superseded']);
+
 function requireEmailOtpEcdsaRehydrationManifest(
   manifests: readonly ActiveEcdsaCapabilityManifest[],
   authorityDigest: string,
@@ -2270,6 +2284,8 @@ export class BrowserSigningSurface {
 
   readonly seamsWebConfigs: SeamsConfigsReadonly;
 
+  private voiceIdStepUp: VoiceIdStepUp | null = null;
+
   private readNearEd25519SigningCandidate(walletId: WalletId) {
     return readBrowserNearEd25519SigningCandidate(
       String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
@@ -2293,7 +2309,7 @@ export class BrowserSigningSurface {
       state.signingLane.identity.signer.nearEd25519SigningKeyId ||
       identity.thresholdSessionId !== state.thresholdSessionId
     ) {
-      throw new Error('Unlock with VoiceID again before signing.');
+      throw new VoiceIdStepUpRequiredError();
     }
     const read = await this.readNearEd25519SigningCandidate(args.walletId);
     if (
@@ -2303,7 +2319,7 @@ export class BrowserSigningSurface {
       identity.auth.walletAuthMethodId ||
       read.authorization.operationCredential.walletSessionId !== state.walletSessionId
     ) {
-      throw new Error('The VoiceID Wallet Session is unavailable. Unlock again.');
+      throw new VoiceIdStepUpRequiredError('The VoiceID Wallet Session is unavailable. Unlock again.');
     }
     const activation = read.authorization.selectedAuthority.signerActivations.ed25519;
     if (!activation) throw new Error('VoiceID Wallet Session has no NEAR signer.');
@@ -2312,7 +2328,7 @@ export class BrowserSigningSurface {
       nearAccountId: args.nearAccountId,
       materialActivation: activation.materialActivation,
     });
-    if (!material) throw new Error('Unlock with VoiceID again to restore signing material.');
+    if (!material) throw new VoiceIdStepUpRequiredError('Unlock with VoiceID again to restore signing material.');
     validateExactNearEd25519YaoOperationMaterial({
       material,
       input: args,
@@ -3460,12 +3476,56 @@ export class BrowserSigningSurface {
     });
   }
 
+  /** The Wallet host provides the VoiceID unlock, so a VoiceID session steps up with voice. */
+  setVoiceIdStepUp(stepUp: VoiceIdStepUp): void {
+    this.voiceIdStepUp = stepUp;
+  }
+
+  /**
+   * Signs after a VoiceID step-up when the selected VoiceID session cannot sign:
+   * before the operation when the session read shows it, and once more when the
+   * operation itself reports it before any signature.
+   */
+  private async withVoiceIdStepUp<T>(walletId: WalletId, run: () => Promise<T>): Promise<T> {
+    const steppedUp = await this.stepUpVoiceIdBeforeSigning(walletId);
+    try {
+      return await run();
+    } catch (error) {
+      if (steppedUp || !isVoiceIdStepUpRequired(error)) throw error;
+      if (!(await this.runVoiceIdStepUp(walletId))) throw error;
+      return await run();
+    }
+  }
+
+  private async stepUpVoiceIdBeforeSigning(walletId: WalletId): Promise<boolean> {
+    if (!this.voiceIdStepUp) return false;
+    const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId));
+    if (selected.kind !== 'resolved' || selected.authMethod.kind !== 'voiceid') return false;
+    // A read that fails leaves the decision to the operation, which reports a step-up itself.
+    const read = await this.readNearEd25519SigningCandidate(walletId).catch(() => null);
+    if (!read || !VOICE_ID_STEP_UP_READS.has(read.kind)) return false;
+    return await this.runVoiceIdStepUp(walletId);
+  }
+
+  private async runVoiceIdStepUp(walletId: WalletId): Promise<boolean> {
+    if (!this.voiceIdStepUp) return false;
+    const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId));
+    if (selected.kind !== 'resolved' || selected.authMethod.kind !== 'voiceid') return false;
+    await this.voiceIdStepUp({
+      walletId,
+      walletAuthMethodId: selected.authMethod.walletAuthMethodId,
+    });
+    return true;
+  }
+
   async signNear<TRequest extends NearSignIntentRequest>(
     request: TRequest,
   ): Promise<NearSignIntentResult<TRequest>> {
     const walletId = request.args.commandSubject.walletSession.walletId;
     try {
-      return await signNearOperation(this.enginePorts.nearSigningDeps, request);
+      return await this.withVoiceIdStepUp(walletId, () =>
+        signNearOperation(this.enginePorts.nearSigningDeps, request),
+      );
     } catch (error) {
       if (isWalletSigningStateFailure(error)) {
         await this.terminateWalletStateAfterSigningFailure(walletId);
@@ -4479,7 +4539,7 @@ export class BrowserSigningSurface {
         const args = requireAuthorizedNearEd25519BoundaryInput(context.input);
         switch (args.auth.kind) {
           case 'voiceid':
-            throw new Error('Unlock with VoiceID again to restore signing material.');
+            throw new VoiceIdStepUpRequiredError('Unlock with VoiceID again to restore signing material.');
           case WALLET_AUTH_METHODS.passkey: {
             const material = await this.rehydrateExactPasskeyEd25519YaoCapabilityForSigning(args);
             try {
@@ -4542,7 +4602,7 @@ export class BrowserSigningSurface {
     if (args.auth.kind === 'voiceid') {
       const state = this.voiceIdNearSessions.get(args.walletId);
       if (!state || state.walletSessionId !== args.laneIdentity.walletSessionId)
-        throw new Error('Unlock with VoiceID again before signing.');
+        throw new VoiceIdStepUpRequiredError();
       return state;
     }
     if (args.auth.kind === WALLET_AUTH_METHODS.emailOtp) {
@@ -4941,7 +5001,7 @@ export class BrowserSigningSurface {
     const args = requireAuthorizedNearEd25519BoundaryInput(input.args);
     switch (args.auth.kind) {
       case 'voiceid':
-        throw new Error('Unlock with VoiceID again before signing.');
+        throw new VoiceIdStepUpRequiredError();
       case WALLET_AUTH_METHODS.passkey: {
         const resolved = await this.resolvePasskeyEd25519YaoHydration({
           walletSessionState: input.walletSessionState,
@@ -5670,7 +5730,9 @@ export class BrowserSigningSurface {
     shouldAbort?: () => boolean;
     onEvent?: (event: SigningFlowEvent) => void;
   }): Promise<TempoSignedResult | EvmSignedResult> {
-    return await signEvmFamilyOperation(this.enginePorts.tempoSigningDeps, args);
+    return await this.withVoiceIdStepUp(args.walletSession.walletId, () =>
+      signEvmFamilyOperation(this.enginePorts.tempoSigningDeps, args),
+    );
   }
 
   async reportTempoBroadcastAccepted(args: ReportTempoBroadcastAcceptedArgs): Promise<void> {

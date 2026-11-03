@@ -40,6 +40,7 @@ import type {
   EvmFamilySenderSignatureAlgorithm,
 } from './types';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { VoiceIdStepUpRequiredError } from '../../stepUpConfirmation/voiceIdStepUp';
 
 export type EvmFamilyConfirmedEmailOtpDeps = {
   requestEmailOtpTransactionSigningChallenge?: (args: {
@@ -244,7 +245,7 @@ export async function resolveEvmFamilyTransactionStepUp(
     emailOtpAuthBridge?: EvmFamilyEmailOtpTransactionSigningBridge;
   }> {
     if (args.ecdsaAuthorization === 'operation_step_up') {
-      if (args.capability.authority.factor.kind === 'voiceid') throw new Error('Unlock this wallet with VoiceID again before signing.');
+      if (args.capability.authority.factor.kind === 'voiceid') throw new VoiceIdStepUpRequiredError('Unlock this wallet with VoiceID again before signing.');
       if (isPasskeyWalletAuthAuthority(args.capability.authority)) {
         return {
           signingAuthPlan: {
