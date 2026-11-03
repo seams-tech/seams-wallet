@@ -24,8 +24,8 @@ application and wallet iframe origins in that environment's allowed origins.
 
 ## Documentation origins
 
-The public docs build uses `/docs/` as its base path. `VITE_DOCS_ORIGIN` sets
-canonical and sitemap URLs. Use `https://wallet.seams.sh/docs` for production.
+The public docs build uses `/` as its base path. `VITE_DOCS_ORIGIN` sets
+canonical and sitemap URLs. Use `https://docs.wallet.seams.sh` for production.
 `VITE_WALLET_SITE_ORIGIN` selects the parent Wallet site link.
 Staging deployments must request `noindex` through their existing HTTP headers.
 Local preview settings must not enter production builds.

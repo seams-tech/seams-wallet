@@ -1,11 +1,11 @@
 import { defineConfig, type DefaultTheme, type MarkdownRenderer } from 'vitepress';
 import { docPagePath, japaneseSidebarItem, localizedDocLink, releaseLabel } from './i18n';
 
-const docsOrigin = (process.env.VITE_DOCS_ORIGIN || 'https://wallet.seams.sh/docs').replace(
+const docsOrigin = (process.env.VITE_DOCS_ORIGIN || 'https://docs.wallet.seams.sh').replace(
   /\/$/,
   '',
 );
-const docsBase = process.env.VITE_DOCS_BASE_PATH || '/docs/';
+const docsBase = '/';
 const walletSiteOrigin = (process.env.VITE_WALLET_SITE_ORIGIN || 'https://wallet.seams.sh').replace(
   /\/$/,
   '',

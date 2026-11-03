@@ -198,8 +198,7 @@ function startDocs() {
     env: {
       ...process.env,
       VITE_SITE_ORIGIN: appOrigin,
-      VITE_DOCS_ORIGIN: 'http://localhost:4003/docs',
-      VITE_DOCS_BASE_PATH: '/docs/',
+      VITE_DOCS_ORIGIN: 'http://localhost:4003',
       VITE_WALLET_SITE_ORIGIN: appOrigin,
     },
     stdio: 'inherit',

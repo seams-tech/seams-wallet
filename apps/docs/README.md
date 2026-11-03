@@ -1,8 +1,8 @@
 # Seams documentation app
 
-The docs are a VitePress application published under
-`wallet.seams.sh/docs/`. The root route is the Start here guide; Wallet
-marketing and the dashboard share the parent site.
+The docs are a VitePress application published at
+`docs.wallet.seams.sh/`. The root route is the Start here guide. Wallet
+marketing and the dashboard link to this site.
 
 ## Local checks
 
@@ -40,7 +40,7 @@ Wallet site when either surface changes.
    `docs/intended-behaviours.md`. Proposed capabilities need explicit availability.
 4. Run the checks above. Compile examples against the exact published packages
    in an isolated consumer without workspace source aliases.
-5. Preview the built `/docs/` site. Check search, deep links, keyboard/mobile
+5. Preview the built root site. Check search, deep links, keyboard/mobile
    navigation, dark mode, diagrams, and copyable examples. Retain screenshots.
 6. Run an existing substantial lifecycle E2E and retain sanitized proof artifacts.
    Document any infrastructure limit without changing behavior to satisfy a fixture.
@@ -48,14 +48,14 @@ Wallet site when either surface changes.
    public revision and writes `seams-wallet-docs-artifact.json`. Verify its receipt
    on staging and production. Keep staging unindexed and retain the prior artifact.
 
-The production canonical origin is `https://wallet.seams.sh/docs`. The default
-base path is `/docs/`. Local preview uses VitePress with that base path.
-The private repository serves a staged static copy; it does not own another
-documentation source tree.
+The production canonical origin is `https://docs.wallet.seams.sh`. The base
+path is `/`. Local preview uses VitePress at the root path. The private
+repository deploys a staged static copy; it does not own another documentation
+source tree.
 
 ## Languages
 
-English lives at `/docs/`. Japanese lives at `/docs/ja/`.
+English lives at `/`. Japanese lives at `/ja/`.
 Every English page has a Japanese counterpart. Navigation, search, footer,
 diagram controls, and internal links follow the selected language.
 

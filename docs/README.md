@@ -1,7 +1,7 @@
 # How the wallet works
 
 For published integration instructions, use the
-[public documentation](https://wallet.seams.sh/docs/) and
+[public documentation](https://docs.wallet.seams.sh/) and
 [release notes](../apps/docs/src/releases.md). The current browser SDK, server SDK,
 and VoiceID plugin use **0.42.0**. The signed recovery CLI uses **0.29.0**.
 The wallet iframe protocol is **23.0.0**.

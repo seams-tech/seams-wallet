@@ -139,6 +139,6 @@ The cold payload before transfer compression is roughly 27 MB with Aurora or
 Splitting it removes that payload from Wallet-only installations. It does not
 reduce the bytes needed for the first VoiceID operation.
 
-Use the [public VoiceID guide](https://wallet.seams.sh/docs/concepts/auth-methods/voiceid)
+Use the [public VoiceID guide](https://docs.wallet.seams.sh/concepts/auth-methods/voiceid)
 for enrollment, unlock, transfer approval, and storage behavior.
 See [implementation notes](src/README.md) for code boundaries and enrollment storage.

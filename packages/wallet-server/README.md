@@ -18,7 +18,7 @@ Version 0.42.0 verifies a configured application's signed session assertion or t
 An environment-specific Google client configuration and an owner-approved wallet association are required.
 Apply the packaged signer migrations before enabling the feature.
 External sessions grant settings reads and remain separate from owner and signing credentials.
-See the [Google SSO guide](https://wallet.seams.sh/docs/guides/google-sso) for configuration, backend exchange, and revocation.
+See the [Google SSO guide](https://docs.wallet.seams.sh/guides/google-sso) for configuration, backend exchange, and revocation.
 
 ## Supported runtime and entry points
 
@@ -58,9 +58,9 @@ the [repository README](../../README.md#packaged-local-runtime).
 - Verify APAC object hosts and database primaries. The `apac-se` hint requests
   Southeast Asia placement and does not prove physical co-location.
 
-See the [server reference](https://wallet.seams.sh/docs/reference/server),
-[hosted integration](https://wallet.seams.sh/docs/deploy-and-operate/hosted-integration),
-and [release notes](https://wallet.seams.sh/docs/releases).
+See the [server reference](https://docs.wallet.seams.sh/reference/server),
+[hosted integration](https://docs.wallet.seams.sh/deploy-and-operate/hosted-integration),
+and [release notes](https://docs.wallet.seams.sh/releases).
 
 Hosted product services and their operational tooling live in the private
 `seams-monorepo` repository.
@@ -70,4 +70,4 @@ Use `createApplicationAuthAssertion` from `@seams/wallet-server/application-auth
 Configure the issuer and public key through the existing environment trust setting.
 The assertion binds the stable subject, environment, wallet, Seams attempt, purpose, and expiry.
 Fresh wallet-origin owner proof remains required for identity changes and NEAR transactions.
-See the [application-session guide](https://wallet.seams.sh/docs/guides/application-auth).
+See the [application-session guide](https://docs.wallet.seams.sh/guides/application-auth).

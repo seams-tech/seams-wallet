@@ -22,8 +22,8 @@ description: Seamsの各デプロイ環境で、公開ブラウザー設定、�
 
 ## ドキュメントのオリジン {#documentation-origins}
 
-公開ドキュメントのビルドは、ベースパスに`/docs/`を使います。
-`VITE_DOCS_ORIGIN`は、正規URLとサイトマップURLを設定します。本番では`https://wallet.seams.sh/docs`を使ってください。
+公開ドキュメントのビルドは、ベースパスに`/`を使います。
+`VITE_DOCS_ORIGIN`は、正規URLとサイトマップURLを設定します。本番では`https://docs.wallet.seams.sh`を使ってください。
 `VITE_WALLET_SITE_ORIGIN`は、親のWalletサイトへのリンクを指定します。
 ステージングは、既存のHTTPヘッダーで`noindex`を要求する必要があります。
 ローカルプレビューの設定を、本番ビルドに含めないでください。

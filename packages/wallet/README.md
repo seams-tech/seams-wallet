@@ -21,7 +21,7 @@ is `23.0.0`. The application and wallet host must use the same protocol version.
 
 The public API groups calls under `auth`, `connection`, `config`, `events`,
 `registration`, and the chain namespaces. See the
-[browser reference](https://wallet.seams.sh/docs/reference/core).
+[browser reference](https://docs.wallet.seams.sh/reference/core).
 Use `auth.lock()` to end the session while retaining valid durable presignatures.
 
 Custom email unlock uses a host-owned challenge:
@@ -55,7 +55,7 @@ Google and app-passkey login can use the same stable application user ID.
 Use `registration.registerOwnerWallet` for NEAR-only passkey onboarding and `near.prepareOwnerTransaction` for fresh approval of each transaction.
 These operations create no reusable signing authority.
 React read connections expose owner-operation handles separately from reusable signers.
-See the [application-session guide](https://wallet.seams.sh/docs/guides/application-auth).
+See the [application-session guide](https://docs.wallet.seams.sh/guides/application-auth).
 
 ## Bring your own Google authentication
 
@@ -71,7 +71,7 @@ if (!result.ok) throw new Error(result.code);
 Apps that retain the token on their backend use `prepareExternalAuth` and a browser-bound handoff.
 Call `seams.auth.lock()` when the app logs out or switches accounts.
 These sessions grant settings reads. Signing, export, recovery, and security changes retain their owner authentication requirements.
-See the [Google SSO guide](https://wallet.seams.sh/docs/guides/google-sso) for both exchange paths, association, expiry, and revocation.
+See the [Google SSO guide](https://docs.wallet.seams.sh/guides/google-sso) for both exchange paths, association, expiry, and revocation.
 
 ## React quick start
 
@@ -143,7 +143,7 @@ It does not return a private key to the application. `recovery.syncAccount`
 synchronizes a known wallet's account state; the hosted menu handles recovery
 codes and new-factor verification.
 
-See the [compiled examples](https://wallet.seams.sh/docs/examples/) for
+See the [compiled examples](https://docs.wallet.seams.sh/examples/) for
 registration, unlock, signing, linked devices, export, recovery, and theming.
 
 ## Wallet settings
@@ -190,7 +190,7 @@ For APAC, registration and relocation request Southeast Asia placement through
 `apac-se`. The hint does not guarantee a city or move existing objects. Operators
 must verify the actual object locations and database primaries.
 
-Follow the [upgrade guide](https://wallet.seams.sh/docs/deploy-and-operate/hosted-integration)
+Follow the [upgrade guide](https://docs.wallet.seams.sh/deploy-and-operate/hosted-integration)
 before changing the application, wallet assets, or backend. An incompatible open
 client must reload matching assets before retrying.
 
@@ -204,7 +204,7 @@ Mounting `HostedSeamsAuthMenu` starts that download without an additional call.
 Opening the hosted registration view prepares its wallet and passkey challenge.
 `authMenu.prepare()` only downloads code. A direct `registerWallet()` call starts
 registration setup within that call. See the
-[compiled hosted-menu examples](https://wallet.seams.sh/docs/examples/wallet-setup-and-authentication).
+[compiled hosted-menu examples](https://docs.wallet.seams.sh/examples/wallet-setup-and-authentication).
 
 Registration can sign before its completion appears in the Console directory.
 The Gateway retries pending directory publications. Until acknowledgment, the
@@ -259,5 +259,5 @@ local stack and Console Lite example.
 
 Apache-2.0. See the package's `LICENSE.md` and `THIRD_PARTY_NOTICES.md`.
 
-- [Documentation](https://wallet.seams.sh/docs/)
+- [Documentation](https://docs.wallet.seams.sh/)
 - [Repository and issues](https://github.com/seams-tech/seams-wallet)

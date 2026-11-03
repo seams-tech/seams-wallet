@@ -37,7 +37,7 @@ jobs:
         run: |
           pnpm -C apps/docs check:links
           node apps/docs/scripts/check-code-fences.mjs
-      - name: Build VitePress for wallet.seams.sh/docs
+      - name: Build VitePress for docs.wallet.seams.sh
         run: pnpm build:docs
       - uses: actions/upload-artifact@v7
         with:
