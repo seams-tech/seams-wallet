@@ -277,7 +277,7 @@ async function verifyLivePage(
         modelFetchedOnceAcrossReload: true,
         phraseModelFetchedOnceAcrossReload: true,
         incorrectEnrollmentPhraseRejected: true,
-        phraseRecognition: 'real_aurora_int8_bounded_text',
+        phraseRecognition: 'real_citrinet_int8_bounded_text',
         cancelBeforeConfirmPreventsSigning: true,
         ownerReenrollmentReusesDeviceCredential: true,
         speakerMismatchRejectedAtUnlock: true,
@@ -313,7 +313,8 @@ class VoiceAssetRequests {
   activations = 0;
   readonly observe = (request: Request): void => {
     const url = new URL(request.url());
-    if (url.pathname.endsWith('aurora-int8.onnx')) this.phraseModels += 1;
+    // Citrinet is the default phrase model; only the selected model downloads.
+    if (url.pathname.endsWith('citrinet-int8.onnx')) this.phraseModels += 1;
     if (url.pathname.endsWith('redimnet-b1.onnx')) this.models += 1;
     if (url.pathname === '/wallet/voiceid/activate' && request.method() === 'POST')
       this.activations += 1;
@@ -321,7 +322,8 @@ class VoiceAssetRequests {
     if (
       url.pathname.includes('ort-wasm') ||
       url.pathname.endsWith('redimnet-b1.onnx') ||
-      url.pathname.endsWith('aurora-int8.onnx')
+      url.pathname.endsWith('aurora-int8.onnx') ||
+      url.pathname.endsWith('citrinet-int8.onnx')
     ) {
       this.inference.push(url.pathname);
     }
