@@ -4,7 +4,7 @@ import { calibrateMemoryCounters, startMemorySampling } from './ml-dsa-memory-pr
 import { installMlDsaActivation } from '../helpers/mlDsaActivation.e2e.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, createPublicKey, verify } from 'node:crypto';
-import { readFile, writeFile, mkdir, mkdtemp, rm, readdir } from 'node:fs/promises';
+import { cp, readFile, writeFile, mkdir, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
@@ -443,7 +443,12 @@ try {
     };
     profileConnections = [];
   }
-  if (!parallelOnly) await runDurableCases(emptyInput);
+  if (!parallelOnly) {
+    await runDurableCases(emptyInput);
+    observations.storageRollback = await checkStorageRollback();
+    observations.stockGeneration = await checkStockGeneration();
+    observations.idleMaintenance = await checkIdleMaintenance();
+  }
   await waitReady(policy.refill_target_batches);
   await waitForTerminalProducerSettlement();
   await runtime.dispose();
@@ -496,6 +501,120 @@ try {
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
   await rm(persistence, { recursive: true, force: true });
   console.log(JSON.stringify({ artifact, passed: observations.passed, signingMs: observations.signatures.map(signingTime), stalledPeerClosedMs: observations.stalledPeerClosedMs }));
+}
+async function restartRuntime() {
+  await runtime.dispose();
+  runtime = await createRuntime();
+  await runtime.ready;
+}
+function poolDirectories(root) {
+  return ['a', 'b'].map((role) => join(root, `${role}-RouterAbMlDsaPoolDurableObject`));
+}
+async function signRollbackMessage(label) {
+  const message = digest(Array.from(Buffer.from(`ML-DSA rollback ${label}`)));
+  const owner = await admission.mlDsaOwnerFixture(records[0], new Uint8Array(message), label);
+  assert.equal(owner.admitted.kind, 'prepared');
+  const deadline = performance.now() + 120000;
+  while (true) {
+    const response = await admission.dispatchMlDsaOwnerOperation(
+      new OwnerRouterProxy(clients.workers.get('router')),
+      owner.admitted.operation,
+    );
+    assert.equal(response.status, 200, await response.clone().text());
+    const result = await response.json();
+    if (result.status !== 'unavailable') return { message, result };
+    assert.ok(performance.now() < deadline, 'Rollback signing stayed unavailable');
+    await new Promise(waitOneSecond);
+  }
+}
+/// Both role stores return to an earlier state. Router admission must still refuse the
+/// masks that the earlier signature used, because reuse with a second challenge reveals
+/// the key.
+async function checkStorageRollback() {
+  await waitReady(policy.refill_target_batches);
+  await waitForTerminalProducerSettlement();
+  await runtime.dispose();
+  const snapshot = await mkdtemp(join(tmpdir(), 'ml-dsa-rollback-'));
+  for (const directory of poolDirectories(persistence)) {
+    await cp(directory, join(snapshot, directory.split('/').at(-1)), { recursive: true });
+  }
+  runtime = await createRuntime();
+  await runtime.ready;
+  const [before] = await inventories();
+  const signed = await signRollbackMessage('rollback-first');
+  assert.equal(signed.result.operation?.state, 'succeeded', JSON.stringify(signed.result));
+  verifyStandardSignature(records[0].public_key, signed.message, [], signed.result.operation.signature);
+  const [after] = await inventories();
+  const remaining = new Set(after.ready.map(batchId));
+  const spent = before.ready.map(batchId).filter((id) => !remaining.has(id));
+  assert.ok(spent.length > 0, 'The first signature consumed no batch');
+  await waitForTerminalProducerSettlement();
+  await runtime.dispose();
+  for (const directory of poolDirectories(persistence)) {
+    await rm(directory, { recursive: true, force: true });
+    await cp(join(snapshot, directory.split('/').at(-1)), directory, { recursive: true });
+  }
+  await rm(snapshot, { recursive: true, force: true });
+  runtime = await createRuntime();
+  await runtime.ready;
+  const restored = await inventories();
+  for (const inventory of restored) {
+    const ready = inventory.ready.map(batchId);
+    assert.ok(spent.every((id) => ready.includes(id)), 'The restore did not bring spent stock back');
+  }
+  const refused = await signRollbackMessage('rollback-second');
+  assert.equal(refused.result.status, 'existing', JSON.stringify(refused.result));
+  assert.equal(refused.result.operation.state, 'declined', 'A restored mask reached signing');
+  const cleared = await inventories();
+  for (const inventory of cleared) {
+    const stock = inventory.ready.concat(inventory.reserved).map(batchId);
+    assert.ok(spent.every((id) => !stock.includes(id)), 'Refused stock stayed in a role');
+  }
+  await waitReady(policy.minimum_ready_batches);
+  const fresh = await signRollbackMessage('rollback-third');
+  assert.equal(fresh.result.operation?.state, 'succeeded', JSON.stringify(fresh.result));
+  verifyStandardSignature(records[0].public_key, fresh.message, [], fresh.result.operation.signature);
+  return { spent: spent.length, restoredStockOffered: true, refusedOperation: true, freshSignature: true };
+}
+/// A restore of every store cannot bring back a generation held in deployment settings.
+async function checkStockGeneration() {
+  await waitReady(policy.refill_target_batches);
+  await waitForTerminalProducerSettlement();
+  const [before] = await inventories();
+  assert.ok(before.ready.length > 0);
+  await runtime.dispose();
+  bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify({ ...policy, stock_generation: 2 });
+  runtime = await createRuntime();
+  await runtime.ready;
+  const burned = await inventories();
+  const previous = new Set(before.ready.map(batchId));
+  for (const inventory of burned) {
+    assert.ok(inventory.ready.every((id) => !previous.has(batchId(id))), 'Stock of an old generation stayed');
+  }
+  await waitReady(policy.minimum_ready_batches);
+  const signed = await signRollbackMessage('generation-two');
+  assert.equal(signed.result.operation?.state, 'succeeded', JSON.stringify(signed.result));
+  await waitReady(policy.minimum_ready_batches);
+  await waitForTerminalProducerSettlement();
+  await runtime.dispose();
+  bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify(policy);
+  runtime = await createRuntime();
+  await runtime.ready;
+  return { burnedBatches: before.ready.length, signedAfterBurn: true };
+}
+/// A key with a full reserve waits for its next expiry. It must not keep polling.
+async function checkIdleMaintenance() {
+  await waitReady(policy.refill_target_batches);
+  await waitForTerminalProducerSettlement();
+  await new Promise(function waitForLastPass(resolve) { setTimeout(resolve, 35000); });
+  const start = refillAlarmEvents.filter(isControllerPass).length;
+  await new Promise(function waitForQuiet(resolve) { setTimeout(resolve, 65000); });
+  const passes = refillAlarmEvents.filter(isControllerPass).length - start;
+  assert.ok(passes === 0, `An idle key made ${passes} controller passes in 65 s`);
+  return { passesIn65Seconds: passes };
+}
+function isControllerPass(event) {
+  return event.event === 'ml_dsa_refill_controller_v1';
 }
 async function runDurableCases(emptyInput) {
   observations.refillWakeInterleaving = await checkRefillWakeInterleaving();
