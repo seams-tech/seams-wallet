@@ -85,6 +85,9 @@ class SettingsDialog extends Component<DialogProps, SettingsDialogState> {
     this.clearMotion();
     this.dialog?.close();
     this.dialog = dialog;
+    // StrictMode detaches and attaches a new ref once in development. A dialog
+    // that opens after mount gets no second commit, so the attach reopens it.
+    if (dialog && !dialog.open && this.state.dialog.kind !== 'closed') dialog.showModal();
   };
 
   private clearMotion(): void {
