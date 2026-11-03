@@ -8430,6 +8430,27 @@ export async function waitForWalletIframeConfirmationSettlement(page: Page): Pro
   }
 }
 
+/**
+ * Returns the Confirm control of the reviewed request on screen, once a click on it can land.
+ *
+ * The previous request's receipt surface stays mounted with `data-seams-confirm-ready` and no
+ * `inert`, so the surface checks must name the surface that holds the Confirm control. The parent
+ * page also keeps the wallet iframe inert while the review hands off to the wallet. Playwright
+ * checks actionability inside the iframe only, so a click before the handoff ends reaches the
+ * parent dialog and is lost.
+ */
+export async function waitForWalletIframeReviewedConfirm(page: Page): Promise<Locator> {
+  const iframe = page.locator('iframe.seams-wallet-overlay-iframe');
+  const confirm = iframe
+    .contentFrame()
+    .locator(
+      '.seams-confirmation-surface[data-seams-confirm-ready="true"]:not([inert]) button.confirm',
+    );
+  await expect(confirm).toBeEnabled({ timeout: 30_000 });
+  await expect(iframe).not.toHaveJSProperty('inert', true);
+  return confirm;
+}
+
 async function resolveWalletIframeConfirmControl(input: {
   readonly frame: FrameLocator;
   readonly intendedAction: string | null;

@@ -1,5 +1,9 @@
 import { expect, type Page, type TestInfo, type Route } from '@playwright/test';
-import { intendedTest as test, waitForWalletIframeConfirmationSettlement } from './harness';
+import {
+  intendedTest as test,
+  waitForWalletIframeConfirmationSettlement,
+  waitForWalletIframeReviewedConfirm,
+} from './harness';
 import {
   allowBrowserMicrophone,
   enrollBrowserMicrophone,
@@ -122,7 +126,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     await expect(page.getByRole('button', { name: 'Continue to wallet', exact: true })).toHaveCount(
       0,
     );
-    await expect(wallet.locator('.seams-confirmation-surface')).not.toHaveAttribute('inert', '');
+    await waitForWalletIframeReviewedConfirm(page);
     await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute('data-state', 'failed');
     expect(rpc.transactions).toHaveLength(1);
@@ -226,3 +230,20 @@ async function verifyBlockedFeeLookup(page: Page, testInfo: TestInfo): Promise<s
 function readPasskeyRequests(): number {
   return window.voiceIdPasskeyRequests();
 }
+
+test('three reviewed Arc transfers in one passkey session', async ({ harness, page, context }) => {
+  const rpc = new VoiceIdArcRpc();
+  await context.route('https://rpc.testnet.arc.io/**', rpc.handle.bind(rpc));
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  const result = page.getByTestId('reviewed-arc-result');
+  for (const count of [1, 2, 3]) {
+    await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
+    await expect(result).toHaveAttribute('data-state', 'pending');
+    await (await waitForWalletIframeReviewedConfirm(page)).click();
+    await expect(result).toHaveAttribute('data-state', /submitted|failed/, { timeout: 90_000 });
+    await expect(result).toHaveAttribute('data-state', 'submitted');
+    expect(rpc.transactions).toHaveLength(count);
+    expect(rpc.transactions[count - 1].nonce).toBe(count - 1);
+    await waitForWalletIframeConfirmationSettlement(page);
+  }
+});
