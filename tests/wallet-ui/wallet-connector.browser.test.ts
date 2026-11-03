@@ -252,7 +252,7 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
   await meteor.click();
   await page.waitForFunction('window.__meteorAttempts === 2');
   await page.evaluate('window.__lateMeteor = window.__resolveMeteor');
-  await auth.locator('[data-auth-menu-dismiss]').click();
+  await auth.locator('.auth-menu-root').press('Escape');
   await expect.poll(page.evaluate.bind(page, 'window.__connector.outcomes.length')).toBe(1);
   await page.evaluate("window.__connector.render('primary')");
   await expect(meteor).toBeVisible();

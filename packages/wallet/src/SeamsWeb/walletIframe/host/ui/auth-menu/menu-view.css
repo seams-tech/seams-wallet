@@ -363,25 +363,6 @@
   text-align: center;
 }
 
-:where(.seams-auth-menu-surface) .seams-menu-dismiss {
-  position: absolute;
-  inset-inline-end: 12px;
-  top: 8px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: var(--seams-shape-control, 10px);
-  background: transparent;
-  color: var(--seams-colors-textSecondary);
-  cursor: pointer;
-}
-@media (hover: hover) {
-  :where(.seams-auth-menu-surface) .seams-menu-dismiss:hover:not(:disabled) {
-    color: var(--seams-colors-textPrimary);
-  }
-}
 :where(.seams-auth-menu-surface) .seams-menu-expander[open] > summary > svg {
   transform: rotate(90deg);
 }

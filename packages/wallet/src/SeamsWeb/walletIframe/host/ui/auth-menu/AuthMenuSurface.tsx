@@ -71,7 +71,6 @@ import {
 import {
   accountDropdownIcon,
   backIcon,
-  closeIcon,
   fingerprintIcon,
   googleIcon,
   linkFailedIcon,
@@ -339,11 +338,6 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       ),
     ).filter(isAvailableMenuControl);
   }
-
-  private onDismiss = (): void => {
-    if (recoveryNavigationLocked(this.viewModel)) return;
-    this.emitIntent({ kind: 'close', reason: 'close_button' });
-  };
 
   private onBackClick = (): void => {
     this.emitIntent({ kind: 'back' });
@@ -697,16 +691,6 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           {/* The site asking stays put in every view, so switching views never moves it. */}
           <div class="seams-menu-origin">
             <PadlockIcon /> <span>{viewModel.hostname}</span>
-            <button
-              type="button"
-              class="seams-menu-dismiss"
-              aria-label={viewModel.closeLabel}
-              disabled={recoveryNavigationLocked(viewModel)}
-              onClick={this.onDismiss}
-              data-auth-menu-dismiss
-            >
-              {closeIcon()}
-            </button>
           </div>
           <div class="seams-content-switcher">
             <button

@@ -861,14 +861,7 @@ export class AuthMenuSession {
       this.menuLeaving.onfinish = this.finishMenuLeaving;
     }
     const origin = this.surface?.element.querySelector('.seams-menu-origin');
-    if (origin) {
-      const copy = origin.cloneNode(true) as HTMLElement;
-      // A clone carries no listeners: the copied dismiss closes the menu as the original does.
-      copy
-        .querySelector('[data-auth-menu-dismiss]')
-        ?.addEventListener('click', () => this.onIntent({ kind: 'close', reason: 'close_button' }));
-      element.querySelector('.seams-voiceid-unlock-header')?.prepend(copy);
-    }
+    if (origin) element.querySelector('.seams-voiceid-unlock-header')?.prepend(origin.cloneNode(true));
     document.body.append(element);
     this.voiceCapture = element;
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
