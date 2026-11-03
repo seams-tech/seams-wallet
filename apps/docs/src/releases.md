@@ -13,6 +13,7 @@ The browser SDK, server SDK, and VoiceID plugin use **0.45.0**.
 - A wallet whose selected method is VoiceID exports its NEAR Ed25519 and EVM ECDSA keys after one more voice check, bound to that export. It never asks for a passkey or Email OTP. Deploy `@seams/wallet-server` 0.45.0 first: the Router accepts the new `voiceid_device` export authorization from that version.
 - A confirmation card now waits as long as the person needs. Review expiry and cancellation still end the request, and the other steps keep their 60 second limit.
 - A VoiceID session no longer reads as invalid in the exact session state.
+- The hosted auth menu no longer shows a close **×** button. Close it with Escape or by choosing a method.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
