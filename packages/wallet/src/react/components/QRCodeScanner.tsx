@@ -489,27 +489,37 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
           onMouseDown={stopEventPropagation}
         >
           <div className="qr-scanner-error-message">
-            <h2 id="qr-scanner-error-title">
-              <WalletText message="Unable to scan a QR code" />
-            </h2>
-            <p role="alert">
-              <WalletText copy={qrCamera.error} />
-            </p>
-            <button
-              type="button"
-              onClick={qrCamera.startScanning}
-              className="qr-scanner-error-button"
-            >
-              <WalletText message="Try Again" />
-            </button>
-            <button
-              ref={closeButtonRef}
-              type="button"
-              onClick={handleClose}
-              className="qr-scanner-error-button"
-            >
-              <WalletText message="Close" />
-            </button>
+            <div className="qr-scanner-error-status">
+              <span className="qr-scanner-error-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" width="20" height="20" focusable="false">
+                  <rect x="8.75" y="4" width="2.5" height="8.5" rx="1.25" />
+                  <circle cx="10" cy="15.5" r="1.5" />
+                </svg>
+              </span>
+              <h2 id="qr-scanner-error-title">
+                <WalletText message="Unable to scan a QR code" />
+              </h2>
+              <p role="alert">
+                <WalletText copy={qrCamera.error} />
+              </p>
+            </div>
+            <div className="qr-scanner-error-actions">
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={handleClose}
+                className="qr-scanner-error-button qr-scanner-error-button--secondary"
+              >
+                <WalletText message="Close" />
+              </button>
+              <button
+                type="button"
+                onClick={qrCamera.startScanning}
+                className="qr-scanner-error-button qr-scanner-error-button--primary"
+              >
+                <WalletText message="Try again" />
+              </button>
+            </div>
           </div>
         </div>
       </ScannerFrame>

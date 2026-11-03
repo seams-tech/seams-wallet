@@ -434,51 +434,150 @@
   outline-offset: 3px;
 }
 
+/* Camera error: a quiet card in the menu's own surfaces. The status area takes
+   the place of the camera view; the actions sit under it. */
 [data-seams-root].seams-theme-provider .qr-scanner-error-message {
-  background-color: var(--seams-colors-error);
-  color: var(--seams-colors-textButton);
-  padding: 20px;
-  border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: 12px;
+  width: min(100%, 360px);
+  box-sizing: border-box;
+  padding: 16px;
+  color: var(--seams-colors-textPrimary);
+  background: var(--seams-colors-colorBackground, var(--seams-colors-surface));
+  border-radius: var(--seams-shape-card, 16px);
+  box-shadow: var(
+    --seams-auth-menu-shadow,
+    0 1px 3px -2px oklch(0.2 0.02 250 / 0.1),
+    0 18px 42px -22px oklch(0.2 0.02 250 / 0.34)
+  );
+}
+
+[data-seams-root].seams-theme-provider
+  .qr-scanner-modal[data-presentation='embedded']
+  .qr-scanner-error-message {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+[data-seams-root].seams-theme-provider .qr-scanner-error-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 24px 20px;
   text-align: center;
-  max-width: 300px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  background: var(--seams-colors-surface2);
+  border-radius: 12px;
 }
 
-[data-seams-root].seams-theme-provider .qr-scanner-error-message h2 {
-  margin: 0;
-  font-size: 18px;
+/* Same height and corners as the camera view, so the screen keeps its shape. */
+[data-seams-root].seams-theme-provider
+  .qr-scanner-modal[data-presentation='embedded']
+  .qr-scanner-error-status {
+  min-height: 208px;
+  border-radius: 15px;
+}
+
+[data-seams-root].seams-theme-provider .qr-scanner-error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  color: var(--seams-colors-error);
+  background: color-mix(in srgb, var(--seams-colors-error) 14%, transparent);
+  border-radius: 50%;
+}
+
+[data-seams-root].seams-theme-provider .qr-scanner-error-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  stroke: none;
+}
+
+[data-seams-root].seams-theme-provider .qr-scanner-error-status h2 {
+  margin: 14px 0 0;
+  color: var(--seams-colors-textPrimary);
+  font-size: 16px;
+  font-weight: 600;
   line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
-[data-seams-root].seams-theme-provider .qr-scanner-error-message p {
-  line-height: 1.45;
+[data-seams-root].seams-theme-provider .qr-scanner-error-status p {
+  margin: 6px 0 0;
+  max-width: 300px;
+  color: var(--seams-colors-textSecondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+[data-seams-root].seams-theme-provider .qr-scanner-error-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
 }
 
 [data-seams-root].seams-theme-provider button.qr-scanner-error-button {
-  margin-top: 12px;
-  margin-left: 6px;
-  margin-right: 6px;
-  padding: 8px 16px;
-  background-color: var(--seams-colors-surface);
-  color: var(--seams-colors-textPrimary);
-  border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 500;
+  font: inherit;
   font-size: 14px;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  transition: background-color 150ms ease;
 }
 
-[data-seams-root].seams-theme-provider button.qr-scanner-error-button:hover {
-  background-color: var(--seams-colors-surface2);
-  border-color: var(--seams-colors-borderHover);
+[data-seams-root].seams-theme-provider button.qr-scanner-error-button--secondary {
+  color: var(--seams-colors-textPrimary);
+  background: var(--seams-colors-surface2);
+}
+
+[data-seams-root].seams-theme-provider button.qr-scanner-error-button--secondary:hover {
+  background: var(--seams-colors-surface3);
+}
+
+[data-seams-root].seams-theme-provider button.qr-scanner-error-button--primary {
+  color: var(--seams-colors-colorBackground);
+  background: var(--seams-colors-textPrimary);
+}
+
+[data-seams-root].seams-theme-provider button.qr-scanner-error-button--primary:hover {
+  background: color-mix(
+    in srgb,
+    var(--seams-colors-textPrimary) 84%,
+    var(--seams-colors-colorBackground)
+  );
 }
 
 [data-seams-root].seams-theme-provider button.qr-scanner-error-button:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  [data-seams-root].seams-theme-provider button.qr-scanner-error-button {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-seams-root].seams-theme-provider button.qr-scanner-error-button {
+    transition: none;
+  }
 }
 
 @media (max-width: 480px) {
