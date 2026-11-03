@@ -1,9 +1,22 @@
 ---
-title: Release 0.42.0
-description: Application review for owner NEAR operations, review origin and visibility events, and the export keys drawer fix.
+title: Release 0.43.0
+description: VoiceID approves a reviewed NEAR testnet contract call, a quieter QR scanner error, and a confirm card fix.
 ---
 
-# Release 0.42.0
+# Release 0.43.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.43.0**.
+
+- VoiceID now approves one reviewed NEAR testnet contract call (`FunctionCall`), as well as a reviewed transfer. The review and the voice check cover the whole action, including its deposit and gas. Two actions, other action kinds, and calls without a `review` stay rejected. See [VoiceID](/concepts/auth-methods/voiceid#unlock-and-approve-transfers).
+- The VoiceID approval prompt now reads **Approve with VoiceID**.
+- A QR scanner error in **Link a device** now shows in the wallet's neutral style, with **Try again** and **Close** buttons, in place of an orange card.
+- The confirm card no longer gets clipped while a review closes.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.42.0
+
 
 The browser SDK, server SDK, and VoiceID plugin use **0.42.0**.
 
