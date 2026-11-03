@@ -1,10 +1,12 @@
 import { isWalletFlowEvent } from '@/core/types/sdkSentEvents';
+import { parseMlDsaStockProgress } from '@shared/near/mlDsaSigning';
 import type {
   ChildToParentEnvelope,
   ParentToChildEnvelope,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import type {
   ReceiptProgress,
+  ReceiptStock,
   TransactionReceiptModel,
   TransactionReceiptState,
   TransactionReceiptView,
@@ -31,6 +33,8 @@ type Activity = {
   signingHash: string | null;
   /** An owner NEAR operation reports a typed outcome instead of an action result. */
   owner: boolean;
+  /** Each retry dispatches again, so the first wait marks when waiting began. */
+  waitStartedMs: number | null;
   cancelRequest: () => void;
 };
 
@@ -59,6 +63,7 @@ export function beginTransactionActivity(
         retained: false,
         signingHash: null,
         owner: false,
+        waitStartedMs: null,
         progress:
           request.type === 'PM_SIGN_NEP413'
             ? { subject: 'message', state: { kind: 'signing' } }
@@ -79,6 +84,7 @@ export function beginTransactionActivity(
         retained: false,
         signingHash: null,
         owner: true,
+        waitStartedMs: null,
         progress: { subject: 'transaction', state: { kind: 'signing' } },
       };
       return;
@@ -158,6 +164,16 @@ function advanceTransaction(current: Activity, state: TransactionReceiptState): 
     current.progress = { subject: 'transaction', state };
 }
 
+// The receipt only displays the count, so a malformed one is dropped, not thrown.
+function stockField(value: unknown): ReceiptStock | null {
+  if (!value || typeof value !== 'object') return null;
+  try {
+    return parseMlDsaStockProgress(Reflect.get(value, 'stock'));
+  } catch {
+    return null;
+  }
+}
+
 function stringField(value: unknown, key: string): string | null {
   if (!value || typeof value !== 'object') return null;
   const field: unknown = Reflect.get(value, key);
@@ -208,7 +224,14 @@ export function observeTransactionActivity(message: ChildToParentEnvelope): void
             : event.phase === 'signing.wait.capacity'
               ? 'capacity'
               : 'cooldown';
-        advanceTransaction(activity, { kind: 'waiting', reason, message: event.message });
+        activity.waitStartedMs ??= Date.now();
+        advanceTransaction(activity, {
+          kind: 'waiting',
+          reason,
+          message: event.message,
+          sinceMs: activity.waitStartedMs,
+          stock: reason === 'material' ? stockField(event.data) : null,
+        });
         break;
       }
       case 'signing.commit.started':

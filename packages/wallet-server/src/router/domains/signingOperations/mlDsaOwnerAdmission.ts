@@ -291,13 +291,29 @@ export async function prepareMlDsaSessionOwnerOperation(
   );
 }
 
+/** The Router names one published key by these fields. */
+export async function mlDsaRouterKeyScope(target: MlDsaSigningTarget) {
+  const publicKey = base64UrlDecode(target.key.registeredPublicKeyB64u);
+  return {
+    wallet: {
+      org: target.identity.orgId,
+      project: target.identity.projectId,
+      environment: target.identity.envId,
+      wallet: target.identity.walletId,
+    },
+    key_id: target.key.mlDsaSigningKeyId,
+    epoch: target.key.materialEpoch,
+    public_key_digest: Array.from(base64UrlDecode(await sha256DigestB64u(publicKey))),
+    schedule_digest: Array.from(base64UrlDecode(target.scheduleDigest)),
+  };
+}
+
 async function preparedOperation(
   target: MlDsaSigningTarget,
   intent: MlDsaTransactionIntent,
   operation: CapabilityOperationId,
   expiresAtMs: number,
 ): Promise<PreparedMlDsaOwnerOperation> {
-  const publicKey = base64UrlDecode(target.key.registeredPublicKeyB64u);
   const message = base64UrlDecode(intent.transactionHash);
   const operationId = await sha256BytesUtf8(
     `seams/ml-dsa/authorized-operation/v1|${alphabetizeStringify({
@@ -309,18 +325,7 @@ async function preparedOperation(
   return new PreparedMlDsaOwnerOperationProof(
     {
       request: {
-        key: {
-          wallet: {
-            org: target.identity.orgId,
-            project: target.identity.projectId,
-            environment: target.identity.envId,
-            wallet: target.identity.walletId,
-          },
-          key_id: target.key.mlDsaSigningKeyId,
-          epoch: target.key.materialEpoch,
-          public_key_digest: Array.from(base64UrlDecode(await sha256DigestB64u(publicKey))),
-          schedule_digest: Array.from(base64UrlDecode(target.scheduleDigest)),
-        },
+        key: await mlDsaRouterKeyScope(target),
         operation: Array.from(operationId),
         message_digest: Array.from(base64UrlDecode(await sha256DigestB64u(message))),
         context_digest: Array.from(base64UrlDecode(await sha256DigestB64u(new Uint8Array()))),

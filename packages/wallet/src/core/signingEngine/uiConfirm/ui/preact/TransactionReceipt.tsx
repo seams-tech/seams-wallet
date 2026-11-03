@@ -7,6 +7,7 @@ import {
 import { walletText, walletDisplayText } from '@/core/ui/messages';
 import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
 import {
   receiptDescription,
   receiptHeading,
@@ -206,6 +207,7 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
             <p>
               <WalletText copy={receiptDescription(receipt)} />
             </p>
+            {transaction?.kind === 'waiting' && <ReceiptWait state={transaction} />}
           </div>
         </div>
         <ReviewAmount model={data.model} compact />
@@ -355,9 +357,31 @@ function assertNeverDisplayChain(chain: never): never {
   throw new Error(`Unexpected display chain: ${String(chain)}`);
 }
 
+/** Seconds since the wait began, and how much signing material is ready. */
+function ReceiptWait({ state }: { state: Extract<TransactionReceiptState, { kind: 'waiting' }> }) {
+  const [nowMs, setNowMs] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const seconds = Math.max(0, Math.floor((nowMs - state.sinceMs) / 1000));
+  const elapsed = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  return (
+    <p class="seams-receipt-wait">
+      {state.stock && (
+        <span>
+          <WalletText copy={`${state.stock.ready} of ${state.stock.needed} ready`} />
+        </span>
+      )}
+      <time>{elapsed}</time>
+    </p>
+  );
+}
+
 function ReceiptSteps({ state }: { state: TransactionReceiptState }) {
   const locale = useWalletLocale();
   const completedStages = receiptCompletedStages({ subject: 'transaction', state });
+  const stock = state.kind === 'waiting' ? state.stock : null;
   return (
     <div class="seams-receipt-steps" aria-label={walletText(locale, 'Transaction progress')}>
       <ReceiptStep
@@ -366,6 +390,7 @@ function ReceiptSteps({ state }: { state: TransactionReceiptState }) {
         activeLabel="Signing"
         complete={completedStages >= 1}
         active={state.kind === 'signing' || state.kind === 'waiting'}
+        fill={stock && stock.ready > 0 ? stock.ready / stock.needed : null}
       />
       <ReceiptStep
         stage="broadcast"
@@ -450,13 +475,23 @@ function ReceiptStep(props: {
   activeLabel: string;
   complete: boolean;
   active: boolean;
+  /** A known share of an active stage. The track fills to it instead of sweeping. */
+  fill?: number | null;
 }) {
-  const state = props.complete ? 'complete' : props.active ? 'active' : 'waiting';
+  const filling = props.active && !props.complete && props.fill != null;
+  const state = props.complete
+    ? 'complete'
+    : filling
+      ? 'filling'
+      : props.active
+        ? 'active'
+        : 'waiting';
   return (
     <span
       class="seams-receipt-step"
       data-stage={props.stage}
       data-state={state}
+      style={filling ? { '--seams-receipt-fill': String(props.fill) } : undefined}
       aria-current={props.active ? 'step' : undefined}
     >
       <span class="seams-receipt-track" aria-hidden="true" />

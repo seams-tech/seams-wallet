@@ -503,6 +503,9 @@ pub(super) async fn handle_strict_router_fetch_v1(
         if path == crate::ml_dsa::workers::STATUS_PATH {
             return crate::ml_dsa::workers::handle_status(request, &env).await;
         }
+        if path == crate::ml_dsa::workers::STOCK_PATH {
+            return crate::ml_dsa::workers::handle_stock(request, &env).await;
+        }
         if path == crate::ml_dsa::workers::ADMIT_PATH {
             return crate::ml_dsa::workers::handle_admit(request, &env).await;
         }

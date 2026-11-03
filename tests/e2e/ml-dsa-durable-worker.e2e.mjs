@@ -420,9 +420,19 @@ try {
   const emptyResult = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
   assert.equal(emptyResult.status, 'unavailable');
   assert.equal(emptyResult.reason, 'empty_pool');
+  assert.equal(emptyResult.stock.needed, policy.minimum_ready_batches);
+  assert.ok(emptyResult.stock.ready < emptyResult.stock.needed, JSON.stringify(emptyResult.stock));
   const refillStarted = performance.now();
   observations.activationAndInstallationMs = refillStarted - initialRefillStarted;
   await waitReady(policy.refill_target_batches);
+  // A full reserve reports every needed batch. The count never exceeds what admission needs.
+  const stockKey = { key: records[0].activation.key };
+  assert.deepEqual(await post('router', '/router-ab/ml-dsa/stock', stockKey, gatewayAuth), {
+    ready: policy.minimum_ready_batches,
+    needed: policy.minimum_ready_batches,
+  });
+  assert.equal((await raw('router', '/router-ab/ml-dsa/stock', stockKey, serviceAuth)).status, 403);
+  observations.emptyPoolStock = emptyResult.stock;
   const storedPools = await passiveInventories();
   observations.maximumPreparedChunkCounts = storedPools.map(maximumChunks);
   for (const chunks of observations.maximumPreparedChunkCounts) {

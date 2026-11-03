@@ -94,10 +94,12 @@ function publishSigningWait(
 ): void {
   let phase: SigningEventPhase;
   let message: string;
+  let data: Record<string, unknown> | undefined;
   switch (retry.reason) {
     case 'empty_pool':
       phase = SigningEventPhase.STEP_10_WAITING_FOR_MATERIAL;
       message = 'Signing will start automatically.';
+      data = retry.stock ? { stock: retry.stock } : undefined;
       break;
     case 'service_capacity':
       phase = SigningEventPhase.STEP_10_WAITING_FOR_CAPACITY;
@@ -110,17 +112,18 @@ function publishSigningWait(
     case 'running':
       return;
     default:
-      return assertNeverRetryReason(retry.reason);
+      return assertNeverRetry(retry);
   }
   emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
     phase,
     message,
+    ...(data ? { data } : {}),
     status: 'running',
     interaction: { kind: 'none', overlay: 'none' },
   });
 }
-function assertNeverRetryReason(reason: never): never {
-  throw new Error(`Unsupported signing wait: ${String(reason)}`);
+function assertNeverRetry(retry: never): never {
+  throw new Error(`Unsupported signing wait: ${JSON.stringify(retry)}`);
 }
 
 export async function signMlDsaNearTransaction(

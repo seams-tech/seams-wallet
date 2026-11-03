@@ -7,6 +7,7 @@ import {
   parseMlDsaSignedTransaction,
   parseMlDsaSigningRequest,
   parseMlDsaTransactionInspection,
+  parseMlDsaStockProgress,
   type MlDsaSigningPreparation,
   type MlDsaSigningPreparationOutcome,
   type MlDsaSigningOutcome,
@@ -132,7 +133,13 @@ export async function executeMlDsaNearSigning(input: {
     case 'refused':
       return parseMlDsaSigningFailure(raw);
     case 'retry': {
-      const retry = exactRecord(raw, ['kind', 'reason', 'retryAfterMs'], 'ML-DSA signing retry');
+      const retry = exactRecord(
+        raw,
+        raw.reason === 'empty_pool'
+          ? ['kind', 'reason', 'retryAfterMs', 'stock']
+          : ['kind', 'reason', 'retryAfterMs'],
+        'ML-DSA signing retry',
+      );
       if (
         (retry.reason !== 'empty_pool' &&
           retry.reason !== 'service_capacity' &&
@@ -143,6 +150,13 @@ export async function executeMlDsaNearSigning(input: {
         retry.retryAfterMs < 0
       )
         throw new Error('Invalid ML-DSA retry');
+      if (retry.reason === 'empty_pool')
+        return {
+          kind: 'retry',
+          reason: 'empty_pool',
+          retryAfterMs: retry.retryAfterMs,
+          stock: retry.stock === null ? null : parseMlDsaStockProgress(retry.stock),
+        };
       return { kind: 'retry', reason: retry.reason, retryAfterMs: retry.retryAfterMs };
     }
     case 'signed': {

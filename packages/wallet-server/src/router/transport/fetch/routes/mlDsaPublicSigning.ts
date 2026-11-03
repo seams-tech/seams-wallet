@@ -124,6 +124,7 @@ export async function handlePublicMlDsaSigning(
   const walletId =
     command.kind === 'inventory' ? command.request.preparation.walletId : command.request.walletId;
   if (walletId !== pathWalletId) return failure(403, 'unauthorized', 'The path wallet differs');
+  const background = ctx.runtime.kind === 'background' ? ctx.runtime.waitUntil : undefined;
   try {
     let outcome;
     switch (command.kind) {
@@ -156,6 +157,7 @@ export async function handlePublicMlDsaSigning(
             origin,
             { kind: 'email_otp', token },
             ctx.service,
+            background,
           );
         } else {
           outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigning(
@@ -163,6 +165,7 @@ export async function handlePublicMlDsaSigning(
             origin,
             { kind: 'passkey' },
             ctx.service,
+            background,
           );
         }
         break;
