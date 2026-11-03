@@ -47,11 +47,17 @@ const CSS = `
   border: 0;
   border-radius: var(--seams-shape-control, 10px);
   background: transparent;
-  color: var(--seams-colors-textPrimary, #eff2f3);
-  font: inherit;
-  font-size: 24px;
-  line-height: 1;
+  color: var(--seams-colors-textSecondary, #9cabb3);
   cursor: pointer;
+}
+.seams-voiceid-unlock-header .seams-menu-dismiss svg {
+  width: 20px;
+  height: 20px;
+}
+@media (hover: hover) {
+  .seams-voiceid-unlock-header .seams-menu-dismiss:hover {
+    color: var(--seams-colors-textPrimary, #eff2f3);
+  }
 }
 .seams-voiceid-unlock-header .seams-menu-dismiss:focus-visible {
   outline: 2px solid var(--seams-colors-primary, currentColor);

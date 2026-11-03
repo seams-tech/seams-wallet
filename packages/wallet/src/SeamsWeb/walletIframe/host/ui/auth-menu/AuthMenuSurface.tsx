@@ -71,6 +71,7 @@ import {
 import {
   accountDropdownIcon,
   backIcon,
+  closeIcon,
   fingerprintIcon,
   googleIcon,
   linkFailedIcon,
@@ -704,7 +705,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               onClick={this.onDismiss}
               data-auth-menu-dismiss
             >
-              <span aria-hidden="true">×</span>
+              {closeIcon()}
             </button>
           </div>
           <div class="seams-content-switcher">

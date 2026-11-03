@@ -101,6 +101,12 @@ export function backIcon(): ComponentChildren {
   return strokeIcon('18', '2.25', <path d="m15 18-6-6 6-6" />);
 }
 
+// The SDK's shared close cross: the same path and weight as the VoiceID and
+// transaction review close buttons.
+export function closeIcon(): ComponentChildren {
+  return strokeIcon('20', '1.75', <path d="M6 6l12 12M18 6 6 18" />);
+}
+
 export function linkDeviceIcon(): ComponentChildren {
   return strokeIcon(
     '18',
