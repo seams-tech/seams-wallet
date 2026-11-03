@@ -11,6 +11,7 @@ import {
 } from '../../stepUpConfirmation/channel/confirmTypes';
 import type { EmailOtpConfirmPrompt } from '../../stepUpConfirmation/types';
 import { buildNearDisplayModel } from '../../chains/near/display';
+import type { NearTokenMetadataByContract } from '../../chains/near/tokenTransfers';
 
 export function mlDsaConfirmationRequest(
   input: MlDsaNearTransactionInput,
@@ -21,6 +22,7 @@ export function mlDsaConfirmationRequest(
     | { readonly kind: 'none' }
     | { readonly kind: 'email_otp'; readonly prompt: EmailOtpConfirmPrompt },
   preferences: ConfirmationConfig,
+  tokenMetadata: NearTokenMetadataByContract,
 ): UserConfirmRequest {
   const actor = approval.actor;
   const displayModel = buildNearDisplayModel({
@@ -28,6 +30,7 @@ export function mlDsaConfirmationRequest(
     signerLabel: 'ML-DSA-65',
     signerAccount: String(input.nearAccount.accountId),
     intentDigest: approval.challengeB64u,
+    tokenMetadata,
   });
   const walletId = String(input.walletSession.walletId);
   const nearAccountId = String(input.nearAccount.accountId);

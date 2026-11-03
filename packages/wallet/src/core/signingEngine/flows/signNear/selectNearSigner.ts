@@ -17,6 +17,8 @@ import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import { readDefaultNearSigner } from '../../walletCustody/nearSignerPreferences';
 import { readNearSignerMetadata } from '../../walletCustody/nearSignerMetadata';
 import { buildNearDisplayModel } from '../../chains/near/display';
+import { resolveNearTokenMetadata } from '../../chains/near/tokenTransfers';
+import { resolveNearNetwork } from '@/core/config/chains';
 import { mountConfirmUI, type MountedConfirmUIHandle } from '../../uiConfirm/ui/confirm-ui';
 
 type Choice = {
@@ -120,7 +122,15 @@ export async function selectNearTransactionSigner(
       title: 'Review transaction',
       body: 'Approve this transaction.',
     },
-    model: buildNearDisplayModel({ txSigningRequests, signerAccount: input.nearAccount.accountId }),
+    model: buildNearDisplayModel({
+      txSigningRequests,
+      signerAccount: input.nearAccount.accountId,
+      tokenMetadata: await resolveNearTokenMetadata({
+        nearClient: deps.nearClient,
+        network: resolveNearNetwork(deps.configs.network.chains),
+        txSigningRequests,
+      }),
+    }),
     txSigningRequests,
     uiMode: config.uiMode === 'drawer' ? 'drawer' : 'modal',
     securityContext: { rpId: resolveWalletRpId(deps.configs) },

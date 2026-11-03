@@ -46,6 +46,8 @@ import {
   ml_dsa65_near_key_identifiers,
   threshold_ed25519_decode_signed_near_tx_borsh,
 } from '../../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
+import { resolveNearTokenMetadata } from '../../chains/near/tokenTransfers';
+import { resolveNearNetwork } from '@/core/config/chains';
 
 export type MlDsaNearTransactionInput = {
   readonly walletSession: WalletSessionRef;
@@ -234,6 +236,11 @@ export async function signMlDsaNearTransaction(
             ),
           }
         : { kind: 'none' as const };
+    const tokenMetadata = await resolveNearTokenMetadata({
+      nearClient: deps.nearClient,
+      network: resolveNearNetwork(deps.configs.network.chains),
+      txSigningRequests: [transactionInput],
+    });
     assertSigningNotCancelled(input.shouldAbort);
     const decision = await deps.confirm.requestUserConfirmation(
       mlDsaConfirmationRequest(
@@ -243,6 +250,7 @@ export async function signMlDsaNearTransaction(
         transactionInput,
         authPrompt,
         deps.confirm.getContext().userPreferencesManager.getConfirmationConfig(),
+        tokenMetadata,
       ),
     );
     if (!decision.confirmed)
