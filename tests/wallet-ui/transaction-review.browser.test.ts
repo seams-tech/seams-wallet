@@ -368,7 +368,10 @@ async function expectNearFailure(
 ): Promise<void> {
   await expect
     .poll(() => page.evaluate((index) => (window as any).reviewResults[index], index))
-    .toEqual({ kind: 'result', value: { success: false, kind, error } });
+    .toEqual({
+      kind: 'result',
+      value: { success: false, kind, error, cause: { kind: 'unclassified' } },
+    });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -566,6 +569,7 @@ test('one hook locks, unlocks, provisions NEAR, and replaces disposed review own
     success: false,
     kind: 'not_submitted',
     error: 'This useSeams wallet owner has been disposed',
+    cause: { kind: 'unclassified' },
   });
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
@@ -1158,6 +1162,7 @@ test('all transaction methods forward one core failure and preserve callback own
                 success: false,
                 kind: 'submission_unknown',
                 error: 'Core signing rejected',
+                cause: { kind: 'unclassified' },
               },
             }
           : { kind: 'error', message: 'Core signing rejected' },
@@ -1220,11 +1225,13 @@ test('missing and duplicate hosts reject before dispatch and disposed methods st
       success: false,
       kind: 'not_submitted',
       error: 'Wrap this useSeams component in TransactionReviewHost inside SeamsWebProvider',
+      cause: { kind: 'unclassified' },
     },
     disposed: {
       success: false,
       kind: 'not_submitted',
       error: 'This useSeams wallet owner has been disposed',
+      cause: { kind: 'unclassified' },
     },
     dispatches: 0,
   });
