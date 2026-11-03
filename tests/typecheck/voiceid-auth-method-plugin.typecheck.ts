@@ -69,11 +69,6 @@ void mixedCapture;
 import type { SeamsConfigsInput } from '../../packages/wallet/src/core/types/seams';
 import type { VerifiedVoiceIdSessionProof } from '../../packages/wallet-server/src/authorization/voiceIdDeviceProof';
 import type {
-  AuthMethodApprovalResult,
-  AuthMethodReviewPolicy,
-  AuthMethodReviewApproval,
-} from '../../packages/wallet/src/core/authMethods/hostPlugin';
-import type {
   WalletAuthMethodHostPlugin,
   AuthMethodSessionInstaller,
 } from '../../packages/wallet/src/core/authMethods/hostPlugin';
@@ -103,17 +98,6 @@ void unknownMethod;
 // @ts-expect-error A browser callback cannot cross into the wallet iframe.
 const callbackPlugin: WalletAuthMethodPlugin = { kind: 'voiceid', load: async () => ({}) };
 void callbackPlugin;
-
-declare const approval: AuthMethodReviewApproval;
-const requiredPolicy: AuthMethodReviewPolicy = { kind: 'required', approval };
-// @ts-expect-error Required policy needs an approval implementation.
-const missingApproval: AuthMethodReviewPolicy = { kind: 'required' };
-const approvalFields = { approval };
-// @ts-expect-error Disabled policy rejects approval fields, including broad spreads.
-const disabledWithApproval: AuthMethodReviewPolicy = { kind: 'disabled', ...approvalFields };
-void requiredPolicy;
-void missingApproval;
-void disabledWithApproval;
 
 declare const hostPlugin: WalletAuthMethodHostPlugin;
 declare const walletId: WalletId;
@@ -174,35 +158,6 @@ const crossedRuntime = { ...runtimePasskey, voiceIdAuthority: voiceAuthority };
 void (crossedRuntime satisfies ExactEcdsaRuntimeAuthBinding);
 
 
-// @ts-expect-error A retry must provide an actionable message.
-const missingRetryMessage: AuthMethodApprovalResult = { kind: 'retry' };
-const retryFields = { message: 'Try again.' };
-// @ts-expect-error Approval cannot include a retry message through a spread.
-const approvedWithRetry: AuthMethodApprovalResult = { kind: 'approved', ...retryFields };
-void missingRetryMessage;
-void approvedWithRetry;
-
-// @ts-expect-error A review approval must supply its trusted host capture surface.
-const missingCaptureSurface: AuthMethodReviewApproval = {
-  messages: approval.messages,
-  prepare: approval.prepare,
-  approve: approval.approve,
-  consume: approval.consume,
-};
-void missingCaptureSurface;
-// @ts-expect-error Capture UI is a trusted DOM element, not raw markup.
-const captureMarkup: AuthMethodReviewApproval = { ...approval, surface: '<button>Record</button>' };
-void captureMarkup;
-
-// @ts-expect-error Preparation must finish before approval can start.
-const missingPreparation: AuthMethodReviewApproval = {
-  messages: approval.messages,
-  surface: approval.surface,
-  approve: approval.approve,
-  consume: approval.consume,
-};
-void missingPreparation;
-
 import type { VoiceCaptureEvent } from '../../packages/voiceid/src/browser/microphone';
 declare const captureStream: MediaStream;
 // @ts-expect-error The trace draws recorder frames; no capture event carries the stream.
@@ -223,12 +178,6 @@ const activityWithStream: VoiceCaptureEvent = {
 void listeningWithStream;
 void processingWithStream;
 void activityWithStream;
-
-import type { ConfirmationContentModel } from '../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent';
-declare const registrationContent: Extract<ConfirmationContentModel, { kind: 'registration' }>;
-const registrationWithCapture = { ...registrationContent, capture: approval.surface };
-// @ts-expect-error Registration cannot acquire a transaction capture surface through a spread.
-void (registrationWithCapture satisfies ConfirmationContentModel);
 
 // @ts-expect-error A completed measurement needs its exact capture metrics.
 const missingCaptureMetrics: VoiceCaptureEvent = { kind: 'measured' };

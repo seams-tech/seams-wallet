@@ -34,7 +34,6 @@ export { SeamsWeb } from '../SeamsWeb';
 export type {
   WalletAuthMethodPlugin,
   VoiceIdAuthMethodPlugin,
-  VoiceIdConfirmationOptions,
 } from '../core/authMethods/plugins';
 
 // === Boundary references (exact subject + target for every wallet operation) ===

@@ -336,12 +336,7 @@ function prepareReviewBoundNearMaterial(
   admission: NonNullable<ReturnType<typeof reviewAdmissionForBinding>> | null,
   input: Parameters<NearSigningApiDeps['prepareNearEd25519YaoMaterialBoundary']>[0],
 ): ReturnType<NearSigningApiDeps['prepareNearEd25519YaoMaterialBoundary']> {
-  const auth = input.materialIdentity ? input.materialIdentity.auth : input.auth;
-  const method = signingLaneAuthMethod(auth);
-  if (method === 'voiceid' && !admission) {
-    throw new Error('VoiceID requires a reviewed NEAR transaction.');
-  }
-  admission?.assertAuthMethodPolicy(method);
+  admission?.assertPending();
   return prepare(input);
 }
 

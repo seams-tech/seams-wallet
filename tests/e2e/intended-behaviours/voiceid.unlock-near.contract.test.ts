@@ -19,7 +19,7 @@ import {
 import type {} from '../../intended-app/src/voiceIdHelpers';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import type { Route } from '@playwright/test';
-import { beginDirectVoiceUnlock } from './voiceid-selection';
+import { beginDirectVoiceUnlock, microphoneCount } from './voiceid-selection';
 
 test('VoiceID issues a fresh Wallet Session and signs a reviewed NEAR transfer', verifyUnlock);
 test.use(voiceIdBrowserAudio);
@@ -145,18 +145,14 @@ async function verifyUnlock(
     'available',
   );
   await evidence.observe(context);
-  await wallet.locator('body').evaluate(useNaturalPhrases);
+  const capturesBeforeSigning = await wallet.locator('body').evaluate(microphoneCount);
   await startReviewedTransfer(page);
   await wallet.locator('.seams-confirmation-surface').screenshot({
     path: testInfo.outputPath('near-logo-review.png'),
   });
+  // A VoiceID session signs like any other session: the confirm click, no voice check.
   await wallet.locator('button.confirm').click();
-  const confirmationPhrase = await wallet
-    .locator('[data-voiceid-phrase]')
-    .getAttribute('data-voiceid-phrase');
-  expect(['confirm this transfer today', 'please send this transfer now']).toContain(
-    confirmationPhrase,
-  );
+  await expect(wallet.locator('[data-voiceid-phrase]')).toHaveCount(0);
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
     'data-state',
     'submitted',
@@ -169,6 +165,7 @@ async function verifyUnlock(
   });
   expect(evidence.transfers).toHaveLength(1);
   expect(evidence.snapshot().finalizations).toBeGreaterThan(0);
+  expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(capturesBeforeSigning);
   const budget = await harness.readCurrentWalletSessionStatus();
   expect(budget.status).toBe('active');
   const report = testInfo.outputPath('voiceid-unlock-near.json');
@@ -191,8 +188,7 @@ async function verifyUnlock(
         enrollmentCaptures,
         directUnlockRequiredWalletClick: true,
         naturalSpeechUnlocked: true,
-        confirmationCommand: 'Send one yoctoNEAR to this wallet',
-        confirmationPhrase,
+        signingVoiceCheck: 'none',
         qualityRetries: {
           shortAudioRejected: true,
           quietAudioRejected: true,
@@ -365,10 +361,6 @@ async function phraseAudio(page: Page): Promise<Buffer> {
 
 function useNextDelayedAudio(_: HTMLElement, base64: string): void {
   window.voiceIdNextDelayedAudio(base64);
-}
-
-function useNaturalPhrases(): void {
-  window.voiceIdUseNaturalPhrases();
 }
 
 class DelayedPreparationAsset {

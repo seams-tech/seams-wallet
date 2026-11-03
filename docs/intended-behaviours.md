@@ -179,10 +179,10 @@ Back restores the menu and stops capture. Retry retains the chosen voice method.
 menu cancels capture. Successful voice unlock reports `method: 'voiceid'` through
 the authenticated outcome; VoiceID is invalid as a wallet-registration outcome.
 
-Voice-selected reviewed transactions show “Confirm with VoiceID” before replacing the review
-with the existing minimal phrase and live waveform. Passkey and Email OTP sessions
-retain their own approval paths. These APIs use the current Wallet iframe
-protocol, version 21.0.0.
+VoiceID is an authentication method like a passkey. A voice unlock opens a normal
+signing session. That session signs every operation a passkey session can sign,
+on every chain and network, with the same confirmation UI and the same session
+uses and expiry. A signature needs no further voice check.
 
 Applications import `voiceIdAuthMethod` from the optional `@seams/voiceid` package
 and enable it with `authMethods: [voiceIdAuthMethod()]`. The descriptor
@@ -197,13 +197,10 @@ authentication method from its trusted authority selection. Passkey and Email OT
 signing bypass VoiceID policy, UI, model, and inference-runtime loading, even when
 VoiceID is available or enrolled. Enrollment preserves the owner's current method.
 Unlocking with VoiceID selects its method; unlocking with a passkey selects passkey.
-A VoiceID-selected wallet requires the enabled plugin and one reviewed operation: a NEAR testnet
-transfer or contract call with exactly one action, or an Arc testnet transfer. The review and the
-voice operation hash cover the complete action, including its deposit and gas.
-Browser enforcement: `tests/wallet-ui/voiceid-approval.browser.test.ts`.
-The prepared signing method must match the admitted review policy. Switching between
-voice and built-in methods during preparation requires another review; a VoiceID lane cannot sign through a review without voice
-approval or through an unreviewed path.
+A VoiceID session signs only while VoiceID stays turned on for that wallet. When the
+session needs fresh authentication, the owner unlocks with VoiceID again; VoiceID
+has no in-flow step-up yet.
+Contract enforcement: `tests/e2e/intended-behaviours/passkey.voiceid-selection.contract.test.ts`.
 
 
 The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the
@@ -216,7 +213,7 @@ maximum. The quality precheck requires 600 ms of qualifying audio; phrase and
 speaker checks still decide approval. The level check counts 10 ms frames
 with RMS of at least 0.006; this is an audio-energy proxy, not speech recognition.
 Insufficient audio does not reach phrase matching, speaker matching, or device-key use.
-Enrollment, unlock, and signing use the same mono capture constraints with echo
+Enrollment and unlock use the same mono capture constraints with echo
 cancellation, noise suppression, and automatic gain control. After usable audio,
 VoiceID remembers the concrete microphone in Wallet-origin storage. Later captures
 request that device explicitly, including after reload or a system-default change.
@@ -348,7 +345,7 @@ and require separate live accuracy validation. The experimental speaker threshol
 Generated trading prompts use four or five words. User-selected quotes remain available.
 Server authorization, session budgets, and signing admission remain unchanged.
 
-VoiceID enrollment, unlock, and signing share a thin flowing ribbon and the SDK
+VoiceID enrollment and unlock share a thin flowing ribbon and the SDK
 VoiceBeam glow. They consume the recorder's activity events without opening a
 second microphone or audio graph. Cancel disposes both visuals with the prompt.
 Reduced motion suppresses traveling ribbon motion. The visuals remain inside the
@@ -440,29 +437,13 @@ volatile signing state. The plugin erases its factor buffer after installation.
 Missing custody requires another owner unlock. Reload requires a fresh VoiceID
 unlock. Key export retains its supported owner methods.
 
-### Reviewed NEAR and Arc transfers
+### Signing after a VoiceID unlock
 
-This prototype supports one reviewed NEAR testnet transfer or one Arc testnet
-native EIP-1559 transfer per request. Arc must be configured with chain ID 5042002.
-The request requires an address recipient, empty calldata, and an empty access list.
-Mainnet, Tempo, token transfers, contract calls, contract creation, and reviews
-without an expiry fail when the selected method is VoiceID.
-
-Per-call `options.voiceId.confirmationCommand` selects a short action-only challenge.
-The leading English verb selects sale (`sell`), purchase (`buy`), swap (`swap`),
-or transfer (`send`/`transfer`). For example, “Sell 100 NEAR for USDC at $5.5”
-selects a sale phrase such as “Please confirm this sale.” Amounts, asset names,
-and prices remain in the full review. Other wording uses the default challenges.
-The configuration accepts only `confirmationCommand`, a nonempty string of at
-most 256 characters without control characters. Invalid configuration rejects
-before capture. The application cannot set the final challenge or thresholds.
-Each retry chooses a different phrase within the selected family. Enrollment and
-unlock use 31 default challenges. All 39 phrases are recognized
-against the same bank, including eight action-specific phrases. The same audio
-checks phrase and speaker, and the speaker threshold is 0.45.
-This option changes copy only. Unsupported operations remain unsupported. The
-Wallet freezes and hashes the supplied command as part of the complete request,
-so it cannot carry approval to a different request. No provider or model is added.
+A VoiceID session signs like a passkey session on every chain and network:
+transfers, contract calls, delegate actions, and message signing. Signing uses the
+ordinary confirmation and runs no voice capture. Enrollment and unlock use the 31
+default challenges. The same audio checks phrase and speaker, and the speaker
+threshold is 0.45. No provider or model is added.
 
 VoiceID unlock also supports ECDSA-only wallets. After the factor opens the existing
 seed envelope, the installer resolves the exact authorized ECDSA material activation.
@@ -481,21 +462,11 @@ The [Arc contract](../tests/e2e/intended-behaviours/voiceid.unlock-arc.contract.
 uses real browser voice inference and ECDSA MPC with deterministic Arc RPC responses.
 It verifies the signed self-transfer bytes and cancellation of a second review.
 A live-chain receipt is separate evidence.
-The Wallet freezes and hashes the complete request and execution configuration.
-Confirm replaces the review contents with the plugin's minimal voice prompt and
-starts browser speaker and phrase checks for that review. The Wallet retains the
-original review binding and deadline. Cancel from the prompt stops capture and
-prevents signing. A mismatch returns to the original review. Either mismatch
-keeps the review open, shows the failure, and requires another Confirm click.
-A retry displays a new phrase while retaining the original review and deadline.
-No signature or broadcast occurs for a mismatch. Each retry checks the original
-review deadline. Cancellation, lock,
-expiry, execution changes, and plugin changes invalidate pending approval.
-The signing boundary consumes the approval once. Existing authorization, session,
-quota, and MPC checks still apply.
+A VoiceID session confirms each operation with the ordinary Confirm. No voice capture
+runs during signing. Existing authorization, session, quota, and MPC checks apply.
 
 A broadcast failure retries identical signed bytes without another MPC signature.
-A subsequent review requires fresh approval. Cancelling it prevents another
+A subsequent review requires a new confirmation. Cancelling it prevents another
 signature or broadcast. Unavailable broadcast replies establish no on-chain result.
 
 ### Repeatable evidence
@@ -563,15 +534,13 @@ API version. Missing installation fails explicitly. App input cannot select code
 The plugin receives scoped activation, unlock, owner-confirmation, and enrollment-storage operations.
 Wallet core owns authority checks, device persistence, custody resealing, server exchanges, and session installation.
 The plugin cannot import database managers, database schemas, session credential stores, or custody worker transports from the host API.
-Core validates transaction requests and supplies the plugin with a bounded review identity and phrase-family selection.
 Every host route declares its signing policy. Selected-method signing and fresh-owner operations have separate request types.
-New protocol messages require an explicit routing decision. New selected-method signing requests must also satisfy the exhaustive VoiceID policy switch.
+New protocol messages require an explicit routing decision.
 New authentication methods and Tempo operation variants also require explicit signing-policy decisions.
-Unsupported VoiceID signing requests fail before capture or signing. Broadcasting existing signed bytes keeps its ordinary transport path.
+Broadcasting existing signed bytes keeps its ordinary transport path.
 The plugin owns audio capture, model inference, template normalization, and presentation. Its record parser runs at the scoped storage boundary.
 Enrollment actions bind their guard, snapshot, confirmation, and sample requirements in one typed command. Import requires a missing enrollment. Improvement and reset require an existing enrollment.
 Enrollment and management receive their owning surface explicitly. An unrelated element with the same CSS class cannot receive their UI.
-The core review UI receives copy from the plugin and knows no voice commands.
 
 Enabling a plugin does not fetch its implementation. First use loads it after
 the host checks configuration. Disabling it blocks later use even if its module

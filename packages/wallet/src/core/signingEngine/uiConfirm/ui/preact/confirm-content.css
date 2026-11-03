@@ -135,9 +135,3 @@
     transition: none;
   }
 }
-:where(.seams-wallet-ui) .seams-voiceid-instructions {
-  margin: 0 0 16px;
-  color: var(--seams-colors-textSecondary);
-  font-size: 14px;
-  line-height: 1.5;
-}

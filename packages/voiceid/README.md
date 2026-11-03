@@ -26,8 +26,8 @@ const config = defineSeamsConfig({
 ```
 
 Choose `transcriptionModel: 'aurora'` for the smaller speech model. Citrinet is
-the default when this option is omitted. The choice applies to enrollment,
-unlock, and transaction approval. Each action keeps its chosen model throughout
+the default when this option is omitted. The choice applies to enrollment
+and unlock. Each action keeps its chosen model throughout
 preparation and recording.
 
 | Speech model | Uncompressed | Gzip |
@@ -47,35 +47,13 @@ loading in the trusted Wallet iframe. Passkey and Email OTP flows remain indepen
 The optional `VoiceBeam` and `VoiceAssistantCard` visuals are exported from
 `@seams/voiceid/react`. Import `@seams/voiceid/styles` when using the card.
 
-## Configure a signing challenge
+## Signing after a VoiceID unlock
 
-Pass `voiceId.confirmationCommand` in the `options` of an existing reviewed NEAR
-or EVM signing request:
-
-```ts
-const options = {
-  voiceId: {
-    confirmationCommand: 'Sell 100 NEAR for USDC at $5.5',
-  },
-};
-```
-
-The Wallet selects a short action-only challenge, such as “Approve this sale at
-once” or “Let the sale go through.” It omits amounts, assets, and prices from the
-spoken phrase. The full transaction review remains authoritative.
-
-The leading English verb selects the phrase family: `sell`, `buy`, `swap`, or
-`send`/`transfer`. Other wording uses the default random challenges. Commands
-must be nonempty strings of at most 256 characters without control characters.
-The application cannot supply the final phrase or change verification thresholds.
-Retries choose a different phrase within the selected family.
-
-This option changes wording only. It does not enable VoiceID for unsupported
-transactions or interpret a trading command. VoiceID currently supports reviewed
-native transfers on NEAR testnet and Arc testnet. Approval remains bound to the
-complete signing request and review deadline, including the supplied command.
-Enrollment and unlock retain the default phrase bank. This adds no model or API
-request and keeps audio in the Wallet iframe.
+VoiceID works like a passkey. A VoiceID unlock opens a normal signing session.
+Each operation on any chain shows the ordinary **Confirm**, with no further voice
+check, within the session's uses and expiry. When the session needs fresh
+authentication, the owner unlocks with VoiceID again. Key export needs a passkey
+or Email OTP.
 
 ## Install on the Wallet host
 
@@ -122,12 +100,8 @@ same card. Retry keeps verified assets and voice enrollment. Close the card to
 choose a passkey instead. A missing or incompatible host package requires an
 operator fix; other module failures include connection and reload instructions.
 
-Transaction reviews prepare VoiceID before enabling **Confirm with VoiceID**.
-The voice attempt timer starts after that click. The transaction's expiry remains
-in force while loading or retrying, so an expired transaction needs a fresh review.
-
-VoiceID remembers the microphone used for usable audio in this browser. Enrollment,
-unlock, and signing request that input even when the system default changes.
+VoiceID remembers the microphone used for usable audio in this browser. Enrollment
+and unlock request that input even when the system default changes.
 If it is unavailable, VoiceID can use the current default. Reconnecting the saved
 microphone restores it. Interrupted recordings require a new attempt. Voice
 enrollment and verification thresholds stay unchanged.
@@ -140,5 +114,5 @@ Splitting it removes that payload from Wallet-only installations. It does not
 reduce the bytes needed for the first VoiceID operation.
 
 Use the [public VoiceID guide](https://docs.wallet.seams.sh/concepts/auth-methods/voiceid)
-for enrollment, unlock, transfer approval, and storage behavior.
+for enrollment, unlock, signing, and storage behavior.
 See [implementation notes](src/README.md) for code boundaries and enrollment storage.

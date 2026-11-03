@@ -6,7 +6,6 @@ import {
 import { executeOwnerNearRequest } from './ownerNearOperation';
 import type { ExecuteOwnerNearOperation } from '@/SeamsWeb/publicApi/ownerNearOperation';
 import { parseAuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
-import type { VoiceIdConfirmationOptions } from '@/core/authMethods/plugins';
 import { createIframePlacementCommands } from './placementCommands';
 import type { WalletRegistrationCommand } from '@/SeamsWeb/publicApi/createPublicApi';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
@@ -622,7 +621,6 @@ type SignTempoRouterPayload = {
   request: MultichainSigningRequest;
   chainTarget: ThresholdEcdsaChainTarget;
   options?: {
-    voiceId?: VoiceIdConfirmationOptions;
     confirmationConfig?: Partial<ConfirmationConfig>;
   };
 };
@@ -3586,8 +3584,7 @@ export class WalletIframeRouter {
       request: MultichainSigningRequest;
       chainTarget: ThresholdEcdsaChainTarget;
       options?: {
-        voiceId?: VoiceIdConfirmationOptions;
-        confirmationConfig?: Partial<ConfirmationConfig>;
+            confirmationConfig?: Partial<ConfirmationConfig>;
         onEvent?: (ev: SigningFlowEvent) => void;
       };
     },
@@ -3611,9 +3608,6 @@ export class WalletIframeRouter {
           chainTarget: payload.chainTarget,
           options: payload.options
             ? {
-                ...(payload.options.voiceId !== undefined
-                  ? { voiceId: payload.options.voiceId }
-                  : {}),
                 ...(payload.options.confirmationConfig
                   ? { confirmationConfig: payload.options.confirmationConfig }
                   : {}),
@@ -4045,7 +4039,6 @@ export class WalletIframeRouter {
       // cannot send objects/functions through postMessage(), clean options first
       const safeOptions = {
         waitUntil: options.waitUntil,
-        ...(options.voiceId !== undefined ? { voiceId: options.voiceId } : {}),
         confirmationConfig: options.confirmationConfig,
         ...(typeof options.signerSlot === 'number' ? { signerSlot: options.signerSlot } : {}),
         ...(options.confirmerText ? { confirmerText: options.confirmerText } : {}),

@@ -99,7 +99,6 @@ async function transfer(
         },
       },
       options: {
-        voiceId: { confirmationCommand: 'Transfer one smallest USDC unit on Arc testnet' },
         confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' },
       },
       review: {

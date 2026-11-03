@@ -341,11 +341,10 @@ function returnToApplicationReview(
 }
 
 class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
-  private view: ConfirmationSurfaceController | null = null;
   private readonly navigation: ReviewNavigationState = { kind: 'review_available' };
   private readonly queuedDecisions: ConfirmUISurfaceDecision[] = [];
   private readonly decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
-  private phase: 'preparing' | 'pending' | 'checking' | 'published' = 'pending';
+  private phase: 'pending' | 'published' = 'pending';
   readonly cancelListeners = new Set<(detail: { error?: string }) => void>();
   readonly onBack: (() => void) | undefined;
   readonly callbacks = {
@@ -356,31 +355,6 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
 
   constructor(private readonly admission: TransactionReviewAdmission | undefined) {
     this.onBack = admission ? this.back.bind(this) : undefined;
-  }
-
-  attachView(view: ConfirmationSurfaceController): void {
-    this.view = view;
-    const admission = this.admission;
-    if (admission?.requiresAuthMethodApproval) void this.prepareAuthMethod(admission, view);
-  }
-
-  private async prepareAuthMethod(
-    admission: TransactionReviewAdmission,
-    view: ConfirmationSurfaceController,
-  ): Promise<void> {
-    this.phase = 'preparing';
-    view.update({
-      preparing: true,
-      authMethodCapture: admission.authMethodApprovalSurface,
-    });
-    try {
-      await admission.prepareAuthMethod();
-      if (this.phase !== 'preparing') return;
-      this.phase = 'pending';
-      view.update({ preparing: false, authMethodCapture: null });
-    } catch (error) {
-      this.cancel(error instanceof Error ? error.message : 'VoiceID preparation failed.');
-    }
   }
 
   private publishDecision(decision: ConfirmUISurfaceDecision): void {
@@ -396,11 +370,7 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
   }
 
   private back(): void {
-    if (this.phase === 'preparing' || this.phase === 'checking') {
-      this.cancel('Voice approval was cancelled.');
-    } else if (this.admission) {
-      returnToApplicationReview(this.admission, this.navigation);
-    }
+    if (this.admission) returnToApplicationReview(this.admission, this.navigation);
   }
 
   private cancel(error?: string): void {
@@ -411,7 +381,7 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
   }
 
   private confirm(): void {
-    void this.approve({ kind: 'confirmed', emailOtp: { kind: 'absent' } });
+    this.approve({ kind: 'confirmed', emailOtp: { kind: 'absent' } });
   }
 
   private submitEmail(code: string, challengeId: string): void {
@@ -421,45 +391,15 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
       this.cancel('Email OTP challenge is missing.');
       return;
     }
-    void this.approve({
+    this.approve({
       kind: 'confirmed',
       emailOtp: { kind: 'provided', code: otpCode, challengeId: emailOtpChallengeId },
     });
   }
 
-  private async approve(decision: ConfirmUISurfaceDecision): Promise<void> {
+  private approve(decision: ConfirmUISurfaceDecision): void {
     if (this.phase !== 'pending' || (this.admission && !this.admission.allowInteraction())) return;
-    this.phase = 'checking';
-    try {
-      if (this.admission?.authMethodApprovalMessages) {
-        this.view?.update({
-          preparing: true,
-          authMethodCapture: this.admission.authMethodApprovalSurface,
-        });
-      }
-      const approval = await this.admission?.approveAuthMethod();
-      if (approval?.kind === 'retry') {
-        this.phase = 'pending';
-        this.view?.update({
-          preparing: false,
-          authMethodCapture: null,
-          authMethodApprovalMessage: approval.message,
-        });
-        return;
-      }
-      // The capture stays on screen until the receipt takes it over, so the
-      // hand-off never shows an empty card.
-      if (this.admission?.authMethodApprovalMessages)
-        this.view?.update({
-          preparing: false,
-          authMethodApprovalMessage: this.admission.authMethodApprovalMessages.approved,
-        });
-      this.publishDecision(decision);
-    } catch (error) {
-      this.cancel(
-        error instanceof Error ? error.message : 'Authentication method approval failed.',
-      );
-    }
+    this.publishDecision(decision);
   }
 
   async takeDecision(): Promise<ConfirmUISurfaceDecision> {
@@ -862,8 +802,6 @@ function mountHostElement({
       loading,
       title: summary?.title ?? (summary?.delegate ? 'Sign Delegate Action' : undefined),
       body: summary?.body,
-      confirmText: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
-        ?.authMethodApprovalMessages?.confirm,
       signingAuthMode,
       emailOtpPrompt,
       nearExplorerUrl: ctx.nearExplorerUrl ?? explorerOverrides.nearExplorerUrl,
@@ -877,7 +815,6 @@ function mountHostElement({
       postWalletUiClosedIfPortalEmpty();
     },
   });
-  channel.attachView(host);
   confirmationHosts.set(host.element, host);
   confirmationChannels.set(host.element, channel);
   updateConfirmPortalState(portal);

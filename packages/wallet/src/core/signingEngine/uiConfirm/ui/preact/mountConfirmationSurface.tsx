@@ -46,32 +46,13 @@ type SurfaceState =
   | { kind: 'disposed'; model?: never; onClosed?: never };
 
 const RECEIPT_MORPH_DURATION_MS = 640;
-/** A replaced auth method capture's copy fades first, where it is. */
-const CAPTURE_FADE_MS = 160;
-/** Then its progress segments travel, evenly, into the receipt's tracks. */
-const SEGMENT_DELAY_MS = 120;
-const SEGMENT_TRAVEL_MS = 800;
-const SEGMENT_EASING = 'cubic-bezier(0.65, 0, 0.35, 1)';
-/** The receipt's details follow the fade top to bottom; the steps settle as the segments land. */
-const HANDED_DETAIL_DELAY_MS = 200;
-const HANDED_DETAIL_STAGGER_MS = 40;
-const HANDED_DETAIL_FADE_MS = 360;
-const HANDED_STEPS_DELAY_MS = SEGMENT_DELAY_MS + SEGMENT_TRAVEL_MS - HANDED_DETAIL_FADE_MS;
 const RECEIPT_MORPH_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const RECEIPT_ANCHORS = [
   '.seams-receipt-symbol',
   '[role="status"]',
   '.seams-review-amount',
-  // The capture's card has the same footer, so it rides the card's edge instead of fading.
   '.seams-receipt-footer',
 ] as const;
-
-type ProgressSegment = Readonly<{ bounds: DOMRect; opacity: string; color: string }>;
-type LeavingCapture = Readonly<{
-  element: HTMLElement;
-  bounds: DOMRect;
-  segments: readonly ProgressSegment[];
-}>;
 
 type ReceiptAnchor = {
   selector: (typeof RECEIPT_ANCHORS)[number];
@@ -133,39 +114,7 @@ function receiptAnchorTransform(anchor: ReceiptAnchor, element: HTMLElement): st
   return `translate(${left}px, ${top}px) scale(${scaleX}, ${scaleY})`;
 }
 
-/**
- * The progress segments a capture draws while it checks, as they look now, from
- * left to right whatever their drawing order. A line that has not split yet hands
- * over its thirds.
- */
-function progressSegments(capture: HTMLElement): ProgressSegment[] {
-  const line = capture.querySelector<SVGElement>('[data-seams-progress-line]');
-  if (!line) return [];
-  const color = getComputedStyle(line).color;
-  const drawn = Array.from(line.querySelectorAll<SVGGraphicsElement>('[data-seams-progress-segment]'));
-  if (drawn.length === 3 && drawn.every(isPainted)) {
-    return drawn
-      .map((segment) => ({
-        bounds: segment.getBoundingClientRect(),
-        opacity: segment.getAttribute('opacity') ?? '1',
-        color,
-      }))
-      .sort((a, b) => a.bounds.left - b.bounds.left);
-  }
-  const box = line.getBoundingClientRect();
-  const width = box.width / 3;
-  return [0, 1, 2].map((index) => ({
-    bounds: new DOMRect(box.left + index * width, box.top + box.height / 2, width, 0),
-    opacity: '0.55',
-    color,
-  }));
-}
-
 function ignoreCancelledMotion(): void {}
-
-function isPainted(segment: SVGGraphicsElement): boolean {
-  return segment.getAttribute('opacity') !== '0';
-}
 
 let nextSurfaceId = 0;
 
@@ -177,8 +126,6 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   private receipt: TransactionReceiptModel | null = null;
   private receiptMotion: Animation[] = [];
   private receiptShell: HTMLElement | null = null;
-  private receiptGhost: HTMLElement | null = null;
-  private receiptSegments: HTMLElement[] = [];
   private receiptResize: ReceiptResize | null = null;
 
   private clearReceiptMotion = (): void => {
@@ -192,11 +139,6 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.receiptMotion = [];
     this.receiptShell?.remove();
     this.receiptShell = null;
-    this.receiptGhost?.remove();
-    this.receiptGhost = null;
-    for (const segment of this.receiptSegments) segment.remove();
-    this.receiptSegments = [];
-    this.element.removeAttribute('data-receipt-segments');
     this.element.removeAttribute('data-receipt-morphing');
   };
 
@@ -252,7 +194,6 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     const previousShell = this.receiptShell ?? this.element.querySelector('.modal-container-root');
     const previousBounds = previousShell?.getBoundingClientRect();
     const anchors = shouldMorph ? captureReceiptAnchors(this.element) : [];
-    const leaving = shouldMorph ? this.liveCapture() : null;
     const previousRadius = previousShell ? getComputedStyle(previousShell).borderRadius : '26px';
     if (shouldMorph) this.clearReceiptMotion();
     this.receipt = model;
@@ -296,7 +237,6 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       );
       this.receiptMotion = [morph];
       const geometryAnimations = [morph];
-      const handedOver = leaving ? this.handOverCapture(leaving, target) : false;
       const shared = new Set<HTMLElement>();
       for (const anchor of anchors) {
         const element = target.querySelector<HTMLElement>(anchor.selector);
@@ -327,9 +267,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       let order = 0;
       for (const detail of details) {
         if (shared.has(detail)) continue;
-        // A capture's card had a toolbar in the same row, so the receipt's fades in there at once.
-        const toolbar = leaving !== null && detail.matches('.seams-review-toolbar');
-        const stationary = toolbar || detail.matches('.seams-receipt-footer');
+        const stationary = detail.matches('.seams-receipt-footer');
         this.receiptMotion.push(
           detail.animate(
             stationary
@@ -338,27 +276,15 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
                   { opacity: 0, transform: 'translateY(8px)' },
                   { opacity: 1, transform: 'translateY(0)' },
                 ],
-            leaving
-              ? {
-                  // The steps settle before their segments land; the rest follows top to bottom.
-                  duration: HANDED_DETAIL_FADE_MS,
-                  delay: toolbar
-                    ? 0
-                    : handedOver && detail.matches('.seams-receipt-steps')
-                      ? HANDED_STEPS_DELAY_MS
-                      : HANDED_DETAIL_DELAY_MS + Math.min(order, 6) * HANDED_DETAIL_STAGGER_MS,
-                  fill: 'backwards',
-                  easing: 'cubic-bezier(0.2, 0, 0, 1)',
-                }
-              : {
-                  duration: 120,
-                  delay: model.view === 'toast' ? 240 : 180 + Math.min(order, 4) * 15,
-                  fill: 'backwards',
-                  easing: 'ease-out',
-                },
+            {
+              duration: 120,
+              delay: model.view === 'toast' ? 240 : 180 + Math.min(order, 4) * 15,
+              fill: 'backwards',
+              easing: 'ease-out',
+            },
           ),
         );
-        if (!toolbar) order += 1;
+        order += 1;
       }
       this.resizeReceipt({
         element: target,
@@ -452,84 +378,6 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       ?.classList.remove('seams-receipt-footer--hosted');
     this.styles.deleteDynamicRule(`${this.element.id}-receipt-resize`);
     for (const animation of resize.animations) animation.finish();
-  }
-
-  /** The auth method capture still on screen, measured before the receipt replaces it. */
-  private liveCapture(): LeavingCapture | null {
-    if (this.state.kind !== 'mounted' || this.state.model.content.kind !== 'transaction') return null;
-    const element = this.state.model.content.capture;
-    if (!element?.isConnected) return null;
-    return { element, bounds: element.getBoundingClientRect(), segments: progressSegments(element) };
-  }
-
-  /**
-   * The capture's copy fades out where it was. When it drew progress segments,
-   * they travel on and become the receipt's tracks. Returns whether they did.
-   */
-  private handOverCapture(leaving: LeavingCapture, target: HTMLElement): boolean {
-    const ghost = this.element.ownerDocument.createElement('div');
-    ghost.className = 'seams-receipt-capture-ghost';
-    ghost.setAttribute('aria-hidden', 'true');
-    ghost.append(leaving.element);
-    this.element.appendChild(ghost);
-    this.receiptGhost = ghost;
-    const place = {
-      left: `${leaving.bounds.left}px`,
-      top: `${leaving.bounds.top}px`,
-      width: `${leaving.bounds.width}px`,
-      height: `${leaving.bounds.height}px`,
-    };
-    this.receiptMotion.push(
-      ghost.animate([{ ...place, opacity: 1 }, { ...place, opacity: 0 }], {
-        duration: CAPTURE_FADE_MS,
-        easing: 'ease-out',
-        fill: 'both',
-      }),
-    );
-    const tracks = target.querySelectorAll<HTMLElement>('.seams-receipt-track');
-    if (leaving.segments.length === 0 || tracks.length !== leaving.segments.length) return false;
-    this.element.setAttribute('data-receipt-segments', '');
-    for (const [index, track] of tracks.entries()) {
-      const from = leaving.segments[index];
-      const to = track.getBoundingClientRect();
-      const complete = track.closest<HTMLElement>('.seams-receipt-step')?.dataset.state === 'complete';
-      const segment = this.element.ownerDocument.createElement('div');
-      segment.className = 'seams-receipt-segment';
-      segment.setAttribute('aria-hidden', 'true');
-      this.element.appendChild(segment);
-      this.receiptSegments.push(segment);
-      this.receiptMotion.push(
-        segment.animate(
-          [
-            {
-              left: `${from.bounds.left}px`,
-              top: `${from.bounds.top + from.bounds.height / 2 - 0.5}px`,
-              width: `${from.bounds.width}px`,
-              height: '1px',
-              borderRadius: '1px',
-              opacity: from.opacity,
-              backgroundColor: from.color,
-            },
-            {
-              left: `${to.left}px`,
-              top: `${to.top}px`,
-              width: `${to.width}px`,
-              height: `${to.height}px`,
-              borderRadius: getComputedStyle(track).borderRadius,
-              opacity: 1,
-              backgroundColor: getComputedStyle(track, complete ? '::after' : null).backgroundColor,
-            },
-          ],
-          {
-            duration: SEGMENT_TRAVEL_MS,
-            delay: SEGMENT_DELAY_MS,
-            easing: SEGMENT_EASING,
-            fill: 'both',
-          },
-        ),
-      );
-    }
-    return true;
   }
 
   dispose = (): void => {
@@ -671,7 +519,6 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       case 'transaction':
         return {
           kind: 'transaction',
-          capture: source.capture,
           header: source.header,
           body: source.body,
           review: source.review,

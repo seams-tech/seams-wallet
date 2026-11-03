@@ -77,17 +77,14 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     await expect(page.getByRole('button', { name: 'Continue to wallet', exact: true })).toHaveCount(
       0,
     );
-    await expect(
-      wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    // A VoiceID session confirms like any other session: the normal Confirm, no voice check.
+    await expect(wallet.locator('button.confirm')).toBeVisible({ timeout: 15_000 });
     await expect(wallet.locator('.seams-confirmation-surface')).not.toHaveAttribute('inert', '');
     await expect(wallet.locator('.seams-confirmation-surface')).toHaveAttribute(
       'data-seams-confirm-ready',
       'true',
     );
-    await expect(
-      wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }),
-    ).toBeEnabled({ timeout: 15_000 });
+    await expect(wallet.locator('button.confirm')).toBeEnabled({ timeout: 15_000 });
     await expect(wallet.locator('.seams-review-amount')).toContainText('0.000000000000000001 USDC');
     await expect(wallet.getByText('Arc Testnet', { exact: true })).toBeVisible();
     await expect(wallet.locator('.seams-review-token-fallback')).toHaveCount(0);
@@ -100,13 +97,8 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       .screenshot({ path: testInfo.outputPath('arc-usdc-review.png') });
     await page.keyboard.press('Tab');
     await expect(back).toBeFocused();
-    await wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }).click();
-    const confirmationPhrase = await wallet
-      .locator('[data-voiceid-phrase]')
-      .getAttribute('data-voiceid-phrase');
-    expect(['confirm this transfer today', 'please send this transfer now']).toContain(
-      confirmationPhrase,
-    );
+    await wallet.locator('button.confirm').click();
+    await expect(wallet.locator('[data-voiceid-phrase]')).toHaveCount(0);
     await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute(
       'data-state',
       /submitted|failed/,
@@ -124,7 +116,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     await receipt.screenshot({ path: testInfo.outputPath('arc-usdc-receipt.png') });
     expect(rpc.transactions).toHaveLength(1);
     expect(rpc.transactions[0].sender.toLowerCase()).toBe(ownerAddress.toLowerCase());
-    expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(captures + 1);
+    expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(captures);
     await waitForWalletIframeConfirmationSettlement(page);
     await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Continue to wallet', exact: true })).toHaveCount(
@@ -155,8 +147,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       inference: 'real_redimnet_b1_and_aurora',
       speakerThreshold: 0.45,
       enrollmentCaptures,
-      confirmationCommand: 'Transfer one smallest USDC unit on Arc testnet',
-      confirmationPhrase,
+      signingVoiceCheck: 'none',
       blockedFeeLookup,
       ownerAddress,
       walletId: method.walletId,

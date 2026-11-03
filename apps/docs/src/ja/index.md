@@ -40,7 +40,7 @@ pnpm add @seams/wallet@0.43.0
 ウォレットオリジンのアセットと`@seams/wallet-server`も、対応するリリースに合わせてください。
 既存の実装を更新する前に、[デプロイ要件](/ja/deploy-and-operate/hosted-integration)を確認してください。
 
-[VoiceID](/ja/concepts/auth-methods/voiceid)は、音声の登録、アンロック、トランザクション承認に使う任意のパッケージです。
+[VoiceID](/ja/concepts/auth-methods/voiceid)は、音声の登録、アンロック、署名に使う任意のパッケージです。
 エンジンとモデルは、VoiceIDを使うときだけ読み込みます。
 
 ウォレットiframeのプロトコルは**23.0.0**、復元CLIは**0.29.0**です。

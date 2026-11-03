@@ -1,7 +1,4 @@
-import { voiceIdPolicyForRequest } from '@/core/authMethods/voiceId/reviewPolicy';
 import { readAuthMethodEnabled } from '@/core/authMethods/availability';
-import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
-import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { assertWalletHostMutationAllowed, walletForHostRequest } from './walletMutationGuard';
 import { WalletHostSessionObserver } from './sessionObserver';
@@ -396,30 +393,30 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   }
 }
 
-/** Use the requested wallet's trusted selection; app configuration only grants availability. */
-export async function walletAuthMethodReviewPolicy(
+/**
+ * A selected method signs within its session like every other method. Only an
+ * owner who turned VoiceID off stops its session from signing.
+ */
+export async function assertWalletAuthMethodCanSign(
   state: WalletHostRuntimeState,
   request: WalletAuthMethodSigningRequest,
-): Promise<AuthMethodReviewPolicy> {
+): Promise<void> {
   const ctx = syncRuntimeContext(state);
-  const configuration = ctx.configuration;
-  if (configuration.kind !== 'configured') throw new Error('Wallet service is not configured.');
+  if (ctx.configuration.kind !== 'configured') throw new Error('Wallet service is not configured.');
   const walletId = walletForHostRequest(request, null);
   if (walletId === null) throw new Error('Signing policy requires an explicit wallet identity.');
   ensureRequestWalletRuntime(ctx);
   const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);
-  if (selected.kind !== 'resolved') return { kind: 'disabled' };
+  if (selected.kind !== 'resolved') return;
   switch (selected.authMethod.kind) {
     case 'passkey':
     case 'email_otp':
-      return { kind: 'disabled' };
-    case 'voiceid': {
+      return;
+    case 'voiceid':
       if (!(await readAuthMethodEnabled(walletId, selected.authMethod.walletAuthMethodId))) {
         throw new Error('VoiceID is turned off. Unlock with another method.');
       }
-      const plugin = await loadWalletAuthMethodHostPlugin(configuration.config.authMethods, 'voiceid');
-      return await voiceIdPolicyForRequest(request, configuration, plugin);
-    }
+      return;
     default:
       return assertNever(selected.authMethod);
   }

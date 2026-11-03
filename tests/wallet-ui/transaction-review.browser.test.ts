@@ -1100,7 +1100,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
         generation: 1,
         validity: { kind: 'expires_at', atMs },
       };
-      const admission = new TransactionReviewAdmission(metadata, 'mpc', report, reject, { kind: 'disabled' });
+      const admission = new TransactionReviewAdmission(metadata, 'mpc', report, reject);
       const element = document.createElement('div');
       document.body.append(element);
       admission.attach(element);
@@ -1111,14 +1111,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     }
     const cancelled = await active('cancelled', Date.now() + 10_000);
     cancelled.beforeCredential();
-    cancelled.assertAuthMethodPolicy('passkey');
-    let changedMethodRejected = false;
-    try {
-      cancelled.assertAuthMethodPolicy('voiceid');
-    } catch (error) {
-      changedMethodRejected =
-        error !== null && typeof error === 'object' && Reflect.get(error, 'code') === 'review_identity_changed';
-    }
+    cancelled.assertPending();
     cancelled.cancel(Object.assign(new Error('cancelled'), { code: 'cancelled' }));
     const aborted = cancelled.abortController.signal.aborted;
     let prevented = false;
@@ -1144,7 +1137,6 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     signing.finish();
     return {
       aborted,
-      changedMethodRejected,
       prevented,
       deferredUntilUnwind,
       errors,
@@ -1155,7 +1147,6 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
   });
   expect(outcomes).toEqual({
     aborted: true,
-    changedMethodRejected: true,
     prevented: true,
     deferredUntilUnwind: true,
     errors: ['cancelled'],

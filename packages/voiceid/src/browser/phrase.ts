@@ -1,11 +1,9 @@
 import { BrowserInferenceModel } from './inference';
 import {
   CHALLENGE_PHRASES,
-  CONFIRMATION_PHRASES,
   SPOKEN_PHRASES,
   PHRASE_TOKEN_PIECES,
 } from './phraseVocabulary';
-import type { VoiceConfirmation } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { PHRASE_TOKEN_PIECES as CITRINET_TOKEN_PIECES } from './phraseTokens';
 
@@ -41,20 +39,6 @@ let lastIssuedPhrase: SpokenPhrase | null = null;
 
 export function newSpokenPhrase(previous: SpokenPhrase | null): SpokenPhrase {
   return choosePhrase(CHALLENGE_PHRASES, previous);
-}
-
-export function newConfirmationPhrase(
-  confirmation: VoiceConfirmation,
-  previous: SpokenPhrase | null,
-): SpokenPhrase {
-  switch (confirmation.kind) {
-    case 'random':
-      return newSpokenPhrase(previous);
-    case 'action':
-      return choosePhrase(CONFIRMATION_PHRASES[confirmation.action], previous);
-    default:
-      return assertNever(confirmation);
-  }
 }
 
 function assertNever(value: never): never {

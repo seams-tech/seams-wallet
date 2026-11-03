@@ -56,7 +56,6 @@ async function transfer(
       receiverId: signer.accountId,
       actions: [{ type: ActionType.Transfer, amount: '1' }],
       options: {
-        voiceId: { confirmationCommand: 'Send one yoctoNEAR to this wallet' },
         confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' },
         waitUntil: 'FINAL',
       },

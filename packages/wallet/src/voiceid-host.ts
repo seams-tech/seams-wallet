@@ -3,7 +3,6 @@ export { VOICE_ID_HOST_API_VERSION } from './core/authMethods/hostPlugin';
 export {
   type WalletAuthMethodHostPlugin,
   type AuthMethodActivationResult,
-  type AuthMethodApprovalResult,
   type AuthMethodCaptureMount,
   type AuthMethodCaptureSettlement,
   type AuthMethodUnlockSuccess,
@@ -12,7 +11,6 @@ export { type Variant } from '@shared/utils/variant';
 export {
   type VoiceIdActivationPreparation,
   type VoiceOwnerConfirmation,
-  type VoiceIdReviewRequest,
   type VoiceIdUnlockChallenge,
 } from './core/authMethods/voiceId/boundary';
 export {
@@ -45,7 +43,6 @@ export {
   readVoiceMicrophonePreference,
   saveVoiceMicrophonePreference,
 } from './core/authMethods/voiceId/microphonePreference';
-export { type VoiceConfirmation } from './core/authMethods/voiceId/confirmationCommand';
 export { type WalletId } from '@shared/utils/domainIds';
 export {
   voiceIdWalletSessionChallengeBytes,
@@ -69,5 +66,4 @@ export {
 } from './SeamsWeb/walletIframe/host/surface-measurement-reporter';
 export { SeamsWordmark } from './core/signingEngine/uiConfirm/ui/preact/SeamsWordmark';
 export { backIcon } from './SeamsWeb/walletIframe/host/ui/auth-menu/icons';
-export { TransactionReviewError } from './SeamsWeb/walletIframe/shared/transactionReview';
 export type { VoiceMicrophonePreference } from './core/authMethods/voiceId/microphonePreference';

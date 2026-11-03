@@ -734,55 +734,6 @@
 :where(.seams-wallet-ui) .seams-receipt-footer--hosted {
   transform: translateY(calc(100dvh - var(--seams-receipt-target-height)));
 }
-/* The replaced auth method capture stays in place above the receipt while it fades. */
-:where(.seams-wallet-ui) .seams-receipt-capture-ghost {
-  position: fixed;
-  pointer-events: none;
-  z-index: 2;
-  box-sizing: border-box;
-}
-/* The card frames a hosted auth method capture with the review's toolbar and footer,
-   so the capture fills it without a border, corners, background or a top inset for a
-   close control of its own; the card clips the corners. It ends at the footer line,
-   where its glow meets the footer, so it keeps no bottom inset either. Two classes
-   outrank the capture's own single-class card rules. The capture keeps that look
-   while it fades out over the receipt. */
-.seams-confirmation-modal .seams-auth-method-capture > *,
-.seams-wallet-ui .seams-receipt-capture-ghost > * {
-  box-sizing: border-box;
-  width: 100%;
-  padding-top: 0.75rem;
-  padding-bottom: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-/* The capture runs edge to edge between the toolbar and the footer line, so its
-   glow meets the footer as in the VoiceID unlock card. */
-:where(.seams-wallet-ui) .seams-review-content--capture .seams-auth-method-capture {
-  margin-inline: calc(-1 * var(--seams-review-inset));
-}
-:where(.seams-wallet-ui) .seams-review-content--capture .seams-receipt-footer {
-  margin-top: 0;
-}
-/* Moving the capture re-inserts it; its own entry transitions must not replay.
-   Two classes outrank the capture's single-class transition rules. */
-.seams-wallet-ui .seams-receipt-capture-ghost * {
-  transition: none;
-}
-/* Its progress line has left as travelling segments. */
-.seams-wallet-ui .seams-receipt-capture-ghost [data-seams-progress-line] {
-  visibility: hidden;
-}
-/* The capture's segments travel into the receipt's tracks, which wait hidden. */
-:where(.seams-wallet-ui) .seams-receipt-segment {
-  position: fixed;
-  pointer-events: none;
-  z-index: 3;
-}
-:where(.seams-wallet-ui[data-receipt-segments]) .seams-receipt-track {
-  visibility: hidden;
-}
 :where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-confirmation-drawer {
   --seams-drawer__max-width: 390px;
 }

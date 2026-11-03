@@ -21,15 +21,9 @@ defines the Wallet flow.
   The original speaker template and later manual improvements remain saved until
   the owner changes them or clears Wallet-origin storage. Improvements have no
   time or usage limit.
-- A VoiceID unlock selects the voice method for that Wallet Session. Reviewed
-  native NEAR and Arc testnet transfers require a new **Confirm with VoiceID**
-  action. The Wallet retains the full review, its deadline, signing permissions,
-  and session limits. Mainnet and other transaction kinds remain outside the
-  current VoiceID approval policy.
-- An application can pass `options.voiceId.confirmationCommand`. The Wallet uses
-  its leading action word to choose a short phrase family. The full amount,
-  asset, price, and transaction stay in the review. The Wallet does not parse
-  the command into a trade.
+- A VoiceID unlock selects the voice method for that Wallet Session. The session
+  signs like a passkey session: every operation on every chain and network, with
+  the ordinary **Confirm** and no further voice check, within its uses and expiry.
 - Capture uses 16 kHz mono audio and a local speech detector. It stops after a
   pause or at eight seconds. Audio that fails the quality check never reaches
   phrase matching, speaker matching, or device-key use. Raw audio is discarded
@@ -76,9 +70,11 @@ key. Wallet-origin code requires a local voice match before it uses that key.
 The device signature proves key use. The server has no independent attestation
 of the recording, speaker result, or microphone path. The phrase challenge adds
 freshness. The finite bank leaves replay and synthetic speech resistance unproven.
+A voice unlock opens the same signing session as a passkey, on every chain and
+network, so these limits apply to mainnet value as well.
 
 Browser and Wallet contracts cover model integrity, enrollment, unlock,
-reviewed testnet signing, cancellation, and retry. A paired browser check ran
+signing after a voice unlock, cancellation, and retry. A paired browser check ran
 both phrase models on the same synthetic recordings. It established export and
 browser compatibility. Synthetic success does not measure acceptance for real
 people. The small local human trials do not establish a general acceptance
@@ -107,11 +103,10 @@ cutoff and phrase bounds remain experimental.
    possession of that key. A claim that hardware verified the voice would need
    a capture and attestation path that can make that claim. Hashing a voice
    template or recording on-chain would not provide it.
-5. **Expand approval policy deliberately.** [Cross-method transaction approval](refactor-190-voiceid-cross-method-step-up-plan.md)
-   remains a separate design. Any wider chain or operation scope needs its own
-   review and signing-boundary checks. Applications can build voice commands
-   separately and pass a short `confirmationCommand` after they construct a
-   transaction.
+5. **Add an inline voice step-up.** A passkey re-authenticates inside a signing
+   flow when its session runs out, and for key export. VoiceID asks the owner to
+   unlock again, and key export needs a passkey or Email OTP. An inline voice
+   capture with a fresh server challenge would close both gaps.
 
 The [Whisper integration plan](refactor-191-voiceid-whisper-turbo-plan.md) is
 deferred by the user as of 2026-10-31. Browser integration will not proceed

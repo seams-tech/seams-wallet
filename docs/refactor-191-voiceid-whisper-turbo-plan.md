@@ -146,9 +146,8 @@ The existing assets (B1, VAD, Citrinet, Aurora) keep their current loader.
 - Generate each challenge from an action and three digit words, for example
   "approve swap seven three six". Only zero, three, five, six, seven and nine
   pass the rules, so each action has 216 numbers.
-- The `confirmationCommand` families stay: sale, purchase, swap and transfer.
-  "sell" and "buy" are refused (they sound like "cell" and "by"), so the family
-  word is a checked noun.
+- SDK 0.44.0 removed `confirmationCommand` and the voice check at signing; only
+  enrollment and unlock challenges remain.
 - Run the TypeScript matcher on the bench transcripts. It must agree with the
   Rust matcher and the Python scorer on all 126,720 decisions, except for the
   five documented "9:00" accepts.

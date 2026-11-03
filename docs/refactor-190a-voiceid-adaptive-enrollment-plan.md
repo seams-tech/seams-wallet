@@ -13,8 +13,7 @@ unlock, and Ed25519 NEAR signing flows. The later user requirement removes sampl
 expiry and usage limits; see the [persistent-sample evidence](evidence/voiceid-persistent-samples-20261026/README.md).
 Live human accuracy validation remains outstanding.
 
-This work belongs to VoiceID stabilization. EVM support follows stabilization, then
-[cross-method transaction approval](refactor-190-voiceid-cross-method-step-up-plan.md).
+This work belongs to VoiceID stabilization.
 
 ## Recommendation
 

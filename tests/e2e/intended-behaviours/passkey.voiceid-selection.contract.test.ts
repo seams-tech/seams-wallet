@@ -1,7 +1,11 @@
 import { expect, type Page } from '@playwright/test';
 import { ActionType } from '@shared/near/actions';
 import type {} from '../../intended-app/src/nearSigningHelpers';
-import { intendedTest as test } from './harness';
+import {
+  autoConfirmWalletIframeUntil,
+  intendedTest as test,
+  waitForWalletIframeConfirmationSettlement,
+} from './harness';
 import {
   allowBrowserMicrophone,
   voiceIdBrowserAudio,
@@ -86,9 +90,14 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   });
   await expect(dialog).toBeHidden();
   const unlockedCaptureCount = await wallet.locator('body').evaluate(microphoneCount);
-  await expect(page.evaluate(signUnsupportedMessage, identity.accountId)).rejects.toThrow(
-    'requires a reviewed NEAR testnet transfer or contract call',
+  // A VoiceID session signs like a passkey session: messages, delegates and
+  // transfers without a review, each with the confirm click and no voice check.
+  const message = await autoConfirmWalletIframeUntil(
+    page,
+    page.evaluate(signMessage, identity.accountId),
   );
+  expect(message).toMatchObject({ success: true, accountId: identity.accountId });
+  await waitForWalletIframeConfirmationSettlement(page);
   const delegate: Parameters<NonNullable<Window['__seamsIntendedE2ESignDelegate']>>[0] = {
     senderId: identity.accountId,
     receiverId: 'receiver.testnet',
@@ -97,18 +106,18 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
     maxBlockHeight: '999999999',
     publicKey: identity.publicKey,
   };
-  await expect(page.evaluate(signUnsupportedDelegate, delegate)).rejects.toThrow(
-    'requires a reviewed NEAR testnet transfer or contract call',
+  const delegated = await autoConfirmWalletIframeUntil(page, page.evaluate(signDelegate, delegate));
+  expect(delegated.nearAccountId).toBe(identity.accountId);
+  await waitForWalletIframeConfirmationSettlement(page);
+  const sent = await autoConfirmWalletIframeUntil(
+    page,
+    page.evaluate(sendUnreviewedTransfer, identity.accountId),
   );
-  const deniedTransfer = await page.evaluate(sendUnreviewedTransfer, identity.accountId);
-  expect(deniedTransfer).toMatchObject({
-    success: false,
-    error: expect.stringContaining('requires a reviewed NEAR testnet transfer or contract call'),
-  });
-  expect(evidence.transfers).toHaveLength(2);
+  expect(sent).toMatchObject({ success: true });
+  await waitForWalletIframeConfirmationSettlement(page);
+  // The test session allows three signatures; these three use it up.
+  expect(evidence.transfers).toHaveLength(3);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount);
-  await signTransfer(page);
-  expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount + 1);
 
   const beforeOwnerUnlock = downloads.requests.length;
   await harness.unlockPasskeyWallet();
@@ -128,11 +137,11 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
       'voice_unlock_selects_voice_approval',
       'first_click_starts_listening_with_back_and_footer',
       'back_stops_microphone_and_restores_menu',
-      'voice_rejects_message_delegate_and_unreviewed_transfer_before_capture',
+      'voice_session_signs_message_delegate_and_unreviewed_transfer_without_capture',
       'fresh_passkey_unlock_skips_voice_even_when_enrolled',
     ],
     downloads: downloads.requests,
-    voiceCaptureForVoiceSigning: true,
+    voiceCaptureForVoiceSigning: false,
     coldPasskeyDownloadsAfterVoiceUse: 0,
     transfers: evidence.transfers,
     chain: 'deterministic_near_rpc',
@@ -155,7 +164,7 @@ function activate() {
   return window.__seamsIntendedVoiceId.activate();
 }
 
-function signUnsupportedMessage(nearAccountId: string) {
+function signMessage(nearAccountId: string) {
   const sign = window.__seamsIntendedE2ESignMessage;
   if (!sign) throw new Error('The message-signing helper is unavailable');
   return sign({
@@ -164,7 +173,7 @@ function signUnsupportedMessage(nearAccountId: string) {
   });
 }
 
-function signUnsupportedDelegate(
+function signDelegate(
   delegate: Parameters<NonNullable<Window['__seamsIntendedE2ESignDelegate']>>[0],
 ) {
   const sign = window.__seamsIntendedE2ESignDelegate;

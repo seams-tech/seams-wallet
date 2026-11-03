@@ -607,9 +607,7 @@ async function signEvmFamilyAttempt(
     throw error;
   }
   const { signingAuthPlan, emailOtpSigning, flowArgs } = preparedFlow;
-  reviewAdmissionForBinding(
-    deps.touchConfirm.getContext().surfaceMeasurementBinding,
-  )?.assertAuthMethodPolicy(signingAuthPlan.method);
+  reviewAdmissionForBinding(deps.touchConfirm.getContext().surfaceMeasurementBinding)?.assertPending();
 
   let freshAuthRetryHandledFinalization = false;
   const retryWithFreshWalletSessionAuth = async (

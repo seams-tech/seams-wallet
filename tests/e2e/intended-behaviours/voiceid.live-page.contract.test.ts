@@ -234,61 +234,15 @@ async function verifyLivePage(
   await evidence.observe(context);
   const beforeCancellation = evidence.snapshot();
   await startReviewedTransfer(page);
-  await wallet.locator('button.confirm').click();
-  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
-    'data-capture',
-    'listening',
-  );
   await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute('data-state', 'failed');
   await waitForWalletIframeConfirmationSettlement(page);
-  expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
   expect(evidence.snapshot()).toEqual(beforeCancellation);
-  await startReviewedTransfer(page);
-  const otherSpeaker = await readFile(
-    path.resolve(import.meta.dirname, '../../fixtures/audio/voiceid-other.wav'),
-  );
-  await wallet.locator('body').evaluate(useOtherSpeaker, otherSpeaker.toString('base64'));
-  const beforeMismatch = evidence.snapshot();
   const streamsBefore = await wallet.locator('body').evaluate(microphoneStates);
+  await startReviewedTransfer(page);
+  // A VoiceID session signs like a passkey session: the Confirm click, no voice check.
   await wallet.locator('button.confirm').click();
-  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
-    'data-capture',
-    'listening',
-  );
-  await expect(wallet.locator('.seams-review-title')).toHaveCount(0);
-  const originalPhrase = await wallet
-    .locator('[data-voiceid-phrase]')
-    .getAttribute('data-voiceid-phrase');
-  if (!originalPhrase || !phrases.includes(originalPhrase))
-    throw new Error('Review phrase is unavailable');
-  expect((await wallet.locator('body').evaluate(microphoneStates)).length).toBe(
-    streamsBefore.length + 1,
-  );
-  await expect(wallet.locator('.seams-voiceid-ribbon')).toHaveAttribute('data-speech', 'true');
-  await expect(wallet.locator('.seams-voiceid-glow [data-voice-beam]')).toHaveCount(1);
-  await wallet
-    .locator('.seams-voiceid-prompt')
-    .screenshot({ path: testInfo.outputPath('minimal-voice-approval.png') });
-  await expect(wallet.getByText('Your voice did not match.', { exact: false })).toBeVisible({
-    timeout: 30_000,
-  });
-  const retry = wallet.getByRole('button', { name: 'Try again', exact: true });
-  await expect(retry).toBeEnabled();
-  expect(evidence.snapshot()).toEqual(beforeMismatch);
-  const stalePhrase = await readFile(
-    path.resolve(
-      import.meta.dirname,
-      `../../fixtures/audio/aurora/${phrases.indexOf(originalPhrase)}.wav`,
-    ),
-  );
-  await wallet.locator('body').evaluate(useOtherSpeaker, stalePhrase.toString('base64'));
-  await retry.click();
-  await expect(wallet.getByText('The phrase was not clear.', { exact: false })).toBeVisible({
-    timeout: 20_000,
-  });
-  expect(evidence.snapshot()).toEqual(beforeMismatch);
-  await retry.click();
+  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveCount(0);
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
     'data-state',
     'submitted',
@@ -296,6 +250,7 @@ async function verifyLivePage(
       timeout: 60_000,
     },
   );
+  expect(await wallet.locator('body').evaluate(microphoneStates)).toEqual(streamsBefore);
   expect(evidence.transfers).toHaveLength(1);
   const budget = await harness.readCurrentWalletSessionStatus();
   expect(budget.status).toBe('active');
@@ -322,14 +277,11 @@ async function verifyLivePage(
         modelFetchedOnceAcrossReload: true,
         phraseModelFetchedOnceAcrossReload: true,
         incorrectEnrollmentPhraseRejected: true,
-        previousAttemptPhraseRejectedBeforeSigning: true,
         phraseRecognition: 'real_aurora_int8_bounded_text',
-        minimalPromptReplacesReviewDuringCapture: true,
-        liveWaveformUsesSingleRecordingStream: true,
-        cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning: true,
+        cancelBeforeConfirmPreventsSigning: true,
         ownerReenrollmentReusesDeviceCredential: true,
-        mismatchPreventsSigning: true,
-        explicitRetrySignsSameReview: true,
+        speakerMismatchRejectedAtUnlock: true,
+        signingVoiceCheck: 'none',
         cancellationStopsMicrophone: true,
         cancellationAbortsEnrollmentCommit: true,
         inferenceAssets: assets.inference,

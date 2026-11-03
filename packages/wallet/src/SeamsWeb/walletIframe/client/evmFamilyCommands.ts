@@ -44,7 +44,6 @@ class ApplicationEvmFamilyCommands {
           request: args.request,
           chainTarget,
           options: {
-            voiceId: args.options?.voiceId,
             confirmationConfig: args.options?.confirmationConfig,
             onEvent: args.options?.onEvent,
           },

@@ -127,31 +127,6 @@ void ordinaryWithReservation;
 void ordinaryWithSpread;
 void disabledReview;
 
-import type { VoiceIdApproval } from '@voiceid/capture/approval';
-import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
-declare const voiceApproval: VoiceIdApproval;
-const requiredVoice: AuthMethodReviewPolicy = { kind: 'required', approval: voiceApproval };
-// @ts-expect-error A required voice policy must carry its operation-bound approval.
-const missingVoiceApproval: AuthMethodReviewPolicy = { kind: 'required' };
-// @ts-expect-error A disabled policy cannot carry an approval.
-const disabledWithVoice: AuthMethodReviewPolicy = { kind: 'disabled', approval: voiceApproval };
-const voiceFields = { approval: voiceApproval };
-// @ts-expect-error A spread cannot carry approval into the disabled branch.
-const disabledVoiceSpread: AuthMethodReviewPolicy = { kind: 'disabled', ...voiceFields };
-// @ts-expect-error Object literals cannot construct a voice approval's private lifecycle.
-const fabricatedVoice: VoiceIdApproval = { approve: async () => {}, consume: () => {} };
-// @ts-expect-error A spread loses the private lifecycle and cannot construct a voice approval.
-const copiedVoice: VoiceIdApproval = { ...voiceApproval };
-// @ts-expect-error An approval label cannot be asserted into the private lifecycle.
-const assertedVoice = 'approved' as VoiceIdApproval;
-void requiredVoice;
-void missingVoiceApproval;
-void disabledWithVoice;
-void disabledVoiceSpread;
-void fabricatedVoice;
-void copiedVoice;
-void assertedVoice;
-
 import type { ReviewCallState } from '@/react/transactionReview/controller';
 import type { TransactionReviewReservationState } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 const reviewing = { kind: 'reviewing', reservation } as const;
@@ -164,20 +139,12 @@ void settledReservation;
 void signingPreparation;
 
 import { routeWalletHostRequest } from '@/SeamsWeb/walletIframe/host/requestRouter';
-import { voiceIdPolicyForRequest } from '@/core/authMethods/voiceId/reviewPolicy';
-import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
-import type { ConfiguredWalletHost } from '@/SeamsWeb/walletIframe/shared/configuration';
-import type { WalletAuthMethodHostPlugin } from '@/core/authMethods/hostPlugin';
 import type { Variant } from '@shared/utils/variant';
 
 type HostRoute = ReturnType<typeof routeWalletHostRequest>;
 type SelectedMethodRoute = Variant<HostRoute, 'signingPolicy', 'wallet_auth_method'>;
 type OtherRoute = Variant<HostRoute, 'signingPolicy', 'none'>;
 declare const signingRoute: SelectedMethodRoute;
-declare const hostConfiguration: ConfiguredWalletHost;
-declare const authPlugin: WalletAuthMethodHostPlugin;
-declare const ownerRequest: Variant<ParentToChildEnvelope, 'type', 'PM_OWNER_NEAR_TRANSACTION'>;
-declare const broadcastRequest: Variant<ParentToChildEnvelope, 'type', 'PM_SEND_TRANSACTION'>;
 
 // @ts-expect-error Signing routes require an explicit policy on direct construction.
 const missingSigningPolicy: HostRoute = {
@@ -189,20 +156,7 @@ const missingSigningPolicy: HostRoute = {
 const disabledSigningRoute: HostRoute = { ...signingRoute, signingPolicy: 'none' };
 // @ts-expect-error A direct cast cannot remove the selected-method policy.
 const castSigningRoute = signingRoute as OtherRoute;
-// @ts-expect-error Fresh owner operations use their own approval lifecycle.
-void voiceIdPolicyForRequest(ownerRequest, hostConfiguration, authPlugin);
-// @ts-expect-error Broadcasting previously signed bytes cannot enter signing approval.
-void voiceIdPolicyForRequest(broadcastRequest, hostConfiguration, authPlugin);
-const skippedVoicePolicy: Awaited<ReturnType<typeof voiceIdPolicyForRequest>> = {
-  // @ts-expect-error A selected VoiceID signing operation cannot silently disable its policy.
-  kind: 'disabled',
-};
-void [
-  missingSigningPolicy,
-  disabledSigningRoute,
-  castSigningRoute,
-  skippedVoicePolicy,
-];
+void [missingSigningPolicy, disabledSigningRoute, castSigningRoute];
 
 import type { TransactionReviewWire } from '@/SeamsWeb/walletIframe/shared/transactionReview';
 declare const wire: TransactionReviewWire;

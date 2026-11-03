@@ -1,5 +1,4 @@
 import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistrationSetupPrewarm';
-import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
 import {
   applyWalletConfigurationUpdate,
   parseWalletConfigurationUpdate,
@@ -285,17 +284,15 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     let execution: 'admission' | 'runtime' = 'admission';
     try {
       const route = routeWalletHostRequest(req);
-      let authMethodPolicy: AuthMethodReviewPolicy;
       switch (route.signingPolicy) {
         case 'wallet_auth_method':
-          authMethodPolicy = await (await import('./runtimeContext')).walletAuthMethodReviewPolicy(
+          await (await import('./runtimeContext')).assertWalletAuthMethodCanSign(
             state,
             route.request,
           );
           break;
         case 'owner_operation':
         case 'none':
-          authMethodPolicy = { kind: 'disabled' };
           break;
         default:
           assertNever(route);
@@ -337,7 +334,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             : 'mpc',
           (payload) => postForRequest({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
           postReviewCancellation.bind(null, postForRequest, req.type, requestId),
-          authMethodPolicy,
         );
       }
       if (req.type === 'PM_LOCK' || req.type === 'PM_LOCK_EXACT_WALLET_SESSION') {

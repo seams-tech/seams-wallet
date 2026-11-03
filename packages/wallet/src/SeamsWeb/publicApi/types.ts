@@ -3,7 +3,6 @@ import type {
   WalletConnectionResolutionInput,
 } from '../walletIframe/shared/walletAlternatives';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
-import type { VoiceIdConfirmationOptions } from '@/core/authMethods/plugins';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type {
   ExternalAuthenticateInput,
@@ -256,7 +255,6 @@ export type SignEvmTransactionArgs = {
   /** A configured EVM network slug, or an exact target. */
   chainTarget: EvmChainSelector;
   options?: {
-    voiceId?: VoiceIdConfirmationOptions;
     confirmationConfig?: Partial<ConfirmationConfig>;
     /** Internal host-only cancellation probe; ignored in wallet-router calls. */
     shouldAbort?: () => boolean;
@@ -402,7 +400,6 @@ type ExecuteEvmFamilyTransactionBaseArgs = {
     confirmations?: number;
   };
   options?: {
-    voiceId?: VoiceIdConfirmationOptions;
     confirmationConfig?: Partial<ConfirmationConfig>;
     /** Internal host-only cancellation probe; ignored in wallet-router calls. */
     shouldAbort?: () => boolean;

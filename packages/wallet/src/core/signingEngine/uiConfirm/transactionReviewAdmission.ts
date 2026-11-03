@@ -1,4 +1,3 @@
-import type { WalletAuthMethod } from '@/core/types/seams';
 import {
   assertTransactionReviewValid,
   sameTransactionReviewIdentity,
@@ -8,10 +7,6 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/transactionReview';
 import type { UiConfirmSurfaceMeasurementBinding } from './uiConfirm.types';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
-import type {
-  AuthMethodApprovalResult,
-  AuthMethodReviewPolicy,
-} from '@/core/authMethods/hostPlugin';
 
 type AdmissionState =
   | { readonly kind: 'preparing' }
@@ -36,7 +31,6 @@ export class TransactionReviewAdmission {
     private readonly signatureBoundary: 'mpc' | 'credential',
     private readonly post: (state: TransactionReviewStateMessage) => void,
     private readonly reject: (error: Error) => void,
-    private readonly authMethodPolicy: AuthMethodReviewPolicy,
   ) {
     assertTransactionReviewValid(metadata.validity);
     if (admissions.has(metadata.requestId)) {
@@ -159,16 +153,6 @@ export class TransactionReviewAdmission {
     }
   }
 
-  assertAuthMethodPolicy(method: WalletAuthMethod): void {
-    this.assertPending();
-    if ((method === 'voiceid') !== (this.authMethodPolicy.kind === 'required')) {
-      throw new TransactionReviewError(
-        'review_identity_changed',
-        'The authentication method changed. Review the transaction again.',
-      );
-    }
-  }
-
   beforeCredential = (): void => {
     if (this.signatureBoundary === 'credential') this.beforeSigning();
     else this.assertActive();
@@ -180,47 +164,11 @@ export class TransactionReviewAdmission {
 
   beforeSigning = (): void => {
     this.assertActive();
-    if (this.state.kind !== 'signing' && this.authMethodPolicy.kind === 'required') {
-      this.authMethodPolicy.approval.consume();
-    }
     this.state = { kind: 'signing' };
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.notify('signing');
   };
-
-  async prepareAuthMethod(): Promise<void> {
-    this.assertPending();
-    if (this.authMethodPolicy.kind === 'required') {
-      await this.authMethodPolicy.approval.prepare(this.abortController.signal);
-    }
-    this.assertPending();
-    assertTransactionReviewValid(this.metadata.validity);
-  }
-
-  get requiresAuthMethodApproval(): boolean {
-    return this.authMethodPolicy.kind === 'required';
-  }
-
-  async approveAuthMethod(): Promise<AuthMethodApprovalResult> {
-    this.assertActive();
-    if (this.authMethodPolicy.kind === 'disabled') return { kind: 'approved' };
-    const result = await this.authMethodPolicy.approval.approve(this.abortController.signal);
-    this.assertActive();
-    return result;
-  }
-
-  get authMethodApprovalSurface(): HTMLElement | null {
-    return this.authMethodPolicy.kind === 'required'
-      ? this.authMethodPolicy.approval.surface
-      : null;
-  }
-
-  get authMethodApprovalMessages() {
-    return this.authMethodPolicy.kind === 'required'
-      ? this.authMethodPolicy.approval.messages
-      : null;
-  }
 
   cancel(error: Error): boolean {
     if (this.state.kind === 'signing') {

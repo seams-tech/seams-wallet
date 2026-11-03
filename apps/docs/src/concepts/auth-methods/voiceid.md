@@ -1,6 +1,6 @@
 ---
 title: VoiceID
-description: Install the optional VoiceID package, prepare the Wallet host, and let wallet owners enroll, unlock, and approve reviewed transactions with their voice.
+description: Install the optional VoiceID package, prepare the Wallet host, and let wallet owners enroll and unlock with their voice.
 ---
 
 # VoiceID
@@ -69,20 +69,24 @@ A rejected sample can be retried. Closing the surface returns `kind: 'cancelled'
 Successful enrollment returns `walletAuthMethodId` and preserves the current authentication method.
 Calling activation again for an enrolled method opens **Manage voice**.
 
-## Unlock and approve transactions {#unlock-and-approve-transfers}
+## Unlock and sign {#unlock-and-approve-transfers}
 
 The owner can select VoiceID in the Wallet sign-in menu. A custom unlock action uses
 the wallet ID and the enrolled `walletAuthMethodId`:
 
 <<< ../../examples/voiceid.ts#unlock
 
-After VoiceID unlock, use the existing [transaction APIs](/examples/signing) with a `review`.
-VoiceID approves one reviewed NEAR testnet transfer or contract call, or one reviewed Arc testnet transfer.
-These reviews show **Confirm with VoiceID**. VoiceID rejects other operations and calls without a `review`.
-The owner reads the displayed short English phrase at a normal pace.
-Each review requires a fresh voice check. The experimental speaker similarity threshold is **0.45**.
+To unlock, the owner reads the displayed short English phrase at a normal pace.
+The experimental speaker similarity threshold is **0.45**.
 Phrase recognition allows bounded differences to handle natural speech.
-The displayed phrase checks freshness. The transaction review defines the operation being approved.
+The displayed phrase checks freshness.
+
+VoiceID works like a passkey. A VoiceID unlock opens a normal signing session. Use the
+existing [transaction APIs](/examples/signing) on any chain and network: transfers, contract
+calls, delegate actions, and message signing. Each operation shows the ordinary **Confirm**,
+with no further voice check, within the session's uses and expiry.
+When the session needs fresh authentication, the owner unlocks with VoiceID again.
+Key export needs a passkey or Email OTP.
 
 Enabling or enrolling VoiceID does not select it for passkey or Email OTP signing.
 Adding signers or authentication methods and changing enrollment retain their action-level authorization checks.

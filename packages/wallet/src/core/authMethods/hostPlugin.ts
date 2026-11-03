@@ -1,9 +1,8 @@
-export const VOICE_ID_HOST_API_VERSION = 6;
+export const VOICE_ID_HOST_API_VERSION = 7;
 
 import type {
   VoiceIdActivationPreparation,
   VoiceIdUnlockPreparation,
-  VoiceIdReviewRequest,
 } from './voiceId/boundary';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
@@ -51,25 +50,6 @@ export type AuthMethodActivationResult =
     }>
   | Readonly<{ kind: 'cancelled'; walletId?: never; walletAuthMethodId?: never }>;
 
-export type AuthMethodApprovalResult =
-  | { readonly kind: 'approved'; readonly message?: never }
-  | { readonly kind: 'retry'; readonly message: string };
-
-export interface AuthMethodReviewApproval {
-  readonly messages: Readonly<{
-    approved: string;
-    confirm?: string;
-  }>;
-  readonly surface: HTMLElement;
-  prepare(signal: AbortSignal): Promise<void>;
-  approve(signal: AbortSignal): Promise<AuthMethodApprovalResult>;
-  consume(): void;
-}
-
-export type AuthMethodReviewPolicy =
-  | { readonly kind: 'disabled'; readonly approval?: never }
-  | { readonly kind: 'required'; readonly approval: AuthMethodReviewApproval };
-
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface WalletAuthMethodHostPlugin {
   unlock(input: {
@@ -84,5 +64,4 @@ export interface WalletAuthMethodHostPlugin {
     readonly prepareActivation: () => Promise<VoiceIdActivationPreparation>;
     readonly walletId: WalletId;
   }): Promise<AuthMethodActivationResult>;
-  review(request: VoiceIdReviewRequest): Promise<AuthMethodReviewApproval>;
 }

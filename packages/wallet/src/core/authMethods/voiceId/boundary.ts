@@ -8,7 +8,6 @@ import type {
   VoiceIdActivationCapture,
   VoiceIdUnlockCapture,
 } from './contracts';
-import type { VoiceConfirmation } from './confirmationCommand';
 
 export type VoiceOwnerConfirmation = (
   request: VoiceEnrollmentConfirmationRequest,
@@ -47,9 +46,3 @@ export type VoiceIdUnlockPreparation = Readonly<{
   challenge: (signal: AbortSignal) => Promise<VoiceIdUnlockChallenge>;
 }>;
 
-export type VoiceIdReviewRequest = Readonly<{
-  walletId: WalletId;
-  expiresAtMs: number;
-  operationHash: string;
-  confirmation: VoiceConfirmation;
-}>;
