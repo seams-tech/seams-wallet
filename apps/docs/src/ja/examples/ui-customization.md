@@ -5,7 +5,7 @@ description: Reactコンポーネントとウォレットiframeの画面に、�
 
 # UIのカスタマイズ {#ui-customization}
 
-ウォレットの承認前に、アプリ独自の購入内容や取引内容を表示する場合は、[取引確認UIのカスタマイズ](/ja/guides/transaction-review)を参照してください。
+ウォレットの承認前に、アプリ独自の購入内容や取引内容を表示する場合は、[独自の確認コンポーネント](/ja/guides/transaction-review)を参照してください。
 `useSeams().wallet`のトランザクションメソッドの`review.render`を通じて、Reactコンポーネントを渡します。
 
 Seamsは、アプリ側のReactコンポーネントとウォレットiframeで共通のテーマ設定を使います。

@@ -1,14 +1,42 @@
 ---
-title: 独自の取引確認UI
-description: 有効期限とキャンセルを明示し、ウォレットでの承認前に独自のReactコンポーネントを表示します。
+title: 独自の確認コンポーネント
+description: ウォレットでの承認前に独自のReactコンポーネントを表示し、同じモーダルのままウォレットの承認へ切り替えます。
 ---
 
-# 独自の取引確認UI {#custom-transaction-review}
+# 独自の確認コンポーネント {#custom-transaction-review}
 
 `useSeams().wallet`の取引メソッドに`review`オブジェクトを渡すと、ウォレットでの承認前に独自のReactコンポーネントを表示できます。
+ユーザーが先へ進むと、同じモーダルが独自のコンポーネントからウォレットの承認画面に切り替わります。
+ユーザーに見えるダイアログは1つで、別のポップアップは開きません。
 処理は、次の順序で進みます。
 
 **独自の確認画面 → ウォレットへ進む → ウォレットで承認 → 取引の結果**
+
+<div class="review-handoff">
+  <figure>
+    <img src="/images/custom-components/review.webp" width="860" height="990" alt="アプリが表示する購入の確認画面。予測の内容、支払額、受取額、手数料、見積もりの残り時間、Confirm in walletボタン、Back to marketリンク。">
+    <figcaption>1. 独自のコンポーネントが購入の条件を表示します。</figcaption>
+  </figure>
+  <figure>
+    <img src="/images/custom-components/wallet-approval.webp" width="884" height="930" alt="同じモーダル内のウォレットの承認画面。アプリのオリジン、コントラクトのアドレス、ネットワーク、署名するアカウント、Confirm with passkeyボタン。">
+    <figcaption>2. 同じモーダルが、その取引のウォレット承認画面を表示します。</figcaption>
+  </figure>
+</div>
+
+[wallet.seams.sh](https://wallet.seams.sh/)の**Custom Components**デモで、この流れを試せます。
+
+## 切り替えの仕組み {#how-the-handoff-works}
+
+1. アプリが`review`付きで取引メソッドを呼び出します。SDKがモーダルを開き、その中に独自のコンポーネントを表示します。
+   `origin`を渡すと、モーダルはアプリの要素の位置から広がります。
+2. ユーザーが条件を確認します。アプリのボタンが`controls.continueToWallet()`を呼び出します。
+3. モーダルのサイズが変わり、クロスフェードでウォレットの承認画面に切り替わります。
+   この画面は、ウォレットのiframeが呼び出し時の取引から表示します。ユーザーはパスキーで承認します。
+4. ウォレットの承認画面の戻る矢印で、独自のコンポーネントに戻ります。
+   コンポーネントのローカル状態は保持され、見積もりの期限も変わりません。
+
+独自のコンポーネントは、署名も取引の変更もできません。ウォレットの承認画面を表示する時点を決めるだけです。
+署名する取引はウォレットのオリジンが表示するため、アプリのUIに不具合があっても、ウォレットが署名する内容は変わりません。
 
 ## ホストを配置する {#mount-the-host}
 
@@ -104,6 +132,19 @@ review: {
 金額0の自己送金を実行します。ガス代は発生します。試す際は、テストネットのウォレットを使ってください。
 
 <<< ../../examples/transaction-review.tsx
+
+## 期限付き見積もりによる購入の実装例 {#purchase-example-with-an-expiring-quote}
+
+このEVMの実装例は、上の画像のデモと同じ流れです。
+アプリのバックエンドが、期限とマーケットのコントラクトへの呼び出しを含む見積もりを返します。
+コンポーネントは残り時間を表示し、見積もりの期限が切れると**Confirm in wallet**を無効にします。
+`validity`にも同じ期限を渡すため、期限後はSDKもウォレットの承認を止めます。
+確認画面は**Buy Yes**ボタンの位置から広がります。
+
+<<< ../../examples/purchase-review.tsx
+
+`chainTarget`には、プロバイダーの設定にあるEVMネットワークを指定してください。
+`review_expired`エラーは、何も署名されていないことを示します。新しい見積もりを取得し、改めて呼び出してください。
 
 ## 対応するメソッドと設定 {#supported-methods-and-settings}
 

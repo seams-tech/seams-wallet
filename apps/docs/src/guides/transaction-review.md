@@ -1,14 +1,43 @@
 ---
-title: Custom transaction review
-description: Show your React component before wallet approval, with explicit expiry and cancellation.
+title: Custom review components
+description: Show your React component before wallet approval, then hand off to the wallet in the same modal.
 ---
 
-# Custom transaction review
+# Custom review components {#custom-transaction-review}
 
 Pass a `review` object to a transaction method on `useSeams().wallet` to show
-your own React component before wallet approval. The flow is:
+your own React component before wallet approval. When the person continues, the
+same modal changes from your component to wallet approval. The person sees one
+dialog, not a second popup. The flow is:
 
 **Your review → Continue to wallet → wallet approval → transaction result.**
+
+<div class="review-handoff">
+  <figure>
+    <img src="/images/custom-components/review.webp" width="860" height="990" alt="A purchase review drawn by the application: the market claim, the amount to pay, the payout, the fees, a quote countdown, a Confirm in wallet button, and a Back to market link.">
+    <figcaption>1. Your component shows the terms of the purchase.</figcaption>
+  </figure>
+  <figure>
+    <img src="/images/custom-components/wallet-approval.webp" width="884" height="930" alt="Wallet approval in the same modal: the application origin, the contract address, the network, the signing account, and a Confirm with passkey button.">
+    <figcaption>2. The same modal shows wallet approval for the exact transaction.</figcaption>
+  </figure>
+</div>
+
+Try the flow in the **Custom Components** demo on [wallet.seams.sh](https://wallet.seams.sh/).
+
+## How the handoff works
+
+1. Your app calls a transaction method with `review`. The SDK opens a modal and
+   renders your component in it. With `origin`, the modal grows from your own element.
+2. The person reads your terms. Your button calls `controls.continueToWallet()`.
+3. The modal resizes and crossfades to wallet approval. The wallet iframe draws
+   this step from the captured transaction. The person confirms with a passkey.
+4. The back arrow in wallet approval returns to your component. Your component
+   keeps its local state, and the quote deadline does not change.
+
+Your component cannot sign or change the transaction. It only decides when to
+show wallet approval. The wallet origin shows the transaction that the person
+signs, so an error in application UI cannot change what the wallet signs.
 
 ## Mount the host
 
@@ -107,6 +136,19 @@ Render this button beneath the host with a signed-in NEAR account. It sends a ze
 self-transfer. Gas fees apply. Use a testnet wallet to try it.
 
 <<< ../examples/transaction-review.tsx
+
+## Purchase example with an expiring quote
+
+This EVM example follows the demo in the pictures. Your backend returns a quote
+with a deadline and the call to your market contract. The component shows a
+countdown and disables **Confirm in wallet** when the quote expires. `validity`
+uses the same deadline, so the SDK also stops wallet approval after expiry. The
+review grows from the **Buy Yes** button.
+
+<<< ../examples/purchase-review.tsx
+
+Set `chainTarget` to an EVM network in your provider config. A `review_expired`
+error means that nothing was signed. Get a new quote and make a new call.
 
 ## Supported methods and settings
 

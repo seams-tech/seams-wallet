@@ -93,7 +93,7 @@ const japaneseSidebarLabels: Record<string, string> = {
   'Delegated agents': '権限を委任したエージェント',
   'Linked devices': 'リンク済みデバイス',
   'Recovery, export, and rotation': '復元・エクスポート・鍵のローテーション',
-  'Custom transaction review': '取引確認UIのカスタマイズ',
+  'Custom review components': '独自の確認コンポーネント',
   Theming: 'テーマの設定',
   Examples: '実装例',
   'Wallet setup and authentication': 'ウォレットの設定と認証',
