@@ -376,7 +376,10 @@ import type {
   SdkLifecycleEventListener,
   SigningFlowEvent,
 } from '@/core/types/sdkSentEvents';
-import { createNearProvisioningStateChangedEvent } from '@/core/types/sdkSentEvents';
+import {
+  createNearProvisioningStateChangedEvent,
+  SigningEventPhase,
+} from '@/core/types/sdkSentEvents';
 import type {
   AppearanceConfig,
   SeamsConfigsReadonly,
@@ -489,6 +492,20 @@ export type VoiceIdStepUp = (input: {
 
 // A VoiceID session in one of these states signs again only after a voice step-up.
 const VOICE_ID_STEP_UP_READS = new Set(['missing', 'expired', 'exhausted', 'superseded']);
+
+/**
+ * One signing attempt inside a VoiceID step-up. The operation routes its event
+ * listener and confirm override through it, so a retry after the user approved
+ * does not ask for the same approval again.
+ */
+type VoiceIdSigningAttempt = {
+  readonly onEvent: (
+    listener: ((event: SigningFlowEvent) => void) | undefined,
+  ) => (event: SigningFlowEvent) => void;
+  readonly confirmation: (
+    override: Partial<ConfirmationConfig> | undefined,
+  ) => Partial<ConfirmationConfig> | undefined;
+};
 
 function requireEmailOtpEcdsaRehydrationManifest(
   manifests: readonly ActiveEcdsaCapabilityManifest[],
@@ -3486,14 +3503,33 @@ export class BrowserSigningSurface {
    * before the operation when the session read shows it, and once more when the
    * operation itself reports it before any signature.
    */
-  private async withVoiceIdStepUp<T>(walletId: WalletId, run: () => Promise<T>): Promise<T> {
+  private async withVoiceIdStepUp<T>(
+    walletId: WalletId,
+    run: (attempt: VoiceIdSigningAttempt) => Promise<T>,
+  ): Promise<T> {
+    let approved = false;
+    const attempt = (skipConfirmClick: boolean): VoiceIdSigningAttempt => ({
+      onEvent: (listener) => (event) => {
+        if (event.phase === SigningEventPhase.STEP_05_CONFIRMATION_APPROVED) approved = true;
+        listener?.(event);
+      },
+      confirmation: (override) =>
+        skipConfirmClick ? { ...override, behavior: 'skipClick', autoProceedDelay: 0 } : override,
+    });
+    // A reviewed request shows Wallet UI only on its confirm card, so its client steps
+    // up before the review opens. Here it only reports that a step-up is still needed.
+    if (reviewAdmissionForBinding(this.getWalletIframeSurfaceMeasurementBinding())) {
+      return await run(attempt(false));
+    }
     const steppedUp = await this.stepUpVoiceIdBeforeSigning(walletId);
     try {
-      return await run();
+      return await run(attempt(false));
     } catch (error) {
       if (steppedUp || !isVoiceIdStepUpRequired(error)) throw error;
       if (!(await this.runVoiceIdStepUp(walletId))) throw error;
-      return await run();
+      // The user approved this request before the step-up; the voice check was the
+      // only missing step, so the retry signs it without a second confirm click.
+      return await run(attempt(approved));
     }
   }
 
@@ -3523,8 +3559,15 @@ export class BrowserSigningSurface {
   ): Promise<NearSignIntentResult<TRequest>> {
     const walletId = request.args.commandSubject.walletSession.walletId;
     try {
-      return await this.withVoiceIdStepUp(walletId, () =>
-        signNearOperation(this.enginePorts.nearSigningDeps, request),
+      return await this.withVoiceIdStepUp(walletId, (attempt) =>
+        signNearOperation(this.enginePorts.nearSigningDeps, {
+          ...request,
+          args: {
+            ...request.args,
+            onEvent: attempt.onEvent(request.args.onEvent),
+            confirmationConfigOverride: attempt.confirmation(request.args.confirmationConfigOverride),
+          },
+        }),
       );
     } catch (error) {
       if (isWalletSigningStateFailure(error)) {
@@ -5730,8 +5773,12 @@ export class BrowserSigningSurface {
     shouldAbort?: () => boolean;
     onEvent?: (event: SigningFlowEvent) => void;
   }): Promise<TempoSignedResult | EvmSignedResult> {
-    return await this.withVoiceIdStepUp(args.walletSession.walletId, () =>
-      signEvmFamilyOperation(this.enginePorts.tempoSigningDeps, args),
+    return await this.withVoiceIdStepUp(args.walletSession.walletId, (attempt) =>
+      signEvmFamilyOperation(this.enginePorts.tempoSigningDeps, {
+        ...args,
+        onEvent: attempt.onEvent(args.onEvent),
+        confirmationConfigOverride: attempt.confirmation(args.confirmationConfigOverride),
+      }),
     );
   }
 

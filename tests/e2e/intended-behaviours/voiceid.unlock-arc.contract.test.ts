@@ -137,10 +137,27 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
           'available',
         )
       : null;
+    let steppedUpWithVoice = false;
     if (near) {
       await near.observe(context);
       await signTransfer(page);
       expect(near.transfers).toHaveLength(1);
+      // NEAR and Arc share the session's three signatures; one more NEAR transfer uses it up.
+      await signTransfer(page);
+      expect(near.transfers).toHaveLength(2);
+      // The next Arc transfer steps up with VoiceID inside the Wallet, never with a passkey.
+      const capturesBeforeStepUp = await wallet.locator('body').evaluate(microphoneCount);
+      const passkeysBeforeStepUp = await wallet.locator('body').evaluate(readPasskeyRequests);
+      await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
+      await beginDirectVoiceUnlock(page);
+      await confirmArcTransfer(page, rpc, 2);
+      expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(capturesBeforeStepUp + 1);
+      expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeysBeforeStepUp);
+      expect((await page.evaluate(session)).authentication).toMatchObject({
+        kind: 'authenticated',
+        authMethod: 'voiceid',
+      });
+      steppedUpWithVoice = true;
     }
     await saveEvidence(testInfo, 'voiceid-arc-transfer.json', {
       status: 'passed',
@@ -157,6 +174,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       walletId: method.walletId,
       transactions: rpc.transactions,
       cancellationPreventedSecondTransfer: true,
+      steppedUpWithVoice,
       signerSetup:
         profile === 'add_ecdsa_after_voice'
           ? 'accounts_menu_from_voiceid_session_with_passkey'
@@ -172,6 +190,17 @@ function unlock(id: string) {
   if (!window.__seamsIntendedVoiceId) throw new Error('Missing VoiceID helper');
   return window.__seamsIntendedVoiceId.unlock(id);
 }
+async function confirmArcTransfer(page: Page, rpc: VoiceIdArcRpc, count: number): Promise<void> {
+  await (await waitForWalletIframeReviewedConfirm(page)).click();
+  await expect.poll(readTransactionCount.bind(null, rpc), { timeout: 90_000 }).toBe(count);
+  await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute('data-state', 'submitted');
+  await waitForWalletIframeConfirmationSettlement(page);
+}
+
+function readTransactionCount(rpc: VoiceIdArcRpc): number {
+  return rpc.transactions.length;
+}
+
 function useNaturalPhrases() {
   window.voiceIdUseNaturalPhrases();
 }

@@ -202,7 +202,12 @@ session is missing, expired, used up, or superseded, the next signing operation 
 shows the VoiceID unlock inside the Wallet. A successful voice check installs a fresh
 VoiceID session, and the operation then signs on it. A VoiceID session never steps up
 with a passkey or Email OTP. Cancelling the voice check cancels the operation.
-Contract enforcement: `tests/e2e/intended-behaviours/passkey.voiceid-selection.contract.test.ts`.
+A reviewed request runs the voice check before its review opens, so the review
+signs on the fresh session. If the owner already confirmed a request when its
+operation reports that the session needs a step-up, the retry after the voice
+check signs without a second confirm.
+Contract enforcement: `tests/e2e/intended-behaviours/passkey.voiceid-selection.contract.test.ts`
+and `tests/e2e/intended-behaviours/voiceid.unlock-arc.contract.test.ts` (reviewed step-up).
 
 
 The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the

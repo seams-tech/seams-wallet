@@ -1,5 +1,6 @@
 import type { SeamsWeb } from '../../SeamsWeb';
 import type { NearAccountRef, WalletSessionRef } from '../../boundary/walletRefs';
+import type { WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { BoundNearSigner, BoundEvmSigner, BoundTempoSigner } from '../boundWallet';
 import type { TransactionReviewCapabilities } from '../../SeamsWeb/publicApi/transactionReview';
 import {
@@ -18,6 +19,8 @@ import { nearTransactionFailure } from '../../core/signingEngine/nearTransaction
 
 type BoundReviewEnvironment = {
   readonly seams: SeamsWeb;
+  /** The selected VoiceID method when the wallet is unlocked with VoiceID. */
+  readonly voiceIdMethodId: WalletAuthMethodId | null;
   readonly walletId: string;
   readonly walletSession: WalletSessionRef;
   readonly nearAccount: NearAccountRef | null;
@@ -35,6 +38,30 @@ export function requireHost(
       'Wrap this useSeams component in TransactionReviewHost inside SeamsWebProvider',
     );
   return env.host;
+}
+
+/**
+ * A review hands the Wallet overlay over only when its card is ready, so a VoiceID
+ * session that cannot sign steps up with VoiceID before the review opens.
+ */
+// Reasons that a fresh VoiceID unlock resolves; other reasons are not about authentication.
+const VOICE_ID_STEP_UP_REASONS = new Set(['exhausted', 'not_found', 'superseded']);
+
+async function stepUpVoiceIdBeforeReview(env: BoundReviewEnvironment): Promise<void> {
+  if (!env.voiceIdMethodId) return;
+  const state = await env.seams.getWalletIframeExactSessionState();
+  const needsStepUp =
+    state.kind === 'expired_session' ||
+    (state.kind === 'wallet_unlocked_without_signing_session' &&
+      VOICE_ID_STEP_UP_REASONS.has(state.reason));
+  if (!needsStepUp) return;
+  if (String(state.walletId) !== env.walletId) return;
+  const unlocked = await env.seams.auth.unlockWithAuthMethod({
+    walletId: env.walletId,
+    walletAuthMethodId: env.voiceIdMethodId,
+    method: 'voiceid',
+  });
+  if (!unlocked.success) throw new TransactionReviewError('cancelled', unlocked.error);
 }
 
 export function createReviewedBoundCalls(env: BoundReviewEnvironment) {
@@ -79,6 +106,7 @@ async function nearSign(
       nearAccount: env.nearAccount,
       options: copiedOptions,
     };
+    await stepUpVoiceIdBeforeReview(env);
     return await host.run(
       env.owner,
       env.walletId,
@@ -120,6 +148,7 @@ async function evmSign(
     chainTarget: resolveEvmChainTarget(env.seams.configs.network.chains, copied.chainTarget),
     options: copiedOptions,
   };
+  await stepUpVoiceIdBeforeReview(env);
   return host.run(
     env.owner,
     env.walletId,
@@ -159,6 +188,7 @@ async function evmExecute(
     postFinalizationCheck,
     options: copiedOptions,
   };
+  await stepUpVoiceIdBeforeReview(env);
   return host.run(
     env.owner,
     env.walletId,
@@ -197,6 +227,7 @@ async function tempoSign(
     chainTarget: resolveTempoChainTarget(env.seams.configs.network.chains, copied.chainTarget),
     options: copiedOptions,
   };
+  await stepUpVoiceIdBeforeReview(env);
   return host.run(
     env.owner,
     env.walletId,
@@ -239,6 +270,7 @@ async function tempoExecute(
     postFinalizationCheck,
     options: copiedOptions,
   };
+  await stepUpVoiceIdBeforeReview(env);
   return host.run(
     env.owner,
     env.walletId,

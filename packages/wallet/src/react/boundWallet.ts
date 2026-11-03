@@ -120,8 +120,13 @@ export function createBoundWallet(
     ? nearAccountRefFromAccountId(nearAccountId)
     : null;
 
+  const selected = loginState.currentAuthMethod;
   const reviewed = createReviewedBoundCalls({
     seams,
+    voiceIdMethodId:
+      selected.kind === 'selected' && selected.binding.kind === 'voiceid'
+        ? selected.binding.walletAuthMethodId
+        : null,
     walletId,
     walletSession,
     nearAccount,
