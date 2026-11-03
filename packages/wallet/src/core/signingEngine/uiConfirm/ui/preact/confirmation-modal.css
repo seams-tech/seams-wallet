@@ -45,9 +45,14 @@ html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant
   border-radius: min(var(--seams-shape-card, 16px), 2rem);
 }
 
-/* The resize reporter must see the requested height while the parent makes room. */
+/*
+ * The resize reporter must see the requested height while the parent makes room.
+ * A shrinking pin is shorter than the card until the motion lands, so the pinned
+ * shell must not clip: the iframe box is the only edge the card is driven to.
+ */
 .seams-confirmation-surface[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'].seams-confirm-surface-pinned {
   max-block-size: none;
+  overflow: visible;
 }
 
 :where(.seams-wallet-ui) .seams-confirmation-modal--hosted {
