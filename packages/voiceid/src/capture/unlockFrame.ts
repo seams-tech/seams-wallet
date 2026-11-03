@@ -61,7 +61,8 @@ const CSS = `
   padding: 0.75rem 1.5rem 1.5rem;
   grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) auto auto;
 }
-.seams-voiceid-unlock .seams-voiceid-record-slot:has(button[hidden]) {
+/* Only a hidden record button empties the slot; the microphone choice is hidden by default. */
+.seams-voiceid-unlock .seams-voiceid-record-slot:has(> .seams-voiceid-primary[hidden]) {
   display: none;
 }
 .seams-voiceid-unlock-footer {
