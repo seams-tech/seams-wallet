@@ -85,6 +85,46 @@ for (const exported of EXPORTS) {
   });
 }
 
+test('an interrupted VoiceID Ed25519 admission returns its envelope to the exact retry', async ({
+  harness,
+  page,
+  context,
+}) => {
+  await allowBrowserMicrophone(context);
+  harness.enableVoiceIdPlugin();
+  await harness.registerPasskeyEd25519YaoWallet();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  const activation = page.evaluate(activate);
+  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await wallet.locator('body').evaluate(useNaturalPhrases);
+  await enrollBrowserMicrophone(page);
+  const method = requireActivatedVoiceId(await activation);
+  await harness.lockWallet();
+  const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
+  await beginDirectVoiceUnlock(page);
+  expect(await unlocked).toMatchObject({ success: true });
+  // The Gateway loses storage after the export authorization commits, then
+  // answers the identical request from that authorization.
+  const assertRetriedAdmission = harness.armInterruptedEd25519ExportAuthorization();
+  const passkeysBefore = await wallet.locator('body').evaluate(readPasskeyRequests);
+  const authorization = page.waitForResponse(isEd25519ExportAdmission, { timeout: 120_000 });
+  await page.getByTestId('intended-export-ed25519').click();
+  const exportButton = wallet.getByRole('button', {
+    name: 'Export keys with VoiceID',
+    exact: true,
+  });
+  await expect(exportButton).toBeEnabled({ timeout: 45_000 });
+  await exportButton.click();
+  const authorized = await authorization;
+  expect(authorized.status()).toBe(200);
+  expect(await authorized.json()).toHaveProperty('voiceIdCustodyEnvelope.factor.kind', 'voiceid');
+  await waitForAction(page, 'exportEd25519Key');
+  await expect(page.getByTestId('intended-result-json')).toContainText('key_export.viewer.opened');
+  assertRetriedAdmission();
+  expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeysBefore);
+  await wallet.getByRole('button', { name: 'Close' }).first().click();
+});
+
 test('cancelling the VoiceID export check exports nothing', async ({
   harness,
   page,

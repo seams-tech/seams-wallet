@@ -380,6 +380,13 @@ export type RouterAbEd25519YaoExportAdmissionAuthorizationResultV1 =
     }
   | RouterAbEd25519YaoExportAuthorizationFailure;
 
+export type RouterAbEd25519YaoExportVoiceIdCustodyReleaseResultV1 =
+  | {
+      readonly ok: true;
+      readonly custodyRelease: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1;
+    }
+  | RouterAbEd25519YaoExportAuthorizationFailure;
+
 export type RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult =
   | {
       readonly ok: true;
@@ -398,6 +405,14 @@ export interface RouterAbEd25519YaoExportAuthorizationAdapter {
   ):
     | Promise<RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult>
     | RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult;
+  /**
+   * The VoiceID seed envelope for an exact retry of an export already
+   * authorized with VoiceID. The retry's statement is verified again; its
+   * export is not authorized again.
+   */
+  releaseVoiceIdCustodyForAuthorizedExport(
+    input: RouterAbEd25519YaoExportAdmissionAuthorizationInputV1,
+  ): Promise<RouterAbEd25519YaoExportVoiceIdCustodyReleaseResultV1>;
   /** The identity an already-authorized export's admission resolves to now. */
   resolveAuthorizationIdentity(
     body: RouterAbEd25519YaoExportAdmissionRequestV1,
@@ -1695,17 +1710,30 @@ async function authorizeExportAdmission(args: {
   };
 }
 
-async function authorizeVoiceIdExportAdmission(args: {
+type VoiceIdExportAdmissionAuthorization = Extract<
+  RouterAbEd25519YaoExportAdmissionAuthorization,
+  { readonly kind: 'voiceid_device' }
+>;
+
+type VerifiedVoiceIdExportProof =
+  | {
+      readonly ok: true;
+      readonly verified: Extract<
+        Awaited<ReturnType<RouterApiWalletUnlockService['verifyVoiceIdOperation']>>,
+        { readonly kind: 'verified' }
+      >;
+    }
+  | RouterAbEd25519YaoExportAuthorizationFailure;
+
+/* The statement signs the confirmation digest that a passkey would sign, and
+   the export nonce claim makes it single use. Verifying it records nothing. */
+async function verifyVoiceIdExportProof(args: {
   readonly walletId: WalletId;
   readonly input: ExportAdmissionAuthorizationInput;
-  readonly authorization: Extract<
-    RouterAbEd25519YaoExportAdmissionAuthorization,
-    { readonly kind: 'voiceid_device' }
-  >;
+  readonly authorization: VoiceIdExportAdmissionAuthorization;
   readonly voiceId: Pick<RouterApiWalletUnlockService, 'verifyVoiceIdOperation'>;
-  readonly authorizedOperations: RouterApiAuthorizedOperationService;
   readonly nowMs: number;
-}): Promise<VerifiedExportAdmission> {
+}): Promise<VerifiedVoiceIdExportProof> {
   const walletAuthMethodId = parseWalletAuthMethodId(args.authorization.walletAuthMethodId);
   let requestOrigin: SessionOrigin;
   let operationChallenge: DigestB64u;
@@ -1728,8 +1756,6 @@ async function authorizeVoiceIdExportAdmission(args: {
       message: walletAuthMethodId.error.message,
     });
   }
-  /* The statement signs the confirmation digest that a passkey would sign, and
-     the export nonce claim makes it single use. */
   let verified: Awaited<ReturnType<RouterApiWalletUnlockService['verifyVoiceIdOperation']>>;
   try {
     verified = await args.voiceId.verifyVoiceIdOperation({
@@ -1755,6 +1781,20 @@ async function authorizeVoiceIdExportAdmission(args: {
       message: 'Fresh VoiceID export proof was not verified',
     });
   }
+  return { ok: true, verified };
+}
+
+async function authorizeVoiceIdExportAdmission(args: {
+  readonly walletId: WalletId;
+  readonly input: ExportAdmissionAuthorizationInput;
+  readonly authorization: VoiceIdExportAdmissionAuthorization;
+  readonly voiceId: Pick<RouterApiWalletUnlockService, 'verifyVoiceIdOperation'>;
+  readonly authorizedOperations: RouterApiAuthorizedOperationService;
+  readonly nowMs: number;
+}): Promise<VerifiedExportAdmission> {
+  const checked = await verifyVoiceIdExportProof(args);
+  if (!checked.ok) return checked;
+  const verified = checked.verified;
   const recorded = await recordFreshExportProof({
     walletId: args.walletId,
     input: args.input,
@@ -2121,6 +2161,34 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
     const authorizationIdentity = { thresholdSessionId: thresholdSessionId.value };
     const checked = authorizeExportExecution(input, authorizationIdentity);
     return checked.ok ? { ok: true, authorizationIdentity } : checked;
+  }
+
+  async releaseVoiceIdCustodyForAuthorizedExport(
+    input: RouterAbEd25519YaoExportAdmissionAuthorizationInputV1,
+  ): Promise<RouterAbEd25519YaoExportVoiceIdCustodyReleaseResultV1> {
+    const walletId = parseWalletId(input.body.application_binding.wallet_id);
+    if (input.authorization.kind !== 'voiceid_device' || !walletId.ok) {
+      return authorizationFailure({
+        status: 403,
+        code: 'export_authorization_method_mismatch',
+        message: 'Only a VoiceID export releases a VoiceID custody envelope',
+      });
+    }
+    const checked = await verifyVoiceIdExportProof({
+      walletId: walletId.value,
+      input,
+      authorization: input.authorization,
+      voiceId: this.voiceId,
+      nowMs: Date.now(),
+    });
+    if (!checked.ok) return checked;
+    return {
+      ok: true,
+      custodyRelease: {
+        kind: 'voiceid_custody_envelope',
+        envelope: checked.verified.custodyEnvelope,
+      },
+    };
   }
 
   async resolveAuthorizationIdentity(

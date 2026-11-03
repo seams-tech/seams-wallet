@@ -4321,6 +4321,21 @@ export class IntendedBehaviourHarness {
    */
   async exportEd25519KeyAcrossInterruptedAuthorization(): Promise<void> {
     this.recordStage('ed25519.export_across_interrupted_authorization');
+    const assertProof = this.armInterruptedEd25519ExportAuthorization();
+    try {
+      await this.exportEd25519Key();
+    } finally {
+      this.intendedYaoExportFaultToken = null;
+    }
+    assertProof();
+  }
+
+  /**
+   * Arms the storage loss after the next Ed25519 export authorization commits,
+   * for a step that drives the export itself. The returned check proves the
+   * Gateway admitted the export from its exact retry.
+   */
+  armInterruptedEd25519ExportAuthorization(): () => void {
     if (this.intendedYaoExportFaultToken !== null) {
       throw new Error('An intended Yao export fault is already armed');
     }
@@ -4328,17 +4343,15 @@ export class IntendedBehaviourHarness {
     const proofStartIndex = this.intendedYaoFaultProofs.length;
     const faultToken = randomUUID();
     this.intendedYaoExportFaultToken = faultToken;
-    try {
-      await this.exportEd25519Key();
-    } finally {
+    return () => {
       this.intendedYaoExportFaultToken = null;
-    }
-    this.assertIntendedYaoFaultProof(
-      proofStartIndex,
-      faultToken,
-      'export_authorization_committed_then_storage_lost',
-    );
-    this.recordService('the exact retry admitted an export interrupted after its authorization');
+      this.assertIntendedYaoFaultProof(
+        proofStartIndex,
+        faultToken,
+        'export_authorization_committed_then_storage_lost',
+      );
+      this.recordService('the exact retry admitted an export interrupted after its authorization');
+    };
   }
 
   assertNoLifecycleViolations(): void {

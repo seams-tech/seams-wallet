@@ -2057,6 +2057,9 @@ Expected behaviour:
 - Ed25519 export: the admission returns the method's sealed VoiceID seed
   envelope. The Wallet opens it with the factor secret from the same voice check
   and runs the exact Yao export. The factor secret is erased afterwards.
+- An exact retry of an Ed25519 admission that was already authorized verifies
+  the same statement again and returns the same envelope. It does not authorize
+  the export a second time.
 - ECDSA export: the step-up authorizes the exact canonical export lane, and the
   export uses the role-local material that the VoiceID unlock opened.
 - Export opens the export viewer only after authorization and material

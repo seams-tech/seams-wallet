@@ -354,7 +354,8 @@ async function runAuthorization(
   // An export already authorized answers from its state: its proof is spent,
   // and an Email OTP one cannot be verified again. Its authorization must
   // still be in its window, and its owner must still hold the active
-  // material identity.
+  // material identity. A VoiceID retry verifies its statement again, only to
+  // receive the seed envelope the first answer carried.
   if (existingAuthority) {
     if (parsed.protocol.authorization.expires_at_ms <= Date.now()) {
       return authorizationFailure(
@@ -379,10 +380,22 @@ async function runAuthorization(
         'Export authorization owner changed for an existing request',
       );
     }
+    let custodyRelease: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1 | null = null;
+    if (parsed.authorization.kind === 'voiceid_device') {
+      const released = await context.input.authorization.releaseVoiceIdCustodyForAuthorizedExport({
+        request: context.input.request,
+        body: parsed.protocol,
+        authorization: parsed.authorization,
+        expectedOrigin,
+      });
+      if (!released.ok) return released;
+      custodyRelease = released.custodyRelease;
+    }
     verified = {
       identity: existingAuthority.authorizationIdentity,
       ownershipGeneration: existingAuthority.ownershipGeneration,
       admission: null,
+      ...(custodyRelease ? { custodyRelease } : {}),
     };
   } else {
     let authorized: Awaited<
@@ -480,7 +493,7 @@ type VerifiedAuthorization = {
   /** Null when the export was already authorized and only its identity was checked. */
   readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1 | null;
   readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
-  /* Returned only by the request that verified the voice check; a replay has none. */
+  /* Every VoiceID answer carries it: the first one and each exact retry. */
   readonly custodyRelease?: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1;
 };
 
