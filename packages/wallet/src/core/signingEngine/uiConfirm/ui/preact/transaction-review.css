@@ -355,6 +355,11 @@
   font-size: 0.6875rem;
   line-height: 1rem;
   letter-spacing: 0.01em;
+  /* A card taller than its frame scrolls under the footer, so the footer stays in view. */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--seams-colors-colorBackground);
 }
 /* The wordmark signs the line in its own colour, at the height of its letters. */
 :where(.seams-wallet-ui) .seams-receipt-footer .seams-receipt-wordmark {
