@@ -4,6 +4,10 @@ import {
 } from '@/core/signingEngine/session/operationState/types';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import { parseNearTransactionResult } from '@/core/signingEngine/nearTransactionSubmission';
+import {
+  parseNearTransactionRejection,
+  type NearTransactionRejection,
+} from '@/core/rpcClients/near/nearTransactionRejection';
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import { ActionType, type ActionArgsWasm, type TransactionInputWasm } from '@/core/types/actions';
 import type { ActionResult } from '@/core/types/seams';
@@ -32,6 +36,8 @@ export type OwnerNearCommand = Readonly<{
     | { action: 'approve'; transaction: TransactionInputWasm; expiresAtMs: number }
     | { action: 'recover' }
     | { action: 'retire'; transactionId: string }
+    // The owner signs a 0-NEAR transfer to the account itself at the same key and nonce.
+    | { action: 'cancel_submitted'; transactionId: string }
   >;
 
 /** What the wallet knows about a submitted transaction from its durable receipt. */
@@ -95,8 +101,24 @@ export type OwnerNearRetirementApproval = Readonly<{
   approvedAtMs: number;
 }>;
 
+/**
+ * The owner's cancel is final on NEAR. It used the same access key and nonce, and NEAR
+ * includes one transaction per nonce of a key, so the cancelled transaction never executed
+ * and never can. This proof rests on the cancel's own final outcome, never on a missing hash.
+ */
+export type OwnerNearReplacementProof = Readonly<{
+  execution: 'not_executed';
+  submission: Variant<OwnerNearSubmissionEvidence, 'kind', 'signed'>;
+  replacement: Readonly<{
+    transactionId: string;
+    /** A cancel takes the nonce whether its transfer succeeded or failed. */
+    status: 'succeeded' | 'failed';
+  }>;
+}>;
+
 export type OwnerNearRetirementProof =
   | OwnerNearNotExecutedProof
+  | OwnerNearReplacementProof
   | (OwnerNearUnverifiedExecutionProof & Readonly<{ ownerApproval: OwnerNearRetirementApproval }>);
 
 export type OwnerNearOutcome = ReadonlyExclusiveUnion<
@@ -112,8 +134,22 @@ export type OwnerNearOutcome = ReadonlyExclusiveUnion<
       error: string;
       /** Absent when this check reached no validity limit, such as after an RPC failure. */
       retirementWait?: OwnerNearRetirementWait;
+      /**
+       * NEAR refused the transaction when it was sent, for a reason that depends on chain
+       * state, such as `NotEnoughBalance`. A rejection alone never proves non-execution.
+       */
+      rejection?: NearTransactionRejection;
+      /** NEAR refused the owner's cancel, such as `NotEnoughBalance`. The person can add NEAR and cancel again. */
+      cancellationRejection?: NearTransactionRejection;
     }
-  | { kind: 'not_submitted'; error: string }
+  | {
+      kind: 'not_submitted';
+      error: string;
+      /** NEAR refused the signed bytes themselves, so it can never include them. */
+      rejection?: NearTransactionRejection;
+      /** The account could not pay, so the wallet did not sign. Amounts are yoctoNEAR. */
+      shortfall?: OwnerNearShortfall;
+    }
   | { kind: 'recovery_unavailable'; recovery: OwnerNearRecovery; error: string }
   | {
       kind: 'retirement_available';
@@ -153,8 +189,9 @@ export function parseOwnerNearCommand(raw: unknown): OwnerNearCommand {
     case 'recover':
       return { action: 'recover', authentication, recovery };
     case 'retire':
+    case 'cancel_submitted':
       return {
-        action: 'retire',
+        action: value.action,
         authentication,
         recovery,
         transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
@@ -210,7 +247,12 @@ export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
     case 'expired':
       return { kind: 'expired' };
     case 'not_submitted':
-      return { kind: 'not_submitted', error: requireCanonicalString(value.error, 'error') };
+      return {
+        kind: 'not_submitted',
+        error: requireCanonicalString(value.error, 'error'),
+        ...optionalRejection(value.rejection),
+        ...(value.shortfall === undefined ? {} : { shortfall: parseShortfall(value.shortfall) }),
+      };
     case 'recovery_unavailable':
       return {
         kind: 'recovery_unavailable',
@@ -226,6 +268,10 @@ export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
         ...(value.retirementWait === undefined
           ? {}
           : { retirementWait: parseRetirementWait(value.retirementWait) }),
+        ...optionalRejection(value.rejection),
+        ...(value.cancellationRejection === undefined
+          ? {}
+          : { cancellationRejection: parseNearTransactionRejection(value.cancellationRejection) }),
       };
     case 'unknown':
       return { kind: 'unknown', recovery: parseOwnerNearRecovery(value.recovery) };
@@ -280,6 +326,27 @@ export function parseOwnerNearSubmissionEvidence(raw: unknown): OwnerNearSubmiss
   }
 }
 
+export type OwnerNearShortfall = Readonly<{
+  balance: string;
+  /** Deposits plus all prepaid gas and fees at the current gas price. */
+  maximumCost: string;
+  /** The balance that the account's storage keeps locked. */
+  storageReserve: string;
+}>;
+
+function parseShortfall(raw: unknown): OwnerNearShortfall {
+  const value = requireRecord(raw, 'owner operation shortfall');
+  return {
+    balance: requireDecimalString(value.balance, 'balance'),
+    maximumCost: requireDecimalString(value.maximumCost, 'maximumCost'),
+    storageReserve: requireDecimalString(value.storageReserve, 'storageReserve'),
+  };
+}
+
+function optionalRejection(raw: unknown): { rejection?: NearTransactionRejection } {
+  return raw === undefined ? {} : { rejection: parseNearTransactionRejection(raw) };
+}
+
 function parseRetirementWait(raw: unknown): OwnerNearRetirementWait {
   const value = requireRecord(raw, 'owner retirement wait');
   return {
@@ -294,11 +361,30 @@ function parseRetirementWait(raw: unknown): OwnerNearRetirementWait {
 
 type ParsedRetirementProof =
   | OwnerNearNotExecutedProof
+  | OwnerNearReplacementProof
   | (OwnerNearUnverifiedExecutionProof &
       Readonly<{ ownerApproval?: OwnerNearRetirementApproval }>);
 
 function parseRetirementProof(raw: unknown): ParsedRetirementProof {
   const value = requireRecord(raw, 'owner retirement proof');
+  if (value.replacement !== undefined) {
+    const submission = parseOwnerNearSubmissionEvidence(value.submission);
+    const replacement = requireRecord(value.replacement, 'owner cancel');
+    if (
+      value.execution !== 'not_executed' ||
+      submission.kind !== 'signed' ||
+      (replacement.status !== 'succeeded' && replacement.status !== 'failed')
+    )
+      throw new Error('Invalid owner cancel proof.');
+    return {
+      execution: 'not_executed',
+      submission,
+      replacement: {
+        transactionId: requireCanonicalString(replacement.transactionId, 'transactionId'),
+        status: replacement.status,
+      },
+    };
+  }
   const position: OwnerNearChainPosition = {
     finalBlockHeight: requirePositiveInteger(value.finalBlockHeight, 'finalBlockHeight'),
     finalBlockHash: requireCanonicalString(value.finalBlockHash, 'finalBlockHash'),

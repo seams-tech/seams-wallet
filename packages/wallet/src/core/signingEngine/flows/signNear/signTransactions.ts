@@ -456,6 +456,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
     title,
     body,
     signerSlot,
+    replacementNonce,
     signingOperationState,
     signingSessionCoordinator: sessionCoordinator,
     selection,
@@ -614,6 +615,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
           },
           operation: { ...signingOperation, accountId: String(nearAccountId) },
           signatureUses: signingOperationUses,
+          ...(replacementNonce ? { replacementNonce } : {}),
         },
         confirmationConfigOverride: confirmationConfigForSigningAuthPlan({
           signingAuthPlan: preparedStepUp.confirmationAuthPayload.signingAuthPlan,
@@ -735,6 +737,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   title,
   body,
   signerSlot,
+  replacementNonce,
   signingOperationState,
   signingSessionCoordinator: sessionCoordinator,
   transactionOperation,
@@ -1016,6 +1019,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             accountId: String(nearAccountId),
           },
           signatureUses: requiredSignatureUses,
+          ...(replacementNonce ? { replacementNonce } : {}),
         },
         confirmationConfigOverride: confirmationConfigForSigningAuthPlan({
           signingAuthPlan: confirmationAuthPayload.signingAuthPlan,

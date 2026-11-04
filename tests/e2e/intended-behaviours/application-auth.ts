@@ -49,6 +49,10 @@ class ApplicationBackend {
   statusRequests = 0;
   finalBlockHeight = 1;
   accessKeyNonce: bigint | null = null;
+  /** The next broadcast fails with this InvalidTxError variant. */
+  rejectNextBroadcast: Readonly<{ variant: string; fields?: Record<string, unknown> }> | null = null;
+  /** When set, the account and the gas price come from these values. */
+  account: Readonly<{ amount: bigint; storageUsage: number; gasPrice: bigint }> | null = null;
   chainId = 'testnet';
   readonly rpcUrls = new Set<string>();
   lastHandoff: { url: string; headers: Record<string, string>; body: string } | null = null;
@@ -127,6 +131,40 @@ class ApplicationBackend {
         return;
       }
     }
+    if (request.method === 'send_tx' && this.rejectNextBroadcast) {
+      const rejection = this.rejectNextBroadcast;
+      this.rejectNextBroadcast = null;
+      await route.fulfill({
+        json: {
+          jsonrpc: '2.0',
+          id: request.id,
+          error: {
+            code: -32000,
+            name: 'HANDLER_ERROR',
+            message: 'Server error',
+            cause: { name: 'INVALID_TRANSACTION', info: {} },
+            data: {
+              TxExecutionError: {
+                InvalidTxError: rejection.fields
+                  ? { [rejection.variant]: rejection.fields }
+                  : rejection.variant,
+              },
+            },
+          },
+        },
+      });
+      return;
+    }
+    if (request.method === 'gas_price' && this.account) {
+      await route.fulfill({
+        json: {
+          jsonrpc: '2.0',
+          id: request.id,
+          result: { gas_price: this.account.gasPrice.toString() },
+        },
+      });
+      return;
+    }
     if (request.method === 'send_tx' && this.loseNextBroadcast) {
       this.loseNextBroadcast = false;
       this.lostBroadcast = true;
@@ -202,6 +240,24 @@ class ApplicationBackend {
     }
     if (request.method === 'query') {
       const params = requireRecord(request.params, 'query params');
+      if (params.request_type === 'view_account' && this.account) {
+        await route.fulfill({
+          json: {
+            jsonrpc: '2.0',
+            id: request.id,
+            result: {
+              amount: this.account.amount.toString(),
+              locked: '0',
+              code_hash: '11111111111111111111111111111111',
+              storage_usage: this.account.storageUsage,
+              storage_paid_at: 0,
+              block_height: this.finalBlockHeight,
+              block_hash: '11111111111111111111111111111111',
+            },
+          },
+        });
+        return;
+      }
       if (params.request_type === 'view_access_key') {
         await route.fulfill({
           json: {
@@ -576,6 +632,8 @@ export async function verifyApplicationAuth(
 
     console.info('[application-auth] recovery and concurrent calls complete');
     const retirementEvidence = await verifyOwnerRetirement(page, backend);
+    await verifyOwnerRejectionAndCancel(page, backend);
+    console.info('[application-auth] owner rejection and cancel complete');
     console.info('[application-auth] owner retirement complete');
     await verifyOwnerReview(page, backend);
     console.info('[application-auth] reviewed transaction complete');
@@ -1116,6 +1174,145 @@ async function confirmApproval(page: Page, approval: Promise<string>): Promise<v
   const early = await Promise.race([approval, clickNearConfirmation(page)]);
   if (early !== undefined)
     throw new Error(`Approval ended early: ${JSON.stringify(await page.evaluate(readApiState))}`);
+}
+
+/**
+ * NEAR's rejection reaches the application with its fields. Invalid signed bytes end the
+ * operation at once. A state-dependent rejection stays unresolved, and the owner's cancel at
+ * the same key and nonce ends it without any wait. The wallet refuses to sign a transaction
+ * that the account cannot pay for.
+ */
+async function verifyOwnerRejectionAndCancel(
+  page: Page,
+  backend: ApplicationBackend,
+): Promise<void> {
+  backend.finalBlockHeight = 1;
+  backend.accessKeyNonce = null;
+  backend.statusUnknown = true;
+
+  // Invalid signed bytes can never reach a block, so nothing is left to recover.
+  await page.evaluate(prepareApiOperation);
+  backend.rejectNextBroadcast = { variant: 'InvalidSignature' };
+  const invalid = page.evaluate(approveApiOutcome);
+  await confirmApproval(page, invalid.then(readOutcomeKind));
+  expect(await invalid).toMatchObject({
+    kind: 'not_submitted',
+    rejection: { error: 'InvalidSignature', permanence: 'permanent', fields: {} },
+  });
+  await verifyFreshApproval(page, backend);
+
+  // A state-dependent rejection stays unresolved and carries NEAR's fields.
+  const fields = {
+    signer_id: 'intended.testnet',
+    balance: '95153286115586700000000',
+    cost: '100000000000000000000000',
+  };
+  await page.evaluate(prepareApiOperation);
+  const recovery = await page.evaluate(readApiRecovery);
+  const broadcasts = backend.broadcasts.length;
+  backend.rejectNextBroadcast = { variant: 'NotEnoughBalance', fields };
+  const poor = page.evaluate(approveApiOutcome);
+  await confirmApproval(page, poor.then(readOutcomeKind));
+  const rejected = await poor;
+  expect(rejected).toMatchObject({
+    kind: 'unresolved',
+    recovery,
+    rejection: { error: 'NotEnoughBalance', permanence: 'state_dependent', fields },
+  });
+  const encoded = backend.broadcasts[broadcasts];
+  if (!encoded) throw new Error('Missing rejected broadcast.');
+  if (rejected.kind !== 'unresolved') throw new Error('The rejection did not stay unresolved.');
+  // A later check still explains the rejection, and the new operation stays blocked.
+  expect(await page.evaluate(recoverApiOperation, recovery)).toMatchObject({
+    kind: 'unresolved',
+    rejection: { error: 'NotEnoughBalance' },
+  });
+
+  // A refused cancel stays unresolved and says why, so the person can add NEAR.
+  // The chain has not used the rejected transaction's nonce.
+  backend.accessKeyNonce = signedNonce(encoded) - 1n;
+  backend.rejectNextBroadcast = { variant: 'NotEnoughBalance', fields };
+  const refused = page.evaluate(cancelApiTransaction, recovery);
+  await confirmOutcome(page, refused);
+  expect(await refused).toMatchObject({
+    kind: 'unresolved',
+    transactionId: rejected.transactionId,
+    cancellationRejection: { error: 'NotEnoughBalance', fields },
+  });
+
+  // The owner's cancel takes the same key and nonce. Its own final outcome proves that the
+  // original can never execute, although the RPC knows neither hash.
+  const cancelBroadcasts = backend.broadcasts.length;
+  const cancel = page.evaluate(cancelApiTransaction, recovery);
+  await confirmOutcome(page, cancel);
+  const cancelled = await cancel;
+  const cancelEncoded = backend.broadcasts[cancelBroadcasts];
+  if (!cancelEncoded) throw new Error('Missing cancel broadcast.');
+  expect(signedNonce(cancelEncoded)).toBe(signedNonce(encoded));
+  expect(cancelled).toMatchObject({
+    kind: 'retired',
+    recovery,
+    transactionId: rejected.transactionId,
+    proof: {
+      execution: 'not_executed',
+      submission: { kind: 'signed', signedNonce: String(signedNonce(encoded)) },
+      replacement: { transactionId: nearTransactionHash(cancelEncoded), status: 'succeeded' },
+    },
+  });
+  // The settled operation needs no RPC, and a new transaction can follow at once.
+  const statusRequests = backend.statusRequests;
+  expect(await page.evaluate(recoverApiOperation, recovery)).toEqual(cancelled);
+  expect(backend.statusRequests).toBe(statusRequests);
+  backend.statusUnknown = false;
+  backend.accessKeyNonce = null;
+  await verifyFreshApproval(page, backend);
+
+  // The wallet compares the maximum cost with the balance before it signs.
+  backend.account = { amount: 95_153_286_115_586_700_000_000n, storageUsage: 182, gasPrice: 100_000_000n };
+  await page.evaluate(prepareExpensiveApiOperation);
+  const before = backend.broadcasts.length;
+  const unaffordable = await page.evaluate(approveApiOutcome);
+  expect(unaffordable).toMatchObject({
+    kind: 'not_submitted',
+    shortfall: { balance: '95153286115586700000000', storageReserve: '1820000000000000000000' },
+  });
+  expect(backend.broadcasts.length).toBe(before);
+  backend.account = null;
+}
+
+async function approveApiOutcome() {
+  if (!window.ownerAuthOperation) throw new Error('Missing owner operation.');
+  return await window.ownerAuthOperation.approve();
+}
+
+/** Report an operation that ended without a review, with its own outcome. */
+async function confirmOutcome(page: Page, outcome: Promise<unknown>): Promise<void> {
+  const early = await Promise.race([outcome, clickNearConfirmation(page)]);
+  if (early !== undefined) throw new Error(`Operation ended early: ${JSON.stringify(early)}`);
+}
+
+function readOutcomeKind(outcome: { kind: string }): string {
+  return outcome.kind;
+}
+
+async function cancelApiTransaction(recovery: import('@seams/wallet').OwnerNearRecovery) {
+  const seams = window.ownerAuthApi;
+  if (!seams) throw new Error('Missing application API.');
+  const session = await seams.auth.getSession();
+  if (session.authentication.kind !== 'external_authenticated')
+    throw new Error('Missing read connection.');
+  const operation = seams.near.resumeOwnerTransaction({
+    authentication: session.authentication,
+    recovery,
+  });
+  const checked = await operation.recover();
+  if (checked.kind !== 'unresolved' && checked.kind !== 'retirement_available') return checked;
+  return await operation.cancelTransaction();
+}
+
+async function prepareExpensiveApiOperation(): Promise<void> {
+  if (!window.ownerAuthPrepareExpensive) throw new Error('Missing expensive operation fixture.');
+  await window.ownerAuthPrepareExpensive();
 }
 
 async function verifyOwnerRetirement(page: Page, backend: ApplicationBackend) {

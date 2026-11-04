@@ -262,6 +262,15 @@ function OwnerTransaction({
       state.kind === 'retirement_available' ? (
         <button onClick={operation.recover.bind(operation)}>Check existing transaction</button>
       ) : null}
+      {state.kind === 'unresolved' || state.kind === 'retirement_available' ? (
+        <button onClick={operation.cancelTransaction.bind(operation)}>Cancel transaction</button>
+      ) : null}
+      {state.kind === 'unresolved' && state.rejection ? (
+        <p>NEAR rejected this transaction: {state.rejection.error}.</p>
+      ) : null}
+      {state.kind === 'unresolved' && state.cancellationRejection ? (
+        <p>NEAR refused the cancel: {state.cancellationRejection.error}. Add NEAR, then cancel again.</p>
+      ) : null}
       {state.kind === 'retirement_available' ? (
         <>
           <p>
@@ -292,6 +301,7 @@ function blocksNewTransfer(state: OwnerNearOperationState): boolean {
     case 'recovery_unavailable':
     case 'retirement_available':
     case 'retirement_approval':
+    case 'cancellation_approval':
       return true;
     case 'prepared':
     case 'completed':
@@ -371,6 +381,7 @@ function persistRecovery(state: OwnerNearOperationState): void {
     case 'unresolved':
     case 'retirement_available':
     case 'retirement_approval':
+    case 'cancellation_approval':
       sessionStorage.setItem(
         key,
         JSON.stringify({

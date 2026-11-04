@@ -102,6 +102,13 @@ Reactの `access: 'external'` のウォレットは、操作専用の承認ハ�
 `recovery_unavailable` は送信状態を確認できない状態です。保留中の記録を保持し、`recover()` で再確認できます。
 `submitting` と `unresolved` は既知の `transactionId` を返します。このハッシュを保存し、チェーン上の結果を確認してください。
 別の操作が承認をブロックした場合は、返された `recovery` を保存してください。新しく準備した操作とはIDが異なる場合があります。
+NEARが送信を拒否した場合、`not_submitted` または `unresolved` に `rejection` が含まれます。`NotEnoughBalance` などの種類と、`signer_id`、`balance`、`cost` などのフィールドを表示できます。署名済みのバイト自体が無効な拒否(`InvalidSignature` など)は、すぐに `not_submitted` になります。`InvalidNonce` を含むその他の拒否は `unresolved` のままです。
+アカウントが費用を支払えない場合、ウォレットは署名せず、`not_submitted` に `shortfall` を含めます。
+
+### 止まった取引のキャンセル
+
+`unresolved` または `retirement_available` の操作では、`operation.cancelTransaction()` を呼び出せます。所有者は、同じアクセスキーと同じnonceで署名した、自分のアカウントへの0 NEARの送金を承認します。NEARはキーの1つのnonceに1つの取引しか含めないため、このキャンセルが確定すると、操作は `proof.execution: 'not_executed'` と `proof.replacement` を含む `retired` で終了し、すぐに新しい取引を提示できます。この証明はキャンセル自身の確定結果に基づくため、遅れたRPCや応答のないRPCが誤って操作を終了させることはありません。NEARがキャンセルを拒否した場合は、`cancellationRejection` を含む `unresolved` のままです。`NotEnoughBalance` の場合は、NEARを追加してから再度キャンセルするよう案内してください。
+
 `UNKNOWN_TRANSACTION` だけでは操作を終了できません。確定ブロックが有効期間(NEARでは約25時間)を過ぎるまで `unresolved` のままです。待機中の `unresolved` には `retirementWait` が含まれます。`retirementWait.lastAcceptedBlockHeight` を過ぎても自動では終了しないため、その後に `recover()` を再度呼び出してください。このブロックをエラー文から読み取らないでください。他の `unresolved` には `retirementWait` がありません。SDK 0.39.0以前のレシートはハッシュのみを保持するため、`retirementWait.submission.kind` は `hash_only` となり、更新後の最初の `recover()` から期間を数えます。この上限はNEARの制限ではなく安全のための待機で、実際の有効期間はより早く終わっている場合があります。
 保留中でも、同じネットワークのRPCであればNEAR RPC URLを変更できます。ただしSDK 0.40.0以前の操作は、URLを変更する前に完了するか、元のURLで一度開いてください。別のURLでは `recovery_unavailable` を返し、新しい取引をブロックしなくなります。
 `retired` で `proof.execution` が `not_executed` の場合、取引は期限切れで未実行です。この操作の保留だけを解除し、新しい承認を提示できます。

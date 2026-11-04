@@ -7,6 +7,11 @@ import {
   requireNonEmptyString,
 } from '@shared/utils/validation';
 import { decodeNearFinalExecutionOutcome } from '@shared/utils/nearRpcResults';
+import {
+  nearTransactionRejection,
+  nearTransactionRejectionMessage,
+  parseNearTransactionRejection,
+} from '@/core/rpcClients/near/nearTransactionRejection';
 
 type NearTransactionFailure = Extract<ActionResult, { success: false }>;
 
@@ -73,6 +78,9 @@ export function parseNearTransactionResult(raw: unknown): ActionResult {
         kind: 'unresolved',
         transactionId: requireCanonicalString(result.transactionId, 'transactionId'),
         error,
+        ...(result.rejection === undefined
+          ? {}
+          : { rejection: parseNearTransactionRejection(result.rejection) }),
       };
     default:
       throw new Error('Invalid NEAR transaction failure');
@@ -94,7 +102,14 @@ export function unresolvedNearTransaction(
   transactionId: string,
   error: unknown,
 ): NearTransactionFailure {
-  return { success: false, kind: 'unresolved', transactionId, error: safeErrorMessage(error) };
+  const rejection = nearTransactionRejection(error);
+  return {
+    success: false,
+    kind: 'unresolved',
+    transactionId,
+    error: rejection ? nearTransactionRejectionMessage(rejection) : safeErrorMessage(error),
+    ...(rejection ? { rejection } : {}),
+  };
 }
 
 /** Application hooks cannot replace a settled transaction outcome with their own error. */

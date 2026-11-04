@@ -11,6 +11,7 @@ declare global {
   interface Window {
     ownerAuthApi: ReturnType<typeof useSeams>['seams'] | undefined;
     ownerAuthPrepare: (() => Promise<void>) | undefined;
+    ownerAuthPrepareExpensive: (() => Promise<void>) | undefined;
     ownerAuthPrepareReviewed: (() => void) | undefined;
     ownerAuthReviewSurfaces: string[] | undefined;
     ownerAuthOperation: OwnerNearOperation | undefined;
@@ -27,7 +28,9 @@ export function ApplicationAuthPage({ walletRpId }: { walletRpId: string }): Rea
 
 function exposeSessionReader(seams: ReturnType<typeof useSeams>['seams']): () => void {
   window.ownerAuthApi = seams;
-  window.ownerAuthPrepare = prepareApiOperation;
+  window.ownerAuthPrepare = prepareApiOperation.bind(null, '1');
+  // One NEAR, more than the test account holds, so the wallet refuses to sign it.
+  window.ownerAuthPrepareExpensive = prepareApiOperation.bind(null, '1000000000000000000000000');
   window.ownerAuthSession = seams.auth.getSession.bind(seams.auth);
   return clearSessionReader;
 }
@@ -35,6 +38,8 @@ function exposeSessionReader(seams: ReturnType<typeof useSeams>['seams']): () =>
 function clearSessionReader(): void {
   window.ownerAuthSession = undefined;
   window.ownerAuthApi = undefined;
+  window.ownerAuthPrepare = undefined;
+  window.ownerAuthPrepareExpensive = undefined;
   window.ownerAuthOperation = undefined;
 }
 
@@ -92,7 +97,7 @@ function DepositReview({ controls }: { controls: TransactionReviewControls }): R
   );
 }
 
-async function prepareApiOperation(): Promise<void> {
+async function prepareApiOperation(amount: string): Promise<void> {
   const seams = window.ownerAuthApi;
   if (!seams) throw new Error('Missing application API.');
   const session = await seams.auth.getSession();
@@ -109,7 +114,7 @@ async function prepareApiOperation(): Promise<void> {
     nearAccountId,
     transaction: {
       receiverId: nearAccountId,
-      actions: [{ type: ActionType.Transfer, amount: '1' }],
+      actions: [{ type: ActionType.Transfer, amount }],
     },
   });
 }

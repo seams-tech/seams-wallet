@@ -37,6 +37,15 @@ import type {
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { AppearanceConfig, SeamsConfigsReadonly } from '@/core/types/seams';
+
+/** An owner cancel signs at the nonce it replaces and names what it replaces. */
+export type OwnerNearSigningOptions = Readonly<{
+  /** A cancel is its own signing operation, so it needs an ID apart from the operation it replaces. */
+  operationId?: import('@/core/signingEngine/session/operationState/types').SigningOperationId;
+  replacementNonce?: string;
+  title?: string;
+  body?: string;
+}>;
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 
 export type {
@@ -132,6 +141,7 @@ export interface SeamsWebSigningSurface
     command: Extract<import('@/SeamsWeb/walletIframe/shared/ownerNearOperation').OwnerNearCommand, { action: 'approve' }>,
     assertCurrent: () => void,
     onEvent: (event: import('@/core/types/sdkSentEvents').SigningFlowEvent) => void,
+    options?: OwnerNearSigningOptions,
   ): Promise<import('@/core/types/seams').SignTransactionResult>;
   readonly seamsWebConfigs: SeamsConfigsReadonly;
   dispose(): void;

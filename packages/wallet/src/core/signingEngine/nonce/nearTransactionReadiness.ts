@@ -15,6 +15,8 @@ export type NearFundingRequest = Readonly<{
   subject: NearFundingSubject;
   operation: PreparedNonceOperationContext;
   signatureUses: number;
+  /** Sign at this exact nonce, replacing an earlier signed transaction of the same key. */
+  replacementNonce?: string;
 }>;
 
 export type NearTransactionReadiness = ExclusiveUnion<

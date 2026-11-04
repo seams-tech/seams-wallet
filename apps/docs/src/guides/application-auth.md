@@ -119,7 +119,7 @@ Core `seams.near.prepareOwnerTransaction` does not accept `review`.
 ## Observe and recover
 
 Use `operation.getState()` or React's `useOwnerNearOperation(operation)`.
-States distinguish `prepared`, `reviewing`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `not_submitted`, `reverted`, `unresolved`, `recovery_unavailable`, `unknown`, `retirement_available`, `retirement_approval`, and `retired`.
+States distinguish `prepared`, `reviewing`, `approval`, `submitting`, `completed`, `cancelled`, `expired`, `not_submitted`, `reverted`, `unresolved`, `recovery_unavailable`, `unknown`, `retirement_available`, `retirement_approval`, `cancellation_approval`, and `retired`.
 A React wallet with `access: 'external'` exposes owner-operation handles separately from reusable signing controls.
 
 Persist `state.recovery` as non-secret transaction metadata before starting an operation.
@@ -131,12 +131,12 @@ Handle outcomes by their typed `kind`. Do not interpret error-message text.
 
 | Outcome | Application action |
 | --- | --- |
-| `cancelled`, `expired`, `not_submitted` | Clear this attempt's pending state and offer a fresh approval. |
+| `cancelled`, `expired`, `not_submitted` | Clear this attempt's pending state and offer a fresh approval. `not_submitted` can carry `rejection` (NEAR refused the signed bytes) or `shortfall` (the account cannot pay, so nothing was signed). |
 | `completed`, `reverted` | Record the final transaction outcome and clear its pending state. |
-| `unresolved` | Persist `transactionId` and `recovery`. Check that transaction before another owner transaction. |
+| `unresolved` | Persist `transactionId` and `recovery`. Check that transaction before another owner transaction, or offer `cancelTransaction()`. Show `rejection` when NEAR refused the transaction, such as `NotEnoughBalance`. |
 | `unknown`, `recovery_unavailable` | Keep an unresolved entry and offer `recover()` again. Missing storage or a timeout does not prove failure. |
 | `retirement_available` | NEAR can no longer execute the transaction, but it may have executed earlier. Keep the operation pending. Check your balance or ledger, then offer `retire()`. |
-| `retired` with `proof.execution: 'not_executed'` | The transaction expired and never executed. Clear this operation only, and offer a fresh approval. |
+| `retired` with `proof.execution: 'not_executed'` | The transaction never executed: it expired, or the owner's cancel took its nonce (`proof.replacement`). Clear this operation only, and offer a fresh approval. |
 | `retired` with `proof.execution: 'unverified'` | The owner released an expired transaction. Check your balance or ledger before you offer a fresh approval. |
 
 The `submitting` state exposes `transactionId` before broadcast begins.
@@ -150,6 +150,18 @@ If another operation blocks approval, the result names that existing operation i
 Persist the returned identity or the updated `operation.getState().recovery`.
 Do not continue checking the newly prepared operation's original ID.
 Keep explicit recovery controls available, and allow reads and unrelated wallet actions.
+
+### Cancel a stuck transaction
+
+Call `operation.cancelTransaction()` on an `unresolved` or `retirement_available` operation. The owner
+approves a 0-NEAR transfer to the account itself, signed with the same access key at the same nonce.
+NEAR includes one transaction per nonce of a key, so when the cancel is final the operation ends as
+`retired` with `proof.execution: 'not_executed'` and `proof.replacement`, and you can offer a new
+transaction at once. The proof rests on the cancel's own final outcome, so a lagging or unreachable
+RPC cannot end the operation by mistake. If NEAR refuses the cancel, the result stays `unresolved` with
+`cancellationRejection`. For `NotEnoughBalance`, ask the person to add NEAR, then cancel again. If the
+access key already used the nonce, the wallet does not sign a cancel, because the transaction may have
+executed; check it again with `recover()`.
 
 `UNKNOWN_TRANSACTION` alone cannot end an operation. A transaction stays `unresolved` until a finalized
 block passes its validity period, which is about 25 hours on NEAR. While it waits, `unresolved` has

@@ -3,11 +3,18 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import { OwnerOperationNearClient } from '@/core/rpcClients/near/NearClient';
 import { NearRpcError } from '@/core/rpcClients/near/NearRpcError';
 import {
+  parseNearTransactionRejection,
+  type NearTransactionRejection,
+} from '@/core/rpcClients/near/nearTransactionRejection';
+import {
   nearAccountRefFromAccountId,
   toWalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { isUserCancelledUserConfirm } from '@/core/signingEngine/stepUpConfirmation/channel/confirmCommon';
 import { SigningEventPhase, type SigningFlowEvent } from '@/core/types/sdkSentEvents';
+import { ActionType, type TransactionInputWasm } from '@/core/types/actions';
+import { SigningSessionIds } from '@/core/signingEngine/session/operationState/types';
+import { NearReplacementNonceUsedError } from '@/core/signingEngine/nonce/NonceCoordinator';
 import { sendTransaction } from '@/SeamsWeb/operations/near/actions';
 import { emitNearSigningEvent } from '@/SeamsWeb/operations/near/signingEventHelpers';
 import { resolveOwnerPasskeyAuthority } from '@/SeamsWeb/signingSurface/nearOwnerOperation';
@@ -27,12 +34,14 @@ import {
   type OwnerNearOutcome,
   type OwnerNearRecovery,
   type OwnerNearRetirementApproval,
+  type OwnerNearShortfall,
   type OwnerNearSubmissionEvidence,
 } from '../shared/ownerNearOperation';
 import { ownerNearOutcomeBeforeSigning } from '../shared/transactionReview';
 import type { HostedExternalAuth } from './externalAuth';
 import { approveWithOwnerPasskey, ExternalOwnerApprovalError } from './externalOwnerApproval';
 import { ownerNearSignedEvidence } from './ownerNearSignedEvidence';
+import { ownerNearShortfall } from './ownerNearAffordability';
 
 type OwnerNearPorts = {
   readonly getContext: () => SeamsWebContext;
@@ -48,9 +57,22 @@ type SettledOwnerNearOutcome = Variant<
 
 type SignedEvidence = Variant<OwnerNearSubmissionEvidence, 'kind', 'signed'>;
 
+/** What the wallet signed, without call arguments, so a stuck operation can be diagnosed. */
+type OwnerNearSignedSummary = Readonly<{
+  receiverId: string;
+  actions: readonly Readonly<{
+    type: string;
+    methodName?: string;
+    gas?: string;
+    deposit?: string;
+  }>[];
+}>;
+
 type OwnerNearReceipt = Readonly<{
   binding: string;
   requestDigest: string;
+  /** Absent in receipts from SDK 0.45.0 and earlier. */
+  signed?: OwnerNearSignedSummary;
 }> &
   ReadonlyExclusiveUnion<
     | { readonly kind: 'approving' }
@@ -61,6 +83,10 @@ type OwnerNearReceipt = Readonly<{
         readonly kind: 'submitting';
         readonly transactionId: string;
         readonly evidence: OwnerNearSubmissionEvidence | null;
+        /** NEAR refused the broadcast for a state-dependent reason; later checks report it. */
+        readonly rejection?: NearTransactionRejection;
+        /** The owner's cancel at the same key and nonce, persisted before its broadcast. */
+        readonly replacement?: Readonly<{ transactionId: string; evidence: SignedEvidence }>;
       }
     | { readonly kind: 'settled'; readonly outcome: SettledOwnerNearOutcome }
   >;
@@ -71,6 +97,7 @@ type SubmittingReceipt = Variant<OwnerNearReceipt, 'kind', 'submitting'>;
 // hash-only receipt, and a transaction can reach a block just after its validity check.
 const RETIREMENT_MARGIN_BLOCKS = 3_600;
 const RETIREMENT_APPROVAL_MS = 120_000;
+const OWNER_CANCEL_APPROVAL_MS = 120_000;
 
 export async function runOwnerNearOperation(
   ports: OwnerNearPorts,
@@ -176,6 +203,8 @@ class HostedOwnerNearOperation {
     const receipt = await this.readReceipt(this.key);
     if (this.command.action === 'recover') return await this.recover(receipt);
     if (this.command.action === 'retire') return await this.retire(receipt, this.command.transactionId);
+    if (this.command.action === 'cancel_submitted')
+      return await this.cancelSubmitted(receipt, this.command.transactionId);
     const pending = await this.readPending();
     if (pending && pending.operationId !== this.command.recovery.operationId) {
       return await this.pendingOutcome(pending);
@@ -193,6 +222,14 @@ class HostedOwnerNearOperation {
     try {
       await this.store({ kind: 'approving', binding: this.binding, requestDigest });
       this.assertCurrent();
+      const shortfall = await ownerNearShortfall(
+        this.nearClient,
+        String(command.recovery.nearAccountId),
+        command.transaction,
+      );
+      if (shortfall) throw new OwnerNearUnaffordable(shortfall);
+      this.assertCurrent();
+      const signed = signedSummary(command.transaction);
       const session = await this.context.signingEngine.signNearOwnerTransaction(
         command,
         this.assertCurrent.bind(this),
@@ -206,6 +243,7 @@ class HostedOwnerNearOperation {
         kind: 'signed',
         binding: this.binding,
         requestDigest,
+        signed,
         transactionId: session.signedTransaction.transactionHash,
         evidence,
       });
@@ -218,6 +256,7 @@ class HostedOwnerNearOperation {
         kind: 'submitting',
         binding: this.binding,
         requestDigest,
+        signed,
         transactionId: session.signedTransaction.transactionHash,
         evidence,
       });
@@ -239,13 +278,32 @@ class HostedOwnerNearOperation {
         options: { onEvent: this.broadcastProgress.bind(this), waitUntil: 'FINAL' },
       });
       if (!result.success) {
-        if (result.kind !== 'not_submitted')
-          return unresolved(
-            command.recovery,
-            session.signedTransaction.transactionHash,
-            result.error,
-          );
-        outcome = { kind: 'not_submitted', error: result.error };
+        const rejection = result.kind === 'unresolved' ? result.rejection : undefined;
+        // Invalid signed bytes never reach a block, whatever the account state.
+        if (rejection?.permanence === 'permanent') {
+          outcome = { kind: 'not_submitted', error: result.error, rejection };
+        } else if (result.kind !== 'not_submitted') {
+          if (rejection) {
+            await this.store({
+              kind: 'submitting',
+              binding: this.binding,
+              requestDigest,
+              signed,
+              transactionId: session.signedTransaction.transactionHash,
+              evidence,
+              rejection,
+            });
+          }
+          return {
+            kind: 'unresolved',
+            recovery: command.recovery,
+            transactionId: session.signedTransaction.transactionHash,
+            error: result.error,
+            ...(rejection ? { rejection } : {}),
+          };
+        } else {
+          outcome = { kind: 'not_submitted', error: result.error };
+        }
       } else {
         return await this.settleTransaction(result.transactionId, result.result, requestDigest);
       }
@@ -253,6 +311,8 @@ class HostedOwnerNearOperation {
       if (this.submission.kind === 'dispatched')
         return unresolved(command.recovery, this.submission.transactionId, error);
       if (error instanceof OwnerNearExpired) outcome = { kind: 'expired' };
+      else if (error instanceof OwnerNearUnaffordable)
+        outcome = { kind: 'not_submitted', error: error.message, shortfall: error.shortfall };
       else if (isUserCancelledUserConfirm(error)) outcome = { kind: 'cancelled' };
       else outcome = ownerNearOutcomeBeforeSigning(error);
     }
@@ -341,7 +401,15 @@ class HostedOwnerNearOperation {
       return receipt.outcome;
     }
     this.onSubmission(receipt.transactionId);
-    return await this.reconcile(receipt);
+    if (receipt.replacement) {
+      const cancelled = await this.reconcileReplacement(receipt, receipt.replacement);
+      if (cancelled) return cancelled;
+    }
+    const outcome = await this.reconcile(receipt);
+    // A later check still explains why NEAR refused the transaction when it was sent.
+    if (outcome.kind === 'unresolved' && receipt.rejection && !outcome.rejection)
+      return { ...outcome, rejection: receipt.rejection };
+    return outcome;
   }
 
   private async reconcile(receipt: SubmittingReceipt): Promise<OwnerNearOutcome> {
@@ -479,6 +547,162 @@ class HostedOwnerNearOperation {
       finalBlockHash: block.header.hash,
       accessKeyNonce: null,
     };
+  }
+
+  /**
+   * The owner replaces a submitted transaction with a 0-NEAR transfer to the account itself,
+   * signed with the same access key at the same nonce. NEAR includes one transaction per
+   * nonce of a key, so a final cancel proves that the original can never execute. Nothing
+   * here trusts a missing hash: only a final outcome of either transaction settles it.
+   */
+  private async cancelSubmitted(
+    receipt: OwnerNearReceipt | null,
+    transactionId: string,
+  ): Promise<OwnerNearOutcome> {
+    if (!receipt || receipt.kind !== 'submitting') return await this.recover(receipt);
+    if (receipt.transactionId !== transactionId)
+      throw new Error('The cancel names a different transaction.');
+    const submission = receipt.evidence;
+    if (submission?.kind !== 'signed') {
+      return unresolved(
+        this.command.recovery,
+        transactionId,
+        'This receipt has no nonce, so the wallet cannot cancel this transaction.',
+      );
+    }
+    this.assertActive();
+    this.assertConnection();
+    // A final original or an earlier cancel settles the operation without another signature.
+    const settled = await this.recover(receipt);
+    if (settled.kind !== 'unresolved' && settled.kind !== 'retirement_available') return settled;
+    const recovery = this.command.recovery;
+    let session: Awaited<ReturnType<SeamsWebContext['signingEngine']['signNearOwnerTransaction']>>;
+    try {
+      session = await this.context.signingEngine.signNearOwnerTransaction(
+        {
+          action: 'approve',
+          authentication: this.command.authentication,
+          recovery,
+          expiresAtMs: Date.now() + OWNER_CANCEL_APPROVAL_MS,
+          transaction: {
+            receiverId: String(recovery.nearAccountId),
+            actions: [{ action_type: ActionType.Transfer, deposit: '0' }],
+          },
+        },
+        this.assertCurrentConnection.bind(this),
+        this.onEvent,
+        {
+          operationId: SigningSessionIds.signingOperation(
+            `owner-near-cancel:${secureRandomBase64Url(32, 'owner NEAR cancel IDs')}`,
+          ),
+          replacementNonce: submission.signedNonce,
+          title: 'Cancel the earlier transaction',
+          body: `This replaces transaction ${transactionId} with a 0 NEAR transfer to your own account.`,
+        },
+      );
+    } catch (error) {
+      if (error instanceof NearReplacementNonceUsedError) {
+        // The nonce is gone, so the original may have executed. Only its own outcome can tell.
+        return unresolved(
+          recovery,
+          transactionId,
+          'NEAR already used this nonce, so the earlier transaction may have executed. Check it again.',
+        );
+      }
+      return unresolved(recovery, transactionId, error);
+    }
+    const evidence = await ownerNearSignedEvidence(session);
+    if (
+      evidence.signerPublicKey !== submission.signerPublicKey ||
+      evidence.signedNonce !== submission.signedNonce
+    )
+      return unresolved(recovery, transactionId, 'The cancel did not use the same key and nonce.');
+    const replacement = { transactionId: session.signedTransaction.transactionHash, evidence };
+    // Persist the cancel before its broadcast, so a later check follows it.
+    await this.store({ ...receipt, replacement });
+    const result = await sendTransaction({
+      context: this.broadcastContext,
+      walletSession: {
+        walletId: toWalletId(this.command.authentication.walletId),
+        walletSessionUserId: String(this.command.authentication.walletId),
+      },
+      nearAccountId: nearAccountRefFromAccountId(recovery.nearAccountId).accountId,
+      signedTransaction: session.signedTransaction,
+      options: { waitUntil: 'FINAL' },
+    });
+    if (result.success) {
+      const cancelled = await this.settleReplacement(receipt, replacement, result.result);
+      if (cancelled) return cancelled;
+      return unresolved(recovery, transactionId, 'The cancel is not final yet. Check it again.');
+    }
+    const rejection = result.kind === 'unresolved' ? result.rejection : undefined;
+    // A refused cancel never reached a block, so the receipt no longer follows it.
+    if (rejection?.permanence === 'permanent' || result.kind === 'not_submitted')
+      await this.store(receipt);
+    return {
+      kind: 'unresolved',
+      recovery,
+      transactionId,
+      error: rejection
+        ? `NEAR refused the cancel: ${rejection.error}.`
+        : 'The cancel outcome is unavailable. Check this transaction again.',
+      ...(receipt.rejection ? { rejection: receipt.rejection } : {}),
+      ...(rejection ? { cancellationRejection: rejection } : {}),
+    };
+  }
+
+  /** Settles from the cancel's own final outcome. `null` means the cancel is not final. */
+  private async reconcileReplacement(
+    receipt: SubmittingReceipt,
+    replacement: NonNullable<SubmittingReceipt['replacement']>,
+  ): Promise<OwnerNearOutcome | null> {
+    let result: FinalExecutionOutcome;
+    try {
+      result = await this.nearClient.txStatus(
+        replacement.transactionId,
+        String(this.command.recovery.nearAccountId),
+        'NONE',
+      );
+    } catch {
+      // An unknown or unreachable cancel proves nothing. The original's own check follows.
+      return null;
+    }
+    return await this.settleReplacement(receipt, replacement, result);
+  }
+
+  private async settleReplacement(
+    receipt: SubmittingReceipt,
+    replacement: NonNullable<SubmittingReceipt['replacement']>,
+    result: FinalExecutionOutcome,
+  ): Promise<OwnerNearOutcome | null> {
+    const submission = receipt.evidence;
+    if (
+      submission?.kind !== 'signed' ||
+      result.transaction.hash !== replacement.transactionId ||
+      result.final_execution_status !== 'FINAL' ||
+      typeof result.status !== 'object'
+    )
+      return null;
+    // A transaction that reached a block took its nonce, whatever its actions did.
+    const status = result.status.Failure !== undefined ? 'failed' : 'succeeded';
+    return await this.settle({
+      kind: 'settled',
+      binding: receipt.binding,
+      requestDigest: receipt.requestDigest,
+      outcome: {
+        kind: 'retired',
+        recovery: this.command.recovery,
+        transactionId: receipt.transactionId,
+        proof: {
+          execution: 'not_executed',
+          submission,
+          replacement: {
+            transactionId: replacement.transactionId,
+            status,
+          },
+        },
+      },
+    });
   }
 
   /** Execution remains uncertain here, so the owner must accept the release with a passkey. */
@@ -655,6 +879,7 @@ function parseReceipt(raw: unknown): OwnerNearReceipt {
   const value = requireRecord(raw, 'owner transaction receipt');
   const binding = requireCanonicalString(value.binding, 'binding');
   const requestDigest = requireCanonicalString(value.requestDigest, 'requestDigest');
+  const signed = value.signed === undefined ? {} : { signed: parseSignedSummary(value.signed) };
   switch (value.kind) {
     case 'approving':
       return { kind: 'approving', binding, requestDigest };
@@ -665,6 +890,7 @@ function parseReceipt(raw: unknown): OwnerNearReceipt {
         kind: 'signed',
         binding,
         requestDigest,
+        ...signed,
         transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
         evidence,
       };
@@ -674,9 +900,14 @@ function parseReceipt(raw: unknown): OwnerNearReceipt {
         kind: 'submitting',
         binding,
         requestDigest,
+        ...signed,
         transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
         evidence:
           value.evidence === undefined ? null : parseOwnerNearSubmissionEvidence(value.evidence),
+        ...(value.rejection === undefined
+          ? {}
+          : { rejection: parseNearTransactionRejection(value.rejection) }),
+        ...(value.replacement === undefined ? {} : { replacement: parseReplacement(value.replacement) }),
       };
     case 'settled':
       return {
@@ -688,6 +919,16 @@ function parseReceipt(raw: unknown): OwnerNearReceipt {
     default:
       throw new Error('Invalid owner transaction receipt.');
   }
+}
+
+function parseReplacement(raw: unknown): NonNullable<SubmittingReceipt['replacement']> {
+  const value = requireRecord(raw, 'owner cancel');
+  const evidence = parseOwnerNearSubmissionEvidence(value.evidence);
+  if (evidence.kind !== 'signed') throw new Error('Invalid owner cancel.');
+  return {
+    transactionId: requireCanonicalString(value.transactionId, 'transactionId'),
+    evidence,
+  };
 }
 
 function parseSettledOutcome(raw: unknown): SettledOwnerNearOutcome {
@@ -762,6 +1003,53 @@ function retirementWaitMessage(
     `${status} This older receipt has no reference block, so this is a safety wait and not a NEAR limit. ` +
     `The wallet measures it from block ${submission.firstObservedBlockHeight}. Check again after block ${lastAcceptedBlockHeight}.`
   );
+}
+
+function signedSummary(transaction: TransactionInputWasm): OwnerNearSignedSummary {
+  return {
+    receiverId: transaction.receiverId,
+    actions: transaction.actions.map((action) => {
+      switch (action.action_type) {
+        case ActionType.FunctionCall:
+          return {
+            type: action.action_type,
+            methodName: action.method_name,
+            gas: action.gas,
+            deposit: action.deposit,
+          };
+        case ActionType.Transfer:
+          return { type: action.action_type, deposit: action.deposit };
+        default:
+          return { type: action.action_type };
+      }
+    }),
+  };
+}
+
+function parseSignedSummary(raw: unknown): OwnerNearSignedSummary {
+  const value = requireRecord(raw, 'owner signed summary');
+  if (!Array.isArray(value.actions)) throw new Error('Invalid owner signed summary.');
+  return {
+    receiverId: requireCanonicalString(value.receiverId, 'receiverId'),
+    actions: value.actions.map((rawAction) => {
+      const action = requireRecord(rawAction, 'owner signed action');
+      return {
+        type: requireCanonicalString(action.type, 'type'),
+        ...(typeof action.methodName === 'string' ? { methodName: action.methodName } : {}),
+        ...(typeof action.gas === 'string' ? { gas: action.gas } : {}),
+        ...(typeof action.deposit === 'string' ? { deposit: action.deposit } : {}),
+      };
+    }),
+  };
+}
+
+class OwnerNearUnaffordable extends Error {
+  constructor(readonly shortfall: OwnerNearShortfall) {
+    super(
+      `This account holds ${shortfall.balance} yoctoNEAR, but this transaction can cost up to ` +
+        `${shortfall.maximumCost} yoctoNEAR with ${shortfall.storageReserve} yoctoNEAR kept for storage.`,
+    );
+  }
 }
 
 class OwnerNearExpired extends Error {

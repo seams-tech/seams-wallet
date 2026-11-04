@@ -130,17 +130,25 @@ export async function fetchNearContext(
   request: NearFundingRequest,
 ): Promise<NearContextFetchResult> {
   try {
-    const { context, leases } = await ctx.nonceCoordinator.reserveNearContext({
-      lane: buildNearNonceLane({
-        chains: ctx.chains,
-        walletId: String(request.subject.walletId),
-        nearAccountId: String(request.subject.nearAccountId),
-        nearPublicKeyStr: request.subject.nearPublicKeyStr,
-      }),
-      operation: request.operation,
-      count: request.signatureUses,
-      nearClient: ctx.nearClient,
+    const lane = buildNearNonceLane({
+      chains: ctx.chains,
+      walletId: String(request.subject.walletId),
+      nearAccountId: String(request.subject.nearAccountId),
+      nearPublicKeyStr: request.subject.nearPublicKeyStr,
     });
+    const { context, leases } = request.replacementNonce
+      ? await ctx.nonceCoordinator.reserveNearReplacementContext({
+          lane,
+          operation: request.operation,
+          nonce: request.replacementNonce,
+          nearClient: ctx.nearClient,
+        })
+      : await ctx.nonceCoordinator.reserveNearContext({
+          lane,
+          operation: request.operation,
+          count: request.signatureUses,
+          nearClient: ctx.nearClient,
+        });
     return {
       kind: 'readiness',
       readiness: {

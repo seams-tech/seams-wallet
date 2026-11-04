@@ -388,6 +388,7 @@ import type {
 } from '@/core/types/seams';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
 import type { AuthMethodCaptureMount } from '@/core/authMethods/hostPlugin';
+import type { OwnerNearSigningOptions } from './types';
 import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIdentity';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import {
@@ -3471,6 +3472,7 @@ export class BrowserSigningSurface {
     command: Extract<OwnerNearCommand, { action: 'approve' }>,
     assertCurrent: () => void,
     onEvent: (event: SigningFlowEvent) => void,
+    options: OwnerNearSigningOptions = {},
   ) {
     const walletId = command.authentication.walletId;
     const nearAccountId = command.recovery.nearAccountId;
@@ -3478,7 +3480,7 @@ export class BrowserSigningSurface {
       this.enginePorts.nearSigningDeps,
       this.ed25519YaoPublicCapabilityReferences,
       {
-        operationId: command.recovery.operationId,
+        operationId: options.operationId ?? command.recovery.operationId,
         walletId,
         nearAccountId,
         relayerUrl: this.seamsWebConfigs.network.relayer.url,
@@ -3502,6 +3504,9 @@ export class BrowserSigningSurface {
         transaction: command.transaction,
         rpcCall: { nearRpcUrl: deps.nearRpcUrl, nearAccountId },
         onEvent,
+        ...(options.replacementNonce ? { replacementNonce: options.replacementNonce } : {}),
+        ...(options.title ? { title: options.title } : {}),
+        ...(options.body ? { body: options.body } : {}),
       },
     });
   }

@@ -162,6 +162,17 @@ async function readNearRecoveryNonce(
   return { kind: 'unavailable' };
 }
 
+/** The chain already used the nonce that a replacement needs, so NEAR would reject it. */
+export class NearReplacementNonceUsedError extends Error {
+  constructor(
+    readonly nonce: string,
+    readonly accessKeyNonce: string,
+  ) {
+    super(`The access key nonce ${accessKeyNonce} already reached nonce ${nonce}.`);
+    this.name = 'NearReplacementNonceUsedError';
+  }
+}
+
 export function createNonceCoordinator(deps: NonceCoordinatorDeps): NonceCoordinator {
   const leases = new Map<string, NonceLease>();
   const evmStates = new Map<string, EvmNonceLaneState>();
@@ -1138,6 +1149,60 @@ export function createNonceCoordinator(deps: NonceCoordinatorDeps): NonceCoordin
           context.nextNonce = String(leases[0].nonce);
         }
         return { context, leases };
+      });
+    },
+
+    async reserveNearReplacementContext(input) {
+      return await withLaneLock(input.lane, async () => {
+        initializeNearAccessKey({
+          walletId: input.lane.walletId,
+          nearAccountId: input.lane.nearAccountId,
+          publicKey: input.lane.publicKey,
+        });
+        const context = {
+          ...(await fetchNearContextForLane({
+            lane: input.lane,
+            nearClient: input.nearClient,
+            force: true,
+          })),
+        };
+        commitNearTransactionContextForState({
+          state: nearState,
+          walletId: input.lane.walletId,
+          nearAccountId: input.lane.nearAccountId,
+          publicKey: input.lane.publicKey,
+          transactionContext: context,
+          nowMs: now(),
+        });
+        if (BigInt(context.accessKeyInfo.nonce) >= BigInt(input.nonce))
+          throw new NearReplacementNonceUsedError(input.nonce, String(context.accessKeyInfo.nonce));
+        const reservedAtMs = now();
+        const lease: NonceLease = {
+          leaseId: createNonceLeaseId({
+            operationId: input.operation.operationId,
+            chain: 'near',
+            nonce: input.nonce,
+          }),
+          lane: input.lane,
+          operationId: input.operation.operationId,
+          operationFingerprint: input.operation.operationFingerprint,
+          nonce: input.nonce,
+          state: NonceLeaseState.Reserved,
+          reservedAtMs,
+          expiresAtMs: reservedAtMs + leaseTtlMs,
+          batchId: createNonceBatchId({
+            operationId: input.operation.operationId,
+            chain: 'near',
+            firstNonce: input.nonce,
+            count: 1,
+          }),
+          txIndex: 0,
+        };
+        leases.set(lease.leaseId, lease);
+        await persistCoordinationLease(lease, { state: NonceDurableLeaseState.Reserved });
+        emit({ event: NonceCoordinatorTraceEventName.LeaseReserved, lease });
+        context.nextNonce = input.nonce;
+        return { context, leases: [{ ...lease }] };
       });
     },
 

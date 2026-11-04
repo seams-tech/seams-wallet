@@ -248,6 +248,8 @@ type SignTransactionWithActionsInput = {
   onEvent?: (update: SigningFlowEvent) => void;
   thresholdSessionId?: string;
   sensitivePolicy?: SensitiveOperationPolicy;
+  /** An owner cancel signs at the nonce of the transaction it replaces. */
+  replacementNonce?: string;
 };
 
 type NearTransactionPublicSigningOptions = Pick<
@@ -1525,6 +1527,7 @@ async function signTransactionWithActionsAttempt(
             nearAccount,
             transaction: args.transaction,
             rpcCall: args.rpcCall,
+            ...(args.replacementNonce ? { replacementNonce: args.replacementNonce } : {}),
             signerSlot: publicOptions.signerSlot,
             confirmationConfigOverride: publicOptions.confirmationConfigOverride,
             title: publicOptions.title,
@@ -1614,6 +1617,7 @@ async function signTransactionWithActionsAttempt(
           nearAccount,
           transaction: args.transaction,
           rpcCall: args.rpcCall,
+          ...(args.replacementNonce ? { replacementNonce: args.replacementNonce } : {}),
           signerSlot: publicOptions.signerSlot,
           confirmationConfigOverride: publicOptions.confirmationConfigOverride,
           title: publicOptions.title,

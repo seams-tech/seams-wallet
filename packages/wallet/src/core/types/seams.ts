@@ -1,3 +1,4 @@
+import type { NearTransactionRejection } from '@/core/rpcClients/near/nearTransactionRejection';
 import type { FinalExecutionOutcome } from '@near-js/types';
 import type { AccountId } from './accountIds';
 import type { SignedTransaction } from '../rpcClients/near/NearClient';
@@ -673,6 +674,8 @@ export type ActionResult = ExclusiveUnion<
       kind: 'unresolved';
       transactionId: string;
       error: string;
+      /** NEAR refused the transaction when it was sent. Its fields explain why. */
+      rejection?: NearTransactionRejection;
     }
 >;
 

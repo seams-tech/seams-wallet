@@ -2,6 +2,7 @@ import { SigningSessionIds } from '@/core/signingEngine/session/operationState/t
 import { toAccountId } from '@/core/types/accountIds';
 import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
 import type { ActionResult } from '@/core/types/seams';
+import type { NearTransactionRejection } from '@/core/rpcClients/near/nearTransactionRejection';
 import type { ExternalWalletAuthentication } from '@shared/auth/externalAuth';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { safeErrorMessage } from '@shared/utils/errors';
@@ -14,14 +15,18 @@ import {
   type OwnerNearRecovery,
   type OwnerNearRetirementProof,
   type OwnerNearRetirementWait,
+  type OwnerNearShortfall,
   type OwnerNearUnverifiedExecutionProof,
 } from '../walletIframe/shared/ownerNearOperation';
 
+export type { NearTransactionRejection } from '@/core/rpcClients/near/nearTransactionRejection';
 export type {
   OwnerNearOutcome,
   OwnerNearRecovery,
+  OwnerNearReplacementProof,
   OwnerNearRetirementProof,
   OwnerNearRetirementWait,
+  OwnerNearShortfall,
   OwnerNearSubmissionEvidence,
   OwnerNearUnverifiedExecutionProof,
 } from '../walletIframe/shared/ownerNearOperation';
@@ -42,13 +47,21 @@ export type OwnerNearOperationState = Readonly<{ recovery: OwnerNearRecovery }> 
         transactionId: string;
         error: string;
         retirementWait?: OwnerNearRetirementWait;
+        rejection?: NearTransactionRejection;
+        cancellationRejection?: NearTransactionRejection;
       }
+    | { kind: 'cancellation_approval'; transactionId: string }
     | { kind: 'recovery_unavailable'; error: string }
     | { kind: 'completed'; result: Extract<ActionResult, { success: true }> }
     | { kind: 'reverted'; transactionId: string; error: string }
     | { kind: 'cancelled' }
     | { kind: 'expired' }
-    | { kind: 'not_submitted'; error: string }
+    | {
+        kind: 'not_submitted';
+        error: string;
+        rejection?: NearTransactionRejection;
+        shortfall?: OwnerNearShortfall;
+      }
     | {
         kind: 'retirement_available' | 'retirement_approval';
         transactionId: string;
@@ -65,6 +78,14 @@ export interface OwnerNearOperation {
   recover(): Promise<OwnerNearOutcome>;
   /** Ask the owner to release an expired transaction whose execution remains unverified. */
   retire(): Promise<OwnerNearOutcome>;
+  /**
+   * Ask the owner to cancel a submitted transaction that has not settled. The wallet signs a
+   * 0-NEAR transfer to the account itself with the same key and nonce. When that cancel is
+   * final, the operation ends as `retired` with proof that the transaction never executed,
+   * and a new transaction can follow at once. A refused cancel stays `unresolved` with
+   * `cancellationRejection`, such as `NotEnoughBalance`.
+   */
+  cancelTransaction(): Promise<OwnerNearOutcome>;
 }
 
 export type PrepareOwnerNearTransaction = {
@@ -262,6 +283,21 @@ class OwnerNearTransaction implements OwnerNearOperation {
     return this.inFlight;
   }
 
+  cancelTransaction(): Promise<OwnerNearOutcome> {
+    if (this.inFlight) return this.inFlight;
+    if (this.state.kind !== 'unresolved' && this.state.kind !== 'retirement_available')
+      throw new Error('Only a submitted transaction that has not settled can be cancelled.');
+    const { recovery, transactionId } = this.state;
+    this.transition({ kind: 'cancellation_approval', recovery, transactionId });
+    this.inFlight = this.run({
+      action: 'cancel_submitted',
+      authentication: this.command.authentication,
+      recovery,
+      transactionId,
+    });
+    return this.inFlight;
+  }
+
   private openReview(
     review: OwnerNearReview,
     command: OwnerNearApprovalCommand,
@@ -311,7 +347,8 @@ class OwnerNearTransaction implements OwnerNearOperation {
       outcome.recovery.operationId === this.state.recovery.operationId &&
       (this.state.kind === 'submitting' ||
         this.state.kind === 'unresolved' ||
-        this.state.kind === 'retirement_approval')
+        this.state.kind === 'retirement_approval' ||
+        this.state.kind === 'cancellation_approval')
     ) {
       outcome = {
         kind: 'unresolved',
@@ -355,6 +392,10 @@ class OwnerNearTransaction implements OwnerNearOperation {
           transactionId: outcome.transactionId,
           error: outcome.error,
           ...(outcome.retirementWait ? { retirementWait: outcome.retirementWait } : {}),
+          ...(outcome.rejection ? { rejection: outcome.rejection } : {}),
+          ...(outcome.cancellationRejection
+            ? { cancellationRejection: outcome.cancellationRejection }
+            : {}),
         });
         return;
       case 'recovery_unavailable':
@@ -365,7 +406,13 @@ class OwnerNearTransaction implements OwnerNearOperation {
         });
         return;
       case 'not_submitted':
-        this.transition({ kind: 'not_submitted', recovery, error: outcome.error });
+        this.transition({
+          kind: 'not_submitted',
+          recovery,
+          error: outcome.error,
+          ...(outcome.rejection ? { rejection: outcome.rejection } : {}),
+          ...(outcome.shortfall ? { shortfall: outcome.shortfall } : {}),
+        });
         return;
       case 'retirement_available':
         this.transition({

@@ -424,6 +424,17 @@ export type NonceCoordinator = {
     nearClient?: NearClient;
     force?: boolean;
   }): Promise<{ context: TransactionContext; leases: NonceLease[] }>;
+  /**
+   * Leases one exact nonce that an earlier signed transaction holds, for a transaction that
+   * replaces it with the same key. Refuses when the finalized access key nonce already
+   * reached that nonce, because NEAR would then reject the replacement.
+   */
+  reserveNearReplacementContext(input: {
+    lane: NearNonceLane;
+    operation: PreparedNonceOperationContext;
+    nonce: string;
+    nearClient?: NearClient;
+  }): Promise<{ context: TransactionContext; leases: NonceLease[] }>;
   initializeNearAccessKey(input: {
     walletId: string;
     nearAccountId: string;

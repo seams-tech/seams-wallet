@@ -220,6 +220,8 @@ type NearTransactionWithActionsPayloadBase = {
   sensitivePolicy?: SensitiveOperationPolicy;
   yaoSigningPreparation: NearEd25519YaoSigningPreparation;
   yaoMaterialExecutor: NearEd25519YaoMaterialExecutor;
+  /** Sign at this exact nonce, replacing an earlier signed transaction of the same key. */
+  replacementNonce?: string;
 };
 
 export type NearTransactionWithActionsPayload =

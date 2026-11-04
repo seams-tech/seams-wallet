@@ -133,6 +133,11 @@ export class OwnerOperationNearClient extends MinimalNearClient {
    * The chain that this node serves, and its validity rule: NEAR rejects a transaction
    * when its reference block is older than `validityPeriod` blocks.
    */
+  /** The gas price of the latest block, in yoctoNEAR per gas unit. */
+  async gasPrice(): Promise<bigint> {
+    return await this.makeRpcCall('gas_price', [null], 'Gas Price', decodeGasPrice);
+  }
+
   async transactionValidity(): Promise<NearTransactionValidity> {
     return await this.makeRpcCall(
       'EXPERIMENTAL_genesis_config',
@@ -144,6 +149,12 @@ export class OwnerOperationNearClient extends MinimalNearClient {
 }
 
 type NearTransactionValidity = Readonly<{ chainId: string; validityPeriod: number }>;
+
+function decodeGasPrice(raw: unknown): bigint {
+  const price = requireRecord(raw, 'NEAR gas price').gas_price;
+  if (typeof price !== 'string' || !/^\d+$/.test(price)) throw new Error('Invalid NEAR gas price');
+  return BigInt(price);
+}
 
 function decodeTransactionValidity(raw: unknown): NearTransactionValidity {
   const genesis = requireRecord(raw, 'NEAR genesis config');
