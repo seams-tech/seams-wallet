@@ -1,17 +1,17 @@
 ---
-title: Release 0.46.1
+title: Release 0.47.0
 description: VoiceID enrollment shows its model download inside the recording card, and wallet approval keeps a custom review's box.
 ---
 
-# Release 0.46.1
+# Release 0.47.0
 
-The browser SDK, server SDK, and VoiceID plugin use **0.46.1**.
+The browser SDK, server SDK, and VoiceID plugin use **0.47.0**.
 
 - VoiceID enrollment opens its recording card at once and downloads VoiceID inside it. A rounded bar takes the place of the answer line, the download size takes the place of the status line, and **Record sample 1** turns on when VoiceID is ready. Before, a plain progress bar showed under the card.
 - If the download fails, the error shows in the card, and **Retry loading** takes the place of the record button. Unlock and the other VoiceID captures use the same layout.
 - After a custom transaction review, wallet approval keeps the review's box: the same width and top-left corner, with the card laid out at that width. Only the height changes, so the handoff no longer looks like a second modal.
 - When expanded transaction details make the confirm card taller than its frame, the **Secured by seams** footer stays in view, and the details scroll under it.
-- Install `@seams/voiceid` 0.46.1 with `@seams/wallet` 0.46.1. The VoiceID host API stays at version 8.
+- Install `@seams/voiceid` 0.47.0 with `@seams/wallet` 0.47.0. The VoiceID host API stays at version 8.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
