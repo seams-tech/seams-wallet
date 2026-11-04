@@ -142,7 +142,7 @@ import {
   type TransactionReadinessClassifiedState,
 } from '../../session/operationState/transactionState';
 import { requiredNearTransactionSignatureUses } from './signatureUses';
-import { VoiceIdStepUpRequiredError } from '../../stepUpConfirmation/voiceIdStepUp';
+import { VoiceIdStepUpRequiredError, isVoiceIdStepUpRequired } from '../../stepUpConfirmation/voiceIdStepUp';
 
 function nearOwnerOperationAuthorizationDecisionFromError(
   error: unknown,
@@ -1463,6 +1463,10 @@ async function signTransaction(
     return await signTransactionWithActionsAttempt(deps, args, {
       signingOperationState: createSigningOperationStateRef({ operationId }),
     });
+  } catch (error) {
+    // A VoiceID step-up runs inside this card, so the card outlives the attempt.
+    if (isVoiceIdStepUpRequired(error)) deps.touchConfirm.holdTransactionPreparationModal();
+    throw error;
   } finally {
     deps.touchConfirm.closeTransactionPreparationModal();
   }

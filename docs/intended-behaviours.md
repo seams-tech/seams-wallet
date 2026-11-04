@@ -198,17 +198,21 @@ signing bypass VoiceID policy, UI, model, and inference-runtime loading, even wh
 VoiceID is available or enrolled. Enrollment preserves the owner's current method.
 Unlocking with VoiceID selects its method; unlocking with a passkey selects passkey.
 A VoiceID session signs only while VoiceID stays turned on for that wallet. When the
-session is missing, expired, used up, or superseded, the next signing operation first
-shows the VoiceID unlock inside the Wallet. A successful voice check installs a fresh
-VoiceID session, and the operation then signs on it. A VoiceID session never steps up
-with a passkey or Email OTP. Cancelling the voice check cancels the operation.
-A step-up shows no unlock success screen; only a wallet unlock does.
-A reviewed request runs the voice check before its review opens, so the review
-signs on the fresh session. If the owner already confirmed a request when its
-operation reports that the session needs a step-up, the retry after the voice
-check signs without a second confirm.
+session is missing, expired, used up, or superseded, the next signing operation asks
+for VoiceID. A NEAR transaction or an EVM-family transaction without a review asks
+inside its own confirm card: the card shows the transaction with **Confirm with
+VoiceID**, the click replaces the review with the voice capture in the same card, and
+the same card turns into the receipt once the check passes, with no second click.
+Other operations and reviewed requests show the VoiceID unlock card inside the Wallet
+before they sign; a reviewed request does so before its review opens. A successful
+voice check installs a fresh VoiceID session, and the operation then signs on it. A
+VoiceID session never steps up with a passkey or Email OTP. Cancelling the voice check
+cancels the operation. A step-up shows no unlock success screen; only a wallet unlock
+does. If the owner already confirmed a request when its operation reports that the
+session needs a step-up, the retry after the voice check signs without a second confirm.
 Contract enforcement: `tests/e2e/intended-behaviours/passkey.voiceid-selection.contract.test.ts`
-and `tests/e2e/intended-behaviours/voiceid.unlock-arc.contract.test.ts` (reviewed step-up).
+(in-card NEAR step-up) and `tests/e2e/intended-behaviours/voiceid.unlock-arc.contract.test.ts`
+(reviewed and in-card EVM step-up).
 
 
 The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the

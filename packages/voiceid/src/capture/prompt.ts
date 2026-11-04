@@ -10,6 +10,15 @@ import { useSystemVoiceMicrophone } from '../browser/microphoneInput';
 
 const CSS = `
 .seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; background: transparent; }
+/* Inside an operation's card the card is the frame: the prompt fills it edge to edge. */
+.seams-voiceid-activation-surface.seams-voiceid-in-card { width: 100%; }
+.seams-voiceid-in-card .seams-voiceid-prompt {
+  width: 100%;
+  padding-top: 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 
 .seams-voiceid-prompt {
   box-sizing: border-box;

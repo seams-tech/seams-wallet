@@ -387,6 +387,7 @@ import type {
   WalletAuthenticationState,
 } from '@/core/types/seams';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
+import type { AuthMethodCaptureMount } from '@/core/authMethods/hostPlugin';
 import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIdentity';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import {
@@ -491,6 +492,8 @@ import type { VoiceIdEd25519YaoExportContextV1 } from '@/core/signingEngine/flow
 export type VoiceIdStepUp = (input: {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: string;
+  /** Places the capture inside the operation's own card; without it the capture has its own. */
+  readonly mountCapture?: AuthMethodCaptureMount;
 }) => Promise<void>;
 
 // A VoiceID session in one of these states signs again only after a voice step-up.
@@ -3553,6 +3556,7 @@ export class BrowserSigningSurface {
   private async withVoiceIdStepUp<T>(
     walletId: WalletId,
     run: (attempt: VoiceIdSigningAttempt) => Promise<T>,
+    options: Readonly<{ inCard: boolean }>,
   ): Promise<T> {
     let approved = false;
     const attempt = (skipConfirmClick: boolean): VoiceIdSigningAttempt => ({
@@ -3563,21 +3567,41 @@ export class BrowserSigningSurface {
       confirmation: (override) =>
         skipConfirmClick ? { ...override, behavior: 'skipClick', autoProceedDelay: 0 } : override,
     });
-    // A reviewed request shows Wallet UI only on its confirm card, so its client steps
-    // up before the review opens. Here it only reports that a step-up is still needed.
-    if (reviewAdmissionForBinding(this.getWalletIframeSurfaceMeasurementBinding())) {
-      return await run(attempt(false));
-    }
-    const steppedUp = await this.stepUpVoiceIdBeforeSigning(walletId);
     try {
-      return await run(attempt(false));
-    } catch (error) {
-      if (steppedUp || !isVoiceIdStepUpRequired(error)) throw error;
-      if (!(await this.runVoiceIdStepUp(walletId))) throw error;
-      // The user approved this request before the step-up; the voice check was the
-      // only missing step, so the retry signs it without a second confirm click.
-      return await run(attempt(approved));
+      // A reviewed request shows Wallet UI only on its confirm card, so its client steps
+      // up before the review opens. Here it only reports that a step-up is still needed.
+      if (reviewAdmissionForBinding(this.getWalletIframeSurfaceMeasurementBinding())) {
+        return await run(attempt(false));
+      }
+      // An operation that steps up inside its own card asks for VoiceID there, after its review.
+      const steppedUp = options.inCard ? false : await this.stepUpVoiceIdBeforeSigning(walletId);
+      try {
+        return await run(attempt(false));
+      } catch (error) {
+        if (steppedUp || !isVoiceIdStepUpRequired(error)) throw error;
+        // The card's confirmation passed with the voice check and waits for this attempt.
+        if (await this.stepUpVoiceIdInCard(walletId)) return await run(attempt(false));
+        this.touchConfirm.releaseTransactionPreparationModal();
+        if (!(await this.runVoiceIdStepUp(walletId))) throw error;
+        // The user approved this request before the step-up; the voice check was the
+        // only missing step, so the retry signs it without a second confirm click.
+        return await run(attempt(approved));
+      }
+    } finally {
+      this.touchConfirm.releaseTransactionPreparationModal();
     }
+  }
+
+  private async stepUpVoiceIdInCard(walletId: WalletId): Promise<boolean> {
+    const stepUp = this.voiceIdStepUp;
+    if (!stepUp) return false;
+    const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId));
+    if (selected.kind !== 'resolved' || selected.authMethod.kind !== 'voiceid') return false;
+    const walletAuthMethodId = selected.authMethod.walletAuthMethodId;
+    return await this.touchConfirm.runTransactionPreparationStepUp({
+      confirmText: 'Confirm with VoiceID',
+      stepUp: (mountCapture) => stepUp({ walletId, walletAuthMethodId, mountCapture }),
+    });
   }
 
   private async stepUpVoiceIdBeforeSigning(walletId: WalletId): Promise<boolean> {
@@ -3606,15 +3630,21 @@ export class BrowserSigningSurface {
   ): Promise<NearSignIntentResult<TRequest>> {
     const walletId = request.args.commandSubject.walletSession.walletId;
     try {
-      return await this.withVoiceIdStepUp(walletId, (attempt) =>
-        signNearOperation(this.enginePorts.nearSigningDeps, {
-          ...request,
-          args: {
-            ...request.args,
-            onEvent: attempt.onEvent(request.args.onEvent),
-            confirmationConfigOverride: attempt.confirmation(request.args.confirmationConfigOverride),
-          },
-        }),
+      return await this.withVoiceIdStepUp(
+        walletId,
+        (attempt) =>
+          signNearOperation(this.enginePorts.nearSigningDeps, {
+            ...request,
+            args: {
+              ...request.args,
+              onEvent: attempt.onEvent(request.args.onEvent),
+              confirmationConfigOverride: attempt.confirmation(
+                request.args.confirmationConfigOverride,
+              ),
+            },
+          }),
+        // Only a NEAR transaction opens a review card before it plans its signature.
+        { inCard: request.kind === 'transactionWithActions' },
       );
     } catch (error) {
       if (isWalletSigningStateFailure(error)) {
@@ -5820,12 +5850,15 @@ export class BrowserSigningSurface {
     shouldAbort?: () => boolean;
     onEvent?: (event: SigningFlowEvent) => void;
   }): Promise<TempoSignedResult | EvmSignedResult> {
-    return await this.withVoiceIdStepUp(args.walletSession.walletId, (attempt) =>
-      signEvmFamilyOperation(this.enginePorts.tempoSigningDeps, {
-        ...args,
-        onEvent: attempt.onEvent(args.onEvent),
-        confirmationConfigOverride: attempt.confirmation(args.confirmationConfigOverride),
-      }),
+    return await this.withVoiceIdStepUp(
+      args.walletSession.walletId,
+      (attempt) =>
+        signEvmFamilyOperation(this.enginePorts.tempoSigningDeps, {
+          ...args,
+          onEvent: attempt.onEvent(args.onEvent),
+          confirmationConfigOverride: attempt.confirmation(args.confirmationConfigOverride),
+        }),
+      { inCard: true },
     );
   }
 

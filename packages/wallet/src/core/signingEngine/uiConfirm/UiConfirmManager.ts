@@ -47,6 +47,7 @@ import type {
   UiConfirmManager,
 } from './uiConfirm.types';
 import { normalizeConfirmationConfig } from '@/core/types/confirmationConfig';
+import type { AuthMethodCaptureMount } from '@/core/authMethods/hostPlugin';
 
 /**
  * A worker request is answered within its timeout, except while a person answers
@@ -101,6 +102,10 @@ type TransactionPreparationModalState =
   | { kind: 'closed'; generation: number }
   | { kind: 'opening'; generation: number }
   | { kind: 'open'; generation: number; handle: MountedConfirmUIHandle }
+  // An attempt that needs a step-up keeps its card for the step-up inside it.
+  | { kind: 'held'; generation: number; handle: MountedConfirmUIHandle }
+  // The step-up passed; the next attempt takes the card and its queued confirmation.
+  | { kind: 'stepped_up'; generation: number; handle: MountedConfirmUIHandle }
   | { kind: 'cancelled'; generation: number };
 
 const USER_CONFIRM_WORKER_STARTUP_PING_TIMEOUT_MS = 15_000;
@@ -309,6 +314,11 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     if (!walletLabel) {
       throw new Error('Transaction preparation modal requires a wallet label');
     }
+    const steppedUp = this.transactionPreparationModalState;
+    if (steppedUp.kind === 'stepped_up') {
+      this.transactionPreparationModalState = { ...steppedUp, kind: 'open' };
+      return;
+    }
 
     this.closeTransactionPreparationModal();
     const storedConfig = this.context.userPreferencesManager.getConfirmationConfig();
@@ -362,13 +372,76 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
 
   closeTransactionPreparationModal(): void {
     const state = this.transactionPreparationModalState;
+    // A held card outlives its attempt; the step-up releases it or hands it on.
+    if (state.kind === 'held') return;
     this.transactionPreparationModalState = {
       kind: 'closed',
       generation: state.generation,
     };
-    if (state.kind === 'open') {
+    if (state.kind === 'open' || state.kind === 'stepped_up') {
       state.handle.close(false);
     }
+  }
+
+  /** Keeps the open preparation card for a step-up inside it. Returns whether one was open. */
+  holdTransactionPreparationModal(): boolean {
+    const state = this.transactionPreparationModalState;
+    if (state.kind !== 'open') return false;
+    this.transactionPreparationModalState = { ...state, kind: 'held' };
+    return true;
+  }
+
+  /** Closes a held card that no step-up will use. */
+  releaseTransactionPreparationModal(): void {
+    const state = this.transactionPreparationModalState;
+    if (state.kind !== 'held') return;
+    this.transactionPreparationModalState = { kind: 'closed', generation: state.generation };
+    state.handle.close(false);
+  }
+
+  /**
+   * Runs a step-up inside the held card: the card asks for confirmation with the method,
+   * the capture replaces the review, and the confirmation waits for the step-up. The card
+   * then stays mounted for the next attempt, which takes the confirmation.
+   * Returns false when no card is held.
+   */
+  async runTransactionPreparationStepUp(args: {
+    readonly confirmText: string;
+    readonly stepUp: (mountCapture: AuthMethodCaptureMount) => Promise<void>;
+  }): Promise<boolean> {
+    const state = this.transactionPreparationModalState;
+    if (state.kind !== 'held') return false;
+    const { handle, generation } = state;
+    let capture: HTMLElement | null = null;
+    const mountCapture: AuthMethodCaptureMount = (element) => {
+      capture = element;
+      handle.update({ authMethodCapture: element });
+      // A passed check stays on the card until the receipt takes it over.
+      return (settlement) => {
+        if (settlement !== 'succeeded') handle.update({ authMethodCapture: null });
+      };
+    };
+    const passed = new Promise<void>((resolve, reject) => {
+      handle.onCancel?.((detail) => {
+        capture?.dispatchEvent(new Event('cancel'));
+        reject(new Error(detail.error || 'The step-up was cancelled.'));
+      });
+      handle.setConfirmGate(async () => {
+        await args.stepUp(mountCapture);
+        resolve();
+      });
+    });
+    // The method's own capture follows the click, so the button shows no passkey mark.
+    handle.update({ preparing: false, confirmText: args.confirmText, signingAuthMode: 'warmSession' });
+    try {
+      await passed;
+    } catch (error) {
+      this.transactionPreparationModalState = { kind: 'closed', generation };
+      handle.close(false);
+      throw error;
+    }
+    this.transactionPreparationModalState = { kind: 'stepped_up', generation, handle };
+    return true;
   }
 
   private takeTransactionConfirmationSurface(): ConfirmUISurfaceSource {
@@ -390,6 +463,9 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
           generation: state.generation,
         };
         return { kind: 'reuse_mounted', handle: state.handle };
+      case 'held':
+      case 'stepped_up':
+        throw new Error('Transaction confirmation started before its step-up card was handed on');
       default:
         return assertNever(state);
     }

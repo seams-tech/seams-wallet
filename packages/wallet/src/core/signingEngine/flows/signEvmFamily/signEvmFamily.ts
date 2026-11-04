@@ -68,6 +68,7 @@ import {
   isEmailOtpSigningAuthPlan,
   isPasskeySigningAuthPlan,
 } from '../../stepUpConfirmation/types';
+import { isVoiceIdStepUpRequired } from '../../stepUpConfirmation/voiceIdStepUp';
 import type { EvmFamilyThresholdEcdsaStepUp } from './requireEvmFamilyStepUpAuth';
 import {
   executeEvmFamilyTransactionSigning,
@@ -305,6 +306,10 @@ export async function signEvmFamily(
   });
   try {
     return await signEvmFamilyAttempt(deps, args, attempt);
+  } catch (error) {
+    // A VoiceID step-up runs inside this card, so the card outlives the attempt.
+    if (isVoiceIdStepUpRequired(error)) deps.touchConfirm.holdTransactionPreparationModal();
+    throw error;
   } finally {
     deps.touchConfirm.closeTransactionPreparationModal();
   }

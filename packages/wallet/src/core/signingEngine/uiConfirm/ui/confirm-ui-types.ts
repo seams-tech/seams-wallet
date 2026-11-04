@@ -28,6 +28,8 @@ export type ConfirmUIUpdate = {
   onBack?: () => void;
   title?: string;
   body?: string;
+  authMethodApprovalMessage?: string;
+  authMethodCapture?: HTMLElement | null;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
 };
@@ -42,6 +44,12 @@ export interface ConfirmUIHandle {
   onCancel?(listener: (detail: { error?: string }) => void): () => void;
 }
 
+/**
+ * Runs after the person confirms and before the decision reaches the operation, such as an
+ * authentication capture inside the card. A rejection cancels the card with its message.
+ */
+export type ConfirmUIConfirmGate = () => Promise<void>;
+
 export type ConfirmUISurfaceDecision =
   | {
       kind: 'confirmed';
@@ -52,6 +60,8 @@ export type ConfirmUISurfaceDecision =
 export interface MountedConfirmUIHandle extends ConfirmUIHandle {
   readonly element: HTMLElement;
   takeDecision(): Promise<ConfirmUISurfaceDecision>;
+  /** The next confirmation passes this gate once; a later one publishes at once. */
+  setConfirmGate(gate: ConfirmUIConfirmGate): void;
 }
 
 export type ConfirmUISurfaceSource =

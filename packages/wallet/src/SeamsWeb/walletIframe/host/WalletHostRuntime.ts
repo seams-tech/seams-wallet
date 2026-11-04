@@ -221,13 +221,12 @@ export class WalletHostRuntime {
     this.resumePendingAcknowledgementsV1 = deviceDomain.resumePendingAcknowledgementsV1;
     const sessionCommands = createWalletHostSessionCommands(this.getContext.bind(this), parentOrigin);
     // A VoiceID session that cannot sign re-authenticates with VoiceID, never another method.
-    browserSigningSurface.setVoiceIdStepUp(async ({ walletId, walletAuthMethodId }) => {
-      const unlocked = await sessionCommands.unlockWithAuthMethod({
-        walletId,
-        walletAuthMethodId,
-        method: 'voiceid',
-        purpose: 'step_up',
-      });
+    browserSigningSurface.setVoiceIdStepUp(async ({ walletId, walletAuthMethodId, mountCapture }) => {
+      const unlocked = await sessionCommands.unlockWithAuthMethod(
+        { walletId, walletAuthMethodId, method: 'voiceid', purpose: 'step_up' },
+        undefined,
+        mountCapture,
+      );
       if (!unlocked.success) throw new Error(unlocked.error || 'VoiceID step-up did not finish.');
     });
     // Key export with VoiceID asks for a fresh voice check, never another method.

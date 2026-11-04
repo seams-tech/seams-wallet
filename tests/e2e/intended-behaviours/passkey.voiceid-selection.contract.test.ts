@@ -17,7 +17,6 @@ import {
   voiceEntryName,
   signTransfer,
   microphoneCount,
-  beginDirectVoiceUnlock,
   session,
   saveEvidence,
 } from './voiceid-selection';
@@ -120,16 +119,21 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   expect(evidence.transfers).toHaveLength(3);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount);
 
-  // The next signature steps up with VoiceID inside the wallet, never with a passkey.
+  // The next signature steps up with VoiceID inside its own confirm card, never with a
+  // passkey: the card asks to confirm with VoiceID, the capture replaces the review in
+  // the same card, and the signature follows without a second click.
   const passkeyUnlocks = new PasskeyUnlockRequests();
   context.on('request', passkeyUnlocks.observe);
   const steppedUp = page.evaluate(sendUnreviewedTransfer, identity.accountId);
-  await expect(
-    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
-  ).toBeEnabled({ timeout: 45_000 });
+  const card = wallet.locator('.seams-confirmation-surface');
+  const confirmWithVoice = card.getByRole('button', { name: 'Confirm with VoiceID', exact: true });
+  await expect(confirmWithVoice).toBeEnabled({ timeout: 45_000 });
   await wallet.locator('body').evaluate(watchUnlockSuccess);
-  await beginDirectVoiceUnlock(page);
-  const afterStepUp = await autoConfirmWalletIframeUntil(page, steppedUp);
+  await expect(wallet.locator('.seams-voiceid-activation-surface')).toHaveCount(0);
+  await confirmWithVoice.click();
+  await expect(card.locator('.seams-auth-method-capture .seams-voiceid-prompt')).toBeVisible();
+  await expect(wallet.locator('.seams-voiceid-unlock')).toHaveCount(0);
+  const afterStepUp = await steppedUp;
   context.off('request', passkeyUnlocks.observe);
   expect(afterStepUp).toMatchObject({ success: true });
   await waitForWalletIframeConfirmationSettlement(page);

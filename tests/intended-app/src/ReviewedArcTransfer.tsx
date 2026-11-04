@@ -21,9 +21,15 @@ export function ReviewedArcTransfer({ walletId }: { walletId: string | null }): 
       </p>
       <button
         disabled={!selected || state.kind === 'pending'}
-        onClick={selected ? transfer.bind(null, seams, selected, setState) : undefined}
+        onClick={selected ? transfer.bind(null, seams, selected, setState, 'reviewed') : undefined}
       >
         Review Arc testnet transfer
+      </button>
+      <button
+        disabled={!selected || state.kind === 'pending'}
+        onClick={selected ? transfer.bind(null, seams, selected, setState, 'unreviewed') : undefined}
+      >
+        Send Arc testnet transfer
       </button>
       <output data-testid="reviewed-arc-result" data-state={state.kind} role="status">
         {state.kind === 'idle' ? '' : JSON.stringify(state)}
@@ -73,6 +79,7 @@ async function transfer(
   seams: Seams,
   wallet: Extract<BoundWallet, { access: 'wallet' }>,
   setState: React.Dispatch<React.SetStateAction<TransferState>>,
+  presentation: 'reviewed' | 'unreviewed',
 ): Promise<void> {
   setState({ kind: 'pending' });
   try {
@@ -101,12 +108,17 @@ async function transfer(
       options: {
         confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' },
       },
-      review: {
-        title: 'Review Arc testnet transfer',
-        validity: { kind: 'expires_at', atMs: Date.now() + 120_000 },
-        render: renderDirectWalletReview,
-        className: 'seams-demo-direct-wallet-review',
-      },
+      // An unreviewed send opens only the Wallet's own confirm card.
+      ...(presentation === 'reviewed'
+        ? {
+            review: {
+              title: 'Review Arc testnet transfer',
+              validity: { kind: 'expires_at', atMs: Date.now() + 120_000 },
+              render: renderDirectWalletReview,
+              className: 'seams-demo-direct-wallet-review',
+            },
+          }
+        : {}),
     });
     setState({
       kind: 'submitted',

@@ -138,6 +138,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
         )
       : null;
     let steppedUpWithVoice = false;
+    let steppedUpInCard = false;
     if (near) {
       await near.observe(context);
       await signTransfer(page);
@@ -158,6 +159,32 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
         authMethod: 'voiceid',
       });
       steppedUpWithVoice = true;
+
+      // Two NEAR transfers use the fresh session up. A send without a review then steps up
+      // inside its own confirm card: Confirm with VoiceID, the capture, then the signature.
+      await signTransfer(page);
+      await signTransfer(page);
+      expect(near.transfers).toHaveLength(4);
+      const capturesBeforeInCard = await wallet.locator('body').evaluate(microphoneCount);
+      const passkeysBeforeInCard = await wallet.locator('body').evaluate(readPasskeyRequests);
+      await page.getByRole('button', { name: 'Send Arc testnet transfer', exact: true }).click();
+      const card = wallet.locator('.seams-confirmation-surface');
+      const confirmWithVoice = card.getByRole('button', {
+        name: 'Confirm with VoiceID',
+        exact: true,
+      });
+      await expect(confirmWithVoice).toBeEnabled({ timeout: 45_000 });
+      await confirmWithVoice.click();
+      await expect(card.locator('.seams-auth-method-capture .seams-voiceid-prompt')).toBeVisible();
+      await expect.poll(readTransactionCount.bind(null, rpc), { timeout: 90_000 }).toBe(3);
+      await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute(
+        'data-state',
+        'submitted',
+      );
+      await waitForWalletIframeConfirmationSettlement(page);
+      expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(capturesBeforeInCard + 1);
+      expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeysBeforeInCard);
+      steppedUpInCard = true;
     }
     await saveEvidence(testInfo, 'voiceid-arc-transfer.json', {
       status: 'passed',
@@ -175,6 +202,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       transactions: rpc.transactions,
       cancellationPreventedSecondTransfer: true,
       steppedUpWithVoice,
+      steppedUpInCard,
       signerSetup:
         profile === 'add_ecdsa_after_voice'
           ? 'accounts_menu_from_voiceid_session_with_passkey'

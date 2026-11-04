@@ -52,7 +52,9 @@ The optional `VoiceBeam` and `VoiceAssistantCard` visuals are exported from
 VoiceID works like a passkey. A VoiceID unlock opens a normal signing session.
 Each operation on any chain shows the ordinary **Confirm**, with no further voice
 check, within the session's uses and expiry. When the session runs out or
-expires, the next operation asks for VoiceID again inside the Wallet, then signs.
+expires, the next operation asks for VoiceID again inside the Wallet, then signs. A
+transaction asks inside its own confirm card: **Confirm with VoiceID**, the voice
+capture in the same card, then the receipt.
 It never asks for a passkey. Key export asks for one more voice check, bound to
 that export, and never for a passkey or Email OTP.
 

@@ -1,3 +1,4 @@
+import type { AuthMethodCaptureMount } from '@/core/authMethods/hostPlugin';
 import type { TransactionReviewAdmission } from './transactionReviewAdmission';
 import type { WarmSessionMaterialOperationTarget } from '../session/emailOtp/sealedRuntimePurpose';
 /**
@@ -307,6 +308,12 @@ export interface UiConfirmContextPort {
 export interface UiConfirmSigningPort {
   openTransactionPreparationModal(params: OpenTransactionPreparationModalParams): Promise<void>;
   closeTransactionPreparationModal(): void;
+  holdTransactionPreparationModal(): boolean;
+  releaseTransactionPreparationModal(): void;
+  runTransactionPreparationStepUp(args: {
+    readonly confirmText: string;
+    readonly stepUp: (mountCapture: AuthMethodCaptureMount) => Promise<void>;
+  }): Promise<boolean>;
   orchestrateSigningConfirmation(
     params: Extract<OrchestrateSigningConfirmationParams, { kind: 'intentDigest' }>,
   ): Promise<SigningConfirmationResultIntentDigest>;

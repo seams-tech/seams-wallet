@@ -47,6 +47,7 @@ let nextConfirmationId = 0;
 export type ConfirmationContentModel =
   | {
       kind: 'registration';
+      capture?: never;
       registration: Omit<PasskeyRegistrationContentProps, 'styles'>;
       header?: never;
       body?: never;
@@ -55,6 +56,7 @@ export type ConfirmationContentModel =
     }
   | {
       kind: 'transaction';
+      capture: HTMLElement | null;
       registration?: never;
       header: Omit<ConfirmHeaderProps, 'styles' | 'icon'>;
       body: ConfirmationBodyModel;
@@ -144,6 +146,18 @@ export class ConfirmationContent extends Component<{
       model.prompt.kind === 'email' && model.transaction.decision.kind === 'ready'
         ? { kind: 'form' as const, formId: this.otpFormId }
         : model.transaction.decision;
+    // A hosted capture keeps the review's toolbar and footer, so only the middle of
+    // the card changes between the review, the capture and the receipt.
+    if (model.capture)
+      return (
+        <div ref={this.root} class={contentClass}>
+          <div class="seams-review-content seams-review-content--capture">
+            {this.props.variant !== 'drawer' && this.renderToolbar(model, decision)}
+            <AuthMethodCapture element={model.capture} />
+            <WalletReceiptFooter />
+          </div>
+        </div>
+      );
     return (
       <div ref={this.root} class={contentClass}>
         <div class="seams-review-content">
@@ -233,3 +247,20 @@ function assertNever(value: never): never {
 }
 
 /** The lazy auth plugin owns its contents; the Wallet retains the modal and cancellation. */
+class AuthMethodCapture extends Component<{ element: HTMLElement }> {
+  private readonly container = createRef<HTMLDivElement>();
+  componentDidMount(): void {
+    this.container.current?.append(this.props.element);
+    this.props.element.querySelector<HTMLButtonElement>('button')?.focus();
+  }
+  componentDidUpdate(previous: { element: HTMLElement }): void {
+    if (previous.element !== this.props.element)
+      this.container.current?.replaceChildren(this.props.element);
+  }
+  componentWillUnmount(): void {
+    this.props.element.remove();
+  }
+  render(): ComponentChildren {
+    return <div ref={this.container} class="seams-auth-method-capture" />;
+  }
+}

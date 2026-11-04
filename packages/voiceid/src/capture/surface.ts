@@ -94,11 +94,19 @@ class VoiceIdCaptureSurface<T> {
     this.element.setAttribute('role', 'dialog');
     this.element.setAttribute('aria-modal', 'true');
     this.element.setAttribute('aria-label', actionLabel);
-    this.prompt = new VoicePrompt(document, actionLabel, this.phrase);
+    // A step-up inside an operation's card keeps that card's toolbar and footer, and its
+    // checking segments become the receipt's tracks.
+    const inCard = purpose === 'unlock' && unlockSuccess === 'skip' && mountCapture !== undefined;
+    this.prompt = new VoicePrompt(document, actionLabel, this.phrase, inCard ? 'segments' : 'ring');
     this.element.append(this.prompt.element);
     this.unlockFrame =
-      purpose === 'unlock' ? new VoiceUnlockFrame(this.element, this.prompt) : null;
-    this.autoStartUnlock = this.unlockFrame !== null && mountCapture !== undefined;
+      purpose === 'unlock' && !inCard ? new VoiceUnlockFrame(this.element, this.prompt) : null;
+    this.autoStartUnlock = purpose === 'unlock' && mountCapture !== undefined;
+    if (inCard) {
+      this.element.classList.add('seams-voiceid-in-card');
+      // The card's toolbar closes the operation, so the capture has no close of its own.
+      this.prompt.cancel.hidden = true;
+    }
     this.status = this.prompt.status;
     this.status.textContent = 'Loading VoiceID…';
     this.prompt.title.textContent = 'VoiceID';
@@ -195,6 +203,8 @@ class VoiceIdCaptureSurface<T> {
       const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);
       if (this.state.kind === 'closed') return;
       if (this.unlockFrame && this.unlockSuccess === 'show') await this.showUnlocked(this.unlockFrame);
+      // A host that mounted the capture keeps a passed check on screen.
+      this.settlement = 'succeeded';
       this.state = { kind: 'closed' };
       this.completion.resolve(result);
     } catch (error: unknown) {

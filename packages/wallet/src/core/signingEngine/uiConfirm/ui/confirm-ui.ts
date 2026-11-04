@@ -23,6 +23,7 @@ import {
   type ConfirmationSurfaceController,
 } from './preact/confirmation-controller';
 import type {
+  ConfirmUIConfirmGate,
   ConfirmUIHandle,
   ConfirmUIPromptDiagnostics,
   ConfirmUISurfaceDecision,
@@ -329,6 +330,7 @@ type ConfirmationDecisionChannel = {
     submitEmail: (code: string, challengeId: string) => void;
   };
   takeDecision(): Promise<ConfirmUISurfaceDecision>;
+  setConfirmGate(gate: ConfirmUIConfirmGate): void;
 };
 
 type ReviewNavigationState = { kind: 'review_available' | 'decision_published' };
@@ -344,7 +346,8 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
   private readonly navigation: ReviewNavigationState = { kind: 'review_available' };
   private readonly queuedDecisions: ConfirmUISurfaceDecision[] = [];
   private readonly decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
-  private phase: 'pending' | 'published' = 'pending';
+  private phase: 'pending' | 'gating' | 'published' = 'pending';
+  private confirmGate: ConfirmUIConfirmGate | null = null;
   readonly cancelListeners = new Set<(detail: { error?: string }) => void>();
   readonly onBack: (() => void) | undefined;
   readonly callbacks = {
@@ -397,10 +400,33 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
     });
   }
 
+  setConfirmGate(gate: ConfirmUIConfirmGate): void {
+    this.confirmGate = gate;
+  }
+
   private approve(decision: ConfirmUISurfaceDecision): void {
     if (this.phase !== 'pending' || (this.admission && !this.admission.allowInteraction())) return;
+    const gate = this.confirmGate;
+    if (!gate) {
+      this.publishDecision(decision);
+      return;
+    }
+    this.confirmGate = null;
+    this.phase = 'gating';
+    void gate().then(this.publishGatedDecision.bind(this, decision), this.failGate);
+  }
+
+  private publishGatedDecision(decision: ConfirmUISurfaceDecision): void {
+    if (this.phase !== 'gating') return;
+    this.phase = 'pending';
     this.publishDecision(decision);
   }
+
+  private readonly failGate = (error: unknown): void => {
+    if (this.phase !== 'gating') return;
+    this.phase = 'pending';
+    this.cancel(error instanceof Error ? error.message : 'Confirmation was cancelled.');
+  };
 
   async takeDecision(): Promise<ConfirmUISurfaceDecision> {
     const queued = this.queuedDecisions.shift();
@@ -444,6 +470,7 @@ function createHostConfirmHandle(
       return () => channel.cancelListeners.delete(listener);
     },
     takeDecision: () => channel.takeDecision(),
+    setConfirmGate: (gate) => channel.setConfirmGate(gate),
   };
 }
 

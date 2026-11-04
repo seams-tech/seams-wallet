@@ -86,7 +86,9 @@ existing [transaction APIs](/examples/signing) on any chain and network: transfe
 calls, delegate actions, and message signing. Each operation shows the ordinary **Confirm**,
 with no further voice check, within the session's uses and expiry.
 When the session runs out or expires, the next operation asks for VoiceID again inside the
-Wallet, then signs. A VoiceID session never asks for a passkey. Key export asks for one more
+Wallet, then signs. A transaction asks inside its own confirm card: the card shows
+**Confirm with VoiceID**, the voice capture replaces the review in the same card, and the
+card then turns into the receipt. A VoiceID session never asks for a passkey. Key export asks for one more
 voice check inside the Wallet, bound to that export, and never for a passkey or Email OTP.
 
 Enabling or enrolling VoiceID does not select it for passkey or Email OTP signing.
