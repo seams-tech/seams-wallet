@@ -619,10 +619,30 @@ test('context, immutable intent, continuous iframe handoff and explicit wallet a
       'iframe.seams-wallet-overlay-iframe',
     );
   });
+  const dialog = page.locator('dialog[open]');
+  await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
+  const reviewBox = await dialog.boundingBox();
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   await expect(wallet.locator('button.confirm')).toBeVisible();
   await expect(iframe).not.toHaveAttribute('inert', '');
+  // The wallet card keeps the review's box: same width and top-left corner, so it
+  // reads as the same surface. Only the height follows the card.
+  await expect
+    .poll(async () => {
+      const box = await dialog.boundingBox();
+      const frame = await iframe.boundingBox();
+      return (
+        !!box &&
+        !!frame &&
+        !!reviewBox &&
+        Math.abs(box.width - reviewBox.width) <= 1 &&
+        Math.abs(box.x - reviewBox.x) <= 1 &&
+        Math.abs(box.y - reviewBox.y) <= 1 &&
+        Math.abs(frame.width - reviewBox.width) <= 1
+      );
+    })
+    .toBe(true);
   await expect
     .poll(async () => {
       const button = await wallet.locator('button.confirm').boundingBox();
