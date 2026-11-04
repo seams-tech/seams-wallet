@@ -97,6 +97,8 @@ playwright test -c playwright.wallet-intended.benchmark.ci.config.ts \
   --grep '(prepared|serial_preparation) pair' # historical benchmark at f8c90f4
 ```
 
+The benchmark test and its config were removed on 2026-11-05. Recover them from commit `755873b3d` to repeat this measurement.
+
 Both cohorts use the same SDK and backend. The serial control gates the
 finalization request until preparation completes, ordering preparation before
 finalization. It isolates overlap; it is not an old-release comparison. The gate

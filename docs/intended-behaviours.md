@@ -510,7 +510,7 @@ voice signs the same review. See the [retry evidence](evidence/voiceid-browser-m
 
 The [unlock contract](../tests/e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts)
 checks fresh session issuance and a concurrent lock during unlock. The
-[broadcast contract](../tests/e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts)
+[NEAR submission contract](../tests/e2e/intended-behaviours/passkey.near-submission.contract.test.ts)
 checks signature reuse for broadcast retries and cancellation of a new review.
 These journeys use synthetic microphone WAV input, real browser ReDimNet B1 inference,
 WebCrypto device keys, and local MPC signing. NEAR RPC is deterministic; these
@@ -531,9 +531,7 @@ production accuracy across users and devices remains unqualified.
 
 The [activation contract](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts)
 retains server admission, rollback, response-loss recovery, revocation, and
-origin/replay checks against real local D1. The
-[custody contract](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts)
-retains Rust-to-browser envelope checks and wrong-factor rejection.
+origin/replay checks against real local D1.
 
 The manual page is `/voiceid?authMethod=voiceid`. New wallets use the SDK's ID
 allocation and retain that ID in the page URL. A `walletId` query selects an

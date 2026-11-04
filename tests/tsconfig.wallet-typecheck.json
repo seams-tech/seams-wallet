@@ -32,7 +32,6 @@
     "typecheck/transaction-review.typecheck.ts",
     "typecheck/voiceid-auth-method-plugin.typecheck.ts",
     "typecheck/seams-context.typecheck.ts",
-    "wallet-ui/confirm-content.typecheck.ts",
     "wallet-ui/confirmation-mount.typecheck.ts",
     "wallet-ui/export-private-key.typecheck.ts",
     "typecheck/external-near-state.typecheck.ts"

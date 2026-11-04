@@ -84,6 +84,8 @@ playwright test -c playwright.wallet-intended.benchmark.ci.config.ts \
   --grep '(custody_prepared|after_custody) pair'
 ```
 
+The benchmark test and its config were removed on 2026-11-05. Recover them from commit `755873b3d` to repeat this measurement.
+
 The measured SDK was built from the changes committed as `2b147d2`. The build
 profile correction is `8d73c8d`. Tests ran on separate ports 7100/7201/7202 and
 7203; the active demo runtime was preserved.

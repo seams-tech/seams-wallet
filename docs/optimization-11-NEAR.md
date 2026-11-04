@@ -271,7 +271,7 @@ Retain its completed adapter work and evidence. Resume PostgreSQL integration or
 
 - [x] Freeze source, release WASM, SDK assets, and served iframe/Gateway/role versions.
   Verify that the completed optimizations above exist in each measured arm.
-- [x] Reuse the [local benchmark](../tests/e2e/intended-behaviours/near-latency/passkey.registration.benchmark.test.ts)
+- [x] Reuse the local benchmark (`tests/e2e/intended-behaviours/near-latency/passkey.registration.benchmark.test.ts`, removed on 2026-11-05)
   and private `tests/e2e/hosted-product/near-signing-latency.test.ts`.
   Extend existing diagnostics rather than adding another benchmark framework.
 - [ ] Measure passkey NEAR-only registration, first and warm message signing,

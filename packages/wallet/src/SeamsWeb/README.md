@@ -83,8 +83,8 @@ paths. Do not import host execution into the application client.
   EVM-only unlock still uses `near_signer` to open the custody envelope.
   A signer label alone does not define its complete dependency set.
 
-Use the production asset scenarios in
-`tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts` to
-measure startup, signing, and export. Keep transfer bytes, request counts, and
+The production asset scenarios that measured startup, signing, and export
+(`tests/e2e/intended-behaviours/passkey.registration.assets.contract.test.ts`)
+were removed on 2026-11-05; recover them from commit `755873b3d` to measure again. Keep transfer bytes, request counts, and
 package inventory separate. More chunks can increase requests and compression
 overhead even when code moves out of startup.

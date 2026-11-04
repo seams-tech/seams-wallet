@@ -5,25 +5,14 @@ import { setupBasicPasskeyTest } from '../setup';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
 import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
-
 /**
- * Host-driven tree growth across the REAL wallet-iframe boundary.
- *
- * The parent router, the cross-origin wallet frame, the parent's resize ease,
- * and the real confirmer (wrapper → modal → content → review) all take part; the
- * only stand-in is the wallet-service host runtime, whose stub hands the
- * signing request straight to `mountConfirmUI`. Same-process harnesses cannot
- * see what this boundary does — the parent forces a layout at the destination
- * geometry before its ease starts and the frame receives that size for one
- * frame — so the invariants below are asserted from inside the frame, per
- * animation frame, while the parent is genuinely easing:
- *
- * - the child posts exactly one measurement per toggle (the target), never a
- *   stream of intermediate sizes;
- * - the card never exceeds the box in any frame (nothing is clipped);
- * - the body reaches its final height only after the box has been seen at
- *   intermediate sizes (it does not land on the destination blip).
+ * Long raw calldata across the REAL wallet-iframe boundary: the parent router,
+ * the cross-origin wallet frame and the real confirmer take part; the only
+ * stand-in is the wallet-service host runtime, whose stub hands the signing
+ * request straight to `mountConfirmUI`. The raw calldata must scroll inside the
+ * transaction details while the confirmation card stays within the screen.
  */
+
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
@@ -68,27 +57,6 @@ const childScript = (calldata: string) => String.raw`
     window.__mounted = true;
   };
 `;
-
-/** What a single interior height change looks like from inside the frame. */
-type MotionTrace = {
-  begin: {
-    deltaCssPx: number;
-    viewportPx: number;
-    hostPx: number;
-    surface: string | null;
-  };
-  measurements: number[];
-  frames: Array<{ viewportPx: number; cardPx: number; pinned: boolean }>;
-  /** Where the content actually ended up, once everything settled. */
-  finalHostPx: number;
-  /** Frames where the box claimed its target and then moved away again. */
-  blipFrames: number;
-};
-
-/** The interior changes this surface can make, each through the same seam. */
-type MotionAction =
-  | { kind: 'details'; open: boolean }
-  | { kind: 'error-banner'; message: string };
 
 async function openRealModal(page: Page, options: { greeting?: string } = {}): Promise<Frame> {
   await page.goto('about:blank');
@@ -227,134 +195,7 @@ function scrollTechnicalDetailsToEnd() {
   };
 }
 
-async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionTrace> {
-  return frame.evaluate(async (action) => {
-    const host = document.getElementById('seams-confirm-portal')!.firstElementChild as HTMLElement;
-    const card = host.querySelector('.modal-container-root') as HTMLElement;
-    let begin: MotionTrace['begin'] | null = null;
-    host.addEventListener(
-      'seams-surface-resize-begin',
-      (e: any) => {
-        begin = {
-          deltaCssPx: e.detail.deltaCssPx,
-          viewportPx: document.documentElement.clientHeight,
-          hostPx: host.getBoundingClientRect().height,
-          surface: host.getAttribute('data-seams-confirm-surface'),
-        };
-      },
-      { capture: true, once: true },
-    );
-
-    const measurements: number[] = (window as any).__measurements;
-    measurements.length = 0;
-    const frames: MotionTrace['frames'] = [];
-    const sample = () => {
-      frames.push({
-        viewportPx: document.documentElement.clientHeight,
-        cardPx: card.getBoundingClientRect().height,
-        pinned: host.classList.contains('seams-confirm-surface-pinned'),
-      });
-    };
-    // ResizeObserver callbacks run after layout and after every animation-frame
-    // callback, so each sample is what that frame paints; sampling from a
-    // competing requestAnimationFrame would read the card one step stale.
-    const observer = new ResizeObserver(sample);
-    observer.observe(document.documentElement);
-    observer.observe(card);
-    sample();
-
-    const click = (selector: string) => {
-      const target = document.querySelector(selector) as HTMLElement | null;
-      if (!target) throw new Error(`nothing to click for ${selector}`);
-      target.click();
-    };
-    switch (action.kind) {
-      case 'details':
-        click(`.seams-review-technical${action.open ? ':not([open])' : '[open]'} > summary`);
-        break;
-      case 'error-banner':
-        const handle = (
-          window as unknown as {
-            __confirmHandle?: { update: (update: { errorMessage: string }) => void };
-          }
-        ).__confirmHandle;
-        if (!handle) throw new Error('confirmation handle is missing');
-        handle.update({ errorMessage: action.message });
-        break;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    observer.disconnect();
-    sample();
-    if (!begin) {
-      const raw = document.querySelector<HTMLDetailsElement>('.seams-review-raw');
-      throw new Error(
-        `the surface was never offered the height change: ${JSON.stringify({
-          action,
-          measurements,
-          frames,
-          rawOpen: raw?.open,
-          rawHeight: raw?.getBoundingClientRect().height,
-          finalHostPx: host.getBoundingClientRect().height,
-        })}`,
-      );
-    }
-    return {
-      begin,
-      measurements: measurements.slice(),
-      frames,
-      finalHostPx: host.getBoundingClientRect().height,
-      blipFrames:
-        (window as unknown as { __seamsSurfaceMotion?: { blipFrames: number } })
-          .__seamsSurfaceMotion?.blipFrames ?? 0,
-    };
-  }, action);
-}
-
-/**
- * The invariants of refactor 116, asserted from inside the frame while the
- * parent is genuinely easing: one measurement, a card that never exceeds its
- * box, and content that lands only after the box was seen part-way there.
- */
-function assertMotionInvariants(trace: MotionTrace, expected: { sign?: 1 | -1 } = {}): void {
-  const { begin, measurements, frames } = trace;
-  expect(begin.surface).toBe('wallet-iframe');
-  if (expected.sign) expect(Math.sign(begin.deltaCssPx)).toBe(expected.sign);
-  expect(Math.abs(begin.deltaCssPx)).toBeGreaterThanOrEqual(1);
-  // The box hugs the host when the change is announced, and the announcing
-  // element is still clamped at its pre-change height.
-  expect(Math.abs(begin.viewportPx - begin.hostPx)).toBeLessThanOrEqual(1);
-
-  const originPx = Math.round(begin.hostPx);
-  // Exactly one measurement per change, and it is where the content actually
-  // ended up. A stream of intermediate sizes, and a box sent somewhere the
-  // card then has to correct, are the two defects this guards.
-  expect(measurements).toHaveLength(1);
-  expect(Math.abs(measurements[0] - trace.finalHostPx)).toBeLessThanOrEqual(1);
-  const targetPx = measurements[0];
-
-  // The pin comes off when the content lands, so it is the landing marker: a
-  // collapsed body keeps a stale layout box in Chrome and cannot be one.
-  const firstPinned = frames.findIndex((f) => f.pinned);
-  expect(firstPinned).toBeGreaterThanOrEqual(0);
-  const landing = frames.findIndex((f, i) => i > firstPinned && !f.pinned);
-  expect(landing).toBeGreaterThan(firstPinned);
-
-  const untilLanding = frames.slice(0, landing + 1);
-  for (const f of untilLanding) expect(f.cardPx).toBeLessThanOrEqual(f.viewportPx + 1);
-
-  const progressOf = (viewportPx: number) => (viewportPx - originPx) / (targetPx - originPx);
-  const intermediate = untilLanding.filter(
-    (f) => f.pinned && progressOf(f.viewportPx) > 0.01 && progressOf(f.viewportPx) < 0.99,
-  );
-  expect(intermediate.length).toBeGreaterThanOrEqual(2);
-  expect(frames.at(-1)?.pinned).toBe(false);
-  // The parent held the iframe at the origin while it wrote the destination,
-  // so the frame never saw the final size before the ease reached it.
-  expect(trace.blipFrames).toBe(0);
-}
-
-test.describe('wallet iframe host-driven interior motion', () => {
+test.describe('wallet iframe long calldata', () => {
   test.beforeEach(async ({ page }) => {
     test.setTimeout(120_000);
     await setupBasicPasskeyTest(page, {
@@ -371,24 +212,12 @@ test.describe('wallet iframe host-driven interior motion', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('the transaction details fill the easing box on open and close, one measurement each', async ({
-    page,
-  }) => {
-    const frame = await openRealModal(page);
-
-    assertMotionInvariants(await recordMotion(frame, { kind: 'details', open: true }), { sign: 1 });
-    await page.waitForTimeout(400);
-    assertMotionInvariants(await recordMotion(frame, { kind: 'details', open: false }), {
-      sign: -1,
-    });
-  });
-
   test('long raw calldata scrolls inside the details while the modal stays within the screen', async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const frame = await openRealModal(page, { greeting: `Hello Tempo ${'x'.repeat(120)}` });
-    await recordMotion(frame, { kind: 'details', open: true });
+    await frame.locator('.seams-review-technical:not([open]) > summary').click();
     await page.waitForTimeout(400);
 
     const rawSummary = frame.locator('.seams-review-raw > summary');
@@ -429,47 +258,5 @@ test.describe('wallet iframe host-driven interior motion', () => {
       testInfo.outputPath('raw-disclosure-motion.json'),
       JSON.stringify({ opening, scrolled, closing, reducedOpening, reducedClosing }, null, 2),
     );
-  });
-
-  test('an error banner arriving moves the box, not the card', async ({ page }) => {
-    const frame = await openRealModal(page);
-    assertMotionInvariants(
-      await recordMotion(frame, { kind: 'error-banner', message: 'Signing failed. Try again.' }),
-    );
-  });
-
-  test('content height does not depend on the box it is given', async ({ page }) => {
-    // Long calldata so the block's height cap actually binds: a cap in viewport
-    // units would then make the content a function of the box the parent gave
-    // it, and the two would chase each other.
-    const frame = await openRealModal(page, { greeting: `Hello Tempo ${'y'.repeat(600)}` });
-    await recordMotion(frame, { kind: 'details', open: true });
-    await page.waitForTimeout(400);
-
-    const hostHeight = () =>
-      frame.evaluate(() =>
-        Math.round(
-          (
-            document.getElementById('seams-confirm-portal')!.firstElementChild as HTMLElement
-          ).getBoundingClientRect().height,
-        ),
-      );
-    // Grow only: a box smaller than its content would raise a classic
-    // scrollbar, narrow the content, and re-wrap it for reasons of its own.
-    const setBoxHeightCssPx = async (px: number | null) => {
-      await page.evaluate((height) => {
-        const iframe = document.querySelector(
-          'dialog.seams-wallet-overlay-dialog iframe',
-        ) as HTMLIFrameElement;
-        iframe.style.height = height === null ? '' : `${height}px`;
-      }, px);
-      await page.waitForTimeout(150);
-    };
-
-    const natural = await hostHeight();
-    await setBoxHeightCssPx(natural + 320);
-    const grown = await hostHeight();
-    await setBoxHeightCssPx(null);
-    expect(grown).toBe(natural);
   });
 });

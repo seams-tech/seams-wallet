@@ -83,10 +83,11 @@ refresh recovery, and atomic readiness when changing their ordering.
   authentication timing differed materially between cohorts. The balanced cohort
   above is the acceptance comparison.
 
-The [benchmark](../tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts)
-now contains two comparisons. Select the original 40-test architecture comparison
+The benchmark (`tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts`)
+contained two comparisons. Select the original 40-test architecture comparison
 with `--grep '(independent|serialized) pair'` and run once with
 `playwright.wallet-intended.benchmark.ci.config.ts`, without `--repeat-each`.
+The benchmark test and its config were removed on 2026-11-05. Recover them from commit `755873b3d` to repeat this measurement.
 The [measurements](./independent-near-registration-latency.json) contain the full
 safe timing samples, first pair, and aggregate statistics. Each sample records
 its cohort, pair, result, and instrumented spans; no credentials are included.

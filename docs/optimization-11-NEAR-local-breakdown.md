@@ -183,6 +183,8 @@ node tests/scripts/analyze-near-local-latency.mjs \
   "$NEAR_RUN_DIR/benchmark.json" "$NEAR_RUN_DIR/summary.json"
 ```
 
+The benchmark test and its config were removed on 2026-11-05. Recover them from commit `755873b3d` to repeat this measurement.
+
 The analyzer rejects incomplete cohorts. Refresh/unlock latency distributions,
 Email OTP, cold starts, hosted placement, and real network/chain costs remain
 separate future measurements.

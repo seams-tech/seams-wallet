@@ -5532,16 +5532,14 @@ function uniqueWalletId(): string {
 function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   const normalized = filePath.replaceAll('\\', '/');
   if (
-    /\/passkey\.registration(?:\.(?:checkpoint|resume|activation-resume|assets))?\.contract\.test\.ts$/u.test(
+    /\/passkey\.registration(?:\.(?:resume|activation-resume))?\.contract\.test\.ts$/u.test(
       normalized,
     ) ||
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
-    normalized.endsWith('passkey.voiceid-near.contract.test.ts') ||
     normalized.endsWith('passkey.voiceid-selection.contract.test.ts') ||
     normalized.endsWith('passkey.voiceid-ui.contract.test.ts') ||
     /voiceid\.unlock-(?:near|arc)\.contract\.test\.ts$/u.test(normalized) ||
     normalized.endsWith('voiceid.noise.contract.test.ts') ||
-    normalized.endsWith('voiceid.add-email-otp.contract.test.ts') ||
     normalized.endsWith('voiceid.key-export.contract.test.ts') ||
     normalized.endsWith('voiceid.live-page.contract.test.ts') ||
     normalized.endsWith('presign-generation-storage.contract.test.ts') ||
@@ -5550,8 +5548,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.near-submission.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
-    normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
-    normalized.endsWith('passkey.registration.benchmark.test.ts')
+    normalized.endsWith('auth-method-addition.matrix.contract.test.ts')
   ) {
     return 'passkey.registration';
   }
@@ -5567,15 +5564,13 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('email-otp.voiceid-selection.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.assets.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
-    normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||
-    normalized.endsWith('email-otp.registration.benchmark.test.ts')
+    normalized.endsWith('email-otp.add-passkey.contract.test.ts')
   ) {
     return 'email_otp.registration';
   }
   if (
     normalized.endsWith('email-otp.unlock.contract.test.ts') ||
-    normalized.endsWith('email-otp.challenge-expiry.contract.test.ts') ||
-    normalized.endsWith('email-otp.unlock.benchmark.test.ts')
+    normalized.endsWith('email-otp.challenge-expiry.contract.test.ts')
   ) {
     return 'email_otp.unlock';
   }

@@ -139,6 +139,8 @@ node tests/scripts/analyze-near-local-latency.mjs \
   "$near_bench_dir/playwright.json" "$near_bench_dir/summary.json"
 ```
 
+The benchmark test and its config were removed on 2026-11-05. Recover them from commit `755873b3d` to repeat this measurement.
+
 Ports 8100, 8102–8106, 8201–8202 and the role inspector ports must be free.
 Leave `ROUTER_AB_WALLET_DO_HARNESS` unset for this D1 baseline. Do not add
 `--repeat-each`: the benchmark already defines 40 cases. Setup plus the measured

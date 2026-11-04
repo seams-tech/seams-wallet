@@ -73,8 +73,7 @@ Run the three Wallet contracts against the local Wallet services:
 ```sh
 pnpm -C tests exec playwright test -c playwright.wallet-intended.config.ts \
   e2e/intended-behaviours/voiceid.live-page.contract.test.ts \
-  e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts \
-  e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts
+  e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts
 ```
 
 Configure `SEAMS_INTENDED_APP_URL`, `SEAMS_INTENDED_WALLET_ORIGIN`,

@@ -37,8 +37,9 @@ excluded: one used an incorrect app URL; another omitted timing diagnostics.
 Evidence: [complete cohort summaries](./optimization-12-NEAR-only-20261006.json).
 Private raw reports and runner scripts: `.artifacts/near-signing-20261006/`.
 Use `tests/scripts/analyze-near-local-latency.mjs` to regenerate summaries from the
-Playwright JSON reports. The benchmark is
+Playwright JSON reports. The benchmark was
 `tests/e2e/intended-behaviours/near-latency/passkey.registration.benchmark.test.ts`.
+It was removed on 2026-11-05; recover it from commit `755873b3d`.
 
 ## Next NEAR-only work
 
