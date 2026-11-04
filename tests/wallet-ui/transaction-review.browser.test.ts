@@ -1074,6 +1074,10 @@ test('expanded wallet approval scrolls keyboard focus into a short viewport', as
   const details = wallet.getByText('Transaction details', { exact: true });
   await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await details.click();
+  await expect(wallet.locator('details[data-resizing]')).toHaveCount(0);
+  // A card taller than its frame scrolls under the wallet footer, which stays in view.
+  // The ratio allows the frame's sub-pixel height; a clipped footer reads 0.
+  await expect(wallet.locator('.seams-receipt-footer')).toBeInViewport({ ratio: 0.95 });
   const confirm = wallet.locator('button.confirm');
   await confirm.focus();
   await expect(confirm).toBeFocused();

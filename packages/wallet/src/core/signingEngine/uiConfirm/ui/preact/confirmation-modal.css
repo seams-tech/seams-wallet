@@ -66,6 +66,8 @@ html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant
   inline-size: var(--seams-modal__container-max-width, 26rem);
   max-inline-size: 100vw;
   max-block-size: none;
+  /* The frame's surface scrolls a tall card, so the sticky footer follows that scroll. */
+  overflow: visible;
 }
 
 :where(.seams-wallet-ui) .seams-confirmation-modal .modal-container-root {
@@ -80,7 +82,8 @@ html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant
   margin: 0;
   padding: 0.75rem;
   padding-top: max(0.75rem, calc(var(--seams-shape-card, 16px) * 0.5));
-  overflow: hidden;
+  /* Clip without a scroll container, so the sticky footer follows the scrolling surface. */
+  overflow: clip;
   box-shadow:
     0 12px 24px rgba(0, 0, 0, 0.22),
     0 2px 8px rgba(0, 0, 0, 0.12);
