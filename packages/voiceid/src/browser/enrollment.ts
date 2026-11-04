@@ -29,10 +29,11 @@ export async function enrollBrowserVoice(
   signal: AbortSignal,
   model: VoiceIdTranscriptionModel,
 ): Promise<void> {
-  await prepareVoiceModelWithProgress(parent, signal, model);
   signal.throwIfAborted();
+  // The prompt shows at once; VoiceID loads inside it, and recording waits until it is ready.
   const surface = new VoiceEnrollmentSurface(parent, plan, signal, model);
   try {
+    await Promise.race([surface.prepare(), surface.result]);
     await surface.result;
   } finally {
     surface.dispose();
@@ -48,7 +49,7 @@ class VoiceEnrollmentSurface {
   private readonly record: HTMLButtonElement;
   private readonly cancel: HTMLButtonElement;
   private readonly samples: number[][] = [];
-  private phase: 'ready' | 'recording' | 'committing' | 'closed' = 'ready';
+  private phase: 'loading' | 'ready' | 'recording' | 'committing' | 'closed' = 'loading';
   private get closed(): boolean {
     return this.phase === 'closed';
   }
@@ -80,11 +81,23 @@ class VoiceEnrollmentSurface {
         ? 'Read naturally. Your original enrollment stays unchanged.'
         : 'Read the full phrase at your normal pace.',
     );
+    // Recording waits for VoiceID to load; prepare() enables it.
+    this.record.disabled = true;
     parent.replaceChildren(this.prompt.element);
     signal.addEventListener('abort', this.cancelled, { once: true });
     this.guardTimer = setInterval(this.checkGuard, 250);
     if (signal.aborted) this.cancelled();
-    else this.record.focus();
+    else this.cancel.focus();
+  }
+
+  /** Loads VoiceID into the prompt's progress slot, then enables recording. */
+  async prepare(): Promise<void> {
+    await prepareVoiceModelWithProgress(this.prompt.progress, this.controller.signal, this.model);
+    if (this.phase !== 'loading') return;
+    this.prompt.progress.replaceChildren();
+    this.phase = 'ready';
+    this.record.disabled = false;
+    this.record.focus();
   }
 
   private readonly capture = (): void => {
@@ -228,8 +241,9 @@ class VoiceEnrollmentSurface {
   private readonly cancelled = (): void => {
     if (this.closed) return;
     this.phase = 'closed';
-    this.controller.abort();
+    // Reject first, so a cancel during loading reports the cancel and not the aborted load.
     this.completion.reject(new Error('VoiceID enrollment was cancelled.'));
+    this.controller.abort();
   };
   private readonly checkGuard = (): void => {
     if (this.closed || this.checkingGuard) return;

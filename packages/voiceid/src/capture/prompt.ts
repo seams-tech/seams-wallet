@@ -226,6 +226,7 @@ const CSS = `
   max-width: 21rem;
   align-self: center;
   margin: 0 auto;
+  transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 .seams-voiceid-ribbon {
   display: block;
@@ -313,25 +314,41 @@ const CSS = `
 .seams-voiceid-prompt [hidden] {
   display: none !important;
 }
-.seams-voiceid-prompt .seams-voiceid-model-download {
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-.seams-voiceid-prompt .seams-voiceid-model-download progress {
+/* While VoiceID loads, its bar takes the answer line's place, its message the status line's,
+   and its retry the record button's. */
+.seams-voiceid-progress-slot:has(> .seams-voiceid-model-download),
+.seams-voiceid-progress-slot > .seams-voiceid-model-download { display: contents; }
+.seams-voiceid-model-download > * { position: relative; z-index: 1; grid-column: 1; align-self: center; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-ribbon,
+.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-status { visibility: hidden; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-phrase { opacity: 0.35; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="failed"]) > .seams-voiceid-record-slot { display: none; }
+.seams-voiceid-model-download progress {
+  grid-row: 3;
+  justify-self: center;
   appearance: none;
   display: block;
-  width: 100%;
-  height: 4px;
+  width: min(100%, 308px);
+  height: 6px;
   border: 0;
-  border-radius: 2px;
+  border-radius: 999px;
   overflow: hidden;
   background: var(--seams-colors-surface, #202b31);
-  accent-color: var(--seams-colors-textPrimary, #eff2f3);
+  color: var(--seams-colors-textPrimary, #eff2f3);
 }
-.seams-voiceid-model-download p { margin: 0 0 0.75rem; color: var(--seams-colors-textSecondary, #9cabb3); font-variant-numeric: tabular-nums; }
 .seams-voiceid-model-download progress::-webkit-progress-bar { background: var(--seams-colors-surface, #202b31); }
-.seams-voiceid-model-download progress::-webkit-progress-value { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 2px; }
-.seams-voiceid-model-download progress::-moz-progress-bar { background: var(--seams-colors-textPrimary, #eff2f3); }
+.seams-voiceid-model-download progress::-webkit-progress-value { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; transition: width 200ms linear; }
+.seams-voiceid-model-download progress::-moz-progress-bar { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
+.seams-voiceid-model-download p {
+  grid-row: 4;
+  align-self: start;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-variant-numeric: tabular-nums;
+}
+.seams-voiceid-model-download button { grid-row: 5; }
 @media (hover: hover) and (pointer: fine) {
   .seams-voiceid-close:hover { background: var(--seams-colors-surface, #202b31); }
   .seams-voiceid-primary:hover:not(:disabled) { opacity: 0.9; }
