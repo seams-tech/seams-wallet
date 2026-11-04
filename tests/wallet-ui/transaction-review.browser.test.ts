@@ -1798,6 +1798,45 @@ test('reduced motion and an invalid origin keep the review contract', async ({ p
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
 
+test('a review width set through className sizes the modal and wallet approval', async ({
+  page,
+}) => {
+  await page.evaluate(async () => {
+    const { createElement } = await import('react');
+    const state = window as any;
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync('.sized-review { inline-size: 400px; }');
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    void state.reviewWallet.near
+      .signAndSendTransaction({
+        receiverId: 'receiver.testnet',
+        actions: [{ type: 'Transfer', amount: '1' }],
+        review: {
+          title: 'Sized review',
+          validity: { kind: 'unbounded' },
+          className: 'sized-review',
+          render: (controls: any) =>
+            createElement('button', { onClick: controls.continueToWallet }, 'Continue sized'),
+        },
+      })
+      .then((value: unknown) => state.reviewResults.push({ kind: 'result', value }));
+  });
+  const dialog = page.locator('dialog[open]');
+  await expect(page.getByRole('button', { name: 'Continue sized', exact: true })).toBeVisible();
+  await expect.poll(async () => Math.round((await dialog.boundingBox())?.width ?? 0)).toBe(400);
+  await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
+  const review = await dialog.boundingBox();
+  await page.getByRole('button', { name: 'Continue sized', exact: true }).click();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await expect(wallet.locator('button.confirm')).toBeVisible();
+  await expect
+    .poll(async () => {
+      const box = await dialog.boundingBox();
+      return !!box && !!review && Math.abs(box.width - 400) <= 1 && Math.abs(box.x - review.x) <= 1;
+    })
+    .toBe(true);
+});
+
 function focusGeometry(element: Element) {
   const view = element.ownerDocument.defaultView;
   if (!view) throw new Error('Focus geometry needs a live document');
