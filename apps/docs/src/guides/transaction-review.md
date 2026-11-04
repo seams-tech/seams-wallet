@@ -87,6 +87,43 @@ buttons without another dialog or focus trap.
 | `cancel()` | Cancels the review. |
 | `fail(error)` | Shows the SDK's dismissible error fallback. Use for event-handler or fetch failures. |
 
+## Size the review
+
+Your review decides the size of the modal, and wallet approval keeps that box.
+The SDK measures the review wrapper: its layout width, and the full height of its
+content. Set the width on that wrapper with `review.className`:
+
+```tsx [Partial example]
+review: {
+  title: 'Review deposit',
+  validity: { kind: 'unbounded' },
+  className: 'deposit-review',
+  render: (controls) => <DepositReview controls={controls} />,
+}
+```
+
+```css [Partial example]
+.deposit-review {
+  inline-size: 420px;
+}
+```
+
+- Without a width, the wrapper fills the modal, and the modal takes its largest width.
+- The width stays between 280 and 560 CSS pixels, and at most the viewport width minus 32 pixels.
+- The height follows your content, up to the viewport height minus 32 pixels. Taller
+  content scrolls inside the modal.
+- The wrapper has 0.75rem padding by default. Change it in the same class.
+- Wallet approval keeps your width and your top-left corner, and only the height changes.
+  The wallet card lays out at your width, so choose one that suits it too: the card is
+  designed for about 416 pixels. The modal moves up only if a taller card would leave
+  the viewport.
+- **Back to review** returns the modal to your review's own size.
+- A viewport smaller than 312 × 312 pixels shows the modal at the viewport size minus
+  16-pixel margins.
+
+The wallet card stays in the wallet iframe at every size. Your width changes only its
+layout, not what it shows.
+
 ## Start from your own modal
 
 Pass `origin` to grow the review from your own element. Use `onVisible` to learn when the
@@ -208,5 +245,5 @@ tokens remain available. Your content must satisfy your application's CSP.
 Wallet approval includes **Back to review** when opened from an application review. Back
 preserves the review component's local state and the original quote deadline. Continue
 resumes the same pending approval without dispatching another transaction. The shared
-modal resizes and crossfades in both directions. Back is available until wallet approval
+modal keeps its width and crossfades in both directions, and only its height changes. Back is available until wallet approval
 is submitted. Changing transaction inputs requires a new call.
