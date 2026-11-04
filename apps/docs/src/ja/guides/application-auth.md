@@ -100,6 +100,8 @@ Reactの `access: 'external'` のウォレットは、操作専用の承認ハ�
 再読み込み後は `near.resumeOwnerTransaction({ authentication, recovery })` と `recover()` を使います。
 `not_submitted` は未送信が確認された状態です。この試行の保留状態を解除し、新しい承認を提示できます。
 `recovery_unavailable` は送信状態を確認できない状態です。保留中の記録を保持し、`recover()` で再確認できます。
+所有者が承認すると、アプリのセッションからの送信と同じように、Walletのカードが取引のレシートに変わります。レシートは署名、送信済み、最終状態を表示し、所有者はトーストに最小化するか閉じることができます。送信がNEARに届かなかった場合は、NEARの拒否など、その理由をレシートに表示します。所有者のキャンセルにも、そのキャンセル自身のレシートを表示します。
+
 `submitting` と `unresolved` は既知の `transactionId` を返します。このハッシュを保存し、チェーン上の結果を確認してください。
 別の操作が承認をブロックした場合は、返された `recovery` を保存してください。新しく準備した操作とはIDが異なる場合があります。
 NEARが送信を拒否した場合、`not_submitted` または `unresolved` に `rejection` が含まれます。`NotEnoughBalance` などの種類と、`signer_id`、`balance`、`cost` などのフィールドを表示できます。署名済みのバイト自体が無効な拒否(`InvalidSignature` など)は、すぐに `not_submitted` になります。`InvalidNonce` を含むその他の拒否は `unresolved` のままです。
