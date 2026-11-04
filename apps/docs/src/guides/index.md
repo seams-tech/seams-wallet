@@ -37,6 +37,8 @@ before release. Each guide explains the application's responsibilities.
   devices](/guides/linked-devices) — add independently revocable authority.
 - [Recovery, export, and rotation](/guides/recovery-export-and-rotation) —
   treat high-impact account changes as fresh operations.
+- [UI components](/guides/ui-components) — choose the ready-made React
+  components for sign-in, settings, device linking, and review.
 - [Theming](/guides/theming) — align app-owned and wallet-owned surfaces.
 - [Custom review components](/guides/transaction-review) — show your React
   component, then hand off to wallet approval in the same modal.

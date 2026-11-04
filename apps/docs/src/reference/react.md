@@ -75,6 +75,9 @@ account input. It retains lowercase normalization and saved-wallet matching.
 
 ## Components
 
+See [UI components](/guides/ui-components) for a list of every component and a
+device-linking scanner example.
+
 The stable surface includes `HostedSeamsAuthMenu`, `WalletSettingsPage`,
 `AccountMenuButton`, `ProfileSettingsButton`, `QRCodeScanner`, and `ShowQRCode`. Use the
 hosted auth menu when the wallet-origin boundary owns the complete auth experience.
