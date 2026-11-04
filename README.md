@@ -30,6 +30,7 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Release 0.46.1
 
 - VoiceID enrollment downloads VoiceID inside its recording card: a rounded bar in place of the answer line, the download size under it, and **Record sample 1** on when VoiceID is ready. A failed download shows **Retry loading** in the card. Install `@seams/voiceid` 0.46.1 with `@seams/wallet` 0.46.1.
+- Wallet approval after a custom transaction review keeps the review's width and top-left corner; only the height changes.
 - 0.46.0 added the VoiceID step-up inside the confirm card, owner NEAR rejections, `cancelTransaction()` and the cost check before signing.
 - Wallet iframe protocol remains **23.0.0**. This release adds no database migrations.
 

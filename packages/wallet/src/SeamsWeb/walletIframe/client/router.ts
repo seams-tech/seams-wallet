@@ -210,6 +210,7 @@ import {
   anchorWalletIframeModalGeometry,
   isWalletIframeModalGeometry,
   resolveWalletIframeSurfaceGeometry,
+  reviewBoxWalletIframeModalGeometry,
   type WalletIframeModalGeometry,
   type WalletIframeSurfaceMeasurementState,
   type WalletIframeSurfaceViewport,
@@ -1293,6 +1294,7 @@ export class WalletIframeRouter {
   private reviewGeneration = 0;
   private reviewResizeObserver: ResizeObserver | null = null;
   private reviewSurfaceMeasurement: WalletIframeSurfaceMeasurementState | undefined;
+  private reviewSurfaceGeometry: WalletIframeModalGeometry | undefined;
   private reviewMutationObserver: MutationObserver | null = null;
   private readonly transactionSurfaceQueue = new WalletIframeTransactionSurfaceQueue();
   private readonly hostedAuthMenuRequestIds = new Map<
@@ -1598,6 +1600,7 @@ export class WalletIframeRouter {
     this.reviewMutationObserver?.disconnect();
     this.reviewResizeObserver = null;
     this.reviewSurfaceMeasurement = undefined;
+    this.reviewSurfaceGeometry = undefined;
     this.reviewMutationObserver = null;
     this.finishRequestSurface(requestId, false);
   }
@@ -1901,6 +1904,22 @@ export class WalletIframeRouter {
     });
     let anchorMetrics = hostedAuthMenuAnchorMetrics(anchor);
     let geometry = resolvedGeometry;
+    if (surface.kind === 'modal_transaction_review' && isWalletIframeModalGeometry(resolvedGeometry)) {
+      this.reviewSurfaceGeometry = resolvedGeometry;
+    } else if (
+      surface.kind === 'modal_transaction_confirm' &&
+      this.reviewSurfaceGeometry &&
+      this.reviews.has(surface.identity.requestId) &&
+      isWalletIframeModalGeometry(resolvedGeometry)
+    ) {
+      // The wallet card after an app's review keeps the review's box, so the handoff
+      // changes only the height. The card fills that width inside the frame.
+      geometry = reviewBoxWalletIframeModalGeometry(
+        resolvedGeometry,
+        this.reviewSurfaceGeometry,
+        viewport,
+      );
+    }
     let authMenuVisualScale = 1;
     if (
       surface.kind === 'modal_auth_menu' &&

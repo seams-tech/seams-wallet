@@ -45,6 +45,12 @@ html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant
   border-radius: min(var(--seams-shape-card, 16px), 2rem);
 }
 
+/* After an app's review, the parent keeps the review's box, so the card fills that width. */
+.seams-confirmation-surface[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'][data-seams-review-frame],
+.seams-wallet-ui[data-seams-review-frame] .seams-confirmation-modal--hosted {
+  inline-size: 100%;
+}
+
 /*
  * The resize reporter must see the requested height while the parent makes room.
  * A shrinking pin is shorter than the card until the motion lands, so the pinned

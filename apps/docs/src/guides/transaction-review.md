@@ -30,8 +30,10 @@ Try the flow in the **Custom Components** demo on [wallet.seams.sh](https://wall
 1. Your app calls a transaction method with `review`. The SDK opens a modal and
    renders your component in it. With `origin`, the modal grows from your own element.
 2. The person reads your terms. Your button calls `controls.continueToWallet()`.
-3. The modal resizes and crossfades to wallet approval. The wallet iframe draws
-   this step from the captured transaction. The person confirms with a passkey.
+3. The modal crossfades to wallet approval in the same box: it keeps your
+   component's width and top-left corner, and only its height changes. The wallet
+   iframe draws this step from the captured transaction, at your component's
+   width. The person confirms with a passkey.
 4. The back arrow in wallet approval returns to your component. Your component
    keeps its local state, and the quote deadline does not change.
 

@@ -183,6 +183,31 @@ export function anchorWalletIframeModalGeometry(
   };
 }
 
+/**
+ * The wallet card that follows an app's review keeps the review's box: its width and
+ * top-left corner, so only the height changes and the card reads as the same surface.
+ * The top moves up only as far as a taller card needs to stay inside the viewport.
+ */
+export function reviewBoxWalletIframeModalGeometry(
+  geometry: WalletIframeModalGeometry,
+  review: WalletIframeModalGeometry,
+  viewportInput: WalletIframeSurfaceViewport,
+): WalletIframeModalGeometry {
+  if (geometry.kind === 'viewport_fallback' || review.kind === 'viewport_fallback') return geometry;
+  const viewport = normalizedViewport(viewportInput);
+  const minTop = viewport.offsetTopCssPx + WALLET_IFRAME_SURFACE_INSET_CSS_PX;
+  const maxBottom =
+    viewport.offsetTopCssPx + viewport.heightCssPx - WALLET_IFRAME_SURFACE_INSET_CSS_PX;
+  const heightCssPx = Math.min(geometry.heightCssPx, maxBottom - minTop);
+  return {
+    kind: geometry.kind,
+    widthCssPx: review.widthCssPx,
+    heightCssPx: roundCssPx(heightCssPx),
+    leftCssPx: review.leftCssPx,
+    topCssPx: roundSignedCssPx(Math.max(minTop, Math.min(review.topCssPx, maxBottom - heightCssPx))),
+  };
+}
+
 function fullViewportDrawerGeometry(
   viewport: WalletIframeSurfaceViewport,
   kind: 'provisional_bottom_drawer' | 'bottom_drawer',
