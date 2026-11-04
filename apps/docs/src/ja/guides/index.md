@@ -26,5 +26,6 @@ description: Seamsウォレットの導入に必要な設定、処理の流れ�
 - [ウォレットセッションと署名レーン](/ja/guides/wallet-sessions-and-signing-lanes)：署名処理の全体で同じセッション識別情報を使用。
 - [権限を委任したエージェント](/ja/guides/delegated-agents)と[リンク済みデバイス](/ja/guides/linked-devices)：個別に取り消せる権限を追加。
 - [復元・エクスポート・鍵のローテーション](/ja/guides/recovery-export-and-rotation)：影響の大きいアカウント変更を、新たな操作として扱う。
+- [UIコンポーネント](/ja/guides/ui-components)：サインイン、設定、デバイスのリンク、確認に使う既製のReactコンポーネントを選択。
 - [テーマの設定](/ja/guides/theming)：アプリ側とウォレット側の画面の見た目を統一。
 - [独自の確認コンポーネント](/ja/guides/transaction-review)：独自のReactコンポーネントを表示し、同じモーダルのままウォレットの承認へ切り替え。

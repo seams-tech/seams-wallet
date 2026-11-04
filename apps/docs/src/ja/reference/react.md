@@ -72,6 +72,8 @@ await wallet.near.signAndSendTransaction({
 
 ## コンポーネント {#components}
 
+すべてのコンポーネントの一覧とデバイスリンク用スキャナーの実装例は、[UIコンポーネント](/ja/guides/ui-components)を参照してください。
+
 安定版のAPIには、`HostedSeamsAuthMenu`、`WalletSettingsPage`、`AccountMenuButton`、`ProfileSettingsButton`、`QRCodeScanner`、`ShowQRCode`を含みます。
 ウォレットオリジン側で認証体験全体を管理する場合は、ホストする認証メニューを使います。
 `SeamsAuthMenuMock`は、操作を実行しない読み込み用プレースホルダー兼プレビューです。
