@@ -1,9 +1,22 @@
 ---
-title: Release 0.45.0
-description: A VoiceID session steps up with VoiceID, key export works from a VoiceID session, and a confirmation card waits as long as the person needs.
+title: Release 0.46.0
+description: A VoiceID step-up runs inside the transaction's confirm card, a step-up shows no unlock success, and the receipt shows its details at once.
 ---
 
-# Release 0.45.0
+# Release 0.46.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.46.0**.
+
+- When a VoiceID session cannot sign, a NEAR transaction or an EVM-family transaction without a review asks for VoiceID inside its own confirm card. The card shows the transaction with **Confirm with VoiceID**, the voice capture replaces the review in the same card, and the card turns into the receipt. There is no separate unlock card and no second click. Reviewed requests and other operations still show the VoiceID unlock card before they sign.
+- A VoiceID step-up no longer shows the "You’re in" unlock success; only a wallet unlock shows it.
+- The receipt shows its heading, status and amount together with its status symbol, instead of about 300 ms later.
+- `unlockWithAuthMethod` accepts an optional `purpose` of `unlock` (the default) or `step_up`.
+- Install `@seams/voiceid` 0.46.0 with `@seams/wallet` 0.46.0. The VoiceID host API stays at version 8.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.45.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.45.0**.
 
