@@ -3,13 +3,13 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.46.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.46.1**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.46.0` — browser SDK and React components.
-- `@seams/wallet-server@0.46.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.46.0` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.46.1` — browser SDK and React components.
+- `@seams/wallet-server@0.46.1` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.46.1` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -17,7 +17,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `23.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, and VoiceID plugin use version **0.46.0**.
+The browser SDK, server SDK, and VoiceID plugin use version **0.46.1**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,22 +27,20 @@ changes that npm does not yet publish.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
-## Release 0.46.0
+## Release 0.46.1
 
-- A VoiceID session that cannot sign asks for VoiceID inside the transaction's own confirm card: **Confirm with VoiceID**, the voice capture in the same card, then the receipt, with no second click. Install `@seams/voiceid` 0.46.0 with `@seams/wallet` 0.46.0.
-- A step-up no longer shows the unlock success screen.
-- Owner NEAR operations report NEAR's rejection with its fields, `cancelTransaction()` cancels a stuck transaction at once with on-chain proof, and the wallet checks the account can pay before it signs.
-- The receipt shows its details together with its status symbol.
+- VoiceID enrollment downloads VoiceID inside its recording card: a rounded bar in place of the answer line, the download size under it, and **Record sample 1** on when VoiceID is ready. A failed download shows **Retry loading** in the card. Install `@seams/voiceid` 0.46.1 with `@seams/wallet` 0.46.1.
+- 0.46.0 added the VoiceID step-up inside the confirm card, owner NEAR rejections, `cancelTransaction()` and the cost check before signing.
 - Wallet iframe protocol remains **23.0.0**. This release adds no database migrations.
 
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.46.0
+npm install @seams/wallet@0.46.1
 # Server applications:
-npm install @seams/wallet-server@0.46.0
+npm install @seams/wallet-server@0.46.1
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.46.0
+npm install @seams/voiceid@0.46.1
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.

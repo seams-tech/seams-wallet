@@ -1,9 +1,20 @@
 ---
-title: Release 0.46.0
-description: A VoiceID step-up runs inside the confirm card, owner NEAR operations report rejections and can cancel a stuck transaction at once, and the wallet checks the cost before signing.
+title: Release 0.46.1
+description: VoiceID enrollment shows its model download inside the recording card.
 ---
 
-# Release 0.46.0
+# Release 0.46.1
+
+The browser SDK, server SDK, and VoiceID plugin use **0.46.1**.
+
+- VoiceID enrollment opens its recording card at once and downloads VoiceID inside it. A rounded bar takes the place of the answer line, the download size takes the place of the status line, and **Record sample 1** turns on when VoiceID is ready. Before, a plain progress bar showed under the card.
+- If the download fails, the error shows in the card, and **Retry loading** takes the place of the record button. Unlock and the other VoiceID captures use the same layout.
+- Install `@seams/voiceid` 0.46.1 with `@seams/wallet` 0.46.1. The VoiceID host API stays at version 8.
+
+The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
+
+## Release 0.46.0
 
 The browser SDK, server SDK, and VoiceID plugin use **0.46.0**.
 
