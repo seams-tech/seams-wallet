@@ -1,6 +1,8 @@
 import { isWalletFlowEvent } from '@/core/types/sdkSentEvents';
 import type { ChildToParentEnvelope, ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import type { ReceiptProgress, TransactionReceiptModel, TransactionReceiptState, TransactionReceiptView } from './transaction-receipt';
+import { parseOwnerNearOutcome, type OwnerNearOutcome } from '@/SeamsWeb/walletIframe/shared/ownerNearOperation';
+import { nearTransactionRejectionMessage } from '@/core/rpcClients/near/nearTransactionRejection';
 
 type ReceiptSurface = {
   readonly element: HTMLElement;
@@ -16,6 +18,8 @@ type Activity = {
   view: TransactionReceiptView;
   retained: boolean;
   signingHash: string | null;
+  /** An owner NEAR operation reports a typed outcome instead of an action result. */
+  owner: boolean;
 };
 
 // The hosted wallet has one foreground surface. A newer request replaces its receipt.
@@ -29,9 +33,20 @@ export function beginTransactionActivity(request: ParentToChildEnvelope, post: A
       activity?.surface?.dispose();
       activity = {
         requestId: request.requestId, post, surface: null, view: 'expanded', retained: false, signingHash: null,
+        owner: false,
         progress: request.type === 'PM_SIGN_NEP413'
           ? { subject: 'message', state: { kind: 'signing' } }
           : { subject: 'transaction', state: { kind: 'signing' } },
+      };
+      return;
+    // Only the owner's approval and cancel sign a transaction; recovery and retirement do not.
+    case 'PM_OWNER_NEAR_TRANSACTION':
+      if (request.payload?.action !== 'approve' && request.payload?.action !== 'cancel_submitted') return;
+      activity?.surface?.dispose();
+      activity = {
+        requestId: request.requestId, post, surface: null, view: 'expanded', retained: false, signingHash: null,
+        owner: true,
+        progress: { subject: 'transaction', state: { kind: 'signing' } },
       };
       return;
     default: return;
@@ -95,7 +110,11 @@ function stringField(value: unknown, key: string): string | null {
 
 export function observeTransactionActivity(message: ChildToParentEnvelope): void {
   if (!activity || message.requestId !== activity.requestId) return;
-  if (message.type === 'PM_RESULT') {
+  if (message.type === 'PM_RESULT' && activity.owner) {
+    const receipt = ownerOutcomeReceipt(message.payload?.result);
+    if (!receipt) return;
+    advanceTransaction(activity, receipt);
+  } else if (message.type === 'PM_RESULT') {
     const result: unknown = message.payload?.result;
     activity.signingHash = stringField(result, 'rawTxHex');
     if (activity.progress.state.kind === 'signing') settleActivity(activity, { kind: 'signed' });
@@ -135,6 +154,32 @@ export function transactionBroadcastStarted(signedTransaction: string): void {
   if (!activity || activity.signingHash !== signedTransaction || activity.progress.state.kind !== 'signed') return;
   advanceTransaction(activity, { kind: 'broadcasting' });
   publishActivity();
+}
+
+// The owner's outcome is final for this request; a later recovery has its own request.
+function ownerOutcomeReceipt(value: unknown): TransactionReceiptState | null {
+  let outcome: OwnerNearOutcome;
+  try {
+    outcome = parseOwnerNearOutcome(value);
+  } catch {
+    return null;
+  }
+  switch (outcome.kind) {
+    case 'completed': return { kind: 'confirmed', hash: outcome.result.transactionId };
+    case 'retired': return { kind: 'confirmed', hash: outcome.transactionId };
+    case 'reverted': return { kind: 'reverted', hash: outcome.transactionId, message: outcome.error };
+    case 'not_submitted': return { kind: 'failed', hash: null, message: outcome.rejection ? `${nearTransactionRejectionMessage(outcome.rejection)} ${outcome.error}` : outcome.error };
+    case 'expired': return { kind: 'failed', hash: null, message: 'The approval expired before the wallet signed.' };
+    case 'cancelled': return { kind: 'failed', hash: null, message: 'The owner cancelled this transaction before signing.' };
+    case 'unresolved': {
+      const rejection = outcome.cancellationRejection ?? outcome.rejection;
+      return { kind: 'unknown', hash: outcome.transactionId, message: rejection ? `${nearTransactionRejectionMessage(rejection)} ${outcome.error}` : outcome.error };
+    }
+    case 'retirement_available': return { kind: 'unknown', hash: outcome.transactionId, message: 'NEAR cannot execute this transaction any more, but its outcome is not proved. Check it again before you send another.' };
+    case 'recovery_unavailable': return { kind: 'unknown', hash: null, message: outcome.error };
+    case 'unknown': return { kind: 'unknown', hash: null, message: 'The wallet cannot tell whether this transaction was sent. Check it again before you send another.' };
+    default: return null;
+  }
 }
 
 function nearResultReceipt(value: unknown): TransactionReceiptState | null {

@@ -127,6 +127,11 @@ After reload, use `near.resumeOwnerTransaction({ authentication, recovery })`, t
 Recovery reads the recorded transaction hash and queries its outcome. It never broadcasts again.
 An unresolved submission blocks another transaction for that wallet connection until recovery settles it.
 
+After the owner confirms, the wallet card turns into the transaction receipt, as for an
+app-session send. It shows Signing, Submitted and the final state, and the owner can minimise
+it to a toast or dismiss it. When a send does not reach NEAR, the receipt shows why, such as
+NEAR's rejection. The owner's cancel shows its own receipt.
+
 Handle outcomes by their typed `kind`. Do not interpret error-message text.
 
 | Outcome | Application action |

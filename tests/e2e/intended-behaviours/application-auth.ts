@@ -19,7 +19,11 @@ import { applicationWalletHandoff } from '../../../examples/seams-auth-menu/src/
 import type {} from '../../intended-app/src/ApplicationAuthPage';
 import { readEnvFile } from '../../scripts/intended-google-oidc-env.mjs';
 import { authenticateApplicationPasskey } from './application-login';
-import { addWebAuthnVirtualAuthenticator, fulfillNearRpcStub } from './harness';
+import {
+  addWebAuthnVirtualAuthenticator,
+  fulfillNearRpcStub,
+  waitForWalletIframeConfirmationSettlement,
+} from './harness';
 import { isolatedGatewayDatabasePath, loadIsolatedDatabaseSync } from './local-gateway-database';
 import { nearTransactionHash } from './near-transaction-hash';
 import {
@@ -497,6 +501,7 @@ export async function verifyApplicationAuth(
     expect(backend.broadcasts.length).toBe(2);
     expect(await restoreOwnerReceiptWrites(page)).toBe(1);
     expect(await freshSigningAdmissions(walletId)).toBe(2);
+    await expectOwnerReceipt(page, 'Confirmed');
     console.info('[application-auth] second transaction complete');
 
     const appPasskey = await authenticateApplicationPasskey(page, appOrigin);
@@ -1149,6 +1154,8 @@ async function verifyOwnerReview(page: Page, backend: ApplicationBackend): Promi
   expect(await approval).toBe('completed');
   await expect(reviewHeading).toBeHidden();
   expect(backend.broadcasts.length).toBe(broadcasts + 1);
+  // A reviewed owner approval ends in the same receipt as an unreviewed one.
+  await expectOwnerReceipt(page, 'Confirmed');
 }
 
 function prepareReviewedApiOperation(): void {
@@ -1167,6 +1174,17 @@ async function verifyFreshApproval(page: Page, backend: ApplicationBackend): Pro
   const approval = page.evaluate(approveApiOnce);
   await confirmApproval(page, approval);
   expect(await approval).toBe('completed');
+  await expectOwnerReceipt(page, 'Confirmed');
+}
+
+/** The owner sees the same transaction receipt as an app-session send. */
+async function expectOwnerReceipt(page: Page, text: string): Promise<void> {
+  const wallet = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
+  const receipt = wallet.locator('.seams-transaction-receipt, .seams-transaction-toast');
+  await expect(receipt).toBeVisible({ timeout: 30_000 });
+  await expect(receipt).toContainText(text);
+  // Minimised, the receipt leaves the page usable for the next step.
+  await waitForWalletIframeConfirmationSettlement(page);
 }
 
 /** Report an approval that ended without a review instead of waiting for a missing button. */
@@ -1222,6 +1240,8 @@ async function verifyOwnerRejectionAndCancel(
   const encoded = backend.broadcasts[broadcasts];
   if (!encoded) throw new Error('Missing rejected broadcast.');
   if (rejected.kind !== 'unresolved') throw new Error('The rejection did not stay unresolved.');
+  // The receipt tells the owner why the send did not reach NEAR.
+  await expectOwnerReceipt(page, 'NotEnoughBalance');
   // A later check still explains the rejection, and the new operation stays blocked.
   expect(await page.evaluate(recoverApiOperation, recovery)).toMatchObject({
     kind: 'unresolved',
@@ -1246,6 +1266,7 @@ async function verifyOwnerRejectionAndCancel(
   const cancel = page.evaluate(cancelApiTransaction, recovery);
   await confirmOutcome(page, cancel);
   const cancelled = await cancel;
+  await expectOwnerReceipt(page, 'Confirmed');
   const cancelEncoded = backend.broadcasts[cancelBroadcasts];
   if (!cancelEncoded) throw new Error('Missing cancel broadcast.');
   expect(signedNonce(cancelEncoded)).toBe(signedNonce(encoded));
