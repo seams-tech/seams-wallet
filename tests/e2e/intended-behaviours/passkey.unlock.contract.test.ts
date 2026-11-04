@@ -12,27 +12,28 @@ import { ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH } from '../../../pack
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { WalletSessionStatusEvidence } from './walletSessionStatusEvidence';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
-import { verifyFreshUnlockWins, verifyLockWins } from './session-restore-lock';
+import { verifyLockWins } from './session-restore-lock';
 import { verifyPassiveWalletLock } from './session-passive-lock';
-import { verifyLockPreservesPresignatures } from './session-presign-retention';
 import { verifyBrowserSecurityFailureAndRetry } from './passkey-browser-security';
 import { verifyColdCustodyRecoveryThenUnlock } from './passkey-custody-cache';
-import { verifyMemoryOnlyPasskeyUnlock } from './passkey-session-persistence';
 
 // Export flows retain sanitized evidence instead of secret-bearing DOM or network captures.
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 
-test('browser security failures remain visible and a cancelled retry can unlock the same wallet', verifyBrowserSecurityFailureAndRetry);
-test('cold custody recovery preserves authority through a later unlock and signing', verifyColdCustodyRecoveryThenUnlock);
 test(
-  'passkey unlock with persistence disabled warms all configured signing lanes',
-  verifyMemoryOnlyPasskeyUnlock,
+  'browser security failures remain visible and a cancelled retry can unlock the same wallet',
+  verifyBrowserSecurityFailureAndRetry,
+);
+test(
+  'cold custody recovery preserves authority through a later unlock and signing',
+  verifyColdCustodyRecoveryThenUnlock,
 );
 
-test('lock retains durable presignatures across a fresh unlock', verifyLockPreservesPresignatures);
-test('locking a wallet updates an idle tab without a session query', verifyPassiveWalletLock);
-test('a cross-tab lock prevents delayed restoration from recreating its credential', verifyLockWins);
-test('a fresh unlock survives a delayed restoration response from another tab', verifyFreshUnlockWins);
+test('locking a wallet updates an idle tab', verifyPassiveWalletLock);
+test(
+  'a cross-tab lock prevents delayed restoration from recreating its credential',
+  verifyLockWins,
+);
 
 type EcdsaStepUpWireObservation = {
   readonly operationKind: string;

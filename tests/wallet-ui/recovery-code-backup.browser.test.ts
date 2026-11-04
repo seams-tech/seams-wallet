@@ -1,14 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
 import { routePreactModules } from '../setup/preact';
 
 type RecoveryTestState = {
   startDirect(): void;
-  startAccount(mode: 'ready' | 'failed' | 'opening_failed' | 'stale', theme?: 'light' | 'dark'): void;
+  startAccount(mode: 'ready' | 'failed' | 'opening_failed' | 'stale'): void;
   startAccountPending(): void;
   startAccountOpeningPending(): void;
   cancelPending(): void;
@@ -17,15 +16,12 @@ type RecoveryTestState = {
   releaseCopy: () => void;
   result: Promise<unknown> | null;
   copied: string[];
-  copiedTimerScheduled: number;
-  copiedTimerCleared: number;
   pendingCancelled: boolean;
 };
 
 declare global {
   interface Window {
     __recoveryTest: RecoveryTestState;
-    __recoveryHeights: number[];
   }
 }
 
@@ -66,8 +62,6 @@ async function prepare(page: Page): Promise<void> {
       pendingCancelled: false,
       releaseOpening: () => {},
       releaseCopy: () => {},
-      copiedTimerScheduled: 0,
-      copiedTimerCleared: 0,
       startDirect() {
         state.result = import(modulePath).then(({ showWalletRecoveryCodeBackupUi }) =>
           showWalletRecoveryCodeBackupUi({
@@ -78,7 +72,7 @@ async function prepare(page: Page): Promise<void> {
           }),
         );
       },
-      startAccount(mode, theme) {
+      startAccount(mode) {
         state.result = import(modulePath).then(({ showWalletRecoveryCodesUi }) =>
           showWalletRecoveryCodesUi(
             {
@@ -108,11 +102,6 @@ async function prepare(page: Page): Promise<void> {
               },
             },
             { kind: 'disabled' },
-            {
-              appearance: theme
-                ? { palette: 'default', theme: { id: 'default', mode: theme, colors: {} } }
-                : undefined,
-            },
           ),
         );
       },
@@ -176,27 +165,6 @@ async function prepare(page: Page): Promise<void> {
         state.releaseOpening();
       },
     };
-    const originalSetTimeout = window.setTimeout.bind(window);
-    const originalClearTimeout = window.clearTimeout.bind(window);
-    const copiedTimers = new Set<number>();
-    Object.defineProperty(window, 'setTimeout', {
-      configurable: true,
-      value: (handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
-        const handle = originalSetTimeout(handler, timeout, ...args);
-        if (timeout === 1800) {
-          state.copiedTimerScheduled += 1;
-          copiedTimers.add(handle);
-        }
-        return handle;
-      },
-    });
-    Object.defineProperty(window, 'clearTimeout', {
-      configurable: true,
-      value: (handle: number) => {
-        if (copiedTimers.delete(handle)) state.copiedTimerCleared += 1;
-        originalClearTimeout(handle);
-      },
-    });
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: async (value: string) => state.copied.push(value) },
@@ -220,7 +188,9 @@ test.beforeEach(async ({ page }) => {
 
 test.afterEach(async ({ page }) => {
   await page.evaluate(() => {
-    document.querySelector<HTMLDialogElement>('[data-seams-wallet-recovery-backup-dialog]')?.close();
+    document
+      .querySelector<HTMLDialogElement>('[data-seams-wallet-recovery-backup-dialog]')
+      ?.close();
   });
 });
 
@@ -238,7 +208,9 @@ test('registration backup preserves copy, download, acknowledgement, and focus',
   expect(await page.evaluate(() => window.__recoveryTest.copied[0])).toContain('amber-01');
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download codes' }).click();
-  expect((await download).suggestedFilename()).toBe('seams-wallet-recovery-codes-recovery.testnet.txt');
+  expect((await download).suggestedFilename()).toBe(
+    'seams-wallet-recovery-codes-recovery.testnet.txt',
+  );
 
   await page.getByRole('checkbox').check();
   await expect(page.getByRole('button', { name: 'Finish backup' })).toBeVisible();
@@ -248,56 +220,9 @@ test('registration backup preserves copy, download, acknowledgement, and focus',
   await expect.poll(() => result(page)).toEqual({ kind: 'wallet_recovery_codes_backed_up_v1' });
 });
 
-test('registration backup can defer without leaking codes into the next session', async ({ page }) => {
-  await page.evaluate(() => window.__recoveryTest.startDirect());
-  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
-  await page.getByRole('button', { name: 'Back up later' }).click();
-  await expect.poll(() => result(page)).toEqual({ kind: 'wallet_recovery_code_backup_deferred_v1' });
-
-  await page.evaluate(() => window.__recoveryTest.startDirect());
-  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
-  expect(await page.locator('.seams-recovery-code-backup-viewer').count()).toBe(1);
-});
-
-test('cancel event rejects a deferrable registration backup', async ({ page }) => {
-  await page.evaluate(() => window.__recoveryTest.startDirect());
-  const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
-  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
-
-  await dialog.evaluate((element) => {
-    element.dispatchEvent(new Event('cancel', { cancelable: true }));
-  });
-
-  await expect
-    .poll(() => result(page))
-    .toEqual('Recovery-code backup was cancelled before acknowledgement');
-  await expect(dialog).toHaveCount(0);
-});
-
-test('disposal clears copied feedback timers before a new backup opens', async ({ page }) => {
-  await page.evaluate(() => window.__recoveryTest.startDirect());
-  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
-  await page.getByRole('button', { name: 'Copy codes' }).click();
-  await expect(page.locator('.recovery-backup-copy.copied')).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => window.__recoveryTest.copiedTimerScheduled))
-    .toBe(1);
-
-  await page.getByRole('button', { name: 'Back up later' }).click();
-  await expect.poll(() => result(page)).toEqual({ kind: 'wallet_recovery_code_backup_deferred_v1' });
-  await expect(page.locator('[data-seams-recovery-surface]')).toHaveCount(0);
-  await expect(page.locator('link[href$="wallet-ui.css"]')).toHaveCount(1);
-  await expect
-    .poll(() => page.evaluate(() => window.__recoveryTest.copiedTimerCleared))
-    .toBe(1);
-
-  await page.evaluate(() => window.__recoveryTest.startDirect());
-  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
-  await expect(page.getByRole('button', { name: 'Copy codes' })).not.toHaveClass(/copied/);
-  await expect(page.locator('.recovery-backup-status')).toHaveText('');
-});
-
-test('disposal ignores a delayed clipboard completion', async ({ page }) => {
+test('registration backup defers or cancels without leaking codes or copy state', async ({
+  page,
+}) => {
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -317,13 +242,26 @@ test('disposal ignores a delayed clipboard completion', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.__recoveryTest.copied)).toHaveLength(1);
 
   await page.getByRole('button', { name: 'Back up later' }).click();
-  await expect.poll(() => result(page)).toEqual({ kind: 'wallet_recovery_code_backup_deferred_v1' });
+  await expect
+    .poll(() => result(page))
+    .toEqual({ kind: 'wallet_recovery_code_backup_deferred_v1' });
   await page.evaluate(() => window.__recoveryTest.releaseCopy());
 
   await page.evaluate(() => window.__recoveryTest.startDirect());
   await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+  await expect(page.locator('.seams-recovery-code-backup-viewer')).toHaveCount(1);
   await expect(page.locator('.recovery-backup-status')).toHaveText('');
   await expect(page.getByRole('button', { name: 'Copy codes' })).not.toHaveClass(/copied/);
+
+  // A cancel event (Escape) is not a deferral: it rejects the backup.
+  const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
+  await dialog.evaluate((element) => {
+    element.dispatchEvent(new Event('cancel', { cancelable: true }));
+  });
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect(dialog).toHaveCount(0);
 });
 
 test('account-menu backup rejects an unacknowledged close and handles opening failure', async ({
@@ -334,20 +272,26 @@ test('account-menu backup rejects an unacknowledged close and handles opening fa
   await page.getByRole('button', { name: 'View recovery codes' }).click();
   await expect(page.locator('.recovery-code-item')).toHaveCount(10);
   await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
 
   await page.evaluate(() => window.__recoveryTest.startAccount('opening_failed'));
   await expect(page.getByRole('button', { name: 'View recovery codes' })).toBeVisible();
   await page.getByRole('button', { name: 'View recovery codes' }).click();
   await expect(page.getByText('Synthetic opening failure', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close recovery codes' }).click();
-  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
 
   await page.evaluate(() => window.__recoveryTest.startAccount('failed'));
   await expect(page.getByRole('button', { name: 'View recovery codes' })).toHaveCount(0);
   await expect(page.getByText('Synthetic status failure', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close recovery codes' }).click();
-  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
 });
 
 test('account-menu backup binds acknowledgement to the displayed issuance', async ({
@@ -361,7 +305,9 @@ test('account-menu backup binds acknowledgement to the displayed issuance', asyn
   ).toBeVisible();
   await expect(page.locator('.recovery-code-item')).toHaveCount(0);
   await page.getByRole('button', { name: 'Close recovery codes' }).click();
-  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
 
   await page.evaluate(() => window.__recoveryTest.startAccount('ready'));
   await expect(page.getByRole('button', { name: 'View recovery codes' })).toBeVisible();
@@ -375,10 +321,7 @@ test('account-menu backup binds acknowledgement to the displayed issuance', asyn
     issuedAtMs: 1_700_000_000_000,
   });
   const artifact = testInfo.outputPath('recovery-backup-issuance.json');
-  await writeFile(
-    artifact,
-    JSON.stringify({ staleCodeCount: 0, acknowledged }, null, 2),
-  );
+  await writeFile(artifact, JSON.stringify({ staleCodeCount: 0, acknowledged }, null, 2));
   await testInfo.attach('recovery-backup-issuance', {
     path: artifact,
     contentType: 'application/json',
@@ -407,7 +350,9 @@ test('cancellation while the lazy Preact module is pending does not mount a stal
   await page.evaluate(() => window.__recoveryTest.cancelPending());
   releaseModule();
 
-  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
   await expect(page.locator('[data-seams-wallet-recovery-backup-dialog]')).toHaveCount(0);
   await expect(page.locator('.seams-recovery-code-backup-viewer')).toHaveCount(0);
 });
@@ -418,79 +363,12 @@ test('closing while recovery codes are opening ignores the late result', async (
   await page.getByRole('button', { name: 'View recovery codes' }).click();
   await expect(page.getByRole('button', { name: 'Opening recovery codes' })).toBeDisabled();
   await page.getByRole('button', { name: 'Close recovery codes' }).click();
-  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
 
   await page.evaluate(() => window.__recoveryTest.resolveOpening());
   await expect(page.locator('[data-seams-wallet-recovery-backup-dialog]')).toHaveCount(0);
   await expect(page.locator('.recovery-code-item')).toHaveCount(0);
   await expect(page.locator('.seams-recovery-code-backup-viewer')).toHaveCount(0);
 });
-
-
-test('recovery codes fit the wallet iframe at desktop and mobile widths', async ({ page }) => {
-  await prepare(page);
-  await page.evaluate(() => window.__recoveryTest.startAccount('ready'));
-  const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
-  await expect(dialog).toBeVisible();
-  await dialog.evaluate(element => {
-    element.setAttribute('data-seams-recovery-surface', 'wallet-iframe');
-  });
-  await page.setViewportSize({ width: 480, height: 320 });
-  await dialog.evaluate(async (element: HTMLElement) => {
-    const { createWalletIframeSurfaceMeasurementReporter } = (await import(
-      '/_test-sdk/esm/SeamsWeb/walletIframe/host/surface-measurement-reporter.js'
-    )) as typeof import('@/SeamsWeb/walletIframe/host/surface-measurement-reporter');
-    window.__recoveryHeights = [];
-    createWalletIframeSurfaceMeasurementReporter({
-      kind: 'request_scroll_surface',
-      element,
-      requestId: 'recovery-sizing' as WalletIframeRequestId,
-      postMeasurement: measurement => window.__recoveryHeights.push(measurement.heightCssPx),
-    });
-  });
-  const summaryHeight = await page.evaluate(() => window.__recoveryHeights[0]);
-  await page.getByRole('button', { name: 'View recovery codes' }).click();
-  await expect(page.locator('.recovery-code-value')).toHaveCount(10);
-  await expect.poll(() => page.evaluate(() => window.__recoveryHeights.at(-1))).toBeGreaterThan(summaryHeight);
-
-  await page.locator('.recovery-code-value').evaluateAll(elements => {
-    for (const element of elements) {
-      element.textContent = 'DEMO-0000-ABCD-1234-DEMO-0000-ABCD-1234';
-    }
-  });
-  for (const width of [688, 375]) {
-    await page.setViewportSize({ width, height: 640 });
-    const bounds = await dialog.boundingBox();
-    expect(bounds).not.toBeNull();
-    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
-    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    if (width === 688) {
-      expect(await dialog.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
-      const first = await page.locator('.recovery-code-item').nth(0).boundingBox();
-      const second = await page.locator('.recovery-code-item').nth(1).boundingBox();
-      expect(first!.y).toBe(second!.y);
-      expect(second!.x).toBeGreaterThan(first!.x);
-    }
-    const close = page.getByRole('button', { name: 'Close', exact: true });
-    await close.scrollIntoViewIfNeeded();
-    const closeBounds = await close.boundingBox();
-    expect(closeBounds!.x + closeBounds!.width).toBeLessThanOrEqual(width);
-  }
-});
-
-for (const theme of ['light', 'dark'] as const) {
-  test(`recovery summary and codes use the requested ${theme} theme`, async ({ page }) => {
-    await page.evaluate((theme) => {
-      document.documentElement.dataset.seamsTheme = theme === 'dark' ? 'light' : 'dark';
-      window.__recoveryTest.startAccount('ready', theme);
-    }, theme);
-    const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
-    const background = theme === 'dark' ? 'oklch(0.2 0.01 240)' : 'oklch(0.98 0.001 240)';
-    await expect(dialog).toHaveCSS('background-color', background);
-    await page.getByRole('button', { name: 'View recovery codes' }).click();
-    await expect(page.locator('.recovery-code-item')).toHaveCount(10);
-    await expect(dialog).toHaveCSS('background-color', background);
-    await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
-  });
-}

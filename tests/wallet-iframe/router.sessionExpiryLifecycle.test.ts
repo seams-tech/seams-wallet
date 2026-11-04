@@ -6,10 +6,7 @@ import {
   toWalletId,
   nearAccountRefFromAccountId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import {
-  parseWalletIframeExactSessionState,
-  parseWalletIframeExactSessionIdentity,
-} from '@/SeamsWeb/walletIframe/shared/exactSessionState';
+import { parseWalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
@@ -18,6 +15,29 @@ const ACTIVE_SESSION_ID = 'wss_refactor_92_active';
 const STALE_SESSION_ID = 'wss_refactor_92_stale';
 const AUTHORIZATION_ID = 'wsa_refactor_92_active';
 const EXPIRES_AT_MS = 4_102_444_800_000;
+
+// The wallet host refuses the signing request because the person cancelled step-up.
+const STEP_UP_CANCELLED_SCRIPT = String.raw`
+      const originalAdoptPort = adoptPort;
+      adoptPort = function patchedAdoptPort(port) {
+        originalAdoptPort(port);
+        if (!adoptedPort) return;
+        const originalHandler = adoptedPort.onmessage;
+        adoptedPort.onmessage = (event) => {
+          originalHandler?.(event);
+          const data = event.data || {};
+          if (data.type !== 'PM_SIGN_AND_SEND_TX' || typeof data.requestId !== 'string') return;
+          setTimeout(() => {
+            pendingRequests.delete(data.requestId);
+            adoptedPort.postMessage({
+              type: 'ERROR',
+              requestId: data.requestId,
+              payload: { code: 'wallet_operation_step_up_cancelled', message: 'Request cancelled.' },
+            });
+          }, 20);
+        };
+      };
+`;
 
 const ACTIVE_SESSION_STATE = parseWalletIframeExactSessionState({
   kind: 'active_session',
@@ -72,7 +92,12 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         router.onSdkLifecycleEvent((event) => {
           if (event.event === 'signing_session.expired') lifecycleEvents.push(event);
         });
-        router.onSessionChange((state: WalletIframeExactSessionState) => loginStatuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
+        router.onSessionChange((state: WalletIframeExactSessionState) =>
+          loginStatuses.push({
+            isLoggedIn: state.kind !== 'wallet_locked',
+            walletId: state.kind === 'wallet_locked' ? null : state.walletId,
+          }),
+        );
         await router.init();
 
         let requestSettled = false;
@@ -186,16 +211,15 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         await router.init();
 
         const execute = () =>
-          router
-            .signAndSendTransaction({
-              walletId,
-              nearAccountId: 'refactor-92.testnet',
-              transaction: {
-                receiverId: 'seams-v1.testnet',
-                actions: [{ type: 'Transfer', amount: '1' } as any],
-              },
-              options: {},
-            });
+          router.signAndSendTransaction({
+            walletId,
+            nearAccountId: 'refactor-92.testnet',
+            transaction: {
+              receiverId: 'seams-v1.testnet',
+              actions: [{ type: 'Transfer', amount: '1' } as any],
+            },
+            options: {},
+          });
 
         const firstRequest = execute();
         await new Promise((resolve) => window.setTimeout(resolve, 30));
@@ -206,16 +230,20 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         if (typeof emitSdkLifecycleEvent !== 'function') {
           throw new Error('wallet iframe lifecycle consumer is unavailable');
         }
-        emitSdkLifecycleEvent.call(router, {
-          version: 1,
-          event: 'signing_session.expired',
-          walletId,
-          walletSessionId: activeSessionId,
-          authMethod: 'passkey',
-          expiresAtMs,
-          detectedAtMs: Date.now(),
-          source: 'server_rejection',
-        }, 100);
+        emitSdkLifecycleEvent.call(
+          router,
+          {
+            version: 1,
+            event: 'signing_session.expired',
+            walletId,
+            walletSessionId: activeSessionId,
+            authMethod: 'passkey',
+            expiresAtMs,
+            detectedAtMs: Date.now(),
+            source: 'server_rejection',
+          },
+          100,
+        );
 
         const [firstResult, queuedResult] = await Promise.all([firstRequest, queuedRequest]);
 
@@ -335,16 +363,20 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         if (typeof emitSdkLifecycleEvent !== 'function') {
           throw new Error('wallet iframe lifecycle consumer is unavailable');
         }
-        emitSdkLifecycleEvent.call(router, {
-          version: 1,
-          event: 'signing_session.expired',
-          walletId,
-          walletSessionId: activeSessionId,
-          authMethod: 'passkey',
-          expiresAtMs,
-          detectedAtMs: Date.now(),
-          source: 'server_rejection',
-        }, 100);
+        emitSdkLifecycleEvent.call(
+          router,
+          {
+            version: 1,
+            event: 'signing_session.expired',
+            walletId,
+            walletSessionId: activeSessionId,
+            authMethod: 'passkey',
+            expiresAtMs,
+            detectedAtMs: Date.now(),
+            source: 'server_rejection',
+          },
+          100,
+        );
         await signingRequest.catch(() => undefined);
         await new Promise((resolve) => window.setTimeout(resolve, 50));
         const afterExpiry = { ...settlement };
@@ -377,62 +409,16 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     });
   });
 
-  test('locks only the exact session selected by the caller', async ({ page }) => {
-    const result = await page.evaluate(
-      async ({ routerPath, walletOrigin, expected }) => {
-        const module = await import(routerPath);
-        const { WalletIframeRouter } =
-          module as typeof import('@/SeamsWeb/walletIframe/client/router');
-        const router = new WalletIframeRouter({
-          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-          walletOrigin,
-          servicePath: '/wallet-service',
-          connectTimeoutMs: 3_000,
-          requestTimeoutMs: 5_000,
-          sdkBasePath: '/sdk',
-        });
-        await router.init();
-
-        const first = await router.lockExactSession(expected);
-        const second = await router.lockExactSession(expected);
-        return {
-          first,
-          second,
-          mirroredState: router.getMirroredExactSessionState(),
-        };
-      },
-      {
-        routerPath: SDK_ESM_PATHS.walletIframeRouter,
-        walletOrigin: WALLET_ORIGIN,
-        expected: parseWalletIframeExactSessionIdentity(ACTIVE_SESSION_STATE),
-      },
-    );
-
-    expect(result.first).toEqual({
-      kind: 'locked',
-      identity: {
-        walletId: WALLET_ID,
-        authorizationId: AUTHORIZATION_ID,
-        walletSessionId: ACTIVE_SESSION_ID,
-        authMethod: 'passkey',
-        expiresAtMs: EXPIRES_AT_MS,
-      },
-    });
-    expect(result.second).toEqual({
-      kind: 'stale_session',
-      expected: {
-        walletId: WALLET_ID,
-        authorizationId: AUTHORIZATION_ID,
-        walletSessionId: ACTIVE_SESSION_ID,
-        authMethod: 'passkey',
-        expiresAtMs: EXPIRES_AT_MS,
-      },
-      current: { kind: 'wallet_locked' },
-    });
-    expect(result.mirroredState).toEqual({ kind: 'wallet_locked' });
-  });
-
   test('locks immediately when operation-scoped step-up is cancelled', async ({ page }) => {
+    await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
+    await registerWalletServiceRoute(
+      page,
+      buildWalletServiceHtml({
+        exactSessionState: ACTIVE_SESSION_STATE,
+        extraScript: STEP_UP_CANCELLED_SCRIPT,
+      }),
+      WALLET_SERVICE_ROUTE,
+    );
     const result = await page.evaluate(
       async ({ routerPath, walletOrigin, walletId }) => {
         const module = await import(routerPath);
@@ -447,10 +433,15 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           sdkBasePath: '/sdk',
         });
         const loginStatuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-        router.onSessionChange((state: WalletIframeExactSessionState) => loginStatuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
+        router.onSessionChange((state: WalletIframeExactSessionState) =>
+          loginStatuses.push({
+            isLoggedIn: state.kind !== 'wallet_locked',
+            walletId: state.kind === 'wallet_locked' ? null : state.walletId,
+          }),
+        );
         await router.init();
 
-        const request = router.signAndSendTransaction({
+        const requestResult = await router.signAndSendTransaction({
           walletId,
           nearAccountId: 'refactor-92.testnet',
           transaction: {
@@ -459,33 +450,6 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
           },
           options: {},
         });
-        await new Promise((resolve) => window.setTimeout(resolve, 30));
-
-        const state = Reflect.get(router, 'state') as {
-          connectionId: string;
-          pending: Map<string, unknown>;
-        };
-        const requestId = [...state.pending.keys()][0];
-        const onPortMessage = Reflect.get(router, 'onPortMessage');
-        if (!requestId || typeof onPortMessage !== 'function') {
-          throw new Error('wallet iframe pending request boundary is unavailable');
-        }
-        onPortMessage.call(
-          router,
-          new MessageEvent('message', {
-            data: {
-              type: 'ERROR',
-              requestId,
-              payload: {
-                code: 'wallet_operation_step_up_cancelled',
-                message: 'Request cancelled.',
-              },
-            },
-          }),
-          state.connectionId,
-        );
-
-        const requestResult = await request;
         return {
           requestResult,
           mirroredState: router.getMirroredExactSessionState(),

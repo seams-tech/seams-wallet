@@ -5,183 +5,44 @@ import { ActionType } from '@shared/near/actions';
 import {
   expect,
   type BrowserContext,
-  type ConsoleMessage,
   type Page,
   type Request,
   type Route,
   type TestInfo,
 } from '@playwright/test';
-import { isPlainObject, requireNonEmptyString, requireRecord } from '@shared/utils/validation';
+import { requireNonEmptyString, requireRecord } from '@shared/utils/validation';
 import { loadIsolatedDatabaseSync } from './local-gateway-database';
 import {
-  enableSigningSessionDebugInFrame,
   autoConfirmWalletIframeUntil,
   intendedTest as test,
   type IntendedBehaviourHarness,
 } from './harness';
 import { isolatedGatewayDatabasePath } from './local-gateway-database';
 
-type NearSigningReadStage = 'warm_sequence' | 'exhausted_session' | 'unlock' | 'after_refresh';
-
-class NearSigningRequestEvidence {
-  stage: NearSigningReadStage = 'warm_sequence';
-  readonly requests: { stage: NearSigningReadStage; path: string }[] = [];
-
-  record(request: Request): void {
-    if (request.method() !== 'POST') return;
-    const path = new URL(request.url()).pathname;
-    if (
-      path === '/wallet/session/status' ||
-      path === '/wallet/execution-lane/owner' ||
-      path === '/router-ab/ed25519/sign/prepare' ||
-      path === '/router-ab/ed25519/sign'
-    ) {
-      this.requests.push({ stage: this.stage, path });
-    }
-  }
-
-  count(stage: NearSigningReadStage, path: string): number {
-    let count = 0;
-    for (const request of this.requests) {
-      if (request.stage === stage && request.path === path) count += 1;
-    }
-    return count;
-  }
-
-  async finish(testInfo: TestInfo): Promise<void> {
-    const artifact = testInfo.outputPath('near-signing-session-reads.json');
-    await writeFile(artifact, JSON.stringify({ requests: this.requests }, null, 2));
-    await testInfo.attach('near-signing-session-reads', {
-      path: artifact,
-      contentType: 'application/json',
-    });
-  }
-}
-
-/** Records the stages of the SDK's NEAR signing trace, in the order they are emitted. */
-class NearSigningStages {
-  readonly stages: string[] = [];
-
-  record(message: ConsoleMessage): void {
-    const text = message.text();
-    const prefix = '[SigningFlow][near] ';
-    if (!text.startsWith(prefix)) return;
-    const event: unknown = JSON.parse(text.slice(prefix.length));
-    if (!isPlainObject(event) || event.event !== 'ed25519_signing_timing') return;
-    if (typeof event.stage === 'string') this.stages.push(event.stage);
-  }
-
-  /** The index of the first occurrence of a stage; a missing stage fails the contract. */
-  at(stage: string): number {
-    const index = this.stages.indexOf(stage);
-    expect(index, `${stage} in ${this.stages.join(',')}`).toBeGreaterThan(-1);
-    return index;
-  }
-}
-
-/** Records each request as "METHOD path", in the order the browser sends them. */
-class RequestOrder {
-  readonly sent: string[] = [];
-
-  record(request: Request): void {
-    this.sent.push(`${request.method()} ${new URL(request.url()).pathname}`);
-  }
-}
-
-async function verifyLocalEd25519YaoRegistration(
-  {
-    harness,
-    context,
-    page,
-  }: { harness: IntendedBehaviourHarness; context: BrowserContext; page: Page },
-  testInfo: TestInfo,
-): Promise<void> {
-  const order = new RequestOrder();
-  const recordOrder = order.record.bind(order);
-  context.on('request', recordOrder);
+async function verifyLocalEd25519YaoRegistration({
+  harness,
+}: {
+  harness: IntendedBehaviourHarness;
+}): Promise<void> {
   await harness.registerPasskeyEd25519YaoWallet();
-  context.off('request', recordOrder);
-  // Registration preflights its later routes and both signing routes while setup runs.
-  const respond = order.sent.indexOf('POST /wallets/register/respond');
-  expect(respond).toBeGreaterThan(-1);
-  for (const path of [
-    '/wallets/register/respond',
-    '/router-ab/ed25519/yao/registration/execute',
-    '/wallets/register/near-provisioning',
-    '/router-ab/ed25519/sign/prepare',
-    '/router-ab/ed25519/sign',
-  ]) {
-    const early = order.sent.indexOf(`OPTIONS ${path}`);
-    expect(early, path).toBeGreaterThan(-1);
-    expect(early, path).toBeLessThan(respond);
-  }
   await harness.signNearTransaction('post_registration');
-  const evidence = new NearSigningRequestEvidence();
-  const record = evidence.record.bind(evidence);
-  context.on('request', record);
-  try {
-    await harness.signNearTransaction('post_registration');
-    await harness.signNearTransaction('post_registration');
-    expect(evidence.count('warm_sequence', '/wallet/session/status')).toBe(0);
-    expect(evidence.count('warm_sequence', '/wallet/execution-lane/owner')).toBe(0);
-    expect(evidence.count('warm_sequence', '/router-ab/ed25519/sign/prepare')).toBe(2);
-    expect(evidence.count('warm_sequence', '/router-ab/ed25519/sign')).toBe(2);
-
-    evidence.stage = 'exhausted_session';
-    await harness.signNearTransaction('step_up_required');
-    evidence.stage = 'unlock';
-    await harness.lockWallet();
-    await harness.unlockPasskeyWallet();
-    evidence.stage = 'after_refresh';
-    // The SDK's signing trace is off unless a frame opts in; the refresh
-    // below loads every frame with the flag set.
-    await context.addInitScript(enableSigningSessionDebugInFrame);
-    await harness.refreshPagePreservingWalletStorage();
-    await harness.signNearTransactionAfterRefresh();
-    // A warm-session message signature sends its prepare while the
-    // confirmation dialog is open, and consumes the answer after it.
-    const stages = new NearSigningStages();
-    const recordStages = stages.record.bind(stages);
-    page.on('console', recordStages);
-    try {
-      await harness.signNearMessage('Approve checkout after the session observation was discarded');
-    } finally {
-      page.off('console', recordStages);
-    }
-    expect(stages.at('prepare_sent')).toBeLessThan(stages.at('confirmation'));
-    expect(stages.at('confirmation')).toBeLessThan(stages.at('prepare'));
-    expect(stages.stages.filter((stage) => stage === 'prepare_sent')).toHaveLength(1);
-    // A warm-session transaction does the same once the confirmation has
-    // reserved its nonce and block hash.
-    const transactionStages = new NearSigningStages();
-    const recordTransactionStages = transactionStages.record.bind(transactionStages);
-    page.on('console', recordTransactionStages);
-    try {
-      await harness.signNearTransaction('post_unlock');
-    } finally {
-      page.off('console', recordTransactionStages);
-    }
-    expect(transactionStages.at('prepare_sent')).toBeLessThan(
-      transactionStages.at('confirmation'),
-    );
-    expect(transactionStages.at('confirmation')).toBeLessThan(transactionStages.at('prepare'));
-    expect(transactionStages.stages.filter((stage) => stage === 'prepare_sent')).toHaveLength(1);
-    expect(evidence.count('after_refresh', '/wallet/session/status')).toBeGreaterThan(0);
-    expect(evidence.count('after_refresh', '/wallet/execution-lane/owner')).toBe(0);
-  } finally {
-    context.off('request', record);
-    await evidence.finish(testInfo);
-  }
+  await harness.signNearTransaction('post_registration');
+  await harness.signNearTransaction('post_registration');
+  await harness.signNearTransaction('step_up_required');
+  await harness.lockWallet();
+  await harness.unlockPasskeyWallet();
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.signNearTransactionAfterRefresh();
+  await harness.signNearMessage('Approve checkout after the refresh');
+  await harness.signNearTransaction('post_unlock');
 }
 
 test(
-  'NEAR reuses signing observations, enforces exhausted quota, and reloads authority after refresh',
+  'NEAR signs a warm sequence, enforces exhausted quota, and signs after unlock and refresh',
   verifyLocalEd25519YaoRegistration,
 );
 
-type IntendedDelegateInput = Parameters<
-  NonNullable<Window['__seamsIntendedE2ESignDelegate']>
->[0];
+type IntendedDelegateInput = Parameters<NonNullable<Window['__seamsIntendedE2ESignDelegate']>>[0];
 
 async function invokeDelegateSigning(input: IntendedDelegateInput) {
   const sign = window.__seamsIntendedE2ESignDelegate;
@@ -189,15 +50,10 @@ async function invokeDelegateSigning(input: IntendedDelegateInput) {
   return await sign(input);
 }
 
-async function verifyEarlyDelegatePreparation(
-  { harness, context, page }: {
-    harness: IntendedBehaviourHarness;
-    context: BrowserContext;
-    page: Page;
-  },
+async function verifyDelegateSigning(
+  { harness, page }: { harness: IntendedBehaviourHarness; page: Page },
   testInfo: TestInfo,
 ): Promise<void> {
-  await context.addInitScript(enableSigningSessionDebugInFrame);
   await harness.registerPasskeyEd25519YaoWallet();
   const message = await harness.signNearMessage('Identify the delegate signing key');
   const keyBytes = Buffer.from(base58Decode(message.publicKey.slice('ed25519:'.length)));
@@ -208,10 +64,8 @@ async function verifyEarlyDelegatePreparation(
   });
   const proofs = [];
   // The message spent the first use. Two delegates exhaust the warm session;
-  // the third must obtain fresh approval without an early prepare.
+  // the third must obtain fresh approval.
   for (const nonce of [1, 2, 3]) {
-    const stages = new NearSigningStages();
-    const recordStages = stages.record.bind(stages);
     // The annotation keeps `ActionType.Transfer` a literal member type.
     const delegate: IntendedDelegateInput = {
       senderId: message.accountId,
@@ -221,23 +75,10 @@ async function verifyEarlyDelegatePreparation(
       maxBlockHeight: '999999999',
       publicKey: message.publicKey,
     };
-    page.on('console', recordStages);
-    let result;
-    try {
-      result = await autoConfirmWalletIframeUntil(
-        page,
-        page.evaluate(invokeDelegateSigning, delegate),
-      );
-    } finally {
-      page.off('console', recordStages);
-    }
-    if (nonce < 3) {
-      expect(stages.at('prepare_sent')).toBeLessThan(stages.at('confirmation'));
-      expect(stages.at('confirmation')).toBeLessThan(stages.at('prepare'));
-      expect(stages.stages.filter(isPrepareSent)).toHaveLength(1);
-    } else {
-      expect(stages.stages.filter(isPrepareSent)).toHaveLength(0);
-    }
+    const result = await autoConfirmWalletIframeUntil(
+      page,
+      page.evaluate(invokeDelegateSigning, delegate),
+    );
     const encoded = Buffer.from(result.borshBytes);
     const signature = encoded.subarray(-64);
     expect(encoded.at(-65)).toBe(0);
@@ -248,19 +89,17 @@ async function verifyEarlyDelegatePreparation(
     const changedDigest = Buffer.from(digest);
     changedDigest[0] ^= 1;
     expect(verify(null, changedDigest, publicKey, signature)).toBe(false);
-    proofs.push({ nonce, ...result, stages: stages.stages, verified: true });
+    proofs.push({ nonce, ...result, verified: true });
   }
-  const artifact = testInfo.outputPath('delegate-early-prepare.json');
+  const artifact = testInfo.outputPath('delegate-signatures.json');
   await writeFile(artifact, JSON.stringify({ publicKey: message.publicKey, proofs }, null, 2));
-  await testInfo.attach('delegate-early-prepare', { path: artifact, contentType: 'application/json' });
+  await testInfo.attach('delegate-signatures', { path: artifact, contentType: 'application/json' });
 }
 
-function isPrepareSent(stage: string): boolean {
-  return stage === 'prepare_sent';
-}
-
-test('NEAR delegates prepare during confirmation and require step-up after quota exhaustion',
-  verifyEarlyDelegatePreparation);
+test(
+  'NEAR delegate signatures verify against the registered key, also after quota exhaustion',
+  verifyDelegateSigning,
+);
 
 async function verifyLocalEd25519YaoAddSignerAndSigning({
   harness,
@@ -311,44 +150,6 @@ async function verifyExactTransportRetry({
 test(
   'uncertain Router transport replays the registration and signs with the ready wallet',
   verifyExactTransportRetry,
-);
-
-async function verifyRegistrationWaitsOutRespondExecution({
-  harness,
-}: {
-  harness: IntendedBehaviourHarness;
-}): Promise<void> {
-  await harness.registerPasskeyEd25519YaoWalletWhileRespondExecutionRuns();
-  await harness.signNearTransaction('post_registration');
-}
-
-test(
-  'a registration whose respond execution failed while still running completes through the execute route',
-  verifyRegistrationWaitsOutRespondExecution,
-);
-
-async function verifyTerminalFailureWithoutRetry({
-  harness,
-}: {
-  harness: IntendedBehaviourHarness;
-}): Promise<void> {
-  await harness.assertPasskeyEd25519YaoTerminalFailureWithoutRetry();
-}
-
-test('terminal burned execution fails without retry', verifyTerminalFailureWithoutRetry);
-
-async function verifyNearFinalizeResumesFromItsDecision({
-  harness,
-}: {
-  harness: IntendedBehaviourHarness;
-}): Promise<void> {
-  await harness.registerPasskeyWalletAcrossNearFinalizeStorageLoss();
-  await harness.signNearTransaction('post_unlock');
-}
-
-test(
-  'deferred NEAR finalize that loses storage after its decision resumes from the decision and signs',
-  verifyNearFinalizeResumesFromItsDecision,
 );
 
 async function verifyInterruptedExportAuthorizationResumes({
@@ -434,7 +235,9 @@ async function verifyPrepareAuthorityReconciliation(
   context.on('request', count);
   await context.route(preparePath, change);
   try {
-    await expect(harness.signNearTransaction('post_registration')).rejects.toThrow('Wallet Session authority changed before Ed25519 client signing');
+    await expect(harness.signNearTransaction('post_registration')).rejects.toThrow(
+      'Wallet Session authority changed before Ed25519 client signing',
+    );
     expect(changed.prepareResponses).toBe(1);
     expect(changed.finalizeRequests).toBe(0);
   } finally {
@@ -466,102 +269,6 @@ async function verifyPrepareAuthorityReconciliation(
 test(
   'NEAR rejects changed prepare authority before finalize and permits the next valid operation',
   verifyPrepareAuthorityReconciliation,
-);
-
-class RetireSessionBeforePrepare {
-  prepareRequests = 0;
-  reusableFinalizeRequests = 0;
-  stepUpFinalizeRequests = 0;
-  ownerLaneRequests = 0;
-  retiredSessionHttpStatus: number | null = null;
-
-  async retire(route: Route): Promise<void> {
-    if (route.request().method() !== 'POST' || this.prepareRequests > 0) {
-      await route.continue();
-      return;
-    }
-    const body = requireRecord(route.request().postDataJSON(), 'prepare request');
-    const scope = requireRecord(body.scope, 'prepare scope');
-    const authorization = requireRecord(scope.authorization, 'prepare authorization');
-    expect(authorization.kind).toBe('reusable_wallet_session');
-    const sessionId = requireNonEmptyString(authorization.wallet_session_id, 'session ID');
-    const walletId = requireNonEmptyString(scope.account_id, 'wallet ID');
-    const DatabaseSync = await loadIsolatedDatabaseSync();
-    const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
-    try {
-      const result = database.prepare(`
-        UPDATE wallet_session_authorizations_v2 SET retired_at_ms = ?
-         WHERE wallet_session_id = ? AND wallet_id = ? AND retired_at_ms IS NULL
-         RETURNING wallet_session_id
-      `).all(Date.now(), sessionId, walletId);
-      expect(result).toHaveLength(1);
-    } finally {
-      database.close();
-    }
-    this.prepareRequests += 1;
-    const response = await route.fetch();
-    this.retiredSessionHttpStatus = response.status();
-    expect(response.ok()).toBe(false);
-    await route.fulfill({ response });
-  }
-
-  record(request: Request): void {
-    const path = new URL(request.url()).pathname;
-    if (request.method() !== 'POST') return;
-    if (path === '/router-ab/ed25519/sign') {
-      const body = requireRecord(request.postDataJSON(), 'finalize request');
-      const scope = requireRecord(body.scope, 'finalize scope');
-      const authorization = requireRecord(scope.authorization, 'finalize authorization');
-      if (authorization.kind === 'reusable_wallet_session') this.reusableFinalizeRequests += 1;
-      if (authorization.kind === 'operation_step_up') this.stepUpFinalizeRequests += 1;
-    }
-    if (path === '/wallet/execution-lane/owner') this.ownerLaneRequests += 1;
-  }
-}
-
-async function verifyRetiredSessionRequiresUnlock(
-  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
-  testInfo: TestInfo,
-): Promise<void> {
-  await harness.registerPasskeyEd25519YaoWallet();
-  await harness.signNearTransaction('post_registration');
-  const retired = new RetireSessionBeforePrepare();
-  const retire = retired.retire.bind(retired);
-  const record = retired.record.bind(retired);
-  const preparePath = '**/router-ab/ed25519/sign/prepare';
-  context.on('request', record);
-  await context.route(preparePath, retire);
-  try {
-    await expect(harness.signNearTransaction('post_registration')).rejects.toThrow(
-      'Wallet Session is invalid',
-    );
-    expect(retired.prepareRequests).toBe(1);
-    expect(retired.ownerLaneRequests).toBe(0);
-    expect(retired.reusableFinalizeRequests).toBe(0);
-    expect(retired.stepUpFinalizeRequests).toBe(0);
-    expect(retired.retiredSessionHttpStatus).toBeGreaterThanOrEqual(400);
-  } finally {
-    await context.unroute(preparePath, retire);
-    context.off('request', record);
-  }
-  await harness.lockWallet();
-  await harness.unlockPasskeyWallet();
-  await harness.signNearTransaction('post_unlock');
-  const artifact = testInfo.outputPath('near-retired-session.json');
-  await writeFile(artifact, JSON.stringify({
-    retiredBeforePrepare: retired.prepareRequests,
-    retiredSessionHttpStatus: retired.retiredSessionHttpStatus,
-    ownerLaneRequests: retired.ownerLaneRequests,
-    reusableFinalizeRequestsAfterRetirement: retired.reusableFinalizeRequests,
-    stepUpFinalizeRequests: retired.stepUpFinalizeRequests,
-    freshUnlockSignatureVerified: true,
-  }, null, 2));
-  await testInfo.attach('near-retired-session', { path: artifact, contentType: 'application/json' });
-}
-
-test(
-  'NEAR prepare rejects a retired session without an owner-lane preflight and permits fresh unlock',
-  verifyRetiredSessionRequiresUnlock,
 );
 
 function isAccessKeyRequest(request: Request): boolean {

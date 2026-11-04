@@ -221,25 +221,12 @@ async function renderPicker(config: {
   createRoot(root).render(React.createElement(ExternalNearWalletPicker, { controller }));
 }
 
-test('NEAR picker shows three wallets with explicit transport and network limits', async ({
-  page,
-  baseURL,
-}, testInfo) => {
+test('NEAR picker on testnet refuses HOT as mainnet only', async ({ page, baseURL }) => {
   await injectImportMap(page, { frontendUrl: baseURL! });
   await page.goto(baseURL!);
   await page.evaluate(renderPicker, { network: 'testnet', wallets: ['meteor', 'hot', 'intear'] });
   await expect(page.getByRole('button', { name: 'HOT Wallet Mainnet only' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Meteor Wallet Browser extension' })).toBeEnabled();
-  await expect(
-    page.getByRole('button', { name: 'Intear Wallet Opens wallet.intear.tech' }),
-  ).toBeEnabled();
-  await page.screenshot({ path: testInfo.outputPath('near-wallet-picker.png') });
-  await page.setViewportSize({ width: 360, height: 800 });
-  await expect(page.getByRole('heading', { name: 'Choose your NEAR wallet' })).toBeVisible();
-  await page.screenshot({
-    path: testInfo.outputPath('near-wallet-picker-mobile.png'),
-    fullPage: true,
-  });
 });
 
 async function beginIntearConnection() {

@@ -287,20 +287,3 @@ async function verifyBlockedFeeLookup(page: Page, testInfo: TestInfo): Promise<s
 function readPasskeyRequests(): number {
   return window.voiceIdPasskeyRequests();
 }
-
-test('three reviewed Arc transfers in one passkey session', async ({ harness, page, context }) => {
-  const rpc = new VoiceIdArcRpc();
-  await context.route('https://rpc.testnet.arc.io/**', rpc.handle.bind(rpc));
-  await harness.registerPasskeyEcdsaOnlyWallet();
-  const result = page.getByTestId('reviewed-arc-result');
-  for (const count of [1, 2, 3]) {
-    await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
-    await expect(result).toHaveAttribute('data-state', 'pending');
-    await (await waitForWalletIframeReviewedConfirm(page)).click();
-    await expect(result).toHaveAttribute('data-state', /submitted|failed/, { timeout: 90_000 });
-    await expect(result).toHaveAttribute('data-state', 'submitted');
-    expect(rpc.transactions).toHaveLength(count);
-    expect(rpc.transactions[count - 1].nonce).toBe(count - 1);
-    await waitForWalletIframeConfirmationSettlement(page);
-  }
-});

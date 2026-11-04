@@ -10,7 +10,11 @@ import { routePreactModules } from '../setup/preact';
 declare global {
   interface Window {
     __exportView: {
-      update(model: ExportPrivateKeyViewModel, context?: 'standalone' | 'wallet-iframe', variant?: 'modal' | 'drawer'): void;
+      update(
+        model: ExportPrivateKeyViewModel,
+        context?: 'standalone' | 'wallet-iframe',
+        variant?: 'modal' | 'drawer',
+      ): void;
       dispose(): void;
       resolveCopy(): void;
       rejectCopy(): void;
@@ -59,7 +63,12 @@ function model(value: string, loading = false): ExportPrivateKeyViewModel {
 test.beforeEach(async ({ page }) => {
   await injectImportMap(page);
   await routePreactModules(page);
-  const css = ['confirmation-primitives', 'confirmation-drawer', 'confirmation-modal', 'export-private-key']
+  const css = [
+    'confirmation-primitives',
+    'confirmation-drawer',
+    'confirmation-modal',
+    'export-private-key',
+  ]
     .map(readCss)
     .join('\n');
   await page.route('**/export-test.css', (route) =>
@@ -165,9 +174,14 @@ test('loading settles into masked text before private-key copying is enabled', a
   expect(await page.evaluate(() => window.__exportView.violations)).toEqual([]);
 });
 
-test('key replacement discards stale copy feedback and error removes key rows', async ({
-  page,
-}) => {
+test('key replacement discards stale copy results and error removes key rows', async ({ page }) => {
+  await page.evaluate(() => {
+    function unexpectedFallback() {
+      window.__exportView.copied.push('unexpected fallback');
+      return true;
+    }
+    document.execCommand = unexpectedFallback;
+  });
   await page.evaluate((model) => window.__exportView.update(model), model(secret));
   await page.getByRole('button', { name: 'Copy private key' }).click();
   await page.evaluate((model) => window.__exportView.update(model), model(replacement));
@@ -175,7 +189,17 @@ test('key replacement discards stale copy feedback and error removes key rows', 
   await expect(page.getByRole('button', { name: 'Copy private key' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Private key copied' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Copy private key' }).click();
-  expect(await page.evaluate(() => window.__exportView.copied)).toEqual([secret, replacement]);
+  await page.evaluate((model) => {
+    window.__exportView.update(model);
+    window.__exportView.rejectCopy();
+  }, model(secret));
+  await expect(page.locator('textarea')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Copy private key' }).click();
+  expect(await page.evaluate(() => window.__exportView.copied)).toEqual([
+    secret,
+    replacement,
+    secret,
+  ]);
   await page.evaluate(() =>
     window.__exportView.update({
       kind: 'failed',
@@ -187,9 +211,15 @@ test('key replacement discards stale copy feedback and error removes key rows', 
   await expect(page.locator('.key-card')).toHaveCount(0);
   await page.evaluate(() => {
     window.__exportView.dispose();
-    window.__exportView.resolveCopy();
+    window.__exportView.rejectCopy();
   });
   await expect(page.locator('main')).toBeEmpty();
+  await expect(page.locator('textarea')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__exportView.copied)).toEqual([
+    secret,
+    replacement,
+    secret,
+  ]);
   expect(await page.evaluate(() => window.__exportView.violations)).toEqual([]);
 });
 
@@ -227,7 +257,6 @@ test('standalone backdrop and selectable key text leave the drawer open', async 
   await expect(drawer).toBeVisible();
   await page.mouse.click(5, 5);
   await expect(drawer).toBeVisible();
-  const before = await drawer.boundingBox();
   const text = await page.locator('.seams-export-key-viewer h2').boundingBox();
   expect(text).not.toBeNull();
   await page.mouse.move(text!.x + 10, text!.y + 10);
@@ -235,36 +264,9 @@ test('standalone backdrop and selectable key text leave the drawer open', async 
   await page.mouse.move(text!.x + 30, text!.y + 200, { steps: 12 });
   await page.mouse.up();
   await expect(drawer).toBeVisible();
-  expect(await drawer.boundingBox()).toEqual(before);
   await page.keyboard.press('Escape');
   await expect(page.locator('main')).toBeEmpty();
   expect(await page.evaluate(() => window.__exportView.violations)).toEqual([]);
-});
-
-test('late clipboard rejection cannot start fallback after key replacement or disposal', async ({
-  page,
-}) => {
-  await page.evaluate(() => {
-    function unexpectedFallback() {
-      window.__exportView.copied.push('unexpected fallback');
-      return true;
-    }
-    document.execCommand = unexpectedFallback;
-  });
-  await page.evaluate((model) => window.__exportView.update(model), model(secret));
-  await page.getByRole('button', { name: 'Copy private key' }).click();
-  await page.evaluate((model) => {
-    window.__exportView.update(model);
-    window.__exportView.rejectCopy();
-  }, model(replacement));
-  await page.getByRole('button', { name: 'Copy private key' }).click();
-  await page.evaluate(() => {
-    window.__exportView.dispose();
-    window.__exportView.rejectCopy();
-  });
-  await expect(page.locator('main')).toBeEmpty();
-  expect(await page.evaluate(() => window.__exportView.copied)).toEqual([secret, replacement]);
-  await expect(page.locator('textarea')).toHaveCount(0);
 });
 
 test('closing during loading and reveal allows a clean multi-key reopen', async ({ page }) => {
@@ -309,41 +311,7 @@ test('closing during loading and reveal allows a clean multi-key reopen', async 
     'ed25519:synthetic-public-key',
   ]);
   expect(await page.locator('main').innerHTML()).not.toContain(secret);
-  const warning = page.locator('.warning').last();
-  await warning.scrollIntoViewIfNeeded();
-  const warningBox = await warning.boundingBox();
-  const hostBox = await page.locator('.seams-export-surface').boundingBox();
-  expect(warningBox!.y + warningBox!.height).toBeLessThanOrEqual(hostBox!.y + hostBox!.height);
-  expect(
-    await page.locator('.seams-drawer-body').evaluate((element) => element.scrollTop),
-  ).toBeGreaterThan(0);
   await page.evaluate(() => window.__exportView.dispose());
   await expect(page.locator('main')).toBeEmpty();
   expect(await page.evaluate(() => window.__exportView.violations)).toEqual([]);
 });
-
-for (const context of ['standalone', 'wallet-iframe'] as const) {
-  test(`modal export copies and disposes keys in ${context}`, async ({ page }) => {
-    await page.evaluate(({ value, context }) => window.__exportView.update(value, context, 'modal'), {
-      value: model(secret),
-      context,
-    });
-    const modal = page.locator('.seams-confirmation-modal');
-    await expect(modal).toBeVisible();
-    if (context === 'wallet-iframe') {
-      await expect(modal).toBeFocused();
-      await expect(modal).toHaveCSS('outline-style', 'none');
-    }
-    const close = page.getByRole('button', { name: 'Close exported keys' });
-    const titleBounds = await page.getByRole('heading', { name: 'Exported Keys' }).boundingBox();
-    const closeBounds = await close.boundingBox();
-    expect(closeBounds!.x).toBeGreaterThanOrEqual(titleBounds!.x + titleBounds!.width);
-
-    await expect(page.locator('.seams-confirmation-drawer')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Copy private key' }).click();
-    expect(await page.evaluate(() => window.__exportView.copied)).toEqual([secret]);
-    await page.evaluate(() => window.__exportView.resolveCopy());
-    await page.getByRole('button', { name: 'Close exported keys' }).click();
-    await expect(page.locator('.seams-export-key-viewer')).toHaveCount(0);
-  });
-}

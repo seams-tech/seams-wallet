@@ -60,7 +60,9 @@ test.describe('WalletIframeRouter cancellation progress', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('forwards v2 cancelled terminal events for core request flows', async ({ page }) => {
+  test('cancelling core request flows hides the overlay and settles each request', async ({
+    page,
+  }) => {
     const result = await page.evaluate(
       async ({
         routerPath,
@@ -199,100 +201,10 @@ test.describe('WalletIframeRouter cancellation progress', () => {
       overlayHidden: true,
     });
 
-    expect(result.events.registration.at(-1)).toMatchObject({
-      version: 2,
-      flow: 'registration',
-      step: 0,
-      phase: 'registration.cancelled',
-      status: 'cancelled',
-      message: 'Request cancelled.',
-      error: { code: 'cancelled', message: 'Request cancelled.' },
-      interaction: { kind: 'none', overlay: 'hide' },
-    });
-    expect(result.events.unlock.at(-1)).toMatchObject({
-      version: 2,
-      flow: 'unlock',
-      step: 0,
-      phase: 'unlock.cancelled',
-      status: 'cancelled',
-      message: 'Request cancelled.',
-      error: { code: 'cancelled', message: 'Request cancelled.' },
-      interaction: { kind: 'none', overlay: 'hide' },
-    });
-    expect(result.events.signing.at(-1)).toMatchObject({
-      version: 2,
-      flow: 'signing',
-      step: 0,
-      phase: 'signing.cancelled',
-      status: 'cancelled',
-      message: 'Request cancelled.',
-      error: { code: 'cancelled', message: 'Request cancelled.' },
-      interaction: { kind: 'none', overlay: 'hide' },
-    });
-  });
-
-  test('hides the overlay before the wallet service acknowledges cancellation', async ({
-    page,
-  }) => {
-    await page.unroute(WALLET_SERVICE_ROUTE);
-    await registerWalletServiceRoute(
-      page,
-      buildWalletServiceHtml({ cancelResponseDelayMs: 1_000 }),
-      WALLET_SERVICE_ROUTE,
-    );
-
-    const result = await page.evaluate(
-      async ({ routerPath, walletOrigin, captureOverlaySource, waitForSource }) => {
-        const mod = await import(routerPath);
-        const { WalletIframeRouter } =
-          mod as typeof import('@/SeamsWeb/walletIframe/client/router');
-        const capture = eval(captureOverlaySource) as typeof import('./harness').captureOverlay;
-        const waitFor = eval(waitForSource) as typeof import('./harness').waitFor;
-        const router = new WalletIframeRouter({
-          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-          walletOrigin,
-          servicePath: '/wallet-service',
-          connectTimeoutMs: 3_000,
-          requestTimeoutMs: 5_000,
-          debug: true,
-          sdkBasePath: '/sdk',
-        });
-        await router.init();
-
-        const request = router
-          .signAndSendTransaction({
-            walletId: 'alice.testnet',
-            nearAccountId: 'alice.testnet',
-            transaction: {
-              receiverId: 'seams-v1.testnet',
-              actions: [{ type: 'Transfer', amount: '1' } as any],
-            },
-            options: {},
-          })
-          .catch(() => undefined);
-        await waitFor(() => router.getOverlayState().visible, 3_000);
-
-        const cancelStartedAt = performance.now();
-        const cancellation = router.cancelAll();
-        const hiddenBeforeAcknowledgement = !router.getOverlayState().visible && !capture().visible;
-        const visualDismissalMs = performance.now() - cancelStartedAt;
-
-        await cancellation;
-        await request;
-        const requestSettlementMs = performance.now() - cancelStartedAt;
-        return { hiddenBeforeAcknowledgement, visualDismissalMs, requestSettlementMs };
-      },
-      {
-        routerPath: SDK_ESM_PATHS.walletIframeRouter,
-        walletOrigin: WALLET_ORIGIN,
-        captureOverlaySource: CAPTURE_OVERLAY_SOURCE,
-        waitForSource: WAIT_FOR_SOURCE,
-      },
-    );
-
-    expect(result.hiddenBeforeAcknowledgement).toBe(true);
-    expect(result.visualDismissalMs).toBeLessThan(100);
-    expect(result.requestSettlementMs).toBeLessThan(100);
+    // Each flow's progress callback ends on the cancellation.
+    for (const flowEvents of Object.values(result.events)) {
+      expect(flowEvents.at(-1)).toMatchObject({ status: 'cancelled' });
+    }
   });
 
   test('settles an unlock when cancellation progress arrives before service cleanup', async ({

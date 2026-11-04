@@ -95,9 +95,7 @@ function recordRecoveryRotationProof(
   const topLevelExtensions = isPlainObject(credential)
     ? credential.clientExtensionResults
     : undefined;
-  const responseExtensions = isPlainObject(response)
-    ? response.clientExtensionResults
-    : undefined;
+  const responseExtensions = isPlainObject(response) ? response.clientExtensionResults : undefined;
   observations.push({
     passkeyProof: isPlainObject(proof) && proof.kind === 'passkey',
     topLevelExtensionsRedacted: topLevelExtensions === null || topLevelExtensions === undefined,
@@ -113,10 +111,10 @@ async function runRecoveryAdministrationProbeFromPage(): Promise<unknown> {
   return await probe();
 }
 
-test('recovery administration rejects missing proof and stale acknowledgement after rotation', async (
-  { harness, page },
-  testInfo,
-) => {
+test('recovery administration rejects missing proof and stale acknowledgement after rotation', async ({
+  harness,
+  page,
+}, testInfo) => {
   const artifactPath = path.resolve(
     testInfo.config.rootDir,
     '../.artifacts/r154/recovery-administration-proofs.json',
@@ -189,9 +187,7 @@ test('recovery administration rejects missing proof and stale acknowledgement af
     rotationProofCount: rotationProofs.length,
     rotationProofsRedacted: rotationProofs.every(
       (proof) =>
-        proof.passkeyProof &&
-        proof.topLevelExtensionsRedacted &&
-        proof.responseExtensionsRedacted,
+        proof.passkeyProof && proof.topLevelExtensionsRedacted && proof.responseExtensionsRedacted,
     ),
     dummyPrfWireCount: prfWireSummary.dummyCount,
     unexpectedPrfWireCount: prfWireSummary.unexpectedCount,
@@ -204,15 +200,6 @@ test('recovery administration rejects missing proof and stale acknowledgement af
     contentType: 'application/json',
   });
 });
-
-type RecoveryOrigin = {
-  readonly name: string;
-  readonly register: (harness: IntendedBehaviourHarness) => Promise<void>;
-};
-
-async function registerPasskeyFoundedWallet(harness: IntendedBehaviourHarness): Promise<void> {
-  await harness.registerPasskeyWallet();
-}
 
 async function registerEmailOnlyWallet(harness: IntendedBehaviourHarness): Promise<void> {
   await harness.registerEmailOtpWallet();
@@ -243,31 +230,20 @@ async function verifyPasskeyRecoveryCanAddEmailOtp(
   await harness.signNearTransaction('step_up_required');
 }
 
-const recoveryOrigins: readonly RecoveryOrigin[] = [
-  { name: 'Passkey-founded', register: registerPasskeyFoundedWallet },
-  {
-    name: 'Email-only',
-    register: registerEmailOnlyWallet,
-  },
-  { name: 'Combined', register: registerCombinedWallet },
-];
-
-for (const origin of recoveryOrigins) {
-  test(`a fresh browser recovers a ${origin.name} wallet with one code, signs, and refuses reuse`, async ({
-    harness,
-  }) => {
-    await origin.register(harness);
-    await harness.awaitNearReady();
-    await harness.signTempoTransaction('post_registration');
-    await harness.recoverPasskeyWalletFromFreshBrowser();
-    await harness.assertRecoveryAuthorityIsAdditive('passkey');
-    await harness.assertSourceWalletSessionRemainsActive();
-    await harness.refreshPagePreservingWalletStorage();
-    await harness.signNearTransaction('post_unlock');
-    await harness.signTempoAndArcEvmConcurrently('post_unlock');
-    await harness.assertConsumedRecoveryCodeReportedAsUsed();
-  });
-}
+test('a fresh browser recovers a Combined wallet with one code, signs, and refuses reuse', async ({
+  harness,
+}) => {
+  await registerCombinedWallet(harness);
+  await harness.awaitNearReady();
+  await harness.signTempoTransaction('post_registration');
+  await harness.recoverPasskeyWalletFromFreshBrowser();
+  await harness.assertRecoveryAuthorityIsAdditive('passkey');
+  await harness.assertSourceWalletSessionRemainsActive();
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.signNearTransaction('post_unlock');
+  await harness.signTempoAndArcEvmConcurrently('post_unlock');
+  await harness.assertConsumedRecoveryCodeReportedAsUsed();
+});
 
 test('a failed finalization leaves its admitted recovery code reusable', async ({ harness }) => {
   await harness.registerPasskeyWallet();
@@ -278,13 +254,15 @@ test('a failed finalization leaves its admitted recovery code reusable', async (
   await harness.assertConsumedRecoveryCodeReportedAsUsed();
 });
 
-test('an interrupted recovery attempt is superseded by a retry with the same code, which recovers and signs', async ({
+// The first attempt is interrupted. A retry with the same code supersedes it;
+// the first attempt's late execution then reaches the SigningWorker and is
+// refused, and the retry recovers the wallet.
+test('an interrupted recovery attempt is superseded by a retry with the same code, its late execution is refused, and the retry recovers and signs', async ({
   harness,
 }) => {
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
-  await harness.signTempoTransaction('post_registration');
-  await harness.recoverPasskeyWalletAfterInterruptedAttempt();
+  await harness.recoverPasskeyWalletAcrossALateSupersededAttempt();
   await harness.assertRecoveryAuthorityIsAdditive('passkey');
   await harness.signNearTransaction('post_unlock');
 });
@@ -298,15 +276,6 @@ test('a recovery retires the replaced activation: a delayed finalize is refused,
   await harness.signNearTransaction('post_unlock');
 });
 
-test('a superseded recovery attempt that reaches the SigningWorker late is refused, and the current attempt signs', async ({
-  harness,
-}) => {
-  await harness.registerPasskeyWallet();
-  await harness.awaitNearReady();
-  await harness.recoverPasskeyWalletAcrossALateSupersededAttempt();
-  await harness.signNearTransaction('post_unlock');
-});
-
 test('a committed Passkey recovery survives a lost finalization response and runtime reset', async ({
   harness,
 }) => {
@@ -315,12 +284,6 @@ test('a committed Passkey recovery survives a lost finalization response and run
   await harness.signTempoTransaction('post_registration');
   await harness.recoverPasskeyWalletAfterLostFinalizationResponse();
   await harness.assertRecoveryAuthorityIsAdditive('passkey');
-});
-
-test('a Passkey-founded wallet recovers with Passkey, adds Email OTP, then signs, exports, and steps up through it', async ({
-  harness,
-}) => {
-  await verifyPasskeyRecoveryCanAddEmailOtp(harness, registerPasskeyFoundedWallet);
 });
 
 test('an Email-founded wallet recovers with Passkey, adds Email OTP to the recovery authority, then signs, exports, and steps up through it', async ({

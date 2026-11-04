@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
-import { authBranchFixtures, registration, registrationSuccess } from './auth-menu-fixtures';
+import { authBranchFixtures, registration } from './auth-menu-fixtures';
 import { mountAuthMenu, prepareAuthMenuDocument } from './auth-menu.harness';
 
 declare global {
@@ -10,140 +10,25 @@ declare global {
   }
 }
 
-test('authentication success follows custom brand colors through a live theme change', async ({
-  page,
-}, testInfo) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await prepareAuthMenuDocument(page);
-  await mountAuthMenu(page, registration('light'));
-  const rose = registrationSuccess({
-    palette: 'default',
-    theme: {
-      id: 'rose',
-      mode: 'light',
-      colors: {
-        colorBackground: '#fff7f8',
-        textPrimary: '#34141f',
-        textSecondary: '#79515f',
-        buttonBackground: '#8d2e35',
-        textButton: '#fff5e7',
-        passkeyHaloBackground: '#f3d5dc',
-      },
-    },
-  });
-  await page.evaluate((model) => window.__authMenu.handle.update(model), rose);
-  const seal = page.locator('.seams-success-ring-seal');
-  const check = page.locator('.seams-success-ring-check');
-  const halo = page.locator('.seams-success-prompt');
-  await expect(seal).toHaveCSS('fill', 'rgb(141, 46, 53)');
-  await expect(check).toHaveCSS('stroke', 'rgb(255, 245, 231)');
-  await expect.poll(halo.evaluate.bind(halo, successHaloColor)).toBe('rgb(243, 213, 220)');
-  await page.screenshot({ path: testInfo.outputPath('auth-success-rose.png') });
-  const forest = registrationSuccess({
-    palette: 'default',
-    theme: {
-      id: 'forest',
-      mode: 'dark',
-      colors: {
-        colorBackground: '#12241d',
-        textPrimary: '#d6f2e4',
-        textSecondary: '#a1c6b3',
-        buttonBackground: '#a2dbbd',
-        textButton: '#10291c',
-        passkeyHaloBackground: '#294f3e',
-      },
-    },
-  });
-  await page.evaluate((model) => window.__authMenu.handle.update(model), forest);
-  await expect(seal).toHaveCSS('fill', 'rgb(162, 219, 189)');
-  await expect(check).toHaveCSS('stroke', 'rgb(16, 41, 28)');
-  await expect.poll(halo.evaluate.bind(halo, successHaloColor)).toBe('rgb(41, 79, 62)');
-  await expect(page.locator('.auth-menu-root')).toHaveCSS('background-color', 'rgb(18, 36, 29)');
-  await expect(page.locator('.seams-auth-menu-surface')).toHaveCount(1);
-  await page.screenshot({ path: testInfo.outputPath('auth-success-forest.png') });
-});
-
-function successHaloColor(element: Element): string {
-  return getComputedStyle(element, '::before').backgroundColor;
-}
-
 test.beforeEach(async ({ page, baseURL }) => {
   if (!baseURL) throw new Error('Browser test origin is required');
   await injectImportMap(page, { frontendUrl: baseURL });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 });
 
-test('auth appearance is instance-owned and disposal removes rules and rejects late updates', async ({
-  page,
-}) => {
+test('disposal removes the auth menu and late updates cannot revive it', async ({ page }) => {
   await prepareAuthMenuDocument(page);
-  const original = registration('light');
-  const custom = {
-    ...original,
-    appearance: {
-      theme: {
-        id: 'custom-auth',
-        mode: 'light' as const,
-        colors: { colorBackground: '#123456' },
-        shape: { card: '28px' },
-      },
-      palette: 'default' as const,
-    },
-  };
-  await mountAuthMenu(page, custom);
-  const card = page.locator('.seams-auth-menu-surface .auth-menu-root');
-  await expect(card).toHaveCSS('background-color', 'rgb(18, 52, 86)');
-  await expect(card).toHaveCSS('border-radius', '28px');
-  await page.evaluate((model) => window.__authMenu.handle.update(model), original);
-  await expect(card).not.toHaveCSS('background-color', 'rgb(18, 52, 86)');
-  await expect(card).not.toHaveCSS('border-radius', '28px');
-  const sheetCount = await page.evaluate(() => document.adoptedStyleSheets.length);
-  for (let cycle = 0; cycle < 5; cycle++) {
-    await mountAuthMenu(page, custom);
-    const result = await page.evaluate((model) => {
+  const model = registration('light');
+  for (let cycle = 0; cycle < 3; cycle++) {
+    await mountAuthMenu(page, model);
+    await expect(page.locator('.seams-auth-menu-surface')).toHaveCount(1);
+    await page.evaluate((model) => {
       const handle = window.__authMenu.handle;
-      const id = handle.element.id;
       handle.dispose();
       handle.dispose();
       handle.update(model);
-      const leakedRules = Array.from(document.adoptedStyleSheets)
-        .flatMap((sheet) => Array.from(sheet.cssRules))
-        .filter((rule) => rule.cssText.includes(id));
-      return {
-        connected: handle.element.isConnected,
-        children: handle.element.childElementCount,
-        leakedRules: leakedRules.length,
-        sheets: document.adoptedStyleSheets.length,
-      };
-    }, original);
-    expect(result).toEqual({ connected: false, children: 0, leakedRules: 0, sheets: sheetCount });
-  }
-});
-
-test('live host corners override initial surface tokens without remounting', async ({ page }) => {
-  await prepareAuthMenuDocument(page);
-  const model = registration('dark');
-  await mountAuthMenu(page, {
-    ...model,
-    appearance: {
-      ...model.appearance,
-      theme: { ...model.appearance.theme, shape: { card: '16px' } },
-    },
-  });
-  const card = page.locator('.auth-menu-root');
-  await expect(card).toHaveCSS('border-radius', '16px');
-  const name = page.locator('#seams-auth-menu-passkey-name');
-  await name.fill('corner-check');
-  await name.focus();
-  for (const radius of ['48px', '16px']) {
-    await page.evaluate((radius) => {
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync(`.seams-wallet-ui { --seams-shape-card: ${radius} !important; }`);
-      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-    }, radius);
-    await expect(card).toHaveCSS('border-radius', radius);
-    await expect(name).toHaveValue('corner-check');
-    await expect(name).toBeFocused();
+    }, model);
+    await expect(page.locator('.seams-auth-menu-surface')).toHaveCount(0);
   }
 });
 

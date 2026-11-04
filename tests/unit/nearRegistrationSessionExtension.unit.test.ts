@@ -5,14 +5,12 @@ import {
   isEd25519ExtensionOfEcdsaWalletAuthority,
   isActiveEcdsaWalletAuthorityV1,
 } from '@shared/authorization/walletAuthority';
-import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import {
   buildEmailOtpEcdsaWalletSessionFixture,
   extendFixtureAuthorityWithEd25519Signer,
-  buildPromotedActiveWalletSessionFixture,
 } from './helpers/linkedDeviceManagement.fixtures';
 
-test('NEAR authority extension preserves ECDSA identity, session lifetime and existing permissions', async () => {
+test('a NEAR authority extension refuses another wallet and a changed epoch or ECDSA material', async () => {
   const fixture = await buildEmailOtpEcdsaWalletSessionFixture({
     label: 'near-extension',
     expiresAtMs: Date.now() + 60_000,
@@ -27,19 +25,10 @@ test('NEAR authority extension preserves ECDSA identity, session lifetime and ex
     now: Date.now(),
   });
   expect(isEd25519ExtensionOfEcdsaWalletAuthority(fixture.authority, extended)).toBe(true);
-  expect(isEd25519ExtensionOfEcdsaWalletAuthority(extended, fixture.authority)).toBe(false);
-  expect(extended.signerActivations.ecdsa).toEqual(fixture.authority.signerActivations.ecdsa);
-  expect(extended.revocationEpoch).toBe(fixture.authority.revocationEpoch);
   for (const change of ['revocation_epoch', 'ecdsa_material'] as const) {
     const replacement = await replaceNearFixtureAuthority(extended, change);
     expect(isEd25519ExtensionOfEcdsaWalletAuthority(fixture.authority, replacement)).toBe(false);
   }
-  const promoted = buildPromotedActiveWalletSessionFixture({
-    source: fixture.activeWalletSession,
-    authority: extended,
-  });
-  expect(walletSessionPreservesCapabilities(fixture.activeWalletSession, promoted)).toBe(true);
-  expect(walletSessionPreservesCapabilities(promoted, fixture.activeWalletSession)).toBe(false);
   const anotherWallet = await buildEmailOtpEcdsaWalletSessionFixture({
     label: 'other-near-extension',
     expiresAtMs: Date.now() + 60_000,

@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { writeFile } from 'node:fs/promises';
-import { verifyNearSessionObservation } from './near-session-observation';
 import {
   expect,
   type BrowserContext,
@@ -16,11 +15,6 @@ import {
   type IntendedBehaviourHarness,
 } from './harness';
 
-test(
-  'NEAR registration publishes its session without a status request, keeps queries fresh, and respects lock',
-  verifyNearSessionObservation,
-);
-
 class NearRegistrationReplay {
   readonly requests: string[] = [];
   admissionReceiptDigest: string | null = null;
@@ -32,7 +26,7 @@ class NearRegistrationReplay {
   private finalizationCommit: unknown = null;
   signerPublicFacts: { nearAccountId: string; operationalPublicKey: string } | null = null;
 
-  constructor(private readonly delivery: 'primary' | 'replay' | 'failed_seal') {}
+  constructor(private readonly delivery: 'primary' | 'failed_seal') {}
 
   observe(request: Request): void {
     if (request.method() === 'POST') this.requests.push(new URL(request.url()).pathname);
@@ -229,9 +223,10 @@ async function verifyLostNearFinalization(
     page: Page;
   },
   testInfo: TestInfo,
-  delivery: 'replay' | 'failed_seal' = 'replay',
 ): Promise<void> {
-  const probe = new NearRegistrationReplay(delivery);
+  // The first finalization carries an invalid server seal and fails. The next
+  // one commits, and its reply is lost: the SDK receives only the exact replay.
+  const probe = new NearRegistrationReplay('failed_seal');
   const handle = probe.handle.bind(probe);
   const observe = probe.observe.bind(probe);
   const path = '**/wallets/register/near-provisioning';
@@ -240,6 +235,7 @@ async function verifyLostNearFinalization(
   try {
     await expect(harness.registerPasskeyEd25519YaoWallet()).rejects.toThrow('exact-method unlock');
     if (probe.finalizedWalletId === null) throw new Error('Finalization did not commit');
+    expect(probe.failedSeals).toBe(1);
     expect(probe.finalizationReplays).toBe(1);
     await page.goto(page.url());
     await page.getByLabel('Wallet to unlock', { exact: true }).fill(probe.finalizedWalletId);
@@ -289,28 +285,8 @@ async function verifyLostNearFinalization(
 }
 
 test(
-  'NEAR-only registration recovers a lost finalization credential after reload',
+  'NEAR-only registration survives a failed server seal and recovers a lost finalization credential after reload',
   verifyLostNearFinalization,
-);
-
-async function verifyFailedRegistrationSeal(
-  {
-    harness,
-    context,
-    page,
-  }: {
-    harness: IntendedBehaviourHarness;
-    context: BrowserContext;
-    page: Page;
-  },
-  testInfo: TestInfo,
-): Promise<void> {
-  await verifyLostNearFinalization({ harness, context, page }, testInfo, 'failed_seal');
-}
-
-test(
-  'NEAR registration survives a failed server seal and signs after exact-method unlock',
-  verifyFailedRegistrationSeal,
 );
 
 class FailedNearSignerWarmup {

@@ -198,10 +198,6 @@ const ROUTER_AB_ED25519_YAO_REGISTRATION_PATHS = [
 const LOCAL_INTENDED_YAO_FAULT_HEADER_V1 = 'x-seams-intended-yao-fault-v1';
 const LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-yao-fault-token-v1';
 const LOCAL_INTENDED_YAO_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-yao-fault-proof-v1';
-const LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1 = 'x-seams-intended-yao-finalize-fault-v1';
-const LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1 =
-  'x-seams-intended-yao-finalize-fault-token-v1';
-const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1 = '/wallets/register/near-provisioning';
 const LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1 = 'x-seams-intended-yao-recovery-fault-v1';
 const LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-recovery-fault-token-v1';
@@ -229,21 +225,13 @@ const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE = 'SigningWorker activation is r
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1 = 'x-seams-intended-yao-export-fault-v1';
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-export-fault-token-v1';
-/* The Gateway's side-effect journal lets a retry take an unfinished NEAR
-   finalize over only after this long. */
-const WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS = 30_000;
 const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'http://127.0.0.1:4100';
 
-type IntendedYaoFaultModeV1 =
-  | 'drop_router_response_once'
-  | 'return_terminal_burned_once'
-  | 'answer_retryable_while_running_once';
+type IntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
 
 type IntendedYaoFaultProofV1 =
   | 'exact_request_replayed'
   | 'terminal_failure_not_retried'
-  | 'execution_left_running'
-  | 'decision_committed_then_storage_lost'
   | 'recovery_replies_lost_after_router_executed'
   | 'recovery_execute_withheld'
   | 'export_authorization_committed_then_storage_lost'
@@ -1224,7 +1212,6 @@ export class IntendedBehaviourHarness {
 
   private readonly intendedYaoFaultProofs: string[] = [];
   /** Armed once: the next NEAR finalize loses the Gateway's storage after its decision. */
-  private intendedYaoFinalizeFaultToken: string | null = null;
   /** Armed once: the next recovery execution loses every Router reply, or is kept from it. */
   private intendedYaoRecoveryFault: {
     readonly mode: 'lose_router_recovery_replies' | 'withhold_router_recovery_execute';
@@ -1890,57 +1877,6 @@ export class IntendedBehaviourHarness {
     }
   }
 
-  /**
-   * A mixed passkey registration whose deferred NEAR finalize loses the
-   * Gateway's storage once, right after the batch that made the Ed25519
-   * signer visible committed the lifecycle's decision. NEAR is left
-   * retryable. Once the Gateway's journal lets a retry take the finalize
-   * over, unlocking retries it: the retry finds its own decision, commits
-   * nothing again, and completes.
-   */
-  async registerPasskeyWalletAcrossNearFinalizeStorageLoss(): Promise<void> {
-    this.recordStage('register_passkey_wallet_across_near_finalize_storage_loss');
-    if (this.config.passkeyEcdsaTargetProfile === 'none') {
-      throw new Error('A deferred NEAR finalize needs a mixed passkey registration');
-    }
-    if (this.intendedYaoFinalizeFaultToken !== null) {
-      throw new Error('An intended Yao finalize fault is already armed');
-    }
-    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
-    const proofStartIndex = this.intendedYaoFaultProofs.length;
-    const faultToken = randomUUID();
-    this.intendedYaoFinalizeFaultToken = faultToken;
-    const failedFinalize = this.page.waitForResponse(isNearProvisioningFinalizeResponse, {
-      timeout: 180_000,
-    });
-    let failedAtMs: number;
-    try {
-      await this.registerPasskeyWallet();
-      const failed = await failedFinalize;
-      expect(await failed.json()).toMatchObject({
-        ok: false,
-        nearProvisioning: { status: 'near_failed_retryable' },
-      });
-      failedAtMs = Date.now();
-    } finally {
-      this.intendedYaoFinalizeFaultToken = null;
-    }
-    this.assertIntendedYaoFaultProof(
-      proofStartIndex,
-      faultToken,
-      'decision_committed_then_storage_lost',
-    );
-    await this.page.waitForTimeout(
-      Math.max(
-        0,
-        failedAtMs + WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS + 1_000 - Date.now(),
-      ),
-    );
-    await this.unlockPasskeyWithPendingNear();
-    await this.awaitNearReady();
-    this.recordService('deferred NEAR finalize resumed from its decision after losing storage');
-  }
-
   async assertMixedNearTerminalFailureSurvivesUnlock(): Promise<void> {
     const proofStartIndex = this.intendedYaoFaultProofs.length;
     const faultToken = this.armIntendedYaoFault('return_terminal_burned_once');
@@ -1956,61 +1892,6 @@ export class IntendedBehaviourHarness {
     expect(await retained.json()).toMatchObject({ ok: false, code: 'execution_failed' });
     expect(retained.request().postData()).toBe(initial.request().postData());
     await this.signArcEvmTransaction('post_unlock');
-  }
-
-  /**
-   * Respond's execution fails recoverably while the Router still runs it, as
-   * on staging when Deriver A refused a preparation that arrived late. The
-   * page runs the execution through the execute route, meets the Router's
-   * held claim, and sends the exact request again until the Router answers.
-   */
-  async registerPasskeyEd25519YaoWalletWhileRespondExecutionRuns(): Promise<void> {
-    this.recordStage('register_passkey_ed25519_yao_wallet_while_respond_execution_runs');
-    const proofStartIndex = this.intendedYaoFaultProofs.length;
-    const faultToken = this.armIntendedYaoFault('answer_retryable_while_running_once');
-    const executeStatuses: number[] = [];
-    const recordExecute = (response: Response): void => {
-      if (isNearRegistrationExecutionResponse(response)) executeStatuses.push(response.status());
-    };
-    this.page.on('response', recordExecute);
-    try {
-      await this.registerPasskeyEd25519YaoWallet();
-      this.assertIntendedYaoFaultProof(proofStartIndex, faultToken, 'execution_left_running');
-      expect(executeStatuses[0]).toBe(409);
-      expect(executeStatuses.at(-1)).toBe(200);
-      this.recordService(
-        `the execute route waited out the held Router claim after ${executeStatuses.length - 1} refusals`,
-      );
-    } finally {
-      this.page.off('response', recordExecute);
-      this.intendedYaoFaultInjection = { kind: 'idle' };
-    }
-  }
-
-  async assertPasskeyEd25519YaoTerminalFailureWithoutRetry(): Promise<void> {
-    this.recordStage('assert_passkey_ed25519_yao_terminal_failure_without_retry');
-    const proofStartIndex = this.intendedYaoFaultProofs.length;
-    const faultToken = this.armIntendedYaoFault('return_terminal_burned_once');
-    try {
-      const snapshot = await this.runIntendedPageAction(
-        'registerPasskeyEd25519YaoWallet',
-        'intended-register-passkey-ed25519-yao',
-        { expectedOutcome: 'error' },
-      );
-      if (snapshot.action.status !== 'error') {
-        throw new Error('Terminal Ed25519 Yao registration unexpectedly succeeded');
-      }
-      if (!snapshot.action.error.includes('router_execution_burned')) {
-        throw new Error(
-          `Terminal Ed25519 Yao registration returned the wrong failure: ${snapshot.action.error}`,
-        );
-      }
-      this.passkeyPromptCount += 1;
-      this.assertIntendedYaoFaultProof(proofStartIndex, faultToken, 'terminal_failure_not_retried');
-      this.recordService('terminal Ed25519 Yao failure returned without a Router retry');
-    } finally {
-      this.intendedYaoFaultInjection = { kind: 'idle' };
-    }
   }
 
   async addPasskeyEd25519YaoWalletSigner(): Promise<void> {
@@ -2865,19 +2746,6 @@ export class IntendedBehaviourHarness {
   }
 
   /** Resolves once the trace holds a console message containing `fragment`. */
-  async waitForTraceConsoleMessage(fragment: string, timeoutMs = 30_000): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      if (
-        this.trace.some((entry) => entry.kind === 'console' && entry.message.includes(fragment))
-      ) {
-        return;
-      }
-      await this.page.waitForTimeout(10);
-    }
-    throw new Error(`The trace did not log ${fragment} within ${timeoutMs} ms`);
-  }
-
   /**
    * Holds every Wallet Session status answer until released. The Gateway
    * answers each request when it arrives; only the answer's delivery to the
@@ -2924,24 +2792,6 @@ export class IntendedBehaviourHarness {
       dispose: async () => {
         release();
         await this.context.unroute(`**${statusPath}`, handler);
-      },
-    };
-  }
-
-  /**
-   * Holds a read-write transaction on one of the wallet's IndexedDB stores, in
-   * the wallet's frame, until released. Every transaction made meanwhile that
-   * touches the store waits behind it, and they run in the order they were
-   * made.
-   */
-  async holdWalletIndexedDbStore(
-    storeName: string,
-  ): Promise<{ readonly release: () => Promise<void> }> {
-    const frame = await walletServiceFrame(this.page, this.config.walletOrigin);
-    await frame.evaluate(startHeldWalletStore, storeName);
-    return {
-      release: async () => {
-        await frame.evaluate(releaseHeldWalletStore);
       },
     };
   }
@@ -4438,10 +4288,6 @@ export class IntendedBehaviourHarness {
       this.handleIntendedYaoRespondFaultRoute.bind(this),
     );
     await this.context.route(
-      `**${WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1}`,
-      this.handleIntendedYaoFinalizeFaultRoute.bind(this),
-    );
-    await this.context.route(
       `**${ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1}`,
       this.handleIntendedYaoRecoveryFaultRoute.bind(this),
     );
@@ -4824,22 +4670,6 @@ export class IntendedBehaviourHarness {
         ...route.request().headers(),
         [LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1]: 'lose_storage_after_export_authorization_once',
         [LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1]: token,
-      },
-    });
-  }
-
-  private async handleIntendedYaoFinalizeFaultRoute(route: Route): Promise<void> {
-    const token = this.intendedYaoFinalizeFaultToken;
-    if (token === null || route.request().method() !== 'POST') {
-      await route.continue();
-      return;
-    }
-    this.intendedYaoFinalizeFaultToken = null;
-    await route.continue({
-      headers: {
-        ...route.request().headers(),
-        [LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1]: 'lose_storage_after_decision_once',
-        [LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1]: token,
       },
     });
   }
@@ -8797,79 +8627,10 @@ function changedRevokeRequestBody(body: string, change: 'operation' | 'proof'): 
   return JSON.stringify(request);
 }
 
-type HeldWalletStoreWindow = Window & {
-  __seamsHeldWalletStore?: { released: boolean; readonly done: Promise<void> };
-};
-
-/* Runs in the wallet's frame: keeps one read-write transaction on
-   `storeName` busy until releaseHeldWalletStore, and resolves once it holds
-   the store. */
-async function startHeldWalletStore(storeName: string): Promise<void> {
-  const names = (await indexedDB.databases()).map((database) => database.name ?? '');
-  const name = names.includes('seams_wallet')
-    ? 'seams_wallet'
-    : names.find((candidate) => candidate.startsWith('seams_test_wallet_'));
-  if (!name) throw new Error('The wallet IndexedDB is not open');
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(name);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  const transaction = db.transaction([storeName], 'readwrite');
-  const store = transaction.objectStore(storeName);
-  const state = {
-    released: false,
-    done: new Promise<void>((resolve) => {
-      transaction.oncomplete = () => {
-        db.close();
-        resolve();
-      };
-      transaction.onabort = () => {
-        db.close();
-        resolve();
-      };
-    }),
-  };
-  (window as HeldWalletStoreWindow).__seamsHeldWalletStore = state;
-  await new Promise<void>((resolve, reject) => {
-    let holding = false;
-    const keepBusy = (): void => {
-      if (state.released) return;
-      const request = store.count();
-      request.onsuccess = () => {
-        if (!holding) {
-          holding = true;
-          resolve();
-        }
-        keepBusy();
-      };
-      request.onerror = () => reject(request.error);
-    };
-    keepBusy();
-  });
-}
-
-/* Runs in the wallet's frame: lets the held transaction commit. */
-async function releaseHeldWalletStore(): Promise<void> {
-  const holder = window as HeldWalletStoreWindow;
-  const state = holder.__seamsHeldWalletStore;
-  if (!state) return;
-  state.released = true;
-  holder.__seamsHeldWalletStore = undefined;
-  await state.done;
-}
-
 function isNearRegistrationExecutionResponse(response: Response): boolean {
   return (
     response.request().method() === 'POST' &&
     new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1
-  );
-}
-
-function isNearProvisioningFinalizeResponse(response: Response): boolean {
-  return (
-    response.request().method() === 'POST' &&
-    new URL(response.url()).pathname === WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1
   );
 }
 

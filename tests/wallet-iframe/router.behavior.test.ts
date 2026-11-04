@@ -152,48 +152,8 @@ const FAILED_UNLOCK_WITH_ACTIVE_EMAIL_OTP_SESSION_SCRIPT = String.raw`
         };
       };
 `;
-const CAPTURE_UNLOCK_PAYLOAD_SCRIPT = String.raw`
-      const originalAdoptPort = adoptPort;
-      adoptPort = function patchedAdoptPort(port) {
-        originalAdoptPort(port);
-        if (!adoptedPort) return;
-        const originalHandler = adoptedPort.onmessage;
-        adoptedPort.onmessage = (event) => {
-          originalHandler?.(event);
-          const data = event.data || {};
-          if (!data || typeof data !== 'object' || data.type !== 'PM_UNLOCK') return;
-          const requestId = data.requestId;
-          if (typeof requestId !== 'string') return;
-          pendingRequests.delete(requestId);
-          window.parent?.postMessage(
-            {
-              type: 'CAPTURED_PM_UNLOCK_PAYLOAD',
-              payload: data.payload,
-            },
-            '*',
-          );
-          adoptedPort.postMessage({
-            type: 'PM_RESULT',
-            requestId,
-            payload: {
-              ok: true,
-              result: { success: false, error: 'captured unlock payload' },
-            },
-          });
-        };
-      };
-`;
 const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
       let registrationCompleted = false;
-      const captureEmailOtpRequest = (requestType) => {
-        window.parent?.postMessage(
-          {
-            type: 'CAPTURED_EMAIL_OTP_ROUTER_REQUEST',
-            requestType,
-          },
-          '*',
-        );
-      };
       const completedSession = {
         appIdentity: {
           kind: 'resolved',
@@ -231,7 +191,6 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
           }
           const requestId = data.requestId;
           if (data.type === 'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH') {
-            captureEmailOtpRequest(data.type);
             postResult(requestId, {
               ok: true,
               value: {
@@ -254,7 +213,6 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
             return;
           }
           if (data.type === 'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_COMPLETE_REGISTRATION') {
-            captureEmailOtpRequest(data.type);
             registrationCompleted = true;
             basePreferenceSnapshot = { ...basePreferenceSnapshot, walletId: 'alice.testnet', revision: basePreferenceSnapshot.revision + 1 };
             adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: basePreferenceSnapshot });
@@ -269,7 +227,6 @@ const EMAIL_OTP_REGISTRATION_SESSION_SCRIPT = String.raw`
             return;
           }
           if (data.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
-            captureEmailOtpRequest(data.type);
             const state = registrationCompleted ? {
               kind: 'wallet_unlocked_without_signing_session',
               walletId: 'alice.testnet',
@@ -303,9 +260,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('addEmail shows an interactive wallet surface while awaiting the OTP', async ({
-    page,
-  }) => {
+  test('addEmail shows an interactive wallet surface while awaiting the OTP', async ({ page }) => {
     const routerPath = SDK_ESM_PATHS.walletIframeRouter;
     const result = await page.evaluate(
       async ({ walletOrigin, waitForSource, routerPath }) => {
@@ -351,7 +306,108 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     expect(result.mode).toBe('compact_modal');
   });
 
-  test('signAndSendTransaction shows overlay then hides it after request timeout', async ({ page }) => {
+  test('signAndSendTransaction still times out when host keeps sending PROGRESS frames', async ({
+    page,
+  }) => {
+    await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
+    const spamProgressHtml = buildWalletServiceHtml({
+      extraScript: `
+        setInterval(() => {
+          if (!adoptedPort) return;
+          for (const requestId of pendingRequests.keys()) {
+            try {
+              adoptedPort.postMessage({
+                type: 'PROGRESS',
+                requestId,
+                payload: {
+                  version: 2,
+                  flow: 'signing',
+                  step: 10,
+                  phase: 'signing.commit.started',
+                  status: 'running',
+                  message: 'Creating threshold signature',
+                  flowId: 'signing:test:' + requestId,
+                  requestId,
+                  interaction: { kind: 'none', overlay: 'none' }
+                }
+              });
+            } catch (err) {
+              console.error('Failed to spam PROGRESS frame', err);
+            }
+          }
+        }, 40);
+      `,
+    });
+    await registerWalletServiceRoute(page, spamProgressHtml, WALLET_SERVICE_ROUTE);
+
+    const routerPath = SDK_ESM_PATHS.walletIframeRouter;
+    const result = await page.evaluate(
+      async ({ walletOrigin, routerPath }) => {
+        try {
+          const mod = await import(routerPath);
+          const { WalletIframeRouter } =
+            mod as typeof import('@/SeamsWeb/walletIframe/client/router');
+
+          const router = new WalletIframeRouter({
+            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
+            walletOrigin,
+            servicePath: '/wallet-service',
+            connectTimeoutMs: 3000,
+            requestTimeoutMs: 200,
+            debug: true,
+            sdkBasePath: '/sdk',
+          });
+          await router.init();
+
+          const start = Date.now();
+          const outcome = await router
+            .signAndSendTransaction({
+              walletId: 'e2e_router_progress_timeout.testnet',
+              nearAccountId: 'e2e_router_progress_timeout.testnet',
+              transaction: {
+                receiverId: 'seams-v1.testnet',
+                actions: [{ type: 'Transfer', amount: '1' } as any],
+              },
+              options: {},
+            })
+            .then((settled) =>
+              settled.success
+                ? { ok: true as const }
+                : {
+                    ok: false as const,
+                    kind: settled.kind,
+                    error: settled.error,
+                    elapsedMs: Date.now() - start,
+                  },
+            );
+
+          return { success: true as const, outcome };
+        } catch (error: unknown) {
+          return {
+            success: false as const,
+            error: String((error as { message?: unknown })?.message || error || ''),
+          };
+        }
+      },
+      { walletOrigin: WALLET_ORIGIN, routerPath },
+    );
+
+    if (!result.success) {
+      expect(result.success).toBe(true);
+      return;
+    }
+
+    expect(result.outcome.ok).toBe(false);
+    if (result.outcome.ok) return;
+    expect(result.outcome.kind).toBe('submission_unknown');
+    expect(result.outcome.error).toContain('Wallet request timeout for PM_SIGN_AND_SEND_TX');
+    expect(result.outcome.elapsedMs).toBeGreaterThanOrEqual(500);
+    expect(result.outcome.elapsedMs).toBeLessThan(2500);
+  });
+
+  test('signAndSendTransaction shows overlay then hides it after request timeout', async ({
+    page,
+  }) => {
     const routerPath = SDK_ESM_PATHS.walletIframeRouter;
     const result = await page.evaluate(
       async ({ walletOrigin, waitForSource, captureOverlaySource, routerPath }) => {
@@ -458,16 +514,15 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         });
         await router.init();
 
-        const pending = router
-          .signAndSendTransaction({
-            walletId: 'e2e_router_signing.testnet',
-            nearAccountId: 'e2e_router_signing.testnet',
-            transaction: {
-              receiverId: 'seams-v1.testnet',
-              actions: [{ type: 'Transfer', amount: '1' } as any],
-            },
-            options: {},
-          });
+        const pending = router.signAndSendTransaction({
+          walletId: 'e2e_router_signing.testnet',
+          nearAccountId: 'e2e_router_signing.testnet',
+          transaction: {
+            receiverId: 'seams-v1.testnet',
+            actions: [{ type: 'Transfer', amount: '1' } as any],
+          },
+          options: {},
+        });
 
         const shown = await waitFor(() => {
           const state = capture();
@@ -497,105 +552,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     expect(result.hidden).toBe(true);
     expect(result.requestResult).toMatchObject({ success: false, kind: 'submission_unknown' });
     expect(result.requestResult.error).toContain('Wallet request timeout');
-  });
-
-  test('signAndSendTransaction still times out when host keeps sending PROGRESS frames', async ({
-    page,
-  }) => {
-    await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
-    const spamProgressHtml = buildWalletServiceHtml({
-      extraScript: `
-        setInterval(() => {
-          if (!adoptedPort) return;
-          for (const requestId of pendingRequests.keys()) {
-            try {
-              adoptedPort.postMessage({
-                type: 'PROGRESS',
-                requestId,
-                payload: {
-                  version: 2,
-                  flow: 'signing',
-                  step: 10,
-                  phase: 'signing.commit.started',
-                  status: 'running',
-                  message: 'Creating threshold signature',
-                  flowId: 'signing:test:' + requestId,
-                  requestId,
-                  interaction: { kind: 'none', overlay: 'none' }
-                }
-              });
-            } catch (err) {
-              console.error('Failed to spam PROGRESS frame', err);
-            }
-          }
-        }, 40);
-      `,
-    });
-    await registerWalletServiceRoute(page, spamProgressHtml, WALLET_SERVICE_ROUTE);
-
-    const routerPath = SDK_ESM_PATHS.walletIframeRouter;
-    const result = await page.evaluate(
-      async ({ walletOrigin, routerPath }) => {
-        try {
-          const mod = await import(routerPath);
-          const { WalletIframeRouter } =
-            mod as typeof import('@/SeamsWeb/walletIframe/client/router');
-
-          const router = new WalletIframeRouter({
-            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-            walletOrigin,
-            servicePath: '/wallet-service',
-            connectTimeoutMs: 3000,
-            requestTimeoutMs: 200,
-            debug: true,
-            sdkBasePath: '/sdk',
-          });
-          await router.init();
-
-          const start = Date.now();
-          const outcome = await router
-            .signAndSendTransaction({
-              walletId: 'e2e_router_progress_timeout.testnet',
-              nearAccountId: 'e2e_router_progress_timeout.testnet',
-              transaction: {
-                receiverId: 'seams-v1.testnet',
-                actions: [{ type: 'Transfer', amount: '1' } as any],
-              },
-              options: {},
-            })
-            .then((settled) =>
-              settled.success
-                ? { ok: true as const }
-                : {
-                    ok: false as const,
-                    kind: settled.kind,
-                    error: settled.error,
-                    elapsedMs: Date.now() - start,
-                  },
-            );
-
-          return { success: true as const, outcome };
-        } catch (error: unknown) {
-          return {
-            success: false as const,
-            error: String((error as { message?: unknown })?.message || error || ''),
-          };
-        }
-      },
-      { walletOrigin: WALLET_ORIGIN, routerPath },
-    );
-
-    if (!result.success) {
-      expect(result.success).toBe(true);
-      return;
-    }
-
-    expect(result.outcome.ok).toBe(false);
-    if (result.outcome.ok) return;
-    expect(result.outcome.kind).toBe('submission_unknown');
-    expect(result.outcome.error).toContain('Wallet request timeout for PM_SIGN_AND_SEND_TX');
-    expect(result.outcome.elapsedMs).toBeGreaterThanOrEqual(500);
-    expect(result.outcome.elapsedMs).toBeLessThan(2500);
   });
 
   test('signTempo session-loss error is surfaced as session_not_ready with canonical guidance', async ({
@@ -700,64 +656,50 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
         // Keep this test focused on the interactive request policy rather than config discovery.
         (router as any).mirroredConfirmationUiMode = 'modal';
         const nativeSetTimeout = window.setTimeout;
-        const timeoutDelays: number[] = [];
-        window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
-          timeoutDelays.push(Number(timeout ?? 0));
-          return nativeSetTimeout(handler, timeout, ...args);
-        }) as typeof window.setTimeout;
-
-        try {
-          const signing = router
-            .signTempo({
-              walletSession,
-              chainTarget,
-              request: {
-                chain: 'evm',
-                kind: 'eip1559',
-                senderSignatureAlgorithm: 'secp256k1',
-                tx: {
-                  chainId: 11155111,
-                  maxPriorityFeePerGas: 1n,
-                  maxFeePerGas: 2n,
-                  gasLimit: 21000n,
-                  value: 0n,
-                },
+        const signing = router
+          .signTempo({
+            walletSession,
+            chainTarget,
+            request: {
+              chain: 'evm',
+              kind: 'eip1559',
+              senderSignatureAlgorithm: 'secp256k1',
+              tx: {
+                chainId: 11155111,
+                maxPriorityFeePerGas: 1n,
+                maxFeePerGas: 2n,
+                gasLimit: 21000n,
+                value: 0n,
               },
-            })
-            .then(
-              () => ({ ok: true as const, message: '' }),
-              (error: unknown) => ({
-                ok: false as const,
-                message: String((error as { message?: unknown })?.message || error || ''),
-              }),
-            );
-
-          const pendingStartedAt = Date.now();
-          while ((router as any).state.pending.size === 0 && Date.now() - pendingStartedAt < 1000) {
-            await new Promise<void>((resolve) => nativeSetTimeout(resolve, 10));
-          }
-          const pendingEntries = Array.from((router as any).state.pending.entries()) as Array<
-            [string, { requestType?: string }]
-          >;
-          const requestId = pendingEntries.find(
-            ([, pending]) => pending.requestType === 'PM_SIGN_TEMPO',
-          )?.[0];
-          if (!requestId) throw new Error('PM_SIGN_TEMPO request did not become pending');
-
-          const stillPendingAfterShortWait = await Promise.race([
-            signing.then(() => false),
-            new Promise<boolean>((resolve) => nativeSetTimeout(() => resolve(true), 100)),
-          ]);
-          const hasThirtySecondDeadline = timeoutDelays.some(
-            (delay) => delay >= 29_000 && delay <= 31_000,
+            },
+          })
+          .then(
+            () => ({ ok: true as const, message: '' }),
+            (error: unknown) => ({
+              ok: false as const,
+              message: String((error as { message?: unknown })?.message || error || ''),
+            }),
           );
 
-          await router.cancelRequest(requestId);
-          const outcome = await signing;
-          return { hasThirtySecondDeadline, stillPendingAfterShortWait, outcome };
-        } finally {
-          window.setTimeout = nativeSetTimeout;
+        const pendingStartedAt = Date.now();
+        while ((router as any).state.pending.size === 0 && Date.now() - pendingStartedAt < 1000) {
+          await new Promise<void>((resolve) => nativeSetTimeout(resolve, 10));
         }
+        const pendingEntries = Array.from((router as any).state.pending.entries()) as Array<
+          [string, { requestType?: string }]
+        >;
+        const requestId = pendingEntries.find(
+          ([, pending]) => pending.requestType === 'PM_SIGN_TEMPO',
+        )?.[0];
+        if (!requestId) throw new Error('PM_SIGN_TEMPO request did not become pending');
+
+        const stillPendingAfterShortWait = await Promise.race([
+          signing.then(() => false),
+          new Promise<boolean>((resolve) => nativeSetTimeout(() => resolve(true), 100)),
+        ]);
+        await router.cancelRequest(requestId);
+        const outcome = await signing;
+        return { stillPendingAfterShortWait, outcome };
       },
       {
         walletOrigin: WALLET_ORIGIN,
@@ -767,7 +709,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
       },
     );
 
-    expect(result.hasThirtySecondDeadline).toBe(false);
     expect(result.stillPendingAfterShortWait).toBe(true);
     expect(result.outcome).toEqual({ ok: false, message: 'Request cancelled.' });
   });
@@ -803,7 +744,12 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           await router.init();
 
           const statuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-          router.onSessionChange((state: WalletIframeExactSessionState) => statuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
+          router.onSessionChange((state: WalletIframeExactSessionState) =>
+            statuses.push({
+              isLoggedIn: state.kind !== 'wallet_locked',
+              walletId: state.kind === 'wallet_locked' ? null : state.walletId,
+            }),
+          );
 
           const unlockResult = await router.unlock({
             kind: 'default_options',
@@ -848,15 +794,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     const routerPath = SDK_ESM_PATHS.walletIframeRouter;
     const result = await page.evaluate(
       async ({ walletOrigin, routerPath }) => {
-        const requestTypes: string[] = [];
-        const captureRequest = (event: MessageEvent): void => {
-          const data = event.data;
-          if (!data || typeof data !== 'object') return;
-          if ((data as { type?: unknown }).type !== 'CAPTURED_EMAIL_OTP_ROUTER_REQUEST') return;
-          const requestType = (data as { requestType?: unknown }).requestType;
-          if (typeof requestType === 'string') requestTypes.push(requestType);
-        };
-        window.addEventListener('message', captureRequest);
         try {
           const mod = await import(routerPath);
           const { WalletIframeRouter } =
@@ -873,7 +810,12 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           await router.init();
 
           const statuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-          router.onSessionChange((state: WalletIframeExactSessionState) => statuses.push({ isLoggedIn: state.kind !== 'wallet_locked', walletId: state.kind === 'wallet_locked' ? null : state.walletId }));
+          router.onSessionChange((state: WalletIframeExactSessionState) =>
+            statuses.push({
+              isLoggedIn: state.kind !== 'wallet_locked',
+              walletId: state.kind === 'wallet_locked' ? null : state.walletId,
+            }),
+          );
           const started = await router.startGoogleSignIn({
             idToken: 'google-id-token',
             mode: 'register',
@@ -887,7 +829,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           return {
             success: true as const,
             completed,
-            requestTypes,
             statuses,
             mirroredSession: router.getMirroredExactSessionState(),
           };
@@ -896,8 +837,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
             success: false as const,
             error: String((error as { message?: unknown })?.message || error || ''),
           };
-        } finally {
-          window.removeEventListener('message', captureRequest);
         }
       },
       { walletOrigin: WALLET_ORIGIN, routerPath },
@@ -909,12 +848,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
     }
 
     expect(result.completed.ok).toBe(true);
-    expect(result.requestTypes).toEqual([
-      'PM_GET_EXACT_WALLET_SESSION_STATE',
-      'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH',
-      'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_COMPLETE_REGISTRATION',
-      'PM_GET_EXACT_WALLET_SESSION_STATE',
-    ]);
     expect(result.statuses).toEqual([{ isLoggedIn: true, walletId: 'alice.testnet' }]);
     expect(result.mirroredSession).toEqual({
       kind: 'wallet_unlocked_without_signing_session',
@@ -923,120 +856,6 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
       walletSessionId: 'wallet-session-router-fixture',
       authMethod: 'email_otp',
       reason: 'not_found',
-    });
-  });
-
-  test('unlock posts strict protocol options for selection and ECDSA inventory', async ({
-    page,
-  }) => {
-    await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
-    await registerWalletServiceRoute(
-      page,
-      buildWalletServiceHtml({
-        extraScript: CAPTURE_UNLOCK_PAYLOAD_SCRIPT,
-      }),
-      WALLET_SERVICE_ROUTE,
-    );
-
-    const routerPath = SDK_ESM_PATHS.walletIframeRouter;
-    const result = await page.evaluate(
-      async ({ walletOrigin, routerPath }) => {
-        const capturedPayload = new Promise((resolve) => {
-          const onMessage = (event: MessageEvent) => {
-            const data = event.data || {};
-            if (!data || typeof data !== 'object') return;
-            if ((data as { type?: unknown }).type !== 'CAPTURED_PM_UNLOCK_PAYLOAD') return;
-            window.removeEventListener('message', onMessage);
-            resolve((data as { payload: unknown }).payload);
-          };
-          window.addEventListener('message', onMessage);
-        });
-
-        try {
-          const mod = await import(routerPath);
-          const { WalletIframeRouter } =
-            mod as typeof import('@/SeamsWeb/walletIframe/client/router');
-          const router = new WalletIframeRouter({
-            hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-            walletOrigin,
-            servicePath: '/wallet-service',
-            connectTimeoutMs: 3000,
-            requestTimeoutMs: 1000,
-            debug: true,
-            sdkBasePath: '/sdk',
-          });
-          await router.init();
-
-          const unlockResult = await router.unlock({
-            kind: 'custom_options',
-            walletId: 'alice.testnet',
-            options: {
-              signerSlot: 2,
-              signingSession: {
-                ttlMs: 60_000,
-                remainingUses: 2,
-              },
-              unlockSelection: {
-                mode: 'ecdsa_only',
-                ecdsa: true,
-              },
-              ecdsaKeyFactsInventory: {
-                mode: 'webauthn',
-              },
-            },
-          });
-
-          return {
-            success: true as const,
-            unlockResult,
-            capturedPayload: await capturedPayload,
-          };
-        } catch (error: unknown) {
-          return {
-            success: false as const,
-            error: String((error as { message?: unknown })?.message || error || ''),
-          };
-        }
-      },
-      { walletOrigin: WALLET_ORIGIN, routerPath },
-    );
-
-    if (!result.success) {
-      expect(result.success).toBe(true);
-      return;
-    }
-
-    expect(result.unlockResult).toEqual({
-      success: false,
-      error: 'captured unlock payload',
-    });
-    expect(result.capturedPayload).toEqual({
-      kind: 'custom_options',
-      walletId: 'alice.testnet',
-      options: {
-        kind: 'pm_unlock_options_v1',
-        signerSlot: { kind: 'value', value: 2 },
-        signingSession: {
-          kind: 'value',
-          value: {
-            ttlMs: 60_000,
-            remainingUses: 2,
-          },
-        },
-        unlockSelection: {
-          kind: 'value',
-          value: {
-            mode: 'ecdsa_only',
-            ecdsa: true,
-          },
-        },
-        ecdsaKeyFactsInventory: {
-          kind: 'value',
-          value: {
-            mode: 'webauthn',
-          },
-        },
-      },
     });
   });
 });

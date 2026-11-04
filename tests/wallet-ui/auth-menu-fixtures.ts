@@ -18,17 +18,6 @@ export function registration(theme: AuthMenuTheme): AuthMenuRegisterViewModel {
   );
 }
 
-export function registrationSuccess(
-  appearance: AuthMenuRegisterViewModel['appearance'],
-): AuthMenuRegisterViewModel {
-  return registrationModel(appearance, {
-    kind: 'succeeded',
-    headline: 'Wallet created',
-    message: 'Your wallet is ready on this device.',
-    phase: 'shown',
-  });
-}
-
 function registrationModel(
   appearance: AuthMenuRegisterViewModel['appearance'],
   status: AuthMenuRegisterViewModel['status'],

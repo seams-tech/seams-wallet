@@ -13,7 +13,6 @@ import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
  * transaction details while the confirmation card stays within the screen.
  */
 
-
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 const CONTRACT = '0xbb442b6d9a4c1f0f3e2d3c4b5a6978695a4b3a48';

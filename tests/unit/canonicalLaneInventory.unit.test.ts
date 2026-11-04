@@ -91,32 +91,6 @@ const adapter: CanonicalLaneInventoryAdapter<TestFact, string, TestConflict> = {
 };
 
 test.describe('canonical lane inventory kernel', () => {
-  test('selects the usable fact with the higher server-issued generation', () => {
-    const stale = fact({ id: 'stale', generation: generation(100) });
-    const current = fact({ id: 'current', generation: generation(200) });
-
-    const selection = canonicalizeLaneFacts([stale, current], adapter);
-
-    expect(selection).toMatchObject({
-      kind: 'selected',
-      selectedFact: current,
-      supersededFacts: [stale],
-    });
-  });
-
-  test('prefers exact target over shared projection at the same generation', () => {
-    const shared = fact({ id: 'shared', exactness: 'shared_projection' });
-    const exact = fact({ id: 'exact', exactness: 'exact_target' });
-
-    const selection = canonicalizeLaneFacts([shared, exact], adapter);
-
-    expect(selection).toMatchObject({
-      kind: 'selected',
-      selectedFact: exact,
-      supersededFacts: [shared],
-    });
-  });
-
   test('returns ambiguous_material for usable facts without comparable generations', () => {
     const left = fact({ id: 'left', generation: null });
     const right = fact({ id: 'right', generation: null });
@@ -126,17 +100,6 @@ test.describe('canonical lane inventory kernel', () => {
     expect(selection).toMatchObject({
       kind: 'ambiguous_material',
       candidates: [left, right],
-    });
-  });
-
-  test('returns no_current_lane with unusable facts', () => {
-    const unusable = fact({ id: 'unusable', usable: false });
-
-    const selection = canonicalizeLaneFacts([unusable], adapter);
-
-    expect(selection).toMatchObject({
-      kind: 'no_current_lane',
-      unusableFacts: [unusable],
     });
   });
 

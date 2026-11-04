@@ -184,18 +184,16 @@ type ScenarioFixtures = {
   readonly page: Page;
 };
 
-async function verifyRestorationRace(
-  fixtures: ScenarioFixtures,
+export async function verifyLockWins(
+  { harness, page }: ScenarioFixtures,
   testInfo: TestInfo,
-  outcome: 'locked' | 'fresh_unlock',
 ): Promise<void> {
   testInfo.setTimeout(180_000);
-  const { harness, page } = fixtures;
   console.log('[session-restore] registering wallet');
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
   console.log('[session-restore] preparing earlier capability projection');
-  let frame = await walletFrame(page);
+  const frame = await walletFrame(page);
   await frame.addScriptTag({ content: RestorePersistenceProbe.toString() });
   const before = await frame.evaluate<PersistenceSnapshot>('RestorePersistenceProbe.read()');
   expect(before.sessions).toHaveLength(1);
@@ -214,37 +212,28 @@ async function verifyRestorationRace(
     const locked = await frame.evaluate<PersistenceSnapshot>('RestorePersistenceProbe.read()');
     expect(locked.lockState).toBe('locked');
     expect(locked.sessions).toHaveLength(0);
-    let expected = locked;
-    if (outcome === 'fresh_unlock') {
-      await harness.unlockPasskeyWallet();
-      frame = await walletFrame(page);
-      await frame.addScriptTag({ content: RestorePersistenceProbe.toString() });
-      expected = await frame.evaluate<PersistenceSnapshot>('RestorePersistenceProbe.read()');
-      expect(expected.sessions).toHaveLength(1);
-      expect(expected.sessions[0].walletSessionId).not.toBe(before.sessions[0].walletSessionId);
-    }
     gate.release();
     console.log('[session-restore] releasing delayed response');
     await expect.poll(gateFinished.bind(undefined, gate)).toBe(true);
     await expect(restoringTab.getByTestId('intended-e2e-page')).toHaveAttribute(
       'data-login-state',
-      outcome === 'locked' ? 'logged_out' : 'logged_in',
+      'logged_out',
     );
     const after = await frame.evaluate<PersistenceSnapshot>('RestorePersistenceProbe.read()');
     const artifact = testInfo.outputPath('cross-tab-restoration.json');
     await mkdir(path.dirname(artifact), { recursive: true });
-    await writeFile(artifact, `${JSON.stringify({ outcome, before, locked, expected, after }, null, 2)}\n`);
+    await writeFile(artifact, `${JSON.stringify({ before, locked, after }, null, 2)}\n`);
     await testInfo.attach('cross-tab restoration persistence', {
       path: artifact,
       contentType: 'application/json',
     });
-    expect(after).toEqual(expected);
+    expect(after).toEqual(locked);
   } finally {
     gate.release();
     await restoringTab.unrouteAll({ behavior: 'wait' });
     await restoringTab.close();
   }
-  if (outcome === 'locked') await harness.unlockPasskeyWallet();
+  await harness.unlockPasskeyWallet();
   console.log('[session-restore] checking fresh-session signing');
   await harness.signNearTransaction('post_unlock');
   await harness.signTempoTransaction('post_unlock');
@@ -256,18 +245,4 @@ function gateHeld(gate: RestorationResponseGate): boolean {
 
 function gateFinished(gate: RestorationResponseGate): boolean {
   return gate.finished;
-}
-
-export async function verifyLockWins(
-  { harness, page }: ScenarioFixtures,
-  testInfo: TestInfo,
-): Promise<void> {
-  await verifyRestorationRace({ harness, page }, testInfo, 'locked');
-}
-
-export async function verifyFreshUnlockWins(
-  { harness, page }: ScenarioFixtures,
-  testInfo: TestInfo,
-): Promise<void> {
-  await verifyRestorationRace({ harness, page }, testInfo, 'fresh_unlock');
 }

@@ -1,6 +1,5 @@
 import {
   buildFullOwnerPermissionsV1,
-  buildSigningOnlyDelegatedWalletAuthorityV1,
   type CanonicalDelegatedWalletPermissionSetV1,
 } from '../../../packages/shared-ts/src/authorization/delegatedAuthority';
 import {
@@ -49,10 +48,7 @@ import type {
   ExactAdministeredEcdsaSignerV1,
   ExactAdministeredEd25519SignerV1,
 } from '../../../packages/shared-ts/src/device-linking/delegatedActivationPlan';
-import {
-  parseActiveWalletSessionV1,
-  parseWalletSessionOperationCredentialV1,
-} from '../../../packages/shared-ts/src/device-linking/activeWalletSession';
+import { parseWalletSessionOperationCredentialV1 } from '../../../packages/shared-ts/src/device-linking/activeWalletSession';
 import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
@@ -342,9 +338,7 @@ export async function buildLinkedDeviceManagementAuthorityFixture(input: {
     parseWalletSessionAuthorizationId(`authorization:management-${input.label}`),
   );
   const quotaId = required(parseMpcWalletSigningQuotaId(`wallet-quota:management-${input.label}`));
-  const mintId = required(
-    parseWalletSessionMintId(`wallet-mint:management-${input.label}`),
-  );
+  const mintId = required(parseWalletSessionMintId(`wallet-mint:management-${input.label}`));
   const expiresAtMs = input.expiresAtMs ?? 10_000;
   const session = buildWalletSessionAuthorizationV2({
     tenantId,
@@ -460,37 +454,6 @@ export async function extendFixtureAuthorityWithEd25519Signer(
   });
 }
 
-export function buildPromotedActiveWalletSessionFixture(input: {
-  readonly source: ActiveWalletSessionV1;
-  readonly authority: ActiveWalletAuthorityV1;
-}): ActiveWalletSessionV1 {
-  const capabilitySubjects = buildWalletSessionCapabilitySubjectsV1(input.authority).map(
-    (subject) => {
-      switch (subject.kind) {
-        case 'sign':
-        case 'export_keys':
-          return subject;
-        case 'link_devices':
-        case 'revoke_devices':
-          return { kind: subject.kind };
-      }
-    },
-  );
-  return parseActiveWalletSessionV1({
-    kind: 'active_wallet_session_v1',
-    walletId: input.source.walletId,
-    authorityId: input.source.authorityId,
-    authMethodId: input.source.authMethodId,
-    authorizationId: input.source.authorizationId,
-    quotaId: input.source.quotaId,
-    authorityDigestB64u: input.authority.authorityDigestB64u,
-    authorityRevocationEpoch: input.authority.revocationEpoch,
-    capabilitySubjects,
-    issuedAtMs: input.source.issuedAtMs,
-    expiresAtMs: input.source.expiresAtMs,
-  });
-}
-
 function buildActivePasskeyWalletAuthMethodRecord(
   input: ActivePasskeyWalletAuthMethodRecordV2,
 ): ActivePasskeyWalletAuthMethodRecordV2 {
@@ -509,8 +472,4 @@ function buildActiveEmailOtpWalletAuthMethodRecord(
     throw new Error('active Email OTP fixture unexpectedly changed branch');
   }
   return record;
-}
-
-export function linkedDevicePermissionsForManagementFixture(): CanonicalDelegatedWalletPermissionSetV1 {
-  return buildSigningOnlyDelegatedWalletAuthorityV1().permissions;
 }

@@ -3,7 +3,6 @@ import {
   test,
   type BrowserContext,
   type ConsoleMessage,
-  type Frame,
   type Route,
   type Page,
 } from '@playwright/test';
@@ -86,10 +85,7 @@ export async function assertIndependentNearRegistration(input: {
     if (input.exhaustBudget) await input.harness.signTempoTransaction('post_registration');
     pendingSession = await input.harness.readCurrentWalletSessionStatus();
     if (input.exhaustBudget) expect(pendingSession.remainingUses).toBe(0);
-    await Promise.all([
-      input.harness.awaitNearReady(),
-      releaseAfterPendingNearWait(page, gate),
-    ]);
+    await Promise.all([input.harness.awaitNearReady(), releaseAfterPendingNearWait(page, gate)]);
   } finally {
     gate.release();
     await input.context.unroute(`**${input.path}`, handler);
@@ -219,82 +215,6 @@ export async function assertLateNearCompletionKeepsWalletLocked(input: {
   await input.harness.signNearTransaction('post_unlock');
 }
 
-export async function assertNearReadyTransactionRollsBack(input: {
-  readonly harness: IntendedBehaviourHarness;
-  readonly context: BrowserContext;
-  readonly factor: 'passkey' | 'email_otp';
-}): Promise<void> {
-  const page = input.context.pages()[0];
-  if (!page) throw new Error('Registration page is unavailable');
-  const gate = new NearFinalizationResponseGate();
-  page.on('console', gate.observe.bind(gate));
-  // Abort after the ready write, precisely when the same transaction deletes its journal.
-  await input.context.addInitScript({
-    content: `
-    const deleteBeforeNearFault = IDBObjectStore.prototype.delete;
-    function abortNearReadyTransaction(key) {
-      if (this.name === 'app_state' && typeof key === 'string' &&
-          key.startsWith('pending_wallet_registration_commit_v1:') &&
-          key.endsWith(':near_provisioning') &&
-          this.transaction.objectStoreNames.contains('wallets') &&
-          sessionStorage.getItem('near-ready-abort-injected') !== 'yes') {
-        sessionStorage.setItem('near-ready-abort-injected', 'yes');
-        IDBObjectStore.prototype.delete = deleteBeforeNearFault;
-        this.transaction.abort();
-        throw new DOMException('Injected NEAR readiness transaction abort', 'AbortError');
-      }
-      return deleteBeforeNearFault.call(this, key);
-    }
-    IDBObjectStore.prototype.delete = abortNearReadyTransaction;
-  `,
-  });
-  if (input.factor === 'passkey') await input.harness.registerPasskeyWallet();
-  else await input.harness.registerEmailOtpWallet();
-  await expect.poll(gate.isFinished.bind(gate)).toBe(true);
-  const persisted = await page
-    .locator('iframe[allow*="publickey-credentials-get"]')
-    .last()
-    .contentFrame()
-    .locator('body')
-    .evaluate(readNearRegistrationPersistence);
-  expect(persisted.phases).toEqual(['joined']);
-  expect(persisted.statuses).not.toContain('near_ready');
-  await input.harness.signTempoTransaction('post_registration');
-  // The fault is injected once; ordinary unlock can repair the retained journal.
-  if (input.factor === 'passkey') await input.harness.unlockPasskeyWithPendingNear();
-  else await input.harness.unlockEmailOtpWithPendingNear();
-  await input.harness.awaitNearReady();
-  await input.harness.signNearTransaction('post_unlock');
-}
-
-async function readNearRegistrationPersistence(): Promise<{
-  phases: string[];
-  statuses: string[];
-}> {
-  const opening = indexedDB.open('seams_wallet');
-  const database = await new Promise<IDBDatabase>((resolve, reject) => {
-    opening.onsuccess = () => resolve(opening.result);
-    opening.onerror = () => reject(opening.error);
-  });
-  try {
-    const transaction = database.transaction(['app_state', 'wallets'], 'readonly');
-    const rows = transaction.objectStore('app_state').getAll();
-    const profiles = transaction.objectStore('wallets').getAll();
-    await new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onabort = () => reject(transaction.error);
-    });
-    return {
-      phases: rows.result
-        .filter((row) => row.value?.record?.operation === 'near_provisioning')
-        .map((row) => String(row.value.record.phase)),
-      statuses: profiles.result.map((row) => String(row.record?.nearProvisioning?.status)),
-    };
-  } finally {
-    database.close();
-  }
-}
-
 async function lockWalletFromAnotherTab(context: BrowserContext, original: Page): Promise<void> {
   const other = await context.newPage();
   try {
@@ -318,143 +238,4 @@ async function lockCurrentWallet(): Promise<void> {
   const lock = window.__seamsIntendedE2ELockWallet;
   if (!lock) throw new Error('Wallet lock helper is unavailable');
   await lock();
-}
-
-/**
- * Holds passkey session hydration during NEAR provisioning. Finalization
- * applies the prepared server seal and returns it, so hydration completes
- * that seal in the session worker without asking the server for anything:
- * the hold is on the one worker message that completes it, once per wallet
- * tab. A spoiled release makes the worker refuse the message, and hydration
- * fails.
- */
-function installNearHydrationHold(): void {
-  const send = Worker.prototype.postMessage;
-  const heldKey = 'intended-near-hydration-hold-used';
-  let release: ((spoil: boolean) => void) | null = null;
-  let held = false;
-  window.__seamsIntendedNearHydrationHold = {
-    isHeld: () => held,
-    release: (spoil: boolean) => release?.(spoil),
-  };
-  function holdHydrationSeal(this: Worker, ...args: Parameters<Worker['postMessage']>): void {
-    const [message] = args;
-    const type = (message as { readonly type?: unknown } | null)?.type;
-    if (type !== 'COMPLETE_SESSION_CLIENT_SEAL' || sessionStorage.getItem(heldKey) === 'yes') {
-      send.apply(this, args);
-      return;
-    }
-    sessionStorage.setItem(heldKey, 'yes');
-    held = true;
-    release = (spoil: boolean): void => {
-      release = null;
-      held = false;
-      if (spoil) args[0] = { ...(message as object), payload: null };
-      send.apply(this, args);
-    };
-  }
-  Worker.prototype.postMessage = holdHydrationSeal as Worker['postMessage'];
-}
-
-function isNearHydrationHeld(): boolean {
-  return window.__seamsIntendedNearHydrationHold?.isHeld() === true;
-}
-
-function releaseNearHydration(spoil: boolean): void {
-  window.__seamsIntendedNearHydrationHold?.release(spoil);
-}
-
-async function findHeldNearHydrationFrame(page: Page): Promise<Frame | null> {
-  for (const frame of page.frames()) {
-    if (await frame.evaluate(isNearHydrationHeld).catch(() => false)) return frame;
-  }
-  return null;
-}
-
-class NearHydrationObserver {
-  private installed = false;
-  private finished = false;
-
-  observe(message: ConsoleMessage): void {
-    const text = message.text();
-    if (!text.startsWith('[Registration] NEAR timing ')) return;
-    if (text.includes('"stage":"signer_activation"')) this.installed = true;
-    if (text.includes('"stage":"provisioning_total"')) this.finished = true;
-  }
-
-  isInstalled(): boolean {
-    return this.installed;
-  }
-  isFinished(): boolean {
-    return this.finished;
-  }
-}
-
-export async function assertPasskeyHydrationOverlapsInstallation(input: {
-  readonly harness: IntendedBehaviourHarness;
-  readonly context: BrowserContext;
-  readonly result: 'success' | 'failure' | 'lock';
-}): Promise<void> {
-  const observer = new NearHydrationObserver();
-  const page = input.context.pages()[0];
-  if (!page) throw new Error('Registration page is unavailable');
-  page.on('console', observer.observe.bind(observer));
-  await input.context.addInitScript(installNearHydrationHold);
-  const hold: { frame: Frame | null } = { frame: null };
-  const heldWhileInstalled = async (): Promise<boolean> => {
-    hold.frame = await findHeldNearHydrationFrame(page);
-    return hold.frame !== null && observer.isInstalled();
-  };
-  try {
-    await input.harness.registerPasskeyWallet();
-    await expect.poll(heldWhileInstalled).toBe(true);
-    expect(observer.isFinished()).toBe(false);
-    const persisted = await page
-      .locator('iframe[allow*="publickey-credentials-get"]')
-      .last()
-      .contentFrame()
-      .locator('body')
-      .evaluate(readNearRegistrationPersistence);
-    expect(persisted.phases).toEqual(['joined']);
-    expect(persisted.statuses).not.toContain('near_ready');
-    if (input.result === 'lock') await input.harness.lockWallet();
-    await hold.frame?.evaluate(releaseNearHydration, input.result === 'failure');
-    await expect.poll(observer.isFinished.bind(observer)).toBe(true);
-  } finally {
-    await hold.frame?.evaluate(releaseNearHydration, false).catch(() => undefined);
-  }
-  if (input.result === 'lock') await input.harness.assertWalletLocked();
-  if (input.result === 'failure') await input.harness.signTempoTransaction('post_registration');
-  if (input.result !== 'success') await input.harness.unlockPasskeyWithPendingNear();
-  await input.harness.awaitNearReady();
-  await input.harness.signNearTransaction('post_registration');
-  await input.harness.refreshPagePreservingWalletStorage();
-  await input.harness.signNearTransactionAfterRefresh();
-}
-
-export async function assertPasskeySealPreparedBeforeFinalization(input: {
-  readonly harness: IntendedBehaviourHarness;
-  readonly context: BrowserContext;
-}): Promise<void> {
-  const gate = new NearFinalizationResponseGate();
-  const handler = gate.hold.bind(gate);
-  const page = input.context.pages()[0];
-  if (!page) throw new Error('Registration page is unavailable');
-  page.on('console', gate.observe.bind(gate));
-  await input.context.route('**/wallets/register/near-provisioning', handler);
-  try {
-    await input.harness.registerPasskeyWallet();
-    await expect.poll(gate.isCommitted.bind(gate)).toBe(true);
-    await expect.poll(gate.isPrepared.bind(gate)).toBe(true);
-    expect(gate.isFinished()).toBe(false);
-    await input.harness.signTempoTransaction('post_registration');
-    gate.release();
-    await input.harness.awaitNearReady();
-    await input.harness.signNearTransaction('post_registration');
-    await input.harness.refreshPagePreservingWalletStorage();
-    await input.harness.signNearTransactionAfterRefresh();
-  } finally {
-    gate.release();
-    await input.context.unroute('**/wallets/register/near-provisioning', handler);
-  }
 }

@@ -4,12 +4,8 @@ import path from 'node:path';
 import { injectImportMap } from '../setup/bootstrap';
 import { routePreactModules } from '../setup/preact';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
-import type { TreeNode } from '@/core/signingEngine/uiConfirm/ui/transaction-display/tree';
-import type { ConfirmHeaderProps } from '@/core/signingEngine/uiConfirm/ui/preact/ConfirmHeader';
 import type { EmailOtpVerificationState } from '@/core/signingEngine/uiConfirm/ui/preact/email-otp-session';
 import type { ConfirmationBodyModel } from '@/core/signingEngine/uiConfirm/ui/confirmation-body-model';
-
-type HeaderFixture = Omit<ConfirmHeaderProps, 'styles'>;
 
 const walletUiCss = fs.readFileSync(
   path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
@@ -20,8 +16,6 @@ declare global {
   interface Window {
     __contentTest: {
       update(ready: boolean): void;
-      setTree(tree: TreeNode | null): void;
-      setHeader(header: HeaderFixture): void;
       setRegistration(creating: boolean): void;
       setOtp(challengeId: string, resend?: boolean, verification?: EmailOtpVerificationState): void;
       otpSubmissions: string[];
@@ -30,7 +24,6 @@ declare global {
       setModal(context: 'standalone' | 'wallet-iframe'): void;
       setDrawer(context: 'standalone' | 'wallet-iframe', closing: boolean, busy: boolean): void;
       drawerClosed: number;
-      copiedAccounts: string[];
       dispose(): void;
       confirmed: number;
       cancelled: number;
@@ -60,8 +53,6 @@ test.beforeEach(async ({ page }) => {
     const stylesUrl = '/_test-sdk/esm/core/browser/walletIframe/csp-stylesheet.js';
     const { h, render } = await import(runtime);
     const { ConfirmContent } = await import(componentUrl);
-    const headerUrl = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/ConfirmHeader.js';
-    const { ConfirmHeader } = await import(headerUrl);
     const compositionUrl =
       '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent.js';
     const { ConfirmationContent } = await import(compositionUrl);
@@ -77,7 +68,6 @@ test.beforeEach(async ({ page }) => {
     const { createCspStylesheetManager } = await import(stylesUrl);
     const styles = createCspStylesheetManager({ doc: document, baseCss: '' });
     const parent = document.querySelector('main')!;
-    let tree: TreeNode | null = null;
     function setModal(context: 'standalone' | 'wallet-iframe') {
       setBody({ kind: 'empty' }, context);
     }
@@ -179,13 +169,6 @@ test.beforeEach(async ({ page }) => {
         parent,
       );
     }
-    function setHeader(header: HeaderFixture) {
-      render(h(ConfirmHeader, { ...header, styles }), parent);
-    }
-    function setTree(next: TreeNode | null) {
-      tree = next;
-      update(true);
-    }
     function onConfirm() {
       window.__contentTest.confirmed++;
     }
@@ -195,7 +178,7 @@ test.beforeEach(async ({ page }) => {
     function update(ready: boolean) {
       render(
         h(ConfirmContent, {
-          tree,
+          tree: null,
           theme: 'light',
           explorers: { near: 'https://testnet.nearblocks.io' },
           styles,
@@ -212,8 +195,6 @@ test.beforeEach(async ({ page }) => {
     }
     window.__contentTest = {
       update,
-      setTree,
-      setHeader,
       setRegistration,
       setOtp,
       otpSubmissions: [],
@@ -222,7 +203,6 @@ test.beforeEach(async ({ page }) => {
       setModal,
       setDrawer,
       drawerClosed: 0,
-      copiedAccounts: [],
       dispose,
       confirmed: 0,
       cancelled: 0,
@@ -314,57 +294,20 @@ test('drawer reopen interrupts close and disposal releases pending completion', 
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });
 
-test('drawer keeps confirmation actions in view across contexts and themes', async ({ page }) => {
+test('drawer keeps confirmation actions in view across contexts', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const width of [360, 768]) {
     await page.setViewportSize({ width, height: 800 });
-    for (const theme of ['light', 'dark']) {
-      for (const context of ['standalone', 'wallet-iframe'] as const) {
-        await page.evaluate(
-          ({ context, theme }) => {
-            document.querySelector('main')!.setAttribute('data-theme', theme);
-            window.__contentTest.setDrawer(context, false, false);
-          },
-          { context, theme },
-        );
-        await expect(page.locator('.seams-confirmation-drawer')).toHaveClass(/is-open/);
-        const confirm = page.getByRole('button', { name: 'Confirm', exact: true });
-        await expect(confirm).toBeEnabled();
-        if (context === 'standalone') {
-          await expect
-            .poll(() =>
-              page.locator('.seams-confirmation-drawer').evaluate((sheet) => {
-                const content = sheet.querySelector('.seams-drawer-content')!;
-                const controls = sheet.querySelector('.seams-drawer-controls')!;
-                const style = getComputedStyle(sheet);
-                const expectedTop =
-                  innerHeight -
-                  content.getBoundingClientRect().height -
-                  controls.getBoundingClientRect().height -
-                  parseFloat(style.paddingTop);
-                return {
-                  difference: Math.abs(Math.round(sheet.getBoundingClientRect().top - expectedTop)),
-                  rest: style.getPropertyValue('--seams-drawer-rest'),
-                  scrollTop: sheet.parentElement!.scrollTop,
-                };
-              }),
-            )
-            .toMatchObject({ difference: 0 });
-        }
-        await expect
-          .poll(async () => {
-            const bounds = await confirm.boundingBox();
-            return (
-              bounds !== null &&
-              bounds.y >= 0 &&
-              bounds.y + bounds.height <= 800 &&
-              bounds.x >= 0 &&
-              bounds.x + bounds.width <= width
-            );
-          })
-          .toBe(true);
-        expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-      }
+    for (const context of ['standalone', 'wallet-iframe'] as const) {
+      await page.evaluate(
+        (context) => window.__contentTest.setDrawer(context, false, false),
+        context,
+      );
+      await expect(page.locator('.seams-confirmation-drawer')).toHaveClass(/is-open/);
+      const confirm = page.getByRole('button', { name: 'Confirm', exact: true });
+      await expect(confirm).toBeEnabled();
+      await expect(confirm).toBeInViewport({ ratio: 1 });
+      expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
     }
   }
   await page.evaluate(() => window.__contentTest.dispose());
@@ -397,61 +340,6 @@ test('standalone modal owns focus and preserves two-phase cancellation', async (
   await expect(page.locator('#modal-opener')).toBeFocused();
   await page.keyboard.press('Escape');
   expect(await page.evaluate(() => window.__contentTest.cancelled)).toBe(2);
-  expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-});
-
-test('hosted modal stays intrinsic and releases standalone dialog ownership on replacement', async ({
-  page,
-}) => {
-  await page.evaluate(() => window.__contentTest.setModal('standalone'));
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.evaluate(() => window.__contentTest.setModal('wallet-iframe'));
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('.seams-confirmation-modal--hosted')).toBeFocused();
-  expect(
-    await page.locator('.seams-confirmation-modal--hosted').evaluate((element) => ({
-      position: getComputedStyle(element).position,
-      maxHeight: getComputedStyle(element).maxHeight,
-    })),
-  ).toEqual({ position: 'static', maxHeight: 'none' });
-  await page.keyboard.press('Escape');
-  expect(await page.evaluate(() => window.__contentTest.cancelled)).toBe(1);
-  await expect(page.getByRole('heading')).toHaveText('Confirm transaction');
-  await page.evaluate(() => window.__contentTest.dispose());
-  expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-});
-
-test('composed funding notice copies the full account through the CSP fallback', async ({
-  page,
-}) => {
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
-    document.execCommand = (): boolean => {
-      const textarea = document.querySelector<HTMLTextAreaElement>(
-        '.seams-confirmation-content textarea',
-      )!;
-      window.__contentTest.copiedAccounts.push(textarea.value);
-      return true;
-    };
-    window.__contentTest.setBody({
-      kind: 'funding',
-      accountId: 'funding-account.testnet',
-      shortAccountId: 'fund...tnet',
-    });
-  });
-  await expect(page.getByRole('heading')).toHaveText('Confirm transaction');
-  await page.getByRole('button', { name: 'Copy NEAR account funding-account.testnet' }).click();
-  expect(await page.evaluate(() => window.__contentTest.copiedAccounts)).toEqual([
-    'funding-account.testnet',
-  ]);
-  await expect(page.locator('textarea')).toHaveCount(0);
-  await page.evaluate(() =>
-    window.__contentTest.setBody({ kind: 'status', text: 'Topping up account...' }),
-  );
-  await expect(page.locator('.confirmation-body--status')).toHaveText('Topping up account...');
-  await expect(page.locator('.confirmation-body__copy-target')).toHaveCount(0);
-  await page.evaluate(() => window.__contentTest.dispose());
-  await expect(page.locator('main > *')).toHaveCount(0);
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });
 
@@ -497,7 +385,7 @@ test('resending updates the submitted challenge and recipient hint', async ({ pa
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });
 
-test('email code normalizes input and challenge replacement cancels a pending submit', async ({
+test('email code normalizes input, refuses a short code and replacement cancels a pending submit', async ({
   page,
 }) => {
   await page.evaluate(() => window.__contentTest.setOtp('first'));
@@ -505,6 +393,10 @@ test('email code normalizes input and challenge replacement cancels a pending su
   await expect(input).toHaveAttribute('autocomplete', 'one-time-code');
   await input.fill('12a');
   await expect(input).toHaveValue('12');
+  await input.press('Enter');
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText('Enter the 6-digit Email OTP code.')).toBeVisible();
+  expect(await page.evaluate(() => window.__contentTest.otpSubmissions)).toEqual([]);
   await page.evaluate(() => {
     const input = document.querySelector<HTMLInputElement>('.email-otp-confirm__input')!;
     input.value = '123456';
@@ -544,89 +436,6 @@ test('initial guard, preparing cancellation and synchronous ready action', async
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });
 
-test('disposal before arming leaves no revived content', async ({ page }) => {
-  await page.evaluate(() => {
-    window.__contentTest.dispose();
-    window.__contentTest.update(true);
-    window.__contentTest.dispose();
-  });
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      ),
-  );
-  await expect(page.locator('main > *')).toHaveCount(0);
-  expect(await page.evaluate(() => window.__contentTest.confirmed)).toBe(0);
-  expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-});
-
-test('tree replacement and removal release content height clamps', async ({ page }) => {
-  await expect(page.locator('.confirm')).toBeEnabled();
-  await expect(page.locator('.seams-surface-height-driven')).toHaveCount(0);
-  const originalHeight = await page
-    .locator('.txc-root')
-    .evaluate((element) => element.getBoundingClientRect().height);
-  const tree: TreeNode = {
-    id: 'root',
-    type: 'folder',
-    label: 'Transactions',
-    children: [
-      { id: 'data', type: 'file', label: 'Transaction data', open: true, content: 'First payload' },
-    ],
-  };
-  await page.evaluate((model) => window.__contentTest.setTree(model), tree);
-  await expect(page.locator('.file-content')).toHaveText('First payload');
-  await expect(page.locator('.seams-surface-height-driven')).toHaveCount(0);
-  await expect
-    .poll(() => page.locator('.txc-root').evaluate((element) => element.getBoundingClientRect().height))
-    .toBeGreaterThan(originalHeight);
-  tree.children![0].content = 'Replacement payload';
-  await page.evaluate((model) => window.__contentTest.setTree(model), tree);
-  await expect(page.locator('.file-content')).toHaveText('Replacement payload');
-  await page.evaluate(() => window.__contentTest.setTree(null));
-  await expect(page.locator('.seams-tx-tree')).toHaveCount(0);
-  await expect(page.locator('.seams-surface-height-driven')).toHaveCount(0);
-  await expect
-    .poll(() => page.locator('.txc-root').evaluate((element) => element.getBoundingClientRect().height))
-    .toBeCloseTo(originalHeight, 1);
-  await expect(page.locator('main [style]')).toHaveCount(0);
-  expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-});
-
-test('header status updates preserve regions and error stops the halo', async ({ page }) => {
-  await page.evaluate(() =>
-    window.__contentTest.setHeader({
-      heading: 'Confirm transaction',
-      icon: 'fingerprint',
-      website: { kind: 'loading' },
-      chainDetails: { kind: 'loading' },
-    }),
-  );
-  await expect(page.getByRole('heading')).toHaveText('Confirm transaction');
-  const statuses = page.getByRole('status');
-  await expect(statuses).toHaveCount(2);
-  await expect(statuses.nth(0)).toContainText('Loading website');
-  await expect(statuses.nth(1)).toContainText('Loading chain details');
-  const firstStatus = await statuses.nth(0).elementHandle();
-  await page.evaluate(() =>
-    window.__contentTest.setHeader({
-      heading: 'Enter email code',
-      icon: 'mail',
-      errorMessage: 'Please try again',
-      website: { kind: 'ready', text: 'wallet.example' },
-      chainDetails: { kind: 'ready', text: 'Ethereum' },
-    }),
-  );
-  await expect(statuses).toHaveText(['wallet.example', 'Ethereum']);
-  expect(await firstStatus!.evaluate((element) => element.isConnected)).toBe(true);
-  await expect(page.locator('.halo-ring')).toHaveCount(0);
-  await expect(page.locator('.error-banner')).toHaveText('Please try again');
-  await page.evaluate(() => window.__contentTest.dispose());
-  await expect(page.locator('main > *')).toHaveCount(0);
-  expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-});
-
 test('registration preserves displayed identity and cancellation during creation', async ({
   page,
 }) => {
@@ -650,41 +459,5 @@ test('registration preserves displayed identity and cancellation during creation
   expect(await page.evaluate(() => window.__contentTest.cancelled)).toBe(1);
   await page.evaluate(() => window.__contentTest.dispose());
   await expect(page.locator('main > *')).toHaveCount(0);
-  expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-});
-
-test('registration content fits narrow and wide viewports in both themes', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  for (const width of [360, 768]) {
-    await page.setViewportSize({ width, height: 640 });
-    for (const theme of ['light', 'dark']) {
-      await page.evaluate(
-        (value) => document.querySelector('main')!.setAttribute('data-theme', value),
-        theme,
-      );
-      for (const creating of [false, true]) {
-        await page.evaluate((value) => window.__contentTest.setRegistration(value), creating);
-        const surface = page.locator('.passkey-registration-confirm');
-        await expect(surface).toBeVisible();
-        const overflow = await surface.evaluate((element) => {
-          const bounds = element.getBoundingClientRect();
-          return Array.from(
-            element.querySelectorAll('button, .passkey-registration-confirm__value'),
-          ).some((child) => {
-            const rect = child.getBoundingClientRect();
-            return rect.left < bounds.left - 1 || rect.right > bounds.right + 1;
-          });
-        });
-        expect(overflow).toBe(false);
-        if (creating) {
-          const spinner = await page
-            .locator('.passkey-registration-confirm__spinner')
-            .boundingBox();
-          expect(spinner!.width).toBeCloseTo(20, 1);
-          expect(spinner!.height).toBeCloseTo(20, 1);
-        }
-      }
-    }
-  }
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });

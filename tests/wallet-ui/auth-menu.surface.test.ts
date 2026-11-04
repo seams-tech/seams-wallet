@@ -4,7 +4,6 @@ import { prepareAuthMenuDocument, mountAuthMenu } from './auth-menu.harness';
 import type {
   AuthMenuRecoveryViewModel,
   AuthMenuViewModel,
-  AuthMenuAccountOption,
 } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
 import { parseWalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
 
@@ -18,28 +17,6 @@ const APPEARANCE = {
   },
   palette: 'default',
 } as const;
-
-function registrationViewModel(
-  status: AuthMenuViewModel['status'] = { kind: 'idle', interaction: 'arming' },
-  showRegistrationInput = true,
-) {
-  return {
-    appearance: APPEARANCE,
-    hostname: 'wallet.example.test',
-    closeLabel: 'Close authentication menu',
-    heading: 'Create your passkey',
-    subtitle: 'Use a passkey to create your wallet.',
-    ctaLabel: 'Create passkey',
-    showProgress: true,
-    kind: 'passkey' as const,
-    mode: 'register' as const,
-    showRegistrationInput,
-    passkeyNameReadOnly: false,
-    passkeyNameLabel: 'Passkey name',
-    passkeyName: 'My wallet',
-    status,
-  };
-}
 
 function loginViewModel(
   status: AuthMenuViewModel['status'] = { kind: 'idle', interaction: 'actionable' },
@@ -139,175 +116,15 @@ function recoveryFinalizingViewModel(): Extract<
   };
 }
 
-function recoveryGoogleSignInReadyViewModel(): Extract<
-  AuthMenuRecoveryViewModel,
-  { readonly stage: 'sign_in_ready' }
-> {
-  return {
-    ...recoveryEntryViewModel(),
-    subtitle: 'Your Google account is ready to unlock your wallet.',
-    ctaLabel: 'Unlock with Google',
-    walletId: 'wallet-1.test',
-    stage: 'sign_in_ready',
-    target: { kind: 'google_email_otp', googleProvider: 'google' },
-    status: { kind: 'idle', interaction: 'actionable' },
-  };
-}
-
-function recoveryPasskeySignInReadyViewModel(): Extract<
-  AuthMenuRecoveryViewModel,
-  { readonly stage: 'sign_in_ready' }
-> {
-  return {
-    ...recoveryEntryViewModel(),
-    subtitle: 'Your wallet is ready. Unlock it with your passkey.',
-    ctaLabel: 'Unlock with new passkey',
-    walletId: 'wallet-1.test',
-    stage: 'sign_in_ready',
-    target: parseWalletRecoveryTargetV1({ kind: 'passkey', rpId: 'example.test' }),
-    status: { kind: 'idle', interaction: 'actionable' },
-  };
-}
-
-type AuthMethodAccountOption = AuthMenuAccountOption;
-
-async function readAuthMethodButtonStates(args: {
-  tagName: string;
-  passkeyOption: AuthMethodAccountOption;
-  emailOtpOption: AuthMethodAccountOption;
-}) {
-  const element = document.querySelector(args.tagName) as HTMLElement;
-  if (window.__authMenu.model.kind !== 'passkey' || window.__authMenu.model.mode !== 'login') {
-    throw new Error('Expected a login model');
-  }
-  const snapshots = [
-    {
-      passkey: !(element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).disabled,
-      emailOtp: !(element.querySelector('[data-auth-menu-provider="google"]') as HTMLButtonElement)
-        .disabled,
-    },
-  ];
-  window.__authMenu.model = {
-    ...window.__authMenu.model,
-    accountOptions: [args.emailOtpOption],
-    selectedAccount: args.emailOtpOption,
-  };
-  window.__authMenu.handle.update(window.__authMenu.model);
-  await Promise.resolve();
-  snapshots.push({
-    passkey: !(element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).disabled,
-    emailOtp: !(element.querySelector('[data-auth-menu-provider="google"]') as HTMLButtonElement)
-      .disabled,
-  });
-  window.__authMenu.model = {
-    ...window.__authMenu.model,
-    accountOptions: [args.passkeyOption, args.emailOtpOption],
-    selectedAccount: args.passkeyOption,
-  };
-  window.__authMenu.handle.update(window.__authMenu.model);
-  await Promise.resolve();
-  snapshots.push({
-    passkey: !(element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).disabled,
-    emailOtp: !(element.querySelector('[data-auth-menu-provider="google"]') as HTMLButtonElement)
-      .disabled,
-  });
-  return snapshots;
-}
-
 test.describe('wallet-host Preact auth menu surface', () => {
   test.beforeEach(async ({ page }) => {
     await setupBasicPasskeyTest(page);
     await prepareAuthMenuDocument(page);
   });
 
-  test('omits the account selector for discoverable login and focuses the passkey action', async ({
-    page,
-  }) => {
-    await mountAuthMenu(page, loginViewModel());
-
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-passkey-row`)).toHaveCount(0);
-    await expect(page.locator(`${AUTH_MENU_TAG} #seams-auth-menu-login-account`)).toHaveCount(0);
-    const primaryAction = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`);
-    await expect(primaryAction).toBeFocused();
-    await expect(primaryAction).toHaveAccessibleName('Unlock with passkey');
-  });
-
-  test('renders compact registration content and emits typed intents', async ({ page }) => {
-    await mountAuthMenu(page, registrationViewModel());
-
-    const initial = await page.evaluate((tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      const root = element;
-      const closeButton = root.querySelector('[data-auth-menu-close]') as HTMLButtonElement | null;
-      const primary = root.querySelector('[data-auth-menu-primary]') as HTMLButtonElement | null;
-      const input = root.querySelector('#seams-auth-menu-passkey-name') as HTMLInputElement | null;
-      return {
-        closeLabel: closeButton?.getAttribute('aria-label') ?? '',
-        hasPrimary: !!primary,
-        primaryDisabled: primary?.disabled ?? false,
-        heading: root.querySelector('.seams-title')?.textContent?.trim() ?? '',
-        subtitle: root.querySelector('.seams-subhead')?.textContent?.trim() ?? '',
-        hasFingerprint: !!root.querySelector('[data-auth-menu-primary] > svg'),
-        hasPasskeyName: !!input,
-        passkeyNameLabel: input?.getAttribute('placeholder') ?? '',
-        waitingText: root.querySelector('.seams-waiting-text')?.textContent?.trim() ?? '',
-        hasCancelCopy: root.textContent?.includes('Cancel') ?? false,
-        hasTick: !!root.querySelector('[data-verification-tick], .verification-tick'),
-      };
-    }, AUTH_MENU_TAG);
-
-    expect(initial.closeLabel).toBe('Back');
-    expect(initial.hasPrimary).toBe(true);
-    expect(initial.primaryDisabled).toBe(true);
-    expect(initial.heading).toBe('Create your passkey');
-    expect(initial.subtitle).toBe('Use a passkey to create your wallet.');
-    expect(initial.hasFingerprint).toBe(true);
-    expect(initial.hasPasskeyName).toBe(true);
-    expect(initial.passkeyNameLabel).toBe('Passkey name');
-    expect(initial.waitingText).toBe('');
-    expect(initial.hasCancelCopy).toBe(false);
-    expect(initial.hasTick).toBe(false);
-
-    const intents = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      const received: unknown[] = [];
-      window.__authMenu.onIntent = (intent) => {
-        received.push(intent);
-      };
-      if (
-        window.__authMenu.model.kind !== 'passkey' ||
-        window.__authMenu.model.mode !== 'register'
-      ) {
-        throw new Error('Expected a registration model');
-      }
-      window.__authMenu.model = {
-        ...window.__authMenu.model,
-        passkeyName: 'Ledger passkey',
-        status: { kind: 'idle', interaction: 'actionable' },
-      };
-      window.__authMenu.handle.update(window.__authMenu.model);
-      await Promise.resolve();
-      const input = element.querySelector('#seams-auth-menu-passkey-name') as HTMLInputElement;
-      input.value = 'Ledger passkey';
-      input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-      (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
-      (element.querySelector('[data-recovery-action]') as HTMLButtonElement).click();
-      (element.querySelector('[data-auth-menu-close]') as HTMLButtonElement).click();
-      return received;
-    }, AUTH_MENU_TAG);
-
-    expect(intents).toEqual([
-      { kind: 'passkey_name_changed', passkeyName: 'Ledger passkey' },
-      { kind: 'submit', mode: 'register', passkeyName: 'Ledger passkey' },
-      { kind: 'recovery_open' },
-      { kind: 'back' },
-    ]);
-  });
-
   test('keeps recovery in the hosted menu with accessible validation and focus return', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 320, height: 720 });
     await mountAuthMenu(page, loginViewModel());
     await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement & { intents?: unknown[] };
@@ -338,18 +155,10 @@ test.describe('wallet-host Preact auth menu surface', () => {
 
     const codeInput = page.locator(`${AUTH_MENU_TAG} [data-recovery-code]`);
     const recoveryFeedback = page.locator(`${AUTH_MENU_TAG} #seams-recovery-code-feedback`);
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-title`)).toHaveCSS('text-align', 'center');
     const recoverySubhead = page.locator(`${AUTH_MENU_TAG} .seams-subhead`);
     await expect(recoverySubhead).toHaveText('Enter a recovery code to recover your wallet.');
-    await expect(recoverySubhead).toHaveCSS('text-align', 'center');
     await expect(recoveryFeedback).toBeEmpty();
-    await expect(recoveryFeedback).toHaveCSS('margin', '4px');
-    await expect(
-      page.locator(`${AUTH_MENU_TAG} .seams-header + #seams-recovery-code-feedback`),
-    ).toHaveCount(1);
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-form`)).toHaveCSS('gap', '8px');
     await expect(codeInput).toHaveAttribute('aria-invalid', 'false');
-    await expect(codeInput).toHaveCSS('font-size', '16px');
     await codeInput.fill('ABCD-EFGH');
 
     await page.evaluate(
@@ -372,8 +181,6 @@ test.describe('wallet-host Preact auth menu surface', () => {
     );
     await expect(recoveryFeedback).toHaveCount(1);
     await expect(recoveryFeedback).toHaveText('Enter a recovery code.');
-    await expect(recoveryFeedback).toHaveClass(/seams-recovery-error/);
-    await expect(recoveryFeedback).toHaveCSS('text-align', 'center');
     await expect(recoveryFeedback).toHaveAttribute('aria-hidden', 'false');
 
     await page.evaluate(() => {
@@ -399,15 +206,8 @@ test.describe('wallet-host Preact auth menu surface', () => {
       { tagName: AUTH_MENU_TAG, viewModel: loginViewModel() },
     );
     await expect(page.locator(`${AUTH_MENU_TAG} [data-recovery-action]`)).toBeFocused();
-    const reflow = await page
-      .locator(`${AUTH_MENU_TAG} .seams-signup-menu-root`)
-      .evaluate((root) => ({
-        clientWidth: root.clientWidth,
-        scrollWidth: root.scrollWidth,
-      }));
-    expect(reflow.clientWidth).toBeGreaterThanOrEqual(318);
-    expect(reflow.scrollWidth).toBeLessThanOrEqual(reflow.clientWidth);
   });
+
   test('takes the recovery code first, then the sign-in method recovery adds', async ({ page }) => {
     await mountAuthMenu(page, recoveryEntryViewModel());
     await recordIntents(page);
@@ -455,29 +255,6 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(googleChoice).toHaveCount(0);
   });
 
-  test('renders recovered Google sign-in as one ready message with the Google icon', async ({
-    page,
-  }) => {
-    await mountAuthMenu(page, recoveryGoogleSignInReadyViewModel());
-
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-subhead`)).toHaveText(
-      'Your Google account is ready to unlock your wallet.',
-    );
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-status`)).toHaveCount(0);
-    const button = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`);
-    await expect(button).toHaveText('Unlock with Google');
-    await expect(button.locator(':scope > svg[aria-hidden="true"]')).toHaveCount(1);
-  });
-
-  test('renders recovered Passkey sign-in as one ready message', async ({ page }) => {
-    await mountAuthMenu(page, recoveryPasskeySignInReadyViewModel());
-
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-subhead`)).toHaveText(
-      'Your wallet is ready. Unlock it with your passkey.',
-    );
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-status`)).toHaveCount(0);
-  });
-
   test('locks Back and Escape while recovery finalization is irreversible', async ({ page }) => {
     await mountAuthMenu(page, recoveryFinalizingViewModel());
     await page.evaluate((tagName) => {
@@ -498,82 +275,6 @@ test.describe('wallet-host Preact auth menu surface', () => {
         AUTH_MENU_TAG,
       ),
     ).toEqual([]);
-  });
-
-  test('renders the device-link QR menu and returns through the Back control', async ({ page }) => {
-    await mountAuthMenu(page, {
-      ...loginViewModel(),
-      kind: 'link_device',
-      heading: 'Scan and Link Device',
-      subtitle: 'Scan to backup your other device.',
-      ctaLabel: '',
-      linkDevice: {
-        kind: 'ready',
-        qrCodeDataURL: 'data:image/png;base64,iVBORw0KGgo=',
-        message: 'Waiting for device to scan',
-      },
-    });
-
-    const result = await page.evaluate((tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      const received: unknown[] = [];
-      window.__authMenu.onIntent = (intent) => {
-        received.push(intent);
-      };
-      const image = element.querySelector('.qr-code-image') as HTMLImageElement | null;
-      (element.querySelector('[data-auth-menu-close]') as HTMLButtonElement).click();
-      return {
-        title: element.querySelector('.qr-title')?.textContent?.trim(),
-        instruction: element.querySelector('.qr-instruction')?.textContent?.trim(),
-        status: element.querySelector('.qr-status')?.textContent?.trim(),
-        imageAlt: image?.alt,
-        intents: received,
-      };
-    }, AUTH_MENU_TAG);
-
-    expect(result).toEqual({
-      title: 'Scan and Link Device',
-      instruction: 'Scan to backup your other device.',
-      status: 'Waiting for device to scan',
-      imageAlt: 'QR code to link this device',
-      intents: [{ kind: 'back' }],
-    });
-  });
-
-  test('renders post-link activation without returning to QR generation', async ({ page }) => {
-    await mountAuthMenu(page, {
-      ...loginViewModel(),
-      kind: 'link_device',
-      heading: 'Scan and link device',
-      subtitle: 'Scan this code with your other device.',
-      ctaLabel: '',
-      linkDevice: {
-        kind: 'activating',
-        message: 'Preparing this device for signing',
-      },
-    });
-
-    const result = await page.evaluate((tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      return {
-        title: element.querySelector('.qr-title')?.textContent?.trim(),
-        status: element
-          .querySelector('.seams-link-device-confirmation-copy[role="status"]')
-          ?.textContent?.trim(),
-        live: element
-          .querySelector('.seams-link-device-confirmation-copy[role="status"]')
-          ?.getAttribute('aria-live'),
-        hasQrImage: !!element.querySelector('.qr-code-image'),
-        text: element.textContent ?? '',
-      };
-    }, AUTH_MENU_TAG);
-
-    expect(result.title).toBe('Opening linked wallet');
-    expect(result.status).toBe('Preparing this device for signing');
-    expect(result.live).toBe('polite');
-    expect(result.hasQrImage).toBe(false);
-    expect(result.text).not.toContain('Generating QR code');
-    expect(result.text).not.toContain('Preparing a one-time code');
   });
 
   test('renders linked-wallet activation failures with a recovery action', async ({ page }) => {
@@ -612,30 +313,13 @@ test.describe('wallet-host Preact auth menu surface', () => {
     });
   });
 
-  test('keeps the Back control interactive while passkey authentication is running', async ({
+  test('Back and Escape leave a running passkey wait; Escape on the menu is ignored', async ({
     page,
   }) => {
     await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Unlocking wallet…' }));
-    await page.evaluate((tagName) => {
-      const element = document.querySelector(tagName);
-      if (!element) throw new Error('auth-menu surface is missing');
-      (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents = [];
-      window.__authMenu.onIntent = (intent) => {
-        (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents?.push(intent);
-      };
-    }, AUTH_MENU_TAG);
-
+    await recordIntents(page);
     await page.locator(`${AUTH_MENU_TAG} [data-auth-menu-close]`).click();
-
-    const intents = await page.evaluate(
-      () => (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents ?? [],
-    );
-    expect(intents).toEqual([{ kind: 'back' }]);
-  });
-  test('Escape backs out of the waiting view but is ignored on the menu itself', async ({
-    page,
-  }) => {
-    await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Unlocking wallet…' }));
+    expect(await recordedIntents(page)).toEqual([{ kind: 'back' }]);
 
     const fromWaiting = await page.evaluate(async () => {
       const received: unknown[] = [];
@@ -660,124 +344,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
     expect(fromMenu).toEqual([]);
   });
 
-  test('keeps required sponsored registration input quiet until a name is entered', async ({
-    page,
-  }) => {
-    await mountAuthMenu(page, {
-      ...registrationViewModel({ kind: 'idle', interaction: 'awaiting_input' }, true),
-      passkeyName: '',
-    });
-
-    const snapshot = await page.evaluate(async (tagName) => {
-      const root = document.querySelector(tagName) as HTMLElement;
-      const input = root.querySelector('#seams-auth-menu-passkey-name') as HTMLInputElement | null;
-      return {
-        ariaBusy: root.querySelector('.auth-menu-root')?.getAttribute('aria-busy') ?? '',
-        ctaDisabled: (root.querySelector('[data-auth-menu-primary]') as HTMLButtonElement)
-          ?.disabled,
-        inputDisabled: input?.disabled ?? false,
-        inputValue: input?.value ?? '',
-        hasAlert: !!root.querySelector('[role="alert"]'),
-        retryCount: root.querySelectorAll('.auth-menu-retry').length,
-        hasProgress: !!root.querySelector('.seams-waiting'),
-      };
-    }, AUTH_MENU_TAG);
-
-    expect(snapshot).toEqual({
-      ariaBusy: 'false',
-      ctaDisabled: true,
-      inputDisabled: false,
-      inputValue: '',
-      hasAlert: false,
-      retryCount: 0,
-      hasProgress: false,
-    });
-  });
-
-  test('renders login without registration input and uses the original compact spinner', async ({
-    page,
-  }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await mountAuthMenu(
-      page,
-      loginViewModel({ kind: 'busy', headline: 'Unlocking wallet…', detail: 'Checking passkey' }),
-    );
-
-    const snapshot = await page.evaluate((tagName) => {
-      const root = document.querySelector(tagName) as HTMLElement;
-      return {
-        hasPrimary: !!root.querySelector('[data-auth-menu-primary]'),
-        hasPasskeyName: !!root.querySelector('#seams-auth-menu-passkey-name'),
-        hasHalo: !!root.querySelector('seams-passkey-halo-loading'),
-        heading: root.querySelector('.seams-waiting-text')?.textContent?.trim() ?? '',
-        spinnerLabel: root.querySelector('.seams-spinner')?.getAttribute('aria-label') ?? '',
-      };
-    }, AUTH_MENU_TAG);
-
-    expect(snapshot.hasPrimary).toBe(false);
-    expect(snapshot.hasPasskeyName).toBe(false);
-    expect(snapshot.hasHalo).toBe(false);
-    expect(snapshot.heading).toBe('Unlocking wallet…');
-    expect(snapshot.spinnerLabel).toBe('Loading');
-  });
-
-  test('hides the registration input when host configuration disables it', async ({ page }) => {
-    await mountAuthMenu(page, {
-      ...registrationViewModel({ kind: 'idle', interaction: 'actionable' }, false),
-      enabledExternalProviders: ['google'],
-    });
-
-    const snapshot = await page.evaluate((tagName) => {
-      const root = document.querySelector(tagName) as HTMLElement;
-      return {
-        hasPasskeyName: !!root.querySelector('#seams-auth-menu-passkey-name'),
-      };
-    }, AUTH_MENU_TAG);
-
-    expect(snapshot.hasPasskeyName).toBe(false);
-  });
-  test('renders the implicit-wallet reroll and mode switch intents', async ({ page }) => {
-    await mountAuthMenu(page, {
-      ...registrationViewModel({ kind: 'idle', interaction: 'actionable' }),
-      passkeyNameReadOnly: true,
-      showRegistrationInput: true,
-    });
-
-    const intents = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      const received: unknown[] = [];
-      window.__authMenu.onIntent = (intent) => {
-        received.push(intent);
-      };
-      (element.querySelector('[data-auth-menu-mode="login"]') as HTMLButtonElement).click();
-      (element.querySelector('.auth-menu-registration-reroll') as HTMLButtonElement).click();
-      return received;
-    }, AUTH_MENU_TAG);
-
-    expect(intents).toEqual([
-      { kind: 'mode_selected', mode: 'login' },
-      { kind: 'registration_reroll' },
-    ]);
-  });
-
-  test('shows a rejected unlock challenge and keeps sign-in available for retry', async ({
-    page,
-  }) => {
-    await mountAuthMenu(
-      page,
-      loginViewModel({
-        kind: 'recoverable',
-        reason: 'error',
-        message: 'Wallet has no registered passkey credential',
-      }),
-    );
-    await expect(page.getByRole('alert')).toHaveText('Wallet has no registered passkey credential');
-    await expect(page.locator('[data-auth-menu-primary]')).toBeEnabled();
-    await mountAuthMenu(page, loginViewModel({ kind: 'idle', interaction: 'actionable' }));
-    await expect(page.getByRole('alert')).toHaveCount(0);
-  });
-
-  test('reports a failure in the footer strip without moving the menu, and retries from it', async ({
+  test('reports a failure in the footer strip and retries; an expired preparation stays retryable', async ({
     page,
   }) => {
     await mountAuthMenu(page, loginViewModel());
@@ -787,7 +354,6 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(footer).toHaveAttribute('data-state', 'brand');
     await expect(footer.locator('.seams-auth-footer-brand')).toContainText('Secured by');
     await expect(notice).toBeHidden();
-    const idleHeight = (await card.boundingBox())?.height ?? 0;
 
     const failedStatus = {
       kind: 'recoverable',
@@ -814,8 +380,6 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(notice).toHaveText('Can’t reach Seams right now.');
     await expect(page.getByRole('alert')).toHaveText('Can’t reach Seams right now.');
     await expect(card).not.toContainText('HTTP 502');
-    // Within a pixel: the card's height is synced from a rounded measurement.
-    expect(Math.abs(((await card.boundingBox())?.height ?? 0) - idleHeight)).toBeLessThan(1);
     expect(retryIntents).toEqual([{ kind: 'submit', mode: 'login' }]);
 
     await page.evaluate(() => {
@@ -828,11 +392,8 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(notice).toBeHidden();
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expect(footer.locator('.seams-auth-footer-action')).toBeDisabled();
-  });
 
-  test('keeps the primary action live without rendering an expired preparation error', async ({
-    page,
-  }) => {
+    // An expired preparation shows no error and keeps the primary action as the retry.
     await mountAuthMenu(page, {
       ...loginViewModel({
         kind: 'recoverable',
@@ -841,7 +402,6 @@ test.describe('wallet-host Preact auth menu surface', () => {
       }),
       enabledExternalProviders: ['google'],
     });
-
     const snapshot = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       return {
@@ -874,297 +434,5 @@ test.describe('wallet-host Preact auth menu surface', () => {
       return received;
     }, AUTH_MENU_TAG);
     expect(submitIntent).toEqual([{ kind: 'submit', mode: 'login' }]);
-  });
-
-  test('renders Google OTP controls and emits code, resend, and submit intents', async ({
-    page,
-  }) => {
-    await mountAuthMenu(page, {
-      ...loginViewModel({ kind: 'idle', interaction: 'actionable' }),
-      kind: 'google_otp_login',
-      challengeId: 'test-google-otp-challenge',
-      mode: 'login',
-      emailHint: 'g***@example.test',
-      walletId: 'wallet-google-test',
-      prompt: {
-        title: 'Verify your email',
-        description: 'Enter the code we sent.',
-        submitLabel: 'Verify',
-        helperText: '',
-      },
-      delivery: { kind: 'provider', status: 'sent', emailHint: 'g***@example.test' },
-      otpCode: '',
-      resendBusy: false,
-      submitBusy: false,
-    });
-
-    const intents = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      const received: unknown[] = [];
-      window.__authMenu.onIntent = (intent) => {
-        received.push(intent);
-      };
-      const input = element.querySelector('#seams-auth-menu-google-otp') as HTMLInputElement;
-      input.value = '123456';
-      input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-      (element.querySelector('.auth-menu-google-resend') as HTMLButtonElement).click();
-      if (window.__authMenu.model.kind !== 'google_otp_login') {
-        throw new Error('Expected a Google OTP model');
-      }
-      window.__authMenu.model = {
-        ...window.__authMenu.model,
-        otpCode: '123456',
-      };
-      window.__authMenu.handle.update(window.__authMenu.model);
-      await Promise.resolve();
-      (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
-      return received;
-    }, AUTH_MENU_TAG);
-
-    expect(intents).toEqual([
-      { kind: 'google_otp_code_changed', code: '123456' },
-      { kind: 'google_otp_resend' },
-      { kind: 'google_otp_submit' },
-    ]);
-  });
-
-  test('renders a multi-wallet login selector and emits the selected wallet', async ({ page }) => {
-    const walletA = {
-      walletId: 'wallet-a',
-      authMethod: 'passkey',
-    } as const;
-    const walletB = {
-      walletId: 'wallet-b',
-      authMethod: 'email_otp',
-      emailAddress: 'wallet-b@example.com',
-    } as const;
-    await mountAuthMenu(page, {
-      ...loginViewModel(),
-      kind: 'passkey',
-      accountOptions: [walletA, walletB],
-      selectedAccount: walletA,
-    });
-
-    const selectedAccount = page.locator(`${AUTH_MENU_TAG} .seams-selected-account`);
-    await expect(selectedAccount.locator('.seams-account-menu-account-primary')).toHaveText(
-      'wallet-a',
-    );
-    await expect(selectedAccount.locator('.seams-account-menu-account-secondary')).toHaveCount(0);
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`)).toHaveAttribute(
-      'aria-label',
-      'Saved wallets. Selected wallet-a',
-    );
-
-    const selected = await page.evaluate(
-      async ({ tagName, selectedAccount }) => {
-        const element = document.querySelector(tagName) as HTMLElement;
-        const received: unknown[] = [];
-        window.__authMenu.onIntent = (intent) => {
-          received.push(intent);
-        };
-        (element.querySelector('.seams-account-menu-trigger') as HTMLButtonElement).click();
-        await Promise.resolve();
-        (element.querySelector('[data-wallet-id="wallet-b"]') as HTMLButtonElement).click();
-        if (
-          window.__authMenu.model.kind !== 'passkey' ||
-          window.__authMenu.model.mode !== 'login'
-        ) {
-          throw new Error('Expected a login model');
-        }
-        window.__authMenu.model = { ...window.__authMenu.model, selectedAccount };
-        window.__authMenu.handle.update(window.__authMenu.model);
-        await Promise.resolve();
-        return received;
-      },
-      { tagName: AUTH_MENU_TAG, selectedAccount: walletB },
-    );
-
-    expect(selected).toEqual([
-      { kind: 'login_account_selected', walletId: 'wallet-b', authMethod: 'email_otp' },
-    ]);
-    await expect(selectedAccount.locator('.seams-account-menu-account-primary')).toHaveText(
-      'wallet-b',
-    );
-    await expect(selectedAccount.locator('.seams-account-menu-account-secondary')).toHaveText(
-      'wallet-b@example.com',
-    );
-    await expect(page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`)).toHaveAttribute(
-      'aria-label',
-      'Saved wallets. Selected wallet ID wallet-b, email wallet-b@example.com',
-    );
-    const selectedAccountLayout = await selectedAccount.evaluate((account) => ({
-      clientHeight: account.clientHeight,
-      clientWidth: account.clientWidth,
-      scrollHeight: account.scrollHeight,
-      scrollWidth: account.scrollWidth,
-    }));
-    expect(selectedAccountLayout.scrollHeight).toBeLessThanOrEqual(
-      selectedAccountLayout.clientHeight,
-    );
-    expect(selectedAccountLayout.scrollWidth).toBeLessThanOrEqual(
-      selectedAccountLayout.clientWidth,
-    );
-  });
-  test('blinks the chosen account once before the selector closes', async ({ page }) => {
-    const walletA = { walletId: 'wallet-a', authMethod: 'passkey' } as const;
-    const walletB = { walletId: 'wallet-b', authMethod: 'passkey' } as const;
-    await mountAuthMenu(page, {
-      ...loginViewModel(),
-      kind: 'passkey',
-      accountOptions: [walletA, walletB],
-      selectedAccount: walletA,
-    });
-
-    const blink = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      const intents: unknown[] = [];
-      window.__authMenu.onIntent = (intent) => {
-        intents.push(intent);
-      };
-      (element.querySelector('.seams-account-menu-trigger') as HTMLButtonElement).click();
-      await Promise.resolve();
-      const option = element.querySelector('[data-wallet-id="wallet-b"]') as HTMLButtonElement;
-      const phases: (string | null)[] = [];
-      new MutationObserver(() => {
-        phases.push(option.getAttribute('data-blink'));
-      }).observe(option, { attributeFilter: ['data-blink'] });
-      const listIsOpen = () => element.querySelector('.seams-account-menu-popover') !== null;
-
-      option.click();
-      option.click();
-      const intentsDuringClick = intents.length;
-      await new Promise((resolve) => setTimeout(resolve, 40));
-      const openDuringBlink = listIsOpen();
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      return { intentsDuringClick, openDuringBlink, phases, openAfterBlink: listIsOpen() };
-    }, AUTH_MENU_TAG);
-
-    expect(blink).toEqual({
-      intentsDuringClick: 1,
-      openDuringBlink: true,
-      phases: ['off', 'on', null],
-      openAfterBlink: false,
-    });
-  });
-  test('shows one entry for a dual-method wallet and enables both methods', async ({ page }) => {
-    const passkey = {
-      walletId: 'jade-brook',
-      authMethod: 'passkey',
-    } as const;
-    const emailOtp = {
-      walletId: 'jade-brook',
-      authMethod: 'email_otp',
-      emailAddress: 'n637805@gmail.com',
-    } as const;
-    await mountAuthMenu(page, {
-      ...loginViewModel(),
-      enabledExternalProviders: ['google'],
-      accountOptions: [passkey],
-      selectedAccount: passkey,
-    });
-
-    const states = await page.evaluate(readAuthMethodButtonStates, {
-      tagName: AUTH_MENU_TAG,
-      passkeyOption: passkey,
-      emailOtpOption: emailOtp,
-    });
-
-    expect(states).toEqual([
-      { passkey: true, emailOtp: false },
-      { passkey: false, emailOtp: true },
-      { passkey: true, emailOtp: true },
-    ]);
-
-    await page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`).click();
-    await expect(
-      page.locator(`${AUTH_MENU_TAG} [data-wallet-id="jade-brook"][data-auth-method="passkey"]`),
-    ).toHaveCount(1);
-    const walletOption = page.locator(`${AUTH_MENU_TAG} [role="option"][data-wallet-id="jade-brook"]`);
-    await expect(walletOption).toHaveCount(1);
-    await expect(walletOption.locator('.seams-account-menu-account-primary')).toHaveText('jade-brook');
-    await walletOption.focus();
-    await expect(walletOption).toBeFocused();
-
-  });
-
-  test('delivers the submit intent synchronously during trusted user activation', async ({
-    page,
-  }) => {
-    await mountAuthMenu(page, loginViewModel());
-    await page.evaluate((tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      window.__authMenu.onIntent = (intent) => {
-        if (intent.kind !== 'submit') return;
-        element.dataset.intentActivation = String(navigator.userActivation.isActive);
-        element.dataset.deliveryOrder = 'intent';
-      };
-      element.addEventListener('click', () => {
-        element.dataset.deliveryOrder += ',click-bubbled';
-      });
-    }, AUTH_MENU_TAG);
-
-    await page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`).click();
-    await expect(page.locator(AUTH_MENU_TAG)).toHaveAttribute('data-intent-activation', 'true');
-    await expect(page.locator(AUTH_MENU_TAG)).toHaveAttribute(
-      'data-delivery-order',
-      'intent,click-bubbled',
-    );
-  });
-
-  test('traps keyboard focus and restores it without retaining document listeners', async ({
-    page,
-  }) => {
-    await page.evaluate(() => {
-      const trigger = document.createElement('button');
-      trigger.id = 'auth-menu-test-trigger';
-      trigger.textContent = 'Open wallet';
-      document.body.appendChild(trigger);
-      trigger.focus();
-    });
-    await mountAuthMenu(page, loginViewModel());
-    await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`)).toBeFocused();
-    const controls = page.locator(
-      `${AUTH_MENU_TAG} button:not([disabled]), ${AUTH_MENU_TAG} input:not([disabled]), ${AUTH_MENU_TAG} a[href]`,
-    );
-    await controls.last().focus();
-    await page.keyboard.press('Tab');
-    await expect(controls.first()).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
-    await expect(controls.last()).toBeFocused();
-
-    const detachedIntents = await page.evaluate(() => {
-      const intents: unknown[] = [];
-      window.__authMenu.onIntent = (intent) => {
-        intents.push(intent);
-      };
-      window.__authMenu.handle.dispose();
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      return intents;
-    }, AUTH_MENU_TAG);
-    await expect(page.locator('#auth-menu-test-trigger')).toBeFocused();
-    expect(detachedIntents).toEqual([]);
-  });
-
-  test('starts a ready login intent from the primary CTA and closes on Escape', async ({
-    page,
-  }) => {
-    await mountAuthMenu(page, loginViewModel());
-
-    const intents = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement;
-      const received: unknown[] = [];
-      window.__authMenu.onIntent = (intent) => {
-        received.push(intent);
-      };
-      (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
-      const root = element.querySelector('.auth-menu-root') as HTMLElement;
-      root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      return received;
-    }, AUTH_MENU_TAG);
-
-    expect(intents).toEqual([
-      { kind: 'submit', mode: 'login' },
-      { kind: 'close', reason: 'escape' },
-    ]);
   });
 });

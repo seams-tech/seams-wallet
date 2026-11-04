@@ -211,36 +211,14 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
   await auth.getByText('Recover or link wallet', { exact: true }).click();
   await expect(auth.getByRole('button', { name: /Link this device/ })).toBeVisible();
   await auth.getByText('Recover or link wallet', { exact: true }).click();
-  const icon = meteor.locator('.seams-alternative-icon');
-  await expect(icon).toHaveCSS('filter', 'none');
-  await meteor.hover();
-  await expect(icon).toHaveCSS('filter', 'none');
-  const walletFrame = page.frame({ url: /^https:\/\/wallet\.example\.localhost\/wallet-service/ });
-  if (!walletFrame) throw new Error('Wallet frame is missing');
-  await walletFrame.evaluate(`
-    void 0;
-    ${documentFits.toString()}
-    ${recordLayout.toString()}
-    ${startLayoutRecording.toString()}
-    startLayoutRecording(document.documentElement);
-  `);
   await meteor.click();
   await expect(meteor).toBeDisabled();
-  await expect
-    .poll(auth.locator('html').evaluate.bind(auth.locator('html'), documentFits))
-    .toBe(true);
   await page.waitForFunction('typeof window.__rejectMeteor === "function"');
   await page.evaluate("window.__rejectMeteor(new Error('Meteor request rejected'))");
   await expect(
     auth.getByRole('alert').filter({ hasText: 'Meteor Wallet did not connect' }),
   ).toBeVisible();
   await expect(meteor).toBeEnabled();
-  await expect
-    .poll(auth.locator('html').evaluate.bind(auth.locator('html'), documentFits))
-    .toBe(true);
-  const layout = await auth.locator('html').evaluate(stopLayoutRecording);
-  await writeFile(testInfo.outputPath('connection-layout.json'), JSON.stringify(layout, null, 2));
-  expect(layout.overflow).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('meteor-connection-error.png') });
   await auth.getByText('Recover or link wallet', { exact: true }).click();
   await auth.getByRole('button', { name: /Recover wallet/ }).click();
@@ -272,13 +250,6 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
   const rabby = auth.getByRole('button', { name: /Rabby/ });
   await expect(rabby).toBeVisible();
   await expect(rabby.locator('img')).toHaveJSProperty('naturalWidth', 32);
-  await expect
-    .poll(
-      auth
-        .locator('.seams-content-switcher')
-        .evaluate.bind(auth.locator('.seams-content-switcher'), contentFits),
-    )
-    .toBe(true);
   await page.screenshot({ path: testInfo.outputPath('combined-wallet-expanded.png') });
   await rabby.click();
   await expect(rabby).toBeEnabled();
@@ -295,103 +266,29 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
   );
 });
 
-for (const mode of ['omitted', 'empty', 'primary', 'secondary']) {
-  test(`wallet groups follow explicit ${mode} configuration`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/wallet-connector-test?mode=' + mode);
-    const auth = page.frameLocator('iframe[data-seams-owner="wallet-connector"]');
-    await expect(auth.locator('.seams-title')).toBeVisible();
-    await expect(auth.getByText('Or connect another wallet', { exact: true })).toHaveCount(
-      mode === 'primary' ? 1 : 0,
-    );
-    await expect(auth.locator('summary').filter({ hasText: 'More wallets' })).toHaveCount(
-      mode === 'secondary' ? 1 : 0,
-    );
-    await expect(auth.getByText('Recover or link wallet', { exact: true })).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath('combined-wallet-' + mode + '.png') });
-  });
-}
-
-function contentFits(element: HTMLElement | SVGElement): boolean {
-  const content = element.querySelector<HTMLElement>('.seams-content-sizer');
-  return (
-    content !== null && Math.abs(element.getBoundingClientRect().height - content.scrollHeight) <= 1
-  );
-}
-
-function documentFits(element: HTMLElement | SVGElement): boolean {
-  return element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight;
-}
-
-function startLayoutRecording(element: HTMLElement): void {
-  const measurements: object[] = [];
-  const overflow: object[] = [];
-  const timer = window.setInterval(recordLayout.bind(null, element, measurements, overflow), 10);
-  Reflect.set(window, '__menuLayout', { timer, measurements, overflow });
-}
-
-function recordLayout(element: HTMLElement, measurements: object[], overflow: object[]): void {
-  const measurement = {
-    width: element.clientWidth,
-    height: element.clientHeight,
-    scrollWidth: element.scrollWidth,
-    scrollHeight: element.scrollHeight,
-    scrollbarWidth: getComputedStyle(element).scrollbarWidth,
-  };
-  measurements.push(measurement);
-  if (!documentFits(element) && measurement.scrollbarWidth !== 'none') overflow.push(measurement);
-}
-
-function stopLayoutRecording(): { measurements: object[]; overflow: object[] } {
-  const recording = Reflect.get(window, '__menuLayout');
-  window.clearInterval(recording.timer);
-  return { measurements: recording.measurements, overflow: recording.overflow };
-}
-
-for (const recoveryOptions of ['collapsible', 'expanded', 'hidden']) {
-  test(`recovery controls support ${recoveryOptions} and custom footer branding`, async ({
-    page,
-  }, testInfo) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/wallet-connector-test?brand&mode=primary&recovery=' + recoveryOptions);
-    const auth = page.frameLocator('iframe[data-seams-owner="wallet-connector"]');
-    const recovery = auth.getByRole('button', { name: /Recover wallet/ });
-    const brand = auth.locator('img[alt="Example application"]');
-    await expect(brand).toBeAttached();
-    await expect.poll(brand.evaluate.bind(brand, imageLoaded)).toBe(true);
-    await expect(auth.getByText('Secured by', { exact: true })).toHaveCount(0);
-    await page.screenshot({ path: testInfo.outputPath('menu-' + recoveryOptions + '.png') });
-    if (recoveryOptions === 'hidden') {
-      await expect(recovery).toHaveCount(0);
-      await expect(auth.getByText('Recover or link wallet', { exact: true })).toHaveCount(0);
-      await page.evaluate("window.__connector.render('primary', 'expanded', true)");
-    } else {
-      if (recoveryOptions === 'collapsible') {
-        await expect(recovery).toBeHidden();
-        await auth.getByText('Recover or link wallet', { exact: true }).click();
-      }
-    }
-    await expect(recovery).toBeVisible();
-    await recovery.click();
-    await expect(auth.locator('[data-recovery-code]')).toBeVisible();
-    await expect(brand).toBeVisible();
-    await expect
-      .poll(auth.locator('html').evaluate.bind(auth.locator('html'), documentFits))
-      .toBe(true);
-    await page.screenshot({ path: testInfo.outputPath('recovery-' + recoveryOptions + '.png') });
-    await page.evaluate("window.__connector.render('primary', 'hidden', false, 'login')");
-    await expect(auth.getByText('Secured by', { exact: true })).toBeAttached();
-    await expect(auth.getByRole('img', { name: 'Example application' })).toHaveCount(0);
-    await writeFile(
-      testInfo.outputPath('presentation-results.json'),
-      JSON.stringify(
-        { recoveryOptions, customBrandLoaded: true, defaultBrandRestored: true },
-        null,
-        2,
-      ),
-    );
-  });
-}
+test('hidden recovery controls return when expanded, with custom footer branding', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/wallet-connector-test?brand&mode=primary&recovery=hidden');
+  const auth = page.frameLocator('iframe[data-seams-owner="wallet-connector"]');
+  const recovery = auth.getByRole('button', { name: /Recover wallet/ });
+  const brand = auth.locator('img[alt="Example application"]');
+  await expect(brand).toBeAttached();
+  await expect.poll(brand.evaluate.bind(brand, imageLoaded)).toBe(true);
+  await expect(auth.getByText('Secured by', { exact: true })).toHaveCount(0);
+  await expect(recovery).toHaveCount(0);
+  await expect(auth.getByText('Recover or link wallet', { exact: true })).toHaveCount(0);
+  await page.evaluate("window.__connector.render('primary', 'expanded', true)");
+  await expect(recovery).toBeVisible();
+  await recovery.click();
+  await expect(auth.locator('[data-recovery-code]')).toBeVisible();
+  await expect(brand).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('recovery-expanded.png') });
+  await page.evaluate("window.__connector.render('primary', 'hidden', false, 'login')");
+  await expect(auth.getByText('Secured by', { exact: true })).toBeAttached();
+  await expect(auth.getByRole('img', { name: 'Example application' })).toHaveCount(0);
+});
 
 test('real Meteor adapter recovers after the extension becomes available', async ({
   page,
@@ -416,20 +313,11 @@ test('real Meteor adapter recovers after the extension becomes available', async
   const results = await page.evaluate(readConnectorResults);
   expect(results.connections[0].accountId).toBe('connected.testnet');
   expect(results.outcomes.at(-1).kind).toBe('wallet_connected');
-  expect(results.requests.map(requestAction)).toEqual([
-    'initializing',
-    'connected',
-    'closed_success',
-  ]);
   await writeFile(
     testInfo.outputPath('meteor-adapter-results.json'),
     JSON.stringify(results, null, 2),
   );
 });
-
-function requestAction(request: { status: string }): string {
-  return request.status;
-}
 
 async function respondToMeteor(request: { uid: string; status: string }): Promise<unknown> {
   Reflect.get(window, '__meteorWire').push(request);

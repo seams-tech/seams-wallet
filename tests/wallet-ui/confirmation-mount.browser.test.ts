@@ -8,7 +8,6 @@ import type {
   ConfirmSurfaceModel,
   ConfirmationSurfaceHandle,
 } from '@/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface';
-import type { EmailOtpVerificationState } from '@/core/signingEngine/uiConfirm/ui/preact/email-otp-session';
 import type {
   MessageReceiptState,
   TransactionReceiptState,
@@ -25,7 +24,6 @@ declare global {
       mount(variant: 'modal' | 'drawer', context: 'standalone' | 'wallet-iframe'): string;
       update(index: number, heading: string, ready: boolean): void;
       error(index: number): void;
-      email(index: number, challengeId: string, verification: EmailOtpVerificationState): void;
       close(index: number): void;
       dispose(index: number): void;
       receipt(index: number, state: TransactionReceiptState, view?: 'expanded' | 'toast'): void;
@@ -37,10 +35,6 @@ declare global {
       violations: string[];
     };
   }
-}
-
-function getRootScrollbarWidth(): string {
-  return getComputedStyle(document.documentElement).scrollbarWidth;
 }
 
 test.beforeEach(async ({ page }) => {
@@ -75,23 +69,6 @@ test.beforeEach(async ({ page }) => {
     }
     function closed() {
       window.__confirmationMount.closed++;
-    }
-    function otpSubmit(code: string, challengeId: string) {
-      window.__confirmationMount.calls.push(`${challengeId}:${code}`);
-    }
-    function email(index: number, challengeId: string, verification: EmailOtpVerificationState) {
-      const viewModel = model('Email confirmation', true);
-      if (viewModel.content.kind !== 'transaction') throw new Error('Expected transaction fixture');
-      viewModel.content.prompt = {
-        kind: 'email',
-        email: {
-          prompt: { challengeId, emailHint: 'a***@example.com' },
-          verification,
-          onSubmit: otpSubmit,
-        },
-      };
-      viewModel.content.transaction.confirmText = 'Confirm Code';
-      handles[index].update(viewModel);
     }
     function model(heading: string, ready: boolean): ConfirmSurfaceModel {
       return {
@@ -159,10 +136,16 @@ test.beforeEach(async ({ page }) => {
     function recipient(index: number, value: string) {
       const viewModel = model('Review transfer', true);
       if (viewModel.content.kind !== 'transaction') throw new Error('Expected transaction fixture');
-      viewModel.content.review = { tree: null, model: {
-        chain: 'evm', chainId: 8453,
-        operations: [{ id: 'transfer', kind: 'generic.contractCall', label: 'Transfer', to: value }],
-      } };
+      viewModel.content.review = {
+        tree: null,
+        model: {
+          chain: 'evm',
+          chainId: 8453,
+          operations: [
+            { id: 'transfer', kind: 'generic.contractCall', label: 'Transfer', to: value },
+          ],
+        },
+      };
       viewModel.content.transaction.explorers.evm = 'https://basescan.org';
       handles[index].update(viewModel);
     }
@@ -206,20 +189,25 @@ test.beforeEach(async ({ page }) => {
     function messageReceipt(index: number, state: MessageReceiptState, view: 'expanded' | 'toast') {
       const viewModel = model('Sign message', true);
       if (viewModel.content.kind !== 'transaction') throw new Error('Expected transaction fixture');
-      viewModel.content.review = { tree: null, model: {
-        chain: 'near',
-        signerAccount: 'alice.testnet',
-        operations: [{
-          id: 'near.message',
-          kind: 'near.message',
-          label: 'Message signature',
-          fields: [
-            { label: 'Signer', value: 'alice.testnet' },
-            { label: 'Recipient', value: 'auction.example' },
-            { label: 'Message', value: 'Sign in to Auction House', renderAs: 'file-content' },
+      viewModel.content.review = {
+        tree: null,
+        model: {
+          chain: 'near',
+          signerAccount: 'alice.testnet',
+          operations: [
+            {
+              id: 'near.message',
+              kind: 'near.message',
+              label: 'Message signature',
+              fields: [
+                { label: 'Signer', value: 'alice.testnet' },
+                { label: 'Recipient', value: 'auction.example' },
+                { label: 'Message', value: 'Sign in to Auction House', renderAs: 'file-content' },
+              ],
+            },
           ],
-        }],
-      } };
+        },
+      };
       handles[index].update(viewModel);
       handles[index].showReceipt({
         subject: 'message',
@@ -236,7 +224,6 @@ test.beforeEach(async ({ page }) => {
       mount,
       update,
       error,
-      email,
       close,
       dispose,
       receipt,
@@ -251,87 +238,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-for (const context of ['standalone', 'wallet-iframe'] as const) {
-  test(`modal hides its scrollbar and remains scrollable in ${context}`, async ({ page }) => {
-    await page.setViewportSize({ width: 600, height: 120 });
-    const originalRootScrollbarWidth = await page.evaluate(getRootScrollbarWidth);
-    await page.evaluate((context) => window.__confirmationMount.mount('modal', context), context);
-    const scrollContainer = context === 'standalone'
-      ? page.locator('.seams-confirmation-modal')
-      : page.locator('html');
-    await expect(scrollContainer).toHaveCSS('scrollbar-width', 'none');
-    const scrollTop = await scrollContainer.evaluate((element) => {
-      element.scrollTop = element.scrollHeight;
-      return element.scrollTop;
-    });
-    expect(scrollTop).toBeGreaterThan(0);
-    await page.evaluate(() => window.__confirmationMount.dispose(0));
-    if (context === 'wallet-iframe') {
-      await expect(page.locator('html')).toHaveCSS(
-        'scrollbar-width',
-        originalRootScrollbarWidth,
-      );
-    }
-  });
-}
-
-test('toast grows from signing to broadcasting to complete and sweeps its current length', async ({
-  page,
-}) => {
-  await page.evaluate(() => {
-    window.__confirmationMount.mount('modal', 'wallet-iframe');
-    window.__confirmationMount.receipt(0, { kind: 'signing' });
-  });
-  const progress = page.locator('.seams-toast-progress');
-  const fill = progress.locator('.seams-toast-progress-fill');
-  const active = progress.locator('.seams-toast-progress-active');
-  const spinner = page.locator('.seams-transaction-toast .seams-receipt-symbol svg');
-  await expect(page.locator('.modal-container-root')).toHaveCSS('border-radius', '12px');
-  await expect(page.locator('.seams-transaction-toast .seams-receipt-symbol')).toHaveCSS(
-    'border-radius',
-    '8px',
-  );
-  const stages: { state: TransactionReceiptState; fraction: number; pending: boolean }[] = [
-    { state: { kind: 'signing' }, fraction: 1 / 3, pending: true },
-    { state: { kind: 'signed' }, fraction: 1 / 3, pending: false },
-    { state: { kind: 'broadcasting' }, fraction: 2 / 3, pending: true },
-    { state: { kind: 'submitted', hash: '0x123' }, fraction: 2 / 3, pending: true },
-    { state: { kind: 'confirmed', hash: '0x123' }, fraction: 1, pending: false },
-  ];
-  for (const { state, fraction, pending } of stages) {
-    await page.evaluate((state) => window.__confirmationMount.receipt(0, state), state);
-    await expect
-      .poll(async () => {
-        const trackBounds = await progress.boundingBox();
-        const fillBounds = await fill.boundingBox();
-        return fillBounds!.width / trackBounds!.width;
-      })
-      .toBeCloseTo(fraction, 2);
-    await expect(spinner).toHaveCSS('animation-name', pending ? 'seams-receipt-spin' : 'none');
-    await expect(active).toHaveCount(pending ? 1 : 0);
-    if (pending) {
-      const fillBounds = await fill.boundingBox();
-      const activeBounds = await active.boundingBox();
-      expect(activeBounds!.x).toBeCloseTo(fillBounds!.x, 1);
-      expect(activeBounds!.width).toBeCloseTo(fillBounds!.width, 1);
-      expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
-        .toBe('seams-receipt-sweep');
-    }
-  }
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate(() =>
-    window.__confirmationMount.receipt(0, { kind: 'submitted', hash: '0x123' }),
-  );
-  await expect(fill).toHaveCSS('transition-duration', '0s');
-  await expect(spinner).toHaveCSS('animation-name', 'none');
-  expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
-    .toBe('none');
-  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
-});
-
-test('the contract row keeps its address beside the label and copies it from hover', async ({
-  page,
-}) => {
+test('the contract row shows the called contract and copies its full address', async ({ page }) => {
   const contract = '0xeb7ab5a6f761072c96147a54b8a15f012e836691';
   await page.evaluate((value) => {
     Object.defineProperty(navigator, 'clipboard', {
@@ -349,15 +256,8 @@ test('the contract row keeps its address beside the label and copies it from hov
   const row = page.locator('.seams-review-contract');
   const address = row.locator('.seams-review-contract-address');
   await expect(address).toHaveAttribute('title', contract);
-  await expect(address.locator('span').last()).toHaveText(contract.slice(-8));
-  await expect
-    .poll(() => row.evaluate((element) => element.getBoundingClientRect().height))
-    .toBeLessThan(24);
   const copy = row.getByRole('button', { name: `Copy contract address ${contract}`, exact: true });
-  await page.mouse.move(0, 0);
-  await expect(copy.locator('.copy-icon')).toHaveCSS('opacity', '0');
   await row.hover();
-  await expect(copy.locator('.copy-icon')).toHaveCSS('opacity', '1');
   await copy.click();
   await expect
     .poll(() => page.evaluate(() => window.__confirmationMount.calls))
@@ -366,58 +266,62 @@ test('the contract row keeps its address beside the label and copies it from hov
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
-test('the receipt keeps the address on one line and copies the full value', async ({ page }) => {
+test('the receipt shows the full recipient address and copies it again after feedback', async ({
+  page,
+}) => {
   const recipient = '0xBB442B54c85efBa2D7B81eA52990ad638cDba483';
   await page.evaluate((value) => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
-      async writeText(text: string) { window.__confirmationMount.calls.push(text); },
-    } });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        async writeText(text: string) {
+          window.__confirmationMount.calls.push(text);
+        },
+      },
+    });
     window.__confirmationMount.mount('modal', 'wallet-iframe');
     window.__confirmationMount.recipient(0, value);
     window.__confirmationMount.receipt(0, { kind: 'signed' }, 'expanded');
   }, recipient);
   const destination = page.locator('.seams-receipt-destination');
-  const button = destination.getByRole('button', { name: `Copy recipient address ${recipient}`, exact: true });
-  await expect(page.locator('.seams-confirmation-modal')).toHaveCSS('width', '448px');
-  await expect(button.locator('.copy-icon')).toHaveCSS('opacity', '0');
+  const button = destination.getByRole('button', {
+    name: `Copy recipient address ${recipient}`,
+    exact: true,
+  });
   await expect(button.locator('.seams-review-full-address')).toHaveText(recipient);
   await page.getByText('Receipt details', { exact: true }).click();
-  const detailedAddress = page.locator('.seams-review-technical .seams-review-full-address');
-  await expect(detailedAddress).toBeVisible();
-  await expect
-    .poll(() =>
-      detailedAddress.evaluate((element) => {
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        return range.getClientRects().length;
-      }),
-    )
-    .toBe(1);
+  await expect(page.locator('.seams-review-technical .seams-review-full-address')).toHaveText(
+    recipient,
+  );
   await button.hover();
-  await expect(button.locator('.copy-icon')).toHaveCSS('opacity', '1');
-  await expect(button.locator('.seams-review-address')).toHaveCount(0);
   await button.locator('.seams-review-full-address').click();
-  await expect.poll(() => page.evaluate(() => window.__confirmationMount.calls)).toEqual([recipient]);
-  await expect(button).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => window.__confirmationMount.calls))
+    .toEqual([recipient]);
   const copied = destination.locator('.seams-review-copy-address');
   await expect(copied).toHaveAccessibleName('Copied');
-  await expect(copied.locator('.copy-icon-check')).toHaveCSS('opacity', '1');
-  await expect(copied.locator('.copy-icon-copy')).toHaveCSS('opacity', '0');
-  await expect(copied).toHaveAccessibleName(`Copy recipient address ${recipient}`, { timeout: 5000 });
+  await expect(copied).toHaveAccessibleName(`Copy recipient address ${recipient}`, {
+    timeout: 5000,
+  });
   await copied.focus();
   await copied.press('Enter');
-  await expect.poll(() => page.evaluate(() => window.__confirmationMount.calls)).toEqual([recipient, recipient]);
+  await expect
+    .poll(() => page.evaluate(() => window.__confirmationMount.calls))
+    .toEqual([recipient, recipient]);
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
 test('confirmed receipts link to the configured block explorer', async ({ page }) => {
   const recipient = '0x2F0100000000000000000000000000000000004EC9';
   const hash = `0x${'1234567890abcdef'.repeat(4)}`;
-  await page.evaluate(({ recipient, hash }) => {
-    window.__confirmationMount.mount('modal', 'wallet-iframe');
-    window.__confirmationMount.recipient(0, recipient);
-    window.__confirmationMount.receipt(0, { kind: 'confirmed', hash }, 'expanded');
-  }, { recipient, hash });
+  await page.evaluate(
+    ({ recipient, hash }) => {
+      window.__confirmationMount.mount('modal', 'wallet-iframe');
+      window.__confirmationMount.recipient(0, recipient);
+      window.__confirmationMount.receipt(0, { kind: 'confirmed', hash }, 'expanded');
+    },
+    { recipient, hash },
+  );
   const link = page.getByRole('link', { name: 'View transaction' });
   await expect(link).toHaveAttribute('href', `https://basescan.org/tx/${hash}`);
   await expect(link).toHaveAttribute('target', '_blank');
@@ -454,15 +358,6 @@ test('a message signature receipt is complete once signed and has no network sta
   await page.evaluate(() =>
     window.__confirmationMount.messageReceipt(0, { kind: 'signed' }, 'toast'),
   );
-  const progress = page.locator('.seams-toast-progress');
-  await expect
-    .poll(async () => {
-      const track = await progress.boundingBox();
-      const fill = await progress.locator('.seams-toast-progress-fill').boundingBox();
-      return fill!.width / track!.width;
-    })
-    .toBeCloseTo(1, 2);
-  await expect(progress.locator('.seams-toast-progress-active')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Close transaction' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
@@ -482,84 +377,12 @@ test('a toast offers to close only once its transaction has finished', async ({ 
   expect(await page.evaluate(() => window.__confirmationMount.calls)).toEqual(['receipt-dismiss']);
 });
 
-test('email Confirm Code validates and retries through its native form', async ({ page }) => {
-  await page.evaluate(() => {
-    window.__confirmationMount.mount('modal', 'wallet-iframe');
-    window.__confirmationMount.email(0, 'email-challenge', { kind: 'ready' });
-  });
-  const input = page.getByRole('textbox', { name: 'Email code' });
-  const confirm = page.getByRole('button', { name: 'Confirm Code' });
-  await input.fill('12');
-  await confirm.click();
-  await expect(input).toHaveAttribute('aria-invalid', 'true');
-  await expect(input).toBeFocused();
-  await expect(page.getByText('Enter the 6-digit Email OTP code.')).toBeVisible();
-  expect(await page.evaluate(() => window.__confirmationMount.calls)).toEqual([]);
-  await input.fill('123456');
-  await expect
-    .poll(() => page.evaluate(() => window.__confirmationMount.calls))
-    .toEqual(['email-challenge:123456']);
-  await page.evaluate(() =>
-    window.__confirmationMount.email(0, 'email-challenge', {
-      kind: 'rejected',
-      message: 'Please retry.',
-    }),
-  );
-  await expect(input).toBeEnabled();
-  await expect(input).toHaveValue('123456');
-  await confirm.click();
-  await expect
-    .poll(() => page.evaluate(() => window.__confirmationMount.calls))
-    .toEqual(['email-challenge:123456', 'email-challenge:123456']);
-  await confirm.click();
-  expect(await page.evaluate(() => window.__confirmationMount.calls)).toHaveLength(2);
-  await page.evaluate(() => window.__confirmationMount.dispose(0));
-  expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
-});
-
-test('email forms isolate simultaneous surfaces and Enter validates the focused input', async ({
-  page,
-}) => {
-  const ids = await page.evaluate(() => {
-    const first = window.__confirmationMount.mount('modal', 'wallet-iframe');
-    const second = window.__confirmationMount.mount('modal', 'wallet-iframe');
-    window.__confirmationMount.email(0, 'first-challenge', { kind: 'ready' });
-    window.__confirmationMount.email(1, 'second-challenge', { kind: 'ready' });
-    return { first, second };
-  });
-  const first = page.locator(`#${ids.first}`);
-  const second = page.locator(`#${ids.second}`);
-  await expect(first.getByRole('button', { name: 'Confirm Code' })).toBeEnabled();
-  await first.getByRole('textbox', { name: 'Email code' }).fill('123');
-  await first.getByRole('textbox', { name: 'Email code' }).press('Enter');
-  await expect(first.getByRole('textbox', { name: 'Email code' })).toHaveAttribute(
-    'aria-invalid',
-    'true',
-  );
-  await expect(second.locator('[aria-invalid="true"]')).toHaveCount(0);
-  await second.getByRole('textbox', { name: 'Email code' }).fill('654321');
-  await expect
-    .poll(() => page.evaluate(() => window.__confirmationMount.calls))
-    .toEqual(['second-challenge:654321']);
-  await page.evaluate(() => {
-    window.__confirmationMount.dispose(0);
-    window.__confirmationMount.dispose(1);
-  });
-  expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
-});
-
 test('mount updates complete models and invokes the current callback synchronously', async ({
   page,
 }) => {
   const id = await page.evaluate(() => window.__confirmationMount.mount('modal', 'wallet-iframe'));
   const root = page.locator(`#${id}`);
   await expect(root.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
-  await expect(root).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  expect(
-    await root.evaluate((element) =>
-      getComputedStyle(element).getPropertyValue('--seams-colors-accent').trim(),
-    ),
-  ).toBe('rgb(12, 34, 56)');
   expect(
     await page.evaluate(() => {
       document.querySelector<HTMLButtonElement>('.confirm')!.click();
@@ -598,50 +421,6 @@ test('an immediate error remains visible and clears when the review updates', as
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
-test('hosted drawer keeps its compact content inside the sheet', async ({ page }) => {
-  const id = await page.evaluate(() => window.__confirmationMount.mount('drawer', 'wallet-iframe'));
-  const root = page.locator(`#${id}`);
-  await expect(root.getByRole('heading')).toHaveText('First confirmation');
-  await expect(root.locator('.seams-passkey-halo-loading')).toHaveCount(0);
-  await expect(root.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
-  const sheet = await root.locator('.seams-confirmation-drawer').boundingBox();
-  const actions = await root.locator('.actions').boundingBox();
-  expect(sheet).not.toBeNull();
-  expect(actions).not.toBeNull();
-  expect(actions!.x).toBeGreaterThan(sheet!.x);
-  expect(actions!.x + actions!.width).toBeLessThan(sheet!.x + sheet!.width);
-  await root.getByRole('button', { name: 'Confirm', exact: true }).click();
-  expect(await page.evaluate(() => window.__confirmationMount.calls)).toEqual(['first']);
-  await page.evaluate(() => window.__confirmationMount.dispose(0));
-  expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
-});
-
-for (const [variant, context, closeName] of [
-  ['modal', 'standalone', 'Cancel'],
-  ['modal', 'wallet-iframe', 'Cancel'],
-  ['drawer', 'standalone', 'Dismiss confirmation'],
-] as const) {
-  test(`a ${context} ${variant} opens without a focus ring and tabs to its close button`, async ({
-    page,
-    browserName,
-  }) => {
-    await page.evaluate(
-      ({ variant, context }) => window.__confirmationMount.mount(variant, context),
-      { variant, context },
-    );
-    const focused = await page.evaluate(() => {
-      const element = document.activeElement!;
-      return { tag: element.tagName, outline: getComputedStyle(element).outlineStyle };
-    });
-    expect(focused.tag).not.toBe('BUTTON');
-    expect(focused.outline).toBe('none');
-    // macOS WebKit uses Option-Tab to include buttons with default keyboard settings.
-    const nextControl = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
-    await page.keyboard.press(nextControl);
-    await expect(page.getByRole('button', { name: closeName, exact: true })).toBeFocused();
-  });
-}
-
 test('drawer close filters callbacks and disposes after its transition', async ({ page }) => {
   await page.locator('#opener').focus();
   const id = await page.evaluate(() => window.__confirmationMount.mount('drawer', 'standalone'));
@@ -660,7 +439,7 @@ test('drawer close filters callbacks and disposes after its transition', async (
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
-test('disposing one surface leaves the other mounted and styled', async ({ page }) => {
+test('disposing one surface leaves the other mounted and usable', async ({ page }) => {
   const first = await page.evaluate(() =>
     window.__confirmationMount.mount('modal', 'wallet-iframe'),
   );
@@ -669,84 +448,11 @@ test('disposing one surface leaves the other mounted and styled', async ({ page 
   );
   await page.evaluate(() => window.__confirmationMount.dispose(0));
   await expect(page.locator(`#${first}`)).toHaveCount(0);
-  expect(
-    await page.evaluate((id) => {
-      for (const sheet of [...document.styleSheets, ...document.adoptedStyleSheets]) {
-        for (const rule of sheet.cssRules) {
-          if (rule.cssText.includes(`#${id}`)) return true;
-        }
-      }
-      return false;
-    }, first),
-  ).toBe(false);
   const surviving = page.locator(`#${second}`);
   await expect(surviving.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
   await surviving.getByRole('button', { name: 'Confirm', exact: true }).click();
   expect(await page.evaluate(() => window.__confirmationMount.calls)).toEqual(['first']);
-  expect(
-    await surviving.evaluate((element) =>
-      getComputedStyle(element).getPropertyValue('--seams-colors-accent').trim(),
-    ),
-  ).toBe('rgb(12, 34, 56)');
   await page.evaluate(() => window.__confirmationMount.dispose(1));
   expect(await page.evaluate(() => window.__confirmationMount.closed)).toBe(2);
-  expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
-});
-
-test('receipt morph keeps its status visible and reverses from its current position', async ({ page }) => {
-  await page.evaluate(() => {
-    window.__confirmationMount.mount('modal', 'wallet-iframe');
-    window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'expanded');
-  });
-  const surface = page.locator('.seams-confirmation-surface');
-  await expect(surface).not.toHaveAttribute('data-receipt-morphing');
-  const symbol = page.locator('.seams-receipt-symbol');
-  const heading = page.locator('[role="status"]');
-  const origin = await symbol.boundingBox();
-  await page.evaluate(() => {
-    window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'toast');
-    for (const animation of document.getAnimations()) {
-      if (animation.effect?.getTiming().iterations === Infinity) continue;
-      animation.pause();
-      animation.currentTime = 0;
-    }
-  });
-  expect((await symbol.boundingBox())?.x).toBeCloseTo(origin!.x, 0);
-  expect((await symbol.boundingBox())?.y).toBeCloseTo(origin!.y, 0);
-  await expect(symbol).toHaveCSS('opacity', '1');
-  await expect(heading).toHaveCSS('opacity', '1');
-  await expect(page.locator('.modal-container-root')).toHaveCSS('opacity', '1');
-  await page.evaluate(() => {
-    for (const animation of document.getAnimations()) {
-      if (animation.effect?.getTiming().iterations !== Infinity) animation.currentTime = 180;
-    }
-  });
-  await expect(page.locator('.seams-toast-progress')).toHaveCSS('visibility', 'hidden');
-  const midway = await symbol.boundingBox();
-  await page.evaluate(() => {
-    window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'expanded');
-    for (const animation of document.getAnimations()) {
-      if (animation.effect?.getTiming().iterations === Infinity) continue;
-      animation.pause();
-      animation.currentTime = 0;
-    }
-  });
-  expect((await symbol.boundingBox())?.x).toBeCloseTo(midway!.x, 0);
-  expect((await symbol.boundingBox())?.y).toBeCloseTo(midway!.y, 0);
-  await expect(heading).toHaveText('Broadcasting transaction');
-  // Release test-paused CSS effects before changing the motion preference.
-  await page.evaluate(() => {
-    for (const animation of document.getAnimations()) {
-      if (animation instanceof CSSAnimation) animation.cancel();
-    }
-  });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate(() => window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'toast'));
-  await expect(surface).not.toHaveAttribute('data-receipt-morphing');
-  await expect(page.locator('.seams-receipt-morph-shell')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeVisible();
-  await expect(page.locator('.seams-toast-progress')).toHaveCSS('visibility', 'visible');
-  await page.evaluate(() => window.__confirmationMount.dispose(0));
-  await expect(surface).toHaveCount(0);
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });

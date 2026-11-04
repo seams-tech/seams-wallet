@@ -10,7 +10,6 @@ import {
   waitForWalletIframeConfirmationSettlement,
 } from './harness';
 import { GatewayRequestEvidence } from './gateway-request-evidence';
-import { NearRegistrationGate } from './registration-near-gate';
 
 class LostActivationResponse {
   ceremonyId = '';
@@ -39,7 +38,10 @@ class LostActivationResponse {
       pathname === '/wallets/register/near-provisioning'
     ) {
       this.nearProvisioningRequests += 1;
-    } else if (pathname.startsWith('/wallets/register/') && pathname !== '/wallets/register/activate') {
+    } else if (
+      pathname.startsWith('/wallets/register/') &&
+      pathname !== '/wallets/register/activate'
+    ) {
       this.otherRegistrationRequests += 1;
     }
   }
@@ -108,7 +110,9 @@ class LostActivationResponse {
   }
 }
 
-for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
+// The ECDSA-only wallet also proves that unlock refuses a NEAR requirement
+// that the pending wallet cannot meet.
+for (const scenario of ['ecdsa_only', 'mixed_near'] as const) {
   const signerPlan = scenario === 'ecdsa_only' ? 'ecdsa_only' : 'mixed';
   const requireNear = scenario === 'mixed_near';
   test(`Passkey ${scenario} activation response loss resumes the same wallet after reload and signs`, async ({
@@ -117,9 +121,6 @@ for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
     page,
   }, testInfo) => {
     const lost = new LostActivationResponse();
-    const nearGate = new NearRegistrationGate();
-    const holdNear = nearGate.hold.bind(nearGate);
-    const nearPath = '**/wallets/register/near-provisioning';
     const gateway = new GatewayRequestEvidence();
     gateway.start(context);
     const handle = lost.handle.bind(lost);
@@ -155,7 +156,6 @@ for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
       resumeUrl.searchParams.set('signingSessionTtlMs', '600000');
       resumeUrl.searchParams.set('signingSessionUses', '2');
       await page.goto(resumeUrl.href);
-      if (scenario === 'mixed') await context.route(nearPath, holdNear);
       await pendingWallet.fill('unrelated-wallet.testnet');
       await page.getByRole('button', { name: 'Unlock wallet', exact: true }).click();
       await expect(recovery).toHaveAttribute('data-state', 'failed');
@@ -216,13 +216,11 @@ for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
       );
 
       if (signerPlan === 'mixed') {
-        if (!requireNear) {
-          await expect.poll(nearGate.observed.bind(nearGate), { timeout: 60_000 }).toBeGreaterThan(0);
-        }
         const pendingSession = await harness.readCurrentWalletSessionStatus();
         expect(pendingSession.remainingUses).toBe(1);
-        expect(pendingSession.expiresAtMs - pendingSession.authorization.issuedAtMs).toBeLessThanOrEqual(600_000);
-        nearGate.release();
+        expect(
+          pendingSession.expiresAtMs - pendingSession.authorization.issuedAtMs,
+        ).toBeLessThanOrEqual(600_000);
         await waitForWalletIframeConfirmationSettlement(page);
         await page.getByTestId('intended-await-near-ready').click({ timeout: 10_000 });
         await expect(result).toContainText('near_provisioning_ready', { timeout: 60_000 });
@@ -268,7 +266,6 @@ for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
         },
         verifiedSignatures: signerPlan === 'mixed' ? 2 : 1,
         nearSignatureVerified: signerPlan === 'mixed',
-        evmSignedWhileNearHeld: scenario === 'mixed',
         nearRequiredBeforeUnlockCompletion: requireNear,
         nearExtensionPreservedSession: signerPlan === 'mixed',
         nearProvisioningRequests: lost.nearProvisioningRequests,
@@ -303,7 +300,11 @@ for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
       }
       const suffix = hosted ? `-hosted_${arm}-${region}-${runId}-${testInfo.repeatEachIndex}` : '';
       const artifactName = `registration-activation-resume-${scenario}${suffix}.json`;
-      const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
+      const artifactPath = path.resolve(
+        testInfo.config.rootDir,
+        '../.artifacts/r150',
+        artifactName,
+      );
       await mkdir(path.dirname(artifactPath), { recursive: true });
       await writeFile(artifactPath, `${JSON.stringify(evidence, null, 2)}\n`);
       await testInfo.attach(artifactName, {
@@ -311,8 +312,6 @@ for (const scenario of ['ecdsa_only', 'mixed', 'mixed_near'] as const) {
         contentType: 'application/json',
       });
     } finally {
-      nearGate.release();
-      await context.unroute(nearPath, holdNear);
       gateway.stop(context);
       context.off('request', observe);
       await context.unroute(activatePath, handle);

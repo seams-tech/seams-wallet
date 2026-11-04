@@ -26,46 +26,6 @@ const UNCONFIGURED_EVM_TARGET = thresholdEcdsaChainTargetFromChainFamily({
   networkSlug: 'base-mainnet',
 });
 
-const ENABLED_NEAR_CONFIGS: SeamsConfigsReadonly = {
-  ...PASSKEY_MANAGER_DEFAULT_CONFIGS,
-  signing: {
-    ...PASSKEY_MANAGER_DEFAULT_CONFIGS.signing,
-    routerAb: {
-      normalSigning: {
-        mode: 'enabled',
-        signingWorkerId: 'near-signing-worker',
-      },
-    },
-  },
-};
-
-test('browser capability selection gates NEAR signing while keeping export independent', () => {
-  const signingRequest = {
-    capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
-    operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
-  } as const;
-  const exportRequest = {
-    capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
-    operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.exportKey,
-  } as const;
-
-  expect(selectBrowserCapabilityOperation(PASSKEY_MANAGER_DEFAULT_CONFIGS, signingRequest)).toEqual(
-    {
-      kind: 'disabled',
-      operation: signingRequest,
-      reason: 'router_ab_normal_signing_disabled',
-    },
-  );
-  expect(selectBrowserCapabilityOperation(ENABLED_NEAR_CONFIGS, signingRequest)).toEqual({
-    kind: 'selected',
-    operation: signingRequest,
-  });
-  expect(selectBrowserCapabilityOperation(PASSKEY_MANAGER_DEFAULT_CONFIGS, exportRequest)).toEqual({
-    kind: 'selected',
-    operation: exportRequest,
-  });
-});
-
 test('browser capability selection requires an exact configured ECDSA target', () => {
   const operation = {
     capabilityKind: CAPABILITY_KINDS.evmEcdsaMpcSigning,

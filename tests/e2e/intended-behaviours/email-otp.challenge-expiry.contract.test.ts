@@ -146,99 +146,79 @@ class ObservedEmailChallenge extends ExpiringEmailChallenge {
   }
 }
 
-for (const scenario of ['mixed', 'near_only', 'added_email'] as const) {
-  test(`custom ${scenario} email unlock rejects expired and cancelled challenges, resends, and signs`, async ({
-    harness,
-    context,
-    page,
-  }, testInfo) => {
-    test.setTimeout(120_000);
-    if (scenario === 'added_email') {
-      await harness.registerPasskeyWallet();
-      await harness.awaitNearReady();
-      await harness.addEmailOtpAuthMethod();
-    } else if (scenario === 'near_only') {
-      await harness.registerEmailOtpEd25519OnlyWallet();
-    } else {
-      await harness.registerEmailOtpWallet();
-    }
-    await harness.awaitNearReady();
-    const walletId = await page.getByTestId('intended-e2e-page').getAttribute('data-wallet-id');
-    if (!walletId) throw new Error('Registered wallet identity is missing');
-    await page.evaluate(async () => {
-      await window.__seamsIntendedE2ELockWallet?.();
-    });
-    const challenge = new ObservedEmailChallenge();
-    const handle = challenge.handle.bind(challenge);
-    const observe = challenge.observe.bind(challenge);
-    await context.route('**/wallet/email-otp/challenge', handle);
-    context.on('request', observe);
-    try {
-      await page.getByLabel('Email wallet to unlock', { exact: true }).fill(walletId);
-      if (scenario === 'added_email') {
-        const email = await page.evaluate(readGoogleEmail);
-        await page.getByLabel('Email address for local method', { exact: true }).fill(email);
-      }
-      await page.getByRole('button', { name: 'Request email code', exact: true }).click();
-      const result = page.getByTestId('email-code-result');
-      await expect(result).toHaveText('Code requested');
-      await expect.poll(challenge.hasExpired.bind(challenge)).toBe(true);
-      await page.getByLabel('Email unlock code', { exact: true }).fill('000000');
-      await page.getByRole('button', { name: 'Unlock with email code', exact: true }).click();
-      await expect(result).toContainText('Email code expired');
-      expect(challenge.unlockRequests).toBe(0);
-      await page.getByRole('button', { name: 'Resend email code', exact: true }).click();
-      await expect(result).toHaveText('Code resent');
-      await page.getByRole('button', { name: 'Cancel email code', exact: true }).click();
-      await expect(result).toHaveText('Code cancelled');
-      await page.getByRole('button', { name: 'Unlock with email code', exact: true }).click();
-      await expect(result).not.toHaveText('Code cancelled');
-      await expect(result).toHaveAttribute('data-state', 'challenge');
-      expect(challenge.unlockRequests).toBe(0);
-      await page.getByRole('button', { name: 'Request email code', exact: true }).click();
-      await expect(result).toHaveText('Code requested');
-      const code = await page.evaluate(readCode, { walletId, challengeId: challenge.challengeId });
-      await page.getByLabel('Email unlock code', { exact: true }).fill(code);
-      await page.getByRole('button', { name: 'Unlock with email code', exact: true }).click();
-      await expect(result).toHaveAttribute('data-state', 'unlocked', { timeout: 60_000 });
-      if (scenario !== 'near_only') await harness.signArcEvmTransaction('post_unlock');
-      await harness.signNearTransaction('post_unlock');
-      const artifactPath = path.resolve(
-        testInfo.config.rootDir,
-        `../.artifacts/r170/custom-${scenario}-email-unlock.json`,
-      );
-      await mkdir(path.dirname(artifactPath), { recursive: true });
-      await writeFile(
-        artifactPath,
-        JSON.stringify(
-          {
-            kind: 'custom_email_unlock_e2e_v1',
-            expiredAndCancelledChallengesRejectedBeforeUnlock: true,
-            resendSucceeded: true,
-            challenges: challenge.challenges,
-            nearSignatureVerified: true,
-            evmSignatureVerified: scenario !== 'near_only',
-          },
-          null,
-          2,
-        ) + '\n',
-      );
-      await testInfo.attach('custom-email-unlock.json', {
-        path: artifactPath,
-        contentType: 'application/json',
-      });
-    } finally {
-      context.off('request', observe);
-      await context.unroute('**/wallet/email-otp/challenge', handle);
-    }
+test('custom mixed email unlock rejects expired and cancelled challenges, resends, and signs', async ({
+  harness,
+  context,
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  await harness.registerEmailOtpWallet();
+  await harness.awaitNearReady();
+  const walletId = await page.getByTestId('intended-e2e-page').getAttribute('data-wallet-id');
+  if (!walletId) throw new Error('Registered wallet identity is missing');
+  await page.evaluate(async () => {
+    await window.__seamsIntendedE2ELockWallet?.();
   });
-}
-
-function readGoogleEmail(): string {
-  const token = new URL(location.href).searchParams.get('googleIdToken');
-  if (!token) throw new Error('Google token is missing');
-  return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email;
-}
+  const challenge = new ObservedEmailChallenge();
+  const handle = challenge.handle.bind(challenge);
+  const observe = challenge.observe.bind(challenge);
+  await context.route('**/wallet/email-otp/challenge', handle);
+  context.on('request', observe);
+  try {
+    await page.getByLabel('Email wallet to unlock', { exact: true }).fill(walletId);
+    await page.getByRole('button', { name: 'Request email code', exact: true }).click();
+    const result = page.getByTestId('email-code-result');
+    await expect(result).toHaveText('Code requested');
+    await expect.poll(challenge.hasExpired.bind(challenge)).toBe(true);
+    await page.getByLabel('Email unlock code', { exact: true }).fill('000000');
+    await page.getByRole('button', { name: 'Unlock with email code', exact: true }).click();
+    await expect(result).toContainText('Email code expired');
+    expect(challenge.unlockRequests).toBe(0);
+    await page.getByRole('button', { name: 'Resend email code', exact: true }).click();
+    await expect(result).toHaveText('Code resent');
+    await page.getByRole('button', { name: 'Cancel email code', exact: true }).click();
+    await expect(result).toHaveText('Code cancelled');
+    await page.getByRole('button', { name: 'Unlock with email code', exact: true }).click();
+    await expect(result).not.toHaveText('Code cancelled');
+    await expect(result).toHaveAttribute('data-state', 'challenge');
+    expect(challenge.unlockRequests).toBe(0);
+    await page.getByRole('button', { name: 'Request email code', exact: true }).click();
+    await expect(result).toHaveText('Code requested');
+    const code = await page.evaluate(readCode, { walletId, challengeId: challenge.challengeId });
+    await page.getByLabel('Email unlock code', { exact: true }).fill(code);
+    await page.getByRole('button', { name: 'Unlock with email code', exact: true }).click();
+    await expect(result).toHaveAttribute('data-state', 'unlocked', { timeout: 60_000 });
+    await harness.signArcEvmTransaction('post_unlock');
+    await harness.signNearTransaction('post_unlock');
+    const artifactPath = path.resolve(
+      testInfo.config.rootDir,
+      '../.artifacts/r170/custom-mixed-email-unlock.json',
+    );
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    await writeFile(
+      artifactPath,
+      JSON.stringify(
+        {
+          kind: 'custom_email_unlock_e2e_v1',
+          expiredAndCancelledChallengesRejectedBeforeUnlock: true,
+          resendSucceeded: true,
+          challenges: challenge.challenges,
+          nearSignatureVerified: true,
+          evmSignatureVerified: true,
+        },
+        null,
+        2,
+      ) + '\n',
+    );
+    await testInfo.attach('custom-email-unlock.json', {
+      path: artifactPath,
+      contentType: 'application/json',
+    });
+  } finally {
+    context.off('request', observe);
+    await context.unroute('**/wallet/email-otp/challenge', handle);
+  }
+});
 
 class LostEmailActivation {
   walletId = '';

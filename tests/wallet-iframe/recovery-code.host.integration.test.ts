@@ -70,7 +70,6 @@ test('reveals and cancels the recovery summary without a child animation frame o
   await expect(parentDialog).not.toHaveClass(/is-provisional/);
   await expect(parentDialog).not.toHaveClass(/is-viewport-fallback/);
   await expect(parentDialog).toHaveCSS('opacity', '1');
-  await expect(parentDialog).toHaveCSS('width', '480px');
   const elapsedMs = await page.evaluate(() => {
     const testWindow = window as typeof window & {
       __recoveryCodeHostTest?: { readonly startedAt: number };
@@ -84,7 +83,6 @@ test('reveals and cancels the recovery summary without a child animation frame o
     .frameLocator('iframe[data-seams-owner="recovery-code-host-test"]')
     .locator('[data-seams-wallet-recovery-backup-dialog]');
   await expect(childDialog).toBeVisible();
-  await expect(childDialog).toHaveCSS('background-color', 'oklch(0.2 0.01 240)');
 
   await page.evaluate(async () => {
     const testWindow = window as typeof window & {

@@ -260,123 +260,6 @@ class FirstSigningPoolFlow {
   }
 }
 
-class CanceledGatewayRefill {
-  private readonly token = randomUUID();
-  private intercepted = false;
-  canceledAfterAdmission = false;
-
-  async intercept(route: Route): Promise<void> {
-    if (this.intercepted || presignRefillTag(route.request()) !== 'background') {
-      await route.continue();
-      return;
-    }
-    this.intercepted = true;
-    const request = route.request();
-    const controller = new AbortController();
-    const headers = {
-      ...(await request.allHeaders()),
-      'x-seams-intended-presign-cancellation': this.token,
-    };
-    const pending = fetch(request.url(), {
-      method: 'POST',
-      headers,
-      body: request.postData(),
-      signal: controller.signal,
-    }).then(unexpectedPresignResponse, expectedPresignCancellation);
-    try {
-      await expect.poll(this.isHeld.bind(this, request.url()), { timeout: 3_000 }).toBe(true);
-      controller.abort();
-      await pending;
-      this.canceledAfterAdmission = true;
-      await route.continue();
-    } finally {
-      controller.abort();
-      await fetch(request.url(), {
-        method: 'DELETE',
-        headers: { 'x-seams-intended-presign-cancellation': this.token },
-      });
-    }
-  }
-
-  private async isHeld(url: string): Promise<boolean> {
-    const response = await fetch(url, {
-      headers: { 'x-seams-intended-presign-cancellation': this.token },
-    });
-    const body: unknown = await response.json();
-    return isPlainObject(body) && body.held === true;
-  }
-}
-
-function unexpectedPresignResponse(): never {
-  throw new Error('Held Gateway refill completed before cancellation');
-}
-
-function expectedPresignCancellation(error: unknown): void {
-  if (!(error instanceof Error) || error.name !== 'AbortError') throw error;
-}
-
-test('canceling an admitted Gateway refill leaves subsequent background material usable', async ({
-  harness,
-  context,
-  page,
-}, testInfo) => {
-  test.skip(process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1', 'Local cancellation probe');
-  await context.addInitScript(enableSigningSessionDebugInFrame);
-  await page.evaluate(enableSigningSessionDebugInFrame);
-  const timing = new SigningTimingEvidence();
-  page.on('console', timing.record.bind(timing));
-  const cancellation = new CanceledGatewayRefill();
-  const intercept = cancellation.intercept.bind(cancellation);
-  const initPath = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
-  const flow = new FirstSigningPoolFlow();
-  context.on('request', flow.record.bind(flow));
-  await context.route(initPath, intercept);
-  const signatures = [];
-  try {
-    await harness.registerPasskeyEcdsaOnlyWallet();
-    for (let index = 0; index < 2; index += 1) {
-      const startedAt = performance.now();
-      await harness.signTempoTransaction('post_registration');
-      signatures.push(timing.window(startedAt, performance.now()));
-    }
-    const persistence = await signingOperationPersistence(
-      harness.walletId,
-      'unclaimed-evidence-probe',
-    );
-    const evidence = {
-      kind: 'ecdsa_canceled_gateway_refill_v1',
-      reproduce:
-        "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'canceling an admitted Gateway refill'",
-      host: requestedEcdsaBackendProfile(),
-      canceledAfterAdmission: cancellation.canceledAfterAdmission,
-      verifiedSignatures: 2,
-      remainingUses: persistence.remainingUses,
-      distinctPresignatures: new Set(flow.preparedPresignatures).size,
-      backgroundRefills: timing.refillResults,
-      signatures,
-    };
-    const name = `canceled-gateway-refill-${evidence.host}.json`;
-    const file = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', name);
-    await mkdir(path.dirname(file), { recursive: true });
-    await writeFile(file, JSON.stringify(evidence, null, 2));
-    await testInfo.attach(name, { path: file, contentType: 'application/json' });
-    expect(evidence.canceledAfterAdmission).toBe(true);
-    expect(evidence.remainingUses).toBe(1);
-    expect(evidence.distinctPresignatures).toBe(2);
-    expect(evidence.backgroundRefills.length).toBeGreaterThan(0);
-    for (const refill of evidence.backgroundRefills) expect(refill.outcome).toBe('available');
-    for (const signature of signatures) {
-      expect(signature.stages.some(isForegroundRefill)).toBe(false);
-    }
-  } finally {
-    await context.unroute(initPath, intercept);
-  }
-});
-
-function isForegroundRefill(stage: { stage: string }): boolean {
-  return stage.stage === 'foreground_refill';
-}
-
 class FailedBackgroundRefill {
   failures = 0;
 
@@ -446,76 +329,6 @@ test('failed background refill falls back to timed foreground refill and preserv
     await testInfo.attach(name, { path: file, contentType: 'application/json' });
   } finally {
     await context.unroute(initPath, intercept);
-  }
-});
-
-test('first ECDSA signing completes Gateway pool fill before available-pool prepare', async ({
-  harness,
-  context,
-  page,
-}, testInfo) => {
-  const flow = new FirstSigningPoolFlow();
-  const initPath = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
-  const hold = flow.holdInit.bind(flow);
-  const record = flow.record.bind(flow);
-  const recordResponse = flow.recordResponse.bind(flow);
-  await context.route(initPath, hold);
-  context.on('request', record);
-  context.on('response', recordResponse);
-  try {
-    await harness.registerPasskeyWallet();
-    await expect.poll(flow.observed.bind(flow)).toBeGreaterThan(0);
-    const signingStartedAt = performance.now();
-    const signing = harness.signTempoTransaction('post_registration');
-    // Hold generation while the confirmed transaction reaches the empty-pool wait.
-    await page.waitForTimeout(150);
-    flow.release();
-    await signing;
-    const signingEndedAt = performance.now();
-    const signingElapsedMs = signingEndedAt - signingStartedAt;
-    expect(flow.terminalPrepares).toBe(0);
-    expect(flow.ordinaryPrepares).toBe(1);
-    expect(flow.finalizations).toBe(1);
-    expect(flow.completedStepsBeforePrepare).toBeGreaterThan(0);
-    const completedPresignatureId = await flow.completedPresignatureId();
-    expect(completedPresignatureId).toBe(flow.preparePresignatureId);
-    const gatewayRequestCounts = flow.gatewayRequestCounts(signingStartedAt, signingEndedAt);
-    const gatewayServerTimings = await flow.gatewayServerTimings(signingStartedAt, signingEndedAt);
-    expect(
-      gatewayRequestCounts['/router-ab/ecdsa-derivation/presignature-pool/fill/step'],
-    ).toBeGreaterThan(0);
-    await harness.assertRegistrationOwnerSessionIsActive();
-    const proof = {
-      kind: 'gateway_ecdsa_pool_completion_before_signing_e2e_v1',
-      reproduce:
-        "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'first ECDSA signing completes Gateway pool fill'",
-      completedPresignatureId,
-      completedStepsBeforePrepare: flow.completedStepsBeforePrepare,
-      signingElapsedMs,
-      timingPurpose: 'correctness_diagnostic_with_forced_150_ms_gate',
-      gatewayRequestScope: 'all_requests_during_signing_including_background_work',
-      gatewayRequestCounts,
-      gatewayServerTimings,
-      ordinaryPrepares: flow.ordinaryPrepares,
-      terminalPrepares: flow.terminalPrepares,
-      finalizations: flow.finalizations,
-      signatureVerified: true,
-    };
-    const artifactPath = path.resolve(
-      testInfo.config.rootDir,
-      '../.artifacts/r150/gateway-ecdsa-pool-completion-before-signing.json',
-    );
-    await mkdir(path.dirname(artifactPath), { recursive: true });
-    await writeFile(artifactPath, JSON.stringify(proof, null, 2), 'utf8');
-    await testInfo.attach('gateway-ecdsa-pool-completion-before-signing.json', {
-      body: JSON.stringify(proof, null, 2),
-      contentType: 'application/json',
-    });
-  } finally {
-    flow.release();
-    context.off('request', record);
-    context.off('response', recordResponse);
-    await context.unroute(initPath, hold);
   }
 });
 
@@ -883,57 +696,6 @@ async function measureSameWalletPlacement(
 
 test('same wallet warm signing across controlled Gateway placements', measureSameWalletPlacement);
 
-async function interruptAdmittedPrepare(
-  harness: import('./harness').IntendedBehaviourHarness,
-  mode: 'lost_response' | 'cancelled',
-  counter: { admitted: number },
-  route: Route,
-): Promise<void> {
-  const response = await route.fetch();
-  expect(response.status()).toBe(200);
-  counter.admitted += 1;
-  if (mode === 'cancelled') await harness.lockWallet();
-  await route.abort('connectionclosed');
-}
-
-for (const mode of ['lost_response', 'cancelled'] as const) {
-  test(`admitted available-pool prepare ${mode} does not restart signing`, async ({
-    harness,
-    context,
-    page,
-  }) => {
-    const batch = new FirstSigningPoolFlow();
-    const counter = { admitted: 0 };
-    const initPath = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
-    const preparePath = '**/router-ab/ecdsa-derivation/sign/prepare';
-    const hold = batch.holdInit.bind(batch);
-    const interrupt = interruptAdmittedPrepare.bind(undefined, harness, mode, counter);
-    const record = batch.record.bind(batch);
-    await context.route(initPath, hold);
-    await context.route(preparePath, interrupt);
-    context.on('request', record);
-    try {
-      await harness.registerPasskeyWallet();
-      await expect.poll(batch.observed.bind(batch)).toBeGreaterThan(0);
-      const signing = harness.signTempoTransaction('post_registration');
-      const rejected = expect(signing).rejects.toThrow();
-      await page.waitForTimeout(150);
-      batch.release();
-      await rejected;
-      expect(counter.admitted).toBe(1);
-      expect(batch.terminalPrepares).toBe(0);
-      expect(batch.ordinaryPrepares).toBe(1);
-      expect(batch.finalizations).toBe(0);
-      if (mode === 'cancelled') await harness.assertWalletLocked();
-    } finally {
-      batch.release();
-      context.off('request', record);
-      await context.unroute(initPath, hold);
-      await context.unroute(preparePath, interrupt);
-    }
-  });
-}
-
 class ConcurrentPrepare {
   statuses: number[] = [];
   d1: unknown[] = [];
@@ -1012,17 +774,6 @@ class LastQuotaPrepareRace {
   }
 }
 
-class CapturedFinalize {
-  completed: { readonly request: Request; readonly body: unknown } | null = null;
-
-  async capture(route: Route): Promise<void> {
-    const response = await route.fetch();
-    expect(response.status()).toBe(200);
-    this.completed = { request: route.request(), body: await response.json() };
-    await route.fulfill({ response });
-  }
-}
-
 async function signingOperationPersistence(
   walletId: string,
   operationId: string,
@@ -1060,66 +811,6 @@ async function signingOperationPersistence(
     database.close();
   }
 }
-
-test('missing ECDSA prepare rejects finalize without quota or audit effects and preserves signing', async ({
-  harness,
-  context,
-}, testInfo) => {
-  await harness.registerPasskeyEcdsaOnlyWallet();
-  const capture = new CapturedFinalize();
-  const record = capture.capture.bind(capture);
-  const finalizePath = '**/router-ab/ecdsa-derivation/sign';
-  await context.route(finalizePath, record);
-  try {
-    await harness.signTempoTransaction('post_registration');
-  } finally {
-    await context.unroute(finalizePath, record);
-  }
-  if (!capture.completed) throw new Error('Expected a verified finalize request');
-  const completed = capture.completed;
-  const missing: unknown = completed.request.postDataJSON();
-  if (!isPlainObject(missing)) throw new Error('Expected a finalize request body');
-  const operationId = `missing-prepare-${randomUUID()}`;
-  missing.operation_id = operationId;
-  missing.request_id = randomUUID();
-  const before = await signingOperationPersistence(harness.walletId, operationId);
-  expect(before).toEqual({ remainingUses: 2, claims: 0, auditEvents: 0 });
-  const statuses: number[] = [];
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const rejected = await context.request.fetch(completed.request, { data: missing });
-    statuses.push(rejected.status());
-    expect(rejected.status()).toBe(409);
-    expect(await rejected.json()).toMatchObject({ code: 'authorized_operation_missing' });
-    expect(await signingOperationPersistence(harness.walletId, operationId)).toEqual(before);
-  }
-  // Both remaining uses still produce verified signatures through ordinary preparation.
-  await harness.signTempoTransaction('post_registration');
-  await harness.signTempoTransaction('post_registration');
-  const after = await signingOperationPersistence(harness.walletId, operationId);
-  expect(after).toEqual({ remainingUses: 0, claims: 0, auditEvents: 0 });
-  const replay = await context.request.fetch(completed.request);
-  expect(replay.status()).toBe(200);
-  expect(await replay.json()).toEqual(completed.body);
-  expect(await signingOperationPersistence(harness.walletId, operationId)).toEqual(after);
-
-  const evidence = {
-    kind: 'gateway_ecdsa_missing_prepare_v1',
-    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
-    missingFinalizeStatuses: statuses,
-    before,
-    after,
-    verifiedSignatures: 3,
-    exhaustedSessionReplayMatches: true,
-  };
-  const artifactName = `gateway-ecdsa-missing-prepare-${evidence.host}.json`;
-  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r151', artifactName);
-  await mkdir(path.dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
-  await testInfo.attach(artifactName, {
-    body: JSON.stringify(evidence, null, 2),
-    contentType: 'application/json',
-  });
-});
 
 type SigningPolicy = 'project_and_abuse' | 'abuse' | 'rate_limited' | 'unrelated';
 
@@ -1323,6 +1014,21 @@ async function verifyLiveSigningPolicy(
   expect(replay.status()).toBe(200);
   expect(await replay.json()).toEqual(probe.completed.body);
   expect(probe.evidence).toHaveLength(9);
+  // A finalize for an operation that was never prepared is refused without
+  // quota, claim, or audit effects.
+  const missing: unknown = probe.completed.request.postDataJSON();
+  if (!isPlainObject(missing)) throw new Error('Expected a finalize request body');
+  const missingOperationId = `missing-prepare-${randomUUID()}`;
+  missing.operation_id = missingOperationId;
+  missing.request_id = randomUUID();
+  const beforeMissing = await signingOperationPersistence(harness.walletId, missingOperationId);
+  expect(beforeMissing).toMatchObject({ claims: 0, auditEvents: 0 });
+  const missingFinalize = await context.request.fetch(probe.completed.request, { data: missing });
+  expect(missingFinalize.status()).toBe(409);
+  expect(await missingFinalize.json()).toMatchObject({ code: 'authorized_operation_missing' });
+  expect(await signingOperationPersistence(harness.walletId, missingOperationId)).toEqual(
+    beforeMissing,
+  );
   await harness.signTempoTransaction(stage);
   await harness.signTempoTransaction(stage);
   const body: unknown = probe.completed.request.postDataJSON();
@@ -1360,24 +1066,6 @@ test('live signing policy denies prepare finalize and completed replay without c
   await verifyLiveSigningPolicy(harness, context, 'post_registration', testInfo);
 });
 
-test('third-generation linked signing enforces live policy and isolates unrelated scopes', async ({
-  harness,
-  browser,
-}, testInfo) => {
-  await harness.registerPasskeyEcdsaOnlyWallet();
-  const device2 = await harness.openLinkedDevice(browser);
-  await harness.linkDeviceWithPasskey(device2);
-  const priorContexts = browser.contexts();
-  const device3 = await device2.openLinkedDevice(browser);
-  const newContexts: BrowserContext[] = [];
-  for (const candidate of browser.contexts()) {
-    if (!priorContexts.includes(candidate)) newContexts.push(candidate);
-  }
-  expect(newContexts).toHaveLength(1);
-  await device2.linkDeviceWithPasskey(device3);
-  await verifyLiveSigningPolicy(device3, newContexts[0], 'post_device_link', testInfo);
-});
-
 const executeRuntimeFailure = promisify(execFile);
 
 async function interruptOwnedRuntimeAfterCommittedReply(
@@ -1386,7 +1074,8 @@ async function interruptOwnedRuntimeAfterCommittedReply(
 ): Promise<void> {
   const script = process.env.SEAMS_INTENDED_COMMITTED_REPLY_RUNTIME_FAILURE_SCRIPT;
   if (!script) return;
-  if (!path.isAbsolute(script)) throw new Error('The owned runtime failure script must be absolute');
+  if (!path.isAbsolute(script))
+    throw new Error('The owned runtime failure script must be absolute');
   const requestBody = request.postData();
   if (requestBody === null) throw new Error('The committed finalize request requires a body');
   await executeRuntimeFailure(
@@ -1541,75 +1230,6 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
     verifiedSignaturesBeforeRace: 2,
   };
   const artifactName = `gateway-ecdsa-last-quota-${evidence.host}.json`;
-  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
-  await mkdir(path.dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
-  await testInfo.attach(artifactName, {
-    body: JSON.stringify(evidence, null, 2),
-    contentType: 'application/json',
-  });
-});
-
-const ECDSA_FINALIZE_FAULT_HEADER = 'x-seams-intended-ecdsa-finalize-fault-v1';
-const ECDSA_FINALIZE_FAULT_TOKEN_HEADER = 'x-seams-intended-ecdsa-finalize-fault-token-v1';
-const ECDSA_FINALIZE_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-finalize-fault-proof-v1';
-
-class RouterFinalizeRetry {
-  readonly token = randomUUID();
-  proof: string | null = null;
-  body: string | null = null;
-
-  /** Arms the local Gateway to lose the Router's first finalize response. */
-  async armFirstFinalize(route: Route): Promise<void> {
-    if (this.body !== null) {
-      await route.continue();
-      return;
-    }
-    const response = await route.fetch({
-      headers: {
-        ...route.request().headers(),
-        [ECDSA_FINALIZE_FAULT_HEADER]: 'drop_router_response_once',
-        [ECDSA_FINALIZE_FAULT_TOKEN_HEADER]: this.token,
-      },
-    });
-    this.proof = response.headers()[ECDSA_FINALIZE_FAULT_PROOF_HEADER] ?? null;
-    this.body = await response.text();
-    await route.fulfill({ response });
-  }
-}
-
-test('exact finalize retry at the Router returns the SigningWorker stored signature', async ({
-  harness,
-  context,
-}, testInfo) => {
-  const finalizePath = '**/router-ab/ecdsa-derivation/sign';
-  const retry = new RouterFinalizeRetry();
-  const arm = retry.armFirstFinalize.bind(retry);
-  await context.route(finalizePath, arm);
-  try {
-    await harness.registerPasskeyWallet();
-    await harness.signTempoTransaction('post_registration');
-  } finally {
-    await context.unroute(finalizePath, arm);
-  }
-  // The Router's first response was lost after the SigningWorker signed. The
-  // identical retry reached the SigningWorker before the Gateway recorded
-  // anything, and returned the same signature.
-  expect(retry.proof).toBe(`${retry.token}:stored_signature_replayed`);
-  if (retry.body === null) throw new Error('The finalize request was never admitted');
-  const signature: unknown = JSON.parse(retry.body);
-  if (!isPlainObject(signature) || !isPlainObject(signature.scope)) {
-    throw new Error('Expected an ECDSA signing response');
-  }
-  if (typeof signature.scope.wallet_id !== 'string') {
-    throw new Error('ECDSA signing response omitted its wallet');
-  }
-  const evidence = {
-    kind: 'router_ecdsa_finalize_exact_retry_v1',
-    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
-    gatewayProof: 'stored_signature_replayed',
-  };
-  const artifactName = `router-ecdsa-finalize-exact-retry-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');

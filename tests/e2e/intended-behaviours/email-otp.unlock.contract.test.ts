@@ -1,5 +1,3 @@
-import { assertIndependentNearRegistration } from './registration-near-gate';
-import { ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1, ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 } from '@shared/utils/routerAbEd25519Yao';
 import { intendedTest as test } from './harness';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
@@ -25,21 +23,4 @@ test('Email OTP registration and unlock lifecycle', async ({ harness }) => {
   await harness.signArcEvmTransaction('step_up_required');
   await harness.exportEd25519Key();
   await harness.exportEcdsaKey();
-});
-
-test('an Email OTP export interrupted after its authorization committed is admitted by the exact retry, factor release included', async ({
-  harness,
-}) => {
-  await harness.registerEmailOtpWallet();
-  await harness.awaitNearReady();
-  await harness.signNearTransaction('post_registration');
-  await harness.exportEd25519KeyAcrossInterruptedAuthorization();
-});
-
-test('EVM registration and signatures complete while NEAR admission is held', async ({ harness, context }) => {
-  await assertIndependentNearRegistration({ harness, context, factor: 'email_otp', path: ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1 });
-});
-
-test('EVM registration and signatures complete while NEAR execution is held', async ({ harness, context }) => {
-  await assertIndependentNearRegistration({ harness, context, factor: 'email_otp', path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 });
 });

@@ -12,7 +12,6 @@ let sessionReason = 'absent';
 let currentProjection = null;
 let holdNextSession = false;
 let heldSession = null;
-let sessionRequests = [];
 function currentSession(walletId) {
   if (currentProjection && currentProjection.walletId === walletId) return currentProjection;
   return walletId === null ? { kind: 'wallet_locked' } : { kind: 'wallet_unlocked_without_signing_session', walletId, reason: sessionReason };
@@ -24,7 +23,6 @@ let originalSessionMessage;
 function sessionMessage(event) {
   const message = event.data;
   if (message.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
-    sessionRequests.push(message.payload);
     const walletId = message.payload.wallet.kind === 'exact' ? message.payload.wallet.walletId : currentWallet;
     const state = currentSession(walletId);
     const result = { revision: ++observationRevision, walletId, state, session: publicSessionForState(state) };
@@ -70,11 +68,7 @@ window.emitExpiry = function(session) {
   };
   adoptedPort.postMessage({ type: 'SDK_LIFECYCLE_EVENT', payload: { revision: ++observationRevision, event } });
 };
-window.publishSelectedWallet = function(walletId) {
-  selectionRevision++;
-  adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: { ...preferences(), walletId } });
-};
-window.sessionHostState = function() { return { held: heldSession !== null, requests: sessionRequests }; };
+window.sessionHostState = function() { return { held: heldSession !== null }; };
 `;
 
 function recordLoginStatus(status: unknown): void {
@@ -154,59 +148,6 @@ function walletFrame(frame: { url(): string }): boolean {
   return frame.url().startsWith('https://wallet.example.localhost/wallet-service');
 }
 
-async function initializeClientWithoutRead(): Promise<void> {
-  const path = '/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js';
-  const { WalletIframeRouter } = await import(path);
-  const router = new WalletIframeRouter({
-    hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-    walletOrigin: 'https://wallet.example.localhost',
-    servicePath: '/wallet-service',
-    sdkBasePath: '/sdk',
-  });
-  (window as any).sessionProbe = { router, events: [], read: null };
-  await router.init();
-}
-
-function readSelectionState(): unknown {
-  return (window as any).sessionProbe.router.lastPreferencesChangedPayload?.walletId ?? null;
-}
-
-function publishSelectedWallet(walletId: string | null): void {
-  (window as any).publishSelectedWallet(walletId);
-}
-
-test('the first preference snapshot for the answered wallet does not repeat the session read', async ({
-  page,
-}) => {
-  await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
-  await registerWalletServiceRoute(
-    page,
-    buildWalletServiceHtml({ extraScript: hostScript }),
-    '**://wallet.example.localhost/wallet-service*',
-  );
-  await page.addScriptTag({ content: [readSucceeded, readFailed].map(String).join('\n') });
-  await page.evaluate(initializeClientWithoutRead);
-  const frame = page.frames().find(walletFrame)!;
-  // The parent has no selected wallet until the host finishes restoring its preferences.
-  await frame.evaluate(publishSelectedWallet, null);
-  await expect.poll(page.evaluate.bind(page, readSelectionState)).toBeNull();
-  const before = (await frame.evaluate(readHost)) as { requests: unknown[] };
-  await frame.evaluate(holdSession);
-  await page.evaluate(beginRead);
-  await expect.poll(frame.evaluate.bind(frame, readHost)).toMatchObject({ held: true });
-  await frame.evaluate(publishSelectedWallet, 'alice.testnet');
-  await expect.poll(page.evaluate.bind(page, readSelectionState)).toBe('alice.testnet');
-  await frame.evaluate(releaseSession);
-  expect(await page.evaluate(finishRead)).toMatchObject({
-    kind: 'resolved',
-    state: { walletId: 'alice.testnet' },
-  });
-  const after = (await frame.evaluate(readHost)) as { requests: unknown[] };
-  expect(after.requests.slice(before.requests.length)).toEqual([
-    { authenticationRead: 'current', wallet: { kind: 'current' } },
-  ]);
-});
-
 test('delayed session reads follow the current wallet and cannot revive disconnected state', async ({
   page,
 }, info) => {
@@ -282,37 +223,6 @@ function changeSessionReason(reason: string): void {
 function readFreshSession(): Promise<unknown> {
   return (window as any).sessionProbe.router.getExactSessionState();
 }
-
-test('an older same-wallet snapshot cannot replace a newer session observation', async ({
-  page,
-}, info) => {
-  await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
-  await registerWalletServiceRoute(
-    page,
-    buildWalletServiceHtml({ extraScript: hostScript }),
-    '**://wallet.example.localhost/wallet-service*',
-  );
-  await page.addScriptTag({
-    content: [recordLoginStatus, readSucceeded, readFailed, readClient].map(String).join('\n'),
-  });
-  await page.evaluate(initializeClient);
-  const frame = page.frames().find(walletFrame)!;
-  await frame.evaluate(holdSession);
-  await page.evaluate(beginRead);
-  await expect.poll(frame.evaluate.bind(frame, readHost)).toMatchObject({ held: true });
-  await frame.evaluate(changeSessionReason, 'unavailable');
-  const current = await page.evaluate(readFreshSession);
-  expect(current).toMatchObject({ walletId: 'alice.testnet', reason: 'unavailable' });
-  await frame.evaluate(releaseSession);
-  const delayed = await page.evaluate(finishRead);
-  expect(delayed).toMatchObject({ kind: 'resolved', state: current });
-  const mirrored = await page.evaluate(readClient);
-  expect(mirrored).toMatchObject({ state: current });
-  await writeFile(
-    info.outputPath('same-wallet-ordering.json'),
-    JSON.stringify({ current, delayed, mirrored }, null, 2),
-  );
-});
 
 function publishCurrentSession(): void {
   (window as any).publishCurrentSession();

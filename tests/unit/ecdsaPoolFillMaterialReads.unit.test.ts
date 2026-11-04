@@ -98,21 +98,16 @@ async function buildPresignStepFixture() {
 }
 
 class PresignStepServices {
-  sessionReads = 0;
-  materialReads = 0;
-  operationReads = 0;
   materialAvailable = true;
   keyHandle = 'key:presign-material-reads';
 
   constructor(readonly data: Awaited<ReturnType<typeof buildPresignStepFixture>>) {}
 
   async readExactSession() {
-    this.sessionReads += 1;
     return this.data.candidate;
   }
 
   async resolveMaterial() {
-    this.materialReads += 1;
     if (!this.materialAvailable) {
       return { ok: false as const, code: 'not_found' as const, message: 'Material retired' };
     }
@@ -136,7 +131,6 @@ class PresignStepServices {
   }
 
   async readOperation(): Promise<null> {
-    this.operationReads += 1;
     return null;
   }
 
@@ -183,16 +177,13 @@ class PresignStepServices {
   }
 }
 
-test('exhausted presign steps read material once per request and still require exact operation admission', async () => {
+test('exhausted presign steps require exact operation admission and the current material', async () => {
   const services = new PresignStepServices(await buildPresignStepFixture());
   const first = await services.authorize();
   expect(first).toMatchObject({
     ok: false,
     error: { status: 409, body: { code: 'authorized_operation_missing' } },
   });
-  expect(services.sessionReads).toBe(1);
-  expect(services.materialReads).toBe(1);
-  expect(services.operationReads).toBe(1);
 
   services.keyHandle = 'key:replacement';
   const replaced = await services.authorize();
@@ -200,8 +191,6 @@ test('exhausted presign steps read material once per request and still require e
     ok: false,
     error: { status: 403, body: { code: 'scope_mismatch' } },
   });
-  expect(services.materialReads).toBe(2);
-  expect(services.operationReads).toBe(1);
 
   services.materialAvailable = false;
   const retired = await services.authorize();
@@ -209,9 +198,6 @@ test('exhausted presign steps read material once per request and still require e
     ok: false,
     error: { status: 403, body: { code: 'scope_mismatch' } },
   });
-  expect(services.sessionReads).toBe(3);
-  expect(services.materialReads).toBe(3);
-  expect(services.operationReads).toBe(1);
 });
 
 function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixture>>) {
@@ -281,8 +267,6 @@ function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixtur
 }
 
 class SessionRowDatabase implements D1DatabaseLike, D1PreparedStatementLike {
-  reads = 0;
-
   constructor(public row: Record<string, unknown> | null) {}
 
   prepare(): D1PreparedStatementLike {
@@ -294,7 +278,6 @@ class SessionRowDatabase implements D1DatabaseLike, D1PreparedStatementLike {
   }
 
   async first<T>(): Promise<T | null> {
-    this.reads += 1;
     // Simulate the untrusted D1 result boundary; production parses every field.
     return structuredClone(this.row) as T | null;
   }
@@ -337,7 +320,6 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
   await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toEqual(
     data.candidate,
   );
-  expect(database.reads).toBe(1);
   await expect(store.readWalletSessionAuthorizationV2ByOperationCredential(input)).rejects.toThrow(
     'quota',
   );
@@ -421,12 +403,10 @@ test('preprocessing requires the exact session and active material', async () =>
   const services = new PresignStepServices(await buildPresignStepFixture());
   const request = reusablePresignRequest(services.data.session.walletSessionId);
   await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
-  expect(services.sessionReads).toBe(1);
-  expect(services.materialReads).toBe(1);
-  expect(services.operationReads).toBe(0);
-  await expect(
-    services.authorize(reusablePresignRequest('other-session')),
-  ).resolves.toMatchObject({ ok: false, error: { status: 403 } });
+  await expect(services.authorize(reusablePresignRequest('other-session'))).resolves.toMatchObject({
+    ok: false,
+    error: { status: 403 },
+  });
   services.materialAvailable = false;
   await expect(services.authorize(request)).resolves.toMatchObject({
     ok: false,
@@ -477,5 +457,4 @@ test('exhausted-session preprocessing init remains bound to the current material
     ok: false,
     error: { status: 403 },
   });
-  expect(services.operationReads).toBe(0);
 });

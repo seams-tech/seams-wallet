@@ -14,359 +14,353 @@ import { saveEvidence, session } from './voiceid-selection';
 
 test.use({ ...voiceIdBrowserAudio, video: 'off', trace: 'off' });
 test.setTimeout(300_000);
-for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
-  test(`${passkeyAlgorithm} passkey manages VoiceID, voice unlocks and signs, and enrollment changes stay bounded`, async ({
-    page,
-    context,
-    harness,
-  }, testInfo) => {
-    await context.routeWebSocket(isDevelopmentReloadSocket, holdDevelopmentReload);
-    await allowBrowserMicrophone(context, passkeyAlgorithm);
-    harness.enableVoiceIdPlugin();
-    await harness.registerPasskeyEd25519YaoWallet();
-    const identity = await readNearIdentity(page);
-    const evidence = new VoiceIdNearSigningEvidence(
-      process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
-      identity,
-      'available',
-    );
-    await evidence.observe(context);
-    const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
-    await openSettings(page);
-    const toggle = page.getByRole('switch', { name: 'Enable VoiceID in this browser' });
-    await expect(toggle).toBeEnabled();
-    await toggle.click();
-    await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
-    await enrollBrowserMicrophone(page);
-    await expect(toggle).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
-    await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');
-    await page
-      .locator('.seams-profile-button-morphable.open')
-      .screenshot({ path: testInfo.outputPath('voiceid-settings-enabled.png') });
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-checked', 'false');
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-checked', 'true');
-    const originalEnrollment = await wallet
-      .locator('body')
-      .evaluate(readEnrollmentSummary, identity.walletId);
-    await wallet.locator('body').evaluate(changeAdaptationBoundary, {
-      walletId: identity.walletId,
-      action: 'legacy' as const,
-    });
-    await expect(
-      wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId),
-    ).rejects.toThrow('Scoped voice enrollment is unavailable');
-    await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    await wallet.getByRole('button', { name: 'Use saved enrollment', exact: true }).click();
-    await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
-    const importedEnrollment = await wallet
-      .locator('body')
-      .evaluate(readEnrollmentSummary, identity.walletId);
-    expect(importedEnrollment).toMatchObject({
-      scope: originalEnrollment.scope,
-      revision: 0,
-      baselineHash: originalEnrollment.baselineHash,
-      legacyPresent: false,
-    });
-    await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
-    await harness.lockWallet();
-    await page.getByTestId('asset-open-auth-menu').click();
-    await expect(wallet.locator('[data-auth-menu-voiceid]')).toBeVisible({ timeout: 20_000 });
-    await wallet.getByRole('button', { name: /Saved wallets/ }).click();
-    await expect(
-      wallet.locator('[role="option"][data-wallet-id="' + identity.walletId + '"]'),
-    ).toHaveCount(1);
-    await wallet.locator('[role="option"][data-wallet-id="' + identity.walletId + '"]').click();
-    await expect(wallet.getByRole('listbox')).toBeHidden();
-    await wallet
-      .locator('.seams-auth-menu-surface')
-      .screenshot({ path: testInfo.outputPath('voiceid-login-methods.png') });
-    await wallet.locator('[data-auth-menu-voiceid]').click();
-    const voiceDialog = wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true });
-    await expect(voiceDialog).toBeVisible();
-    await expect(wallet.locator('.seams-auth-menu-surface')).toBeHidden();
-    await voiceDialog.getByRole('button', { name: 'Back', exact: true }).click();
-    await expect(voiceDialog).toHaveCount(0);
-    await expect(wallet.locator('.seams-auth-menu-surface')).toBeVisible();
-    await wallet.locator('body').evaluate(watchMenuStates);
-    await wallet.locator('[data-auth-menu-voiceid]').click();
-    await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
-      'data-capture',
-      'succeeded',
-      { timeout: 20_000 },
-    );
-    // The success sits in the middle of the card below the origin, not low under an empty top.
-    expect(await wallet.locator('.seams-voiceid-unlock').evaluate(readSealedOffset)).toBeLessThan(
-      2,
-    );
-    await wallet
-      .locator('.seams-voiceid-unlock')
-      .screenshot({ path: testInfo.outputPath('voiceid-unlock-sealed.png') });
-    await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
-    await expect(page.locator('[data-seams-auth-menu-host="true"]')).toHaveCount(0);
-    // The unlock plays its own success, so the login menu never returns behind or after it.
-    const menuStates = await wallet.locator('body').evaluate(readMenuStates);
-    const succeeded = menuStates.indexOf('no-menu:succeeded');
-    expect(succeeded).toBeGreaterThan(0);
-    expect(menuStates.slice(succeeded).filter(isMenuVisible)).toEqual([]);
-    await startReviewedTransfer(page);
-    // A VoiceID session confirms like any other session: no voice check per transaction.
-    await expect(wallet.locator('button.confirm')).toHaveText('Confirm');
-    await wallet.locator('button.confirm').click();
-    await expect(wallet.locator('.seams-voiceid-prompt')).toHaveCount(0);
-    await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
-      'data-state',
-      'submitted',
-      { timeout: 60_000 },
-    );
-    expect(evidence.transfers).toHaveLength(1);
-    await waitForWalletIframeConfirmationSettlement(page);
-    await openSettings(page);
-    await expect(toggle).toHaveAttribute('aria-checked', 'true');
-    const voiceMethodId = await page.evaluate(readVoiceMethodId);
-    await toggle.click();
-    await expect.poll(readAuthentication.bind(null, page)).toBe('locked');
-    await expect(page.evaluate(attemptDisabledUnlock, voiceMethodId)).rejects.toThrow('turned off');
-    const closeSettings = page.getByRole('button', { name: 'Close wallet settings', exact: true });
-    if (await closeSettings.isVisible()) await closeSettings.click();
-    await page.getByTestId('asset-open-auth-menu').click();
-    await expect(wallet.locator('.seams-auth-menu-surface')).toBeVisible();
-    await expect(wallet.locator('[data-auth-menu-voiceid]')).toHaveCount(0);
-    await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
-    await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
-    await openSettings(page);
-    await expect(toggle).toHaveAttribute('aria-checked', 'false');
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-checked', 'true');
-    const baseline = await wallet
-      .locator('body')
-      .evaluate(readEnrollmentSummary, identity.walletId);
-    const voiceRow = page.locator('[data-auth-method="voiceid"]');
-    await expect(voiceRow.getByRole('switch')).toBeVisible();
-    await voiceRow.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    await wallet
-      .locator('.seams-voiceid-management')
-      .getByRole('button', { name: 'Back', exact: true })
-      .click();
-    await expect(voiceRow.getByRole('status')).toHaveText('On in this browser');
-    await wallet.locator('body').evaluate(useNaturalPhrases);
-    await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    const enrollmentState = wallet.locator('.seams-voiceid-management-enrollment');
-    await expect(enrollmentState).toContainText('Original');
-    await expect(
-      wallet.getByRole('button', { name: 'Reset improvements', exact: true }),
-    ).toHaveCount(0);
-    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
-    await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled({
-      timeout: 30_000,
-    });
-    await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
-    await wallet.getByRole('button', { name: 'Cancel enrollment', exact: true }).click();
-    await expect(
-      wallet.getByRole('button', { name: 'Improve recognition', exact: true }),
-    ).toBeEnabled();
-    expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
-      baseline,
-    );
-    await wallet.locator('body').evaluate(replayPasskey);
-    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
-    await expect(wallet.locator('.seams-voiceid-management [role="status"]')).toHaveText(
-      'The passkey confirmation belongs to another operation.',
-    );
-    await wallet.locator('body').evaluate(corruptPasskey);
-    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
-    await expect(wallet.locator('.seams-voiceid-management [role="status"]')).toHaveText(
-      'Passkey confirmation signature is invalid.',
-    );
-    expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
-      baseline,
-    );
-    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
-    await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
-    await expect
-      .poll(wallet.locator('body').evaluate.bind(wallet.locator('body'), microphoneStates))
-      .toContain('live');
-    await harness.lockWallet();
-    await expect
-      .poll(wallet.locator('body').evaluate.bind(wallet.locator('body'), microphoneStates))
-      .not.toContain('live');
-    expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
-      baseline,
-    );
-    const cancelManagement = wallet
-      .locator('.seams-voiceid-management')
-      .getByRole('button', { name: 'Back', exact: true });
-    if (await cancelManagement.isVisible()) await cancelManagement.click();
-    const settingsClose = page.getByRole('button', { name: 'Close wallet settings', exact: true });
-    if (await settingsClose.isVisible()) await settingsClose.click();
-    await page.getByTestId('asset-open-auth-menu').click();
-    await wallet.locator('[data-auth-menu-voiceid]').click();
-    await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
-    await openSettings(page);
-    await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    const passkeyCount = await wallet.locator('body').evaluate(readPasskeyRequests);
-    const ownerSession = (await page.evaluate(session)).authentication;
-    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
-    await collectWithRejectedThirdSample(page, identity.walletId, testInfo);
-    const improved = await wallet
-      .locator('body')
-      .evaluate(readEnrollmentSummary, identity.walletId);
-    expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeyCount + 1);
-    expect(improved).toMatchObject({
-      scope: baseline.scope,
-      revision: baseline.revision + 1,
-      baselineHash: baseline.baselineHash,
-      generation: baseline.generation,
-      adaptation: 'adapted',
-      samples: 3,
-      hasLifetimeLimits: false,
-    });
-    expect(improved.serializedBytes).toBeLessThanOrEqual(32_768);
-    expect(await readAuthentication(page)).toBe('voiceid');
-    expect((await page.evaluate(session)).authentication).toEqual(ownerSession);
-    await wallet
-      .locator('body')
-      .evaluate(changeAdaptationBoundary, { walletId: identity.walletId, action: 'save' as const });
-    await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
-    await harness.lockWallet();
-    await page.getByTestId('asset-open-auth-menu').click();
-    await wallet.locator('[data-auth-menu-voiceid]').click();
-    await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
-    await startReviewedTransfer(page);
-    await wallet.locator('button.confirm').click();
-    await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
-      'data-state',
-      'submitted',
-      { timeout: 60_000 },
-    );
-    expect(evidence.transfers).toHaveLength(2);
-    const used = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
-    expect(used).toEqual(improved);
-    await waitForWalletIframeConfirmationSettlement(page);
-    await harness.lockWallet();
-    await page.getByTestId('asset-open-auth-menu').click();
-    await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
-    await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
-    await openSettings(page);
-    await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    await expect(enrollmentState).toContainText('Improved');
-    await expect(enrollmentState).toContainText('Saved on this device');
-    await expect(wallet.getByRole('button', { name: 'Improve again', exact: true })).toBeVisible();
-    const managementDialog = wallet.getByRole('dialog', { name: 'Manage voice', exact: true });
-    await expect(managementDialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await managementDialog.screenshot({
-      path: testInfo.outputPath('voiceid-adaptation-management.png'),
-      animations: 'disabled',
-    });
-    await wallet.getByRole('button', { name: 'Reset improvements', exact: true }).click();
-    await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
-    const reset = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
-    expect(reset).toMatchObject({
-      scope: baseline.scope,
-      revision: improved.revision + 1,
-      baselineHash: baseline.baselineHash,
-      generation: baseline.generation,
-      adaptation: 'baseline',
-      samples: 0,
-    });
-    await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
-    await wallet.locator('body').evaluate(changeAdaptationBoundary, {
-      walletId: identity.walletId,
-      action: 'last_use' as const,
-    });
-    await harness.lockWallet();
-    await unlockVoiceFromMenu(page);
-    const retainedAfterLastUse = await wallet
-      .locator('body')
-      .evaluate(readEnrollmentSummary, identity.walletId);
-    expect(retainedAfterLastUse).toMatchObject({
-      baselineHash: baseline.baselineHash,
-      samplesHash: improved.samplesHash,
-      adaptation: 'adapted',
-      samples: 3,
-      hasLifetimeLimits: false,
-    });
-    await wallet.locator('body').evaluate(changeAdaptationBoundary, {
-      walletId: identity.walletId,
-      action: 'expired' as const,
-    });
-    await harness.lockWallet();
-    await unlockVoiceFromMenu(page);
-    const retainedAfterExpiry = await wallet
-      .locator('body')
-      .evaluate(readEnrollmentSummary, identity.walletId);
-    expect(retainedAfterExpiry).toMatchObject({
-      baselineHash: baseline.baselineHash,
-      samplesHash: improved.samplesHash,
-      adaptation: 'adapted',
-      samples: 3,
-      hasLifetimeLimits: false,
-    });
-    await page.reload();
-    await wallet.locator('body').waitFor({ state: 'attached', timeout: 15_000 });
-    await wallet.locator('body').evaluate(useNaturalPhrases);
-    expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
-      retainedAfterExpiry,
-    );
-    await harness.lockWallet();
-    await page.getByTestId('asset-open-auth-menu').click();
-    await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
-    await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
-    await openSettings(page);
-    await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    await wallet.getByRole('button', { name: 'Record voice again', exact: true }).click();
-    await enrollBrowserMicrophone(page);
-    await expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(await page.evaluate(readVoiceMethodId)).toBe(voiceMethodId);
-    await page.getByRole('button', { name: 'Remove VoiceID', exact: true }).click();
-    await page.getByRole('button', { name: 'Remove method', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Remove VoiceID', exact: true })).toHaveCount(0, {
-      timeout: 30_000,
-    });
-    await expect(
-      wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId),
-    ).rejects.toThrow('Scoped voice enrollment is unavailable');
-    await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');
-    await saveEvidence(testInfo, 'voiceid-ui-flows.json', {
-      status: 'passed',
-      passkeyCredentialAlgorithm: passkeyAlgorithm,
-      walletSigner: 'ed25519_yao',
-      passkeyCoseAlgorithm: passkeyAlgorithm === 'rs256' ? -257 : -7,
-      settings: 'enroll_disable_reenable_and_lock_active_voice_session',
-      managementBackLeavesNoMessage: true,
-      explicitContainerPreservedUnrelatedSurface: true,
-      login: 'one_wallet_with_method_choices_and_cancel_restores_menu',
-      menuStatesThroughVoiceUnlock: menuStates,
-      disabledSdkUnlockRejected: true,
-      reenrollmentPreservedMethodId: true,
-      explicitImport: { originalEnrollment, importedEnrollment, obsoleteRecordRemoved: true },
-      adaptation: {
-        baseline,
-        improved,
-        used,
-        reset,
-        retainedAfterLastUse,
-        retainedAfterExpiry,
-        reloadPreservedSamples: true,
-        rejectedThirdSamplePreservedProgress: true,
-        completionAfterThreeAcceptedSamples: true,
-        cancellationPreservedEnrollment: true,
-        replayedPasskeyRejected: true,
-        invalidPasskeySignatureRejected: true,
-        lockDuringCaptureReleasedMicrophone: true,
-        ownerSessionUnchanged: true,
-        voiceSessionManagementWithOnePasskeyProof: true,
-        removalDeletedEnrollment: true,
-        lifetimeBoundarySetup:
-          'existing samples survive retired expiry/count metadata and remain across reload',
-      },
-      signing: 'minimal_voice_prompt',
-      transfers: evidence.transfers,
-      chain: 'deterministic_near_rpc',
-    });
+// RS256 is the less common passkey algorithm; ES256 runs in every other passkey journey.
+const passkeyAlgorithm = 'rs256';
+test(`rs256 passkey manages VoiceID, voice unlocks and signs, and enrollment changes stay bounded`, async ({
+  page,
+  context,
+  harness,
+}, testInfo) => {
+  await context.routeWebSocket(isDevelopmentReloadSocket, holdDevelopmentReload);
+  await allowBrowserMicrophone(context, passkeyAlgorithm);
+  harness.enableVoiceIdPlugin();
+  await harness.registerPasskeyEd25519YaoWallet();
+  const identity = await readNearIdentity(page);
+  const evidence = new VoiceIdNearSigningEvidence(
+    process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
+    identity,
+    'available',
+  );
+  await evidence.observe(context);
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await openSettings(page);
+  const toggle = page.getByRole('switch', { name: 'Enable VoiceID in this browser' });
+  await expect(toggle).toBeEnabled();
+  await toggle.click();
+  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await enrollBrowserMicrophone(page);
+  await expect(toggle).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
+  await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');
+  await page
+    .locator('.seams-profile-button-morphable.open')
+    .screenshot({ path: testInfo.outputPath('voiceid-settings-enabled.png') });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  const originalEnrollment = await wallet
+    .locator('body')
+    .evaluate(readEnrollmentSummary, identity.walletId);
+  await wallet.locator('body').evaluate(changeAdaptationBoundary, {
+    walletId: identity.walletId,
+    action: 'legacy' as const,
   });
-}
+  await expect(
+    wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId),
+  ).rejects.toThrow('Scoped voice enrollment is unavailable');
+  await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Use saved enrollment', exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
+  const importedEnrollment = await wallet
+    .locator('body')
+    .evaluate(readEnrollmentSummary, identity.walletId);
+  expect(importedEnrollment).toMatchObject({
+    scope: originalEnrollment.scope,
+    revision: 0,
+    baselineHash: originalEnrollment.baselineHash,
+    legacyPresent: false,
+  });
+  await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
+  await harness.lockWallet();
+  await page.getByTestId('asset-open-auth-menu').click();
+  await expect(wallet.locator('[data-auth-menu-voiceid]')).toBeVisible({ timeout: 20_000 });
+  await wallet.getByRole('button', { name: /Saved wallets/ }).click();
+  await expect(
+    wallet.locator('[role="option"][data-wallet-id="' + identity.walletId + '"]'),
+  ).toHaveCount(1);
+  await wallet.locator('[role="option"][data-wallet-id="' + identity.walletId + '"]').click();
+  await expect(wallet.getByRole('listbox')).toBeHidden();
+  await wallet
+    .locator('.seams-auth-menu-surface')
+    .screenshot({ path: testInfo.outputPath('voiceid-login-methods.png') });
+  await wallet.locator('[data-auth-menu-voiceid]').click();
+  const voiceDialog = wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true });
+  await expect(voiceDialog).toBeVisible();
+  await expect(wallet.locator('.seams-auth-menu-surface')).toBeHidden();
+  await voiceDialog.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(voiceDialog).toHaveCount(0);
+  await expect(wallet.locator('.seams-auth-menu-surface')).toBeVisible();
+  await wallet.locator('body').evaluate(watchMenuStates);
+  await wallet.locator('[data-auth-menu-voiceid]').click();
+  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
+    'data-capture',
+    'succeeded',
+    { timeout: 20_000 },
+  );
+  // The success sits in the middle of the card below the origin, not low under an empty top.
+  expect(await wallet.locator('.seams-voiceid-unlock').evaluate(readSealedOffset)).toBeLessThan(2);
+  await wallet
+    .locator('.seams-voiceid-unlock')
+    .screenshot({ path: testInfo.outputPath('voiceid-unlock-sealed.png') });
+  await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
+  await expect(page.locator('[data-seams-auth-menu-host="true"]')).toHaveCount(0);
+  // The unlock plays its own success, so the login menu never returns behind or after it.
+  const menuStates = await wallet.locator('body').evaluate(readMenuStates);
+  const succeeded = menuStates.indexOf('no-menu:succeeded');
+  expect(succeeded).toBeGreaterThan(0);
+  expect(menuStates.slice(succeeded).filter(isMenuVisible)).toEqual([]);
+  await startReviewedTransfer(page);
+  // A VoiceID session confirms like any other session: no voice check per transaction.
+  await expect(wallet.locator('button.confirm')).toHaveText('Confirm');
+  await wallet.locator('button.confirm').click();
+  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveCount(0);
+  await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
+    'data-state',
+    'submitted',
+    { timeout: 60_000 },
+  );
+  expect(evidence.transfers).toHaveLength(1);
+  await waitForWalletIframeConfirmationSettlement(page);
+  await openSettings(page);
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  const voiceMethodId = await page.evaluate(readVoiceMethodId);
+  await toggle.click();
+  await expect.poll(readAuthentication.bind(null, page)).toBe('locked');
+  await expect(page.evaluate(attemptDisabledUnlock, voiceMethodId)).rejects.toThrow('turned off');
+  const closeSettings = page.getByRole('button', { name: 'Close wallet settings', exact: true });
+  if (await closeSettings.isVisible()) await closeSettings.click();
+  await page.getByTestId('asset-open-auth-menu').click();
+  await expect(wallet.locator('.seams-auth-menu-surface')).toBeVisible();
+  await expect(wallet.locator('[data-auth-menu-voiceid]')).toHaveCount(0);
+  await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
+  await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
+  await openSettings(page);
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  const baseline = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
+  const voiceRow = page.locator('[data-auth-method="voiceid"]');
+  await expect(voiceRow.getByRole('switch')).toBeVisible();
+  await voiceRow.getByRole('button', { name: 'Manage voice', exact: true }).click();
+  await wallet
+    .locator('.seams-voiceid-management')
+    .getByRole('button', { name: 'Back', exact: true })
+    .click();
+  await expect(voiceRow.getByRole('status')).toHaveText('On in this browser');
+  await wallet.locator('body').evaluate(useNaturalPhrases);
+  await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
+  const enrollmentState = wallet.locator('.seams-voiceid-management-enrollment');
+  await expect(enrollmentState).toContainText('Original');
+  await expect(wallet.getByRole('button', { name: 'Reset improvements', exact: true })).toHaveCount(
+    0,
+  );
+  await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
+  await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled({
+    timeout: 30_000,
+  });
+  await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Cancel enrollment', exact: true }).click();
+  await expect(
+    wallet.getByRole('button', { name: 'Improve recognition', exact: true }),
+  ).toBeEnabled();
+  expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
+    baseline,
+  );
+  await wallet.locator('body').evaluate(replayPasskey);
+  await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-management [role="status"]')).toHaveText(
+    'The passkey confirmation belongs to another operation.',
+  );
+  await wallet.locator('body').evaluate(corruptPasskey);
+  await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-management [role="status"]')).toHaveText(
+    'Passkey confirmation signature is invalid.',
+  );
+  expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
+    baseline,
+  );
+  await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
+  await expect
+    .poll(wallet.locator('body').evaluate.bind(wallet.locator('body'), microphoneStates))
+    .toContain('live');
+  await harness.lockWallet();
+  await expect
+    .poll(wallet.locator('body').evaluate.bind(wallet.locator('body'), microphoneStates))
+    .not.toContain('live');
+  expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
+    baseline,
+  );
+  const cancelManagement = wallet
+    .locator('.seams-voiceid-management')
+    .getByRole('button', { name: 'Back', exact: true });
+  if (await cancelManagement.isVisible()) await cancelManagement.click();
+  const settingsClose = page.getByRole('button', { name: 'Close wallet settings', exact: true });
+  if (await settingsClose.isVisible()) await settingsClose.click();
+  await page.getByTestId('asset-open-auth-menu').click();
+  await wallet.locator('[data-auth-menu-voiceid]').click();
+  await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
+  await openSettings(page);
+  await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
+  const passkeyCount = await wallet.locator('body').evaluate(readPasskeyRequests);
+  const ownerSession = (await page.evaluate(session)).authentication;
+  await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
+  await collectWithRejectedThirdSample(page, identity.walletId, testInfo);
+  const improved = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
+  expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeyCount + 1);
+  expect(improved).toMatchObject({
+    scope: baseline.scope,
+    revision: baseline.revision + 1,
+    baselineHash: baseline.baselineHash,
+    generation: baseline.generation,
+    adaptation: 'adapted',
+    samples: 3,
+    hasLifetimeLimits: false,
+  });
+  expect(improved.serializedBytes).toBeLessThanOrEqual(32_768);
+  expect(await readAuthentication(page)).toBe('voiceid');
+  expect((await page.evaluate(session)).authentication).toEqual(ownerSession);
+  await wallet
+    .locator('body')
+    .evaluate(changeAdaptationBoundary, { walletId: identity.walletId, action: 'save' as const });
+  await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
+  await harness.lockWallet();
+  await page.getByTestId('asset-open-auth-menu').click();
+  await wallet.locator('[data-auth-menu-voiceid]').click();
+  await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
+  await startReviewedTransfer(page);
+  await wallet.locator('button.confirm').click();
+  await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
+    'data-state',
+    'submitted',
+    { timeout: 60_000 },
+  );
+  expect(evidence.transfers).toHaveLength(2);
+  const used = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
+  expect(used).toEqual(improved);
+  await waitForWalletIframeConfirmationSettlement(page);
+  await harness.lockWallet();
+  await page.getByTestId('asset-open-auth-menu').click();
+  await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
+  await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
+  await openSettings(page);
+  await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
+  await expect(enrollmentState).toContainText('Improved');
+  await expect(enrollmentState).toContainText('Saved on this device');
+  await expect(wallet.getByRole('button', { name: 'Improve again', exact: true })).toBeVisible();
+  const managementDialog = wallet.getByRole('dialog', { name: 'Manage voice', exact: true });
+  await expect(managementDialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await managementDialog.screenshot({
+    path: testInfo.outputPath('voiceid-adaptation-management.png'),
+    animations: 'disabled',
+  });
+  await wallet.getByRole('button', { name: 'Reset improvements', exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
+  const reset = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
+  expect(reset).toMatchObject({
+    scope: baseline.scope,
+    revision: improved.revision + 1,
+    baselineHash: baseline.baselineHash,
+    generation: baseline.generation,
+    adaptation: 'baseline',
+    samples: 0,
+  });
+  await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
+  await wallet.locator('body').evaluate(changeAdaptationBoundary, {
+    walletId: identity.walletId,
+    action: 'last_use' as const,
+  });
+  await harness.lockWallet();
+  await unlockVoiceFromMenu(page);
+  const retainedAfterLastUse = await wallet
+    .locator('body')
+    .evaluate(readEnrollmentSummary, identity.walletId);
+  expect(retainedAfterLastUse).toMatchObject({
+    baselineHash: baseline.baselineHash,
+    samplesHash: improved.samplesHash,
+    adaptation: 'adapted',
+    samples: 3,
+    hasLifetimeLimits: false,
+  });
+  await wallet.locator('body').evaluate(changeAdaptationBoundary, {
+    walletId: identity.walletId,
+    action: 'expired' as const,
+  });
+  await harness.lockWallet();
+  await unlockVoiceFromMenu(page);
+  const retainedAfterExpiry = await wallet
+    .locator('body')
+    .evaluate(readEnrollmentSummary, identity.walletId);
+  expect(retainedAfterExpiry).toMatchObject({
+    baselineHash: baseline.baselineHash,
+    samplesHash: improved.samplesHash,
+    adaptation: 'adapted',
+    samples: 3,
+    hasLifetimeLimits: false,
+  });
+  await page.reload();
+  await wallet.locator('body').waitFor({ state: 'attached', timeout: 15_000 });
+  await wallet.locator('body').evaluate(useNaturalPhrases);
+  expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
+    retainedAfterExpiry,
+  );
+  await harness.lockWallet();
+  await page.getByTestId('asset-open-auth-menu').click();
+  await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
+  await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
+  await openSettings(page);
+  await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Record voice again', exact: true }).click();
+  await enrollBrowserMicrophone(page);
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  expect(await page.evaluate(readVoiceMethodId)).toBe(voiceMethodId);
+  await page.getByRole('button', { name: 'Remove VoiceID', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove method', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove VoiceID', exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect(
+    wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId),
+  ).rejects.toThrow('Scoped voice enrollment is unavailable');
+  await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');
+  await saveEvidence(testInfo, 'voiceid-ui-flows.json', {
+    status: 'passed',
+    passkeyCredentialAlgorithm: passkeyAlgorithm,
+    walletSigner: 'ed25519_yao',
+    passkeyCoseAlgorithm: -257,
+    settings: 'enroll_disable_reenable_and_lock_active_voice_session',
+    managementBackLeavesNoMessage: true,
+    explicitContainerPreservedUnrelatedSurface: true,
+    login: 'one_wallet_with_method_choices_and_cancel_restores_menu',
+    menuStatesThroughVoiceUnlock: menuStates,
+    disabledSdkUnlockRejected: true,
+    reenrollmentPreservedMethodId: true,
+    explicitImport: { originalEnrollment, importedEnrollment, obsoleteRecordRemoved: true },
+    adaptation: {
+      baseline,
+      improved,
+      used,
+      reset,
+      retainedAfterLastUse,
+      retainedAfterExpiry,
+      reloadPreservedSamples: true,
+      rejectedThirdSamplePreservedProgress: true,
+      completionAfterThreeAcceptedSamples: true,
+      cancellationPreservedEnrollment: true,
+      replayedPasskeyRejected: true,
+      invalidPasskeySignatureRejected: true,
+      lockDuringCaptureReleasedMicrophone: true,
+      ownerSessionUnchanged: true,
+      voiceSessionManagementWithOnePasskeyProof: true,
+      removalDeletedEnrollment: true,
+      lifetimeBoundarySetup:
+        'existing samples survive retired expiry/count metadata and remain across reload',
+    },
+    signing: 'minimal_voice_prompt',
+    transfers: evidence.transfers,
+    chain: 'deterministic_near_rpc',
+  });
+});
 function readEnrollmentSummary(_body: HTMLElement, walletId: string) {
   return window.voiceIdEnrollmentSummary(walletId);
 }

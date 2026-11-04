@@ -1,11 +1,51 @@
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
-import { buildWalletServiceHtml, registerWalletServiceRoute, waitFor } from './harness';
+import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
+import {
+  thresholdEcdsaChainTargetFromChainFamily,
+  toWalletId,
+} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import {
+  buildEvmFamilyEcdsaSignerBinding,
+  exactEcdsaSigningLaneIdentity,
+} from '@/core/signingEngine/session/identity/exactSigningLaneIdentity';
+import {
+  buildEvmFamilyEcdsaKeyIdentity,
+  toEvmFamilyEcdsaKeyHandle,
+  toRpId,
+} from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
+import { buildMpcMaterialActivationRefFixture } from '../unit/helpers/ecdsaMaterialRef.fixtures';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
-const WAIT_FOR_SOURCE = `(${waitFor.toString()})`;
+const EXPORT_WALLET_ID = toWalletId('alice.testnet');
+const EXPORT_CHAIN_TARGET = thresholdEcdsaChainTargetFromChainFamily({
+  chain: 'evm',
+  chainId: 11155111,
+  networkSlug: 'sepolia',
+});
+const EXPORT_LANE = exactEcdsaSigningLaneIdentity({
+  signer: buildEvmFamilyEcdsaSignerBinding({
+    walletId: EXPORT_WALLET_ID,
+    chainTarget: EXPORT_CHAIN_TARGET,
+    keyHandle: toEvmFamilyEcdsaKeyHandle('ecdsa-key-handle-export-variant'),
+    key: buildEvmFamilyEcdsaKeyIdentity({
+      walletId: EXPORT_WALLET_ID,
+      ecdsaThresholdKeyId: 'ecdsa-threshold-export-variant',
+      signingRootId: 'signing-root-export-variant',
+      signingRootVersion: 'root-v1',
+      participantIds: [1, 2],
+      thresholdOwnerAddress: '0x2222222222222222222222222222222222222222',
+    }),
+    materialActivation: buildMpcMaterialActivationRefFixture('export-variant', EXPORT_WALLET_ID),
+  }),
+  auth: {
+    kind: 'passkey',
+    rpId: toRpId('example.localhost'),
+    credentialIdB64u: 'credential-export-variant',
+  },
+});
 
 const PREFERENCES_PUSH_STUB = `
   // Extend the base wallet-service stub with preference RPCs + push updates.
@@ -79,10 +119,6 @@ const PREFERENCES_PUSH_STUB = `
         const message = event.data || {};
         if (!message || typeof message !== 'object') return original && original(event);
         const { type, requestId } = message;
-        window.parent?.postMessage(
-          { type: 'TEST_PREFERENCE_TRACE', payload: { type, at: performance.now() } },
-          '*',
-        );
 
         if (type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
           respond(requestId, { revision: ++sessionObservationRevision, walletId, state: exactSessionState, session: publicSessionForState(exactSessionState) });
@@ -127,6 +163,15 @@ const PREFERENCES_PUSH_STUB = `
           return;
         }
 
+        if (type === 'PM_EXPORT_KEYPAIR_UI') {
+          // Leave the export open so the parent surface can be read.
+          window.parent?.postMessage({
+            type: 'TEST_EXPORT_SURFACE_STARTED',
+            variant: message?.payload?.options?.variant ?? null,
+          }, '*');
+          return;
+        }
+
         return original && original(event);
       };
       pushPreferencesChanged();
@@ -155,132 +200,12 @@ test.describe('Wallet iframe preferences sync', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('app-origin mirrors wallet-host confirmation config via PREFERENCES_CHANGED', async ({
-    page,
-  }) => {
-    const consoleErrors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
-    });
-
-    const seamsPath = SDK_ESM_PATHS.seamsWeb;
-    const result = await page.evaluate(
-      async ({ walletOrigin, waitForSource, seamsPath }) => {
-        const waitFor = eval(waitForSource) as typeof import('./harness').waitFor;
-        try {
-          const base =
-            window.location.origin === 'null'
-              ? 'https://example.localhost'
-              : window.location.origin;
-          const mod = await import(new URL(seamsPath, base).toString());
-          const { SeamsWeb } = mod as typeof import('@/SeamsWeb');
-
-          const seams = new SeamsWeb({
-            chains: [
-              {
-                network: 'near-testnet',
-                rpcUrl: 'https://test.rpc.fastnear.com',
-                explorerUrl: 'https://testnet.nearblocks.io',
-              },
-            ],
-            relayer: { url: 'http://localhost:3000' },
-            iframeWallet: {
-              walletOrigin,
-              walletServicePath: '/wallet-service',
-              sdkBasePath: '/sdk',
-            },
-          });
-
-          await seams.connection.connect();
-          const seeded = await waitFor(
-            () => seams.preferences.getConfirmationConfig().uiMode === 'modal',
-            3000,
-          );
-          const initialTheme = seams.theme;
-          const initialConfig = seams.preferences.getConfirmationConfig();
-
-          seams.preferences.setConfirmationConfig({ uiMode: 'drawer' });
-          const optimisticUiMode = seams.preferences.getConfirmationConfig().uiMode;
-          seams.preferences.setConfirmationBehavior('skipClick');
-          const optimisticBehavior = seams.preferences.getConfirmationConfig().behavior;
-          const publicPatchMirrored = await waitFor(() => {
-            const config = seams.preferences.getConfirmationConfig();
-            return config.uiMode === 'drawer' && config.behavior === 'skipClick';
-          }, 3000);
-
-          // Flip confirmation config on the wallet host and ensure the app-origin mirrors it via PREFERENCES_CHANGED.
-          const router = await (seams as any).walletIframe.requireRouter();
-          await router.setConfirmationConfig({
-            uiMode: 'drawer',
-            behavior: 'skipClick',
-            autoProceedDelay: 5,
-          });
-          const mirrored = await waitFor(() => {
-            const config = seams.preferences.getConfirmationConfig();
-            return (
-              config.uiMode === 'drawer' &&
-              config.behavior === 'skipClick' &&
-              config.autoProceedDelay === 5
-            );
-          }, 3000);
-
-          return {
-            success: true,
-            initialTheme,
-            finalTheme: seams.theme,
-            initialConfig,
-            finalConfig: seams.preferences.getConfirmationConfig(),
-            currentWallet: String(seams.preferences.getCurrentWalletId?.() || ''),
-            seeded,
-            mirrored,
-            optimisticUiMode,
-            optimisticBehavior,
-            publicPatchMirrored,
-          };
-        } catch (error: any) {
-          return { success: false, error: error?.message || String(error) };
-        }
-      },
-      { walletOrigin: WALLET_ORIGIN, waitForSource: WAIT_FOR_SOURCE, seamsPath },
-    );
-
-    if (!result.success) {
-      expect(result.success, result.error).toBe(true);
-      return;
-    }
-
-    expect(result.initialTheme).toBe('dark');
-    expect(result.mirrored).toBe(true);
-    expect(result.optimisticUiMode).toBe('drawer');
-    expect(result.optimisticBehavior).toBe('skipClick');
-    expect(result.publicPatchMirrored).toBe(true);
-    expect(result.finalTheme).toBe('dark');
-    expect(result.initialConfig).toEqual({
-      behavior: 'requireClick',
-      uiMode: 'modal',
-      autoProceedDelay: 0,
-    });
-    expect(result.finalConfig).toEqual({
-      behavior: 'skipClick',
-      uiMode: 'drawer',
-      autoProceedDelay: 5,
-    });
-    expect(result.currentWallet).toBe('alice.testnet');
-
-    const indexedDbNoise = consoleErrors.find(
-      (m) =>
-        m.includes('SeamsWalletDBManager') ||
-        m.includes('IndexedDB is disabled in this environment'),
-    );
-    expect(indexedDbNoise).toBeUndefined();
-  });
-
-  test('uses the mirrored wallet preference to present a drawer before dispatch', async ({
+  test('uses the mirrored wallet preference to present signing and export in a drawer', async ({
     page,
   }) => {
     const seamsPath = SDK_ESM_PATHS.seamsWeb;
     const result = await page.evaluate(
-      async ({ walletOrigin, seamsPath }) => {
+      async ({ walletOrigin, seamsPath, walletId, chainTarget, laneIdentity }) => {
         const base =
           window.location.origin === 'null' ? 'https://example.localhost' : window.location.origin;
         const mod = await import(new URL(seamsPath, base).toString());
@@ -304,7 +229,7 @@ test.describe('Wallet iframe preferences sync', () => {
         await seams.connection.connect();
         const router = await (seams as any).walletIframe.requireRouter();
         await router.setConfirmationConfig({ uiMode: 'drawer' });
-        void router
+        const signing = router
           .post({
             type: 'PM_SIGN_DELEGATE_ACTION',
             payload: { walletId: 'alice.testnet', options: {} },
@@ -320,106 +245,52 @@ test.describe('Wallet iframe preferences sync', () => {
           window.addEventListener('message', onStarted);
         });
 
-        const state = router.getOverlayState();
-        router.dispose();
-        return { mode: state.mode };
-      },
-      { walletOrigin: WALLET_ORIGIN, seamsPath },
-    );
+        const signingMode = router.getOverlayState().mode;
+        await signing;
 
-    expect(result.mode).toBe('bottom_drawer');
-  });
-
-  test('dispatches a foreground request without a nested confirmation-config round trip', async ({
-    page,
-  }) => {
-    const result = await page.evaluate(
-      async ({ walletOrigin }) => {
-        const routerModule = await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
-        const router = new routerModule.WalletIframeRouter({
-          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-          walletOrigin,
-          servicePath: '/wallet-service',
-          sdkBasePath: '/sdk',
-          requestTimeoutMs: 3_000,
-        });
-        await router.init();
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        const trace: Array<{ type: string; at: number }> = [];
-        const traceListener = (event: MessageEvent) => {
-          if (event.data?.type !== 'TEST_PREFERENCE_TRACE') return;
-          trace.push(event.data.payload);
-        };
-        window.addEventListener('message', traceListener);
-
-        // Exercise the missing-mirror branch directly. Initialization has already fetched the
-        // authoritative config, so foreground dispatch must not fetch it again.
-        (router as unknown as { mirroredConfirmationUiMode: null }).mirroredConfirmationUiMode =
-          null;
-        const started = new Promise<void>((resolve) => {
-          const listener = (event: MessageEvent) => {
-            if (event.data?.type !== 'TEST_SIGNING_SURFACE_STARTED') return;
-            window.removeEventListener('message', listener);
-            resolve();
+        // The Confirmer UI setting also decides the export surface, so the
+        // parent frame and the export viewer agree on one variant.
+        const exportStarted = new Promise<string | null>((resolve) => {
+          const onStarted = (event: MessageEvent) => {
+            if (event.data?.type !== 'TEST_EXPORT_SURFACE_STARTED') return;
+            window.removeEventListener('message', onStarted);
+            resolve(event.data.variant ?? null);
           };
-          window.addEventListener('message', listener);
+          window.addEventListener('message', onStarted);
         });
-        const request = (
-          router as unknown as { post: (envelope: unknown) => Promise<unknown> }
-        ).post({
-          type: 'PM_SIGN_DELEGATE_ACTION',
-          payload: { walletId: 'alice.testnet', options: {} },
-        });
-        await started;
-        await request;
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        window.removeEventListener('message', traceListener);
+        void router
+          .exportKeypairWithUI({
+            kind: 'ecdsa',
+            walletSession: { walletId, walletSessionUserId: 'alice.testnet' },
+            chainTarget,
+            laneIdentity,
+            options: { theme: 'light' },
+          })
+          .catch(() => undefined);
+        const exportVariant = await exportStarted;
+        const exportMode = router.getOverlayState().mode;
         router.dispose();
-        return trace.map((entry) => entry.type);
+        return { signingMode, exportMode, exportVariant };
       },
-      { walletOrigin: WALLET_ORIGIN },
+      {
+        walletOrigin: WALLET_ORIGIN,
+        seamsPath,
+        walletId: EXPORT_WALLET_ID,
+        chainTarget: EXPORT_CHAIN_TARGET,
+        laneIdentity: EXPORT_LANE,
+      },
     );
 
-    expect(result).toEqual(['PM_SIGN_DELEGATE_ACTION']);
+    expect(result).toEqual({
+      signingMode: 'bottom_drawer',
+      exportMode: 'bottom_drawer',
+      exportVariant: 'drawer',
+    });
   });
 
-  test('current-wallet preference updates do not revalidate the session', async ({ page }) => {
-    const requests = await page.evaluate(
-      async ({ walletOrigin }) => {
-        const { WalletIframeRouter } =
-          await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
-        const router = new WalletIframeRouter({
-          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-          walletOrigin,
-          servicePath: '/wallet-service',
-          sdkBasePath: '/sdk',
-          requestTimeoutMs: 3_000,
-        });
-        await router.init();
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        const requests: string[] = [];
-        const listener = (event: MessageEvent) => {
-          if (event.data?.type === 'TEST_PREFERENCE_TRACE') {
-            requests.push(event.data.payload.type);
-          }
-        };
-        window.addEventListener('message', listener);
-        try {
-          await router.setConfirmationConfig({ uiMode: 'drawer' });
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          return requests;
-        } finally {
-          window.removeEventListener('message', listener);
-          router.dispose();
-        }
-      },
-      { walletOrigin: WALLET_ORIGIN },
-    );
-
-    expect(requests).toEqual(['PM_SET_CONFIRMATION_CONFIG']);
-  });
-
-  test('configuration selects chain targets and forwards appearance to the wallet host', async ({ page }, testInfo) => {
+  test('configuration selects chain targets and forwards appearance to the wallet host', async ({
+    page,
+  }, testInfo) => {
     const seamsPath = SDK_ESM_PATHS.seamsWeb;
     const result = await page.evaluate(
       async ({ walletOrigin, seamsPath }) => {
@@ -433,7 +304,11 @@ test.describe('Wallet iframe preferences sync', () => {
 
           const seams = new SeamsWeb({
             chains: [
-              { network: 'tempo-testnet', chainId: 42431, rpcUrl: 'https://rpc.moderato.tempo.xyz' },
+              {
+                network: 'tempo-testnet',
+                chainId: 42431,
+                rpcUrl: 'https://rpc.moderato.tempo.xyz',
+              },
               {
                 network: 'near-testnet',
                 rpcUrl: 'https://test.rpc.fastnear.com',

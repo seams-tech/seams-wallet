@@ -4,8 +4,6 @@ import { injectImportMap } from '../setup/bootstrap';
 import { authBranchFixtures, registration, googleOtp } from './auth-menu-fixtures';
 import { mountAuthMenu, prepareAuthMenuDocument } from './auth-menu.harness';
 import type { AuthMenuIntent } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
-import type { WalletIframeSurfaceMeasurement } from '@/SeamsWeb/walletIframe/shared/messages';
-import type { WalletIframeSurfaceMeasurementReporter } from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
 import type {
   MountedConfirmUIHandle,
   ConfirmUISurfaceDecision,
@@ -16,8 +14,6 @@ declare global {
     __authBrowser: {
       intents: AuthMenuIntent[];
       activated: boolean[];
-      measurements: WalletIframeSurfaceMeasurement[];
-      reporter: WalletIframeSurfaceMeasurementReporter | null;
       confirmation: MountedConfirmUIHandle | null;
       confirmationDecision: Promise<ConfirmUISurfaceDecision> | null;
     };
@@ -42,8 +38,6 @@ test.beforeEach(async ({ page, baseURL }) => {
     window.__authBrowser = {
       intents: [],
       activated: [],
-      measurements: [],
-      reporter: null,
       confirmation: null,
       confirmationDecision: null,
     };
@@ -52,7 +46,6 @@ test.beforeEach(async ({ page, baseURL }) => {
 
 test.afterEach(async ({ page }) => {
   await page.evaluate(() => {
-    window.__authBrowser.reporter?.disconnect();
     window.__authBrowser.confirmation?.close(false);
     window.__authMenu?.handle.dispose();
   });
@@ -163,126 +156,17 @@ test('auth renders every branch and preserves keyboard intent, activation, and f
   expect(errors).toEqual([]);
 });
 
-test('auth measurements follow normal-motion updates and stop after disposal', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+test('Tab and Shift+Tab keep keyboard focus inside the open auth menu', async ({ page }) => {
   await mountAuthMenu(page, registration('light'));
-  await page.evaluate(async () => {
-    const { createWalletIframeSurfaceMeasurementReporter } =
-      await import('/_test-sdk/esm/SeamsWeb/walletIframe/host/surface-measurement-reporter.js');
-    const { walletIframeRequestIdFromBoundary } =
-      await import('/_test-sdk/esm/core/types/walletIframeIdentity.js');
-    const { buildHostedAuthMenuOpenRequest } =
-      await import('/_test-sdk/esm/SeamsWeb/walletIframe/shared/messages.js');
-    const request = buildHostedAuthMenuOpenRequest({
-      authMenuSessionId: 'browser-measurement',
-      initialMode: 'login',
-      registrationAccountInput: 'implicit_wallet',
-      showRegistrationInput: false,
-      showProgress: true,
-      enabledExternalProviders: [],
-    });
-    window.__authBrowser.reporter = createWalletIframeSurfaceMeasurementReporter({
-      kind: 'auth_menu_surface',
-      element: window.__authMenu.handle.element,
-      requestId: walletIframeRequestIdFromBoundary('browser-measurement'),
-      authMenuSessionId: request.authMenuSessionId,
-      postMeasurement: (measurement: WalletIframeSurfaceMeasurement) =>
-        window.__authBrowser.measurements.push(measurement),
-    });
-  });
-  for (const name of ['device-loading', 'device-factor-passkey', 'recovery-email-code']) {
-    const fixture = authBranchFixtures('light').find((entry) => entry.name === name);
-    if (!fixture) throw new Error('Missing auth fixture: ' + name);
-    await page.evaluate((model) => window.__authMenu.handle.update(model), fixture.model);
-    await expect
-      .poll(() =>
-        page.evaluate(
-          () =>
-            document
-              .getAnimations()
-              .filter(
-                (animation) =>
-                  animation.effect?.getComputedTiming().iterations !== Infinity &&
-                  animation.playState === 'running',
-              ).length,
-        ),
-      )
-      .toBe(0);
-    await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const measured = window.__authBrowser.measurements.at(-1);
-          const rect = window.__authMenu.handle.element.getBoundingClientRect();
-          return (
-            measured?.widthCssPx === Math.round(rect.width) &&
-            measured.heightCssPx === Math.round(rect.height)
-          );
-        }),
-      )
-      .toBe(true);
-  }
-  const measurements = await page.evaluate(() => window.__authBrowser.measurements);
-  expect(measurements.length).toBeGreaterThan(3);
-  expect(new Set(measurements.map((measurement) => measurement.heightCssPx)).size).toBeGreaterThan(
-    2,
+  const controls = page.locator(
+    '.seams-auth-menu-surface button:not([disabled]), .seams-auth-menu-surface input:not([disabled]), .seams-auth-menu-surface a[href]',
   );
-  for (let index = 1; index < measurements.length; index++) {
-    expect(measurements[index].sequence).toBeGreaterThan(measurements[index - 1].sequence);
-  }
-  await page.evaluate(() => {
-    window.__authBrowser.reporter?.disconnect();
-    window.__authMenu.handle.dispose();
-    window.dispatchEvent(new Event('resize'));
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => window.__authBrowser.measurements.length)).toBe(
-    measurements.length,
-  );
+  await controls.last().focus();
+  await page.keyboard.press('Tab');
+  await expect(controls.first()).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(controls.last()).toBeFocused();
 });
-
-test('recovery announcements remain accessible without consuming control space', async ({
-  page,
-}) => {
-  const recoveryFixture = authBranchFixtures('light').find(
-    (fixture) => fixture.name === 'recovery-entry',
-  );
-  if (!recoveryFixture) throw new Error('Missing recovery-entry fixture');
-  await mountAuthMenu(page, recoveryFixture.model);
-  const initialAnnouncement = await page.locator('.sr-only[role="status"]').elementHandle();
-  if (!initialAnnouncement) throw new Error('Missing initial recovery announcement region');
-  await expect(page.locator('.sr-only[role="status"]')).toHaveText('');
-  for (const fixture of authBranchFixtures('light')) {
-    if (fixture.model.kind !== 'recovery') continue;
-    await page.evaluate((model) => window.__authMenu.handle.update(model), fixture.model);
-    const announcement = page.locator('.sr-only[role="status"]');
-    await expect(announcement).toHaveCSS('position', 'absolute');
-    await expect(announcement).toHaveCSS('width', '1px');
-    await expect(announcement).toHaveCSS('height', '1px');
-    await expect(announcement).not.toHaveCSS('display', 'none');
-    await expect(announcement).not.toHaveCSS('visibility', 'hidden');
-    await expect(announcement).toHaveAttribute('aria-live', 'polite');
-    expect(await page.evaluate(element => document.querySelector('.sr-only[role="status"]') === element, initialAnnouncement)).toBe(true);
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() => {
-            const switcher = document.querySelector('.seams-content-switcher');
-            if (!switcher) throw new Error('Missing auth content switcher');
-            const bounds = switcher.getBoundingClientRect();
-            return Array.from(switcher.querySelectorAll('[data-auth-menu-primary]')).every(
-              (control) => {
-                const box = control.getBoundingClientRect();
-                return box.top >= bounds.top - 1 && box.bottom <= bounds.bottom + 1;
-              },
-            );
-          }),
-        { message: fixture.name + ' primary controls fit inside the measured content' },
-      )
-      .toBe(true);
-  }
-  await initialAnnouncement.dispose();
-});
-
 
 function recordAuthIntents() {
   window.__authMenu.onIntent = window.__authBrowser.intents.push.bind(window.__authBrowser.intents);

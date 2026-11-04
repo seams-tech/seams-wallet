@@ -10,7 +10,6 @@ import {
 
 export interface WalletServiceHtmlOptions {
   respondReady?: boolean;
-  handshakeDelayMs?: number;
   protocolVersion?: string;
   expectedConnectProtocolVersion?: string | null;
   exactSessionState?: Record<string, unknown>;
@@ -42,7 +41,6 @@ const baseWalletServiceTemplate = (script: string): string => `<!DOCTYPE html>
 export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): string => {
   const {
     respondReady = true,
-    handshakeDelayMs = 0,
     protocolVersion = WALLET_PROTOCOL_VERSION,
     expectedConnectProtocolVersion = WALLET_PROTOCOL_VERSION,
     exactSessionState = { kind: 'wallet_locked' },
@@ -51,7 +49,6 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
   } = options;
   const config = JSON.stringify({
     respondReady,
-    handshakeDelayMs,
     protocolVersion,
     expectedConnectProtocolVersion,
     exactSessionState,
@@ -99,14 +96,6 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
         requestId,
         payload: { ok: true, result },
       });
-    }
-
-    function isExactSession(state, expected) {
-      return (
-        (state.kind === 'active_session' || state.kind === 'expired_session') &&
-        state.walletId === expected.walletId &&
-        state.walletSessionId === expected.walletSessionId
-      );
     }
 
     function adoptPort(port) {
@@ -158,25 +147,6 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
               postResult(requestId, { revision: ++sessionObservationRevision, walletId: basePreferenceSnapshot.walletId, state: exactSessionState, session: publicSessionForState(exactSessionState) });
             } catch (err) {
               console.error('Failed to respond to PM_GET_EXACT_WALLET_SESSION_STATE', err);
-            }
-            return;
-          }
-
-          if (type === 'PM_LOCK_EXACT_WALLET_SESSION') {
-            try {
-              const expected = message.payload;
-              if (!isExactSession(exactSessionState, expected)) {
-                postResult(requestId, {
-                  kind: 'stale_session',
-                  expected,
-                  current: exactSessionState,
-                });
-                return;
-              }
-              exactSessionState = { kind: 'wallet_locked' };
-              postResult(requestId, { kind: 'locked', identity: expected });
-            } catch (err) {
-              console.error('Failed to respond to PM_LOCK_EXACT_WALLET_SESSION', err);
             }
             return;
           }
@@ -262,11 +232,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
           console.error('Failed to post READY', err);
         }
       };
-      if (CONFIG.handshakeDelayMs > 0) {
-        setTimeout(sendReady, CONFIG.handshakeDelayMs);
-      } else {
-        sendReady();
-      }
+      sendReady();
     }
 
     window.addEventListener('message', (event) => {

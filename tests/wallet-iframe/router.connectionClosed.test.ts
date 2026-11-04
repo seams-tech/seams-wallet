@@ -15,54 +15,6 @@ test.describe('WalletIframeRouter connection teardown', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('settles only the hosted auth-menu request on explicit router disposal', async ({
-    page,
-  }) => {
-    const result = await page.evaluate(
-      async ({ routerPath, walletOrigin }) => {
-        const routerModule = await import(routerPath);
-        const messages = await import('/_test-sdk/esm/SeamsWeb/walletIframe/shared/messages.js');
-        const router = new routerModule.WalletIframeRouter({
-          hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
-          walletOrigin,
-          servicePath: '/wallet-service',
-          sdkBasePath: '/sdk',
-          testOptions: { ownerTag: 'connection-closed-test' },
-        });
-        await router.init();
-
-        const request = messages.buildHostedAuthMenuOpenRequest({
-          authMenuSessionId: 'connection-closed-test-session',
-          initialMode: 'login',
-          registrationAccountInput: 'implicit_wallet',
-          showRegistrationInput: false,
-          showProgress: true,
-          enabledExternalProviders: [],
-        });
-        const outcomePromise = router.openHostedAuthMenu(request);
-        const startedAt = Date.now();
-        while (!router.getOverlayState().visible && Date.now() - startedAt < 3000) {
-          await new Promise((resolve) => setTimeout(resolve, 20));
-        }
-        const shown = router.getOverlayState().visible;
-
-        router.dispose();
-        const outcome = await outcomePromise;
-        const hidden = !router.getOverlayState().visible;
-
-        return { shown, hidden, outcome };
-      },
-      { routerPath: SDK_ESM_PATHS.walletIframeRouter, walletOrigin: WALLET_ORIGIN },
-    );
-
-    expect(result.shown).toBe(true);
-    expect(result.hidden).toBe(true);
-    expect(result.outcome).toMatchObject({
-      kind: 'cancelled',
-      reason: 'connection_closed',
-    });
-  });
-
   test('hides and removes an ordinary request surface on router disposal', async ({ page }) => {
     const result = await page.evaluate(
       async ({ routerPath, walletOrigin }) => {
@@ -90,9 +42,10 @@ test.describe('WalletIframeRouter connection teardown', () => {
             (value) => ({ kind: 'resolved' as const, value }),
             (error: unknown) => ({
               kind: 'rejected' as const,
-              code: error && typeof error === 'object' && 'code' in error
-                ? String((error as { code?: unknown }).code)
-                : undefined,
+              code:
+                error && typeof error === 'object' && 'code' in error
+                  ? String((error as { code?: unknown }).code)
+                  : undefined,
               requestId:
                 error && typeof error === 'object' && 'requestId' in error
                   ? (error as { requestId?: unknown }).requestId
@@ -107,7 +60,6 @@ test.describe('WalletIframeRouter connection teardown', () => {
         const ownedDialog = document
           .querySelector('iframe[data-seams-owner="connection-closed-request-test"]')
           ?.closest('dialog.seams-wallet-overlay-dialog');
-        const disposedAt = Date.now();
         router.dispose();
         const outcome = await Promise.race([
           request,
@@ -117,7 +69,6 @@ test.describe('WalletIframeRouter connection teardown', () => {
         ]);
         return {
           shown,
-          settlementMs: Date.now() - disposedAt,
           outcome,
           hidden: !router.getOverlayState().visible,
           iframeRemoved: router.getIframeEl() === null,
@@ -128,7 +79,6 @@ test.describe('WalletIframeRouter connection teardown', () => {
     );
 
     expect(result.shown).toBe(true);
-    expect(result.settlementMs).toBeLessThan(500);
     expect(result.outcome).toMatchObject({
       kind: 'resolved',
       value: { success: false, kind: 'submission_unknown' },

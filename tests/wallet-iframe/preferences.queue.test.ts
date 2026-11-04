@@ -1,4 +1,5 @@
-import { test, expect, type Page, type TestInfo } from '@playwright/test';
+import { test, expect, type Page, type Route, type TestInfo } from '@playwright/test';
+import { build } from 'esbuild';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setupBasicPasskeyTest } from '../setup';
@@ -43,6 +44,80 @@ window.pushPreference = function() {
     walletId: 'alice.testnet', confirmationConfig: { behavior: 'requireClick', uiMode: 'modal', autoProceedDelay: 7 }, revision: ++preferenceRevision
   } });
 };
+`;
+
+const persistenceHost = `
+const persistenceAdopt = adoptPort;
+let persistenceReady;
+let preferenceHandlers;
+let preferenceManager;
+let database;
+let persistenceOriginalMessage;
+let rejectWrite = false;
+let preferenceRevision = 0;
+function preferenceSnapshot() {
+  return { walletId: preferenceManager.getCurrentWalletId(), confirmationConfig: preferenceManager.getConfirmationConfig(), revision: preferenceRevision };
+}
+function publishPreference() {
+  preferenceRevision++;
+  basePreferenceSnapshot = preferenceSnapshot();
+  adoptedPort.postMessage({ type: 'PREFERENCES_CHANGED', payload: basePreferenceSnapshot });
+}
+async function writePreferences(input) {
+  if (rejectWrite) {
+    rejectWrite = false;
+    throw new Error('Injected preference storage failure');
+  }
+  return database.updateWalletPreferences(input);
+}
+function storeProperty(target, key) {
+  if (key === 'updateWalletPreferences') return writePreferences;
+  const value = Reflect.get(target, key);
+  return typeof value === 'function' ? value.bind(target) : value;
+}
+function getPreferenceRuntime() { return { preferences: preferenceManager }; }
+function preferencePost(message) { adoptedPort.postMessage(message); }
+function noCancellation() { return false; }
+async function initializePersistence() {
+  const sdk = await import('/__preference-persistence.js');
+  sdk.configureIndexedDB({ mode: 'wallet' });
+  database = sdk.IndexedDBManager;
+  await database.upsertProfile({ profileId: 'alice.testnet' });
+  await database.upsertProfile({ profileId: 'bob.testnet', preferences: { useRelayer: true, useNetwork: 'testnet', confirmationConfig: { uiMode: 'drawer', behavior: 'requireClick', autoProceedDelay: 7 } } });
+  preferenceManager = new sdk.UserPreferencesManager({ store: new Proxy(database, { get: storeProperty }) });
+  preferenceManager.onConfirmationConfigChange(publishPreference);
+  preferenceManager.onCurrentWalletChange(publishPreference);
+  preferenceManager.setCurrentWallet('alice.testnet');
+  await preferenceManager.reloadUserSettings();
+  preferenceHandlers = sdk.createPreferencesWalletIframeHandlers({
+    getWalletRuntime: getPreferenceRuntime, readPreferences: preferenceSnapshot,
+    post: preferencePost, postProgress: noCancellation,
+    isCancelled: noCancellation, respondIfCancelled: noCancellation,
+  });
+}
+async function persistenceMessage(event) {
+  await persistenceReady;
+  const handler = preferenceHandlers[event.data.type];
+  if (!handler) return persistenceOriginalMessage(event);
+  try { await handler(event.data); }
+  catch (error) { adoptedPort.postMessage({ type: 'ERROR', requestId: event.data.requestId, payload: { code: 'preference_write_failed', message: error.message } }); }
+}
+function persistenceAdoptPort(port) {
+  persistenceAdopt(port);
+  persistenceOriginalMessage = adoptedPort.onmessage;
+  persistenceReady = initializePersistence();
+  adoptedPort.onmessage = persistenceMessage;
+}
+adoptPort = persistenceAdoptPort;
+window.preferencePersistenceState = async function() {
+  await persistenceReady;
+  return {
+    current: preferenceSnapshot(),
+    alice: await database.getWalletPreferences('alice.testnet'),
+    bob: await database.getWalletPreferences('bob.testnet'),
+  };
+};
+window.failPreferenceWrite = function() { rejectWrite = true; };
 `;
 
 function succeeded(label: string): void {
@@ -226,4 +301,107 @@ function readWalletId(write: { walletId: string }): string {
 test(
   'preference writes preserve targets, rollback, flush boundaries, signing admission, and disposal',
   verifyQueue,
+);
+
+async function serveBundle(bundle: string, route: Route): Promise<void> {
+  await route.fulfill({ contentType: 'text/javascript', body: bundle });
+}
+async function initializeClient(): Promise<void> {
+  const modulePath = '/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js';
+  const { WalletIframeRouter } = await import(modulePath);
+  const router = new WalletIframeRouter({
+    hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
+    walletOrigin: 'https://wallet.example.localhost',
+    servicePath: '/wallet-service',
+    sdkBasePath: '/sdk',
+  });
+  (window as any).persistenceClient = { router, result: 'idle' };
+  await router.init();
+}
+function beginWrite(delay: number): void {
+  const probe = (window as any).persistenceClient;
+  probe.result = 'pending';
+  void probe.router
+    .setConfirmationConfig({ autoProceedDelay: delay }, 'alice.testnet')
+    .then(writeSucceeded, writeFailed);
+}
+function writeSucceeded(): void {
+  (window as any).persistenceClient.result = 'saved';
+}
+function writeFailed(error: Error): void {
+  (window as any).persistenceClient.result = error.message;
+}
+function readResult(): string {
+  return (window as any).persistenceClient.result;
+}
+function readPersistedHost() {
+  return (window as any).preferencePersistenceState();
+}
+function failWrite(): void {
+  (window as any).failPreferenceWrite();
+}
+function disposeClient(): void {
+  (window as any).persistenceClient.router.dispose();
+}
+
+async function verifyFailedWrite({ page }: { page: Page }, info: TestInfo): Promise<void> {
+  const root = path.resolve(import.meta.dirname, '../..');
+  const bundle = await build({
+    stdin: {
+      contents: `
+        export { UserPreferencesManager } from './packages/wallet/src/core/signingEngine/session/userPreferences.ts';
+        export { IndexedDBManager, configureIndexedDB } from './packages/wallet/src/core/indexedDB/index.ts';
+        export { createPreferencesWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/preferences.ts';
+      `,
+      resolveDir: root,
+    },
+    bundle: true,
+    write: false,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+  });
+  await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+  await page.route(
+    '**/__preference-persistence.js',
+    serveBundle.bind(null, bundle.outputFiles[0]!.text),
+  );
+  await registerWalletServiceRoute(
+    page,
+    buildWalletServiceHtml({ extraScript: persistenceHost }),
+    '**://wallet.example.localhost/wallet-service*',
+  );
+  await page.addScriptTag({ content: writeSucceeded.toString() + '\n' + writeFailed.toString() });
+  await page.evaluate(initializeClient);
+  const frame = page.frames().find(isWalletFrame)!;
+  await page.evaluate(beginWrite, 11);
+  await expect.poll(page.evaluate.bind(page, readResult)).toBe('saved');
+  const committed = await frame.evaluate(readPersistedHost);
+  expect(committed).toMatchObject({
+    alice: { confirmationConfig: { autoProceedDelay: 11 } },
+    bob: { confirmationConfig: { autoProceedDelay: 7 } },
+  });
+  await frame.evaluate(failWrite);
+  await page.evaluate(beginWrite, 15);
+  await expect
+    .poll(page.evaluate.bind(page, readResult))
+    .toBe('Injected preference storage failure');
+  const failed = await frame.evaluate(readPersistedHost);
+  expect(failed.alice).toEqual(committed.alice);
+  expect(failed.bob).toEqual(committed.bob);
+  await page.evaluate(beginWrite, 19);
+  await expect.poll(page.evaluate.bind(page, readResult)).toBe('saved');
+  const recovered = await frame.evaluate(readPersistedHost);
+  expect(recovered.alice.confirmationConfig.autoProceedDelay).toBe(19);
+  expect(recovered.bob).toEqual(committed.bob);
+  await page.evaluate(disposeClient);
+  const artifact = info.outputPath('preference-persistence.json');
+  await writeFile(artifact, JSON.stringify({ committed, failed, recovered }, null, 2));
+  await info.attach('preference-persistence', { path: artifact, contentType: 'application/json' });
+}
+
+test(
+  'a failed durable preference write leaves stored preferences unchanged and a retry saves',
+  verifyFailedWrite,
 );

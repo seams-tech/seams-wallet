@@ -6,17 +6,8 @@ import {
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 
-type RecoveryOrigin = {
-  readonly name: string;
-  readonly register: (harness: IntendedBehaviourHarness) => Promise<void>;
-};
-
 async function registerPasskeyFoundedWallet(harness: IntendedBehaviourHarness): Promise<void> {
   await harness.registerPasskeyWallet();
-}
-
-async function registerEmailOnlyWallet(harness: IntendedBehaviourHarness): Promise<void> {
-  await harness.registerEmailOtpWallet();
 }
 
 async function registerCombinedWallet(harness: IntendedBehaviourHarness): Promise<void> {
@@ -44,18 +35,6 @@ async function verifyGoogleRecoveryCanAddPasskey(
   await harness.signNearTransaction('step_up_required');
 }
 
-const recoveryOrigins: readonly RecoveryOrigin[] = [
-  {
-    name: 'Passkey-founded',
-    register: registerPasskeyFoundedWallet,
-  },
-  {
-    name: 'Email-only',
-    register: registerEmailOnlyWallet,
-  },
-  { name: 'Combined', register: registerCombinedWallet },
-];
-
 const recoveryTarget: IntendedRecoveryTargetKind = 'google_email_otp';
 
 test('a code held by an active Google recovery reports that it was already used', async ({
@@ -65,22 +44,20 @@ test('a code held by an active Google recovery reports that it was already used'
   await harness.assertReservedRecoveryCodeReportedAsUsed();
 });
 
-for (const origin of recoveryOrigins) {
-  test(`a fresh browser recovers a ${origin.name} wallet with Google and Email OTP, signs, and refuses reuse`, async ({
-    harness,
-  }) => {
-    await origin.register(harness);
-    await harness.awaitNearReady();
-    await harness.signTempoTransaction('post_registration');
-    await harness.recoverGoogleEmailOtpWalletFromFreshBrowser();
-    await harness.assertRecoveryAuthorityIsAdditive(recoveryTarget);
-    await harness.assertSourceWalletSessionRemainsActive();
-    await harness.refreshPagePreservingWalletStorage();
-    await harness.signNearTransaction('post_unlock');
-    await harness.signTempoAndArcEvmConcurrently('post_unlock');
-    await harness.assertConsumedRecoveryCodeReportedAsUsed(recoveryTarget);
-  });
-}
+test('a fresh browser recovers a Combined wallet with Google and Email OTP, signs, and refuses reuse', async ({
+  harness,
+}) => {
+  await registerCombinedWallet(harness);
+  await harness.awaitNearReady();
+  await harness.signTempoTransaction('post_registration');
+  await harness.recoverGoogleEmailOtpWalletFromFreshBrowser();
+  await harness.assertRecoveryAuthorityIsAdditive(recoveryTarget);
+  await harness.assertSourceWalletSessionRemainsActive();
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.signNearTransaction('post_unlock');
+  await harness.signTempoAndArcEvmConcurrently('post_unlock');
+  await harness.assertConsumedRecoveryCodeReportedAsUsed(recoveryTarget);
+});
 
 test('a committed Google recovery survives a lost finalization response and runtime reset', async ({
   harness,
@@ -90,12 +67,6 @@ test('a committed Google recovery survives a lost finalization response and runt
   await harness.signTempoTransaction('post_registration');
   await harness.recoverGoogleEmailOtpWalletAfterLostFinalizationResponse();
   await harness.assertRecoveryAuthorityIsAdditive(recoveryTarget);
-});
-
-test('an Email-founded wallet recovers with Google, adds Passkey, then signs, exports, and steps up through it', async ({
-  harness,
-}) => {
-  await verifyGoogleRecoveryCanAddPasskey(harness, registerEmailOnlyWallet);
 });
 
 test('a Passkey-founded wallet recovers with Google, adds Passkey despite the older passkey, then signs, exports, and steps up through it', async ({

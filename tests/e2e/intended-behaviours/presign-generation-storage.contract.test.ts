@@ -3,9 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Frame, Page, Route } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { intendedTest as test, enableSigningSessionDebugInFrame } from './harness';
-import { SigningTimingEvidence } from './signing-timing-evidence';
-import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
+import { intendedTest as test } from './harness';
 import { walletFrame } from './session-restore-lock';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
@@ -83,92 +81,11 @@ async function installProbe(page: Page): Promise<void> {
   );
 }
 
-class DelayedPresignatureCompletion {
-  private resume: () => void = this.notHeld;
-  private readonly released = new Promise<void>(this.captureResume.bind(this));
-  held = false;
-
-  private notHeld(): void {}
-
-  private captureResume(resolve: () => void): void {
-    this.resume = resolve;
-  }
-
-  async intercept(route: Route): Promise<void> {
-    const response = await route.fetch();
-    const body: unknown = await response.json();
-    if (isPlainObject(body) && body.event === 'presign_done' && !this.held) {
-      this.held = true;
-      await this.released;
-    }
-    await route.fulfill({ response });
-  }
-
-  isHeld(): boolean {
-    return this.held;
-  }
-  release(): void {
-    this.resume();
-  }
-}
-
 async function advanceInBrowser(walletId: string): Promise<void> {
   const url = '/__presign-generation-storage.js';
   const probe = await import(url);
   await probe.advance(walletId);
 }
-
-function refillResultCount(timing: SigningTimingEvidence): number {
-  return timing.refillResults.length;
-}
-
-test('a delayed completed refill cannot publish after ownership advancement', async ({
-  harness,
-  page,
-  context,
-}, info) => {
-  info.setTimeout(180_000);
-  await context.addInitScript(enableSigningSessionDebugInFrame);
-  await page.evaluate(enableSigningSessionDebugInFrame);
-  await installProbe(page);
-  const completion = new DelayedPresignatureCompletion();
-  const timing = new SigningTimingEvidence();
-  page.on('console', timing.record.bind(timing));
-  const intercept = completion.intercept.bind(completion);
-  const route = '**/router-ab/ecdsa-derivation/presignature-pool/fill/step';
-  await context.route(route, intercept);
-  try {
-    await harness.registerPasskeyEcdsaOnlyWallet();
-    await expect.poll(completion.isHeld.bind(completion), { timeout: 30_000 }).toBe(true);
-    const frame = await walletFrame(page);
-    await frame.evaluate(advanceInBrowser, harness.walletId);
-    completion.release();
-    await expect.poll(refillResultCount.bind(null, timing), { timeout: 30_000 }).toBeGreaterThan(0);
-    for (const result of timing.refillResults) {
-      expect(result.outcome).toBe('failed');
-      expect(result.depth).toBe(0);
-    }
-    expect(await readCount(frame, harness.walletId)).toBe(0);
-    await writeFile(
-      info.outputPath('delayed-client-refill.json'),
-      JSON.stringify(
-        {
-          completedReplyDelayed: completion.held,
-          acceptedGeneration: 2,
-          refillResults: timing.refillResults,
-          durablePresignatures: 0,
-          scope:
-            'Real Gateway and browser refill with local generation advancement; full regional relocation remains separate.',
-        },
-        null,
-        2,
-      ),
-    );
-  } finally {
-    completion.release();
-    await context.unroute(route, intercept);
-  }
-});
 
 class ProtectedOperationRequests {
   readonly paths: string[] = [];

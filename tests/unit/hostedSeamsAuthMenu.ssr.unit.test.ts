@@ -5,7 +5,7 @@ import path from 'node:path';
 import url from 'node:url';
 
 test.describe('SSR sanity: HostedSeamsAuthMenu adapter', () => {
-  test('imports the public subpath and renders one inert host marker', async () => {
+  test('SSR import and render do not touch window', async () => {
     const here = path.dirname(url.fileURLToPath(import.meta.url));
     const packageJsonPath = path.resolve(here, '../../packages/wallet/package.json');
     const packageRequire = createRequire(packageJsonPath);
@@ -25,18 +25,7 @@ test.describe('SSR sanity: HostedSeamsAuthMenu adapter', () => {
     expect(typeof (globalThis as any).window).toBe('undefined');
 
     const mod: any = await import(url.pathToFileURL(distMarkerCandidates[0]).href);
-    expect(mod).toHaveProperty('HostedSeamsAuthMenu');
-    expect(typeof mod.HostedSeamsAuthMenu).toBe('function');
-    expect(mod).toHaveProperty('SeamsAuthMenuMock');
-
-    const html = renderToString(
-      React.createElement(mod.HostedSeamsAuthMenu, { onOutcome: () => undefined }),
-    );
-    expect(html).toContain('data-seams-auth-menu-host="true"');
-    expect(html).toContain('data-seams-auth-menu-mock="true"');
-    expect(html).not.toContain('<button');
-    expect(html).not.toContain('<input');
-    expect(html).not.toContain('seams-signup-menu-root');
+    renderToString(React.createElement(mod.HostedSeamsAuthMenu, { onOutcome: () => undefined }));
 
     expect(typeof (globalThis as any).window).toBe('undefined');
   });

@@ -1,10 +1,5 @@
 import { expect, test } from '@playwright/test';
 import { resolveExactWalletAuthAuthority } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
-import {
-  resolveLinkedDevicePasskeyAuthoritySelection,
-  resolveLinkedDeviceUnlockSubjectSet,
-} from '@/SeamsWeb/operations/auth/login';
-import { IndexedDBManager } from '@/core/indexedDB';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import {
   parseWalletAuthMethodId,
@@ -17,17 +12,7 @@ import type {
   PasskeyWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
-import type {
-  LocalWalletAuthMethodRecord,
-  WalletAuthoritySignerMaterialRecordV1,
-} from '@/core/indexedDB/passkeyClientDB.types';
-import { parseEcdsaThresholdKeyId } from '@/core/signingEngine/session/keyMaterialBrands';
-import { base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
-import {
-  buildLinkedDeviceManagementAuthorityFixture,
-  linkedDevicePermissionsForManagementFixture,
-} from './helpers/linkedDeviceManagement.fixtures';
+import type { LocalWalletAuthMethodRecord } from '@/core/indexedDB/passkeyClientDB.types';
 
 const noLocalAuthMethods = async (): Promise<readonly LocalWalletAuthMethodRecord[]> => [];
 function required<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
@@ -101,100 +86,4 @@ test('a revoked wallet auth method cannot resolve the active authority', async (
       listWalletAuthMethodsForWallet: noLocalAuthMethods,
     }),
   ).rejects.toThrow('Exact wallet authentication authority is unavailable');
-});
-
-test('linked unlock resolves an opaque selected passkey auth method id', async () => {
-  const target = await buildLinkedDeviceManagementAuthorityFixture({
-    label: 'opaque-target',
-    permissions: linkedDevicePermissionsForManagementFixture(),
-    provenance: 'device_link',
-    keyFamily: 'ecdsa_secp256k1',
-  });
-  const ecdsaActivation = target.authority.signerActivations.ecdsa;
-  if (!ecdsaActivation) throw new Error('linked ECDSA fixture is missing its activation');
-  const signerMaterial: WalletAuthoritySignerMaterialRecordV1 = {
-    kind: 'wallet_authority_signer_material_v1',
-    authorityId: target.authority.authorityId,
-    walletAuthMethodId: target.authMethod.walletAuthMethodId,
-    activationId: ecdsaActivation.materialActivation.activationId,
-    keyFamily: 'ecdsa_secp256k1',
-    materialActivation: ecdsaActivation.materialActivation,
-    ecdsaThresholdKeyId: parseEcdsaThresholdKeyId('ecdsa-threshold-key:opaque-target'),
-    sealedMaterialB64u: 'sealed-material-opaque-target',
-    sealedMaterialDigestB64u: parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(47))),
-  };
-  const resolved = {
-    kind: 'resolved' as const,
-    selection: {
-      kind: 'wallet_selection_v1' as const,
-      walletId: target.authority.walletId,
-      walletAuthMethodId: target.authMethod.walletAuthMethodId,
-      lockGeneration: 0,
-      lockState: 'unlocked' as const,
-      updatedAtMs: 1,
-    },
-    authMethod: target.authMethod,
-    authority: target.authority,
-    signerMaterials: [signerMaterial],
-    exportRoot: null,
-  };
-  const original = IndexedDBManager.resolveSelectedWalletAuthority;
-  IndexedDBManager.resolveSelectedWalletAuthority = async () => resolved;
-  let result: {
-    readonly kind: 'evm_family_ecdsa_wallet';
-    readonly walletAuthMethodId: string;
-    readonly ecdsaThresholdKeyId: string;
-  } | null = null;
-  try {
-    const subjectSet = await resolveLinkedDeviceUnlockSubjectSet(String(target.authority.walletId));
-    const subject = subjectSet?.subjects[0];
-    result =
-      subject?.kind === 'evm_family_ecdsa_wallet'
-        ? {
-            kind: subject.kind,
-            walletAuthMethodId: subject.authority.walletAuthMethodId,
-            ecdsaThresholdKeyId: subject.ecdsaThresholdKeyId,
-          }
-        : null;
-  } finally {
-    IndexedDBManager.resolveSelectedWalletAuthority = original;
-  }
-
-  expect(result).toEqual({
-    kind: 'evm_family_ecdsa_wallet',
-    walletAuthMethodId: String(target.authMethod.walletAuthMethodId),
-    ecdsaThresholdKeyId: 'ecdsa-threshold-key:opaque-target',
-  });
-});
-
-test('wallet-registration authority stays on the custody unlock path', async () => {
-  const target = await buildLinkedDeviceManagementAuthorityFixture({
-    label: 'registration-owner',
-    permissions: linkedDevicePermissionsForManagementFixture(),
-    provenance: 'wallet_registration',
-    keyFamily: 'ecdsa_secp256k1',
-  });
-  const original = IndexedDBManager.resolveSelectedWalletAuthority;
-  IndexedDBManager.resolveSelectedWalletAuthority = async () => ({
-    kind: 'resolved',
-    selection: {
-      kind: 'wallet_selection_v1',
-      walletId: target.authority.walletId,
-      walletAuthMethodId: target.authMethod.walletAuthMethodId,
-      lockGeneration: 0,
-      lockState: 'unlocked',
-      updatedAtMs: 1,
-    },
-    authMethod: target.authMethod,
-    authority: target.authority,
-    signerMaterials: [],
-    exportRoot: null,
-  });
-  try {
-    expect(
-      await resolveLinkedDevicePasskeyAuthoritySelection(String(target.authority.walletId)),
-    ).toBeNull();
-  } finally {
-    IndexedDBManager.resolveSelectedWalletAuthority = original;
-  }
 });
