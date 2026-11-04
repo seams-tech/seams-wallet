@@ -226,6 +226,7 @@ export class WalletHostRuntime {
         walletId,
         walletAuthMethodId,
         method: 'voiceid',
+        purpose: 'step_up',
       });
       if (!unlocked.success) throw new Error(unlocked.error || 'VoiceID step-up did not finish.');
     });

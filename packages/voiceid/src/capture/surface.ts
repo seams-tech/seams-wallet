@@ -49,6 +49,7 @@ type CaptureState<T> =
   | { kind: 'succeeding' }
   | { kind: 'closed' };
 type VoiceCapturePurpose = 'activation' | 'unlock' | 'export';
+type VoiceUnlockSuccess = 'show' | 'skip';
 const VOICE_CAPTURE_ACTION_LABELS: Readonly<Record<VoiceCapturePurpose, string>> = {
   activation: 'Activate VoiceID',
   unlock: 'Unlock with VoiceID',
@@ -68,6 +69,7 @@ class VoiceIdCaptureSurface<T> {
   private readonly prompt: VoicePrompt;
   private readonly unlockFrame: VoiceUnlockFrame | null;
   private readonly autoStartUnlock: boolean;
+  private readonly unlockSuccess: VoiceUnlockSuccess;
   private readonly unmountCapture: ((settlement: AuthMethodCaptureSettlement) => void) | null;
   private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
   private phrase = newSpokenPhrase(null);
@@ -79,8 +81,10 @@ class VoiceIdCaptureSurface<T> {
     prepare: CapturePreparation<T>,
     purpose: VoiceCapturePurpose,
     binding: UiConfirmSurfaceMeasurementBinding,
+    unlockSuccess: VoiceUnlockSuccess,
     mountCapture?: AuthMethodCaptureMount,
   ) {
+    this.unlockSuccess = unlockSuccess;
     const actionLabel = VOICE_CAPTURE_ACTION_LABELS[purpose];
     const parent = document.getElementById('root') ?? document.body;
     if (!parent) throw new Error('Wallet activation surface has no mount root.');
@@ -190,7 +194,7 @@ class VoiceIdCaptureSurface<T> {
       // Unlock begins after preparation. Enrollment and retries start from their controls.
       const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);
       if (this.state.kind === 'closed') return;
-      if (this.unlockFrame) await this.showUnlocked(this.unlockFrame);
+      if (this.unlockFrame && this.unlockSuccess === 'show') await this.showUnlocked(this.unlockFrame);
       this.state = { kind: 'closed' };
       this.completion.resolve(result);
     } catch (error: unknown) {
@@ -270,12 +274,14 @@ export async function showVoiceIdCaptureSurface<T>(input: {
   readonly prepare: CapturePreparation<T>;
   readonly purpose: VoiceCapturePurpose;
   readonly measurement: UiConfirmSurfaceMeasurementBinding;
+  readonly unlockSuccess?: VoiceUnlockSuccess;
   readonly mountCapture?: AuthMethodCaptureMount;
 }): Promise<T> {
   const surface = new VoiceIdCaptureSurface(
     input.prepare,
     input.purpose,
     input.measurement,
+    input.unlockSuccess ?? 'show',
     input.mountCapture,
   );
   try {

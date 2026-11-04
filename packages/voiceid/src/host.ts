@@ -51,6 +51,8 @@ function unlock(
 ): ReturnType<WalletAuthMethodHostPlugin['unlock']> {
   return showVoiceIdCaptureSurface({
     purpose: 'unlock',
+    // A step-up returns to the operation; only a wallet unlock plays the success.
+    unlockSuccess: input.purpose === 'step_up' ? 'skip' : 'show',
     measurement: input.surfaceMeasurementBinding,
     mountCapture: input.mountCapture,
     prepare: prepareUnlock.bind(null, model, input),

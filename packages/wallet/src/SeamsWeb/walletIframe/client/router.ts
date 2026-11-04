@@ -3173,6 +3173,7 @@ export class WalletIframeRouter {
           walletId: String(payload.walletId),
           walletAuthMethodId: payload.walletAuthMethodId,
           method: payload.method,
+          purpose: payload.purpose ?? 'unlock',
         },
       },
       { timeout: 'interactive' },

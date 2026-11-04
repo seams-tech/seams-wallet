@@ -52,11 +52,15 @@ export type AuthMethodActivationResult =
     }>
   | Readonly<{ kind: 'cancelled'; walletId?: never; walletAuthMethodId?: never }>;
 
+export type WalletAuthMethodUnlockPurpose = 'unlock' | 'step_up';
+
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface WalletAuthMethodHostPlugin {
   unlock(input: {
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
+    /** A step-up re-authenticates inside an operation, so it shows no unlock success. */
+    readonly purpose: WalletAuthMethodUnlockPurpose;
     readonly surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
     readonly mountCapture?: AuthMethodCaptureMount;
     readonly prepareUnlock: (signal: AbortSignal) => Promise<VoiceIdUnlockPreparation>;

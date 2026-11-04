@@ -700,6 +700,8 @@ export interface AuthCapability {
     walletId: WalletId | string;
     walletAuthMethodId: string;
     method: WalletAuthMethodPlugin['kind'];
+    /** `step_up` re-authenticates inside an operation and shows no unlock success. Default `unlock`. */
+    purpose?: 'unlock' | 'step_up';
   }): Promise<LoginAndCreateSessionResult>;
   onSessionChange(listener: (session: WalletSession) => void): () => void;
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;

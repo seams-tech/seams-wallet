@@ -1722,6 +1722,7 @@ export type ParentToChildEnvelope =
         walletId: string;
         walletAuthMethodId: string;
         method: WalletAuthMethodPlugin['kind'];
+        purpose: 'unlock' | 'step_up';
       }
     >
   | RpcEnvelope<'PM_LOCK'>

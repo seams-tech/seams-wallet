@@ -124,12 +124,18 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   const passkeyUnlocks = new PasskeyUnlockRequests();
   context.on('request', passkeyUnlocks.observe);
   const steppedUp = page.evaluate(sendUnreviewedTransfer, identity.accountId);
+  await expect(
+    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
+  ).toBeEnabled({ timeout: 45_000 });
+  await wallet.locator('body').evaluate(watchUnlockSuccess);
   await beginDirectVoiceUnlock(page);
   const afterStepUp = await autoConfirmWalletIframeUntil(page, steppedUp);
   context.off('request', passkeyUnlocks.observe);
   expect(afterStepUp).toMatchObject({ success: true });
   await waitForWalletIframeConfirmationSettlement(page);
   expect(passkeyUnlocks.count).toBe(0);
+  // A step-up returns to the operation; only a wallet unlock shows its success.
+  expect(await wallet.locator('body').evaluate(sawUnlockSuccess)).toBe(false);
   expect(evidence.transfers).toHaveLength(4);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(unlockedCaptureCount + 1);
   expect((await page.evaluate(session)).authentication).toMatchObject({
@@ -168,6 +174,21 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
     signing: 'real_ed25519_yao_mpc',
   });
 });
+
+function watchUnlockSuccess(): void {
+  const state = { seen: false };
+  Reflect.set(window, '__seamsUnlockSuccessSeen', state);
+  const observer = new MutationObserver(() => {
+    if (document.body.textContent?.includes('You’re in')) state.seen = true;
+  });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
+function sawUnlockSuccess(): boolean {
+  const state = Reflect.get(window, '__seamsUnlockSuccessSeen') as { seen: boolean } | undefined;
+  if (!state) throw new Error('The unlock success watcher is not installed.');
+  return state.seen;
+}
 
 /** Counts passkey unlock requests; a VoiceID step-up must never make one. */
 class PasskeyUnlockRequests {

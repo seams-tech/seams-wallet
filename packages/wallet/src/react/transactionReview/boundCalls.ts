@@ -60,6 +60,7 @@ async function stepUpVoiceIdBeforeReview(env: BoundReviewEnvironment): Promise<v
     walletId: env.walletId,
     walletAuthMethodId: env.voiceIdMethodId,
     method: 'voiceid',
+    purpose: 'step_up',
   });
   if (!unlocked.success) throw new TransactionReviewError('cancelled', unlocked.error);
 }

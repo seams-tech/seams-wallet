@@ -139,6 +139,7 @@ async function unlockWithAuthMethod(
   return await plugin.unlock({
     walletId,
     walletAuthMethodId: methodId.value,
+    purpose: args.purpose === 'step_up' ? 'step_up' : 'unlock',
     mountCapture,
     surfaceMeasurementBinding: context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
     prepareUnlock: prepareVoiceIdUnlock.bind(null, {
