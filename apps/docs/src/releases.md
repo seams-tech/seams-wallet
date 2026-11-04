@@ -1,6 +1,6 @@
 ---
 title: Release 0.46.0
-description: A VoiceID step-up runs inside the transaction's confirm card, a step-up shows no unlock success, and the receipt shows its details at once.
+description: A VoiceID step-up runs inside the confirm card, owner NEAR operations report rejections and can cancel a stuck transaction at once, and the wallet checks the cost before signing.
 ---
 
 # Release 0.46.0
@@ -11,6 +11,9 @@ The browser SDK, server SDK, and VoiceID plugin use **0.46.0**.
 - A VoiceID step-up no longer shows the "You’re in" unlock success; only a wallet unlock shows it.
 - The receipt shows its heading, status and amount together with its status symbol, instead of about 300 ms later.
 - `unlockWithAuthMethod` accepts an optional `purpose` of `unlock` (the default) or `step_up`.
+- Owner NEAR operations report NEAR's rejection as `rejection`, with fields such as `signer_id`, `balance` and `cost`. A rejection of the signed bytes themselves, such as `InvalidSignature`, ends the operation as `not_submitted` at once; other rejections, such as `NotEnoughBalance`, stay `unresolved`.
+- `cancelTransaction()` cancels a stuck owner NEAR transaction at once. The owner approves a 0-NEAR transfer to the account itself with the same key and nonce. When that cancel is final, the operation ends as `retired` with proof that the transaction never executed, and a new transaction can follow. No 25-hour wait is needed.
+- Before it signs an owner NEAR transaction, the wallet checks that the account can pay its maximum cost. If it cannot, the operation ends as `not_submitted` with `shortfall`, and nothing is signed.
 - Install `@seams/voiceid` 0.46.0 with `@seams/wallet` 0.46.0. The VoiceID host API stays at version 8.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.

@@ -31,6 +31,7 @@ in the private `seams-tech/seams-monorepo` repository.
 
 - A VoiceID session that cannot sign asks for VoiceID inside the transaction's own confirm card: **Confirm with VoiceID**, the voice capture in the same card, then the receipt, with no second click. Install `@seams/voiceid` 0.46.0 with `@seams/wallet` 0.46.0.
 - A step-up no longer shows the unlock success screen.
+- Owner NEAR operations report NEAR's rejection with its fields, `cancelTransaction()` cancels a stuck transaction at once with on-chain proof, and the wallet checks the account can pay before it signs.
 - The receipt shows its details together with its status symbol.
 - Wallet iframe protocol remains **23.0.0**. This release adds no database migrations.
 

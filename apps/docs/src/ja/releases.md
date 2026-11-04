@@ -11,6 +11,9 @@ description: VoiceIDの再認証が取引の確認カードの中で行われ、
 - VoiceIDの再認証では、「サインインしました」のアンロック成功の画面を表示しなくなりました。この画面はウォレットのアンロックでだけ表示します。
 - レシートは、見出し、状態、金額を状態の記号と同時に表示します。これまでは約300ミリ秒遅れていました。
 - `unlockWithAuthMethod`は、省略可能な`purpose`として`unlock`（既定）または`step_up`を受け付けます。
+- 所有者のNEAR操作は、NEARの拒否を`rejection`として返します。`signer_id`、`balance`、`cost`などのフィールドを含みます。`InvalidSignature`など署名済みのバイト自体の拒否は、すぐに`not_submitted`で終了します。`NotEnoughBalance`などその他の拒否は`unresolved`のままです。
+- `cancelTransaction()`で、止まった所有者のNEAR取引をすぐにキャンセルできます。所有者は、同じキーと同じnonceで、自分のアカウントへの0 NEARの送金を承認します。このキャンセルが確定すると、取引が実行されなかったことを示す証明とともに操作は`retired`で終了し、新しい取引を続けられます。25時間待つ必要はありません。
+- 所有者のNEAR取引に署名する前に、ウォレットはアカウントが最大費用を支払えるか確認します。支払えない場合は署名せず、`shortfall`を含む`not_submitted`で終了します。
 - `@seams/voiceid` 0.46.0と`@seams/wallet` 0.46.0を一緒にインストールしてください。VoiceIDのホストAPIはバージョン8のままです。
 
 Walletのiframeプロトコルは **23.0.0**、ウォレット管理プロトコルは **5** のままです。
