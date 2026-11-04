@@ -15,7 +15,7 @@ description: 共通の鍵管理、ポリシー、セッションのライフサ�
 | VoiceID   | 提供中・任意のパッケージ | ローカルでの話者・発話確認と、デバイスに紐づくアンロック・操作承認 |
 
 VoiceIDには、アプリとWalletホストの両方で任意の`@seams/voiceid`パッケージが必要です。
-[VoiceIDのページ](/ja/concepts/auth-methods/voiceid)に、インストール、登録、アンロックのコード例を示します。
+[VoiceIDのページ](/ja/concepts/auth-methods/voiceid)では、ローカルの鍵管理エンベロープ設計、他の生体認証モデルとの比較、セキュリティ境界、導入とアンロックのコード例を説明します。
 
 次に読むページ：
 

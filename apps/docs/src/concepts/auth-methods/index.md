@@ -15,7 +15,7 @@ Owner authentication controls custody and signing. Google BYO auth provides a se
 | VoiceID | Released · optional package | Local speaker and phrase checks with device-bound unlock and reviewed approval |
 
 VoiceID requires the optional `@seams/voiceid` package in the app and on the Wallet host.
-The [VoiceID page](/concepts/auth-methods/voiceid) includes installation, enrollment, and unlock examples.
+The [VoiceID page](/concepts/auth-methods/voiceid) covers its local custody-envelope architecture, comparison with other biometric models, security boundaries, and setup examples.
 
 Read next:
 
