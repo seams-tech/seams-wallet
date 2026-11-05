@@ -31,7 +31,9 @@ Wallet site when either surface changes.
 ## Release checklist
 
 1. Check npm publication, release Git revisions, iframe protocol, and CLI separately.
-   Update `src/releases.md` with a dated baseline. Label prepared changes explicitly.
+   Replace the section in `src/releases.md` and `src/ja/releases.md` with the new
+   release. The page shows only the current release; Git history keeps older notes.
+   Label prepared changes explicitly.
 2. Update installation, package READMEs, examples, affected API reference, and
    deployment instructions. Preserve historical evidence and migration conditions.
    Search `src` outside `releases.md` for the previous SDK, CLI, and iframe protocol
