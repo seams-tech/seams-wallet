@@ -33,6 +33,7 @@ import {
   type TransactionReviewSurface,
   type TransactionReviewValidity,
 } from '../shared/transactionReview';
+import { startReviewTiming } from '../shared/reviewTiming';
 import {
   type ParentToChildEnvelope,
   type ProgressPayload,
@@ -1413,9 +1414,12 @@ export class WalletIframeRouter {
     if (args.signal.aborted) throw args.signal.reason;
     const initialGeneration = this.reviewIdentityGeneration;
     await this.init();
-    const session = await this.getExactSessionState();
+    const reviewStart = startReviewTiming('review_open');
+    const { session, confirmationConfig: savedConfirmationConfig } =
+      await this.readReviewStartState();
+    reviewStart.end();
     const confirmationConfig = reviewedConfirmationConfig(
-      await this.getConfirmationConfig(),
+      savedConfirmationConfig,
       args.confirmationConfig,
     );
     if (args.signal.aborted) throw args.signal.reason;
@@ -2716,6 +2720,29 @@ export class WalletIframeRouter {
       throw new Error('Wallet iframe exact session state has not been initialized');
     }
     return this.exactSessionState;
+  }
+
+  /**
+   * A review opens from the mirrored session and preferences while a fresh read runs.
+   * A fresh read that finds another session invalidates the review through
+   * `updateReviewSession`, and dispatch reads the session again before the wallet request.
+   */
+  private async readReviewStartState(): Promise<{
+    session: WalletIframeExactSessionState;
+    confirmationConfig: ConfirmationConfig;
+  }> {
+    const fresh = this.getExactSessionState();
+    const mirroredSession = this.exactSessionState;
+    const mirroredConfig = this.lastPreferencesChangedPayload?.confirmationConfig;
+    if (mirroredSession && mirroredConfig) {
+      fresh.catch(ignoreBackgroundSessionRead);
+      return { session: mirroredSession, confirmationConfig: mirroredConfig };
+    }
+    const [session, confirmationConfig] = await Promise.all([
+      fresh,
+      this.getConfirmationConfig(),
+    ]);
+    return { session, confirmationConfig };
   }
 
   async getExactSessionState(): Promise<WalletIframeExactSessionState> {
@@ -4556,7 +4583,9 @@ export class WalletIframeRouter {
           'The review reservation is no longer valid',
         );
       }
+      const sessionRead = startReviewTiming('continue_session_read');
       await this.refreshExactSessionState('current', { kind: 'current' });
+      sessionRead.end();
       reservation.beginDispatch();
     }
     const requestId =
@@ -4939,3 +4968,6 @@ function sameReviewSession(
   }
   return true;
 }
+
+/** The background read reports a changed session through `updateReviewSession`. */
+function ignoreBackgroundSessionRead(): void {}

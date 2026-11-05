@@ -42,6 +42,8 @@ import type { HostedExternalAuth } from './externalAuth';
 import { approveWithOwnerPasskey, ExternalOwnerApprovalError } from './externalOwnerApproval';
 import { ownerNearSignedEvidence } from './ownerNearSignedEvidence';
 import { ownerNearShortfall } from './ownerNearAffordability';
+import { startReviewTiming } from '../shared/reviewTiming';
+import { resolveNearTokenMetadata } from '@/core/signingEngine/chains/near/tokenTransfers';
 
 type OwnerNearPorts = {
   readonly getContext: () => SeamsWebContext;
@@ -106,14 +108,35 @@ export async function runOwnerNearOperation(
   onEvent: (event: SigningFlowEvent) => void,
   onSubmission: (transactionId: string) => void,
 ): Promise<OwnerNearOutcome> {
+  const context = ports.getContext();
+  const nearClient = new OwnerOperationNearClient(
+    resolvePrimaryNearRpcUrl(context.configs.network.chains),
+  );
+  // The cost check reads only public chain state, so it runs while the connection check
+  // runs. Its result is used at the same step as before, after the operation lock.
+  const affordability =
+    command.action === 'approve'
+      ? ownerNearShortfall(nearClient, String(command.recovery.nearAccountId), command.transaction)
+      : null;
+  affordability?.catch(ignoreEarlyAffordabilityFailure);
+  if (command.action === 'approve') {
+    // The card waits for token metadata. This lookup is shared with the card's own lookup.
+    void resolveNearTokenMetadata({
+      nearClient,
+      network: resolveNearNetwork(context.configs.network.chains),
+      txSigningRequests: [command.transaction],
+    });
+  }
   let assertConnection: () => void;
+  const connectionCheck = startReviewTiming('owner_connection_check');
   try {
     assertConnection = await ports.captureConnection(command.authentication);
     assertActive();
   } catch (error) {
     return admissionFailure(command, error);
+  } finally {
+    connectionCheck.end();
   }
-  const context = ports.getContext();
   const locks = globalThis.navigator.locks;
   if (!locks) {
     return admissionFailure(command, new Error('This browser cannot coordinate owner operations.'));
@@ -140,6 +163,8 @@ export async function runOwnerNearOperation(
     binding,
     legacyBinding,
     network,
+    nearClient,
+    affordability,
     assertConnection,
     assertActive,
     onEvent,
@@ -148,10 +173,12 @@ export async function runOwnerNearOperation(
   return await locks.request(`seams:owner-near:${binding}`, operation.run.bind(operation));
 }
 
+/** `execute` awaits the same promise and handles its failure. */
+function ignoreEarlyAffordabilityFailure(): void {}
+
 class HostedOwnerNearOperation {
   private readonly key: string;
   private readonly pendingKey: string;
-  private readonly nearClient: OwnerOperationNearClient;
   private readonly broadcastContext: SeamsWebContext;
   private submission: ReadonlyExclusiveUnion<
     { kind: 'not_started' } | { kind: 'dispatched'; transactionId: string }
@@ -163,14 +190,14 @@ class HostedOwnerNearOperation {
     private readonly binding: string,
     private readonly legacyBinding: string,
     private readonly network: 'testnet' | 'mainnet',
+    private readonly nearClient: OwnerOperationNearClient,
+    /** The approval's cost check, started before the connection check. */
+    private readonly affordability: Promise<OwnerNearShortfall | null> | null,
     private readonly assertConnection: () => void,
     private readonly assertActive: () => void,
     private readonly onEvent: (event: SigningFlowEvent) => void,
     private readonly onSubmission: (transactionId: string) => void,
   ) {
-    this.nearClient = new OwnerOperationNearClient(
-      resolvePrimaryNearRpcUrl(context.configs.network.chains),
-    );
     this.broadcastContext = {
       signingEngine: context.signingEngine,
       configs: context.configs,
@@ -222,11 +249,14 @@ class HostedOwnerNearOperation {
     try {
       await this.store({ kind: 'approving', binding: this.binding, requestDigest });
       this.assertCurrent();
-      const shortfall = await ownerNearShortfall(
-        this.nearClient,
-        String(command.recovery.nearAccountId),
-        command.transaction,
-      );
+      const affordabilityWait = startReviewTiming('owner_affordability');
+      const shortfall = await (this.affordability ??
+        ownerNearShortfall(
+          this.nearClient,
+          String(command.recovery.nearAccountId),
+          command.transaction,
+        ));
+      affordabilityWait.end();
       if (shortfall) throw new OwnerNearUnaffordable(shortfall);
       this.assertCurrent();
       const signed = signedSummary(command.transaction);

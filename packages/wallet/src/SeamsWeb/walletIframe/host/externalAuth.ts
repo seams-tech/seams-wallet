@@ -53,9 +53,20 @@ function assertNever(value: never): never {
   throw new Error(`Unsupported external authentication state: ${String(value)}`);
 }
 
+/** How long a successful settings read answers later callers. */
+const SETTINGS_READ_REUSE_MS = 2_000;
+
+type SettingsRead = {
+  readonly generation: number;
+  readonly attempt: Attempt;
+  answeredAtMs: number | null;
+  readonly result: Promise<WalletSession | null>;
+};
+
 export class HostedExternalAuth {
   private state: State = { kind: 'empty' };
   private generation = 0;
+  private settingsRead: SettingsRead | null = null;
 
   constructor(
     private readonly configs: SeamsConfigsReadonly,
@@ -426,11 +437,48 @@ export class HostedExternalAuth {
     ) throw new Error('The external wallet connection changed or expired.');
   }
 
+  /**
+   * One settings read answers every caller while it runs and for a short time after it
+   * succeeds. A reviewed approval reads the session in the parent's dispatch and again
+   * when the operation captures the connection, a few milliseconds apart. A lock, a
+   * suspension or a removal changes the generation and ends the reuse.
+   */
   async getSession(walletId?: string): Promise<WalletSession | null> {
-    const state = this.state;
-    const current = externalConnection(state);
+    const current = externalConnection(this.state);
     if (current.kind === 'empty' || (walletId && walletId !== current.attempt.walletId))
       return null;
+    const shared = this.settingsRead;
+    if (
+      shared &&
+      shared.generation === this.generation &&
+      shared.attempt === current.attempt &&
+      (shared.answeredAtMs === null || Date.now() - shared.answeredAtMs <= SETTINGS_READ_REUSE_MS)
+    ) {
+      return await shared.result;
+    }
+    const read: SettingsRead = {
+      generation: this.generation,
+      attempt: current.attempt,
+      answeredAtMs: null,
+      result: this.readSettings(current),
+    };
+    this.settingsRead = read;
+    try {
+      const session = await read.result;
+      if (this.settingsRead === read) {
+        if (session && read.generation === this.generation) read.answeredAtMs = Date.now();
+        else this.settingsRead = null;
+      }
+      return session;
+    } catch (error) {
+      if (this.settingsRead === read) this.settingsRead = null;
+      throw error;
+    }
+  }
+
+  private async readSettings(
+    current: Exclude<ConnectionState, { kind: 'empty' }>,
+  ): Promise<WalletSession | null> {
     const generation = this.generation;
     let result: Record<string, unknown>;
     try {

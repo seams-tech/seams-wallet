@@ -5,6 +5,7 @@ import {
   type TransactionReviewWire,
   type TransactionReviewStateMessage,
 } from '@/SeamsWeb/walletIframe/shared/transactionReview';
+import { startReviewTiming } from '@/SeamsWeb/walletIframe/shared/reviewTiming';
 import type { UiConfirmSurfaceMeasurementBinding } from './uiConfirm.types';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 
@@ -25,6 +26,7 @@ export class TransactionReviewAdmission {
   private element: HTMLElement | null = null;
   private observer: MutationObserver | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly untilCardReady = startReviewTiming('host_until_card_ready');
 
   constructor(
     readonly metadata: TransactionReviewWire,
@@ -91,6 +93,7 @@ export class TransactionReviewAdmission {
       return;
     this.observer?.disconnect();
     this.state = { kind: 'prepared' };
+    this.untilCardReady.end();
     this.notify('prepared');
   };
 
