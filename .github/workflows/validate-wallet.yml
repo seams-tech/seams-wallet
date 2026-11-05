@@ -29,10 +29,27 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - name: Install wasm-pack and Worker builder
+      # Upstream prebuilt binaries with pinned SHA-256 digests. Compiling the
+      # four wasm-bindgen CLIs from source took 11-13 minutes of every build.
+      - name: Install prebuilt wasm-pack and wasm-bindgen
         run: |
-          cargo install wasm-pack --locked
-          cargo install worker-build --version 0.8.4 --locked
+          bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
+            --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
+          echo "$RUNNER_TEMP/wasm-pack" >> "$GITHUB_PATH"
+      # worker-build has no upstream prebuilt binary, so this job keeps the one
+      # it compiled. CARGO_INSTALL_ROOT makes every later `cargo install
+      # worker-build` in this job (wrangler build commands) find it.
+      - name: Restore Worker builder
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/seams-ci/worker-build-0.8.4
+          key: worker-build-0.8.4-${{ env.ImageOS }}-${{ runner.arch }}
+      - name: Install Worker builder
+        run: |
+          root="$HOME/.cache/seams-ci/worker-build-0.8.4"
+          echo "CARGO_INSTALL_ROOT=$root" >> "$GITHUB_ENV"
+          echo "$root/bin" >> "$GITHUB_PATH"
+          CARGO_INSTALL_ROOT="$root" cargo install worker-build --version 0.8.4 --locked
       - run: pnpm install --frozen-lockfile
       - run: pnpm report:bloat --check
       - run: pnpm check:cargo-locks

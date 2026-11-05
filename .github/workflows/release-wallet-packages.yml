@@ -83,9 +83,14 @@ jobs:
           test "$(node -p "require('./packages/wallet/package.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./packages/wallet-server/package.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./packages/voiceid/package.json').version")" = "$RELEASE_VERSION"
+      # wasm-pack and wasm-bindgen: upstream prebuilt binaries with pinned
+      # SHA-256 digests. worker-build has no upstream prebuilt binary; the
+      # release compiles it from source and never restores it from a cache.
       - name: Install build tools
         run: |
-          cargo install wasm-pack --locked
+          bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
+            --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
+          echo "$RUNNER_TEMP/wasm-pack" >> "$GITHUB_PATH"
           cargo install worker-build --version 0.8.4 --locked
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v8
