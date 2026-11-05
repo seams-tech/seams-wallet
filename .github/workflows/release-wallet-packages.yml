@@ -24,8 +24,73 @@ permissions:
   id-token: write
 
 jobs:
-  local_tools:
+  # The Mac local tools come from router-ab-dev alone. When it is unchanged since the last
+  # published server package, that package's Mac binaries are reused, so no macOS runner is needed.
+  mac_local_tools_reuse:
     if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      reuse: ${{ steps.reuse.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - id: reuse
+        run: |
+          set -euo pipefail
+          published="$(npm view @seams/wallet-server version)"
+          source_commit="$(npm view "@seams/wallet-server@$published" gitHead)"
+          if ! git cat-file -e "$source_commit^{commit}" 2>/dev/null ||
+            ! git diff --quiet "$source_commit" HEAD -- crates/router-ab-dev scripts/build-local-tools.mjs; then
+            echo "router-ab-dev changed since @seams/wallet-server@$published; building on macOS."
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p .artifacts/published crates/router-ab-cloudflare/build/local-tools
+          npm pack "@seams/wallet-server@$published" --pack-destination .artifacts/published
+          tar -xzf .artifacts/published/*.tgz -C .artifacts/published
+          for platform in darwin-arm64 darwin-x64; do
+            cp -R ".artifacts/published/package/cloudflare-router-ab/build/local-tools/$platform" \
+              crates/router-ab-cloudflare/build/local-tools/
+          done
+          echo "Reusing the Mac local tools of @seams/wallet-server@$published ($source_commit)."
+          echo "reuse=true" >> "$GITHUB_OUTPUT"
+      - if: steps.reuse.outputs.reuse == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-tools-darwin-reused
+          path: crates/router-ab-cloudflare/build/local-tools
+          if-no-files-found: error
+          retention-days: 1
+
+  local_tools:
+    needs: mac_local_tools_reuse
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+      - run: node scripts/build-local-tools.mjs "$TARGET"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: local-tools-${{ env.TARGET }}
+          path: crates/router-ab-cloudflare/build/local-tools
+          if-no-files-found: error
+          retention-days: 1
+
+  mac_local_tools:
+    needs: mac_local_tools_reuse
+    if: github.ref == 'refs/heads/main' && needs.mac_local_tools_reuse.outputs.reuse != 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -34,8 +99,6 @@ jobs:
             runner: macos-15
           - target: x86_64-apple-darwin
             runner: macos-15
-          - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -53,8 +116,9 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: local_tools
-    if: github.ref == 'refs/heads/main'
+    needs: [mac_local_tools_reuse, local_tools, mac_local_tools]
+    # A skipped Mac build means its binaries were reused, so only a failure stops the release.
+    if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' }}
     name: Publish npm packages
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -65,6 +129,8 @@ jobs:
       NPM_DIST_TAG: ${{ contains(inputs.version, '-') && 'next' || 'latest' }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v6
         with:
@@ -98,6 +164,12 @@ jobs:
           pattern: local-tools-*
           merge-multiple: true
           path: crates/router-ab-cloudflare/build/local-tools
+      - name: Require every local tool platform
+        run: |
+          set -euo pipefail
+          for platform in darwin-arm64 darwin-x64 linux-x64; do
+            test -s "crates/router-ab-cloudflare/build/local-tools/$platform/router_ab_local_init"
+          done
       - run: chmod +x crates/router-ab-cloudflare/build/local-tools/*/router_ab_local_init
       - name: Build production Wallet artifacts
         env:
@@ -148,16 +220,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Wallet validation does not cover this workflow, so commits that change only this
+          # file reuse the validation of the newest commit before them that changed anything else.
+          validated_commit="$GITHUB_SHA"
+          while git rev-parse -q --verify "$validated_commit^" >/dev/null &&
+            [ -z "$(git diff --name-only "$validated_commit^" "$validated_commit" -- . ':(exclude).github/workflows/release-wallet-packages.yml')" ]; do
+            validated_commit="$(git rev-parse "$validated_commit^")"
+          done
+          echo "Requiring Wallet validation of $validated_commit."
           wallet_validation_run_id="$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
             --workflow validate-wallet.yml \
-            --commit "$GITHUB_SHA" \
+            --commit "$validated_commit" \
             --event push \
             --limit 1 \
             --json databaseId \
             --jq '.[0].databaseId')"
           if [ -z "$wallet_validation_run_id" ] || [ "$wallet_validation_run_id" = null ]; then
-            echo "No Wallet validation run exists for $GITHUB_SHA." >&2
+            echo "No Wallet validation run exists for $validated_commit." >&2
             exit 1
           fi
           gh run watch "$wallet_validation_run_id" \
