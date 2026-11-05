@@ -27,6 +27,7 @@ jobs:
           cache: pnpm
       - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
+        id: rust-toolchain
         with:
           targets: wasm32-unknown-unknown
       # Upstream prebuilt binaries with pinned SHA-256 digests. Compiling the
@@ -53,7 +54,65 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm report:bloat --check
       - run: pnpm check:cargo-locks
-      - run: pnpm build
+      # The Rust outputs (WASM packages, release Workers, local tools) are
+      # cached by the exact content of every tracked file that can change
+      # them, and by the rustc version. Most pushes change no Rust input, and
+      # the Rust build took about 30 of this job's minutes. There is no
+      # partial-key fallback: a restored output always matches its inputs.
+      # The release workflow never uses this cache; it builds from source.
+      - name: Hash Rust build inputs
+        id: rust-inputs
+        run: |
+          set -euo pipefail
+          hash="$(git ls-tree -r HEAD -- \
+            crates wasm tools .cargo package.json \
+            packages/wallet/build-paths.sh packages/wallet/scripts/build \
+            scripts/build-local-tools.mjs .github/workflows/validate-wallet.yml \
+            | sha256sum | cut -c1-40)"
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+      - name: Restore Rust build outputs
+        id: rust-outputs
+        uses: actions/cache/restore@v6
+        with:
+          key: rust-outputs-v1-${{ runner.os }}-${{ steps.rust-toolchain.outputs.cachekey }}-${{ steps.rust-inputs.outputs.hash }}
+          path: |
+            wasm/*/pkg
+            crates/router-ab-ed25519-yao-client/pkg
+            crates/router-ab-cloudflare/build/signing-worker
+            crates/router-ab-cloudflare/build/deriver-a
+            crates/router-ab-cloudflare/build/deriver-b
+            crates/router-ab-cloudflare/build/router
+            crates/router-ab-cloudflare/build/tenant-root-control-plane
+            crates/router-ab-cloudflare/build/local-tools
+      - name: Build Rust WASM packages, Workers and local tools
+        if: steps.rust-outputs.outputs.cache-hit != 'true'
+        run: pnpm run build:wasm && pnpm run build:workers && pnpm run build:local-tools
+      - name: Save Rust build outputs
+        if: steps.rust-outputs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          key: ${{ steps.rust-outputs.outputs.cache-primary-key }}
+          path: |
+            wasm/*/pkg
+            crates/router-ab-ed25519-yao-client/pkg
+            crates/router-ab-cloudflare/build/signing-worker
+            crates/router-ab-cloudflare/build/deriver-a
+            crates/router-ab-cloudflare/build/deriver-b
+            crates/router-ab-cloudflare/build/router
+            crates/router-ab-cloudflare/build/tenant-root-control-plane
+            crates/router-ab-cloudflare/build/local-tools
+      - name: Check restored Rust build outputs
+        if: steps.rust-outputs.outputs.cache-hit == 'true'
+        run: |
+          set -euo pipefail
+          WASM_SDK_USE_PREBUILT=1 pnpm run build:wasm
+          for role in signing-worker deriver-a deriver-b router tenant-root-control-plane; do
+            for file in index.js index_bg.wasm build-stamp.json; do
+              test -f "crates/router-ab-cloudflare/build/$role/$file"
+            done
+          done
+          test -x crates/router-ab-cloudflare/build/local-tools/linux-x64/router_ab_local_init
+      - run: pnpm run build:packages
       - run: pnpm type-check
       - name: Verify hosted signing credit and login refusal
         run: node tests/e2e/signing-credit.e2e.mjs
