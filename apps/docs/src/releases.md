@@ -1,19 +1,17 @@
 ---
-title: Release 0.48.0
-description: Owner NEAR approvals and cancels end in the transaction receipt, VoiceID enrollment downloads inside its card, and wallet approval keeps a custom review's box.
+title: Release 0.49.0
+description: Wallet approval keeps a custom review's vertical centre, a custom review opens without a fresh session read, and the wallet card appears sooner after Continue.
 ---
 
-# Release 0.48.0
+# Release 0.49.0
 
-The browser SDK, server SDK, and VoiceID plugin use **0.48.0**.
+The browser SDK, server SDK, and VoiceID plugin use **0.49.0**.
 
-- After the owner confirms a `prepareOwnerTransaction` approval or a `cancelTransaction()`, the wallet card turns into the transaction receipt, as for an app-session send: Signing, Submitted, then the final state, with minimise to a toast and dismiss. Before, the card closed.
-- When an owner send does not reach NEAR, the receipt shows why: an `unresolved` or `not_submitted` outcome shows its message, including NEAR's rejection such as `NotEnoughBalance`.
-- VoiceID enrollment opens its recording card at once and downloads VoiceID inside it. A rounded bar takes the place of the answer line, the download size takes the place of the status line, and **Record sample 1** turns on when VoiceID is ready. Before, a plain progress bar showed under the card.
-- If the download fails, the error shows in the card, and **Retry loading** takes the place of the record button. Unlock and the other VoiceID captures use the same layout.
-- After a custom transaction review, wallet approval keeps the review's box: the same width and top-left corner, with the card laid out at that width. Only the height changes, so the handoff no longer looks like a second modal.
-- When expanded transaction details make the confirm card taller than its frame, the **Secured by seams** footer stays in view, and the details scroll under it.
-- Install `@seams/voiceid` 0.48.0 with `@seams/wallet` 0.48.0. The VoiceID host API stays at version 8.
+- After a custom transaction review, wallet approval keeps the review's width, left edge and vertical centre. Only the height changes, equally above and below. Before, the card kept the review's top edge, so a short centred review handed over to a card that sat low in the viewport.
+- A custom review opens from the session and preferences that the SDK already holds, and the fresh session read runs at the same time. A changed session still cancels the review. Before, the review waited for two reads from the wallet iframe, one after the other.
+- After **Continue to wallet**, an owner approval reads the application session once instead of twice. The wallet starts the NEAR cost check and the token metadata lookup with the connection check, so the confirm card appears sooner.
+- The reviewed path records User Timing measures named `seams:review:<step>`: `review_open` and `continue_session_read` in the app page, and `owner_connection_check`, `owner_affordability` and `host_until_card_ready` in the wallet iframe. They record durations only.
+- Install `@seams/voiceid` 0.49.0 with `@seams/wallet` 0.49.0. The VoiceID host API stays at version 8.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
