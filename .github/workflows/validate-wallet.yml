@@ -112,6 +112,13 @@ jobs:
             done
           done
           test -x crates/router-ab-cloudflare/build/local-tools/linux-x64/router_ab_local_init
+          # The Worker freshness guards (`requireCurrentWorkerBuild` in
+          # crates/router-ab-cloudflare/scripts/test-private-d1.mjs) compare each
+          # build stamp with source file times. A checkout gives every source the
+          # current time, so a restored build would read as stale. The cache key
+          # proves that these sources equal the ones that made the restored build,
+          # so give the tracked Rust sources a time before any build stamp.
+          git ls-files -z -- crates wasm | xargs -0 touch -h -d @1
       - run: pnpm run build:packages
       - run: pnpm type-check
       - name: Verify hosted signing credit and login refusal
