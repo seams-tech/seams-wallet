@@ -418,7 +418,8 @@ export class HostedExternalAuth {
   }
 
   async captureOwnerOperation(authentication: ExternalWalletAuthentication): Promise<() => void> {
-    const session = await this.getSession(String(authentication.walletId));
+    // The parent's reviewed dispatch read this session a few milliseconds before.
+    const session = await this.getSession(String(authentication.walletId), 'running_or_recent');
     if (
       session?.authentication.kind !== 'external_authenticated' ||
       session.authentication.sessionId !== authentication.sessionId ||
@@ -438,12 +439,16 @@ export class HostedExternalAuth {
   }
 
   /**
-   * One settings read answers every caller while it runs and for a short time after it
-   * succeeds. A reviewed approval reads the session in the parent's dispatch and again
-   * when the operation captures the connection, a few milliseconds apart. A lock, a
-   * suspension or a removal changes the generation and ends the reuse.
+   * A settings read that is still running answers every caller. Only an owner operation's
+   * connection capture also takes a read that succeeded in the last moments: a reviewed
+   * approval reads the session in the parent's dispatch just before it. Every other read
+   * reaches the server, so a temporary failure is never hidden. A lock, a suspension or a
+   * removal changes the generation and ends the reuse.
    */
-  async getSession(walletId?: string): Promise<WalletSession | null> {
+  async getSession(
+    walletId?: string,
+    reuse: 'running' | 'running_or_recent' = 'running',
+  ): Promise<WalletSession | null> {
     const current = externalConnection(this.state);
     if (current.kind === 'empty' || (walletId && walletId !== current.attempt.walletId))
       return null;
@@ -452,7 +457,9 @@ export class HostedExternalAuth {
       shared &&
       shared.generation === this.generation &&
       shared.attempt === current.attempt &&
-      (shared.answeredAtMs === null || Date.now() - shared.answeredAtMs <= SETTINGS_READ_REUSE_MS)
+      (shared.answeredAtMs === null ||
+        (reuse === 'running_or_recent' &&
+          Date.now() - shared.answeredAtMs <= SETTINGS_READ_REUSE_MS))
     ) {
       return await shared.result;
     }
