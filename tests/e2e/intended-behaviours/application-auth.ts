@@ -559,7 +559,6 @@ export async function verifyApplicationAuth(
     expect(backend.broadcasts.length).toBe(broadcastsAfterLoss);
 
     // Failure to authenticate recovery must retain the known hash and remain retryable.
-    await waitPastSettingsReuse(page);
     await context.route('**/wallet/external-auth/settings', unavailableOwnerSettings);
     const failedRecovery = await page.evaluate(recoverCurrentApiOperation);
     expect(failedRecovery.kind).toBe('unresolved');
@@ -571,7 +570,6 @@ export async function verifyApplicationAuth(
       'unknown',
     );
     await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
-    await waitPastSettingsReuse(page);
     await context.route('**/wallet/external-auth/settings', unavailableOwnerSettings);
     await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
@@ -1001,15 +999,6 @@ async function approveDisconnectedOperation(input: PrepareOwnerNearTransaction) 
   const seams = window.ownerAuthApi;
   if (!seams) throw new Error('Missing application API.');
   return await seams.near.prepareOwnerTransaction(input).approve();
-}
-
-/**
- * The wallet host reuses a successful settings read for 2 s (`SETTINGS_READ_REUSE_MS`
- * in `host/externalAuth.ts`). A settings failure injected inside that window never
- * reaches the owner operation, so wait it out first.
- */
-async function waitPastSettingsReuse(page: Page): Promise<void> {
-  await page.waitForTimeout(2_500);
 }
 
 async function unavailableOwnerSettings(route: Route): Promise<void> {
