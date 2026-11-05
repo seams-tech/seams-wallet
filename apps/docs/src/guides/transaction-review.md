@@ -30,8 +30,8 @@ Try the flow in the **Custom Components** demo on [wallet.seams.sh](https://wall
 1. Your app calls a transaction method with `review`. The SDK opens a modal and
    renders your component in it. With `origin`, the modal grows from your own element.
 2. The person reads your terms. Your button calls `controls.continueToWallet()`.
-3. The modal crossfades to wallet approval in the same box: it keeps your
-   component's width and top-left corner, and only its height changes. The wallet
+3. The modal crossfades to wallet approval in the same place: it keeps your
+   component's width and vertical centre, and only its height changes. The wallet
    iframe draws this step from the captured transaction, at your component's
    width. The person confirms with a passkey.
 4. The back arrow in wallet approval returns to your component. Your component
@@ -113,10 +113,10 @@ review: {
 - The height follows your content, up to the viewport height minus 32 pixels. Taller
   content scrolls inside the modal.
 - The wrapper has 0.75rem padding by default. Change it in the same class.
-- Wallet approval keeps your width and your top-left corner, and only the height changes.
-  The wallet card lays out at your width, so choose one that suits it too: the card is
-  designed for about 416 pixels. The modal moves up only if a taller card would leave
-  the viewport.
+- Wallet approval keeps your width and your vertical centre, and only the height
+  changes, equally above and below. The wallet card lays out at your width, so choose
+  one that suits it too: the card is designed for about 416 pixels. The modal moves
+  only if a taller card would leave the viewport.
 - **Back to review** returns the modal to your review's own size.
 - A viewport smaller than 312 × 312 pixels shows the modal at the viewport size minus
   16-pixel margins.

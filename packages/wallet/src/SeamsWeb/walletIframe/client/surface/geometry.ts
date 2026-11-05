@@ -184,9 +184,9 @@ export function anchorWalletIframeModalGeometry(
 }
 
 /**
- * The wallet card that follows an app's review keeps the review's box: its width and
- * top-left corner, so only the height changes and the card reads as the same surface.
- * The top moves up only as far as a taller card needs to stay inside the viewport.
+ * The wallet card that follows an app's review keeps the review's width, left edge and
+ * vertical centre, so a centred review hands over to a centred card of another height.
+ * The card moves only as far as it needs to stay inside the viewport.
  */
 export function reviewBoxWalletIframeModalGeometry(
   geometry: WalletIframeModalGeometry,
@@ -199,12 +199,13 @@ export function reviewBoxWalletIframeModalGeometry(
   const maxBottom =
     viewport.offsetTopCssPx + viewport.heightCssPx - WALLET_IFRAME_SURFACE_INSET_CSS_PX;
   const heightCssPx = Math.min(geometry.heightCssPx, maxBottom - minTop);
+  const centredTop = review.topCssPx + (review.heightCssPx - heightCssPx) / 2;
   return {
     kind: geometry.kind,
     widthCssPx: review.widthCssPx,
     heightCssPx: roundCssPx(heightCssPx),
     leftCssPx: review.leftCssPx,
-    topCssPx: roundSignedCssPx(Math.max(minTop, Math.min(review.topCssPx, maxBottom - heightCssPx))),
+    topCssPx: roundSignedCssPx(Math.max(minTop, Math.min(centredTop, maxBottom - heightCssPx))),
   };
 }
 
