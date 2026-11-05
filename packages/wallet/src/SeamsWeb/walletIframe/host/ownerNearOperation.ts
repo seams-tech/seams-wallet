@@ -130,7 +130,10 @@ export async function runOwnerNearOperation(
   let assertConnection: () => void;
   const connectionCheck = startReviewTiming('owner_connection_check');
   try {
-    assertConnection = await ports.captureConnection(command.authentication);
+    assertConnection = await ports.captureConnection(
+      command.authentication,
+      command.action === 'approve' ? 'running_or_recent' : 'running',
+    );
     assertActive();
   } catch (error) {
     return admissionFailure(command, error);

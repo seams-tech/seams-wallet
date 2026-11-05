@@ -417,9 +417,15 @@ export class HostedExternalAuth {
     return externalAuthFailure('unavailable');
   }
 
-  async captureOwnerOperation(authentication: ExternalWalletAuthentication): Promise<() => void> {
-    // The parent's reviewed dispatch read this session a few milliseconds before.
-    const session = await this.getSession(String(authentication.walletId), 'running_or_recent');
+  /**
+   * `running_or_recent` is for an approval only: the parent's dispatch read this session a
+   * few milliseconds before. Recovery, retirement and cancellation read the server again.
+   */
+  async captureOwnerOperation(
+    authentication: ExternalWalletAuthentication,
+    reuse: 'running' | 'running_or_recent' = 'running',
+  ): Promise<() => void> {
+    const session = await this.getSession(String(authentication.walletId), reuse);
     if (
       session?.authentication.kind !== 'external_authenticated' ||
       session.authentication.sessionId !== authentication.sessionId ||
@@ -439,7 +445,7 @@ export class HostedExternalAuth {
   }
 
   /**
-   * A settings read that is still running answers every caller. Only an owner operation's
+   * A settings read that is still running answers every caller. Only an owner approval's
    * connection capture also takes a read that succeeded in the last moments: a reviewed
    * approval reads the session in the parent's dispatch just before it. Every other read
    * reaches the server, so a temporary failure is never hidden. A lock, a suspension or a
