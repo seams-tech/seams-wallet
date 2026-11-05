@@ -204,6 +204,8 @@ export class BrowserInferenceModel {
       return await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
     } catch (error) {
       if (error instanceof VoiceIdLoadError) throw error;
+      // The prompt shows only a retry message; keep the engine's reason visible to integrators.
+      console.error('[VoiceID] inference engine could not start', error);
       throw new VoiceIdLoadError(
         'initialization',
         'VoiceID could not start. Retry loading. If it still fails, reload the page or use a passkey.',
