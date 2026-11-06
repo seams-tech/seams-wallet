@@ -168,13 +168,14 @@ function ownerOutcomeReceipt(value: unknown): TransactionReceiptState | null {
     case 'completed': return { kind: 'confirmed', hash: outcome.result.transactionId };
     case 'retired': return { kind: 'confirmed', hash: outcome.transactionId };
     case 'reverted': return { kind: 'reverted', hash: outcome.transactionId, message: outcome.error };
-    case 'not_submitted': return { kind: 'failed', hash: null, message: outcome.rejection ? `${nearTransactionRejectionMessage(outcome.rejection)} ${outcome.error}` : outcome.error };
+    // `error` already states a broadcast rejection, so the receipt states it once.
+    case 'not_submitted': return { kind: 'failed', hash: null, message: outcome.rejection ? nearTransactionRejectionMessage(outcome.rejection) : outcome.error };
     case 'expired': return { kind: 'failed', hash: null, message: 'The approval expired before the wallet signed.' };
     case 'cancelled': return { kind: 'failed', hash: null, message: 'The owner cancelled this transaction before signing.' };
-    case 'unresolved': {
-      const rejection = outcome.cancellationRejection ?? outcome.rejection;
-      return { kind: 'unknown', hash: outcome.transactionId, message: rejection ? `${nearTransactionRejectionMessage(rejection)} ${outcome.error}` : outcome.error };
-    }
+    case 'unresolved':
+      if (outcome.cancellationRejection) return { kind: 'unknown', hash: outcome.transactionId, message: outcome.error };
+      if (outcome.rejection) return { kind: 'rejected', hash: outcome.transactionId, message: `${nearTransactionRejectionMessage(outcome.rejection)} The signed transaction can still run until it expires if the account's state changes.` };
+      return { kind: 'unknown', hash: outcome.transactionId, message: outcome.error };
     case 'retirement_available': return { kind: 'unknown', hash: outcome.transactionId, message: 'NEAR cannot execute this transaction any more, but its outcome is not proved. Check it again before you send another.' };
     case 'recovery_unavailable': return { kind: 'unknown', hash: null, message: outcome.error };
     case 'unknown': return { kind: 'unknown', hash: null, message: 'The wallet cannot tell whether this transaction was sent. Check it again before you send another.' };

@@ -377,6 +377,7 @@ const walletMessages = [
   ['Transaction complete', 'トランザクション完了'],
   ['Transaction failed', 'トランザクション失敗'],
   ['Transaction reverted', 'トランザクションが取り消されました'],
+  ['Rejected by NEAR', 'NEARが拒否しました'],
   ['Confirmation unavailable', '承認状態を取得できません'],
   ['Preparing your signed transaction.', '署名済みトランザクションを準備中です。'],
   ['Signature created, ready to broadcast.', '署名を作成しました。送信する準備ができました。'],

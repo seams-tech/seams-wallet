@@ -1197,11 +1197,11 @@ async function verifyFreshApproval(page: Page, backend: ApplicationBackend): Pro
 }
 
 /** The owner sees the same transaction receipt as an app-session send. */
-async function expectOwnerReceipt(page: Page, text: string): Promise<void> {
+async function expectOwnerReceipt(page: Page, ...texts: string[]): Promise<void> {
   const wallet = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
   const receipt = wallet.locator('.seams-transaction-receipt, .seams-transaction-toast');
   await expect(receipt).toBeVisible({ timeout: 30_000 });
-  await expect(receipt).toContainText(text);
+  for (const text of texts) await expect(receipt).toContainText(text);
   // Minimised, the receipt leaves the page usable for the next step.
   await waitForWalletIframeConfirmationSettlement(page);
 }
@@ -1260,7 +1260,7 @@ async function verifyOwnerRejectionAndCancel(
   if (!encoded) throw new Error('Missing rejected broadcast.');
   if (rejected.kind !== 'unresolved') throw new Error('The rejection did not stay unresolved.');
   // The receipt tells the owner why the send did not reach NEAR.
-  await expectOwnerReceipt(page, 'NotEnoughBalance');
+  await expectOwnerReceipt(page, 'Rejected by NEAR', 'NotEnoughBalance');
   // A later check still explains the rejection, and the new operation stays blocked.
   expect(await page.evaluate(recoverApiOperation, recovery)).toMatchObject({
     kind: 'unresolved',

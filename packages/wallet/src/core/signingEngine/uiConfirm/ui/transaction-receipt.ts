@@ -3,7 +3,11 @@ export type TransactionReceiptState =
   | { kind: 'signed'; hash?: never; message?: never }
   | { kind: 'broadcasting'; hash?: never; message?: never }
   | { kind: 'submitted' | 'confirmed'; hash: string | null; message?: never }
-  | { kind: 'failed' | 'reverted' | 'unknown'; hash: string | null; message: string };
+  | { kind: 'failed' | 'reverted' | 'unknown'; hash: string | null; message: string }
+  // NEAR refused the broadcast for a reason that depends on account state, such as
+  // NotEnoughBalance: the transaction is not on chain, but its signed bytes stay valid
+  // until they expire, so the outcome is not final.
+  | { kind: 'rejected'; hash: string; message: string };
 
 // A message signature (NEP-413) is the result itself: nothing is broadcast, so
 // its receipt has no network stages to reach.
@@ -42,6 +46,7 @@ export function receiptCompletedStages(receipt: ReceiptProgress): 0 | 1 | 2 | 3 
     case 'signed': case 'broadcasting': return 1;
     case 'submitted': case 'reverted': return 2;
     case 'confirmed': return 3;
+    case 'rejected': return 1;
     case 'failed': case 'unknown': return state.hash ? 2 : 0;
     default: return assertNever(state);
   }
@@ -62,6 +67,7 @@ export function receiptHeading(receipt: ReceiptProgress): string {
     case 'confirmed': return 'Transaction complete';
     case 'failed': return 'Transaction failed';
     case 'reverted': return 'Transaction reverted';
+    case 'rejected': return 'Rejected by NEAR';
     case 'unknown': return 'Confirmation unavailable';
     default: return assertNever(state);
   }
@@ -76,7 +82,7 @@ export function receiptDescription(receipt: ReceiptProgress): string {
     case 'broadcasting': return 'Submitting your signed transaction to the network.';
     case 'submitted': return 'Submitted to the network. Waiting for the receipt.';
     case 'confirmed': return 'The network confirmed your transaction.';
-    case 'failed': case 'reverted': case 'unknown': return state.message;
+    case 'failed': case 'reverted': case 'rejected': case 'unknown': return state.message;
     default: return assertNever(state);
   }
 }
