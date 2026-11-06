@@ -447,7 +447,8 @@ export class HostedExternalAuth {
   /**
    * A settings read that is still running answers every caller. Only an owner approval's
    * connection capture also takes a read that succeeded in the last moments: a reviewed
-   * approval reads the session in the parent's dispatch just before it. Every other read
+   * approval's parent sends its own session read just before the approval, and the
+   * capture joins that read or takes its answer. Every other read
    * reaches the server, so a temporary failure is never hidden. A lock, a suspension or a
    * removal changes the generation and ends the reuse.
    */

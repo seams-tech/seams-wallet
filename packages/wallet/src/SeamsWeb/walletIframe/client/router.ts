@@ -4584,8 +4584,17 @@ export class WalletIframeRouter {
         );
       }
       const sessionRead = startReviewTiming('continue_session_read');
-      await this.refreshExactSessionState('current', { kind: 'current' });
-      sessionRead.end();
+      const fresh = this.refreshExactSessionState('current', { kind: 'current' });
+      if (hostVerifiesReviewedSession(envelope.type)) {
+        // The host compares the command's session with its own fresh server read and
+        // stops a changed session. The read above reaches the host first on the same
+        // port, so the host's check joins it while the cost check runs; a changed
+        // session found here still cancels the dispatched review.
+        void fresh.then(sessionRead.end.bind(sessionRead), ignoreBackgroundSessionRead);
+      } else {
+        await fresh;
+        sessionRead.end();
+      }
       reservation.beginDispatch();
     }
     const requestId =
@@ -4971,3 +4980,12 @@ function sameReviewSession(
 
 /** The background read reports a changed session through `updateReviewSession`. */
 function ignoreBackgroundSessionRead(): void {}
+
+/**
+ * A reviewed request type whose host handler compares the command's session with a
+ * fresh server read before it prepares the card (`captureOwnerOperation`). Only these
+ * requests may leave before the router's own session read returns.
+ */
+function hostVerifiesReviewedSession(type: ParentToChildEnvelope['type']): boolean {
+  return type === 'PM_OWNER_NEAR_TRANSACTION';
+}
