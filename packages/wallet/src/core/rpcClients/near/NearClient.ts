@@ -130,14 +130,28 @@ export class OwnerOperationNearClient extends MinimalNearClient {
   }
 
   /**
+   * The price at which NEAR buys a transaction's gas, in yoctoNEAR per gas unit. The
+   * `gas_price` RPC gives the block price, but NEAR charges prepaid gas at no less than
+   * the runtime's `min_gas_purchase_price` (protocol 88: 10^9, 10x the block price), so
+   * a balance check that uses the block price alone passes a transaction that NEAR refuses.
+   */
+  async gasPurchasePrice(): Promise<bigint> {
+    const [blockPrice, minimum] = await Promise.all([
+      this.makeRpcCall('gas_price', [null], 'Gas Price', decodeGasPrice),
+      this.makeRpcCall(
+        'EXPERIMENTAL_protocol_config',
+        { finality: 'final' },
+        'Protocol Config',
+        decodeMinGasPurchasePrice,
+      ),
+    ]);
+    return blockPrice > minimum ? blockPrice : minimum;
+  }
+
+  /**
    * The chain that this node serves, and its validity rule: NEAR rejects a transaction
    * when its reference block is older than `validityPeriod` blocks.
    */
-  /** The gas price of the latest block, in yoctoNEAR per gas unit. */
-  async gasPrice(): Promise<bigint> {
-    return await this.makeRpcCall('gas_price', [null], 'Gas Price', decodeGasPrice);
-  }
-
   async transactionValidity(): Promise<NearTransactionValidity> {
     return await this.makeRpcCall(
       'EXPERIMENTAL_genesis_config',
@@ -153,6 +167,17 @@ type NearTransactionValidity = Readonly<{ chainId: string; validityPeriod: numbe
 function decodeGasPrice(raw: unknown): bigint {
   const price = requireRecord(raw, 'NEAR gas price').gas_price;
   if (typeof price !== 'string' || !/^\d+$/.test(price)) throw new Error('Invalid NEAR gas price');
+  return BigInt(price);
+}
+
+function decodeMinGasPurchasePrice(raw: unknown): bigint {
+  const runtime = requireRecord(
+    requireRecord(raw, 'NEAR protocol config').runtime_config,
+    'NEAR runtime config',
+  );
+  const price = runtime.min_gas_purchase_price;
+  if (typeof price !== 'string' || !/^\d+$/.test(price))
+    throw new Error('Invalid NEAR minimum gas purchase price');
   return BigInt(price);
 }
 

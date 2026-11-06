@@ -55,8 +55,13 @@ class ApplicationBackend {
   accessKeyNonce: bigint | null = null;
   /** The next broadcast fails with this InvalidTxError variant. */
   rejectNextBroadcast: Readonly<{ variant: string; fields?: Record<string, unknown> }> | null = null;
-  /** When set, the account and the gas price come from these values. */
-  account: Readonly<{ amount: bigint; storageUsage: number; gasPrice: bigint }> | null = null;
+  /** When set, the account, the gas price and the gas purchase floor come from these values. */
+  account: Readonly<{
+    amount: bigint;
+    storageUsage: number;
+    gasPrice: bigint;
+    minGasPurchasePrice: bigint;
+  }> | null = null;
   chainId = 'testnet';
   readonly rpcUrls = new Set<string>();
   lastHandoff: { url: string; headers: Record<string, string>; body: string } | null = null;
@@ -165,6 +170,20 @@ class ApplicationBackend {
           jsonrpc: '2.0',
           id: request.id,
           result: { gas_price: this.account.gasPrice.toString() },
+        },
+      });
+      return;
+    }
+    if (request.method === 'EXPERIMENTAL_protocol_config' && this.account) {
+      await route.fulfill({
+        json: {
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            runtime_config: {
+              min_gas_purchase_price: this.account.minGasPurchasePrice.toString(),
+            },
+          },
         },
       });
       return;
@@ -1289,7 +1308,12 @@ async function verifyOwnerRejectionAndCancel(
   await verifyFreshApproval(page, backend);
 
   // The wallet compares the maximum cost with the balance before it signs.
-  backend.account = { amount: 95_153_286_115_586_700_000_000n, storageUsage: 182, gasPrice: 100_000_000n };
+  backend.account = {
+    amount: 95_153_286_115_586_700_000_000n,
+    storageUsage: 182,
+    gasPrice: 100_000_000n,
+    minGasPurchasePrice: 1_000_000_000n,
+  };
   await page.evaluate(prepareExpensiveApiOperation);
   const before = backend.broadcasts.length;
   const unaffordable = await page.evaluate(approveApiOutcome);

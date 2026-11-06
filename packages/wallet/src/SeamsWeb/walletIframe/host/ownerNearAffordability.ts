@@ -22,7 +22,7 @@ export async function ownerNearShortfall(
   try {
     [account, gasPrice] = await Promise.all([
       nearClient.viewAccount(accountId),
-      nearClient.gasPrice(),
+      nearClient.gasPurchasePrice(),
     ]);
   } catch {
     return null;
