@@ -88,7 +88,7 @@ export class TransactionReviewAdmission {
     if (
       this.state.kind !== 'preparing' ||
       !this.element?.isConnected ||
-      this.element.dataset.seamsConfirmReady !== 'true'
+      this.element.dataset.seamsConfirmShown !== 'true'
     )
       return;
     this.observer?.disconnect();

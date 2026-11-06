@@ -17,7 +17,11 @@ import { TransactionTree } from './TransactionTree';
 import type { ExplorerUrls } from './TransactionLabel';
 
 export type ConfirmContentDecision =
-  | { kind: 'preparing'; onConfirm?: never; formId?: never }
+  /**
+   * Confirm is not available yet. `final` content is the transaction as it will sign, so the
+   * card can be shown; `loading` content can still change.
+   */
+  | { kind: 'preparing'; content: 'loading' | 'final'; onConfirm?: never; formId?: never }
   | { kind: 'ready'; onConfirm: () => void; formId?: never }
   | { kind: 'form'; formId: string; onConfirm?: never };
 

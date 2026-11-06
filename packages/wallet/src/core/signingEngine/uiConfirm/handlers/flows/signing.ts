@@ -53,7 +53,10 @@ import {
   PENDING_INTENT_DIGEST,
   type IntentDigestPreparationResult,
 } from '@/core/signingEngine/stepUpConfirmation/intentDigestPreparation';
-import { consumeConfirmationReadiness } from '@/core/signingEngine/uiConfirm/confirmationReadinessRegistry';
+import {
+  ConfirmationRefusal,
+  consumeConfirmationReadiness,
+} from '@/core/signingEngine/uiConfirm/confirmationReadinessRegistry';
 import {
   formatNearAccountFundingNotice,
   formatNearAccountFundingProgressNotice,
@@ -131,6 +134,11 @@ type WalletSessionExpiredConfirmationOutcome = {
   readonly failure: Extract<WalletSessionFailure, { readonly kind: 'expired' }>;
 };
 
+/** A readiness ends the open card before the person decides. */
+type ReadinessEndedConfirmationOutcome =
+  | WalletSessionExpiredConfirmationOutcome
+  | { readonly kind: 'refused'; readonly error: string };
+
 type ConfirmationPromptDecision = {
   confirmed: boolean;
   error?: string;
@@ -148,9 +156,10 @@ function readinessCompletedWithoutExpiry(): Promise<never> {
   return pendingPromise();
 }
 
-function readinessFailedWithPossibleExpiry(
+function readinessFailedWithPossibleEnd(
   error: unknown,
-): WalletSessionExpiredConfirmationOutcome | Promise<never> {
+): ReadinessEndedConfirmationOutcome | Promise<never> {
+  if (error instanceof ConfirmationRefusal) return { kind: 'refused', error: error.message };
   const failure = walletSessionFailureFromError(error);
   if (failure?.kind === 'expired') {
     return {
@@ -161,23 +170,23 @@ function readinessFailedWithPossibleExpiry(
   return pendingPromise();
 }
 
-function waitForWalletSessionExpiry(
+function waitForReadinessEnd(
   readiness: Promise<unknown>,
-): Promise<WalletSessionExpiredConfirmationOutcome> {
-  return readiness.then(readinessCompletedWithoutExpiry, readinessFailedWithPossibleExpiry);
+): Promise<ReadinessEndedConfirmationOutcome> {
+  return readiness.then(readinessCompletedWithoutExpiry, readinessFailedWithPossibleEnd);
 }
 
-function isWalletSessionExpiredConfirmationOutcome(
+function isReadinessEndedConfirmationOutcome(
   value:
-    | WalletSessionExpiredConfirmationOutcome
+    | ReadinessEndedConfirmationOutcome
     | {
         confirmed: boolean;
         error?: string;
         otpCode?: string;
         emailOtpChallengeId?: string;
       },
-): value is WalletSessionExpiredConfirmationOutcome {
-  return 'kind' in value && value.kind === 'wallet_session_expired';
+): value is ReadinessEndedConfirmationOutcome {
+  return 'kind' in value;
 }
 
 function resolveNearSigningReadinessMode(args: {
@@ -430,8 +439,8 @@ export async function handleTransactionSigningFlow(
     const confirmationReadinessPromise = confirmationReadiness
       ? Promise.resolve(confirmationReadiness.promise)
       : undefined;
-    const walletSessionExpiryPromise = confirmationReadinessPromise
-      ? waitForWalletSessionExpiry(confirmationReadinessPromise)
+    const readinessEndPromise = confirmationReadinessPromise
+      ? waitForReadinessEnd(confirmationReadinessPromise)
       : undefined;
     const markPromptReady = () => {
       resolvePromptReady?.();
@@ -514,7 +523,8 @@ export async function handleTransactionSigningFlow(
         .catch(async (error: unknown) => {
           confirmationReadinessPending = false;
           await promptReady;
-          if (decisionResolved) return;
+          // A refusal closes the card through the decision race below.
+          if (decisionResolved || error instanceof ConfirmationRefusal) return;
           if (nearContextFailed) {
             session.updateUI({ preparing: false });
             return;
@@ -574,11 +584,11 @@ export async function handleTransactionSigningFlow(
 
     // Ordering matters: resolve user decision first so "Cancel" can close immediately
     // even while context/digest preparation is still running. Confirmed flows wait below.
-    const promptDecisionOrExpiry = walletSessionExpiryPromise
-      ? await Promise.race([promptDecisionPromise, walletSessionExpiryPromise])
+    const promptDecisionOrExpiry = readinessEndPromise
+      ? await Promise.race([promptDecisionPromise, readinessEndPromise])
       : await promptDecisionPromise;
     decisionResolved = true;
-    if (isWalletSessionExpiredConfirmationOutcome(promptDecisionOrExpiry)) {
+    if (isReadinessEndedConfirmationOutcome(promptDecisionOrExpiry)) {
       cancelNearOperationStepUpPreparation({
         ctx,
         requestId: request.requestId,
@@ -588,7 +598,9 @@ export async function handleTransactionSigningFlow(
         requestId: request.requestId,
         intentDigest: resolvedIntentDigestForResponse,
         confirmed: false,
-        walletSessionFailure: promptDecisionOrExpiry.failure,
+        ...(promptDecisionOrExpiry.kind === 'refused'
+          ? { error: promptDecisionOrExpiry.error }
+          : { walletSessionFailure: promptDecisionOrExpiry.failure }),
       });
     }
     const { confirmed, error: uiError, otpCode, emailOtpChallengeId } = promptDecisionOrExpiry;
@@ -662,7 +674,10 @@ export async function handleTransactionSigningFlow(
           requestId: request.requestId,
           intentDigest: resolvedIntentDigestForResponse,
           confirmed: false,
-          error: `NEAR signing session could not be finalized: ${message}`,
+          error:
+            error instanceof ConfirmationRefusal
+              ? message
+              : `NEAR signing session could not be finalized: ${message}`,
         });
       }
     }

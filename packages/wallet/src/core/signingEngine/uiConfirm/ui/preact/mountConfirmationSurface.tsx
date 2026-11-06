@@ -227,8 +227,13 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     if (this.state.kind !== 'mounted') return;
     this.state.model = model;
     this.element.dataset.confirmationKind = model.content.kind;
-    this.element.dataset.seamsConfirmReady = String(
-      model.content.kind === 'transaction' && model.content.transaction.decision.kind === 'ready',
+    const decision =
+      model.content.kind === 'transaction' ? model.content.transaction.decision : null;
+    this.element.dataset.seamsConfirmReady = String(decision?.kind === 'ready');
+    // The card can be shown while Confirm still waits for a check, such as the cost check.
+    this.element.dataset.seamsConfirmShown = String(
+      decision?.kind === 'ready' ||
+        (decision?.kind === 'preparing' && decision.content === 'final'),
     );
     this.element.lang = model.appearance.locale ?? 'en';
     this.element.dataset.theme = model.appearance.theme.mode;
@@ -701,7 +706,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
             decision:
               !closing && source.transaction.decision.kind === 'ready'
                 ? { kind: 'ready', onConfirm: this.confirm }
-                : { kind: 'preparing' },
+                : { kind: 'preparing', content: 'final' },
             onCancel: this.cancel,
           },
         };

@@ -136,7 +136,7 @@ export function normalizeConfirmationModel(input: {
           },
           decision:
             source.loading || source.preparing
-              ? { kind: 'preparing' }
+              ? { kind: 'preparing', content: source.loading ? 'loading' : 'final' }
               : { kind: 'ready', onConfirm: input.callbacks.confirm },
           confirmText:
             source.signingAuthMode === 'emailOtp'

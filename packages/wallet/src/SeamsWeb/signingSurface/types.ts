@@ -45,6 +45,8 @@ export type OwnerNearSigningOptions = Readonly<{
   replacementNonce?: string;
   title?: string;
   body?: string;
+  /** The approval's cost check. Confirm waits for it, and a `ConfirmationRefusal` closes the card. */
+  confirmationPrecondition?: Promise<void>;
 }>;
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 

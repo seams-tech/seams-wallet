@@ -3505,6 +3505,9 @@ export class BrowserSigningSurface {
         rpcCall: { nearRpcUrl: deps.nearRpcUrl, nearAccountId },
         onEvent,
         ...(options.replacementNonce ? { replacementNonce: options.replacementNonce } : {}),
+        ...(options.confirmationPrecondition
+          ? { confirmationPrecondition: options.confirmationPrecondition }
+          : {}),
         ...(options.title ? { title: options.title } : {}),
         ...(options.body ? { body: options.body } : {}),
       },

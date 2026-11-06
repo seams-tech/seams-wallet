@@ -222,6 +222,11 @@ type NearTransactionWithActionsPayloadBase = {
   yaoMaterialExecutor: NearEd25519YaoMaterialExecutor;
   /** Sign at this exact nonce, replacing an earlier signed transaction of the same key. */
   replacementNonce?: string;
+  /**
+   * Confirm stays unavailable until this settles. A `ConfirmationRefusal` closes the card
+   * before anything is signed; the card shows any other rejection as an error.
+   */
+  confirmationPrecondition?: Promise<void>;
 };
 
 export type NearTransactionWithActionsPayload =

@@ -250,6 +250,8 @@ type SignTransactionWithActionsInput = {
   sensitivePolicy?: SensitiveOperationPolicy;
   /** An owner cancel signs at the nonce of the transaction it replaces. */
   replacementNonce?: string;
+  /** An owner approval's cost check: Confirm waits for it, and a shortfall refuses. */
+  confirmationPrecondition?: Promise<void>;
 };
 
 type NearTransactionPublicSigningOptions = Pick<
@@ -1528,6 +1530,9 @@ async function signTransactionWithActionsAttempt(
             transaction: args.transaction,
             rpcCall: args.rpcCall,
             ...(args.replacementNonce ? { replacementNonce: args.replacementNonce } : {}),
+            ...(args.confirmationPrecondition
+              ? { confirmationPrecondition: args.confirmationPrecondition }
+              : {}),
             signerSlot: publicOptions.signerSlot,
             confirmationConfigOverride: publicOptions.confirmationConfigOverride,
             title: publicOptions.title,
@@ -1618,6 +1623,9 @@ async function signTransactionWithActionsAttempt(
           transaction: args.transaction,
           rpcCall: args.rpcCall,
           ...(args.replacementNonce ? { replacementNonce: args.replacementNonce } : {}),
+          ...(args.confirmationPrecondition
+            ? { confirmationPrecondition: args.confirmationPrecondition }
+            : {}),
           signerSlot: publicOptions.signerSlot,
           confirmationConfigOverride: publicOptions.confirmationConfigOverride,
           title: publicOptions.title,

@@ -43,6 +43,7 @@ import { approveWithOwnerPasskey, ExternalOwnerApprovalError } from './externalO
 import { ownerNearSignedEvidence } from './ownerNearSignedEvidence';
 import { ownerNearShortfall } from './ownerNearAffordability';
 import { startReviewTiming } from '../shared/reviewTiming';
+import { ConfirmationRefusal } from '@/core/signingEngine/uiConfirm/confirmationReadinessRegistry';
 import { resolveNearTokenMetadata } from '@/core/signingEngine/chains/near/tokenTransfers';
 
 type OwnerNearPorts = {
@@ -113,12 +114,15 @@ export async function runOwnerNearOperation(
     resolvePrimaryNearRpcUrl(context.configs.network.chains),
   );
   // The cost check reads only public chain state, so it runs while the connection check
-  // runs. Its result is used at the same step as before, after the operation lock.
+  // runs. The card does not wait for it; only Confirm does.
   const affordability =
     command.action === 'approve'
       ? ownerNearShortfall(nearClient, String(command.recovery.nearAccountId), command.transaction)
       : null;
-  affordability?.catch(ignoreEarlyAffordabilityFailure);
+  if (affordability) {
+    const costCheck = startReviewTiming('owner_affordability');
+    void affordability.then(costCheck.end.bind(costCheck), ignoreEarlyAffordabilityFailure);
+  }
   if (command.action === 'approve') {
     // The card waits for token metadata. This lookup is shared with the card's own lookup.
     void resolveNearTokenMetadata({
@@ -176,7 +180,7 @@ export async function runOwnerNearOperation(
   return await locks.request(`seams:owner-near:${binding}`, operation.run.bind(operation));
 }
 
-/** `execute` awaits the same promise and handles its failure. */
+/** `ownerNearShortfall` never rejects; a failed read gives `null`. */
 function ignoreEarlyAffordabilityFailure(): void {}
 
 class HostedOwnerNearOperation {
@@ -186,6 +190,8 @@ class HostedOwnerNearOperation {
   private submission: ReadonlyExclusiveUnion<
     { kind: 'not_started' } | { kind: 'dispatched'; transactionId: string }
   > = { kind: 'not_started' };
+  /** The cost check found a shortfall and closed the card before Confirm. */
+  private refusal: OwnerNearUnaffordable | null = null;
 
   constructor(
     private readonly context: SeamsWebContext,
@@ -252,21 +258,23 @@ class HostedOwnerNearOperation {
     try {
       await this.store({ kind: 'approving', binding: this.binding, requestDigest });
       this.assertCurrent();
-      const affordabilityWait = startReviewTiming('owner_affordability');
-      const shortfall = await (this.affordability ??
+      // The card shows while the cost check runs. Confirm waits for it, and a shortfall
+      // closes the card before the passkey prompt, so nothing is signed.
+      const affordability =
+        this.affordability ??
         ownerNearShortfall(
           this.nearClient,
           String(command.recovery.nearAccountId),
           command.transaction,
-        ));
-      affordabilityWait.end();
-      if (shortfall) throw new OwnerNearUnaffordable(shortfall);
-      this.assertCurrent();
+        );
+      const confirmationPrecondition = affordability.then(this.refuseShortfall.bind(this));
+      confirmationPrecondition.catch(ignoreEarlyAffordabilityFailure);
       const signed = signedSummary(command.transaction);
       const session = await this.context.signingEngine.signNearOwnerTransaction(
         command,
         this.assertCurrent.bind(this),
         this.onEvent,
+        { confirmationPrecondition },
       );
       this.assertCurrent();
       const evidence = await ownerNearSignedEvidence(session);
@@ -344,12 +352,22 @@ class HostedOwnerNearOperation {
       if (this.submission.kind === 'dispatched')
         return unresolved(command.recovery, this.submission.transactionId, error);
       if (error instanceof OwnerNearExpired) outcome = { kind: 'expired' };
-      else if (error instanceof OwnerNearUnaffordable)
-        outcome = { kind: 'not_submitted', error: error.message, shortfall: error.shortfall };
+      else if (this.refusal)
+        outcome = {
+          kind: 'not_submitted',
+          error: this.refusal.message,
+          shortfall: this.refusal.shortfall,
+        };
       else if (isUserCancelledUserConfirm(error)) outcome = { kind: 'cancelled' };
       else outcome = ownerNearOutcomeBeforeSigning(error);
     }
     return await this.settle({ kind: 'settled', binding: this.binding, requestDigest, outcome });
+  }
+
+  private refuseShortfall(shortfall: OwnerNearShortfall | null): void {
+    if (!shortfall) return;
+    this.refusal = new OwnerNearUnaffordable(shortfall);
+    throw this.refusal;
   }
 
   private async readReceipt(key: string): Promise<OwnerNearReceipt | null> {
@@ -1076,7 +1094,7 @@ function parseSignedSummary(raw: unknown): OwnerNearSignedSummary {
   };
 }
 
-class OwnerNearUnaffordable extends Error {
+class OwnerNearUnaffordable extends ConfirmationRefusal {
   constructor(readonly shortfall: OwnerNearShortfall) {
     super(
       `This account holds ${shortfall.balance} yoctoNEAR, but this transaction can cost up to ` +

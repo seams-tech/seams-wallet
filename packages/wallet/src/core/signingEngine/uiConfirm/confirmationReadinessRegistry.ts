@@ -2,6 +2,14 @@ import type { ConfirmationReadiness } from '../stepUpConfirmation/confirmOperati
 
 export type { ConfirmationReadiness };
 
+/**
+ * A readiness that rejects with this refuses the request before Confirm is available: the
+ * card closes at once with this message, and nothing is signed.
+ */
+export class ConfirmationRefusal extends Error {
+  override readonly name = 'ConfirmationRefusal';
+}
+
 const DEFAULT_CONFIRMATION_READINESS_TTL_MS = 2 * 60 * 1000;
 
 type ConfirmationReadinessEntry = {

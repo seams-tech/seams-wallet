@@ -340,6 +340,23 @@ type NearTransactionFundingContext = Omit<
   'request' | 'fundingSession' | 'method'
 >;
 
+/** Confirm waits for both the step-up material and the caller's precondition. */
+function confirmationReadinessWith(
+  readiness: Promise<unknown>,
+  precondition: Promise<void> | undefined,
+): Promise<unknown>;
+function confirmationReadinessWith(
+  readiness: Promise<unknown> | null,
+  precondition: Promise<void> | undefined,
+): Promise<unknown> | null;
+function confirmationReadinessWith(
+  readiness: Promise<unknown> | null,
+  precondition: Promise<void> | undefined,
+): Promise<unknown> | null {
+  if (!precondition) return readiness;
+  return readiness ? Promise.all([readiness, precondition]) : precondition;
+}
+
 async function prepareNearTransactionConfirmationReadiness(args: {
   requestId: string;
   expectedThresholdSessionId: string;
@@ -457,6 +474,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
     body,
     signerSlot,
     replacementNonce,
+    confirmationPrecondition,
     signingOperationState,
     signingSessionCoordinator: sessionCoordinator,
     selection,
@@ -623,7 +641,9 @@ async function runNearAuthorizationRequiredTransactionSigning(
         }),
         title,
         body,
-        confirmationReadiness: { promise: operationStepUpReadiness },
+        confirmationReadiness: {
+          promise: confirmationReadinessWith(operationStepUpReadiness, confirmationPrecondition),
+        },
         onProgress: emitNearSigningConfirmationProgress.bind(undefined, {
           onEvent,
           nearAccountId,
@@ -738,6 +758,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   body,
   signerSlot,
   replacementNonce,
+  confirmationPrecondition,
   signingOperationState,
   signingSessionCoordinator: sessionCoordinator,
   transactionOperation,
@@ -958,6 +979,10 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             signatureUses: requiredSignatureUses,
           },
         });
+  const confirmationReadiness = confirmationReadinessWith(
+    operationStepUpReadiness,
+    confirmationPrecondition,
+  );
   emitEd25519SigningTiming(
     String(signingOperationId),
     'pre_confirmation',
@@ -1027,9 +1052,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         }),
         title,
         body,
-        ...(operationStepUpReadiness
-          ? { confirmationReadiness: { promise: operationStepUpReadiness } }
-          : {}),
+        ...(confirmationReadiness ? { confirmationReadiness: { promise: confirmationReadiness } } : {}),
         onProgress: emitUiConfirmProgress,
       },
     });
