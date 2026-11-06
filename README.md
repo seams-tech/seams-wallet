@@ -3,13 +3,13 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.49.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.50.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.49.0` — browser SDK and React components.
-- `@seams/wallet-server@0.49.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.49.0` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.50.0` — browser SDK and React components.
+- `@seams/wallet-server@0.50.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.50.0` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -17,7 +17,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `23.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, and VoiceID plugin use version **0.49.0**.
+The browser SDK, server SDK, and VoiceID plugin use version **0.50.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,20 +27,19 @@ changes that npm does not yet publish.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
-## Release 0.49.0
+## Release 0.50.0
 
-- After a custom transaction review, wallet approval keeps the review's width, left edge and vertical centre, so a short centred review hands over to a centred card.
-- A custom review opens from the session that the SDK already holds, and an owner approval reads the application session once after **Continue to wallet**. The cost check and the token lookup start with the connection check, so the confirm card appears sooner.
+- After **Continue to wallet**, an owner approval reaches the wallet without a wait for the page's session read, and the wallet card shows while the NEAR cost check runs. **Confirm** waits for the check, and a shortfall closes the card before the passkey prompt.
 - Wallet iframe protocol remains **23.0.0**. This release adds no database migrations.
 
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.49.0
+npm install @seams/wallet@0.50.0
 # Server applications:
-npm install @seams/wallet-server@0.49.0
+npm install @seams/wallet-server@0.50.0
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.49.0
+npm install @seams/voiceid@0.50.0
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.
