@@ -1,16 +1,18 @@
 ---
-title: リリース 0.52.0
-description: NEARが送信時に拒否した所有者のNEARの取引(`NotEnoughBalance`など)は、レシートに理由を1回だけ示してRejected by NEARと表示します。
+title: リリース 0.53.0
+description: ウォレット設定に残高と入金・出金を表示し、seams.assetsでウォレットの登録済み資産を読み取れます。
 ---
 
-# リリース 0.52.0
+# リリース 0.53.0
 
-ブラウザーSDK、サーバーSDK、VoiceIDは **0.52.0** です。
+ブラウザーSDK、サーバーSDK、VoiceIDは **0.53.0** です。
 
-- NEARがアカウントの状態による理由(`NotEnoughBalance`など)で所有者の取引を送信時に拒否した場合、レシートは**Rejected by NEAR**を表示します。拒否の理由を1回だけ示し、署名済みの取引は期限切れまで実行される可能性があることを伝えます。これまでは**Confirmation unavailable**を表示し、拒否の理由を2回示していました。結果はこれまでどおり`rejection`付きの`unresolved`です。すぐに終えるには`cancelTransaction()`を呼んでください。
-- 署名済みのバイト自体が拒否され、操作が`not_submitted`で終わる場合も、レシートは理由を1回だけ示します。
-- 0.51.0は、所有者のNEARの費用の確認でガスをNEARの最低ガス購入価格(`min_gas_purchase_price`)で計算するようにしました。0.52.0もこの修正を含みます。
-- `@seams/voiceid` 0.52.0と`@seams/wallet` 0.52.0を一緒にインストールしてください。VoiceIDのホストAPIはバージョン8のままです。
+- ウォレット設定は残高カードから始まります。主な残高、**すべての資産**、**入金**、**出金**を表示します。NEARメインネットの登録済み資産は、NEAR、stNEAR、USDC、USDt、ETH、BTC、SOL、ZECです。BTC、SOL、ZECはNEAR上のNEAR Intentsトークンです。NEARテストネットでは、NEAR、stNEAR、USDCです。
+- **入金**は、1つの資産について、ウォレットのアドレス、QRコード、到着する必要があるネットワークを表示します。**出金**は、金額と送金先を確認してから、ウォレットの確認カードを開きます。トークンのストレージがない送金先には、同じ取引で`storage_deposit`を追加します。
+- `seams.assets`は、UIなしで同じ残高を読み取ります。読み取れない残高はゼロではなく`unavailable`です。`prepareWithdrawal()`は署名前の取引を作ります。`WalletBalances`は、アプリ独自のパネルに残高カードを表示します。[UIコンポーネント](/ja/guides/ui-components#balances-deposit-and-withdraw)を参照してください。
+- 送金の確認画面とウォレット設定は、同じ資産リストと同じトークンのアートワークを使います。確認画面のトークン表示は変わりません。
+- 0.52.0では、NEARが送信時に拒否した所有者のNEARの取引(`NotEnoughBalance`など)を、理由を1回だけ示して**Rejected by NEAR**と表示しました。0.53.0もこの修正を含みます。
+- `@seams/voiceid` 0.53.0と`@seams/wallet` 0.53.0を一緒にインストールしてください。VoiceIDのホストAPIはバージョン8のままです。
 
 ウォレットのiframeプロトコルは **23.0.0**、ウォレット管理プロトコルは **5** のままです。
 署名付きの復旧CLIは **0.29.0** のままです。このリリースにデータベースのマイグレーションはありません。
