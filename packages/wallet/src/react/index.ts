@@ -174,7 +174,20 @@ export {
   AccountMenuButtonMock,
   ProfileSettingsButton,
   WalletSettingsPage,
+  WalletBalances,
 } from './components/AccountMenuButton';
+export type { WalletBalancesProps } from './components/AccountMenuButton';
+export type {
+  AssetsCapability,
+  AssetAccounts,
+  AssetBalance,
+  AssetBalances,
+  AssetBalanceUnavailableReason,
+  PreparedWithdrawal,
+  WalletAsset,
+  WithdrawalRejection,
+  WithdrawalRequest,
+} from '../SeamsWeb/publicApi/assets';
 export { QRCodeScanner } from './components/QRCodeScanner';
 export type { QRCodeScannerProps } from './components/QRCodeScanner';
 export { ShowQRCode } from './components/ShowQRCode';

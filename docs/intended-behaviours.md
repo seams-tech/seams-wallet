@@ -126,6 +126,32 @@ Any other action or attached NEAR keeps the NEAR amount as the headline, and the
 
 An EVM `transfer(address,uint256)` call with no trailing data and no native value headlines the token amount in the same way. The wallet names a token only from its own list for that chain. It does not read a contract's symbol, so any other token shows its exact base units and its contract. Attached native value keeps the headline. Native value on Ethereum and Base shows as ETH.
 
+## Asset balances
+
+`seams.assets` reads the wallet's own asset list for the configured chains. The same list
+names tokens in the transfer review, so a token the review calls verified is the token
+that Settings lists. On NEAR mainnet the primary assets are NEAR, stNEAR, USDC, USDt,
+ETH, BTC, SOL and ZEC; BTC, SOL and ZEC are NEAR Intents tokens (`*.omft.near`). On NEAR
+testnet they are NEAR, stNEAR and USDC. Other listed variants (wNEAR, USDT.e, nBTC, WBTC)
+appear only while held. Ethereum networks add ETH and listed ERC-20 tokens. Arc lists
+only its USDC token, because its native balance is the same money.
+
+A read uses public RPC data and needs no session. It never rejects. A failed read is
+`unavailable` with a reason and never a zero; the types make an amount unreadable
+before the kind is checked. A NEAR account with no state holds zero of every asset.
+NEAR `available` equals the shortfall check's spendable amount: the balance less the
+storage that the locked stake does not cover.
+
+Settings reads when the panel opens and every 15 seconds while the Assets screen is
+open. Nothing reads while the panel is closed. Deposit shows one asset's address, a QR
+code and its network. Withdraw rejects an invalid amount, an amount above the available
+balance, an invalid recipient and a named NEAR account that does not exist. A token
+recipient without storage gets `storage_deposit` before `ft_transfer` in one
+transaction. The withdrawal always opens the wallet's confirm card, whatever the
+application's confirmation preference. An outcome that may have been submitted disables
+a second submit. `AccountMenuButtonMock` shows sample balances and never signs.
+The contract is `tests/unit/walletAssets.unit.test.ts`.
+
 ## Application confirmation preferences
 
 Preference setters update the application's display immediately. Each write captures
@@ -707,6 +733,9 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   Closing removes the portal and releases its retained content. Reduced-motion users get immediate opening and closing.
   Wallet-origin overlays can open above settings without closing settings.
   Closing resets navigation. `AccountMenuButtonMock` supports the same presentation and control props.
+- The settings overview shows the balance card between the identity row and the menu
+  groups. Assets, Deposit and Withdraw are routes in the same panel; Deposit and Withdraw
+  return to the screen that opened them. The full settings page lists Assets as a section.
 - Dropdown and modal settings use one fixed-width panel for overview, account addresses,
   export selection, recovery entry, authentication methods, linked devices, and
   QR scanning. Back returns to the previous screen. Transaction preferences

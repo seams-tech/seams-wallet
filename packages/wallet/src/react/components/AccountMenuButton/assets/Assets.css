@@ -1,0 +1,423 @@
+/* Wallet assets: the overview balance card, the Assets list, Deposit and Withdraw.
+   Filled, rounded shapes in the panel's own tokens; no outlines and no end-state motion. */
+
+[data-seams-root].seams-theme-provider .seams-assets-card {
+  margin-top: 12px;
+  padding: 6px 12px 12px;
+  border-radius: 14px;
+  background: var(--seams-colors-surface2);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 8px 0 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card-status {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--seams-colors-textMuted, var(--seams-colors-textSecondary));
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card-rows,
+[data-seams-root].seams-theme-provider .seams-assets-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  font-size: 14px;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card-symbol {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 500;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card-network {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card-empty,
+[data-seams-root].seams-theme-provider .seams-assets-card-failed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 38px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-token {
+  flex: none;
+  display: block;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-amount {
+  flex: none;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-amount.is-zero,
+[data-seams-root].seams-theme-provider .seams-assets-amount.is-unavailable {
+  color: var(--seams-colors-textMuted, var(--seams-colors-textSecondary));
+  font-weight: 400;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  margin-top: 4px;
+  padding: 2px 0 0;
+  border: 0;
+  border-top: 1px solid var(--seams-colors-surface3);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--seams-colors-textSecondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-all > span {
+  flex: 1;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-all:hover {
+  color: var(--seams-colors-textPrimary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-actions > button.seams-account-action,
+[data-seams-root].seams-theme-provider .seams-assets-actions > button.seams-assets-secondary {
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--seams-colors-surface2);
+  color: var(--seams-colors-textPrimary);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-card button.seams-assets-secondary,
+[data-seams-root].seams-theme-provider button.seams-assets-secondary.is-on-surface {
+  background: var(--seams-colors-colorBackground);
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-secondary:hover:not(:disabled) {
+  background: var(--seams-colors-surface3);
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  color: var(--seams-colors-textPrimary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--seams-colors-surface2);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-row:last-child {
+  border-bottom: 0;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--seams-colors-surface2);
+  font-size: 10.5px;
+  font-weight: 600;
+  vertical-align: 1px;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-sub {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--seams-colors-textSecondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-note {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-note.is-centered {
+  text-align: center;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-screen-actions {
+  margin-top: 14px;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--seams-colors-surface2);
+  cursor: pointer;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-field.is-input {
+  cursor: text;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-field:focus-within,
+[data-seams-root].seams-theme-provider .seams-assets-amount-box:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--seams-colors-focus), transparent 60%);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-field-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-field-label {
+  font-size: 11px;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-field-aside {
+  flex: none;
+  font-size: 12px;
+  color: var(--seams-colors-textSecondary);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-select,
+[data-seams-root].seams-theme-provider .seams-assets-text-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--seams-colors-textPrimary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-select {
+  cursor: pointer;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-amount-box {
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: var(--seams-colors-surface2);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-amount-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--seams-colors-textPrimary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-unit {
+  flex: none;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-pill {
+  flex: none;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--seams-colors-colorBackground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--seams-colors-textPrimary);
+  cursor: pointer;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px 14px;
+  border-radius: 14px;
+  background: var(--seams-colors-surface2);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-qr {
+  display: grid;
+  place-items: center;
+  width: 172px;
+  height: 172px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-qr img {
+  display: block;
+  width: 156px;
+  height: 156px;
+  image-rendering: pixelated;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-qr-placeholder {
+  width: 156px;
+  height: 156px;
+  border-radius: 8px;
+  background: var(--seams-colors-surface2);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-address,
+[data-seams-root].seams-theme-provider .seams-assets-tx {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+  text-align: center;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-tx {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--seams-colors-textSecondary);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-error {
+  margin: 0 2px;
+  font-size: 13px;
+  line-height: 18px;
+  color: color-mix(in srgb, var(--seams-colors-error) 65%, var(--seams-colors-textPrimary));
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-seams-root].seams-theme-provider button.seams-assets-secondary {
+    transition: none;
+  }
+}

@@ -1,0 +1,308 @@
+import React, { useId, useState } from 'react';
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletDisplayText, walletText, type WalletMessage } from '@/core/ui/messages';
+import type { WalletAsset } from '@/core/assets/assetList';
+import type { AssetBalance } from '@/core/assets/readAssetBalances';
+import {
+  maxWithdrawBaseUnits,
+  parseWithdrawAmount,
+  type PreparedWithdrawal,
+  type WithdrawalRejection,
+  type WithdrawalRequest,
+} from '@/core/assets/withdraw';
+import { TokenArtwork } from './TokenArtwork';
+import { exactAssetAmount, formatAssetAmount, networkLabel } from './assetFormat';
+
+export type ReadyWithdrawal = Exclude<PreparedWithdrawal, { kind: 'rejected' }>;
+
+export type WithdrawOutcome =
+  | { readonly kind: 'sent'; readonly transactionId: string }
+  /** Nothing was submitted; the user can try again. */
+  | { readonly kind: 'not_sent'; readonly message: string }
+  /** Submission may have happened; never resend automatically. */
+  | { readonly kind: 'unknown'; readonly message: string };
+
+type ReadBalance = Extract<AssetBalance, { kind: 'read' }>;
+
+type FormState =
+  | { readonly kind: 'editing'; readonly error: WalletMessage | null }
+  | { readonly kind: 'checking' }
+  | { readonly kind: 'confirming' }
+  | { readonly kind: 'sent'; readonly transactionId: string }
+  | { readonly kind: 'failed'; readonly message: string; readonly retry: boolean };
+
+const REJECTION_MESSAGES: Readonly<Record<WithdrawalRejection, WalletMessage>> = {
+  invalid_amount: 'Enter a valid amount.',
+  invalid_recipient: 'Enter a valid recipient for this network.',
+  missing_account: 'This NEAR account does not exist.',
+  chain_not_configured: 'This network is not configured in this app.',
+  unavailable: 'The network could not check this withdrawal. Try again.',
+};
+
+function isNearAsset(asset: WalletAsset): boolean {
+  return asset.kind === 'near_native' || asset.kind === 'nep141';
+}
+
+function feeInAssetUnits(asset: WalletAsset, maxFeeNative: bigint): bigint {
+  if (asset.kind === 'evm_native') return maxFeeNative;
+  if (asset.kind === 'erc20' && asset.paysGas) {
+    const divisor = 10n ** BigInt(asset.paysGas.nativeDecimals - asset.decimals);
+    return (maxFeeNative + divisor - 1n) / divisor;
+  }
+  return 0n;
+}
+
+/** Send out of this wallet: asset, amount, recipient, then the wallet's own confirm card. */
+export function WithdrawPanel({
+  balances,
+  initialAssetId,
+  fromFor,
+  prepare,
+  send,
+  onSent,
+}: {
+  balances: readonly AssetBalance[];
+  initialAssetId?: string;
+  fromFor: (asset: WalletAsset) => string | null;
+  prepare: (request: WithdrawalRequest) => Promise<PreparedWithdrawal>;
+  send: (withdrawal: ReadyWithdrawal) => Promise<WithdrawOutcome>;
+  onSent?: () => void;
+}): React.JSX.Element {
+  const locale = useWalletLocale();
+  const ids = { asset: useId(), amount: useId(), recipient: useId(), error: useId() };
+  const choices = balances.filter(
+    (balance): balance is ReadBalance =>
+      balance.kind === 'read' && BigInt(balance.available) > 0n && fromFor(balance.asset) !== null,
+  );
+  const [assetId, setAssetId] = useState(
+    choices.find((choice) => choice.asset.id === initialAssetId)?.asset.id ??
+      choices[0]?.asset.id ??
+      '',
+  );
+  const [amount, setAmount] = useState('');
+  const [recipient, setRecipient] = useState('');
+  const [state, setState] = useState<FormState>({ kind: 'editing', error: null });
+  const [maxPending, setMaxPending] = useState(false);
+  const selected = choices.find((choice) => choice.asset.id === assetId) ?? choices[0];
+
+  if (!selected) {
+    return (
+      <p className="seams-account-description">
+        <WalletText message="This wallet holds nothing to withdraw yet." />
+      </p>
+    );
+  }
+  const asset = selected.asset;
+  const from = fromFor(asset) ?? '';
+  const available = BigInt(selected.available);
+  const busy = state.kind === 'checking' || state.kind === 'confirming';
+
+  const fillMax = async () => {
+    let maxFeeNative: bigint | undefined;
+    if (asset.kind === 'evm_native' || (asset.kind === 'erc20' && asset.paysGas)) {
+      setMaxPending(true);
+      // A transfer of one base unit to the sender itself prices the fee.
+      const probe = await prepare({
+        asset,
+        from,
+        recipient: from,
+        amount: exactAssetAmount('1', asset.decimals),
+      });
+      setMaxPending(false);
+      if (probe.kind !== 'evm') {
+        setState({ kind: 'editing', error: REJECTION_MESSAGES.unavailable });
+        return;
+      }
+      maxFeeNative = probe.maxFeeNative;
+    }
+    const max = maxWithdrawBaseUnits({ asset, available, maxFeeNative });
+    setAmount(max > 0n ? exactAssetAmount(max.toString(), asset.decimals) : '0');
+    setState({ kind: 'editing', error: null });
+  };
+
+  const review = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    const parsed = parseWithdrawAmount(amount, asset.decimals);
+    if (parsed.kind !== 'valid') {
+      setState({ kind: 'editing', error: 'Enter a valid amount.' });
+      return;
+    }
+    if (parsed.baseUnits > available) {
+      setState({ kind: 'editing', error: 'This is more than you can send.' });
+      return;
+    }
+    setState({ kind: 'checking' });
+    const prepared = await prepare({ asset, from, recipient, amount });
+    if (prepared.kind === 'rejected') {
+      setState({ kind: 'editing', error: REJECTION_MESSAGES[prepared.reason] });
+      return;
+    }
+    if (
+      prepared.kind === 'evm' &&
+      prepared.baseUnits + feeInAssetUnits(asset, prepared.maxFeeNative) > available
+    ) {
+      setState({
+        kind: 'editing',
+        error: 'The amount and the network fee are more than you hold. Use Max.',
+      });
+      return;
+    }
+    setState({ kind: 'confirming' });
+    const outcome = await send(prepared);
+    if (outcome.kind === 'sent') {
+      setState({ kind: 'sent', transactionId: outcome.transactionId });
+      onSent?.();
+      return;
+    }
+    setState({ kind: 'failed', message: outcome.message, retry: outcome.kind === 'not_sent' });
+  };
+
+  if (state.kind === 'sent') {
+    return (
+      <div className="seams-assets-form">
+        <div className="seams-account-inset" role="status">
+          <WalletText message="Withdrawal sent." />
+          <code className="seams-assets-tx">{state.transactionId}</code>
+        </div>
+        <button
+          type="button"
+          className="seams-assets-secondary"
+          onClick={() => {
+            setAmount('');
+            setState({ kind: 'editing', error: null });
+          }}
+        >
+          <WalletText message="New withdrawal" />
+        </button>
+      </div>
+    );
+  }
+
+  const near = isNearAsset(asset);
+  const error = state.kind === 'editing' ? state.error : null;
+  return (
+    <form className="seams-assets-form" onSubmit={review} noValidate>
+      <div className="seams-assets-field">
+        <TokenArtwork artwork={asset.artwork} size={26} />
+        <span className="seams-assets-field-text">
+          <label className="seams-assets-field-label" htmlFor={ids.asset}>
+            <WalletText message="Asset" />
+          </label>
+          <select
+            id={ids.asset}
+            className="seams-assets-select"
+            value={asset.id}
+            disabled={busy}
+            onChange={(event) => {
+              setAssetId(event.target.value);
+              setAmount('');
+              setRecipient('');
+              setState({ kind: 'editing', error: null });
+            }}
+          >
+            {choices.map((choice) => (
+              <option key={choice.asset.id} value={choice.asset.id}>
+                {walletText(locale, '{value0} on {value1}', {
+                  value0: choice.asset.symbol,
+                  value1: walletDisplayText(locale, networkLabel(choice.asset)),
+                })}
+              </option>
+            ))}
+          </select>
+        </span>
+        <span className="seams-assets-field-aside">
+          <WalletText
+            message="{value0} available"
+            values={{ value0: formatAssetAmount(selected.available, asset.decimals) }}
+          />
+        </span>
+      </div>
+      <div className="seams-assets-amount-box">
+        <label className="seams-assets-field-label" htmlFor={ids.amount}>
+          <WalletText message="Amount" />
+        </label>
+        <div className="seams-assets-amount-row">
+          <input
+            id={ids.amount}
+            className="seams-assets-amount-input"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="0"
+            value={amount}
+            disabled={busy}
+            aria-invalid={
+              error === 'Enter a valid amount.' || error === 'This is more than you can send.'
+            }
+            aria-describedby={error ? ids.error : undefined}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+          <span className="seams-assets-unit">{asset.symbol}</span>
+          <button
+            type="button"
+            className="seams-assets-pill"
+            onClick={() => void fillMax()}
+            disabled={busy || maxPending}
+          >
+            <WalletText message="Max" />
+          </button>
+        </div>
+      </div>
+      <div className="seams-assets-field is-input">
+        <span className="seams-assets-field-text">
+          <label className="seams-assets-field-label" htmlFor={ids.recipient}>
+            <WalletText message="To" />
+          </label>
+          <input
+            id={ids.recipient}
+            className="seams-assets-text-input"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder={near ? 'name.near' : '0x…'}
+            value={recipient}
+            disabled={busy}
+            aria-invalid={
+              error === 'Enter a valid recipient for this network.' ||
+              error === 'This NEAR account does not exist.'
+            }
+            aria-describedby={error ? ids.error : undefined}
+            onChange={(event) => setRecipient(event.target.value)}
+          />
+        </span>
+      </div>
+      {error ? (
+        <p id={ids.error} className="seams-assets-error" role="alert">
+          <WalletText message={error} />
+        </p>
+      ) : null}
+      {state.kind === 'failed' ? (
+        <p className="seams-assets-error" role="alert">
+          <WalletText copy={state.message} />
+          {state.retry ? null : (
+            <>
+              {' '}
+              <WalletText message="The withdrawal may have been sent. Check your balance before you try again." />
+            </>
+          )}
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        className="seams-account-action primary"
+        disabled={busy || (state.kind === 'failed' && !state.retry)}
+      >
+        {state.kind === 'checking' ? (
+          <WalletText message="Checking…" />
+        ) : state.kind === 'confirming' ? (
+          <WalletText message="Confirm in your wallet…" />
+        ) : (
+          <WalletText message="Review withdrawal" />
+        )}
+      </button>
+      <p className="seams-assets-note is-centered">
+        <WalletText message="The wallet shows the transaction next. Nothing is signed before you confirm." />
+      </p>
+    </form>
+  );
+}

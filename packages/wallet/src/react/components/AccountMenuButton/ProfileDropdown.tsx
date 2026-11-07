@@ -9,6 +9,7 @@ import './ProfileDropdown.css';
 // The same order as the settings page. Export keys comes last: it is rare
 // and has the highest impact.
 const MENU_ORDER = [
+  'assets',
   'accounts',
   'transaction-settings',
   'authentication-methods',

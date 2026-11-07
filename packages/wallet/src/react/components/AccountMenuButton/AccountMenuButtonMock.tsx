@@ -15,6 +15,31 @@ import { RecoveryCodesIcon } from './icons/RecoveryCodesIcon';
 import TouchIcon from './icons/TouchIcon';
 import { ScanIcon } from './icons/ScanIcon';
 import { LinkIcon } from './icons/LinkIcon';
+import { AssetActions, AssetRows, BalancesCard } from './assets/AssetViews';
+import { DepositPanel } from './assets/DepositPanel';
+import { WithdrawPanel } from './assets/WithdrawPanel';
+import type { AssetBalancesState } from './assets/useAssetBalances';
+import {
+  PREVIEW_ASSETS,
+  PREVIEW_BALANCES,
+  PREVIEW_EVM_ADDRESS,
+  PREVIEW_NEAR_ACCOUNT,
+  previewFromFor,
+  previewPrepareWithdrawal,
+  previewSendWithdrawal,
+} from './assets/previewAssets';
+
+const previewAssetState: AssetBalancesState = { kind: 'ready', balances: PREVIEW_BALANCES };
+
+function noRefresh(): void {}
+
+function openPreviewAssetFlow(
+  setScreen: React.Dispatch<React.SetStateAction<AccountPreviewScreen>>,
+  kind: 'deposit' | 'withdraw',
+  parent: 'overview' | 'assets',
+): void {
+  setScreen({ kind, parent });
+}
 
 interface AccountMenuPreviewOptions {
   locale?: import('@/core/ui/locale').WalletLocale;
@@ -188,6 +213,17 @@ function AccountMenuPreview(props: AccountMenuButtonMockProps): React.JSX.Elemen
       dropdownRef={refs.dropdownRef}
       className={className}
       style={style}
+      overviewHeader={
+        status === 'ready' ? (
+          <BalancesCard
+            state={previewAssetState}
+            onRetry={noRefresh}
+            onOpenAssets={setScreen.bind(null, { kind: 'assets' })}
+            onDeposit={openPreviewAssetFlow.bind(null, setScreen, 'deposit', 'overview')}
+            onWithdraw={openPreviewAssetFlow.bind(null, setScreen, 'withdraw', 'overview')}
+          />
+        ) : null
+      }
       trigger={{
         label: status === 'logged_out' ? 'Logged out' : 'Settings',
         username,
@@ -212,6 +248,35 @@ function AccountMenuPreview(props: AccountMenuButtonMockProps): React.JSX.Elemen
           setScreen={setScreen}
           accounts={accounts}
           walletId={walletId}
+          assetScreens={{
+            assets: (
+              <>
+                <AssetRows state={previewAssetState} onRetry={noRefresh} />
+                <div className="seams-assets-screen-actions">
+                  <AssetActions
+                    onDeposit={openPreviewAssetFlow.bind(null, setScreen, 'deposit', 'assets')}
+                    onWithdraw={openPreviewAssetFlow.bind(null, setScreen, 'withdraw', 'assets')}
+                    canWithdraw
+                  />
+                </div>
+              </>
+            ),
+            deposit: (
+              <DepositPanel
+                assets={PREVIEW_ASSETS.filter((asset) => asset.primary)}
+                nearAccount={PREVIEW_NEAR_ACCOUNT}
+                evmAddress={PREVIEW_EVM_ADDRESS}
+              />
+            ),
+            withdraw: (
+              <WithdrawPanel
+                balances={PREVIEW_BALANCES.balances}
+                fromFor={previewFromFor}
+                prepare={previewPrepareWithdrawal}
+                send={previewSendWithdrawal}
+              />
+            ),
+          }}
           transactionSettings={
             <TransactionSettingsSection
               currentConfirmConfig={confirmation}

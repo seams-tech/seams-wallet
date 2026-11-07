@@ -23,6 +23,7 @@ import '@seams/wallet/react/styles';
 | `ProfileSettingsButton`   | `AccountMenuButton`と同じコンポーネントの別名。                            | 必要         |
 | `AccountMenuButtonMock`   | サンプルデータを使う、操作できるアカウントメニューのプレビュー。           | 不要         |
 | `WalletSettingsPage`      | ページ全体のウォレット設定。未サインインの場合はホストする認証を表示。     | 必要         |
+| `WalletBalances`          | アプリ独自のウォレットパネル用の、設定の残高カード。                       | 必要         |
 | `ShowQRCode`              | 新しいデバイスのリンクコード。開始から期限切れまでを処理。                 | 必要         |
 | `QRCodeScanner`           | 既存デバイスのカメラスキャナーとリンクの承認。                             | 必要         |
 | `TransactionReviewHost`   | ウォレットの承認前に独自の確認内容を表示するダイアログ。                   | 必要         |
@@ -55,12 +56,22 @@ import '@seams/wallet/react/styles';
 
 ## ウォレット設定 {#wallet-settings}
 
-`AccountMenuButton`は、アカウント、認証方式、復旧コード、リンク済みデバイス、エクスポート、取引の設定を開きます。
+`AccountMenuButton`は、残高、アカウント、認証方式、復旧コード、リンク済みデバイス、エクスポート、取引の設定を開きます。
 `nearAccountId`が必要です。既定の`presentation="dropdown"`は、SDKのトリガーボタンを含みます。
 `"modal"`または`"drawer"`の場合は、`isMenuOpen`と`onMenuOpenChange`を使い、アプリ独自のボタンから設定を開きます。
 
 `WalletSettingsPage`は、同じ設定をページ全体に表示します。ウォレットのリージョン設定も表示します。
 表示方法、ドロワーの動作、リージョン設定は[Reactコンポーネント](/ja/reference/react#components)を参照してください。
+
+### 残高、入金、出金 {#balances-deposit-and-withdraw}
+
+設定の概要は残高カードから始まります。主な3つの残高、**すべての資産**のリンク、**入金**と**出金**を表示します。
+
+- **資産**は、設定したチェーンについて、ウォレット独自のリストにある資産を表示します。NEARメインネットでは、NEAR、stNEAR、USDC、USDt、ETH、BTC、SOL、ZECです。BTC、SOL、ZECはNEAR上のNEAR Intentsトークンです。NEARテストネットでは、NEAR、stNEAR、USDCです。EVMチェーンでは、ネイティブコインと登録済みのトークンを追加します。
+- **入金**は、1つの資産について、ウォレットのアドレス、QRコード、到着する必要があるネットワークを表示します。そのネットワークでのみ受け取ります。
+- **出金**は、金額と送金先を確認してから、ウォレットの確認カードを開きます。ユーザーが確認するまで何も署名しません。トークンのストレージがない送金先には、同じ取引で`storage_deposit`を追加します。
+
+読み取れない残高は、ゼロではなく**取得できません**と表示します。金額は価格なしで表示します。`WalletBalances`は同じカードをアプリ独自のパネルに表示します。`onDeposit`、`onWithdraw`、`onOpenAssets`を渡して、設定またはアプリ独自のフローを開きます。UIなしで同じデータを使うには`seams.assets`を使います。[コアリファレンス](/ja/reference/core#asset-balances)を参照してください。
 
 ## デバイスのリンク {#device-linking}
 

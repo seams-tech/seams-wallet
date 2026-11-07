@@ -1,9 +1,7 @@
 import type { OwnerOperationNearClient } from '@/core/rpcClients/near/NearClient';
 import { ActionType, type TransactionInputWasm } from '@/core/types/actions';
 import type { OwnerNearShortfall } from '../shared/ownerNearOperation';
-
-// NEAR charges 10^19 yoctoNEAR of balance for each byte that the account stores.
-const STORAGE_AMOUNT_PER_BYTE = 10n ** 19n;
+import { nearSpendableBalance } from '@/core/assets/nearBalance';
 // Covers the transaction's conversion fee and each action's send and execution fees.
 const FEE_ALLOWANCE_GAS_PER_ACTION = 5_000_000_000_000n;
 
@@ -37,11 +35,9 @@ export async function ownerNearShortfall(
       gas += BigInt(action.gas);
     }
   }
-  const balance = BigInt(String(account.amount));
-  const locked = BigInt(String(account.locked));
   const maximumCost = deposits + gas * gasPrice;
-  const storageReserve = BigInt(account.storage_usage) * STORAGE_AMOUNT_PER_BYTE;
-  if (balance >= maximumCost && balance - maximumCost + locked >= storageReserve) return null;
+  const { balance, spendable, storageReserve, shortOfStorage } = nearSpendableBalance(account);
+  if (spendable >= maximumCost && !shortOfStorage) return null;
   return {
     balance: balance.toString(),
     maximumCost: maximumCost.toString(),

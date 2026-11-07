@@ -30,6 +30,7 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 | `devices`      | Start, approve, and inspect linked-device flows.                             |
 | `keys`         | Run freshly authorized export flows.                                         |
 | `placement`    | Read the wallet region and move the wallet to a region the owner selects.    |
+| `assets`       | Read listed asset balances and prepare withdrawals.                          |
 
 `evm` and `tempo` both provide `signTransaction`, `signAndSendTransaction`, and an
 `advanced` group for reporting after broadcast. Their transaction formats differ. Tempo
@@ -63,6 +64,31 @@ seams.connection.dispose();
 and preference reconciliation. Concurrent calls share one attempt. Call `connect`
 to retry a failed attempt. Disposal is terminal and releases client resources;
 it does not lock the wallet or delete durable presignatures.
+
+## Asset balances
+
+`seams.assets` reads the wallet's listed assets with public chain data and the
+application's configured RPC endpoints. It needs no wallet session.
+
+```ts [Partial example]
+const { balances } = await seams.assets.read({
+  nearAccount: 'alice.near',
+  evmAddress: '0x1111111111111111111111111111111111111111',
+});
+for (const balance of balances) {
+  if (balance.kind === 'read') console.log(balance.asset.symbol, balance.available);
+  else console.warn(balance.asset.symbol, balance.reason);
+}
+```
+
+- `list()` returns the listed assets for the configured chains, in display order.
+- `read()` never rejects. Each failed read is `{ kind: 'unavailable', reason }`, never a
+  zero. A NEAR `available` amount excludes the storage reserve, which is `reserved`.
+- `onChange(listener)` runs after each completed `read()`.
+- `prepareWithdrawal({ asset, from, recipient, amount })` checks the amount and the
+  recipient and returns an unsigned NEAR or EVM transaction, or `{ kind: 'rejected',
+  reason }`. Send it with `seams.near.signAndSendTransaction` or
+  `seams.evm.signAndSendTransaction`.
 
 ## Naming the subject and the chain
 
