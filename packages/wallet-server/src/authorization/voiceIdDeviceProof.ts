@@ -1,17 +1,9 @@
 import {
-  spokenIntentRequestDigestB64u,
-  spokenTextDigestB64u,
-} from '@shared/authorization/spokenIntentRequest';
-import {
   parseVoiceIdDeviceAssertion,
-  parseVoiceIdIntentAssertion,
   parseVoiceIdOperationAssertion,
-  voiceIdIntentStatementBytes,
   voiceIdOperationStatementBytes,
   voiceIdWalletSessionChallengeBytes,
   type VoiceIdDevicePublicKeyB64u,
-  type VoiceIdIntentOperationKind,
-  type VoiceIdIntentStatement,
   type VoiceIdOperationKind,
   type VoiceIdOperationStatement,
   type VoiceIdWalletSessionChallenge,
@@ -188,104 +180,5 @@ export async function verifyVoiceIdOperationAssertion(input: {
     statement,
     input.registered.deviceKeyId,
     assertionDigest,
-  );
-}
-
-/**
- * The `spoken-intent/1` renderer that the server checks heard text with. The
- * wasm-bindgen build of `crates/spoken-intent` supplies it, so the server and
- * the Wallet render the same text.
- */
-export interface SpokenIntentRendererV1 {
-  render(
-    requestBorsh: Uint8Array,
-  ): { readonly kind: 'rendered'; readonly spokenText: string } | { readonly kind: 'unsupported' };
-  /** The spoken tokens of a transcript, or null when the grammar cannot read it. */
-  normalize(transcript: string): readonly string[] | null;
-}
-
-/** Marks one request digest as used. False when it was used before. */
-export type ConsumeVoiceIdIntent = (
-  operationChallenge: DigestB64u,
-  expiresAtMs: number,
-  nowMs: number,
-) => Promise<boolean>;
-
-class VerifiedVoiceIdIntentStatementProof {
-  private readonly proofBrand = true;
-
-  constructor(
-    readonly statement: VoiceIdIntentStatement,
-    readonly deviceKeyId: DigestB64u,
-    readonly spokenText: string,
-  ) {
-    void this.proofBrand;
-  }
-}
-
-/**
- * The device key signed this spoken request, and its heard text renders to the
- * request. It is neither an operation proof nor a Wallet Session proof, and no
- * conversion exists to either.
- */
-export type VerifiedVoiceIdIntentProof = VerifiedVoiceIdIntentStatementProof;
-
-/**
- * Only this server boundary turns a signed intent statement into verified
- * proof. It recomputes the request digest from the request bytes, renders the
- * spoken text, checks the heard text against it, checks the audio digest,
- * verifies the device signature and uses the request digest once.
- */
-export async function verifyVoiceIdIntentAssertion(input: {
-  registered: RegisteredVoiceIdDeviceKey;
-  assertion: unknown;
-  operationKind: VoiceIdIntentOperationKind;
-  requestBorsh: Uint8Array;
-  audioDigest: DigestB64u;
-  requestOrigin: string;
-  renderer: SpokenIntentRendererV1;
-  nowMs: number;
-  consumeIntent: ConsumeVoiceIdIntent;
-}): Promise<VerifiedVoiceIdIntentProof> {
-  const assertion = parseVoiceIdIntentAssertion(input.assertion);
-  const statement = assertion.statement;
-  if (
-    !Number.isSafeInteger(input.nowMs) ||
-    input.nowMs < statement.issuedAtMs - 5_000 ||
-    input.nowMs >= statement.expiresAtMs ||
-    statement.walletId !== input.registered.walletId ||
-    statement.walletAuthMethodId !== input.registered.walletAuthMethodId ||
-    statement.walletAuthorityId !== input.registered.walletAuthorityId ||
-    statement.deviceKeyId !== input.registered.deviceKeyId ||
-    statement.operationKind !== input.operationKind ||
-    statement.audioDigest !== input.audioDigest ||
-    statement.requestOrigin !== input.requestOrigin
-  ) {
-    throw new Error('VoiceID intent statement does not match this request');
-  }
-  if (statement.operationChallenge !== (await spokenIntentRequestDigestB64u(input.requestBorsh))) {
-    throw new Error('VoiceID intent statement names a different request');
-  }
-  const rendered = input.renderer.render(input.requestBorsh);
-  if (rendered.kind !== 'rendered') throw new Error('VoiceID intent request is not speakable');
-  if (statement.spokenTextDigest !== (await spokenTextDigestB64u(rendered.spokenText))) {
-    throw new Error('VoiceID intent spoken text does not match the request');
-  }
-  const heardTokens = input.renderer.normalize(statement.heardText);
-  if (!heardTokens || heardTokens.join(' ') !== rendered.spokenText) {
-    throw new Error('VoiceID intent heard text does not match the request');
-  }
-  await requireRegisteredDeviceSignature(
-    input.registered,
-    assertion.signatureB64u,
-    voiceIdIntentStatementBytes(statement),
-  );
-  if (!(await input.consumeIntent(statement.operationChallenge, statement.expiresAtMs, input.nowMs))) {
-    throw new Error('VoiceID intent request was already used');
-  }
-  return new VerifiedVoiceIdIntentStatementProof(
-    statement,
-    input.registered.deviceKeyId,
-    rendered.spokenText,
   );
 }

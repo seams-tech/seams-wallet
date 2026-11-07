@@ -1,0 +1,319 @@
+import { NEAR_ED25519_MPC_OPERATION_KINDS } from '@shared/authorization/capabilityKinds';
+import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
+import { hasExactKeys } from '@shared/utils/exactKeys';
+import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import { isPlainObject } from '@shared/utils/validation';
+import { resolveWalletSessionOperationCredentialAdmissionFromContext } from '../../auth/commonRouterUtils';
+import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
+import type {
+  RouterApiAuthorizationSessionService,
+  RouterApiWalletRegistrationService,
+} from '../../framework/authServicePort';
+import type { NormalizedRouterLogger } from '../../framework/logger';
+import { defineRoute } from '../../framework/routeDefinitions';
+import type {
+  RouterApiFetchRouteExtensionInput,
+  RouterApiRouteExtension,
+} from '../../framework/routeExtensions';
+
+export const SPEAK_TO_SIGN_VERIFY_PATH = '/speak-to-sign/v1/verify';
+/** 8 s of 16 kHz PCM16 is 256,000 bytes, about 341 KB in base64, with room for the fields. */
+export const SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES = 400 * 1024;
+/** The verifier calls two remote models; the whole flow has a 10 s budget. */
+const OUTLAYER_TIMEOUT_MS = 20_000;
+const OUTLAYER_RESOURCE_LIMITS = Object.freeze({
+  max_instructions: 10_000_000_000,
+  max_memory_mb: 128,
+  max_execution_seconds: 15,
+});
+
+/** The route exists only when the server configuration holds every field. */
+export type SpeakToSignVerifyConfig = Readonly<{
+  /** For example `https://api.outlayer.fastnear.com`. */
+  outlayerBaseUrl: string;
+  /** `owner/project`, for example `seams-v1.testnet/voice-verifier`. */
+  project: string;
+  /** The WASM hash of the pinned verifier version. */
+  versionKey: string;
+  /** The OutLayer payment key. It goes only into the X-Payment-Key header. */
+  paymentKey: string;
+  secretsRef: Readonly<{ profile: string; accountId: string }>;
+}>;
+
+export type SpeakToSignVerifyRateLimit = (input: {
+  readonly walletId: WalletId;
+}) => Promise<{ readonly allowed: boolean }>;
+
+export type SpeakToSignVerifyDependencies = Readonly<{
+  authorizationSessions: Pick<
+    RouterApiAuthorizationSessionService,
+    'tenantId' | 'readWalletSessionAuthorizationV2ByOperationCredential'
+  >;
+  /** Resolves the NEAR account of the session's Ed25519 signer for the owner check. */
+  walletRegistration: Pick<RouterApiWalletRegistrationService, 'resolveEd25519MaterialActivation'>;
+  fetch: typeof fetch;
+  rateLimit?: SpeakToSignVerifyRateLimit;
+  now?: () => number;
+}>;
+
+const ENV_NAMES = [
+  'SPEAK_TO_SIGN_OUTLAYER_BASE_URL',
+  'SPEAK_TO_SIGN_OUTLAYER_PROJECT',
+  'SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY',
+  'SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY',
+  'SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE',
+  'SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID',
+] as const;
+
+/** Null when no Speak-to-Sign variable is set. A partial set is a deployment error. */
+export function readSpeakToSignVerifyConfig(
+  read: (name: (typeof ENV_NAMES)[number]) => string | undefined,
+): SpeakToSignVerifyConfig | null {
+  const values = ENV_NAMES.map((name) => read(name)?.trim() || '');
+  if (values.every((value) => value === '')) return null;
+  const missing = ENV_NAMES.filter((_, index) => values[index] === '');
+  if (missing.length > 0) {
+    throw new Error(`Speak-to-Sign verify needs ${missing.join(', ')}`);
+  }
+  const [outlayerBaseUrl, project, versionKey, paymentKey, profile, accountId] = values;
+  return { outlayerBaseUrl, project, versionKey, paymentKey, secretsRef: { profile, accountId } };
+}
+
+export function createSpeakToSignVerifyRouteExtensions(
+  config: SpeakToSignVerifyConfig | null,
+  dependencies: SpeakToSignVerifyDependencies,
+): readonly RouterApiRouteExtension[] {
+  if (!config) return [];
+  return [new SpeakToSignVerifyRoutes(resolveConfig(config), dependencies)];
+}
+
+type ResolvedConfig = Readonly<{
+  callUrl: string;
+  versionKey: string;
+  paymentKey: string;
+  secretsRef: Readonly<{ profile: string; account_id: string }>;
+}>;
+
+function resolveConfig(config: SpeakToSignVerifyConfig): ResolvedConfig {
+  let base: URL;
+  try {
+    base = new URL(config.outlayerBaseUrl);
+  } catch {
+    throw new Error('Speak-to-Sign OutLayer base URL is invalid');
+  }
+  if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) {
+    throw new Error('Speak-to-Sign OutLayer base URL must be a plain HTTPS URL');
+  }
+  if (!/^[a-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(config.project)) {
+    throw new Error('Speak-to-Sign OutLayer project must be owner/project');
+  }
+  for (const [label, value] of [
+    ['version key', config.versionKey],
+    ['payment key', config.paymentKey],
+    ['secrets profile', config.secretsRef.profile],
+    ['secrets account', config.secretsRef.accountId],
+  ] as const) {
+    if (!value || value.trim() !== value) {
+      throw new Error(`Speak-to-Sign OutLayer ${label} is required`);
+    }
+  }
+  return {
+    callUrl: `${base.origin}${base.pathname.replace(/\/+$/, '')}/call/${config.project}`,
+    versionKey: config.versionKey,
+    paymentKey: config.paymentKey,
+    secretsRef: { profile: config.secretsRef.profile, account_id: config.secretsRef.accountId },
+  };
+}
+
+type SessionSubject = Readonly<{
+  walletId: WalletId;
+  ed25519: MpcMaterialActivationRef | null;
+}>;
+
+class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
+  readonly kind = 'fetch_route_extension' as const;
+  readonly id = 'speak_to_sign_verify';
+  readonly routes = [
+    defineRoute({
+      id: 'speak_to_sign_verify',
+      surface: 'relay',
+      method: 'POST',
+      path: SPEAK_TO_SIGN_VERIFY_PATH,
+      auth: {
+        plane: 'public',
+        rationale: 'The handler requires an active Wallet Session operation credential.',
+      },
+      metering: { kind: 'none' },
+      summary: 'Run the pinned OutLayer voice verifier for a spoken payment',
+    }),
+  ] as const;
+  private readonly now: () => number;
+
+  constructor(
+    private readonly config: ResolvedConfig,
+    private readonly dependencies: SpeakToSignVerifyDependencies,
+  ) {
+    this.now = dependencies.now ?? Date.now;
+  }
+
+  async handleFetchRoute(input: RouterApiFetchRouteExtensionInput): Promise<Response> {
+    const startedAtMs = this.now();
+    const subject = await this.authenticate(input.request, startedAtMs);
+    if (!subject) return failure(401, 'unauthorized');
+    const { walletId } = subject;
+    if (this.dependencies.rateLimit) {
+      const limit = await this.dependencies.rateLimit({ walletId });
+      if (!limit.allowed) return failure(429, 'rate_limited');
+    }
+    const body = await readBoundedText(input.request, SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES);
+    if (body === 'too_large') return failure(413, 'body_too_large');
+    const verifierInput = parseVerifyBody(body);
+    if (verifierInput === null) return failure(400, 'invalid_body');
+    // The verifier compares the audio with the voice template of `owner`. Only that owner may ask.
+    const owner = await this.sessionNearAccount(subject);
+    if (owner === null) return failure(403, 'owner_unavailable');
+    if (verifierInput.owner !== owner) return failure(403, 'owner_mismatch');
+    return await this.callVerifier(verifierInput, input.logger, startedAtMs);
+  }
+
+  private async authenticate(request: Request, nowMs: number): Promise<SessionSubject | null> {
+    const token = extractBearerCredential(request.headers);
+    if (!token) return null;
+    const sessions = this.dependencies.authorizationSessions;
+    const context = await sessions.readWalletSessionAuthorizationV2ByOperationCredential({
+      tenantId: sessions.tenantId,
+      token,
+      nowMs,
+    });
+    if (!context) return null;
+    const admission = resolveWalletSessionOperationCredentialAdmissionFromContext({
+      context,
+      nowMs,
+      operation: {
+        keyFamily: 'ed25519',
+        operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
+      },
+    });
+    if (admission.kind !== 'admitted') return null;
+    return {
+      walletId: context.authorization.session.walletId,
+      ed25519: context.authority.signerActivations.ed25519?.materialActivation ?? null,
+    };
+  }
+
+  /** The NEAR account of the session's Ed25519 signer, or null when the wallet has none. */
+  private async sessionNearAccount(subject: SessionSubject): Promise<string | null> {
+    if (!subject.ed25519) return null;
+    const resolved = await this.dependencies.walletRegistration.resolveEd25519MaterialActivation({
+      walletId: String(subject.walletId),
+      materialActivation: routerAbMpcMaterialActivationRefToWire(subject.ed25519),
+    });
+    return resolved.ok ? resolved.nearAccountId : null;
+  }
+
+  private async callVerifier(
+    verifierInput: Record<string, unknown>,
+    logger: NormalizedRouterLogger,
+    startedAtMs: number,
+  ): Promise<Response> {
+    const outlayerStartedAtMs = this.now();
+    let response: Response;
+    try {
+      response = await this.dependencies.fetch(this.config.callUrl, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-payment-key': this.config.paymentKey,
+        },
+        body: JSON.stringify({
+          input: verifierInput,
+          async: false,
+          version_key: this.config.versionKey,
+          secrets_ref: this.config.secretsRef,
+          resource_limits: OUTLAYER_RESOURCE_LIMITS,
+        }),
+        signal: AbortSignal.timeout(OUTLAYER_TIMEOUT_MS),
+      });
+    } catch (error: unknown) {
+      const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
+      logger.warn('[speak-to-sign] OutLayer call failed', { timedOut });
+      return failure(timedOut ? 504 : 502, timedOut ? 'verifier_timeout' : 'verifier_unreachable');
+    }
+    const outlayerMs = this.now() - outlayerStartedAtMs;
+    if (!response.ok) {
+      logger.warn('[speak-to-sign] OutLayer refused the call', { status: response.status });
+      return failure(...outlayerStatusFailure(response.status));
+    }
+    const output = readOutlayerOutput(await response.text());
+    if (output === null) {
+      logger.warn('[speak-to-sign] OutLayer returned no verifier output');
+      return failure(502, 'verifier_failed');
+    }
+    return Response.json(
+      { ok: true, output, timing: { outlayerMs, serverMs: this.now() - startedAtMs } },
+      { headers: { 'cache-control': 'no-store' } },
+    );
+  }
+}
+
+/** Body: `{ input }`, where `input` is the verifier input object. The server does not read it. */
+function parseVerifyBody(text: string): Record<string, unknown> | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!hasExactKeys(raw, ['input']) || !isPlainObject(raw.input)) return null;
+  return raw.input;
+}
+
+/** The verifier's own output, unchanged, or null when the run did not complete. */
+function readOutlayerOutput(text: string): unknown {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isPlainObject(raw) || raw.error != null) return null;
+  if (typeof raw.status === 'string' && raw.status !== 'completed') return null;
+  return raw.output ?? null;
+}
+
+function outlayerStatusFailure(status: number): [number, string] {
+  if (status === 401 || status === 402 || status === 403) return [503, 'verifier_payment_unavailable'];
+  if (status === 429) return [503, 'verifier_busy'];
+  if (status >= 400 && status < 500) return [502, 'verifier_rejected_request'];
+  return [502, 'verifier_failed'];
+}
+
+async function readBoundedText(request: Request, maximumBytes: number): Promise<string | 'too_large'> {
+  const declared = Number(request.headers.get('content-length') ?? '0');
+  if (Number.isFinite(declared) && declared > maximumBytes) return 'too_large';
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    length += value.length;
+    if (length > maximumBytes) {
+      await reader.cancel();
+      return 'too_large';
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function failure(status: number, code: string): Response {
+  return Response.json({ ok: false, code }, { status, headers: { 'cache-control': 'no-store' } });
+}

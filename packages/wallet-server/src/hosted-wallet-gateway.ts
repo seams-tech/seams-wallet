@@ -98,6 +98,10 @@ import {
   ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1,
 } from './cloud-host';
 import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './cloud-host';
+import {
+  createSpeakToSignVerifyRouteExtensions,
+  readSpeakToSignVerifyConfig,
+} from './router/domains/speakToSign/speakToSignVerify';
 
 export interface CloudflareD1GatewayBaseEnv
   extends Readonly<Record<string, unknown>>, RouterAbServiceBindingEnv {
@@ -160,6 +164,12 @@ export interface CloudflareD1GatewayBaseEnv
   readonly EMAIL_OTP_LOCKOUT_TTL_MS?: string;
   readonly EMAIL_OTP_GOOGLE_REGISTRATION_ATTEMPT_RATE_LIMIT_MAX?: string;
   readonly EMAIL_OTP_GOOGLE_REGISTRATION_ATTEMPT_RATE_LIMIT_WINDOW_MS?: string;
+  readonly SPEAK_TO_SIGN_OUTLAYER_BASE_URL?: string;
+  readonly SPEAK_TO_SIGN_OUTLAYER_PROJECT?: string;
+  readonly SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY?: string;
+  readonly SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY?: string;
+  readonly SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE?: string;
+  readonly SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID?: string;
 }
 
 export function readStagingHostedWalletOrigins(
@@ -777,6 +787,14 @@ export async function createHostedWalletGatewayCompositionV1(
         authorizationSessions: service.authorizationSessions,
         directory: env.WALLET_CONSOLE,
       }),
+      ...createSpeakToSignVerifyRouteExtensions(
+        readSpeakToSignVerifyConfig((name) => readEnvString(env, name)),
+        {
+          authorizationSessions: service.authorizationSessions,
+          walletRegistration: service.walletRegistration,
+          fetch: globalThis.fetch.bind(globalThis),
+        },
+      ),
     ],
     router: {
       healthz: true,
