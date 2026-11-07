@@ -18,6 +18,7 @@ import { ScanIcon } from './icons/ScanIcon';
 import { LinkIcon } from './icons/LinkIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { LockIcon } from './icons/LockIcon';
+import { WalletIcon } from './icons/WalletIcon';
 import { useSeams } from '../../context';
 import { useTheme } from '../theme';
 import { SunIcon } from './icons/SunIcon';
@@ -25,6 +26,12 @@ import { MoonIcon } from './icons/MoonIcon';
 import './WalletSettingsLayout.css';
 
 const SETTINGS_ITEMS = [
+  {
+    id: PROFILE_MENU_ITEM_IDS.ASSETS,
+    label: 'Assets',
+    description: 'See balances, deposit and withdraw',
+    icon: <WalletIcon />,
+  },
   {
     id: PROFILE_MENU_ITEM_IDS.ACCOUNTS,
     label: 'Accounts',

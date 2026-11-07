@@ -30,6 +30,7 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 | `devices`      | デバイス連携フローの開始、承認、確認。                                |
 | `keys`         | 新たな承認を伴うエクスポート処理。                                    |
 | `placement`    | ウォレットのリージョンの取得と、所有者が選ぶリージョンへの移動。      |
+| `assets`       | 登録済み資産の残高の取得と、出金の準備。                              |
 
 `evm`と`tempo`は、どちらも`signTransaction`、`signAndSendTransaction`、ブロードキャスト後の報告用`advanced`を提供します。
 トランザクション形式は異なります。TempoはEIP-2718を使い、署名結果に`senderHashHex`を返します。
@@ -62,6 +63,26 @@ seams.connection.dispose();
 準備完了には、セッションと設定の初期照合を含みます。同時の呼び出しは、1回の接続試行を共有します。
 失敗した試行を再実行するには、`connect`を呼びます。
 破棄は最終状態で、クライアントのリソースを解放します。ウォレットのロックや永続的な事前署名の削除は行いません。
+
+## 資産の残高 {#asset-balances}
+
+`seams.assets`は、公開チェーンデータとアプリで設定したRPCエンドポイントを使い、ウォレットの登録済み資産を読み取ります。ウォレットセッションは不要です。
+
+```ts [Partial example]
+const { balances } = await seams.assets.read({
+  nearAccount: 'alice.near',
+  evmAddress: '0x1111111111111111111111111111111111111111',
+});
+for (const balance of balances) {
+  if (balance.kind === 'read') console.log(balance.asset.symbol, balance.available);
+  else console.warn(balance.asset.symbol, balance.reason);
+}
+```
+
+- `list()`は、設定したチェーンの登録済み資産を表示順で返します。
+- `read()`は拒否しません。読み取れない資産は、ゼロではなく`{ kind: 'unavailable', reason }`になります。NEARの`available`はストレージ用の予約を除き、その予約は`reserved`です。
+- `onChange(listener)`は、`read()`が完了するたびに実行します。
+- `prepareWithdrawal({ asset, from, recipient, amount })`は、金額と送金先を確認し、署名前のNEARまたはEVMの取引、または`{ kind: 'rejected', reason }`を返します。`seams.near.signAndSendTransaction`または`seams.evm.signAndSendTransaction`で送信します。
 
 ## 対象ウォレットとチェーンの指定 {#naming-the-subject-and-the-chain}
 

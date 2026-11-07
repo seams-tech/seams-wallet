@@ -18,6 +18,8 @@ type AccountMenuButtonViewProps = {
   dropdown: React.ComponentProps<typeof ProfileDropdown>;
   className?: string;
   style?: React.CSSProperties;
+  /** Overview content between the identity row and the menu groups, such as balances. */
+  overviewHeader?: React.ReactNode;
   children?: React.ReactNode;
 };
 
@@ -106,6 +108,7 @@ export function AccountMenuButtonView({
   dropdown,
   className,
   style,
+  overviewHeader,
   children,
 }: AccountMenuButtonViewProps): React.JSX.Element {
   const locale = useWalletLocale();
@@ -185,6 +188,7 @@ export function AccountMenuButtonView({
                       {trigger.emailAddress ? <small>{trigger.emailAddress}</small> : null}
                     </div>
                   </div>
+                  {overviewHeader}
                   <ProfileDropdown {...dropdown} />
                 </>
               )}

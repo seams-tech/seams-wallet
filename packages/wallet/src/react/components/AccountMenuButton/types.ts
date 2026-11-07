@@ -15,6 +15,7 @@ export interface ProfileAnimationConfig {
 }
 
 export const PROFILE_MENU_ITEM_IDS = {
+  ASSETS: 'assets',
   ACCOUNTS: 'accounts',
   EXPORT_KEYS: 'export-keys',
   AUTHENTICATION_METHODS: 'authentication-methods',

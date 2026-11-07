@@ -54,6 +54,7 @@ import {
 import type {
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { walletIdFromString } from '@shared/utils/registrationIds';
+import type { AssetsCapability } from '@/SeamsWeb/publicApi/assets';
 /**
  * Main SeamsWeb class that provides framework-agnostic passkey operations
  * with flexible event-based callbacks for custom UX implementation
@@ -79,6 +80,7 @@ export class SeamsWeb {
   readonly near: NearSignerCapability;
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
+  readonly assets: AssetsCapability;
   constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
     this.configs = buildConfigsFromEnv(configs);
     // Use provided client or create default one
@@ -180,6 +182,7 @@ export class SeamsWeb {
     this.near = publicApi.near;
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
+    this.assets = publicApi.assets;
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();

@@ -45,10 +45,18 @@ import { ExportKeysScreen } from './ExportKeysScreen';
 import { ExportKeysSection } from './ExportKeysSection';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
 import { HostedSeamsAuthMenu } from '../HostedSeamsAuthMenu/public';
+import { WalletIcon } from './icons/WalletIcon';
+import { AssetActions, AssetRows, BalancesCard, hasWithdrawableBalance } from './assets/AssetViews';
+import { DepositPanel } from './assets/DepositPanel';
+import { WithdrawPanel } from './assets/WithdrawPanel';
+import { AssetsPageSection, useWalletAssetsController } from './assets/WalletAssets';
 import type { HostedAuthMenuOutcome, HostedSeamsAuthMenuProps } from '../HostedSeamsAuthMenu/types';
 
 type AccountMenuRoute =
   | 'overview'
+  | 'assets'
+  | 'deposit'
+  | 'withdraw'
   | 'accounts'
   | 'export-keys'
   | 'recovery-codes'
@@ -217,6 +225,25 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
   );
 
   useEffect(resetNavigation.bind(null, isOpen, setScreen), [isOpen]);
+
+  const assets = useWalletAssetsController({
+    seams,
+    walletId: loginState.isLoggedIn ? walletId : null,
+    nearAccount: loginState.isLoggedIn ? (nearAccountId ?? null) : null,
+    evmAddress: loginState.isLoggedIn ? (loginState.thresholdEcdsaEthereumAddress ?? null) : null,
+    active: loginState.isLoggedIn && (layout === 'page' || isOpen),
+    poll: screen === 'assets',
+  });
+  // Deposit and Withdraw return to the screen that opened them.
+  const [assetReturn, setAssetReturn] = useState<'overview' | 'assets'>('overview');
+  const openAssetFlow = (route: 'deposit' | 'withdraw') => {
+    setAssetReturn(screen === 'assets' ? 'assets' : 'overview');
+    setScreen(route);
+  };
+  const closeAssetFlow = () => {
+    setScreen(assetReturn);
+    assets.refresh();
+  };
 
   // Read current theme from Theme context (falls back to system preference)
   const { theme } = useTheme();
@@ -513,6 +540,17 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       );
     }
 
+    // The menu shows assets as its balance card; the full page lists them as a section.
+    if (layout === 'page') {
+      items.push({
+        id: PROFILE_MENU_ITEM_IDS.ASSETS,
+        icon: <WalletIcon />,
+        label: 'Assets',
+        description: 'See balances, deposit and withdraw',
+        disabled: !loginState.isLoggedIn,
+      });
+    }
+
     if (layout === 'page') {
       items.push({
         id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
@@ -578,6 +616,32 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
   const backToMenu = setScreen.bind(null, 'overview');
   const screens: Record<typeof screen, React.ReactNode> = {
     overview: null,
+    assets: (
+      <AccountMenuScreen title={walletText(locale, 'Assets')} onBack={backToMenu}>
+        <AssetRows state={assets.state} onRetry={assets.refresh} />
+        <div className="seams-assets-screen-actions">
+          <AssetActions
+            onDeposit={openAssetFlow.bind(null, 'deposit')}
+            onWithdraw={openAssetFlow.bind(null, 'withdraw')}
+            canWithdraw={hasWithdrawableBalance(assets.state)}
+          />
+        </div>
+      </AccountMenuScreen>
+    ),
+    deposit: (
+      <AccountMenuScreen title={walletText(locale, 'Deposit')} onBack={closeAssetFlow}>
+        <DepositPanel
+          assets={assets.depositAssets}
+          nearAccount={assets.nearAccount}
+          evmAddress={assets.evmAddress}
+        />
+      </AccountMenuScreen>
+    ),
+    withdraw: (
+      <AccountMenuScreen title={walletText(locale, 'Withdraw')} onBack={closeAssetFlow}>
+        <WithdrawPanel {...assets.withdraw} />
+      </AccountMenuScreen>
+    ),
     'transaction-settings': (
       <AccountMenuScreen title={walletText(locale, 'Transaction settings')} onBack={backToMenu}>
         {currentConfirmConfig ? (
@@ -677,6 +741,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
           onLock={handleLock}
           error={settingsError}
           sections={{
+            assets: <AssetsPageSection controller={assets} />,
             accounts: <AccountsSection rows={accountsRows} presentation="page" />,
             'export-keys': (
               <ExportKeysSection
@@ -760,6 +825,17 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       dropdownRef={refs.dropdownRef}
       className={className}
       style={style}
+      overviewHeader={
+        loginState.isLoggedIn ? (
+          <BalancesCard
+            state={assets.state}
+            onRetry={assets.refresh}
+            onOpenAssets={setScreen.bind(null, 'assets')}
+            onDeposit={openAssetFlow.bind(null, 'deposit')}
+            onWithdraw={openAssetFlow.bind(null, 'withdraw')}
+          />
+        ) : null
+      }
       trigger={{
         label: loginState.isLoggedIn ? 'Settings' : 'Logged out',
         username: accountName,
@@ -851,4 +927,6 @@ function WalletSettingsContent(props: Pick<HostedSeamsAuthMenuProps, 'externalAu
 }
 
 export { AccountMenuButtonMock } from './AccountMenuButtonMock';
+export { WalletBalances } from './assets/WalletAssets';
+export type { WalletBalancesProps } from './assets/WalletAssets';
 export type { AccountMenuButtonMockProps } from './AccountMenuButtonMock';

@@ -24,6 +24,7 @@ import '@seams/wallet/react/styles';
 | `ProfileSettingsButton`   | The same component as `AccountMenuButton`, under a second name.               | Yes                |
 | `AccountMenuButtonMock`   | An interactive account-menu preview with sample data.                         | No                 |
 | `WalletSettingsPage`      | Full-page wallet settings. Signed-out users see hosted authentication.        | Yes                |
+| `WalletBalances`          | The settings balance card, for your own wallet panel.                         | Yes                |
 | `ShowQRCode`              | The new device's link code, from start to expiry.                             | Yes                |
 | `QRCodeScanner`           | The existing device's camera scanner and link approval.                       | Yes                |
 | `TransactionReviewHost`   | The dialog for your own review content before wallet approval.                | Yes                |
@@ -57,8 +58,8 @@ See [hosted auth menu](/reference/react#wallet-alternatives) for each prop and
 
 ## Wallet settings
 
-`AccountMenuButton` opens the account, auth-method, recovery-code, linked-device,
-export, and transaction settings. It needs `nearAccountId`. The default
+`AccountMenuButton` opens the balance, account, auth-method, recovery-code,
+linked-device, export, and transaction settings. It needs `nearAccountId`. The default
 `presentation="dropdown"` includes the SDK trigger button. With `"modal"` or
 `"drawer"`, your own button opens the settings through `isMenuOpen` and
 `onMenuOpenChange`.
@@ -66,6 +67,27 @@ export, and transaction settings. It needs `nearAccountId`. The default
 `WalletSettingsPage` shows the same settings as a full page. It also shows the
 wallet region setting. See [React components](/reference/react#components)
 for the presentation modes, the drawer behaviour, and the region setting.
+
+### Balances, deposit, and withdraw
+
+The settings overview starts with a balance card. It shows the three leading balances,
+an **All assets** link, and **Deposit** and **Withdraw**.
+
+- **Assets** lists each asset on the wallet's own list for the configured chains. On
+  NEAR mainnet these are NEAR, stNEAR, USDC, USDt, ETH, BTC, SOL, and ZEC. BTC, SOL, and
+  ZEC are NEAR Intents tokens on NEAR. On NEAR testnet the list is NEAR, stNEAR, and
+  USDC. EVM chains add their native coin and listed tokens.
+- **Deposit** shows the wallet's address for one asset, a QR code, and the network it
+  must arrive on. It receives only on that network.
+- **Withdraw** checks the amount and the recipient, then opens the wallet's confirm card.
+  Nothing is signed before the user confirms. A token recipient without token storage
+  gets a `storage_deposit` in the same transaction.
+
+A balance that cannot be read shows as **Unavailable**, never as zero. Amounts show
+without prices. `WalletBalances` renders the same card in your own panel; pass
+`onDeposit`, `onWithdraw`, and `onOpenAssets` to open your settings or your own flow.
+`seams.assets` gives the same data without UI; see
+[core reference](/reference/core#asset-balances).
 
 ## Device linking
 

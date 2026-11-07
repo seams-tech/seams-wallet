@@ -2,6 +2,7 @@ import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import { ActionType, type ActionArgsWasm, type TransactionInputWasm } from '@/core/types/actions';
 import { isValidAccountId } from '@shared/utils/near';
 import { isObject, isString } from '@shared/utils/validation';
+import { listedNearToken } from '@/core/assets/assetList';
 
 type NearNetwork = 'testnet' | 'mainnet';
 
@@ -31,42 +32,6 @@ const MAX_U128_DIGITS = 39;
 const MAX_TOKEN_DECIMALS = 38;
 // An ASCII-only symbol cannot imitate a known symbol with look-alike characters or bidi controls.
 const TOKEN_SYMBOL = /^[A-Za-z0-9$._+-]{1,16}$/;
-
-// An implicit account id can hold another contract on the other network, so each list is separate.
-const KNOWN_NEAR_TOKENS: Readonly<
-  Record<NearNetwork, Readonly<Record<string, { symbol: string; decimals: number }>>>
-> = {
-  mainnet: {
-    '17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1': {
-      symbol: 'USDC',
-      decimals: 6,
-    },
-    'usdt.tether-token.near': { symbol: 'USDt', decimals: 6 },
-    'wrap.near': { symbol: 'wNEAR', decimals: 24 },
-    'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near': {
-      symbol: 'USDT.e',
-      decimals: 6,
-    },
-    'meta-pool.near': { symbol: 'stNEAR', decimals: 24 },
-    'eth.bridge.near': { symbol: 'ETH', decimals: 18 },
-    'btc.omft.near': { symbol: 'BTC', decimals: 8 },
-    'nbtc.bridge.near': { symbol: 'nBTC', decimals: 8 },
-    '2260fac5e5542a773aa44fbcfedf7c193bc2c599.factory.bridge.near': {
-      symbol: 'WBTC',
-      decimals: 8,
-    },
-    'sol.omft.near': { symbol: 'SOL', decimals: 9 },
-    'zec.omft.near': { symbol: 'ZEC', decimals: 8 },
-  },
-  testnet: {
-    '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af': {
-      symbol: 'USDC',
-      decimals: 6,
-    },
-    'wrap.testnet': { symbol: 'wNEAR', decimals: 24 },
-    'meta-v2.pool.testnet': { symbol: 'stNEAR', decimals: 24 },
-  },
-};
 
 // A contract outside the known list that claims one of these symbols gets a warning.
 const IMPERSONATED_TOKEN_SYMBOLS = new Set([
@@ -146,7 +111,7 @@ function metadataKey(network: NearNetwork, contract: string): string {
 }
 
 function immediateMetadata(network: NearNetwork, contract: string): NearTokenMetadata | undefined {
-  const known = KNOWN_NEAR_TOKENS[network][contract];
+  const known = listedNearToken(network, contract);
   return known
     ? { ...known, verified: true }
     : resolvedMetadata.get(metadataKey(network, contract));

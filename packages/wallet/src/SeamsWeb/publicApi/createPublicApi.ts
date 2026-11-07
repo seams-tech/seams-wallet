@@ -12,6 +12,7 @@ import {
   type KeyExportDomainMethods,
 } from '@/SeamsWeb/publicApi/keyExport';
 import { createNearSignerCapability } from '@/SeamsWeb/publicApi/near';
+import { createAssetsCapability, type AssetsCapability } from '@/SeamsWeb/publicApi/assets';
 import { createEvmFamilyCapabilities } from '@/SeamsWeb/publicApi/tempo';
 import type {
   AuthCapability,
@@ -74,6 +75,7 @@ export type SeamsWebPublicApi = {
   near: NearSignerCapability;
   tempo: TempoSignerCapability;
   evm: EvmSignerCapability;
+  assets: AssetsCapability;
 };
 type PublicApiDependencies = {
   createNearCommands: CreateNearCommands;
@@ -137,6 +139,7 @@ export function createPublicApi(
     near,
     tempo: evmFamily.tempo,
     evm: evmFamily.evm,
+    assets: createAssetsCapability({ configs: deps.configs, nearClient: deps.nearClient }),
   };
 }
 async function registerWallet(
