@@ -8,6 +8,7 @@ import type {
 } from '../../shared/messages';
 import type { WalletIframeExactSessionSnapshot } from '../../shared/exactSessionState';
 import type { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
+import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 
 export type Req<T extends ParentToChildType> = Extract<ParentToChildEnvelope, { type: T }>;
 
@@ -27,4 +28,6 @@ export interface HandlerDeps {
   postProgress(requestId: string | undefined, payload: ProgressPayload): void;
   isCancelled(requestId: string | undefined): boolean;
   respondIfCancelled(requestId: string | undefined): boolean;
+  /** Where the current foreground request reports the size of its surface. */
+  surfaceMeasurementBinding(): UiConfirmSurfaceMeasurementBinding;
 }

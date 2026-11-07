@@ -71,6 +71,7 @@ const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = ne
   'PM_ACTIVATE_AUTH_METHOD',
   'PM_EXTERNAL_OWNER_AUTH',
   'PM_OWNER_NEAR_TRANSACTION',
+  'PM_SPEAK_TO_SIGN_TRANSFER',
   'PM_ADD_EMAIL_OTP',
   'PM_REVOKE_AUTH_METHOD',
   'PM_REVOKE_LINKED_DEVICE',
@@ -331,7 +332,12 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
     postProgress,
     isCancelled: input.isCancelled,
     respondIfCancelled: input.respondIfCancelled,
+    surfaceMeasurementBinding: readSurfaceMeasurementBinding.bind(null, ctx),
   };
+}
+
+function readSurfaceMeasurementBinding(ctx: HostContext): UiConfirmSurfaceMeasurementBinding {
+  return ctx.surfaceMeasurementBinding;
 }
 
 function postActivityMessage(

@@ -122,6 +122,22 @@ importers:
         specifier: 6.0.0
         version: 6.0.0
 
+  packages/speak-to-sign:
+    dependencies:
+      react:
+        specifier: '>=19.0.0'
+        version: 19.2.9
+    devDependencies:
+      '@seams/voiceid':
+        specifier: workspace:*
+        version: link:../voiceid
+      '@seams/wallet':
+        specifier: workspace:*
+        version: link:../wallet
+      rolldown:
+        specifier: 1.0.0-rc.9
+        version: 1.0.0-rc.9
+
   packages/voiceid:
     dependencies:
       onnxruntime-web:

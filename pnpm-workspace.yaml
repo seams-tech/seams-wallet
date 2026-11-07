@@ -8,6 +8,7 @@ packages:
   - packages/wallet-server
   - packages/wallet
   - packages/voiceid
+  - packages/speak-to-sign
   - tests
   - tests/intended-app
 nodeLinker: hoisted

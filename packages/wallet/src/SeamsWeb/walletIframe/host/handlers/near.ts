@@ -14,6 +14,8 @@ import {
 import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOkResult, withProgress, withRegistrationProgress } from './shared';
+import { createSpeakToSignWalletIframeHandlers } from './speakToSign';
+import { browserSpeakToSignPorts } from './speakToSignPorts';
 
 function walletSessionFromWalletId(walletIdRaw: unknown) {
   const walletId = toWalletId(walletIdRaw);
@@ -100,6 +102,7 @@ function walletOriginRegistrationAuthMethod(
 
 export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
+    ...createSpeakToSignWalletIframeHandlers(deps, browserSpeakToSignPorts),
     PM_OWNER_NEAR_TRANSACTION: handleOwnerNearTransaction.bind(null, deps),
     PM_REGISTER_WALLET: async (req: Req<'PM_REGISTER_WALLET'>) => {
       const pm = deps.getWalletRuntime();

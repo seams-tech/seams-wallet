@@ -17,6 +17,7 @@ import {
   type WalletConnectionResolution,
 } from './walletAlternatives';
 import type { OwnerNearCommand } from './ownerNearOperation';
+import type { PMSpeakToSignTransferPayload } from './speakToSign';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
@@ -931,6 +932,7 @@ export type ParentToChildType =
   | 'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE'
   | 'PM_SIGN_TX_WITH_ACTIONS'
   | 'PM_OWNER_NEAR_TRANSACTION'
+  | 'PM_SPEAK_TO_SIGN_TRANSFER'
   | 'PM_SIGN_AND_SEND_TX'
   | 'PM_SEND_TRANSACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
@@ -1763,6 +1765,9 @@ export type ParentToChildEnvelope =
       PMRequestWalletCustodyEmailOtpChallengePayload
     >
   | (RpcEnvelope<'PM_OWNER_NEAR_TRANSACTION', OwnerNearCommand> & { payload: OwnerNearCommand })
+  | (RpcEnvelope<'PM_SPEAK_TO_SIGN_TRANSFER', PMSpeakToSignTransferPayload> & {
+      payload: PMSpeakToSignTransferPayload;
+    })
   | RpcEnvelope<'PM_SIGN_TX_WITH_ACTIONS', PMSignTxPayload>
   | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>>
   | RpcEnvelope<'PM_SEND_TRANSACTION', PMSendTxPayload>

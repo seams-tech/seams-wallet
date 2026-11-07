@@ -55,29 +55,16 @@ import type {
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { AssetsCapability } from '@/SeamsWeb/publicApi/assets';
-import type { WalletTransactionFeaturePlugin } from '@/core/transactionFeatures/plugins';
 import {
   createSpeakToSignCapability,
-  type TransactionFeatureApi,
+  type SpeakToSignCapability,
 } from '@/SeamsWeb/publicApi/speakToSign';
+import { createApplicationSpeakToSignTransfer } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 /**
- * Main SeamsWeb client that provides framework-agnostic passkey operations
- * with flexible event-based callbacks for custom UX implementation.
- * `F` is the list of configured transaction features; each one adds its app API.
+ * Main SeamsWeb class that provides framework-agnostic passkey operations
+ * with flexible event-based callbacks for custom UX implementation
  */
-export type SeamsWeb<
-  F extends readonly WalletTransactionFeaturePlugin[] = readonly WalletTransactionFeaturePlugin[],
-> = SeamsWebClient & TransactionFeatureApi<F>;
-
-type SeamsWebConstructor = {
-  new <const F extends readonly WalletTransactionFeaturePlugin[] = readonly []>(
-    configs: SeamsConfigsInput & { readonly transactionFeatures?: F },
-    nearClient?: NearClient,
-  ): SeamsWeb<F>;
-  readonly prototype: SeamsWebClient;
-};
-
-class SeamsWebClient {
+export class SeamsWeb {
   private readonly disposePreferences: () => void;
   private readonly preferenceState = new ClientPreferenceState();
   private readonly nearClient: NearClient;
@@ -99,6 +86,8 @@ class SeamsWebClient {
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
   readonly assets: AssetsCapability;
+  /** Present only when the config holds the Speak-to-Sign descriptor. */
+  readonly speakToSign?: SpeakToSignCapability;
   constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
     this.configs = buildConfigsFromEnv(configs);
     // Use provided client or create default one
@@ -201,10 +190,11 @@ class SeamsWebClient {
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
     this.assets = publicApi.assets;
-    const speakToSign = createSpeakToSignCapability(this.configs.transactionFeatures);
-    if (speakToSign) {
-      Object.defineProperty(this, 'speakToSign', { value: speakToSign, enumerable: true });
-    }
+    const speakToSign = createSpeakToSignCapability(
+      this.configs.transactionFeatures,
+      createApplicationSpeakToSignTransfer(this.walletIframe),
+    );
+    if (speakToSign) this.speakToSign = speakToSign;
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();
@@ -339,6 +329,3 @@ class SeamsWebClient {
     }
   }
 }
-
-// The constructor type adds each configured feature's API; the class cannot declare it.
-export const SeamsWeb = SeamsWebClient as SeamsWebConstructor;

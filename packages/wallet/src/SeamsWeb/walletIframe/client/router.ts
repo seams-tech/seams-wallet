@@ -7,6 +7,7 @@ import { executeOwnerNearRequest } from './ownerNearOperation';
 import type { ExecuteOwnerNearOperation } from '@/SeamsWeb/publicApi/ownerNearOperation';
 import { parseAuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import { createIframePlacementCommands } from './placementCommands';
+import { createIframeSpeakToSignCommands } from './speakToSignCommands';
 import type { WalletRegistrationCommand } from '@/SeamsWeb/publicApi/createPublicApi';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
@@ -389,6 +390,7 @@ function requestSurfaceKindForMessage(
     case 'PM_ACTIVATE_AUTH_METHOD':
       return 'auth_method_activation';
     case 'PM_EXTERNAL_OWNER_AUTH':
+    case 'PM_SPEAK_TO_SIGN_TRANSFER':
       return 'owner_approval';
     case 'PM_OWNER_NEAR_TRANSACTION':
       return isObject(payload) && payload.action === 'recover' ? null : 'owner_approval';
@@ -1229,6 +1231,7 @@ function assertNeverSdkLifecycleEventName(value: never): never {
 
 export class WalletIframeRouter {
   readonly placement = createIframePlacementCommands(this.post.bind(this));
+  readonly speakToSign = createIframeSpeakToSignCommands(this.post.bind(this));
   private readonly walletSessionReads = new Map<string, Promise<WalletSession>>();
   private opts: Required<WalletIframeRouterOptions>;
   // Low-level transport handling iframe mount + handshake
