@@ -28,9 +28,10 @@ async function main() {
   installSignalHandlers();
   if (externalGateway) assertHostedBenchmarkTarget();
   if (process.env.SEAMS_INTENDED_SKIP_BUILD !== '1') buildWalletRuntime();
-  const composedRoot = await mkdtemp(path.join(tmpdir(), 'seams-intended-voiceid-'));
-  const { composeVoiceIdWalletAssets } = await import('@seams/voiceid/hosting');
-  const walletPublicDirectory = await composeVoiceIdWalletAssets({
+  // Speak-to-Sign composes VoiceID first, so the test host serves both optional packages.
+  const composedRoot = await mkdtemp(path.join(tmpdir(), 'seams-intended-wallet-assets-'));
+  const { composeSpeakToSignWalletAssets } = await import('@seams/speak-to-sign/hosting');
+  const walletPublicDirectory = await composeSpeakToSignWalletAssets({
     walletPublicDirectory: path.join(walletDistRoot, 'public'),
     outputDirectory: path.join(composedRoot, 'public'),
   });
@@ -56,6 +57,7 @@ function buildWalletRuntime() {
     process.env,
   );
   runRequired('VoiceID package build', 'pnpm', ['-C', 'packages/voiceid', 'build']);
+  runRequired('Speak-to-Sign package build', 'pnpm', ['-C', 'packages/speak-to-sign', 'build']);
   if (externalGateway) return;
   for (const role of [
     'signing-worker',

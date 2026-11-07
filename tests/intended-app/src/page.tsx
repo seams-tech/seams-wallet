@@ -675,16 +675,31 @@ function intendedRegistrationRpId() {
   return parsed.value;
 }
 
+type IntendedNearAccountProvisioning = NonNullable<
+  RegistrationSignerSetSelection['signers'][number]['accountProvisioning']
+>;
+
+/** A live run with a relayer asks for `<walletId>.<relayer>`; other runs use implicit accounts. */
+function intendedNearAccountProvisioning(): IntendedNearAccountProvisioning {
+  const relayer = String(import.meta.env.VITE_SEAMS_INTENDED_RELAYER_ACCOUNT || '').trim();
+  const walletId = new URL(window.location.href).searchParams.get('walletId');
+  if (!relayer || !walletId) {
+    return { kind: 'implicit_account', accountIdSource: 'ed25519_public_key' };
+  }
+  return {
+    kind: 'sponsored_named_account',
+    requestedAccountId: `${walletId}.${relayer}`,
+    sponsor: 'relayer',
+  } as IntendedNearAccountProvisioning;
+}
+
 function intendedEd25519YaoSignerSelection(): RegistrationSignerSetSelection {
   return {
     kind: 'signer_set',
     signers: [
       {
         kind: 'near_ed25519',
-        accountProvisioning: {
-          kind: 'implicit_account',
-          accountIdSource: 'ed25519_public_key',
-        },
+        accountProvisioning: intendedNearAccountProvisioning(),
         signerSlot: 1,
         participantIds: [1, 2],
         derivationVersion: 1,

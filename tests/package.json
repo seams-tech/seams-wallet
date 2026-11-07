@@ -23,6 +23,7 @@
     "miniflare": "4.20260710.0",
     "viem": "2.46.0",
     "vite": "8.0.0",
+    "@seams/speak-to-sign": "workspace:*",
     "@seams/voiceid": "workspace:*"
   }
 }

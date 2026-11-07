@@ -254,6 +254,9 @@ importers:
       '@playwright/test':
         specifier: 1.56.1
         version: 1.56.1
+      '@seams/speak-to-sign':
+        specifier: workspace:*
+        version: link:../packages/speak-to-sign
       '@seams/voiceid':
         specifier: workspace:*
         version: link:../packages/voiceid
@@ -282,6 +285,9 @@ importers:
         specifier: 19.1.1
         version: 19.1.1(react@19.1.1)
     devDependencies:
+      '@seams/speak-to-sign':
+        specifier: workspace:*
+        version: link:../../packages/speak-to-sign
       '@seams/voiceid':
         specifier: workspace:*
         version: link:../../packages/voiceid
