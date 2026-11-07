@@ -5,6 +5,7 @@ export {
   type AuthMethodActivationResult,
   type AuthMethodCaptureMount,
   type AuthMethodCaptureSettlement,
+  type AuthMethodPhraseRecording,
   type AuthMethodUnlockSuccess,
 } from './core/authMethods/hostPlugin';
 export { type Variant } from '@shared/utils/variant';

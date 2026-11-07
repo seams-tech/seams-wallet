@@ -4,7 +4,7 @@ import type { VoiceCaptureElements } from './capture/surface';
 import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
-export const hostApiVersion = 8;
+export const hostApiVersion = 9;
 if (VOICE_ID_HOST_API_VERSION !== hostApiVersion) {
   throw new Error('VoiceID requires a matching Wallet host API.');
 }
@@ -20,7 +20,17 @@ export function createVoiceIdHostPlugin(
     unlock: unlock.bind(null, model),
     activate: activate.bind(null, model),
     confirmOperation: confirmOperation.bind(null, model),
+    recordPhrase,
   };
+}
+
+/** Records one shown sentence for a transaction feature. It loads no speaker or text model. */
+async function recordPhrase(
+  input: Parameters<WalletAuthMethodHostPlugin['recordPhrase']>[0],
+): ReturnType<WalletAuthMethodHostPlugin['recordPhrase']> {
+  const implementation = await import('./capture/phrase');
+  input.signal.throwIfAborted();
+  return await implementation.recordPhrase(input);
 }
 
 function confirmOperation(

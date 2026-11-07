@@ -1,4 +1,6 @@
 import { readVoiceIdAvailability } from '@/core/authMethods/availability';
+import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
+import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB';
 import { loadSpeakToSignHost } from '@/core/transactionFeatures/hostRegistry';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -9,8 +11,13 @@ export const browserSpeakToSignPorts: SpeakToSignWalletPorts = {
   readVoiceIdAvailability,
   readOperationCredential,
   loadHost: loadSpeakToSignHost,
+  loadVoiceIdHost,
   fetch: fetchFromWindow,
 };
+
+function loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]) {
+  return loadWalletAuthMethodHostPlugin(methods, 'voiceid');
+}
 
 async function readOperationCredential(walletId: WalletId): Promise<string> {
   const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);

@@ -4,6 +4,12 @@ import type { TransactionInput } from '@/core/types/actions';
 import type { ActionResult } from '@/core/types/seams';
 import { isPlainObject } from '@shared/utils/validation';
 import type {
+  AuthMethodPhraseRecording,
+  AuthMethodPhraseRequest,
+} from '@/core/authMethods/hostPlugin';
+import type {
+  SpeakToSignClip,
+  SpeakToSignClipRequest,
   SpeakToSignHostOperations,
   SpeakToSignSubmission,
   SpeakToSignVaultTransferArgs,
@@ -11,6 +17,7 @@ import type {
   SpeakToSignVerifyReply,
 } from './hostPlugin';
 import type { SpeakToSignFeaturePlugin } from './plugins';
+import { pcm16Wav, SAMPLE_RATE } from './wav';
 
 const VERIFY_PATH = '/speak-to-sign/v1/verify';
 /** The demo client measured `transfer_with_verdict` well below this. */
@@ -29,6 +36,8 @@ export type SpeakToSignHostOperationsInput = Readonly<{
     transaction: TransactionInput,
     signal: AbortSignal,
   ) => Promise<ActionResult>;
+  /** The VoiceID host plugin's `recordPhrase`, loaded on first use. */
+  recordPhrase: (request: AuthMethodPhraseRequest) => Promise<AuthMethodPhraseRecording>;
   fetch: typeof fetch;
 }>;
 
@@ -40,9 +49,39 @@ export function createSpeakToSignHostOperations(
   input: SpeakToSignHostOperationsInput,
 ): SpeakToSignHostOperations {
   return {
+    captureClip: captureClip.bind(null, input),
     viewVault: viewVault.bind(null, input),
     verify: verify.bind(null, input),
     submitTransfer: submitTransfer.bind(null, input),
+  };
+}
+
+/** Records one clip on the VoiceID surface and returns it as the verifier's canonical WAV. */
+async function captureClip(
+  input: SpeakToSignHostOperationsInput,
+  request: SpeakToSignClipRequest,
+): Promise<SpeakToSignClip> {
+  request.signal.throwIfAborted();
+  let recording: AuthMethodPhraseRecording;
+  try {
+    recording = await input.recordPhrase({
+      sentence: request.sentence,
+      signal: request.signal,
+      surfaceMeasurementBinding: request.surfaceMeasurementBinding,
+    });
+  } catch (error) {
+    request.signal.throwIfAborted();
+    const detail = error instanceof Error ? error.message.slice(0, 200) : 'recording failed';
+    return { kind: 'unavailable', detail };
+  }
+  if (recording.kind === 'cancelled') return recording;
+  const wav = pcm16Wav(recording.samples);
+  recording.samples.fill(0);
+  return {
+    kind: 'captured',
+    wav,
+    speechMs: Math.round(((wav.length - 44) / 2 / SAMPLE_RATE) * 1_000),
+    endOfSpeechAt: recording.endOfSpeechAt,
   };
 }
 

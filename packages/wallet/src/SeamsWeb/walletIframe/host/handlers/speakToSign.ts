@@ -1,4 +1,9 @@
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
+import type {
+  AuthMethodPhraseRequest,
+  WalletAuthMethodHostPlugin,
+} from '@/core/authMethods/hostPlugin';
+import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 import {
   nearAccountRefFromAccountId,
   toWalletId,
@@ -23,6 +28,8 @@ export type SpeakToSignWalletPorts = Readonly<{
   readVoiceIdAvailability(walletId: WalletId): Promise<AuthMethodAvailability>;
   readOperationCredential(walletId: WalletId): Promise<string>;
   loadHost(features: readonly WalletTransactionFeaturePlugin[]): Promise<SpeakToSignHostPlugin>;
+  /** The VoiceID host plugin records the clip, so its prompt and models load from VoiceID. */
+  loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]): Promise<WalletAuthMethodHostPlugin>;
   fetch: typeof fetch;
 }>;
 
@@ -105,6 +112,7 @@ async function runTransfer(
     nearClient: runtime.getContext().nearClient,
     operationCredential: readCredential.bind(null, ports, walletId),
     signAndSendTransaction: signAndSend.bind(null, deps, request.requestId, walletId, ownerAccountId),
+    recordPhrase: recordPhrase.bind(null, ports, runtime.configs.authMethods),
     fetch: ports.fetch,
   });
   return await plugin.requestTransfer({
@@ -129,6 +137,16 @@ async function readCredential(
 ): Promise<string> {
   signal.throwIfAborted();
   return await ports.readOperationCredential(walletId);
+}
+
+async function recordPhrase(
+  ports: SpeakToSignWalletPorts,
+  methods: readonly WalletAuthMethodPlugin[],
+  request: AuthMethodPhraseRequest,
+) {
+  const voiceId = await ports.loadVoiceIdHost(methods);
+  request.signal.throwIfAborted();
+  return await voiceId.recordPhrase(request);
 }
 
 async function signAndSend(

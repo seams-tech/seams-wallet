@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type {
+  AuthMethodPhraseRecording,
+  AuthMethodPhraseRequest,
+  WalletAuthMethodHostPlugin,
+} from '@/core/authMethods/hostPlugin';
+import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
+import type {
   SpeakToSignHostPlugin,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -138,8 +144,19 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const fetched: { url: string; init: RequestInit }[] = [];
   const binding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' };
   const features = options.features ?? [FEATURE];
+  const authMethods: readonly WalletAuthMethodPlugin[] = [{ kind: 'voiceid' }];
+  const recorderLoads: (readonly WalletAuthMethodPlugin[])[] = [];
+  const phrases: AuthMethodPhraseRequest[] = [];
+  const recorded = new Float32Array([0.5, -0.5, 0.25]);
+  const voiceId = {
+    async recordPhrase(request: AuthMethodPhraseRequest): Promise<AuthMethodPhraseRecording> {
+      phrases.push(request);
+      return { kind: 'recorded', samples: recorded, endOfSpeechAt: 7 };
+    },
+  } as WalletAuthMethodHostPlugin;
   const runtime = {
     configs: {
+      authMethods,
       transactionFeatures: features,
       network: { relayer: { url: options.relayerUrl ?? 'https://relay.example.test' } },
     },
@@ -184,6 +201,10 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
       loads.push(enabled);
       return plugin;
     },
+    async loadVoiceIdHost(methods) {
+      recorderLoads.push(methods);
+      return voiceId;
+    },
     fetch: (async (url: URL, init: RequestInit) => {
       fetched.push({ url: String(url), init });
       return Response.json({ ok: true, output: { verdict_json: '{}' } });
@@ -196,7 +217,19 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     requestId: 'request-1',
     payload: PAYLOAD,
   } as Req<'PM_SPEAK_TO_SIGN_TRANSFER'>;
-  return { run: () => handler(request), posted, pluginCalls, loads, signed, fetched, binding };
+  return {
+    run: () => handler(request),
+    posted,
+    pluginCalls,
+    loads,
+    signed,
+    fetched,
+    binding,
+    authMethods,
+    recorderLoads,
+    phrases,
+    recorded,
+  };
 }
 
 test('the handler gives the plugin the owner, the configured vault and scoped operations', async () => {
@@ -215,6 +248,21 @@ test('the handler gives the plugin the owner, the configured vault and scoped op
   expect(transfer.surfaceMeasurementBinding).toBe(harness.binding);
 
   const signal = new AbortController().signal;
+  expect(harness.recorderLoads).toEqual([]);
+  const clip = await transfer.operations.captureClip({
+    sentence: 'Send two NEAR to bob',
+    signal,
+    surfaceMeasurementBinding: harness.binding,
+  });
+  expect(harness.recorderLoads).toEqual([harness.authMethods]);
+  expect(harness.phrases).toEqual([
+    { sentence: 'Send two NEAR to bob', signal, surfaceMeasurementBinding: harness.binding },
+  ]);
+  if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
+  expect(clip.wav.length).toBe(44 + 3 * 2);
+  expect(clip.endOfSpeechAt).toBe(7);
+  // Core wipes the samples once the WAV holds them.
+  expect([...harness.recorded]).toEqual([0, 0, 0]);
   await transfer.operations.verify({ op: 'verify', owner: 'owner.testnet' }, signal);
   expect(harness.fetched.map(({ url }) => url)).toEqual([
     'https://relay.example.test/speak-to-sign/v1/verify',

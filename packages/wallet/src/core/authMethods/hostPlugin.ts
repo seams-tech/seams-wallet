@@ -1,4 +1,4 @@
-export const VOICE_ID_HOST_API_VERSION = 8;
+export const VOICE_ID_HOST_API_VERSION = 9;
 
 import type {
   VoiceIdActivationPreparation,
@@ -54,6 +54,22 @@ export type AuthMethodActivationResult =
 
 export type WalletAuthMethodUnlockPurpose = 'unlock' | 'step_up';
 
+/** One clip of a shown sentence: 16 kHz mono samples that passed the quality gate. */
+export type AuthMethodPhraseRecording =
+  | Readonly<{
+      kind: 'recorded';
+      samples: Float32Array;
+      /** `performance.now()` when the recorder handed over the trimmed clip. */
+      endOfSpeechAt: number;
+    }>
+  | Readonly<{ kind: 'cancelled' }>;
+
+export type AuthMethodPhraseRequest = Readonly<{
+  sentence: string;
+  signal: AbortSignal;
+  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+}>;
+
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface WalletAuthMethodHostPlugin {
   unlock(input: {
@@ -77,4 +93,9 @@ export interface WalletAuthMethodHostPlugin {
     readonly surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
     readonly prepareOperation: (signal: AbortSignal) => Promise<VoiceIdOperationPreparation>;
   }): Promise<VoiceIdOperationProof>;
+  /**
+   * Shows one sentence and records one clip for a transaction feature. It reads no
+   * enrollment and proves nothing; the caller sends the clip to its own verifier.
+   */
+  recordPhrase(input: AuthMethodPhraseRequest): Promise<AuthMethodPhraseRecording>;
 }

@@ -2,12 +2,17 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type {
+  SpeakToSignClip,
+  SpeakToSignClipRequest,
   SpeakToSignHostOperations,
   SpeakToSignSubmission,
   SpeakToSignVaultTransferArgs,
   SpeakToSignVerifyReply,
 } from '@/core/transactionFeatures/hostPlugin';
+import type { AuthMethodPhraseRecording } from '@/core/authMethods/hostPlugin';
 import { createSpeakToSignHostOperations } from '@/core/transactionFeatures/hostOperations';
+import { MAX_SAMPLES, pcm16Wav } from '@/core/transactionFeatures/wav';
+import type { Variant } from '@shared/utils/variant';
 import type { ActionResult } from '@/core/types/seams';
 import type { TransactionInput } from '@/core/types/actions';
 import { runSpokenTransfer, type HostTransfer } from '../../packages/speak-to-sign/src/host/flow';
@@ -27,8 +32,6 @@ import {
   verifyInput,
 } from '../../packages/speak-to-sign/src/host/request';
 import { checkVerdict, parseVerifyOutput } from '../../packages/speak-to-sign/src/host/verdict';
-import { MAX_SAMPLES, pcm16Wav } from '../../packages/speak-to-sign/src/host/wav';
-import type { SpokenClip } from '../../packages/speak-to-sign/src/host/capture';
 
 const VECTORS = JSON.parse(
   readFileSync(
@@ -160,14 +163,24 @@ async function verifyOutput(verifier: Verifier, json: string, publicKey = verifi
   };
 }
 
-function clip(seconds = 2): SpokenClip {
-  const samples = new Float32Array(seconds * 16_000);
-  for (let index = 0; index < samples.length; index += 1) samples[index] = Math.sin(index / 9) / 4;
-  return { kind: 'captured', wav: pcm16Wav(samples), speechMs: seconds * 1_000, endOfSpeechAt: 0 };
+function samples(seconds = 2): Float32Array {
+  const result = new Float32Array(seconds * 16_000);
+  for (let index = 0; index < result.length; index += 1) result[index] = Math.sin(index / 9) / 4;
+  return result;
+}
+
+function clip(seconds = 2): Variant<SpeakToSignClip, 'kind', 'captured'> {
+  return {
+    kind: 'captured',
+    wav: pcm16Wav(samples(seconds)),
+    speechMs: seconds * 1_000,
+    endOfSpeechAt: 0,
+  };
 }
 
 type FakeVault = {
   operations: SpeakToSignHostOperations;
+  sentences: string[];
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
   submitted: SpeakToSignVaultTransferArgs[];
 };
@@ -177,11 +190,17 @@ function fakeVault(input: {
   reply: (verifierInput: Readonly<Record<string, unknown>>) => Promise<SpeakToSignVerifyReply>;
   submission?: SpeakToSignSubmission;
   contacts?: Array<{ account_id: string; active: boolean }>;
+  clip?: SpeakToSignClip;
 }): FakeVault {
   const vault: FakeVault = {
+    sentences: [],
     verifyInputs: [],
     submitted: [],
     operations: {
+      async captureClip(request: SpeakToSignClipRequest) {
+        vault.sentences.push(request.sentence);
+        return input.clip ?? clip();
+      },
       async viewVault(view) {
         if (view === 'get_vault') return { next_nonce: '4', limit_yocto: '0' };
         if (view === 'get_contacts') {
@@ -456,13 +475,9 @@ test('the vault state keeps every contact for the confusion set and marks the ac
 test('an accepted spoken payment sends one transfer_with_verdict with the signed verdict', async () => {
   const verifier = await verifierKey();
   const vault = fakeVault({ verifier, reply: acceptingVerifier(verifier) });
-  const shown: string[] = [];
-  const result = await runSpokenTransfer(transferInput(hostTransfer(vault)), async (capture) => {
-    shown.push(capture.displayText);
-    return clip();
-  });
+  const result = await runSpokenTransfer(transferInput(hostTransfer(vault)));
   expect(result).toMatchObject({ kind: 'sent', transactionHash: 'tx-hash' });
-  expect(shown).toEqual(['Send 25 NEAR to alice.testnet']);
+  expect(vault.sentences).toEqual(['Send 25 NEAR to alice.testnet']);
   expect(vault.verifyInputs).toHaveLength(1);
   expect(vault.verifyInputs[0]).toMatchObject({
     op: 'verify',
@@ -506,33 +521,46 @@ test('nothing reaches the vault unless the verdict passes the local check', asyn
   ];
   for (const [name, vaultInput, overrides, expected] of cases) {
     const vault = fakeVault(vaultInput);
-    const result = await runSpokenTransfer(
-      transferInput(hostTransfer(vault, overrides)),
-      async () => clip(),
-    );
+    const result = await runSpokenTransfer(transferInput(hostTransfer(vault, overrides)));
     expect(result, name).toMatchObject(expected);
     expect(vault.submitted, name).toEqual([]);
   }
 });
 
-test('a cancelled recording verifies nothing, and a vault revert is a refusal', async () => {
+test('a cancelled or unavailable recording verifies nothing, and a vault revert is a refusal', async () => {
   const verifier = await verifierKey();
-  const cancelled = fakeVault({ verifier, reply: acceptingVerifier(verifier) });
-  expect(
-    await runSpokenTransfer(transferInput(hostTransfer(cancelled)), async () => ({
-      kind: 'cancelled',
-    })),
-  ).toEqual({ kind: 'cancelled' });
+  const cancelled = fakeVault({
+    verifier,
+    reply: acceptingVerifier(verifier),
+    clip: { kind: 'cancelled' },
+  });
+  expect(await runSpokenTransfer(transferInput(hostTransfer(cancelled)))).toEqual({
+    kind: 'cancelled',
+  });
   expect(cancelled.verifyInputs).toEqual([]);
+
+  const missing = fakeVault({
+    verifier,
+    reply: acceptingVerifier(verifier),
+    clip: { kind: 'unavailable', detail: 'VoiceID is missing from this Wallet host.' },
+  });
+  expect(await runSpokenTransfer(transferInput(hostTransfer(missing)))).toEqual({
+    kind: 'unavailable',
+    reason: 'voiceid_unavailable',
+    detail: 'VoiceID is missing from this Wallet host.',
+  });
+  expect(missing.verifyInputs).toEqual([]);
 
   const reverted = fakeVault({
     verifier,
     reply: acceptingVerifier(verifier),
     submission: { kind: 'reverted', transactionHash: 'tx', error: 'AudioReused' },
   });
-  expect(
-    await runSpokenTransfer(transferInput(hostTransfer(reverted)), async () => clip()),
-  ).toEqual({ kind: 'refused', reason: 'vault_rejected', detail: 'AudioReused' });
+  expect(await runSpokenTransfer(transferInput(hostTransfer(reverted)))).toEqual({
+    kind: 'refused',
+    reason: 'vault_rejected',
+    detail: 'AudioReused',
+  });
 });
 
 // ---------------------------------------------------------------- core host operations
@@ -546,6 +574,11 @@ test('core host operations stay scoped to the configured vault and its one metho
     transactionId: 'tx-ok',
     result: { status: { SuccessValue: '' }, receipts_outcome: [] } as never,
   };
+  let recording: () => Promise<AuthMethodPhraseRecording> = async () => ({
+    kind: 'recorded',
+    samples: samples(10),
+    endOfSpeechAt: 3,
+  });
   const operations = createSpeakToSignHostOperations({
     feature: { kind: 'speak_to_sign', vault: 'voicevault.testnet', network: 'testnet' },
     ownerAccountId: 'owner.testnet',
@@ -561,12 +594,35 @@ test('core host operations stay scoped to the configured vault and its one metho
       transactions.push(transaction);
       return outcome;
     },
+    recordPhrase: () => recording(),
     fetch: (async (url: URL, init: RequestInit) => {
       fetched.push({ url: String(url), init });
       return Response.json({ ok: true, output: { verdict_json: '{}' }, timing: {} });
     }) as typeof fetch,
   });
   const signal = new AbortController().signal;
+
+  // A 10 s recording becomes the verifier's 8 s canonical WAV.
+  const clipRequest = {
+    sentence: 'Send 25 NEAR',
+    signal,
+    surfaceMeasurementBinding: { kind: 'disabled' },
+  } as const;
+  expect(await operations.captureClip(clipRequest)).toEqual({
+    kind: 'captured',
+    wav: pcm16Wav(samples(8)),
+    speechMs: 8_000,
+    endOfSpeechAt: 3,
+  });
+  recording = async () => ({ kind: 'cancelled' });
+  expect(await operations.captureClip(clipRequest)).toEqual({ kind: 'cancelled' });
+  recording = async () => {
+    throw new Error('VoiceID is missing from this Wallet host.');
+  };
+  expect(await operations.captureClip(clipRequest)).toEqual({
+    kind: 'unavailable',
+    detail: 'VoiceID is missing from this Wallet host.',
+  });
 
   expect(await operations.viewVault('get_contacts', signal)).toEqual({ ok: 'get_contacts' });
   await operations.viewVault('get_verifier', signal);

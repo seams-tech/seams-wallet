@@ -2,36 +2,26 @@ import {
   createWalletIframeSurfaceMeasurementReporter,
   toError,
   WorkerDeferred,
+  type AuthMethodPhraseRecording,
   type UiConfirmSurfaceMeasurementBinding,
+  type WalletAuthMethodHostPlugin,
   type WalletIframeSurfaceMeasurementReporter,
 } from '@seams/wallet/voiceid-host';
-// The VoiceID prompt and recorder. Their models and worklet load from /sdk/voiceid/.
-import { VoicePrompt } from '../../../voiceid/src/capture/prompt';
-import { recordVoice, voiceQualityMessage } from '../../../voiceid/src/browser/microphone';
-import { VoiceMicrophoneInterruptedError } from '../../../voiceid/src/browser/microphoneInput';
-import { SPOKEN_PHRASES } from '../../../voiceid/src/browser/phraseVocabulary';
-import { pcm16Wav, SAMPLE_RATE } from './wav';
+import { recordVoice, voiceQualityMessage } from '../browser/microphone';
+import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
+import { SPOKEN_PHRASES } from '../browser/phraseVocabulary';
+import { VoicePrompt } from './prompt';
 
-export type SpokenClip = Readonly<{
-  kind: 'captured';
-  wav: Uint8Array<ArrayBuffer>;
-  speechMs: number;
-  /** `performance.now()` when the recorder handed over the trimmed clip. */
-  endOfSpeechAt: number;
-}>;
+type PhraseInput = Parameters<WalletAuthMethodHostPlugin['recordPhrase']>[0];
 
-const LABEL = 'Pay with your voice';
+const LABEL = 'Say this with your voice';
 
 /**
- * Shows the expected sentence in the VoiceID prompt and records one clip of at most 8 s.
- * A too quiet or interrupted recording stays on the surface for another try.
+ * Shows the given sentence in the VoiceID prompt and records one clip with the quality
+ * gate. A too quiet or interrupted recording stays on the surface for another try.
  */
-export async function captureSpokenPayment(input: {
-  readonly displayText: string;
-  readonly measurement: UiConfirmSurfaceMeasurementBinding;
-  readonly signal: AbortSignal;
-}): Promise<SpokenClip | Readonly<{ kind: 'cancelled' }>> {
-  const surface = new SpokenPaymentSurface(input.displayText, input.measurement, input.signal);
+export async function recordPhrase(input: PhraseInput): Promise<AuthMethodPhraseRecording> {
+  const surface = new PhraseSurface(input.sentence, input.surfaceMeasurementBinding, input.signal);
   try {
     return await surface.result;
   } finally {
@@ -39,8 +29,8 @@ export async function captureSpokenPayment(input: {
   }
 }
 
-class SpokenPaymentSurface {
-  private readonly completion = new WorkerDeferred<SpokenClip | Readonly<{ kind: 'cancelled' }>>();
+class PhraseSurface {
+  private readonly completion = new WorkerDeferred<AuthMethodPhraseRecording>();
   readonly result = this.completion.promise;
   private readonly controller = new AbortController();
   private readonly element: HTMLElement;
@@ -50,7 +40,7 @@ class SpokenPaymentSurface {
   private settled = false;
 
   constructor(
-    displayText: string,
+    sentence: string,
     binding: UiConfirmSurfaceMeasurementBinding,
     private readonly outer: AbortSignal,
   ) {
@@ -62,8 +52,8 @@ class SpokenPaymentSurface {
     this.element.setAttribute('aria-modal', 'true');
     this.element.setAttribute('aria-label', LABEL);
     this.prompt = new VoicePrompt(document, LABEL, SPOKEN_PHRASES[0]);
-    this.prompt.title.textContent = 'Say this payment';
-    this.prompt.phrase.textContent = `${displayText}.`;
+    this.prompt.title.textContent = 'Say this sentence';
+    this.prompt.phrase.textContent = `${sentence}.`;
     delete this.prompt.phrase.dataset.voiceidPhrase;
     this.prompt.status.textContent = 'Read it naturally, then pause.';
     this.prompt.record.textContent = 'Record';
@@ -109,19 +99,15 @@ class SpokenPaymentSurface {
     try {
       const recorded = await recordVoice(this.controller.signal, this.prompt.capture);
       const endOfSpeechAt = performance.now();
-      if (this.settled) return;
+      if (this.settled) {
+        recorded.samples?.fill(0);
+        return;
+      }
       if (recorded.kind === 'insufficient_audio') {
         this.retry(voiceQualityMessage(recorded.quality));
         return;
       }
-      const wav = pcm16Wav(recorded.samples);
-      recorded.samples.fill(0);
-      this.settle({
-        kind: 'captured',
-        wav,
-        speechMs: Math.round(((wav.length - 44) / 2 / SAMPLE_RATE) * 1_000),
-        endOfSpeechAt,
-      });
+      this.settle({ kind: 'recorded', samples: recorded.samples, endOfSpeechAt });
     } catch (error) {
       if (this.settled) return;
       if (error instanceof VoiceMicrophoneInterruptedError) {
@@ -140,7 +126,7 @@ class SpokenPaymentSurface {
     this.prompt.record.focus();
   }
 
-  private settle(result: SpokenClip | Readonly<{ kind: 'cancelled' }>): void {
+  private settle(result: AuthMethodPhraseRecording): void {
     if (this.settled) return;
     this.settled = true;
     this.completion.resolve(result);

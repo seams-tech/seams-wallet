@@ -553,6 +553,7 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/transaction-display/abi/enrichDisplayModelWithAbi.ts',
       'src/core/signingEngine/uiConfirm/ui/confirm-surface-resize.ts',
       'src/voiceid-host.ts',
+      'src/speak-to-sign-host.ts',
       // React entries share this module tree, so an app that imports both `@seams/wallet`
       // and `@seams/wallet/react` loads each SDK module once.
       'src/react/index.ts',
@@ -749,6 +750,7 @@ const configs = [
       'wallet-iframe-host-ecdsa': 'src/SeamsWeb/walletIframe/host/entry-ecdsa.ts',
       'wallet-iframe-host-full': 'src/SeamsWeb/walletIframe/host/entry-full.ts',
       'voiceid-host': 'src/voiceid-host.ts',
+      'speak-to-sign-host': 'src/speak-to-sign-host.ts',
     },
     output: {
       dir: BUILD_PATHS.BUILD.ESM,

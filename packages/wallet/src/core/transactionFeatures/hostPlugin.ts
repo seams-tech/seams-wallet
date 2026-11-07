@@ -85,12 +85,34 @@ export type SpeakToSignSubmission =
   | Readonly<{ kind: 'not_submitted'; error: string }>
   | Readonly<{ kind: 'submission_unknown'; error: string }>;
 
+/** A recorded sentence: a 16 kHz mono PCM16 WAV of at most 8 s, as the verifier hashes it. */
+export type SpeakToSignClip =
+  | Readonly<{
+      kind: 'captured';
+      wav: Uint8Array<ArrayBuffer>;
+      speechMs: number;
+      /** `performance.now()` when the recorder handed over the trimmed clip. */
+      endOfSpeechAt: number;
+    }>
+  | Readonly<{ kind: 'cancelled' }>
+  /** VoiceID could not load or record on this Wallet host. */
+  | Readonly<{ kind: 'unavailable'; detail: string }>;
+
+export type SpeakToSignClipRequest = Readonly<{
+  /** The sentence that the VoiceID surface shows. */
+  sentence: string;
+  signal: AbortSignal;
+  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+}>;
+
 /**
- * Scoped core operations for one spoken payment. The plugin can read three vault views,
- * call the Seams verify route and send one `transfer_with_verdict` call to the configured
- * vault as the owner. It gets no signing context, key or session.
+ * Scoped core operations for one spoken payment. The plugin can record one clip on the
+ * VoiceID surface, read three vault views, call the Seams verify route and send one
+ * `transfer_with_verdict` call to the configured vault as the owner. It gets no signing
+ * context, key or session.
  */
 export type SpeakToSignHostOperations = Readonly<{
+  captureClip(request: SpeakToSignClipRequest): Promise<SpeakToSignClip>;
   viewVault(view: SpeakToSignVaultView, signal: AbortSignal): Promise<unknown>;
   verify(
     input: Readonly<Record<string, unknown>>,
