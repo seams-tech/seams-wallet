@@ -48,6 +48,7 @@ import {
   routeRequiresRuntime,
   routeWalletHostRequest,
 } from './requestRouter';
+import { startCardTiming, startReviewTiming, type CardTiming } from '../shared/reviewTiming';
 
 let initialized = false;
 
@@ -279,6 +280,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     }
     const requestExecutionGeneration = state.executionGeneration;
     const postForRequest = postExecutionMessage.bind(null, state, requestExecutionGeneration, post);
+    // A reviewed approval measures this in its admission. A direct one measures it here.
+    const directApproval = isDirectOwnerApproval(req);
+    const untilCardReady: CardTiming | null = directApproval
+      ? startCardTiming('host_until_card_ready')
+      : null;
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
     let execution: 'admission' | 'runtime' = 'admission';
@@ -508,7 +514,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         return;
       }
       walletRuntimeRequested = true;
+      const runtimeLoad = directApproval ? startReviewTiming('host_runtime_load') : null;
       const runtime = await loadWalletHostRuntime(route);
+      runtimeLoad?.end();
       if (requestExecutionGeneration !== state.executionGeneration) return;
       execution = 'runtime';
       await runtime.handleWalletHostRuntimeRequest({
@@ -583,6 +591,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         clearCancelled(requestId);
       }
       reviewAdmission?.finish();
+      untilCardReady?.discard();
     }
   };
 
@@ -607,6 +616,14 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   };
 
   window.addEventListener('message', onWindowMessage);
+}
+
+function isDirectOwnerApproval(req: ParentToChildEnvelope): boolean {
+  return (
+    req.type === 'PM_OWNER_NEAR_TRANSACTION' &&
+    req.payload?.action === 'approve' &&
+    !('transactionReview' in req)
+  );
 }
 
 function assertNever(_route: never): never {

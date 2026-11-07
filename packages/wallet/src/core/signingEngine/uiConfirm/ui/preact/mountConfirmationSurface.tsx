@@ -15,6 +15,7 @@ import {
   announceSurfaceResize,
   CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR,
 } from '../confirm-surface-resize';
+import { endCardTimings } from '@/SeamsWeb/walletIframe/shared/reviewTiming';
 
 export { normalizeConfirmationModel } from '../confirmation-model';
 
@@ -231,10 +232,11 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       model.content.kind === 'transaction' ? model.content.transaction.decision : null;
     this.element.dataset.seamsConfirmReady = String(decision?.kind === 'ready');
     // The card can be shown while Confirm still waits for a check, such as the cost check.
-    this.element.dataset.seamsConfirmShown = String(
+    const shown =
       decision?.kind === 'ready' ||
-        (decision?.kind === 'preparing' && decision.content === 'final'),
-    );
+      (decision?.kind === 'preparing' && decision.content === 'final');
+    if (shown && this.element.dataset.seamsConfirmShown !== 'true') endCardTimings();
+    this.element.dataset.seamsConfirmShown = String(shown);
     this.element.lang = model.appearance.locale ?? 'en';
     this.element.dataset.theme = model.appearance.theme.mode;
     this.styles.setDynamicRule(

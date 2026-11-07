@@ -42,7 +42,7 @@ import type { HostedExternalAuth } from './externalAuth';
 import { approveWithOwnerPasskey, ExternalOwnerApprovalError } from './externalOwnerApproval';
 import { ownerNearSignedEvidence } from './ownerNearSignedEvidence';
 import { ownerNearShortfall } from './ownerNearAffordability';
-import { startReviewTiming } from '../shared/reviewTiming';
+import { startCardTiming, startReviewTiming, type ReviewTiming } from '../shared/reviewTiming';
 import { ConfirmationRefusal } from '@/core/signingEngine/uiConfirm/confirmationReadinessRegistry';
 import { resolveNearTokenMetadata } from '@/core/signingEngine/chains/near/tokenTransfers';
 
@@ -144,6 +144,8 @@ export async function runOwnerNearOperation(
   } finally {
     connectionCheck.end();
   }
+  // From here to the signing call: digests, the operation lock and the receipt reads.
+  const admission = command.action === 'approve' ? startReviewTiming('owner_admission') : null;
   const locks = globalThis.navigator.locks;
   if (!locks) {
     return admissionFailure(command, new Error('This browser cannot coordinate owner operations.'));
@@ -176,6 +178,7 @@ export async function runOwnerNearOperation(
     assertActive,
     onEvent,
     onSubmission,
+    admission,
   );
   return await locks.request(`seams:owner-near:${binding}`, operation.run.bind(operation));
 }
@@ -206,6 +209,8 @@ class HostedOwnerNearOperation {
     private readonly assertActive: () => void,
     private readonly onEvent: (event: SigningFlowEvent) => void,
     private readonly onSubmission: (transactionId: string) => void,
+    /** Ends when the approval reaches the signing call. */
+    private readonly admission: ReviewTiming | null,
   ) {
     this.broadcastContext = {
       signingEngine: context.signingEngine,
@@ -270,12 +275,21 @@ class HostedOwnerNearOperation {
       const confirmationPrecondition = affordability.then(this.refuseShortfall.bind(this));
       confirmationPrecondition.catch(ignoreEarlyAffordabilityFailure);
       const signed = signedSummary(command.transaction);
-      const session = await this.context.signingEngine.signNearOwnerTransaction(
-        command,
-        this.assertCurrent.bind(this),
-        this.onEvent,
-        { confirmationPrecondition },
-      );
+      this.admission?.end();
+      const cardPreparation = startCardTiming('owner_card_preparation');
+      let session: Awaited<
+        ReturnType<SeamsWebContext['signingEngine']['signNearOwnerTransaction']>
+      >;
+      try {
+        session = await this.context.signingEngine.signNearOwnerTransaction(
+          command,
+          this.assertCurrent.bind(this),
+          this.onEvent,
+          { confirmationPrecondition },
+        );
+      } finally {
+        cardPreparation.discard();
+      }
       this.assertCurrent();
       const evidence = await ownerNearSignedEvidence(session);
       // Persist the hash and evidence before the first broadcast. Recovery only reads this
