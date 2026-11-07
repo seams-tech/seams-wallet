@@ -14,6 +14,19 @@ export type {
   WalletAuthMethodPlugin,
   VoiceIdAuthMethodPlugin,
 } from './core/authMethods/plugins';
+export type {
+  SpeakToSignFeaturePlugin,
+  SpeakToSignNetwork,
+  WalletTransactionFeaturePlugin,
+} from './core/transactionFeatures/plugins';
+export type {
+  SPEAK_TO_SIGN_HOST_API_VERSION,
+  SpeakToSignHostPlugin,
+  SpeakToSignTransferRequest,
+  SpeakToSignTransferResult,
+  SpeakToSignUnavailableReason,
+} from './core/transactionFeatures/hostPlugin';
+export type { SpeakToSignCapability } from './SeamsWeb/publicApi/speakToSign';
 export { normalizeWalletLocale } from './core/ui/locale';
 export type { WalletLocale } from './core/ui/locale';
 export type {

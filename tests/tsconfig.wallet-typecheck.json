@@ -31,6 +31,7 @@
     "typecheck/external-evm-state.typecheck.ts",
     "typecheck/transaction-review.typecheck.ts",
     "typecheck/voiceid-auth-method-plugin.typecheck.ts",
+    "typecheck/speak-to-sign-api.typecheck.ts",
     "typecheck/seams-context.typecheck.ts",
     "wallet-ui/confirmation-mount.typecheck.ts",
     "wallet-ui/export-private-key.typecheck.ts",

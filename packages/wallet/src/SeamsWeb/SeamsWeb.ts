@@ -55,11 +55,29 @@ import type {
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { AssetsCapability } from '@/SeamsWeb/publicApi/assets';
+import type { WalletTransactionFeaturePlugin } from '@/core/transactionFeatures/plugins';
+import {
+  createSpeakToSignCapability,
+  type TransactionFeatureApi,
+} from '@/SeamsWeb/publicApi/speakToSign';
 /**
- * Main SeamsWeb class that provides framework-agnostic passkey operations
- * with flexible event-based callbacks for custom UX implementation
+ * Main SeamsWeb client that provides framework-agnostic passkey operations
+ * with flexible event-based callbacks for custom UX implementation.
+ * `F` is the list of configured transaction features; each one adds its app API.
  */
-export class SeamsWeb {
+export type SeamsWeb<
+  F extends readonly WalletTransactionFeaturePlugin[] = readonly WalletTransactionFeaturePlugin[],
+> = SeamsWebClient & TransactionFeatureApi<F>;
+
+type SeamsWebConstructor = {
+  new <const F extends readonly WalletTransactionFeaturePlugin[] = readonly []>(
+    configs: SeamsConfigsInput & { readonly transactionFeatures?: F },
+    nearClient?: NearClient,
+  ): SeamsWeb<F>;
+  readonly prototype: SeamsWebClient;
+};
+
+class SeamsWebClient {
   private readonly disposePreferences: () => void;
   private readonly preferenceState = new ClientPreferenceState();
   private readonly nearClient: NearClient;
@@ -183,6 +201,10 @@ export class SeamsWeb {
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
     this.assets = publicApi.assets;
+    const speakToSign = createSpeakToSignCapability(this.configs.transactionFeatures);
+    if (speakToSign) {
+      Object.defineProperty(this, 'speakToSign', { value: speakToSign, enumerable: true });
+    }
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();
@@ -317,3 +339,6 @@ export class SeamsWeb {
     }
   }
 }
+
+// The constructor type adds each configured feature's API; the class cannot declare it.
+export const SeamsWeb = SeamsWebClient as SeamsWebConstructor;

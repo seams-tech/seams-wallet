@@ -3,6 +3,7 @@ import type {
   SeamsChainNetwork,
   SeamsConfigsInput,
 } from '@/core/types/seams';
+import type { WalletTransactionFeaturePlugin } from '@/core/transactionFeatures/plugins';
 
 /**
  * Required application values for managed wallet registration.
@@ -58,7 +59,11 @@ export type DefineSeamsConfigInput = SeamsRequiredConfigInput &
  *   publishableKey: import.meta.env.VITE_SEAMS_PUBLISHABLE_KEY,
  * });
  */
-export function defineSeamsConfig(input: DefineSeamsConfigInput): SeamsConfigsInput {
+export function defineSeamsConfig<
+  const F extends readonly WalletTransactionFeaturePlugin[] = readonly [],
+>(
+  input: DefineSeamsConfigInput & { readonly transactionFeatures?: F },
+): SeamsConfigsInput & { readonly transactionFeatures?: F } {
   const { walletOrigin, relayerUrl, projectEnvironmentId, publishableKey, ...rest } = input;
   return {
     ...rest,

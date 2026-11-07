@@ -1,5 +1,6 @@
 import type { Variant } from '@shared/utils/variant';
 import { parseWalletAuthMethodPlugins } from '@/core/authMethods/plugins';
+import { parseWalletTransactionFeaturePlugins } from '@/core/transactionFeatures/plugins';
 import { normalizeWalletLocale } from '@/core/ui/locale';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { AppearanceConfig, SeamsClientConfig, SeamsConfigsReadonly } from '@/core/types/seams';
@@ -26,6 +27,7 @@ function resolveWalletRpId(config: SeamsClientConfig): WebAuthnRpId {
 export function createWalletHostConfig(config: SeamsClientConfig): WalletHostConfig {
   return {
     authMethods: config.authMethods,
+    transactionFeatures: config.transactionFeatures,
     network: config.network,
     registration: config.registration,
     signing: config.signing,
@@ -208,6 +210,7 @@ function isWalletHostConfig(value: unknown): value is WalletHostConfig {
   if (!isPlainObject(value)) return false;
   try {
     parseWalletAuthMethodPlugins(value.authMethods);
+    parseWalletTransactionFeaturePlugins(value.transactionFeatures ?? []);
   } catch {
     return false;
   }
@@ -224,7 +227,9 @@ function isWalletHostConfig(value: unknown): value is WalletHostConfig {
 
 function parseWalletHostConfig(value: unknown): WalletHostConfig {
   if (!isWalletHostConfig(value)) throw new Error('Invalid resolved wallet host configuration');
-  return replaceWalletHostAppearance(value, normalizeAppearanceLocale(value.ui.appearance));
+  // An app SDK released before transaction features sends no list; it enables none.
+  const config = { ...value, transactionFeatures: value.transactionFeatures ?? [] };
+  return replaceWalletHostAppearance(config, normalizeAppearanceLocale(value.ui.appearance));
 }
 
 function normalizeAppearanceLocale(appearance: AppearanceConfig): AppearanceConfig {
@@ -237,6 +242,7 @@ export function replaceWalletHostAppearance(
 ): WalletHostConfig {
   return {
     authMethods: config.authMethods,
+    transactionFeatures: config.transactionFeatures,
     network: config.network,
     registration: config.registration,
     signing: config.signing,
@@ -320,6 +326,7 @@ export function walletHostExecutionFingerprint(config: WalletHostConfig | null):
   return JSON.stringify(
     normalizeForStableSerialize({
       authMethods: config?.authMethods,
+      transactionFeatures: config?.transactionFeatures,
       network: config?.network,
       registration: config?.registration,
       signing: config?.signing,
