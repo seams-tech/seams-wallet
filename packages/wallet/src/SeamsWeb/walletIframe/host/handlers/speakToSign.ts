@@ -96,11 +96,12 @@ async function runTransfer(
   if (!serverUrl) {
     return { kind: 'unavailable', reason: 'verifier_unavailable', detail: 'no Seams server' };
   }
-  const account = await runtime.registration.getNearAccountState({ walletId });
-  if (account?.status !== 'near_ready') {
-    throw new Error('The NEAR account of this wallet is not ready.');
-  }
-  const ownerAccountId = account.nearAccountId;
+  // The session names the wallet's NEAR account for every registration path. The NEAR
+  // provisioning record exists only when registration deferred the account.
+  const session = await runtime.auth.getSession(walletId);
+  const ownerAccountId =
+    session.appIdentity.kind === 'resolved' ? session.appIdentity.nearAccountId : null;
+  if (!ownerAccountId) throw new Error('The NEAR account of this wallet is not ready.');
   signal.throwIfAborted();
 
   const plugin = await ports.loadHost(features);

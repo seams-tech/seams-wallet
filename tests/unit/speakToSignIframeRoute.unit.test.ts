@@ -160,11 +160,14 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
       transactionFeatures: features,
       network: { relayer: { url: options.relayerUrl ?? 'https://relay.example.test' } },
     },
-    registration: {
-      async getNearAccountState() {
-        return options.nearReady === false
-          ? { status: 'near_pending', updatedAtMs: 1 }
-          : { status: 'near_ready', updatedAtMs: 1, nearAccountId: 'owner.testnet' };
+    auth: {
+      async getSession() {
+        return {
+          appIdentity: {
+            kind: 'resolved',
+            nearAccountId: options.nearReady === false ? null : 'owner.testnet',
+          },
+        };
       },
     },
     getContext: () => ({ nearClient: { view: async () => ({}) } }),
