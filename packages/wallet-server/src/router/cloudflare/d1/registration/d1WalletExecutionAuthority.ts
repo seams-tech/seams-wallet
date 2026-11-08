@@ -132,10 +132,7 @@ export class D1WalletExecutionAuthority
   async cancel(input: Parameters<WalletRegistrationHomeAuthority['cancel']>[0]) {
     const completion = { ...input, outcome: 'cancelled' as const };
     await this.fixCancellation(input);
-    const completed = await this.registration.complete(completion);
-    if (!completed.ok) return completed;
-    await this.database.batch(this.prepareState(input, 'retired'));
-    return completed;
+    return await this.registration.complete(completion);
   }
 
   prepareEstablished(
@@ -151,7 +148,7 @@ export class D1WalletExecutionAuthority
     };
     return {
       statements: [
-        ...this.prepareState(input.registration, 'active'),
+        ...this.prepareEstablishedState(input.registration),
         prepareD1TenantStatement(
           this.database,
           this.scope,
@@ -290,20 +287,20 @@ export class D1WalletExecutionAuthority
     ]);
   }
 
-  /** The state update with its guard. The guard reads the row count of the update before it. */
-  private prepareState(
-    input: { readonly ceremonyId: string; readonly walletId: string },
-    state: 'active' | 'retired',
-  ) {
+  /** The established-state update with its guard. The guard reads the row count of the update before it. */
+  private prepareEstablishedState(input: {
+    readonly ceremonyId: string;
+    readonly walletId: string;
+  }) {
     return [
       prepareD1TenantStatement(
         this.database,
         this.scope,
-        `UPDATE wallet_execution_generations SET state = ?7, registration_completion = CASE WHEN ?7 = 'active' THEN 'established' ELSE registration_completion END
+        `UPDATE wallet_execution_generations SET state = 'active', registration_completion = 'established'
          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
            AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
-           AND state IN ('registering', ?7)`,
-        [input.walletId, input.ceremonyId, state],
+           AND state IN ('registering', 'active')`,
+        [input.walletId, input.ceremonyId],
       ),
       this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
     ];
