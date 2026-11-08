@@ -1,18 +1,21 @@
 ---
-title: リリース 0.54.0
-description: 新しい@seams/speak-to-signパッケージで、実験的でテストネット専用の音声による支払いSpeak-to-Signを追加し、VoiceIDのホストAPIをバージョン9にします。
+title: リリース 0.55.0
+description: ウォレットの残高操作を「受け取り」と「送金」に変更し、seams.assets.openScreenで設定の資産画面を開けるようにし、ウォレットのセッションと登録の不具合を修正します。
 ---
 
-# リリース 0.54.0
+# リリース 0.55.0
 
-ブラウザーSDK、サーバーSDK、VoiceID、Speak-to-Signは **0.54.0** です。
+ブラウザーSDK、サーバーSDK、VoiceID、Speak-to-Signは **0.55.0** です。
 
-- **実験的機能、NEARテストネット専用:** 新しい任意のパッケージ`@seams/speak-to-sign`で、音声による支払いができます。所有者が「Send 2 NEAR to alice dot testnet」のように支払いを話すと、証明付きの検証者が声と言葉を確認した後でだけ、ボールトのコントラクトが支払います。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)を参照してください。実際の資金では使わないでください。
-- `transactionFeatures`に`speakToSign({ vault, network: 'testnet' })`を追加します。`seams.speakToSign.requestTransfer({ walletId, receiver, amount })`は、`sent`、`refused`、`cancelled`、`unavailable`のいずれかを返します。記述子を設定しないアプリは、Speak-to-Signのコードとアセットを一切ダウンロードしません。
-- Speak-to-SignにはVoiceIDが必要です。`@seams/wallet`、`@seams/voiceid`、`@seams/speak-to-sign`を0.54.0でインストールし、`npx --no-install seams-speak-to-sign-host <dir>`でWalletのホストを構成してください。
-- `@seams/wallet-server`に、Seamsの検証ルート`POST /speak-to-sign/v1/verify`を追加しました。6つの`SPEAK_TO_SIGN_OUTLAYER_*`変数をすべて設定しない限り、このルートは無効です。有効なウォレットセッションが必要です。
-- VoiceIDのホストAPIはバージョン**9**になります。VoiceIDのホストプラグインに`recordPhrase`を追加しました。`@seams/voiceid` 0.54.0と`@seams/wallet` 0.54.0を一緒にインストールしてください。Walletは、別のバージョンのVoiceIDホストプラグインを拒否します。
-- 0.53.0では、ウォレット設定に残高カード、**入金**、**出金**と`seams.assets`を追加しました。0.54.0でも変更はありません。
+- **破壊的変更:** ウォレット設定の残高操作は**受け取り**と**送金**になりました。0.53.0と0.54.0では**入金**と**出金**でした。アプリは、アプリ独自のアカウントに「入金」と「出金」を使えます。ウォレットの言葉と意味が重なりません。
+  - `seams.assets.prepareWithdrawal()`は`seams.assets.prepareSend()`になりました。型は`SendRequest`、`SendRejection`、`PreparedSend`です。
+  - `WalletBalances`は、`onDeposit`と`onWithdraw`の代わりに`onReceive`と`onSend`を受け取ります。ハンドラーがない場合、ボタンは表示中の設定パネルの対応する画面を開きます。
+- `seams.assets.openScreen({ screen, assetId })`は、表示中の設定パネルで**資産**、**受け取り**、**送金**を開き、`assetId`を最初に選択します。設定パネルがない場合は`false`を返します。オーナー操作が`shortfall`付きの`not_submitted`で終わった場合は、これを使って「NEARを受け取る」を表示してください。[コアリファレンス](/ja/reference/core#asset-balances)を参照してください。
+- **送金**は、金額が残高を超える場合に、同じ資産の**受け取り**を表示します。
+- ウォレットは、BTC、SOL、ZECをNEAR上のトークンとして扱います。価格と、アプリ独自のアカウントの残高は表示しません。
+- ウォレットの修正: リセットしたワーカーはセッションを再び準備します。ウォレットセッションを消去すると、すべての署名レーンのウォームな素材を消去します。ECDSAの事前署名プールは、消去の後に再び補充します。ECDSAの登録セレモニーは、有効化の保存結果にかかわらず閉じます。Email OTPのアンロックは、要求したチェーンの封印済みECDSAレコードを読み取ります。パスキーのウォームセッションとエクスポートルートの準備は、リセットや破棄の後に古い状態を使いません。
+- `@seams/wallet-server`の修正: 登録のキャンセルは、1つのバッチでウォレットを廃止します。セッションのないリンク済みデバイスの確認は、保護された1つのバッチで後処理します。
+- 4つのパッケージをすべて0.55.0でインストールしてください。VoiceIDのホストAPIはバージョン**9**のままです。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)を参照してください。
 
 ウォレットのiframeプロトコルは **23.0.0**、ウォレット管理プロトコルは **5** のままです。
 署名付きの復旧CLIは **0.29.0** のままです。このリリースにデータベースのマイグレーションはありません。

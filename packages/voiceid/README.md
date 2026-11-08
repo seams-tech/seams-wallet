@@ -10,7 +10,7 @@ and the trusted host API. Existing voice enrollments keep their storage identity
 Install matching Wallet and VoiceID versions, then import the descriptor:
 
 ```sh
-pnpm add @seams/wallet@0.54.0 @seams/voiceid@0.54.0
+pnpm add @seams/wallet@0.55.0 @seams/voiceid@0.55.0
 ```
 
 ```ts

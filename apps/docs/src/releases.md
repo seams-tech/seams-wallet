@@ -1,18 +1,21 @@
 ---
-title: Release 0.54.0
-description: Experimental, testnet-only Speak-to-Sign spoken payments in the new @seams/speak-to-sign package, and VoiceID host API version 9.
+title: Release 0.55.0
+description: Wallet balances say Receive and Send, seams.assets.openScreen opens the settings asset screens, and wallet session and registration fixes.
 ---
 
-# Release 0.54.0
+# Release 0.55.0
 
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.54.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.55.0**.
 
-- **Experimental, NEAR testnet only:** the new optional package `@seams/speak-to-sign` adds spoken payments. The owner says a payment such as "Send 2 NEAR to alice dot testnet", and a vault contract pays only after an attested verifier checks the voice and the words. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign). Do not use it with real funds.
-- Add `speakToSign({ vault, network: 'testnet' })` to `transactionFeatures`. Then `seams.speakToSign.requestTransfer({ walletId, receiver, amount })` returns `sent`, `refused`, `cancelled`, or `unavailable`. An app without the descriptor downloads no Speak-to-Sign code or assets.
-- Speak-to-Sign needs VoiceID. Install `@seams/wallet`, `@seams/voiceid`, and `@seams/speak-to-sign` at 0.54.0, and compose the Wallet host with `npx --no-install seams-speak-to-sign-host <dir>`.
-- `@seams/wallet-server` adds the Seams verify route `POST /speak-to-sign/v1/verify`. The route is off unless all six `SPEAK_TO_SIGN_OUTLAYER_*` variables are set. It requires an active Wallet Session.
-- The VoiceID host API moves to version **9**: the VoiceID host plugin adds `recordPhrase`. Install `@seams/voiceid` 0.54.0 with `@seams/wallet` 0.54.0. The Wallet refuses a VoiceID host plugin of another version.
-- 0.53.0 added the balance card, **Deposit**, and **Withdraw** in wallet settings, and `seams.assets`. 0.54.0 keeps them unchanged.
+- **Breaking:** the wallet settings balance actions are now **Receive** and **Send**. They were **Deposit** and **Withdraw** in 0.53.0 and 0.54.0. An application can use "Deposit" and "Withdraw" for its own accounts without a second meaning in the wallet.
+  - `seams.assets.prepareWithdrawal()` is now `seams.assets.prepareSend()`. Its types are `SendRequest`, `SendRejection`, and `PreparedSend`.
+  - `WalletBalances` takes `onReceive` and `onSend` in place of `onDeposit` and `onWithdraw`. Without handlers, its buttons now open the matching screen of the mounted settings panel.
+- `seams.assets.openScreen({ screen, assetId })` opens **Assets**, **Receive**, or **Send** in the mounted settings panel, with `assetId` chosen first. It returns `false` when no settings panel is mounted. When an owner operation ends as `not_submitted` with `shortfall`, use it to offer "Receive NEAR". See [core reference](/reference/core#asset-balances).
+- **Send** offers **Receive** for the same asset when the amount is more than the balance.
+- The wallet keeps BTC, SOL, and ZEC as NEAR tokens. It does not show prices or an application's own account balance.
+- Wallet fixes: a reset worker prepares its session again; clearing a wallet session removes the warm material of every signing lane; the ECDSA presignature pool fills again after a clear; an ECDSA registration ceremony closes whatever the activation save returns; an Email OTP unlock reads the sealed ECDSA record for the requested chain; and passkey warm sessions and export-root setup do not use stale state after a reset or a destroy.
+- `@seams/wallet-server` fixes: a registration cancel retires the wallet in one batch, and a linked-device acknowledgement without a session cleans up in one guarded batch.
+- Install all four packages at 0.55.0. The VoiceID host API stays at version **9**. Speak-to-Sign stays experimental and NEAR testnet only. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign).
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
