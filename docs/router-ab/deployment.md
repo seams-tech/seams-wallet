@@ -123,7 +123,7 @@ or deployment authority that controls both roles.
 
 The Derivers hold no peer-message signing key, and no Worker reads a peer
 verifying key. The Ed25519 Yao pair runs over authenticated service calls
-([R155C](../refactor-155C-yao-peer-connection.md)), and ECDSA derivation sends
+([R155C](../archive/refactor-150-155.md#yao-ab-protocol-r155c-r155h)), and ECDSA derivation sends
 no message from one Deriver to the other. Role encryption keys, tenant-root
 lifecycle signing keys, and authenticated transport remain required.
 

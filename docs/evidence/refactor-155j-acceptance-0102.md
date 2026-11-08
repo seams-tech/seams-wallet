@@ -1,7 +1,7 @@
 # R155J — Acceptance population on release 0.10.2
 
 Date: October 15, 2026, 00:00 to 01:41 JST, staging, release 0.10.2.
-Plan: [R155J](../refactor-R155J-p99.md). Numbers:
+Plan: [R155J](../archive/refactor-150-155.md#open-items). Numbers:
 [refactor-155j-acceptance-0102.json](refactor-155j-acceptance-0102.json).
 
 ## Result

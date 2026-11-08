@@ -18,7 +18,7 @@ The custody fault test covers rollback, exact retry, and a lost committed reply.
 
 The [evidence record](near-registration-optimizations-20261019.json) contains measurements, limits, build hashes, and reproduction commands.
 Raw records and frozen control binaries remain in `.artifacts/near-registration-optimizations-20261019/`.
-Use the [benchmark instructions](../optimization-11-NEAR-local-breakdown.md) with a fresh runtime directory and `SEAMS_INTENDED_SIGNING_SESSION_DEBUG=1`.
+Use the [benchmark instructions](../archive/optimization-10-11.md#rerun) with a fresh runtime directory and `SEAMS_INTENDED_SIGNING_SESSION_DEBUG=1`.
 
 Cloudflare permits reuse of an unchanged [environment object](https://developers.cloudflare.com/workers/runtime-apis/handlers/fetch/#parameters).
 The cache checks that identity before reuse. Cache hits are conditional; an environment change or eviction discards unused identifiers.

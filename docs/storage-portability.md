@@ -148,7 +148,7 @@ Runtime hosting, Durable Object coordination, R2 replacement, data import, and p
 
 PostgreSQL integration and provisioning are deferred at the user's request on October 24, 2026.
 Retain the adapter and its evidence. The remaining work below applies if the user resumes this path.
-The [NEAR optimization plan](optimization-11-NEAR.md#prioritized-implementation-plan) prioritizes tracing and improvements on the current D1 path.
+The [NEAR optimization record](archive/optimization-10-11.md#open-items) lists the deferred work on the current D1 path.
 
 PostgreSQL can replace D1 while the Workers and Durable Objects stay on Cloudflare.
 [Hyperdrive](https://developers.cloudflare.com/hyperdrive/) gives a Worker a pooled connection to a PostgreSQL origin such as RDS.

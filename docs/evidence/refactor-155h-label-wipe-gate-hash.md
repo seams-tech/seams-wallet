@@ -1,6 +1,6 @@
 # R155H — Label wipes and the garbler's gate hash
 
-Date: October 13, 2026. Plan: [refactor-155H.md](../refactor-155H.md), Phase 4.
+Date: October 13, 2026. Plan: [refactor-155H.md](../archive/refactor-150-155.md), Phase 4.
 
 ## Result
 

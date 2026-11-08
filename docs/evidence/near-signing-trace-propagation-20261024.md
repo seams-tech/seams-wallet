@@ -57,7 +57,7 @@ Validation, schema initialization, signing, persistence, response mapping, and t
 
 That intermediate cleanup retained `near_router_service`, `near_sw_wallet_call`, `near_sw_handler`, and object trace identifiers.
 The final cleanup removes those additions and restores the pre-existing ECDSA telemetry.
-The [optimization plan](../optimization-11-NEAR.md#p2-reduce-measured-work-in-signing-dispatch-and-finalization) records the remaining performance questions.
+The [optimization plan](../archive/optimization-10-11.md#open-items) records the remaining performance questions.
 
 All four lifecycle cases above passed again with zero retries.
 All six message/reload/transaction requests matched one object command each and retained the three call spans.

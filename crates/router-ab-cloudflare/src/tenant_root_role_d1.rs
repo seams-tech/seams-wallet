@@ -1699,7 +1699,7 @@ impl CloudflareStoredTenantRootRoleShareV1 {
 }
 
 /// The execution attempt one root-use admission belongs to
-/// (docs/refactor-150-admission-identity.md).
+/// (docs/archive/refactor-150-155.md, "Tenant-root lifecycle").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TenantRootRootUseAttemptV1 {
     /// One Ed25519 Yao ceremony, named by its canonical pair session: the key

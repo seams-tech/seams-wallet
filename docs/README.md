@@ -89,10 +89,7 @@ links to their full Git records; unfinished plans retain their working detail.
 
 ## Implementation history
 
-- [R150: wallet ownership and custody](refactor-150-regional-wallet-home-lanes.md).
-- [R151: Gateway database calls](refactor-151.md).
-- [R152: regional homes and routing](refactor-152-regional-D1.md).
-- [R153: owner-selected region moves](refactor-153-wallet-region-selection.md).
-- [R155H: registration preparation](refactor-155H.md) and [R155J: open tail-latency work](refactor-R155J-p99.md).
+- [R150–R155: regional wallet homes, custody objects and registration latency](archive/refactor-150-155.md).
+- [R154: region-change notifications (draft)](refactor-154-region-change-notifications.md).
 - [R170: client/host separation](refactor-170.md) and [R171: public API](refactor-171.md).
-- [Optimization 11: NEAR latency work](optimization-11-NEAR.md).
+- [Optimizations 10 and 11: registration, ECDSA presign and NEAR latency](archive/optimization-10-11.md).

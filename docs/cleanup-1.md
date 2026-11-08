@@ -727,7 +727,8 @@ Found along the way, for their owners:
   still say production waits on a Phase 13A "go", whose evaluator went
   with the bench harness. The wasm kernel benchmark exceeded its 150 ms
   budget on a loaded machine and needs a run on an idle one.
-- `docs/refactor-150-supported-operations.md` says Google-backed recovery
+- R150 `refactor-150-supported-operations.md` (full record linked from
+  `docs/archive/refactor-150-155.md`) says Google-backed recovery
   was not run on the VM; the release-readiness record and 20bad72's run
   say it passes there.
 
@@ -768,7 +769,7 @@ Decisions, largest first:
 - Features that are built and unreached. Finish or delete each:
   - Signing lanes: about 28,700 lines across TypeScript, Rust, SQL and the
     client, and a 2.8 MB lane-materialization schedule.
-    `docs/refactor-150-state-ownership-map.md` calls them unfinished
+    R150 `refactor-150-state-ownership-map.md` (full record) calls them unfinished
     infrastructure.
   - ECDSA activation refresh (about 1,850), linked-device ECDSA signing
     and presign (about 1,960), and the tenant-root cutover store (about

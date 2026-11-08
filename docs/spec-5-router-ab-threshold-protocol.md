@@ -149,7 +149,7 @@ Yao pair. The Router sends Deriver B its preparation and Deriver A its
 execution at the same time. Deriver A connects to Deriver B over the
 authenticated transport, and Deriver B's answer to that connection is its
 durable claim on the execution. Each role checks its own root, scope, expiry,
-and fences. [R155C](refactor-155C-yao-peer-connection.md) records this design.
+and fences. [R155C](archive/refactor-150-155.md#yao-ab-protocol-r155c-r155h) records this design.
 
 Normal signing keeps the complete key unassembled. Explicit owner export is a
 separate, freshly authorized flow that delivers the supported key material to

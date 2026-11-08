@@ -15,7 +15,7 @@ independently checked.
   source plus `fedad1f3`.
 - Private composition `605c9a0` for the Gateway, Runtime and Console builds.
   The Console candidate binds the Hong Kong database and runs in `aws:ap-east-1`,
-  after the [Console move](../refactor-155G-apac-anchor-and-hidden-exchanges.md#phase-1-record).
+  after the [Console move](../archive/refactor-150-155.md#topology).
 - One SDK with early preflights, the `a3dd064f`-era payload, in every group.
 - The four custody versions except Deriver A, the placement settings and the
   database bindings stay fixed. Chromium runs in Tokyo. Wallets use APAC homes

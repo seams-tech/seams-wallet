@@ -1,6 +1,6 @@
 # Registration writes no shared capability record
 
-Recorded October 13, 2026, for [R155H](../refactor-155H.md) Phase 9. This is
+Recorded October 13, 2026, for [R155H](../archive/refactor-150-155.md) Phase 9. This is
 a local storage change. No hosted resource changed, and no hosted latency is
 claimed here.
 

@@ -1,7 +1,7 @@
 # R155H — Remaining finalization changes, measured together on staging
 
 Date: October 14, 2026, 17:07 to 17:54 JST. Plan:
-[refactor-155H.md](../refactor-155H.md). Numbers:
+[refactor-155H.md](../archive/refactor-150-155.md). Numbers:
 [refactor-155h-remaining-optimizations-staging.json](refactor-155h-remaining-optimizations-staging.json).
 
 ## Result

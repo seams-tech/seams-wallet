@@ -251,7 +251,7 @@ of the connection leaves the execution uncertain and burns it.
 Each role validates its own prepared root-metadata digest against its own
 root. The two roles' digests differ and are never compared. The target-proof
 preface checks each peer's share against the commitment in the Router-supplied
-activation receipt. [R155C](../refactor-155C-yao-peer-connection.md) records the
+activation receipt. [R155C](../archive/refactor-150-155.md#yao-ab-protocol-r155c-r155h) records the
 design and its evidence.
 
 No step uses a Deriver peer-signing or peer-verifying key, and no Worker is

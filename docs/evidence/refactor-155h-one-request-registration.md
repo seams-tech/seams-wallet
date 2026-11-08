@@ -1,6 +1,6 @@
 # NEAR-only passkey registration: the proof and the execution in one request
 
-Recorded October 13, 2026, for [R155H](../refactor-155H.md) Phase 1 (first
+Recorded October 13, 2026, for [R155H](../archive/refactor-150-155.md) Phase 1 (first
 item) and Phase 10. Local change. Nothing is released, no hosted resource
 changed, and no hosted latency is claimed here.
 

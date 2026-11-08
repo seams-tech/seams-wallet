@@ -1,6 +1,6 @@
 # R155J — Follow-ups of October 15, 2026
 
-Plan: [R155J](../refactor-R155J-p99.md). Method:
+Plan: [R155J](../archive/refactor-150-155.md#open-items). Method:
 [debugging method](../debugging-method.md). The acceptance record that
 started these items: [refactor-155j-acceptance-0102.md](refactor-155j-acceptance-0102.md).
 

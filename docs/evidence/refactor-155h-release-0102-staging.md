@@ -1,7 +1,7 @@
 # R155H — Release 0.10.2 on staging
 
 Date: October 14, 2026, 21:26 to 21:50 JST. Plan:
-[refactor-155H.md](../refactor-155H.md). Numbers:
+[refactor-155H.md](../archive/refactor-150-155.md). Numbers:
 [refactor-155h-release-0102-staging.json](refactor-155h-release-0102-staging.json).
 
 ## Result

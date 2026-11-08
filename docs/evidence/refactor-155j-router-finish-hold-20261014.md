@@ -1,7 +1,7 @@
 # R155J — A 12.2-second wait inside one Router wallet object
 
 Date of the fault: October 14, 2026, 21:33:29 JST, staging, release 0.10.2.
-Plan: [R155J](../refactor-R155J-p99.md). Method:
+Plan: [R155J](../archive/refactor-150-155.md#open-items). Method:
 [debugging method](../debugging-method.md).
 
 ## Result

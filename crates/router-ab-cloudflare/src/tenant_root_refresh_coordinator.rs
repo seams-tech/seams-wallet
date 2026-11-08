@@ -11,7 +11,7 @@
 //! and never obtains another, however late. Each Deriver swaps only on the
 //! Router's committed receipt. The previous epoch's shares are retired, and
 //! the Router erases them once delivery is complete and the grace after the
-//! swap has passed (`docs/refactor-150-refresh-retirement.md`). Each role
+//! swap has passed (`docs/archive/refactor-150-155.md`). Each role
 //! erases its retired share only once every admission on that epoch is
 //! settled or cancelled; until then its retirement is reported pending and a
 //! later pass tries again. The next refresh waits for both roles. A managed

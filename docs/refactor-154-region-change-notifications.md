@@ -1,7 +1,7 @@
 # Refactor 154: region-change notifications
 
 Status: intent draft, revised October 5, 2026. Depends on a validated
-[R153 relocation operation](refactor-153-wallet-region-selection.md).
+[R153 relocation operation](archive/refactor-150-155.md#relocation-r153-r153b).
 
 Implementation order: **R152 → R170/R171 → R153 → slim R154**.
 Begin this implementation after R153's manual relocation acceptance passes.

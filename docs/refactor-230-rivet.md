@@ -21,21 +21,21 @@ Workers, Durable Objects, and D1.
    plus a 30 s secondary pause. Because a Durable Object's output gate holds all
    responses and outgoing requests until writes confirm, a single stalled commit
    delays the entire ceremony path (~13 serial durable commits in registration).
-2. **Durable Object first-contact and stub overhead ([`refactor-155-reusuable-DO.md`](refactor-155-reusuable-DO.md), [`refactor-152-regional-D1.md`](refactor-152-regional-D1.md)):**
+2. **Durable Object first-contact and stub overhead ([`refactor-155-reusuable-DO`](archive/refactor-150-155.md), [`refactor-152-regional-D1`](archive/refactor-150-155.md)):**
    A no-op to a newly created Durable Object measured **643 ms median (731 ms max)**.
    Constructing a fresh stub to an already-warm Durable Object reintroduced
    **43–44 ms median** (versus **3 ms** on the same stub). Fresh per-wallet Router
    Durable Objects calling Deriver A, Deriver B, and SigningWorker also triggered
-   peer isolate cold starts on **89–97%** of calls ([`refactor-R155J-p99.md`](refactor-R155J-p99.md)).
-3. **Advisory region hints and cross-metro splits ([`refactor-155G-apac-anchor-and-hidden-exchanges.md`](refactor-155G-apac-anchor-and-hidden-exchanges.md), [`router-ab/deployment.md`](router-ab/deployment.md)):**
+   peer isolate cold starts on **89–97%** of calls ([`refactor-R155J-p99`](archive/refactor-150-155.md)).
+3. **Advisory region hints and cross-metro splits ([`refactor-155G-apac-anchor-and-hidden-exchanges`](archive/refactor-150-155.md), [`router-ab/deployment.md`](router-ab/deployment.md)):**
    Cloudflare location hints (`apac`, `apac-se`, `enam`, `weur`, `oc` in
    [`wallet_home.rs`](../crates/router-ab-cloudflare/src/wallet_home.rs)) are advisory
    and do not guarantee that Workers, Durable Objects, and D1 primaries share a
    datacenter. Production lanes experienced Workers in Hong Kong (`HKG`) calling D1
    primaries in Singapore (`SIN`) across 13–14 serial database calls, and evening
    Tokyo ingress traffic was shed to Portland/Seattle in 20 of 72 samples
-   ([`refactor-R155J-p99.md`](refactor-R155J-p99.md)).
-4. **WASM cryptographic CPU overhead ([`refactor-155G-apac-anchor-and-hidden-exchanges.md`](refactor-155G-apac-anchor-and-hidden-exchanges.md)):**
+   ([`refactor-R155J-p99`](archive/refactor-150-155.md)).
+4. **WASM cryptographic CPU overhead ([`refactor-155G-apac-anchor-and-hidden-exchanges`](archive/refactor-150-155.md)):**
    Ed25519 Yao garbling, evaluation, oblivious transfer, HPKE sealing, and 2 MB table
    serialization consume **272–413 ms CPU on Deriver A** and **248–452 ms CPU on
    Deriver B** under `wasm32-unknown-unknown`, compared to **209 ms total** (134 ms
@@ -97,17 +97,17 @@ Objects):
      Rivet 2.x feature and is scheduled for a later Rivet 3.x release.
    - Because `seams-wallet` already pins each wallet to a fixed regional home (`US`,
      `WEUR`, `APAC`, `OC`) and anchors each APAC lane in a single metro
-     ([`refactor-155G-apac-anchor-and-hidden-exchanges.md`](refactor-155G-apac-anchor-and-hidden-exchanges.md)),
+     ([`refactor-155G-apac-anchor-and-hidden-exchanges`](archive/refactor-150-155.md)),
      one Rivet 3.0 cluster per regional home matches the current architecture.
 
 ## Component mapping and architectural boundaries
 
 | Current Cloudflare Component | Rivet + PostgreSQL Target | Architectural & Security Requirements |
 | --- | --- | --- |
-| **Durable Objects (6 classes in [`crates/router-ab-cloudflare/src/durable_object/`](../crates/router-ab-cloudflare/src/durable_object/mod.rs))**<ul><li>`RouterAbRouterWalletDurableObject`</li><li>`RouterAbTenantRootCreationDurableObject`</li><li>`RouterAbDeriverAWalletDurableObject`</li><li>`RouterAbDeriverBWalletDurableObject`</li><li>`RouterAbSigningWorkerWalletDurableObject`</li><li>`RouterAbSigningWorkerPresignSessionDurableObject`</li></ul> | **Rivet Actors (`rivetkit` Rust SDK)**<br>Keyed by canonical wallet/host identity (`getOrCreate([key])`) using per-Actor WarpDrive SQLite (`ctx.sql()`) | Preserve single-writer serialization per actor key, ownership-generation fences, durable claims before emitting protocol output, and session-scoped expiry/cleanup ([`refactor-155-reusuable-DO.md`](refactor-155-reusuable-DO.md)). |
+| **Durable Objects (6 classes in [`crates/router-ab-cloudflare/src/durable_object/`](../crates/router-ab-cloudflare/src/durable_object/mod.rs))**<ul><li>`RouterAbRouterWalletDurableObject`</li><li>`RouterAbTenantRootCreationDurableObject`</li><li>`RouterAbDeriverAWalletDurableObject`</li><li>`RouterAbDeriverBWalletDurableObject`</li><li>`RouterAbSigningWorkerWalletDurableObject`</li><li>`RouterAbSigningWorkerPresignSessionDurableObject`</li></ul> | **Rivet Actors (`rivetkit` Rust SDK)**<br>Keyed by canonical wallet/host identity (`getOrCreate([key])`) using per-Actor WarpDrive SQLite (`ctx.sql()`) | Preserve single-writer serialization per actor key, ownership-generation fences, durable claims before emitting protocol output, and session-scoped expiry/cleanup ([`refactor-155-reusuable-DO`](archive/refactor-150-155.md)). |
 | **Role Workers (5 entrypoints in [`crates/router-ab-cloudflare`](../crates/router-ab-cloudflare/Cargo.toml))**<ul><li>`router-ab-mpc-router`</li><li>`router-ab-tenant-root-control-plane`</li><li>`router-ab-deriver-a`</li><li>`router-ab-deriver-b`</li><li>`router-ab-signing-worker`</li></ul> | **Separate Native Rust Actor Node Pools (`RIVET_POOL`) or Namespaces** | **Mandatory secret isolation ([`Spec 5`](spec-5-router-ab-threshold-protocol.md), [`router-ab/deployment.md`](router-ab/deployment.md)):** Rivet Actors share their host node's OS process. `deriver-a`, `deriver-b`, `signing-worker`, `router`, and `tenant-root-control-plane` **must run in separate Node Pools / OS processes** with separate credentials, KEKs, and HPKE keys. Never co-locate Deriver A and Deriver B actors in the same process or pool. |
 | **Role-Private D1 Databases**<ul><li>`DERIVER_A_PRIVATE_DB`</li><li>`DERIVER_B_PRIVATE_DB`</li><li>`SIGNING_WORKER_PRIVATE_DB`</li></ul> | **Regional PostgreSQL 18 (`PostgresRoleSqlSessionV1`)** in the same VPC | Reuse [`PostgresRoleSqlSessionV1`](../crates/router-ab-cloudflare/src/tenant_root_role_sql.rs) with native `tokio-postgres` over verified TLS and separate databases/credentials per role ([`storage-portability.md`](storage-portability.md)). Port SigningWorker D1 stores to the same PostgreSQL boundary or per-wallet Actor SQLite. |
-| **Gateway & Console D1 Databases**<br>([`packages/wallet-server/src/router/cloudflare/d1`](../packages/wallet-server/src/router/cloudflare/d1), 56 signer tables + 84 Console tables in [`refactor-152-state-ownership.md`](refactor-152-state-ownership.md)) | **Regional PostgreSQL** (shared/cross-wallet tables) + optional **Per-Wallet Actor SQLite** (wallet-scoped tables) | Rivet per-Actor SQLite is isolated per actor and does not replace cross-wallet relational queries (`wallet_passkey_claims`, `wallet_routes`, OIDC/sync challenges, tenant policy). Shared tables require the Gateway/Console PostgreSQL port noted in [`storage-portability.md`](storage-portability.md#L140-L145). |
+| **Gateway & Console D1 Databases**<br>([`packages/wallet-server/src/router/cloudflare/d1`](../packages/wallet-server/src/router/cloudflare/d1), 56 signer tables + 84 Console tables in [`refactor-152-state-ownership`](archive/refactor-150-155.md)) | **Regional PostgreSQL** (shared/cross-wallet tables) + optional **Per-Wallet Actor SQLite** (wallet-scoped tables) | Rivet per-Actor SQLite is isolated per actor and does not replace cross-wallet relational queries (`wallet_passkey_claims`, `wallet_routes`, OIDC/sync challenges, tenant policy). Shared tables require the Gateway/Console PostgreSQL port noted in [`storage-portability.md`](storage-portability.md#L140-L145). |
 | **Managed Backup R2 Buckets**<br>([`tenant_root_managed_backup_r2.rs`](../crates/router-ab-cloudflare/src/tenant_root_managed_backup_r2.rs)) | **Regional S3 / GCS / R2** | Preserve separate buckets and credentials for Deriver A and Deriver B backups. |
 
 ## Non-negotiable invariants
@@ -166,8 +166,8 @@ Objects):
    acknowledgements, concurrent admission claims, and pair cancellation).
 3. Benchmark end-to-end registration (Ed25519 Yao + ECDSA derivation), presignature
    pool refill, and consecutive signing (`p50`, `p95`, `p99`, and max) from a Tokyo
-   and Singapore client against the [`R155G`](refactor-155G-apac-anchor-and-hidden-exchanges.md)
-   and [`R155J`](refactor-R155J-p99.md) baselines:
+   and Singapore client against the [`R155G`](archive/refactor-150-155.md)
+   and [`R155J`](archive/refactor-150-155.md) baselines:
    - Verify whether native Rust Yao execution drops Deriver A/B CPU from ~270–450 ms
      to ~150–210 ms.
    - Verify whether WarpDrive 3-AZ NVMe commits eliminate the 5,000 ms periodic write
@@ -179,10 +179,10 @@ Objects):
 
 1. Port the Gateway signer stores ([`packages/wallet-server/src/router/cloudflare/d1`](../packages/wallet-server/src/router/cloudflare/d1))
    and SigningWorker D1 stores to PostgreSQL (with optional per-wallet Gateway Actor
-   SQLite for strictly wallet-scoped tables per [`refactor-152-state-ownership.md`](refactor-152-state-ownership.md)).
+   SQLite for strictly wallet-scoped tables per [`refactor-152-state-ownership`](archive/refactor-150-155.md)).
 2. Update wallet object address resolution (`0077_wallet_object_addresses.sql` and
    [`wallet_object_address.rs`](../crates/router-ab-cloudflare/src/wallet_object_address.rs))
-   and wallet relocation ([`R153`](refactor-153-wallet-region-selection.md)) to support
+   and wallet relocation ([`R153`](archive/refactor-150-155.md)) to support
    Rivet Actor keys/IDs across regional clusters without breaking ownership-generation
    fences.
 3. Validate managed backup and restore ([`Spec 6`](spec-6-tenant-roots-recovery-and-portability.md))

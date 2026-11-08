@@ -1,7 +1,7 @@
 # R155H — Release 0.10.1 on the Singapore staging lane
 
 Date: October 14, 2026, 10:00 to 12:31 JST. Plan:
-[refactor-155H.md](../refactor-155H.md). Numbers:
+[refactor-155H.md](../archive/refactor-150-155.md). Numbers:
 [refactor-155h-release-0101-staging.json](refactor-155h-release-0101-staging.json).
 
 ## Result

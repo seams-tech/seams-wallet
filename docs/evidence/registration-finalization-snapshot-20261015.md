@@ -3,7 +3,7 @@
 The candidate removes one D1 round trip from fresh NEAR finalization. The local
 comparison does **not** establish a latency gain. Staging remains unchanged while
 Claude runs R155J acceptance. This is a follow-up to the closed
-[R155H](../refactor-155H.md), not a reopening of that plan.
+[R155H](../archive/refactor-150-155.md), not a reopening of that plan.
 
 ## Changes
 

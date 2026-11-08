@@ -1,6 +1,6 @@
 # R155H close-out correctness checks
 
-Recorded October 14, 2026, for [R155H](../refactor-155H.md).
+Recorded October 14, 2026, for [R155H](../archive/refactor-150-155.md).
 
 The new `respond` fault scenario found and fixed a lost-write-reply bug.
 The fix preserves the original admission, bounded retries, and cancellation.
@@ -88,5 +88,5 @@ Claude owns the concurrent staging comparison, plan close-out, and 0.10.2 releas
 Its driver recorded four successful arms of 33 registrations and restoration of
 all 14 original Worker versions. This additional fix must join the release
 candidate. The comparison did not contain it and establishes no failure-rate or
-latency saving for it. [R155J](../refactor-R155J-p99.md) retains p99 acceptance and
+latency saving for it. [R155J](../archive/refactor-150-155.md#open-items) retains p99 acceptance and
 unresolved hosted outliers.

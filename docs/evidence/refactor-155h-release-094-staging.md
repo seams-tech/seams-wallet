@@ -1,7 +1,7 @@
 # R155H — Release 0.9.4 on the Singapore staging lane
 
 Date: October 13, 2026, 16:06 to 16:53 JST. Plan:
-[refactor-155H.md](../refactor-155H.md). Numbers:
+[refactor-155H.md](../archive/refactor-150-155.md). Numbers:
 [refactor-155h-release-094-staging.json](refactor-155h-release-094-staging.json).
 
 ## Result
@@ -141,7 +141,7 @@ No sample failed: 99 of 99 on 0.9.3 and 198 of 198 on 0.9.4.
   wallet waited 2.2 s in the Router consume, and two had a Yao execute stage
   of 2.7 s and 2.8 s.
 
-[R155J](../refactor-R155J-p99.md) owns these waits.
+[R155J](../archive/refactor-150-155.md#open-items) owns these waits.
 
 ## Verification
 

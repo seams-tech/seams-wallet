@@ -153,8 +153,8 @@ the user decides it. A claim must stay confirmed.
   holds the samples.
 - [The hold by location](evidence/refactor-155h-write-hold-by-colo.md): the
   normal confirmation time in eight locations.
-- [R155H](refactor-155H.md), Phase 6 and Phase 7: what the plan does about
-  it.
+- [R150–R155 record](archive/refactor-150-155.md#topology): the Singapore anchor that the plan
+  chose because of it.
 - Related public reports from other Cloudflare customers:
   [D1 timeouts on a small database](https://community.cloudflare.com/t/d1-timeout-errors-on-small-database/923198),
   with the D1 team's explanation, and

@@ -216,7 +216,7 @@ The installed Wallet Server 0.8.0 manifests also declare Worker entrypoints with
 Use Worker/WASM execution as the source-backed baseline.
 
 The [Streaming Yao narrative](../../apps/docs/src/concepts/threshold-signing/streaming-yao-ab.md) claims native Container compute, which conflicts with those manifests.
-The [state ownership audit](../refactor-152-state-ownership.md) also distinguishes benchmark probe Containers from authoritative wallet roles.
+The [state ownership audit](../archive/refactor-150-155.md#state-ownership) also distinguishes benchmark probe Containers from authoritative wallet roles.
 Resolve the actual deployment from deployed artifacts before benchmarking. Do not infer the compute path from that narrative claim.
 Assess Container execution separately only if deployment evidence or an explicit scope decision requires it.
 Historical Worker/WebSocket measurements remain historical evidence, regardless of the selected runtime.
