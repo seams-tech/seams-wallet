@@ -135,9 +135,9 @@ Order of work: B5, B6, B3, B2, B1, then the optional part of B4. Each item is a 
   - `hydrateClientPresignaturePool` (`L431-L457`) joins any hydration in flight. After a clear, it joins the stale-generation hydration, which only destroys its handles (`L486-L497`). The caller then finds an empty pool.
   - `popClientPresignature` (`L321-L334`) removes a handle before `reserveClientPresignature` (`L1567`). Between the two, a concurrent hydration can list the handle as available and push it back (`L499-L516`). The worker reservation is authoritative and returns `claimed_elsewhere` (`L1577-L1590`), so the duplicate costs a retry, not a double use.
 - **Change**:
-  - Key the hydration in-flight map by pool key and generation, or delete its entry on clear, so a hydration after a clear starts fresh.
-  - Make `clearClientPresignaturePool` call `stopPresignatureMaintenance(poolKey)` and delete the foreground refill count.
-  - Track handles that are taken but not yet reserved in a per-pool `Set`. `pushClientPresignature` returns `'duplicate'` for them. Remove the handle from the set when the reservation settles.
+  - Store the generation with each hydration in flight. A hydration for a newer generation waits for the stale one, then lists the pool again.
+  - Make `clearClientPresignaturePool` and `clearAllRouterAbEcdsaDerivationClientPresignatures` call `stopPresignatureMaintenance`, so a scheduled refill does not run for a cleared pool. Leave the foreground refill count as it is: it counts refills that still run after a clear.
+  - Track handles that a signing attempt took in one module-level `Set` (handles are unique across pools). `pushClientPresignature` returns `'duplicate'` for them. The attempt's `finally` removes the handle before it pushes an unclaimed handle back.
   - Do not merge the maps into one `PoolBucketState` in this batch. The file has 1,959 lines. Do that merge only after a split along a real seam, such as moving maintenance scheduling (`L657-L770`) to its own module.
 - **Verification**:
   - Test that a hydration after a clear stores the new handles.

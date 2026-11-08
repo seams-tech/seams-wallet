@@ -301,7 +301,13 @@ const clientPresignaturePool = new Map<string, RouterAbEcdsaDerivationClientPres
 const clientPresignaturePoolIdentityByPoolKey = new Map<string, EcdsaClientPresignPoolIdentity>();
 const clientPresignatureRefillInFlightByPoolKey = new Map<string, PresignatureRefillProgressV1>();
 const foregroundRefillInFlightByPoolKey = new Map<string, number>();
-const clientPresignatureHydrationInFlightByPoolKey = new Map<string, Promise<void>>();
+const clientPresignatureHydrationInFlightByPoolKey = new Map<
+  string,
+  { readonly generation: number; readonly promise: Promise<void> }
+>();
+// Handles taken from a pool by a signing attempt that has not ended. A
+// hydration that lists one of them as available must not push it back.
+const clientPresignaturesInAttempt = new Set<string>();
 const clientPresignaturePoolGenerationByPoolKey = new Map<string, number>();
 
 type PresignProtocolStage = ThresholdEcdsaPresignProgressWasm['stage'];
@@ -340,7 +346,9 @@ async function takeClientPresignature(input: {
   readonly workerCtx: WorkerOperationContext;
 }): Promise<RouterAbEcdsaDerivationClientPresignatureRef | null> {
   await destroyExpiredClientPresignatures(input);
-  return popClientPresignature(input.poolKey);
+  const item = popClientPresignature(input.poolKey);
+  if (item) clientPresignaturesInAttempt.add(item.materialHandle);
+  return item;
 }
 
 type PushClientPresignatureResult = 'stored' | 'duplicate' | 'capacity_full' | 'invalid';
@@ -351,6 +359,7 @@ function pushClientPresignature(
   item: RouterAbEcdsaDerivationClientPresignatureRef,
 ): PushClientPresignatureResult {
   if (!isClientPresignatureUsable(item)) return 'invalid';
+  if (clientPresignaturesInAttempt.has(item.materialHandle)) return 'duplicate';
   const list = clientPresignaturePool.get(poolKey) || [];
   for (const existing of list) {
     if (existing.materialHandle === item.materialHandle) return 'duplicate';
@@ -441,20 +450,27 @@ async function hydrateClientPresignaturePool(input: {
     input.clientSigningMaterial,
     input.workerCtx,
   );
-  const existing = clientPresignatureHydrationInFlightByPoolKey.get(input.poolKey);
-  if (existing) {
-    await existing;
-    return;
-  }
-  const hydration = runClientPresignaturePoolHydration(input);
-  clientPresignatureHydrationInFlightByPoolKey.set(input.poolKey, hydration);
-  try {
-    await hydration;
-  } finally {
-    if (clientPresignatureHydrationInFlightByPoolKey.get(input.poolKey) === hydration) {
-      clientPresignatureHydrationInFlightByPoolKey.delete(input.poolKey);
+  let existing = clientPresignatureHydrationInFlightByPoolKey.get(input.poolKey);
+  while (existing) {
+    if (existing.generation === input.generation) {
+      await existing.promise;
+      return;
     }
+    // A hydration for an older generation only destroys what it listed, so
+    // wait for it and then hydrate this generation.
+    await existing.promise.catch(() => undefined);
+    existing = clientPresignatureHydrationInFlightByPoolKey.get(input.poolKey);
   }
+  const entry = {
+    generation: input.generation,
+    promise: runClientPresignaturePoolHydration(input).finally(() => {
+      if (clientPresignatureHydrationInFlightByPoolKey.get(input.poolKey) === entry) {
+        clientPresignatureHydrationInFlightByPoolKey.delete(input.poolKey);
+      }
+    }),
+  };
+  clientPresignatureHydrationInFlightByPoolKey.set(input.poolKey, entry);
+  await entry.promise;
 }
 
 async function runClientPresignaturePoolHydration(input: {
@@ -625,7 +641,10 @@ export function clearAllRouterAbEcdsaDerivationClientPresignatures(): void {
     ...foregroundRefillInFlightByPoolKey.keys(),
     ...clientPresignaturePoolGenerationByPoolKey.keys(),
   ]);
-  for (const poolKey of invalidatedPoolKeys) bumpClientPresignaturePoolGeneration(poolKey);
+  for (const poolKey of invalidatedPoolKeys) {
+    bumpClientPresignaturePoolGeneration(poolKey);
+    stopPresignatureMaintenance(poolKey);
+  }
   clientPresignaturePool.clear();
   clientPresignaturePoolIdentityByPoolKey.clear();
   for (const progress of clientPresignatureRefillInFlightByPoolKey.values()) {
@@ -639,6 +658,7 @@ function clearClientPresignaturePool(poolKey: string): void {
   clientPresignaturePool.delete(poolKey);
   clientPresignaturePoolIdentityByPoolKey.delete(poolKey);
   bumpClientPresignaturePoolGeneration(poolKey);
+  stopPresignatureMaintenance(poolKey);
   clientPresignatureRefillInFlightByPoolKey.get(poolKey)?.settle();
   clientPresignatureRefillInFlightByPoolKey.delete(poolKey);
 }
@@ -1777,6 +1797,9 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
   } finally {
     zeroizeBytes(clientSignatureShare32);
     zeroizeBytes(clientRerandomizationContribution32);
+    // Before the push below, which would otherwise count this handle as a
+    // duplicate of itself.
+    if (presignature) clientPresignaturesInAttempt.delete(presignature.materialHandle);
     if (
       presignature &&
       poolIdentity &&
