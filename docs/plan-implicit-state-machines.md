@@ -4,7 +4,7 @@
 
 This document records the source-verified audit of implicit state machines across `seams-wallet` and the phased refactor plan to replace ad-hoc boolean flags, parallel `Map`s, nullable field bags, and unguarded transitions with explicit discriminated unions and atomic transition helpers.
 
-Every candidate finding from the initial repository scan was checked directly against the current source on `dev` (`470fbdba5`) before inclusion. Following [`docs/debugging-method.md`](./debugging-method.md):
+Every candidate finding from the initial repository scan was checked directly against the current source on `dev` (`470fbdba5`) before inclusion. Batch 1 (`B1–B6`) was checked a second time against `e82d630a3` on 2026-11-08. That check corrected names and line numbers, narrowed four items, and withdrew most of B4. Following [`docs/debugging-method.md`](./debugging-method.md):
 
 1. **Facts precede causes**: each item below cites the exact file, line range, and measured code behavior.
 2. **Refuted or narrowed hypotheses are recorded explicitly**: four initial subagent claims were either refuted or narrowed upon reading the implementation and are documented in [Withdrawn and Narrowed Findings](#withdrawn-and-narrowed-findings) so we do not churn working code.
@@ -22,12 +22,12 @@ Every candidate finding from the initial repository scan was checked directly ag
 
 | ID | Subsystem & File | Current Encoding | Measured Fact in Source | Status | Batch |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **B1** | [`readiness.ts`](../packages/wallet/src/core/signingEngine/session/availability/readiness.ts) (`L59-L62`, `L162-L178`, `L731-L753`) | `DiscoveredSigningSessionLane.backing: 'record_policy' \| 'volatile_authority'` | `buildDiscoveredLaneForRuntime` (`L175`) is the sole constructor and hardcodes `backing: 'record_policy'`. In `clearWalletSession` (`L732`), `if (lane.backing === 'record_policy') continue;` always skips `L733-L753`, so volatile `emailOtp` and `touchConfirm` worker sessions are never cleared by `clearWalletSession`. | **Confirmed defect** | Batch 1 |
-| **B2** | [`presignaturePool.ts`](../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts) (`L300-L305`, `L460-L518`, `L620-L644`, `L672`) | 7 module-level `Map<string, ...>` keyed by `poolKey` | `clearClientPresignaturePool(poolKey)` (`L638-L644`) deletes from 3 of 7 maps and bumps generation, leaving `clientPresignatureHydrationInFlightByPoolKey` and `foregroundRefillInFlightByPoolKey` populated. `takeClientPresignature` pops from `clientPresignaturePool` (`L672`) before awaiting worker reservation while `hydrateClientPresignaturePool` (`L474-L506`) re-lists available worker handles and pushes any handle not in `clientPresignaturePool`. | **Confirmed defect** | Batch 1 |
-| **B3** | [`workerTransport.ts`](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts) (`L243-L257`, `L1047-L1091`) | `workers: Map<WorkerKind, WorkerEntry>` + 2 prewarm promises + external handle registries | `terminateWorkerOnly` and `resetWorker` do not clear `ecdsaRegistrationCryptoPrewarmPromise` or `emailOtpYaoPrewarmPromise`; `setWorkerBaseOrigin` (`L253`) clears `emailOtpYaoPrewarmPromise` but forgets `ecdsaRegistrationCryptoPrewarmPromise`. Resetting `ecdsaDerivationClient` or `emailOtp` does not invalidate main-thread `linkedEcdsaHolderRuntime` or `Ed25519YaoActiveClientRegistry` handles. | **Confirmed defect** | Batch 1 |
-| **B4** | [`ecdsa-presign-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts) (`L590-L635`, `L892-L894`, `L996-L1000`) & [`ecdsa-derivation-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts) (`L585-L619`, `L3142-L3160`) | `messageQueue: Promise<void>` + `presignatureByHandle` + `ceremonyStates` | In `ecdsa-presign-client.worker.ts`, `attachControlChannel` (`L997`) and `enqueueOnlineRequest` (`L892`) bypass `messageQueue`, and `reservePresignature` (`L595-L624`) leaves `entry.state.kind === 'available'` across `await requestOpaqueAuthority(...)`. In `ecdsa-derivation-client.worker.ts`, `persistInitialCanonicalEcdsaActivation` (`L601-L618`) only closes `ceremonyId` in `case 'stored'`, leaking the ceremony entry on `'exact_record_conflict' \| 'corrupt' \| 'persistence_unavailable'`. | **Confirmed defect** | Batch 1 |
-| **B5** | [`passkey-mpc-session.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts) (`L1108-L1174`) | `passkeyPrfFirstHandleStore` + `warmSessionPrfHandleCache` | `runSigningSessionSealAndPersist` captures `const entry = activeEntry.entry` (`L1117`) before async Shamir 3-pass and `callSigningSessionSealRoute` RPCs, then calls `updateWarmSessionPrfHandlePolicy(thresholdSessionId, entry, policy)` (`L1173`), which unconditionally sets `warmSessionPrfHandleCache.set(thresholdSessionId, entry)` even if the session was cleared or consumed during the `await`s. | **Confirmed defect** | Batch 1 |
-| **B6** | [`unlockedEd25519ExportRootCapability.ts`](../packages/wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability.ts) (`L44-L47`, `L268-L315`) & [`nearProvisioningRegistry.ts`](../packages/wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry.ts) (`L16-L24`, `L96-L119`) | Module-level `currentCapability` singleton; `{ state, inFlight, listeners }` | `establishUnlockedWalletEd25519ExportRootCapabilityV1` awaits `transport.requestOperation` (`L287`) and overwrites `currentCapability` (`L310`) without checking if `destroyUnlockedWalletEd25519ExportRootCapabilitiesV1` ran while in flight or destroying a superseded `capabilityHandleId`. In `nearProvisioningRegistry.ts`, `publishNearProvisioningState` (`L96`) notifies listeners before `entry.inFlight = inFlight` (`L118`) is assigned. | **Confirmed defect** | Batch 1 |
+| **B1** | [`readiness.ts`](../packages/wallet/src/core/signingEngine/session/availability/readiness.ts) (`L59-L62`, `L162-L178`, `L731-L760`) & [`SigningSessionCoordinator.ts`](../packages/wallet/src/core/signingEngine/session/SigningSessionCoordinator.ts) (`L429-L439`) | `DiscoveredSigningSessionLane.backing: 'touch_confirm' \| 'email_otp_worker' \| 'record_policy'` | `buildDiscoveredLaneForRuntime` (`L175`) is the sole constructor and hardcodes `backing: 'record_policy'`. In `clearWalletSession`, `if (lane.backing === 'record_policy') continue;` (`L732`) always skips the calls to `clearEmailOtpWarmSessionMaterial` (`L738`) and `touchConfirm.clearVolatileWarmSessionMaterial` (`L747`). The only caller, `SigningSessionCoordinator.clear`, has no caller in `packages/wallet/src` and discards the result. | **Confirmed dead code** | Batch 1 |
+| **B2** | [`presignaturePool.ts`](../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts) (`L299-L305`, `L321-L364`, `L431-L517`, `L637-L643`, `L1424-L1590`) | 6 module-level `Map<string, ...>` keyed by `poolKey`, plus `presignatureMaintenance` (`L672`) | `clearClientPresignaturePool` (`L637-L643`) leaves `clientPresignatureHydrationInFlightByPoolKey`, `foregroundRefillInFlightByPoolKey` and `presignatureMaintenance` populated. The next `hydrateClientPresignaturePool` (`L444-L447`) joins the stale-generation hydration and returns with no new handles. `popClientPresignature` (`L321-L334`) removes a handle before `reserveClientPresignature` (`L1567`); a concurrent hydration can push the same handle back. The worker reservation rejects the second claim (`claimed_elsewhere`, `L1577-L1590`), so the duplicate costs a retry from `MAX_CLIENT_PRESIGNATURE_CLAIM_RETRIES` (`L299`), not a double use. | **Confirmed defect (narrowed)** | Batch 1 |
+| **B3** | [`workerTransport.ts`](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts) (`L243-L257`, `L290-L350`, `L1047-L1091`) | `workers: Map<WorkerKind, WorkerEntry>` + 2 prewarm promises | A succeeded `ecdsaRegistrationCryptoPrewarmPromise` or `emailOtpYaoPrewarmPromise` survives `resetWorker` / `terminateWorkerOnly`, so a later prewarm returns at once and does not warm the new worker. `setWorkerBaseOrigin` (`L253`) clears only `emailOtpYaoPrewarmPromise`. The effect is speed only: lazy init still runs on first use. | **Confirmed defect (narrowed)** | Batch 1 |
+| **B4** | [`ecdsa-presign-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts) & [`ecdsa-derivation-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts) | `messageQueue` + `opaqueMaterials` + `routerAbEcdsaRegistrationCeremonies` | Withdrawn except one optional defensive change. See [Withdrawn and Narrowed Findings](#withdrawn-and-narrowed-findings), item 5. | **Withdrawn (mostly)** | Batch 1 (optional) |
+| **B5** | [`passkey-mpc-session.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts) (`L665-L669`, `L700-L719`, `L1108-L1174`) | `warmSessionPrfHandleCache` (keyed by `thresholdSessionId`) + `passkeyPrfFirstHandleStore` (keyed by `prfFirstHandle`) | `runSigningSessionSealAndPersist` captures `entry` (`L1117`), awaits the seal preparation and `callSigningSessionSealRoute`, then calls `updateWarmSessionPrfHandlePolicy` (`L1173`), which always runs `warmSessionPrfHandleCache.set(thresholdSessionId, ...)` (`L717`). If the session was cleared during the awaits, the cache gets an entry whose secret is gone. If a newer entry replaced it, the old handle overwrites the newer entry. On a policy failure, `deleteWarmSessionPrfHandle(thresholdSessionId)` (`L1170`) deletes whatever entry is current, including a newer one. | **Confirmed defect** | Batch 1 |
+| **B6** | [`unlockedEd25519ExportRootCapability.ts`](../packages/wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability.ts) (`L44-L47`, `L268-L316`, `L375-L397`) & [`nearProvisioningRegistry.ts`](../packages/wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry.ts) (`L64-L73`, `L88-L119`) | Module-level `currentCapability` singleton; `{ state, inFlight }` entries + `listeners` | The ceremony worker runs one message at a time (`wallet-custody-ceremony.worker.ts:L1271-L1290`) and destroys the previous handle for the same wallet (`L869`). Two gaps remain on the main thread. (1) If `destroyUnlockedWalletEd25519ExportRootCapabilitiesV1` runs while an establish is in flight, the destroy clears the local reference first, then the establish installs a handle that the worker destroyed next (`L310`). (2) A capability for a different wallet is replaced locally but stays in the worker until expiry. In `nearProvisioningRegistry.ts`, `runSingleFlightNearProvisioning` publishes `near_provisioning` (`L95-L98`) before `entry.inFlight = inFlight` (`L118`), so a listener that calls it again starts a second attempt. | **Confirmed defect (narrowed)** | Batch 1 |
 | **B7** | [`NonceCoordinator.ts`](../packages/wallet/src/core/signingEngine/nonce/NonceCoordinator.ts) (`L940-L1018`, `L1246-L1253`, `L1421-L1464`) & [`nearNonceLane.ts`](../packages/wallet/src/core/signingEngine/nonce/nearNonceLane.ts) (`L805-L874`) | In-memory `leases`, `evmState`, `nearState` + durable `nonceLaneCoordinationStore` | `recoverDurableLeases` (`L940-L1018`) leaves non-expired `Reserved`/`Signed` durable records in `nonceLaneCoordinationStore` without inserting them into in-memory `leases`, `evmState.reserved`, or `nearState.reservedNonces`. `clearNearAccessKey` (`L1246-L1253`) clears in-memory `leases` without deleting durable store records. `clearForWallet` (`L1421`) and `clearAll` (`L1451`) mutate state outside `withLaneLock`. | **Confirmed defect** | Batch 2 |
 | **B8** | [`unifiedIndexedDBManager.ts`](../packages/wallet/src/core/indexedDB/unifiedIndexedDBManager.ts) (`L45-L140`, `L787`) & [`sealedRestoreOrchestrator.ts`](../packages/wallet/src/core/signingEngine/session/emailOtp/sealedRestoreOrchestrator.ts) (`L82`, `L97`, `L261`) | Flat interfaces `AccountSignerRecord` / `SignerOpOutboxRecord`; unused `summary.repairs`; mutable `requestedChainTarget` | `AccountSignerRecord` and `SignerOpOutboxRecord` allow invalid combinations of `status` and nullable lifecycle fields unless narrowed by boundary codecs. `summary.repairs` (`L787`) is initialized to `[]` and never populated. `requestedChainTarget` (`L82`) is a mutable instance property used to pass a synchronous parameter into `readEcdsaSealedRecordForTarget`. | **Confirmed structural hazard** | Batch 2 |
 | **B9** | [`routerAbEd25519YaoRegistration.ts`](../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration.ts) (`L655-L778`) | 3 maps: `states`, `lifecycleSessions`, `admissionClaims` | In `commitAdmit` (`L708-L715`), when `input.outcome.kind === 'backend_uncertain'`, the method returns `503 admission_uncertain` without deleting `this.admissionClaims.get(input.claim.lifecycleId)`. Subsequent `prepareAdmit` (`L665`) and `prepareExecute` (`L778`) calls permanently fail with `409 admission_in_progress`. | **Confirmed defect** | Batch 3 |
@@ -50,7 +50,7 @@ Every candidate finding from the initial repository scan was checked directly ag
 
 ## Withdrawn and Narrowed Findings
 
-Before writing code, we verified every candidate from the initial exploration against the actual source files. The following four claims from the initial exploration were **refuted or narrowed** and will **not** be treated as bugs:
+Before writing code, we verified every candidate from the initial exploration against the actual source files. The following claims were **refuted or narrowed** and will **not** be treated as bugs. Items 5 and 6 come from the second Batch 1 check:
 
 1. **Withdrawn — `UiConfirmManager.ts` 3-map race and `reservedNonceLeases` leak**:
    - *Initial claim*: `UiConfirmManager.ts` (lines 714–754) maintained `pendingRequests`, `pendingRequestTokens`, and `pendingWorkerRequests` in a `confirmWithWorker` method that leaked `reservedNonceLeases` when `pendingExecution.decision?.confirmed` was true.
@@ -64,6 +64,17 @@ Before writing code, we verified every candidate from the initial exploration ag
 4. **Narrowed — `nearProvisioningRegistry.ts` `inFlight === null` window**:
    - *Initial claim*: `runSingleFlightNearProvisioning` in [`nearProvisioningRegistry.ts`](../packages/wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry.ts) (`L96-L119`) left `entry.inFlight === null` across async turns when `status === 'near_provisioning'`.
    - *Measured fact*: `publishNearProvisioningState` (`L96`) and `entry.inFlight = inFlight` (`L118`) run synchronously in the same turn. However, `publishNearProvisioningState` notifies synchronous listeners at `L56` *before* `entry.inFlight = inFlight` is set at `L118`, and external callers can call `publishNearProvisioningState` with `status: 'near_provisioning'` directly. Folding `inFlight` into the `'near_provisioning'` variant (tracked in **B6**) closes even the synchronous re-entrancy window.
+5. **Withdrawn (mostly) — B4 ECDSA worker queue, reservation and ceremony leak**:
+   - *Initial claim*: `attachControlChannel` and `attachPresignChannel` must go through `messageQueue`; `messageQueue` needs `.catch` recovery; `reservePresignature` needs a `'reserving'` state; `persistInitialCanonicalEcdsaActivation` leaks the ceremony on failure.
+   - *Measured fact — queueing the attach is unsafe*: `replaceAuthorityChannel` runs `purgeAuthorityPort` (`ecdsa-presign-client.worker.ts:L132-L142`), which rejects requests pending on the old port. If the attach waited behind a queued request that is blocked on the dead old port, nothing would reject that request and the queue would stop. The attach must stay outside the queue.
+   - *Measured fact — the `.catch` is not needed*: `handleRpcRequest` (`L896-L993`) catches every error and posts it, so the `messageQueue` chain does not reject.
+   - *Measured fact — no current reservation race*: `reservePresignature` (`L549-L640`) is called only from `handleRpcRequest` (`L965`), which `messageQueue` runs one at a time. The online port path acts only on `'committed'` entries (`L806`). An attach during the restore await rejects the pending restore, so the reservation fails closed.
+   - *Measured fact — callers close the ceremony*: on any persistence failure the main thread throws and calls `closeStrictEcdsaRegistrationCeremony` (`registrationStrictEcdsa.ts:L524`, `registration.ts:L1095`, `registration.ts:L2191`), which sends `CloseRouterAbEcdsaRegistrationCeremony` to the worker.
+   - *What remains*: an optional worker-side `closeRouterAbEcdsaRegistrationCeremonyState` on the three failure branches. Do it only if it adds no net lines: `ecdsa-derivation-client.worker.ts` has 3,223 lines, so every new line raises `linesInFilesOver2000`.
+6. **Narrowed — B3 main-thread handle registries**:
+   - *Initial claim*: resetting `ecdsaDerivationClient` or `emailOtp` leaves `linkedEcdsaHolderRuntime`, `Ed25519YaoActiveClientRegistry` and `WalletCustodyEd25519ActiveClientV1` with handles to a terminated worker.
+   - *Measured fact*: no failure was measured. `Ed25519YaoActiveClientRegistry.resolve` already drops a disposed client (`yaoActiveClientRegistry.ts:L194-L201`). Yao clients also run on the iframe main thread and in other workers (`docs/browser-workers.md`), so a worker reset is not the only owner. A hook from `workerTransport.ts` into `SeamsWeb` registries would also make core code depend on `SeamsWeb`.
+   - *Decision*: no invalidation hooks in Batch 1. Add one only after a test shows that a stale handle passes a check it should fail. If one is needed, use a termination subscription on the transport, not a direct import.
 
 ---
 
@@ -71,86 +82,88 @@ Before writing code, we verified every candidate from the initial exploration ag
 
 ### Batch 1: Browser Core Session Readiness, Presignature Pool & Worker Lifecycles (`B1–B6`)
 
-#### B1 — Fix `clearWalletSession` volatile session cleanup (`readiness.ts`)
-- **File**: [`packages/wallet/src/core/signingEngine/session/availability/readiness.ts`](../packages/wallet/src/core/signingEngine/session/availability/readiness.ts)
-- **Root Cause**:
-  - `DiscoveredSigningSessionLane` (`L59-L62`) defines `backing: 'record_policy' | 'volatile_authority'`, and `buildDiscoveredLaneForRuntime` (`L162-L178`) always sets `backing: 'record_policy'`.
-  - `clearWalletSession` (`L731-L753`) loops over `discovered` lanes and executes `if (lane.backing === 'record_policy') continue;` (`L732`), making the volatile worker cleanup for `email_otp` (`clearEmailOtpColdSigningSession`) and `passkey` (`clearAllPrfFirstCacheForSession`) at `L733-L753` completely unreachable.
-  - By contrast, [`clientSessionExpiryInvalidator.ts`](../packages/wallet/src/core/signingEngine/session/availability/clientSessionExpiryInvalidator.ts) (`L79-L87`) dispatches directly on `lane.auth.kind`.
-- **Change**:
-  - Remove the dead `backing` field from `DiscoveredSigningSessionLane` (or replace it with the actual auth-lane capability).
-  - In `clearWalletSession` (`L731-L753`), always clear volatile worker material for discovered lanes alongside `SigningSessionStateRepository.deleteSigningSessionState(walletId)` (dispatching on `lane.auth.kind === 'email_otp'` and `lane.auth.kind === 'passkey'`), matching `clientSessionExpiryInvalidator.ts`.
-- **Verification**:
-  - Add a unit test in `packages/wallet` verifying that `clearWalletSession` invokes `clearEmailOtpColdSigningSession` for discovered `email_otp` lanes and `clearAllPrfFirstCacheForSession` for discovered `passkey` lanes in addition to deleting the IndexedDB policy record.
+Order of work: B5, B6, B3, B2, B1, then the optional part of B4. Each item is a separate commit.
 
-#### B2 — Consolidate ECDSA presignature pool maps into `PoolBucketState` (`presignaturePool.ts`)
-- **File**: [`packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts`](../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts)
-- **Root Cause**:
-  - Seven separate maps keyed by `poolKey` (`clientPresignaturePool`, `clientPresignaturePoolIdentityByPoolKey`, `clientPresignatureRefillInFlightByPoolKey`, `foregroundRefillInFlightByPoolKey`, `clientPresignatureHydrationInFlightByPoolKey`, `clientPresignaturePoolGenerationByPoolKey`, and `presignatureMaintenance`) track per-pool state (`L300-L305`, `L620`).
-  - `clearClientPresignaturePool(poolKey)` (`L638-L644`) only deletes from `clientPresignaturePool`, `clientPresignaturePoolIdentityByPoolKey`, and `clientPresignatureRefillInFlightByPoolKey`, leaving `foregroundRefillInFlightByPoolKey` and `clientPresignatureHydrationInFlightByPoolKey` stale.
-  - `takeClientPresignature` (`L672`) pops a `ClientPresignature` from `available` before `await reserveClientPresignatureInWorker(...)`, during which a concurrent `hydrateClientPresignaturePool` (`L474-L506`) can re-read the handle from the worker as `'available'` and push a duplicate into `available`.
-- **Change**:
-  - Replace the 7 maps with a single `Map<string, PoolBucketState>` where `PoolBucketState` holds:
-    - `generation: number`
-    - `identity: ClientPresignaturePoolIdentity | null`
-    - `available: ClientPresignature[]`
-    - `reservingHandles: Set<string>` (handles currently in-flight to `reserveClientPresignatureInWorker` so `hydrateClientPresignaturePool` skips them)
-    - `hydrationInFlight: Promise<void> | null`
-    - `backgroundRefillInFlight: Promise<ClientPresignature[]> | null`
-    - `foregroundRefillInFlight: Promise<ClientPresignature> | null`
-    - `maintenance: PoolMaintenanceMode` (`Variant`-named union: `'idle' | 'scheduled' | 'running'`)
-  - Make `clearClientPresignaturePool(poolKey)` and `clearAllClientPresignaturePools()` atomically increment `generation`, cancel any scheduled maintenance timer, and reset all fields of `PoolBucketState`.
-- **Verification**:
-  - Run existing presignature pool tests and add a test covering concurrent `takeClientPresignature` + `hydrateClientPresignaturePool` and `clearClientPresignaturePool` during in-flight hydration/foreground refill.
-
-#### B3 — Synchronize worker resets with prewarm promises and main-thread handle caches (`workerTransport.ts`)
-- **File**: [`packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts`](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
-- **Root Cause**:
-  - `terminateWorkerOnly` (`L1079-L1091`) and `resetWorker` (`L1047-L1077`) do not clear `ecdsaRegistrationCryptoPrewarmPromise` (when `ecdsaDerivationClient` resets) or `emailOtpYaoPrewarmPromise` (when `emailOtp` resets).
-  - `setWorkerBaseOrigin` (`L243-L257`) clears `emailOtpYaoPrewarmPromise` (`L253`) but forgets `ecdsaRegistrationCryptoPrewarmPromise`.
-  - When `ecdsaDerivationClient` or `emailOtp` resets, main-thread handle registries (`linkedEcdsaHolderRuntime`, `Ed25519YaoActiveClientRegistry`, `WalletCustodyEd25519ActiveClientV1`) retain handle IDs pointing to the terminated worker instance.
-- **Change**:
-  - Store the prewarm state inside `WorkerEntry` (or clear the corresponding prewarm promise in `terminateWorkerOnly` and `setWorkerBaseOrigin`).
-  - Register worker-termination invalidation hooks in `terminateWorkerOnly` for `ecdsaDerivationClient` and `emailOtp` alongside the existing `walletCustodyCeremony` hook (`L1088`).
-- **Verification**:
-  - Add unit tests in `workerTransport` verifying that resetting `ecdsaDerivationClient` or `emailOtp` or changing `workerBaseOrigin` invalidates prewarm promises and cached worker handles.
-
-#### B4 — Serialize worker control channels and close leaked ceremony / reservation windows (`ecdsa-presign-client.worker.ts`, `ecdsa-derivation-client.worker.ts`)
-- **Files**:
-  - [`packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts)
-  - [`packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts)
-- **Root Cause**:
-  - In `ecdsa-presign-client.worker.ts`, `attachControlChannel` (`L997`) and `enqueueOnlineRequest` (`L892`) execute outside `messageQueue`, and `messageQueue = messageQueue.then(...)` (`L999`) has no `.catch` recovery if a handler throws before posting.
-  - In `ecdsa-presign-client.worker.ts`, `reservePresignature` (`L595-L624`) checks `entry.state.kind === 'available'` (`L607`), then awaits `requestOpaqueAuthority(entry.authorityPort, ...)` (`L617`) before mutating `entry.state` to `'reserved'` (`L624`).
-  - In `ecdsa-derivation-client.worker.ts`, `persistInitialCanonicalEcdsaActivation` (`L601-L618`) only calls `closeRouterAbEcdsaRegistrationCeremonyState(ceremonyId, active)` in `case 'stored'`, leaking `ceremonyStates.get(ceremonyId)` on `'exact_record_conflict' | 'corrupt' | 'persistence_unavailable'`. Also `enqueueOpaquePresignRequest` (`L3142`) and `attachPresignChannel` (`L3146`) bypass `messageQueue`.
-- **Change**:
-  - Route `attachControlChannel` and `attachPresignChannel` through `messageQueue` and ensure `messageQueue` always recovers via `.catch(() => undefined)`.
-  - Add a `'reserving'` variant to `StoredPresignatureStateV1` in `ecdsa-presign-client.worker.ts` before awaiting `requestOpaqueAuthority`, rolling back to `'available'` only if the authority port call fails and the entry was not cleared.
-  - Call `closeRouterAbEcdsaRegistrationCeremonyState(ceremonyId, active)` in a `finally` block (or across all terminal branches) in `persistInitialCanonicalEcdsaActivation`.
-- **Verification**:
-  - Run ECDSA worker unit tests and add a test for ceremony cleanup on persistence conflict/failure.
-
-#### B5 — Guard `warmSessionPrfHandleCache` update after async seal RPC (`passkey-mpc-session.worker.ts`)
+#### B5 — Compare-and-set the warm session cache after the async seal (`passkey-mpc-session.worker.ts`)
 - **File**: [`packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts)
 - **Root Cause**:
-  - `runSigningSessionSealAndPersist` (`L1108-L1174`) reads `const entry = activeEntry.entry` (`L1117`), awaits Shamir 3-pass operations and `callSigningSessionSealRoute`, and then unconditionally calls `updateWarmSessionPrfHandlePolicy(thresholdSessionId, entry, policy)` (`L1173`), which inserts `entry` into `warmSessionPrfHandleCache` even if `thresholdSessionId` was cleared or superseded while the RPC was in flight.
+  - `runSigningSessionSealAndPersist` (`L1108-L1174`) reads `entry` at `L1117`, then awaits the seal preparation and `callSigningSessionSealRoute`.
+  - After the awaits, `updateWarmSessionPrfHandlePolicy` (`L700-L719`) always writes `warmSessionPrfHandleCache.set(thresholdSessionId, ...)`. On a policy failure, `deleteWarmSessionPrfHandle(thresholdSessionId)` (`L665-L669`, called at `L1170`) deletes the current entry.
+  - Both writes act on whatever entry is current, not on the entry that the seal started with.
 - **Change**:
-  - In `updateWarmSessionPrfHandlePolicy` (or immediately before calling it at `L1173`), verify that `passkeyPrfFirstHandleStore.get(thresholdSessionId) === entry` and that `entry.prfFirstHandle` is still live in `prfFirstOutputLookup` before writing to `warmSessionPrfHandleCache`.
+  - Before either write, check that `warmSessionPrfHandleCache.get(thresholdSessionId)?.prfFirstHandle === entry.prfFirstHandle`. For the update, also check that `passkeyPrfFirstHandleStore.has(entry.prfFirstHandle)`. Note that `passkeyPrfFirstHandleStore` is keyed by `prfFirstHandle`, not by `thresholdSessionId`.
+  - Put the check in one helper that both paths use. If the check fails, return the same "session unavailable" result that `readWarmSessionMaterialEntry` returns for a missing session.
 - **Verification**:
-  - Add a unit test verifying that clearing a passkey session while `runSigningSessionSealAndPersist` is in flight does not resurrect the warm session cache entry.
+  - Test that a clear during the seal does not put an entry back in the cache.
+  - Test that a newer entry for the same `thresholdSessionId` survives both the update path and the policy-failure path of an older seal.
 
-#### B6 — Epoch-guard unlocked Ed25519 export root capability & fold `inFlight` into `NearProvisioningState` (`unlockedEd25519ExportRootCapability.ts`, `nearProvisioningRegistry.ts`)
+#### B6 — Generation-guard the export-root capability and set `inFlight` before notify (`unlockedEd25519ExportRootCapability.ts`, `nearProvisioningRegistry.ts`)
 - **Files**:
   - [`packages/wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability.ts`](../packages/wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability.ts)
   - [`packages/wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry.ts`](../packages/wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry.ts)
 - **Root Cause**:
-  - In `unlockedEd25519ExportRootCapability.ts`, `establishUnlockedWalletEd25519ExportRootCapabilityV1` (`L268-L315`) awaits `transport.requestOperation` (`L287`) and then assigns `currentCapability = capability` (`L310`). If `destroyUnlockedWalletEd25519ExportRootCapabilitiesV1` ran during the `await`, the newly minted capability is still installed into `currentCapability` instead of being immediately destroyed; if a previous `currentCapability` for a different wallet/method existed, its worker handle is overwritten without being destroyed.
-  - In `nearProvisioningRegistry.ts` (`L96-L119`), `publishNearProvisioningState` notifies listeners synchronously before `entry.inFlight = inFlight` is set.
+  - The ceremony worker runs one message at a time and destroys the previous handle for the same wallet (`wallet-custody-ceremony.worker.ts:L869`, `L1271-L1290`). The gaps are on the main thread only.
+  - `destroyUnlockedWalletEd25519ExportRootCapabilitiesV1` (`L375-L397`) clears the local reference at once. An establish that was already in flight then installs its handle (`L310`), which the queued destroy removes in the worker next. The main thread keeps a reference to a destroyed handle.
+  - When an establish replaces a capability for a different wallet, the old handle stays in the worker until it expires.
+  - In `nearProvisioningRegistry.ts`, `runSingleFlightNearProvisioning` publishes `near_provisioning` (`L95-L98`) before it sets `entry.inFlight` (`L118`). A listener that calls `runSingleFlightNearProvisioning` from inside the notify starts a second attempt.
 - **Change**:
-  - Replace `currentCapability` in `unlockedEd25519ExportRootCapability.ts` with an explicit `CapabilitySlotState` (`'empty' | 'establishing' | 'active'`) tracked with a monotonic `generation` counter. When `destroyUnlockedWalletEd25519ExportRootCapabilitiesV1` increments `generation`, any in-flight `establish` destroys its newly created worker handle upon resolution instead of installing it, and any replaced active handle is destroyed in the worker.
-  - In `nearProvisioningRegistry.ts`, assign `entry.inFlight` before notifying listeners when entering `near_provisioning`.
+  - Add a module-level `generation` counter. Every destroy increments it. An establish reads it before the worker call. If it changed, the establish does not install the result and sends a `capability` scope destroy for the new handle.
+  - When an establish replaces a capability for a different wallet, send a `capability` scope destroy for the old handle.
+  - No three-state slot is needed: the generation counter and the existing `currentCapability` cover the states.
+  - In `nearProvisioningRegistry.ts`, create the in-flight promise and assign `entry.inFlight` before the `near_provisioning` publish. Start `args.attempt()` only after that assignment.
 - **Verification**:
-  - Add unit tests for concurrent `establish` + `destroy` in `unlockedEd25519ExportRootCapability` and re-entrant listener observation in `nearProvisioningRegistry`.
+  - Test a destroy while an establish is in flight: the read returns `undefined`, and the worker gets a destroy for the new handle.
+  - Test that a listener that calls `runSingleFlightNearProvisioning` from inside the notify joins the first attempt.
+
+#### B3 — Reset prewarm promises with their worker (`workerTransport.ts`)
+- **File**: [`packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts`](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
+- **Root Cause**:
+  - `prewarmEcdsaRegistrationCrypto` (`L290-L306`) and `prewarmEmailOtpYao` (`L324-L350`) keep a succeeded promise for the life of the transport.
+  - `terminateWorkerOnly` (`L1079-L1091`) does not clear either promise. `setWorkerBaseOrigin` (`L250-L257`) clears only `emailOtpYaoPrewarmPromise`.
+  - After a reset, a prewarm call returns at once and the new worker stays cold. Lazy init still runs on first use, so the effect is speed only.
+- **Change**:
+  - In `terminateWorkerOnly`, clear `ecdsaRegistrationCryptoPrewarmPromise` for `ecdsaDerivationClient` and `emailOtpYaoPrewarmPromise` for `emailOtp`.
+  - Remove the separate clear from `setWorkerBaseOrigin`, because it resets every worker through `terminateWorkerOnly`.
+  - The main-thread handle registries are out of scope. See [Withdrawn and Narrowed Findings](#withdrawn-and-narrowed-findings), item 6.
+- **Verification**:
+  - Test that a prewarm after a reset of `ecdsaDerivationClient` or `emailOtp`, or after a `setWorkerBaseOrigin` change, sends a new prewarm request.
+
+#### B2 — Reset all per-pool state on clear and skip handles that are being reserved (`presignaturePool.ts`)
+- **File**: [`packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts`](../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool.ts)
+- **Root Cause**:
+  - `clearClientPresignaturePool` (`L637-L643`) bumps the generation, but leaves `clientPresignatureHydrationInFlightByPoolKey`, `foregroundRefillInFlightByPoolKey` and `presignatureMaintenance` populated.
+  - `hydrateClientPresignaturePool` (`L431-L457`) joins any hydration in flight. After a clear, it joins the stale-generation hydration, which only destroys its handles (`L486-L497`). The caller then finds an empty pool.
+  - `popClientPresignature` (`L321-L334`) removes a handle before `reserveClientPresignature` (`L1567`). Between the two, a concurrent hydration can list the handle as available and push it back (`L499-L516`). The worker reservation is authoritative and returns `claimed_elsewhere` (`L1577-L1590`), so the duplicate costs a retry, not a double use.
+- **Change**:
+  - Key the hydration in-flight map by pool key and generation, or delete its entry on clear, so a hydration after a clear starts fresh.
+  - Make `clearClientPresignaturePool` call `stopPresignatureMaintenance(poolKey)` and delete the foreground refill count.
+  - Track handles that are taken but not yet reserved in a per-pool `Set`. `pushClientPresignature` returns `'duplicate'` for them. Remove the handle from the set when the reservation settles.
+  - Do not merge the maps into one `PoolBucketState` in this batch. The file has 1,959 lines. Do that merge only after a split along a real seam, such as moving maintenance scheduling (`L657-L770`) to its own module.
+- **Verification**:
+  - Test that a hydration after a clear stores the new handles.
+  - Test that a hydration during a reservation does not push the handle being reserved.
+
+#### B1 — Remove the unreachable wallet session clear path (`readiness.ts`, `SigningSessionCoordinator.ts`)
+- **Files**:
+  - [`packages/wallet/src/core/signingEngine/session/availability/readiness.ts`](../packages/wallet/src/core/signingEngine/session/availability/readiness.ts)
+  - [`packages/wallet/src/core/signingEngine/session/SigningSessionCoordinator.ts`](../packages/wallet/src/core/signingEngine/session/SigningSessionCoordinator.ts)
+- **Root Cause**:
+  - `DiscoveredSigningSessionLane.backing` (`L59-L62`) is always `'record_policy'` (`L175`). So `clearWalletSession` (`L731-L760`) always skips `clearEmailOtpWarmSessionMaterial` and `touchConfirm.clearVolatileWarmSessionMaterial`.
+  - `clearWalletSession` does not delete an IndexedDB record. Its only work that runs is the status override delete.
+  - Its only caller, `SigningSessionCoordinator.clear` (`L429-L439`), has no caller in `packages/wallet/src` and discards the `WalletSessionClearResult`.
+- **Change**:
+  - First, check that `clear` is not reachable from a published `.d.ts` entry point and has no use in `seams-monorepo`. `SigningSessionCoordinator.d.ts` is emitted, so check the entry points, not only the file.
+  - If it is unreachable, delete `SigningSessionCoordinator.clear`, `clearWalletSession`, `WalletSessionClearResult` users that become dead, and the `backing` field. Update `readiness.typecheck.ts`.
+  - If it is reachable, delete `backing` and dispatch on `lane.source` (`email_otp` or `passkey`), as `clientSessionExpiryInvalidator.ts` (`L73-L94`) does on `lane.auth.kind`.
+- **Verification**:
+  - Delete path: `pnpm type-check` and `pnpm report:bloat --check`.
+  - Fix path: a test that `clear` calls `clearEmailOtpWarmSessionMaterial` for an `email_otp` lane and `touchConfirm.clearVolatileWarmSessionMaterial` for a `passkey` lane.
+
+#### B4 — Optional: close the registration ceremony in the worker on persistence failure (`ecdsa-derivation-client.worker.ts`)
+- **File**: [`packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts)
+- **Root Cause**: the callers already close the ceremony on failure. The rest of the original B4 is withdrawn. See [Withdrawn and Narrowed Findings](#withdrawn-and-narrowed-findings), item 5.
+- **Change**: in `persistInitialCanonicalEcdsaActivation` (`L547-L617`), call `closeRouterAbEcdsaRegistrationCeremonyState(ceremonyId, active)` once before the `switch` on `stored.kind`, so all four results close it. Do this only if the file does not grow.
+- **Verification**: run the registration contract tests that cover ECDSA activation.
 
 ---
 
@@ -365,6 +378,8 @@ Before writing code, we verified every candidate from the initial exploration ag
 Before committing each batch on `implicit-state-machines`:
 
 1. `pnpm type-check`
-2. Targeted Vitest suites for modified TypeScript packages (`pnpm --filter @seams/wallet test ...`, `pnpm --filter @seams/wallet-server test ...`, `pnpm --filter @seams/voiceid test ...`)
+2. Targeted unit tests for modified TypeScript code. `packages/wallet`, `packages/wallet-server` and `packages/voiceid` have no `test` script. Wallet unit tests live in `tests/unit/*.unit.test.ts` and run with Playwright: `pnpm -C tests test:wallet-unit` (or `pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/<file>` for one file). `tests/unit` is not type-checked, so run each new test.
+   - No unit test covers a Batch 1 module today, so each Batch 1 item adds its test file.
+   - Test through the exports that exist. A new export that only a test uses raises `testOnlyExports` and fails `pnpm report:bloat --check`. Worker files have no exports, so test worker logic through a helper module that the worker already imports, or through a browser test that drives the worker.
 3. Targeted Cargo tests for modified Rust crates (`cargo test -p router-ab-ecdsa-presign`, `cargo test -p router-ab-cloudflare`, `cargo test --manifest-path wasm/router_ab_ecdsa_client/Cargo.toml`)
 4. `pnpm report:bloat --check`
