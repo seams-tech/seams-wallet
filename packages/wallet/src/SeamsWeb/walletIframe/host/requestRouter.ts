@@ -1,6 +1,9 @@
 import { parseWalletConnectionResolution } from '../shared/walletAlternatives';
 import { parseOwnerNearCommand } from '../shared/ownerNearOperation';
-import { parseSpeakToSignTransferPayload } from '../shared/speakToSign';
+import {
+  parseSpeakToSignEnrollPayload,
+  parseSpeakToSignTransferPayload,
+} from '../shared/speakToSign';
 import { parseExternalAuthCommand } from '@shared/auth/externalAuth';
 import type {
   ParentToChildEnvelope,
@@ -28,6 +31,7 @@ type BootWalletRequestType =
 type NearWalletRequestType =
   | 'PM_OWNER_NEAR_TRANSACTION'
   | 'PM_SPEAK_TO_SIGN_TRANSFER'
+  | 'PM_SPEAK_TO_SIGN_ENROLL'
   | 'PM_REGISTER_WALLET'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
@@ -223,6 +227,18 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
           type: request.type,
           requestId: walletIframeRequestIdFromBoundary(request.requestId),
           payload: parseSpeakToSignTransferPayload(request.payload),
+        },
+      };
+
+    case 'PM_SPEAK_TO_SIGN_ENROLL':
+      return {
+        signingPolicy: 'none',
+        kind: 'near',
+        type: request.type,
+        request: {
+          type: request.type,
+          requestId: walletIframeRequestIdFromBoundary(request.requestId),
+          payload: parseSpeakToSignEnrollPayload(request.payload),
         },
       };
 

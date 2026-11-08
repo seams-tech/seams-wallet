@@ -6,7 +6,7 @@ description: 証明付きの検証者が所有者の声と言葉を確認した�
 # 実験的機能: Speak-to-Sign {#experimental-speak-to-sign}
 
 ::: warning 実験的機能
-Speak-to-Signは実験的機能です。**NEARテストネットだけ**で動作します。リリース0.54.0が最初のリリースです。
+Speak-to-Signは実験的機能です。**NEARテストネットだけ**で動作します。リリース0.54.0が最初のリリースです。`enroll`は、まだ公開済みのリリースに含まれていません。
 パッケージ、ルート、コントラクトは予告なく変わることがあります。実際の資金では使わないでください。
 :::
 
@@ -64,6 +64,30 @@ if (seams.speakToSign) {
 記述子を設定しないアプリは、Speak-to-Signのコード、WASM、アセットを一切ダウンロードしません。
 記述子を設定したアプリも、音声による支払いを始めるまでは何も追加で読み込みません。
 
+## 所有者の準備 {#set-up-the-owner}
+
+最初の音声による支払いの前に、所有者には次のものが必要です。
+
+1. ウォレットでVoiceIDが有効であること:
+   `seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`。
+2. 有効な連絡先が1つ以上あるボールト。所有者は入金付きで`create_vault`を呼び出し(ボールトは保管用に0.1 NEARを保持します)、
+   `add_contact`を呼び出します。たとえば`seams.near.signAndSendTransaction`を使います。
+3. 検証者での声のテンプレート:
+
+```ts [部分的な実装例]
+const enrollment = await seams.speakToSign.enroll({ walletId });
+if (enrollment.kind === 'enrolled') {
+  console.log('template', enrollment.templateEpoch, 'tx', enrollment.transactionHash);
+}
+```
+
+`enroll`は、VoiceIDの画面に短い文を3つ表示します。その後、所有者は、これらの録音だけのダイジェストに対する
+`authorize_enrollment`の呼び出しを1回承認します。検証者は、ボールトが10分間許可した音声だけを登録します。
+新しい登録は以前のテンプレートを置き換えます。結果の`kind`は、`enrolled`、`refused`、`cancelled`、`unavailable`のいずれかです。
+
+テストネットでは、所有者のアカウントに約0.3 NEARが必要です。`create_vault`は0.15 NEARを使い、
+NEARは前払いのガスを先に請求します。30 Tgasの呼び出しごとに約0.03 NEAR、音声による支払いごとに0.051 NEARです。
+
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
 `walletOrigin`の運用者は、同じパッケージをインストールし、新しいディレクトリーにアセットを構成します。
@@ -88,20 +112,24 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
 
-このルートには有効なウォレットセッションが必要です。別の所有者の声のリクエストは拒否します。検証者の出力は変更せずに返します。
+このルートは、呼び出し元のウォレットセッションを本人確認として読みます。セッションがない場合は401 `unauthorized`、
+セッションストアが失敗した場合は503 `session_unavailable`を返し、署名の使用回数は消費しません。
+別の所有者の声のリクエストは拒否します。検証者の`verify`と`enroll`の両方の操作を扱い、本文は最大1,100 KBです。
+検証者の出力は変更せずに返します。
 
 ## ボールトのコントラクト {#the-vault-contract}
 
 テストネットのボールトは`seams-wallet.testnet`です。初期化時に検証者の鍵
 `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`を固定しました。
 
-| メソッド                | 用途                                                              |
-| ----------------------- | ----------------------------------------------------------------- |
-| `transfer_with_verdict` | 固定された鍵が署名した判定に基づき、有効な連絡先に支払います。    |
-| `authorize_enrollment`  | 所有者が、これらの録音だけによる登録を10分間に1回だけ許可します。 |
-| `get_vault`             | 所有者の残高、上限、次のノンスです。                              |
-| `get_contacts`          | 所有者の連絡先と、それぞれが有効かどうかです。                    |
-| `get_verifier`          | 固定された検証者の鍵です。                                        |
+| メソッド                 | 用途                                                              |
+| ------------------------ | ----------------------------------------------------------------- |
+| `transfer_with_verdict`  | 固定された鍵が署名した判定に基づき、有効な連絡先に支払います。    |
+| `authorize_enrollment`   | 所有者が、これらの録音だけによる登録を10分間に1回だけ許可します。 |
+| `get_pending_enrollment` | 検証者が読む、所有者の有効な登録の許可です。                      |
+| `get_vault`              | 所有者の残高、上限、次のノンスです。                              |
+| `get_contacts`           | 所有者の連絡先と、それぞれが有効かどうかです。                    |
+| `get_verifier`           | 固定された検証者の鍵です。                                        |
 
 新しい連絡先は、ボールトが初期化時に設定した待ち時間の後に有効になります。所有者は、10分待てば声なしで引き出せます。
 

@@ -7,6 +7,7 @@ import type {
 } from '@/core/authMethods/hostPlugin';
 import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 import type {
+  SpeakToSignEnrollmentResult,
   SpeakToSignHostPlugin,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -25,6 +26,8 @@ import type {
 } from '@/SeamsWeb/walletIframe/host/handlers/walletIframeHandler.types';
 import type { ChildToParentEnvelope, ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import {
+  parseSpeakToSignEnrollmentResult,
+  parseSpeakToSignEnrollPayload,
   parseSpeakToSignTransferPayload,
   parseSpeakToSignTransferResult,
 } from '@/SeamsWeb/walletIframe/shared/speakToSign';
@@ -35,6 +38,12 @@ const FEATURE: WalletTransactionFeaturePlugin = {
   kind: 'speak_to_sign',
   vault: 'voicevault.testnet',
   network: 'testnet',
+};
+const ENROLLED: SpeakToSignEnrollmentResult = {
+  kind: 'enrolled',
+  templateEpoch: 2,
+  agreementMilli: 790,
+  transactionHash: 'tx-auth',
 };
 const SENT: SpeakToSignTransferResult = {
   kind: 'sent',
@@ -139,6 +148,7 @@ type HandlerHarnessOptions = {
 function buildHandler(options: HandlerHarnessOptions = {}) {
   const posted: ChildToParentEnvelope[] = [];
   const pluginCalls: Parameters<SpeakToSignHostPlugin['requestTransfer']>[0][] = [];
+  const enrollCalls: Parameters<SpeakToSignHostPlugin['enroll']>[0][] = [];
   const loads: (readonly WalletTransactionFeaturePlugin[])[] = [];
   const signed: unknown[] = [];
   const fetched: { url: string; init: RequestInit }[] = [];
@@ -191,6 +201,10 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
       pluginCalls.push(input);
       return options.plugin ? await options.plugin(input) : SENT;
     },
+    async enroll(input) {
+      enrollCalls.push(input);
+      return ENROLLED;
+    },
   };
   const ports: SpeakToSignWalletPorts = {
     async readVoiceIdAvailability() {
@@ -213,17 +227,26 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
       return Response.json({ ok: true, output: { verdict_json: '{}' } });
     }) as typeof fetch,
   };
-  const handler = createSpeakToSignWalletIframeHandlers(deps, ports).PM_SPEAK_TO_SIGN_TRANSFER;
-  if (!handler) throw new Error('The handler map has no Speak-to-Sign handler');
+  const handlers = createSpeakToSignWalletIframeHandlers(deps, ports);
+  const handler = handlers.PM_SPEAK_TO_SIGN_TRANSFER;
+  const enrollHandler = handlers.PM_SPEAK_TO_SIGN_ENROLL;
+  if (!handler || !enrollHandler) throw new Error('The handler map has no Speak-to-Sign handler');
   const request = {
     type: 'PM_SPEAK_TO_SIGN_TRANSFER',
     requestId: 'request-1',
     payload: PAYLOAD,
   } as Req<'PM_SPEAK_TO_SIGN_TRANSFER'>;
+  const enrollRequest = {
+    type: 'PM_SPEAK_TO_SIGN_ENROLL',
+    requestId: 'request-enroll',
+    payload: { walletId: WALLET_ID },
+  } as Req<'PM_SPEAK_TO_SIGN_ENROLL'>;
   return {
     run: () => handler(request),
+    runEnroll: () => enrollHandler(enrollRequest),
     posted,
     pluginCalls,
+    enrollCalls,
     loads,
     signed,
     fetched,
@@ -331,4 +354,83 @@ test('a host cancellation aborts the signal the plugin listens to', async () => 
   await harness.run();
   expect(harness.pluginCalls[0].signal.aborted).toBe(true);
   expect(harness.posted[0].payload).toEqual({ ok: true, result: { kind: 'cancelled' } });
+});
+
+test('the enrollment message carries only the wallet and its result parser is exact', async () => {
+  expect(parseSpeakToSignEnrollPayload({ walletId: WALLET_ID })).toEqual({ walletId: WALLET_ID });
+  for (const bad of [{ walletId: WALLET_ID, owner: 'victim.testnet' }, { walletId: '' }, null]) {
+    expect(() => parseSpeakToSignEnrollPayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign enrollment request is invalid.',
+    );
+  }
+  for (const result of [
+    ENROLLED,
+    { kind: 'cancelled' },
+    { kind: 'refused', reason: 'not_authorized' },
+    { kind: 'refused', reason: 'speaker', detail: 'agreement 410' },
+    { kind: 'unavailable', reason: 'vault_missing' },
+  ] as const) {
+    expect(parseSpeakToSignEnrollmentResult(result)).toEqual(result);
+  }
+  for (const bad of [
+    { ...ENROLLED, templateEpoch: 0 },
+    { ...ENROLLED, extra: 1 },
+    { kind: 'refused', reason: 'words' },
+    { kind: 'sent', transactionHash: 'tx', times: SENT.kind === 'sent' ? SENT.times : null },
+  ]) {
+    expect(() => parseSpeakToSignEnrollmentResult(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign enrollment result is invalid.',
+    );
+  }
+
+  const posted: unknown[][] = [];
+  const commands = createIframeSpeakToSignCommands(async (...args) => {
+    posted.push(args);
+    return { result: ENROLLED };
+  });
+  expect(await commands.enroll({ walletId: WALLET_ID })).toEqual(ENROLLED);
+  expect(posted).toEqual([
+    [{ type: 'PM_SPEAK_TO_SIGN_ENROLL', payload: { walletId: WALLET_ID } }, { timeout: 'interactive' }],
+  ]);
+  expect(
+    routeWalletHostRequest({
+      type: 'PM_SPEAK_TO_SIGN_ENROLL',
+      requestId: 'request-3',
+      payload: { walletId: WALLET_ID },
+    }),
+  ).toMatchObject({ signingPolicy: 'none', kind: 'near', type: 'PM_SPEAK_TO_SIGN_ENROLL' });
+});
+
+test('the enrollment handler gives the plugin the owner, the vault and the same scoped operations', async () => {
+  const harness = buildHandler();
+  await harness.runEnroll();
+  expect(harness.pluginCalls).toHaveLength(0);
+  expect(harness.enrollCalls).toHaveLength(1);
+  const [input] = harness.enrollCalls;
+  expect(input).toMatchObject({
+    walletId: WALLET_ID,
+    vault: 'voicevault.testnet',
+    network: 'testnet',
+    ownerAccountId: 'owner.testnet',
+  });
+  expect(input.surfaceMeasurementBinding).toBe(harness.binding);
+  await input.operations.authorizeEnrollment('A'.repeat(43), new AbortController().signal);
+  expect(harness.signed).toMatchObject([
+    {
+      walletSession: { walletId: WALLET_ID },
+      nearAccount: { accountId: 'owner.testnet' },
+      receiverId: 'voicevault.testnet',
+    },
+  ]);
+  expect(harness.posted).toEqual([
+    { type: 'PM_RESULT', requestId: 'request-enroll', payload: { ok: true, result: ENROLLED } },
+  ]);
+
+  const noVoice = buildHandler({ voiceId: 'not_enrolled' });
+  await noVoice.runEnroll();
+  expect(noVoice.enrollCalls).toHaveLength(0);
+  expect(noVoice.posted[0].payload).toEqual({
+    ok: true,
+    result: { kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'not_enrolled' },
+  });
 });

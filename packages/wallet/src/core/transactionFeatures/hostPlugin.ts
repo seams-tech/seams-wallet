@@ -3,7 +3,7 @@ import type { WalletId } from '@shared/utils/domainIds';
 import type { SpeakToSignNetwork } from './plugins';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 1;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 2;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -64,8 +64,48 @@ export type SpeakToSignTransferRequest = Readonly<{
   amount: string;
 }>;
 
+/** One verifier enrollment from the app. The Wallet iframe reads the owner and the vault itself. */
+export type SpeakToSignEnrollmentRequest = Readonly<{ walletId: string }>;
+
+/** Refusals of an enrollment by the verifier or the vault. The verifier stored no template. */
+export type SpeakToSignEnrollmentRefusalReason =
+  | 'quality'
+  /** The three recordings do not sound like one speaker. */
+  | 'speaker'
+  | 'audio_reused'
+  | 'audio_invalid'
+  | 'unsupported'
+  | 'speaker_unavailable'
+  | 'storage'
+  /** Another enrollment of this owner changed the template at the same time. */
+  | 'template_exists'
+  /** The vault holds no live authorization for these recordings. */
+  | 'not_authorized'
+  /** The verifier could not read the vault's authorization. */
+  | 'authorization_unavailable'
+  /** The vault refused `authorize_enrollment`. */
+  | 'vault_rejected';
+
+export type SpeakToSignEnrollmentResult =
+  | Readonly<{
+      kind: 'enrolled';
+      /** 1 for the first enrollment, then 1 more for each new enrollment. */
+      templateEpoch: number;
+      /** The lowest pairwise speaker score of the three recordings, in thousandths. */
+      agreementMilli: number;
+      /** The `authorize_enrollment` transaction. */
+      transactionHash: string;
+    }>
+  | Readonly<{ kind: 'refused'; reason: SpeakToSignEnrollmentRefusalReason; detail?: string }>
+  | Readonly<{ kind: 'cancelled' }>
+  | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
+
 /** The read-only vault methods that the host plugin may call. */
-export type SpeakToSignVaultView = 'get_vault' | 'get_contacts' | 'get_verifier';
+export type SpeakToSignVaultView =
+  | 'get_vault'
+  | 'get_contacts'
+  | 'get_verifier'
+  | 'get_pending_enrollment';
 
 /** The arguments of the vault's `transfer_with_verdict`. Amount and nonce are decimal strings. */
 export type SpeakToSignVaultTransferArgs = Readonly<{
@@ -106,10 +146,10 @@ export type SpeakToSignClipRequest = Readonly<{
 }>;
 
 /**
- * Scoped core operations for one spoken payment. The plugin can record one clip on the
- * VoiceID surface, read three vault views, call the Seams verify route and send one
- * `transfer_with_verdict` call to the configured vault as the owner. It gets no signing
- * context, key or session.
+ * Scoped core operations for one spoken payment or one enrollment. The plugin can record
+ * clips on the VoiceID surface, read four vault views, call the Seams verify route and send
+ * `transfer_with_verdict` or `authorize_enrollment` to the configured vault as the owner. It
+ * gets no signing context, key or session.
  */
 export type SpeakToSignHostOperations = Readonly<{
   captureClip(request: SpeakToSignClipRequest): Promise<SpeakToSignClip>;
@@ -122,6 +162,8 @@ export type SpeakToSignHostOperations = Readonly<{
     args: SpeakToSignVaultTransferArgs,
     signal: AbortSignal,
   ): Promise<SpeakToSignSubmission>;
+  /** Sends `authorize_enrollment({ enrollment_digest })` with no deposit. */
+  authorizeEnrollment(enrollmentDigest: string, signal: AbortSignal): Promise<SpeakToSignSubmission>;
 }>;
 
 /** One spoken payment that the Wallet route asks the host plugin to run. */
@@ -134,8 +176,24 @@ export type SpeakToSignHostTransfer = Readonly<{
   operations: SpeakToSignHostOperations;
 }>;
 
+/** One enrollment that the Wallet route asks the host plugin to run. */
+export type SpeakToSignHostEnrollment = Readonly<{
+  walletId: WalletId;
+  vault: string;
+  network: SpeakToSignNetwork;
+  signal: AbortSignal;
+  ownerAccountId: string;
+  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+  operations: SpeakToSignHostOperations;
+}>;
+
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface SpeakToSignHostPlugin {
+  /**
+   * Records the three enrollment phrases, authorizes exactly these recordings on the vault and
+   * asks the verifier to store the owner's voice template.
+   */
+  enroll(input: SpeakToSignHostEnrollment): Promise<SpeakToSignEnrollmentResult>;
   requestTransfer(input: {
     readonly walletId: WalletId;
     readonly vault: string;

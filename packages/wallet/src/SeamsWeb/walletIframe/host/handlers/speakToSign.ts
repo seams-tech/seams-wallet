@@ -9,12 +9,16 @@ import {
   toWalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
+  SpeakToSignEnrollmentResult,
+  SpeakToSignHostOperations,
   SpeakToSignHostPlugin,
   SpeakToSignTransferResult,
+  SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
 import { createSpeakToSignHostOperations } from '@/core/transactionFeatures/hostOperations';
 import {
   findWalletTransactionFeature,
+  type SpeakToSignFeaturePlugin,
   type WalletTransactionFeaturePlugin,
 } from '@/core/transactionFeatures/plugins';
 import type { TransactionInput } from '@/core/types/actions';
@@ -40,13 +44,35 @@ export function createSpeakToSignWalletIframeHandlers(
   deps: HandlerDeps,
   ports: SpeakToSignWalletPorts,
 ): HandlerMap {
-  return { PM_SPEAK_TO_SIGN_TRANSFER: handleSpeakToSignTransfer.bind(null, deps, ports) };
+  return {
+    PM_SPEAK_TO_SIGN_TRANSFER: handleTransfer.bind(null, deps, ports),
+    PM_SPEAK_TO_SIGN_ENROLL: handleEnrollment.bind(null, deps, ports),
+  };
 }
 
-async function handleSpeakToSignTransfer(
+type SpeakToSignRequest = Req<'PM_SPEAK_TO_SIGN_TRANSFER'> | Req<'PM_SPEAK_TO_SIGN_ENROLL'>;
+
+function handleTransfer(
   deps: HandlerDeps,
   ports: SpeakToSignWalletPorts,
   request: Req<'PM_SPEAK_TO_SIGN_TRANSFER'>,
+): Promise<void> {
+  return handleSpeakToSign(deps, request, runTransfer.bind(null, deps, ports, request));
+}
+
+function handleEnrollment(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  request: Req<'PM_SPEAK_TO_SIGN_ENROLL'>,
+): Promise<void> {
+  return handleSpeakToSign(deps, request, runEnrollment.bind(null, deps, ports, request));
+}
+
+/** Turns host cancellation into a signal and answers with the flow's result. */
+async function handleSpeakToSign(
+  deps: HandlerDeps,
+  request: SpeakToSignRequest,
+  run: (signal: AbortSignal) => Promise<SpeakToSignTransferResult | SpeakToSignEnrollmentResult>,
 ): Promise<void> {
   const controller = new AbortController();
   const timer = setInterval(
@@ -54,7 +80,7 @@ async function handleSpeakToSignTransfer(
     CANCELLATION_POLL_MS,
   );
   try {
-    const result = await runTransfer(deps, ports, request, controller.signal);
+    const result = await run(controller.signal);
     if (deps.respondIfCancelled(request.requestId)) return;
     respondOkResult(deps, request.requestId, result);
   } catch (error) {
@@ -74,20 +100,31 @@ function abortWhenCancelled(
   if (deps.isCancelled(requestId)) controller.abort();
 }
 
-async function runTransfer(
+/** What both flows need: the feature, the owner, the loaded plugin and its scoped operations. */
+type PreparedFlow =
+  | Readonly<{
+      kind: 'ready';
+      walletId: WalletId;
+      feature: SpeakToSignFeaturePlugin;
+      ownerAccountId: string;
+      plugin: SpeakToSignHostPlugin;
+      operations: SpeakToSignHostOperations;
+    }>
+  | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail: string }>;
+
+async function prepareFlow(
   deps: HandlerDeps,
   ports: SpeakToSignWalletPorts,
-  request: Req<'PM_SPEAK_TO_SIGN_TRANSFER'>,
+  request: SpeakToSignRequest,
   signal: AbortSignal,
-): Promise<SpeakToSignTransferResult> {
-  const payload: PMSpeakToSignTransferPayload = request.payload;
+): Promise<PreparedFlow> {
   const runtime = deps.getWalletRuntime();
   const features = runtime.configs.transactionFeatures;
   const feature = findWalletTransactionFeature(features, 'speak_to_sign');
   if (!feature) throw new Error('Enable Speak-to-Sign in the SDK configuration before using it.');
-  const walletId = toWalletId(payload.walletId);
+  const walletId = toWalletId(request.payload.walletId);
 
-  // The verifier compares the sentence with the owner's VoiceID template.
+  // The owner records on the VoiceID surface, so VoiceID must be active for this wallet.
   const voiceId = await ports.readVoiceIdAvailability(walletId);
   if (voiceId.kind !== 'enabled') {
     return { kind: 'unavailable', reason: 'voiceid_unavailable', detail: voiceId.kind };
@@ -116,18 +153,49 @@ async function runTransfer(
     recordPhrase: recordPhrase.bind(null, ports, runtime.configs.authMethods),
     fetch: ports.fetch,
   });
-  return await plugin.requestTransfer({
-    walletId,
-    vault: feature.vault,
-    network: feature.network,
+  return { kind: 'ready', walletId, feature, ownerAccountId, plugin, operations };
+}
+
+async function runTransfer(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  request: Req<'PM_SPEAK_TO_SIGN_TRANSFER'>,
+  signal: AbortSignal,
+): Promise<SpeakToSignTransferResult> {
+  const flow = await prepareFlow(deps, ports, request, signal);
+  if (flow.kind === 'unavailable') return flow;
+  const payload: PMSpeakToSignTransferPayload = request.payload;
+  return await flow.plugin.requestTransfer({
+    walletId: flow.walletId,
+    vault: flow.feature.vault,
+    network: flow.feature.network,
     signal,
     transfer: {
-      ownerAccountId,
+      ownerAccountId: flow.ownerAccountId,
       receiver: payload.receiver,
       amount: payload.amount,
       surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
-      operations,
+      operations: flow.operations,
     },
+  });
+}
+
+async function runEnrollment(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  request: Req<'PM_SPEAK_TO_SIGN_ENROLL'>,
+  signal: AbortSignal,
+): Promise<SpeakToSignEnrollmentResult> {
+  const flow = await prepareFlow(deps, ports, request, signal);
+  if (flow.kind === 'unavailable') return flow;
+  return await flow.plugin.enroll({
+    walletId: flow.walletId,
+    vault: flow.feature.vault,
+    network: flow.feature.network,
+    signal,
+    ownerAccountId: flow.ownerAccountId,
+    surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
+    operations: flow.operations,
   });
 }
 

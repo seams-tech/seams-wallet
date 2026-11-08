@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -9,51 +8,44 @@ import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { allowBrowserMicrophone, enrollBrowserMicrophone, requireActivatedVoiceId } from './voiceid-browser-audio';
 import { readNearIdentity } from './voiceid-near-signing';
 
-// A live testnet run: the Wallet owns a vault on the Speak-to-Sign vault contract, the OutLayer
-// verifier enrolls a macOS `say` voice, and the Wallet pays by voice through Chromium's fake
-// microphone. It needs the OutLayer payment key and a relayer that creates named accounts
-// funded with ACCOUNT_INITIAL_BALANCE of at least 0.3 NEAR: `create_vault` takes 0.15 NEAR,
-// and testnet charges about 0.051 NEAR up front for the 50 Tgas of `transfer_with_verdict`.
+// A live testnet run: the Wallet owns a vault on the Speak-to-Sign vault contract, enrolls a
+// macOS `say` voice with the verifier through `seams.speakToSign.enroll`, and pays by voice. The
+// Wallet's microphone plays the `say` recording of whatever sentence the VoiceID surface shows.
+// It needs the OutLayer payment key on the local server and a relayer that creates named
+// accounts funded with ACCOUNT_INITIAL_BALANCE of at least 0.3 NEAR: `create_vault` takes
+// 0.15 NEAR, and testnet charges about 0.051 NEAR up front for the 50 Tgas of
+// `transfer_with_verdict`.
 const LIVE = process.env.SEAMS_SPEAK_TO_SIGN_LIVE === '1';
-const VAULT = 'seams-wallet.testnet';
 const CONTACT = 'seams-v1.testnet';
 const VOICE = 'Samantha';
 const RPC_URL = 'https://test.rpc.fastnear.com';
-const OUTLAYER_URL = 'https://testnet-api.outlayer.ai/call/seams-v1.testnet/voice-verifier';
-const VERSION_KEY = '1e79327b0afa2a0f026aee519bd0d1801272e21cb21205d31788e4d1452231f0';
-const ENROLLMENT_DOMAIN = 'seams:voice-enrollment:v1';
+/** The owner reads these on the VoiceID surface during `enroll`. */
 const ENROLL_PHRASES = [
   'My voice is my signature for this vault.',
   'I send money only to the contacts I saved.',
   'Seams, please learn how I sound today.',
 ];
+/** The owner always says 0.01 NEAR, so a prompt for another amount gets a wrong sentence. */
+const SPOKEN_TRANSFER = 'Send 0.01 NEAR to seams dash v1 dot testnet.';
 const CREATE_VAULT_DEPOSIT = '150000000000000000000000';
 /** The owner pays the prepaid gas of each spoken payment: 0.0509 NEAR measured on testnet. */
 const TRANSFER_PREPAID_YOCTO = 60_000_000_000_000_000_000_000n;
 const STORAGE_YOCTO_PER_BYTE = 10_000_000_000_000_000_000n;
 const WALLET = 'iframe.seams-wallet-overlay-iframe';
+const AUDIO_ROUTE = /\/speak-to-sign-test-audio\/(\d)\.wav$/;
 
 const audioRoot = path.join(tmpdir(), `seams-speak-to-sign-${process.pid}`);
 const RUN_LEAD_IN_MS = 200 + (Date.now() % 500);
-const microphoneWav = LIVE
-  ? sayWav('Send 0.01 NEAR to seams dash v1 dot testnet.', 'microphone', true)
-  : '';
+/** Clip 0 to 2 are the enrollment phrases; clip 3 is the transfer sentence. */
+const clipFiles = LIVE
+  ? [...ENROLL_PHRASES, SPOKEN_TRANSFER].map((text, index) => sayWav(text, `clip-${index}`))
+  : [];
 
 test.skip(!LIVE, 'Set SEAMS_SPEAK_TO_SIGN_LIVE=1 with the live testnet environment.');
-test.use({
-  video: 'off',
-  trace: 'off',
-  launchOptions: {
-    args: [
-      '--use-fake-ui-for-media-stream',
-      '--use-fake-device-for-media-stream',
-      `--use-file-for-fake-audio-capture=${microphoneWav}`,
-    ],
-  },
-});
+test.use({ video: 'off', trace: 'off' });
 test.setTimeout(600_000);
 
-test('a Wallet pays from its vault by voice on testnet and refuses a wrong spoken amount', run);
+test('a Wallet enrolls and pays from its vault by voice on testnet and refuses a wrong spoken amount', run);
 
 async function run(
   { harness, page, context }: { harness: IntendedBehaviourHarness; page: Page; context: import('@playwright/test').BrowserContext },
@@ -61,9 +53,8 @@ async function run(
 ): Promise<void> {
   // The harness stubs NEAR RPC. This run reads and writes the real testnet vault.
   await context.route('**/*', useRealNearRpc);
+  await context.route(AUDIO_ROUTE, serveClip);
   context.on('response', logVerifyResponse);
-  // Keep Chromium's own microphone before the VoiceID fixture replaces it for enrollment.
-  await context.addInitScript(keepBrowserMicrophone);
   await allowBrowserMicrophone(context);
   harness.enableVoiceIdPlugin();
   await harness.registerPasskeyEd25519YaoWallet();
@@ -84,26 +75,19 @@ async function run(
   log('create_vault', await call('create_vault', {}, CREATE_VAULT_DEPOSIT));
   log('add_contact', await call('add_contact', { account_id: CONTACT }, '0'));
 
-  // The verifier enrolls only the three clips whose digest the owner authorized on the vault.
-  const clips = ENROLL_PHRASES.map(enrollmentClip);
-  const digest = enrollmentDigest(owner, clips);
-  log('authorize_enrollment', await call('authorize_enrollment', { enrollment_digest: digest }, '0'));
-  await expect.poll(pendingDigest.bind(null, owner), { timeout: 30_000 }).toBe(digest);
-  const enrolled = await outlayer({
-    op: 'enroll',
-    vault: VAULT,
-    owner,
-    audio_wav_b64: clips.map(base64),
-  });
-  log('enroll', JSON.stringify(enrolled.output), `${enrolled.wallMs} ms`);
-  expect(enrolled.output.outcome).toBe('accept');
+  // From here the Wallet microphone says whatever sentence the VoiceID surface shows.
+  await wallet.locator('body').evaluate(speakVisibleSentence, ENROLL_PHRASES);
+  const enrollment = page.evaluate(enroll, identity.walletId);
+  for (const phrase of ENROLL_PHRASES) await recordSentence(page, phrase);
+  const enrolled = await approveUntilSettled(page, enrollment);
+  log('enroll', JSON.stringify(enrolled));
+  expect(enrolled).toMatchObject({ kind: 'enrolled' });
 
   log('near account state', JSON.stringify(await page.evaluate(readNearAccountState, identity.walletId)));
   const free = await freeBalance(owner);
   log('owner free balance', `${free} yoctoNEAR`);
   expect(free, 'The owner cannot prepay a spoken payment; raise ACCOUNT_INITIAL_BALANCE')
     .toBeGreaterThanOrEqual(TRANSFER_PREPAID_YOCTO);
-  await wallet.locator('body').evaluate(useBrowserMicrophone);
   const sent = await speak(page, '0.01');
   log('transfer', JSON.stringify(sent));
   expect(sent).toMatchObject({ kind: 'sent' });
@@ -111,12 +95,20 @@ async function run(
   log('wrong amount', JSON.stringify(refused));
   expect(refused).toMatchObject({ kind: 'refused' });
   await testInfo.attach('speak-to-sign-live.json', {
-    body: JSON.stringify({ owner, sent, refused }, null, 2),
+    body: JSON.stringify({ owner, enrolled, sent, refused }, null, 2),
     contentType: 'application/json',
   });
 }
 
-/** One spoken payment: the owner clicks Record and the fake microphone plays the sentence. */
+/** Waits for the VoiceID surface to show `sentence`, then clicks Record. */
+async function recordSentence(page: Page, sentence: string): Promise<void> {
+  const dialog = page.frameLocator(WALLET).getByRole('dialog', { name: 'Say this with your voice' });
+  await expect(dialog.locator('.seams-voiceid-prompt')).toHaveText(sentence, { timeout: 60_000 });
+  log('sentence', sentence);
+  await dialog.getByRole('button', { name: 'Record', exact: true }).click();
+}
+
+/** One spoken payment: the owner clicks Record and the microphone says the 0.01 NEAR sentence. */
 async function speak(page: Page, amount: string) {
   const wallet = page.frameLocator(WALLET);
   const walletId = await readNearIdentity(page).then(walletIdOf);
@@ -160,60 +152,19 @@ async function approveUntilSettled<T>(page: Page, operation: Promise<T>): Promis
   return await done;
 }
 
-function sayWav(text: string, name: string, padded = false): string {
+function sayWav(text: string, name: string): string {
   mkdirSync(audioRoot, { recursive: true });
   const aiff = path.join(audioRoot, `${name}.aiff`);
   const wav = path.join(audioRoot, `${name}.wav`);
   execFileSync('say', ['-v', VOICE, '-r', '175', '-o', aiff, text]);
   // The verifier refuses audio it has seen, and `say` repeats its bytes. A lead-in silence
-  // unique to this run makes new clips. The fake microphone loops its file, so silence after
-  // the sentence ends the recording.
-  const filters = ['-af', `adelay=${RUN_LEAD_IN_MS}${padded ? ',apad=pad_dur=3' : ''}`];
+  // unique to this run makes new clips. Silence after the sentence ends the recording.
+  const filters = ['-af', `adelay=${RUN_LEAD_IN_MS},apad=pad_dur=3`];
   execFileSync('ffmpeg', [
     '-y', '-loglevel', 'error', '-i', aiff, ...filters,
     '-ac', '1', '-ar', '16000', '-sample_fmt', 's16', '-map_metadata', '-1', '-fflags', '+bitexact', wav,
   ]);
   return wav;
-}
-
-/** The verifier's canonical WAV: a 44-byte header, then the PCM16 samples. */
-function enrollmentClip(phrase: string, index: number): Buffer {
-  const file = readFileSync(sayWav(phrase, `enroll-${index}`));
-  const dataAt = file.indexOf('data');
-  const pcm = file.subarray(dataAt + 8, dataAt + 8 + file.readUInt32LE(dataAt + 4));
-  const header = Buffer.alloc(44);
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + pcm.length, 4);
-  header.write('WAVEfmt ', 8);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);
-  header.writeUInt16LE(1, 22);
-  header.writeUInt32LE(16000, 24);
-  header.writeUInt32LE(32000, 28);
-  header.writeUInt16LE(2, 32);
-  header.writeUInt16LE(16, 34);
-  header.write('data', 36);
-  header.writeUInt32LE(pcm.length, 40);
-  return Buffer.concat([header, pcm]);
-}
-
-function enrollmentDigest(owner: string, clips: readonly Buffer[]): string {
-  const hash = createHash('sha256');
-  hash.update(`${ENROLLMENT_DOMAIN}${VAULT}\0${owner}\0`);
-  for (const clip of clips) hash.update(createHash('sha256').update(clip).digest());
-  return hash.digest('base64url');
-}
-
-async function pendingDigest(owner: string): Promise<string | null> {
-  const reply = await rpc('query', {
-    request_type: 'call_function',
-    finality: 'final',
-    account_id: VAULT,
-    method_name: 'get_pending_enrollment',
-    args_base64: Buffer.from(JSON.stringify({ owner_id: owner })).toString('base64'),
-  });
-  const value = JSON.parse(Buffer.from(reply.result).toString('utf8'));
-  return value?.enrollment_digest ?? null;
 }
 
 /** The balance the account can spend: its amount less the stake for its storage. */
@@ -237,34 +188,6 @@ async function rpc(method: string, params: unknown) {
   return body.result;
 }
 
-async function outlayer(input: Record<string, unknown>) {
-  const paymentKey = process.env.SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY;
-  if (!paymentKey) throw new Error('SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY is not set');
-  const started = performance.now();
-  const response = await fetch(OUTLAYER_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-payment-key': paymentKey },
-    body: JSON.stringify({
-      input,
-      async: false,
-      version_key: VERSION_KEY,
-      secrets_ref: { profile: 'main', account_id: 'cyan-loong.testnet' },
-      resource_limits: {
-        max_instructions: 10_000_000_000,
-        max_memory_mb: 256,
-        max_execution_seconds: 60,
-      },
-    }),
-  });
-  const body = await response.json();
-  const raw = body?.output;
-  const output = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  if (!response.ok || !output) {
-    throw new Error(`OutLayer HTTP ${response.status}: ${JSON.stringify(body).slice(0, 400)}`);
-  }
-  return { output, wallMs: Math.round(performance.now() - started) };
-}
-
 /** The verify reply holds the verdict and timings, or an error code and message. */
 function logVerifyResponse(response: import('@playwright/test').Response): void {
   if (!response.url().endsWith('/speak-to-sign/v1/verify')) return;
@@ -281,26 +204,8 @@ async function useRealNearRpc(route: import('@playwright/test').Route): Promise<
   else await route.fallback();
 }
 
-function base64(bytes: Buffer): string {
-  return bytes.toString('base64');
-}
-
 function log(...parts: unknown[]): void {
   console.log(`[speak-to-sign] ${parts.join(' ')}`);
-}
-
-function keepBrowserMicrophone(): void {
-  const media = navigator.mediaDevices;
-  if (media) {
-    (window as unknown as Record<string, unknown>).__seamsBrowserGetUserMedia =
-      media.getUserMedia.bind(media);
-  }
-}
-
-function useBrowserMicrophone(): void {
-  const original = (window as unknown as Record<string, unknown>).__seamsBrowserGetUserMedia;
-  if (typeof original !== 'function') throw new Error('The browser microphone was not kept');
-  navigator.mediaDevices.getUserMedia = original as MediaDevices['getUserMedia'];
 }
 
 function activateVoiceId() {
@@ -316,6 +221,39 @@ function callVault(input: Parameters<NonNullable<Window['__seamsIntendedSpeakToS
 function readNearAccountState(walletId: string) {
   if (!window.__seamsIntendedSpeakToSign) throw new Error('Speak-to-Sign helper is unavailable');
   return window.__seamsIntendedSpeakToSign.readNearAccountState(walletId);
+}
+
+async function serveClip(route: import('@playwright/test').Route): Promise<void> {
+  const index = Number(AUDIO_ROUTE.exec(route.request().url())?.[1]);
+  await route.fulfill({ contentType: 'audio/wav', body: readFileSync(clipFiles[index]) });
+}
+
+/**
+ * Runs in the Wallet frame. Each recording plays the `say` clip of the sentence that the
+ * VoiceID surface shows: an enrollment phrase, or else the 0.01 NEAR transfer sentence.
+ */
+function speakVisibleSentence(_body: Element, phrases: readonly string[]): void {
+  let audio: AudioContext | null = null;
+  navigator.mediaDevices.getUserMedia = async () => {
+    const shown = document.querySelector('.seams-voiceid-prompt')?.textContent?.trim() ?? '';
+    const index = phrases.indexOf(shown);
+    const response = await fetch(`/speak-to-sign-test-audio/${index < 0 ? phrases.length : index}.wav`);
+    if (!response.ok) throw new Error('The spoken test clip is unavailable');
+    if (audio) await audio.close();
+    audio = new AudioContext();
+    const source = audio.createBufferSource();
+    source.buffer = await audio.decodeAudioData(await response.arrayBuffer());
+    const destination = audio.createMediaStreamDestination();
+    source.connect(destination);
+    await audio.resume();
+    source.start(audio.currentTime + 0.2);
+    return destination.stream;
+  };
+}
+
+function enroll(walletId: string) {
+  if (!window.__seamsIntendedSpeakToSign) throw new Error('Speak-to-Sign helper is unavailable');
+  return window.__seamsIntendedSpeakToSign.enroll({ walletId });
 }
 
 function requestTransfer(input: { walletId: string; receiver: string; amount: string }) {

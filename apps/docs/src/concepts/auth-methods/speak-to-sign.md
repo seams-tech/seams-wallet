@@ -7,8 +7,8 @@ description: Experimental spoken NEAR payments from a vault contract that pays o
 
 ::: warning Experimental
 Speak-to-Sign is experimental. It runs on **NEAR testnet only**. Release 0.54.0
-is its first release. Its packages, routes and contract can change without
-notice. Do not use it with real funds.
+is its first release. `enroll` is not in a published release yet. Its packages,
+routes and contract can change without notice. Do not use it with real funds.
 :::
 
 Speak-to-Sign lets a wallet owner pay by voice. The owner says a sentence such
@@ -78,6 +78,34 @@ NEAR with at most two decimal places. The result `kind` is `sent`, `refused`,
 An app without the descriptor downloads no Speak-to-Sign code, WASM or assets.
 An app with it loads nothing more until a spoken payment starts.
 
+## Set up the owner
+
+Before the first spoken payment, the owner needs:
+
+1. VoiceID on for the wallet:
+   `seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`.
+2. A vault with an active contact. The owner calls `create_vault` with a
+   deposit (the vault keeps 0.1 NEAR for storage) and `add_contact`, for
+   example with `seams.near.signAndSendTransaction`.
+3. A voice template at the verifier:
+
+```ts [Partial example]
+const enrollment = await seams.speakToSign.enroll({ walletId });
+if (enrollment.kind === 'enrolled') {
+  console.log('template', enrollment.templateEpoch, 'tx', enrollment.transactionHash);
+}
+```
+
+`enroll` shows three short phrases on the VoiceID surface. Then the owner
+approves one `authorize_enrollment` call for the digest of exactly these
+recordings. The verifier enrolls only audio that the vault authorized, for 10
+minutes. A new enrollment replaces the template. The result `kind` is
+`enrolled`, `refused`, `cancelled` or `unavailable`.
+
+On testnet the owner account needs about 0.3 NEAR: `create_vault` takes 0.15
+NEAR, and NEAR charges prepaid gas up front, about 0.03 NEAR for each 30 Tgas
+call and 0.051 NEAR for each spoken payment.
+
 ## Prepare the Wallet host
 
 The operator of `walletOrigin` installs the same packages and composes the
@@ -105,21 +133,26 @@ variables are set:
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
 
-The route requires an active Wallet Session. It refuses a request for another
-owner's voice. It passes the verifier output back unchanged.
+The route reads the caller's Wallet Session as identity. It answers 401
+`unauthorized` without a session and 503 `session_unavailable` when the
+session store fails, and it spends no signing use. It refuses a request for
+another owner's voice. It serves the verifier's `verify` and `enroll`
+operations, accepts a body of at most 1,100 KB, and passes the verifier output
+back unchanged.
 
 ## The vault contract
 
 The testnet vault is `seams-wallet.testnet`. It pinned the verifier key
 `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` at init.
 
-| Method                  | Use                                                                         |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `transfer_with_verdict` | Pays an active contact on a verdict that the pinned key signed.             |
-| `authorize_enrollment`  | The owner allows one enrollment of exactly these recordings for 10 minutes. |
-| `get_vault`             | Balance, limits and the next nonce of an owner.                             |
-| `get_contacts`          | The owner's contacts and whether each one is active.                        |
-| `get_verifier`          | The pinned verifier key.                                                    |
+| Method                   | Use                                                                         |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `transfer_with_verdict`  | Pays an active contact on a verdict that the pinned key signed.             |
+| `authorize_enrollment`   | The owner allows one enrollment of exactly these recordings for 10 minutes. |
+| `get_pending_enrollment` | The owner's live enrollment authorization, which the verifier reads.        |
+| `get_vault`              | Balance, limits and the next nonce of an owner.                             |
+| `get_contacts`           | The owner's contacts and whether each one is active.                        |
+| `get_verifier`           | The pinned verifier key.                                                    |
 
 A new contact becomes active after the contact delay that the vault set at
 init. The owner can withdraw without voice after a 10-minute wait.
