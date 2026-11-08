@@ -26,6 +26,8 @@ type ReadBalance = Extract<AssetBalance, { kind: 'read' }>;
 
 type FormState =
   | { readonly kind: 'editing'; readonly error: WalletMessage | null }
+  // The Max fee probe is in flight; the form waits so the result cannot replace a review.
+  | { readonly kind: 'pricing_max' }
   | { readonly kind: 'checking' }
   | { readonly kind: 'confirming' }
   | { readonly kind: 'sent'; readonly transactionId: string }
@@ -91,7 +93,6 @@ export function SendPanel({
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
   const [state, setState] = useState<FormState>({ kind: 'editing', error: null });
-  const [maxPending, setMaxPending] = useState(false);
   // The balances can arrive after the first render, so the requested asset still applies then.
   const selected =
     choices.find((choice) => choice.asset.id === (assetId || initialAssetId)) ?? choices[0];
@@ -106,12 +107,13 @@ export function SendPanel({
   const asset = selected.asset;
   const from = fromFor(asset) ?? '';
   const available = BigInt(selected.available);
-  const busy = state.kind === 'checking' || state.kind === 'confirming';
+  const busy =
+    state.kind === 'pricing_max' || state.kind === 'checking' || state.kind === 'confirming';
 
   const fillMax = async () => {
     let maxFeeNative: bigint | undefined;
     if (asset.kind === 'evm_native' || (asset.kind === 'erc20' && asset.paysGas)) {
-      setMaxPending(true);
+      setState({ kind: 'pricing_max' });
       // A transfer of one base unit to the sender itself prices the fee.
       const probe = await prepare({
         asset,
@@ -119,7 +121,6 @@ export function SendPanel({
         recipient: from,
         amount: exactAssetAmount('1', asset.decimals),
       });
-      setMaxPending(false);
       if (probe.kind !== 'evm') {
         setState({ kind: 'editing', error: REJECTION_MESSAGES.unavailable });
         return;
@@ -253,7 +254,7 @@ export function SendPanel({
             type="button"
             className="seams-assets-pill"
             onClick={() => void fillMax()}
-            disabled={busy || maxPending}
+            disabled={busy}
           >
             <WalletText message="Max" />
           </button>
