@@ -35,6 +35,17 @@ if (seams.speakToSign) {
   void seams.speakToSign.requestTransfer({ walletId: 'alice.testnet' });
   const vault: string = seams.speakToSign.vault;
   void vault;
+  const enrollment = seams.speakToSign.enroll({ walletId: 'alice.testnet' });
+  void enrollment.then((result) => {
+    // An enrollment names the template epoch and the authorizing transaction.
+    if (result.kind === 'enrolled') {
+      const epoch: number = result.templateEpoch;
+      const hash: string = result.transactionHash;
+      void [epoch, hash];
+    }
+  });
+  // @ts-expect-error The Wallet reads the owner itself; the app cannot name one.
+  void seams.speakToSign.enroll({ walletId: 'alice.testnet', owner: 'victim.testnet' });
 }
 // @ts-expect-error The app cannot set the capability.
 seams.speakToSign = undefined;

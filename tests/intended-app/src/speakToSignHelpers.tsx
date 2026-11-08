@@ -3,9 +3,9 @@ import { functionCall, type ActionResult } from '@seams/wallet';
 import { useSeams } from '@seams/wallet/react';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-type TransferResult = Awaited<
-  ReturnType<NonNullable<Seams['speakToSign']>['requestTransfer']>
->;
+type SpeakToSign = NonNullable<Seams['speakToSign']>;
+type TransferResult = Awaited<ReturnType<SpeakToSign['requestTransfer']>>;
+type EnrollmentResult = Awaited<ReturnType<SpeakToSign['enroll']>>;
 type VaultCall = {
   walletId: string;
   nearAccountId: string;
@@ -25,6 +25,7 @@ declare global {
         receiver: string;
         amount: string;
       }): Promise<TransferResult>;
+      enroll(input: { walletId: string }): Promise<EnrollmentResult>;
     };
   }
 }
@@ -43,6 +44,7 @@ function installHelpers(seams: Seams): () => void {
     callVault: callVault.bind(null, seams, speakToSign.vault),
     readNearAccountState: (walletId) => seams.registration.getNearAccountState({ walletId }),
     requestTransfer: speakToSign.requestTransfer,
+    enroll: speakToSign.enroll,
   };
   return uninstall;
 }

@@ -22,6 +22,8 @@ import { pcm16Wav, SAMPLE_RATE } from './wav';
 const VERIFY_PATH = '/speak-to-sign/v1/verify';
 /** The demo client measured `transfer_with_verdict` well below this. */
 const TRANSFER_GAS = '50000000000000';
+/** `authorize_enrollment` writes one small record. */
+const AUTHORIZE_ENROLLMENT_GAS = '30000000000000';
 
 export type SpeakToSignHostOperationsInput = Readonly<{
   feature: SpeakToSignFeaturePlugin;
@@ -42,8 +44,9 @@ export type SpeakToSignHostOperationsInput = Readonly<{
 }>;
 
 /**
- * Builds the scoped operations for one spoken payment. Every transaction goes to the
- * configured vault, calls only `transfer_with_verdict` and attaches no deposit.
+ * Builds the scoped operations for one spoken payment or enrollment. Every transaction goes
+ * to the configured vault, calls only `transfer_with_verdict` or `authorize_enrollment` and
+ * attaches no deposit.
  */
 export function createSpeakToSignHostOperations(
   input: SpeakToSignHostOperationsInput,
@@ -53,6 +56,7 @@ export function createSpeakToSignHostOperations(
     viewVault: viewVault.bind(null, input),
     verify: verify.bind(null, input),
     submitTransfer: submitTransfer.bind(null, input),
+    authorizeEnrollment: authorizeEnrollment.bind(null, input),
   };
 }
 
@@ -139,24 +143,40 @@ async function submitTransfer(
   args: SpeakToSignVaultTransferArgs,
   signal: AbortSignal,
 ): Promise<SpeakToSignSubmission> {
+  const callArgs = {
+    receiver_id: args.receiver_id,
+    amount: args.amount,
+    nonce: args.nonce,
+    verdict_json: args.verdict_json,
+    signature_b64: args.signature_b64,
+  };
+  return await callVault(input, 'transfer_with_verdict', callArgs, TRANSFER_GAS, signal);
+}
+
+async function authorizeEnrollment(
+  input: SpeakToSignHostOperationsInput,
+  enrollmentDigest: string,
+  signal: AbortSignal,
+): Promise<SpeakToSignSubmission> {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(enrollmentDigest)) {
+    return { kind: 'not_submitted', error: 'The enrollment digest is invalid.' };
+  }
+  const args = { enrollment_digest: enrollmentDigest };
+  return await callVault(input, 'authorize_enrollment', args, AUTHORIZE_ENROLLMENT_GAS, signal);
+}
+
+async function callVault(
+  input: SpeakToSignHostOperationsInput,
+  method: 'transfer_with_verdict' | 'authorize_enrollment',
+  args: Record<string, string>,
+  gas: string,
+  signal: AbortSignal,
+): Promise<SpeakToSignSubmission> {
   signal.throwIfAborted();
   const result = await input.signAndSendTransaction(
     {
       receiverId: input.feature.vault,
-      actions: [
-        functionCall({
-          method: 'transfer_with_verdict',
-          args: {
-            receiver_id: args.receiver_id,
-            amount: args.amount,
-            nonce: args.nonce,
-            verdict_json: args.verdict_json,
-            signature_b64: args.signature_b64,
-          },
-          gas: TRANSFER_GAS,
-          deposit: '0',
-        }),
-      ],
+      actions: [functionCall({ method, args, gas, deposit: '0' })],
     },
     signal,
   );

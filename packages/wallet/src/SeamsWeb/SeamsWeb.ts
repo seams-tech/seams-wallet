@@ -59,7 +59,7 @@ import {
   createSpeakToSignCapability,
   type SpeakToSignCapability,
 } from '@/SeamsWeb/publicApi/speakToSign';
-import { createApplicationSpeakToSignTransfer } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
+import { createApplicationSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 /**
  * Main SeamsWeb class that provides framework-agnostic passkey operations
  * with flexible event-based callbacks for custom UX implementation
@@ -192,7 +192,7 @@ export class SeamsWeb {
     this.assets = publicApi.assets;
     const speakToSign = createSpeakToSignCapability(
       this.configs.transactionFeatures,
-      createApplicationSpeakToSignTransfer(this.walletIframe),
+      createApplicationSpeakToSignCommands(this.walletIframe),
     );
     if (speakToSign) this.speakToSign = speakToSign;
   }

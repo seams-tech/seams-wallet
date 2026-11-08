@@ -391,6 +391,7 @@ function requestSurfaceKindForMessage(
       return 'auth_method_activation';
     case 'PM_EXTERNAL_OWNER_AUTH':
     case 'PM_SPEAK_TO_SIGN_TRANSFER':
+    case 'PM_SPEAK_TO_SIGN_ENROLL':
       return 'owner_approval';
     case 'PM_OWNER_NEAR_TRANSACTION':
       return isObject(payload) && payload.action === 'recover' ? null : 'owner_approval';

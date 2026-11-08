@@ -221,6 +221,9 @@ function fakeVault(input: {
         vault.submitted.push(args);
         return input.submission ?? { kind: 'executed', transactionHash: 'tx-hash' };
       },
+      async authorizeEnrollment() {
+        throw new Error('A spoken payment authorizes no enrollment.');
+      },
     },
   };
   return vault;
@@ -565,7 +568,7 @@ test('a cancelled or unavailable recording verifies nothing, and a vault revert 
 
 // ---------------------------------------------------------------- core host operations
 
-test('core host operations stay scoped to the configured vault and its one method', async () => {
+test('core host operations stay scoped to the configured vault and its two methods', async () => {
   const views: Array<{ account: string; method: string; args: unknown }> = [];
   const fetched: Array<{ url: string; init: RequestInit }> = [];
   const transactions: TransactionInput[] = [];
@@ -676,5 +679,42 @@ test('core host operations stay scoped to the configured vault and its one metho
   expect(await operations.submitTransfer(args, signal)).toEqual({
     kind: 'not_submitted',
     error: 'cancelled by owner',
+  });
+
+  // The enrollment authorization is one call with a 32-byte base64url digest and no deposit.
+  outcome = {
+    success: true,
+    transactionId: 'tx-auth',
+    result: { status: { SuccessValue: '' }, receipts_outcome: [] } as never,
+  };
+  transactions.length = 0;
+  const digest = b64u(new Uint8Array(32).fill(5));
+  expect(await operations.authorizeEnrollment(digest, signal)).toEqual({
+    kind: 'executed',
+    transactionHash: 'tx-auth',
+  });
+  expect(await operations.authorizeEnrollment('not a digest', signal)).toEqual({
+    kind: 'not_submitted',
+    error: 'The enrollment digest is invalid.',
+  });
+  expect(transactions).toEqual([
+    {
+      receiverId: 'voicevault.testnet',
+      actions: [
+        {
+          type: 'FunctionCall',
+          methodName: 'authorize_enrollment',
+          args: { enrollment_digest: digest },
+          gas: '30000000000000',
+          deposit: '0',
+        },
+      ],
+    },
+  ]);
+  await operations.viewVault('get_pending_enrollment', signal);
+  expect(views.at(-1)).toEqual({
+    account: 'voicevault.testnet',
+    method: 'get_pending_enrollment',
+    args: { owner_id: 'owner.testnet' },
   });
 });

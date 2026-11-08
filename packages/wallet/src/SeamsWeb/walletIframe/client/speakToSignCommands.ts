@@ -1,19 +1,29 @@
 import type {
+  SpeakToSignEnrollmentRequest,
+  SpeakToSignEnrollmentResult,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
 import type { WalletIframeCoordinator } from '../coordinator';
 import {
+  parseSpeakToSignEnrollmentResult,
+  parseSpeakToSignEnrollPayload,
   parseSpeakToSignTransferPayload,
   parseSpeakToSignTransferResult,
+  type PMSpeakToSignEnrollPayload,
   type PMSpeakToSignTransferPayload,
 } from '../shared/speakToSign';
 
 type SpeakToSignPost = (
-  request: {
-    readonly type: 'PM_SPEAK_TO_SIGN_TRANSFER';
-    readonly payload: PMSpeakToSignTransferPayload;
-  },
+  request:
+    | {
+        readonly type: 'PM_SPEAK_TO_SIGN_TRANSFER';
+        readonly payload: PMSpeakToSignTransferPayload;
+      }
+    | {
+        readonly type: 'PM_SPEAK_TO_SIGN_ENROLL';
+        readonly payload: PMSpeakToSignEnrollPayload;
+      },
   // The owner speaks and then approves the vault call, so the request has no deadline.
   options: { readonly timeout: 'interactive' },
 ) => Promise<{ readonly result?: unknown }>;
@@ -22,10 +32,20 @@ export type SpeakToSignTransferCommand = (
   request: SpeakToSignTransferRequest,
 ) => Promise<SpeakToSignTransferResult>;
 
-export function createIframeSpeakToSignCommands(post: SpeakToSignPost): {
-  readonly requestTransfer: SpeakToSignTransferCommand;
-} {
-  return { requestTransfer: requestTransferFromHost.bind(null, post) };
+export type SpeakToSignEnrollCommand = (
+  request: SpeakToSignEnrollmentRequest,
+) => Promise<SpeakToSignEnrollmentResult>;
+
+export type SpeakToSignCommands = Readonly<{
+  requestTransfer: SpeakToSignTransferCommand;
+  enroll: SpeakToSignEnrollCommand;
+}>;
+
+export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToSignCommands {
+  return {
+    requestTransfer: requestTransferFromHost.bind(null, post),
+    enroll: enrollFromHost.bind(null, post),
+  };
 }
 
 async function requestTransferFromHost(
@@ -44,10 +64,26 @@ async function requestTransferFromHost(
   return parseSpeakToSignTransferResult(response.result);
 }
 
-export function createApplicationSpeakToSignTransfer(
+async function enrollFromHost(
+  post: SpeakToSignPost,
+  request: SpeakToSignEnrollmentRequest,
+): Promise<SpeakToSignEnrollmentResult> {
+  const payload = parseSpeakToSignEnrollPayload({ walletId: request.walletId });
+  const response = await post(
+    { type: 'PM_SPEAK_TO_SIGN_ENROLL', payload },
+    { timeout: 'interactive' },
+  );
+  return parseSpeakToSignEnrollmentResult(response.result);
+}
+
+/** The app-side commands. Each one waits for the Wallet iframe router first. */
+export function createApplicationSpeakToSignCommands(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-): SpeakToSignTransferCommand {
-  return requestTransferFromIframe.bind(null, iframe);
+): SpeakToSignCommands {
+  return {
+    requestTransfer: requestTransferFromIframe.bind(null, iframe),
+    enroll: enrollFromIframe.bind(null, iframe),
+  };
 }
 
 async function requestTransferFromIframe(
@@ -56,4 +92,12 @@ async function requestTransferFromIframe(
 ): Promise<SpeakToSignTransferResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestTransfer(request);
+}
+
+async function enrollFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  request: SpeakToSignEnrollmentRequest,
+): Promise<SpeakToSignEnrollmentResult> {
+  const router = await iframe.requireRouter();
+  return await router.speakToSign.enroll(request);
 }

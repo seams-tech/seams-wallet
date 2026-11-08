@@ -224,7 +224,18 @@ test('a session without a resolvable NEAR account is refused before OutLayer', a
   expect(harness.calls).toHaveLength(0);
 });
 
-test('a body above 400 KB or with other fields is refused before OutLayer', async () => {
+test('an enrollment of three 8 s clips fits the body cap and reaches OutLayer unchanged', async () => {
+  const harness = await buildHarness(okOutlayer);
+  // 8 s of 16 kHz PCM16 plus the 44-byte header, in standard base64.
+  const clip = Buffer.alloc(8 * 16_000 * 2 + 44, 1).toString('base64');
+  const input = { op: 'enroll', vault: 'vault.testnet', owner: OWNER, audio_wav_b64: [clip, clip, clip] };
+  const response = await harness.send(JSON.stringify({ input }));
+  expect(response.status).toBe(200);
+  expect(harness.calls).toHaveLength(1);
+  expect(JSON.parse(String(harness.calls[0].init.body)).input).toEqual(input);
+});
+
+test('a body above the cap or with other fields is refused before OutLayer', async () => {
   const harness = await buildHarness(okOutlayer);
   const padding = 'A'.repeat(SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES);
   const tooLarge = await harness.send(JSON.stringify({ input: { audio_b64: padding } }));

@@ -18,8 +18,11 @@ import type {
 import { resolveWalletSessionAuthorizationV2Admission } from '../signingOperations/walletExecutionAdmission';
 
 export const SPEAK_TO_SIGN_VERIFY_PATH = '/speak-to-sign/v1/verify';
-/** 8 s of 16 kHz PCM16 is 256,000 bytes, about 341 KB in base64, with room for the fields. */
-export const SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES = 400 * 1024;
+/**
+ * An enrollment carries three clips. 8 s of 16 kHz PCM16 is 256,000 bytes, about 341 KB in
+ * base64, so three clips are about 1,000 KB, with room for the fields.
+ */
+export const SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES = 1_100 * 1024;
 /** The verifier calls two remote models; the whole flow has a 10 s budget. */
 const OUTLAYER_TIMEOUT_MS = 20_000;
 const OUTLAYER_RESOURCE_LIMITS = Object.freeze({
@@ -153,7 +156,7 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
         rationale: 'The handler requires a live Wallet Session operation credential of the owner.',
       },
       metering: { kind: 'none' },
-      summary: 'Run the pinned OutLayer voice verifier for a spoken payment',
+      summary: 'Run the pinned OutLayer voice verifier for a spoken payment or an enrollment',
     }),
   ] as const;
   private readonly now: () => number;
