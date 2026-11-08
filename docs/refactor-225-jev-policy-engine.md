@@ -738,9 +738,17 @@ Cost for each decision (one batched call):
 - **One rule type: semantic escalate.** A `noul` rule with
   `onFail: 'escalate'`. In this slice `escalate` has the effect of
   `require_human_approval` (Decision 7). No `deny`, `choice` or `score` rules.
-- **Transaction fields only.** No rule reads the transcript, so the Jev call
-  runs beside Whisper and the speaker check. The spoken purpose of open
-  question 4 would change this.
+- **Spoken purpose** (owner decision, 2026-11-08). The user adds a purpose
+  to the transfer sentence: "send five near to alice dot testnet for lunch".
+  - `spoken-intent` matches the transfer part as today and returns the words
+    after "for" as `purpose`.
+  - The Jev state has `transaction` and `purpose`. A rule such as "voice
+    payments only for food and drink, otherwise ask for a passkey" judges
+    the purpose.
+  - The Jev call waits for Whisper, so it adds 0.5–0.7 s: about 9.3 s from
+    the end of speech, inside the 10 s rule. Gate J0 measures it.
+  - The Wallet shows the sentence to say with a purpose slot, for example
+    "send five near to alice dot testnet for …".
 - **Speak-to-Sign only**, on testnet, with organization policies only.
 - **Console.** The authoring flow of Section 2, with the deterministic rules
   of today, `effectiveUntil` and one semantic escalate rule type.
@@ -754,9 +762,8 @@ Cost for each decision (one batched call):
   - End of speech to vault accepted: p95 at most 10 s over 20 runs.
   - A forced Jev failure gives `policy_step_up`.
   - A deterministic deny makes no Jev call.
-- **Limit.** Today's `spoken-intent` grammar has only NEAR transfers and
-  multisig approvals. Semantic rules have little to judge there. Open
-  question 4 chooses what the demo lets Jev judge.
+  - "send five near to alice dot testnet for lunch" passes a food-and-drink
+    rule, and "… for poker night" gets `policy_step_up`.
 
 ### Later slices
 
@@ -784,15 +791,8 @@ The gates of the first draft map to these slices:
 2. **Authoring model.** Which model and provider? (Decision 5)
 3. **Escalate.** In Slices 1–3, is a passkey step-up the right effect of
    `escalate`? (Decision 7)
-4. **What the demo lets Jev judge.**
-   - _Spoken purpose_: the user says "send five near to alice for lunch". The
-     `spoken-intent` match checks the transfer part and passes the purpose to
-     Jev. A rule such as "voice payments only for food and drink, otherwise
-     ask for a passkey" judges it. The Jev call waits for Whisper (about
-     9.3 s of the 10 s).
-   - _Market order_: the Sotheby's example. It needs a market-order kind in
-     `spoken-intent`, a market contract on testnet and a market list
-     (Slice 1b).
+4. **What the demo lets Jev judge.** Decided on 2026-11-08: the spoken
+   purpose (Slice 1). The market order stays in Slice 1b.
 5. **Market ids.** What is the source of truth for "Sotheby's prediction
    markets": the app's API, a contract view, or a list that the operator keeps
    in the Console?
