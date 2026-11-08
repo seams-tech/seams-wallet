@@ -1259,8 +1259,12 @@ async function verifyOwnerRejectionAndCancel(
   const encoded = backend.broadcasts[broadcasts];
   if (!encoded) throw new Error('Missing rejected broadcast.');
   if (rejected.kind !== 'unresolved') throw new Error('The rejection did not stay unresolved.');
-  // The receipt tells the owner why the send did not reach NEAR.
-  await expectOwnerReceipt(page, 'Rejected by NEAR', 'NotEnoughBalance');
+  // The receipt tells the owner why the send did not reach NEAR: the balance and the cost.
+  await expectOwnerReceipt(
+    page,
+    'Rejected by NEAR',
+    'The account has 0.09515 NEAR, and the transaction can cost up to 0.1 NEAR.',
+  );
   // A later check still explains the rejection, and the new operation stays blocked.
   expect(await page.evaluate(recoverApiOperation, recovery)).toMatchObject({
     kind: 'unresolved',
