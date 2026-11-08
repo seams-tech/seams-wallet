@@ -598,9 +598,9 @@ async function persistInitialCanonicalEcdsaActivation(
     createdAt: plan.createdAt,
     pendingPayloadB64u,
   });
+  closeRouterAbEcdsaRegistrationCeremonyState(ceremonyId, active);
   switch (stored.kind) {
     case 'stored':
-      closeRouterAbEcdsaRegistrationCeremonyState(ceremonyId, active);
       return {
         ok: true,
         kind: 'initial_canonical_ecdsa_activation_persisted_v1',
