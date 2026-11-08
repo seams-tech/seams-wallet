@@ -155,6 +155,7 @@ Order of work: B5, B6, B3, B2, B1, then the optional part of B4. Each item is a 
   - First, check that `clear` is not reachable from a published `.d.ts` entry point and has no use in `seams-monorepo`. `SigningSessionCoordinator.d.ts` is emitted, so check the entry points, not only the file.
   - If it is unreachable, delete `SigningSessionCoordinator.clear`, `clearWalletSession`, `WalletSessionClearResult` users that become dead, and the `backing` field. Update `readiness.typecheck.ts`.
   - If it is reachable, delete `backing` and dispatch on `lane.source` (`email_otp` or `passkey`), as `clientSessionExpiryInvalidator.ts` (`L73-L94`) does on `lane.auth.kind`.
+  - *Result (2026-11-08)*: reachable. Declarations emitted from `tsconfig.build.json` reach `SigningSessionCoordinator.d.ts` from the `speak-to-sign-host` entry through `core/signingEngine/interfaces/near.d.ts`. So `clear` stays, `backing` is deleted, and `clearWalletSession` dispatches on `lane.runtime.factor.kind`, which is the value `toLaneSource` maps.
 - **Verification**:
   - Delete path: `pnpm type-check` and `pnpm report:bloat --check`.
   - Fix path: a test that `clear` calls `clearEmailOtpWarmSessionMaterial` for an `email_otp` lane and `touchConfirm.clearVolatileWarmSessionMaterial` for a `passkey` lane.

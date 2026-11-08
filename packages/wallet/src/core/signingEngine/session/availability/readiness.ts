@@ -58,7 +58,6 @@ type SigningSessionLane = {
 
 type DiscoveredSigningSessionLane = SigningSessionLane & {
   runtime: ExactEd25519SealedSessionRuntime;
-  backing: 'touch_confirm' | 'email_otp_worker' | 'record_policy';
 };
 
 export type WalletSessionStatusOverride = {
@@ -172,7 +171,6 @@ function buildDiscoveredLaneForRuntime(
     walletSessionId,
     quotaId,
     materialActivation: runtime.sealedRecord.ed25519Restore.materialActivation,
-    backing: 'record_policy',
     runtime,
   };
 }
@@ -706,6 +704,34 @@ export type WalletSessionClearResult =
       readonly failures: readonly WalletSessionClearFailure[];
     };
 
+/** Clears the worker-held warm material of one lane, by the factor that unlocked it. */
+async function clearLaneWarmSessionMaterial(
+  deps: WalletSessionReadinessDeps,
+  lane: DiscoveredSigningSessionLane,
+): Promise<WalletSessionClearFailure | null> {
+  switch (lane.runtime.factor.kind) {
+    case 'email_otp':
+      try {
+        await deps.clearEmailOtpWarmSessionMaterial?.(lane.thresholdSessionId);
+        return null;
+      } catch {
+        return 'email_otp_material';
+      }
+    case 'passkey': {
+      const thresholdSessionId = parseThresholdEd25519SessionId(lane.thresholdSessionId);
+      if (!thresholdSessionId.ok) return null;
+      try {
+        await deps.touchConfirm?.clearVolatileWarmSessionMaterial?.(
+          createClearVolatileWarmSessionMaterialCommand(thresholdSessionId.value),
+        );
+        return null;
+      } catch {
+        return 'touch_confirm_material';
+      }
+    }
+  }
+}
+
 export async function clearWalletSession(args: {
   deps: WalletSessionReadinessDeps;
   statusOverrides: Map<string, WalletSessionStatusOverride>;
@@ -729,27 +755,11 @@ export async function clearWalletSession(args: {
   const cleared = new Set<string>();
   const failures = new Set<WalletSessionClearFailure>();
   for (const lane of lanes) {
-    if (lane.backing === 'record_policy') continue;
     const materialActivationId = String(lane.materialActivation.activationId);
     if (cleared.has(materialActivationId)) continue;
     cleared.add(materialActivationId);
-    if (lane.backing === 'email_otp_worker') {
-      try {
-        await args.deps.clearEmailOtpWarmSessionMaterial?.(lane.thresholdSessionId);
-      } catch {
-        failures.add('email_otp_material');
-      }
-      continue;
-    }
-    const thresholdSessionId = parseThresholdEd25519SessionId(lane.thresholdSessionId);
-    if (!thresholdSessionId.ok) continue;
-    try {
-      await args.deps.touchConfirm?.clearVolatileWarmSessionMaterial?.(
-        createClearVolatileWarmSessionMaterialCommand(thresholdSessionId.value),
-      );
-    } catch {
-      failures.add('touch_confirm_material');
-    }
+    const failure = await clearLaneWarmSessionMaterial(args.deps, lane);
+    if (failure) failures.add(failure);
   }
   if (failures.size > 0) {
     return {
