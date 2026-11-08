@@ -250,7 +250,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
   setWorkerBaseOrigin(origin: string | undefined): void {
     if (this.workerBaseOrigin === origin) return;
     this.workerBaseOrigin = origin;
-    this.emailOtpYaoPrewarmPromise = null;
     for (const kind of Array.from(this.workers.keys())) {
       this.resetWorker(kind);
     }
@@ -1081,6 +1080,11 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     this.workers.delete(kind);
     this.messageHandlers.delete(kind);
     this.errorHandlers.delete(kind);
+
+    // A finished prewarm warmed the worker that is now gone, so the next
+    // prewarm must run again on the new worker.
+    if (kind === 'ecdsaDerivationClient') this.ecdsaRegistrationCryptoPrewarmPromise = null;
+    if (kind === 'emailOtp') this.emailOtpYaoPrewarmPromise = null;
 
     // Terminating the ceremony worker destroys its custody-seed handles with it.
     // Drop the main-thread reference so the linking preflight cannot pass

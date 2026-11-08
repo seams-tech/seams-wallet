@@ -380,6 +380,6 @@ Before committing each batch on `implicit-state-machines`:
 1. `pnpm type-check`
 2. Targeted unit tests for modified TypeScript code. `packages/wallet`, `packages/wallet-server` and `packages/voiceid` have no `test` script. Wallet unit tests live in `tests/unit/*.unit.test.ts` and run with Playwright: `pnpm -C tests test:wallet-unit` (or `pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/<file>` for one file). `tests/unit` is not type-checked, so run each new test.
    - No unit test covers a Batch 1 module today, so each Batch 1 item adds its test file.
-   - Test through the exports that exist. A new export that only a test uses raises `testOnlyExports` and fails `pnpm report:bloat --check`. Worker files have no exports, so test worker logic through a helper module that the worker already imports, or through a browser test that drives the worker.
+   - Test through the exports that exist. A new export that only a test uses raises `testOnlyExports`. The check does not ratchet that measure, but `AGENTS.md` says to export only what another file uses. Worker files have no exports, so move worker logic to a module that the worker imports (as `passkeyMpcSession/warmSessionPrfHandles.ts` does), or drive the transport with a fake `Worker` (as `tests/unit/workerTransportPrewarm.unit.test.ts` does).
 3. Targeted Cargo tests for modified Rust crates (`cargo test -p router-ab-ecdsa-presign`, `cargo test -p router-ab-cloudflare`, `cargo test --manifest-path wasm/router_ab_ecdsa_client/Cargo.toml`)
 4. `pnpm report:bloat --check`
