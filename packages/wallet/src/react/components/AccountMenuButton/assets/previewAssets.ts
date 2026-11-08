@@ -1,13 +1,13 @@
 import { assetsForChain, type WalletAsset } from '@/core/assets/assetList';
 import type { AssetBalance, AssetBalances } from '@/core/assets/readAssetBalances';
 import {
-  nearWithdrawTransaction,
-  parseWithdrawAmount,
-  parseWithdrawRecipient,
-  type PreparedWithdrawal,
-  type WithdrawalRequest,
-} from '@/core/assets/withdraw';
-import type { WithdrawOutcome } from './WithdrawPanel';
+  nearSendTransaction,
+  parseSendAmount,
+  parseSendRecipient,
+  type PreparedSend,
+  type SendRequest,
+} from '@/core/assets/send';
+import type { SendOutcome } from './SendPanel';
 
 /** Display-only sample data for `AccountMenuButtonMock`. Nothing here reads or signs. */
 export const PREVIEW_NEAR_ACCOUNT = 'alex.near';
@@ -49,20 +49,18 @@ export const PREVIEW_BALANCES: AssetBalances = {
 };
 
 /** Checks the form like the live path, then builds a transaction without any network call. */
-export async function previewPrepareWithdrawal(
-  request: WithdrawalRequest,
-): Promise<PreparedWithdrawal> {
+export async function previewPrepareSend(request: SendRequest): Promise<PreparedSend> {
   const { asset } = request;
-  const amount = parseWithdrawAmount(request.amount, asset.decimals);
+  const amount = parseSendAmount(request.amount, asset.decimals);
   if (amount.kind !== 'valid') return { kind: 'rejected', reason: 'invalid_amount' };
-  const recipient = parseWithdrawRecipient(asset, request.recipient);
+  const recipient = parseSendRecipient(asset, request.recipient);
   if (recipient.kind === 'invalid') return { kind: 'rejected', reason: 'invalid_recipient' };
   if (recipient.kind === 'near' && (asset.kind === 'near_native' || asset.kind === 'nep141')) {
     return {
       kind: 'near',
       asset,
       baseUnits: amount.baseUnits,
-      ...nearWithdrawTransaction({
+      ...nearSendTransaction({
         asset,
         recipient: recipient.accountId,
         baseUnits: amount.baseUnits,
@@ -91,7 +89,7 @@ export async function previewPrepareWithdrawal(
   return { kind: 'rejected', reason: 'invalid_recipient' };
 }
 
-export async function previewSendWithdrawal(): Promise<WithdrawOutcome> {
+export async function previewSend(): Promise<SendOutcome> {
   return { kind: 'not_sent', message: 'This preview does not sign or send anything.' };
 }
 

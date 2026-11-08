@@ -4,18 +4,18 @@ import { walletDisplayText, walletText, type WalletMessage } from '@/core/ui/mes
 import type { WalletAsset } from '@/core/assets/assetList';
 import type { AssetBalance } from '@/core/assets/readAssetBalances';
 import {
-  maxWithdrawBaseUnits,
-  parseWithdrawAmount,
-  type PreparedWithdrawal,
-  type WithdrawalRejection,
-  type WithdrawalRequest,
-} from '@/core/assets/withdraw';
+  maxSendBaseUnits,
+  parseSendAmount,
+  type PreparedSend,
+  type SendRejection,
+  type SendRequest,
+} from '@/core/assets/send';
 import { TokenArtwork } from './TokenArtwork';
 import { exactAssetAmount, formatAssetAmount, networkLabel } from './assetFormat';
 
-export type ReadyWithdrawal = Exclude<PreparedWithdrawal, { kind: 'rejected' }>;
+export type ReadySend = Exclude<PreparedSend, { kind: 'rejected' }>;
 
-export type WithdrawOutcome =
+export type SendOutcome =
   | { readonly kind: 'sent'; readonly transactionId: string }
   /** Nothing was submitted; the user can try again. */
   | { readonly kind: 'not_sent'; readonly message: string }
@@ -31,13 +31,19 @@ type FormState =
   | { readonly kind: 'sent'; readonly transactionId: string }
   | { readonly kind: 'failed'; readonly message: string; readonly retry: boolean };
 
-const REJECTION_MESSAGES: Readonly<Record<WithdrawalRejection, WalletMessage>> = {
+const REJECTION_MESSAGES: Readonly<Record<SendRejection, WalletMessage>> = {
   invalid_amount: 'Enter a valid amount.',
   invalid_recipient: 'Enter a valid recipient for this network.',
   missing_account: 'This NEAR account does not exist.',
   chain_not_configured: 'This network is not configured in this app.',
-  unavailable: 'The network could not check this withdrawal. Try again.',
+  unavailable: 'The network could not check these details. Try again.',
 };
+
+// These errors say that the balance is too low, so the panel offers Receive for the asset.
+const BALANCE_ERRORS: ReadonlySet<WalletMessage> = new Set<WalletMessage>([
+  'This is more than you can send.',
+  'The amount and the network fee are more than you hold. Use Max.',
+]);
 
 function isNearAsset(asset: WalletAsset): boolean {
   return asset.kind === 'near_native' || asset.kind === 'nep141';
@@ -53,20 +59,23 @@ function feeInAssetUnits(asset: WalletAsset, maxFeeNative: bigint): bigint {
 }
 
 /** Send out of this wallet: asset, amount, recipient, then the wallet's own confirm card. */
-export function WithdrawPanel({
+export function SendPanel({
   balances,
   initialAssetId,
   fromFor,
   prepare,
   send,
   onSent,
+  onReceive,
 }: {
   balances: readonly AssetBalance[];
   initialAssetId?: string;
   fromFor: (asset: WalletAsset) => string | null;
-  prepare: (request: WithdrawalRequest) => Promise<PreparedWithdrawal>;
-  send: (withdrawal: ReadyWithdrawal) => Promise<WithdrawOutcome>;
+  prepare: (request: SendRequest) => Promise<PreparedSend>;
+  send: (prepared: ReadySend) => Promise<SendOutcome>;
   onSent?: () => void;
+  /** Opens Receive for an asset, from the error that says the balance is too low. */
+  onReceive?: (assetId: string) => void;
 }): React.JSX.Element {
   const locale = useWalletLocale();
   const ids = { asset: useId(), amount: useId(), recipient: useId(), error: useId() };
@@ -83,12 +92,14 @@ export function WithdrawPanel({
   const [recipient, setRecipient] = useState('');
   const [state, setState] = useState<FormState>({ kind: 'editing', error: null });
   const [maxPending, setMaxPending] = useState(false);
-  const selected = choices.find((choice) => choice.asset.id === assetId) ?? choices[0];
+  // The balances can arrive after the first render, so the requested asset still applies then.
+  const selected =
+    choices.find((choice) => choice.asset.id === (assetId || initialAssetId)) ?? choices[0];
 
   if (!selected) {
     return (
       <p className="seams-account-description">
-        <WalletText message="This wallet holds nothing to withdraw yet." />
+        <WalletText message="This wallet holds nothing to send yet." />
       </p>
     );
   }
@@ -115,7 +126,7 @@ export function WithdrawPanel({
       }
       maxFeeNative = probe.maxFeeNative;
     }
-    const max = maxWithdrawBaseUnits({ asset, available, maxFeeNative });
+    const max = maxSendBaseUnits({ asset, available, maxFeeNative });
     setAmount(max > 0n ? exactAssetAmount(max.toString(), asset.decimals) : '0');
     setState({ kind: 'editing', error: null });
   };
@@ -123,7 +134,7 @@ export function WithdrawPanel({
   const review = async (event: React.FormEvent) => {
     event.preventDefault();
     if (busy) return;
-    const parsed = parseWithdrawAmount(amount, asset.decimals);
+    const parsed = parseSendAmount(amount, asset.decimals);
     if (parsed.kind !== 'valid') {
       setState({ kind: 'editing', error: 'Enter a valid amount.' });
       return;
@@ -162,7 +173,7 @@ export function WithdrawPanel({
     return (
       <div className="seams-assets-form">
         <div className="seams-account-inset" role="status">
-          <WalletText message="Withdrawal sent." />
+          <WalletText message="Funds sent." />
           <code className="seams-assets-tx">{state.transactionId}</code>
         </div>
         <button
@@ -173,7 +184,7 @@ export function WithdrawPanel({
             setState({ kind: 'editing', error: null });
           }}
         >
-          <WalletText message="New withdrawal" />
+          <WalletText message="Send again" />
         </button>
       </div>
     );
@@ -276,13 +287,22 @@ export function WithdrawPanel({
           <WalletText message={error} />
         </p>
       ) : null}
+      {onReceive && error && BALANCE_ERRORS.has(error) ? (
+        <button
+          type="button"
+          className="seams-assets-secondary"
+          onClick={() => onReceive(asset.id)}
+        >
+          <WalletText message="Receive {value0}" values={{ value0: asset.symbol }} />
+        </button>
+      ) : null}
       {state.kind === 'failed' ? (
         <p className="seams-assets-error" role="alert">
           <WalletText copy={state.message} />
           {state.retry ? null : (
             <>
               {' '}
-              <WalletText message="The withdrawal may have been sent. Check your balance before you try again." />
+              <WalletText message="The funds may have been sent. Check your balance before you try again." />
             </>
           )}
         </p>
@@ -297,7 +317,7 @@ export function WithdrawPanel({
         ) : state.kind === 'confirming' ? (
           <WalletText message="Confirm in your wallet…" />
         ) : (
-          <WalletText message="Review withdrawal" />
+          <WalletText message="Review and send" />
         )}
       </button>
       <p className="seams-assets-note is-centered">

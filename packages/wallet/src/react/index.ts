@@ -180,13 +180,14 @@ export type { WalletBalancesProps } from './components/AccountMenuButton';
 export type {
   AssetsCapability,
   AssetAccounts,
+  AssetScreenRequest,
   AssetBalance,
   AssetBalances,
   AssetBalanceUnavailableReason,
-  PreparedWithdrawal,
+  PreparedSend,
   WalletAsset,
-  WithdrawalRejection,
-  WithdrawalRequest,
+  SendRejection,
+  SendRequest,
 } from '../SeamsWeb/publicApi/assets';
 export { QRCodeScanner } from './components/QRCodeScanner';
 export type { QRCodeScannerProps } from './components/QRCodeScanner';

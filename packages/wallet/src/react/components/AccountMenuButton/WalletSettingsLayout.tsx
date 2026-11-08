@@ -29,7 +29,7 @@ const SETTINGS_ITEMS = [
   {
     id: PROFILE_MENU_ITEM_IDS.ASSETS,
     label: 'Assets',
-    description: 'See balances, deposit and withdraw',
+    description: 'See balances, receive and send',
     icon: <WalletIcon />,
   },
   {
@@ -173,6 +173,11 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
     }
     void blinkMenuItem(event.currentTarget)?.then(commit);
   };
+
+  /** Show one section, as a choice in the section list does. */
+  selectSection(id: ProfileSettingsMenuItemId): void {
+    this.setState({ selected: id, mobileMenuOpen: false }, this.focusHeading);
+  }
 
   private matchesSelection(id: string | undefined, item: (typeof SETTINGS_ITEMS)[number]): boolean {
     return item.id === id;

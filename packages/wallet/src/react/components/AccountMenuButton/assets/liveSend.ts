@@ -1,7 +1,7 @@
 import type { SeamsWeb } from '@/SeamsWeb';
-import type { ReadyWithdrawal, WithdrawOutcome } from './WithdrawPanel';
+import type { ReadySend, SendOutcome } from './SendPanel';
 
-// The withdrawal always opens the wallet's confirm card, whatever the app's preference.
+// A send always opens the wallet's confirm card, whatever the app's preference.
 const CONFIRM_IN_WALLET = { uiMode: 'modal', behavior: 'requireClick' } as const;
 
 // An EVM error that names a cancel or a refusal happened before the wallet signed.
@@ -11,21 +11,21 @@ function message(error: unknown): string {
   return error instanceof Error && error.message ? error.message : String(error);
 }
 
-/** Send a prepared withdrawal through the wallet's own confirm card. */
-export async function sendWithdrawal(
+/** Send a prepared transfer through the wallet's own confirm card. */
+export async function sendPrepared(
   seams: SeamsWeb,
   sender: { readonly walletId: string; readonly nearAccountId: string | null },
-  withdrawal: ReadyWithdrawal,
-): Promise<WithdrawOutcome> {
-  if (withdrawal.kind === 'near') {
+  prepared: ReadySend,
+): Promise<SendOutcome> {
+  if (prepared.kind === 'near') {
     if (!sender.nearAccountId) {
       return { kind: 'not_sent', message: 'This wallet has no NEAR account.' };
     }
     const result = await seams.near.signAndSendTransaction({
       walletSession: sender.walletId,
       nearAccount: sender.nearAccountId,
-      receiverId: withdrawal.receiverId,
-      actions: withdrawal.actions,
+      receiverId: prepared.receiverId,
+      actions: prepared.actions,
       options: { confirmationConfig: CONFIRM_IN_WALLET },
     });
     if (result.success) return { kind: 'sent', transactionId: result.transactionId };
@@ -35,12 +35,12 @@ export async function sendWithdrawal(
   try {
     const result = await seams.evm.signAndSendTransaction({
       walletSession: sender.walletId,
-      chainTarget: withdrawal.asset.network,
+      chainTarget: prepared.asset.network,
       request: {
         chain: 'evm',
         kind: 'eip1559',
         senderSignatureAlgorithm: 'secp256k1',
-        tx: withdrawal.tx,
+        tx: prepared.tx,
       },
       options: { confirmationConfig: CONFIRM_IN_WALLET },
     });

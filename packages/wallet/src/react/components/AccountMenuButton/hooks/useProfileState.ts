@@ -108,6 +108,7 @@ export function useProfileState(
   const menuItemsRef = useRef<(HTMLElement | null)[]>([]);
   const refs: ProfileStateRefs = { buttonRef, dropdownRef, menuItemsRef };
   const handleClose = changeOpen.bind(null, control, setUncontrolledOpen, false);
+  const handleOpen = changeOpen.bind(null, control, setUncontrolledOpen, true);
   const handleToggle = changeOpen.bind(null, control, setUncontrolledOpen, !isOpen);
 
   useEffect(observeOutside.bind(null, presentation, isOpen, buttonRef, handleClose), [
@@ -117,5 +118,5 @@ export function useProfileState(
     handleClose,
   ]);
 
-  return { isOpen, refs, handleToggle, handleClose };
+  return { isOpen, refs, handleOpen, handleToggle, handleClose };
 }

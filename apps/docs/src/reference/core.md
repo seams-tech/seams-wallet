@@ -85,10 +85,24 @@ for (const balance of balances) {
 - `read()` never rejects. Each failed read is `{ kind: 'unavailable', reason }`, never a
   zero. A NEAR `available` amount excludes the storage reserve, which is `reserved`.
 - `onChange(listener)` runs after each completed `read()`.
-- `prepareWithdrawal({ asset, from, recipient, amount })` checks the amount and the
+- `prepareSend({ asset, from, recipient, amount })` checks the amount and the
   recipient and returns an unsigned NEAR or EVM transaction, or `{ kind: 'rejected',
   reason }`. Send it with `seams.near.signAndSendTransaction` or
   `seams.evm.signAndSendTransaction`.
+- `openScreen({ screen, assetId })` opens `'assets'`, `'receive'` or `'send'` in the
+  mounted Settings panel and opens the panel if it is closed. Receive and Send choose
+  `assetId` (an id from `list()`) first. It returns `false` when no Settings panel for a
+  signed-in wallet is mounted.
+
+When an owner operation ends as `not_submitted` with `shortfall`, the account cannot pay.
+Offer a way to add NEAR:
+
+```ts [Partial example]
+const near = seams.assets.list().find((asset) => asset.kind === 'near_native');
+if (outcome.kind === 'not_submitted' && outcome.shortfall && near) {
+  showAction('Receive NEAR', () => seams.assets.openScreen({ screen: 'receive', assetId: near.id }));
+}
+```
 
 ## Naming the subject and the chain
 

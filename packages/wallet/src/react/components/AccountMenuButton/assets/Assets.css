@@ -1,4 +1,4 @@
-/* Wallet assets: the overview balance card, the Assets list, Deposit and Withdraw.
+/* Wallet assets: the overview balance card, the Assets list, Receive and Send.
    Filled, rounded shapes in the panel's own tokens; no outlines and no end-state motion. */
 
 [data-seams-root].seams-theme-provider .seams-assets-card {

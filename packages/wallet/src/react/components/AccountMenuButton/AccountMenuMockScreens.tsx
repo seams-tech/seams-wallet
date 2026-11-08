@@ -18,8 +18,8 @@ type PreviewDevice = { id: string; name: string; lastUsed: string; methods: Devi
 export type AccountPreviewScreen =
   | { kind: 'overview' }
   | { kind: 'assets' }
-  | { kind: 'deposit'; parent: 'overview' | 'assets' }
-  | { kind: 'withdraw'; parent: 'overview' | 'assets' }
+  | { kind: 'receive'; parent: 'overview' | 'assets' }
+  | { kind: 'send'; parent: 'overview' | 'assets' }
   | { kind: 'accounts' }
   | { kind: 'export-keys' }
   | { kind: 'export-key'; chain: ExportChain }
@@ -146,8 +146,8 @@ export function AccountMenuMockScreens({
   accounts: AccountsSectionRow[];
   transactionSettings: React.ReactNode;
   walletId: string;
-  /** The preview's Assets, Deposit and Withdraw screen bodies. */
-  assetScreens: Readonly<Record<'assets' | 'deposit' | 'withdraw', React.ReactNode>>;
+  /** The preview's Assets, Receive and Send screen bodies. */
+  assetScreens: Readonly<Record<'assets' | 'receive' | 'send', React.ReactNode>>;
 }): React.JSX.Element | null {
   const locale = useWalletLocale();
   const back = setScreen.bind(null, { kind: 'overview' });
@@ -160,11 +160,11 @@ export function AccountMenuMockScreens({
           {assetScreens.assets}
         </AccountMenuScreen>
       );
-    case 'deposit':
-    case 'withdraw':
+    case 'receive':
+    case 'send':
       return (
         <AccountMenuScreen
-          title={walletText(locale, screen.kind === 'deposit' ? 'Deposit' : 'Withdraw')}
+          title={walletText(locale, screen.kind === 'receive' ? 'Receive' : 'Send')}
           onBack={setScreen.bind(null, { kind: screen.parent })}
         >
           {assetScreens[screen.kind]}

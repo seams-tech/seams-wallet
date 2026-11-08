@@ -3,11 +3,7 @@ import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { assetsForChains, type WalletAsset } from '@/core/assets/assetList';
 import { createEvmClient } from '@/core/rpcClients/evm/EvmClient';
 import { accountExists } from '@/core/rpcClients/near/accountExists';
-import {
-  prepareWithdrawal,
-  type PreparedWithdrawal,
-  type WithdrawalRequest,
-} from '@/core/assets/withdraw';
+import { prepareSend, type PreparedSend, type SendRequest } from '@/core/assets/send';
 import {
   readAssetBalances,
   type AssetAccounts,
@@ -21,11 +17,7 @@ export type {
   AssetBalanceUnavailableReason,
 } from '@/core/assets/readAssetBalances';
 export type { WalletAsset, TokenArtworkKey } from '@/core/assets/assetList';
-export type {
-  PreparedWithdrawal,
-  WithdrawalRejection,
-  WithdrawalRequest,
-} from '@/core/assets/withdraw';
+export type { PreparedSend, SendRejection, SendRequest } from '@/core/assets/send';
 
 /**
  * Balances of the wallet's listed assets. The reads use only public chain data and the
@@ -42,11 +34,43 @@ export interface AssetsCapability {
   /** Runs after each completed `read`, with its result. Returns an unsubscribe function. */
   onChange(listener: (balances: AssetBalances) => void): () => void;
   /**
-   * Check a withdrawal and build its unsigned transaction. Send the result with
+   * Check a send and build its unsigned transaction. Send the result with
    * `seams.near.signAndSendTransaction` or `seams.evm.signAndSendTransaction`; the wallet's
    * confirm card shows it before anything is signed.
    */
-  prepareWithdrawal(request: WithdrawalRequest): Promise<PreparedWithdrawal>;
+  prepareSend(request: SendRequest): Promise<PreparedSend>;
+  /**
+   * Open a screen of the mounted Settings panel (`AccountMenuButton` or `WalletSettingsPage`)
+   * and open the panel if it is closed. Receive and Send choose `assetId` first. It returns
+   * `false` when no Settings panel for a signed-in wallet is mounted.
+   */
+  openScreen(request: AssetScreenRequest): boolean;
+}
+
+export type AssetScreenRequest = {
+  readonly screen: 'assets' | 'receive' | 'send';
+  /** An asset id from `list()`. Receive and Send choose it first; an unknown id is ignored. */
+  readonly assetId?: string;
+};
+
+type AssetScreenOpener = (request: AssetScreenRequest) => void;
+
+const screenOpeners = new WeakMap<AssetsCapability, Set<AssetScreenOpener>>();
+
+/**
+ * A mounted Settings panel registers here so that `openScreen` reaches it. The newest
+ * registration opens the screen. The result removes the registration.
+ */
+export function registerAssetScreens(
+  assets: AssetsCapability,
+  opener: AssetScreenOpener,
+): () => void {
+  const openers = screenOpeners.get(assets);
+  if (!openers) return () => {};
+  openers.add(opener);
+  return () => {
+    openers.delete(opener);
+  };
 }
 
 export function createAssetsCapability(deps: {
@@ -54,7 +78,8 @@ export function createAssetsCapability(deps: {
   readonly nearClient: NearClient;
 }): AssetsCapability {
   const listeners = new Set<(balances: AssetBalances) => void>();
-  return {
+  const openers = new Set<AssetScreenOpener>();
+  const capability: AssetsCapability = {
     list: () => assetsForChains(deps.configs.network.chains),
     read: async (accounts) => {
       const balances = await readAssetBalances(
@@ -70,8 +95,8 @@ export function createAssetsCapability(deps: {
       }
       return balances;
     },
-    prepareWithdrawal: (request) =>
-      prepareWithdrawal(
+    prepareSend: (request) =>
+      prepareSend(
         {
           nearClient: deps.nearClient,
           accountExists: accountExists.bind(null, deps.nearClient),
@@ -90,5 +115,13 @@ export function createAssetsCapability(deps: {
         listeners.delete(listener);
       };
     },
+    openScreen: (request) => {
+      const opener = [...openers].at(-1);
+      if (!opener) return false;
+      opener(request);
+      return true;
+    },
   };
+  screenOpeners.set(capability, openers);
+  return capability;
 }

@@ -1,14 +1,16 @@
-# Refactor 220: wallet assets, deposit and withdraw in Settings
+# Refactor 220: wallet assets, receive and send in Settings
 
-Status: plan, 2026-11-07. Nothing is built.
+Status: complete, 2026-11-08. Phase 1 is built on `dev` for the 0.55.0 SDK release. The owner
+decided that Phases 2 and 3 are not built (see "Decisions"). The front page tasks wait for the
+0.55.0 release (see "Front page demo components").
 
 ## Result
 
 The Settings panel gets one new part, **Assets**:
 
 - A balance card on the overview screen. It shows the three largest balances, an "All assets" link,
-  and two actions: Deposit and Withdraw.
-- Three new screens: Assets, Deposit and Withdraw.
+  and two actions: Receive and Send.
+- Three new screens: Assets, Receive and Send.
 - A public read, `seams.assets.read()`, that the panel and applications use.
 - A standalone `<WalletBalances>` component for an application's own wallet panel.
 
@@ -54,13 +56,22 @@ Each term names one thing in this plan and in the UI copy.
   artwork and "verified". It extends `KNOWN_NEAR_TOKENS`; it does not copy it.
 - **available** — the amount the wallet can send now. For NEAR it is the balance minus the storage
   reserve. For a token it is `ft_balance_of`.
-- **deposit** — funds that arrive in this wallet from outside. (Decision 1 can rename it to "Receive".)
-- **withdraw** — funds that leave this wallet to an address that the user enters. (Decision 1 can
-  rename it to "Send".)
+- **receive** — funds that arrive in this wallet from outside.
+- **send** — funds that leave this wallet to an address that the user enters.
 - **app account** — a balance that an application holds for the user in its own contract.
   The SDK does not read it in Phases 1 and 2.
 
-## Decisions for the owner
+## Decisions
+
+The owner decided on 2026-11-08:
+
+1. The wallet uses "Receive" and "Send". The 0.53.0 and 0.54.0 releases used "Deposit" and
+   "Withdraw"; 0.55.0 renames them (see "Built").
+2. BTC, SOL and ZEC stay NEAR tokens. Phase 2 is not built.
+3. No prices. Phase 3 prices are not built.
+4. Option B: the application keeps its own app account. Phase 3 app accounts are not built.
+
+The questions as the plan asked them:
 
 1. **Action words.** An application can use "Deposit" to mean "move funds from the wallet into the
    app". If the wallet uses "Deposit" to mean "receive into the wallet", one page shows one word with
@@ -85,7 +96,7 @@ Each term names one thing in this plan and in the UI copy.
   display order and, for bridged tokens, the bridge name.
 - Add the EVM entries: Arc USDC and Ethereum ETH. Add Tempo entries only if a Tempo asset is wanted.
 - Keep one row for each contract. Do not add two contracts together (for example `btc.omft.near`
-  and `nBTC`), because a withdraw needs one exact contract. A variant with a zero balance stays hidden.
+  and `nBTC`), because a send needs one exact contract. A variant with a zero balance stays hidden.
 - On testnet, list only the assets that exist there. The Assets screen says that the other assets
   are on mainnet only.
 
@@ -114,7 +125,7 @@ Each term names one thing in this plan and in the UI copy.
 
 - `BalancesCard` sits between the identity row and the Wallet group.
 - It shows the three largest balances by amount (no prices in Phase 1, so "largest" means
-  non-zero first, then the asset list order), then "All assets · N", then Deposit and Withdraw.
+  non-zero first, then the asset list order), then "All assets · N", then Receive and Send.
 - Signed out or locked: the card is not shown.
 - Read failure: the card shows "Balances unavailable" and a Retry action.
 
@@ -123,25 +134,29 @@ Each term names one thing in this plan and in the UI copy.
 - One row per asset: artwork, symbol, network chip, display name, available amount.
 - NEAR shows the storage reserve under its name.
 - Zero amounts use the muted text color.
-- Deposit and Withdraw stay at the bottom.
+- Receive and Send stay at the bottom.
 
-### Deposit screen (route `deposit`)
+### Receive screen (route `receive`)
 
 - Asset field, network choice, QR code, the full address, Copy address, and a warning:
   "Send only <asset> on <network> to this address."
 - NEAR assets show the NEAR account id. EVM assets show the EVM address.
-- Opens with an asset already chosen when it starts from the shortfall error.
+- Opens with an asset already chosen when it starts from a balance error or from
+  `seams.assets.openScreen`.
 
-### Withdraw screen (route `withdraw`)
+### Send screen (route `send`)
 
 - Asset field with the available amount, amount field with Max, recipient field.
-- NEAR recipient: check that the account exists (`accountExists`). Token withdraw: check
+- NEAR recipient: check that the account exists (`accountExists`). Token send: check
   `storage_balance_of`; if the recipient has no storage, add `storage_deposit` and show its cost.
 - EVM recipient: check the address format and checksum.
 - Max keeps the gas allowance for a native coin.
-- "Review withdrawal" sends the transaction through the existing review card. Nothing is signed
-  before the user confirms. A VoiceID session can withdraw, because the call is reviewed.
-- The NEAR shortfall error gets a "Deposit NEAR" action that opens the Deposit screen for NEAR.
+- "Review and send" sends the transaction through the existing review card. Nothing is signed
+  before the user confirms. A VoiceID session can send, because the call is reviewed.
+- A balance error on Send offers "Receive <asset>", which opens Receive for that asset.
+- The owner shortfall error reaches the application, not an SDK screen: the card closes before
+  the passkey prompt. `seams.assets.openScreen({ screen: 'receive', assetId })` lets the
+  application offer "Receive NEAR" for it.
 
 ### Full settings page and other presentations
 
@@ -150,21 +165,25 @@ Each term names one thing in this plan and in the UI copy.
 
 ### Standalone component
 
-- Export `<WalletBalances>` from `@seams/wallet/react`. It takes `assets?`, `onDeposit?` and
-  `onWithdraw?`. With no handlers, its buttons open the SDK Deposit and Withdraw screens.
+- Export `<WalletBalances>` from `@seams/wallet/react`. It takes `onReceive?`, `onSend?` and
+  `onOpenAssets?`. With no handlers, its buttons open the SDK Assets, Receive and Send screens
+  through `seams.assets.openScreen`.
 
 ## Phases
 
-### Phase 1 — balances and same-network deposit and withdraw
+### Phase 1 — balances and same-network receive and send
+
+Done on `dev` (commits `88dafc404`, `70bcf4804` and the completion commit).
 
 1. Move the asset list into its own module; the transfer review imports it. No behaviour change.
 2. Move token artwork into a shared module; the review card renders from it. No visual change.
 3. Add `seams.assets.read` and `seams.assets.onChange`, with the typed `unavailable` state.
 4. Share the storage-reserve math between the balance read and `ownerNearShortfall`.
 5. Add `BalancesCard` and the `assets` route.
-6. Add the `deposit` route with the QR code from `qrcode`.
-7. Add the `withdraw` route: NEAR native, NEP-141 with storage registration, EVM native and ERC-20.
-8. Add "Deposit NEAR" to the shortfall error.
+6. Add the `receive` route with the QR code from `qrcode`.
+7. Add the `send` route: NEAR native, NEP-141 with storage registration, EVM native and ERC-20.
+8. Add "Receive <asset>" to the Send balance errors, and `seams.assets.openScreen` so that an
+   application can offer "Receive NEAR" for the owner shortfall.
 9. Add the Assets section to the full settings page.
 10. Add the locale strings (English and Japanese) for every new string.
 11. Export `<WalletBalances>`.
@@ -173,15 +192,29 @@ Each term names one thing in this plan and in the UI copy.
 
 ### Phase 2 — BTC, SOL and ZEC from their own networks
 
-Waits for Decision 2.
+Not built: Decision 2 keeps BTC, SOL and ZEC as NEAR tokens. The plan was:
 
-1. Deposit: request a NEAR Intents deposit address for the asset and show it with its own warning.
-2. Withdraw: a NEAR Intents withdrawal to a native address, through the review card.
+1. Receive: request a NEAR Intents deposit address for the asset and show it with its own warning.
+2. Send: a NEAR Intents withdrawal to a native address, through the review card.
 3. The review card names the bridge as a party to the transfer.
 
 ### Phase 3 — prices and app accounts
 
-Waits for Decisions 3 and 4.
+Not built: Decision 3 keeps amounts without prices, and Decision 4 leaves app accounts to the
+application.
+
+## Built
+
+- `seams.assets`: `list`, `read`, `onChange`, `prepareSend` and `openScreen`. `prepareSend`
+  replaces 0.53.0's `prepareWithdrawal`; the types are `SendRequest`, `SendRejection` and
+  `PreparedSend`. `WalletBalances` takes `onReceive`, `onSend` and `onOpenAssets`. This is a
+  breaking change for 0.55.0 release notes. No seams-monorepo code used the old names.
+- Settings routes `assets`, `receive` and `send`; the full settings page shows them in its
+  Assets section.
+- Spec: "Asset balances" and "Wallet settings presentation" in `docs/intended-behaviours.md`.
+- Tests: `tests/unit/walletAssets.unit.test.ts` and `tests/wallet-ui/asset-send.browser.test.ts`
+  (the Send screen, its checks, and the real review card for a NEAR and a USDC send, in
+  Chromium, Firefox and WebKit).
 
 ## Front page demo components
 
@@ -190,13 +223,14 @@ The private marketing app shows SDK components on the Wallet front page
 labelled "Recover and Link Devices", loads `src/showcase/account.tsx`, which renders
 `AccountMenuButtonMock`. The page also has background cards (`BackgroundPreview.tsx`: unlock,
 recovery, payment, receipt). These tasks run after Phase 1 step 12 is in a released SDK, because
-the showcase renders the installed SDK release.
+the showcase renders the installed SDK release. They stay open until seams-monorepo installs
+0.55.0; the SDK part of this plan does not wait for them.
 
 1. Render the account showcase with the new SDK and check that the overview still fits its slot
    on desktop, at 375 px and at 320 px. The balance card adds about 200 px of height.
 2. Decide if the `profile` preview keeps its label or changes to a label that includes assets.
    Update `recoverLink` in `src/marketing/i18n/catalog.ts` (English and Japanese) if it changes.
-3. If the showcase plays a scripted tour of screens, add the Assets, Deposit and Withdraw screens
+3. If the showcase plays a scripted tour of screens, add the Assets, Receive and Send screens
    to it, or record that they stay out.
 4. Decide if a background card shows a balance. If yes, add a `balances` kind to
    `BackgroundPreview.tsx` and place it on the canvas in `ComponentShowcase.tsx`.
@@ -211,7 +245,7 @@ the showcase renders the installed SDK release.
 - Unit tests built on shared factories for the balance read: NEAR reserve, token read failure,
   EVM read, testnet scope.
 - A type fixture that makes an `unavailable` balance impossible to read as an amount.
-- A wallet-iframe or wallet-ui browser test for the Withdraw screen up to the review card.
+- A wallet-iframe or wallet-ui browser test for the Send screen up to the review card.
 - The existing transfer review tests must stay green after the asset list move.
 
 ## Mockup

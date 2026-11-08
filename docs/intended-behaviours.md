@@ -143,14 +143,28 @@ NEAR `available` equals the shortfall check's spendable amount: the balance less
 storage that the locked stake does not cover.
 
 Settings reads when the panel opens and every 15 seconds while the Assets screen is
-open. Nothing reads while the panel is closed. Deposit shows one asset's address, a QR
-code and its network. Withdraw rejects an invalid amount, an amount above the available
+open. Nothing reads while the panel is closed. Receive shows one asset's address, a QR
+code and its network. Send rejects an invalid amount, an amount above the available
 balance, an invalid recipient and a named NEAR account that does not exist. A token
 recipient without storage gets `storage_deposit` before `ft_transfer` in one
-transaction. The withdrawal always opens the wallet's confirm card, whatever the
+transaction. A send always opens the wallet's confirm card, whatever the
 application's confirmation preference. An outcome that may have been submitted disables
-a second submit. `AccountMenuButtonMock` shows sample balances and never signs.
-The contract is `tests/unit/walletAssets.unit.test.ts`.
+a second submit. When Send says that the amount is more than the balance, it offers
+Receive for the same asset. `AccountMenuButtonMock` shows sample balances and never signs.
+
+`seams.assets.openScreen({ screen, assetId })` opens Assets, Receive or Send in the
+mounted Settings panel (`AccountMenuButton` or `WalletSettingsPage`) and opens a closed
+panel. Receive and Send choose `assetId` first. The newest mounted panel takes the
+request. With no panel for a signed-in wallet, it returns `false`. `WalletBalances`
+without handlers opens these screens. An application that receives an owner
+operation's `shortfall` can offer "Receive NEAR" with `openScreen`.
+
+The wallet does not receive or send BTC, SOL or ZEC on their own networks; they stay NEAR
+tokens. Settings shows amounts without prices, and it does not show an application's
+own account balance.
+
+The contracts are `tests/unit/walletAssets.unit.test.ts` and
+`tests/wallet-ui/asset-send.browser.test.ts`.
 
 ## Application confirmation preferences
 
@@ -734,7 +748,7 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   Wallet-origin overlays can open above settings without closing settings.
   Closing resets navigation. `AccountMenuButtonMock` supports the same presentation and control props.
 - The settings overview shows the balance card between the identity row and the menu
-  groups. Assets, Deposit and Withdraw are routes in the same panel; Deposit and Withdraw
+  groups. Assets, Receive and Send are routes in the same panel; Receive and Send
   return to the screen that opened them. The full settings page lists Assets as a section.
 - Dropdown and modal settings use one fixed-width panel for overview, account addresses,
   export selection, recovery entry, authentication methods, linked devices, and

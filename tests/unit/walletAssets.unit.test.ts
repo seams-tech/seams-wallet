@@ -5,12 +5,18 @@ import { assetsForChain, listedErc20Token, listedNearToken } from '@/core/assets
 import { nearSpendableBalance } from '@/core/assets/nearBalance';
 import { readAssetBalances } from '@/core/assets/readAssetBalances';
 import {
-  maxWithdrawBaseUnits,
-  nearWithdrawTransaction,
-  parseWithdrawAmount,
-  parseWithdrawRecipient,
-  prepareWithdrawal,
-} from '@/core/assets/withdraw';
+  maxSendBaseUnits,
+  nearSendTransaction,
+  parseSendAmount,
+  parseSendRecipient,
+  prepareSend,
+} from '@/core/assets/send';
+import {
+  createAssetsCapability,
+  registerAssetScreens,
+  type AssetScreenRequest,
+} from '@/SeamsWeb/publicApi/assets';
+import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { ownerNearShortfall } from '@/SeamsWeb/walletIframe/host/ownerNearAffordability';
 import { formatAssetAmount } from '@/react/components/AccountMenuButton/assets/assetFormat';
 
@@ -198,34 +204,34 @@ test('a NEAR account without state holds zero of every asset; an unreachable nod
   expect(down.balances[0]).toEqual(expect.objectContaining({ kind: 'unavailable' }));
 });
 
-test('withdraw amounts and recipients are checked before any transaction is built', () => {
-  expect(parseWithdrawAmount('1.5', 6)).toEqual({ kind: 'valid', baseUnits: 1_500_000n });
-  expect(parseWithdrawAmount('.25', 2)).toEqual({ kind: 'valid', baseUnits: 25n });
-  expect(parseWithdrawAmount('1,000', 0)).toEqual({ kind: 'valid', baseUnits: 1_000n });
-  expect(parseWithdrawAmount('0.0000001', 6)).toEqual({ kind: 'invalid', reason: 'decimals' });
-  expect(parseWithdrawAmount('0', 6)).toEqual({ kind: 'invalid', reason: 'zero' });
-  expect(parseWithdrawAmount('-1', 6)).toEqual({ kind: 'invalid', reason: 'format' });
-  expect(parseWithdrawAmount(' ', 6)).toEqual({ kind: 'invalid', reason: 'empty' });
+test('send amounts and recipients are checked before any transaction is built', () => {
+  expect(parseSendAmount('1.5', 6)).toEqual({ kind: 'valid', baseUnits: 1_500_000n });
+  expect(parseSendAmount('.25', 2)).toEqual({ kind: 'valid', baseUnits: 25n });
+  expect(parseSendAmount('1,000', 0)).toEqual({ kind: 'valid', baseUnits: 1_000n });
+  expect(parseSendAmount('0.0000001', 6)).toEqual({ kind: 'invalid', reason: 'decimals' });
+  expect(parseSendAmount('0', 6)).toEqual({ kind: 'invalid', reason: 'zero' });
+  expect(parseSendAmount('-1', 6)).toEqual({ kind: 'invalid', reason: 'format' });
+  expect(parseSendAmount(' ', 6)).toEqual({ kind: 'invalid', reason: 'empty' });
 
   const [near] = assetsForChain({ network: 'near-mainnet' });
   const [eth] = assetsForChain({ network: 'ethereum-mainnet', chainId: 1 });
-  expect(parseWithdrawRecipient(near, 'Bob.Near')).toEqual({
+  expect(parseSendRecipient(near, 'Bob.Near')).toEqual({
     kind: 'near',
     accountId: 'bob.near',
     implicit: false,
   });
-  expect(parseWithdrawRecipient(near, 'bob near')).toEqual({ kind: 'invalid' });
-  expect(parseWithdrawRecipient(eth, 'bob.near')).toEqual({ kind: 'invalid' });
-  expect(parseWithdrawRecipient(eth, `0x${'Ab'.repeat(20)}`)).toEqual({
+  expect(parseSendRecipient(near, 'bob near')).toEqual({ kind: 'invalid' });
+  expect(parseSendRecipient(eth, 'bob.near')).toEqual({ kind: 'invalid' });
+  expect(parseSendRecipient(eth, `0x${'Ab'.repeat(20)}`)).toEqual({
     kind: 'evm',
     address: `0x${'ab'.repeat(20)}`,
   });
 });
 
-test('a token withdrawal registers a recipient without storage in the same transaction', () => {
+test('a token send registers a recipient without storage in the same transaction', () => {
   const usdc = assetsForChain({ network: 'near-mainnet' }).find((asset) => asset.symbol === 'USDC');
   if (!usdc || usdc.kind !== 'nep141') throw new Error('USDC is listed');
-  const registered = nearWithdrawTransaction({
+  const registered = nearSendTransaction({
     asset: usdc,
     recipient: 'bob.near',
     baseUnits: 5_000_000n,
@@ -237,7 +243,7 @@ test('a token withdrawal registers a recipient without storage in the same trans
     expect.objectContaining({ methodName: 'ft_transfer', deposit: '1' }),
   );
 
-  const missing = nearWithdrawTransaction({
+  const missing = nearSendTransaction({
     asset: usdc,
     recipient: 'bob.near',
     baseUnits: 5_000_000n,
@@ -251,7 +257,7 @@ test('a token withdrawal registers a recipient without storage in the same trans
   );
 });
 
-test('prepareWithdrawal refuses a named NEAR account that does not exist', async () => {
+test('prepareSend refuses a named NEAR account that does not exist', async () => {
   const [near] = assetsForChain({ network: 'near-mainnet' });
   const deps = {
     nearClient: fakeNearClient({}),
@@ -259,14 +265,14 @@ test('prepareWithdrawal refuses a named NEAR account that does not exist', async
     evmClientFor: () => null,
   };
   expect(
-    await prepareWithdrawal(deps, {
+    await prepareSend(deps, {
       asset: near,
       from: 'alice.near',
       recipient: 'nobody.near',
       amount: '1',
     }),
   ).toEqual({ kind: 'rejected', reason: 'missing_account' });
-  const ready = await prepareWithdrawal(deps, {
+  const ready = await prepareSend(deps, {
     asset: near,
     from: 'alice.near',
     recipient: 'bob.near',
@@ -275,7 +281,7 @@ test('prepareWithdrawal refuses a named NEAR account that does not exist', async
   expect(ready).toEqual(expect.objectContaining({ kind: 'near', receiverId: 'bob.near' }));
 });
 
-test('an ERC-20 withdrawal encodes transfer(address,uint256) and Max keeps the gas a token pays', async () => {
+test('an ERC-20 send encodes transfer(address,uint256) and Max keeps the gas a token pays', async () => {
   const arcUsdc = assetsForChain({ network: 'arc-testnet', chainId: 5042002 })[0];
   if (!arcUsdc || arcUsdc.kind !== 'erc20') throw new Error('Arc USDC is listed');
   const client = fakeEvmClient({
@@ -283,7 +289,7 @@ test('an ERC-20 withdrawal encodes transfer(address,uint256) and Max keeps the g
     eth_gasPrice: '0x3b9aca00',
     eth_maxPriorityFeePerGas: '0x0',
   });
-  const prepared = await prepareWithdrawal(
+  const prepared = await prepareSend(
     { nearClient: fakeNearClient({}), accountExists: async () => true, evmClientFor: () => client },
     {
       asset: arcUsdc,
@@ -292,7 +298,7 @@ test('an ERC-20 withdrawal encodes transfer(address,uint256) and Max keeps the g
       amount: '1.5',
     },
   );
-  if (prepared.kind !== 'evm') throw new Error('expected an EVM withdrawal');
+  if (prepared.kind !== 'evm') throw new Error('expected an EVM send');
   expect(prepared.tx.to).toBe(arcUsdc.contract);
   expect(prepared.tx.value).toBe(0n);
   expect(prepared.tx.data).toBe(
@@ -302,14 +308,14 @@ test('an ERC-20 withdrawal encodes transfer(address,uint256) and Max keeps the g
   expect(prepared.maxFeeNative).toBe(60_000n * 2_000_000_000n);
   // The fee in 18-decimal native units, rounded up to 6-decimal token units.
   expect(
-    maxWithdrawBaseUnits({
+    maxSendBaseUnits({
       asset: arcUsdc,
       available: 10_000_000n,
       maxFeeNative: prepared.maxFeeNative,
     }),
   ).toBe(10_000_000n - 120n);
   const [near] = assetsForChain({ network: 'near-mainnet' });
-  expect(maxWithdrawBaseUnits({ asset: near, available: 1n * NEAR })).toBe(NEAR - 10n ** 22n);
+  expect(maxSendBaseUnits({ asset: near, available: 1n * NEAR })).toBe(NEAR - 10n ** 22n);
 });
 
 test('display amounts truncate, keep two places and never round up', () => {
@@ -320,4 +326,29 @@ test('display amounts truncate, keep two places and never round up', () => {
   expect(formatAssetAmount('0', 24)).toBe('0');
   expect(formatAssetAmount('1', 24)).toBe('<0.0001');
   expect(formatAssetAmount('42000000000000000', 18)).toBe('0.042');
+});
+
+test('openScreen reaches the newest mounted Settings panel and reports when none is mounted', () => {
+  const configs = { network: { chains: [] } } as unknown as SeamsConfigsReadonly;
+  const assets = createAssetsCapability({ configs, nearClient: fakeNearClient({}) });
+  const request: AssetScreenRequest = { screen: 'receive', assetId: 'near-testnet:native' };
+  expect(assets.openScreen(request)).toBe(false);
+
+  const first: AssetScreenRequest[] = [];
+  const second: AssetScreenRequest[] = [];
+  const removeFirst = registerAssetScreens(assets, (opened) => first.push(opened));
+  const removeSecond = registerAssetScreens(assets, (opened) => second.push(opened));
+  expect(assets.openScreen(request)).toBe(true);
+  expect(first).toEqual([]);
+  expect(second).toEqual([request]);
+
+  removeSecond();
+  expect(assets.openScreen({ screen: 'send' })).toBe(true);
+  expect(first).toEqual([{ screen: 'send' }]);
+  removeFirst();
+  expect(assets.openScreen(request)).toBe(false);
+
+  const other = createAssetsCapability({ configs, nearClient: fakeNearClient({}) });
+  registerAssetScreens(other, (opened) => first.push(opened));
+  expect(assets.openScreen(request)).toBe(false);
 });

@@ -16,8 +16,8 @@ import TouchIcon from './icons/TouchIcon';
 import { ScanIcon } from './icons/ScanIcon';
 import { LinkIcon } from './icons/LinkIcon';
 import { AssetActions, AssetRows, BalancesCard } from './assets/AssetViews';
-import { DepositPanel } from './assets/DepositPanel';
-import { WithdrawPanel } from './assets/WithdrawPanel';
+import { ReceivePanel } from './assets/ReceivePanel';
+import { SendPanel } from './assets/SendPanel';
 import type { AssetBalancesState } from './assets/useAssetBalances';
 import {
   PREVIEW_ASSETS,
@@ -25,8 +25,8 @@ import {
   PREVIEW_EVM_ADDRESS,
   PREVIEW_NEAR_ACCOUNT,
   previewFromFor,
-  previewPrepareWithdrawal,
-  previewSendWithdrawal,
+  previewPrepareSend,
+  previewSend,
 } from './assets/previewAssets';
 
 const previewAssetState: AssetBalancesState = { kind: 'ready', balances: PREVIEW_BALANCES };
@@ -35,7 +35,7 @@ function noRefresh(): void {}
 
 function openPreviewAssetFlow(
   setScreen: React.Dispatch<React.SetStateAction<AccountPreviewScreen>>,
-  kind: 'deposit' | 'withdraw',
+  kind: 'receive' | 'send',
   parent: 'overview' | 'assets',
 ): void {
   setScreen({ kind, parent });
@@ -219,8 +219,8 @@ function AccountMenuPreview(props: AccountMenuButtonMockProps): React.JSX.Elemen
             state={previewAssetState}
             onRetry={noRefresh}
             onOpenAssets={setScreen.bind(null, { kind: 'assets' })}
-            onDeposit={openPreviewAssetFlow.bind(null, setScreen, 'deposit', 'overview')}
-            onWithdraw={openPreviewAssetFlow.bind(null, setScreen, 'withdraw', 'overview')}
+            onReceive={openPreviewAssetFlow.bind(null, setScreen, 'receive', 'overview')}
+            onSend={openPreviewAssetFlow.bind(null, setScreen, 'send', 'overview')}
           />
         ) : null
       }
@@ -254,26 +254,26 @@ function AccountMenuPreview(props: AccountMenuButtonMockProps): React.JSX.Elemen
                 <AssetRows state={previewAssetState} onRetry={noRefresh} />
                 <div className="seams-assets-screen-actions">
                   <AssetActions
-                    onDeposit={openPreviewAssetFlow.bind(null, setScreen, 'deposit', 'assets')}
-                    onWithdraw={openPreviewAssetFlow.bind(null, setScreen, 'withdraw', 'assets')}
-                    canWithdraw
+                    onReceive={openPreviewAssetFlow.bind(null, setScreen, 'receive', 'assets')}
+                    onSend={openPreviewAssetFlow.bind(null, setScreen, 'send', 'assets')}
+                    canSend
                   />
                 </div>
               </>
             ),
-            deposit: (
-              <DepositPanel
+            receive: (
+              <ReceivePanel
                 assets={PREVIEW_ASSETS.filter((asset) => asset.primary)}
                 nearAccount={PREVIEW_NEAR_ACCOUNT}
                 evmAddress={PREVIEW_EVM_ADDRESS}
               />
             ),
-            withdraw: (
-              <WithdrawPanel
+            send: (
+              <SendPanel
                 balances={PREVIEW_BALANCES.balances}
                 fromFor={previewFromFor}
-                prepare={previewPrepareWithdrawal}
-                send={previewSendWithdrawal}
+                prepare={previewPrepareSend}
+                send={previewSend}
               />
             ),
           }}

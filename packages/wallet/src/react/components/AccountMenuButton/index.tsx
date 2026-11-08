@@ -1,6 +1,6 @@
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletText } from '@/core/ui/messages';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScanIcon } from './icons/ScanIcon';
 import { KeyIcon } from './icons/KeyIcon';
 import { LinkIcon } from './icons/LinkIcon';
@@ -46,17 +46,22 @@ import { ExportKeysSection } from './ExportKeysSection';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
 import { HostedSeamsAuthMenu } from '../HostedSeamsAuthMenu/public';
 import { WalletIcon } from './icons/WalletIcon';
-import { AssetActions, AssetRows, BalancesCard, hasWithdrawableBalance } from './assets/AssetViews';
-import { DepositPanel } from './assets/DepositPanel';
-import { WithdrawPanel } from './assets/WithdrawPanel';
-import { AssetsPageSection, useWalletAssetsController } from './assets/WalletAssets';
+import { AssetActions, AssetRows, BalancesCard, hasSendableBalance } from './assets/AssetViews';
+import { ReceivePanel } from './assets/ReceivePanel';
+import { SendPanel } from './assets/SendPanel';
+import {
+  AssetsPageSection,
+  useWalletAssetsController,
+  type AssetsPageView,
+} from './assets/WalletAssets';
+import { registerAssetScreens, type AssetScreenRequest } from '@/SeamsWeb/publicApi/assets';
 import type { HostedAuthMenuOutcome, HostedSeamsAuthMenuProps } from '../HostedSeamsAuthMenu/types';
 
 type AccountMenuRoute =
   | 'overview'
   | 'assets'
-  | 'deposit'
-  | 'withdraw'
+  | 'receive'
+  | 'send'
   | 'accounts'
   | 'export-keys'
   | 'recovery-codes'
@@ -219,7 +224,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   // State management
-  const { isOpen, refs, handleToggle, handleClose } = useProfileState(
+  const { isOpen, refs, handleOpen, handleToggle, handleClose } = useProfileState(
     layout === 'page' ? 'page' : presentation,
     profileOpenControl(props, false),
   );
@@ -234,16 +239,52 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     active: loginState.isLoggedIn && (layout === 'page' || isOpen),
     poll: screen === 'assets',
   });
-  // Deposit and Withdraw return to the screen that opened them.
+  // Receive and Send return to the screen that opened them.
   const [assetReturn, setAssetReturn] = useState<'overview' | 'assets'>('overview');
-  const openAssetFlow = (route: 'deposit' | 'withdraw') => {
+  // The asset that Receive or Send chooses first, from seams.assets.openScreen or a Send error.
+  const [assetChoice, setAssetChoice] = useState<string | undefined>(undefined);
+  const [pageAssetView, setPageAssetView] = useState<AssetsPageView>({ kind: 'list' });
+  const settingsLayout = useRef<WalletSettingsLayout>(null);
+  const openAssetFlow = (route: 'receive' | 'send') => {
     setAssetReturn(screen === 'assets' ? 'assets' : 'overview');
+    setAssetChoice(undefined);
     setScreen(route);
   };
   const closeAssetFlow = () => {
     setScreen(assetReturn);
     assets.refresh();
   };
+  const receiveAsset = (assetId: string) => {
+    if (layout === 'page') {
+      setPageAssetView({ kind: 'receive', assetId });
+      return;
+    }
+    setAssetChoice(assetId);
+    setScreen('receive');
+  };
+  const openRequestedScreen = (request: AssetScreenRequest) => {
+    if (layout === 'page') {
+      setPageAssetView(
+        request.screen === 'assets'
+          ? { kind: 'list' }
+          : { kind: request.screen, assetId: request.assetId },
+      );
+      settingsLayout.current?.selectSection(PROFILE_MENU_ITEM_IDS.ASSETS);
+      return;
+    }
+    setAssetReturn('overview');
+    setAssetChoice(request.assetId);
+    setScreen(request.screen);
+    if (!isOpen) handleOpen();
+  };
+  const latestScreenOpener = useRef(openRequestedScreen);
+  useEffect(() => {
+    latestScreenOpener.current = openRequestedScreen;
+  });
+  useEffect(() => {
+    if (!loginState.isLoggedIn) return;
+    return registerAssetScreens(seams.assets, (request) => latestScreenOpener.current(request));
+  }, [seams, loginState.isLoggedIn]);
 
   // Read current theme from Theme context (falls back to system preference)
   const { theme } = useTheme();
@@ -546,7 +587,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
         id: PROFILE_MENU_ITEM_IDS.ASSETS,
         icon: <WalletIcon />,
         label: 'Assets',
-        description: 'See balances, deposit and withdraw',
+        description: 'See balances, receive and send',
         disabled: !loginState.isLoggedIn,
       });
     }
@@ -621,25 +662,32 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
         <AssetRows state={assets.state} onRetry={assets.refresh} />
         <div className="seams-assets-screen-actions">
           <AssetActions
-            onDeposit={openAssetFlow.bind(null, 'deposit')}
-            onWithdraw={openAssetFlow.bind(null, 'withdraw')}
-            canWithdraw={hasWithdrawableBalance(assets.state)}
+            onReceive={openAssetFlow.bind(null, 'receive')}
+            onSend={openAssetFlow.bind(null, 'send')}
+            canSend={hasSendableBalance(assets.state)}
           />
         </div>
       </AccountMenuScreen>
     ),
-    deposit: (
-      <AccountMenuScreen title={walletText(locale, 'Deposit')} onBack={closeAssetFlow}>
-        <DepositPanel
-          assets={assets.depositAssets}
+    receive: (
+      <AccountMenuScreen title={walletText(locale, 'Receive')} onBack={closeAssetFlow}>
+        <ReceivePanel
+          key={assetChoice}
+          assets={assets.receiveAssets}
           nearAccount={assets.nearAccount}
           evmAddress={assets.evmAddress}
+          initialAssetId={assetChoice}
         />
       </AccountMenuScreen>
     ),
-    withdraw: (
-      <AccountMenuScreen title={walletText(locale, 'Withdraw')} onBack={closeAssetFlow}>
-        <WithdrawPanel {...assets.withdraw} />
+    send: (
+      <AccountMenuScreen title={walletText(locale, 'Send')} onBack={closeAssetFlow}>
+        <SendPanel
+          key={assetChoice}
+          {...assets.send}
+          initialAssetId={assetChoice}
+          onReceive={receiveAsset}
+        />
       </AccountMenuScreen>
     ),
     'transaction-settings': (
@@ -734,6 +782,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     return (
       <>
         <WalletSettingsLayout
+          ref={settingsLayout}
           access={loginState.access}
           walletId={toWalletId(walletId)}
           placement={seams.placement}
@@ -741,7 +790,13 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
           onLock={handleLock}
           error={settingsError}
           sections={{
-            assets: <AssetsPageSection controller={assets} />,
+            assets: (
+              <AssetsPageSection
+                controller={assets}
+                view={pageAssetView}
+                onView={setPageAssetView}
+              />
+            ),
             accounts: <AccountsSection rows={accountsRows} presentation="page" />,
             'export-keys': (
               <ExportKeysSection
@@ -831,8 +886,8 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
             state={assets.state}
             onRetry={assets.refresh}
             onOpenAssets={setScreen.bind(null, 'assets')}
-            onDeposit={openAssetFlow.bind(null, 'deposit')}
-            onWithdraw={openAssetFlow.bind(null, 'withdraw')}
+            onReceive={openAssetFlow.bind(null, 'receive')}
+            onSend={openAssetFlow.bind(null, 'send')}
           />
         ) : null
       }

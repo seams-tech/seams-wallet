@@ -1,13 +1,14 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { WalletText } from '@/react/context/WalletLocale';
 import type { SeamsWeb } from '@/SeamsWeb';
 import type { WalletAsset } from '@/core/assets/assetList';
+import type { AssetScreenRequest } from '@/SeamsWeb/publicApi/assets';
 import { useSeams } from '../../../context';
 import { Theme, useTheme } from '../../theme';
-import { AssetActions, AssetRows, BalancesCard, hasWithdrawableBalance } from './AssetViews';
-import { DepositPanel } from './DepositPanel';
-import { WithdrawPanel } from './WithdrawPanel';
-import { sendWithdrawal } from './liveWithdraw';
+import { AssetActions, AssetRows, BalancesCard, hasSendableBalance } from './AssetViews';
+import { ReceivePanel } from './ReceivePanel';
+import { SendPanel } from './SendPanel';
+import { sendPrepared } from './liveSend';
 import { shownBalances, useAssetBalances, type AssetBalancesState } from './useAssetBalances';
 import { visibleBalances } from './assetFormat';
 
@@ -16,8 +17,8 @@ export type WalletAssetsController = {
   readonly refresh: () => void;
   readonly nearAccount: string | null;
   readonly evmAddress: string | null;
-  readonly depositAssets: readonly WalletAsset[];
-  readonly withdraw: React.ComponentProps<typeof WithdrawPanel>;
+  readonly receiveAssets: readonly WalletAsset[];
+  readonly send: React.ComponentProps<typeof SendPanel>;
 };
 
 /** Balances, addresses and the send path for the unlocked wallet. */
@@ -36,7 +37,7 @@ export function useWalletAssetsController(input: {
     poll: input.poll,
   });
   const balances = shownBalances(state)?.balances ?? [];
-  const depositAssets = useMemo(
+  const receiveAssets = useMemo(
     () =>
       seams.assets
         .list()
@@ -51,28 +52,33 @@ export function useWalletAssetsController(input: {
       asset.kind === 'near_native' || asset.kind === 'nep141' ? nearAccount : evmAddress,
     [nearAccount, evmAddress],
   );
-  const withdraw: React.ComponentProps<typeof WithdrawPanel> = {
+  const send: React.ComponentProps<typeof SendPanel> = {
     balances: visibleBalances(balances),
     fromFor,
-    prepare: seams.assets.prepareWithdrawal,
-    send: (withdrawal) =>
+    prepare: seams.assets.prepareSend,
+    send: (prepared) =>
       walletId
-        ? sendWithdrawal(seams, { walletId, nearAccountId: nearAccount }, withdrawal)
+        ? sendPrepared(seams, { walletId, nearAccountId: nearAccount }, prepared)
         : Promise.resolve({ kind: 'not_sent', message: 'Unlock your wallet first.' }),
     onSent: refresh,
   };
-  return { state, refresh, nearAccount, evmAddress, depositAssets, withdraw };
+  return { state, refresh, nearAccount, evmAddress, receiveAssets, send };
 }
 
-type PageView = { kind: 'list' } | { kind: 'deposit' } | { kind: 'withdraw' };
+export type AssetsPageView =
+  | { readonly kind: 'list' }
+  | { readonly kind: 'receive' | 'send'; readonly assetId?: string };
 
-/** The Assets section of the full settings page: the list, then Deposit or Withdraw in place. */
+/** The Assets section of the full settings page: the list, then Receive or Send in place. */
 export function AssetsPageSection({
   controller,
+  view,
+  onView,
 }: {
   controller: WalletAssetsController;
+  view: AssetsPageView;
+  onView: (view: AssetsPageView) => void;
 }): React.JSX.Element {
-  const [view, setView] = useState<PageView>({ kind: 'list' });
   if (view.kind !== 'list') {
     return (
       <div className="seams-assets-page-flow">
@@ -80,20 +86,27 @@ export function AssetsPageSection({
           type="button"
           className="seams-assets-link seams-assets-page-back"
           onClick={() => {
-            setView({ kind: 'list' });
+            onView({ kind: 'list' });
             controller.refresh();
           }}
         >
           <WalletText message="Back" />
         </button>
-        {view.kind === 'deposit' ? (
-          <DepositPanel
-            assets={controller.depositAssets}
+        {view.kind === 'receive' ? (
+          <ReceivePanel
+            key={view.assetId}
+            assets={controller.receiveAssets}
             nearAccount={controller.nearAccount}
             evmAddress={controller.evmAddress}
+            initialAssetId={view.assetId}
           />
         ) : (
-          <WithdrawPanel {...controller.withdraw} />
+          <SendPanel
+            key={view.assetId}
+            {...controller.send}
+            initialAssetId={view.assetId}
+            onReceive={(assetId) => onView({ kind: 'receive', assetId })}
+          />
         )}
       </div>
     );
@@ -103,9 +116,9 @@ export function AssetsPageSection({
       <AssetRows state={controller.state} onRetry={controller.refresh} />
       <div className="seams-assets-screen-actions">
         <AssetActions
-          onDeposit={() => setView({ kind: 'deposit' })}
-          onWithdraw={() => setView({ kind: 'withdraw' })}
-          canWithdraw={hasWithdrawableBalance(controller.state)}
+          onReceive={() => onView({ kind: 'receive' })}
+          onSend={() => onView({ kind: 'send' })}
+          canSend={hasSendableBalance(controller.state)}
         />
       </div>
     </>
@@ -113,8 +126,8 @@ export function AssetsPageSection({
 }
 
 function WalletBalancesContent({
-  onDeposit,
-  onWithdraw,
+  onReceive,
+  onSend,
   onOpenAssets,
 }: WalletBalancesProps): React.JSX.Element | null {
   const { seams, loginState } = useSeams();
@@ -126,23 +139,29 @@ function WalletBalancesContent({
     active: loginState.isLoggedIn,
     poll: false,
   });
+  const open = (screen: AssetScreenRequest['screen']) => () => {
+    seams.assets.openScreen({ screen });
+  };
   return (
     <BalancesCard
       state={controller.state}
       onRetry={controller.refresh}
-      onOpenAssets={onOpenAssets ?? controller.refresh}
-      onDeposit={onDeposit ?? controller.refresh}
-      onWithdraw={onWithdraw ?? controller.refresh}
+      onOpenAssets={onOpenAssets ?? open('assets')}
+      onReceive={onReceive ?? open('receive')}
+      onSend={onSend ?? open('send')}
     />
   );
 }
 
 export type WalletBalancesProps = {
-  /** Runs when the user chooses Deposit. Open the Settings Deposit screen or your own flow. */
-  readonly onDeposit?: () => void;
-  /** Runs when the user chooses Withdraw. */
-  readonly onWithdraw?: () => void;
-  /** Runs when the user chooses All assets. */
+  /**
+   * Runs when the user chooses Receive. Without it, the button opens the Receive screen of the
+   * mounted Settings panel (`seams.assets.openScreen`).
+   */
+  readonly onReceive?: () => void;
+  /** Runs when the user chooses Send. Without it, the button opens the Settings Send screen. */
+  readonly onSend?: () => void;
+  /** Runs when the user chooses All assets. Without it, the link opens the Settings Assets screen. */
   readonly onOpenAssets?: () => void;
 };
 

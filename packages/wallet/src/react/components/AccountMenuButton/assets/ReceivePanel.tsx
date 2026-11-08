@@ -10,7 +10,7 @@ type QrState =
   | { readonly kind: 'ready'; readonly dataUrl: string }
   | { readonly kind: 'failed' };
 
-function depositAddress(
+function receiveAddress(
   asset: WalletAsset,
   nearAccount: string | null,
   evmAddress: string | null,
@@ -42,7 +42,7 @@ function useQrCode(text: string | null): QrState {
 }
 
 /** Receive into this wallet: one asset, its network, the address, a QR code and a warning. */
-export function DepositPanel({
+export function ReceivePanel({
   assets,
   nearAccount,
   evmAddress,
@@ -55,12 +55,12 @@ export function DepositPanel({
 }): React.JSX.Element {
   const locale = useWalletLocale();
   const selectId = useId();
-  const choices = assets.filter((asset) => depositAddress(asset, nearAccount, evmAddress));
+  const choices = assets.filter((asset) => receiveAddress(asset, nearAccount, evmAddress));
   const [assetId, setAssetId] = useState(
     choices.find((asset) => asset.id === initialAssetId)?.id ?? choices[0]?.id ?? '',
   );
   const asset = choices.find((entry) => entry.id === assetId) ?? choices[0];
-  const address = asset ? depositAddress(asset, nearAccount, evmAddress) : null;
+  const address = asset ? receiveAddress(asset, nearAccount, evmAddress) : null;
   const qr = useQrCode(address);
   const [copied, setCopied] = useState(false);
   useEffect(() => setCopied(false), [address]);
@@ -68,7 +68,7 @@ export function DepositPanel({
   if (!asset || !address) {
     return (
       <p className="seams-account-description">
-        <WalletText message="This wallet has no address for deposits yet." />
+        <WalletText message="This wallet has no address to receive funds yet." />
       </p>
     );
   }
@@ -141,7 +141,7 @@ export function DepositPanel({
       {asset.bridge ? (
         <p className="seams-assets-note">
           <WalletText
-            message="This address takes {value0} as a token on NEAR. A deposit from the {value1} network itself is not supported here yet."
+            message="This address takes {value0} only as a token on NEAR. It cannot receive {value0} from the {value1} network itself."
             values={{ value0: asset.symbol, value1: walletDisplayText(locale, asset.name) }}
           />
         </p>

@@ -9,7 +9,7 @@ import './Assets.css';
 
 const CARD_ROWS = 3;
 
-function DepositIcon(): React.JSX.Element {
+function ReceiveIcon(): React.JSX.Element {
   return (
     <svg
       width="16"
@@ -27,7 +27,7 @@ function DepositIcon(): React.JSX.Element {
   );
 }
 
-function WithdrawIcon(): React.JSX.Element {
+function SendIcon(): React.JSX.Element {
   return (
     <svg
       width="16"
@@ -62,28 +62,23 @@ function ChevronIcon(): React.JSX.Element {
 }
 
 export function AssetActions({
-  onDeposit,
-  onWithdraw,
-  canWithdraw,
+  onReceive,
+  onSend,
+  canSend,
 }: {
-  onDeposit: () => void;
-  onWithdraw: () => void;
-  canWithdraw: boolean;
+  onReceive: () => void;
+  onSend: () => void;
+  canSend: boolean;
 }): React.JSX.Element {
   return (
     <div className="seams-assets-actions">
-      <button type="button" className="seams-account-action primary" onClick={onDeposit}>
-        <DepositIcon />
-        <WalletText message="Deposit" />
+      <button type="button" className="seams-account-action primary" onClick={onReceive}>
+        <ReceiveIcon />
+        <WalletText message="Receive" />
       </button>
-      <button
-        type="button"
-        className="seams-assets-secondary"
-        onClick={onWithdraw}
-        disabled={!canWithdraw}
-      >
-        <WithdrawIcon />
-        <WalletText message="Withdraw" />
+      <button type="button" className="seams-assets-secondary" onClick={onSend} disabled={!canSend}>
+        <SendIcon />
+        <WalletText message="Send" />
       </button>
     </div>
   );
@@ -109,24 +104,24 @@ function allUnavailable(balances: readonly AssetBalance[]): boolean {
   return balances.length > 0 && balances.every((balance) => balance.kind === 'unavailable');
 }
 
-export function hasWithdrawableBalance(state: AssetBalancesState): boolean {
+export function hasSendableBalance(state: AssetBalancesState): boolean {
   const balances = shownBalances(state)?.balances ?? [];
   return balances.some((balance) => balance.kind === 'read' && BigInt(balance.available) > 0n);
 }
 
-/** The overview card: the leading balances, a link to every asset, Deposit and Withdraw. */
+/** The overview card: the leading balances, a link to every asset, Receive and Send. */
 export function BalancesCard({
   state,
   onRetry,
   onOpenAssets,
-  onDeposit,
-  onWithdraw,
+  onReceive,
+  onSend,
 }: {
   state: AssetBalancesState;
   onRetry: () => void;
   onOpenAssets: () => void;
-  onDeposit: () => void;
-  onWithdraw: () => void;
+  onReceive: () => void;
+  onSend: () => void;
 }): React.JSX.Element | null {
   const locale = useWalletLocale();
   if (state.kind === 'idle') return null;
@@ -183,11 +178,7 @@ export function BalancesCard({
         </span>
         <ChevronIcon />
       </button>
-      <AssetActions
-        onDeposit={onDeposit}
-        onWithdraw={onWithdraw}
-        canWithdraw={hasWithdrawableBalance(state)}
-      />
+      <AssetActions onReceive={onReceive} onSend={onSend} canSend={hasSendableBalance(state)} />
     </section>
   );
 }

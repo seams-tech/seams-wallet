@@ -9,19 +9,19 @@ import type { EvmWalletAsset, NearWalletAsset, WalletAsset } from './assetList';
 const NEAR_TOKEN_CALL_GAS = '30000000000000';
 // NEP-141 requires exactly this attached deposit on a token transfer.
 const NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO = '1';
-// Max keeps 0.01 NEAR for the gas of the withdrawal itself.
-export const NEAR_WITHDRAW_GAS_ALLOWANCE_YOCTO = 10n ** 22n;
+// Max keeps 0.01 NEAR for the gas of the send itself.
+export const NEAR_SEND_GAS_ALLOWANCE_YOCTO = 10n ** 22n;
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 // transfer(address,uint256)
 const ERC20_TRANSFER_SELECTOR = 'a9059cbb';
 const BASE_UNITS = /^\d{1,78}$/;
 
-export type WithdrawAmount =
+export type SendAmount =
   | { readonly kind: 'valid'; readonly baseUnits: bigint }
   | { readonly kind: 'invalid'; readonly reason: 'empty' | 'format' | 'decimals' | 'zero' };
 
 /** Parse a decimal amount the user typed into base units. */
-export function parseWithdrawAmount(input: string, decimals: number): WithdrawAmount {
+export function parseSendAmount(input: string, decimals: number): SendAmount {
   const value = input.trim().replace(/,/g, '');
   if (!value) return { kind: 'invalid', reason: 'empty' };
   if (!/^\d*\.?\d*$/.test(value) || value === '.') return { kind: 'invalid', reason: 'format' };
@@ -37,13 +37,13 @@ export function parseWithdrawAmount(input: string, decimals: number): WithdrawAm
   return { kind: 'valid', baseUnits };
 }
 
-export type WithdrawRecipient =
+export type SendRecipient =
   | { readonly kind: 'near'; readonly accountId: string; readonly implicit: boolean }
   | { readonly kind: 'evm'; readonly address: `0x${string}` }
   | { readonly kind: 'invalid' };
 
 /** A NEAR account id for a NEAR asset, an EVM address for an EVM asset. */
-export function parseWithdrawRecipient(asset: WalletAsset, input: string): WithdrawRecipient {
+export function parseSendRecipient(asset: WalletAsset, input: string): SendRecipient {
   const value = input.trim();
   if (asset.kind === 'near_native' || asset.kind === 'nep141') {
     const accountId = value.toLowerCase();
@@ -98,7 +98,7 @@ export async function readNearTokenStorage(
   return { kind: 'missing', depositYocto };
 }
 
-export type NearWithdrawTransaction = {
+export type NearSendTransaction = {
   readonly receiverId: string;
   readonly actions: ActionArgs[];
 };
@@ -107,12 +107,12 @@ export type NearWithdrawTransaction = {
  * One transaction: a NEAR transfer, or, for a token, an `ft_transfer` after a
  * `storage_deposit` that registers a recipient who cannot hold the token yet.
  */
-export function nearWithdrawTransaction(args: {
+export function nearSendTransaction(args: {
   readonly asset: NearWalletAsset;
   readonly recipient: string;
   readonly baseUnits: bigint;
   readonly storage: NearTokenStorage;
-}): NearWithdrawTransaction {
+}): NearSendTransaction {
   if (args.asset.kind === 'near_native') {
     return {
       receiverId: args.recipient,
@@ -142,7 +142,7 @@ export function nearWithdrawTransaction(args: {
   return { receiverId: args.asset.contract, actions };
 }
 
-export type EvmWithdrawTransaction = {
+export type EvmSendTransaction = {
   readonly tx: {
     readonly to: `0x${string}`;
     readonly value: bigint;
@@ -171,8 +171,8 @@ function readQuantity(value: unknown, label: string): bigint {
   return BigInt(value);
 }
 
-/** Build an EIP-1559 withdrawal with a gas limit and fees from the chain's node. */
-export async function estimateEvmWithdraw(
+/** Build an EIP-1559 send with a gas limit and fees from the chain's node. */
+export async function estimateEvmSend(
   client: EvmClient,
   args: {
     readonly asset: EvmWalletAsset;
@@ -180,7 +180,7 @@ export async function estimateEvmWithdraw(
     readonly recipient: `0x${string}`;
     readonly baseUnits: bigint;
   },
-): Promise<EvmWithdrawTransaction> {
+): Promise<EvmSendTransaction> {
   const call =
     args.asset.kind === 'evm_native'
       ? { to: args.recipient, value: args.baseUnits, data: '0x' as `0x${string}` }
@@ -217,14 +217,14 @@ function ceilDivide(value: bigint, divisor: bigint): bigint {
  * The largest amount Max fills in. NEAR keeps a gas allowance; an EVM native coin, and a token
  * that also pays gas, keep the transaction's largest fee.
  */
-export function maxWithdrawBaseUnits(args: {
+export function maxSendBaseUnits(args: {
   readonly asset: WalletAsset;
   readonly available: bigint;
   readonly maxFeeNative?: bigint;
 }): bigint {
   const { asset, available } = args;
   let fee = 0n;
-  if (asset.kind === 'near_native') fee = NEAR_WITHDRAW_GAS_ALLOWANCE_YOCTO;
+  if (asset.kind === 'near_native') fee = NEAR_SEND_GAS_ALLOWANCE_YOCTO;
   if (asset.kind === 'evm_native') fee = args.maxFeeNative ?? 0n;
   if (asset.kind === 'erc20' && asset.paysGas && args.maxFeeNative !== undefined) {
     fee = ceilDivide(
@@ -235,7 +235,7 @@ export function maxWithdrawBaseUnits(args: {
   return available > fee ? available - fee : 0n;
 }
 
-export type WithdrawalRequest = {
+export type SendRequest = {
   readonly asset: WalletAsset;
   /** The sender: the NEAR account for a NEAR asset, the EVM address for an EVM asset. */
   readonly from: string;
@@ -244,14 +244,14 @@ export type WithdrawalRequest = {
   readonly amount: string;
 };
 
-export type WithdrawalRejection =
+export type SendRejection =
   | 'invalid_recipient'
   | 'invalid_amount'
   | 'missing_account'
   | 'chain_not_configured'
   | 'unavailable';
 
-export type PreparedWithdrawal =
+export type PreparedSend =
   | {
       readonly kind: 'near';
       readonly asset: NearWalletAsset;
@@ -265,29 +265,29 @@ export type PreparedWithdrawal =
       readonly kind: 'evm';
       readonly asset: EvmWalletAsset;
       readonly baseUnits: bigint;
-      readonly tx: EvmWithdrawTransaction['tx'];
+      readonly tx: EvmSendTransaction['tx'];
       readonly maxFeeNative: bigint;
     }
-  | { readonly kind: 'rejected'; readonly reason: WithdrawalRejection };
+  | { readonly kind: 'rejected'; readonly reason: SendRejection };
 
-export type WithdrawalPreparationDependencies = {
+export type SendPreparationDependencies = {
   readonly nearClient: NearClient;
   readonly accountExists: (accountId: string) => Promise<boolean>;
   readonly evmClientFor: (asset: EvmWalletAsset) => EvmClient | null;
 };
 
 /**
- * Check a withdrawal and build its transaction. It checks the recipient on chain: a named NEAR
+ * Check a send and build its transaction. It checks the recipient on chain: a named NEAR
  * account must exist, and a token recipient without storage gets a `storage_deposit`.
  */
-export async function prepareWithdrawal(
-  deps: WithdrawalPreparationDependencies,
-  request: WithdrawalRequest,
-): Promise<PreparedWithdrawal> {
+export async function prepareSend(
+  deps: SendPreparationDependencies,
+  request: SendRequest,
+): Promise<PreparedSend> {
   const { asset } = request;
-  const amount = parseWithdrawAmount(request.amount, asset.decimals);
+  const amount = parseSendAmount(request.amount, asset.decimals);
   if (amount.kind !== 'valid') return { kind: 'rejected', reason: 'invalid_amount' };
-  const recipient = parseWithdrawRecipient(asset, request.recipient);
+  const recipient = parseSendRecipient(asset, request.recipient);
   if (recipient.kind === 'invalid') return { kind: 'rejected', reason: 'invalid_recipient' };
   try {
     if (recipient.kind === 'near') {
@@ -301,7 +301,7 @@ export async function prepareWithdrawal(
         asset.kind === 'nep141'
           ? await readNearTokenStorage(deps.nearClient, asset.contract, recipient.accountId)
           : { kind: 'registered' };
-      const transaction = nearWithdrawTransaction({
+      const transaction = nearSendTransaction({
         asset,
         recipient: recipient.accountId,
         baseUnits: amount.baseUnits,
@@ -320,7 +320,7 @@ export async function prepareWithdrawal(
     }
     const client = deps.evmClientFor(asset);
     if (!client) return { kind: 'rejected', reason: 'chain_not_configured' };
-    const estimate = await estimateEvmWithdraw(client, {
+    const estimate = await estimateEvmSend(client, {
       asset,
       from: request.from,
       recipient: recipient.address,

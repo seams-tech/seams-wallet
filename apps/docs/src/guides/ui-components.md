@@ -68,24 +68,27 @@ linked-device, export, and transaction settings. It needs `nearAccountId`. The d
 wallet region setting. See [React components](/reference/react#components)
 for the presentation modes, the drawer behaviour, and the region setting.
 
-### Balances, deposit, and withdraw
+### Balances, receive, and send
 
 The settings overview starts with a balance card. It shows the three leading balances,
-an **All assets** link, and **Deposit** and **Withdraw**.
+an **All assets** link, and **Receive** and **Send**.
 
 - **Assets** lists each asset on the wallet's own list for the configured chains. On
   NEAR mainnet these are NEAR, stNEAR, USDC, USDt, ETH, BTC, SOL, and ZEC. BTC, SOL, and
   ZEC are NEAR Intents tokens on NEAR. On NEAR testnet the list is NEAR, stNEAR, and
   USDC. EVM chains add their native coin and listed tokens.
-- **Deposit** shows the wallet's address for one asset, a QR code, and the network it
+- **Receive** shows the wallet's address for one asset, a QR code, and the network it
   must arrive on. It receives only on that network.
-- **Withdraw** checks the amount and the recipient, then opens the wallet's confirm card.
+- **Send** checks the amount and the recipient, then opens the wallet's confirm card.
   Nothing is signed before the user confirms. A token recipient without token storage
-  gets a `storage_deposit` in the same transaction.
+  gets a `storage_deposit` in the same transaction. If the amount is more than the
+  balance, Send offers **Receive** for the same asset.
 
 A balance that cannot be read shows as **Unavailable**, never as zero. Amounts show
-without prices. `WalletBalances` renders the same card in your own panel; pass
-`onDeposit`, `onWithdraw`, and `onOpenAssets` to open your settings or your own flow.
+without prices. `WalletBalances` renders the same card in your own panel. Without
+handlers, its buttons open the matching screen of the mounted settings panel. Pass
+`onReceive`, `onSend`, and `onOpenAssets` to open your own flow instead.
+`seams.assets.openScreen()` opens these screens from your own code.
 `seams.assets` gives the same data without UI; see
 [core reference](/reference/core#asset-balances).
 

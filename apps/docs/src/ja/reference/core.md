@@ -82,7 +82,17 @@ for (const balance of balances) {
 - `list()`は、設定したチェーンの登録済み資産を表示順で返します。
 - `read()`は拒否しません。読み取れない資産は、ゼロではなく`{ kind: 'unavailable', reason }`になります。NEARの`available`はストレージ用の予約を除き、その予約は`reserved`です。
 - `onChange(listener)`は、`read()`が完了するたびに実行します。
-- `prepareWithdrawal({ asset, from, recipient, amount })`は、金額と送金先を確認し、署名前のNEARまたはEVMの取引、または`{ kind: 'rejected', reason }`を返します。`seams.near.signAndSendTransaction`または`seams.evm.signAndSendTransaction`で送信します。
+- `prepareSend({ asset, from, recipient, amount })`は、金額と送金先を確認し、署名前のNEARまたはEVMの取引、または`{ kind: 'rejected', reason }`を返します。`seams.near.signAndSendTransaction`または`seams.evm.signAndSendTransaction`で送信します。
+- `openScreen({ screen, assetId })`は、表示中の設定パネルで`'assets'`、`'receive'`、`'send'`のいずれかを開きます。パネルが閉じている場合は、パネルも開きます。受け取りと送金では、`assetId`（`list()`のID）を最初に選択します。サインイン中のウォレットの設定パネルがない場合は`false`を返します。
+
+オーナー操作が`shortfall`付きの`not_submitted`で終わった場合、アカウントは費用を支払えません。NEARを追加する手段を表示してください。
+
+```ts [Partial example]
+const near = seams.assets.list().find((asset) => asset.kind === 'near_native');
+if (outcome.kind === 'not_submitted' && outcome.shortfall && near) {
+  showAction('NEARを受け取る', () => seams.assets.openScreen({ screen: 'receive', assetId: near.id }));
+}
+```
 
 ## 対象ウォレットとチェーンの指定 {#naming-the-subject-and-the-chain}
 
