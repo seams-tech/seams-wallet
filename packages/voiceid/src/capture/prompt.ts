@@ -42,6 +42,11 @@ const CSS = `
 @starting-style {
   .seams-voiceid-prompt { opacity: 0; transform: translateY(4px); }
 }
+/* Each line owns its row. The download overlays rows 3-5; an auto-placed line would move to new rows. */
+.seams-voiceid-prompt > h2 { grid-area: 1 / 1; }
+.seams-voiceid-prompt > .seams-voiceid-phrase { grid-area: 2 / 1; }
+.seams-voiceid-prompt > .seams-voiceid-ribbon { grid-area: 3 / 1; }
+.seams-voiceid-prompt > .seams-voiceid-status { grid-area: 4 / 1; }
 .seams-voiceid-progress-slot { grid-row: 5; grid-column: 1; min-width: 0; align-self: center; }
 .seams-voiceid-progress-slot:empty { visibility: hidden; }
 .seams-voiceid-activation-surface[data-preparation="loading"] .seams-voiceid-record-slot { visibility: hidden; }

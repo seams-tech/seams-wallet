@@ -15,10 +15,17 @@ function configuredModel() {
 const model = configuredModel();
 document.body.dataset.transcriptionModel = model;
 
-type LoadingObservation = { state: string; value: number; total: number; text: string };
+type LoadingObservation = {
+  state: string;
+  value: number;
+  total: number;
+  text: string;
+  height: number;
+};
 declare global {
   interface Window {
     voiceLoadingObservations: LoadingObservation[];
+    voiceDialogHeightBefore: number;
   }
 }
 
@@ -46,6 +53,7 @@ function observe(): void {
     value: meter.hasAttribute('value') ? meter.value : -1,
     total: meter.max,
     text: section.textContent ?? '',
+    height: parent.getBoundingClientRect().height,
   });
 }
 
@@ -59,6 +67,7 @@ async function begin(): Promise<void> {
   prompt.status.textContent = '';
   prompt.record.hidden = true;
   parent.replaceChildren(prompt.element);
+  window.voiceDialogHeightBefore = parent.getBoundingClientRect().height;
   document.body.dataset.result = 'loading';
   try {
     await prepareVoiceModelWithProgress(prompt.progress, controller.signal, model);

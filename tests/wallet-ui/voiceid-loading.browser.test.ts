@@ -368,6 +368,61 @@ test('one VoiceID download survives failure, prepares real models, and reuses a 
   }
 });
 
+test('the VoiceID dialog keeps its height while the model loads, fails and finishes', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const measured = [];
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 390, height: 844 },
+  ]) {
+    const server = new LoadingServer();
+    try {
+      await page.setViewportSize(viewport);
+      await page.goto(`${await server.start()}?transcriptionModel=aurora`);
+      await page.evaluate(clearModelCache);
+      await page.getByRole('button', { name: 'Load VoiceID' }).click();
+      const retry = page.getByRole('button', { name: 'Retry loading' });
+      await expect(retry).toBeVisible();
+      await retry.click();
+      await expect(page.locator('body')).toHaveAttribute('data-result', 'ready', {
+        timeout: 60_000,
+      });
+      const before = await page.evaluate(dialogHeightBefore);
+      const observed = await page.evaluate(observedProgress);
+      const states = new Set(observed.map(progressState));
+      for (const state of ['failed', 'downloading', 'preparing', 'ready']) {
+        expect(states).toContain(state);
+      }
+      measured.push({ viewport, before, observed });
+      writeFileSync(
+        testInfo.outputPath('voiceid-dialog-height.json'),
+        JSON.stringify(measured, null, 2),
+      );
+      for (const observation of observed) {
+        expect(Math.abs(observation.height - before), JSON.stringify(observation)).toBeLessThan(
+          1.01,
+        );
+      }
+    } finally {
+      server.close();
+    }
+  }
+});
+
+async function clearModelCache(): Promise<void> {
+  await caches.delete('seams-voiceid-models-v1');
+}
+
+function dialogHeightBefore(): number {
+  return window.voiceDialogHeightBefore;
+}
+
+function progressState(progress: Window['voiceLoadingObservations'][number]): string {
+  return progress.state;
+}
+
 function isAsset(request: string): boolean {
   return assetPaths.includes(request);
 }
