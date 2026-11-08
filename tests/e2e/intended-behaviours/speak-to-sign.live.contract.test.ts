@@ -11,7 +11,9 @@ import { readNearIdentity } from './voiceid-near-signing';
 
 // A live testnet run: the Wallet owns a vault on the Speak-to-Sign vault contract, the OutLayer
 // verifier enrolls a macOS `say` voice, and the Wallet pays by voice through Chromium's fake
-// microphone. It needs the OutLayer payment key and a relayer that creates named accounts.
+// microphone. It needs the OutLayer payment key and a relayer that creates named accounts
+// funded with ACCOUNT_INITIAL_BALANCE of at least 0.3 NEAR: `create_vault` takes 0.15 NEAR,
+// and testnet charges about 0.051 NEAR up front for the 50 Tgas of `transfer_with_verdict`.
 const LIVE = process.env.SEAMS_SPEAK_TO_SIGN_LIVE === '1';
 const VAULT = 'seams-wallet.testnet';
 const CONTACT = 'seams-v1.testnet';
@@ -26,6 +28,9 @@ const ENROLL_PHRASES = [
   'Seams, please learn how I sound today.',
 ];
 const CREATE_VAULT_DEPOSIT = '150000000000000000000000';
+/** The owner pays the prepaid gas of each spoken payment: 0.0509 NEAR measured on testnet. */
+const TRANSFER_PREPAID_YOCTO = 60_000_000_000_000_000_000_000n;
+const STORAGE_YOCTO_PER_BYTE = 10_000_000_000_000_000_000n;
 const WALLET = 'iframe.seams-wallet-overlay-iframe';
 
 const audioRoot = path.join(tmpdir(), `seams-speak-to-sign-${process.pid}`);
@@ -94,6 +99,10 @@ async function run(
   expect(enrolled.output.outcome).toBe('accept');
 
   log('near account state', JSON.stringify(await page.evaluate(readNearAccountState, identity.walletId)));
+  const free = await freeBalance(owner);
+  log('owner free balance', `${free} yoctoNEAR`);
+  expect(free, 'The owner cannot prepay a spoken payment; raise ACCOUNT_INITIAL_BALANCE')
+    .toBeGreaterThanOrEqual(TRANSFER_PREPAID_YOCTO);
   await wallet.locator('body').evaluate(useBrowserMicrophone);
   const sent = await speak(page, '0.01');
   log('transfer', JSON.stringify(sent));
@@ -205,6 +214,16 @@ async function pendingDigest(owner: string): Promise<string | null> {
   });
   const value = JSON.parse(Buffer.from(reply.result).toString('utf8'));
   return value?.enrollment_digest ?? null;
+}
+
+/** The balance the account can spend: its amount less the stake for its storage. */
+async function freeBalance(accountId: string): Promise<bigint> {
+  const account = await rpc('query', {
+    request_type: 'view_account',
+    finality: 'final',
+    account_id: accountId,
+  });
+  return BigInt(account.amount) - BigInt(account.storage_usage) * STORAGE_YOCTO_PER_BYTE;
 }
 
 async function rpc(method: string, params: unknown) {
