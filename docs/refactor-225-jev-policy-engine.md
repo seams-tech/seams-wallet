@@ -265,8 +265,7 @@ code cannot evaluate exactly.
      verifier sends the question text to TypeSafe, and TypeSafe may keep it
      (§4.1(c) without ZDR).
    - Options: (a) TypeSafe ZDR plus TypeSafe as a named processor; (b) a
-     classifier that runs inside a TEE, trained without Jev output (§2.3(b));
-     (c) no private semantic rules.
+     classifier that runs inside a TEE; (c) no private semantic rules.
    - _Recommendation_: (c) for now. Organization rules and wallet overrides
      are readable by the org and the wallet owner. Private owner rules wait
      for (a) or (b).
@@ -299,9 +298,6 @@ code cannot evaluate exactly.
    - The preview runs only the author's own rules on the stored test cases of
      that policy.
    - No public API returns Jev probabilities.
-   - Each policy has a maximum number of rules, and each org has a daily
-     limit of preview runs.
-   - No Seams model is trained on Jev output (§2.3(b)).
    - _Recommendation_: use a Seams Wallet TypeSafe key, not Satyr's key, so
      that wallet policy has its own rate limit. Add the meter feature
      `wallet_policy`. When we ask TypeSafe for ZDR, also describe this use to
