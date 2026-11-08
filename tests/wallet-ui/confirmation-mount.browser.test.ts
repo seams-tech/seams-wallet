@@ -328,6 +328,41 @@ test('confirmed receipts link to the configured block explorer', async ({ page }
   await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
 });
 
+test('a failed NEAR receipt states the reason that NEAR gave', async ({ page }) => {
+  const panic = 'The contract refused the call: Smart contract panicked: account is not speakable';
+  const rejection =
+    'NEAR rejected this transaction before it ran, so nothing was submitted. ' +
+    'The account has 0.01 NEAR, and the transaction can cost up to 0.15031 NEAR.';
+  await page.evaluate(
+    ({ panic }) => {
+      window.__confirmationMount.mount('modal', 'wallet-iframe');
+      window.__confirmationMount.receipt(
+        0,
+        { kind: 'reverted', hash: '3FUntsAnjo7YtZmLU1429k4FKUAATE4UZZYnPtfKdBRz', message: panic },
+        'expanded',
+      );
+    },
+    { panic },
+  );
+  const receipt = page.locator('.seams-transaction-receipt');
+  await expect(receipt.getByRole('status')).toHaveText('Transaction reverted');
+  await expect(receipt.locator('.seams-receipt-heading p')).toHaveText(panic);
+
+  await page.evaluate(
+    ({ rejection }) =>
+      window.__confirmationMount.receipt(
+        0,
+        { kind: 'failed', hash: null, message: rejection },
+        'expanded',
+      ),
+    { rejection },
+  );
+  await expect(receipt.getByRole('status')).toHaveText('Transaction failed');
+  await expect(receipt.locator('.seams-receipt-heading p')).toHaveText(rejection);
+  await expect(receipt.getByText('Confirmation unavailable')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
 test('a message signature receipt is complete once signed and has no network stages', async ({
   page,
 }) => {

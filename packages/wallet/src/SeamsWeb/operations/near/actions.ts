@@ -19,9 +19,12 @@ import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { emitNearSigningEvent } from './signingEventHelpers';
 import { resolveNearCommandSubject } from './commandSubject';
+import { NearRpcError } from '@/core/rpcClients/near/NearRpcError';
+import type { DecodedNearFinalExecutionOutcome } from '@shared/utils/nearRpcResults';
 import {
+  broadcastNearTransactionFailure,
+  executedNearTransaction,
   nearTransactionFailure,
-  unresolvedNearTransaction,
 } from '@/core/signingEngine/nearTransactionSubmission';
 
 function signedTransactionSignerId(signedTransaction: SignedTransaction): string {
@@ -175,6 +178,9 @@ export async function signTransaction(args: {
  * the coordinator-backed signing flow. Direct broadcast requires the nonce lease
  * created during confirmation; server-dispatched results are returned without
  * rebroadcasting.
+ *
+ * `firstBroadcast` states that this call signed the transaction, so no earlier request
+ * carried it, and a NEAR rejection of its only request proves that nothing was submitted.
  */
 export async function sendTransaction({
   context,
@@ -182,12 +188,14 @@ export async function sendTransaction({
   walletSession,
   signedTransaction,
   options,
+  firstBroadcast = false,
 }: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
   walletSession: WalletSessionRef;
   signedTransaction: SignedTransaction;
   options?: SendTransactionHooksOptions;
+  firstBroadcast?: boolean;
 }): Promise<ActionResult> {
   const nonceLease = signedTransaction.nonceLease;
   let submission:
@@ -235,25 +243,15 @@ export async function sendTransaction({
         interaction: { kind: 'none', overlay: 'none' },
         data: { txId },
       });
-      emitNearSigningEvent(options?.onEvent, accountId, {
-        phase: SigningEventPhase.STEP_15_COMPLETED,
-        status: 'succeeded',
-        message: `Transaction ${txId} completed`,
-        interaction: { kind: 'none', overlay: 'none' },
-        data: { txId },
-      });
-      return {
-        success: true,
-        transactionId: txId,
-        result: transactionResult,
-      };
+      const result = executedNearTransaction(txId, transactionResult);
+      emitNearExecuted(options?.onEvent, accountId, result);
+      return result;
     }
 
     submission = { kind: 'dispatching' };
-    transactionResult = await context.nearClient.sendTransaction(
-      signedTransaction,
-      options?.waitUntil,
-    );
+    transactionResult = await context.nearClient
+      .sendTransaction(signedTransaction, options?.waitUntil)
+      .catch(executedFailure);
     txId = requireNearTransactionHash(transactionResult.transaction.hash);
     if (txId !== signedTransaction.transactionHash) {
       throw new Error('NEAR RPC returned a different transaction hash');
@@ -282,13 +280,9 @@ export async function sendTransaction({
       interaction: { kind: 'none', overlay: 'none' },
       ...(txId ? { data: { txId } } : {}),
     });
-    emitNearSigningEvent(options?.onEvent, accountId, {
-      phase: SigningEventPhase.STEP_15_COMPLETED,
-      status: 'succeeded',
-      message: `Transaction ${txId} completed`,
-      interaction: { kind: 'none', overlay: 'none' },
-      ...(txId ? { data: { txId } } : {}),
-    });
+    const result = executedNearTransaction(txId, transactionResult);
+    emitNearExecuted(options?.onEvent, accountId, result);
+    return result;
   } catch (error: unknown) {
     const e = toError(error);
     console.error('[sendTransaction] failed:', e);
@@ -306,20 +300,67 @@ export async function sendTransaction({
     switch (submission.kind) {
       case 'not_started':
         return nearTransactionFailure(e, 'not_submitted');
-      case 'dispatching':
-        return unresolvedNearTransaction(signedTransaction.transactionHash, e);
+      case 'dispatching': {
+        const result = broadcastNearTransactionFailure(
+          signedTransaction.transactionHash,
+          e,
+          firstBroadcast ? 'only_request' : 'repeatable',
+        );
+        if (result.kind === 'not_submitted' && nonceLease) {
+          // NEAR refused the only request, so the signed nonce is free again.
+          await context.signingEngine
+            .getNonceCoordinator()
+            .markBroadcastRejected({
+              leaseId: nonceLease.leaseId,
+              operationId: nonceLease.operationId,
+              operationFingerprint: nonceLease.operationFingerprint,
+              error: e,
+            })
+            .catch((leaseError: unknown) =>
+              console.warn('[sendTransaction] nonce release failed:', leaseError),
+            );
+        }
+        return result;
+      }
       case 'accepted':
-        return unresolvedNearTransaction(submission.transactionId, e);
+        return broadcastNearTransactionFailure(submission.transactionId, e, 'repeatable');
       default:
         return assertNeverNearSubmission(submission);
     }
   }
+}
 
-  return {
-    success: true,
-    transactionId: txId,
-    result: transactionResult,
-  };
+/** A transaction that ran and failed is an outcome, not a lost broadcast. */
+function executedFailure(error: unknown): DecodedNearFinalExecutionOutcome {
+  if (error instanceof NearRpcError && error.outcome) return error.outcome;
+  throw error;
+}
+
+function emitNearExecuted(
+  onEvent: SendTransactionHooksOptions['onEvent'],
+  accountId: AccountId,
+  result: ActionResult,
+): void {
+  const txId = result.transactionId;
+  emitNearSigningEvent(
+    onEvent,
+    accountId,
+    result.success
+      ? {
+          phase: SigningEventPhase.STEP_15_COMPLETED,
+          status: 'succeeded',
+          message: `Transaction ${txId} completed`,
+          interaction: { kind: 'none', overlay: 'none' },
+          data: { txId },
+        }
+      : {
+          phase: SigningEventPhase.STEP_13_RECEIPT_REVERTED,
+          status: 'failed',
+          message: result.error,
+          interaction: { kind: 'none', overlay: 'none' },
+          data: { txId },
+        },
+  );
 }
 
 function assertNeverNearSubmission(value: never): never {
@@ -367,6 +408,7 @@ async function signAndSendTransactionInternal({
         onEvent: options?.onEvent,
         waitUntil: options?.waitUntil,
       },
+      firstBroadcast: true,
     });
     return txResult;
   } catch (error: unknown) {

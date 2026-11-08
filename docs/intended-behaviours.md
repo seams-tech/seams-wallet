@@ -1828,7 +1828,13 @@ Unexpected programming faults can reject the promise. Recoverable failures use
 `success: false` and one of these branches:
 
 - `not_submitted`: wallet selection, admission, confirmation, or signing ended
-  before submission. The application can offer a fresh review immediately.
+  before submission. The application can offer a fresh review immediately. A
+  NEAR rejection also ends here, with `rejection`, when the signed bytes are
+  invalid, or when `signAndSendTransaction` made the only `send_tx` request
+  for them and NEAR refused it.
+- `reverted`: the transaction ran, and its final status is a Failure. `error`
+  names the reason, with the contract's own text for an `ExecutionError`, and
+  `result` keeps the outcome.
 - `unresolved`: submission started, and its outcome needs reconciliation. The
   result retains the exact signed transaction's `transactionId`. The application
   checks that hash before another send.

@@ -110,6 +110,19 @@ const unresolvedAction: ActionResult = {
 };
 void unresolvedAction;
 
+const revertedAction: ActionResult = {
+  success: false,
+  kind: 'reverted',
+  transactionId: 'txid',
+  error: 'The contract refused the call: Smart contract panicked: account is not speakable',
+  result: finalExecutionOutcome,
+};
+void revertedAction;
+
+// @ts-expect-error a reverted transaction keeps its final outcome.
+const invalidRevertedAction: ActionResult = { ...unresolvedAction, kind: 'reverted' };
+void invalidRevertedAction;
+
 // @ts-expect-error unresolved submission requires a transaction hash.
 const invalidUnresolvedAction: ActionResult = {
   success: false,

@@ -664,6 +664,16 @@ export type ActionResult = ExclusiveUnion<
       /** This attempt did not submit a transaction. A new review is safe. */
       kind: 'not_submitted';
       error: string;
+      /** NEAR refused the signed transaction before it ran. Its fields explain why. */
+      rejection?: NearTransactionRejection;
+    }
+  | {
+      success: false;
+      /** The transaction ran and its final status is a Failure. `error` gives NEAR's reason. */
+      kind: 'reverted';
+      transactionId: string;
+      error: string;
+      result: FinalExecutionOutcome;
     }
   | {
       success: false;

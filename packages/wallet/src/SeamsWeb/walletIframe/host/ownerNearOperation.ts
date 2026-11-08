@@ -1,7 +1,7 @@
 import { resolveNearNetwork, resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { OwnerOperationNearClient } from '@/core/rpcClients/near/NearClient';
-import { NearRpcError } from '@/core/rpcClients/near/NearRpcError';
+import { NearRpcError, nearExecutionFailureReason } from '@/core/rpcClients/near/NearRpcError';
 import {
   parseNearTransactionRejection,
   type NearTransactionRejection,
@@ -332,35 +332,37 @@ class HostedOwnerNearOperation {
         signedTransaction: session.signedTransaction,
         options: { onEvent: this.broadcastProgress.bind(this), waitUntil: 'FINAL' },
       });
-      if (!result.success) {
-        const rejection = result.kind === 'unresolved' ? result.rejection : undefined;
-        // Invalid signed bytes never reach a block, whatever the account state.
-        if (rejection?.permanence === 'permanent') {
-          outcome = { kind: 'not_submitted', error: result.error, rejection };
-        } else if (result.kind !== 'not_submitted') {
-          if (rejection) {
-            await this.store({
-              kind: 'submitting',
-              binding: this.binding,
-              requestDigest,
-              signed,
-              transactionId: session.signedTransaction.transactionHash,
-              evidence,
-              rejection,
-            });
-          }
-          return {
-            kind: 'unresolved',
-            recovery: command.recovery,
-            transactionId: session.signedTransaction.transactionHash,
-            error: result.error,
-            ...(rejection ? { rejection } : {}),
-          };
-        } else {
-          outcome = { kind: 'not_submitted', error: result.error };
-        }
-      } else {
+      if (result.success || result.kind === 'reverted') {
         return await this.settleTransaction(result.transactionId, result.result, requestDigest);
+      }
+      // Without `firstBroadcast`, only invalid signed bytes or a failure before the broadcast
+      // end as not_submitted. A state-dependent rejection stays unresolved, and later checks keep it.
+      if (result.kind === 'not_submitted') {
+        outcome = {
+          kind: 'not_submitted',
+          error: result.error,
+          ...(result.rejection ? { rejection: result.rejection } : {}),
+        };
+      } else {
+        const rejection = result.kind === 'unresolved' ? result.rejection : undefined;
+        if (rejection) {
+          await this.store({
+            kind: 'submitting',
+            binding: this.binding,
+            requestDigest,
+            signed,
+            transactionId: session.signedTransaction.transactionHash,
+            evidence,
+            rejection,
+          });
+        }
+        return {
+          kind: 'unresolved',
+          recovery: command.recovery,
+          transactionId: session.signedTransaction.transactionHash,
+          error: result.error,
+          ...(rejection ? { rejection } : {}),
+        };
       }
     } catch (error) {
       if (this.submission.kind === 'dispatched')
@@ -695,15 +697,18 @@ class HostedOwnerNearOperation {
       signedTransaction: session.signedTransaction,
       options: { waitUntil: 'FINAL' },
     });
-    if (result.success) {
+    // A cancel that ran took the nonce, whatever its transfer did.
+    if (result.success || result.kind === 'reverted') {
       const cancelled = await this.settleReplacement(receipt, replacement, result.result);
       if (cancelled) return cancelled;
       return unresolved(recovery, transactionId, 'The cancel is not final yet. Check it again.');
     }
-    const rejection = result.kind === 'unresolved' ? result.rejection : undefined;
+    const rejection =
+      result.kind === 'unresolved' || result.kind === 'not_submitted'
+        ? result.rejection
+        : undefined;
     // A refused cancel never reached a block, so the receipt no longer follows it.
-    if (rejection?.permanence === 'permanent' || result.kind === 'not_submitted')
-      await this.store(receipt);
+    if (result.kind === 'not_submitted') await this.store(receipt);
     return {
       kind: 'unresolved',
       recovery,
@@ -885,7 +890,11 @@ class HostedOwnerNearOperation {
       );
     let outcome: SettledOwnerNearOutcome;
     if (result.status.Failure !== undefined) {
-      outcome = { kind: 'reverted', transactionId, error: 'The transaction failed on NEAR.' };
+      outcome = {
+        kind: 'reverted',
+        transactionId,
+        error: nearExecutionFailureReason(result.status.Failure),
+      };
     } else if (typeof result.status.SuccessValue === 'string') {
       outcome = { kind: 'completed', result: { success: true, transactionId, result } };
     } else {

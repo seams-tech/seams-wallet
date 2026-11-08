@@ -169,12 +169,12 @@ function ownerOutcomeReceipt(value: unknown): TransactionReceiptState | null {
     case 'retired': return { kind: 'confirmed', hash: outcome.transactionId };
     case 'reverted': return { kind: 'reverted', hash: outcome.transactionId, message: outcome.error };
     // `error` already states a broadcast rejection, so the receipt states it once.
-    case 'not_submitted': return { kind: 'failed', hash: null, message: outcome.rejection ? nearTransactionRejectionMessage(outcome.rejection) : outcome.error };
+    case 'not_submitted': return { kind: 'failed', hash: null, message: outcome.rejection ? nearTransactionRejectionMessage(outcome.rejection, 'not_submitted') : outcome.error };
     case 'expired': return { kind: 'failed', hash: null, message: 'The approval expired before the wallet signed.' };
     case 'cancelled': return { kind: 'failed', hash: null, message: 'The owner cancelled this transaction before signing.' };
     case 'unresolved':
       if (outcome.cancellationRejection) return { kind: 'unknown', hash: outcome.transactionId, message: outcome.error };
-      if (outcome.rejection) return { kind: 'rejected', hash: outcome.transactionId, message: `${nearTransactionRejectionMessage(outcome.rejection)} The signed transaction can still run until it expires if the account's state changes.` };
+      if (outcome.rejection) return { kind: 'rejected', hash: outcome.transactionId, message: `${nearTransactionRejectionMessage(outcome.rejection, 'unresolved')} The signed transaction can still run until it expires if the account's state changes.` };
       return { kind: 'unknown', hash: outcome.transactionId, message: outcome.error };
     case 'retirement_available': return { kind: 'unknown', hash: outcome.transactionId, message: 'NEAR cannot execute this transaction any more, but its outcome is not proved. Check it again before you send another.' };
     case 'recovery_unavailable': return { kind: 'unknown', hash: null, message: outcome.error };
@@ -183,10 +183,15 @@ function ownerOutcomeReceipt(value: unknown): TransactionReceiptState | null {
   }
 }
 
+// A not_submitted result has no hash, so its receipt stays failed with the result's error.
 function nearResultReceipt(value: unknown): TransactionReceiptState | null {
   if (!value || typeof value !== 'object') return null;
   const hash = stringField(value, 'transactionId');
   if (!hash) return null;
+  const error = stringField(value, 'error');
+  const kind: unknown = Reflect.get(value, 'kind');
+  if (kind === 'unresolved' && error && Reflect.get(value, 'rejection')) return { kind: 'rejected', hash, message: error };
+  if (kind === 'reverted' && error) return { kind: 'reverted', hash, message: error };
   const outcome: unknown = Reflect.get(value, 'result');
   const status: unknown = outcome && typeof outcome === 'object' ? Reflect.get(outcome, 'status') : null;
   if (status && typeof status === 'object') {

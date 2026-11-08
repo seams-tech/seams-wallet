@@ -95,6 +95,8 @@ export class MinimalNearClient extends NearJsonRpcClient<SignedTransaction> {
         return await send();
       } catch (err: unknown) {
         lastError = err;
+        // An earlier request can reach a block before this one is refused.
+        if (err instanceof NearRpcError) err.sendAttempts = attempt;
         const msg = errorMessage(err);
         const retryable =
           /server error|internal|temporar|timeout|throttl|too many requests|429|unavailable|bad gateway|gateway timeout/i.test(

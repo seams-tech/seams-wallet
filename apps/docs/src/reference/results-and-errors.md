@@ -37,7 +37,8 @@ For `success: false`, handle `kind`:
 
 | Kind | Meaning | Application action |
 | --- | --- | --- |
-| `not_submitted` | This attempt did not submit a transaction. | Clear the attempt's pending state. Offer a fresh review. |
+| `not_submitted` | This attempt did not submit a transaction. If NEAR refused it before it ran, `rejection` gives the reason. | Clear the attempt's pending state. Offer a fresh review. |
+| `reverted` | The transaction ran, and its final status is a failure. `error` gives the reason, such as the contract's panic text. `result` holds the outcome. | Show the reason. A new review is safe: this transaction cannot run again. |
 | `unresolved` | Submission started. The result retains `transactionId`. | Check that hash. Do not create another send while its outcome remains unresolved. |
 | `submission_unknown` | A dispatched wallet command lost its terminal response. | Reconcile wallet activity before another send. |
 

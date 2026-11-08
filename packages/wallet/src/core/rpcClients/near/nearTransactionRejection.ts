@@ -1,4 +1,5 @@
 import { isPlainObject, requireNonEmptyString, requireRecord } from '@shared/utils/validation';
+import { formatDeposit } from '@/core/signingEngine/uiConfirm/ui/transaction-display/formatters';
 import { NearRpcError } from './NearRpcError';
 
 /** NEAR refused a signed transaction when it was sent, before any block included it. */
@@ -66,9 +67,22 @@ export function parseNearTransactionRejection(raw: unknown): NearTransactionReje
   };
 }
 
-/** A short sentence for the person, such as "NEAR rejected this transaction: NotEnoughBalance." */
-export function nearTransactionRejectionMessage(rejection: NearTransactionRejection): string {
-  return `NEAR rejected this transaction: ${rejection.error}.`;
+/**
+ * A short sentence for the person, such as "NEAR rejected this transaction: InvalidNonce."
+ * `not_submitted` also says that nothing reached the network.
+ */
+export function nearTransactionRejectionMessage(
+  rejection: NearTransactionRejection,
+  submission: 'not_submitted' | 'unresolved',
+): string {
+  const lead =
+    submission === 'not_submitted'
+      ? 'NEAR rejected this transaction before it ran, so nothing was submitted'
+      : 'NEAR rejected this transaction';
+  const { balance, cost } = rejection.fields;
+  if (rejection.error === 'NotEnoughBalance' && balance && cost)
+    return `${lead}. The account has ${formatDeposit(balance)}, and the transaction can cost up to ${formatDeposit(cost)}.`;
+  return `${lead}: ${rejection.error}.`;
 }
 
 /** NEAR serializes a unit variant as a string and a variant with fields as a one-key object. */

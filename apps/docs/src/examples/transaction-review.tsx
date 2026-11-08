@@ -52,6 +52,9 @@ async function submitTransfer(signer: BoundNearSigner, setState: (state: Transfe
       case 'not_submitted':
         setState({ kind: 'ready', message: `${result.error} You can review a new attempt.` });
         return;
+      case 'reverted':
+        setState({ kind: 'ready', message: `${result.error} The transaction ran and failed.` });
+        return;
       case 'unresolved':
         setState({
           kind: 'blocked',

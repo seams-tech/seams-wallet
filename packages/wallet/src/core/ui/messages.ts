@@ -363,6 +363,40 @@ const walletMessages = [
     'ネットワークに送信しました。応答には最終的な実行結果が含まれていません。',
   ],
   [
+    'NEAR rejected this transaction before it ran, so nothing was submitted. The account has {value0}, and the transaction can cost up to {value1}.',
+    'NEAR が実行前にこのトランザクションを拒否したため、何も送信されていません。アカウントの残高は {value0} で、このトランザクションには最大 {value1} かかる可能性があります。',
+  ],
+  [
+    'NEAR rejected this transaction before it ran, so nothing was submitted: {value0}.',
+    'NEAR が実行前にこのトランザクションを拒否したため、何も送信されていません：{value0}。',
+  ],
+  [
+    'NEAR rejected this transaction. The account has {value0}, and the transaction can cost up to {value1}.',
+    'NEAR がこのトランザクションを拒否しました。アカウントの残高は {value0} で、このトランザクションには最大 {value1} かかる可能性があります。',
+  ],
+  [
+    "NEAR rejected this transaction. The account has {value0}, and the transaction can cost up to {value1}. The signed transaction can still run until it expires if the account's state changes.",
+    'NEAR がこのトランザクションを拒否しました。アカウントの残高は {value0} で、このトランザクションには最大 {value1} かかる可能性があります。アカウントの状態が変わると、署名済みトランザクションは有効期限まで実行される可能性があります。',
+  ],
+  [
+    'NEAR rejected this transaction: {value0}.',
+    'NEAR がこのトランザクションを拒否しました：{value0}。',
+  ],
+  [
+    "NEAR rejected this transaction: {value0}. The signed transaction can still run until it expires if the account's state changes.",
+    'NEAR がこのトランザクションを拒否しました：{value0}。アカウントの状態が変わると、署名済みトランザクションは有効期限まで実行される可能性があります。',
+  ],
+  ['The contract refused the call: {value0}', 'コントラクトが呼び出しを拒否しました：{value0}'],
+  ['The contract call failed: {value0}.', 'コントラクトの呼び出しに失敗しました：{value0}。'],
+  [
+    'NEAR could not run action {value0}: {value1}.',
+    'NEAR はアクション {value0} を実行できませんでした：{value1}。',
+  ],
+  [
+    'NEAR could not run this transaction: {value0}.',
+    'NEAR はこのトランザクションを実行できませんでした：{value0}。',
+  ],
+  [
     'The network response did not include an execution status.',
     'ネットワークの応答には実行状態が含まれていません。',
   ],
