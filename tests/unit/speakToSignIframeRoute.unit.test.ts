@@ -78,6 +78,7 @@ test('the result parser accepts each result kind and refuses anything else', () 
     { kind: 'refused', reason: 'vault_rejected', detail: 'AudioReused' },
     { kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'not_enrolled' },
     { kind: 'unavailable', reason: 'flow_not_available' },
+    { kind: 'unavailable', reason: 'owner_not_speakable' },
   ];
   for (const result of valid) expect(parseSpeakToSignTransferResult(result)).toEqual(result);
   for (const bad of [
@@ -369,6 +370,7 @@ test('the enrollment message carries only the wallet and its result parser is ex
     { kind: 'refused', reason: 'not_authorized' },
     { kind: 'refused', reason: 'speaker', detail: 'agreement 410' },
     { kind: 'unavailable', reason: 'vault_missing' },
+    { kind: 'unavailable', reason: 'owner_not_speakable' },
   ] as const) {
     expect(parseSpeakToSignEnrollmentResult(result)).toEqual(result);
   }
