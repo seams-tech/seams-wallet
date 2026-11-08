@@ -107,7 +107,7 @@ Order of work: B5, B6, B3, B2, B1, then the optional part of B4. Each item is a 
   - When an establish replaces a capability for a different wallet, the old handle stays in the worker until it expires.
   - In `nearProvisioningRegistry.ts`, `runSingleFlightNearProvisioning` publishes `near_provisioning` (`L95-L98`) before it sets `entry.inFlight` (`L118`). A listener that calls `runSingleFlightNearProvisioning` from inside the notify starts a second attempt.
 - **Change**:
-  - Add a module-level `generation` counter. Every destroy increments it. An establish reads it before the worker call. If it changed, the establish does not install the result and sends a `capability` scope destroy for the new handle.
+  - Record each establish in flight with its `walletId` and `walletSessionId`. A destroy marks every record that its scope covers as cancelled. A cancelled establish does not install the result and sends a `capability` scope destroy for the new handle. A destroy for another wallet does not cancel an unrelated establish, which a single generation counter would do.
   - When an establish replaces a capability for a different wallet, send a `capability` scope destroy for the old handle.
   - No three-state slot is needed: the generation counter and the existing `currentCapability` cover the states.
   - In `nearProvisioningRegistry.ts`, create the in-flight promise and assign `entry.inFlight` before the `near_provisioning` publish. Start `args.attempt()` only after that assignment.

@@ -93,28 +93,28 @@ export function runSingleFlightNearProvisioning(args: {
   if (entry.inFlight) return entry.inFlight;
   if (entry.state.status === 'near_ready') return Promise.resolve(entry.state);
 
-  publishNearProvisioningState(args.walletId, {
-    status: 'near_provisioning',
-    updatedAtMs: args.nowMs(),
-  });
-
-  const inFlight = (async (): Promise<NearProvisioningState> => {
-    try {
-      return await args.attempt();
-    } catch (error: unknown) {
-      return {
+  // The attempt starts on a later microtask, after `inFlight` is recorded and
+  // `near_provisioning` is published, so a listener that calls back in joins it.
+  const inFlight = Promise.resolve()
+    .then(() => args.attempt())
+    .catch(
+      (error: unknown): NearProvisioningState => ({
         status: 'near_failed_retryable',
         updatedAtMs: args.nowMs(),
         error: error instanceof Error ? error.message : String(error),
         errorCode: 'near_provisioning_failed',
-      };
-    }
-  })().then((state) => {
-    entry.inFlight = null;
-    publishNearProvisioningState(args.walletId, state);
-    return state;
-  });
-
+      }),
+    )
+    .then((state) => {
+      entry.inFlight = null;
+      publishNearProvisioningState(args.walletId, state);
+      return state;
+    });
   entry.inFlight = inFlight;
+
+  publishNearProvisioningState(args.walletId, {
+    status: 'near_provisioning',
+    updatedAtMs: args.nowMs(),
+  });
   return inFlight;
 }

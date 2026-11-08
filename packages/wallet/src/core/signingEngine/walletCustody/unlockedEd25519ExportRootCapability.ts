@@ -46,6 +46,36 @@ let currentCapabilityTransport: WalletCustodyCeremonyTransportPort | null = null
 let currentCapabilityExpiryTimer: ReturnType<typeof setTimeout> | null = null;
 let currentUpgradedEnvelopeSink: UnlockedCustodyEnvelopeUpgradeSinkV1 | null = null;
 
+/* An establish whose worker call is still in flight. A destroy that covers it
+   marks it cancelled: the destroy has already run, so the establish must not
+   install the handle it gets back, and destroys that handle instead. */
+type PendingEstablishV1 = {
+  readonly walletId: string;
+  readonly walletSessionId: string;
+  cancelled: boolean;
+};
+const pendingEstablishes = new Set<PendingEstablishV1>();
+
+function destroyScopeCovers(
+  scope: UnlockedWalletEd25519ExportRootCapabilityDestroyScopeV1,
+  facts: {
+    readonly walletId: string;
+    readonly walletSessionId: string;
+    readonly capabilityHandleId?: string;
+  },
+): boolean {
+  switch (scope.kind) {
+    case 'all':
+      return true;
+    case 'capability':
+      return scope.capabilityHandleId === facts.capabilityHandleId;
+    case 'wallet':
+      return scope.walletId === facts.walletId;
+    case 'wallet_session':
+      return scope.walletSessionId === facts.walletSessionId;
+  }
+}
+
 /**
  * Where an unbound envelope's upgrade goes after an unlock.
  *
@@ -263,7 +293,8 @@ function parseLinkedDeviceClientRootCapabilityReference(
  * its own copy.
  *
  * Call only after the owner Wallet Session named here is active. Establishing
- * adds no authenticator or OTP interaction.
+ * adds no authenticator or OTP interaction. Returns undefined, and destroys the
+ * new handle, when a destroy covering this wallet or session ran meanwhile.
  */
 export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
   transport: WalletCustodyCeremonyTransportPort,
@@ -282,6 +313,12 @@ export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
   }
   // The worker transfers this buffer, so it gets a copy and we wipe it.
   const workerFactorSecret = input.existingFactorSecret.slice();
+  const pending: PendingEstablishV1 = {
+    walletId: input.walletId,
+    walletSessionId: input.walletSessionId,
+    cancelled: false,
+  };
+  pendingEstablishes.add(pending);
   let established: unknown;
   try {
     established = await transport.requestOperation({
@@ -300,16 +337,34 @@ export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
       },
     });
   } finally {
+    pendingEstablishes.delete(pending);
     if (workerFactorSecret.byteLength > 0) workerFactorSecret.fill(0);
   }
   const capability = parseCapabilityReference(established);
   if (capability === null) {
     throw new Error('unlocked Ed25519 export-root capability worker returned no reference');
   }
+  if (pending.cancelled) {
+    await requestWorkerDestroy(transport, {
+      kind: 'capability',
+      capabilityHandleId: capability.capabilityHandleId,
+    });
+    return undefined;
+  }
+  const previous = currentCapability;
+  const previousTransport = currentCapabilityTransport;
   clearCurrentCapabilityExpiryTimer();
   currentCapability = capability;
   currentCapabilityTransport = transport;
   scheduleCurrentCapabilityExpiry(capability, transport);
+  // The worker replaces the handle of the same wallet itself. Another wallet's
+  // handle would lose its only reference here, so destroy it.
+  if (previous && previousTransport && previous.walletId !== capability.walletId) {
+    void requestWorkerDestroy(previousTransport, {
+      kind: 'capability',
+      capabilityHandleId: previous.capabilityHandleId,
+    });
+  }
   forwardUpgradedEnvelope(capability);
   return capability;
 }
@@ -376,14 +431,19 @@ export async function destroyUnlockedWalletEd25519ExportRootCapabilitiesV1(
   transport: WalletCustodyCeremonyTransportPort,
   scope: UnlockedWalletEd25519ExportRootCapabilityDestroyScopeV1,
 ): Promise<void> {
-  const capability = currentCapability;
-  const localMatches =
-    capability !== null &&
-    (scope.kind === 'all' ||
-      (scope.kind === 'capability' && scope.capabilityHandleId === capability.capabilityHandleId) ||
-      (scope.kind === 'wallet' && scope.walletId === capability.walletId) ||
-      (scope.kind === 'wallet_session' && scope.walletSessionId === capability.walletSessionId));
-  if (localMatches) clearCurrentCapabilityReference();
+  for (const pending of pendingEstablishes) {
+    if (destroyScopeCovers(scope, pending)) pending.cancelled = true;
+  }
+  if (currentCapability !== null && destroyScopeCovers(scope, currentCapability)) {
+    clearCurrentCapabilityReference();
+  }
+  await requestWorkerDestroy(transport, scope);
+}
+
+async function requestWorkerDestroy(
+  transport: WalletCustodyCeremonyTransportPort,
+  scope: UnlockedWalletEd25519ExportRootCapabilityDestroyScopeV1,
+): Promise<void> {
   try {
     await transport.requestOperation({
       kind: 'walletCustodyCeremony',
