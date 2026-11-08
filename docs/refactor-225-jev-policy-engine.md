@@ -5,6 +5,10 @@ the review added the authoring flow, the tighten-only rule, the safety
 section, latency and cost, the slices and the open questions, and corrected
 facts about Jev, the Console rules and the Speak-to-Sign design.
 
+Current goal (owner, 2026-11-08): a hackathon demo on testnet that is novel and
+works well enough. Privacy and ZDR are not goals for the demo. Slice 1 is the
+demo. The later slices stay as the record for after the hackathon.
+
 ## Result
 
 The Seams Policy Engine (`console.wallet.seams.sh/dashboard/policy-engine`) and
@@ -266,9 +270,7 @@ code cannot evaluate exactly.
      (§4.1(c) without ZDR).
    - Options: (a) TypeSafe ZDR plus TypeSafe as a named processor; (b) a
      classifier that runs inside a TEE; (c) no private semantic rules.
-   - _Recommendation_: (c) for now. Organization rules and wallet overrides
-     are readable by the org and the wallet owner. Private owner rules wait
-     for (a) or (b).
+   - _Recommendation_: not needed for the demo. Decide after the hackathon.
 
 4. **Precog boundary.**
    - Precog may rank candidates, fetch quotes, simulate orders and run
@@ -286,8 +288,6 @@ code cannot evaluate exactly.
      path.
    - Code validates its output, and the author confirms it. Its output is
      never trusted by itself.
-   - The author's sentences go to that model's provider, so the Console
-     names the provider.
    - _Recommendation_: a Claude model (for example Claude Sonnet 5.5) with
      JSON-schema output, called from the Console server.
 
@@ -300,8 +300,7 @@ code cannot evaluate exactly.
    - No public API returns Jev probabilities.
    - _Recommendation_: use a Seams Wallet TypeSafe key, not Satyr's key, so
      that wallet policy has its own rate limit. Add the meter feature
-     `wallet_policy`. When we ask TypeSafe for ZDR, also describe this use to
-     them.
+     `wallet_policy`.
 
 7. **Meaning of `escalate`.** The Console has no approval for one
    transaction.
@@ -563,7 +562,7 @@ the verifier.
 - **Step-up path.** On `policy_step_up`, the Wallet shows the rule's source
   sentence and offers the normal passkey-signed transfer from the owner's
   account, outside the vault. A vault method that accepts a step-up verdict
-  plus an owner signature is open question 10.
+  plus an owner signature is open question 9.
 
 ### 5. Normal signing (later slices)
 
@@ -744,18 +743,16 @@ Cost for each decision (one batched call):
 
 - 20 Jev calls from an OutLayer worker and 20 from a Cloudflare Worker in the
   serving region: p50 and p95 latency.
-- Token counts for the example state.
-- The injection set (at least 20 cases) on `jev-1.13.0`: the rate of missed
-  tightenings.
 - Cost: less than USD 0.01.
 
-### Slice 1: semantic escalate for Speak-to-Sign, and Console authoring
+### Slice 1 (hackathon demo): semantic escalate for Speak-to-Sign, and Console authoring
 
 - **One rule type: semantic escalate.** A `Bool` rule with
   `onFail: 'escalate'`. In this slice `escalate` has the effect of
   `require_human_approval` (Decision 7). No `deny`, `Choice` or `Score` rules.
 - **Transaction fields only.** No rule reads the transcript, so the Jev call
-  runs beside Whisper and the speaker check.
+  runs beside Whisper and the speaker check. The spoken purpose of open
+  question 4 would change this.
 - **Speak-to-Sign only**, on testnet, with organization policies only.
 - **Console.** The authoring flow of Section 2, with the deterministic rules
   of today, `effectiveUntil` and one semantic escalate rule type.
@@ -764,18 +761,14 @@ Cost for each decision (one batched call):
   verdict fields (Section 4).
 - **Wallet.** On `policy_step_up`, it shows the source sentence and offers
   the passkey path.
-- **Audit.** The record of Section 7.7.
 - **Acceptance:**
   - All stored test cases give the expected result.
-  - The injection set's missed-tightening rate is measured and shown in the
-    preview.
   - End of speech to vault accepted: p95 at most 10 s over 20 runs.
   - A forced Jev failure gives `policy_step_up`.
   - A deterministic deny makes no Jev call.
-  - The token count of each decision is recorded.
 - **Limit.** Today's `spoken-intent` grammar has only NEAR transfers and
-  multisig approvals. Semantic rules have little to judge there. The
-  Sotheby's example needs the market-order kind (open question 4).
+  multisig approvals. Semantic rules have little to judge there. Open
+  question 4 chooses what the demo lets Jev judge.
 
 ### Later slices
 
@@ -798,14 +791,20 @@ The gates of the first draft map to these slices:
 
 ## Open questions for the owner
 
-1. **TypeSafe key and ZDR.** Do we use a new Seams Wallet key? Do we ask
-   TypeSafe for ZDR? (Decision 6)
-2. **Authoring model.** Which model and provider? Is it acceptable that the
-   author's sentences go to that provider? (Decision 5)
+1. **TypeSafe key.** Does the demo use Satyr's key or a new Seams Wallet key?
+   (Decision 6)
+2. **Authoring model.** Which model and provider? (Decision 5)
 3. **Escalate.** In Slices 1–3, is a passkey step-up the right effect of
    `escalate`? (Decision 7)
-4. **Slice 1 kinds.** NEAR transfers only, which shows the mechanism, or the
-   market-order kind too, which shows the Sotheby's example?
+4. **What the demo lets Jev judge.**
+   - _Spoken purpose_: the user says "send five near to alice for lunch". The
+     `spoken-intent` match checks the transfer part and passes the purpose to
+     Jev. A rule such as "voice payments only for food and drink, otherwise
+     ask for a passkey" judges it. The Jev call waits for Whisper (about
+     9.3 s of the 10 s).
+   - _Market order_: the Sotheby's example. It needs a market-order kind in
+     `spoken-intent`, a market contract on testnet and a market list
+     (Slice 1b).
 5. **Market ids.** What is the source of truth for "Sotheby's prediction
    markets": the app's API, a contract view, or a list that the operator keeps
    in the Console?
@@ -813,11 +812,9 @@ The gates of the first draft map to these slices:
    are limits in asset units only?
 7. **Jev failure.** Does a Jev failure apply `require_human_approval` to
    every rule, including `deny` rules? (Decision 2)
-8. **Private rules.** Do private owner rules wait for ZDR or a TEE
-   classifier? (Decision 3)
-9. **Releases.** Speak-to-Sign for each transfer is testnet only (the
+8. **Releases.** Speak-to-Sign for each transfer is testnet only (the
    2026-11-04 decision). Is Slice 3 (VoiceID sessions and passkeys) the
    first release target?
-10. **Vault step-up.** Does the vault get a method that accepts a step-up
-    verdict plus an owner signature, or does the step-up always leave the
-    vault?
+9. **Vault step-up.** Does the vault get a method that accepts a step-up
+   verdict plus an owner signature, or does the step-up always leave the
+   vault?
