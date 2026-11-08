@@ -40,6 +40,12 @@ identity is stale after an account or chain event, the controller returns
 transaction hash is evidence of submission. If the provider fails after dispatch, the
 controller returns `submission_unknown` and does not resend automatically.
 
+If the wallet stays on another network after `switchChain`, the controller returns
+`unsupported_chain` and keeps the connection on the network that the wallet reports.
+The new snapshot has `network.kind: 'unsupported'`, as after a connect or a chain
+event on a network that you did not configure. Show the switch again; do not sign
+until `network.kind` is `configured`.
+
 Disconnect clears this application's provider listeners and local state. It does not
 revoke the site's permission in MetaMask, Rabby, or Phantom. The user manages that
 permission in the external wallet.
