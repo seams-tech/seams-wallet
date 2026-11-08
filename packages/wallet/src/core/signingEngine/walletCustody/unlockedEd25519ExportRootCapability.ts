@@ -417,6 +417,7 @@ export function readUnlockedEd25519ExportRootLinkingCapabilityV1(
  * handle that no longer exists.
  */
 export function dropUnlockedWalletEd25519ExportRootCapabilityReferenceV1(): void {
+  for (const pending of pendingEstablishes) pending.cancelled = true;
   clearCurrentCapabilityReference();
 }
 

@@ -3,8 +3,13 @@ import { normalizeOptionalTrimmedString } from '@shared/utils/normalize';
 
 type WarmSessionMaterialEntry = {
   readonly prfFirstHandle: string;
-  readonly expiresAtMs: number;
+  expiresAtMs: number;
   remainingUses: number;
+};
+
+export type WarmSessionRevision = {
+  readonly epoch: number;
+  readonly revision: number;
 };
 
 type PasskeyPrfFirstHandleEntry = {
@@ -44,6 +49,15 @@ function exhausted(): ErrResult {
 export class WarmSessionPrfHandles {
   readonly #entries = new Map<string, WarmSessionMaterialEntry>();
   readonly #secrets = new Map<string, PasskeyPrfFirstHandleEntry>();
+  readonly #revisions = new Map<string, number>();
+  #epoch = 0;
+
+  revision(thresholdSessionId: string): WarmSessionRevision {
+    return {
+      epoch: this.#epoch,
+      revision: this.#revisions.get(thresholdSessionId) ?? 0,
+    };
+  }
 
   store(args: {
     thresholdSessionId: string;
@@ -66,6 +80,33 @@ export class WarmSessionPrfHandles {
     )}`;
     this.#secrets.set(prfFirstHandle, { prfFirstB64u, expiresAtMs });
     this.#entries.set(thresholdSessionId, { prfFirstHandle, expiresAtMs, remainingUses });
+  }
+
+  /**
+   * Stores rehydrated material only if the session was not cleared or replaced
+   * since `expected` was taken.
+   */
+  rehydrate(args: {
+    thresholdSessionId: string;
+    expected: WarmSessionRevision;
+    prfFirstB64u: string;
+    expiresAtMs: number;
+    remainingUses: number;
+  }): OkResult | ErrResult {
+    const thresholdSessionId = normalizeOptionalTrimmedString(args.thresholdSessionId);
+    if (
+      !thresholdSessionId ||
+      this.#epoch !== args.expected.epoch ||
+      (this.#revisions.get(thresholdSessionId) ?? 0) !== args.expected.revision
+    ) {
+      return notFound('Warm-session material changed while rehydration was in flight');
+    }
+    this.store(args);
+    return {
+      ok: true,
+      remainingUses: Math.floor(Number(args.remainingUses) || 0),
+      expiresAtMs: Math.floor(Number(args.expiresAtMs) || 0),
+    };
   }
 
   read(thresholdSessionId: string): WarmSessionMaterialReadResult {
@@ -140,11 +181,8 @@ export class WarmSessionPrfHandles {
       prfFirstB64u: secret.prfFirstB64u,
       expiresAtMs: policy.expiresAtMs,
     });
-    this.#entries.set(thresholdSessionId, {
-      prfFirstHandle: entry.prfFirstHandle,
-      remainingUses: policy.remainingUses,
-      expiresAtMs: policy.expiresAtMs,
-    });
+    entry.remainingUses = policy.remainingUses;
+    entry.expiresAtMs = policy.expiresAtMs;
     return policy;
   }
 
@@ -154,19 +192,21 @@ export class WarmSessionPrfHandles {
   }
 
   delete(thresholdSessionId: string): void {
+    this.#revisions.set(thresholdSessionId, (this.#revisions.get(thresholdSessionId) ?? 0) + 1);
     const entry = this.#entries.get(thresholdSessionId);
     if (entry) this.#secrets.delete(entry.prfFirstHandle);
     this.#entries.delete(thresholdSessionId);
   }
 
   clear(): void {
+    this.#epoch += 1;
+    this.#revisions.clear();
     this.#entries.clear();
     this.#secrets.clear();
   }
 
-  /** A new store always makes a new PRF handle, so the handle names the entry. */
   #isCurrent(thresholdSessionId: string, entry: WarmSessionMaterialEntry): boolean {
-    return this.#entries.get(thresholdSessionId)?.prfFirstHandle === entry.prfFirstHandle;
+    return this.#entries.get(thresholdSessionId) === entry;
   }
 
   #check(entry: WarmSessionMaterialEntry, uses: number): OkResult | ErrResult {

@@ -3,6 +3,7 @@ import type { PasskeyCustodyEnvelopeRecord } from '../../packages/shared-ts/src/
 import type { WalletCustodyCeremonyTransportPort } from '../../packages/wallet/src/core/signingEngine/walletCustody/ceremonyStepRunner';
 import {
   destroyUnlockedWalletEd25519ExportRootCapabilitiesV1,
+  dropUnlockedWalletEd25519ExportRootCapabilityReferenceV1,
   establishUnlockedWalletEd25519ExportRootCapabilityV1,
   readUnlockedEd25519ExportRootLinkingCapabilityV1,
 } from '../../packages/wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
@@ -136,4 +137,17 @@ test('a new capability for the same wallet leaves the replacement to the worker'
     'capability-2',
   );
   expect(worker.destroyedHandles()).toEqual([]);
+});
+
+test('dropping the local reference on worker reset cancels an establish in flight', async () => {
+  const worker = new FakeCeremonyWorker();
+  worker.holdEstablish();
+  const established = establish(worker, 'wallet-a');
+
+  dropUnlockedWalletEd25519ExportRootCapabilityReferenceV1();
+  worker.releaseEstablish();
+
+  expect(await established).toBeUndefined();
+  expect(readUnlockedEd25519ExportRootLinkingCapabilityV1('wallet-a')).toBeUndefined();
+  expect(worker.destroyedHandles()).toEqual(['capability-1']);
 });

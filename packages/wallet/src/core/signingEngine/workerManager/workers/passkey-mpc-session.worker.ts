@@ -1078,6 +1078,7 @@ async function runSigningSessionRehydrate(args: {
   });
   const inFlight = signingSessionSealRemoveInFlight.get(singleFlightKey);
   if (inFlight) return await inFlight;
+  const expected = warmSessionPrfHandles.revision(thresholdSessionId);
 
   const task = (async (): Promise<OkResult | ErrResult> => {
     try {
@@ -1117,13 +1118,13 @@ async function runSigningSessionRehydrate(args: {
         });
         if (!policy.ok) return policy;
 
-        warmSessionPrfHandles.store({
+        return warmSessionPrfHandles.rehydrate({
           thresholdSessionId,
+          expected,
           prfFirstB64u,
           remainingUses: policy.remainingUses,
           expiresAtMs: policy.expiresAtMs,
         });
-        return policy;
       } finally {
         await runtime
           .destroyClientKeyHandle({ keyHandle: clientKeyHandle.keyHandle })
