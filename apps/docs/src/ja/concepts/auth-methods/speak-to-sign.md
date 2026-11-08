@@ -6,7 +6,7 @@ description: 証明付きの検証者が所有者の声と言葉を確認した�
 # 実験的機能: Speak-to-Sign {#experimental-speak-to-sign}
 
 ::: warning 実験的機能
-Speak-to-Signは実験的機能です。**NEARテストネットだけ**で動作します。リリース0.54.0が最初のリリースです。`enroll`は、まだ公開済みのリリースに含まれていません。
+Speak-to-Signは実験的機能です。**NEARテストネットだけ**で動作します。リリース0.54.0が最初のリリースで、0.56.0で`enroll`を追加しました。
 パッケージ、ルート、コントラクトは予告なく変わることがあります。実際の資金では使わないでください。
 :::
 
@@ -33,7 +33,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 3つのパッケージを同じバージョンでインストールします。
 
 ```sh
-pnpm add @seams/wallet@0.55.0 @seams/voiceid@0.55.0 @seams/speak-to-sign@0.55.0
+pnpm add @seams/wallet@0.56.0 @seams/voiceid@0.56.0 @seams/speak-to-sign@0.56.0
 ```
 
 VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加します。

@@ -7,8 +7,8 @@ description: Experimental spoken NEAR payments from a vault contract that pays o
 
 ::: warning Experimental
 Speak-to-Sign is experimental. It runs on **NEAR testnet only**. Release 0.54.0
-is its first release. `enroll` is not in a published release yet. Its packages,
-routes and contract can change without notice. Do not use it with real funds.
+is its first release, and 0.56.0 adds `enroll`. Its packages, routes and
+contract can change without notice. Do not use it with real funds.
 :::
 
 Speak-to-Sign lets a wallet owner pay by voice. The owner says a sentence such
@@ -45,7 +45,7 @@ accepted it. These times come from a reference client, not from a Wallet run.
 Install the three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.55.0 @seams/voiceid@0.55.0 @seams/speak-to-sign@0.55.0
+pnpm add @seams/wallet@0.56.0 @seams/voiceid@0.56.0 @seams/speak-to-sign@0.56.0
 ```
 
 Add the descriptor to `transactionFeatures` beside the VoiceID auth method:
