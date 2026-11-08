@@ -405,9 +405,9 @@ export class OverlayController {
       if (requestResizeOrigin) releaseDialogIframe(dialog);
     }
     const reviewing = mode.kind === 'compact_transaction_review';
+    // A review handed to another surface of the same request keeps one opaque shell.
     if (reviewing) dialog.setAttribute('data-transaction-review', '');
-    else if (!this.mode || !('identity' in this.mode) || identityChanged)
-      dialog.removeAttribute('data-transaction-review');
+    else if (identityChanged) dialog.removeAttribute('data-transaction-review');
     if (handoffFromReview) this.startReviewHandoff('wallet');
     if (returnToReview) this.startReviewHandoff('review');
     const handingOff = this.reviewHandoff.kind === 'animating';
