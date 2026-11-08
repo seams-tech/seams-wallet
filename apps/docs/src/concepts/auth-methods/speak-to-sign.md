@@ -7,8 +7,8 @@ description: Experimental spoken NEAR payments from a vault contract that pays o
 
 ::: warning Experimental
 Speak-to-Sign is experimental. It runs on **NEAR testnet only**. Release 0.54.0
-is its first release. `enroll` is not in a published release yet. Its packages,
-routes and contract can change without notice. Do not use it with real funds.
+is its first release, and 0.56.0 adds `enroll`. Its packages, routes and
+contract can change without notice. Do not use it with real funds.
 :::
 
 Speak-to-Sign lets a wallet owner pay by voice. The owner says a sentence such
@@ -45,7 +45,7 @@ accepted it. These times come from a reference client, not from a Wallet run.
 Install the three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.55.0 @seams/voiceid@0.55.0 @seams/speak-to-sign@0.55.0
+pnpm add @seams/wallet@0.56.0 @seams/voiceid@0.56.0 @seams/speak-to-sign@0.56.0
 ```
 
 Add the descriptor to `transactionFeatures` beside the VoiceID auth method:
@@ -102,6 +102,43 @@ recordings. The verifier enrolls only audio that the vault authorized, for 10
 minutes. A new enrollment replaces the template. The result `kind` is
 `enrolled`, `refused`, `cancelled` or `unavailable`.
 
+Create the vault and a contact with two owner calls on the vault contract,
+for example with `wallet.near` from `useSeams()`. Each call opens the wallet
+confirmation:
+
+```ts [Partial example]
+import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
+
+const VAULT = 'seams-wallet.testnet';
+const GAS = '30000000000000';
+
+async function setUpVault(near: BoundNearSigner, contact: string): Promise<void> {
+  // 0.15 NEAR: the vault keeps 0.1 NEAR for storage.
+  await near.signAndSendTransaction({
+    receiverId: VAULT,
+    actions: [
+      functionCall({
+        method: 'create_vault',
+        args: {},
+        gas: GAS,
+        deposit: '150000000000000000000000',
+      }),
+    ],
+  });
+  await near.signAndSendTransaction({
+    receiverId: VAULT,
+    actions: [
+      functionCall({
+        method: 'add_contact',
+        args: { account_id: contact },
+        gas: GAS,
+        deposit: '0',
+      }),
+    ],
+  });
+}
+```
+
 On testnet the owner account needs about 0.3 NEAR: `create_vault` takes 0.15
 NEAR, and NEAR charges prepaid gas up front, about 0.03 NEAR for each 30 Tgas
 call and 0.051 NEAR for each spoken payment.
@@ -145,14 +182,16 @@ back unchanged.
 The testnet vault is `seams-wallet.testnet`. It pinned the verifier key
 `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` at init.
 
-| Method                   | Use                                                                         |
-| ------------------------ | --------------------------------------------------------------------------- |
-| `transfer_with_verdict`  | Pays an active contact on a verdict that the pinned key signed.             |
-| `authorize_enrollment`   | The owner allows one enrollment of exactly these recordings for 10 minutes. |
-| `get_pending_enrollment` | The owner's live enrollment authorization, which the verifier reads.        |
-| `get_vault`              | Balance, limits and the next nonce of an owner.                             |
-| `get_contacts`           | The owner's contacts and whether each one is active.                        |
-| `get_verifier`           | The pinned verifier key.                                                    |
+| Method                   | Use                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `create_vault`           | Creates the owner's vault with the attached deposit (0.1 NEAR stays for storage). |
+| `add_contact`            | Adds a contact (`account_id`) that a spoken payment can pay.                      |
+| `transfer_with_verdict`  | Pays an active contact on a verdict that the pinned key signed.                   |
+| `authorize_enrollment`   | The owner allows one enrollment of exactly these recordings for 10 minutes.       |
+| `get_pending_enrollment` | The owner's live enrollment authorization, which the verifier reads.              |
+| `get_vault`              | Balance, limits and the next nonce of an owner.                                   |
+| `get_contacts`           | The owner's contacts and whether each one is active.                              |
+| `get_verifier`           | The pinned verifier key.                                                          |
 
 A new contact becomes active after the contact delay that the vault set at
 init. The owner can withdraw without voice after a 10-minute wait.

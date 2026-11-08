@@ -6,7 +6,7 @@ description: 証明付きの検証者が所有者の声と言葉を確認した�
 # 実験的機能: Speak-to-Sign {#experimental-speak-to-sign}
 
 ::: warning 実験的機能
-Speak-to-Signは実験的機能です。**NEARテストネットだけ**で動作します。リリース0.54.0が最初のリリースです。`enroll`は、まだ公開済みのリリースに含まれていません。
+Speak-to-Signは実験的機能です。**NEARテストネットだけ**で動作します。リリース0.54.0が最初のリリースで、0.56.0で`enroll`を追加しました。
 パッケージ、ルート、コントラクトは予告なく変わることがあります。実際の資金では使わないでください。
 :::
 
@@ -33,7 +33,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 3つのパッケージを同じバージョンでインストールします。
 
 ```sh
-pnpm add @seams/wallet@0.55.0 @seams/voiceid@0.55.0 @seams/speak-to-sign@0.55.0
+pnpm add @seams/wallet@0.56.0 @seams/voiceid@0.56.0 @seams/speak-to-sign@0.56.0
 ```
 
 VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加します。
@@ -85,6 +85,42 @@ if (enrollment.kind === 'enrolled') {
 `authorize_enrollment`の呼び出しを1回承認します。検証者は、ボールトが10分間許可した音声だけを登録します。
 新しい登録は以前のテンプレートを置き換えます。結果の`kind`は、`enrolled`、`refused`、`cancelled`、`unavailable`のいずれかです。
 
+ボールトと連絡先は、ボールトのコントラクトに対する所有者の2回の呼び出しで作成します。
+たとえば`useSeams()`の`wallet.near`を使います。各呼び出しでウォレットの確認画面が開きます。
+
+```ts [部分的な実装例]
+import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
+
+const VAULT = 'seams-wallet.testnet';
+const GAS = '30000000000000';
+
+async function setUpVault(near: BoundNearSigner, contact: string): Promise<void> {
+  // 0.15 NEAR: ボールトは保管用に0.1 NEARを保持します。
+  await near.signAndSendTransaction({
+    receiverId: VAULT,
+    actions: [
+      functionCall({
+        method: 'create_vault',
+        args: {},
+        gas: GAS,
+        deposit: '150000000000000000000000',
+      }),
+    ],
+  });
+  await near.signAndSendTransaction({
+    receiverId: VAULT,
+    actions: [
+      functionCall({
+        method: 'add_contact',
+        args: { account_id: contact },
+        gas: GAS,
+        deposit: '0',
+      }),
+    ],
+  });
+}
+```
+
 テストネットでは、所有者のアカウントに約0.3 NEARが必要です。`create_vault`は0.15 NEARを使い、
 NEARは前払いのガスを先に請求します。30 Tgasの呼び出しごとに約0.03 NEAR、音声による支払いごとに0.051 NEARです。
 
@@ -122,14 +158,16 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 テストネットのボールトは`seams-wallet.testnet`です。初期化時に検証者の鍵
 `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`を固定しました。
 
-| メソッド                 | 用途                                                              |
-| ------------------------ | ----------------------------------------------------------------- |
-| `transfer_with_verdict`  | 固定された鍵が署名した判定に基づき、有効な連絡先に支払います。    |
-| `authorize_enrollment`   | 所有者が、これらの録音だけによる登録を10分間に1回だけ許可します。 |
-| `get_pending_enrollment` | 検証者が読む、所有者の有効な登録の許可です。                      |
-| `get_vault`              | 所有者の残高、上限、次のノンスです。                              |
-| `get_contacts`           | 所有者の連絡先と、それぞれが有効かどうかです。                    |
-| `get_verifier`           | 固定された検証者の鍵です。                                        |
+| メソッド                 | 用途                                                                     |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `create_vault`           | 添付した入金で所有者のボールトを作成します(0.1 NEARは保管用に残ります)。 |
+| `add_contact`            | 音声による支払いの宛先にできる連絡先(`account_id`)を追加します。         |
+| `transfer_with_verdict`  | 固定された鍵が署名した判定に基づき、有効な連絡先に支払います。           |
+| `authorize_enrollment`   | 所有者が、これらの録音だけによる登録を10分間に1回だけ許可します。        |
+| `get_pending_enrollment` | 検証者が読む、所有者の有効な登録の許可です。                             |
+| `get_vault`              | 所有者の残高、上限、次のノンスです。                                     |
+| `get_contacts`           | 所有者の連絡先と、それぞれが有効かどうかです。                           |
+| `get_verifier`           | 固定された検証者の鍵です。                                               |
 
 新しい連絡先は、ボールトが初期化時に設定した待ち時間の後に有効になります。所有者は、10分待てば声なしで引き出せます。
 

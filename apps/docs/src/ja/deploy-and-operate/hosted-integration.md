@@ -55,17 +55,17 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 公開アセットの`@seams/wallet/web/wallet-iframe-client-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
 
-## リリース 0.55.0 {#release-0-49-0}
+## リリース 0.56.0 {#release-0-49-0}
 
-`@seams/wallet`と`@seams/wallet-server`を**0.55.0**に固定してください。
+`@seams/wallet`と`@seams/wallet-server`を**0.56.0**に固定してください。
 `@seams/wallet-cli`も**0.29.0**を使用します。署名済みネイティブアセットは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
-VoiceIDをホストする場合は、`@seams/voiceid` **0.55.0**もインストールします。
+VoiceIDをホストする場合は、`@seams/voiceid` **0.56.0**もインストールします。
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`で静的デプロイ用のディレクトリーを作成してください。
-VoiceIDのホストAPIはバージョン9のままです。Walletは別のバージョンのVoiceIDホストプラグインを拒否するため、`@seams/voiceid` 0.55.0と`@seams/wallet` 0.55.0を一緒にインストールしてください。
-Speak-to-Sign(実験的機能、NEARテストネット専用)をホストする場合は、`@seams/speak-to-sign` **0.55.0**もインストールし、
+VoiceIDのホストAPIはバージョン9のままです。Walletは別のバージョンのVoiceIDホストプラグインを拒否するため、`@seams/voiceid` 0.56.0と`@seams/wallet` 0.56.0を一緒にインストールしてください。
+Speak-to-Sign(実験的機能、NEARテストネット専用)をホストする場合は、`@seams/speak-to-sign` **0.56.0**もインストールし、
 `npx --no-install seams-speak-to-sign-host ./wallet-with-speak-to-sign`で構成してください。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host)を参照してください。
 アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
-対応する導入方法は、[リリース 0.55.0](/ja/releases)を参照してください。
+対応する導入方法は、[リリース 0.56.0](/ja/releases)を参照してください。
 
 APACのウォレットオブジェクトは、`apac-se`で東南アジアへの配置を要求します。
 ホスト環境を受け入れる前に、実際のオブジェクトとデータベースの配置を確認してください。
