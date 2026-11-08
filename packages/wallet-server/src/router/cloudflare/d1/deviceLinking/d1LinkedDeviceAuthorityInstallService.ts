@@ -137,7 +137,10 @@ import {
   D1WalletAuthorityStore,
   type D1WalletAuthorityStoreScope,
 } from '../wallet/d1WalletAuthorityStore';
-import type { D1LinkedDeviceSessionStoreV1 } from './d1LinkedDeviceSessionStore';
+import {
+  SESSION_CAS_GUARD_SQL,
+  type D1LinkedDeviceSessionStoreV1,
+} from './d1LinkedDeviceSessionStore';
 import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import type { WalletEd25519SignerRecord } from '../../../../core/WalletStore';
 import type {
@@ -1247,9 +1250,12 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     readonly session: LinkedDeviceSessionRecordV1 | null;
     readonly nowMs: number;
   }): Promise<void> {
+    const allocationDelete = this.buildAuthorityAllocationDeleteStatement(
+      input.prepared.acknowledgement.linkSessionId,
+    );
     const beforeDeleteStatements = [
       this.buildCredentialDeliveryAcknowledgementStatement(input.prepared),
-      this.buildAuthorityAllocationDeleteStatement(input.prepared.acknowledgement.linkSessionId),
+      allocationDelete,
       this.buildCredentialDeliveryCleanupStateStatement({
         linkSessionId: input.prepared.acknowledgement.linkSessionId,
         from: 'pending',
@@ -1286,7 +1292,17 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
           throw new Error(`active authority cleanup failed: ${deleted.outcome}${detail}`);
         }
       } else {
-        await this.options.database.batch([...beforeDeleteStatements, ...afterDeleteStatements]);
+        // A guard follows each update, so an update that matches no row (a
+        // concurrent acknowledgement already committed) rolls the batch back
+        // and the receipt check below runs. The allocation delete stays
+        // unguarded: wallet authorization cleanup may have removed it.
+        await this.options.database.batch(
+          [...beforeDeleteStatements, ...afterDeleteStatements].flatMap((statement) =>
+            statement === allocationDelete
+              ? [statement]
+              : [statement, this.options.database.prepare(SESSION_CAS_GUARD_SQL)],
+          ),
+        );
       }
     } catch (error: unknown) {
       const replay = await this.readActivationCleanupReceiptV1({
