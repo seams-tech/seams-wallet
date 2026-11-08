@@ -6,7 +6,6 @@ import type {
 } from '@/core/types/secure-confirm-worker';
 import { parseClearVolatileWarmMaterialCommand } from '@/core/signingEngine/session/warmCapabilities/volatileWarmMaterialCommands';
 import { bytesToHex } from '../../chains/evm/bytes';
-import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import {
   decodeSigningSessionSecret32,
   SIGNING_SESSION_SEAL_GROUP_ID,
@@ -23,18 +22,12 @@ import {
 import { getShamir3PassRuntime, warmupShamir3PassRuntime } from './shamir3pass/runtime';
 
 import { ClientSealPreparations } from './shamir3pass/clientSealPreparation';
+import {
+  WarmSessionPrfHandles,
+  type ErrResult,
+  type OkResult,
+} from './passkeyMpcSession/warmSessionPrfHandles';
 const clientSealPreparations = new ClientSealPreparations(getShamir3PassRuntime);
-
-type WarmSessionMaterialEntry = {
-  prfFirstHandle: string;
-  expiresAtMs: number;
-  remainingUses: number;
-};
-
-type PasskeyPrfFirstHandleEntry = {
-  prfFirstB64u: string;
-  expiresAtMs: number;
-};
 
 type PasskeyServerSealedSecretCacheEntry = {
   sealedSecretB64u: string;
@@ -49,17 +42,11 @@ type PasskeyServerSealedSecretCacheScope = {
   quotaId: string;
 };
 
-type OkResult = { ok: true; remainingUses: number; expiresAtMs: number };
 type OkSealResult = OkResult & {
   sealedSecretB64u: string;
   keyVersion?: string;
   diagnostics?: WarmSessionSealAndPersistDiagnostics;
 };
-type OkDispenseResult = OkResult & { prfFirstB64u: string };
-type ErrResult = { ok: false; code: string; message: string };
-type WarmSessionMaterialReadResult =
-  | ({ ok: true; entry: WarmSessionMaterialEntry; secret: PasskeyPrfFirstHandleEntry } & OkResult)
-  | ErrResult;
 
 const PASSKEY_SERVER_SEALED_SECRET_CACHE_MAX_ENTRIES = 32;
 
@@ -123,8 +110,7 @@ type SigningSessionSealRouteResult =
     }
   | ErrResult;
 
-const warmSessionPrfHandleCache = new Map<string, WarmSessionMaterialEntry>();
-const passkeyPrfFirstHandleStore = new Map<string, PasskeyPrfFirstHandleEntry>();
+const warmSessionPrfHandles = new WarmSessionPrfHandles();
 const passkeyServerSealedSecretCache = new Map<string, PasskeyServerSealedSecretCacheEntry>();
 const signingSessionSealApplyInFlight = new Map<string, Promise<OkSealResult | ErrResult>>();
 const signingSessionSealRemoveInFlight = new Map<string, Promise<OkResult | ErrResult>>();
@@ -575,25 +561,6 @@ function recordWarmSessionSealAndPersistDiagnosticDuration(args: {
   args.diagnostics[args.bucket] += roundWorkerDurationMs(args.startedAt);
 }
 
-function toSessionId(prefix: string): string {
-  const value = String(prefix || '').trim() || 'session';
-  return `${value}:${secureRandomBase64Url(32, 'passkey confirm worker session IDs')}`;
-}
-
-function createPasskeyPrfFirstHandle(args: { prfFirstB64u: string; expiresAtMs: number }): string {
-  const prfFirstB64u = normalizeOptionalTrimmedString(args.prfFirstB64u);
-  const expiresAtMs = Math.floor(Number(args.expiresAtMs) || 0);
-  if (!prfFirstB64u || expiresAtMs <= nowMs()) {
-    throw new Error('Invalid passkey PRF material handle input');
-  }
-  const prfFirstHandle = toSessionId('passkey-prf-first');
-  passkeyPrfFirstHandleStore.set(prfFirstHandle, {
-    prfFirstB64u,
-    expiresAtMs,
-  });
-  return prfFirstHandle;
-}
-
 async function sha256HexUtf8(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return bytesToHex(new Uint8Array(digest));
@@ -662,60 +629,10 @@ function writePasskeyServerSealedSecretCache(args: {
   prunePasskeyServerSealedSecretCache();
 }
 
-function deleteWarmSessionPrfHandle(thresholdSessionId: string): void {
-  const entry = warmSessionPrfHandleCache.get(thresholdSessionId);
-  if (entry) passkeyPrfFirstHandleStore.delete(entry.prfFirstHandle);
-  warmSessionPrfHandleCache.delete(thresholdSessionId);
-}
-
 function clearWarmSessionPrfHandles(): void {
   clientSealPreparations.clear();
-  warmSessionPrfHandleCache.clear();
-  passkeyPrfFirstHandleStore.clear();
+  warmSessionPrfHandles.clear();
   passkeyServerSealedSecretCache.clear();
-}
-
-function storeWarmSessionPrfHandle(args: {
-  thresholdSessionId: string;
-  prfFirstB64u: string;
-  expiresAtMs: number;
-  remainingUses: number;
-}): WarmSessionMaterialEntry {
-  const thresholdSessionId = normalizeOptionalTrimmedString(args.thresholdSessionId);
-  const remainingUses = Math.floor(Number(args.remainingUses) || 0);
-  const expiresAtMs = Math.floor(Number(args.expiresAtMs) || 0);
-  if (!thresholdSessionId || remainingUses <= 0 || expiresAtMs <= nowMs()) {
-    throw new Error('Invalid warm-session PRF handle input');
-  }
-  deleteWarmSessionPrfHandle(thresholdSessionId);
-  const prfFirstHandle = createPasskeyPrfFirstHandle({
-    prfFirstB64u: args.prfFirstB64u,
-    expiresAtMs,
-  });
-  const entry = { prfFirstHandle, expiresAtMs, remainingUses };
-  warmSessionPrfHandleCache.set(thresholdSessionId, entry);
-  return entry;
-}
-
-function updateWarmSessionPrfHandlePolicy(
-  thresholdSessionId: string,
-  entry: WarmSessionMaterialEntry,
-  policy: OkResult,
-): WarmSessionMaterialEntry {
-  const nextEntry = {
-    prfFirstHandle: entry.prfFirstHandle,
-    remainingUses: policy.remainingUses,
-    expiresAtMs: policy.expiresAtMs,
-  };
-  const secret = passkeyPrfFirstHandleStore.get(entry.prfFirstHandle);
-  if (secret) {
-    passkeyPrfFirstHandleStore.set(entry.prfFirstHandle, {
-      prfFirstB64u: secret.prfFirstB64u,
-      expiresAtMs: policy.expiresAtMs,
-    });
-  }
-  warmSessionPrfHandleCache.set(thresholdSessionId, nextEntry);
-  return nextEntry;
 }
 
 function parseSigningSessionSealTransport(value: unknown): SigningSessionSealTransport | null {
@@ -979,120 +896,6 @@ function resolvePolicyFromServerAndLocal(args: {
   return { ok: true, remainingUses, expiresAtMs };
 }
 
-function readWarmSessionMaterialEntry(thresholdSessionId: string): WarmSessionMaterialReadResult {
-  if (!thresholdSessionId)
-    return { ok: false, code: 'invalid_args', message: 'Missing threshold sessionId' };
-  const entry = warmSessionPrfHandleCache.get(thresholdSessionId);
-  if (!entry)
-    return {
-      ok: false,
-      code: 'not_found',
-      message: 'Warm-session material is not available for threshold session',
-    };
-  if (nowMs() >= entry.expiresAtMs) {
-    deleteWarmSessionPrfHandle(thresholdSessionId);
-    return {
-      ok: false,
-      code: 'expired',
-      message: 'Warm-session material expired for threshold session',
-    };
-  }
-  if (entry.remainingUses <= 0) {
-    deleteWarmSessionPrfHandle(thresholdSessionId);
-    return {
-      ok: false,
-      code: 'exhausted',
-      message: 'Warm-session material exhausted for threshold session',
-    };
-  }
-  const secret = passkeyPrfFirstHandleStore.get(entry.prfFirstHandle);
-  if (!secret || nowMs() >= secret.expiresAtMs) {
-    deleteWarmSessionPrfHandle(thresholdSessionId);
-    return {
-      ok: false,
-      code: 'not_found',
-      message: 'Warm-session material handle is not available for threshold session',
-    };
-  }
-  return {
-    ok: true,
-    entry,
-    secret,
-    remainingUses: entry.remainingUses,
-    expiresAtMs: entry.expiresAtMs,
-  };
-}
-
-function readWarmSessionClaimEntry(thresholdSessionId: string): OkResult | ErrResult {
-  const activeEntry = readWarmSessionMaterialEntry(thresholdSessionId);
-  if (!activeEntry.ok) return activeEntry;
-  return {
-    ok: true,
-    remainingUses: activeEntry.remainingUses,
-    expiresAtMs: activeEntry.expiresAtMs,
-  };
-}
-
-function claimWarmSessionMaterialEntry(
-  thresholdSessionId: string,
-  uses: number,
-  consume: boolean,
-): OkDispenseResult | ErrResult {
-  const activeEntry = readWarmSessionMaterialEntry(thresholdSessionId);
-  if (!activeEntry.ok) return activeEntry;
-  const entry = activeEntry.entry;
-  const usesNeeded = Math.max(1, Math.floor(Number(uses) || 1));
-  if (entry.remainingUses < usesNeeded) {
-    return {
-      ok: false,
-      code: 'exhausted',
-      message: 'Warm-session material exhausted for threshold session',
-    };
-  }
-  if (consume) {
-    entry.remainingUses -= usesNeeded;
-    if (entry.remainingUses <= 0) {
-      deleteWarmSessionPrfHandle(thresholdSessionId);
-    } else {
-      warmSessionPrfHandleCache.set(thresholdSessionId, entry);
-    }
-  }
-  return {
-    ok: true,
-    prfFirstB64u: activeEntry.secret.prfFirstB64u,
-    remainingUses: entry.remainingUses,
-    expiresAtMs: entry.expiresAtMs,
-  };
-}
-
-function consumeWarmSessionMaterialEntry(
-  thresholdSessionId: string,
-  uses: number,
-): OkResult | ErrResult {
-  const activeEntry = readWarmSessionMaterialEntry(thresholdSessionId);
-  if (!activeEntry.ok) return activeEntry;
-  const entry = activeEntry.entry;
-  const usesNeeded = Math.max(1, Math.floor(Number(uses) || 1));
-  if (entry.remainingUses < usesNeeded) {
-    return {
-      ok: false,
-      code: 'exhausted',
-      message: 'Warm-session material exhausted for threshold session',
-    };
-  }
-  entry.remainingUses -= usesNeeded;
-  if (entry.remainingUses <= 0) {
-    deleteWarmSessionPrfHandle(thresholdSessionId);
-  } else {
-    warmSessionPrfHandleCache.set(thresholdSessionId, entry);
-  }
-  return {
-    ok: true,
-    remainingUses: entry.remainingUses,
-    expiresAtMs: entry.expiresAtMs,
-  };
-}
-
 type SigningSessionSealExecution = {
   readonly thresholdSessionId: string;
   readonly transport: SigningSessionSealTransport;
@@ -1112,7 +915,7 @@ async function runSigningSessionSealAndPersist(
   if (!thresholdSessionId) {
     return { ok: false, code: 'invalid_args', message: 'Missing threshold sessionId' };
   }
-  const activeEntry = readWarmSessionMaterialEntry(thresholdSessionId);
+  const activeEntry = warmSessionPrfHandles.read(thresholdSessionId);
   if (!activeEntry.ok) return activeEntry;
   const entry = activeEntry.entry;
   const singleFlightKey = makeSigningSessionSealSingleFlightKey({
@@ -1167,10 +970,11 @@ async function runSigningSessionSealAndPersist(
           serverExpiresAtMs: applied.expiresAtMs,
         });
         if (!policy.ok) {
-          deleteWarmSessionPrfHandle(thresholdSessionId);
+          warmSessionPrfHandles.deleteEntry(thresholdSessionId, entry);
           return policy;
         }
-        updateWarmSessionPrfHandlePolicy(thresholdSessionId, entry, policy);
+        const current = warmSessionPrfHandles.applyPolicy(thresholdSessionId, entry, policy);
+        if (!current.ok) return current;
         recordWarmSessionSealAndPersistDiagnosticDuration({
           diagnostics,
           bucket: 'policyUpdateMs',
@@ -1313,7 +1117,7 @@ async function runSigningSessionRehydrate(args: {
         });
         if (!policy.ok) return policy;
 
-        storeWarmSessionPrfHandle({
+        warmSessionPrfHandles.store({
           thresholdSessionId,
           prfFirstB64u,
           remainingUses: policy.remainingUses,
@@ -1480,7 +1284,12 @@ self.onmessage = (event: MessageEvent) => {
           });
           return;
         }
-        storeWarmSessionPrfHandle({ thresholdSessionId, prfFirstB64u, expiresAtMs, remainingUses });
+        warmSessionPrfHandles.store({
+          thresholdSessionId,
+          prfFirstB64u,
+          expiresAtMs,
+          remainingUses,
+        });
         postPasskeyMpcSessionWorkerResponse(incoming.id, {
           success: true,
           data: { ok: true, remainingUses, expiresAtMs } satisfies OkResult,
@@ -1501,7 +1310,7 @@ self.onmessage = (event: MessageEvent) => {
       }
       postPasskeyMpcSessionWorkerResponse(incoming.id, {
         success: true,
-        data: readWarmSessionClaimEntry(incoming.payload.thresholdSessionId),
+        data: warmSessionPrfHandles.readClaim(incoming.payload.thresholdSessionId),
       });
       return;
     case 'status_batch_read':
@@ -1518,7 +1327,7 @@ self.onmessage = (event: MessageEvent) => {
           results: Array.from(new Set(incoming.payload.thresholdSessionIds)).map(
             (thresholdSessionId) => ({
               thresholdSessionId,
-              result: readWarmSessionClaimEntry(thresholdSessionId),
+              result: warmSessionPrfHandles.readClaim(thresholdSessionId),
             }),
           ),
         },
@@ -1534,7 +1343,7 @@ self.onmessage = (event: MessageEvent) => {
       }
       postPasskeyMpcSessionWorkerResponse(incoming.id, {
         success: true,
-        data: claimWarmSessionMaterialEntry(
+        data: warmSessionPrfHandles.claim(
           incoming.payload.thresholdSessionId,
           incoming.payload.uses,
           incoming.payload.consume,
@@ -1551,7 +1360,7 @@ self.onmessage = (event: MessageEvent) => {
       }
       postPasskeyMpcSessionWorkerResponse(incoming.id, {
         success: true,
-        data: consumeWarmSessionMaterialEntry(
+        data: warmSessionPrfHandles.consume(
           incoming.payload.thresholdSessionId,
           incoming.payload.uses,
         ),
@@ -1561,7 +1370,7 @@ self.onmessage = (event: MessageEvent) => {
       const command = parseClearVolatileWarmMaterialCommand(incoming.payload);
       if (command?.scope.kind === 'session') {
         clientSealPreparations.clearSession(String(command.scope.thresholdSessionId));
-        deleteWarmSessionPrfHandle(String(command.scope.thresholdSessionId));
+        warmSessionPrfHandles.delete(String(command.scope.thresholdSessionId));
       }
       postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
       return;
