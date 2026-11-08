@@ -90,6 +90,5 @@ links to their full Git records; unfinished plans retain their working detail.
 ## Implementation history
 
 - [R150–R155: regional wallet homes, custody objects and registration latency](archive/refactor-150-155.md).
-- [R154: region-change notifications (draft)](refactor-154-region-change-notifications.md).
 - [R170: client/host separation](refactor-170.md) and [R171: public API](refactor-171.md).
 - [Optimizations 10 and 11: registration, ECDSA presign and NEAR latency](archive/optimization-10-11.md).

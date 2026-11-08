@@ -3,8 +3,8 @@
 Status: closed. The work ran from September 24 to October 24, 2026, across
 Wallet releases 0.7.3 to 0.13.0. This record keeps the architecture that landed,
 the tests that were run and their results, and the items that stay open.
-[R154](../refactor-154-region-change-notifications.md) is not part of this
-record: it is an unimplemented draft and stays a live plan.
+R154 (region-change notifications) was a draft only and was never built; see
+[Open items](#open-items).
 
 | Refactor     | Subject                                                                                                         | Result                                           |
 | ------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
@@ -463,6 +463,10 @@ Pause to fresh unlock and first signature: 43.8 s out, 43.3 s back (limit 60 s).
   `signing_worker_ecdsa_pool`) and the `lane_*` tables are still in the schema.
   `SEAMS_D1_HOME_DATABASE_ID` is still read by the Gateway, Runtime and local dev
   Workers. The private `DERIVER_*_PEER_SIGNING_KEY*` secrets may still exist.
+- **R154, not built.** The draft proposed a dismissible "Review wallet region"
+  notice. The server would take the observed region from trusted ingress
+  metadata at load, unlock and lock only, and the notice would open the R153
+  setting. It proposed no automatic moves.
 - **Production.** Production moves to the Singapore anchor, OC allocations and
   the drop of the old Console OTP counter table
   (`remove-shared-otp-counters.sql`) are not done.
@@ -470,7 +474,8 @@ Pause to fresh unlock and first signature: 43.8 s out, 43.3 s back (limit 60 s).
 ## Full record
 
 [Original plans, logs and per-phase evidence](https://github.com/seams-tech/seams-wallet/tree/7a3217307509da10a16b91d8472f4649be2b21f7/docs)
-(`refactor-150-*.md` to `refactor-155L.md`, with `refactor-R155J-p99.md`). The
+(`refactor-150-*.md` to `refactor-155L.md`, with `refactor-R155J-p99.md`;
+the R154 draft is at the same commit). The
 R152 per-wallet inventory there lists every route, index and trigger. The R152
 state-ownership revision 14 lists the exact per-prefix selectors that
 relocation uses.
