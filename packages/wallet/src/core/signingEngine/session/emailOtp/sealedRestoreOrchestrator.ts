@@ -76,11 +76,6 @@ export class EmailOtpSealedRestoreOrchestrator {
   private readonly restoreAttempts: SigningSessionRestoreAttemptRegistry =
     createSigningSessionRestoreAttemptRegistry();
 
-  /** The lane the in-flight restore was requested for. Set from the request's
-   * purpose, never guessed, so an identical session id on another target reads
-   * that target's record and no other. */
-  private requestedChainTarget: ThresholdEcdsaChainTarget | null = null;
-
   constructor(private readonly ports: EmailOtpSealedRestoreOrchestratorPorts) {}
 
   clearCache(): void {
@@ -94,10 +89,14 @@ export class EmailOtpSealedRestoreOrchestrator {
     if (this.ports.sessionPersistenceMode !== 'sealed_refresh_v1') return null;
     const requestedSessionId = String(purpose.thresholdSessionId || '').trim();
     if (!requestedSessionId) return null;
-    this.requestedChainTarget = purpose.chainTarget;
 
     const thresholdSessionId = requestedSessionId;
-    const sealedRecord = await this.readEcdsaSealedRecord(requestedSessionId);
+    // Read the record of the requested target only, so an identical session id
+    // on another target reads that target's record and no other.
+    const sealedRecord = await this.readEcdsaSealedRecordForTarget(
+      requestedSessionId,
+      purpose.chainTarget,
+    );
     if (!sealedRecord) return null;
     if (sealedRecord.remainingUses <= 0 || Date.now() >= sealedRecord.expiresAtMs) {
       console.debug('[EmailOtpSession] sealed refresh restore deferred by durable policy hint', {
@@ -253,14 +252,6 @@ export class EmailOtpSealedRestoreOrchestrator {
         },
       },
     );
-  }
-
-  private async readEcdsaSealedRecord(
-    thresholdSessionId: string,
-  ): Promise<EmailOtpEcdsaSealedRecoveryRecord | null> {
-    const chainTarget = this.requestedChainTarget;
-    if (!chainTarget) return null;
-    return await this.readEcdsaSealedRecordForTarget(thresholdSessionId, chainTarget);
   }
 
   private async readEcdsaSealedRecordForTarget(
