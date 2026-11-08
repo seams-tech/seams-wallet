@@ -3,11 +3,11 @@ import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { isPlainObject } from '@shared/utils/validation';
-import { resolveWalletSessionOperationCredentialAdmissionFromContext } from '../../auth/commonRouterUtils';
 import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
 import type {
   RouterApiAuthorizationSessionService,
   RouterApiWalletRegistrationService,
+  RouterApiWalletSessionExactOperationContext as WalletSessionExactOperationContext,
 } from '../../framework/authServicePort';
 import type { NormalizedRouterLogger } from '../../framework/logger';
 import { defineRoute } from '../../framework/routeDefinitions';
@@ -15,6 +15,7 @@ import type {
   RouterApiFetchRouteExtensionInput,
   RouterApiRouteExtension,
 } from '../../framework/routeExtensions';
+import { resolveWalletSessionAuthorizationV2Admission } from '../signingOperations/walletExecutionAdmission';
 
 export const SPEAK_TO_SIGN_VERIFY_PATH = '/speak-to-sign/v1/verify';
 /** 8 s of 16 kHz PCM16 is 256,000 bytes, about 341 KB in base64, with room for the fields. */
@@ -45,9 +46,10 @@ export type SpeakToSignVerifyRateLimit = (input: {
 }) => Promise<{ readonly allowed: boolean }>;
 
 export type SpeakToSignVerifyDependencies = Readonly<{
+  /** The identity read: it admits an exhausted session, because the route spends no quota. */
   authorizationSessions: Pick<
     RouterApiAuthorizationSessionService,
-    'tenantId' | 'readWalletSessionAuthorizationV2ByOperationCredential'
+    'tenantId' | 'readWalletSessionExactOperationContextByCredential'
   >;
   /** Resolves the NEAR account of the session's Ed25519 signer for the owner check. */
   walletRegistration: Pick<RouterApiWalletRegistrationService, 'resolveEd25519MaterialActivation'>;
@@ -127,8 +129,15 @@ function resolveConfig(config: SpeakToSignVerifyConfig): ResolvedConfig {
 
 type SessionSubject = Readonly<{
   walletId: WalletId;
-  ed25519: MpcMaterialActivationRef | null;
+  ed25519: MpcMaterialActivationRef;
 }>;
+
+type SessionAuthentication =
+  | { readonly kind: 'admitted'; readonly subject: SessionSubject }
+  /** No credential, an unknown, expired or retired session, or one without Ed25519 signing. */
+  | { readonly kind: 'unauthorized' }
+  /** The session store failed or holds a row it cannot read. */
+  | { readonly kind: 'unavailable' };
 
 class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   readonly kind = 'fetch_route_extension' as const;
@@ -141,7 +150,7 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
       path: SPEAK_TO_SIGN_VERIFY_PATH,
       auth: {
         plane: 'public',
-        rationale: 'The handler requires an active Wallet Session operation credential.',
+        rationale: 'The handler requires a live Wallet Session operation credential of the owner.',
       },
       metering: { kind: 'none' },
       summary: 'Run the pinned OutLayer voice verifier for a spoken payment',
@@ -158,8 +167,10 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
 
   async handleFetchRoute(input: RouterApiFetchRouteExtensionInput): Promise<Response> {
     const startedAtMs = this.now();
-    const subject = await this.authenticate(input.request, startedAtMs);
-    if (!subject) return failure(401, 'unauthorized');
+    const authentication = await this.authenticate(input.request, startedAtMs, input.logger);
+    if (authentication.kind === 'unauthorized') return failure(401, 'unauthorized');
+    if (authentication.kind === 'unavailable') return failure(503, 'session_unavailable');
+    const { subject } = authentication;
     const { walletId } = subject;
     if (this.dependencies.rateLimit) {
       const limit = await this.dependencies.rateLimit({ walletId });
@@ -176,34 +187,57 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     return await this.callVerifier(verifierInput, input.logger, startedAtMs);
   }
 
-  private async authenticate(request: Request, nowMs: number): Promise<SessionSubject | null> {
+  /**
+   * The route needs the owner's identity, not a signing allowance: the vault transfer is signed
+   * later through the Wallet's own signing path, which spends the quota. An exhausted session
+   * still names its owner, so the identity read admits it.
+   */
+  private async authenticate(
+    request: Request,
+    nowMs: number,
+    logger: NormalizedRouterLogger,
+  ): Promise<SessionAuthentication> {
     const token = extractBearerCredential(request.headers);
-    if (!token) return null;
+    if (!token) return { kind: 'unauthorized' };
     const sessions = this.dependencies.authorizationSessions;
-    const context = await sessions.readWalletSessionAuthorizationV2ByOperationCredential({
-      tenantId: sessions.tenantId,
-      token,
-      nowMs,
-    });
-    if (!context) return null;
-    const admission = resolveWalletSessionOperationCredentialAdmissionFromContext({
-      context,
+    let context: WalletSessionExactOperationContext | null;
+    try {
+      context = await sessions.readWalletSessionExactOperationContextByCredential({
+        tenantId: sessions.tenantId,
+        token,
+        nowMs,
+      });
+    } catch (error: unknown) {
+      logger.warn('[speak-to-sign] Wallet Session read failed', {
+        error: error instanceof Error ? error.message : 'unknown',
+      });
+      return { kind: 'unavailable' };
+    }
+    if (!context) return { kind: 'unauthorized' };
+    const { session } = context;
+    const admission = resolveWalletSessionAuthorizationV2Admission({
+      authorization: session,
+      authority: context.authority,
+      authMethod: context.authMethod,
+      retiredAtMs: context.retiredAtMs,
       nowMs,
       operation: {
+        tenantId: session.tenantId,
+        principalId: session.principalId,
+        walletId: session.walletId,
         keyFamily: 'ed25519',
         operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
       },
     });
-    if (admission.kind !== 'admitted') return null;
+    if (!admission.ok || admission.keyFamily !== 'ed25519') return { kind: 'unauthorized' };
     return {
-      walletId: context.authorization.session.walletId,
-      ed25519: context.authority.signerActivations.ed25519?.materialActivation ?? null,
+      kind: 'admitted',
+      subject: { walletId: session.walletId, ed25519: admission.materialActivation },
     };
   }
 
-  /** The NEAR account of the session's Ed25519 signer, or null when the wallet has none. */
+  /** The NEAR account of the session's Ed25519 signer, or null when it has none. */
   private async sessionNearAccount(subject: SessionSubject): Promise<string | null> {
-    if (!subject.ed25519) return null;
     const resolved = await this.dependencies.walletRegistration.resolveEd25519MaterialActivation({
       walletId: String(subject.walletId),
       materialActivation: routerAbMpcMaterialActivationRefToWire(subject.ed25519),

@@ -69,13 +69,20 @@ async function buildHarness(
   const extensions = createSpeakToSignVerifyRouteExtensions(CONFIG, {
     authorizationSessions: {
       tenantId: session.tenantId,
-      async readWalletSessionAuthorizationV2ByOperationCredential(input) {
+      async readWalletSessionExactOperationContextByCredential(input) {
         if (input.token !== fixture.operationCredential.token) return null;
         return {
-          authorization: fixture.issuedSession,
+          session,
           authority: fixture.authority,
           authMethod: fixture.authMethod,
           retiredAtMs: null,
+          ownerWalletScope: {
+            ownershipGeneration: 1,
+            orgId: 'org',
+            projectId: 'project',
+            projectEnvironmentId: 'project:dev',
+            walletId: session.walletId,
+          },
         };
       },
     },
@@ -169,7 +176,7 @@ test('the route set is absent without config and refuses a partial env', () => {
   expect(readSpeakToSignVerifyConfig((name) => env[name])).toEqual(CONFIG);
 });
 
-test('a call without an active Wallet Session never reaches OutLayer', async () => {
+test('a call without a live Wallet Session never reaches OutLayer', async () => {
   const harness = await buildHarness(okOutlayer);
   const body = JSON.stringify({ input: VERIFIER_INPUT });
   for (const token of [null, 'wst_unknown']) {
