@@ -53,7 +53,8 @@ class PhraseSurface {
     this.element.setAttribute('aria-label', LABEL);
     this.prompt = new VoicePrompt(document, LABEL, SPOKEN_PHRASES[0]);
     this.prompt.title.textContent = 'Say this sentence';
-    this.prompt.phrase.textContent = `${sentence}.`;
+    // A sentence that already ends with punctuation, such as an enrollment phrase, keeps it.
+    this.prompt.phrase.textContent = /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
     delete this.prompt.phrase.dataset.voiceidPhrase;
     this.prompt.status.textContent = 'Read it naturally, then pause.';
     this.prompt.record.textContent = 'Record';

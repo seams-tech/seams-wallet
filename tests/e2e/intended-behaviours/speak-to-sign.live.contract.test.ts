@@ -36,9 +36,16 @@ const AUDIO_ROUTE = /\/speak-to-sign-test-audio\/(\d)\.wav$/;
 
 const audioRoot = path.join(tmpdir(), `seams-speak-to-sign-${process.pid}`);
 const RUN_LEAD_IN_MS = 200 + (Date.now() % 500);
-/** Clip 0 to 2 are the enrollment phrases; clip 3 is the transfer sentence. */
+/**
+ * Clip 0 to 2 are the enrollment phrases. Clips 3 and 4 both say the 0.01 NEAR sentence with
+ * different lead-ins: the verifier refuses audio it has seen, so the wrong-amount case needs
+ * new bytes to reach the words check.
+ */
 const clipFiles = LIVE
-  ? [...ENROLL_PHRASES, SPOKEN_TRANSFER].map((text, index) => sayWav(text, `clip-${index}`))
+  ? [
+      ...[...ENROLL_PHRASES, SPOKEN_TRANSFER].map((text, index) => sayWav(text, `clip-${index}`)),
+      sayWav(SPOKEN_TRANSFER, 'clip-4', RUN_LEAD_IN_MS + 137),
+    ]
   : [];
 
 test.skip(!LIVE, 'Set SEAMS_SPEAK_TO_SIGN_LIVE=1 with the live testnet environment.');
@@ -93,7 +100,8 @@ async function run(
   expect(sent).toMatchObject({ kind: 'sent' });
   const refused = await speak(page, '0.02');
   log('wrong amount', JSON.stringify(refused));
-  expect(refused).toMatchObject({ kind: 'refused' });
+  // A new recording of the 0.01 NEAR sentence: the verifier must refuse the words, not the audio.
+  expect(refused).toMatchObject({ kind: 'refused', reason: 'words' });
   await testInfo.attach('speak-to-sign-live.json', {
     body: JSON.stringify({ owner, enrolled, sent, refused }, null, 2),
     contentType: 'application/json',
@@ -103,7 +111,7 @@ async function run(
 /** Waits for the VoiceID surface to show `sentence`, then clicks Record. */
 async function recordSentence(page: Page, sentence: string): Promise<void> {
   const dialog = page.frameLocator(WALLET).getByRole('dialog', { name: 'Say this with your voice' });
-  await expect(dialog.locator('.seams-voiceid-prompt')).toHaveText(sentence, { timeout: 60_000 });
+  await expect(dialog.locator('.seams-voiceid-phrase')).toHaveText(sentence, { timeout: 60_000 });
   log('sentence', sentence);
   await dialog.getByRole('button', { name: 'Record', exact: true }).click();
 }
@@ -115,7 +123,7 @@ async function speak(page: Page, amount: string) {
   const result = page.evaluate(requestTransfer, { walletId, receiver: CONTACT, amount });
   const dialog = wallet.getByRole('dialog', { name: 'Say this with your voice' });
   await expect(dialog).toBeVisible({ timeout: 30_000 });
-  log('sentence', await dialog.locator('.seams-voiceid-prompt').innerText());
+  log('sentence', await dialog.locator('.seams-voiceid-phrase').innerText());
   await dialog.getByRole('button', { name: 'Record', exact: true }).click();
   return await approveUntilSettled(page, result);
 }
@@ -152,14 +160,14 @@ async function approveUntilSettled<T>(page: Page, operation: Promise<T>): Promis
   return await done;
 }
 
-function sayWav(text: string, name: string): string {
+function sayWav(text: string, name: string, leadInMs = RUN_LEAD_IN_MS): string {
   mkdirSync(audioRoot, { recursive: true });
   const aiff = path.join(audioRoot, `${name}.aiff`);
   const wav = path.join(audioRoot, `${name}.wav`);
   execFileSync('say', ['-v', VOICE, '-r', '175', '-o', aiff, text]);
   // The verifier refuses audio it has seen, and `say` repeats its bytes. A lead-in silence
   // unique to this run makes new clips. Silence after the sentence ends the recording.
-  const filters = ['-af', `adelay=${RUN_LEAD_IN_MS},apad=pad_dur=3`];
+  const filters = ['-af', `adelay=${leadInMs},apad=pad_dur=3`];
   execFileSync('ffmpeg', [
     '-y', '-loglevel', 'error', '-i', aiff, ...filters,
     '-ac', '1', '-ar', '16000', '-sample_fmt', 's16', '-map_metadata', '-1', '-fflags', '+bitexact', wav,
@@ -230,14 +238,20 @@ async function serveClip(route: import('@playwright/test').Route): Promise<void>
 
 /**
  * Runs in the Wallet frame. Each recording plays the `say` clip of the sentence that the
- * VoiceID surface shows: an enrollment phrase, or else the 0.01 NEAR transfer sentence.
+ * VoiceID surface shows: an enrollment phrase, or else a 0.01 NEAR transfer clip. Each distinct
+ * transfer sentence gets its own clip, so a second payment never replays the first one's audio.
  */
 function speakVisibleSentence(_body: Element, phrases: readonly string[]): void {
   let audio: AudioContext | null = null;
+  const transferClips = new Map<string, number>();
   navigator.mediaDevices.getUserMedia = async () => {
-    const shown = document.querySelector('.seams-voiceid-prompt')?.textContent?.trim() ?? '';
+    const shown = document.querySelector('.seams-voiceid-phrase')?.textContent?.trim() ?? '';
     const index = phrases.indexOf(shown);
-    const response = await fetch(`/speak-to-sign-test-audio/${index < 0 ? phrases.length : index}.wav`);
+    if (index < 0 && !transferClips.has(shown)) {
+      transferClips.set(shown, phrases.length + transferClips.size);
+    }
+    const clip = index < 0 ? (transferClips.get(shown) ?? phrases.length) : index;
+    const response = await fetch(`/speak-to-sign-test-audio/${clip}.wav`);
     if (!response.ok) throw new Error('The spoken test clip is unavailable');
     if (audio) await audio.close();
     audio = new AudioContext();
