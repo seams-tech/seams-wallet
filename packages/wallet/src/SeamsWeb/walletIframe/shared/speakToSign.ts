@@ -52,7 +52,6 @@ export function parseSpeakToSignTransferPayload(value: unknown): PMSpeakToSignTr
 const UNAVAILABLE_REASONS: Readonly<Record<SpeakToSignUnavailableReason, true>> = {
   flow_not_available: true,
   voiceid_unavailable: true,
-  owner_not_speakable: true,
   vault_missing: true,
   verifier_unavailable: true,
   not_submitted: true,

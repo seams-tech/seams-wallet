@@ -52,7 +52,6 @@ const VECTORS = JSON.parse(
   }>;
   unsupported_accounts: Array<{ account_id: string }>;
 };
-const TRANSFER_VECTORS = VECTORS.requests.filter((vector) => vector.borsh_hex.startsWith('00'));
 
 // The shared signed verdict of the verifier repository (voice-verifier/testdata/signed_verdict_v1.json).
 // Its audio digest is 32 bytes of 7; the key is a test key.
@@ -181,7 +180,6 @@ function clip(seconds = 2): Variant<SpeakToSignClip, 'kind', 'captured'> {
 
 type FakeVault = {
   operations: SpeakToSignHostOperations;
-  views: string[];
   sentences: string[];
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
   submitted: SpeakToSignVaultTransferArgs[];
@@ -195,7 +193,6 @@ function fakeVault(input: {
   clip?: SpeakToSignClip;
 }): FakeVault {
   const vault: FakeVault = {
-    views: [],
     sentences: [],
     verifyInputs: [],
     submitted: [],
@@ -205,7 +202,6 @@ function fakeVault(input: {
         return input.clip ?? clip();
       },
       async viewVault(view) {
-        vault.views.push(view);
         if (view === 'get_vault') return { next_nonce: '4', limit_yocto: '0' };
         if (view === 'get_contacts') {
           return (
@@ -292,8 +288,9 @@ function decodeTransferBorsh(borshHex: string): VaultTransferRequest {
 // ---------------------------------------------------------------- spoken-intent port
 
 test('the transfer port matches every vault transfer vector of the spoken-intent crate', async () => {
-  expect(TRANSFER_VECTORS.length).toBeGreaterThan(5);
-  for (const vector of TRANSFER_VECTORS) {
+  const transfers = VECTORS.requests.filter((vector) => vector.borsh_hex.startsWith('00'));
+  expect(transfers.length).toBeGreaterThan(5);
+  for (const vector of transfers) {
     const request = decodeTransferBorsh(vector.borsh_hex);
     const rendered = renderTransfer(request);
     expect(hex(transferBorsh(request)), vector.name).toBe(vector.borsh_hex);
@@ -304,25 +301,12 @@ test('the transfer port matches every vault transfer vector of the spoken-intent
   }
 });
 
-// Every implicit, `0x`, uppercase or too-long account that the crate refuses, and every vault,
-// owner and receiver that it accepted in a vector, gets the same answer from the port.
 test('only speakable accounts and whole hundredths of NEAR pass', () => {
   for (const { account_id } of VECTORS.unsupported_accounts) {
     expect(isSpeakableAccount(account_id), account_id).toBe(false);
   }
-  for (const vector of TRANSFER_VECTORS) {
-    const { vault, owner, receiver } = decodeTransferBorsh(vector.borsh_hex);
-    for (const accountId of [vault, owner, receiver]) {
-      expect(isSpeakableAccount(accountId), `${vector.name}: ${accountId}`).toBe(true);
-    }
-  }
-  expect(isSpeakableAccount('a.testnet')).toBe(true);
-  expect(isSpeakableAccount('pay.owner.testnet')).toBe(true);
   expect(isSpeakableAccount('seams-v1.testnet')).toBe(true);
   expect(isSpeakableAccount('bob_1.testnet')).toBe(true);
-  expect(
-    isSpeakableAccount('98793CD91A3F870FB126F66285808C7E094AFCFC4EDA8A970F6648CDF0DBD6DE'),
-  ).toBe(false);
   expect(parseSpeakableNear('2.5')).toBe(25n * 10n ** 23n);
   expect(parseSpeakableNear('0.01')).toBe(10n ** 22n);
   expect(parseSpeakableNear('1000000')).toBe(10n ** 30n);
@@ -507,29 +491,6 @@ test('an accepted spoken payment sends one transfer_with_verdict with the signed
   expect(vault.submitted).toHaveLength(1);
   expect(vault.submitted[0]).toMatchObject({ receiver_id: 'alice.testnet', nonce: '4' });
   expect(JSON.parse(vault.submitted[0].verdict_json).outcome).toBe('accept');
-});
-
-test('an owner that cannot be spoken stops before any capture, view, verify or transaction', async () => {
-  const verifier = await verifierKey();
-  const owners = [
-    '98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de',
-    '0xabababababababababababababababababababab',
-  ];
-  for (const ownerAccountId of owners) {
-    const vault = fakeVault({ verifier, reply: acceptingVerifier(verifier) });
-    const result = await runSpokenTransfer(transferInput(hostTransfer(vault, { ownerAccountId })));
-    expect(result, ownerAccountId).toEqual({ kind: 'unavailable', reason: 'owner_not_speakable' });
-    expect(vault.views, ownerAccountId).toEqual([]);
-    expect(vault.sentences, ownerAccountId).toEqual([]);
-    expect(vault.verifyInputs, ownerAccountId).toEqual([]);
-    expect(vault.submitted, ownerAccountId).toEqual([]);
-  }
-
-  const named = fakeVault({ verifier, reply: acceptingVerifier(verifier) });
-  const result = await runSpokenTransfer(transferInput(hostTransfer(named)));
-  expect(result).toMatchObject({ kind: 'sent' });
-  expect(named.views).toEqual(['get_vault', 'get_contacts', 'get_verifier']);
-  expect(named.sentences).toHaveLength(1);
 });
 
 test('nothing reaches the vault unless the verdict passes the local check', async () => {

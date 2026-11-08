@@ -60,43 +60,11 @@ if (seams.speakToSign) {
 
 `seams.speakToSign`は、設定に記述子がある場合だけ存在します。送金先は、ボールトの有効な連絡先である必要があります。
 金額は小数点以下2桁までのNEARの10進数です。結果の`kind`は、`sent`、`refused`、`cancelled`、`unavailable`のいずれかです。
-`requestTransfer`と`enroll`は、同じ`unavailable`の理由を使います。
-
-| `unavailable`の理由    | 意味                                                                                   |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| `owner_not_speakable`  | 所有者のアカウントが暗黙的アカウントか`0x`アカウントです。録音も送信もしていません。   |
-| `voiceid_unavailable`  | ウォレットでVoiceIDが有効でないか、録音できませんでした。                              |
-| `vault_missing`        | 所有者のボールトがまだありません。                                                     |
-| `verifier_unavailable` | ボールトの読み取りかSeamsの検証ルートが、有効な応答を返しませんでした。                |
-| `not_submitted`        | Walletはボールトのトランザクションを送信していません。支払いはありません。             |
-| `submission_unknown`   | ボールトのトランザクションが送信された可能性があります。再試行の前に確認してください。 |
 
 記述子を設定しないアプリは、Speak-to-Signのコード、WASM、アセットを一切ダウンロードしません。
 記述子を設定したアプリも、音声による支払いを始めるまでは何も追加で読み込みません。
 
 ## 所有者の準備 {#set-up-the-owner}
-
-### 所有者には名前付きのNEARアカウントが必要です {#the-owner-needs-a-named-near-account}
-
-所有者には、`alice.testnet`のような名前付きのNEARアカウントが必要です。
-暗黙的アカウント(64文字の16進数)と`0x`で始まるアカウントでは、Speak-to-Signを使えません。
-所有者のアカウントは音声によるリクエストの一部として読み上げられるため、ボールトのコントラクトは、
-言葉で読み上げられるアカウントにだけボールトを作成します。読み上げられるアカウントは全体が2〜64文字で、
-`.`で区切った各部分は`a-z`と`0-9`からなり、英数字の間に`-`か`_`を1つずつ置けます。
-暗黙的アカウントでは、`create_vault`は所有者がガス代を支払った後で失敗します。
-
-新しいウォレットに名前付きのアカウントを持たせるには、リレーヤーのアカウントの名前付きサブアカウントとして登録します。
-たとえば、`alice`は`alice.<relayerAccount>`になります([リレーヤーの設定](/ja/reference/configuration#relayer-branch)を参照)。
-
-- SDKの設定では、
-  `registration: { nearAccountProvisioning: { kind: 'relayer_named_subaccount' } }`を指定します。
-- `HostedSeamsAuthMenu`では、`registrationAccountInput: 'sponsored_named_near_account'`を指定します。
-
-読み上げられないアカウントの所有者に対して、`enroll`と`requestTransfer`は
-`{ kind: 'unavailable', reason: 'owner_not_speakable' }`を返します。
-録音、ボールトの読み取り、検証者の呼び出し、トランザクションのどれよりも前に返します。
-
-### 所有者の準備の手順 {#owner-setup-steps}
 
 最初の音声による支払いの前に、所有者には次のものが必要です。
 

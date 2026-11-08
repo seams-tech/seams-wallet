@@ -46,14 +46,12 @@ function clip(index: number): Extract<SpeakToSignClip, { kind: 'captured' }> {
 
 type FakeEnrollment = {
   input: SpeakToSignHostEnrollment;
-  views: string[];
   sentences: string[];
   authorized: string[];
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
 };
 
 function fakeEnrollment(options: {
-  ownerAccountId?: string;
   vault?: unknown;
   clips?: SpeakToSignClip[];
   submission?: SpeakToSignSubmission;
@@ -62,7 +60,6 @@ function fakeEnrollment(options: {
   reply?: SpeakToSignVerifyReply;
 }): FakeEnrollment {
   const fake: FakeEnrollment = {
-    views: [],
     sentences: [],
     authorized: [],
     verifyInputs: [],
@@ -75,7 +72,6 @@ function fakeEnrollment(options: {
       return options.clips?.[fake.sentences.length - 1] ?? clip(fake.sentences.length);
     },
     async viewVault(view) {
-      fake.views.push(view);
       if (view === 'get_vault') return 'vault' in options ? options.vault : { next_nonce: '0' };
       if (view !== 'get_pending_enrollment') throw new Error(`unexpected view ${view}`);
       if (pendingViews.length === 0) {
@@ -105,7 +101,7 @@ function fakeEnrollment(options: {
     vault: 'voicevault.testnet',
     network: 'testnet',
     signal: new AbortController().signal,
-    ownerAccountId: options.ownerAccountId ?? 'owner.testnet',
+    ownerAccountId: 'owner.testnet',
     surfaceMeasurementBinding: { kind: 'disabled' },
     operations,
   };
@@ -149,29 +145,6 @@ test('the enrollment waits until the vault shows this authorization', async () =
   });
   expect((await runEnrollment(fake.input)).kind).toBe('enrolled');
   expect(fake.verifyInputs).toHaveLength(1);
-});
-
-test('an owner that cannot be spoken records, reads, authorizes and enrolls nothing', async () => {
-  const owners = [
-    '98793cd91a3f870fb126f66285808c7e094afcfc4eda8a970f6648cdf0dbd6de',
-    '0xabababababababababababababababababababab',
-  ];
-  for (const ownerAccountId of owners) {
-    const fake = fakeEnrollment({ ownerAccountId });
-    expect(await runEnrollment(fake.input), ownerAccountId).toEqual({
-      kind: 'unavailable',
-      reason: 'owner_not_speakable',
-    });
-    expect(fake.views, ownerAccountId).toEqual([]);
-    expect(fake.sentences, ownerAccountId).toEqual([]);
-    expect(fake.authorized, ownerAccountId).toEqual([]);
-    expect(fake.verifyInputs, ownerAccountId).toEqual([]);
-  }
-
-  const named = fakeEnrollment({ ownerAccountId: 'pay.owner.testnet' });
-  expect((await runEnrollment(named.input)).kind).toBe('enrolled');
-  expect(named.views[0]).toBe('get_vault');
-  expect(named.sentences).toEqual([...ENROLLMENT_PHRASES]);
 });
 
 test('nothing is recorded without a vault, and a cancel or revert enrolls nothing', async () => {

@@ -31,7 +31,7 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Release 0.56.1
 
 - A NEAR transaction that runs and fails is now `{ success: false, kind: 'reverted' }` with the contract's reason in `error`. A `switch` over every `ActionResult` kind must add `reverted`.
-- Speak-to-Sign `enroll` and `requestTransfer` return `unavailable` with `owner_not_speakable` for an implicit or `0x` owner account, before any recording or transaction. Speak-to-Sign needs a named NEAR account.
+- Any NEAR account can own a Speak-to-Sign vault, including an implicit account. The owner says only the amount and the contact.
 - The VoiceID prompt keeps its height while the model downloads.
 - 0.56.0 added `seams.speakToSign.enroll({ walletId })`. 0.55.0 renamed the wallet balance actions to **Receive** and **Send** and added `seams.assets.openScreen()`. 0.56.1 keeps them.
 - Install all four packages at 0.56.1. The VoiceID host API stays at version 9. Speak-to-Sign stays experimental and NEAR testnet only.

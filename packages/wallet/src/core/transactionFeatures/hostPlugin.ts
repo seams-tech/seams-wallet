@@ -10,11 +10,6 @@ export type SpeakToSignUnavailableReason =
   | 'flow_not_available'
   /** The wallet has no enabled VoiceID enrollment, so the verifier has no voice to compare. */
   | 'voiceid_unavailable'
-  /**
-   * The owner's NEAR account cannot be spoken, such as an implicit (64 hex) or `0x` account.
-   * The vault needs a named account, because the owner is part of the spoken request.
-   */
-  | 'owner_not_speakable'
   /** The vault has no state for this owner. */
   | 'vault_missing'
   /** The vault views or the Seams verify route did not answer usefully. */
