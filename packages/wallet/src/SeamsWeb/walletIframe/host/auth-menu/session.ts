@@ -3506,7 +3506,10 @@ export class AuthMenuSession {
 
   private submitGoogleOtp(): void {
     const state = this.stateValue;
-    if (state.kind !== 'google_login' || state.viewModel.submitBusy) return;
+    // A resend replaces the challenge, so a submit waits for it.
+    if (state.kind !== 'google_login' || state.viewModel.submitBusy || state.viewModel.resendBusy) {
+      return;
+    }
     const otpCode = state.viewModel.otpCode;
     if (!/^\d{6}$/.test(otpCode)) {
       this.stateValue = {
@@ -3585,7 +3588,14 @@ export class AuthMenuSession {
 
   private rerollGoogleRegistration(): void {
     const state = this.stateValue;
-    if (state.kind !== 'google_registration' || state.viewModel.rerollBusy) return;
+    // A reroll during completion would register the old wallet id and show the new one.
+    if (
+      state.kind !== 'google_registration' ||
+      state.viewModel.rerollBusy ||
+      state.viewModel.submitBusy
+    ) {
+      return;
+    }
     const flow = state.flow;
     this.stateValue = {
       ...state,
