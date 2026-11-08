@@ -225,66 +225,78 @@ fn router_ab_ecdsa_derivation_prepare_persists_exact_reservation_before_response
         &lib_rs,
         "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1",
     );
+    // The Worker route checks the request and hands it to the wallet's Durable Object.
     for required in [
         "CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH",
         "CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1",
-        "load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1",
-        "parsed.material_source",
-        "cloudflare_random_bytes_v1(32)",
-        "CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve",
-        "expected_revision: 0",
-        "request_digest: prepare_request_digest",
-        "admitted_signing_digest: signing_digest",
-        "execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1",
-        "record.reserved_material()",
-        "burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1",
-        "worker::Response::from_json(&response)",
+        "parsed.validate()",
+        "SigningWorkerWalletDoRequestV1::PrepareEcdsa",
+        "request: parsed",
     ] {
         assert!(
             body.contains(required),
             "Router A/B ECDSA derivation pool-backed prepare private fetch must include `{required}`"
         );
     }
-    let reserve = body
+    assert!(
+        !body.contains("execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1"),
+        "prepare must reach the pool through its wallet owner"
+    );
+    // The Durable Object prepares inside one storage transaction, so a failure
+    // after the reservation rolls the reservation back with it.
+    let arm_start = lib_rs
+        .find("SigningWorkerWalletDoRequestV1::PrepareEcdsa {")
+        .expect("the wallet Durable Object must serve PrepareEcdsa");
+    let arm = extract_braced_block_after_marker(&lib_rs[arm_start..], "=>");
+    for required in [
+        "cloudflare_random_bytes_v1(32)",
+        "with_ecdsa_transaction",
+        "prepare_signing_worker_wallet_ecdsa_from_pool_v1",
+    ] {
+        assert!(
+            arm.contains(required),
+            "wallet-DO ECDSA prepare must include `{required}`"
+        );
+    }
+    let transaction = extract_function_body(&lib_rs, "with_wallet_transaction");
+    for required in [".transaction(", "Err(worker::Error::RustError(message))"] {
+        assert!(
+            transaction.contains(required),
+            "a failed wallet-DO operation must abort its storage transaction (`{required}`)"
+        );
+    }
+    let prepare =
+        extract_function_body(&lib_rs, "prepare_signing_worker_wallet_ecdsa_from_pool_v1");
+    for required in [
+        "require_execution_generation",
+        "CloudflareEcdsaPrepareSourceV1::AvailablePool",
+        "load_normal_signing_material",
+        "&request.material_source",
+        "CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve",
+        "expected_revision: 0",
+        "request_digest: materialized.request.request.request_digest()?",
+        "admitted_signing_digest: materialized.request.request.signing_digest()?",
+        "store.mutate_pool(",
+        "record.reserved_material()",
+    ] {
+        assert!(
+            prepare.contains(required),
+            "wallet-DO pool-backed ECDSA prepare must include `{required}`"
+        );
+    }
+    let reserve = prepare
         .find("CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve")
         .expect("pool-backed prepare must build exact reservation");
-    let persist = body
-        .find("execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1")
+    let persist = prepare
+        .find("store.mutate_pool(")
         .expect("pool-backed prepare must persist exact reservation");
-    let material = body
+    let material = prepare
         .find("record.reserved_material()")
         .expect("pool-backed prepare must read material after durable reservation");
     assert!(
         reserve < persist && persist < material,
         "pool-backed prepare must build, persist, then read request-bound presignature state"
     );
-    assert!(
-        body.matches("burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1")
-            .count()
-            >= 4,
-        "every fallible post-reservation prepare step must burn the reservation"
-    );
-    let cleanup = extract_function_body(
-        &lib_rs,
-        "burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1",
-    );
-    for required in [
-        "CloudflareSigningWorkerEcdsaPoolCommandV1::DestroyReserved",
-        "expected_revision: 1",
-        "TombstoneReason::Rejected",
-        "execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1",
-    ] {
-        assert!(
-            cleanup.contains(required),
-            "prepare failure cleanup must include `{required}`"
-        );
-    }
-    for (label, source) in [("prepare", &body), ("prepare failure cleanup", &cleanup)] {
-        assert!(
-            !source.contains("execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1"),
-            "{label} must reach the pool through its wallet owner"
-        );
-    }
     assert_ecdsa_pool_mutation_reaches_owner_storage(&lib_rs);
 }
 

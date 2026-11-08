@@ -4,11 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact Wallet, server, and VoiceID package version
+        description: Exact Wallet, server, VoiceID, and Speak-to-Sign package version
         required: true
         type: string
       package:
-        description: Packages to publish; wallet and voiceid support partial-release retries
+        description: >-
+          Packages to publish, in the order server, wallet, voiceid, speak-to-sign; wallet,
+          voiceid and speak-to-sign retry a partial release from that package onward
         required: true
         default: all
         type: choice
@@ -16,6 +18,7 @@ on:
           - all
           - wallet
           - voiceid
+          - speak-to-sign
 
 permissions:
   actions: read
@@ -149,6 +152,7 @@ jobs:
           test "$(node -p "require('./packages/wallet/package.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./packages/wallet-server/package.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./packages/voiceid/package.json').version")" = "$RELEASE_VERSION"
+          test "$(node -p "require('./packages/speak-to-sign/package.json').version")" = "$RELEASE_VERSION"
       # wasm-pack and wasm-bindgen: upstream prebuilt binaries with pinned
       # SHA-256 digests. worker-build has no upstream prebuilt binary; the
       # release compiles it from source and never restores it from a cache.
@@ -179,9 +183,10 @@ jobs:
             all)
               pnpm build
               ;;
-            wallet|voiceid)
+            wallet|voiceid|speak-to-sign)
               pnpm -C packages/wallet build:sdk-full
               pnpm -C packages/voiceid build
+              pnpm -C packages/speak-to-sign build
               ;;
             *)
               echo "Unsupported release package: $SEAMS_RELEASE_PACKAGE" >&2
@@ -205,10 +210,13 @@ jobs:
           if [ "$SEAMS_RELEASE_PACKAGE" = all ]; then
             npm pack ./packages/wallet-server --pack-destination .artifacts/npm
           fi
-          if [ "$SEAMS_RELEASE_PACKAGE" != voiceid ]; then
+          if [ "$SEAMS_RELEASE_PACKAGE" = all ] || [ "$SEAMS_RELEASE_PACKAGE" = wallet ]; then
             npm pack ./packages/wallet --pack-destination .artifacts/npm
           fi
-          npm pack ./packages/voiceid --pack-destination .artifacts/npm
+          if [ "$SEAMS_RELEASE_PACKAGE" != speak-to-sign ]; then
+            npm pack ./packages/voiceid --pack-destination .artifacts/npm
+          fi
+          npm pack ./packages/speak-to-sign --pack-destination .artifacts/npm
       - uses: actions/upload-artifact@v7
         with:
           name: wallet-packages-${{ inputs.version }}-${{ github.sha }}
@@ -247,9 +255,13 @@ jobs:
         working-directory: packages/wallet-server
         run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
       - name: Publish @seams/wallet
-        if: inputs.package != 'voiceid'
+        if: inputs.package == 'all' || inputs.package == 'wallet'
         working-directory: packages/wallet
         run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
       - name: Publish @seams/voiceid
+        if: inputs.package != 'speak-to-sign'
         working-directory: packages/voiceid
+        run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
+      - name: Publish @seams/speak-to-sign
+        working-directory: packages/speak-to-sign
         run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"

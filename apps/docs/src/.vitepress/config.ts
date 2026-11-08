@@ -24,20 +24,6 @@ function sitemapPages<T extends { url: string }>(items: T[]): T[] {
   return pages;
 }
 
-// Experimental, testnet-only page in English only. It stays out of the Japanese
-// sidebar until a translation exists.
-const SPEAK_TO_SIGN_LINK = '/concepts/auth-methods/speak-to-sign';
-
-function withoutEnglishOnlyItems(item: DefaultTheme.SidebarItem): DefaultTheme.SidebarItem {
-  if (!item.items) return item;
-  return {
-    ...item,
-    items: item.items
-      .filter((child) => child.link !== SPEAK_TO_SIGN_LINK)
-      .map(withoutEnglishOnlyItems),
-  };
-}
-
 type FenceRenderer = NonNullable<MarkdownRenderer['renderer']['rules']['fence']>;
 
 function renderLocalizedFence(
@@ -80,7 +66,7 @@ const guidesSection: DefaultTheme.SidebarItem = {
     { text: 'Google SSO (BYO auth)', link: '/guides/google-sso' },
     { text: 'Application sessions', link: '/guides/application-auth' },
     { text: 'VoiceID', link: '/concepts/auth-methods/voiceid' },
-    { text: 'Experimental: Speak-to-Sign', link: SPEAK_TO_SIGN_LINK },
+    { text: 'Experimental: Speak-to-Sign', link: '/concepts/auth-methods/speak-to-sign' },
     { text: 'Embedded wallets', link: '/guides/embedded-wallets' },
     { text: 'External NEAR wallets', link: '/guides/external-near-wallets' },
     { text: 'Policies and mandates', link: '/guides/policies-and-mandates' },
@@ -279,7 +265,7 @@ export default defineConfig({
           { text: 'ドキュメント', link: '/ja/', activeMatch: '^/ja/(?!reference)' },
           { text: 'SDKリファレンス', link: '/ja/reference/', activeMatch: '^/ja/reference/' },
         ],
-        sidebar: documentationSidebar.map(withoutEnglishOnlyItems).map(japaneseSidebarItem),
+        sidebar: documentationSidebar.map(japaneseSidebarItem),
         outline: { level: [2, 3], label: 'このページの内容' },
         lastUpdated: { text: '最終更新' },
         docFooter: { prev: '前のページ', next: '次のページ' },

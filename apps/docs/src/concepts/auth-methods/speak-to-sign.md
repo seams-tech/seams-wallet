@@ -1,14 +1,14 @@
 ---
 title: 'Experimental: Speak-to-Sign'
-description: Experimental spoken NEAR payments from a vault contract that pays only after an attested verifier checks the owner's voice and words. Testnet only, not in a release.
+description: Experimental spoken NEAR payments from a vault contract that pays only after an attested verifier checks the owner's voice and words. Testnet only.
 ---
 
 # Experimental: Speak-to-Sign
 
 ::: warning Experimental
-Speak-to-Sign is experimental. It runs on **NEAR testnet only**. It is **not in a
-release** of `@seams/wallet`. Its packages, routes and contract can change
-without notice. Do not use it with real funds.
+Speak-to-Sign is experimental. It runs on **NEAR testnet only**. Release 0.54.0
+is its first release. Its packages, routes and contract can change without
+notice. Do not use it with real funds.
 :::
 
 Speak-to-Sign lets a wallet owner pay by voice. The owner says a sentence such
@@ -45,12 +45,12 @@ accepted it. These times come from a reference client, not from a Wallet run.
 Install the three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@VERSION @seams/voiceid@VERSION @seams/speak-to-sign@VERSION
+pnpm add @seams/wallet@0.54.0 @seams/voiceid@0.54.0 @seams/speak-to-sign@0.54.0
 ```
 
 Add the descriptor to `transactionFeatures` beside the VoiceID auth method:
 
-```ts
+```ts [Partial example]
 import { SeamsWeb } from '@seams/wallet';
 import { voiceIdAuthMethod } from '@seams/voiceid';
 import { speakToSign } from '@seams/speak-to-sign';

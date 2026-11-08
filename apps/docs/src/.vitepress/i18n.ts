@@ -120,6 +120,7 @@ const japaneseSidebarLabels: Record<string, string> = {
   Passkeys: 'パスキー',
   'Email OTP': 'メールのワンタイムコード',
   VoiceID: 'VoiceID',
+  'Experimental: Speak-to-Sign': '実験的機能: Speak-to-Sign',
   Policy: 'ポリシー',
   Mandates: '委任条件',
   'Credentials and proofs': '認証情報と証明',

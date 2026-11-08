@@ -69,18 +69,24 @@ fn signing_worker_normal_signing_loads_active_material_before_handler() {
 #[test]
 fn ecdsa_lane_material_is_loaded_before_signature_preparation_or_consumption() {
     let lib_rs = read_src_file("lib.rs");
-    // The finalize handler claims through `prepare_ecdsa_finalize`, which holds
-    // the material load and the one-use claim.
-    for (function_name, material_source) in [
+    // Prepare runs in the wallet's Durable Object, which loads the material from
+    // its own store. The finalize handler claims through `prepare_ecdsa_finalize`,
+    // which holds the material load and the one-use claim.
+    for (function_name, loader, material_source) in [
         (
-            "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1",
-            "parsed.material_source",
+            "prepare_signing_worker_wallet_ecdsa_from_pool_v1",
+            "store.load_normal_signing_material(",
+            "&request.material_source",
         ),
-        ("prepare_ecdsa_finalize", "request.material_source"),
+        (
+            "prepare_ecdsa_finalize",
+            "load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1",
+            "request.material_source",
+        ),
     ] {
         let body = extract_function_body(&lib_rs, function_name);
         assert!(
-            body.contains("load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1"),
+            body.contains(loader),
             "{function_name} must resolve active ECDSA lane material"
         );
         assert!(
