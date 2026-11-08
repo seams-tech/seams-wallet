@@ -63,11 +63,7 @@ impl RouterAbEcdsaClientCeremonyV1 {
 
     /// Builds a strict wallet-registration or wallet-add-signer request.
     pub fn build_registration_request(&mut self, input_json: &str) -> Result<String, JsValue> {
-        if self.registration_binding.is_some() {
-            return Err(JsValue::from_str(
-                "Router A/B ECDSA registration request was already built",
-            ));
-        }
+        self.require_no_request_built().map_err(JsValue::from_str)?;
         let input: RegistrationRequestInputV1 = parse_json(input_json)?;
         let purpose = EcdsaRegistrationPurposeV1::from_wire_label(&input.registration_purpose)
             .map_err(protocol_error)
@@ -126,6 +122,7 @@ impl RouterAbEcdsaClientCeremonyV1 {
 
     /// Builds a strict explicit client-export request.
     pub fn build_explicit_export_request(&mut self, input_json: &str) -> Result<String, JsValue> {
+        self.require_no_request_built().map_err(JsValue::from_str)?;
         let application_binding_digest =
             explicit_export_request_application_binding_digest(input_json)?;
         let (serialized, digest, _transcript_digest) =
@@ -140,6 +137,7 @@ impl RouterAbEcdsaClientCeremonyV1 {
         &mut self,
         input_json: &str,
     ) -> Result<String, JsValue> {
+        self.require_no_request_built().map_err(JsValue::from_str)?;
         let input: ActivationRefreshRequestInputV1 = parse_json(input_json)?;
         let header = self.post_registration_header(
             &input.common,
@@ -398,6 +396,18 @@ struct RegistrationBindingV1 {
 }
 
 impl RouterAbEcdsaClientCeremonyV1 {
+    /// One ceremony builds one request. A second build would reuse the
+    /// keypair and overwrite the digests the first request bound.
+    fn require_no_request_built(&self) -> Result<(), &'static str> {
+        if self.registration_binding.is_some()
+            || self.explicit_export_request_digest.is_some()
+            || self.activation_refresh_request_digest.is_some()
+        {
+            return Err("Router A/B ECDSA ceremony request was already built");
+        }
+        Ok(())
+    }
+
     fn active_keypair(&self) -> Result<&EcdsaClientEphemeralKeyPairV1, JsValue> {
         self.keypair
             .as_ref()
@@ -991,6 +1001,8 @@ mod tests {
             .to_owned()
     }
 
+    const REQUEST_ALREADY_BUILT: &str = "Router A/B ECDSA ceremony request was already built";
+
     fn test_ceremony() -> RouterAbEcdsaClientCeremonyV1 {
         RouterAbEcdsaClientCeremonyV1 {
             keypair: Some(
@@ -1175,6 +1187,10 @@ mod tests {
                 .len(),
             43,
         );
+        assert_eq!(
+            ceremony.require_no_request_built(),
+            Err(REQUEST_ALREADY_BUILT)
+        );
 
         let export_input = ExplicitExportRequestInputV1 {
             common: test_post_common(test_lifecycle(
@@ -1198,12 +1214,17 @@ mod tests {
             export_authorization_digest_b64u: b64u(&[0x51; 32]),
             export_nonce: "export-nonce-1".to_owned(),
         };
+        let mut export_ceremony = test_ceremony();
         let export = parse_output(
-            ceremony
+            export_ceremony
                 .build_explicit_export_request(
                     &serde_json::to_string(&export_input).expect("export input JSON"),
                 )
                 .expect("export request"),
+        );
+        assert_eq!(
+            export_ceremony.require_no_request_built(),
+            Err(REQUEST_ALREADY_BUILT)
         );
         assert_eq!(export["client_ephemeral_public_key"], client_public_key);
         assert_eq!(export["authorization"]["kind"], "reusable_wallet_session");
@@ -1244,7 +1265,7 @@ mod tests {
         operation_step_up_input_json["authorization"]["authorization_id"] =
             Value::String(operation_step_up_authorization_id);
         let operation_step_up_export = parse_output(
-            ceremony
+            test_ceremony()
                 .build_explicit_export_request(
                     &serde_json::to_string(&operation_step_up_input_json)
                         .expect("operation step-up export input JSON"),
@@ -1284,12 +1305,17 @@ mod tests {
                 signing_worker: SERVER_ID.to_owned(),
             },
         };
+        let mut refresh_ceremony = test_ceremony();
         let refresh = parse_output(
-            ceremony
+            refresh_ceremony
                 .build_activation_refresh_request(
                     &serde_json::to_string(&refresh_input).expect("refresh input JSON"),
                 )
                 .expect("refresh request"),
+        );
+        assert_eq!(
+            refresh_ceremony.require_no_request_built(),
+            Err(REQUEST_ALREADY_BUILT)
         );
         assert_eq!(
             refresh["signing_worker_ephemeral_public_key"],
