@@ -45,7 +45,7 @@ accepted it. These times come from a reference client, not from a Wallet run.
 Install the three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.56.0 @seams/voiceid@0.56.0 @seams/speak-to-sign@0.56.0
+pnpm add @seams/wallet@0.56.1 @seams/voiceid@0.56.1 @seams/speak-to-sign@0.56.1
 ```
 
 Add the descriptor to `transactionFeatures` beside the VoiceID auth method:
