@@ -4,7 +4,7 @@
 
 This document records the source-verified audit of implicit state machines across `seams-wallet` and the phased refactor plan to replace ad-hoc boolean flags, parallel `Map`s, nullable field bags, and unguarded transitions with explicit discriminated unions and atomic transition helpers.
 
-Every candidate finding from the initial repository scan was checked directly against the current source on `dev` (`470fbdba5`) before inclusion. Batch 1 (`B1–B6`) was checked a second time against `e82d630a3` on 2026-11-08. That check corrected names and line numbers, narrowed four items, and withdrew most of B4. Batch 2 (`B7–B8`) was checked a second time against `e710e608f` on the same day. That check withdrew B7 and narrowed B8 to one cleanup. Following [`docs/debugging-method.md`](./debugging-method.md):
+Every candidate finding from the initial repository scan was checked directly against the current source on `dev` (`470fbdba5`) before inclusion. Batch 1 (`B1–B6`) was checked a second time against `e82d630a3` on 2026-11-08. That check corrected names and line numbers, narrowed four items, and withdrew most of B4. Batch 2 (`B7–B8`) was checked a second time against `e710e608f` on the same day. That check withdrew B7 and narrowed B8 to one cleanup. Batch 3 (`B9–B16`) was checked a second time against `8c7a8ac7c`. That check withdrew B11, B13, B14 and B15, narrowed B10, B12 and B16, and left B9 for a design decision. Following [`docs/debugging-method.md`](./debugging-method.md):
 
 1. **Facts precede causes**: each item below cites the exact file, line range, and measured code behavior.
 2. **Refuted or narrowed hypotheses are recorded explicitly**: four initial subagent claims were either refuted or narrowed upon reading the implementation and are documented in [Withdrawn and Narrowed Findings](#withdrawn-and-narrowed-findings) so we do not churn working code.
@@ -30,14 +30,14 @@ Every candidate finding from the initial repository scan was checked directly ag
 | **B6** | [`unlockedEd25519ExportRootCapability.ts`](../packages/wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability.ts) (`L44-L47`, `L268-L316`, `L375-L397`) & [`nearProvisioningRegistry.ts`](../packages/wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry.ts) (`L64-L73`, `L88-L119`) | Module-level `currentCapability` singleton; `{ state, inFlight }` entries + `listeners` | The ceremony worker runs one message at a time (`wallet-custody-ceremony.worker.ts:L1271-L1290`) and destroys the previous handle for the same wallet (`L869`). Two gaps remain on the main thread. (1) If `destroyUnlockedWalletEd25519ExportRootCapabilitiesV1` runs while an establish is in flight, the destroy clears the local reference first, then the establish installs a handle that the worker destroyed next (`L310`). (2) A capability for a different wallet is replaced locally but stays in the worker until expiry. In `nearProvisioningRegistry.ts`, `runSingleFlightNearProvisioning` publishes `near_provisioning` (`L95-L98`) before `entry.inFlight = inFlight` (`L118`), so a listener that calls it again starts a second attempt. | **Confirmed defect (narrowed)** | Batch 1 |
 | **B7** | [`NonceCoordinator.ts`](../packages/wallet/src/core/signingEngine/nonce/NonceCoordinator.ts) (`L308-L380`, `L874-L1018`, `L1246-L1253`, `L1421-L1464`) | In-memory `leases` + durable `nonceLaneCoordinationStore`, shared by every tab of the origin | Withdrawn. Every reservation reads the durable records directly, and `Reserved`/`Signed` records expire by TTL. See [Withdrawn and Narrowed Findings](#withdrawn-and-narrowed-findings), item 7. | **Withdrawn** | Batch 2 |
 | **B8** | [`sealedRestoreOrchestrator.ts`](../packages/wallet/src/core/signingEngine/session/emailOtp/sealedRestoreOrchestrator.ts) (`L82`, `L97`, `L258-L264`) | Mutable `requestedChainTarget` field | `tryRestoreEcdsaWarmSessionStatusFromSealedRecord` writes `requestedChainTarget` (`L97`) only so that `readEcdsaSealedRecord` (`L258-L264`) can read it before its first await. There is no race, but the field and the wrapper are not needed. The `unifiedIndexedDBManager.ts` part is withdrawn: see item 8. | **Cleanup (narrowed)** | Batch 2 |
-| **B9** | [`routerAbEd25519YaoRegistration.ts`](../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration.ts) (`L655-L778`) | 3 maps: `states`, `lifecycleSessions`, `admissionClaims` | In `commitAdmit` (`L708-L715`), when `input.outcome.kind === 'backend_uncertain'`, the method returns `503 admission_uncertain` without deleting `this.admissionClaims.get(input.claim.lifecycleId)`. Subsequent `prepareAdmit` (`L665`) and `prepareExecute` (`L778`) calls permanently fail with `409 admission_in_progress`. | **Confirmed defect** | Batch 3 |
-| **B10** | [`d1LinkedDeviceAuthorityInstallService.ts`](../packages/wallet-server/src/router/cloudflare/d1/deviceLinking/d1LinkedDeviceAuthorityInstallService.ts) (`L1250-L1296`) | Multi-step D1 batch cleanup (`pending` -> `allocation_removed` -> `session_removed`) | In `commitAcknowledgementCleanupV1` (`L1270-L1290`), when `input.session === null`, `database.batch([...beforeDeleteStatements, ...afterDeleteStatements])` runs without `D1_BATCH_CAS_GUARD_SQL` after the state transition updates, so 0-row matches silently succeed. | **Confirmed defect** | Batch 3 |
-| **B11** | [`externalAuthStore.ts`](../packages/wallet-server/src/auth/externalAuthStore.ts) (`L469-L475`) | SQL `status` column (`pending \| verified \| consumed \| expired \| cancelled \| failed \| revoked`) | `revokeSession` (`L470-L474`) runs `UPDATE external_auth_attempts SET status = 'revoked' WHERE ${SCOPE} AND session_token_hash = ?5 AND origin = ?6` without guarding `AND purpose = 'authenticate' AND status IN ('verified', 'consumed')`. | **Confirmed defect** | Batch 3 |
-| **B12** | [`d1RegistrationCeremonyRecords.ts`](../packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords.ts) (`L1475-L1515`) & [`d1WalletExecutionAuthority.ts`](../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts) (`L76-L139`, `L274-L310`) | `activationOwner: ''` sentinel; `(state, registration_completion)` pair | `parseD1StoredEvmFamilyEcdsaActivationClaimedBranch` (`L1480`) and `ActivatedBranch` (`L1508`) encode legacy unowned rows as `activationOwner: ''` instead of a discriminated union. In `d1WalletExecutionAuthority.ts`, `admitHomeRead` (`L112-L115`) invokes `await this.cancel(input)` (a D1 write + directory RPC) inside a read admission check, and `cancel` (`L134-L137`) runs two D1 batches that both set `state = 'retired'`. | **Confirmed defect** | Batch 3 |
-| **B13** | [`ecdsa_presign_live_session.rs`](../crates/router-ab-cloudflare/src/durable_object/ecdsa_presign_live_session.rs) (`L587-L725`) | `RefCell<BTreeMap<String, LiveSession>>` + `completed_records` + DO storage | `handle_linked_step` (`L593-L595`) removes `entry` from `sessions` before validating expiry, scope, request digest, stage (`L602-L630`), or message decoding (`L633`). Any validation error, transient RNG error, or `persist_linked_terminal_completion` storage error permanently drops the live session without re-inserting or tombstoning it. | **Confirmed defect** | Batch 3 |
-| **B14** | [`tenant_root_role_d1.rs`](../crates/router-ab-cloudflare/src/tenant_root_role_d1.rs) (`L14930-L15040`) | `TenantRootRestoreImportSessionTombstoneD1RowV1` (`state: Option<String>`) | `restore_import_session_tombstone_from_row` validates `role`, `closed_at_ms`, `activation_receipt`, and `cleanup_receipt`, but never checks `row.state.as_deref() == Some("closed")`. | **Confirmed defect** | Batch 3 |
-| **B15** | [`session.rs`](../crates/router-ab-ecdsa-presign/src/session.rs) (`L185-L210`, `L410-L437`) | `ClientState` / `SigningWorkerState` -> `PresignSessionStage` | Both `ClientPresignSession::stage()` (`L198`) and `SigningWorkerPresignSession::stage()` (`L425`) map `Done(_) \| Poisoned => PresignSessionStage::Done`, making a poisoned session indistinguishable from a completed session via `stage()`. | **Confirmed defect** | Batch 3 |
-| **B16** | [`ceremony.rs`](../wasm/router_ab_ecdsa_client/src/ceremony.rs) (`L34-L260`) & [`ecdsa_role_local.rs`](../wasm/router_ab_ecdsa_client/src/ecdsa_role_local.rs) (`L639-L710`) | 4 independent `Option` fields on `RouterAbEcdsaClientCeremonyV1`; 3 `pending_export_*` `Option`s on `EcdsaRoleLocalHolderV1` | `RouterAbEcdsaClientCeremonyV1` allows `build_registration_request`, `build_explicit_export_request`, and `build_activation_refresh_request` to be called on the same ceremony instance, overwriting `post_registration_application_binding_digest`. `EcdsaRoleLocalHolderV1` stores 3 co-null `Option<[u8; 32]>` fields instead of a single `Option<PendingOrdinaryExportV1>`. | **Confirmed structural hazard** | Batch 3 |
+| **B9** | [`routerAbEd25519YaoRegistration.ts`](../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration.ts) (`L655-L738`) & [`routerAbEd25519YaoRegistrationTwoPhaseRunner.ts`](../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationTwoPhaseRunner.ts) (`L80-L113`) | `admissionClaims` + D1-persisted claim | On the live route, the two-phase runner persists the claim before the backend call and returns `backend_uncertain` without calling `commitAdmit`. The claim stays on purpose ("so a caller can reconcile"), but no reconciliation exists, so the lifecycle stays claimed and blocks relocation retire. The plan's delete in `commitAdmit` does not touch this path and would allow a double admit. | **Needs design decision** | Batch 3 (deferred) |
+| **B10** | [`d1LinkedDeviceAuthorityInstallService.ts`](../packages/wallet-server/src/router/cloudflare/d1/deviceLinking/d1LinkedDeviceAuthorityInstallService.ts) (`L1239-L1302`) | Sessionless D1 cleanup batch | When the durable session row is absent, the batch runs with no CAS guard. If a concurrent acknowledgement already committed, every statement matches 0 rows, the batch commits as a no-op, and the `catch` receipt check (`assertAcknowledgementMatchesCleanupReceipt`) never runs. The session path guards every statement. | **Confirmed defect (narrowed)** | Batch 3 |
+| **B11** | [`externalAuthStore.ts`](../packages/wallet-server/src/auth/externalAuthStore.ts) (`L469-L475`) | `revokeSession` UPDATE | Withdrawn: the plan's guard would let a `prepared` login survive logout. See item 9. | **Withdrawn** | Batch 3 |
+| **B12** | [`d1WalletExecutionAuthority.ts`](../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts) (`L132-L139`) | `cancel` = `fixCancellation` + second batch | The second batch `prepareState(input, 'retired')` updates the same row that `fixCancellation` already set to `retired`; it is left over from before `88ef65177`. The `activationOwner: ''` sentinel and the `cancel` call in `admitHomeRead` stay: see item 10. | **Cleanup (narrowed)** | Batch 3 |
+| **B13** | [`ecdsa_presign_live_session.rs`](../crates/router-ab-cloudflare/src/durable_object/ecdsa_presign_live_session.rs) (`L534-L601`) | Linked presign live session | Withdrawn: the remove after the authority check is deliberate single-use behavior. See item 11. | **Withdrawn** | Batch 3 |
+| **B14** | [`tenant_root_role_d1.rs`](../crates/router-ab-cloudflare/src/tenant_root_role_d1.rs) (`L4343-L4351`, `L14930`) | Restore-import tombstone row | Withdrawn: the row and the table have no `state` column; a row exists only for a closed session. See item 11. | **Withdrawn** | Batch 3 |
+| **B15** | [`session.rs`](../crates/router-ab-ecdsa-presign/src/session.rs) (`L198`, `L425`) | `stage()` maps `Poisoned` to `Done` | Withdrawn: every caller stops on the `Err` that poisons the session, and the output read still fails closed. A new stage value would change what the WASM client sends. See item 11. | **Withdrawn** | Batch 3 |
+| **B16** | [`ceremony.rs`](../wasm/router_ab_ecdsa_client/src/ceremony.rs) (`L34-L145`) | 4 `Option` fields on one ceremony | Only `build_registration_request` refuses a second build. `build_explicit_export_request` and `build_activation_refresh_request` check nothing, so in Rust one instance can mix modes. The worker makes one instance per ceremony and calls one builder, so no current caller mixes them. The holder struct is `EcdsaLinkedHolderMaterialV1`, and its three fields are always set and taken together. | **Latent gap (narrowed)** | Batch 3 |
 | **B17** | [`router.ts`](../packages/wallet/src/SeamsWeb/walletIframe/client/router.ts) (`L2494-L2568`, `L4232-L4272`, `L4558-L4573`) | `state.ready`, `state.configured`, `state.initInFlight`, `state.configurationInFlight`, `exactSessionState` + 4 `hostedAuthMenu*` maps | `connectAndConfigure` sets `this.state.ready = true` (`L2551`) before `await this.post({ type: 'PM_SET_CONFIG', ... })` (`L2553`); concurrent `post()` calls check `if (!this.state.ready \|\| !this.state.port)` (`L4563`) and can send RPCs before `PM_SET_CONFIG` finishes. In `openHostedAuthMenu` (`L4246-L4259`), cancelling during `await this.ensureConfigured()` causes `post()` (`L4570`) to throw `'Wallet iframe request was cancelled before dispatch'` instead of returning `{ kind: 'cancelled', authMenuSessionId }`. | **Confirmed defect** | Batch 4 |
 | **B18** | [`overlay-controller.ts`](../packages/wallet/src/SeamsWeb/walletIframe/client/overlay/overlay-controller.ts) (`L369-L410`) | `mode: OverlayMode \| null`, `visible: boolean`, `reviewHandoff`, `pendingReveal`, `surfaceResize` | In `show(mode)` (`L376`), `this.mode = mode` is assigned before `L409`: `else if (!this.mode \|\| !('identity' in this.mode) \|\| identityChanged) dialog.removeAttribute('data-transaction-review')`. Because `this.mode` was already overwritten with the new `mode`, transitioning from a non-identity mode or checking the previous mode's identity inspects the new `mode` instead of `previousMode`. | **Confirmed defect** | Batch 4 |
 | **B19** | [`session.ts`](../packages/wallet/src/SeamsWeb/walletIframe/host/auth-menu/session.ts) (`L3436-L3675`) | `viewModel.submitBusy`, `viewModel.resendBusy`, `viewModel.rerollBusy` booleans | In `google_login`, `resendGoogleOtp` (`L3438`) only checks `resendBusy` and `submitGoogleOtp` (`L3509`) only checks `submitBusy`, allowing concurrent `flow.resend()` and `flow.submit()`. In `google_registration`, `rerollGoogleRegistration` (`L3588`) only checks `rerollBusy` and `completeGoogleRegistration` (`L3661`) only checks `submitBusy`, allowing concurrent `flow.rerollWalletId()` and `flow.completeRegistration()`. | **Confirmed defect** | Batch 4 |
@@ -50,7 +50,7 @@ Every candidate finding from the initial repository scan was checked directly ag
 
 ## Withdrawn and Narrowed Findings
 
-Before writing code, we verified every candidate from the initial exploration against the actual source files. The following claims were **refuted or narrowed** and will **not** be treated as bugs. Items 5 and 6 come from the second Batch 1 check, and items 7 and 8 from the second Batch 2 check:
+Before writing code, we verified every candidate from the initial exploration against the actual source files. The following claims were **refuted or narrowed** and will **not** be treated as bugs. Items 5 and 6 come from the second Batch 1 check, items 7 and 8 from the second Batch 2 check, and items 9 to 11 from the second Batch 3 check:
 
 1. **Withdrawn — `UiConfirmManager.ts` 3-map race and `reservedNonceLeases` leak**:
    - *Initial claim*: `UiConfirmManager.ts` (lines 714–754) maintained `pendingRequests`, `pendingRequestTokens`, and `pendingWorkerRequests` in a `confirmWithWorker` method that leaked `reservedNonceLeases` when `pendingExecution.decision?.confirmed` was true.
@@ -85,6 +85,20 @@ Before writing code, we verified every candidate from the initial exploration ag
    - *Initial claim*: `AccountSignerRecord` and `SignerOpOutboxRecord` in `unifiedIndexedDBManager.ts` (`L45-L140`) have nullable lifecycle fields `removedAtMs`, `supersededByKeyRef`, `nextAttemptAtMs` and `lastErrorCode`; `summary.repairs` is never filled.
    - *Measured fact*: the two types are now in `passkeyClientDB.types.ts` (`L152-L168`, `L355-L370`) and none of the four named fields exists. Their optional fields are `removedAt`, `revocationReason`, `metadata`, `payload`, `lastError` and `txHash`. No invalid combination was measured. `repairs` is always `[]`, but `reconcileLocalSignerState` is on `UnifiedIndexedDBManager`, which the published types reach through `core/indexedDB/index.d.ts`, so removing the field is a public API change.
    - *Decision*: no change. A union rewrite of these persisted records needs a measured invalid state first.
+9. **Withdrawn — B11 `revokeSession` guard**:
+   - *Measured fact*: the schema (`migrations/d1-signer/0086_application_auth.sql:L22-L66`) has statuses `prepared | verified | consumed | revoked` and a UNIQUE `session_token_hash` per scope, so the UPDATE matches at most one row. Every purpose sets the hash at INSERT. The only caller, logout (`routes/externalAuth.ts:L435-L437`), ignores the result.
+   - *Measured fact*: the plan's guard would skip a `prepared` authenticate row. Today logout revokes that row, and the next exchange fails because it needs `status = 'prepared'` (`externalAuthStore.ts:L383`). With the guard, a pending login would survive logout. For an associate or unlink row, only the holder of that same token can send the logout.
+   - *Decision*: no change.
+10. **Narrowed — B12 activation owner sentinel and repair-on-read**:
+   - *Measured fact*: `activationOwner: ''` is a documented legacy sentinel (`d1RegistrationCeremonyRecords.ts:L1477-L1479`, `RegistrationCeremonyStore.ts:L231-L238`). `d1WalletRegistrationService.ts:L5153-L5160` rejects an empty owner, so a legacy claim fails closed. A union would be cosmetic.
+   - *Measured fact*: the `cancel` call in `admitHomeRead` (from `8cfc587a6`) is deliberate repair-on-read. It publishes the cancellation to the directory again after a failed RPC, and no outbox exists for cancellations. Removing it would lose that retry.
+   - *Measured fact*: no writer creates a row with `registering` and `cancelled`, so the plan's extra `registration_completion` guard on `prepareState('active')` is defensive only.
+   - *Decision*: delete only the second `prepareState(input, 'retired')` batch in `cancel`.
+11. **Withdrawn — B13, B14 and B15 (Rust)**:
+   - *B13*: the function is `step_linked_presign_session`. It checks the step against the pinned Durable Object authority (`L544-L556`) before it removes the session, so a mismatched request burns nothing. Each Durable Object holds one session, the authority claim is single-use, and the client discards its session on any step error (`opaqueEcdsaPresignAuthority.ts:L154-L177`). After a protocol error the session is `Poisoned`; after a persist error the output was already taken. The owner path (`ecdsa_presign_session.rs:L199-L230`) uses the same order. Keeping the session would let nothing complete.
+   - *B14*: `TenantRootRestoreImportSessionTombstoneD1RowV1` (`L4343-L4351`, `deny_unknown_fields`) has no `state` field, and no migration gives the table a `state` column. The table holds tombstones: a row exists only for a closed session, and the other queries test closure with `NOT EXISTS`. The plan's check does not compile.
+   - *B15*: `Poisoned` is set only when `message()` or `start_presign()` returns `Err`, and every caller stops on that `Err`. If a caller did read `stage()`, `take_presignature_97` would still return `OutputUnavailable`. `PresignSessionStage` has no serde, but a new value would change what the WASM client sends (`ecdsa_role_local.rs:L858`, `L1083`) and break the TS `parseStage` (`opaqueEcdsaPresignAuthority.ts:L470-L480`).
+   - *Decision*: no change for any of the three.
 
 ---
 
@@ -192,96 +206,29 @@ The second source check (2026-11-08, `e710e608f`) withdrew B7 and the IndexedDB 
 
 ### Batch 3: Wallet Server & Rust/WASM Protocol State Machines (`B9–B16`)
 
-#### B9 — Release `admissionClaims` on `backend_uncertain` in Yao registration (`routerAbEd25519YaoRegistration.ts`)
-- **File**: [`packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration.ts`](../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration.ts)
-- **Root Cause**:
-  - In `commitAdmit` (`L692-L738`), when `input.outcome.kind === 'backend_uncertain'` (`L708-L715`), the method returns `{ ok: false, status: 503, code: 'admission_uncertain', ... }` **without** deleting `input.claim.lifecycleId` from `this.admissionClaims`.
-  - Because `this.admissionClaims` still holds the claim and `this.lifecycleSessions` has no entry, every subsequent retry of `prepareAdmit` (`L665-L681`) or `prepareExecute` (`L778-L786`) for that `lifecycleId` permanently fails with `409 admission_in_progress`.
-  - Furthermore, at `L722-L729`, if `this.states.has(key)` is true, `commitAdmit` also returns `409` without deleting `this.admissionClaims`.
-- **Change**:
-  - Delete `this.admissionClaims.delete(input.claim.lifecycleId)` when `input.outcome.kind === 'backend_uncertain'` (and on `this.states.has(key)` conflict), or unify `admissionClaims`, `lifecycleSessions`, and `states` into a single `Map<LifecycleId, YaoRegistrationLifecycleEntry>` discriminated union (`'claiming' | 'admitted' | 'executing' | 'completed'`).
-- **Verification**:
-  - Add a unit test in `packages/wallet-server` verifying that a `503 admission_uncertain` outcome from `admit` allows the caller to retry `admit` with the same `lifecycle_id` and succeed.
+The second source check (2026-11-08, `8c7a8ac7c`) withdrew B11, B13, B14 and B15. See [Withdrawn and Narrowed Findings](#withdrawn-and-narrowed-findings), items 9 to 11. Order of work: B12, B10, B16.
 
-#### B10 — Guard sessionless device-linking acknowledgement cleanup batch with `D1_BATCH_CAS_GUARD_SQL` (`d1LinkedDeviceAuthorityInstallService.ts`)
+#### B12 — Delete the leftover second batch in `cancel` (`d1WalletExecutionAuthority.ts`)
+- **File**: [`packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts`](../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts)
+- **Root Cause**: `cancel` (`L132-L139`) runs `fixCancellation`, which sets `registration_completion = 'cancelled'` and `state = 'retired'` in one guarded batch, then a second batch `prepareState(input, 'retired')` on the same row. The second batch only matches the row again.
+- **Change**: delete the second batch. Keep the `cancel` call in `admitHomeRead` and the `activationOwner` sentinel.
+- **Verification**: `node tests/e2e/registration-setup-startup.e2e.mjs` (cancel while the directory is down, then a retry) and `node tests/e2e/registration-respond-recovery.scenario.mjs` if it runs on its own.
+
+#### B10 — Guard the sessionless acknowledgement cleanup batch (`d1LinkedDeviceAuthorityInstallService.ts`)
 - **File**: [`packages/wallet-server/src/router/cloudflare/d1/deviceLinking/d1LinkedDeviceAuthorityInstallService.ts`](../packages/wallet-server/src/router/cloudflare/d1/deviceLinking/d1LinkedDeviceAuthorityInstallService.ts)
-- **Root Cause**:
-  - In `commitAcknowledgementCleanupV1` (`L1250-L1302`), `beforeDeleteStatements` transitions `cleanup_state` from `'pending'` to `'allocation_removed'`, and `afterDeleteStatements` transitions `cleanup_state` from `'allocation_removed'` to `'session_removed'` and completes cleanup.
-  - When `input.session` is non-null (`L1270`), `deleteActiveSessionWithStatementsV1` guards the batch. When `input.session === null` (`L1288-L1290`), `this.options.database.batch([...beforeDeleteStatements, ...afterDeleteStatements])` runs without `D1_BATCH_CAS_GUARD_SQL` after the `cleanup_state` updates, so a concurrent state change or 0-row update does not trigger the `catch` replay check (`L1291-L1301`).
-- **Change**:
-  - Interleave `this.options.database.prepare(D1_BATCH_CAS_GUARD_SQL)` after the state-transition `UPDATE` statements in the `input.session === null` batch so any 0-row CAS miss rolls back the batch and enters the `readActivationCleanupReceiptV1` replay verification block.
-- **Verification**:
-  - Add a test in `packages/wallet-server` covering `commitAcknowledgementCleanupV1` when `input.session === null` under concurrent replay.
+- **Root Cause**: the `input.session === null` branch of `commitAcknowledgementCleanupV1` (`L1287-L1289`) runs its five statements with no CAS guard. A concurrent acknowledgement that already committed makes every statement match 0 rows, so the batch succeeds and skips the receipt comparison in the `catch`.
+- **Change**: put `SESSION_CAS_GUARD_SQL` after each of the four `UPDATE`s, as `deleteActiveSessionWithStatementsV1` (`d1LinkedDeviceSessionStore.ts:L696-L716`) does. Do not guard the allocation `DELETE`: wallet authorization cleanup (`d1WalletAuthorizationCleanup.ts`) can already have removed the allocation. Guarding only after the state-transition updates, as first planned, would miss the acknowledgement `UPDATE`, which is the one that matches 0 rows in the race.
+- **Verification**: `pnpm -C packages/wallet-server type-check`. No test reaches this path today.
 
-#### B11 — Restrict `ExternalAuthStore.revokeSession` to active authenticate sessions (`externalAuthStore.ts`)
-- **File**: [`packages/wallet-server/src/auth/externalAuthStore.ts`](../packages/wallet-server/src/auth/externalAuthStore.ts)
-- **Root Cause**:
-  - `revokeSession` (`L469-L475`) executes:
-    ```sql
-    UPDATE external_auth_attempts SET status = 'revoked'
-    WHERE ${SCOPE} AND session_token_hash = ?5 AND origin = ?6
-    ```
-    without `AND purpose = 'authenticate' AND status IN ('verified', 'consumed')`.
-- **Change**:
-  - Add `AND purpose = 'authenticate' AND status IN ('verified', 'consumed')` to `revokeSession` in `externalAuthStore.ts`.
-- **Verification**:
-  - Add a unit test in `externalAuthStore` verifying that `revokeSession` only transitions `'verified'` or `'consumed'` `'authenticate'` rows to `'revoked'`.
+#### B16 — Refuse a second request build on a WASM ECDSA ceremony (`ceremony.rs`)
+- **File**: [`wasm/router_ab_ecdsa_client/src/ceremony.rs`](../wasm/router_ab_ecdsa_client/src/ceremony.rs)
+- **Root Cause**: `build_explicit_export_request` and `build_activation_refresh_request` do not check whether the instance already built a request, so one instance can mix modes and overwrite `post_registration_application_binding_digest`.
+- **Change**: each `build_*` refuses to run when the instance already built any request. This is smaller than the planned five-variant enum, and the JS worker already tracks the mode. Leave `EcdsaLinkedHolderMaterialV1` as it is. Split the test `opaque_ceremony_builds_all_strict_request_branches_without_private_material`, which builds every mode on one instance, into one instance per mode.
+- **Verification**: `cargo test --manifest-path wasm/router_ab_ecdsa_client/Cargo.toml` with a `CARGO_TARGET_DIR` in a scratch directory.
 
-#### B12 — Replace `activationOwner: ''` sentinel and remove write side-effect from `admitHomeRead` (`d1RegistrationCeremonyRecords.ts`, `d1WalletExecutionAuthority.ts`)
-- **Files**:
-  - [`packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords.ts`](../packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords.ts)
-  - [`packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts`](../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority.ts)
-- **Root Cause**:
-  - `parseD1StoredEvmFamilyEcdsaActivationClaimedBranch` (`L1480`) and `parseD1StoredEvmFamilyEcdsaActivatedBranch` (`L1508`) fall back to `activationOwner: ''` when `record.activationOwner` is absent.
-  - In `d1WalletExecutionAuthority.ts`, `admitHomeRead` (`L111-L120`) calls `await this.cancel(input)` inside a read admission check whenever `local.state === 'retired'` and `local.registration_completion === 'cancelled'`. And `cancel` (`L132-L139`) runs `await this.fixCancellation(input)` (which already updates `registration_completion = 'cancelled', state = 'retired'`) followed by a redundant second D1 batch `await this.database.batch(this.prepareState(input, 'retired'))` (`L137`).
-- **Change**:
-  - Replace `activationOwner: string` (with `''` sentinel) on the parsed TypeScript branch types with an explicit `ActivationOwnershipV1` union (`{ kind: 'owned'; owner: string } | { kind: 'legacy_unowned' }`) while keeping the persisted JSON wire format compatible.
-  - In `d1WalletExecutionAuthority.ts`, remove the redundant `await this.database.batch(this.prepareState(input, 'retired'))` from `cancel`, and ensure `prepareState(input.registration, 'active')` explicitly guards `AND registration_completion IN ('pending', 'established')`.
-- **Verification**:
-  - Run registration ceremony and execution authority unit tests in `packages/wallet-server`.
-
-#### B13 — Preserve live ECDSA presign session on validation/transient errors in Durable Object (`ecdsa_presign_live_session.rs`)
-- **File**: [`crates/router-ab-cloudflare/src/durable_object/ecdsa_presign_live_session.rs`](../crates/router-ab-cloudflare/src/durable_object/ecdsa_presign_live_session.rs)
-- **Root Cause**:
-  - `handle_linked_step` (`L593-L601`) removes `entry` from `sessions` (`sessions.borrow_mut().remove(&input.presign_session_id)`) **before** validating expiry/scope/request digest (`L602-L613`), stage (`L615-L630`), or base64 message payloads (`L632-L634`), and before `persist_linked_terminal_completion` (`L712-L714`).
-  - If a malformed request arrives with the wrong stage or bad base64, or if `persist_linked_terminal_completion` hits a transient DO storage error, `entry` is already removed from `sessions` and lost forever.
-- **Change**:
-  - Inspect and validate `entry` (expiry, scope, request digest, stage, and base64 decoding of `outgoing_messages_b64u`) **before** removing `entry` from `sessions` (removing immediately if `entry.expires_at_ms <= now_unix_ms`).
-  - Only remove `entry` once validation succeeds and the cryptographic step is ready to advance; if `entry.session.message(...)` or `start_presign()` fails with a protocol error, drop the poisoned session intentionally.
-- **Verification**:
-  - Add a Rust unit test in `crates/router-ab-cloudflare` verifying that a stage mismatch or malformed base64 payload does not evict an active non-expired `LiveSession` from `sessions`.
-
-#### B14 — Enforce `row.state == "closed"` on tenant-root restore-session tombstones (`tenant_root_role_d1.rs`)
-- **File**: [`crates/router-ab-cloudflare/src/tenant_root_role_d1.rs`](../crates/router-ab-cloudflare/src/tenant_root_role_d1.rs)
-- **Root Cause**:
-  - `restore_import_session_tombstone_from_row` (`L14930-L15040`) never checks `row.state`.
-- **Change**:
-  - Check `if row.state.as_deref() != Some("closed") { return Err(store_error("tenant-root restore-session tombstone has invalid state")); }` at the start of `restore_import_session_tombstone_from_row`.
-- **Verification**:
-  - Run `cargo test -p router-ab-cloudflare` and add a unit test rejecting a tombstone row whose `state` is not `"closed"`.
-
-#### B15 — Distinguish `PresignSessionStage::Poisoned` from `PresignSessionStage::Done` (`session.rs`)
-- **File**: [`crates/router-ab-ecdsa-presign/src/session.rs`](../crates/router-ab-ecdsa-presign/src/session.rs)
-- **Root Cause**:
-  - `ClientPresignSession::stage()` (`L198`) and `SigningWorkerPresignSession::stage()` (`L425`) both map `Done(_) | Poisoned => PresignSessionStage::Done`.
-- **Change**:
-  - Add `PresignSessionStage::Poisoned` (`as_str() -> "poisoned"`) and map `ClientState::Poisoned` and `SigningWorkerState::Poisoned` to `PresignSessionStage::Poisoned`.
-  - Check `progress.event == PresignSessionEvent::PresignDone && progress.stage == PresignSessionStage::Done` in callers (`ecdsa_presign_live_session.rs:646`).
-- **Verification**:
-  - Run `cargo test -p router-ab-ecdsa-presign` and `cargo test -p router-ab-cloudflare`.
-
-#### B16 — Make WASM ECDSA ceremony mode and pending ordinary export state mutually exclusive (`ceremony.rs`, `ecdsa_role_local.rs`)
-- **Files**:
-  - [`wasm/router_ab_ecdsa_client/src/ceremony.rs`](../wasm/router_ab_ecdsa_client/src/ceremony.rs)
-  - [`wasm/router_ab_ecdsa_client/src/ecdsa_role_local.rs`](../wasm/router_ab_ecdsa_client/src/ecdsa_role_local.rs)
-- **Root Cause**:
-  - `RouterAbEcdsaClientCeremonyV1` (`ceremony.rs:34-40`) has 4 independent `Option` fields (`registration_binding`, `explicit_export_request_digest`, `activation_refresh_request_digest`, `post_registration_application_binding_digest`), allowing a single ceremony instance to mix registration, explicit export, and activation refresh calls.
-  - `EcdsaRoleLocalHolderV1` (`ecdsa_role_local.rs:644-693`) stores 3 parallel `Option<[u8; 32]>` fields (`pending_export_request_digest`, `pending_export_transcript_digest`, `pending_export_application_binding_digest`) that are always set and taken together.
-- **Change**:
-  - Replace the 4 `Option` fields on `RouterAbEcdsaClientCeremonyV1` with an explicit `CeremonyStateV1` enum (`Unbound { keypair }`, `Registration { keypair, binding }`, `ExplicitExport { keypair, request_digest, application_binding_digest }`, `ActivationRefresh { keypair, request_digest, application_binding_digest }`, `Closed`).
-  - Replace the 3 `pending_export_*` `Option` fields on `EcdsaRoleLocalHolderV1` with a single `pending_export: Option<PendingOrdinaryExportV1>`.
-- **Verification**:
-  - Run `cargo test --manifest-path wasm/router_ab_ecdsa_client/Cargo.toml`.
+#### B9 — Deferred: reconcile an uncertain Yao admission
+- **Facts**: see the matrix row. Deleting the claim in `commitAdmit` is wrong: the live route does not call it, and a blind retry can make a second router session.
+- **Decision needed**: either a reconciliation step (on retry, read the router's result for the lifecycle and then settle the claim), or a claim expiry that is safe with the router's idempotency. No code changes until that decision is made.
 
 ---
 
