@@ -452,13 +452,6 @@ export class ExternalEvmController {
         this.disconnect();
         return changed();
       }
-      if (observed.value.chainId !== configuredChain.chainId) {
-        this.disconnect();
-        return externalEvmFailure(
-          'unsupported_chain',
-          'The wallet did not switch to the requested network.',
-        );
-      }
       const next = connectedExternalEvm(
         ++this.generation,
         current.wallet,
@@ -468,6 +461,14 @@ export class ExternalEvmController {
         this.chains,
       );
       this.publish(next);
+      // The wallet stayed on another network. Keep the connection, as connect and
+      // chainChanged do, so the unsupported-network view can offer the switch again.
+      if (observed.value.chainId !== configuredChain.chainId) {
+        return externalEvmFailure(
+          'unsupported_chain',
+          'The wallet did not switch to the requested network.',
+        );
+      }
       return { ok: true, value: next };
     } finally {
       this.finishRequest(lease.token);

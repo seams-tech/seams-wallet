@@ -184,7 +184,7 @@ test('disconnects when post-switch authorization no longer matches', async () =>
   expect(controller.getSnapshot().connection.kind).toBe('disconnected');
 });
 
-test('disconnects when the provider reports the wrong chain after switching', async () => {
+test('keeps the connection on the observed chain when the provider did not switch', async () => {
   const provider = new MockProvider();
   const controller = new ExternalEvmController([
     { chainId: 1, name: 'Ethereum', rpcUrl: 'https://rpc.example.test' },
@@ -201,7 +201,12 @@ test('disconnects when the provider reports the wrong chain after switching', as
   const switched = await controller.switchChain(connected.value, 11_155_111);
 
   expect(switched).toMatchObject({ ok: false, code: 'unsupported_chain' });
-  expect(controller.getSnapshot().connection.kind).toBe('disconnected');
+  expect(controller.getSnapshot().connection).toMatchObject({
+    kind: 'connected',
+    account: connected.value.account,
+    chainId: 2,
+    network: { kind: 'unsupported' },
+  });
 });
 
 test('rejects stale connections and wallet approval failures', async () => {
