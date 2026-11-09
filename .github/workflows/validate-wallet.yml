@@ -59,26 +59,25 @@ jobs:
       - run: pnpm report:bloat --check
       - run: pnpm check:cargo-locks
       # The Rust outputs (WASM packages, release Workers, local tools) are
-      # cached by the exact content of every tracked file that can change
-      # them, and by the rustc version. Most pushes change no Rust input, and
-      # the Rust build took about 30 of this job's minutes. There is no
+      # cached by the rustc version and by the exact content of their inputs:
+      # every tracked file of each path package that a built manifest
+      # resolves, which includes its Cargo.lock, plus the Cargo settings and
+      # the build scripts (scripts/rust-build-inputs.mjs). A change to a crate
+      # that no build resolves, such as crates/spoken-intent, keeps the cache.
+      # The Rust build takes about 22 of this job's minutes. There is no
       # partial-key fallback: a restored output always matches its inputs.
       # The release workflow never uses this cache; it builds from source.
       - name: Hash Rust build inputs
         id: rust-inputs
         run: |
           set -euo pipefail
-          hash="$(git ls-tree -r HEAD -- \
-            crates wasm tools .cargo package.json \
-            packages/wallet/build-paths.sh packages/wallet/scripts/build \
-            scripts/build-local-tools.mjs .github/workflows/validate-wallet.yml \
-            | sha256sum | cut -c1-40)"
+          hash="$(node scripts/rust-build-inputs.mjs)"
           echo "hash=$hash" >> "$GITHUB_OUTPUT"
       - name: Restore Rust build outputs
         id: rust-outputs
         uses: actions/cache/restore@v6
         with:
-          key: rust-outputs-v1-${{ runner.os }}-${{ steps.rust-toolchain.outputs.cachekey }}-${{ steps.rust-inputs.outputs.hash }}
+          key: rust-outputs-v2-${{ runner.os }}-${{ steps.rust-toolchain.outputs.cachekey }}-${{ steps.rust-inputs.outputs.hash }}
           path: |
             wasm/*/pkg
             crates/router-ab-ed25519-yao-client/pkg
@@ -91,6 +90,12 @@ jobs:
       - name: Build Rust WASM packages, Workers and local tools
         if: steps.rust-outputs.outputs.cache-hit != 'true'
         run: pnpm run build:wasm && pnpm run build:workers && pnpm run build:local-tools
+      # Rustc names every file it read in a dep-info file, including files
+      # that include_bytes! or #[path] reach outside a package directory. If
+      # one of them is not in the key, this step fails and nothing is saved.
+      - name: Check that the Rust cache key covers every file rustc read
+        if: steps.rust-outputs.outputs.cache-hit != 'true'
+        run: node scripts/rust-build-inputs.mjs --check-dep-info
       - name: Save Rust build outputs
         if: steps.rust-outputs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
