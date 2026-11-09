@@ -19,6 +19,7 @@ description: Seamsの共同署名者がSpeak-to-Signの各判定を音声の上�
 - `routerAb`を設定しない場合、Seamsがホストするウォレットのオリジン(`staging.sign.seams.sh`、`test.sign.seams.sh`、`sign.seams.sh`)は、自身のSigningWorkerでRouter A/Bの通常署名を有効にします。そのため、`walletOrigin`、`relayerUrl`、`publishableKey`だけの`seamsTestnetConfig`でNEARに署名できます。以前は、アプリが`routerAb`を設定するまでNEARの署名は無効でした。[ホストするウォレットの設定](/ja/reference/configuration#hosted-wallet-branch)を参照してください。
 - Speak-to-SignのホストAPIはバージョン **7** です。VoiceIDのホストAPIはバージョン **10** のままです。Walletは、別のバージョンのホストプラグインを拒否します。
 - 次の順序でデプロイしてください。D1のマイグレーションを適用し、サーバーをデプロイし、その後にWalletホストをデプロイします。検証の応答がストリームになったため、Speak-to-SignにはサーバーとWalletホストの両方が0.60.0である必要があります。その他の署名は、2つのデプロイの間も動作します。0.59.0のアプリは進行状況のメッセージを無視しますが、2つの新しい拒否理由を読めないため、アプリも更新してください。
+- 検証者0.4.1(`d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`)は、送金でより多くの言い方を受け入れます。区切りの別の言い方(「period」「hyphen」)、区切りとネットワークの接尾辞のないアカウント名(「seams v one」)、アカウントと結合した「to」(「near to ken」に対する「near toucane」)、ゼロに対する「oh」です。金額と送金先は、引き続き要求と一致する必要があります。
 - 0.60.0にも含まれる0.59.0の変更:
   - Speak-to-Signは、音声によるコミュニティノート(`requestNote`)とノートの評価(`requestRating`)に署名します。
   - 検証者0.4.0(`8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`)はノートの要求を追加します。送金は変わりません。
