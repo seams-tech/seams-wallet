@@ -37,7 +37,7 @@ use router_ab_core::{
 use router_ab_ecdsa_derivation::RouterAbEcdsaDerivationStableKeyContext;
 use router_ab_ed25519_yao_client::{
     client_application_binding_digest_v1, complete_client_activation_v1,
-    ed25519_local_material_binding_v1, prepare_client_recovery_with_root_v1,
+    ed25519_local_material_binding_v1, prepare_client_continuity_with_root_v1,
     prepare_client_registration_with_root_v1, seal_activated_client_under_custody_seed_v1,
     ActivatedClientV1, ClientActivationEntropyV1, ClientActivationStateV1,
 };
@@ -671,7 +671,7 @@ impl CeremonySeedHeldV1 {
 
                 let prepared = match continuity {
                     Some(expected_registered_public_key) => {
-                        prepare_client_recovery_with_root_v1(
+                        prepare_client_continuity_with_root_v1(
                             &yao_admission,
                             &yao_application,
                             participant_ids,

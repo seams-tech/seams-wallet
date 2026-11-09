@@ -402,9 +402,11 @@ pub fn prepare_client_registration_source_preserving_with_root_v1(
     .map_err(|_| ClientActivationError::InvalidProtocolShape)
 }
 
-/// Prepares recovery from the same Client root while requiring the registered
-/// public key to remain unchanged.
-pub fn prepare_client_recovery_with_root_v1(
+/// Prepares a recovery or a reissue from the same Client root while requiring
+/// the registered public key to remain unchanged. The admission names which:
+/// a recovery moves the state epoch, a reissue delivers the current Client
+/// share to a new recipient. Both use the same Client contributions.
+pub fn prepare_client_continuity_with_root_v1(
     admission: &RouterAbEd25519YaoActivationAdmissionReceiptV1,
     application: &RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
@@ -412,13 +414,20 @@ pub fn prepare_client_recovery_with_root_v1(
     expected_registered_public_key: [u8; 32],
     entropy: ClientActivationEntropyV1,
 ) -> Result<PreparedClientActivationV1, ClientActivationError> {
+    let operation = admission.binding().operation;
+    if !matches!(
+        operation,
+        Ed25519YaoOperationV1::Recovery | Ed25519YaoOperationV1::Reissue
+    ) {
+        return Err(ClientActivationError::BindingMismatch);
+    }
     prepare_client_activation_with_root_v1(
         admission,
         application,
         participant_ids,
         root,
         entropy,
-        Ed25519YaoOperationV1::Recovery,
+        operation,
         ClientActivationContinuityV1::Preserve(expected_registered_public_key),
     )
 }
