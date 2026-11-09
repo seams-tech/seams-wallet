@@ -1032,11 +1032,18 @@ test('a merge approval says the pull request and base, and checks every field', 
     spokenText: 'merge pull request forty two into main',
   });
   expect(noteActionRefusal(MERGE)).toBeNull();
+  for (const repo of ['a/b', 'my-org/My.Repo_2', 'seams/...']) {
+    expect(noteActionRefusal({ ...MERGE, repo }), repo).toBeNull();
+  }
   for (const bad of [
     { ...MERGE, pullRequest: 0n },
     { ...MERGE, base: 'Main' },
     { ...MERGE, base: 'release-1' },
     { ...MERGE, repo: 'seams-wallet' },
+    { ...MERGE, repo: '-seams/x' },
+    { ...MERGE, repo: 'seams-/x' },
+    { ...MERGE, repo: 'seams/.' },
+    { ...MERGE, repo: 'seams/..' },
     { ...MERGE, headCommit: MERGE.headCommit.toUpperCase() },
     { ...MERGE, headCommit: MERGE.headCommit.slice(1) },
   ]) {

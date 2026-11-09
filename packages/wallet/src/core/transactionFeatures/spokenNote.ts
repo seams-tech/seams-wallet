@@ -75,7 +75,8 @@ export type SpokenNoteAction =
       headCommit: string;
     }>;
 
-const REPO_PATTERN = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
+/** The merge-approval contract's rule: no owner edge dash, and a name other than "." or "..". */
+const REPO_PATTERN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)\/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/;
 const BASE_PATTERN = /^[a-z]{1,32}$/;
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 
