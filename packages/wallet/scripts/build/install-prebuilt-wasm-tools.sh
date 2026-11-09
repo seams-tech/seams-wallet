@@ -103,9 +103,10 @@ github_auth_header() {
   printf 'Authorization: Bearer %s\n' "$github_token"
 }
 
-# Retry every failed attempt, HTTP 5xx included, for about four minutes.
+# Retry every failed attempt, HTTP 5xx included, for about ten minutes. On
+# 2026-11-09, GitHub answered these downloads with 504 for at least five.
 curl_with_retries() {
-  curl -fsSL --retry 8 --retry-delay 30 --retry-all-errors "$@"
+  curl -fsSL --retry 20 --retry-delay 30 --retry-all-errors "$@"
 }
 
 # download_verified_tarball REPO TAG ASSET SHA256 DEST_DIR: download a release
