@@ -375,8 +375,15 @@ fn vector_activation_deliveries(
     )
 }
 
-#[test]
-fn recovered_source_links_with_the_registered_key_vector_and_next_epoch() {
+struct RegisteredAndRecovered {
+    recipient: router_ab_ed25519_yao::Ed25519YaoRecipientKeyPairV1,
+    source: router_ab_ed25519_yao::Ed25519YaoActiveSigningMaterialV1,
+    recovery: Ed25519YaoCeremonyBindingV1,
+    recovered: router_ab_ed25519_yao::Ed25519YaoActiveSigningMaterialV1,
+}
+
+/// Registers the vector key set (epoch 1) and recovers it (epoch 2).
+fn register_and_recover_vector_source() -> RegisteredAndRecovered {
     let recipient =
         derive_ed25519_yao_recipient_key_pair_v1(&[0x71; 32]).expect("vector recipient");
     let registered = binding(
@@ -400,6 +407,22 @@ fn recovered_source_links_with_the_registered_key_vector_and_next_epoch() {
         combine_ed25519_yao_signing_worker_packages_v1(&recipient.private_key, a, b, Some(&source))
             .expect("recover vector source")
             .into_parts();
+    RegisteredAndRecovered {
+        recipient,
+        source,
+        recovery,
+        recovered,
+    }
+}
+
+#[test]
+fn recovered_source_links_with_the_registered_key_vector_and_next_epoch() {
+    let RegisteredAndRecovered {
+        recipient,
+        source,
+        recovery,
+        recovered,
+    } = register_and_recover_vector_source();
     let mut target = binding(
         Ed25519YaoOperationV1::Registration,
         ExpensiveWorkKindV1::RegistrationPrepare,
@@ -445,29 +468,12 @@ fn recovered_source_links_with_the_registered_key_vector_and_next_epoch() {
 
 #[test]
 fn a_reissue_reproduces_the_recovered_signing_worker_share_and_keeps_the_epoch() {
-    let recipient =
-        derive_ed25519_yao_recipient_key_pair_v1(&[0x71; 32]).expect("vector recipient");
-    let registered = binding(
-        Ed25519YaoOperationV1::Registration,
-        ExpensiveWorkKindV1::RegistrationPrepare,
-        [0x51; 32],
-    );
-    let (a, b) = vector_activation_deliveries(&registered, recipient.public_key);
-    let (source, _) =
-        combine_ed25519_yao_signing_worker_packages_v1(&recipient.private_key, a, b, None)
-            .expect("register vector source")
-            .into_parts();
-    let mut recovery = binding(
-        Ed25519YaoOperationV1::Recovery,
-        ExpensiveWorkKindV1::Recovery,
-        [0x52; 32],
-    );
-    recovery.material_activation.activation_id = "recovered-vector-material".to_owned();
-    let (a, b) = vector_activation_deliveries(&recovery, recipient.public_key);
-    let (recovered, _) =
-        combine_ed25519_yao_signing_worker_packages_v1(&recipient.private_key, a, b, Some(&source))
-            .expect("recover vector source")
-            .into_parts();
+    let RegisteredAndRecovered {
+        recipient,
+        source,
+        recovery,
+        recovered,
+    } = register_and_recover_vector_source();
     // A recovery keeps the Signing Worker share and moves only the epoch.
     assert_eq!(recovered.scalar(), source.scalar());
     assert_eq!(recovered.state_epoch().get(), 2);
