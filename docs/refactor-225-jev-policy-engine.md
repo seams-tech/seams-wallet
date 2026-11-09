@@ -155,27 +155,35 @@ runs in the OutLayer verifier.
 - **Speak-to-Sign is testnet only.** A voice check for each transfer exists
   only in the Refactor 210 hackathon work (seams-monorepo
   `docs/refactor-210-voice-intents.md`).
-- **Speak-to-Sign current design (Refactor 210 Section 0).**
-  - The Wallet calls the verifier through OutLayer's HTTPS API. The audio
-    travels in the request. There is no yield.
-  - The verifier is a 302 KB OutLayer worker. It calls the Phala speaker
-    service (ReDimNet in a dstack CVM) and NEAR AI Whisper large-v3 at the
-    same time.
+- **Speak-to-Sign current design (Refactor 227, option G; Refactor 210
+  Section 0).** There is no vault.
+  - The Wallet calls the verifier through the Seams verify route and
+    OutLayer's HTTPS API. The audio travels in the request. There is no yield.
+  - The verifier is a 335 KB OutLayer worker (version 0.3.1). It calls the
+    Phala speaker service (ReDimNet in a dstack CVM) and NEAR AI Whisper
+    large-v3 at the same time.
   - It compares the embedding with the template in OutLayer storage (cutoff
     0.45). It checks the words with `spoken_intent::normalize_punctuated`
-    against `render` of the request. It marks the audio digest as used.
-  - It returns a verdict that a project-bound key signs.
-  - The vault (`transfer_with_verdict`) checks the signature, the nonce, the
-    contact, its own limits and audio reuse, and pays.
+    against `render` of the request. It runs a policy step. It marks the audio
+    digest as used.
+  - It returns a verdict v2 that a project-bound key signs. The `outcome` is
+    `accept`, `step_up` or `refuse`. The verdict expires after 120 s.
+  - Wallet core checks the verdict against the verifier key that the Wallet
+    pins. On `accept`, it signs the transfer from the owner's own account with
+    no confirm. On `step_up`, it asks for a fresh approval first. One stub rule
+    in the policy step sends a payment above 10 NEAR to `step_up`.
 - **Speak-to-Sign measurements.** Verify p95 5.2 s with Phala. End of speech
-  to vault accepted 8.7 s. About 2.2 s of each OutLayer HTTPS call is a
-  fixed cost outside the run. NEAR AI Whisper takes median 1.31 s and p95
-  1.58 s. The user's rule: the whole flow takes at most 10 s (Refactor 210
-  Section 11.5; whether the 10 s start at the end of speech is open question
-  15 there).
-- **Speak-to-Sign grammar.** `crates/spoken-intent` has two request kinds:
-  `VaultTransfer` and `MultisigApproval`. No spoken form contains free text
-  from the app, the proposer or a description (Refactor 210 Section 6.3).
+  to receipt 9.2 s in one live run of the Wallet path (2026-11-09). On the
+  retired vault path, end of speech to vault accepted took 8.7 s. About 2.2 s
+  of each OutLayer HTTPS call is a fixed cost outside the run. NEAR AI Whisper
+  takes median 1.31 s and p95 1.58 s. The user's rule: the whole flow takes at
+  most 10 s (Refactor 210 Section 11.5; whether the 10 s start at the end of
+  speech is open question 15 there).
+- **Speak-to-Sign grammar.** `crates/spoken-intent` has four request kinds:
+  `AccountTransfer`, `MultisigApproval`, `CommunityNote` and `NoteRating`.
+  Only the community-note kinds carry free text: a short summary, with no
+  value moved (Refactor 227, Section 4). No other spoken form contains free
+  text from the app, the proposer or a description (Refactor 210 Section 6.3).
 - **Spoken bets.** Refactor 210 Section 13 already says: market text is
   untrusted input to an AI, the AI output is only a proposal of typed
   orders, and fixed code renders the sentence that the user says.
@@ -500,8 +508,11 @@ order (`markets.example.near` stands for contract X):
 
 ### 4. Speak-to-Sign integration
 
-The design follows Refactor 210 Section 0. This plan adds the policy step to
-the verifier.
+The design follows Refactor 227 (option G) and Refactor 210 Section 0. There
+is no vault. The voice rules live in two places: the policy step of the
+verifier, and Wallet core, which checks the verdict and signs from the owner's
+account. The verifier already has the policy step with one stub rule. This plan
+puts the Jev rules into that step.
 
 ```text
 [Wallet iframe (walletOrigin)]
@@ -520,26 +531,35 @@ the verifier.
    ├─► 5. Jev batch now, if a rule reads the transcript (one call in total)
    ├─► 6. Strictest result; mark the audio digest as used
    ▼
-[Verdict, signed with the project-bound key]
+[Verdict v2, signed with the project-bound key, valid for 120 s]
    ├─► allow                  -> outcome "accept"
-   ├─► require_human_approval -> outcome "refuse", reason "policy_step_up"
-   └─► deny                   -> outcome "refuse", reason "policy_deny"
+   ├─► require_human_approval -> outcome "step_up", policy_rule = the rule id
+   └─► deny                   -> outcome "refuse" (planned: the verifier has no deny reason yet)
    ▼
-[Vault] transfer_with_verdict: unchanged; it pays only on "accept"
+[Wallet core] checks the verdict against the pinned key, then signs from the owner's account
+   ├─► accept  -> no confirm
+   └─► step_up -> shows the rule sentence and asks for a fresh approval first
 ```
 
 - **Words.** The `spoken-intent` match stays. It is the only check that the
   words match the request. Jev never reads the audio and never decides
   whether the words match.
 - **Scope.** Jev adds scope rules on top: what may be signed by voice.
-- **Free text.** Spoken forms keep the no-free-text rule. A prediction-market
-  order needs a new typed kind in `spoken-intent`, with market names from a
-  curated registry, as in Refactor 210 Section 13.
-- **Limits.** The vault keeps its own limits and contacts. They stay the last
-  check.
-- **Verdict fields.** The verdict adds `policy_version`, `policy_digest`,
-  `policy_outcome` and `jev_model`, and stays under 1024 bytes. The TDX quote
-  binds the output, so an auditor can see that the policy step ran.
+- **Free text.** Spoken forms keep the no-free-text rule. The one exception is
+  the community-note kinds, which carry a short summary and move no value
+  (Refactor 227, Section 4). A prediction-market order needs a new typed kind
+  in `spoken-intent`, with market names from a curated registry, as in
+  Refactor 210 Section 13.
+- **Limits.** There is no vault, so no on-chain limit or contact check. The
+  last checks are in Wallet core: the signature, the digests, the expiry and
+  one payment for each verdict. Voice limits for each wallet (per payment and
+  per day) are planned in the co-signer admission (Refactor 227, Step 1b) and
+  are not built.
+- **Verdict fields.** Verdict v2 has 13 fields, including `outcome`,
+  `policy_rule` and `expires_at_ms`. The Jev slice adds `policy_version`,
+  `policy_digest`, `policy_outcome` and `jev_model` (not built), and the verdict
+  stays under 1024 bytes. The TDX quote binds the output, so an auditor can see
+  that the policy step ran.
 - **Policy storage.** Over HTTPS, the storage namespace is the payment-key
   owner (the Seams server), so Console publish writes the compiled policy
   there. The project owner is already in the trust set (Refactor 210
@@ -550,10 +570,13 @@ the verifier.
   new host.
 - **Data out of the TEE.** The Jev state and questions go through NEAR AI to
   the provider that runs Jev. The audio, the template and the keys do not.
-- **Step-up path.** On `policy_step_up`, the Wallet shows the rule's source
-  sentence and offers the normal passkey-signed transfer from the owner's
-  account, outside the vault. A vault method that accepts a step-up verdict
-  plus an owner signature is open question 9.
+- **Step-up path.** On a `step_up` verdict, Wallet core shows the rule's source
+  sentence (`policy_text`) and asks for a fresh approval of the same operation
+  with the session's own method. It then signs the transfer from the owner's
+  account. There is no vault method (open question 9). Today one stub rule
+  causes a step-up: a payment above 10 NEAR (`stub_voice_amount_above_10_near`).
+  In Refactor 227, Step 1b (not built), the co-signer accepts a `step_up`
+  operation only with that fresh approval.
 
 ### 5. Normal signing (later slices)
 
@@ -700,12 +723,12 @@ Constraints:
 
 ### 8. Latency and cost
 
-| Path                                                  | Today                                                   | With semantic rules                                                                |
-| ----------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Speak-to-Sign, rules read only transaction fields     | Verify p95 5.2 s; end of speech to vault accepted 8.7 s | About +0 s: Jev (0.5–0.7 s) runs beside Whisper (p95 1.58 s) and the speaker check |
-| Speak-to-Sign, a rule reads the transcript            | Same                                                    | +0.5–0.7 s after Whisper: about 9.2–9.4 s from the end of speech, inside 10 s      |
-| Normal signing (passkey, VoiceID session, agent lane) | No policy step (rules are not enforced)                 | +0.5–0.7 s in series; about +0 s if the call overlaps the signing rounds           |
-| Authoring preview                                     | Simulate only                                           | One authoring call for each draft and one Jev call for each test case              |
+| Path                                                  | Today                                                         | With semantic rules                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Speak-to-Sign, rules read only transaction fields     | Verify p95 5.2 s; end of speech to receipt 9.2 s (1 live run) | About +0 s: Jev (0.5–0.7 s) runs beside Whisper (p95 1.58 s) and the speaker check                              |
+| Speak-to-Sign, a rule reads the transcript            | Same                                                          | +0.5–0.7 s after Whisper: about 9.7–9.9 s from the end of speech to the receipt, inside 10 s with little margin |
+| Normal signing (passkey, VoiceID session, agent lane) | No policy step (rules are not enforced)                       | +0.5–0.7 s in series; about +0 s if the call overlaps the signing rounds                                        |
+| Authoring preview                                     | Simulate only                                                 | One authoring call for each draft and one Jev call for each test case                                           |
 
 Speak-to-Sign already pays the fixed OutLayer HTTPS cost of about 2.2 s, so
 the policy step adds no second OutLayer call.
@@ -745,8 +768,9 @@ Cost for each decision (one batched call):
   - The Jev state has `transaction` and `purpose`. A rule such as "voice
     payments only for food and drink, otherwise ask for a passkey" judges
     the purpose.
-  - The Jev call waits for Whisper, so it adds 0.5–0.7 s: about 9.3 s from
-    the end of speech, inside the 10 s rule. Gate J0 measures it.
+  - The Jev call waits for Whisper, so it adds 0.5–0.7 s: about 9.8 s from
+    the end of speech to the receipt (9.2 s measured without Jev), inside the
+    10 s rule with little margin. Gate J0 measures it.
   - The Wallet shows the sentence to say with a purpose slot, for example
     "send five near to alice dot testnet for …".
 - **Speak-to-Sign only**, on testnet, with organization policies only.
@@ -755,15 +779,15 @@ Cost for each decision (one batched call):
 - **Verifier.** It reads the compiled policy from OutLayer storage, runs the
   deterministic rules on the typed request, makes one Jev call and adds the
   verdict fields (Section 4).
-- **Wallet.** On `policy_step_up`, it shows the source sentence and offers
-  the passkey path.
+- **Wallet.** On a `step_up` verdict, Wallet core shows the source sentence
+  and asks for a fresh approval (Section 4).
 - **Acceptance:**
   - All stored test cases give the expected result.
-  - End of speech to vault accepted: p95 at most 10 s over 20 runs.
-  - A forced Jev failure gives `policy_step_up`.
+  - End of speech to receipt: p95 at most 10 s over 20 runs.
+  - A forced Jev failure gives a `step_up` verdict.
   - A deterministic deny makes no Jev call.
   - "send five near to alice dot testnet for lunch" passes a food-and-drink
-    rule, and "… for poker night" gets `policy_step_up`.
+    rule, and "… for poker night" gets a `step_up` verdict.
 
 ### Later slices
 
@@ -803,6 +827,8 @@ The gates of the first draft map to these slices:
 8. **Releases.** Speak-to-Sign for each transfer is testnet only (the
    2026-11-04 decision). Is Slice 3 (VoiceID sessions and passkeys) the
    first release target?
-9. **Vault step-up.** Does the vault get a method that accepts a step-up
-   verdict plus an owner signature, or does the step-up always leave the
-   vault?
+9. **Step-up path.** Decided on 2026-11-09 (Refactor 227): there is no vault.
+   A `step_up` verdict goes to Wallet core, which asks for a fresh approval of
+   the same operation and signs from the owner's account. Still open: in Step
+   1b, must the co-signer see that fresh approval before it adds its part to a
+   `step_up` operation?

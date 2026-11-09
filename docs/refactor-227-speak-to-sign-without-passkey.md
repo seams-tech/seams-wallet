@@ -1,8 +1,9 @@
 # Refactor 227: Speak-to-Sign without a passkey, with typed contract calls
 
-Status: plan, 2026-11-09, second draft. Nothing is built. It changes the Speak-to-Sign design
-of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and uses the step-up of
-[Refactor 225](refactor-225-jev-policy-engine.md) (Section 4).
+Status: 2026-11-09. Step 1 (payments without a passkey) and Step 4 (retire the vault) are
+done. Step 1b, Step 2 and Step 3 are open. Step 5 (records) is done. The plan changed the
+Speak-to-Sign design of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and
+uses the step-up of [Refactor 225](refactor-225-jev-policy-engine.md) (Section 4).
 
 Decisions of the user (2026-11-09):
 
@@ -232,7 +233,8 @@ SpokenRequestV1::NoteRating { .. }    // tag 5, Step 3 (Section 4)
 Each step is built, tested and deployed only after the user approves it. Deployments wait
 until the 0.57.0 rollout session reports done.
 
-1. **Payments without a passkey.**
+1. **Payments without a passkey.** Done on 2026-11-09, except 1b and the open items under
+   "As built (Step 1)" below.
    - `spoken-intent`: `AccountTransfer`, golden vectors, and the TypeScript port. The port
      moves into Wallet core, because core checks the verdict. Delete `VaultTransfer`.
    - Verifier 0.3.0: verdict v2, `expires_at_ms`, the policy step with the stub rule, the new
@@ -247,16 +249,48 @@ until the 0.57.0 rollout session reports done.
      wallet-server and the hosted Wallet to staging, release the SDK if its app API changed.
    - Check: a 1 NEAR spoken payment on the staging demo with no passkey prompt; an 11 NEAR
      payment that asks for the passkey; 10 runs of end of speech to settled.
-2. **Live progress.** Route SSE, SDK stream reader, Wallet progress events.
+
+   As built (Step 1):
+
+   - Wallet commit `50502e1c2`: `AccountTransfer` (Borsh tag 2) replaces `VaultTransfer`
+     (tag 0, now refused). Wallet core checks the verdict v2 in
+     `core/transactionFeatures/voiceVerdict.ts` against the pinned testnet key. An `accept`
+     verdict pays once from the owner's account with no confirm. Enrollment signs one NEP-413
+     message. The descriptor is `speakToSign({ network })`.
+   - Verifier 0.3.0 is `seams-voice-intents` commit `3dab63d`. Verifier 0.3.1 (commit
+     `446882b`, version key `5b6fad5d…c9c1d1`) is the version that runs.
+   - The word check is forgiving. Wallet commit `976167297` (in `spoken-intent`) reads "sent"
+     as "send", sound-alikes of "near" and "testnet", number sound-alikes in the amount slot,
+     and a receiver one sound from the account. None of these words holds a value, so the
+     amount and the receiver are still compared with the request. The rescore of 6,742 saved
+     Whisper transcripts: correct transfers accepted 94.6% to 98.0%, 0 false accepts in
+     3,742 near misses. Gate STT-1 still fails as a whole (91.1%; pass needs 95%), because of
+     the multisig approvals. Report:
+     `seams-monorepo/voiceId/stt-bench/reports/stt1-transaction-grammar-whisper-nearai-forgiving-2026-11-09.md`.
+   - On `step_up`, core asks for a fresh approval with the session's own method
+     (`voice_and_passkey`). It does not force a passkey, so a VoiceID session can answer
+     with VoiceID.
+   - Live check on testnet (commit `02c2dd904`): enrollment with one NEP-413 confirm;
+     0.01 NEAR by voice with no confirm, 9.2 s from the end of speech to the receipt (1 run);
+     a wrong spoken amount refused as words; 11 NEAR brought the confirm back, and then NEAR
+     refused the transaction for the balance.
+   - Not done or not recorded: the input-free signing preparation during verify; the check on
+     the staging demo; 10 runs of end of speech to settled.
+2. **Live progress.** Route SSE, SDK stream reader, Wallet progress events. Open.
 3. **Spoken community notes.** `CommunityNote` and `NoteRating` in the crate and the port,
    the notes contract, verifier 0.4.0, the Wallet and SDK `requestNote` and `requestRating`,
    and the Spoken Notes demo page (`seams-voice-intents/demo`). Check a spoken note and a
-   spoken rating on staging.
-4. **Retire the vault.** Testnet owners withdraw from `seams-wallet.testnet`. The SDK and
-   Wallet vault code goes in Step 1 with `VaultTransfer`. The contract source stays in git
-   history; the deployed code hash `ecdd703a…ec42` keeps its withdrawal methods.
-5. **Records.** Refactor 210 Section 0, Refactor 225 Section 4 and open question 9, the
-   verifier README.
+   spoken rating on staging. Open. The code is written (Wallet commits `522c2e8bc`,
+   `bec400807`; notes contract on `notes.seams-v1.testnet`). Verifier 0.4.0 is on OutLayer as
+   version `8a0b7ba0…2329ef` and is not active. The staging check is not done.
+4. **Retire the vault.** Done on 2026-11-09. The SDK and Wallet vault code went in Step 1
+   with `VaultTransfer`. The verifier repository removed `voice-vault/`, the vault demos and
+   the on-chain tests in `3dab63d`. The contract source stays in git history. The deployed
+   contract `seams-wallet.testnet` (code hash `ecdd703a…ec42`) keeps its withdrawal methods,
+   so a testnet owner can still withdraw. Nobody checked that any balance is left.
+5. **Records.** Done on 2026-11-09. Refactor 210 Section 0, Section 11 and Section 12,
+   Refactor 225 Section 4 and open question 9, the verifier README and the `seams-monorepo`
+   docs index now say what runs.
 
 ## Parked
 
