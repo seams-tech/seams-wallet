@@ -588,6 +588,7 @@
 }
 :where(.seams-wallet-ui[data-confirmation-kind='transaction']) {
   --seams-modal__container-max-width: 28rem;
+  --seams-transaction-card-radius: min(calc(var(--seams-shape-card, 16px) * 1.625), 26px);
 }
 :where(.seams-wallet-ui[data-receipt-view='toast']) {
   --seams-modal__container-max-width: 22rem;
@@ -599,7 +600,7 @@
   gap: 0;
   grid-template-columns: minmax(0, 1fr);
   border: 0;
-  border-radius: min(calc(var(--seams-shape-card, 16px) * 1.625), 26px);
+  border-radius: var(--seams-transaction-card-radius);
 }
 :where(.seams-wallet-ui[data-receipt-view='toast'])
   .seams-confirmation-modal
@@ -954,4 +955,11 @@
 }
 .seams-wallet-ui[data-receipt-morphing] .seams-transaction-toast {
   background: transparent;
+}
+/* The card does not clip its corners while it morphs, and the footer's background
+   would show square corners there. The footer arrives once the card has its final
+   radius, so it rounds its own bottom corners to that radius. */
+.seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .seams-receipt-footer {
+  border-end-start-radius: var(--seams-transaction-card-radius);
+  border-end-end-radius: var(--seams-transaction-card-radius);
 }

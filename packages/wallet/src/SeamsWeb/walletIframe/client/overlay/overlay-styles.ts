@@ -31,6 +31,9 @@ const CLASS_RESIZE_ANIMATED = 'is-resize-animated';
 const CLASS_REVEAL_PENDING = 'is-reveal-pending';
 const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
 const DIALOG_SELECTOR = `dialog[data-seams-root].${CLASS_BASE}.${CLASS_DIALOG}`;
+// The quieter elevation of a card that sits on the page rather than over a backdrop.
+const CARD_ELEVATION = `drop-shadow(0 1px 2px rgb(15 23 42 / 0.05))
+      drop-shadow(0 10px 20px rgb(15 23 42 / 0.1))`;
 
 const BASE_CSS = `
   [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-slot {
@@ -156,6 +159,11 @@ const BASE_CSS = `
     box-shadow: 0 12px 24px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.12),
       inset 0 0 0 1px var(--seams-colors-borderPrimary);
   }
+  /* The reviewed transaction's receipt toast keeps that shell; see the toast rule below. */
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}[data-transaction-review]:not(:modal) {
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 10px 20px rgb(15 23 42 / 0.1),
+      inset 0 0 0 1px var(--seams-colors-borderPrimary);
+  }
   ${DIALOG_SELECTOR}.${CLASS_MODAL}[data-transaction-review] iframe.${CLASS_IFRAME} {
     filter: none;
   }
@@ -163,18 +171,23 @@ const BASE_CSS = `
      compact modal elevation in the host compositor so it can extend beyond
      that edge without changing the measured hit region. */
   ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
-    [data-seams-root].${CLASS_DIALOG} > iframe.${CLASS_IFRAME} {
+    > iframe.${CLASS_IFRAME} {
     filter:
       drop-shadow(0 12px 24px rgb(0 0 0 / 0.22))
       drop-shadow(0 2px 8px rgb(0 0 0 / 0.12));
+  }
+  /* A receipt toast is the one request modal opened without a focus trap, so
+     it is not :modal. It floats over the live page with no backdrop, and takes
+     the quieter card elevation. */
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(:modal):not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
+    > iframe.${CLASS_IFRAME} {
+    filter: ${CARD_ELEVATION};
   }
   /* The auth-menu card paints no shadow of its own (wallet-ui.css) for the
      same clipping reason; give it the quieter card elevation here, where the
      drop-shadow hugs the card's silhouette and may extend past the iframe. */
   ${DIALOG_SELECTOR}.${CLASS_AUTH_MENU} iframe.${CLASS_IFRAME} {
-    filter:
-      drop-shadow(0 1px 2px rgb(15 23 42 / 0.05))
-      drop-shadow(0 10px 20px rgb(15 23 42 / 0.1));
+    filter: ${CARD_ELEVATION};
   }
   ${DIALOG_SELECTOR}.${CLASS_PROVISIONAL}::backdrop {
     background: transparent;
