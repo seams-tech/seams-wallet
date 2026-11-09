@@ -260,3 +260,21 @@ The user approved Steps 1, 2 and 3.
 - **Step 1 (staging).** The voice payment on staging is the owner's to make. The server and
   chain times then come from the staging signer database (`seams-signer-staging-sin`:
   `speak_to_sign_voice_verdicts`, `authorized_operations`) and the block headers.
+
+## Release 0.61.0 (2026-11-10)
+
+- npm: `@seams/wallet`, `@seams/wallet-server` and `@seams/voiceid` 0.61.0 from seams-wallet
+  `833cb77ee` (release run 42646560132; validation run 42646492538 passed on its second
+  attempt after a webkit timeout in `voiceid-loading.browser.test.ts`). `@seams/speak-to-sign`
+  0.61.0 from speak-to-sign `e7be8a3` (release run 42655615893), the first publish through
+  the npm trusted publisher `seams-tech/speak-to-sign` / `release-speak-to-sign.yml`.
+- Verifier 0.5.1 is the active OutLayer version (FastFS tx
+  `A4zDd9E6sm1ZjSj3uVukTcTnoYZG83ntv1DqnS7A9w8R`, `add_version` tx
+  `BGZ3QRPGaUzJ4x3Z7wcNq3yJ3xMYnAwS3rnPQfY69MTb`).
+- Staging (seams-monorepo `2deafda6`, run 42656149508): the backend and the verifier pin run
+  0.61.0; the Wallet host frontend did not deploy (docs check against seams-wallet `main`,
+  which is at 0.62.0). The 0.62.0 release session deploys staging next, with the Wallet host.
+- Production stays on 0.57.0; the user chose staging only for 0.61.0.
+- The staging measurement waits for that deploy and for one voice payment by the owner. An
+  automated staging check (passkey wallet, VoiceID, enrollment, spoken note, rating, merge
+  approval; no transfer) is ready to run after the deploy.
