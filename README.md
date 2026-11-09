@@ -30,7 +30,8 @@ in the private `seams-tech/seams-monorepo` repository.
 
 ## Release 0.58.1
 
-- Speak-to-Sign shows one VoiceID card for the whole spoken payment. After the recording, the card stays open: it shows the verifier check, the payment and the result in place. A refusal offers "Try again" on the same card, and a step-up asks for the passkey in the card. `requestTransfer` returns when the owner closes the card.
+- Speak-to-Sign shows one VoiceID card for the whole spoken payment. After the recording, the card stays open: it shows the verifier check, the payment and the result in place. A refusal offers "Try again" on the same card, up to five recordings in all, and a step-up asks for the passkey in the card. `requestTransfer` returns when the owner closes the card. The Wallet pays at most once in each flow.
+- Verifier 0.3.1 (`5b6fad5d…`) accepts sound-alikes of the words that hold no value, such as "year" for "NEAR". On the saved Whisper transcripts, 98.0% of transfers pass, up from 94.6%, with no false accepts.
 - The VoiceID host API is version 10 and the Speak-to-Sign host API is version 5. Install all four packages at 0.58.1.
 
 ## Release 0.58.0

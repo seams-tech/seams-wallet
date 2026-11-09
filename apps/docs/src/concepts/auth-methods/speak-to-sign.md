@@ -44,8 +44,9 @@ enrollment and uses the VoiceID capture surface.
    to approve again with the session's own method (a passkey on a passkey
    session).
 6. The card shows the result: the paid transfer with a link, or the reason
-   for a refusal with "Try again". The call returns when the owner closes the
-   card.
+   for a refusal. After a refusal of the words or the voice, the owner can
+   record the sentence again, up to five recordings in all. The call returns
+   when the owner closes the card.
 
 A spoken payment needs a warm Wallet Session. If the session is locked or
 expired, the Wallet asks the owner to unlock first.
@@ -159,7 +160,7 @@ The verifier is the OutLayer project `seams-v1.testnet/voice-verifier`. Its
 verdict key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` is bound to
 the project and stays the same across versions. The Wallet pins that key in its
 own code. It never takes the key from the app, because the app chooses the
-Seams server URL. The Wallet pays each verdict at most once, and only for a
+Seams server URL. The Wallet pays at most once in each flow, and only for a
 recording that it made in the same flow.
 
 ## Trust model

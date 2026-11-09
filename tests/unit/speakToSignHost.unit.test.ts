@@ -70,9 +70,9 @@ const SIGNED_VECTORS = {
         '02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e657400000042db999d3784a7010000000000',
       policyText: null,
       signatureB64:
-        'vfrIu+yJYH164Ll3UiREYZnd/ik0X9pj9kzYZcGlI6PyJ1HcKNeBafwnC/P0FfmrbxaNQHDxrrMzFDPKYND6DA==',
+        'cBsIY3bXt0D3N7gVsDjeBBgoPzxZHtPSmA+GHlgA90KfYTqKq9tvneqfJHmkqovYNOfjaJIkISRHWuEF8LqzDQ==',
       verdictJson:
-        '{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.3.0","request_digest":"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws","spoken_text_digest":"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys","audio_digest":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc","outcome":"accept","reason":null,"policy_rule":null,"expires_at_ms":1762700120000,"speaker_score_milli":655,"word_margin_milli":142,"heard":"send two near to alice dot testnet"}',
+        '{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.3.1","request_digest":"uZOKUB3jJyRz6iwZ1QlcKFcBr-80sXinJ3qOIddBKws","spoken_text_digest":"mXyNIbv5LxxXrBYm8D7wwAzrBHu_o3XI0GAGdf5GNys","audio_digest":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc","outcome":"accept","reason":null,"policy_rule":null,"expires_at_ms":1762700120000,"speaker_score_milli":655,"word_margin_milli":142,"heard":"send two near to alice dot testnet"}',
     },
     {
       approval: 'voice_and_passkey',
@@ -81,9 +81,9 @@ const SIGNED_VECTORS = {
         '02000d0000006f776e65722e746573746e65740d000000616c6963652e746573746e6574000000eb35cee2315719090000000000',
       policyText: 'A voice payment above 10 NEAR needs a passkey.',
       signatureB64:
-        'gCXP2wB240PkUcNyAs9ed2qFgkv7GbDXBanrfeQbwoYBRhbYBkApkh3CHMLx4goD9CCZ+rvBBA1nSBtlOSaxCA==',
+        'bB0bijTOg3XmmXKRqoP9n4qrXiES2iw6FEaKqF5n6hV3Lobp4mPE4WxqePo7MifeiHGbIFU/7iQhHRgezUNTDw==',
       verdictJson:
-        '{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.3.0","request_digest":"xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs","spoken_text_digest":"KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk","audio_digest":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc","outcome":"step_up","reason":null,"policy_rule":"stub_voice_amount_above_10_near","expires_at_ms":1762700120000,"speaker_score_milli":655,"word_margin_milli":142,"heard":"send eleven near to alice dot testnet"}',
+        '{"kind":"seams_voice_signed_verdict_v2","renderer":"spoken-intent/1","verifier":"0.3.1","request_digest":"xTpQSL__LHZZRfNdeEwE8xBW2VIiL53H0hinjaH77zs","spoken_text_digest":"KdZpMUdca0NXjyOA-Yb-xDz9T-Qho91FY8ZYpt-0AZk","audio_digest":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc","outcome":"step_up","reason":null,"policy_rule":"stub_voice_amount_above_10_near","expires_at_ms":1762700120000,"speaker_score_milli":655,"word_margin_milli":142,"heard":"send eleven near to alice dot testnet"}',
     },
   ],
 } as const;
@@ -161,7 +161,7 @@ async function verdictJson(
   return JSON.stringify({
     kind: 'seams_voice_signed_verdict_v2',
     renderer: 'spoken-intent/1',
-    verifier: '0.3.0',
+    verifier: '0.3.1',
     request_digest: b64u(await requestDigest(request)),
     spoken_text_digest: b64u(await spokenTextDigest(rendered)),
     audio_digest: b64u(audioDigest),
@@ -562,6 +562,77 @@ test('a refusal shows on the card, and "Try again" records the sentence again', 
   expect(core.closed).toBe(1);
 });
 
+test('a payment records at most five times, then the refusal offers only Close', async () => {
+  const core = fakeCore({
+    payment: { kind: 'refused', reason: 'speaker' },
+    choices: ['action', 'action', 'action', 'action', 'action', 'action'],
+  });
+  expect(await runSpokenTransfer(transferInput(hostTransfer(core)))).toEqual({
+    kind: 'refused',
+    reason: 'speaker',
+  });
+  expect(core.verifyInputs).toHaveLength(5);
+  expect(core.views.filter((view) => view.startsWith('result:'))).toEqual([
+    ...Array.from(
+      { length: 4 },
+      () => 'result:Nothing was sent:Your voice did not match:Try again',
+    ),
+    'result:Nothing was sent:Your voice did not match:Close',
+  ]);
+});
+
+test('the words that the verifier heard are aligned with the sentence and marked', async () => {
+  const core = fakeCore({
+    payment: {
+      kind: 'refused',
+      reason: 'words',
+      detail: 'heard: send twenty year to alice dot testnet <b>',
+    },
+  });
+  const transfer = hostTransfer(core);
+  let caption: unknown = null;
+  const opened = await core.operations.openPrompt({
+    sentence: '',
+    signal: new AbortController().signal,
+    surfaceMeasurementBinding: { kind: 'disabled' },
+  });
+  if (opened.kind !== 'opened') throw new Error('not opened');
+  const operations = {
+    ...core.operations,
+    openPrompt: async () => ({
+      kind: 'opened' as const,
+      prompt: {
+        ...opened.prompt,
+        show: async (view: PhraseView) => {
+          if (view.kind === 'result') caption = view.caption;
+          return 'closed' as const;
+        },
+      },
+    }),
+  };
+  await runSpokenTransfer(transferInput({ ...transfer, operations }));
+  // The sentence says "send twenty five near to alice dot testnet".
+  expect(caption).toEqual([
+    'We heard “',
+    'send',
+    ' ',
+    'twenty',
+    ' ',
+    { mark: 'year' },
+    ' ',
+    'to',
+    ' ',
+    'alice',
+    ' ',
+    'dot',
+    ' ',
+    'testnet',
+    ' ',
+    { mark: '<b>' },
+    '”',
+  ]);
+});
+
 test('nothing is paid for a bad request, a missing receiver, a refusal or a failed route', async () => {
   const cases: Array<[string, Parameters<typeof fakeCore>[0], Partial<HostTransfer>, object]> = [
     ['implicit receiver', {}, { receiver: 'a'.repeat(64) }, { reason: 'receiver_not_speakable' }],
@@ -770,7 +841,7 @@ test('core records clips, checks receivers and calls only the Seams verify route
   );
 });
 
-test('core pays an approved verdict once, from the owner, with the approval it names', async () => {
+test('core pays once per flow, from the owner, with the approval the verdict names', async () => {
   const verifier = await verifierKey();
   const harness = coreHarness(verifier);
   const signal = new AbortController().signal;
@@ -798,12 +869,21 @@ test('core pays an approved verdict once, from the owner, with the approval it n
       policyText: null,
     },
   ]);
-  expect(await pay(accept)).toEqual({
-    kind: 'refused',
-    reason: 'verdict_mismatch',
-    detail: 'verdict already used',
-  });
+  // A second accepted verdict of the same flow, such as one after "Try again", pays nothing.
+  const again = await verifyOutput(
+    verifier,
+    await verdictJson(transferRequest(), audio, { speaker_score_milli: 650 }),
+  );
+  for (const output of [accept, again]) {
+    expect(await pay(output)).toEqual({
+      kind: 'refused',
+      reason: 'verdict_mismatch',
+      detail: 'this flow already paid',
+    });
+  }
 
+  const stepUpFlow = coreHarness(verifier);
+  await capture(stepUpFlow.operations);
   const stepUpJson = await verdictJson(transferRequest(), audio, {
     outcome: 'step_up',
     policy_rule: 'stub_voice_amount_above_10_near',
@@ -812,7 +892,7 @@ test('core pays an approved verdict once, from the owner, with the approval it n
   const stepUp = await verifyOutput(verifier, stepUpJson, {
     policy_text: 'A voice payment above 10 NEAR needs a passkey.',
   });
-  harness.setOutcome({
+  stepUpFlow.setOutcome({
     success: true,
     transactionId: 'tx-bad',
     result: {
@@ -820,12 +900,14 @@ test('core pays an approved verdict once, from the owner, with the approval it n
       receipts_outcome: [{ outcome: { status: { Failure: { error: 'NotEnoughBalance' } } } }],
     } as never,
   });
-  expect(await pay(stepUp)).toEqual({
+  expect(
+    await stepUpFlow.operations.payWithVerdict(transfer, stepUp, signal, paymentHooks(events)),
+  ).toEqual({
     kind: 'reverted',
     transactionHash: 'tx-bad',
     error: '{"error":"NotEnoughBalance"}',
   });
-  expect(harness.signed.at(-1)).toMatchObject({
+  expect(stepUpFlow.signed.at(-1)).toMatchObject({
     approval: 'voice_and_passkey',
     policyText: 'A voice payment above 10 NEAR needs a passkey.',
   });
@@ -864,6 +946,34 @@ test('core pays an approved verdict once, from the owner, with the approval it n
     detail: 'invalid verifier output',
   });
   expect(harness.signed).toHaveLength(signedBefore);
+});
+
+test('a transfer that never left the Wallet lets another verdict of the flow pay', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const transfer = { receiver: 'alice.testnet', amountYocto: 25n * 10n ** 24n };
+  harness.setOutcome({ success: false, kind: 'not_submitted', error: 'closed' } as never);
+  const first = await verifyOutput(verifier, await verdictJson(transferRequest(), audio));
+  expect(await harness.operations.payWithVerdict(transfer, first, signal, paymentHooks())).toEqual({
+    kind: 'not_submitted',
+    error: 'closed',
+  });
+  harness.setOutcome({
+    success: true,
+    transactionId: 'tx-ok',
+    result: { status: { SuccessValue: '' }, receipts_outcome: [] } as never,
+  });
+  const second = await verifyOutput(
+    verifier,
+    await verdictJson(transferRequest(), audio, { speaker_score_milli: 650 }),
+  );
+  expect(await harness.operations.payWithVerdict(transfer, second, signal, paymentHooks())).toEqual(
+    { kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' },
+  );
 });
 
 test('core signs the enrollment message only for three clips it recorded', async () => {

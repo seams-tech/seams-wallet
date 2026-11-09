@@ -71,17 +71,20 @@ export type SpeakToSignHostOperationsInput = Readonly<{
   verifiers?: Verifiers;
 }>;
 
-/** What one flow recorded and paid, so a verdict binds a clip of this flow and pays once. */
+/**
+ * What one flow recorded and paid. A verdict binds a clip of this flow, and the flow pays at most
+ * once, even when "Try again" brings it several accepted verdicts.
+ */
 type FlowState = {
   readonly recordedAudio: Set<string>;
-  readonly paidVerdicts: Set<string>;
+  paid: boolean;
 };
 
 /** Builds the scoped operations for one spoken payment or enrollment. */
 export function createSpeakToSignHostOperations(
   input: SpeakToSignHostOperationsInput,
 ): SpeakToSignHostOperations {
-  const state: FlowState = { recordedAudio: new Set(), paidVerdicts: new Set() };
+  const state: FlowState = { recordedAudio: new Set(), paid: false };
   return {
     openPrompt: openPrompt.bind(null, input, state),
     receiverExists: receiverExists.bind(null, input),
@@ -219,8 +222,8 @@ async function payWithVerdict(
   if (check.kind === 'mismatch') {
     return { kind: 'refused', reason: 'verdict_mismatch', detail: check.detail };
   }
-  if (state.paidVerdicts.has(output.verdictJson)) {
-    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict already used' };
+  if (state.paid) {
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already paid' };
   }
   if (check.approval === 'voice') hooks.accepted();
   else if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
@@ -229,7 +232,10 @@ async function payWithVerdict(
   if (!verdictStillValid(output.verdictJson, (input.now ?? Date.now)())) {
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict expired' };
   }
-  state.paidVerdicts.add(output.verdictJson);
+  if (state.paid) {
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already paid' };
+  }
+  state.paid = true;
   const result = await input.signVoiceApprovedTransaction(
     {
       receiverId: request.receiver,
@@ -241,6 +247,8 @@ async function payWithVerdict(
     hooks.broadcasting,
   );
   if (!result.success) {
+    // Nothing left the Wallet, so another recording of this flow may still pay.
+    if (result.kind === 'not_submitted') state.paid = false;
     return result.kind === 'not_submitted'
       ? { kind: 'not_submitted', error: result.error }
       : { kind: 'submission_unknown', error: result.error };
