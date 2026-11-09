@@ -1879,6 +1879,15 @@ export function parseRouterAbEd25519YaoActivationResultV1(
   return parseBoundary(parseActivationResultValue, value);
 }
 
+export function parseRouterAbEd25519YaoReissueActivationAdmissionReceiptV1(
+  value: unknown,
+): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationAdmissionReceiptV1<'reissue'>> {
+  return reissueValue(
+    parseRouterAbEd25519YaoActivationAdmissionReceiptV1(value),
+    isActivationAdmissionReceiptFor,
+  );
+}
+
 export function parseRouterAbEd25519YaoReissueActivationExecuteRequestV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationExecuteRequestV1<'reissue'>> {

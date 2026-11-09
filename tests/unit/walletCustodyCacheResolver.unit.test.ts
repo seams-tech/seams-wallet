@@ -33,19 +33,19 @@ function resolverInput(
   };
 }
 
-test('a missing cache row needs a rejoin, and the factor secret is zeroed', async () => {
+test('a missing cache row needs a reissue, and the factor secret is zeroed', async () => {
   const factor = new Uint8Array(32).fill(9);
   const result = await openOrRebindWalletCustodyEd25519V1(
     resolverInput({ kind: 'absent' }, factor),
   );
-  expect(result.kind).toBe('rejoin_required');
+  expect(result.kind).toBe('reissue_required');
   expect([...factor].every((byte) => byte === 0)).toBe(true);
 });
 
-test('a cache row newer than the server needs a rejoin, not a re-bind', async () => {
+test('a cache row newer than the server needs a reissue, not a re-bind', async () => {
   const factor = new Uint8Array(32).fill(9);
   const result = await openOrRebindWalletCustodyEd25519V1(resolverInput(cachedRow('3'), factor));
-  expect(result.kind).toBe('rejoin_required');
+  expect(result.kind).toBe('reissue_required');
   expect([...factor].every((byte) => byte === 0)).toBe(true);
 });
 

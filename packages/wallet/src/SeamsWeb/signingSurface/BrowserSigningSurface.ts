@@ -306,10 +306,7 @@ import type {
   WarmSessionClaimResult,
 } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { activateWalletCustodyEd25519CapabilityV1 } from '@/core/signingEngine/walletCustody/activateEd25519Capability';
-import {
-  walletCustodyEd25519ActiveClientMetadataV1,
-  walletRecoveryEd25519ActiveClientMetadataV1,
-} from '@/core/signingEngine/walletCustody/ceremonyActiveClientMetadata';
+import { walletCustodyEd25519ActiveClientMetadataV1 } from '@/core/signingEngine/walletCustody/ceremonyActiveClientMetadata';
 import { requestWalletCustodyCeremonyOperation, walletCustodyCeremonyStepRunner, type WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
 import {
   disposeWalletCustodyEd25519ActiveClientV1,
@@ -335,7 +332,7 @@ import {
   joinEvmFamilyCustodyV1,
   joinNearEd25519CustodyV1,
   rejoinEvmFamilyCustodyV1,
-  rejoinNearEd25519CustodyV1,
+  reissueNearEd25519CustodyV1,
 } from '@/core/signingEngine/walletCustody/registrationCeremony';
 import {
   destroyUnlockedWalletEd25519ExportRootCapabilitiesV1 as destroyUnlockedExportRootCapabilitiesWithWorkerV1,
@@ -347,12 +344,11 @@ import {
   type WalletRecoveryReplacementCredential,
 } from '@/core/signingEngine/walletCustody/walletRecoveryCredential';
 import {
-  activateWalletRecoveryEd25519V1,
-  admitWalletRecoveryEd25519V1,
-  buildWalletSessionEd25519RecoveryAdmissionRequestV1,
-  executeWalletRecoveryEd25519RoundV1,
-  type WalletSessionEd25519RecoveryBasisV1,
-} from '@/core/signingEngine/walletCustody/walletRecoveryEd25519';
+  admitWalletReissueEd25519V1,
+  buildWalletReissueEd25519AdmissionRequestV1,
+  executeWalletReissueEd25519RoundV1,
+  type WalletSessionEd25519ReissueBasisV1,
+} from '@/core/signingEngine/walletCustody/walletReissueEd25519';
 import { recoverWalletCustodyManifestV1 } from '@/core/signingEngine/walletCustody/walletRecoveryManifest';
 import { executeWalletRegistrationEd25519RoundV1 } from '@/core/signingEngine/walletCustody/walletRegistrationEd25519';
 import type { WebAuthnAllowCredential } from '@/core/signingEngine/webauthnAuth/credentials/collectAuthenticationCredentialForChallengeB64u';
@@ -480,6 +476,7 @@ import type {
   JoinedWalletCustodyEvmFamilyKeySetV1,
   JoinedWalletCustodyNearEd25519KeySetV1,
   RejoinedWalletCustodyEvmFamilyKeySetV1,
+  ReissuedWalletCustodyNearEd25519KeySetV1,
 } from './ports';
 import {
   afterVoiceIdStepUp,
@@ -2860,63 +2857,41 @@ export class BrowserSigningSurface {
     };
   }
 
-  async rejoinWalletCustodyNearEd25519KeySet(args: {
+  async reissueWalletCustodyNearEd25519KeySet(args: {
     walletId: string;
     custodyJson: string;
     factorSecret: ArrayBuffer;
     nearEd25519SigningKeyId: string;
-    recoveryBasis: WalletSessionEd25519RecoveryBasisV1;
+    basis: WalletSessionEd25519ReissueBasisV1;
     routerOrigin: string;
     walletSessionToken: string;
-  }): Promise<JoinedWalletCustodyNearEd25519KeySetV1> {
+  }): Promise<ReissuedWalletCustodyNearEd25519KeySetV1> {
     const transport = new RouterAbEd25519YaoHttpActivationTransportV1({
       routerOrigin: args.routerOrigin,
       routing: { kind: 'discovery' },
       authorization: { kind: 'bearer', value: `Bearer ${args.walletSessionToken}` },
       fetch: globalThis.fetch,
     });
-    const recoveryRequest = await buildWalletSessionEd25519RecoveryAdmissionRequestV1({
-      basis: args.recoveryBasis,
-    });
-    const admitted = await admitWalletRecoveryEd25519V1({
-      request: recoveryRequest,
-      transport,
-    });
-    const rejoined = await rejoinNearEd25519CustodyV1({
+    const request = buildWalletReissueEd25519AdmissionRequestV1(args.basis);
+    const receipt = await admitWalletReissueEd25519V1({ request, transport });
+    const reissued = await reissueNearEd25519CustodyV1({
       runStep: walletCustodyCeremonyStepRunner(this.walletCustodyCeremonyTransportV1()),
       walletId: args.walletId,
       custodyJson: args.custodyJson,
       factorSecret: args.factorSecret,
       nearEd25519SigningKeyId: args.nearEd25519SigningKeyId,
-      recoveryLifecycleId: recoveryRequest.scope.lifecycle_id,
-      yaoAdmission: admitted.receipt,
-      yaoApplication: admitted.request.application_binding,
-      participantIds: args.recoveryBasis.participantIds,
-      registeredPublicKeyB64u: base64UrlEncode(
-        Uint8Array.from(args.recoveryBasis.registeredPublicKey),
-      ),
+      lifecycleId: request.scope.lifecycle_id,
+      yaoAdmission: receipt,
+      yaoApplication: request.application_binding,
+      participantIds: args.basis.participantIds,
+      registeredPublicKeyB64u: base64UrlEncode(Uint8Array.from(args.basis.registeredPublicKey)),
       runRouterRound: (executeRequestJson) =>
-        executeWalletRecoveryEd25519RoundV1({ executeRequestJson, transport }),
-      activateRouterRecovery: (protocolResultJson) =>
-        activateWalletRecoveryEd25519V1({
-          request: recoveryRequest,
-          protocolResultJson,
-          transport,
-        }),
+        executeWalletReissueEd25519RoundV1({ executeRequestJson, basis: args.basis, transport }),
     });
-    if (!rejoined.localMaterial) {
-      throw new Error('the wallet custody NEAR cold rejoin produced no local signing material');
+    if (!reissued.localMaterial) {
+      throw new Error('the wallet custody NEAR reissue produced no local signing material');
     }
-    return {
-      commitPayload: rejoined.commitPayload,
-      activationReference: rejoined.activationReference,
-      localMaterial: rejoined.localMaterial,
-      metadata: walletRecoveryEd25519ActiveClientMetadataV1({
-        admissionRequest: recoveryRequest,
-        activationResultJson: rejoined.activationResultJson,
-        activationReceipt: rejoined.activationReceipt,
-      }),
-    };
+    return { localMaterial: reissued.localMaterial };
   }
 
   async establishWalletCustodyEvmFamilyKeySet(args: {

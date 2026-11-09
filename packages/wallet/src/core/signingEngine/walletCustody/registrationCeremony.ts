@@ -676,11 +676,12 @@ function activationSessionIdFromResult(resultJson: string): readonly number[] {
 /**
  * Reproduces one NEAR key set from custody that already exists.
  *
- * This is synced-passkey cold unlock: a browser with empty IndexedDB has the
- * wallet's server-held envelope and its credential, but no cached material. It
- * opens the envelope with the factor, reaches the same seed, derives the same
- * root, and re-runs the Yao protocol against the *registered* public key —
- * reproducing the key set rather than establishing a new one.
+ * This is cold unlock: a browser or site with no usable cached material has
+ * the wallet's server-held envelope and a factor that opens it. It opens the
+ * envelope, reaches the same seed, derives the same root, and runs a Router
+ * reissue against the *registered* public key — reproducing the current
+ * Client share rather than establishing a new key set. A reissue keeps the
+ * material activation and the state epoch, so there is nothing to activate.
  *
  * **It creates no credential and consumes no recovery code.** The run joins
  * existing custody, so it seals no envelope and issues no codes: `finish` is
@@ -692,17 +693,15 @@ function activationSessionIdFromResult(resultJson: string): readonly number[] {
  * *establish* a key set — registering a second, different key for a wallet
  * that already has one, which no later check would undo.
  */
-type RejoinNearEd25519CustodyInput = Omit<NearEd25519CustodyRunInput, 'registrationCeremonyId'> & {
+type ReissueNearEd25519CustodyInput = Omit<NearEd25519CustodyRunInput, 'registrationCeremonyId'> & {
   /** Opens the stored envelope. Owned by the caller. */
   readonly factorSecret: ArrayBuffer;
   /** `JoinCustodyWireV1`: the stored envelope binding and its sealed seed. */
   readonly custodyJson: string;
-  readonly recoveryLifecycleId: string;
+  /** The active capability's lifecycle, which the reissue admission names. */
+  readonly lifecycleId: string;
   /** The key this run must reproduce. */
   readonly registeredPublicKeyB64u: string;
-  readonly activateRouterRecovery: (
-    protocolResultJson: string,
-  ) => Promise<RouterAbEd25519YaoRecoveryActivationReceiptV1>;
 };
 
 type JoinedNearEd25519CustodyBase = {
@@ -710,11 +709,6 @@ type JoinedNearEd25519CustodyBase = {
   readonly commitPayload: WalletCustodyCeremonyCommitPayload;
   readonly activationReference: EstablishedNearEd25519Custody['activationReference'];
   readonly localMaterial: EstablishedNearEd25519Custody['localMaterial'];
-};
-
-type RejoinedNearEd25519Custody = JoinedNearEd25519CustodyBase & {
-  readonly activationResultJson: string;
-  readonly activationReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
 };
 
 type JoinNearEd25519CustodyInput = Omit<
@@ -746,7 +740,7 @@ type RecoverNearEd25519CustodyInput = WalletRecoveryCustodyInput & {
 };
 
 type RecoveredNearEd25519Custody = {
-  readonly localMaterial: RejoinedNearEd25519Custody['localMaterial'];
+  readonly localMaterial: JoinedNearEd25519CustodyBase['localMaterial'];
   readonly activationResultJson: string;
   readonly activationReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1;
   readonly recoveryReplacementEnvelope: NonNullable<
@@ -829,30 +823,19 @@ export async function joinNearEd25519CustodyV1(
   );
 }
 
-export async function rejoinNearEd25519CustodyV1(
-  input: RejoinNearEd25519CustodyInput,
-): Promise<RejoinedNearEd25519Custody> {
+export async function reissueNearEd25519CustodyV1(
+  input: ReissueNearEd25519CustodyInput,
+): Promise<JoinedNearEd25519CustodyBase> {
   const registeredPublicKeyB64u = String(input.registeredPublicKeyB64u || '').trim();
   if (!registeredPublicKeyB64u) {
     throw new Error('a cold unlock must name the key set it reproduces');
   }
-
-  let activationResultJson: string | null = null;
-  let activationReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1 | null = null;
-  const rejoined = await runJoiningNearEd25519Custody(
+  return await runJoiningNearEd25519Custody(
     { ...input, preparation: { kind: 'fresh' } },
-    input.recoveryLifecycleId,
+    input.lifecycleId,
     registeredPublicKeyB64u,
     'cold unlock',
-    async (protocolResultJson) => {
-      activationResultJson = protocolResultJson;
-      activationReceipt = await input.activateRouterRecovery(protocolResultJson);
-    },
   );
-  if (!activationResultJson || !activationReceipt) {
-    throw new Error('the NEAR cold unlock produced no Router recovery activation');
-  }
-  return { ...rejoined, activationResultJson, activationReceipt };
 }
 
 async function runJoiningNearEd25519Custody(

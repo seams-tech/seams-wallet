@@ -35,22 +35,6 @@ type NearRecoveryEntry = Extract<
   { readonly kind: 'near_ed25519' }
 >;
 
-export type WalletSessionEd25519RecoveryBasisV1 = {
-  readonly materialActivation: ReturnType<typeof routerAbMpcMaterialActivationRefFromWire>;
-  readonly activeCapabilityBinding: readonly number[];
-  readonly registeredPublicKey: readonly number[];
-  readonly applicationBinding: RouterAbEd25519YaoRecoveryAdmissionRequestV1['application_binding'];
-  readonly participantIds: readonly [number, number];
-  readonly lifecycle: {
-    readonly lifecycleId: string;
-    readonly rootShareEpoch: string;
-    readonly accountId: string;
-    readonly thresholdSessionId: string;
-    readonly signerSetId: string;
-    readonly signingWorkerId: string;
-  };
-};
-
 type Ed25519RecoveryCurrentScopeV1 = {
   readonly root_share_epoch: string;
   readonly account_id: string;
@@ -159,31 +143,6 @@ export async function buildWalletRecoveryEd25519AdmissionRequestV1(input: {
     participantIds: input.entry.recoveryBasis.participantIds,
     activeCapabilityBinding: input.entry.recoveryBasis.activeCapabilityBinding,
     registeredPublicKey: input.entry.recoveryBasis.registeredPublicKey,
-  });
-}
-
-export async function buildWalletSessionEd25519RecoveryAdmissionRequestV1(input: {
-  readonly basis: WalletSessionEd25519RecoveryBasisV1;
-}): Promise<RouterAbEd25519YaoRecoveryAdmissionRequestV1> {
-  const lifecycleId = secureRandomId(
-    'wallet-session-ed25519-recovery',
-    32,
-    'wallet-session Ed25519 recovery lifecycles',
-  );
-  return await buildEd25519RecoveryAdmissionRequestV1({
-    lifecycleId,
-    thresholdSessionId: input.basis.lifecycle.thresholdSessionId,
-    currentScope: {
-      root_share_epoch: input.basis.lifecycle.rootShareEpoch,
-      account_id: input.basis.lifecycle.accountId,
-      signer_set_id: input.basis.lifecycle.signerSetId,
-      signing_worker_id: input.basis.lifecycle.signingWorkerId,
-      material_activation: routerAbMpcMaterialActivationRefToWire(input.basis.materialActivation),
-    },
-    applicationBinding: input.basis.applicationBinding,
-    participantIds: input.basis.participantIds,
-    activeCapabilityBinding: input.basis.activeCapabilityBinding,
-    registeredPublicKey: input.basis.registeredPublicKey,
   });
 }
 

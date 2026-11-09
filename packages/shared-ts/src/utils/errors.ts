@@ -155,13 +155,6 @@ export function isWebAuthnRpIdOriginConfigurationError(error: unknown): boolean 
   );
 }
 
-/**
- * This site's storage has no usable NEAR custody row. The Wallet frame's storage is separate for
- * each site, so a first unlock on a new site has none. A passkey unlock on the same site writes it.
- */
-export const NEAR_CUSTODY_UNAVAILABLE_MESSAGE =
-  'This site has no wallet keys on this device yet. Unlock with a passkey once to set them up.';
-
 const WEB_AUTHN_BROWSER_SECURITY_MESSAGE =
   'Passkeys require trusted HTTPS for the app and wallet. Check both origins and their certificates.';
 

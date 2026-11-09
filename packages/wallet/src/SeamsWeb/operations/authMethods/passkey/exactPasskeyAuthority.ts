@@ -1,8 +1,6 @@
 import { IndexedDBManager } from '@/core/indexedDB';
-import { reconcileRecoveredEd25519Authority } from '@/core/indexedDB/seamsWalletDB/recoveredEd25519Authority';
 import {
   exactWalletSessionAuthorityIdentity,
-  walletSessionImmutableIdentityMatches,
   type ExactWalletSessionAuthorization,
   type ExactWalletSessionAuthorityIdentity,
 } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
@@ -12,13 +10,7 @@ import {
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
-import {
-  mpcMaterialActivationRefsEqual,
-  type MpcMaterialActivationRef,
-  type WalletAuthMethodId,
-} from '@shared/utils/domainIds';
-import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import type { WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 
 /**
@@ -74,56 +66,6 @@ async function passkeyMethodAuthorityRef(
       bindingId: record.walletAuthMethodId,
     },
   });
-}
-
-export async function reconcilePasskeyWalletSessionAfterRecovery(input: {
-  readonly authorization: ExactWalletSessionAuthorization;
-  readonly materialActivation: MpcMaterialActivationRef;
-  readonly relayerUrl: string;
-  readonly statusReads: WalletSessionStatusReadScope;
-  readonly previousAuthority: ActiveWalletAuthorityV1;
-}): Promise<void> {
-  const { record, operationCredential } = input.authorization;
-  input.statusReads.invalidateCredential(operationCredential.token);
-  const status = await input.statusReads.read(
-    { relayerUrl: input.relayerUrl, operationCredential },
-    { walletSessionId: operationCredential.walletSessionId, quotaId: record.quotaId },
-  );
-  if (
-    status.status !== 'active' ||
-    !walletSessionImmutableIdentityMatches(status.authorization, record) ||
-    status.authorization.authorityRevocationEpoch !== record.authorityRevocationEpoch ||
-    !status.authorization.capabilitySubjects.some(
-      matchesRecoveredEd25519Activation.bind(null, input.materialActivation),
-    )
-  )
-    throw new Error('Recovered Ed25519 material does not match the active Wallet Session');
-  await reconcileRecoveredEd25519Authority({
-    session: status.authorization,
-    previous: input.previousAuthority,
-  });
-  await resolveActivePasskeyWalletSessionAuthority({
-    walletId: record.walletId,
-    authorization: { record: status.authorization, operationCredential },
-  });
-  const result = await IndexedDBManager.replaceExactActiveWalletSessionFromStatus({
-    active: status.authorization,
-    operationCredential,
-  });
-  if (result.kind === 'superseded') {
-    throw new Error('Wallet Session changed before recovered authority adoption');
-  }
-}
-
-function matchesRecoveredEd25519Activation(
-  expected: MpcMaterialActivationRef,
-  subject: WalletCapabilitySubjectV1,
-): boolean {
-  return (
-    subject.kind === 'sign' &&
-    subject.keyFamily === 'ed25519' &&
-    mpcMaterialActivationRefsEqual(expected, subject.materialActivation)
-  );
 }
 
 export type ValidatedPasskeyWalletSessionAuthority = {

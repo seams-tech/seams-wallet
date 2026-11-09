@@ -7,14 +7,16 @@ import type {
 import {
   openOrRebindWalletCustodyEd25519V1,
   walletCustodyCacheEnvelopeFromRecordV1,
+  type WalletCustodyActivationFactsV1,
 } from '@/core/signingEngine/walletCustody/openCustodyCache';
+import { reissueWalletCustodyEd25519CacheV1 } from '@/core/signingEngine/walletCustody/reissueCustodyCache';
+import type { WalletCustodyCeremonySurface } from '@/SeamsWeb/signingSurface/ports';
 import { buildOwnerRouterAbEd25519WalletSessionState } from '@/core/signingEngine/session/warmCapabilities/routerAbEd25519WalletSessionState';
 import { buildRouterAbEd25519SigningWalletSession } from '@/core/signingEngine/session/routerAbSigningWalletSession';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
-import { NEAR_CUSTODY_UNAVAILABLE_MESSAGE } from '@shared/utils/errors';
 
 export async function prepareAuthMethodNearSession(input: {
   readonly unlocked: Parameters<AuthMethodSessionInstaller>[0];
@@ -25,8 +27,9 @@ export async function prepareAuthMethodNearSession(input: {
     signerSlot: number;
     expectedRegisteredPublicKeyB64u: string;
   }) => Promise<LoadWalletCustodyEd25519MaterialResultV1>;
-  /** Writes a row re-bound to the current epoch; a failure costs the next unlock a re-bind. */
+  /** Writes a re-bound or reissued row; a failure costs the next unlock a re-bind or reissue. */
   readonly persistMaterial: (material: LoadedWalletCustodyEd25519MaterialV1) => Promise<void>;
+  readonly reissueKeySet: WalletCustodyCeremonySurface['reissueWalletCustodyNearEd25519KeySet'];
 }) {
   const { walletSession, operationCredential, custodyEnvelope, near, signal } = input.unlocked;
   if (signal.aborted) throw new Error('Wallet unlock was cancelled.');
@@ -57,33 +60,54 @@ export async function prepareAuthMethodNearSession(input: {
   ) {
     throw new Error('Cached NEAR custody belongs to another material activation.');
   }
+  const activation: WalletCustodyActivationFactsV1 = {
+    materialActivation: cap.materialActivation,
+    lifecycleId: cap.lifecycle.lifecycleId,
+    signingRootId: cap.applicationBinding.signing_root_id,
+    signingRootVersion: cap.lifecycle.rootShareEpoch,
+    signerSetId: cap.lifecycle.signerSetId,
+    thresholdSessionId: cap.lifecycle.thresholdSessionId,
+    activationTranscriptB64u: base64UrlEncode(
+      Uint8Array.from(cap.registrationContinuity.activationTranscript),
+    ),
+    activationCapabilityBindingB64u: base64UrlEncode(Uint8Array.from(cap.activeCapabilityBinding)),
+  };
   const factor = input.unlocked.factorSecret32.slice();
   const opened = await openOrRebindWalletCustodyEd25519V1({
     loadCachedMaterial: async () => loaded,
     envelope: walletCustodyCacheEnvelopeFromRecordV1(custodyEnvelope),
     ownedFactorSecret: factor,
     current: cap,
-    activation: {
-      materialActivation: cap.materialActivation,
-      lifecycleId: cap.lifecycle.lifecycleId,
-      signingRootId: cap.applicationBinding.signing_root_id,
-      signingRootVersion: cap.lifecycle.rootShareEpoch,
-      signerSetId: cap.lifecycle.signerSetId,
-      thresholdSessionId: cap.lifecycle.thresholdSessionId,
-      activationTranscriptB64u: base64UrlEncode(
-        Uint8Array.from(cap.registrationContinuity.activationTranscript),
-      ),
-      activationCapabilityBindingB64u: base64UrlEncode(
-        Uint8Array.from(cap.activeCapabilityBinding),
-      ),
-    },
+    activation,
   }).finally(factor.fill.bind(factor, 0));
-  if (opened.kind !== 'opened') throw new Error(NEAR_CUSTODY_UNAVAILABLE_MESSAGE);
-  const activeClient = opened.activeClient;
-  if (opened.rebound) {
-    await input.persistMaterial(opened.rebound).catch((error: unknown) => {
+  const persistRow = (material: LoadedWalletCustodyEd25519MaterialV1) =>
+    input.persistMaterial(material).catch((error: unknown) => {
       console.warn('[voiceid] wallet custody cache write failed; continuing', { error });
     });
+  let activeClient: Extract<typeof opened, { kind: 'opened' }>['activeClient'];
+  if (opened.kind === 'opened') {
+    activeClient = opened.activeClient;
+    if (opened.rebound) await persistRow(opened.rebound);
+  } else {
+    // This site has no usable row. Any Wallet Session of the wallet, VoiceID's included,
+    // admits a reissue of the current Client share.
+    const reissued = await reissueWalletCustodyEd25519CacheV1({
+      reissueKeySet: input.reissueKeySet,
+      envelope: custodyEnvelope,
+      factorSecret: input.unlocked.factorSecret32,
+      basis: cap,
+      signer: {
+        walletId: walletSession.walletId,
+        nearAccountId: cap.nearAccountId,
+        nearEd25519SigningKeyId: cap.applicationBinding.near_ed25519_signing_key_id,
+        signerSlot: cap.applicationBinding.key_creation_signer_slot,
+      },
+      activation,
+      routerOrigin: new URL(input.relayerUrl).origin,
+      walletSessionToken: operationCredential.token,
+    });
+    activeClient = reissued.activeClient;
+    await persistRow(reissued.material);
   }
   try {
     if (signal.aborted) throw new Error('Wallet unlock was cancelled.');

@@ -16,7 +16,7 @@ import { verifyLockWins } from './session-restore-lock';
 import { verifyPassiveWalletLock } from './session-passive-lock';
 import { verifyBrowserSecurityFailureAndRetry } from './passkey-browser-security';
 import {
-  verifyColdCustodyRecoveryThenUnlock,
+  verifyColdCustodyReissueThenUnlock,
   verifyOlderCustodyCacheRebindsWithoutRecovery,
 } from './passkey-custody-cache';
 
@@ -28,8 +28,8 @@ test(
   verifyBrowserSecurityFailureAndRetry,
 );
 test(
-  'cold custody recovery preserves authority through a later unlock and signing',
-  verifyColdCustodyRecoveryThenUnlock,
+  'a site with no custody cache reissues the Client share, keeps the authority and signs',
+  verifyColdCustodyReissueThenUnlock,
 );
 test(
   'a custody cache from an older epoch re-binds without a recovery and signs',

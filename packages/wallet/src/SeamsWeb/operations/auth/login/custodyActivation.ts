@@ -1,13 +1,8 @@
 import type { LoginUnlockSigningSurface } from '@/SeamsWeb/signingSurface/types';
-import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
-import {
-  parseThresholdEd25519SessionId,
-  type MpcMaterialActivationRef,
-} from '@shared/utils/domainIds';
+import { parseThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import { type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import { IndexedDBManager } from '@/core/indexedDB';
-import { readActivePasskeyAuthorityForRecovery } from '@/SeamsWeb/operations/authMethods/passkey/exactPasskeyAuthority';
 import {
   type PasskeySessionEcdsaCustodyContinuityV1,
   type PasskeySessionCustodyUnlockV1,
@@ -33,17 +28,13 @@ import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { base58Encode } from '@shared/utils/base58';
 import {
   openOrRebindWalletCustodyEd25519V1,
-  openWalletCustodyEd25519ActiveClientV1,
-  walletCustodyActivationFactsFromActiveClientMetadataV1,
   walletCustodyCacheEnvelopeFromRecordV1,
   type WalletCustodyActivationFactsV1,
 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import { joinCustodyWireFromEnvelopeRecord } from '@/core/signingEngine/walletCustody/joinCustodyWire';
-import {
-  WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND,
-  type LoadedWalletCustodyEd25519MaterialV1,
-  type WalletCustodyEd25519MaterialBindingV1,
-} from '@/core/signingEngine/walletCustody/ed25519SeedMaterial';
+import { reissueWalletCustodyEd25519CacheV1 } from '@/core/signingEngine/walletCustody/reissueCustodyCache';
+import type { LoadedWalletCustodyEd25519MaterialV1 } from '@/core/signingEngine/walletCustody/ed25519SeedMaterial';
+import type { RouterAbEd25519YaoSealableActiveClientV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type {
   ActivePasskeySessionCustodyUnlockV1,
   LoginWarmEd25519Session,
@@ -66,14 +57,6 @@ type PasskeyEd25519CustodyLoginInput = {
   routerAbNormalSigning: ReturnType<typeof createRouterAbNormalSigningPolicy>;
   relayerUrl: string;
 };
-
-export type PasskeyEd25519CustodyLoginOutcome =
-  | { readonly kind: 'unchanged' }
-  | {
-      readonly kind: 'recovered';
-      readonly materialActivation: MpcMaterialActivationRef;
-      readonly previousAuthority: ActiveWalletAuthorityV1;
-    };
 
 function requireLoginWarmEd25519OperationCredential(
   session: LoginWarmEd25519Session,
@@ -157,7 +140,7 @@ function assertWalletCustodyLoginIdentity(input: PasskeyEd25519CustodyLoginInput
   }
 }
 
-/** A failed cache write costs the next unlock a re-bind or rejoin, not this login. */
+/** A failed cache write costs the next unlock a re-bind or reissue, not this login. */
 async function persistWalletCustodyCacheRow(
   signingEngine: PasskeyEd25519CustodyLoginInput['signingEngine'],
   material: LoadedWalletCustodyEd25519MaterialV1,
@@ -173,7 +156,7 @@ async function persistWalletCustodyCacheRow(
 
 export async function openAndActivatePasskeyEd25519CustodyLogin(
   input: PasskeyEd25519CustodyLoginInput,
-): Promise<PasskeyEd25519CustodyLoginOutcome> {
+): Promise<void> {
   assertWalletCustodyLoginIdentity(input);
   const capability = input.custody.ed25519.capability;
   const cached = await input.signingEngine.loadWalletCustodyEd25519Material({
@@ -189,18 +172,11 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
   }
   const activation = walletCustodyLoginActivationFacts(input.custody, thresholdSessionId.value);
   const envelope = walletCustodyCacheEnvelopeFromRecordV1(input.custody.envelope);
-  const previousAuthority = await readActivePasskeyAuthorityForRecovery({
-    walletId: input.walletBinding.walletId,
-    authMethodId: input.authority.walletAuthMethodId,
-  });
-  let activeClient: Awaited<ReturnType<typeof openWalletCustodyEd25519ActiveClientV1>> | null =
-    null;
-  let rejoinSecret: Uint8Array<ArrayBuffer> | null = null;
-  let openSecret: Uint8Array | null = null;
-  let rejoinedHere = false;
+  let activeClient: RouterAbEd25519YaoSealableActiveClientV1 | null = null;
+  let reissueSecret: Uint8Array | null = null;
   try {
     // A row from an older epoch is re-bound locally: a recovery (another site's or device's
-    // first login) keeps the shares. Only a missing or unusable row needs a rejoin.
+    // first login) keeps the shares. Only a missing or unusable row needs a reissue.
     const opened = await openOrRebindWalletCustodyEd25519V1({
       loadCachedMaterial: async () => cached,
       activation,
@@ -214,46 +190,26 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
         await persistWalletCustodyCacheRow(input.signingEngine, opened.rebound);
       }
     } else {
-      const custodyWire = joinCustodyWireFromEnvelopeRecord(input.custody.envelope);
-      if (!custodyWire.ok) throw new Error(custodyWire.reason);
-      rejoinSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
-      openSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
-      rejoinedHere = true;
-      const rejoined = await input.signingEngine.rejoinWalletCustodyNearEd25519KeySet({
-        walletId: String(input.walletBinding.walletId),
-        custodyJson: custodyWire.custodyJson,
-        factorSecret: rejoinSecret.buffer,
-        nearEd25519SigningKeyId: String(input.walletBinding.nearEd25519SigningKeyId),
-        recoveryBasis: capability,
+      reissueSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
+      const reissued = await reissueWalletCustodyEd25519CacheV1({
+        reissueKeySet: input.signingEngine.reissueWalletCustodyNearEd25519KeySet.bind(
+          input.signingEngine,
+        ),
+        envelope: input.custody.envelope,
+        factorSecret: reissueSecret,
+        basis: capability,
+        signer: {
+          walletId: String(input.walletBinding.walletId),
+          nearAccountId: String(input.walletBinding.nearAccountId),
+          nearEd25519SigningKeyId: String(input.walletBinding.nearEd25519SigningKeyId),
+          signerSlot: input.signerSlot,
+        },
+        activation,
         routerOrigin: new URL(input.relayerUrl).origin,
         walletSessionToken: requireLoginWarmEd25519OperationCredential(input.walletSession).token,
       });
-      const materialBinding: WalletCustodyEd25519MaterialBindingV1 = {
-        kind: WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND,
-        applicationBindingDigestB64u: rejoined.localMaterial.applicationBindingDigestB64u,
-        registeredPublicKeyB64u: base64UrlEncode(rejoined.metadata.registeredPublicKey),
-        participantIds: rejoined.metadata.participantIds,
-        stateEpoch: String(rejoined.metadata.stateEpoch),
-        walletId: String(input.walletBinding.walletId),
-        nearAccountId: String(input.walletBinding.nearAccountId),
-        nearEd25519SigningKeyId: String(input.walletBinding.nearEd25519SigningKeyId),
-        signerSlot: input.signerSlot,
-        signingWorkerId: input.custody.ed25519.relayerKeyId,
-        signingWorkerVerifyingShareB64u: base64UrlEncode(
-          rejoined.metadata.signingWorkerVerifyingShare,
-        ),
-      };
-      const sealed = {
-        ciphertextB64u: rejoined.localMaterial.b64u,
-        nonceB64u: rejoined.localMaterial.nonceB64u,
-      };
-      await persistWalletCustodyCacheRow(input.signingEngine, { binding: materialBinding, sealed });
-      activeClient = await openWalletCustodyEd25519ActiveClientV1({
-        material: { binding: materialBinding, sealed },
-        activation: walletCustodyActivationFactsFromActiveClientMetadataV1(rejoined.metadata),
-        envelope,
-        ownedFactorSecret: openSecret,
-      });
+      activeClient = reissued.activeClient;
+      await persistWalletCustodyCacheRow(input.signingEngine, reissued.material);
     }
     if (!activeClient) throw new Error('[login] wallet custody produced no active client');
     const recoveredThresholdSessionId = parseThresholdEd25519SessionId(
@@ -381,16 +337,11 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
       walletSessionId: String(input.walletSession.walletSessionId),
       expiresAtMs: input.walletSession.expiresAtMs,
     });
-    // A rejoin is a Router recovery with a new material activation, also for a stale cache.
-    return rejoinedHere
-      ? { kind: 'recovered', materialActivation: activated.materialActivation, previousAuthority }
-      : { kind: 'unchanged' };
   } catch (error) {
     activeClient?.dispose();
     throw error;
   } finally {
-    rejoinSecret?.fill(0);
-    openSecret?.fill(0);
+    reissueSecret?.fill(0);
   }
 }
 

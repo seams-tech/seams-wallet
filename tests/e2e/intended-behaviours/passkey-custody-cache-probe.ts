@@ -46,13 +46,6 @@ export async function readAuthority(walletId: string): Promise<AuthoritySnapshot
 export async function removeCustodyCache(walletId: string): Promise<number> {
   const database = await openDB(SEAMS_WALLET_DB_NAME);
   try {
-    const authorities: unknown[] = await database.getAllFromIndex(
-      SEAMS_WALLET_STORES.walletAuthorities,
-      'wallet_id',
-      walletId,
-    );
-    if (authorities.length !== 1) throw new Error('Expected one authority checkpoint');
-    sessionStorage.setItem('cold-custody-authority-checkpoint', JSON.stringify(authorities[0]));
     const transaction = database.transaction(SEAMS_WALLET_STORES.keyMaterial, 'readwrite');
     const rows: unknown[] = await transaction.store.getAll();
     let removed = 0;
@@ -73,24 +66,8 @@ export async function removeCustodyCache(walletId: string): Promise<number> {
   }
 }
 
-/** Simulate recovery committing remotely before the browser saved its authority update. */
-export async function restoreAuthorityCheckpoint(walletId: string): Promise<void> {
-  const serialized = sessionStorage.getItem('cold-custody-authority-checkpoint');
-  if (!serialized) throw new Error('Authority checkpoint is unavailable');
-  const row = requireRecord(JSON.parse(serialized), 'authority checkpoint');
-  const parsed = parseWalletAuthorityV1(row.record);
-  if (!parsed.ok || parsed.value.walletId !== walletId)
-    throw new Error('Authority checkpoint belongs to another wallet');
-  const database = await openDB(SEAMS_WALLET_DB_NAME);
-  try {
-    await database.put(SEAMS_WALLET_STORES.walletAuthorities, row);
-    sessionStorage.removeItem('cold-custody-authority-checkpoint');
-  } finally {
-    database.close();
-  }
-}
-
-async function custodyCacheRows(walletId: string): Promise<Record<string, unknown>[]> {
+/** A copy of the custody cache rows, as another site's storage would keep them. */
+export async function readCustodyCacheRows(walletId: string): Promise<Record<string, unknown>[]> {
   const database = await openDB(SEAMS_WALLET_DB_NAME);
   try {
     const rows: unknown[] = await database.getAll(SEAMS_WALLET_STORES.keyMaterial);
@@ -107,29 +84,18 @@ async function custodyCacheRows(walletId: string): Promise<Record<string, unknow
 
 /** The state epoch of each custody cache row of the wallet. */
 export async function readCustodyCacheEpochs(walletId: string): Promise<string[]> {
-  return (await custodyCacheRows(walletId)).map((row) => {
+  return (await readCustodyCacheRows(walletId)).map((row) => {
     const record = requireRecord(row.record, 'key material record');
     const payload = requireRecord(record.payload, 'custody cache payload');
     return String(requireRecord(payload.binding, 'custody cache binding').stateEpoch);
   });
 }
 
-/** Keeps a copy of the custody cache rows, as another site's storage would. */
-export async function saveCustodyCache(walletId: string): Promise<number> {
-  const rows = await custodyCacheRows(walletId);
-  sessionStorage.setItem('older-custody-cache-rows', JSON.stringify(rows));
-  return rows.length;
-}
-
-/** Puts the saved rows back: this site now holds a row from an older epoch. */
-export async function restoreSavedCustodyCache(): Promise<number> {
-  const serialized = sessionStorage.getItem('older-custody-cache-rows');
-  if (!serialized) throw new Error('Saved custody cache rows are unavailable');
-  const rows: unknown[] = JSON.parse(serialized);
+/** Puts saved rows back: this site now holds a row from an older epoch. */
+export async function restoreCustodyCacheRows(rows: readonly unknown[]): Promise<number> {
   const database = await openDB(SEAMS_WALLET_DB_NAME);
   try {
     for (const row of rows) await database.put(SEAMS_WALLET_STORES.keyMaterial, row);
-    sessionStorage.removeItem('older-custody-cache-rows');
     return rows.length;
   } finally {
     database.close();

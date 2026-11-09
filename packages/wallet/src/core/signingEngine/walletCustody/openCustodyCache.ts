@@ -47,23 +47,6 @@ export type WalletCustodyActivationFactsV1 = {
   readonly activationCapabilityBindingB64u: string;
 };
 
-export function walletCustodyActivationFactsFromActiveClientMetadataV1(
-  metadata: RouterAbEd25519YaoActiveClientMetadataV1,
-): WalletCustodyActivationFactsV1 {
-  return {
-    materialActivation: metadata.materialActivation,
-    lifecycleId: metadata.scope.lifecycle_id,
-    signingRootVersion: metadata.scope.root_share_epoch,
-    signingRootId: metadata.applicationBinding.signing_root_id,
-    signerSetId: metadata.scope.signer_set_id,
-    thresholdSessionId: metadata.scope.threshold_session_id,
-    activationTranscriptB64u: base64UrlEncode(metadata.transcript),
-    activationCapabilityBindingB64u: base64UrlEncode(
-      Uint8Array.from(metadata.activeCapabilityBinding),
-    ),
-  };
-}
-
 export type WalletCustodyCacheEnvelopeV1 = {
   /** The custody envelope binding, as stored, serialized for the wasm side. */
   readonly bindingJson: string;
@@ -182,27 +165,27 @@ type WalletCustodyUnlockResultV1 =
       /** The row re-bound to the current epoch; persist it in place of the old row. */
       readonly rebound: LoadedWalletCustodyEd25519MaterialV1 | null;
     }
-  | { readonly kind: 'rejoin_required' };
+  | { readonly kind: 'reissue_required' };
 
 /**
  * Opens the cached row for the server's current state epoch, or reports that
- * the key set must be rejoined.
+ * the Client share must be reissued.
  *
  * **The envelope is needed either way.** The custody seed is never stored — it
  * is re-derived by opening the envelope on every unlock, so a cache hit saves
  * the Router round, not the envelope.
  *
- * **An older row is re-bound, not rejoined.** A Router recovery — for example
- * a passkey login on another site, whose storage partition had no row — keeps
- * both shares and moves only the epoch. The row from the older epoch therefore
+ * **An older row is re-bound, not reissued.** A Router recovery — for example
+ * a recovery-code recovery on another device — keeps both shares and moves
+ * only the epoch. The row from the older epoch therefore
  * holds the current share. It is checked against the server's current
  * SigningWorker verifying share and sealed again under the current epoch, with
  * no Router round. The caller persists `rebound`.
  *
- * A missing or unusable row, or one newer than the server, needs a rejoin.
- * This layer does not perform it: rejoining runs a Router ceremony and needs
- * the step runner, the admission and the application facts this layer has no
- * business holding.
+ * A missing or unusable row, or one newer than the server, needs a reissue
+ * (`reissueWalletCustodyEd25519CacheV1`). This layer does not perform it: a
+ * reissue runs a Router ceremony and needs the step runner and a Wallet
+ * Session this layer has no business holding.
  */
 export async function openOrRebindWalletCustodyEd25519V1(input: {
   readonly loadCachedMaterial: () => Promise<
@@ -220,9 +203,9 @@ export async function openOrRebindWalletCustodyEd25519V1(input: {
   const recordEpoch = cached.kind === 'found' ? BigInt(cached.material.binding.stateEpoch) : null;
   if (cached.kind !== 'found' || recordEpoch === null || recordEpoch > currentEpoch) {
     /* The factor secret is zeroed here because the callee that normally does
-       it is never reached. A rejoin obtains its own. */
+       it is never reached. A reissue obtains its own. */
     input.ownedFactorSecret.fill(0);
-    return { kind: 'rejoin_required' };
+    return { kind: 'reissue_required' };
   }
   const material: LoadedWalletCustodyEd25519MaterialV1 = {
     binding: {

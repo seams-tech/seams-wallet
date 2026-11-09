@@ -20,7 +20,6 @@ import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import {
   exactPasskeyWalletAuthAuthorityRefForCredential,
   resolveActivePasskeyWalletSessionAuthority,
-  reconcilePasskeyWalletSessionAfterRecovery,
 } from '@/SeamsWeb/operations/authMethods/passkey/exactPasskeyAuthority';
 import { resolveBrowserActiveEcdsaCapabilityRuntime } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
@@ -80,7 +79,6 @@ import type {
   LoginPreauthorizedEcdsaActivation,
   ConfiguredThresholdEcdsaPublicationTarget,
 } from './passkeyExchange';
-import type { PasskeyEd25519CustodyLoginOutcome } from './custodyActivation';
 import {
   bindLoginEd25519SessionAuthorityToAuthenticatedCredential,
   requireRequestedLoginEd25519SessionAuthority,
@@ -497,9 +495,6 @@ export async function primeThresholdLoginWarmSigners(args: {
   const unlockRemainingUses = args.unlockRemainingUses;
   const ecdsaBootstraps: ThresholdEcdsaSessionBootstrapResult[] = [];
   let ed25519Session: LoginWarmEd25519Session | null = null;
-  const custodyRecovery: { outcome: PasskeyEd25519CustodyLoginOutcome } = {
-    outcome: { kind: 'unchanged' },
-  };
   let ecdsaAuthorizedEd25519Mint: ThresholdEcdsaAuthorizedEd25519Mint | null = null;
 
   const tasks: ThresholdLoginWarmupTask[] = [];
@@ -639,7 +634,7 @@ export async function primeThresholdLoginWarmSigners(args: {
           if (!passkeyPrfFirstB64u) {
             throw new Error('[login] wallet custody requires WebAuthn PRF.first');
           }
-          custodyRecovery.outcome = await args.signingEngine.withExactEd25519MaterialOwner({
+          await args.signingEngine.withExactEd25519MaterialOwner({
             materialActivation: expectedMaterialActivation,
             nearAccountId: walletBinding.nearAccountId,
             task: openAndActivatePasskeyEd25519CustodyLogin.bind(undefined, {
@@ -908,18 +903,6 @@ export async function primeThresholdLoginWarmSigners(args: {
   }
 
   await runThresholdLoginWarmupTasks(tasks);
-  if (custodyRecovery.outcome.kind === 'recovered') {
-    if (!args.passkeyUnlockWalletSessionAuthorization) {
-      throw new Error('Recovered passkey material requires its exact Wallet Session');
-    }
-    await reconcilePasskeyWalletSessionAfterRecovery({
-      authorization: args.passkeyUnlockWalletSessionAuthorization,
-      materialActivation: custodyRecovery.outcome.materialActivation,
-      relayerUrl: args.relayerUrl,
-      statusReads: args.statusReads,
-      previousAuthority: custodyRecovery.outcome.previousAuthority,
-    });
-  }
   return { ecdsaBootstraps, ed25519Session };
 }
 

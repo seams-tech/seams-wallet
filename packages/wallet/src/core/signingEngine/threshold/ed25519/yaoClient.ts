@@ -13,6 +13,8 @@ import {
   ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1,
   ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1,
   ROUTER_AB_ED25519_YAO_RECOVERY_STATUS_PATH_V1,
+  ROUTER_AB_ED25519_YAO_REISSUE_ADMISSION_PATH_V1,
+  ROUTER_AB_ED25519_YAO_REISSUE_EXECUTE_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
@@ -27,6 +29,7 @@ import {
   type RouterAbEd25519YaoRecoveryActivationRequestV1,
   type RouterAbEd25519YaoRecoveryAdmissionRequestV1,
   type RouterAbEd25519YaoRecoveryStatusRequestV1,
+  type RouterAbEd25519YaoReissueAdmissionRequestV1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
   type RouterAbEd25519YaoExportAdmissionRequestV1,
   type RouterAbEd25519YaoExportAdmissionReceiptV1,
@@ -109,6 +112,16 @@ type RouterAbEd25519YaoRecoveryTransportRequestV1 =
       kind: 'recovery_status';
       path: typeof ROUTER_AB_ED25519_YAO_RECOVERY_STATUS_PATH_V1;
       body: RouterAbEd25519YaoRecoveryStatusRequestV1;
+    }
+  | {
+      kind: 'reissue_admit';
+      path: typeof ROUTER_AB_ED25519_YAO_REISSUE_ADMISSION_PATH_V1;
+      body: RouterAbEd25519YaoReissueAdmissionRequestV1;
+    }
+  | {
+      kind: 'reissue_execute';
+      path: typeof ROUTER_AB_ED25519_YAO_REISSUE_EXECUTE_PATH_V1;
+      body: RouterAbEd25519YaoActivationExecuteRequestV1<'reissue'>;
     };
 
 export interface RouterAbEd25519YaoRecoveryTransportV1 {

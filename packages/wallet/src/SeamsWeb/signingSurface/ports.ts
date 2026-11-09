@@ -117,7 +117,7 @@ import type { EstablishNearEd25519CustodyFactor } from '@/core/signingEngine/wal
 import type { EmailOtpEd25519YaoRecoveryBootstrapV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { RouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
-import type { WalletSessionEd25519RecoveryBasisV1 } from '@/core/signingEngine/walletCustody/walletRecoveryEd25519';
+import type { WalletSessionEd25519ReissueBasisV1 } from '@/core/signingEngine/walletCustody/walletReissueEd25519';
 import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
 import type {
   WalletCustodyCeremonyCommitPayload,
@@ -433,15 +433,15 @@ export interface WalletCustodyCeremonySurface {
     traceContext?: RouterAbTraceContextV1;
   }): Promise<JoinedWalletCustodyNearEd25519KeySetV1>;
 
-  rejoinWalletCustodyNearEd25519KeySet(args: {
+  reissueWalletCustodyNearEd25519KeySet(args: {
     walletId: string;
     custodyJson: string;
     factorSecret: ArrayBuffer;
     nearEd25519SigningKeyId: string;
-    recoveryBasis: WalletSessionEd25519RecoveryBasisV1;
+    basis: WalletSessionEd25519ReissueBasisV1;
     routerOrigin: string;
     walletSessionToken: string;
-  }): Promise<JoinedWalletCustodyNearEd25519KeySetV1>;
+  }): Promise<ReissuedWalletCustodyNearEd25519KeySetV1>;
 
   activateEmailOtpEd25519RegistrationMaterialInternal(args: {
     walletSession: WalletSessionRef;
@@ -552,6 +552,12 @@ export type EstablishedWalletCustodyNearEd25519KeySetV1 = {
 export type JoinedWalletCustodyNearEd25519KeySetV1 = Omit<
   EstablishedWalletCustodyNearEd25519KeySetV1,
   'recoveryCodes'
+>;
+
+/** The current Client share a reissue sealed under the custody seed. */
+export type ReissuedWalletCustodyNearEd25519KeySetV1 = Pick<
+  EstablishedWalletCustodyNearEd25519KeySetV1,
+  'localMaterial'
 >;
 
 export type EstablishedWalletCustodyEvmFamilyKeySetV1 = {
@@ -698,7 +704,7 @@ export type LoginUnlockSigningSurface = WalletSessionReadSurface &
   Pick<
     WalletCustodyCeremonySurface,
     | 'loadWalletCustodyEd25519Material'
-    | 'rejoinWalletCustodyNearEd25519KeySet'
+    | 'reissueWalletCustodyNearEd25519KeySet'
     | 'rejoinWalletCustodyEvmFamilyKeySet'
     | 'restoreWalletCustodyEcdsaContinuity'
     | 'persistWalletCustodyEd25519Material'
