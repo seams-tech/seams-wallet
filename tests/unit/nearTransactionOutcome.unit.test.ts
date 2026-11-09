@@ -43,6 +43,8 @@ type Broadcast = {
   /** The nonce coordinator calls, in order. */
   leaseCalls: string[];
   requests: number;
+  /** The JSON-RPC method and `wait_until` of each request. */
+  calls: string[];
   receipt: TransactionReceiptModel | null;
 };
 
@@ -52,10 +54,17 @@ let requestNumber = 0;
 async function broadcast(
   responses: readonly unknown[],
   firstBroadcast: boolean,
+  onIncluded: ((transactionHash: string) => void) | null = null,
 ): Promise<Broadcast> {
   const originalFetch = globalThis.fetch;
   let requests = 0;
-  globalThis.fetch = async () => {
+  const calls: string[] = [];
+  globalThis.fetch = async (_url, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      method: string;
+      params: { wait_until?: string };
+    };
+    calls.push(`${request.method} ${request.params.wait_until}`);
     const body = responses[Math.min(requests, responses.length - 1)];
     requests += 1;
     return new Response(JSON.stringify(body), { status: 200 });
@@ -111,6 +120,7 @@ async function broadcast(
           } as ChildToParentEnvelope),
       },
       firstBroadcast,
+      onIncluded,
     });
     // The result crosses postMessage to the application and to the receipt.
     const wire: unknown = structuredClone(result);
@@ -120,7 +130,7 @@ async function broadcast(
       requestId,
       payload: { ok: true, result: wire },
     } as ChildToParentEnvelope);
-    return { result, leaseCalls, requests, receipt };
+    return { result, leaseCalls, requests, calls, receipt };
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -257,4 +267,33 @@ test('a timeout without an outcome stays unresolved', async () => {
       'Submitted to the network. The response did not include a final execution outcome.',
     japanese: 'ネットワークに送信しました。応答には最終的な実行結果が含まれていません。',
   });
+});
+
+test('a transfer shows as sent when a block holds it, then reads its outcome', async () => {
+  const included = { jsonrpc: '2.0', id: 1, result: { final_execution_status: 'INCLUDED' } };
+  const events: string[] = [];
+  const { result, leaseCalls, calls } = await broadcast([included, successResponse], true, (hash) =>
+    events.push(hash),
+  );
+
+  expect(events).toEqual([FAILED_TRANSACTION_HASH]);
+  expect(calls).toEqual(['send_tx INCLUDED', 'tx EXECUTED_OPTIMISTIC']);
+  expect(result).toMatchObject({
+    success: true,
+    transactionId: FAILED_TRANSACTION_HASH,
+    result: { status: { SuccessValue: '' } },
+  });
+  expect(leaseCalls).toEqual(['accepted', 'finalized']);
+});
+
+test('a transfer that NEAR refuses before a block holds it shows nothing as sent', async () => {
+  const events: string[] = [];
+  const { result, leaseCalls, calls } = await broadcast([notEnoughBalanceResponse], true, () =>
+    events.push('included'),
+  );
+
+  expect(events).toEqual([]);
+  expect(calls).toEqual(['send_tx INCLUDED']);
+  expect(result).toMatchObject({ success: false, kind: 'not_submitted' });
+  expect(leaseCalls).toEqual(['rejected']);
 });

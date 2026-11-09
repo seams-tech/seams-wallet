@@ -136,6 +136,8 @@ export async function signAndSendVoiceApprovedTransaction(args: {
   transactionInput: TransactionInput;
   voice: VoiceApprovedSigning;
   options: SignAndSendTransactionHooksOptions;
+  /** Set for a plain transfer: runs when a block holds it, before the outcome is read. */
+  onIncluded: ((transactionHash: string) => void) | null;
 }): Promise<ActionResult> {
   const signing = {
     context: args.context,
@@ -144,6 +146,7 @@ export async function signAndSendVoiceApprovedTransaction(args: {
     transactionInput: args.transactionInput,
     confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' } as const,
     voiceVerdict: args.voice.verdict,
+    onIncluded: args.onIncluded,
   };
   if (args.voice.approval === 'voice') {
     return signAndSendTransactionInternal({ ...signing, options: args.options });
@@ -231,6 +234,10 @@ export async function signTransaction(args: {
  *
  * `firstBroadcast` states that this call signed the transaction, so no earlier request
  * carried it, and a NEAR rejection of its only request proves that nothing was submitted.
+ *
+ * With `onIncluded`, the send returns when a block holds the transaction, `onIncluded` runs,
+ * and then the outcome is read at `EXECUTED_OPTIMISTIC`. A plain transfer can then show as
+ * sent about two blocks before its outcome.
  */
 export async function sendTransaction({
   context,
@@ -239,6 +246,7 @@ export async function sendTransaction({
   signedTransaction,
   options,
   firstBroadcast = false,
+  onIncluded = null,
 }: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
@@ -246,6 +254,7 @@ export async function sendTransaction({
   signedTransaction: SignedTransaction;
   options?: SendTransactionHooksOptions;
   firstBroadcast?: boolean;
+  onIncluded?: ((transactionHash: string) => void) | null;
 }): Promise<ActionResult> {
   const nonceLease = signedTransaction.nonceLease;
   let submission:
@@ -299,9 +308,20 @@ export async function sendTransaction({
     }
 
     submission = { kind: 'dispatching' };
-    transactionResult = await context.nearClient
-      .sendTransaction(signedTransaction, options?.waitUntil)
-      .catch(executedFailure);
+    if (onIncluded) {
+      await context.nearClient.sendTransactionUntilIncluded(signedTransaction);
+      submission = { kind: 'accepted', transactionId: signedTransaction.transactionHash };
+      onIncluded(signedTransaction.transactionHash);
+      transactionResult = await context.nearClient.txStatus(
+        signedTransaction.transactionHash,
+        accountId,
+        'EXECUTED_OPTIMISTIC',
+      );
+    } else {
+      transactionResult = await context.nearClient
+        .sendTransaction(signedTransaction, options?.waitUntil)
+        .catch(executedFailure);
+    }
     txId = requireNearTransactionHash(transactionResult.transaction.hash);
     if (txId !== signedTransaction.transactionHash) {
       throw new Error('NEAR RPC returned a different transaction hash');
@@ -430,6 +450,7 @@ async function signAndSendTransactionInternal({
   confirmationConfigOverride,
   sensitivePolicy,
   voiceVerdict,
+  onIncluded = null,
 }: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
@@ -439,6 +460,7 @@ async function signAndSendTransactionInternal({
   confirmationConfigOverride?: Partial<ConfirmationConfig> | undefined;
   sensitivePolicy?: SensitiveOperationPolicy;
   voiceVerdict?: SignedVoiceVerdict;
+  onIncluded?: ((transactionHash: string) => void) | null;
 }): Promise<ActionResult> {
   try {
     const signedTx = await signTransactionWithActionsInternal({
@@ -465,6 +487,7 @@ async function signAndSendTransactionInternal({
         waitUntil: options?.waitUntil,
       },
       firstBroadcast: true,
+      onIncluded,
     });
     return txResult;
   } catch (error: unknown) {

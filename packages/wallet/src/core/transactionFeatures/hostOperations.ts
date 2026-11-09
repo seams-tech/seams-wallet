@@ -58,13 +58,15 @@ export type SpeakToSignHostOperationsInput = Readonly<{
    * The owner's NEAR signing path for one voice-approved transaction: no confirm for `voice`,
    * a fresh approval with the session's own method for `voice_and_passkey`. The signing request
    * carries the verdict, so the Seams co-signer checks it again. `onBroadcast` runs when the
-   * signed transaction leaves for the network.
+   * signed transaction leaves for the network. `onIncluded`, set only for a plain transfer, runs
+   * when a block holds the transaction, before its outcome is read.
    */
   signVoiceApprovedTransaction: (
     transaction: TransactionInput,
     voice: VoiceApprovedSigning,
     signal: AbortSignal,
     onBroadcast: () => void,
+    onIncluded: ((transactionHash: string) => void) | null,
   ) => Promise<ActionResult>;
   /** The owner's NEP-413 signing path, bound to the wallet session and the owner account. */
   signMessage: (
@@ -253,7 +255,19 @@ async function payWithVerdict(
     receiverId: transferRequest.receiver,
     actions: [transfer(`${transferRequest.amountYocto} yoctoNEAR`)],
   };
-  return await signWithVerdict(input, state, expected, transaction, verifierOutput, signal, hooks);
+  // Once a block holds a plain transfer, NEAR has checked its signature, nonce and balance.
+  // The receiver was checked before verify, so the transfer can show as sent.
+  const onIncluded = (transactionHash: string) => hooks.included(transactionHash);
+  return await signWithVerdict(
+    input,
+    state,
+    expected,
+    transaction,
+    verifierOutput,
+    signal,
+    hooks,
+    onIncluded,
+  );
 }
 
 async function signNoteWithVerdict(
@@ -268,7 +282,17 @@ async function signNoteWithVerdict(
   if (refusal) return { kind: 'unavailable', detail: refusal };
   const expected = await noteActionDigests(input.feature.network, input.ownerAccountId, action);
   const transaction = noteTransaction(action);
-  return await signWithVerdict(input, state, expected, transaction, verifierOutput, signal, hooks);
+  // A contract call can still fail in the contract, so it shows only its outcome.
+  return await signWithVerdict(
+    input,
+    state,
+    expected,
+    transaction,
+    verifierOutput,
+    signal,
+    hooks,
+    null,
+  );
 }
 
 /** Checks the verdict against the request digests, then signs the transaction once. */
@@ -280,6 +304,7 @@ async function signWithVerdict(
   verifierOutput: unknown,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
+  onIncluded: ((transactionHash: string) => void) | null,
 ): Promise<SpeakToSignPayment> {
   signal.throwIfAborted();
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
@@ -323,6 +348,7 @@ async function signWithVerdict(
       input.progress({ stage: 'transaction_sent' });
       hooks.broadcasting();
     },
+    onIncluded,
   );
   if (!result.success) {
     // Nothing left the Wallet, so another recording of this flow may still pay.

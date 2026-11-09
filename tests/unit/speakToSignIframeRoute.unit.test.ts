@@ -377,6 +377,7 @@ test('the handler gives the plugin the owner, the network and scoped operations'
         accepted: () => undefined,
         approveStepUp: async () => true,
         broadcasting: () => undefined,
+        included: () => undefined,
       },
     ),
   ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'unknown verdict kind' });

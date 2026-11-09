@@ -13,6 +13,7 @@ import {
 import { recordVoice, voiceQualityMessage, type VoiceCaptureEvent } from '../browser/microphone';
 import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 import { SPOKEN_PHRASES } from '../browser/phraseVocabulary';
+import { expectedSpeechMs } from '../browser/speechPause';
 import { PhraseCard } from './phraseCard';
 import { VoicePrompt } from './prompt';
 
@@ -42,12 +43,15 @@ class PhraseSurface implements AuthMethodPhraseSurface {
   private view: PhraseView | null = null;
   private started = false;
   private closed = false;
+  /** The voiced time of the whole sentence, after which a shorter pause ends a recording. */
+  private readonly expectedSpeechMs: number;
 
   constructor(
     sentence: string,
     binding: UiConfirmSurfaceMeasurementBinding,
     private readonly outer: AbortSignal,
   ) {
+    this.expectedSpeechMs = expectedSpeechMs(sentence);
     const parent = document.getElementById('root') ?? document.body;
     this.element = document.createElement('section');
     this.element.className =
@@ -144,8 +148,7 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     const recorder = new AbortController();
     this.recorder = recorder;
     try {
-      const recorded = await recordVoice(recorder.signal, this.capture);
-      const endOfSpeechAt = performance.now();
+      const recorded = await recordVoice(recorder.signal, this.capture, this.expectedSpeechMs);
       if (this.recording !== recording || this.closed) {
         recorded.samples?.fill(0);
         return;
@@ -154,6 +157,8 @@ class PhraseSurface implements AuthMethodPhraseSurface {
         this.retry(voiceQualityMessage(recorded.quality));
         return;
       }
+      // The owner stopped speaking at the last voiced frame, before the end pause.
+      const endOfSpeechAt = recorded.lastSoundAtMs ?? performance.now();
       this.started = false;
       this.recording = null;
       recording.resolve({ kind: 'recorded', samples: recorded.samples, endOfSpeechAt });

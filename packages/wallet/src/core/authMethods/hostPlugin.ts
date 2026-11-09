@@ -59,7 +59,10 @@ export type AuthMethodPhraseRecording =
   | Readonly<{
       kind: 'recorded';
       samples: Float32Array;
-      /** `performance.now()` when the recorder handed over the trimmed clip. */
+      /**
+       * `performance.now()` of the last voiced frame: the owner stopped speaking then, before the
+       * pause that ends the recording.
+       */
       endOfSpeechAt: number;
     }>
   | Readonly<{ kind: 'cancelled' }>;

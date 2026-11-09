@@ -1,4 +1,5 @@
 import { createVoiceActivity } from './voiceActivity';
+import { endPauseMs } from './speechPause';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 import {
   openVoiceMicrophone,
@@ -42,7 +43,13 @@ export type VoiceCaptureQuality = Readonly<{
 }>;
 
 type VoiceRecordingResult =
-  | { kind: 'captured'; samples: Float32Array; quality: VoiceCaptureQuality }
+  | {
+      kind: 'captured';
+      samples: Float32Array;
+      quality: VoiceCaptureQuality;
+      /** `performance.now()` of the last voiced frame, or null when no speech was detected. */
+      lastSoundAtMs: number | null;
+    }
   | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality; samples?: never };
 
 export function voiceQualityMessage(quality: VoiceCaptureQuality): string {
@@ -63,17 +70,18 @@ const SAMPLE_RATE = 16_000;
 const LEVEL_THRESHOLD = 0.006;
 const REQUIRED_VOICED_MS = 600;
 const MAX_RECORDING_MS = 8_000;
-const END_PAUSE_MS = 1_500;
 const SPEECH_START_MS = 100;
 const VOICE_FRAME_MS = 32;
 
 type SpeechActivity =
-  { kind: 'waiting'; activeMs: number } | { kind: 'speaking'; lastSoundAtMs: number };
+  | { kind: 'waiting'; activeMs: number }
+  | { kind: 'speaking'; lastSoundAtMs: number; voicedMs: number };
 
 type RecordedAudio = Readonly<{
   bytes: ArrayBuffer;
   recordingMs: number;
   endedBy: 'pause' | 'limit' | 'stream_ended';
+  lastSoundAtMs: number | null;
 }>;
 
 export function requireVoiceUserAction(): void {
@@ -89,9 +97,14 @@ export function requireVoiceForeground(): void {
   }
 }
 
+/**
+ * Records one utterance. `expectedSpeechMs` is the voiced time of the whole expected sentence,
+ * when the caller knows the sentence: after that much speech, a shorter pause ends the recording.
+ */
 export async function recordVoice(
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
+  expectedSpeechMs: number | null = null,
 ): Promise<VoiceRecordingResult> {
   if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
   const attemptId = crypto.randomUUID();
@@ -100,7 +113,7 @@ export async function recordVoice(
   const { stream } = microphone;
   try {
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
-    const recording = new VoiceRecording(stream, signal, onCapture);
+    const recording = new VoiceRecording(stream, signal, onCapture, expectedSpeechMs);
     const clip = await recording.result.finally(onCapture.bind(null, { kind: 'processing' }));
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
     const decoder = new OfflineAudioContext(1, SAMPLE_RATE, SAMPLE_RATE);
@@ -150,7 +163,7 @@ export async function recordVoice(
           speech.fill(0);
           signal.throwIfAborted();
         }
-        return { kind: 'captured', samples: speech, quality };
+        return { kind: 'captured', samples: speech, quality, lastSoundAtMs: clip.lastSoundAtMs };
       } finally {
         wipeAudioBuffer(rendered);
       }
@@ -168,7 +181,7 @@ class VoiceRecording {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly completion = new WorkerDeferred<RecordedAudio>();
   private startedAtMs = performance.now();
-  private ended: Pick<RecordedAudio, 'recordingMs' | 'endedBy'> | null = null;
+  private ended: Omit<RecordedAudio, 'bytes'> | null = null;
   private activity: SpeechActivity = { kind: 'waiting', activeMs: 0 };
   private audioContext: AudioContext | null = null;
   private worklet: AudioWorkletNode | null = null;
@@ -182,6 +195,7 @@ class VoiceRecording {
     private readonly stream: MediaStream,
     private readonly signal: AbortSignal,
     private readonly onCapture: VoiceCaptureObserver,
+    private readonly expectedSpeechMs: number | null,
   ) {
     this.recorder = new MediaRecorder(stream);
     this.recorder.addEventListener('dataavailable', this.data);
@@ -219,7 +233,11 @@ class VoiceRecording {
   };
   private readonly stop = (endedBy: RecordedAudio['endedBy']): void => {
     if (this.recorder.state === 'inactive') return;
-    this.ended = { endedBy, recordingMs: performance.now() - this.startedAtMs };
+    this.ended = {
+      endedBy,
+      recordingMs: performance.now() - this.startedAtMs,
+      lastSoundAtMs: this.activity.kind === 'speaking' ? this.activity.lastSoundAtMs : null,
+    };
     this.recorder.stop();
     this.stopTracks();
   };
@@ -262,15 +280,12 @@ class VoiceRecording {
       .arrayBuffer()
       .then(this.complete.bind(this, end), this.completion.reject.bind(this.completion));
   };
-  private readonly complete = (
-    end: Pick<RecordedAudio, 'recordingMs' | 'endedBy'>,
-    bytes: ArrayBuffer,
-  ): void => {
+  private readonly complete = (end: Omit<RecordedAudio, 'bytes'>, bytes: ArrayBuffer): void => {
     if (this.signal.aborted) {
       this.completion.reject(new Error('VoiceID recording was cancelled.'));
       return;
     }
-    this.completion.resolve({ bytes, recordingMs: end.recordingMs, endedBy: end.endedBy });
+    this.completion.resolve({ bytes, ...end });
   };
 
   private async startPauseDetection(): Promise<void> {
@@ -338,14 +353,23 @@ class VoiceRecording {
         const activeMs = audible ? this.activity.activeMs + VOICE_FRAME_MS : 0;
         this.activity =
           activeMs >= SPEECH_START_MS
-            ? { kind: 'speaking', lastSoundAtMs: now }
+            ? { kind: 'speaking', lastSoundAtMs: now, voicedMs: activeMs }
             : { kind: 'waiting', activeMs };
         return;
       }
-      case 'speaking':
-        if (audible) this.activity = { kind: 'speaking', lastSoundAtMs: now };
-        else if (now - this.activity.lastSoundAtMs >= END_PAUSE_MS) this.stop('pause');
+      case 'speaking': {
+        const { lastSoundAtMs, voicedMs } = this.activity;
+        if (audible) {
+          this.activity = {
+            kind: 'speaking',
+            lastSoundAtMs: now,
+            voicedMs: voicedMs + VOICE_FRAME_MS,
+          };
+          return;
+        }
+        if (now - lastSoundAtMs >= endPauseMs(voicedMs, this.expectedSpeechMs)) this.stop('pause');
         return;
+      }
       default:
         return assertNeverActivity(this.activity);
     }

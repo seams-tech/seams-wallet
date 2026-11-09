@@ -218,6 +218,12 @@ export type SpeakToSignPaymentHooks = Readonly<{
   approveStepUp(policyText: string | null): Promise<boolean>;
   /** The signed transaction is on its way to the network. */
   broadcasting(): void;
+  /**
+   * A block holds the plain transfer, before its receipt runs: NEAR has checked its signature,
+   * nonce and balance, so the card can show it as sent. The payment result still waits for the
+   * outcome. Never called for a contract call.
+   */
+  included(transactionHash: string): void;
 }>;
 
 /** The verifier's `enroll` authorization: a NEP-413 signature by a full-access key of the owner. */
@@ -234,7 +240,10 @@ export type SpeakToSignClip =
       kind: 'captured';
       wav: Uint8Array<ArrayBuffer>;
       speechMs: number;
-      /** `performance.now()` when the recorder handed over the trimmed clip. */
+      /**
+       * `performance.now()` of the last voiced frame: the owner stopped speaking then, before the
+       * pause that ends the recording.
+       */
       endOfSpeechAt: number;
     }>
   | Readonly<{ kind: 'cancelled' }>

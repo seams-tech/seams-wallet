@@ -368,6 +368,20 @@ function decodeNearTransactionExecutionStatus(
   }
 }
 
+/**
+ * The answer of `send_tx` with `wait_until: INCLUDED`: a block holds the transaction. NEAR may
+ * leave out the outcome at this status, so only the status is read.
+ */
+export function decodeNearTransactionInclusion(
+  value: unknown,
+): DecodedNearFinalExecutionOutcome['final_execution_status'] {
+  const status = decodeNearTransactionExecutionStatus(
+    requireRecord(value, 'NEAR transaction inclusion').final_execution_status,
+  );
+  if (status === 'NONE') throw new Error('NEAR did not include the transaction');
+  return status;
+}
+
 export function decodeNearFinalExecutionOutcome(value: unknown): DecodedNearFinalExecutionOutcome {
   const record = requireRecord(value, 'NEAR final execution outcome');
   if (!Array.isArray(record.receipts_outcome)) {

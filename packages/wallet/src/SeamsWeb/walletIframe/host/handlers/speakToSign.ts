@@ -300,6 +300,7 @@ async function signVoiceApproved(
   voice: VoiceApprovedSigning,
   signal: AbortSignal,
   onBroadcast: () => void,
+  onIncluded: ((transactionHash: string) => void) | null,
 ) {
   signal.throwIfAborted();
   const progress = withProgress(deps, requestId, {});
@@ -310,6 +311,7 @@ async function signVoiceApproved(
     transactionInput: transaction,
     voice,
     options: { ...progress, onEvent: forwardProgress.bind(null, progress.onEvent, onBroadcast) },
+    onIncluded,
   });
 }
 

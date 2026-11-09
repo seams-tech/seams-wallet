@@ -478,9 +478,10 @@ function coreHarness(verifier: Verifier): CoreHarness {
         },
       },
       operationCredential: async () => 'credential-1',
-      signVoiceApprovedTransaction: async (transaction, voice, _, onBroadcast) => {
+      signVoiceApprovedTransaction: async (transaction, voice, _, onBroadcast, onIncluded) => {
         harness.signed.push({ transaction, ...voice });
         onBroadcast();
+        onIncluded?.('tx-included');
         return outcome;
       },
       signMessage: async (params) => {
@@ -539,6 +540,7 @@ function paymentHooks(events: string[] = []): SpeakToSignPaymentHooks {
       return true;
     },
     broadcasting: () => void events.push('broadcasting'),
+    included: (hash) => void events.push(`included:${hash}`),
   };
 }
 
@@ -708,11 +710,14 @@ test('core pays once per flow, from the owner, with the approval the verdict nam
     { stage: 'transaction_sent' },
     { stage: 'settled', transactionHash: 'tx-bad' },
   ]);
+  // A plain transfer tells the card when a block holds it, before the outcome.
   expect(events).toEqual([
     'accepted',
     'broadcasting',
+    'included:tx-included',
     'step_up:A voice payment above 10 NEAR needs a passkey.',
     'broadcasting',
+    'included:tx-included',
   ]);
 
   // Another transfer than the verdict names, or a clip that core did not record, pays nothing.
@@ -993,9 +998,12 @@ test('core signs one add_note call with no deposit for the verdict of this note 
   ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
 
   const accepted = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
+  const noteEvents: string[] = [];
   expect(
-    await harness.operations.signNoteWithVerdict(NOTE, accepted, signal, paymentHooks()),
+    await harness.operations.signNoteWithVerdict(NOTE, accepted, signal, paymentHooks(noteEvents)),
   ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  // A contract call can fail in the contract, so the card waits for its outcome.
+  expect(noteEvents).toEqual(['accepted', 'broadcasting']);
   expect(harness.signed).toEqual([
     {
       transaction: {

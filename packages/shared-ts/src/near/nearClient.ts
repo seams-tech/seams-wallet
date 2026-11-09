@@ -34,6 +34,7 @@ import {
   parseNearContractResult,
   type DecodedNearFinalExecutionOutcome,
   decodeNearFinalExecutionOutcome,
+  decodeNearTransactionInclusion,
   type DecodedNearBlockReference,
   type NearRpcResultDecoder,
 } from '../utils/nearRpcResults';
@@ -211,6 +212,12 @@ export interface NearClient<SignedTx = SignedTransaction> {
     signedTransaction: SignedTx,
     waitUntil?: TxExecutionStatus,
   ): Promise<DecodedNearFinalExecutionOutcome>;
+  /**
+   * Sends the transaction and returns when a block holds it, before its receipts run. NEAR has
+   * then checked the signature, the nonce and the balance. A refusal throws, as in
+   * `sendTransaction`.
+   */
+  sendTransactionUntilIncluded(signedTransaction: SignedTx): Promise<void>;
   txStatus(
     txHash: string,
     senderAccountId: string,
@@ -491,6 +498,21 @@ export abstract class NearJsonRpcClient<
       );
       return this.broadcastOutcome(outcome);
     });
+  }
+
+  async sendTransactionUntilIncluded(signedTransaction: SignedTx): Promise<void> {
+    const params = {
+      signed_tx_base64: encodeSignedTransactionBase64(signedTransaction),
+      wait_until: 'INCLUDED',
+    };
+    await this.sendWithRetry(() =>
+      this.makeRpcCall(
+        RpcCallType.Send,
+        params,
+        'Send Transaction',
+        decodeNearTransactionInclusion,
+      ),
+    );
   }
 
   async txStatus(
