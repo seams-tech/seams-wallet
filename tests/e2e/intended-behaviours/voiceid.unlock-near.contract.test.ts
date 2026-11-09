@@ -20,8 +20,19 @@ import type {} from '../../intended-app/src/voiceIdHelpers';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import type { Route } from '@playwright/test';
 import { beginDirectVoiceUnlock, microphoneCount } from './voiceid-selection';
+import {
+  readCustodyCacheEpochsInBrowser,
+  removeCustodyCacheInBrowser,
+  routeCustodyCacheProbe,
+  YaoCustodyResponses,
+} from './passkey-custody-cache';
+import { walletFrame } from './session-restore-lock';
 
 test('VoiceID issues a fresh Wallet Session and signs a reviewed NEAR transfer', verifyUnlock);
+test(
+  'VoiceID on a site with no custody cache reissues the Client share and signs',
+  verifyUnlockWithoutCustodyCache,
+);
 test.use(voiceIdBrowserAudio);
 test.use({ video: 'off', trace: 'off' });
 test.setTimeout(180_000);
@@ -303,6 +314,87 @@ async function verifyLockDuringUnlock(
   expect(rejected.message).toContain('Wallet lock state changed during unlock');
   await context.unroute('**/wallet/voiceid/verify', handler);
   expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
+}
+
+/**
+ * The first VoiceID unlock on a site with no custody cache row: the VoiceID
+ * Wallet Session alone admits a reissue of the current Client share. The epoch
+ * does not move, and the reissued share signs.
+ */
+async function verifyUnlockWithoutCustodyCache(
+  {
+    harness,
+    page,
+    context,
+  }: {
+    harness: IntendedBehaviourHarness;
+    page: Page;
+    context: BrowserContext;
+  },
+  testInfo: TestInfo,
+): Promise<void> {
+  await routeCustodyCacheProbe(context);
+  await allowBrowserMicrophone(context);
+  harness.enableVoiceIdPlugin();
+  await harness.registerPasskeyEd25519YaoWallet();
+  const identity = await readNearIdentity(page);
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  const activation = page.evaluate(activate);
+  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await enrollBrowserMicrophone(page);
+  const method = requireActivatedVoiceId(await activation);
+  await page.evaluate(lock);
+  const frame = await walletFrame(page);
+  const epochsBefore = await frame.evaluate(readCustodyCacheEpochsInBrowser, identity.walletId);
+  expect(await frame.evaluate(removeCustodyCacheInBrowser, identity.walletId)).toBe(1);
+  const yao = new YaoCustodyResponses();
+  page.on('response', yao.observe.bind(yao));
+  const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
+  await beginDirectVoiceUnlock(page);
+  expect(await unlocked).toMatchObject({
+    success: true,
+    kind: 'near_wallet_unlocked',
+    walletId: identity.walletId,
+    operationalPublicKey: identity.publicKey,
+  });
+  expect(yao.responses).toEqual([
+    { path: '/router-ab/ed25519/yao/reissue/admit', status: 200 },
+    { path: '/router-ab/ed25519/yao/reissue/execute', status: 200 },
+  ]);
+  const epochsAfter = await (
+    await walletFrame(page)
+  ).evaluate(readCustodyCacheEpochsInBrowser, identity.walletId);
+  expect(epochsAfter).toEqual(epochsBefore);
+  const evidence = new VoiceIdNearSigningEvidence(
+    process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
+    identity,
+    'available',
+  );
+  await evidence.observe(context);
+  await startReviewedTransfer(page);
+  await wallet.locator('button.confirm').click();
+  await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
+    'data-state',
+    'submitted',
+    { timeout: 60_000 },
+  );
+  expect(evidence.transfers).toHaveLength(1);
+  await writeFile(
+    testInfo.outputPath('voiceid-unlock-reissue.json'),
+    JSON.stringify(
+      {
+        status: 'passed',
+        walletId: identity.walletId,
+        voiceIdMethodId: method.walletAuthMethodId,
+        epochsBefore,
+        epochsAfter,
+        yaoResponses: yao.responses,
+        transfers: evidence.transfers,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 function unexpectedUnlock(): { kind: 'succeeded' } {

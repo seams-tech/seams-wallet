@@ -26,7 +26,7 @@ async function readAuthorityInBrowser(walletId: string): Promise<AuthoritySnapsh
   return probe.readAuthority(walletId);
 }
 
-async function removeCustodyCacheInBrowser(walletId: string): Promise<number> {
+export async function removeCustodyCacheInBrowser(walletId: string): Promise<number> {
   const modulePath = '/__e2e-custody-cache-probe.js';
   const probe = await import(modulePath);
   return probe.removeCustodyCache(walletId);
@@ -37,7 +37,7 @@ async function lockWalletInBrowser(): Promise<void> {
   await window.__seamsIntendedE2ELockWallet();
 }
 
-async function routeCustodyCacheProbe(context: BrowserContext): Promise<void> {
+export async function routeCustodyCacheProbe(context: BrowserContext): Promise<void> {
   const bundle = await build({
     entryPoints: [fileURLToPath(new URL('./passkey-custody-cache-probe.ts', import.meta.url))],
     bundle: true,
@@ -51,7 +51,7 @@ async function routeCustodyCacheProbe(context: BrowserContext): Promise<void> {
   await context.route(`**${PROBE_PATH}`, serveProbe.bind(null, source));
 }
 
-async function readCustodyCacheEpochsInBrowser(walletId: string): Promise<string[]> {
+export async function readCustodyCacheEpochsInBrowser(walletId: string): Promise<string[]> {
   const modulePath = '/__e2e-custody-cache-probe.js';
   const probe = await import(modulePath);
   return probe.readCustodyCacheEpochs(walletId);
@@ -70,7 +70,7 @@ async function restoreCustodyCacheRowsInBrowser(rows: unknown[]): Promise<number
 }
 
 /** The Gateway's Ed25519 recovery and reissue answers, in order. */
-class YaoCustodyResponses {
+export class YaoCustodyResponses {
   readonly responses: { path: string; status: number }[] = [];
 
   observe(response: Response): void {
