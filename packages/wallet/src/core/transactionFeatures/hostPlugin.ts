@@ -6,7 +6,7 @@ import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 7;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 8;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -78,6 +78,8 @@ export type SpeakToSignNoteRefusalReason =
   | 'summary_not_speakable'
   /** The contract, the id, the note text (1 to 280 characters) or the rating is not valid. */
   | 'note_not_valid'
+  /** The contract, pull request, repository, base branch or head commit is not valid. */
+  | 'merge_not_valid'
   | 'verdict_mismatch'
   /** The call was sent and failed on chain, for example for an unknown note. */
   | 'transaction_failed';
@@ -136,6 +138,22 @@ export type SpeakToSignRatingRequest = Readonly<{
   /** A whole number from 0 to `Number.MAX_SAFE_INTEGER`. */
   noteId: number;
   rating: NoteRating;
+}> &
+  WithProgress;
+
+/** One spoken approval to merge a pull request. The owner says its number and its base only. */
+export type SpeakToSignMergeApprovalRequest = Readonly<{
+  walletId: string;
+  /** The merge-approval contract, a named NEAR account. */
+  contract: string;
+  /** `owner/name`, such as `seams-tech/seams-wallet`. */
+  repo: string;
+  /** A whole number from 1 to `Number.MAX_SAFE_INTEGER`. */
+  pullRequest: number;
+  /** The base branch, 1 to 32 lowercase letters, such as `main`. */
+  base: string;
+  /** The head commit, 40 lowercase hex characters. */
+  headCommit: string;
 }> &
   WithProgress;
 

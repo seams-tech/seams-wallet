@@ -3,6 +3,7 @@ import type {
   SpeakToSignEnrollmentResult,
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
+  SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
@@ -34,6 +35,12 @@ export type SpeakToSignCapability = Readonly<{
    */
   requestRating(request: SpeakToSignRatingRequest): Promise<SpeakToSignNoteResult>;
   /**
+   * Approves one pull request merge by voice: the owner says "merge pull request 42 into main",
+   * and the Wallet calls `approve_merge` on the contract, with no deposit and no confirm. The
+   * verdict binds the repository and the head commit, which the owner does not say.
+   */
+  requestMergeApproval(request: SpeakToSignMergeApprovalRequest): Promise<SpeakToSignNoteResult>;
+  /**
    * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
    * message that authorizes exactly these recordings, and the verifier stores the template. A
    * new enrollment replaces the template.
@@ -45,7 +52,7 @@ export function createSpeakToSignCapability(
   features: readonly WalletTransactionFeaturePlugin[],
   commands: Pick<
     SpeakToSignCapability,
-    'requestTransfer' | 'requestNote' | 'requestRating' | 'enroll'
+    'requestTransfer' | 'requestNote' | 'requestRating' | 'requestMergeApproval' | 'enroll'
   >,
 ): SpeakToSignCapability | null {
   const feature = findWalletTransactionFeature(features, 'speak_to_sign');
@@ -55,6 +62,7 @@ export function createSpeakToSignCapability(
     requestTransfer: commands.requestTransfer,
     requestNote: commands.requestNote,
     requestRating: commands.requestRating,
+    requestMergeApproval: commands.requestMergeApproval,
     enroll: commands.enroll,
   };
 }

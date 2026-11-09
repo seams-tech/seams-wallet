@@ -86,7 +86,15 @@ export type PMSpeakToSignNotePayload = Readonly<{
         text: string;
         summary: string;
       }>
-    | Readonly<{ kind: 'note_rating'; contract: string; noteId: number; rating: NoteRating }>;
+    | Readonly<{ kind: 'note_rating'; contract: string; noteId: number; rating: NoteRating }>
+    | Readonly<{
+        kind: 'merge_approval';
+        contract: string;
+        repo: string;
+        pullRequest: number;
+        base: string;
+        headCommit: string;
+      }>;
 }>;
 
 /** Generous text bounds; Wallet core checks the exact note and summary rules. */
@@ -104,6 +112,26 @@ export function parseSpeakToSignNotePayload(value: unknown): PMSpeakToSignNotePa
 function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | null {
   if (!isPlainObject(value) || typeof value.contract !== 'string') return null;
   if (!isValidAccountId(value.contract)) return null;
+  if (value.kind === 'merge_approval') {
+    // Wallet core checks the exact repository, base and commit rules.
+    if (
+      !hasExactKeys(value, ['kind', 'contract', 'repo', 'pullRequest', 'base', 'headCommit']) ||
+      !isNoteId(value.pullRequest) ||
+      !isBoundedString(value.repo, 141) ||
+      !isBoundedString(value.base, 32) ||
+      !isBoundedString(value.headCommit, 40)
+    ) {
+      return null;
+    }
+    return {
+      kind: 'merge_approval',
+      contract: value.contract,
+      repo: value.repo,
+      pullRequest: value.pullRequest,
+      base: value.base,
+      headCommit: value.headCommit,
+    };
+  }
   if (value.kind === 'community_note') {
     if (
       !hasExactKeys(value, ['kind', 'contract', 'postId', 'text', 'summary']) ||
@@ -133,6 +161,10 @@ function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | nu
       : null;
   }
   return null;
+}
+
+function isBoundedString(value: unknown, maxLength: number): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
 }
 
 function isNoteId(value: unknown): value is number {
@@ -200,6 +232,7 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   transcriber_unavailable: true,
   summary_not_speakable: true,
   note_not_valid: true,
+  merge_not_valid: true,
   verdict_mismatch: true,
   voice_limit: true,
   cosigner_refused: true,

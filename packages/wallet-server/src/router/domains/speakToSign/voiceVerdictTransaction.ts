@@ -71,7 +71,7 @@ function readAction(reader: BorshReader): VoiceAction | null {
 /**
  * The spoken request that the transaction carries out, with the signer as its owner, or null
  * when the transaction is none of the kinds that Wallet core signs for a verdict: one transfer,
- * or one `add_note` or `rate_note` call with no deposit.
+ * or one `add_note`, `rate_note` or `approve_merge` call with no deposit.
  */
 export async function spokenRequestOfTransaction(
   network: SpeakToSignNetwork,
@@ -120,10 +120,36 @@ export async function spokenRequestOfTransaction(
       rating: known,
     };
   }
+  if (
+    action.methodName === 'approve_merge' &&
+    hasExactKeys(args, ['repo', 'pull_request', 'base', 'head_commit'])
+  ) {
+    const { repo, pull_request: pullRequest, base, head_commit: headCommit } = args;
+    if (
+      typeof repo !== 'string' ||
+      !isNoteId(pullRequest) ||
+      pullRequest < 1 ||
+      typeof base !== 'string' ||
+      typeof headCommit !== 'string' ||
+      !/^[0-9a-f]{40}$/.test(headCommit)
+    ) {
+      return null;
+    }
+    return {
+      kind: 'merge_approval',
+      network,
+      owner,
+      contract: receiverId,
+      repoSha256: await sha256(utf8(repo)),
+      pullRequest: BigInt(pullRequest),
+      base,
+      headCommit: Uint8Array.from(headCommit.match(/../g) ?? [], (pair) => Number.parseInt(pair, 16)),
+    };
+  }
   return null;
 }
 
-/** Wallet core sends note and post ids as JSON safe integers. */
+/** Wallet core sends note, post and pull request ids as JSON safe integers. */
 function isNoteId(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
 }

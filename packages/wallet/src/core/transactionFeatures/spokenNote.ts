@@ -1,6 +1,6 @@
-// The community note kinds of the `spoken-intent` crate (seams-tech/speak-to-sign):
-// `SpokenRequestV1::CommunityNote` and `SpokenRequestV1::NoteRating`, with the same summary
-// rules, rendered words, Borsh bytes and digests. The crate's golden vectors check this port.
+// The kinds of the `spoken-intent` crate (seams-tech/speak-to-sign) that call one contract method
+// and move no value: `SpokenRequestV1::CommunityNote`, `NoteRating` and `MergeApproval`, with the
+// same rules, rendered words, Borsh bytes and digests. The crate's golden vectors check this port.
 // Wallet core uses it to check a verdict and to build the one call that it signs.
 
 import { functionCall } from '@/core/types/actionBuilders';
@@ -14,6 +14,7 @@ import {
 } from '@shared/speakToSign/spokenRequest';
 import type { SpeakToSignNetwork } from './plugins';
 import {
+  integerWords,
   isMultiplierWord,
   isNumberWord,
   isSpeakableAccount,
@@ -59,7 +60,24 @@ export type SpokenNoteAction =
       /** The sentence that the owner says. See `summaryRefusal`. */
       summary: string;
     }>
-  | Readonly<{ kind: 'note_rating'; contract: string; noteId: bigint; rating: NoteRating }>;
+  | Readonly<{ kind: 'note_rating'; contract: string; noteId: bigint; rating: NoteRating }>
+  /** A spoken approval to merge a pull request. The owner says its number and base only. */
+  | Readonly<{
+      kind: 'merge_approval';
+      /** The merge-approval contract, a named NEAR account. */
+      contract: string;
+      /** `owner/name`. The verdict binds its SHA-256. */
+      repo: string;
+      pullRequest: bigint;
+      /** The base branch, 1 to 32 lowercase letters, such as `main`. */
+      base: string;
+      /** The head commit, 40 lowercase hex characters. The verdict binds it. */
+      headCommit: string;
+    }>;
+
+const REPO_PATTERN = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
+const BASE_PATTERN = /^[a-z]{1,32}$/;
+const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 
 /** Why a text is not a speakable summary, as `spoken_intent::InvalidSummary`. */
 export type SummaryRefusal = 'empty' | 'too_long' | 'too_many_words' | 'character' | 'transfer_verb';
@@ -84,7 +102,17 @@ export function summaryRefusal(text: string): SummaryRefusal | null {
 /** Why core cannot build this action, or null. */
 export function noteActionRefusal(
   action: SpokenNoteAction,
-): 'summary_not_speakable' | 'note_not_valid' | null {
+): 'summary_not_speakable' | 'note_not_valid' | 'merge_not_valid' | null {
+  if (action.kind === 'merge_approval') {
+    const valid =
+      isSpeakableAccount(action.contract) &&
+      action.pullRequest >= 1n &&
+      action.pullRequest <= BigInt(Number.MAX_SAFE_INTEGER) &&
+      REPO_PATTERN.test(action.repo) &&
+      BASE_PATTERN.test(action.base) &&
+      COMMIT_PATTERN.test(action.headCommit);
+    return valid ? null : 'merge_not_valid';
+  }
   if (!isSpeakableAccount(action.contract)) return 'note_not_valid';
   const id = action.kind === 'community_note' ? action.postId : action.noteId;
   if (id < 0n || id > BigInt(Number.MAX_SAFE_INTEGER)) return 'note_not_valid';
@@ -98,6 +126,13 @@ export function noteActionRefusal(
 
 /** The sentence of the action. `displayText` keeps the summary as the author wrote it. */
 export function renderNoteAction(action: SpokenNoteAction): RenderedTransfer {
+  if (action.kind === 'merge_approval') {
+    const words = ['merge', 'pull', 'request', ...integerWords(action.pullRequest), 'into', action.base];
+    return {
+      displayText: `Merge pull request #${action.pullRequest} into ${action.base}`,
+      spokenText: words.join(' '),
+    };
+  }
   if (action.kind === 'note_rating') {
     const words = RATING_WORDS[action.rating];
     return { displayText: ['This', ...words.slice(1)].join(' '), spokenText: words.join(' ') };
@@ -139,12 +174,24 @@ export async function noteSha256(text: string): Promise<Uint8Array<ArrayBuffer>>
   return await sha256(utf8(text));
 }
 
-/** Borsh of the request kind of the action, whose explicit tags are 4 and 5. */
+/** Borsh of the request kind of the action, whose explicit tags are 4, 5 and 6. */
 export async function noteActionBorsh(
   network: SpeakToSignNetwork,
   owner: string,
   action: SpokenNoteAction,
 ): Promise<Uint8Array> {
+  if (action.kind === 'merge_approval') {
+    return spokenRequestBorsh({
+      kind: 'merge_approval',
+      network,
+      owner,
+      contract: action.contract,
+      repoSha256: await sha256(utf8(action.repo)),
+      pullRequest: action.pullRequest,
+      base: action.base,
+      headCommit: hexBytes(action.headCommit),
+    });
+  }
   return spokenRequestBorsh(
     action.kind === 'note_rating'
       ? { ...action, network, owner }
@@ -175,6 +222,16 @@ export async function noteActionDigests(
 export async function noteVerifyRequest(
   action: SpokenNoteAction,
 ): Promise<Readonly<Record<string, unknown>>> {
+  if (action.kind === 'merge_approval') {
+    return {
+      kind: 'merge_approval',
+      contract: action.contract,
+      repo_sha256_hex: hex(await sha256(utf8(action.repo))),
+      pull_request: Number(action.pullRequest),
+      base: action.base,
+      head_commit_hex: action.headCommit,
+    };
+  }
   if (action.kind === 'note_rating') {
     return {
       kind: 'note_rating',
@@ -188,13 +245,36 @@ export async function noteVerifyRequest(
     kind: 'community_note',
     contract: action.contract,
     post_id: Number(action.postId),
-    note_sha256_hex: Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join(''),
+    note_sha256_hex: hex(digest),
     summary: action.summary,
   };
 }
 
-/** The one call that core signs: `add_note` or `rate_note`, with no deposit. */
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** `headCommit` is 40 lowercase hex characters; `noteActionRefusal` checks it first. */
+function hexBytes(text: string): Uint8Array {
+  return Uint8Array.from(text.match(/../g) ?? [], (pair) => Number.parseInt(pair, 16));
+}
+
+/** The one call that core signs: `add_note`, `rate_note` or `approve_merge`, with no deposit. */
 export function noteTransaction(action: SpokenNoteAction): TransactionInput {
+  if (action.kind === 'merge_approval') {
+    const call = functionCall({
+      method: 'approve_merge',
+      args: {
+        repo: action.repo,
+        pull_request: Number(action.pullRequest),
+        base: action.base,
+        head_commit: action.headCommit,
+      },
+      gas: NOTE_CALL_GAS,
+      deposit: '0',
+    });
+    return { receiverId: action.contract, actions: [call] };
+  }
   const call =
     action.kind === 'community_note'
       ? functionCall({

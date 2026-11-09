@@ -4,6 +4,7 @@ import type {
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
   SpeakToSignProgress,
+  SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
@@ -68,6 +69,7 @@ export type SpeakToSignCommands = Readonly<{
   requestTransfer: SpeakToSignTransferCommand;
   requestNote(request: SpeakToSignNoteRequest): Promise<SpeakToSignNoteResult>;
   requestRating(request: SpeakToSignRatingRequest): Promise<SpeakToSignNoteResult>;
+  requestMergeApproval(request: SpeakToSignMergeApprovalRequest): Promise<SpeakToSignNoteResult>;
   enroll: SpeakToSignEnrollCommand;
 }>;
 
@@ -76,6 +78,7 @@ export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToS
     requestTransfer: requestTransferFromHost.bind(null, post),
     requestNote: requestNoteFromHost.bind(null, post),
     requestRating: requestRatingFromHost.bind(null, post),
+    requestMergeApproval: requestMergeApprovalFromHost.bind(null, post),
     enroll: enrollFromHost.bind(null, post),
   };
 }
@@ -105,9 +108,23 @@ async function requestRatingFromHost(
   });
 }
 
+async function requestMergeApprovalFromHost(
+  post: SpeakToSignPost,
+  request: SpeakToSignMergeApprovalRequest,
+): Promise<SpeakToSignNoteResult> {
+  return await postNoteAction(post, request, {
+    kind: 'merge_approval',
+    contract: request.contract,
+    repo: request.repo,
+    pullRequest: request.pullRequest,
+    base: request.base,
+    headCommit: request.headCommit,
+  });
+}
+
 async function postNoteAction(
   post: SpeakToSignPost,
-  request: SpeakToSignNoteRequest | SpeakToSignRatingRequest,
+  request: SpeakToSignNoteRequest | SpeakToSignRatingRequest | SpeakToSignMergeApprovalRequest,
   action: PMSpeakToSignNotePayload['action'],
 ): Promise<SpeakToSignNoteResult> {
   const payload = parseSpeakToSignNotePayload({ walletId: request.walletId, action });
@@ -154,6 +171,7 @@ export function createApplicationSpeakToSignCommands(
     requestTransfer: requestTransferFromIframe.bind(null, iframe),
     requestNote: requestNoteFromIframe.bind(null, iframe),
     requestRating: requestRatingFromIframe.bind(null, iframe),
+    requestMergeApproval: requestMergeApprovalFromIframe.bind(null, iframe),
     enroll: enrollFromIframe.bind(null, iframe),
   };
 }
@@ -172,6 +190,14 @@ async function requestRatingFromIframe(
 ): Promise<SpeakToSignNoteResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestRating(request);
+}
+
+async function requestMergeApprovalFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  request: SpeakToSignMergeApprovalRequest,
+): Promise<SpeakToSignNoteResult> {
+  const router = await iframe.requireRouter();
+  return await router.speakToSign.requestMergeApproval(request);
 }
 
 async function requestTransferFromIframe(

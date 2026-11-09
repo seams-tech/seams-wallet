@@ -37,6 +37,22 @@ export type SpokenRequest =
       contract: string;
       noteId: bigint;
       rating: NoteRating;
+    }>
+  /**
+   * `MergeApproval`, tag 6: `approve_merge` on a merge-approval contract. The verdict binds the
+   * repository's SHA-256 and the head commit; only the pull request number and the base are said.
+   */
+  | Readonly<{
+      kind: 'merge_approval';
+      network: SpeakToSignNetwork;
+      owner: string;
+      contract: string;
+      repoSha256: Uint8Array;
+      pullRequest: bigint;
+      /** 1 to 32 lowercase ASCII letters, such as `main`. */
+      base: string;
+      /** The 20-byte git commit. */
+      headCommit: Uint8Array;
     }>;
 
 const REQUEST_DIGEST_DOMAIN = 'seams:spoken-intent:request:v1';
@@ -45,6 +61,7 @@ const TAGS: Readonly<Record<SpokenRequest['kind'], number>> = {
   account_transfer: 2,
   community_note: 4,
   note_rating: 5,
+  merge_approval: 6,
 };
 
 /** Borsh of the request, with the explicit tag of its kind. */
@@ -75,6 +92,17 @@ export function spokenRequestBorsh(request: SpokenRequest): Uint8Array<ArrayBuff
         borshString(request.contract),
         littleEndian(request.noteId, 8),
         Uint8Array.of(NOTE_RATINGS.indexOf(request.rating)),
+      ]);
+    case 'merge_approval':
+      if (request.repoSha256.length !== 32) throw new RangeError('A repository digest has 32 bytes.');
+      if (request.headCommit.length !== 20) throw new RangeError('A git commit has 20 bytes.');
+      return concat([
+        ...head,
+        borshString(request.contract),
+        request.repoSha256,
+        littleEndian(request.pullRequest, 8),
+        borshString(request.base),
+        request.headCommit,
       ]);
   }
 }

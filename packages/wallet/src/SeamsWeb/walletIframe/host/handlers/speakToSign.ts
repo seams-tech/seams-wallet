@@ -244,9 +244,14 @@ async function runNote(
 /** The channel carries ids as safe integers; core's action holds them as `u64` values. */
 function noteAction(payload: PMSpeakToSignNotePayload): SpokenNoteAction {
   const { action } = payload;
-  return action.kind === 'community_note'
-    ? { ...action, postId: BigInt(action.postId) }
-    : { ...action, noteId: BigInt(action.noteId) };
+  switch (action.kind) {
+    case 'community_note':
+      return { ...action, postId: BigInt(action.postId) };
+    case 'note_rating':
+      return { ...action, noteId: BigInt(action.noteId) };
+    case 'merge_approval':
+      return { ...action, pullRequest: BigInt(action.pullRequest) };
+  }
 }
 
 async function runEnrollment(

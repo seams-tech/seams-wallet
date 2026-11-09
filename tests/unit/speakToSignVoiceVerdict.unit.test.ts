@@ -732,6 +732,49 @@ test('spoken notes and ratings are admitted only as one add_note or rate_note ca
   ).toEqual(ADMITTED);
 });
 
+test('a spoken merge approval is admitted only as one approve_merge call for its repo and commit', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const contract = 'merges.seams-v1.testnet';
+  const repo = 'seams-tech/seams-wallet';
+  const headCommit = '0123456789abcdef0123456789abcdef01234567';
+  const merge: SpokenRequest = {
+    kind: 'merge_approval',
+    network: 'testnet',
+    owner: OWNER,
+    contract,
+    repoSha256: await sha256(utf8(repo)),
+    pullRequest: 42n,
+    base: 'main',
+    headCommit: Uint8Array.from(headCommit.match(/../g)!, (pair) => Number.parseInt(pair, 16)),
+  };
+  const mergeVerdict = await signedVerdict(verifier, merge);
+  const approve = (args: unknown, depositYocto = 0n) =>
+    prepareBody(
+      unsignedTransaction({
+        receiver: contract,
+        actions: [{ kind: 'call', method: 'approve_merge', args, depositYocto }],
+      }),
+      { requestId: `merge-${JSON.stringify(args)}-${depositYocto}` },
+    );
+  const args = { repo, pull_request: 42, base: 'main', head_commit: headCommit };
+  for (const other of [
+    { ...args, head_commit: headCommit.replace(/^0/, '1') },
+    { ...args, repo: 'seams-tech/other' },
+    { ...args, pull_request: 43 },
+    { ...args, base: 'master' },
+    { ...args, extra: 1 },
+  ]) {
+    expect(await cosigner.check(withVerdict(approve(other), mergeVerdict)), JSON.stringify(other)).toEqual(
+      refused('request_mismatch'),
+    );
+  }
+  expect(await cosigner.check(withVerdict(approve(args, 1n), mergeVerdict))).toEqual(
+    refused('request_mismatch'),
+  );
+  expect(await cosigner.check(withVerdict(approve(args), mergeVerdict))).toEqual(ADMITTED);
+});
+
 test('a verdict on the second round, or without a configured check, is refused', async () => {
   const verifier = await verifierKey();
   const tx = unsignedTransaction({

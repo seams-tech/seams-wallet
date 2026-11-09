@@ -129,7 +129,7 @@ function displayAmount(hundredths: bigint): string {
   return out;
 }
 
-function integerWords(value: bigint): string[] {
+export function integerWords(value: bigint): string[] {
   if (value === 0n) return [ONES[0]];
   const words: string[] = [];
   let rest = value;

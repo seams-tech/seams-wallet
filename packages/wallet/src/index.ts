@@ -28,6 +28,7 @@ export type {
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
   SpeakToSignProgress,
+  SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,

@@ -24,6 +24,7 @@ import {
 import {
   noteActionBorsh,
   noteActionDigests,
+  noteActionRefusal,
   renderNoteAction,
   summaryRefusal,
   type SpokenNoteAction,
@@ -1014,4 +1015,77 @@ test('core signs one add_note call with no deposit for the verdict of this note 
       verdict: { verdictJson: accepted.verdict_json, signatureB64: accepted.signature_b64 },
     },
   ]);
+});
+
+const MERGE: SpokenNoteAction = {
+  kind: 'merge_approval',
+  contract: 'merges.seams-v1.testnet',
+  repo: 'seams-tech/seams-wallet',
+  pullRequest: 42n,
+  base: 'main',
+  headCommit: '0123456789abcdef0123456789abcdef01234567',
+};
+
+test('a merge approval says the pull request and base, and checks every field', () => {
+  expect(renderNoteAction(MERGE)).toEqual({
+    displayText: 'Merge pull request #42 into main',
+    spokenText: 'merge pull request forty two into main',
+  });
+  expect(noteActionRefusal(MERGE)).toBeNull();
+  for (const bad of [
+    { ...MERGE, pullRequest: 0n },
+    { ...MERGE, base: 'Main' },
+    { ...MERGE, base: 'release-1' },
+    { ...MERGE, repo: 'seams-wallet' },
+    { ...MERGE, headCommit: MERGE.headCommit.toUpperCase() },
+    { ...MERGE, headCommit: MERGE.headCommit.slice(1) },
+  ]) {
+    expect(noteActionRefusal(bad), JSON.stringify(bad, (_, v) => (typeof v === 'bigint' ? `${v}` : v))).toBe(
+      'merge_not_valid',
+    );
+  }
+});
+
+test('core signs one approve_merge call with no deposit for the verdict of this merge only', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const otherCommit = await noteActionDigests('testnet', 'owner.testnet', {
+    ...MERGE,
+    headCommit: 'f'.repeat(40),
+  });
+  expect(
+    await harness.operations.signNoteWithVerdict(
+      MERGE,
+      await verifyOutput(verifier, await verdictJsonFor(otherCommit, audio)),
+      signal,
+      paymentHooks(),
+    ),
+  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
+
+  const digests = await noteActionDigests('testnet', 'owner.testnet', MERGE);
+  const accepted = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
+  expect(
+    await harness.operations.signNoteWithVerdict(MERGE, accepted, signal, paymentHooks()),
+  ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(harness.signed.at(-1)?.transaction).toEqual({
+    receiverId: 'merges.seams-v1.testnet',
+    actions: [
+      {
+        type: 'FunctionCall',
+        methodName: 'approve_merge',
+        args: {
+          repo: 'seams-tech/seams-wallet',
+          pull_request: 42,
+          base: 'main',
+          head_commit: '0123456789abcdef0123456789abcdef01234567',
+        },
+        gas: '30000000000000',
+        deposit: '0',
+      },
+    ],
+  });
 });
