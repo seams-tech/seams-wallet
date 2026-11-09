@@ -519,7 +519,11 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
   let unlockPrivateKey32: Uint8Array | null = null;
   let unlockPublicKey33: Uint8Array | null = null;
   let unlockSignature65: Uint8Array | null = null;
-  let openedEd25519Client: EmailOtpEd25519YaoWorkerActivationHandle | null = null;
+  let openedEd25519Client:
+    | (EmailOtpEd25519YaoWorkerActivationHandle & {
+        rebound: LoadedWalletCustodyEd25519MaterialV1 | null;
+      })
+    | null = null;
   try {
     unlockPrivateKey32 = await deriveEmailOtpUnlockAuthSeedInWorker({
       clientSecret32: args.clientSecret32,
@@ -616,6 +620,7 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
         openedEd25519Client = {
           activeClientHandle: restored.activeClientHandle,
           metadata: restored.metadata,
+          rebound: restored.rebound,
         };
       }
     }
@@ -747,6 +752,7 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
             ed25519YaoCapability,
             walletSessionAuthorization,
             walletCustodyEnvelope: walletCustody.envelope,
+            ...(opened.rebound ? { walletCustodyEd25519Material: opened.rebound } : {}),
           };
         }
         if (!ed25519YaoBootstrap) {

@@ -16,7 +16,7 @@ import {
 } from '@shared/threshold/signingRootScope';
 import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
 import {
-  openWalletCustodyEd25519ActiveClientV1,
+  openOrRebindWalletCustodyEd25519V1,
   walletCustodyCacheEnvelopeFromRecordV1,
 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import type {
@@ -307,12 +307,19 @@ export async function resolveEmailOtpEd25519ExportCustodyEnvelope(
     }
     if (state.material.kind === 'sealed_custody') {
       const bootstrap = state.material.bootstrap;
-      const activeClient = await openWalletCustodyEd25519ActiveClientV1({
-        material: state.material.walletCustodyEd25519Material,
+      // A row from an older epoch is re-bound in memory; export sends the current epoch.
+      const material = state.material.walletCustodyEd25519Material;
+      const opened = await openOrRebindWalletCustodyEd25519V1({
+        loadCachedMaterial: async () => ({ kind: 'found', material }),
         activation: walletCustodyActivationFactsFromEmailOtpBootstrap(bootstrap),
         envelope: walletCustodyCacheEnvelopeFromRecordV1(unlocked.walletCustodyEnvelope),
         ownedFactorSecret: factorSecret32.slice(),
+        current: bootstrap.capability,
       });
+      if (opened.kind !== 'opened') {
+        throw new Error('Email OTP Ed25519 export found no usable custody material');
+      }
+      const activeClient = opened.activeClient;
       try {
         const stored = storeEmailOtpEd25519YaoActiveClient(activeClient);
         state.activeClientHandle = stored.activeClientHandle;

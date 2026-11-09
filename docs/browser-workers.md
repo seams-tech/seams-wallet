@@ -42,7 +42,10 @@ speaker matching. These keys provide browser-origin isolation, without a
 hardware-attestation claim. No native host or Keychain is involved.
 
 The core opens the seed-encrypted NEAR custody cache in the existing Yao WASM
-runtime on the iframe main thread. The custody worker opens the method envelope
+runtime on the iframe main thread. If the cache is from an older SigningWorker
+state epoch, the same WASM call seals it again under the current epoch. The
+`emailOtp` worker does the same in its own Yao client. The seed stays inside
+the WASM module in both places. The custody worker opens the method envelope
 and retains its existing session-scoped custody handle. JavaScript never
 receives the wallet custody seed. An Email OTP proof can authorize adding the first
 passkey while VoiceID remains selected. The existing custody handle reseals the

@@ -17,6 +17,7 @@ type InstallationPorts = {
   readonly engine: Pick<
     BrowserSigningSurface,
     | 'loadWalletCustodyEd25519Material'
+    | 'persistWalletCustodyEd25519Material'
     | 'withExactEd25519MaterialOwner'
     | 'clearVolatileWarmSigningMaterial'
     | 'activateVerifiedNearEd25519YaoMaterial'
@@ -49,6 +50,7 @@ export async function installAuthMethodSession(
           identity,
           relayerUrl: ports.relayerUrl,
           loadMaterial: ports.engine.loadWalletCustodyEd25519Material.bind(ports.engine),
+          persistMaterial: ports.engine.persistWalletCustodyEd25519Material.bind(ports.engine),
         })
       : null;
   try {

@@ -53,7 +53,7 @@ import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAb
 import { joinCustodyWireFromEnvelopeRecord } from '@/core/signingEngine/walletCustody/joinCustodyWire';
 import type { RouterAbEd25519YaoSealableActiveClientV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import {
-  openOrRejoinWalletCustodyEd25519V1,
+  openOrRebindWalletCustodyEd25519V1,
   openWalletCustodyEd25519ActiveClientV1,
   walletCustodyActivationFactsFromActiveClientMetadataV1,
   walletCustodyCacheEnvelopeFromRecordV1,
@@ -759,7 +759,7 @@ async function recoverAndCommitPasskeyEd25519Unlock(
   try {
     const envelope = walletCustodyCacheEnvelopeFromRecordV1(input.parsed.walletCustody.envelope);
     const activation = walletCustodyActivationFacts(input.parsed);
-    const cached = await openOrRejoinWalletCustodyEd25519V1({
+    const cached = await openOrRebindWalletCustodyEd25519V1({
       loadCachedMaterial: loadExpectedWalletCustodyEd25519Material.bind(undefined, {
         load: input.loadWalletCustodyEd25519Material,
         parsed: input.parsed,
@@ -767,9 +767,11 @@ async function recoverAndCommitPasskeyEd25519Unlock(
       activation,
       envelope,
       ownedFactorSecret: cacheSecret,
+      current: input.parsed.capability,
     });
     if (cached.kind === 'opened') {
       activeClient = cached.activeClient;
+      if (cached.rebound) await input.persistWalletCustodyEd25519Material(cached.rebound);
     } else {
       rejoinSecret = input.ownedFactorSecret.slice();
       openSecret = input.ownedFactorSecret.slice();

@@ -31,10 +31,11 @@ import {
 } from '@/core/rpcClients/relayer/walletRecoveryPrepare';
 import { joinCustodyWireFromEnvelopeRecord } from '@/core/signingEngine/walletCustody/joinCustodyWire';
 import {
-  openWalletCustodyEd25519ActiveClientV1,
+  openOrRebindWalletCustodyEd25519V1,
   walletCustodyCacheEnvelopeFromRecordV1,
   type WalletCustodyActivationFactsV1,
 } from '@/core/signingEngine/walletCustody/openCustodyCache';
+import type { LoadedWalletCustodyEd25519MaterialV1 } from '@/core/signingEngine/walletCustody/ed25519SeedMaterial';
 import type {
   EmailOtpEd25519YaoRecoveryBootstrapV1,
   EmailOtpEcdsaCustodyContinuityV1,
@@ -649,6 +650,8 @@ type EmailOtpEd25519WalletCustodyRestoreResult =
       kind: 'opened';
       activeClientHandle: string;
       metadata: RouterAbEd25519YaoActiveClientMetadataV1;
+      /** The row re-bound to the current epoch, for the main thread to persist. */
+      rebound: LoadedWalletCustodyEd25519MaterialV1 | null;
     }
   | { kind: 'cache_absent' };
 
@@ -668,18 +671,22 @@ export async function restoreEmailOtpEd25519FromCustodyCache(args: {
   if (cacheRequest.kind === 'absent') {
     return { kind: 'cache_absent' };
   }
-  const activeClient = await openWalletCustodyEd25519ActiveClientV1({
-    material: cacheRequest.material,
+  const opened = await openOrRebindWalletCustodyEd25519V1({
+    loadCachedMaterial: async () => ({ kind: 'found', material: cacheRequest.material }),
     activation: walletCustodyActivationFactsFromEmailOtpBootstrap(args.bootstrap),
     envelope: walletCustodyCacheEnvelopeFromRecordV1(args.projection.envelope),
     ownedFactorSecret: args.clientSecret32.slice(),
+    current: args.bootstrap.capability,
   });
+  if (opened.kind !== 'opened') return { kind: 'cache_absent' };
+  const activeClient = opened.activeClient;
   try {
     const activated = storeEmailOtpEd25519YaoActiveClient(activeClient);
     return {
       kind: 'opened',
       activeClientHandle: activated.activeClientHandle,
       metadata: activated.metadata,
+      rebound: opened.rebound,
     };
   } catch (error) {
     activeClient.dispose();

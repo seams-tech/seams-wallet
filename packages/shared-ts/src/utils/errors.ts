@@ -156,11 +156,11 @@ export function isWebAuthnRpIdOriginConfigurationError(error: unknown): boolean 
 }
 
 /**
- * The NEAR custody cache on this device is older than the server's key set. A VoiceID unlock
- * cannot rejoin the key set; a passkey unlock on the same site rewrites the cache.
+ * This site's storage has no usable NEAR custody row. The Wallet frame's storage is separate for
+ * each site, so a first unlock on a new site has none. A passkey unlock on the same site writes it.
  */
-export const NEAR_CUSTODY_STALE_MESSAGE =
-  'This device’s wallet keys are out of date. Unlock with a passkey once to refresh them.';
+export const NEAR_CUSTODY_UNAVAILABLE_MESSAGE =
+  'This site has no wallet keys on this device yet. Unlock with a passkey once to set them up.';
 
 const WEB_AUTHN_BROWSER_SECURITY_MESSAGE =
   'Passkeys require trusted HTTPS for the app and wallet. Check both origins and their certificates.';

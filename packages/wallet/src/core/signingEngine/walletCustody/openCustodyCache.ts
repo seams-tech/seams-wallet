@@ -7,7 +7,6 @@ import {
 import {
   ROUTER_AB_ED25519_YAO_ACTIVE_CLIENT_KIND_V1,
   RouterAbEd25519YaoClientV1,
-  type RouterAbEd25519YaoActiveClientV1,
   type RouterAbEd25519YaoActiveClientMetadataV1,
   type RouterAbEd25519YaoSealableActiveClientV1,
 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
@@ -138,12 +137,17 @@ export async function openWalletCustodyEd25519ActiveClientV1(input: {
   /** `PRF.first`, or the Email OTP factor key. Zeroed by the callee. */
   readonly ownedFactorSecret: Uint8Array;
 }): Promise<RouterAbEd25519YaoSealableActiveClientV1> {
-  const metadata = walletCustodyActiveClientMetadataV1({
-    material: input.material,
-    activation: input.activation,
-  });
   const client = await RouterAbEd25519YaoClientV1.initializeBundled();
-  return client.openCustodyCache({
+  return client.openCustodyCache(custodyCacheOpenInput(input));
+}
+
+function custodyCacheOpenInput(input: {
+  readonly material: LoadedWalletCustodyEd25519MaterialV1;
+  readonly activation: WalletCustodyActivationFactsV1;
+  readonly envelope: WalletCustodyCacheEnvelopeV1;
+  readonly ownedFactorSecret: Uint8Array;
+}): Parameters<RouterAbEd25519YaoClientV1['openCustodyCache']>[0] {
+  return {
     ownedFactorSecret: input.ownedFactorSecret,
     envelope: {
       bindingJson: input.envelope.bindingJson,
@@ -158,36 +162,49 @@ export async function openWalletCustodyEd25519ActiveClientV1(input: {
       nonce: base64UrlDecode(input.material.sealed.nonceB64u),
       ciphertext: base64UrlDecode(input.material.sealed.ciphertextB64u),
     },
-    metadata,
-  });
+    metadata: walletCustodyActiveClientMetadataV1({
+      material: input.material,
+      activation: input.activation,
+    }),
+  };
 }
+
+/** The server's current state of this key set, from the active capability. */
+export type WalletCustodyCurrentSigningStateV1 = {
+  readonly stateEpoch: number;
+  readonly signingWorkerVerifyingShare: readonly number[];
+};
 
 type WalletCustodyUnlockResultV1 =
   | {
       readonly kind: 'opened';
-      readonly activeClient: RouterAbEd25519YaoActiveClientV1;
+      readonly activeClient: RouterAbEd25519YaoSealableActiveClientV1;
+      /** The row re-bound to the current epoch; persist it in place of the old row. */
+      readonly rebound: LoadedWalletCustodyEd25519MaterialV1 | null;
     }
   | { readonly kind: 'rejoin_required' };
 
 /**
- * Chooses between opening the cache and rejoining the key set.
+ * Opens the cached row for the server's current state epoch, or reports that
+ * the key set must be rejoined.
  *
  * **The envelope is needed either way.** The custody seed is never stored — it
  * is re-derived by opening the envelope on every unlock, so a cache hit saves
- * the Router round, not the envelope. That is the honest saving and it is
- * worth stating, because "warm unlock" otherwise sounds like it needs nothing.
+ * the Router round, not the envelope.
  *
- * An unusable cached row takes the same branch as a missing one, but the
- * reason is preserved rather than flattened: the two arrive here for different
- * causes and a caller that logs them identically cannot tell a fresh device
- * from a stale row that will keep failing.
+ * **An older row is re-bound, not rejoined.** A Router recovery — for example
+ * a passkey login on another site, whose storage partition had no row — keeps
+ * both shares and moves only the epoch. The row from the older epoch therefore
+ * holds the current share. It is checked against the server's current
+ * SigningWorker verifying share and sealed again under the current epoch, with
+ * no Router round. The caller persists `rebound`.
  *
- * This deliberately does not perform the rejoin. Rejoining runs a Router
- * ceremony and needs the step runner, the admission and the application facts
- * this layer has no business holding; it reports that one is required and the
- * unlock path drives it.
+ * A missing or unusable row, or one newer than the server, needs a rejoin.
+ * This layer does not perform it: rejoining runs a Router ceremony and needs
+ * the step runner, the admission and the application facts this layer has no
+ * business holding.
  */
-export async function openOrRejoinWalletCustodyEd25519V1(input: {
+export async function openOrRebindWalletCustodyEd25519V1(input: {
   readonly loadCachedMaterial: () => Promise<
     | { readonly kind: 'found'; readonly material: LoadedWalletCustodyEd25519MaterialV1 }
     | { readonly kind: 'absent' }
@@ -196,20 +213,41 @@ export async function openOrRejoinWalletCustodyEd25519V1(input: {
   readonly activation: WalletCustodyActivationFactsV1;
   readonly envelope: WalletCustodyCacheEnvelopeV1;
   readonly ownedFactorSecret: Uint8Array;
+  readonly current: WalletCustodyCurrentSigningStateV1;
 }): Promise<WalletCustodyUnlockResultV1> {
   const cached = await input.loadCachedMaterial();
-  if (cached.kind !== 'found') {
+  const currentEpoch = BigInt(input.current.stateEpoch);
+  const recordEpoch = cached.kind === 'found' ? BigInt(cached.material.binding.stateEpoch) : null;
+  if (cached.kind !== 'found' || recordEpoch === null || recordEpoch > currentEpoch) {
     /* The factor secret is zeroed here because the callee that normally does
        it is never reached. A rejoin obtains its own. */
     input.ownedFactorSecret.fill(0);
     return { kind: 'rejoin_required' };
   }
-
-  const activeClient = await openWalletCustodyEd25519ActiveClientV1({
-    material: cached.material,
+  const material: LoadedWalletCustodyEd25519MaterialV1 = {
+    binding: {
+      ...cached.material.binding,
+      stateEpoch: String(currentEpoch),
+      signingWorkerVerifyingShareB64u: base64UrlEncode(
+        Uint8Array.from(input.current.signingWorkerVerifyingShare),
+      ),
+    },
+    sealed: cached.material.sealed,
+  };
+  const openInput = custodyCacheOpenInput({
+    material,
     activation: input.activation,
     envelope: input.envelope,
     ownedFactorSecret: input.ownedFactorSecret,
   });
-  return { kind: 'opened', activeClient };
+  const client = await RouterAbEd25519YaoClientV1.initializeBundled();
+  if (recordEpoch === currentEpoch) {
+    return { kind: 'opened', activeClient: client.openCustodyCache(openInput), rebound: null };
+  }
+  const rebound = client.rebindCustodyCache({ ...openInput, oldStateEpoch: recordEpoch });
+  return {
+    kind: 'opened',
+    activeClient: rebound.activeClient,
+    rebound: { binding: material.binding, sealed: rebound.sealed },
+  };
 }

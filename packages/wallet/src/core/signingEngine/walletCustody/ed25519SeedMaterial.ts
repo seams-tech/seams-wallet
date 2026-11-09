@@ -35,10 +35,12 @@ export {
  * It is a cache and never a source of truth (Constraint 13): losing it costs a
  * Router round, not the wallet.
  *
- * This module never seals. The ceremony sealed inside its own wasm module,
- * where the seed lives and never leaves; anything here that could seal would
- * need the seed on this side of the boundary, which is the property the whole
- * module exists to keep.
+ * This module never seals. The ceremony seals inside its own wasm module, and
+ * the Yao client's wasm re-seals a row from an older state epoch under the
+ * current one (`openOrRebindWalletCustodyEd25519V1`); in both, the seed lives
+ * only inside the module. Anything here that could seal would need the seed on
+ * this side of the boundary, which is the property the whole module exists to
+ * keep.
  */
 
 type PersistWalletCustodyEd25519MaterialInputV1 = {

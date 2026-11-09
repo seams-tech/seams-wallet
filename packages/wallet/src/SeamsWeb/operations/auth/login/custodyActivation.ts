@@ -32,6 +32,7 @@ import { nearEd25519SignerBindingFromBoundaryFields } from '@/core/signingEngine
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { base58Encode } from '@shared/utils/base58';
 import {
+  openOrRebindWalletCustodyEd25519V1,
   openWalletCustodyEd25519ActiveClientV1,
   walletCustodyActivationFactsFromActiveClientMetadataV1,
   walletCustodyCacheEnvelopeFromRecordV1,
@@ -40,6 +41,7 @@ import {
 import { joinCustodyWireFromEnvelopeRecord } from '@/core/signingEngine/walletCustody/joinCustodyWire';
 import {
   WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND,
+  type LoadedWalletCustodyEd25519MaterialV1,
   type WalletCustodyEd25519MaterialBindingV1,
 } from '@/core/signingEngine/walletCustody/ed25519SeedMaterial';
 import type {
@@ -155,6 +157,20 @@ function assertWalletCustodyLoginIdentity(input: PasskeyEd25519CustodyLoginInput
   }
 }
 
+/** A failed cache write costs the next unlock a re-bind or rejoin, not this login. */
+async function persistWalletCustodyCacheRow(
+  signingEngine: PasskeyEd25519CustodyLoginInput['signingEngine'],
+  material: LoadedWalletCustodyEd25519MaterialV1,
+): Promise<void> {
+  try {
+    await signingEngine.persistWalletCustodyEd25519Material(material);
+  } catch (error) {
+    console.warn('[login] wallet custody cache write failed; continuing with verified material', {
+      error,
+    });
+  }
+}
+
 export async function openAndActivatePasskeyEd25519CustodyLogin(
   input: PasskeyEd25519CustodyLoginInput,
 ): Promise<PasskeyEd25519CustodyLoginOutcome> {
@@ -183,20 +199,20 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
   let openSecret: Uint8Array | null = null;
   let rejoinedHere = false;
   try {
-    // A cache from an older epoch keeps an older state epoch, which VoiceID unlock and export
-    // refuse: a passkey unlock on another site (its own storage partition) or device rejoined
-    // the key set. Rejoin here too, so the rewritten cache carries the current epoch.
-    if (
-      cached.kind === 'found' &&
-      cached.material.binding.stateEpoch === String(capability.stateEpoch)
-    ) {
-      openSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
-      activeClient = await openWalletCustodyEd25519ActiveClientV1({
-        material: cached.material,
-        activation,
-        envelope,
-        ownedFactorSecret: openSecret,
-      });
+    // A row from an older epoch is re-bound locally: a recovery (another site's or device's
+    // first login) keeps the shares. Only a missing or unusable row needs a rejoin.
+    const opened = await openOrRebindWalletCustodyEd25519V1({
+      loadCachedMaterial: async () => cached,
+      activation,
+      envelope,
+      ownedFactorSecret: base64UrlDecode(input.passkeyPrfFirstB64u),
+      current: capability,
+    });
+    if (opened.kind === 'opened') {
+      activeClient = opened.activeClient;
+      if (opened.rebound) {
+        await persistWalletCustodyCacheRow(input.signingEngine, opened.rebound);
+      }
     } else {
       const custodyWire = joinCustodyWireFromEnvelopeRecord(input.custody.envelope);
       if (!custodyWire.ok) throw new Error(custodyWire.reason);
@@ -231,19 +247,7 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
         ciphertextB64u: rejoined.localMaterial.b64u,
         nonceB64u: rejoined.localMaterial.nonceB64u,
       };
-      try {
-        await input.signingEngine.persistWalletCustodyEd25519Material({
-          binding: materialBinding,
-          sealed,
-        });
-      } catch (error) {
-        console.warn(
-          '[login] wallet custody cache write failed; continuing with verified material',
-          {
-            error,
-          },
-        );
-      }
+      await persistWalletCustodyCacheRow(input.signingEngine, { binding: materialBinding, sealed });
       activeClient = await openWalletCustodyEd25519ActiveClientV1({
         material: { binding: materialBinding, sealed },
         activation: walletCustodyActivationFactsFromActiveClientMetadataV1(rejoined.metadata),
