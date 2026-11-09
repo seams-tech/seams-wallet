@@ -16,6 +16,7 @@ description: Seamsの共同署名者がSpeak-to-Signの各判定を音声の上�
 - `requestTransfer`、`requestNote`、`requestRating`には、省略できる`onProgress`があります。`recording_sent`、`verifier_running`、`verdict`、`step_up`、`transaction_sent`、`settled`を受け取ります。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#install)を参照してください。
 - 検証ルートは確認の後、`text/event-stream`で応答します。`verifier_running`の後に、`verdict`か`failed`のイベントを1つ送ります。検証者が動作している間に、Walletは支払いのためのアクセスキーのnonceと最近のブロックハッシュを先に読みます。
 - `rpIdOverride`がない場合、パスキーは`walletOrigin`のホストに結び付きます。以前は、すべてのウォレットのオリジンがローカルの既定値`example.localhost`のままでした。
+- `routerAb`を設定しない場合、Seamsがホストするウォレットのオリジン(`staging.sign.seams.sh`、`test.sign.seams.sh`、`sign.seams.sh`)は、自身のSigningWorkerでRouter A/Bの通常署名を有効にします。そのため、`walletOrigin`、`relayerUrl`、`publishableKey`だけの`seamsTestnetConfig`でNEARに署名できます。以前は、アプリが`routerAb`を設定するまでNEARの署名は無効でした。[ホストするウォレットの設定](/ja/reference/configuration#hosted-wallet-branch)を参照してください。
 - Speak-to-SignのホストAPIはバージョン **7** です。VoiceIDのホストAPIはバージョン **10** のままです。Walletは、別のバージョンのホストプラグインを拒否します。
 - 次の順序でデプロイしてください。D1のマイグレーションを適用し、サーバーをデプロイし、その後にWalletホストをデプロイします。検証の応答がストリームになったため、Speak-to-SignにはサーバーとWalletホストの両方が0.60.0である必要があります。その他の署名は、2つのデプロイの間も動作します。0.59.0のアプリは進行状況のメッセージを無視しますが、2つの新しい拒否理由を読めないため、アプリも更新してください。
 - 0.60.0にも含まれる0.59.0の変更:

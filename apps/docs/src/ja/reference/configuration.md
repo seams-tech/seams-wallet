@@ -51,6 +51,19 @@ Seamsのプロバイダー設定は不要です。バージョン`0.60.0`には�
 指定しない場合、パスキーの範囲は`walletOrigin`のホスト(例: `staging.sign.seams.sh`)です。
 0.60.0より前は、`seamsTestnetConfig`と`defineSeamsConfig`は、どのウォレットのオリジンでもローカル用の既定値`example.localhost`を使っていました。
 
+NEARの署名には、Router A/Bの通常署名(`routerAb.normalSigning`)が必要です。各SeamsのGatewayは、自身のSigningWorkerだけを受け入れます。
+`routerAb`を設定しない場合、SDKはSeamsがホストするウォレットのオリジンで通常署名を有効にします。
+
+| `walletOrigin`                  | SigningWorker                      |
+| ------------------------------- | ---------------------------------- |
+| `https://staging.sign.seams.sh` | `router-ab-signing-worker-staging` |
+| `https://test.sign.seams.sh`    | `router-ab-signing-worker-testnet` |
+| `https://sign.seams.sh`         | `router-ab-signing-worker`         |
+
+それ以外のウォレットのオリジンでは、通常署名は無効のままです。自身でホストするWalletは、自身のGatewayのワーカーを指定して
+`routerAb: { normalSigning: { mode: 'enabled', signingWorkerId } }`を設定してください。アプリの`routerAb`の設定が常に優先されます。
+0.60.0より前は、すべてのウォレットのオリジンでこの設定が必要でした。
+
 ## 任意のVoiceID {#optional-voiceid}
 
 SDK 0.60.0では、`authMethods: [voiceIdAuthMethod()]`を設定できます。

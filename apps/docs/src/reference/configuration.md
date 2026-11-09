@@ -53,6 +53,21 @@ Without it, passkeys are scoped to the host of `walletOrigin`, for example
 `staging.sign.seams.sh`. Before 0.60.0, `seamsTestnetConfig` and `defineSeamsConfig`
 kept the local default `example.localhost` for every wallet origin.
 
+NEAR signing needs Router A/B normal signing (`routerAb.normalSigning`). Each Seams
+Gateway admits only its own SigningWorker. Without a `routerAb` setting, the SDK
+enables normal signing for the Seams-hosted wallet origins:
+
+| `walletOrigin`                  | SigningWorker                      |
+| ------------------------------- | ---------------------------------- |
+| `https://staging.sign.seams.sh` | `router-ab-signing-worker-staging` |
+| `https://test.sign.seams.sh`    | `router-ab-signing-worker-testnet` |
+| `https://sign.seams.sh`         | `router-ab-signing-worker`         |
+
+For any other wallet origin, normal signing stays off. A self-hosted Wallet sets
+`routerAb: { normalSigning: { mode: 'enabled', signingWorkerId } }` with the worker
+of its own Gateway. An app `routerAb` setting always wins. Before 0.60.0, every
+wallet origin needed this setting.
+
 ## Optional VoiceID
 
 SDK 0.60.0 accepts `authMethods: [voiceIdAuthMethod()]`. Import the descriptor from

@@ -149,12 +149,37 @@ function resolveSigningSessionSeal(args: {
   };
 }
 
+/**
+ * The Router A/B SigningWorker of each Seams-hosted Wallet origin. The Gateway of each one admits
+ * Ed25519 normal signing only for its own worker, and NEAR signing needs normal signing.
+ */
+const SEAMS_HOSTED_SIGNING_WORKERS: ReadonlyMap<string, string> = new Map([
+  ['https://staging.sign.seams.sh', 'router-ab-signing-worker-staging'],
+  ['https://test.sign.seams.sh', 'router-ab-signing-worker-testnet'],
+  ['https://sign.seams.sh', 'router-ab-signing-worker'],
+]);
+
+function seamsHostedSigningWorker(walletOrigin: string): string | undefined {
+  if (!walletOrigin || !URL.canParse(walletOrigin)) return undefined;
+  return SEAMS_HOSTED_SIGNING_WORKERS.get(new URL(walletOrigin).origin);
+}
+
+/**
+ * Router A/B normal signing. An app's `routerAb.normalSigning` wins. Without one, a Seams-hosted
+ * Wallet origin enables normal signing with its own SigningWorker; any other origin keeps the
+ * default, so a self-hosted Wallet passes `routerAb`.
+ */
 function resolveRouterAbNormalSigningConfig(args: {
   overrides: SeamsConfigsInput;
   defaults: SeamsConfigsReadonly;
+  walletOrigin: string;
 }): SeamsConfigsReadonly['signing']['routerAb']['normalSigning'] {
   const override = args.overrides.routerAb?.normalSigning;
   const fallback = args.defaults.signing.routerAb.normalSigning;
+  const hostedWorker = seamsHostedSigningWorker(args.walletOrigin);
+  if (override === undefined && fallback.mode === 'disabled' && hostedWorker) {
+    return { mode: 'enabled', signingWorkerId: hostedWorker };
+  }
   const rawMode = override?.mode ?? fallback.mode;
   const rawSigningWorkerId =
     override && 'signingWorkerId' in override ? override.signingWorkerId : undefined;
@@ -215,9 +240,11 @@ export function buildConfigsFromDefaults(args: {
   const signingSessionSeal = resolveSigningSessionSeal({
     mode: signingSessionPersistenceMode,
   });
+  const walletOrigin = toTrimmedString(overrides.iframeWallet?.walletOrigin);
   const routerAbNormalSigning = resolveRouterAbNormalSigningConfig({
     overrides,
     defaults,
+    walletOrigin,
   });
   const provisioningDefaults = copyEcdsaSignerProvisioningDefaults(
     overrides.provisioningDefaults ?? defaults.signing.thresholdEcdsa.provisioningDefaults,
@@ -249,9 +276,6 @@ export function buildConfigsFromDefaults(args: {
     value: overrides.appearance?.palette,
     fallback: defaults.ui.appearance.palette,
   });
-
-  const walletOriginRaw = overrides.iframeWallet?.walletOrigin;
-  const walletOrigin = toTrimmedString(walletOriginRaw);
 
   const walletRpIdOverride = resolveWalletRpIdOverride(
     overrides.iframeWallet?.rpIdOverride,
