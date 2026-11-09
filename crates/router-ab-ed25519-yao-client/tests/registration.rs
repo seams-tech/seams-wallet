@@ -844,118 +844,125 @@ fn a_cache_record_is_refused_when_its_share_cannot_reproduce_the_key() {
 /// round, and only after its share passes the current public relation.
 const REBIND_DIGEST: [u8; 32] = [0x21; 32];
 const REBIND_NONCE: [u8; 12] = [0x5b; 12];
+const REBIND_CACHE_KEY: [u8; 32] = [0x44; 32];
 
-fn sealed_at_epoch(
-    activated: &ActivatedClientV1,
-    registered_public_key: &[u8; 32],
-    cache_key: &[u8; 32],
-) -> Vec<u8> {
-    let binding = ed25519_local_material_binding_v1(
-        &REBIND_DIGEST,
-        registered_public_key,
-        [1, 2],
-        activated.state_epoch(),
-    );
-    seal_activated_client_under_custody_seed_v1(activated, cache_key, &binding, &CACHE_NONCE)
-        .expect("seal")
+struct RebindCase {
+    activated: ActivatedClientV1,
+    registered_public_key: [u8; 32],
+    verifying_share: [u8; 32],
+    old_epoch: u64,
+    sealed: Vec<u8>,
 }
 
-fn rebind_record<'a>(
-    registered_public_key: &'a [u8; 32],
-    old_ciphertext: &'a [u8],
-    old_state_epoch: u64,
-    new_state_epoch: u64,
-    signing_worker_verifying_share: &'a [u8; 32],
-) -> RebindCacheRecordV1<'a> {
-    RebindCacheRecordV1 {
-        application_binding_digest: &REBIND_DIGEST,
-        registered_public_key,
-        participant_ids: [1, 2],
-        old_state_epoch,
-        old_nonce: &CACHE_NONCE,
-        old_ciphertext,
-        new_state_epoch,
-        new_nonce: &REBIND_NONCE,
-        signing_worker_verifying_share,
+impl RebindCase {
+    fn new() -> Self {
+        let (activated, registered_public_key, verifying_share) = activated_for_cache();
+        let old_epoch = activated.state_epoch();
+        let binding = ed25519_local_material_binding_v1(
+            &REBIND_DIGEST,
+            &registered_public_key,
+            [1, 2],
+            old_epoch,
+        );
+        let sealed = seal_activated_client_under_custody_seed_v1(
+            &activated,
+            &REBIND_CACHE_KEY,
+            &binding,
+            &CACHE_NONCE,
+        )
+        .expect("seal");
+        Self {
+            activated,
+            registered_public_key,
+            verifying_share,
+            old_epoch,
+            sealed,
+        }
+    }
+
+    fn rebind(
+        &self,
+        registered_public_key: &[u8; 32],
+        new_epoch: u64,
+        verifying_share: &[u8; 32],
+    ) -> Result<
+        router_ab_ed25519_yao_client::ReboundWalletCustodyEd25519MaterialV1,
+        LocalMaterialError,
+    > {
+        rebind_activated_client_under_custody_seed_v1(
+            &REBIND_CACHE_KEY,
+            &RebindCacheRecordV1 {
+                application_binding_digest: &REBIND_DIGEST,
+                registered_public_key,
+                participant_ids: [1, 2],
+                old_state_epoch: self.old_epoch,
+                old_nonce: &CACHE_NONCE,
+                old_ciphertext: &self.sealed,
+                new_state_epoch: new_epoch,
+                new_nonce: &REBIND_NONCE,
+                signing_worker_verifying_share: verifying_share,
+            },
+        )
+    }
+
+    fn open_at(
+        &self,
+        epoch: u64,
+        nonce: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<ActivatedClientV1, LocalMaterialError> {
+        let binding = ed25519_local_material_binding_v1(
+            &REBIND_DIGEST,
+            &self.registered_public_key,
+            [1, 2],
+            epoch,
+        );
+        import_activated_client_under_custody_seed_v1(
+            &REBIND_CACHE_KEY,
+            &binding,
+            nonce,
+            ciphertext,
+            &self.registered_public_key,
+            epoch,
+            [1, 2],
+            &self.verifying_share,
+        )
     }
 }
 
 #[test]
 fn an_older_cache_record_rebinds_to_the_current_epoch_with_the_same_share() {
-    let (activated, registered_public_key, verifying_share) = activated_for_cache();
-    let cache_key = [0x44; 32];
-    let old_epoch = activated.state_epoch();
-    let sealed = sealed_at_epoch(&activated, &registered_public_key, &cache_key);
+    let case = RebindCase::new();
+    let new_epoch = case.old_epoch + 1;
+    let rebound = case
+        .rebind(
+            &case.registered_public_key,
+            new_epoch,
+            &case.verifying_share,
+        )
+        .expect("re-bind");
+    let share = *case.activated.client_scalar_share();
+    assert_eq!(*rebound.client.client_scalar_share(), share);
+    assert_eq!(rebound.client.state_epoch(), new_epoch);
 
-    let rebound = rebind_activated_client_under_custody_seed_v1(
-        &cache_key,
-        &rebind_record(
-            &registered_public_key,
-            &sealed,
-            old_epoch,
-            old_epoch + 1,
-            &verifying_share,
-        ),
-    )
-    .expect("re-bind");
-    assert_eq!(
-        *rebound.client.client_scalar_share(),
-        *activated.client_scalar_share()
-    );
-    assert_eq!(rebound.client.state_epoch(), old_epoch + 1);
-
-    let new_binding = ed25519_local_material_binding_v1(
-        &REBIND_DIGEST,
-        &registered_public_key,
-        [1, 2],
-        old_epoch + 1,
-    );
-    let reopened = import_activated_client_under_custody_seed_v1(
-        &cache_key,
-        &new_binding,
-        &REBIND_NONCE,
-        &rebound.ciphertext,
-        &registered_public_key,
-        old_epoch + 1,
-        [1, 2],
-        &verifying_share,
-    )
-    .expect("the re-bound record opens at the new epoch");
-    assert_eq!(
-        *reopened.client_scalar_share(),
-        *activated.client_scalar_share()
-    );
+    let reopened = case
+        .open_at(new_epoch, &REBIND_NONCE, &rebound.ciphertext)
+        .expect("the re-bound record opens at the new epoch");
+    assert_eq!(*reopened.client_scalar_share(), share);
 
     // The old record still names the old epoch; it does not open as the new one.
-    let old_as_new = import_activated_client_under_custody_seed_v1(
-        &cache_key,
-        &new_binding,
-        &CACHE_NONCE,
-        &sealed,
-        &registered_public_key,
-        old_epoch + 1,
-        [1, 2],
-        &verifying_share,
-    );
+    let old_as_new = case.open_at(new_epoch, &CACHE_NONCE, &case.sealed);
     assert_eq!(old_as_new.err(), Some(LocalMaterialError::SealFailed));
 }
 
 #[test]
 fn a_rebind_moves_forward_only() {
-    let (activated, registered_public_key, verifying_share) = activated_for_cache();
-    let cache_key = [0x44; 32];
-    let old_epoch = activated.state_epoch();
-    let sealed = sealed_at_epoch(&activated, &registered_public_key, &cache_key);
-    for new_epoch in [old_epoch, old_epoch - 1] {
-        let rebound = rebind_activated_client_under_custody_seed_v1(
-            &cache_key,
-            &rebind_record(
-                &registered_public_key,
-                &sealed,
-                old_epoch,
-                new_epoch,
-                &verifying_share,
-            ),
+    let case = RebindCase::new();
+    for new_epoch in [case.old_epoch, case.old_epoch - 1] {
+        let rebound = case.rebind(
+            &case.registered_public_key,
+            new_epoch,
+            &case.verifying_share,
         );
         assert_eq!(rebound.err(), Some(LocalMaterialError::EpochNotForward));
     }
@@ -963,21 +970,9 @@ fn a_rebind_moves_forward_only() {
 
 #[test]
 fn a_rebind_refuses_a_share_that_does_not_pair_with_the_current_signing_worker() {
-    let (activated, registered_public_key, _) = activated_for_cache();
-    let cache_key = [0x44; 32];
-    let old_epoch = activated.state_epoch();
-    let sealed = sealed_at_epoch(&activated, &registered_public_key, &cache_key);
-    let rebound = rebind_activated_client_under_custody_seed_v1(
-        &cache_key,
-        &rebind_record(
-            &registered_public_key,
-            &sealed,
-            old_epoch,
-            old_epoch + 1,
-            // A verifying share the SigningWorker does not hold now.
-            &[0x66; 32],
-        ),
-    );
+    let case = RebindCase::new();
+    // A verifying share the SigningWorker does not hold now.
+    let rebound = case.rebind(&case.registered_public_key, case.old_epoch + 1, &[0x66; 32]);
     assert_eq!(
         rebound.err(),
         Some(LocalMaterialError::PublicRelationMismatch)
@@ -986,20 +981,7 @@ fn a_rebind_refuses_a_share_that_does_not_pair_with_the_current_signing_worker()
 
 #[test]
 fn a_rebind_refuses_another_registered_key() {
-    let (activated, registered_public_key, verifying_share) = activated_for_cache();
-    let cache_key = [0x44; 32];
-    let old_epoch = activated.state_epoch();
-    let sealed = sealed_at_epoch(&activated, &registered_public_key, &cache_key);
-    let other_key = [0x77; 32];
-    let rebound = rebind_activated_client_under_custody_seed_v1(
-        &cache_key,
-        &rebind_record(
-            &other_key,
-            &sealed,
-            old_epoch,
-            old_epoch + 1,
-            &verifying_share,
-        ),
-    );
+    let case = RebindCase::new();
+    let rebound = case.rebind(&[0x77; 32], case.old_epoch + 1, &case.verifying_share);
     assert_eq!(rebound.err(), Some(LocalMaterialError::SealFailed));
 }

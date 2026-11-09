@@ -414,23 +414,15 @@ pub fn ed25519_local_material_binding_v1(
 pub fn open_wallet_custody_ed25519_material_v1(
     input: OpenWalletCustodyEd25519MaterialV1<'_>,
 ) -> LocalMaterialResult<ActivatedClientV1> {
-    let seed = open_wallet_custody_seed_envelope_v1(
+    let cache_key = custody_cache_key(
         input.factor_secret,
         input.envelope_binding,
         input.envelope_nonce,
         input.envelope_ciphertext,
         input.envelope_aad_hash,
         input.envelope_ciphertext_digest,
-    )
-    .map_err(|_| LocalMaterialError::SealFailed)
-    .map(|(seed, _admitted)| seed)?;
-
-    let cache_key = derive_ed25519_local_material_cache_key_from_seed_v1(
-        &seed,
         input.application_binding_digest,
-    )
-    .map_err(|_| LocalMaterialError::SealFailed)?;
-
+    )?;
     import_activated_client_under_custody_seed_v1(
         &cache_key,
         input.binding,
@@ -547,22 +539,41 @@ pub fn rebind_wallet_custody_ed25519_material_v1(
     if input.record.new_state_epoch <= input.record.old_state_epoch {
         return Err(LocalMaterialError::EpochNotForward);
     }
-    let seed = open_wallet_custody_seed_envelope_v1(
+    let cache_key = custody_cache_key(
         input.factor_secret,
         input.envelope_binding,
         input.envelope_nonce,
         input.envelope_ciphertext,
         input.envelope_aad_hash,
         input.envelope_ciphertext_digest,
+        input.record.application_binding_digest,
+    )?;
+    rebind_activated_client_under_custody_seed_v1(&cache_key, &input.record)
+}
+
+/// Opens the custody envelope with a factor and derives the cache key. The seed
+/// lives only inside this call.
+fn custody_cache_key(
+    factor_secret: &[u8],
+    envelope_binding: &PasskeyCustodyEnvelopeBindingV1,
+    envelope_nonce: &[u8],
+    envelope_ciphertext: &[u8],
+    envelope_aad_hash: &[u8],
+    envelope_ciphertext_digest: &[u8],
+    application_binding_digest: &[u8; 32],
+) -> LocalMaterialResult<Zeroizing<[u8; 32]>> {
+    let seed = open_wallet_custody_seed_envelope_v1(
+        factor_secret,
+        envelope_binding,
+        envelope_nonce,
+        envelope_ciphertext,
+        envelope_aad_hash,
+        envelope_ciphertext_digest,
     )
     .map_err(|_| LocalMaterialError::SealFailed)
     .map(|(seed, _admitted)| seed)?;
-    let cache_key = derive_ed25519_local_material_cache_key_from_seed_v1(
-        &seed,
-        input.record.application_binding_digest,
-    )
-    .map_err(|_| LocalMaterialError::SealFailed)?;
-    rebind_activated_client_under_custody_seed_v1(&cache_key, &input.record)
+    derive_ed25519_local_material_cache_key_from_seed_v1(&seed, application_binding_digest)
+        .map_err(|_| LocalMaterialError::SealFailed)
 }
 
 /// One cache record, its old epoch, and the server's current epoch and share.

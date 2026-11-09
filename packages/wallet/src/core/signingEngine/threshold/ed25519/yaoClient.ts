@@ -5,7 +5,6 @@ import {
   WasmEd25519YaoClientRootExportSessionV1,
   WasmWalletCustodySeedExportSessionV1,
   openWalletCustodyEd25519MaterialV1,
-  rebindWalletCustodyEd25519MaterialV1,
   default as initializeYaoClientWasm,
 } from '../../../../../../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.js';
 import {
@@ -1090,12 +1089,19 @@ function importVerifiedLinkedActiveClient(
   }
 }
 
-function openVerifiedCustodyCacheActiveClient(
+/**
+ * Opens a cache record sealed at `recordStateEpoch` for the epoch in
+ * `metadata`. An older record is re-bound in wasm and its new sealed bytes are
+ * returned for the caller to persist.
+ */
+function openVerifiedCustodyCache(
   input: RouterAbEd25519YaoOpenCustodyCacheInputV1,
-): WasmRouterAbEd25519YaoActiveClientV1 {
+  recordStateEpoch: bigint,
+): RouterAbEd25519YaoReboundCustodyCacheV1 | RouterAbEd25519YaoSealableActiveClientV1 {
   let activated: WasmActivatedClientV1 | null = null;
+  const rebindNonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
   try {
-    activated = openWalletCustodyEd25519MaterialV1(
+    const opened = openWalletCustodyEd25519MaterialV1(
       input.ownedFactorSecret,
       input.envelope.bindingJson,
       input.envelope.nonce,
@@ -1104,18 +1110,35 @@ function openVerifiedCustodyCacheActiveClient(
       input.envelope.ciphertextDigest,
       input.applicationBindingDigest,
       input.metadata.registeredPublicKey,
-      input.metadata.stateEpoch,
       input.metadata.participantIds[0],
       input.metadata.participantIds[1],
       input.metadata.signingWorkerVerifyingShare,
+      recordStateEpoch,
       input.sealed.nonce,
       input.sealed.ciphertext,
+      input.metadata.stateEpoch,
+      rebindNonce,
     );
-    return new WasmRouterAbEd25519YaoActiveClientV1({
+    let reboundCiphertext: Uint8Array | undefined;
+    try {
+      reboundCiphertext = opened.rebound_ciphertext();
+      activated = opened.take_client();
+    } finally {
+      opened.free();
+    }
+    const activeClient = new WasmRouterAbEd25519YaoActiveClientV1({
       [ACTIVE_CLIENT_CONSTRUCTION]: true,
       metadata: input.metadata,
       activated,
     });
+    if (!reboundCiphertext) return activeClient;
+    return {
+      activeClient,
+      sealed: {
+        nonceB64u: base64UrlEncode(rebindNonce),
+        ciphertextB64u: base64UrlEncode(reboundCiphertext),
+      },
+    };
   } catch (error) {
     activated?.free();
     throw error;
@@ -1123,53 +1146,6 @@ function openVerifiedCustodyCacheActiveClient(
     /* Zeroed on every path, like the per-factor importers. The factor secret
        opened the custody envelope moments ago; leaving it in a live buffer
        would outlast the one call it was needed for. */
-    input.ownedFactorSecret.fill(0);
-  }
-}
-
-function rebindVerifiedCustodyCacheActiveClient(
-  input: RouterAbEd25519YaoRebindCustodyCacheInputV1,
-): RouterAbEd25519YaoReboundCustodyCacheV1 {
-  let activated: WasmActivatedClientV1 | null = null;
-  const newNonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  try {
-    const rebound = rebindWalletCustodyEd25519MaterialV1(
-      input.ownedFactorSecret,
-      input.envelope.bindingJson,
-      input.envelope.nonce,
-      input.envelope.ciphertext,
-      input.envelope.aadHash,
-      input.envelope.ciphertextDigest,
-      input.applicationBindingDigest,
-      input.metadata.registeredPublicKey,
-      input.metadata.participantIds[0],
-      input.metadata.participantIds[1],
-      input.metadata.signingWorkerVerifyingShare,
-      input.oldStateEpoch,
-      input.sealed.nonce,
-      input.sealed.ciphertext,
-      input.metadata.stateEpoch,
-      newNonce,
-    );
-    let ciphertext: Uint8Array;
-    try {
-      ciphertext = rebound.ciphertext();
-      activated = rebound.take_client();
-    } finally {
-      rebound.free();
-    }
-    return {
-      activeClient: new WasmRouterAbEd25519YaoActiveClientV1({
-        [ACTIVE_CLIENT_CONSTRUCTION]: true,
-        metadata: input.metadata,
-        activated,
-      }),
-      sealed: { nonceB64u: base64UrlEncode(newNonce), ciphertextB64u: base64UrlEncode(ciphertext) },
-    };
-  } catch (error) {
-    activated?.free();
-    throw error;
-  } finally {
     input.ownedFactorSecret.fill(0);
   }
 }
@@ -1209,7 +1185,9 @@ export class RouterAbEd25519YaoClientV1 {
   openCustodyCache(
     input: RouterAbEd25519YaoOpenCustodyCacheInputV1,
   ): RouterAbEd25519YaoSealableActiveClientV1 {
-    return openVerifiedCustodyCacheActiveClient(input);
+    const opened = openVerifiedCustodyCache(input, input.metadata.stateEpoch);
+    if ('sealed' in opened) throw new Error('a current custody cache record was re-bound');
+    return opened;
   }
 
   /**
@@ -1221,7 +1199,9 @@ export class RouterAbEd25519YaoClientV1 {
   rebindCustodyCache(
     input: RouterAbEd25519YaoRebindCustodyCacheInputV1,
   ): RouterAbEd25519YaoReboundCustodyCacheV1 {
-    return rebindVerifiedCustodyCacheActiveClient(input);
+    const opened = openVerifiedCustodyCache(input, input.oldStateEpoch);
+    if (!('sealed' in opened)) throw new Error('an older custody cache record was not re-bound');
+    return opened;
   }
 
   async exportSeed(
