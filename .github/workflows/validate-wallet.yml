@@ -63,7 +63,7 @@ jobs:
       # every tracked file of each path package that a built manifest
       # resolves, which includes its Cargo.lock, plus the Cargo settings and
       # the build scripts (scripts/rust-build-inputs.mjs). A change to a crate
-      # that no build resolves, such as crates/spoken-intent, keeps the cache.
+      # that no build resolves keeps the cache.
       # The Rust build takes about 22 of this job's minutes. There is no
       # partial-key fallback: a restored output always matches its inputs.
       # The release workflow never uses this cache; it builds from source.

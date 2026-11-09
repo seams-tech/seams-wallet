@@ -10,7 +10,7 @@
 // `cargo metadata` resolves for a built manifest. Each built manifest's Cargo.lock sits in
 // that directory and pins every registry and git package. A new path dependency enters the
 // hash on its own: the resolve lists it as soon as a manifest names it. A crate that no
-// built manifest resolves, such as crates/spoken-intent, is not an input.
+// built manifest resolves is not an input.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

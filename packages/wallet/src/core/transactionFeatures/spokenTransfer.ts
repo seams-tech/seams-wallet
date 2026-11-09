@@ -1,4 +1,4 @@
-// The account transfer subset of the `spoken-intent` crate (crates/spoken-intent): the same
+// The account transfer subset of the `spoken-intent` crate (seams-tech/speak-to-sign): the same
 // account and amount rules and the same rendered words. The Borsh bytes and digests are in
 // `@shared/speakToSign/spokenRequest`. The crate's golden vectors check this port. Wallet core
 // uses it to check a verdict against the transaction that core signs.

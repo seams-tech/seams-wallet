@@ -1,7 +1,8 @@
-// The requests of the `spoken-intent` crate (crates/spoken-intent) that a Speak-to-Sign verdict
+// The requests of the `spoken-intent` crate (seams-tech/speak-to-sign) that a Speak-to-Sign verdict
 // names: their Borsh bytes and their digests. Wallet core and the Seams co-signer both build them
 // from the transaction that they sign, so each one checks the verdict against that transaction.
-// The crate's golden vectors check these bytes (tests/unit/speakToSignHost.unit.test.ts).
+// The crate's golden vectors, copied to tests/fixtures/spoken-intent, check these bytes
+// (tests/unit/speakToSignHost.unit.test.ts).
 
 export type SpeakToSignNetwork = 'testnet' | 'mainnet';
 

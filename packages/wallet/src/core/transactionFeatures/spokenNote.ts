@@ -1,4 +1,4 @@
-// The community note kinds of the `spoken-intent` crate (crates/spoken-intent):
+// The community note kinds of the `spoken-intent` crate (seams-tech/speak-to-sign):
 // `SpokenRequestV1::CommunityNote` and `SpokenRequestV1::NoteRating`, with the same summary
 // rules, rendered words, Borsh bytes and digests. The crate's golden vectors check this port.
 // Wallet core uses it to check a verdict and to build the one call that it signs.

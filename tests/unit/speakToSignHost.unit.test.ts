@@ -54,7 +54,7 @@ const VECTORS = JSON.parse(
   readFileSync(
     path.resolve(
       import.meta.dirname,
-      '../../crates/spoken-intent/fixtures/spoken_intent_vectors_v1.json',
+      '../fixtures/spoken-intent/spoken_intent_vectors_v1.json',
     ),
     'utf8',
   ),
