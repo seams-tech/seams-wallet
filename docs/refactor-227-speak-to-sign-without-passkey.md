@@ -1,9 +1,10 @@
 # Refactor 227: Speak-to-Sign without a passkey, with typed contract calls
 
-Status: 2026-11-09. Step 1 (payments without a passkey) and Step 4 (retire the vault) are
+Status: 2026-11-10. Step 1 (payments without a passkey) and Step 4 (retire the vault) are
 done. Step 1b (the co-signer checks the verdict) and Step 2 (live progress) shipped in 0.60.0
 and run on staging since 2026-11-09 (seams-monorepo b77bf2cf, with verifier 0.4.1); the voice
-check on staging is open. Step 3 shipped in 0.59.0; its staging check is open.
+check on staging is open. Step 3 shipped in 0.59.0; its staging check is open. Step 6 (speed)
+shipped in 0.61.0 with verifier 0.5.1; on staging only its backend and verifier run so far.
 Step 5 (records) is done. The plan changed the
 Speak-to-Sign design of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and
 uses the step-up of [Refactor 225](refactor-225-jev-policy-engine.md) (Section 4).
@@ -360,6 +361,28 @@ until the 0.57.0 rollout session reports done.
 5. **Records.** Done on 2026-11-09. Refactor 210 Section 0, Section 11 and Section 12,
    Refactor 225 Section 4 and open question 9, the verifier README and the `seams-monorepo`
    docs index now say what runs.
+
+6. **Speed.** The analysis is
+   [the speed report](evidence/refactor-227-speak-to-sign-speed-20261109.md). Shipped in 0.61.0
+   (seams-wallet `3b39fc9d4`, released from `833cb77ee`; plugin 0.61.0 from speak-to-sign
+   `e7be8a3`):
+   - A voice-approved plain transfer is sent with `wait_until: INCLUDED`, and the host hook
+     `included(transactionHash)` (host API 8) shows "Sent" on the card then. The result still
+     reads the outcome at `EXECUTED_OPTIMISTIC`. A contract call shows only its outcome.
+   - The VoiceID phrase recorder ends after 0.8 s of silence instead of 1.5 s once the voiced
+     time covers the expected sentence (200 ms for each spoken word). `endOfSpeechAt` is the
+     last voiced frame, so the reported times include the end pause.
+   - Verifier 0.5.1 (`cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258`,
+     reproducible build, active on OutLayer since 2026-11-10) writes the used-audio mark during
+     its requests. A refused recording is used up.
+   - Staging (seams-monorepo `2deafda6`, run 42656149508): the gateway, the role Workers and
+     the verifier pin deployed. The frontend job, which deploys the Wallet host, failed at
+     "Verify docs match the installed SDK", because seams-wallet `main` had moved to the
+     0.62.0 release. So the staging Wallet host still serves 0.60.0 (host API 7). Production
+     stays on 0.57.0 by the user's choice.
+   - Not done: a real-voice check of the 200 ms rule; a staging voice payment and its timing
+     read-out (the owner's to make); options 4 (start OutLayer at "Record") and 5 (a Cloudflare
+     verifier backend).
 
 ## Parked
 
