@@ -1,11 +1,15 @@
 # Refactor 231: NEAR custody material across sites and devices
 
-Status: 2026-11-10. Plan. Nothing is built. Target release: 0.61.
+Status: 2026-11-10. Plan, reviewed. Nothing is built. Target release: 0.62, with all steps,
+together with wallet-server and the seams-monorepo pins. 0.61.0 ships the interim commit
+`096e03ddc`; `156c2f60b` fixes its login outcome and needs a 0.61.x patch.
 
-The user chose option B (2026-11-10): no client key material goes to the server. The Router
-re-issues client material for the current epoch when a browser has none. Research for this
-plan found that most "stale" caches do not need the Router at all (Section 2), so the plan
-has two parts: a local re-bind and a Router redelivery.
+Decisions of the user (2026-11-10):
+
+- **D1. Option B.** No client key material goes to the server. The Router re-issues client
+  material for the current epoch when a browser has none.
+- **D2. VoiceID alone can request a reissue.** It needs no recent passkey or Email OTP
+  unlock.
 
 ## 1. Problem
 
@@ -21,211 +25,262 @@ material activation."
 The server's material activation was `wallet-recovery-ed25519-material-activation-…` with
 lifecycle `wallet-session-ed25519-recovery-…`: a cold rejoin from a passkey login.
 
-How a cache goes stale:
+How a cache gets an old epoch:
 
 1. The Wallet frame's IndexedDB is partitioned per top-level site. Each integrator app has
    its own cache. A second device or cleared site data has the same effect.
-2. A passkey login that finds no cache runs a cold rejoin
-   (`openAndActivatePasskeyEd25519CustodyLogin`,
-   `packages/wallet/src/SeamsWeb/operations/auth/login/custodyActivation.ts`). The rejoin is
-   a Router `Recovery`. It moves the SigningWorker to the next state epoch.
+2. A passkey login or an account sync that finds no cache runs a cold rejoin
+   (`custodyActivation.ts`, `syncAccount.ts`). The rejoin is a Router `Recovery`. It moves
+   the SigningWorker to the next state epoch.
 3. Every other site's cache keeps the old epoch.
 
-Effect today (after the interim commit `096e03ddc`):
+Effect in 0.61.0 (with `096e03ddc`):
 
-| Factor | Stale cache | No cache |
+| Path | Old epoch in cache | No cache |
 | --- | --- | --- |
-| Passkey | Rejoin; one Router round; makes all other caches stale | Rejoin (same) |
-| VoiceID | Fails: "Unlock with a passkey once" | Fails: "Unlock with a passkey or Email OTP once" |
-| Email OTP | Opens the cache with no epoch check; signing can fail later | Fails: "recover with a recovery code" |
+| Passkey login | Rejoin; one Router recovery; all other caches get an old epoch | Rejoin (same) |
+| Account sync | Opens the cache with no epoch check | Rejoin |
+| VoiceID unlock | Fails: "Unlock with a passkey once" | Fails: "Unlock with a passkey or Email OTP once" |
+| Email OTP unlock | Opens with no epoch check; signing works; export probably fails (inferred) | Fails: "recover with a recovery code" |
 
 ## 2. Facts that shape the design
 
-- **A recovery keeps both shares.** Registration and recovery use the `Base` contributions
-  (`crates/router-ab-ed25519-yao/src/lib.rs:220`). These come from the client root and the
-  Deriver roots with the stable key context only
-  (`crates/signer-core/src/ed25519_yao_derivation.rs:466-497`). The circuit gives the client
-  `x_client = s + tau` and the SigningWorker `x_server = s + 2·tau`
-  (`tools/ed25519-yao-generator/src/circuit/families.rs:455`). The random "output coins"
-  (`crates/ed25519-yao/src/passive/role_protocol.rs:3544`) only split each share between
-  Deriver A and Deriver B. The generator's recovery reference requires that `Tau`,
-  `ClientScalarBase`, `SigningWorkerScalarBase` and both public points do not change
-  (`tools/ed25519-yao-generator/src/continuity_reference.rs:14`).
-- **So an older cache after a recovery holds the current client share.** Only its labels
-  are old: the epoch in the sealed plaintext and in the binding
-  (`crates/router-ab-ed25519-yao-client/src/local_material.rs:180-261`).
-- **Refresh is off.** The Router refuses `Refresh`
-  (`crates/router-ab-cloudflare/src/router_coordinator.rs:1593`). The wallet does not use
-  lane provisioning or lane refresh. These are the only operations that change a share.
+Both reviews (2026-11-10) confirmed these facts in the production code.
+
+- **No admitted operation changes the NEAR shares.**
+  - Registration and recovery use the `Base` contributions
+    (`crates/router-ab-ed25519-yao/src/lib.rs:216-229`).
+  - The server contributions come from the threshold PRF of the tenant-root share over the
+    stable key context (`ed25519_yao_lifecycle.rs:1774-1800`). A tenant-root refresh keeps
+    the joint root, so the output does not change (`threshold-prf/src/refresh.rs:463-481`).
+  - The client contributions come from the seed and the stable context
+    (`crates/signer-core/src/ed25519_yao_derivation.rs:466-482`).
+  - The production circuit (`phase4_families.rs:486-528`) gives the client
+    `x_c = s + tau` and the SigningWorker `x_s = s + 2·tau`. The output coins only split each
+    share between Deriver A and Deriver B.
+  - Refresh deltas cancel between A and B (`ed25519_yao_derivation.rs:384-425`), and the
+    Router refuses `Refresh` (`router_coordinator.rs:1593, 1931`). Lane operations write
+    separate lane material that the wallet does not use.
+- **So a cache with an old epoch holds the current client share.** Only its labels are old:
+  the epoch in the sealed plaintext, in the AEAD binding and in the row.
+- **The state epoch is not a signing input** (`crates/router-ab-ed25519-yao-client/src/signing.rs`).
+  The activation facts come from the server on each unlock (`openCustodyCache.ts:20-48`).
+  Export sends the epoch, and the server compares it (`routerAbEd25519YaoExport.ts:612`).
+- **The relation check proves the share.** With the registered key `P` and the SigningWorker
+  verifying share `X_s`, only one `X_c` is possible. `verify_public_relation`
+  (`local_material.rs:269`) checks it.
 - **The cache key does not depend on the epoch.** It comes from the custody seed and the
-  application binding digest (`crates/signer-core/src/wallet_seed_derivation.rs:154`). Any
-  factor that opens the envelope can open and re-seal the cache.
-- **The client's Deriver inputs come from the seed**
-  (`crates/router-ab-ed25519-yao-client/src/lib.rs:454`). A run with other inputs gives a
-  share that fails the public-relation check against the registered key.
-- **The capability that the server returns has no SigningWorker verifying share**
-  (`RouterAbEd25519YaoActiveCapabilityDescriptorV1`,
-  `packages/wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery.ts:615`).
+  application binding digest (`wallet_seed_derivation.rs:154-167`). The AEAD binding holds the
+  digest, the registered key, the participant ids and the epoch, but not the verifying share
+  (`local_material.rs:353-391`).
+- **The server keeps the verifying share.** The persisted capability record holds the
+  activation result with its public receipt (`packages/wallet-server/src/core/WalletStore.ts:55-72`).
+  `walletRecoveryKeyManifest.ts:671-695` already reads it. The capability descriptor that the
+  routes return has no verifying share (`routerAbEd25519YaoRecovery.ts:615-645`).
+- **The SigningWorker is the only server-side continuity check today.** If its delivery
+  fails, the Router returns no client packages (`router_coordinator.rs:1439-1473`).
+- **The server cannot see which factor opened the envelope.** Recovery admission has no
+  factor-kind check (`routerAbEd25519YaoRecoveryWalletSessionAuthorization.ts:466-489`).
 - **No client material reaches the server** (Decision 2026-08-09,
-  `packages/shared-ts/src/passkey-custody/ceremonyCommitPayload.ts:204`). This plan keeps
-  that decision.
+  `packages/shared-ts/src/passkey-custody/ceremonyCommitPayload.ts:204`). This plan keeps it.
 
 ## 3. Design
 
-### 3.1 Re-bind an older cache locally (no Router round)
+### 3.1 Re-bind a cache with an old epoch (no Router round)
 
-If the cache epoch is lower than the server's epoch:
+If the cache epoch is lower than the server epoch:
 
-1. Open the envelope with the factor, derive the cache key, and open the cached share with
-   its own (old) binding.
-2. Check the current public relation: the share, together with the server's **current**
-   SigningWorker verifying share, gives the registered public key. Check also that the
-   registered key, participant ids and application binding digest are the same.
-3. Seal the share again with the current epoch and the current verifying share. Write the
-   new row.
+1. Open the envelope with the factor, derive the cache key, and open the share with its own
+   (old) binding.
+2. Check the relation with the server's **current** verifying share and registered key.
+   Require the same registered key, participant ids and application binding digest.
+3. Seal the share again under the new epoch with a fresh nonce. Write the row with the new
+   epoch and the server's verifying share.
 
-The re-bind moves forward only (new epoch > old epoch). The public-relation check makes it
-safe: a share that does not pair with the current SigningWorker share cannot pass. If the
-check fails (a future refresh changed the shares), the path continues as for "no cache".
+The re-bind moves forward only. If the cache epoch is higher than the server epoch, or the
+relation check fails, the resolver treats the cache as absent (Section 3.3). A false epoch or
+verifying share from the server can stop signing, but it cannot reveal a secret.
 
-### 3.2 Redeliver client material for the current epoch (Router, option B)
+### 3.2 Reissue client material for the current epoch (Router, option B)
 
-A new Router operation, `Redelivery`, gives a browser with no usable cache the client
-material of the **current** epoch:
+A new operation, `Reissue`, gives a browser with no usable cache the client share of the
+**current** epoch. ("Redelivery" already names a different thing in the formal model,
+`ActivationDelivery.lean:89-93`.)
 
-- Admission needs an Active SigningWorker at epoch `E` and an authorized Wallet Session.
-- The Derivers run the existing activation circuit with the current `Base` contributions,
-  the client's seed-derived inputs, and fresh coins. The circuit does not change.
-- The Derivers emit only the two client packages and the public commitments. They do not
-  emit SigningWorker packages. The Router does not call the SigningWorker. The epoch stays
-  `E`.
-- The client completes with `Preserve(registered public key)`, checks the public relation
-  against the current SigningWorker verifying share, and seals the share at epoch `E`.
-- `Redelivery` has its own operation tag and transcript domain. A redelivery result cannot
-  be read as a recovery, and the reverse.
+1. Admission needs an Ed25519 Wallet Session for the wallet (any factor, D2).
+2. The Derivers run the production activation circuit with the `Base` contributions, the
+   client's seed-derived inputs and fresh coins. They emit the two client packages and the
+   public commitments. They emit no SigningWorker packages.
+3. The Router sends the run's commitments to the SigningWorker for a **read-only check**:
+   the state is Active; the joined SigningWorker commitment of this run equals the stored
+   verifying share; `P = 2·ΣX_c − ΣX_s`; the registered key and stable identity are the same.
+   The SigningWorker persists nothing and returns a public receipt for the current epoch `E`.
+4. Only after the check does the Router release the client packages and the receipt.
+5. The client completes with `Preserve(registered key)`, checks the relation, and seals at
+   epoch `E`.
 
-Because the client inputs come from the seed, only a holder of the seed gets a share that
-passes the relation check. Thus any factor that opens the custody envelope (passkey, Email
-OTP, VoiceID) can request a redelivery.
+`Reissue` has its own operation tag, transcript domain and expensive-work budget. A reissue
+result cannot pass as a recovery, registration or export.
+
+Why the check in step 3 matters: without it, a caller with a Wallet Session and substituted
+client inputs would get client packages that no server party checked. With it, a reissue
+gives exactly what a `Recovery` gives today, without the epoch change.
 
 ### 3.3 One resolver for all unlock paths
 
-`resolveWalletCustodyEd25519Material` returns one of:
+`resolveWalletCustodyEd25519Material` returns `current`, `rebound`, `reissued` or
+`unavailable` (with a reason that the menu can show). Each path that loads the cache uses
+it:
 
-- `current`: the cache epoch equals the server epoch;
-- `rebound`: Section 3.1 succeeded;
-- `redelivered`: Section 3.2 succeeded;
-- `unavailable`: with a reason that the menu can show.
+| Path | Where it runs |
+| --- | --- |
+| Passkey login (`custodyActivation.ts`) | Iframe main thread |
+| Account sync (`syncAccount.ts`, now `openOrRejoinWalletCustodyEd25519V1`) | Iframe main thread |
+| VoiceID unlock (`prepareNearSession.ts`) | Iframe main thread |
+| Email OTP restore (`custodyRestore.ts:657-677`) and export (`ed25519YaoExport.ts:310`) | `emailOtp` worker |
 
-Passkey, Email OTP and VoiceID unlock use it. Passkey login no longer runs a cold rejoin.
-`Recovery` stays for wallet recovery (recovery codes, a Staged SigningWorker).
+The worker returns a rewritten row through the existing `walletCustodyEd25519Material` field
+(`unlock.ts:942`, `recovery.ts:315`). The main thread already persists that field
+(`BrowserSigningSurface.ts:5083-5085, 6797-6799`).
+
+`Recovery` stays for wallet recovery with recovery codes.
 
 ## 4. Options not chosen
 
-- **A: the server keeps the sealed client share.** Rejected by the user (2026-11-10). It
-  reverses Decision 2026-08-09.
-- **Derivers keep their client package halves.** Each Deriver would store a long-lived half
-  of the client share. Server-side compromise of A, B and the SigningWorker would then give
-  the whole key without the user. Today that needs the seed.
-- **Let Email OTP and VoiceID run the existing `Recovery`.** No protocol change, but every
-  new site still moves the epoch, and every redelivery is a SigningWorker transition. Keep
-  this as the fallback if Step 4 slips past 0.61.
+- **A: the server keeps the sealed client share.** The user rejected it (D1). It reverses
+  Decision 2026-08-09.
+- **Each site as a linked device.** Device linking already sends client material to a new
+  recipient while it keeps the source (`activation.rs:222-262`). But a site partition with
+  the same passkey is the same authority, not a new device. Each site would add a device, a
+  SigningWorker state and a revocation item.
+- **Derivers keep their client package halves.** Each Deriver would keep a long-lived half of
+  the client share. Today each half exists only during one run.
+- **Let Email OTP and VoiceID run the existing `Recovery`.** No protocol change, but each new
+  site still moves the epoch for all other sites.
 
 ## 5. Steps
 
-Steps 1–3 fix every stale cache with no protocol change. Steps 4–6 fix the "no cache" case
-and stop the epoch churn.
+Put new code in new files. `BrowserSigningSurface.ts`, `routerAbEd25519YaoRecovery.ts` and
+`router_coordinator.rs` are already over 2,000 lines.
 
-### Step 1. The capability carries the current SigningWorker verifying share
+### Step 1. The capability carries the SigningWorker verifying share
 
-- Add `signingWorkerVerifyingShare` to `RouterAbEd25519YaoActiveCapabilityDescriptorV1`, from
-  the SigningWorker's active receipt (`crates/router-ab-ed25519-yao/src/activation.rs:170`).
-- Return it on the passkey unlock (`projectPasskeyCustody`), Email OTP unlock
-  (`projectEmailOtpCustody`) and VoiceID verify (`prepareVoiceIdNearInstallation`).
-- Parse it in `parsePasskeyWalletCustodyUnlockV1`, the Email OTP custody parser, and
-  `VoiceIdHttpClient.verify`. These parsers check exact keys: the Wallet and the
-  wallet-server ship together in 0.61. Say so in the release notes.
+- Add `signingWorkerVerifyingShare` to the descriptor. The server reads it from
+  `activationResult.public_receipt` of the persisted record. It needs no SigningWorker call.
+- The descriptor is built in one place (`routerAbEd25519YaoRecovery.ts:1938`), so every route
+  that returns it changes: passkey unlock, warm bootstrap (`sessions.ts:1425`), sync bootstrap
+  (`syncAccountBootstrap.ts:239`), Email OTP unlock, VoiceID verify and export.
+- Linked devices: `resolveWarmBootstrapCapabilityForAuthority`
+  (`routerAbEd25519YaoRecovery.ts:1024-1091`) must take the linked material's own verifying
+  share, not the source device's share.
+- Client types: `ParsedYaoRecoveryCapabilityV1`, `workerTypes.ts:133`; the parsers
+  `parseEd25519YaoRecoveryCapabilityV1` and the Email OTP parser
+  (`materialParsing.ts:700-716`, exact keys); the builders `registration.ts:576` and
+  `ed25519ExportContext.ts:283, 457, 645`; the fixtures in `tests/unit/helpers/`.
+- Compatibility: an older Wallet's Email OTP parser refuses the new field. A newer Wallet
+  needs the field. The Wallet, wallet-server and the monorepo pins (site, wallet-console,
+  intended-app) must ship together in 0.62. Say so in the release notes.
 
 ### Step 2. Re-bind in the client crate and wasm
 
-- `rebind_wallet_custody_ed25519_material_v1` in
+- `rebind_wallet_custody_ed25519_material_v1` in a new module beside
   `crates/router-ab-ed25519-yao-client/src/local_material.rs`: open the envelope, derive the
-  cache key, import with the old binding, check the relation with the current verifying
-  share, refuse `new_epoch <= old_epoch`, seal with the new binding.
-- Export it through the Yao client wasm and `RouterAbEd25519YaoClientV1`
-  (`packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts`).
-- Rust tests: forward only; relation mismatch; verifying-share mismatch; other registered
-  key; the opened share equals the old share.
+  cache key, import with the old binding, check the relation with the server's verifying
+  share, refuse `new_epoch <= old_epoch`, seal with a fresh nonce under the new binding.
+- Export it through the Yao client wasm and `RouterAbEd25519YaoClientV1` (`yaoClient.ts`).
+  The `emailOtp` worker loads the same wasm.
+- Update the comment in `ed25519SeedMaterial.ts:35-40` (only the ceremony seals) and
+  `docs/browser-workers.md:44-49, 99` (a new seal on the main thread and in the worker).
+- Rust tests: forward only; relation mismatch; other verifying share; other registered key;
+  the re-bound share equals the old share.
 
-### Step 3. Use the resolver in all unlock paths
+### Step 3. The resolver in every path
 
-- Add the resolver beside `openCustodyCache.ts`. Delete `openOrRejoinWalletCustodyEd25519V1`
-  (no callers).
-- Passkey: replace the rejoin-on-stale branch of `096e03ddc` with the resolver.
-- VoiceID: replace the stale-epoch error of `096e03ddc` in `prepareNearSession.ts`.
-- Email OTP: add the epoch check to `loadEmailOtpWalletCustodyEd25519Material`; use the
-  resolver.
-- Keep `NEAR_CUSTODY_STALE_MESSAGE` only for `unavailable`, with the right sentence per
-  case.
-- Validation on staging: VoiceID unlock of `redwood-monolith-skk7jk` on
-  `staging.wallet.seams.sh` re-binds epoch 1 to epoch 2 with no Router call.
+- Add the resolver in a new file beside `openCustodyCache.ts`, for the main thread and the
+  worker. Replace `openOrRejoinWalletCustodyEd25519V1`. Until Step 6, the outcome
+  `absent` still leads passkey login and account sync to the cold rejoin.
+- Passkey login: replace the epoch condition of `096e03ddc`.
+- VoiceID: replace the stale-epoch error in `prepareNearSession.ts`; keep the wallet, key and
+  signing-worker checks. Add `persistWalletCustodyEd25519Material` to the `Pick` in
+  `installSession.ts:16-28`.
+- Email OTP: run the resolver in the worker restore and export paths.
+- `NEAR_CUSTODY_STALE_MESSAGE`: change the sentence for `unavailable`; update
+  `domain.ts`, `tests/wallet-ui/auth-menu.failure-status.test.ts` and
+  `tests/unit/authMethodNearSession.staleCache.unit.test.ts` (the first test expects a
+  re-bind).
+- Staging check: VoiceID unlock of `redwood-monolith-skk7jk` re-binds epoch 1 to epoch 2 with
+  no Router call.
 
-### Step 4. `Redelivery` in the Yao protocol and Router
+### Step 4. `Reissue` in the protocol, Derivers, Router and SigningWorker
 
-- `Ed25519YaoOperationV1::Redelivery` with its own tag in
-  `crates/router-ab-ed25519-yao-protocol/src/lib.rs`, canonical encodings and transcript
-  domain.
-- Deriver roles: reuse the activation family; build only client packages for `Redelivery`.
-- Router coordinator: admit with an Active SigningWorker at the named epoch; no SigningWorker
-  receipt; epoch unchanged; its own `ExpensiveWorkKindV1` budget.
-- Client: `prepare_client_redelivery_with_root_v1` and its completion, with
-  `Preserve(registered public key)` and the relation check.
-- Update the generator corpus and vectors, `pnpm -C crates/router-ab-cloudflare
-  test:wasm-vectors`, and the formal-verification artifacts that pin the operation enum (see
-  the Aeneas line pins).
-- Update `docs/router-ab/ed25519-yao.md`: the operation list, Section "Fixed Circuit
-  Families" and "Root and Key-Continuity Policy".
+- Operation: `Ed25519YaoOperationV1::Reissue` with `circuit_family` and `work_kind` in
+  `crates/router-ab-core/src/protocol/ed25519_yao.rs:47`, an `ExpensiveWorkKindV1`
+  (`gate.rs:17`), the tag in `crates/router-ab-ed25519-yao-protocol/src/lib.rs:60`, and a
+  `matches_operation` arm for `Base` (`crates/router-ab-ed25519-yao/src/lib.rs:216-229`).
+- Derivers: build only client packages and commitments for `Reissue`.
+- SigningWorker: a read-only reissue check in a new file under
+  `durable_object/signing_worker_wallet/` (Section 3.2, step 3).
+- Router coordinator: a new module for the `Reissue` branch; release client packages only
+  after the check.
+- Client: `prepare_client_reissue_with_root_v1` and its completion
+  (`crates/router-ab-ed25519-yao-client/src/lib.rs`).
+- Regenerate `packages/shared-ts/src/utils/generated/routerAbEd25519YaoCore.ts` with
+  `export_typescript_bindings`. Update the wire vectors
+  (`crates/router-ab-core/fixtures/protocol/r102/ed25519-wire-vectors-v1.json`) and
+  `pnpm -C crates/router-ab-cloudflare test:wasm-vectors`.
+- Formal model: the closed enums `RequestKind` (`PartyViews.lean:14`) and `ActivationOrigin`
+  (`ActivationRecipientPartyViews.lean:11`), the "five request families" corpus,
+  `proof-obligations.md` and `compliance-baseline.md`.
+- `docs/router-ab/ed25519-yao.md`: the operation list, "Fixed Circuit Families" and "Root
+  and Key-Continuity Policy".
 
 ### Step 5. Gateway route and authorization
 
-- A Gateway route for redelivery admission and execution, with a Wallet Session bearer, like
-  the recovery routes (`ROUTER_AB_ED25519_YAO_RECOVERY_*_PATH_V1`).
-- Admit any factor that opened the custody envelope in this session: passkey, Email OTP,
-  VoiceID. Rate-limit per wallet.
+- Admission and execute routes with a Wallet Session bearer, beside the recovery routes.
+- Admit any Ed25519 Wallet Session of the wallet (D2). Refuse exhausted sessions. Rate-limit
+  per wallet.
 
-### Step 6. Use redelivery for "no cache"
+### Step 6. Use reissue when there is no cache
 
-- The resolver calls redelivery when the cache is absent or the re-bind fails.
-- Passkey login and account sync (`syncAccount.ts`) stop the cold rejoin. Delete
-  `rejoinWalletCustodyNearEd25519KeySet` and `buildWalletSessionEd25519RecoveryAdmissionRequestV1`
-  if nothing else uses them.
-- Email OTP: "recover with a recovery code" is no longer the answer for a new site.
+- The resolver calls reissue when the cache is absent, newer than the server, or fails the
+  relation check.
+- Passkey login and account sync stop the cold rejoin. Delete
+  `rejoinWalletCustodyNearEd25519KeySet` (callers: `custodyActivation.ts:204`,
+  `syncAccount.ts:776`), `buildWalletSessionEd25519RecoveryAdmissionRequestV1`
+  (`BrowserSigningSurface.ts:2878`) and the `recovered` branch of the login. Keep
+  `readActivePasskeyAuthorityForRecovery` (`passkeyExchange.ts:466`).
+- Decide the server's Wallet-Session-authorised Recovery admission
+  (`routerAbEd25519YaoRecoveryWalletSessionAuthorization.ts`): after this step only older
+  Wallets use it. The lockstep release lets us delete it.
+- Email OTP: a new site no longer needs a recovery code.
 
-### Step 7. End-to-end tests
+### Step 7. Tests and docs
 
-An intended-behaviour test with two browser contexts (two storage partitions) for one wallet:
-
-1. Register and unlock with a passkey in context A.
-2. Unlock in context B: a redelivery; the server epoch does not change.
-3. Force a recovery in context B: the epoch moves.
-4. Unlock with VoiceID and with Email OTP in context A: re-bind, then sign a NEAR
-   transaction.
+- Rewrite `tests/e2e/intended-behaviours/passkey-custody-cache.ts:122-131` ("cold custody
+  recovery preserves authority"): it expects `/recovery/activate` and a new activation id.
+- A new intended-behaviour test with two browser contexts (two storage partitions):
+  1. Register and unlock with a passkey in context A.
+  2. Unlock in context B: a reissue; the server epoch does not change.
+  3. Run a recovery from context B: the epoch moves.
+  4. Unlock with VoiceID and with Email OTP in context A: re-bind; then sign a NEAR
+     transaction and run an export.
+- Rust: `crates/router-ab-ed25519-yao-client/tests/registration.rs`, coordinator tests for
+  the check-before-release rule, SigningWorker tests for the read-only check.
+- Docs: `docs/intended-behaviours.md:495` ("Missing custody requires another owner unlock"),
+  the 0.62 release notes in `apps/docs/src/releases.md` and `apps/docs/src/ja/releases.md`
+  (replace the 0.61 sentence, state the lockstep release).
+- seams-monorepo: move the pins to 0.62 and deploy with wallet-server.
 
 ## 6. Security review items
 
-- The re-bind adds no new secret and no new party. It must refuse any binding change other
-  than the epoch and the verifying share, and it must check the relation before it seals.
-- `Redelivery` gives the client the same share as the last recovery. Each Deriver sees its
-  own half again, as in every recovery. Nothing new is stored.
-- A caller with a Wallet Session but substituted client inputs learns the same output as a
-  `Recovery` with substituted inputs today. The review must confirm that `Redelivery` does
-  not widen this. Rate limits apply.
-- Domain separation: `Redelivery` packages and receipts cannot pass as `Recovery`,
+- **Re-bind:** no new secret, no new party. It changes only the epoch label and the row's
+  verifying share, and it checks the relation against the server's values before it seals.
+- **Reissue:** each run makes new random Deriver halves of the same share. Nothing new is
+  stored. The SigningWorker check (Section 3.2, step 3) keeps the guarantee that today's
+  `Recovery` gives against substituted client inputs. The review must confirm that a client
+  package is never released before that check.
+- **Authorization:** the server cannot know which factor opened the envelope, so the rule is
+  "any Ed25519 Wallet Session of the wallet", as for `Recovery` today. Rate limits apply.
+- **Domain separation:** `Reissue` packages and receipts cannot pass as `Recovery`,
   `Registration` or `Export`.
-
-## 7. Open questions
-
-1. Name: `Redelivery` or `ClientRedelivery`.
-2. Does VoiceID alone authorize a redelivery, or only with a recent passkey or Email OTP
-   unlock? The share is only useful to a seed holder, but the Router cost is real.
-3. Ship Steps 1–3 in 0.61 even if Steps 4–6 move to 0.62?
+- **A+B collusion** stays outside the threat model (`docs/router-ab/ed25519-yao.md:313`).
