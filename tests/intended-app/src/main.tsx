@@ -1,8 +1,8 @@
 import { ApplicationAuthPage } from './ApplicationAuthPage';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/speak-to-sign';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import type { SpeakToSignFeaturePlugin } from '@seams/wallet';
 import {
   SeamsWebProvider,
   TransactionReviewHost,
@@ -32,6 +32,7 @@ function requiredEnvironmentValue(name: string): string {
 const relayerAccount = optionalEnvironmentValue('VITE_SEAMS_INTENDED_RELAYER_ACCOUNT');
 // `testnet` enables the Speak-to-Sign descriptor for a live run.
 const speakToSignNetwork = optionalEnvironmentValue('VITE_SEAMS_INTENDED_SPEAK_TO_SIGN_NETWORK');
+const speakToSignFeature: SpeakToSignFeaturePlugin = { kind: 'speak_to_sign', network: 'testnet' };
 
 function signingSessionDefaultsFromUrl(): { ttlMs: number; remainingUses: number } | undefined {
   const params = new URL(window.location.href).searchParams;
@@ -90,9 +91,7 @@ const config = defineSeamsConfig({
         registration: { nearAccountProvisioning: { kind: 'relayer_named_subaccount' } },
       }
     : {}),
-  ...(speakToSignNetwork === 'testnet'
-    ? { transactionFeatures: [speakToSign({ network: 'testnet' })] }
-    : {}),
+  ...(speakToSignNetwork === 'testnet' ? { transactionFeatures: [speakToSignFeature] } : {}),
   iframeWallet: {
     rpIdOverride: new URL(walletOrigin).hostname,
   },

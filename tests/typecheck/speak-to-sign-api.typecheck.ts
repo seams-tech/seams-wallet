@@ -2,11 +2,10 @@ import {
   SeamsWeb,
   type SeamsConfigsInput,
   type SpeakToSignCapability,
+  type SpeakToSignFeaturePlugin,
   type SpeakToSignTransferResult,
   type WalletTransactionFeaturePlugin,
 } from '@seams/wallet';
-import { speakToSign } from '../../packages/speak-to-sign/src/descriptor';
-import * as host from '../../packages/speak-to-sign/src/host';
 import type { SPEAK_TO_SIGN_HOST_API_VERSION } from '../../packages/wallet/src/core/transactionFeatures/hostPlugin';
 import type { VOICE_ID_HOST_API_VERSION } from '../../packages/wallet/src/core/authMethods/hostPlugin';
 
@@ -14,7 +13,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Expect<T extends true> = T;
 
 declare const base: SeamsConfigsInput;
-const feature = speakToSign({ network: 'testnet' });
+const feature: SpeakToSignFeaturePlugin = { kind: 'speak_to_sign', network: 'testnet' };
 const seams = new SeamsWeb({ ...base, transactionFeatures: [feature] });
 
 // The property has the capability type, and it is optional: the constructor sets it only
@@ -59,9 +58,10 @@ if (seams.speakToSign) {
 seams.speakToSign = undefined;
 
 // @ts-expect-error The network is testnet or mainnet.
-speakToSign({ network: 'betanet' });
+const betanetFeature: SpeakToSignFeaturePlugin = { kind: 'speak_to_sign', network: 'betanet' };
 // @ts-expect-error A spoken payment comes from the owner's own account; there is no vault.
-speakToSign({ vault: 'vault.testnet', network: 'testnet' });
+const vaultFeature: SpeakToSignFeaturePlugin = { kind: 'speak_to_sign', vault: 'vault.testnet', network: 'testnet' };
+void [betanetFeature, vaultFeature];
 // @ts-expect-error A browser callback cannot cross into the wallet iframe.
 const callbackFeature: WalletTransactionFeaturePlugin = { ...feature, load: async () => ({}) };
 void callbackFeature;
@@ -73,8 +73,7 @@ void unknownFeature;
 const reasonless: SpeakToSignTransferResult = { kind: 'unavailable' };
 void reasonless;
 
-const hostVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION = host.hostApiVersion;
-void hostVersion;
+declare const hostVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION;
 // @ts-expect-error Speak-to-Sign has its own host API version, separate from VoiceID's.
-const sharedVersion: typeof VOICE_ID_HOST_API_VERSION = host.hostApiVersion;
+const sharedVersion: typeof VOICE_ID_HOST_API_VERSION = hostVersion;
 void sharedVersion;

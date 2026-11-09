@@ -11,21 +11,17 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const walletPackage = packageDefinition('packages/wallet', '@seams/wallet');
 const walletServerPackage = packageDefinition('packages/wallet-server', '@seams/wallet-server');
 const voiceIdPackage = packageDefinition('packages/voiceid', '@seams/voiceid');
-const speakToSignPackage = packageDefinition('packages/speak-to-sign', '@seams/speak-to-sign');
 const packageTarget = process.argv[2] ?? 'all';
 assert.ok(
-  ['all', 'wallet', 'voiceid', 'speak-to-sign'].includes(packageTarget),
+  ['all', 'wallet', 'voiceid'].includes(packageTarget),
   `Unknown package target: ${packageTarget}`,
 );
-assert.ok(
-  process.argv.length <= 3,
-  'Expected one package target: all, wallet, voiceid, or speak-to-sign',
-);
-// Speak-to-Sign is a peer of Wallet and VoiceID, so every target installs all three.
+assert.ok(process.argv.length <= 3, 'Expected one package target: all, wallet, or voiceid');
+// VoiceID is a peer of Wallet, so every target installs both.
 const packages =
   packageTarget === 'all'
-    ? [walletPackage, walletServerPackage, voiceIdPackage, speakToSignPackage]
-    : [walletPackage, voiceIdPackage, speakToSignPackage];
+    ? [walletPackage, walletServerPackage, voiceIdPackage]
+    : [walletPackage, voiceIdPackage];
 const forbidden = [
   '@seams-internal/console',
   '@seams-internal/wallet-console',
@@ -99,27 +95,18 @@ function inspectPackage(packageDirectory, packageDefinition) {
       }
     }
   }
-  if (packageName === '@seams/speak-to-sign') {
-    assert.equal(packageJson.dependencies, undefined, 'Speak-to-Sign bundles no dependency');
-    for (const peer of ['@seams/wallet', '@seams/voiceid']) {
-      assert.equal(packageJson.peerDependencies?.[peer], packageDefinition.version, peer);
-    }
-  }
   assert.match(
     fs.readFileSync(path.join(packageDirectory, 'LICENSE.md'), 'utf8'),
     /^\s*Apache License$/mu,
   );
-  // Speak-to-Sign has no runtime dependency, so it has no third-party notices.
-  if (packageName !== '@seams/speak-to-sign') {
-    assert.match(
-      fs.readFileSync(path.join(packageDirectory, 'THIRD_PARTY_NOTICES.md'), 'utf8'),
-      /^# Third-Party Notices$/mu,
-    );
-  }
+  assert.match(
+    fs.readFileSync(path.join(packageDirectory, 'THIRD_PARTY_NOTICES.md'), 'utf8'),
+    /^# Third-Party Notices$/mu,
+  );
 
   for (const file of listFiles(packageDirectory)) {
     const relativePath = path.relative(packageDirectory, file);
-    if (packageName === '@seams/wallet' || packageName === '@seams/speak-to-sign') {
+    if (packageName === '@seams/wallet') {
       assert.ok(!relativePath.endsWith('.onnx'), `VoiceID models must not ship in ${packageName}`);
       assert.ok(
         !/ort-wasm|ort\.wasm/u.test(relativePath),
@@ -238,27 +225,11 @@ async function smokePackedEntries() {
       2,
     ) + '\n',
   );
-  const speakToSign = await import(
-    path.join(nodeModulesDirectory, '@seams/speak-to-sign/dist/esm/index.js')
+  // The Speak-to-Sign host plugin (seams-tech/speak-to-sign) imports this Wallet entry.
+  assert.ok(
+    routes.includes('/sdk/speak-to-sign-host.js'),
+    'Composed Wallet host must serve /sdk/speak-to-sign-host.js',
   );
-  assert.equal(typeof speakToSign.speakToSign, 'function');
-  const speakHosting = await import(
-    path.join(nodeModulesDirectory, '@seams/speak-to-sign/dist/hosting.mjs')
-  );
-  const speakOutput = await speakHosting.composeSpeakToSignWalletAssets({
-    walletPublicDirectory,
-    outputDirectory: path.join(workDirectory, 'speak-to-sign-wallet'),
-  });
-  const speakRoutes = JSON.parse(
-    fs.readFileSync(path.join(speakOutput, 'wallet-assets.manifest.json'), 'utf8'),
-  ).assets.map(assetRoute);
-  for (const route of [
-    '/sdk/speak-to-sign-host.js',
-    '/sdk/speak-to-sign/host.js',
-    '/sdk/voiceid/host.js',
-  ]) {
-    assert.ok(speakRoutes.includes(route), `Speak-to-Sign Wallet host must serve ${route}`);
-  }
   const runtime = await import(
     path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/runtime.js')
   );

@@ -5,8 +5,8 @@ import http from 'node:http';
 import https from 'node:https';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { mkdtemp } from 'node:fs/promises';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { mkdtemp, readFile } from 'node:fs/promises';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const appOrigin = process.env.SEAMS_INTENDED_APP_URL || 'http://localhost:4201';
@@ -18,6 +18,8 @@ const runtimeRoot =
 const walletDistRoot =
   process.env.SEAMS_INTENDED_WALLET_DIST_ROOT || path.join(repoRoot, 'packages', 'wallet', 'dist');
 const productionApp = process.env.SEAMS_INTENDED_PRODUCTION === '1';
+// A built @seams/speak-to-sign package directory. Only the live Speak-to-Sign run needs it.
+const speakToSignPackageDirectory = process.env.SEAMS_SPEAK_TO_SIGN_PACKAGE_DIR?.trim() || null;
 const externalGateway = parseExternalGatewayMode();
 const children = [];
 let stopping = false;
@@ -28,10 +30,10 @@ async function main() {
   installSignalHandlers();
   if (externalGateway) assertHostedBenchmarkTarget();
   if (process.env.SEAMS_INTENDED_SKIP_BUILD !== '1') buildWalletRuntime();
-  // Speak-to-Sign composes VoiceID first, so the test host serves both optional packages.
   const composedRoot = await mkdtemp(path.join(tmpdir(), 'seams-intended-wallet-assets-'));
-  const { composeSpeakToSignWalletAssets } = await import('@seams/speak-to-sign/hosting');
-  const walletPublicDirectory = await composeSpeakToSignWalletAssets({
+  const walletPublicDirectory = await (
+    await walletAssetComposer()
+  )({
     walletPublicDirectory: path.join(walletDistRoot, 'public'),
     outputDirectory: path.join(composedRoot, 'public'),
   });
@@ -57,7 +59,6 @@ function buildWalletRuntime() {
     process.env,
   );
   runRequired('VoiceID package build', 'pnpm', ['-C', 'packages/voiceid', 'build']);
-  runRequired('Speak-to-Sign package build', 'pnpm', ['-C', 'packages/speak-to-sign', 'build']);
   if (externalGateway) return;
   for (const role of [
     'signing-worker',
@@ -75,6 +76,27 @@ function buildWalletRuntime() {
   }
   runRequired('Wallet server build', 'pnpm', ['-C', 'packages/wallet-server', 'run', 'build']);
   runRequired('Wallet local initializer build', 'pnpm', ['run', 'build:local-tools']);
+}
+
+/**
+ * The test host serves Wallet and VoiceID. With a Speak-to-Sign package, it also serves the
+ * Speak-to-Sign host plugin, whose composer adds VoiceID first.
+ */
+async function walletAssetComposer() {
+  if (!speakToSignPackageDirectory) {
+    const { composeVoiceIdWalletAssets } = await import('@seams/voiceid/hosting');
+    return composeVoiceIdWalletAssets;
+  }
+  const directory = path.resolve(repoRoot, speakToSignPackageDirectory);
+  const packageJson = JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8'));
+  const hosting = packageJson.exports?.['./hosting']?.import;
+  if (packageJson.name !== '@seams/speak-to-sign' || typeof hosting !== 'string') {
+    throw new Error('SEAMS_SPEAK_TO_SIGN_PACKAGE_DIR must name a @seams/speak-to-sign package');
+  }
+  const { composeSpeakToSignWalletAssets } = await import(
+    pathToFileURL(path.join(directory, hosting)).href
+  );
+  return composeSpeakToSignWalletAssets;
 }
 
 function startWalletSystem() {

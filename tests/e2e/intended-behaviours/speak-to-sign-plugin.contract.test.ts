@@ -1,14 +1,23 @@
 import { execFileSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { SPEAK_TO_SIGN_HOST_API_VERSION } from '../../../packages/wallet/src/core/transactionFeatures/hostPlugin';
 import type {} from '../../fixtures/ui/SpeakToSignPluginProbe';
 import type {} from '../../typecheck/speak-to-sign-api.typecheck';
 
 const ORIGIN = 'https://wallet.example.test';
 const HOST_PATH = 'sdk/speak-to-sign/host.js';
 type Chunk = { fileName: string; code: string; imports: string[] };
-type HostResponse = 'built' | 'missing' | 'incompatible';
+type HostResponse = 'compatible' | 'missing' | 'incompatible';
+
+// A stand-in for the @seams/speak-to-sign host plugin, which seams-tech/speak-to-sign releases.
+// It has the Wallet's host API version and, like the plugin, has no flow for a call without a
+// transfer.
+const COMPATIBLE_HOST = `export const hostApiVersion = ${SPEAK_TO_SIGN_HOST_API_VERSION};
+const unavailable = async () => ({ kind: 'unavailable', reason: 'flow_not_available' });
+export function createSpeakToSignHostPlugin() {
+  return { requestTransfer: unavailable, requestNoteAction: unavailable, enroll: unavailable };
+}`;
 
 const chunks: Chunk[] = JSON.parse(
   execFileSync(
@@ -52,12 +61,7 @@ class ProbeServer {
         body: 'export const hostApiVersion = 2; export function createSpeakToSignHostPlugin() { return { requestTransfer() {} }; }',
       });
     }
-    const file = path.resolve(
-      import.meta.dirname,
-      '../../../packages/speak-to-sign/dist/public',
-      HOST_PATH,
-    );
-    await route.fulfill({ contentType: 'text/javascript', body: await readFile(file, 'utf8') });
+    await route.fulfill({ contentType: 'text/javascript', body: COMPATIBLE_HOST });
   }
 
   speakToSignRequests(): string[] {
@@ -95,7 +99,7 @@ async function open(page: Page, host: HostResponse): Promise<ProbeServer> {
 test('a Wallet without the Speak-to-Sign descriptor never requests its host plugin', async ({
   page,
 }) => {
-  const server = await open(page, 'built');
+  const server = await open(page, 'compatible');
   expect(chunks.some(isSpeakToSignChunk)).toBe(false);
   await expect(page.evaluate(requestTransfer)).rejects.toThrow('Enable Speak-to-Sign');
   await page.evaluate(enable);
