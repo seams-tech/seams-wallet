@@ -551,10 +551,12 @@ puts the Jev rules into that step.
   in `spoken-intent`, with market names from a curated registry, as in
   Refactor 210 Section 13.
 - **Limits.** There is no vault, so no on-chain limit or contact check. The
-  last checks are in Wallet core: the signature, the digests, the expiry and
-  one payment for each verdict. Voice limits for each wallet (per payment and
-  per day) are planned in the co-signer admission (Refactor 227, Step 1b) and
-  are not built.
+  checks are in Wallet core (the signature, the digests, the expiry and one
+  payment for each verdict) and in the co-signer admission (Refactor 227,
+  Step 1b, built and not deployed). The co-signer checks the verdict again,
+  records each verdict once and applies the voice limits of each wallet: 10 NEAR
+  in one voice-only payment and 20 NEAR in any 24 hours. The limits are
+  constants in code; Jev rules do not set them yet.
 - **Verdict fields.** Verdict v2 has 13 fields, including `outcome`,
   `policy_rule` and `expires_at_ms`. The Jev slice adds `policy_version`,
   `policy_digest`, `policy_outcome` and `jev_model` (not built), and the verdict
@@ -575,8 +577,9 @@ puts the Jev rules into that step.
   with the session's own method. It then signs the transfer from the owner's
   account. There is no vault method (open question 9). Today one stub rule
   causes a step-up: a payment above 10 NEAR (`stub_voice_amount_above_10_near`).
-  In Refactor 227, Step 1b (not built), the co-signer accepts a `step_up`
-  operation only with that fresh approval.
+  In Refactor 227, Step 1b (built, not deployed), the co-signer accepts a
+  `step_up` verdict only when an operation step-up (a passkey or Email OTP
+  approval of this exact operation) authorizes the signing request.
 
 ### 5. Normal signing (later slices)
 
@@ -829,6 +832,8 @@ The gates of the first draft map to these slices:
    first release target?
 9. **Step-up path.** Decided on 2026-11-09 (Refactor 227): there is no vault.
    A `step_up` verdict goes to Wallet core, which asks for a fresh approval of
-   the same operation and signs from the owner's account. Still open: in Step
-   1b, must the co-signer see that fresh approval before it adds its part to a
-   `step_up` operation?
+   the same operation and signs from the owner's account. Step 1b answers the
+   rest: the co-signer requires an operation step-up for a `step_up` verdict.
+   Still open: a VoiceID session answers with a new VoiceID unlock, which is not
+   an approval of the operation, so the co-signer refuses it. Keep this, or
+   accept a fresh VoiceID unlock?
