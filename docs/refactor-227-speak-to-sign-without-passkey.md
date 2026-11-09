@@ -182,8 +182,13 @@ enum CallV1 {
 
 - Which contracts and methods: a closed list in `spoken-intent` and the Wallet. One entry
   now: a binary market contract, method `bet(market_id, outcome)` with the stake as the
-  deposit. A new call is a new `CallV1` variant. No kind holds free text or a free function
-  call.
+  deposit. A new call is a new `CallV1` variant. No kind that moves value holds free text or
+  a free function call.
+- The one exception is the community-note kinds `CommunityNote` and `NoteRating`. They move
+  no value: Wallet core calls only `add_note` or `rate_note`, with a deposit of 0. The note
+  summary is free text, but it has at most 12 words, only letters after normalization, and
+  a first word that is not "send", "sent" or "sends". So the send-sentence word rules never
+  read it.
 - The words: "bet two near on yes in market forty two". Display: "Bet 2 NEAR on YES in
   market 42". The app may show the market question beside it as untrusted text.
 - The confusion set: the stake neighbours (as amounts today); `yes` and `no` exchanged; the
