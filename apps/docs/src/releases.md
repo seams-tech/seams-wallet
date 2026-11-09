@@ -14,7 +14,8 @@ The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.62
   - A site with no cache still needs one passkey unlock before VoiceID or Email OTP. A later release removes this step.
 - The active Ed25519 capability carries `signingWorkerVerifyingShare`. The passkey, Email OTP and VoiceID unlock responses return it.
 - A passkey login that rejoins the key set now reports the recovery. So the local authority and Wallet Session record follow the new material activation. 0.61.0 left them on the old activation after a rejoin for an older cache.
-- `@seams/speak-to-sign` 0.62.0 removes its empty `./react` entry.
+- `@seams/speak-to-sign` 0.62.0 removes its empty `./react` entry and its optional `react` peer dependency.
+- The Speak-to-Sign verifier is version **0.5.2**, OutLayer version key `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`. Its signed output and its verdict key are the same as in 0.5.1, except the version.
 - The Speak-to-Sign host API stays at version **8**, and the VoiceID host API stays at version **10**.
 - Deploy the server and the Wallet host together, and update apps to 0.62.0. A 0.61.0 Wallet's Email OTP unlock refuses the new capability field, and a 0.62.0 Wallet needs it. Passkey and VoiceID unlock of a 0.61.0 Wallet keep working against a 0.62.0 server.
 - Install all four packages at 0.62.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.

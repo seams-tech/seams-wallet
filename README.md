@@ -33,6 +33,7 @@ in the private `seams-tech/seams-monorepo` repository.
 - A NEAR custody cache from an older state epoch re-binds locally. A Router recovery, such as the first passkey login on another site, keeps both shares and moves only the epoch, so passkey login, account sync, VoiceID and Email OTP re-seal the old row under the current epoch with no Router round. VoiceID no longer fails after a login on another site.
 - The active Ed25519 capability carries `signingWorkerVerifyingShare`. Release the Wallet, the server and the hosted assets together: a 0.61.0 Wallet's Email OTP unlock refuses the new field, and a 0.62.0 Wallet needs it.
 - A passkey login that rejoins the key set now reports the recovery, so the local authority follows the new activation.
+- `@seams/speak-to-sign` 0.62.0 removes its empty `./react` entry. Its verifier is 0.5.2, OutLayer version key `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`.
 - Install all four packages at 0.62.0. No database migrations.
 
 ## Release 0.61.0
