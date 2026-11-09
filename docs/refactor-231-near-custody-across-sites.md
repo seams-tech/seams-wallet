@@ -1,8 +1,9 @@
 # Refactor 231: NEAR custody material across sites and devices
 
-Status: 2026-11-10. Plan, reviewed. Nothing is built. Target release: 0.62, with all steps,
-together with wallet-server and the seams-monorepo pins. 0.61.0 ships the interim commit
-`096e03ddc`; `156c2f60b` fixes its login outcome and needs a 0.61.x patch.
+Status: 2026-11-10. Steps 1–3 are done (`037b0cec0`, `042593578`, `9478b970c`) and ship in
+0.62, together with wallet-server and the seams-monorepo pins. Steps 4–6 (`Reissue`) are a
+separate, later change with its own review (D3). 0.61.0 ships the interim commit `096e03ddc`;
+`156c2f60b` fixes its login outcome and ships in 0.62.
 
 Decisions of the user (2026-11-10):
 
@@ -10,6 +11,26 @@ Decisions of the user (2026-11-10):
   material for the current epoch when a browser has none.
 - **D2. VoiceID alone can request a reissue.** It needs no recent passkey or Email OTP
   unlock.
+- **D3. Split the release.** 0.62 ships Steps 1–3. `Reissue` (Steps 4–6) is a protocol
+  change across the Router, Derivers, SigningWorker, Gateway and formal model, so it gets its
+  own change and review.
+
+### State after Steps 1–3
+
+| Path | Old epoch in cache | No cache |
+| --- | --- | --- |
+| Passkey login | Re-bind, no Router round | Rejoin (a Router recovery; other sites then re-bind) |
+| Account sync | Re-bind | Rejoin |
+| VoiceID unlock | Re-bind | Fails: "This site has no wallet keys on this device yet. Unlock with a passkey once to set them up." |
+| Email OTP unlock | Re-bind (the Ed25519 unlock persists the row; other paths re-bind in memory) | Fails: "recover with a recovery code" |
+| Email OTP export | Re-bind in memory | Fails |
+
+Steps 4–6 remove the two failures in the "No cache" column and the rejoin's epoch change.
+
+Note for Step 4: the SigningWorker's read-only check can reuse the existing candidate code. It
+opens the run's SigningWorker packages, combines them, checks the verifying share and the key
+against the active state, and persists nothing. That is stronger than a check of the
+commitments alone.
 
 ## 1. Problem
 
