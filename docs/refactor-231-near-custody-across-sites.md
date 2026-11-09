@@ -1,9 +1,10 @@
 # Refactor 231: NEAR custody material across sites and devices
 
 Status: 2026-11-10. Steps 1–3 are done (`037b0cec0`, `042593578`, `9478b970c`) and ship in
-0.62, together with wallet-server and the seams-monorepo pins. Steps 4–6 (`Reissue`) are a
-separate, later change with its own review (D3). 0.61.0 ships the interim commit `096e03ddc`;
-`156c2f60b` fixes its login outcome and ships in 0.62.
+0.62, together with wallet-server and the seams-monorepo pins. Steps 4–6 (`Reissue`) are done
+for passkey, account sync and VoiceID and ship in 0.63 (D3); see "State after Steps 4–6".
+0.61.0 ships the interim commit `096e03ddc`; `156c2f60b` fixes its login outcome and ships in
+0.62.
 
 Decisions of the user (2026-11-10):
 
@@ -26,6 +27,47 @@ Decisions of the user (2026-11-10):
 | Email OTP export | Re-bind in memory | Fails |
 
 Steps 4–6 remove the two failures in the "No cache" column and the rejoin's epoch change.
+
+### State after Steps 4–6 (2026-11-10, for 0.63)
+
+Commits: protocol and Signing Worker `a9490edd7`, `06a68a442`, Router `5fda7df97`, client crate
+`7d3b42d42`, Gateway `1cf0c3977`, Wallet `87d570521`.
+
+| Path | Old epoch in cache | No cache |
+| --- | --- | --- |
+| Passkey login | Re-bind | Reissue (no epoch change, no new activation) |
+| Account sync | Re-bind | Reissue |
+| VoiceID unlock | Re-bind | Reissue with the VoiceID Wallet Session (D2) |
+| Email OTP unlock | Re-bind | Still fails: "recover with a recovery code" |
+| Email OTP export | Re-bind in memory | Still fails |
+
+Decisions made while implementing:
+
+- **The Gateway stores nothing between admit and execute.** Both calls need an unexhausted
+  Ed25519 Wallet Session of the wallet and resolve its active material. The admission must
+  name that material exactly, with the active capability's lifecycle id. The execute binding
+  must equal the binding the active material gives, with any non-zero session id. Security
+  rests on the Signing Worker check (Section 3.2, step 3), not on a stored admission: a
+  caller with substituted inputs gets no Client package.
+- **A reissued row opens with the cache-hit activation facts.** The reissue keeps the material
+  activation, so the row carries the server's epoch and verifying share, and the active
+  client keeps the capability's activation transcript and capability binding.
+- **The Wallet-Session-authorised Recovery admission stays.** Wallets older than 0.63 still
+  use it for their cold rejoin.
+
+Open:
+
+- Email OTP. The factor secret stays in the Email OTP worker, and the custody ceremony runs in
+  another worker. A reissue there needs a worker-boundary design (`docs/browser-workers.md`).
+- Formal model and corpus: a `reissue` constructor in `ActivationOrigin`
+  (`ActivationRecipientPartyViews.lean`) and the generator enums, the `reissue_v1` pair-digest
+  vector, `proof-obligations.md` and `compliance-baseline.md`.
+- A per-wallet rate limit for reissue (none exists for recovery either).
+- A linked device's reissue: the Signing Worker check reads the wallet's active state, so a
+  linked device with its own material activation gets a refusal.
+- The two-context end-to-end test of Step 7.
+- seams-monorepo: add `'reissue'` to the staging project policy's `allowed_work_kinds`
+  (`deployment/wallet-system/scripts/generate-github-env-values.mjs`).
 
 Note for Step 4: the SigningWorker's read-only check can reuse the existing candidate code. It
 opens the run's SigningWorker packages, combines them, checks the verifying share and the key

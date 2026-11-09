@@ -493,7 +493,9 @@ server credential before marking the method unlocked. A concurrent lock prevents
 an older unlock from committing. Failure leaves the wallet locked and clears
 volatile signing state. The plugin erases its factor buffer after installation.
 
-Missing custody requires another owner unlock. Reload requires a fresh VoiceID
+A cache row from an older state epoch is re-bound to the current epoch. A site
+with no usable row reissues the current Client share with the VoiceID Wallet
+Session; no other owner unlock is needed. Reload requires a fresh VoiceID
 unlock. Key export with VoiceID requires a fresh voice check; see
 [Key Export: VoiceID authentication](#voiceid-authentication).
 
