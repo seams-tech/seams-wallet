@@ -1,0 +1,127 @@
+// The requests of the `spoken-intent` crate (crates/spoken-intent) that a Speak-to-Sign verdict
+// names: their Borsh bytes and their digests. Wallet core and the Seams co-signer both build them
+// from the transaction that they sign, so each one checks the verdict against that transaction.
+// The crate's golden vectors check these bytes (tests/unit/speakToSignHost.unit.test.ts).
+
+export type SpeakToSignNetwork = 'testnet' | 'mainnet';
+
+export const NOTE_RATINGS = ['helpful', 'somewhat_helpful', 'not_helpful'] as const;
+export type NoteRating = (typeof NOTE_RATINGS)[number];
+
+/** The kinds of `SpokenRequestV1` that Wallet core signs. Each holds its owner, which is not spoken. */
+export type SpokenRequest =
+  /** `AccountTransfer`, tag 2: a NEAR transfer from the owner's own account. */
+  | Readonly<{
+      kind: 'account_transfer';
+      network: SpeakToSignNetwork;
+      owner: string;
+      receiver: string;
+      amountYocto: bigint;
+    }>
+  /** `CommunityNote`, tag 4: `add_note` on the notes contract. The verdict binds the note's SHA-256. */
+  | Readonly<{
+      kind: 'community_note';
+      network: SpeakToSignNetwork;
+      owner: string;
+      contract: string;
+      postId: bigint;
+      noteSha256: Uint8Array;
+      summary: string;
+    }>
+  /** `NoteRating`, tag 5: `rate_note` on the notes contract. */
+  | Readonly<{
+      kind: 'note_rating';
+      network: SpeakToSignNetwork;
+      owner: string;
+      contract: string;
+      noteId: bigint;
+      rating: NoteRating;
+    }>;
+
+const REQUEST_DIGEST_DOMAIN = 'seams:spoken-intent:request:v1';
+const SPOKEN_TEXT_DIGEST_DOMAIN = 'seams:spoken-intent:spoken:v1';
+const TAGS: Readonly<Record<SpokenRequest['kind'], number>> = {
+  account_transfer: 2,
+  community_note: 4,
+  note_rating: 5,
+};
+
+/** Borsh of the request, with the explicit tag of its kind. */
+export function spokenRequestBorsh(request: SpokenRequest): Uint8Array<ArrayBuffer> {
+  const head = [
+    Uint8Array.of(TAGS[request.kind], request.network === 'testnet' ? 0 : 1),
+    borshString(request.owner),
+  ];
+  switch (request.kind) {
+    case 'account_transfer':
+      return concat([
+        ...head,
+        borshString(request.receiver),
+        littleEndian(request.amountYocto, 16),
+      ]);
+    case 'community_note':
+      if (request.noteSha256.length !== 32) throw new RangeError('A note digest has 32 bytes.');
+      return concat([
+        ...head,
+        borshString(request.contract),
+        littleEndian(request.postId, 8),
+        request.noteSha256,
+        borshString(request.summary),
+      ]);
+    case 'note_rating':
+      return concat([
+        ...head,
+        borshString(request.contract),
+        littleEndian(request.noteId, 8),
+        Uint8Array.of(NOTE_RATINGS.indexOf(request.rating)),
+      ]);
+  }
+}
+
+/** `sha256(REQUEST_DIGEST_DOMAIN || borsh)`: the `request_digest` of a verdict. */
+export async function spokenRequestDigest(borsh: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  return await sha256(concat([utf8(REQUEST_DIGEST_DOMAIN), borsh]));
+}
+
+/** `sha256(SPOKEN_TEXT_DIGEST_DOMAIN || spoken_text)`: the `spoken_text_digest` of a verdict. */
+export async function spokenTextDigest(spokenText: string): Promise<Uint8Array<ArrayBuffer>> {
+  return await sha256(concat([utf8(SPOKEN_TEXT_DIGEST_DOMAIN), utf8(spokenText)]));
+}
+
+export function borshString(value: string): Uint8Array<ArrayBuffer> {
+  const bytes = utf8(value);
+  return concat([littleEndian(BigInt(bytes.length), 4), bytes]);
+}
+
+export function littleEndian(value: bigint, length: number): Uint8Array<ArrayBuffer> {
+  const out = new Uint8Array(length);
+  let rest = value;
+  for (let index = 0; index < length; index += 1) {
+    out[index] = Number(rest & 0xffn);
+    rest >>= 8n;
+  }
+  if (rest !== 0n || value < 0n) throw new RangeError('Value does not fit the Borsh integer.');
+  return out;
+}
+
+export function utf8(text: string): Uint8Array<ArrayBuffer> {
+  return new TextEncoder().encode(text);
+}
+
+export function concat(parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
+  const out = new Uint8Array(parts.reduce(addLength, 0));
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function addLength(total: number, part: Uint8Array): number {
+  return total + part.length;
+}
+
+export async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+}

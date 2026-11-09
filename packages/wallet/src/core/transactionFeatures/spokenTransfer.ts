@@ -1,16 +1,17 @@
 // The account transfer subset of the `spoken-intent` crate (crates/spoken-intent): the same
-// account and amount rules, the same rendered words and the same Borsh bytes and digests.
-// The crate's golden vectors check this port. Wallet core uses it to check a verdict against
-// the transaction that core signs.
+// account and amount rules and the same rendered words. The Borsh bytes and digests are in
+// `@shared/speakToSign/spokenRequest`. The crate's golden vectors check this port. Wallet core
+// uses it to check a verdict against the transaction that core signs.
 
+import {
+  spokenRequestBorsh,
+  spokenRequestDigest,
+  spokenTextDigest,
+} from '@shared/speakToSign/spokenRequest';
 import type { SpeakToSignNetwork } from './plugins';
 
-export const RENDERER_VERSION = 'spoken-intent/1';
-const REQUEST_DIGEST_DOMAIN = 'seams:spoken-intent:request:v1';
-const SPOKEN_TEXT_DIGEST_DOMAIN = 'seams:spoken-intent:spoken:v1';
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
 const MAX_HUNDREDTHS = 100_000_000n;
-const ACCOUNT_TRANSFER_TAG = 2;
 
 /** `SpokenRequestV1::AccountTransfer`: a NEAR transfer from the owner's own account. */
 export type SpokenTransferRequest = Readonly<{
@@ -171,13 +172,7 @@ function separatorWord(piece: string): string {
 
 /** Borsh of `SpokenRequestV1::AccountTransfer`, whose explicit tag is 2. */
 export function transferBorsh(request: SpokenTransferRequest): Uint8Array {
-  const parts: Uint8Array[] = [
-    Uint8Array.of(ACCOUNT_TRANSFER_TAG, request.network === 'testnet' ? 0 : 1),
-    borshString(request.owner),
-    borshString(request.receiver),
-    littleEndian(request.amountYocto, 16),
-  ];
-  return concat(parts);
+  return spokenRequestBorsh({ kind: 'account_transfer', ...request });
 }
 
 /** The two digests that a verdict names for one request. */
@@ -191,8 +186,8 @@ export type SpokenDigests = Readonly<{
 /** The digests of a request from its Borsh bytes and its spoken words. */
 export async function spokenDigests(borsh: Uint8Array, spokenText: string): Promise<SpokenDigests> {
   return {
-    request: await sha256(concat([utf8(REQUEST_DIGEST_DOMAIN), borsh])),
-    spokenText: await sha256(concat([utf8(SPOKEN_TEXT_DIGEST_DOMAIN), utf8(spokenText)])),
+    request: await spokenRequestDigest(borsh),
+    spokenText: await spokenTextDigest(spokenText),
   };
 }
 
@@ -212,42 +207,4 @@ export function isNumberWord(word: string): boolean {
 /** True for "hundred" and the scale words. */
 export function isMultiplierWord(word: string): boolean {
   return word === 'hundred' || SCALES.some(([scale]) => scale === word);
-}
-
-export function borshString(value: string): Uint8Array {
-  const bytes = utf8(value);
-  return concat([littleEndian(BigInt(bytes.length), 4), bytes]);
-}
-
-export function littleEndian(value: bigint, length: number): Uint8Array {
-  const out = new Uint8Array(length);
-  let rest = value;
-  for (let index = 0; index < length; index += 1) {
-    out[index] = Number(rest & 0xffn);
-    rest >>= 8n;
-  }
-  if (rest !== 0n || value < 0n) throw new RangeError('Value does not fit the Borsh integer.');
-  return out;
-}
-
-export function utf8(text: string): Uint8Array<ArrayBuffer> {
-  return new TextEncoder().encode(text);
-}
-
-export function concat(parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
-  const out = new Uint8Array(parts.reduce(addLength, 0));
-  let offset = 0;
-  for (const part of parts) {
-    out.set(part, offset);
-    offset += part.length;
-  }
-  return out;
-}
-
-function addLength(total: number, part: Uint8Array): number {
-  return total + part.length;
-}
-
-export async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
 }

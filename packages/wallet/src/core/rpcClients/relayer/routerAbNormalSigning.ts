@@ -4,6 +4,7 @@ import {
   parseExactWalletSessionStatusResponse,
   WalletSessionStatusReadScope,
 } from './walletSessionAuthorizationStatus';
+import type { SignedVoiceVerdict } from '@/core/transactionFeatures/voiceVerdict';
 import type { PreparedWalletSessionStatus } from './walletSessionAuthorizationStatus';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { parseEcdsaPrepareSessionResponse, type EcdsaPrepareSessionResult } from './ecdsaPrepareSession';
@@ -1413,16 +1414,31 @@ function parseEd25519PrepareSessionResponse(
   return { kind: 'reusable_wallet_session', signing, sessionStatus: status };
 }
 
+/**
+ * Sends the first signing round. A Speak-to-Sign transaction adds its verdict as `voice_verdict`
+ * beside the request, so the Seams co-signer checks it before it adds its part. The verdict is
+ * not part of the request digests: the co-signer checks it against the transaction itself.
+ */
 export async function prepareRouterAbNormalSigningV2(args: {
   relayServerUrl: string;
   credential: RouterAbEd25519NormalSigningCredential;
   request: RouterAbNormalSigningPrepareRequestV2Wire;
+  voiceVerdict?: SignedVoiceVerdict;
 }): Promise<Ed25519PrepareSessionResult> {
+  const { voiceVerdict } = args;
   return postRouterAbNormalSigningJson({
     relayServerUrl: args.relayServerUrl,
     path: '/router-ab/ed25519/sign/prepare',
     credential: args.credential,
-    body: args.request,
+    body: voiceVerdict
+      ? {
+          ...args.request,
+          voice_verdict: {
+            verdict_json: voiceVerdict.verdictJson,
+            signature_b64: voiceVerdict.signatureB64,
+          },
+        }
+      : args.request,
     parse: parseEd25519PrepareSessionResponse.bind(null, args.request),
   });
 }

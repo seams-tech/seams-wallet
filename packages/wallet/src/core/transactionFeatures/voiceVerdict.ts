@@ -1,50 +1,18 @@
 // The signed verdict of the Speak-to-Sign verifier (voice-verifier 0.4.0, verdict v2). Wallet
-// core checks it before it signs, because an accepted verdict replaces the confirm click.
+// core checks it before it signs, because an accepted verdict replaces the confirm click. The
+// Seams co-signer checks it again. Both use `@shared/speakToSign/voiceVerdict`.
 
-import { base58Decode } from '@shared/utils/base58';
-import { base64Decode, base64UrlEncode } from '@shared/utils/base64';
-import { hasExactKeys } from '@shared/utils/exactKeys';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
-import type { SpeakToSignNetwork } from './plugins';
-import { concat, RENDERER_VERSION, sha256, utf8, type SpokenDigests } from './spokenTransfer';
-
-/**
- * The verifier of each network: its OutLayer project and its project-bound verdict key. The key
- * stays the same across verifier versions. It is pinned here and never comes from the app, which
- * supplies the Seams server URL: a key from the app would let the app supply its own verdicts.
- */
-type SpeakToSignVerifier = Readonly<{ project: string; publicKey: string }>;
-
-export const SPEAK_TO_SIGN_VERIFIERS: Readonly<
-  Record<SpeakToSignNetwork, SpeakToSignVerifier | null>
-> = {
-  testnet: {
-    project: 'seams-v1.testnet/voice-verifier',
-    publicKey: 'ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U',
-  },
-  mainnet: null,
-};
+import {
+  parseVoiceVerdict,
+  verifyVoiceVerdictSignature,
+  voiceVerdictIsLive,
+  type SpeakToSignVerifier,
+} from '@shared/speakToSign/voiceVerdict';
+import type { SpokenDigests } from './spokenTransfer';
 
 const VERIFY_OUTPUT_KIND = 'seams_voice_verify_output_v2';
-const VERDICT_KIND = 'seams_voice_signed_verdict_v2';
-const VERDICT_DOMAIN = 'seams:outlayer:voice-verdict:v2';
-const VERDICT_FIELDS = [
-  'kind',
-  'renderer',
-  'verifier',
-  'request_digest',
-  'spoken_text_digest',
-  'audio_digest',
-  'outcome',
-  'reason',
-  'policy_rule',
-  'expires_at_ms',
-  'speaker_score_milli',
-  'word_margin_milli',
-  'heard',
-] as const;
-/** The verifier gives a verdict 120 s. A later expiry means a worker clock that runs ahead. */
-const MAX_VERDICT_LIFE_MS = 150_000;
 
 const VERIFIER_REFUSALS = [
   'quality',
@@ -74,8 +42,22 @@ export type VerifyOutput = Readonly<{
   ms: Readonly<Record<string, unknown>>;
 }>;
 
+/**
+ * A checked verdict that core sends with the signing request, so that the Seams co-signer checks
+ * it again before it adds its part of the signature.
+ */
+export type SignedVoiceVerdict = Readonly<{ verdictJson: string; signatureB64: string }>;
+
+/** How core signs one voice-approved transaction. */
+export type VoiceApprovedSigning = Readonly<{
+  approval: VoiceApproval;
+  /** The sentence of the rule that asked for a fresh approval, for the confirm. */
+  policyText: string | null;
+  verdict: SignedVoiceVerdict;
+}>;
+
 export type VoiceVerdictCheck =
-  | Readonly<{ kind: 'approved'; approval: VoiceApproval; policyText: string | null }>
+  | (Readonly<{ kind: 'approved' }> & VoiceApprovedSigning)
   | Readonly<{ kind: 'refused'; reason: VerifierRefusal; detail?: string }>
   | Readonly<{ kind: 'mismatch'; detail: string }>;
 
@@ -110,92 +92,41 @@ export async function checkVoiceVerdict(input: {
   readonly recordedAudio: ReadonlySet<string>;
   readonly nowMs: number;
 }): Promise<VoiceVerdictCheck> {
-  let verdict: unknown;
-  try {
-    verdict = JSON.parse(input.output.verdictJson);
-  } catch {
-    return { kind: 'mismatch', detail: 'verdict is not JSON' };
-  }
-  if (!hasExactKeys(verdict, VERDICT_FIELDS) || verdict.kind !== VERDICT_KIND) {
-    return { kind: 'mismatch', detail: 'unknown verdict kind' };
-  }
-  if (verdict.renderer !== RENDERER_VERSION) {
-    return { kind: 'mismatch', detail: 'unknown renderer' };
-  }
-  if (verdict.outcome === 'refuse') {
+  const verdict = parseVoiceVerdict(input.output.verdictJson);
+  if (verdict.kind === 'invalid') return { kind: 'mismatch', detail: verdict.detail };
+  if (verdict.kind === 'refuse') {
     const reason = VERIFIER_REFUSALS.find((candidate) => candidate === verdict.reason);
     return reason
       ? { kind: 'refused', reason, ...heardDetail(verdict.heard) }
       : { kind: 'mismatch', detail: 'unknown refusal' };
   }
-  const approval = approvalOf(verdict.outcome, verdict.policy_rule, verdict.reason);
-  if (!approval) return { kind: 'mismatch', detail: 'unknown outcome' };
-
-  const expected = {
-    request_digest: base64UrlEncode(input.expected.request),
-    spoken_text_digest: base64UrlEncode(input.expected.spokenText),
-  };
-  for (const [field, digest] of Object.entries(expected)) {
-    if (verdict[field as keyof typeof expected] !== digest) {
-      return { kind: 'mismatch', detail: `${field} differs` };
-    }
+  if (verdict.requestDigest !== base64UrlEncode(input.expected.request)) {
+    return { kind: 'mismatch', detail: 'request_digest differs' };
   }
-  if (typeof verdict.audio_digest !== 'string' || !input.recordedAudio.has(verdict.audio_digest)) {
+  if (verdict.spokenTextDigest !== base64UrlEncode(input.expected.spokenText)) {
+    return { kind: 'mismatch', detail: 'spoken_text_digest differs' };
+  }
+  if (!input.recordedAudio.has(verdict.audioDigest)) {
     return { kind: 'mismatch', detail: 'audio_digest is not a recording of this flow' };
   }
-  const expiresAtMs = verdict.expires_at_ms;
-  if (
-    !Number.isSafeInteger(expiresAtMs) ||
-    (expiresAtMs as number) <= input.nowMs ||
-    (expiresAtMs as number) > input.nowMs + MAX_VERDICT_LIFE_MS
-  ) {
+  if (!voiceVerdictIsLive(verdict.expiresAtMs, input.nowMs)) {
     return { kind: 'mismatch', detail: 'verdict expired or not yet valid' };
   }
-
   const { signatureB64, publicKey } = input.output;
   if (!signatureB64 || publicKey !== input.verifier.publicKey) {
     return { kind: 'mismatch', detail: 'verdict key is not the pinned verifier key' };
   }
-  const message = await sha256(concat([utf8(VERDICT_DOMAIN), utf8(input.output.verdictJson)]));
-  if (!(await verifyEd25519(input.verifier.publicKey, signatureB64, message))) {
+  if (!(await verifyVoiceVerdictSignature(publicKey, input.output.verdictJson, signatureB64))) {
     return { kind: 'mismatch', detail: 'verdict signature is invalid' };
   }
-  return { kind: 'approved', approval, policyText: input.output.policyText };
-}
-
-function approvalOf(outcome: unknown, policyRule: unknown, reason: unknown): VoiceApproval | null {
-  if (reason !== null) return null;
-  if (outcome === 'accept' && policyRule === null) return 'voice';
-  if (outcome === 'step_up' && typeof policyRule === 'string' && policyRule) {
-    return 'voice_and_passkey';
-  }
-  return null;
+  return {
+    kind: 'approved',
+    approval: verdict.outcome === 'accept' ? 'voice' : 'voice_and_passkey',
+    policyText: input.output.policyText,
+    verdict: { verdictJson: input.output.verdictJson, signatureB64 },
+  };
 }
 
 function heardDetail(heard: unknown): { detail?: string } {
   return typeof heard === 'string' && heard ? { detail: `heard: ${heard}` } : {};
-}
-
-async function verifyEd25519(
-  publicKey: string,
-  signatureB64: string,
-  message: Uint8Array<ArrayBuffer>,
-): Promise<boolean> {
-  let keyBytes: Uint8Array;
-  let signature: Uint8Array<ArrayBuffer>;
-  try {
-    keyBytes = base58Decode(publicKey.slice('ed25519:'.length));
-    signature = base64Decode(signatureB64);
-  } catch {
-    return false;
-  }
-  if (keyBytes.length !== 32 || signature.length !== 64) return false;
-  const key = await crypto.subtle.importKey(
-    'raw',
-    Uint8Array.from(keyBytes),
-    { name: 'Ed25519' },
-    false,
-    ['verify'],
-  );
-  return await crypto.subtle.verify({ name: 'Ed25519' }, key, signature, message);
 }

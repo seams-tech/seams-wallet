@@ -139,6 +139,8 @@ const REFUSAL_REASONS: Readonly<Record<SpeakToSignRefusalReason, true>> = {
   receiver_not_speakable: true,
   receiver_missing: true,
   verdict_mismatch: true,
+  voice_limit: true,
+  cosigner_refused: true,
   transaction_failed: true,
 };
 const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>> = {
@@ -155,6 +157,8 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   summary_not_speakable: true,
   note_not_valid: true,
   verdict_mismatch: true,
+  voice_limit: true,
+  cosigner_refused: true,
   transaction_failed: true,
 };
 const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalReason, true>> = {

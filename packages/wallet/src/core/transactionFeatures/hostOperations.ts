@@ -6,6 +6,11 @@ import type { ActionResult } from '@/core/types/seams';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
+import { concat, sha256, utf8 } from '@shared/speakToSign/spokenRequest';
+import {
+  parseCosignerVoiceRefusal,
+  SPEAK_TO_SIGN_VERIFIERS,
+} from '@shared/speakToSign/voiceVerdict';
 import type {
   AuthMethodPhraseRecording,
   AuthMethodPhraseRequest,
@@ -28,22 +33,11 @@ import {
   noteTransaction,
   type SpokenNoteAction,
 } from './spokenNote';
-import {
-  concat,
-  sha256,
-  transferDigests,
-  utf8,
-  type SpokenDigests,
-} from './spokenTransfer';
-import {
-  checkVoiceVerdict,
-  parseVerifyOutput,
-  SPEAK_TO_SIGN_VERIFIERS,
-  type VoiceApproval,
-} from './voiceVerdict';
+import { transferDigests, type SpokenDigests } from './spokenTransfer';
+import { checkVoiceVerdict, parseVerifyOutput, type VoiceApprovedSigning } from './voiceVerdict';
+import { pcm16Wav, SAMPLE_RATE } from './wav';
 
 type Verifiers = typeof SPEAK_TO_SIGN_VERIFIERS;
-import { pcm16Wav, SAMPLE_RATE } from './wav';
 
 const VERIFY_PATH = '/speak-to-sign/v1/verify';
 const ENROLLMENT_DOMAIN = 'seams:voice-enrollment:v2';
@@ -60,13 +54,13 @@ export type SpeakToSignHostOperationsInput = Readonly<{
   operationCredential: (signal: AbortSignal) => Promise<string>;
   /**
    * The owner's NEAR signing path for one voice-approved transaction: no confirm for `voice`,
-   * a fresh approval with the session's own method for `voice_and_passkey`. `onBroadcast` runs
-   * when the signed transaction leaves for the network.
+   * a fresh approval with the session's own method for `voice_and_passkey`. The signing request
+   * carries the verdict, so the Seams co-signer checks it again. `onBroadcast` runs when the
+   * signed transaction leaves for the network.
    */
   signVoiceApprovedTransaction: (
     transaction: TransactionInput,
-    approval: VoiceApproval,
-    policyText: string | null,
+    voice: VoiceApprovedSigning,
     signal: AbortSignal,
     onBroadcast: () => void,
   ) => Promise<ActionResult>;
@@ -283,17 +277,18 @@ async function signWithVerdict(
   state.paid = true;
   const result = await input.signVoiceApprovedTransaction(
     transaction,
-    check.approval,
-    check.policyText,
+    { approval: check.approval, policyText: check.policyText, verdict: check.verdict },
     signal,
     hooks.broadcasting,
   );
   if (!result.success) {
     // Nothing left the Wallet, so another recording of this flow may still pay.
     if (result.kind === 'not_submitted') state.paid = false;
-    return result.kind === 'not_submitted'
-      ? { kind: 'not_submitted', error: result.error }
-      : { kind: 'submission_unknown', error: result.error };
+    if (result.kind !== 'not_submitted') return { kind: 'submission_unknown', error: result.error };
+    const refusal = parseCosignerVoiceRefusal(result.error);
+    if (!refusal) return { kind: 'not_submitted', error: result.error };
+    const limit = refusal === 'over_payment_limit' || refusal === 'over_daily_limit';
+    return { kind: 'refused', reason: limit ? 'voice_limit' : 'cosigner_refused', detail: refusal };
   }
   const failure = executionFailure(result.result);
   return failure === null

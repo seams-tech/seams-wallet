@@ -19,7 +19,6 @@ import {
   isSpeakableAccount,
   parseSpeakableNear,
   renderTransfer,
-  sha256,
   transferBorsh,
   transferDigests,
   type SpokenDigests,
@@ -35,9 +34,11 @@ import {
 import {
   checkVoiceVerdict,
   parseVerifyOutput,
+  type SignedVoiceVerdict,
   type VoiceApproval,
 } from '@/core/transactionFeatures/voiceVerdict';
 import { MAX_SAMPLES, pcm16Wav } from '@/core/transactionFeatures/wav';
+import { sha256 } from '@shared/speakToSign/spokenRequest';
 import type { Variant } from '@shared/utils/variant';
 import type { ActionResult } from '@/core/types/seams';
 import type { TransactionInput } from '@/core/types/actions';
@@ -317,7 +318,12 @@ test('the shared signed verdict vectors pass the core check as voice and voice-a
         nowMs: SIGNED_VECTORS.expiresAtMs - 60_000,
       }),
       vector.approval,
-    ).toEqual({ kind: 'approved', approval: vector.approval, policyText: vector.policyText });
+    ).toEqual({
+      kind: 'approved',
+      approval: vector.approval,
+      policyText: vector.policyText,
+      verdict: { verdictJson: vector.verdictJson, signatureB64: vector.signatureB64 },
+    });
   }
 });
 
@@ -345,6 +351,7 @@ test('the core check refuses a verdict that does not bind this transfer, clip, t
     kind: 'approved',
     approval: 'voice',
     policyText: null,
+    verdict: { verdictJson: valid, signatureB64: await verifier.sign(valid) },
   });
   expect(await check(await verifyOutput(verifier, valid), { publicKey: other.publicKey })).toEqual(
     mismatch('verdict key is not the pinned verifier key'),
@@ -706,6 +713,14 @@ test('core refusals, a failed transfer and recording problems map to results', a
       { kind: 'unavailable', reason: 'not_submitted', detail: 'closed' },
     ],
     [
+      { kind: 'refused', reason: 'voice_limit', detail: 'over_daily_limit' },
+      { kind: 'refused', reason: 'voice_limit', detail: 'over_daily_limit' },
+    ],
+    [
+      { kind: 'refused', reason: 'cosigner_refused', detail: 'reused' },
+      { kind: 'refused', reason: 'cosigner_refused', detail: 'reused' },
+    ],
+    [
       { kind: 'unavailable', detail: 'This network has no verifier.' },
       {
         kind: 'unavailable',
@@ -720,6 +735,17 @@ test('core refusals, a failed transfer and recording problems map to results', a
       expected,
     );
   }
+  // The card names the co-signer's refusals. Over the limit, another recording cannot help.
+  const limited = fakeCore({
+    payment: { kind: 'refused', reason: 'voice_limit', detail: 'over_daily_limit' },
+  });
+  await runSpokenTransfer(transferInput(hostTransfer(limited)));
+  expect(limited.views.at(-1)).toBe('result:Nothing was sent:Over your voice limit:Close');
+  const refused = fakeCore({
+    payment: { kind: 'refused', reason: 'cosigner_refused', detail: 'reused' },
+  });
+  await runSpokenTransfer(transferInput(hostTransfer(refused)));
+  expect(refused.views.at(-1)).toBe('result:Nothing was sent:Seams refused the verdict:Try again');
 
   const cancelled = fakeCore({ clip: { kind: 'cancelled' } });
   expect(await runSpokenTransfer(transferInput(hostTransfer(cancelled)))).toEqual({
@@ -740,7 +766,12 @@ test('core refusals, a failed transfer and recording problems map to results', a
 
 type CoreHarness = {
   operations: SpeakToSignHostOperations;
-  signed: Array<{ transaction: TransactionInput; approval: VoiceApproval; policyText: unknown }>;
+  signed: Array<{
+    transaction: TransactionInput;
+    approval: VoiceApproval;
+    policyText: unknown;
+    verdict: SignedVoiceVerdict;
+  }>;
   messages: Array<{ message: string; recipient: string }>;
   fetched: Array<{ url: string; init: RequestInit }>;
   setOutcome(outcome: ActionResult): void;
@@ -779,8 +810,8 @@ function coreHarness(verifier: Verifier): CoreHarness {
         },
       },
       operationCredential: async () => 'credential-1',
-      signVoiceApprovedTransaction: async (transaction, approval, policyText, _, onBroadcast) => {
-        harness.signed.push({ transaction, approval, policyText });
+      signVoiceApprovedTransaction: async (transaction, voice, _, onBroadcast) => {
+        harness.signed.push({ transaction, ...voice });
         onBroadcast();
         return outcome;
       },
@@ -899,6 +930,8 @@ test('core pays once per flow, from the owner, with the approval the verdict nam
       },
       approval: 'voice',
       policyText: null,
+      // The signing request carries the checked verdict to the co-signer.
+      verdict: { verdictJson: accept.verdict_json, signatureB64: accept.signature_b64 },
     },
   ]);
   // A second accepted verdict of the same flow, such as one after "Try again", pays nothing.
@@ -1006,6 +1039,51 @@ test('a transfer that never left the Wallet lets another verdict of the flow pay
   expect(await harness.operations.payWithVerdict(transfer, second, signal, paymentHooks())).toEqual(
     { kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' },
   );
+});
+
+test('a co-signer refusal returns its typed reason, and another verdict of the flow may pay', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const transfer = { receiver: 'alice.testnet', amountYocto: 25n * 10n ** 24n };
+  const refusedBy = (reason: string) =>
+    harness.setOutcome({
+      success: false,
+      kind: 'not_submitted',
+      error: `Router A/B signing /router-ab/ed25519/sign/prepare returned HTTP 403: Speak-to-Sign verdict refused: ${reason}`,
+    } as never);
+  const pay = async (speakerScore: number) =>
+    await harness.operations.payWithVerdict(
+      transfer,
+      await verifyOutput(
+        verifier,
+        await verdictJson(transferRequest(), audio, { speaker_score_milli: speakerScore }),
+      ),
+      signal,
+      paymentHooks(),
+    );
+  for (const [reason, expected] of [
+    ['over_payment_limit', 'voice_limit'],
+    ['over_daily_limit', 'voice_limit'],
+    ['reused', 'cosigner_refused'],
+    ['step_up_required', 'cosigner_refused'],
+  ] as const) {
+    refusedBy(reason);
+    expect(await pay(600), reason).toEqual({ kind: 'refused', reason: expected, detail: reason });
+  }
+  // An unknown reason in the message stays a plain signing failure.
+  refusedBy('something_else');
+  expect(await pay(601)).toMatchObject({ kind: 'not_submitted' });
+  harness.setOutcome({
+    success: true,
+    transactionId: 'tx-ok',
+    result: { status: { SuccessValue: '' }, receipts_outcome: [] } as never,
+  });
+  expect(await pay(602)).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(harness.signed).toHaveLength(6);
 });
 
 test('core signs the enrollment message only for three clips it recorded', async () => {
@@ -1195,13 +1273,9 @@ test('core signs one add_note call with no deposit for the verdict of this note 
     ),
   ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
 
+  const accepted = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
   expect(
-    await harness.operations.signNoteWithVerdict(
-      NOTE,
-      await verifyOutput(verifier, await verdictJsonFor(digests, audio)),
-      signal,
-      paymentHooks(),
-    ),
+    await harness.operations.signNoteWithVerdict(NOTE, accepted, signal, paymentHooks()),
   ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
   expect(harness.signed).toEqual([
     {
@@ -1219,6 +1293,7 @@ test('core signs one add_note call with no deposit for the verdict of this note 
       },
       approval: 'voice',
       policyText: null,
+      verdict: { verdictJson: accepted.verdict_json, signatureB64: accepted.signature_b64 },
     },
   ]);
 });

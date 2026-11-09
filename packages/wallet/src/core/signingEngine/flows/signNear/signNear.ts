@@ -252,6 +252,8 @@ type SignTransactionWithActionsInput = {
   replacementNonce?: string;
   /** An owner approval's cost check: Confirm waits for it, and a shortfall refuses. */
   confirmationPrecondition?: Promise<void>;
+  /** Only a Speak-to-Sign transaction carries a verdict, for the co-signer to check. */
+  voiceVerdict?: NearTransactionWithActionsPayload['voiceVerdict'];
 };
 
 type NearTransactionPublicSigningOptions = Pick<
@@ -1530,9 +1532,8 @@ async function signTransactionWithActionsAttempt(
             transaction: args.transaction,
             rpcCall: args.rpcCall,
             ...(args.replacementNonce ? { replacementNonce: args.replacementNonce } : {}),
-            ...(args.confirmationPrecondition
-              ? { confirmationPrecondition: args.confirmationPrecondition }
-              : {}),
+            confirmationPrecondition: args.confirmationPrecondition,
+            voiceVerdict: args.voiceVerdict,
             signerSlot: publicOptions.signerSlot,
             confirmationConfigOverride: publicOptions.confirmationConfigOverride,
             title: publicOptions.title,
@@ -1623,9 +1624,8 @@ async function signTransactionWithActionsAttempt(
           transaction: args.transaction,
           rpcCall: args.rpcCall,
           ...(args.replacementNonce ? { replacementNonce: args.replacementNonce } : {}),
-          ...(args.confirmationPrecondition
-            ? { confirmationPrecondition: args.confirmationPrecondition }
-            : {}),
+          confirmationPrecondition: args.confirmationPrecondition,
+          voiceVerdict: args.voiceVerdict,
           signerSlot: publicOptions.signerSlot,
           confirmationConfigOverride: publicOptions.confirmationConfigOverride,
           title: publicOptions.title,

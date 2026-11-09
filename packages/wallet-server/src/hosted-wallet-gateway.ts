@@ -102,6 +102,7 @@ import {
   createSpeakToSignVerifyRouteExtensions,
   readSpeakToSignVerifyConfig,
 } from './router/domains/speakToSign/speakToSignVerify';
+import { createD1VoiceVerdictLedger } from './router/cloudflare/d1/speakToSign/d1VoiceVerdictLedger';
 
 export interface CloudflareD1GatewayBaseEnv
   extends Readonly<Record<string, unknown>>, RouterAbServiceBindingEnv {
@@ -238,6 +239,7 @@ const RELAY_SIGNER_READY_TABLES = Object.freeze([
   'router_ab_yao_versioned_json_cas_guard',
   'router_ab_yao_capability_replacements',
   'router_ab_normal_signing_admission_records',
+  'speak_to_sign_voice_verdicts',
   'registration_ceremony_records',
   'registration_ceremony_cas_guard',
   'linked_device_sessions',
@@ -766,6 +768,7 @@ export async function createHostedWalletGatewayCompositionV1(
   );
   const tenantId = parseTenantId(scope.orgId);
   if (!tenantId.ok) throw new Error('Wallet placement authorization tenant is invalid');
+  const speakToSign = readSpeakToSignVerifyConfig((name) => readEnvString(env, name));
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,
@@ -787,14 +790,11 @@ export async function createHostedWalletGatewayCompositionV1(
         authorizationSessions: service.authorizationSessions,
         directory: env.WALLET_CONSOLE,
       }),
-      ...createSpeakToSignVerifyRouteExtensions(
-        readSpeakToSignVerifyConfig((name) => readEnvString(env, name)),
-        {
-          authorizationSessions: service.authorizationSessions,
-          walletRegistration: service.walletRegistration,
-          fetch: globalThis.fetch.bind(globalThis),
-        },
-      ),
+      ...createSpeakToSignVerifyRouteExtensions(speakToSign, {
+        authorizationSessions: service.authorizationSessions,
+        walletRegistration: service.walletRegistration,
+        fetch: globalThis.fetch.bind(globalThis),
+      }),
     ],
     router: {
       healthz: true,
@@ -818,6 +818,15 @@ export async function createHostedWalletGatewayCompositionV1(
       },
       signingSessionSeal: stagingSigningSessionSealOptions(env),
       routerAbEd25519YaoProduct: yaoRuntime,
+      // The co-signer checks the verdicts that the verify route returns.
+      speakToSignVoiceVerdicts: speakToSign
+        ? {
+            ledger: createD1VoiceVerdictLedger({
+              database: env.SIGNER_DB,
+              namespace: scope.namespace,
+            }),
+          }
+        : null,
     },
   });
   return { handler, service, session };

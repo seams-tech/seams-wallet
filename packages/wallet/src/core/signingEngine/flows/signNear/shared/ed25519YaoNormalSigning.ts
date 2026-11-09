@@ -1,4 +1,5 @@
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import type { SignedVoiceVerdict } from '@/core/transactionFeatures/voiceVerdict';
 import type { SigningSessionCoordinator } from '../../../session/SigningSessionCoordinator';
 import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/activeWalletSession';
 import { resolveNearNetwork } from '@/core/config/chains';
@@ -597,6 +598,8 @@ type RouterAbEd25519NormalSigningSignatureBase = {
   credential: RouterAbEd25519NormalSigningCredential;
   /** The answer of a prepare that was sent before the user confirmed. */
   startedResponse?: Promise<Ed25519PrepareSessionResult>;
+  /** Only a Speak-to-Sign transaction carries a verdict, for the co-signer to check. */
+  voiceVerdict?: SignedVoiceVerdict;
 };
 
 type Ed25519PrepareSessionResult = Awaited<ReturnType<typeof prepareRouterAbNormalSigningV2>>;
@@ -689,6 +692,7 @@ async function finalizeRouterAbEd25519NormalSigningSignature(
         relayServerUrl: materialFacts.relayerUrl,
         credential: args.credential,
         request: args.prepare.request,
+        voiceVerdict: args.voiceVerdict,
       });
   emitEd25519SigningTiming(operationId, 'prepare', prepareStartedAt);
   if (args.authorization === 'reusable_wallet_session') {
@@ -1320,6 +1324,7 @@ type RouterAbEd25519NearTransactionNormalSigningBase = {
   displayDigest: string;
   txSigningRequest: TransactionPayload;
   transactionContext: TransactionContext | undefined;
+  voiceVerdict?: SignedVoiceVerdict;
 };
 
 type RouterAbEd25519NearTransactionNormalSigningArgs =
@@ -1456,7 +1461,7 @@ export async function startRouterAbEd25519NearTransactionPrepare(
   args: RouterAbEd25519NearTransactionWarmPrepareArgs &
     Pick<
       RouterAbEd25519NearTransactionNormalSigningBase,
-      'ctx' | 'thresholdSessionId' | 'thresholdKeyMaterial' | 'txSigningRequest'
+      'ctx' | 'thresholdSessionId' | 'thresholdKeyMaterial' | 'txSigningRequest' | 'voiceVerdict'
     > & { transactionContext: TransactionContext },
 ): Promise<RouterAbEd25519StartedPrepare> {
   const unsigned = await buildThresholdEd25519NearTxUnsignedBorshWasm({
@@ -1480,6 +1485,7 @@ export async function startRouterAbEd25519NearTransactionPrepare(
     relayServerUrl: args.walletSessionState.relayerUrl,
     credential: ready.credential,
     request: prepare.request,
+    voiceVerdict: args.voiceVerdict,
   });
   // A refusal is observed where the signature awaits it; nothing else may
   // report it as unhandled meanwhile.
@@ -1583,6 +1589,7 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
         prepare,
         credential,
         authorization: 'operation_step_up',
+        voiceVerdict: args.voiceVerdict,
       })
     : await tryFinalizeRouterAbEd25519NormalSigningSignature({
         thresholdSessionId: args.thresholdSessionId,
@@ -1598,6 +1605,7 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
         credential,
         authorization: 'reusable_wallet_session',
         startedResponse: started?.response,
+        voiceVerdict: args.voiceVerdict,
       });
   const finalized = await finalizeThresholdEd25519NearTxFromSignatureWasm({
     unsignedTransactionBorshB64u: unsigned.unsignedTransactionBorshB64u,

@@ -26,6 +26,10 @@ import { normalizeCorsOrigin } from '../../../../core/SessionService';
 import { buildRouterAbEd25519PrivateSigningWorkerBody } from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
 import { authenticateRouterAbWalletOperationStepUpIdentity } from '../../../domains/signingOperations/routerAbOperationStepUp';
 import {
+  checkSigningRequestVoiceVerdict,
+  splitVoiceVerdict,
+} from '../../../domains/speakToSign/voiceVerdictAdmission';
+import {
   authorizeRouterAbEd25519NormalSigningRoute,
   buildRouterAbEd25519OwnerOperationStepUpPreparation,
   decideRouterAbEd25519OwnerOperationAuthorization,
@@ -1481,7 +1485,7 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
     complete: null,
     total: null,
   };
-  const response = await executeRouterAbEd25519NormalSigningRoute(input, timing);
+  const response = await executeRouterAbEd25519NormalSigningRoute(splitVoiceVerdict(input), timing);
   timing.total = performance.now() - startedAt;
   const headers = new Headers(response.headers);
   for (const [stage, duration] of Object.entries(timing)) {
@@ -1518,6 +1522,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
     ctx: FetchRouterApiContext;
     body: Record<string, unknown>;
     phase: RouterAbEd25519NormalSigningRoutePhase;
+    voiceVerdict: unknown;
   },
   timing: Ed25519SigningGatewayTiming,
 ): Promise<Response> {
@@ -1538,6 +1543,8 @@ async function executeRouterAbEd25519NormalSigningRoute(
   if (!authorization.ok) {
     return json(authorization.result.body, { status: authorization.result.status });
   }
+  const voiceRefusal = await checkSigningRequestVoiceVerdict(input, authorization.kind);
+  if (voiceRefusal) return voiceRefusal;
   if (authorization.kind === 'operation_step_up') {
     if (input.phase === 'prepare') {
       if (authorization.phase !== 'prepare') {

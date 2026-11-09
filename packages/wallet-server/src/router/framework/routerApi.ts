@@ -1,3 +1,4 @@
+import type { SpeakToSignVoiceVerdictCheck } from '../domains/speakToSign/voiceVerdictAdmission';
 import type { RouterLogger } from './logger';
 import type { RouterApiRorOptions } from './ror/provider';
 import type { RouterApiModule } from './modules';
@@ -279,6 +280,11 @@ export interface RouterApiOptions {
   routerAbNormalSigningAdmission?: RouterAbNormalSigningAdmissionAdapter | null;
   /** Public normal-signing transport to the stateless MPC Router. */
   routerAbNormalSigningRouterProxy?: RouterAbNormalSigningRouterProxy | null;
+  /**
+   * The co-signer's check of Speak-to-Sign verdicts. Without it, the Ed25519 signing route
+   * refuses every request that carries a verdict.
+   */
+  speakToSignVoiceVerdicts?: SpeakToSignVoiceVerdictCheck | null;
   /** Strict Router A/B owner for ECDSA export, recovery, and activation refresh. */
   routerAbEcdsaStrictPostRegistration?: RouterAbEcdsaStrictPostRegistrationPort | null;
   /** Local product runtime used to restore an authenticated Ed25519 Yao capability. */

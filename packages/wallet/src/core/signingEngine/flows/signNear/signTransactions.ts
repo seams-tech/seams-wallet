@@ -202,6 +202,7 @@ async function startWarmNearTransactionPrepare(
     | 'nearAccountId'
     | 'operationId'
     | 'txSigningRequest'
+    | 'voiceVerdict'
   > & {
     warmMaterial: Promise<WarmNearSigningMaterial>;
     sessionCoordinator: SigningSessionCoordinator;
@@ -233,6 +234,7 @@ async function startWarmNearTransactionPrepare(
     operationId: args.operationId,
     displayDigest,
     txSigningRequest: args.txSigningRequest,
+    voiceVerdict: args.voiceVerdict,
     transactionContext: args.readiness.transactionContext,
   });
 }
@@ -475,6 +477,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
     signerSlot,
     replacementNonce,
     confirmationPrecondition,
+    voiceVerdict,
     signingOperationState,
     signingSessionCoordinator: sessionCoordinator,
     selection,
@@ -711,6 +714,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
       operationFingerprint,
       displayDigest: confirmation.intentDigest,
       txSigningRequest,
+      voiceVerdict,
       transactionContext: confirmation.readiness.transactionContext,
       authorization: {
         kind: 'operation_step_up',
@@ -759,6 +763,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   signerSlot,
   replacementNonce,
   confirmationPrecondition,
+  voiceVerdict,
   signingOperationState,
   signingSessionCoordinator: sessionCoordinator,
   transactionOperation,
@@ -1000,6 +1005,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
       nearAccountId,
       operationId: signingOperation.operationId,
       txSigningRequest,
+      voiceVerdict,
       confirmationTransaction,
       readiness,
     }).catch(ignoreStartedPrepareFailure);
@@ -1273,6 +1279,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             operationFingerprint,
             displayDigest: confirmation.intentDigest,
             txSigningRequest,
+            voiceVerdict,
             transactionContext,
             authorization: {
               kind: 'operation_step_up',
@@ -1314,6 +1321,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             operationFingerprint,
             displayDigest: confirmation.intentDigest,
             txSigningRequest,
+            voiceVerdict,
             transactionContext,
             authorization: { kind: 'reusable_wallet_session' },
             startedPrepare: startedPrepareTask ? await startedPrepareTask : null,

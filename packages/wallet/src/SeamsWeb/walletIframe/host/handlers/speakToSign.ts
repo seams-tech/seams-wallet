@@ -24,7 +24,7 @@ import {
 } from '@/core/transactionFeatures/plugins';
 import type { TransactionInput } from '@/core/types/actions';
 import { SigningEventPhase } from '@/core/types/sdkSentEvents';
-import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
+import type { VoiceApprovedSigning } from '@/core/transactionFeatures/voiceVerdict';
 import { signAndSendVoiceApprovedTransaction } from '@/SeamsWeb/operations/near/actions';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { ProgressPayload } from '../../shared/messages';
@@ -281,8 +281,7 @@ async function signVoiceApproved(
   walletId: WalletId,
   ownerAccountId: string,
   transaction: TransactionInput,
-  approval: VoiceApproval,
-  policyText: string | null,
+  voice: VoiceApprovedSigning,
   signal: AbortSignal,
   onBroadcast: () => void,
 ) {
@@ -293,8 +292,7 @@ async function signVoiceApproved(
     nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
     walletSession: { walletId, walletSessionUserId: String(walletId) },
     transactionInput: transaction,
-    approval,
-    policyText,
+    voice,
     options: { ...progress, onEvent: forwardProgress.bind(null, progress.onEvent, onBroadcast) },
   });
 }

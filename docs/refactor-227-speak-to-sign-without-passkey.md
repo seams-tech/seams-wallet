@@ -1,7 +1,8 @@
 # Refactor 227: Speak-to-Sign without a passkey, with typed contract calls
 
 Status: 2026-11-09. Step 1 (payments without a passkey) and Step 4 (retire the vault) are
-done. Step 1b, Step 2 and Step 3 are open. Step 5 (records) is done. The plan changed the
+done. Step 1b (the co-signer checks the verdict) is done in code and not deployed. Step 2 and
+Step 3 are open. Step 5 (records) is done. The plan changed the
 Speak-to-Sign design of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and
 uses the step-up of [Refactor 225](refactor-225-jev-policy-engine.md) (Section 4).
 
@@ -233,8 +234,8 @@ SpokenRequestV1::NoteRating { .. }    // tag 5, Step 3 (Section 4)
 Each step is built, tested and deployed only after the user approves it. Deployments wait
 until the 0.57.0 rollout session reports done.
 
-1. **Payments without a passkey.** Done on 2026-11-09, except 1b and the open items under
-   "As built (Step 1)" below.
+1. **Payments without a passkey.** Done on 2026-11-09, except the open items under
+   "As built (Step 1)" below. 1b is done in code and not deployed ("As built (Step 1b)").
    - `spoken-intent`: `AccountTransfer`, golden vectors, and the TypeScript port. The port
      moves into Wallet core, because core checks the verdict. Delete `VaultTransfer`.
    - Verifier 0.3.0: verdict v2, `expires_at_ms`, the policy step with the stub rule, the new
@@ -245,6 +246,7 @@ until the 0.57.0 rollout session reports done.
      path for a cold session, and the NEP-413 enrollment. Then input-free signing
      preparation during verify, if the signing engine allows it without a large change.
    - 1b. wallet-server: the co-signer admission checks the verdict and the voice limits.
+     Done in code on 2026-11-09, not deployed.
    - Deploy: FastFS upload, `add_version`, pin `versionKey` in `targets.json`, deploy
      wallet-server and the hosted Wallet to staging, release the SDK if its app API changed.
    - Check: a 1 NEAR spoken payment on the staging demo with no passkey prompt; an 11 NEAR
@@ -276,6 +278,49 @@ until the 0.57.0 rollout session reports done.
      refused the transaction for the balance.
    - Not done or not recorded: the input-free signing preparation during verify; the check on
      the staging demo; 10 runs of end of speech to settled.
+
+   As built (Step 1b), 2026-11-09:
+
+   - The first signing round (`POST /router-ab/ed25519/sign/prepare`) of a voice-approved
+     transaction carries `voice_verdict: { verdict_json, signature_b64 }` beside the request.
+     The field is not in the request digests. It adds no round trip. A normal signing request
+     carries no verdict, and the co-signer runs no check for it. The gateway takes the field out
+     before it sends the request to the MPC Router.
+   - The gateway checks the verdict after the route authorized the session, before the
+     operation claim and the MPC Router
+     (`wallet-server/src/router/domains/speakToSign/voiceVerdictAdmission.ts`):
+     - the signature against the pinned key of the network. The key table is in
+       `shared-ts/src/speakToSign/voiceVerdict.ts`, and Wallet core uses the same table;
+     - the expiry (at most 150 s ahead, as in Wallet core);
+     - the request digest against the request that the co-signer builds from the unsigned
+       transaction: one `Transfer`, or one `add_note` or `rate_note` call with a deposit of 0;
+     - the transaction signer against the NEAR account of the session's Ed25519 material;
+     - single use, in the D1 table `speak_to_sign_voice_verdicts` (migration `0089`). A retry
+       of the same signing request (the same `request_id`) may use the verdict again;
+     - the voice limits: 10 NEAR in one voice-only payment and 20 NEAR in any 24 hours for each
+       wallet. One SQL statement adds the verdict and checks the 24-hour sum. The limits are
+       constants in code, not settings of each wallet;
+     - a `step_up` verdict only with an operation step-up authorization (a passkey or Email OTP
+       approval of this exact operation). Such a payment does not count toward the voice
+       limits.
+       Inferred from the code, not measured: a VoiceID session answers the fresh approval with
+       a new VoiceID unlock (`VoiceIdStepUpRequiredError`), which renews the session and is not
+       an approval of the operation. So the co-signer refuses the `step_up` verdict of a
+       VoiceID-only wallet with `step_up_required`. Open question for the user: keep this, or
+       accept a fresh VoiceID unlock.
+   - A refusal is HTTP 403 (409 for `reused`, 503 for `unavailable`) with
+     `code: "voice_verdict_refused"`, a typed `reason` (`CosignerVoiceRefusal`) and a message
+     that names the reason. Wallet core reads the reason from the signing error. The app
+     result is `refused` with `voice_limit` or `cosigner_refused`, and `detail` holds the
+     reason. The Speak-to-Sign host API version is 7.
+   - The Borsh request builders and the verdict v2 format moved from Wallet core to
+     `shared-ts/src/speakToSign/`, so the Wallet and the co-signer build the same bytes.
+   - Tests: `tests/unit/speakToSignVoiceVerdict.unit.test.ts` (each refusal, the accepted
+     transfer, note and rating, the D1 ledger on the real migration, the request body that the
+     Wallet sends) and `tests/unit/speakToSignHost.unit.test.ts`.
+   - Not done: the deploy and a live check on staging. Deploy wallet-server with migration
+     `0089` before the hosted Wallet: an older gateway does not take `voice_verdict` out of the
+     request.
 2. **Live progress.** Route SSE, SDK stream reader, Wallet progress events. Open.
 3. **Spoken community notes.** `CommunityNote` and `NoteRating` in the crate and the port,
    the notes contract, verifier 0.4.0, the Wallet and SDK `requestNote` and `requestRating`,

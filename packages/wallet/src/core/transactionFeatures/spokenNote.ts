@@ -5,23 +5,24 @@
 
 import { functionCall } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
+import {
+  NOTE_RATINGS,
+  sha256,
+  spokenRequestBorsh,
+  utf8,
+  type NoteRating,
+} from '@shared/speakToSign/spokenRequest';
 import type { SpeakToSignNetwork } from './plugins';
 import {
-  borshString,
-  concat,
   isMultiplierWord,
   isNumberWord,
   isSpeakableAccount,
-  littleEndian,
-  sha256,
   spokenDigests,
-  utf8,
   type RenderedTransfer,
   type SpokenDigests,
 } from './spokenTransfer';
 
-const COMMUNITY_NOTE_TAG = 4;
-const NOTE_RATING_TAG = 5;
+export { NOTE_RATINGS, type NoteRating };
 
 /** Twelve plain words fit in one 8 s clip. */
 export const MAX_SUMMARY_WORDS = 12;
@@ -39,9 +40,6 @@ const TEXT_ALIASES = new Map([
   ['nir', 'near'],
   ['neer', 'near'],
 ]);
-
-export const NOTE_RATINGS = ['helpful', 'somewhat_helpful', 'not_helpful'] as const;
-export type NoteRating = (typeof NOTE_RATINGS)[number];
 
 const RATING_WORDS: Readonly<Record<NoteRating, readonly string[]>> = {
   helpful: ['this', 'note', 'is', 'helpful'],
@@ -147,27 +145,19 @@ export async function noteActionBorsh(
   owner: string,
   action: SpokenNoteAction,
 ): Promise<Uint8Array> {
-  const head = [
-    Uint8Array.of(
-      action.kind === 'community_note' ? COMMUNITY_NOTE_TAG : NOTE_RATING_TAG,
-      network === 'testnet' ? 0 : 1,
-    ),
-    borshString(owner),
-    borshString(action.contract),
-  ];
-  if (action.kind === 'note_rating') {
-    return concat([
-      ...head,
-      littleEndian(action.noteId, 8),
-      Uint8Array.of(NOTE_RATINGS.indexOf(action.rating)),
-    ]);
-  }
-  return concat([
-    ...head,
-    littleEndian(action.postId, 8),
-    await noteSha256(action.text),
-    borshString(action.summary),
-  ]);
+  return spokenRequestBorsh(
+    action.kind === 'note_rating'
+      ? { ...action, network, owner }
+      : {
+          kind: 'community_note',
+          network,
+          owner,
+          contract: action.contract,
+          postId: action.postId,
+          noteSha256: await noteSha256(action.text),
+          summary: action.summary,
+        },
+  );
 }
 
 export async function noteActionDigests(

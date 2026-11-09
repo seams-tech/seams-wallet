@@ -1,4 +1,5 @@
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type { SignedVoiceVerdict } from '@/core/transactionFeatures/voiceVerdict';
 import type { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type { AccountId } from '@/core/types/accountIds';
 import type { TransactionInputWasm } from '@/core/types/actions';
@@ -222,6 +223,8 @@ type NearTransactionWithActionsPayloadBase = {
   yaoMaterialExecutor: NearEd25519YaoMaterialExecutor;
   /** Sign at this exact nonce, replacing an earlier signed transaction of the same key. */
   replacementNonce?: string;
+  /** Only a Speak-to-Sign transaction carries a verdict, for the co-signer to check. */
+  voiceVerdict?: SignedVoiceVerdict;
   /**
    * Confirm stays unavailable until this settles. A `ConfirmationRefusal` closes the card
    * before anything is signed; the card shows any other rejection as an error.

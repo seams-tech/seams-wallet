@@ -42,7 +42,9 @@ enrollment and uses the VoiceID capture surface.
 5. On `accept`, the Wallet signs the transfer through the owner's Wallet
    Session with no confirm and sends it. On `step_up`, the card asks the owner
    to approve again with the session's own method (a passkey on a passkey
-   session).
+   session). The signing request carries the verdict, and the Seams co-signer
+   checks it again before it adds its part of the signature (see
+   [Trust model](#trust-model)).
 6. The card shows the result: the paid transfer with a link, or the reason
    for a refusal. After a refusal of the words or the voice, the owner can
    record the sentence again, up to five recordings in all. The call returns
@@ -91,6 +93,12 @@ A `sent` result has `approval`: `voice` when the verdict alone approved the
 payment, and `voice_and_passkey` when a policy rule asked for the confirm
 again. Today the verifier has one stub rule: a voice payment above 10 NEAR needs
 a passkey.
+
+When the Seams co-signer refuses the verdict, the result is `refused` with
+`voice_limit` (over the voice limit for one payment or for 24 hours) or
+`cosigner_refused` (any other refusal of the co-signer). `detail` then holds
+the co-signer's reason, for example `over_daily_limit` or `reused`. Nothing was
+signed.
 
 An app without the descriptor downloads no Speak-to-Sign code, WASM or assets.
 An app with it loads nothing more until a spoken payment starts.
@@ -190,6 +198,12 @@ another owner's voice. It serves the verifier's `verify` and `enroll`
 operations, accepts a body of at most 1,100 KB, and passes the verifier output
 back unchanged.
 
+The same six variables turn on the co-signer's verdict check. It records each
+accepted verdict in the signer database table `speak_to_sign_voice_verdicts`
+(D1 migration `0089_speak_to_sign_voice_verdicts.sql`). A Seams server without
+the variables refuses every signing request that carries a verdict, with the
+reason `unavailable`.
+
 ## The verifier key
 
 The verifier is the OutLayer project `seams-v1.testnet/voice-verifier`. Its
@@ -205,6 +219,30 @@ recording that it made in the same flow.
   exact request: network, owner, receiver and amount, and a recording of this
   flow. The Wallet Session and the Seams co-signer still take part in every
   signature.
+- The Seams co-signer checks the verdict again before it adds its part of the
+  signature. It checks only a signing request that carries a verdict. A
+  normal signing request carries none, and the co-signer handles it as before.
+  The co-signer checks these items:
+  - The signature, against the same pinned verifier key.
+  - The expiry: at most 120 s after the verifier signed.
+  - The transaction. The co-signer reads the unsigned transaction that it is
+    asked to sign and builds the request again: one transfer to the receiver
+    with the amount, or one `add_note` or `rate_note` call with no deposit. The
+    digest of that request must equal the digest in the verdict.
+  - The owner. The transaction signer must be the NEAR account of the Wallet
+    Session.
+  - Single use. The co-signer records each verdict that it accepts and refuses
+    it for another signing request.
+  - The voice limits of each wallet: at most 10 NEAR in one voice payment and
+    20 NEAR in any 24 hours. A refused payment does not count. An admitted
+    payment counts, also when it then fails on chain.
+  - A `step_up` verdict. The co-signer accepts it only with a fresh approval
+    of the same operation (a passkey or Email OTP step-up). Such a payment is
+    not voice-only, so the voice limits do not apply to it.
+- The co-signer check protects against a fault in the Wallet's Speak-to-Sign
+  path, and it keeps the limits and single use on the server. It does not stop
+  code at `walletOrigin` that leaves the verdict out, because such code can
+  already sign in an open Wallet Session.
 - No contract limits a spoken payment. A payment above the policy rule's
   amount needs the confirm again.
 - The verifier runs in OutLayer's TEE. The OutLayer project owner can deploy a

@@ -17,7 +17,10 @@ import { toError } from '@shared/utils/errors';
 import { getNearShortErrorMessage } from '@shared/utils/near';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
+import type {
+  SignedVoiceVerdict,
+  VoiceApprovedSigning,
+} from '@/core/transactionFeatures/voiceVerdict';
 import {
   SENSITIVE_OPERATION_POLICIES,
   type SensitiveOperationPolicy,
@@ -119,8 +122,9 @@ export async function signAndSendTransaction(args: {
 }
 
 /**
- * Signs and sends one transfer that a Speak-to-Sign verdict approved. Only the Speak-to-Sign
- * route of the Wallet iframe calls it, after Wallet core checked the verdict.
+ * Signs and sends one transaction that a Speak-to-Sign verdict approved. Only the Speak-to-Sign
+ * route of the Wallet iframe calls it, after Wallet core checked the verdict. The signing request
+ * carries the verdict, so the Seams co-signer checks it again before it adds its part.
  * - `voice`: the spoken sentence was the confirmation, so no confirm shows.
  * - `voice_and_passkey`: a policy rule asked for more, so the owner approves again with the
  *   session's own method (a passkey on a passkey session) on a confirm that shows the rule.
@@ -130,32 +134,31 @@ export async function signAndSendVoiceApprovedTransaction(args: {
   nearAccountId: AccountId;
   walletSession: WalletSessionRef;
   transactionInput: TransactionInput;
-  approval: VoiceApproval;
-  policyText: string | null;
+  voice: VoiceApprovedSigning;
   options: SignAndSendTransactionHooksOptions;
 }): Promise<ActionResult> {
-  if (args.approval === 'voice') {
-    return signAndSendTransactionInternal({
-      context: args.context,
-      nearAccountId: args.nearAccountId,
-      walletSession: args.walletSession,
-      transactionInput: args.transactionInput,
-      options: args.options,
-      confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' },
-    });
-  }
-  // The owner already asked to approve in the Speak-to-Sign card, so only the fresh approval
-  // runs. A browser that needs its own click for a passkey still gets a clickable confirm.
-  return signAndSendTransactionInternal({
+  const signing = {
     context: args.context,
     nearAccountId: args.nearAccountId,
     walletSession: args.walletSession,
     transactionInput: args.transactionInput,
+    confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' } as const,
+    voiceVerdict: args.voice.verdict,
+  };
+  if (args.voice.approval === 'voice') {
+    return signAndSendTransactionInternal({ ...signing, options: args.options });
+  }
+  // The owner already asked to approve in the Speak-to-Sign card, so only the fresh approval
+  // runs. A browser that needs its own click for a passkey still gets a clickable confirm.
+  return signAndSendTransactionInternal({
+    ...signing,
     options: {
       ...args.options,
-      confirmerText: { title: 'Confirm this voice payment', body: args.policyText ?? undefined },
+      confirmerText: {
+        title: 'Confirm this voice payment',
+        body: args.voice.policyText ?? undefined,
+      },
     },
-    confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' },
     sensitivePolicy: SENSITIVE_OPERATION_POLICIES.requireFreshSameMethod,
   });
 }
@@ -426,6 +429,7 @@ async function signAndSendTransactionInternal({
   options,
   confirmationConfigOverride,
   sensitivePolicy,
+  voiceVerdict,
 }: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
@@ -434,6 +438,7 @@ async function signAndSendTransactionInternal({
   options?: SignAndSendTransactionHooksOptions;
   confirmationConfigOverride?: Partial<ConfirmationConfig> | undefined;
   sensitivePolicy?: SensitiveOperationPolicy;
+  voiceVerdict?: SignedVoiceVerdict;
 }): Promise<ActionResult> {
   try {
     const signedTx = await signTransactionWithActionsInternal({
@@ -444,6 +449,7 @@ async function signAndSendTransactionInternal({
       options,
       confirmationConfigOverride,
       sensitivePolicy,
+      voiceVerdict,
     });
 
     const txResult = await sendTransaction({
@@ -493,6 +499,7 @@ async function signTransactionWithActionsInternal({
   options,
   confirmationConfigOverride,
   sensitivePolicy,
+  voiceVerdict,
 }: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
@@ -501,6 +508,8 @@ async function signTransactionWithActionsInternal({
   options?: Omit<ActionHooksOptions, 'afterCall'>;
   confirmationConfigOverride?: Partial<ConfirmationConfig> | undefined;
   sensitivePolicy?: SensitiveOperationPolicy;
+  /** Only a Speak-to-Sign transaction carries a verdict, for the co-signer to check. */
+  voiceVerdict?: SignedVoiceVerdict;
 }): Promise<SignTransactionResult> {
   const { onEvent, onError, waitUntil, confirmerText, signerSlot } = options || {};
 
@@ -544,6 +553,7 @@ async function signTransactionWithActionsInternal({
         signerSlot,
         confirmationConfigOverride: confirmationConfigOverride,
         ...(sensitivePolicy ? { sensitivePolicy } : {}),
+        ...(voiceVerdict ? { voiceVerdict } : {}),
         title: confirmerText?.title,
         body: confirmerText?.body,
         onEvent,

@@ -6,7 +6,7 @@ import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 6;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 7;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -20,8 +20,19 @@ export type SpeakToSignUnavailableReason =
   /** The transaction may have been sent. Check it before another payment. */
   | 'submission_unknown';
 
-/** Refusals from the verifier, the verdict check in Wallet core and the chain. */
+/**
+ * Refusals of the Seams co-signer, which checks the verdict again before it adds its part of
+ * the signature. `detail` names its reason (`CosignerVoiceRefusal`). Nothing was signed.
+ */
+type SpeakToSignCosignerRefusalReason =
+  /** The payment is over the voice limit for one payment or for 24 hours. */
+  | 'voice_limit'
+  /** Another refusal of the co-signer, for example a verdict that it already accepted. */
+  | 'cosigner_refused';
+
+/** Refusals from the verifier, the verdict check in Wallet core, the co-signer and the chain. */
 export type SpeakToSignRefusalReason =
+  | SpeakToSignCosignerRefusalReason
   | VerifierRefusal
   /** The amount is not a whole number of hundredths of NEAR from 0.01 to 1,000,000. */
   | 'amount_not_speakable'
@@ -62,6 +73,7 @@ export type SpeakToSignTransferResult = SpokenResult<SpeakToSignRefusalReason>;
 /** Refusals of a spoken community note or note rating. */
 export type SpeakToSignNoteRefusalReason =
   | VerifierRefusal
+  | SpeakToSignCosignerRefusalReason
   /** The summary is not 1 to 12 plain words of ASCII letters (see `summaryRefusal`). */
   | 'summary_not_speakable'
   /** The contract, the id, the note text (1 to 280 characters) or the rating is not valid. */
@@ -144,7 +156,11 @@ export type SpeakToSignPayment =
   | Readonly<{ kind: 'reverted'; transactionHash: string; error: string }>
   | Readonly<{ kind: 'not_submitted'; error: string }>
   | Readonly<{ kind: 'submission_unknown'; error: string }>
-  | Readonly<{ kind: 'refused'; reason: VerifierRefusal | 'verdict_mismatch'; detail?: string }>
+  | Readonly<{
+      kind: 'refused';
+      reason: VerifierRefusal | 'verdict_mismatch' | SpeakToSignCosignerRefusalReason;
+      detail?: string;
+    }>
   /** The owner closed the step-up question. Nothing was signed. */
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; detail: string }>;

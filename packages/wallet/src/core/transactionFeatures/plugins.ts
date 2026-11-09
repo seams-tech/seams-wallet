@@ -1,7 +1,8 @@
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import type { Variant } from '@shared/utils/variant';
+import type { SpeakToSignNetwork } from '@shared/speakToSign/spokenRequest';
 
-export type SpeakToSignNetwork = 'testnet' | 'mainnet';
+export type { SpeakToSignNetwork };
 
 /** Spoken payments from the owner's own account. It is data only and loads no code. */
 export type SpeakToSignFeaturePlugin = Readonly<{
