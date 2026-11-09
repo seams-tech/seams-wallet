@@ -14,6 +14,9 @@
 #
 # Usage: install-prebuilt-wasm-tools.sh [--wasm-pack-dir DIR]
 #   --wasm-pack-dir DIR  also install wasm-pack ${WASM_PACK_VERSION} into DIR.
+#
+# If GH_TOKEN or GITHUB_TOKEN is set, the downloads are authenticated REST API
+# calls. Under load, GitHub can answer anonymous release downloads with 504.
 
 set -euo pipefail
 
@@ -86,13 +89,47 @@ sha256_of() {
   fi
 }
 
-# download_verified_tarball URL SHA256 DEST_DIR: extract the tarball's single
-# top-level directory into DEST_DIR after the digest matches.
+# github.com release URLs ignore an Authorization header (a private asset stays
+# 404 with a token), so an authenticated download goes through the API asset
+# endpoint. Without --location-trusted, curl sends the token only to
+# api.github.com and not on the redirect to the signed asset URL.
+github_token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+if [ -n "$github_token" ] && ! command -v jq >/dev/null 2>&1; then
+  warn "jq is not installed, so the release downloads are anonymous."
+  github_token=""
+fi
+
+github_auth_header() {
+  printf 'Authorization: Bearer %s\n' "$github_token"
+}
+
+# Retry every failed attempt, HTTP 5xx included, for about four minutes.
+curl_with_retries() {
+  curl -fsSL --retry 8 --retry-delay 30 --retry-all-errors "$@"
+}
+
+# download_verified_tarball REPO TAG ASSET SHA256 DEST_DIR: download a release
+# asset and extract the tarball's single top-level directory into DEST_DIR
+# after the digest matches.
 download_verified_tarball() {
-  local url="$1" expected="$2" dest="$3"
-  local work actual
+  local repo="$1" tag="$2" asset="$3" expected="$4" dest="$5"
+  local url="https://github.com/$repo/releases/download/$tag/$asset"
+  local work actual asset_id
   work="$(mktemp -d)"
-  curl -fsSL --retry 3 --retry-delay 2 -o "$work/tool.tar.gz" "$url"
+  if [ -n "$github_token" ]; then
+    curl_with_retries -H @<(github_auth_header) -H "Accept: application/vnd.github+json" \
+      -o "$work/release.json" "https://api.github.com/repos/$repo/releases/tags/$tag"
+    asset_id="$(jq -r --arg name "$asset" '.assets[] | select(.name == $name) | .id' "$work/release.json")"
+    if [ -z "$asset_id" ]; then
+      rm -rf "$work"
+      echo "❌ $repo release $tag has no asset $asset" >&2
+      return 1
+    fi
+    curl_with_retries -H @<(github_auth_header) -H "Accept: application/octet-stream" \
+      -o "$work/tool.tar.gz" "https://api.github.com/repos/$repo/releases/assets/$asset_id"
+  else
+    curl_with_retries -o "$work/tool.tar.gz" "$url"
+  fi
   actual="$(sha256_of "$work/tool.tar.gz")"
   if [ "$actual" != "$expected" ]; then
     rm -rf "$work"
@@ -139,9 +176,8 @@ for source_dir in \
     warn "wasm-bindgen $version ($target) has no pinned digest in install-prebuilt-wasm-tools.sh; the build compiles it from source."
     continue
   fi
-  download_verified_tarball \
-    "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$version/wasm-bindgen-$version-$target.tar.gz" \
-    "$digest" "$bin_dir"
+  download_verified_tarball wasm-bindgen/wasm-bindgen "$version" \
+    "wasm-bindgen-$version-$target.tar.gz" "$digest" "$bin_dir"
   echo "[prebuilt-wasm-tools] installed wasm-bindgen $version into $bin_dir"
 done
 
@@ -151,8 +187,7 @@ if [ -n "$wasm_pack_dir" ]; then
     echo "❌ wasm-pack $WASM_PACK_VERSION ($target) has no pinned digest" >&2
     exit 1
   fi
-  download_verified_tarball \
-    "https://github.com/wasm-bindgen/wasm-pack/releases/download/v$WASM_PACK_VERSION/wasm-pack-v$WASM_PACK_VERSION-$target.tar.gz" \
-    "$digest" "$wasm_pack_dir"
+  download_verified_tarball wasm-bindgen/wasm-pack "v$WASM_PACK_VERSION" \
+    "wasm-pack-v$WASM_PACK_VERSION-$target.tar.gz" "$digest" "$wasm_pack_dir"
   echo "[prebuilt-wasm-tools] installed wasm-pack $("$wasm_pack_dir/wasm-pack" --version | awk '{print $2}') into $wasm_pack_dir"
 fi

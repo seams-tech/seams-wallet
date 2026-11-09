@@ -32,7 +32,11 @@ jobs:
           targets: wasm32-unknown-unknown
       # Upstream prebuilt binaries with pinned SHA-256 digests. Compiling the
       # four wasm-bindgen CLIs from source took 11-13 minutes of every build.
+      # GH_TOKEN makes the downloads authenticated API calls, because GitHub
+      # can answer anonymous release downloads with 504 under load.
       - name: Install prebuilt wasm-pack and wasm-bindgen
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
             --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"

@@ -154,9 +154,13 @@ jobs:
           test "$(node -p "require('./packages/voiceid/package.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./packages/speak-to-sign/package.json').version")" = "$RELEASE_VERSION"
       # wasm-pack and wasm-bindgen: upstream prebuilt binaries with pinned
-      # SHA-256 digests. worker-build has no upstream prebuilt binary; the
-      # release compiles it from source and never restores it from a cache.
+      # SHA-256 digests. GH_TOKEN makes their downloads authenticated API
+      # calls, because GitHub can answer anonymous release downloads with 504
+      # under load. worker-build has no upstream prebuilt binary; the release
+      # compiles it from source and never restores it from a cache.
       - name: Install build tools
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
             --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
