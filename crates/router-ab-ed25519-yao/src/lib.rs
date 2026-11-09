@@ -221,7 +221,9 @@ macro_rules! define_activation_contribution {
                     (self.lifecycle, operation),
                     (
                         ActivationContributionLifecycleV1::Base,
-                        Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+                        Ed25519YaoOperationV1::Registration
+                            | Ed25519YaoOperationV1::Recovery
+                            | Ed25519YaoOperationV1::Reissue
                     ) | (
                         ActivationContributionLifecycleV1::Refresh,
                         Ed25519YaoOperationV1::Refresh

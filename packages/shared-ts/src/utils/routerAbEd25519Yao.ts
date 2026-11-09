@@ -914,6 +914,7 @@ export function parseRouterAbEd25519YaoActivationBindingV1(
     case 'export':
     case 'lane_provisioning':
     case 'lane_refresh':
+    case 'reissue':
       throw new Error('activation binding has a non-activation operation');
   }
 }

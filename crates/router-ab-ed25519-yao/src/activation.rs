@@ -39,10 +39,12 @@ impl Ed25519YaoSigningWorkerPackageDeliveryV1 {
         self.binding.validate()?;
         if !matches!(
             self.binding.operation,
-            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+            Ed25519YaoOperationV1::Registration
+                | Ed25519YaoOperationV1::Recovery
+                | Ed25519YaoOperationV1::Reissue
         ) {
             return Err(invalid_activation(
-                "Signing Worker activation requires registration or recovery",
+                "Signing Worker activation requires registration, recovery or reissue",
             ));
         }
         self.package.validate()?;
@@ -266,6 +268,47 @@ pub fn combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
     )
 }
 
+/// Checks one reissue run against the active material and changes nothing.
+///
+/// A recovery keeps both shares, so a reissue of the same key set must
+/// reproduce the active Signing Worker share. The packages are opened and
+/// combined as for an activation, the run's commitments must reproduce the
+/// registered key, and the combined share must equal the stored one: equal
+/// verifying shares, which are public, mean equal canonical scalars. Only the
+/// public receipt comes back, at the active state epoch, so nothing here can
+/// be persisted as new material.
+pub fn verify_ed25519_yao_signing_worker_reissue_v1(
+    private_key: &Ed25519YaoRecipientPrivateKeyV1,
+    deriver_a: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    deriver_b: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    active: &Ed25519YaoActiveSigningMaterialV1,
+) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationReceiptV1> {
+    active.validate()?;
+    if deriver_a.binding.operation != Ed25519YaoOperationV1::Reissue
+        || !same_signing_identity(active.binding(), &deriver_a.binding)
+        || deriver_a.binding.material_activation != active.binding().material_activation
+    {
+        return Err(invalid_activation(
+            "Signing Worker reissue must name the active material of the same signing identity",
+        ));
+    }
+    let candidate = combine_signing_worker_packages_at_epoch(
+        private_key,
+        deriver_a,
+        deriver_b,
+        active.state_epoch(),
+        Some(active),
+    )?;
+    if candidate.receipt.signing_worker_verifying_share
+        != verifying_share_bytes_from_signing_share_bytes(active.scalar())
+    {
+        return Err(invalid_activation(
+            "Signing Worker reissue does not reproduce the active Signing Worker share",
+        ));
+    }
+    Ok(candidate.receipt.clone())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SigningWorkerActivationTransitionV1 {
     Lifecycle,
@@ -279,6 +322,25 @@ fn combine_ed25519_yao_signing_worker_packages_with_transition_v1(
     active: Option<&Ed25519YaoActiveSigningMaterialV1>,
     transition: SigningWorkerActivationTransitionV1,
 ) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationCandidateV1> {
+    let state_epoch = activation_state_epoch(&deriver_a.binding, active, transition)?;
+    let candidate = combine_signing_worker_packages_at_epoch(
+        private_key,
+        deriver_a,
+        deriver_b,
+        state_epoch,
+        active,
+    )?;
+    Ok(candidate)
+}
+
+/// Opens and combines the exact A/B package pair into a candidate at `state_epoch`.
+fn combine_signing_worker_packages_at_epoch(
+    private_key: &Ed25519YaoRecipientPrivateKeyV1,
+    deriver_a: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    deriver_b: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    state_epoch: Ed25519YaoStateEpochV1,
+    active: Option<&Ed25519YaoActiveSigningMaterialV1>,
+) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationCandidateV1> {
     deriver_a.validate_for_deriver(Ed25519YaoDeriverRoleV1::DeriverA)?;
     deriver_b.validate_for_deriver(Ed25519YaoDeriverRoleV1::DeriverB)?;
     if deriver_a.binding != deriver_b.binding
@@ -288,7 +350,6 @@ fn combine_ed25519_yao_signing_worker_packages_with_transition_v1(
             "Signing Worker activation package bindings do not match",
         ));
     }
-    let state_epoch = activation_state_epoch(&deriver_a.binding, active, transition)?;
     let mut a_plaintext =
         open_ed25519_yao_signing_worker_package_v1(&deriver_a.package, private_key)?;
     let mut b_plaintext =

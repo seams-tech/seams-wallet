@@ -1724,6 +1724,7 @@ fn operation_tag(operation: Ed25519YaoOperationV1) -> u8 {
         Ed25519YaoOperationV1::Export => 4,
         Ed25519YaoOperationV1::LaneProvisioning => 5,
         Ed25519YaoOperationV1::LaneRefresh => 6,
+        Ed25519YaoOperationV1::Reissue => 7,
     }
 }
 

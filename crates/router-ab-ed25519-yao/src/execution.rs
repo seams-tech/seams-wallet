@@ -69,10 +69,12 @@ impl Ed25519YaoActivationRoleExecutionV1 {
         self.binding.validate()?;
         if !matches!(
             self.binding.operation,
-            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+            Ed25519YaoOperationV1::Registration
+                | Ed25519YaoOperationV1::Recovery
+                | Ed25519YaoOperationV1::Reissue
         ) {
             return Err(invalid_execution(
-                "activation role execution requires registration or recovery",
+                "activation role execution requires registration, recovery or reissue",
             ));
         }
         validate_nonzero(self.transcript, "activation transcript")?;

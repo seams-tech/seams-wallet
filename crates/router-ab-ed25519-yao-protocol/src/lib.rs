@@ -63,6 +63,7 @@ pub fn ed25519_yao_input_aad_v1(
         Ed25519YaoOperationV1::Export => 4,
         Ed25519YaoOperationV1::LaneProvisioning => 5,
         Ed25519YaoOperationV1::LaneRefresh => 6,
+        Ed25519YaoOperationV1::Reissue => 7,
     });
     aad.extend_from_slice(&session);
     aad.extend_from_slice(&stable_context_binding);

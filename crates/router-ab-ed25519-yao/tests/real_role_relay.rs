@@ -30,9 +30,10 @@ use router_ab_ed25519_yao::{
     build_activation_deriver_a, build_activation_deriver_b, build_export_deriver_a,
     build_export_deriver_b, combine_ed25519_yao_signing_worker_packages_source_preserving_v1,
     combine_ed25519_yao_signing_worker_packages_v1, derive_ed25519_yao_recipient_key_pair_v1,
-    seal_ed25519_yao_package_v1, ActivationDeriverA, ActivationDeriverAContribution,
-    ActivationDeriverB, ActivationDeriverBContribution, Ed25519YaoSigningWorkerPackageDeliveryV1,
-    ExportDeriverA, ExportDeriverAContribution, ExportDeriverB, ExportDeriverBContribution,
+    seal_ed25519_yao_package_v1, verify_ed25519_yao_signing_worker_reissue_v1, ActivationDeriverA,
+    ActivationDeriverAContribution, ActivationDeriverB, ActivationDeriverBContribution,
+    Ed25519YaoSigningWorkerPackageDeliveryV1, ExportDeriverA, ExportDeriverAContribution,
+    ExportDeriverB, ExportDeriverBContribution,
 };
 use signer_core::ed25519_yao_derivation::{
     derive_ed25519_yao_client_contributions_v1,
@@ -440,6 +441,85 @@ fn recovered_source_links_with_the_registered_key_vector_and_next_epoch() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn a_reissue_reproduces_the_recovered_signing_worker_share_and_keeps_the_epoch() {
+    let recipient =
+        derive_ed25519_yao_recipient_key_pair_v1(&[0x71; 32]).expect("vector recipient");
+    let registered = binding(
+        Ed25519YaoOperationV1::Registration,
+        ExpensiveWorkKindV1::RegistrationPrepare,
+        [0x51; 32],
+    );
+    let (a, b) = vector_activation_deliveries(&registered, recipient.public_key);
+    let (source, _) =
+        combine_ed25519_yao_signing_worker_packages_v1(&recipient.private_key, a, b, None)
+            .expect("register vector source")
+            .into_parts();
+    let mut recovery = binding(
+        Ed25519YaoOperationV1::Recovery,
+        ExpensiveWorkKindV1::Recovery,
+        [0x52; 32],
+    );
+    recovery.material_activation.activation_id = "recovered-vector-material".to_owned();
+    let (a, b) = vector_activation_deliveries(&recovery, recipient.public_key);
+    let (recovered, _) =
+        combine_ed25519_yao_signing_worker_packages_v1(&recipient.private_key, a, b, Some(&source))
+            .expect("recover vector source")
+            .into_parts();
+    // A recovery keeps the Signing Worker share and moves only the epoch.
+    assert_eq!(recovered.scalar(), source.scalar());
+    assert_eq!(recovered.state_epoch().get(), 2);
+
+    let mut reissue = binding(
+        Ed25519YaoOperationV1::Reissue,
+        ExpensiveWorkKindV1::Reissue,
+        [0x53; 32],
+    );
+    reissue.material_activation = recovery.material_activation.clone();
+    let (a, b) = vector_activation_deliveries(&reissue, recipient.public_key);
+    let receipt = verify_ed25519_yao_signing_worker_reissue_v1(
+        &recipient.private_key,
+        a.clone(),
+        b.clone(),
+        &recovered,
+    )
+    .expect("a reissue of the active material passes");
+    assert_eq!(receipt.state_epoch.get(), 2);
+    assert_eq!(
+        receipt.registered_public_key,
+        recovered.registered_public_key()
+    );
+
+    // An activation other than the active one is refused.
+    let mut other = reissue.clone();
+    other.material_activation.activation_id = "another-material".to_owned();
+    let (other_a, other_b) = vector_activation_deliveries(&other, recipient.public_key);
+    assert!(verify_ed25519_yao_signing_worker_reissue_v1(
+        &recipient.private_key,
+        other_a,
+        other_b,
+        &recovered,
+    )
+    .is_err());
+
+    // A recovery run is not a reissue, and a reissue run is not an activation.
+    let (recovery_a, recovery_b) = vector_activation_deliveries(&recovery, recipient.public_key);
+    assert!(verify_ed25519_yao_signing_worker_reissue_v1(
+        &recipient.private_key,
+        recovery_a,
+        recovery_b,
+        &recovered,
+    )
+    .is_err());
+    assert!(combine_ed25519_yao_signing_worker_packages_v1(
+        &recipient.private_key,
+        a,
+        b,
+        Some(&recovered),
+    )
+    .is_err());
 }
 
 #[test]

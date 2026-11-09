@@ -577,7 +577,9 @@ fn operation_matches_kind(operation: Ed25519YaoOperationV1, kind: Ed25519YaoInpu
     matches!(
         (operation, kind),
         (
-            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery,
+            Ed25519YaoOperationV1::Registration
+                | Ed25519YaoOperationV1::Recovery
+                | Ed25519YaoOperationV1::Reissue,
             Ed25519YaoInputKindV1::Activation
         ) | (Ed25519YaoOperationV1::Export, Ed25519YaoInputKindV1::Export)
             | (

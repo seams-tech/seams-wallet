@@ -13,7 +13,7 @@ export type RouterAbEd25519YaoRootShareEpochV1 = string;
 
 export type RouterAbEd25519YaoPrimitiveRequestKindV1 = "registration" | "recovery" | "export" | "refresh";
 
-export type RouterAbEd25519YaoWorkKindV1 = "registration_prepare" | "key_export" | "recovery" | "server_share_refresh";
+export type RouterAbEd25519YaoWorkKindV1 = "registration_prepare" | "key_export" | "recovery" | "server_share_refresh" | "reissue";
 
 export type RouterAbRequestPolicyClaimsV1 = {
 /**
@@ -97,7 +97,7 @@ signing_worker: string, };
 
 export type RouterAbEd25519YaoCircuitFamilyV1 = "activation" | "export" | "lane_materialization";
 
-export type RouterAbEd25519YaoOperationV1 = "registration" | "recovery" | "refresh" | "export" | "lane_provisioning" | "lane_refresh";
+export type RouterAbEd25519YaoOperationV1 = "registration" | "recovery" | "refresh" | "export" | "lane_provisioning" | "lane_refresh" | "reissue";
 
 export type RouterAbEd25519YaoCeremonyBindingV1 = {
 /**

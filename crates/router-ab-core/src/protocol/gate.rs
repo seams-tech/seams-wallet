@@ -23,6 +23,8 @@ pub enum ExpensiveWorkKindV1 {
     Recovery,
     /// Server-share refresh ceremony.
     ServerShareRefresh,
+    /// Client-share reissue for an active key set.
+    Reissue,
 }
 
 /// Request-carried Router policy claims verified locally before expensive work.
@@ -72,6 +74,7 @@ impl ExpensiveWorkKindV1 {
             Self::KeyExport => "key_export",
             Self::Recovery => "recovery",
             Self::ServerShareRefresh => "server_share_refresh",
+            Self::Reissue => "reissue",
         }
     }
 
@@ -82,6 +85,8 @@ impl ExpensiveWorkKindV1 {
             Self::KeyExport => RequestKind::Export,
             Self::Recovery => RequestKind::Recovery,
             Self::ServerShareRefresh => RequestKind::Refresh,
+            // A reissue runs the same same-root derivation as a recovery.
+            Self::Reissue => RequestKind::Recovery,
         }
     }
 }

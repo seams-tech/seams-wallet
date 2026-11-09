@@ -292,6 +292,7 @@ fn pair_digest_vector_case(
         Ed25519YaoOperationV1::Export => ExpensiveWorkKindV1::KeyExport,
         Ed25519YaoOperationV1::LaneProvisioning => ExpensiveWorkKindV1::RegistrationPrepare,
         Ed25519YaoOperationV1::LaneRefresh => ExpensiveWorkKindV1::ServerShareRefresh,
+        Ed25519YaoOperationV1::Reissue => ExpensiveWorkKindV1::Reissue,
     };
     let lifecycle = LifecycleScopeV1::new(
         format!("{case_id}-lifecycle"),

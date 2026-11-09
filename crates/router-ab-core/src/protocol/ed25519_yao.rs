@@ -57,13 +57,17 @@ pub enum Ed25519YaoOperationV1 {
     LaneProvisioning,
     /// Refreshes one existing lane into its next share epoch.
     LaneRefresh,
+    /// Re-issues the active key set's Client share to a new Client recipient.
+    /// A recovery keeps the shares, so the SigningWorker checks the run against
+    /// its stored share, persists nothing and keeps its state epoch.
+    Reissue,
 }
 
 impl Ed25519YaoOperationV1 {
     /// Returns the only circuit family valid for this operation.
     pub const fn circuit_family(self) -> Ed25519YaoCircuitFamilyV1 {
         match self {
-            Self::Registration | Self::Recovery | Self::Refresh => {
+            Self::Registration | Self::Recovery | Self::Refresh | Self::Reissue => {
                 Ed25519YaoCircuitFamilyV1::Activation
             }
             Self::Export => Ed25519YaoCircuitFamilyV1::Export,
@@ -80,6 +84,7 @@ impl Ed25519YaoOperationV1 {
             Self::Refresh | Self::LaneRefresh => ExpensiveWorkKindV1::ServerShareRefresh,
             Self::Export => ExpensiveWorkKindV1::KeyExport,
             Self::LaneProvisioning => ExpensiveWorkKindV1::RegistrationPrepare,
+            Self::Reissue => ExpensiveWorkKindV1::Reissue,
         }
     }
 }
