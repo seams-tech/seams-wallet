@@ -43,6 +43,38 @@ async function lockWalletInBrowser(): Promise<void> {
   await window.__seamsIntendedE2ELockWallet();
 }
 
+async function routeCustodyCacheProbe(context: BrowserContext): Promise<void> {
+  const bundle = await build({
+    entryPoints: [fileURLToPath(new URL('./passkey-custody-cache-probe.ts', import.meta.url))],
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'esm',
+    tsconfig: fileURLToPath(new URL('../../../packages/wallet/tsconfig.json', import.meta.url)),
+  });
+  const source = bundle.outputFiles[0]?.text;
+  if (!source) throw new Error('Custody cache probe did not build');
+  await context.route(`**${PROBE_PATH}`, serveProbe.bind(null, source));
+}
+
+async function readCustodyCacheEpochsInBrowser(walletId: string): Promise<string[]> {
+  const modulePath = '/__e2e-custody-cache-probe.js';
+  const probe = await import(modulePath);
+  return probe.readCustodyCacheEpochs(walletId);
+}
+
+async function saveCustodyCacheInBrowser(walletId: string): Promise<number> {
+  const modulePath = '/__e2e-custody-cache-probe.js';
+  const probe = await import(modulePath);
+  return probe.saveCustodyCache(walletId);
+}
+
+async function restoreSavedCustodyCacheInBrowser(): Promise<number> {
+  const modulePath = '/__e2e-custody-cache-probe.js';
+  const probe = await import(modulePath);
+  return probe.restoreSavedCustodyCache();
+}
+
 class RecoveryResponses {
   readonly responses: { path: string; status: number }[] = [];
 
@@ -79,17 +111,7 @@ export async function verifyColdCustodyRecoveryThenUnlock(
   }: { harness: IntendedBehaviourHarness; page: Page; context: BrowserContext },
   testInfo: TestInfo,
 ): Promise<void> {
-  const bundle = await build({
-    entryPoints: [fileURLToPath(new URL('./passkey-custody-cache-probe.ts', import.meta.url))],
-    bundle: true,
-    write: false,
-    platform: 'browser',
-    format: 'esm',
-    tsconfig: fileURLToPath(new URL('../../../packages/wallet/tsconfig.json', import.meta.url)),
-  });
-  const source = bundle.outputFiles[0]?.text;
-  if (!source) throw new Error('Custody cache probe did not build');
-  await context.route(`**${PROBE_PATH}`, serveProbe.bind(null, source));
+  await routeCustodyCacheProbe(context);
   const recovery = new RecoveryResponses();
   page.on('response', recovery.observe.bind(recovery));
   await harness.registerPasskeyWallet();
@@ -153,4 +175,80 @@ export async function verifyColdCustodyRecoveryThenUnlock(
       2,
     ) + '\n',
   );
+}
+
+/**
+ * Another site's first login (its own storage partition, so no cache row) runs
+ * a recovery and moves the state epoch. This site still holds the row from the
+ * older epoch. A recovery keeps the shares, so the next unlock here must
+ * re-bind that row with no Router recovery, and the re-bound share must sign.
+ */
+export async function verifyOlderCustodyCacheRebindsWithoutRecovery(
+  {
+    harness,
+    page,
+    context,
+  }: { harness: IntendedBehaviourHarness; page: Page; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
+  await routeCustodyCacheProbe(context);
+  const recovery = new RecoveryResponses();
+  page.on('response', recovery.observe.bind(recovery));
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  const walletId = await page.getByTestId('intended-e2e-page').getAttribute('data-wallet-id');
+  if (!walletId) throw new Error('Registered wallet identity is unavailable');
+  await page.evaluate(lockWalletInBrowser);
+  const frame = await walletFrame(page);
+  const epochsAtRegistration = await frame.evaluate(readCustodyCacheEpochsInBrowser, walletId);
+  expect(await frame.evaluate(saveCustodyCacheInBrowser, walletId)).toBeGreaterThan(0);
+
+  // The other site: no row, so the unlock rejoins with a Router recovery.
+  expect(await frame.evaluate(removeCustodyCacheInBrowser, walletId)).toBeGreaterThan(0);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByTestId('intended-unlock-passkey').click();
+  const recoveryUnlock = await autoConfirmWalletIframeUntil(page, waitForUnlockAction(page), {
+    timeoutMs: 100_000,
+  });
+  expect(recoveryUnlock.status).toBe('success');
+  expect(recovery.responses).toContainEqual({
+    path: '/router-ab/ed25519/yao/recovery/activate',
+    status: 200,
+  });
+  const epochsAfterRecovery = await (
+    await walletFrame(page)
+  ).evaluate(readCustodyCacheEpochsInBrowser, walletId);
+
+  // This site: the row from the older epoch comes back.
+  await page.evaluate(lockWalletInBrowser);
+  const staleFrame = await walletFrame(page);
+  expect(await staleFrame.evaluate(restoreSavedCustodyCacheInBrowser)).toBeGreaterThan(0);
+  expect(await staleFrame.evaluate(readCustodyCacheEpochsInBrowser, walletId)).toEqual(
+    epochsAtRegistration,
+  );
+  recovery.responses.length = 0;
+  await harness.unlockPasskeyWallet();
+  const epochsAfterRebind = await (
+    await walletFrame(page)
+  ).evaluate(readCustodyCacheEpochsInBrowser, walletId);
+  await harness.signNearTransaction('post_unlock');
+  await writeFile(
+    testInfo.outputPath('older-custody-cache-rebind.json'),
+    JSON.stringify(
+      {
+        kind: 'older_custody_cache_rebind_evidence_v1',
+        walletId,
+        epochsAtRegistration,
+        epochsAfterRecovery,
+        epochsAfterRebind,
+        recoveryResponsesDuringRebind: recovery.responses,
+        nearSigning: 'verified',
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+  expect(epochsAfterRecovery).not.toEqual(epochsAtRegistration);
+  expect(recovery.responses).toEqual([]);
+  expect(epochsAfterRebind).toEqual(epochsAfterRecovery);
 }

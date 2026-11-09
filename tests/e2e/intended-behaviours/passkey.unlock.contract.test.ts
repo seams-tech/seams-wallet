@@ -15,7 +15,10 @@ import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { verifyLockWins } from './session-restore-lock';
 import { verifyPassiveWalletLock } from './session-passive-lock';
 import { verifyBrowserSecurityFailureAndRetry } from './passkey-browser-security';
-import { verifyColdCustodyRecoveryThenUnlock } from './passkey-custody-cache';
+import {
+  verifyColdCustodyRecoveryThenUnlock,
+  verifyOlderCustodyCacheRebindsWithoutRecovery,
+} from './passkey-custody-cache';
 
 // Export flows retain sanitized evidence instead of secret-bearing DOM or network captures.
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
@@ -27,6 +30,10 @@ test(
 test(
   'cold custody recovery preserves authority through a later unlock and signing',
   verifyColdCustodyRecoveryThenUnlock,
+);
+test(
+  'a custody cache from an older epoch re-binds without a recovery and signs',
+  verifyOlderCustodyCacheRebindsWithoutRecovery,
 );
 
 test('locking a wallet updates an idle tab', verifyPassiveWalletLock);

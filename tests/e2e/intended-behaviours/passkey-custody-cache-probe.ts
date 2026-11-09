@@ -89,3 +89,49 @@ export async function restoreAuthorityCheckpoint(walletId: string): Promise<void
     database.close();
   }
 }
+
+async function custodyCacheRows(walletId: string): Promise<Record<string, unknown>[]> {
+  const database = await openDB(SEAMS_WALLET_DB_NAME);
+  try {
+    const rows: unknown[] = await database.getAll(SEAMS_WALLET_STORES.keyMaterial);
+    return rows.map((raw) => requireRecord(raw, 'key material row')).filter((row) => {
+      const record = requireRecord(row.record, 'key material record');
+      if (record.keyKind !== WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND) return false;
+      const payload = requireRecord(record.payload, 'custody cache payload');
+      return requireRecord(payload.binding, 'custody cache binding').walletId === walletId;
+    });
+  } finally {
+    database.close();
+  }
+}
+
+/** The state epoch of each custody cache row of the wallet. */
+export async function readCustodyCacheEpochs(walletId: string): Promise<string[]> {
+  return (await custodyCacheRows(walletId)).map((row) => {
+    const record = requireRecord(row.record, 'key material record');
+    const payload = requireRecord(record.payload, 'custody cache payload');
+    return String(requireRecord(payload.binding, 'custody cache binding').stateEpoch);
+  });
+}
+
+/** Keeps a copy of the custody cache rows, as another site's storage would. */
+export async function saveCustodyCache(walletId: string): Promise<number> {
+  const rows = await custodyCacheRows(walletId);
+  sessionStorage.setItem('older-custody-cache-rows', JSON.stringify(rows));
+  return rows.length;
+}
+
+/** Puts the saved rows back: this site now holds a row from an older epoch. */
+export async function restoreSavedCustodyCache(): Promise<number> {
+  const serialized = sessionStorage.getItem('older-custody-cache-rows');
+  if (!serialized) throw new Error('Saved custody cache rows are unavailable');
+  const rows: unknown[] = JSON.parse(serialized);
+  const database = await openDB(SEAMS_WALLET_DB_NAME);
+  try {
+    for (const row of rows) await database.put(SEAMS_WALLET_STORES.keyMaterial, row);
+    sessionStorage.removeItem('older-custody-cache-rows');
+    return rows.length;
+  } finally {
+    database.close();
+  }
+}
