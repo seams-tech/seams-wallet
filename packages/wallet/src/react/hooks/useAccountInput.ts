@@ -41,7 +41,7 @@ interface UseAccountInputOptions {
   seams: SeamsWeb;
   /**
    * Account domain/postfix used to derive full accountIds from a username input
-   * (e.g. `w3a-relayer.testnet` for `alice.w3a-relayer.testnet`).
+   * (e.g. `seams-relayer.testnet` for `alice.seams-relayer.testnet`).
    */
   accountDomain?: string;
   currentWalletId?: string | null;

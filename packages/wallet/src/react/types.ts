@@ -281,7 +281,7 @@ export interface SeamsContextValue {
  *   ],
  *   // Parent account used for new subaccount creation via the Router API server.
  *   // Must match server `RELAYER_ACCOUNT_ID` when using atomic registration.
- *   relayerAccount: 'w3a-relayer.testnet',
+ *   relayerAccount: 'seams-relayer.testnet',
  *   relayer: { url: 'https://router-api.example.com' },
  * }
  */

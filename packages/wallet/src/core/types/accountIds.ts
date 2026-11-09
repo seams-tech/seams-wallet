@@ -5,7 +5,7 @@
  * - AccountId: Use for all operations - on-chain, PRF salt derivation, storage, WebAuthn
  *
  * EXAMPLES:
- * - "serp1.w3a-relayer.testnet"
+ * - "serp1.seams-relayer.testnet"
  * - "alice.near"
  * - "simple.testnet"
  */

@@ -96,7 +96,7 @@ encode the user's email address.
 Unsafe examples:
 
 ```text
-n6378056-gmail-com-1776502017920.w3a-relayer.testnet
+n6378056-gmail-com-1776502017920.seams-relayer.testnet
 u_<sha256(email)>.<relayer_root_account>
 ```
 

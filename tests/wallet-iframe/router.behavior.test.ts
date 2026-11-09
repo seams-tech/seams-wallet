@@ -90,7 +90,7 @@ const SIGN_TEMPO_SESSION_LOSS_SCRIPT = String.raw`
       };
 `;
 const FAILED_UNLOCK_WITH_ACTIVE_EMAIL_OTP_SESSION_SCRIPT = String.raw`
-      const accountId = 'crisp-plain-29ph888gzw.w3a-relayer.testnet';
+      const accountId = 'crisp-plain-29ph888gzw.seams-relayer.testnet';
       const activeEmailOtpSession = {
         login: {
           isLoggedIn: true,
@@ -731,7 +731,7 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           const { WalletIframeRouter } =
             mod as typeof import('@/SeamsWeb/walletIframe/client/router');
 
-          const accountId = 'crisp-plain-29ph888gzw.w3a-relayer.testnet';
+          const accountId = 'crisp-plain-29ph888gzw.seams-relayer.testnet';
           const router = new WalletIframeRouter({
             hostConfig: (window as any).__SEAMS_TEST_HOST_CONFIG__,
             walletOrigin,
