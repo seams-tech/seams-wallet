@@ -22,7 +22,7 @@ const RPC_URL = 'https://test.rpc.fastnear.com';
 /** The owner reads these on the VoiceID surface during `enroll`. */
 const ENROLL_PHRASES = [
   'My voice is my signature for this vault.',
-  'I send money only to the contacts I saved.',
+  'I send money only when I say so.',
   'Seams, please learn how I sound today.',
 ];
 /** The owner always says 0.01 NEAR, so a prompt for another amount gets a wrong sentence. */

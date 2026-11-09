@@ -84,6 +84,9 @@ function fakeEnrollment(options: {
       }
       return pendingViews.length > 1 ? pendingViews.shift() : pendingViews[0];
     },
+    async receiverExists() {
+      throw new Error('An enrollment checks no receiver.');
+    },
     async verify(verifierInput) {
       fake.verifyInputs.push(verifierInput);
       return options.reply ?? { kind: 'output', output: ACCEPTED_OUTPUT };

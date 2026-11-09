@@ -18,7 +18,10 @@ function resolveRetryDelay(resolve: () => void): void {
   setTimeout(resolve, 150);
 }
 
-export async function accountExists(nearClient: NearClient, input: string): Promise<boolean> {
+export async function accountExists(
+  nearClient: Pick<NearClient, 'viewAccount'>,
+  input: string,
+): Promise<boolean> {
   const accountId = toAccountId(input);
   try {
     await nearClient.viewAccount(accountId);

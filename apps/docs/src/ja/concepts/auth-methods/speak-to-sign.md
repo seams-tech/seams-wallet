@@ -24,7 +24,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 4. 検証者は、Phala Cloud上のサービスから話者埋め込みを、NEAR AIから文字起こしを同時に受け取ります。
    声は所有者が登録したテンプレートと、言葉は検証者自身が作ったリクエストの文と比較します。
 5. 検証者が署名付きの判定を返します。Walletは、ボールトが固定した鍵で署名を確認します。
-6. Walletが`transfer_with_verdict`を1回呼び出します。ボールトは自身の状態からリクエストを作り直し、判定、ノンス、連絡先、上限、音声の再利用を確認してから支払います。
+6. Walletが`transfer_with_verdict`を1回呼び出します。ボールトは自身の状態からリクエストを作り直し、判定、ノンス、送金先、上限、音声の再利用を確認してから支払います。
 
 テストネットでは、発話の終わりからボールトの受理まで8.7秒でした。この時間は参照用クライアントの測定であり、Walletでの測定ではありません。
 
@@ -33,7 +33,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 3つのパッケージを同じバージョンでインストールします。
 
 ```sh
-pnpm add @seams/wallet@0.56.2 @seams/voiceid@0.56.2 @seams/speak-to-sign@0.56.2
+pnpm add @seams/wallet@0.57.0 @seams/voiceid@0.57.0 @seams/speak-to-sign@0.57.0
 ```
 
 VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加します。
@@ -58,7 +58,9 @@ if (seams.speakToSign) {
 }
 ```
 
-`seams.speakToSign`は、設定に記述子がある場合だけ存在します。送金先は、ボールトの有効な連絡先である必要があります。
+`seams.speakToSign`は、設定に記述子がある場合だけ存在します。送金先には、`alice.testnet`のように所有者が読み上げられる任意の名前付きNEARアカウントを指定できます。
+連絡先である必要はありません。暗黙的アカウント(64桁の16進数)または`0x`アカウントの場合、結果は`receiver_not_speakable`の`refused`です。
+存在しないアカウントの場合、結果は`receiver_missing`の`refused`です。
 金額は小数点以下2桁までのNEARの10進数です。結果の`kind`は、`sent`、`refused`、`cancelled`、`unavailable`のいずれかです。
 
 記述子を設定しないアプリは、Speak-to-Signのコード、WASM、アセットを一切ダウンロードしません。
@@ -70,8 +72,8 @@ if (seams.speakToSign) {
 
 1. ウォレットでVoiceIDが有効であること:
    `seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`。
-2. 有効な連絡先が1つ以上あるボールト。所有者は入金付きで`create_vault`を呼び出し(ボールトは保管用に0.1 NEARを保持します)、
-   `add_contact`を呼び出します。たとえば`seams.near.signAndSendTransaction`を使います。
+2. ボールト。所有者は入金付きで`create_vault`を呼び出します(ボールトは保管用に0.1 NEARを保持します)。
+   たとえば`seams.near.signAndSendTransaction`を使います。
 3. 検証者での声のテンプレート:
 
 ```ts [部分的な実装例]
@@ -85,8 +87,8 @@ if (enrollment.kind === 'enrolled') {
 `authorize_enrollment`の呼び出しを1回承認します。検証者は、ボールトが10分間許可した音声だけを登録します。
 新しい登録は以前のテンプレートを置き換えます。結果の`kind`は、`enrolled`、`refused`、`cancelled`、`unavailable`のいずれかです。
 
-ボールトと連絡先は、ボールトのコントラクトに対する所有者の2回の呼び出しで作成します。
-たとえば`useSeams()`の`wallet.near`を使います。各呼び出しでウォレットの確認画面が開きます。
+ボールトは、ボールトのコントラクトに対する所有者の1回の呼び出しで作成します。
+たとえば`useSeams()`の`wallet.near`を使います。この呼び出しでウォレットの確認画面が開きます。
 
 ```ts [部分的な実装例]
 import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
@@ -94,7 +96,7 @@ import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
 const VAULT = 'seams-wallet.testnet';
 const GAS = '30000000000000';
 
-async function setUpVault(near: BoundNearSigner, contact: string): Promise<void> {
+async function createVault(near: BoundNearSigner): Promise<void> {
   // 0.15 NEAR: ボールトは保管用に0.1 NEARを保持します。
   await near.signAndSendTransaction({
     receiverId: VAULT,
@@ -107,19 +109,10 @@ async function setUpVault(near: BoundNearSigner, contact: string): Promise<void>
       }),
     ],
   });
-  await near.signAndSendTransaction({
-    receiverId: VAULT,
-    actions: [
-      functionCall({
-        method: 'add_contact',
-        args: { account_id: contact },
-        gas: GAS,
-        deposit: '0',
-      }),
-    ],
-  });
 }
 ```
+
+連絡先は任意です。保存する場合は、同じ方法で`{ account_id }`を付けて`add_contact`を呼び出します。
 
 テストネットでは、所有者のアカウントに約0.3 NEARが必要です。`create_vault`は0.15 NEARを使い、
 NEARは前払いのガスを先に請求します。30 Tgasの呼び出しごとに約0.03 NEAR、音声による支払いごとに0.051 NEARです。
@@ -158,18 +151,19 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 テストネットのボールトは`seams-wallet.testnet`です。初期化時に検証者の鍵
 `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`を固定しました。
 
-| メソッド                 | 用途                                                                     |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `create_vault`           | 添付した入金で所有者のボールトを作成します(0.1 NEARは保管用に残ります)。 |
-| `add_contact`            | 音声による支払いの宛先にできる連絡先(`account_id`)を追加します。         |
-| `transfer_with_verdict`  | 固定された鍵が署名した判定に基づき、有効な連絡先に支払います。           |
-| `authorize_enrollment`   | 所有者が、これらの録音だけによる登録を10分間に1回だけ許可します。        |
-| `get_pending_enrollment` | 検証者が読む、所有者の有効な登録の許可です。                             |
-| `get_vault`              | 所有者の残高、上限、次のノンスです。                                     |
-| `get_contacts`           | 所有者の連絡先と、それぞれが有効かどうかです。                           |
-| `get_verifier`           | 固定された検証者の鍵です。                                               |
+| メソッド                 | 用途                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `create_vault`           | 添付した入金で所有者のボールトを作成します(0.1 NEARは保管用に残ります)。     |
+| `add_contact`            | 既知のアカウント(`account_id`)を保存します。検証者は言葉をこれと比較します。 |
+| `transfer_with_verdict`  | 固定された鍵が署名した判定に基づき、名前付きアカウントに支払います。         |
+| `authorize_enrollment`   | 所有者が、これらの録音だけによる登録を10分間に1回だけ許可します。            |
+| `get_pending_enrollment` | 検証者が読む、所有者の有効な登録の許可です。                                 |
+| `get_vault`              | 所有者の残高、上限、次のノンスです。                                         |
+| `get_contacts`           | 所有者の連絡先と、それぞれが有効かどうかです。                               |
+| `get_verifier`           | 固定された検証者の鍵です。                                                   |
 
-新しい連絡先は、ボールトが初期化時に設定した待ち時間の後に有効になります。所有者は、10分待てば声なしで引き出せます。
+新しい連絡先は、ボールトが初期化時に設定した待ち時間の後に有効になります。所有者が保存済みの連絡先の名前を話し、
+リクエストが別のアカウントを指している場合、言葉の確認は失敗します。所有者は、10分待てば声なしで引き出せます。
 
 ## 信頼モデル {#trust-model}
 
@@ -178,6 +172,10 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 - 話者の確認は、鍵を固定したPhalaのdstack CVMで動作します。Phalaのアプリの所有者は、その鍵を保ったままコードを変更できます。
 - 文字起こしはNEAR AIが作ります。文字起こしには署名がないため、検証者はNEAR AIのゲートウェイを信頼します。
 - `walletOrigin`のコードは、所有者が話した後にリクエストを変更できません。変更すると言葉が一致しなくなります。
+- 任意の名前付きアカウントが音声による支払いを受け取れます。声の確認が所有者の声の複製または再生を受け入れた場合、
+  支払いは任意の名前付きアカウントに送られる可能性があります。損失を制限するのは、1回ごとの上限と1日の上限だけです。
+- 検証者は、`bob.testnet`と`bobb.testnet`のように同じに聞こえる2つのアカウントを区別できません。
+  所有者は、話す前に画面のアカウントを読んでください。
 
 [VoiceID](/ja/concepts/auth-methods/voiceid)のアンロックと異なり、音声はブラウザーの外に送られます。
 音声はOutLayer、Phala、NEAR AIに送られ、声のテンプレートはOutLayerのストレージに保存されます。

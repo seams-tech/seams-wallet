@@ -190,6 +190,8 @@ function fakeVault(input: {
   reply: (verifierInput: Readonly<Record<string, unknown>>) => Promise<SpeakToSignVerifyReply>;
   submission?: SpeakToSignSubmission;
   contacts?: Array<{ account_id: string; active: boolean }>;
+  /** Receivers that do not exist on the network. */
+  missing?: readonly string[];
   clip?: SpeakToSignClip;
 }): FakeVault {
   const vault: FakeVault = {
@@ -212,6 +214,9 @@ function fakeVault(input: {
           );
         }
         return { verifier_public_key: input.verifier.publicKey };
+      },
+      async receiverExists(accountId) {
+        return !input.missing?.includes(accountId);
       },
       async verify(verifierInput) {
         vault.verifyInputs.push(verifierInput);
@@ -442,7 +447,7 @@ test('the verify input and the vault call match the demo client', () => {
   });
 });
 
-test('the vault state keeps every contact for the confusion set and marks the active ones', () => {
+test('the vault state keeps every contact, active or not, for the confusion set', () => {
   const state = parseVaultState({
     vault: { next_nonce: '7' },
     contacts: [
@@ -454,7 +459,6 @@ test('the vault state keeps every contact for the confusion set and marks the ac
   expect(state).toEqual({
     nonce: 7n,
     contacts: ['alice.testnet', 'bob.testnet'],
-    activeContacts: new Set(['alice.testnet']),
     verifierPublicKey: 'ed25519:abc',
   });
   expect(
@@ -493,15 +497,36 @@ test('an accepted spoken payment sends one transfer_with_verdict with the signed
   expect(JSON.parse(vault.submitted[0].verdict_json).outcome).toBe('accept');
 });
 
+test('a named receiver that is not a contact, or a contact in its delay, is paid', async () => {
+  const verifier = await verifierKey();
+  for (const receiver of ['carol.testnet', 'bob.testnet']) {
+    const vault = fakeVault({ verifier, reply: acceptingVerifier(verifier) });
+    const result = await runSpokenTransfer(transferInput(hostTransfer(vault, { receiver })));
+    expect(result, receiver).toMatchObject({ kind: 'sent' });
+    expect(vault.sentences, receiver).toEqual([`Send 25 NEAR to ${receiver}`]);
+    expect(vault.verifyInputs[0], receiver).toMatchObject({
+      receiver,
+      contacts: ['alice.testnet', 'bob.testnet'],
+    });
+    expect(vault.submitted[0], receiver).toMatchObject({ receiver_id: receiver });
+  }
+});
+
 test('nothing reaches the vault unless the verdict passes the local check', async () => {
   const verifier = await verifierKey();
   const impostor = await verifierKey();
   const cases: Array<[string, Parameters<typeof fakeVault>[0], Partial<HostTransfer>, object]> = [
     [
-      'inactive contact',
+      'implicit receiver',
       { verifier, reply: acceptingVerifier(verifier) },
-      { receiver: 'bob.testnet' },
-      { kind: 'refused', reason: 'receiver_not_contact' },
+      { receiver: 'a'.repeat(64) },
+      { kind: 'refused', reason: 'receiver_not_speakable' },
+    ],
+    [
+      'missing receiver',
+      { verifier, reply: acceptingVerifier(verifier), missing: ['carol.testnet'] },
+      { receiver: 'carol.testnet' },
+      { kind: 'refused', reason: 'receiver_missing' },
     ],
     [
       'unspeakable amount',
@@ -591,6 +616,10 @@ test('core host operations stay scoped to the configured vault and its two metho
         views.push({ account: params.account, method: params.method, args: params.args });
         return params.decodeResult({ ok: params.method }) as never;
       },
+      async viewAccount(accountId) {
+        if (accountId === 'carol.testnet') throw new Error('UNKNOWN_ACCOUNT carol.testnet');
+        return {} as never;
+      },
     },
     operationCredential: async () => 'credential-1',
     signAndSendTransaction: async (transaction) => {
@@ -626,6 +655,9 @@ test('core host operations stay scoped to the configured vault and its two metho
     kind: 'unavailable',
     detail: 'VoiceID is missing from this Wallet host.',
   });
+
+  expect(await operations.receiverExists('alice.testnet', signal)).toBe(true);
+  expect(await operations.receiverExists('carol.testnet', signal)).toBe(false);
 
   expect(await operations.viewVault('get_contacts', signal)).toEqual({ ok: 'get_contacts' });
   await operations.viewVault('get_verifier', signal);

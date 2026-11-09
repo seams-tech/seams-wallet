@@ -1,3 +1,4 @@
+import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import { functionCall } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
@@ -30,7 +31,7 @@ export type SpeakToSignHostOperationsInput = Readonly<{
   ownerAccountId: string;
   /** The Seams server that serves the verify route. */
   serverUrl: string;
-  nearClient: Pick<NearClient, 'view'>;
+  nearClient: Pick<NearClient, 'view' | 'viewAccount'>;
   /** The bearer Wallet Session operation credential that the verify route admits. */
   operationCredential: (signal: AbortSignal) => Promise<string>;
   /** The owner's existing NEAR signing path, bound to the wallet session and the owner account. */
@@ -54,6 +55,7 @@ export function createSpeakToSignHostOperations(
   return {
     captureClip: captureClip.bind(null, input),
     viewVault: viewVault.bind(null, input),
+    receiverExists: receiverExists.bind(null, input),
     verify: verify.bind(null, input),
     submitTransfer: submitTransfer.bind(null, input),
     authorizeEnrollment: authorizeEnrollment.bind(null, input),
@@ -103,6 +105,17 @@ async function viewVault(
   });
   signal.throwIfAborted();
   return value;
+}
+
+async function receiverExists(
+  input: SpeakToSignHostOperationsInput,
+  accountId: string,
+  signal: AbortSignal,
+): Promise<boolean> {
+  signal.throwIfAborted();
+  const exists = await accountExists(input.nearClient, accountId);
+  signal.throwIfAborted();
+  return exists;
 }
 
 async function verify(

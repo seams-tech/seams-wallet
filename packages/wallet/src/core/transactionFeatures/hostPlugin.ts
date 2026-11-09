@@ -3,7 +3,7 @@ import type { WalletId } from '@shared/utils/domainIds';
 import type { SpeakToSignNetwork } from './plugins';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 2;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 3;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -33,8 +33,10 @@ export type SpeakToSignRefusalReason =
   | 'transcriber_unavailable'
   /** The amount is not a whole number of hundredths of NEAR from 0.01 to 1,000,000. */
   | 'amount_not_speakable'
-  /** The receiver is not an active contact of the vault, or it cannot be spoken. */
-  | 'receiver_not_contact'
+  /** The receiver is not a named NEAR account that the sentence can say (an implicit one). */
+  | 'receiver_not_speakable'
+  /** The receiver account does not exist on the vault's network. */
+  | 'receiver_missing'
   /** The verdict signature, key, digests or kind did not match this request. */
   | 'verdict_mismatch'
   /** The vault refused the transaction. */
@@ -58,7 +60,7 @@ export type SpeakToSignTransferResult =
 /** One spoken payment from the app. The Wallet iframe reads the owner and the vault itself. */
 export type SpeakToSignTransferRequest = Readonly<{
   walletId: string;
-  /** An active contact of the vault, such as `"bob.testnet"`. */
+  /** A named NEAR account that the owner says, such as `"bob.testnet"`. Not only a contact. */
   receiver: string;
   /** Decimal NEAR, such as `"2.5"`. */
   amount: string;
@@ -147,13 +149,15 @@ export type SpeakToSignClipRequest = Readonly<{
 
 /**
  * Scoped core operations for one spoken payment or one enrollment. The plugin can record
- * clips on the VoiceID surface, read four vault views, call the Seams verify route and send
- * `transfer_with_verdict` or `authorize_enrollment` to the configured vault as the owner. It
- * gets no signing context, key or session.
+ * clips on the VoiceID surface, read four vault views, check that a receiver exists, call the
+ * Seams verify route and send `transfer_with_verdict` or `authorize_enrollment` to the
+ * configured vault as the owner. It gets no signing context, key or session.
  */
 export type SpeakToSignHostOperations = Readonly<{
   captureClip(request: SpeakToSignClipRequest): Promise<SpeakToSignClip>;
   viewVault(view: SpeakToSignVaultView, signal: AbortSignal): Promise<unknown>;
+  /** True if the account exists on the vault's network. */
+  receiverExists(accountId: string, signal: AbortSignal): Promise<boolean>;
   verify(
     input: Readonly<Record<string, unknown>>,
     signal: AbortSignal,

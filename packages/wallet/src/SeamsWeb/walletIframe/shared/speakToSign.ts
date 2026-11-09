@@ -69,7 +69,8 @@ const REFUSAL_REASONS: Readonly<Record<SpeakToSignRefusalReason, true>> = {
   storage: true,
   transcriber_unavailable: true,
   amount_not_speakable: true,
-  receiver_not_contact: true,
+  receiver_not_speakable: true,
+  receiver_missing: true,
   verdict_mismatch: true,
   vault_rejected: true,
 };
