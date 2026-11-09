@@ -234,3 +234,29 @@ change.
 - Step 9 (an independent reviewer) was not done.
 - Cost: 3 verify calls and 4 probe calls on OutLayer. No NEAR was spent, no live Wallet run,
   and the Phala CVM was not started or stopped.
+
+## Follow-up (2026-11-09): Steps 1–3 of the plan
+
+The user approved Steps 1, 2 and 3.
+
+- **Step 2 (Wallet, `3b39fc9d4`, not released).**
+  - A voice-approved plain transfer is sent with `wait_until: INCLUDED`. The host hook
+    `included(transactionHash)` runs when a block holds it. Then the Wallet reads the outcome
+    at `EXECUTED_OPTIMISTIC` for the result. A note or a rating keeps the old path.
+  - The VoiceID phrase recorder ends after 0.8 s of silence, not 1.5 s, once the voiced time
+    covers the expected sentence (200 ms for each spoken word). VoiceID unlock and
+    enrollment keep 1.5 s.
+  - `endOfSpeechAt` is the last voiced frame, so the reported times include the end pause.
+  - The plugin change that shows "Sent" at inclusion (host API 8) type-checks against the
+    Wallet source, and its tests pass. It fails against the published 0.60.0 types, so it
+    waits for the Wallet release. The patch is kept outside the repository.
+  - Not done: a check with real voices of the 200 ms rule, and a live run.
+- **Step 3 (verifier 0.5.1, speak-to-sign `bc349d4`, not deployed).** One atomic used-audio
+  write during the requests replaces the read and the write after the decision. A refusal or
+  an outage after the mark now uses up the recording. `Host::post_poll` gives the Whisper
+  time without the mark. Version key `aae02d5e8a89aff155fde9ccc96a591614bc48e77197bf6e09caef20f83de4f5`.
+  It is built on 0.5.0 (spoken PR merge approvals, another session's work), which is not
+  deployed either.
+- **Step 1 (staging).** The voice payment on staging is the owner's to make. The server and
+  chain times then come from the staging signer database (`seams-signer-staging-sin`:
+  `speak_to_sign_voice_verdicts`, `authorized_operations`) and the block headers.
