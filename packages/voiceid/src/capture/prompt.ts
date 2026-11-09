@@ -231,7 +231,7 @@ const CSS = `
   max-width: 21rem;
   align-self: center;
   margin: 0 auto;
-  transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1)), color 300ms ease;
 }
 .seams-voiceid-ribbon {
   display: block;
@@ -354,6 +354,98 @@ const CSS = `
   font-variant-numeric: tabular-nums;
 }
 .seams-voiceid-model-download button { grid-row: 5; }
+/* A phrase card shows its check and its result in the same card. */
+.seams-voiceid-prompt > .seams-voiceid-status-line { grid-area: 3 / 1; }
+.seams-voiceid-status-line {
+  display: block;
+  width: 308px;
+  max-width: 100%;
+  height: 64px;
+  margin: auto;
+  overflow: visible;
+  opacity: 0;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-ribbon { transition: opacity 120ms ease; }
+.seams-voiceid-prompt[data-phrase-line="status"] > .seams-voiceid-ribbon { opacity: 0; }
+.seams-voiceid-prompt[data-phrase-line="status"] > .seams-voiceid-status-line { opacity: 1; }
+.seams-voiceid-status-line rect {
+  fill: var(--seams-colors-surface3, #2b363c);
+  transition: fill 240ms ease, opacity 240ms ease;
+}
+.seams-voiceid-status-line rect[data-state="done"],
+.seams-voiceid-status-line rect[data-state="run"] { fill: currentColor; }
+.seams-voiceid-status-line rect[data-state="run"] { animation: seams-voiceid-segment-pulse 900ms ease-in-out infinite alternate; }
+.seams-voiceid-status-line rect[data-state="fail"] { fill: var(--seams-colors-error, oklch(0.74 0.166 19)); }
+.seams-voiceid-status-line rect[data-state="wait"] {
+  fill: var(--seams-colors-info, oklch(0.7 0.13 255));
+  animation: seams-voiceid-segment-pulse 1600ms ease-in-out infinite alternate;
+}
+.seams-voiceid-status-line rect[data-state="skip"] { opacity: 0.5; }
+@keyframes seams-voiceid-segment-pulse { from { opacity: 0.35; } to { opacity: 1; } }
+.seams-voiceid-status-bar,
+.seams-voiceid-status-ring,
+.seams-voiceid-status-seal,
+.seams-voiceid-status-check { opacity: 0; transform-box: fill-box; transform-origin: center; }
+.seams-voiceid-status-bar { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+.seams-voiceid-status-ring { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.seams-voiceid-status-seal { fill: currentColor; transform: scale(0); }
+.seams-voiceid-status-check {
+  fill: none;
+  stroke: var(--seams-colors-colorBackground, #192024);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.seams-voiceid-status-line[data-seal] rect { opacity: 0; }
+.seams-voiceid-status-line[data-seal] > :not(rect) { opacity: 1; }
+.seams-voiceid-prompt .seams-voiceid-phrase.seams-voiceid-phrase-dim { color: var(--seams-colors-textMuted, #6f7f87); }
+.seams-voiceid-prompt[data-phrase-view] > h2 { min-height: 1.19rem; }
+.seams-voiceid-prompt[data-phrase-view="check"] {
+  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 0;
+}
+.seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-record-slot { display: none; }
+.seams-voiceid-prompt[data-phrase-view] .seams-voiceid-microphone { display: none; }
+.seams-voiceid-prompt .seams-voiceid-close { transition: opacity 150ms ease, visibility 0s linear 0s; }
+.seams-voiceid-prompt[data-phrase-view="check"] .seams-voiceid-close {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease, visibility 0s linear 150ms;
+}
+.seams-voiceid-status.seams-voiceid-two-lines > span { display: block; }
+.seams-voiceid-status .seams-voiceid-caption {
+  margin-bottom: 0.125rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-status a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.seams-voiceid-heard-mark {
+  background: none;
+  color: var(--seams-colors-error, oklch(0.74 0.166 19));
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.seams-voiceid-prompt .seams-voiceid-primary:has(> .seams-voiceid-action-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.seams-voiceid-action-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seams-voiceid-prompt[data-phrase-view] .seams-voiceid-primary:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  .seams-voiceid-status-line rect { animation: none !important; transition: none; }
+}
 @media (hover: hover) and (pointer: fine) {
   .seams-voiceid-close:hover { background: var(--seams-colors-surface, #202b31); }
   .seams-voiceid-primary:hover:not(:disabled) { opacity: 0.9; }
@@ -373,6 +465,10 @@ export class VoicePrompt {
   readonly record: HTMLButtonElement;
   readonly cancel: HTMLButtonElement;
   readonly progress: HTMLElement;
+  /** The wave under the phrase. */
+  readonly ribbon: SVGSVGElement;
+  /** The row of the record button, which a phrase card reuses for its action. */
+  readonly actionRow: HTMLElement;
   private readonly microphone: HTMLButtonElement;
   private microphoneRequested = false;
   private readonly visual: VoiceVisual;
@@ -435,6 +531,8 @@ export class VoicePrompt {
     this.progress.className = 'seams-voiceid-progress-slot';
     const slot = document.createElement('div');
     slot.className = 'seams-voiceid-record-slot';
+    this.actionRow = slot;
+    this.ribbon = this.visual.element;
     this.microphone = document.createElement('button');
     this.microphone.type = 'button';
     this.microphone.className = 'seams-voiceid-microphone';
@@ -497,6 +595,16 @@ export class VoicePrompt {
   /** Settle the visual when an enrollment sample is accepted. */
   accepted(): void {
     this.visual.accept();
+  }
+
+  /** The wave rests flat while the glow keeps working. */
+  flattenLine(): void {
+    this.visual.flatten();
+  }
+
+  /** The glow settles. */
+  quietLine(): void {
+    this.visual.ready();
   }
 
   /**

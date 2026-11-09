@@ -78,6 +78,6 @@ function isHostPlugin(value: unknown): value is WalletAuthMethodHostPlugin {
     typeof value.unlock === 'function' &&
     typeof value.activate === 'function' &&
     typeof value.confirmOperation === 'function' &&
-    typeof value.recordPhrase === 'function'
+    typeof value.openPhrase === 'function'
   );
 }

@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type {
-  AuthMethodPhraseRecording,
   AuthMethodPhraseRequest,
+  AuthMethodPhraseSurface,
   WalletAuthMethodHostPlugin,
 } from '@/core/authMethods/hostPlugin';
 import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
@@ -157,9 +157,13 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const phrases: AuthMethodPhraseRequest[] = [];
   const recorded = new Float32Array([0.5, -0.5, 0.25]);
   const voiceId = {
-    async recordPhrase(request: AuthMethodPhraseRequest): Promise<AuthMethodPhraseRecording> {
+    async openPhrase(request: AuthMethodPhraseRequest): Promise<AuthMethodPhraseSurface> {
       phrases.push(request);
-      return { kind: 'recorded', samples: recorded, endOfSpeechAt: 7 };
+      return {
+        record: async () => ({ kind: 'recorded', samples: recorded, endOfSpeechAt: 7 }),
+        show: async () => 'closed',
+        close: () => undefined,
+      };
     },
   } as WalletAuthMethodHostPlugin;
   const runtime = {
@@ -280,11 +284,13 @@ test('the handler gives the plugin the owner, the network and scoped operations'
 
   const signal = new AbortController().signal;
   expect(harness.recorderLoads).toEqual([]);
-  const clip = await transfer.operations.captureClip({
+  const opened = await transfer.operations.openPrompt({
     sentence: 'Send two NEAR to bob',
     signal,
     surfaceMeasurementBinding: harness.binding,
   });
+  if (opened.kind !== 'opened') throw new Error('VoiceID did not open');
+  const clip = await opened.prompt.record();
   expect(harness.recorderLoads).toEqual([harness.authMethods]);
   expect(harness.phrases).toEqual([
     { sentence: 'Send two NEAR to bob', signal, surfaceMeasurementBinding: harness.binding },
@@ -314,6 +320,11 @@ test('the handler gives the plugin the owner, the network and scoped operations'
         ms: {},
       },
       signal,
+      {
+        accepted: () => undefined,
+        approveStepUp: async () => true,
+        broadcasting: () => undefined,
+      },
     ),
   ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'unknown verdict kind' });
   expect(harness.posted).toEqual([
@@ -427,11 +438,13 @@ test('the enrollment handler gives the plugin the owner and signs through the NE
   const clips: Uint8Array<ArrayBuffer>[] = [];
   for (const sentence of ['one', 'two', 'three']) {
     harness.recorded.set([0.5, -0.5, clips.length / 10]);
-    const clip = await input.operations.captureClip({
+    const opened = await input.operations.openPrompt({
       sentence,
       signal,
       surfaceMeasurementBinding: harness.binding,
     });
+    if (opened.kind !== 'opened') throw new Error('VoiceID did not open');
+    const clip = await opened.prompt.record();
     if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
     clips.push(clip.wav);
   }

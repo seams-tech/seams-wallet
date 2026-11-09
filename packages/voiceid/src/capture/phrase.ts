@@ -3,41 +3,45 @@ import {
   toError,
   WorkerDeferred,
   type AuthMethodPhraseRecording,
+  type AuthMethodPhraseSurface,
+  type PhraseChoice,
+  type PhraseView,
   type UiConfirmSurfaceMeasurementBinding,
   type WalletAuthMethodHostPlugin,
   type WalletIframeSurfaceMeasurementReporter,
 } from '@seams/wallet/voiceid-host';
-import { recordVoice, voiceQualityMessage } from '../browser/microphone';
+import { recordVoice, voiceQualityMessage, type VoiceCaptureEvent } from '../browser/microphone';
 import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 import { SPOKEN_PHRASES } from '../browser/phraseVocabulary';
+import { PhraseCard } from './phraseCard';
 import { VoicePrompt } from './prompt';
 
-type PhraseInput = Parameters<WalletAuthMethodHostPlugin['recordPhrase']>[0];
+type PhraseInput = Parameters<WalletAuthMethodHostPlugin['openPhrase']>[0];
 
 const LABEL = 'Say this with your voice';
+const PROMPT_LABEL = 'Say this sentence';
+const PROMPT_MESSAGE = 'Read it naturally, then pause.';
 
 /**
- * Shows the given sentence in the VoiceID prompt and records one clip with the quality
- * gate. A too quiet or interrupted recording stays on the surface for another try.
+ * Shows the given sentence in the VoiceID prompt. The surface records clips with the quality
+ * gate, and stays open so the caller can show its check and the result in the same card. A too
+ * quiet or interrupted recording stays on the surface for another try.
  */
-export async function recordPhrase(input: PhraseInput): Promise<AuthMethodPhraseRecording> {
-  const surface = new PhraseSurface(input.sentence, input.surfaceMeasurementBinding, input.signal);
-  try {
-    return await surface.result;
-  } finally {
-    surface.dispose();
-  }
+export function openPhrase(input: PhraseInput): AuthMethodPhraseSurface {
+  return new PhraseSurface(input.sentence, input.surfaceMeasurementBinding, input.signal);
 }
 
-class PhraseSurface {
-  private readonly completion = new WorkerDeferred<AuthMethodPhraseRecording>();
-  readonly result = this.completion.promise;
-  private readonly controller = new AbortController();
+class PhraseSurface implements AuthMethodPhraseSurface {
   private readonly element: HTMLElement;
   private readonly prompt: VoicePrompt;
+  private readonly card: PhraseCard;
   private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
-  private recording = false;
-  private settled = false;
+  private recorder: AbortController | null = null;
+  private recording: WorkerDeferred<AuthMethodPhraseRecording> | null = null;
+  private choice: ((choice: PhraseChoice) => void) | null = null;
+  private view: PhraseView | null = null;
+  private started = false;
+  private closed = false;
 
   constructor(
     sentence: string,
@@ -52,14 +56,21 @@ class PhraseSurface {
     this.element.setAttribute('aria-modal', 'true');
     this.element.setAttribute('aria-label', LABEL);
     this.prompt = new VoicePrompt(document, LABEL, SPOKEN_PHRASES[0]);
-    this.prompt.title.textContent = 'Say this sentence';
+    this.prompt.title.textContent = PROMPT_LABEL;
     // A sentence that already ends with punctuation, such as an enrollment phrase, keeps it.
-    this.prompt.phrase.textContent = /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+    const shown = /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+    this.prompt.phrase.textContent = shown;
     delete this.prompt.phrase.dataset.voiceidPhrase;
-    this.prompt.status.textContent = 'Read it naturally, then pause.';
+    this.prompt.status.textContent = PROMPT_MESSAGE;
     this.prompt.record.textContent = 'Record';
+    this.card = new PhraseCard(this.prompt, {
+      label: PROMPT_LABEL,
+      sentence: shown,
+      message: PROMPT_MESSAGE,
+      action: 'Record',
+    });
     this.element.append(this.prompt.element);
-    this.prompt.record.addEventListener('click', this.record);
+    this.prompt.record.addEventListener('click', this.press);
     this.prompt.cancel.addEventListener('click', this.cancel);
     this.element.addEventListener('cancel', this.cancel);
     outer.addEventListener('abort', this.cancel);
@@ -77,30 +88,65 @@ class PhraseSurface {
     if (outer.aborted) this.cancel();
   }
 
-  dispose(): void {
-    this.controller.abort();
+  record(): Promise<AuthMethodPhraseRecording> {
+    if (this.closed) return Promise.resolve({ kind: 'cancelled' });
+    this.settleChoice('replaced');
+    this.recording?.resolve({ kind: 'cancelled' });
+    const recording = new WorkerDeferred<AuthMethodPhraseRecording>();
+    this.recording = recording;
+    if (this.view) {
+      this.view = null;
+      void this.card.showPrompt();
+    }
+    return recording.promise;
+  }
+
+  show(view: PhraseView): Promise<PhraseChoice> {
+    if (this.closed) return Promise.resolve('closed');
+    this.settleChoice('replaced');
+    this.view = view;
+    void this.card.show(view);
+    return new Promise((resolve) => {
+      this.choice = resolve;
+    });
+  }
+
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.recorder?.abort();
+    this.recording?.resolve({ kind: 'cancelled' });
+    this.settleChoice('closed');
     this.measurement?.disconnect();
     this.outer.removeEventListener('abort', this.cancel);
     this.element.removeEventListener('cancel', this.cancel);
-    this.prompt.record.removeEventListener('click', this.record);
+    this.prompt.record.removeEventListener('click', this.press);
     this.prompt.cancel.removeEventListener('click', this.cancel);
+    this.card.dispose();
     this.prompt.dispose();
     this.element.remove();
   }
 
-  private readonly record = (): void => {
-    if (this.recording || this.settled) return;
-    this.recording = true;
+  /** The one button records on the prompt and answers a result. */
+  private readonly press = (): void => {
+    if (this.view) {
+      if (this.view.kind === 'result' && !this.view.action.busy) this.settleChoice('action');
+      return;
+    }
+    if (!this.recording || this.started) return;
+    this.started = true;
     this.prompt.record.disabled = true;
     this.prompt.status.textContent = 'Opening microphone…';
-    void this.attempt();
+    void this.attempt(this.recording);
   };
 
-  private async attempt(): Promise<void> {
+  private async attempt(recording: WorkerDeferred<AuthMethodPhraseRecording>): Promise<void> {
+    const recorder = new AbortController();
+    this.recorder = recorder;
     try {
-      const recorded = await recordVoice(this.controller.signal, this.prompt.capture);
+      const recorded = await recordVoice(recorder.signal, this.capture);
       const endOfSpeechAt = performance.now();
-      if (this.settled) {
+      if (this.recording !== recording || this.closed) {
         recorded.samples?.fill(0);
         return;
       }
@@ -108,33 +154,50 @@ class PhraseSurface {
         this.retry(voiceQualityMessage(recorded.quality));
         return;
       }
-      this.settle({ kind: 'recorded', samples: recorded.samples, endOfSpeechAt });
+      this.started = false;
+      this.recording = null;
+      recording.resolve({ kind: 'recorded', samples: recorded.samples, endOfSpeechAt });
     } catch (error) {
-      if (this.settled) return;
+      if (this.recording !== recording || this.closed) return;
       if (error instanceof VoiceMicrophoneInterruptedError) {
         this.retry(error.message);
         return;
       }
-      this.settled = true;
-      this.completion.reject(toError(error));
+      this.started = false;
+      this.recording = null;
+      recording.reject(toError(error));
     }
   }
 
+  /** The end of speech starts the check in place; every other capture event is the prompt's. */
+  private readonly capture = (event: VoiceCaptureEvent): void => {
+    if (event.kind === 'processing') this.card.beginCheck();
+    else this.prompt.capture(event);
+  };
+
   private retry(message: string): void {
-    this.recording = false;
+    this.started = false;
     this.prompt.record.textContent = 'Try again';
     this.prompt.ready(message);
     this.prompt.record.focus();
   }
 
-  private settle(result: AuthMethodPhraseRecording): void {
-    if (this.settled) return;
-    this.settled = true;
-    this.completion.resolve(result);
+  private settleChoice(choice: PhraseChoice): void {
+    const settle = this.choice;
+    this.choice = null;
+    settle?.(choice);
   }
 
+  /** A close during a check is not possible: the button is hidden while the caller works. */
   private readonly cancel = (): void => {
-    this.controller.abort();
-    this.settle({ kind: 'cancelled' });
+    if (this.view?.kind === 'check' && !this.outer.aborted) return;
+    if (this.recording) {
+      this.recorder?.abort();
+      this.recording.resolve({ kind: 'cancelled' });
+      this.recording = null;
+      this.started = false;
+    }
+    this.settleChoice('closed');
+    if (this.outer.aborted) this.close();
   };
 }

@@ -70,9 +70,17 @@ function fakeEnrollment(options: {
     input: undefined as never,
   };
   const operations: SpeakToSignHostOperations = {
-    async captureClip(request) {
+    async openPrompt(request) {
       fake.sentences.push(request.sentence);
-      return options.clips?.[fake.sentences.length - 1] ?? clip(fake.sentences.length);
+      const index = fake.sentences.length;
+      return {
+        kind: 'opened',
+        prompt: {
+          record: async () => options.clips?.[index - 1] ?? clip(index),
+          show: async () => 'closed',
+          close: () => undefined,
+        },
+      };
     },
     async receiverExists() {
       throw new Error('An enrollment checks no receiver.');

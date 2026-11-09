@@ -144,6 +144,8 @@ export async function signAndSendVoiceApprovedTransaction(args: {
       confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' },
     });
   }
+  // The owner already asked to approve in the Speak-to-Sign card, so only the fresh approval
+  // runs. A browser that needs its own click for a passkey still gets a clickable confirm.
   return signAndSendTransactionInternal({
     context: args.context,
     nearAccountId: args.nearAccountId,
@@ -153,6 +155,7 @@ export async function signAndSendVoiceApprovedTransaction(args: {
       ...args.options,
       confirmerText: { title: 'Confirm this voice payment', body: args.policyText ?? undefined },
     },
+    confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' },
     sensitivePolicy: SENSITIVE_OPERATION_POLICIES.requireFreshSameMethod,
   });
 }

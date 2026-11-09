@@ -6,9 +6,14 @@ import type {
   SpeakToSignClipRequest,
   SpeakToSignHostOperations,
   SpeakToSignPayment,
+  SpeakToSignPaymentHooks,
   SpeakToSignVerifyReply,
 } from '@/core/transactionFeatures/hostPlugin';
-import type { AuthMethodPhraseRecording } from '@/core/authMethods/hostPlugin';
+import type {
+  AuthMethodPhraseRecording,
+  PhraseChoice,
+  PhraseView,
+} from '@/core/authMethods/hostPlugin';
 import { createSpeakToSignHostOperations } from '@/core/transactionFeatures/hostOperations';
 import {
   isSpeakableAccount,
@@ -386,22 +391,45 @@ type FakeCore = {
   sentences: string[];
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
   payments: Array<{ receiver: string; amountYocto: bigint; output: unknown }>;
+  /** Each view the flow showed, as `kind:label:headline or caption`. */
+  views: string[];
+  closed: number;
 };
 
 function fakeCore(input: {
   reply?: SpeakToSignVerifyReply;
   payment?: SpeakToSignPayment;
+  /** Payments after the first one, for a flow that records again. */
+  payments?: readonly SpeakToSignPayment[];
   missing?: readonly string[];
   clip?: SpeakToSignClip;
+  /** The owner's answers to result views, in order. The default closes the card. */
+  choices?: PhraseChoice[];
 }): FakeCore {
+  const choices = [...(input.choices ?? [])];
+  const payments = [...(input.payments ?? [])];
   const core: FakeCore = {
     sentences: [],
     verifyInputs: [],
     payments: [],
+    views: [],
+    closed: 0,
     operations: {
-      async captureClip(request: SpeakToSignClipRequest) {
+      async openPrompt(request: SpeakToSignClipRequest) {
         core.sentences.push(request.sentence);
-        return input.clip ?? clip();
+        return {
+          kind: 'opened',
+          prompt: {
+            record: async () => input.clip ?? clip(),
+            show: async (view: PhraseView) => {
+              core.views.push(viewName(view));
+              return view.kind === 'check' ? 'replaced' : (choices.shift() ?? 'closed');
+            },
+            close: () => {
+              core.closed += 1;
+            },
+          },
+        };
       },
       async receiverExists(accountId) {
         return !input.missing?.includes(accountId);
@@ -410,9 +438,20 @@ function fakeCore(input: {
         core.verifyInputs.push(verifierInput);
         return input.reply ?? { kind: 'output', output: { verdict: 'opaque' } };
       },
-      async payWithVerdict(transfer, output) {
+      async payWithVerdict(transfer, output, _signal, hooks) {
+        const payment =
+          (core.payments.length > 0 ? payments.shift() : undefined) ??
+          input.payment ??
+          ({ kind: 'executed', transactionHash: 'tx-hash', approval: 'voice' } as const);
         core.payments.push({ ...transfer, output });
-        return input.payment ?? { kind: 'executed', transactionHash: 'tx-hash', approval: 'voice' };
+        if (payment.kind === 'executed' && payment.approval === 'voice') hooks.accepted();
+        if (payment.kind === 'executed' && payment.approval === 'voice_and_passkey') {
+          if (!(await hooks.approveStepUp('A voice payment above 10 NEAR needs a passkey.'))) {
+            return { kind: 'cancelled' };
+          }
+          hooks.broadcasting();
+        }
+        return payment;
       },
       async authorizeEnrollment() {
         throw new Error('A spoken payment authorizes no enrollment.');
@@ -420,6 +459,12 @@ function fakeCore(input: {
     },
   };
   return core;
+}
+
+function viewName(view: PhraseView): string {
+  return view.kind === 'check'
+    ? `check:${view.caption}`
+    : `result:${view.label}:${view.headline}:${view.action.label}`;
 }
 
 function hostTransfer(core: FakeCore, overrides: Partial<HostTransfer> = {}): HostTransfer {
@@ -464,13 +509,57 @@ test('a spoken payment verifies the typed transfer and lets core pay with the ve
     { receiver: 'alice.testnet', amountYocto: 25n * 10n ** 24n, output: { verdict: 'opaque' } },
   ]);
 
+  expect(core.views).toEqual([
+    'check:Checking your voice and words',
+    'check:Sending from your account',
+    'result::Sent 25 NEAR:Done',
+  ]);
+  expect(core.closed).toBe(1);
+
   const stepUp = fakeCore({
     payment: { kind: 'executed', transactionHash: 'tx-2', approval: 'voice_and_passkey' },
+    choices: ['action'],
   });
   expect(await runSpokenTransfer(transferInput(hostTransfer(stepUp)))).toMatchObject({
     kind: 'sent',
     approval: 'voice_and_passkey',
   });
+  expect(stepUp.views).toEqual([
+    'check:Checking your voice and words',
+    'result:Not sent yet:Confirm with your passkey:Confirm with passkey',
+    'result:Not sent yet:Confirm with your passkey:Confirm with passkey',
+    'check:Sending from your account',
+    'result::Sent 25 NEAR:Done',
+  ]);
+
+  // Closing the step-up question signs nothing.
+  const declined = fakeCore({
+    payment: { kind: 'executed', transactionHash: 'tx-3', approval: 'voice_and_passkey' },
+  });
+  expect(await runSpokenTransfer(transferInput(hostTransfer(declined)))).toEqual({
+    kind: 'cancelled',
+  });
+});
+
+test('a refusal shows on the card, and "Try again" records the sentence again', async () => {
+  const core = fakeCore({
+    payment: { kind: 'refused', reason: 'words', detail: 'heard: send 0.1 near to alice.testnet' },
+    payments: [{ kind: 'executed', transactionHash: 'tx-4', approval: 'voice' }],
+    choices: ['action'],
+  });
+  expect(await runSpokenTransfer(transferInput(hostTransfer(core)))).toMatchObject({
+    kind: 'sent',
+    transactionHash: 'tx-4',
+  });
+  expect(core.views).toEqual([
+    'check:Checking your voice and words',
+    'result:Nothing was sent:The words did not match:Try again',
+    'check:Checking your voice and words',
+    'check:Sending from your account',
+    'result::Sent 25 NEAR:Done',
+  ]);
+  expect(core.verifyInputs).toHaveLength(2);
+  expect(core.closed).toBe(1);
 });
 
 test('nothing is paid for a bad request, a missing receiver, a refusal or a failed route', async () => {
@@ -587,8 +676,9 @@ function coreHarness(verifier: Verifier): CoreHarness {
         },
       },
       operationCredential: async () => 'credential-1',
-      signVoiceApprovedTransaction: async (transaction, approval, policyText) => {
+      signVoiceApprovedTransaction: async (transaction, approval, policyText, _, onBroadcast) => {
         harness.signed.push({ transaction, approval, policyText });
+        onBroadcast();
         return outcome;
       },
       signMessage: async (params) => {
@@ -601,7 +691,11 @@ function coreHarness(verifier: Verifier): CoreHarness {
           nonce: 'bm9uY2U=',
         };
       },
-      recordPhrase: () => recording(),
+      openPhrase: async () => ({
+        record: () => recording(),
+        show: async () => 'closed',
+        close: () => undefined,
+      }),
       fetch: (async (url: URL, init: RequestInit) => {
         harness.fetched.push({ url: String(url), init });
         return Response.json({ ok: true, output: { verdict_json: '{}' }, timing: {} });
@@ -619,22 +713,45 @@ const clipRequest = {
   surfaceMeasurementBinding: { kind: 'disabled' },
 } as const;
 
+/** Opens the prompt, records one clip and closes it. */
+async function capture(operations: SpeakToSignHostOperations): Promise<SpeakToSignClip> {
+  const opened = await operations.openPrompt(clipRequest);
+  if (opened.kind === 'unavailable') return opened;
+  try {
+    return await opened.prompt.record();
+  } finally {
+    opened.prompt.close();
+  }
+}
+
+/** Payment hooks that approve a step-up and note what core told the card. */
+function paymentHooks(events: string[] = []): SpeakToSignPaymentHooks {
+  return {
+    accepted: () => void events.push('accepted'),
+    approveStepUp: async (policyText) => {
+      events.push(`step_up:${policyText}`);
+      return true;
+    },
+    broadcasting: () => void events.push('broadcasting'),
+  };
+}
+
 test('core records clips, checks receivers and calls only the Seams verify route', async () => {
   const harness = coreHarness(await verifierKey());
   const signal = new AbortController().signal;
   harness.setRecording(async () => ({ kind: 'recorded', samples: samples(10), endOfSpeechAt: 3 }));
-  expect(await harness.operations.captureClip(clipRequest)).toEqual({
+  expect(await capture(harness.operations)).toEqual({
     kind: 'captured',
     wav: pcm16Wav(samples(8)),
     speechMs: 8_000,
     endOfSpeechAt: 3,
   });
   harness.setRecording(async () => ({ kind: 'cancelled' }));
-  expect(await harness.operations.captureClip(clipRequest)).toEqual({ kind: 'cancelled' });
+  expect(await capture(harness.operations)).toEqual({ kind: 'cancelled' });
   harness.setRecording(async () => {
     throw new Error('VoiceID is missing from this Wallet host.');
   });
-  expect(await harness.operations.captureClip(clipRequest)).toEqual({
+  expect(await capture(harness.operations)).toEqual({
     kind: 'unavailable',
     detail: 'VoiceID is missing from this Wallet host.',
   });
@@ -657,13 +774,16 @@ test('core pays an approved verdict once, from the owner, with the approval it n
   const verifier = await verifierKey();
   const harness = coreHarness(verifier);
   const signal = new AbortController().signal;
-  const captured = await harness.operations.captureClip(clipRequest);
+  const captured = await capture(harness.operations);
   if (captured.kind !== 'captured') throw new Error('no clip');
   const audio = await sha256(captured.wav);
   const transfer = { receiver: 'alice.testnet', amountYocto: 25n * 10n ** 24n };
   const accept = await verifyOutput(verifier, await verdictJson(transferRequest(), audio));
+  const events: string[] = [];
+  const pay = (output: unknown) =>
+    harness.operations.payWithVerdict(transfer, output, signal, paymentHooks(events));
 
-  expect(await harness.operations.payWithVerdict(transfer, accept, signal)).toEqual({
+  expect(await pay(accept)).toEqual({
     kind: 'executed',
     transactionHash: 'tx-ok',
     approval: 'voice',
@@ -678,7 +798,7 @@ test('core pays an approved verdict once, from the owner, with the approval it n
       policyText: null,
     },
   ]);
-  expect(await harness.operations.payWithVerdict(transfer, accept, signal)).toEqual({
+  expect(await pay(accept)).toEqual({
     kind: 'refused',
     reason: 'verdict_mismatch',
     detail: 'verdict already used',
@@ -700,7 +820,7 @@ test('core pays an approved verdict once, from the owner, with the approval it n
       receipts_outcome: [{ outcome: { status: { Failure: { error: 'NotEnoughBalance' } } } }],
     } as never,
   });
-  expect(await harness.operations.payWithVerdict(transfer, stepUp, signal)).toEqual({
+  expect(await pay(stepUp)).toEqual({
     kind: 'reverted',
     transactionHash: 'tx-bad',
     error: '{"error":"NotEnoughBalance"}',
@@ -709,6 +829,12 @@ test('core pays an approved verdict once, from the owner, with the approval it n
     approval: 'voice_and_passkey',
     policyText: 'A voice payment above 10 NEAR needs a passkey.',
   });
+  expect(events).toEqual([
+    'accepted',
+    'broadcasting',
+    'step_up:A voice payment above 10 NEAR needs a passkey.',
+    'broadcasting',
+  ]);
 
   // Another transfer than the verdict names, or a clip that core did not record, pays nothing.
   const signedBefore = harness.signed.length;
@@ -717,18 +843,23 @@ test('core pays an approved verdict once, from the owner, with the approval it n
     await verdictJson(transferRequest(), audio, { speaker_score_milli: 701 }),
   );
   expect(
-    await harness.operations.payWithVerdict({ ...transfer, receiver: 'bob.testnet' }, fresh, signal),
+    await harness.operations.payWithVerdict(
+        { ...transfer, receiver: 'bob.testnet' },
+        fresh,
+        signal,
+        paymentHooks(),
+      ),
   ).toMatchObject({ kind: 'refused', reason: 'verdict_mismatch' });
   const foreign = await verifyOutput(
     verifier,
     await verdictJson(transferRequest(), new Uint8Array(32).fill(9)),
   );
-  expect(await harness.operations.payWithVerdict(transfer, foreign, signal)).toEqual({
+  expect(await pay(foreign)).toEqual({
     kind: 'refused',
     reason: 'verdict_mismatch',
     detail: 'audio_digest is not a recording of this flow',
   });
-  expect(await harness.operations.payWithVerdict(transfer, { kind: 'other' }, signal)).toEqual({
+  expect(await pay({ kind: 'other' })).toEqual({
     kind: 'unavailable',
     detail: 'invalid verifier output',
   });
@@ -745,7 +876,7 @@ test('core signs the enrollment message only for three clips it recorded', async
       samples: samples(seconds),
       endOfSpeechAt: 0,
     }));
-    const captured = await harness.operations.captureClip(clipRequest);
+    const captured = await capture(harness.operations);
     if (captured.kind !== 'captured') throw new Error('no clip');
     clips.push(captured.wav);
   }

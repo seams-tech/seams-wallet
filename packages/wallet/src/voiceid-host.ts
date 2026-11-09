@@ -6,6 +6,10 @@ export {
   type AuthMethodCaptureMount,
   type AuthMethodCaptureSettlement,
   type AuthMethodPhraseRecording,
+  type AuthMethodPhraseSurface,
+  type PhraseChoice,
+  type PhraseSegmentState,
+  type PhraseView,
   type AuthMethodUnlockSuccess,
 } from './core/authMethods/hostPlugin';
 export { type Variant } from '@shared/utils/variant';

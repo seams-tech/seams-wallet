@@ -39,6 +39,13 @@ export class VoiceVisual {
   add(event: VoiceActivityEvent): void { this.ribbon.add(event); }
   checking(): void { this.setPhase('processing'); }
   accept(): void { this.setPhase('idle'); }
+  /** The glow keeps working while the line rests flat, for a status line that takes its place. */
+  flatten(): void {
+    if (this.disposed) return;
+    this.phase = 'processing';
+    this.ribbon.setPhase('idle');
+    this.render();
+  }
   ready(): void { this.setPhase('idle'); }
 
   /** The glow settles while the ribbon closes into the success seal; resolves when the check is drawn. */

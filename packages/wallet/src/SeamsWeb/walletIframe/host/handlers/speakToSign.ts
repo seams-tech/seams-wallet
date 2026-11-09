@@ -22,9 +22,11 @@ import {
   type WalletTransactionFeaturePlugin,
 } from '@/core/transactionFeatures/plugins';
 import type { TransactionInput } from '@/core/types/actions';
+import { SigningEventPhase } from '@/core/types/sdkSentEvents';
 import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
 import { signAndSendVoiceApprovedTransaction } from '@/SeamsWeb/operations/near/actions';
 import type { WalletId } from '@shared/utils/domainIds';
+import type { ProgressPayload } from '../../shared/messages';
 import type { PMSpeakToSignTransferPayload } from '../../shared/speakToSign';
 import { respondOkResult, withProgress } from './shared';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
@@ -34,7 +36,7 @@ export type SpeakToSignWalletPorts = Readonly<{
   readVoiceIdAvailability(walletId: WalletId): Promise<AuthMethodAvailability>;
   readOperationCredential(walletId: WalletId): Promise<string>;
   loadHost(features: readonly WalletTransactionFeaturePlugin[]): Promise<SpeakToSignHostPlugin>;
-  /** The VoiceID host plugin records the clip, so its prompt and models load from VoiceID. */
+  /** The VoiceID host plugin shows the sentence and records the clip, so its prompt loads from VoiceID. */
   loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]): Promise<WalletAuthMethodHostPlugin>;
   fetch: typeof fetch;
 }>;
@@ -159,7 +161,7 @@ async function prepareFlow(
       ownerAccountId,
     ),
     signMessage: signMessage.bind(null, deps, request.requestId, walletId, ownerAccountId),
-    recordPhrase: recordPhrase.bind(null, ports, runtime.configs.authMethods),
+    openPhrase: openPhrase.bind(null, ports, runtime.configs.authMethods),
     fetch: ports.fetch,
   });
   return { kind: 'ready', walletId, feature, ownerAccountId, plugin, operations };
@@ -215,14 +217,14 @@ async function readCredential(
   return await ports.readOperationCredential(walletId);
 }
 
-async function recordPhrase(
+async function openPhrase(
   ports: SpeakToSignWalletPorts,
   methods: readonly WalletAuthMethodPlugin[],
   request: AuthMethodPhraseRequest,
 ) {
   const voiceId = await ports.loadVoiceIdHost(methods);
   request.signal.throwIfAborted();
-  return await voiceId.recordPhrase(request);
+  return await voiceId.openPhrase(request);
 }
 
 async function signVoiceApproved(
@@ -234,8 +236,10 @@ async function signVoiceApproved(
   approval: VoiceApproval,
   policyText: string | null,
   signal: AbortSignal,
+  onBroadcast: () => void,
 ) {
   signal.throwIfAborted();
+  const progress = withProgress(deps, requestId, {});
   return await signAndSendVoiceApprovedTransaction({
     context: deps.getWalletRuntime().getContext(),
     nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
@@ -243,8 +247,20 @@ async function signVoiceApproved(
     transactionInput: transaction,
     approval,
     policyText,
-    options: withProgress(deps, requestId, {}),
+    options: { ...progress, onEvent: forwardProgress.bind(null, progress.onEvent, onBroadcast) },
   });
+}
+
+/** Forwards each signing event to the app and tells the open prompt when the broadcast starts. */
+function forwardProgress(
+  post: (payload: ProgressPayload) => void,
+  onBroadcast: () => void,
+  payload: ProgressPayload,
+): void {
+  post(payload);
+  if ('phase' in payload && payload.phase === SigningEventPhase.STEP_12_BROADCAST_STARTED) {
+    onBroadcast();
+  }
 }
 
 async function signMessage(

@@ -9,6 +9,7 @@ import { isPlainObject } from '@shared/utils/validation';
 import type {
   AuthMethodPhraseRecording,
   AuthMethodPhraseRequest,
+  AuthMethodPhraseSurface,
 } from '@/core/authMethods/hostPlugin';
 import type {
   SpeakToSignClip,
@@ -16,6 +17,8 @@ import type {
   SpeakToSignEnrollmentAuthorization,
   SpeakToSignHostOperations,
   SpeakToSignPayment,
+  SpeakToSignPaymentHooks,
+  SpeakToSignPromptResult,
   SpeakToSignVerifyReply,
 } from './hostPlugin';
 import type { SpeakToSignFeaturePlugin } from './plugins';
@@ -45,21 +48,23 @@ export type SpeakToSignHostOperationsInput = Readonly<{
   operationCredential: (signal: AbortSignal) => Promise<string>;
   /**
    * The owner's NEAR signing path for one voice-approved transaction: no confirm for `voice`,
-   * a fresh approval with the session's own method for `voice_and_passkey`.
+   * a fresh approval with the session's own method for `voice_and_passkey`. `onBroadcast` runs
+   * when the signed transaction leaves for the network.
    */
   signVoiceApprovedTransaction: (
     transaction: TransactionInput,
     approval: VoiceApproval,
     policyText: string | null,
     signal: AbortSignal,
+    onBroadcast: () => void,
   ) => Promise<ActionResult>;
   /** The owner's NEP-413 signing path, bound to the wallet session and the owner account. */
   signMessage: (
     params: Readonly<{ message: string; recipient: string }>,
     signal: AbortSignal,
   ) => Promise<SignNEP413MessageResult>;
-  /** The VoiceID host plugin's `recordPhrase`, loaded on first use. */
-  recordPhrase: (request: AuthMethodPhraseRequest) => Promise<AuthMethodPhraseRecording>;
+  /** The VoiceID host plugin's `openPhrase`, loaded on first use. */
+  openPhrase: (request: AuthMethodPhraseRequest) => Promise<AuthMethodPhraseSurface>;
   fetch: typeof fetch;
   now?: () => number;
   /** Tests pass their own key. The Wallet always uses the pinned verifiers. */
@@ -78,7 +83,7 @@ export function createSpeakToSignHostOperations(
 ): SpeakToSignHostOperations {
   const state: FlowState = { recordedAudio: new Set(), paidVerdicts: new Set() };
   return {
-    captureClip: captureClip.bind(null, input, state),
+    openPrompt: openPrompt.bind(null, input, state),
     receiverExists: receiverExists.bind(null, input),
     verify: verify.bind(null, input),
     payWithVerdict: payWithVerdict.bind(null, input, state),
@@ -86,24 +91,47 @@ export function createSpeakToSignHostOperations(
   };
 }
 
-/** Records one clip on the VoiceID surface and returns it as the verifier's canonical WAV. */
-async function captureClip(
+/** Opens the VoiceID surface of one sentence. It stays open until the plugin closes it. */
+async function openPrompt(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
   request: SpeakToSignClipRequest,
-): Promise<SpeakToSignClip> {
+): Promise<SpeakToSignPromptResult> {
   request.signal.throwIfAborted();
-  let recording: AuthMethodPhraseRecording;
+  let surface: AuthMethodPhraseSurface;
   try {
-    recording = await input.recordPhrase({
+    surface = await input.openPhrase({
       sentence: request.sentence,
       signal: request.signal,
       surfaceMeasurementBinding: request.surfaceMeasurementBinding,
     });
   } catch (error) {
     request.signal.throwIfAborted();
-    const detail = error instanceof Error ? error.message.slice(0, 200) : 'recording failed';
-    return { kind: 'unavailable', detail };
+    return { kind: 'unavailable', detail: errorDetail(error, 'VoiceID did not load') };
+  }
+  return {
+    kind: 'opened',
+    prompt: {
+      record: recordClip.bind(null, state, surface, request.signal),
+      show: (view) => surface.show(view),
+      close: () => surface.close(),
+    },
+  };
+}
+
+/** Records one clip on the open surface and returns it as the verifier's canonical WAV. */
+async function recordClip(
+  state: FlowState,
+  surface: AuthMethodPhraseSurface,
+  signal: AbortSignal,
+): Promise<SpeakToSignClip> {
+  signal.throwIfAborted();
+  let recording: AuthMethodPhraseRecording;
+  try {
+    recording = await surface.record();
+  } catch (error) {
+    signal.throwIfAborted();
+    return { kind: 'unavailable', detail: errorDetail(error, 'recording failed') };
   }
   if (recording.kind === 'cancelled') return recording;
   const wav = pcm16Wav(recording.samples);
@@ -167,6 +195,7 @@ async function payWithVerdict(
   transferRequest: Readonly<{ receiver: string; amountYocto: bigint }>,
   verifierOutput: unknown,
   signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
 ): Promise<SpeakToSignPayment> {
   signal.throwIfAborted();
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
@@ -193,6 +222,13 @@ async function payWithVerdict(
   if (state.paidVerdicts.has(output.verdictJson)) {
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict already used' };
   }
+  if (check.approval === 'voice') hooks.accepted();
+  else if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
+  signal.throwIfAborted();
+  // A verdict that waited for the owner may have expired meanwhile.
+  if (!verdictStillValid(output.verdictJson, (input.now ?? Date.now)())) {
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict expired' };
+  }
   state.paidVerdicts.add(output.verdictJson);
   const result = await input.signVoiceApprovedTransaction(
     {
@@ -202,6 +238,7 @@ async function payWithVerdict(
     check.approval,
     check.policyText,
     signal,
+    hooks.broadcasting,
   );
   if (!result.success) {
     return result.kind === 'not_submitted'
@@ -259,6 +296,18 @@ export async function enrollmentDigest(
 ): Promise<string> {
   const preimage = concat([utf8(ENROLLMENT_DOMAIN), utf8(owner), new Uint8Array(1), ...clipDigests]);
   return base64UrlEncode(await sha256(preimage));
+}
+
+/** The checked verdict's expiry, read again after the owner answered a step-up. */
+function verdictStillValid(verdictJson: string, nowMs: number): boolean {
+  const verdict: unknown = JSON.parse(verdictJson);
+  return isPlainObject(verdict) && typeof verdict.expires_at_ms === 'number'
+    ? verdict.expires_at_ms > nowMs
+    : false;
+}
+
+function errorDetail(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message.slice(0, 200) : fallback;
 }
 
 async function audioDigest(wav: Uint8Array<ArrayBuffer>): Promise<string> {

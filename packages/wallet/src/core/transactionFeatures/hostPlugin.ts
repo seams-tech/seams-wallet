@@ -1,10 +1,11 @@
+import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { SpeakToSignNetwork } from './plugins';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 4;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 5;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -105,7 +106,22 @@ export type SpeakToSignPayment =
   | Readonly<{ kind: 'not_submitted'; error: string }>
   | Readonly<{ kind: 'submission_unknown'; error: string }>
   | Readonly<{ kind: 'refused'; reason: VerifierRefusal | 'verdict_mismatch'; detail?: string }>
+  /** The owner closed the step-up question. Nothing was signed. */
+  | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; detail: string }>;
+
+/** What the payment tells the open prompt, so the card follows it. */
+export type SpeakToSignPaymentHooks = Readonly<{
+  /** The verdict passed and asks for nothing more. Core signs next. */
+  accepted(): void;
+  /**
+   * A policy rule asks for a fresh approval. Resolves true when the owner asks to approve; core
+   * then asks for the session's own method. `policyText` is the rule's sentence, if any.
+   */
+  approveStepUp(policyText: string | null): Promise<boolean>;
+  /** The signed transaction is on its way to the network. */
+  broadcasting(): void;
+}>;
 
 /** The verifier's `enroll` authorization: a NEP-413 signature by a full-access key of the owner. */
 export type SpeakToSignEnrollmentAuthorization =
@@ -135,6 +151,19 @@ export type SpeakToSignClipRequest = Readonly<{
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 }>;
 
+/** The VoiceID surface of one sentence. It stays open for the check and the result. */
+export type SpeakToSignPrompt = Readonly<{
+  /** Records one clip. A later call shows the sentence again and records a new clip. */
+  record(): Promise<SpeakToSignClip>;
+  show(view: PhraseView): Promise<PhraseChoice>;
+  close(): void;
+}>;
+
+export type SpeakToSignPromptResult =
+  | Readonly<{ kind: 'opened'; prompt: SpeakToSignPrompt }>
+  /** VoiceID could not load on this Wallet host. */
+  | Readonly<{ kind: 'unavailable'; detail: string }>;
+
 /**
  * Scoped core operations for one spoken payment or one enrollment. The plugin can record clips
  * on the VoiceID surface, check that a receiver exists and call the Seams verify route. Core
@@ -143,7 +172,7 @@ export type SpeakToSignClipRequest = Readonly<{
  * session.
  */
 export type SpeakToSignHostOperations = Readonly<{
-  captureClip(request: SpeakToSignClipRequest): Promise<SpeakToSignClip>;
+  openPrompt(request: SpeakToSignClipRequest): Promise<SpeakToSignPromptResult>;
   /** True if the account exists on the feature's network. */
   receiverExists(accountId: string, signal: AbortSignal): Promise<boolean>;
   verify(
@@ -159,6 +188,7 @@ export type SpeakToSignHostOperations = Readonly<{
     transfer: Readonly<{ receiver: string; amountYocto: bigint }>,
     verifierOutput: unknown,
     signal: AbortSignal,
+    hooks: SpeakToSignPaymentHooks,
   ): Promise<SpeakToSignPayment>;
   /** Signs the enrollment message for three clips that core recorded in this flow. */
   authorizeEnrollment(
