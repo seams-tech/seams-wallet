@@ -120,6 +120,42 @@ or `unavailable`.
 The owner's account pays the gas of each transfer, about 0.00005 NEAR on
 testnet.
 
+## Spoken community notes
+
+The same flow can sign a community note or a note rating on a notes contract
+with `add_note({ post_id, text, summary })` and `rate_note({ note_id, rating })`.
+The author types the note and reads aloud only a short summary. The verdict
+binds the full note by its SHA-256. Wallet core builds the one call, with no
+deposit and no confirm.
+
+```ts [Partial example]
+import { summaryRefusal } from '@seams/wallet';
+
+if (summaryRefusal(summary) === null) {
+  await seams.speakToSign.requestNote({
+    walletId,
+    contract: 'community-notes.testnet',
+    postId: 7,
+    text: 'The city closes one lane for two weeks. The bridge stays open.',
+    summary: 'Only one lane closes for two weeks.',
+  });
+}
+await seams.speakToSign.requestRating({
+  walletId,
+  contract: 'community-notes.testnet',
+  noteId: 3,
+  rating: 'helpful',
+});
+```
+
+- A summary has 1 to 12 words of ASCII letters. Write numbers as words. Digits,
+  apostrophes, hyphens, URLs and handles give `summary_not_speakable`.
+- A rating is said as "this note is helpful", "this note is somewhat helpful"
+  or "this note is not helpful".
+- A summary of 4 or more words also passes with one word heard differently or
+  dropped, but never with an added or dropped "not".
+- Notes need verifier 0.4.0 or later.
+
 ## Prepare the Wallet host
 
 The operator of `walletOrigin` installs the same packages and composes the

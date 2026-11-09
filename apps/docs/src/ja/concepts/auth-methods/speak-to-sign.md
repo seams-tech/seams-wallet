@@ -93,6 +93,38 @@ if (enrollment.kind === 'enrolled') {
 
 送金ごとのガスは所有者のアカウントが支払います。テストネットでは約0.00005 NEARです。
 
+## 音声によるコミュニティノート {#spoken-community-notes}
+
+同じ流れで、コミュニティノートやノートの評価にも署名できます。ノートのコントラクトには
+`add_note({ post_id, text, summary })` と `rate_note({ note_id, rating })` が必要です。
+作成者はノートを入力し、短い要約だけを読み上げます。判定はノート全体をSHA-256で結び付けます。
+Wallet coreが呼び出しを1件作り、デポジットも確認もなしで署名します。
+
+```ts [Partial example]
+import { summaryRefusal } from '@seams/wallet';
+
+if (summaryRefusal(summary) === null) {
+  await seams.speakToSign.requestNote({
+    walletId,
+    contract: 'community-notes.testnet',
+    postId: 7,
+    text: 'The city closes one lane for two weeks. The bridge stays open.',
+    summary: 'Only one lane closes for two weeks.',
+  });
+}
+await seams.speakToSign.requestRating({
+  walletId,
+  contract: 'community-notes.testnet',
+  noteId: 3,
+  rating: 'helpful',
+});
+```
+
+- 要約は、ASCII文字だけの1〜12語です。数は単語で書きます。数字、アポストロフィ、ハイフン、URL、ハンドルは `summary_not_speakable` になります。
+- 評価は「this note is helpful」「this note is somewhat helpful」「this note is not helpful」のどれかを話します。
+- 4語以上の要約は、1語が違って聞こえても、1語が抜けても通ります。ただし「not」の追加や欠落は通りません。
+- ノートには検証者0.4.0以降が必要です。
+
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
 `walletOrigin`の運用者は、同じパッケージをインストールし、新しいディレクトリーにアセットを構成します。
