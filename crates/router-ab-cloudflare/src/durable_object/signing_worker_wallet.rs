@@ -5,6 +5,7 @@ pub(crate) use transport::call_signing_worker_wallet_do_v1;
 mod ed25519_settlement;
 mod ed25519_snapshot;
 mod linked_ed25519;
+mod reissue;
 pub(crate) mod package_delivery;
 mod transaction;
 
@@ -725,8 +726,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 match request.delivery.deriver_a.binding.operation {
                     Ed25519YaoOperationV1::Registration => self.with_wallet_transaction(move |wallet| wallet.deliver_registration(request)).await,
                     Ed25519YaoOperationV1::Recovery => self.with_wallet_transaction(move |wallet| wallet.deliver_recovery(request)).await,
+                    Ed25519YaoOperationV1::Reissue => self.check_reissue(request),
                     _ => Err(wallet_error(
-                        "SigningWorker wallet object accepts registration and recovery deliveries only",
+                        "SigningWorker wallet object accepts registration, recovery and reissue deliveries only",
                     )),
                 }
             }

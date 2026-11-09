@@ -12,6 +12,7 @@ mod ed25519_yao_lane_dispatch;
 mod ed25519_yao_outer;
 mod ed25519_yao_pair_lifecycle;
 mod ed25519_yao_router;
+mod ed25519_yao_router_result;
 mod engine;
 mod envelope;
 mod error;
@@ -81,11 +82,13 @@ pub use self::ed25519_yao_router::{
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyIdentityV1, Ed25519YaoCircuitIdV1,
     Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoProtocolIdV1,
     Ed25519YaoRecoveryAttemptV1, RouterAdmittedExecutionAuthorityV1,
-    RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
-    RouterEd25519YaoExecuteRequestV1, RouterEd25519YaoExecuteResultV1,
-    RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
+    RouterEd25519YaoExecuteRequestV1, RouterEd25519YaoGatewayExecuteTargetV2,
     ED25519_YAO_ACTIVATION_CIRCUIT_ID_V1, ED25519_YAO_EXPORT_CIRCUIT_ID_V1,
     ED25519_YAO_LANE_MATERIALIZATION_CIRCUIT_ID_V1, ED25519_YAO_PROTOCOL_ID_V1,
+};
+pub use self::ed25519_yao_router_result::{
+    RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
+    RouterEd25519YaoExecuteResultV1, RouterEd25519YaoExecuteSuccessV1,
 };
 pub use self::engine::{
     AuditEventV1, AuditSink, Clock, Csprng, DeriverAEngine, DeriverBEngine,

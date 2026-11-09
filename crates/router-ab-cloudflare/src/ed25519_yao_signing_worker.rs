@@ -1,5 +1,6 @@
 #[cfg(feature = "workers-rs")]
 pub(crate) mod package_delivery;
+pub(crate) mod reissue;
 
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
@@ -2451,6 +2452,14 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
             }
             Ok(SigningWorkerYaoCommandResponseV1::Staged { receipt })
         }
+        (Ed25519YaoOperationV1::Reissue, current) => Ok(SigningWorkerYaoCommandResponseV1::Active {
+            receipt: reissue::check_signing_worker_yao_reissue_v1(
+                env,
+                &CloudflareSigningWorkerRuntimeV1::from_worker_env(env)?,
+                delivery,
+                current.as_ref(),
+            )?,
+        }),
         _ => Err(invalid_lifecycle(
             "Signing Worker package pair conflicts with the Yao lifecycle state",
         )),

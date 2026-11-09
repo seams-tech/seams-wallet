@@ -713,7 +713,7 @@ pub struct RouterAbEd25519YaoActivationAdmissionReceiptV1 {
 }
 
 impl RouterAbEd25519YaoActivationAdmissionReceiptV1 {
-    /// Creates a receipt for one registration or recovery binding and its exact public keyset.
+    /// Creates a receipt for one registration, recovery or reissue binding and its exact public keyset.
     pub fn new(
         binding: Ed25519YaoCeremonyBindingV1,
         keyset: RouterAbEd25519YaoActivationKeysetV1,
@@ -721,7 +721,9 @@ impl RouterAbEd25519YaoActivationAdmissionReceiptV1 {
         binding.validate()?;
         if !matches!(
             binding.operation,
-            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+            Ed25519YaoOperationV1::Registration
+                | Ed25519YaoOperationV1::Recovery
+                | Ed25519YaoOperationV1::Reissue
         ) {
             return Err(invalid_yao_wire(
                 "Ed25519 Yao activation admission receipt has the wrong operation",
@@ -1091,7 +1093,9 @@ impl RouterAbEd25519YaoActivationExecuteRequestV1 {
         binding.validate()?;
         if !matches!(
             binding.operation,
-            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+            Ed25519YaoOperationV1::Registration
+                | Ed25519YaoOperationV1::Recovery
+                | Ed25519YaoOperationV1::Reissue
         ) {
             return Err(invalid_yao_wire(
                 "Ed25519 Yao activation execution has the wrong operation",
@@ -1438,7 +1442,7 @@ impl<'de> Deserialize<'de> for RouterAbEd25519YaoExportResultV1 {
     }
 }
 
-/// Public activation evidence returned by successful registration or recovery execution.
+/// Public activation evidence returned by successful registration, recovery or reissue execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouterAbEd25519YaoActivationPublicReceiptV1 {
@@ -1576,7 +1580,9 @@ impl RouterAbEd25519YaoActivationResultV1 {
         binding.validate()?;
         if !matches!(
             binding.operation,
-            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+            Ed25519YaoOperationV1::Registration
+                | Ed25519YaoOperationV1::Recovery
+                | Ed25519YaoOperationV1::Reissue
         ) {
             return Err(invalid_yao_wire(
                 "Ed25519 Yao activation result has the wrong operation",

@@ -473,6 +473,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
             | RouterEd25519YaoExecuteSuccessV1::LaneRefresh { result } => result,
             RouterEd25519YaoExecuteSuccessV1::Registration { .. }
             | RouterEd25519YaoExecuteSuccessV1::Recovery { .. }
+            | RouterEd25519YaoExecuteSuccessV1::Reissue { .. }
             | RouterEd25519YaoExecuteSuccessV1::Export { .. } => {
                 return protocol_error_response(invalid_coordinator(
                     "Router lane dispatch returned a ceremony result",
@@ -1421,7 +1422,9 @@ async fn finalize_router_result_v1(
 ) -> RouterAbProtocolResult<RouterCeremonyOutcomeV1> {
     let operation = request.operation();
     let success = match operation {
-        Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery => {
+        Ed25519YaoOperationV1::Registration
+        | Ed25519YaoOperationV1::Recovery
+        | Ed25519YaoOperationV1::Reissue => {
             let activation_a = crate::ed25519_yao_activation_role_execution_v1(&execution)?;
             let activation_b = crate::ed25519_yao_activation_role_execution_v1(&completed_b)?;
             let delivery = CloudflareEd25519YaoPackagePairDeliveryV1 {
@@ -1485,6 +1488,9 @@ async fn finalize_router_result_v1(
                         }
                         Ed25519YaoOperationV1::Recovery => {
                             RouterEd25519YaoExecuteSuccessV1::recovery(result)?
+                        }
+                        Ed25519YaoOperationV1::Reissue => {
+                            RouterEd25519YaoExecuteSuccessV1::reissue(result)?
                         }
                         Ed25519YaoOperationV1::Export | Ed25519YaoOperationV1::Refresh => {
                             unreachable!("activation branch excludes this operation")
@@ -1632,7 +1638,8 @@ async fn finalize_router_result_v1(
                 Ed25519YaoOperationV1::Registration
                 | Ed25519YaoOperationV1::Recovery
                 | Ed25519YaoOperationV1::Refresh
-                | Ed25519YaoOperationV1::Export => {
+                | Ed25519YaoOperationV1::Export
+                | Ed25519YaoOperationV1::Reissue => {
                     unreachable!("lane branch excludes ceremony operations")
                 }
             }
@@ -1792,6 +1799,12 @@ fn request_parts(
             deriver_a_input,
             deriver_b_input,
             ..
+        }
+        | RouterEd25519YaoExecuteRequestV1::Reissue {
+            binding,
+            deriver_a_input,
+            deriver_b_input,
+            ..
         } => (
             binding.clone(),
             deriver_a_input.clone(),
@@ -1830,6 +1843,7 @@ fn pair_work(request: &RouterEd25519YaoExecuteRequestV1) -> crate::CloudflareEd2
     match request {
         RouterEd25519YaoExecuteRequestV1::Registration { .. }
         | RouterEd25519YaoExecuteRequestV1::Recovery { .. }
+        | RouterEd25519YaoExecuteRequestV1::Reissue { .. }
         | RouterEd25519YaoExecuteRequestV1::Export { .. } => {
             crate::CloudflareEd25519YaoPairWorkV1::Ceremony
         }
@@ -1921,7 +1935,11 @@ impl SigningWorkerReceiptV1 {
         self.validate()?;
         match (operation, self) {
             (Ed25519YaoOperationV1::Registration, Self::Active { .. })
-            | (Ed25519YaoOperationV1::Recovery, Self::Staged { .. }) => Ok(()),
+            | (Ed25519YaoOperationV1::Recovery, Self::Staged { .. })
+            | (Ed25519YaoOperationV1::Reissue, Self::Active { .. }) => Ok(()),
+            (Ed25519YaoOperationV1::Reissue, Self::Staged { .. }) => Err(invalid_coordinator(
+                "reissue requires the Active SigningWorker receipt of its read-only check",
+            )),
             (Ed25519YaoOperationV1::Registration, Self::Staged { .. }) => Err(invalid_coordinator(
                 "registration requires an Active SigningWorker receipt",
             )),
@@ -2098,6 +2116,7 @@ pub(crate) fn operation_label(operation: Ed25519YaoOperationV1) -> &'static str 
         Ed25519YaoOperationV1::Refresh => "refresh",
         Ed25519YaoOperationV1::LaneProvisioning => "lane_provisioning",
         Ed25519YaoOperationV1::LaneRefresh => "lane_refresh",
+        Ed25519YaoOperationV1::Reissue => "reissue",
     }
 }
 
@@ -2252,6 +2271,13 @@ mod tests {
             .is_ok());
         assert!(receipt(true)
             .validate_for_operation(Ed25519YaoOperationV1::Recovery)
+            .is_err());
+        // A reissue's read-only check answers with the active receipt.
+        assert!(receipt(true)
+            .validate_for_operation(Ed25519YaoOperationV1::Reissue)
+            .is_ok());
+        assert!(receipt(false)
+            .validate_for_operation(Ed25519YaoOperationV1::Reissue)
             .is_err());
     }
 

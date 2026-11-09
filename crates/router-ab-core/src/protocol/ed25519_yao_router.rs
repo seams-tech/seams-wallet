@@ -534,6 +534,19 @@ pub enum RouterEd25519YaoExecuteRequestV1 {
         /// Opaque Deriver B envelope.
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     },
+    /// Re-issues the active Client share; the Signing Worker checks it read-only.
+    Reissue {
+        /// Gateway-admitted execution authority.
+        authority: RouterAdmittedExecutionAuthorityV1,
+        /// Admitted reissue ceremony binding, naming the active material.
+        binding: Ed25519YaoCeremonyBindingV1,
+        /// Exact A/B ciphertext pair binding.
+        pair_binding: Ed25519YaoInputPairBindingV1,
+        /// Opaque Deriver A envelope.
+        deriver_a_input: Ed25519YaoEncryptedInputV1,
+        /// Opaque Deriver B envelope.
+        deriver_b_input: Ed25519YaoEncryptedInputV1,
+    },
 }
 
 /// Raw Gateway-to-Router execute target carried by the V2 server envelope.
@@ -565,6 +578,17 @@ pub enum RouterEd25519YaoGatewayExecuteTargetV2 {
         /// commits it, and the SigningWorker keeps only the highest attempt
         /// delivered to it.
         attempt: Ed25519YaoRecoveryAttemptV1,
+        /// Opaque Deriver A envelope.
+        deriver_a_input: Ed25519YaoEncryptedInputV1,
+        /// Opaque Deriver B envelope.
+        deriver_b_input: Ed25519YaoEncryptedInputV1,
+    },
+    /// Re-issues the active Client share; the Signing Worker checks it read-only.
+    Reissue {
+        /// Wallet ownership generation admitted by the Gateway.
+        ownership_generation: u64,
+        /// Admitted reissue ceremony binding, naming the active material.
+        binding: Ed25519YaoCeremonyBindingV1,
         /// Opaque Deriver A envelope.
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         /// Opaque Deriver B envelope.
@@ -602,6 +626,12 @@ enum RawRouterEd25519YaoGatewayExecuteTargetV2 {
     Export {
         ownership_generation: u64,
         binding: crate::protocol::ed25519_yao::RouterAbEd25519YaoExportBindingV1,
+        deriver_a_input: Ed25519YaoEncryptedInputV1,
+        deriver_b_input: Ed25519YaoEncryptedInputV1,
+    },
+    Reissue {
+        ownership_generation: u64,
+        binding: Ed25519YaoCeremonyBindingV1,
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     },
@@ -649,6 +679,17 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
                 deriver_a_input,
                 deriver_b_input,
             ),
+            RawRouterEd25519YaoGatewayExecuteTargetV2::Reissue {
+                ownership_generation,
+                binding,
+                deriver_a_input,
+                deriver_b_input,
+            } => Self::reissue(
+                ownership_generation,
+                binding,
+                deriver_a_input,
+                deriver_b_input,
+            ),
         };
         target.map_err(D::Error::custom)
     }
@@ -659,7 +700,8 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
         match self {
             Self::Registration { ownership_generation, .. }
             | Self::Recovery { ownership_generation, .. }
-            | Self::Export { ownership_generation, .. } => *ownership_generation,
+            | Self::Export { ownership_generation, .. }
+            | Self::Reissue { ownership_generation, .. } => *ownership_generation,
         }
     }
 
@@ -678,6 +720,28 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
             &deriver_b_input,
         )?;
         Ok(Self::Registration {
+            ownership_generation,
+            binding,
+            deriver_a_input,
+            deriver_b_input,
+        })
+    }
+
+    /// Builds a validated reissue target.
+    pub fn reissue(
+        ownership_generation: u64,
+        binding: Ed25519YaoCeremonyBindingV1,
+        deriver_a_input: Ed25519YaoEncryptedInputV1,
+        deriver_b_input: Ed25519YaoEncryptedInputV1,
+    ) -> RouterAbProtocolResult<Self> {
+        validate_gateway_ownership_generation(ownership_generation)?;
+        validate_gateway_inputs(
+            &binding,
+            Ed25519YaoOperationV1::Reissue,
+            &deriver_a_input,
+            &deriver_b_input,
+        )?;
+        Ok(Self::Reissue {
             ownership_generation,
             binding,
             deriver_a_input,
@@ -737,13 +801,16 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
             Self::Registration { .. } => Ed25519YaoOperationV1::Registration,
             Self::Recovery { .. } => Ed25519YaoOperationV1::Recovery,
             Self::Export { .. } => Ed25519YaoOperationV1::Export,
+            Self::Reissue { .. } => Ed25519YaoOperationV1::Reissue,
         }
     }
 
     /// Returns the admitted ceremony binding.
     pub const fn ceremony_binding(&self) -> &Ed25519YaoCeremonyBindingV1 {
         match self {
-            Self::Registration { binding, .. } | Self::Recovery { binding, .. } => binding,
+            Self::Registration { binding, .. }
+            | Self::Recovery { binding, .. }
+            | Self::Reissue { binding, .. } => binding,
             Self::Export { binding, .. } => binding.ceremony(),
         }
     }
@@ -765,6 +832,11 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
                 deriver_a_input,
                 deriver_b_input,
                 ..
+            }
+            | Self::Reissue {
+                deriver_a_input,
+                deriver_b_input,
+                ..
             } => (deriver_a_input, deriver_b_input),
         }
     }
@@ -773,7 +845,7 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
     pub fn authorization_digest(&self) -> RouterAbProtocolResult<PublicDigest32> {
         match self {
             Self::Export { binding, .. } => Ok(PublicDigest32::new(binding.authorization_digest())),
-            Self::Registration { .. } | Self::Recovery { .. } => {
+            Self::Registration { .. } | Self::Recovery { .. } | Self::Reissue { .. } => {
                 let canonical = serde_json::to_vec(self).map_err(|error| {
                     RouterAbProtocolError::new(
                         RouterAbProtocolErrorCode::MalformedWirePayload,
@@ -849,6 +921,18 @@ impl RouterEd25519YaoGatewayExecuteTargetV2 {
                 deriver_a_input,
                 deriver_b_input,
             ),
+            Self::Reissue {
+                binding,
+                deriver_a_input,
+                deriver_b_input,
+                ..
+            } => RouterEd25519YaoExecuteRequestV1::reissue(
+                authority,
+                binding,
+                pair_binding,
+                deriver_a_input,
+                deriver_b_input,
+            ),
         }
     }
 }
@@ -897,6 +981,31 @@ impl RouterEd25519YaoExecuteRequestV1 {
         )?;
         validate_authority_digest(&authority, &pair_binding)?;
         Ok(Self::Registration {
+            authority,
+            binding,
+            pair_binding,
+            deriver_a_input,
+            deriver_b_input,
+        })
+    }
+
+    /// Builds a reissue request after validating pair and binding identity.
+    pub fn reissue(
+        authority: RouterAdmittedExecutionAuthorityV1,
+        binding: Ed25519YaoCeremonyBindingV1,
+        pair_binding: Ed25519YaoInputPairBindingV1,
+        deriver_a_input: Ed25519YaoEncryptedInputV1,
+        deriver_b_input: Ed25519YaoEncryptedInputV1,
+    ) -> RouterAbProtocolResult<Self> {
+        validate_execute_pair(
+            &binding,
+            Ed25519YaoOperationV1::Reissue,
+            &pair_binding,
+            &deriver_a_input,
+            &deriver_b_input,
+        )?;
+        validate_authority_digest(&authority, &pair_binding)?;
+        Ok(Self::Reissue {
             authority,
             binding,
             pair_binding,
@@ -1028,6 +1137,7 @@ impl RouterEd25519YaoExecuteRequestV1 {
             Self::Export { .. } => Ed25519YaoOperationV1::Export,
             Self::LaneProvisioning { .. } => Ed25519YaoOperationV1::LaneProvisioning,
             Self::LaneRefresh { .. } => Ed25519YaoOperationV1::LaneRefresh,
+            Self::Reissue { .. } => Ed25519YaoOperationV1::Reissue,
         }
     }
 
@@ -1038,7 +1148,8 @@ impl RouterEd25519YaoExecuteRequestV1 {
             | Self::Recovery { pair_binding, .. }
             | Self::Export { pair_binding, .. }
             | Self::LaneProvisioning { pair_binding, .. }
-            | Self::LaneRefresh { pair_binding, .. } => pair_binding,
+            | Self::LaneRefresh { pair_binding, .. }
+            | Self::Reissue { pair_binding, .. } => pair_binding,
         }
     }
 
@@ -1049,7 +1160,8 @@ impl RouterEd25519YaoExecuteRequestV1 {
             | Self::Recovery { authority, .. }
             | Self::Export { authority, .. }
             | Self::LaneProvisioning { authority, .. }
-            | Self::LaneRefresh { authority, .. } => authority,
+            | Self::LaneRefresh { authority, .. }
+            | Self::Reissue { authority, .. } => authority,
         }
     }
 
@@ -1060,7 +1172,8 @@ impl RouterEd25519YaoExecuteRequestV1 {
             Self::Registration { .. }
             | Self::Export { .. }
             | Self::LaneProvisioning { .. }
-            | Self::LaneRefresh { .. } => None,
+            | Self::LaneRefresh { .. }
+            | Self::Reissue { .. } => None,
         }
     }
 }
@@ -1146,6 +1259,13 @@ enum RawRouterEd25519YaoExecuteRequestV1 {
         deriver_a_input: Ed25519YaoEncryptedInputV1,
         deriver_b_input: Ed25519YaoEncryptedInputV1,
     },
+    Reissue {
+        authority: RouterAdmittedExecutionAuthorityV1,
+        binding: Ed25519YaoCeremonyBindingV1,
+        pair_binding: Ed25519YaoInputPairBindingV1,
+        deriver_a_input: Ed25519YaoEncryptedInputV1,
+        deriver_b_input: Ed25519YaoEncryptedInputV1,
+    },
 }
 
 impl<'de> Deserialize<'de> for RouterEd25519YaoExecuteRequestV1 {
@@ -1226,6 +1346,19 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoExecuteRequestV1 {
                 deriver_a_input,
                 deriver_b_input,
             ),
+            RawRouterEd25519YaoExecuteRequestV1::Reissue {
+                authority,
+                binding,
+                pair_binding,
+                deriver_a_input,
+                deriver_b_input,
+            } => Self::reissue(
+                authority,
+                binding,
+                pair_binding,
+                deriver_a_input,
+                deriver_b_input,
+            ),
         }
         .map_err(D::Error::custom)
     }
@@ -1257,301 +1390,6 @@ fn validate_execute_pair(
         ));
     }
     pair_binding.validate()
-}
-
-/// Operation-specific successful Router result.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterEd25519YaoExecuteSuccessV1 {
-    /// Registration activation result.
-    Registration {
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoActivationResultV1,
-    },
-    /// Recovery staged activation result.
-    Recovery {
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoActivationResultV1,
-    },
-    /// Client-recipient export result.
-    Export {
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoExportResultV1,
-    },
-    /// New lane output commitment.
-    LaneProvisioning {
-        result: crate::protocol::ed25519_yao_lane::RouterAbEd25519YaoLaneResultV1,
-    },
-    /// Replacement lane-epoch output commitment.
-    LaneRefresh {
-        result: crate::protocol::ed25519_yao_lane::RouterAbEd25519YaoLaneResultV1,
-    },
-}
-
-impl RouterEd25519YaoExecuteSuccessV1 {
-    /// Wraps a registration result after checking its operation binding.
-    pub fn registration(
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoActivationResultV1,
-    ) -> RouterAbProtocolResult<Self> {
-        if result.binding().operation != Ed25519YaoOperationV1::Registration {
-            return Err(invalid_router_yao(
-                "Ed25519 Yao registration result has the wrong operation",
-            ));
-        }
-        Ok(Self::Registration { result })
-    }
-
-    /// Wraps a recovery result after checking its operation binding.
-    pub fn recovery(
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoActivationResultV1,
-    ) -> RouterAbProtocolResult<Self> {
-        if result.binding().operation != Ed25519YaoOperationV1::Recovery {
-            return Err(invalid_router_yao(
-                "Ed25519 Yao recovery result has the wrong operation",
-            ));
-        }
-        Ok(Self::Recovery { result })
-    }
-
-    /// Wraps an export result after checking its operation binding.
-    pub fn export(
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoExportResultV1,
-    ) -> RouterAbProtocolResult<Self> {
-        if result.binding().ceremony().operation != Ed25519YaoOperationV1::Export {
-            return Err(invalid_router_yao(
-                "Ed25519 Yao export result has the wrong operation",
-            ));
-        }
-        Ok(Self::Export { result })
-    }
-
-    /// Wraps a lane-provisioning result after checking its job branch.
-    pub fn lane_provisioning(
-        result: crate::protocol::ed25519_yao_lane::RouterAbEd25519YaoLaneResultV1,
-    ) -> RouterAbProtocolResult<Self> {
-        result.validate()?;
-        if result.job.yao_request_kind
-            != crate::protocol::ed25519_yao_lane::Ed25519YaoLaneRequestKindV1::LaneProvisioning
-        {
-            return Err(invalid_router_yao(
-                "Ed25519 Yao lane-provisioning result has the wrong operation",
-            ));
-        }
-        Ok(Self::LaneProvisioning { result })
-    }
-
-    /// Wraps a lane-refresh result after checking its job branch.
-    pub fn lane_refresh(
-        result: crate::protocol::ed25519_yao_lane::RouterAbEd25519YaoLaneResultV1,
-    ) -> RouterAbProtocolResult<Self> {
-        result.validate()?;
-        if result.job.yao_request_kind
-            != crate::protocol::ed25519_yao_lane::Ed25519YaoLaneRequestKindV1::LaneRefresh
-        {
-            return Err(invalid_router_yao(
-                "Ed25519 Yao lane-refresh result has the wrong operation",
-            ));
-        }
-        Ok(Self::LaneRefresh { result })
-    }
-
-    /// Returns the operation branch.
-    pub const fn operation(&self) -> Ed25519YaoOperationV1 {
-        match self {
-            Self::Registration { .. } => Ed25519YaoOperationV1::Registration,
-            Self::Recovery { .. } => Ed25519YaoOperationV1::Recovery,
-            Self::Export { .. } => Ed25519YaoOperationV1::Export,
-            Self::LaneProvisioning { .. } => Ed25519YaoOperationV1::LaneProvisioning,
-            Self::LaneRefresh { .. } => Ed25519YaoOperationV1::LaneRefresh,
-        }
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
-enum RawRouterEd25519YaoExecuteSuccessV1 {
-    Registration {
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoActivationResultV1,
-    },
-    Recovery {
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoActivationResultV1,
-    },
-    Export {
-        result: crate::protocol::ed25519_yao::RouterAbEd25519YaoExportResultV1,
-    },
-    LaneProvisioning {
-        result: crate::protocol::ed25519_yao_lane::RouterAbEd25519YaoLaneResultV1,
-    },
-    LaneRefresh {
-        result: crate::protocol::ed25519_yao_lane::RouterAbEd25519YaoLaneResultV1,
-    },
-}
-
-impl<'de> Deserialize<'de> for RouterEd25519YaoExecuteSuccessV1 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let raw = RawRouterEd25519YaoExecuteSuccessV1::deserialize(deserializer)?;
-        match raw {
-            RawRouterEd25519YaoExecuteSuccessV1::Registration { result } => {
-                Self::registration(result)
-            }
-            RawRouterEd25519YaoExecuteSuccessV1::Recovery { result } => Self::recovery(result),
-            RawRouterEd25519YaoExecuteSuccessV1::Export { result } => Self::export(result),
-            RawRouterEd25519YaoExecuteSuccessV1::LaneProvisioning { result } => {
-                Self::lane_provisioning(result)
-            }
-            RawRouterEd25519YaoExecuteSuccessV1::LaneRefresh { result } => {
-                Self::lane_refresh(result)
-            }
-        }
-        .map_err(D::Error::custom)
-    }
-}
-
-/// Recoverable or terminal failure class for one Router execution attempt.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RouterEd25519YaoExecuteFailureCodeV1 {
-    /// Internal service transport was unavailable before activation.
-    ServiceUnavailable,
-    /// The exact pair is already owned by another live execution.
-    ConflictingPair,
-    /// A prepared record or receipt was missing or mismatched.
-    MissingPreparation,
-    /// The nonterminal ceremony lifetime elapsed.
-    CeremonyExpired,
-    /// SigningWorker delivery remains uncertain and may be retried exactly.
-    SigningWorkerUncertain,
-    /// The role recorded a sanitized terminal failure.
-    TerminalRoleFailure,
-    /// The admitted authority was rejected at the Router boundary.
-    AuthorizationRejected,
-    /// Another run holds this registration's execution until its lease
-    /// lapses; an exact retry after it replays the run.
-    ExecutionInProgress,
-    /// Another request already owns this registration's execution.
-    ExecutionMismatch,
-    /// A later attempt of the same recovery took this attempt's place at the
-    /// SigningWorker, so this attempt can never activate.
-    AttemptSuperseded,
-}
-
-/// Reason an activated execution identity is permanently burned.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RouterEd25519YaoBurnReasonV1 {
-    /// Caller disconnected after activation began.
-    CallerDisconnected,
-    /// Peer acceptance or transcript state became ambiguous.
-    PeerUncertain,
-    /// Protocol execution failed after one-use activation.
-    ProtocolFailure,
-}
-
-/// Result-style Router execution response with explicit retry semantics.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterEd25519YaoExecuteResultV1 {
-    /// Operation-specific successful result.
-    Succeeded {
-        result: Box<RouterEd25519YaoExecuteSuccessV1>,
-    },
-    /// Failure safe for an exact request retry.
-    RecoverableFailure {
-        code: RouterEd25519YaoExecuteFailureCodeV1,
-        retry_after_ms: u64,
-    },
-    /// Request rejected before one-use activation.
-    Rejected {
-        code: RouterEd25519YaoExecuteFailureCodeV1,
-    },
-    /// Execution identity burned after activation uncertainty.
-    Burned {
-        execution_id: Ed25519YaoExecutionIdV1,
-        reason: RouterEd25519YaoBurnReasonV1,
-    },
-}
-
-impl RouterEd25519YaoExecuteResultV1 {
-    /// Creates a successful operation-specific result.
-    pub fn succeeded(result: RouterEd25519YaoExecuteSuccessV1) -> Self {
-        Self::Succeeded {
-            result: Box::new(result),
-        }
-    }
-
-    /// Creates a retryable failure with a positive retry hint.
-    pub fn recoverable(
-        code: RouterEd25519YaoExecuteFailureCodeV1,
-        retry_after_ms: u64,
-    ) -> RouterAbProtocolResult<Self> {
-        if retry_after_ms == 0 {
-            return Err(invalid_router_yao(
-                "Ed25519 Yao recoverable failure retry hint must be positive",
-            ));
-        }
-        Ok(Self::RecoverableFailure {
-            code,
-            retry_after_ms,
-        })
-    }
-
-    /// Creates a pre-activation rejection.
-    pub const fn rejected(code: RouterEd25519YaoExecuteFailureCodeV1) -> Self {
-        Self::Rejected { code }
-    }
-
-    /// Creates an irreversible burned execution result.
-    pub fn burned(
-        execution_id: Ed25519YaoExecutionIdV1,
-        reason: RouterEd25519YaoBurnReasonV1,
-    ) -> Self {
-        Self::Burned {
-            execution_id,
-            reason,
-        }
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
-enum RawRouterEd25519YaoExecuteResultV1 {
-    Succeeded {
-        result: Box<RouterEd25519YaoExecuteSuccessV1>,
-    },
-    RecoverableFailure {
-        code: RouterEd25519YaoExecuteFailureCodeV1,
-        retry_after_ms: u64,
-    },
-    Rejected {
-        code: RouterEd25519YaoExecuteFailureCodeV1,
-    },
-    Burned {
-        execution_id: Ed25519YaoExecutionIdV1,
-        reason: RouterEd25519YaoBurnReasonV1,
-    },
-}
-
-impl<'de> Deserialize<'de> for RouterEd25519YaoExecuteResultV1 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let raw = RawRouterEd25519YaoExecuteResultV1::deserialize(deserializer)?;
-        match raw {
-            RawRouterEd25519YaoExecuteResultV1::Succeeded { result } => {
-                Ok(Self::succeeded(*result))
-            }
-            RawRouterEd25519YaoExecuteResultV1::RecoverableFailure {
-                code,
-                retry_after_ms,
-            } => Self::recoverable(code, retry_after_ms).map_err(D::Error::custom),
-            RawRouterEd25519YaoExecuteResultV1::Rejected { code } => Ok(Self::rejected(code)),
-            RawRouterEd25519YaoExecuteResultV1::Burned {
-                execution_id,
-                reason,
-            } => Ok(Self::burned(execution_id, reason)),
-        }
-    }
 }
 
 /// Execution identity allocated once for a request and never reused after ambiguity.

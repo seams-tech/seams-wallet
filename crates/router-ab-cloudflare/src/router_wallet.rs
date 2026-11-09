@@ -284,13 +284,18 @@ pub struct RouterWalletRequestV1 {
 }
 
 impl RouterWalletRequestV1 {
-    /// Checks admitted recovery or export against this wallet's local generation and fence.
+    /// Checks admitted recovery, reissue or export against this wallet's local generation and fence.
     pub fn settlement_admission(
         request: &CloudflareRouterEd25519YaoExecuteRequestV2,
     ) -> Option<Self> {
         let (ownership_generation, binding) = match &request.target {
             RouterEd25519YaoGatewayExecuteTargetV2::Registration { .. } => return None,
             RouterEd25519YaoGatewayExecuteTargetV2::Recovery {
+                ownership_generation,
+                binding,
+                ..
+            }
+            | RouterEd25519YaoGatewayExecuteTargetV2::Reissue {
                 ownership_generation,
                 binding,
                 ..
