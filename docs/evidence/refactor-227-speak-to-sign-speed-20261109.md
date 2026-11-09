@@ -15,9 +15,9 @@ release 0.60.0, verifier 0.4.1 (`d078eb11…d54c`).
   refund receipt and 0.6 s for the RPC answer.
 - The Wallet already waits for `EXECUTED_OPTIMISTIC`, not `FINAL`. So "wait for an earlier
   status than final" is not a saving as stated. `INCLUDED` is the saving (about 1.1 s).
-- Recommendation: first do options 1 and 2 (about 1.8 s, small work). Then choose between
-  option 4 (keeps the TEE, high work) and option 5 (drops the TEE, high work) for the next
-  2–3 s.
+- Recommendation: first do options 1 and 2 (about 1.8 s, small work). For the next 2–3 s,
+  option 4 makes the OutLayer backend faster and keeps the TEE. Option 5 is the intended
+  second backend: faster and cheaper, but centralized. Both need high work.
 
 ## Time breakdown
 
@@ -119,7 +119,7 @@ spoken word to the receipt.
 | 2 | Shorter or adaptive end pause (1.5 s → 0.7–0.8 s) | about 0.7 s | very small | can cut a slow speaker |
 | 3 | Write the used-audio mark during the requests | 0.16–0.20 s | small (verifier version) | burns a recording on a refusal or an outage |
 | 4 | Start the OutLayer call at "Record"; the worker fetches the clip at the end | about 1.5–3 s | high | see below |
-| 5 | Cloudflare-hosted verifier (Refactor 225, Decision 6) | about 2.3–4 s | high | no TEE attestation |
+| 5 | Cloudflare-hosted verifier, a second backend beside OutLayer (Refactor 225, Decision 6) | about 2.3–4 s | high | centralized: no TEE attestation on that backend |
 | 6 | Prepare round during verify; co-signer check at finalize (option a) | about 0.3–0.45 s | medium–high | see below |
 | 7 | Faster speaker hop (co-locate Phala, lighter request) | at most 0.25 s now | medium | storage and Whisper become the limit |
 | – | Wait for an earlier status than `FINAL` (option b as stated) | 0 | – | already `EXECUTED_OPTIMISTIC` |
@@ -162,14 +162,41 @@ spoken word to the receipt.
   hand-off route (a Durable Object or a long poll); a new verifier version with the Seams
   host in its network list; the 15 s execution limit must cover an 8 s recording.
 
-### 5. Cloudflare-hosted verifier
+### 5. Cloudflare-hosted verifier (the second backend)
 
-- Removes the OutLayer outside time and run overhead. The speaker and Whisper calls stay
-  (about 1.5 s in parallel). Expected verify: about 2 s.
-- The verdict key then lives in a Seams Worker, not in a TEE. A compromised Seams server and
-  a malicious app together could approve a request that the owner did not say. Today the TEE
-  stops that.
-- The owner parked this as "later" in Refactor 225, Decision 6.
+The user confirmed on 2026-11-09 that this is an intended second backend beside OutLayer, not
+a replacement:
+
+| Backend | Speed | Cost | Trust |
+| --- | --- | --- | --- |
+| Cloudflare (Seams Worker) | verify about 2 s (expected) | no OutLayer fee | centralized: Seams holds the verdict key |
+| OutLayer (TEE) | verify 5.2 s (measured) | OutLayer fee for each call | the verdict key and the verifier code are attested |
+
+- The Cloudflare backend runs the same verifier steps: the speaker and Whisper calls (about
+  1.5 s in parallel), the word match, the policy and the verdict signature. It removes the
+  OutLayer outside time (1.5–3.5 s) and the run overhead (0.75 s).
+- Without a TEE, nobody can prove which code signed a verdict. A compromised Seams server
+  could sign `accept` for words that the owner did not say, and the Wallet would pay. On the
+  OutLayer backend, the TEE stops that.
+- Refactor 225, Decision 6 already makes the OutLayer chain optional "later".
+
+Three points to settle before the build:
+
+1. **One verifier key for each wallet.** Today the Wallet and the co-signer pin one key for
+   each network. With two backends there are two keys. A wallet that accepts both is only as
+   safe as the Cloudflare backend, because an attacker uses the weaker path. So the owner
+   chooses the backend for the wallet, and the Wallet and the co-signer accept only the key
+   of that backend. The app and a single request cannot choose it.
+2. **The limits of "trustless" on OutLayer.** The verifier checks the Phala speaker reply
+   against a pinned key. It does not check an attestation of the Whisper reply, so it trusts
+   NEAR AI for the words. The Seams co-signer must still take part in each signature: it
+   cannot sign alone, but it can refuse.
+3. **The cost is not measured.** Both backends pay for Phala and NEAR AI. The Cloudflare
+   backend removes the OutLayer fee (about 1,080 compute units for each verify call in the
+   probes) and adds Worker and D1 use.
+
+Option 4 stays useful for the OutLayer backend: it makes that backend faster without a trust
+change.
 
 ### 6. Prepare during verify (option a)
 
