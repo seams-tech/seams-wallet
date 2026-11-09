@@ -1,29 +1,29 @@
 ---
-title: Release 0.60.0
-description: The Seams co-signer checks each Speak-to-Sign verdict, with voice limits, and spoken requests report their progress.
+title: Release 0.61.0
+description: Speak-to-Sign approves pull request merges by voice and shows a spoken payment as sent about a second sooner.
 ---
 
-# Release 0.60.0
+# Release 0.61.0
 
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.60.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.61.0**.
 
-- **Experimental, NEAR testnet only:** the Seams co-signer checks the Speak-to-Sign verdict again before it adds its part of a voice-approved signature. See the [trust model](/concepts/auth-methods/speak-to-sign#trust-model).
-  - The signing request of a voice-approved transaction carries the verdict. The co-signer checks the signature against the pinned verifier key, the expiry, that the unsigned transaction carries out the spoken request, and that the session's NEAR account signs it.
-  - Each verdict approves one signing request. The co-signer records it in the new table `speak_to_sign_voice_verdicts`.
-  - Voice limits for each wallet: at most 10 NEAR in one voice-only payment and 20 NEAR in any 24 hours.
-  - A `step_up` verdict needs a fresh approval: a passkey or Email OTP step-up of the same operation, or a new VoiceID unlock after the verdict. On a VoiceID session, the new unlock now meets the fresh-approval request in the same signing call.
-  - A refusal of the co-signer is `refused` with `voice_limit` or `cosigner_refused`. `detail` names its reason, such as `over_daily_limit` or `reused`. Nothing was signed.
-- `requestTransfer`, `requestNote` and `requestRating` take an optional `onProgress`. It gets `recording_sent`, `verifier_running`, `verdict`, `step_up`, `transaction_sent` and `settled`. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign#install).
-- The verify route answers with `text/event-stream` after its checks: `verifier_running`, then one `verdict` or `failed` event. While the verifier works, the Wallet prefetches the access-key nonce and a recent block hash for the payment.
-- Without `rpIdOverride`, passkeys are scoped to the host of `walletOrigin`. Before, every wallet origin kept the local default `example.localhost`.
-- Without a `routerAb` setting, the Seams-hosted wallet origins (`staging.sign.seams.sh`, `test.sign.seams.sh`, `sign.seams.sh`) enable Router A/B normal signing with their own SigningWorker. So `seamsTestnetConfig` with `walletOrigin`, `relayerUrl` and `publishableKey` can sign NEAR. Before, NEAR signing stayed off until the app set `routerAb`. See [the hosted wallet branch](/reference/configuration#hosted-wallet-branch).
-- The Speak-to-Sign host API is version **7**, and the VoiceID host API stays at version **10**. The Wallet refuses host plugins of other versions.
-- Deploy in this order: apply the D1 migration, deploy the server, then the Wallet host. Speak-to-Sign needs the server and the Wallet host both at 0.60.0, because the verify answer is now a stream; other signing works between the two deploys. An app on 0.59.0 ignores the progress messages, but it cannot read the two new refusal reasons, so update the app too.
-- Verifier 0.4.1 (`d078eb11eee0f11c5cc72d1284885b13ef5212a0862be123d1d43a3a5e83d54c`) accepts more spoken forms in transfers: a separator said in other words ("period", "hyphen"), an account name without its separators and network suffix ("seams v one"), "to" joined with the account ("near toucane" for "near to ken"), and "oh" for zero. The amount and the receiver must still match the request.
-- 0.59.0 changes, kept in 0.60.0:
-  - Speak-to-Sign signs spoken community notes (`requestNote`) and note ratings (`requestRating`).
-  - Verifier 0.4.0 (`8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`) adds the note requests. Transfers are unchanged.
-- Install all four packages at 0.60.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
+- **Experimental, NEAR testnet only:** Speak-to-Sign approves a pull request merge by voice.
+  - `seams.speakToSign.requestMergeApproval({ walletId, contract, repo, pullRequest, base, headCommit })`: the owner says "merge pull request 42 into main". The verdict also binds the SHA-256 of the repository and the 20-byte head commit, which the owner does not say.
+  - On an approved verdict, Wallet core signs one `approve_merge` call on the contract, with no deposit and no confirm. The Seams co-signer admits only that call, for that repository, pull request, base and commit.
+  - Input that the contract would refuse gives `merge_not_valid` before the recording.
+  - It needs verifier 0.5.0 or later.
+- A spoken payment shows as sent sooner:
+  - A voice-approved plain transfer shows "Sent" when a block holds it. The result still waits for the outcome, about two blocks later. A note, a rating or a merge approval still shows its outcome, because a contract call can fail in the contract.
+  - When the owner reads a known sentence, the recording ends after 0.8 s of silence instead of 1.5 s, once the voiced time covers the whole sentence. A pause inside the sentence still gets 1.5 s. The VoiceID unlock and enrollment keep 1.5 s.
+  - The times of a `sent` result now start at the owner's last spoken word, not at the end of the recording. So `endOfSpeechToReceiptMs` now includes the end pause.
+- Verifier 0.5.1 (`cdb46fea7fab5afbb855e373674c80a9cd77170beb594579da28d754009e7258`) writes the used-audio mark while the speaker and transcription requests run, so each verification is about 0.2 s shorter. A recording that the verifier refuses, or that meets a service outage, is now used up; the card records again for each try. It includes the merge approvals of 0.5.0.
+- The co-signer deletes a wallet's verdict records that are older than 24 hours, and it logs each refusal of a voice verdict with its reason.
+- The Wallet host loads the VoiceID and Speak-to-Sign plugins with the host API version and the Wallet asset version in the URL. So after a deploy, a browser does not keep an older plugin from its cache.
+- A passkey unlock on a site whose NEAR custody cache is older than the server's keys now refreshes the cache. A VoiceID unlock that finds an older cache asks for one passkey unlock. A user who moves between two apps on different sites can pay one Router recovery at each move; a later release removes this cost.
+- The Receive and Send panels choose the asset from a styled list with keyboard support.
+- The Speak-to-Sign host API is version **8**, and the VoiceID host API stays at version **10**. The Wallet refuses host plugins of other versions.
+- `@seams/speak-to-sign` now releases from the `seams-tech/speak-to-sign` repository.
+- Install all four packages at 0.61.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
-The signed recovery CLI remains **0.29.0**. This release adds one D1 migration, `0089_speak_to_sign_voice_verdicts.sql`.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
