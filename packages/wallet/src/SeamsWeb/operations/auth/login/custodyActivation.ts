@@ -181,10 +181,11 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
     null;
   let rejoinSecret: Uint8Array<ArrayBuffer> | null = null;
   let openSecret: Uint8Array | null = null;
+  let rejoinedHere = false;
   try {
-    // A cache from an older epoch holds material the Router no longer signs with: a passkey
-    // unlock on another site (its own storage partition) or device rejoined the key set. Rejoin
-    // here too, so the rewritten cache serves the next VoiceID or Email OTP unlock.
+    // A cache from an older epoch keeps an older state epoch, which VoiceID unlock and export
+    // refuse: a passkey unlock on another site (its own storage partition) or device rejoined
+    // the key set. Rejoin here too, so the rewritten cache carries the current epoch.
     if (
       cached.kind === 'found' &&
       cached.material.binding.stateEpoch === String(capability.stateEpoch)
@@ -201,6 +202,7 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
       if (!custodyWire.ok) throw new Error(custodyWire.reason);
       rejoinSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
       openSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
+      rejoinedHere = true;
       const rejoined = await input.signingEngine.rejoinWalletCustodyNearEd25519KeySet({
         walletId: String(input.walletBinding.walletId),
         custodyJson: custodyWire.custodyJson,
@@ -375,9 +377,10 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
       walletSessionId: String(input.walletSession.walletSessionId),
       expiresAtMs: input.walletSession.expiresAtMs,
     });
-    return cached.kind === 'found'
-      ? { kind: 'unchanged' }
-      : { kind: 'recovered', materialActivation: activated.materialActivation, previousAuthority };
+    // A rejoin is a Router recovery with a new material activation, also for a stale cache.
+    return rejoinedHere
+      ? { kind: 'recovered', materialActivation: activated.materialActivation, previousAuthority }
+      : { kind: 'unchanged' };
   } catch (error) {
     activeClient?.dispose();
     throw error;
