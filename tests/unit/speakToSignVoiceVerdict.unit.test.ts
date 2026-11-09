@@ -221,6 +221,8 @@ type Harness = Readonly<{
     },
   ): Promise<{ status: number; reason: CosignerVoiceRefusal | null; message?: string }>;
   ledger: VoiceVerdictLedger;
+  /** Each warning the check wrote to the server log. */
+  warnings: unknown[][];
 }>;
 
 let signerDatabase: Awaited<ReturnType<typeof openSignerD1>> | null = null;
@@ -247,6 +249,7 @@ function harness(verifier: Verifier, options: { configured?: boolean } = {}): Ha
     namespace: `voice-verdicts-${namespaceCount}`,
   });
   let nowMs = NOW_MS;
+  const warnings: unknown[][] = [];
   const voiceVerdicts: SpeakToSignVoiceVerdictCheck = {
     ledger,
     verifiers: {
@@ -257,10 +260,12 @@ function harness(verifier: Verifier, options: { configured?: boolean } = {}): Ha
   };
   return {
     ledger,
+    warnings,
     async check(body, checkOptions = {}) {
       nowMs = checkOptions.nowMs ?? NOW_MS;
       const ctx: SigningRouteVoiceVerdict['ctx'] = {
         opts: { speakToSignVoiceVerdicts: options.configured === false ? null : voiceVerdicts },
+        logger: { warn: (...args: unknown[]) => void warnings.push(args) },
         service: {
           walletRegistration: {
             async resolveEd25519MaterialActivation(lookup) {
@@ -328,6 +333,53 @@ test('an accepted transfer verdict for this transaction, owner and session is ad
   expect(await cosigner.check(withVerdict(prepareBody(tx), verdict))).toEqual(ADMITTED);
   // A retry of the same signing request may use the verdict again.
   expect(await cosigner.check(withVerdict(prepareBody(tx), verdict))).toEqual(ADMITTED);
+  expect(cosigner.warnings).toEqual([]);
+});
+
+test('each refusal writes one log line with its reason, the wallet and the request', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const tx = unsignedTransaction({
+    receiver: 'alice.testnet',
+    actions: [{ kind: 'transfer', yocto: 11n * NEAR }],
+  });
+  const verdict = await signedVerdict(verifier, transfer(11n));
+  expect(await cosigner.check(withVerdict(prepareBody(tx), verdict))).toEqual(
+    refused('over_payment_limit'),
+  );
+  expect(cosigner.warnings).toEqual([
+    [
+      '[speak-to-sign] co-signer refused a voice verdict',
+      {
+        reason: 'over_payment_limit',
+        phase: 'prepare',
+        walletId: WALLET_ID,
+        requestId: 'request-1',
+      },
+    ],
+  ]);
+  // A fault names its source in the log, never in the response.
+  const failing = harness(verifier);
+  const faultyLedger = failing.ledger as { admit: VoiceVerdictLedger['admit'] };
+  faultyLedger.admit = async () => {
+    throw new Error('D1 is busy');
+  };
+  const small = unsignedTransaction({
+    receiver: 'alice.testnet',
+    actions: [{ kind: 'transfer', yocto: NEAR }],
+  });
+  const response = await failing.check(
+    withVerdict(prepareBody(small), await signedVerdict(verifier, transfer(1n))),
+  );
+  expect(response).toEqual({
+    status: 503,
+    reason: 'unavailable',
+    message: 'Speak-to-Sign verdict refused: unavailable',
+  });
+  expect(failing.warnings[0]?.[1]).toMatchObject({
+    reason: 'unavailable',
+    detail: 'ledger: D1 is busy',
+  });
 });
 
 test('a bad signature, another key or a malformed verdict is refused', async () => {
@@ -701,9 +753,10 @@ test('a verdict on the second round, or without a configured check, is refused',
 
 test('the D1 ledger records a verdict once and sums voice amounts in one statement', async () => {
   namespaceCount += 1;
+  const ledgerNamespace = namespaceCount;
   const ledger = createD1VoiceVerdictLedger({
     database: database(),
-    namespace: `voice-ledger-${namespaceCount}`,
+    namespace: `voice-ledger-${ledgerNamespace}`,
   });
   const record = (
     verdictId: string,
@@ -729,7 +782,20 @@ test('the D1 ledger records a verdict once and sums voice amounts in one stateme
   expect(raced.sort()).toEqual(['admitted', 'over_daily_limit']);
   // An approval that moves no voice-only value always fits.
   expect(await record('v4', 'r5', 0)).toBe('admitted');
+  const rows = async () =>
+    (
+      await database()
+        .prepare(
+          'SELECT verdict_id FROM speak_to_sign_voice_verdicts WHERE namespace = ?1 ORDER BY verdict_id',
+        )
+        .bind(`voice-ledger-${ledgerNamespace}`)
+        .all<{ verdict_id: string }>()
+    ).results?.map((row) => row.verdict_id);
+  // v1, the one of v2 and v3 that won the race, and v4.
+  expect(await rows()).toHaveLength(3);
+  // A day later, the next admission deletes the wallet's records from outside the window.
   expect(await record('v5', 'r6', 500, NOW_MS + 86_400_001)).toBe('admitted');
+  expect(await rows()).toEqual(['v5']);
 });
 
 test('the Wallet sends the verdict beside the prepare request and reads the typed refusal', async () => {

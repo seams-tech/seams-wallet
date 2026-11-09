@@ -324,6 +324,13 @@ until the 0.57.0 rollout session reports done.
    - Tests: `tests/unit/speakToSignVoiceVerdict.unit.test.ts` (each refusal, the accepted
      transfer, note and rating, the D1 ledger on the real migration, the request body that the
      Wallet sends) and `tests/unit/speakToSignHost.unit.test.ts`.
+   - For 0.61.0: each admission deletes the wallet's records older than 24 hours (in the same
+     D1 batch as the insert), and each refusal writes one warning line with the reason, the
+     wallet and the request.
+   - Live check on a local stack (2026-11-09, verifier 0.4.1): 0.01 NEAR paid with no confirm
+     in 8.1 s from the end of speech to the receipt; wrong words refused; the 11 NEAR step-up
+     passed the co-signer and NEAR refused it for the balance. The verify reply was
+     `text/event-stream`, and the table held one row for each approved verdict.
    - Not done: the deploy and a live check on staging. Deploy wallet-server with migration
      `0089` before the hosted Wallet: an older gateway does not take `voice_verdict` out of the
      request.

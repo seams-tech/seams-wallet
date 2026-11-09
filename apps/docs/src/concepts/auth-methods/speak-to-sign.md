@@ -224,9 +224,11 @@ code, such as `verifier_timeout`.
 
 The same six variables turn on the co-signer's verdict check. It records each
 accepted verdict in the signer database table `speak_to_sign_voice_verdicts`
-(D1 migration `0089_speak_to_sign_voice_verdicts.sql`). A Seams server without
-the variables refuses every signing request that carries a verdict, with the
-reason `unavailable`.
+(D1 migration `0089_speak_to_sign_voice_verdicts.sql`). Each new record deletes
+the wallet's records that are older than 24 hours. The server log has one
+warning line for each refusal, with the reason, the wallet and the signing
+request. A Seams server without the variables refuses every signing request
+that carries a verdict, with the reason `unavailable`.
 
 ## The verifier key
 

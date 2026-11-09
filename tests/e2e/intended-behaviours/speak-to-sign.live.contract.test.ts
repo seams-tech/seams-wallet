@@ -140,8 +140,8 @@ function walletIdOf(identity: { walletId: string }): string {
 }
 
 /**
- * Clicks the Wallet confirmation whenever one appears, until the operation settles, and counts
- * the confirms it clicked.
+ * Clicks the Wallet confirmation and the VoiceID card's buttons whenever they appear, until the
+ * operation settles, and counts the confirms it clicked (a confirm or the card's passkey button).
  */
 async function approveUntilSettled<T>(
   page: Page,
@@ -152,12 +152,33 @@ async function approveUntilSettled<T>(
   const done = operation.finally(() => {
     settled = true;
   });
+  let passkeyClicked = false;
   const confirm = page.frameLocator(WALLET).locator('button.confirm');
+  // The VoiceID card shows the result and waits on its one button: "Done" after a payment,
+  // "Close" or "Try again" after a refusal, "Confirm with passkey" for a step-up.
+  const card = page.frameLocator(WALLET).getByRole('dialog', { name: 'Say this with your voice' });
+  const cardButton = (name: string) => card.getByRole('button', { name, exact: true });
+  const shown = async (name: string) => await cardButton(name).isVisible().catch(() => false);
   while (!settled) {
     if (await confirm.isVisible().catch(() => false)) {
       await confirm.click().catch(() => undefined);
       confirms += 1;
       log('wallet', 'confirmed');
+    } else if (await shown('Done')) {
+      await cardButton('Done').click().catch(() => undefined);
+    } else if (await shown('Close')) {
+      await cardButton('Close').click().catch(() => undefined);
+    } else if (await shown('Try again')) {
+      // "Try again" records again; Cancel ends the request with the refusal.
+      await cardButton('Cancel').click().catch(() => undefined);
+    } else if (!passkeyClicked && (await shown('Confirm with passkey'))) {
+      const button = cardButton('Confirm with passkey');
+      if (await button.isEnabled({ timeout: 100 }).catch(() => false)) {
+        passkeyClicked = true;
+        await button.click().catch(() => undefined);
+        confirms += 1;
+        log('wallet', 'confirmed on the card');
+      }
     }
     await Promise.race([done.catch(() => undefined), page.waitForTimeout(250)]);
   }
@@ -200,14 +221,21 @@ async function rpc(method: string, params: unknown) {
   return body.result;
 }
 
-/** The verify reply holds the verdict and timings, or an error code and message. */
+/**
+ * The verify reply is a `text/event-stream` (`verifier_running`, then `verdict` or `failed`),
+ * or a JSON error before the verifier call. Playwright cannot read a streamed body, so the log
+ * shows the status and the content type; a JSON error also shows its body.
+ */
 function logVerifyResponse(response: import('@playwright/test').Response): void {
   if (!response.url().endsWith('/speak-to-sign/v1/verify')) return;
   if (response.request().method() !== 'POST') return;
+  const contentType = response.headers()['content-type'] ?? 'none';
+  log('verify reply', response.status(), contentType);
+  if (contentType.startsWith('text/event-stream')) return;
   void response
     .text()
-    .then((body) => log('verify reply', response.status(), body.slice(0, 1500)))
-    .catch(() => log('verify reply', response.status(), 'unreadable'));
+    .then((body) => log('verify error', response.status(), body.slice(0, 1500)))
+    .catch(() => log('verify error', response.status(), 'unreadable'));
 }
 
 async function useRealNearRpc(route: import('@playwright/test').Route): Promise<void> {

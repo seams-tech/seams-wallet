@@ -25,6 +25,7 @@ import {
   type SpeakToSignVerifier,
 } from '@shared/speakToSign/voiceVerdict';
 import type { RouterApiWalletRegistrationService } from '../../framework/authServicePort';
+import type { NormalizedRouterLogger } from '../../framework/logger';
 import type { RouterAbEd25519NormalSigningAuthorizationResult } from '../signingOperations/routerAbEd25519NormalSigningRoute';
 import { parseRouterAbEd25519NormalSigningScopeV2 } from '../signingOperations/routerAbPrivateSigningWorker';
 import { decodeVoiceTransaction, spokenRequestOfTransaction } from './voiceVerdictTransaction';
@@ -84,6 +85,7 @@ export type SpeakToSignVoiceVerdictCheck = Readonly<{
 export type SigningRouteVoiceVerdict = Readonly<{
   ctx: Readonly<{
     opts: Readonly<{ speakToSignVoiceVerdicts?: SpeakToSignVoiceVerdictCheck | null }>;
+    logger: Pick<NormalizedRouterLogger, 'warn'>;
     service: Readonly<{
       walletRegistration: Pick<
         RouterApiWalletRegistrationService,
@@ -106,7 +108,10 @@ export function splitVoiceVerdict<T extends { readonly body: Record<string, unkn
   return { ...route, body, voiceVerdict };
 }
 
-type Admission = Readonly<{ ok: true }> | Readonly<{ ok: false; reason: CosignerVoiceRefusal }>;
+type Admission =
+  | Readonly<{ ok: true }>
+  /** `detail`: why the co-signer could not check, for its own log only. */
+  | Readonly<{ ok: false; reason: CosignerVoiceRefusal; detail?: string }>;
 
 /** How the Ed25519 signing route authorized the request. */
 type SigningAuthorization = Extract<RouterAbEd25519NormalSigningAuthorizationResult, { ok: true }>;
@@ -128,7 +133,22 @@ export async function checkSigningRequestVoiceVerdict(
     check && route.phase === 'prepare'
       ? await admitVoiceVerdict(check, route, authorization)
       : refuse(check ? 'verdict_invalid' : 'unavailable');
-  return admission.ok ? null : voiceVerdictRefusalResponse(admission.reason);
+  if (admission.ok) return null;
+  // One line for each refusal, so limits, reuse and faults show in the server log.
+  route.ctx.logger.warn('[speak-to-sign] co-signer refused a voice verdict', {
+    reason: admission.reason,
+    phase: route.phase,
+    walletId: scopeField(route.body, 'account_id'),
+    requestId: scopeField(route.body, 'request_id'),
+    ...(admission.detail ? { detail: admission.detail } : {}),
+  });
+  return voiceVerdictRefusalResponse(admission.reason);
+}
+
+/** A text field of the request scope, for the log. */
+function scopeField(body: Readonly<Record<string, unknown>>, field: string): string | undefined {
+  const value = isPlainObject(body.scope) ? body.scope[field] : undefined;
+  return typeof value === 'string' ? value : undefined;
 }
 
 async function admitVoiceVerdict(
@@ -165,7 +185,7 @@ async function admitVoiceVerdict(
   const transaction = decodeVoiceTransaction(target.unsignedTransaction);
   if (!transaction) return refuse('request_mismatch');
   const owner = await sessionNearAccount(route, target);
-  if (owner === 'unavailable') return refuse('unavailable');
+  if (typeof owner !== 'string') return { ok: false, reason: 'unavailable', detail: owner.detail };
   if (transaction.signerId !== owner) return refuse('owner_mismatch');
   const spoken = await spokenRequestOfTransaction(target.network, transaction);
   if (!spoken) return refuse('request_mismatch');
@@ -189,8 +209,8 @@ async function admitVoiceVerdict(
       windowStartMs: nowMs - DAY_MS,
       limitHundredths: Number(SPEAK_TO_SIGN_VOICE_LIMITS.perDayYocto / YOCTO_PER_HUNDREDTH),
     });
-  } catch {
-    return refuse('unavailable');
+  } catch (error: unknown) {
+    return { ok: false, reason: 'unavailable', detail: errorDetail(error, 'ledger') };
   }
   if (ledger === 'reused') return refuse('reused');
   if (ledger === 'over_daily_limit') return refuse('over_daily_limit');
@@ -253,16 +273,20 @@ function readSigningTarget(body: Readonly<Record<string, unknown>>): SigningTarg
 async function sessionNearAccount(
   route: SigningRouteVoiceVerdict,
   target: SigningTarget,
-): Promise<string | 'unavailable'> {
+): Promise<string | Readonly<{ detail: string }>> {
   try {
     const resolved = await route.ctx.service.walletRegistration.resolveEd25519MaterialActivation({
       walletId: target.walletId,
       materialActivation: target.materialActivation,
     });
-    return resolved.ok ? resolved.nearAccountId : 'unavailable';
-  } catch {
-    return 'unavailable';
+    return resolved.ok ? resolved.nearAccountId : { detail: `material ${resolved.code}` };
+  } catch (error: unknown) {
+    return { detail: errorDetail(error, 'material') };
   }
+}
+
+function errorDetail(error: unknown, source: string): string {
+  return `${source}: ${error instanceof Error ? error.message.slice(0, 200) : 'unknown'}`;
 }
 
 function refuse(reason: CosignerVoiceRefusal): Admission {
