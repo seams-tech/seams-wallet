@@ -10,7 +10,7 @@ let enabled: readonly WalletTransactionFeaturePlugin[] = [];
 
 function configure(useSpeakToSign: boolean): void {
   enabled = parseWalletTransactionFeaturePlugins(
-    useSpeakToSign ? [{ kind: 'speak_to_sign', vault: 'vault.testnet', network: 'testnet' }] : [],
+    useSpeakToSign ? [{ kind: 'speak_to_sign', network: 'testnet' }] : [],
   );
 }
 
@@ -18,7 +18,6 @@ async function requestTransfer(): Promise<SpeakToSignTransferResult> {
   const plugin = await loadSpeakToSignHost(enabled);
   return await plugin.requestTransfer({
     walletId: walletIdFromString('alice.testnet'),
-    vault: 'vault.testnet',
     network: 'testnet',
     signal: new AbortController().signal,
   });

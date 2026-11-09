@@ -7,5 +7,10 @@ export {
   type SpeakToSignHostPlugin,
   type SpeakToSignTransferResult,
 } from './core/transactionFeatures/hostPlugin';
+export {
+  isSpeakableAccount,
+  parseSpeakableNear,
+  renderTransfer,
+} from './core/transactionFeatures/spokenTransfer';
 export { isPlainObject } from '@shared/utils/validation';
-export { base64UrlEncode } from '@shared/utils/base64';
+export { base64Encode } from '@shared/utils/base64';

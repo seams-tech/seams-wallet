@@ -22,6 +22,8 @@ import {
   type WalletTransactionFeaturePlugin,
 } from '@/core/transactionFeatures/plugins';
 import type { TransactionInput } from '@/core/types/actions';
+import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
+import { signAndSendVoiceApprovedTransaction } from '@/SeamsWeb/operations/near/actions';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { PMSpeakToSignTransferPayload } from '../../shared/speakToSign';
 import { respondOkResult, withProgress } from './shared';
@@ -149,7 +151,14 @@ async function prepareFlow(
     serverUrl,
     nearClient: runtime.getContext().nearClient,
     operationCredential: readCredential.bind(null, ports, walletId),
-    signAndSendTransaction: signAndSend.bind(null, deps, request.requestId, walletId, ownerAccountId),
+    signVoiceApprovedTransaction: signVoiceApproved.bind(
+      null,
+      deps,
+      request.requestId,
+      walletId,
+      ownerAccountId,
+    ),
+    signMessage: signMessage.bind(null, deps, request.requestId, walletId, ownerAccountId),
     recordPhrase: recordPhrase.bind(null, ports, runtime.configs.authMethods),
     fetch: ports.fetch,
   });
@@ -167,7 +176,6 @@ async function runTransfer(
   const payload: PMSpeakToSignTransferPayload = request.payload;
   return await flow.plugin.requestTransfer({
     walletId: flow.walletId,
-    vault: flow.feature.vault,
     network: flow.feature.network,
     signal,
     transfer: {
@@ -190,7 +198,6 @@ async function runEnrollment(
   if (flow.kind === 'unavailable') return flow;
   return await flow.plugin.enroll({
     walletId: flow.walletId,
-    vault: flow.feature.vault,
     network: flow.feature.network,
     signal,
     ownerAccountId: flow.ownerAccountId,
@@ -218,20 +225,41 @@ async function recordPhrase(
   return await voiceId.recordPhrase(request);
 }
 
-async function signAndSend(
+async function signVoiceApproved(
   deps: HandlerDeps,
   requestId: string | undefined,
   walletId: WalletId,
   ownerAccountId: string,
   transaction: TransactionInput,
+  approval: VoiceApproval,
+  policyText: string | null,
   signal: AbortSignal,
 ) {
   signal.throwIfAborted();
-  return await deps.getWalletRuntime().near.signAndSendTransaction({
+  return await signAndSendVoiceApprovedTransaction({
+    context: deps.getWalletRuntime().getContext(),
+    nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
+    walletSession: { walletId, walletSessionUserId: String(walletId) },
+    transactionInput: transaction,
+    approval,
+    policyText,
+    options: withProgress(deps, requestId, {}),
+  });
+}
+
+async function signMessage(
+  deps: HandlerDeps,
+  requestId: string | undefined,
+  walletId: WalletId,
+  ownerAccountId: string,
+  params: Readonly<{ message: string; recipient: string }>,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  return await deps.getWalletRuntime().near.signMessage({
     walletSession: { walletId, walletSessionUserId: String(walletId) },
     nearAccount: nearAccountRefFromAccountId(ownerAccountId),
-    receiverId: transaction.receiverId,
-    actions: transaction.actions,
+    params: { message: params.message, recipient: params.recipient },
     options: withProgress(deps, requestId, {}),
   });
 }

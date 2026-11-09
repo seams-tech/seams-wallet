@@ -1,63 +1,60 @@
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { SpeakToSignNetwork } from './plugins';
+import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 3;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 4;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
   | 'flow_not_available'
   /** The wallet has no enabled VoiceID enrollment, so the verifier has no voice to compare. */
   | 'voiceid_unavailable'
-  /** The vault has no state for this owner. */
-  | 'vault_missing'
-  /** The vault views or the Seams verify route did not answer usefully. */
+  /** The network has no pinned verifier, or the Seams verify route did not answer usefully. */
   | 'verifier_unavailable'
-  /** The Wallet did not submit the vault transaction. Nothing was paid. */
+  /** The Wallet did not send the transaction. Nothing was paid. */
   | 'not_submitted'
-  /** The vault transaction may have been sent. Check it before another payment. */
+  /** The transaction may have been sent. Check it before another payment. */
   | 'submission_unknown';
 
-/** Refusals from the verifier, the local verdict check and the vault. Nothing was paid. */
+/** Refusals from the verifier, the verdict check in Wallet core and the chain. */
 export type SpeakToSignRefusalReason =
-  | 'quality'
-  | 'speaker'
-  | 'words'
-  | 'audio_reused'
-  | 'audio_invalid'
-  | 'template_missing'
-  | 'unsupported'
-  | 'speaker_unavailable'
-  | 'storage'
-  | 'transcriber_unavailable'
+  | VerifierRefusal
   /** The amount is not a whole number of hundredths of NEAR from 0.01 to 1,000,000. */
   | 'amount_not_speakable'
   /** The receiver is not a named NEAR account that the sentence can say (an implicit one). */
   | 'receiver_not_speakable'
-  /** The receiver account does not exist on the vault's network. */
+  /** The receiver account does not exist on the feature's network. */
   | 'receiver_missing'
-  /** The verdict signature, key, digests or kind did not match this request. */
+  /** The verdict signature, key, digests, expiry or kind did not match this request. */
   | 'verdict_mismatch'
-  /** The vault refused the transaction. */
-  | 'vault_rejected';
+  /** The transfer was sent and failed on chain, for example for too small a balance. */
+  | 'transaction_failed';
 
 /** Milliseconds of each stage. `endOfSpeechToReceiptMs` is the latency budget of the flow. */
 export type SpeakToSignTransferTimes = Readonly<{
   speechMs: number;
+  /** The Seams verify route, which runs the verifier. */
   verifyMs: number;
-  checkMs: number;
+  /** The verdict check, the signature and the transfer up to its receipt. */
   transactionMs: number;
   endOfSpeechToReceiptMs: number;
 }>;
 
 export type SpeakToSignTransferResult =
-  | Readonly<{ kind: 'sent'; transactionHash: string; times: SpeakToSignTransferTimes }>
+  | Readonly<{
+      kind: 'sent';
+      transactionHash: string;
+      /** `voice_and_passkey` when a policy rule asked for a passkey after the voice. */
+      approval: VoiceApproval;
+      times: SpeakToSignTransferTimes;
+    }>
   | Readonly<{ kind: 'refused'; reason: SpeakToSignRefusalReason; detail?: string }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
 
-/** One spoken payment from the app. The Wallet iframe reads the owner and the vault itself. */
+/** One spoken payment from the app. The Wallet iframe reads the owner itself. */
 export type SpeakToSignTransferRequest = Readonly<{
   walletId: string;
   /** A named NEAR account that the owner says, such as `"bob.testnet"`. Not only a contact. */
@@ -66,10 +63,10 @@ export type SpeakToSignTransferRequest = Readonly<{
   amount: string;
 }>;
 
-/** One verifier enrollment from the app. The Wallet iframe reads the owner and the vault itself. */
+/** One verifier enrollment from the app. The Wallet iframe reads the owner itself. */
 export type SpeakToSignEnrollmentRequest = Readonly<{ walletId: string }>;
 
-/** Refusals of an enrollment by the verifier or the vault. The verifier stored no template. */
+/** Refusals of an enrollment by the verifier. The verifier stored no template. */
 export type SpeakToSignEnrollmentRefusalReason =
   | 'quality'
   /** The three recordings do not sound like one speaker. */
@@ -81,12 +78,10 @@ export type SpeakToSignEnrollmentRefusalReason =
   | 'storage'
   /** Another enrollment of this owner changed the template at the same time. */
   | 'template_exists'
-  /** The vault holds no live authorization for these recordings. */
+  /** The signed message is not from a full-access key of the owner, or is for other audio. */
   | 'not_authorized'
-  /** The verifier could not read the vault's authorization. */
-  | 'authorization_unavailable'
-  /** The vault refused `authorize_enrollment`. */
-  | 'vault_rejected';
+  /** The verifier could not read the owner's access key over NEAR RPC. */
+  | 'authorization_unavailable';
 
 export type SpeakToSignEnrollmentResult =
   | Readonly<{
@@ -95,37 +90,30 @@ export type SpeakToSignEnrollmentResult =
       templateEpoch: number;
       /** The lowest pairwise speaker score of the three recordings, in thousandths. */
       agreementMilli: number;
-      /** The `authorize_enrollment` transaction. */
-      transactionHash: string;
     }>
   | Readonly<{ kind: 'refused'; reason: SpeakToSignEnrollmentRefusalReason; detail?: string }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
 
-/** The read-only vault methods that the host plugin may call. */
-export type SpeakToSignVaultView =
-  | 'get_vault'
-  | 'get_contacts'
-  | 'get_verifier'
-  | 'get_pending_enrollment';
-
-/** The arguments of the vault's `transfer_with_verdict`. Amount and nonce are decimal strings. */
-export type SpeakToSignVaultTransferArgs = Readonly<{
-  receiver_id: string;
-  amount: string;
-  nonce: string;
-  verdict_json: string;
-  signature_b64: string;
-}>;
-
 export type SpeakToSignVerifyReply =
   Readonly<{ kind: 'output'; output: unknown }> | Readonly<{ kind: 'failed'; code: string }>;
 
-export type SpeakToSignSubmission =
-  | Readonly<{ kind: 'executed'; transactionHash: string }>
+/** A transfer that Wallet core paid, or why it paid nothing. */
+export type SpeakToSignPayment =
+  | Readonly<{ kind: 'executed'; transactionHash: string; approval: VoiceApproval }>
   | Readonly<{ kind: 'reverted'; transactionHash: string; error: string }>
   | Readonly<{ kind: 'not_submitted'; error: string }>
-  | Readonly<{ kind: 'submission_unknown'; error: string }>;
+  | Readonly<{ kind: 'submission_unknown'; error: string }>
+  | Readonly<{ kind: 'refused'; reason: VerifierRefusal | 'verdict_mismatch'; detail?: string }>
+  | Readonly<{ kind: 'unavailable'; detail: string }>;
+
+/** The verifier's `enroll` authorization: a NEP-413 signature by a full-access key of the owner. */
+export type SpeakToSignEnrollmentAuthorization =
+  | Readonly<{
+      kind: 'signed';
+      authorization: Readonly<{ public_key: string; signature_b64: string; nonce_b64: string }>;
+    }>
+  | Readonly<{ kind: 'not_signed'; error: string }>;
 
 /** A recorded sentence: a 16 kHz mono PCM16 WAV of at most 8 s, as the verifier hashes it. */
 export type SpeakToSignClip =
@@ -148,26 +136,35 @@ export type SpeakToSignClipRequest = Readonly<{
 }>;
 
 /**
- * Scoped core operations for one spoken payment or one enrollment. The plugin can record
- * clips on the VoiceID surface, read four vault views, check that a receiver exists, call the
- * Seams verify route and send `transfer_with_verdict` or `authorize_enrollment` to the
- * configured vault as the owner. It gets no signing context, key or session.
+ * Scoped core operations for one spoken payment or one enrollment. The plugin can record clips
+ * on the VoiceID surface, check that a receiver exists and call the Seams verify route. Core
+ * itself checks each verdict and builds what it signs: one transfer from the owner, or one
+ * enrollment message for clips that core recorded. The plugin gets no signing context, key or
+ * session.
  */
 export type SpeakToSignHostOperations = Readonly<{
   captureClip(request: SpeakToSignClipRequest): Promise<SpeakToSignClip>;
-  viewVault(view: SpeakToSignVaultView, signal: AbortSignal): Promise<unknown>;
-  /** True if the account exists on the vault's network. */
+  /** True if the account exists on the feature's network. */
   receiverExists(accountId: string, signal: AbortSignal): Promise<boolean>;
   verify(
     input: Readonly<Record<string, unknown>>,
     signal: AbortSignal,
   ): Promise<SpeakToSignVerifyReply>;
-  submitTransfer(
-    args: SpeakToSignVaultTransferArgs,
+  /**
+   * Checks the verifier output against this transfer and, on an approved verdict, signs and
+   * sends it from the owner's account. An `accept` verdict shows no confirm; a `step_up`
+   * verdict asks for a fresh approval with the session's own method. Each verdict pays once.
+   */
+  payWithVerdict(
+    transfer: Readonly<{ receiver: string; amountYocto: bigint }>,
+    verifierOutput: unknown,
     signal: AbortSignal,
-  ): Promise<SpeakToSignSubmission>;
-  /** Sends `authorize_enrollment({ enrollment_digest })` with no deposit. */
-  authorizeEnrollment(enrollmentDigest: string, signal: AbortSignal): Promise<SpeakToSignSubmission>;
+  ): Promise<SpeakToSignPayment>;
+  /** Signs the enrollment message for three clips that core recorded in this flow. */
+  authorizeEnrollment(
+    clips: readonly Uint8Array<ArrayBuffer>[],
+    signal: AbortSignal,
+  ): Promise<SpeakToSignEnrollmentAuthorization>;
 }>;
 
 /** One spoken payment that the Wallet route asks the host plugin to run. */
@@ -183,7 +180,6 @@ export type SpeakToSignHostTransfer = Readonly<{
 /** One enrollment that the Wallet route asks the host plugin to run. */
 export type SpeakToSignHostEnrollment = Readonly<{
   walletId: WalletId;
-  vault: string;
   network: SpeakToSignNetwork;
   signal: AbortSignal;
   ownerAccountId: string;
@@ -194,13 +190,12 @@ export type SpeakToSignHostEnrollment = Readonly<{
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface SpeakToSignHostPlugin {
   /**
-   * Records the three enrollment phrases, authorizes exactly these recordings on the vault and
-   * asks the verifier to store the owner's voice template.
+   * Records the three enrollment phrases, has the owner sign an authorization for exactly these
+   * recordings and asks the verifier to store the owner's voice template.
    */
   enroll(input: SpeakToSignHostEnrollment): Promise<SpeakToSignEnrollmentResult>;
   requestTransfer(input: {
     readonly walletId: WalletId;
-    readonly vault: string;
     readonly network: SpeakToSignNetwork;
     readonly signal: AbortSignal;
     /** The Wallet route adds the transfer when the app API carries a receiver and an amount. */

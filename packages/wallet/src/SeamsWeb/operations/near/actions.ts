@@ -17,6 +17,11 @@ import { toError } from '@shared/utils/errors';
 import { getNearShortErrorMessage } from '@shared/utils/near';
 import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
+import {
+  SENSITIVE_OPERATION_POLICIES,
+  type SensitiveOperationPolicy,
+} from '@shared/utils/signerDomain';
 import { emitNearSigningEvent } from './signingEventHelpers';
 import { resolveNearCommandSubject } from './commandSubject';
 import { NearRpcError } from '@/core/rpcClients/near/NearRpcError';
@@ -110,6 +115,45 @@ export async function signAndSendTransaction(args: {
     transactionInput: args.transactionInput,
     options: args.options,
     confirmationConfigOverride: args.options.confirmationConfig,
+  });
+}
+
+/**
+ * Signs and sends one transfer that a Speak-to-Sign verdict approved. Only the Speak-to-Sign
+ * route of the Wallet iframe calls it, after Wallet core checked the verdict.
+ * - `voice`: the spoken sentence was the confirmation, so no confirm shows.
+ * - `voice_and_passkey`: a policy rule asked for more, so the owner approves again with the
+ *   session's own method (a passkey on a passkey session) on a confirm that shows the rule.
+ */
+export async function signAndSendVoiceApprovedTransaction(args: {
+  context: NearSigningWebContext;
+  nearAccountId: AccountId;
+  walletSession: WalletSessionRef;
+  transactionInput: TransactionInput;
+  approval: VoiceApproval;
+  policyText: string | null;
+  options: SignAndSendTransactionHooksOptions;
+}): Promise<ActionResult> {
+  if (args.approval === 'voice') {
+    return signAndSendTransactionInternal({
+      context: args.context,
+      nearAccountId: args.nearAccountId,
+      walletSession: args.walletSession,
+      transactionInput: args.transactionInput,
+      options: args.options,
+      confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' },
+    });
+  }
+  return signAndSendTransactionInternal({
+    context: args.context,
+    nearAccountId: args.nearAccountId,
+    walletSession: args.walletSession,
+    transactionInput: args.transactionInput,
+    options: {
+      ...args.options,
+      confirmerText: { title: 'Confirm this voice payment', body: args.policyText ?? undefined },
+    },
+    sensitivePolicy: SENSITIVE_OPERATION_POLICIES.requireFreshSameMethod,
   });
 }
 
@@ -378,6 +422,7 @@ async function signAndSendTransactionInternal({
   transactionInput,
   options,
   confirmationConfigOverride,
+  sensitivePolicy,
 }: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
@@ -385,6 +430,7 @@ async function signAndSendTransactionInternal({
   transactionInput: TransactionInput;
   options?: SignAndSendTransactionHooksOptions;
   confirmationConfigOverride?: Partial<ConfirmationConfig> | undefined;
+  sensitivePolicy?: SensitiveOperationPolicy;
 }): Promise<ActionResult> {
   try {
     const signedTx = await signTransactionWithActionsInternal({
@@ -394,6 +440,7 @@ async function signAndSendTransactionInternal({
       transactionInput,
       options,
       confirmationConfigOverride,
+      sensitivePolicy,
     });
 
     const txResult = await sendTransaction({
@@ -442,6 +489,7 @@ async function signTransactionWithActionsInternal({
   transactionInput,
   options,
   confirmationConfigOverride,
+  sensitivePolicy,
 }: {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
@@ -449,6 +497,7 @@ async function signTransactionWithActionsInternal({
   transactionInput: TransactionInput;
   options?: Omit<ActionHooksOptions, 'afterCall'>;
   confirmationConfigOverride?: Partial<ConfirmationConfig> | undefined;
+  sensitivePolicy?: SensitiveOperationPolicy;
 }): Promise<SignTransactionResult> {
   const { onEvent, onError, waitUntil, confirmerText, signerSlot } = options || {};
 
@@ -491,6 +540,7 @@ async function signTransactionWithActionsInternal({
         },
         signerSlot,
         confirmationConfigOverride: confirmationConfigOverride,
+        ...(sensitivePolicy ? { sensitivePolicy } : {}),
         title: confirmerText?.title,
         body: confirmerText?.body,
         onEvent,

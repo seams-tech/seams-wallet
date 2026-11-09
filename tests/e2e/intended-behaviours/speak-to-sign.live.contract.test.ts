@@ -8,28 +8,30 @@ import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { allowBrowserMicrophone, enrollBrowserMicrophone, requireActivatedVoiceId } from './voiceid-browser-audio';
 import { readNearIdentity } from './voiceid-near-signing';
 
-// A live testnet run: the Wallet owns a vault on the Speak-to-Sign vault contract, enrolls a
-// macOS `say` voice with the verifier through `seams.speakToSign.enroll`, and pays by voice. The
+// A live testnet run: the Wallet enrolls a macOS `say` voice with the verifier through
+// `seams.speakToSign.enroll` (one NEP-413 confirm), then pays by voice from its own account. The
 // Wallet's microphone plays the `say` recording of whatever sentence the VoiceID surface shows.
-// It needs the OutLayer payment key on the local server and a relayer that creates named
-// accounts funded with ACCOUNT_INITIAL_BALANCE of at least 0.3 NEAR: `create_vault` takes
-// 0.15 NEAR, and testnet charges about 0.051 NEAR up front for the 50 Tgas of
-// `transfer_with_verdict`.
+// An accepted verdict must pay with no Wallet confirm. An 11 NEAR payment is above the stub
+// step-up rule, so it must show the confirm again; the account cannot pay 11 NEAR, so the
+// transfer then fails on chain. It needs the OutLayer payment key on the local server, the
+// local app built with VITE_SEAMS_INTENDED_SPEAK_TO_SIGN_NETWORK=testnet, and a relayer that
+// creates named accounts funded with ACCOUNT_INITIAL_BALANCE of at least 0.1 NEAR.
 const LIVE = process.env.SEAMS_SPEAK_TO_SIGN_LIVE === '1';
-const CONTACT = 'seams-v1.testnet';
+const RECEIVER = 'seams-v1.testnet';
 const VOICE = 'Samantha';
 const RPC_URL = 'https://test.rpc.fastnear.com';
 /** The owner reads these on the VoiceID surface during `enroll`. */
 const ENROLL_PHRASES = [
-  'My voice is my signature for this vault.',
+  'My voice is my signature for this wallet.',
   'I send money only when I say so.',
   'Seams, please learn how I sound today.',
 ];
-/** The owner always says 0.01 NEAR, so a prompt for another amount gets a wrong sentence. */
+/** The owner says 0.01 NEAR for any small amount, so a prompt for 0.02 NEAR gets wrong words. */
 const SPOKEN_TRANSFER = 'Send 0.01 NEAR to seams dash v1 dot testnet.';
-const CREATE_VAULT_DEPOSIT = '150000000000000000000000';
-/** The owner pays the prepaid gas of each spoken payment: 0.0509 NEAR measured on testnet. */
-const TRANSFER_PREPAID_YOCTO = 60_000_000_000_000_000_000_000n;
+const SPOKEN_STEP_UP = 'Send 11 NEAR to seams dash v1 dot testnet.';
+const STEP_UP_SENTENCE = 'Send 11 NEAR to seams-v1.testnet';
+/** 0.01 NEAR and the gas of one plain transfer, with a margin. */
+const TRANSFER_NEEDS_YOCTO = 20_000_000_000_000_000_000_000n;
 const STORAGE_YOCTO_PER_BYTE = 10_000_000_000_000_000_000n;
 const WALLET = 'iframe.seams-wallet-overlay-iframe';
 const AUDIO_ROUTE = /\/speak-to-sign-test-audio\/(\d)\.wav$/;
@@ -39,12 +41,13 @@ const RUN_LEAD_IN_MS = 200 + (Date.now() % 500);
 /**
  * Clip 0 to 2 are the enrollment phrases. Clips 3 and 4 both say the 0.01 NEAR sentence with
  * different lead-ins: the verifier refuses audio it has seen, so the wrong-amount case needs
- * new bytes to reach the words check.
+ * new bytes to reach the words check. Clip 5 says the 11 NEAR sentence.
  */
 const clipFiles = LIVE
   ? [
       ...[...ENROLL_PHRASES, SPOKEN_TRANSFER].map((text, index) => sayWav(text, `clip-${index}`)),
       sayWav(SPOKEN_TRANSFER, 'clip-4', RUN_LEAD_IN_MS + 137),
+      sayWav(SPOKEN_STEP_UP, 'clip-5'),
     ]
   : [];
 
@@ -52,13 +55,13 @@ test.skip(!LIVE, 'Set SEAMS_SPEAK_TO_SIGN_LIVE=1 with the live testnet environme
 test.use({ video: 'off', trace: 'off' });
 test.setTimeout(600_000);
 
-test('a Wallet enrolls and pays from its vault by voice on testnet and refuses a wrong spoken amount', run);
+test('a Wallet enrolls, pays by voice with no confirm, refuses wrong words and steps up above 10 NEAR', run);
 
 async function run(
   { harness, page, context }: { harness: IntendedBehaviourHarness; page: Page; context: import('@playwright/test').BrowserContext },
   testInfo: TestInfo,
 ): Promise<void> {
-  // The harness stubs NEAR RPC. This run reads and writes the real testnet vault.
+  // The harness stubs NEAR RPC. This run reads and writes real testnet accounts.
   await context.route('**/*', useRealNearRpc);
   await context.route(AUDIO_ROUTE, serveClip);
   context.on('response', logVerifyResponse);
@@ -78,32 +81,35 @@ async function run(
   requireActivatedVoiceId(await activation);
   log('voiceid', 'activated in the Wallet');
 
-  const call = vaultCaller(page, identity.walletId, owner);
-  log('create_vault', await call('create_vault', {}, CREATE_VAULT_DEPOSIT));
-  log('add_contact', await call('add_contact', { account_id: CONTACT }, '0'));
-
   // From here the Wallet microphone says whatever sentence the VoiceID surface shows.
-  await wallet.locator('body').evaluate(speakVisibleSentence, ENROLL_PHRASES);
+  await wallet
+    .locator('body')
+    .evaluate(speakVisibleSentence, { phrases: ENROLL_PHRASES, stepUp: STEP_UP_SENTENCE });
   const enrollment = page.evaluate(enroll, identity.walletId);
   for (const phrase of ENROLL_PHRASES) await recordSentence(page, phrase);
   const enrolled = await approveUntilSettled(page, enrollment);
-  log('enroll', JSON.stringify(enrolled));
-  expect(enrolled).toMatchObject({ kind: 'enrolled' });
+  log('enroll', JSON.stringify(enrolled.result), `confirms ${enrolled.confirms}`);
+  expect(enrolled.result).toMatchObject({ kind: 'enrolled' });
 
   log('near account state', JSON.stringify(await page.evaluate(readNearAccountState, identity.walletId)));
   const free = await freeBalance(owner);
   log('owner free balance', `${free} yoctoNEAR`);
-  expect(free, 'The owner cannot prepay a spoken payment; raise ACCOUNT_INITIAL_BALANCE')
-    .toBeGreaterThanOrEqual(TRANSFER_PREPAID_YOCTO);
+  expect(free, 'The owner cannot pay a spoken payment; raise ACCOUNT_INITIAL_BALANCE')
+    .toBeGreaterThanOrEqual(TRANSFER_NEEDS_YOCTO);
   const sent = await speak(page, '0.01');
-  log('transfer', JSON.stringify(sent));
-  expect(sent).toMatchObject({ kind: 'sent' });
+  log('transfer', JSON.stringify(sent.result), `confirms ${sent.confirms}`);
+  expect(sent.result).toMatchObject({ kind: 'sent', approval: 'voice' });
+  expect(sent.confirms, 'An accepted verdict pays with no Wallet confirm').toBe(0);
   const refused = await speak(page, '0.02');
-  log('wrong amount', JSON.stringify(refused));
+  log('wrong amount', JSON.stringify(refused.result));
   // A new recording of the 0.01 NEAR sentence: the verifier must refuse the words, not the audio.
-  expect(refused).toMatchObject({ kind: 'refused', reason: 'words' });
+  expect(refused.result).toMatchObject({ kind: 'refused', reason: 'words' });
+  const steppedUp = await speak(page, '11');
+  log('step-up', JSON.stringify(steppedUp.result), `confirms ${steppedUp.confirms}`);
+  expect(steppedUp.confirms, 'A step-up verdict asks for the confirm again').toBeGreaterThan(0);
+  expect(steppedUp.result).toMatchObject({ kind: 'refused', reason: 'transaction_failed' });
   await testInfo.attach('speak-to-sign-live.json', {
-    body: JSON.stringify({ owner, enrolled, sent, refused }, null, 2),
+    body: JSON.stringify({ owner, enrolled, sent, refused, steppedUp }, null, 2),
     contentType: 'application/json',
   });
 }
@@ -116,11 +122,11 @@ async function recordSentence(page: Page, sentence: string): Promise<void> {
   await dialog.getByRole('button', { name: 'Record', exact: true }).click();
 }
 
-/** One spoken payment: the owner clicks Record and the microphone says the 0.01 NEAR sentence. */
+/** One spoken payment: the owner clicks Record and the microphone says a prepared sentence. */
 async function speak(page: Page, amount: string) {
   const wallet = page.frameLocator(WALLET);
   const walletId = await readNearIdentity(page).then(walletIdOf);
-  const result = page.evaluate(requestTransfer, { walletId, receiver: CONTACT, amount });
+  const result = page.evaluate(requestTransfer, { walletId, receiver: RECEIVER, amount });
   const dialog = wallet.getByRole('dialog', { name: 'Say this with your voice' });
   await expect(dialog).toBeVisible({ timeout: 30_000 });
   log('sentence', await dialog.locator('.seams-voiceid-phrase').innerText());
@@ -132,20 +138,16 @@ function walletIdOf(identity: { walletId: string }): string {
   return identity.walletId;
 }
 
-function vaultCaller(page: Page, walletId: string, nearAccountId: string) {
-  return async (method: string, args: Record<string, unknown>, depositYocto: string) => {
-    const result = await approveUntilSettled(
-      page,
-      page.evaluate(callVault, { walletId, nearAccountId, method, args, depositYocto }),
-    );
-    if (!result.success) throw new Error(`${method} failed: ${JSON.stringify(result)}`);
-    return result.transactionId ?? 'no transaction id';
-  };
-}
-
-/** Clicks the Wallet confirmation whenever one appears, until the operation settles. */
-async function approveUntilSettled<T>(page: Page, operation: Promise<T>): Promise<T> {
+/**
+ * Clicks the Wallet confirmation whenever one appears, until the operation settles, and counts
+ * the confirms it clicked.
+ */
+async function approveUntilSettled<T>(
+  page: Page,
+  operation: Promise<T>,
+): Promise<{ result: T; confirms: number }> {
   let settled = false;
+  let confirms = 0;
   const done = operation.finally(() => {
     settled = true;
   });
@@ -153,11 +155,12 @@ async function approveUntilSettled<T>(page: Page, operation: Promise<T>): Promis
   while (!settled) {
     if (await confirm.isVisible().catch(() => false)) {
       await confirm.click().catch(() => undefined);
+      confirms += 1;
       log('wallet', 'confirmed');
     }
     await Promise.race([done.catch(() => undefined), page.waitForTimeout(250)]);
   }
-  return await done;
+  return { result: await done, confirms };
 }
 
 function sayWav(text: string, name: string, leadInMs = RUN_LEAD_IN_MS): string {
@@ -221,11 +224,6 @@ function activateVoiceId() {
   return window.__seamsIntendedVoiceId.activate();
 }
 
-function callVault(input: Parameters<NonNullable<Window['__seamsIntendedSpeakToSign']>['callVault']>[0]) {
-  if (!window.__seamsIntendedSpeakToSign) throw new Error('Speak-to-Sign helper is unavailable');
-  return window.__seamsIntendedSpeakToSign.callVault(input);
-}
-
 function readNearAccountState(walletId: string) {
   if (!window.__seamsIntendedSpeakToSign) throw new Error('Speak-to-Sign helper is unavailable');
   return window.__seamsIntendedSpeakToSign.readNearAccountState(walletId);
@@ -238,19 +236,29 @@ async function serveClip(route: import('@playwright/test').Route): Promise<void>
 
 /**
  * Runs in the Wallet frame. Each recording plays the `say` clip of the sentence that the
- * VoiceID surface shows: an enrollment phrase, or else a 0.01 NEAR transfer clip. Each distinct
- * transfer sentence gets its own clip, so a second payment never replays the first one's audio.
+ * VoiceID surface shows: an enrollment phrase, the 11 NEAR step-up clip, or else a 0.01 NEAR
+ * transfer clip. Each distinct small transfer sentence gets its own clip, so a second payment
+ * never replays the first one's audio.
  */
-function speakVisibleSentence(_body: Element, phrases: readonly string[]): void {
+function speakVisibleSentence(
+  _body: Element,
+  clips: { readonly phrases: readonly string[]; readonly stepUp: string },
+): void {
+  const { phrases } = clips;
   let audio: AudioContext | null = null;
   const transferClips = new Map<string, number>();
   navigator.mediaDevices.getUserMedia = async () => {
     const shown = document.querySelector('.seams-voiceid-phrase')?.textContent?.trim() ?? '';
     const index = phrases.indexOf(shown);
-    if (index < 0 && !transferClips.has(shown)) {
+    if (index < 0 && shown !== clips.stepUp && !transferClips.has(shown)) {
       transferClips.set(shown, phrases.length + transferClips.size);
     }
-    const clip = index < 0 ? (transferClips.get(shown) ?? phrases.length) : index;
+    const clip =
+      shown === clips.stepUp
+        ? phrases.length + 2
+        : index < 0
+          ? (transferClips.get(shown) ?? phrases.length)
+          : index;
     const response = await fetch(`/speak-to-sign-test-audio/${clip}.wav`);
     if (!response.ok) throw new Error('The spoken test clip is unavailable');
     if (audio) await audio.close();

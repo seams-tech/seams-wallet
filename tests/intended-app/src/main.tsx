@@ -30,11 +30,11 @@ function requiredEnvironmentValue(name: string): string {
 
 // A live Speak-to-Sign run needs a named owner account, which the relayer creates.
 const relayerAccount = optionalEnvironmentValue('VITE_SEAMS_INTENDED_RELAYER_ACCOUNT');
-const speakToSignVault = optionalEnvironmentValue('VITE_SEAMS_INTENDED_SPEAK_TO_SIGN_VAULT');
+// `testnet` enables the Speak-to-Sign descriptor for a live run.
+const speakToSignNetwork = optionalEnvironmentValue('VITE_SEAMS_INTENDED_SPEAK_TO_SIGN_NETWORK');
 
 function signingSessionDefaultsFromUrl(): { ttlMs: number; remainingUses: number } | undefined {
   const params = new URL(window.location.href).searchParams;
-  // A live Speak-to-Sign run signs three vault calls before the spoken payment.
   const ttl =
     params.get('signingSessionTtlMs') ??
     (optionalEnvironmentValue('VITE_SEAMS_INTENDED_SIGNING_SESSION_TTL_MS') || null);
@@ -90,8 +90,8 @@ const config = defineSeamsConfig({
         registration: { nearAccountProvisioning: { kind: 'relayer_named_subaccount' } },
       }
     : {}),
-  ...(speakToSignVault
-    ? { transactionFeatures: [speakToSign({ vault: speakToSignVault, network: 'testnet' })] }
+  ...(speakToSignNetwork === 'testnet'
+    ? { transactionFeatures: [speakToSign({ network: 'testnet' })] }
     : {}),
   iframeWallet: {
     rpIdOverride: new URL(walletOrigin).hostname,

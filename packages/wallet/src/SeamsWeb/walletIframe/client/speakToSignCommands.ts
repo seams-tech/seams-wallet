@@ -24,7 +24,7 @@ type SpeakToSignPost = (
         readonly type: 'PM_SPEAK_TO_SIGN_ENROLL';
         readonly payload: PMSpeakToSignEnrollPayload;
       },
-  // The owner speaks and then approves the vault call, so the request has no deadline.
+  // The owner speaks, and a step-up asks for a passkey, so the request has no deadline.
   options: { readonly timeout: 'interactive' },
 ) => Promise<{ readonly result?: unknown }>;
 

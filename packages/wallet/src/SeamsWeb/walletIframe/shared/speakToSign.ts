@@ -8,16 +8,17 @@ import type {
   SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
+import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isValidAccountId } from '@shared/utils/near';
 import { parseWalletId } from '@shared/utils/domainIds';
 import { isFiniteNumber, isNonEmptyString, isPlainObject } from '@shared/utils/validation';
 import type { Variant } from '@shared/utils/variant';
 
-/** The `PM_SPEAK_TO_SIGN_TRANSFER` payload. The vault and the owner never cross the channel. */
+/** The `PM_SPEAK_TO_SIGN_TRANSFER` payload. The owner never crosses the channel. */
 export type PMSpeakToSignTransferPayload = SpeakToSignTransferRequest;
 
-/** The `PM_SPEAK_TO_SIGN_ENROLL` payload. The vault and the owner never cross the channel. */
+/** The `PM_SPEAK_TO_SIGN_ENROLL` payload. The owner never crosses the channel. */
 export type PMSpeakToSignEnrollPayload = SpeakToSignEnrollmentRequest;
 
 export function parseSpeakToSignEnrollPayload(value: unknown): PMSpeakToSignEnrollPayload {
@@ -52,7 +53,6 @@ export function parseSpeakToSignTransferPayload(value: unknown): PMSpeakToSignTr
 const UNAVAILABLE_REASONS: Readonly<Record<SpeakToSignUnavailableReason, true>> = {
   flow_not_available: true,
   voiceid_unavailable: true,
-  vault_missing: true,
   verifier_unavailable: true,
   not_submitted: true,
   submission_unknown: true,
@@ -72,7 +72,7 @@ const REFUSAL_REASONS: Readonly<Record<SpeakToSignRefusalReason, true>> = {
   receiver_not_speakable: true,
   receiver_missing: true,
   verdict_mismatch: true,
-  vault_rejected: true,
+  transaction_failed: true,
 };
 const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalReason, true>> = {
   quality: true,
@@ -85,15 +85,9 @@ const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalRe
   template_exists: true,
   not_authorized: true,
   authorization_unavailable: true,
-  vault_rejected: true,
 };
-const TIME_KEYS = [
-  'speechMs',
-  'verifyMs',
-  'checkMs',
-  'transactionMs',
-  'endOfSpeechToReceiptMs',
-] as const;
+const APPROVALS: Readonly<Record<VoiceApproval, true>> = { voice: true, voice_and_passkey: true };
+const TIME_KEYS = ['speechMs', 'verifyMs', 'transactionMs', 'endOfSpeechToReceiptMs'] as const;
 
 /** Reads the iframe's answer. Anything outside the result union is a protocol error. */
 export function parseSpeakToSignTransferResult(value: unknown): SpeakToSignTransferResult {
@@ -113,15 +107,12 @@ function readEnrollmentResult(value: unknown): SpeakToSignEnrollmentResult | nul
   if (!isPlainObject(value)) return null;
   switch (value.kind) {
     case 'enrolled': {
-      if (!hasExactKeys(value, ['kind', 'templateEpoch', 'agreementMilli', 'transactionHash'])) {
-        return null;
-      }
-      const { templateEpoch, agreementMilli, transactionHash } = value;
+      if (!hasExactKeys(value, ['kind', 'templateEpoch', 'agreementMilli'])) return null;
+      const { templateEpoch, agreementMilli } = value;
       if (
         !Number.isSafeInteger(templateEpoch) ||
         (templateEpoch as number) < 1 ||
-        !Number.isSafeInteger(agreementMilli) ||
-        !isNonEmptyString(transactionHash)
+        !Number.isSafeInteger(agreementMilli)
       ) {
         return null;
       }
@@ -129,7 +120,6 @@ function readEnrollmentResult(value: unknown): SpeakToSignEnrollmentResult | nul
         kind: 'enrolled',
         templateEpoch: templateEpoch as number,
         agreementMilli: agreementMilli as number,
-        transactionHash,
       };
     }
     case 'refused': {
@@ -167,10 +157,23 @@ function readResult(value: unknown): SpeakToSignTransferResult | null {
     case 'unavailable':
       return readSharedResult(value);
     case 'sent': {
-      if (!hasExactKeys(value, ['kind', 'transactionHash', 'times'])) return null;
+      if (!hasExactKeys(value, ['kind', 'transactionHash', 'approval', 'times'])) return null;
       const times = readTimes(value.times);
-      if (!isNonEmptyString(value.transactionHash) || !times) return null;
-      return { kind: 'sent', transactionHash: value.transactionHash, times };
+      const approval = value.approval;
+      if (
+        !isNonEmptyString(value.transactionHash) ||
+        typeof approval !== 'string' ||
+        !Object.hasOwn(APPROVALS, approval) ||
+        !times
+      ) {
+        return null;
+      }
+      return {
+        kind: 'sent',
+        transactionHash: value.transactionHash,
+        approval: approval as VoiceApproval,
+        times,
+      };
     }
     case 'refused': {
       const reason = readReason(value, REFUSAL_REASONS);

@@ -1,23 +1,25 @@
-// The vault transfer subset of the `spoken-intent` crate (crates/spoken-intent): the same
+// The account transfer subset of the `spoken-intent` crate (crates/spoken-intent): the same
 // account and amount rules, the same rendered words and the same Borsh bytes and digests.
-// The crate's golden vectors check this port.
+// The crate's golden vectors check this port. Wallet core uses it to check a verdict against
+// the transaction that core signs.
+
+import type { SpeakToSignNetwork } from './plugins';
 
 export const RENDERER_VERSION = 'spoken-intent/1';
 const REQUEST_DIGEST_DOMAIN = 'seams:spoken-intent:request:v1';
 const SPOKEN_TEXT_DIGEST_DOMAIN = 'seams:spoken-intent:spoken:v1';
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
 const MAX_HUNDREDTHS = 100_000_000n;
+const ACCOUNT_TRANSFER_TAG = 2;
 
-export type SpokenNetwork = 'testnet' | 'mainnet';
-
-export type VaultTransferRequest = Readonly<{
-  network: SpokenNetwork;
-  vault: string;
+/** `SpokenRequestV1::AccountTransfer`: a NEAR transfer from the owner's own account. */
+export type SpokenTransferRequest = Readonly<{
+  network: SpeakToSignNetwork;
+  /** Any NEAR account, named or implicit. The sentence does not say it. */
   owner: string;
   receiver: string;
   /** A whole multiple of 0.01 NEAR, from 0.01 to 1,000,000 NEAR. */
   amountYocto: bigint;
-  nonce: bigint;
 }>;
 
 export type RenderedTransfer = Readonly<{
@@ -83,8 +85,10 @@ function isSpeakableHundredths(hundredths: bigint): boolean {
   return hundredths > 0n && hundredths <= MAX_HUNDREDTHS;
 }
 
-/** The one canonical sentence of a vault transfer. */
-export function renderTransfer(request: VaultTransferRequest): RenderedTransfer {
+/** The one canonical sentence of a transfer. */
+export function renderTransfer(
+  request: Pick<SpokenTransferRequest, 'receiver' | 'amountYocto'>,
+): RenderedTransfer {
   const hundredths = request.amountYocto / YOCTO_PER_HUNDREDTH;
   const words = [
     'send',
@@ -165,21 +169,19 @@ function separatorWord(piece: string): string {
   return /^\d$/.test(piece) ? ONES[Number(piece)] : piece;
 }
 
-/** Borsh of `SpokenRequestV1::VaultTransfer`. */
-export function transferBorsh(request: VaultTransferRequest): Uint8Array {
+/** Borsh of `SpokenRequestV1::AccountTransfer`, whose explicit tag is 2. */
+export function transferBorsh(request: SpokenTransferRequest): Uint8Array {
   const parts: Uint8Array[] = [
-    Uint8Array.of(0, request.network === 'testnet' ? 0 : 1),
-    borshString(request.vault),
+    Uint8Array.of(ACCOUNT_TRANSFER_TAG, request.network === 'testnet' ? 0 : 1),
     borshString(request.owner),
     borshString(request.receiver),
     littleEndian(request.amountYocto, 16),
-    littleEndian(request.nonce, 8),
   ];
   return concat(parts);
 }
 
 /** `sha256(REQUEST_DIGEST_DOMAIN || borsh(request))`. */
-export async function requestDigest(request: VaultTransferRequest): Promise<Uint8Array> {
+export async function requestDigest(request: SpokenTransferRequest): Promise<Uint8Array> {
   return await sha256(concat([utf8(REQUEST_DIGEST_DOMAIN), transferBorsh(request)]));
 }
 

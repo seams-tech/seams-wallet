@@ -14,7 +14,7 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 type Expect<T extends true> = T;
 
 declare const base: SeamsConfigsInput;
-const feature = speakToSign({ vault: 'vault.testnet', network: 'testnet' });
+const feature = speakToSign({ network: 'testnet' });
 const seams = new SeamsWeb({ ...base, transactionFeatures: [feature] });
 
 // The property has the capability type, and it is optional: the constructor sets it only
@@ -33,13 +33,21 @@ if (seams.speakToSign) {
   void seams.speakToSign.requestTransfer(transfer);
   // @ts-expect-error A spoken payment names its receiver and its amount.
   void seams.speakToSign.requestTransfer({ walletId: 'alice.testnet' });
-  const vault: string = seams.speakToSign.vault;
-  void vault;
+  const network: 'testnet' | 'mainnet' = seams.speakToSign.network;
+  void network;
+  void seams.speakToSign.requestTransfer(transfer).then((result) => {
+    // A sent payment names how the owner approved it.
+    if (result.kind === 'sent') {
+      const approval: 'voice' | 'voice_and_passkey' = result.approval;
+      void approval;
+    }
+  });
   const enrollment = seams.speakToSign.enroll({ walletId: 'alice.testnet' });
   void enrollment.then((result) => {
-    // An enrollment names the template epoch and the authorizing transaction.
+    // An enrollment names the template epoch; no transaction authorizes it.
     if (result.kind === 'enrolled') {
       const epoch: number = result.templateEpoch;
+      // @ts-expect-error The enrollment authorization is a signed message, not a transaction.
       const hash: string = result.transactionHash;
       void [epoch, hash];
     }
@@ -50,13 +58,15 @@ if (seams.speakToSign) {
 // @ts-expect-error The app cannot set the capability.
 seams.speakToSign = undefined;
 
-// @ts-expect-error The vault network is testnet or mainnet.
-speakToSign({ vault: 'vault.testnet', network: 'betanet' });
+// @ts-expect-error The network is testnet or mainnet.
+speakToSign({ network: 'betanet' });
+// @ts-expect-error A spoken payment comes from the owner's own account; there is no vault.
+speakToSign({ vault: 'vault.testnet', network: 'testnet' });
 // @ts-expect-error A browser callback cannot cross into the wallet iframe.
 const callbackFeature: WalletTransactionFeaturePlugin = { ...feature, load: async () => ({}) };
 void callbackFeature;
 // @ts-expect-error A transaction feature needs an exact known kind.
-const unknownFeature: WalletTransactionFeaturePlugin = { kind: 'voiceid', vault: 'v', network: 'testnet' };
+const unknownFeature: WalletTransactionFeaturePlugin = { kind: 'voiceid', network: 'testnet' };
 void unknownFeature;
 
 // @ts-expect-error An unavailable result names its reason.

@@ -12,7 +12,6 @@ import type {
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
 import type { WalletTransactionFeaturePlugin } from '@/core/transactionFeatures/plugins';
-import type { ActionResult } from '@/core/types/seams';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { createIframeSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 import { routeWalletHostRequest } from '@/SeamsWeb/walletIframe/host/requestRouter';
@@ -34,21 +33,17 @@ import {
 
 const WALLET_ID = 'wallet:speak-to-sign';
 const PAYLOAD = { walletId: WALLET_ID, receiver: 'bob.testnet', amount: '2.5' } as const;
-const FEATURE: WalletTransactionFeaturePlugin = {
-  kind: 'speak_to_sign',
-  vault: 'voicevault.testnet',
-  network: 'testnet',
-};
+const FEATURE: WalletTransactionFeaturePlugin = { kind: 'speak_to_sign', network: 'testnet' };
 const ENROLLED: SpeakToSignEnrollmentResult = {
   kind: 'enrolled',
   templateEpoch: 2,
   agreementMilli: 790,
-  transactionHash: 'tx-auth',
 };
 const SENT: SpeakToSignTransferResult = {
   kind: 'sent',
   transactionHash: 'tx-1',
-  times: { speechMs: 1, verifyMs: 2, checkMs: 3, transactionMs: 4, endOfSpeechToReceiptMs: 5 },
+  approval: 'voice',
+  times: { speechMs: 1, verifyMs: 2, transactionMs: 4, endOfSpeechToReceiptMs: 5 },
 };
 
 test('the transfer message carries only the wallet, a NEAR receiver and a decimal amount', () => {
@@ -75,7 +70,8 @@ test('the result parser accepts each result kind and refuses anything else', () 
     SENT,
     { kind: 'cancelled' },
     { kind: 'refused', reason: 'speaker' },
-    { kind: 'refused', reason: 'vault_rejected', detail: 'AudioReused' },
+    { kind: 'refused', reason: 'transaction_failed', detail: 'NotEnoughBalance' },
+    { ...SENT, approval: 'voice_and_passkey' },
     { kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'not_enrolled' },
     { kind: 'unavailable', reason: 'flow_not_available' },
   ];
@@ -83,10 +79,12 @@ test('the result parser accepts each result kind and refuses anything else', () 
   for (const bad of [
     undefined,
     { kind: 'sent', transactionHash: 'tx' },
+    { ...SENT, approval: 'passkey' },
     { ...SENT, times: { ...SENT.times, speechMs: -1 } },
     { kind: 'refused', reason: 'not_a_reason' },
     { kind: 'unavailable', reason: 'speaker' },
-    { kind: 'unavailable', reason: 'vault_missing', detail: 7 },
+    { kind: 'unavailable', reason: 'verifier_unavailable', detail: 7 },
+    { kind: 'unavailable', reason: 'vault_missing' },
     { kind: 'cancelled', extra: true },
     { kind: 'paid' },
   ]) {
@@ -150,7 +148,7 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const pluginCalls: Parameters<SpeakToSignHostPlugin['requestTransfer']>[0][] = [];
   const enrollCalls: Parameters<SpeakToSignHostPlugin['enroll']>[0][] = [];
   const loads: (readonly WalletTransactionFeaturePlugin[])[] = [];
-  const signed: unknown[] = [];
+  const messages: unknown[] = [];
   const fetched: { url: string; init: RequestInit }[] = [];
   const binding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' };
   const features = options.features ?? [FEATURE];
@@ -182,9 +180,15 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     },
     getContext: () => ({ nearClient: { view: async () => ({}) } }),
     near: {
-      async signAndSendTransaction(args: unknown): Promise<ActionResult> {
-        signed.push(args);
-        return { success: true, transactionId: 'tx-1', result: { status: {} } as never };
+      async signMessage(args: unknown) {
+        messages.push(args);
+        return {
+          success: true,
+          accountId: 'owner.testnet',
+          publicKey: 'ed25519:owner',
+          signature: 'c2ln',
+          nonce: 'bm9uY2U=',
+        };
       },
     },
   };
@@ -248,7 +252,7 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     pluginCalls,
     enrollCalls,
     loads,
-    signed,
+    messages,
     fetched,
     binding,
     authMethods,
@@ -258,13 +262,14 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   };
 }
 
-test('the handler gives the plugin the owner, the configured vault and scoped operations', async () => {
+test('the handler gives the plugin the owner, the network and scoped operations', async () => {
   const harness = buildHandler();
   await harness.run();
   expect(harness.loads).toEqual([[FEATURE]]);
   expect(harness.pluginCalls).toHaveLength(1);
   const [input] = harness.pluginCalls;
-  expect(input).toMatchObject({ walletId: WALLET_ID, vault: 'voicevault.testnet', network: 'testnet' });
+  expect(input).toMatchObject({ walletId: WALLET_ID, network: 'testnet' });
+  expect('vault' in input).toBe(false);
   expect(input.signal.aborted).toBe(false);
   const transfer = input.transfer;
   if (!transfer) throw new Error('The handler sent no transfer');
@@ -296,17 +301,21 @@ test('the handler gives the plugin the owner, the configured vault and scoped op
   expect(new Headers(harness.fetched[0].init.headers).get('authorization')).toBe(
     'Bearer wst_credential',
   );
-  await transfer.operations.submitTransfer(
-    { receiver_id: 'bob.testnet', amount: '1', nonce: '0', verdict_json: '{}', signature_b64: 'c2ln' },
-    signal,
-  );
-  expect(harness.signed).toMatchObject([
-    {
-      walletSession: { walletId: WALLET_ID },
-      nearAccount: { accountId: 'owner.testnet' },
-      receiverId: 'voicevault.testnet',
-    },
-  ]);
+  // A verdict that the pinned testnet key did not sign pays nothing.
+  expect(
+    await transfer.operations.payWithVerdict(
+      { receiver: 'bob.testnet', amountYocto: 25n * 10n ** 23n },
+      {
+        kind: 'seams_voice_verify_output_v2',
+        verdict_json: '{}',
+        signature_b64: 'c2ln',
+        public_key: 'ed25519:other',
+        policy_text: null,
+        ms: {},
+      },
+      signal,
+    ),
+  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'unknown verdict kind' });
   expect(harness.posted).toEqual([
     { type: 'PM_RESULT', requestId: 'request-1', payload: { ok: true, result: SENT } },
   ]);
@@ -368,13 +377,14 @@ test('the enrollment message carries only the wallet and its result parser is ex
     { kind: 'cancelled' },
     { kind: 'refused', reason: 'not_authorized' },
     { kind: 'refused', reason: 'speaker', detail: 'agreement 410' },
-    { kind: 'unavailable', reason: 'vault_missing' },
+    { kind: 'unavailable', reason: 'verifier_unavailable' },
   ] as const) {
     expect(parseSpeakToSignEnrollmentResult(result)).toEqual(result);
   }
   for (const bad of [
     { ...ENROLLED, templateEpoch: 0 },
     { ...ENROLLED, extra: 1 },
+    { ...ENROLLED, transactionHash: 'tx-auth' },
     { kind: 'refused', reason: 'words' },
     { kind: 'sent', transactionHash: 'tx', times: SENT.kind === 'sent' ? SENT.times : null },
   ]) {
@@ -401,7 +411,7 @@ test('the enrollment message carries only the wallet and its result parser is ex
   ).toMatchObject({ signingPolicy: 'none', kind: 'near', type: 'PM_SPEAK_TO_SIGN_ENROLL' });
 });
 
-test('the enrollment handler gives the plugin the owner, the vault and the same scoped operations', async () => {
+test('the enrollment handler gives the plugin the owner and signs through the NEP-413 path', async () => {
   const harness = buildHandler();
   await harness.runEnroll();
   expect(harness.pluginCalls).toHaveLength(0);
@@ -409,17 +419,31 @@ test('the enrollment handler gives the plugin the owner, the vault and the same 
   const [input] = harness.enrollCalls;
   expect(input).toMatchObject({
     walletId: WALLET_ID,
-    vault: 'voicevault.testnet',
     network: 'testnet',
     ownerAccountId: 'owner.testnet',
   });
   expect(input.surfaceMeasurementBinding).toBe(harness.binding);
-  await input.operations.authorizeEnrollment('A'.repeat(43), new AbortController().signal);
-  expect(harness.signed).toMatchObject([
+  const signal = new AbortController().signal;
+  const clips: Uint8Array<ArrayBuffer>[] = [];
+  for (const sentence of ['one', 'two', 'three']) {
+    harness.recorded.set([0.5, -0.5, clips.length / 10]);
+    const clip = await input.operations.captureClip({
+      sentence,
+      signal,
+      surfaceMeasurementBinding: harness.binding,
+    });
+    if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
+    clips.push(clip.wav);
+  }
+  expect(await input.operations.authorizeEnrollment(clips, signal)).toEqual({
+    kind: 'signed',
+    authorization: { public_key: 'ed25519:owner', signature_b64: 'c2ln', nonce_b64: 'bm9uY2U=' },
+  });
+  expect(harness.messages).toMatchObject([
     {
       walletSession: { walletId: WALLET_ID },
       nearAccount: { accountId: 'owner.testnet' },
-      receiverId: 'voicevault.testnet',
+      params: { recipient: 'seams-v1.testnet/voice-verifier' },
     },
   ]);
   expect(harness.posted).toEqual([

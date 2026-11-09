@@ -1,13 +1,11 @@
 import { hasExactKeys } from '@shared/utils/exactKeys';
-import { isValidAccountId } from '@shared/utils/near';
 import type { Variant } from '@shared/utils/variant';
 
 export type SpeakToSignNetwork = 'testnet' | 'mainnet';
 
-/** Spoken payments through one Speak-to-Sign vault. It is data only and loads no code. */
+/** Spoken payments from the owner's own account. It is data only and loads no code. */
 export type SpeakToSignFeaturePlugin = Readonly<{
   kind: 'speak_to_sign';
-  vault: string;
   network: SpeakToSignNetwork;
 }>;
 
@@ -27,16 +25,15 @@ export function parseWalletTransactionFeaturePlugins(
   const seen = new Set<string>();
   for (const candidate of value) {
     if (
-      !hasExactKeys(candidate, ['kind', 'vault', 'network']) ||
+      !hasExactKeys(candidate, ['kind', 'network']) ||
       candidate.kind !== 'speak_to_sign' ||
-      !isValidAccountId(candidate.vault) ||
       (candidate.network !== 'testnet' && candidate.network !== 'mainnet') ||
       seen.has(candidate.kind)
     ) {
       throw new Error('Unsupported or duplicate wallet transaction feature plugin.');
     }
     seen.add(candidate.kind);
-    plugins.push({ kind: 'speak_to_sign', vault: candidate.vault, network: candidate.network });
+    plugins.push({ kind: 'speak_to_sign', network: candidate.network });
   }
   return plugins;
 }

@@ -1,32 +1,33 @@
 ---
 title: '実験的機能: Speak-to-Sign'
-description: 証明付きの検証者が所有者の声と言葉を確認した後でだけ、ボールトのコントラクトが支払う、実験的な音声によるNEARの支払いです。テストネット専用です。
+description: 証明付きの検証者が所有者の声と言葉を確認して承認し、所有者自身のアカウントから送る、実験的な音声によるNEARの支払いです。テストネット専用です。
 ---
 
 # 実験的機能: Speak-to-Sign {#experimental-speak-to-sign}
 
 ::: warning 実験的機能
 Speak-to-Signは実験的機能です。**NEARテストネットだけ**で動作します。リリース0.54.0が最初のリリースで、0.56.0で`enroll`を追加しました。
-パッケージ、ルート、コントラクトは予告なく変わることがあります。実際の資金では使わないでください。
+パッケージとルートは予告なく変わることがあります。実際の資金では使わないでください。
 :::
 
 Speak-to-Signでは、ウォレットの所有者が声で支払えます。所有者は「Send 2 NEAR to alice dot testnet」のような文を話します。
-証明付きの検証者が、所有者の声でリクエストと同じ文が話されたことを確認した後でだけ、NEAR上のボールトのコントラクトが支払います。
+証明付きの検証者が、所有者の声でリクエストと同じ文が話されたことを確認し、判定に署名します。
+Walletは判定を確認し、所有者自身のアカウントから送金します。話した文が確認の代わりになるため、受理された支払いでは確認画面もパスキーも出ません。
 
 Speak-to-Signは取引機能であり、認証方法ではありません。ウォレットのアンロックやセッションの開始には使いません。
 [VoiceID](/ja/concepts/auth-methods/voiceid)の登録が必要で、VoiceIDの録音画面を使います。
 
 ## 音声による支払いの流れ {#how-a-spoken-payment-works}
 
-1. Walletがボールトを読み取ります。次のノンス、連絡先、固定された検証者の鍵です。
-2. WalletがVoiceIDの画面に話すべき文を表示し、最長8秒の音声を1回録音します。
-3. Seamsのサーバーが、録音をOutLayer上の検証者に送ります。OutLayerは、TEE(信頼できる実行環境)でコードを実行するNEARのオフチェーン計算サービスです。
-4. 検証者は、Phala Cloud上のサービスから話者埋め込みを、NEAR AIから文字起こしを同時に受け取ります。
-   声は所有者が登録したテンプレートと、言葉は検証者自身が作ったリクエストの文と比較します。
-5. 検証者が署名付きの判定を返します。Walletは、ボールトが固定した鍵で署名を確認します。
-6. Walletが`transfer_with_verdict`を1回呼び出します。ボールトは自身の状態からリクエストを作り直し、判定、ノンス、送金先、上限、音声の再利用を確認してから支払います。
+1. WalletがVoiceIDの画面に話すべき文を表示し、最長8秒の音声を1回録音します。
+2. Seamsのサーバーが、録音と型付きのリクエストをOutLayer上の検証者に送ります。OutLayerは、TEE(信頼できる実行環境)でコードを実行するNEARのオフチェーン計算サービスです。
+3. 検証者は、Phala Cloud上のサービスから話者埋め込みを、NEAR AIから文字起こしを同時に受け取ります。
+   声は所有者が登録したテンプレートと、言葉は検証者自身が作ったリクエストの文と比較します。その後、ポリシーの手順が追加の承認を求めることがあります。
+4. 検証者が、120秒で期限が切れる署名付きの判定を返します。Walletは、Wallet自身が固定した検証者の鍵で、リクエスト、話した文、録音、期限、署名を確認します。
+5. `accept`の場合、Walletは確認画面なしで所有者のウォレットセッションを使って送金に署名し、送ります。
+   `step_up`の場合、所有者は確認画面でもう一度承認します(パスキーのセッションではパスキーです)。
 
-テストネットでは、発話の終わりからボールトの受理まで8.7秒でした。この時間は参照用クライアントの測定であり、Walletでの測定ではありません。
+音声による支払いには、有効なウォレットセッションが必要です。セッションがロック中または期限切れの場合、Walletは先にアンロックを求めます。
 
 ## インストール {#install}
 
@@ -46,7 +47,7 @@ import { speakToSign } from '@seams/speak-to-sign';
 const seams = new SeamsWeb({
   // ...the rest of your configuration
   authMethods: [voiceIdAuthMethod()],
-  transactionFeatures: [speakToSign({ vault: 'seams-wallet.testnet', network: 'testnet' })],
+  transactionFeatures: [speakToSign({ network: 'testnet' })],
 });
 
 if (seams.speakToSign) {
@@ -59,9 +60,11 @@ if (seams.speakToSign) {
 ```
 
 `seams.speakToSign`は、設定に記述子がある場合だけ存在します。送金先には、`alice.testnet`のように所有者が読み上げられる任意の名前付きNEARアカウントを指定できます。
-連絡先である必要はありません。暗黙的アカウント(64桁の16進数)または`0x`アカウントの場合、結果は`receiver_not_speakable`の`refused`です。
+暗黙的アカウント(64桁の16進数)または`0x`アカウントの場合、結果は`receiver_not_speakable`の`refused`です。
 存在しないアカウントの場合、結果は`receiver_missing`の`refused`です。
 金額は小数点以下2桁までのNEARの10進数です。結果の`kind`は、`sent`、`refused`、`cancelled`、`unavailable`のいずれかです。
+`sent`の結果には`approval`があります。判定だけで承認した場合は`voice`、ポリシーのルールが確認画面を再び求めた場合は`voice_and_passkey`です。
+現在、検証者には仮のルールが1つあります。10 NEARを超える音声による支払いにはパスキーが必要です。
 
 記述子を設定しないアプリは、Speak-to-Signのコード、WASM、アセットを一切ダウンロードしません。
 記述子を設定したアプリも、音声による支払いを始めるまでは何も追加で読み込みません。
@@ -72,50 +75,20 @@ if (seams.speakToSign) {
 
 1. ウォレットでVoiceIDが有効であること:
    `seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`。
-2. ボールト。所有者は入金付きで`create_vault`を呼び出します(ボールトは保管用に0.1 NEARを保持します)。
-   たとえば`seams.near.signAndSendTransaction`を使います。
-3. 検証者での声のテンプレート:
+2. 検証者での声のテンプレート:
 
 ```ts [部分的な実装例]
 const enrollment = await seams.speakToSign.enroll({ walletId });
 if (enrollment.kind === 'enrolled') {
-  console.log('template', enrollment.templateEpoch, 'tx', enrollment.transactionHash);
+  console.log('template', enrollment.templateEpoch);
 }
 ```
 
-`enroll`は、VoiceIDの画面に短い文を3つ表示します。その後、所有者は、これらの録音だけのダイジェストに対する
-`authorize_enrollment`の呼び出しを1回承認します。検証者は、ボールトが10分間許可した音声だけを登録します。
+`enroll`は、VoiceIDの画面に短い文を3つ表示します。その後、所有者はウォレットの確認画面で、署名付きのメッセージ(NEP-413)を1回承認します。
+メッセージには、これらの録音だけのダイジェストが入っています。検証者は、所有者のフルアクセスキーがそのメッセージに署名したことを確認し、その音声だけを登録します。
 新しい登録は以前のテンプレートを置き換えます。結果の`kind`は、`enrolled`、`refused`、`cancelled`、`unavailable`のいずれかです。
 
-ボールトは、ボールトのコントラクトに対する所有者の1回の呼び出しで作成します。
-たとえば`useSeams()`の`wallet.near`を使います。この呼び出しでウォレットの確認画面が開きます。
-
-```ts [部分的な実装例]
-import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
-
-const VAULT = 'seams-wallet.testnet';
-const GAS = '30000000000000';
-
-async function createVault(near: BoundNearSigner): Promise<void> {
-  // 0.15 NEAR: ボールトは保管用に0.1 NEARを保持します。
-  await near.signAndSendTransaction({
-    receiverId: VAULT,
-    actions: [
-      functionCall({
-        method: 'create_vault',
-        args: {},
-        gas: GAS,
-        deposit: '150000000000000000000000',
-      }),
-    ],
-  });
-}
-```
-
-連絡先は任意です。保存する場合は、同じ方法で`{ account_id }`を付けて`add_contact`を呼び出します。
-
-テストネットでは、所有者のアカウントに約0.3 NEARが必要です。`create_vault`は0.15 NEARを使い、
-NEARは前払いのガスを先に請求します。30 Tgasの呼び出しごとに約0.03 NEAR、音声による支払いごとに0.051 NEARです。
+送金ごとのガスは所有者のアカウントが支払います。テストネットでは約0.00005 NEARです。
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
@@ -136,7 +109,7 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 | ------------------------------------------- | ------------------------------------------------------------------ |
 | `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
 | `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `b4d68fb64f8be57382794bd9a8fce60f1655e869260b3fda88953dddf001fdd0` |
+| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `1eef1bf32070f696b6de2c33cde8b997e73444f77b9d276af35aa2777ef7d7be` |
 | `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | OutLayerの支払い用の鍵です。シークレットストアに保管してください。 |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
@@ -146,34 +119,24 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 別の所有者の声のリクエストは拒否します。検証者の`verify`と`enroll`の両方の操作を扱い、本文は最大1,100 KBです。
 検証者の出力は変更せずに返します。
 
-## ボールトのコントラクト {#the-vault-contract}
+## 検証者の鍵 {#the-verifier-key}
 
-テストネットのボールトは`seams-wallet.testnet`です。初期化時に検証者の鍵
-`ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`を固定しました。
-
-| メソッド                 | 用途                                                                         |
-| ------------------------ | ---------------------------------------------------------------------------- |
-| `create_vault`           | 添付した入金で所有者のボールトを作成します(0.1 NEARは保管用に残ります)。     |
-| `add_contact`            | 既知のアカウント(`account_id`)を保存します。検証者は言葉をこれと比較します。 |
-| `transfer_with_verdict`  | 固定された鍵が署名した判定に基づき、名前付きアカウントに支払います。         |
-| `authorize_enrollment`   | 所有者が、これらの録音だけによる登録を10分間に1回だけ許可します。            |
-| `get_pending_enrollment` | 検証者が読む、所有者の有効な登録の許可です。                                 |
-| `get_vault`              | 所有者の残高、上限、次のノンスです。                                         |
-| `get_contacts`           | 所有者の連絡先と、それぞれが有効かどうかです。                               |
-| `get_verifier`           | 固定された検証者の鍵です。                                                   |
-
-新しい連絡先は、ボールトが初期化時に設定した待ち時間の後に有効になります。所有者が保存済みの連絡先の名前を話し、
-リクエストが別のアカウントを指している場合、言葉の確認は失敗します。所有者は、10分待てば声なしで引き出せます。
+検証者はOutLayerのプロジェクト`seams-v1.testnet/voice-verifier`です。判定の鍵
+`ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U`はプロジェクトに結び付いており、バージョンが変わっても同じです。
+Walletはこの鍵を自身のコードに固定します。アプリがSeamsのサーバーのURLを選ぶため、鍵をアプリから受け取ることはありません。
+Walletは、1つの判定で最大1回だけ、同じ流れで録音した音声に対してだけ支払います。
 
 ## 信頼モデル {#trust-model}
 
-- ボールトは、固定された鍵がこのリクエスト(ネットワーク、ボールト、所有者、送金先、金額、ノンス)に署名した判定でだけ支払います。
+- Walletは、固定された鍵がこのリクエスト(ネットワーク、所有者、送金先、金額)とこの流れの録音に署名した判定の後でだけ署名します。
+  ウォレットセッションとSeamsの共同署名者は、すべての署名に引き続き参加します。
+- 音声による支払いを制限するコントラクトはありません。ポリシーのルールの金額を超える支払いでは、確認画面が再び必要です。
 - 検証者はOutLayerのTEEで動作します。OutLayerのプロジェクトの所有者は、同じ鍵で署名する新しいバージョンをデプロイできます。
 - 話者の確認は、鍵を固定したPhalaのdstack CVMで動作します。Phalaのアプリの所有者は、その鍵を保ったままコードを変更できます。
 - 文字起こしはNEAR AIが作ります。文字起こしには署名がないため、検証者はNEAR AIのゲートウェイを信頼します。
 - `walletOrigin`のコードは、所有者が話した後にリクエストを変更できません。変更すると言葉が一致しなくなります。
 - 任意の名前付きアカウントが音声による支払いを受け取れます。声の確認が所有者の声の複製または再生を受け入れた場合、
-  支払いは任意の名前付きアカウントに送られる可能性があります。損失を制限するのは、1回ごとの上限と1日の上限だけです。
+  支払いは任意の名前付きアカウントに送られる可能性があります。ステップアップの金額より下では、声だけで支払えます。
 - 検証者は、`bob.testnet`と`bobb.testnet`のように同じに聞こえる2つのアカウントを区別できません。
   所有者は、話す前に画面のアカウントを読んでください。
 

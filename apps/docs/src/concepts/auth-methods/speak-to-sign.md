@@ -1,19 +1,22 @@
 ---
 title: 'Experimental: Speak-to-Sign'
-description: Experimental spoken NEAR payments from a vault contract that pays only after an attested verifier checks the owner's voice and words. Testnet only.
+description: Experimental spoken NEAR payments from the owner's own account, approved by an attested verifier that checks the owner's voice and words. Testnet only.
 ---
 
 # Experimental: Speak-to-Sign
 
 ::: warning Experimental
 Speak-to-Sign is experimental. It runs on **NEAR testnet only**. Release 0.54.0
-is its first release, and 0.56.0 adds `enroll`. Its packages, routes and
-contract can change without notice. Do not use it with real funds.
+is its first release, and 0.56.0 adds `enroll`. Its packages and routes can
+change without notice. Do not use it with real funds.
 :::
 
 Speak-to-Sign lets a wallet owner pay by voice. The owner says a sentence such
-as "Send 2 NEAR to alice dot testnet". A vault contract on NEAR pays only after
-an attested verifier hears the owner's voice say the exact text of the request.
+as "Send 2 NEAR to alice dot testnet". An attested verifier checks that the
+owner's voice says the exact text of the request, and signs a verdict. The
+Wallet checks the verdict and sends the transfer from the owner's own account.
+The spoken sentence is the confirmation: an accepted payment shows no confirm
+and no passkey.
 
 Speak-to-Sign is a transaction feature, not an authentication method. It never
 unlocks a wallet or opens a session. It needs a [VoiceID](/concepts/auth-methods/voiceid)
@@ -21,24 +24,24 @@ enrollment and uses the VoiceID capture surface.
 
 ## How a spoken payment works
 
-1. The Wallet reads the vault: the next nonce, the contacts and the pinned
-   verifier key.
-2. The Wallet shows the expected sentence on the VoiceID surface and records
+1. The Wallet shows the expected sentence on the VoiceID surface and records
    one clip of at most 8 s.
-3. The Seams server sends the clip to the verifier on OutLayer, a NEAR
-   off-chain compute service that runs code in a TEE (trusted execution
-   environment).
-4. The verifier gets a speaker embedding from a service on Phala Cloud and a
+2. The Seams server sends the clip and the typed request to the verifier on
+   OutLayer, a NEAR off-chain compute service that runs code in a TEE (trusted
+   execution environment).
+3. The verifier gets a speaker embedding from a service on Phala Cloud and a
    transcript from NEAR AI at the same time. It compares the voice with the
    owner's enrolled template and the words with its own text of the request.
-5. The verifier returns a signed verdict. The Wallet checks the signature
-   against the key that the vault pinned.
-6. The Wallet sends one `transfer_with_verdict` call. The vault rebuilds the
-   request from its own state, checks the verdict, the nonce, the receiver, the
-   limits and audio reuse, and pays.
+   Then a policy step can ask for more approval.
+4. The verifier returns a signed verdict that expires after 120 s. The Wallet
+   checks it against the verifier key that the Wallet pins: the request, the
+   spoken text, the recording, the expiry and the signature.
+5. On `accept`, the Wallet signs the transfer through the owner's Wallet
+   Session with no confirm and sends it. On `step_up`, the owner approves
+   again on the confirm (a passkey on a passkey session).
 
-On testnet, one payment took 8.7 s from the end of speech until the vault
-accepted it. These times come from a reference client, not from a Wallet run.
+A spoken payment needs a warm Wallet Session. If the session is locked or
+expired, the Wallet asks the owner to unlock first.
 
 ## Install
 
@@ -58,7 +61,7 @@ import { speakToSign } from '@seams/speak-to-sign';
 const seams = new SeamsWeb({
   // ...the rest of your configuration
   authMethods: [voiceIdAuthMethod()],
-  transactionFeatures: [speakToSign({ vault: 'seams-wallet.testnet', network: 'testnet' })],
+  transactionFeatures: [speakToSign({ network: 'testnet' })],
 });
 
 if (seams.speakToSign) {
@@ -72,11 +75,14 @@ if (seams.speakToSign) {
 
 `seams.speakToSign` exists only when the configuration names the descriptor.
 The receiver can be any named NEAR account that the owner can say, such as
-`alice.testnet`. It does not have to be a contact. The result is `refused`
-with `receiver_not_speakable` for an implicit (64-hex) or `0x` account, and
-with `receiver_missing` for an account that does not exist. The amount is
-decimal NEAR with at most two decimal places. The result `kind` is `sent`,
-`refused`, `cancelled` or `unavailable`.
+`alice.testnet`. The result is `refused` with `receiver_not_speakable` for an
+implicit (64-hex) or `0x` account, and with `receiver_missing` for an account
+that does not exist. The amount is decimal NEAR with at most two decimal
+places. The result `kind` is `sent`, `refused`, `cancelled` or `unavailable`.
+A `sent` result has `approval`: `voice` when the verdict alone approved the
+payment, and `voice_and_passkey` when a policy rule asked for the confirm
+again. Today the verifier has one stub rule: a voice payment above 10 NEAR needs
+a passkey.
 
 An app without the descriptor downloads no Speak-to-Sign code, WASM or assets.
 An app with it loads nothing more until a spoken payment starts.
@@ -87,54 +93,24 @@ Before the first spoken payment, the owner needs:
 
 1. VoiceID on for the wallet:
    `seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`.
-2. A vault. The owner calls `create_vault` with a deposit (the vault keeps
-   0.1 NEAR for storage), for example with `seams.near.signAndSendTransaction`.
-3. A voice template at the verifier:
+2. A voice template at the verifier:
 
 ```ts [Partial example]
 const enrollment = await seams.speakToSign.enroll({ walletId });
 if (enrollment.kind === 'enrolled') {
-  console.log('template', enrollment.templateEpoch, 'tx', enrollment.transactionHash);
+  console.log('template', enrollment.templateEpoch);
 }
 ```
 
 `enroll` shows three short phrases on the VoiceID surface. Then the owner
-approves one `authorize_enrollment` call for the digest of exactly these
-recordings. The verifier enrolls only audio that the vault authorized, for 10
-minutes. A new enrollment replaces the template. The result `kind` is
-`enrolled`, `refused`, `cancelled` or `unavailable`.
+approves one signed message (NEP-413) on the wallet confirm. The message names
+the digest of exactly these recordings. The verifier checks that a full-access
+key of the owner signed it, and enrolls only that audio. A new enrollment
+replaces the template. The result `kind` is `enrolled`, `refused`, `cancelled`
+or `unavailable`.
 
-Create the vault with one owner call on the vault contract, for example with
-`wallet.near` from `useSeams()`. The call opens the wallet confirmation:
-
-```ts [Partial example]
-import { functionCall, type BoundNearSigner } from '@seams/wallet/react';
-
-const VAULT = 'seams-wallet.testnet';
-const GAS = '30000000000000';
-
-async function createVault(near: BoundNearSigner): Promise<void> {
-  // 0.15 NEAR: the vault keeps 0.1 NEAR for storage.
-  await near.signAndSendTransaction({
-    receiverId: VAULT,
-    actions: [
-      functionCall({
-        method: 'create_vault',
-        args: {},
-        gas: GAS,
-        deposit: '150000000000000000000000',
-      }),
-    ],
-  });
-}
-```
-
-Contacts are optional. To save one, call `add_contact` with
-`{ account_id }` in the same way.
-
-On testnet the owner account needs about 0.3 NEAR: `create_vault` takes 0.15
-NEAR, and NEAR charges prepaid gas up front, about 0.03 NEAR for each 30 Tgas
-call and 0.051 NEAR for each spoken payment.
+The owner's account pays the gas of each transfer, about 0.00005 NEAR on
+testnet.
 
 ## Prepare the Wallet host
 
@@ -158,7 +134,7 @@ variables are set:
 | ------------------------------------------- | ------------------------------------------------------------------ |
 | `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
 | `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `b4d68fb64f8be57382794bd9a8fce60f1655e869260b3fda88953dddf001fdd0` |
+| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `1eef1bf32070f696b6de2c33cde8b997e73444f77b9d276af35aa2777ef7d7be` |
 | `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | The OutLayer payment key. Keep it in a secret store.               |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
@@ -170,31 +146,23 @@ another owner's voice. It serves the verifier's `verify` and `enroll`
 operations, accepts a body of at most 1,100 KB, and passes the verifier output
 back unchanged.
 
-## The vault contract
+## The verifier key
 
-The testnet vault is `seams-wallet.testnet`. It pinned the verifier key
-`ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` at init.
-
-| Method                   | Use                                                                               |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| `create_vault`           | Creates the owner's vault with the attached deposit (0.1 NEAR stays for storage). |
-| `add_contact`            | Saves a known account (`account_id`). The verifier checks the words against it.   |
-| `transfer_with_verdict`  | Pays a named account on a verdict that the pinned key signed.                     |
-| `authorize_enrollment`   | The owner allows one enrollment of exactly these recordings for 10 minutes.       |
-| `get_pending_enrollment` | The owner's live enrollment authorization, which the verifier reads.              |
-| `get_vault`              | Balance, limits and the next nonce of an owner.                                   |
-| `get_contacts`           | The owner's contacts and whether each one is active.                              |
-| `get_verifier`           | The pinned verifier key.                                                          |
-
-A new contact becomes active after the contact delay that the vault set at
-init. If the owner says the name of a saved contact but the request names
-another account, the word check fails. The owner can withdraw without voice
-after a 10-minute wait.
+The verifier is the OutLayer project `seams-v1.testnet/voice-verifier`. Its
+verdict key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` is bound to
+the project and stays the same across versions. The Wallet pins that key in its
+own code. It never takes the key from the app, because the app chooses the
+Seams server URL. The Wallet pays each verdict at most once, and only for a
+recording that it made in the same flow.
 
 ## Trust model
 
-- The vault pays only on a verdict that the pinned key signed for this exact
-  request: network, vault, owner, receiver, amount and nonce.
+- The Wallet signs only after a verdict that the pinned key signed for this
+  exact request: network, owner, receiver and amount, and a recording of this
+  flow. The Wallet Session and the Seams co-signer still take part in every
+  signature.
+- No contract limits a spoken payment. A payment above the policy rule's
+  amount needs the confirm again.
 - The verifier runs in OutLayer's TEE. The OutLayer project owner can deploy a
   new version that signs with the same key.
 - The speaker check runs in a Phala dstack CVM with a pinned key. The Phala app
@@ -205,7 +173,7 @@ after a 10-minute wait.
   words then do not match.
 - Any named account can receive a spoken payment. If the voice check accepts a
   clone or a replay of the owner's voice, the payment can go to any named
-  account. Only the per-transfer and daily limits bound the loss.
+  account. Below the step-up amount, the voice alone pays.
 - The verifier cannot tell apart two accounts that sound the same, such as
   `bob.testnet` and `bobb.testnet`. The owner must read the account on the
   screen before speaking.

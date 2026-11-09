@@ -1,8 +1,10 @@
 import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
-import { functionCall } from '@/core/types/actionBuilders';
+import { transfer } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
 import type { ActionResult } from '@/core/types/seams';
+import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
 import type {
   AuthMethodPhraseRecording,
@@ -11,60 +13,83 @@ import type {
 import type {
   SpeakToSignClip,
   SpeakToSignClipRequest,
+  SpeakToSignEnrollmentAuthorization,
   SpeakToSignHostOperations,
-  SpeakToSignSubmission,
-  SpeakToSignVaultTransferArgs,
-  SpeakToSignVaultView,
+  SpeakToSignPayment,
   SpeakToSignVerifyReply,
 } from './hostPlugin';
 import type { SpeakToSignFeaturePlugin } from './plugins';
+import { concat, sha256, utf8, type SpokenTransferRequest } from './spokenTransfer';
+import {
+  checkVoiceVerdict,
+  parseVerifyOutput,
+  SPEAK_TO_SIGN_VERIFIERS,
+  type VoiceApproval,
+} from './voiceVerdict';
+
+type Verifiers = typeof SPEAK_TO_SIGN_VERIFIERS;
 import { pcm16Wav, SAMPLE_RATE } from './wav';
 
 const VERIFY_PATH = '/speak-to-sign/v1/verify';
-/** The demo client measured `transfer_with_verdict` well below this. */
-const TRANSFER_GAS = '50000000000000';
-/** `authorize_enrollment` writes one small record. */
-const AUTHORIZE_ENROLLMENT_GAS = '30000000000000';
+const ENROLLMENT_DOMAIN = 'seams:voice-enrollment:v2';
+const ENROLLMENT_MESSAGE_PREFIX = 'Speak-to-Sign voice enrollment ';
+const ENROLLMENT_RECORDINGS = 3;
 
 export type SpeakToSignHostOperationsInput = Readonly<{
   feature: SpeakToSignFeaturePlugin;
   ownerAccountId: string;
   /** The Seams server that serves the verify route. */
   serverUrl: string;
-  nearClient: Pick<NearClient, 'view' | 'viewAccount'>;
+  nearClient: Pick<NearClient, 'viewAccount'>;
   /** The bearer Wallet Session operation credential that the verify route admits. */
   operationCredential: (signal: AbortSignal) => Promise<string>;
-  /** The owner's existing NEAR signing path, bound to the wallet session and the owner account. */
-  signAndSendTransaction: (
+  /**
+   * The owner's NEAR signing path for one voice-approved transaction: no confirm for `voice`,
+   * a fresh approval with the session's own method for `voice_and_passkey`.
+   */
+  signVoiceApprovedTransaction: (
     transaction: TransactionInput,
+    approval: VoiceApproval,
+    policyText: string | null,
     signal: AbortSignal,
   ) => Promise<ActionResult>;
+  /** The owner's NEP-413 signing path, bound to the wallet session and the owner account. */
+  signMessage: (
+    params: Readonly<{ message: string; recipient: string }>,
+    signal: AbortSignal,
+  ) => Promise<SignNEP413MessageResult>;
   /** The VoiceID host plugin's `recordPhrase`, loaded on first use. */
   recordPhrase: (request: AuthMethodPhraseRequest) => Promise<AuthMethodPhraseRecording>;
   fetch: typeof fetch;
+  now?: () => number;
+  /** Tests pass their own key. The Wallet always uses the pinned verifiers. */
+  verifiers?: Verifiers;
 }>;
 
-/**
- * Builds the scoped operations for one spoken payment or enrollment. Every transaction goes
- * to the configured vault, calls only `transfer_with_verdict` or `authorize_enrollment` and
- * attaches no deposit.
- */
+/** What one flow recorded and paid, so a verdict binds a clip of this flow and pays once. */
+type FlowState = {
+  readonly recordedAudio: Set<string>;
+  readonly paidVerdicts: Set<string>;
+};
+
+/** Builds the scoped operations for one spoken payment or enrollment. */
 export function createSpeakToSignHostOperations(
   input: SpeakToSignHostOperationsInput,
 ): SpeakToSignHostOperations {
+  const state: FlowState = { recordedAudio: new Set(), paidVerdicts: new Set() };
   return {
-    captureClip: captureClip.bind(null, input),
-    viewVault: viewVault.bind(null, input),
+    captureClip: captureClip.bind(null, input, state),
     receiverExists: receiverExists.bind(null, input),
     verify: verify.bind(null, input),
-    submitTransfer: submitTransfer.bind(null, input),
-    authorizeEnrollment: authorizeEnrollment.bind(null, input),
+    payWithVerdict: payWithVerdict.bind(null, input, state),
+    authorizeEnrollment: authorizeEnrollment.bind(null, input, state),
   };
 }
 
 /** Records one clip on the VoiceID surface and returns it as the verifier's canonical WAV. */
 async function captureClip(
   input: SpeakToSignHostOperationsInput,
+  state: FlowState,
   request: SpeakToSignClipRequest,
 ): Promise<SpeakToSignClip> {
   request.signal.throwIfAborted();
@@ -83,28 +108,13 @@ async function captureClip(
   if (recording.kind === 'cancelled') return recording;
   const wav = pcm16Wav(recording.samples);
   recording.samples.fill(0);
+  state.recordedAudio.add(await audioDigest(wav));
   return {
     kind: 'captured',
     wav,
     speechMs: Math.round(((wav.length - 44) / 2 / SAMPLE_RATE) * 1_000),
     endOfSpeechAt: recording.endOfSpeechAt,
   };
-}
-
-async function viewVault(
-  input: SpeakToSignHostOperationsInput,
-  view: SpeakToSignVaultView,
-  signal: AbortSignal,
-): Promise<unknown> {
-  signal.throwIfAborted();
-  const value = await input.nearClient.view({
-    account: input.feature.vault,
-    method: view,
-    args: view === 'get_verifier' ? {} : { owner_id: input.ownerAccountId },
-    decodeResult: identity,
-  });
-  signal.throwIfAborted();
-  return value;
 }
 
 async function receiverExists(
@@ -151,46 +161,46 @@ async function verify(
   return { kind: 'failed', code: code || `http_${response.status}` };
 }
 
-async function submitTransfer(
+async function payWithVerdict(
   input: SpeakToSignHostOperationsInput,
-  args: SpeakToSignVaultTransferArgs,
+  state: FlowState,
+  transferRequest: Readonly<{ receiver: string; amountYocto: bigint }>,
+  verifierOutput: unknown,
   signal: AbortSignal,
-): Promise<SpeakToSignSubmission> {
-  const callArgs = {
-    receiver_id: args.receiver_id,
-    amount: args.amount,
-    nonce: args.nonce,
-    verdict_json: args.verdict_json,
-    signature_b64: args.signature_b64,
-  };
-  return await callVault(input, 'transfer_with_verdict', callArgs, TRANSFER_GAS, signal);
-}
-
-async function authorizeEnrollment(
-  input: SpeakToSignHostOperationsInput,
-  enrollmentDigest: string,
-  signal: AbortSignal,
-): Promise<SpeakToSignSubmission> {
-  if (!/^[A-Za-z0-9_-]{43}$/.test(enrollmentDigest)) {
-    return { kind: 'not_submitted', error: 'The enrollment digest is invalid.' };
-  }
-  const args = { enrollment_digest: enrollmentDigest };
-  return await callVault(input, 'authorize_enrollment', args, AUTHORIZE_ENROLLMENT_GAS, signal);
-}
-
-async function callVault(
-  input: SpeakToSignHostOperationsInput,
-  method: 'transfer_with_verdict' | 'authorize_enrollment',
-  args: Record<string, string>,
-  gas: string,
-  signal: AbortSignal,
-): Promise<SpeakToSignSubmission> {
+): Promise<SpeakToSignPayment> {
   signal.throwIfAborted();
-  const result = await input.signAndSendTransaction(
+  const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
+  if (!verifier) return { kind: 'unavailable', detail: 'This network has no verifier.' };
+  const output = parseVerifyOutput(verifierOutput);
+  if (!output) return { kind: 'unavailable', detail: 'invalid verifier output' };
+  const request: SpokenTransferRequest = {
+    network: input.feature.network,
+    owner: input.ownerAccountId,
+    receiver: transferRequest.receiver,
+    amountYocto: transferRequest.amountYocto,
+  };
+  const check = await checkVoiceVerdict({
+    output,
+    request,
+    verifier,
+    recordedAudio: state.recordedAudio,
+    nowMs: (input.now ?? Date.now)(),
+  });
+  if (check.kind === 'refused') return check;
+  if (check.kind === 'mismatch') {
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: check.detail };
+  }
+  if (state.paidVerdicts.has(output.verdictJson)) {
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict already used' };
+  }
+  state.paidVerdicts.add(output.verdictJson);
+  const result = await input.signVoiceApprovedTransaction(
     {
-      receiverId: input.feature.vault,
-      actions: [functionCall({ method, args, gas, deposit: '0' })],
+      receiverId: request.receiver,
+      actions: [transfer(`${request.amountYocto} yoctoNEAR`)],
     },
+    check.approval,
+    check.policyText,
     signal,
   );
   if (!result.success) {
@@ -200,8 +210,59 @@ async function callVault(
   }
   const failure = executionFailure(result.result);
   return failure === null
-    ? { kind: 'executed', transactionHash: result.transactionId }
+    ? { kind: 'executed', transactionHash: result.transactionId, approval: check.approval }
     : { kind: 'reverted', transactionHash: result.transactionId, error: failure };
+}
+
+async function authorizeEnrollment(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  clips: readonly Uint8Array<ArrayBuffer>[],
+  signal: AbortSignal,
+): Promise<SpeakToSignEnrollmentAuthorization> {
+  signal.throwIfAborted();
+  const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
+  if (!verifier) return { kind: 'not_signed', error: 'This network has no verifier.' };
+  if (clips.length !== ENROLLMENT_RECORDINGS) {
+    return { kind: 'not_signed', error: 'An enrollment needs exactly three recordings.' };
+  }
+  const digests = await Promise.all(clips.map(sha256));
+  if (!digests.every((digest) => state.recordedAudio.has(base64UrlEncode(digest)))) {
+    return { kind: 'not_signed', error: 'Only recordings of this enrollment can be authorized.' };
+  }
+  const digest = await enrollmentDigest(input.ownerAccountId, digests);
+  let signed: SignNEP413MessageResult;
+  try {
+    signed = await input.signMessage(
+      { message: `${ENROLLMENT_MESSAGE_PREFIX}${digest}`, recipient: verifier.project },
+      signal,
+    );
+  } catch (error) {
+    signal.throwIfAborted();
+    return { kind: 'not_signed', error: error instanceof Error ? error.message : 'not signed' };
+  }
+  if (!signed.success) return { kind: 'not_signed', error: signed.error };
+  return {
+    kind: 'signed',
+    authorization: {
+      public_key: signed.publicKey,
+      signature_b64: signed.signature,
+      nonce_b64: signed.nonce,
+    },
+  };
+}
+
+/** base64url SHA-256(domain || owner || 0 || SHA-256 of each WAV, in order). */
+export async function enrollmentDigest(
+  owner: string,
+  clipDigests: readonly Uint8Array<ArrayBuffer>[],
+): Promise<string> {
+  const preimage = concat([utf8(ENROLLMENT_DOMAIN), utf8(owner), new Uint8Array(1), ...clipDigests]);
+  return base64UrlEncode(await sha256(preimage));
+}
+
+async function audioDigest(wav: Uint8Array<ArrayBuffer>): Promise<string> {
+  return base64UrlEncode(await sha256(wav));
 }
 
 /** The first failure in the outcome or its receipts, as JSON text, or null. */
@@ -221,8 +282,4 @@ function executionFailure(outcome: unknown): string | null {
     }
   }
   return null;
-}
-
-function identity(value: unknown): unknown {
-  return value;
 }

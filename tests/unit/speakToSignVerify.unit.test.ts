@@ -228,7 +228,12 @@ test('an enrollment of three 8 s clips fits the body cap and reaches OutLayer un
   const harness = await buildHarness(okOutlayer);
   // 8 s of 16 kHz PCM16 plus the 44-byte header, in standard base64.
   const clip = Buffer.alloc(8 * 16_000 * 2 + 44, 1).toString('base64');
-  const input = { op: 'enroll', vault: 'vault.testnet', owner: OWNER, audio_wav_b64: [clip, clip, clip] };
+  const authorization = {
+    public_key: `ed25519:${'1'.repeat(44)}`,
+    signature_b64: 'A'.repeat(86) + '==',
+    nonce_b64: 'A'.repeat(43) + '=',
+  };
+  const input = { op: 'enroll', owner: OWNER, audio_wav_b64: [clip, clip, clip], authorization };
   const response = await harness.send(JSON.stringify({ input }));
   expect(response.status).toBe(200);
   expect(harness.calls).toHaveLength(1);
