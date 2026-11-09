@@ -1,23 +1,27 @@
 ---
-title: リリース 0.59.0
-description: Speak-to-Signは、音声によるコミュニティノートとノートの評価に署名します。
+title: リリース 0.60.0
+description: Seamsの共同署名者がSpeak-to-Signの各判定を音声の上限とともに確認し、音声によるリクエストが進行状況を知らせます。
 ---
 
-# リリース 0.59.0
+# リリース 0.60.0
 
-ブラウザーSDK、サーバーSDK、VoiceIDプラグイン、Speak-to-Signプラグインは **0.59.0** を使います。
+ブラウザーSDK、サーバーSDK、VoiceIDプラグイン、Speak-to-Signプラグインは **0.60.0** を使います。
 
-- **実験的機能、NEARテストネット専用:** Speak-to-Signは、コミュニティノートやノートの評価に音声で署名します。[音声によるコミュニティノート](/ja/concepts/auth-methods/speak-to-sign#spoken-community-notes)を参照してください。
-  - `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`: 作成者はノートを入力し、1〜12語の短い要約を読み上げます。判定はノート全体をSHA-256で結び付けます。
-  - `seams.speakToSign.requestRating({ walletId, contract, noteId, rating })`: 所有者は「this note is helpful」「this note is somewhat helpful」「this note is not helpful」のどれかを話します。
-  - 判定が承認されると、Wallet coreは所有者のアカウントから呼び出しを1件作ります。ノートのコントラクトの`add_note`または`rate_note`で、デポジットも確認画面もありません。どちらも`requestTransfer`と同じ種類の結果を返し、新しい拒否理由`summary_not_speakable`と`note_not_valid`があります。
-  - `@seams/wallet`の`summaryRefusal(text)`と`MAX_SUMMARY_WORDS`で、Walletを開く前に要約を確認できます。
-- 検証者0.4.0(`8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`)は、`community_note`と`note_rating`の要求を追加します。送金は変わりません。4語以上の要約は、1語が違って聞こえても、1語が抜けても通ります。ただし「not」の追加や欠落は通りません。
-- Speak-to-SignのホストAPIはバージョン **6** です。VoiceIDのホストAPIはバージョン **10** のままです。Walletは、別のバージョンのホストプラグインを拒否します。
-- 0.59.0にも含まれる0.58.1の変更:
-  - Speak-to-Signは、録音、確認、結果を1つのVoiceIDカードで示します。1つの流れで録音は5回まで、支払いは最大1回です。
-  - 検証者は、値を持たない語の似た音の語(「NEAR」に対する「year」など)を受け入れます。
-- 4つのパッケージをすべて0.59.0でインストールしてください。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
+- **実験的機能、NEARテストネット専用:** Seamsの共同署名者は、音声で承認された署名に自分の部分を加える前に、Speak-to-Signの判定をもう一度確認します。[信頼モデル](/ja/concepts/auth-methods/speak-to-sign#trust-model)を参照してください。
+  - 音声で承認された取引の署名リクエストは判定を含みます。共同署名者は、固定された検証者の鍵による署名、期限、未署名の取引が話したリクエストを実行すること、そしてセッションのNEARアカウントが署名することを確認します。
+  - 1つの判定は1つの署名リクエストだけを承認します。共同署名者は、新しいテーブル`speak_to_sign_voice_verdicts`に判定を記録します。
+  - 各ウォレットの音声の上限: 声だけの支払いは1回最大10 NEAR、任意の24時間で最大20 NEARです。
+  - `step_up`の判定には新しい承認が必要です。同じ操作のパスキーまたはEmail OTPのステップアップか、判定の後の新しいVoiceIDのアンロックです。VoiceIDのセッションでは、同じ署名の呼び出しの中で、新しいアンロックが新しい承認の要求を満たすようになりました。
+  - 共同署名者の拒否は、理由が`voice_limit`または`cosigner_refused`の`refused`です。`detail`には`over_daily_limit`や`reused`のような理由が入ります。何も署名されていません。
+- `requestTransfer`、`requestNote`、`requestRating`には、省略できる`onProgress`があります。`recording_sent`、`verifier_running`、`verdict`、`step_up`、`transaction_sent`、`settled`を受け取ります。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#install)を参照してください。
+- 検証ルートは確認の後、`text/event-stream`で応答します。`verifier_running`の後に、`verdict`か`failed`のイベントを1つ送ります。検証者が動作している間に、Walletは支払いのためのアクセスキーのnonceと最近のブロックハッシュを先に読みます。
+- `rpIdOverride`がない場合、パスキーは`walletOrigin`のホストに結び付きます。以前は、すべてのウォレットのオリジンがローカルの既定値`example.localhost`のままでした。
+- Speak-to-SignのホストAPIはバージョン **7** です。VoiceIDのホストAPIはバージョン **10** のままです。Walletは、別のバージョンのホストプラグインを拒否します。
+- 次の順序でデプロイしてください。D1のマイグレーションを適用し、サーバーをデプロイし、その後にWalletホストをデプロイします。検証の応答がストリームになったため、Speak-to-SignにはサーバーとWalletホストの両方が0.60.0である必要があります。その他の署名は、2つのデプロイの間も動作します。0.59.0のアプリは進行状況のメッセージを無視しますが、2つの新しい拒否理由を読めないため、アプリも更新してください。
+- 0.60.0にも含まれる0.59.0の変更:
+  - Speak-to-Signは、音声によるコミュニティノート(`requestNote`)とノートの評価(`requestRating`)に署名します。
+  - 検証者0.4.0(`8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`)はノートの要求を追加します。送金は変わりません。
+- 4つのパッケージをすべて0.60.0でインストールしてください。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
 
 ウォレットのiframeプロトコルは **23.0.0**、ウォレット管理プロトコルは **5** のままです。
-署名付きの復旧CLIは **0.29.0** のままです。このリリースにデータベースのマイグレーションはありません。
+署名付きの復旧CLIは **0.29.0** のままです。このリリースはD1のマイグレーション`0089_speak_to_sign_voice_verdicts.sql`を1つ追加します。

@@ -39,7 +39,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 3つのパッケージを同じバージョンでインストールします。
 
 ```sh
-pnpm add @seams/wallet@0.59.0 @seams/voiceid@0.59.0 @seams/speak-to-sign@0.59.0
+pnpm add @seams/wallet@0.60.0 @seams/voiceid@0.60.0 @seams/speak-to-sign@0.60.0
 ```
 
 VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加します。

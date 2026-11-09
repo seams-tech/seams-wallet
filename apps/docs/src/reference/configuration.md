@@ -27,7 +27,7 @@ optional. Prefer the helpers unless you need partial configuration for a custom 
 
 The development-preview NEAR connector uses its own `ExternalNearConfig`.
 Pass `network`, `rpcUrl`, and `wallets` directly to `ExternalNearController`.
-No Seams provider configuration is required. Version `0.59.0` includes these exports.
+No Seams provider configuration is required. Version `0.60.0` includes these exports.
 
 | Configuration                          | Behavior                                                        |
 | -------------------------------------- | --------------------------------------------------------------- |
@@ -55,7 +55,7 @@ kept the local default `example.localhost` for every wallet origin.
 
 ## Optional VoiceID
 
-SDK 0.59.0 accepts `authMethods: [voiceIdAuthMethod()]`. Import the descriptor from
+SDK 0.60.0 accepts `authMethods: [voiceIdAuthMethod()]`. Import the descriptor from
 `@seams/voiceid`. The Wallet host operator must deploy that package's assets too.
 The descriptor enables availability. The wallet owner chooses enrollment and VoiceID unlock separately.
 It does not load the engine or models during passkey or Email OTP flows.
