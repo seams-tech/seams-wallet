@@ -1,8 +1,9 @@
 # Refactor 227: Speak-to-Sign without a passkey, with typed contract calls
 
 Status: 2026-11-09. Step 1 (payments without a passkey) and Step 4 (retire the vault) are
-done. Step 1b (the co-signer checks the verdict) and Step 2 (live progress) are done in code
-for release 0.60.0 and not deployed. Step 3 shipped in 0.59.0; its staging check is open.
+done. Step 1b (the co-signer checks the verdict) and Step 2 (live progress) shipped in 0.60.0
+and run on staging since 2026-11-09 (seams-monorepo b77bf2cf, with verifier 0.4.1); the voice
+check on staging is open. Step 3 shipped in 0.59.0; its staging check is open.
 Step 5 (records) is done. The plan changed the
 Speak-to-Sign design of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and
 uses the step-up of [Refactor 225](refactor-225-jev-policy-engine.md) (Section 4).
@@ -331,9 +332,9 @@ until the 0.57.0 rollout session reports done.
      in 8.1 s from the end of speech to the receipt; wrong words refused; the 11 NEAR step-up
      passed the co-signer and NEAR refused it for the balance. The verify reply was
      `text/event-stream`, and the table held one row for each approved verdict.
-   - Not done: the deploy and a live check on staging. Deploy wallet-server with migration
-     `0089` before the hosted Wallet: an older gateway does not take `voice_verdict` out of the
-     request.
+   - Deployed in 0.60.0 (npm release run 42623797977 from seams-wallet 8204a1049; staging
+     deploy run 42629202486 from seams-monorepo b77bf2cf). The staging gateway's readyz includes
+     `speak_to_sign_voice_verdicts`. Not done: a voice payment on staging.
 2. **Live progress.** Route SSE, SDK stream reader, Wallet progress events. Done in code for
    0.60.0, not deployed:
    - After its checks, the verify route answers with `text/event-stream`: `verifier_running`
