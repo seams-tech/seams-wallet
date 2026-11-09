@@ -1,3 +1,4 @@
+import { parseSpeakToSignProgressV1 } from '../shared/speakToSign';
 import { parseWalletConnectionRequest } from '../shared/walletAlternatives';
 import { parseTransactionReviewState } from '../shared/transactionReview';
 import { parseOwnerNearSubmissionProgress } from '../shared/ownerNearOperation';
@@ -155,6 +156,8 @@ function isClientDeviceLinkProgressCandidate(
 
 function parseClientProgressPayload(value: unknown): ProgressPayload | null {
   if (isWalletFlowEvent(value)) return value;
+  const speakToSign = parseSpeakToSignProgressV1(value);
+  if (speakToSign) return speakToSign;
   if (isRegistrationTimingSpanV1(value)) return value;
   try {
     const submission = parseOwnerNearSubmissionProgress(value);

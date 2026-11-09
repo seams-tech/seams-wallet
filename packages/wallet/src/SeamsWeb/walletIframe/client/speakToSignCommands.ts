@@ -3,11 +3,13 @@ import type {
   SpeakToSignEnrollmentResult,
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
+  SpeakToSignProgress,
   SpeakToSignRatingRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
 import type { WalletIframeCoordinator } from '../coordinator';
+import type { ProgressPayload } from '../shared/messages';
 import {
   parseSpeakToSignEnrollmentResult,
   parseSpeakToSignEnrollPayload,
@@ -35,8 +37,24 @@ type SpeakToSignPost = (
         readonly payload: PMSpeakToSignEnrollPayload;
       },
   // The owner speaks, and a step-up asks for a passkey, so the request has no deadline.
-  options: { readonly timeout: 'interactive' },
+  options: {
+    readonly timeout: 'interactive';
+    readonly onProgress?: (payload: ProgressPayload) => void;
+  },
 ) => Promise<{ readonly result?: unknown }>;
+
+/** Passes the Speak-to-Sign progress messages to the app's listener. A throwing listener is ignored. */
+function progressListener(
+  onProgress: ((progress: SpeakToSignProgress) => void) | undefined,
+): ((payload: ProgressPayload) => void) | undefined {
+  if (!onProgress) return undefined;
+  return (payload) => {
+    if (!('event' in payload) || payload.event !== 'speak_to_sign_progress_v1') return;
+    try {
+      onProgress(payload.progress);
+    } catch {}
+  };
+}
 
 export type SpeakToSignTransferCommand = (
   request: SpeakToSignTransferRequest,
@@ -66,7 +84,7 @@ async function requestNoteFromHost(
   post: SpeakToSignPost,
   request: SpeakToSignNoteRequest,
 ): Promise<SpeakToSignNoteResult> {
-  return await postNoteAction(post, request.walletId, {
+  return await postNoteAction(post, request, {
     kind: 'community_note',
     contract: request.contract,
     postId: request.postId,
@@ -79,7 +97,7 @@ async function requestRatingFromHost(
   post: SpeakToSignPost,
   request: SpeakToSignRatingRequest,
 ): Promise<SpeakToSignNoteResult> {
-  return await postNoteAction(post, request.walletId, {
+  return await postNoteAction(post, request, {
     kind: 'note_rating',
     contract: request.contract,
     noteId: request.noteId,
@@ -89,11 +107,14 @@ async function requestRatingFromHost(
 
 async function postNoteAction(
   post: SpeakToSignPost,
-  walletId: string,
+  request: SpeakToSignNoteRequest | SpeakToSignRatingRequest,
   action: PMSpeakToSignNotePayload['action'],
 ): Promise<SpeakToSignNoteResult> {
-  const payload = parseSpeakToSignNotePayload({ walletId, action });
-  const response = await post({ type: 'PM_SPEAK_TO_SIGN_NOTE', payload }, { timeout: 'interactive' });
+  const payload = parseSpeakToSignNotePayload({ walletId: request.walletId, action });
+  const response = await post(
+    { type: 'PM_SPEAK_TO_SIGN_NOTE', payload },
+    { timeout: 'interactive', onProgress: progressListener(request.onProgress) },
+  );
   return parseSpeakToSignNoteResult(response.result);
 }
 
@@ -108,7 +129,7 @@ async function requestTransferFromHost(
   });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_TRANSFER', payload },
-    { timeout: 'interactive' },
+    { timeout: 'interactive', onProgress: progressListener(request.onProgress) },
   );
   return parseSpeakToSignTransferResult(response.result);
 }

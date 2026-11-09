@@ -7,6 +7,7 @@ import type {
   SpeakToSignHostOperations,
   SpeakToSignPayment,
   SpeakToSignPaymentHooks,
+  SpeakToSignProgress,
   SpeakToSignVerifyReply,
 } from '@/core/transactionFeatures/hostPlugin';
 import type {
@@ -775,11 +776,28 @@ type CoreHarness = {
   }>;
   messages: Array<{ message: string; recipient: string }>;
   fetched: Array<{ url: string; init: RequestInit }>;
+  progress: SpeakToSignProgress[];
+  /** How many times core started the signing preparation. */
+  prepared: number;
+  setVerifyResponse(response: () => Response): void;
   setOutcome(outcome: ActionResult): void;
   setRecording(recording: () => Promise<AuthMethodPhraseRecording>): void;
 };
 
+/** The verify route's answer: `text/event-stream` with these events in order. */
+function verifyStream(events: ReadonlyArray<readonly [string, unknown]>): Response {
+  const text = events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  return new Response(text.join(''), { headers: { 'content-type': 'text/event-stream' } });
+}
+
+const VERIFIER_OUTPUT = { verdict_json: '{}', ms: { speaker: 1_400, transcribe: 750, note: 'x' } };
+
 function coreHarness(verifier: Verifier): CoreHarness {
+  let verifyResponse = () =>
+    verifyStream([
+      ['verifier_running', {}],
+      ['verdict', { ok: true, output: VERIFIER_OUTPUT, timing: {} }],
+    ]);
   let outcome: ActionResult = {
     success: true,
     transactionId: 'tx-ok',
@@ -794,6 +812,11 @@ function coreHarness(verifier: Verifier): CoreHarness {
     signed: [],
     messages: [],
     fetched: [],
+    progress: [],
+    prepared: 0,
+    setVerifyResponse(next) {
+      verifyResponse = next;
+    },
     setOutcome(next) {
       outcome = next;
     },
@@ -831,9 +854,13 @@ function coreHarness(verifier: Verifier): CoreHarness {
         show: async () => 'closed',
         close: () => undefined,
       }),
+      prepareSigning: async () => {
+        harness.prepared += 1;
+      },
+      progress: (progress) => void harness.progress.push(progress),
       fetch: (async (url: URL, init: RequestInit) => {
         harness.fetched.push({ url: String(url), init });
-        return Response.json({ ok: true, output: { verdict_json: '{}' }, timing: {} });
+        return verifyResponse();
       }) as typeof fetch,
       now: () => NOW_MS,
       verifiers: verifiersFor(verifier),
@@ -896,13 +923,64 @@ test('core records clips, checks receivers and calls only the Seams verify route
 
   expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
     kind: 'output',
-    output: { verdict_json: '{}' },
+    output: VERIFIER_OUTPUT,
   });
   expect(harness.fetched[0].url).toBe('https://relay.example.test/speak-to-sign/v1/verify');
   expect(harness.fetched[0].init.body).toBe('{"input":{"op":"verify"}}');
-  expect(new Headers(harness.fetched[0].init.headers).get('authorization')).toBe(
-    'Bearer credential-1',
+  const headers = new Headers(harness.fetched[0].init.headers);
+  expect(headers.get('authorization')).toBe('Bearer credential-1');
+  expect(headers.get('accept')).toBe('text/event-stream');
+  // The signing preparation runs beside the verifier, and the app hears each stage.
+  expect(harness.prepared).toBe(1);
+  expect(harness.progress).toEqual([
+    { stage: 'recording_sent' },
+    { stage: 'verifier_running' },
+    { stage: 'verdict', ms: { speaker: 1_400, transcribe: 750 } },
+  ]);
+
+  // An enrollment signs nothing, so it starts no signing preparation.
+  await harness.operations.verify({ op: 'enroll' }, signal);
+  expect(harness.prepared).toBe(1);
+
+  // A failure after the verifier started comes as a `failed` event; a refusal before it as JSON.
+  harness.setVerifyResponse(() =>
+    verifyStream([
+      ['verifier_running', {}],
+      ['failed', { ok: false, code: 'verifier_timeout' }],
+    ]),
   );
+  expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
+    kind: 'failed',
+    code: 'verifier_timeout',
+  });
+  harness.setVerifyResponse(() =>
+    Response.json({ ok: false, code: 'unauthorized' }, { status: 401 }),
+  );
+  expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
+    kind: 'failed',
+    code: 'unauthorized',
+  });
+  harness.setVerifyResponse(() => verifyStream([['verifier_running', {}]]));
+  expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
+    kind: 'failed',
+    code: 'verify_stream_ended',
+  });
+  // Events may arrive split across chunks.
+  harness.setVerifyResponse(() => {
+    const text = `event: verifier_running\ndata: {}\n\nevent: verdict\ndata: ${JSON.stringify({ ok: true, output: VERIFIER_OUTPUT })}\n\n`;
+    const bytes = new TextEncoder().encode(text);
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let at = 0; at < bytes.length; at += 7) controller.enqueue(bytes.slice(at, at + 7));
+        controller.close();
+      },
+    });
+    return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+  });
+  expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
+    kind: 'output',
+    output: VERIFIER_OUTPUT,
+  });
 });
 
 test('core pays once per flow, from the owner, with the approval the verdict names', async () => {
@@ -934,6 +1012,10 @@ test('core pays once per flow, from the owner, with the approval the verdict nam
       // The signing request carries the checked verdict to the co-signer.
       verdict: { verdictJson: accept.verdict_json, signatureB64: accept.signature_b64 },
     },
+  ]);
+  expect(harness.progress).toEqual([
+    { stage: 'transaction_sent' },
+    { stage: 'settled', transactionHash: 'tx-ok' },
   ]);
   // A second accepted verdict of the same flow, such as one after "Try again", pays nothing.
   const again = await verifyOutput(
@@ -977,6 +1059,11 @@ test('core pays once per flow, from the owner, with the approval the verdict nam
     approval: 'voice_and_passkey',
     policyText: 'A voice payment above 10 NEAR needs a passkey.',
   });
+  expect(stepUpFlow.progress).toEqual([
+    { stage: 'step_up', policyText: 'A voice payment above 10 NEAR needs a passkey.' },
+    { stage: 'transaction_sent' },
+    { stage: 'settled', transactionHash: 'tx-bad' },
+  ]);
   expect(events).toEqual([
     'accepted',
     'broadcasting',

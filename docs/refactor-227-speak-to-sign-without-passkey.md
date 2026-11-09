@@ -1,8 +1,9 @@
 # Refactor 227: Speak-to-Sign without a passkey, with typed contract calls
 
 Status: 2026-11-09. Step 1 (payments without a passkey) and Step 4 (retire the vault) are
-done. Step 1b (the co-signer checks the verdict) is done in code and not deployed. Step 2 and
-Step 3 are open. Step 5 (records) is done. The plan changed the
+done. Step 1b (the co-signer checks the verdict) and Step 2 (live progress) are done in code
+for release 0.60.0 and not deployed. Step 3 shipped in 0.59.0; its staging check is open.
+Step 5 (records) is done. The plan changed the
 Speak-to-Sign design of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and
 uses the step-up of [Refactor 225](refactor-225-jev-policy-engine.md) (Section 4).
 
@@ -276,8 +277,11 @@ until the 0.57.0 rollout session reports done.
      0.01 NEAR by voice with no confirm, 9.2 s from the end of speech to the receipt (1 run);
      a wrong spoken amount refused as words; 11 NEAR brought the confirm back, and then NEAR
      refused the transaction for the balance.
-   - Not done or not recorded: the input-free signing preparation during verify; the check on
-     the staging demo; 10 runs of end of speech to settled.
+   - The input-free signing preparation during verify is built for 0.60.0: while the verify
+     call runs, the Wallet prefetches the NEAR transaction context (access-key nonce and block
+     hash, `prefetchNearContext`). A context stays fresh for 20 s, so the signing reuses it.
+   - Not done or not recorded: the check on the staging demo; 10 runs of end of speech to
+     settled.
 
    As built (Step 1b), 2026-11-09:
 
@@ -323,7 +327,17 @@ until the 0.57.0 rollout session reports done.
    - Not done: the deploy and a live check on staging. Deploy wallet-server with migration
      `0089` before the hosted Wallet: an older gateway does not take `voice_verdict` out of the
      request.
-2. **Live progress.** Route SSE, SDK stream reader, Wallet progress events. Open.
+2. **Live progress.** Route SSE, SDK stream reader, Wallet progress events. Done in code for
+   0.60.0, not deployed:
+   - After its checks, the verify route answers with `text/event-stream`: `verifier_running`
+     at once, then one `verdict` (the verifier output unchanged) or one `failed` (a fixed
+     code). A refusal before the verifier call stays a JSON error with its status.
+   - Wallet core reads the stream (`core/transactionFeatures/verifyStream.ts`) and tells the
+     app each stage through the optional `onProgress` of `requestTransfer`, `requestNote` and
+     `requestRating`: `recording_sent`, `verifier_running`, `verdict` (with the verifier's
+     stage `ms`), `step_up`, `transaction_sent` and `settled`. The iframe message is
+     `speak_to_sign_progress_v1`.
+   - The card keeps its own states from the core hooks; it needs no new event.
 3. **Spoken community notes.** `CommunityNote` and `NoteRating` in the crate and the port,
    the notes contract, verifier 0.4.0, the Wallet and SDK `requestNote` and `requestRating`,
    and the Spoken Notes demo page (`seams-voice-intents/demo`). Check a spoken note and a

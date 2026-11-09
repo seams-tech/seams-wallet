@@ -130,6 +130,18 @@ function resolveConfig(config: SpeakToSignVerifyConfig): ResolvedConfig {
   };
 }
 
+/** The events of the verify stream, in order. */
+type VerifyStreamEvent = 'verifier_running' | 'verdict' | 'failed';
+
+/** The data of the last event: the verifier output, or a fixed code without upstream text. */
+type VerifierResult =
+  | Readonly<{
+      ok: true;
+      output: unknown;
+      timing: Readonly<{ outlayerMs: number; serverMs: number }>;
+    }>
+  | Readonly<{ ok: false; code: string }>;
+
 type SessionSubject = Readonly<{
   walletId: WalletId;
   ed25519: MpcMaterialActivationRef;
@@ -187,11 +199,46 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     const owner = await this.sessionNearAccount(subject);
     if (owner === null) return failure(403, 'owner_unavailable');
     if (verifierInput.owner !== owner) return failure(403, 'owner_mismatch');
-    return await this.callVerifier(verifierInput, input.logger, startedAtMs);
+    return this.streamVerifier(verifierInput, input.logger, startedAtMs);
   }
 
   /**
-   * The route needs the owner's identity, not a signing allowance: the vault transfer is signed
+   * Answers with `text/event-stream`: `verifier_running` at once, then one `verdict` with the
+   * verifier output or one `failed` with a code. OutLayer sends its result only at the end, so
+   * the stream has no event between them. A refusal before the call stays a JSON error.
+   */
+  private streamVerifier(
+    verifierInput: Record<string, unknown>,
+    logger: NormalizedRouterLogger,
+    startedAtMs: number,
+  ): Response {
+    const stream = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = stream.writable.getWriter();
+    const send = async (event: VerifyStreamEvent, data: unknown) =>
+      await writer.write(
+        new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+      );
+    const run = async () => {
+      try {
+        await send('verifier_running', {});
+        const result = await this.callVerifier(verifierInput, logger, startedAtMs);
+        await send(result.ok ? 'verdict' : 'failed', result);
+      } catch (error: unknown) {
+        logger.warn('[speak-to-sign] verify stream failed', {
+          error: error instanceof Error ? error.message : 'unknown',
+        });
+      } finally {
+        await writer.close().catch(() => {});
+      }
+    };
+    void run();
+    return new Response(stream.readable, {
+      headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-store' },
+    });
+  }
+
+  /**
+   * The route needs the owner's identity, not a signing allowance: the transaction is signed
    * later through the Wallet's own signing path, which spends the quota. An exhausted session
    * still names its owner, so the identity read admits it.
    */
@@ -252,7 +299,7 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     verifierInput: Record<string, unknown>,
     logger: NormalizedRouterLogger,
     startedAtMs: number,
-  ): Promise<Response> {
+  ): Promise<VerifierResult> {
     const outlayerStartedAtMs = this.now();
     let response: Response;
     try {
@@ -274,22 +321,19 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     } catch (error: unknown) {
       const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
       logger.warn('[speak-to-sign] OutLayer call failed', { timedOut });
-      return failure(timedOut ? 504 : 502, timedOut ? 'verifier_timeout' : 'verifier_unreachable');
+      return { ok: false, code: timedOut ? 'verifier_timeout' : 'verifier_unreachable' };
     }
     const outlayerMs = this.now() - outlayerStartedAtMs;
     if (!response.ok) {
       logger.warn('[speak-to-sign] OutLayer refused the call', { status: response.status });
-      return failure(...outlayerStatusFailure(response.status));
+      return { ok: false, code: outlayerStatusFailure(response.status) };
     }
     const output = readOutlayerOutput(await response.text());
     if (output === null) {
       logger.warn('[speak-to-sign] OutLayer returned no verifier output');
-      return failure(502, 'verifier_failed');
+      return { ok: false, code: 'verifier_failed' };
     }
-    return Response.json(
-      { ok: true, output, timing: { outlayerMs, serverMs: this.now() - startedAtMs } },
-      { headers: { 'cache-control': 'no-store' } },
-    );
+    return { ok: true, output, timing: { outlayerMs, serverMs: this.now() - startedAtMs } };
   }
 }
 
@@ -318,11 +362,11 @@ function readOutlayerOutput(text: string): unknown {
   return raw.output ?? null;
 }
 
-function outlayerStatusFailure(status: number): [number, string] {
-  if (status === 401 || status === 402 || status === 403) return [503, 'verifier_payment_unavailable'];
-  if (status === 429) return [503, 'verifier_busy'];
-  if (status >= 400 && status < 500) return [502, 'verifier_rejected_request'];
-  return [502, 'verifier_failed'];
+function outlayerStatusFailure(status: number): string {
+  if (status === 401 || status === 402 || status === 403) return 'verifier_payment_unavailable';
+  if (status === 429) return 'verifier_busy';
+  if (status >= 400 && status < 500) return 'verifier_rejected_request';
+  return 'verifier_failed';
 }
 
 async function readBoundedText(request: Request, maximumBytes: number): Promise<string | 'too_large'> {

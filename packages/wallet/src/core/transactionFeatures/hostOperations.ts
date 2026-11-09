@@ -23,6 +23,7 @@ import type {
   SpeakToSignHostOperations,
   SpeakToSignPayment,
   SpeakToSignPaymentHooks,
+  SpeakToSignProgress,
   SpeakToSignPromptResult,
   SpeakToSignVerifyReply,
 } from './hostPlugin';
@@ -35,6 +36,7 @@ import {
 } from './spokenNote';
 import { transferDigests, type SpokenDigests } from './spokenTransfer';
 import { checkVoiceVerdict, parseVerifyOutput, type VoiceApprovedSigning } from './voiceVerdict';
+import { readVerifyStream } from './verifyStream';
 import { pcm16Wav, SAMPLE_RATE } from './wav';
 
 type Verifiers = typeof SPEAK_TO_SIGN_VERIFIERS;
@@ -71,6 +73,13 @@ export type SpeakToSignHostOperationsInput = Readonly<{
   ) => Promise<SignNEP413MessageResult>;
   /** The VoiceID host plugin's `openPhrase`, loaded on first use. */
   openPhrase: (request: AuthMethodPhraseRequest) => Promise<AuthMethodPhraseSurface>;
+  /**
+   * The signing preparation that needs no verdict, such as the access-key nonce and a recent
+   * block hash. It runs while the verifier works and signs nothing. Best effort.
+   */
+  prepareSigning: () => Promise<void>;
+  /** Tells the app how the spoken request goes. */
+  progress: (progress: SpeakToSignProgress) => void;
   fetch: typeof fetch;
   now?: () => number;
   /** Tests pass their own key. The Wallet always uses the pinned verifiers. */
@@ -173,11 +182,17 @@ async function verify(
 ): Promise<SpeakToSignVerifyReply> {
   const credential = await input.operationCredential(signal);
   const url = new URL(VERIFY_PATH, input.serverUrl);
+  if (verifierInput.op === 'verify') void input.prepareSigning().catch(() => {});
+  input.progress({ stage: 'recording_sent' });
   let response: Response;
   try {
     response = await input.fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${credential}` },
+      headers: {
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+        authorization: `Bearer ${credential}`,
+      },
       body: JSON.stringify({ input: verifierInput }),
       credentials: 'omit',
       signal,
@@ -186,17 +201,38 @@ async function verify(
     signal.throwIfAborted();
     return { kind: 'failed', code: error instanceof Error ? error.name : 'network' };
   }
+  // The route refuses with a JSON error before it calls the verifier.
+  if (!response.ok || !response.body) return await refusalOf(response);
+  let reply: SpeakToSignVerifyReply;
+  try {
+    reply = await readVerifyStream(response.body, () =>
+      input.progress({ stage: 'verifier_running' }),
+    );
+  } catch (error) {
+    signal.throwIfAborted();
+    return { kind: 'failed', code: error instanceof Error ? error.name : 'verify_stream' };
+  }
+  if (reply.kind === 'output') input.progress({ stage: 'verdict', ms: stageTimes(reply.output) });
+  return reply;
+}
+
+async function refusalOf(response: Response): Promise<SpeakToSignVerifyReply> {
   let body: unknown;
   try {
     body = await response.json();
   } catch {
     return { kind: 'failed', code: `http_${response.status}` };
   }
-  if (response.ok && isPlainObject(body) && body.ok === true && 'output' in body) {
-    return { kind: 'output', output: body.output };
-  }
   const code = isPlainObject(body) && typeof body.code === 'string' ? body.code : '';
   return { kind: 'failed', code: code || `http_${response.status}` };
+}
+
+/** The verifier's stage times (`ms`), numbers only. */
+function stageTimes(output: unknown): Readonly<Record<string, number>> {
+  const ms = isPlainObject(output) && isPlainObject(output.ms) ? output.ms : {};
+  return Object.fromEntries(
+    Object.entries(ms).filter((entry): entry is [string, number] => Number.isFinite(entry[1])),
+  );
 }
 
 async function payWithVerdict(
@@ -264,8 +300,12 @@ async function signWithVerdict(
   if (state.paid) {
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' };
   }
-  if (check.approval === 'voice') hooks.accepted();
-  else if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
+  if (check.approval === 'voice') {
+    hooks.accepted();
+  } else {
+    input.progress({ stage: 'step_up', policyText: check.policyText });
+    if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
+  }
   signal.throwIfAborted();
   // A verdict that waited for the owner may have expired meanwhile.
   if (!verdictStillValid(output.verdictJson, (input.now ?? Date.now)())) {
@@ -279,7 +319,10 @@ async function signWithVerdict(
     transaction,
     { approval: check.approval, policyText: check.policyText, verdict: check.verdict },
     signal,
-    hooks.broadcasting,
+    () => {
+      input.progress({ stage: 'transaction_sent' });
+      hooks.broadcasting();
+    },
   );
   if (!result.success) {
     // Nothing left the Wallet, so another recording of this flow may still pay.
@@ -290,6 +333,7 @@ async function signWithVerdict(
     const limit = refusal === 'over_payment_limit' || refusal === 'over_daily_limit';
     return { kind: 'refused', reason: limit ? 'voice_limit' : 'cosigner_refused', detail: refusal };
   }
+  input.progress({ stage: 'settled', transactionHash: result.transactionId });
   const failure = executionFailure(result.result);
   return failure === null
     ? { kind: 'executed', transactionHash: result.transactionId, approval: check.approval }

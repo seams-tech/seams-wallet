@@ -85,13 +85,35 @@ export type SpeakToSignNoteRefusalReason =
 export type SpeakToSignNoteResult = SpokenResult<SpeakToSignNoteRefusalReason>;
 
 /** One spoken payment from the app. The Wallet iframe reads the owner itself. */
+/**
+ * The progress of one spoken request, in order. The verifier sends its result only at the end,
+ * so there is no event between `verifier_running` and `verdict`.
+ */
+export type SpeakToSignProgress =
+  /** The Wallet sent the recording and the request to the Seams verify route. */
+  | Readonly<{ stage: 'recording_sent' }>
+  /** The Seams server called the verifier. */
+  | Readonly<{ stage: 'verifier_running' }>
+  /** The verifier answered. `ms` holds its stage times, such as `speaker` and `transcribe`. */
+  | Readonly<{ stage: 'verdict'; ms: Readonly<Record<string, number>> }>
+  /** A policy rule asks the owner for a fresh approval. `policyText` is the rule's sentence. */
+  | Readonly<{ stage: 'step_up'; policyText: string | null }>
+  /** The signed transaction left for the network. */
+  | Readonly<{ stage: 'transaction_sent' }>
+  /** NEAR returned the final outcome of the transaction. */
+  | Readonly<{ stage: 'settled'; transactionHash: string }>;
+
+/** Spoken requests take an optional progress listener. It runs in the app. */
+type WithProgress = Readonly<{ onProgress?: (progress: SpeakToSignProgress) => void }>;
+
 export type SpeakToSignTransferRequest = Readonly<{
   walletId: string;
   /** A named NEAR account that the owner says, such as `"bob.testnet"`. Not only a contact. */
   receiver: string;
   /** Decimal NEAR, such as `"2.5"`. */
   amount: string;
-}>;
+}> &
+  WithProgress;
 
 /** One spoken community note from the app. The author says only the summary. */
 export type SpeakToSignNoteRequest = Readonly<{
@@ -104,7 +126,8 @@ export type SpeakToSignNoteRequest = Readonly<{
   text: string;
   /** 1 to 12 plain words that the author reads aloud. */
   summary: string;
-}>;
+}> &
+  WithProgress;
 
 /** One spoken rating of a community note from the app. */
 export type SpeakToSignRatingRequest = Readonly<{
@@ -113,7 +136,8 @@ export type SpeakToSignRatingRequest = Readonly<{
   /** A whole number from 0 to `Number.MAX_SAFE_INTEGER`. */
   noteId: number;
   rating: NoteRating;
-}>;
+}> &
+  WithProgress;
 
 /** One verifier enrollment from the app. The Wallet iframe reads the owner itself. */
 export type SpeakToSignEnrollmentRequest = Readonly<{ walletId: string }>;

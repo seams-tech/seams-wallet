@@ -181,6 +181,17 @@ async function prepareFlow(
     ),
     signMessage: signMessage.bind(null, deps, request.requestId, walletId, ownerAccountId),
     openPhrase: openPhrase.bind(null, ports, runtime.configs.authMethods),
+    prepareSigning: async () => {
+      const context = runtime.getContext();
+      await context.signingEngine
+        .getNonceCoordinator()
+        .prefetchNearContext({ kind: 'initialized_state', nearClient: context.nearClient });
+    },
+    progress: (progress) =>
+      withProgress(deps, request.requestId).onEvent({
+        event: 'speak_to_sign_progress_v1',
+        progress,
+      }),
     fetch: ports.fetch,
   });
   return { kind: 'ready', walletId, feature, ownerAccountId, plugin, operations };

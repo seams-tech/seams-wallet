@@ -28,7 +28,9 @@ enrollment and uses the VoiceID capture surface.
    one clip of at most 8 s. The card stays open and shows each next step.
 2. The Seams server sends the clip and the typed request to the verifier on
    OutLayer, a NEAR off-chain compute service that runs code in a TEE (trusted
-   execution environment).
+   execution environment). While the verifier works, the Wallet reads the
+   access-key nonce and a recent block hash for the payment. It signs nothing
+   before the verdict.
 3. The verifier gets a speaker embedding from a service on Phala Cloud and a
    transcript from NEAR AI at the same time. It compares the voice with the
    owner's enrolled template and the words with its own text of the request.
@@ -93,6 +95,22 @@ A `sent` result has `approval`: `voice` when the verdict alone approved the
 payment, and `voice_and_passkey` when a policy rule asked for the confirm
 again. Today the verifier has one stub rule: a voice payment above 10 NEAR needs
 a passkey.
+
+`onProgress` is optional on `requestTransfer`, `requestNote` and
+`requestRating`. It gets each stage of the request, in order:
+
+| `stage`            | When                                                                 |
+| ------------------ | -------------------------------------------------------------------- |
+| `recording_sent`   | The Wallet sent the recording to the Seams verify route.             |
+| `verifier_running` | The Seams server called the verifier.                                |
+| `verdict`          | The verifier answered. `ms` holds its stage times.                   |
+| `step_up`          | A policy rule asks for a fresh approval. `policyText` is the rule.   |
+| `transaction_sent` | The signed transaction left for the network.                         |
+| `settled`          | NEAR returned the final outcome. `transactionHash` names it.         |
+
+The verifier sends its result only at the end, so no event comes between
+`verifier_running` and `verdict`. An error in the listener does not stop the
+request.
 
 When the Seams co-signer refuses the verdict, the result is `refused` with
 `voice_limit` (over the voice limit for one payment or for 24 hours) or
@@ -195,8 +213,11 @@ The route reads the caller's Wallet Session as identity. It answers 401
 `unauthorized` without a session and 503 `session_unavailable` when the
 session store fails, and it spends no signing use. It refuses a request for
 another owner's voice. It serves the verifier's `verify` and `enroll`
-operations, accepts a body of at most 1,100 KB, and passes the verifier output
-back unchanged.
+operations and accepts a body of at most 1,100 KB. A refusal before the
+verifier call is a JSON error. After the checks, the route answers with
+`text/event-stream`: the event `verifier_running` at once, then one `verdict`
+event with the verifier output unchanged, or one `failed` event with a fixed
+code, such as `verifier_timeout`.
 
 The same six variables turn on the co-signer's verdict check. It records each
 accepted verdict in the signer database table `speak_to_sign_voice_verdicts`

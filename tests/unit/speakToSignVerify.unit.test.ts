@@ -130,7 +130,13 @@ async function buildHarness(
       runtime: {} as FetchRouterRuntime,
     });
     const text = await response.text();
-    return { status: response.status, text, json: JSON.parse(text) as Record<string, unknown> };
+    if (response.headers.get('content-type') !== 'text/event-stream') {
+      const json = JSON.parse(text) as Record<string, unknown>;
+      return { status: response.status, text, events: null, json };
+    }
+    // A verifier call answers with a stream; `json` is the data of its last event.
+    const events = verifyEvents(text);
+    return { status: response.status, text, events, json: events.at(-1)?.data ?? {} };
   }
   return {
     send,
@@ -141,6 +147,21 @@ async function buildHarness(
     walletId: session.walletId,
     denyRateLimit: () => void (allow = false),
   };
+}
+
+/** The events of a `text/event-stream` answer, in order. */
+function verifyEvents(text: string): Array<{ event: string; data: Record<string, unknown> }> {
+  return text
+    .split('\n\n')
+    .filter(Boolean)
+    .map((block) => {
+      const [eventLine, dataLine] = block.split('\n');
+      expect(eventLine.startsWith('event: ') && dataLine.startsWith('data: '), block).toBe(true);
+      return {
+        event: eventLine.slice('event: '.length),
+        data: JSON.parse(dataLine.slice('data: '.length)) as Record<string, unknown>,
+      };
+    });
 }
 
 const okOutlayer = () =>
@@ -255,6 +276,8 @@ test('the call forwards the exact OutLayer shape and returns the output unchange
   const harness = await buildHarness(okOutlayer);
   const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
   expect(response.status).toBe(200);
+  expect(response.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'verdict']);
+  expect(response.events?.[0].data).toEqual({});
   expect(response.json.ok).toBe(true);
   expect(response.json.output).toEqual(VERIFIER_OUTPUT);
   expect(Object.keys(response.json).sort()).toEqual(['ok', 'output', 'timing']);
@@ -286,25 +309,23 @@ test('the call forwards the exact OutLayer shape and returns the output unchange
 });
 
 test('OutLayer failures map to fixed codes without upstream text or the key', async () => {
-  const cases: Array<[() => Response | Promise<Response>, number, string]> = [
-    [() => new Response(`bad key ${PAYMENT_KEY}`, { status: 401 }), 503, 'verifier_payment_unavailable'],
-    [() => new Response('no credit', { status: 402 }), 503, 'verifier_payment_unavailable'],
-    [() => new Response('slow down', { status: 429 }), 503, 'verifier_busy'],
-    [() => new Response('bad input', { status: 400 }), 502, 'verifier_rejected_request'],
-    [() => new Response('boom', { status: 500 }), 502, 'verifier_failed'],
-    [() => Response.json({ status: 'failed', output: null, error: `trap ${PAYMENT_KEY}` }), 502, 'verifier_failed'],
-    [() => new Response('<html>', { status: 200 }), 502, 'verifier_failed'],
-    [() => Promise.reject(new TypeError(`connect ${PAYMENT_KEY}`)), 502, 'verifier_unreachable'],
-    [
-      () => Promise.reject(new DOMException('timed out', 'TimeoutError')),
-      504,
-      'verifier_timeout',
-    ],
+  // The stream has started when the verifier fails, so each failure is a `failed` event.
+  const cases: Array<[() => Response | Promise<Response>, string]> = [
+    [() => new Response(`bad key ${PAYMENT_KEY}`, { status: 401 }), 'verifier_payment_unavailable'],
+    [() => new Response('no credit', { status: 402 }), 'verifier_payment_unavailable'],
+    [() => new Response('slow down', { status: 429 }), 'verifier_busy'],
+    [() => new Response('bad input', { status: 400 }), 'verifier_rejected_request'],
+    [() => new Response('boom', { status: 500 }), 'verifier_failed'],
+    [() => Response.json({ status: 'failed', output: null, error: `trap ${PAYMENT_KEY}` }), 'verifier_failed'],
+    [() => new Response('<html>', { status: 200 }), 'verifier_failed'],
+    [() => Promise.reject(new TypeError(`connect ${PAYMENT_KEY}`)), 'verifier_unreachable'],
+    [() => Promise.reject(new DOMException('timed out', 'TimeoutError')), 'verifier_timeout'],
   ];
-  for (const [outlayer, status, code] of cases) {
+  for (const [outlayer, code] of cases) {
     const harness = await buildHarness(outlayer);
     const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
-    expect(response.status, code).toBe(status);
+    expect(response.status, code).toBe(200);
+    expect(response.events?.map((entry) => entry.event), code).toEqual(['verifier_running', 'failed']);
     expect(response.json).toEqual({ ok: false, code });
     expectNoKey(harness, response.text);
   }

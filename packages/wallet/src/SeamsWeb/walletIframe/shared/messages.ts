@@ -1579,6 +1579,7 @@ export function parseDeviceLinkTargetFactorActionPayloadV1(value: unknown): {
 
 export type ProgressPayload =
   | import('./ownerNearOperation').OwnerNearSubmissionProgress
+  | import('./speakToSign').SpeakToSignProgressV1
   | WalletFlowEvent
   | RegistrationTimingSpanV1
   | DeviceLinkTargetFactorActivationProgressV1

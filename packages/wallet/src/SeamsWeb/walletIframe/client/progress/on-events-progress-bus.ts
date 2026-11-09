@@ -152,5 +152,6 @@ function progressDebugFields(requestId: string, payload: ProgressPayload): Recor
   if (isDeviceLinkTargetFactorActivationProgressV1(payload)) return { requestId, event: payload.event, activationKind: payload.activation.kind };
   if (isDeviceLinkEmailOtpBaseFactorSelectionProgressV1(payload)) return { requestId, event: payload.event, choiceCount: payload.choices.length };
   if (payload.event === 'owner_near_submitting') return { requestId, event: payload.event };
+  if (payload.event === 'speak_to_sign_progress_v1') return { requestId, stage: payload.progress.stage };
   return { requestId, span: payload.span };
 }

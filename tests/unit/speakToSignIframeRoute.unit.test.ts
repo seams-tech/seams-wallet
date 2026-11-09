@@ -29,6 +29,7 @@ import {
   parseSpeakToSignEnrollPayload,
   parseSpeakToSignNotePayload,
   parseSpeakToSignNoteResult,
+  parseSpeakToSignProgressV1,
   parseSpeakToSignTransferPayload,
   parseSpeakToSignTransferResult,
 } from '@/SeamsWeb/walletIframe/shared/speakToSign';
@@ -114,6 +115,53 @@ test('the app posts one interactive PM_SPEAK_TO_SIGN_TRANSFER and returns the ty
   expect(posted).toHaveLength(1);
   reply = { kind: 'sent' };
   await expect(commands.requestTransfer(PAYLOAD)).rejects.toThrow('result is invalid');
+});
+
+test('a progress listener gets the Speak-to-Sign progress of its request, parsed exactly', async () => {
+  const heard: unknown[] = [];
+  const commands = createIframeSpeakToSignCommands(async (_request, options) => {
+    options.onProgress?.({
+      event: 'speak_to_sign_progress_v1',
+      progress: { stage: 'verifier_running' },
+    });
+    options.onProgress?.({ event: 'owner_near_submitting' } as never);
+    return { result: SENT };
+  });
+  expect(
+    await commands.requestTransfer({ ...PAYLOAD, onProgress: (progress) => heard.push(progress) }),
+  ).toEqual(SENT);
+  expect(heard).toEqual([{ stage: 'verifier_running' }]);
+  // A listener that throws does not end the request.
+  const throwing = () => {
+    throw new Error('app bug');
+  };
+  expect(await commands.requestTransfer({ ...PAYLOAD, onProgress: throwing })).toEqual(SENT);
+
+  const event = 'speak_to_sign_progress_v1';
+  for (const progress of [
+    { stage: 'recording_sent' },
+    { stage: 'verifier_running' },
+    { stage: 'verdict', ms: { speaker: 1400, transcribe: 750 } },
+    { stage: 'step_up', policyText: 'A voice payment above 10 NEAR needs a passkey.' },
+    { stage: 'step_up', policyText: null },
+    { stage: 'transaction_sent' },
+    { stage: 'settled', transactionHash: 'tx-hash' },
+  ]) {
+    expect(parseSpeakToSignProgressV1({ event, progress }), progress.stage).toEqual({
+      event,
+      progress,
+    });
+  }
+  for (const progress of [
+    { stage: 'vault_accepted' },
+    { stage: 'recording_sent', extra: 1 },
+    { stage: 'verdict', ms: { speaker: 'slow' } },
+    { stage: 'step_up' },
+    { stage: 'settled', transactionHash: '' },
+  ]) {
+    expect(parseSpeakToSignProgressV1({ event, progress }), JSON.stringify(progress)).toBeNull();
+  }
+  expect(parseSpeakToSignProgressV1({ event: 'other', progress: { stage: 'settled' } })).toBeNull();
 });
 
 test('the Wallet host routes the message to its NEAR runtime with a parsed payload', () => {

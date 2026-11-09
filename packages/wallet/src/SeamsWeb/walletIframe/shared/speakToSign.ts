@@ -4,6 +4,7 @@ import type {
   SpeakToSignEnrollmentResult,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteResult,
+  SpeakToSignProgress,
   SpeakToSignRefusalReason,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
@@ -19,7 +20,50 @@ import { isFiniteNumber, isNonEmptyString, isPlainObject } from '@shared/utils/v
 import type { Variant } from '@shared/utils/variant';
 
 /** The `PM_SPEAK_TO_SIGN_TRANSFER` payload. The owner never crosses the channel. */
-export type PMSpeakToSignTransferPayload = SpeakToSignTransferRequest;
+export type PMSpeakToSignTransferPayload = Omit<SpeakToSignTransferRequest, 'onProgress'>;
+
+/** A progress message of one spoken request, from the Wallet iframe to the app. */
+export type SpeakToSignProgressV1 = Readonly<{
+  event: 'speak_to_sign_progress_v1';
+  progress: SpeakToSignProgress;
+}>;
+
+export function parseSpeakToSignProgressV1(value: unknown): SpeakToSignProgressV1 | null {
+  if (!hasExactKeys(value, ['event', 'progress']) || value.event !== 'speak_to_sign_progress_v1') {
+    return null;
+  }
+  const progress = readProgress(value.progress);
+  return progress ? { event: 'speak_to_sign_progress_v1', progress } : null;
+}
+
+function readProgress(value: unknown): SpeakToSignProgress | null {
+  if (!isPlainObject(value)) return null;
+  switch (value.stage) {
+    case 'recording_sent':
+    case 'verifier_running':
+    case 'transaction_sent':
+      return hasExactKeys(value, ['stage']) ? { stage: value.stage } : null;
+    case 'verdict': {
+      if (!hasExactKeys(value, ['stage', 'ms']) || !isPlainObject(value.ms)) return null;
+      const entries = Object.entries(value.ms);
+      return entries.every(([, ms]) => isFiniteNumber(ms))
+        ? { stage: 'verdict', ms: Object.fromEntries(entries) as Record<string, number> }
+        : null;
+    }
+    case 'step_up':
+      return hasExactKeys(value, ['stage', 'policyText']) &&
+        (value.policyText === null || typeof value.policyText === 'string')
+        ? { stage: 'step_up', policyText: value.policyText }
+        : null;
+    case 'settled':
+      return hasExactKeys(value, ['stage', 'transactionHash']) &&
+        isNonEmptyString(value.transactionHash)
+        ? { stage: 'settled', transactionHash: value.transactionHash }
+        : null;
+    default:
+      return null;
+  }
+}
 
 /** The `PM_SPEAK_TO_SIGN_ENROLL` payload. The owner never crosses the channel. */
 export type PMSpeakToSignEnrollPayload = SpeakToSignEnrollmentRequest;
