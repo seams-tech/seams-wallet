@@ -3,14 +3,14 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.62.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.63.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.62.0` — browser SDK and React components.
-- `@seams/wallet-server@0.62.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.62.0` — optional VoiceID authentication plugin.
-- `@seams/speak-to-sign@0.62.0` — experimental, testnet-only spoken payments; needs VoiceID.
+- `@seams/wallet@0.63.0` — browser SDK and React components.
+- `@seams/wallet-server@0.63.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.63.0` — optional VoiceID authentication plugin.
+- `@seams/speak-to-sign@0.63.0` — experimental, testnet-only spoken payments; needs VoiceID.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -18,7 +18,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `23.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use version **0.62.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use version **0.63.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,6 +27,15 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Release 0.63.0
+
+- A site or device with no NEAR custody cache reissues the current Client share. Passkey login, account sync and VoiceID unlock do this. Before, a passkey login ran a Router recovery, which moved the state epoch and made a new material activation, and VoiceID failed with "This site has no wallet keys on this device yet." A reissue keeps the activation and the epoch, so other sites' caches stay current.
+- The Gateway serves `/router-ab/ed25519/yao/reissue/admit` and `/router-ab/ed25519/yao/reissue/execute`. Any Ed25519 Wallet Session of the wallet admits a reissue, VoiceID's included. The SigningWorker checks the reissued shares against its active share before the Router releases the Client packages, and it stores nothing.
+- Router project policies must allow the `reissue` work kind. Deploy the Gateway, Router, both Derivers, SigningWorker and Wallet host together.
+- Email OTP on a site with no cache still needs a recovery code.
+- The Wallet frame hides its scroll bar while a VoiceID card is open.
+- Install all four packages at 0.63.0. No database migrations.
 
 ## Release 0.62.0
 
@@ -77,13 +86,13 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.62.0
+npm install @seams/wallet@0.63.0
 # Server applications:
-npm install @seams/wallet-server@0.62.0
+npm install @seams/wallet-server@0.63.0
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.62.0
+npm install @seams/voiceid@0.63.0
 # Experimental Speak-to-Sign (needs VoiceID):
-npm install @seams/speak-to-sign@0.62.0
+npm install @seams/speak-to-sign@0.63.0
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.
