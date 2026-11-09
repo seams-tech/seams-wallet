@@ -30,6 +30,17 @@ html:has(.seams-auth-menu-surface):not(
   scrollbar-width: none;
 }
 
+/* The parent fits this document to a VoiceID card one frame after the card
+   reports its size, and the card enters a few pixels low. Until the document
+   fits, the card overflows it, so the root must not flash a scroll bar. */
+html:has(.seams-auth-method-activation-surface) {
+  scrollbar-width: none;
+}
+
+html:has(.seams-auth-method-activation-surface)::-webkit-scrollbar {
+  display: none;
+}
+
 html.seams-transparent,
 body.seams-transparent {
   background: transparent !important;
