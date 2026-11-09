@@ -1,8 +1,9 @@
 import { isFunction, isPlainObject } from '@shared/utils/validation';
+import { hostPluginUrl } from '@/core/walletRuntimePaths/base';
 import { SPEAK_TO_SIGN_HOST_API_VERSION, type SpeakToSignHostPlugin } from './hostPlugin';
 import { findWalletTransactionFeature, type WalletTransactionFeaturePlugin } from './plugins';
 
-const SPEAK_TO_SIGN_HOST_URL = '/sdk/speak-to-sign/host.js';
+const SPEAK_TO_SIGN_HOST_PATH = '/sdk/speak-to-sign/host.js';
 
 /**
  * Loads the trusted Speak-to-Sign host plugin on first use. A Wallet that does not
@@ -17,7 +18,9 @@ export async function loadSpeakToSignHost(
   let module: unknown;
   try {
     // This runtime URL is supplied by the host deployment, outside this npm package.
-    module = await import(/* @vite-ignore */ SPEAK_TO_SIGN_HOST_URL as string);
+    module = await import(
+      /* @vite-ignore */ hostPluginUrl(SPEAK_TO_SIGN_HOST_PATH, SPEAK_TO_SIGN_HOST_API_VERSION)
+    );
   } catch (cause) {
     throw await speakToSignLoadFailure(cause);
   }
@@ -56,7 +59,8 @@ async function speakToSignLoadFailure(cause: unknown): Promise<Error> {
 
 async function probeStatus(): Promise<number | null> {
   try {
-    const response = await fetch(SPEAK_TO_SIGN_HOST_URL, {
+    const url = hostPluginUrl(SPEAK_TO_SIGN_HOST_PATH, SPEAK_TO_SIGN_HOST_API_VERSION);
+    const response = await fetch(url, {
       cache: 'no-cache',
       credentials: 'omit',
       signal: AbortSignal.timeout(10_000),

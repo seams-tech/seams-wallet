@@ -165,12 +165,12 @@ test('a Wallet host rejects missing and incompatible VoiceID packages', async ({
   expect([...server.fetched].sort()).toEqual([...staticGraph(chunks)].sort());
   await expect(page.evaluate(load)).rejects.toThrow('Install @seams/voiceid on this Wallet host');
   expect([...server.fetched].some(isModelOrEngine)).toBe(false);
-  await page.route('**/sdk/voiceid/host.js', serveIncompatiblePlugin);
+  await page.route(isVoiceIdHost, serveIncompatiblePlugin);
   await page.reload();
   await page.waitForFunction(ready);
   await page.evaluate(enable);
   await expect(page.evaluate(load)).rejects.toThrow('VoiceID is incompatible with this Wallet host');
-  await page.route('**/sdk/voiceid/host.js', serveBrokenDependency);
+  await page.route(isVoiceIdHost, serveBrokenDependency);
   await page.route('**/sdk/voiceid/missing.js', serveMissingDependency);
   await page.reload();
   await page.waitForFunction(ready);
@@ -209,4 +209,9 @@ async function serveIncompatiblePlugin(route: Route): Promise<void> {
     contentType: 'text/javascript',
     body: 'export const hostApiVersion = 0; export function createVoiceIdHostPlugin() { return {}; }',
   });
+}
+
+/** The Wallet loads the entry with a cache key in its query, so match the path only. */
+function isVoiceIdHost(url: URL): boolean {
+  return url.pathname === '/sdk/voiceid/host.js';
 }

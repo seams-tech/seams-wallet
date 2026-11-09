@@ -56,6 +56,21 @@ export function getEmbeddedAssetVersion(): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+/**
+ * A host plugin entry, such as `/sdk/voiceid/host.js`, with a cache key. The Wallet host serves
+ * the entry at a fixed path with a long cache life, so the key holds the host API version and the
+ * Wallet asset version: a deploy that changes either loads the new entry, not a cached older one.
+ */
+export function hostPluginUrl(
+  path: string,
+  hostApiVersion: number,
+  assetVersion: string | undefined = getEmbeddedAssetVersion(),
+): string {
+  const params = new URLSearchParams({ api: String(hostApiVersion) });
+  if (assetVersion) params.set('v', assetVersion);
+  return `${path}?${params}`;
+}
+
 export function setEmbeddedAssetVersion(version: string): void {
   if (typeof window === 'undefined') return;
   const normalized = version.trim();

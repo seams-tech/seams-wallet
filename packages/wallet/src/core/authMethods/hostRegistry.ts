@@ -1,6 +1,11 @@
 import { type WalletAuthMethodPlugin, type VoiceIdTranscriptionModel } from './plugins';
 import { VOICE_ID_HOST_API_VERSION, type WalletAuthMethodHostPlugin } from './hostPlugin';
 import { isPlainObject } from '@shared/utils/validation';
+import { hostPluginUrl } from '@/core/walletRuntimePaths/base';
+
+function voiceIdHostUrl(): string {
+  return hostPluginUrl('/sdk/voiceid/host.js', VOICE_ID_HOST_API_VERSION);
+}
 
 /** One trusted loader per installed implementation. Configuration cannot supply executable code. */
 export async function loadWalletAuthMethodHostPlugin(
@@ -29,7 +34,7 @@ async function loadVoiceIdHost(
   let module: unknown;
   try {
     // This runtime URL is supplied by the host deployment, outside this npm package.
-    module = await import(/* @vite-ignore */ '/sdk/voiceid/host.js' as string);
+    module = await import(/* @vite-ignore */ voiceIdHostUrl());
   } catch (cause) {
     throw await voiceIdLoadFailure(cause);
   }
@@ -54,7 +59,7 @@ async function voiceIdLoadFailure(cause: unknown): Promise<Error> {
   );
   let response: Response;
   try {
-    response = await fetch('/sdk/voiceid/host.js', {
+    response = await fetch(voiceIdHostUrl(), {
       cache: 'no-cache',
       credentials: 'omit',
       signal: AbortSignal.timeout(10_000),
