@@ -48,7 +48,7 @@ expired, the Wallet asks the owner to unlock first.
 Install the three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.57.0 @seams/voiceid@0.57.0 @seams/speak-to-sign@0.57.0
+pnpm add @seams/wallet@0.58.0 @seams/voiceid@0.58.0 @seams/speak-to-sign@0.58.0
 ```
 
 Add the descriptor to `transactionFeatures` beside the VoiceID auth method:

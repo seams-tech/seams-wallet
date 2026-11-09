@@ -1,26 +1,23 @@
 ---
-title: リリース 0.57.0
-description: 音声による支払いは任意の名前付きNEARアカウントに送れます。連絡先は任意です。任意のNEARアカウントがボールトを所有でき、revertedの結果を引き継ぎます。
+title: リリース 0.58.0
+description: Speak-to-Signは、ボールトもパスキーもなしで所有者自身のアカウントから支払います。ポリシーのルールは確認画面を再び求めることがあります。
 ---
 
-# リリース 0.57.0
+# リリース 0.58.0
 
-ブラウザーSDK、サーバーSDK、VoiceID、Speak-to-Signは **0.57.0** です。
+ブラウザーSDK、サーバーSDK、VoiceIDプラグイン、Speak-to-Signプラグインは **0.58.0** を使います。
 
-- **実験的機能、NEARテストネット専用:** 音声による支払いは、`bob.testnet`のように所有者が読み上げられる任意の名前付きNEARアカウントに送れます。送金先がボールトの連絡先である必要はなくなりました。テストネットのボールトは、このような送金先を同じ1回ごとの上限と1日の上限で受け付けます。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)を参照してください。
-  - `SpeakToSignRefusalReason`から`receiver_not_contact`を削除しました。暗黙的アカウント(64桁の16進数)または`0x`の送金先には`receiver_not_speakable`を、存在しない送金先には`receiver_missing`を追加しました。
-  - 連絡先は任意です。検証者は言葉を保存済みの連絡先と比較します。所有者が連絡先の名前を話し、リクエストが別のアカウントを指している場合、言葉の確認は失敗します。
-  - 任意の名前付きアカウントが受け取れるため、声の確認が複製または再生を受け入れた場合、任意の名前付きアカウントに支払われる可能性があります。損失を制限するのは上限だけです。
-  - 2つ目の登録用の文は"I send money only when I say so."になりました。
-- Speak-to-SignのホストAPIはバージョン **3** です。Walletは、別のバージョンのSpeak-to-Signホストプラグインを拒否します。
-- 0.56.2と0.56.1の変更(0.57.0でも同じです):
-  - 64桁の16進数または`0x`の暗黙的アカウントを含め、任意のNEARアカウントがSpeak-to-Signのボールトを所有できます。
-  - 最終結果がFailureのNEARトランザクションは、`{ success: false, kind: 'reverted', transactionId, error, result }`です。`error`にはNEARの理由があります。[結果とエラー](/ja/reference/results-and-errors)を参照してください。
-  - NEARが実行前にトランザクションを拒否した場合、結果は`not_submitted`で、任意のフィールド`rejection`が付きます。
+- **実験的機能、NEARテストネット専用:** Speak-to-Signは所有者自身のアカウントから支払います。ボールトのコントラクトはありません。検証者が判定に署名し、Walletのコアは、Walletが固定した検証者の鍵でそれを確認してから、所有者のウォレットセッションで送金します。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)を参照してください。
+  - 受理された音声による支払いでは、確認画面もパスキーも出ません。音声による支払いには有効なウォレットセッションが必要です。ロック中または期限切れのセッションでは、先にアンロックを求めます。
+  - 検証者のポリシーのルールは、確認画面を再び求めることがあります。現在、仮のルールが1つあり、10 NEARを超える支払いで確認画面を求めます。`sent`の結果には`approval`(`voice`または`voice_and_passkey`)があります。
+  - 判定は、検証者が署名してから120秒で期限が切れます。Walletは、1つの判定で最大1回だけ、同じ流れの録音に対してだけ支払います。
+  - 登録では、ボールトの許可の代わりに、3つの録音だけを示すNEP-413のメッセージに1回署名します。各所有者は1回だけ登録し直します。
+- Speak-to-SignのホストAPIはバージョン **4** です。Walletは、別のバージョンのSpeak-to-Signホストプラグインを拒否します。検証者はバージョン0.3.0(`09f4ce1be348cc874ded71687c9de96b05fbfb452f94bc801c6752b4e39ea294`)です。
 - 互換性:
-  - `case 'receiver_not_contact'`を`receiver_not_speakable`と`receiver_missing`に置き換えてください。古い理由はTypeScriptがエラーを報告します。
-  - `ActionResult`のすべての`kind`を扱う`switch`は、0.56.1で追加された`reverted`を扱う必要があります。
-- 4つのパッケージをすべて0.57.0でインストールしてください。VoiceIDのホストAPIはバージョン**9**のままです。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
+  - `speakToSign({ vault, network })`を`speakToSign({ network })`に置き換えてください。`seams.speakToSign`には`vault`フィールドがありません。
+  - `case 'vault_rejected'`を`transaction_failed`に置き換え、`vault_missing`を削除してください。TypeScriptが古い理由を報告します。
+  - `enrolled`の結果には`transactionHash`がなく、`sent`の結果には`checkMs`の時間がありません。
+- 4つのパッケージをすべて0.58.0でインストールしてください。VoiceIDのホストAPIはバージョン **9** のままです。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
 
 ウォレットのiframeプロトコルは **23.0.0**、ウォレット管理プロトコルは **5** のままです。
 署名付きの復旧CLIは **0.29.0** のままです。このリリースにデータベースのマイグレーションはありません。
