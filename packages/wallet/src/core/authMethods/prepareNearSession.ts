@@ -11,6 +11,7 @@ import { base64UrlEncode } from '@shared/utils/base64';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
 import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
+import { NEAR_CUSTODY_STALE_MESSAGE } from '@shared/utils/errors';
 
 export async function prepareAuthMethodNearSession(input: {
   readonly unlocked: Parameters<AuthMethodSessionInstaller>[0];
@@ -50,10 +51,14 @@ export async function prepareAuthMethodNearSession(input: {
     loaded.material.binding.walletId !== walletSession.walletId ||
     loaded.material.binding.nearEd25519SigningKeyId !==
       cap.applicationBinding.near_ed25519_signing_key_id ||
-    loaded.material.binding.signingWorkerId !== cap.lifecycle.signingWorkerId ||
-    loaded.material.binding.stateEpoch !== String(cap.stateEpoch)
+    loaded.material.binding.signingWorkerId !== cap.lifecycle.signingWorkerId
   ) {
     throw new Error('Cached NEAR custody belongs to another material activation.');
+  }
+  // A passkey unlock on another site (its own storage partition) or device can rejoin the key
+  // set and advance the epoch. A passkey unlock here rejoins again and rewrites this cache.
+  if (loaded.material.binding.stateEpoch !== String(cap.stateEpoch)) {
+    throw new Error(NEAR_CUSTODY_STALE_MESSAGE);
   }
   const factor = input.unlocked.factorSecret32.slice();
   const activeClient = await openWalletCustodyEd25519ActiveClientV1({

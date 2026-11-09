@@ -182,7 +182,13 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
   let rejoinSecret: Uint8Array<ArrayBuffer> | null = null;
   let openSecret: Uint8Array | null = null;
   try {
-    if (cached.kind === 'found') {
+    // A cache from an older epoch holds material the Router no longer signs with: a passkey
+    // unlock on another site (its own storage partition) or device rejoined the key set. Rejoin
+    // here too, so the rewritten cache serves the next VoiceID or Email OTP unlock.
+    if (
+      cached.kind === 'found' &&
+      cached.material.binding.stateEpoch === String(capability.stateEpoch)
+    ) {
       openSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
       activeClient = await openWalletCustodyEd25519ActiveClientV1({
         material: cached.material,

@@ -9,6 +9,10 @@ const SENTENCES: readonly (readonly [detail: string, message: string])[] = [
   ['NetworkError when attempting to fetch resource.', 'Can’t reach Seams right now.'],
   ['wallet/unlock/challenge failed (HTTP 429)', 'Too many attempts. Wait a moment.'],
   ['Passkey preparation timed out', 'That took too long.'],
+  [
+    'This device’s wallet keys are out of date. Unlock with a passkey once to refresh them.',
+    'This device’s wallet keys are out of date. Unlock with a passkey once to refresh them.',
+  ],
   ['Wallet has no registered passkey credential', 'Something went wrong.'],
   ['wallet/unlock/challenge failed (HTTP 400)', 'Something went wrong.'],
 ];

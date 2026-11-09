@@ -10,7 +10,11 @@ import type { LinkedDeviceTargetFactorV1 } from '@shared/device-linking';
 import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
 import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { WalletAuthMethod } from '@shared/utils/signerDomain';
-import { getUserFriendlyErrorMessage, isWebAuthnBrowserSecurityError } from '@shared/utils/errors';
+import {
+  getUserFriendlyErrorMessage,
+  isWebAuthnBrowserSecurityError,
+  NEAR_CUSTODY_STALE_MESSAGE,
+} from '@shared/utils/errors';
 
 /**
  * The view model is normalized by the wallet-host controller before it reaches
@@ -101,6 +105,7 @@ const TIMED_OUT_FAILURE = /timed out|timeout/i;
 
 function authMenuFailureMessage(detail: string): string {
   if (isWebAuthnBrowserSecurityError(detail)) return getUserFriendlyErrorMessage(detail);
+  if (detail.includes(NEAR_CUSTODY_STALE_MESSAGE)) return NEAR_CUSTODY_STALE_MESSAGE;
   if (RATE_LIMITED_FAILURE.test(detail)) return 'Too many attempts. Wait a moment.';
   if (UNREACHABLE_FAILURE.test(detail)) return 'Can’t reach Seams right now.';
   if (TIMED_OUT_FAILURE.test(detail)) return 'That took too long.';
