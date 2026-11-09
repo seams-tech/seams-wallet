@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
-import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
-import { walletDisplayText, walletText, type WalletMessage } from '@/core/ui/messages';
+import { WalletText } from '@/react/context/WalletLocale';
+import type { WalletMessage } from '@/core/ui/messages';
 import type { WalletAsset } from '@/core/assets/assetList';
 import type { AssetBalance } from '@/core/assets/readAssetBalances';
 import {
@@ -10,8 +10,8 @@ import {
   type SendRejection,
   type SendRequest,
 } from '@/core/assets/send';
-import { TokenArtwork } from './TokenArtwork';
-import { exactAssetAmount, formatAssetAmount, networkLabel } from './assetFormat';
+import { AssetPicker } from './AssetPicker';
+import { exactAssetAmount, formatAssetAmount } from './assetFormat';
 
 export type ReadySend = Exclude<PreparedSend, { kind: 'rejected' }>;
 
@@ -79,8 +79,7 @@ export function SendPanel({
   /** Opens Receive for an asset, from the error that says the balance is too low. */
   onReceive?: (assetId: string) => void;
 }): React.JSX.Element {
-  const locale = useWalletLocale();
-  const ids = { asset: useId(), amount: useId(), recipient: useId(), error: useId() };
+  const ids = { amount: useId(), recipient: useId(), error: useId() };
   const choices = balances.filter(
     (balance): balance is ReadBalance =>
       balance.kind === 'read' && BigInt(balance.available) > 0n && fromFor(balance.asset) !== null,
@@ -195,41 +194,23 @@ export function SendPanel({
   const error = state.kind === 'editing' ? state.error : null;
   return (
     <form className="seams-assets-form" onSubmit={review} noValidate>
-      <div className="seams-assets-field">
-        <TokenArtwork artwork={asset.artwork} size={26} />
-        <span className="seams-assets-field-text">
-          <label className="seams-assets-field-label" htmlFor={ids.asset}>
-            <WalletText message="Asset" />
-          </label>
-          <select
-            id={ids.asset}
-            className="seams-assets-select"
-            value={asset.id}
-            disabled={busy}
-            onChange={(event) => {
-              setAssetId(event.target.value);
-              setAmount('');
-              setRecipient('');
-              setState({ kind: 'editing', error: null });
-            }}
-          >
-            {choices.map((choice) => (
-              <option key={choice.asset.id} value={choice.asset.id}>
-                {walletText(locale, '{value0} on {value1}', {
-                  value0: choice.asset.symbol,
-                  value1: walletDisplayText(locale, networkLabel(choice.asset)),
-                })}
-              </option>
-            ))}
-          </select>
-        </span>
-        <span className="seams-assets-field-aside">
+      <AssetPicker
+        assets={choices.map((choice) => choice.asset)}
+        value={asset}
+        disabled={busy}
+        onChange={(id) => {
+          setAssetId(id);
+          setAmount('');
+          setRecipient('');
+          setState({ kind: 'editing', error: null });
+        }}
+        aside={
           <WalletText
             message="{value0} available"
             values={{ value0: formatAssetAmount(selected.available, asset.decimals) }}
           />
-        </span>
-      </div>
+        }
+      />
       <div className="seams-assets-amount-box">
         <label className="seams-assets-field-label" htmlFor={ids.amount}>
           <WalletText message="Amount" />

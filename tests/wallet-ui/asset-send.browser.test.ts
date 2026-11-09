@@ -59,7 +59,7 @@ test('Send checks the amount and the recipient, then opens the wallet review car
 }) => {
   if (!baseURL) throw new Error('The Send browser test requires a frontend URL');
   await openSendScreen(page, baseURL);
-  const asset = page.getByLabel('Asset', { exact: true });
+  const asset = page.getByRole('button', { name: /^Asset / });
   const amount = page.getByLabel('Amount', { exact: true });
   const recipient = page.getByLabel('To', { exact: true });
   const submit = page.getByRole('button', { name: 'Review and send', exact: true });
@@ -93,7 +93,9 @@ test('Send checks the amount and the recipient, then opens the wallet review car
   await expect(submit).toBeEnabled();
 
   // USDC to a recipient without storage: storage_deposit, then ft_transfer, in one review.
-  await asset.selectOption({ label: 'USDC on NEAR testnet' });
+  await asset.click();
+  await page.getByRole('option', { name: 'USDC on NEAR testnet', exact: true }).click();
+  await expect(asset).toHaveAccessibleName('Asset USDC on NEAR testnet');
   await amount.fill('2.5');
   await recipient.fill('bob.testnet');
   await submit.click();

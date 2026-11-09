@@ -277,7 +277,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-[data-seams-root].seams-theme-provider .seams-assets-select,
 [data-seams-root].seams-theme-provider .seams-assets-text-input {
   width: 100%;
   min-width: 0;
@@ -291,8 +290,141 @@
   color: var(--seams-colors-textPrimary);
 }
 
-[data-seams-root].seams-theme-provider .seams-assets-select {
+/* The Asset field opens a list of every choice: artwork, symbol and network on two lines.
+   The list overlaps the content below it and scrolls past seven rows. */
+[data-seams-root].seams-theme-provider .seams-assets-picker {
+  position: relative;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-picker-trigger {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  font: inherit;
+  color: var(--seams-colors-textPrimary);
+  text-align: start;
+  transition: background-color 160ms ease;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-picker-trigger:hover:not(:disabled) {
+  background: var(--seams-colors-surface3);
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-picker-trigger:focus {
+  outline: none;
+}
+
+/* The ring marks keyboard focus and an open list, not the focus a click leaves behind. */
+[data-seams-root].seams-theme-provider
+  button.seams-assets-picker-trigger:focus:not(:focus-visible):not([aria-expanded='true']) {
+  box-shadow: none;
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-picker-trigger[aria-expanded='true'] {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--seams-colors-focus), transparent 60%);
+}
+
+[data-seams-root].seams-theme-provider button.seams-assets-picker-trigger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-value {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-chevron {
+  flex: none;
+  color: var(--seams-colors-textSecondary);
+  transition: transform 160ms ease;
+}
+
+[data-seams-root].seams-theme-provider
+  .seams-assets-picker-trigger[aria-expanded='true']
+  .seams-assets-picker-chevron {
+  transform: rotate(180deg);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  inset-inline: 0;
+  box-sizing: border-box;
+  max-height: 320px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 14px;
+  background: var(--seams-colors-colorBackground);
+  box-shadow:
+    0 12px 32px rgb(0 0 0 / 0.14),
+    0 2px 6px rgb(0 0 0 / 0.06);
+  outline: none;
+  animation: seams-assets-picker-enter 140ms ease-out;
+  transform-origin: top center;
+}
+
+@keyframes seams-assets-picker-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 9px;
   cursor: pointer;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-option.is-active {
+  background: var(--seams-colors-surface2);
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-option-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-symbol {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--seams-colors-textPrimary);
+}
+
+[data-seams-root].seams-theme-provider
+  .seams-assets-picker-option[aria-selected='true']
+  .seams-assets-picker-symbol {
+  font-weight: 600;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-network {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--seams-colors-textSecondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-seams-root].seams-theme-provider .seams-assets-picker-check {
+  flex: none;
+  color: var(--seams-colors-textPrimary);
 }
 
 [data-seams-root].seams-theme-provider .seams-assets-amount-box {
@@ -417,7 +549,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-seams-root].seams-theme-provider button.seams-assets-secondary {
+  [data-seams-root].seams-theme-provider button.seams-assets-secondary,
+  [data-seams-root].seams-theme-provider button.seams-assets-picker-trigger,
+  [data-seams-root].seams-theme-provider .seams-assets-picker-chevron {
     transition: none;
+  }
+
+  [data-seams-root].seams-theme-provider .seams-assets-picker-list {
+    animation: none;
   }
 }

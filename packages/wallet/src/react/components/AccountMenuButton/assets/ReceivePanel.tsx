@@ -1,8 +1,8 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletDisplayText, walletText } from '@/core/ui/messages';
 import type { WalletAsset } from '@/core/assets/assetList';
-import { TokenArtwork } from './TokenArtwork';
+import { AssetPicker } from './AssetPicker';
 import { networkLabel } from './assetFormat';
 
 type QrState =
@@ -54,7 +54,6 @@ export function ReceivePanel({
   initialAssetId?: string;
 }): React.JSX.Element {
   const locale = useWalletLocale();
-  const selectId = useId();
   const choices = assets.filter((asset) => receiveAddress(asset, nearAccount, evmAddress));
   const [assetId, setAssetId] = useState(
     choices.find((asset) => asset.id === initialAssetId)?.id ?? choices[0]?.id ?? '',
@@ -81,29 +80,7 @@ export function ReceivePanel({
   };
   return (
     <div className="seams-assets-form">
-      <div className="seams-assets-field">
-        <TokenArtwork artwork={asset.artwork} size={26} />
-        <span className="seams-assets-field-text">
-          <label className="seams-assets-field-label" htmlFor={selectId}>
-            <WalletText message="Asset" />
-          </label>
-          <select
-            id={selectId}
-            className="seams-assets-select"
-            value={asset.id}
-            onChange={(event) => setAssetId(event.target.value)}
-          >
-            {choices.map((choice) => (
-              <option key={choice.id} value={choice.id}>
-                {walletText(locale, '{value0} on {value1}', {
-                  value0: choice.symbol,
-                  value1: walletDisplayText(locale, networkLabel(choice)),
-                })}
-              </option>
-            ))}
-          </select>
-        </span>
-      </div>
+      <AssetPicker assets={choices} value={asset} onChange={setAssetId} />
       <div className="seams-assets-qr-card">
         <div className="seams-assets-qr">
           {qr.kind === 'ready' ? (
