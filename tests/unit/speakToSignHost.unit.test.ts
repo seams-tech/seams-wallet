@@ -1028,7 +1028,7 @@ const MERGE: SpokenNoteAction = {
 
 test('a merge approval says the pull request and base, and checks every field', () => {
   expect(renderNoteAction(MERGE)).toEqual({
-    displayText: 'Merge pull request #42 into main',
+    displayText: 'Merge pull request 42 into main',
     spokenText: 'merge pull request forty two into main',
   });
   expect(noteActionRefusal(MERGE)).toBeNull();
@@ -1088,4 +1088,44 @@ test('core signs one approve_merge call with no deposit for the verdict of this 
       },
     ],
   });
+});
+
+/** The repository of every merge vector of the crate (tests/vectors.rs). */
+const VECTOR_REPO = 'seams-tech/seams-wallet';
+
+test('the merge port matches every merge approval vector of the spoken-intent crate', async () => {
+  const merges = VECTORS.requests.filter((vector) => vector.borsh_hex.startsWith('06'));
+  expect(merges.length).toBeGreaterThanOrEqual(3);
+  for (const vector of merges) {
+    const bytes = Buffer.from(vector.borsh_hex, 'hex');
+    let at = 2;
+    const text = (): string => {
+      const length = bytes.readUInt32LE(at);
+      const value = bytes.subarray(at + 4, at + 4 + length).toString('utf8');
+      at += 4 + length;
+      return value;
+    };
+    const owner = text();
+    const contract = text();
+    at += 32;
+    const pullRequest = bytes.readBigUInt64LE(at);
+    at += 8;
+    const base = text();
+    const headCommit = bytes.subarray(at, at + 20).toString('hex');
+    const action: SpokenNoteAction = {
+      kind: 'merge_approval',
+      contract,
+      repo: VECTOR_REPO,
+      pullRequest,
+      base,
+      headCommit,
+    };
+    const rendered = renderNoteAction(action);
+    expect(hex(await noteActionBorsh('testnet', owner, action)), vector.name).toBe(vector.borsh_hex);
+    expect(rendered.displayText, vector.name).toBe(vector.display_text);
+    expect(rendered.spokenText, vector.name).toBe(vector.spoken_text);
+    const digests = await noteActionDigests('testnet', owner, action);
+    expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
+    expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
+  }
 });

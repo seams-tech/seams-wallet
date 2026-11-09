@@ -129,7 +129,7 @@ export function renderNoteAction(action: SpokenNoteAction): RenderedTransfer {
   if (action.kind === 'merge_approval') {
     const words = ['merge', 'pull', 'request', ...integerWords(action.pullRequest), 'into', action.base];
     return {
-      displayText: `Merge pull request #${action.pullRequest} into ${action.base}`,
+      displayText: `Merge pull request ${action.pullRequest} into ${action.base}`,
       spokenText: words.join(' '),
     };
   }
