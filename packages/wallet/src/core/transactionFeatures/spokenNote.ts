@@ -1,0 +1,223 @@
+// The community note kinds of the `spoken-intent` crate (crates/spoken-intent):
+// `SpokenRequestV1::CommunityNote` and `SpokenRequestV1::NoteRating`, with the same summary
+// rules, rendered words, Borsh bytes and digests. The crate's golden vectors check this port.
+// Wallet core uses it to check a verdict and to build the one call that it signs.
+
+import { functionCall } from '@/core/types/actionBuilders';
+import type { TransactionInput } from '@/core/types/actions';
+import type { SpeakToSignNetwork } from './plugins';
+import {
+  borshString,
+  concat,
+  isMultiplierWord,
+  isNumberWord,
+  isSpeakableAccount,
+  littleEndian,
+  sha256,
+  spokenDigests,
+  utf8,
+  type RenderedTransfer,
+  type SpokenDigests,
+} from './spokenTransfer';
+
+const COMMUNITY_NOTE_TAG = 4;
+const NOTE_RATING_TAG = 5;
+
+/** Twelve plain words fit in one 8 s clip. */
+export const MAX_SUMMARY_WORDS = 12;
+export const MAX_SUMMARY_BYTES = 120;
+/** The notes contract keeps a note of at most this many characters. */
+export const MAX_NOTE_CHARS = 280;
+
+/** The gas of one note call. The contract needs less than 10 Tgas. */
+const NOTE_CALL_GAS = '30000000000000';
+/** The first words of the transfer grammar. A summary cannot start with one. */
+const TRANSFER_VERBS = ['send', 'sent', 'sends'];
+/** The whole-word aliases that the crate's text step applies to a transcript. */
+const TEXT_ALIASES = new Map([
+  ['approved', 'approve'],
+  ['nir', 'near'],
+  ['neer', 'near'],
+]);
+
+export const NOTE_RATINGS = ['helpful', 'somewhat_helpful', 'not_helpful'] as const;
+export type NoteRating = (typeof NOTE_RATINGS)[number];
+
+const RATING_WORDS: Readonly<Record<NoteRating, readonly string[]>> = {
+  helpful: ['this', 'note', 'is', 'helpful'],
+  somewhat_helpful: ['this', 'note', 'is', 'somewhat', 'helpful'],
+  not_helpful: ['this', 'note', 'is', 'not', 'helpful'],
+};
+
+/** A spoken community note or note rating. The owner says the summary or the rating only. */
+export type SpokenNoteAction =
+  | Readonly<{
+      kind: 'community_note';
+      /** The notes contract, a named NEAR account. */
+      contract: string;
+      postId: bigint;
+      /** The note, 1 to 280 characters. The verdict binds its SHA-256. */
+      text: string;
+      /** The sentence that the owner says. See `summaryRefusal`. */
+      summary: string;
+    }>
+  | Readonly<{ kind: 'note_rating'; contract: string; noteId: bigint; rating: NoteRating }>;
+
+/** Why a text is not a speakable summary, as `spoken_intent::InvalidSummary`. */
+export type SummaryRefusal = 'empty' | 'too_long' | 'too_many_words' | 'character' | 'transfer_verb';
+
+/**
+ * Null for a speakable summary: 1 to 12 words of ASCII letters with one space between two
+ * words, a comma allowed at the end of a word and one `.`, `!` or `?` at the end.
+ */
+export function summaryRefusal(text: string): SummaryRefusal | null {
+  if (text === '') return 'empty';
+  if (utf8(text).length > MAX_SUMMARY_BYTES) return 'too_long';
+  const body = /[.!?]$/.test(text) ? text.slice(0, -1) : text;
+  const words = body.split(' ');
+  for (const [index, word] of words.entries()) {
+    const letters = word.endsWith(',') ? word.slice(0, -1) : word;
+    if (!/^[A-Za-z]+$/.test(letters)) return 'character';
+    if (index === 0 && TRANSFER_VERBS.includes(letters.toLowerCase())) return 'transfer_verb';
+  }
+  return words.length > MAX_SUMMARY_WORDS ? 'too_many_words' : null;
+}
+
+/** Why core cannot build this action, or null. */
+export function noteActionRefusal(
+  action: SpokenNoteAction,
+): 'summary_not_speakable' | 'note_not_valid' | null {
+  if (!isSpeakableAccount(action.contract)) return 'note_not_valid';
+  const id = action.kind === 'community_note' ? action.postId : action.noteId;
+  if (id < 0n || id > BigInt(Number.MAX_SAFE_INTEGER)) return 'note_not_valid';
+  if (action.kind === 'note_rating') {
+    return NOTE_RATINGS.includes(action.rating) ? null : 'note_not_valid';
+  }
+  const characters = [...action.text].length;
+  if (characters === 0 || characters > MAX_NOTE_CHARS) return 'note_not_valid';
+  return summaryRefusal(action.summary) === null ? null : 'summary_not_speakable';
+}
+
+/** The sentence of the action. `displayText` keeps the summary as the author wrote it. */
+export function renderNoteAction(action: SpokenNoteAction): RenderedTransfer {
+  if (action.kind === 'note_rating') {
+    const words = RATING_WORDS[action.rating];
+    return { displayText: ['This', ...words.slice(1)].join(' '), spokenText: words.join(' ') };
+  }
+  return { displayText: action.summary, spokenText: summaryWords(action.summary).join(' ') };
+}
+
+/** The crate's text step on a summary: lowercase words, aliases, "a hundred", "one and two". */
+function summaryWords(summary: string): string[] {
+  const words = summary
+    .toLowerCase()
+    .replace(/[.!?]$/, '')
+    .split(' ')
+    .map((word) => (word.endsWith(',') ? word.slice(0, -1) : word))
+    .map((word) => TEXT_ALIASES.get(word) ?? word);
+  const tokens: string[] = [];
+  for (const [index, word] of words.entries()) {
+    const next = words[index + 1];
+    if (word === 'a' && next !== undefined && isMultiplierWord(next)) {
+      tokens.push('one');
+      continue;
+    }
+    const previous = tokens.at(-1);
+    if (
+      word === 'and' &&
+      previous !== undefined &&
+      isNumberWord(previous) &&
+      next !== undefined &&
+      isNumberWord(next)
+    ) {
+      continue;
+    }
+    tokens.push(word);
+  }
+  return tokens;
+}
+
+export async function noteSha256(text: string): Promise<Uint8Array<ArrayBuffer>> {
+  return await sha256(utf8(text));
+}
+
+/** Borsh of the request kind of the action, whose explicit tags are 4 and 5. */
+export async function noteActionBorsh(
+  network: SpeakToSignNetwork,
+  owner: string,
+  action: SpokenNoteAction,
+): Promise<Uint8Array> {
+  const head = [
+    Uint8Array.of(
+      action.kind === 'community_note' ? COMMUNITY_NOTE_TAG : NOTE_RATING_TAG,
+      network === 'testnet' ? 0 : 1,
+    ),
+    borshString(owner),
+    borshString(action.contract),
+  ];
+  if (action.kind === 'note_rating') {
+    return concat([
+      ...head,
+      littleEndian(action.noteId, 8),
+      Uint8Array.of(NOTE_RATINGS.indexOf(action.rating)),
+    ]);
+  }
+  return concat([
+    ...head,
+    littleEndian(action.postId, 8),
+    await noteSha256(action.text),
+    borshString(action.summary),
+  ]);
+}
+
+export async function noteActionDigests(
+  network: SpeakToSignNetwork,
+  owner: string,
+  action: SpokenNoteAction,
+): Promise<SpokenDigests> {
+  return await spokenDigests(
+    await noteActionBorsh(network, owner, action),
+    renderNoteAction(action).spokenText,
+  );
+}
+
+/** The `request` of the verifier's `verify` input. */
+export async function noteVerifyRequest(
+  action: SpokenNoteAction,
+): Promise<Readonly<Record<string, unknown>>> {
+  if (action.kind === 'note_rating') {
+    return {
+      kind: 'note_rating',
+      contract: action.contract,
+      note_id: Number(action.noteId),
+      rating: action.rating,
+    };
+  }
+  const digest = await noteSha256(action.text);
+  return {
+    kind: 'community_note',
+    contract: action.contract,
+    post_id: Number(action.postId),
+    note_sha256_hex: Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join(''),
+    summary: action.summary,
+  };
+}
+
+/** The one call that core signs: `add_note` or `rate_note`, with no deposit. */
+export function noteTransaction(action: SpokenNoteAction): TransactionInput {
+  const call =
+    action.kind === 'community_note'
+      ? functionCall({
+          method: 'add_note',
+          args: { post_id: Number(action.postId), text: action.text, summary: action.summary },
+          gas: NOTE_CALL_GAS,
+          deposit: '0',
+        })
+      : functionCall({
+          method: 'rate_note',
+          args: { note_id: Number(action.noteId), rating: action.rating },
+          gas: NOTE_CALL_GAS,
+          deposit: '0',
+        });
+  return { receiverId: action.contract, actions: [call] };
+}

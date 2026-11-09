@@ -1,6 +1,9 @@
 import type {
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignNoteRequest,
+  SpeakToSignNoteResult,
+  SpeakToSignRatingRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -8,9 +11,12 @@ import type { WalletIframeCoordinator } from '../coordinator';
 import {
   parseSpeakToSignEnrollmentResult,
   parseSpeakToSignEnrollPayload,
+  parseSpeakToSignNotePayload,
+  parseSpeakToSignNoteResult,
   parseSpeakToSignTransferPayload,
   parseSpeakToSignTransferResult,
   type PMSpeakToSignEnrollPayload,
+  type PMSpeakToSignNotePayload,
   type PMSpeakToSignTransferPayload,
 } from '../shared/speakToSign';
 
@@ -19,6 +25,10 @@ type SpeakToSignPost = (
     | {
         readonly type: 'PM_SPEAK_TO_SIGN_TRANSFER';
         readonly payload: PMSpeakToSignTransferPayload;
+      }
+    | {
+        readonly type: 'PM_SPEAK_TO_SIGN_NOTE';
+        readonly payload: PMSpeakToSignNotePayload;
       }
     | {
         readonly type: 'PM_SPEAK_TO_SIGN_ENROLL';
@@ -38,14 +48,53 @@ export type SpeakToSignEnrollCommand = (
 
 export type SpeakToSignCommands = Readonly<{
   requestTransfer: SpeakToSignTransferCommand;
+  requestNote(request: SpeakToSignNoteRequest): Promise<SpeakToSignNoteResult>;
+  requestRating(request: SpeakToSignRatingRequest): Promise<SpeakToSignNoteResult>;
   enroll: SpeakToSignEnrollCommand;
 }>;
 
 export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToSignCommands {
   return {
     requestTransfer: requestTransferFromHost.bind(null, post),
+    requestNote: requestNoteFromHost.bind(null, post),
+    requestRating: requestRatingFromHost.bind(null, post),
     enroll: enrollFromHost.bind(null, post),
   };
+}
+
+async function requestNoteFromHost(
+  post: SpeakToSignPost,
+  request: SpeakToSignNoteRequest,
+): Promise<SpeakToSignNoteResult> {
+  return await postNoteAction(post, request.walletId, {
+    kind: 'community_note',
+    contract: request.contract,
+    postId: request.postId,
+    text: request.text,
+    summary: request.summary,
+  });
+}
+
+async function requestRatingFromHost(
+  post: SpeakToSignPost,
+  request: SpeakToSignRatingRequest,
+): Promise<SpeakToSignNoteResult> {
+  return await postNoteAction(post, request.walletId, {
+    kind: 'note_rating',
+    contract: request.contract,
+    noteId: request.noteId,
+    rating: request.rating,
+  });
+}
+
+async function postNoteAction(
+  post: SpeakToSignPost,
+  walletId: string,
+  action: PMSpeakToSignNotePayload['action'],
+): Promise<SpeakToSignNoteResult> {
+  const payload = parseSpeakToSignNotePayload({ walletId, action });
+  const response = await post({ type: 'PM_SPEAK_TO_SIGN_NOTE', payload }, { timeout: 'interactive' });
+  return parseSpeakToSignNoteResult(response.result);
 }
 
 async function requestTransferFromHost(
@@ -82,8 +131,26 @@ export function createApplicationSpeakToSignCommands(
 ): SpeakToSignCommands {
   return {
     requestTransfer: requestTransferFromIframe.bind(null, iframe),
+    requestNote: requestNoteFromIframe.bind(null, iframe),
+    requestRating: requestRatingFromIframe.bind(null, iframe),
     enroll: enrollFromIframe.bind(null, iframe),
   };
+}
+
+async function requestNoteFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  request: SpeakToSignNoteRequest,
+): Promise<SpeakToSignNoteResult> {
+  const router = await iframe.requireRouter();
+  return await router.speakToSign.requestNote(request);
+}
+
+async function requestRatingFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  request: SpeakToSignRatingRequest,
+): Promise<SpeakToSignNoteResult> {
+  const router = await iframe.requireRouter();
+  return await router.speakToSign.requestRating(request);
 }
 
 async function requestTransferFromIframe(

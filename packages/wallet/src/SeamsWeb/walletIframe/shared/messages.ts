@@ -17,7 +17,11 @@ import {
   type WalletConnectionResolution,
 } from './walletAlternatives';
 import type { OwnerNearCommand } from './ownerNearOperation';
-import type { PMSpeakToSignEnrollPayload, PMSpeakToSignTransferPayload } from './speakToSign';
+import type {
+  PMSpeakToSignEnrollPayload,
+  PMSpeakToSignNotePayload,
+  PMSpeakToSignTransferPayload,
+} from './speakToSign';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
@@ -933,6 +937,7 @@ export type ParentToChildType =
   | 'PM_SIGN_TX_WITH_ACTIONS'
   | 'PM_OWNER_NEAR_TRANSACTION'
   | 'PM_SPEAK_TO_SIGN_TRANSFER'
+  | 'PM_SPEAK_TO_SIGN_NOTE'
   | 'PM_SPEAK_TO_SIGN_ENROLL'
   | 'PM_SIGN_AND_SEND_TX'
   | 'PM_SEND_TRANSACTION'
@@ -1768,6 +1773,9 @@ export type ParentToChildEnvelope =
   | (RpcEnvelope<'PM_OWNER_NEAR_TRANSACTION', OwnerNearCommand> & { payload: OwnerNearCommand })
   | (RpcEnvelope<'PM_SPEAK_TO_SIGN_TRANSFER', PMSpeakToSignTransferPayload> & {
       payload: PMSpeakToSignTransferPayload;
+    })
+  | (RpcEnvelope<'PM_SPEAK_TO_SIGN_NOTE', PMSpeakToSignNotePayload> & {
+      payload: PMSpeakToSignNotePayload;
     })
   | (RpcEnvelope<'PM_SPEAK_TO_SIGN_ENROLL', PMSpeakToSignEnrollPayload> & {
       payload: PMSpeakToSignEnrollPayload;

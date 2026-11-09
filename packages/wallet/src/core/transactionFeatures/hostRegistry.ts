@@ -36,7 +36,12 @@ export async function loadSpeakToSignHost(
 }
 
 function isHostPlugin(value: unknown): value is SpeakToSignHostPlugin {
-  return isPlainObject(value) && isFunction(value.requestTransfer) && isFunction(value.enroll);
+  return (
+    isPlainObject(value) &&
+    isFunction(value.requestTransfer) &&
+    isFunction(value.requestNoteAction) &&
+    isFunction(value.enroll)
+  );
 }
 
 async function speakToSignLoadFailure(cause: unknown): Promise<Error> {

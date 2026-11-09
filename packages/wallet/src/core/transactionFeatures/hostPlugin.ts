@@ -2,10 +2,11 @@ import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { SpeakToSignNetwork } from './plugins';
+import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 5;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 6;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -43,7 +44,8 @@ export type SpeakToSignTransferTimes = Readonly<{
   endOfSpeechToReceiptMs: number;
 }>;
 
-export type SpeakToSignTransferResult =
+/** The result of one spoken request whose refusals are `Reason`. */
+type SpokenResult<Reason extends string> =
   | Readonly<{
       kind: 'sent';
       transactionHash: string;
@@ -51,9 +53,24 @@ export type SpeakToSignTransferResult =
       approval: VoiceApproval;
       times: SpeakToSignTransferTimes;
     }>
-  | Readonly<{ kind: 'refused'; reason: SpeakToSignRefusalReason; detail?: string }>
+  | Readonly<{ kind: 'refused'; reason: Reason; detail?: string }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
+
+export type SpeakToSignTransferResult = SpokenResult<SpeakToSignRefusalReason>;
+
+/** Refusals of a spoken community note or note rating. */
+export type SpeakToSignNoteRefusalReason =
+  | VerifierRefusal
+  /** The summary is not 1 to 12 plain words of ASCII letters (see `summaryRefusal`). */
+  | 'summary_not_speakable'
+  /** The contract, the id, the note text (1 to 280 characters) or the rating is not valid. */
+  | 'note_not_valid'
+  | 'verdict_mismatch'
+  /** The call was sent and failed on chain, for example for an unknown note. */
+  | 'transaction_failed';
+
+export type SpeakToSignNoteResult = SpokenResult<SpeakToSignNoteRefusalReason>;
 
 /** One spoken payment from the app. The Wallet iframe reads the owner itself. */
 export type SpeakToSignTransferRequest = Readonly<{
@@ -62,6 +79,28 @@ export type SpeakToSignTransferRequest = Readonly<{
   receiver: string;
   /** Decimal NEAR, such as `"2.5"`. */
   amount: string;
+}>;
+
+/** One spoken community note from the app. The author says only the summary. */
+export type SpeakToSignNoteRequest = Readonly<{
+  walletId: string;
+  /** The notes contract, a named NEAR account. */
+  contract: string;
+  /** A whole number from 0 to `Number.MAX_SAFE_INTEGER`. */
+  postId: number;
+  /** The note, 1 to 280 characters. */
+  text: string;
+  /** 1 to 12 plain words that the author reads aloud. */
+  summary: string;
+}>;
+
+/** One spoken rating of a community note from the app. */
+export type SpeakToSignRatingRequest = Readonly<{
+  walletId: string;
+  contract: string;
+  /** A whole number from 0 to `Number.MAX_SAFE_INTEGER`. */
+  noteId: number;
+  rating: NoteRating;
 }>;
 
 /** One verifier enrollment from the app. The Wallet iframe reads the owner itself. */
@@ -190,6 +229,17 @@ export type SpeakToSignHostOperations = Readonly<{
     signal: AbortSignal,
     hooks: SpeakToSignPaymentHooks,
   ): Promise<SpeakToSignPayment>;
+  /**
+   * Checks the verifier output against this note or rating and, on an approved verdict, signs
+   * and sends its one call (`add_note` or `rate_note`, no deposit) from the owner's account, as
+   * `payWithVerdict` does for a transfer.
+   */
+  signNoteWithVerdict(
+    action: SpokenNoteAction,
+    verifierOutput: unknown,
+    signal: AbortSignal,
+    hooks: SpeakToSignPaymentHooks,
+  ): Promise<SpeakToSignPayment>;
   /** Signs the enrollment message for three clips that core recorded in this flow. */
   authorizeEnrollment(
     clips: readonly Uint8Array<ArrayBuffer>[],
@@ -203,6 +253,14 @@ export type SpeakToSignHostTransfer = Readonly<{
   receiver: string;
   /** Decimal NEAR, such as `"2.5"`. */
   amount: string;
+  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+  operations: SpeakToSignHostOperations;
+}>;
+
+/** One spoken note or rating that the Wallet route asks the host plugin to run. */
+export type SpeakToSignHostNote = Readonly<{
+  ownerAccountId: string;
+  action: SpokenNoteAction;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
   operations: SpeakToSignHostOperations;
 }>;
@@ -231,4 +289,10 @@ export interface SpeakToSignHostPlugin {
     /** The Wallet route adds the transfer when the app API carries a receiver and an amount. */
     readonly transfer?: SpeakToSignHostTransfer;
   }): Promise<SpeakToSignTransferResult>;
+  requestNoteAction(input: {
+    readonly walletId: WalletId;
+    readonly network: SpeakToSignNetwork;
+    readonly signal: AbortSignal;
+    readonly note: SpeakToSignHostNote;
+  }): Promise<SpeakToSignNoteResult>;
 }

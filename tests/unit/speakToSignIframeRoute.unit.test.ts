@@ -27,6 +27,8 @@ import type { ChildToParentEnvelope, ParentToChildEnvelope } from '@/SeamsWeb/wa
 import {
   parseSpeakToSignEnrollmentResult,
   parseSpeakToSignEnrollPayload,
+  parseSpeakToSignNotePayload,
+  parseSpeakToSignNoteResult,
   parseSpeakToSignTransferPayload,
   parseSpeakToSignTransferResult,
 } from '@/SeamsWeb/walletIframe/shared/speakToSign';
@@ -208,6 +210,9 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     async requestTransfer(input) {
       pluginCalls.push(input);
       return options.plugin ? await options.plugin(input) : SENT;
+    },
+    async requestNoteAction() {
+      throw new Error('This route test runs no note.');
     },
     async enroll(input) {
       enrollCalls.push(input);
@@ -470,4 +475,66 @@ test('the enrollment handler gives the plugin the owner and signs through the NE
     ok: true,
     result: { kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'not_enrolled' },
   });
+});
+
+test('the note message carries only the wallet and one note or rating, and its result is exact', async () => {
+  const note = {
+    walletId: WALLET_ID,
+    action: {
+      kind: 'community_note',
+      contract: 'community-notes.testnet',
+      postId: 7,
+      text: 'The bridge stays open.',
+      summary: 'The bridge stays open',
+    },
+  } as const;
+  const rating = {
+    walletId: WALLET_ID,
+    action: { kind: 'note_rating', contract: 'community-notes.testnet', noteId: 3, rating: 'helpful' },
+  } as const;
+  expect(parseSpeakToSignNotePayload(structuredClone(note))).toEqual(note);
+  expect(parseSpeakToSignNotePayload(structuredClone(rating))).toEqual(rating);
+  for (const bad of [
+    { ...note, owner: 'victim.testnet' },
+    { ...note, action: { ...note.action, deposit: '1' } },
+    { ...note, action: { ...note.action, postId: -1 } },
+    { ...note, action: { ...note.action, postId: 2 ** 53 } },
+    { ...note, action: { ...note.action, contract: 'Not An Account' } },
+    { ...rating, action: { ...rating.action, rating: 'great' } },
+    { ...rating, action: { ...rating.action, kind: 'transfer' } },
+    { walletId: WALLET_ID },
+    null,
+  ]) {
+    expect(() => parseSpeakToSignNotePayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign note request is invalid.',
+    );
+  }
+  expect(parseSpeakToSignNoteResult({ ...SENT })).toEqual(SENT);
+  expect(parseSpeakToSignNoteResult({ kind: 'refused', reason: 'summary_not_speakable' })).toEqual({
+    kind: 'refused',
+    reason: 'summary_not_speakable',
+  });
+  expect(() => parseSpeakToSignNoteResult({ kind: 'refused', reason: 'receiver_missing' })).toThrow(
+    'Speak-to-Sign note result is invalid.',
+  );
+  expect(() =>
+    parseSpeakToSignTransferResult({ kind: 'refused', reason: 'summary_not_speakable' }),
+  ).toThrow('Speak-to-Sign transfer result is invalid.');
+
+  const posted: unknown[] = [];
+  const commands = createIframeSpeakToSignCommands(async (request, options) => {
+    posted.push({ request, options });
+    return { result: SENT };
+  });
+  expect(
+    await commands.requestRating({
+      walletId: WALLET_ID,
+      contract: 'community-notes.testnet',
+      noteId: 3,
+      rating: 'helpful',
+    }),
+  ).toEqual(SENT);
+  expect(posted).toEqual([
+    { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload: rating }, options: { timeout: 'interactive' } },
+  ]);
 });

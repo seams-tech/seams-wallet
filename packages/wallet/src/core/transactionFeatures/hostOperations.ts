@@ -22,7 +22,19 @@ import type {
   SpeakToSignVerifyReply,
 } from './hostPlugin';
 import type { SpeakToSignFeaturePlugin } from './plugins';
-import { concat, sha256, utf8, type SpokenTransferRequest } from './spokenTransfer';
+import {
+  noteActionDigests,
+  noteActionRefusal,
+  noteTransaction,
+  type SpokenNoteAction,
+} from './spokenNote';
+import {
+  concat,
+  sha256,
+  transferDigests,
+  utf8,
+  type SpokenDigests,
+} from './spokenTransfer';
 import {
   checkVoiceVerdict,
   parseVerifyOutput,
@@ -72,8 +84,8 @@ export type SpeakToSignHostOperationsInput = Readonly<{
 }>;
 
 /**
- * What one flow recorded and paid. A verdict binds a clip of this flow, and the flow pays at most
- * once, even when "Try again" brings it several accepted verdicts.
+ * What one flow recorded and signed. A verdict binds a clip of this flow, and the flow signs at
+ * most once, even when "Try again" brings it several accepted verdicts.
  */
 type FlowState = {
   readonly recordedAudio: Set<string>;
@@ -90,6 +102,7 @@ export function createSpeakToSignHostOperations(
     receiverExists: receiverExists.bind(null, input),
     verify: verify.bind(null, input),
     payWithVerdict: payWithVerdict.bind(null, input, state),
+    signNoteWithVerdict: signNoteWithVerdict.bind(null, input, state),
     authorizeEnrollment: authorizeEnrollment.bind(null, input, state),
   };
 }
@@ -200,20 +213,52 @@ async function payWithVerdict(
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
 ): Promise<SpeakToSignPayment> {
+  const expected = await transferDigests({
+    network: input.feature.network,
+    owner: input.ownerAccountId,
+    receiver: transferRequest.receiver,
+    amountYocto: transferRequest.amountYocto,
+  });
+  const transaction: TransactionInput = {
+    receiverId: transferRequest.receiver,
+    actions: [transfer(`${transferRequest.amountYocto} yoctoNEAR`)],
+  };
+  return await signWithVerdict(input, state, expected, transaction, verifierOutput, signal, hooks);
+}
+
+async function signNoteWithVerdict(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  action: SpokenNoteAction,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignPayment> {
+  const refusal = noteActionRefusal(action);
+  if (refusal) return { kind: 'unavailable', detail: refusal };
+  const expected = await noteActionDigests(input.feature.network, input.ownerAccountId, action);
+  const transaction = noteTransaction(action);
+  return await signWithVerdict(input, state, expected, transaction, verifierOutput, signal, hooks);
+}
+
+/** Checks the verdict against the request digests, then signs the transaction once. */
+async function signWithVerdict(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  expected: SpokenDigests,
+  transaction: TransactionInput,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignPayment> {
   signal.throwIfAborted();
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
   if (!verifier) return { kind: 'unavailable', detail: 'This network has no verifier.' };
   const output = parseVerifyOutput(verifierOutput);
   if (!output) return { kind: 'unavailable', detail: 'invalid verifier output' };
-  const request: SpokenTransferRequest = {
-    network: input.feature.network,
-    owner: input.ownerAccountId,
-    receiver: transferRequest.receiver,
-    amountYocto: transferRequest.amountYocto,
-  };
   const check = await checkVoiceVerdict({
     output,
-    request,
+    expected,
     verifier,
     recordedAudio: state.recordedAudio,
     nowMs: (input.now ?? Date.now)(),
@@ -223,7 +268,7 @@ async function payWithVerdict(
     return { kind: 'refused', reason: 'verdict_mismatch', detail: check.detail };
   }
   if (state.paid) {
-    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already paid' };
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' };
   }
   if (check.approval === 'voice') hooks.accepted();
   else if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
@@ -233,14 +278,11 @@ async function payWithVerdict(
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict expired' };
   }
   if (state.paid) {
-    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already paid' };
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' };
   }
   state.paid = true;
   const result = await input.signVoiceApprovedTransaction(
-    {
-      receiverId: request.receiver,
-      actions: [transfer(`${request.amountYocto} yoctoNEAR`)],
-    },
+    transaction,
     check.approval,
     check.policyText,
     signal,

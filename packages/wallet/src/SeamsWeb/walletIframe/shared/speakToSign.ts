@@ -2,12 +2,15 @@ import type {
   SpeakToSignEnrollmentRefusalReason,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignNoteRefusalReason,
+  SpeakToSignNoteResult,
   SpeakToSignRefusalReason,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
   SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
+import { NOTE_RATINGS, type NoteRating } from '@/core/transactionFeatures/spokenNote';
 import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isValidAccountId } from '@shared/utils/near';
@@ -26,6 +29,70 @@ export function parseSpeakToSignEnrollPayload(value: unknown): PMSpeakToSignEnro
     throw new Error('Speak-to-Sign enrollment request is invalid.');
   }
   return { walletId: String(value.walletId) };
+}
+
+/** The `PM_SPEAK_TO_SIGN_NOTE` payload: one community note or one rating. */
+export type PMSpeakToSignNotePayload = Readonly<{
+  walletId: string;
+  action:
+    | Readonly<{
+        kind: 'community_note';
+        contract: string;
+        postId: number;
+        text: string;
+        summary: string;
+      }>
+    | Readonly<{ kind: 'note_rating'; contract: string; noteId: number; rating: NoteRating }>;
+}>;
+
+/** Generous text bounds; Wallet core checks the exact note and summary rules. */
+const MAX_NOTE_TEXT_LENGTH = 1_200;
+const MAX_SUMMARY_TEXT_LENGTH = 200;
+
+export function parseSpeakToSignNotePayload(value: unknown): PMSpeakToSignNotePayload {
+  const action = readNoteAction(isPlainObject(value) ? value.action : undefined);
+  if (!hasExactKeys(value, ['walletId', 'action']) || !parseWalletId(value.walletId).ok || !action) {
+    throw new Error('Speak-to-Sign note request is invalid.');
+  }
+  return { walletId: String(value.walletId), action };
+}
+
+function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | null {
+  if (!isPlainObject(value) || typeof value.contract !== 'string') return null;
+  if (!isValidAccountId(value.contract)) return null;
+  if (value.kind === 'community_note') {
+    if (
+      !hasExactKeys(value, ['kind', 'contract', 'postId', 'text', 'summary']) ||
+      !isNoteId(value.postId) ||
+      typeof value.text !== 'string' ||
+      value.text.length > MAX_NOTE_TEXT_LENGTH ||
+      typeof value.summary !== 'string' ||
+      value.summary.length > MAX_SUMMARY_TEXT_LENGTH
+    ) {
+      return null;
+    }
+    return {
+      kind: 'community_note',
+      contract: value.contract,
+      postId: value.postId,
+      text: value.text,
+      summary: value.summary,
+    };
+  }
+  if (value.kind === 'note_rating') {
+    const rating = NOTE_RATINGS.find((candidate) => candidate === value.rating);
+    if (!hasExactKeys(value, ['kind', 'contract', 'noteId', 'rating']) || !isNoteId(value.noteId)) {
+      return null;
+    }
+    return rating
+      ? { kind: 'note_rating', contract: value.contract, noteId: value.noteId, rating }
+      : null;
+  }
+  return null;
+}
+
+function isNoteId(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
 /** A decimal NEAR amount as text. The host plugin decides which amounts are speakable. */
@@ -74,6 +141,22 @@ const REFUSAL_REASONS: Readonly<Record<SpeakToSignRefusalReason, true>> = {
   verdict_mismatch: true,
   transaction_failed: true,
 };
+const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>> = {
+  quality: true,
+  speaker: true,
+  words: true,
+  audio_reused: true,
+  audio_invalid: true,
+  template_missing: true,
+  unsupported: true,
+  speaker_unavailable: true,
+  storage: true,
+  transcriber_unavailable: true,
+  summary_not_speakable: true,
+  note_not_valid: true,
+  verdict_mismatch: true,
+  transaction_failed: true,
+};
 const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalReason, true>> = {
   quality: true,
   speaker: true,
@@ -91,8 +174,15 @@ const TIME_KEYS = ['speechMs', 'verifyMs', 'transactionMs', 'endOfSpeechToReceip
 
 /** Reads the iframe's answer. Anything outside the result union is a protocol error. */
 export function parseSpeakToSignTransferResult(value: unknown): SpeakToSignTransferResult {
-  const result = readResult(value);
+  const result = readResult(value, REFUSAL_REASONS);
   if (!result) throw new Error('Speak-to-Sign transfer result is invalid.');
+  return result;
+}
+
+/** Reads the iframe's note or rating answer. Anything outside the union is a protocol error. */
+export function parseSpeakToSignNoteResult(value: unknown): SpeakToSignNoteResult {
+  const result = readResult(value, NOTE_REFUSAL_REASONS);
+  if (!result) throw new Error('Speak-to-Sign note result is invalid.');
   return result;
 }
 
@@ -150,7 +240,10 @@ function readSharedResult(
     : { kind: 'unavailable', reason };
 }
 
-function readResult(value: unknown): SpeakToSignTransferResult | null {
+function readResult<R extends string>(
+  value: unknown,
+  refusals: Readonly<Record<R, true>>,
+): SpokenResultOf<R> | null {
   if (!isPlainObject(value)) return null;
   switch (value.kind) {
     case 'cancelled':
@@ -176,7 +269,7 @@ function readResult(value: unknown): SpeakToSignTransferResult | null {
       };
     }
     case 'refused': {
-      const reason = readReason(value, REFUSAL_REASONS);
+      const reason = readReason(value, refusals);
       if (reason === null) return null;
       return typeof value.detail === 'string'
         ? { kind: 'refused', reason, detail: value.detail }
@@ -186,6 +279,11 @@ function readResult(value: unknown): SpeakToSignTransferResult | null {
       return null;
   }
 }
+
+/** A transfer, note or rating result whose refusals are `R`; the other kinds are shared. */
+type SpokenResultOf<R extends string> =
+  | Variant<SpeakToSignTransferResult, 'kind', 'sent' | 'cancelled' | 'unavailable'>
+  | Readonly<{ kind: 'refused'; reason: R; detail?: string }>;
 
 function readReason<R extends string>(
   value: Record<string, unknown>,

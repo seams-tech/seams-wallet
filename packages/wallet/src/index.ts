@@ -24,10 +24,20 @@ export type {
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostPlugin,
+  SpeakToSignNoteRefusalReason,
+  SpeakToSignNoteRequest,
+  SpeakToSignNoteResult,
+  SpeakToSignRatingRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
   SpeakToSignUnavailableReason,
 } from './core/transactionFeatures/hostPlugin';
+export {
+  MAX_SUMMARY_WORDS,
+  summaryRefusal,
+  type NoteRating,
+  type SummaryRefusal,
+} from './core/transactionFeatures/spokenNote';
 export type { SpeakToSignCapability } from './SeamsWeb/publicApi/speakToSign';
 export { normalizeWalletLocale } from './core/ui/locale';
 export type { WalletLocale } from './core/ui/locale';

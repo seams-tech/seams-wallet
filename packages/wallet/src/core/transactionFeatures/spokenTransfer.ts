@@ -180,22 +180,46 @@ export function transferBorsh(request: SpokenTransferRequest): Uint8Array {
   return concat(parts);
 }
 
-/** `sha256(REQUEST_DIGEST_DOMAIN || borsh(request))`. */
-export async function requestDigest(request: SpokenTransferRequest): Promise<Uint8Array> {
-  return await sha256(concat([utf8(REQUEST_DIGEST_DOMAIN), transferBorsh(request)]));
+/** The two digests that a verdict names for one request. */
+export type SpokenDigests = Readonly<{
+  /** `sha256(REQUEST_DIGEST_DOMAIN || borsh(request))`. */
+  request: Uint8Array<ArrayBuffer>;
+  /** `sha256(SPOKEN_TEXT_DIGEST_DOMAIN || spoken_text)`. */
+  spokenText: Uint8Array<ArrayBuffer>;
+}>;
+
+/** The digests of a request from its Borsh bytes and its spoken words. */
+export async function spokenDigests(borsh: Uint8Array, spokenText: string): Promise<SpokenDigests> {
+  return {
+    request: await sha256(concat([utf8(REQUEST_DIGEST_DOMAIN), borsh])),
+    spokenText: await sha256(concat([utf8(SPOKEN_TEXT_DIGEST_DOMAIN), utf8(spokenText)])),
+  };
 }
 
-/** `sha256(SPOKEN_TEXT_DIGEST_DOMAIN || spoken_text)`. */
-export async function spokenTextDigest(rendered: RenderedTransfer): Promise<Uint8Array> {
-  return await sha256(concat([utf8(SPOKEN_TEXT_DIGEST_DOMAIN), utf8(rendered.spokenText)]));
+export async function transferDigests(request: SpokenTransferRequest): Promise<SpokenDigests> {
+  return await spokenDigests(transferBorsh(request), renderTransfer(request).spokenText);
 }
 
-function borshString(value: string): Uint8Array {
+/** True for every word that can appear in an integer. */
+export function isNumberWord(word: string): boolean {
+  return (
+    (ONES as readonly string[]).includes(word) ||
+    TENS.slice(2).includes(word) ||
+    isMultiplierWord(word)
+  );
+}
+
+/** True for "hundred" and the scale words. */
+export function isMultiplierWord(word: string): boolean {
+  return word === 'hundred' || SCALES.some(([scale]) => scale === word);
+}
+
+export function borshString(value: string): Uint8Array {
   const bytes = utf8(value);
   return concat([littleEndian(BigInt(bytes.length), 4), bytes]);
 }
 
-function littleEndian(value: bigint, length: number): Uint8Array {
+export function littleEndian(value: bigint, length: number): Uint8Array {
   const out = new Uint8Array(length);
   let rest = value;
   for (let index = 0; index < length; index += 1) {

@@ -1,4 +1,4 @@
-// The signed verdict of the Speak-to-Sign verifier (voice-verifier 0.3.0, verdict v2). Wallet
+// The signed verdict of the Speak-to-Sign verifier (voice-verifier 0.4.0, verdict v2). Wallet
 // core checks it before it signs, because an accepted verdict replaces the confirm click.
 
 import { base58Decode } from '@shared/utils/base58';
@@ -6,16 +6,7 @@ import { base64Decode, base64UrlEncode } from '@shared/utils/base64';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
 import type { SpeakToSignNetwork } from './plugins';
-import {
-  concat,
-  RENDERER_VERSION,
-  renderTransfer,
-  requestDigest,
-  sha256,
-  spokenTextDigest,
-  utf8,
-  type SpokenTransferRequest,
-} from './spokenTransfer';
+import { concat, RENDERER_VERSION, sha256, utf8, type SpokenDigests } from './spokenTransfer';
 
 /**
  * The verifier of each network: its OutLayer project and its project-bound verdict key. The key
@@ -106,13 +97,14 @@ export function parseVerifyOutput(value: unknown): VerifyOutput | null {
 }
 
 /**
- * Checks a verdict against the transfer that core will sign: the kind, renderer and fields, the
+ * Checks a verdict against the request that core will sign: the kind, renderer and fields, the
  * outcome, the request, spoken-text and audio digests, the expiry, the pinned key of the
- * network and the signature. A refusal pays nothing, so it needs no signature check.
+ * network and the signature. A refusal signs nothing, so it needs no signature check.
  */
 export async function checkVoiceVerdict(input: {
   readonly output: VerifyOutput;
-  readonly request: SpokenTransferRequest;
+  /** The digests of the request that core built itself. */
+  readonly expected: SpokenDigests;
   readonly verifier: SpeakToSignVerifier;
   /** base64url SHA-256 of each clip that core recorded in this flow. */
   readonly recordedAudio: ReadonlySet<string>;
@@ -140,8 +132,8 @@ export async function checkVoiceVerdict(input: {
   if (!approval) return { kind: 'mismatch', detail: 'unknown outcome' };
 
   const expected = {
-    request_digest: base64UrlEncode(await requestDigest(input.request)),
-    spoken_text_digest: base64UrlEncode(await spokenTextDigest(renderTransfer(input.request))),
+    request_digest: base64UrlEncode(input.expected.request),
+    spoken_text_digest: base64UrlEncode(input.expected.spokenText),
   };
   for (const [field, digest] of Object.entries(expected)) {
     if (verdict[field as keyof typeof expected] !== digest) {

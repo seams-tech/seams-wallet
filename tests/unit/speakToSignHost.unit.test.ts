@@ -19,12 +19,19 @@ import {
   isSpeakableAccount,
   parseSpeakableNear,
   renderTransfer,
-  requestDigest,
   sha256,
-  spokenTextDigest,
   transferBorsh,
+  transferDigests,
+  type SpokenDigests,
   type SpokenTransferRequest,
 } from '@/core/transactionFeatures/spokenTransfer';
+import {
+  noteActionBorsh,
+  noteActionDigests,
+  renderNoteAction,
+  summaryRefusal,
+  type SpokenNoteAction,
+} from '@/core/transactionFeatures/spokenNote';
 import {
   checkVoiceVerdict,
   parseVerifyOutput,
@@ -34,7 +41,11 @@ import { MAX_SAMPLES, pcm16Wav } from '@/core/transactionFeatures/wav';
 import type { Variant } from '@shared/utils/variant';
 import type { ActionResult } from '@/core/types/seams';
 import type { TransactionInput } from '@/core/types/actions';
-import { runSpokenTransfer, type HostTransfer } from '../../packages/speak-to-sign/src/host/flow';
+import {
+  runSpokenNote,
+  runSpokenTransfer,
+  type HostTransfer,
+} from '../../packages/speak-to-sign/src/host/flow';
 
 const VECTORS = JSON.parse(
   readFileSync(
@@ -157,13 +168,24 @@ async function verdictJson(
   audioDigest: Uint8Array,
   overrides: Record<string, unknown> = {},
 ): Promise<string> {
-  const rendered = renderTransfer(request);
+  return await verdictJsonFor(await transferDigests(request), audioDigest, {
+    heard: renderTransfer(request).spokenText,
+    ...overrides,
+  });
+}
+
+/** A verdict for any request kind, from its digests. */
+async function verdictJsonFor(
+  digests: SpokenDigests,
+  audioDigest: Uint8Array,
+  overrides: Record<string, unknown> = {},
+): Promise<string> {
   return JSON.stringify({
     kind: 'seams_voice_signed_verdict_v2',
     renderer: 'spoken-intent/1',
-    verifier: '0.3.1',
-    request_digest: b64u(await requestDigest(request)),
-    spoken_text_digest: b64u(await spokenTextDigest(rendered)),
+    verifier: '0.4.0',
+    request_digest: b64u(digests.request),
+    spoken_text_digest: b64u(digests.spokenText),
     audio_digest: b64u(audioDigest),
     outcome: 'accept',
     reason: null,
@@ -171,7 +193,7 @@ async function verdictJson(
     expires_at_ms: NOW_MS + 120_000,
     speaker_score_milli: 612,
     word_margin_milli: 214,
-    heard: rendered.spokenText,
+    heard: null,
     ...overrides,
   });
 }
@@ -236,8 +258,9 @@ test('the transfer port matches every account transfer vector of the spoken-inte
     expect(hex(transferBorsh(request)), vector.name).toBe(vector.borsh_hex);
     expect(rendered.displayText, vector.name).toBe(vector.display_text);
     expect(rendered.spokenText, vector.name).toBe(vector.spoken_text);
-    expect(hex(await requestDigest(request)), vector.name).toBe(vector.request_digest_hex);
-    expect(hex(await spokenTextDigest(rendered)), vector.name).toBe(vector.spoken_text_digest_hex);
+    const digests = await transferDigests(request);
+    expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
+    expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
   }
 });
 
@@ -288,7 +311,7 @@ test('the shared signed verdict vectors pass the core check as voice and voice-a
     expect(
       await checkVoiceVerdict({
         output: output!,
-        request,
+        expected: await transferDigests(request),
         verifier: { project: PROJECT, publicKey: SIGNED_VECTORS.publicKey },
         recordedAudio: new Set([SIGNED_VECTORS.audioDigest]),
         nowMs: SIGNED_VECTORS.expiresAtMs - 60_000,
@@ -310,7 +333,7 @@ test('the core check refuses a verdict that does not bind this transfer, clip, t
   ) =>
     await checkVoiceVerdict({
       output: parseVerifyOutput(output)!,
-      request,
+      expected: await transferDigests(request),
       verifier: { project: PROJECT, publicKey: options.publicKey ?? verifier.publicKey },
       recordedAudio: options.recordedAudio ?? recorded,
       nowMs: options.nowMs ?? NOW_MS,
@@ -372,7 +395,7 @@ test('a verifier refusal passes through with its reason and what was heard', asy
   expect(
     await checkVoiceVerdict({
       output: parseVerifyOutput(await verifyOutput(verifier, refusal))!,
-      request,
+      expected: await transferDigests(request),
       verifier: { project: PROJECT, publicKey: verifier.publicKey },
       recordedAudio: new Set(),
       nowMs: NOW_MS,
@@ -391,6 +414,7 @@ type FakeCore = {
   sentences: string[];
   verifyInputs: Array<Readonly<Record<string, unknown>>>;
   payments: Array<{ receiver: string; amountYocto: bigint; output: unknown }>;
+  notes: Array<{ action: SpokenNoteAction; output: unknown }>;
   /** Each view the flow showed, as `kind:label:headline or caption`. */
   views: string[];
   closed: number;
@@ -412,6 +436,7 @@ function fakeCore(input: {
     sentences: [],
     verifyInputs: [],
     payments: [],
+    notes: [],
     views: [],
     closed: 0,
     operations: {
@@ -451,6 +476,13 @@ function fakeCore(input: {
           }
           hooks.broadcasting();
         }
+        return payment;
+      },
+      async signNoteWithVerdict(action, output, _signal, hooks) {
+        core.notes.push({ action, output });
+        const payment =
+          input.payment ?? ({ kind: 'executed', transactionHash: 'tx-note', approval: 'voice' } as const);
+        if (payment.kind === 'executed') hooks.accepted();
         return payment;
       },
       async authorizeEnrollment() {
@@ -878,7 +910,7 @@ test('core pays once per flow, from the owner, with the approval the verdict nam
     expect(await pay(output)).toEqual({
       kind: 'refused',
       reason: 'verdict_mismatch',
-      detail: 'this flow already paid',
+      detail: 'this flow already signed',
     });
   }
 
@@ -1016,4 +1048,177 @@ test('core signs the enrollment message only for three clips it recorded', async
     error: 'Only recordings of this enrollment can be authorized.',
   });
   expect(harness.messages).toHaveLength(1);
+});
+
+// ---------------------------------------------------------------- community notes
+
+/** The note text of every community note vector of the crate (tests/vectors.rs `NOTE_TEXT`). */
+const VECTOR_NOTE_TEXT =
+  'The city closes one lane for two weeks of repairs. The bridge stays open to traffic. harborcity.gov/notices/1182';
+
+function decodeNoteBorsh(borshHex: string): { owner: string; action: SpokenNoteAction } {
+  const bytes = Buffer.from(borshHex, 'hex');
+  let at = 2;
+  const text = (): string => {
+    const length = bytes.readUInt32LE(at);
+    const value = bytes.subarray(at + 4, at + 4 + length).toString('utf8');
+    at += 4 + length;
+    return value;
+  };
+  const owner = text();
+  const contract = text();
+  const id = bytes.readBigUInt64LE(at);
+  at += 8;
+  if (bytes[0] === 5) {
+    const rating = (['helpful', 'somewhat_helpful', 'not_helpful'] as const)[bytes[at]];
+    return { owner, action: { kind: 'note_rating', contract, noteId: id, rating } };
+  }
+  at += 32;
+  const summary = text();
+  return {
+    owner,
+    action: { kind: 'community_note', contract, postId: id, text: VECTOR_NOTE_TEXT, summary },
+  };
+}
+
+test('the note port matches every note and rating vector of the spoken-intent crate', async () => {
+  const notes = VECTORS.requests.filter(
+    (vector) => vector.borsh_hex.startsWith('04') || vector.borsh_hex.startsWith('05'),
+  );
+  expect(notes.length).toBe(6);
+  for (const vector of notes) {
+    const { owner, action } = decodeNoteBorsh(vector.borsh_hex);
+    const rendered = renderNoteAction(action);
+    expect(hex(await noteActionBorsh('testnet', owner, action)), vector.name).toBe(vector.borsh_hex);
+    expect(rendered.displayText, vector.name).toBe(vector.display_text);
+    expect(rendered.spokenText, vector.name).toBe(vector.spoken_text);
+    const digests = await noteActionDigests('testnet', owner, action);
+    expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
+    expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
+  }
+});
+
+test('the summary rules match the crate', () => {
+  for (const text of [
+    'The bridge stays open, only one lane closes.',
+    'Repairs take two weeks!',
+    'one two three four five six seven eight nine ten eleven twelve',
+  ]) {
+    expect(summaryRefusal(text), text).toBeNull();
+  }
+  for (const [text, reason] of [
+    ['', 'empty'],
+    ['It isn\'t closed', 'character'],
+    ['Closed for 6 months', 'character'],
+    ['A two-week closure', 'character'],
+    ['See city.gov', 'character'],
+    [' Leading space', 'character'],
+    ['Two  spaces', 'character'],
+    ['Ends twice..', 'character'],
+    ['Send help to the city', 'transfer_verb'],
+    ['one two three four five six seven eight nine ten eleven twelve thirteen', 'too_many_words'],
+    ['abcdefghij '.repeat(12).trimEnd(), 'too_long'],
+  ] as const) {
+    expect(summaryRefusal(text), text).toBe(reason);
+  }
+});
+
+const NOTE: SpokenNoteAction = {
+  kind: 'community_note',
+  contract: 'community-notes.testnet',
+  postId: 7n,
+  text: 'The city closes one lane for two weeks of repairs.',
+  summary: 'Only one lane closes for two weeks.',
+};
+
+test('a spoken note verifies the summary and lets core sign the note', async () => {
+  const core = fakeCore({});
+  const result = await runSpokenNote({
+    walletId: 'owner.testnet' as never,
+    network: 'testnet',
+    signal: new AbortController().signal,
+    note: {
+      ownerAccountId: 'owner.testnet',
+      action: NOTE,
+      surfaceMeasurementBinding: { kind: 'disabled' },
+      operations: core.operations,
+    },
+  });
+  expect(result).toMatchObject({ kind: 'sent', transactionHash: 'tx-note', approval: 'voice' });
+  expect(core.sentences).toEqual(['Only one lane closes for two weeks.']);
+  expect(core.verifyInputs[0]?.request).toEqual({
+    kind: 'community_note',
+    contract: 'community-notes.testnet',
+    post_id: 7,
+    note_sha256_hex: hex(await sha256(new TextEncoder().encode(NOTE.text))),
+    summary: NOTE.summary,
+  });
+  expect(core.notes).toEqual([{ action: NOTE, output: { verdict: 'opaque' } }]);
+  expect(core.views.at(-1)).toBe('result::Note posted:Done');
+
+  const unspeakable = fakeCore({});
+  expect(
+    await runSpokenNote({
+      walletId: 'owner.testnet' as never,
+      network: 'testnet',
+      signal: new AbortController().signal,
+      note: {
+        ownerAccountId: 'owner.testnet',
+        action: { ...NOTE, summary: 'Closed for 6 months' },
+        surfaceMeasurementBinding: { kind: 'disabled' },
+        operations: unspeakable.operations,
+      },
+    }),
+  ).toEqual({ kind: 'refused', reason: 'summary_not_speakable' });
+  expect(unspeakable.sentences).toEqual([]);
+});
+
+test('core signs one add_note call with no deposit for the verdict of this note only', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const digests = await noteActionDigests('testnet', 'owner.testnet', NOTE);
+
+  const other = await noteActionDigests('testnet', 'owner.testnet', {
+    ...NOTE,
+    summary: 'The bridge is closed.',
+  });
+  expect(
+    await harness.operations.signNoteWithVerdict(
+      NOTE,
+      await verifyOutput(verifier, await verdictJsonFor(other, audio)),
+      signal,
+      paymentHooks(),
+    ),
+  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
+
+  expect(
+    await harness.operations.signNoteWithVerdict(
+      NOTE,
+      await verifyOutput(verifier, await verdictJsonFor(digests, audio)),
+      signal,
+      paymentHooks(),
+    ),
+  ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(harness.signed).toEqual([
+    {
+      transaction: {
+        receiverId: 'community-notes.testnet',
+        actions: [
+          {
+            type: 'FunctionCall',
+            methodName: 'add_note',
+            args: { post_id: 7, text: NOTE.text, summary: NOTE.summary },
+            gas: '30000000000000',
+            deposit: '0',
+          },
+        ],
+      },
+      approval: 'voice',
+      policyText: null,
+    },
+  ]);
 });

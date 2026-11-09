@@ -50,6 +50,7 @@ export function walletForHostRequest(
     case 'PM_SIGN_NEP413':
     case 'PM_REVOKE_LINKED_DEVICE':
     case 'PM_SPEAK_TO_SIGN_TRANSFER':
+    case 'PM_SPEAK_TO_SIGN_NOTE':
     case 'PM_SPEAK_TO_SIGN_ENROLL':
       return requiredWallet(request.payload?.walletId);
     case 'PM_SIGN_TEMPO':

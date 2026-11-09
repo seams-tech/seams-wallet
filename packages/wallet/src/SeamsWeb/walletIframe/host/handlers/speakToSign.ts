@@ -12,6 +12,7 @@ import type {
   SpeakToSignEnrollmentResult,
   SpeakToSignHostOperations,
   SpeakToSignHostPlugin,
+  SpeakToSignNoteResult,
   SpeakToSignTransferResult,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -27,7 +28,11 @@ import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
 import { signAndSendVoiceApprovedTransaction } from '@/SeamsWeb/operations/near/actions';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { ProgressPayload } from '../../shared/messages';
-import type { PMSpeakToSignTransferPayload } from '../../shared/speakToSign';
+import type {
+  PMSpeakToSignNotePayload,
+  PMSpeakToSignTransferPayload,
+} from '../../shared/speakToSign';
+import type { SpokenNoteAction } from '@/core/transactionFeatures/spokenNote';
 import { respondOkResult, withProgress } from './shared';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 
@@ -50,11 +55,15 @@ export function createSpeakToSignWalletIframeHandlers(
 ): HandlerMap {
   return {
     PM_SPEAK_TO_SIGN_TRANSFER: handleTransfer.bind(null, deps, ports),
+    PM_SPEAK_TO_SIGN_NOTE: handleNote.bind(null, deps, ports),
     PM_SPEAK_TO_SIGN_ENROLL: handleEnrollment.bind(null, deps, ports),
   };
 }
 
-type SpeakToSignRequest = Req<'PM_SPEAK_TO_SIGN_TRANSFER'> | Req<'PM_SPEAK_TO_SIGN_ENROLL'>;
+type SpeakToSignRequest =
+  | Req<'PM_SPEAK_TO_SIGN_TRANSFER'>
+  | Req<'PM_SPEAK_TO_SIGN_NOTE'>
+  | Req<'PM_SPEAK_TO_SIGN_ENROLL'>;
 
 function handleTransfer(
   deps: HandlerDeps,
@@ -62,6 +71,14 @@ function handleTransfer(
   request: Req<'PM_SPEAK_TO_SIGN_TRANSFER'>,
 ): Promise<void> {
   return handleSpeakToSign(deps, request, runTransfer.bind(null, deps, ports, request));
+}
+
+function handleNote(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  request: Req<'PM_SPEAK_TO_SIGN_NOTE'>,
+): Promise<void> {
+  return handleSpeakToSign(deps, request, runNote.bind(null, deps, ports, request));
 }
 
 function handleEnrollment(
@@ -76,7 +93,9 @@ function handleEnrollment(
 async function handleSpeakToSign(
   deps: HandlerDeps,
   request: SpeakToSignRequest,
-  run: (signal: AbortSignal) => Promise<SpeakToSignTransferResult | SpeakToSignEnrollmentResult>,
+  run: (
+    signal: AbortSignal,
+  ) => Promise<SpeakToSignTransferResult | SpeakToSignNoteResult | SpeakToSignEnrollmentResult>,
 ): Promise<void> {
   const controller = new AbortController();
   const timer = setInterval(
@@ -188,6 +207,35 @@ async function runTransfer(
       operations: flow.operations,
     },
   });
+}
+
+async function runNote(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  request: Req<'PM_SPEAK_TO_SIGN_NOTE'>,
+  signal: AbortSignal,
+): Promise<SpeakToSignNoteResult> {
+  const flow = await prepareFlow(deps, ports, request, signal);
+  if (flow.kind === 'unavailable') return flow;
+  return await flow.plugin.requestNoteAction({
+    walletId: flow.walletId,
+    network: flow.feature.network,
+    signal,
+    note: {
+      ownerAccountId: flow.ownerAccountId,
+      action: noteAction(request.payload),
+      surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
+      operations: flow.operations,
+    },
+  });
+}
+
+/** The channel carries ids as safe integers; core's action holds them as `u64` values. */
+function noteAction(payload: PMSpeakToSignNotePayload): SpokenNoteAction {
+  const { action } = payload;
+  return action.kind === 'community_note'
+    ? { ...action, postId: BigInt(action.postId) }
+    : { ...action, noteId: BigInt(action.noteId) };
 }
 
 async function runEnrollment(
