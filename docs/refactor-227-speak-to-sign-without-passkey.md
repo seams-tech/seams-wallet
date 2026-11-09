@@ -183,7 +183,7 @@ SpokenRequestV1::NoteRating { .. }    // tag 5, Step 3 (Section 4)
 - Which contracts and methods: a closed list in `spoken-intent` and the Wallet. A new call is
   a new request kind. No kind that moves value holds free text or a free function call.
 - The entries now are the community-note kinds, on the notes contract
-  `notes.seams-v1.testnet` (`seams-voice-intents/demo/contracts/community-notes`):
+  `notes.seams-v1.testnet` (`speak-to-sign/demo/contracts/community-notes`):
   - `CommunityNote` (tag 4) binds the post, the SHA-256 of the typed note text and the
     contract. Wallet core calls `add_note({post_id, text, summary})`.
   - `NoteRating` (tag 5) binds the note id and the rating. Wallet core calls
@@ -260,7 +260,7 @@ until the 0.57.0 rollout session reports done.
      `core/transactionFeatures/voiceVerdict.ts` against the pinned testnet key. An `accept`
      verdict pays once from the owner's account with no confirm. Enrollment signs one NEP-413
      message. The descriptor is `speakToSign({ network })`.
-   - Verifier 0.3.0 is `seams-voice-intents` commit `3dab63d`. Verifier 0.3.1 (commit
+   - Verifier 0.3.0 is `speak-to-sign` commit `3dab63d`. Verifier 0.3.1 (commit
      `446882b`, version key `5b6fad5d…c9c1d1`) is the version that runs.
    - The word check is forgiving. Wallet commit `976167297` (in `spoken-intent`) reads "sent"
      as "send", sound-alikes of "near" and "testnet", number sound-alikes in the amount slot,
@@ -347,7 +347,7 @@ until the 0.57.0 rollout session reports done.
    - The card keeps its own states from the core hooks; it needs no new event.
 3. **Spoken community notes.** `CommunityNote` and `NoteRating` in the crate and the port,
    the notes contract, verifier 0.4.0, the Wallet and SDK `requestNote` and `requestRating`,
-   and the Spoken Notes demo page (`seams-voice-intents/demo/frontend`). Check a spoken note and a
+   and the Spoken Notes demo page (`speak-to-sign/demo/frontend`). Check a spoken note and a
    spoken rating on staging. Open. The code is written (Wallet commits `522c2e8bc`,
    `bec400807`; notes contract on `notes.seams-v1.testnet`). Verifier 0.4.0 is on OutLayer as
    version `8a0b7ba0…2329ef` and is not active. The staging check is not done.
