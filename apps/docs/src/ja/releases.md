@@ -1,24 +1,23 @@
 ---
-title: リリース 0.58.1
-description: Speak-to-Signは、録音、確認、結果を1つのVoiceIDカードで示します。
+title: リリース 0.59.0
+description: Speak-to-Signは、音声によるコミュニティノートとノートの評価に署名します。
 ---
 
-# リリース 0.58.1
+# リリース 0.59.0
 
-ブラウザーSDK、サーバーSDK、VoiceIDプラグイン、Speak-to-Signプラグインは **0.58.1** を使います。
+ブラウザーSDK、サーバーSDK、VoiceIDプラグイン、Speak-to-Signプラグインは **0.59.0** を使います。
 
-- **実験的機能、NEARテストネット専用:** Speak-to-Signは、音声による支払いの全体を1つのVoiceIDカードで示します。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)を参照してください。
-  - 録音の後もカードは開いたままです。6つの区間の線が、録音、話者の確認、言葉の確認、ポリシー、署名された判定、支払いを示します。検証者が処理している間、説明文はそれぞれの確認がどこで動くかを示します。
-  - 送金が終わると、チェックマーク、発話の終わりからの時間、取引へのリンク、「Done」を示します。
-  - 拒否された場合は、検証者が違って聞き取った言葉など、その理由をカードに示します。「Try again」で同じカードのまま文をもう一度録音します。録音は合計で5回までです。Walletは1つの流れで最大1回だけ支払います。
-  - ステップアップはカードの中で確認を求めます。「Confirm with passkey」の後は、セッション自身の方法による新しい承認だけを求めます。
-  - `requestTransfer`は、所有者がカードを閉じたときに戻ります。結果は最後の試みのものです。
-- 検証者0.3.1(`5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`)は、値を持たない語の似た音の語(「NEAR」に対する「year」、「testnet」に対する「testnode」など)を受け入れます。保存したWhisperの文字起こしでは、送金の98.0%が通ります(以前は94.6%)。誤った受理はありません。
-- VoiceIDのホストAPIはバージョン **10**、Speak-to-SignのホストAPIはバージョン **5** です。Walletは、別のバージョンのホストプラグインを拒否します。
-- 0.58.1にも含まれる0.58.0の変更:
-  - Speak-to-Signは、ボールトなしで所有者自身のアカウントから支払います。受理された音声による支払いでは、確認画面もパスキーも出ません。ポリシーのルールは確認画面を再び求めることがあります。現在、仮のルールが1つあり、10 NEARを超える支払いで確認画面を求めます。
-  - `speakToSign({ vault, network })`は`speakToSign({ network })`に置き換わりました。`sent`の結果には`approval`(`voice`または`voice_and_passkey`)があります。
-- 4つのパッケージをすべて0.58.1でインストールしてください。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
+- **実験的機能、NEARテストネット専用:** Speak-to-Signは、コミュニティノートやノートの評価に音声で署名します。[音声によるコミュニティノート](/ja/concepts/auth-methods/speak-to-sign#spoken-community-notes)を参照してください。
+  - `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`: 作成者はノートを入力し、1〜12語の短い要約を読み上げます。判定はノート全体をSHA-256で結び付けます。
+  - `seams.speakToSign.requestRating({ walletId, contract, noteId, rating })`: 所有者は「this note is helpful」「this note is somewhat helpful」「this note is not helpful」のどれかを話します。
+  - 判定が承認されると、Wallet coreは所有者のアカウントから呼び出しを1件作ります。ノートのコントラクトの`add_note`または`rate_note`で、デポジットも確認画面もありません。どちらも`requestTransfer`と同じ種類の結果を返し、新しい拒否理由`summary_not_speakable`と`note_not_valid`があります。
+  - `@seams/wallet`の`summaryRefusal(text)`と`MAX_SUMMARY_WORDS`で、Walletを開く前に要約を確認できます。
+- 検証者0.4.0(`8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`)は、`community_note`と`note_rating`の要求を追加します。送金は変わりません。4語以上の要約は、1語が違って聞こえても、1語が抜けても通ります。ただし「not」の追加や欠落は通りません。
+- Speak-to-SignのホストAPIはバージョン **6** です。VoiceIDのホストAPIはバージョン **10** のままです。Walletは、別のバージョンのホストプラグインを拒否します。
+- 0.59.0にも含まれる0.58.1の変更:
+  - Speak-to-Signは、録音、確認、結果を1つのVoiceIDカードで示します。1つの流れで録音は5回まで、支払いは最大1回です。
+  - 検証者は、値を持たない語の似た音の語(「NEAR」に対する「year」など)を受け入れます。
+- 4つのパッケージをすべて0.59.0でインストールしてください。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
 
 ウォレットのiframeプロトコルは **23.0.0**、ウォレット管理プロトコルは **5** のままです。
 署名付きの復旧CLIは **0.29.0** のままです。このリリースにデータベースのマイグレーションはありません。

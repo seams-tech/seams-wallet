@@ -1,24 +1,23 @@
 ---
-title: Release 0.58.1
-description: Speak-to-Sign shows the recording, the check and the result in one VoiceID card.
+title: Release 0.59.0
+description: Speak-to-Sign signs spoken community notes and note ratings.
 ---
 
-# Release 0.58.1
+# Release 0.59.0
 
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.58.1**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.59.0**.
 
-- **Experimental, NEAR testnet only:** Speak-to-Sign shows one VoiceID card for the whole spoken payment. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign).
-  - After the recording, the card stays open. A line of six segments shows the recording, the speaker check, the word check, the policy, the signed verdict and the payment. While the verifier works, the caption names where each check runs.
-  - A paid transfer ends with a check mark, the time from the end of speech, a link to the transaction and "Done".
-  - A refusal shows the reason in the card, such as the words that the verifier heard differently. "Try again" records the sentence again on the same card, up to five recordings in all. The Wallet pays at most once in each flow.
-  - A step-up asks in the card. "Confirm with passkey" then asks only for the fresh approval with the session's own method.
-  - `requestTransfer` returns when the owner closes the card. The result is the last attempt's.
-- Verifier 0.3.1 (`5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1`) accepts sound-alikes of the words that hold no value, such as "year" for "NEAR" or "testnode" for "testnet". On the saved Whisper transcripts, 98.0% of transfers pass, up from 94.6%, with no false accepts.
-- The VoiceID host API is version **10**, and the Speak-to-Sign host API is version **5**. The Wallet refuses host plugins of other versions.
-- 0.58.0 changes, kept in 0.58.1:
-  - Speak-to-Sign pays from the owner's own account with no vault. An accepted spoken payment shows no confirm and no passkey. A policy rule can ask for the confirm again; today one stub rule asks for it above 10 NEAR.
-  - `speakToSign({ network })` replaces `speakToSign({ vault, network })`. A `sent` result has `approval` (`voice` or `voice_and_passkey`).
-- Install all four packages at 0.58.1. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
+- **Experimental, NEAR testnet only:** Speak-to-Sign signs a community note or a note rating by voice. See [Spoken community notes](/concepts/auth-methods/speak-to-sign#spoken-community-notes).
+  - `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })`: the author types the note and reads aloud a summary of 1 to 12 plain words. The verdict binds the full note by its SHA-256.
+  - `seams.speakToSign.requestRating({ walletId, contract, noteId, rating })`: the owner says "this note is helpful", "this note is somewhat helpful" or "this note is not helpful".
+  - On an approved verdict, Wallet core builds one call from the owner's account: `add_note` or `rate_note` on the notes contract, with no deposit and no confirm. Both calls return the result kinds of `requestTransfer`, with the new refusals `summary_not_speakable` and `note_not_valid`.
+  - `summaryRefusal(text)` and `MAX_SUMMARY_WORDS` from `@seams/wallet` check a summary before the Wallet opens.
+- Verifier 0.4.0 (`8a0b7ba0dff61a4b45e5d1d164c011525e11fe9f4fd02a4e22368882447329ef`) adds the `community_note` and `note_rating` requests. Transfers are unchanged. A summary of 4 or more words also passes with one word heard differently or dropped, but never with an added or dropped "not".
+- The Speak-to-Sign host API is version **6**, and the VoiceID host API stays at version **10**. The Wallet refuses host plugins of other versions.
+- 0.58.1 changes, kept in 0.59.0:
+  - Speak-to-Sign shows the recording, the check and the result in one VoiceID card, with up to five recordings and at most one payment in each flow.
+  - The verifier accepts sound-alikes of the words that hold no value, such as "year" for "NEAR".
+- Install all four packages at 0.59.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
