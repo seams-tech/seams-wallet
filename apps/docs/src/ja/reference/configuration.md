@@ -48,6 +48,8 @@ Seamsのプロバイダー設定は不要です。バージョン`0.59.0`には�
 分離したウォレットオリジンには、`iframeWallet`を使います。HTTPSの`walletOrigin`を設定してください。
 `walletServicePath`と`sdkBasePath`を、そのオリジンにデプロイしたアセットへ合わせてください。
 `rpIdOverride`は認証情報の範囲を変更するため、明示的なセキュリティレビューが必要です。
+指定しない場合、パスキーの範囲は`walletOrigin`のホスト(例: `staging.sign.seams.sh`)です。
+0.60.0より前は、`seamsTestnetConfig`と`defineSeamsConfig`は、どのウォレットのオリジンでもローカル用の既定値`example.localhost`を使っていました。
 
 ## 任意のVoiceID {#optional-voiceid}
 

@@ -49,6 +49,9 @@ See the [short examples and retry rules](/guides/external-near-wallets#choose-su
 Use `iframeWallet` for the isolated wallet origin. Set the HTTPS `walletOrigin`. Set
 `walletServicePath` and `sdkBasePath` to match the assets deployed at that origin.
 `rpIdOverride` changes credential scope and needs an explicit security review.
+Without it, passkeys are scoped to the host of `walletOrigin`, for example
+`staging.sign.seams.sh`. Before 0.60.0, `seamsTestnetConfig` and `defineSeamsConfig`
+kept the local default `example.localhost` for every wallet origin.
 
 ## Optional VoiceID
 

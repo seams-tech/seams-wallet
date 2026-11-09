@@ -253,8 +253,11 @@ export function buildConfigsFromDefaults(args: {
   const walletOriginRaw = overrides.iframeWallet?.walletOrigin;
   const walletOrigin = toTrimmedString(walletOriginRaw);
 
-  const walletRpIdOverride =
-    overrides.iframeWallet?.rpIdOverride ?? defaults.wallet.iframe.rpIdOverride;
+  const walletRpIdOverride = resolveWalletRpIdOverride(
+    overrides.iframeWallet?.rpIdOverride,
+    walletOrigin,
+    defaults.wallet.iframe.rpIdOverride,
+  );
   // IMPORTANT: the following fields are often wired from CI env vars like `VITE_SDK_BASE_PATH`.
   // When a GitHub Actions env var is missing, expressions like `${{ vars.VITE_SDK_BASE_PATH }}`
   // frequently become the empty string at build-time. Treat empty strings as "unset" so we
@@ -360,4 +363,21 @@ export function buildConfigsFromDefaults(args: {
       },
     },
   };
+}
+
+/**
+ * The passkey RP ID of the hosted Wallet. An app's own `rpIdOverride` wins. Without one, the
+ * default RP ID applies only to a wallet origin under it (the local `wallet.example.localhost`);
+ * any other wallet origin, such as `https://staging.sign.seams.sh`, keeps no override, so the
+ * Wallet uses its own host.
+ */
+function resolveWalletRpIdOverride(
+  override: string | undefined,
+  walletOrigin: string,
+  fallback: string | undefined,
+): string | undefined {
+  if (override !== undefined) return override;
+  if (!walletOrigin || !fallback || !URL.canParse(walletOrigin)) return fallback;
+  const host = new URL(walletOrigin).hostname.toLowerCase();
+  return host === fallback || host.endsWith(`.${fallback}`) ? fallback : undefined;
 }
