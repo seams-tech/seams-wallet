@@ -3,14 +3,14 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.58.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.58.1**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.58.0` — browser SDK and React components.
-- `@seams/wallet-server@0.58.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.58.0` — optional VoiceID authentication plugin.
-- `@seams/speak-to-sign@0.58.0` — experimental, testnet-only spoken payments; needs VoiceID.
+- `@seams/wallet@0.58.1` — browser SDK and React components.
+- `@seams/wallet-server@0.58.1` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.58.1` — optional VoiceID authentication plugin.
+- `@seams/speak-to-sign@0.58.1` — experimental, testnet-only spoken payments; needs VoiceID.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -18,7 +18,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `23.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use version **0.58.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use version **0.58.1**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,6 +27,11 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Release 0.58.1
+
+- Speak-to-Sign shows one VoiceID card for the whole spoken payment. After the recording, the card stays open: it shows the verifier check, the payment and the result in place. A refusal offers "Try again" on the same card, and a step-up asks for the passkey in the card. `requestTransfer` returns when the owner closes the card.
+- The VoiceID host API is version 10 and the Speak-to-Sign host API is version 5. Install all four packages at 0.58.1.
 
 ## Release 0.58.0
 
@@ -39,13 +44,13 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.58.0
+npm install @seams/wallet@0.58.1
 # Server applications:
-npm install @seams/wallet-server@0.58.0
+npm install @seams/wallet-server@0.58.1
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.58.0
+npm install @seams/voiceid@0.58.1
 # Experimental Speak-to-Sign (needs VoiceID):
-npm install @seams/speak-to-sign@0.58.0
+npm install @seams/speak-to-sign@0.58.1
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.

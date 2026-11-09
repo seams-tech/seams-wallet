@@ -1,23 +1,23 @@
 ---
-title: Release 0.58.0
-description: Speak-to-Sign pays from the owner's own account with no vault and no passkey; a policy rule can ask for the confirm again.
+title: Release 0.58.1
+description: Speak-to-Sign shows the recording, the check and the result in one VoiceID card.
 ---
 
-# Release 0.58.0
+# Release 0.58.1
 
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.58.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.58.1**.
 
-- **Experimental, NEAR testnet only:** Speak-to-Sign pays from the owner's own account. There is no vault contract. The verifier signs a verdict; Wallet core checks it against the verifier key that the Wallet pins, and sends the transfer through the owner's Wallet Session. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign).
-  - An accepted spoken payment shows no confirm and no passkey. A spoken payment needs a warm Wallet Session; a locked or expired session asks for an unlock first.
-  - A policy rule in the verifier can ask for the confirm again. Today one stub rule asks for it above 10 NEAR. A `sent` result has `approval`: `voice` or `voice_and_passkey`.
-  - A verdict expires 120 s after the verifier signs it. The Wallet pays each verdict at most once, and only for a recording of the same flow.
-  - Enrollment signs one NEP-413 message for exactly the three recordings, in place of the vault authorization. Each owner enrolls again once.
-- The Speak-to-Sign host API is version **4**. The Wallet refuses a Speak-to-Sign host plugin of another version. The verifier is version 0.3.0 (`09f4ce1be348cc874ded71687c9de96b05fbfb452f94bc801c6752b4e39ea294`).
-- Compatibility:
-  - Replace `speakToSign({ vault, network })` with `speakToSign({ network })`. `seams.speakToSign` has no `vault` field.
-  - Replace `case 'vault_rejected'` with `transaction_failed`, and drop `vault_missing`. TypeScript reports the old reasons.
-  - An `enrolled` result has no `transactionHash`, and a `sent` result has no `checkMs` time.
-- Install all four packages at 0.58.0. The VoiceID host API stays at version **9**. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
+- **Experimental, NEAR testnet only:** Speak-to-Sign shows one VoiceID card for the whole spoken payment. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign).
+  - After the recording, the card stays open. A line of six segments shows the recording, the speaker check, the word check, the policy, the signed verdict and the payment. While the verifier works, the caption names where each check runs.
+  - A paid transfer ends with a check mark, the time from the end of speech, a link to the transaction and "Done".
+  - A refusal shows the reason in the card, such as the words that the verifier heard differently. "Try again" records the sentence again on the same card.
+  - A step-up asks in the card. "Confirm with passkey" then asks only for the fresh approval with the session's own method.
+  - `requestTransfer` returns when the owner closes the card. The result is the last attempt's.
+- The VoiceID host API is version **10**, and the Speak-to-Sign host API is version **5**. The Wallet refuses host plugins of other versions.
+- 0.58.0 changes, kept in 0.58.1:
+  - Speak-to-Sign pays from the owner's own account with no vault. An accepted spoken payment shows no confirm and no passkey. A policy rule can ask for the confirm again; today one stub rule asks for it above 10 NEAR.
+  - `speakToSign({ network })` replaces `speakToSign({ vault, network })`. A `sent` result has `approval` (`voice` or `voice_and_passkey`).
+- Install all four packages at 0.58.1. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. This release adds no database migrations.

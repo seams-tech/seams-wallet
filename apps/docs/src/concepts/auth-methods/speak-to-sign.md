@@ -25,7 +25,7 @@ enrollment and uses the VoiceID capture surface.
 ## How a spoken payment works
 
 1. The Wallet shows the expected sentence on the VoiceID surface and records
-   one clip of at most 8 s.
+   one clip of at most 8 s. The card stays open and shows each next step.
 2. The Seams server sends the clip and the typed request to the verifier on
    OutLayer, a NEAR off-chain compute service that runs code in a TEE (trusted
    execution environment).
@@ -40,8 +40,12 @@ enrollment and uses the VoiceID capture surface.
    checks it against the verifier key that the Wallet pins: the request, the
    spoken text, the recording, the expiry and the signature.
 5. On `accept`, the Wallet signs the transfer through the owner's Wallet
-   Session with no confirm and sends it. On `step_up`, the owner approves
-   again on the confirm (a passkey on a passkey session).
+   Session with no confirm and sends it. On `step_up`, the card asks the owner
+   to approve again with the session's own method (a passkey on a passkey
+   session).
+6. The card shows the result: the paid transfer with a link, or the reason
+   for a refusal with "Try again". The call returns when the owner closes the
+   card.
 
 A spoken payment needs a warm Wallet Session. If the session is locked or
 expired, the Wallet asks the owner to unlock first.
@@ -51,7 +55,7 @@ expired, the Wallet asks the owner to unlock first.
 Install the three packages at the same version:
 
 ```sh
-pnpm add @seams/wallet@0.58.0 @seams/voiceid@0.58.0 @seams/speak-to-sign@0.58.0
+pnpm add @seams/wallet@0.58.1 @seams/voiceid@0.58.1 @seams/speak-to-sign@0.58.1
 ```
 
 Add the descriptor to `transactionFeatures` beside the VoiceID auth method:
