@@ -255,6 +255,55 @@ Put new code in new files. `BrowserSigningSurface.ts`, `routerAbEd25519YaoRecove
 - `docs/router-ab/ed25519-yao.md`: the operation list, "Fixed Circuit Families" and "Root
   and Key-Continuity Policy".
 
+#### Implementation map for Steps 4–6 (2026-11-10)
+
+A read-only survey of the Recovery path. Line numbers are from `0c613bf30`.
+
+- **Shape.** Recovery has three calls: admit, execute, activate. In execute, the SigningWorker
+  stages a candidate before the Router releases the client packages
+  (`finalize_router_result_v1`, `router_coordinator.rs:1407-1641`). Reissue needs only admit
+  and execute. The Gateway export domain (`ed25519Yao/export/`) is the nearest template.
+- **Client.** `rejoinWalletCustodyNearEd25519KeySet` (`BrowserSigningSurface.ts:2863`) and
+  `walletRecoveryEd25519.ts:62-287` build, admit, execute and activate. A reissue keeps the
+  active material activation, needs no replacement capability binding, and checks the execute
+  result against the descriptor's `signingWorkerVerifyingShare` and `stateEpoch`. The custody
+  ceremony picks recovery or registration by `continuity.is_some()`
+  (`wasm/wallet_custody_ceremony/src/ceremony.rs:672-690`); it must pick by operation.
+- **Gateway.** `routerAbEd25519YaoRecoveryRequestScopedCloudflare.ts` runs admit/execute/
+  activate. `prepareAdmitRecovery` (`routerAbEd25519YaoRecovery.ts:2132-2288`) suspends the
+  capability; a reissue must not. The execute continuation authorizes without a bearer as
+  `wallet_recovery` (`routerAbEd25519YaoRecoveryWalletSessionAuthorization.ts:591-598`); a
+  reissue must require the bearer. There is no per-wallet rate limit for recovery today. The
+  Router policy (`lib.rs:1455-1560`, `allowed_work_kinds`) must list `reissue`.
+- **Derivers.** Base contributions come from the stable context only. Add `Reissue` to
+  `matches_operation` (`router-ab-ed25519-yao/src/lib.rs:219-230`) and
+  `operation_matches_kind` (`crypto.rs:575-588`). Recipients are decided only in
+  `execution.rs` (23-41, 67-95, 267-316).
+- **SigningWorker.** `deliver_recovery` (`signing_worker_wallet.rs:1066-1107`) combines the
+  packages (`activation.rs:275-359`, `build_candidate`) and stores `RecoveryStaged`. The only
+  read-only command today is `LookupRegistration` (1275-1296). A reissue check is a new DO
+  command beside it. It opens the SigningWorker packages, checks the verifying share and key
+  against the `Active` state in constant time, keeps the epoch, and persists nothing.
+- **Exhaustive matches** the compiler finds: `router-ab-core` (`ed25519_yao.rs`, `gate.rs`,
+  `ed25519_yao_router.rs`, `vectors.rs`), the protocol tag (`lib.rs:59-67`) and
+  `router_coordinator.rs` (1423, 1482-1498, 1621-1640, 1922-1939, 2093-2102). Silent guards
+  (`matches!`, `_`) are listed in the survey: `activation.rs`, `execution.rs`, `crypto.rs`,
+  `ed25519_yao_signing_worker.rs`, `signing_worker_wallet.rs:725`, the client crate and
+  `circuit_tests.rs`. `router-ab-cloudflare` compiles with a new variant because its catch-all
+  arms refuse it.
+- **Map `Reissue` to `RequestKind::Recovery`.** `RequestKind` is only a lifecycle label and does
+  not enter the Ed25519 contribution derivation, so the formal model's `RequestKind` needs no
+  new kind. `ActivationOrigin` (`ActivationRecipientPartyViews.lean:11-15`) and the generator
+  enums still do.
+- **Vectors and bindings.** Add a `reissue_v1` pair-digest case (`vectors.rs:246-272`,
+  `fixtures/protocol/ed25519-yao/pair-digest-vectors-v1.json`). Regenerate the TS with
+  `UPDATE_ROUTER_AB_ED25519_YAO_TYPES=1 cargo test --manifest-path crates/router-ab-core/Cargo.toml --features typescript-bindings --test export_typescript_bindings`.
+  ECDSA shares `ExpensiveWorkKindV1` and its generated union.
+- **Open questions.** Refuse a reissue while a recovery has the capability suspended or when it
+  is retired? Which row does a linked device's reissue check (`linked_ed25519.rs`)? Keep the
+  SigningWorker recipient in the client's sealed inputs, or add a reissue recipient type? The
+  binding must carry the active `root_share_epoch` after a tenant-root refresh.
+
 ### Step 5. Gateway route and authorization
 
 - Admission and execute routes with a Wallet Session bearer, beside the recovery routes.
