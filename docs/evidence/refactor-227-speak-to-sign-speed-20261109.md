@@ -277,4 +277,8 @@ The user approved Steps 1, 2 and 3.
 - Production stays on 0.57.0; the user chose staging only for 0.61.0.
 - The staging measurement waits for that deploy and for one voice payment by the owner. An
   automated staging check (passkey wallet, VoiceID, enrollment, spoken note, rating, merge
-  approval; no transfer) is ready to run after the deploy.
+  approval; no transfer) exists, but a dry run stopped at a fact: the staging Wallet creates an
+  implicit NEAR account that does not exist until someone funds it. The enrollment needs the
+  account on chain (the verifier reads the owner's access key), and each call needs gas. So
+  the owner funds the test account first; the funding is a transfer, which the agent does not
+  make.
