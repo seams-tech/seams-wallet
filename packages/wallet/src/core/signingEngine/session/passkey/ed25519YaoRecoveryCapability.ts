@@ -54,6 +54,7 @@ export type ParsedYaoRecoveryCapabilityV1 = {
   readonly materialActivation: MpcMaterialActivationRef;
   readonly activeCapabilityBinding: readonly number[];
   readonly registeredPublicKey: readonly number[];
+  readonly signingWorkerVerifyingShare: readonly number[];
   readonly nearAccountId: AccountId;
   readonly applicationBinding: {
     readonly wallet_id: string;
@@ -209,6 +210,10 @@ export function parseEd25519YaoRecoveryCapabilityV1(raw: unknown): ParsedYaoReco
     registeredPublicKey: requireBytes32(
       record.registeredPublicKey,
       'capability.registeredPublicKey',
+    ),
+    signingWorkerVerifyingShare: requireBytes32(
+      record.signingWorkerVerifyingShare,
+      'capability.signingWorkerVerifyingShare',
     ),
     nearAccountId: toAccountId(
       requireTrimmedString(record.nearAccountId, 'capability.nearAccountId'),

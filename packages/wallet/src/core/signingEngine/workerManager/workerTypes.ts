@@ -135,6 +135,7 @@ export type EmailOtpEd25519YaoActiveCapabilityDescriptorV1 = {
   readonly materialActivation: MpcMaterialActivationRef;
   readonly activeCapabilityBinding: RouterAbEd25519YaoBytes32V1;
   readonly registeredPublicKey: RouterAbEd25519YaoBytes32V1;
+  readonly signingWorkerVerifyingShare: RouterAbEd25519YaoBytes32V1;
   readonly nearAccountId: string;
   readonly applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
   readonly runtimePolicyScope: ThresholdRuntimePolicyScope;

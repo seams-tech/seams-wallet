@@ -20,8 +20,9 @@ use crate::{
 };
 use crate::{
     ed25519_local_material_binding_v1, import_activated_client_material_v1,
-    open_wallet_custody_ed25519_material_v1, seal_activated_client_material_v1,
-    LocalMaterialSealDomainV1, OpenWalletCustodyEd25519MaterialV1,
+    open_wallet_custody_ed25519_material_v1, rebind_wallet_custody_ed25519_material_v1,
+    seal_activated_client_material_v1, LocalMaterialSealDomainV1,
+    OpenWalletCustodyEd25519MaterialV1, RebindCacheRecordV1, RebindWalletCustodyEd25519MaterialV1,
 };
 use router_ab_core::{
     Ed25519YaoEncryptedPackageV1, RouterAbEd25519YaoActivationAdmissionReceiptV1,
@@ -612,6 +613,101 @@ pub fn wasm_open_wallet_custody_ed25519_material_v1(
         client_scalar_share: Zeroizing::new(*opened.client_scalar_share()),
         registered_public_key: opened.registered_public_key(),
         state_epoch: opened.state_epoch(),
+    })
+}
+
+/// A cache record re-bound to the current SigningWorker state epoch, and the
+/// activated Client it opens to. The ciphertext is read once and the Client is
+/// taken once, so neither outlives the caller that persists and uses them.
+#[wasm_bindgen]
+pub struct WasmReboundWalletCustodyEd25519MaterialV1 {
+    ciphertext: Vec<u8>,
+    client: Option<WasmActivatedClientV1>,
+}
+
+#[wasm_bindgen]
+impl WasmReboundWalletCustodyEd25519MaterialV1 {
+    /// The new record's ciphertext, sealed at the new state epoch.
+    pub fn ciphertext(&self) -> Vec<u8> {
+        self.ciphertext.clone()
+    }
+
+    /// Takes the activated Client at the new state epoch.
+    pub fn take_client(&mut self) -> Result<WasmActivatedClientV1, JsValue> {
+        self.client
+            .take()
+            .ok_or_else(|| JsValue::from_str("re-bound Ed25519 Client was already taken"))
+    }
+}
+
+/// Re-binds the wallet's continuity cache to the server's current state epoch.
+///
+/// A Router recovery keeps the shares and moves only the epoch, so a record
+/// from an older epoch still holds the current share. The record is opened at
+/// its old epoch, checked against the server's current SigningWorker verifying
+/// share and the registered key, and sealed again under the new epoch. Both
+/// bindings are rebuilt here, as in [`wasm_open_wallet_custody_ed25519_material_v1`],
+/// so a re-bind can change nothing but the epoch.
+#[wasm_bindgen(js_name = rebindWalletCustodyEd25519MaterialV1)]
+#[allow(clippy::too_many_arguments)]
+pub fn wasm_rebind_wallet_custody_ed25519_material_v1(
+    factor_secret: &[u8],
+    envelope_binding_json: &str,
+    envelope_nonce: &[u8],
+    envelope_ciphertext: &[u8],
+    envelope_aad_hash: &[u8],
+    envelope_ciphertext_digest: &[u8],
+    application_binding_digest: &[u8],
+    registered_public_key: &[u8],
+    client_participant_id: u16,
+    signing_worker_participant_id: u16,
+    signing_worker_verifying_share: &[u8],
+    old_state_epoch: u64,
+    old_nonce: &[u8],
+    old_ciphertext: &[u8],
+    new_state_epoch: u64,
+    new_nonce: &[u8],
+) -> Result<WasmReboundWalletCustodyEd25519MaterialV1, JsValue> {
+    let envelope_binding =
+        serde_json::from_str::<PasskeyCustodyEnvelopeBindingV1>(envelope_binding_json)
+            .map_err(js_error)?;
+    let application_binding_digest =
+        parse_32(application_binding_digest, "application binding digest")?;
+    let registered_public_key = parse_32(
+        registered_public_key,
+        "expected registered Ed25519 public key",
+    )?;
+    let signing_worker_verifying_share = parse_32(
+        signing_worker_verifying_share,
+        "SigningWorker verifying share",
+    )?;
+    let rebound = rebind_wallet_custody_ed25519_material_v1(RebindWalletCustodyEd25519MaterialV1 {
+        factor_secret,
+        envelope_binding: &envelope_binding,
+        envelope_nonce,
+        envelope_ciphertext,
+        envelope_aad_hash,
+        envelope_ciphertext_digest,
+        record: RebindCacheRecordV1 {
+            application_binding_digest: &application_binding_digest,
+            registered_public_key: &registered_public_key,
+            participant_ids: [client_participant_id, signing_worker_participant_id],
+            old_state_epoch,
+            old_nonce,
+            old_ciphertext,
+            new_state_epoch,
+            new_nonce,
+            signing_worker_verifying_share: &signing_worker_verifying_share,
+        },
+    })
+    .map_err(js_error)?;
+    Ok(WasmReboundWalletCustodyEd25519MaterialV1 {
+        ciphertext: rebound.ciphertext,
+        client: Some(WasmActivatedClientV1 {
+            client_scalar_share: Zeroizing::new(*rebound.client.client_scalar_share()),
+            registered_public_key: rebound.client.registered_public_key(),
+            state_epoch: rebound.client.state_epoch(),
+        }),
     })
 }
 

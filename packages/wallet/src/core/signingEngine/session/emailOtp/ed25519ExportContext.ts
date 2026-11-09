@@ -646,6 +646,7 @@ function capabilityFromActiveMaterial(args: {
     materialActivation: metadata.materialActivation,
     activeCapabilityBinding: metadata.activeCapabilityBinding,
     registeredPublicKey: [...metadata.registeredPublicKey],
+    signingWorkerVerifyingShare: [...metadata.signingWorkerVerifyingShare],
     nearAccountId: String(signer.account.nearAccountId),
     applicationBinding: metadata.applicationBinding,
     runtimePolicyScope: args.material.facts.runtimePolicyScope,

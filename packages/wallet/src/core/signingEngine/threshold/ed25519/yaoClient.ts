@@ -5,6 +5,7 @@ import {
   WasmEd25519YaoClientRootExportSessionV1,
   WasmWalletCustodySeedExportSessionV1,
   openWalletCustodyEd25519MaterialV1,
+  rebindWalletCustodyEd25519MaterialV1,
   default as initializeYaoClientWasm,
 } from '../../../../../../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.js';
 import {
@@ -34,6 +35,7 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import type { VoiceIdOperationAssertion } from '@shared/authorization/voiceIdDeviceAssertion';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { type MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
@@ -303,6 +305,21 @@ type RouterAbEd25519YaoOpenCustodyCacheInputV1 = {
   applicationBindingDigest: Uint8Array;
   sealed: RouterAbEd25519YaoSealedLocalMaterialV1;
   metadata: RouterAbEd25519YaoActiveClientMetadataV1;
+};
+
+/**
+ * Re-binds a cache record from an older SigningWorker state epoch. `metadata`
+ * describes the current epoch and the server's verifying share; the record is
+ * opened at `oldStateEpoch`.
+ */
+type RouterAbEd25519YaoRebindCustodyCacheInputV1 = RouterAbEd25519YaoOpenCustodyCacheInputV1 & {
+  oldStateEpoch: bigint;
+};
+
+export type RouterAbEd25519YaoReboundCustodyCacheV1 = {
+  activeClient: RouterAbEd25519YaoSealableActiveClientV1;
+  /** The record sealed at the new epoch; persist it in place of the old one. */
+  sealed: { nonceB64u: string; ciphertextB64u: string };
 };
 
 export type RouterAbEd25519YaoClientSigningInputV1 = {
@@ -1110,6 +1127,53 @@ function openVerifiedCustodyCacheActiveClient(
   }
 }
 
+function rebindVerifiedCustodyCacheActiveClient(
+  input: RouterAbEd25519YaoRebindCustodyCacheInputV1,
+): RouterAbEd25519YaoReboundCustodyCacheV1 {
+  let activated: WasmActivatedClientV1 | null = null;
+  const newNonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  try {
+    const rebound = rebindWalletCustodyEd25519MaterialV1(
+      input.ownedFactorSecret,
+      input.envelope.bindingJson,
+      input.envelope.nonce,
+      input.envelope.ciphertext,
+      input.envelope.aadHash,
+      input.envelope.ciphertextDigest,
+      input.applicationBindingDigest,
+      input.metadata.registeredPublicKey,
+      input.metadata.participantIds[0],
+      input.metadata.participantIds[1],
+      input.metadata.signingWorkerVerifyingShare,
+      input.oldStateEpoch,
+      input.sealed.nonce,
+      input.sealed.ciphertext,
+      input.metadata.stateEpoch,
+      newNonce,
+    );
+    let ciphertext: Uint8Array;
+    try {
+      ciphertext = rebound.ciphertext();
+      activated = rebound.take_client();
+    } finally {
+      rebound.free();
+    }
+    return {
+      activeClient: new WasmRouterAbEd25519YaoActiveClientV1({
+        [ACTIVE_CLIENT_CONSTRUCTION]: true,
+        metadata: input.metadata,
+        activated,
+      }),
+      sealed: { nonceB64u: base64UrlEncode(newNonce), ciphertextB64u: base64UrlEncode(ciphertext) },
+    };
+  } catch (error) {
+    activated?.free();
+    throw error;
+  } finally {
+    input.ownedFactorSecret.fill(0);
+  }
+}
+
 let yaoClientInitialization: ReturnType<typeof initializeYaoClientWasm> | null = null;
 
 function resetYaoClientInitialization(error: unknown): never {
@@ -1146,6 +1210,18 @@ export class RouterAbEd25519YaoClientV1 {
     input: RouterAbEd25519YaoOpenCustodyCacheInputV1,
   ): RouterAbEd25519YaoSealableActiveClientV1 {
     return openVerifiedCustodyCacheActiveClient(input);
+  }
+
+  /**
+   * Re-binds a continuity cache record from an older state epoch to the
+   * server's current one. A recovery keeps the shares, so the record still
+   * holds the current share; the wasm side checks it against the current
+   * SigningWorker verifying share before it seals the new record.
+   */
+  rebindCustodyCache(
+    input: RouterAbEd25519YaoRebindCustodyCacheInputV1,
+  ): RouterAbEd25519YaoReboundCustodyCacheV1 {
+    return rebindVerifiedCustodyCacheActiveClient(input);
   }
 
   async exportSeed(

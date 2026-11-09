@@ -705,6 +705,7 @@ function parseEmailOtpEd25519YaoActiveCapabilityWithMaterialParser(
       'activeCapabilityBinding',
       'materialActivation',
       'registeredPublicKey',
+      'signingWorkerVerifyingShare',
       'nearAccountId',
       'applicationBinding',
       'runtimePolicyScope',
@@ -814,6 +815,10 @@ function parseEmailOtpEd25519YaoActiveCapabilityWithMaterialParser(
     registeredPublicKey: parseEmailOtpEd25519YaoJsonBytes32(
       obj.registeredPublicKey,
       'capability.registeredPublicKey',
+    ),
+    signingWorkerVerifyingShare: parseEmailOtpEd25519YaoJsonBytes32(
+      obj.signingWorkerVerifyingShare,
+      'capability.signingWorkerVerifyingShare',
     ),
     nearAccountId: readString(obj.nearAccountId, 'capability.nearAccountId'),
     applicationBinding: {

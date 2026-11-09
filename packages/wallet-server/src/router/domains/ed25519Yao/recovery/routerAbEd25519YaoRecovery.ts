@@ -617,6 +617,8 @@ export type RouterAbEd25519YaoActiveCapabilityDescriptorV1 = {
   readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   readonly activeCapabilityBinding: RouterAbEd25519YaoBytes32V1;
   readonly registeredPublicKey: RouterAbEd25519YaoBytes32V1;
+  /** From the active activation receipt; lets a client prove a cached share is current. */
+  readonly signingWorkerVerifyingShare: RouterAbEd25519YaoBytes32V1;
   readonly nearAccountId: string;
   readonly applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
   readonly runtimePolicyScope: RuntimePolicyScope;
@@ -995,6 +997,7 @@ type WarmBootstrapLinkedEd25519AuthorityProjectionV1 = {
   readonly participantIds: readonly [number, number];
   readonly activationReceipt: {
     readonly registered_public_key: readonly number[];
+    readonly signing_worker_verifying_share: readonly number[];
     readonly material_activation: RouterAbMpcMaterialActivationRefWire;
   };
 };
@@ -1087,6 +1090,8 @@ async function resolveWarmBootstrapCapabilityForAuthority(input: {
   return {
     ...descriptor,
     materialActivation: projectionMaterialWire,
+    // The linked device's own activation, not the founding device's.
+    signingWorkerVerifyingShare: [...projection.activationReceipt.signing_worker_verifying_share],
     lifecycle: { ...descriptor.lifecycle, thresholdSessionId: targetSessionId.value },
   };
 }
@@ -1939,6 +1944,9 @@ export function resolveRouterAbEd25519YaoActiveCapability(
       materialActivation: matched.activationBinding.material_activation,
       activeCapabilityBinding: [...matched.capabilityBinding],
       registeredPublicKey: [...matched.registeredPublicKey],
+      signingWorkerVerifyingShare: [
+        ...matched.persisted.activationResult.public_receipt.signing_worker_verifying_share,
+      ],
       nearAccountId: matched.nearAccountId,
       applicationBinding: {
         wallet_id: matched.applicationBinding.wallet_id,

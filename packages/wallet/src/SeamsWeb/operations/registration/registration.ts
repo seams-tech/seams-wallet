@@ -577,6 +577,7 @@ function buildRegistrationEmailOtpEd25519RecoveryBootstrap(args: {
       materialActivation: metadata.materialActivation,
       activeCapabilityBinding: metadata.activeCapabilityBinding,
       registeredPublicKey: [...metadata.registeredPublicKey],
+      signingWorkerVerifyingShare: [...metadata.signingWorkerVerifyingShare],
       nearAccountId: args.nearAccountId,
       applicationBinding: metadata.applicationBinding,
       runtimePolicyScope: args.sessionState.runtimePolicyScope,

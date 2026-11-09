@@ -103,6 +103,8 @@ pub enum LocalMaterialError {
     IdentityMismatch,
     /// The opened share does not reproduce the registered threshold key.
     PublicRelationMismatch,
+    /// A re-bind named a target state epoch that is not after the record's.
+    EpochNotForward,
 }
 
 impl fmt::Display for LocalMaterialError {
@@ -116,6 +118,9 @@ impl fmt::Display for LocalMaterialError {
             Self::IdentityMismatch => "Ed25519 Yao activated Client envelope identity mismatch",
             Self::PublicRelationMismatch => {
                 "sealed Client material does not match the registered Ed25519 public key"
+            }
+            Self::EpochNotForward => {
+                "Ed25519 Yao activated Client re-bind must move to a later state epoch"
             }
         };
         formatter.write_str(message)
@@ -469,4 +474,141 @@ pub struct OpenWalletCustodyEd25519MaterialV1<'a> {
     pub participant_ids: [u16; 2],
     /// The SigningWorker's verifying share, for the public-relation check.
     pub signing_worker_verifying_share: &'a [u8; 32],
+}
+
+/// Re-seals the continuity cache under a later SigningWorker state epoch.
+///
+/// A Router recovery keeps both the Client and the SigningWorker shares and
+/// moves only the state epoch, so a record sealed at an older epoch still holds
+/// the current share. A browser whose storage another site or device did not
+/// share keeps such a record. Re-binding it costs no Router round.
+///
+/// The import checks the share against the **current** SigningWorker verifying
+/// share and the registered key before anything is sealed again. A share that
+/// no longer pairs with the SigningWorker is refused, not relabelled. Only the
+/// epoch changes: both bindings are rebuilt here from the same application
+/// binding digest, registered key and participants.
+pub fn rebind_activated_client_under_custody_seed_v1(
+    cache_key: &[u8; 32],
+    record: &RebindCacheRecordV1<'_>,
+) -> LocalMaterialResult<ReboundWalletCustodyEd25519MaterialV1> {
+    if record.new_state_epoch <= record.old_state_epoch {
+        return Err(LocalMaterialError::EpochNotForward);
+    }
+    let old_binding = ed25519_local_material_binding_v1(
+        record.application_binding_digest,
+        record.registered_public_key,
+        record.participant_ids,
+        record.old_state_epoch,
+    );
+    let opened = import_activated_client_material_v1(
+        cache_key,
+        &old_binding,
+        record.old_nonce,
+        record.old_ciphertext,
+        record.registered_public_key,
+        record.old_state_epoch,
+        record.participant_ids,
+        record.signing_worker_verifying_share,
+        LocalMaterialSealDomainV1::WalletCustodySeed,
+    )?;
+    let new_binding = ed25519_local_material_binding_v1(
+        record.application_binding_digest,
+        record.registered_public_key,
+        record.participant_ids,
+        record.new_state_epoch,
+    );
+    let ciphertext = seal_activated_client_material_v1(
+        &opened.client_scalar_share,
+        &opened.registered_public_key,
+        record.new_state_epoch,
+        cache_key,
+        &new_binding,
+        record.new_nonce,
+        LocalMaterialSealDomainV1::WalletCustodySeed,
+    )?;
+    Ok(ReboundWalletCustodyEd25519MaterialV1 {
+        ciphertext,
+        client: ActivatedClientV1::from_local_material_v1(
+            *opened.client_scalar_share,
+            opened.registered_public_key,
+            record.new_state_epoch,
+        ),
+    })
+}
+
+/// Opens the custody envelope with a factor and re-binds the cache record.
+///
+/// One call for the same reason as [`open_wallet_custody_ed25519_material_v1`]:
+/// the seed exists only between opening the envelope and deriving the cache key.
+pub fn rebind_wallet_custody_ed25519_material_v1(
+    input: RebindWalletCustodyEd25519MaterialV1<'_>,
+) -> LocalMaterialResult<ReboundWalletCustodyEd25519MaterialV1> {
+    if input.record.new_state_epoch <= input.record.old_state_epoch {
+        return Err(LocalMaterialError::EpochNotForward);
+    }
+    let seed = open_wallet_custody_seed_envelope_v1(
+        input.factor_secret,
+        input.envelope_binding,
+        input.envelope_nonce,
+        input.envelope_ciphertext,
+        input.envelope_aad_hash,
+        input.envelope_ciphertext_digest,
+    )
+    .map_err(|_| LocalMaterialError::SealFailed)
+    .map(|(seed, _admitted)| seed)?;
+    let cache_key = derive_ed25519_local_material_cache_key_from_seed_v1(
+        &seed,
+        input.record.application_binding_digest,
+    )
+    .map_err(|_| LocalMaterialError::SealFailed)?;
+    rebind_activated_client_under_custody_seed_v1(&cache_key, &input.record)
+}
+
+/// One cache record, its old epoch, and the server's current epoch and share.
+pub struct RebindCacheRecordV1<'a> {
+    /// This key set's application binding digest, from the cache record.
+    pub application_binding_digest: &'a [u8; 32],
+    /// The registered key; the same before and after the re-bind.
+    pub registered_public_key: &'a [u8; 32],
+    /// Client and SigningWorker participant ids, in that order.
+    pub participant_ids: [u16; 2],
+    /// The state epoch the record was sealed at.
+    pub old_state_epoch: u64,
+    /// The record's nonce.
+    pub old_nonce: &'a [u8],
+    /// The record's ciphertext.
+    pub old_ciphertext: &'a [u8],
+    /// The server's current state epoch; must be after `old_state_epoch`.
+    pub new_state_epoch: u64,
+    /// A fresh 12-byte nonce for the new record.
+    pub new_nonce: &'a [u8],
+    /// The server's current SigningWorker verifying share.
+    pub signing_worker_verifying_share: &'a [u8; 32],
+}
+
+/// The unlock inputs that open the custody envelope, and the record to re-bind.
+pub struct RebindWalletCustodyEd25519MaterialV1<'a> {
+    /// The unwrap factor: `PRF.first`, the Email OTP factor key, or the VoiceID factor.
+    pub factor_secret: &'a [u8],
+    /// The custody envelope's binding, as stored.
+    pub envelope_binding: &'a PasskeyCustodyEnvelopeBindingV1,
+    /// The envelope's nonce.
+    pub envelope_nonce: &'a [u8],
+    /// The sealed custody seed.
+    pub envelope_ciphertext: &'a [u8],
+    /// The envelope's recorded AAD digest.
+    pub envelope_aad_hash: &'a [u8],
+    /// The envelope's recorded ciphertext digest.
+    pub envelope_ciphertext_digest: &'a [u8],
+    /// The record to re-bind.
+    pub record: RebindCacheRecordV1<'a>,
+}
+
+/// A re-bound record and the activated Client it opens to.
+pub struct ReboundWalletCustodyEd25519MaterialV1 {
+    /// The new record's ciphertext, sealed at the new state epoch.
+    pub ciphertext: Vec<u8>,
+    /// The activated Client at the new state epoch.
+    pub client: ActivatedClientV1,
 }
