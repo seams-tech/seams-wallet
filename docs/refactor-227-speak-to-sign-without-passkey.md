@@ -9,11 +9,12 @@ Decisions of the user (2026-11-09):
 - **D1. Off chain, trusted.** A key holder signs only after it checks the verdict. The key
   holder is the Seams Wallet (option G). The shared vault and the Global Contract idea are
   parked.
-- **D2.** A bet names the market by its id.
-- **D3.** The stub step-up rule: "a payment above 10 NEAR needs a passkey". JEV decides
+- **D2.** The stub step-up rule: "a payment above 10 NEAR needs a passkey". JEV decides
   step-up later.
-- **D4.** Progress: the verify route streams its own stages (P1). The verifier stages arrive
+- **D3.** Progress: the verify route streams its own stages (P1). The verifier stages arrive
   together, because OutLayer has no stream.
+- **D4.** The first typed contract call is a spoken community note (an X-style community
+  note on a post) and a spoken note rating. There is no prediction-market call.
 
 ## Result
 
@@ -21,7 +22,8 @@ Decisions of the user (2026-11-09):
   transaction through the warm Wallet Session. The accepted verdict replaces the confirm
   click. No vault, no deposit, no relayer.
 - **Any contract, as the owner.** A spoken contract call runs from the owner's account, so
-  deposits work and tokens, positions and winnings go to the owner.
+  deposits work and the results go to the owner. The first call posts or rates a community
+  note.
 - **Short verdict life.** The verdict holds `expires_at_ms`. The Wallet and the server refuse
   it after that time.
 - **Step-up.** The verifier has a policy step. A `step_up` verdict sends the operation to the
@@ -84,7 +86,7 @@ Input `{"op":"probe"}`, which the verifier refuses at once. Pinned version `b4d6
 Option B (a key in the TEE) is faster: the worker could read the access-key nonce and a block
 hash beside the speaker and Whisper calls and sign at once. But it does not fit:
 
-- A function-call access key cannot send NEAR and cannot attach a deposit. So no payment, bet,
+- A function-call access key cannot send NEAR and cannot attach a deposit. So no payment,
   swap or `ft_transfer_call`.
 - A full-access key from the TEE is one key for every owner (Facts). One bad verifier version
   or one keystore fault could empty every account.
@@ -145,16 +147,11 @@ SpokenRequestV1::AccountTransfer {   // tag 2; replaces VaultTransfer (tag 0)
     receiver: SpokenAccount,         // spoken
     amount: NearAmount,              // spoken
 }
-SpokenRequestV1::AccountCall {       // tag 3, Step 3
-    network: Network,
-    owner: NearAccount,
-    call: CallV1,
-}
-enum CallV1 {
-    MarketBet { market: NearAccount, market_id: u64, outcome: BinaryOutcome, stake: NearAmount },
-}
+SpokenRequestV1::CommunityNote { .. } // tag 4, Step 3 (Section 4)
+SpokenRequestV1::NoteRating { .. }    // tag 5, Step 3 (Section 4)
 ```
 
+- Tag 3 stays reserved for a typed contract call that moves value. No such call is chosen.
 - `VaultTransfer` is deleted with the vault. The spoken text of a transfer stays the same:
   "send two near to bob dot testnet".
 - Verdict v2: `kind: "seams_voice_signed_verdict_v2"`, 13 fields in a fixed order: `kind`,
@@ -170,8 +167,8 @@ enum CallV1 {
 - The verifier runs a policy step after the words match:
   `policy::decide(&request) -> Allow | StepUp(rule) | Deny(rule)`. JEV plugs in here later
   (Refactor 225, Section 3). A policy step can only tighten.
-- The stub rule: "A voice payment above 10 NEAR needs a passkey." The stake of a bet counts
-  as its amount.
+- The stub rule: "A voice payment above 10 NEAR needs a passkey." A community note or a
+  rating moves no value, so the rule never applies to it.
 - A warm session normally signs with "Review transaction" and no passkey. So Wallet core
   gets a per-call option that forces a fresh passkey (the `passkeyReauth` plan) for the
   `step_up` operation. The confirm shows the rule sentence (`policy_text`).
@@ -180,24 +177,27 @@ enum CallV1 {
 
 ### 4. Typed contract calls
 
-- Which contracts and methods: a closed list in `spoken-intent` and the Wallet. One entry
-  now: a binary market contract, method `bet(market_id, outcome)` with the stake as the
-  deposit. A new call is a new `CallV1` variant. No kind that moves value holds free text or
-  a free function call.
-- The one exception is the community-note kinds `CommunityNote` and `NoteRating`. They move
-  no value: Wallet core calls only `add_note` or `rate_note`, with a deposit of 0. The note
-  summary is free text, but it has at most 12 words, only letters after normalization, and
-  a first word that is not "send", "sent" or "sends". So the send-sentence word rules never
-  read it.
-- The words: "bet two near on yes in market forty two". Display: "Bet 2 NEAR on YES in
-  market 42". The app may show the market question beside it as untrusted text.
-- The confusion set: the stake neighbours (as amounts today); `yes` and `no` exchanged; the
-  market id one lower, one higher and each digit changed; each other verb (`bet` joins
-  `VERBS`) and each negation; a dropped stake, outcome or market; an added "and bet …"
-  clause. `bet`, `on`, `in`, `market`, `yes` and `no` are not challenge words.
-- The call runs from the owner's account, so the market contract needs no beneficiary. If no
-  binary market exists on testnet, we deploy a small demo market
-  (`seams-voice-intents/demo-market`): `create_market`, `bet`, `resolve`, `claim`, views.
+- Which contracts and methods: a closed list in `spoken-intent` and the Wallet. A new call is
+  a new request kind. No kind that moves value holds free text or a free function call.
+- The entries now are the community-note kinds, on the notes contract
+  `notes.seams-v1.testnet` (`seams-voice-intents/community-notes`):
+  - `CommunityNote` (tag 4) binds the post, the SHA-256 of the typed note text and the
+    contract. Wallet core calls `add_note({post_id, text, summary})`.
+  - `NoteRating` (tag 5) binds the note id and the rating. Wallet core calls
+    `rate_note({note_id, rating})`.
+  - Both move no value: the deposit is 0, and Wallet core calls only these two methods.
+- The words: the author reads the note's summary aloud; the display is the summary itself. A
+  rater says "this note is helpful", "this note is somewhat helpful" or "this note is not
+  helpful".
+- The summary is the one free-text exception. It has 1 to 12 words, only letters after
+  normalization, and a first word that is not "send", "sent" or "sends". So the
+  send-sentence word rules never read it.
+- The confusion set guards the meaning: "not" added at each position, a negation removed,
+  and the other ratings.
+- The call runs from the owner's account, so the notes contract records the owner as the
+  author or the rater and needs no beneficiary.
+- The SDK: `seams.speakToSign.requestNote({ walletId, contract, postId, text, summary })` and
+  `requestRating({ walletId, contract, noteId, rating })`.
 
 ### 5. Live progress (P1)
 
@@ -248,9 +248,10 @@ until the 0.57.0 rollout session reports done.
    - Check: a 1 NEAR spoken payment on the staging demo with no passkey prompt; an 11 NEAR
      payment that asks for the passkey; 10 runs of end of speech to settled.
 2. **Live progress.** Route SSE, SDK stream reader, Wallet progress events.
-3. **Contract calls.** `AccountCall` and `MarketBet` in the crate and the port, the market
-   contract (if needed), the verifier, the Wallet and SDK `requestMarketBet`. Check a spoken
-   bet on staging.
+3. **Spoken community notes.** `CommunityNote` and `NoteRating` in the crate and the port,
+   the notes contract, verifier 0.4.0, the Wallet and SDK `requestNote` and `requestRating`,
+   and the Spoken Notes demo page (`seams-voice-intents/demo`). Check a spoken note and a
+   spoken rating on staging.
 4. **Retire the vault.** Testnet owners withdraw from `seams-wallet.testnet`. The SDK and
    Wallet vault code goes in Step 1 with `VaultTransfer`. The contract source stays in git
    history; the deployed code hash `ecdd703a…ec42` keeps its withdrawal methods.
