@@ -32,6 +32,9 @@ enrollment and uses the VoiceID capture surface.
 3. The verifier gets a speaker embedding from a service on Phala Cloud and a
    transcript from NEAR AI at the same time. It compares the voice with the
    owner's enrolled template and the words with its own text of the request.
+   The amount must match exactly. A word that holds no value can be a
+   sound-alike: "year" for "NEAR", "sent" for "send" or "testnode" for
+   "testnet". The receiver can be a sound-alike of the account name.
    Then a policy step can ask for more approval.
 4. The verifier returns a signed verdict that expires after 120 s. The Wallet
    checks it against the verifier key that the Wallet pins: the request, the
@@ -134,7 +137,7 @@ variables are set:
 | ------------------------------------------- | ------------------------------------------------------------------ |
 | `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
 | `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `09f4ce1be348cc874ded71687c9de96b05fbfb452f94bc801c6752b4e39ea294` |
+| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` |
 | `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | The OutLayer payment key. Keep it in a secret store.               |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
@@ -174,9 +177,11 @@ recording that it made in the same flow.
 - Any named account can receive a spoken payment. If the voice check accepts a
   clone or a replay of the owner's voice, the payment can go to any named
   account. Below the step-up amount, the voice alone pays.
-- The verifier cannot tell apart two accounts that sound the same, such as
-  `bob.testnet` and `bobb.testnet`. The owner must read the account on the
-  screen before speaking.
+- The verifier accepts a receiver name that sounds alike: the same sound key,
+  or a key one sound apart with the same first two sounds, such as
+  `alicia.testnet` for `alice.testnet`. So it cannot tell apart two such
+  accounts, for example `bob.testnet` and `bobb.testnet`. The owner must read
+  the account on the screen before speaking.
 
 Unlike a [VoiceID](/concepts/auth-methods/voiceid) unlock, the audio leaves the
 browser. It goes to OutLayer, Phala and NEAR AI, and the voice template stays in

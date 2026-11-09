@@ -22,7 +22,9 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 1. WalletがVoiceIDの画面に話すべき文を表示し、最長8秒の音声を1回録音します。
 2. Seamsのサーバーが、録音と型付きのリクエストをOutLayer上の検証者に送ります。OutLayerは、TEE(信頼できる実行環境)でコードを実行するNEARのオフチェーン計算サービスです。
 3. 検証者は、Phala Cloud上のサービスから話者埋め込みを、NEAR AIから文字起こしを同時に受け取ります。
-   声は所有者が登録したテンプレートと、言葉は検証者自身が作ったリクエストの文と比較します。その後、ポリシーの手順が追加の承認を求めることがあります。
+   声は所有者が登録したテンプレートと、言葉は検証者自身が作ったリクエストの文と比較します。
+   金額は完全に一致する必要があります。値を持たない語は、似た音の語でも受け入れます(「NEAR」に対する「year」、「send」に対する「sent」、「testnet」に対する「testnode」など)。
+   送金先も、アカウント名に似た音の名前を受け入れます。その後、ポリシーの手順が追加の承認を求めることがあります。
 4. 検証者が、120秒で期限が切れる署名付きの判定を返します。Walletは、Wallet自身が固定した検証者の鍵で、リクエスト、話した文、録音、期限、署名を確認します。
 5. `accept`の場合、Walletは確認画面なしで所有者のウォレットセッションを使って送金に署名し、送ります。
    `step_up`の場合、所有者は確認画面でもう一度承認します(パスキーのセッションではパスキーです)。
@@ -109,7 +111,7 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 | ------------------------------------------- | ------------------------------------------------------------------ |
 | `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
 | `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `09f4ce1be348cc874ded71687c9de96b05fbfb452f94bc801c6752b4e39ea294` |
+| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `5b6fad5df11440847e13508f57736da8de371526824cf12178dfc20be2c9c1d1` |
 | `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | OutLayerの支払い用の鍵です。シークレットストアに保管してください。 |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
@@ -137,8 +139,8 @@ Walletは、1つの判定で最大1回だけ、同じ流れで録音した音声
 - `walletOrigin`のコードは、所有者が話した後にリクエストを変更できません。変更すると言葉が一致しなくなります。
 - 任意の名前付きアカウントが音声による支払いを受け取れます。声の確認が所有者の声の複製または再生を受け入れた場合、
   支払いは任意の名前付きアカウントに送られる可能性があります。ステップアップの金額より下では、声だけで支払えます。
-- 検証者は、`bob.testnet`と`bobb.testnet`のように同じに聞こえる2つのアカウントを区別できません。
-  所有者は、話す前に画面のアカウントを読んでください。
+- 検証者は、似た音の送金先の名前を受け入れます。音のキーが同じ名前と、最初の2つの音が同じで音が1つだけ異なる名前です(`alice.testnet`に対する`alicia.testnet`など)。
+  そのため、`bob.testnet`と`bobb.testnet`のような2つのアカウントを区別できません。所有者は、話す前に画面のアカウントを読んでください。
 
 [VoiceID](/ja/concepts/auth-methods/voiceid)のアンロックと異なり、音声はブラウザーの外に送られます。
 音声はOutLayer、Phala、NEAR AIに送られ、声のテンプレートはOutLayerのストレージに保存されます。
