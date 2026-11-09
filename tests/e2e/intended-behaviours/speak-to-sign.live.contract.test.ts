@@ -12,10 +12,10 @@ import { readNearIdentity } from './voiceid-near-signing';
 // `seams.speakToSign.enroll` (one NEP-413 confirm), then pays by voice from its own account. The
 // Wallet's microphone plays the `say` recording of whatever sentence the VoiceID surface shows.
 // An accepted verdict must pay with no Wallet confirm. An 11 NEAR payment is above the stub
-// step-up rule, so it must show the confirm again; the account cannot pay 11 NEAR, so the
-// transfer then fails on chain. It needs the OutLayer payment key on the local server, the
-// local app built with VITE_SEAMS_INTENDED_SPEAK_TO_SIGN_NETWORK=testnet, and a relayer that
-// creates named accounts funded with ACCOUNT_INITIAL_BALANCE of at least 0.1 NEAR.
+// step-up rule, so it must show the confirm again; the account cannot pay 11 NEAR, so NEAR
+// then refuses the transfer before it runs. It needs the OutLayer payment key on the local
+// server, the local app built with VITE_SEAMS_INTENDED_SPEAK_TO_SIGN_NETWORK=testnet, and a
+// relayer that creates named accounts funded with ACCOUNT_INITIAL_BALANCE of at least 0.1 NEAR.
 const LIVE = process.env.SEAMS_SPEAK_TO_SIGN_LIVE === '1';
 const RECEIVER = 'seams-v1.testnet';
 const VOICE = 'Samantha';
@@ -107,7 +107,8 @@ async function run(
   const steppedUp = await speak(page, '11');
   log('step-up', JSON.stringify(steppedUp.result), `confirms ${steppedUp.confirms}`);
   expect(steppedUp.confirms, 'A step-up verdict asks for the confirm again').toBeGreaterThan(0);
-  expect(steppedUp.result).toMatchObject({ kind: 'refused', reason: 'transaction_failed' });
+  // NEAR checks the balance before the transfer runs, so nothing is submitted.
+  expect(steppedUp.result).toMatchObject({ kind: 'unavailable', reason: 'not_submitted' });
   await testInfo.attach('speak-to-sign-live.json', {
     body: JSON.stringify({ owner, enrolled, sent, refused, steppedUp }, null, 2),
     contentType: 'application/json',
