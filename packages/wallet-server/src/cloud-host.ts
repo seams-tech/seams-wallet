@@ -95,6 +95,7 @@ export * from './router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519Ya
 export * from './router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecoveryRequestScopedCloudflare';
 export * from './router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecoveryWalletSessionAuthorization';
 export * from './router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
+export * from './router/domains/ed25519Yao/reissue/routerAbEd25519YaoReissue';
 export * from './router/domains/signingOperations/routerAbNormalSigningAdmissionCore';
 export {
   evaluateRouterAbNormalSigningAdmission,
@@ -216,6 +217,8 @@ export {
   ROUTER_AB_ED25519_YAO_RECOVERY_STATUS_PATH_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
+  ROUTER_AB_ED25519_YAO_REISSUE_ADMISSION_PATH_V1,
+  ROUTER_AB_ED25519_YAO_REISSUE_EXECUTE_PATH_V1,
   ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1,
 } from '@shared/utils/routerAbEd25519Yao';
 export { ROUTER_AB_TRACE_ID_HEADER_V1 } from '@shared/utils/routerAbTraceContext';

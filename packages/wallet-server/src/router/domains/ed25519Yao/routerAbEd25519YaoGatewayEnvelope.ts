@@ -1,7 +1,11 @@
 import type {
+  RouterAbEd25519YaoActivationBindingV1,
+  RouterAbEd25519YaoBytes32V1,
   RouterAbEd25519YaoExportAdmissionRequestV1,
+  RouterAbEd25519YaoLifecycleScopeV1,
   RouterAbEd25519YaoRecoveryAdmissionRequestV1,
   RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  RouterAbEd25519YaoReissueAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { TenantRootActiveLineageV1 } from '../tenantRoot/tenantRootCustodyLineage';
 import type { TenantRootIdentityV1 } from '../tenantRoot/tenantRootIdentityResolution';
@@ -9,6 +13,7 @@ import type { TenantRootIdentityWireV1 } from '@shared/tenant-root/tenantRootIde
 import { decodeTenantRootIdentityWireV1 } from '@shared/tenant-root/tenantRootIdentity';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { tenantRootIdentityDigestB64uV1 } from '../../cloudflare/runtime/tenantRootCreationGrant';
+import { deriveRouterAbEd25519YaoStableContextBindingV1 } from '@shared/utils/routerAbEd25519YaoDigests';
 
 export type RouterAbEd25519YaoResolvedTenantRootV1 = TenantRootActiveLineageV1 & {
   readonly identity: TenantRootIdentityV1;
@@ -99,6 +104,10 @@ export type RouterAbEd25519YaoTenantRootResolutionInputV1 =
   | {
       readonly operation: 'export';
       readonly admissionRequest: RouterAbEd25519YaoExportAdmissionRequestV1;
+    }
+  | {
+      readonly operation: 'reissue';
+      readonly admissionRequest: RouterAbEd25519YaoReissueAdmissionRequestV1;
     };
 
 export type RouterAbEd25519YaoTenantRootResolverV1 = (
@@ -113,3 +122,58 @@ export type RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1 =
 
 export type RouterAbEd25519YaoExportExecuteAdmissionContextV1 =
   RouterAbEd25519YaoExportAdmissionRequestV1;
+
+/**
+ * The ceremony binding that an activation admission issues for its scope.
+ * A registration prepares, a recovery and a reissue run as recovery work.
+ */
+export async function routerAbEd25519YaoActivationBindingV1(
+  request: {
+    readonly scope: RouterAbEd25519YaoLifecycleScopeV1;
+    readonly application_binding: RouterAbEd25519YaoRegistrationAdmissionRequestV1['application_binding'];
+    readonly participant_ids: readonly [number, number];
+  },
+  operation: RouterAbEd25519YaoActivationBindingV1['operation'],
+  sessionId: RouterAbEd25519YaoBytes32V1,
+): Promise<RouterAbEd25519YaoActivationBindingV1> {
+  const lifecycle = {
+    lifecycle_id: request.scope.lifecycle_id,
+    root_share_epoch: request.scope.root_share_epoch,
+    account_id: request.scope.account_id,
+    session_id: request.scope.threshold_session_id,
+    signer_set_id: request.scope.signer_set_id,
+    selected_server_id: request.scope.signing_worker_id,
+  };
+  const ceremony = {
+    session_id: [...sessionId],
+    stable_key_context_binding: await deriveRouterAbEd25519YaoStableContextBindingV1(
+      request.application_binding,
+      request.participant_ids,
+    ),
+    material_activation: request.scope.material_activation,
+  };
+  switch (operation) {
+    case 'registration':
+      return {
+        ...ceremony,
+        operation,
+        lifecycle: {
+          ...lifecycle,
+          work_kind: 'registration_prepare',
+          primitive_request_kind: 'registration',
+        },
+      };
+    case 'recovery':
+      return {
+        ...ceremony,
+        operation,
+        lifecycle: { ...lifecycle, work_kind: 'recovery', primitive_request_kind: 'recovery' },
+      };
+    case 'reissue':
+      return {
+        ...ceremony,
+        operation,
+        lifecycle: { ...lifecycle, work_kind: 'reissue', primitive_request_kind: 'recovery' },
+      };
+  }
+}

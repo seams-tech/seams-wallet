@@ -52,6 +52,10 @@ export const ROUTER_AB_ED25519_YAO_RECOVERY_ACTIVATE_PATH_V1 =
   '/router-ab/ed25519/yao/recovery/activate' as const;
 export const ROUTER_AB_ED25519_YAO_RECOVERY_STATUS_PATH_V1 =
   '/router-ab/ed25519/yao/recovery/status' as const;
+export const ROUTER_AB_ED25519_YAO_REISSUE_ADMISSION_PATH_V1 =
+  '/router-ab/ed25519/yao/reissue/admit' as const;
+export const ROUTER_AB_ED25519_YAO_REISSUE_EXECUTE_PATH_V1 =
+  '/router-ab/ed25519/yao/reissue/execute' as const;
 export const ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1 =
   'x-seams-wallet-recovery-challenge-id' as const;
 export const ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1 =
@@ -100,6 +104,18 @@ export type RouterAbEd25519YaoRecoveryAdmissionRequestV1 = {
   participant_ids: readonly [number, number];
   active_capability_binding: RouterAbEd25519YaoBytes32V1;
   replacement_capability_binding: RouterAbEd25519YaoBytes32V1;
+  registered_public_key: RouterAbEd25519YaoBytes32V1;
+};
+
+/**
+ * A reissue of the active key set's Client share. The scope names the active
+ * material activation; the Gateway checks every field against the stored
+ * capability and builds the binding.
+ */
+export type RouterAbEd25519YaoReissueAdmissionRequestV1 = {
+  scope: RouterAbEd25519YaoLifecycleScopeV1;
+  application_binding: RouterAbEd25519YaoApplicationBindingFactsV1;
+  participant_ids: readonly [number, number];
   registered_public_key: RouterAbEd25519YaoBytes32V1;
 };
 
@@ -153,6 +169,14 @@ type RouterAbEd25519YaoRecoveryLifecycleV1 = Omit<
   primitive_request_kind: 'recovery';
 };
 
+type RouterAbEd25519YaoReissueLifecycleV1 = Omit<
+  RouterAbEd25519YaoAdmittedLifecycleV1,
+  'work_kind' | 'primitive_request_kind'
+> & {
+  work_kind: 'reissue';
+  primitive_request_kind: 'recovery';
+};
+
 type RouterAbEd25519YaoExportLifecycleV1 = Omit<
   RouterAbEd25519YaoAdmittedLifecycleV1,
   'work_kind' | 'primitive_request_kind'
@@ -177,13 +201,15 @@ export type RouterAbEd25519YaoExportBindingV1 = {
   authorization_digest: RouterAbEd25519YaoBytes32V1;
 };
 
-type RouterAbEd25519YaoActivationOperationV1 = 'registration' | 'recovery';
+type RouterAbEd25519YaoActivationOperationV1 = 'registration' | 'recovery' | 'reissue';
 
 type RouterAbEd25519YaoActivationLifecycleForV1<
   Operation extends RouterAbEd25519YaoActivationOperationV1,
 > = Operation extends 'registration'
   ? RouterAbEd25519YaoRegistrationLifecycleV1
-  : RouterAbEd25519YaoRecoveryLifecycleV1;
+  : Operation extends 'reissue'
+    ? RouterAbEd25519YaoReissueLifecycleV1
+    : RouterAbEd25519YaoRecoveryLifecycleV1;
 
 export type RouterAbEd25519YaoActivationBindingV1<
   Operation extends RouterAbEd25519YaoActivationOperationV1 =
@@ -515,6 +541,7 @@ const REGISTRATION_WORK_KIND = 'registration_prepare' as const;
 const REGISTRATION_PRIMITIVE_REQUEST_KIND = 'registration' as const;
 const RECOVERY_WORK_KIND = 'recovery' as const;
 const RECOVERY_PRIMITIVE_REQUEST_KIND = 'recovery' as const;
+const REISSUE_WORK_KIND = 'reissue' as const;
 const EXPORT_WORK_KIND = 'key_export' as const;
 const EXPORT_PRIMITIVE_REQUEST_KIND = 'export' as const;
 
@@ -554,6 +581,7 @@ function parseOperation(value: unknown, label: string): RouterAbEd25519YaoOperat
     case 'export':
     case 'lane_provisioning':
     case 'lane_refresh':
+    case 'reissue':
       return value;
     default:
       throw new Error(`${label} is invalid`);
@@ -597,6 +625,7 @@ function parseWorkKind(value: unknown, label: string): RouterAbEd25519YaoWorkKin
     case 'key_export':
     case 'recovery':
     case 'server_share_refresh':
+    case 'reissue':
       return value;
     default:
       throw new Error(`${label} is invalid`);
@@ -784,6 +813,9 @@ function parseCeremonyBinding(value: unknown): RouterAbEd25519YaoCeremonyBinding
   if (binding.operation === 'recovery' && binding.lifecycle.work_kind !== RECOVERY_WORK_KIND) {
     throw new Error('binding operation does not match its lifecycle work kind');
   }
+  if (binding.operation === 'reissue' && binding.lifecycle.work_kind !== REISSUE_WORK_KIND) {
+    throw new Error('binding operation does not match its lifecycle work kind');
+  }
   if (binding.operation === 'export' && binding.lifecycle.work_kind !== EXPORT_WORK_KIND) {
     throw new Error('binding operation does not match its lifecycle work kind');
   }
@@ -910,11 +942,28 @@ export function parseRouterAbEd25519YaoActivationBindingV1(
         stable_key_context_binding: binding.stable_key_context_binding,
         material_activation: binding.material_activation,
       };
+    case 'reissue':
+      if (
+        binding.lifecycle.work_kind !== REISSUE_WORK_KIND ||
+        binding.lifecycle.primitive_request_kind !== RECOVERY_PRIMITIVE_REQUEST_KIND
+      ) {
+        throw new Error('activation binding has the wrong reissue lifecycle kind');
+      }
+      return {
+        lifecycle: {
+          ...binding.lifecycle,
+          work_kind: REISSUE_WORK_KIND,
+          primitive_request_kind: RECOVERY_PRIMITIVE_REQUEST_KIND,
+        },
+        operation: 'reissue',
+        session_id: binding.session_id,
+        stable_key_context_binding: binding.stable_key_context_binding,
+        material_activation: binding.material_activation,
+      };
     case 'refresh':
     case 'export':
     case 'lane_provisioning':
     case 'lane_refresh':
-    case 'reissue':
       throw new Error('activation binding has a non-activation operation');
   }
 }
@@ -1028,6 +1077,16 @@ function requireActivationInput<Role extends RouterAbEd25519YaoDeriverRoleV1>(
         kind: 'activation',
         deriver: expectedDeriver,
         operation: 'recovery',
+        session: input.session,
+        stable_context_binding: input.stable_context_binding,
+        encapsulated_key: input.encapsulated_key,
+        ciphertext: input.ciphertext,
+      };
+    case 'reissue':
+      return {
+        kind: 'activation',
+        deriver: expectedDeriver,
+        operation: 'reissue',
         session: input.session,
         stable_context_binding: input.stable_context_binding,
         encapsulated_key: input.encapsulated_key,
@@ -1208,6 +1267,30 @@ function parseRegistrationAdmissionRequestValue(
     scope: parsePublicLifecycleScope(record.scope),
     application_binding: parseRouterAbEd25519YaoApplicationBindingFactsV1(record.application_binding),
     participant_ids: parseParticipantIds(record.participant_ids),
+  };
+}
+
+function parseReissueAdmissionRequestValue(
+  value: unknown,
+): RouterAbEd25519YaoReissueAdmissionRequestV1 {
+  const record = requireRecord(value, 'reissue admission request');
+  requireExactKeys(record, 'reissue admission request', [
+    'scope',
+    'application_binding',
+    'participant_ids',
+    'registered_public_key',
+  ]);
+  return {
+    scope: parsePublicLifecycleScope(record.scope),
+    application_binding: parseRouterAbEd25519YaoApplicationBindingFactsV1(
+      record.application_binding,
+    ),
+    participant_ids: parseParticipantIds(record.participant_ids),
+    registered_public_key: requireBytes32(
+      record.registered_public_key,
+      'reissue admission request.registered_public_key',
+      true,
+    ),
   };
 }
 
@@ -1479,6 +1562,8 @@ function parseActivationAdmissionReceiptValue(
       return { binding, keyset };
     case 'recovery':
       return { binding, keyset };
+    case 'reissue':
+      return { binding, keyset };
   }
 }
 
@@ -1507,6 +1592,12 @@ function parseActivationExecuteRequestValue(
   if (binding.operation === 'registration') {
     if (deriverAInput.operation !== 'registration' || deriverBInput.operation !== 'registration') {
       throw new Error('activation inputs do not match registration binding');
+    }
+    return { binding, deriver_a_input: deriverAInput, deriver_b_input: deriverBInput };
+  }
+  if (binding.operation === 'reissue') {
+    if (deriverAInput.operation !== 'reissue' || deriverBInput.operation !== 'reissue') {
+      throw new Error('activation inputs do not match reissue binding');
     }
     return { binding, deriver_a_input: deriverAInput, deriver_b_input: deriverBInput };
   }
@@ -1568,6 +1659,13 @@ function parseActivationResultValue(value: unknown): RouterAbEd25519YaoActivatio
         deriver_b_client_package: deriverBPackage,
         public_receipt: receipt,
       };
+    case 'reissue':
+      return {
+        binding,
+        deriver_a_client_package: deriverAPackage,
+        deriver_b_client_package: deriverBPackage,
+        public_receipt: receipt,
+      };
   }
 }
 
@@ -1575,6 +1673,7 @@ function requireRecoveryBinding(value: unknown): RouterAbEd25519YaoActivationBin
   const binding = parseRouterAbEd25519YaoActivationBindingV1(value);
   switch (binding.operation) {
     case 'registration':
+    case 'reissue':
       throw new Error('recovery activation requires a recovery binding');
     case 'recovery':
       return binding;
@@ -1654,6 +1753,16 @@ function operationMismatch<T>(
   };
 }
 
+function reissueValue<T, Reissue extends T>(
+  parsed: RouterAbEd25519YaoParseResult<T>,
+  isFor: (value: T, operation: 'reissue') => value is Reissue,
+): RouterAbEd25519YaoParseResult<Reissue> {
+  if (!parsed.ok) return parsed;
+  return isFor(parsed.value, 'reissue')
+    ? { ok: true, value: parsed.value }
+    : operationMismatch('reissue');
+}
+
 export function parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoRegistrationAdmissionRequestV1> {
@@ -1664,6 +1773,12 @@ export function parseRouterAbEd25519YaoRecoveryAdmissionRequestV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoRecoveryAdmissionRequestV1> {
   return parseBoundary(parseRecoveryAdmissionRequestValue, value);
+}
+
+export function parseRouterAbEd25519YaoReissueAdmissionRequestV1(
+  value: unknown,
+): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoReissueAdmissionRequestV1> {
+  return parseBoundary(parseReissueAdmissionRequestValue, value);
 }
 
 export function parseRouterAbEd25519YaoRecoveryStatusRequestV1(
@@ -1762,6 +1877,21 @@ export function parseRouterAbEd25519YaoActivationResultV1(
   value: unknown,
 ): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationResultV1> {
   return parseBoundary(parseActivationResultValue, value);
+}
+
+export function parseRouterAbEd25519YaoReissueActivationExecuteRequestV1(
+  value: unknown,
+): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationExecuteRequestV1<'reissue'>> {
+  return reissueValue(
+    parseRouterAbEd25519YaoActivationExecuteRequestV1(value),
+    isActivationExecuteRequestFor,
+  );
+}
+
+export function parseRouterAbEd25519YaoReissueActivationResultV1(
+  value: unknown,
+): RouterAbEd25519YaoParseResult<RouterAbEd25519YaoActivationResultV1<'reissue'>> {
+  return reissueValue(parseRouterAbEd25519YaoActivationResultV1(value), isActivationResultFor);
 }
 
 export function parseRouterAbEd25519YaoRegistrationActivationResultV1(

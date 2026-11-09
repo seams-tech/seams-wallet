@@ -11,6 +11,7 @@ import {
   type RouterAbEd25519YaoRecoveryActivationRequestV1,
   type RouterAbEd25519YaoRecoveryAdmissionRequestV1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  type RouterAbEd25519YaoReissueAdmissionRequestV1,
   type RouterAbEd25519YaoExportAdmissionRequestV1,
   type RouterAbEd25519YaoExportExecuteRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
@@ -28,10 +29,16 @@ import type {
   RouterAbEd25519YaoRecoveryBackend,
   RouterAbEd25519YaoRecoveryExecuteClaimV1,
 } from '../recovery/routerAbEd25519YaoRecovery';
+import type {
+  RouterAbEd25519YaoReissueBackend,
+  RouterAbEd25519YaoReissueExecuteClaimV1,
+} from '../reissue/routerAbEd25519YaoReissue';
 import {
+  routerAbEd25519YaoActivationBindingV1,
   routerAbEd25519YaoRegistrationSigningRootIdV1,
   routerAbEd25519YaoTenantRootWireV1,
   type RouterAbEd25519YaoRegistrationSigningRootIdV1,
+  type RouterAbEd25519YaoTenantRootResolutionInputV1,
   type RouterAbEd25519YaoTenantRootResolverV1,
   type RouterAbEd25519YaoTenantRootWireV1,
 } from '../routerAbEd25519YaoGatewayEnvelope';
@@ -45,6 +52,8 @@ type RouterAbEd25519YaoRegistrationExecuteRequestV1 =
   RouterAbEd25519YaoActivationExecuteRequestV1<'registration'>;
 type RouterAbEd25519YaoRecoveryExecuteRequestV1 =
   RouterAbEd25519YaoActivationExecuteRequestV1<'recovery'>;
+type RouterAbEd25519YaoReissueExecuteRequestV1 =
+  RouterAbEd25519YaoActivationExecuteRequestV1<'reissue'>;
 
 const INTERNAL_AUTH_HEADER = 'x-router-ab-internal-service-auth';
 const TRACE_ID_HEADER = 'x-seams-trace-id';
@@ -77,7 +86,7 @@ export type RouterAbEd25519YaoHttpRegistrationBackendConfig = {
 export type RouterAbEd25519YaoGatewaySpanV1 = {
   readonly event: 'router_ab_yao_gateway_span_v1';
   readonly span: 'gateway.pre_yao' | 'gateway.yao_execute' | 'gateway.d1_commit';
-  readonly operation: 'registration' | 'recovery' | 'export';
+  readonly operation: 'registration' | 'recovery' | 'reissue' | 'export';
   readonly outcome: 'success' | 'failure';
   readonly duration_ms: number;
   readonly trace_id: string;
@@ -440,13 +449,14 @@ function activeReceiptMatchesRecoveryActivation(
   );
 }
 
+/** The Router target: one input's own binding and envelopes, as JSON. */
 type RouterExecuteTargetBoundary =
   | {
-      operation: 'registration';
+      operation: CeremonyRouterExecuteInput['operation'];
       ownership_generation: number;
-      binding: RouterAbEd25519YaoRegistrationExecuteRequestV1['binding'];
-      deriver_a_input: RouterAbEd25519YaoRegistrationExecuteRequestV1['deriver_a_input'];
-      deriver_b_input: RouterAbEd25519YaoRegistrationExecuteRequestV1['deriver_b_input'];
+      binding: CeremonyRouterExecuteInput['request']['binding'];
+      deriver_a_input: CeremonyRouterExecuteInput['request']['deriver_a_input'];
+      deriver_b_input: CeremonyRouterExecuteInput['request']['deriver_b_input'];
     }
   | {
       operation: 'recovery';
@@ -455,13 +465,6 @@ type RouterExecuteTargetBoundary =
       attempt: number;
       deriver_a_input: RouterAbEd25519YaoRecoveryExecuteRequestV1['deriver_a_input'];
       deriver_b_input: RouterAbEd25519YaoRecoveryExecuteRequestV1['deriver_b_input'];
-    }
-  | {
-      operation: 'export';
-      ownership_generation: number;
-      binding: RouterAbEd25519YaoExportExecuteRequestV1['binding'];
-      deriver_a_input: RouterAbEd25519YaoExportExecuteRequestV1['deriver_a_input'];
-      deriver_b_input: RouterAbEd25519YaoExportExecuteRequestV1['deriver_b_input'];
     };
 
 type RouterExecuteBoundary = {
@@ -485,11 +488,20 @@ type RouterExecuteInput =
       readonly admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
     }
   | {
+      readonly operation: 'reissue';
+      readonly ownershipGeneration: number;
+      readonly request: RouterAbEd25519YaoReissueExecuteRequestV1;
+      readonly admissionRequest: RouterAbEd25519YaoReissueAdmissionRequestV1;
+    }
+  | {
       readonly operation: 'export';
       readonly ownershipGeneration: number;
       readonly request: RouterAbEd25519YaoExportExecuteRequestV1;
       readonly admissionRequest: RouterAbEd25519YaoExportAdmissionRequestV1;
     };
+
+/** A recovery runs under the root pinned at its admission, never resolved here. */
+type CeremonyRouterExecuteInput = Exclude<RouterExecuteInput, { readonly operation: 'recovery' }>;
 
 export interface RouterAbEd25519YaoPinnedRegistrationBackend
   extends RouterAbEd25519YaoRegistrationBackend {
@@ -531,8 +543,8 @@ export type RouterAbEd25519YaoRegistrationConsumeOutcomeV1 =
     }
   | { readonly kind: 'unavailable'; readonly message: string };
 
-function registrationRouterExecuteRequest(
-  input: Extract<RouterExecuteInput, { readonly operation: 'registration' }>,
+function ceremonyRouterExecuteRequest(
+  input: CeremonyRouterExecuteInput,
   tenantRoot: RouterAbEd25519YaoTenantRootWireV1,
 ): RouterExecuteBoundary {
   return {
@@ -540,7 +552,7 @@ function registrationRouterExecuteRequest(
     application: input.admissionRequest.application_binding,
     participant_ids: input.admissionRequest.participant_ids,
     target: {
-      operation: 'registration',
+      operation: input.operation,
       ownership_generation: input.ownershipGeneration,
       binding: input.request.binding,
       deriver_a_input: input.request.deriver_a_input,
@@ -569,39 +581,30 @@ function recoveryRouterExecuteRequest(
   };
 }
 
-/** A recovery runs under the root pinned at its admission, never resolved here. */
+function tenantRootResolutionInput(
+  input: CeremonyRouterExecuteInput,
+): RouterAbEd25519YaoTenantRootResolutionInputV1 {
+  switch (input.operation) {
+    case 'registration':
+      return {
+        operation: 'registration',
+        ...routerAbEd25519YaoRegistrationSigningRootIdV1(input.admissionRequest),
+      };
+    case 'reissue':
+      return { operation: 'reissue', admissionRequest: input.admissionRequest };
+    case 'export':
+      return { operation: 'export', admissionRequest: input.admissionRequest };
+  }
+}
+
 async function routerExecuteRequest(
-  input: Exclude<RouterExecuteInput, { readonly operation: 'recovery' }>,
+  input: CeremonyRouterExecuteInput,
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1,
 ): Promise<RouterExecuteBoundary> {
-  switch (input.operation) {
-    case 'registration': {
-      const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
-        await resolveTenantRoot({
-          operation: 'registration',
-          ...routerAbEd25519YaoRegistrationSigningRootIdV1(input.admissionRequest),
-        }),
-      );
-      return registrationRouterExecuteRequest(input, tenantRoot);
-    }
-    case 'export': {
-      const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
-        await resolveTenantRoot({ operation: 'export', admissionRequest: input.admissionRequest }),
-      );
-      return {
-        tenant_root: tenantRoot,
-        application: input.admissionRequest.application_binding,
-        participant_ids: input.admissionRequest.participant_ids,
-        target: {
-          operation: 'export',
-          ownership_generation: input.ownershipGeneration,
-          binding: input.request.binding,
-          deriver_a_input: input.request.deriver_a_input,
-          deriver_b_input: input.request.deriver_b_input,
-        },
-      };
-    }
-  }
+  const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
+    await resolveTenantRoot(tenantRootResolutionInput(input)),
+  );
+  return ceremonyRouterExecuteRequest(input, tenantRoot);
 }
 
 function executeOperation(
@@ -687,17 +690,12 @@ function parseRouterExecuteResult(
       );
     }
     switch (operation) {
-      case 'registration': {
+      case 'registration':
+      case 'recovery':
+      case 'reissue': {
         const parsed = parseRouterAbEd25519YaoActivationResultV1(result.result);
-        if (!parsed.ok || parsed.value.binding.operation !== 'registration') {
-          return internalFailure('invalid_router_result', 'Router registration result is invalid');
-        }
-        return { ok: true, body: parsed.value };
-      }
-      case 'recovery': {
-        const parsed = parseRouterAbEd25519YaoActivationResultV1(result.result);
-        if (!parsed.ok || parsed.value.binding.operation !== 'recovery') {
-          return internalFailure('invalid_router_result', 'Router recovery result is invalid');
+        if (!parsed.ok || parsed.value.binding.operation !== operation) {
+          return internalFailure('invalid_router_result', `Router ${operation} result is invalid`);
         }
         return { ok: true, body: parsed.value };
       }
@@ -783,6 +781,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   implements
     RouterAbEd25519YaoPinnedRegistrationBackend,
     RouterAbEd25519YaoRecoveryBackend,
+    RouterAbEd25519YaoReissueBackend,
     RouterAbEd25519YaoExportBackend
 {
   private readonly config: ValidatedHttpBackendConfig;
@@ -831,6 +830,25 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     _traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.admitActivation(request, 'recovery');
+  }
+
+  async admitReissue(
+    request: RouterAbEd25519YaoReissueAdmissionRequestV1,
+  ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
+    return await this.admitActivation(request, 'reissue');
+  }
+
+  async executeReissue(
+    request: RouterAbEd25519YaoReissueExecuteRequestV1,
+    claim: RouterAbEd25519YaoReissueExecuteClaimV1,
+    traceContext: RouterAbTraceContextV1,
+  ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
+    // The Router claims nothing for a reissue: each call is a fresh run.
+    return await this.executeRouterRequest(
+      { operation: 'reissue', request, ...claim },
+      false,
+      traceContext,
+    );
   }
 
   async admitExport(
@@ -911,8 +929,9 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   private async admitActivation(
     request:
       | RouterAbEd25519YaoRegistrationAdmissionRequestV1
-      | RouterAbEd25519YaoRecoveryAdmissionRequestV1,
-    operation: 'registration' | 'recovery',
+      | RouterAbEd25519YaoRecoveryAdmissionRequestV1
+      | RouterAbEd25519YaoReissueAdmissionRequestV1,
+    operation: 'registration' | 'recovery' | 'reissue',
     mintedSessionId?: RouterAbEd25519YaoBytes32V1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     if (request.scope.signing_worker_id !== this.config.signingWorkerId) {
@@ -923,11 +942,6 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
         message: `${operation} scope selects a different SigningWorker`,
       };
     }
-    const stableContextBinding = await deriveRouterAbEd25519YaoStableContextBindingV1(
-      request.application_binding,
-      request.participant_ids,
-    );
-    const keyset = this.keyset();
     if (mintedSessionId !== undefined && !isSessionId(mintedSessionId)) {
       return {
         ok: false,
@@ -937,54 +951,13 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       };
     }
     const sessionId = mintedSessionId === undefined ? randomSession() : [...mintedSessionId];
-    switch (operation) {
-      case 'registration':
-        return {
-          ok: true,
-          body: {
-            binding: {
-              lifecycle: {
-                lifecycle_id: request.scope.lifecycle_id,
-                work_kind: 'registration_prepare',
-                primitive_request_kind: 'registration',
-                root_share_epoch: request.scope.root_share_epoch,
-                account_id: request.scope.account_id,
-                session_id: request.scope.threshold_session_id,
-                signer_set_id: request.scope.signer_set_id,
-                selected_server_id: request.scope.signing_worker_id,
-              },
-              operation: 'registration',
-              session_id: sessionId,
-              stable_key_context_binding: stableContextBinding,
-              material_activation: request.scope.material_activation,
-            },
-            keyset,
-          },
-        };
-      case 'recovery':
-        return {
-          ok: true,
-          body: {
-            binding: {
-              lifecycle: {
-                lifecycle_id: request.scope.lifecycle_id,
-                work_kind: 'recovery',
-                primitive_request_kind: 'recovery',
-                root_share_epoch: request.scope.root_share_epoch,
-                account_id: request.scope.account_id,
-                session_id: request.scope.threshold_session_id,
-                signer_set_id: request.scope.signer_set_id,
-                selected_server_id: request.scope.signing_worker_id,
-              },
-              operation: 'recovery',
-              session_id: sessionId,
-              stable_key_context_binding: stableContextBinding,
-              material_activation: request.scope.material_activation,
-            },
-            keyset,
-          },
-        };
-    }
+    return {
+      ok: true,
+      body: {
+        binding: await routerAbEd25519YaoActivationBindingV1(request, operation, sessionId),
+        keyset: this.keyset(),
+      },
+    };
   }
 
   async execute(
@@ -1023,7 +996,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     // retry after a lost reply is the exact request, unmarked.
     return await this.sendRouterRequest(
       routerInput,
-      registrationRouterExecuteRequest(routerInput, authority.dispatchRoot),
+      ceremonyRouterExecuteRequest(routerInput, authority.dispatchRoot),
       traceContext.value,
       'exact',
       false,
@@ -1087,7 +1060,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   /// Runs one Router execution. `replay` marks the first call as the
   /// Router's replay: an earlier call for this payload may have reached it.
   private async executeRouterRequest(
-    request: Exclude<RouterExecuteInput, { readonly operation: 'recovery' }>,
+    request: CeremonyRouterExecuteInput,
     replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {

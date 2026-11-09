@@ -86,6 +86,7 @@ import { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } fro
 import { handleRouterAbEd25519YaoRecoveryRequestScopedCloudflareV1 } from './cloud-host';
 import type { WarmBootstrapLinkedEd25519AuthorityReaderV1 } from './cloud-host';
 import { handleRouterAbEd25519YaoExportRequestScopedCloudflareV1 } from './cloud-host';
+import { handleRouterAbEd25519YaoReissueRequestV1 } from './cloud-host';
 import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
@@ -95,6 +96,8 @@ import {
   ROUTER_AB_ED25519_YAO_RECOVERY_STATUS_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
+  ROUTER_AB_ED25519_YAO_REISSUE_ADMISSION_PATH_V1,
+  ROUTER_AB_ED25519_YAO_REISSUE_EXECUTE_PATH_V1,
   ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1,
 } from './cloud-host';
 import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './cloud-host';
@@ -406,6 +409,7 @@ async function resolveStagingRegistrationTenantRoot(
       );
     case 'recovery':
     case 'export':
+    case 'reissue':
       throw new Error('Ed25519 active-material tenant-root resolver is unavailable');
   }
 }
@@ -430,6 +434,7 @@ async function resolveStagingTenantRoot(
         materialActivation: input.admissionRequest.active_material_activation,
       });
     case 'export':
+    case 'reissue':
       return await context.resolveActiveTenantRoot({
         walletId: input.admissionRequest.application_binding.wallet_id,
         materialActivation: input.admissionRequest.scope.material_activation,
@@ -1239,6 +1244,8 @@ type RouterApiYaoDirectOperationV1 =
   | 'recovery_execute'
   | 'recovery_activate'
   | 'recovery_status'
+  | 'reissue_admission'
+  | 'reissue_execute'
   | 'export_admission'
   | 'export_execute';
 
@@ -1260,6 +1267,10 @@ function yaoDirectOperationForRequest(request: Request): RouterApiYaoDirectOpera
       return 'recovery_activate';
     case ROUTER_AB_ED25519_YAO_RECOVERY_STATUS_PATH_V1:
       return 'recovery_status';
+    case ROUTER_AB_ED25519_YAO_REISSUE_ADMISSION_PATH_V1:
+      return 'reissue_admission';
+    case ROUTER_AB_ED25519_YAO_REISSUE_EXECUTE_PATH_V1:
+      return 'reissue_execute';
     case ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1:
       return 'export_admission';
     case ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1:
@@ -1269,11 +1280,11 @@ function yaoDirectOperationForRequest(request: Request): RouterApiYaoDirectOpera
   }
 }
 
-async function authorizeStagingNearRegistrationContinuation(
+/** The request's Router API service, for a route that runs outside the router handler. */
+async function createStagingRequestService(
   env: CloudflareD1GatewayBaseEnv,
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
   dependencies: HostedWalletGatewayDependenciesV1,
-  input: { readonly lifecycleId: string; readonly credential: string },
 ) {
   const scope = stagingTenantScope(env);
   const yaoRuntime = createStagingYaoRequestScopedRuntime(
@@ -1287,6 +1298,16 @@ async function authorizeStagingNearRegistrationContinuation(
     tenantRootCustodyLineage,
     dependencies,
   );
+  return service;
+}
+
+async function authorizeStagingNearRegistrationContinuation(
+  env: CloudflareD1GatewayBaseEnv,
+  tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
+  dependencies: HostedWalletGatewayDependenciesV1,
+  input: { readonly lifecycleId: string; readonly credential: string },
+) {
+  const service = await createStagingRequestService(env, tenantRootCustodyLineage, dependencies);
   return await service.walletRegistration.authorizeNearRegistrationContinuation(input);
 }
 
@@ -1331,17 +1352,38 @@ async function handlePartitionedD1Operation(
           dependencies,
         ),
       });
+    case 'reissue_admission':
+    case 'reissue_execute': {
+      const service = await createStagingRequestService(
+        env,
+        tenantRootCustodyLineage,
+        dependencies,
+      );
+      const authority = service.walletExecution;
+      return await handleRouterAbEd25519YaoReissueRequestV1({
+        request,
+        backend: createStagingEd25519YaoBackend(
+          env,
+          createStagingTenantRootResolver(
+            stagingTenantScope(env),
+            tenantRootCustodyLineage,
+            resolveStagingActiveTenantRootFromService.bind(undefined, service),
+          ),
+        ),
+        services: {
+          admitEstablishedHome: authority.admitEstablishedHome.bind(authority),
+          authorizationSessions: service.authorizationSessions,
+          resolveEd25519MaterialActivation:
+            service.walletRegistration.resolveEd25519MaterialActivation.bind(
+              service.walletRegistration,
+            ),
+        },
+      });
+    }
     case 'export_admission':
     case 'export_execute': {
-      const scope = stagingTenantScope(env);
-      const yaoRuntime = createStagingYaoRequestScopedRuntime(
+      const service = await createStagingRequestService(
         env,
-        createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
-      );
-      const { service } = await createStagingRouterApiAuthComposition(
-        env,
-        scope,
-        yaoRuntime,
         tenantRootCustodyLineage,
         dependencies,
       );
