@@ -577,9 +577,9 @@ puts the Jev rules into that step.
   with the session's own method. It then signs the transfer from the owner's
   account. There is no vault method (open question 9). Today one stub rule
   causes a step-up: a payment above 10 NEAR (`stub_voice_amount_above_10_near`).
-  In Refactor 227, Step 1b (built, not deployed), the co-signer accepts a
-  `step_up` verdict only when an operation step-up (a passkey or Email OTP
-  approval of this exact operation) authorizes the signing request.
+  In Refactor 227, Step 1b, the co-signer accepts a `step_up` verdict only
+  with a fresh approval: an operation step-up (a passkey or Email OTP approval
+  of this exact operation), or a new VoiceID unlock after the verdict.
 
 ### 5. Normal signing (later slices)
 
@@ -832,8 +832,6 @@ The gates of the first draft map to these slices:
    first release target?
 9. **Step-up path.** Decided on 2026-11-09 (Refactor 227): there is no vault.
    A `step_up` verdict goes to Wallet core, which asks for a fresh approval of
-   the same operation and signs from the owner's account. Step 1b answers the
-   rest: the co-signer requires an operation step-up for a `step_up` verdict.
-   Still open: a VoiceID session answers with a new VoiceID unlock, which is not
-   an approval of the operation, so the co-signer refuses it. Keep this, or
-   accept a fresh VoiceID unlock?
+   the same operation and signs from the owner's account. Step 1b: the
+   co-signer requires a fresh approval for a `step_up` verdict. The user decided
+   on 2026-11-09 that a new VoiceID unlock after the verdict counts as one.

@@ -18,12 +18,14 @@ import {
   parseVoiceVerdict,
   SPEAK_TO_SIGN_VERIFIERS,
   verifyVoiceVerdictSignature,
+  VOICE_VERDICT_LIFE_MS,
   voiceVerdictIsLive,
   voiceVerdictMessage,
   type CosignerVoiceRefusal,
   type SpeakToSignVerifier,
 } from '@shared/speakToSign/voiceVerdict';
 import type { RouterApiWalletRegistrationService } from '../../framework/authServicePort';
+import type { RouterAbEd25519NormalSigningAuthorizationResult } from '../signingOperations/routerAbEd25519NormalSigningRoute';
 import { parseRouterAbEd25519NormalSigningScopeV2 } from '../signingOperations/routerAbPrivateSigningWorker';
 import { decodeVoiceTransaction, spokenRequestOfTransaction } from './voiceVerdictTransaction';
 
@@ -31,9 +33,10 @@ const YOCTO_PER_HUNDREDTH = 10n ** 22n;
 const DAY_MS = 86_400_000;
 
 /**
- * What the voice alone may approve. A `step_up` verdict that comes with a fresh approval of the
- * same operation is not a voice-only approval, so these limits do not apply to it and it does
- * not count toward the day. The per-payment limit is the verifier's step-up rule (10 NEAR).
+ * What the voice alone may approve. A `step_up` verdict that comes with a fresh approval (an
+ * operation step-up or a new VoiceID unlock) is not a voice-only approval, so these limits do
+ * not apply to it and it does not count toward the day. The per-payment limit is the
+ * verifier's step-up rule (10 NEAR).
  */
 const SPEAK_TO_SIGN_VOICE_LIMITS = Object.freeze({
   perPaymentYocto: 10n * 10n ** 24n,
@@ -105,6 +108,9 @@ export function splitVoiceVerdict<T extends { readonly body: Record<string, unkn
 
 type Admission = Readonly<{ ok: true }> | Readonly<{ ok: false; reason: CosignerVoiceRefusal }>;
 
+/** How the Ed25519 signing route authorized the request. */
+type SigningAuthorization = Extract<RouterAbEd25519NormalSigningAuthorizationResult, { ok: true }>;
+
 /**
  * Checks the verdict of a voice-approved signing request, after the route authorized the
  * session. Null admits the request: a normal request has no verdict and skips the check. A
@@ -114,22 +120,21 @@ type Admission = Readonly<{ ok: true }> | Readonly<{ ok: false; reason: Cosigner
  */
 export async function checkSigningRequestVoiceVerdict(
   route: SigningRouteVoiceVerdict,
-  authorizationKind: string,
+  authorization: SigningAuthorization,
 ): Promise<Response | null> {
   if (route.voiceVerdict === undefined) return null;
   const check = route.ctx.opts.speakToSignVoiceVerdicts;
   const admission =
     check && route.phase === 'prepare'
-      ? await admitVoiceVerdict(check, route, authorizationKind === 'operation_step_up')
+      ? await admitVoiceVerdict(check, route, authorization)
       : refuse(check ? 'verdict_invalid' : 'unavailable');
   return admission.ok ? null : voiceVerdictRefusalResponse(admission.reason);
 }
 
-/** `freshApproval`: a fresh approval of this exact operation authorized the request. */
 async function admitVoiceVerdict(
   check: SpeakToSignVoiceVerdictCheck,
   route: SigningRouteVoiceVerdict,
-  freshApproval: boolean,
+  authorization: SigningAuthorization,
 ): Promise<Admission> {
   const nowMs = (check.now ?? Date.now)();
   const signed = route.voiceVerdict;
@@ -153,7 +158,9 @@ async function admitVoiceVerdict(
   );
   if (!signatureValid) return refuse('signature_invalid');
   if (!voiceVerdictIsLive(verdict.expiresAtMs, nowMs)) return refuse('expired');
-  if (verdict.outcome === 'step_up' && !freshApproval) return refuse('step_up_required');
+  if (verdict.outcome === 'step_up' && !freshApproval(authorization, verdict.expiresAtMs)) {
+    return refuse('step_up_required');
+  }
 
   const transaction = decodeVoiceTransaction(target.unsignedTransaction);
   if (!transaction) return refuse('request_mismatch');
@@ -188,6 +195,19 @@ async function admitVoiceVerdict(
   if (ledger === 'reused') return refuse('reused');
   if (ledger === 'over_daily_limit') return refuse('over_daily_limit');
   return { ok: true };
+}
+
+/**
+ * True when the owner approved again after the verdict: an operation step-up approved this exact
+ * operation, or a new VoiceID unlock issued the Wallet Session after the verifier signed the
+ * verdict. A VoiceID session answers a fresh-approval request with that unlock.
+ */
+function freshApproval(authorization: SigningAuthorization, verdictExpiresAtMs: number): boolean {
+  if (authorization.kind === 'operation_step_up') return true;
+  if (authorization.kind !== 'wallet_session_operation_credential_v1') return false;
+  const { authorization: issued, authMethod } = authorization.validated.admission.context;
+  const verdictSignedAtMs = verdictExpiresAtMs - VOICE_VERDICT_LIFE_MS;
+  return authMethod.kind === 'voiceid' && issued.session.createdAtMs >= verdictSignedAtMs;
 }
 
 type SigningTarget = Readonly<{

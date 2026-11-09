@@ -300,14 +300,16 @@ until the 0.57.0 rollout session reports done.
      - the voice limits: 10 NEAR in one voice-only payment and 20 NEAR in any 24 hours for each
        wallet. One SQL statement adds the verdict and checks the 24-hour sum. The limits are
        constants in code, not settings of each wallet;
-     - a `step_up` verdict only with an operation step-up authorization (a passkey or Email OTP
-       approval of this exact operation). Such a payment does not count toward the voice
-       limits.
-       Inferred from the code, not measured: a VoiceID session answers the fresh approval with
-       a new VoiceID unlock (`VoiceIdStepUpRequiredError`), which renews the session and is not
-       an approval of the operation. So the co-signer refuses the `step_up` verdict of a
-       VoiceID-only wallet with `step_up_required`. Open question for the user: keep this, or
-       accept a fresh VoiceID unlock.
+     - a `step_up` verdict only with a fresh approval: an operation step-up authorization (a
+       passkey or Email OTP approval of this exact operation), or a Wallet Session of the
+       VoiceID method that a new unlock issued after the verifier signed the verdict
+       (`createdAtMs` at or after `expires_at_ms` − 120 s). The user chose the VoiceID rule on
+       2026-11-09. Such a payment does not count toward the voice limits.
+   - A VoiceID session answers a fresh-approval request with a new VoiceID unlock
+     (`VoiceIdStepUpRequiredError`). Before this change, the retry after the unlock asked for a
+     fresh approval again and failed. Now the retry in the same signing call counts the unlock
+     as that approval (`afterVoiceIdStepUp` in `stepUpConfirmation/voiceIdStepUp.ts`). Not
+     checked live.
    - A refusal is HTTP 403 (409 for `reused`, 503 for `unavailable`) with
      `code: "voice_verdict_refused"`, a typed `reason` (`CosignerVoiceRefusal`) and a message
      that names the reason. Wallet core reads the reason from the signing error. The app

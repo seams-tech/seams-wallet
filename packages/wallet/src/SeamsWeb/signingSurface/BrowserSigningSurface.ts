@@ -482,6 +482,7 @@ import type {
   RejoinedWalletCustodyEvmFamilyKeySetV1,
 } from './ports';
 import {
+  afterVoiceIdStepUp,
   isVoiceIdStepUpRequired,
   VoiceIdStepUpRequiredError,
 } from '@/core/signingEngine/stepUpConfirmation/voiceIdStepUp';
@@ -505,13 +506,12 @@ const VOICE_ID_STEP_UP_READS = new Set(['missing', 'expired', 'exhausted', 'supe
  * listener and confirm override through it, so a retry after the user approved
  * does not ask for the same approval again.
  */
+type SigningEventListener = (event: SigningFlowEvent) => void;
+type ConfirmationOverride = Partial<ConfirmationConfig> | undefined;
 type VoiceIdSigningAttempt = {
-  readonly onEvent: (
-    listener: ((event: SigningFlowEvent) => void) | undefined,
-  ) => (event: SigningFlowEvent) => void;
-  readonly confirmation: (
-    override: Partial<ConfirmationConfig> | undefined,
-  ) => Partial<ConfirmationConfig> | undefined;
+  readonly onEvent: (listener: SigningEventListener | undefined) => SigningEventListener;
+  readonly confirmation: (override: ConfirmationOverride) => ConfirmationOverride;
+  readonly args: <T extends object>(args: T) => T;
 };
 
 function requireEmailOtpEcdsaRehydrationManifest(
@@ -3557,9 +3557,9 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * Signs after a VoiceID step-up when the selected VoiceID session cannot sign:
-   * before the operation when the session read shows it, and once more when the
-   * operation itself reports it before any signature.
+   * Signs after a VoiceID step-up when the VoiceID session cannot sign: before the operation
+   * when the session read shows it, or once when the operation reports it before a signature.
+   * The new unlock is the fresh approval that `require_fresh_same_method` asks for.
    */
   private async withVoiceIdStepUp<T>(
     walletId: WalletId,
@@ -3567,13 +3567,14 @@ export class BrowserSigningSurface {
     options: Readonly<{ inCard: boolean }>,
   ): Promise<T> {
     let approved = false;
-    const attempt = (skipConfirmClick: boolean): VoiceIdSigningAttempt => ({
+    const attempt = (skipConfirmClick: boolean, steppedUp = false): VoiceIdSigningAttempt => ({
       onEvent: (listener) => (event) => {
         if (event.phase === SigningEventPhase.STEP_05_CONFIRMATION_APPROVED) approved = true;
         listener?.(event);
       },
       confirmation: (override) =>
         skipConfirmClick ? { ...override, behavior: 'skipClick', autoProceedDelay: 0 } : override,
+      args: (args) => (steppedUp ? afterVoiceIdStepUp(args) : args),
     });
     try {
       // A reviewed request shows Wallet UI only on its confirm card, so its client steps
@@ -3584,16 +3585,15 @@ export class BrowserSigningSurface {
       // An operation that steps up inside its own card asks for VoiceID there, after its review.
       const steppedUp = options.inCard ? false : await this.stepUpVoiceIdBeforeSigning(walletId);
       try {
-        return await run(attempt(false));
+        return await run(attempt(false, steppedUp));
       } catch (error) {
         if (steppedUp || !isVoiceIdStepUpRequired(error)) throw error;
         // The card's confirmation passed with the voice check and waits for this attempt.
-        if (await this.stepUpVoiceIdInCard(walletId)) return await run(attempt(false));
+        if (await this.stepUpVoiceIdInCard(walletId)) return await run(attempt(false, true));
         this.touchConfirm.releaseTransactionPreparationModal();
         if (!(await this.runVoiceIdStepUp(walletId))) throw error;
-        // The user approved this request before the step-up; the voice check was the
-        // only missing step, so the retry signs it without a second confirm click.
-        return await run(attempt(approved));
+        // An approval before the unlock still holds, so the retry needs no second click.
+        return await run(attempt(approved, true));
       }
     } finally {
       this.touchConfirm.releaseTransactionPreparationModal();
@@ -3644,7 +3644,7 @@ export class BrowserSigningSurface {
           signNearOperation(this.enginePorts.nearSigningDeps, {
             ...request,
             args: {
-              ...request.args,
+              ...attempt.args(request.args),
               onEvent: attempt.onEvent(request.args.onEvent),
               confirmationConfigOverride: attempt.confirmation(
                 request.args.confirmationConfigOverride,

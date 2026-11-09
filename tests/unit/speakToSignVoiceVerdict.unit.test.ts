@@ -184,11 +184,41 @@ function prepareBody(
 
 // ---------------------------------------------------------------- the co-signer
 
+/** How the route authorized the request: an operation step-up, or a Wallet Session. */
+type RouteAuthorization =
+  | 'operation_step_up'
+  | Readonly<{ method: 'passkey' | 'email_otp' | 'voiceid'; createdAtMs: number }>;
+
+/** The parts of the route's authorization result that the check reads. */
+function routeAuthorization(
+  authorization: RouteAuthorization,
+): Parameters<typeof checkSigningRequestVoiceVerdict>[1] {
+  if (authorization === 'operation_step_up') {
+    return { ok: true, kind: 'operation_step_up', phase: 'prepare' } as never;
+  }
+  return {
+    ok: true,
+    kind: 'wallet_session_operation_credential_v1',
+    validated: {
+      admission: {
+        context: {
+          authorization: { session: { createdAtMs: authorization.createdAtMs } },
+          authMethod: { kind: authorization.method },
+        },
+      },
+    },
+  } as never;
+}
+
 type Harness = Readonly<{
   /** Runs the check as the Ed25519 prepare route does, after it authorized the session. */
   check(
     body: Record<string, unknown>,
-    options?: { authorizationKind?: string; phase?: 'prepare' | 'finalize'; nowMs?: number },
+    options?: {
+      authorization?: RouteAuthorization;
+      phase?: 'prepare' | 'finalize';
+      nowMs?: number;
+    },
   ): Promise<{ status: number; reason: CosignerVoiceRefusal | null; message?: string }>;
   ledger: VoiceVerdictLedger;
 }>;
@@ -247,7 +277,9 @@ function harness(verifier: Verifier, options: { configured?: boolean } = {}): Ha
       };
       const response = await checkSigningRequestVoiceVerdict(
         route,
-        checkOptions.authorizationKind ?? 'wallet_session_operation_credential_v1',
+        routeAuthorization(
+          checkOptions.authorization ?? { method: 'passkey', createdAtMs: NOW_MS - 3_600_000 },
+        ),
       );
       if (!response) return { status: 200, reason: null };
       const refusal = (await response.json()) as Record<string, unknown>;
@@ -528,7 +560,7 @@ test('a step_up verdict needs a fresh approval of the operation, and then the vo
         prepareBody(tx, { requestId: 'fresh', authorization: 'operation_step_up' }),
         verdict,
       ),
-      { authorizationKind: 'operation_step_up' },
+      { authorization: 'operation_step_up' },
     ),
   ).toEqual(ADMITTED);
   // The 25 NEAR with a fresh approval leaves the whole voice-only day free.
@@ -545,6 +577,39 @@ test('a step_up verdict needs a fresh approval of the operation, and then the vo
       ADMITTED,
     );
   }
+});
+
+test('a step_up verdict is admitted after a new VoiceID unlock that came after the verdict', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  // The verifier signed this verdict at NOW_MS: it expires 120 s later.
+  const verdict = await signedVerdict(verifier, transfer(25n), {
+    outcome: 'step_up',
+    policy_rule: 'stub_voice_amount_above_10_near',
+  });
+  const tx = unsignedTransaction({
+    receiver: 'alice.testnet',
+    actions: [{ kind: 'transfer', yocto: 25n * NEAR }],
+  });
+  const attempt = async (requestId: string, authorization: RouteAuthorization) =>
+    await cosigner.check(withVerdict(prepareBody(tx, { requestId }), verdict), {
+      authorization,
+      nowMs: NOW_MS + 6_000,
+    });
+  // A VoiceID session from before the verdict is not a fresh approval.
+  expect(await attempt('old-unlock', { method: 'voiceid', createdAtMs: NOW_MS - 1 })).toEqual(
+    refused('step_up_required'),
+  );
+  // Only a VoiceID unlock counts: other methods use an operation step-up.
+  expect(await attempt('new-passkey', { method: 'passkey', createdAtMs: NOW_MS + 4_000 })).toEqual(
+    refused('step_up_required'),
+  );
+  expect(await attempt('new-otp', { method: 'email_otp', createdAtMs: NOW_MS + 4_000 })).toEqual(
+    refused('step_up_required'),
+  );
+  expect(await attempt('new-unlock', { method: 'voiceid', createdAtMs: NOW_MS + 4_000 })).toEqual(
+    ADMITTED,
+  );
 });
 
 test('spoken notes and ratings are admitted only as one add_note or rate_note call with no deposit', async () => {

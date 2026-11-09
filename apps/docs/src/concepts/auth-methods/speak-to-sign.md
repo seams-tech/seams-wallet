@@ -236,9 +236,12 @@ recording that it made in the same flow.
   - The voice limits of each wallet: at most 10 NEAR in one voice payment and
     20 NEAR in any 24 hours. A refused payment does not count. An admitted
     payment counts, also when it then fails on chain.
-  - A `step_up` verdict. The co-signer accepts it only with a fresh approval
-    of the same operation (a passkey or Email OTP step-up). Such a payment is
-    not voice-only, so the voice limits do not apply to it.
+  - A `step_up` verdict. The co-signer accepts it only with a fresh approval:
+    a passkey or Email OTP step-up of the same operation, or a new VoiceID
+    unlock after the verifier signed the verdict. Such a payment is not
+    voice-only, so the voice limits do not apply to it. On a wallet with only
+    VoiceID, the fresh approval is a second voice check (VoiceID on the
+    device), so the voice approves that payment twice.
 - The co-signer check protects against a fault in the Wallet's Speak-to-Sign
   path, and it keeps the limits and single use on the server. It does not stop
   code at `walletOrigin` that leaves the verdict out, because such code can

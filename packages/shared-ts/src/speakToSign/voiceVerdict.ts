@@ -43,8 +43,10 @@ const VERDICT_FIELDS = [
   'word_margin_milli',
   'heard',
 ] as const;
-/** The verifier gives a verdict 120 s. A later expiry means a worker clock that runs ahead. */
-const MAX_VERDICT_LIFE_MS = 150_000;
+/** The verifier signs a verdict with `expires_at_ms` 120 s after its own clock. */
+export const VOICE_VERDICT_LIFE_MS = 120_000;
+/** A later expiry than this means a worker clock that runs ahead. */
+const MAX_VERDICT_LIFE_MS = VOICE_VERDICT_LIFE_MS + 30_000;
 
 /** `accept`: the voice alone approves. `step_up`: a policy rule asks for a fresh approval too. */
 type VoiceVerdictOutcome = 'accept' | 'step_up';
@@ -170,7 +172,7 @@ const COSIGNER_VOICE_REFUSALS = [
   'reused',
   'over_payment_limit',
   'over_daily_limit',
-  /** A `step_up` verdict without a fresh approval of the same operation. */
+  /** A `step_up` verdict without a fresh approval: an operation step-up or a new VoiceID unlock. */
   'step_up_required',
   /** The co-signer could not read the account or its verdict records. */
   'unavailable',

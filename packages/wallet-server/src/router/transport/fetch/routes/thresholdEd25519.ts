@@ -1543,7 +1543,7 @@ async function executeRouterAbEd25519NormalSigningRoute(
   if (!authorization.ok) {
     return json(authorization.result.body, { status: authorization.result.status });
   }
-  const voiceRefusal = await checkSigningRequestVoiceVerdict(input, authorization.kind);
+  const voiceRefusal = await checkSigningRequestVoiceVerdict(input, authorization);
   if (voiceRefusal) return voiceRefusal;
   if (authorization.kind === 'operation_step_up') {
     if (input.phase === 'prepare') {

@@ -39,6 +39,7 @@ import {
 } from '@/core/transactionFeatures/voiceVerdict';
 import { MAX_SAMPLES, pcm16Wav } from '@/core/transactionFeatures/wav';
 import { sha256 } from '@shared/speakToSign/spokenRequest';
+import { afterVoiceIdStepUp } from '@/core/signingEngine/stepUpConfirmation/voiceIdStepUp';
 import type { Variant } from '@shared/utils/variant';
 import type { ActionResult } from '@/core/types/seams';
 import type { TransactionInput } from '@/core/types/actions';
@@ -1084,6 +1085,17 @@ test('a co-signer refusal returns its typed reason, and another verdict of the f
   });
   expect(await pay(602)).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
   expect(harness.signed).toHaveLength(6);
+});
+
+test('after a VoiceID step-up, the new unlock meets a fresh-approval policy and no other', () => {
+  const args = { transaction: 'tx', sensitivePolicy: 'require_fresh_same_method' } as const;
+  expect(afterVoiceIdStepUp(args)).toEqual({ transaction: 'tx', sensitivePolicy: undefined });
+  for (const sensitivePolicy of ['require_passkey', 'deny_email_otp', 'inherit_session_policy']) {
+    const other = { transaction: 'tx', sensitivePolicy };
+    expect(afterVoiceIdStepUp(other), sensitivePolicy).toBe(other);
+  }
+  const none = { transaction: 'tx' };
+  expect(afterVoiceIdStepUp(none)).toBe(none);
 });
 
 test('core signs the enrollment message only for three clips it recorded', async () => {
