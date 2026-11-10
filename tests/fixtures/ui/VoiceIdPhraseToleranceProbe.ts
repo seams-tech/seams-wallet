@@ -1,5 +1,9 @@
 import { checkSpokenPhrase } from '@voiceid/browser/phrase';
+import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
+
+// The capture package reads the Wallet's settings, as in the Wallet host.
+configureVoiceIdCapture();
 
 async function checkAudio(base64: string, expectedIndex: number) {
   const phrase = SPOKEN_PHRASES[expectedIndex];

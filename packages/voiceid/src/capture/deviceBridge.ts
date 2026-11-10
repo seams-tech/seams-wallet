@@ -1,6 +1,6 @@
 import { VoiceSpeakerMismatchError } from '../browser/verificationError';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
-import type { VoiceCaptureObserver } from '../browser/microphone';
+import type { VoiceCaptureObserver } from '@seams/voice-capture';
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import {
   voiceIdWalletSessionChallengeBytes,
@@ -27,7 +27,7 @@ import {
   requireVoiceUserAction,
   requireVoiceForeground,
   InsufficientVoiceAudioError,
-} from '../browser/microphone';
+} from '@seams/voice-capture';
 
 import type {
   VoiceIdActivationCapture,

@@ -1,4 +1,4 @@
-import { recordVoice, type VoiceCaptureObserver, type VoiceCaptureQuality } from './microphone';
+import { recordVoice, type VoiceCaptureObserver, type VoiceCaptureQuality } from '@seams/voice-capture';
 import { checkSpokenPhrase, type SpokenPhrase } from './phrase';
 import { voiceEmbedding, voiceSimilarity, VOICE_MATCH_THRESHOLD } from './model';
 import { readVoiceTemplate } from './enrollmentStore';

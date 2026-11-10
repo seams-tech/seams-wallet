@@ -10,12 +10,17 @@ import {
   type WalletIframeSurfaceMeasurementReporter,
 } from '@seams/wallet/voiceid-host';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
-import { newSpokenPhrase, VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
-import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '../browser/microphone';
-import { leaveSurface, VoicePrompt } from './prompt';
+import {
+  displayPhrase,
+  newSpokenPhrase,
+  VoicePhraseMismatchError,
+  type SpokenPhrase,
+} from '../browser/phrase';
+import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '@seams/voice-capture';
+import { leaveSurface, VoicePrompt } from '@seams/voice-capture/card';
 import { VoiceUnlockFrame } from './unlockFrame';
 import { toError } from '@seams/wallet/voiceid-host';
-import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
+import { VoiceMicrophoneInterruptedError } from '@seams/voice-capture';
 
 type CaptureAction<T> = (
   signal: AbortSignal,
@@ -108,7 +113,13 @@ class VoiceIdCaptureSurface<T> {
     // A step-up inside an operation's card keeps that card's toolbar and footer, and its
     // checking segments become the receipt's tracks.
     const inCard = purpose === 'unlock' && unlockSuccess === 'skip' && mountCapture !== undefined;
-    this.prompt = new VoicePrompt(document, actionLabel, this.phrase, inCard ? 'segments' : 'ring');
+    this.prompt = new VoicePrompt(
+      document,
+      actionLabel,
+      this.phrase,
+      inCard ? 'segments' : 'ring',
+      displayPhrase,
+    );
     this.element.append(this.prompt.element);
     this.unlockFrame =
       purpose === 'unlock' && !inCard ? new VoiceUnlockFrame(this.element, this.prompt) : null;

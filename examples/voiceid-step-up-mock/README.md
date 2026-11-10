@@ -18,7 +18,7 @@ The trace is the main feedback. It draws the capture as a line from left to righ
   feedback. Approval draws a check at its end.
 
 The preview requests automatic gain control off and measures 16 ms frames.
-`voiceCapture.ts` applies the capture rules of `browser/microphone.ts`: a 0.006
+`voiceCapture.ts` applies the capture rules of `@seams/voice-capture`: a 0.006
 RMS minimum, speech after 100 ms of sound, a 1.5 s end pause and an 8 s limit.
 The SDK also asks its voice activity model; this preview has no model, so sound
 must also rise 2.5 times above the room level measured in the first 200 ms and

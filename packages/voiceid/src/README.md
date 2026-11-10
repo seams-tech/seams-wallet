@@ -49,9 +49,14 @@ Core authentication uses scoped records.
 
 ## Model assets and evaluation
 
-The build includes the pinned model and runtime assets from [`../assets/`](../assets/).
+The build includes the pinned speaker and text models from [`../assets/`](../assets/).
 Speaker model metadata lives in [`browser/model.ts`](browser/model.ts).
-Shared asset loading and integrity checks live in [`browser/inference.ts`](browser/inference.ts).
+
+The recording itself is the `@seams/voice-capture` package of the speak-to-sign repository: the
+microphone, speech detection, the quality gate, asset loading with integrity checks, the model
+engine, and the phrase card. [`capture/configure.ts`](capture/configure.ts) gives it the Wallet's
+asset folder, microphone store, style nonce and message words. The build copies its speech
+detection model, audio worklet and model engine into the VoiceID asset folder.
 Use the export and evaluation instructions for provenance, licenses, and repeatable measurements:
 
 - [Speaker-model evaluation](../../../tests/scripts/voiceid-model-evaluation/README.md)

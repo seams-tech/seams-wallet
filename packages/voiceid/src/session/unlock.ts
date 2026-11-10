@@ -1,5 +1,5 @@
-import { requireVoiceUserAction } from '../browser/microphone';
-import type { VoiceCaptureObserver } from '../browser/microphone';
+import { requireVoiceUserAction } from '@seams/voice-capture';
+import type { VoiceCaptureObserver } from '@seams/voice-capture';
 import type { SpokenPhrase } from '../browser/phrase';
 import type {
   VoiceIdTranscriptionModel,

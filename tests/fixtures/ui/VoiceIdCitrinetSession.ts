@@ -1,6 +1,6 @@
-import { recordVoice, voiceQualityMessage } from '@voiceid/browser/microphone';
-import { voiceActivityModel } from '@voiceid/browser/voiceActivity';
-import { VoicePrompt } from '@voiceid/capture/prompt';
+import { recordVoice, voiceActivityModel, voiceQualityMessage } from '@seams/voice-capture';
+import { VoicePrompt } from '@seams/voice-capture/card';
+import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import type { SpokenPhrase } from '@voiceid/browser/phrase';
 import { isPlainObject } from '@seams/wallet/voiceid-host';
 import {
@@ -9,6 +9,9 @@ import {
   type Comparison,
   type ModelResult,
 } from '../../../tests/scripts/voiceid-citrinet/recognition';
+
+// The capture package reads the Wallet's settings, as in the Wallet host.
+configureVoiceIdCapture();
 
 type Assignment =
   | { kind: 'correct'; expected: SpokenPhrase; say?: never }

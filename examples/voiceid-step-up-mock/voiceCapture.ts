@@ -1,6 +1,6 @@
 import { voiceDisplayLevel } from '../../packages/voiceid/src/browser/waveform';
 
-// The capture rules of browser/microphone.ts: a minimum level, speech starts after
+// The capture rules of @seams/voice-capture: a minimum level, speech starts after
 // 100 ms of sound, and the capture ends after a 1.5 s pause or at 8 s. The SDK
 // also asks its voice activity model. This preview has no model, so sound must
 // rise well above the room level measured first, and must outlast a click.

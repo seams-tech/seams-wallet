@@ -1,13 +1,14 @@
 import {
   newSpokenPhrase,
   checkSpokenPhrase,
+  displayPhrase,
   VoicePhraseMismatchError,
   type SpokenPhrase,
 } from './phrase';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 import { prepareVoiceModelWithProgress } from './progress';
-import { recordVoice, requireVoiceUserAction, voiceQualityMessage } from './microphone';
-import { VoicePrompt } from '../capture/prompt';
+import { recordVoice, requireVoiceUserAction, voiceQualityMessage } from '@seams/voice-capture';
+import { VoicePrompt } from '@seams/voice-capture/card';
 import {
   normalizeVoiceVector,
   voiceEmbedding,
@@ -90,6 +91,8 @@ class VoiceEnrollmentSurface {
       parent.ownerDocument,
       'Enroll your voice in this browser',
       this.phrase,
+      'ring',
+      displayPhrase,
     );
     const title = 'Read aloud · 0 of 3 accepted';
     const message =

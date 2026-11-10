@@ -1,31 +1,24 @@
-import { BrowserInferenceModel } from './inference';
+import { BrowserInferenceModel } from '@seams/voice-capture';
 
 const MODEL_HASH = 'e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269';
 export const VOICE_MODEL_ID = `redimnet-b1:${MODEL_HASH}`;
 // Experimental usability cutoff; human acceptance and wrong-speaker rates remain unqualified.
 export const VOICE_MATCH_THRESHOLD = 0.45;
 export const voiceModel = new BrowserInferenceModel({
-  path: '/sdk/voiceid/redimnet-b1.onnx', sha256: MODEL_HASH,
+  fileName: 'redimnet-b1.onnx', sha256: MODEL_HASH,
   bytes: 8_859_593, label: 'Speaker verification',
 });
 
 export async function voiceEmbedding(samples: Float32Array): Promise<number[]> {
-  const model = await voiceModel.prepare();
-  const ort = await import('onnxruntime-web/wasm');
-  const tensor = new ort.Tensor('float32', samples, [1, samples.length]);
+  const output = await voiceModel.run(samples);
   try {
-    const output = await model.run({ samples: tensor });
-    try {
-      const embedding = output.embedding;
-      if (!embedding || !(embedding.data instanceof Float32Array)) {
-        throw new Error('VoiceID model returned an invalid embedding.');
-      }
-      return normalizeVoiceVector(Array.from(embedding.data));
-    } finally {
-      for (const outputTensor of Object.values(output)) outputTensor.dispose();
+    const embedding = output.embedding;
+    if (!embedding || !(embedding.data instanceof Float32Array)) {
+      throw new Error('VoiceID model returned an invalid embedding.');
     }
+    return normalizeVoiceVector(Array.from(embedding.data));
   } finally {
-    tensor.dispose();
+    for (const outputTensor of Object.values(output)) outputTensor.dispose();
   }
 }
 

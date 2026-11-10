@@ -1,4 +1,4 @@
-import type { VoiceCaptureQuality } from './microphone';
+import type { VoiceCaptureQuality } from '@seams/voice-capture';
 
 /** Keeps a local speaker rejection retryable without changing server authorization. */
 export class VoiceSpeakerMismatchError extends Error {

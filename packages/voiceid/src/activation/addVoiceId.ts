@@ -5,7 +5,7 @@ import type {
   VoiceIdActivationPreparation,
   VoiceIdTranscriptionModel,
 } from '@seams/wallet/voiceid-host';
-import type { VoiceCaptureObserver } from '../browser/microphone';
+import type { VoiceCaptureObserver } from '@seams/voice-capture';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { PreparedVoiceCapture } from '../capture/surface';
 import { captureVoiceIdActivation } from '../capture/deviceBridge';

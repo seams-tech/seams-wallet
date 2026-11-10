@@ -1,8 +1,12 @@
 import { prepareVoiceModelWithProgress } from '@voiceid/browser/progress';
-import { recordVoice, type VoiceCaptureEvent } from '@voiceid/browser/microphone';
-import { VoicePrompt } from '@voiceid/capture/prompt';
+import { recordVoice, type VoiceCaptureEvent } from '@seams/voice-capture';
+import { VoicePrompt } from '@seams/voice-capture/card';
+import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
+
+// The capture package reads the Wallet's settings, as in the Wallet host.
+configureVoiceIdCapture();
 
 type Device = 'desk' | 'headset';
 type Request = { exact: string | null; processing: MediaTrackConstraints };
@@ -61,9 +65,9 @@ async function capture(): Promise<void> {
     document.body.dataset.result = 'failed';
     document.body.dataset.error = error instanceof Error ? error.message : String(error);
   } finally {
-    prompt.ready('Record to check your microphone.');
-    prompt.record.hidden = false;
-    prompt.record.disabled = false;
+    // The change joins the prompt's own row changes, so a fade of "Listening" that still runs
+    // cannot hide the button after this.
+    await prompt.readyChange('Record to check your microphone.');
   }
 }
 

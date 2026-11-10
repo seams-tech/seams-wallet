@@ -1,6 +1,7 @@
 import type { WalletAuthMethodHostPlugin } from '@seams/wallet/voiceid-host';
 import { showVoiceIdCaptureSurface, VoiceIdCaptureCancelledError } from './capture/surface';
 import type { VoiceCaptureElements } from './capture/surface';
+import { configureVoiceIdCapture } from './capture/configure';
 import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
@@ -16,6 +17,7 @@ type OperationInput = Parameters<WalletAuthMethodHostPlugin['confirmOperation']>
 export function createVoiceIdHostPlugin(
   model: VoiceIdTranscriptionModel,
 ): WalletAuthMethodHostPlugin {
+  configureVoiceIdCapture();
   return {
     unlock: unlock.bind(null, model),
     activate: activate.bind(null, model),

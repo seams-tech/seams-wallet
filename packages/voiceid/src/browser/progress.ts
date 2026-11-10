@@ -1,8 +1,12 @@
-import { voiceActivityModel } from './voiceActivity';
+import { voiceActivityModel } from '@seams/voice-capture';
 import { voiceModel } from './model';
 import { getPhraseModel } from './phrase';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
-import { VoiceIdLoadError, voiceInferenceEngine, type VoiceAssetProgress } from './inference';
+import {
+  VoiceAssetLoadError,
+  voiceInferenceEngine,
+  type VoiceAssetProgress,
+} from '@seams/voice-capture';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 
 // A download shows at once. Saved models usually start within this time, so their indicator
@@ -109,7 +113,7 @@ class VoiceModelDownload {
         return;
       } catch (error) {
         this.signal.throwIfAborted();
-        if (!(error instanceof VoiceIdLoadError)) throw error;
+        if (!(error instanceof VoiceAssetLoadError)) throw error;
         this.show();
         this.element.dataset.state = 'failed';
         this.meter.hidden = true;

@@ -158,7 +158,7 @@ const crossedRuntime = { ...runtimePasskey, voiceIdAuthority: voiceAuthority };
 void (crossedRuntime satisfies ExactEcdsaRuntimeAuthBinding);
 
 
-import type { VoiceCaptureEvent } from '../../packages/voiceid/src/browser/microphone';
+import type { VoiceCaptureEvent } from '@seams/voice-capture';
 declare const captureStream: MediaStream;
 // @ts-expect-error The trace draws recorder frames; no capture event carries the stream.
 const listeningWithStream: VoiceCaptureEvent = { kind: 'listening', stream: captureStream };
@@ -183,12 +183,8 @@ void activityWithStream;
 const missingCaptureMetrics: VoiceCaptureEvent = { kind: 'measured' };
 void missingCaptureMetrics;
 
-type RecordingResult = Awaited<
-  ReturnType<
-    typeof import('../../packages/voiceid/src/browser/microphone').recordVoice
-  >
->;
-declare const captureQuality: import('../../packages/voiceid/src/browser/microphone').VoiceCaptureQuality;
+type RecordingResult = Awaited<ReturnType<typeof import('@seams/voice-capture').recordVoice>>;
+declare const captureQuality: import('@seams/voice-capture').VoiceCaptureQuality;
 declare const capturedSamples: Float32Array;
 const capturedAudioFields = { samples: capturedSamples };
 // @ts-expect-error Rejected audio cannot carry a captured sample buffer through a spread.
@@ -202,7 +198,7 @@ const captureWithoutSamples: RecordingResult = { kind: 'captured', quality: capt
 void rejectedAudioWithSamples;
 void captureWithoutSamples;
 
-import type { VoiceMicrophone } from '../../packages/voiceid/src/browser/microphoneInput';
+import type { VoiceMicrophone } from '@seams/voice-capture';
 type MicrophonePreference = VoiceMicrophone['preference'];
 // @ts-expect-error A selected microphone requires its concrete device identity.
 const microphoneWithoutIdentity: MicrophonePreference = { kind: 'device' };

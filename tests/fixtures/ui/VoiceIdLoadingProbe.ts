@@ -1,9 +1,13 @@
 import { prepareVoiceModelWithProgress } from '@voiceid/browser/progress';
-import { VoicePrompt } from '@voiceid/capture/prompt';
+import { VoicePrompt } from '@seams/voice-capture/card';
+import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import { checkSpokenPhrase } from '@voiceid/browser/phrase';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 import { voiceIdAuthMethod } from '../../../packages/voiceid/src/descriptor';
 import { parseWalletAuthMethodPlugins } from '@/core/authMethods/plugins';
+
+// The capture package reads the Wallet's settings, as in the Wallet host.
+configureVoiceIdCapture();
 
 function configuredModel() {
   const requested = new URL(location.href).searchParams.get('transcriptionModel');

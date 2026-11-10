@@ -1,5 +1,9 @@
-import { VoicePrompt } from '@voiceid/capture/prompt';
+import { VoicePrompt } from '@seams/voice-capture/card';
+import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
+
+// The capture package reads the Wallet's settings, as in the Wallet host.
+configureVoiceIdCapture();
 
 type CornerControl = { label: string | null; path: string | null; left: number; right: number };
 declare global {

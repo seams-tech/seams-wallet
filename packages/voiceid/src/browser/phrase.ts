@@ -1,4 +1,4 @@
-import { BrowserInferenceModel } from './inference';
+import { BrowserInferenceModel } from '@seams/voice-capture';
 import {
   CHALLENGE_PHRASES,
   SPOKEN_PHRASES,
@@ -8,14 +8,24 @@ import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { PHRASE_TOKEN_PIECES as CITRINET_TOKEN_PIECES } from './phraseTokens';
 
 export type SpokenPhrase = (typeof SPOKEN_PHRASES)[number];
+
+const DISPLAY_PHRASES = new Map<string, string>([
+  ['if you panic panic early', 'if you panic, panic early'],
+  ['life is short go long to hedge', 'life is short, go long to hedge'],
+]);
+
+/** How a prompt shows a challenge phrase: with the commas that the spoken form leaves out. */
+export function displayPhrase(phrase: string): string {
+  return DISPLAY_PHRASES.get(phrase) ?? phrase;
+}
 const auroraModel = new BrowserInferenceModel({
-  path: '/sdk/voiceid/aurora-int8.onnx',
+  fileName: 'aurora-int8.onnx',
   sha256: '83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6',
   bytes: 1_342_384,
   label: 'Phrase recognition',
 });
 const citrinetModel = new BrowserInferenceModel({
-  path: '/sdk/voiceid/citrinet-int8.onnx',
+  fileName: 'citrinet-int8.onnx',
   sha256: '875f58df0e2a593017ac9550c8fab68c4343cd1fbb2a042290450aa125441ed5',
   bytes: 10_483_704,
   label: 'Phrase recognition',
@@ -294,30 +304,23 @@ export async function checkSpokenPhrase(
   expected: SpokenPhrase,
   model: VoiceIdTranscriptionModel,
 ): Promise<PhraseCheck> {
-  const session = await getPhraseModel(model).prepare();
-  const ort = await import('onnxruntime-web/wasm');
-  const input = new ort.Tensor('float32', samples, [1, samples.length]);
+  const outputs = await getPhraseModel(model).run(samples);
   try {
-    const outputs = await session.run({ samples: input });
-    try {
-      const logits = outputs.logits;
-      if (
-        !logits ||
-        !(logits.data instanceof Float32Array) ||
-        logits.dims.length !== 3 ||
-        logits.dims[0] !== 1 ||
-        logits.dims[2] !== TOKEN_COUNT ||
-        logits.data.length !== logits.dims[1] * TOKEN_COUNT
-      ) {
-        throw new Error('Phrase model returned an invalid result.');
-      }
-      return checkTranscribedPhrase(recognize(logits.data, logits.dims[1], model), expected);
-    } finally {
-      for (const output of Object.values(outputs)) {
-        output.dispose();
-      }
+    const logits = outputs.logits;
+    if (
+      !logits ||
+      !(logits.data instanceof Float32Array) ||
+      logits.dims.length !== 3 ||
+      logits.dims[0] !== 1 ||
+      logits.dims[2] !== TOKEN_COUNT ||
+      logits.data.length !== logits.dims[1] * TOKEN_COUNT
+    ) {
+      throw new Error('Phrase model returned an invalid result.');
     }
+    return checkTranscribedPhrase(recognize(logits.data, logits.dims[1], model), expected);
   } finally {
-    input.dispose();
+    for (const output of Object.values(outputs)) {
+      output.dispose();
+    }
   }
 }

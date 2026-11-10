@@ -45,7 +45,7 @@
     "postpack": "node ../../scripts/package-license.mjs clean"
   },
   "dependencies": {
-    "onnxruntime-web": "1.30.0",
+    "@seams/voice-capture": "0.65.0",
     "preact": "10.29.8",
     "voice-glow": "0.2.1"
   },

@@ -5,7 +5,7 @@ import {
 } from '@seams/wallet/voiceid-host';
 import { SeamsWordmark } from '@seams/wallet/voiceid-host';
 import { backIcon } from '@seams/wallet/voiceid-host';
-import type { VoicePrompt } from './prompt';
+import type { VoicePrompt } from '@seams/voice-capture/card';
 
 const CSS = `
 .seams-voiceid-activation-surface.seams-voiceid-unlock {

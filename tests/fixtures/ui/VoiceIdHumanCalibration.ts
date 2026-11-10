@@ -1,11 +1,15 @@
-import { recordVoice } from '@voiceid/browser/microphone';
+import { recordVoice } from '@seams/voice-capture';
 import { prepareVoiceModelWithProgress } from '@voiceid/browser/progress';
 import { checkSpokenPhrase, type PhraseCheck, type SpokenPhrase } from '@voiceid/browser/phrase';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 import { normalizeVoiceVector, voiceEmbedding, voiceSimilarity, VOICE_MODEL_ID, VOICE_MATCH_THRESHOLD } from '@voiceid/browser/model';
-import { VoicePrompt } from '@voiceid/capture/prompt';
+import { VoicePrompt } from '@seams/voice-capture/card';
+import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import { isPlainObject } from '@seams/wallet/voiceid-host';
 import { calibrationReport, freezeCalibration, type CutoffFit, type Attempt, type Cohort, type Reading, type Source, type SpeakerScore, type PhraseObservation } from '../../../tests/scripts/voiceid-human-calibration/report';
+
+// The capture package reads the Wallet's settings, as in the Wallet host.
+configureVoiceIdCapture();
 
 type Participant = Readonly<{ id: string; cohort: Cohort; enrollmentSession: string }> & (
   | { kind: 'enrolling'; samples: number[][]; template?: never }
