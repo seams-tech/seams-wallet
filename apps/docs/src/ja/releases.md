@@ -1,27 +1,37 @@
 ---
-title: リリース 0.65.0
-description: Walletのカードをアプリ自身のダイアログの1ステップとして表示でき、アプリのステップをWalletのモーダルの中に表示できます。
+title: リリース 0.66.0
+description: Speak-to-SignはNEARの音声による署名者になり、seams.nearの各署名呼び出しに音声の呼び出しがあります。
 ---
 
-# リリース 0.65.0
+# リリース 0.66.0
 
-ブラウザーSDK、サーバーSDK、VoiceIDプラグイン、Speak-to-Signプラグインは **0.65.0** を使います。
+ブラウザーSDK、サーバーSDK、VoiceIDプラグイン、Speak-to-Signプラグインは **0.66.0** を使います。
 
-- Walletのカードを、上に重なる2つ目のダイアログではなく、アプリ自身のダイアログの1ステップとして表示できます。アプリのコンテンツがWalletのiframeの中に描画されることはなく、所有者は引き続きWallet自身のカードで承認します。
-  - `HostedSeamsAuthMenu`と`seams.authMenu.open(request, anchor, step)`は、イベント`onEnter`(まだ非表示のカードのサイズ)、`onReady`、`onResize`、`onExit`、`onBack`、`onClose`を受け取ります。`chrome: 'back' | 'close'`は、カードのオリジン行にBackまたはCloseを描画します。`layer: 'top'`は、カードをすべてのアプリのコンテンツの上に描画します。
-  - NEAR、EVM、Tempoの署名メソッドと`seams.speakToSign`のリクエストに`presentation: { kind: 'anchored', anchor, chrome, ... }`を渡してください。取引の確認画面またはVoiceIDのカードが、アプリのダイアログに表示されます。アンカーされた取引は承認にクリックが必要で、受領画面を表示しません。そのため、結果はアプリが自分で表示します。`presentation`がない場合、カードは以前と同じくWalletのモーダルに表示されます。
-  - `@seams/wallet/react`の`WalletStep`と、Reactを使わない場合の`seams.surfaces.mount(anchor, options)`は、サインインメニュー、取引の確認画面、またはSpeak-to-Signのリクエストを1つのステップとして表示します。
-  - トップレイヤーのカードは、全体が表示され、何にも覆われていない間だけクリックを受け付けます。後から開いたポップオーバーやダイアログに覆われた場合も同じです。Chromiumでは、ページが変更できないブラウザーの報告によって、カード自身もこれを確認します。
-  - アプリのダイアログ内の取引またはVoiceIDのカードは、180 msかけて新しいサイズに変わります。動きを減らす設定では、すぐに新しいサイズになります。
-  - `chrome: 'back'`の場合、VoiceIDのカードはCancelの代わりにBackを表示します。
-- アプリのステップを、Walletのカードの前と後に、Walletのモーダルの中で表示できます。ステップはReactのコンテンツを描画するため、`@seams/wallet/react`の`TransactionReviewHost`が必要です。
-  - レビュー付きの取引は`steps: { title, validity, before, after }`を受け取ります。`review`は引き続き別名として使え、`review.render`は`steps.before`です。
-  - `seams.authMenu.open(request, undefined, { steps })`と`seams.speakToSign`のリクエストは`steps: { title, before, after }`を受け取ります。カードのBackは、状態を保ったまま`before`に戻ります。完了した呼び出しは、`after`が表示される前に結果を返します。Walletのカードが終わる前に離れた場合、呼び出しはキャンセルの結果を返します。
-- ログインモードのサインインメニューは、メールコードでロック解除できる場合だけ「Unlock with email code」を表示します。保存されたウォレットがない端末か、選んだウォレットがこの端末でメールコードの方法を持つ場合です。以前は、メールコードのないパスキーやVoiceIDのウォレットにも表示されていました。作成モードは変わりません。
-- SDKとホストされたWalletは一緒にリリースしてください。auth menuのリクエストには新しいフィールド`chrome`、リクエストには新しいフィールド`presentation`があり、ページは新しいメッセージ`PM_SURFACE_VIEW`を送ります。古いWalletホストは、`chrome`を含むauth menuのリクエストを拒否します。
-- VoiceIDのホストAPIはバージョン **11**、Speak-to-SignのホストAPIはバージョン **9** のままです。`@seams/voiceid` 0.65.0は、カードのBackを0.65.0のWalletホストから読むため、`@seams/wallet` 0.65.0と一緒にインストールしてください。Speak-to-Signのベリファイアーは **0.5.2** のままです。OutLayerのバージョンキーは`96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`です。
-- Walletホストを両方のプラグインと一緒にデプロイし、アプリを0.65.0に更新してください。このリリースでは、サーバーの変更は不要です。
-- 4つのパッケージをすべて0.65.0でインストールしてください。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
+- Speak-to-SignはNEARの音声による署名者になりました。`seams.near`の各署名呼び出しには、`seams.near.speakToSign`に同じ名前の音声の呼び出しがあります。
+  - `signAndSendTransaction`、`signTransaction`、`signDelegateAction`は、受信者とアクションを問わず、任意のNEARの取引または委任アクションに署名します。所有者は1語から12語の平易な要約を話します。判定は受信者と、Walletが署名するアクションのバイト列のSHA-256を拘束します。共同署名者は、自分が署名するバイト列からリクエストを組み立て直します。
+  - `signMessage`はNEP-413のメッセージに署名します。判定はNEP-413のバイト列のSHA-256を拘束します。Walletは所有者が話す前にnonceを決めます。
+  - 文がリクエストのフィールドから作られる呼び出しは`typed`にあります。`transfer`、`note`、`rating`、`mergeApproval`と、新しい`bet`です。`typed.bet`は予測市場へのトークンの`ft_transfer_call`に署名し、確認済みの判定を`msg`に入れます。そのため、市場のコントラクトも判定を確認できます。賭けに使えるトークンは、そのネットワークで固定されたUSDCのコントラクトだけです(テストネットではCircle USDC)。
+  - 一般的なリクエストの要約はアプリが書き、カードは要約だけを表示します。音声は、誰が承認したかと所有者が何を話したかを証明します。要約が取引を正しく説明していることは証明しません。
+  - 1つの判定は1回だけ署名します。`step_up`の判定は、委任アクションとメッセージには署名しません。
+  - リクエストは引き続き`presentation`と`steps`を受け取ります。
+- 互換性のない変更:
+  - `seams.speakToSign`はなくなりました。古い名前の別名はありません。`seams.near.speakToSign`を使ってください。
+
+    | 0.65.0 | 0.66.0 |
+    | --- | --- |
+    | `seams.speakToSign.requestTransfer` | `seams.near.speakToSign.typed.transfer` |
+    | `seams.speakToSign.requestNote` | `seams.near.speakToSign.typed.note` |
+    | `seams.speakToSign.requestRating` | `seams.near.speakToSign.typed.rating` |
+    | `seams.speakToSign.requestMergeApproval` | `seams.near.speakToSign.typed.mergeApproval` |
+    | `seams.speakToSign.enroll` | `seams.near.speakToSign.enroll` |
+
+  - すべての署名呼び出しは、成功すると`{ kind: 'approved', result, approval, times }`を返します。それ以外は`refused`、`cancelled`、`unavailable`です。kind `sent`はなくなりました。`result`は、送信した取引とすべての`typed`の呼び出しでは`{ transactionHash }`、`signTransaction`と`signDelegateAction`では通常の結果、メッセージでは`{ accountId, publicKey, signature, nonce, state? }`です。リクエストのフィールドは変わりません。
+  - 共同署名者の固定の音声上限(1回の支払いで10 NEAR、24時間で20 NEAR)はなくなりました。結果の理由`voice_limit`と、拒否`over_payment_limit`、`over_daily_limit`もなくなりました。上限はWalletのポリシーエンジンのルールです。
+- Speak-to-SignのホストAPIはバージョン **10** です。ホストプラグインには新しいメソッド`requestMessage`があります。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/speak-to-sign` 0.66.0を`@seams/wallet` 0.66.0と一緒にインストールしてください。VoiceIDのホストAPIはバージョン **11** のままです。
+- Speak-to-Signのベリファイアーは **0.9.0** です。OutLayerのバージョンキーは`VERIFIER_VERSION_KEY`です。`signAndSendTransaction`、`signTransaction`、`signDelegateAction`、`signMessage`には0.9.0が必要です。`typed.bet`には0.8.0以降が必要です。`typed.transfer`、`typed.note`、`typed.rating`、`typed.mergeApproval`は0.5.2でも動きます。
+- SDK、ホストされたWallet、サーバーは一緒にリリースしてください。`@seams/wallet-server` 0.66.0の共同署名者が新しいリクエストの種類を確認し、古いWalletホストはそれを拒否します。
+- 4つのパッケージをすべて0.66.0でインストールしてください。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
 
 ウォレットのiframeプロトコルは **23.0.0**、ウォレット管理プロトコルは **5** のままです。
 署名付きの復旧CLIは **0.29.0** のままです。このリリースはデータベースのマイグレーションを追加しません。
+テーブル`speak_to_sign_voice_verdicts`は金額の列を残し、値は0です。

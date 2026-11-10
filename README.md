@@ -3,14 +3,14 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.65.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.66.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.65.0` — browser SDK and React components.
-- `@seams/wallet-server@0.65.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.65.0` — optional VoiceID authentication plugin.
-- `@seams/speak-to-sign@0.65.0` — experimental, testnet-only spoken payments; needs VoiceID.
+- `@seams/wallet@0.66.0` — browser SDK and React components.
+- `@seams/wallet-server@0.66.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.66.0` — optional VoiceID authentication plugin.
+- `@seams/speak-to-sign@0.66.0` — experimental, testnet-only NEAR signing by voice; needs VoiceID.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -18,7 +18,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `23.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use version **0.65.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use version **0.66.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,6 +27,12 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Release 0.66.0
+
+- Speak-to-Sign is the NEAR signer by voice: `seams.near.speakToSign` has `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage` for any NEAR transaction, delegate action or NEP-413 message, and `typed.transfer`, `typed.note`, `typed.rating`, `typed.mergeApproval` and the new `typed.bet`.
+- Breaking: `seams.speakToSign` is gone, with no old names. A signing call that succeeds returns `{ kind: 'approved', result, approval, times }`; the kind `sent` is gone. The co-signer has no fixed voice limits.
+- Ship the SDK, the hosted Wallet and the server together. The Speak-to-Sign host API is 10; the VoiceID host API stays at 11. Install all four packages at 0.66.0. No database migrations.
 
 ## Release 0.65.0
 
