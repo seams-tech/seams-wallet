@@ -115,6 +115,13 @@ import { WalletStep } from '@seams/wallet/react';
 Without React, `seams.surfaces.mount(anchor, { surface, chrome, ...events })` does the same.
 It returns `{ result, dispose }`. `dispose()` ends the card as `cancelled`.
 
+## App steps inside the Wallet's own modal
+
+When the app has no dialog of its own, the Wallet's modal can hold the app's steps. A
+transaction takes `steps: { title, validity, before, after }`. `before` shows before the
+Wallet's approval, `after` shows the signed result in the same modal. See
+[Custom React transaction review](transaction-review.md).
+
 ## The events
 
 The events carry the card's size, its readiness, Back, Close and how the card ended. They carry
@@ -183,6 +190,20 @@ still works. The card takes input about 100 ms after `onReady`.
 - The events carry size, readiness, Back, Close and the kind of exit. They carry no approval
   data.
 - An anchored transaction or Speak-to-Sign card needs `behavior: 'requireClick'`.
+
+## Replacing earlier workarounds
+
+| Earlier workaround | Now |
+| --- | --- |
+| Read `data-seams-auth-menu-ready` with CSS `:has()` | `onReady` |
+| Read the `--seams-auth-menu-height` variable | `onEnter` and `onResize` |
+| Reserve 450 px, then change to the measured height | Hold the app step's height until `onEnter` (`WalletStep` `initialHeight`) |
+| An app Close button in its own layer above the card | `chrome: 'back'` or `'close'` |
+| `--seams-wallet-inline-dialog-z` above the app's overlay | `layer: 'top'` |
+| A frame loop that follows the dialog | Nothing: the SDK follows the anchor while the card shows |
+| A Wallet confirm or VoiceID card on top of the app's dialog | `presentation: { kind: 'anchored', ... }` |
+
+The attribute and the variable stay as internal details. Do not build new code on them.
 
 ## Releases
 

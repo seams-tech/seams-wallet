@@ -1308,7 +1308,9 @@ export class WalletIframeRouter {
     appearance: () => this.getCurrentAppearance(),
     post: (message) => this.state.port?.postMessage(message),
     cancelRequest: (requestId) => void this.cancelRequest(requestId),
-    closeReceipt: (requestId) => this.closeTransactionReceipt(requestId),
+    closeReceipt: (requestId) => {
+      if (this.closeReceiptView(requestId)) this.finishRequestSurface(requestId, false);
+    },
   });
   private readonly cancelledHostedAuthMenuSessions = new Set<HostedAuthMenuSessionId>();
 
@@ -1410,6 +1412,8 @@ export class WalletIframeRouter {
     confirmationConfig: Partial<ConfirmationConfig> | undefined;
     signal: AbortSignal;
     onCancel: (error: Error) => void;
+    /** The app shows the signed result in the same modal. */
+    afterStep?: boolean;
   }): Promise<TransactionReviewReservation> {
     if (args.signal.aborted) throw args.signal.reason;
     const initialGeneration = this.reviewIdentityGeneration;
@@ -1494,6 +1498,7 @@ export class WalletIframeRouter {
         this.cancelReviewReservation.bind(this, requestId),
         this.finishReviewReservation.bind(this, requestId),
         this.resumeReviewReservation.bind(this, requestId),
+        args.afterStep === true,
       );
       this.reviews.set(requestId, {
         reservation,
@@ -4230,14 +4235,14 @@ export class WalletIframeRouter {
   }
 
   /** Ends the request's receipt view, when it shows one. */
-  private closeTransactionReceipt(requestId: WalletIframeRequestId): void {
-    if (this.transactionReceipt?.requestId !== requestId) return;
+  private closeReceiptView(requestId: WalletIframeRequestId): boolean {
+    if (this.transactionReceipt?.requestId !== requestId) return false;
     this.transactionReceipt = null;
     this.state.port?.postMessage({
       type: 'PM_SET_TRANSACTION_VIEW',
       payload: { requestId, view: 'closed' },
     });
-    this.finishRequestSurface(requestId, false);
+    return true;
   }
 
   async cancelHostedAuthMenu(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void> {
@@ -4508,10 +4513,29 @@ export class WalletIframeRouter {
       return;
     }
 
+    // A signed review with an after step keeps the modal before anyone sees the result.
+    const after = this.showReviewAfterStep(requestId as WalletIframeRequestId);
     pending.resolve(msg.type === 'PONG' ? undefined : msg.payload);
     if (this.progressBus.isSticky(requestId)) return;
     this.progressBus.unregister(requestId);
-    this.finishRequestSurface(requestId as WalletIframeRequestId, false);
+    if (!after) this.finishRequestSurface(requestId as WalletIframeRequestId, false);
+  }
+
+  /** The app's after step takes the modal from the Wallet's card, with the review's handoff. */
+  private showReviewAfterStep(requestId: WalletIframeRequestId): boolean {
+    const entry = this.reviews.get(requestId);
+    if (!entry?.reservation.showAfter()) return false;
+    this.closeReceiptView(requestId);
+    this.transitionWalletIframeSurface({
+      kind: 'transaction_review_returned',
+      connectionId: entry.reservation.connectionId,
+      identity: entry.reservation.identity,
+      presentation: { kind: 'modal', title: entry.reservation.title },
+    });
+    this.overlayState.controller.activateAfterReviewHandoff(
+      this.notifyReviewVisible.bind(this, requestId, 'after', undefined),
+    );
+    return true;
   }
 
   /**

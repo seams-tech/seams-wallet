@@ -2384,6 +2384,11 @@ their existing core results and callbacks. Ordinary calls need no review host.
   Once a signature starts, cancellation and expiry preserve its actual outcome.
 - Adapter failures before dispatch reject without invoking core callbacks. Wallet
   failures after dispatch retain the method's existing outcome conventions.
+- `steps: { before, after }` is the same contract; `review.render` is an alias of
+  `steps.before`. With `after`, a signed call settles its promise, and the same modal
+  then hands over from the Wallet's card to the app's `after` step with the review's
+  resize and crossfade. The receipt does not show. `controls.close()`, Escape or owner
+  disposal close the modal. A call that did not sign closes the modal as before.
 
 Consumer setup and styling: [Custom React transaction review](transaction-review.md).
 Behavioral coverage: `tests/wallet-ui/transaction-review.browser.test.ts`,

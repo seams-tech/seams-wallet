@@ -70,3 +70,24 @@ const sendWithoutCall: WalletStepProps<unknown> = {
   surface: { kind: 'transaction_confirm' },
 };
 void sendWithoutCall;
+
+const steps: ReviewedTransactionInput<NearArgs> = {
+  receiverId: 'r.testnet',
+  actions: [],
+  steps: {
+    title: 'Place bet',
+    validity: { kind: 'unbounded' },
+    before: (controls) => void controls.continueToWallet(),
+    after: (outcome, controls) => void [outcome, controls.close()],
+  },
+};
+void steps;
+
+const both: ReviewedTransactionInput<NearArgs> = {
+  receiverId: 'r.testnet',
+  actions: [],
+  // @ts-expect-error A call takes `steps` or its earlier name `review`, not both.
+  steps: { title: 'Place bet', validity: { kind: 'unbounded' }, before: () => null },
+  review,
+};
+void both;

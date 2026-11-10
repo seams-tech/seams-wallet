@@ -28,7 +28,7 @@ const surfaceAware: TransactionReview = {
   validity: { kind: 'unbounded' },
   origin: { x: 0, y: 0, width: 120, height: 40 },
   onVisible(surface) {
-    const stage: 'review' | 'wallet' = surface.stage;
+    const stage: 'review' | 'wallet' | 'after' = surface.stage;
     void stage;
     void surface.rect.width;
   },

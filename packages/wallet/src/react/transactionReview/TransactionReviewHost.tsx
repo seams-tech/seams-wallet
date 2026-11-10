@@ -69,9 +69,10 @@ function ReviewContent({ call }: { call: ReviewCallView }): ReactNode {
         state.kind === 'preparing_approval' || state.kind === 'wallet_approval';
     }
   }, [state.kind]);
+  const after = state.kind === 'after';
   useLayoutEffect(() => {
     heading.current?.focus({ preventScroll: true });
-  }, [call]);
+  }, [call, after]);
   return (
     <section className={`seams-transaction-review-content ${call.review.className ?? ''}`}>
       <h2 className="seams-transaction-review-title" tabIndex={-1} ref={heading}>
@@ -79,6 +80,12 @@ function ReviewContent({ call }: { call: ReviewCallView }): ReactNode {
       </h2>
       {state.kind === 'review_failed' ? (
         <ReviewFailure call={call} />
+      ) : state.kind === 'after' ? (
+        <div key="after">
+          <ReviewErrorBoundary call={call}>
+            <RenderAfter call={call} outcome={state.outcome} />
+          </ReviewErrorBoundary>
+        </div>
       ) : (
         <div ref={content} aria-hidden={state.kind === 'preparing_approval' ? true : undefined}>
           <ReviewErrorBoundary call={call}>
@@ -101,6 +108,10 @@ function RenderReview({ call }: { call: ReviewCallView }): ReactNode {
     );
   }
   return content;
+}
+
+function RenderAfter({ call, outcome }: { call: ReviewCallView; outcome: unknown }): ReactNode {
+  return call.review.after?.(outcome, call.afterControls) ?? null;
 }
 
 function ReviewLoading({ call }: { call: ReviewCallView }): ReactNode {
