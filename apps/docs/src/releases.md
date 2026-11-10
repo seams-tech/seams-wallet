@@ -19,6 +19,7 @@ The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.64
   - In the Wallet frame, a card that gets shorter follows the frame's ease, so its edge does not jump. After a Wallet confirm, the card comes back without an entrance, and its rows fade in when the frame fits.
   - After VoiceID activation, the finished card stays until the Speak-to-Sign card takes its place, so the frame does not show empty while the Wallet loads the plugin.
   - The Speak-to-Sign card starts loading the speech detector when it opens. Before, the first recording on a page showed "Opening microphone…" for about 3 s.
+- A hosted Wallet confirm card that is taller than its frame now opens and closes its transaction details in one motion, and keeps its scroll position while it resizes. Before, the toggle moved in two steps, and a card scrolled down to its Confirm button jumped back to its top.
 - A Speak-to-Sign enrollment refusal that says a verifier service failed, such as `speaker_unavailable`, shows "The check is not available" on the card.
 - The VoiceID host API is version **11**, and the Speak-to-Sign host API is version **9**. The Wallet refuses a host plugin of another version, so install `@seams/voiceid` and `@seams/speak-to-sign` 0.64.0 with `@seams/wallet` 0.64.0. The Speak-to-Sign verifier stays at **0.5.2**, OutLayer version key `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`.
 - Deploy the Wallet host with both plugins, and update apps to 0.64.0. The server needs no change for this release.
