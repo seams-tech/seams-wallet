@@ -17,6 +17,13 @@
  * never outrun the box, whatever the parent's easing (or its absence under
  * reduced motion) turns out to be.
  *
+ * The parent never makes the box taller than its own viewport allows, so a card
+ * can be taller than its box. Such a card is held at the box's height and
+ * scrolls. A motion then starts from the card's full height, not from the box,
+ * and the content keeps pace with the distance the box can actually travel.
+ * When the box stops short, or cannot move at all, the content eases the rest
+ * of the way on its own instead of snapping there.
+ *
  * The host is a transparent shell in that surface, so pinning it taller or
  * shorter than its content is invisible. The pin goes through a constructable
  * stylesheet because the wallet origin ships `style-src-attr 'none'`.
@@ -47,8 +54,13 @@ const CONFIRM_SURFACE_HEIGHT_DRIVEN_CLASS = 'seams-surface-height-driven';
 /** The CSS variable the class above reads. Components own the write (CSP). */
 export const CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR = '--seams-surface-height-driven-target';
 
-/** Frames the box may sit still, after it has moved, before its motion counts as over. */
-const SETTLED_FRAMES_AFTER_MOTION = 8;
+/**
+ * Frames the box may sit still, after it has moved, before it counts as stopped
+ * short of the target. The content then eases the rest on its own, so a wait
+ * that ends a pixel before the box arrives costs nothing visible, and a long
+ * wait shows as a pause.
+ */
+const SETTLED_FRAMES_AFTER_MOTION = 3;
 /** Frames to wait for the parent to react at all before giving up on it. */
 const SETTLED_FRAMES_WITHOUT_MOTION = 20;
 /**
@@ -402,10 +414,10 @@ type ConfirmSurfaceResizeChoreographerOptions = {
 
 type ActiveResize = {
   readonly driver: SurfaceResizeDriver;
-  /** Host height with the announcing element still at its pre-change height. */
-  readonly originHostPx: number;
-  /** Signed change the host was pinned to make. */
-  readonly deltaCssPx: number;
+  /** Box height when the motion began. */
+  readonly originBoxPx: number;
+  /** Signed change the box can make: zero when the card overflows the box at both ends. */
+  readonly boxDeltaCssPx: number;
   lastViewportPx: number;
   framesSinceChange: number;
   moved: boolean;
@@ -413,8 +425,15 @@ type ActiveResize = {
   sawIntermediate: boolean;
   /** Consecutive frames the box has reported the target without easing there. */
   framesAtTarget: number;
+  /** Set once the box has stopped short: the content eases the rest on its own. */
+  ownEase: { readonly fromProgress: number; readonly startedAtMs: number } | null;
   frame: number | null;
 };
+
+/** Smoothstep: the content leaves a box that has come to rest without a jolt. */
+function easeInOut(t: number): number {
+  return t * t * (3 - 2 * t);
+}
 
 type HostHeightPin = {
   set(px: number): boolean;
@@ -519,10 +538,24 @@ export function attachConfirmSurfaceResizeChoreographer(
     }
     // The pinned target is what the parent applies, rounded on both sides, so
     // the box reaches it exactly; a box the parent clamps short settles below.
-    const progress = clamp((viewportPx - current.originHostPx) / current.deltaCssPx, 0, 1);
+    const progress =
+      current.boxDeltaCssPx === 0
+        ? 0
+        : clamp((viewportPx - current.originBoxPx) / current.boxDeltaCssPx, 0, 1);
+    if (current.ownEase) {
+      const { fromProgress, startedAtMs } = current.ownEase;
+      const t = clamp((performance.now() - startedAtMs) / OWN_RESIZE_MS, 0, 1);
+      // A box that moves on after all keeps the content at least as far along.
+      current.driver.setProgress(
+        Math.max(progress, fromProgress + (1 - fromProgress) * easeInOut(t)),
+      );
+      if (t === 1) land();
+      else current.frame = requestAnimationFrame(step);
+      return;
+    }
     // A reversal can pass the new target before returning. Land when the box reaches it.
-    const targetPx = Math.round(current.originHostPx + current.deltaCssPx);
-    if (viewportPx === targetPx) {
+    const targetPx = current.originBoxPx + current.boxDeltaCssPx;
+    if (current.boxDeltaCssPx !== 0 && viewportPx === targetPx) {
       current.framesAtTarget += 1;
       if (current.sawIntermediate || current.framesAtTarget >= LANDING_CONFIRM_FRAMES) {
         land();
@@ -541,9 +574,14 @@ export function attachConfirmSurfaceResizeChoreographer(
     const settledFrames = current.moved
       ? SETTLED_FRAMES_AFTER_MOTION
       : SETTLED_FRAMES_WITHOUT_MOTION;
-    if (current.framesSinceChange >= settledFrames) {
-      land();
-      return;
+    if (current.boxDeltaCssPx === 0 || current.framesSinceChange >= settledFrames) {
+      // The box cannot move, has stopped short of the target, or never moved.
+      // The content eases the rest of the way instead of snapping there.
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        land();
+        return;
+      }
+      current.ownEase = { fromProgress: progress, startedAtMs: performance.now() };
     }
     current.frame = requestAnimationFrame(step);
   };
@@ -558,8 +596,9 @@ export function attachConfirmSurfaceResizeChoreographer(
     const viewportPx = readViewportHeightCssPx();
     const hostPx = element.getBoundingClientRect().height;
     // Only a box that hugs the host will follow a new measurement 1:1. A
-    // clamped or full-viewport box leaves the component to animate itself,
-    // which cannot be clipped there.
+    // full-viewport box leaves the component to animate itself, which cannot
+    // be clipped there. A card taller than its box still hugs it: the host
+    // holds the card at the box's height and scrolls it.
     if (
       !(viewportPx > 0) ||
       !(hostPx > 0) ||
@@ -567,12 +606,22 @@ export function attachConfirmSurfaceResizeChoreographer(
     ) {
       return;
     }
-    // The announcing element is clamped at its pre-change height, so the host
-    // measured now IS the origin, and the target is one signed delta away.
-    const originHostPx = Math.round(hostPx);
-    const targetHostPx = originHostPx + deltaCssPx;
-    if (!(targetHostPx > 0)) return;
-    if (!pin.set(targetHostPx)) return;
+    // The announcing element is clamped at its pre-change height, so the host's
+    // content measured now IS the origin, and the target is one signed delta
+    // away. Measured from the box instead, a card taller than the box would
+    // shrink short by the part scrolled out of view, then grow back once the
+    // pin comes off.
+    const originBoxPx = Math.round(viewportPx);
+    const originContentPx = Math.max(element.scrollHeight, Math.round(hostPx));
+    const targetContentPx = originContentPx + deltaCssPx;
+    if (!(targetContentPx > 0)) return;
+    // While the card overflows it, the box is at the parent's limit: it can
+    // shrink toward the target but cannot grow.
+    const targetBoxPx =
+      originContentPx > originBoxPx + HUG_TOLERANCE_CSS_PX
+        ? Math.min(Math.round(targetContentPx), originBoxPx)
+        : Math.round(targetContentPx);
+    if (!pin.set(targetContentPx)) return;
     const driver = detail.claim();
     if (!driver) {
       pin.release();
@@ -580,13 +629,14 @@ export function attachConfirmSurfaceResizeChoreographer(
     }
     active = {
       driver,
-      originHostPx,
-      deltaCssPx,
+      originBoxPx,
+      boxDeltaCssPx: targetBoxPx - originBoxPx,
       lastViewportPx: viewportPx,
       framesSinceChange: 0,
       moved: false,
       sawIntermediate: false,
       framesAtTarget: 0,
+      ownEase: null,
       frame: null,
     };
     active.frame = requestAnimationFrame(step);

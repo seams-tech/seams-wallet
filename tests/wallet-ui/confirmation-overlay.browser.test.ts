@@ -28,6 +28,7 @@ let holdMeasurement = parameters.has('hold');
 let open = true;
 let releaseStartedAt = 0;
 window.overlayRevealLatencyMs = null;
+window.measuredHeights = [];
 
 function ensureIframe() {
   return iframe;
@@ -59,6 +60,7 @@ function receive(event) {
   if (event.source !== iframe.contentWindow || event.origin !== location.origin) return;
   if (event.data.kind === 'measurement') {
     measurement = event.data.value;
+    window.measuredHeights.push(measurement.heightCssPx);
     if (holdMeasurement) return;
   } else if (event.data.kind === 'view') {
     view = event.data.value;
@@ -112,7 +114,7 @@ import { mountConfirmationSurface } from '/_test-sdk/esm/core/signingEngine/uiCo
 import { createWalletIframeSurfaceMeasurementReporter } from '/_test-sdk/esm/SeamsWeb/walletIframe/host/surface-measurement-reporter.js';
 import { walletIframeRequestIdFromBoundary } from '/_test-sdk/esm/core/types/walletIframeIdentity.js';
 import { attachConfirmSurfaceResizeChoreographer } from '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/confirm-surface-resize.js';
-import { buildDisplayTreeFromModel } from '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/transaction-display/tree.js';
+import { buildDisplayTreeFromModel, buildDisplayTreeFromTxPayloads } from '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/transaction-display/tree.js';
 
 const model = {
   chain: 'tempo',
@@ -123,6 +125,21 @@ const model = {
     to: '0xBB442B54c85efBa2D7B81eA52990ad638CbA483',
   }],
 };
+// Arguments long enough to fill the scrolling Transaction details area.
+const longArgsTransaction = {
+  receiverId: 'usdc.fakes.testnet',
+  actions: [{
+    type: 'FunctionCall', methodName: 'ft_transfer_call', gas: '100000000000000', deposit: '1',
+    args: JSON.stringify({
+      receiver_id: 'pm-notes.seams-v1.testnet',
+      amount: '500000',
+      msg: JSON.stringify({ action: 'bet', market_id: 9, outcome: 'yes', note: 'x'.repeat(80) }),
+    }),
+  }],
+};
+const tree = new URLSearchParams(location.search).has('long-args')
+  ? buildDisplayTreeFromTxPayloads([longArgsTransaction])
+  : buildDisplayTreeFromModel(model);
 
 const surface = mountConfirmationSurface({
   parent: document.body,
@@ -135,7 +152,7 @@ const surface = mountConfirmationSurface({
     content: {
       kind: 'transaction',
       capture: null,
-      review: { model, tree: buildDisplayTreeFromModel(model) },
+      review: { model, tree },
       header: {
         heading: 'Review transfer',
         website: { kind: 'ready', text: 'example.test' },
@@ -163,6 +180,27 @@ createWalletIframeSurfaceMeasurementReporter({
   postMeasurement,
 });
 attachConfirmSurfaceResizeChoreographer(surface.element);
+// One entry per frame: the box the parent gave this frame, and the card's height.
+let recordingFrames = false;
+let boxFrames = [];
+function recordFrame() {
+  if (!recordingFrames) return;
+  const card = document.querySelector('.modal-container-root');
+  boxFrames.push({
+    box: document.documentElement.clientHeight,
+    card: Math.round(card.getBoundingClientRect().height),
+  });
+  requestAnimationFrame(recordFrame);
+}
+window.startFrames = () => {
+  boxFrames = [];
+  recordingFrames = true;
+  requestAnimationFrame(recordFrame);
+};
+window.stopFrames = () => {
+  recordingFrames = false;
+  return boxFrames;
+};
 const receiptState = { kind: 'confirmed', hash: null };
 function postMeasurement(value) {
   parent.postMessage({ kind: 'measurement', value }, location.origin);
@@ -248,6 +286,54 @@ function browserScroll() {
 }
 function readScroll(page: Page) {
   return page.evaluate(browserScroll);
+}
+
+test('details in a card taller than its frame open and close in one motion', async ({ page }) => {
+  await injectImportMap(page);
+  await routePreactModules(page);
+  await page.route('**/confirmation-overlay-*', serveOverlayPage);
+  // The open details make the card taller than the largest box this viewport allows.
+  await page.setViewportSize({ width: 520, height: 640 });
+  await page.goto('/confirmation-overlay-parent?long-args');
+  await expect(page.locator('dialog[data-seams-root]')).toHaveCSS('opacity', '1');
+  await settledIframeBounds(page);
+
+  const opening = await toggleDetails(page);
+  const opened = opening.at(-1)!;
+  expect(opened.card).toBeGreaterThan(opened.box);
+  // Once the box stops at its limit, the rest of the card's growth is eased, not snapped.
+  expect(largestStepWhileBoxStill(opening)).toBeLessThan(40);
+
+  const heightsBeforeClosing: number = await page.evaluate('window.measuredHeights.length');
+  const closing = await toggleDetails(page);
+  const closedBox = closing.at(-1)!.box;
+  expect(closing.at(-1)!.card).toBe(closedBox);
+  // The box eases once, straight to the closed card: it never dips below it and grows back.
+  expect(Math.min(...closing.map((frame) => frame.box))).toBe(closedBox);
+  const heights: number[] = await page.evaluate('window.measuredHeights');
+  expect(heights.slice(heightsBeforeClosing)).toEqual([closedBox]);
+});
+
+type BoxFrame = { box: number; card: number };
+
+/** Toggles Transaction details and returns one record per frame until the box settles. */
+async function toggleDetails(page: Page): Promise<BoxFrame[]> {
+  const frame = page.frames().find((candidate) => candidate.url().includes('-child'));
+  if (!frame) throw new Error('Confirmation frame is missing');
+  await frame.evaluate('window.startFrames()');
+  await frame.locator('.seams-review-technical > summary').click();
+  await expect(frame.locator('.seams-confirm-surface-pinned')).toHaveCount(0);
+  await settledIframeBounds(page);
+  return frame.evaluate('window.stopFrames()');
+}
+
+function largestStepWhileBoxStill(frames: BoxFrame[]): number {
+  let largest = 0;
+  for (let index = 1; index < frames.length; index += 1) {
+    if (frames[index].box !== frames[index - 1].box) continue;
+    largest = Math.max(largest, Math.abs(frames[index].card - frames[index - 1].card));
+  }
+  return largest;
 }
 
 test(
