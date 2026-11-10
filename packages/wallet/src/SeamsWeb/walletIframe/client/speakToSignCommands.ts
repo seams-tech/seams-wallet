@@ -87,8 +87,12 @@ export type SpeakToSignCommands = Readonly<{
   enroll: SpeakToSignEnrollCommand;
 }>;
 
-function speakToSignDispatch(request: WithPresentation<object>): TransactionDispatch {
-  return dispatchWithPresentation({ kind: 'ordinary' }, request.presentation);
+/** Only an anchored request carries a dispatch, so an ordinary request is posted as before. */
+function speakToSignDispatch(
+  request: WithPresentation<object>,
+): { readonly transactionDispatch?: TransactionDispatch } {
+  const dispatch = dispatchWithPresentation({ kind: 'ordinary' }, request.presentation);
+  return dispatch.kind === 'ordinary' ? {} : { transactionDispatch: dispatch };
 }
 
 export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToSignCommands {
@@ -153,7 +157,7 @@ async function postNoteAction(
     {
       timeout: 'interactive',
       onProgress: progressListener(request.onProgress),
-      transactionDispatch: speakToSignDispatch(request),
+      ...speakToSignDispatch(request),
     },
   );
   return parseSpeakToSignNoteResult(response.result);
@@ -173,7 +177,7 @@ async function requestTransferFromHost(
     {
       timeout: 'interactive',
       onProgress: progressListener(request.onProgress),
-      transactionDispatch: speakToSignDispatch(request),
+      ...speakToSignDispatch(request),
     },
   );
   return parseSpeakToSignTransferResult(response.result);
@@ -186,7 +190,7 @@ async function enrollFromHost(
   const payload = parseSpeakToSignEnrollPayload({ walletId: request.walletId });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_ENROLL', payload },
-    { timeout: 'interactive', transactionDispatch: speakToSignDispatch(request) },
+    { timeout: 'interactive', ...speakToSignDispatch(request) },
   );
   return parseSpeakToSignEnrollmentResult(response.result);
 }
