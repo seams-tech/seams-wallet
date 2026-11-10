@@ -1,12 +1,21 @@
 import { rolldown } from 'rolldown';
 import { copyVoiceCaptureAssets } from '@seams/voice-capture/hosting';
-import { cp, mkdir, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = path.join(root, 'dist');
 const assets = path.join(dist, 'public/sdk/voiceid');
+// The Wallet host serves /sdk/voiceid-host.js at a fixed path with a long cache life, while this
+// plugin's hashed chunks load fresh after a deploy. Each import of it carries the one Wallet
+// version this plugin pins, which is also the Wallet's asset version, so a new chunk never runs
+// against a cached older bridge.
+const walletVersion = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+  .peerDependencies['@seams/wallet'];
+if (!/^\d+\.\d+\.\d+$/.test(walletVersion)) {
+  throw new Error(`@seams/voiceid must pin one exact @seams/wallet version, not ${walletVersion}`);
+}
 process.chdir(root);
 await rm(dist, { recursive: true, force: true });
 await mkdir(assets, { recursive: true });
@@ -36,7 +45,7 @@ await build(
     entryFileNames: '[name].js',
     chunkFileNames: '[name]-[hash].js',
     minify: true,
-    paths: { '@seams/wallet/voiceid-host': '../voiceid-host.js' },
+    paths: { '@seams/wallet/voiceid-host': `../voiceid-host.js?v=${walletVersion}` },
   },
 );
 

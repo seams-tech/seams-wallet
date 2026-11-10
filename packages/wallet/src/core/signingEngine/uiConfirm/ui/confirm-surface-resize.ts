@@ -21,8 +21,13 @@
  * can be taller than its box. Such a card is held at the box's height and
  * scrolls. A motion then starts from the card's full height, not from the box,
  * and the content keeps pace with the distance the box can actually travel.
- * When the box stops short, or cannot move at all, the content eases the rest
- * of the way on its own instead of snapping there.
+ * The box stops at the parent's limit when it eases there, and the content does
+ * not know that limit. So from the first frame the box moves, the content also
+ * runs the parent's ease on this document's clock and takes whichever of the
+ * two is further along: the box leads while it can reach the target, and the
+ * clock carries the content to the target when the box stops short. Both end
+ * together, in one motion. When the box cannot move at all, or never moves,
+ * the content eases the rest of the way on its own instead of snapping there.
  *
  * The host is a transparent shell in that surface, so pinning it taller or
  * shorter than its content is invisible. The pin goes through a constructable
@@ -31,6 +36,10 @@
  * The module owns the rules for iframe-hosted confirmation reflow.
  */
 
+import {
+  WALLET_CARD_RESIZE_EASING,
+  WALLET_CARD_RESIZE_MS,
+} from '@/SeamsWeb/walletIframe/shared/walletStep';
 import {
   addSurfaceResizeBeginListener,
   dispatchSurfaceResizeBegin,
@@ -427,8 +436,34 @@ type ActiveResize = {
   framesAtTarget: number;
   /** Set once the box has stopped short: the content eases the rest on its own. */
   ownEase: { readonly fromProgress: number; readonly startedAtMs: number } | null;
+  /** The parent's ease on this document's clock, from the first frame the box moved. */
+  clock: Animation | null;
   frame: number | null;
 };
+
+/**
+ * The parent's box ease, run without a target so that the browser computes the eased progress.
+ * It starts after the box has moved, so it is never ahead of a box that can reach its target.
+ */
+function startParentEaseClock(): Animation | null {
+  if (typeof Animation !== 'function' || typeof KeyframeEffect !== 'function') return null;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+  const clock = new Animation(
+    new KeyframeEffect(null, null, {
+      duration: WALLET_CARD_RESIZE_MS,
+      easing: WALLET_CARD_RESIZE_EASING,
+      fill: 'forwards',
+    }),
+    document.timeline,
+  );
+  clock.play();
+  return clock;
+}
+
+function clockProgress(clock: Animation | null): number {
+  const progress = clock?.effect?.getComputedTiming().progress;
+  return typeof progress === 'number' ? progress : 0;
+}
 
 /** Smoothstep: the content leaves a box that has come to rest without a jolt. */
 function easeInOut(t: number): number {
@@ -521,6 +556,7 @@ export function attachConfirmSurfaceResizeChoreographer(
     if (!current) return;
     active = null;
     if (current.frame !== null) cancelAnimationFrame(current.frame);
+    current.clock?.cancel();
     // Land the content on its target before the pin comes off, so the host's
     // natural height equals the pinned one and the reporter sees no second
     // change from this motion.
@@ -543,15 +579,18 @@ export function attachConfirmSurfaceResizeChoreographer(
       current.lastViewportPx = viewportPx;
       current.framesSinceChange = 0;
       current.moved = true;
+      if (!current.clock && !current.ownEase) current.clock = startParentEaseClock();
     } else {
       current.framesSinceChange += 1;
     }
     // The pinned target is what the parent applies, rounded on both sides, so
     // the box reaches it exactly; a box the parent clamps short settles below.
-    const progress =
+    const boxProgress =
       current.boxDeltaCssPx === 0
         ? 0
         : clamp((viewportPx - current.originBoxPx) / current.boxDeltaCssPx, 0, 1);
+    const easeProgress = clockProgress(current.clock);
+    const progress = Math.max(boxProgress, easeProgress);
     if (current.ownEase) {
       const { fromProgress, startedAtMs } = current.ownEase;
       const t = clamp((performance.now() - startedAtMs) / OWN_RESIZE_MS, 0, 1);
@@ -579,8 +618,14 @@ export function attachConfirmSurfaceResizeChoreographer(
     // destination before the ease reached it.
     if (current.framesAtTarget > 0) surfaceMotionDiagnostics.blipFrames += 1;
     current.framesAtTarget = 0;
-    if (progress > 0 && progress < 1) current.sawIntermediate = true;
+    if (boxProgress > 0 && boxProgress < 1) current.sawIntermediate = true;
     current.driver.setProgress(progress);
+    if (current.clock) {
+      // The box has moved, so the parent's ease is running: the content lands when it ends.
+      if (easeProgress >= 1) land();
+      else current.frame = requestAnimationFrame(step);
+      return;
+    }
     const settledFrames = current.moved
       ? SETTLED_FRAMES_AFTER_MOTION
       : SETTLED_FRAMES_WITHOUT_MOTION;
@@ -647,6 +692,7 @@ export function attachConfirmSurfaceResizeChoreographer(
       sawIntermediate: false,
       framesAtTarget: 0,
       ownEase: null,
+      clock: null,
       frame: null,
     };
     active.frame = requestAnimationFrame(step);

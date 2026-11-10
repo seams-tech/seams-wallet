@@ -76,6 +76,7 @@ test(`export parent drawer fits and scrolls at ${viewport.width}x${viewport.heig
         presentation,
         identity,
         focusTrap: true,
+        anchoredLayer: null,
         geometry: measuredWalletIframeSurfaceGeometry(presentation, viewport(), value),
       });
     }
@@ -88,6 +89,7 @@ test(`export parent drawer fits and scrolls at ${viewport.width}x${viewport.heig
       presentation,
       identity,
       focusTrap: true,
+      anchoredLayer: null,
       geometry: provisionalWalletIframeSurfaceGeometry(presentation, viewport()),
     });
   });

@@ -51,6 +51,7 @@ function render() {
     identity,
     presentation,
     focusTrap: view === 'expanded',
+    anchoredLayer: null,
     geometry: measurement
       ? measuredWalletIframeSurfaceGeometry(presentation, viewport(), measurement)
       : provisionalWalletIframeSurfaceGeometry(presentation, viewport()),
@@ -306,8 +307,10 @@ test('details in a card taller than its frame open and close in one motion', asy
   const opening = await toggleDetails(page);
   const opened = opening.at(-1)!;
   expect(opened.card).toBeGreaterThan(opened.box);
-  // Once the box stops at its limit, the rest of the card's growth is eased, not snapped.
+  // The card grows on the box's ease and ends with it: no snap, and no second motion
+  // after the box stops at its limit.
   expect(largestStepWhileBoxStill(opening)).toBeLessThan(40);
+  expect(cardGrowthAfterBoxStops(opening)).toBeLessThan(10);
 
   // Scrolled down to its end, the card keeps its place when the motion starts and ends.
   expect(await confirmationFrame(page).evaluate('window.scrollCardToEnd()')).toBeGreaterThan(0);
@@ -338,6 +341,15 @@ async function toggleDetails(page: Page): Promise<BoxFrame[]> {
   await expect(frame.locator('.seams-confirm-surface-pinned')).toHaveCount(0);
   await settledIframeBounds(page);
   return frame.evaluate('window.stopFrames()');
+}
+
+/** How far the card's height still changes after the box's last change. */
+function cardGrowthAfterBoxStops(frames: BoxFrame[]): number {
+  let lastBoxChange = 0;
+  for (let index = 1; index < frames.length; index += 1) {
+    if (frames[index].box !== frames[index - 1].box) lastBoxChange = index;
+  }
+  return Math.abs(frames.at(-1)!.card - frames[lastBoxChange].card);
 }
 
 /** The largest one-frame move of the card's bottom edge while the box stands still. */
