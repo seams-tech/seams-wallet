@@ -394,9 +394,7 @@ async function signMessageWithVerdict(
 /** A refusal of the Seams co-signer in a signing error, or null for another error. */
 function cosignerRefusal(error: string): Variant<SpeakToSignPayment, 'kind', 'refused'> | null {
   const refusal = parseCosignerVoiceRefusal(error);
-  if (!refusal) return null;
-  const limit = refusal === 'over_payment_limit' || refusal === 'over_daily_limit';
-  return { kind: 'refused', reason: limit ? 'voice_limit' : 'cosigner_refused', detail: refusal };
+  return refusal ? { kind: 'refused', reason: 'cosigner_refused', detail: refusal } : null;
 }
 
 /** A verdict that passed every check. The flow is marked as signed. */

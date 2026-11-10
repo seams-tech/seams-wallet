@@ -836,8 +836,6 @@ test('a co-signer refusal returns its typed reason, and another verdict of the f
       paymentHooks(),
     );
   for (const [reason, expected] of [
-    ['over_payment_limit', 'voice_limit'],
-    ['over_daily_limit', 'voice_limit'],
     ['reused', 'cosigner_refused'],
     ['step_up_required', 'cosigner_refused'],
   ] as const) {
@@ -853,7 +851,7 @@ test('a co-signer refusal returns its typed reason, and another verdict of the f
     result: { status: { SuccessValue: '' }, receipts_outcome: [] } as never,
   });
   expect(await pay(602)).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
-  expect(harness.signed).toHaveLength(6);
+  expect(harness.signed).toHaveLength(4);
 });
 
 test('after a VoiceID step-up, the new unlock meets a fresh-approval policy and no other', () => {

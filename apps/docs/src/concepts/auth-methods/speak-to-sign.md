@@ -116,10 +116,9 @@ The verifier sends its result only at the end, so no event comes between
 request.
 
 When the Seams co-signer refuses the verdict, the result is `refused` with
-`voice_limit` (over the voice limit for one payment or for 24 hours) or
-`cosigner_refused` (any other refusal of the co-signer). `detail` then holds
-the co-signer's reason, for example `over_daily_limit` or `reused`. Nothing was
-signed.
+`cosigner_refused`. `detail` then holds the co-signer's reason, for example
+`reused` or `request_mismatch`. Nothing was signed. Speak-to-Sign sets no
+amount limit of its own.
 
 An app without the descriptor downloads no Speak-to-Sign code, WASM or assets.
 An app with it loads nothing more until a spoken payment starts.

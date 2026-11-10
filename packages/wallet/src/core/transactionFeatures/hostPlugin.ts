@@ -29,10 +29,8 @@ export type SpeakToSignUnavailableReason =
  * the signature. `detail` names its reason (`CosignerVoiceRefusal`). Nothing was signed.
  */
 type SpeakToSignCosignerRefusalReason =
-  /** The payment is over the voice limit for one payment or for 24 hours. */
-  | 'voice_limit'
-  /** Another refusal of the co-signer, for example a verdict that it already accepted. */
-  | 'cosigner_refused';
+  /** For example a verdict that the co-signer already accepted for another request. */
+  'cosigner_refused';
 
 /** Refusals from the verifier, the verdict check in Wallet core, the co-signer and the chain. */
 export type SpeakToSignRefusalReason =

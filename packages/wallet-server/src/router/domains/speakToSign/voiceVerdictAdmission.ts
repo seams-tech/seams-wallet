@@ -1,7 +1,8 @@
 // The co-signer's check of a Speak-to-Sign verdict. Wallet core signs a voice-approved transaction
 // or NEP-413 message with no confirm after it checks the verdict, and its signing request carries
 // the verdict. Before the co-signer adds its part of the signature, it checks the verdict again
-// against the bytes that it signs, records it once and applies the voice limits. A normal signing request carries no
+// against the bytes that it signs and records it once. It sets no amount limit: a limit is a
+// rule of the Wallet's policy engine, as for a normal signature. A normal signing request carries no
 // verdict, and the co-signer does not run this check for it.
 
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -38,19 +39,6 @@ import {
 } from './voiceVerdictTransaction';
 
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
-const DAY_MS = 86_400_000;
-
-/**
- * What the voice alone may approve. A `step_up` verdict that comes with a fresh approval (an
- * operation step-up or a new VoiceID unlock) is not a voice-only approval, so these limits do
- * not apply to it and it does not count toward the day. The per-payment limit is the
- * verifier's step-up rule (10 NEAR).
- */
-const SPEAK_TO_SIGN_VOICE_LIMITS = Object.freeze({
-  perPaymentYocto: 10n * 10n ** 24n,
-  /** In any 24 hours, for each wallet. */
-  perDayYocto: 20n * 10n ** 24n,
-});
 
 type VoiceVerdictRecord = Readonly<{
   walletId: string;
@@ -58,27 +46,19 @@ type VoiceVerdictRecord = Readonly<{
   verdictId: string;
   /** The signing request that the verdict approved. A retry of that request may use it again. */
   requestId: string;
-  /** The voice-only amount in hundredths of NEAR; 0 for a note, a rating, a bet or a `step_up`. */
-  voiceHundredths: number;
   acceptedAtMs: number;
   expiresAtMs: number;
 }>;
 
-export type VoiceVerdictLedgerAdmission = 'admitted' | 'replayed' | 'reused' | 'over_daily_limit';
+export type VoiceVerdictLedgerAdmission = 'admitted' | 'replayed' | 'reused';
 
 /** The co-signer's record of accepted verdicts. */
 export type VoiceVerdictLedger = Readonly<{
   /**
-   * Records the verdict, in one step with the sum of the wallet's voice-only amounts accepted
-   * after `windowStartMs`: `reused` when another request has the verdict, `over_daily_limit`
-   * when the sum with this amount would pass `limitHundredths`.
+   * Records the verdict once: `replayed` when the same request has it already, `reused` when
+   * another request has it.
    */
-  admit(
-    record: VoiceVerdictRecord & {
-      readonly windowStartMs: number;
-      readonly limitHundredths: number;
-    },
-  ): Promise<VoiceVerdictLedgerAdmission>;
+  admit(record: VoiceVerdictRecord): Promise<VoiceVerdictLedgerAdmission>;
 }>;
 
 export type SpeakToSignVoiceVerdictCheck = Readonly<{
@@ -225,34 +205,27 @@ async function admitVoiceVerdict(
   }
   const digest = base64UrlEncode(await spokenRequestDigest(borsh));
   if (digest !== verdict.requestDigest) return refuse('request_mismatch');
-  // A verified bet verdict names a whole number of hundredths of USDC. A bet has no voice
-  // limit: the owner said its amount, and the market contract checks the same verdict.
+  // A verified bet or transfer verdict names a whole number of hundredths of USDC or NEAR.
   if (spoken.kind === 'market_bet' && spoken.amountUnits % USDC_UNITS_PER_HUNDREDTH !== 0n) {
     return refuse('request_mismatch');
   }
+  if (spoken.kind === 'account_transfer' && spoken.amountYocto % YOCTO_PER_HUNDREDTH !== 0n) {
+    return refuse('request_mismatch');
+  }
 
-  const voiceYocto =
-    spoken.kind === 'account_transfer' && verdict.outcome === 'accept' ? spoken.amountYocto : 0n;
-  // A verified transfer verdict names a whole number of hundredths of NEAR.
-  if (voiceYocto % YOCTO_PER_HUNDREDTH !== 0n) return refuse('request_mismatch');
-  if (voiceYocto > SPEAK_TO_SIGN_VOICE_LIMITS.perPaymentYocto) return refuse('over_payment_limit');
   let ledger: VoiceVerdictLedgerAdmission;
   try {
     ledger = await check.ledger.admit({
       walletId: target.walletId,
       verdictId: base64UrlEncode(await voiceVerdictMessage(signed.verdict_json)),
       requestId: target.requestId,
-      voiceHundredths: Number(voiceYocto / YOCTO_PER_HUNDREDTH),
       acceptedAtMs: nowMs,
       expiresAtMs: verdict.expiresAtMs,
-      windowStartMs: nowMs - DAY_MS,
-      limitHundredths: Number(SPEAK_TO_SIGN_VOICE_LIMITS.perDayYocto / YOCTO_PER_HUNDREDTH),
     });
   } catch (error: unknown) {
     return { ok: false, reason: 'unavailable', detail: errorDetail(error, 'ledger') };
   }
   if (ledger === 'reused') return refuse('reused');
-  if (ledger === 'over_daily_limit') return refuse('over_daily_limit');
   return { ok: true };
 }
 

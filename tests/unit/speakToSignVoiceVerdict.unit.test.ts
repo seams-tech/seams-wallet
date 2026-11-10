@@ -344,15 +344,15 @@ test('each refusal writes one log line with its reason, the wallet and the reque
     receiver: 'alice.testnet',
     actions: [{ kind: 'transfer', yocto: 11n * NEAR }],
   });
-  const verdict = await signedVerdict(verifier, transfer(11n));
+  const verdict = await signedVerdict(verifier, transfer(12n));
   expect(await cosigner.check(withVerdict(prepareBody(tx), verdict))).toEqual(
-    refused('over_payment_limit'),
+    refused('request_mismatch'),
   );
   expect(cosigner.warnings).toEqual([
     [
       '[speak-to-sign] co-signer refused a voice verdict',
       {
-        reason: 'over_payment_limit',
+        reason: 'request_mismatch',
         phase: 'prepare',
         walletId: WALLET_ID,
         requestId: 'request-1',
@@ -560,40 +560,26 @@ test('a verdict that the co-signer accepted is refused for another signing reque
   ).toEqual(ADMITTED);
 });
 
-test('voice-only payments stop at 10 NEAR each and 20 NEAR in 24 hours', async () => {
+test('the co-signer sets no amount limit on a voice-only payment', async () => {
   const verifier = await verifierKey();
   const cosigner = harness(verifier);
-  const pay = async (near: bigint, requestId: string, nowMs = NOW_MS, extra = {}) => {
+  for (const [near, requestId] of [
+    [11n, 'first'],
+    [500n, 'second'],
+    [1_000_000n, 'third'],
+  ] as const) {
     const tx = unsignedTransaction({
       receiver: 'alice.testnet',
       actions: [{ kind: 'transfer', yocto: near * NEAR }],
     });
-    const verdict = await signedVerdict(verifier, transfer(near), {
-      expires_at_ms: nowMs + 120_000,
-      speaker_score_milli: 600 + Number(near),
-      ...extra,
-    });
-    return await cosigner.check(withVerdict(prepareBody(tx, { requestId }), verdict), { nowMs });
-  };
-  expect(await pay(11n, 'over-each')).toEqual({
-    status: 403,
-    reason: 'over_payment_limit',
-    message: 'Speak-to-Sign verdict refused: over_payment_limit',
-  });
-  expect(await pay(10n, 'first')).toEqual(ADMITTED);
-  expect(await pay(8n, 'second')).toEqual(ADMITTED);
-  expect(await pay(3n, 'third')).toEqual({
-    status: 403,
-    reason: 'over_daily_limit',
-    message: 'Speak-to-Sign verdict refused: over_daily_limit',
-  });
-  expect(await pay(2n, 'fourth')).toEqual(ADMITTED);
-  // Refused payments do not count. After 24 hours, the earlier payments no longer count.
-  expect(await pay(1n, 'fifth')).toEqual(refused('over_daily_limit'));
-  expect(await pay(9n, 'next-day', NOW_MS + 86_400_001)).toEqual(ADMITTED);
+    const verdict = await signedVerdict(verifier, transfer(near));
+    expect(await cosigner.check(withVerdict(prepareBody(tx, { requestId }), verdict))).toEqual(
+      ADMITTED,
+    );
+  }
 });
 
-test('a step_up verdict needs a fresh approval of the operation, and then the voice limits do not apply', async () => {
+test('a step_up verdict needs a fresh approval of the operation', async () => {
   const verifier = await verifierKey();
   const cosigner = harness(verifier);
   const stepUp = { outcome: 'step_up', policy_rule: 'stub_voice_amount_above_10_near' };
@@ -616,7 +602,7 @@ test('a step_up verdict needs a fresh approval of the operation, and then the vo
       { authorization: 'operation_step_up' },
     ),
   ).toEqual(ADMITTED);
-  // The 25 NEAR with a fresh approval leaves the whole voice-only day free.
+  // The voice alone has no amount limit of its own.
   const tenNear = unsignedTransaction({
     receiver: 'alice.testnet',
     actions: [{ kind: 'transfer', yocto: 10n * NEAR }],
@@ -1032,7 +1018,7 @@ test('a spoken NEP-413 message is admitted for its exact bytes and summary only'
   const transactionDigest = await sha256(new Uint8Array(transactionBytes));
   const disguised = await signedVerdict(verifier, request({ payloadSha256: transactionDigest }));
   expect(
-    await attempt({ ...disguised, summary }, transactionBytes, transactionDigest),
+    await attempt({ ...disguised, summary }, new Uint8Array(transactionBytes), transactionDigest),
   ).toEqual(refused('request_mismatch'));
   // A verdict of another owner's message does not match the session account.
   const foreign = await signedVerdict(verifier, request({ owner: 'other.testnet' }));
@@ -1061,7 +1047,7 @@ test('a verdict on the second round, or without a configured check, is refused',
   });
 });
 
-test('the D1 ledger records a verdict once and sums voice amounts in one statement', async () => {
+test('the D1 ledger records a verdict once and deletes expired records', async () => {
   namespaceCount += 1;
   const ledgerNamespace = namespaceCount;
   const ledger = createD1VoiceVerdictLedger({
@@ -1071,27 +1057,22 @@ test('the D1 ledger records a verdict once and sums voice amounts in one stateme
   const record = (
     verdictId: string,
     requestId: string,
-    voiceHundredths: number,
     acceptedAtMs = NOW_MS,
   ) =>
     ledger.admit({
       walletId: WALLET_ID,
       verdictId,
       requestId,
-      voiceHundredths,
       acceptedAtMs,
       expiresAtMs: acceptedAtMs + 120_000,
-      windowStartMs: acceptedAtMs - 86_400_000,
-      limitHundredths: 2_000,
     });
-  expect(await record('v1', 'r1', 1_500)).toBe('admitted');
-  expect(await record('v1', 'r1', 1_500)).toBe('replayed');
-  expect(await record('v1', 'r2', 1_500)).toBe('reused');
-  // Two requests at once: only one fits the remaining 5 NEAR.
-  const raced = await Promise.all([record('v2', 'r3', 400), record('v3', 'r4', 400)]);
-  expect(raced.sort()).toEqual(['admitted', 'over_daily_limit']);
-  // An approval that moves no voice-only value always fits.
-  expect(await record('v4', 'r5', 0)).toBe('admitted');
+  expect(await record('v1', 'r1')).toBe('admitted');
+  expect(await record('v1', 'r1')).toBe('replayed');
+  expect(await record('v1', 'r2')).toBe('reused');
+  // Two requests at once with one verdict: only one gets it.
+  const raced = await Promise.all([record('v2', 'r3'), record('v2', 'r4')]);
+  expect(raced.sort()).toEqual(['admitted', 'reused']);
+  expect(await record('v3', 'r5')).toBe('admitted');
   const rows = async () =>
     (
       await database()
@@ -1101,10 +1082,9 @@ test('the D1 ledger records a verdict once and sums voice amounts in one stateme
         .bind(`voice-ledger-${ledgerNamespace}`)
         .all<{ verdict_id: string }>()
     ).results?.map((row) => row.verdict_id);
-  // v1, the one of v2 and v3 that won the race, and v4.
-  expect(await rows()).toHaveLength(3);
-  // A day later, the next admission deletes the wallet's records from outside the window.
-  expect(await record('v5', 'r6', 500, NOW_MS + 86_400_001)).toBe('admitted');
+  expect(await rows()).toEqual(['v1', 'v2', 'v3']);
+  // After the verdicts expired, the next admission deletes the wallet's records.
+  expect(await record('v5', 'r6', NOW_MS + 120_000)).toBe('admitted');
   expect(await rows()).toEqual(['v5']);
 });
 

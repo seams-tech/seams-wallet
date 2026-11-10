@@ -170,8 +170,6 @@ const COSIGNER_VOICE_REFUSALS = [
   'owner_mismatch',
   /** The co-signer already accepted this verdict for another signing request. */
   'reused',
-  'over_payment_limit',
-  'over_daily_limit',
   /** A `step_up` verdict without a fresh approval: an operation step-up or a new VoiceID unlock. */
   'step_up_required',
   /** The co-signer could not read the account or its verdict records. */

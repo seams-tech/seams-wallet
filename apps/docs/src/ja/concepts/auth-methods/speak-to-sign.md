@@ -85,9 +85,9 @@ if (seams.speakToSign) {
 
 検証者は結果を最後にだけ送るため、`verifier_running`と`verdict`の間にイベントはありません。リスナーのエラーはリクエストを止めません。
 
-Seamsの共同署名者が判定を拒否した場合、結果は`refused`で、理由は`voice_limit`(1回の支払いまたは24時間の音声の上限を超えた場合)か、
-`cosigner_refused`(共同署名者のその他の拒否)です。このとき`detail`には、`over_daily_limit`や`reused`のような共同署名者の理由が入ります。
-何も署名されていません。
+Seamsの共同署名者が判定を拒否した場合、結果は`refused`で、理由は`cosigner_refused`です。
+このとき`detail`には、`reused`や`request_mismatch`のような共同署名者の理由が入ります。
+何も署名されていません。Speak-to-Sign自体は金額の上限を設けません。
 
 記述子を設定しないアプリは、Speak-to-Signのコード、WASM、アセットを一切ダウンロードしません。
 記述子を設定したアプリも、音声による支払いを始めるまでは何も追加で読み込みません。

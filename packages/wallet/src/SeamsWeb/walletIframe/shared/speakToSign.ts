@@ -340,7 +340,6 @@ const REFUSAL_REASONS: Readonly<Record<SpeakToSignRefusalReason, true>> = {
   receiver_not_speakable: true,
   receiver_missing: true,
   verdict_mismatch: true,
-  voice_limit: true,
   cosigner_refused: true,
   transaction_failed: true,
 };
@@ -361,7 +360,6 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   bet_not_valid: true,
   transaction_not_valid: true,
   verdict_mismatch: true,
-  voice_limit: true,
   cosigner_refused: true,
   transaction_failed: true,
 };
@@ -379,7 +377,6 @@ const MESSAGE_REFUSAL_REASONS: Readonly<Record<SpeakToSignMessageRefusalReason, 
   summary_not_speakable: true,
   message_not_valid: true,
   verdict_mismatch: true,
-  voice_limit: true,
   cosigner_refused: true,
 };
 const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalReason, true>> = {
