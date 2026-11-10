@@ -21,7 +21,11 @@ const walletUiCss = fs.readFileSync(
 declare global {
   interface Window {
     __confirmationMount: {
-      mount(variant: 'modal' | 'drawer', context: 'standalone' | 'wallet-iframe'): string;
+      mount(
+        variant: 'modal' | 'drawer',
+        context: 'standalone' | 'wallet-iframe',
+        shape?: Record<string, string>,
+      ): string;
       update(index: number, heading: string, ready: boolean): void;
       error(index: number): void;
       close(index: number): void;
@@ -58,6 +62,8 @@ test.beforeEach(async ({ page }) => {
       '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.js';
     const { mountConfirmationSurface } = await import(moduleUrl);
     const handles: ConfirmationSurfaceHandle[] = [];
+    // The shape an app sets, kept for every model the fixture builds after mount.
+    let appShape: Record<string, string> | undefined;
     function firstConfirm() {
       window.__confirmationMount.calls.push('first');
     }
@@ -74,7 +80,12 @@ test.beforeEach(async ({ page }) => {
       return {
         appearance: {
           palette: 'default',
-          theme: { id: 'default', mode: 'light', colors: { accent: 'rgb(12, 34, 56)' } },
+          theme: {
+            id: 'default',
+            mode: 'light',
+            colors: { accent: 'rgb(12, 34, 56)' },
+            ...(appShape ? { shape: appShape } : {}),
+          },
         },
         content: {
           kind: 'transaction',
@@ -104,7 +115,12 @@ test.beforeEach(async ({ page }) => {
         },
       };
     }
-    function mount(variant: 'modal' | 'drawer', context: 'standalone' | 'wallet-iframe') {
+    function mount(
+      variant: 'modal' | 'drawer',
+      context: 'standalone' | 'wallet-iframe',
+      shape?: Record<string, string>,
+    ) {
+      appShape = shape;
       const handle = mountConfirmationSurface({
         parent: document.querySelector('main')!,
         presentation: { variant, context },
@@ -263,6 +279,56 @@ test('the contract row shows the called contract and copies its full address', a
     .poll(() => page.evaluate(() => window.__confirmationMount.calls))
     .toEqual([contract]);
   await expect(row.locator('.seams-review-copy')).toHaveAccessibleName('Copied');
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
+test('a hosted card keeps its corners while it moves', async ({ page }) => {
+  // The surface clips the card only while the card is still: a height motion pins the
+  // surface and a receipt morph unclips it. So the clip and the card must share one radius,
+  // whatever card radius the app sets.
+  const corners = () =>
+    page.evaluate(() => {
+      const surface = document.querySelector<HTMLElement>('.seams-confirmation-surface')!;
+      const card = surface.querySelector<HTMLElement>('.modal-container-root')!;
+      return {
+        clip: getComputedStyle(surface).borderTopLeftRadius,
+        card: getComputedStyle(card).borderTopLeftRadius,
+      };
+    });
+  const settled = () =>
+    expect
+      .poll(() =>
+        page.evaluate(() =>
+          document
+            .querySelector('.seams-confirmation-surface')!
+            .hasAttribute('data-receipt-morphing'),
+        ),
+      )
+      .toBe(false);
+  const cases = [
+    { shape: undefined, radius: '26px' },
+    { shape: { card: '2rem' }, radius: '32px' },
+  ];
+  for (const [index, { shape, radius }] of cases.entries()) {
+    await page.evaluate(
+      (shape) => window.__confirmationMount.mount('modal', 'wallet-iframe', shape),
+      shape,
+    );
+    expect(await corners()).toEqual({ clip: radius, card: radius });
+
+    // The receipt morph starts from the corner that the confirmation showed.
+    const morph = await page.evaluate((index) => {
+      window.__confirmationMount.receipt(index, { kind: 'broadcasting' }, 'toast');
+      const shell = document.querySelector('.seams-receipt-morph-shell')!;
+      const effect = shell.getAnimations()[0].effect as KeyframeEffect;
+      return effect.getKeyframes().map((frame) => frame.borderRadius);
+    }, index);
+    expect(morph).toEqual([radius, '12px']);
+    await settled();
+    expect(await corners()).toEqual({ clip: '12px', card: '12px' });
+
+    await page.evaluate((index) => window.__confirmationMount.dispose(index), index);
+  }
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 

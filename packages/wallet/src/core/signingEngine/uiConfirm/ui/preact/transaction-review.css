@@ -586,12 +586,18 @@
 :where(.seams-wallet-ui) .seams-receipt-dismiss:hover {
   background: var(--seams-colors-surface2);
 }
+/* A transaction card is rounder than the Wallet's other cards, up to 26px, and never less
+   round than the app's card. A receipt toast keeps corners of at most 12px. */
 :where(.seams-wallet-ui[data-confirmation-kind='transaction']) {
   --seams-modal__container-max-width: 28rem;
-  --seams-transaction-card-radius: min(calc(var(--seams-shape-card, 16px) * 1.625), 26px);
+  --seams-confirmation-card-radius: max(
+    min(var(--seams-shape-card, 16px), 2rem),
+    min(calc(var(--seams-shape-card, 16px) * 1.625), 26px)
+  );
 }
 :where(.seams-wallet-ui[data-receipt-view='toast']) {
   --seams-modal__container-max-width: 22rem;
+  --seams-confirmation-card-radius: min(var(--seams-shape-card, 16px), 12px);
 }
 :where(.seams-wallet-ui[data-confirmation-kind='transaction'])
   .seams-confirmation-modal
@@ -600,12 +606,6 @@
   gap: 0;
   grid-template-columns: minmax(0, 1fr);
   border: 0;
-  border-radius: var(--seams-transaction-card-radius);
-}
-:where(.seams-wallet-ui[data-receipt-view='toast'])
-  .seams-confirmation-modal
-  .modal-container-root {
-  border-radius: min(var(--seams-shape-card, 16px), 12px);
 }
 :where(.seams-wallet-ui) .seams-review-eyebrow {
   margin: 1rem 0 0.375rem;
@@ -960,6 +960,6 @@
    would show square corners there. The footer arrives once the card has its final
    radius, so it rounds its own bottom corners to that radius. */
 .seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .seams-receipt-footer {
-  border-end-start-radius: var(--seams-transaction-card-radius);
-  border-end-end-radius: var(--seams-transaction-card-radius);
+  border-end-start-radius: var(--seams-confirmation-card-radius);
+  border-end-end-radius: var(--seams-confirmation-card-radius);
 }
