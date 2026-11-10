@@ -208,6 +208,23 @@ async function smokePackedEntries() {
     assert.ok(fs.existsSync(path.join(cliOutput, asset.sourceFile)), asset.sourceFile);
   }
   assert.ok(!fs.existsSync(path.join(walletPublicDirectory, 'sdk/voiceid')));
+  // The plugin's hashed chunks load fresh after a deploy, so every import of the Wallet's
+  // fixed-path bridge must carry the Wallet version, or a browser can pair them with a cached
+  // older bridge.
+  const voiceIdDirectory = path.join(cliOutput, 'sdk/voiceid');
+  const bridgeImports = fs
+    .readdirSync(voiceIdDirectory)
+    .filter((name) => name.endsWith('.js'))
+    .flatMap(
+      (name) =>
+        fs
+          .readFileSync(path.join(voiceIdDirectory, name), 'utf8')
+          .match(/["'`]\.\.\/voiceid-host\.js[^"'`]*["'`]/g) ?? [],
+    );
+  assert.ok(bridgeImports.length > 0, 'The VoiceID host plugin must import /sdk/voiceid-host.js');
+  for (const specifier of bridgeImports) {
+    assert.equal(specifier.slice(1, -1), `../voiceid-host.js?v=${walletPackage.version}`);
+  }
   const reportPath = path.join(repoRoot, '.artifacts/packed-wallet-boundaries/voiceid-host.json');
   fs.mkdirSync(path.dirname(reportPath), { recursive: true });
   fs.writeFileSync(
