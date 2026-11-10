@@ -62,7 +62,6 @@ import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { AssetsCapability } from '@/SeamsWeb/publicApi/assets';
 import {
   createSpeakToSignCapability,
-  type SpeakToSignCapability,
 } from '@/SeamsWeb/publicApi/speakToSign';
 import { createApplicationSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 /**
@@ -93,8 +92,6 @@ export class SeamsWeb {
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
   readonly assets: AssetsCapability;
-  /** Present only when the config holds the Speak-to-Sign descriptor. */
-  readonly speakToSign?: SpeakToSignCapability;
   constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
     this.configs = buildConfigsFromEnv(configs);
     // Use provided client or create default one
@@ -202,7 +199,6 @@ export class SeamsWeb {
     this.recovery = publicApi.recovery;
     this.devices = publicApi.devices;
     this.keys = publicApi.keys;
-    this.near = publicApi.near;
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
     this.assets = publicApi.assets;
@@ -211,7 +207,8 @@ export class SeamsWeb {
       createApplicationSpeakToSignCommands(this.walletIframe),
       modalStepsOwner,
     );
-    if (speakToSign) this.speakToSign = speakToSign;
+    // `near.speakToSign` exists only when the config holds the Speak-to-Sign descriptor.
+    this.near = speakToSign ? { ...publicApi.near, speakToSign } : publicApi.near;
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();

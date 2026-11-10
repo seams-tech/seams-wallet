@@ -1,21 +1,31 @@
 import type {
   SpeakToSignBetRequest,
   SpeakToSignDelegateRequest,
-  SpeakToSignSignedDelegateResult,
-  SpeakToSignSignedTransactionResult,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignMessageRefusalReason,
   SpeakToSignMessageRequest,
   SpeakToSignMessageResult,
+  SpeakToSignNoteRefusalReason,
   SpeakToSignNoteRequest,
-  SpeakToSignNoteResult,
   SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
+  SpeakToSignRefusalReason,
+  SpeakToSignSignedDelegateResult,
+  SpeakToSignSignedMessage,
+  SpeakToSignSignedTransactionResult,
   SpeakToSignTransactionRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
+  SpeakToSignTransferTimes,
+  SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
-import type { WithPresentation } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
+import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
+import type { SignDelegateActionResult, SignTransactionResult } from '@/core/types/seams';
+import type {
+  SpeakToSignCommands,
+  WithPresentation,
+} from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 import {
   findWalletTransactionFeature,
   type SpeakToSignNetwork,
@@ -35,81 +45,85 @@ export type SpeakToSignCall<Request, Result> =
   | (WithPresentation<Request> & Readonly<{ steps?: never }>)
   | (Request & Readonly<{ presentation?: never; steps: WalletModalSteps<Result> }>);
 
+/**
+ * The result of one spoken signing call. `approved` holds what the normal call of the same name
+ * returns. The other kinds signed nothing, or the sent transaction failed (`transaction_failed`).
+ */
+export type SpeakToSignResult<T, Reason extends string = SpeakToSignNoteRefusalReason> =
+  | Readonly<{
+      kind: 'approved';
+      result: T;
+      /** `voice_and_passkey` when a policy rule asked for a passkey after the voice. */
+      approval: VoiceApproval;
+      times: SpeakToSignTransferTimes;
+    }>
+  | Readonly<{ kind: 'refused'; reason: Reason; detail?: string }>
+  | Readonly<{ kind: 'cancelled' }>
+  | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
+
+/** A transaction that the Wallet signed and sent, with its final outcome on chain. */
+export type SpeakToSignSentTransaction = Readonly<{ transactionHash: string }>;
+
+type Sent<Reason extends string = SpeakToSignNoteRefusalReason> = SpeakToSignResult<
+  SpeakToSignSentTransaction,
+  Reason
+>;
+type SignedMessage = SpeakToSignResult<SpeakToSignSignedMessage, SpeakToSignMessageRefusalReason>;
+
+/**
+ * Requests whose sentence comes from the request fields, so the owner says what the Wallet
+ * signs. Each one is one fixed call shape.
+ */
+export type SpeakToSignTypedCalls = Readonly<{
+  /** A NEAR transfer: "send two near to alice dot testnet". A policy rule can ask for a passkey. */
+  transfer(
+    request: SpeakToSignCall<SpeakToSignTransferRequest, Sent<SpeakToSignRefusalReason>>,
+  ): Promise<Sent<SpeakToSignRefusalReason>>;
+  /** `add_note` on a notes contract: the author says the note's short summary. */
+  note(request: SpeakToSignCall<SpeakToSignNoteRequest, Sent>): Promise<Sent>;
+  /** `rate_note` on a notes contract: "this note is helpful". */
+  rating(request: SpeakToSignCall<SpeakToSignRatingRequest, Sent>): Promise<Sent>;
+  /** `approve_merge` on a merge-approval contract: "merge pull request 42 into main". */
+  mergeApproval(request: SpeakToSignCall<SpeakToSignMergeApprovalRequest, Sent>): Promise<Sent>;
+  /**
+   * A bet on a prediction market: "bet zero point five usdc yes on market nine". The Wallet
+   * sends the stake with the token's `ft_transfer_call`, with the signed verdict in `msg`.
+   */
+  bet(request: SpeakToSignCall<SpeakToSignBetRequest, Sent>): Promise<Sent>;
+}>;
+
+/**
+ * The NEAR signer by voice: each call has the name of the `seams.near` call that it replaces.
+ * The owner reads the request's `summary` aloud, the Seams server has the verifier check the
+ * voice and the words, and the Wallet signs with no confirm. The verdict binds exactly what the
+ * Wallet signs. The application writes the summary: the voice proves who approves and what was
+ * said, not that the summary describes the request.
+ */
 export type SpeakToSignCapability = Readonly<{
   network: SpeakToSignNetwork;
-  /**
-   * Runs one spoken payment in the Wallet iframe: the owner reads the sentence aloud, the Seams
-   * server has the verifier check the voice and the words, and the Wallet sends the transfer
-   * from the owner's account. An accepted verdict needs no confirm; a policy rule can ask for a
-   * passkey.
-   */
-  requestTransfer(
-    request: SpeakToSignCall<SpeakToSignTransferRequest, SpeakToSignTransferResult>,
-  ): Promise<SpeakToSignTransferResult>;
-  /**
-   * Posts one community note by voice: the author reads the note's short summary aloud, the
-   * verifier checks the voice and the words, and the Wallet calls `add_note` on the notes
-   * contract from the owner's account, with no deposit and no confirm.
-   */
-  requestNote(
-    request: SpeakToSignCall<SpeakToSignNoteRequest, SpeakToSignNoteResult>,
-  ): Promise<SpeakToSignNoteResult>;
-  /**
-   * Rates one community note by voice: the owner says "this note is helpful", "this note is
-   * somewhat helpful" or "this note is not helpful", and the Wallet calls `rate_note`.
-   */
-  requestRating(
-    request: SpeakToSignCall<SpeakToSignRatingRequest, SpeakToSignNoteResult>,
-  ): Promise<SpeakToSignNoteResult>;
-  /**
-   * Approves one pull request merge by voice: the owner says "merge pull request 42 into main",
-   * and the Wallet calls `approve_merge` on the contract, with no deposit and no confirm. The
-   * verdict binds the repository and the head commit, which the owner does not say.
-   */
-  requestMergeApproval(
-    request: SpeakToSignCall<SpeakToSignMergeApprovalRequest, SpeakToSignNoteResult>,
-  ): Promise<SpeakToSignNoteResult>;
-  /**
-   * Bets on one outcome of a prediction market by voice: the owner says "bet zero point five
-   * usdc yes on market nine", and the Wallet sends the stake with the token's `ft_transfer_call`
-   * to the market contract, with the signed verdict in `msg` and no confirm. The verdict binds
-   * the market and the token, which the owner does not say. The token must be the USDC contract
-   * of the network. The Wallet sets no amount limit: the amount that the owner says is the bet.
-   */
-  requestBet(
-    request: SpeakToSignCall<SpeakToSignBetRequest, SpeakToSignNoteResult>,
-  ): Promise<SpeakToSignNoteResult>;
-  /**
-   * Signs and sends any NEAR transaction by voice, as `signAndSendTransaction` does with a
-   * confirm: any receiver and any actions. The owner reads the summary aloud, and the verdict
-   * binds the receiver and the exact actions. The application writes the summary: the voice
-   * proves who approves and what was said, not that the summary describes the transaction.
-   */
-  requestTransaction(
-    request: SpeakToSignCall<SpeakToSignTransactionRequest, SpeakToSignNoteResult>,
-  ): Promise<SpeakToSignNoteResult>;
-  /**
-   * Signs any NEAR transaction by voice and does not send it, as `near.signTransaction` does
-   * with a confirm. `near.sendTransaction` sends the signed transaction later.
-   */
-  requestSignedTransaction(
-    request: SpeakToSignCall<SpeakToSignTransactionRequest, SpeakToSignSignedTransactionResult>,
-  ): Promise<SpeakToSignSignedTransactionResult>;
-  /**
-   * Signs a NEP-366 delegate action by voice, as `near.signDelegateAction` does with a confirm.
-   * A relayer sends its actions for the owner. The verdict binds the receiver and the actions.
-   */
-  requestDelegateAction(
-    request: SpeakToSignCall<SpeakToSignDelegateRequest, SpeakToSignSignedDelegateResult>,
-  ): Promise<SpeakToSignSignedDelegateResult>;
-  /**
-   * Signs any NEP-413 message by voice, as `near.signMessage` does with a confirm. The owner
-   * reads the summary aloud, and the verdict binds the exact message, nonce, recipient and
-   * callback URL. The application writes the summary, as for `requestTransaction`.
-   */
-  requestMessage(
-    request: SpeakToSignCall<SpeakToSignMessageRequest, SpeakToSignMessageResult>,
-  ): Promise<SpeakToSignMessageResult>;
+  /** Signs and sends any NEAR transaction, as `near.signAndSendTransaction`. */
+  signAndSendTransaction(
+    request: SpeakToSignCall<SpeakToSignTransactionRequest, Sent>,
+  ): Promise<Sent>;
+  /** Signs any NEAR transaction and does not send it, as `near.signTransaction`. */
+  signTransaction(
+    request: SpeakToSignCall<
+      SpeakToSignTransactionRequest,
+      SpeakToSignResult<SignTransactionResult>
+    >,
+  ): Promise<SpeakToSignResult<SignTransactionResult>>;
+  /** Signs a NEP-366 delegate action for a relayer, as `near.signDelegateAction`. */
+  signDelegateAction(
+    request: SpeakToSignCall<
+      SpeakToSignDelegateRequest,
+      SpeakToSignResult<SignDelegateActionResult>
+    >,
+  ): Promise<SpeakToSignResult<SignDelegateActionResult>>;
+  /** Signs any NEP-413 message, as `near.signMessage`. The Wallet draws the nonce. */
+  signMessage(
+    request: SpeakToSignCall<SpeakToSignMessageRequest, SignedMessage>,
+  ): Promise<SignedMessage>;
+  typed: SpeakToSignTypedCalls;
   /**
    * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
    * message that authorizes exactly these recordings, and the verifier stores the template. A
@@ -141,49 +155,86 @@ function withModalSteps<Request extends object, Result>(
   });
 }
 
+/** What the Wallet iframe answers for a call that sends a transaction. */
+type SendAnswer<Reason extends string> =
+  | Extract<SpeakToSignTransferResult, { kind: 'sent' }>
+  | Exclude<Sent<Reason>, { kind: 'approved' }>;
+
+/** The public result of a sent transaction. */
+function sent<Reason extends string>(answer: SendAnswer<Reason>): Sent<Reason> {
+  if (answer.kind !== 'sent') return answer;
+  const { transactionHash, approval, times } = answer;
+  return { kind: 'approved', result: { transactionHash }, approval, times };
+}
+
+/** The public result of a transaction that the Wallet signed and did not send. */
+function signedTransaction(
+  answer: SpeakToSignSignedTransactionResult,
+): SpeakToSignResult<SignTransactionResult> {
+  if (answer.kind !== 'signed_transaction') return answer;
+  const { signed, approval, times } = answer;
+  return { kind: 'approved', result: signed, approval, times };
+}
+
+function signedDelegate(
+  answer: SpeakToSignSignedDelegateResult,
+): SpeakToSignResult<SignDelegateActionResult> {
+  if (answer.kind !== 'signed_delegate') return answer;
+  const { signed, approval, times } = answer;
+  return { kind: 'approved', result: signed, approval, times };
+}
+
+function signedMessage(result: SpeakToSignMessageResult): SignedMessage {
+  if (result.kind !== 'signed') return result;
+  const { kind: _kind, approval, times, ...message } = result;
+  return { kind: 'approved', result: message, approval, times };
+}
+
 export function createSpeakToSignCapability(
   features: readonly WalletTransactionFeaturePlugin[],
-  commands: Readonly<{
-    requestTransfer: SpeakToSignCommand<SpeakToSignTransferRequest, SpeakToSignTransferResult>;
-    requestNote: SpeakToSignCommand<SpeakToSignNoteRequest, SpeakToSignNoteResult>;
-    requestRating: SpeakToSignCommand<SpeakToSignRatingRequest, SpeakToSignNoteResult>;
-    requestMergeApproval: SpeakToSignCommand<
-      SpeakToSignMergeApprovalRequest,
-      SpeakToSignNoteResult
-    >;
-    requestBet: SpeakToSignCommand<SpeakToSignBetRequest, SpeakToSignNoteResult>;
-    requestTransaction: SpeakToSignCommand<SpeakToSignTransactionRequest, SpeakToSignNoteResult>;
-    requestSignedTransaction: SpeakToSignCommand<
-      SpeakToSignTransactionRequest,
-      SpeakToSignSignedTransactionResult
-    >;
-    requestDelegateAction: SpeakToSignCommand<
-      SpeakToSignDelegateRequest,
-      SpeakToSignSignedDelegateResult
-    >;
-    requestMessage: SpeakToSignCommand<SpeakToSignMessageRequest, SpeakToSignMessageResult>;
-    enroll: SpeakToSignCommand<SpeakToSignEnrollmentRequest, SpeakToSignEnrollmentResult>;
-  }>,
+  commands: SpeakToSignCommands,
   owner: WalletModalStepsOwner,
 ): SpeakToSignCapability | null {
   const feature = findWalletTransactionFeature(features, 'speak_to_sign');
   if (!feature) return null;
+  /** A call that sends: the iframe's `sent` answer becomes the public `approved` result. */
+  const sending =
+    <Request extends object, Reason extends string>(
+      command: SpeakToSignCommand<Request, SendAnswer<Reason>>,
+    ) =>
+    (request: SpeakToSignCall<Request, Sent<Reason>>): Promise<Sent<Reason>> =>
+      withModalSteps(async (inner) => sent(await command(inner)), owner, CANCELLED, request);
   return {
     network: feature.network,
-    requestTransfer: (request) =>
-      withModalSteps(commands.requestTransfer, owner, CANCELLED, request),
-    requestNote: (request) => withModalSteps(commands.requestNote, owner, CANCELLED, request),
-    requestRating: (request) => withModalSteps(commands.requestRating, owner, CANCELLED, request),
-    requestMergeApproval: (request) =>
-      withModalSteps(commands.requestMergeApproval, owner, CANCELLED, request),
-    requestBet: (request) => withModalSteps(commands.requestBet, owner, CANCELLED, request),
-    requestTransaction: (request) =>
-      withModalSteps(commands.requestTransaction, owner, CANCELLED, request),
-    requestSignedTransaction: (request) =>
-      withModalSteps(commands.requestSignedTransaction, owner, CANCELLED, request),
-    requestDelegateAction: (request) =>
-      withModalSteps(commands.requestDelegateAction, owner, CANCELLED, request),
-    requestMessage: (request) => withModalSteps(commands.requestMessage, owner, CANCELLED, request),
+    signAndSendTransaction: sending(commands.requestTransaction),
+    signTransaction: (request) =>
+      withModalSteps(
+        async (inner) => signedTransaction(await commands.requestSignedTransaction(inner)),
+        owner,
+        CANCELLED,
+        request,
+      ),
+    signDelegateAction: (request) =>
+      withModalSteps(
+        async (inner) => signedDelegate(await commands.requestDelegateAction(inner)),
+        owner,
+        CANCELLED,
+        request,
+      ),
+    signMessage: (request) =>
+      withModalSteps(
+        async (inner) => signedMessage(await commands.requestMessage(inner)),
+        owner,
+        CANCELLED,
+        request,
+      ),
+    typed: {
+      transfer: sending(commands.requestTransfer),
+      note: sending(commands.requestNote),
+      rating: sending(commands.requestRating),
+      mergeApproval: sending(commands.requestMergeApproval),
+      bet: sending(commands.requestBet),
+    },
     enroll: (request) => withModalSteps(commands.enroll, owner, CANCELLED, request),
   };
 }

@@ -26,19 +26,18 @@ export type {
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostPlugin,
+  SpeakToSignMessageRefusalReason,
   SpeakToSignMessageRequest,
-  SpeakToSignMessageResult,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteRequest,
-  SpeakToSignNoteResult,
   SpeakToSignProgress,
-  SpeakToSignSignedDelegateResult,
-  SpeakToSignSignedTransactionResult,
+  SpeakToSignRefusalReason,
   SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
+  SpeakToSignSignedMessage,
   SpeakToSignTransactionRequest,
   SpeakToSignTransferRequest,
-  SpeakToSignTransferResult,
+  SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from './core/transactionFeatures/hostPlugin';
 export {
@@ -47,7 +46,13 @@ export {
   type NoteRating,
   type SummaryRefusal,
 } from './core/transactionFeatures/spokenNote';
-export type { SpeakToSignCall, SpeakToSignCapability } from './SeamsWeb/publicApi/speakToSign';
+export type {
+  SpeakToSignCall,
+  SpeakToSignCapability,
+  SpeakToSignResult,
+  SpeakToSignSentTransaction,
+  SpeakToSignTypedCalls,
+} from './SeamsWeb/publicApi/speakToSign';
 export { normalizeWalletLocale } from './core/ui/locale';
 export type { WalletLocale } from './core/ui/locale';
 export type {

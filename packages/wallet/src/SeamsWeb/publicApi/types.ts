@@ -834,6 +834,12 @@ type NearSubjectInput = {
 };
 
 export interface NearSignerCapability {
+  /**
+   * The NEAR signer by voice. Present only when the config holds the Speak-to-Sign descriptor
+   * (`transactionFeatures: [speakToSign({ network })]`).
+   */
+  readonly speakToSign?: import('./speakToSign').SpeakToSignCapability;
+
   prepareOwnerTransaction(input: import('./ownerNearOperation').PrepareOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
   resumeOwnerTransaction(input: import('./ownerNearOperation').ResumeOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
 

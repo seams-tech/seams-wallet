@@ -79,28 +79,74 @@ const seams = new SeamsWeb({
   transactionFeatures: [speakToSign({ network: 'testnet' })],
 });
 
-if (seams.speakToSign) {
-  const result = await seams.speakToSign.requestTransfer({
+const voice = seams.near.speakToSign;
+if (voice) {
+  const result = await voice.signAndSendTransaction({
     walletId,
-    receiver: 'alice.testnet',
-    amount: '2',
+    transaction: { receiverId: 'guest-book.testnet', actions },
+    summary: 'Sign the guest book.',
   });
+  if (result.kind === 'approved') console.log(result.result.transactionHash);
 }
 ```
 
-`seams.speakToSign` exists only when the configuration names the descriptor.
-The receiver can be any named NEAR account that the owner can say, such as
-`alice.testnet`. The result is `refused` with `receiver_not_speakable` for an
-implicit (64-hex) or `0x` account, and with `receiver_missing` for an account
-that does not exist. The amount is decimal NEAR with at most two decimal
-places. The result `kind` is `sent`, `refused`, `cancelled` or `unavailable`.
-A `sent` result has `approval`: `voice` when the verdict alone approved the
-payment, and `voice_and_passkey` when a policy rule asked for the confirm
-again. Today the verifier has one stub rule: a voice payment above 10 NEAR needs
-a passkey.
+`seams.near.speakToSign` exists only when the configuration names the
+descriptor. It is the NEAR signer by voice: each call has the name of the
+`seams.near` call that it replaces, and takes the same transaction, delegate
+action or message with a `summary`.
 
-`onProgress` is optional on `requestTransfer`, `requestNote` and
-`requestRating`. It gets each stage of the request, in order:
+| Normal call                   | Voice call                                | `result` of an approved call      |
+| ----------------------------- | ----------------------------------------- | --------------------------------- |
+| `near.signAndSendTransaction` | `near.speakToSign.signAndSendTransaction` | `{ transactionHash }`             |
+| `near.signTransaction`        | `near.speakToSign.signTransaction`        | The signed transaction            |
+| `near.signDelegateAction`     | `near.speakToSign.signDelegateAction`     | The signed delegate action        |
+| `near.signMessage`            | `near.speakToSign.signMessage`            | The NEP-413 signature and nonce   |
+
+- The owner reads the summary aloud: 1 to 12 plain words (`summaryRefusal`).
+- The verdict binds what the Wallet signs: the receiver and the action bytes
+  of a transaction or a delegate action, or the bytes of a NEP-413 message. The
+  Seams co-signer checks the verdict again against the bytes that it signs.
+- The application writes the summary. The voice proves who approves and which
+  words this person said. It does not prove that the summary describes the
+  request.
+- The Wallet sets the sender of a delegate action and draws the nonce of a
+  message.
+
+Every signing call returns one result shape. The `kind` is `approved`,
+`refused`, `cancelled` or `unavailable`. An `approved` result holds `result`,
+`times` and `approval`: `voice` when the verdict alone approved the request,
+and `voice_and_passkey` when a policy rule asked for the confirm again.
+
+## Typed calls
+
+`seams.near.speakToSign.typed` has calls whose sentence comes from the request
+fields, so the owner says what the Wallet signs:
+
+```ts [Partial example]
+const result = await seams.near.speakToSign.typed.transfer({
+  walletId,
+  receiver: 'alice.testnet',
+  amount: '2',
+});
+```
+
+| Call                  | The owner says                                    |
+| --------------------- | ------------------------------------------------- |
+| `typed.transfer`      | "send two near to alice dot testnet"              |
+| `typed.note`          | The short summary of a community note             |
+| `typed.rating`        | "this note is helpful"                            |
+| `typed.mergeApproval` | "merge pull request forty two into main"          |
+| `typed.bet`           | "bet zero point five usdc yes on market nine"     |
+
+For `typed.transfer`, the receiver can be any named NEAR account that the owner
+can say, such as `alice.testnet`. The result is `refused` with
+`receiver_not_speakable` for an implicit (64-hex) or `0x` account, and with
+`receiver_missing` for an account that does not exist. The amount is decimal
+NEAR with at most two decimal places. Today the verifier has one stub rule: a
+voice transfer above 10 NEAR needs a passkey.
+
+`onProgress` is optional on every call. It gets each stage of the request, in
+order:
 
 | `stage`            | When                                                                 |
 | ------------------ | -------------------------------------------------------------------- |
@@ -129,7 +175,7 @@ Before the first spoken payment, the owner needs a voice template at the
 verifier:
 
 ```ts [Partial example]
-const enrollment = await seams.speakToSign.enroll({ walletId });
+const enrollment = await seams.near.speakToSign.enroll({ walletId });
 if (enrollment.kind === 'enrolled') {
   console.log('template', enrollment.templateEpoch);
 }
@@ -163,7 +209,7 @@ deposit and no confirm.
 import { summaryRefusal } from '@seams/wallet';
 
 if (summaryRefusal(summary) === null) {
-  await seams.speakToSign.requestNote({
+  await seams.near.speakToSign.typed.note({
     walletId,
     contract: 'community-notes.testnet',
     postId: 7,
@@ -171,7 +217,7 @@ if (summaryRefusal(summary) === null) {
     summary: 'Only one lane closes for two weeks.',
   });
 }
-await seams.speakToSign.requestRating({
+await seams.near.speakToSign.typed.rating({
   walletId,
   contract: 'community-notes.testnet',
   noteId: 3,

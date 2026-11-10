@@ -3,7 +3,8 @@ import {
   type SeamsConfigsInput,
   type SpeakToSignCapability,
   type SpeakToSignFeaturePlugin,
-  type SpeakToSignTransferResult,
+  type SpeakToSignResult,
+  type SpeakToSignSentTransaction,
   type WalletTransactionFeaturePlugin,
 } from '@seams/wallet';
 import type { SPEAK_TO_SIGN_HOST_API_VERSION } from '../../packages/wallet/src/core/transactionFeatures/hostPlugin';
@@ -16,33 +17,95 @@ declare const base: SeamsConfigsInput;
 const feature: SpeakToSignFeaturePlugin = { kind: 'speak_to_sign', network: 'testnet' };
 const seams = new SeamsWeb({ ...base, transactionFeatures: [feature] });
 
-// The property has the capability type, and it is optional: the constructor sets it only
-// when the config holds the descriptor.
+// `near.speakToSign` has the capability type, and it is optional: the constructor sets it only
+// when the config holds the descriptor. The SDK has no top-level `speakToSign`.
 const propertyChecks: [
-  Expect<Equal<SeamsWeb['speakToSign'], SpeakToSignCapability | undefined>>,
-  Expect<Equal<{} extends Pick<SeamsWeb, 'speakToSign'> ? true : false, true>>,
-  Expect<Equal<Readonly<Pick<SeamsWeb, 'speakToSign'>>, Pick<SeamsWeb, 'speakToSign'>>>,
-] = [true, true, true];
+  Expect<Equal<SeamsWeb['near']['speakToSign'], SpeakToSignCapability | undefined>>,
+  Expect<Equal<'speakToSign' extends keyof SeamsWeb ? true : false, false>>,
+] = [true, true];
 void propertyChecks;
 
+const voice = seams.near.speakToSign;
 const transfer = { walletId: 'alice.testnet', receiver: 'bob.testnet', amount: '2.5' } as const;
+const transaction = { receiverId: 'guest-book.testnet', actions: [] };
 // @ts-expect-error An app must check that the capability exists before it calls it.
-void seams.speakToSign.requestTransfer(transfer);
-if (seams.speakToSign) {
-  void seams.speakToSign.requestTransfer(transfer);
-  // @ts-expect-error A spoken payment names its receiver and its amount.
-  void seams.speakToSign.requestTransfer({ walletId: 'alice.testnet' });
-  const network: 'testnet' | 'mainnet' = seams.speakToSign.network;
+void voice.typed.transfer(transfer);
+if (voice) {
+  const network: 'testnet' | 'mainnet' = voice.network;
   void network;
-  void seams.speakToSign.requestTransfer(transfer).then((result) => {
-    // A sent payment names how the owner approved it.
-    if (result.kind === 'sent') {
-      const approval: 'voice' | 'voice_and_passkey' = result.approval;
-      void approval;
-    }
+  // Each signing call has the name of the `seams.near` call that it replaces, and an approved
+  // result holds what that call returns.
+  void voice
+    .signAndSendTransaction({ walletId: 'alice.testnet', transaction, summary: 'Sign the guest book.' })
+    .then((result) => {
+      if (result.kind === 'approved') {
+        const hash: string = result.result.transactionHash;
+        const approval: 'voice' | 'voice_and_passkey' = result.approval;
+        void [hash, approval];
+      }
+      // @ts-expect-error The success of every signing call is `approved`.
+      if (result.kind === 'sent') void result;
+    });
+  // @ts-expect-error A spoken transaction needs the summary that the owner says.
+  void voice.signAndSendTransaction({ walletId: 'alice.testnet', transaction });
+  void voice
+    .signTransaction({ walletId: 'alice.testnet', transaction, summary: 'Sign the guest book.' })
+    .then((result) => {
+      if (result.kind === 'approved') {
+        const signed: Awaited<ReturnType<SeamsWeb['near']['signTransaction']>> = result.result;
+        void signed;
+      }
+    });
+  void voice
+    .signDelegateAction({
+      walletId: 'alice.testnet',
+      delegate: { ...transaction, nonce: 1n, maxBlockHeight: 2, publicKey: 'ed25519:key' },
+      summary: 'Sign the guest book.',
+    })
+    .then((result) => {
+      if (result.kind === 'approved') {
+        const signed: Awaited<ReturnType<SeamsWeb['near']['signDelegateAction']>> = result.result;
+        void signed;
+      }
+    });
+  // @ts-expect-error The Wallet sets the sender of a delegate action; the app cannot name one.
+  void voice.signDelegateAction({ walletId: 'alice.testnet', delegate: { ...transaction, senderId: 'victim.testnet', nonce: 1, maxBlockHeight: 2, publicKey: 'ed25519:key' }, summary: 'Sign' });
+  void voice
+    .signMessage({
+      walletId: 'alice.testnet',
+      message: 'Log in to example.app',
+      recipient: 'example.app',
+      summary: 'Log in to the example app',
+    })
+    .then((result) => {
+      if (result.kind === 'approved') {
+        const signature: string = result.result.signature;
+        // @ts-expect-error A signed message is not a transaction.
+        const hash: string = result.result.transactionHash;
+        void [signature, hash];
+      }
+    });
+
+  // The typed calls: the sentence comes from the request fields.
+  void voice.typed.transfer(transfer).then((result) => {
+    if (result.kind === 'refused' && result.reason === 'receiver_missing') void result;
   });
-  const enrollment = seams.speakToSign.enroll({ walletId: 'alice.testnet' });
-  void enrollment.then((result) => {
+  // @ts-expect-error A spoken payment names its receiver and its amount.
+  void voice.typed.transfer({ walletId: 'alice.testnet' });
+  const bet = {
+    walletId: 'alice.testnet',
+    contract: 'pm-notes.testnet',
+    token: '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af',
+    marketId: 9,
+    amount: '0.5',
+  } as const;
+  void voice.typed.bet({ ...bet, outcome: 'yes' });
+  // @ts-expect-error A bet backs "yes" or "no".
+  void voice.typed.bet({ ...bet, outcome: 'maybe' });
+  // @ts-expect-error A spoken bet names its token; the Wallet accepts only the network's USDC.
+  void voice.typed.bet({ ...bet, outcome: 'no', token: undefined });
+
+  void voice.enroll({ walletId: 'alice.testnet' }).then((result) => {
     // An enrollment names the template epoch; no transaction authorizes it.
     if (result.kind === 'enrolled') {
       const epoch: number = result.templateEpoch;
@@ -51,48 +114,11 @@ if (seams.speakToSign) {
       void [epoch, hash];
     }
   });
-  const bet = {
-    walletId: 'alice.testnet',
-    contract: 'pm-notes.testnet',
-    token: '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af',
-    marketId: 9,
-    amount: '0.5',
-  } as const;
-  void seams.speakToSign.requestBet({ ...bet, outcome: 'yes' });
-  // @ts-expect-error A bet backs "yes" or "no".
-  void seams.speakToSign.requestBet({ ...bet, outcome: 'maybe' });
-  // @ts-expect-error A spoken bet names its token; the Wallet accepts only the network's USDC.
-  void seams.speakToSign.requestBet({ ...bet, outcome: 'no', token: undefined });
-  void seams.speakToSign.requestTransaction({
-    walletId: 'alice.testnet',
-    transaction: { receiverId: 'guest-book.testnet', actions: [] },
-    summary: 'Sign the guest book.',
-  });
-  // @ts-expect-error A spoken transaction needs the summary that the owner says.
-  void seams.speakToSign.requestTransaction({
-    walletId: 'alice.testnet',
-    transaction: { receiverId: 'guest-book.testnet', actions: [] },
-  });
-  void seams.speakToSign
-    .requestMessage({
-      walletId: 'alice.testnet',
-      message: 'Log in to example.app',
-      recipient: 'example.app',
-      summary: 'Log in to the example app',
-    })
-    .then((result) => {
-      if (result.kind === 'signed') {
-        const signature: string = result.signature;
-        // @ts-expect-error A signed message is not a transaction.
-        const hash: string = result.transactionHash;
-        void [signature, hash];
-      }
-    });
   // @ts-expect-error The Wallet reads the owner itself; the app cannot name one.
-  void seams.speakToSign.enroll({ walletId: 'alice.testnet', owner: 'victim.testnet' });
+  void voice.enroll({ walletId: 'alice.testnet', owner: 'victim.testnet' });
 }
 // @ts-expect-error The app cannot set the capability.
-seams.speakToSign = undefined;
+seams.near.speakToSign = undefined;
 
 // @ts-expect-error The network is testnet or mainnet.
 const betanetFeature: SpeakToSignFeaturePlugin = { kind: 'speak_to_sign', network: 'betanet' };
@@ -107,7 +133,7 @@ const unknownFeature: WalletTransactionFeaturePlugin = { kind: 'voiceid', networ
 void unknownFeature;
 
 // @ts-expect-error An unavailable result names its reason.
-const reasonless: SpeakToSignTransferResult = { kind: 'unavailable' };
+const reasonless: SpeakToSignResult<SpeakToSignSentTransaction> = { kind: 'unavailable' };
 void reasonless;
 
 declare const hostVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION;

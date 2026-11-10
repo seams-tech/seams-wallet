@@ -120,9 +120,12 @@ void authMenu.open(request, undefined, {
     after: (outcome, { close }) => (outcome.kind === 'authenticated' ? outcome.walletId : close),
   },
 });
-void speakToSign.requestNote({
+void speakToSign.typed.note({
   ...note,
-  steps: { title: 'Add a note', after: (result) => (result.kind === 'sent' ? result.times : null) },
+  steps: {
+    title: 'Add a note',
+    after: (result) => (result.kind === 'approved' ? result.times : null),
+  },
 });
 // @ts-expect-error A request shows in the app's dialog or in the modal with steps, not both.
-void speakToSign.requestNote({ ...note, presentation: anchored, steps: { title: 'Add a note' } });
+void speakToSign.typed.note({ ...note, presentation: anchored, steps: { title: 'Add a note' } });

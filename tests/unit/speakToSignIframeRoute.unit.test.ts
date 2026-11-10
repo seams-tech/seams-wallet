@@ -1,3 +1,4 @@
+import { createSpeakToSignCapability } from '@/SeamsWeb/publicApi/speakToSign';
 import { expect, test } from '@playwright/test';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type {
@@ -935,5 +936,101 @@ test('the message request carries the NEP-413 fields and the summary, and its re
   ).toEqual(signed);
   expect(posted).toEqual([
     { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload }, options: { timeout: 'interactive' } },
+  ]);
+});
+
+test('near.speakToSign has the names of the normal signer, and approved holds the normal result', async () => {
+  const calls: string[] = [];
+  const answers: Record<string, unknown> = {
+    requestTransaction: SENT,
+    requestTransfer: SENT,
+    requestNote: { kind: 'refused', reason: 'words', detail: 'heard: no' },
+    requestSignedTransaction: {
+      kind: 'signed_transaction',
+      signed: { nearAccountId: 'owner.testnet' },
+      approval: 'voice',
+      times: SENT.times,
+    },
+    requestDelegateAction: {
+      kind: 'signed_delegate',
+      signed: { hash: 'delegate-hash' },
+      approval: 'voice',
+      times: SENT.times,
+    },
+    requestMessage: {
+      kind: 'signed',
+      accountId: 'owner.testnet',
+      publicKey: 'ed25519:owner',
+      signature: 'c2lnbmF0dXJl',
+      nonce: 'bm9uY2U=',
+      approval: 'voice',
+      times: SENT.times,
+    },
+    enroll: ENROLLED,
+  };
+  const commands = new Proxy(
+    {},
+    {
+      get: (_, name: string) => async () => {
+        calls.push(name);
+        return answers[name] ?? { kind: 'cancelled' };
+      },
+    },
+  ) as never;
+  const feature = { kind: 'speak_to_sign', network: 'testnet' } as const;
+  expect(createSpeakToSignCapability([], commands, {} as never)).toBeNull();
+  const voice = createSpeakToSignCapability([feature], commands, {} as never);
+  if (!voice) throw new Error('no capability');
+  expect(Object.keys(voice).sort()).toEqual([
+    'enroll',
+    'network',
+    'signAndSendTransaction',
+    'signDelegateAction',
+    'signMessage',
+    'signTransaction',
+    'typed',
+  ]);
+  expect(Object.keys(voice.typed).sort()).toEqual(['bet', 'mergeApproval', 'note', 'rating', 'transfer']);
+
+  const approved = { kind: 'approved', approval: 'voice', times: SENT.times };
+  const request = { walletId: WALLET_ID } as never;
+  expect(await voice.signAndSendTransaction(request)).toEqual({
+    ...approved,
+    result: { transactionHash: 'tx-1' },
+  });
+  expect(await voice.typed.transfer(request)).toEqual({
+    ...approved,
+    result: { transactionHash: 'tx-1' },
+  });
+  expect(await voice.signTransaction(request)).toEqual({
+    ...approved,
+    result: { nearAccountId: 'owner.testnet' },
+  });
+  expect(await voice.signDelegateAction(request)).toEqual({
+    ...approved,
+    result: { hash: 'delegate-hash' },
+  });
+  expect(await voice.signMessage(request)).toEqual({
+    ...approved,
+    result: {
+      accountId: 'owner.testnet',
+      publicKey: 'ed25519:owner',
+      signature: 'c2lnbmF0dXJl',
+      nonce: 'bm9uY2U=',
+    },
+  });
+  // A failure passes through unchanged, and an enrollment keeps its own result.
+  expect(await voice.typed.note(request)).toEqual(answers.requestNote);
+  expect(await voice.typed.bet(request)).toEqual({ kind: 'cancelled' });
+  expect(await voice.enroll(request)).toEqual(ENROLLED);
+  expect(calls).toEqual([
+    'requestTransaction',
+    'requestTransfer',
+    'requestSignedTransaction',
+    'requestDelegateAction',
+    'requestMessage',
+    'requestNote',
+    'requestBet',
+    'enroll',
   ]);
 });

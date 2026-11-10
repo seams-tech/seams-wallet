@@ -1020,8 +1020,8 @@ test.describe('App steps around a sign-in or VoiceID card in the Wallet modal', 
     await startModalStepsApp(page, true);
     await page.evaluate(() => {
       const state = window as unknown as ModalStepsWindow;
-      state.__seams.speakToSign
-        .requestNote({
+      state.__seams.near.speakToSign.typed
+        .note({
           walletId: 'step.testnet',
           contract: 'notes.testnet',
           postId: 1,
@@ -1094,7 +1094,7 @@ test.describe('App steps around a sign-in or VoiceID card in the Wallet modal', 
           ),
         ),
         await codeOf(
-          state.__seams.speakToSign.requestNote({
+          state.__seams.near.speakToSign.typed.note({
             walletId: 'step.testnet',
             contract: 'notes.testnet',
             postId: 1,
