@@ -399,19 +399,8 @@ const CSS = `
 }
 .seams-voiceid-model-download progress::-webkit-progress-bar { background: var(--seams-colors-surface, #202b31); }
 .seams-voiceid-model-download progress::-webkit-progress-value { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
-/* The bar stays full while the models start, and its fill pulses off the main thread, which the
-   start blocks. The pulse is on the fill, so the bar itself can still fade out when VoiceID is ready. */
-.seams-voiceid-model-download:is([data-state="preparing"], [data-state="ready"]) progress::-webkit-progress-value {
-  animation: seams-voiceid-preparing 900ms ease-in-out infinite alternate;
-}
-.seams-voiceid-model-download:is([data-state="preparing"], [data-state="ready"]) progress::-moz-progress-bar {
-  animation: seams-voiceid-preparing 900ms ease-in-out infinite alternate;
-}
-@keyframes seams-voiceid-preparing { to { opacity: 0.45; } }
-@media (prefers-reduced-motion: reduce) {
-  .seams-voiceid-model-download progress::-webkit-progress-value { animation: none !important; }
-  .seams-voiceid-model-download progress::-moz-progress-bar { animation: none !important; }
-}
+/* The bar stays full and still while the models start: the start blocks the main thread, and
+   a looping animation would compete with it on a software-rendered page. */
 .seams-voiceid-model-download progress::-moz-progress-bar { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
 .seams-voiceid-model-download p {
   grid-row: 4;
