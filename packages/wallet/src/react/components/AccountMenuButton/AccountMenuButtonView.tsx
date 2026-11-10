@@ -7,7 +7,10 @@ import { AccountSettingsDialog } from './AccountSettingsDialog';
 import type { AccountMenuPresentationMode } from './types';
 import { LockKeyholeIcon } from './icons/LockKeyholeIcon';
 import TouchIcon from './icons/TouchIcon';
-import { SEAMS_STANDARD_WORDMARK_PATH } from '../../../core/signingEngine/uiConfirm/ui/seamsWordmarkPaths';
+import {
+  SEAMS_STANDARD_WORDMARK_PATH,
+  SEAMS_WALLET_SITE_URL,
+} from '../../../core/signingEngine/uiConfirm/ui/seamsWordmarkPaths';
 import './Web3AuthProfileButton.css';
 
 type AccountMenuButtonViewProps = {
@@ -197,14 +200,21 @@ export function AccountMenuButtonView({
               <span>
                 <WalletText message="Secured by" />
               </span>
-              <svg
-                className="seams-account-wordmark"
-                viewBox="0 0 1428 285"
-                role="img"
-                aria-label="seams"
+              <a
+                className="seams-wordmark-link"
+                href={SEAMS_WALLET_SITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                <path d={SEAMS_STANDARD_WORDMARK_PATH} fill="currentColor" fillRule="evenodd" />
-              </svg>
+                <svg
+                  className="seams-account-wordmark"
+                  viewBox="0 0 1428 285"
+                  role="img"
+                  aria-label="seams"
+                >
+                  <path d={SEAMS_STANDARD_WORDMARK_PATH} fill="currentColor" fillRule="evenodd" />
+                </svg>
+              </a>
             </footer>
           </div>
         </div>

@@ -347,7 +347,6 @@
 }
 :where(.seams-wallet-ui) .seams-receipt-footer {
   justify-content: center;
-  align-items: baseline;
   gap: 0.375rem;
   margin: 1rem -1.5rem 0;
   padding: 0.625rem 1rem;
@@ -361,11 +360,26 @@
   z-index: 1;
   background: var(--seams-colors-colorBackground);
 }
-/* The wordmark signs the line in its own colour, at the height of its letters. */
+/* The wordmark signs the line at the height of its letters, centred on the
+   line, and links to the Seams Wallet site. */
+:where(.seams-wallet-ui) .seams-receipt-footer .seams-wordmark-link {
+  display: flex;
+  flex: none;
+  border-radius: 2px;
+  color: inherit;
+}
+@media (hover: hover) {
+  :where(.seams-wallet-ui) .seams-receipt-footer .seams-wordmark-link:hover {
+    color: var(--seams-colors-textPrimary);
+  }
+}
+:where(.seams-wallet-ui) .seams-receipt-footer .seams-wordmark-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
 :where(.seams-wallet-ui) .seams-receipt-footer .seams-receipt-wordmark {
   width: 3.125rem;
   height: 0.625rem;
-  flex: none;
 }
 :where(.seams-wallet-ui) .seams-receipt-heading {
   display: flex;
@@ -605,7 +619,9 @@
   padding: 0;
   gap: 0;
   grid-template-columns: minmax(0, 1fr);
-  border: 0;
+  /* Apps outline the card with the transactionCardBorder colour token; it is
+     transparent by default, so the card keeps one box either way. */
+  border: 1px solid var(--seams-colors-transactionCardBorder, transparent);
 }
 :where(.seams-wallet-ui) .seams-review-eyebrow {
   margin: 1rem 0 0.375rem;

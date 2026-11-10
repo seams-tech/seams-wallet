@@ -40,5 +40,9 @@ Colors become `--seams-colors-<key>` and shape values become
 transaction highlights. Wallet-iframe appearance accepts additional color
 keys, so a component-specific role can pass through without an SDK release.
 
+The transaction confirmer card has a 1px border in `transactionCardBorder`. It is
+transparent unless you set it, for example
+`appearance: { theme: { colors: { transactionCardBorder: '#3f3f46' } } }`.
+
 See the [theming guide](/guides/theming) for accessibility checks and the
 [React reference](/reference/react#appearance) for exported token types.

@@ -151,7 +151,7 @@
   border-top: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary) 60%, transparent);
   display: flex;
   justify-content: center;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   padding: 10px 16px;
   color: var(--seams-colors-textSecondary);
@@ -159,8 +159,23 @@
   line-height: 16px;
   letter-spacing: 0.01em;
 }
-[data-seams-root].seams-theme-provider .seams-account-wordmark {
+/* The wordmark sits centred on the line and links to the Seams Wallet site. */
+[data-seams-root].seams-theme-provider .seams-account-footer .seams-wordmark-link {
+  display: flex;
   flex: none;
+  border-radius: 2px;
+  color: inherit;
+}
+@media (hover: hover) {
+  [data-seams-root].seams-theme-provider .seams-account-footer .seams-wordmark-link:hover {
+    color: var(--seams-colors-textPrimary);
+  }
+}
+[data-seams-root].seams-theme-provider .seams-account-footer .seams-wordmark-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+[data-seams-root].seams-theme-provider .seams-account-wordmark {
   fill: currentColor;
   stroke: none;
   width: 50px;
