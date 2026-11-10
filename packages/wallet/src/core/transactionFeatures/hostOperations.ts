@@ -36,8 +36,14 @@ import {
   noteTransaction,
   type SpokenNoteAction,
 } from './spokenNote';
+import { betStepUpText } from './spokenBet';
 import { transferDigests, type SpokenDigests } from './spokenTransfer';
-import { checkVoiceVerdict, parseVerifyOutput, type VoiceApprovedSigning } from './voiceVerdict';
+import {
+  checkVoiceVerdict,
+  parseVerifyOutput,
+  type SignedVoiceVerdict,
+  type VoiceApprovedSigning,
+} from './voiceVerdict';
 import { readVerifyStream } from './verifyStream';
 import { pcm16Wav, SAMPLE_RATE } from './wav';
 
@@ -294,7 +300,7 @@ async function payWithVerdict(
     input,
     state,
     expected,
-    transaction,
+    { transaction: () => transaction, stepUpText: null },
     verifierOutput,
     signal,
     hooks,
@@ -310,16 +316,18 @@ async function signNoteWithVerdict(
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
 ): Promise<SpeakToSignPayment> {
-  const refusal = noteActionRefusal(action);
+  const refusal = noteActionRefusal(input.feature.network, action);
   if (refusal) return { kind: 'unavailable', detail: refusal };
   const expected = await noteActionDigests(input.feature.network, input.ownerAccountId, action);
-  const transaction = noteTransaction(action);
   // A contract call can still fail in the contract, so it shows only its outcome.
   return await signWithVerdict(
     input,
     state,
     expected,
-    transaction,
+    {
+      transaction: noteTransaction.bind(null, action),
+      stepUpText: action.kind === 'market_bet' ? betStepUpText(action) : null,
+    },
     verifierOutput,
     signal,
     hooks,
@@ -327,12 +335,23 @@ async function signNoteWithVerdict(
   );
 }
 
+/** What core signs for a checked verdict. */
+type VoiceSigningPlan = Readonly<{
+  /** Builds the transaction. A bet carries the checked verdict to its contract. */
+  transaction: (verdict: SignedVoiceVerdict) => TransactionInput;
+  /**
+   * The sentence of a Wallet rule that asks for a fresh approval after the voice, or null. The
+   * verifier's own `step_up` verdict asks for one too.
+   */
+  stepUpText: string | null;
+}>;
+
 /** Checks the verdict against the request digests, then signs the transaction once. */
 async function signWithVerdict(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
   expected: SpokenDigests,
-  transaction: TransactionInput,
+  plan: VoiceSigningPlan,
   verifierOutput: unknown,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
@@ -357,11 +376,13 @@ async function signWithVerdict(
   if (state.paid) {
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' };
   }
-  if (check.approval === 'voice') {
+  const approval = plan.stepUpText === null ? check.approval : 'voice_and_passkey';
+  const policyText = check.policyText ?? plan.stepUpText;
+  if (approval === 'voice') {
     hooks.accepted();
   } else {
-    input.progress({ stage: 'step_up', policyText: check.policyText });
-    if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
+    input.progress({ stage: 'step_up', policyText });
+    if (!(await hooks.approveStepUp(policyText))) return { kind: 'cancelled' };
   }
   signal.throwIfAborted();
   // A verdict that waited for the owner may have expired meanwhile.
@@ -373,8 +394,8 @@ async function signWithVerdict(
   }
   state.paid = true;
   const result = await input.signVoiceApprovedTransaction(
-    transaction,
-    { approval: check.approval, policyText: check.policyText, verdict: check.verdict },
+    plan.transaction(check.verdict),
+    { approval, policyText, verdict: check.verdict },
     signal,
     () => {
       input.progress({ stage: 'transaction_sent' });
@@ -394,7 +415,7 @@ async function signWithVerdict(
   input.progress({ stage: 'settled', transactionHash: result.transactionId });
   const failure = executionFailure(result.result);
   return failure === null
-    ? { kind: 'executed', transactionHash: result.transactionId, approval: check.approval }
+    ? { kind: 'executed', transactionHash: result.transactionId, approval }
     : { kind: 'reverted', transactionHash: result.transactionId, error: failure };
 }
 

@@ -10,6 +10,8 @@ import { isPlainObject } from '@shared/utils/validation';
 import {
   spokenRequestBorsh,
   spokenRequestDigest,
+  USDC_UNITS_PER_HUNDREDTH,
+  VOICE_BET_STEP_UP_ABOVE_UNITS,
   type SpeakToSignNetwork,
 } from '@shared/speakToSign/spokenRequest';
 import {
@@ -51,7 +53,7 @@ type VoiceVerdictRecord = Readonly<{
   verdictId: string;
   /** The signing request that the verdict approved. A retry of that request may use it again. */
   requestId: string;
-  /** The voice-only amount in hundredths of NEAR; 0 for a note, a rating or a `step_up`. */
+  /** The voice-only amount in hundredths of NEAR; 0 for a note, a rating, a bet or a `step_up`. */
   voiceHundredths: number;
   acceptedAtMs: number;
   expiresAtMs: number;
@@ -189,8 +191,27 @@ async function admitVoiceVerdict(
   if (transaction.signerId !== owner) return refuse('owner_mismatch');
   const spoken = await spokenRequestOfTransaction(target.network, transaction);
   if (!spoken) return refuse('request_mismatch');
-  const digest = base64UrlEncode(await spokenRequestDigest(spokenRequestBorsh(spoken)));
+  let borsh: Uint8Array;
+  try {
+    borsh = spokenRequestBorsh(spoken);
+  } catch {
+    // An amount or id that does not fit its Borsh integer.
+    return refuse('request_mismatch');
+  }
+  const digest = base64UrlEncode(await spokenRequestDigest(borsh));
   if (digest !== verdict.requestDigest) return refuse('request_mismatch');
+  if (spoken.kind === 'market_bet') {
+    // A verified bet verdict names a whole number of hundredths of USDC.
+    if (spoken.amountUnits % USDC_UNITS_PER_HUNDREDTH !== 0n) return refuse('request_mismatch');
+    // The market contract takes only an `accept` verdict, so the verifier cannot ask for a
+    // step-up. The co-signer's own rule: a bet above the limit needs a fresh approval.
+    if (
+      spoken.amountUnits > VOICE_BET_STEP_UP_ABOVE_UNITS &&
+      !freshApproval(authorization, verdict.expiresAtMs)
+    ) {
+      return refuse('step_up_required');
+    }
+  }
 
   const voiceYocto =
     spoken.kind === 'account_transfer' && verdict.outcome === 'accept' ? spoken.amountYocto : 0n;

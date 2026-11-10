@@ -259,6 +259,15 @@ function noteAction(payload: PMSpeakToSignNotePayload): SpokenNoteAction {
       return { ...action, noteId: BigInt(action.noteId) };
     case 'merge_approval':
       return { ...action, pullRequest: BigInt(action.pullRequest) };
+    case 'market_bet':
+      return {
+        kind: 'market_bet',
+        contract: action.contract,
+        token: action.token,
+        marketId: BigInt(action.marketId),
+        outcome: action.outcome,
+        amountUnits: BigInt(action.amountUnits),
+      };
   }
 }
 

@@ -11,6 +11,7 @@ import type {
   SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
+import { BET_OUTCOMES, type BetOutcome } from '@/core/transactionFeatures/spokenBet';
 import { NOTE_RATINGS, type NoteRating } from '@/core/transactionFeatures/spokenNote';
 import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
 import { hasExactKeys } from '@shared/utils/exactKeys';
@@ -75,7 +76,7 @@ export function parseSpeakToSignEnrollPayload(value: unknown): PMSpeakToSignEnro
   return { walletId: String(value.walletId) };
 }
 
-/** The `PM_SPEAK_TO_SIGN_NOTE` payload: one community note or one rating. */
+/** The `PM_SPEAK_TO_SIGN_NOTE` payload: one note, rating, merge approval or market bet. */
 export type PMSpeakToSignNotePayload = Readonly<{
   walletId: string;
   action:
@@ -94,12 +95,24 @@ export type PMSpeakToSignNotePayload = Readonly<{
         pullRequest: number;
         base: string;
         headCommit: string;
+      }>
+    | Readonly<{
+        kind: 'market_bet';
+        /** The market contract. */
+        contract: string;
+        token: string;
+        marketId: number;
+        outcome: BetOutcome;
+        /** Decimal base units of the token (10^-6 USDC). Wallet core checks the amount rules. */
+        amountUnits: string;
       }>;
 }>;
 
 /** Generous text bounds; Wallet core checks the exact note and summary rules. */
 const MAX_NOTE_TEXT_LENGTH = 1_200;
 const MAX_SUMMARY_TEXT_LENGTH = 200;
+/** Base units up to 1,000,000 USDC have at most 13 digits. */
+const BET_UNITS_PATTERN = /^[1-9]\d{0,12}$/;
 
 export function parseSpeakToSignNotePayload(value: unknown): PMSpeakToSignNotePayload {
   const action = readNoteAction(isPlainObject(value) ? value.action : undefined);
@@ -130,6 +143,28 @@ function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | nu
       pullRequest: value.pullRequest,
       base: value.base,
       headCommit: value.headCommit,
+    };
+  }
+  if (value.kind === 'market_bet') {
+    const outcome = BET_OUTCOMES.find((candidate) => candidate === value.outcome);
+    if (
+      !hasExactKeys(value, ['kind', 'contract', 'token', 'marketId', 'outcome', 'amountUnits']) ||
+      typeof value.token !== 'string' ||
+      !isValidAccountId(value.token) ||
+      !isNoteId(value.marketId) ||
+      !outcome ||
+      typeof value.amountUnits !== 'string' ||
+      !BET_UNITS_PATTERN.test(value.amountUnits)
+    ) {
+      return null;
+    }
+    return {
+      kind: 'market_bet',
+      contract: value.contract,
+      token: value.token,
+      marketId: value.marketId,
+      outcome,
+      amountUnits: value.amountUnits,
     };
   }
   if (value.kind === 'community_note') {
@@ -233,6 +268,7 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   summary_not_speakable: true,
   note_not_valid: true,
   merge_not_valid: true,
+  bet_not_valid: true,
   verdict_mismatch: true,
   voice_limit: true,
   cosigner_refused: true,

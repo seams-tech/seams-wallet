@@ -660,3 +660,62 @@ test('the note message carries only the wallet and one note or rating, and its r
     { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload: rating }, options: { timeout: 'interactive' } },
   ]);
 });
+
+test('the bet message carries exact base units, and an amount that cannot be said stops in the app', async () => {
+  const usdc = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
+  const bet = {
+    walletId: WALLET_ID,
+    action: {
+      kind: 'market_bet',
+      contract: 'pm-notes.testnet',
+      token: usdc,
+      marketId: 9,
+      outcome: 'yes',
+      amountUnits: '500000',
+    },
+  } as const;
+  expect(parseSpeakToSignNotePayload(structuredClone(bet))).toEqual(bet);
+  for (const bad of [
+    { ...bet, action: { ...bet.action, owner: 'victim.testnet' } },
+    { ...bet, action: { ...bet.action, outcome: 'maybe' } },
+    { ...bet, action: { ...bet.action, marketId: 1.5 } },
+    { ...bet, action: { ...bet.action, amountUnits: 500000 } },
+    { ...bet, action: { ...bet.action, amountUnits: '0.5' } },
+    { ...bet, action: { ...bet.action, amountUnits: '0500000' } },
+    { ...bet, action: { ...bet.action, token: 'Not A Token' } },
+  ]) {
+    expect(() => parseSpeakToSignNotePayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign note request is invalid.',
+    );
+  }
+  expect(parseSpeakToSignNoteResult({ kind: 'refused', reason: 'bet_not_valid' })).toEqual({
+    kind: 'refused',
+    reason: 'bet_not_valid',
+  });
+
+  const posted: unknown[] = [];
+  const commands = createIframeSpeakToSignCommands(async (request, options) => {
+    posted.push({ request, options });
+    return { result: SENT };
+  });
+  const request = {
+    walletId: WALLET_ID,
+    contract: 'pm-notes.testnet',
+    token: usdc,
+    marketId: 9,
+    outcome: 'yes',
+    amount: '0.5',
+  } as const;
+  expect(await commands.requestBet(request)).toEqual(SENT);
+  expect(posted).toEqual([
+    { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload: bet }, options: { timeout: 'interactive' } },
+  ]);
+  for (const amount of ['0.005', '0', '1000000.01', 'ten']) {
+    expect(await commands.requestBet({ ...request, amount }), amount).toEqual({
+      kind: 'refused',
+      reason: 'bet_not_valid',
+      detail: 'amount',
+    });
+  }
+  expect(posted.length).toBe(1);
+});

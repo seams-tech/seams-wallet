@@ -51,6 +51,18 @@ if (seams.speakToSign) {
       void [epoch, hash];
     }
   });
+  const bet = {
+    walletId: 'alice.testnet',
+    contract: 'pm-notes.testnet',
+    token: '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af',
+    marketId: 9,
+    amount: '0.5',
+  } as const;
+  void seams.speakToSign.requestBet({ ...bet, outcome: 'yes' });
+  // @ts-expect-error A bet backs "yes" or "no".
+  void seams.speakToSign.requestBet({ ...bet, outcome: 'maybe' });
+  // @ts-expect-error A spoken bet names its token; the Wallet accepts only the network's USDC.
+  void seams.speakToSign.requestBet({ ...bet, outcome: 'no', token: undefined });
   // @ts-expect-error The Wallet reads the owner itself; the app cannot name one.
   void seams.speakToSign.enroll({ walletId: 'alice.testnet', owner: 'victim.testnet' });
 }

@@ -9,6 +9,23 @@ export type SpeakToSignNetwork = 'testnet' | 'mainnet';
 export const NOTE_RATINGS = ['helpful', 'somewhat_helpful', 'not_helpful'] as const;
 export type NoteRating = (typeof NOTE_RATINGS)[number];
 
+export const BET_OUTCOMES = ['yes', 'no'] as const;
+export type BetOutcome = (typeof BET_OUTCOMES)[number];
+
+/**
+ * The USDC contract of each network: a NEP-141 token with 6 decimals. A spoken bet says "usdc"
+ * and an amount with 6 decimals, so Wallet core and the Seams co-signer sign a bet only in this
+ * token. Null: the network has no spoken bets.
+ */
+export const SPEAK_TO_SIGN_USDC: Readonly<Record<SpeakToSignNetwork, string | null>> = {
+  testnet: '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af',
+  mainnet: null,
+};
+/** The base units (10^-6 USDC) of 0.01 USDC. */
+export const USDC_UNITS_PER_HUNDREDTH = 10_000n;
+/** A bet above 10 USDC needs a fresh approval after the voice. */
+export const VOICE_BET_STEP_UP_ABOVE_UNITS = 10_000_000n;
+
 /** The kinds of `SpokenRequestV1` that Wallet core signs. Each holds its owner, which is not spoken. */
 export type SpokenRequest =
   /** `AccountTransfer`, tag 2: a NEAR transfer from the owner's own account. */
@@ -53,6 +70,21 @@ export type SpokenRequest =
       base: string;
       /** The 20-byte git commit. */
       headCommit: Uint8Array;
+    }>
+  /**
+   * `MarketBet`, tag 7: the token's `ft_transfer_call` to a prediction market. The verdict binds
+   * the market and token contracts; only the amount, the outcome and the market id are said.
+   */
+  | Readonly<{
+      kind: 'market_bet';
+      network: SpeakToSignNetwork;
+      owner: string;
+      market: string;
+      token: string;
+      marketId: bigint;
+      outcome: BetOutcome;
+      /** Base units of the token: a whole multiple of 0.01 USDC, from 0.01 to 1,000,000 USDC. */
+      amountUnits: bigint;
     }>;
 
 const REQUEST_DIGEST_DOMAIN = 'seams:spoken-intent:request:v1';
@@ -62,6 +94,7 @@ const TAGS: Readonly<Record<SpokenRequest['kind'], number>> = {
   community_note: 4,
   note_rating: 5,
   merge_approval: 6,
+  market_bet: 7,
 };
 
 /** Borsh of the request, with the explicit tag of its kind. */
@@ -103,6 +136,15 @@ export function spokenRequestBorsh(request: SpokenRequest): Uint8Array<ArrayBuff
         littleEndian(request.pullRequest, 8),
         borshString(request.base),
         request.headCommit,
+      ]);
+    case 'market_bet':
+      return concat([
+        ...head,
+        borshString(request.market),
+        borshString(request.token),
+        littleEndian(request.marketId, 8),
+        Uint8Array.of(BET_OUTCOMES.indexOf(request.outcome)),
+        littleEndian(request.amountUnits, 16),
       ]);
   }
 }

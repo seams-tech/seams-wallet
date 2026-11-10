@@ -2,11 +2,12 @@ import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { SpeakToSignNetwork } from './plugins';
+import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 9;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 10;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -70,7 +71,7 @@ type SpokenResult<Reason extends string> =
 
 export type SpeakToSignTransferResult = SpokenResult<SpeakToSignRefusalReason>;
 
-/** Refusals of a spoken community note or note rating. */
+/** Refusals of a spoken community note, note rating, merge approval or market bet. */
 export type SpeakToSignNoteRefusalReason =
   | VerifierRefusal
   | SpeakToSignCosignerRefusalReason
@@ -80,8 +81,13 @@ export type SpeakToSignNoteRefusalReason =
   | 'note_not_valid'
   /** The contract, pull request, repository, base branch or head commit is not valid. */
   | 'merge_not_valid'
+  /**
+   * The market contract, the market id, the outcome or the amount is not valid, or the token is
+   * not the USDC contract of the network.
+   */
+  | 'bet_not_valid'
   | 'verdict_mismatch'
-  /** The call was sent and failed on chain, for example for an unknown note. */
+  /** The call was sent and failed on chain, for example for an unknown note or a closed market. */
   | 'transaction_failed';
 
 export type SpeakToSignNoteResult = SpokenResult<SpeakToSignNoteRefusalReason>;
@@ -154,6 +160,24 @@ export type SpeakToSignMergeApprovalRequest = Readonly<{
   base: string;
   /** The head commit, 40 lowercase hex characters. */
   headCommit: string;
+}> &
+  WithProgress;
+
+/**
+ * One spoken bet on a prediction market. The owner says the amount, the outcome and the market
+ * id: "bet zero point five usdc yes on market nine".
+ */
+export type SpeakToSignBetRequest = Readonly<{
+  walletId: string;
+  /** The market contract, a named NEAR account. */
+  contract: string;
+  /** The token of the stake. Only the USDC contract of the network is accepted. */
+  token: string;
+  /** A whole number from 1 to `Number.MAX_SAFE_INTEGER`. */
+  marketId: number;
+  outcome: BetOutcome;
+  /** Decimal USDC with at most two decimals, such as `"0.5"`, from 0.01 to 1,000,000. */
+  amount: string;
 }> &
   WithProgress;
 
@@ -297,9 +321,10 @@ export type SpeakToSignHostOperations = Readonly<{
     hooks: SpeakToSignPaymentHooks,
   ): Promise<SpeakToSignPayment>;
   /**
-   * Checks the verifier output against this note or rating and, on an approved verdict, signs
-   * and sends its one call (`add_note` or `rate_note`, no deposit) from the owner's account, as
-   * `payWithVerdict` does for a transfer.
+   * Checks the verifier output against this note, rating, merge approval or bet and, on an
+   * approved verdict, signs and sends its one call from the owner's account, as `payWithVerdict`
+   * does for a transfer. A note, rating or merge call has no deposit. A bet is the token's
+   * `ft_transfer_call` with the verdict; above 10 USDC it asks for a fresh approval first.
    */
   signNoteWithVerdict(
     action: SpokenNoteAction,

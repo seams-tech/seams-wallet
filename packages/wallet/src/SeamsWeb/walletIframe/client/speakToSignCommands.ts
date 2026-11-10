@@ -1,4 +1,5 @@
 import type {
+  SpeakToSignBetRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignNoteRequest,
@@ -9,6 +10,7 @@ import type {
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
+import { parseSpeakableUsdc } from '@/core/transactionFeatures/spokenBet';
 import type { WalletIframeCoordinator } from '../coordinator';
 import type { WalletSurfacePresentation } from '../shared/walletStep';
 import { dispatchWithPresentation, type TransactionDispatch } from './transactionReviewReservation';
@@ -84,6 +86,7 @@ export type SpeakToSignCommands = Readonly<{
   requestMergeApproval(
     request: WithPresentation<SpeakToSignMergeApprovalRequest>,
   ): Promise<SpeakToSignNoteResult>;
+  requestBet(request: WithPresentation<SpeakToSignBetRequest>): Promise<SpeakToSignNoteResult>;
   enroll: SpeakToSignEnrollCommand;
 }>;
 
@@ -101,6 +104,7 @@ export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToS
     requestNote: requestNoteFromHost.bind(null, post),
     requestRating: requestRatingFromHost.bind(null, post),
     requestMergeApproval: requestMergeApprovalFromHost.bind(null, post),
+    requestBet: requestBetFromHost.bind(null, post),
     enroll: enrollFromHost.bind(null, post),
   };
 }
@@ -144,10 +148,32 @@ async function requestMergeApprovalFromHost(
   });
 }
 
+async function requestBetFromHost(
+  post: SpeakToSignPost,
+  request: WithPresentation<SpeakToSignBetRequest>,
+): Promise<SpeakToSignNoteResult> {
+  // The channel carries exact base units, so an amount that cannot be said stops here.
+  const amountUnits = typeof request.amount === 'string' ? parseSpeakableUsdc(request.amount) : null;
+  if (amountUnits === null) {
+    return { kind: 'refused', reason: 'bet_not_valid', detail: 'amount' };
+  }
+  return await postNoteAction(post, request, {
+    kind: 'market_bet',
+    contract: request.contract,
+    token: request.token,
+    marketId: request.marketId,
+    outcome: request.outcome,
+    amountUnits: amountUnits.toString(),
+  });
+}
+
 async function postNoteAction(
   post: SpeakToSignPost,
   request: WithPresentation<
-    SpeakToSignNoteRequest | SpeakToSignRatingRequest | SpeakToSignMergeApprovalRequest
+    | SpeakToSignNoteRequest
+    | SpeakToSignRatingRequest
+    | SpeakToSignMergeApprovalRequest
+    | SpeakToSignBetRequest
   >,
   action: PMSpeakToSignNotePayload['action'],
 ): Promise<SpeakToSignNoteResult> {
@@ -204,6 +230,7 @@ export function createApplicationSpeakToSignCommands(
     requestNote: requestNoteFromIframe.bind(null, iframe),
     requestRating: requestRatingFromIframe.bind(null, iframe),
     requestMergeApproval: requestMergeApprovalFromIframe.bind(null, iframe),
+    requestBet: requestBetFromIframe.bind(null, iframe),
     enroll: enrollFromIframe.bind(null, iframe),
   };
 }
@@ -230,6 +257,14 @@ async function requestMergeApprovalFromIframe(
 ): Promise<SpeakToSignNoteResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestMergeApproval(request);
+}
+
+async function requestBetFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  request: WithPresentation<SpeakToSignBetRequest>,
+): Promise<SpeakToSignNoteResult> {
+  const router = await iframe.requireRouter();
+  return await router.speakToSign.requestBet(request);
 }
 
 async function requestTransferFromIframe(

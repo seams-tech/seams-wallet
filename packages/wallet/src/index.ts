@@ -21,6 +21,7 @@ export type {
 } from './core/transactionFeatures/plugins';
 export type {
   SPEAK_TO_SIGN_HOST_API_VERSION,
+  SpeakToSignBetRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostPlugin,

@@ -775,6 +775,138 @@ test('a spoken merge approval is admitted only as one approve_merge call for its
   expect(await cosigner.check(withVerdict(approve(args), mergeVerdict))).toEqual(ADMITTED);
 });
 
+test('a spoken bet is admitted only as one ft_transfer_call of the USDC contract with its verdict', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const usdc = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
+  const market = 'pm-notes.testnet';
+  const bet: SpokenRequest = {
+    kind: 'market_bet',
+    network: 'testnet',
+    owner: OWNER,
+    market,
+    token: usdc,
+    marketId: 9n,
+    outcome: 'yes',
+    amountUnits: 500_000n,
+  };
+  const verdict = await signedVerdict(verifier, bet);
+  const msg = { action: 'bet', market_id: 9, outcome: 'yes', ...verdict };
+  const args = { receiver_id: market, amount: '500000', msg: JSON.stringify(msg) };
+  let count = 0;
+  const call = (
+    callArgs: unknown,
+    options: { depositYocto?: bigint; receiver?: string; method?: string } = {},
+  ) => {
+    count += 1;
+    return prepareBody(
+      unsignedTransaction({
+        receiver: options.receiver ?? usdc,
+        actions: [
+          {
+            kind: 'call',
+            method: options.method ?? 'ft_transfer_call',
+            args: callArgs,
+            depositYocto: options.depositYocto ?? 1n,
+          },
+        ],
+      }),
+      { requestId: `bet-${count}` },
+    );
+  };
+  const withMsg = (other: Record<string, unknown>) => ({ ...args, msg: JSON.stringify(other) });
+  for (const other of [
+    { ...args, amount: '5000000' },
+    { ...args, amount: '0500000' },
+    { ...args, amount: 500000 },
+    { ...args, receiver_id: 'other-market.testnet' },
+    { ...args, memo: 'bet' },
+    { ...args, msg: 'not json' },
+    withMsg({ ...msg, outcome: 'no' }),
+    withMsg({ ...msg, market_id: 8 }),
+    withMsg({ ...msg, action: 'claim' }),
+    withMsg({ ...msg, extra: 1 }),
+    withMsg({ action: 'bet', market_id: 9, outcome: 'yes' }),
+  ]) {
+    expect(await cosigner.check(withVerdict(call(other), verdict)), JSON.stringify(other)).toEqual(
+      refused('request_mismatch'),
+    );
+  }
+  // NEP-141 takes exactly 1 yoctoNEAR; a plain ft_transfer is not a bet.
+  for (const options of [{ depositYocto: 0n }, { depositYocto: 2n }, { method: 'ft_transfer' }]) {
+    expect(await cosigner.check(withVerdict(call(args, options), verdict))).toEqual(
+      refused('request_mismatch'),
+    );
+  }
+  // Another token can have other decimals, even when the verdict names that token.
+  const otherToken = await signedVerdict(verifier, { ...bet, token: 'usdc.testnet' });
+  expect(
+    await cosigner.check(
+      withVerdict(
+        call({ ...args, msg: JSON.stringify({ ...msg, ...otherToken }) }, { receiver: 'usdc.testnet' }),
+        otherToken,
+      ),
+    ),
+  ).toEqual(refused('request_mismatch'));
+  expect(await cosigner.check(withVerdict(call(args), verdict))).toEqual(ADMITTED);
+  // The verdict is used once.
+  expect(await cosigner.check(withVerdict(call(args), verdict))).toEqual(refused('reused'));
+});
+
+test('a bet above 10 USDC needs a fresh approval, and a bet verdict is a whole number of cents', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const usdc = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
+  const prepared = async (
+    amountUnits: bigint,
+    requestId: string,
+    stepUp = false,
+    callAmount = amountUnits.toString(),
+  ) => {
+    const verdict = await signedVerdict(verifier, {
+      kind: 'market_bet',
+      network: 'testnet',
+      owner: OWNER,
+      market: 'pm-notes.testnet',
+      token: usdc,
+      marketId: 12n,
+      outcome: 'no',
+      amountUnits,
+    });
+    const msg = JSON.stringify({ action: 'bet', market_id: 12, outcome: 'no', ...verdict });
+    const tx = unsignedTransaction({
+      receiver: usdc,
+      actions: [
+        {
+          kind: 'call',
+          method: 'ft_transfer_call',
+          args: { receiver_id: 'pm-notes.testnet', amount: callAmount, msg },
+          depositYocto: 1n,
+        },
+      ],
+    });
+    const body = prepareBody(tx, {
+      requestId,
+      ...(stepUp ? { authorization: 'operation_step_up' } : {}),
+    });
+    return await cosigner.check(
+      withVerdict(body, verdict),
+      stepUp ? { authorization: 'operation_step_up' } : {},
+    );
+  };
+  expect(await prepared(10_000_000n, 'at-limit')).toEqual(ADMITTED);
+  expect(await prepared(10_010_000n, 'above')).toEqual({
+    status: 403,
+    reason: 'step_up_required',
+    message: 'Speak-to-Sign verdict refused: step_up_required',
+  });
+  expect(await prepared(10_010_000n, 'above-fresh', true)).toEqual(ADMITTED);
+  expect(await prepared(500_001n, 'not-cents')).toEqual(refused('request_mismatch'));
+  expect(await prepared(500_000n, 'not-u128', false, (2n ** 128n).toString())).toEqual(
+    refused('request_mismatch'),
+  );
+});
+
 test('a verdict on the second round, or without a configured check, is refused', async () => {
   const verifier = await verifierKey();
   const tx = unsignedTransaction({

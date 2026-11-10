@@ -1,4 +1,5 @@
 import type {
+  SpeakToSignBetRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignNoteRequest,
@@ -63,6 +64,16 @@ export type SpeakToSignCapability = Readonly<{
     request: SpeakToSignCall<SpeakToSignMergeApprovalRequest, SpeakToSignNoteResult>,
   ): Promise<SpeakToSignNoteResult>;
   /**
+   * Bets on one outcome of a prediction market by voice: the owner says "bet zero point five
+   * usdc yes on market nine", and the Wallet sends the stake with the token's `ft_transfer_call`
+   * to the market contract, with the signed verdict in `msg` and no confirm. The verdict binds
+   * the market and the token, which the owner does not say. The token must be the USDC contract
+   * of the network. A bet above 10 USDC asks for a passkey after the voice.
+   */
+  requestBet(
+    request: SpeakToSignCall<SpeakToSignBetRequest, SpeakToSignNoteResult>,
+  ): Promise<SpeakToSignNoteResult>;
+  /**
    * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
    * message that authorizes exactly these recordings, and the verifier stores the template. A
    * new enrollment replaces the template.
@@ -103,6 +114,7 @@ export function createSpeakToSignCapability(
       SpeakToSignMergeApprovalRequest,
       SpeakToSignNoteResult
     >;
+    requestBet: SpeakToSignCommand<SpeakToSignBetRequest, SpeakToSignNoteResult>;
     enroll: SpeakToSignCommand<SpeakToSignEnrollmentRequest, SpeakToSignEnrollmentResult>;
   }>,
   owner: WalletModalStepsOwner,
@@ -117,6 +129,7 @@ export function createSpeakToSignCapability(
     requestRating: (request) => withModalSteps(commands.requestRating, owner, CANCELLED, request),
     requestMergeApproval: (request) =>
       withModalSteps(commands.requestMergeApproval, owner, CANCELLED, request),
+    requestBet: (request) => withModalSteps(commands.requestBet, owner, CANCELLED, request),
     enroll: (request) => withModalSteps(commands.enroll, owner, CANCELLED, request),
   };
 }

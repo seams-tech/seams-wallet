@@ -25,10 +25,12 @@ import {
   noteActionBorsh,
   noteActionDigests,
   noteActionRefusal,
+  noteVerifyRequest,
   renderNoteAction,
   summaryRefusal,
   type SpokenNoteAction,
 } from '@/core/transactionFeatures/spokenNote';
+import { parseSpeakableUsdc, type SpokenBetAction } from '@/core/transactionFeatures/spokenBet';
 import {
   checkVoiceVerdict,
   parseVerifyOutput,
@@ -1039,9 +1041,9 @@ test('a merge approval says the pull request and base, and checks every field', 
     displayText: 'Merge pull request 42 into main',
     spokenText: 'merge pull request forty two into main',
   });
-  expect(noteActionRefusal(MERGE)).toBeNull();
+  expect(noteActionRefusal('testnet', MERGE)).toBeNull();
   for (const repo of ['a/b', 'my-org/My.Repo_2', 'seams/...']) {
-    expect(noteActionRefusal({ ...MERGE, repo }), repo).toBeNull();
+    expect(noteActionRefusal('testnet', { ...MERGE, repo }), repo).toBeNull();
   }
   for (const bad of [
     { ...MERGE, pullRequest: 0n },
@@ -1055,7 +1057,7 @@ test('a merge approval says the pull request and base, and checks every field', 
     { ...MERGE, headCommit: MERGE.headCommit.toUpperCase() },
     { ...MERGE, headCommit: MERGE.headCommit.slice(1) },
   ]) {
-    expect(noteActionRefusal(bad), JSON.stringify(bad, (_, v) => (typeof v === 'bigint' ? `${v}` : v))).toBe(
+    expect(noteActionRefusal('testnet', bad), JSON.stringify(bad, (_, v) => (typeof v === 'bigint' ? `${v}` : v))).toBe(
       'merge_not_valid',
     );
   }
@@ -1143,4 +1145,204 @@ test('the merge port matches every merge approval vector of the spoken-intent cr
     expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
     expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
   }
+});
+
+// ---------------------------------------------------------------- market bets
+
+const USDC = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
+
+const BET: SpokenBetAction = {
+  kind: 'market_bet',
+  contract: 'pm-notes.testnet',
+  token: USDC,
+  marketId: 9n,
+  outcome: 'yes',
+  amountUnits: 500_000n,
+};
+
+function decodeBetBorsh(borshHex: string): { owner: string; action: SpokenBetAction } {
+  const bytes = Buffer.from(borshHex, 'hex');
+  let at = 2;
+  const text = (): string => {
+    const length = bytes.readUInt32LE(at);
+    const value = bytes.subarray(at + 4, at + 4 + length).toString('utf8');
+    at += 4 + length;
+    return value;
+  };
+  const owner = text();
+  const contract = text();
+  const token = text();
+  const marketId = bytes.readBigUInt64LE(at);
+  const outcome = (['yes', 'no'] as const)[bytes[at + 8]];
+  const amountUnits = BigInt(`0x${Buffer.from(bytes.subarray(at + 9, at + 25)).reverse().toString('hex')}`);
+  return { owner, action: { kind: 'market_bet', contract, token, marketId, outcome, amountUnits } };
+}
+
+test('the bet port matches every market bet vector of the spoken-intent crate', async () => {
+  const bets = VECTORS.requests.filter((vector) => vector.borsh_hex.startsWith('07'));
+  expect(bets.map((vector) => vector.name)).toEqual([
+    'market_bet_yes_half_usdc',
+    'market_bet_no_one_usdc',
+    'market_bet_yes_implicit_owner',
+  ]);
+  for (const vector of bets) {
+    const { owner, action } = decodeBetBorsh(vector.borsh_hex);
+    const rendered = renderNoteAction(action);
+    expect(hex(await noteActionBorsh('testnet', owner, action)), vector.name).toBe(vector.borsh_hex);
+    expect(rendered.displayText, vector.name).toBe(vector.display_text);
+    expect(rendered.spokenText, vector.name).toBe(vector.spoken_text);
+    const digests = await noteActionDigests('testnet', owner, action);
+    expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
+    expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
+  }
+});
+
+test('a bet is a whole number of cents in the USDC contract of the network', async () => {
+  expect(parseSpeakableUsdc('0.5')).toBe(500_000n);
+  expect(parseSpeakableUsdc('1250.75')).toBe(1_250_750_000n);
+  expect(parseSpeakableUsdc('1000000')).toBe(10n ** 12n);
+  for (const text of ['0', '0.001', '1000000.01', '1e3', '-1', '01', '']) {
+    expect(parseSpeakableUsdc(text), text).toBeNull();
+  }
+  expect(noteActionRefusal('testnet', BET)).toBeNull();
+  for (const bad of [
+    // Another token can have other decimals than the sentence says.
+    { ...BET, token: 'usdc.testnet' },
+    { ...BET, contract: USDC },
+    { ...BET, marketId: 0n },
+    { ...BET, marketId: 2n ** 53n },
+    { ...BET, outcome: 'maybe' as never },
+    { ...BET, amountUnits: 0n },
+    { ...BET, amountUnits: 5_000n },
+    { ...BET, amountUnits: 10n ** 12n + 10_000n },
+  ]) {
+    expect(
+      noteActionRefusal('testnet', bad),
+      JSON.stringify(bad, (_, v) => (typeof v === 'bigint' ? `${v}` : v)),
+    ).toBe('bet_not_valid');
+  }
+  // Mainnet has no pinned USDC contract, so it has no spoken bets.
+  expect(noteActionRefusal('mainnet', BET)).toBe('bet_not_valid');
+  expect(await noteVerifyRequest(BET)).toEqual({
+    kind: 'market_bet',
+    market: 'pm-notes.testnet',
+    token: USDC,
+    market_id: 9,
+    outcome: 'yes',
+    amount_units: '500000',
+  });
+});
+
+test('core signs one ft_transfer_call that carries the verdict of this bet only', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+
+  // The verdict of the other outcome, of another amount or of another market does not pass.
+  for (const other of [
+    { ...BET, outcome: 'no' as const },
+    { ...BET, amountUnits: 5_000_000n },
+    { ...BET, marketId: 8n },
+    { ...BET, contract: 'other-market.testnet' },
+  ]) {
+    const digests = await noteActionDigests('testnet', 'owner.testnet', other);
+    expect(
+      await harness.operations.signNoteWithVerdict(
+        BET,
+        await verifyOutput(verifier, await verdictJsonFor(digests, audio)),
+        signal,
+        paymentHooks(),
+      ),
+    ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
+  }
+  expect(
+    await harness.operations.signNoteWithVerdict({ ...BET, token: 'usdc.testnet' }, {}, signal, paymentHooks()),
+  ).toEqual({ kind: 'unavailable', detail: 'bet_not_valid' });
+  expect(harness.signed).toEqual([]);
+
+  const digests = await noteActionDigests('testnet', 'owner.testnet', BET);
+  const accepted = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
+  const events: string[] = [];
+  expect(
+    await harness.operations.signNoteWithVerdict(BET, accepted, signal, paymentHooks(events)),
+  ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(events).toEqual(['accepted', 'broadcasting']);
+  expect(harness.signed).toEqual([
+    {
+      transaction: {
+        receiverId: USDC,
+        actions: [
+          {
+            type: 'FunctionCall',
+            methodName: 'ft_transfer_call',
+            args: {
+              receiver_id: 'pm-notes.testnet',
+              amount: '500000',
+              msg: JSON.stringify({
+                action: 'bet',
+                market_id: 9,
+                outcome: 'yes',
+                verdict_json: accepted.verdict_json,
+                signature_b64: accepted.signature_b64,
+              }),
+            },
+            gas: '100000000000000',
+            deposit: '1',
+          },
+        ],
+      },
+      approval: 'voice',
+      policyText: null,
+      verdict: { verdictJson: accepted.verdict_json, signatureB64: accepted.signature_b64 },
+    },
+  ]);
+});
+
+test('a bet above 10 USDC asks for a fresh approval after the voice', async () => {
+  const verifier = await verifierKey();
+  const signal = new AbortController().signal;
+  const rule = 'A voice bet above 10 USDC needs a passkey.';
+  const run = async (amountUnits: bigint, approve: boolean) => {
+    const harness = coreHarness(verifier);
+    const captured = await capture(harness.operations);
+    if (captured.kind !== 'captured') throw new Error('no clip');
+    const bet = { ...BET, amountUnits };
+    const digests = await noteActionDigests('testnet', 'owner.testnet', bet);
+    const output = await verifyOutput(
+      verifier,
+      await verdictJsonFor(digests, await sha256(captured.wav)),
+    );
+    const events: string[] = [];
+    const result = await harness.operations.signNoteWithVerdict(bet, output, signal, {
+      ...paymentHooks(events),
+      approveStepUp: async (policyText) => {
+        events.push(`step_up:${policyText}`);
+        return approve;
+      },
+    });
+    return { result, events, harness };
+  };
+
+  const atLimit = await run(10_000_000n, true);
+  expect(atLimit.result).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(atLimit.events).toEqual(['accepted', 'broadcasting']);
+
+  const above = await run(10_010_000n, true);
+  expect(above.result).toEqual({
+    kind: 'executed',
+    transactionHash: 'tx-ok',
+    approval: 'voice_and_passkey',
+  });
+  expect(above.events).toEqual([`step_up:${rule}`, 'broadcasting']);
+  expect(above.harness.progress).toContainEqual({ stage: 'step_up', policyText: rule });
+  expect(above.harness.signed.map(({ approval, policyText }) => ({ approval, policyText }))).toEqual([
+    { approval: 'voice_and_passkey', policyText: rule },
+  ]);
+
+  const declined = await run(10_010_000n, false);
+  expect(declined.result).toEqual({ kind: 'cancelled' });
+  expect(declined.harness.signed).toEqual([]);
 });

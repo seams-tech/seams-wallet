@@ -4,7 +4,9 @@
 
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import {
+  BET_OUTCOMES,
   NOTE_RATINGS,
+  SPEAK_TO_SIGN_USDC,
   sha256,
   utf8,
   type SpeakToSignNetwork,
@@ -71,7 +73,8 @@ function readAction(reader: BorshReader): VoiceAction | null {
 /**
  * The spoken request that the transaction carries out, with the signer as its owner, or null
  * when the transaction is none of the kinds that Wallet core signs for a verdict: one transfer,
- * or one `add_note`, `rate_note` or `approve_merge` call with no deposit.
+ * one `add_note`, `rate_note` or `approve_merge` call with no deposit, or one bet: the
+ * `ft_transfer_call` of the network's USDC contract with 1 yoctoNEAR.
  */
 export async function spokenRequestOfTransaction(
   network: SpeakToSignNetwork,
@@ -87,13 +90,16 @@ export async function spokenRequestOfTransaction(
       amountYocto: action.depositYocto,
     };
   }
-  if (action.depositYocto !== 0n) return null;
   let args: unknown;
   try {
     args = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(action.args));
   } catch {
     return null;
   }
+  if (action.methodName === 'ft_transfer_call') {
+    return action.depositYocto === 1n ? marketBetOfCall(network, owner, receiverId, args) : null;
+  }
+  if (action.depositYocto !== 0n) return null;
   if (action.methodName === 'add_note' && hasExactKeys(args, ['post_id', 'text', 'summary'])) {
     const { post_id: postId, text, summary } = args;
     if (!isNoteId(postId) || typeof text !== 'string' || typeof summary !== 'string') return null;
@@ -149,7 +155,60 @@ export async function spokenRequestOfTransaction(
   return null;
 }
 
-/** Wallet core sends note, post and pull request ids as JSON safe integers. */
+/**
+ * The bet of an `ft_transfer_call`: `msg` names the market id and the outcome, and it carries
+ * the verdict for the market contract, which checks it. Only the network's USDC contract is a
+ * bet token, because the sentence says "usdc" and an amount with 6 decimals. The Borsh of the
+ * request refuses an amount that is not a `u128`.
+ */
+function marketBetOfCall(
+  network: SpeakToSignNetwork,
+  owner: string,
+  token: string,
+  args: unknown,
+): SpokenRequest | null {
+  if (token !== SPEAK_TO_SIGN_USDC[network]) return null;
+  if (!hasExactKeys(args, ['receiver_id', 'amount', 'msg'])) return null;
+  const { receiver_id: market, amount, msg } = args;
+  if (typeof market !== 'string' || typeof amount !== 'string' || typeof msg !== 'string') {
+    return null;
+  }
+  if (!/^[1-9]\d{0,38}$/.test(amount)) return null;
+  let bet: unknown;
+  try {
+    bet = JSON.parse(msg);
+  } catch {
+    return null;
+  }
+  if (!hasExactKeys(bet, ['action', 'market_id', 'outcome', 'verdict_json', 'signature_b64'])) {
+    return null;
+  }
+  const { market_id: marketId, verdict_json: verdictJson, signature_b64: signatureB64 } = bet;
+  const said = bet.outcome;
+  const outcome = BET_OUTCOMES.find((candidate) => candidate === said);
+  if (
+    bet.action !== 'bet' ||
+    !isNoteId(marketId) ||
+    marketId < 1 ||
+    !outcome ||
+    typeof verdictJson !== 'string' ||
+    typeof signatureB64 !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    kind: 'market_bet',
+    network,
+    owner,
+    market,
+    token,
+    marketId: BigInt(marketId),
+    outcome,
+    amountUnits: BigInt(amount),
+  };
+}
+
+/** Wallet core sends note, post, pull request and market ids as JSON safe integers. */
 function isNoteId(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
 }
