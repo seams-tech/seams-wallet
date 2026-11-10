@@ -42,6 +42,7 @@ import {
   AUTH_MENU_WAITING_PROMPTS,
   isAuthMenuActionReady,
   isAuthMenuGoogleActionReady,
+  isAuthMenuGoogleShown,
   isAuthMenuLoadingStatus,
   isAuthMenuReady,
   type AuthMenuAccountOption,
@@ -997,7 +998,6 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
   private renderAuthMethods(
     viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel,
   ): ComponentChildren {
-    const googleEnabled = viewModel.enabledExternalProviders?.includes('google') ?? false;
     return (
       <>
         <div class="seams-auth-methods">
@@ -1013,7 +1013,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               <WalletText copy={passkeyButtonLabel(viewModel.mode)} />
             </span>
           </button>
-          {googleEnabled ? (
+          {isAuthMenuGoogleShown(viewModel) ? (
             <button
               class="seams-auth-method-btn"
               type="button"

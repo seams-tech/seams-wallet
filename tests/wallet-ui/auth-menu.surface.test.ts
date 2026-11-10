@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { setupBasicPasskeyTest } from '../setup';
 import { prepareAuthMenuDocument, mountAuthMenu } from './auth-menu.harness';
 import type {
+  AuthMenuAccountOption,
   AuthMenuRecoveryViewModel,
   AuthMenuViewModel,
 } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
@@ -434,5 +435,71 @@ test.describe('wallet-host Preact auth menu surface', () => {
       return received;
     }, AUTH_MENU_TAG);
     expect(submitIntent).toEqual([{ kind: 'submit', mode: 'login' }]);
+  });
+
+  test('shows "Unlock with email code" only where the email code unlocks the selected wallet', async ({
+    page,
+  }) => {
+    const passkey = { walletId: 'passkey-wallet.test', authMethod: 'passkey' } as const;
+    const voice = {
+      walletId: 'voice-wallet.test',
+      authMethod: 'voiceid',
+      walletAuthMethodId: 'voice-method-1',
+    } as const;
+    const email = {
+      walletId: 'email-wallet.test',
+      authMethod: 'email_otp',
+      emailAddress: 'owner@example.test',
+    } as const;
+    const bothPasskey = { walletId: 'both-wallet.test', authMethod: 'passkey' } as const;
+    const bothEmail = {
+      walletId: 'both-wallet.test',
+      authMethod: 'email_otp',
+      emailAddress: 'both@example.test',
+    } as const;
+    const accountOptions = [passkey, voice, email, bothPasskey, bothEmail];
+    const login = (
+      selectedAccount: AuthMenuAccountOption | null,
+      options: readonly AuthMenuAccountOption[] = accountOptions,
+    ): AuthMenuViewModel => ({
+      ...loginViewModel(),
+      accountOptions: options,
+      selectedAccount,
+      enabledExternalProviders: ['google'],
+    });
+    const emailButton = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-provider="google"]`);
+
+    await mountAuthMenu(page, login(passkey));
+    await expect(emailButton).toHaveCount(0);
+    await showViewModel(page, login(voice));
+    await expect(emailButton).toHaveCount(0);
+    // The selected wallet changes to one that unlocks with the email code: the button follows.
+    await showViewModel(page, login(email));
+    await expect(emailButton).toHaveText('Unlock with email code');
+    await expect(emailButton).toBeEnabled();
+    await showViewModel(page, login(bothPasskey));
+    await expect(emailButton).toHaveText('Unlock with email code');
+    await showViewModel(page, login(passkey));
+    await expect(emailButton).toHaveCount(0);
+    // A device with no saved wallet keeps it: Google finds the wallet from the Google account.
+    await showViewModel(page, login(null, []));
+    await expect(emailButton).toHaveText('Unlock with email code');
+    await expect(emailButton).toBeEnabled();
+    // Without the Google provider, no wallet sees it.
+    await showViewModel(page, { ...login(email), enabledExternalProviders: [] });
+    await expect(emailButton).toHaveCount(0);
+
+    // Create mode keeps "Continue with Google".
+    const { accountOptions: _options, selectedAccount: _selected, ...common } = loginViewModel();
+    await showViewModel(page, {
+      ...common,
+      mode: 'register',
+      showRegistrationInput: false,
+      passkeyNameReadOnly: false,
+      passkeyName: 'new-wallet',
+      passkeyNameLabel: 'Wallet name',
+      enabledExternalProviders: ['google'],
+    });
+    await expect(emailButton).toHaveText('Continue with Google');
   });
 });

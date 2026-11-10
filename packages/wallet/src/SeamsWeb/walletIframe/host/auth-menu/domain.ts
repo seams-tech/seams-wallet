@@ -593,6 +593,23 @@ export function isAuthMenuGoogleActionReady(viewModel: AuthMenuViewModel): boole
   );
 }
 
+/**
+ * Google shows in create mode. In login mode it shows only where the email code can unlock: for
+ * a selected wallet with the email code, and on a device with no saved wallet, where Google finds
+ * the wallet from the Google account. A passkey or VoiceID wallet does not see it.
+ */
+export function isAuthMenuGoogleShown(
+  viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel,
+): boolean {
+  if (!(viewModel.enabledExternalProviders?.includes('google') ?? false)) return false;
+  return (
+    viewModel.mode === 'register' ||
+    authMenuLoginAllowsEmailOtp(
+      resolveAuthMenuLoginAccount(viewModel.accountOptions, viewModel.selectedAccount),
+    )
+  );
+}
+
 function isVoiceIdAccount(account: AuthMenuAccountOption): boolean {
   return account.authMethod === 'voiceid';
 }
