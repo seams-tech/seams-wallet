@@ -217,16 +217,15 @@ import {
   type WalletIframeSurfaceViewport,
 } from './surface/geometry';
 import { WalletIframeSurfaceRenderer } from './surface/renderer';
+import { AnchoredSurfaces } from './anchoredSurfaces';
 import {
-  AnchoredSurface,
-  type AnchoredSurfaceOptions,
+  type AnchoredSurface,
+  type AnchoredSurfaceSettlement,
   type AnchoredSurfaceStep,
+  authMenuStepExit,
+  documentCoordinateGeometry,
 } from './anchoredSurface';
-import {
-  walletStepExitForDismissal,
-  type WalletStepChrome,
-  type WalletStepExit,
-} from '../shared/walletStep';
+import type { WalletSurfacePresentationWire, WalletStepExit } from '../shared/walletStep';
 import {
   WalletIframeTransactionSurfaceQueue,
   type WalletIframeTransactionSurfaceDeadline,
@@ -341,6 +340,8 @@ type Pending = {
 type WalletIframePostOptionsBase = {
   onDispatched?: () => void;
   transactionDispatch?: TransactionDispatch;
+  /** A card that the caller anchors itself: the host still draws its chrome and guards it. */
+  presentation?: WalletSurfacePresentationWire;
   requestId?: WalletIframeRequestId;
   shouldContinue?: () => boolean;
 };
@@ -606,39 +607,9 @@ function dispatchHostedAuthMenuError(
   );
 }
 
-/** How an auth-menu card ended, for its step events. */
-function authMenuStepExit(outcome: HostedAuthMenuOutcome, chrome: WalletStepChrome): WalletStepExit {
-  switch (outcome.kind) {
-    case 'cancelled':
-      return outcome.reason === 'close_button'
-        ? walletStepExitForDismissal(chrome)
-        : { kind: 'cancelled' };
-    case 'failed':
-      return { kind: 'failed' };
-    default:
-      return { kind: 'completed' };
-  }
-}
-
 const WALLET_IFRAME_PROGRESS_TIMEOUT_EXTENSION_FACTOR = 4;
 const WALLET_IFRAME_REGISTRATION_TIMEOUT_MS = 180_000;
 const WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS = 30_000;
-
-function pageScrollOffsetCssPx(axis: 'x' | 'y'): number {
-  if (typeof window === 'undefined') return 0;
-  const value = axis === 'x' ? window.scrollX : window.scrollY;
-  return Number.isFinite(value) ? value : 0;
-}
-
-function documentCoordinateAuthMenuGeometry(
-  geometry: WalletIframeModalGeometry,
-): WalletIframeModalGeometry {
-  return {
-    ...geometry,
-    topCssPx: Math.round(geometry.topCssPx + pageScrollOffsetCssPx('y')),
-    leftCssPx: Math.round(geometry.leftCssPx + pageScrollOffsetCssPx('x')),
-  };
-}
 
 type SignTempoRouterPayload = {
   walletSession: WalletSessionRef;
@@ -1329,7 +1300,16 @@ export class WalletIframeRouter {
     HostedAuthMenuSessionId,
     WalletIframeConnectionId
   >();
-  private readonly anchoredSurfaces = new Map<WalletIframeRequestId, AnchoredSurface>();
+  private readonly anchoredSurfaces = new AnchoredSurfaces({
+    activeRequestId: () =>
+      this.walletIframeSurface.kind === 'hidden' ? null : this.walletIframeSurface.identity.requestId,
+    renderActive: () => this.renderActiveWalletIframeSurface(),
+    overlay: () => this.overlayState.controller,
+    appearance: () => this.getCurrentAppearance(),
+    post: (message) => this.state.port?.postMessage(message),
+    cancelRequest: (requestId) => void this.cancelRequest(requestId),
+    closeReceipt: (requestId) => this.closeTransactionReceipt(requestId),
+  });
   private readonly cancelledHostedAuthMenuSessions = new Set<HostedAuthMenuSessionId>();
 
   constructor(options: WalletIframeRouterOptions) {
@@ -1953,12 +1933,7 @@ export class WalletIframeRouter {
       authMenuVisualScale = placed.visualScale;
     }
     if ((anchored || surface.kind === 'modal_auth_menu') && isWalletIframeModalGeometry(geometry)) {
-      // An anchored dialog is position:absolute, so hand it DOCUMENT
-      // coordinates. Scrolling then moves it with the page on the compositor
-      // thread (no fixed-position lag), and because anchor viewport movement
-      // and the scroll offset cancel out, scroll events re-derive identical
-      // geometry and the render pipeline short-circuits.
-      geometry = documentCoordinateAuthMenuGeometry(geometry);
+      geometry = documentCoordinateGeometry(geometry);
     }
     this.overlayState.controller.setAuthMenuVisualScale(authMenuVisualScale);
     const toast = receiptView === 'toast';
@@ -3586,12 +3561,15 @@ export class WalletIframeRouter {
     },
     transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
   ): Promise<TempoSignedResult | EvmSignedResult> {
-    if (transactionDispatch.kind === 'reviewed') {
+    if (transactionDispatch.kind !== 'ordinary') {
       payload = {
         ...payload,
         options: {
           ...payload.options,
-          confirmationConfig: transactionDispatch.reservation.confirmationConfig,
+          confirmationConfig:
+            transactionDispatch.kind === 'reviewed'
+              ? transactionDispatch.reservation.confirmationConfig
+              : await this.anchoredConfirmationConfig(payload.options?.confirmationConfig),
         },
       };
     }
@@ -4022,12 +4000,15 @@ export class WalletIframeRouter {
   ): Promise<ActionResult> {
     const request = new NearTransactionRequest({ kind: 'sign_and_send' });
     try {
-      if (transactionDispatch.kind === 'reviewed') {
+      if (transactionDispatch.kind !== 'ordinary') {
         payload = {
           ...payload,
           options: {
             ...payload.options,
-            confirmationConfig: transactionDispatch.reservation.confirmationConfig,
+            confirmationConfig:
+              transactionDispatch.kind === 'reviewed'
+                ? transactionDispatch.reservation.confirmationConfig
+                : await this.anchoredConfirmationConfig(payload.options.confirmationConfig),
           },
         };
       }
@@ -4189,12 +4170,15 @@ export class WalletIframeRouter {
     const requestId = this.allocateRequestId();
     this.hostedAuthMenuRequestIds.set(normalized.authMenuSessionId, requestId);
     const chrome = normalized.chrome ?? 'none';
+    // A top-layer menu is a card in the app's dialog: the host guards it as any such card.
+    const guarded = anchorElement !== undefined && step?.layer === 'top';
     const anchored = anchorElement
-      ? this.registerAnchoredSurface(requestId, {
+      ? this.anchoredSurfaces.register(requestId, {
           ...step,
           anchor: anchorElement,
           layer: step?.layer ?? 'page',
           chrome,
+          ...(guarded ? { view: this.anchoredSurfaces.viewReporter(requestId) } : {}),
         })
       : null;
     let exit: WalletStepExit = { kind: 'cancelled' };
@@ -4210,6 +4194,7 @@ export class WalletIframeRouter {
           timeout: 'interactive',
           shouldContinue: () =>
             !this.cancelledHostedAuthMenuSessions.has(normalized.authMenuSessionId),
+          ...(guarded ? { presentation: { kind: 'anchored_v1' as const, chrome } } : {}),
         },
       );
       const response = await responsePromise;
@@ -4225,40 +4210,34 @@ export class WalletIframeRouter {
       }
       throw error;
     } finally {
-      if (anchored) this.finishAnchoredSurface(requestId, anchored, exit);
+      if (anchored) this.anchoredSurfaces.finish(requestId, anchored, exit);
       this.hostedAuthMenuRequestIds.delete(normalized.authMenuSessionId);
       this.hostedAuthMenuConnectionIds.delete(normalized.authMenuSessionId);
       this.cancelledHostedAuthMenuSessions.delete(normalized.authMenuSessionId);
     }
   }
 
-  /** Places the request's card over an app element until the request ends. */
-  private registerAnchoredSurface(
-    requestId: WalletIframeRequestId,
-    options: AnchoredSurfaceOptions,
-  ): AnchoredSurface {
-    const anchored = new AnchoredSurface(
-      options,
-      this.renderAnchoredSurface.bind(this, requestId),
-    );
-    this.anchoredSurfaces.set(requestId, anchored);
-    return anchored;
-  }
-
-  private finishAnchoredSurface(
-    requestId: WalletIframeRequestId,
-    anchored: AnchoredSurface,
-    exit: WalletStepExit,
-  ): void {
-    if (this.anchoredSurfaces.get(requestId) === anchored) this.anchoredSurfaces.delete(requestId);
-    anchored.finish(exit);
-  }
-
-  private renderAnchoredSurface(requestId: WalletIframeRequestId): void {
-    const surface = this.walletIframeSurface;
-    if (surface.kind !== 'hidden' && surface.identity.requestId === requestId) {
-      this.renderActiveWalletIframeSurface();
+  /** An anchored card needs explicit approval in the Wallet's card, as a review does. */
+  private async anchoredConfirmationConfig(
+    override: Partial<ConfirmationConfig> | undefined,
+  ): Promise<ConfirmationConfig> {
+    const { confirmationConfig } = await this.readReviewStartState();
+    try {
+      return reviewedConfirmationConfig(confirmationConfig, override);
+    } catch {
+      throw new Error('An anchored Wallet card needs modal presentation and requireClick approval');
     }
+  }
+
+  /** Ends the request's receipt view, when it shows one. */
+  private closeTransactionReceipt(requestId: WalletIframeRequestId): void {
+    if (this.transactionReceipt?.requestId !== requestId) return;
+    this.transactionReceipt = null;
+    this.state.port?.postMessage({
+      type: 'PM_SET_TRANSACTION_VIEW',
+      payload: { requestId, view: 'closed' },
+    });
+    this.finishRequestSurface(requestId, false);
   }
 
   async cancelHostedAuthMenu(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void> {
@@ -4594,9 +4573,18 @@ export class WalletIframeRouter {
     }
     const requestId =
       reservation?.identity.requestId ?? postOpts?.requestId ?? this.allocateRequestId();
+    const anchoredPresentation =
+      postOpts?.transactionDispatch?.kind === 'anchored'
+        ? postOpts.transactionDispatch.presentation
+        : null;
+    const presentation: WalletSurfacePresentationWire | undefined = anchoredPresentation
+      ? { kind: 'anchored_v1', chrome: anchoredPresentation.chrome ?? 'none' }
+      : postOpts?.presentation;
     const full = reservation
       ? { ...envelope, requestId, transactionReview: reservation.metadata }
-      : { ...envelope, requestId };
+      : presentation
+        ? { ...envelope, requestId, presentation }
+        : { ...envelope, requestId };
     const sessionBinding = this.sessionBindingForRequest(full);
     const { options } = full;
     const requestStartMs = Date.now();
@@ -4639,10 +4627,13 @@ export class WalletIframeRouter {
       });
     }
 
+    let anchored: AnchoredSurface | null = null;
+    let settlement: AnchoredSurfaceSettlement = { kind: 'error', error: undefined };
     try {
       if (postOpts?.shouldContinue && !postOpts.shouldContinue()) {
         throw walletIframeRequestCancelledError();
       }
+      if (anchoredPresentation) anchored = this.anchoredSurfaces.registerRequest(requestId, anchoredPresentation);
       if (this.state.connectionId !== connectionId || !this.state.port) {
         throw new WalletIframeConnectionClosedRequestError(requestId, connectionId, envelope.type);
       }
@@ -4665,7 +4656,7 @@ export class WalletIframeRouter {
         });
       }
 
-      return await new Promise<PostResult<T>>((resolve, reject) => {
+      const response = await new Promise<PostResult<T>>((resolve, reject) => {
         const onTimeout = () => {
           const pending = this.state.pending.get(requestId);
           if (pending?.timer !== undefined) window.clearTimeout(pending.timer);
@@ -4711,6 +4702,9 @@ export class WalletIframeRouter {
           requestId: requestId,
           sticky: !!options?.sticky, // Some flows need to persist after completion
           onProgress: (payload: ProgressPayload) => {
+            if (anchored && isWalletFlowEvent(payload) && payload.status === 'cancelled') {
+              anchored.dismissed();
+            }
             // Bridge progress events from iframe back to parent callback
             try {
               options?.onProgress?.(payload);
@@ -4738,8 +4732,15 @@ export class WalletIframeRouter {
           reject(toError(err));
         }
       });
+      // A PONG reply resolves with no payload.
+      settlement = { kind: 'result', result: (response as PostResult<T> | undefined)?.result };
+      return response;
+    } catch (error) {
+      settlement = { kind: 'error', error };
+      throw error;
     } finally {
       transactionSurfaceLease?.release();
+      if (anchored) this.anchoredSurfaces.finish(requestId, anchored, anchored.exitFor(settlement));
     }
   }
 

@@ -25,7 +25,11 @@ import type {
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
-import { parseWalletStepChrome } from './walletStep';
+import {
+  parseWalletStepChrome,
+  type WalletSurfacePresentationWire,
+  type WalletSurfaceViewPayload,
+} from './walletStep';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
@@ -900,6 +904,7 @@ export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
 export type WalletProtocolVersion = typeof WALLET_PROTOCOL_VERSION;
 
 export type ParentToChildType =
+  | 'PM_SURFACE_VIEW'
   | 'PM_SET_TRANSACTION_VIEW'
   | 'PM_TRANSACTION_BROADCAST_STARTED'
   | 'PING'
@@ -980,6 +985,8 @@ interface RpcEnvelope<T extends string = string, P = unknown> {
   type: T;
   requestId?: string;
   payload?: P;
+  /** A card in the app's own dialog: the host draws its chrome and guards its controls. */
+  presentation?: WalletSurfacePresentationWire;
   options?: {
     onProgress?(payload: ProgressPayload): void;
     sticky?: boolean;
@@ -1702,6 +1709,7 @@ type ReviewedTransactionEnvelope<T> = T &
   ({ readonly transactionReview?: never } | { readonly transactionReview: TransactionReviewWire });
 
 export type ParentToChildEnvelope =
+  | RpcEnvelope<'PM_SURFACE_VIEW', WalletSurfaceViewPayload>
   | RpcEnvelope<'PM_ACTIVATE_TRANSACTION_REVIEW', TransactionReviewStateMessage>
   | RpcEnvelope<'PM_SET_TRANSACTION_VIEW', { requestId: string; view: 'toast' | 'closed' }>
   | RpcEnvelope<'PM_TRANSACTION_BROADCAST_STARTED', { signedTransaction: string }>

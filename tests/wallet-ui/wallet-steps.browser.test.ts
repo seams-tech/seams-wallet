@@ -174,13 +174,11 @@ async function waitForRequest(page: Page, type: string) {
 
 async function postFromHost(page: Page, message: Record<string, unknown>): Promise<void> {
   await page.evaluate(
-    ({ walletOrigin, ownerTag, message }) => {
-      const iframe = document.querySelector<HTMLIFrameElement>(
-        `iframe[data-seams-owner="${ownerTag}"]`,
-      );
+    ({ walletOrigin, message }) => {
+      const iframe = document.querySelector<HTMLIFrameElement>('iframe.seams-wallet-overlay-iframe');
       iframe!.contentWindow!.postMessage({ type: 'TEST_STEP_POST', message }, walletOrigin);
     },
-    { walletOrigin: WALLET_ORIGIN, ownerTag: OWNER_TAG, message },
+    { walletOrigin: WALLET_ORIGIN, message },
   );
 }
 
@@ -341,5 +339,346 @@ test.describe('Wallet cards as steps of an app dialog', () => {
     });
     expect(offsets.length).toBeGreaterThan(10);
     expect(Math.max(...offsets)).toBeLessThan(1.5);
+  });
+});
+
+type ConfirmWindow = StepWindow & { __confirmResult?: Promise<unknown> };
+
+/** Sends a NEAR transaction; with `chrome`, its Wallet card shows over #anchor. */
+async function sendTransaction(page: Page, chrome?: 'back' | 'close' | 'none'): Promise<string> {
+  await page.evaluate((chrome) => {
+    const state = window as unknown as ConfirmWindow & { __stepRecord: (name: string) => any };
+    const anchor = document.getElementById('anchor')!;
+    const record = (name: string) => (value?: unknown) => {
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
+      state.__stepEvents.push({
+        name,
+        value,
+        hidden: !(dialog instanceof HTMLDialogElement) || !dialog.open,
+        modal: dialog instanceof HTMLDialogElement && dialog.matches(':modal'),
+        dialogHeight: dialog?.getBoundingClientRect().height ?? 0,
+        anchorHeight: anchor.style.getPropertyValue('--seams-auth-menu-height'),
+      });
+    };
+    const dispatch = chrome
+      ? {
+          kind: 'anchored',
+          presentation: {
+            kind: 'anchored',
+            anchor,
+            chrome,
+            onEnter: (size: unknown) => {
+              record('enter')(size);
+              document.getElementById('app-step')!.hidden = true;
+            },
+            onReady: record('ready'),
+            onExit: record('exit'),
+            onBack: record('back'),
+            onClose: record('close'),
+          },
+        }
+      : { kind: 'ordinary' };
+    state.__confirmResult = state.__stepRouter.signAndSendTransaction(
+      {
+        walletId: 'step.testnet',
+        nearAccountId: 'step.testnet',
+        transaction: { receiverId: 'market.testnet', actions: [{ type: 'Transfer', amount: '1' }] },
+        options: {},
+      },
+      dispatch,
+    );
+  }, chrome);
+  return (await waitForRequest(page, 'PM_SIGN_AND_SEND_TX')).requestId;
+}
+
+async function surfaceViews(page: Page): Promise<boolean[]> {
+  return page.evaluate(() =>
+    (window as unknown as StepWindow).__stepRequests
+      .filter((request) => request.type === 'PM_SURFACE_VIEW')
+      .map((request) => request.payload.unobstructed as boolean),
+  );
+}
+
+async function waitForSurfaceView(page: Page, unobstructed: boolean, after: number): Promise<void> {
+  await page.waitForFunction(
+    ({ unobstructed, after }) => {
+      const views = (window as unknown as StepWindow).__stepRequests.filter(
+        (request) => request.type === 'PM_SURFACE_VIEW',
+      );
+      return views.length > after && views.at(-1)!.payload.unobstructed === unobstructed;
+    },
+    { unobstructed, after },
+  );
+}
+
+test.describe('A transaction confirm as a step of an app dialog', () => {
+  test.beforeEach(async ({ page }) => {
+    await startStepRouter(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await page.evaluate(() => (window as unknown as StepWindow).__stepRouter?.dispose());
+    await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
+  });
+
+  test('the card shows in the app dialog with explicit approval, and Back ends it', async ({
+    page,
+  }) => {
+    const requestId = await sendTransaction(page, 'back');
+    const request = await waitForRequest(page, 'PM_SIGN_AND_SEND_TX');
+    // The Wallet host draws Back and guards the card; the settings need an explicit approval.
+    expect(request.presentation).toEqual({ kind: 'anchored_v1', chrome: 'back' });
+    expect(request.payload.options.confirmationConfig).toEqual({
+      uiMode: 'modal',
+      behavior: 'requireClick',
+    });
+    await waitForStepEvent(page, 'ready');
+    const [enter, ready] = await stepEvents(page);
+    expect(enter).toMatchObject({ name: 'enter', value: { width: 420, height: 380 } });
+    expect(ready).toMatchObject({ name: 'ready', modal: true, dialogHeight: 380 });
+    const geometry = await page.evaluate(() => {
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog')!;
+      const anchor = document.getElementById('anchor')!;
+      return {
+        dialog: dialog.getBoundingClientRect().toJSON(),
+        anchor: anchor.getBoundingClientRect().toJSON(),
+      };
+    });
+    expect(geometry.dialog.top).toBeCloseTo(geometry.anchor.top, 0);
+    expect(geometry.dialog.left).toBeCloseTo(geometry.anchor.left, 0);
+
+    // The person pressed Back in the card: the card's own cancel ends the confirmation.
+    await postFromHost(page, {
+      type: 'PROGRESS',
+      requestId,
+      payload: {
+        version: 2,
+        flow: 'signing',
+        step: 5,
+        phase: 'signing.confirmation.cancelled',
+        status: 'cancelled',
+        message: 'Transaction rejected',
+        flowId: `signing:test:${requestId}`,
+        requestId,
+        interaction: { kind: 'transaction_confirmation', overlay: 'hide' },
+      },
+    });
+    await postFromHost(page, {
+      type: 'PM_RESULT',
+      requestId,
+      payload: {
+        ok: true,
+        result: { success: false, kind: 'not_submitted', error: 'Transaction rejected' },
+      },
+    });
+    await waitForStepEvent(page, 'exit');
+    const events = await stepEvents(page);
+    expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'back', 'exit']);
+    expect(events.at(-1)?.value).toEqual({ kind: 'back' });
+    const result = await page.evaluate(() => (window as unknown as ConfirmWindow).__confirmResult);
+    expect(result).toMatchObject({ success: false, kind: 'not_submitted' });
+  });
+
+  test('the card accepts input only while it is whole in view and nothing covers it', async ({
+    page,
+  }) => {
+    await sendTransaction(page, 'none');
+    await waitForStepEvent(page, 'ready');
+    await waitForSurfaceView(page, true, 0);
+    let seen = (await surfaceViews(page)).length;
+
+    // A popover that opens later paints above the card in the top layer.
+    await page.evaluate(() => {
+      const cover = document.createElement('div');
+      cover.id = 'cover';
+      cover.popover = 'manual';
+      cover.style.cssText = 'margin:0;inset:0;width:100vw;height:100vh;opacity:0.2;border:0';
+      document.body.appendChild(cover);
+      cover.showPopover();
+    });
+    await waitForSurfaceView(page, false, seen);
+    seen = (await surfaceViews(page)).length;
+    await page.evaluate(() => document.getElementById('cover')!.hidePopover());
+    await waitForSurfaceView(page, true, seen);
+    seen = (await surfaceViews(page)).length;
+
+    // Part of the card out of view.
+    await page.evaluate(() => {
+      document.getElementById('panel')!.style.transform = 'translateY(-300px)';
+    });
+    await waitForSurfaceView(page, false, seen);
+    seen = (await surfaceViews(page)).length;
+    await page.evaluate(() => {
+      document.getElementById('panel')!.style.transform = '';
+    });
+    await waitForSurfaceView(page, true, seen);
+  });
+
+  test('a transaction without a presentation keeps the Wallet modal', async ({ page }) => {
+    await sendTransaction(page);
+    const request = await waitForRequest(page, 'PM_SIGN_AND_SEND_TX');
+    expect(request.presentation).toBeUndefined();
+    await page.waitForFunction(() => {
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
+      return dialog instanceof HTMLDialogElement && dialog.matches(':modal');
+    });
+    // The modal backdrop fades in over 180 ms.
+    await page.waitForTimeout(300);
+    const dialog = await page.evaluate(() => {
+      const element = document.querySelector('dialog.seams-wallet-overlay-dialog')!;
+      return {
+        inline: element.classList.contains('seams-wallet-inline-dialog'),
+        anchoredTop: element.classList.contains('is-anchored-top'),
+        backdrop: getComputedStyle(element, '::backdrop').backgroundColor,
+      };
+    });
+    expect(dialog).toEqual({
+      inline: false,
+      anchoredTop: false,
+      backdrop: 'rgba(0, 0, 0, 0.26)',
+    });
+    await page.waitForTimeout(100);
+    expect(await surfaceViews(page)).toEqual([]);
+  });
+});
+
+test.describe('WalletStep in a React dialog', () => {
+  test.afterEach(async ({ page }) => {
+    await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
+  });
+
+  test('a sign-in step holds the app size, takes the card size, and Back keeps the app state', async ({
+    page,
+  }) => {
+    await injectImportMap(page);
+    await page.route('**/steps-react', (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}</head><body></body></html>`,
+      }),
+    );
+    await page.goto('/steps-react');
+    await registerWalletServiceRoute(
+      page,
+      buildWalletServiceHtml({ extraScript: STEP_HOST_SCRIPT }),
+      WALLET_SERVICE_ROUTE,
+    );
+    await page.evaluate(async ({ walletOrigin }) => {
+      const state = window as unknown as StepWindow & {
+        __stepOutcomes: unknown[];
+        __panelHeights: number[];
+      };
+      state.__stepEvents = [];
+      state.__stepRequests = [];
+      state.__stepOutcomes = [];
+      window.addEventListener('message', (event) => {
+        if (event.data?.type === 'TEST_STEP_REQUEST') state.__stepRequests.push(event.data.message);
+      });
+      const React = await import('react');
+      const { createRoot } = await import('react-dom/client');
+      const { SeamsWebProvider } = await import('/_test-sdk/esm/react/context/SeamsWebProvider.js');
+      const { WalletStep } = await import('/_test-sdk/esm/react/components/WalletStep.js');
+      const h = React.createElement;
+      const record = (name: string) => (value?: unknown) =>
+        state.__stepEvents.push({
+          name,
+          value,
+          hidden: false,
+          modal: false,
+          dialogHeight: 0,
+          anchorHeight: '',
+        });
+      function Dialog() {
+        const [step, setStep] = React.useState('app');
+        const [held, setHeld] = React.useState(0);
+        const panel = React.useRef<HTMLDivElement>(null);
+        const toWallet = () => {
+          setHeld(panel.current!.offsetHeight);
+          setStep('wallet');
+        };
+        return h(
+          'div',
+          { id: 'panel', ref: panel, style: { width: '420px', margin: '40px auto' } },
+          h(
+            'div',
+            { id: 'app-step', hidden: step !== 'app', style: { height: '500px' } },
+            h('input', { id: 'app-input' }),
+            h('button', { id: 'to-wallet', onClick: toWallet }, 'Sign in'),
+          ),
+          step === 'wallet'
+            ? h(WalletStep, {
+                surface: { kind: 'auth_menu' },
+                chrome: 'back',
+                initialHeight: held,
+                onEnter: record('enter'),
+                onReady: record('ready'),
+                onExit: record('exit'),
+                onBack: () => {
+                  record('back')();
+                  setStep('app');
+                },
+                onOutcome: (outcome: unknown) => state.__stepOutcomes.push(outcome),
+              })
+            : null,
+        );
+      }
+      const config = {
+        iframeWallet: { walletOrigin },
+        relayer: { url: location.origin },
+        routerAb: { normalSigning: { mode: 'enabled', signingWorkerId: 'test-worker' } },
+        registration: { projectEnvironmentId: 'proj_local:test', publishableKey: 'pk_local' },
+        appearance: { theme: { id: 'default', mode: 'light' } },
+      };
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      createRoot(container).render(
+        h(React.StrictMode, null, h(SeamsWebProvider, { config }, h(Dialog))),
+      );
+    }, { walletOrigin: WALLET_ORIGIN });
+
+    await page.fill('#app-input', 'my draft');
+    await page.click('#to-wallet');
+    const request = await waitForRequest(page, 'PM_OPEN_AUTH_MENU');
+    expect(request.payload.chrome).toBe('back');
+    // Until the card has its size, the step keeps the app step's height.
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => document.getElementById('panel')!.offsetHeight)).toBe(500);
+
+    await measureAuthMenu(
+      page,
+      { requestId: request.requestId, sessionId: request.payload.authMenuSessionId },
+      1,
+      { width: 420, height: 300 },
+    );
+    await waitForStepEvent(page, 'ready');
+    expect(await page.evaluate(() => document.getElementById('panel')!.offsetHeight)).toBe(300);
+
+    await postFromHost(page, {
+      type: 'PM_RESULT',
+      requestId: request.requestId,
+      payload: {
+        ok: true,
+        result: {
+          kind: 'cancelled',
+          authMenuSessionId: request.payload.authMenuSessionId,
+          reason: 'close_button',
+        },
+      },
+    });
+    await expect(page.locator('#app-step')).toBeVisible();
+    await expect(page.locator('#app-input')).toHaveValue('my draft');
+    const outcomes = await page.evaluate(
+      () => (window as unknown as { __stepOutcomes: unknown[] }).__stepOutcomes,
+    );
+    expect(outcomes).toEqual([
+      {
+        kind: 'auth_menu',
+        outcome: {
+          kind: 'cancelled',
+          authMenuSessionId: request.payload.authMenuSessionId,
+          reason: 'close_button',
+        },
+      },
+    ]);
   });
 });

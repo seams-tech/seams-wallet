@@ -21,6 +21,10 @@ import type {
 } from '@/core/types/seams';
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
 import type { AuthMenuCapability, ConfigCapability, ConnectionCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
+import {
+  createWalletSurfacesCapability,
+  type WalletSurfacesCapability,
+} from '@/SeamsWeb/publicApi/surfaces';
 import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type {
   AuthCapability,
@@ -74,6 +78,8 @@ export class SeamsWeb {
   readonly events: EventsCapability;
   readonly connection: ConnectionCapability;
   readonly authMenu: AuthMenuCapability;
+  /** Wallet cards shown as steps of the app's own dialog. */
+  readonly surfaces: WalletSurfacesCapability;
   private readonly walletIframe: WalletIframeCoordinator;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
@@ -133,6 +139,7 @@ export class SeamsWeb {
         this.walletIframe,
       ),
     };
+    this.surfaces = createWalletSurfacesCapability(this.authMenu);
     this.placement = createApplicationPlacementCommands(this.walletIframe);
     const preferences = createApplicationPreferences(userPreferences, this.walletIframe);
     this.disposePreferences = preferences.dispose;

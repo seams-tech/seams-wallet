@@ -10,12 +10,15 @@ import {
   anchorWalletIframeModalGeometry,
   type WalletIframeModalGeometry,
 } from './surface/geometry';
-import type {
-  WalletStepChrome,
-  WalletStepEvents,
-  WalletStepExit,
-  WalletStepSize,
+import {
+  walletStepExitForDismissal,
+  type WalletStepChrome,
+  type WalletStepEvents,
+  type WalletStepExit,
+  type WalletStepSize,
 } from '../shared/walletStep';
+import { asRecord } from '@shared/utils/validation';
+import type { HostedAuthMenuOutcome } from '../shared/messages';
 
 const ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
 const PLACEHOLDER_OPACITY_CSS_VAR = '--seams-auth-menu-placeholder-opacity';
@@ -36,7 +39,32 @@ export type AnchoredSurfaceOptions = WalletStepEvents &
     anchor: HTMLElement;
     layer: AnchoredSurfaceLayer;
     chrome: WalletStepChrome;
+    /**
+     * Checks on every frame whether the whole card is in view and uncovered, and reports each
+     * change to the Wallet host, which holds the card's controls until then.
+     */
+    view?: Readonly<{ check: () => boolean; report: (unobstructed: boolean) => void }>;
   }>;
+
+/** How a request of an anchored card settled. */
+export type AnchoredSurfaceSettlement =
+  | Readonly<{ kind: 'result'; result: unknown }>
+  | Readonly<{ kind: 'error'; error: unknown }>;
+
+// Result kinds of the card's flows that report a failure rather than a finished job.
+const FAILED_RESULT_KINDS = new Set([
+  'failed',
+  'refused',
+  'unavailable',
+  'not_submitted',
+  'submission_unknown',
+  'reverted',
+  'unresolved',
+]);
+
+function isCancellation(error: unknown): boolean {
+  return asRecord(error)?.code === 'cancelled';
+}
 
 /** The events and layer of an anchored card. The call gives the anchor and the chrome. */
 export type AnchoredSurfaceStep = WalletStepEvents & Readonly<{ layer?: AnchoredSurfaceLayer }>;
@@ -123,6 +151,44 @@ function anchorPositionKey(anchor: HTMLElement): string {
   ].join(',');
 }
 
+/** How an auth-menu card ended, for its step events. */
+export function authMenuStepExit(
+  outcome: HostedAuthMenuOutcome,
+  chrome: WalletStepChrome,
+): WalletStepExit {
+  switch (outcome.kind) {
+    case 'cancelled':
+      return outcome.reason === 'close_button'
+        ? walletStepExitForDismissal(chrome)
+        : { kind: 'cancelled' };
+    case 'failed':
+      return { kind: 'failed' };
+    default:
+      return { kind: 'completed' };
+  }
+}
+
+function pageScrollOffsetCssPx(axis: 'x' | 'y'): number {
+  const value = axis === 'x' ? window.scrollX : window.scrollY;
+  return Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * An anchored dialog is position:absolute, so it takes DOCUMENT coordinates. Scrolling then
+ * moves it with the page on the compositor thread (no fixed-position lag), and because anchor
+ * viewport movement and the scroll offset cancel out, scroll events re-derive identical geometry
+ * and the render pipeline short-circuits.
+ */
+export function documentCoordinateGeometry(
+  geometry: WalletIframeModalGeometry,
+): WalletIframeModalGeometry {
+  return {
+    ...geometry,
+    topCssPx: Math.round(geometry.topCssPx + pageScrollOffsetCssPx('y')),
+    leftCssPx: Math.round(geometry.leftCssPx + pageScrollOffsetCssPx('x')),
+  };
+}
+
 function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -154,6 +220,8 @@ export class AnchoredSurface {
   private frame: number | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private position = '';
+  private unobstructed: boolean | null = null;
+  private dismissedInCard = false;
 
   constructor(
     readonly options: AnchoredSurfaceOptions,
@@ -247,25 +315,45 @@ export class AnchoredSurface {
     };
   }
 
+  /** The person ended the card with its own Back, Close or cancel control. */
+  dismissed(): void {
+    this.dismissedInCard = true;
+  }
+
+  /** How the card ended, from its request's settlement. It carries no approval data. */
+  exitFor(settlement: AnchoredSurfaceSettlement): WalletStepExit {
+    if (this.dismissedInCard) return walletStepExitForDismissal(this.options.chrome);
+    if (settlement.kind === 'error') {
+      return { kind: isCancellation(settlement.error) ? 'cancelled' : 'failed' };
+    }
+    const result = asRecord(settlement.result);
+    if (result?.kind === 'cancelled') return walletStepExitForDismissal(this.options.chrome);
+    if (result?.success === false || FAILED_RESULT_KINDS.has(String(result?.kind))) {
+      return { kind: 'failed' };
+    }
+    return { kind: 'completed' };
+  }
+
   /** The router painted the revealed card at the anchor. */
   painted(): void {
     if (this.revealed) markAnchorReady(this.anchor);
   }
 
-  /** The card ended. Back and Close run now; onExit runs when the card has faded out. */
-  finish(exit: WalletStepExit): void {
+  /**
+   * The card ended. Back and Close run now. onExit runs in the first frame after `gone`, when
+   * the overlay has faded the card out and hidden it.
+   */
+  finish(exit: WalletStepExit, gone: Promise<void>): void {
     if (this.phase.kind === 'exited') return;
-    const shown = this.revealed;
     this.phase = { kind: 'exited' };
     this.stop();
     endAnchoredSurfaceAnchor(this.anchor);
     if (exit.kind === 'back') notify(this.options.onBack, undefined);
     if (exit.kind === 'closed') notify(this.options.onClose, undefined);
     const onExit = (): void => notify(this.options.onExit, exit);
-    // The overlay hides the dialog when its fade finishes; the frame after that has no card.
-    if (shown && !prefersReducedMotion()) {
-      setTimeout(requestAnimationFrame.bind(null, onExit), ANCHORED_SURFACE_FADE_MS);
-    } else queueMicrotask(onExit);
+    // A card that some other surface keeps on screen still ends for the app within a second.
+    const limit = new Promise<void>((resolve) => setTimeout(resolve, 1_000));
+    void Promise.race([gone, limit]).then(() => requestAnimationFrame(onExit));
   }
 
   private readonly reveal = (): void => {
@@ -295,8 +383,18 @@ export class AnchoredSurface {
       // A render can end the card, when the anchor has left the document.
       this.render();
     }
+    this.checkView();
     if (!this.exited) this.frame = requestAnimationFrame(this.track);
   };
+
+  private checkView(): void {
+    const view = this.options.view;
+    if (!view || this.exited) return;
+    const unobstructed = this.revealed && view.check();
+    if (unobstructed === this.unobstructed) return;
+    this.unobstructed = unobstructed;
+    view.report(unobstructed);
+  }
 
   private get exited(): boolean {
     return this.phase.kind === 'exited';

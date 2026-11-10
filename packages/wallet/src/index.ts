@@ -89,6 +89,16 @@ export type {
   AnchoredSurfaceLayer,
   AnchoredSurfaceStep,
 } from './SeamsWeb/walletIframe/client/anchoredSurface';
+export type {
+  AnchoredWalletPresentation,
+  WalletSurfacePresentation,
+} from './SeamsWeb/walletIframe/shared/walletStep';
+export type {
+  MountedWalletSurface,
+  WalletSurfaceMountOptions,
+  WalletSurfaceSend,
+  WalletSurfacesCapability,
+} from './SeamsWeb/publicApi/surfaces';
 export { BrowserCapabilityUnavailableError } from './SeamsWeb/publicApi/capabilitySelection';
 export type {
   BrowserCapabilitySelectionResult,

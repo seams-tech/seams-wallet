@@ -82,6 +82,7 @@ class EvmFamilySigner {
       walletSession,
       chainTarget,
       request: args.request,
+      presentation: args.presentation,
       options: args.options,
     });
   }

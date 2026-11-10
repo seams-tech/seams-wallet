@@ -29,6 +29,7 @@ const CLASS_AUTH_MENU = 'is-auth-menu';
 const CLASS_HAS_GEOMETRY = 'has-geometry';
 const CLASS_RESIZE_ANIMATED = 'is-resize-animated';
 const CLASS_REVEAL_PENDING = 'is-reveal-pending';
+const CLASS_ANCHORED_TOP = 'is-anchored-top';
 const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
 const DIALOG_SELECTOR = `dialog[data-seams-root].${CLASS_BASE}.${CLASS_DIALOG}`;
 // The quieter elevation of a card that sits on the page rather than over a backdrop.
@@ -219,6 +220,16 @@ const BASE_CSS = `
   ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}::backdrop {
     background: transparent;
   }
+  /* A top-layer card in an app's dialog takes its elevation from the dialog's own shadow, not
+     a filter: the card's frame checks its own visibility, and a browser treats a filter on the
+     frame as an effect that hides it. */
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}.${CLASS_ANCHORED_TOP} {
+    border-radius: min(var(--seams-shape-card, 16px), 2rem);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 10px 20px rgb(15 23 42 / 0.1);
+  }
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}.${CLASS_ANCHORED_TOP} iframe.${CLASS_IFRAME} {
+    filter: none;
+  }
   /* The dialog must NOT animate its own resize. The auth-menu card inside the
      iframe animates its height, and a ResizeObserver posts every intermediate
      frame out to this dialog. Transitioning here would make the host box ease
@@ -402,6 +413,7 @@ export function setDialogAnchored(
   // layer no top layer and no z-index escape above host page chrome.
   const anchored = args.layer !== null;
   dialog.classList.toggle(CLASS_INLINE_DIALOG, anchored);
+  dialog.classList.toggle(CLASS_ANCHORED_TOP, args.layer === 'top');
   dialog.classList.toggle(CLASS_RESIZE_ANIMATED, anchored && args.animateResize);
 }
 

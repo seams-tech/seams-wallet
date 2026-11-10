@@ -30,6 +30,7 @@
     "typecheck/wallet-signing-lifecycle.typecheck.ts",
     "typecheck/external-evm-state.typecheck.ts",
     "typecheck/transaction-review.typecheck.ts",
+    "typecheck/wallet-steps.typecheck.ts",
     "typecheck/voiceid-auth-method-plugin.typecheck.ts",
     "typecheck/speak-to-sign-api.typecheck.ts",
     "typecheck/seams-context.typecheck.ts",

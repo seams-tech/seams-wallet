@@ -5,6 +5,7 @@ import type {
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { AnchoredSurfaceStep } from '@/SeamsWeb/walletIframe/client/anchoredSurface';
+import type { WalletSurfacePresentation } from '@/SeamsWeb/walletIframe/shared/walletStep';
 import type {
   ExternalAuthenticateInput,
   ExternalAuthAttempt,
@@ -247,6 +248,8 @@ export type SignTempoArgs = {
   request: TempoSigningRequest;
   /** A configured Tempo network slug, or an exact target. */
   chainTarget: TempoChainSelector;
+  /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+  presentation?: WalletSurfacePresentation;
   options?: {
     confirmationConfig?: Partial<ConfirmationConfig>;
     /** Internal host-only cancellation probe; ignored in wallet-router calls. */
@@ -261,6 +264,8 @@ export type SignEvmTransactionArgs = {
   request: EvmSigningRequest;
   /** A configured EVM network slug, or an exact target. */
   chainTarget: EvmChainSelector;
+  /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+  presentation?: WalletSurfacePresentation;
   options?: {
     confirmationConfig?: Partial<ConfirmationConfig>;
     /** Internal host-only cancellation probe; ignored in wallet-router calls. */
@@ -400,6 +405,8 @@ type ExecuteEvmFamilyTransactionBaseArgs = {
   walletSession?: WalletSessionInput;
   /** A configured EVM-family network slug, or an exact target. */
   chainTarget: EcdsaChainSelector;
+  /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+  presentation?: WalletSurfacePresentation;
   postFinalizationCheck?: () => Promise<void>;
   finalization?: {
     timeoutMs?: number;
@@ -836,6 +843,8 @@ export interface NearSignerCapability {
       receiverId: string;
       actions: ActionArgs[];
       options?: SignAndSendTransactionHooksOptions;
+      /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+      presentation?: WalletSurfacePresentation;
     },
   ): Promise<ActionResult>;
 

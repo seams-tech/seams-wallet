@@ -7,10 +7,39 @@ import {
   type TransactionReviewValidity,
   type TransactionReviewWire,
 } from '../shared/transactionReview';
+import {
+  assertAnchoredPresentation,
+  type AnchoredWalletPresentation,
+  type WalletSurfacePresentation,
+} from '../shared/walletStep';
 
 export type TransactionDispatch =
-  | { readonly kind: 'ordinary'; readonly reservation?: never }
-  | { readonly kind: 'reviewed'; readonly reservation: TransactionReviewReservation };
+  | { readonly kind: 'ordinary'; readonly reservation?: never; readonly presentation?: never }
+  | {
+      readonly kind: 'reviewed';
+      readonly reservation: TransactionReviewReservation;
+      readonly presentation?: never;
+    }
+  | {
+      readonly kind: 'anchored';
+      readonly presentation: AnchoredWalletPresentation;
+      readonly reservation?: never;
+    };
+
+/** A call that asks for an anchored card replaces an ordinary dispatch for that call. */
+export function dispatchWithPresentation(
+  dispatch: TransactionDispatch,
+  presentation: WalletSurfacePresentation | undefined,
+): TransactionDispatch {
+  if (presentation === undefined || presentation.kind === 'modal') return dispatch;
+  if (dispatch.kind === 'reviewed') {
+    throw new TransactionReviewError(
+      'review_invalid_input',
+      'A reviewed transaction shows in the Wallet modal and takes no anchored presentation',
+    );
+  }
+  return { kind: 'anchored', presentation: assertAnchoredPresentation(presentation) };
+}
 
 export type TransactionReviewReservationState =
   | { readonly kind: 'reviewing'; readonly prepared?: never }

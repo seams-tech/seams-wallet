@@ -26,6 +26,7 @@ import {
 } from './PasskeyRegistrationContent';
 import { EmailOtpContent, type EmailOtpContentProps } from './EmailOtpContent';
 import { PadlockIcon } from './PadlockIcon';
+import { anchoredCardChrome } from '../../anchoredCard';
 import { copySurfaceText } from './clipboard';
 import {
   TransactionReview,
@@ -202,21 +203,27 @@ export class ConfirmationContent extends Component<{
     );
   }
 
-  /** The origin the request came from, with the review's back and close controls. */
+  /**
+   * The origin the request came from, with the review's back and close controls. A card in an
+   * app's dialog with `chrome: 'back'` shows Back in place of close; both end the card.
+   */
   private renderToolbar(
     model: Extract<ConfirmationContentModel, { kind: 'transaction' }>,
     decision: { readonly kind: string },
   ): ComponentChildren {
+    const stepBack = anchoredCardChrome() === 'back';
+    const back = stepBack ? model.transaction.onCancel : model.transaction.onBack;
+    const backLabel = walletText(this.context, stepBack ? 'Back' : 'Back to review');
     return (
       <div class="seams-review-toolbar">
         <div class="seams-review-origin">
-          {model.transaction.onBack && (
+          {back && (
             <button
               type="button"
-              aria-label={walletText(this.context, 'Back to review')}
-              title={walletText(this.context, 'Back to review')}
-              disabled={decision.kind === 'preparing'}
-              onClick={model.transaction.onBack}
+              aria-label={backLabel}
+              title={backLabel}
+              disabled={decision.kind === 'preparing' && !stepBack}
+              onClick={back}
             >
               <ReviewIcon kind="back" />
             </button>
@@ -228,13 +235,15 @@ export class ConfirmationContent extends Component<{
             <LoadingStatus label={walletText(this.context, 'Loading website')} />
           )}
         </div>
-        <button
-          type="button"
-          aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
-          onClick={model.transaction.onCancel}
-        >
-          <ReviewIcon kind="close" />
-        </button>
+        {!stepBack && (
+          <button
+            type="button"
+            aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
+            onClick={model.transaction.onCancel}
+          >
+            <ReviewIcon kind="close" />
+          </button>
+        )}
       </div>
     );
   }

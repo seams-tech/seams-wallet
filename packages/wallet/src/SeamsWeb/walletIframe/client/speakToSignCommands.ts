@@ -10,6 +10,8 @@ import type {
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
 import type { WalletIframeCoordinator } from '../coordinator';
+import type { WalletSurfacePresentation } from '../shared/walletStep';
+import { dispatchWithPresentation, type TransactionDispatch } from './transactionReviewReservation';
 import type { ProgressPayload } from '../shared/messages';
 import {
   parseSpeakToSignEnrollmentResult,
@@ -41,6 +43,7 @@ type SpeakToSignPost = (
   options: {
     readonly timeout: 'interactive';
     readonly onProgress?: (payload: ProgressPayload) => void;
+    readonly transactionDispatch?: TransactionDispatch;
   },
 ) => Promise<{ readonly result?: unknown }>;
 
@@ -57,21 +60,36 @@ function progressListener(
   };
 }
 
+/** A Speak-to-Sign request can show its VoiceID card in the app's own dialog. */
+export type WithPresentation<T> = T &
+  Readonly<{
+    /** Shows the VoiceID card in the app's own dialog. Omitted: the Wallet's own modal. */
+    presentation?: WalletSurfacePresentation;
+  }>;
+
 export type SpeakToSignTransferCommand = (
-  request: SpeakToSignTransferRequest,
+  request: WithPresentation<SpeakToSignTransferRequest>,
 ) => Promise<SpeakToSignTransferResult>;
 
 export type SpeakToSignEnrollCommand = (
-  request: SpeakToSignEnrollmentRequest,
+  request: WithPresentation<SpeakToSignEnrollmentRequest>,
 ) => Promise<SpeakToSignEnrollmentResult>;
 
 export type SpeakToSignCommands = Readonly<{
   requestTransfer: SpeakToSignTransferCommand;
-  requestNote(request: SpeakToSignNoteRequest): Promise<SpeakToSignNoteResult>;
-  requestRating(request: SpeakToSignRatingRequest): Promise<SpeakToSignNoteResult>;
-  requestMergeApproval(request: SpeakToSignMergeApprovalRequest): Promise<SpeakToSignNoteResult>;
+  requestNote(request: WithPresentation<SpeakToSignNoteRequest>): Promise<SpeakToSignNoteResult>;
+  requestRating(
+    request: WithPresentation<SpeakToSignRatingRequest>,
+  ): Promise<SpeakToSignNoteResult>;
+  requestMergeApproval(
+    request: WithPresentation<SpeakToSignMergeApprovalRequest>,
+  ): Promise<SpeakToSignNoteResult>;
   enroll: SpeakToSignEnrollCommand;
 }>;
+
+function speakToSignDispatch(request: WithPresentation<object>): TransactionDispatch {
+  return dispatchWithPresentation({ kind: 'ordinary' }, request.presentation);
+}
 
 export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToSignCommands {
   return {
@@ -85,7 +103,7 @@ export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToS
 
 async function requestNoteFromHost(
   post: SpeakToSignPost,
-  request: SpeakToSignNoteRequest,
+  request: WithPresentation<SpeakToSignNoteRequest>,
 ): Promise<SpeakToSignNoteResult> {
   return await postNoteAction(post, request, {
     kind: 'community_note',
@@ -98,7 +116,7 @@ async function requestNoteFromHost(
 
 async function requestRatingFromHost(
   post: SpeakToSignPost,
-  request: SpeakToSignRatingRequest,
+  request: WithPresentation<SpeakToSignRatingRequest>,
 ): Promise<SpeakToSignNoteResult> {
   return await postNoteAction(post, request, {
     kind: 'note_rating',
@@ -110,7 +128,7 @@ async function requestRatingFromHost(
 
 async function requestMergeApprovalFromHost(
   post: SpeakToSignPost,
-  request: SpeakToSignMergeApprovalRequest,
+  request: WithPresentation<SpeakToSignMergeApprovalRequest>,
 ): Promise<SpeakToSignNoteResult> {
   return await postNoteAction(post, request, {
     kind: 'merge_approval',
@@ -124,20 +142,26 @@ async function requestMergeApprovalFromHost(
 
 async function postNoteAction(
   post: SpeakToSignPost,
-  request: SpeakToSignNoteRequest | SpeakToSignRatingRequest | SpeakToSignMergeApprovalRequest,
+  request: WithPresentation<
+    SpeakToSignNoteRequest | SpeakToSignRatingRequest | SpeakToSignMergeApprovalRequest
+  >,
   action: PMSpeakToSignNotePayload['action'],
 ): Promise<SpeakToSignNoteResult> {
   const payload = parseSpeakToSignNotePayload({ walletId: request.walletId, action });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_NOTE', payload },
-    { timeout: 'interactive', onProgress: progressListener(request.onProgress) },
+    {
+      timeout: 'interactive',
+      onProgress: progressListener(request.onProgress),
+      transactionDispatch: speakToSignDispatch(request),
+    },
   );
   return parseSpeakToSignNoteResult(response.result);
 }
 
 async function requestTransferFromHost(
   post: SpeakToSignPost,
-  request: SpeakToSignTransferRequest,
+  request: WithPresentation<SpeakToSignTransferRequest>,
 ): Promise<SpeakToSignTransferResult> {
   const payload = parseSpeakToSignTransferPayload({
     walletId: request.walletId,
@@ -146,19 +170,23 @@ async function requestTransferFromHost(
   });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_TRANSFER', payload },
-    { timeout: 'interactive', onProgress: progressListener(request.onProgress) },
+    {
+      timeout: 'interactive',
+      onProgress: progressListener(request.onProgress),
+      transactionDispatch: speakToSignDispatch(request),
+    },
   );
   return parseSpeakToSignTransferResult(response.result);
 }
 
 async function enrollFromHost(
   post: SpeakToSignPost,
-  request: SpeakToSignEnrollmentRequest,
+  request: WithPresentation<SpeakToSignEnrollmentRequest>,
 ): Promise<SpeakToSignEnrollmentResult> {
   const payload = parseSpeakToSignEnrollPayload({ walletId: request.walletId });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_ENROLL', payload },
-    { timeout: 'interactive' },
+    { timeout: 'interactive', transactionDispatch: speakToSignDispatch(request) },
   );
   return parseSpeakToSignEnrollmentResult(response.result);
 }
@@ -178,7 +206,7 @@ export function createApplicationSpeakToSignCommands(
 
 async function requestNoteFromIframe(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-  request: SpeakToSignNoteRequest,
+  request: WithPresentation<SpeakToSignNoteRequest>,
 ): Promise<SpeakToSignNoteResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestNote(request);
@@ -186,7 +214,7 @@ async function requestNoteFromIframe(
 
 async function requestRatingFromIframe(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-  request: SpeakToSignRatingRequest,
+  request: WithPresentation<SpeakToSignRatingRequest>,
 ): Promise<SpeakToSignNoteResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestRating(request);
@@ -194,7 +222,7 @@ async function requestRatingFromIframe(
 
 async function requestMergeApprovalFromIframe(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-  request: SpeakToSignMergeApprovalRequest,
+  request: WithPresentation<SpeakToSignMergeApprovalRequest>,
 ): Promise<SpeakToSignNoteResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestMergeApproval(request);
@@ -202,7 +230,7 @@ async function requestMergeApprovalFromIframe(
 
 async function requestTransferFromIframe(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-  request: SpeakToSignTransferRequest,
+  request: WithPresentation<SpeakToSignTransferRequest>,
 ): Promise<SpeakToSignTransferResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestTransfer(request);
@@ -210,7 +238,7 @@ async function requestTransferFromIframe(
 
 async function enrollFromIframe(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
-  request: SpeakToSignEnrollmentRequest,
+  request: WithPresentation<SpeakToSignEnrollmentRequest>,
 ): Promise<SpeakToSignEnrollmentResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.enroll(request);

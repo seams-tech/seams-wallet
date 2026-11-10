@@ -212,6 +212,93 @@ function ignoreDismissFailure(error: unknown): void {
   void error;
 }
 
+/**
+ * Top-layer elements that open after a top-layer card: popovers, modal dialogs and a fullscreen
+ * element. Each one paints above the card.
+ */
+class LaterTopLayer {
+  private readonly opened = new Set<Element>();
+  private card: HTMLDialogElement | null = null;
+  private observer: MutationObserver | null = null;
+
+  watch(card: HTMLDialogElement): void {
+    this.stop();
+    this.card = card;
+    document.addEventListener('toggle', this.onToggle, true);
+    document.addEventListener('fullscreenchange', this.onFullscreen);
+    this.observer = new MutationObserver(this.onDialogs);
+    this.observer.observe(document.documentElement, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['open'],
+    });
+  }
+
+  stop(): void {
+    this.card = null;
+    this.opened.clear();
+    document.removeEventListener('toggle', this.onToggle, true);
+    document.removeEventListener('fullscreenchange', this.onFullscreen);
+    this.observer?.disconnect();
+    this.observer = null;
+  }
+
+  /** A later modal dialog or fullscreen element covers all; a popover covers its own box. */
+  covers(card: DOMRect): boolean {
+    for (const element of this.opened) {
+      if (!element.isConnected || !isOpenTopLayer(element)) {
+        this.opened.delete(element);
+        continue;
+      }
+      if (element instanceof HTMLDialogElement || element === document.fullscreenElement) {
+        return true;
+      }
+      const box = element.getBoundingClientRect();
+      if (
+        box.left < card.right &&
+        box.right > card.left &&
+        box.top < card.bottom &&
+        box.bottom > card.top
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private note(element: Element | null | undefined): void {
+    if (element && element !== this.card && !this.card?.contains(element)) {
+      this.opened.add(element);
+    }
+  }
+
+  private readonly onToggle = (event: Event): void => {
+    if ((event as ToggleEvent).newState === 'open' && event.target instanceof Element) {
+      this.note(event.target);
+    }
+  };
+
+  private readonly onFullscreen = (): void => {
+    this.note(document.fullscreenElement);
+  };
+
+  private readonly onDialogs = (records: MutationRecord[]): void => {
+    for (const record of records) {
+      if (record.target instanceof HTMLDialogElement && record.target.open) {
+        this.note(record.target);
+      }
+    }
+  };
+}
+
+function isOpenTopLayer(element: Element): boolean {
+  return (
+    element.matches(':popover-open') ||
+    (element instanceof HTMLDialogElement && element.matches(':modal')) ||
+    element === document.fullscreenElement
+  );
+}
+
 export class OverlayController {
   private readonly ensureIframe: (mountParent?: HTMLElement) => HTMLIFrameElement;
   private dismissHandler: ((event: OverlayDismissEvent) => void | Promise<void>) | undefined;
@@ -237,6 +324,8 @@ export class OverlayController {
   private surfaceResizeTimer: ReturnType<typeof setTimeout> | null = null;
   private reviewReveal: TransactionReviewReveal | null = null;
   private anchoredFade: Animation | null = null;
+  private goneWaiters: Array<() => void> = [];
+  private readonly laterTopLayer = new LaterTopLayer();
 
   constructor(opts: OverlayControllerOptions) {
     this.ensureIframe = opts.ensureIframe;
@@ -266,6 +355,59 @@ export class OverlayController {
 
   setTransactionReviewReveal(reveal: TransactionReviewReveal | null): void {
     this.reviewReveal = reveal;
+  }
+
+  /**
+   * True when the shown card's whole box is in the visual viewport, fully opaque, and on top at
+   * each sample point. A card that any page element or later top-layer element covers fails.
+   */
+  isSurfaceUnobstructed(): boolean {
+    const { dialog, iframe } = this;
+    if (!dialog || !iframe || !this.visible || this.anchoredFade?.playState === 'running') {
+      return false;
+    }
+    if (dialog.classList.contains(OverlayStyleClasses.PROVISIONAL)) return false;
+    if (getComputedStyle(dialog).opacity !== '1') return false;
+    const rect = iframe.getBoundingClientRect();
+    const visual = window.visualViewport;
+    const left = visual?.offsetLeft ?? 0;
+    const top = visual?.offsetTop ?? 0;
+    const right = left + (visual?.width ?? window.innerWidth);
+    const bottom = top + (visual?.height ?? window.innerHeight);
+    if (
+      rect.width <= 0 ||
+      rect.left < left - 0.5 ||
+      rect.top < top - 0.5 ||
+      rect.right > right + 0.5 ||
+      rect.bottom > bottom + 0.5
+    ) {
+      return false;
+    }
+    // A modal card makes the rest of the page inert, and hit testing skips inert elements: a
+    // popover or dialog opened later paints above the card but never answers elementFromPoint.
+    if (this.laterTopLayer.covers(rect)) return false;
+    for (const x of [0.04, 0.5, 0.96]) {
+      for (const y of [0.04, 0.5, 0.96]) {
+        const hit = document.elementFromPoint(
+          rect.left + rect.width * x,
+          rect.top + rect.height * y,
+        );
+        if (hit !== iframe) return false;
+      }
+    }
+    return true;
+  }
+
+  /** Resolves when the shown card has left the screen, or when another card takes its place. */
+  whenSurfaceGone(): Promise<void> {
+    if (!this.visible && !this.anchoredFade) return Promise.resolve();
+    return new Promise((resolve) => this.goneWaiters.push(resolve));
+  }
+
+  private settleGone(): void {
+    const waiters = this.goneWaiters;
+    this.goneWaiters = [];
+    for (const resolve of waiters) resolve();
   }
 
   getSurfaceRect(): TransactionReviewRect | null {
@@ -378,6 +520,9 @@ export class OverlayController {
       this.cancelSurfaceResize();
       this.generation += 1;
       this.pointerCapture = null;
+      this.settleGone();
+      if (mode.anchoredLayer === 'top') this.laterTopLayer.watch(dialog);
+      else this.laterTopLayer.stop();
     }
     this.mode = mode;
     this.visible = true;
@@ -734,9 +879,11 @@ export class OverlayController {
       this.closeDialogProgrammatically(this.dialog);
     }
     this.dialogDisplayMode = null;
+    this.laterTopLayer.stop();
     if (wasVisible) {
       this.restoreCapturedFocus();
     }
+    this.settleGone();
   }
 
   /** Fades an anchored card in or out. Returns false when no fade runs. */
@@ -876,6 +1023,8 @@ export class OverlayController {
 
   dispose(): void {
     this.cancelAnchoredFade();
+    this.laterTopLayer.stop();
+    this.settleGone();
     this.cancelReviewHandoff();
     this.cancelPendingReveal();
     this.cancelSurfaceResize();

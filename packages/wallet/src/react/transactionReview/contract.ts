@@ -96,8 +96,10 @@ export function validateTransactionReview(input: unknown): TransactionReview {
 export type ReviewedTransactionInput<T> = T extends { options?: infer Options }
   ?
       | (T & { readonly review?: never })
-      | (Omit<T, 'options'> & {
+      | (Omit<T, 'options' | 'presentation'> & {
           readonly review: TransactionReview;
+          /** A reviewed transaction shows in the Wallet's own modal. */
+          readonly presentation?: never;
           readonly options?: Omit<NonNullable<Options>, 'confirmationConfig'> & {
             readonly confirmationConfig?: {
               readonly uiMode?: 'modal';

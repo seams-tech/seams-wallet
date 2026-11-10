@@ -329,6 +329,12 @@ export type {
   WalletStepSize,
 } from '../SeamsWeb/walletIframe/shared/walletStep';
 export type { AnchoredSurfaceLayer } from '../SeamsWeb/walletIframe/client/anchoredSurface';
+export type {
+  AnchoredWalletPresentation,
+  WalletSurfacePresentation,
+} from '../SeamsWeb/walletIframe/shared/walletStep';
+export { WalletStep } from './components/WalletStep';
+export type { WalletStepOutcome, WalletStepProps, WalletStepSurface } from './components/WalletStep';
 
 export type { AccountMenuButtonMockProps } from './components/AccountMenuButton';
 

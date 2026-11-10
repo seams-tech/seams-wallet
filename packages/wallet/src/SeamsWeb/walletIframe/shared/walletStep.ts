@@ -1,3 +1,5 @@
+import { asRecord, isBoolean, isNonEmptyString } from '@shared/utils/validation';
+
 /**
  * A Wallet card can show as one step of an app's own dialog: the SDK places the card over an
  * element in the app's layout (the anchor) and tells the app what the card does. These events
@@ -42,4 +44,64 @@ export function parseWalletStepChrome(value: unknown): WalletStepChrome | null {
 /** The exit of a card whose own cancel ran: the chrome says which control the person pressed. */
 export function walletStepExitForDismissal(chrome: WalletStepChrome): WalletStepExit {
   return { kind: chrome === 'back' ? 'back' : 'closed' };
+}
+
+/**
+ * Places a Wallet card in the app's own dialog, over `anchor`. The card paints in the top layer,
+ * above all app content, and needs explicit approval (`behavior: 'requireClick'`).
+ */
+export type AnchoredWalletPresentation = WalletStepEvents &
+  Readonly<{
+    kind: 'anchored';
+    anchor: HTMLElement;
+    /** Back or Close inside the card. Defaults to none: the card keeps only its own controls. */
+    chrome?: WalletStepChrome;
+    /** Aborting it ends the card as cancelled. */
+    signal?: AbortSignal;
+  }>;
+
+/** Where a Wallet card shows. Without a presentation, it shows in the Wallet's own modal. */
+export type WalletSurfacePresentation = Readonly<{ kind: 'modal' }> | AnchoredWalletPresentation;
+
+/**
+ * The anchored presentation on a request envelope. The Wallet host draws the chrome, and it
+ * holds the card's controls until the parent reports the whole card in view and uncovered.
+ */
+export type WalletSurfacePresentationWire = Readonly<{
+  kind: 'anchored_v1';
+  chrome: WalletStepChrome;
+}>;
+
+export function parseWalletSurfacePresentationWire(
+  value: unknown,
+): WalletSurfacePresentationWire | null {
+  const record = asRecord(value);
+  const chrome = parseWalletStepChrome(record?.chrome);
+  return record?.kind === 'anchored_v1' && chrome && Object.keys(record).length === 2
+    ? { kind: 'anchored_v1', chrome }
+    : null;
+}
+
+/** The parent's view of an anchored card: in view and uncovered, or not. */
+export type WalletSurfaceViewPayload = Readonly<{ requestId: string; unobstructed: boolean }>;
+
+export function parseWalletSurfaceViewPayload(value: unknown): WalletSurfaceViewPayload | null {
+  const record = asRecord(value);
+  return record && isNonEmptyString(record.requestId) && isBoolean(record.unobstructed)
+    ? { requestId: record.requestId, unobstructed: record.unobstructed }
+    : null;
+}
+
+/** An anchored card works only with an explicit approval in the Wallet's own card. */
+export function assertAnchoredPresentation(value: unknown): AnchoredWalletPresentation {
+  const presentation = (value ?? {}) as Partial<AnchoredWalletPresentation>;
+  if (
+    presentation.kind !== 'anchored' ||
+    typeof HTMLElement === 'undefined' ||
+    !(presentation.anchor instanceof HTMLElement) ||
+    (presentation.chrome !== undefined && parseWalletStepChrome(presentation.chrome) === null)
+  ) {
+    throw new Error('An anchored presentation needs an anchor element and a valid chrome');
+  }
+  return presentation as AnchoredWalletPresentation;
 }

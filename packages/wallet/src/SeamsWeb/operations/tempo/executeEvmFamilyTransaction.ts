@@ -46,6 +46,7 @@ export type EvmFamilyTransactionSignArgs = {
   walletSession: WalletSessionRef;
   request: EvmSigningRequest | TempoSigningRequest;
   chainTarget: ThresholdEcdsaChainTarget;
+  presentation?: ExecuteEvmFamilyTransactionArgs['presentation'];
   options?: ExecuteEvmFamilyTransactionArgs['options'];
 };
 
@@ -598,6 +599,7 @@ export async function executeEvmFamilyTransactionLifecycle(args: {
       walletSession: args.input.walletSession,
       request,
       chainTarget: args.input.chainTarget,
+      presentation: args.input.presentation,
       options: args.input.options
         ? {
             ...(args.input.options.confirmationConfig

@@ -8,6 +8,7 @@ import type {
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
+import type { WithPresentation } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 import {
   findWalletTransactionFeature,
   type SpeakToSignNetwork,
@@ -22,30 +23,30 @@ export type SpeakToSignCapability = Readonly<{
    * from the owner's account. An accepted verdict needs no confirm; a policy rule can ask for a
    * passkey.
    */
-  requestTransfer(request: SpeakToSignTransferRequest): Promise<SpeakToSignTransferResult>;
+  requestTransfer(request: WithPresentation<SpeakToSignTransferRequest>): Promise<SpeakToSignTransferResult>;
   /**
    * Posts one community note by voice: the author reads the note's short summary aloud, the
    * verifier checks the voice and the words, and the Wallet calls `add_note` on the notes
    * contract from the owner's account, with no deposit and no confirm.
    */
-  requestNote(request: SpeakToSignNoteRequest): Promise<SpeakToSignNoteResult>;
+  requestNote(request: WithPresentation<SpeakToSignNoteRequest>): Promise<SpeakToSignNoteResult>;
   /**
    * Rates one community note by voice: the owner says "this note is helpful", "this note is
    * somewhat helpful" or "this note is not helpful", and the Wallet calls `rate_note`.
    */
-  requestRating(request: SpeakToSignRatingRequest): Promise<SpeakToSignNoteResult>;
+  requestRating(request: WithPresentation<SpeakToSignRatingRequest>): Promise<SpeakToSignNoteResult>;
   /**
    * Approves one pull request merge by voice: the owner says "merge pull request 42 into main",
    * and the Wallet calls `approve_merge` on the contract, with no deposit and no confirm. The
    * verdict binds the repository and the head commit, which the owner does not say.
    */
-  requestMergeApproval(request: SpeakToSignMergeApprovalRequest): Promise<SpeakToSignNoteResult>;
+  requestMergeApproval(request: WithPresentation<SpeakToSignMergeApprovalRequest>): Promise<SpeakToSignNoteResult>;
   /**
    * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
    * message that authorizes exactly these recordings, and the verifier stores the template. A
    * new enrollment replaces the template.
    */
-  enroll(request: SpeakToSignEnrollmentRequest): Promise<SpeakToSignEnrollmentResult>;
+  enroll(request: WithPresentation<SpeakToSignEnrollmentRequest>): Promise<SpeakToSignEnrollmentResult>;
 }>;
 
 export function createSpeakToSignCapability(

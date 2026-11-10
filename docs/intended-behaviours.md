@@ -3440,6 +3440,20 @@ renders inside it.
   of the page inert while it shows. A click beside the card does not end it. The default
   `layer: 'page'` keeps the hosted auth menu's existing page-content behaviour.
 - A request without a `chrome` value is identical on the wire to an earlier request.
+- A NEAR, EVM or Tempo transaction and a Speak-to-Sign request take
+  `presentation: { kind: 'anchored', anchor, chrome, ...events }`. Its card paints in the top
+  layer over the anchor. Without a presentation, the card shows in the Wallet's own modal,
+  unchanged. An anchored transaction pins `uiMode: 'modal'` and `behavior: 'requireClick'`;
+  other effective settings fail the call before the card opens. A reviewed call takes no
+  anchored presentation. An anchored transaction keeps no receipt on screen.
+- A top-layer card takes input only while its whole box is in the visual viewport, fully
+  opaque, on top at each sample point, and below no popover, modal dialog or fullscreen element
+  that opened after it. The page reports each change to the Wallet iframe, which ignores
+  clicks and pointer presses until the report is clear. Where the browser tracks visibility,
+  the iframe also requires its own visibility report, which the page cannot change.
+- `WalletStep` (React) and `seams.surfaces.mount` show the sign-in menu, a transaction confirm
+  or a Speak-to-Sign request as a step. One mount starts one call; unmount or `dispose()` ends
+  the card as cancelled.
 
 Consumer guide: [Wallet cards as steps of an app dialog](wallet-steps.md).
 Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
