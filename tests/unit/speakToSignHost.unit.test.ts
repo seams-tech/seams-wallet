@@ -272,6 +272,17 @@ test('the transfer port matches every account transfer vector of the spoken-inte
   }
 });
 
+test('each request tag of the spoken-intent crate is ported, or named as not ported', () => {
+  // The tags that the tests of this file port, with their Borsh tag byte as hex.
+  const ported = ['02', '04', '05', '06', '07', '08', '09'];
+  // Wallet core builds no request of these tags:
+  // 01 `MultisigApproval`: the voice multisig demo contract builds it, with its own digest.
+  // 0a `Confirmation`: a request for an application owner (`app:<id>`), with no wallet.
+  const notPorted = ['01', '0a'];
+  const tags = [...new Set(VECTORS.requests.map((vector) => vector.borsh_hex.slice(0, 2)))].sort();
+  expect(tags).toEqual([...ported, ...notPorted].sort());
+});
+
 test('only speakable accounts and whole hundredths of NEAR pass', () => {
   for (const { account_id } of VECTORS.unsupported_accounts) {
     expect(isSpeakableAccount(account_id), account_id).toBe(false);
