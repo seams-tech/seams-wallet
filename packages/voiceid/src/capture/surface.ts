@@ -12,7 +12,7 @@ import {
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 import { newSpokenPhrase, VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '../browser/microphone';
-import { VoicePrompt } from './prompt';
+import { leaveSurface, VoicePrompt } from './prompt';
 import { VoiceUnlockFrame } from './unlockFrame';
 import { toError } from '@seams/wallet/voiceid-host';
 import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
@@ -58,6 +58,8 @@ const VOICE_CAPTURE_ACTION_LABELS: Readonly<Record<VoiceCapturePurpose, string>>
 // The unlock success holds and fades on the auth menu's clock.
 const SUCCESS_HOLD_MS = 1300;
 const SUCCESS_FADE_MS = 240;
+/** A handed-over card that no other card takes within this time leaves (see `handOver`). */
+const HANDOFF_WAIT_MS = 4000;
 class VoiceIdCaptureSurface<T> {
   readonly result: Promise<T>;
   private readonly completion = new WorkerDeferred<T>();
@@ -75,6 +77,8 @@ class VoiceIdCaptureSurface<T> {
   private phrase = newSpokenPhrase(null);
   private state: CaptureState<T> = { kind: 'preparing' };
   private readonly purpose: VoiceCapturePurpose;
+  /** A card of the same request follows a successful activation (Speak-to-Sign enrollment). */
+  private readonly handoff: boolean;
   private settlement: AuthMethodCaptureSettlement = 'closed';
   private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -83,13 +87,18 @@ class VoiceIdCaptureSurface<T> {
     purpose: VoiceCapturePurpose,
     binding: UiConfirmSurfaceMeasurementBinding,
     unlockSuccess: VoiceUnlockSuccess,
-    mountCapture?: AuthMethodCaptureMount,
+    mountCapture: AuthMethodCaptureMount | undefined,
+    handoff: boolean,
   ) {
     this.unlockSuccess = unlockSuccess;
     this.purpose = purpose;
+    this.handoff = handoff;
     const actionLabel = VOICE_CAPTURE_ACTION_LABELS[purpose];
     const parent = document.getElementById('root') ?? document.body;
     if (!parent) throw new Error('Wallet activation surface has no mount root.');
+    // A card handed over by an earlier request that never opened its next card goes now.
+    for (const stale of document.querySelectorAll<HTMLElement>('[data-seams-voiceid-handoff]'))
+      leaveSurface(stale);
     this.element = document.createElement('section');
     this.element.className =
       'seams-wallet-ui seams-auth-method-activation-surface seams-voiceid-activation-surface';
@@ -132,7 +141,11 @@ class VoiceIdCaptureSurface<T> {
             postMeasurement: binding.postMeasurement,
           })
         : null;
-    this.cancelButton.focus();
+    // The parent sizes the frame to this surface, so the card can follow the frame (fillFrame).
+    if (this.measurement) this.element.classList.add('seams-voiceid-hugged');
+    // The card holds focus until its action is ready; Close shows no ring while it loads.
+    this.prompt.element.tabIndex = -1;
+    this.prompt.element.focus({ preventScroll: true });
     this.result = this.completion.promise;
     void this.initialize(prepare);
   }
@@ -147,7 +160,23 @@ class VoiceIdCaptureSurface<T> {
     this.prompt.dispose();
     // A host that mounted the card also removes it, so it can fade it out in place.
     if (this.unmountCapture) this.unmountCapture(this.settlement);
-    else this.element.remove();
+    else if (this.handoff && this.settlement === 'succeeded') this.handOver();
+    else leaveSurface(this.element);
+  }
+
+  /**
+   * The finished card stays where it is until the next card of this request takes its place
+   * (capture/phrase.ts), so no empty frame shows while the Wallet prepares that card.
+   */
+  private handOver(): void {
+    const element = this.element;
+    element.dataset.seamsVoiceidHandoff = '';
+    // A cancelled request opens no next card.
+    element.addEventListener('cancel', leaveSurface.bind(null, element), { once: true });
+    window.setTimeout(() => {
+      if (element.isConnected && element.dataset.seamsVoiceidHandoff !== undefined)
+        leaveSurface(element);
+    }, HANDOFF_WAIT_MS);
   }
 
   private async initialize(prepare: CapturePreparation<T>): Promise<void> {
@@ -177,12 +206,21 @@ class VoiceIdCaptureSurface<T> {
       this.expiryTimer = remaining === null ? null : setTimeout(this.expire, remaining);
       for (const progress of this.element.querySelectorAll('.seams-voiceid-model-download'))
         progress.remove();
-      this.element.dataset.preparation = 'ready';
-      this.prompt.title.textContent = 'Read aloud';
-      this.status.textContent = 'Read naturally, then pause.';
       this.activateButton.disabled = false;
-      if (this.autoStartUnlock) this.begin();
-      else this.activateButton.focus();
+      if (this.autoStartUnlock) {
+        this.element.dataset.preparation = 'ready';
+        this.begin();
+        return;
+      }
+      // The title and the status change in place; the action row follows them (prompt.ts CSS).
+      await this.prompt.change({
+        title: 'Read aloud',
+        status: 'Read naturally, then pause.',
+        apply: () => {
+          this.element.dataset.preparation = 'ready';
+        },
+      });
+      if (this.state.kind === 'ready') this.activateButton.focus();
     } catch (error) {
       if (this.state.kind === 'closed') return;
       this.state = { kind: 'closed' };
@@ -200,7 +238,7 @@ class VoiceIdCaptureSurface<T> {
   private async perform(capture: PreparedRecording<T>): Promise<void> {
     this.activateButton.disabled = true;
     // Activation opens the enrollment card next, which opens the microphone itself.
-    if (this.purpose !== 'activation') this.status.textContent = 'Opening microphone…';
+    if (this.purpose !== 'activation') void this.prompt.change({ status: 'Opening microphone…' });
     try {
       // Unlock begins after preparation. Enrollment and retries start from their controls.
       const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);
@@ -222,14 +260,13 @@ class VoiceIdCaptureSurface<T> {
           this.expire();
           return;
         }
-        const attemptedPhrase = this.phrase;
-        this.phrase = newSpokenPhrase(attemptedPhrase);
-        this.prompt.setPhrase(this.phrase);
+        this.phrase = newSpokenPhrase(this.phrase);
         this.state = { kind: 'ready', capture };
-        this.activateButton.hidden = false;
-        this.activateButton.textContent = 'Try again';
-        this.prompt.ready(error.message);
-        this.activateButton.focus();
+        await this.prompt.readyChange(error.message, {
+          phrase: this.phrase,
+          action: { label: 'Try again' },
+        });
+        if (this.state.kind === 'ready') this.activateButton.focus();
         return;
       }
       this.state = { kind: 'closed' };
@@ -289,6 +326,8 @@ export async function showVoiceIdCaptureSurface<T>(input: {
   readonly measurement: UiConfirmSurfaceMeasurementBinding;
   readonly unlockSuccess?: VoiceUnlockSuccess;
   readonly mountCapture?: AuthMethodCaptureMount;
+  /** Another card of this request follows a success, so the card stays until it takes over. */
+  readonly handoff?: boolean;
 }): Promise<T> {
   const surface = new VoiceIdCaptureSurface(
     input.prepare,
@@ -296,6 +335,7 @@ export async function showVoiceIdCaptureSurface<T>(input: {
     input.measurement,
     input.unlockSuccess ?? 'show',
     input.mountCapture,
+    input.handoff ?? false,
   );
   try {
     return await surface.result;

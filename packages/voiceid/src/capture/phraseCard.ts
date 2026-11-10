@@ -57,6 +57,9 @@ export type PromptCopy = Readonly<{
   action: string;
 }>;
 
+/** What a card that takes another card's place shows at first: that card's rows. */
+export type HandedOverRows = Readonly<{ label: string; message: string }>;
+
 /** Draws the states of the phrase card. The surface owns the recording and the choices. */
 export class PhraseCard {
   private readonly line: SVGSVGElement;
@@ -77,6 +80,7 @@ export class PhraseCard {
   constructor(
     private readonly prompt: VoicePrompt,
     private readonly copy: PromptCopy,
+    handedOver: HandedOverRows | null = null,
   ) {
     const document = prompt.element.ownerDocument;
     this.line = document.createElementNS(SVG_NAMESPACE, 'svg');
@@ -108,7 +112,14 @@ export class PhraseCard {
     this.check.setAttribute('pathLength', '1');
     this.line.append(this.bar, this.ring, this.seal, this.check);
     prompt.ribbon.after(this.line);
-    this.rows = this.promptRows();
+    this.rows = handedOver
+      ? {
+          ...this.promptRows(),
+          label: handedOver.label,
+          caption: `handed-over:${handedOver.message}`,
+          action: '',
+        }
+      : this.promptRows();
     this.layoutSegments(0, 3);
   }
 
@@ -193,11 +204,11 @@ export class PhraseCard {
     });
   }
 
+  /** The line stays in the card, which fades out as a whole when its surface closes. */
   dispose(): void {
     this.disposed = true;
     this.version += 1;
     window.clearInterval(this.rotation);
-    this.line.remove();
   }
 
   /** A newer state supersedes any state still on its way in. */
@@ -252,11 +263,14 @@ export class PhraseCard {
     }
     if (this.stale(version)) return;
     const ribbonTop = prompt.ribbon.getBoundingClientRect().top;
+    const heightBefore = prompt.element.getBoundingClientRect().height;
     prompt.title.textContent = next.label;
     prompt.phrase.textContent = next.head;
     prompt.phrase.classList.toggle('seams-voiceid-success-headline', next.headline);
     apply();
     this.rows = next;
+    // A shorter card keeps filling the frame while the parent eases it, so no edge jumps.
+    prompt.fillFrame(heightBefore);
     const moved = ribbonTop - prompt.ribbon.getBoundingClientRect().top;
     if (Math.abs(moved) > 0.5 && !this.motion.matches) {
       for (const element of [prompt.ribbon, this.line]) {
@@ -497,9 +511,11 @@ function passkeyIcon(document: Document): SVGSVGElement {
   return icon;
 }
 
+/** Fades out from where the element is, so a row that is still arriving never flashes. */
 function fade(element: Element, duration: number): Promise<unknown> {
-  return element.animate([{ opacity: 1 }, { opacity: 0 }], {
-    duration,
+  const from = Number(getComputedStyle(element).opacity);
+  return element.animate([{ opacity: from }, { opacity: 0 }], {
+    duration: duration * from,
     easing: 'ease-in',
     fill: 'forwards',
   }).finished;

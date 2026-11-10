@@ -15,8 +15,8 @@ import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 import { SPOKEN_PHRASES } from '../browser/phraseVocabulary';
 import { expectedSpeechMs } from '../browser/speechPause';
 import { voiceActivityModel } from '../browser/voiceActivity';
-import { PhraseCard } from './phraseCard';
-import { VoicePrompt } from './prompt';
+import { PhraseCard, type HandedOverRows } from './phraseCard';
+import { leaveSurface, VoicePrompt } from './prompt';
 
 type PhraseInput = Parameters<WalletAuthMethodHostPlugin['openPhrase']>[0];
 
@@ -55,6 +55,10 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     private readonly outer: AbortSignal,
   ) {
     this.expectedSpeechMs = expectedSpeechMs(sentence);
+    // A VoiceID card that this request just finished stays on screen for this card (surface.ts).
+    const handedOver = document.querySelector<HTMLElement>(
+      '.seams-voiceid-activation-surface[data-seams-voiceid-handoff]',
+    );
     // The first recording on a page waits for the speech detector (about 16 MB with its engine),
     // so it starts loading while the owner reads the sentence. A failure shows on Record.
     voiceActivityModel.prepare().then(this.detectorStarted, ignoreEarlyLoad);
@@ -73,18 +77,27 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     delete this.prompt.phrase.dataset.voiceidPhrase;
     this.prompt.status.textContent = PROMPT_MESSAGE;
     this.prompt.record.textContent = 'Record';
-    this.card = new PhraseCard(this.prompt, {
-      label: PROMPT_LABEL,
-      sentence: shown,
-      message: PROMPT_MESSAGE,
-      action: 'Record',
-    });
+    const handedOverPrompt = handedOver?.querySelector(':scope > .seams-voiceid-prompt') ?? null;
+    const rows = handedOverPrompt ? handedOverRows(handedOverPrompt) : null;
+    if (handedOverPrompt) {
+      // The card starts as the card it replaces, so the swap does not show; then its rows change.
+      this.prompt.continueFrom(handedOverPrompt);
+      this.prompt.record.hidden = true;
+    }
+    this.card = new PhraseCard(
+      this.prompt,
+      { label: PROMPT_LABEL, sentence: shown, message: PROMPT_MESSAGE, action: 'Record' },
+      rows,
+    );
     this.element.append(this.prompt.element);
     this.prompt.record.addEventListener('click', this.press);
     this.prompt.cancel.addEventListener('click', this.cancel);
     this.element.addEventListener('cancel', this.cancel);
     outer.addEventListener('abort', this.cancel);
-    parent.appendChild(this.element);
+    if (handedOver) handedOver.replaceWith(this.element);
+    else parent.appendChild(this.element);
+    // The parent sizes the frame to this surface, so the card can follow the frame (fillFrame).
+    if (binding.kind === 'wallet_iframe') this.element.classList.add('seams-voiceid-hugged');
     this.measurement =
       binding.kind === 'wallet_iframe'
         ? createWalletIframeSurfaceMeasurementReporter({
@@ -94,7 +107,8 @@ class PhraseSurface implements AuthMethodPhraseSurface {
             postMeasurement: binding.postMeasurement,
           })
         : null;
-    this.prompt.record.focus();
+    if (rows) this.prompt.element.focus({ preventScroll: true });
+    else this.prompt.record.focus();
     if (outer.aborted) this.cancel();
   }
 
@@ -134,7 +148,7 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     this.prompt.cancel.removeEventListener('click', this.cancel);
     this.card.dispose();
     this.prompt.dispose();
-    this.element.remove();
+    leaveSurface(this.element);
   }
 
   /** The one button records on the prompt and answers a result. */
@@ -221,3 +235,10 @@ class PhraseSurface implements AuthMethodPhraseSurface {
 
 /** A failed early load runs again when Record needs the detector, and shows its error there. */
 function ignoreEarlyLoad(): void {}
+
+/** The rows that the handed-over card shows now. */
+function handedOverRows(prompt: Element): HandedOverRows {
+  const read = (selector: string): string =>
+    prompt.querySelector(`:scope > ${selector}`)?.textContent ?? '';
+  return { label: read('h2'), message: read('.seams-voiceid-status') };
+}
