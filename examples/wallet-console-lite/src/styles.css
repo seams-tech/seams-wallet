@@ -651,3 +651,41 @@ dialog:not([open]) .prediction-preview-slot {
     display: none;
   }
 }
+
+/* One dialog for a flow: the Wallet's cards cover the dialog body, so the body has no padding
+   of its own and each app step brings its own. */
+.one-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 16px;
+  background: rgb(0 0 0 / 0.3);
+}
+.one-dialog {
+  width: min(100%, 420px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--panel, #fff);
+  color: inherit;
+}
+.one-dialog-step {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+.one-dialog-step h3 {
+  margin: 0;
+}
+.one-dialog-step label {
+  display: grid;
+  gap: 6px;
+}
+.one-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+

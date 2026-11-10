@@ -31,6 +31,7 @@ import {
 } from './localWorkspace';
 import { ServerShareRecovery } from './ServerShareRecovery';
 import { PurchaseReviewExample } from './PurchaseReviewExample';
+import { OneDialogFlowExample } from './OneDialogFlowExample';
 
 type PlaygroundPage = 'wallet' | 'recovery';
 type AuthMenuState = { kind: 'closed' } | { kind: 'open' } | { kind: 'failed'; message: string };
@@ -462,6 +463,8 @@ function WalletPlayground({
           )}
 
           <PurchaseReviewExample />
+
+          <OneDialogFlowExample />
 
           <details className="panel configuration">
             <summary>Configuration</summary>
