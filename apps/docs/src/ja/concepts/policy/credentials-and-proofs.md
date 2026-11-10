@@ -12,7 +12,7 @@ description: 認証情報の証明を、正確な実行者、操作、対象、�
 
 リリース済みウォレットは、パスキー、メールOTP、ウォレットセッション、リンク済みデバイスの証明を使います。
 組織のロールは、Consoleの承認に属します。
-SDK 0.64.0では、任意の[VoiceID](/ja/concepts/auth-methods/voiceid)認証に対応します。
+SDK 0.65.0では、任意の[VoiceID](/ja/concepts/auth-methods/voiceid)認証に対応します。
 外部の生体認証証明は、引き続き提案段階の入力です。
 次の一覧は、ポリシー上の意図する役割を示します。公開登録APIの一覧ではありません。
 

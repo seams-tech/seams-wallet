@@ -82,17 +82,17 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Release 0.64.0
+## Release 0.65.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.64.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.65.0**.
 Pin `@seams/wallet-cli` to **0.29.0**. See the [recovery CLI guide](/deploy-and-operate/recovery-cli) for its signed native assets.
-VoiceID hosts also install `@seams/voiceid` **0.64.0** and compose the static deployment with
+VoiceID hosts also install `@seams/voiceid` **0.65.0** and compose the static deployment with
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`.
-The VoiceID host API is version 11, and the Speak-to-Sign host API is version 9. Install `@seams/voiceid` 0.64.0 and `@seams/speak-to-sign` 0.64.0 with `@seams/wallet` 0.64.0: the Wallet refuses a host plugin of another version.
-Speak-to-Sign hosts (experimental, NEAR testnet only) also install `@seams/speak-to-sign` **0.64.0** and compose with
+The VoiceID host API is version 11, and the Speak-to-Sign host API is version 9. Install `@seams/voiceid` 0.65.0 and `@seams/speak-to-sign` 0.65.0 with `@seams/wallet` 0.65.0: the Wallet refuses a host plugin of another version.
+Speak-to-Sign hosts (experimental, NEAR testnet only) also install `@seams/speak-to-sign` **0.65.0** and compose with
 `npx --no-install seams-speak-to-sign-host ./wallet-with-speak-to-sign`. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host).
 See [VoiceID setup](/concepts/auth-methods/voiceid#prepare-the-wallet-host) for the app and host steps.
-See [Release 0.64.0](/releases) for the supported integration.
+See [Release 0.65.0](/releases) for the supported integration.
 
 The Gateway serves `/router-ab/ed25519/yao/reissue/admit` and
 `/router-ab/ed25519/yao/reissue/execute`. A Gateway that you assemble yourself
