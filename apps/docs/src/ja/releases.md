@@ -29,6 +29,9 @@ description: Speak-to-SignはNEARの音声による署名者になり、seams.ne
   - 共同署名者の固定の音声上限(1回の支払いで10 NEAR、24時間で20 NEAR)はなくなりました。結果の理由`voice_limit`と、拒否`over_payment_limit`、`over_daily_limit`もなくなりました。上限はWalletのポリシーエンジンのルールです。
 - Speak-to-SignのホストAPIはバージョン **10** です。ホストプラグインには新しいメソッド`requestMessage`があります。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/speak-to-sign` 0.66.0を`@seams/wallet` 0.66.0と一緒にインストールしてください。VoiceIDのホストAPIはバージョン **11** のままです。
 - Speak-to-Signのベリファイアーは **0.9.0** です。OutLayerのバージョンキーは`VERIFIER_VERSION_KEY`です。`signAndSendTransaction`、`signTransaction`、`signDelegateAction`、`signMessage`には0.9.0が必要です。`typed.bet`には0.8.0以降が必要です。`typed.transfer`、`typed.note`、`typed.rating`、`typed.mergeApproval`は0.5.2でも動きます。
+- 修正：
+  - Walletのモーダルで、開いたカードがフレームより高い場合も、トランザクションの詳細が1回の動きで開きます。以前は2段階で開き、「確認」ボタンが画面の外に押し出されました。
+  - VoiceIDとSpeak-to-Signのプラグインは、Walletのブリッジ（`/sdk/voiceid-host.js`、`/sdk/speak-to-sign-host.js`）を`?v=`と固定したWalletのバージョン付きで読み込みます。以前は、ブラウザーが新しいプラグインのファイルを、キャッシュに残った前のリリースのブリッジと一緒に実行し、プラグインの読み込みに失敗することがありました。
 - SDK、ホストされたWallet、サーバーは一緒にリリースしてください。`@seams/wallet-server` 0.66.0の共同署名者が新しいリクエストの種類を確認し、古いWalletホストはそれを拒否します。
 - 4つのパッケージをすべて0.66.0でインストールしてください。Speak-to-Signは引き続き実験的機能で、NEARテストネット専用です。実際の資金では使わないでください。
 

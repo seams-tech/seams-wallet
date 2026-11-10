@@ -106,13 +106,13 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.65.0
+npm install @seams/wallet@0.66.0
 # Server applications:
-npm install @seams/wallet-server@0.65.0
+npm install @seams/wallet-server@0.66.0
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.65.0
+npm install @seams/voiceid@0.66.0
 # Experimental Speak-to-Sign (needs VoiceID):
-npm install @seams/speak-to-sign@0.65.0
+npm install @seams/speak-to-sign@0.66.0
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.

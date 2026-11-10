@@ -29,6 +29,9 @@ The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.66
   - The co-signer has no fixed voice limits (10 NEAR for one payment, 20 NEAR in 24 hours). The result reason `voice_limit` and the refusals `over_payment_limit` and `over_daily_limit` are gone. A limit is a rule of the Wallet policy engine.
 - The Speak-to-Sign host API is version **10**. The host plugin has the new method `requestMessage`. Install `@seams/speak-to-sign` 0.66.0 with `@seams/wallet` 0.66.0: the Wallet refuses a host plugin of another version. The VoiceID host API stays at version **11**.
 - The Speak-to-Sign verifier is **0.9.0**, OutLayer version key `VERIFIER_VERSION_KEY`. `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage` need 0.9.0. `typed.bet` needs 0.8.0 or later. `typed.transfer`, `typed.note`, `typed.rating` and `typed.mergeApproval` also work with 0.5.2.
+- Fixes:
+  - In the Wallet modal, Transaction details open in one motion when the open card is taller than its frame. Before, the card opened in two steps and pushed Confirm out of view.
+  - The VoiceID and Speak-to-Sign plugins load the Wallet bridge (`/sdk/voiceid-host.js`, `/sdk/speak-to-sign-host.js`) with `?v=` and the pinned Wallet version. Before, a browser could run new plugin files against a cached bridge of the release before, and the plugin failed to load.
 - The SDK, the hosted Wallet and the server must ship together. The co-signer in `@seams/wallet-server` 0.66.0 checks the new request kinds, and an older Wallet host rejects them.
 - Install all four packages at 0.66.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 
