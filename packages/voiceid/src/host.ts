@@ -89,6 +89,8 @@ async function activate(
       purpose: 'activation',
       measurement: input.surfaceMeasurementBinding,
       prepare: prepareActivation.bind(null, model, input),
+      // Speak-to-Sign takes the recordings and opens its card next, in the same request.
+      handoff: input.keepRecordings !== undefined,
     });
   } catch (error) {
     if (error instanceof VoiceIdCaptureCancelledError) return { kind: 'cancelled' };

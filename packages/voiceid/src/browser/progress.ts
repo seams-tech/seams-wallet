@@ -11,6 +11,8 @@ const REVEAL_DELAY_MS = 600;
 const MIN_VISIBLE_MS = 400;
 // The indicator's rows fade out before the card's own rows fade back in (prompt.ts).
 const FADE_MS = 120;
+const SWAP_OUT_MS = 120;
+const SWAP_IN_MS = 200;
 function modelAsset(model: typeof voiceModel) {
   return model.asset;
 }
@@ -149,7 +151,28 @@ class VoiceModelDownload {
     this.element.dataset.state = 'preparing';
     this.meter.max = this.total;
     this.meter.value = this.total;
-    this.status.textContent = 'Preparing VoiceID…';
+    void this.swapStatus('Preparing VoiceID…');
+  }
+
+  /** The message fades out, changes and fades in, so two texts never cross in one place. */
+  private async swapStatus(text: string): Promise<void> {
+    const status = this.status;
+    if (this.shownAt === null || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      status.textContent = text;
+      return;
+    }
+    const out = status.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: SWAP_OUT_MS,
+      easing: 'ease-in',
+      fill: 'forwards',
+    });
+    await out.finished.catch(ignoreCancel);
+    status.textContent = text;
+    status.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: SWAP_IN_MS,
+      easing: 'cubic-bezier(0.2, 0, 0, 1)',
+    });
+    out.cancel();
   }
 
   /** A shown indicator stays for MIN_VISIBLE_MS, then fades out before the card goes on. */
@@ -158,8 +181,8 @@ class VoiceModelDownload {
     if (this.shownAt === null) return;
     const shownFor = performance.now() - this.shownAt;
     if (shownFor < MIN_VISIBLE_MS) await delay(MIN_VISIBLE_MS - shownFor, this.signal);
+    // The rows fade out as they are; the card's own rows and Record say that VoiceID is ready.
     this.element.dataset.state = 'ready';
-    this.status.textContent = 'VoiceID is ready.';
     await delay(FADE_MS, this.signal);
   }
 }
@@ -178,6 +201,8 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
   signal.addEventListener('abort', stop, { once: true });
   return waited.promise;
 }
+
+function ignoreCancel(): void {}
 
 export async function prepareVoiceModelWithProgress(
   parent: HTMLElement,

@@ -61,7 +61,6 @@ export async function enrollBrowserVoice(
 class VoiceEnrollmentSurface {
   private readonly completion = new WorkerDeferred<void>();
   readonly result = this.completion.promise;
-  private readonly status: HTMLParagraphElement;
   private readonly prompt: VoicePrompt;
   private phrase: SpokenPhrase;
   private readonly record: HTMLButtonElement;
@@ -92,34 +91,38 @@ class VoiceEnrollmentSurface {
       'Enroll your voice in this browser',
       this.phrase,
     );
-    this.prompt.title.textContent = 'Read aloud · 0 of 3 accepted';
-    this.status = this.prompt.status;
+    const title = 'Read aloud · 0 of 3 accepted';
+    const message =
+      plan.kind === 'improve'
+        ? 'Read naturally. Your original enrollment stays unchanged.'
+        : this.keepRecordings
+          ? 'Read the full phrase at your normal pace. Speak-to-Sign uses the same samples.'
+          : 'Read the full phrase at your normal pace.';
+    this.prompt.title.textContent = title;
     this.record = this.prompt.record;
     this.cancel = this.prompt.cancel;
     this.record.textContent = 'Record sample 1';
     this.record.addEventListener('click', this.capture);
     this.cancel.setAttribute('aria-label', 'Cancel enrollment');
     this.cancel.addEventListener('click', this.cancelled);
-    this.prompt.ready(
-      plan.kind === 'improve'
-        ? 'Read naturally. Your original enrollment stays unchanged.'
-        : this.keepRecordings
-          ? 'Read the full phrase at your normal pace. Speak-to-Sign uses the same samples.'
-          : 'Read the full phrase at your normal pace.',
-    );
+    this.prompt.ready(message);
     // Recording waits for VoiceID to load; prepare() enables it.
     this.record.disabled = true;
-    // A card that replaces the activation card continues it in place, with no second entrance.
-    const continued =
-      parent.querySelector('.seams-voiceid-prompt:not(.seams-voiceid-management)') !== null;
+    // A card that replaces the activation card continues it in place: it starts with that
+    // card's rows, with no entrance, and only the rows that differ change.
+    const previous = parent.querySelector('.seams-voiceid-prompt:not(.seams-voiceid-management)');
+    if (previous) this.prompt.continueFrom(previous);
     parent.replaceChildren(this.prompt.element);
-    if (continued) this.prompt.continueCard();
+    if (previous)
+      void this.prompt.change({ title, status: message, action: { label: 'Record sample 1' } });
     signal.addEventListener('abort', this.cancelled, { once: true });
     this.guardTimer = setInterval(this.checkGuard, 250);
     if (signal.aborted) this.cancelled();
     // Focus stays in the card without a ring on Close until Record is ready.
-    else if (continued) this.prompt.element.focus({ preventScroll: true });
-    else this.cancel.focus();
+    else {
+      this.prompt.element.tabIndex = -1;
+      this.prompt.element.focus({ preventScroll: true });
+    }
   }
 
   /** Loads VoiceID into the prompt's progress slot, then enables recording. */
@@ -140,23 +143,25 @@ class VoiceEnrollmentSurface {
     const sampleNumber = this.samples.length + 1;
     // A copy of this sample's audio for `keepRecordings`, until the sample is accepted.
     let kept: AuthMethodEnrollmentRecording | null = null;
+    // The message of the next ready state; the card's rows change to it in one motion.
+    let message = '';
     try {
       requireVoiceUserAction();
       this.phase = 'recording';
       this.record.disabled = true;
-      this.status.textContent = 'Opening microphone…';
+      void this.prompt.change({ status: 'Opening microphone…' });
       const pcm = await recordVoice(this.controller.signal, this.prompt.capture);
       if (this.signal.aborted || this.closed) {
         if (pcm.kind === 'captured') pcm.samples.fill(0);
         return;
       }
       if (pcm.kind === 'insufficient_audio') {
-        this.status.textContent = voiceQualityMessage(pcm.quality);
+        message = voiceQualityMessage(pcm.quality);
         return;
       }
       if (this.plan.kind === 'improve' && pcm.quality.noise !== 'normal') {
         pcm.samples.fill(0);
-        this.status.textContent = 'Use a quiet place to improve your voice enrollment.';
+        message = 'Use a quiet place to improve your voice enrollment.';
         return;
       }
       if (this.keepRecordings) {
@@ -168,7 +173,7 @@ class VoiceEnrollmentSurface {
       let embedding: number[];
       try {
         await assertVoiceOwner(this.plan.scope, this.plan.guard);
-        this.status.textContent = 'Checking your voice…';
+        void this.prompt.change({ status: 'Checking your voice…' });
         const phraseCheck = await checkSpokenPhrase(pcm.samples, this.phrase, this.model);
         if (phraseCheck.kind === 'mismatch') throw new VoicePhraseMismatchError();
         embedding = await voiceEmbedding(pcm.samples);
@@ -201,8 +206,7 @@ class VoiceEnrollmentSurface {
       kept = null;
       if (this.samples.length < 3) {
         this.prompt.accepted();
-        this.status.textContent = `Sample ${this.samples.length} accepted. Record the next sample.`;
-        this.record.textContent = `Record sample ${this.samples.length + 1}`;
+        message = `Sample ${this.samples.length} accepted. Record the next sample.`;
         return;
       }
       const mean = new Array<number>(192).fill(0);
@@ -210,8 +214,7 @@ class VoiceEnrollmentSurface {
         for (let index = 0; index < mean.length; index += 1) mean[index] += sample[index] / 3;
       }
       this.phase = 'committing';
-      this.prompt.title.textContent = '3 of 3 accepted';
-      this.status.textContent = 'Saving voice enrollment…';
+      void this.prompt.change({ title: '3 of 3 accepted', status: 'Saving voice enrollment…' });
       const plan = this.plan;
       switch (plan.kind) {
         case 'activate':
@@ -252,7 +255,8 @@ class VoiceEnrollmentSurface {
       if (this.signal.aborted || this.closed) return;
       this.phase = 'closed';
       this.prompt.accepted();
-      this.status.textContent = 'Voice enrollment saved.';
+      // A handed-over card keeps this state on screen until the next card takes its place.
+      await this.prompt.change({ status: 'Voice enrollment saved.' });
       this.keepRecordings?.(this.recordings.splice(0));
       this.completion.resolve();
     } catch (error) {
@@ -267,24 +271,35 @@ class VoiceEnrollmentSurface {
         this.recordings.pop()?.samples.fill(0);
       }
       if (!this.closed)
-        this.status.textContent =
-          error instanceof Error ? error.message : 'VoiceID enrollment failed.';
+        message = error instanceof Error ? error.message : 'VoiceID enrollment failed.';
     } finally {
       kept?.samples.fill(0);
-      if (!this.closed) {
-        if (this.samples.length < sampleNumber) {
-          this.record.textContent = `Retry sample ${sampleNumber}`;
-          this.status.textContent = `Sample ${sampleNumber} was not accepted. ${this.status.textContent ?? ''}`;
-        }
-        this.phrase = newSpokenPhrase(this.phrase);
-        this.prompt.setPhrase(this.phrase);
-        this.prompt.title.textContent = `Read aloud · ${this.samples.length} of 3 accepted`;
-        this.prompt.ready(this.status.textContent ?? '');
-        this.phase = 'ready';
-        this.record.disabled = false;
-      }
+      if (!this.closed) this.readyForNext(sampleNumber, message);
     }
   }
+
+  /** The rows change to the next phrase, the count and the message in one motion. */
+  private readyForNext(sampleNumber: number, message: string): void {
+    const accepted = this.samples.length >= sampleNumber;
+    this.phrase = newSpokenPhrase(this.phrase);
+    this.phase = 'ready';
+    void this.prompt
+      .readyChange(accepted ? message : `Sample ${sampleNumber} was not accepted. ${message}`, {
+        title: `Read aloud · ${this.samples.length} of 3 accepted`,
+        phrase: this.phrase,
+        action: {
+          label: accepted
+            ? `Record sample ${this.samples.length + 1}`
+            : `Retry sample ${sampleNumber}`,
+        },
+      })
+      .then(this.focusRecord);
+  }
+
+  private readonly focusRecord = (): void => {
+    if (this.phase === 'ready') this.record.focus();
+  };
+
   private readonly cancelled = (): void => {
     if (this.closed) return;
     this.phase = 'closed';

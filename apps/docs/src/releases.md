@@ -1,23 +1,28 @@
 ---
-title: Release 0.63.0
-description: A site or device with no NEAR custody cache reissues the current Client share, with no Router recovery and no new activation.
+title: Release 0.64.0
+description: Speak-to-Sign enrollment turns on VoiceID from the same three recordings, and VoiceID cards change state without jumps.
 ---
 
-# Release 0.63.0
+# Release 0.64.0
 
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.63.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.64.0**.
 
-- A site or device with no NEAR custody cache now gets the current Client share through a Router reissue.
-  - Passkey login, account sync and VoiceID unlock do this. Before, a passkey login ran a Router recovery, which moved the state epoch and made a new material activation. VoiceID unlock failed with "This site has no wallet keys on this device yet."
-  - A reissue keeps the material activation and the state epoch. So the local authority and Wallet Session records do not change, and the caches on other sites stay current.
-  - Any Ed25519 Wallet Session of the wallet admits a reissue, VoiceID's included. The SigningWorker opens the reissued shares and checks them against its active share before the Router releases the Client packages. It stores nothing.
-  - Email OTP on a site with no cache still needs a recovery code. A later release removes this step.
-- The Gateway serves two new routes: `/router-ab/ed25519/yao/reissue/admit` and `/router-ab/ed25519/yao/reissue/execute`. `@seams/wallet-server/cloud-host` exports `handleRouterAbEd25519YaoReissueRequestV1` for a Gateway that you assemble yourself.
-- Router project policies must allow the `reissue` work kind. A policy without it refuses a reissue.
-- The Wallet frame hides its scroll bar while a VoiceID card is open. Before, a scroll bar flashed on the card's right edge for about 150 ms when the card opened.
-- The Speak-to-Sign host API stays at version **8**, and the VoiceID host API stays at version **10**. The Speak-to-Sign verifier stays at **0.5.2**, OutLayer version key `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`.
-- Deploy the Gateway, Router, both Derivers, SigningWorker and Wallet host together, and update apps to 0.63.0. A 0.62.0 Router refuses the reissue operation. A 0.62.0 Wallet keeps working against a 0.63.0 server: it still runs a recovery on a site with no cache.
-- Install all four packages at 0.63.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
+- `seams.speakToSign.enroll` turns on VoiceID for a wallet that does not have it yet. The three samples of that VoiceID enrollment are also the verifier's recordings, so the owner reads one set of phrases, not two.
+  - The Wallet clears its copies of the samples after it sends them to the verifier. `activateAuthMethod` never returns audio to an app.
+  - If the owner turned VoiceID off, `enroll` still returns `unavailable` with the reason `voiceid_unavailable`. Turn it on again with `setAuthMethodEnabled`.
+  - An app that calls `activateAuthMethod` before `enroll` keeps working, but the owner records twice. Call only `enroll` to record once.
+- During that enrollment, the Wallet confirm of the signed message no longer opens below the VoiceID card. Before, the owner had to scroll down to reach it.
+- VoiceID cards change state without jumps:
+  - The rows that change fade out together, and the new rows fade in one after another. Buttons and links fade in place.
+  - The first enrollment card continues the activation card with the same phrase. Before, the card blinked and showed a different phrase.
+  - The model download shows at the first downloaded byte. Its bar follows the downloaded bytes and stays full while VoiceID prepares. Before, the bar stopped near half while the text reached 99%, and it showed empty while VoiceID prepared.
+  - In the Wallet frame, a card that gets shorter follows the frame's ease, so its edge does not jump. After a Wallet confirm, the card comes back without an entrance, and its rows fade in when the frame fits.
+  - After VoiceID activation, the finished card stays until the Speak-to-Sign card takes its place, so the frame does not show empty while the Wallet loads the plugin.
+  - The Speak-to-Sign card starts loading the speech detector when it opens. Before, the first recording on a page showed "Opening microphone…" for about 3 s.
+- A Speak-to-Sign enrollment refusal that says a verifier service failed, such as `speaker_unavailable`, shows "The check is not available" on the card.
+- The VoiceID host API is version **11**, and the Speak-to-Sign host API is version **9**. The Wallet refuses a host plugin of another version, so install `@seams/voiceid` and `@seams/speak-to-sign` 0.64.0 with `@seams/wallet` 0.64.0. The Speak-to-Sign verifier stays at **0.5.2**, OutLayer version key `96b79b518613a50538b060da2279c91e12b0619499c532c2708f61ddb790d7e5`.
+- Deploy the Wallet host with both plugins, and update apps to 0.64.0. The server needs no change for this release.
+- Install all four packages at 0.64.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
 The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
