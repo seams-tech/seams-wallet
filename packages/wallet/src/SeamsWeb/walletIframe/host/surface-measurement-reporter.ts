@@ -194,7 +194,13 @@ class SurfaceMeasurementReporter implements WalletIframeSurfaceMeasurementReport
     if (this.disconnected) return;
     const size = sizeForReporter(this.options, this.latestEntry);
     this.latestEntry = null;
-    if (!size || this.sameSize(size)) return;
+    if (!size) {
+      // A hidden surface reports again when it shows, because another surface of the same
+      // request may have sized the parent box in the meantime.
+      this.lastSize = null;
+      return;
+    }
+    if (this.sameSize(size)) return;
     this.lastSize = size;
     const sequence = allocateSurfaceMeasurementSequence();
     if (sequence === null) {

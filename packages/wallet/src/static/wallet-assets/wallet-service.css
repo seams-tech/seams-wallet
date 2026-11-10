@@ -41,6 +41,16 @@ html:has(.seams-auth-method-activation-surface)::-webkit-scrollbar {
   display: none;
 }
 
+/* A Wallet confirm can open while a VoiceID card is open, for example when
+   Speak-to-Sign enrollment asks the owner to sign. The parent sizes this
+   document to one surface, and the confirm portal comes after the card, so
+   the card steps aside until the confirm closes. A VoiceID check inside a
+   confirm card stays. */
+html:has(.seams-confirmation-surface)
+  .seams-auth-method-activation-surface:not(.seams-confirmation-surface *) {
+  display: none;
+}
+
 html.seams-transparent,
 body.seams-transparent {
   background: transparent !important;
