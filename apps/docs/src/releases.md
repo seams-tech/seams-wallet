@@ -29,9 +29,14 @@ The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.66
   - The co-signer has no fixed voice limits (10 NEAR for one payment, 20 NEAR in 24 hours). The result reason `voice_limit` and the refusals `over_payment_limit` and `over_daily_limit` are gone. A limit is a rule of the Wallet policy engine.
 - The Speak-to-Sign host API is version **10**. The host plugin has the new method `requestMessage`. Install `@seams/speak-to-sign` 0.66.0 with `@seams/wallet` 0.66.0: the Wallet refuses a host plugin of another version. The VoiceID host API stays at version **11**.
 - The Speak-to-Sign verifier is **0.9.0**, OutLayer version key `6725917bd01355f08bb402271dff6265c0d03650c1b1acf8d0992b2537d65ef1`. `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage` need 0.9.0. `typed.bet` needs 0.8.0 or later. `typed.transfer`, `typed.note`, `typed.rating` and `typed.mergeApproval` also work with 0.5.2.
+- The transaction confirmer card has a 1px border in the new color token `transactionCardBorder` (`--seams-colors-transactionCardBorder`). It is transparent by default. Set it with `appearance.theme.colors.transactionCardBorder`.
+- The seams wordmark in the "Secured by seams" footers links to https://wallet.seams.sh and opens it in a new tab.
 - Fixes:
   - In the Wallet modal, Transaction details open in one motion when the open card is taller than its frame. Before, the card opened in two steps and pushed Confirm out of view.
   - The VoiceID and Speak-to-Sign plugins load the Wallet bridge (`/sdk/voiceid-host.js`, `/sdk/speak-to-sign-host.js`) with `?v=` and the pinned Wallet version. Before, a browser could run new plugin files against a cached bridge of the release before, and the plugin failed to load.
+  - The Receive screen of Wallet settings shows the QR code in every app. `qrcode` is now a dependency of `@seams/wallet`, not an optional peer dependency, so apps do not install it. Before, an app without `qrcode` showed an empty box. If the Wallet cannot make the code, the screen says so.
+  - The Add and Remove buttons of Authentication methods have room for their labels. Before, the label ran out of the button.
+  - The "Secured by seams" footers center the wordmark on the line. Before, the wordmark sat higher than the text.
 - The SDK, the hosted Wallet and the server must ship together. The co-signer in `@seams/wallet-server` 0.66.0 checks the new request kinds, and an older Wallet host rejects them.
 - Install all four packages at 0.66.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 
