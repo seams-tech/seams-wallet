@@ -36,5 +36,8 @@ iframeを更新する際はプリセット全体を展開し、以前の形状�
 ステータスの色、取引のハイライトがあります。
 ウォレットiframeの表示設定は追加の色キーも受け付けるため、SDKをリリースせずにコンポーネント固有の値を渡せます。
 
+取引確認カードには`transactionCardBorder`の色で1pxの枠線があります。
+設定しない場合は透明です。例:`appearance: { theme: { colors: { transactionCardBorder: '#3f3f46' } } }`。
+
 アクセシビリティの確認事項は[テーマ設定ガイド](/ja/guides/theming)、
 公開されているトークンの型は[Reactリファレンス](/ja/reference/react#appearance)を参照してください。

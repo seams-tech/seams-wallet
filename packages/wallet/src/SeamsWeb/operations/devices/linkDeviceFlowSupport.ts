@@ -188,23 +188,6 @@ export class LinkDeviceFlowSupersededError extends Error {
   }
 }
 
-export async function generateQrCodeDataUrlV1(payload: string): Promise<string> {
-  let qrcode: typeof import('qrcode');
-  try {
-    qrcode = await import('qrcode');
-  } catch {
-    throw new DeviceLinkingError(
-      'Device-link QR generation requires the optional qrcode package',
-      DeviceLinkingErrorCode.UNSUPPORTED,
-      'generation',
-    );
-  }
-  return await qrcode.toDataURL(payload, {
-    errorCorrectionLevel: 'M',
-    margin: 2,
-  });
-}
-
 export function buildDevice2QrSessionPayloadV1(input: {
   readonly linkSessionId: import('@shared/signing-lanes/ids').LinkDeviceSessionId;
   readonly linkPublicKeyB64u: import('@shared/device-linking').LinkDevicePublicKeyB64u;

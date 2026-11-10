@@ -515,6 +515,14 @@
   background: var(--seams-colors-surface2);
 }
 
+[data-seams-root].seams-theme-provider .seams-assets-qr-failed {
+  margin: 0;
+  color: var(--seams-colors-textSecondary);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 [data-seams-root].seams-theme-provider .seams-assets-address,
 [data-seams-root].seams-theme-provider .seams-assets-tx {
   max-width: 100%;

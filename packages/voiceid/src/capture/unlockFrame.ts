@@ -67,7 +67,7 @@ const CSS = `
 }
 .seams-voiceid-unlock-footer {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   gap: 0.375rem;
   padding: 0.625rem 1rem;
@@ -77,13 +77,23 @@ const CSS = `
   line-height: 1rem;
   letter-spacing: 0.01em;
 }
-.seams-voiceid-unlock-footer .seams-receipt-wordmark {
+.seams-voiceid-unlock-footer .seams-wordmark-link {
+  display: flex;
   flex: none;
+  border-radius: 2px;
+  color: inherit;
+}
+.seams-voiceid-unlock-footer .seams-wordmark-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.seams-voiceid-unlock-footer .seams-receipt-wordmark {
   width: 3.125rem;
   height: 0.625rem;
 }
 @media (hover: hover) {
-  .seams-voiceid-unlock-back:hover {
+  .seams-voiceid-unlock-back:hover,
+  .seams-voiceid-unlock-footer .seams-wordmark-link:hover {
     color: var(--seams-colors-textPrimary, #eff2f3);
   }
 }

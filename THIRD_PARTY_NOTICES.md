@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 447 dependency records (60 npm, 387 Cargo).
+Inventory: 476 dependency records (89 npm, 387 Cargo).
 
 ## Dependency inventory
 
@@ -432,32 +432,61 @@ Inventory: 447 dependency records (60 npm, 387 Cargo).
 | npm | @simplewebauthn/server | 13.2.2 | MIT | Matthew Miller <matthew@millerti.me> |
 | npm | @types/node | 24.2.0 | MIT | Alberto Schiabel; Andrew Makarov; Anna Henningsen; Benjamin Toueg; David Junger; Dmitry Semigradsky; ExE Boss; Ilia Baryshnikov; Junxiao Shi; Linus Unnebäck; Marcin Kopacz; Matteo Collina; Microsoft TypeScript; Mohsen Azimi; Nikita Galkin; NodeJS Contributors; Piotr Błażejewicz; René; Sebastian Silbermann; Trivikram Kamat; Victor Perin; Wilco Bakker; Yagiz Nizipli; wafuwafu13 |
 | npm | abitype | 1.2.3 | MIT | awkweb.eth <t@wevm.dev>; jxom.eth <j@wevm.dev> |
+| npm | ansi-regex | 5.0.1 | MIT | Sindre Sorhus sindresorhus@gmail.com |
+| npm | ansi-styles | 4.3.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
 | npm | asn1js | 3.0.7 | BSD-3-Clause | Ryan Hurst rmh@unmitigatedrisk.com; Yury Strozhevsky yury@strozhevsky.com |
 | npm | base-x | 5.0.1 | MIT | Daniel Cousens |
 | npm | borsh | 1.0.0 | Apache-2.0 | Near Inc |
 | npm | bs58 | 6.0.0 | MIT |  |
+| npm | camelcase | 5.3.1 | MIT | Sindre Sorhus sindresorhus@gmail.com |
+| npm | cliui | 6.0.0 | ISC | Ben Coe <ben@npmjs.com> |
+| npm | color-convert | 2.0.1 | MIT | Heather Arthur <fayearthur@gmail.com> |
+| npm | color-name | 1.1.4 | MIT | DY <dfcreative@gmail.com> |
+| npm | decamelize | 1.2.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
+| npm | dijkstrajs | 1.0.3 | MIT |  |
+| npm | emoji-regex | 8.0.0 | MIT | Mathias Bynens |
 | npm | eventemitter3 | 5.0.1 | MIT | Arnout Kazemier |
+| npm | find-up | 4.1.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
 | npm | flatbuffers | 25.9.23 | Apache-2.0 | The FlatBuffers project |
+| npm | get-caller-file | 2.0.5 | ISC | Stefan Penner |
 | npm | guid-typescript | 1.0.9 | ISC | nicolas |
 | npm | idb | 8.0.3 | ISC | Jake Archibald |
+| npm | is-fullwidth-code-point | 3.0.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
 | npm | isows | 1.0.7 | MIT |  |
+| npm | locate-path | 5.0.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
 | npm | long | 5.3.2 | Apache-2.0 | Daniel Wirtz <dcode@dcode.io> |
 | npm | onnxruntime-common | 1.30.0 | MIT | fs-eire |
 | npm | onnxruntime-web | 1.30.0 | MIT | fs-eire |
 | npm | ox | 0.12.1 | MIT |  |
+| npm | p-limit | 2.3.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
+| npm | p-locate | 4.1.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
+| npm | p-try | 2.2.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
+| npm | path-exists | 4.0.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
 | npm | platform | 1.3.6 | MIT | Benjamin Tan <demoneaux@gmail.com>; John-David Dalton <john.david.dalton@gmail.com>; Mathias Bynens <mathias@qiwi.be> |
+| npm | pngjs | 5.0.0 | MIT | Alexandre Paré; Eugene Kulabuhov; Gaurav Mali; Gusts Kaksis; Kuba Niegowski; Luke Page; Michael Vogt; Pietajan De Potter; Steven Sojka; Xin-Xin Wang; liangzeng; toriningen |
 | npm | preact | 10.29.8 | MIT |  |
 | npm | protobufjs | 7.6.6 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
 | npm | pvtsutils | 1.3.6 | MIT | Miroshin Stepan<microshine@mail.ru>; PeculiarVentures |
 | npm | pvutils | 1.1.5 | MIT | Miroshin Stepan microshine@mail.ru; Ryan Hurst rmh@unmitigatedrisk.com; Yury Strozhevsky yury@strozhevsky.com |
+| npm | qrcode | 1.5.4 | MIT | Linus Unnebäck <linus@folkdatorn.se>; Ryan Day <soldair@gmail.com>; Vincenzo Greco <greco.vincenzo@gmail.com> |
 | npm | reflect-metadata | 0.2.2 | Apache-2.0 | Ron Buckton ron.buckton@microsoft.com |
+| npm | require-directory | 2.1.1 | MIT | Troy Goode <troygoode@gmail.com> (http://github.com/troygoode/); Troy Goode troygoode@gmail.com |
+| npm | require-main-filename | 2.0.0 | ISC | Ben Coe <ben@npmjs.com> |
+| npm | set-blocking | 2.0.0 | ISC | Ben Coe <ben@npmjs.com> |
+| npm | string-width | 4.2.3 | MIT | Sindre Sorhus sindresorhus@gmail.com |
+| npm | strip-ansi | 6.0.1 | MIT | Sindre Sorhus sindresorhus@gmail.com |
 | npm | tslib | 1.14.1 | 0BSD | Microsoft Corp. |
 | npm | tslib | 2.8.1 | 0BSD | Microsoft Corp. |
 | npm | tsyringe | 4.10.0 | MIT | Steven Hobson-Campbell |
 | npm | undici-types | 7.10.0 | MIT | Daniele Belardi; Ethan Arrowood; Matteo Collina; Matthew Aitken; Robert Nagy; Szymon Marczak; Tomas Della Vedova |
 | npm | viem | 2.46.0 | MIT |  |
 | npm | voice-glow | 0.2.1 | MIT | Jakub Antalik |
+| npm | which-module | 2.0.1 | ISC | nexdrew |
+| npm | wrap-ansi | 6.2.0 | MIT | Sindre Sorhus sindresorhus@gmail.com |
 | npm | ws | 8.18.3 | MIT | Einar Otto Stangvik <einaros@gmail.com> (http://2x.io) |
+| npm | y18n | 4.0.3 | ISC | Ben Coe <ben@npmjs.com> |
+| npm | yargs-parser | 18.1.3 | ISC | Ben Coe <ben@npmjs.com> |
+| npm | yargs | 15.4.1 | MIT | Yargs Contributors |
 
 ## Dependencies without a packaged license file
 
@@ -1905,6 +1934,36 @@ Applies to:
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+### 119fee4adef95a6a
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:color-convert@2.0.1
+
+    Copyright (c) 2011-2016 Heather Arthur <fayearthur@gmail.com>
+
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 ### 123a331b5dbf04c3
 
 Packaged as: LICENSE-MIT
@@ -2328,6 +2387,36 @@ Applies to:
     THE SOFTWARE.
 
 
+### 176b07a18c0bb383
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:pngjs@5.0.0
+
+    pngjs2 original work Copyright (c) 2015 Luke Page & Original Contributors
+    pngjs derived work Copyright (c) 2012 Kuba Niegowski
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+
+
 ### 177540cad091a40e
 
 Packaged as: LICENSE-MIT
@@ -2694,6 +2783,29 @@ Applies to:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
+
+
+### 2034cce3b6fafcdd
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:y18n@4.0.3
+
+    Copyright (c) 2015, Contributors
+
+    Permission to use, copy, modify, and/or distribute this software for any purpose
+    with or without fee is hereby granted, provided that the above copyright notice
+    and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+    FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+    OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+    TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+    THIS SOFTWARE.
 
 
 ### 209fbbe0ad52d923
@@ -3478,6 +3590,61 @@ Applies to:
     SOFTWARE.
 
 
+### 2dc0465729366c3a
+
+Packaged as: LICENSE.txt
+
+Applies to:
+
+- npm:cliui@6.0.0
+
+    Copyright (c) 2015, Contributors
+
+    Permission to use, copy, modify, and/or distribute this software
+    for any purpose with or without fee is hereby granted, provided
+    that the above copyright notice and this permission notice
+    appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+    OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE
+    LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES
+    OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+    WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+
+### 2f1a503bfab84b3b
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:yargs@15.4.1
+
+    MIT License
+
+    Copyright 2010 James Halliday (mail@substack.net); Modified work Copyright 2014 Contributors (ben@npmjs.com)
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+
+
 ### 304b898acad7f02e
 
 Packaged as: LICENSE-MIT
@@ -3823,6 +3990,32 @@ Applies to:
        of your accepting any such warranty or additional liability.
 
     END OF TERMS AND CONDITIONS
+
+
+### 365496ca1f56da40
+
+Packaged as: LICENSE.txt
+
+Applies to:
+
+- npm:require-main-filename@2.0.0
+- npm:set-blocking@2.0.0
+- npm:yargs-parser@18.1.3
+
+    Copyright (c) 2016, Contributors
+
+    Permission to use, copy, modify, and/or distribute this software
+    for any purpose with or without fee is hereby granted, provided
+    that the above copyright notice and this permission notice
+    appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+    OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE
+    LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES
+    OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+    WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 ### 36bb253818ac1376
@@ -5079,6 +5272,67 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
+
+
+### 483acb265f182907
+
+Packaged as: LICENSE-MIT.txt
+
+Applies to:
+
+- npm:emoji-regex@8.0.0
+
+    Copyright Mathias Bynens <https://mathiasbynens.be/>
+
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+### 48da2f39e100d408
+
+Packaged as: license
+
+Applies to:
+
+- npm:ansi-regex@5.0.1
+- npm:ansi-styles@4.3.0
+- npm:camelcase@5.3.1
+- npm:find-up@4.1.0
+- npm:is-fullwidth-code-point@3.0.0
+- npm:locate-path@5.0.0
+- npm:p-limit@2.3.0
+- npm:p-locate@4.1.0
+- npm:p-try@2.2.0
+- npm:path-exists@4.0.0
+- npm:string-width@4.2.3
+- npm:strip-ansi@6.0.1
+- npm:wrap-ansi@6.2.0
+
+    MIT License
+
+    Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 49d6a1c9a623784c
@@ -6911,6 +7165,37 @@ Applies to:
     SOFTWARE.
 
 
+### 6fb9754611c20f66
+
+Packaged as: license
+
+Applies to:
+
+- npm:decamelize@1.2.0
+
+    The MIT License (MIT)
+
+    Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+
+
 ### 6fe6d6a54d019097
 
 Packaged as: LICENSE
@@ -8090,6 +8375,29 @@ Applies to:
     SOFTWARE.
 
 
+### 852bf81203aa93aa
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:which-module@2.0.1
+
+    Copyright (c) 2016, Contributors
+
+    Permission to use, copy, modify, and/or distribute this software for any purpose
+    with or without fee is hereby granted, provided that the above copyright notice
+    and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+    FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+    OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+    TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+    THIS SOFTWARE.
+
+
 ### 873a2f333fda393e
 
 Packaged as: LICENSE
@@ -8834,6 +9142,40 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
+### 902dbb4154679fb2
+
+Packaged as: LICENSE.md
+
+Applies to:
+
+- npm:get-caller-file@2.0.5
+
+    ISC License (ISC)
+    Copyright 2018 Stefan Penner
+
+    Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+
+### 9060d3e477a57e94
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:color-name@1.1.4
+
+    The MIT License (MIT)
+    Copyright (c) 2015 Dmitry Ivanov
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 ### 90c503b61dee04e1
 
 Packaged as: LICENSE-MIT
@@ -9187,6 +9529,25 @@ Applies to:
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+
+
+### a060a98ea20666c5
+
+Packaged as: license
+
+Applies to:
+
+- npm:qrcode@1.5.4
+
+    The MIT License (MIT)
+
+    Copyright (c) 2012 Ryan Day
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### a192bdfbed999ea0
@@ -10538,6 +10899,38 @@ Applies to:
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+
+
+### a92e52eb1fa7cd74
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:require-directory@2.1.1
+
+    The MIT License (MIT)
+
+    Copyright (c) 2011 Troy Goode <troygoode@gmail.com>
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### aa72991ac35b4de0
@@ -12042,6 +12435,35 @@ Applies to:
         LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
         OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
         SOFTWARE
+
+
+### c46324e45a005413
+
+Packaged as: LICENSE.md
+
+Applies to:
+
+- npm:dijkstrajs@1.0.3
+
+    ```
+    Dijkstra path-finding functions. Adapted from the Dijkstar Python project.
+
+    Copyright (C) 2008
+      Wyatt Baldwin <self@wyattbaldwin.com>
+      All rights reserved
+
+    Licensed under the MIT license.
+
+      http://www.opensource.org/licenses/mit-license.php
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+    ```
 
 
 ### c620c1d08a47c93c

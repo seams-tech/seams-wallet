@@ -4,6 +4,7 @@ import { walletDisplayText, walletText } from '@/core/ui/messages';
 import type { WalletAsset } from '@/core/assets/assetList';
 import { AssetPicker } from './AssetPicker';
 import { networkLabel } from './assetFormat';
+import { qrCodeDataUrl } from '@/utils/qrCode';
 
 type QrState =
   | { readonly kind: 'loading' }
@@ -24,10 +25,7 @@ function useQrCode(text: string | null): QrState {
     if (!text) return;
     let live = true;
     setState({ kind: 'loading' });
-    import('qrcode')
-      .then((qrcode) =>
-        qrcode.toDataURL(text, { margin: 1, width: 320, errorCorrectionLevel: 'M' }),
-      )
+    qrCodeDataUrl(text, { margin: 1, width: 320 })
       .then((dataUrl) => {
         if (live) setState({ kind: 'ready', dataUrl });
       })
@@ -82,18 +80,24 @@ export function ReceivePanel({
     <div className="seams-assets-form">
       <AssetPicker assets={choices} value={asset} onChange={setAssetId} />
       <div className="seams-assets-qr-card">
-        <div className="seams-assets-qr">
-          {qr.kind === 'ready' ? (
-            <img
-              src={qr.dataUrl}
-              width={156}
-              height={156}
-              alt={walletText(locale, 'QR code for {value0}', { value0: address })}
-            />
-          ) : (
-            <span className="seams-assets-qr-placeholder" aria-hidden="true" />
-          )}
-        </div>
+        {qr.kind === 'failed' ? (
+          <p className="seams-assets-qr-failed" role="status">
+            <WalletText message="The QR code could not be shown. Copy the address instead." />
+          </p>
+        ) : (
+          <div className="seams-assets-qr">
+            {qr.kind === 'ready' ? (
+              <img
+                src={qr.dataUrl}
+                width={156}
+                height={156}
+                alt={walletText(locale, 'QR code for {value0}', { value0: address })}
+              />
+            ) : (
+              <span className="seams-assets-qr-placeholder" aria-hidden="true" />
+            )}
+          </div>
+        )}
         <code className="seams-assets-address">{address}</code>
         <button type="button" className="seams-assets-secondary is-on-surface" onClick={copy}>
           {copied ? <WalletText message="Copied" /> : <WalletText message="Copy address" />}

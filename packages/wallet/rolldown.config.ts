@@ -134,7 +134,7 @@ const external = [
   'util',
   /^node:.*/,
 
-  // Core dependencies that should be provided by consuming application
+  // Package dependencies (and the optional jsqr peer) that the application's bundler resolves
   'bs58',
   'qrcode',
   'jsqr',

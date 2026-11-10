@@ -1,3 +1,14 @@
+# Ownership
+
+This codebase is yours: what it's for and how it's built are your call, and
+you'll keep building on it.
+
+- Merge repeated code that you find in the area you change.
+- Fix related problems near your change in the same change. Report a problem
+  only when the fix is too large or belongs to another task.
+- Ownership does not cover another agent's uncommitted edits. The Git rules
+  below still apply.
+
 # Shared development workflow
 
 - Work directly in `/Users/pta/Dev/rust/seams-wallet` on `dev`.
