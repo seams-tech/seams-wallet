@@ -124,9 +124,9 @@ importers:
 
   packages/voiceid:
     dependencies:
-      onnxruntime-web:
-        specifier: 1.30.0
-        version: 1.30.0
+      '@seams/voice-capture':
+        specifier: 0.66.0
+        version: 0.66.0
       preact:
         specifier: 10.29.8
         version: 10.29.8
@@ -1548,6 +1548,10 @@ packages:
 
   '@scure/bip39@1.6.0':
     resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
+
+  '@seams/voice-capture@0.66.0':
+    resolution: {integrity: sha512-a0ji5N1e9qALwNddV5wdWpm7o+n7/4S0MiMAYoDiiBHeAZtM4ht1NZ1JgEIQCC3pzxn2uIyVUHTCH6fb8n7Z9w==}
+    engines: {node: '>=24'}
 
   '@shikijs/core@2.5.0':
     resolution: {integrity: sha512-uu/8RExTKtavlpH7XqnVYBrfBkUc20ngXiX9NSrBhOVZYv/7XQRKUyhtkeflY5QsxC0GbJThCerruZfsUaSldg==}
@@ -4211,6 +4215,13 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
+
+  '@seams/voice-capture@0.66.0':
+    dependencies:
+      onnxruntime-web: 1.30.0
+      preact: 10.29.8
+    transitivePeerDependencies:
+      - preact-render-to-string
 
   '@shikijs/core@2.5.0':
     dependencies:

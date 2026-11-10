@@ -15,12 +15,6 @@
     ],
     "paths": {
       "@voiceid/*": ["../packages/voiceid/src/*"],
-      "@seams/voice-capture": [
-        "../packages/voiceid/node_modules/@seams/voice-capture/dist/types/index.d.ts"
-      ],
-      "@seams/voice-capture/card": [
-        "../packages/voiceid/node_modules/@seams/voice-capture/dist/types/card/index.d.ts"
-      ],
       "@seams/wallet/voiceid-host": ["../packages/wallet/src/voiceid-host.ts"],
       "@seams/wallet/speak-to-sign-host": ["../packages/wallet/src/speak-to-sign-host.ts"],
       "@seams/wallet": ["../packages/wallet/src/index.ts"],

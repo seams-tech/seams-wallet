@@ -5,10 +5,6 @@ import { rolldown } from 'rolldown';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const walletRoot = path.join(repoRoot, 'packages/wallet');
-const voiceCaptureRoot = path.join(
-  repoRoot,
-  'packages/voiceid/node_modules/@seams/voice-capture',
-);
 process.chdir(walletRoot);
 const { default: configs } = await import('../../packages/wallet/rolldown.config.ts');
 const libraryConfig = configs.find(
@@ -49,8 +45,6 @@ async function buildProbe(config, fixtureName) {
       alias: {
         ...options.resolve.alias,
         '@voiceid/*': path.join(repoRoot, 'packages/voiceid/src/*'),
-        '@seams/voice-capture/card': path.join(voiceCaptureRoot, 'dist/esm/card/index.js'),
-        '@seams/voice-capture': path.join(voiceCaptureRoot, 'dist/esm/index.js'),
         '@seams/wallet/voiceid-host': path.join(walletRoot, 'src/voiceid-host.ts'),
       },
     },
