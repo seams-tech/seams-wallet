@@ -313,6 +313,8 @@ export type {
 export { TransactionReviewHost } from './transactionReview/TransactionReviewHost';
 export { TransactionReviewError } from './transactionReview/contract';
 export type {
+  TransactionAfterControls,
+  TransactionSteps,
   TransactionReview,
   TransactionReviewControls,
   TransactionReviewRect,
@@ -321,6 +323,29 @@ export type {
   TransactionReviewErrorCode,
   ReviewedTransactionInput,
 } from './transactionReview/contract';
+
+export type {
+  WalletStepChrome,
+  WalletStepEvents,
+  WalletStepExit,
+  WalletStepSize,
+} from '../SeamsWeb/walletIframe/shared/walletStep';
+export type { AnchoredSurfaceLayer } from '../SeamsWeb/walletIframe/client/anchoredSurface';
+export type {
+  AnchoredWalletPresentation,
+  WalletSurfacePresentation,
+} from '../SeamsWeb/walletIframe/shared/walletStep';
+export { WalletStep } from './components/WalletStep';
+export type {
+  WalletStepOutcome,
+  WalletStepProps,
+  WalletStepSurface,
+} from './components/WalletStep';
+export type {
+  WalletModalAfterControls,
+  WalletModalBeforeControls,
+  WalletModalSteps,
+} from '../SeamsWeb/publicApi/walletModalSteps';
 
 export type { AccountMenuButtonMockProps } from './components/AccountMenuButton';
 

@@ -77,4 +77,6 @@ export {
 } from './SeamsWeb/walletIframe/host/surface-measurement-reporter';
 export { SeamsWordmark } from './core/signingEngine/uiConfirm/ui/preact/SeamsWordmark';
 export { backIcon } from './SeamsWeb/walletIframe/host/ui/auth-menu/icons';
+/** `'back'` when the card shows in an app's dialog with a step before it. */
+export { anchoredCardChrome } from './core/signingEngine/uiConfirm/anchoredCard';
 export type { VoiceMicrophonePreference } from './core/authMethods/voiceId/microphonePreference';

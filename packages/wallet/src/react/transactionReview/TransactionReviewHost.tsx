@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom';
 import { useSeams } from '../context';
 import { ReviewHostController, ReviewOwner, type ReviewCallView } from './controller';
 import { TransactionReviewError } from './contract';
+import { ModalStepsController, ModalStepsPortal } from './ModalSteps';
 
 const ReviewContext = createContext<ReviewHostController | null>(null);
 
@@ -30,11 +31,15 @@ export function TransactionReviewHost({ children }: { children: ReactNode }): Re
     );
   }
   useLayoutEffect(host.retain.bind(host), [host]);
+  // The modal steps of Speak-to-Sign requests and of the sign-in menu.
+  const modalSteps = useMemo(() => new ModalStepsController(), [seams]);
+  useLayoutEffect(() => modalSteps.attach(seams.near), [modalSteps, seams]);
   const call = useSyncExternalStore(host.subscribe, host.snapshot, host.snapshot);
   return (
     <ReviewContext.Provider value={host}>
       {children}
       {call ? <ReviewPortal key={call.review.title} call={call} /> : null}
+      <ModalStepsPortal controller={modalSteps} />
     </ReviewContext.Provider>
   );
 }
@@ -69,9 +74,10 @@ function ReviewContent({ call }: { call: ReviewCallView }): ReactNode {
         state.kind === 'preparing_approval' || state.kind === 'wallet_approval';
     }
   }, [state.kind]);
+  const after = state.kind === 'after';
   useLayoutEffect(() => {
     heading.current?.focus({ preventScroll: true });
-  }, [call]);
+  }, [call, after]);
   return (
     <section className={`seams-transaction-review-content ${call.review.className ?? ''}`}>
       <h2 className="seams-transaction-review-title" tabIndex={-1} ref={heading}>
@@ -79,6 +85,12 @@ function ReviewContent({ call }: { call: ReviewCallView }): ReactNode {
       </h2>
       {state.kind === 'review_failed' ? (
         <ReviewFailure call={call} />
+      ) : state.kind === 'after' ? (
+        <div key="after">
+          <ReviewErrorBoundary call={call}>
+            <RenderAfter call={call} outcome={state.outcome} />
+          </ReviewErrorBoundary>
+        </div>
       ) : (
         <div ref={content} aria-hidden={state.kind === 'preparing_approval' ? true : undefined}>
           <ReviewErrorBoundary call={call}>
@@ -101,6 +113,10 @@ function RenderReview({ call }: { call: ReviewCallView }): ReactNode {
     );
   }
   return content;
+}
+
+function RenderAfter({ call, outcome }: { call: ReviewCallView; outcome: unknown }): ReactNode {
+  return call.review.after?.(outcome, call.afterControls) ?? null;
 }
 
 function ReviewLoading({ call }: { call: ReviewCallView }): ReactNode {

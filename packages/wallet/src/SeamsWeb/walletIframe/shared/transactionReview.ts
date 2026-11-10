@@ -25,7 +25,8 @@ export type TransactionReviewRect = {
 };
 
 export type TransactionReviewSurface = {
-  readonly stage: 'review' | 'wallet';
+  /** `after`: the app step that shows the signed result in the same modal. */
+  readonly stage: 'review' | 'wallet' | 'after';
   readonly rect: TransactionReviewRect;
 };
 

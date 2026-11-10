@@ -33,6 +33,7 @@ type MountAuthMenuSurfaceInput = {
   readonly walletAlternatives?: WalletAlternatives;
   readonly recoveryOptions?: HostedAuthMenuRecoveryOptions;
   readonly footerBrand?: HostedAuthMenuFooterBrand;
+  readonly chrome?: 'back' | 'close';
   readonly onIntent: (intent: AuthMenuIntent) => void;
 };
 
@@ -58,6 +59,7 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
   private readonly walletAlternatives: WalletAlternatives;
   private readonly recoveryOptions: HostedAuthMenuRecoveryOptions;
   private readonly footerBrand: HostedAuthMenuFooterBrand;
+  private readonly chrome: 'back' | 'close' | undefined;
   private walletConnection: WalletConnectionState = { kind: 'idle' };
   private viewModel: AuthMenuViewModel;
   private readonly styles: CspStylesheetManager;
@@ -70,6 +72,7 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
     this.walletAlternatives = input.walletAlternatives ?? emptyWalletAlternatives();
     this.recoveryOptions = input.recoveryOptions ?? 'collapsible';
     this.footerBrand = input.footerBrand ?? { kind: 'seams' };
+    this.chrome = input.chrome;
     this.viewModel = input.viewModel;
     const document = input.parent.ownerDocument;
     this.styles = authMenuStyles(document);
@@ -143,6 +146,7 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
           recoveryOptions={this.recoveryOptions}
           footerBrand={this.footerBrand}
           walletConnection={this.walletConnection}
+          chrome={this.chrome}
           onIntent={this.state.onIntent}
           styles={this.styles}
         />,

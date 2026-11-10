@@ -43,6 +43,7 @@ class EvmSigner {
       walletSession,
       request: args.request,
       chainTarget,
+      presentation: args.presentation,
       options: args.options,
     });
     if (result.chain !== 'evm' || result.kind !== 'eip1559') {

@@ -56,7 +56,7 @@ import {
   type AuthMenuViewModel,
 } from '../../auth-menu/domain';
 import { isLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
-import { PadlockIcon } from '@/core/signingEngine/uiConfirm/ui/preact/PadlockIcon';
+import { AuthMenuOrigin } from './AuthMenuOrigin';
 import { blinkMenuItem } from '@/utils/menuItemBlink';
 import { AuthMenuFooter } from './AuthMenuFooter';
 import { RecoveryOptions } from './RecoveryOptions';
@@ -90,6 +90,8 @@ type AuthMenuSurfaceProps = {
   readonly element: HTMLElement;
   readonly onIntent: (intent: AuthMenuIntent) => void;
   readonly styles: CspStylesheetManager;
+  /** Back or Close for a menu that is a step of an app's dialog. */
+  readonly chrome?: 'back' | 'close';
 };
 
 type AccountMenuState = 'closed' | 'open' | 'closing';
@@ -339,6 +341,10 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       ),
     ).filter(isAvailableMenuControl);
   }
+
+  private onChromeClick = (): void => {
+    this.emitIntent({ kind: 'close', reason: 'close_button' });
+  };
 
   private onBackClick = (): void => {
     this.emitIntent({ kind: 'back' });
@@ -672,6 +678,8 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     const otpPrompt = viewModel.kind === 'google_otp_login';
     const registrationPrompt = viewModel.kind === 'google_registration';
     const recovery = viewModel.kind === 'recovery';
+    const backVisible =
+      !success && (loading || linkDevice || otpPrompt || registrationPrompt || recovery);
 
     return (
       <>
@@ -689,17 +697,17 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           tabIndex={-1}
           onKeyDown={this.onKeydown}
         >
-          {/* The site asking stays put in every view, so switching views never moves it. */}
-          <div class="seams-menu-origin">
-            <PadlockIcon /> <span>{viewModel.hostname}</span>
-          </div>
+          <AuthMenuOrigin
+            hostname={viewModel.hostname}
+            chrome={this.props.chrome}
+            closeLabel={viewModel.closeLabel}
+            hidden={this.props.chrome === 'back' && backVisible}
+            disabled={success !== null}
+            onChrome={this.onChromeClick}
+          />
           <div class="seams-content-switcher">
             <button
-              class={`seams-back-button ${
-                !success && (loading || linkDevice || otpPrompt || registrationPrompt || recovery)
-                  ? 'is-visible'
-                  : ''
-              }`}
+              class={`seams-back-button ${backVisible ? 'is-visible' : ''}`}
               type="button"
               aria-label={walletDisplayText(this.context, recoveryBackLabel(viewModel))}
               data-auth-menu-close

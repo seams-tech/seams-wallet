@@ -641,6 +641,51 @@ test('context, immutable intent, continuous iframe handoff and explicit wallet a
   expect(await page.evaluate(() => (window as any).reviewViolations)).toEqual([]);
 });
 
+test('steps.after shows the signed result in the same modal until the app closes it', async ({
+  page,
+}) => {
+  await page.evaluate(async () => {
+    const { createElement, Fragment } = await import('react');
+    const state = window as any;
+    void state.reviewWallet.near
+      .signAndSendTransaction({
+        receiverId: 'receiver.testnet',
+        actions: [{ type: 'Transfer', amount: '1' }],
+        steps: {
+          title: 'Place bet',
+          validity: { kind: 'unbounded' },
+          before: (controls: any) =>
+            createElement('button', { onClick: controls.continueToWallet }, 'Continue bet'),
+          after: (outcome: any, controls: any) =>
+            createElement(
+              Fragment,
+              null,
+              createElement('p', null, `Bet placed: ${outcome.transactionId}`),
+              createElement('button', { onClick: controls.close }, 'Done'),
+            ),
+        },
+      })
+      .then((value: unknown) => state.reviewResults.push({ kind: 'result', value }));
+  });
+  await page.getByRole('button', { name: 'Continue bet' }).click();
+  const modal = await page.locator('dialog[open]').elementHandle();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
+  await wallet.locator('button.confirm').click();
+  await expect(page.getByText('Bet placed: review-transaction')).toBeVisible();
+  // The call settles first; the same modal then shows the app's result step.
+  expect(await page.evaluate(() => (window as any).reviewResults)).toMatchObject([
+    { kind: 'result', value: { success: true, transactionId: 'review-transaction' } },
+  ]);
+  expect(
+    await modal?.evaluate((element) => element === document.querySelector('dialog[open]')),
+  ).toBe(true);
+  await expect(page.getByRole('heading', { name: 'Place bet', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(1);
+});
+
 test('Back preserves review state and resumes the same pending wallet approval', async ({
   page,
 }) => {

@@ -7,7 +7,14 @@ import {
   resolveEvmChainTarget,
   resolveTempoChainTarget,
 } from '../../SeamsWeb/publicApi/chainTargets';
-import { TransactionReviewError, validateTransactionReview } from './contract';
+import {
+  TransactionReviewError,
+  validateTransactionReview,
+  type TransactionSteps,
+} from './contract';
+
+/** `steps` is the current name of `review`, with `before` in place of `render`. */
+type StepsArg = { readonly steps?: TransactionSteps };
 import {
   snapshotTransactionInput,
   snapshotTransactionOptions,
@@ -85,7 +92,9 @@ async function nearSign(
         'review_identity_changed',
         'This wallet has no NEAR account',
       );
-    const { review, ...ordinary } = args;
+    const { review: reviewed, ...rest } = args;
+    const { steps, ...ordinary } = rest as typeof rest & StepsArg;
+    const review = reviewed ?? steps;
     if (review === undefined)
       return env.seams.near.signAndSendTransaction({
         ...ordinary,
@@ -131,7 +140,9 @@ async function evmSign(
   env: BoundReviewEnvironment,
   args: Parameters<BoundEvmSigner['signTransaction']>[0],
 ): ReturnType<BoundEvmSigner['signTransaction']> {
-  const { review, ...ordinary } = args;
+  const { review: reviewed, ...rest } = args;
+  const { steps, ...ordinary } = rest as typeof rest & StepsArg;
+  const review = reviewed ?? steps;
   if (review === undefined)
     return env.seams.evm.signTransaction({ ...ordinary, walletSession: env.walletSession });
   const host = requireHost(env);
@@ -170,7 +181,9 @@ async function evmExecute(
   env: BoundReviewEnvironment,
   args: Parameters<BoundEvmSigner['signAndSendTransaction']>[0],
 ): ReturnType<BoundEvmSigner['signAndSendTransaction']> {
-  const { review, ...ordinary } = args;
+  const { review: reviewed, ...rest } = args;
+  const { steps, ...ordinary } = rest as typeof rest & StepsArg;
+  const review = reviewed ?? steps;
   if (review === undefined)
     return env.seams.evm.signAndSendTransaction({ ...ordinary, walletSession: env.walletSession });
   const host = requireHost(env);
@@ -210,7 +223,9 @@ async function tempoSign(
   env: BoundReviewEnvironment,
   args: Parameters<BoundTempoSigner['signTransaction']>[0],
 ): ReturnType<BoundTempoSigner['signTransaction']> {
-  const { review, ...ordinary } = args;
+  const { review: reviewed, ...rest } = args;
+  const { steps, ...ordinary } = rest as typeof rest & StepsArg;
+  const review = reviewed ?? steps;
   if (review === undefined)
     return env.seams.tempo.signTransaction({ ...ordinary, walletSession: env.walletSession });
   const host = requireHost(env);
@@ -249,7 +264,9 @@ async function tempoExecute(
   env: BoundReviewEnvironment,
   args: Parameters<BoundTempoSigner['signAndSendTransaction']>[0],
 ): ReturnType<BoundTempoSigner['signAndSendTransaction']> {
-  const { review, ...ordinary } = args;
+  const { review: reviewed, ...rest } = args;
+  const { steps, ...ordinary } = rest as typeof rest & StepsArg;
+  const review = reviewed ?? steps;
   if (review === undefined)
     return env.seams.tempo.signAndSendTransaction({
       ...ordinary,

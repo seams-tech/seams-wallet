@@ -21,6 +21,11 @@ import type {
 } from '@/core/types/seams';
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
 import type { AuthMenuCapability, ConfigCapability, ConnectionCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
+import {
+  createAuthMenuOpen,
+  createWalletSurfacesCapability,
+  type WalletSurfacesCapability,
+} from '@/SeamsWeb/publicApi/surfaces';
 import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type {
   AuthCapability,
@@ -74,6 +79,8 @@ export class SeamsWeb {
   readonly events: EventsCapability;
   readonly connection: ConnectionCapability;
   readonly authMenu: AuthMenuCapability;
+  /** Wallet cards shown as steps of the app's own dialog. */
+  readonly surfaces: WalletSurfacesCapability;
   private readonly walletIframe: WalletIframeCoordinator;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
@@ -118,9 +125,17 @@ export class SeamsWeb {
     this.events = {
       subscribe: this.walletIframe.onSdkLifecycleEvent.bind(this.walletIframe),
     };
+    // App steps around a Wallet card show in the modal of this instance's TransactionReviewHost.
+    const modalStepsOwner = { key: () => this.near, appearance: this.getAppearance.bind(this) };
     this.authMenu = {
       prepare: this.walletIframe.prepareHostedAuthMenu.bind(this.walletIframe),
-      open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
+      open: createAuthMenuOpen(
+        {
+          open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
+          cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
+        },
+        modalStepsOwner,
+      ),
       cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
       onWalletConnectionRequest: this.walletIframe.onWalletConnectionRequest.bind(
         this.walletIframe,
@@ -133,6 +148,7 @@ export class SeamsWeb {
         this.walletIframe,
       ),
     };
+    this.surfaces = createWalletSurfacesCapability(this.authMenu);
     this.placement = createApplicationPlacementCommands(this.walletIframe);
     const preferences = createApplicationPreferences(userPreferences, this.walletIframe);
     this.disposePreferences = preferences.dispose;
@@ -193,6 +209,7 @@ export class SeamsWeb {
     const speakToSign = createSpeakToSignCapability(
       this.configs.transactionFeatures,
       createApplicationSpeakToSignCommands(this.walletIframe),
+      modalStepsOwner,
     );
     if (speakToSign) this.speakToSign = speakToSign;
   }

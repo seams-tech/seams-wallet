@@ -8,6 +8,7 @@ import type { TransactionReviewReservation } from '../../SeamsWeb/walletIframe/c
 import { assertTransactionReviewValid } from '../../SeamsWeb/walletIframe/shared/transactionReview';
 import {
   TransactionReviewError,
+  type TransactionAfterControls,
   type TransactionReview,
   type TransactionReviewControls,
 } from './contract';
@@ -24,12 +25,18 @@ export type ReviewCallState = ReadonlyExclusiveUnion<
   | { readonly kind: 'preparing_approval'; readonly reservation: TransactionReviewReservation }
   | { readonly kind: 'wallet_approval'; readonly reservation: TransactionReviewReservation }
   | { readonly kind: 'signing'; readonly reservation: TransactionReviewReservation }
+  | {
+      readonly kind: 'after';
+      readonly reservation: TransactionReviewReservation;
+      readonly outcome: unknown;
+    }
   | { readonly kind: 'settled' }
 >;
 
 export interface ReviewCallView {
   readonly review: TransactionReview;
   readonly controls: TransactionReviewControls;
+  readonly afterControls: TransactionAfterControls;
   readonly subscribe: (listener: () => void) => () => void;
   readonly snapshot: () => ReviewCallState;
   dispose(): void;
@@ -180,6 +187,7 @@ class ReviewCall<T> {
   private readonly listeners = new Set<() => void>();
   readonly result: Promise<T>;
   readonly controls: TransactionReviewControls;
+  readonly afterControls: TransactionAfterControls;
 
   constructor(
     private readonly host: ReviewHostController,
@@ -196,6 +204,7 @@ class ReviewCall<T> {
       cancel: this.cancel,
       fail: this.fail,
     });
+    this.afterControls = Object.freeze({ close: this.closeAfter });
   }
 
   private readonly captureResult = (
@@ -237,6 +246,7 @@ class ReviewCall<T> {
         confirmationConfig: this.confirmationConfig,
         signal: this.abort.signal,
         onCancel: this.rejectBeforeDispatch,
+        afterStep: this.review.after !== undefined,
       });
       if (this.state.kind !== 'queued') {
         reservation.finish();
@@ -254,6 +264,10 @@ class ReviewCall<T> {
   private readonly reservationChanged = (): void => {
     if (this.state.kind === 'queued' || this.state.kind === 'settled') return;
     const reservation = this.state.reservation;
+    if (this.state.kind === 'after' && reservation.state.kind === 'settled') {
+      this.finish();
+      return;
+    }
     if (reservation.state.kind === 'reviewing_again') {
       this.transition({ kind: 'reviewing', reservation });
       this.host.show(this);
@@ -286,20 +300,38 @@ class ReviewCall<T> {
   };
 
   private async dispatch(reservation: TransactionReviewReservation): Promise<void> {
+    let after = false;
     try {
       const bridge = getTransactionReviewBridge(this.host.seams.near);
       if (!bridge)
         throw new TransactionReviewError('review_host_unavailable', 'Review host is unavailable');
       const result = await this.execute(bridge.createCapabilities(reservation));
       this.resolve(result);
+      after = this.showAfter(reservation, result);
     } catch (error) {
       this.reject(error);
     } finally {
-      this.finish();
+      if (!after) this.finish();
     }
   }
 
+  /** The router kept the modal for the app's after step: it shows the signed result. */
+  private showAfter(reservation: TransactionReviewReservation, outcome: unknown): boolean {
+    if (!this.review.after || reservation.state.kind !== 'after') return false;
+    this.transition({ kind: 'after', reservation, outcome });
+    this.host.show(this);
+    return true;
+  }
+
+  private readonly closeAfter = (): void => {
+    if (this.state.kind === 'after') this.finish();
+  };
+
   readonly cancel = (): void => {
+    if (this.state.kind === 'after') {
+      this.finish();
+      return;
+    }
     if (this.state.kind === 'review_failed') {
       this.rejectBeforeDispatch(this.state.error);
       return;

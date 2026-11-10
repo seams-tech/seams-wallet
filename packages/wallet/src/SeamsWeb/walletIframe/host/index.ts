@@ -49,6 +49,14 @@ import {
   routeWalletHostRequest,
 } from './requestRouter';
 import { startCardTiming, startReviewTiming, type CardTiming } from '../shared/reviewTiming';
+import {
+  parseWalletSurfacePresentationWire,
+  parseWalletSurfaceViewPayload,
+} from '../shared/walletStep';
+import {
+  beginAnchoredCard,
+  setAnchoredCardView,
+} from '@/core/signingEngine/uiConfirm/anchoredCard';
 
 let initialized = false;
 
@@ -278,6 +286,14 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       }
       ownedRequestIds.add(requestId);
     }
+    // A card in the app's own dialog holds its controls until it is in view and uncovered.
+    const presentation = ownsRequestId
+      ? parseWalletSurfacePresentationWire(req.presentation)
+      : null;
+    const endAnchoredCard =
+      presentation && typeof requestId === 'string'
+        ? beginAnchoredCard(requestId, presentation)
+        : null;
     const requestExecutionGeneration = state.executionGeneration;
     const postForRequest = postExecutionMessage.bind(null, state, requestExecutionGeneration, post);
     // A reviewed approval measures this in its admission. A direct one measures it here.
@@ -398,6 +414,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
               cancelOpenConfirmers();
             }
             post({ type: 'PONG', requestId });
+            return;
+          }
+          case 'PM_SURFACE_VIEW': {
+            const view = parseWalletSurfaceViewPayload(route.request.payload);
+            if (view) setAnchoredCardView(view);
             return;
           }
           case 'PM_ACTIVATE_TRANSACTION_REVIEW': {
@@ -592,6 +613,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       }
       reviewAdmission?.finish();
       untilCardReady?.discard();
+      endAnchoredCard?.();
     }
   };
 

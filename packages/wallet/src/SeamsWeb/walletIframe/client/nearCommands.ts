@@ -1,6 +1,9 @@
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
-import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
+import {
+  dispatchWithPresentation,
+  type TransactionDispatch,
+} from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import { safeErrorMessage, toError } from '@shared/utils/errors';
 import {
@@ -64,7 +67,7 @@ class ApplicationNearCommands {
           transaction,
           options: args.options,
         },
-        this.transactionDispatch,
+        dispatchWithPresentation(this.transactionDispatch, args.presentation),
       );
       await notifyNearTransactionResult(args.options, result);
       return result;

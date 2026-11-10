@@ -29,6 +29,8 @@ const CLASS_AUTH_MENU = 'is-auth-menu';
 const CLASS_HAS_GEOMETRY = 'has-geometry';
 const CLASS_RESIZE_ANIMATED = 'is-resize-animated';
 const CLASS_REVEAL_PENDING = 'is-reveal-pending';
+const CLASS_ANCHORED_TOP = 'is-anchored-top';
+const CLASS_STEPS_MODAL = 'seams-wallet-steps-modal';
 const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
 const DIALOG_SELECTOR = `dialog[data-seams-root].${CLASS_BASE}.${CLASS_DIALOG}`;
 // The quieter elevation of a card that sits on the page rather than over a backdrop.
@@ -50,6 +52,30 @@ const BASE_CSS = `
   [data-seams-root].${CLASS_DIALOG} .seams-review-wallet-inactive { opacity: 0; pointer-events: none; }
   [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-content { padding: 0.75rem; box-sizing: border-box; overflow-wrap: anywhere; }
   ${DIALOG_SELECTOR}[data-transaction-review]::backdrop { background: rgb(0 0 0 / 0.26); }
+  /* The SDK's modal for app steps around a sign-in or VoiceID card. It has the reviewed
+     transaction's shell; while the Wallet's card shows, the card is its surface. */
+  dialog[data-seams-root].${CLASS_STEPS_MODAL} {
+    box-sizing: border-box;
+    width: min(400px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    padding: 0;
+    border: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--seams-colors-colorBackground);
+    color: var(--seams-colors-textPrimary);
+    border-radius: min(var(--seams-shape-card, 16px), 2rem);
+    box-shadow: 0 12px 24px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.12),
+      inset 0 0 0 1px var(--seams-colors-borderPrimary);
+  }
+  dialog[data-seams-root].${CLASS_STEPS_MODAL}::backdrop { background: rgb(0 0 0 / 0.26); }
+  dialog[data-seams-root].${CLASS_STEPS_MODAL}[data-wallet-card-ready] {
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
   [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-title {
     margin: 0 0 16px;
     font: 600 20px / 1.3 system-ui, sans-serif;
@@ -134,7 +160,7 @@ const BASE_CSS = `
   ${DIALOG_SELECTOR}.${CLASS_MODAL}::backdrop {
     background: transparent;
   }
-  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not(.${CLASS_REVEAL_PENDING})::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_INLINE_DIALOG}):not(.${CLASS_REVEAL_PENDING})::backdrop {
     background: rgb(0 0 0 / 0.26);
     animation: seams-wallet-overlay-backdrop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
@@ -170,7 +196,7 @@ const BASE_CSS = `
   /* The iframe clips the child's box shadow at its layout edge. Paint the
      compact modal elevation in the host compositor so it can extend beyond
      that edge without changing the measured hit region. */
-  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_INLINE_DIALOG}):not([data-transaction-review])
     > iframe.${CLASS_IFRAME} {
     filter:
       drop-shadow(0 12px 24px rgb(0 0 0 / 0.22))
@@ -179,14 +205,15 @@ const BASE_CSS = `
   /* A receipt toast is the one request modal opened without a focus trap, so
      it is not :modal. It floats over the live page with no backdrop, and takes
      the quieter card elevation. */
-  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(:modal):not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(:modal):not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_INLINE_DIALOG}):not([data-transaction-review])
     > iframe.${CLASS_IFRAME} {
     filter: ${CARD_ELEVATION};
   }
-  /* The auth-menu card paints no shadow of its own (wallet-ui.css) for the
-     same clipping reason; give it the quieter card elevation here, where the
-     drop-shadow hugs the card's silhouette and may extend past the iframe. */
-  ${DIALOG_SELECTOR}.${CLASS_AUTH_MENU} iframe.${CLASS_IFRAME} {
+  /* An anchored card (the auth menu, or a card in an app's dialog) paints no
+     shadow of its own (wallet-ui.css) for the same clipping reason; give it the
+     quieter card elevation here, where the drop-shadow hugs the card's
+     silhouette and may extend past the iframe. */
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG} iframe.${CLASS_IFRAME} {
     filter: ${CARD_ELEVATION};
   }
   ${DIALOG_SELECTOR}.${CLASS_PROVISIONAL}::backdrop {
@@ -217,6 +244,16 @@ const BASE_CSS = `
   }
   ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}::backdrop {
     background: transparent;
+  }
+  /* A top-layer card in an app's dialog takes its elevation from the dialog's own shadow, not
+     a filter: the card's frame checks its own visibility, and a browser treats a filter on the
+     frame as an effect that hides it. */
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}.${CLASS_ANCHORED_TOP} {
+    border-radius: min(var(--seams-shape-card, 16px), 2rem);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 10px 20px rgb(15 23 42 / 0.1);
+  }
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}.${CLASS_ANCHORED_TOP} iframe.${CLASS_IFRAME} {
+    filter: none;
   }
   /* The dialog must NOT animate its own resize. The auth-menu card inside the
      iframe animates its height, and a ResizeObserver posts every intermediate
@@ -321,7 +358,7 @@ function cssScale(value: number): string {
 }
 
 const drawerGeometryRuleId = (dialogId: string): string => `${dialogId}::drawer`;
-const authMenuGeometryRuleId = (dialogId: string): string => `${dialogId}::auth-menu`;
+const anchoredGeometryRuleId = (dialogId: string): string => `${dialogId}::anchored`;
 const iframeGeometryRuleId = (dialogId: string): string => `${dialogId}::iframe`;
 
 function ensureDialogId(dialog: HTMLDialogElement): string {
@@ -387,17 +424,22 @@ export function setDialogPresentation(
   dialog.classList.remove(CLASS_HIDDEN);
 }
 
-export function setDialogAuthMenu(
+export function setDialogAnchored(
   dialog: HTMLDialogElement,
-  authMenu: boolean,
-  animateResize: boolean,
+  args: {
+    readonly authMenu: boolean;
+    readonly layer: 'page' | 'top' | null;
+    readonly animateResize: boolean;
+  },
 ): void {
   ensureOverlayDialog(dialog);
-  dialog.classList.toggle(CLASS_AUTH_MENU, authMenu);
-  // The auth menu opts out of the overlay chrome entirely: no backdrop, no top
-  // layer, and no z-index escape above host page chrome.
-  dialog.classList.toggle(CLASS_INLINE_DIALOG, authMenu);
-  dialog.classList.toggle(CLASS_RESIZE_ANIMATED, authMenu && animateResize);
+  dialog.classList.toggle(CLASS_AUTH_MENU, args.authMenu);
+  // An anchored card opts out of the overlay chrome: no backdrop, and on the page
+  // layer no top layer and no z-index escape above host page chrome.
+  const anchored = args.layer !== null;
+  dialog.classList.toggle(CLASS_INLINE_DIALOG, anchored);
+  dialog.classList.toggle(CLASS_ANCHORED_TOP, args.layer === 'top');
+  dialog.classList.toggle(CLASS_RESIZE_ANIMATED, anchored && args.animateResize);
 }
 
 type OverlayRect = {
@@ -421,7 +463,7 @@ export function setDialogGeometry(
   const safeLeft = 'var(--seams-wallet-overlay-safe-left, 0px)';
   const width = `min(${cssPx(rect.widthCssPx)},max(1px,calc(100vw - ${safeLeft} - ${safeRight} - ${inset} - ${inset})))`;
   const height = `min(${cssPx(rect.heightCssPx)},max(1px,calc(100dvh - ${safeTop} - ${safeBottom} - ${inset} - ${inset})))`;
-  // An auth-menu rect arrives from the router already in DOCUMENT coordinates
+  // An anchored rect arrives from the router already in DOCUMENT coordinates
   // (the dialog is position:absolute), so it must escape the base rule's
   // viewport-inset clamps on both position AND size. Size matters under
   // browser zoom: the viewport's CSS px shrink while the anchored rect keeps
@@ -451,8 +493,8 @@ export function setDialogGeometry(
     },
   );
   manager.setDynamicDeclarations(
-    authMenuGeometryRuleId(id),
-    `#${id}.${CLASS_DIALOG}.${CLASS_AUTH_MENU}`,
+    anchoredGeometryRuleId(id),
+    `#${id}.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG}`,
     {
       top: signedCssPx(rect.topCssPx),
       left: signedCssPx(rect.leftCssPx),
@@ -470,7 +512,7 @@ export function clearDialogGeometry(dialog: HTMLDialogElement): void {
   const manager = getStyleManager();
   manager.deleteDynamicRule(id);
   manager.deleteDynamicRule(drawerGeometryRuleId(id));
-  manager.deleteDynamicRule(authMenuGeometryRuleId(id));
+  manager.deleteDynamicRule(anchoredGeometryRuleId(id));
   manager.deleteDynamicRule(iframeGeometryRuleId(id));
 }
 
@@ -539,6 +581,22 @@ export function setTransactionReviewAppearance(
       },
     }),
   );
+}
+
+/** The classes of the SDK's modal for app steps; the component renders them. */
+export const WALLET_STEPS_MODAL_CLASS = `${CLASS_DIALOG} ${CLASS_STEPS_MODAL}`;
+
+/** Installs the modal's styles and the Wallet's appearance tokens on the modal. */
+export function prepareWalletStepsModal(
+  dialog: HTMLDialogElement,
+  appearance: AppearanceConfigInput | undefined,
+): void {
+  getStyleManager().ensureBase();
+  if (!dialog.id) {
+    nextDialogId += 1;
+    dialog.id = `${CLASS_STEPS_MODAL}-${nextDialogId}`;
+  }
+  setTransactionReviewAppearance(dialog, appearance);
 }
 
 export function clearTransactionReviewAppearance(slot: HTMLElement): void {
