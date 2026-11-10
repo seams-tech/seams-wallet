@@ -68,7 +68,7 @@ export type SpeakToSignCapability = Readonly<{
    * usdc yes on market nine", and the Wallet sends the stake with the token's `ft_transfer_call`
    * to the market contract, with the signed verdict in `msg` and no confirm. The verdict binds
    * the market and the token, which the owner does not say. The token must be the USDC contract
-   * of the network. A bet above 10 USDC asks for a passkey after the voice.
+   * of the network. The Wallet sets no amount limit: the amount that the owner says is the bet.
    */
   requestBet(
     request: SpeakToSignCall<SpeakToSignBetRequest, SpeakToSignNoteResult>,

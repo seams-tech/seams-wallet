@@ -324,7 +324,7 @@ export type SpeakToSignHostOperations = Readonly<{
    * Checks the verifier output against this note, rating, merge approval or bet and, on an
    * approved verdict, signs and sends its one call from the owner's account, as `payWithVerdict`
    * does for a transfer. A note, rating or merge call has no deposit. A bet is the token's
-   * `ft_transfer_call` with the verdict; above 10 USDC it asks for a fresh approval first.
+   * `ft_transfer_call` with the verdict. The Wallet sets no amount limit for a bet.
    */
   signNoteWithVerdict(
     action: SpokenNoteAction,

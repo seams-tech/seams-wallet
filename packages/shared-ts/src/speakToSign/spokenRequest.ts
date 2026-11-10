@@ -23,8 +23,6 @@ export const SPEAK_TO_SIGN_USDC: Readonly<Record<SpeakToSignNetwork, string | nu
 };
 /** The base units (10^-6 USDC) of 0.01 USDC. */
 export const USDC_UNITS_PER_HUNDREDTH = 10_000n;
-/** A bet above 10 USDC needs a fresh approval after the voice. */
-export const VOICE_BET_STEP_UP_ABOVE_UNITS = 10_000_000n;
 
 /** The kinds of `SpokenRequestV1` that Wallet core signs. Each holds its owner, which is not spoken. */
 export type SpokenRequest =

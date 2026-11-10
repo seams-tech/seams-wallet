@@ -11,7 +11,6 @@ import {
   spokenRequestBorsh,
   spokenRequestDigest,
   USDC_UNITS_PER_HUNDREDTH,
-  VOICE_BET_STEP_UP_ABOVE_UNITS,
   type SpeakToSignNetwork,
 } from '@shared/speakToSign/spokenRequest';
 import {
@@ -200,17 +199,10 @@ async function admitVoiceVerdict(
   }
   const digest = base64UrlEncode(await spokenRequestDigest(borsh));
   if (digest !== verdict.requestDigest) return refuse('request_mismatch');
-  if (spoken.kind === 'market_bet') {
-    // A verified bet verdict names a whole number of hundredths of USDC.
-    if (spoken.amountUnits % USDC_UNITS_PER_HUNDREDTH !== 0n) return refuse('request_mismatch');
-    // The market contract takes only an `accept` verdict, so the verifier cannot ask for a
-    // step-up. The co-signer's own rule: a bet above the limit needs a fresh approval.
-    if (
-      spoken.amountUnits > VOICE_BET_STEP_UP_ABOVE_UNITS &&
-      !freshApproval(authorization, verdict.expiresAtMs)
-    ) {
-      return refuse('step_up_required');
-    }
+  // A verified bet verdict names a whole number of hundredths of USDC. A bet has no voice
+  // limit: the owner said its amount, and the market contract checks the same verdict.
+  if (spoken.kind === 'market_bet' && spoken.amountUnits % USDC_UNITS_PER_HUNDREDTH !== 0n) {
+    return refuse('request_mismatch');
   }
 
   const voiceYocto =

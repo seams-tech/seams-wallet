@@ -1301,48 +1301,22 @@ test('core signs one ft_transfer_call that carries the verdict of this bet only'
   ]);
 });
 
-test('a bet above 10 USDC asks for a fresh approval after the voice', async () => {
+test('a bet has no amount limit: the voice alone approves a large bet', async () => {
   const verifier = await verifierKey();
-  const signal = new AbortController().signal;
-  const rule = 'A voice bet above 10 USDC needs a passkey.';
-  const run = async (amountUnits: bigint, approve: boolean) => {
-    const harness = coreHarness(verifier);
-    const captured = await capture(harness.operations);
-    if (captured.kind !== 'captured') throw new Error('no clip');
-    const bet = { ...BET, amountUnits };
-    const digests = await noteActionDigests('testnet', 'owner.testnet', bet);
-    const output = await verifyOutput(
-      verifier,
-      await verdictJsonFor(digests, await sha256(captured.wav)),
-    );
-    const events: string[] = [];
-    const result = await harness.operations.signNoteWithVerdict(bet, output, signal, {
-      ...paymentHooks(events),
-      approveStepUp: async (policyText) => {
-        events.push(`step_up:${policyText}`);
-        return approve;
-      },
-    });
-    return { result, events, harness };
-  };
-
-  const atLimit = await run(10_000_000n, true);
-  expect(atLimit.result).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
-  expect(atLimit.events).toEqual(['accepted', 'broadcasting']);
-
-  const above = await run(10_010_000n, true);
-  expect(above.result).toEqual({
-    kind: 'executed',
-    transactionHash: 'tx-ok',
-    approval: 'voice_and_passkey',
-  });
-  expect(above.events).toEqual([`step_up:${rule}`, 'broadcasting']);
-  expect(above.harness.progress).toContainEqual({ stage: 'step_up', policyText: rule });
-  expect(above.harness.signed.map(({ approval, policyText }) => ({ approval, policyText }))).toEqual([
-    { approval: 'voice_and_passkey', policyText: rule },
-  ]);
-
-  const declined = await run(10_010_000n, false);
-  expect(declined.result).toEqual({ kind: 'cancelled' });
-  expect(declined.harness.signed).toEqual([]);
+  const harness = coreHarness(verifier);
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const bet = { ...BET, amountUnits: 10n ** 12n };
+  const digests = await noteActionDigests('testnet', 'owner.testnet', bet);
+  const output = await verifyOutput(verifier, await verdictJsonFor(digests, await sha256(captured.wav)));
+  const events: string[] = [];
+  expect(
+    await harness.operations.signNoteWithVerdict(
+      bet,
+      output,
+      new AbortController().signal,
+      paymentHooks(events),
+    ),
+  ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(events).toEqual(['accepted', 'broadcasting']);
 });

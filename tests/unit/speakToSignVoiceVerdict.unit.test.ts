@@ -853,7 +853,7 @@ test('a spoken bet is admitted only as one ft_transfer_call of the USDC contract
   expect(await cosigner.check(withVerdict(call(args), verdict))).toEqual(refused('reused'));
 });
 
-test('a bet above 10 USDC needs a fresh approval, and a bet verdict is a whole number of cents', async () => {
+test('a bet has no voice limit, and a bet verdict is a whole number of cents', async () => {
   const verifier = await verifierKey();
   const cosigner = harness(verifier);
   const usdc = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
@@ -894,13 +894,9 @@ test('a bet above 10 USDC needs a fresh approval, and a bet verdict is a whole n
       stepUp ? { authorization: 'operation_step_up' } : {},
     );
   };
-  expect(await prepared(10_000_000n, 'at-limit')).toEqual(ADMITTED);
-  expect(await prepared(10_010_000n, 'above')).toEqual({
-    status: 403,
-    reason: 'step_up_required',
-    message: 'Speak-to-Sign verdict refused: step_up_required',
-  });
-  expect(await prepared(10_010_000n, 'above-fresh', true)).toEqual(ADMITTED);
+  expect(await prepared(10_000_000n, 'ten')).toEqual(ADMITTED);
+  expect(await prepared(10n ** 12n, 'largest')).toEqual(ADMITTED);
+  expect(await prepared(10_010_000n, 'with-fresh-approval', true)).toEqual(ADMITTED);
   expect(await prepared(500_001n, 'not-cents')).toEqual(refused('request_mismatch'));
   expect(await prepared(500_000n, 'not-u128', false, (2n ** 128n).toString())).toEqual(
     refused('request_mismatch'),

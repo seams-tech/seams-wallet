@@ -11,7 +11,6 @@ import {
   SPEAK_TO_SIGN_USDC,
   spokenRequestBorsh,
   USDC_UNITS_PER_HUNDREDTH,
-  VOICE_BET_STEP_UP_ABOVE_UNITS,
   type BetOutcome,
 } from '@shared/speakToSign/spokenRequest';
 import type { SpeakToSignNetwork } from './plugins';
@@ -116,16 +115,6 @@ export function betVerifyRequest(action: SpokenBetAction): Readonly<Record<strin
     outcome: action.outcome,
     amount_units: action.amountUnits.toString(),
   };
-}
-
-/**
- * The sentence of the Wallet's own rule when the bet needs a fresh approval after the voice, or
- * null. The market contract takes only an `accept` verdict, so the verifier cannot ask for it.
- */
-export function betStepUpText(action: SpokenBetAction): string | null {
-  return action.amountUnits > VOICE_BET_STEP_UP_ABOVE_UNITS
-    ? 'A voice bet above 10 USDC needs a passkey.'
-    : null;
 }
 
 /**
