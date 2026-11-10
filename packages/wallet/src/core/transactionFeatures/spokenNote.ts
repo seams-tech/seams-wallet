@@ -1,7 +1,8 @@
 // The kinds of the `spoken-intent` crate (seams-tech/speak-to-sign) that call one contract method:
 // `SpokenRequestV1::CommunityNote`, `NoteRating` and `MergeApproval`, which move no value, with
 // the same rules, rendered words, Borsh bytes and digests, and `MarketBet` (`./spokenBet`), which
-// moves a token. The crate's golden vectors check this port. Wallet core uses it to check a
+// moves a token, and the general `Transaction`: any actions for any receiver, with a spoken
+// summary. The crate's golden vectors check this port. Wallet core uses it to check a
 // verdict and to build the one call that it signs.
 
 import { functionCall } from '@/core/types/actionBuilders';
@@ -13,6 +14,7 @@ import {
   utf8,
   type NoteRating,
 } from '@shared/speakToSign/spokenRequest';
+import { isValidAccountId } from '@shared/utils/near';
 import type { SpeakToSignNetwork } from './plugins';
 import {
   betActionRefusal,
@@ -84,7 +86,19 @@ export type SpokenNoteAction =
       /** The head commit, 40 lowercase hex characters. The verdict binds it. */
       headCommit: string;
     }>
-  | SpokenBetAction;
+  | SpokenBetAction
+  /**
+   * Any NEAR transaction from the owner's account. The owner says the summary only. The Wallet
+   * host sets `actionsSha256` from the bytes that the signer builds.
+   */
+  | Readonly<{
+      kind: 'transaction';
+      transaction: TransactionInput;
+      /** SHA-256 of the Borsh of the transaction's actions. The verdict binds it. */
+      actionsSha256: Uint8Array;
+      /** The sentence that the owner says. See `summaryRefusal`. */
+      summary: string;
+    }>;
 
 /** The merge-approval contract's rule: no owner edge dash, and a name other than "." or "..". */
 const REPO_PATTERN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)\/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/;
@@ -115,8 +129,22 @@ export function summaryRefusal(text: string): SummaryRefusal | null {
 export function noteActionRefusal(
   network: SpeakToSignNetwork,
   action: SpokenNoteAction,
-): 'summary_not_speakable' | 'note_not_valid' | 'merge_not_valid' | 'bet_not_valid' | null {
+):
+  | 'summary_not_speakable'
+  | 'note_not_valid'
+  | 'merge_not_valid'
+  | 'bet_not_valid'
+  | 'transaction_not_valid'
+  | null {
   if (action.kind === 'market_bet') return betActionRefusal(network, action);
+  if (action.kind === 'transaction') {
+    const valid =
+      isValidAccountId(action.transaction.receiverId) &&
+      action.transaction.actions.length > 0 &&
+      action.actionsSha256.length === 32;
+    if (!valid) return 'transaction_not_valid';
+    return summaryRefusal(action.summary) === null ? null : 'summary_not_speakable';
+  }
   if (action.kind === 'merge_approval') {
     const valid =
       isSpeakableAccount(action.contract) &&
@@ -189,13 +217,23 @@ export async function noteSha256(text: string): Promise<Uint8Array<ArrayBuffer>>
   return await sha256(utf8(text));
 }
 
-/** Borsh of the request kind of the action, whose explicit tags are 4, 5, 6 and 7. */
+/** Borsh of the request kind of the action, whose explicit tags are 4 to 8. */
 export async function noteActionBorsh(
   network: SpeakToSignNetwork,
   owner: string,
   action: SpokenNoteAction,
 ): Promise<Uint8Array> {
   if (action.kind === 'market_bet') return betBorsh(network, owner, action);
+  if (action.kind === 'transaction') {
+    return spokenRequestBorsh({
+      kind: 'transaction',
+      network,
+      owner,
+      receiver: action.transaction.receiverId,
+      actionsSha256: action.actionsSha256,
+      summary: action.summary,
+    });
+  }
   if (action.kind === 'merge_approval') {
     return spokenRequestBorsh({
       kind: 'merge_approval',
@@ -239,6 +277,14 @@ export async function noteVerifyRequest(
   action: SpokenNoteAction,
 ): Promise<Readonly<Record<string, unknown>>> {
   if (action.kind === 'market_bet') return betVerifyRequest(action);
+  if (action.kind === 'transaction') {
+    return {
+      kind: 'transaction',
+      receiver: action.transaction.receiverId,
+      actions_sha256_hex: hex(action.actionsSha256),
+      summary: action.summary,
+    };
+  }
   if (action.kind === 'merge_approval') {
     return {
       kind: 'merge_approval',
@@ -277,14 +323,16 @@ function hexBytes(text: string): Uint8Array {
 }
 
 /**
- * The one call that core signs: `add_note`, `rate_note` or `approve_merge`, with no deposit, or
- * the `ft_transfer_call` of a bet, which carries the checked verdict to the market contract.
+ * The transaction that core signs: `add_note`, `rate_note` or `approve_merge`, with no deposit,
+ * the `ft_transfer_call` of a bet, which carries the checked verdict to the market contract, or
+ * the application's own transaction of the general kind.
  */
 export function noteTransaction(
   action: SpokenNoteAction,
   verdict: SignedVoiceVerdict,
 ): TransactionInput {
   if (action.kind === 'market_bet') return betTransaction(action, verdict);
+  if (action.kind === 'transaction') return action.transaction;
   if (action.kind === 'merge_approval') {
     const call = functionCall({
       method: 'approve_merge',

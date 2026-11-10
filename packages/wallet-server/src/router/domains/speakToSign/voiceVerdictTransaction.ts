@@ -5,6 +5,7 @@
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import {
   BET_OUTCOMES,
+  nearTransactionActionsBorsh,
   NOTE_RATINGS,
   SPEAK_TO_SIGN_USDC,
   sha256,
@@ -27,7 +28,10 @@ type VoiceAction =
 type VoiceTransaction = Readonly<{
   signerId: string;
   receiverId: string;
-  action: VoiceAction;
+  /** The one `Transfer` or `FunctionCall` of a typed request, or null for other actions. */
+  action: VoiceAction | null;
+  /** The Borsh of all actions, which a general spoken transaction binds. */
+  actionsBorsh: Uint8Array;
 }>;
 
 const ED25519_KEY_TYPE = 0;
@@ -35,8 +39,9 @@ const FUNCTION_CALL_TAG = 2;
 const TRANSFER_TAG = 3;
 
 /**
- * Reads the Borsh of an unsigned NEAR transaction with exactly one `Transfer` or `FunctionCall`
- * action, or returns null. The Wallet builds a V0 transaction with an ed25519 key.
+ * Reads the Borsh of an unsigned NEAR transaction, or returns null. The Wallet builds a V0
+ * transaction with an ed25519 key. `action` is set when the transaction has exactly one
+ * `Transfer` or `FunctionCall` action.
  */
 export function decodeVoiceTransaction(bytes: Uint8Array): VoiceTransaction | null {
   const reader = new BorshReader(bytes);
@@ -47,12 +52,41 @@ export function decodeVoiceTransaction(bytes: Uint8Array): VoiceTransaction | nu
     reader.u64();
     const receiverId = reader.string();
     reader.bytes(32);
-    if (reader.u32() !== 1) return null;
-    const action = readAction(reader);
-    return action && reader.done() ? { signerId, receiverId, action } : null;
+    const actionsBorsh = nearTransactionActionsBorsh(bytes);
+    return { signerId, receiverId, action: readSingleAction(reader), actionsBorsh };
   } catch {
     return null;
   }
+}
+
+function readSingleAction(reader: BorshReader): VoiceAction | null {
+  try {
+    if (reader.u32() !== 1) return null;
+    const action = readAction(reader);
+    return action && reader.done() ? action : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The general spoken request of the transaction: the signer as its owner, the receiver, the
+ * digest of the action bytes and the summary that came beside the verdict. The verdict's
+ * request digest binds the summary, so a wrong summary does not match.
+ */
+export async function spokenTransactionRequest(
+  network: SpeakToSignNetwork,
+  transaction: VoiceTransaction,
+  summary: string,
+): Promise<SpokenRequest> {
+  return {
+    kind: 'transaction',
+    network,
+    owner: transaction.signerId,
+    receiver: transaction.receiverId,
+    actionsSha256: await sha256(new Uint8Array(transaction.actionsBorsh)),
+    summary,
+  };
 }
 
 function readAction(reader: BorshReader): VoiceAction | null {
@@ -81,6 +115,7 @@ export async function spokenRequestOfTransaction(
   transaction: VoiceTransaction,
 ): Promise<SpokenRequest | null> {
   const { action, signerId: owner, receiverId } = transaction;
+  if (!action) return null;
   if (action.kind === 'transfer') {
     return {
       kind: 'account_transfer',

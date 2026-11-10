@@ -63,6 +63,16 @@ if (seams.speakToSign) {
   void seams.speakToSign.requestBet({ ...bet, outcome: 'maybe' });
   // @ts-expect-error A spoken bet names its token; the Wallet accepts only the network's USDC.
   void seams.speakToSign.requestBet({ ...bet, outcome: 'no', token: undefined });
+  void seams.speakToSign.requestTransaction({
+    walletId: 'alice.testnet',
+    transaction: { receiverId: 'guest-book.testnet', actions: [] },
+    summary: 'Sign the guest book.',
+  });
+  // @ts-expect-error A spoken transaction needs the summary that the owner says.
+  void seams.speakToSign.requestTransaction({
+    walletId: 'alice.testnet',
+    transaction: { receiverId: 'guest-book.testnet', actions: [] },
+  });
   // @ts-expect-error The Wallet reads the owner itself; the app cannot name one.
   void seams.speakToSign.enroll({ walletId: 'alice.testnet', owner: 'victim.testnet' });
 }

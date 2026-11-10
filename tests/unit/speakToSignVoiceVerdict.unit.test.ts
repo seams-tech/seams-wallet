@@ -4,6 +4,7 @@ import {
   borshString,
   concat,
   littleEndian,
+  nearTransactionActionsBorsh,
   sha256,
   spokenRequestBorsh,
   spokenRequestDigest,
@@ -901,6 +902,63 @@ test('a bet has no voice limit, and a bet verdict is a whole number of cents', a
   expect(await prepared(500_000n, 'not-u128', false, (2n ** 128n).toString())).toEqual(
     refused('request_mismatch'),
   );
+});
+
+test('a general spoken transaction is admitted for its exact actions, receiver and summary', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const summary = 'Sign the guest book and tip one near.';
+  const actions = [
+    { kind: 'call', method: 'add_message', args: { text: 'hello' } },
+    { kind: 'transfer', yocto: NEAR },
+  ] as const;
+  const tx = unsignedTransaction({ receiver: 'guest-book.testnet', actions });
+  const request = async (transaction: Uint8Array, said = summary): Promise<SpokenRequest> => ({
+    kind: 'transaction',
+    network: 'testnet',
+    owner: OWNER,
+    receiver: 'guest-book.testnet',
+    actionsSha256: await sha256(new Uint8Array(nearTransactionActionsBorsh(transaction))),
+    summary: said,
+  });
+  const verdict = await signedVerdict(verifier, await request(tx));
+  let count = 0;
+  const attempt = async (transaction: Uint8Array, voice: unknown) => {
+    count += 1;
+    return await cosigner.check(
+      withVerdict(prepareBody(transaction, { requestId: `general-${count}` }), voice),
+    );
+  };
+  // Without the summary, the co-signer looks for a typed request and finds none.
+  expect(await attempt(tx, verdict)).toEqual(refused('request_mismatch'));
+  expect(await attempt(tx, { ...verdict, summary: 'Sign the guest book.' })).toEqual(
+    refused('request_mismatch'),
+  );
+  expect(await attempt(tx, { ...verdict, summary: 7 })).toEqual(refused('verdict_invalid'));
+  expect(await attempt(tx, { ...verdict, summary, extra: 1 })).toEqual(refused('verdict_invalid'));
+  // Other actions, another order or another receiver are another transaction.
+  for (const other of [
+    unsignedTransaction({ receiver: 'guest-book.testnet', actions: [actions[1], actions[0]] }),
+    unsignedTransaction({ receiver: 'guest-book.testnet', actions: [actions[0]] }),
+    unsignedTransaction({
+      receiver: 'guest-book.testnet',
+      actions: [actions[0], { kind: 'transfer', yocto: 2n * NEAR }],
+    }),
+    unsignedTransaction({ receiver: 'other.testnet', actions }),
+  ]) {
+    expect(await attempt(other, { ...verdict, summary })).toEqual(refused('request_mismatch'));
+  }
+  // A verdict of a typed transfer does not pass as a general transaction, and the reverse.
+  const transferTx = unsignedTransaction({
+    receiver: 'alice.testnet',
+    actions: [{ kind: 'transfer', yocto: NEAR }],
+  });
+  const transferVerdict = await signedVerdict(verifier, transfer(1n));
+  expect(await attempt(transferTx, { ...transferVerdict, summary })).toEqual(
+    refused('request_mismatch'),
+  );
+  expect(await attempt(tx, { ...verdict, summary })).toEqual(ADMITTED);
+  expect(await attempt(tx, { ...verdict, summary })).toEqual(refused('reused'));
 });
 
 test('a verdict on the second round, or without a configured check, is refused', async () => {

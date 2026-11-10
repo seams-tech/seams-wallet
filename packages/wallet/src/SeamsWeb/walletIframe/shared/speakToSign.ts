@@ -14,6 +14,12 @@ import type {
 import { BET_OUTCOMES, type BetOutcome } from '@/core/transactionFeatures/spokenBet';
 import { NOTE_RATINGS, type NoteRating } from '@/core/transactionFeatures/spokenNote';
 import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
+import {
+  isActionArgsWasm,
+  validateActionArgsWasm,
+  type ActionArgsWasm,
+  type TransactionInputWasm,
+} from '@/core/types/actions';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isValidAccountId } from '@shared/utils/near';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -105,12 +111,20 @@ export type PMSpeakToSignNotePayload = Readonly<{
         outcome: BetOutcome;
         /** Decimal base units of the token (10^-6 USDC). Wallet core checks the amount rules. */
         amountUnits: string;
+      }>
+    | Readonly<{
+        kind: 'transaction';
+        /** The receiver and the actions in the signer's wire form. */
+        transaction: TransactionInputWasm;
+        summary: string;
       }>;
 }>;
 
 /** Generous text bounds; Wallet core checks the exact note and summary rules. */
 const MAX_NOTE_TEXT_LENGTH = 1_200;
 const MAX_SUMMARY_TEXT_LENGTH = 200;
+/** NEAR takes at most 100 actions in one transaction. */
+const MAX_TRANSACTION_ACTIONS = 100;
 /** Base units up to 1,000,000 USDC have at most 13 digits. */
 const BET_UNITS_PATTERN = /^[1-9]\d{0,12}$/;
 
@@ -122,7 +136,42 @@ export function parseSpeakToSignNotePayload(value: unknown): PMSpeakToSignNotePa
   return { walletId: String(value.walletId), action };
 }
 
+function readTransactionAction(
+  value: Record<string, unknown>,
+): PMSpeakToSignNotePayload['action'] | null {
+  const { transaction, summary } = value;
+  if (
+    !hasExactKeys(value, ['kind', 'transaction', 'summary']) ||
+    typeof summary !== 'string' ||
+    summary.length > MAX_SUMMARY_TEXT_LENGTH ||
+    !hasExactKeys(transaction, ['receiverId', 'actions']) ||
+    typeof transaction.receiverId !== 'string' ||
+    !isValidAccountId(transaction.receiverId) ||
+    !Array.isArray(transaction.actions) ||
+    transaction.actions.length === 0 ||
+    transaction.actions.length > MAX_TRANSACTION_ACTIONS
+  ) {
+    return null;
+  }
+  const actions: ActionArgsWasm[] = [];
+  for (const action of transaction.actions) {
+    if (!isActionArgsWasm(action)) return null;
+    try {
+      validateActionArgsWasm(action);
+    } catch {
+      return null;
+    }
+    actions.push(action);
+  }
+  return {
+    kind: 'transaction',
+    transaction: { receiverId: transaction.receiverId, actions },
+    summary,
+  };
+}
+
 function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | null {
+  if (isPlainObject(value) && value.kind === 'transaction') return readTransactionAction(value);
   if (!isPlainObject(value) || typeof value.contract !== 'string') return null;
   if (!isValidAccountId(value.contract)) return null;
   if (value.kind === 'merge_approval') {
@@ -269,6 +318,7 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   note_not_valid: true,
   merge_not_valid: true,
   bet_not_valid: true,
+  transaction_not_valid: true,
   verdict_mismatch: true,
   voice_limit: true,
   cosigner_refused: true,

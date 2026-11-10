@@ -1436,6 +1436,7 @@ export async function prepareRouterAbNormalSigningV2(args: {
           voice_verdict: {
             verdict_json: voiceVerdict.verdictJson,
             signature_b64: voiceVerdict.signatureB64,
+            ...(voiceVerdict.summary === undefined ? {} : { summary: voiceVerdict.summary }),
           },
         }
       : args.request,

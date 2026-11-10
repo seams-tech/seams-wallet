@@ -299,6 +299,9 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
         : ({ kind, walletAuthMethodId: 'wallet-auth-method:voice' } as AuthMethodAvailability);
     },
     readOperationCredential: async () => 'wst_credential',
+    async nearActionsBorsh() {
+      throw new Error('This route test runs no transaction.');
+    },
     async loadHost(enabled) {
       loads.push(enabled);
       return plugin;
@@ -718,4 +721,79 @@ test('the bet message carries exact base units, and an amount that cannot be sai
     });
   }
   expect(posted.length).toBe(1);
+});
+
+test('the transaction message carries the receiver, checked actions and the summary', async () => {
+  const call = {
+    action_type: 'FunctionCall',
+    method_name: 'add_message',
+    args: '{"text":"hello"}',
+    gas: '30000000000000',
+    deposit: '0',
+  };
+  const payload = {
+    walletId: WALLET_ID,
+    action: {
+      kind: 'transaction',
+      transaction: {
+        receiverId: 'guest-book.testnet',
+        actions: [call, { action_type: 'Transfer', deposit: '1' }],
+      },
+      summary: 'Sign the guest book.',
+    },
+  } as const;
+  expect(parseSpeakToSignNotePayload(structuredClone(payload))).toEqual(payload);
+  const withTransaction = (transaction: unknown) => ({
+    ...payload,
+    action: { ...payload.action, transaction },
+  });
+  for (const bad of [
+    { ...payload, action: { ...payload.action, owner: 'victim.testnet' } },
+    { ...payload, action: { ...payload.action, summary: 7 } },
+    withTransaction({ receiverId: 'Not An Account', actions: [call] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [call], signerId: 'x.testnet' }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [{ ...call, gas: '' }] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [{ action_type: 'Mint' }] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: ['transfer'] }),
+  ]) {
+    expect(() => parseSpeakToSignNotePayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign note request is invalid.',
+    );
+  }
+  expect(parseSpeakToSignNoteResult({ kind: 'refused', reason: 'transaction_not_valid' })).toEqual({
+    kind: 'refused',
+    reason: 'transaction_not_valid',
+  });
+
+  const posted: unknown[] = [];
+  const commands = createIframeSpeakToSignCommands(async (request, options) => {
+    posted.push({ request, options });
+    return { result: SENT };
+  });
+  expect(
+    await commands.requestTransaction({
+      walletId: WALLET_ID,
+      transaction: {
+        receiverId: 'guest-book.testnet',
+        actions: [
+          {
+            type: 'FunctionCall' as never,
+            methodName: 'add_message',
+            args: { text: 'hello' },
+            gas: '30000000000000',
+            deposit: '0',
+          },
+          { type: 'Transfer' as never, amount: '1' },
+        ],
+      },
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual(SENT);
+  expect(posted).toEqual([
+    {
+      request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload },
+      options: { timeout: 'interactive' },
+    },
+  ]);
 });

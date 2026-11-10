@@ -300,6 +300,7 @@ async function payWithVerdict(
     state,
     expected,
     () => transaction,
+    null,
     verifierOutput,
     signal,
     hooks,
@@ -324,6 +325,7 @@ async function signNoteWithVerdict(
     state,
     expected,
     noteTransaction.bind(null, action),
+    action.kind === 'transaction' ? action.summary : null,
     verifierOutput,
     signal,
     hooks,
@@ -334,13 +336,15 @@ async function signNoteWithVerdict(
 /**
  * Checks the verdict against the request digests, then signs the transaction once.
  * `transaction` builds it from the checked verdict, because a bet carries the verdict to its
- * contract.
+ * contract. `summary` is the spoken summary of a general transaction, which the co-signer
+ * needs beside the verdict.
  */
 async function signWithVerdict(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
   expected: SpokenDigests,
   transaction: (verdict: SignedVoiceVerdict) => TransactionInput,
+  summary: string | null,
   verifierOutput: unknown,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
@@ -382,7 +386,11 @@ async function signWithVerdict(
   state.paid = true;
   const result = await input.signVoiceApprovedTransaction(
     transaction(check.verdict),
-    { approval: check.approval, policyText: check.policyText, verdict: check.verdict },
+    {
+      approval: check.approval,
+      policyText: check.policyText,
+      verdict: summary === null ? check.verdict : { ...check.verdict, summary },
+    },
     signal,
     () => {
       input.progress({ stage: 'transaction_sent' });

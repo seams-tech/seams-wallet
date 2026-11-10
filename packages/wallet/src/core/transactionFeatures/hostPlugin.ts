@@ -1,4 +1,5 @@
 import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
+import type { TransactionInput } from '@/core/types/actions';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { SpeakToSignNetwork } from './plugins';
@@ -71,7 +72,7 @@ type SpokenResult<Reason extends string> =
 
 export type SpeakToSignTransferResult = SpokenResult<SpeakToSignRefusalReason>;
 
-/** Refusals of a spoken community note, note rating, merge approval or market bet. */
+/** Refusals of a spoken note, rating, merge approval, market bet or general transaction. */
 export type SpeakToSignNoteRefusalReason =
   | VerifierRefusal
   | SpeakToSignCosignerRefusalReason
@@ -86,6 +87,8 @@ export type SpeakToSignNoteRefusalReason =
    * not the USDC contract of the network.
    */
   | 'bet_not_valid'
+  /** The receiver is not a NEAR account, or the transaction has no action. */
+  | 'transaction_not_valid'
   | 'verdict_mismatch'
   /** The call was sent and failed on chain, for example for an unknown note or a closed market. */
   | 'transaction_failed';
@@ -178,6 +181,20 @@ export type SpeakToSignBetRequest = Readonly<{
   outcome: BetOutcome;
   /** Decimal USDC with at most two decimals, such as `"0.5"`, from 0.01 to 1,000,000. */
   amount: string;
+}> &
+  WithProgress;
+
+/**
+ * One spoken transaction of any kind: any receiver and any actions, as `signAndSendTransaction`
+ * takes them. The owner says the summary only, and the verdict binds the receiver and the
+ * actions. The application writes the summary, so the voice proves who approves, not that the
+ * summary describes the transaction.
+ */
+export type SpeakToSignTransactionRequest = Readonly<{
+  walletId: string;
+  transaction: TransactionInput;
+  /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
+  summary: string;
 }> &
   WithProgress;
 
@@ -324,7 +341,8 @@ export type SpeakToSignHostOperations = Readonly<{
    * Checks the verifier output against this note, rating, merge approval or bet and, on an
    * approved verdict, signs and sends its one call from the owner's account, as `payWithVerdict`
    * does for a transfer. A note, rating or merge call has no deposit. A bet is the token's
-   * `ft_transfer_call` with the verdict. The Wallet sets no amount limit for a bet.
+   * `ft_transfer_call` with the verdict. The Wallet sets no amount limit for a bet. A general
+   * transaction is signed as the application gave it.
    */
   signNoteWithVerdict(
     action: SpokenNoteAction,

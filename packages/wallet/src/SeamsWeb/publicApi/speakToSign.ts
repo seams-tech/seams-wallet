@@ -6,6 +6,7 @@ import type {
   SpeakToSignNoteResult,
   SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
+  SpeakToSignTransactionRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -74,6 +75,15 @@ export type SpeakToSignCapability = Readonly<{
     request: SpeakToSignCall<SpeakToSignBetRequest, SpeakToSignNoteResult>,
   ): Promise<SpeakToSignNoteResult>;
   /**
+   * Signs and sends any NEAR transaction by voice, as `signAndSendTransaction` does with a
+   * confirm: any receiver and any actions. The owner reads the summary aloud, and the verdict
+   * binds the receiver and the exact actions. The application writes the summary: the voice
+   * proves who approves and what was said, not that the summary describes the transaction.
+   */
+  requestTransaction(
+    request: SpeakToSignCall<SpeakToSignTransactionRequest, SpeakToSignNoteResult>,
+  ): Promise<SpeakToSignNoteResult>;
+  /**
    * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
    * message that authorizes exactly these recordings, and the verifier stores the template. A
    * new enrollment replaces the template.
@@ -115,6 +125,7 @@ export function createSpeakToSignCapability(
       SpeakToSignNoteResult
     >;
     requestBet: SpeakToSignCommand<SpeakToSignBetRequest, SpeakToSignNoteResult>;
+    requestTransaction: SpeakToSignCommand<SpeakToSignTransactionRequest, SpeakToSignNoteResult>;
     enroll: SpeakToSignCommand<SpeakToSignEnrollmentRequest, SpeakToSignEnrollmentResult>;
   }>,
   owner: WalletModalStepsOwner,
@@ -130,6 +141,8 @@ export function createSpeakToSignCapability(
     requestMergeApproval: (request) =>
       withModalSteps(commands.requestMergeApproval, owner, CANCELLED, request),
     requestBet: (request) => withModalSteps(commands.requestBet, owner, CANCELLED, request),
+    requestTransaction: (request) =>
+      withModalSteps(commands.requestTransaction, owner, CANCELLED, request),
     enroll: (request) => withModalSteps(commands.enroll, owner, CANCELLED, request),
   };
 }

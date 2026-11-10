@@ -28,7 +28,9 @@ import {
   type SpeakToSignFeaturePlugin,
   type WalletTransactionFeaturePlugin,
 } from '@/core/transactionFeatures/plugins';
-import type { TransactionInput } from '@/core/types/actions';
+import { fromTransactionInputsWasm, type TransactionInput } from '@/core/types/actions';
+import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
+import { sha256 } from '@shared/speakToSign/spokenRequest';
 import { SigningEventPhase } from '@/core/types/sdkSentEvents';
 import type { VoiceApprovedSigning } from '@/core/transactionFeatures/voiceVerdict';
 import { signAndSendVoiceApprovedTransaction } from '@/SeamsWeb/operations/near/actions';
@@ -49,6 +51,15 @@ export type SpeakToSignWalletPorts = Readonly<{
   loadHost(features: readonly WalletTransactionFeaturePlugin[]): Promise<SpeakToSignHostPlugin>;
   /** The VoiceID host plugin shows the sentence and records the clip, so its prompt loads from VoiceID. */
   loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]): Promise<WalletAuthMethodHostPlugin>;
+  /**
+   * The Borsh of the transaction's actions, as the signer worker writes them into the unsigned
+   * transaction. A spoken transaction binds their SHA-256.
+   */
+  nearActionsBorsh(
+    workerContext: () => WorkerOperationContext,
+    ownerAccountId: string,
+    transaction: TransactionInput,
+  ): Promise<Uint8Array<ArrayBuffer>>;
   fetch: typeof fetch;
 }>;
 
@@ -242,17 +253,39 @@ async function runNote(
     signal,
     note: {
       ownerAccountId: flow.ownerAccountId,
-      action: noteAction(request.payload),
+      action: await noteAction(deps, ports, flow.ownerAccountId, request.payload),
       surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
       operations: flow.operations,
     },
   });
 }
 
-/** The channel carries ids as safe integers; core's action holds them as `u64` values. */
-function noteAction(payload: PMSpeakToSignNotePayload): SpokenNoteAction {
+/**
+ * The channel carries ids as safe integers; core's action holds them as `u64` values. A general
+ * transaction gets the digest of its actions from the signer's own bytes.
+ */
+async function noteAction(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  ownerAccountId: string,
+  payload: PMSpeakToSignNotePayload,
+): Promise<SpokenNoteAction> {
   const { action } = payload;
   switch (action.kind) {
+    case 'transaction': {
+      const [transaction] = fromTransactionInputsWasm([action.transaction]);
+      const actions = await ports.nearActionsBorsh(
+        () => deps.getWalletRuntime().getContext().signingEngine.getSignerWorkerContext(),
+        ownerAccountId,
+        transaction,
+      );
+      return {
+        kind: 'transaction',
+        transaction,
+        actionsSha256: await sha256(actions),
+        summary: action.summary,
+      };
+    }
     case 'community_note':
       return { ...action, postId: BigInt(action.postId) };
     case 'note_rating':

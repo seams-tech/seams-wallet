@@ -31,6 +31,7 @@ export type {
   SpeakToSignProgress,
   SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
+  SpeakToSignTransactionRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
   SpeakToSignUnavailableReason,

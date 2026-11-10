@@ -29,7 +29,11 @@ import type { RouterApiWalletRegistrationService } from '../../framework/authSer
 import type { NormalizedRouterLogger } from '../../framework/logger';
 import type { RouterAbEd25519NormalSigningAuthorizationResult } from '../signingOperations/routerAbEd25519NormalSigningRoute';
 import { parseRouterAbEd25519NormalSigningScopeV2 } from '../signingOperations/routerAbPrivateSigningWorker';
-import { decodeVoiceTransaction, spokenRequestOfTransaction } from './voiceVerdictTransaction';
+import {
+  decodeVoiceTransaction,
+  spokenRequestOfTransaction,
+  spokenTransactionRequest,
+} from './voiceVerdictTransaction';
 
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
 const DAY_MS = 86_400_000;
@@ -159,10 +163,17 @@ async function admitVoiceVerdict(
 ): Promise<Admission> {
   const nowMs = (check.now ?? Date.now)();
   const signed = route.voiceVerdict;
+  // A general transaction sends its spoken summary beside the verdict.
+  const summary = isPlainObject(signed) ? signed.summary : undefined;
+  const keys =
+    summary === undefined
+      ? ['verdict_json', 'signature_b64']
+      : ['verdict_json', 'signature_b64', 'summary'];
   if (
-    !hasExactKeys(signed, ['verdict_json', 'signature_b64']) ||
+    !hasExactKeys(signed, keys) ||
     typeof signed.verdict_json !== 'string' ||
-    typeof signed.signature_b64 !== 'string'
+    typeof signed.signature_b64 !== 'string' ||
+    (summary !== undefined && typeof summary !== 'string')
   ) {
     return refuse('verdict_invalid');
   }
@@ -188,7 +199,12 @@ async function admitVoiceVerdict(
   const owner = await sessionNearAccount(route, target);
   if (typeof owner !== 'string') return { ok: false, reason: 'unavailable', detail: owner.detail };
   if (transaction.signerId !== owner) return refuse('owner_mismatch');
-  const spoken = await spokenRequestOfTransaction(target.network, transaction);
+  // With a summary, the verdict is for the transaction as a whole: any actions. Without one,
+  // it is for a typed request, which the co-signer builds from the one action.
+  const spoken =
+    summary === undefined
+      ? await spokenRequestOfTransaction(target.network, transaction)
+      : await spokenTransactionRequest(target.network, transaction, summary);
   if (!spoken) return refuse('request_mismatch');
   let borsh: Uint8Array;
   try {
