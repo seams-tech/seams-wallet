@@ -168,6 +168,12 @@ export class SeamsWeb {
       configs: this.configs,
       preferences: preferences.capability,
       getWalletIframe: this.getWalletIframe.bind(this),
+      createSpeakToSign: () =>
+        createSpeakToSignCapability(
+          this.configs.transactionFeatures,
+          createApplicationSpeakToSignCommands(this.walletIframe),
+          modalStepsOwner,
+        ),
       auth: {
         ...sessionCommands,
         ...emailOtpCommands,
@@ -202,13 +208,7 @@ export class SeamsWeb {
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
     this.assets = publicApi.assets;
-    const speakToSign = createSpeakToSignCapability(
-      this.configs.transactionFeatures,
-      createApplicationSpeakToSignCommands(this.walletIframe),
-      modalStepsOwner,
-    );
-    // `near.speakToSign` exists only when the config holds the Speak-to-Sign descriptor.
-    this.near = speakToSign ? { ...publicApi.near, speakToSign } : publicApi.near;
+    this.near = publicApi.near;
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();

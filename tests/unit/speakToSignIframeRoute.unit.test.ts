@@ -1,3 +1,5 @@
+import { createApplicationPublicApi } from '@/SeamsWeb/publicApi/createPublicApi';
+import { getTransactionReviewBridge } from '@/SeamsWeb/publicApi/transactionReview';
 import { createSpeakToSignCapability } from '@/SeamsWeb/publicApi/speakToSign';
 import { expect, test } from '@playwright/test';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
@@ -1033,4 +1035,25 @@ test('near.speakToSign has the names of the normal signer, and approved holds th
     'requestBet',
     'enroll',
   ]);
+});
+
+test('the review bridge is registered for the near object that holds speakToSign', () => {
+  // Any dependency: a callable object whose properties are the same kind of object.
+  const anything = (): unknown =>
+    new Proxy(() => anything(), { get: (_, name) => (name === 'then' ? undefined : anything()) });
+  const voice = { network: 'testnet' } as never;
+  const build = (speakToSign: never | null) =>
+    createApplicationPublicApi(
+      new Proxy(
+        { createSpeakToSign: () => speakToSign },
+        { get: (own, name) => (name === 'createSpeakToSign' ? own.createSpeakToSign : anything()) },
+      ) as Parameters<typeof createApplicationPublicApi>[0],
+    );
+  const withVoice = build(voice);
+  expect(withVoice.near.speakToSign).toBe(voice);
+  // A reviewed transaction (`steps`) finds its bridge by the `near` object that the app holds.
+  expect(getTransactionReviewBridge(withVoice.near)).toBeTruthy();
+  const plain = build(null);
+  expect('speakToSign' in plain.near).toBe(false);
+  expect(getTransactionReviewBridge(plain.near)).toBeTruthy();
 });
