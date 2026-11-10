@@ -3459,6 +3459,19 @@ renders inside it.
 - `WalletStep` (React) and `seams.surfaces.mount` show the sign-in menu, a transaction confirm
   or a Speak-to-Sign request as a step. One mount starts one call; unmount or `dispose()` ends
   the card as cancelled.
+- A transaction or VoiceID card in an app's dialog eases a new size over 180 ms, as the
+  Wallet's modal does; with reduced motion it applies the size at once. The anchor takes the
+  new height at once. The anchored sign-in card animates inside its frame instead.
+- With `chrome: 'back'`, the VoiceID card shows Back in place of Cancel. Its press still ends
+  the card as the card's own dismissal.
+- `seams.authMenu.open(request, undefined, { steps })` and the Speak-to-Sign requests with
+  `steps: { title, before, after }` show the card in the SDK's modal between the app's steps.
+  They need `TransactionReviewHost`. `before` shows first and stays mounted; its
+  `continueToWallet()` opens the card with Back, and Back returns to `before` with its state.
+  Without `before`, the card opens at once with Close. A completed card settles the call, then
+  `after` shows the result in the same modal until `close()` or Escape. A card that did not
+  complete closes the modal. Leaving before the card completes resolves as cancelled. Nothing
+  goes to the Wallet before `continueToWallet()`.
 
 Consumer guide: [Wallet cards as steps of an app dialog](wallet-steps.md).
 Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and

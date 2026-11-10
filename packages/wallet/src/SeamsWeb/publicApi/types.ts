@@ -5,6 +5,7 @@ import type {
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type { AnchoredSurfaceStep } from '@/SeamsWeb/walletIframe/client/anchoredSurface';
+import type { AuthMenuModalSteps } from '@/SeamsWeb/publicApi/surfaces';
 import type { WalletSurfacePresentation } from '@/SeamsWeb/walletIframe/shared/walletStep';
 import type {
   ExternalAuthenticateInput,
@@ -167,12 +168,13 @@ export interface AuthMenuCapability {
   /**
    * Opens the menu. With `anchorElement`, the card paints over that element in the app's layout,
    * and `step` gives its events and its layer (default `'page'`). The request's `chrome` draws
-   * Back or Close inside the card.
+   * Back or Close inside the card. Without an anchor, `{ steps }` shows the menu in the SDK's
+   * modal between the app's own steps (needs `TransactionReviewHost`).
    */
   open(
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,
-    step?: AnchoredSurfaceStep,
+    step?: AnchoredSurfaceStep | AuthMenuModalSteps,
   ): Promise<HostedAuthMenuOutcome>;
   cancel(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void>;
   onWalletConnectionRequest(listener: (request: WalletConnectionRequest) => void): () => void;

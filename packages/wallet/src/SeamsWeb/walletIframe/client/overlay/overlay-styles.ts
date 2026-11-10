@@ -30,6 +30,7 @@ const CLASS_HAS_GEOMETRY = 'has-geometry';
 const CLASS_RESIZE_ANIMATED = 'is-resize-animated';
 const CLASS_REVEAL_PENDING = 'is-reveal-pending';
 const CLASS_ANCHORED_TOP = 'is-anchored-top';
+const CLASS_STEPS_MODAL = 'seams-wallet-steps-modal';
 const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
 const DIALOG_SELECTOR = `dialog[data-seams-root].${CLASS_BASE}.${CLASS_DIALOG}`;
 // The quieter elevation of a card that sits on the page rather than over a backdrop.
@@ -51,6 +52,30 @@ const BASE_CSS = `
   [data-seams-root].${CLASS_DIALOG} .seams-review-wallet-inactive { opacity: 0; pointer-events: none; }
   [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-content { padding: 0.75rem; box-sizing: border-box; overflow-wrap: anywhere; }
   ${DIALOG_SELECTOR}[data-transaction-review]::backdrop { background: rgb(0 0 0 / 0.26); }
+  /* The SDK's modal for app steps around a sign-in or VoiceID card. It has the reviewed
+     transaction's shell; while the Wallet's card shows, the card is its surface. */
+  dialog[data-seams-root].${CLASS_STEPS_MODAL} {
+    box-sizing: border-box;
+    width: min(400px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    padding: 0;
+    border: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--seams-colors-colorBackground);
+    color: var(--seams-colors-textPrimary);
+    border-radius: min(var(--seams-shape-card, 16px), 2rem);
+    box-shadow: 0 12px 24px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.12),
+      inset 0 0 0 1px var(--seams-colors-borderPrimary);
+  }
+  dialog[data-seams-root].${CLASS_STEPS_MODAL}::backdrop { background: rgb(0 0 0 / 0.26); }
+  dialog[data-seams-root].${CLASS_STEPS_MODAL}[data-wallet-card-ready] {
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
   [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-title {
     margin: 0 0 16px;
     font: 600 20px / 1.3 system-ui, sans-serif;
@@ -556,6 +581,22 @@ export function setTransactionReviewAppearance(
       },
     }),
   );
+}
+
+/** The classes of the SDK's modal for app steps; the component renders them. */
+export const WALLET_STEPS_MODAL_CLASS = `${CLASS_DIALOG} ${CLASS_STEPS_MODAL}`;
+
+/** Installs the modal's styles and the Wallet's appearance tokens on the modal. */
+export function prepareWalletStepsModal(
+  dialog: HTMLDialogElement,
+  appearance: AppearanceConfigInput | undefined,
+): void {
+  getStyleManager().ensureBase();
+  if (!dialog.id) {
+    nextDialogId += 1;
+    dialog.id = `${CLASS_STEPS_MODAL}-${nextDialogId}`;
+  }
+  setTransactionReviewAppearance(dialog, appearance);
 }
 
 export function clearTransactionReviewAppearance(slot: HTMLElement): void {

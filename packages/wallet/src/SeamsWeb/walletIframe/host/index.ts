@@ -287,7 +287,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       ownedRequestIds.add(requestId);
     }
     // A card in the app's own dialog holds its controls until it is in view and uncovered.
-    const presentation = ownsRequestId ? parseWalletSurfacePresentationWire(req.presentation) : null;
+    const presentation = ownsRequestId
+      ? parseWalletSurfacePresentationWire(req.presentation)
+      : null;
     const endAnchoredCard =
       presentation && typeof requestId === 'string'
         ? beginAnchoredCard(requestId, presentation)

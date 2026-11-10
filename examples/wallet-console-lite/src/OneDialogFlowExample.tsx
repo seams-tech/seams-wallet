@@ -16,8 +16,8 @@ export function OneDialogFlowExample() {
     <section className="panel one-dialog-demo" id="one-dialog-flow">
       <h2>One dialog for a flow</h2>
       <p className="section-description">
-        App step, sign-in, Wallet confirm and app step in one dialog. It sends a zero-value
-        transfer to your own account.
+        App step, sign-in, Wallet confirm and app step in one dialog. It sends a zero-value transfer
+        to your own account.
       </p>
       <button type="button" onClick={() => setOpen(true)}>
         Place a bet
@@ -53,7 +53,8 @@ function FlowDialog({ onClose }: { onClose: () => void }) {
       return;
     }
     // Back already returned to the bet; any other end shows why.
-    if (outcome.kind === 'result') setMessage(outcome.result.error ?? 'The Wallet did not send it.');
+    if (outcome.kind === 'result')
+      setMessage(outcome.result.error ?? 'The Wallet did not send it.');
     if (outcome.kind === 'error') setMessage('The Wallet card could not open.');
   };
 

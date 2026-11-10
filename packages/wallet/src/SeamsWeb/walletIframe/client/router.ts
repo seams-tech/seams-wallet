@@ -1302,7 +1302,9 @@ export class WalletIframeRouter {
   >();
   private readonly anchoredSurfaces = new AnchoredSurfaces({
     activeRequestId: () =>
-      this.walletIframeSurface.kind === 'hidden' ? null : this.walletIframeSurface.identity.requestId,
+      this.walletIframeSurface.kind === 'hidden'
+        ? null
+        : this.walletIframeSurface.identity.requestId,
     renderActive: () => this.renderActiveWalletIframeSurface(),
     overlay: () => this.overlayState.controller,
     appearance: () => this.getCurrentAppearance(),
@@ -4657,7 +4659,8 @@ export class WalletIframeRouter {
       if (postOpts?.shouldContinue && !postOpts.shouldContinue()) {
         throw walletIframeRequestCancelledError();
       }
-      if (anchoredPresentation) anchored = this.anchoredSurfaces.registerRequest(requestId, anchoredPresentation);
+      if (anchoredPresentation)
+        anchored = this.anchoredSurfaces.registerRequest(requestId, anchoredPresentation);
       if (this.state.connectionId !== connectionId || !this.state.port) {
         throw new WalletIframeConnectionClosedRequestError(requestId, connectionId, envelope.type);
       }

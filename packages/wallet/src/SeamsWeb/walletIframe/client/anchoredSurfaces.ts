@@ -24,6 +24,8 @@ export type AnchoredSurfacesHost = Readonly<{
 /** The requests whose cards show over an app element, by request. */
 export class AnchoredSurfaces {
   private readonly surfaces = new Map<WalletIframeRequestId, AnchoredSurface>();
+  /** Stops listening to a request's abort signal once the request ends. */
+  private readonly signalReleases = new Map<WalletIframeRequestId, () => void>();
 
   constructor(private readonly host: AnchoredSurfacesHost) {}
 
@@ -54,11 +56,12 @@ export class AnchoredSurfaces {
       chrome: presentation.chrome ?? 'none',
       view: this.viewReporter(requestId),
     });
-    presentation.signal?.addEventListener(
-      'abort',
-      this.host.cancelRequest.bind(null, requestId),
-      { once: true },
-    );
+    const { signal } = presentation;
+    if (signal) {
+      const cancel = (): void => this.host.cancelRequest(requestId);
+      signal.addEventListener('abort', cancel, { once: true });
+      this.signalReleases.set(requestId, () => signal.removeEventListener('abort', cancel));
+    }
     return anchored;
   }
 
@@ -74,6 +77,8 @@ export class AnchoredSurfaces {
 
   finish(requestId: WalletIframeRequestId, anchored: AnchoredSurface, exit: WalletStepExit): void {
     if (this.surfaces.get(requestId) === anchored) this.surfaces.delete(requestId);
+    this.signalReleases.get(requestId)?.();
+    this.signalReleases.delete(requestId);
     // The app shows its own result step, so an anchored card keeps no receipt on screen.
     this.host.closeReceipt(requestId);
     anchored.finish(exit, this.host.overlay().whenSurfaceGone());

@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom';
 import { useSeams } from '../context';
 import { ReviewHostController, ReviewOwner, type ReviewCallView } from './controller';
 import { TransactionReviewError } from './contract';
+import { ModalStepsController, ModalStepsPortal } from './ModalSteps';
 
 const ReviewContext = createContext<ReviewHostController | null>(null);
 
@@ -30,11 +31,15 @@ export function TransactionReviewHost({ children }: { children: ReactNode }): Re
     );
   }
   useLayoutEffect(host.retain.bind(host), [host]);
+  // The modal steps of Speak-to-Sign requests and of the sign-in menu.
+  const modalSteps = useMemo(() => new ModalStepsController(), [seams]);
+  useLayoutEffect(() => modalSteps.attach(seams.near), [modalSteps, seams]);
   const call = useSyncExternalStore(host.subscribe, host.snapshot, host.snapshot);
   return (
     <ReviewContext.Provider value={host}>
       {children}
       {call ? <ReviewPortal key={call.review.title} call={call} /> : null}
+      <ModalStepsPortal controller={modalSteps} />
     </ReviewContext.Provider>
   );
 }

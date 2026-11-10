@@ -1,4 +1,6 @@
-import type { NearSignerCapability } from '@/SeamsWeb/publicApi/types';
+import type { AuthMenuCapability, NearSignerCapability } from '@/SeamsWeb/publicApi/types';
+import type { SpeakToSignCapability } from '@/SeamsWeb/publicApi/speakToSign';
+import type { HostedAuthMenuOpenRequest } from '@/SeamsWeb/walletIframe/shared/messages';
 import type {
   ReviewedTransactionInput,
   TransactionReview,
@@ -37,10 +39,17 @@ const review: TransactionReview = {
   validity: { kind: 'unbounded' },
   render: () => null,
 };
-const reviewed: ReviewedTransactionInput<NearArgs> = { receiverId: 'r.testnet', actions: [], review };
+const reviewed: ReviewedTransactionInput<NearArgs> = {
+  receiverId: 'r.testnet',
+  actions: [],
+  review,
+};
 void reviewed;
 // @ts-expect-error A reviewed transaction shows in the Wallet's own modal: it takes no presentation.
-const reviewedWithPresentation: ReviewedTransactionInput<NearArgs> = { ...reviewed, presentation: anchored };
+const reviewedWithPresentation: ReviewedTransactionInput<NearArgs> = {
+  ...reviewed,
+  presentation: anchored,
+};
 void reviewedWithPresentation;
 
 const confirmStep: WalletStepProps<{ success: boolean }> = {
@@ -91,3 +100,29 @@ const both: ReviewedTransactionInput<NearArgs> = {
   review,
 };
 void both;
+
+// App steps around the sign-in card and a VoiceID card in the Wallet's own modal.
+declare const authMenu: AuthMenuCapability;
+declare const speakToSign: SpeakToSignCapability;
+declare const request: HostedAuthMenuOpenRequest;
+const note = {
+  walletId: 'w.testnet',
+  contract: 'notes.testnet',
+  postId: 1,
+  text: 'A note',
+  summary: 'plain words',
+};
+
+void authMenu.open(request, undefined, {
+  steps: {
+    title: 'Place a bet',
+    before: ({ continueToWallet, cancel }) => [continueToWallet, cancel],
+    after: (outcome, { close }) => (outcome.kind === 'authenticated' ? outcome.walletId : close),
+  },
+});
+void speakToSign.requestNote({
+  ...note,
+  steps: { title: 'Add a note', after: (result) => (result.kind === 'sent' ? result.times : null) },
+});
+// @ts-expect-error A request shows in the app's dialog or in the modal with steps, not both.
+void speakToSign.requestNote({ ...note, presentation: anchored, steps: { title: 'Add a note' } });

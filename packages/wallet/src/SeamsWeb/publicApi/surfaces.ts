@@ -8,7 +8,13 @@ import type {
   WalletStepChrome,
   WalletStepEvents,
 } from '../walletIframe/shared/walletStep';
+import type { AnchoredSurfaceStep } from '../walletIframe/client/anchoredSurface';
 import type { AuthMenuCapability } from './types';
+import {
+  runWalletModalSteps,
+  type WalletModalSteps,
+  type WalletModalStepsOwner,
+} from './walletModalSteps';
 
 /** A Wallet card that a call sends: a transaction confirm or a Speak-to-Sign request. */
 export type WalletSurfaceSend<T> = (presentation: AnchoredWalletPresentation) => Promise<T>;
@@ -76,5 +82,49 @@ function mountWalletSurface<T>(
       signal: controller.signal,
     }),
     dispose: () => controller.abort(),
+  };
+}
+
+/** Shows the sign-in menu in the SDK's modal between the app's own steps. */
+export type AuthMenuModalSteps = Readonly<{ steps: WalletModalSteps<HostedAuthMenuOutcome> }>;
+
+type RawAuthMenu = Readonly<{
+  open: (
+    request: HostedAuthMenuOpenRequest,
+    anchorElement?: HTMLElement,
+    step?: AnchoredSurfaceStep,
+  ) => Promise<HostedAuthMenuOutcome>;
+  cancel: AuthMenuCapability['cancel'];
+}>;
+
+/** `authMenu.open`: with `{ steps }` and no anchor, the menu shows in the SDK's modal. */
+export function createAuthMenuOpen(
+  authMenu: RawAuthMenu,
+  owner: WalletModalStepsOwner,
+): AuthMenuCapability['open'] {
+  return (request, anchorElement, step) => {
+    if (!step || !('steps' in step)) return authMenu.open(request, anchorElement, step);
+    if (anchorElement) {
+      return Promise.reject(new Error('An auth menu with modal steps takes no anchor element'));
+    }
+    return runWalletModalSteps(owner, {
+      kind: 'auth_menu',
+      steps: step.steps,
+      cancelled: {
+        kind: 'cancelled',
+        authMenuSessionId: request.authMenuSessionId,
+        reason: 'close_button',
+      },
+      send: (presentation) => {
+        const { kind: _kind, anchor, chrome, signal, ...events } = presentation;
+        const mounted = mountWalletSurface(authMenu, anchor, {
+          ...events,
+          chrome,
+          surface: { kind: 'auth_menu', request },
+        });
+        signal?.addEventListener('abort', mounted.dispose, { once: true });
+        return mounted.result as Promise<HostedAuthMenuOutcome>;
+      },
+    });
   };
 }

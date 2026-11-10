@@ -7,6 +7,10 @@ import { asRecord, isBoolean, isNonEmptyString } from '@shared/utils/validation'
  * data: the call's own result does.
  */
 
+/** How a Wallet card eases a new size, in the Wallet modal and in an app's dialog. */
+export const WALLET_CARD_RESIZE_MS = 180;
+export const WALLET_CARD_RESIZE_EASING = 'cubic-bezier(0.2, 0.7, 0.2, 1)';
+
 /** A control that the SDK draws inside the card, beside the card's own controls. */
 export type WalletStepChrome = 'back' | 'close' | 'none';
 

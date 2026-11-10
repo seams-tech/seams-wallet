@@ -88,9 +88,9 @@ export type SpeakToSignCommands = Readonly<{
 }>;
 
 /** Only an anchored request carries a dispatch, so an ordinary request is posted as before. */
-function speakToSignDispatch(
-  request: WithPresentation<object>,
-): { readonly transactionDispatch?: TransactionDispatch } {
+function speakToSignDispatch(request: WithPresentation<object>): {
+  readonly transactionDispatch?: TransactionDispatch;
+} {
   const dispatch = dispatchWithPresentation({ kind: 'ordinary' }, request.presentation);
   return dispatch.kind === 'ordinary' ? {} : { transactionDispatch: dispatch };
 }

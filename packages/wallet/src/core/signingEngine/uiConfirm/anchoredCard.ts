@@ -125,8 +125,7 @@ function onFrameVisibility(entries: IntersectionObserverEntry[]): void {
   const shownHeight = Math.min(box.bottom, viewport.clientHeight) - Math.max(box.top, 0);
   const seen = entry.intersectionRect;
   // The whole card is in view when the browser sees all of the frame's own viewport.
-  const inView =
-    seen.width >= shownWidth - 1 && seen.height >= shownHeight - 1 && shownWidth > 0;
+  const inView = seen.width >= shownWidth - 1 && seen.height >= shownHeight - 1 && shownWidth > 0;
   active.frameClear = entry.isVisible === true && inView;
   sync();
 }

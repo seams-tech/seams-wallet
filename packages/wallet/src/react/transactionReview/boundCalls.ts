@@ -93,8 +93,8 @@ async function nearSign(
         'This wallet has no NEAR account',
       );
     const { review: reviewed, ...rest } = args;
-  const { steps, ...ordinary } = rest as typeof rest & StepsArg;
-  const review = reviewed ?? steps;
+    const { steps, ...ordinary } = rest as typeof rest & StepsArg;
+    const review = reviewed ?? steps;
     if (review === undefined)
       return env.seams.near.signAndSendTransaction({
         ...ordinary,

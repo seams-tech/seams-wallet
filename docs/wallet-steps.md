@@ -74,8 +74,9 @@ await seams.speakToSign.requestNote({ walletId, contract, postId, text, summary,
   and `behavior: 'requireClick'`. Other saved or per-call settings make the call fail before
   the card opens. The person still approves inside the Wallet's card.
 - With `chrome: 'back'`, the transaction card shows Back in its origin line in place of its
-  close control. With `'close'` or `'none'`, it keeps its own close control. The VoiceID card
-  keeps its own Cancel control: the SDK reports it as Back or Close from `chrome`.
+  close control, and the VoiceID card shows Back in place of Cancel, in its leading corner.
+  With `'close'` or `'none'`, each card keeps its own close control. The SDK reports the
+  card's own dismissal as Back or Close from `chrome`.
 - `presentation.signal` ends the card as `cancelled` when you abort it.
 - The app shows its own result step, so an anchored transaction card shows no receipt. The
   call's result carries the outcome.
@@ -117,10 +118,51 @@ It returns `{ result, dispose }`. `dispose()` ends the card as `cancelled`.
 
 ## App steps inside the Wallet's own modal
 
-When the app has no dialog of its own, the Wallet's modal can hold the app's steps. A
-transaction takes `steps: { title, validity, before, after }`. `before` shows before the
+When the app has no dialog of its own, the Wallet's modal can hold the app's steps. These steps
+need `TransactionReviewHost` from `@seams/wallet/react`; without it, the call rejects with
+`review_host_unavailable`.
+
+A transaction takes `steps: { title, validity, before, after }`. `before` shows before the
 Wallet's approval, `after` shows the signed result in the same modal. See
 [Custom React transaction review](transaction-review.md).
+
+The sign-in menu and the Speak-to-Sign requests take `steps: { title, before, after }`. Give
+`before`, `after` or both:
+
+```tsx
+const outcome = await seams.authMenu.open(request, undefined, {
+  steps: {
+    title: 'Place a bet',
+    before: ({ continueToWallet, cancel }) => (
+      <BetForm onContinue={continueToWallet} onCancel={cancel} />
+    ),
+    after: (outcome, { close }) => <BetPlaced outcome={outcome} onDone={close} />,
+  },
+});
+
+const result = await seams.speakToSign.requestNote({
+  walletId,
+  contract,
+  postId,
+  text,
+  summary,
+  steps: { title: 'Add a note', after: (result, { close }) => <NotePosted onDone={close} /> },
+});
+```
+
+- The SDK's modal opens with `before`. `continueToWallet()` opens the Wallet's card in the same
+  modal. It never signs: the person approves inside the card.
+- With `before`, the card shows Back. Back returns to `before`, which stayed mounted, so its
+  state is kept. Continue again opens a new card for the same call.
+- Without `before`, the card opens at once and shows Close.
+- When the card completes, the call's promise settles first. Then `after` shows the result in
+  the same modal, until `close()` or Escape. A card that did not complete, such as a refused
+  verdict, closes the modal and shows no `after`.
+- `cancel()`, Escape or Close before the card completes closes the modal. The sign-in menu then
+  resolves `{ kind: 'cancelled', reason: 'close_button' }`, and a Speak-to-Sign request
+  resolves `{ kind: 'cancelled' }`.
+- `steps` and an anchor element, or `steps` and `presentation`, do not go together.
+- One modal shows one flow at a time. A second call while it shows rejects.
 
 ## The events
 
@@ -137,6 +179,11 @@ no approval data. The call's own result does.
 
 The sign-in card animates its own height when its view changes. Then `onResize` reports each
 frame of that change. Apply each size as it comes, with no animation of your own.
+
+The transaction and VoiceID cards ease a new size over 180 ms with
+`cubic-bezier(0.2, 0.7, 0.2, 1)`, as the Wallet's modal does. `onResize` and the anchor's
+height give the new size at once, so your dialog can ease to it with the same timing.
+`WalletStep` does this for you. With reduced motion, the card applies each size at once.
 
 The anchor keeps the card's last height after `onExit`. Change it when the next app step
 shows, so that nothing jumps.
@@ -209,4 +256,5 @@ The attribute and the variable stay as internal details. Do not build new code o
 
 The SDK and the hosted Wallet ship together. A Wallet host without these changes rejects an
 auth-menu request that has `chrome`, draws no Back on the transaction card, and does not hold
-the card's controls.
+the card's controls. `@seams/voiceid` ships with the same release: its card reads the Back
+control from the Wallet host.

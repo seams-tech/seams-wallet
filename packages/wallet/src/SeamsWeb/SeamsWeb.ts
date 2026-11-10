@@ -22,6 +22,7 @@ import type {
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
 import type { AuthMenuCapability, ConfigCapability, ConnectionCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
 import {
+  createAuthMenuOpen,
   createWalletSurfacesCapability,
   type WalletSurfacesCapability,
 } from '@/SeamsWeb/publicApi/surfaces';
@@ -124,9 +125,17 @@ export class SeamsWeb {
     this.events = {
       subscribe: this.walletIframe.onSdkLifecycleEvent.bind(this.walletIframe),
     };
+    // App steps around a Wallet card show in the modal of this instance's TransactionReviewHost.
+    const modalStepsOwner = { key: () => this.near, appearance: this.getAppearance.bind(this) };
     this.authMenu = {
       prepare: this.walletIframe.prepareHostedAuthMenu.bind(this.walletIframe),
-      open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
+      open: createAuthMenuOpen(
+        {
+          open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
+          cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
+        },
+        modalStepsOwner,
+      ),
       cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
       onWalletConnectionRequest: this.walletIframe.onWalletConnectionRequest.bind(
         this.walletIframe,
@@ -200,6 +209,7 @@ export class SeamsWeb {
     const speakToSign = createSpeakToSignCapability(
       this.configs.transactionFeatures,
       createApplicationSpeakToSignCommands(this.walletIframe),
+      modalStepsOwner,
     );
     if (speakToSign) this.speakToSign = speakToSign;
   }

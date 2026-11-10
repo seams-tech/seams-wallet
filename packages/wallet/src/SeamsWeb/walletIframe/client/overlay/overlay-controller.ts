@@ -8,6 +8,7 @@ import {
 } from '../surface/geometry';
 import type { WalletIframeSurfaceRenderMode } from '../surface/renderer';
 import { ANCHORED_SURFACE_FADE_MS } from '../anchoredSurface';
+import { WALLET_CARD_RESIZE_EASING, WALLET_CARD_RESIZE_MS } from '../../shared/walletStep';
 import {
   clearDialogGeometry,
   setTransactionReviewAppearance,
@@ -79,7 +80,7 @@ type SurfaceRect = {
 // its own layout height while the box hugs it, it fills whatever box this
 // ease has made (confirm-surface-resize.ts), so this is the duration a user
 // sees for a tree expand or a content swap.
-const SURFACE_RESIZE_DURATION_MS = 180;
+const SURFACE_RESIZE_DURATION_MS = WALLET_CARD_RESIZE_MS;
 const REVIEW_HANDOFF_DURATION_MS = 320;
 
 function finiteSurfaceRect(rect: DOMRect): SurfaceRect | null {
@@ -96,21 +97,27 @@ function finiteSurfaceRect(rect: DOMRect): SurfaceRect | null {
   return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
 }
 
-function surfaceResizeKeyframes(origin: SurfaceRect, destination: SurfaceRect): Keyframe[] {
-  return [
-    {
-      top: `${origin.top}px`,
-      left: `${origin.left}px`,
-      width: `${origin.width}px`,
-      height: `${origin.height}px`,
-    },
-    {
-      top: `${destination.top}px`,
-      left: `${destination.left}px`,
-      width: `${destination.width}px`,
-      height: `${destination.height}px`,
-    },
-  ];
+/**
+ * An anchored card keeps the position that tracks its anchor, so only its size eases. Its rect is
+ * the layout size, which a pinch-zoom scale does not change.
+ */
+function surfaceResizeRect(dialog: HTMLDialogElement, anchored: boolean): SurfaceRect | null {
+  if (!anchored) return finiteSurfaceRect(dialog.getBoundingClientRect());
+  const { offsetWidth: width, offsetHeight: height } = dialog;
+  return width > 0 && height > 0 ? { top: 0, left: 0, width, height } : null;
+}
+
+function surfaceResizeKeyframes(
+  origin: SurfaceRect,
+  destination: SurfaceRect,
+  sizeOnly: boolean,
+): Keyframe[] {
+  const frame = (rect: SurfaceRect): Keyframe => ({
+    ...(sizeOnly ? {} : { top: `${rect.top}px`, left: `${rect.left}px` }),
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+  });
+  return [frame(origin), frame(destination)];
 }
 
 function surfaceViewportRect(rect: SurfaceRect): TransactionReviewRect {
@@ -483,8 +490,10 @@ export class OverlayController {
       mode.kind === 'compact_transaction_review';
     this.cancelAnchoredFade();
     const authMenu = mode.kind === 'compact_auth_menu';
-    // A card over an app element: the app owns the motion, so size changes apply at once.
     const anchored = mode.anchoredLayer !== null;
+    // A confirm or VoiceID card in an app's dialog eases its size as the Wallet modal does. The
+    // anchored sign-in menu animates inside its frame, so its size applies at once.
+    const easedAnchoredCard = mode.anchoredLayer === 'top' && mode.kind === 'compact_request_modal';
     const previousGeometryKind = this.lastAppliedGeometry
       ? geometryKind(this.lastAppliedGeometry)
       : null;
@@ -507,12 +516,12 @@ export class OverlayController {
       geometryKind(mode.geometry) !== 'provisional';
     const requestResizeOrigin =
       (mode.kind === 'compact_request_modal' || mode.kind === 'compact_transaction_review') &&
-      !anchored &&
+      (!anchored || easedAnchoredCard) &&
       !identityChanged &&
       geometryChanged &&
       previousGeometryKind === 'measured' &&
       nextGeometryKind === 'measured'
-        ? finiteSurfaceRect(dialog.getBoundingClientRect())
+        ? surfaceResizeRect(dialog, anchored)
         : null;
     if (identityChanged) {
       this.cancelReviewHandoff();
@@ -547,14 +556,13 @@ export class OverlayController {
       setDialogGeometry(dialog, mode.geometry, anchored ? this.authMenuVisualScale : 1);
       this.lastAppliedGeometry = mode.geometry;
       this.lastAppliedAuthMenuVisualScale = anchored ? this.authMenuVisualScale : 1;
-      requestResizeDestination = requestResizeOrigin
-        ? finiteSurfaceRect(dialog.getBoundingClientRect())
-        : null;
+      requestResizeDestination = requestResizeOrigin ? surfaceResizeRect(dialog, anchored) : null;
       if (requestResizeOrigin && requestResizeDestination) {
         this.startSurfaceResize(
           requestResizeOrigin,
           requestResizeDestination,
           handoffFromReview || returnToReview ? REVIEW_HANDOFF_DURATION_MS : SURFACE_RESIZE_DURATION_MS,
+          anchored,
         );
       }
       if (requestResizeOrigin) releaseDialogIframe(dialog);
@@ -772,13 +780,18 @@ export class OverlayController {
     this.syncDialogInteractivity();
   };
 
-  private startSurfaceResize(origin: SurfaceRect, destination: SurfaceRect, duration: number): void {
+  private startSurfaceResize(
+    origin: SurfaceRect,
+    destination: SurfaceRect,
+    duration: number,
+    sizeOnly: boolean,
+  ): void {
     const dialog = this.dialog;
     if (!dialog || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     this.cancelSurfaceResize();
-    const animation = dialog.animate(surfaceResizeKeyframes(origin, destination), {
+    const animation = dialog.animate(surfaceResizeKeyframes(origin, destination, sizeOnly), {
       duration,
-      easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)',
+      easing: WALLET_CARD_RESIZE_EASING,
     });
     this.surfaceResizeAnimation = animation;
     this.surfaceResizeTimer = setTimeout(
