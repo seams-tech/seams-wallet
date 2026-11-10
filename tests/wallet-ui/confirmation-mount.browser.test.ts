@@ -107,7 +107,7 @@ test.beforeEach(async ({ page }) => {
                   kind: 'ready',
                   onConfirm: heading === 'First confirmation' ? firstConfirm : updatedConfirm,
                 }
-              : { kind: 'preparing' },
+              : { kind: 'preparing', content: 'loading' },
             confirmText: 'Confirm',
             cancelText: 'Cancel',
             onCancel: cancel,
