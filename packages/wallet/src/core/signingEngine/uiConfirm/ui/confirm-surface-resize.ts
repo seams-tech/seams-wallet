@@ -457,9 +457,15 @@ function isWalletIframeConfirmSurface(element: Element): boolean {
 function createHostHeightPin(element: HTMLElement): HostHeightPin | null {
   if (typeof CSSStyleSheet !== 'function' || !('adoptedStyleSheets' in document)) return null;
   let sheet: CSSStyleSheet | null = null;
+  // A card taller than its frame scrolls inside the host, and a pinned host
+  // does not scroll. The document holds the card's scroll offset while the pin
+  // is on, so the card stays where it is when the pin goes on or comes off.
   const release = () => {
+    if (!element.classList.contains(CONFIRM_SURFACE_PINNED_CLASS)) return;
+    const scrollTop = document.scrollingElement?.scrollTop ?? 0;
     element.classList.remove(CONFIRM_SURFACE_PINNED_CLASS);
     document.documentElement.classList.remove(CONFIRM_SURFACE_PINNED_ROOT_CLASS);
+    if (scrollTop > 0) element.scrollTop = scrollTop;
   };
   return {
     set(px) {
@@ -480,8 +486,12 @@ function createHostHeightPin(element: HTMLElement): HostHeightPin | null {
       } catch {
         return false;
       }
+      const scrollTop = element.scrollTop;
       element.classList.add(CONFIRM_SURFACE_PINNED_CLASS);
       document.documentElement.classList.add(CONFIRM_SURFACE_PINNED_ROOT_CLASS);
+      if (scrollTop > 0 && document.scrollingElement) {
+        document.scrollingElement.scrollTop = scrollTop;
+      }
       return true;
     },
     release,

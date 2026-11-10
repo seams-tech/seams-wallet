@@ -180,18 +180,23 @@ createWalletIframeSurfaceMeasurementReporter({
   postMeasurement,
 });
 attachConfirmSurfaceResizeChoreographer(surface.element);
-// One entry per frame: the box the parent gave this frame, and the card's height.
+// One entry per frame: the box the parent gave this frame, and the card's height and bottom edge.
 let recordingFrames = false;
 let boxFrames = [];
 function recordFrame() {
   if (!recordingFrames) return;
-  const card = document.querySelector('.modal-container-root');
+  const card = document.querySelector('.modal-container-root').getBoundingClientRect();
   boxFrames.push({
     box: document.documentElement.clientHeight,
-    card: Math.round(card.getBoundingClientRect().height),
+    card: Math.round(card.height),
+    bottom: Math.round(card.bottom),
   });
   requestAnimationFrame(recordFrame);
 }
+window.scrollCardToEnd = () => {
+  surface.element.scrollTop = surface.element.scrollHeight;
+  return surface.element.scrollTop;
+};
 window.startFrames = () => {
   boxFrames = [];
   recordingFrames = true;
@@ -304,8 +309,11 @@ test('details in a card taller than its frame open and close in one motion', asy
   // Once the box stops at its limit, the rest of the card's growth is eased, not snapped.
   expect(largestStepWhileBoxStill(opening)).toBeLessThan(40);
 
+  // Scrolled down to its end, the card keeps its place when the motion starts and ends.
+  expect(await confirmationFrame(page).evaluate('window.scrollCardToEnd()')).toBeGreaterThan(0);
   const heightsBeforeClosing: number = await page.evaluate('window.measuredHeights.length');
   const closing = await toggleDetails(page);
+  expect(largestStepWhileBoxStill(closing)).toBeLessThan(40);
   const closedBox = closing.at(-1)!.box;
   expect(closing.at(-1)!.card).toBe(closedBox);
   // The box eases once, straight to the closed card: it never dips below it and grows back.
@@ -314,12 +322,17 @@ test('details in a card taller than its frame open and close in one motion', asy
   expect(heights.slice(heightsBeforeClosing)).toEqual([closedBox]);
 });
 
-type BoxFrame = { box: number; card: number };
+type BoxFrame = { box: number; card: number; bottom: number };
+
+function confirmationFrame(page: Page) {
+  const frame = page.frames().find((candidate) => candidate.url().includes('-child'));
+  if (!frame) throw new Error('Confirmation frame is missing');
+  return frame;
+}
 
 /** Toggles Transaction details and returns one record per frame until the box settles. */
 async function toggleDetails(page: Page): Promise<BoxFrame[]> {
-  const frame = page.frames().find((candidate) => candidate.url().includes('-child'));
-  if (!frame) throw new Error('Confirmation frame is missing');
+  const frame = confirmationFrame(page);
   await frame.evaluate('window.startFrames()');
   await frame.locator('.seams-review-technical > summary').click();
   await expect(frame.locator('.seams-confirm-surface-pinned')).toHaveCount(0);
@@ -327,11 +340,12 @@ async function toggleDetails(page: Page): Promise<BoxFrame[]> {
   return frame.evaluate('window.stopFrames()');
 }
 
+/** The largest one-frame move of the card's bottom edge while the box stands still. */
 function largestStepWhileBoxStill(frames: BoxFrame[]): number {
   let largest = 0;
   for (let index = 1; index < frames.length; index += 1) {
     if (frames[index].box !== frames[index - 1].box) continue;
-    largest = Math.max(largest, Math.abs(frames[index].card - frames[index - 1].card));
+    largest = Math.max(largest, Math.abs(frames[index].bottom - frames[index - 1].bottom));
   }
   return largest;
 }
