@@ -677,8 +677,7 @@
   align-items: center;
   gap: 0.125rem;
   min-height: 2.25rem;
-  margin-inline: -0.5rem;
-  padding: 0.375rem 0.5rem;
+  padding: 0.375rem 0.75rem;
   border: 0;
   border-radius: var(--seams-shape-control, 10px);
   background: transparent;
@@ -689,6 +688,14 @@
   white-space: nowrap;
   cursor: pointer;
   transition: background-color 140ms ease;
+}
+/* In a card footer the label lines up with the card's text. A method row is a
+   grid, and its auto column subtracts negative margins from the button's
+   width, which left the label no room, so only the footer pulls the button out. */
+[data-seams-root].seams-theme-provider
+  .seams-auth-method-footer
+  > button.seams-auth-method-text-action {
+  margin-inline: -0.75rem;
 }
 [data-seams-root].seams-theme-provider button.seams-auth-method-text-action > svg {
   color: var(--seams-colors-textSecondary);
