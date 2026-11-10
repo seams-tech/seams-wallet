@@ -1067,6 +1067,7 @@ const walletMessages = [
   ['Max', '最大'],
   ['On testnet, only NEAR, stNEAR and USDC are listed.', 'テストネットでは NEAR、stNEAR、USDC のみを表示します。'],
   ['QR code for {value0}', '{value0} の QR コード'],
+  ['The QR code could not be shown. Copy the address instead.', 'QR コードを表示できませんでした。代わりにアドレスをコピーしてください。'],
   ['Receive', '受け取り'],
   ['Receive {value0}', '{value0} を受け取る'],
   ['Review and send', '確認して送金'],

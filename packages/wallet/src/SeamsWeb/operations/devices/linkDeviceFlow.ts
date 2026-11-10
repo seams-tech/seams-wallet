@@ -62,6 +62,7 @@ import {
 import type { PasskeyEnvelopeId } from '@shared/utils/domainIds';
 import type { DeviceId } from '@shared/authorization/capabilityKinds';
 import { activateLinkedDeviceSignerRuntimesAfterLink } from '../auth/login';
+import { qrCodeDataUrl } from '@/utils/qrCode';
 import {
   buildDevice2QrSessionPayloadV1,
   classifyLinkedDeviceDeliveryFailureV1,
@@ -69,7 +70,6 @@ import {
   createLinkSessionId,
   type EmitLinkDeviceEventInput,
   errorForFailure,
-  generateQrCodeDataUrlV1,
   type GetLinkedDeviceAuthenticationContext,
   LinkDeviceFlowSupersededError,
   linkedDeviceDeliveryRecoveryMessageV1,
@@ -225,9 +225,9 @@ export class LinkDeviceFlow {
         linkSessionId,
         stage: 'session_subscription_ready',
       });
-      const qrCodeDataURL = await generateQrCodeDataUrlV1(
-        serializeQrLinkedDeviceSessionPayloadV5(qrData),
-      );
+      const qrCodeDataURL = await qrCodeDataUrl(serializeQrLinkedDeviceSessionPayloadV5(qrData), {
+        margin: 2,
+      });
       this.assertCurrentRun(runEpoch);
       const result = { qrData, qrCodeDataURL } satisfies StartDevice2LinkingFlowResults;
       this.emit({

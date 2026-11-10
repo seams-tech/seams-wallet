@@ -185,7 +185,6 @@
   "homepage": "https://github.com/seams-tech/seams-wallet#readme",
   "peerDependencies": {
     "jsqr": "1.4.0",
-    "qrcode": "1.5.4",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
   },
@@ -194,9 +193,6 @@
       "optional": true
     },
     "react-dom": {
-      "optional": true
-    },
-    "qrcode": {
       "optional": true
     },
     "jsqr": {
@@ -210,6 +206,7 @@
     "bs58": "6.0.0",
     "idb": "8.0.3",
     "preact": "10.29.8",
+    "qrcode": "1.5.4",
     "viem": "2.46.0"
   },
   "devDependencies": {
