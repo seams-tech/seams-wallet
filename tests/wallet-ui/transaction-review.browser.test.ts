@@ -209,7 +209,10 @@ test.beforeAll(() => {
   hostBundle = output[0].code;
 });
 
-async function mountReviewApplication(page: Page): Promise<void> {
+async function mountReviewApplication(
+  page: Page,
+  transactionFeatures?: readonly Record<string, unknown>[],
+): Promise<void> {
   await page.route('**/review-wallet-probe.js', (route) =>
     route.fulfill({ contentType: 'application/javascript', body: hostBundle }),
   );
@@ -242,7 +245,7 @@ async function mountReviewApplication(page: Page): Promise<void> {
     '**://wallet.example.localhost/wallet-service*',
   );
   await page.evaluate(
-    async ({ walletOrigin }) => {
+    async ({ walletOrigin, transactionFeatures }) => {
       const state = window as any;
       state.reviewResults = [];
       state.reviewViolations = [];
@@ -328,6 +331,7 @@ async function mountReviewApplication(page: Page): Promise<void> {
         routerAb: { normalSigning: { mode: 'enabled', signingWorkerId: 'test-worker' } },
         registration: { projectEnvironmentId: 'proj_local:test', publishableKey: 'pk_local' },
         appearance: { theme: { id: 'default', mode: 'light' } },
+        ...(transactionFeatures ? { transactionFeatures } : {}),
       };
       const container = document.createElement('div');
       document.body.appendChild(container);
@@ -349,7 +353,7 @@ async function mountReviewApplication(page: Page): Promise<void> {
         ),
       );
     },
-    { walletOrigin },
+    { walletOrigin, transactionFeatures },
   );
   await expect(page.getByRole('button', { name: 'Buy', exact: true })).toBeEnabled();
 }
@@ -684,6 +688,42 @@ test('steps.after shows the signed result in the same modal until the app closes
   await page.getByRole('button', { name: 'Done' }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(1);
+});
+
+test('a reviewed transaction finds its review host when the config holds Speak-to-Sign', async ({
+  page,
+}) => {
+  // `near.speakToSign` changes the `near` object that keys the review bridge.
+  await mountReviewApplication(page, [{ kind: 'speak_to_sign', network: 'testnet' }]);
+  expect(await page.evaluate(() => typeof (window as any).reviewSeams.near.speakToSign)).toBe(
+    'object',
+  );
+  await page.evaluate(async () => {
+    const { createElement } = await import('react');
+    const state = window as any;
+    void state.reviewWallet.near
+      .signAndSendTransaction({
+        receiverId: 'receiver.testnet',
+        actions: [{ type: 'Transfer', amount: '1' }],
+        steps: {
+          title: 'Send',
+          validity: { kind: 'unbounded' },
+          before: (controls: any) =>
+            createElement('button', { onClick: controls.continueToWallet }, 'Continue send'),
+        },
+      })
+      .then((value: unknown) => state.reviewResults.push({ kind: 'result', value }));
+  });
+  await page.getByRole('button', { name: 'Continue send' }).click();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await expect(wallet.locator('button.confirm')).toBeVisible();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
+  await wallet.locator('button.confirm').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewResults))
+    .toMatchObject([
+      { kind: 'result', value: { success: true, transactionId: 'review-transaction' } },
+    ]);
 });
 
 test('Back preserves review state and resumes the same pending wallet approval', async ({
