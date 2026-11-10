@@ -1114,8 +1114,8 @@ CTA belong to the wallet origin.
 - The wallet host owns passkey and Email OTP validation, OTP state,
   registration continuation, and unlock continuation.
 - With the Google provider configured, login mode shows Unlock with email code only
-  where the email code can unlock: for a selected wallet with Email OTP (alone or
-  with a passkey), and on a device with no saved wallet, where Google finds the
+  where the email code can unlock: for a selected wallet with Email OTP (alone, or
+  with a passkey or VoiceID), and on a device with no saved wallet, where Google finds the
   wallet from the Google account. A selected passkey or VoiceID wallet does not
   show it, and the button follows each change of the selected wallet. Create mode
   keeps Continue with Google, and recovery keeps its Google choice after the

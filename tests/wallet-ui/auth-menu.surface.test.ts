@@ -457,7 +457,26 @@ test.describe('wallet-host Preact auth menu surface', () => {
       authMethod: 'email_otp',
       emailAddress: 'both@example.test',
     } as const;
-    const accountOptions = [passkey, voice, email, bothPasskey, bothEmail];
+    // A VoiceID wallet that also added the email code as a sign-in method.
+    const voiceWithEmail = {
+      walletId: 'voice-email-wallet.test',
+      authMethod: 'voiceid',
+      walletAuthMethodId: 'voice-method-2',
+    } as const;
+    const voiceWithEmailCode = {
+      walletId: 'voice-email-wallet.test',
+      authMethod: 'email_otp',
+      emailAddress: 'voice@example.test',
+    } as const;
+    const accountOptions = [
+      passkey,
+      voice,
+      email,
+      bothPasskey,
+      bothEmail,
+      voiceWithEmail,
+      voiceWithEmailCode,
+    ];
     const login = (
       selectedAccount: AuthMenuAccountOption | null,
       options: readonly AuthMenuAccountOption[] = accountOptions,
@@ -478,6 +497,8 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(emailButton).toHaveText('Unlock with email code');
     await expect(emailButton).toBeEnabled();
     await showViewModel(page, login(bothPasskey));
+    await expect(emailButton).toHaveText('Unlock with email code');
+    await showViewModel(page, login(voiceWithEmail));
     await expect(emailButton).toHaveText('Unlock with email code');
     await showViewModel(page, login(passkey));
     await expect(emailButton).toHaveCount(0);
