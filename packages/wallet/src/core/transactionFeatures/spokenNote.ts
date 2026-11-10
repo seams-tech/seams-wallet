@@ -98,7 +98,17 @@ export type SpokenNoteAction =
       actionsSha256: Uint8Array;
       /** The sentence that the owner says. See `summaryRefusal`. */
       summary: string;
+      delivery: TransactionDelivery;
     }>;
+
+/**
+ * What core does with a spoken transaction: `send` signs and sends it, `sign` signs it only,
+ * and the fields of a NEP-366 delegate action sign its actions for a relayer to send.
+ */
+export type TransactionDelivery =
+  | 'send'
+  | 'sign'
+  | Readonly<{ nonce: string; maxBlockHeight: string; publicKey: string }>;
 
 /** The merge-approval contract's rule: no owner edge dash, and a name other than "." or "..". */
 const REPO_PATTERN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)\/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/;
@@ -138,10 +148,15 @@ export function noteActionRefusal(
   | null {
   if (action.kind === 'market_bet') return betActionRefusal(network, action);
   if (action.kind === 'transaction') {
+    const { delivery } = action;
     const valid =
       isValidAccountId(action.transaction.receiverId) &&
       action.transaction.actions.length > 0 &&
-      action.actionsSha256.length === 32;
+      action.actionsSha256.length === 32 &&
+      (typeof delivery === 'string' ||
+        (/^\d{1,20}$/.test(delivery.nonce) &&
+          /^\d{1,20}$/.test(delivery.maxBlockHeight) &&
+          delivery.publicKey.startsWith('ed25519:')));
     if (!valid) return 'transaction_not_valid';
     return summaryRefusal(action.summary) === null ? null : 'summary_not_speakable';
   }

@@ -947,6 +947,92 @@ test('a general spoken transaction is admitted for its exact actions, receiver a
   expect(await attempt(tx, { ...verdict, summary })).toEqual(refused('reused'));
 });
 
+test('a spoken delegate action is admitted as the general transaction of its sender', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const summary = 'Sign the guest book.';
+  // One `add_message` call, as Borsh of `Vec<Action>`.
+  const actions = concat([
+    littleEndian(1n, 4),
+    Uint8Array.of(2),
+    borshString('add_message'),
+    borshString('{"text":"hello"}'),
+    littleEndian(30_000_000_000_000n, 8),
+    littleEndian(0n, 16),
+  ]);
+  const delegateBytes = (sender = OWNER, receiver = 'guest-book.testnet', list = actions) =>
+    concat([
+      Uint8Array.of(0x6e, 0x01, 0x00, 0x40),
+      borshString(sender),
+      borshString(receiver),
+      list,
+      littleEndian(77n, 8),
+      littleEndian(1_234_567n, 8),
+      Uint8Array.of(0),
+      new Uint8Array(32).fill(4),
+    ]);
+  const request: SpokenRequest = {
+    kind: 'transaction',
+    network: 'testnet',
+    owner: OWNER,
+    receiver: 'guest-book.testnet',
+    actionsSha256: await sha256(actions),
+    summary,
+  };
+  const verdict = await signedVerdict(verifier, request);
+  let count = 0;
+  const attempt = async (bytes: Uint8Array<ArrayBuffer>, voice: unknown, digest?: Uint8Array) => {
+    count += 1;
+    const body = prepareBody(new Uint8Array(0), { requestId: `delegate-${count}` });
+    return await cosigner.check(
+      withVerdict(
+        {
+          ...body,
+          intent: { kind: 'near_delegate_action_v1', near_network_id: 'testnet' },
+          signing_payload: {
+            kind: 'near_delegate_action_v1',
+            canonical_delegate_borsh_b64u: b64u(bytes),
+            expected_signing_digest_b64u: b64u(digest ?? (await sha256(bytes))),
+          },
+        },
+        voice,
+      ),
+    );
+  };
+  const good = delegateBytes();
+  // A delegate action is a general transaction: it always needs the summary.
+  expect(await attempt(good, verdict)).toEqual(refused('request_mismatch'));
+  expect(await attempt(delegateBytes(OWNER, 'other.testnet'), { ...verdict, summary })).toEqual(
+    refused('request_mismatch'),
+  );
+  const otherActions = concat([actions.subarray(0, actions.length - 1), Uint8Array.of(1)]);
+  expect(
+    await attempt(delegateBytes(OWNER, 'guest-book.testnet', otherActions), { ...verdict, summary }),
+  ).toEqual(refused('request_mismatch'));
+  expect(await attempt(delegateBytes('other.testnet'), { ...verdict, summary })).toEqual(
+    refused('owner_mismatch'),
+  );
+  // The signers sign `expected_signing_digest`: it must be the SHA-256 of the delegate bytes.
+  expect(await attempt(good, { ...verdict, summary }, new Uint8Array(32).fill(1))).toEqual(
+    refused('request_mismatch'),
+  );
+  // Bytes without the NEP-366 tag are not a delegate action.
+  const untagged = concat([Uint8Array.of(0x6e, 0x01, 0x00, 0x41), good.subarray(4)]);
+  expect(await attempt(untagged, { ...verdict, summary })).toEqual(refused('request_mismatch'));
+
+  expect(await attempt(good, { ...verdict, summary })).toEqual(ADMITTED);
+  // The verdict is used once, as a delegate action or as a transaction.
+  const direct = unsignedTransaction({
+    receiver: 'guest-book.testnet',
+    actions: [{ kind: 'call', method: 'add_message', args: { text: 'hello' } }],
+  });
+  expect(
+    await cosigner.check(
+      withVerdict(prepareBody(direct, { requestId: 'direct-after' }), { ...verdict, summary }),
+    ),
+  ).toEqual(refused('reused'));
+});
+
 test('a spoken NEP-413 message is admitted for its exact bytes and summary only', async () => {
   const verifier = await verifierKey();
   const cosigner = harness(verifier);

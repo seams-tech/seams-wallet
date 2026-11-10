@@ -37,6 +37,10 @@ type VoiceTransaction = Readonly<{
 }>;
 
 const ED25519_KEY_TYPE = 0;
+/** 2^30 + 366 as a little-endian `u32`: the tag of a NEP-366 delegate action. */
+const NEP366_TAG = [0x6e, 0x01, 0x00, 0x40];
+/** A delegate action ends with its nonce, its maximum block height and an ed25519 key. */
+const DELEGATE_TAIL_BYTES = 8 + 8 + 1 + 32;
 const FUNCTION_CALL_TAG = 2;
 const TRANSFER_TAG = 3;
 
@@ -56,6 +60,34 @@ export function decodeVoiceTransaction(bytes: Uint8Array): VoiceTransaction | nu
     reader.bytes(32);
     const actionsBorsh = nearTransactionActionsBorsh(bytes);
     return { signerId, receiverId, action: readSingleAction(reader), actionsBorsh };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the bytes of a NEP-366 delegate action as a transaction of its sender: the same
+ * receiver and the same action bytes, which a relayer sends. Null when the bytes are not a
+ * delegate action or their SHA-256 is not the digest that the signers sign. A delegate action
+ * is only a general spoken transaction, so it has no typed action.
+ */
+export async function decodeVoiceDelegate(
+  delegate: Readonly<{ canonicalDelegate: Uint8Array; expectedDigestB64u: string }>,
+): Promise<VoiceTransaction | null> {
+  const bytes = delegate.canonicalDelegate;
+  const digest = await sha256(new Uint8Array(bytes));
+  if (base64UrlEncode(digest) !== delegate.expectedDigestB64u) return null;
+  const reader = new BorshReader(bytes);
+  try {
+    const tag = reader.bytes(NEP366_TAG.length);
+    if (!NEP366_TAG.every((byte, index) => tag[index] === byte)) return null;
+    const signerId = reader.string();
+    const receiverId = reader.string();
+    const rest = reader.rest();
+    const actionsLength = rest.length - DELEGATE_TAIL_BYTES;
+    // The action list starts with its `u32` length.
+    if (actionsLength < 4 || rest[rest.length - 33] !== ED25519_KEY_TYPE) return null;
+    return { signerId, receiverId, action: null, actionsBorsh: rest.subarray(0, actionsLength) };
   } catch {
     return null;
   }
@@ -274,6 +306,11 @@ class BorshReader {
 
   done(): boolean {
     return this.at === this.view.length;
+  }
+
+  /** The bytes that are not read yet. */
+  rest(): Uint8Array {
+    return this.view.subarray(this.at);
   }
 
   u8(): number {

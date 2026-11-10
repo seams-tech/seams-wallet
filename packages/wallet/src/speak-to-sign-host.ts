@@ -10,6 +10,8 @@ export {
   type SpeakToSignHostPlugin,
   type SpeakToSignMessageResult,
   type SpeakToSignMessageSigning,
+  type SpeakToSignNoteActionResult,
+  type SpeakToSignNoteSigning,
   type SpeakToSignNoteResult,
   type SpeakToSignPayment,
   type SpeakToSignPaymentHooks,

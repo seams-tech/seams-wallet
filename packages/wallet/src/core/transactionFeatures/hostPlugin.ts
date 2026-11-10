@@ -1,5 +1,6 @@
 import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
-import type { TransactionInput } from '@/core/types/actions';
+import type { ActionArgs, TransactionInput } from '@/core/types/actions';
+import type { SignDelegateActionResult, SignTransactionResult } from '@/core/types/seams';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { Variant } from '@shared/utils/variant';
@@ -66,6 +67,10 @@ type SpokenResult<Reason extends string> =
       approval: VoiceApproval;
       times: SpeakToSignTransferTimes;
     }>
+  | SpokenFailure<Reason>;
+
+/** A spoken request that signed nothing, or whose transaction failed. */
+type SpokenFailure<Reason extends string> =
   | Readonly<{ kind: 'refused'; reason: Reason; detail?: string }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
@@ -87,13 +92,39 @@ export type SpeakToSignNoteRefusalReason =
    * not the USDC contract of the network.
    */
   | 'bet_not_valid'
-  /** The receiver is not a NEAR account, or the transaction has no action. */
+  /** The receiver is not a NEAR account, the transaction has no action, or a delegate field is not valid. */
   | 'transaction_not_valid'
   | 'verdict_mismatch'
   /** The call was sent and failed on chain, for example for an unknown note or a closed market. */
   | 'transaction_failed';
 
 export type SpeakToSignNoteResult = SpokenResult<SpeakToSignNoteRefusalReason>;
+
+/** A transaction that the Wallet signed and did not send, as `near.signTransaction` returns it. */
+export type SpeakToSignSignedTransactionResult =
+  | Readonly<{
+      kind: 'signed_transaction';
+      signed: SignTransactionResult;
+      approval: VoiceApproval;
+      times: SpeakToSignTransferTimes;
+    }>
+  | SpokenFailure<SpeakToSignNoteRefusalReason>;
+
+/** A NEP-366 delegate action that the Wallet signed, as `near.signDelegateAction` returns it. */
+export type SpeakToSignSignedDelegateResult =
+  | Readonly<{
+      kind: 'signed_delegate';
+      signed: SignDelegateActionResult;
+      approval: VoiceApproval;
+      times: SpeakToSignTransferTimes;
+    }>
+  | SpokenFailure<SpeakToSignNoteRefusalReason>;
+
+/** What the host plugin returns for one note action, by the kind and delivery of the action. */
+export type SpeakToSignNoteActionResult =
+  | SpeakToSignNoteResult
+  | SpeakToSignSignedTransactionResult
+  | SpeakToSignSignedDelegateResult;
 
 /** One spoken payment from the app. The Wallet iframe reads the owner itself. */
 /**
@@ -199,6 +230,26 @@ export type SpeakToSignTransactionRequest = Readonly<{
   WithProgress;
 
 /**
+ * One spoken NEP-366 delegate action, as `near.signDelegateAction` takes it: a relayer sends
+ * the actions for the owner. The owner says the summary only. The Wallet reads the sender
+ * itself.
+ */
+export type SpeakToSignDelegateRequest = Readonly<{
+  walletId: string;
+  delegate: Readonly<{
+    receiverId: string;
+    actions: ActionArgs[];
+    nonce: bigint | string | number;
+    maxBlockHeight: bigint | string | number;
+    /** `ed25519:<base58>`: the access key of the owner that signs. */
+    publicKey: string;
+  }>;
+  /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
+  summary: string;
+}> &
+  WithProgress;
+
+/**
  * One spoken NEP-413 message, as `near.signMessage` takes it. The owner says the summary only,
  * and the verdict binds the exact message, nonce, recipient and callback URL. The Wallet draws
  * the nonce.
@@ -292,6 +343,14 @@ export type SpeakToSignPayment =
   /** The owner closed the step-up question. Nothing was signed. */
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; detail: string }>;
+
+/** What core did for one note action: a payment, or a signature that core did not send. */
+export type SpeakToSignNoteSigning =
+  | SpeakToSignPayment
+  /** Core signed the transaction and did not send it. */
+  | Readonly<{ kind: 'signed_transaction'; signed: SignTransactionResult; approval: VoiceApproval }>
+  /** Core signed the delegate action. A relayer sends it. */
+  | Readonly<{ kind: 'signed_delegate'; signed: SignDelegateActionResult; approval: VoiceApproval }>;
 
 /** A message that Wallet core signed, or why it signed nothing. */
 export type SpeakToSignMessageSigning =
@@ -400,7 +459,7 @@ export type SpeakToSignHostOperations = Readonly<{
     verifierOutput: unknown,
     signal: AbortSignal,
     hooks: SpeakToSignPaymentHooks,
-  ): Promise<SpeakToSignPayment>;
+  ): Promise<SpeakToSignNoteSigning>;
   /**
    * Checks the verifier output against this message and, on an accepted verdict, signs it with
    * the key of the owner's account, with no confirm. Each verdict signs once.
@@ -485,7 +544,7 @@ export interface SpeakToSignHostPlugin {
     readonly network: SpeakToSignNetwork;
     readonly signal: AbortSignal;
     readonly note: SpeakToSignHostNote;
-  }): Promise<SpeakToSignNoteResult>;
+  }): Promise<SpeakToSignNoteActionResult>;
   requestMessage(input: {
     readonly walletId: WalletId;
     readonly network: SpeakToSignNetwork;

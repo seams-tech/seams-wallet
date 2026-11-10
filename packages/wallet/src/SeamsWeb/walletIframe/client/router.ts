@@ -1222,7 +1222,10 @@ function assertNeverSdkLifecycleEventName(value: never): never {
 
 export class WalletIframeRouter {
   readonly placement = createIframePlacementCommands(this.post.bind(this));
-  readonly speakToSign = createIframeSpeakToSignCommands(this.post.bind(this));
+  readonly speakToSign = createIframeSpeakToSignCommands(
+    this.post.bind(this),
+    normalizeSignedTransactionResult,
+  );
   private readonly walletSessionReads = new Map<string, Promise<WalletSession>>();
   private opts: Required<WalletIframeRouterOptions>;
   // Low-level transport handling iframe mount + handshake

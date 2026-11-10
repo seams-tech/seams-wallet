@@ -1,5 +1,8 @@
 import type {
   SpeakToSignBetRequest,
+  SpeakToSignDelegateRequest,
+  SpeakToSignSignedDelegateResult,
+  SpeakToSignSignedTransactionResult,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignMessageRequest,
@@ -86,6 +89,20 @@ export type SpeakToSignCapability = Readonly<{
     request: SpeakToSignCall<SpeakToSignTransactionRequest, SpeakToSignNoteResult>,
   ): Promise<SpeakToSignNoteResult>;
   /**
+   * Signs any NEAR transaction by voice and does not send it, as `near.signTransaction` does
+   * with a confirm. `near.sendTransaction` sends the signed transaction later.
+   */
+  requestSignedTransaction(
+    request: SpeakToSignCall<SpeakToSignTransactionRequest, SpeakToSignSignedTransactionResult>,
+  ): Promise<SpeakToSignSignedTransactionResult>;
+  /**
+   * Signs a NEP-366 delegate action by voice, as `near.signDelegateAction` does with a confirm.
+   * A relayer sends its actions for the owner. The verdict binds the receiver and the actions.
+   */
+  requestDelegateAction(
+    request: SpeakToSignCall<SpeakToSignDelegateRequest, SpeakToSignSignedDelegateResult>,
+  ): Promise<SpeakToSignSignedDelegateResult>;
+  /**
    * Signs any NEP-413 message by voice, as `near.signMessage` does with a confirm. The owner
    * reads the summary aloud, and the verdict binds the exact message, nonce, recipient and
    * callback URL. The application writes the summary, as for `requestTransaction`.
@@ -136,6 +153,14 @@ export function createSpeakToSignCapability(
     >;
     requestBet: SpeakToSignCommand<SpeakToSignBetRequest, SpeakToSignNoteResult>;
     requestTransaction: SpeakToSignCommand<SpeakToSignTransactionRequest, SpeakToSignNoteResult>;
+    requestSignedTransaction: SpeakToSignCommand<
+      SpeakToSignTransactionRequest,
+      SpeakToSignSignedTransactionResult
+    >;
+    requestDelegateAction: SpeakToSignCommand<
+      SpeakToSignDelegateRequest,
+      SpeakToSignSignedDelegateResult
+    >;
     requestMessage: SpeakToSignCommand<SpeakToSignMessageRequest, SpeakToSignMessageResult>;
     enroll: SpeakToSignCommand<SpeakToSignEnrollmentRequest, SpeakToSignEnrollmentResult>;
   }>,
@@ -154,6 +179,10 @@ export function createSpeakToSignCapability(
     requestBet: (request) => withModalSteps(commands.requestBet, owner, CANCELLED, request),
     requestTransaction: (request) =>
       withModalSteps(commands.requestTransaction, owner, CANCELLED, request),
+    requestSignedTransaction: (request) =>
+      withModalSteps(commands.requestSignedTransaction, owner, CANCELLED, request),
+    requestDelegateAction: (request) =>
+      withModalSteps(commands.requestDelegateAction, owner, CANCELLED, request),
     requestMessage: (request) => withModalSteps(commands.requestMessage, owner, CANCELLED, request),
     enroll: (request) => withModalSteps(commands.enroll, owner, CANCELLED, request),
   };

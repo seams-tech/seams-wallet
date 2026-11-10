@@ -22,6 +22,7 @@ export type {
 export type {
   SPEAK_TO_SIGN_HOST_API_VERSION,
   SpeakToSignBetRequest,
+  SpeakToSignDelegateRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostPlugin,
@@ -31,6 +32,8 @@ export type {
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
   SpeakToSignProgress,
+  SpeakToSignSignedDelegateResult,
+  SpeakToSignSignedTransactionResult,
   SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
   SpeakToSignTransactionRequest,

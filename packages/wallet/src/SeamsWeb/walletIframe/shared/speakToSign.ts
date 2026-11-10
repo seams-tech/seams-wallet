@@ -8,13 +8,19 @@ import type {
   SpeakToSignNoteResult,
   SpeakToSignProgress,
   SpeakToSignRefusalReason,
+  SpeakToSignSignedDelegateResult,
+  SpeakToSignSignedTransactionResult,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
   SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
 import { BET_OUTCOMES, type BetOutcome } from '@/core/transactionFeatures/spokenBet';
-import { NOTE_RATINGS, type NoteRating } from '@/core/transactionFeatures/spokenNote';
+import {
+  NOTE_RATINGS,
+  type NoteRating,
+  type TransactionDelivery,
+} from '@/core/transactionFeatures/spokenNote';
 import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
 import {
   isActionArgsWasm,
@@ -119,6 +125,7 @@ export type PMSpeakToSignNotePayload = Readonly<{
         /** The receiver and the actions in the signer's wire form. */
         transaction: TransactionInputWasm;
         summary: string;
+        delivery: TransactionDelivery;
       }>
     /** One NEP-413 message. Its result is a `SpeakToSignMessageResult`. */
     | Readonly<{
@@ -154,8 +161,10 @@ function readTransactionAction(
   value: Record<string, unknown>,
 ): PMSpeakToSignNotePayload['action'] | null {
   const { transaction, summary } = value;
+  const delivery = readDelivery(value.delivery);
   if (
-    !hasExactKeys(value, ['kind', 'transaction', 'summary']) ||
+    !hasExactKeys(value, ['kind', 'transaction', 'summary', 'delivery']) ||
+    !delivery ||
     typeof summary !== 'string' ||
     summary.length > MAX_SUMMARY_TEXT_LENGTH ||
     !hasExactKeys(transaction, ['receiverId', 'actions']) ||
@@ -181,7 +190,20 @@ function readTransactionAction(
     kind: 'transaction',
     transaction: { receiverId: transaction.receiverId, actions },
     summary,
+    delivery,
   };
+}
+
+/** Wallet core checks the exact delegate fields. */
+function readDelivery(value: unknown): TransactionDelivery | null {
+  if (value === 'send' || value === 'sign') return value;
+  if (!hasExactKeys(value, ['nonce', 'maxBlockHeight', 'publicKey'])) return null;
+  const { nonce, maxBlockHeight, publicKey } = value;
+  return isBoundedString(nonce, 20) &&
+    isBoundedString(maxBlockHeight, 20) &&
+    isBoundedString(publicKey, 128)
+    ? { nonce, maxBlockHeight, publicKey }
+    : null;
 }
 
 function readMessageAction(
@@ -406,6 +428,46 @@ export function parseSpeakToSignNoteResult(value: unknown): SpeakToSignNoteResul
   const result = readResult(value, NOTE_REFUSAL_REASONS);
   if (!result) throw new Error('Speak-to-Sign note result is invalid.');
   return result;
+}
+
+/** Reads the answer of a sign-only transaction. Anything outside the union is a protocol error. */
+export function parseSpeakToSignSignedTransactionResult(
+  value: unknown,
+): SpeakToSignSignedTransactionResult {
+  const result = readSignedResult(value, 'signed_transaction');
+  if (!result) throw new Error('Speak-to-Sign signed transaction result is invalid.');
+  return result as SpeakToSignSignedTransactionResult;
+}
+
+/** Reads the answer of a delegate action. Anything outside the union is a protocol error. */
+export function parseSpeakToSignSignedDelegateResult(value: unknown): SpeakToSignSignedDelegateResult {
+  const result = readSignedResult(value, 'signed_delegate');
+  if (!result) throw new Error('Speak-to-Sign delegate result is invalid.');
+  return result as SpeakToSignSignedDelegateResult;
+}
+
+/**
+ * A signature result of `kind`, or a failure of a note action. `signed` is the Wallet's own
+ * signing result, which crosses the channel as a plain object.
+ */
+function readSignedResult(value: unknown, kind: 'signed_transaction' | 'signed_delegate') {
+  if (!isPlainObject(value)) return null;
+  if (value.kind !== kind) {
+    const result = readResult(value, NOTE_REFUSAL_REASONS);
+    return result === null || result.kind === 'sent' ? null : result;
+  }
+  const times = readTimes(value.times);
+  const { approval, signed } = value;
+  if (
+    !hasExactKeys(value, ['kind', 'signed', 'approval', 'times']) ||
+    !isPlainObject(signed) ||
+    typeof approval !== 'string' ||
+    !Object.hasOwn(APPROVALS, approval) ||
+    !times
+  ) {
+    return null;
+  }
+  return { kind, signed, approval: approval as VoiceApproval, times };
 }
 
 /** Reads the iframe's signed-message answer. Anything outside the union is a protocol error. */

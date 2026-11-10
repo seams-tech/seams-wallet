@@ -15,7 +15,7 @@ import type {
   SpeakToSignHostOperations,
   SpeakToSignHostPlugin,
   SpeakToSignMessageResult,
-  SpeakToSignNoteResult,
+  SpeakToSignNoteActionResult,
   SpeakToSignTransferResult,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -39,7 +39,12 @@ import type {
 } from '@/core/transactionFeatures/voiceVerdict';
 import type { SpokenMessageAction } from '@/core/transactionFeatures/spokenMessage';
 import { routerAbEd25519Nep413CanonicalMessageB64uV2 } from '@/core/rpcClients/relayer/routerAbNormalSigning';
-import { signAndSendVoiceApprovedTransaction } from '@/SeamsWeb/operations/near/actions';
+import {
+  signAndSendVoiceApprovedTransaction,
+  signVoiceApprovedTransaction,
+} from '@/SeamsWeb/operations/near/actions';
+import { signDelegateAction } from '@/SeamsWeb/operations/near/signDelegateAction';
+import type { DelegateActionInput } from '@/core/types/delegate';
 import { newNep413Nonce, signMessage as signNep413Message } from '@/SeamsWeb/operations/near/signNEP413';
 import { base64UrlDecode } from '@shared/utils/base64';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -122,7 +127,7 @@ async function handleSpeakToSign(
     signal: AbortSignal,
   ) => Promise<
     | SpeakToSignTransferResult
-    | SpeakToSignNoteResult
+    | SpeakToSignNoteActionResult
     | SpeakToSignMessageResult
     | SpeakToSignEnrollmentResult
   >,
@@ -210,6 +215,20 @@ async function prepareFlow(
       walletId,
       ownerAccountId,
     ),
+    signVoiceApprovedTransactionOnly: signVoiceApprovedOnly.bind(
+      null,
+      deps,
+      request.requestId,
+      walletId,
+      ownerAccountId,
+    ),
+    signVoiceApprovedDelegate: signVoiceApprovedDelegate.bind(
+      null,
+      deps,
+      request.requestId,
+      walletId,
+      ownerAccountId,
+    ),
     signVoiceApprovedMessage: signVoiceApprovedMessage.bind(
       null,
       deps,
@@ -264,7 +283,7 @@ async function runNote(
   ports: SpeakToSignWalletPorts,
   request: Req<'PM_SPEAK_TO_SIGN_NOTE'>,
   signal: AbortSignal,
-): Promise<SpeakToSignNoteResult | SpeakToSignMessageResult> {
+): Promise<SpeakToSignNoteActionResult | SpeakToSignMessageResult> {
   const flow = await prepareFlow(deps, ports, request, signal);
   if (flow.kind === 'unavailable') return flow;
   const { action } = request.payload;
@@ -347,6 +366,7 @@ async function noteAction(
         transaction,
         actionsSha256: await sha256(actions),
         summary: action.summary,
+        delivery: action.delivery,
       };
     }
     case 'community_note':
@@ -462,6 +482,46 @@ async function signVoiceApproved(
     voice,
     options: { ...progress, onEvent: forwardProgress.bind(null, progress.onEvent, onBroadcast) },
     onIncluded,
+  });
+}
+
+async function signVoiceApprovedOnly(
+  deps: HandlerDeps,
+  requestId: string | undefined,
+  walletId: WalletId,
+  ownerAccountId: string,
+  transaction: TransactionInput,
+  voice: VoiceApprovedSigning,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  return await signVoiceApprovedTransaction({
+    context: deps.getWalletRuntime().getContext(),
+    nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
+    walletSession: { walletId, walletSessionUserId: String(walletId) },
+    transactionInput: transaction,
+    voice,
+    options: withProgress(deps, requestId, {}),
+  });
+}
+
+async function signVoiceApprovedDelegate(
+  deps: HandlerDeps,
+  requestId: string | undefined,
+  walletId: WalletId,
+  ownerAccountId: string,
+  delegate: DelegateActionInput,
+  verdict: SignedVoiceVerdict,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  return await signDelegateAction({
+    context: deps.getWalletRuntime().getContext(),
+    nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
+    walletSession: { walletId, walletSessionUserId: String(walletId) },
+    delegate,
+    options: withProgress(deps, requestId, {}),
+    voiceVerdict: verdict,
   });
 }
 

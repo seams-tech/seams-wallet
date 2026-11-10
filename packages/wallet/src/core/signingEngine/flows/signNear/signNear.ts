@@ -272,6 +272,8 @@ type SignDelegateActionInput = {
   title?: string;
   body?: string;
   onEvent?: (update: SigningFlowEvent) => void;
+  /** Only a Speak-to-Sign delegate action carries a verdict, for the co-signer to check. */
+  voiceVerdict?: NearTransactionWithActionsPayload['voiceVerdict'];
 };
 
 export type NearSignIntentRequest =
@@ -1794,6 +1796,7 @@ async function runPreparedNearDelegateSigning(args: {
       emailOtpEd25519StepUp: args.prepared.emailOtpEd25519StepUp,
       yaoSigningPreparation: args.prepared.yaoSigningPreparation,
       yaoMaterialExecutor: args.prepared.yaoMaterialExecutor,
+      voiceVerdict: args.input.voiceVerdict,
     },
   })) as unknown as SignDelegateActionResult;
 }

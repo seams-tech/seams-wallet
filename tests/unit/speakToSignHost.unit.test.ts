@@ -434,6 +434,11 @@ type CoreHarness = {
   messages: Array<{ message: string; recipient: string }>;
   /** Each message that core signed for a verdict, with the verdict it sent. */
   voiceMessages: Array<{ action: SpokenMessageAction; verdict: SignedVoiceVerdict }>;
+  /** Each transaction that core signed for a verdict and did not send. */
+  signedOnly: Array<{ transaction: TransactionInput; verdict: SignedVoiceVerdict }>;
+  /** Each delegate action that core signed for a verdict. */
+  delegates: Array<{ delegate: unknown; verdict: SignedVoiceVerdict }>;
+  setSignError(error: string | null): void;
   setMessageError(error: string | null): void;
   fetched: Array<{ url: string; init: RequestInit }>;
   progress: SpeakToSignProgress[];
@@ -469,12 +474,18 @@ function coreHarness(verifier: Verifier): CoreHarness {
     endOfSpeechAt: 3,
   });
   let messageError: string | null = null;
+  let signError: string | null = null;
   const harness: CoreHarness = {
     signed: [],
     messages: [],
     voiceMessages: [],
+    signedOnly: [],
+    delegates: [],
     setMessageError(next) {
       messageError = next;
+    },
+    setSignError(next) {
+      signError = next;
     },
     fetched: [],
     progress: [],
@@ -504,6 +515,16 @@ function coreHarness(verifier: Verifier): CoreHarness {
         onBroadcast();
         onIncluded?.('tx-included');
         return outcome;
+      },
+      signVoiceApprovedTransactionOnly: async (transaction, voice) => {
+        if (signError !== null) throw new Error(signError);
+        harness.signedOnly.push({ transaction, verdict: voice.verdict });
+        return { signedTransaction: { transactionHash: 'tx-signed' }, nearAccountId: 'owner.testnet' } as never;
+      },
+      signVoiceApprovedDelegate: async (delegate, verdict) => {
+        if (signError !== null) throw new Error(signError);
+        harness.delegates.push({ delegate, verdict });
+        return { hash: 'delegate-hash', signedDelegate: {}, nearAccountId: 'owner.testnet' } as never;
       },
       signVoiceApprovedMessage: async (action, verdict) => {
         if (messageError !== null) return { success: false, error: messageError };
@@ -1373,6 +1394,7 @@ async function spokenTransaction(summary = 'Sign the guest book.'): Promise<Spok
     },
     actionsSha256: await sha256(new Uint8Array(Buffer.from(VECTOR_ACTIONS_HEX, 'hex'))),
     summary,
+    delivery: 'send',
   };
 }
 
@@ -1582,7 +1604,7 @@ test('core signs one NEP-413 message for the verdict of its exact bytes and summ
   expect(await sign(MESSAGE, { outcome: 'step_up', policy_rule: 'rule' })).toEqual({
     kind: 'refused',
     reason: 'verdict_mismatch',
-    detail: 'a message has no step-up',
+    detail: 'this request has no step-up',
   });
   expect(
     await harness.operations.signMessageWithVerdict(
@@ -1636,4 +1658,100 @@ test('core signs one NEP-413 message for the verdict of its exact bytes and summ
   expect(
     await harness.operations.signMessageWithVerdict(MESSAGE, accepted, signal, paymentHooks()),
   ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' });
+});
+
+test('core signs a general transaction without sending it, or as a delegate action', async () => {
+  const verifier = await verifierKey();
+  const signal = new AbortController().signal;
+  const base = await spokenTransaction();
+  if (base.kind !== 'transaction') throw new Error('not a transaction');
+  const delegateFields = { nonce: '77', maxBlockHeight: '1234567', publicKey: 'ed25519:owner' };
+  const run = async (action: SpokenNoteAction, overrides: Record<string, unknown> = {}) => {
+    const harness = coreHarness(verifier);
+    const captured = await capture(harness.operations);
+    if (captured.kind !== 'captured') throw new Error('no clip');
+    const output = await verifyOutput(
+      verifier,
+      await verdictJsonFor(
+        await noteActionDigests('testnet', 'owner.testnet', action),
+        await sha256(captured.wav),
+        overrides,
+      ),
+    );
+    const sign = async () =>
+      await harness.operations.signNoteWithVerdict(action, output, signal, paymentHooks());
+    return { harness, output, sign };
+  };
+  const verdictOf = (output: Record<string, unknown>) => ({
+    verdictJson: output.verdict_json,
+    signatureB64: output.signature_b64,
+    summary: 'Sign the guest book.',
+  });
+
+  // The delivery is not part of the request: the verdict approves the actions for the receiver.
+  const signOnly = await run({ ...base, delivery: 'sign' });
+  expect(await signOnly.sign()).toEqual({
+    kind: 'signed_transaction',
+    signed: { signedTransaction: { transactionHash: 'tx-signed' }, nearAccountId: 'owner.testnet' },
+    approval: 'voice',
+  });
+  expect(signOnly.harness.signedOnly).toEqual([
+    { transaction: base.transaction, verdict: verdictOf(signOnly.output) },
+  ]);
+  expect(signOnly.harness.signed).toEqual([]);
+
+  const delegated = await run({ ...base, delivery: delegateFields });
+  expect(await delegated.sign()).toEqual({
+    kind: 'signed_delegate',
+    signed: { hash: 'delegate-hash', signedDelegate: {}, nearAccountId: 'owner.testnet' },
+    approval: 'voice',
+  });
+  // The sender is the owner of the session, never a value from the application.
+  expect(delegated.harness.delegates).toEqual([
+    {
+      delegate: {
+        senderId: 'owner.testnet',
+        receiverId: 'guest-book.testnet',
+        actions: base.transaction.actions,
+        ...delegateFields,
+      },
+      verdict: verdictOf(delegated.output),
+    },
+  ]);
+
+  // A delegate action has no fresh approval, so a step_up verdict signs nothing.
+  const stepUp = await run({ ...base, delivery: delegateFields }, { outcome: 'step_up', policy_rule: 'rule' });
+  expect(await stepUp.sign()).toEqual({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'this request has no step-up',
+  });
+  for (const bad of [
+    { ...delegateFields, nonce: 'seven' },
+    { ...delegateFields, maxBlockHeight: '' },
+    { ...delegateFields, publicKey: 'secp256k1:key' },
+  ]) {
+    const invalid = await run({ ...base, delivery: 'send' });
+    expect(
+      await invalid.harness.operations.signNoteWithVerdict(
+        { ...base, delivery: bad },
+        invalid.output,
+        signal,
+        paymentHooks(),
+      ),
+    ).toEqual({ kind: 'unavailable', detail: 'transaction_not_valid' });
+  }
+
+  // A co-signer refusal or another error signs nothing, and the flow may sign after it.
+  const failing = await run({ ...base, delivery: 'sign' });
+  failing.harness.setSignError('HTTP 403: Speak-to-Sign verdict refused: request_mismatch');
+  expect(await failing.sign()).toEqual({
+    kind: 'refused',
+    reason: 'cosigner_refused',
+    detail: 'request_mismatch',
+  });
+  failing.harness.setSignError('offline');
+  expect(await failing.sign()).toEqual({ kind: 'not_submitted', error: 'offline' });
+  failing.harness.setSignError(null);
+  expect(await failing.sign()).toMatchObject({ kind: 'signed_transaction' });
 });

@@ -104,7 +104,7 @@ test('the app posts one interactive PM_SPEAK_TO_SIGN_TRANSFER and returns the ty
   const commands = createIframeSpeakToSignCommands(async (...args) => {
     posted.push(args);
     return { result: reply };
-  });
+  }, (result) => result);
   expect(await commands.requestTransfer({ ...PAYLOAD })).toEqual(SENT);
   expect(posted).toEqual([
     [{ type: 'PM_SPEAK_TO_SIGN_TRANSFER', payload: PAYLOAD }, { timeout: 'interactive' }],
@@ -127,7 +127,7 @@ test('a progress listener gets the Speak-to-Sign progress of its request, parsed
     });
     options.onProgress?.({ event: 'owner_near_submitting' } as never);
     return { result: SENT };
-  });
+  }, (result) => result);
   expect(
     await commands.requestTransfer({ ...PAYLOAD, onProgress: (progress) => heard.push(progress) }),
   ).toEqual(SENT);
@@ -495,7 +495,7 @@ test('the enrollment message carries only the wallet and its result parser is ex
   const commands = createIframeSpeakToSignCommands(async (...args) => {
     posted.push(args);
     return { result: ENROLLED };
-  });
+  }, (result) => result);
   expect(await commands.enroll({ walletId: WALLET_ID })).toEqual(ENROLLED);
   expect(posted).toEqual([
     [{ type: 'PM_SPEAK_TO_SIGN_ENROLL', payload: { walletId: WALLET_ID } }, { timeout: 'interactive' }],
@@ -654,7 +654,7 @@ test('the note message carries only the wallet and one note or rating, and its r
   const commands = createIframeSpeakToSignCommands(async (request, options) => {
     posted.push({ request, options });
     return { result: SENT };
-  });
+  }, (result) => result);
   expect(
     await commands.requestRating({
       walletId: WALLET_ID,
@@ -704,7 +704,7 @@ test('the bet message carries exact base units, and an amount that cannot be sai
   const commands = createIframeSpeakToSignCommands(async (request, options) => {
     posted.push({ request, options });
     return { result: SENT };
-  });
+  }, (result) => result);
   const request = {
     walletId: WALLET_ID,
     contract: 'pm-notes.testnet',
@@ -744,6 +744,7 @@ test('the transaction message carries the receiver, checked actions and the summ
         actions: [call, { action_type: 'Transfer', deposit: '1' }],
       },
       summary: 'Sign the guest book.',
+      delivery: 'send',
     },
   } as const;
   expect(parseSpeakToSignNotePayload(structuredClone(payload))).toEqual(payload);
@@ -754,6 +755,9 @@ test('the transaction message carries the receiver, checked actions and the summ
   for (const bad of [
     { ...payload, action: { ...payload.action, owner: 'victim.testnet' } },
     { ...payload, action: { ...payload.action, summary: 7 } },
+    { ...payload, action: { ...payload.action, delivery: 'later' } },
+    { ...payload, action: { ...payload.action, delivery: { nonce: '1', maxBlockHeight: '2' } } },
+    { ...payload, action: { ...payload.action, delivery: { nonce: 1, maxBlockHeight: '2', publicKey: 'ed25519:k' } } },
     withTransaction({ receiverId: 'Not An Account', actions: [call] }),
     withTransaction({ receiverId: 'guest-book.testnet', actions: [] }),
     withTransaction({ receiverId: 'guest-book.testnet', actions: [call], signerId: 'x.testnet' }),
@@ -771,10 +775,69 @@ test('the transaction message carries the receiver, checked actions and the summ
   });
 
   const posted: unknown[] = [];
-  const commands = createIframeSpeakToSignCommands(async (request, options) => {
-    posted.push({ request, options });
-    return { result: SENT };
+  let answer: unknown = SENT;
+  const commands = createIframeSpeakToSignCommands(
+    async (request, options) => {
+      posted.push({ request, options });
+      return { result: answer };
+    },
+    (result) => ({ ...result, nearAccountId: 'normalized' }),
+  );
+  const transaction = {
+    receiverId: 'guest-book.testnet',
+    actions: [
+      {
+        type: 'FunctionCall' as never,
+        methodName: 'add_message',
+        args: { text: 'hello' },
+        gas: '30000000000000',
+        deposit: '0',
+      },
+      { type: 'Transfer' as never, amount: '1' },
+    ],
+  };
+  // Sign only: the same action with delivery `sign`; the SDK rebuilds the signed transaction.
+  answer = { kind: 'signed_transaction', signed: { nearAccountId: 'raw' }, approval: 'voice', times: SENT.times };
+  expect(
+    await commands.requestSignedTransaction({
+      walletId: WALLET_ID,
+      transaction,
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual({
+    kind: 'signed_transaction',
+    signed: { nearAccountId: 'normalized' },
+    approval: 'voice',
+    times: SENT.times,
   });
+  // A delegate action: its fields travel as text, and the sender never crosses the channel.
+  answer = { kind: 'signed_delegate', signed: { hash: 'h' }, approval: 'voice', times: SENT.times };
+  expect(
+    await commands.requestDelegateAction({
+      walletId: WALLET_ID,
+      delegate: { ...transaction, nonce: 77n, maxBlockHeight: 1_234_567, publicKey: 'ed25519:k' },
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual(answer);
+  expect(posted.map((entry) => (entry as { request: { payload: { action: { delivery: unknown } } } }).request.payload.action.delivery)).toEqual([
+    'sign',
+    { nonce: '77', maxBlockHeight: '1234567', publicKey: 'ed25519:k' },
+  ]);
+  // A result of another kind is a protocol error.
+  answer = SENT;
+  await expect(
+    commands.requestSignedTransaction({ walletId: WALLET_ID, transaction, summary: 'Sign the guest book.' }),
+  ).rejects.toThrow('Speak-to-Sign signed transaction result is invalid.');
+  answer = { kind: 'refused', reason: 'words' };
+  expect(
+    await commands.requestDelegateAction({
+      walletId: WALLET_ID,
+      delegate: { ...transaction, nonce: 1, maxBlockHeight: 2, publicKey: 'ed25519:k' },
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual(answer);
+  posted.length = 0;
+  answer = SENT;
   expect(
     await commands.requestTransaction({
       walletId: WALLET_ID,
@@ -860,7 +923,7 @@ test('the message request carries the NEP-413 fields and the summary, and its re
   const commands = createIframeSpeakToSignCommands(async (request, options) => {
     posted.push({ request, options });
     return { result: signed };
-  });
+  }, (result) => result);
   expect(
     await commands.requestMessage({
       walletId: WALLET_ID,

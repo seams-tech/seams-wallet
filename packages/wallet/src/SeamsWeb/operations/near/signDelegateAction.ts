@@ -7,6 +7,7 @@ import type { DelegateActionInput } from '@/core/types/delegate';
 import type { DelegateActionHooksOptions } from '@/core/types/sdkSentEvents';
 import { SigningEventPhase } from '@/core/types/sdkSentEvents';
 import type { SignDelegateActionResult } from '@/core/types/seams';
+import type { SignedVoiceVerdict } from '@/core/transactionFeatures/voiceVerdict';
 import { toError } from '@shared/utils/errors';
 import { resolveNearCommandSubject } from './commandSubject';
 import { emitNearSigningEvent } from './signingEventHelpers';
@@ -23,6 +24,11 @@ export async function signDelegateAction(args: {
   walletSession: WalletSessionRef;
   delegate: DelegateActionInput;
   options: DelegateActionHooksOptions;
+  /**
+   * Set only by the Speak-to-Sign route of the Wallet iframe, after Wallet core checked the
+   * verdict of these actions. No confirm shows, and the signing request carries the verdict.
+   */
+  voiceVerdict?: SignedVoiceVerdict;
 }): Promise<SignDelegateActionResult> {
   const { context, delegate, options } = args;
   const nearAccountId = toAccountId(String(args.nearAccountId));
@@ -54,7 +60,10 @@ export async function signDelegateAction(args: {
           nearAccountId: String(nearAccountId),
         },
         signerSlot: options?.signerSlot,
-        confirmationConfigOverride: options?.confirmationConfig,
+        confirmationConfigOverride: args.voiceVerdict
+          ? { uiMode: 'none', behavior: 'skipClick' }
+          : options?.confirmationConfig,
+        ...(args.voiceVerdict ? { voiceVerdict: args.voiceVerdict } : {}),
         title,
         body,
         onEvent: options?.onEvent,

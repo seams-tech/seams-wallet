@@ -2,7 +2,12 @@ import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import { transfer } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
-import type { ActionResult } from '@/core/types/seams';
+import type { DelegateActionInput } from '@/core/types/delegate';
+import type {
+  ActionResult,
+  SignDelegateActionResult,
+  SignTransactionResult,
+} from '@/core/types/seams';
 import type { Variant } from '@shared/utils/variant';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
 import { base64UrlEncode } from '@shared/utils/base64';
@@ -25,6 +30,7 @@ import type {
   SpeakToSignEnrollmentRecording,
   SpeakToSignHostOperations,
   SpeakToSignMessageSigning,
+  SpeakToSignNoteSigning,
   SpeakToSignPayment,
   SpeakToSignPaymentHooks,
   SpeakToSignProgress,
@@ -82,6 +88,18 @@ export type SpeakToSignHostOperationsInput = Readonly<{
     onBroadcast: () => void,
     onIncluded: ((transactionHash: string) => void) | null,
   ) => Promise<ActionResult>;
+  /** As `signVoiceApprovedTransaction`, but the signed transaction is returned and not sent. */
+  signVoiceApprovedTransactionOnly: (
+    transaction: TransactionInput,
+    voice: VoiceApprovedSigning,
+    signal: AbortSignal,
+  ) => Promise<SignTransactionResult>;
+  /** The owner's NEP-366 signing path for one voice-approved delegate action, with no confirm. */
+  signVoiceApprovedDelegate: (
+    delegate: DelegateActionInput,
+    verdict: SignedVoiceVerdict,
+    signal: AbortSignal,
+  ) => Promise<SignDelegateActionResult>;
   /**
    * The owner's NEP-413 signing path for one voice-approved message, with no confirm. The
    * signing request carries the verdict and the summary, so the Seams co-signer checks them.
@@ -332,10 +350,13 @@ async function signNoteWithVerdict(
   verifierOutput: unknown,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
-): Promise<SpeakToSignPayment> {
+): Promise<SpeakToSignNoteSigning> {
   const refusal = noteActionRefusal(input.feature.network, action);
   if (refusal) return { kind: 'unavailable', detail: refusal };
   const expected = await noteActionDigests(input.feature.network, input.ownerAccountId, action);
+  if (action.kind === 'transaction' && action.delivery !== 'send') {
+    return await signWithoutSend(input, state, expected, action, verifierOutput, signal, hooks);
+  }
   // A contract call can still fail in the contract, so it shows only its outcome.
   return await signWithVerdict(
     input,
@@ -348,6 +369,55 @@ async function signNoteWithVerdict(
     hooks,
     null,
   );
+}
+
+/**
+ * Signs a general transaction and does not send it: as a signed transaction for the
+ * application, or as a NEP-366 delegate action for a relayer.
+ */
+async function signWithoutSend(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  expected: SpokenDigests,
+  action: Variant<SpokenNoteAction, 'kind', 'transaction'>,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignNoteSigning> {
+  const { delivery, transaction } = action;
+  // The delegate path has no fresh-approval mode, so a verdict that asks for one signs nothing.
+  const stepUp = delivery === 'sign' ? 'ask' : 'refuse';
+  const approved = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, stepUp);
+  if (approved.kind !== 'approved') return approved;
+  const { approval, policyText } = approved;
+  const verdict = { ...approved.verdict, summary: action.summary };
+  try {
+    if (delivery === 'send' || delivery === 'sign') {
+      const signed = await input.signVoiceApprovedTransactionOnly(
+        transaction,
+        { approval, policyText, verdict },
+        signal,
+      );
+      return { kind: 'signed_transaction', signed, approval };
+    }
+    const signed = await input.signVoiceApprovedDelegate(
+      {
+        senderId: input.ownerAccountId,
+        receiverId: transaction.receiverId,
+        actions: transaction.actions,
+        ...delivery,
+      },
+      verdict,
+      signal,
+    );
+    return { kind: 'signed_delegate', signed, approval };
+  } catch (error) {
+    signal.throwIfAborted();
+    // Nothing was signed, so another recording of this flow may still sign.
+    state.paid = false;
+    const message = error instanceof Error ? error.message : 'not signed';
+    return cosignerRefusal(message) ?? { kind: 'not_submitted', error: message };
+  }
 }
 
 async function signMessageWithVerdict(
@@ -437,7 +507,7 @@ async function approveVerdict(
   if (check.approval === 'voice') {
     hooks.accepted();
   } else if (stepUp === 'refuse') {
-    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'a message has no step-up' };
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this request has no step-up' };
   } else {
     input.progress({ stage: 'step_up', policyText: check.policyText });
     if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };

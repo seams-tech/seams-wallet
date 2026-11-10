@@ -32,6 +32,7 @@ import type { NormalizedRouterLogger } from '../../framework/logger';
 import type { RouterAbEd25519NormalSigningAuthorizationResult } from '../signingOperations/routerAbEd25519NormalSigningRoute';
 import { parseRouterAbEd25519NormalSigningScopeV2 } from '../signingOperations/routerAbPrivateSigningWorker';
 import {
+  decodeVoiceDelegate,
   decodeVoiceTransaction,
   spokenMessageRequest,
   spokenRequestOfTransaction,
@@ -177,15 +178,16 @@ async function admitVoiceVerdict(
   }
 
   const { signed: bytes } = target;
-  const transaction =
-    bytes.kind === 'transaction' ? decodeVoiceTransaction(bytes.unsignedTransaction) : null;
-  if (bytes.kind === 'transaction' && !transaction) return refuse('request_mismatch');
+  let transaction = null;
+  if (bytes.kind === 'transaction') transaction = decodeVoiceTransaction(bytes.unsignedTransaction);
+  if (bytes.kind === 'delegate') transaction = await decodeVoiceDelegate(bytes);
+  if (bytes.kind !== 'message' && !transaction) return refuse('request_mismatch');
   const owner = await sessionNearAccount(route, target);
   if (typeof owner !== 'string') return { ok: false, reason: 'unavailable', detail: owner.detail };
   if (transaction && transaction.signerId !== owner) return refuse('owner_mismatch');
-  // With a summary, the verdict is for the transaction as a whole (any actions) or for the
-  // message. Without one, it is for a typed request, which the co-signer builds from the one
-  // action of the transaction.
+  // With a summary, the verdict is for the transaction as a whole (any actions), sent by the
+  // owner or as a delegate action, or for the message. Without one, it is for a typed request,
+  // which the co-signer builds from the one action of the transaction.
   let spoken: SpokenRequest | null = null;
   if (transaction) {
     spoken =
@@ -252,9 +254,13 @@ type SigningTarget = Readonly<{
   signed: SignedBytes;
 }>;
 
-/** The bytes whose SHA-256 the signers sign: one NEAR transaction or one NEP-413 message. */
+/**
+ * The bytes whose SHA-256 the signers sign: one NEAR transaction, one NEP-366 delegate action
+ * or one NEP-413 message.
+ */
 type SignedBytes =
   | Readonly<{ kind: 'transaction'; unsignedTransaction: Uint8Array }>
+  | Readonly<{ kind: 'delegate'; canonicalDelegate: Uint8Array; expectedDigestB64u: string }>
   | Readonly<{ kind: 'message'; canonicalMessage: Uint8Array; expectedDigestB64u: string }>;
 
 /** The scope and the signed bytes of the prepare request, or null. */
@@ -288,6 +294,16 @@ function readSignedBytes(
     const borsh = payload.unsigned_transaction_borsh_b64u;
     if (typeof borsh !== 'string' || intent.unsigned_transaction_borsh_b64u !== borsh) return null;
     return { kind: 'transaction', unsignedTransaction: base64UrlDecode(borsh) };
+  }
+  if (intent.kind === 'near_delegate_action_v1' && payload.kind === 'near_delegate_action_v1') {
+    const { canonical_delegate_borsh_b64u: canonical, expected_signing_digest_b64u: digest } =
+      payload;
+    if (typeof canonical !== 'string' || typeof digest !== 'string') return null;
+    return {
+      kind: 'delegate',
+      canonicalDelegate: base64UrlDecode(canonical),
+      expectedDigestB64u: digest,
+    };
   }
   if (intent.kind === 'nep413_v1' && payload.kind === 'nep413_message_v1') {
     const { canonical_message_b64u: canonical, expected_signing_digest_b64u: digest } = payload;

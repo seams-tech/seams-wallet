@@ -276,6 +276,8 @@ export type NearDelegateActionPayload = {
   emailOtpEd25519StepUp: NearEmailOtpEd25519StepUpHook | null;
   yaoSigningPreparation: NearEd25519YaoSigningPreparation;
   yaoMaterialExecutor: NearEd25519YaoMaterialExecutor;
+  /** Only a Speak-to-Sign delegate action carries a verdict, for the co-signer to check. */
+  voiceVerdict?: SignedVoiceVerdict;
 };
 
 export type NearNep413Payload = {
