@@ -8,6 +8,7 @@ import type {
 import type { AccountId } from '@/core/types/accountIds';
 import { base64Encode } from '@shared/utils/base64';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import type { SignedVoiceVerdict } from '@/core/transactionFeatures/voiceVerdict';
 import { emitNearSigningEvent } from './signingEventHelpers';
 import { resolveNearCommandSubject } from './commandSubject';
 import { assertString, requireCanonicalString } from '@shared/utils/validation';
@@ -37,10 +38,18 @@ export async function signMessage(args: {
   walletSession: WalletSessionRef;
   params: SignNEP413MessageParams;
   options: SignNEP413HooksOptions;
+  /**
+   * Set only by the Speak-to-Sign route of the Wallet iframe, after Wallet core checked the
+   * verdict of this exact message and nonce. The spoken sentence was the confirmation, so no
+   * confirm shows, and the signing request carries the verdict for the Seams co-signer.
+   */
+  voice?: Readonly<{ nonce: string; verdict: SignedVoiceVerdict }>;
 }): Promise<SignNEP413MessageResult> {
-  const { context, nearAccountId, params, options } = args;
+  const { context, nearAccountId, params, options, voice } = args;
   const confirmerText = options?.confirmerText;
-  const confirmationConfigOverride = options?.confirmationConfig;
+  const confirmationConfigOverride = voice
+    ? ({ uiMode: 'none', behavior: 'skipClick' } as const)
+    : options?.confirmationConfig;
   const { signingEngine } = context;
   const signerSlot = options?.signerSlot;
   const hasValidSignerSlot =
@@ -71,13 +80,9 @@ export async function signMessage(args: {
       throw new Error(`Operational NEAR key data not found for ${nearAccountId}`);
     }
 
-    // Generate a random 32-byte nonce (NEP-413 expects base64-encoded nonce bytes).
-    const nonceBytes = new Uint8Array(32);
-    if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
-      throw new Error('Secure random not available to generate NEP-413 nonce');
-    }
-    crypto.getRandomValues(nonceBytes);
-    const nonce = base64Encode(nonceBytes);
+    // A voice verdict binds its own nonce. Otherwise the nonce is 32 new random bytes
+    // (NEP-413 expects base64-encoded nonce bytes).
+    const nonce = voice?.nonce ?? newNep413Nonce();
 
     // Emit signing progress event
     emitNearSigningEvent(options?.onEvent, nearAccountId, {
@@ -108,6 +113,7 @@ export async function signMessage(args: {
         title: confirmerText?.title,
         body: confirmerText?.body,
         confirmationConfigOverride,
+        ...(voice ? { voiceVerdict: voice.verdict } : {}),
       },
     });
 
@@ -150,4 +156,12 @@ export async function signMessage(args: {
       error: errorMessage,
     };
   }
+}
+
+/** 32 random bytes as base64, the nonce of one NEP-413 message. */
+export function newNep413Nonce(): string {
+  if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
+    throw new Error('Secure random not available to generate NEP-413 nonce');
+  }
+  return base64Encode(crypto.getRandomValues(new Uint8Array(32)));
 }

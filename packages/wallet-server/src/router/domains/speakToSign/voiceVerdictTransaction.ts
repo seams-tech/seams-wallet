@@ -3,8 +3,13 @@
 // so the verdict's request digest can only match the transaction that is signed.
 
 import { hasExactKeys } from '@shared/utils/exactKeys';
+import { base64UrlEncode } from '@shared/utils/base64';
 import {
+  BET_OUTCOMES,
+  isNep413Message,
+  nearTransactionActionsBorsh,
   NOTE_RATINGS,
+  SPEAK_TO_SIGN_USDC,
   sha256,
   utf8,
   type SpeakToSignNetwork,
@@ -25,16 +30,24 @@ type VoiceAction =
 type VoiceTransaction = Readonly<{
   signerId: string;
   receiverId: string;
-  action: VoiceAction;
+  /** The one `Transfer` or `FunctionCall` of a typed request, or null for other actions. */
+  action: VoiceAction | null;
+  /** The Borsh of all actions, which a general spoken transaction binds. */
+  actionsBorsh: Uint8Array;
 }>;
 
 const ED25519_KEY_TYPE = 0;
+/** 2^30 + 366 as a little-endian `u32`: the tag of a NEP-366 delegate action. */
+const NEP366_TAG = [0x6e, 0x01, 0x00, 0x40];
+/** A delegate action ends with its nonce, its maximum block height and an ed25519 key. */
+const DELEGATE_TAIL_BYTES = 8 + 8 + 1 + 32;
 const FUNCTION_CALL_TAG = 2;
 const TRANSFER_TAG = 3;
 
 /**
- * Reads the Borsh of an unsigned NEAR transaction with exactly one `Transfer` or `FunctionCall`
- * action, or returns null. The Wallet builds a V0 transaction with an ed25519 key.
+ * Reads the Borsh of an unsigned NEAR transaction, or returns null. The Wallet builds a V0
+ * transaction with an ed25519 key. `action` is set when the transaction has exactly one
+ * `Transfer` or `FunctionCall` action.
  */
 export function decodeVoiceTransaction(bytes: Uint8Array): VoiceTransaction | null {
   const reader = new BorshReader(bytes);
@@ -45,12 +58,69 @@ export function decodeVoiceTransaction(bytes: Uint8Array): VoiceTransaction | nu
     reader.u64();
     const receiverId = reader.string();
     reader.bytes(32);
-    if (reader.u32() !== 1) return null;
-    const action = readAction(reader);
-    return action && reader.done() ? { signerId, receiverId, action } : null;
+    const actionsBorsh = nearTransactionActionsBorsh(bytes);
+    return { signerId, receiverId, action: readSingleAction(reader), actionsBorsh };
   } catch {
     return null;
   }
+}
+
+/**
+ * Reads the bytes of a NEP-366 delegate action as a transaction of its sender: the same
+ * receiver and the same action bytes, which a relayer sends. Null when the bytes are not a
+ * delegate action or their SHA-256 is not the digest that the signers sign. A delegate action
+ * is only a general spoken transaction, so it has no typed action.
+ */
+export async function decodeVoiceDelegate(
+  delegate: Readonly<{ canonicalDelegate: Uint8Array; expectedDigestB64u: string }>,
+): Promise<VoiceTransaction | null> {
+  const bytes = delegate.canonicalDelegate;
+  const digest = await sha256(new Uint8Array(bytes));
+  if (base64UrlEncode(digest) !== delegate.expectedDigestB64u) return null;
+  const reader = new BorshReader(bytes);
+  try {
+    const tag = reader.bytes(NEP366_TAG.length);
+    if (!NEP366_TAG.every((byte, index) => tag[index] === byte)) return null;
+    const signerId = reader.string();
+    const receiverId = reader.string();
+    const rest = reader.rest();
+    const actionsLength = rest.length - DELEGATE_TAIL_BYTES;
+    // The action list starts with its `u32` length.
+    if (actionsLength < 4 || rest[rest.length - 33] !== ED25519_KEY_TYPE) return null;
+    return { signerId, receiverId, action: null, actionsBorsh: rest.subarray(0, actionsLength) };
+  } catch {
+    return null;
+  }
+}
+
+function readSingleAction(reader: BorshReader): VoiceAction | null {
+  try {
+    if (reader.u32() !== 1) return null;
+    const action = readAction(reader);
+    return action && reader.done() ? action : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The general spoken request of the transaction: the signer as its owner, the receiver, the
+ * digest of the action bytes and the summary that came beside the verdict. The verdict's
+ * request digest binds the summary, so a wrong summary does not match.
+ */
+export async function spokenTransactionRequest(
+  network: SpeakToSignNetwork,
+  transaction: VoiceTransaction,
+  summary: string,
+): Promise<SpokenRequest> {
+  return {
+    kind: 'transaction',
+    network,
+    owner: transaction.signerId,
+    receiver: transaction.receiverId,
+    actionsSha256: await sha256(new Uint8Array(transaction.actionsBorsh)),
+    summary,
+  };
 }
 
 function readAction(reader: BorshReader): VoiceAction | null {
@@ -69,15 +139,34 @@ function readAction(reader: BorshReader): VoiceAction | null {
 }
 
 /**
+ * The spoken request of a NEP-413 message, or null when the bytes are not a NEP-413 message or
+ * their SHA-256 is not the digest that the signers sign. The message does not name its signer,
+ * so the owner is the account of the session.
+ */
+export async function spokenMessageRequest(
+  network: SpeakToSignNetwork,
+  owner: string,
+  message: Readonly<{ canonicalMessage: Uint8Array; expectedDigestB64u: string }>,
+  summary: string,
+): Promise<SpokenRequest | null> {
+  if (!isNep413Message(message.canonicalMessage)) return null;
+  const payloadSha256 = await sha256(new Uint8Array(message.canonicalMessage));
+  if (base64UrlEncode(payloadSha256) !== message.expectedDigestB64u) return null;
+  return { kind: 'signed_message', network, owner, payloadSha256, summary };
+}
+
+/**
  * The spoken request that the transaction carries out, with the signer as its owner, or null
  * when the transaction is none of the kinds that Wallet core signs for a verdict: one transfer,
- * or one `add_note`, `rate_note` or `approve_merge` call with no deposit.
+ * one `add_note`, `rate_note` or `approve_merge` call with no deposit, or one bet: the
+ * `ft_transfer_call` of the network's USDC contract with 1 yoctoNEAR.
  */
 export async function spokenRequestOfTransaction(
   network: SpeakToSignNetwork,
   transaction: VoiceTransaction,
 ): Promise<SpokenRequest | null> {
   const { action, signerId: owner, receiverId } = transaction;
+  if (!action) return null;
   if (action.kind === 'transfer') {
     return {
       kind: 'account_transfer',
@@ -87,13 +176,16 @@ export async function spokenRequestOfTransaction(
       amountYocto: action.depositYocto,
     };
   }
-  if (action.depositYocto !== 0n) return null;
   let args: unknown;
   try {
     args = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(action.args));
   } catch {
     return null;
   }
+  if (action.methodName === 'ft_transfer_call') {
+    return action.depositYocto === 1n ? marketBetOfCall(network, owner, receiverId, args) : null;
+  }
+  if (action.depositYocto !== 0n) return null;
   if (action.methodName === 'add_note' && hasExactKeys(args, ['post_id', 'text', 'summary'])) {
     const { post_id: postId, text, summary } = args;
     if (!isNoteId(postId) || typeof text !== 'string' || typeof summary !== 'string') return null;
@@ -149,7 +241,60 @@ export async function spokenRequestOfTransaction(
   return null;
 }
 
-/** Wallet core sends note, post and pull request ids as JSON safe integers. */
+/**
+ * The bet of an `ft_transfer_call`: `msg` names the market id and the outcome, and it carries
+ * the verdict for the market contract, which checks it. Only the network's USDC contract is a
+ * bet token, because the sentence says "usdc" and an amount with 6 decimals. The Borsh of the
+ * request refuses an amount that is not a `u128`.
+ */
+function marketBetOfCall(
+  network: SpeakToSignNetwork,
+  owner: string,
+  token: string,
+  args: unknown,
+): SpokenRequest | null {
+  if (token !== SPEAK_TO_SIGN_USDC[network]) return null;
+  if (!hasExactKeys(args, ['receiver_id', 'amount', 'msg'])) return null;
+  const { receiver_id: market, amount, msg } = args;
+  if (typeof market !== 'string' || typeof amount !== 'string' || typeof msg !== 'string') {
+    return null;
+  }
+  if (!/^[1-9]\d{0,38}$/.test(amount)) return null;
+  let bet: unknown;
+  try {
+    bet = JSON.parse(msg);
+  } catch {
+    return null;
+  }
+  if (!hasExactKeys(bet, ['action', 'market_id', 'outcome', 'verdict_json', 'signature_b64'])) {
+    return null;
+  }
+  const { market_id: marketId, verdict_json: verdictJson, signature_b64: signatureB64 } = bet;
+  const said = bet.outcome;
+  const outcome = BET_OUTCOMES.find((candidate) => candidate === said);
+  if (
+    bet.action !== 'bet' ||
+    !isNoteId(marketId) ||
+    marketId < 1 ||
+    !outcome ||
+    typeof verdictJson !== 'string' ||
+    typeof signatureB64 !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    kind: 'market_bet',
+    network,
+    owner,
+    market,
+    token,
+    marketId: BigInt(marketId),
+    outcome,
+    amountUnits: BigInt(amount),
+  };
+}
+
+/** Wallet core sends note, post, pull request and market ids as JSON safe integers. */
 function isNoteId(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0;
 }
@@ -161,6 +306,11 @@ class BorshReader {
 
   done(): boolean {
     return this.at === this.view.length;
+  }
+
+  /** The bytes that are not read yet. */
+  rest(): Uint8Array {
+    return this.view.subarray(this.at);
   }
 
   u8(): number {

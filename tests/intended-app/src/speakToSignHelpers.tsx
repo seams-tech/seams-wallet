@@ -2,8 +2,8 @@ import React from 'react';
 import { useSeams } from '@seams/wallet/react';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
-type SpeakToSign = NonNullable<Seams['speakToSign']>;
-type TransferResult = Awaited<ReturnType<SpeakToSign['requestTransfer']>>;
+type SpeakToSign = NonNullable<Seams['near']['speakToSign']>;
+type TransferResult = Awaited<ReturnType<SpeakToSign['typed']['transfer']>>;
 type EnrollmentResult = Awaited<ReturnType<SpeakToSign['enroll']>>;
 
 declare global {
@@ -28,11 +28,11 @@ export function SpeakToSignHelpers(): null {
 }
 
 function installHelpers(seams: Seams): () => void {
-  const speakToSign = seams.speakToSign;
+  const speakToSign = seams.near.speakToSign;
   if (!speakToSign) return uninstall;
   window.__seamsIntendedSpeakToSign = {
     readNearAccountState: (walletId) => seams.registration.getNearAccountState({ walletId }),
-    requestTransfer: speakToSign.requestTransfer,
+    requestTransfer: speakToSign.typed.transfer,
     enroll: speakToSign.enroll,
   };
   return uninstall;

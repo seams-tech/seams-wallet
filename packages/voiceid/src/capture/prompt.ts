@@ -303,6 +303,10 @@ const CSS = `
   place-items: center;
   color: var(--seams-colors-textSecondary, #9cabb3);
 }
+.seams-voiceid-prompt .seams-voiceid-close.seams-voiceid-back {
+  right: auto;
+  left: 0.75rem;
+}
 .seams-voiceid-prompt .seams-voiceid-record-slot {
   grid-row: 5;
   grid-column: 1;
@@ -630,6 +634,16 @@ export class VoicePrompt {
       this.progress,
     );
     this.sizes.observe(this.element);
+  }
+
+  /**
+   * In an app's dialog with a step before this card, the corner control returns to that step.
+   * It still ends the card as cancelled; the Wallet tells the app that the person went back.
+   */
+  showBack(): void {
+    this.cancel.classList.add('seams-voiceid-back');
+    this.cancel.setAttribute('aria-label', 'Back');
+    this.cancel.querySelector('path')?.setAttribute('d', 'm15 18-6-6 6-6');
   }
 
   /**

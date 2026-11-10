@@ -1,7 +1,10 @@
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { toSerializableTempoError } from '@/SeamsWeb/operations/tempo';
 import type { EvmFamilyCommands } from '@/SeamsWeb/publicApi/evmFamilyCommands';
-import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
+import {
+  dispatchWithPresentation,
+  type TransactionDispatch,
+} from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import { toError } from '@shared/utils/errors';
 export function createApplicationEvmFamilyCommands(
@@ -48,7 +51,7 @@ class ApplicationEvmFamilyCommands {
             onEvent: args.options?.onEvent,
           },
         },
-        this.transactionDispatch,
+        dispatchWithPresentation(this.transactionDispatch, args.presentation),
       );
       return result;
     } catch (error: unknown) {

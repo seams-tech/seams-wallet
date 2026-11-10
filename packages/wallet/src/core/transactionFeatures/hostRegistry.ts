@@ -43,6 +43,7 @@ function isHostPlugin(value: unknown): value is SpeakToSignHostPlugin {
     isPlainObject(value) &&
     isFunction(value.requestTransfer) &&
     isFunction(value.requestNoteAction) &&
+    isFunction(value.requestMessage) &&
     isFunction(value.enroll)
   );
 }

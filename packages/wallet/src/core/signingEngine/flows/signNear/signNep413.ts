@@ -129,6 +129,7 @@ export async function signNep413Message({
       nonce: payload.nonce,
       callbackUrl: payload.callbackUrl,
     },
+    voiceVerdict: payload.voiceVerdict,
     computeSigningDigestB64u: async () =>
       (
         await computeThresholdEd25519Nep413SigningDigestWasm({

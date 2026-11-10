@@ -806,6 +806,8 @@ type RouterAbEd25519SignatureOnlyNormalSigningBase = {
   displayDigest: string;
   signingDigestB64u: string;
   intent: RouterAbEd25519SignatureOnlyIntentWire;
+  /** Only a Speak-to-Sign message carries a verdict, for the co-signer to check. */
+  voiceVerdict?: SignedVoiceVerdict;
 };
 
 type RouterAbEd25519SignatureOnlyNormalSigningArgs = RouterAbEd25519SignatureOnlyNormalSigningBase &
@@ -1115,6 +1117,7 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
       prepare,
       credential,
       authorization: 'operation_step_up',
+      voiceVerdict: args.voiceVerdict,
     });
     return {
       kind: 'router_ab_ed25519_signature_only_normal_signing_result_v1',
@@ -1145,6 +1148,7 @@ export async function tryFinalizeRouterAbEd25519SignatureOnlyNormalSigning(
     signingPayloadLabel: 'signature-only payload digest',
     prepare,
     startedResponse: started?.response,
+    voiceVerdict: args.voiceVerdict,
     credential: requireRouterAbEd25519NormalSigningReadyState({
       state: args.walletSessionState,
       thresholdSessionId: args.thresholdSessionId,
@@ -1213,6 +1217,7 @@ export async function startRouterAbEd25519SignatureOnlyPrepare(
     relayServerUrl: args.walletSessionState.relayerUrl,
     credential: ready.credential,
     request: prepare.request,
+    voiceVerdict: args.voiceVerdict,
   });
   // A refusal is observed where the signature awaits it; nothing else may
   // report it as unhandled meanwhile.

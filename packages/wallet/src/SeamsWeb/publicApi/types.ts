@@ -4,6 +4,9 @@ import type {
 } from '../walletIframe/shared/walletAlternatives';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
+import type { AnchoredSurfaceStep } from '@/SeamsWeb/walletIframe/client/anchoredSurface';
+import type { AuthMenuModalSteps } from '@/SeamsWeb/publicApi/surfaces';
+import type { WalletSurfacePresentation } from '@/SeamsWeb/walletIframe/shared/walletStep';
 import type {
   ExternalAuthenticateInput,
   ExternalAuthAttempt,
@@ -162,9 +165,16 @@ export interface AuthMenuCapability {
    * It never throws; `open` reports any failure.
    */
   prepare(): void;
+  /**
+   * Opens the menu. With `anchorElement`, the card paints over that element in the app's layout,
+   * and `step` gives its events and its layer (default `'page'`). The request's `chrome` draws
+   * Back or Close inside the card. Without an anchor, `{ steps }` shows the menu in the SDK's
+   * modal between the app's own steps (needs `TransactionReviewHost`).
+   */
   open(
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,
+    step?: AnchoredSurfaceStep | AuthMenuModalSteps,
   ): Promise<HostedAuthMenuOutcome>;
   cancel(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void>;
   onWalletConnectionRequest(listener: (request: WalletConnectionRequest) => void): () => void;
@@ -240,6 +250,8 @@ export type SignTempoArgs = {
   request: TempoSigningRequest;
   /** A configured Tempo network slug, or an exact target. */
   chainTarget: TempoChainSelector;
+  /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+  presentation?: WalletSurfacePresentation;
   options?: {
     confirmationConfig?: Partial<ConfirmationConfig>;
     /** Internal host-only cancellation probe; ignored in wallet-router calls. */
@@ -254,6 +266,8 @@ export type SignEvmTransactionArgs = {
   request: EvmSigningRequest;
   /** A configured EVM network slug, or an exact target. */
   chainTarget: EvmChainSelector;
+  /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+  presentation?: WalletSurfacePresentation;
   options?: {
     confirmationConfig?: Partial<ConfirmationConfig>;
     /** Internal host-only cancellation probe; ignored in wallet-router calls. */
@@ -393,6 +407,8 @@ type ExecuteEvmFamilyTransactionBaseArgs = {
   walletSession?: WalletSessionInput;
   /** A configured EVM-family network slug, or an exact target. */
   chainTarget: EcdsaChainSelector;
+  /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+  presentation?: WalletSurfacePresentation;
   postFinalizationCheck?: () => Promise<void>;
   finalization?: {
     timeoutMs?: number;
@@ -818,6 +834,12 @@ type NearSubjectInput = {
 };
 
 export interface NearSignerCapability {
+  /**
+   * The NEAR signer by voice. Present only when the config holds the Speak-to-Sign descriptor
+   * (`transactionFeatures: [speakToSign({ network })]`).
+   */
+  readonly speakToSign?: import('./speakToSign').SpeakToSignCapability;
+
   prepareOwnerTransaction(input: import('./ownerNearOperation').PrepareOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
   resumeOwnerTransaction(input: import('./ownerNearOperation').ResumeOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
 
@@ -829,6 +851,8 @@ export interface NearSignerCapability {
       receiverId: string;
       actions: ActionArgs[];
       options?: SignAndSendTransactionHooksOptions;
+      /** Shows the Wallet card in the app's own dialog. Omitted: the Wallet's own modal. */
+      presentation?: WalletSurfacePresentation;
     },
   ): Promise<ActionResult>;
 

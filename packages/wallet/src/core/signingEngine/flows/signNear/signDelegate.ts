@@ -110,6 +110,7 @@ export async function runNearDelegateActionSigning({
   yaoSigningPreparation,
   yaoMaterialExecutor,
   selection,
+  voiceVerdict,
 }: NearDelegateActionPayload): Promise<{
   signedDelegate: WasmSignedDelegate;
   hash: string;
@@ -204,6 +205,7 @@ export async function runNearDelegateActionSigning({
     preparation: yaoSigningPreparation,
     executor: yaoMaterialExecutor,
     intent: { kind: 'near_delegate_action_v1', delegate: delegateIntent },
+    voiceVerdict,
     computeSigningDigestB64u: async () =>
       (
         await computeThresholdEd25519DelegateSigningDigestWasm({

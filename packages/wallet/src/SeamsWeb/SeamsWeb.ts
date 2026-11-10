@@ -21,6 +21,11 @@ import type {
 } from '@/core/types/seams';
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi';
 import type { AuthMenuCapability, ConfigCapability, ConnectionCapability, EventsCapability } from '@/SeamsWeb/publicApi/types';
+import {
+  createAuthMenuOpen,
+  createWalletSurfacesCapability,
+  type WalletSurfacesCapability,
+} from '@/SeamsWeb/publicApi/surfaces';
 import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type {
   AuthCapability,
@@ -57,7 +62,6 @@ import { walletIdFromString } from '@shared/utils/registrationIds';
 import type { AssetsCapability } from '@/SeamsWeb/publicApi/assets';
 import {
   createSpeakToSignCapability,
-  type SpeakToSignCapability,
 } from '@/SeamsWeb/publicApi/speakToSign';
 import { createApplicationSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 /**
@@ -74,6 +78,8 @@ export class SeamsWeb {
   readonly events: EventsCapability;
   readonly connection: ConnectionCapability;
   readonly authMenu: AuthMenuCapability;
+  /** Wallet cards shown as steps of the app's own dialog. */
+  readonly surfaces: WalletSurfacesCapability;
   private readonly walletIframe: WalletIframeCoordinator;
   readonly recovery: RecoveryCapability;
   readonly devices: DevicesCapability;
@@ -86,8 +92,6 @@ export class SeamsWeb {
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
   readonly assets: AssetsCapability;
-  /** Present only when the config holds the Speak-to-Sign descriptor. */
-  readonly speakToSign?: SpeakToSignCapability;
   constructor(configs: SeamsConfigsInput, nearClient?: NearClient) {
     this.configs = buildConfigsFromEnv(configs);
     // Use provided client or create default one
@@ -118,9 +122,17 @@ export class SeamsWeb {
     this.events = {
       subscribe: this.walletIframe.onSdkLifecycleEvent.bind(this.walletIframe),
     };
+    // App steps around a Wallet card show in the modal of this instance's TransactionReviewHost.
+    const modalStepsOwner = { key: () => this.near, appearance: this.getAppearance.bind(this) };
     this.authMenu = {
       prepare: this.walletIframe.prepareHostedAuthMenu.bind(this.walletIframe),
-      open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
+      open: createAuthMenuOpen(
+        {
+          open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
+          cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
+        },
+        modalStepsOwner,
+      ),
       cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
       onWalletConnectionRequest: this.walletIframe.onWalletConnectionRequest.bind(
         this.walletIframe,
@@ -133,6 +145,7 @@ export class SeamsWeb {
         this.walletIframe,
       ),
     };
+    this.surfaces = createWalletSurfacesCapability(this.authMenu);
     this.placement = createApplicationPlacementCommands(this.walletIframe);
     const preferences = createApplicationPreferences(userPreferences, this.walletIframe);
     this.disposePreferences = preferences.dispose;
@@ -155,6 +168,12 @@ export class SeamsWeb {
       configs: this.configs,
       preferences: preferences.capability,
       getWalletIframe: this.getWalletIframe.bind(this),
+      createSpeakToSign: () =>
+        createSpeakToSignCapability(
+          this.configs.transactionFeatures,
+          createApplicationSpeakToSignCommands(this.walletIframe),
+          modalStepsOwner,
+        ),
       auth: {
         ...sessionCommands,
         ...emailOtpCommands,
@@ -186,15 +205,10 @@ export class SeamsWeb {
     this.recovery = publicApi.recovery;
     this.devices = publicApi.devices;
     this.keys = publicApi.keys;
-    this.near = publicApi.near;
     this.tempo = publicApi.tempo;
     this.evm = publicApi.evm;
     this.assets = publicApi.assets;
-    const speakToSign = createSpeakToSignCapability(
-      this.configs.transactionFeatures,
-      createApplicationSpeakToSignCommands(this.walletIframe),
-    );
-    if (speakToSign) this.speakToSign = speakToSign;
+    this.near = publicApi.near;
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();

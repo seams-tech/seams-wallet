@@ -25,10 +25,18 @@ import {
   noteActionBorsh,
   noteActionDigests,
   noteActionRefusal,
+  noteVerifyRequest,
   renderNoteAction,
   summaryRefusal,
   type SpokenNoteAction,
 } from '@/core/transactionFeatures/spokenNote';
+import { parseSpeakableUsdc, type SpokenBetAction } from '@/core/transactionFeatures/spokenBet';
+import {
+  messageActionRefusal,
+  messageDigests,
+  messageVerifyRequest,
+  type SpokenMessageAction,
+} from '@/core/transactionFeatures/spokenMessage';
 import {
   checkVoiceVerdict,
   parseVerifyOutput,
@@ -36,7 +44,12 @@ import {
   type VoiceApproval,
 } from '@/core/transactionFeatures/voiceVerdict';
 import { MAX_SAMPLES, pcm16Wav } from '@/core/transactionFeatures/wav';
-import { sha256 } from '@shared/speakToSign/spokenRequest';
+import {
+  nearTransactionActionsBorsh,
+  sha256,
+  spokenRequestBorsh,
+  spokenRequestDigest,
+} from '@shared/speakToSign/spokenRequest';
 import { afterVoiceIdStepUp } from '@/core/signingEngine/stepUpConfirmation/voiceIdStepUp';
 import type { Variant } from '@shared/utils/variant';
 import type { ActionResult } from '@/core/types/seams';
@@ -419,6 +432,14 @@ type CoreHarness = {
     verdict: SignedVoiceVerdict;
   }>;
   messages: Array<{ message: string; recipient: string }>;
+  /** Each message that core signed for a verdict, with the verdict it sent. */
+  voiceMessages: Array<{ action: SpokenMessageAction; verdict: SignedVoiceVerdict }>;
+  /** Each transaction that core signed for a verdict and did not send. */
+  signedOnly: Array<{ transaction: TransactionInput; verdict: SignedVoiceVerdict }>;
+  /** Each delegate action that core signed for a verdict. */
+  delegates: Array<{ delegate: unknown; verdict: SignedVoiceVerdict }>;
+  setSignError(error: string | null): void;
+  setMessageError(error: string | null): void;
   fetched: Array<{ url: string; init: RequestInit }>;
   progress: SpeakToSignProgress[];
   /** How many times core started the signing preparation. */
@@ -452,9 +473,20 @@ function coreHarness(verifier: Verifier): CoreHarness {
     samples: samples(2),
     endOfSpeechAt: 3,
   });
+  let messageError: string | null = null;
+  let signError: string | null = null;
   const harness: CoreHarness = {
     signed: [],
     messages: [],
+    voiceMessages: [],
+    signedOnly: [],
+    delegates: [],
+    setMessageError(next) {
+      messageError = next;
+    },
+    setSignError(next) {
+      signError = next;
+    },
     fetched: [],
     progress: [],
     prepared: 0,
@@ -483,6 +515,28 @@ function coreHarness(verifier: Verifier): CoreHarness {
         onBroadcast();
         onIncluded?.('tx-included');
         return outcome;
+      },
+      signVoiceApprovedTransactionOnly: async (transaction, voice) => {
+        if (signError !== null) throw new Error(signError);
+        harness.signedOnly.push({ transaction, verdict: voice.verdict });
+        return { signedTransaction: { transactionHash: 'tx-signed' }, nearAccountId: 'owner.testnet' } as never;
+      },
+      signVoiceApprovedDelegate: async (delegate, verdict) => {
+        if (signError !== null) throw new Error(signError);
+        harness.delegates.push({ delegate, verdict });
+        return { hash: 'delegate-hash', signedDelegate: {}, nearAccountId: 'owner.testnet' } as never;
+      },
+      signVoiceApprovedMessage: async (action, verdict) => {
+        if (messageError !== null) return { success: false, error: messageError };
+        harness.voiceMessages.push({ action, verdict });
+        return {
+          success: true,
+          accountId: 'owner.testnet',
+          publicKey: 'ed25519:owner',
+          signature: 'c2lnbmF0dXJl',
+          nonce: action.nonce,
+          ...(action.state === null ? {} : { state: action.state }),
+        };
       },
       signMessage: async (params) => {
         harness.messages.push({ ...params });
@@ -803,8 +857,6 @@ test('a co-signer refusal returns its typed reason, and another verdict of the f
       paymentHooks(),
     );
   for (const [reason, expected] of [
-    ['over_payment_limit', 'voice_limit'],
-    ['over_daily_limit', 'voice_limit'],
     ['reused', 'cosigner_refused'],
     ['step_up_required', 'cosigner_refused'],
   ] as const) {
@@ -820,7 +872,7 @@ test('a co-signer refusal returns its typed reason, and another verdict of the f
     result: { status: { SuccessValue: '' }, receipts_outcome: [] } as never,
   });
   expect(await pay(602)).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
-  expect(harness.signed).toHaveLength(6);
+  expect(harness.signed).toHaveLength(4);
 });
 
 test('after a VoiceID step-up, the new unlock meets a fresh-approval policy and no other', () => {
@@ -1039,9 +1091,9 @@ test('a merge approval says the pull request and base, and checks every field', 
     displayText: 'Merge pull request 42 into main',
     spokenText: 'merge pull request forty two into main',
   });
-  expect(noteActionRefusal(MERGE)).toBeNull();
+  expect(noteActionRefusal('testnet', MERGE)).toBeNull();
   for (const repo of ['a/b', 'my-org/My.Repo_2', 'seams/...']) {
-    expect(noteActionRefusal({ ...MERGE, repo }), repo).toBeNull();
+    expect(noteActionRefusal('testnet', { ...MERGE, repo }), repo).toBeNull();
   }
   for (const bad of [
     { ...MERGE, pullRequest: 0n },
@@ -1055,7 +1107,7 @@ test('a merge approval says the pull request and base, and checks every field', 
     { ...MERGE, headCommit: MERGE.headCommit.toUpperCase() },
     { ...MERGE, headCommit: MERGE.headCommit.slice(1) },
   ]) {
-    expect(noteActionRefusal(bad), JSON.stringify(bad, (_, v) => (typeof v === 'bigint' ? `${v}` : v))).toBe(
+    expect(noteActionRefusal('testnet', bad), JSON.stringify(bad, (_, v) => (typeof v === 'bigint' ? `${v}` : v))).toBe(
       'merge_not_valid',
     );
   }
@@ -1143,4 +1195,563 @@ test('the merge port matches every merge approval vector of the spoken-intent cr
     expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
     expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
   }
+});
+
+// ---------------------------------------------------------------- market bets
+
+const USDC = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
+
+const BET: SpokenBetAction = {
+  kind: 'market_bet',
+  contract: 'pm-notes.testnet',
+  token: USDC,
+  marketId: 9n,
+  outcome: 'yes',
+  amountUnits: 500_000n,
+};
+
+function decodeBetBorsh(borshHex: string): { owner: string; action: SpokenBetAction } {
+  const bytes = Buffer.from(borshHex, 'hex');
+  let at = 2;
+  const text = (): string => {
+    const length = bytes.readUInt32LE(at);
+    const value = bytes.subarray(at + 4, at + 4 + length).toString('utf8');
+    at += 4 + length;
+    return value;
+  };
+  const owner = text();
+  const contract = text();
+  const token = text();
+  const marketId = bytes.readBigUInt64LE(at);
+  const outcome = (['yes', 'no'] as const)[bytes[at + 8]];
+  const amountUnits = BigInt(`0x${Buffer.from(bytes.subarray(at + 9, at + 25)).reverse().toString('hex')}`);
+  return { owner, action: { kind: 'market_bet', contract, token, marketId, outcome, amountUnits } };
+}
+
+test('the bet port matches every market bet vector of the spoken-intent crate', async () => {
+  const bets = VECTORS.requests.filter((vector) => vector.borsh_hex.startsWith('07'));
+  expect(bets.map((vector) => vector.name)).toEqual([
+    'market_bet_yes_half_usdc',
+    'market_bet_no_one_usdc',
+    'market_bet_yes_implicit_owner',
+  ]);
+  for (const vector of bets) {
+    const { owner, action } = decodeBetBorsh(vector.borsh_hex);
+    const rendered = renderNoteAction(action);
+    expect(hex(await noteActionBorsh('testnet', owner, action)), vector.name).toBe(vector.borsh_hex);
+    expect(rendered.displayText, vector.name).toBe(vector.display_text);
+    expect(rendered.spokenText, vector.name).toBe(vector.spoken_text);
+    const digests = await noteActionDigests('testnet', owner, action);
+    expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
+    expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
+  }
+});
+
+test('a bet is a whole number of cents in the USDC contract of the network', async () => {
+  expect(parseSpeakableUsdc('0.5')).toBe(500_000n);
+  expect(parseSpeakableUsdc('1250.75')).toBe(1_250_750_000n);
+  expect(parseSpeakableUsdc('1000000')).toBe(10n ** 12n);
+  for (const text of ['0', '0.001', '1000000.01', '1e3', '-1', '01', '']) {
+    expect(parseSpeakableUsdc(text), text).toBeNull();
+  }
+  expect(noteActionRefusal('testnet', BET)).toBeNull();
+  for (const bad of [
+    // Another token can have other decimals than the sentence says.
+    { ...BET, token: 'usdc.testnet' },
+    { ...BET, contract: USDC },
+    { ...BET, marketId: 0n },
+    { ...BET, marketId: 2n ** 53n },
+    { ...BET, outcome: 'maybe' as never },
+    { ...BET, amountUnits: 0n },
+    { ...BET, amountUnits: 5_000n },
+    { ...BET, amountUnits: 10n ** 12n + 10_000n },
+  ]) {
+    expect(
+      noteActionRefusal('testnet', bad),
+      JSON.stringify(bad, (_, v) => (typeof v === 'bigint' ? `${v}` : v)),
+    ).toBe('bet_not_valid');
+  }
+  // Mainnet has no pinned USDC contract, so it has no spoken bets.
+  expect(noteActionRefusal('mainnet', BET)).toBe('bet_not_valid');
+  expect(await noteVerifyRequest(BET)).toEqual({
+    kind: 'market_bet',
+    market: 'pm-notes.testnet',
+    token: USDC,
+    market_id: 9,
+    outcome: 'yes',
+    amount_units: '500000',
+  });
+});
+
+test('core signs one ft_transfer_call that carries the verdict of this bet only', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+
+  // The verdict of the other outcome, of another amount or of another market does not pass.
+  for (const other of [
+    { ...BET, outcome: 'no' as const },
+    { ...BET, amountUnits: 5_000_000n },
+    { ...BET, marketId: 8n },
+    { ...BET, contract: 'other-market.testnet' },
+  ]) {
+    const digests = await noteActionDigests('testnet', 'owner.testnet', other);
+    expect(
+      await harness.operations.signNoteWithVerdict(
+        BET,
+        await verifyOutput(verifier, await verdictJsonFor(digests, audio)),
+        signal,
+        paymentHooks(),
+      ),
+    ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
+  }
+  expect(
+    await harness.operations.signNoteWithVerdict({ ...BET, token: 'usdc.testnet' }, {}, signal, paymentHooks()),
+  ).toEqual({ kind: 'unavailable', detail: 'bet_not_valid' });
+  expect(harness.signed).toEqual([]);
+
+  const digests = await noteActionDigests('testnet', 'owner.testnet', BET);
+  const accepted = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
+  const events: string[] = [];
+  expect(
+    await harness.operations.signNoteWithVerdict(BET, accepted, signal, paymentHooks(events)),
+  ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(events).toEqual(['accepted', 'broadcasting']);
+  expect(harness.signed).toEqual([
+    {
+      transaction: {
+        receiverId: USDC,
+        actions: [
+          {
+            type: 'FunctionCall',
+            methodName: 'ft_transfer_call',
+            args: {
+              receiver_id: 'pm-notes.testnet',
+              amount: '500000',
+              msg: JSON.stringify({
+                action: 'bet',
+                market_id: 9,
+                outcome: 'yes',
+                verdict_json: accepted.verdict_json,
+                signature_b64: accepted.signature_b64,
+              }),
+            },
+            gas: '100000000000000',
+            deposit: '1',
+          },
+        ],
+      },
+      approval: 'voice',
+      policyText: null,
+      verdict: { verdictJson: accepted.verdict_json, signatureB64: accepted.signature_b64 },
+    },
+  ]);
+});
+
+test('a bet has no amount limit: the voice alone approves a large bet', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const bet = { ...BET, amountUnits: 10n ** 12n };
+  const digests = await noteActionDigests('testnet', 'owner.testnet', bet);
+  const output = await verifyOutput(verifier, await verdictJsonFor(digests, await sha256(captured.wav)));
+  const events: string[] = [];
+  expect(
+    await harness.operations.signNoteWithVerdict(
+      bet,
+      output,
+      new AbortController().signal,
+      paymentHooks(events),
+    ),
+  ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(events).toEqual(['accepted', 'broadcasting']);
+});
+
+// ---------------------------------------------------------------- general transactions
+
+// The actions of the crate's transaction vectors: one `add_message` call with 30 Tgas.
+const VECTOR_ACTIONS_HEX =
+  '01000000020b0000006164645f6d657373616765100000007b2274657874223a2268656c6c6f227d00e057eb481b000000000000000000000000000000000000';
+
+async function spokenTransaction(summary = 'Sign the guest book.'): Promise<SpokenNoteAction> {
+  return {
+    kind: 'transaction',
+    transaction: {
+      receiverId: 'guest-book.testnet',
+      actions: [
+        {
+          type: 'FunctionCall' as never,
+          methodName: 'add_message',
+          args: { text: 'hello' },
+          gas: '30000000000000',
+          deposit: '0',
+        },
+      ],
+    },
+    actionsSha256: await sha256(new Uint8Array(Buffer.from(VECTOR_ACTIONS_HEX, 'hex'))),
+    summary,
+    delivery: 'send',
+  };
+}
+
+test('the general kinds match the transaction and signed message vectors of the crate', async () => {
+  const general = VECTORS.requests.filter(
+    (vector) => vector.borsh_hex.startsWith('08') || vector.borsh_hex.startsWith('09'),
+  );
+  expect(general.map((vector) => vector.name)).toEqual([
+    'transaction_one_call',
+    'transaction_implicit_accounts',
+    'signed_message',
+  ]);
+  const implicit = '3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29';
+  const first = await spokenTransaction();
+  if (first.kind !== 'transaction') throw new Error('not a transaction');
+  const second: SpokenNoteAction = {
+    ...first,
+    transaction: { ...first.transaction, receiverId: implicit },
+    summary: 'Add a new key to my account',
+  };
+  for (const [vector, owner, action] of [
+    [general[0], 'owner.testnet', first],
+    [general[1], implicit, second],
+  ] as const) {
+    expect(noteActionRefusal('testnet', action), vector.name).toBeNull();
+    const rendered = renderNoteAction(action);
+    expect(hex(await noteActionBorsh('testnet', owner, action)), vector.name).toBe(vector.borsh_hex);
+    expect(rendered.displayText, vector.name).toBe(vector.display_text);
+    expect(rendered.spokenText, vector.name).toBe(vector.spoken_text);
+    const digests = await noteActionDigests('testnet', owner, action);
+    expect(hex(digests.request), vector.name).toBe(vector.request_digest_hex);
+    expect(hex(digests.spokenText), vector.name).toBe(vector.spoken_text_digest_hex);
+  }
+  const message = spokenRequestBorsh({
+    kind: 'signed_message',
+    network: 'testnet',
+    owner: 'owner.testnet',
+    payloadSha256: new Uint8Array(32).fill(0x41),
+    summary: 'Log in to the example app',
+  });
+  expect(hex(message)).toBe(general[2].borsh_hex);
+  expect(hex(await spokenRequestDigest(message))).toBe(general[2].request_digest_hex);
+});
+
+test('the action bytes of an unsigned transaction are the bytes after the block hash', () => {
+  const actions = Buffer.from(VECTOR_ACTIONS_HEX, 'hex');
+  const text = (value: string) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32LE(value.length);
+    return Buffer.concat([length, Buffer.from(value)]);
+  };
+  const unsigned = Buffer.concat([
+    text('owner.testnet'),
+    Buffer.from([0]),
+    Buffer.alloc(32, 1),
+    Buffer.alloc(8, 2),
+    text('guest-book.testnet'),
+    Buffer.alloc(32, 3),
+    actions,
+  ]);
+  expect(hex(nearTransactionActionsBorsh(new Uint8Array(unsigned)))).toBe(VECTOR_ACTIONS_HEX);
+  // Another key type, or bytes that end before the actions, are not this format.
+  const secp = Buffer.from(unsigned);
+  secp[4 + 'owner.testnet'.length] = 1;
+  expect(() => nearTransactionActionsBorsh(new Uint8Array(secp))).toThrow(RangeError);
+  expect(() =>
+    nearTransactionActionsBorsh(new Uint8Array(unsigned.subarray(0, unsigned.length - actions.length))),
+  ).toThrow(RangeError);
+});
+
+test('core signs the application transaction as it is, and sends the summary to the co-signer', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const action = await spokenTransaction();
+  if (action.kind !== 'transaction') throw new Error('not a transaction');
+  expect(await noteVerifyRequest(action)).toEqual({
+    kind: 'transaction',
+    receiver: 'guest-book.testnet',
+    actions_sha256_hex: hex(action.actionsSha256),
+    summary: 'Sign the guest book.',
+  });
+
+  // The verdict of another summary, another receiver or other actions does not pass.
+  for (const other of [
+    { ...action, summary: 'Delete the guest book.' },
+    { ...action, transaction: { ...action.transaction, receiverId: 'other.testnet' } },
+    { ...action, actionsSha256: new Uint8Array(32).fill(9) },
+  ]) {
+    const digests = await noteActionDigests('testnet', 'owner.testnet', other);
+    expect(
+      await harness.operations.signNoteWithVerdict(
+        action,
+        await verifyOutput(verifier, await verdictJsonFor(digests, audio)),
+        signal,
+        paymentHooks(),
+      ),
+    ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
+  }
+  for (const [bad, reason] of [
+    [{ ...action, summary: 'Send 5 NEAR' }, 'summary_not_speakable'],
+    [{ ...action, transaction: { ...action.transaction, actions: [] } }, 'transaction_not_valid'],
+    [
+      { ...action, transaction: { ...action.transaction, receiverId: 'Not An Account' } },
+      'transaction_not_valid',
+    ],
+  ] as const) {
+    expect(
+      await harness.operations.signNoteWithVerdict(
+        bad as SpokenNoteAction,
+        {},
+        signal,
+        paymentHooks(),
+      ),
+    ).toEqual({ kind: 'unavailable', detail: reason });
+  }
+  expect(harness.signed).toEqual([]);
+
+  const digests = await noteActionDigests('testnet', 'owner.testnet', action);
+  const accepted = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
+  expect(
+    await harness.operations.signNoteWithVerdict(action, accepted, signal, paymentHooks()),
+  ).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(harness.signed).toEqual([
+    {
+      transaction: action.transaction,
+      approval: 'voice',
+      policyText: null,
+      verdict: {
+        verdictJson: accepted.verdict_json,
+        signatureB64: accepted.signature_b64,
+        summary: 'Sign the guest book.',
+      },
+    },
+  ]);
+});
+
+// ---------------------------------------------------------------- NEP-413 messages
+
+const MESSAGE: SpokenMessageAction = {
+  message: 'Log in to example.app at 2026-11-10T09:00:00Z',
+  recipient: 'example.app',
+  nonce: Buffer.alloc(32, 5).toString('base64'),
+  callbackUrl: null,
+  state: 'login-1',
+  payloadSha256: new Uint8Array(32).fill(0x41),
+  summary: 'Log in to the example app',
+};
+
+test('the message port matches the signed message vector of the crate', async () => {
+  const vector = VECTORS.requests.find((candidate) => candidate.name === 'signed_message');
+  if (!vector) throw new Error('no signed_message vector');
+  const digests = await messageDigests('testnet', 'owner.testnet', MESSAGE);
+  expect(hex(digests.request)).toBe(vector.request_digest_hex);
+  expect(hex(digests.spokenText)).toBe(vector.spoken_text_digest_hex);
+  expect(messageVerifyRequest(MESSAGE)).toEqual({
+    kind: 'signed_message',
+    payload_sha256_hex: '41'.repeat(32),
+    summary: 'Log in to the example app',
+  });
+  expect(messageActionRefusal(MESSAGE)).toBeNull();
+  expect(messageActionRefusal({ ...MESSAGE, message: '' })).toBe('message_not_valid');
+  expect(messageActionRefusal({ ...MESSAGE, recipient: '' })).toBe('message_not_valid');
+  expect(messageActionRefusal({ ...MESSAGE, payloadSha256: new Uint8Array(31) })).toBe(
+    'message_not_valid',
+  );
+  expect(messageActionRefusal({ ...MESSAGE, summary: 'Log in at 9' })).toBe('summary_not_speakable');
+});
+
+test('core signs one NEP-413 message for the verdict of its exact bytes and summary', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const sign = async (verdictFor: SpokenMessageAction, overrides: Record<string, unknown> = {}) =>
+    await harness.operations.signMessageWithVerdict(
+      MESSAGE,
+      await verifyOutput(
+        verifier,
+        await verdictJsonFor(
+          await messageDigests('testnet', 'owner.testnet', verdictFor),
+          audio,
+          overrides,
+        ),
+      ),
+      signal,
+      paymentHooks(),
+    );
+
+  // The verdict of other bytes or of another summary does not pass.
+  for (const other of [
+    { ...MESSAGE, payloadSha256: new Uint8Array(32).fill(0x42) },
+    { ...MESSAGE, summary: 'Log in to another app' },
+  ]) {
+    expect(await sign(other)).toEqual({
+      kind: 'refused',
+      reason: 'verdict_mismatch',
+      detail: 'request_digest differs',
+    });
+  }
+  // The message path has no fresh approval, so a step_up verdict signs nothing.
+  expect(await sign(MESSAGE, { outcome: 'step_up', policy_rule: 'rule' })).toEqual({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'this request has no step-up',
+  });
+  expect(
+    await harness.operations.signMessageWithVerdict(
+      { ...MESSAGE, message: '' },
+      {},
+      signal,
+      paymentHooks(),
+    ),
+  ).toEqual({ kind: 'unavailable', detail: 'message_not_valid' });
+  expect(harness.voiceMessages).toEqual([]);
+
+  // A co-signer refusal or another error signs nothing, and the flow may sign after it.
+  harness.setMessageError('Speak-to-Sign verdict refused: reused');
+  expect(await sign(MESSAGE)).toEqual({
+    kind: 'refused',
+    reason: 'cosigner_refused',
+    detail: 'reused',
+  });
+  harness.setMessageError('network down');
+  expect(await sign(MESSAGE)).toEqual({ kind: 'not_signed', error: 'network down' });
+  harness.setMessageError(null);
+
+  const events: string[] = [];
+  const accepted = await verifyOutput(
+    verifier,
+    await verdictJsonFor(await messageDigests('testnet', 'owner.testnet', MESSAGE), audio),
+  );
+  expect(
+    await harness.operations.signMessageWithVerdict(MESSAGE, accepted, signal, paymentHooks(events)),
+  ).toEqual({
+    kind: 'signed',
+    approval: 'voice',
+    accountId: 'owner.testnet',
+    publicKey: 'ed25519:owner',
+    signature: 'c2lnbmF0dXJl',
+    nonce: MESSAGE.nonce,
+    state: 'login-1',
+  });
+  expect(events).toEqual(['accepted']);
+  expect(harness.voiceMessages).toEqual([
+    {
+      action: MESSAGE,
+      verdict: {
+        verdictJson: accepted.verdict_json,
+        signatureB64: accepted.signature_b64,
+        summary: 'Log in to the example app',
+      },
+    },
+  ]);
+  // The flow signs once.
+  expect(
+    await harness.operations.signMessageWithVerdict(MESSAGE, accepted, signal, paymentHooks()),
+  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' });
+});
+
+test('core signs a general transaction without sending it, or as a delegate action', async () => {
+  const verifier = await verifierKey();
+  const signal = new AbortController().signal;
+  const base = await spokenTransaction();
+  if (base.kind !== 'transaction') throw new Error('not a transaction');
+  const delegateFields = { nonce: '77', maxBlockHeight: '1234567', publicKey: 'ed25519:owner' };
+  const run = async (action: SpokenNoteAction, overrides: Record<string, unknown> = {}) => {
+    const harness = coreHarness(verifier);
+    const captured = await capture(harness.operations);
+    if (captured.kind !== 'captured') throw new Error('no clip');
+    const output = await verifyOutput(
+      verifier,
+      await verdictJsonFor(
+        await noteActionDigests('testnet', 'owner.testnet', action),
+        await sha256(captured.wav),
+        overrides,
+      ),
+    );
+    const sign = async () =>
+      await harness.operations.signNoteWithVerdict(action, output, signal, paymentHooks());
+    return { harness, output, sign };
+  };
+  const verdictOf = (output: Record<string, unknown>) => ({
+    verdictJson: output.verdict_json,
+    signatureB64: output.signature_b64,
+    summary: 'Sign the guest book.',
+  });
+
+  // The delivery is not part of the request: the verdict approves the actions for the receiver.
+  const signOnly = await run({ ...base, delivery: 'sign' });
+  expect(await signOnly.sign()).toEqual({
+    kind: 'signed_transaction',
+    signed: { signedTransaction: { transactionHash: 'tx-signed' }, nearAccountId: 'owner.testnet' },
+    approval: 'voice',
+  });
+  expect(signOnly.harness.signedOnly).toEqual([
+    { transaction: base.transaction, verdict: verdictOf(signOnly.output) },
+  ]);
+  expect(signOnly.harness.signed).toEqual([]);
+
+  const delegated = await run({ ...base, delivery: delegateFields });
+  expect(await delegated.sign()).toEqual({
+    kind: 'signed_delegate',
+    signed: { hash: 'delegate-hash', signedDelegate: {}, nearAccountId: 'owner.testnet' },
+    approval: 'voice',
+  });
+  // The sender is the owner of the session, never a value from the application.
+  expect(delegated.harness.delegates).toEqual([
+    {
+      delegate: {
+        senderId: 'owner.testnet',
+        receiverId: 'guest-book.testnet',
+        actions: base.transaction.actions,
+        ...delegateFields,
+      },
+      verdict: verdictOf(delegated.output),
+    },
+  ]);
+
+  // A delegate action has no fresh approval, so a step_up verdict signs nothing.
+  const stepUp = await run({ ...base, delivery: delegateFields }, { outcome: 'step_up', policy_rule: 'rule' });
+  expect(await stepUp.sign()).toEqual({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'this request has no step-up',
+  });
+  for (const bad of [
+    { ...delegateFields, nonce: 'seven' },
+    { ...delegateFields, maxBlockHeight: '' },
+    { ...delegateFields, publicKey: 'secp256k1:key' },
+  ]) {
+    const invalid = await run({ ...base, delivery: 'send' });
+    expect(
+      await invalid.harness.operations.signNoteWithVerdict(
+        { ...base, delivery: bad },
+        invalid.output,
+        signal,
+        paymentHooks(),
+      ),
+    ).toEqual({ kind: 'unavailable', detail: 'transaction_not_valid' });
+  }
+
+  // A co-signer refusal or another error signs nothing, and the flow may sign after it.
+  const failing = await run({ ...base, delivery: 'sign' });
+  failing.harness.setSignError('HTTP 403: Speak-to-Sign verdict refused: request_mismatch');
+  expect(await failing.sign()).toEqual({
+    kind: 'refused',
+    reason: 'cosigner_refused',
+    detail: 'request_mismatch',
+  });
+  failing.harness.setSignError('offline');
+  expect(await failing.sign()).toEqual({ kind: 'not_submitted', error: 'offline' });
+  failing.harness.setSignError(null);
+  expect(await failing.sign()).toMatchObject({ kind: 'signed_transaction' });
 });

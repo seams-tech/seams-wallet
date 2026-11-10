@@ -121,24 +121,26 @@ export async function signAndSendTransaction(args: {
   });
 }
 
-/**
- * Signs and sends one transaction that a Speak-to-Sign verdict approved. Only the Speak-to-Sign
- * route of the Wallet iframe calls it, after Wallet core checked the verdict. The signing request
- * carries the verdict, so the Seams co-signer checks it again before it adds its part.
- * - `voice`: the spoken sentence was the confirmation, so no confirm shows.
- * - `voice_and_passkey`: a policy rule asked for more, so the owner approves again with the
- *   session's own method (a passkey on a passkey session) on a confirm that shows the rule.
- */
-export async function signAndSendVoiceApprovedTransaction(args: {
+/** One transaction that a Speak-to-Sign verdict approved, and how the owner approved it. */
+type VoiceApprovedTransaction = {
   context: NearSigningWebContext;
   nearAccountId: AccountId;
   walletSession: WalletSessionRef;
   transactionInput: TransactionInput;
   voice: VoiceApprovedSigning;
   options: SignAndSendTransactionHooksOptions;
-  /** Set for a plain transfer: runs when a block holds it, before the outcome is read. */
-  onIncluded: ((transactionHash: string) => void) | null;
-}): Promise<ActionResult> {
+};
+
+/**
+ * How the Wallet signs for a verdict. The signing request carries the verdict, so the Seams
+ * co-signer checks it again before it adds its part.
+ * - `voice`: the spoken sentence was the confirmation, so no confirm shows.
+ * - `voice_and_passkey`: a policy rule asked for more, so the owner approves again with the
+ *   session's own method (a passkey on a passkey session) on a confirm that shows the rule.
+ *   The owner already asked to approve in the Speak-to-Sign card, so only the fresh approval
+ *   runs. A browser that needs its own click for a passkey still gets a clickable confirm.
+ */
+function voiceApprovedSigning(args: VoiceApprovedTransaction) {
   const signing = {
     context: args.context,
     nearAccountId: args.nearAccountId,
@@ -146,14 +148,10 @@ export async function signAndSendVoiceApprovedTransaction(args: {
     transactionInput: args.transactionInput,
     confirmationConfigOverride: { uiMode: 'none', behavior: 'skipClick' } as const,
     voiceVerdict: args.voice.verdict,
-    onIncluded: args.onIncluded,
+    options: args.options,
   };
-  if (args.voice.approval === 'voice') {
-    return signAndSendTransactionInternal({ ...signing, options: args.options });
-  }
-  // The owner already asked to approve in the Speak-to-Sign card, so only the fresh approval
-  // runs. A browser that needs its own click for a passkey still gets a clickable confirm.
-  return signAndSendTransactionInternal({
+  if (args.voice.approval === 'voice') return signing;
+  return {
     ...signing,
     options: {
       ...args.options,
@@ -163,7 +161,30 @@ export async function signAndSendVoiceApprovedTransaction(args: {
       },
     },
     sensitivePolicy: SENSITIVE_OPERATION_POLICIES.requireFreshSameMethod,
+  };
+}
+
+/**
+ * Signs and sends one transaction that a Speak-to-Sign verdict approved. Only the Speak-to-Sign
+ * route of the Wallet iframe calls it, after Wallet core checked the verdict.
+ */
+export async function signAndSendVoiceApprovedTransaction(
+  args: VoiceApprovedTransaction & {
+    /** Set for a plain transfer: runs when a block holds it, before the outcome is read. */
+    onIncluded: ((transactionHash: string) => void) | null;
+  },
+): Promise<ActionResult> {
+  return signAndSendTransactionInternal({
+    ...voiceApprovedSigning(args),
+    onIncluded: args.onIncluded,
   });
+}
+
+/** Signs one transaction that a Speak-to-Sign verdict approved, without sending it. */
+export async function signVoiceApprovedTransaction(
+  args: VoiceApprovedTransaction,
+): Promise<SignTransactionResult> {
+  return signTransactionWithActionsInternal(voiceApprovedSigning(args));
 }
 
 /**

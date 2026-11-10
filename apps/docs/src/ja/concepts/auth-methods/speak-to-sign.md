@@ -40,7 +40,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 3つのパッケージを同じバージョンでインストールします。
 
 ```sh
-pnpm add @seams/wallet@0.64.0 @seams/voiceid@0.64.0 @seams/speak-to-sign@0.64.0
+pnpm add @seams/wallet@0.66.0 @seams/voiceid@0.66.0 @seams/speak-to-sign@0.66.0
 ```
 
 VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加します。
@@ -56,8 +56,9 @@ const seams = new SeamsWeb({
   transactionFeatures: [speakToSign({ network: 'testnet' })],
 });
 
-if (seams.speakToSign) {
-  const result = await seams.speakToSign.requestTransfer({
+const voice = seams.near.speakToSign;
+if (voice) {
+  const result = await voice.typed.transfer({
     walletId,
     receiver: 'alice.testnet',
     amount: '2',
@@ -65,14 +66,14 @@ if (seams.speakToSign) {
 }
 ```
 
-`seams.speakToSign`は、設定に記述子がある場合だけ存在します。送金先には、`alice.testnet`のように所有者が読み上げられる任意の名前付きNEARアカウントを指定できます。
+`seams.near.speakToSign`は、設定に記述子がある場合だけ存在します。送金先には、`alice.testnet`のように所有者が読み上げられる任意の名前付きNEARアカウントを指定できます。
 暗黙的アカウント(64桁の16進数)または`0x`アカウントの場合、結果は`receiver_not_speakable`の`refused`です。
 存在しないアカウントの場合、結果は`receiver_missing`の`refused`です。
-金額は小数点以下2桁までのNEARの10進数です。結果の`kind`は、`sent`、`refused`、`cancelled`、`unavailable`のいずれかです。
-`sent`の結果には`approval`があります。判定だけで承認した場合は`voice`、ポリシーのルールが確認画面を再び求めた場合は`voice_and_passkey`です。
+金額は小数点以下2桁までのNEARの10進数です。結果の`kind`は、`approved`、`refused`、`cancelled`、`unavailable`のいずれかです。
+`approved`の結果には`result`(`transactionHash`)、`times`、`approval`があります。判定だけで承認した場合は`voice`、ポリシーのルールが確認画面を再び求めた場合は`voice_and_passkey`です。
 現在、検証者には仮のルールが1つあります。10 NEARを超える音声による支払いにはパスキーが必要です。
 
-`requestTransfer`、`requestNote`、`requestRating`には、省略できる`onProgress`があります。リクエストの各段階を順に受け取ります。
+すべての呼び出しには、省略できる`onProgress`があります。リクエストの各段階を順に受け取ります。
 
 | `stage`            | タイミング                                                     |
 | ------------------ | -------------------------------------------------------------- |
@@ -85,19 +86,34 @@ if (seams.speakToSign) {
 
 検証者は結果を最後にだけ送るため、`verifier_running`と`verdict`の間にイベントはありません。リスナーのエラーはリクエストを止めません。
 
-Seamsの共同署名者が判定を拒否した場合、結果は`refused`で、理由は`voice_limit`(1回の支払いまたは24時間の音声の上限を超えた場合)か、
-`cosigner_refused`(共同署名者のその他の拒否)です。このとき`detail`には、`over_daily_limit`や`reused`のような共同署名者の理由が入ります。
-何も署名されていません。
+Seamsの共同署名者が判定を拒否した場合、結果は`refused`で、理由は`cosigner_refused`です。
+このとき`detail`には、`reused`や`request_mismatch`のような共同署名者の理由が入ります。
+何も署名されていません。Speak-to-Sign自体は金額の上限を設けません。
 
 記述子を設定しないアプリは、Speak-to-Signのコード、WASM、アセットを一切ダウンロードしません。
 記述子を設定したアプリも、音声による支払いを始めるまでは何も追加で読み込みません。
+
+## 通常の署名と同じ呼び出し
+
+`seams.near.speakToSign`は、音声によるNEARの署名者です。各呼び出しは、置き換える`seams.near`の呼び出しと同じ名前で、同じ取引、デリゲートアクション、メッセージに`summary`を加えて受け取ります。
+
+| 通常の呼び出し                | 音声の呼び出し                            | 承認された結果の`result`          |
+| ----------------------------- | ----------------------------------------- | --------------------------------- |
+| `near.signAndSendTransaction` | `near.speakToSign.signAndSendTransaction` | `{ transactionHash }`             |
+| `near.signTransaction`        | `near.speakToSign.signTransaction`        | 署名済みの取引                    |
+| `near.signDelegateAction`     | `near.speakToSign.signDelegateAction`     | 署名済みのデリゲートアクション    |
+| `near.signMessage`            | `near.speakToSign.signMessage`            | NEP-413の署名とノンス             |
+
+所有者は`summary`(1〜12語の平易な単語)を読み上げます。判定は、Walletが署名する内容(取引の受取先とアクションのバイト列、またはNEP-413メッセージのバイト列)に結び付きます。`summary`はアプリが書きます。音声は、誰が承認し、何を言ったかを証明しますが、`summary`がリクエストを正しく説明していることは証明しません。
+
+リクエストの項目から文を作る呼び出し(`transfer`、`note`、`rating`、`mergeApproval`、`bet`)は、`seams.near.speakToSign.typed`にあります。
 
 ## 所有者の準備 {#set-up-the-owner}
 
 最初の音声による支払いの前に、所有者には検証者での声のテンプレートが必要です。
 
 ```ts [部分的な実装例]
-const enrollment = await seams.speakToSign.enroll({ walletId });
+const enrollment = await seams.near.speakToSign.enroll({ walletId });
 if (enrollment.kind === 'enrolled') {
   console.log('template', enrollment.templateEpoch);
 }
@@ -122,7 +138,7 @@ Wallet coreが呼び出しを1件作り、デポジットも確認もなしで�
 import { summaryRefusal } from '@seams/wallet';
 
 if (summaryRefusal(summary) === null) {
-  await seams.speakToSign.requestNote({
+  await seams.near.speakToSign.typed.note({
     walletId,
     contract: 'community-notes.testnet',
     postId: 7,
@@ -130,7 +146,7 @@ if (summaryRefusal(summary) === null) {
     summary: 'Only one lane closes for two weeks.',
   });
 }
-await seams.speakToSign.requestRating({
+await seams.near.speakToSign.typed.rating({
   walletId,
   contract: 'community-notes.testnet',
   noteId: 3,

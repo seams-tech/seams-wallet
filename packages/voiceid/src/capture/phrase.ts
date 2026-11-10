@@ -1,4 +1,5 @@
 import {
+  anchoredCardChrome,
   createWalletIframeSurfaceMeasurementReporter,
   toError,
   WorkerDeferred,
@@ -77,6 +78,7 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     delete this.prompt.phrase.dataset.voiceidPhrase;
     this.prompt.status.textContent = PROMPT_MESSAGE;
     this.prompt.record.textContent = 'Record';
+    if (anchoredCardChrome() === 'back') this.prompt.showBack();
     const handedOverPrompt = handedOver?.querySelector(':scope > .seams-voiceid-prompt') ?? null;
     const rows = handedOverPrompt ? handedOverRows(handedOverPrompt) : null;
     if (handedOverPrompt) {

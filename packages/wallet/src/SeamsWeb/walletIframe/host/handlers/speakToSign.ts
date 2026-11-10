@@ -14,7 +14,8 @@ import type {
   SpeakToSignEnrollmentResult,
   SpeakToSignHostOperations,
   SpeakToSignHostPlugin,
-  SpeakToSignNoteResult,
+  SpeakToSignMessageResult,
+  SpeakToSignNoteActionResult,
   SpeakToSignTransferResult,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -28,10 +29,24 @@ import {
   type SpeakToSignFeaturePlugin,
   type WalletTransactionFeaturePlugin,
 } from '@/core/transactionFeatures/plugins';
-import type { TransactionInput } from '@/core/types/actions';
+import { fromTransactionInputsWasm, type TransactionInput } from '@/core/types/actions';
+import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
+import { sha256 } from '@shared/speakToSign/spokenRequest';
 import { SigningEventPhase } from '@/core/types/sdkSentEvents';
-import type { VoiceApprovedSigning } from '@/core/transactionFeatures/voiceVerdict';
-import { signAndSendVoiceApprovedTransaction } from '@/SeamsWeb/operations/near/actions';
+import type {
+  SignedVoiceVerdict,
+  VoiceApprovedSigning,
+} from '@/core/transactionFeatures/voiceVerdict';
+import type { SpokenMessageAction } from '@/core/transactionFeatures/spokenMessage';
+import { routerAbEd25519Nep413CanonicalMessageB64uV2 } from '@/core/rpcClients/relayer/routerAbNormalSigning';
+import {
+  signAndSendVoiceApprovedTransaction,
+  signVoiceApprovedTransaction,
+} from '@/SeamsWeb/operations/near/actions';
+import { signDelegateAction } from '@/SeamsWeb/operations/near/signDelegateAction';
+import type { DelegateActionInput } from '@/core/types/delegate';
+import { newNep413Nonce, signMessage as signNep413Message } from '@/SeamsWeb/operations/near/signNEP413';
+import { base64UrlDecode } from '@shared/utils/base64';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { ProgressPayload } from '../../shared/messages';
 import type {
@@ -49,6 +64,15 @@ export type SpeakToSignWalletPorts = Readonly<{
   loadHost(features: readonly WalletTransactionFeaturePlugin[]): Promise<SpeakToSignHostPlugin>;
   /** The VoiceID host plugin shows the sentence and records the clip, so its prompt loads from VoiceID. */
   loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]): Promise<WalletAuthMethodHostPlugin>;
+  /**
+   * The Borsh of the transaction's actions, as the signer worker writes them into the unsigned
+   * transaction. A spoken transaction binds their SHA-256.
+   */
+  nearActionsBorsh(
+    workerContext: () => WorkerOperationContext,
+    ownerAccountId: string,
+    transaction: TransactionInput,
+  ): Promise<Uint8Array<ArrayBuffer>>;
   fetch: typeof fetch;
 }>;
 
@@ -101,7 +125,12 @@ async function handleSpeakToSign(
   request: SpeakToSignRequest,
   run: (
     signal: AbortSignal,
-  ) => Promise<SpeakToSignTransferResult | SpeakToSignNoteResult | SpeakToSignEnrollmentResult>,
+  ) => Promise<
+    | SpeakToSignTransferResult
+    | SpeakToSignNoteActionResult
+    | SpeakToSignMessageResult
+    | SpeakToSignEnrollmentResult
+  >,
 ): Promise<void> {
   const controller = new AbortController();
   const timer = setInterval(
@@ -186,6 +215,27 @@ async function prepareFlow(
       walletId,
       ownerAccountId,
     ),
+    signVoiceApprovedTransactionOnly: signVoiceApprovedOnly.bind(
+      null,
+      deps,
+      request.requestId,
+      walletId,
+      ownerAccountId,
+    ),
+    signVoiceApprovedDelegate: signVoiceApprovedDelegate.bind(
+      null,
+      deps,
+      request.requestId,
+      walletId,
+      ownerAccountId,
+    ),
+    signVoiceApprovedMessage: signVoiceApprovedMessage.bind(
+      null,
+      deps,
+      request.requestId,
+      walletId,
+      ownerAccountId,
+    ),
     signMessage: signMessage.bind(null, deps, request.requestId, walletId, ownerAccountId),
     openPhrase: openPhrase.bind(null, ports, runtime.configs.authMethods),
     prepareSigning: async () => {
@@ -233,32 +283,107 @@ async function runNote(
   ports: SpeakToSignWalletPorts,
   request: Req<'PM_SPEAK_TO_SIGN_NOTE'>,
   signal: AbortSignal,
-): Promise<SpeakToSignNoteResult> {
+): Promise<SpeakToSignNoteActionResult | SpeakToSignMessageResult> {
   const flow = await prepareFlow(deps, ports, request, signal);
   if (flow.kind === 'unavailable') return flow;
+  const { action } = request.payload;
+  if (action.kind === 'signed_message') {
+    return await flow.plugin.requestMessage({
+      walletId: flow.walletId,
+      network: flow.feature.network,
+      signal,
+      message: {
+        ownerAccountId: flow.ownerAccountId,
+        action: await messageAction(action),
+        surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
+        operations: flow.operations,
+      },
+    });
+  }
   return await flow.plugin.requestNoteAction({
     walletId: flow.walletId,
     network: flow.feature.network,
     signal,
     note: {
       ownerAccountId: flow.ownerAccountId,
-      action: noteAction(request.payload),
+      action: await noteAction(deps, ports, flow.ownerAccountId, action),
       surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
       operations: flow.operations,
     },
   });
 }
 
-/** The channel carries ids as safe integers; core's action holds them as `u64` values. */
-function noteAction(payload: PMSpeakToSignNotePayload): SpokenNoteAction {
-  const { action } = payload;
+type NotePayloadAction = PMSpeakToSignNotePayload['action'];
+
+/**
+ * The Wallet draws the nonce before the owner speaks, so the verdict binds the exact bytes that
+ * the key signs later.
+ */
+async function messageAction(
+  action: Extract<NotePayloadAction, { kind: 'signed_message' }>,
+): Promise<SpokenMessageAction> {
+  const nonce = newNep413Nonce();
+  const callbackUrl = action.callbackUrl ?? null;
+  const signedBytes = base64UrlDecode(
+    routerAbEd25519Nep413CanonicalMessageB64uV2({
+      message: action.message,
+      recipient: action.recipient,
+      nonce,
+      callbackUrl,
+    }),
+  );
+  return {
+    message: action.message,
+    recipient: action.recipient,
+    nonce,
+    callbackUrl,
+    state: action.state ?? null,
+    payloadSha256: await sha256(new Uint8Array(signedBytes)),
+    summary: action.summary,
+  };
+}
+
+/**
+ * The channel carries ids as safe integers; core's action holds them as `u64` values. A general
+ * transaction gets the digest of its actions from the signer's own bytes.
+ */
+async function noteAction(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  ownerAccountId: string,
+  action: Exclude<NotePayloadAction, { kind: 'signed_message' }>,
+): Promise<SpokenNoteAction> {
   switch (action.kind) {
+    case 'transaction': {
+      const [transaction] = fromTransactionInputsWasm([action.transaction]);
+      const actions = await ports.nearActionsBorsh(
+        () => deps.getWalletRuntime().getContext().signingEngine.getSignerWorkerContext(),
+        ownerAccountId,
+        transaction,
+      );
+      return {
+        kind: 'transaction',
+        transaction,
+        actionsSha256: await sha256(actions),
+        summary: action.summary,
+        delivery: action.delivery,
+      };
+    }
     case 'community_note':
       return { ...action, postId: BigInt(action.postId) };
     case 'note_rating':
       return { ...action, noteId: BigInt(action.noteId) };
     case 'merge_approval':
       return { ...action, pullRequest: BigInt(action.pullRequest) };
+    case 'market_bet':
+      return {
+        kind: 'market_bet',
+        contract: action.contract,
+        token: action.token,
+        marketId: BigInt(action.marketId),
+        outcome: action.outcome,
+        amountUnits: BigInt(action.amountUnits),
+      };
   }
 }
 
@@ -357,6 +482,71 @@ async function signVoiceApproved(
     voice,
     options: { ...progress, onEvent: forwardProgress.bind(null, progress.onEvent, onBroadcast) },
     onIncluded,
+  });
+}
+
+async function signVoiceApprovedOnly(
+  deps: HandlerDeps,
+  requestId: string | undefined,
+  walletId: WalletId,
+  ownerAccountId: string,
+  transaction: TransactionInput,
+  voice: VoiceApprovedSigning,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  return await signVoiceApprovedTransaction({
+    context: deps.getWalletRuntime().getContext(),
+    nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
+    walletSession: { walletId, walletSessionUserId: String(walletId) },
+    transactionInput: transaction,
+    voice,
+    options: withProgress(deps, requestId, {}),
+  });
+}
+
+async function signVoiceApprovedDelegate(
+  deps: HandlerDeps,
+  requestId: string | undefined,
+  walletId: WalletId,
+  ownerAccountId: string,
+  delegate: DelegateActionInput,
+  verdict: SignedVoiceVerdict,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  return await signDelegateAction({
+    context: deps.getWalletRuntime().getContext(),
+    nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
+    walletSession: { walletId, walletSessionUserId: String(walletId) },
+    delegate,
+    options: withProgress(deps, requestId, {}),
+    voiceVerdict: verdict,
+  });
+}
+
+async function signVoiceApprovedMessage(
+  deps: HandlerDeps,
+  requestId: string | undefined,
+  walletId: WalletId,
+  ownerAccountId: string,
+  action: SpokenMessageAction,
+  verdict: SignedVoiceVerdict,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  return await signNep413Message({
+    context: deps.getWalletRuntime().getContext(),
+    nearAccountId: nearAccountRefFromAccountId(ownerAccountId).accountId,
+    walletSession: { walletId, walletSessionUserId: String(walletId) },
+    params: {
+      message: action.message,
+      recipient: action.recipient,
+      ...(action.callbackUrl === null ? {} : { callbackUrl: action.callbackUrl }),
+      ...(action.state === null ? {} : { state: action.state }),
+    },
+    options: withProgress(deps, requestId, {}),
+    voice: { nonce: action.nonce, verdict },
   });
 }
 

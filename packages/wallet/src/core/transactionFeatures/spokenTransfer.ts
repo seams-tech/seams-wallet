@@ -76,13 +76,20 @@ function isValidPart(part: string): boolean {
 
 /** `"2.5"` NEAR to yoctoNEAR, or null when the grammar cannot speak the amount. It never rounds. */
 export function parseSpeakableNear(text: string): bigint | null {
+  const hundredths = parseSpeakableHundredths(text);
+  return hundredths === null ? null : hundredths * YOCTO_PER_HUNDREDTH;
+}
+
+/** `"2.5"` to 250 hundredths, or null outside 0.01 to 1,000,000 or with a third decimal. */
+export function parseSpeakableHundredths(text: string): bigint | null {
   const match = /^(0|[1-9]\d{0,6})(?:\.(\d{1,2}))?$/.exec(text);
   if (!match) return null;
   const hundredths = BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
-  return isSpeakableHundredths(hundredths) ? hundredths * YOCTO_PER_HUNDREDTH : null;
+  return isSpeakableHundredths(hundredths) ? hundredths : null;
 }
 
-function isSpeakableHundredths(hundredths: bigint): boolean {
+/** True from 0.01 to 1,000,000 of the unit. */
+export function isSpeakableHundredths(hundredths: bigint): boolean {
   return hundredths > 0n && hundredths <= MAX_HUNDREDTHS;
 }
 
@@ -104,7 +111,8 @@ export function renderTransfer(
   };
 }
 
-function amountWords(hundredths: bigint): string[] {
+/** "two point five": the integer words, then "point" and one word for each decimal digit. */
+export function amountWords(hundredths: bigint): string[] {
   const words = integerWords(hundredths / 100n);
   const fraction = Number(hundredths % 100n);
   if (fraction !== 0) {
@@ -114,7 +122,8 @@ function amountWords(hundredths: bigint): string[] {
   return words;
 }
 
-function displayAmount(hundredths: bigint): string {
+/** "1,250", "2.5" or "0.05". */
+export function displayAmount(hundredths: bigint): string {
   const digits = (hundredths / 100n).toString();
   let out = '';
   for (let index = 0; index < digits.length; index += 1) {

@@ -11,14 +11,18 @@ const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 
 type AuthMenuTestWindow = Window & {
   __authMenuHostTestRouter?: WalletIframeRouter;
+  __authMenuStepEvents?: Array<{ name: string; value?: unknown }>;
   __authMenuHostTestOutcome?: Promise<
     HostedAuthMenuOutcome | { kind: 'test_error'; message: string }
   >;
 };
 
-async function openTestAuthMenu(page: Page): Promise<void> {
+async function openTestAuthMenu(
+  page: Page,
+  step?: { chrome: 'back' | 'close' },
+): Promise<void> {
   await page.evaluate(
-    async ({ walletOrigin }) => {
+    async ({ walletOrigin, step }) => {
       const { WalletIframeRouter } =
         await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
       const { buildHostedAuthMenuOpenRequest } =
@@ -37,17 +41,35 @@ async function openTestAuthMenu(page: Page): Promise<void> {
         showRegistrationInput: false,
         showProgress: true,
         enabledExternalProviders: [],
+        ...(step ? { chrome: step.chrome } : {}),
       });
       const testWindow = window as AuthMenuTestWindow;
       testWindow.__authMenuHostTestRouter = router;
+      const events: Array<{ name: string; value?: unknown }> = [];
+      testWindow.__authMenuStepEvents = events;
+      const record = (name: string) => (value?: unknown) => events.push({ name, value });
+      let anchor: HTMLElement | undefined;
+      if (step) {
+        anchor = document.createElement('div');
+        anchor.style.width = '420px';
+        anchor.style.minHeight = 'var(--seams-auth-menu-height, 0px)';
+        document.body.appendChild(anchor);
+      }
       testWindow.__authMenuHostTestOutcome = router
-        .openHostedAuthMenu(request)
+        .openHostedAuthMenu(request, anchor, {
+          layer: 'top',
+          onEnter: record('enter'),
+          onReady: record('ready'),
+          onExit: record('exit'),
+          onBack: record('back'),
+          onClose: record('close'),
+        })
         .catch((error: unknown) => ({
           kind: 'test_error' as const,
           message: String(error),
         }));
     },
-    { walletOrigin: WALLET_ORIGIN },
+    { walletOrigin: WALLET_ORIGIN, step },
   );
 }
 
@@ -95,6 +117,103 @@ test.describe('wallet-host auth-menu integration', () => {
       testWindow.__authMenuHostTestRouter?.dispose();
       delete testWindow.__authMenuHostTestRouter;
     });
+  });
+
+  test('a sign-in step draws its Close in the card, and Close ends the step', async ({ page }) => {
+    await openTestAuthMenu(page, { chrome: 'close' });
+    const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
+    const close = frame.locator('.seams-menu-origin [data-auth-menu-chrome="close"]');
+    await expect(close).toBeVisible();
+    await expect(close).toHaveAttribute('aria-label', 'Close');
+    await page.waitForFunction(() =>
+      (window as AuthMenuTestWindow).__authMenuStepEvents?.some((event) => event.name === 'ready'),
+    );
+    // The card takes input once the page and the card itself see it whole and uncovered.
+    await expect(frame.locator('html[data-seams-anchored-card-held]')).toHaveCount(0);
+    const box = (await close.boundingBox())!;
+    // Chromium routes input to a cross-origin frame a little after the frame enters the top
+    // layer, so the first click can miss it; a later one ends the step.
+    await expect
+      .poll(async () => {
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        return page.evaluate(() =>
+          (window as AuthMenuTestWindow).__authMenuStepEvents!.some((e) => e.name === 'close'),
+        );
+      })
+      .toBe(true);
+    const outcome = await page.evaluate(
+      () => (window as AuthMenuTestWindow).__authMenuHostTestOutcome,
+    );
+    expect(outcome).toMatchObject({ kind: 'cancelled', reason: 'close_button' });
+    await page.waitForFunction(() =>
+      (window as AuthMenuTestWindow).__authMenuStepEvents?.some((event) => event.name === 'exit'),
+    );
+    const events = await page.evaluate(() => (window as AuthMenuTestWindow).__authMenuStepEvents!);
+    expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'close', 'exit']);
+    expect(events.at(-1)?.value).toEqual({ kind: 'closed' });
+    console.log('[auth-menu-step] login card size', JSON.stringify(events[0].value));
+  });
+
+  test('a top-layer card takes no click while anything covers it', async ({ page }) => {
+    await openTestAuthMenu(page, { chrome: 'close' });
+    await page.waitForFunction(() =>
+      (window as AuthMenuTestWindow).__authMenuStepEvents?.some((event) => event.name === 'ready'),
+    );
+    const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
+    const close = frame.locator('.seams-menu-origin [data-auth-menu-chrome="close"]');
+    const box = (await close.boundingBox())!;
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const held = () =>
+      frame.locator('html[data-seams-anchored-card-held]').count().then((count) => count > 0);
+    await expect.poll(held).toBe(false);
+
+    // A later popover paints above the card. It is inert, so a click passes through it to the
+    // card, which must not act on it.
+    await page.evaluate(() => {
+      const cover = document.createElement('div');
+      cover.id = 'cover';
+      cover.popover = 'manual';
+      cover.style.cssText = 'margin:0;inset:0;width:100vw;height:100vh;background:#fff;border:0';
+      document.body.appendChild(cover);
+      cover.showPopover();
+    });
+    await expect.poll(held).toBe(true);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(200);
+    expect(
+      (await page.evaluate(() => (window as AuthMenuTestWindow).__authMenuStepEvents!)).map(
+        (event) => event.name,
+      ),
+    ).toEqual(['enter', 'ready']);
+
+    // A page that reports the card clear while it is covered: the card's own visibility check
+    // still holds it.
+    await page.evaluate(() => {
+      const router = (window as any).__authMenuHostTestRouter;
+      router.overlayState.controller.isSurfaceUnobstructed = () => true;
+    });
+    await page.waitForTimeout(300);
+    expect(await held()).toBe(true);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(200);
+    expect(
+      (await page.evaluate(() => (window as AuthMenuTestWindow).__authMenuStepEvents!)).length,
+    ).toBe(2);
+
+    await page.evaluate(() => document.getElementById('cover')!.hidePopover());
+    await expect.poll(held).toBe(false);
+    await page.mouse.click(point.x, point.y);
+    const outcome = await page.evaluate(
+      () => (window as AuthMenuTestWindow).__authMenuHostTestOutcome,
+    );
+    expect(outcome).toMatchObject({ kind: 'cancelled', reason: 'close_button' });
+  });
+
+  test('a menu without step chrome draws no step control', async ({ page }) => {
+    await openTestAuthMenu(page);
+    const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
+    await expect(frame.locator('.seams-auth-menu-surface')).toBeVisible();
+    await expect(frame.locator('[data-auth-menu-chrome]')).toHaveCount(0);
   });
 
   test('disposing during a delayed auth import settles the request and removes the surface', async ({

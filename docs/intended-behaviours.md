@@ -2391,6 +2391,11 @@ their existing core results and callbacks. Ordinary calls need no review host.
   Once a signature starts, cancellation and expiry preserve its actual outcome.
 - Adapter failures before dispatch reject without invoking core callbacks. Wallet
   failures after dispatch retain the method's existing outcome conventions.
+- `steps: { before, after }` is the same contract; `review.render` is an alias of
+  `steps.before`. With `after`, a signed call settles its promise, and the same modal
+  then hands over from the Wallet's card to the app's `after` step with the review's
+  resize and crossfade. The receipt does not show. `controls.close()`, Escape or owner
+  disposal close the modal. A call that did not sign closes the modal as before.
 
 Consumer setup and styling: [Custom React transaction review](transaction-review.md).
 Behavioral coverage: `tests/wallet-ui/transaction-review.browser.test.ts`,
@@ -3425,3 +3430,56 @@ and key export remain available.
 `node tests/e2e/signing-credit.e2e.mjs` exercises concurrent admission, exact replay,
 blocked completion, known failure, and indeterminate retention on migrated D1.
 It writes repeatable evidence under `.artifacts/signing-credit/`.
+
+## Wallet cards as app steps
+
+A Wallet card can show as one step of an app's own dialog, over an element that the app
+places in its layout (the anchor). The card stays in the Wallet iframe; app content never
+renders inside it.
+
+- The card is hidden until it has its size. `onEnter` reports that size before the card
+  paints, and the anchor reserves the height in the same frame. The card shows one frame
+  later and fades in; `onReady` runs once it is painted. `onResize` runs before each new size
+  paints. `onExit` runs after the card has faded out. The anchor keeps the last height.
+- The events carry the size, readiness, Back, Close and the kind of exit only. The call's own
+  result carries the outcome data.
+- `chrome: 'back' | 'close'` draws one Back or Close control in the card's origin line. The
+  card keeps its own origin line and controls; the SDK draws no approve control. The control
+  ends the card as the card's own dismissal, and the SDK reports it as Back or Close.
+- The card follows the anchor on every frame while it shows, for as long as it shows. A
+  transform, transition or size change of any ancestor carries the card with it.
+- `layer: 'top'` paints the card in the top layer, above all app content, and makes the rest
+  of the page inert while it shows. A click beside the card does not end it. The default
+  `layer: 'page'` keeps the hosted auth menu's existing page-content behaviour.
+- A request without a `chrome` value is identical on the wire to an earlier request.
+- A NEAR, EVM or Tempo transaction and a Speak-to-Sign request take
+  `presentation: { kind: 'anchored', anchor, chrome, ...events }`. Its card paints in the top
+  layer over the anchor. Without a presentation, the card shows in the Wallet's own modal,
+  unchanged. An anchored transaction pins `uiMode: 'modal'` and `behavior: 'requireClick'`;
+  other effective settings fail the call before the card opens. A reviewed call takes no
+  anchored presentation. An anchored transaction keeps no receipt on screen.
+- A top-layer card takes input only while its whole box is in the visual viewport, fully
+  opaque, on top at each sample point, and below no popover, modal dialog or fullscreen element
+  that opened after it. The page reports each change to the Wallet iframe, which ignores
+  clicks and pointer presses until the report is clear. Where the browser tracks visibility,
+  the iframe also requires its own visibility report, which the page cannot change.
+- `WalletStep` (React) and `seams.surfaces.mount` show the sign-in menu, a transaction confirm
+  or a Speak-to-Sign request as a step. One mount starts one call; unmount or `dispose()` ends
+  the card as cancelled.
+- A transaction or VoiceID card in an app's dialog eases a new size over 180 ms, as the
+  Wallet's modal does; with reduced motion it applies the size at once. The anchor takes the
+  new height at once. The anchored sign-in card animates inside its frame instead.
+- With `chrome: 'back'`, the VoiceID card shows Back in place of Cancel. Its press still ends
+  the card as the card's own dismissal.
+- `seams.authMenu.open(request, undefined, { steps })` and the Speak-to-Sign requests with
+  `steps: { title, before, after }` show the card in the SDK's modal between the app's steps.
+  They need `TransactionReviewHost`. `before` shows first and stays mounted; its
+  `continueToWallet()` opens the card with Back, and Back returns to `before` with its state.
+  Without `before`, the card opens at once with Close. A completed card settles the call, then
+  `after` shows the result in the same modal until `close()` or Escape. A card that did not
+  complete closes the modal. Leaving before the card completes resolves as cancelled. Nothing
+  goes to the Wallet before `continueToWallet()`.
+
+Consumer guide: [Wallet cards as steps of an app dialog](wallet-steps.md).
+Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
+`tests/wallet-iframe/auth-menu.host.integration.test.ts`.

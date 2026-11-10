@@ -1,7 +1,9 @@
-// The kinds of the `spoken-intent` crate (seams-tech/speak-to-sign) that call one contract method
-// and move no value: `SpokenRequestV1::CommunityNote`, `NoteRating` and `MergeApproval`, with the
-// same rules, rendered words, Borsh bytes and digests. The crate's golden vectors check this port.
-// Wallet core uses it to check a verdict and to build the one call that it signs.
+// The kinds of the `spoken-intent` crate (seams-tech/speak-to-sign) that call one contract method:
+// `SpokenRequestV1::CommunityNote`, `NoteRating` and `MergeApproval`, which move no value, with
+// the same rules, rendered words, Borsh bytes and digests, and `MarketBet` (`./spokenBet`), which
+// moves a token, and the general `Transaction`: any actions for any receiver, with a spoken
+// summary. The crate's golden vectors check this port. Wallet core uses it to check a
+// verdict and to build the one call that it signs.
 
 import { functionCall } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
@@ -12,7 +14,16 @@ import {
   utf8,
   type NoteRating,
 } from '@shared/speakToSign/spokenRequest';
+import { isValidAccountId } from '@shared/utils/near';
 import type { SpeakToSignNetwork } from './plugins';
+import {
+  betActionRefusal,
+  betBorsh,
+  betTransaction,
+  betVerifyRequest,
+  renderBet,
+  type SpokenBetAction,
+} from './spokenBet';
 import {
   integerWords,
   isMultiplierWord,
@@ -22,6 +33,7 @@ import {
   type RenderedTransfer,
   type SpokenDigests,
 } from './spokenTransfer';
+import type { SignedVoiceVerdict } from './voiceVerdict';
 
 export { NOTE_RATINGS, type NoteRating };
 
@@ -73,7 +85,30 @@ export type SpokenNoteAction =
       base: string;
       /** The head commit, 40 lowercase hex characters. The verdict binds it. */
       headCommit: string;
+    }>
+  | SpokenBetAction
+  /**
+   * Any NEAR transaction from the owner's account. The owner says the summary only. The Wallet
+   * host sets `actionsSha256` from the bytes that the signer builds.
+   */
+  | Readonly<{
+      kind: 'transaction';
+      transaction: TransactionInput;
+      /** SHA-256 of the Borsh of the transaction's actions. The verdict binds it. */
+      actionsSha256: Uint8Array;
+      /** The sentence that the owner says. See `summaryRefusal`. */
+      summary: string;
+      delivery: TransactionDelivery;
     }>;
+
+/**
+ * What core does with a spoken transaction: `send` signs and sends it, `sign` signs it only,
+ * and the fields of a NEP-366 delegate action sign its actions for a relayer to send.
+ */
+export type TransactionDelivery =
+  | 'send'
+  | 'sign'
+  | Readonly<{ nonce: string; maxBlockHeight: string; publicKey: string }>;
 
 /** The merge-approval contract's rule: no owner edge dash, and a name other than "." or "..". */
 const REPO_PATTERN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)\/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/;
@@ -102,8 +137,29 @@ export function summaryRefusal(text: string): SummaryRefusal | null {
 
 /** Why core cannot build this action, or null. */
 export function noteActionRefusal(
+  network: SpeakToSignNetwork,
   action: SpokenNoteAction,
-): 'summary_not_speakable' | 'note_not_valid' | 'merge_not_valid' | null {
+):
+  | 'summary_not_speakable'
+  | 'note_not_valid'
+  | 'merge_not_valid'
+  | 'bet_not_valid'
+  | 'transaction_not_valid'
+  | null {
+  if (action.kind === 'market_bet') return betActionRefusal(network, action);
+  if (action.kind === 'transaction') {
+    const { delivery } = action;
+    const valid =
+      isValidAccountId(action.transaction.receiverId) &&
+      action.transaction.actions.length > 0 &&
+      action.actionsSha256.length === 32 &&
+      (typeof delivery === 'string' ||
+        (/^\d{1,20}$/.test(delivery.nonce) &&
+          /^\d{1,20}$/.test(delivery.maxBlockHeight) &&
+          delivery.publicKey.startsWith('ed25519:')));
+    if (!valid) return 'transaction_not_valid';
+    return summaryRefusal(action.summary) === null ? null : 'summary_not_speakable';
+  }
   if (action.kind === 'merge_approval') {
     const valid =
       isSpeakableAccount(action.contract) &&
@@ -127,6 +183,7 @@ export function noteActionRefusal(
 
 /** The sentence of the action. `displayText` keeps the summary as the author wrote it. */
 export function renderNoteAction(action: SpokenNoteAction): RenderedTransfer {
+  if (action.kind === 'market_bet') return renderBet(action);
   if (action.kind === 'merge_approval') {
     const words = ['merge', 'pull', 'request', ...integerWords(action.pullRequest), 'into', action.base];
     return {
@@ -138,7 +195,12 @@ export function renderNoteAction(action: SpokenNoteAction): RenderedTransfer {
     const words = RATING_WORDS[action.rating];
     return { displayText: ['This', ...words.slice(1)].join(' '), spokenText: words.join(' ') };
   }
-  return { displayText: action.summary, spokenText: summaryWords(action.summary).join(' ') };
+  return renderSummary(action.summary);
+}
+
+/** The sentence of a summary: shown as the author wrote it, said in the crate's words. */
+export function renderSummary(summary: string): RenderedTransfer {
+  return { displayText: summary, spokenText: summaryWords(summary).join(' ') };
 }
 
 /** The crate's text step on a summary: lowercase words, aliases, "a hundred", "one and two". */
@@ -175,12 +237,23 @@ export async function noteSha256(text: string): Promise<Uint8Array<ArrayBuffer>>
   return await sha256(utf8(text));
 }
 
-/** Borsh of the request kind of the action, whose explicit tags are 4, 5 and 6. */
+/** Borsh of the request kind of the action, whose explicit tags are 4 to 8. */
 export async function noteActionBorsh(
   network: SpeakToSignNetwork,
   owner: string,
   action: SpokenNoteAction,
 ): Promise<Uint8Array> {
+  if (action.kind === 'market_bet') return betBorsh(network, owner, action);
+  if (action.kind === 'transaction') {
+    return spokenRequestBorsh({
+      kind: 'transaction',
+      network,
+      owner,
+      receiver: action.transaction.receiverId,
+      actionsSha256: action.actionsSha256,
+      summary: action.summary,
+    });
+  }
   if (action.kind === 'merge_approval') {
     return spokenRequestBorsh({
       kind: 'merge_approval',
@@ -223,6 +296,15 @@ export async function noteActionDigests(
 export async function noteVerifyRequest(
   action: SpokenNoteAction,
 ): Promise<Readonly<Record<string, unknown>>> {
+  if (action.kind === 'market_bet') return betVerifyRequest(action);
+  if (action.kind === 'transaction') {
+    return {
+      kind: 'transaction',
+      receiver: action.transaction.receiverId,
+      actions_sha256_hex: hex(action.actionsSha256),
+      summary: action.summary,
+    };
+  }
   if (action.kind === 'merge_approval') {
     return {
       kind: 'merge_approval',
@@ -251,7 +333,7 @@ export async function noteVerifyRequest(
   };
 }
 
-function hex(bytes: Uint8Array): string {
+export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -260,8 +342,17 @@ function hexBytes(text: string): Uint8Array {
   return Uint8Array.from(text.match(/../g) ?? [], (pair) => Number.parseInt(pair, 16));
 }
 
-/** The one call that core signs: `add_note`, `rate_note` or `approve_merge`, with no deposit. */
-export function noteTransaction(action: SpokenNoteAction): TransactionInput {
+/**
+ * The transaction that core signs: `add_note`, `rate_note` or `approve_merge`, with no deposit,
+ * the `ft_transfer_call` of a bet, which carries the checked verdict to the market contract, or
+ * the application's own transaction of the general kind.
+ */
+export function noteTransaction(
+  action: SpokenNoteAction,
+  verdict: SignedVoiceVerdict,
+): TransactionInput {
+  if (action.kind === 'market_bet') return betTransaction(action, verdict);
+  if (action.kind === 'transaction') return action.transaction;
   if (action.kind === 'merge_approval') {
     const call = functionCall({
       method: 'approve_merge',

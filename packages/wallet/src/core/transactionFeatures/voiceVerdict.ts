@@ -46,7 +46,15 @@ export type VerifyOutput = Readonly<{
  * A checked verdict that core sends with the signing request, so that the Seams co-signer checks
  * it again before it adds its part of the signature.
  */
-export type SignedVoiceVerdict = Readonly<{ verdictJson: string; signatureB64: string }>;
+export type SignedVoiceVerdict = Readonly<{
+  verdictJson: string;
+  signatureB64: string;
+  /**
+   * The spoken summary of a general transaction. The transaction does not hold it, so the
+   * co-signer needs it to build the request digest again. The digest binds it.
+   */
+  summary?: string;
+}>;
 
 /** How core signs one voice-approved transaction. */
 export type VoiceApprovedSigning = Readonly<{

@@ -1,3 +1,4 @@
+import type { SignedVoiceVerdict } from '@/core/transactionFeatures/voiceVerdict';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
 import type { SigningFlowEvent } from '@/core/types/sdkSentEvents';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
@@ -96,6 +97,8 @@ export type NearSignatureOnlyOperation = {
   executor: NearEd25519YaoMaterialExecutor;
   intent: RouterAbEd25519SignatureOnlyIntentWire;
   computeSigningDigestB64u: () => Promise<string>;
+  /** Only a Speak-to-Sign message carries a verdict, for the co-signer to check. */
+  voiceVerdict?: SignedVoiceVerdict;
 };
 
 type PreparedSignatureOnlyStepUp = Extract<
@@ -501,6 +504,7 @@ export async function startNearSignatureOnlyPrepare(
     displayDigest,
     signingDigestB64u: await operation.computeSigningDigestB64u(),
     intent: operation.intent,
+    voiceVerdict: operation.voiceVerdict,
   });
   return started ? { resolved, started } : null;
 }
@@ -577,6 +581,7 @@ export async function signNearSignatureOnlyOperation(
           displayDigest: material.displayDigest,
           signingDigestB64u,
           intent: operation.intent,
+          voiceVerdict: operation.voiceVerdict,
           authorization: { kind: 'reusable_wallet_session' },
           startedPrepare: material.startedPrepare,
         })
@@ -593,6 +598,7 @@ export async function signNearSignatureOnlyOperation(
           displayDigest: material.displayDigest,
           signingDigestB64u,
           intent: operation.intent,
+          voiceVerdict: operation.voiceVerdict,
           authorization: {
             kind: 'operation_step_up',
             prepared: material.prepared,

@@ -101,6 +101,10 @@ export function backIcon(): ComponentChildren {
   return strokeIcon('18', '2.25', <path d="m15 18-6-6 6-6" />);
 }
 
+export function closeIcon(): ComponentChildren {
+  return strokeIcon('18', '2.25', <path d="M6 6l12 12M6 18L18 6" />);
+}
+
 export function linkDeviceIcon(): ComponentChildren {
   return strokeIcon(
     '18',

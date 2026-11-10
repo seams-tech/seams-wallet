@@ -22,6 +22,7 @@ import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIden
 type WalletHostRequest<T extends ParentToChildType> = ParentToChildEnvelope & { type: T };
 
 type BootWalletRequestType =
+  | 'PM_SURFACE_VIEW'
   | 'PM_ACTIVATE_TRANSACTION_REVIEW'
   | 'PING'
   | 'PM_PREPARE_WALLET_RUNTIME'
@@ -198,6 +199,7 @@ function requireHostedAuthMenuRequestId(value: unknown): string {
 
 export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHostRoute {
   switch (request.type) {
+    case 'PM_SURFACE_VIEW':
     case 'PM_ACTIVATE_TRANSACTION_REVIEW':
     case 'PING':
     case 'PM_PREPARE_WALLET_RUNTIME':

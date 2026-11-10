@@ -2,7 +2,13 @@ import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import { transfer } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
-import type { ActionResult } from '@/core/types/seams';
+import type { DelegateActionInput } from '@/core/types/delegate';
+import type {
+  ActionResult,
+  SignDelegateActionResult,
+  SignTransactionResult,
+} from '@/core/types/seams';
+import type { Variant } from '@shared/utils/variant';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
@@ -23,6 +29,8 @@ import type {
   SpeakToSignEnrollmentAuthorization,
   SpeakToSignEnrollmentRecording,
   SpeakToSignHostOperations,
+  SpeakToSignMessageSigning,
+  SpeakToSignNoteSigning,
   SpeakToSignPayment,
   SpeakToSignPaymentHooks,
   SpeakToSignProgress,
@@ -31,13 +39,23 @@ import type {
 } from './hostPlugin';
 import type { SpeakToSignFeaturePlugin } from './plugins';
 import {
+  messageActionRefusal,
+  messageDigests,
+  type SpokenMessageAction,
+} from './spokenMessage';
+import {
   noteActionDigests,
   noteActionRefusal,
   noteTransaction,
   type SpokenNoteAction,
 } from './spokenNote';
 import { transferDigests, type SpokenDigests } from './spokenTransfer';
-import { checkVoiceVerdict, parseVerifyOutput, type VoiceApprovedSigning } from './voiceVerdict';
+import {
+  checkVoiceVerdict,
+  parseVerifyOutput,
+  type SignedVoiceVerdict,
+  type VoiceApprovedSigning,
+} from './voiceVerdict';
 import { readVerifyStream } from './verifyStream';
 import { pcm16Wav, SAMPLE_RATE } from './wav';
 
@@ -70,6 +88,27 @@ export type SpeakToSignHostOperationsInput = Readonly<{
     onBroadcast: () => void,
     onIncluded: ((transactionHash: string) => void) | null,
   ) => Promise<ActionResult>;
+  /** As `signVoiceApprovedTransaction`, but the signed transaction is returned and not sent. */
+  signVoiceApprovedTransactionOnly: (
+    transaction: TransactionInput,
+    voice: VoiceApprovedSigning,
+    signal: AbortSignal,
+  ) => Promise<SignTransactionResult>;
+  /** The owner's NEP-366 signing path for one voice-approved delegate action, with no confirm. */
+  signVoiceApprovedDelegate: (
+    delegate: DelegateActionInput,
+    verdict: SignedVoiceVerdict,
+    signal: AbortSignal,
+  ) => Promise<SignDelegateActionResult>;
+  /**
+   * The owner's NEP-413 signing path for one voice-approved message, with no confirm. The
+   * signing request carries the verdict and the summary, so the Seams co-signer checks them.
+   */
+  signVoiceApprovedMessage: (
+    action: SpokenMessageAction,
+    verdict: SignedVoiceVerdict,
+    signal: AbortSignal,
+  ) => Promise<SignNEP413MessageResult>;
   /** The owner's NEP-413 signing path, bound to the wallet session and the owner account. */
   signMessage: (
     params: Readonly<{ message: string; recipient: string }>,
@@ -140,6 +179,7 @@ export function createSpeakToSignHostOperations(
     verify: verify.bind(null, input),
     payWithVerdict: payWithVerdict.bind(null, input, state),
     signNoteWithVerdict: signNoteWithVerdict.bind(null, input, state),
+    signMessageWithVerdict: signMessageWithVerdict.bind(null, input, state),
     authorizeEnrollment: authorizeEnrollment.bind(null, input, state),
   };
 }
@@ -294,7 +334,8 @@ async function payWithVerdict(
     input,
     state,
     expected,
-    transaction,
+    () => transaction,
+    null,
     verifierOutput,
     signal,
     hooks,
@@ -309,17 +350,20 @@ async function signNoteWithVerdict(
   verifierOutput: unknown,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
-): Promise<SpeakToSignPayment> {
-  const refusal = noteActionRefusal(action);
+): Promise<SpeakToSignNoteSigning> {
+  const refusal = noteActionRefusal(input.feature.network, action);
   if (refusal) return { kind: 'unavailable', detail: refusal };
   const expected = await noteActionDigests(input.feature.network, input.ownerAccountId, action);
-  const transaction = noteTransaction(action);
+  if (action.kind === 'transaction' && action.delivery !== 'send') {
+    return await signWithoutSend(input, state, expected, action, verifierOutput, signal, hooks);
+  }
   // A contract call can still fail in the contract, so it shows only its outcome.
   return await signWithVerdict(
     input,
     state,
     expected,
-    transaction,
+    noteTransaction.bind(null, action),
+    action.kind === 'transaction' ? action.summary : null,
     verifierOutput,
     signal,
     hooks,
@@ -327,17 +371,120 @@ async function signNoteWithVerdict(
   );
 }
 
-/** Checks the verdict against the request digests, then signs the transaction once. */
-async function signWithVerdict(
+/**
+ * Signs a general transaction and does not send it: as a signed transaction for the
+ * application, or as a NEP-366 delegate action for a relayer.
+ */
+async function signWithoutSend(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
   expected: SpokenDigests,
-  transaction: TransactionInput,
+  action: Variant<SpokenNoteAction, 'kind', 'transaction'>,
   verifierOutput: unknown,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
-  onIncluded: ((transactionHash: string) => void) | null,
-): Promise<SpeakToSignPayment> {
+): Promise<SpeakToSignNoteSigning> {
+  const { delivery, transaction } = action;
+  // The delegate path has no fresh-approval mode, so a verdict that asks for one signs nothing.
+  const stepUp = delivery === 'sign' ? 'ask' : 'refuse';
+  const approved = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, stepUp);
+  if (approved.kind !== 'approved') return approved;
+  const { approval, policyText } = approved;
+  const verdict = { ...approved.verdict, summary: action.summary };
+  try {
+    if (delivery === 'send' || delivery === 'sign') {
+      const signed = await input.signVoiceApprovedTransactionOnly(
+        transaction,
+        { approval, policyText, verdict },
+        signal,
+      );
+      return { kind: 'signed_transaction', signed, approval };
+    }
+    const signed = await input.signVoiceApprovedDelegate(
+      {
+        senderId: input.ownerAccountId,
+        receiverId: transaction.receiverId,
+        actions: transaction.actions,
+        ...delivery,
+      },
+      verdict,
+      signal,
+    );
+    return { kind: 'signed_delegate', signed, approval };
+  } catch (error) {
+    signal.throwIfAborted();
+    // Nothing was signed, so another recording of this flow may still sign.
+    state.paid = false;
+    const message = error instanceof Error ? error.message : 'not signed';
+    return cosignerRefusal(message) ?? { kind: 'not_submitted', error: message };
+  }
+}
+
+async function signMessageWithVerdict(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  action: SpokenMessageAction,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignMessageSigning> {
+  const refusal = messageActionRefusal(action);
+  if (refusal) return { kind: 'unavailable', detail: refusal };
+  const expected = await messageDigests(input.feature.network, input.ownerAccountId, action);
+  // The message path has no fresh-approval mode, so a verdict that asks for one signs nothing.
+  const approved = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, 'refuse');
+  if (approved.kind !== 'approved') return approved;
+  let signed: SignNEP413MessageResult;
+  try {
+    signed = await input.signVoiceApprovedMessage(
+      action,
+      { ...approved.verdict, summary: action.summary },
+      signal,
+    );
+  } catch (error) {
+    signal.throwIfAborted();
+    signed = { success: false, error: errorDetail(error, 'not signed') };
+  }
+  if (!signed.success) {
+    // Nothing was signed, so another recording of this flow may still sign.
+    state.paid = false;
+    return cosignerRefusal(signed.error) ?? { kind: 'not_signed', error: signed.error };
+  }
+  return {
+    kind: 'signed',
+    approval: approved.approval,
+    accountId: signed.accountId,
+    publicKey: signed.publicKey,
+    signature: signed.signature,
+    nonce: action.nonce,
+    ...(signed.state === undefined ? {} : { state: signed.state }),
+  };
+}
+
+/** A refusal of the Seams co-signer in a signing error, or null for another error. */
+function cosignerRefusal(error: string): Variant<SpeakToSignPayment, 'kind', 'refused'> | null {
+  const refusal = parseCosignerVoiceRefusal(error);
+  return refusal ? { kind: 'refused', reason: 'cosigner_refused', detail: refusal } : null;
+}
+
+/** A verdict that passed every check. The flow is marked as signed. */
+type ApprovedVerdict = Readonly<{ kind: 'approved' }> & VoiceApprovedSigning;
+
+/**
+ * Checks the verdict against the request digests and takes the one signature of the flow. A
+ * `step_up` verdict asks the owner first; with `stepUp` `refuse`, it signs nothing.
+ */
+async function approveVerdict(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  expected: SpokenDigests,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+  stepUp: 'ask' | 'refuse',
+): Promise<
+  ApprovedVerdict | Variant<SpeakToSignPayment, 'kind', 'refused' | 'cancelled' | 'unavailable'>
+> {
   signal.throwIfAborted();
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
   if (!verifier) return { kind: 'unavailable', detail: 'This network has no verifier.' };
@@ -359,6 +506,8 @@ async function signWithVerdict(
   }
   if (check.approval === 'voice') {
     hooks.accepted();
+  } else if (stepUp === 'refuse') {
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this request has no step-up' };
   } else {
     input.progress({ stage: 'step_up', policyText: check.policyText });
     if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
@@ -372,9 +521,35 @@ async function signWithVerdict(
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' };
   }
   state.paid = true;
+  return check;
+}
+
+/**
+ * Checks the verdict against the request digests, then signs the transaction once.
+ * `transaction` builds it from the checked verdict, because a bet carries the verdict to its
+ * contract. `summary` is the spoken summary of a general transaction, which the co-signer
+ * needs beside the verdict.
+ */
+async function signWithVerdict(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  expected: SpokenDigests,
+  transaction: (verdict: SignedVoiceVerdict) => TransactionInput,
+  summary: string | null,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+  onIncluded: ((transactionHash: string) => void) | null,
+): Promise<SpeakToSignPayment> {
+  const check = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, 'ask');
+  if (check.kind !== 'approved') return check;
   const result = await input.signVoiceApprovedTransaction(
-    transaction,
-    { approval: check.approval, policyText: check.policyText, verdict: check.verdict },
+    transaction(check.verdict),
+    {
+      approval: check.approval,
+      policyText: check.policyText,
+      verdict: summary === null ? check.verdict : { ...check.verdict, summary },
+    },
     signal,
     () => {
       input.progress({ stage: 'transaction_sent' });
@@ -386,10 +561,7 @@ async function signWithVerdict(
     // Nothing left the Wallet, so another recording of this flow may still pay.
     if (result.kind === 'not_submitted') state.paid = false;
     if (result.kind !== 'not_submitted') return { kind: 'submission_unknown', error: result.error };
-    const refusal = parseCosignerVoiceRefusal(result.error);
-    if (!refusal) return { kind: 'not_submitted', error: result.error };
-    const limit = refusal === 'over_payment_limit' || refusal === 'over_daily_limit';
-    return { kind: 'refused', reason: limit ? 'voice_limit' : 'cosigner_refused', detail: refusal };
+    return cosignerRefusal(result.error) ?? { kind: 'not_submitted', error: result.error };
   }
   input.progress({ stage: 'settled', transactionHash: result.transactionId });
   const failure = executionFailure(result.result);

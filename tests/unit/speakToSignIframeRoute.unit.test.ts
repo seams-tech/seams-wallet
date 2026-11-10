@@ -1,3 +1,6 @@
+import { createApplicationPublicApi } from '@/SeamsWeb/publicApi/createPublicApi';
+import { getTransactionReviewBridge } from '@/SeamsWeb/publicApi/transactionReview';
+import { createSpeakToSignCapability } from '@/SeamsWeb/publicApi/speakToSign';
 import { expect, test } from '@playwright/test';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type {
@@ -27,6 +30,7 @@ import type { ChildToParentEnvelope, ParentToChildEnvelope } from '@/SeamsWeb/wa
 import {
   parseSpeakToSignEnrollmentResult,
   parseSpeakToSignEnrollPayload,
+  parseSpeakToSignMessageResult,
   parseSpeakToSignNotePayload,
   parseSpeakToSignNoteResult,
   parseSpeakToSignProgressV1,
@@ -103,7 +107,7 @@ test('the app posts one interactive PM_SPEAK_TO_SIGN_TRANSFER and returns the ty
   const commands = createIframeSpeakToSignCommands(async (...args) => {
     posted.push(args);
     return { result: reply };
-  });
+  }, (result) => result);
   expect(await commands.requestTransfer({ ...PAYLOAD })).toEqual(SENT);
   expect(posted).toEqual([
     [{ type: 'PM_SPEAK_TO_SIGN_TRANSFER', payload: PAYLOAD }, { timeout: 'interactive' }],
@@ -126,7 +130,7 @@ test('a progress listener gets the Speak-to-Sign progress of its request, parsed
     });
     options.onProgress?.({ event: 'owner_near_submitting' } as never);
     return { result: SENT };
-  });
+  }, (result) => result);
   expect(
     await commands.requestTransfer({ ...PAYLOAD, onProgress: (progress) => heard.push(progress) }),
   ).toEqual(SENT);
@@ -286,6 +290,9 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     async requestNoteAction() {
       throw new Error('This route test runs no note.');
     },
+    async requestMessage() {
+      throw new Error('This route test runs no message.');
+    },
     async enroll(input) {
       enrollCalls.push(input);
       return ENROLLED;
@@ -299,6 +306,9 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
         : ({ kind, walletAuthMethodId: 'wallet-auth-method:voice' } as AuthMethodAvailability);
     },
     readOperationCredential: async () => 'wst_credential',
+    async nearActionsBorsh() {
+      throw new Error('This route test runs no transaction.');
+    },
     async loadHost(enabled) {
       loads.push(enabled);
       return plugin;
@@ -488,7 +498,7 @@ test('the enrollment message carries only the wallet and its result parser is ex
   const commands = createIframeSpeakToSignCommands(async (...args) => {
     posted.push(args);
     return { result: ENROLLED };
-  });
+  }, (result) => result);
   expect(await commands.enroll({ walletId: WALLET_ID })).toEqual(ENROLLED);
   expect(posted).toEqual([
     [{ type: 'PM_SPEAK_TO_SIGN_ENROLL', payload: { walletId: WALLET_ID } }, { timeout: 'interactive' }],
@@ -647,7 +657,7 @@ test('the note message carries only the wallet and one note or rating, and its r
   const commands = createIframeSpeakToSignCommands(async (request, options) => {
     posted.push({ request, options });
     return { result: SENT };
-  });
+  }, (result) => result);
   expect(
     await commands.requestRating({
       walletId: WALLET_ID,
@@ -659,4 +669,391 @@ test('the note message carries only the wallet and one note or rating, and its r
   expect(posted).toEqual([
     { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload: rating }, options: { timeout: 'interactive' } },
   ]);
+});
+
+test('the bet message carries exact base units, and an amount that cannot be said stops in the app', async () => {
+  const usdc = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
+  const bet = {
+    walletId: WALLET_ID,
+    action: {
+      kind: 'market_bet',
+      contract: 'pm-notes.testnet',
+      token: usdc,
+      marketId: 9,
+      outcome: 'yes',
+      amountUnits: '500000',
+    },
+  } as const;
+  expect(parseSpeakToSignNotePayload(structuredClone(bet))).toEqual(bet);
+  for (const bad of [
+    { ...bet, action: { ...bet.action, owner: 'victim.testnet' } },
+    { ...bet, action: { ...bet.action, outcome: 'maybe' } },
+    { ...bet, action: { ...bet.action, marketId: 1.5 } },
+    { ...bet, action: { ...bet.action, amountUnits: 500000 } },
+    { ...bet, action: { ...bet.action, amountUnits: '0.5' } },
+    { ...bet, action: { ...bet.action, amountUnits: '0500000' } },
+    { ...bet, action: { ...bet.action, token: 'Not A Token' } },
+  ]) {
+    expect(() => parseSpeakToSignNotePayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign note request is invalid.',
+    );
+  }
+  expect(parseSpeakToSignNoteResult({ kind: 'refused', reason: 'bet_not_valid' })).toEqual({
+    kind: 'refused',
+    reason: 'bet_not_valid',
+  });
+
+  const posted: unknown[] = [];
+  const commands = createIframeSpeakToSignCommands(async (request, options) => {
+    posted.push({ request, options });
+    return { result: SENT };
+  }, (result) => result);
+  const request = {
+    walletId: WALLET_ID,
+    contract: 'pm-notes.testnet',
+    token: usdc,
+    marketId: 9,
+    outcome: 'yes',
+    amount: '0.5',
+  } as const;
+  expect(await commands.requestBet(request)).toEqual(SENT);
+  expect(posted).toEqual([
+    { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload: bet }, options: { timeout: 'interactive' } },
+  ]);
+  for (const amount of ['0.005', '0', '1000000.01', 'ten']) {
+    expect(await commands.requestBet({ ...request, amount }), amount).toEqual({
+      kind: 'refused',
+      reason: 'bet_not_valid',
+      detail: 'amount',
+    });
+  }
+  expect(posted.length).toBe(1);
+});
+
+test('the transaction message carries the receiver, checked actions and the summary', async () => {
+  const call = {
+    action_type: 'FunctionCall',
+    method_name: 'add_message',
+    args: '{"text":"hello"}',
+    gas: '30000000000000',
+    deposit: '0',
+  };
+  const payload = {
+    walletId: WALLET_ID,
+    action: {
+      kind: 'transaction',
+      transaction: {
+        receiverId: 'guest-book.testnet',
+        actions: [call, { action_type: 'Transfer', deposit: '1' }],
+      },
+      summary: 'Sign the guest book.',
+      delivery: 'send',
+    },
+  } as const;
+  expect(parseSpeakToSignNotePayload(structuredClone(payload))).toEqual(payload);
+  const withTransaction = (transaction: unknown) => ({
+    ...payload,
+    action: { ...payload.action, transaction },
+  });
+  for (const bad of [
+    { ...payload, action: { ...payload.action, owner: 'victim.testnet' } },
+    { ...payload, action: { ...payload.action, summary: 7 } },
+    { ...payload, action: { ...payload.action, delivery: 'later' } },
+    { ...payload, action: { ...payload.action, delivery: { nonce: '1', maxBlockHeight: '2' } } },
+    { ...payload, action: { ...payload.action, delivery: { nonce: 1, maxBlockHeight: '2', publicKey: 'ed25519:k' } } },
+    withTransaction({ receiverId: 'Not An Account', actions: [call] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [call], signerId: 'x.testnet' }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [{ ...call, gas: '' }] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: [{ action_type: 'Mint' }] }),
+    withTransaction({ receiverId: 'guest-book.testnet', actions: ['transfer'] }),
+  ]) {
+    expect(() => parseSpeakToSignNotePayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign note request is invalid.',
+    );
+  }
+  expect(parseSpeakToSignNoteResult({ kind: 'refused', reason: 'transaction_not_valid' })).toEqual({
+    kind: 'refused',
+    reason: 'transaction_not_valid',
+  });
+
+  const posted: unknown[] = [];
+  let answer: unknown = SENT;
+  const commands = createIframeSpeakToSignCommands(
+    async (request, options) => {
+      posted.push({ request, options });
+      return { result: answer };
+    },
+    (result) => ({ ...result, nearAccountId: 'normalized' }),
+  );
+  const transaction = {
+    receiverId: 'guest-book.testnet',
+    actions: [
+      {
+        type: 'FunctionCall' as never,
+        methodName: 'add_message',
+        args: { text: 'hello' },
+        gas: '30000000000000',
+        deposit: '0',
+      },
+      { type: 'Transfer' as never, amount: '1' },
+    ],
+  };
+  // Sign only: the same action with delivery `sign`; the SDK rebuilds the signed transaction.
+  answer = { kind: 'signed_transaction', signed: { nearAccountId: 'raw' }, approval: 'voice', times: SENT.times };
+  expect(
+    await commands.requestSignedTransaction({
+      walletId: WALLET_ID,
+      transaction,
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual({
+    kind: 'signed_transaction',
+    signed: { nearAccountId: 'normalized' },
+    approval: 'voice',
+    times: SENT.times,
+  });
+  // A delegate action: its fields travel as text, and the sender never crosses the channel.
+  answer = { kind: 'signed_delegate', signed: { hash: 'h' }, approval: 'voice', times: SENT.times };
+  expect(
+    await commands.requestDelegateAction({
+      walletId: WALLET_ID,
+      delegate: { ...transaction, nonce: 77n, maxBlockHeight: 1_234_567, publicKey: 'ed25519:k' },
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual(answer);
+  expect(posted.map((entry) => (entry as { request: { payload: { action: { delivery: unknown } } } }).request.payload.action.delivery)).toEqual([
+    'sign',
+    { nonce: '77', maxBlockHeight: '1234567', publicKey: 'ed25519:k' },
+  ]);
+  // A result of another kind is a protocol error.
+  answer = SENT;
+  await expect(
+    commands.requestSignedTransaction({ walletId: WALLET_ID, transaction, summary: 'Sign the guest book.' }),
+  ).rejects.toThrow('Speak-to-Sign signed transaction result is invalid.');
+  answer = { kind: 'refused', reason: 'words' };
+  expect(
+    await commands.requestDelegateAction({
+      walletId: WALLET_ID,
+      delegate: { ...transaction, nonce: 1, maxBlockHeight: 2, publicKey: 'ed25519:k' },
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual(answer);
+  posted.length = 0;
+  answer = SENT;
+  expect(
+    await commands.requestTransaction({
+      walletId: WALLET_ID,
+      transaction: {
+        receiverId: 'guest-book.testnet',
+        actions: [
+          {
+            type: 'FunctionCall' as never,
+            methodName: 'add_message',
+            args: { text: 'hello' },
+            gas: '30000000000000',
+            deposit: '0',
+          },
+          { type: 'Transfer' as never, amount: '1' },
+        ],
+      },
+      summary: 'Sign the guest book.',
+    }),
+  ).toEqual(SENT);
+  expect(posted).toEqual([
+    {
+      request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload },
+      options: { timeout: 'interactive' },
+    },
+  ]);
+});
+
+test('the message request carries the NEP-413 fields and the summary, and its result is exact', async () => {
+  const payload = {
+    walletId: WALLET_ID,
+    action: {
+      kind: 'signed_message',
+      message: 'Log in to example.app',
+      recipient: 'example.app',
+      state: 'login-1',
+      summary: 'Log in to the example app',
+    },
+  } as const;
+  expect(parseSpeakToSignNotePayload(structuredClone(payload))).toEqual(payload);
+  for (const bad of [
+    { ...payload, action: { ...payload.action, nonce: 'AAAA' } },
+    { ...payload, action: { ...payload.action, message: '' } },
+    { ...payload, action: { ...payload.action, recipient: 7 } },
+    { ...payload, action: { ...payload.action, callbackUrl: '' } },
+    { ...payload, action: { ...payload.action, state: 1 } },
+    { ...payload, action: { ...payload.action, summary: undefined } },
+  ]) {
+    expect(() => parseSpeakToSignNotePayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign note request is invalid.',
+    );
+  }
+
+  const signed = {
+    kind: 'signed',
+    accountId: 'owner.testnet',
+    publicKey: 'ed25519:owner',
+    signature: 'c2lnbmF0dXJl',
+    nonce: 'bm9uY2U=',
+    state: 'login-1',
+    approval: 'voice',
+    times: SENT.times,
+  } as const;
+  expect(parseSpeakToSignMessageResult({ ...signed })).toEqual(signed);
+  const { state: _state, ...withoutState } = signed;
+  expect(parseSpeakToSignMessageResult({ ...withoutState })).toEqual(withoutState);
+  expect(parseSpeakToSignMessageResult({ kind: 'refused', reason: 'message_not_valid' })).toEqual({
+    kind: 'refused',
+    reason: 'message_not_valid',
+  });
+  for (const bad of [
+    { ...signed, transactionHash: 'tx' },
+    { ...signed, signature: '' },
+    { ...signed, approval: 'click' },
+    { kind: 'refused', reason: 'transaction_failed' },
+    SENT,
+  ]) {
+    expect(() => parseSpeakToSignMessageResult(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign message result is invalid.',
+    );
+  }
+
+  const posted: unknown[] = [];
+  const commands = createIframeSpeakToSignCommands(async (request, options) => {
+    posted.push({ request, options });
+    return { result: signed };
+  }, (result) => result);
+  expect(
+    await commands.requestMessage({
+      walletId: WALLET_ID,
+      message: 'Log in to example.app',
+      recipient: 'example.app',
+      state: 'login-1',
+      summary: 'Log in to the example app',
+    }),
+  ).toEqual(signed);
+  expect(posted).toEqual([
+    { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload }, options: { timeout: 'interactive' } },
+  ]);
+});
+
+test('near.speakToSign has the names of the normal signer, and approved holds the normal result', async () => {
+  const calls: string[] = [];
+  const answers: Record<string, unknown> = {
+    requestTransaction: SENT,
+    requestTransfer: SENT,
+    requestNote: { kind: 'refused', reason: 'words', detail: 'heard: no' },
+    requestSignedTransaction: {
+      kind: 'signed_transaction',
+      signed: { nearAccountId: 'owner.testnet' },
+      approval: 'voice',
+      times: SENT.times,
+    },
+    requestDelegateAction: {
+      kind: 'signed_delegate',
+      signed: { hash: 'delegate-hash' },
+      approval: 'voice',
+      times: SENT.times,
+    },
+    requestMessage: {
+      kind: 'signed',
+      accountId: 'owner.testnet',
+      publicKey: 'ed25519:owner',
+      signature: 'c2lnbmF0dXJl',
+      nonce: 'bm9uY2U=',
+      approval: 'voice',
+      times: SENT.times,
+    },
+    enroll: ENROLLED,
+  };
+  const commands = new Proxy(
+    {},
+    {
+      get: (_, name: string) => async () => {
+        calls.push(name);
+        return answers[name] ?? { kind: 'cancelled' };
+      },
+    },
+  ) as never;
+  const feature = { kind: 'speak_to_sign', network: 'testnet' } as const;
+  expect(createSpeakToSignCapability([], commands, {} as never)).toBeNull();
+  const voice = createSpeakToSignCapability([feature], commands, {} as never);
+  if (!voice) throw new Error('no capability');
+  expect(Object.keys(voice).sort()).toEqual([
+    'enroll',
+    'network',
+    'signAndSendTransaction',
+    'signDelegateAction',
+    'signMessage',
+    'signTransaction',
+    'typed',
+  ]);
+  expect(Object.keys(voice.typed).sort()).toEqual(['bet', 'mergeApproval', 'note', 'rating', 'transfer']);
+
+  const approved = { kind: 'approved', approval: 'voice', times: SENT.times };
+  const request = { walletId: WALLET_ID } as never;
+  expect(await voice.signAndSendTransaction(request)).toEqual({
+    ...approved,
+    result: { transactionHash: 'tx-1' },
+  });
+  expect(await voice.typed.transfer(request)).toEqual({
+    ...approved,
+    result: { transactionHash: 'tx-1' },
+  });
+  expect(await voice.signTransaction(request)).toEqual({
+    ...approved,
+    result: { nearAccountId: 'owner.testnet' },
+  });
+  expect(await voice.signDelegateAction(request)).toEqual({
+    ...approved,
+    result: { hash: 'delegate-hash' },
+  });
+  expect(await voice.signMessage(request)).toEqual({
+    ...approved,
+    result: {
+      accountId: 'owner.testnet',
+      publicKey: 'ed25519:owner',
+      signature: 'c2lnbmF0dXJl',
+      nonce: 'bm9uY2U=',
+    },
+  });
+  // A failure passes through unchanged, and an enrollment keeps its own result.
+  expect(await voice.typed.note(request)).toEqual(answers.requestNote);
+  expect(await voice.typed.bet(request)).toEqual({ kind: 'cancelled' });
+  expect(await voice.enroll(request)).toEqual(ENROLLED);
+  expect(calls).toEqual([
+    'requestTransaction',
+    'requestTransfer',
+    'requestSignedTransaction',
+    'requestDelegateAction',
+    'requestMessage',
+    'requestNote',
+    'requestBet',
+    'enroll',
+  ]);
+});
+
+test('the review bridge is registered for the near object that holds speakToSign', () => {
+  // Any dependency: a callable object whose properties are the same kind of object.
+  const anything = (): unknown =>
+    new Proxy(() => anything(), { get: (_, name) => (name === 'then' ? undefined : anything()) });
+  const voice = { network: 'testnet' } as never;
+  const build = (speakToSign: never | null) =>
+    createApplicationPublicApi(
+      new Proxy(
+        { createSpeakToSign: () => speakToSign },
+        { get: (own, name) => (name === 'createSpeakToSign' ? own.createSpeakToSign : anything()) },
+      ) as Parameters<typeof createApplicationPublicApi>[0],
+    );
+  const withVoice = build(voice);
+  expect(withVoice.near.speakToSign).toBe(voice);
+  // A reviewed transaction (`steps`) finds its bridge by the `near` object that the app holds.
+  expect(getTransactionReviewBridge(withVoice.near)).toBeTruthy();
+  const plain = build(null);
+  expect('speakToSign' in plain.near).toBe(false);
+  expect(getTransactionReviewBridge(plain.near)).toBeTruthy();
 });

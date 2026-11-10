@@ -7,10 +7,39 @@ import {
   type TransactionReviewValidity,
   type TransactionReviewWire,
 } from '../shared/transactionReview';
+import {
+  assertAnchoredPresentation,
+  type AnchoredWalletPresentation,
+  type WalletSurfacePresentation,
+} from '../shared/walletStep';
 
 export type TransactionDispatch =
-  | { readonly kind: 'ordinary'; readonly reservation?: never }
-  | { readonly kind: 'reviewed'; readonly reservation: TransactionReviewReservation };
+  | { readonly kind: 'ordinary'; readonly reservation?: never; readonly presentation?: never }
+  | {
+      readonly kind: 'reviewed';
+      readonly reservation: TransactionReviewReservation;
+      readonly presentation?: never;
+    }
+  | {
+      readonly kind: 'anchored';
+      readonly presentation: AnchoredWalletPresentation;
+      readonly reservation?: never;
+    };
+
+/** A call that asks for an anchored card replaces an ordinary dispatch for that call. */
+export function dispatchWithPresentation(
+  dispatch: TransactionDispatch,
+  presentation: WalletSurfacePresentation | undefined,
+): TransactionDispatch {
+  if (presentation === undefined || presentation.kind === 'modal') return dispatch;
+  if (dispatch.kind === 'reviewed') {
+    throw new TransactionReviewError(
+      'review_invalid_input',
+      'A reviewed transaction shows in the Wallet modal and takes no anchored presentation',
+    );
+  }
+  return { kind: 'anchored', presentation: assertAnchoredPresentation(presentation) };
+}
 
 export type TransactionReviewReservationState =
   | { readonly kind: 'reviewing'; readonly prepared?: never }
@@ -19,6 +48,8 @@ export type TransactionReviewReservationState =
   | { readonly kind: 'activating'; readonly prepared?: never }
   | { readonly kind: 'wallet_approval'; readonly prepared?: never }
   | { readonly kind: 'signing'; readonly prepared?: never }
+  /** The Wallet signed, and the app's after step shows the result in the same modal. */
+  | { readonly kind: 'after'; readonly prepared?: never }
   | { readonly kind: 'settled'; readonly prepared?: never };
 
 export class TransactionReviewReservation {
@@ -39,6 +70,8 @@ export class TransactionReviewReservation {
     private readonly cancelRequest: (error: Error) => void,
     private readonly finishRequest: () => void,
     private readonly resumeRequest: () => void,
+    /** The app has a step after the Wallet's: the modal stays open for it. */
+    readonly afterStep: boolean,
   ) {
     this.metadata = Object.freeze({
       kind: 'transaction_review_v1',
@@ -113,7 +146,24 @@ export class TransactionReviewReservation {
     if (this.currentState.kind === 'wallet_approval') this.transition({ kind: 'signing' });
   }
 
+  /** The signed request settled: the app's after step takes the modal, when the app has one. */
+  showAfter(): boolean {
+    if (
+      !this.afterStep ||
+      (this.currentState.kind !== 'signing' && this.currentState.kind !== 'wallet_approval')
+    ) {
+      return false;
+    }
+    this.transition({ kind: 'after' });
+    return true;
+  }
+
   cancel(error: Error): void {
+    // Escape or a disposed owner ends the after step; the signed result already settled.
+    if (this.currentState.kind === 'after') {
+      this.finish();
+      return;
+    }
     if (this.currentState.kind === 'settled' || this.currentState.kind === 'signing') return;
     this.cancelRequest(error);
   }

@@ -2,17 +2,32 @@ import type {
   SpeakToSignEnrollmentRefusalReason,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignMessageRefusalReason,
+  SpeakToSignMessageResult,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteResult,
   SpeakToSignProgress,
   SpeakToSignRefusalReason,
+  SpeakToSignSignedDelegateResult,
+  SpeakToSignSignedTransactionResult,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
   SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
-import { NOTE_RATINGS, type NoteRating } from '@/core/transactionFeatures/spokenNote';
+import { BET_OUTCOMES, type BetOutcome } from '@/core/transactionFeatures/spokenBet';
+import {
+  NOTE_RATINGS,
+  type NoteRating,
+  type TransactionDelivery,
+} from '@/core/transactionFeatures/spokenNote';
 import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
+import {
+  isActionArgsWasm,
+  validateActionArgsWasm,
+  type ActionArgsWasm,
+  type TransactionInputWasm,
+} from '@/core/types/actions';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isValidAccountId } from '@shared/utils/near';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -75,7 +90,7 @@ export function parseSpeakToSignEnrollPayload(value: unknown): PMSpeakToSignEnro
   return { walletId: String(value.walletId) };
 }
 
-/** The `PM_SPEAK_TO_SIGN_NOTE` payload: one community note or one rating. */
+/** The `PM_SPEAK_TO_SIGN_NOTE` payload: one note, rating, merge approval or market bet. */
 export type PMSpeakToSignNotePayload = Readonly<{
   walletId: string;
   action:
@@ -94,12 +109,45 @@ export type PMSpeakToSignNotePayload = Readonly<{
         pullRequest: number;
         base: string;
         headCommit: string;
+      }>
+    | Readonly<{
+        kind: 'market_bet';
+        /** The market contract. */
+        contract: string;
+        token: string;
+        marketId: number;
+        outcome: BetOutcome;
+        /** Decimal base units of the token (10^-6 USDC). Wallet core checks the amount rules. */
+        amountUnits: string;
+      }>
+    | Readonly<{
+        kind: 'transaction';
+        /** The receiver and the actions in the signer's wire form. */
+        transaction: TransactionInputWasm;
+        summary: string;
+        delivery: TransactionDelivery;
+      }>
+    /** One NEP-413 message. Its result is a `SpeakToSignMessageResult`. */
+    | Readonly<{
+        kind: 'signed_message';
+        message: string;
+        recipient: string;
+        callbackUrl?: string;
+        state?: string;
+        summary: string;
       }>;
 }>;
 
 /** Generous text bounds; Wallet core checks the exact note and summary rules. */
 const MAX_NOTE_TEXT_LENGTH = 1_200;
 const MAX_SUMMARY_TEXT_LENGTH = 200;
+/** Generous bounds of a NEP-413 message. Wallet core signs the exact text. */
+const MAX_MESSAGE_LENGTH = 16_384;
+const MAX_MESSAGE_FIELD_LENGTH = 2_048;
+/** NEAR takes at most 100 actions in one transaction. */
+const MAX_TRANSACTION_ACTIONS = 100;
+/** Base units up to 1,000,000 USDC have at most 13 digits. */
+const BET_UNITS_PATTERN = /^[1-9]\d{0,12}$/;
 
 export function parseSpeakToSignNotePayload(value: unknown): PMSpeakToSignNotePayload {
   const action = readNoteAction(isPlainObject(value) ? value.action : undefined);
@@ -109,7 +157,84 @@ export function parseSpeakToSignNotePayload(value: unknown): PMSpeakToSignNotePa
   return { walletId: String(value.walletId), action };
 }
 
+function readTransactionAction(
+  value: Record<string, unknown>,
+): PMSpeakToSignNotePayload['action'] | null {
+  const { transaction, summary } = value;
+  const delivery = readDelivery(value.delivery);
+  if (
+    !hasExactKeys(value, ['kind', 'transaction', 'summary', 'delivery']) ||
+    !delivery ||
+    typeof summary !== 'string' ||
+    summary.length > MAX_SUMMARY_TEXT_LENGTH ||
+    !hasExactKeys(transaction, ['receiverId', 'actions']) ||
+    typeof transaction.receiverId !== 'string' ||
+    !isValidAccountId(transaction.receiverId) ||
+    !Array.isArray(transaction.actions) ||
+    transaction.actions.length === 0 ||
+    transaction.actions.length > MAX_TRANSACTION_ACTIONS
+  ) {
+    return null;
+  }
+  const actions: ActionArgsWasm[] = [];
+  for (const action of transaction.actions) {
+    if (!isActionArgsWasm(action)) return null;
+    try {
+      validateActionArgsWasm(action);
+    } catch {
+      return null;
+    }
+    actions.push(action);
+  }
+  return {
+    kind: 'transaction',
+    transaction: { receiverId: transaction.receiverId, actions },
+    summary,
+    delivery,
+  };
+}
+
+/** Wallet core checks the exact delegate fields. */
+function readDelivery(value: unknown): TransactionDelivery | null {
+  if (value === 'send' || value === 'sign') return value;
+  if (!hasExactKeys(value, ['nonce', 'maxBlockHeight', 'publicKey'])) return null;
+  const { nonce, maxBlockHeight, publicKey } = value;
+  return isBoundedString(nonce, 20) &&
+    isBoundedString(maxBlockHeight, 20) &&
+    isBoundedString(publicKey, 128)
+    ? { nonce, maxBlockHeight, publicKey }
+    : null;
+}
+
+function readMessageAction(
+  value: Record<string, unknown>,
+): PMSpeakToSignNotePayload['action'] | null {
+  const optional = (['callbackUrl', 'state'] as const).filter((key) => key in value);
+  const { message, recipient, summary, callbackUrl, state } = value;
+  if (
+    !hasExactKeys(value, ['kind', 'message', 'recipient', 'summary', ...optional]) ||
+    !isBoundedString(message, MAX_MESSAGE_LENGTH) ||
+    !isBoundedString(recipient, MAX_MESSAGE_FIELD_LENGTH) ||
+    typeof summary !== 'string' ||
+    summary.length > MAX_SUMMARY_TEXT_LENGTH ||
+    ('callbackUrl' in value && !isBoundedString(callbackUrl, MAX_MESSAGE_FIELD_LENGTH)) ||
+    ('state' in value && !isBoundedString(state, MAX_MESSAGE_FIELD_LENGTH))
+  ) {
+    return null;
+  }
+  return {
+    kind: 'signed_message',
+    message,
+    recipient,
+    ...(typeof callbackUrl === 'string' ? { callbackUrl } : {}),
+    ...(typeof state === 'string' ? { state } : {}),
+    summary,
+  };
+}
+
 function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | null {
+  if (isPlainObject(value) && value.kind === 'transaction') return readTransactionAction(value);
+  if (isPlainObject(value) && value.kind === 'signed_message') return readMessageAction(value);
   if (!isPlainObject(value) || typeof value.contract !== 'string') return null;
   if (!isValidAccountId(value.contract)) return null;
   if (value.kind === 'merge_approval') {
@@ -130,6 +255,28 @@ function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | nu
       pullRequest: value.pullRequest,
       base: value.base,
       headCommit: value.headCommit,
+    };
+  }
+  if (value.kind === 'market_bet') {
+    const outcome = BET_OUTCOMES.find((candidate) => candidate === value.outcome);
+    if (
+      !hasExactKeys(value, ['kind', 'contract', 'token', 'marketId', 'outcome', 'amountUnits']) ||
+      typeof value.token !== 'string' ||
+      !isValidAccountId(value.token) ||
+      !isNoteId(value.marketId) ||
+      !outcome ||
+      typeof value.amountUnits !== 'string' ||
+      !BET_UNITS_PATTERN.test(value.amountUnits)
+    ) {
+      return null;
+    }
+    return {
+      kind: 'market_bet',
+      contract: value.contract,
+      token: value.token,
+      marketId: value.marketId,
+      outcome,
+      amountUnits: value.amountUnits,
     };
   }
   if (value.kind === 'community_note') {
@@ -215,7 +362,6 @@ const REFUSAL_REASONS: Readonly<Record<SpeakToSignRefusalReason, true>> = {
   receiver_not_speakable: true,
   receiver_missing: true,
   verdict_mismatch: true,
-  voice_limit: true,
   cosigner_refused: true,
   transaction_failed: true,
 };
@@ -233,10 +379,27 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   summary_not_speakable: true,
   note_not_valid: true,
   merge_not_valid: true,
+  bet_not_valid: true,
+  transaction_not_valid: true,
   verdict_mismatch: true,
-  voice_limit: true,
   cosigner_refused: true,
   transaction_failed: true,
+};
+const MESSAGE_REFUSAL_REASONS: Readonly<Record<SpeakToSignMessageRefusalReason, true>> = {
+  quality: true,
+  speaker: true,
+  words: true,
+  audio_reused: true,
+  audio_invalid: true,
+  template_missing: true,
+  unsupported: true,
+  speaker_unavailable: true,
+  storage: true,
+  transcriber_unavailable: true,
+  summary_not_speakable: true,
+  message_not_valid: true,
+  verdict_mismatch: true,
+  cosigner_refused: true,
 };
 const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalReason, true>> = {
   quality: true,
@@ -265,6 +428,99 @@ export function parseSpeakToSignNoteResult(value: unknown): SpeakToSignNoteResul
   const result = readResult(value, NOTE_REFUSAL_REASONS);
   if (!result) throw new Error('Speak-to-Sign note result is invalid.');
   return result;
+}
+
+/** Reads the answer of a sign-only transaction. Anything outside the union is a protocol error. */
+export function parseSpeakToSignSignedTransactionResult(
+  value: unknown,
+): SpeakToSignSignedTransactionResult {
+  const result = readSignedResult(value, 'signed_transaction');
+  if (!result) throw new Error('Speak-to-Sign signed transaction result is invalid.');
+  return result as SpeakToSignSignedTransactionResult;
+}
+
+/** Reads the answer of a delegate action. Anything outside the union is a protocol error. */
+export function parseSpeakToSignSignedDelegateResult(value: unknown): SpeakToSignSignedDelegateResult {
+  const result = readSignedResult(value, 'signed_delegate');
+  if (!result) throw new Error('Speak-to-Sign delegate result is invalid.');
+  return result as SpeakToSignSignedDelegateResult;
+}
+
+/**
+ * A signature result of `kind`, or a failure of a note action. `signed` is the Wallet's own
+ * signing result, which crosses the channel as a plain object.
+ */
+function readSignedResult(value: unknown, kind: 'signed_transaction' | 'signed_delegate') {
+  if (!isPlainObject(value)) return null;
+  if (value.kind !== kind) {
+    const result = readResult(value, NOTE_REFUSAL_REASONS);
+    return result === null || result.kind === 'sent' ? null : result;
+  }
+  const times = readTimes(value.times);
+  const { approval, signed } = value;
+  if (
+    !hasExactKeys(value, ['kind', 'signed', 'approval', 'times']) ||
+    !isPlainObject(signed) ||
+    typeof approval !== 'string' ||
+    !Object.hasOwn(APPROVALS, approval) ||
+    !times
+  ) {
+    return null;
+  }
+  return { kind, signed, approval: approval as VoiceApproval, times };
+}
+
+/** Reads the iframe's signed-message answer. Anything outside the union is a protocol error. */
+export function parseSpeakToSignMessageResult(value: unknown): SpeakToSignMessageResult {
+  const result = readMessageResult(value);
+  if (!result) throw new Error('Speak-to-Sign message result is invalid.');
+  return result;
+}
+
+function readMessageResult(value: unknown): SpeakToSignMessageResult | null {
+  if (!isPlainObject(value)) return null;
+  switch (value.kind) {
+    case 'signed': {
+      const keys = ['kind', 'accountId', 'publicKey', 'signature', 'nonce', 'approval', 'times'];
+      if (!hasExactKeys(value, 'state' in value ? [...keys, 'state'] : keys)) return null;
+      const { accountId, publicKey, signature, nonce, approval, state } = value;
+      const times = readTimes(value.times);
+      if (
+        !isNonEmptyString(accountId) ||
+        !isNonEmptyString(publicKey) ||
+        !isNonEmptyString(signature) ||
+        !isNonEmptyString(nonce) ||
+        typeof approval !== 'string' ||
+        !Object.hasOwn(APPROVALS, approval) ||
+        !times ||
+        ('state' in value && typeof state !== 'string')
+      ) {
+        return null;
+      }
+      return {
+        kind: 'signed',
+        accountId,
+        publicKey,
+        signature,
+        nonce,
+        ...(typeof state === 'string' ? { state } : {}),
+        approval: approval as VoiceApproval,
+        times,
+      };
+    }
+    case 'refused': {
+      const reason = readReason(value, MESSAGE_REFUSAL_REASONS);
+      if (reason === null) return null;
+      return typeof value.detail === 'string'
+        ? { kind: 'refused', reason, detail: value.detail }
+        : { kind: 'refused', reason };
+    }
+    case 'cancelled':
+    case 'unavailable':
+      return readSharedResult(value);
+    default:
+      return null;
+  }
 }
 
 /** Reads the iframe's enrollment answer. Anything outside the union is a protocol error. */

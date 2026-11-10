@@ -1,12 +1,17 @@
 import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
+import type { ActionArgs, TransactionInput } from '@/core/types/actions';
+import type { SignDelegateActionResult, SignTransactionResult } from '@/core/types/seams';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
+import type { Variant } from '@shared/utils/variant';
+import type { SpokenMessageAction } from './spokenMessage';
 import type { SpeakToSignNetwork } from './plugins';
+import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 9;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 10;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -25,10 +30,8 @@ export type SpeakToSignUnavailableReason =
  * the signature. `detail` names its reason (`CosignerVoiceRefusal`). Nothing was signed.
  */
 type SpeakToSignCosignerRefusalReason =
-  /** The payment is over the voice limit for one payment or for 24 hours. */
-  | 'voice_limit'
-  /** Another refusal of the co-signer, for example a verdict that it already accepted. */
-  | 'cosigner_refused';
+  /** For example a verdict that the co-signer already accepted for another request. */
+  'cosigner_refused';
 
 /** Refusals from the verifier, the verdict check in Wallet core, the co-signer and the chain. */
 export type SpeakToSignRefusalReason =
@@ -64,13 +67,17 @@ type SpokenResult<Reason extends string> =
       approval: VoiceApproval;
       times: SpeakToSignTransferTimes;
     }>
+  | SpokenFailure<Reason>;
+
+/** A spoken request that signed nothing, or whose transaction failed. */
+type SpokenFailure<Reason extends string> =
   | Readonly<{ kind: 'refused'; reason: Reason; detail?: string }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
 
 export type SpeakToSignTransferResult = SpokenResult<SpeakToSignRefusalReason>;
 
-/** Refusals of a spoken community note or note rating. */
+/** Refusals of a spoken note, rating, merge approval, market bet or general transaction. */
 export type SpeakToSignNoteRefusalReason =
   | VerifierRefusal
   | SpeakToSignCosignerRefusalReason
@@ -80,11 +87,44 @@ export type SpeakToSignNoteRefusalReason =
   | 'note_not_valid'
   /** The contract, pull request, repository, base branch or head commit is not valid. */
   | 'merge_not_valid'
+  /**
+   * The market contract, the market id, the outcome or the amount is not valid, or the token is
+   * not the USDC contract of the network.
+   */
+  | 'bet_not_valid'
+  /** The receiver is not a NEAR account, the transaction has no action, or a delegate field is not valid. */
+  | 'transaction_not_valid'
   | 'verdict_mismatch'
-  /** The call was sent and failed on chain, for example for an unknown note. */
+  /** The call was sent and failed on chain, for example for an unknown note or a closed market. */
   | 'transaction_failed';
 
 export type SpeakToSignNoteResult = SpokenResult<SpeakToSignNoteRefusalReason>;
+
+/** A transaction that the Wallet signed and did not send, as `near.signTransaction` returns it. */
+export type SpeakToSignSignedTransactionResult =
+  | Readonly<{
+      kind: 'signed_transaction';
+      signed: SignTransactionResult;
+      approval: VoiceApproval;
+      times: SpeakToSignTransferTimes;
+    }>
+  | SpokenFailure<SpeakToSignNoteRefusalReason>;
+
+/** A NEP-366 delegate action that the Wallet signed, as `near.signDelegateAction` returns it. */
+export type SpeakToSignSignedDelegateResult =
+  | Readonly<{
+      kind: 'signed_delegate';
+      signed: SignDelegateActionResult;
+      approval: VoiceApproval;
+      times: SpeakToSignTransferTimes;
+    }>
+  | SpokenFailure<SpeakToSignNoteRefusalReason>;
+
+/** What the host plugin returns for one note action, by the kind and delivery of the action. */
+export type SpeakToSignNoteActionResult =
+  | SpeakToSignNoteResult
+  | SpeakToSignSignedTransactionResult
+  | SpeakToSignSignedDelegateResult;
 
 /** One spoken payment from the app. The Wallet iframe reads the owner itself. */
 /**
@@ -157,6 +197,103 @@ export type SpeakToSignMergeApprovalRequest = Readonly<{
 }> &
   WithProgress;
 
+/**
+ * One spoken bet on a prediction market. The owner says the amount, the outcome and the market
+ * id: "bet zero point five usdc yes on market nine".
+ */
+export type SpeakToSignBetRequest = Readonly<{
+  walletId: string;
+  /** The market contract, a named NEAR account. */
+  contract: string;
+  /** The token of the stake. Only the USDC contract of the network is accepted. */
+  token: string;
+  /** A whole number from 1 to `Number.MAX_SAFE_INTEGER`. */
+  marketId: number;
+  outcome: BetOutcome;
+  /** Decimal USDC with at most two decimals, such as `"0.5"`, from 0.01 to 1,000,000. */
+  amount: string;
+}> &
+  WithProgress;
+
+/**
+ * One spoken transaction of any kind: any receiver and any actions, as `signAndSendTransaction`
+ * takes them. The owner says the summary only, and the verdict binds the receiver and the
+ * actions. The application writes the summary, so the voice proves who approves, not that the
+ * summary describes the transaction.
+ */
+export type SpeakToSignTransactionRequest = Readonly<{
+  walletId: string;
+  transaction: TransactionInput;
+  /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
+  summary: string;
+}> &
+  WithProgress;
+
+/**
+ * One spoken NEP-366 delegate action, as `near.signDelegateAction` takes it: a relayer sends
+ * the actions for the owner. The owner says the summary only. The Wallet reads the sender
+ * itself.
+ */
+export type SpeakToSignDelegateRequest = Readonly<{
+  walletId: string;
+  delegate: Readonly<{
+    receiverId: string;
+    actions: ActionArgs[];
+    nonce: bigint | string | number;
+    maxBlockHeight: bigint | string | number;
+    /** `ed25519:<base58>`: the access key of the owner that signs. */
+    publicKey: string;
+  }>;
+  /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
+  summary: string;
+}> &
+  WithProgress;
+
+/**
+ * One spoken NEP-413 message, as `near.signMessage` takes it. The owner says the summary only,
+ * and the verdict binds the exact message, nonce, recipient and callback URL. The Wallet draws
+ * the nonce.
+ */
+export type SpeakToSignMessageRequest = Readonly<{
+  walletId: string;
+  message: string;
+  recipient: string;
+  callbackUrl?: string;
+  /** The application's own value, which the result returns. It is not signed. */
+  state?: string;
+  /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
+  summary: string;
+}> &
+  WithProgress;
+
+/** A NEP-413 signature by the key of the owner's account. */
+export type SpeakToSignSignedMessage = Readonly<{
+  accountId: string;
+  /** `ed25519:<base58>`. */
+  publicKey: string;
+  /** base64 of the 64-byte signature. */
+  signature: string;
+  /** base64 of the 32-byte nonce that the Wallet drew. */
+  nonce: string;
+  state?: string;
+}>;
+
+/** Refusals of a spoken message. */
+export type SpeakToSignMessageRefusalReason =
+  | VerifierRefusal
+  | SpeakToSignCosignerRefusalReason
+  | 'summary_not_speakable'
+  /** The message or the recipient is empty. */
+  | 'message_not_valid'
+  | 'verdict_mismatch';
+
+export type SpeakToSignMessageResult =
+  | (Readonly<{ kind: 'signed'; approval: VoiceApproval; times: SpeakToSignTransferTimes }> &
+      SpeakToSignSignedMessage)
+  | Readonly<{ kind: 'refused'; reason: SpeakToSignMessageRefusalReason; detail?: string }>
+  | Readonly<{ kind: 'cancelled' }>
+  | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
+
 /** One verifier enrollment from the app. The Wallet iframe reads the owner itself. */
 export type SpeakToSignEnrollmentRequest = Readonly<{ walletId: string }>;
 
@@ -206,6 +343,20 @@ export type SpeakToSignPayment =
   /** The owner closed the step-up question. Nothing was signed. */
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; detail: string }>;
+
+/** What core did for one note action: a payment, or a signature that core did not send. */
+export type SpeakToSignNoteSigning =
+  | SpeakToSignPayment
+  /** Core signed the transaction and did not send it. */
+  | Readonly<{ kind: 'signed_transaction'; signed: SignTransactionResult; approval: VoiceApproval }>
+  /** Core signed the delegate action. A relayer sends it. */
+  | Readonly<{ kind: 'signed_delegate'; signed: SignDelegateActionResult; approval: VoiceApproval }>;
+
+/** A message that Wallet core signed, or why it signed nothing. */
+export type SpeakToSignMessageSigning =
+  | (Readonly<{ kind: 'signed'; approval: VoiceApproval }> & SpeakToSignSignedMessage)
+  | Readonly<{ kind: 'not_signed'; error: string }>
+  | Variant<SpeakToSignPayment, 'kind', 'refused' | 'cancelled' | 'unavailable'>;
 
 /** What the payment tells the open prompt, so the card follows it. */
 export type SpeakToSignPaymentHooks = Readonly<{
@@ -297,16 +448,28 @@ export type SpeakToSignHostOperations = Readonly<{
     hooks: SpeakToSignPaymentHooks,
   ): Promise<SpeakToSignPayment>;
   /**
-   * Checks the verifier output against this note or rating and, on an approved verdict, signs
-   * and sends its one call (`add_note` or `rate_note`, no deposit) from the owner's account, as
-   * `payWithVerdict` does for a transfer.
+   * Checks the verifier output against this note, rating, merge approval or bet and, on an
+   * approved verdict, signs and sends its one call from the owner's account, as `payWithVerdict`
+   * does for a transfer. A note, rating or merge call has no deposit. A bet is the token's
+   * `ft_transfer_call` with the verdict. The Wallet sets no amount limit for a bet. A general
+   * transaction is signed as the application gave it.
    */
   signNoteWithVerdict(
     action: SpokenNoteAction,
     verifierOutput: unknown,
     signal: AbortSignal,
     hooks: SpeakToSignPaymentHooks,
-  ): Promise<SpeakToSignPayment>;
+  ): Promise<SpeakToSignNoteSigning>;
+  /**
+   * Checks the verifier output against this message and, on an accepted verdict, signs it with
+   * the key of the owner's account, with no confirm. Each verdict signs once.
+   */
+  signMessageWithVerdict(
+    action: SpokenMessageAction,
+    verifierOutput: unknown,
+    signal: AbortSignal,
+    hooks: SpeakToSignPaymentHooks,
+  ): Promise<SpeakToSignMessageSigning>;
   /** Signs the enrollment message for three clips that core recorded in this flow. */
   authorizeEnrollment(
     clips: readonly Uint8Array<ArrayBuffer>[],
@@ -328,6 +491,14 @@ export type SpeakToSignHostTransfer = Readonly<{
 export type SpeakToSignHostNote = Readonly<{
   ownerAccountId: string;
   action: SpokenNoteAction;
+  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+  operations: SpeakToSignHostOperations;
+}>;
+
+/** One spoken message that the Wallet route asks the host plugin to run. */
+export type SpeakToSignHostMessage = Readonly<{
+  ownerAccountId: string;
+  action: SpokenMessageAction;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
   operations: SpeakToSignHostOperations;
 }>;
@@ -373,5 +544,11 @@ export interface SpeakToSignHostPlugin {
     readonly network: SpeakToSignNetwork;
     readonly signal: AbortSignal;
     readonly note: SpeakToSignHostNote;
-  }): Promise<SpeakToSignNoteResult>;
+  }): Promise<SpeakToSignNoteActionResult>;
+  requestMessage(input: {
+    readonly walletId: WalletId;
+    readonly network: SpeakToSignNetwork;
+    readonly signal: AbortSignal;
+    readonly message: SpeakToSignHostMessage;
+  }): Promise<SpeakToSignMessageResult>;
 }

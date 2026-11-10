@@ -15,9 +15,10 @@ import { TransactionReviewHost, useSeams } from '@seams/wallet/react';
 </SeamsWebProvider>
 ```
 
-Pass `review` to `near.signAndSendTransaction` or the EVM and
+Pass `steps` to `near.signAndSendTransaction` or the EVM and
 Tempo `signTransaction` and `signAndSendTransaction` methods on `useSeams().wallet`.
-The existing result and lifecycle callbacks retain their meanings.
+The existing result and lifecycle callbacks retain their meanings. `review` is the
+earlier name of `steps`: it takes `render` in place of `before`, and it still works.
 
 ```tsx
 const { wallet } = useSeams();
@@ -26,13 +27,21 @@ if (!wallet?.near) return <SignInButton />;
 await wallet.near.signAndSendTransaction({
   receiverId,
   actions,
-  review: {
+  steps: {
     title: 'Review purchase',
     validity: { kind: 'expires_at', atMs: quote.expiresAtMs },
-    render: controls => <PurchaseReview quote={quote} controls={controls} />,
+    before: controls => <PurchaseReview quote={quote} controls={controls} />,
+    after: (outcome, controls) => <PurchaseDone outcome={outcome} onDone={controls.close} />,
   },
 });
 ```
+
+`after` is optional. With it, the Wallet's modal stays open when the signed call
+settles: the modal hands over from the Wallet's card to your `after` step with the
+same resize and crossfade as Back. The call's promise settles first, so your app can
+update its state. `controls.close()` closes the modal. Escape and owner disposal also
+close it. `after` runs only when the Wallet signed; a call cancelled before signing
+closes the modal as before. The `after` step shows no Wallet receipt.
 
 Use `{ kind: 'unbounded' }` explicitly for transactions without a quote expiry.
 Effective confirmation settings must be `uiMode: 'modal'` and

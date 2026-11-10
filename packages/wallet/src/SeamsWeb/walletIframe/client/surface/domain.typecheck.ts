@@ -179,6 +179,7 @@ const validModalRenderMode: WalletIframeSurfaceRenderMode = {
   geometry: modalGeometry,
   focusTrap: true,
   identity: requestIdentity,
+  anchoredLayer: null,
 };
 void validModalRenderMode;
 
@@ -188,6 +189,7 @@ const validDrawerRenderMode: WalletIframeSurfaceRenderMode = {
   geometry: drawerGeometry,
   focusTrap: true,
   identity: requestIdentity,
+  anchoredLayer: null,
 };
 void validDrawerRenderMode;
 
@@ -199,6 +201,7 @@ const drawerInModalRenderMode: WalletIframeSurfaceRenderMode = {
   geometry: drawerGeometry,
   focusTrap: true,
   identity: requestIdentity,
+  anchoredLayer: null,
 };
 void drawerInModalRenderMode;
 
@@ -210,6 +213,7 @@ const modalInDrawerRenderMode: WalletIframeSurfaceRenderMode = {
   geometry: modalGeometry,
   focusTrap: true,
   identity: requestIdentity,
+  anchoredLayer: null,
 };
 void modalInDrawerRenderMode;
 
@@ -220,6 +224,7 @@ const invalidAuthMenuRenderMode: WalletIframeSurfaceRenderMode = {
   geometry: drawerGeometry,
   focusTrap: true,
   identity: requestIdentity,
+  anchoredLayer: null,
 };
 void invalidAuthMenuRenderMode;
 

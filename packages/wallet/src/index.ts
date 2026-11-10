@@ -21,17 +21,23 @@ export type {
 } from './core/transactionFeatures/plugins';
 export type {
   SPEAK_TO_SIGN_HOST_API_VERSION,
+  SpeakToSignBetRequest,
+  SpeakToSignDelegateRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostPlugin,
+  SpeakToSignMessageRefusalReason,
+  SpeakToSignMessageRequest,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteRequest,
-  SpeakToSignNoteResult,
   SpeakToSignProgress,
+  SpeakToSignRefusalReason,
   SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
+  SpeakToSignSignedMessage,
+  SpeakToSignTransactionRequest,
   SpeakToSignTransferRequest,
-  SpeakToSignTransferResult,
+  SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from './core/transactionFeatures/hostPlugin';
 export {
@@ -40,7 +46,13 @@ export {
   type NoteRating,
   type SummaryRefusal,
 } from './core/transactionFeatures/spokenNote';
-export type { SpeakToSignCapability } from './SeamsWeb/publicApi/speakToSign';
+export type {
+  SpeakToSignCall,
+  SpeakToSignCapability,
+  SpeakToSignResult,
+  SpeakToSignSentTransaction,
+  SpeakToSignTypedCalls,
+} from './SeamsWeb/publicApi/speakToSign';
 export { normalizeWalletLocale } from './core/ui/locale';
 export type { WalletLocale } from './core/ui/locale';
 export type {
@@ -79,6 +91,32 @@ export type {
   HostedAuthMenuRegistrationAccountInput,
   HostedAuthMenuSessionId,
 } from './SeamsWeb/walletIframe/shared/messages';
+export type {
+  WalletStepChrome,
+  WalletStepEvents,
+  WalletStepExit,
+  WalletStepSize,
+} from './SeamsWeb/walletIframe/shared/walletStep';
+export type {
+  AnchoredSurfaceLayer,
+  AnchoredSurfaceStep,
+} from './SeamsWeb/walletIframe/client/anchoredSurface';
+export type {
+  AnchoredWalletPresentation,
+  WalletSurfacePresentation,
+} from './SeamsWeb/walletIframe/shared/walletStep';
+export type {
+  AuthMenuModalSteps,
+  MountedWalletSurface,
+  WalletSurfaceMountOptions,
+  WalletSurfaceSend,
+  WalletSurfacesCapability,
+} from './SeamsWeb/publicApi/surfaces';
+export type {
+  WalletModalAfterControls,
+  WalletModalBeforeControls,
+  WalletModalSteps,
+} from './SeamsWeb/publicApi/walletModalSteps';
 export { BrowserCapabilityUnavailableError } from './SeamsWeb/publicApi/capabilitySelection';
 export type {
   BrowserCapabilitySelectionResult,

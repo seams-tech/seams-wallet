@@ -422,7 +422,11 @@ export async function routerAbNormalSigningActionFingerprint(value: unknown): Pr
   return base64UrlEncode(await sha256Bytes(new TextEncoder().encode(alphabetizeStringify(value))));
 }
 
-function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
+/**
+ * The bytes whose SHA-256 the key signs for a NEP-413 message: the tag, then the Borsh of the
+ * message, the nonce, the recipient and the optional callback URL.
+ */
+export function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
   message: string;
   recipient: string;
   nonce: string;
@@ -1436,6 +1440,7 @@ export async function prepareRouterAbNormalSigningV2(args: {
           voice_verdict: {
             verdict_json: voiceVerdict.verdictJson,
             signature_b64: voiceVerdict.signatureB64,
+            ...(voiceVerdict.summary === undefined ? {} : { summary: voiceVerdict.summary }),
           },
         }
       : args.request,

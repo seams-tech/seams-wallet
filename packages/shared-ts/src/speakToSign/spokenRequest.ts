@@ -9,6 +9,21 @@ export type SpeakToSignNetwork = 'testnet' | 'mainnet';
 export const NOTE_RATINGS = ['helpful', 'somewhat_helpful', 'not_helpful'] as const;
 export type NoteRating = (typeof NOTE_RATINGS)[number];
 
+export const BET_OUTCOMES = ['yes', 'no'] as const;
+export type BetOutcome = (typeof BET_OUTCOMES)[number];
+
+/**
+ * The USDC contract of each network: a NEP-141 token with 6 decimals. A spoken bet says "usdc"
+ * and an amount with 6 decimals, so Wallet core and the Seams co-signer sign a bet only in this
+ * token. Null: the network has no spoken bets.
+ */
+export const SPEAK_TO_SIGN_USDC: Readonly<Record<SpeakToSignNetwork, string | null>> = {
+  testnet: '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af',
+  mainnet: null,
+};
+/** The base units (10^-6 USDC) of 0.01 USDC. */
+export const USDC_UNITS_PER_HUNDREDTH = 10_000n;
+
 /** The kinds of `SpokenRequestV1` that Wallet core signs. Each holds its owner, which is not spoken. */
 export type SpokenRequest =
   /** `AccountTransfer`, tag 2: a NEAR transfer from the owner's own account. */
@@ -53,6 +68,45 @@ export type SpokenRequest =
       base: string;
       /** The 20-byte git commit. */
       headCommit: Uint8Array;
+    }>
+  /**
+   * `MarketBet`, tag 7: the token's `ft_transfer_call` to a prediction market. The verdict binds
+   * the market and token contracts; only the amount, the outcome and the market id are said.
+   */
+  | Readonly<{
+      kind: 'market_bet';
+      network: SpeakToSignNetwork;
+      owner: string;
+      market: string;
+      token: string;
+      marketId: bigint;
+      outcome: BetOutcome;
+      /** Base units of the token: a whole multiple of 0.01 USDC, from 0.01 to 1,000,000 USDC. */
+      amountUnits: bigint;
+    }>
+  /**
+   * `Transaction`, tag 8: any NEAR transaction from the owner's account. Only the summary is
+   * said. The verdict binds the receiver and the SHA-256 of the transaction's actions.
+   */
+  | Readonly<{
+      kind: 'transaction';
+      network: SpeakToSignNetwork;
+      owner: string;
+      receiver: string;
+      /** SHA-256 of `nearTransactionActionsBorsh` of the unsigned transaction. */
+      actionsSha256: Uint8Array;
+      summary: string;
+    }>
+  /**
+   * `SignedMessage`, tag 9: a NEP-413 message. Only the summary is said. The verdict binds the
+   * 32 bytes that the key signs.
+   */
+  | Readonly<{
+      kind: 'signed_message';
+      network: SpeakToSignNetwork;
+      owner: string;
+      payloadSha256: Uint8Array;
+      summary: string;
     }>;
 
 const REQUEST_DIGEST_DOMAIN = 'seams:spoken-intent:request:v1';
@@ -62,6 +116,9 @@ const TAGS: Readonly<Record<SpokenRequest['kind'], number>> = {
   community_note: 4,
   note_rating: 5,
   merge_approval: 6,
+  market_bet: 7,
+  transaction: 8,
+  signed_message: 9,
 };
 
 /** Borsh of the request, with the explicit tag of its kind. */
@@ -104,7 +161,56 @@ export function spokenRequestBorsh(request: SpokenRequest): Uint8Array<ArrayBuff
         borshString(request.base),
         request.headCommit,
       ]);
+    case 'market_bet':
+      return concat([
+        ...head,
+        borshString(request.market),
+        borshString(request.token),
+        littleEndian(request.marketId, 8),
+        Uint8Array.of(BET_OUTCOMES.indexOf(request.outcome)),
+        littleEndian(request.amountUnits, 16),
+      ]);
+    case 'transaction':
+      if (request.actionsSha256.length !== 32) throw new RangeError('An actions digest has 32 bytes.');
+      return concat([
+        ...head,
+        borshString(request.receiver),
+        request.actionsSha256,
+        borshString(request.summary),
+      ]);
+    case 'signed_message':
+      if (request.payloadSha256.length !== 32) throw new RangeError('A payload digest has 32 bytes.');
+      return concat([...head, request.payloadSha256, borshString(request.summary)]);
   }
+}
+
+const ED25519_KEY_TYPE = 0;
+/** 2^31 + 413 as a little-endian `u32`. */
+const NEP413_TAG = [0x9d, 0x01, 0x00, 0x80];
+
+/**
+ * True for the bytes of a NEP-413 message: they start with the NEP-413 tag. The key signs the
+ * SHA-256 of these bytes, and a spoken message binds it. No NEAR transaction starts with the
+ * tag, so a signature for these bytes is never a signature of a transaction.
+ */
+export function isNep413Message(bytes: Uint8Array): boolean {
+  return NEP413_TAG.every((byte, index) => bytes[index] === byte);
+}
+
+/**
+ * The Borsh of `Vec<Action>` in an unsigned NEAR transaction (V0, ed25519 key): the bytes after
+ * the signer, the public key, the nonce, the receiver and the block hash. A spoken transaction
+ * binds the SHA-256 of these bytes. It throws a `RangeError` for other bytes.
+ */
+export function nearTransactionActionsBorsh(unsigned: Uint8Array): Uint8Array {
+  const view = new DataView(unsigned.buffer, unsigned.byteOffset, unsigned.byteLength);
+  const keyAt = 4 + view.getUint32(0, true);
+  if (view.getUint8(keyAt) !== ED25519_KEY_TYPE) throw new RangeError('Not an ed25519 key.');
+  const receiverAt = keyAt + 1 + 32 + 8;
+  const actionsAt = receiverAt + 4 + view.getUint32(receiverAt, true) + 32;
+  // The list starts with its `u32` length.
+  view.getUint32(actionsAt, true);
+  return unsigned.subarray(actionsAt);
 }
 
 /** `sha256(REQUEST_DIGEST_DOMAIN || borsh)`: the `request_digest` of a verdict. */
