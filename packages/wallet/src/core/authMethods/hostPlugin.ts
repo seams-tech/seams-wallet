@@ -1,4 +1,4 @@
-export const VOICE_ID_HOST_API_VERSION = 10;
+export const VOICE_ID_HOST_API_VERSION = 11;
 
 import type {
   VoiceIdActivationPreparation,
@@ -53,6 +53,9 @@ export type AuthMethodActivationResult =
   | Readonly<{ kind: 'cancelled'; walletId?: never; walletAuthMethodId?: never }>;
 
 export type WalletAuthMethodUnlockPurpose = 'unlock' | 'step_up';
+
+/** One accepted enrollment sample: 16 kHz mono samples and the sentence that the owner read. */
+export type AuthMethodEnrollmentRecording = Readonly<{ samples: Float32Array; sentence: string }>;
 
 /** One clip of a shown sentence: 16 kHz mono samples that passed the quality gate. */
 export type AuthMethodPhraseRecording =
@@ -139,6 +142,12 @@ export interface WalletAuthMethodHostPlugin {
     readonly surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
     readonly prepareActivation: () => Promise<VoiceIdActivationPreparation>;
     readonly walletId: WalletId;
+    /**
+     * Receives the accepted samples of a new enrollment after it is saved, so Speak-to-Sign can
+     * enroll the same voice without a second set of recordings. The receiver owns the samples and
+     * clears them. An activation that checks an existing enrollment calls nothing.
+     */
+    readonly keepRecordings?: (recordings: readonly AuthMethodEnrollmentRecording[]) => void;
   }): Promise<AuthMethodActivationResult>;
   /** A fresh voice check for one operation, such as key export; it never unlocks. */
   confirmOperation(input: {

@@ -94,11 +94,7 @@ Seamsの共同署名者が判定を拒否した場合、結果は`refused`で、
 
 ## 所有者の準備 {#set-up-the-owner}
 
-最初の音声による支払いの前に、所有者には次のものが必要です。
-
-1. ウォレットでVoiceIDが有効であること:
-   `seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`。
-2. 検証者での声のテンプレート:
+最初の音声による支払いの前に、所有者には検証者での声のテンプレートが必要です。
 
 ```ts [部分的な実装例]
 const enrollment = await seams.speakToSign.enroll({ walletId });
@@ -107,9 +103,11 @@ if (enrollment.kind === 'enrolled') {
 }
 ```
 
-`enroll`は、VoiceIDの画面に短い文を3つ表示します。その後、所有者はウォレットの確認画面で、署名付きのメッセージ(NEP-413)を1回承認します。
+`enroll`は、VoiceIDの画面に短い文を3つ表示します。ウォレットにまだVoiceIDがない場合、`enroll`は先にVoiceIDを有効にします。そのVoiceID登録の3つのサンプルが、検証者の録音にもなります。そのため、所有者は両方のために文を1組だけ読みます。その後、所有者はウォレットの確認画面で、署名付きのメッセージ(NEP-413)を1回承認します。
 メッセージには、これらの録音だけのダイジェストが入っています。検証者は、所有者のフルアクセスキーがそのメッセージに署名したことを確認し、その音声だけを登録します。
 新しい登録は以前のテンプレートを置き換えます。結果の`kind`は、`enrolled`、`refused`、`cancelled`、`unavailable`のいずれかです。
+
+所有者がVoiceIDを無効にした場合、`enroll`は理由`voiceid_unavailable`の`unavailable`を返します。`seams.registration.setAuthMethodEnabled({ walletId, method: 'voiceid', enabled: true })`で再び有効にしてください。
 
 送金ごとのガスは所有者のアカウントが支払います。テストネットでは約0.00005 NEARです。
 

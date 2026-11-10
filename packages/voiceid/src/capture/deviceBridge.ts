@@ -33,12 +33,17 @@ import type {
   VoiceIdActivationCapture,
   VoiceIdOperationCapture,
   VoiceIdUnlockCapture,
+  WalletAuthMethodHostPlugin,
 } from '@seams/wallet/voiceid-host';
 type VoiceCapturePresentation = Readonly<{ onCapture: VoiceCaptureObserver; phrase: SpokenPhrase }>;
+type KeepRecordings = NonNullable<
+  Parameters<WalletAuthMethodHostPlugin['activate']>[0]['keepRecordings']
+>;
 
 export async function captureVoiceIdActivation(
   model: VoiceIdTranscriptionModel,
-  presentation: VoiceCapturePresentation & Readonly<{ parent: HTMLElement }>,
+  presentation: VoiceCapturePresentation &
+    Readonly<{ parent: HTMLElement; keepRecordings: KeepRecordings | undefined }>,
   input: Parameters<VoiceIdActivationCapture>[0],
 ): ReturnType<VoiceIdActivationCapture> {
   requireVoiceUserAction();
@@ -61,6 +66,7 @@ export async function captureVoiceIdActivation(
       { kind: 'activate', scope, guard, snapshot: { kind: 'missing' } },
       input.signal,
       model,
+      presentation.keepRecordings,
     );
   }
   input.signal.throwIfAborted();

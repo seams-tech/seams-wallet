@@ -161,6 +161,7 @@ One progress indicator covers the engine, speaker model, speech detector, and se
 Verified assets are cached when browser storage permits. Clearing site data or browser eviction can require another download.
 
 Audio stays local and is discarded after processing. The Wallet origin stores the enrollment template and device credentials.
+One exception: when [Speak-to-Sign](/concepts/auth-methods/speak-to-sign) enrollment turns on VoiceID, the three accepted samples also go to the Speak-to-Sign verifier, which enrolls the same voice. The Wallet clears its copies after it sends them.
 Saved enrollment and added samples have no time or usage limit.
 Removing the enrollment or clearing Wallet-origin storage requires enrollment again.
 **Manage voice** provides recognition improvements, reset, and re-recording with fresh owner confirmation.

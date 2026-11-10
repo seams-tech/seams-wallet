@@ -19,19 +19,26 @@ import {
 import { toError } from '@seams/wallet/voiceid-host';
 import type { Variant } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
+import type { AuthMethodEnrollmentRecording } from '@seams/wallet/voiceid-host';
 
 type EnrollmentCapturePlan = Readonly<{ scope: VoiceEnrollmentScope }> &
   Variant<VoiceEnrollmentAuthorization, 'kind', 'activate' | 'replace' | 'improve'>;
+type KeepRecordings = (recordings: readonly AuthMethodEnrollmentRecording[]) => void;
 
+/**
+ * Records three accepted samples and saves the enrollment. With `keepRecordings`, the accepted
+ * samples go to it after the save, for Speak-to-Sign; every other sample is cleared here.
+ */
 export async function enrollBrowserVoice(
   parent: HTMLElement,
   plan: EnrollmentCapturePlan,
   signal: AbortSignal,
   model: VoiceIdTranscriptionModel,
+  keepRecordings?: KeepRecordings,
 ): Promise<void> {
   signal.throwIfAborted();
   // The prompt shows at once; VoiceID loads inside it, and recording waits until it is ready.
-  const surface = new VoiceEnrollmentSurface(parent, plan, signal, model);
+  const surface = new VoiceEnrollmentSurface(parent, plan, signal, model, keepRecordings ?? null);
   try {
     await Promise.race([surface.prepare(), surface.result]);
     await surface.result;
@@ -49,6 +56,8 @@ class VoiceEnrollmentSurface {
   private readonly record: HTMLButtonElement;
   private readonly cancel: HTMLButtonElement;
   private readonly samples: number[][] = [];
+  /** The accepted samples' audio, kept only for `keepRecordings`. */
+  private readonly recordings: AuthMethodEnrollmentRecording[] = [];
   private phase: 'loading' | 'ready' | 'recording' | 'committing' | 'closed' = 'loading';
   private get closed(): boolean {
     return this.phase === 'closed';
@@ -62,6 +71,7 @@ class VoiceEnrollmentSurface {
     private readonly plan: EnrollmentCapturePlan,
     private readonly signal: AbortSignal,
     private readonly model: VoiceIdTranscriptionModel,
+    private readonly keepRecordings: KeepRecordings | null,
   ) {
     this.prompt = new VoicePrompt(
       parent.ownerDocument,
@@ -79,7 +89,9 @@ class VoiceEnrollmentSurface {
     this.prompt.ready(
       plan.kind === 'improve'
         ? 'Read naturally. Your original enrollment stays unchanged.'
-        : 'Read the full phrase at your normal pace.',
+        : keepRecordings
+          ? 'Read the full phrase at your normal pace. Speak-to-Sign uses the same samples.'
+          : 'Read the full phrase at your normal pace.',
     );
     // Recording waits for VoiceID to load; prepare() enables it.
     this.record.disabled = true;
@@ -106,6 +118,8 @@ class VoiceEnrollmentSurface {
   private async collect(): Promise<void> {
     if (this.phase !== 'ready') return;
     const sampleNumber = this.samples.length + 1;
+    // A copy of this sample's audio for `keepRecordings`, until the sample is accepted.
+    let kept: AuthMethodEnrollmentRecording | null = null;
     try {
       requireVoiceUserAction();
       this.phase = 'recording';
@@ -124,6 +138,12 @@ class VoiceEnrollmentSurface {
         pcm.samples.fill(0);
         this.status.textContent = 'Use a quiet place to improve your voice enrollment.';
         return;
+      }
+      if (this.keepRecordings) {
+        kept = {
+          samples: pcm.samples.slice(),
+          sentence: this.prompt.phrase.textContent ?? '',
+        };
       }
       let embedding: number[];
       try {
@@ -157,6 +177,8 @@ class VoiceEnrollmentSurface {
         }
       }
       this.samples.push(embedding);
+      if (kept) this.recordings.push(kept);
+      kept = null;
       if (this.samples.length < 3) {
         this.prompt.accepted();
         this.status.textContent = `Sample ${this.samples.length} accepted. Record the next sample.`;
@@ -211,6 +233,7 @@ class VoiceEnrollmentSurface {
       this.phase = 'closed';
       this.prompt.accepted();
       this.status.textContent = 'Voice enrollment saved.';
+      this.keepRecordings?.(this.recordings.splice(0));
       this.completion.resolve();
     } catch (error) {
       if (!this.closed && this.phase === 'committing') {
@@ -219,11 +242,15 @@ class VoiceEnrollmentSurface {
         this.completion.reject(toError(error));
         return;
       }
-      if (!this.closed && this.samples.length === 3) this.samples.pop()?.fill(0);
+      if (!this.closed && this.samples.length === 3) {
+        this.samples.pop()?.fill(0);
+        this.recordings.pop()?.samples.fill(0);
+      }
       if (!this.closed)
         this.status.textContent =
           error instanceof Error ? error.message : 'VoiceID enrollment failed.';
     } finally {
+      kept?.samples.fill(0);
       if (!this.closed) {
         if (this.samples.length < sampleNumber) {
           this.record.textContent = `Retry sample ${sampleNumber}`;
@@ -272,6 +299,7 @@ class VoiceEnrollmentSurface {
     this.record.removeEventListener('click', this.capture);
     this.cancel.removeEventListener('click', this.cancelled);
     for (const sample of this.samples) sample.fill(0);
+    for (const recording of this.recordings.splice(0)) recording.samples.fill(0);
   }
 }
 

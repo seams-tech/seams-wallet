@@ -126,11 +126,8 @@ An app with it loads nothing more until a spoken payment starts.
 
 ## Set up the owner
 
-Before the first spoken payment, the owner needs:
-
-1. VoiceID on for the wallet:
-   `seams.registration.activateAuthMethod({ walletId, method: 'voiceid' })`.
-2. A voice template at the verifier:
+Before the first spoken payment, the owner needs a voice template at the
+verifier:
 
 ```ts [Partial example]
 const enrollment = await seams.speakToSign.enroll({ walletId });
@@ -139,12 +136,18 @@ if (enrollment.kind === 'enrolled') {
 }
 ```
 
-`enroll` shows three short phrases on the VoiceID surface. Then the owner
-approves one signed message (NEP-413) on the wallet confirm. The message names
-the digest of exactly these recordings. The verifier checks that a full-access
-key of the owner signed it, and enrolls only that audio. A new enrollment
-replaces the template. The result `kind` is `enrolled`, `refused`, `cancelled`
-or `unavailable`.
+`enroll` shows three short phrases on the VoiceID surface. If the wallet has no
+VoiceID yet, `enroll` turns it on first, and the three samples of that VoiceID
+enrollment are also the verifier's recordings. So the owner reads one set of
+phrases for both. Then the owner approves one signed message (NEP-413) on the
+wallet confirm. The message names the digest of exactly these recordings. The
+verifier checks that a full-access key of the owner signed it, and enrolls only
+that audio. A new enrollment replaces the template. The result `kind` is
+`enrolled`, `refused`, `cancelled` or `unavailable`.
+
+If the owner turned VoiceID off, `enroll` returns `unavailable` with the reason
+`voiceid_unavailable`. Turn it on again with
+`seams.registration.setAuthMethodEnabled({ walletId, method: 'voiceid', enabled: true })`.
 
 The owner's account pays the gas of each transfer, about 0.00005 NEAR on
 testnet.

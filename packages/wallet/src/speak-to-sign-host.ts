@@ -1,6 +1,7 @@
 // Scoped operations and data contracts for the trusted Speak-to-Sign plugin.
 export {
   SPEAK_TO_SIGN_HOST_API_VERSION,
+  type SpeakToSignEnrollmentRecording,
   type SpeakToSignEnrollmentResult,
   type SpeakToSignHostEnrollment,
   type SpeakToSignHostNote,

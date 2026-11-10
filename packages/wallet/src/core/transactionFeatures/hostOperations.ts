@@ -12,6 +12,7 @@ import {
   SPEAK_TO_SIGN_VERIFIERS,
 } from '@shared/speakToSign/voiceVerdict';
 import type {
+  AuthMethodEnrollmentRecording,
   AuthMethodPhraseRecording,
   AuthMethodPhraseRequest,
   AuthMethodPhraseSurface,
@@ -20,6 +21,7 @@ import type {
   SpeakToSignClip,
   SpeakToSignClipRequest,
   SpeakToSignEnrollmentAuthorization,
+  SpeakToSignEnrollmentRecording,
   SpeakToSignHostOperations,
   SpeakToSignPayment,
   SpeakToSignPaymentHooks,
@@ -86,7 +88,37 @@ export type SpeakToSignHostOperationsInput = Readonly<{
   now?: () => number;
   /** Tests pass their own key. The Wallet always uses the pinned verifiers. */
   verifiers?: Verifiers;
+  /** The VoiceID enrollment samples that this flow made, which its enrollment may authorize. */
+  adopted?: AdoptedRecordings;
 }>;
+
+/** VoiceID enrollment samples as the verifier's WAV clips, with the digests of those clips. */
+export type AdoptedRecordings = Readonly<{
+  recordings: readonly SpeakToSignEnrollmentRecording[];
+  digests: readonly string[];
+}>;
+
+/**
+ * Turns the samples of a VoiceID enrollment that this flow just made into the verifier's WAV
+ * clips, so the owner records one set for VoiceID and Speak-to-Sign. It clears the samples.
+ */
+export async function adoptVoiceIdRecordings(
+  samples: readonly AuthMethodEnrollmentRecording[],
+): Promise<AdoptedRecordings> {
+  const recordings = samples.map(toEnrollmentRecording);
+  return {
+    recordings,
+    digests: await Promise.all(recordings.map((recording) => audioDigest(recording.wav))),
+  };
+}
+
+function toEnrollmentRecording(
+  recording: AuthMethodEnrollmentRecording,
+): SpeakToSignEnrollmentRecording {
+  const wav = pcm16Wav(recording.samples);
+  recording.samples.fill(0);
+  return { wav, sentence: recording.sentence };
+}
 
 /**
  * What one flow recorded and signed. A verdict binds a clip of this flow, and the flow signs at
@@ -101,7 +133,7 @@ type FlowState = {
 export function createSpeakToSignHostOperations(
   input: SpeakToSignHostOperationsInput,
 ): SpeakToSignHostOperations {
-  const state: FlowState = { recordedAudio: new Set(), paid: false };
+  const state: FlowState = { recordedAudio: new Set(input.adopted?.digests), paid: false };
   return {
     openPrompt: openPrompt.bind(null, input, state),
     receiverExists: receiverExists.bind(null, input),

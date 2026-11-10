@@ -191,6 +191,8 @@ type HandlerHarnessOptions = {
   readonly nearReady?: boolean;
   readonly cancelled?: () => boolean;
   readonly plugin?: SpeakToSignHostPlugin['requestTransfer'];
+  /** What VoiceID activation does: keep three samples, check an existing enrollment, or close. */
+  readonly activation?: 'new_enrollment' | 'existing_enrollment' | 'cancelled';
 };
 
 function buildHandler(options: HandlerHarnessOptions = {}) {
@@ -206,7 +208,29 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const recorderLoads: (readonly WalletAuthMethodPlugin[])[] = [];
   const phrases: AuthMethodPhraseRequest[] = [];
   const recorded = new Float32Array([0.5, -0.5, 0.25]);
+  let voiceIdKind = options.voiceId ?? 'enabled';
+  const enrollmentSamples = [0.1, 0.2, 0.3].map((value) => new Float32Array([value, -value]));
+  const activations: Parameters<WalletAuthMethodHostPlugin['activate']>[0][] = [];
   const voiceId = {
+    async activate(input) {
+      activations.push(input);
+      const activation = options.activation ?? 'new_enrollment';
+      if (activation === 'cancelled') return { kind: 'cancelled' };
+      if (activation === 'new_enrollment') {
+        input.keepRecordings?.(
+          enrollmentSamples.map((samples, index) => ({
+            samples,
+            sentence: `Phrase ${index + 1}.`,
+          })),
+        );
+      }
+      voiceIdKind = 'enabled';
+      return {
+        kind: 'activated',
+        walletId: WALLET_ID,
+        walletAuthMethodId: 'wallet-auth-method:voice',
+      } as Awaited<ReturnType<WalletAuthMethodHostPlugin['activate']>>;
+    },
     async openPhrase(request: AuthMethodPhraseRequest): Promise<AuthMethodPhraseSurface> {
       phrases.push(request);
       return {
@@ -269,7 +293,7 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   };
   const ports: SpeakToSignWalletPorts = {
     async readVoiceIdAvailability() {
-      const kind = options.voiceId ?? 'enabled';
+      const kind = voiceIdKind;
       return kind === 'not_enrolled'
         ? { kind }
         : ({ kind, walletAuthMethodId: 'wallet-auth-method:voice' } as AuthMethodAvailability);
@@ -316,6 +340,8 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     recorderLoads,
     phrases,
     recorded,
+    activations,
+    enrollmentSamples,
   };
 }
 
@@ -517,13 +543,60 @@ test('the enrollment handler gives the plugin the owner and signs through the NE
     { type: 'PM_RESULT', requestId: 'request-enroll', payload: { ok: true, result: ENROLLED } },
   ]);
 
-  const noVoice = buildHandler({ voiceId: 'not_enrolled' });
-  await noVoice.runEnroll();
-  expect(noVoice.enrollCalls).toHaveLength(0);
-  expect(noVoice.posted[0].payload).toEqual({
+  expect(harness.activations).toHaveLength(0);
+  expect(input.recordings).toBeNull();
+
+  const disabled = buildHandler({ voiceId: 'disabled' });
+  await disabled.runEnroll();
+  expect(disabled.activations).toHaveLength(0);
+  expect(disabled.enrollCalls).toHaveLength(0);
+  expect(disabled.posted[0].payload).toEqual({
     ok: true,
-    result: { kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'not_enrolled' },
+    result: { kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'disabled' },
   });
+});
+
+test('a wallet without VoiceID activates it, and its three samples are the enrollment clips', async () => {
+  const harness = buildHandler({ voiceId: 'not_enrolled' });
+  await harness.runEnroll();
+  expect(harness.activations).toHaveLength(1);
+  expect(harness.activations[0]).toMatchObject({ walletId: WALLET_ID });
+  expect(harness.activations[0].surfaceMeasurementBinding).toBe(harness.binding);
+  expect(harness.enrollCalls).toHaveLength(1);
+  const [input] = harness.enrollCalls;
+  const recordings = input.recordings;
+  if (!recordings) throw new Error('The enrollment has no VoiceID recordings');
+  expect(recordings.map((recording) => recording.sentence)).toEqual([
+    'Phrase 1.',
+    'Phrase 2.',
+    'Phrase 3.',
+  ]);
+  // The Wallet keeps only the WAV clips; the samples are cleared.
+  for (const samples of harness.enrollmentSamples) expect([...samples]).toEqual([0, 0]);
+  const signal = new AbortController().signal;
+  const clips = recordings.map((recording) => recording.wav);
+  expect(await input.operations.authorizeEnrollment(clips, signal)).toMatchObject({
+    kind: 'signed',
+  });
+  // A clip that neither VoiceID nor this flow recorded stays refused.
+  const foreign = [clips[0], clips[1], new Uint8Array(clips[2].length)];
+  expect(await input.operations.authorizeEnrollment(foreign, signal)).toEqual({
+    kind: 'not_signed',
+    error: 'Only recordings of this enrollment can be authorized.',
+  });
+  expect(harness.posted).toEqual([
+    { type: 'PM_RESULT', requestId: 'request-enroll', payload: { ok: true, result: ENROLLED } },
+  ]);
+
+  const existing = buildHandler({ voiceId: 'not_enrolled', activation: 'existing_enrollment' });
+  await existing.runEnroll();
+  expect(existing.enrollCalls).toHaveLength(1);
+  expect(existing.enrollCalls[0].recordings).toBeNull();
+
+  const closed = buildHandler({ voiceId: 'not_enrolled', activation: 'cancelled' });
+  await closed.runEnroll();
+  expect(closed.enrollCalls).toHaveLength(0);
+  expect(closed.posted[0].payload).toEqual({ ok: true, result: { kind: 'cancelled' } });
 });
 
 test('the note message carries only the wallet and one note or rating, and its result is exact', async () => {

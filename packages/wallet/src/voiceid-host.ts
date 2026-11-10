@@ -5,6 +5,7 @@ export {
   type AuthMethodActivationResult,
   type AuthMethodCaptureMount,
   type AuthMethodCaptureSettlement,
+  type AuthMethodEnrollmentRecording,
   type AuthMethodPhraseRecording,
   type AuthMethodPhraseSurface,
   type PhraseChoice,

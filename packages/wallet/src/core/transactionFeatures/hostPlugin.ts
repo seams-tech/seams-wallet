@@ -6,7 +6,7 @@ import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
 /** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 8;
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 9;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -333,6 +333,12 @@ export type SpeakToSignHostNote = Readonly<{
 }>;
 
 /** One enrollment that the Wallet route asks the host plugin to run. */
+/** A clip that this flow already recorded: the verifier's WAV and the sentence the owner read. */
+export type SpeakToSignEnrollmentRecording = Readonly<{
+  wav: Uint8Array<ArrayBuffer>;
+  sentence: string;
+}>;
+
 export type SpeakToSignHostEnrollment = Readonly<{
   walletId: WalletId;
   network: SpeakToSignNetwork;
@@ -340,13 +346,19 @@ export type SpeakToSignHostEnrollment = Readonly<{
   ownerAccountId: string;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
   operations: SpeakToSignHostOperations;
+  /**
+   * The three samples of the VoiceID enrollment that this flow made just before, or null. With
+   * them, the plugin enrolls these clips and records nothing.
+   */
+  recordings: readonly SpeakToSignEnrollmentRecording[] | null;
 }>;
 
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface SpeakToSignHostPlugin {
   /**
-   * Records the three enrollment phrases, has the owner sign an authorization for exactly these
-   * recordings and asks the verifier to store the owner's voice template.
+   * Records the three enrollment phrases (or takes the given recordings), has the owner sign an
+   * authorization for exactly these recordings and asks the verifier to store the owner's voice
+   * template.
    */
   enroll(input: SpeakToSignHostEnrollment): Promise<SpeakToSignEnrollmentResult>;
   requestTransfer(input: {

@@ -12,6 +12,7 @@ import { captureVoiceIdActivation } from '../capture/deviceBridge';
 import { manageVoiceEnrollment } from './manageEnrollment';
 
 type Activated = Variant<AuthMethodActivationResult, 'kind', 'activated'>;
+type KeepRecordings = Parameters<WalletAuthMethodHostPlugin['activate']>[0]['keepRecordings'];
 
 export async function prepareActivationSurface(
   input: Parameters<WalletAuthMethodHostPlugin['activate']>[0],
@@ -30,7 +31,7 @@ export async function prepareActivationSurface(
   }
   return {
     kind: 'recording',
-    action: activatePreparedVoiceId.bind(null, model, prepared, parent),
+    action: activatePreparedVoiceId.bind(null, model, prepared, parent, input.keepRecordings),
     expiresAtMs: null,
   };
 }
@@ -54,12 +55,13 @@ function activatePreparedVoiceId(
   model: VoiceIdTranscriptionModel,
   prepared: Variant<VoiceIdActivationPreparation, 'kind', 'activate'>,
   parent: HTMLElement,
+  keepRecordings: KeepRecordings | undefined,
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<Activated> {
   return prepared.activate(
-    captureVoiceIdActivation.bind(null, model, { parent, onCapture, phrase }),
+    captureVoiceIdActivation.bind(null, model, { parent, onCapture, phrase, keepRecordings }),
     signal,
   );
 }

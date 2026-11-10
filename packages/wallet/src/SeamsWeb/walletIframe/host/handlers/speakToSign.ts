@@ -1,8 +1,10 @@
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type {
+  AuthMethodEnrollmentRecording,
   AuthMethodPhraseRequest,
   WalletAuthMethodHostPlugin,
 } from '@/core/authMethods/hostPlugin';
+import { prepareVoiceIdActivation } from '@/core/authMethods/voiceId/prepareActivation';
 import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 import {
   nearAccountRefFromAccountId,
@@ -16,7 +18,11 @@ import type {
   SpeakToSignTransferResult,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
-import { createSpeakToSignHostOperations } from '@/core/transactionFeatures/hostOperations';
+import {
+  adoptVoiceIdRecordings,
+  createSpeakToSignHostOperations,
+  type AdoptedRecordings,
+} from '@/core/transactionFeatures/hostOperations';
 import {
   findWalletTransactionFeature,
   type SpeakToSignFeaturePlugin,
@@ -140,6 +146,7 @@ async function prepareFlow(
   ports: SpeakToSignWalletPorts,
   request: SpeakToSignRequest,
   signal: AbortSignal,
+  adopted?: AdoptedRecordings,
 ): Promise<PreparedFlow> {
   const runtime = deps.getWalletRuntime();
   const features = runtime.configs.transactionFeatures;
@@ -193,6 +200,7 @@ async function prepareFlow(
         progress,
       }),
     fetch: ports.fetch,
+    adopted,
   });
   return { kind: 'ready', walletId, feature, ownerAccountId, plugin, operations };
 }
@@ -254,13 +262,25 @@ function noteAction(payload: PMSpeakToSignNotePayload): SpokenNoteAction {
   }
 }
 
+/**
+ * A wallet without VoiceID gets it first, and the three samples of that VoiceID enrollment are
+ * also the Speak-to-Sign recordings, so the owner records one set for both.
+ */
 async function runEnrollment(
   deps: HandlerDeps,
   ports: SpeakToSignWalletPorts,
   request: Req<'PM_SPEAK_TO_SIGN_ENROLL'>,
   signal: AbortSignal,
 ): Promise<SpeakToSignEnrollmentResult> {
-  const flow = await prepareFlow(deps, ports, request, signal);
+  const walletId = toWalletId(request.payload.walletId);
+  let adopted: AdoptedRecordings | undefined;
+  if ((await ports.readVoiceIdAvailability(walletId)).kind === 'not_enrolled') {
+    const activation = await activateVoiceId(deps, ports, walletId);
+    if (activation.kind === 'cancelled') return { kind: 'cancelled' };
+    signal.throwIfAborted();
+    if (activation.recordings) adopted = await adoptVoiceIdRecordings(activation.recordings);
+  }
+  const flow = await prepareFlow(deps, ports, request, signal, adopted);
   if (flow.kind === 'unavailable') return flow;
   return await flow.plugin.enroll({
     walletId: flow.walletId,
@@ -269,7 +289,32 @@ async function runEnrollment(
     ownerAccountId: flow.ownerAccountId,
     surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
     operations: flow.operations,
+    recordings: adopted?.recordings ?? null,
   });
+}
+
+/** VoiceID activation in this request, which keeps the samples of a new enrollment. */
+async function activateVoiceId(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  walletId: WalletId,
+): Promise<
+  | Readonly<{ kind: 'activated'; recordings: readonly AuthMethodEnrollmentRecording[] | null }>
+  | Readonly<{ kind: 'cancelled' }>
+> {
+  const runtime = deps.getWalletRuntime();
+  const voiceId = await ports.loadVoiceIdHost(runtime.configs.authMethods);
+  let recordings: readonly AuthMethodEnrollmentRecording[] | null = null;
+  const result = await voiceId.activate({
+    walletId,
+    surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
+    prepareActivation: prepareVoiceIdActivation.bind(null, runtime.getContext(), walletId),
+    keepRecordings: (kept) => {
+      recordings = kept;
+    },
+  });
+  if (result.kind === 'cancelled') return result;
+  return { kind: 'activated', recordings };
 }
 
 async function readCredential(
