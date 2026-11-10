@@ -79,6 +79,16 @@ export type {
   HostedAuthMenuRegistrationAccountInput,
   HostedAuthMenuSessionId,
 } from './SeamsWeb/walletIframe/shared/messages';
+export type {
+  WalletStepChrome,
+  WalletStepEvents,
+  WalletStepExit,
+  WalletStepSize,
+} from './SeamsWeb/walletIframe/shared/walletStep';
+export type {
+  AnchoredSurfaceLayer,
+  AnchoredSurfaceStep,
+} from './SeamsWeb/walletIframe/client/anchoredSurface';
 export { BrowserCapabilityUnavailableError } from './SeamsWeb/publicApi/capabilitySelection';
 export type {
   BrowserCapabilitySelectionResult,

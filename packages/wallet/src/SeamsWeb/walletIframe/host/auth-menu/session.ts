@@ -1186,6 +1186,7 @@ export class AuthMenuSession {
       walletAlternatives: this.request.walletAlternatives,
       recoveryOptions: this.request.recoveryOptions,
       footerBrand: this.request.footerBrand,
+      chrome: this.request.chrome,
     });
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
       kind: 'auth_menu_surface',

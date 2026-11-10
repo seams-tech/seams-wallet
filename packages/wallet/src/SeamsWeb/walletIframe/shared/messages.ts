@@ -25,6 +25,7 @@ import type {
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
+import { parseWalletStepChrome } from './walletStep';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
@@ -182,6 +183,8 @@ export type HostedAuthMenuOpenRequest = {
   walletAlternatives: WalletAlternatives;
   recoveryOptions: HostedAuthMenuRecoveryOptions;
   footerBrand: HostedAuthMenuFooterBrand;
+  /** Back or Close inside the card. Absent: the card draws neither. */
+  chrome?: 'back' | 'close';
 };
 
 export type HostedAuthMenuExternalAuthRequest = {
@@ -558,8 +561,10 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
       'walletAlternatives',
       'recoveryOptions',
       'footerBrand',
+      'chrome',
     ]) ||
-    !hasOnlyHostedAuthMenuCopyKeys(record.copy)
+    !hasOnlyHostedAuthMenuCopyKeys(record.copy) ||
+    (record.chrome !== undefined && record.chrome !== 'back' && record.chrome !== 'close')
   ) {
     return null;
   }
@@ -628,6 +633,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
     walletAlternatives,
     recoveryOptions,
     footerBrand,
+    ...(record.chrome === undefined ? {} : { chrome: record.chrome }),
   };
 }
 
@@ -644,6 +650,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
   walletAlternatives?: WalletAlternatives;
   recoveryOptions?: HostedAuthMenuRecoveryOptions;
   footerBrand?: HostedAuthMenuFooterBrand;
+  chrome?: 'back' | 'close' | 'none';
 }): HostedAuthMenuOpenRequest {
   if (!isWireSerializable(args, new Set<unknown>(), true)) {
     throw new Error('Hosted auth-menu open configuration must be serializable');
@@ -664,8 +671,10 @@ export function buildHostedAuthMenuOpenRequest(args: {
       'walletAlternatives',
       'recoveryOptions',
       'footerBrand',
+      'chrome',
     ]) ||
-    (args.copy !== undefined && !hasOnlyHostedAuthMenuCopyKeys(args.copy))
+    (args.copy !== undefined && !hasOnlyHostedAuthMenuCopyKeys(args.copy)) ||
+    (args.chrome !== undefined && parseWalletStepChrome(args.chrome) === null)
   ) {
     throw new Error('Hosted auth-menu open configuration contains unsupported fields');
   }
@@ -685,6 +694,8 @@ export function buildHostedAuthMenuOpenRequest(args: {
     walletAlternatives: args.walletAlternatives ?? emptyWalletAlternatives(),
     recoveryOptions: args.recoveryOptions ?? 'collapsible',
     footerBrand: args.footerBrand ?? { kind: 'seams' },
+    // An absent chrome keeps the request readable by a Wallet host without step controls.
+    ...(args.chrome === 'back' || args.chrome === 'close' ? { chrome: args.chrome } : {}),
   };
   const parsed = parseHostedAuthMenuOpenRequest(request);
   if (!parsed) {

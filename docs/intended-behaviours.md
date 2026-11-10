@@ -3418,3 +3418,29 @@ and key export remain available.
 `node tests/e2e/signing-credit.e2e.mjs` exercises concurrent admission, exact replay,
 blocked completion, known failure, and indeterminate retention on migrated D1.
 It writes repeatable evidence under `.artifacts/signing-credit/`.
+
+## Wallet cards as app steps
+
+A Wallet card can show as one step of an app's own dialog, over an element that the app
+places in its layout (the anchor). The card stays in the Wallet iframe; app content never
+renders inside it.
+
+- The card is hidden until it has its size. `onEnter` reports that size before the card
+  paints, and the anchor reserves the height in the same frame. The card shows one frame
+  later and fades in; `onReady` runs once it is painted. `onResize` runs before each new size
+  paints. `onExit` runs after the card has faded out. The anchor keeps the last height.
+- The events carry the size, readiness, Back, Close and the kind of exit only. The call's own
+  result carries the outcome data.
+- `chrome: 'back' | 'close'` draws one Back or Close control in the card's origin line. The
+  card keeps its own origin line and controls; the SDK draws no approve control. The control
+  ends the card as the card's own dismissal, and the SDK reports it as Back or Close.
+- The card follows the anchor on every frame while it shows, for as long as it shows. A
+  transform, transition or size change of any ancestor carries the card with it.
+- `layer: 'top'` paints the card in the top layer, above all app content, and makes the rest
+  of the page inert while it shows. A click beside the card does not end it. The default
+  `layer: 'page'` keeps the hosted auth menu's existing page-content behaviour.
+- A request without a `chrome` value is identical on the wire to an earlier request.
+
+Consumer guide: [Wallet cards as steps of an app dialog](wallet-steps.md).
+Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
+`tests/wallet-iframe/auth-menu.host.integration.test.ts`.

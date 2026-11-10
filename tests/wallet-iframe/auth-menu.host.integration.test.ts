@@ -11,14 +11,18 @@ const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 
 type AuthMenuTestWindow = Window & {
   __authMenuHostTestRouter?: WalletIframeRouter;
+  __authMenuStepEvents?: Array<{ name: string; value?: unknown }>;
   __authMenuHostTestOutcome?: Promise<
     HostedAuthMenuOutcome | { kind: 'test_error'; message: string }
   >;
 };
 
-async function openTestAuthMenu(page: Page): Promise<void> {
+async function openTestAuthMenu(
+  page: Page,
+  step?: { chrome: 'back' | 'close' },
+): Promise<void> {
   await page.evaluate(
-    async ({ walletOrigin }) => {
+    async ({ walletOrigin, step }) => {
       const { WalletIframeRouter } =
         await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
       const { buildHostedAuthMenuOpenRequest } =
@@ -37,17 +41,35 @@ async function openTestAuthMenu(page: Page): Promise<void> {
         showRegistrationInput: false,
         showProgress: true,
         enabledExternalProviders: [],
+        ...(step ? { chrome: step.chrome } : {}),
       });
       const testWindow = window as AuthMenuTestWindow;
       testWindow.__authMenuHostTestRouter = router;
+      const events: Array<{ name: string; value?: unknown }> = [];
+      testWindow.__authMenuStepEvents = events;
+      const record = (name: string) => (value?: unknown) => events.push({ name, value });
+      let anchor: HTMLElement | undefined;
+      if (step) {
+        anchor = document.createElement('div');
+        anchor.style.width = '420px';
+        anchor.style.minHeight = 'var(--seams-auth-menu-height, 0px)';
+        document.body.appendChild(anchor);
+      }
       testWindow.__authMenuHostTestOutcome = router
-        .openHostedAuthMenu(request)
+        .openHostedAuthMenu(request, anchor, {
+          layer: 'top',
+          onEnter: record('enter'),
+          onReady: record('ready'),
+          onExit: record('exit'),
+          onBack: record('back'),
+          onClose: record('close'),
+        })
         .catch((error: unknown) => ({
           kind: 'test_error' as const,
           message: String(error),
         }));
     },
-    { walletOrigin: WALLET_ORIGIN },
+    { walletOrigin: WALLET_ORIGIN, step },
   );
 }
 
@@ -95,6 +117,36 @@ test.describe('wallet-host auth-menu integration', () => {
       testWindow.__authMenuHostTestRouter?.dispose();
       delete testWindow.__authMenuHostTestRouter;
     });
+  });
+
+  test('a sign-in step draws its Close in the card, and Close ends the step', async ({ page }) => {
+    await openTestAuthMenu(page, { chrome: 'close' });
+    const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
+    const close = frame.locator('.seams-menu-origin [data-auth-menu-chrome="close"]');
+    await expect(close).toBeVisible();
+    await expect(close).toHaveAttribute('aria-label', 'Close');
+    await page.waitForFunction(() =>
+      (window as AuthMenuTestWindow).__authMenuStepEvents?.some((event) => event.name === 'ready'),
+    );
+    await close.click();
+    const outcome = await page.evaluate(
+      () => (window as AuthMenuTestWindow).__authMenuHostTestOutcome,
+    );
+    expect(outcome).toMatchObject({ kind: 'cancelled', reason: 'close_button' });
+    await page.waitForFunction(() =>
+      (window as AuthMenuTestWindow).__authMenuStepEvents?.some((event) => event.name === 'exit'),
+    );
+    const events = await page.evaluate(() => (window as AuthMenuTestWindow).__authMenuStepEvents!);
+    expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'close', 'exit']);
+    expect(events.at(-1)?.value).toEqual({ kind: 'closed' });
+    console.log('[auth-menu-step] login card size', JSON.stringify(events[0].value));
+  });
+
+  test('a menu without step chrome draws no step control', async ({ page }) => {
+    await openTestAuthMenu(page);
+    const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
+    await expect(frame.locator('.seams-auth-menu-surface')).toBeVisible();
+    await expect(frame.locator('[data-auth-menu-chrome]')).toHaveCount(0);
   });
 
   test('disposing during a delayed auth import settles the request and removes the surface', async ({

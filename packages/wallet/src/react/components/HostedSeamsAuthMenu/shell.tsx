@@ -21,15 +21,19 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import type { SeamsWeb } from '@/SeamsWeb';
 import {
-  endHostedAuthMenuAnchor,
-  resetHostedAuthMenuAnchor,
-} from '@/SeamsWeb/walletIframe/client/authMenuAnchor';
+  endAnchoredSurfaceAnchor,
+  resetAnchoredSurfaceAnchor,
+  type AnchoredSurfaceLayer,
+  type AnchoredSurfaceStep,
+} from '@/SeamsWeb/walletIframe/client/anchoredSurface';
+import type { WalletStepChrome, WalletStepEvents } from '@/SeamsWeb/walletIframe/shared/walletStep';
 import type { HostedAuthMenuExternalAuthBroker, HostedSeamsAuthMenuProps } from './types';
 
 type HostedAuthMenuBridge = Pick<SeamsWeb, 'authMenu'>;
 
 type OutcomeRef = React.MutableRefObject<HostedSeamsAuthMenuProps['onOutcome']>;
 type BrokerRef = React.MutableRefObject<HostedAuthMenuExternalAuthBroker | null>;
+type StepEventsRef = React.MutableRefObject<WalletStepEvents>;
 type HostedAuthMenuFailureCode = Extract<HostedAuthMenuOutcome, { kind: 'failed' }>['code'];
 
 type HostedAuthMenuSessionArgs = {
@@ -47,6 +51,9 @@ type HostedAuthMenuSessionArgs = {
   externalAuthBroker: BrokerRef;
   walletAlternatives: React.MutableRefObject<WalletAlternativesConfig | undefined>;
   onOutcome: OutcomeRef;
+  chrome: WalletStepChrome;
+  layer: AnchoredSurfaceLayer;
+  stepEvents: StepEventsRef;
 };
 
 type ExternalAuthEvidenceRecord = {
@@ -68,6 +75,8 @@ type HostedAuthMenuEffectConfig = {
   readonly footerBrand: HostedSeamsAuthMenuProps['footerBrand'];
   readonly enabledExternalProviders: readonly HostedAuthMenuExternalProvider[];
   readonly walletAlternatives: WalletAlternativesConfig | undefined;
+  readonly chrome: WalletStepChrome;
+  readonly layer: AnchoredSurfaceLayer;
 };
 
 let sessionCounter = 0;
@@ -189,6 +198,7 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
       footerBrand: config.footerBrand,
       enabledExternalProviders: config.enabledExternalProviders,
       walletAlternatives: describeWalletAlternatives(config.walletAlternatives),
+      chrome: config.chrome,
     });
     return JSON.stringify({
       initialMode: normalized.initialMode,
@@ -202,10 +212,25 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
       enabledExternalProviders: normalized.enabledExternalProviders,
       walletAlternatives: normalized.walletAlternatives,
       walletControllers: walletAlternativesControllerKey(config.walletAlternatives),
+      chrome: normalized.chrome,
+      layer: config.layer,
     });
   } catch {
     return 'invalid';
   }
+}
+
+/** The step events of one session. Each one reads the newest prop, so a re-render keeps it. */
+function stepForEvents(layer: AnchoredSurfaceLayer, events: StepEventsRef): AnchoredSurfaceStep {
+  return {
+    layer,
+    onEnter: (size) => events.current.onEnter?.(size),
+    onReady: () => events.current.onReady?.(),
+    onResize: (size) => events.current.onResize?.(size),
+    onExit: (exit) => events.current.onExit?.(exit),
+    onBack: () => events.current.onBack?.(),
+    onClose: () => events.current.onClose?.(),
+  };
 }
 
 class HostedAuthMenuSessionController {
@@ -224,6 +249,8 @@ class HostedAuthMenuSessionController {
   private readonly walletAlternatives: React.MutableRefObject<WalletAlternativesConfig | undefined>;
   private readonly walletBroker: WalletAlternativesBroker;
   private readonly onOutcome: OutcomeRef;
+  private readonly chrome: WalletStepChrome;
+  private readonly step: AnchoredSurfaceStep;
   private readonly externalAuthRequestIds = new Set<HostedAuthMenuExternalAuthRequestId>();
   private readonly handleExternalAuthRequestBound: (
     request: HostedAuthMenuExternalAuthRequest,
@@ -254,6 +281,8 @@ class HostedAuthMenuSessionController {
       args.walletAlternatives,
     );
     this.onOutcome = args.onOutcome;
+    this.chrome = args.chrome;
+    this.step = stepForEvents(args.layer, args.stepEvents);
     this.handleExternalAuthRequestBound = this.handleExternalAuthRequest.bind(this);
   }
 
@@ -261,7 +290,7 @@ class HostedAuthMenuSessionController {
     if (this.isActive) return;
     this.isActive = true;
     this.walletBroker.start();
-    resetHostedAuthMenuAnchor(this.anchorElement);
+    resetAnchoredSurfaceAnchor(this.anchorElement);
     this.unsubscribeExternalAuthRequest = this.seams.authMenu.onExternalAuthRequest(
       this.handleExternalAuthRequestBound,
     );
@@ -302,6 +331,7 @@ class HostedAuthMenuSessionController {
         footerBrand: this.footerBrand,
         enabledExternalProviders: this.externalAuthBroker.current ? ['google'] : [],
         walletAlternatives: describeWalletAlternatives(this.walletAlternatives.current),
+        chrome: this.chrome,
       });
     } catch (error: unknown) {
       this.emitFailure(failureCodeForError(error), errorMessage(error));
@@ -310,7 +340,7 @@ class HostedAuthMenuSessionController {
 
     try {
       this.hasOpenRequest = true;
-      const outcome = await this.seams.authMenu.open(request, this.anchorElement);
+      const outcome = await this.seams.authMenu.open(request, this.anchorElement, this.step);
       if (outcome.authMenuSessionId !== this.authMenuSessionId) {
         if (!this.isActive) return;
         this.emitFailure(
@@ -385,7 +415,7 @@ class HostedAuthMenuSessionController {
   private emitOutcome(outcome: HostedAuthMenuOutcome): void {
     if (this.hasTerminalOutcome) return;
     this.hasTerminalOutcome = true;
-    endHostedAuthMenuAnchor(this.anchorElement);
+    endAnchoredSurfaceAnchor(this.anchorElement);
     try {
       if (outcome.kind === 'wallet_connected') this.walletBroker.complete(outcome.alternativeId);
     } catch {
@@ -475,6 +505,14 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   footerBrand,
   externalAuthBroker = null,
   walletAlternatives,
+  chrome = 'none',
+  layer = 'page',
+  onEnter,
+  onReady,
+  onResize,
+  onExit,
+  onBack,
+  onClose,
   onOutcome,
 }) => {
   const { seams, isLoggedIn } = useOptionalSeams();
@@ -491,7 +529,11 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     footerBrand,
     enabledExternalProviders: externalProvidersForBroker(externalAuthBroker),
     walletAlternatives,
+    chrome,
+    layer,
   });
+  const stepEventsRef = React.useRef<WalletStepEvents>({});
+  stepEventsRef.current = { onEnter, onReady, onResize, onExit, onBack, onClose };
   const externalAuthBrokerRef = React.useRef<HostedAuthMenuExternalAuthBroker | null>(
     externalAuthBroker,
   );
@@ -512,6 +554,8 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     footerBrand,
     enabledExternalProviders: externalProvidersForBroker(externalAuthBroker),
     walletAlternatives,
+    chrome,
+    layer,
   };
   externalAuthBrokerRef.current = externalAuthBroker;
   onOutcomeRef.current = onOutcome;
@@ -547,6 +591,9 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
       externalAuthBroker: externalAuthBrokerRef,
       walletAlternatives: walletAlternativesRef,
       onOutcome: forwardedOutcomeRef,
+      chrome: config.chrome,
+      layer: config.layer,
+      stepEvents: stepEventsRef,
     });
     session.start();
     return session.cleanup.bind(session);
@@ -564,7 +611,9 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
         width: 'min(100%, 420px)',
         // The wallet host measures the menu and publishes its height back onto
         // this element, so the anchor reserves the space the menu paints over.
-        minHeight: `var(--seams-auth-menu-height, ${initialHeightCssPx ?? 450}px)`,
+        // A step in the app's dialog reserves nothing before onEnter: the app's
+        // own step stays until the card has its size.
+        minHeight: `var(--seams-auth-menu-height, ${initialHeightCssPx ?? (layer === 'top' ? 0 : 450)}px)`,
         position: 'relative',
         boxSizing: 'border-box',
         margin: 0,
@@ -572,7 +621,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
         border: 0,
       }}
     >
-      {!terminalGate?.completed && (
+      {!terminalGate?.completed && (placeholder !== undefined || layer === 'page') && (
         <span
           style={{
             position: 'absolute',

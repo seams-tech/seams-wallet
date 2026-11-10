@@ -102,6 +102,7 @@ class PreviewSession {
       geometry,
       focusTrap: true,
       identity: this.identity,
+      anchoredLayer: null,
     });
   };
 

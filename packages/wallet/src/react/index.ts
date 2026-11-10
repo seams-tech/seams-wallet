@@ -322,6 +322,14 @@ export type {
   ReviewedTransactionInput,
 } from './transactionReview/contract';
 
+export type {
+  WalletStepChrome,
+  WalletStepEvents,
+  WalletStepExit,
+  WalletStepSize,
+} from '../SeamsWeb/walletIframe/shared/walletStep';
+export type { AnchoredSurfaceLayer } from '../SeamsWeb/walletIframe/client/anchoredSurface';
+
 export type { AccountMenuButtonMockProps } from './components/AccountMenuButton';
 
 export { useOwnerNearOperation } from './hooks/useOwnerNearOperation';

@@ -55,3 +55,23 @@ const domProps: HostedSeamsAuthMenuProps = {
   style: {},
 };
 void domProps;
+
+const stepProps: HostedSeamsAuthMenuProps = {
+  onOutcome,
+  chrome: 'back',
+  layer: 'top',
+  onEnter: ({ width, height }) => void (width + height),
+  onReady: () => undefined,
+  onResize: ({ height }) => void height,
+  onExit: (exit) => void exit.kind,
+  onBack: () => undefined,
+  onClose: () => undefined,
+};
+void stepProps;
+
+const approveChromeProps: HostedSeamsAuthMenuProps = {
+  onOutcome,
+  // @ts-expect-error The SDK draws only Back or Close in the card, never an approve control.
+  chrome: 'approve',
+};
+void approveChromeProps;

@@ -7,6 +7,7 @@ import {
   type WalletIframeSurfaceGeometry,
 } from '../surface/geometry';
 import type { WalletIframeSurfaceRenderMode } from '../surface/renderer';
+import { ANCHORED_SURFACE_FADE_MS } from '../anchoredSurface';
 import {
   clearDialogGeometry,
   setTransactionReviewAppearance,
@@ -14,7 +15,7 @@ import {
   ensureOverlayDialog,
   OverlayStyleClasses,
   setDialogGeometry,
-  setDialogAuthMenu,
+  setDialogAnchored,
   setDialogPresentation,
   setHidden,
   setVisible,
@@ -235,6 +236,7 @@ export class OverlayController {
   private surfaceResizeAnimation: Animation | null = null;
   private surfaceResizeTimer: ReturnType<typeof setTimeout> | null = null;
   private reviewReveal: TransactionReviewReveal | null = null;
+  private anchoredFade: Animation | null = null;
 
   constructor(opts: OverlayControllerOptions) {
     this.ensureIframe = opts.ensureIframe;
@@ -337,7 +339,10 @@ export class OverlayController {
       !identityChanged &&
       this.mode.kind === 'compact_request_modal' &&
       mode.kind === 'compact_transaction_review';
+    this.cancelAnchoredFade();
     const authMenu = mode.kind === 'compact_auth_menu';
+    // A card over an app element: the app owns the motion, so size changes apply at once.
+    const anchored = mode.anchoredLayer !== null;
     const previousGeometryKind = this.lastAppliedGeometry
       ? geometryKind(this.lastAppliedGeometry)
       : null;
@@ -350,9 +355,9 @@ export class OverlayController {
       !this.lastAppliedGeometry ||
       !walletIframeSurfaceGeometryEqual(this.lastAppliedGeometry, mode.geometry);
     const authMenuScaleChanged =
-      authMenu && Math.abs(this.lastAppliedAuthMenuVisualScale - this.authMenuVisualScale) > 0.001;
+      anchored && Math.abs(this.lastAppliedAuthMenuVisualScale - this.authMenuVisualScale) > 0.001;
     const animateAuthMenuResize =
-      authMenu &&
+      anchored &&
       !identityChanged &&
       geometryChanged &&
       this.lastAppliedGeometry !== null &&
@@ -360,6 +365,7 @@ export class OverlayController {
       geometryKind(mode.geometry) !== 'provisional';
     const requestResizeOrigin =
       (mode.kind === 'compact_request_modal' || mode.kind === 'compact_transaction_review') &&
+      !anchored &&
       !identityChanged &&
       geometryChanged &&
       previousGeometryKind === 'measured' &&
@@ -378,7 +384,11 @@ export class OverlayController {
 
     setVisible(iframe);
     setDialogPresentation(dialog, presentationKind(mode), geometryKind(mode.geometry));
-    setDialogAuthMenu(dialog, authMenu, animateAuthMenuResize);
+    setDialogAnchored(dialog, {
+      authMenu,
+      layer: mode.anchoredLayer,
+      animateResize: animateAuthMenuResize,
+    });
     if (geometryChanged || authMenuScaleChanged) {
       if (geometryChanged) this.cancelSurfaceResize();
       // Keep the iframe at the origin while the destination is written and
@@ -389,9 +399,9 @@ export class OverlayController {
           heightCssPx: requestResizeOrigin.height,
         });
       }
-      setDialogGeometry(dialog, mode.geometry, authMenu ? this.authMenuVisualScale : 1);
+      setDialogGeometry(dialog, mode.geometry, anchored ? this.authMenuVisualScale : 1);
       this.lastAppliedGeometry = mode.geometry;
-      this.lastAppliedAuthMenuVisualScale = authMenu ? this.authMenuVisualScale : 1;
+      this.lastAppliedAuthMenuVisualScale = anchored ? this.authMenuVisualScale : 1;
       requestResizeDestination = requestResizeOrigin
         ? finiteSurfaceRect(dialog.getBoundingClientRect())
         : null;
@@ -432,8 +442,11 @@ export class OverlayController {
     dialog.setAttribute('aria-label', mode.presentation.title);
     dialog.classList.remove(OverlayStyleClasses.HIDDEN);
 
-    if (revealMeasuredRequestModal) {
+    if (revealMeasuredRequestModal && !anchored) {
       this.scheduleMeasuredReveal();
+    }
+    if (anchored && previousGeometryKind === 'provisional' && nextGeometryKind !== 'provisional') {
+      this.fadeAnchored(dialog, 'in');
     }
     this.syncDialogInteractivity();
   }
@@ -447,7 +460,9 @@ export class OverlayController {
     if (!dialog.open || (!preparing && dialog.inert)) this.captureFocusForDialog();
     dialog.inert = preparing;
     dialog.setAttribute('aria-hidden', String(preparing));
-    const modal = !preparing && mode.kind !== 'compact_auth_menu' && mode.focusTrap;
+    // A top-layer card is modal: it paints above all app content, and the page is inert.
+    const modal =
+      !preparing && (mode.anchoredLayer ? mode.anchoredLayer === 'top' : mode.focusTrap);
     dialog.setAttribute('aria-modal', String(modal));
     const displayMode = modal ? 'modal' : 'nonmodal';
     if (dialog.open && this.dialogDisplayMode !== displayMode) {
@@ -669,9 +684,17 @@ export class OverlayController {
 
   private hideOverlay(): void {
     const wasVisible = this.visible;
+    // An anchored card that was on screen fades out before the dialog hides.
+    const fadeOut =
+      wasVisible &&
+      this.mode.kind !== 'hidden' &&
+      this.mode.anchoredLayer !== null &&
+      this.lastAppliedGeometry !== null &&
+      geometryKind(this.lastAppliedGeometry) !== 'provisional';
     this.cancelReviewHandoff();
     this.cancelPendingReveal();
     this.cancelSurfaceResize();
+    this.cancelAnchoredFade();
     this.generation += 1;
     this.pointerCapture = null;
     this.mode = { kind: 'hidden' };
@@ -683,6 +706,15 @@ export class OverlayController {
     if (!this.dialog) {
       return;
     }
+    if (fadeOut && this.fadeAnchored(this.dialog, 'out')) {
+      this.dialog.inert = true;
+      return;
+    }
+    this.hideDialog(wasVisible);
+  }
+
+  private hideDialog(wasVisible: boolean): void {
+    if (!this.dialog) return;
     if (this.reviewSlot) {
       this.reviewSlot.hidden = true;
       this.reviewSlot.inert = true;
@@ -705,6 +737,42 @@ export class OverlayController {
     if (wasVisible) {
       this.restoreCapturedFocus();
     }
+  }
+
+  /** Fades an anchored card in or out. Returns false when no fade runs. */
+  private fadeAnchored(dialog: HTMLDialogElement, direction: 'in' | 'out'): boolean {
+    this.cancelAnchoredFade();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+    const fade = dialog.animate(
+      direction === 'in' ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }],
+      {
+        duration: ANCHORED_SURFACE_FADE_MS,
+        easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)',
+        fill: direction === 'out' ? 'forwards' : 'none',
+      },
+    );
+    this.anchoredFade = fade;
+    if (direction === 'out') {
+      fade.addEventListener('finish', this.handleAnchoredFadeOut, { once: true });
+    }
+    return true;
+  }
+
+  private readonly handleAnchoredFadeOut = (event: Event): void => {
+    if (event.currentTarget !== this.anchoredFade) return;
+    this.anchoredFade = null;
+    (event.currentTarget as Animation).cancel();
+    if (this.dialog) this.dialog.inert = false;
+    this.hideDialog(true);
+  };
+
+  /** A new card stops the fade: the dialog is shown again at once. */
+  private cancelAnchoredFade(): void {
+    const fade = this.anchoredFade;
+    if (!fade) return;
+    this.anchoredFade = null;
+    fade.removeEventListener('finish', this.handleAnchoredFadeOut);
+    fade.cancel();
   }
 
   private captureFocusForDialog(): void {
@@ -740,6 +808,8 @@ export class OverlayController {
   }
 
   private requestDismiss(reason: OverlayDismissReason): void {
+    // A card over an app element ends through its own controls, not a click beside it.
+    if (reason === 'backdrop' && this.mode.kind !== 'hidden' && this.mode.anchoredLayer) return;
     const event = this.activeDismissEvent(reason);
     if (!event || !this.dismissHandler) return;
     void Promise.resolve(this.dismissHandler(event)).catch(ignoreDismissFailure);
@@ -805,6 +875,7 @@ export class OverlayController {
   }
 
   dispose(): void {
+    this.cancelAnchoredFade();
     this.cancelReviewHandoff();
     this.cancelPendingReveal();
     this.cancelSurfaceResize();

@@ -134,7 +134,7 @@ const BASE_CSS = `
   ${DIALOG_SELECTOR}.${CLASS_MODAL}::backdrop {
     background: transparent;
   }
-  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not(.${CLASS_REVEAL_PENDING})::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_INLINE_DIALOG}):not(.${CLASS_REVEAL_PENDING})::backdrop {
     background: rgb(0 0 0 / 0.26);
     animation: seams-wallet-overlay-backdrop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
@@ -170,7 +170,7 @@ const BASE_CSS = `
   /* The iframe clips the child's box shadow at its layout edge. Paint the
      compact modal elevation in the host compositor so it can extend beyond
      that edge without changing the measured hit region. */
-  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_INLINE_DIALOG}):not([data-transaction-review])
     > iframe.${CLASS_IFRAME} {
     filter:
       drop-shadow(0 12px 24px rgb(0 0 0 / 0.22))
@@ -179,14 +179,15 @@ const BASE_CSS = `
   /* A receipt toast is the one request modal opened without a focus trap, so
      it is not :modal. It floats over the live page with no backdrop, and takes
      the quieter card elevation. */
-  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(:modal):not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(:modal):not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_INLINE_DIALOG}):not([data-transaction-review])
     > iframe.${CLASS_IFRAME} {
     filter: ${CARD_ELEVATION};
   }
-  /* The auth-menu card paints no shadow of its own (wallet-ui.css) for the
-     same clipping reason; give it the quieter card elevation here, where the
-     drop-shadow hugs the card's silhouette and may extend past the iframe. */
-  ${DIALOG_SELECTOR}.${CLASS_AUTH_MENU} iframe.${CLASS_IFRAME} {
+  /* An anchored card (the auth menu, or a card in an app's dialog) paints no
+     shadow of its own (wallet-ui.css) for the same clipping reason; give it the
+     quieter card elevation here, where the drop-shadow hugs the card's
+     silhouette and may extend past the iframe. */
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG} iframe.${CLASS_IFRAME} {
     filter: ${CARD_ELEVATION};
   }
   ${DIALOG_SELECTOR}.${CLASS_PROVISIONAL}::backdrop {
@@ -321,7 +322,7 @@ function cssScale(value: number): string {
 }
 
 const drawerGeometryRuleId = (dialogId: string): string => `${dialogId}::drawer`;
-const authMenuGeometryRuleId = (dialogId: string): string => `${dialogId}::auth-menu`;
+const anchoredGeometryRuleId = (dialogId: string): string => `${dialogId}::anchored`;
 const iframeGeometryRuleId = (dialogId: string): string => `${dialogId}::iframe`;
 
 function ensureDialogId(dialog: HTMLDialogElement): string {
@@ -387,17 +388,21 @@ export function setDialogPresentation(
   dialog.classList.remove(CLASS_HIDDEN);
 }
 
-export function setDialogAuthMenu(
+export function setDialogAnchored(
   dialog: HTMLDialogElement,
-  authMenu: boolean,
-  animateResize: boolean,
+  args: {
+    readonly authMenu: boolean;
+    readonly layer: 'page' | 'top' | null;
+    readonly animateResize: boolean;
+  },
 ): void {
   ensureOverlayDialog(dialog);
-  dialog.classList.toggle(CLASS_AUTH_MENU, authMenu);
-  // The auth menu opts out of the overlay chrome entirely: no backdrop, no top
-  // layer, and no z-index escape above host page chrome.
-  dialog.classList.toggle(CLASS_INLINE_DIALOG, authMenu);
-  dialog.classList.toggle(CLASS_RESIZE_ANIMATED, authMenu && animateResize);
+  dialog.classList.toggle(CLASS_AUTH_MENU, args.authMenu);
+  // An anchored card opts out of the overlay chrome: no backdrop, and on the page
+  // layer no top layer and no z-index escape above host page chrome.
+  const anchored = args.layer !== null;
+  dialog.classList.toggle(CLASS_INLINE_DIALOG, anchored);
+  dialog.classList.toggle(CLASS_RESIZE_ANIMATED, anchored && args.animateResize);
 }
 
 type OverlayRect = {
@@ -421,7 +426,7 @@ export function setDialogGeometry(
   const safeLeft = 'var(--seams-wallet-overlay-safe-left, 0px)';
   const width = `min(${cssPx(rect.widthCssPx)},max(1px,calc(100vw - ${safeLeft} - ${safeRight} - ${inset} - ${inset})))`;
   const height = `min(${cssPx(rect.heightCssPx)},max(1px,calc(100dvh - ${safeTop} - ${safeBottom} - ${inset} - ${inset})))`;
-  // An auth-menu rect arrives from the router already in DOCUMENT coordinates
+  // An anchored rect arrives from the router already in DOCUMENT coordinates
   // (the dialog is position:absolute), so it must escape the base rule's
   // viewport-inset clamps on both position AND size. Size matters under
   // browser zoom: the viewport's CSS px shrink while the anchored rect keeps
@@ -451,8 +456,8 @@ export function setDialogGeometry(
     },
   );
   manager.setDynamicDeclarations(
-    authMenuGeometryRuleId(id),
-    `#${id}.${CLASS_DIALOG}.${CLASS_AUTH_MENU}`,
+    anchoredGeometryRuleId(id),
+    `#${id}.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG}`,
     {
       top: signedCssPx(rect.topCssPx),
       left: signedCssPx(rect.leftCssPx),
@@ -470,7 +475,7 @@ export function clearDialogGeometry(dialog: HTMLDialogElement): void {
   const manager = getStyleManager();
   manager.deleteDynamicRule(id);
   manager.deleteDynamicRule(drawerGeometryRuleId(id));
-  manager.deleteDynamicRule(authMenuGeometryRuleId(id));
+  manager.deleteDynamicRule(anchoredGeometryRuleId(id));
   manager.deleteDynamicRule(iframeGeometryRuleId(id));
 }
 

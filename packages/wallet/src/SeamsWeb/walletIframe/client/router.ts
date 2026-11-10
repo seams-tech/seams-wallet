@@ -209,7 +209,6 @@ import {
   type WalletIframeSurfaceEvent,
 } from './surface/domain';
 import {
-  anchorWalletIframeModalGeometry,
   isWalletIframeModalGeometry,
   resolveWalletIframeSurfaceGeometry,
   reviewBoxWalletIframeModalGeometry,
@@ -219,10 +218,15 @@ import {
 } from './surface/geometry';
 import { WalletIframeSurfaceRenderer } from './surface/renderer';
 import {
-  hostedAuthMenuAnchorMetrics,
-  markHostedAuthMenuAnchorReady,
-  publishHostedAuthMenuAnchorHeight,
-} from './authMenuAnchor';
+  AnchoredSurface,
+  type AnchoredSurfaceOptions,
+  type AnchoredSurfaceStep,
+} from './anchoredSurface';
+import {
+  walletStepExitForDismissal,
+  type WalletStepChrome,
+  type WalletStepExit,
+} from '../shared/walletStep';
 import {
   WalletIframeTransactionSurfaceQueue,
   type WalletIframeTransactionSurfaceDeadline,
@@ -600,6 +604,20 @@ function dispatchHostedAuthMenuError(
       detail: error,
     }),
   );
+}
+
+/** How an auth-menu card ended, for its step events. */
+function authMenuStepExit(outcome: HostedAuthMenuOutcome, chrome: WalletStepChrome): WalletStepExit {
+  switch (outcome.kind) {
+    case 'cancelled':
+      return outcome.reason === 'close_button'
+        ? walletStepExitForDismissal(chrome)
+        : { kind: 'cancelled' };
+    case 'failed':
+      return { kind: 'failed' };
+    default:
+      return { kind: 'completed' };
+  }
 }
 
 const WALLET_IFRAME_PROGRESS_TIMEOUT_EXTENSION_FACTOR = 4;
@@ -1311,10 +1329,7 @@ export class WalletIframeRouter {
     HostedAuthMenuSessionId,
     WalletIframeConnectionId
   >();
-  private readonly hostedAuthMenuAnchors = new Map<HostedAuthMenuSessionId, HTMLElement>();
-  private hostedAuthMenuAnchorTrackingFrame: number | null = null;
-  private hostedAuthMenuAnchorTrackingSession: HostedAuthMenuSessionId | null = null;
-  private hostedAuthMenuAnchorTrackingDeadlineMs = 0;
+  private readonly anchoredSurfaces = new Map<WalletIframeRequestId, AnchoredSurface>();
   private readonly cancelledHostedAuthMenuSessions = new Set<HostedAuthMenuSessionId>();
 
   constructor(options: WalletIframeRouterOptions) {
@@ -1739,11 +1754,11 @@ export class WalletIframeRouter {
       }
       this.updateSurfaceViewportListeners();
       this.renderActiveWalletIframeSurface();
-      if (
-        result.surface.kind === 'modal_auth_menu' &&
-        this.hostedAuthMenuAnchors.has(result.surface.authMenuSessionId)
-      ) {
-        this.startHostedAuthMenuAnchorTracking(result.surface.authMenuSessionId);
+      if (result.surface.kind !== 'hidden') {
+        const anchored = this.anchoredSurfaces.get(result.surface.identity.requestId);
+        // The observer also fires when the anchor leaves the document, so the card ends at once.
+        if (anchored) this.surfaceLayoutObserver?.observe(anchored.anchor);
+        anchored?.start();
       }
     }
     return result;
@@ -1859,21 +1874,21 @@ export class WalletIframeRouter {
       this.surfaceRenderer.render(surface);
       return;
     }
-    // A menu whose anchor left the document has lost the component that closes
+    // A card whose anchor left the document has lost the component that closes
     // it. It ends as unmounted instead of falling back to the viewport centre.
     // The cancel waits one microtask because this render can run inside the
     // open's own dispatch, before its request is pending.
-    const anchor =
-      surface.kind === 'modal_auth_menu'
-        ? this.hostedAuthMenuAnchors.get(surface.authMenuSessionId)
-        : undefined;
-    if (surface.kind === 'modal_auth_menu' && anchor?.isConnected === false) {
+    const anchored = this.anchoredSurfaces.get(surface.identity.requestId);
+    const anchor = anchored?.anchor;
+    if (anchor?.isConnected === false) {
       queueMicrotask(
-        this.cancelHostedAuthMenuWithReason.bind(
-          this,
-          surface.authMenuSessionId,
-          'component_unmounted',
-        ),
+        surface.kind === 'modal_auth_menu'
+          ? this.cancelHostedAuthMenuWithReason.bind(
+              this,
+              surface.authMenuSessionId,
+              'component_unmounted',
+            )
+          : this.cancelRequest.bind(this, surface.identity.requestId),
       );
       return;
     }
@@ -1911,7 +1926,6 @@ export class WalletIframeRouter {
       measurement,
       maxModalWidthCssPx: surface.kind === 'modal_recovery_codes' ? 688 : undefined,
     });
-    let anchorMetrics = hostedAuthMenuAnchorMetrics(anchor);
     let geometry = resolvedGeometry;
     if (surface.kind === 'modal_transaction_review' && isWalletIframeModalGeometry(resolvedGeometry)) {
       this.reviewSurfaceGeometry = resolvedGeometry;
@@ -1930,55 +1944,16 @@ export class WalletIframeRouter {
       );
     }
     let authMenuVisualScale = 1;
-    if (
-      surface.kind === 'modal_auth_menu' &&
-      anchorMetrics &&
-      isWalletIframeModalGeometry(resolvedGeometry)
-    ) {
-      // The anchored menu is inline content, so the visual viewport never
-      // sizes it: browser zoom shrinks the viewport's CSS px, and deriving
-      // height (or taking the small_visual_viewport fallback) from it made the
-      // menu reflow under zoom while the rest of the page just scaled. Height
-      // comes from the child's own measurement.
-      // Before the measurement the dialog covers whatever the anchor reserves
-      // itself: a guessed height would move the app's layout twice.
-      const measuredHeightCssPx = this.activeSurfaceMeasurement?.heightCssPx;
-      const heightCssPx = measuredHeightCssPx ?? anchorMetrics.heightCssPx;
-      const anchoredBase: WalletIframeModalGeometry =
-        resolvedGeometry.kind === 'viewport_fallback'
-          ? {
-              kind: measuredHeightCssPx != null ? 'centered_modal' : 'provisional_centered_modal',
-              widthCssPx: resolvedGeometry.widthCssPx,
-              heightCssPx,
-              topCssPx: resolvedGeometry.topCssPx,
-              leftCssPx: resolvedGeometry.leftCssPx,
-            }
-          : { ...resolvedGeometry, heightCssPx };
-      // The menu paints from a <body>-level dialog, so it reserves no layout
-      // space of its own. Publish its height to the host anchor, which does sit
-      // in the page flow, so following content is pushed down instead of being
-      // covered.
-      //
-      // Reserve BEFORE re-measuring. Hosts commonly centre the block containing
-      // the anchor, so changing the reserved height moves the anchor's top; if
-      // the geometry were derived from the pre-reflow rect, the dialog would
-      // animate its height now and its top on a later tick, reading as two
-      // separate movements instead of one in-place resize. Height does not
-      // depend on the anchor, so this settles in a single pass.
-      if (measuredHeightCssPx != null) {
-        publishHostedAuthMenuAnchorHeight(anchor, measuredHeightCssPx);
-      }
-      anchorMetrics = hostedAuthMenuAnchorMetrics(anchor) ?? anchorMetrics;
-      authMenuVisualScale = anchorMetrics.visualScale;
-      geometry = anchorWalletIframeModalGeometry(anchoredBase, {
-        topCssPx: anchorMetrics.topCssPx,
-        leftCssPx: anchorMetrics.leftCssPx,
-        widthCssPx: anchorMetrics.layoutWidthCssPx,
-        heightCssPx: anchorMetrics.heightCssPx,
-      });
+    const placed =
+      anchored && isWalletIframeModalGeometry(resolvedGeometry)
+        ? anchored.place(resolvedGeometry)
+        : null;
+    if (placed) {
+      geometry = placed.geometry;
+      authMenuVisualScale = placed.visualScale;
     }
-    if (surface.kind === 'modal_auth_menu' && isWalletIframeModalGeometry(geometry)) {
-      // The auth-menu dialog is position:absolute, so hand it DOCUMENT
+    if ((anchored || surface.kind === 'modal_auth_menu') && isWalletIframeModalGeometry(geometry)) {
+      // An anchored dialog is position:absolute, so hand it DOCUMENT
       // coordinates. Scrolling then moves it with the page on the compositor
       // thread (no fixed-position lag), and because anchor viewport movement
       // and the scroll offset cancel out, scroll events re-derive identical
@@ -2001,47 +1976,13 @@ export class WalletIframeRouter {
         topCssPx: viewport.offsetTopCssPx + viewport.heightCssPx - height - 16,
       };
     }
-    this.surfaceRenderer.render(surface, geometry, receiptView);
-    if (surface.kind === 'modal_auth_menu' && geometry.kind !== 'provisional_centered_modal') {
-      markHostedAuthMenuAnchorReady(anchor);
-    }
-  }
-
-  private startHostedAuthMenuAnchorTracking(authMenuSessionId: HostedAuthMenuSessionId): void {
-    // The observer also fires when the anchor leaves the document, so the menu ends at once.
-    const anchor = this.hostedAuthMenuAnchors.get(authMenuSessionId);
-    if (anchor) this.surfaceLayoutObserver?.observe(anchor);
-    if (this.hostedAuthMenuAnchorTrackingFrame !== null) {
-      cancelAnimationFrame(this.hostedAuthMenuAnchorTrackingFrame);
-    }
-    this.hostedAuthMenuAnchorTrackingSession = authMenuSessionId;
-    this.hostedAuthMenuAnchorTrackingDeadlineMs = performance.now() + 750;
-    this.hostedAuthMenuAnchorTrackingFrame = requestAnimationFrame(
-      this.updateHostedAuthMenuAnchorPosition,
+    this.surfaceRenderer.render(
+      surface,
+      geometry,
+      receiptView,
+      anchored?.options.layer ?? (surface.kind === 'modal_auth_menu' ? 'page' : null),
     );
-  }
-
-  private readonly updateHostedAuthMenuAnchorPosition = (timestampMs: number): void => {
-    this.hostedAuthMenuAnchorTrackingFrame = null;
-    const authMenuSessionId = this.hostedAuthMenuAnchorTrackingSession;
-    if (!authMenuSessionId) return;
-    const surface = this.walletIframeSurface;
-    if (surface.kind === 'modal_auth_menu' && surface.authMenuSessionId === authMenuSessionId) {
-      this.renderActiveWalletIframeSurface();
-    }
-    if (timestampMs >= this.hostedAuthMenuAnchorTrackingDeadlineMs) return;
-    this.hostedAuthMenuAnchorTrackingFrame = requestAnimationFrame(
-      this.updateHostedAuthMenuAnchorPosition,
-    );
-  };
-
-  private stopHostedAuthMenuAnchorTracking(authMenuSessionId: HostedAuthMenuSessionId): void {
-    if (this.hostedAuthMenuAnchorTrackingSession !== authMenuSessionId) return;
-    this.hostedAuthMenuAnchorTrackingSession = null;
-    if (this.hostedAuthMenuAnchorTrackingFrame !== null) {
-      cancelAnimationFrame(this.hostedAuthMenuAnchorTrackingFrame);
-      this.hostedAuthMenuAnchorTrackingFrame = null;
-    }
+    anchored?.painted();
   }
 
   private handleSurfaceMeasurement(value: unknown): void {
@@ -2076,6 +2017,9 @@ export class WalletIframeRouter {
     }
     this.activeSurfaceMeasurement = trusted;
     this.activeSurfaceMeasurementGeneration = this.surfaceGeneration;
+    this.anchoredSurfaces
+      .get(measurement.requestId)
+      ?.measured({ width: trusted.widthCssPx, height: trusted.heightCssPx });
     const review = this.reviews.get(measurement.requestId);
     if (review) this.maybeActivateReview(review.reservation);
     this.renderActiveWalletIframeSurface();
@@ -4234,6 +4178,7 @@ export class WalletIframeRouter {
   async openHostedAuthMenu(
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,
+    step?: AnchoredSurfaceStep,
   ): Promise<HostedAuthMenuOutcome> {
     const normalized = parseHostedAuthMenuOpenRequest(request);
     if (!normalized) throw new Error('Hosted auth-menu open request is invalid');
@@ -4243,7 +4188,16 @@ export class WalletIframeRouter {
     // Recorded before the first await: a cancel during configuration must find it.
     const requestId = this.allocateRequestId();
     this.hostedAuthMenuRequestIds.set(normalized.authMenuSessionId, requestId);
-    if (anchorElement) this.hostedAuthMenuAnchors.set(normalized.authMenuSessionId, anchorElement);
+    const chrome = normalized.chrome ?? 'none';
+    const anchored = anchorElement
+      ? this.registerAnchoredSurface(requestId, {
+          ...step,
+          anchor: anchorElement,
+          layer: step?.layer ?? 'page',
+          chrome,
+        })
+      : null;
+    let exit: WalletStepExit = { kind: 'cancelled' };
     try {
       await this.ensureConfigured();
       const responsePromise = this.post<unknown>(
@@ -4263,13 +4217,47 @@ export class WalletIframeRouter {
       if (!outcome || outcome.authMenuSessionId !== normalized.authMenuSessionId) {
         throw new Error('Hosted auth-menu returned an invalid terminal outcome');
       }
+      exit = authMenuStepExit(outcome, chrome);
       return outcome;
+    } catch (error) {
+      if (!this.cancelledHostedAuthMenuSessions.has(normalized.authMenuSessionId)) {
+        exit = { kind: 'failed' };
+      }
+      throw error;
     } finally {
-      this.stopHostedAuthMenuAnchorTracking(normalized.authMenuSessionId);
+      if (anchored) this.finishAnchoredSurface(requestId, anchored, exit);
       this.hostedAuthMenuRequestIds.delete(normalized.authMenuSessionId);
       this.hostedAuthMenuConnectionIds.delete(normalized.authMenuSessionId);
-      this.hostedAuthMenuAnchors.delete(normalized.authMenuSessionId);
       this.cancelledHostedAuthMenuSessions.delete(normalized.authMenuSessionId);
+    }
+  }
+
+  /** Places the request's card over an app element until the request ends. */
+  private registerAnchoredSurface(
+    requestId: WalletIframeRequestId,
+    options: AnchoredSurfaceOptions,
+  ): AnchoredSurface {
+    const anchored = new AnchoredSurface(
+      options,
+      this.renderAnchoredSurface.bind(this, requestId),
+    );
+    this.anchoredSurfaces.set(requestId, anchored);
+    return anchored;
+  }
+
+  private finishAnchoredSurface(
+    requestId: WalletIframeRequestId,
+    anchored: AnchoredSurface,
+    exit: WalletStepExit,
+  ): void {
+    if (this.anchoredSurfaces.get(requestId) === anchored) this.anchoredSurfaces.delete(requestId);
+    anchored.finish(exit);
+  }
+
+  private renderAnchoredSurface(requestId: WalletIframeRequestId): void {
+    const surface = this.walletIframeSurface;
+    if (surface.kind !== 'hidden' && surface.identity.requestId === requestId) {
+      this.renderActiveWalletIframeSurface();
     }
   }
 
@@ -4407,7 +4395,9 @@ export class WalletIframeRouter {
       const payload = parseHostedAuthMenuErrorEvent(msg.payload);
       if (!payload) return;
       const activeRequestId = this.hostedAuthMenuRequestIds.get(payload.authMenuSessionId);
-      const anchorElement = this.hostedAuthMenuAnchors.get(payload.authMenuSessionId);
+      const anchorElement = activeRequestId
+        ? this.anchoredSurfaces.get(activeRequestId)?.anchor
+        : undefined;
       if (
         !activeRequestId ||
         !anchorElement ||

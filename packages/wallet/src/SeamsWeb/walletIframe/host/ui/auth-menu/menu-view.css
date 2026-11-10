@@ -378,3 +378,38 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Back or Close for a menu that is a step of an app's dialog. It sits in the origin row and
+   keeps the row's height, so the card has the same size with or without it. */
+:where(.seams-auth-menu-surface) .seams-menu-chrome {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+  margin-block: -0.4375rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--seams-colors-textSecondary);
+  cursor: pointer;
+}
+:where(.seams-auth-menu-surface) .seams-menu-chrome.is-back {
+  margin-inline-start: -0.5rem;
+}
+:where(.seams-auth-menu-surface) .seams-menu-chrome.is-close {
+  margin-inline: auto -0.5rem;
+}
+:where(.seams-auth-menu-surface) .seams-menu-chrome[hidden] {
+  display: none;
+}
+:where(.seams-auth-menu-surface) .seams-menu-chrome:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-menu-chrome:focus-visible {
+  background: var(--seams-colors-surface);
+  color: var(--seams-colors-textPrimary);
+}
+:where(.seams-auth-menu-surface) .seams-menu-chrome:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

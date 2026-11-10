@@ -1,3 +1,4 @@
+import type { AnchoredSurfaceStep } from './client/anchoredSurface';
 import type {
   WalletConnectionRequest,
   WalletConnectionResolutionInput,
@@ -333,6 +334,7 @@ export class WalletIframeCoordinator {
   async openHostedAuthMenu(
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,
+    step?: AnchoredSurfaceStep,
   ): Promise<HostedAuthMenuOutcome> {
     const normalized = parseHostedAuthMenuOpenRequest(request);
     if (!normalized) throw new Error('Hosted auth-menu open request is invalid');
@@ -352,7 +354,7 @@ export class WalletIframeCoordinator {
     this.hostedAuthMenuOpensBeforeRouter.delete(authMenuSessionId);
     if (state === 'cancelled') throw new Error('Hosted auth-menu cancelled: component_unmounted');
     // The router records the session before its first await, so a later cancel finds it there.
-    return await router.openHostedAuthMenu(normalized, anchorElement);
+    return await router.openHostedAuthMenu(normalized, anchorElement, step);
   }
 
   async cancelHostedAuthMenu(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void> {
