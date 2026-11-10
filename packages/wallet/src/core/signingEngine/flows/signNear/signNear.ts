@@ -217,6 +217,8 @@ type SignNep413MessagePayload = {
   title?: string;
   body?: string;
   confirmationConfigOverride?: Partial<ConfirmationConfig>;
+  /** Only a Speak-to-Sign message carries a verdict, for the co-signer to check. */
+  voiceVerdict?: NearTransactionWithActionsPayload['voiceVerdict'];
 };
 
 type SignNep413MessageResult =
@@ -1934,6 +1936,7 @@ async function runPreparedNearNep413Signing(args: {
         body: args.input.body,
         confirmationConfigOverride: args.input.confirmationConfigOverride,
         operationId: args.operationId,
+        voiceVerdict: args.input.voiceVerdict,
       },
     },
   })) as unknown as SignNep413MessageResult;

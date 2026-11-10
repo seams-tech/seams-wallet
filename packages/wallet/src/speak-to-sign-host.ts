@@ -4,9 +4,12 @@ export {
   type SpeakToSignEnrollmentRecording,
   type SpeakToSignEnrollmentResult,
   type SpeakToSignHostEnrollment,
+  type SpeakToSignHostMessage,
   type SpeakToSignHostNote,
   type SpeakToSignHostOperations,
   type SpeakToSignHostPlugin,
+  type SpeakToSignMessageResult,
+  type SpeakToSignMessageSigning,
   type SpeakToSignNoteResult,
   type SpeakToSignPayment,
   type SpeakToSignPaymentHooks,
@@ -14,6 +17,11 @@ export {
   type SpeakToSignTransferResult,
 } from './core/transactionFeatures/hostPlugin';
 export { type VerifierRefusal } from './core/transactionFeatures/voiceVerdict';
+export {
+  messageActionRefusal,
+  messageVerifyRequest,
+  renderMessage,
+} from './core/transactionFeatures/spokenMessage';
 export {
   noteActionRefusal,
   noteVerifyRequest,

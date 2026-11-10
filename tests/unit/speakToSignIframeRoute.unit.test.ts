@@ -27,6 +27,7 @@ import type { ChildToParentEnvelope, ParentToChildEnvelope } from '@/SeamsWeb/wa
 import {
   parseSpeakToSignEnrollmentResult,
   parseSpeakToSignEnrollPayload,
+  parseSpeakToSignMessageResult,
   parseSpeakToSignNotePayload,
   parseSpeakToSignNoteResult,
   parseSpeakToSignProgressV1,
@@ -285,6 +286,9 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     },
     async requestNoteAction() {
       throw new Error('This route test runs no note.');
+    },
+    async requestMessage() {
+      throw new Error('This route test runs no message.');
     },
     async enroll(input) {
       enrollCalls.push(input);
@@ -795,5 +799,78 @@ test('the transaction message carries the receiver, checked actions and the summ
       request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload },
       options: { timeout: 'interactive' },
     },
+  ]);
+});
+
+test('the message request carries the NEP-413 fields and the summary, and its result is exact', async () => {
+  const payload = {
+    walletId: WALLET_ID,
+    action: {
+      kind: 'signed_message',
+      message: 'Log in to example.app',
+      recipient: 'example.app',
+      state: 'login-1',
+      summary: 'Log in to the example app',
+    },
+  } as const;
+  expect(parseSpeakToSignNotePayload(structuredClone(payload))).toEqual(payload);
+  for (const bad of [
+    { ...payload, action: { ...payload.action, nonce: 'AAAA' } },
+    { ...payload, action: { ...payload.action, message: '' } },
+    { ...payload, action: { ...payload.action, recipient: 7 } },
+    { ...payload, action: { ...payload.action, callbackUrl: '' } },
+    { ...payload, action: { ...payload.action, state: 1 } },
+    { ...payload, action: { ...payload.action, summary: undefined } },
+  ]) {
+    expect(() => parseSpeakToSignNotePayload(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign note request is invalid.',
+    );
+  }
+
+  const signed = {
+    kind: 'signed',
+    accountId: 'owner.testnet',
+    publicKey: 'ed25519:owner',
+    signature: 'c2lnbmF0dXJl',
+    nonce: 'bm9uY2U=',
+    state: 'login-1',
+    approval: 'voice',
+    times: SENT.times,
+  } as const;
+  expect(parseSpeakToSignMessageResult({ ...signed })).toEqual(signed);
+  const { state: _state, ...withoutState } = signed;
+  expect(parseSpeakToSignMessageResult({ ...withoutState })).toEqual(withoutState);
+  expect(parseSpeakToSignMessageResult({ kind: 'refused', reason: 'message_not_valid' })).toEqual({
+    kind: 'refused',
+    reason: 'message_not_valid',
+  });
+  for (const bad of [
+    { ...signed, transactionHash: 'tx' },
+    { ...signed, signature: '' },
+    { ...signed, approval: 'click' },
+    { kind: 'refused', reason: 'transaction_failed' },
+    SENT,
+  ]) {
+    expect(() => parseSpeakToSignMessageResult(bad), JSON.stringify(bad)).toThrow(
+      'Speak-to-Sign message result is invalid.',
+    );
+  }
+
+  const posted: unknown[] = [];
+  const commands = createIframeSpeakToSignCommands(async (request, options) => {
+    posted.push({ request, options });
+    return { result: signed };
+  });
+  expect(
+    await commands.requestMessage({
+      walletId: WALLET_ID,
+      message: 'Log in to example.app',
+      recipient: 'example.app',
+      state: 'login-1',
+      summary: 'Log in to the example app',
+    }),
+  ).toEqual(signed);
+  expect(posted).toEqual([
+    { request: { type: 'PM_SPEAK_TO_SIGN_NOTE', payload }, options: { timeout: 'interactive' } },
   ]);
 });

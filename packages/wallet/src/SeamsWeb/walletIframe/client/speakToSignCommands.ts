@@ -2,6 +2,8 @@ import type {
   SpeakToSignBetRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignMessageRequest,
+  SpeakToSignMessageResult,
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
   SpeakToSignProgress,
@@ -20,6 +22,7 @@ import type { ProgressPayload } from '../shared/messages';
 import {
   parseSpeakToSignEnrollmentResult,
   parseSpeakToSignEnrollPayload,
+  parseSpeakToSignMessageResult,
   parseSpeakToSignNotePayload,
   parseSpeakToSignNoteResult,
   parseSpeakToSignTransferPayload,
@@ -92,6 +95,9 @@ export type SpeakToSignCommands = Readonly<{
   requestTransaction(
     request: WithPresentation<SpeakToSignTransactionRequest>,
   ): Promise<SpeakToSignNoteResult>;
+  requestMessage(
+    request: WithPresentation<SpeakToSignMessageRequest>,
+  ): Promise<SpeakToSignMessageResult>;
   enroll: SpeakToSignEnrollCommand;
 }>;
 
@@ -111,6 +117,7 @@ export function createIframeSpeakToSignCommands(post: SpeakToSignPost): SpeakToS
     requestMergeApproval: requestMergeApprovalFromHost.bind(null, post),
     requestBet: requestBetFromHost.bind(null, post),
     requestTransaction: requestTransactionFromHost.bind(null, post),
+    requestMessage: requestMessageFromHost.bind(null, post),
     enroll: enrollFromHost.bind(null, post),
   };
 }
@@ -190,6 +197,33 @@ async function requestTransactionFromHost(
   });
 }
 
+/** A message travels as a note action; its answer is a signature, not a transaction. */
+async function requestMessageFromHost(
+  post: SpeakToSignPost,
+  request: WithPresentation<SpeakToSignMessageRequest>,
+): Promise<SpeakToSignMessageResult> {
+  const payload = parseSpeakToSignNotePayload({
+    walletId: request.walletId,
+    action: {
+      kind: 'signed_message',
+      message: request.message,
+      recipient: request.recipient,
+      ...(request.callbackUrl === undefined ? {} : { callbackUrl: request.callbackUrl }),
+      ...(request.state === undefined ? {} : { state: request.state }),
+      summary: request.summary,
+    },
+  });
+  const response = await post(
+    { type: 'PM_SPEAK_TO_SIGN_NOTE', payload },
+    {
+      timeout: 'interactive',
+      onProgress: progressListener(request.onProgress),
+      ...speakToSignDispatch(request),
+    },
+  );
+  return parseSpeakToSignMessageResult(response.result);
+}
+
 async function postNoteAction(
   post: SpeakToSignPost,
   request: WithPresentation<
@@ -256,6 +290,7 @@ export function createApplicationSpeakToSignCommands(
     requestMergeApproval: requestMergeApprovalFromIframe.bind(null, iframe),
     requestBet: requestBetFromIframe.bind(null, iframe),
     requestTransaction: requestTransactionFromIframe.bind(null, iframe),
+    requestMessage: requestMessageFromIframe.bind(null, iframe),
     enroll: enrollFromIframe.bind(null, iframe),
   };
 }
@@ -298,6 +333,14 @@ async function requestTransactionFromIframe(
 ): Promise<SpeakToSignNoteResult> {
   const router = await iframe.requireRouter();
   return await router.speakToSign.requestTransaction(request);
+}
+
+async function requestMessageFromIframe(
+  iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
+  request: WithPresentation<SpeakToSignMessageRequest>,
+): Promise<SpeakToSignMessageResult> {
+  const router = await iframe.requireRouter();
+  return await router.speakToSign.requestMessage(request);
 }
 
 async function requestTransferFromIframe(

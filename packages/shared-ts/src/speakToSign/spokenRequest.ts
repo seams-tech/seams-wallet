@@ -185,6 +185,17 @@ export function spokenRequestBorsh(request: SpokenRequest): Uint8Array<ArrayBuff
 }
 
 const ED25519_KEY_TYPE = 0;
+/** 2^31 + 413 as a little-endian `u32`. */
+const NEP413_TAG = [0x9d, 0x01, 0x00, 0x80];
+
+/**
+ * True for the bytes of a NEP-413 message: they start with the NEP-413 tag. The key signs the
+ * SHA-256 of these bytes, and a spoken message binds it. No NEAR transaction starts with the
+ * tag, so a signature for these bytes is never a signature of a transaction.
+ */
+export function isNep413Message(bytes: Uint8Array): boolean {
+  return NEP413_TAG.every((byte, index) => bytes[index] === byte);
+}
 
 /**
  * The Borsh of `Vec<Action>` in an unsigned NEAR transaction (V0, ed25519 key): the bytes after

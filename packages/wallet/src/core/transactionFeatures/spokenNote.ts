@@ -180,7 +180,12 @@ export function renderNoteAction(action: SpokenNoteAction): RenderedTransfer {
     const words = RATING_WORDS[action.rating];
     return { displayText: ['This', ...words.slice(1)].join(' '), spokenText: words.join(' ') };
   }
-  return { displayText: action.summary, spokenText: summaryWords(action.summary).join(' ') };
+  return renderSummary(action.summary);
+}
+
+/** The sentence of a summary: shown as the author wrote it, said in the crate's words. */
+export function renderSummary(summary: string): RenderedTransfer {
+  return { displayText: summary, spokenText: summaryWords(summary).join(' ') };
 }
 
 /** The crate's text step on a summary: lowercase words, aliases, "a hundred", "one and two". */
@@ -313,7 +318,7 @@ export async function noteVerifyRequest(
   };
 }
 
-function hex(bytes: Uint8Array): string {
+export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 

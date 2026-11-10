@@ -3,8 +3,10 @@
 // so the verdict's request digest can only match the transaction that is signed.
 
 import { hasExactKeys } from '@shared/utils/exactKeys';
+import { base64UrlEncode } from '@shared/utils/base64';
 import {
   BET_OUTCOMES,
+  isNep413Message,
   nearTransactionActionsBorsh,
   NOTE_RATINGS,
   SPEAK_TO_SIGN_USDC,
@@ -102,6 +104,23 @@ function readAction(reader: BorshReader): VoiceAction | null {
     default:
       return null;
   }
+}
+
+/**
+ * The spoken request of a NEP-413 message, or null when the bytes are not a NEP-413 message or
+ * their SHA-256 is not the digest that the signers sign. The message does not name its signer,
+ * so the owner is the account of the session.
+ */
+export async function spokenMessageRequest(
+  network: SpeakToSignNetwork,
+  owner: string,
+  message: Readonly<{ canonicalMessage: Uint8Array; expectedDigestB64u: string }>,
+  summary: string,
+): Promise<SpokenRequest | null> {
+  if (!isNep413Message(message.canonicalMessage)) return null;
+  const payloadSha256 = await sha256(new Uint8Array(message.canonicalMessage));
+  if (base64UrlEncode(payloadSha256) !== message.expectedDigestB64u) return null;
+  return { kind: 'signed_message', network, owner, payloadSha256, summary };
 }
 
 /**

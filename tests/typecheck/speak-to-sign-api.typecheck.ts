@@ -73,6 +73,21 @@ if (seams.speakToSign) {
     walletId: 'alice.testnet',
     transaction: { receiverId: 'guest-book.testnet', actions: [] },
   });
+  void seams.speakToSign
+    .requestMessage({
+      walletId: 'alice.testnet',
+      message: 'Log in to example.app',
+      recipient: 'example.app',
+      summary: 'Log in to the example app',
+    })
+    .then((result) => {
+      if (result.kind === 'signed') {
+        const signature: string = result.signature;
+        // @ts-expect-error A signed message is not a transaction.
+        const hash: string = result.transactionHash;
+        void [signature, hash];
+      }
+    });
   // @ts-expect-error The Wallet reads the owner itself; the app cannot name one.
   void seams.speakToSign.enroll({ walletId: 'alice.testnet', owner: 'victim.testnet' });
 }

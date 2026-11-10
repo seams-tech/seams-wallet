@@ -961,6 +961,87 @@ test('a general spoken transaction is admitted for its exact actions, receiver a
   expect(await attempt(tx, { ...verdict, summary })).toEqual(refused('reused'));
 });
 
+test('a spoken NEP-413 message is admitted for its exact bytes and summary only', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const summary = 'Log in to the example app';
+  // The NEP-413 tag, then the Borsh of the message, the nonce, the recipient and no callback.
+  const canonical = concat([
+    Uint8Array.of(0x9d, 0x01, 0x00, 0x80),
+    borshString('Log in to example.app'),
+    new Uint8Array(32).fill(5),
+    borshString('example.app'),
+    Uint8Array.of(0),
+  ]);
+  const digest = await sha256(canonical);
+  const request = (overrides: Partial<SpokenRequest> = {}): SpokenRequest =>
+    ({
+      kind: 'signed_message',
+      network: 'testnet',
+      owner: OWNER,
+      payloadSha256: digest,
+      summary,
+      ...overrides,
+    }) as SpokenRequest;
+  let count = 0;
+  const messageBody = (bytes: Uint8Array, expectedDigest: Uint8Array): Record<string, unknown> => {
+    count += 1;
+    const body = prepareBody(new Uint8Array(0), { requestId: `message-${count}` });
+    return {
+      ...body,
+      intent: {
+        kind: 'nep413_v1',
+        operation_id: 'operation-1',
+        operation_fingerprint: 'fingerprint-1',
+        near_account_id: OWNER,
+        near_network_id: 'testnet',
+        recipient: 'example.app',
+        message: 'Log in to example.app',
+        nonce_b64u: b64u(new Uint8Array(32).fill(5)),
+      },
+      signing_payload: {
+        kind: 'nep413_message_v1',
+        canonical_message_b64u: b64u(bytes),
+        expected_signing_digest_b64u: b64u(expectedDigest),
+      },
+    };
+  };
+  const verdict = await signedVerdict(verifier, request());
+  const attempt = async (voice: unknown, bytes = canonical, expected = digest) =>
+    await cosigner.check(withVerdict(messageBody(bytes, expected), voice));
+
+  // A message always needs its summary beside the verdict.
+  expect(await attempt(verdict)).toEqual(refused('request_mismatch'));
+  expect(await attempt({ ...verdict, summary: 'Log in to another app' })).toEqual(
+    refused('request_mismatch'),
+  );
+  // Other bytes are another message.
+  const other = concat([canonical.subarray(0, canonical.length - 1), Uint8Array.of(1, 0, 0, 0, 0)]);
+  expect(await attempt({ ...verdict, summary }, other, await sha256(new Uint8Array(other)))).toEqual(
+    refused('request_mismatch'),
+  );
+  // The signers sign `expected_signing_digest`: it must be the SHA-256 of the message bytes.
+  expect(await attempt({ ...verdict, summary }, canonical, new Uint8Array(32).fill(1))).toEqual(
+    refused('request_mismatch'),
+  );
+  // Bytes without the NEP-413 tag could be a transaction, so no message verdict signs them.
+  const transactionBytes = unsignedTransaction({
+    receiver: 'alice.testnet',
+    actions: [{ kind: 'transfer', yocto: NEAR }],
+  });
+  const transactionDigest = await sha256(new Uint8Array(transactionBytes));
+  const disguised = await signedVerdict(verifier, request({ payloadSha256: transactionDigest }));
+  expect(
+    await attempt({ ...disguised, summary }, transactionBytes, transactionDigest),
+  ).toEqual(refused('request_mismatch'));
+  // A verdict of another owner's message does not match the session account.
+  const foreign = await signedVerdict(verifier, request({ owner: 'other.testnet' }));
+  expect(await attempt({ ...foreign, summary })).toEqual(refused('request_mismatch'));
+
+  expect(await attempt({ ...verdict, summary })).toEqual(ADMITTED);
+  expect(await attempt({ ...verdict, summary })).toEqual(refused('reused'));
+});
+
 test('a verdict on the second round, or without a configured check, is refused', async () => {
   const verifier = await verifierKey();
   const tx = unsignedTransaction({

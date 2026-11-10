@@ -2,6 +2,8 @@ import type {
   SpeakToSignBetRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignMessageRequest,
+  SpeakToSignMessageResult,
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
   SpeakToSignMergeApprovalRequest,
@@ -84,6 +86,14 @@ export type SpeakToSignCapability = Readonly<{
     request: SpeakToSignCall<SpeakToSignTransactionRequest, SpeakToSignNoteResult>,
   ): Promise<SpeakToSignNoteResult>;
   /**
+   * Signs any NEP-413 message by voice, as `near.signMessage` does with a confirm. The owner
+   * reads the summary aloud, and the verdict binds the exact message, nonce, recipient and
+   * callback URL. The application writes the summary, as for `requestTransaction`.
+   */
+  requestMessage(
+    request: SpeakToSignCall<SpeakToSignMessageRequest, SpeakToSignMessageResult>,
+  ): Promise<SpeakToSignMessageResult>;
+  /**
    * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
    * message that authorizes exactly these recordings, and the verifier stores the template. A
    * new enrollment replaces the template.
@@ -126,6 +136,7 @@ export function createSpeakToSignCapability(
     >;
     requestBet: SpeakToSignCommand<SpeakToSignBetRequest, SpeakToSignNoteResult>;
     requestTransaction: SpeakToSignCommand<SpeakToSignTransactionRequest, SpeakToSignNoteResult>;
+    requestMessage: SpeakToSignCommand<SpeakToSignMessageRequest, SpeakToSignMessageResult>;
     enroll: SpeakToSignCommand<SpeakToSignEnrollmentRequest, SpeakToSignEnrollmentResult>;
   }>,
   owner: WalletModalStepsOwner,
@@ -143,6 +154,7 @@ export function createSpeakToSignCapability(
     requestBet: (request) => withModalSteps(commands.requestBet, owner, CANCELLED, request),
     requestTransaction: (request) =>
       withModalSteps(commands.requestTransaction, owner, CANCELLED, request),
+    requestMessage: (request) => withModalSteps(commands.requestMessage, owner, CANCELLED, request),
     enroll: (request) => withModalSteps(commands.enroll, owner, CANCELLED, request),
   };
 }

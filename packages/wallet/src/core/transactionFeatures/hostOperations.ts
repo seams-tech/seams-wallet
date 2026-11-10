@@ -3,6 +3,7 @@ import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import { transfer } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
 import type { ActionResult } from '@/core/types/seams';
+import type { Variant } from '@shared/utils/variant';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
@@ -23,6 +24,7 @@ import type {
   SpeakToSignEnrollmentAuthorization,
   SpeakToSignEnrollmentRecording,
   SpeakToSignHostOperations,
+  SpeakToSignMessageSigning,
   SpeakToSignPayment,
   SpeakToSignPaymentHooks,
   SpeakToSignProgress,
@@ -30,6 +32,11 @@ import type {
   SpeakToSignVerifyReply,
 } from './hostPlugin';
 import type { SpeakToSignFeaturePlugin } from './plugins';
+import {
+  messageActionRefusal,
+  messageDigests,
+  type SpokenMessageAction,
+} from './spokenMessage';
 import {
   noteActionDigests,
   noteActionRefusal,
@@ -75,6 +82,15 @@ export type SpeakToSignHostOperationsInput = Readonly<{
     onBroadcast: () => void,
     onIncluded: ((transactionHash: string) => void) | null,
   ) => Promise<ActionResult>;
+  /**
+   * The owner's NEP-413 signing path for one voice-approved message, with no confirm. The
+   * signing request carries the verdict and the summary, so the Seams co-signer checks them.
+   */
+  signVoiceApprovedMessage: (
+    action: SpokenMessageAction,
+    verdict: SignedVoiceVerdict,
+    signal: AbortSignal,
+  ) => Promise<SignNEP413MessageResult>;
   /** The owner's NEP-413 signing path, bound to the wallet session and the owner account. */
   signMessage: (
     params: Readonly<{ message: string; recipient: string }>,
@@ -145,6 +161,7 @@ export function createSpeakToSignHostOperations(
     verify: verify.bind(null, input),
     payWithVerdict: payWithVerdict.bind(null, input, state),
     signNoteWithVerdict: signNoteWithVerdict.bind(null, input, state),
+    signMessageWithVerdict: signMessageWithVerdict.bind(null, input, state),
     authorizeEnrollment: authorizeEnrollment.bind(null, input, state),
   };
 }
@@ -333,23 +350,73 @@ async function signNoteWithVerdict(
   );
 }
 
-/**
- * Checks the verdict against the request digests, then signs the transaction once.
- * `transaction` builds it from the checked verdict, because a bet carries the verdict to its
- * contract. `summary` is the spoken summary of a general transaction, which the co-signer
- * needs beside the verdict.
- */
-async function signWithVerdict(
+async function signMessageWithVerdict(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
-  expected: SpokenDigests,
-  transaction: (verdict: SignedVoiceVerdict) => TransactionInput,
-  summary: string | null,
+  action: SpokenMessageAction,
   verifierOutput: unknown,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
-  onIncluded: ((transactionHash: string) => void) | null,
-): Promise<SpeakToSignPayment> {
+): Promise<SpeakToSignMessageSigning> {
+  const refusal = messageActionRefusal(action);
+  if (refusal) return { kind: 'unavailable', detail: refusal };
+  const expected = await messageDigests(input.feature.network, input.ownerAccountId, action);
+  // The message path has no fresh-approval mode, so a verdict that asks for one signs nothing.
+  const approved = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, 'refuse');
+  if (approved.kind !== 'approved') return approved;
+  let signed: SignNEP413MessageResult;
+  try {
+    signed = await input.signVoiceApprovedMessage(
+      action,
+      { ...approved.verdict, summary: action.summary },
+      signal,
+    );
+  } catch (error) {
+    signal.throwIfAborted();
+    signed = { success: false, error: errorDetail(error, 'not signed') };
+  }
+  if (!signed.success) {
+    // Nothing was signed, so another recording of this flow may still sign.
+    state.paid = false;
+    return cosignerRefusal(signed.error) ?? { kind: 'not_signed', error: signed.error };
+  }
+  return {
+    kind: 'signed',
+    approval: approved.approval,
+    accountId: signed.accountId,
+    publicKey: signed.publicKey,
+    signature: signed.signature,
+    nonce: action.nonce,
+    ...(signed.state === undefined ? {} : { state: signed.state }),
+  };
+}
+
+/** A refusal of the Seams co-signer in a signing error, or null for another error. */
+function cosignerRefusal(error: string): Variant<SpeakToSignPayment, 'kind', 'refused'> | null {
+  const refusal = parseCosignerVoiceRefusal(error);
+  if (!refusal) return null;
+  const limit = refusal === 'over_payment_limit' || refusal === 'over_daily_limit';
+  return { kind: 'refused', reason: limit ? 'voice_limit' : 'cosigner_refused', detail: refusal };
+}
+
+/** A verdict that passed every check. The flow is marked as signed. */
+type ApprovedVerdict = Readonly<{ kind: 'approved' }> & VoiceApprovedSigning;
+
+/**
+ * Checks the verdict against the request digests and takes the one signature of the flow. A
+ * `step_up` verdict asks the owner first; with `stepUp` `refuse`, it signs nothing.
+ */
+async function approveVerdict(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  expected: SpokenDigests,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+  stepUp: 'ask' | 'refuse',
+): Promise<
+  ApprovedVerdict | Variant<SpeakToSignPayment, 'kind', 'refused' | 'cancelled' | 'unavailable'>
+> {
   signal.throwIfAborted();
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
   if (!verifier) return { kind: 'unavailable', detail: 'This network has no verifier.' };
@@ -371,6 +438,8 @@ async function signWithVerdict(
   }
   if (check.approval === 'voice') {
     hooks.accepted();
+  } else if (stepUp === 'refuse') {
+    return { kind: 'refused', reason: 'verdict_mismatch', detail: 'a message has no step-up' };
   } else {
     input.progress({ stage: 'step_up', policyText: check.policyText });
     if (!(await hooks.approveStepUp(check.policyText))) return { kind: 'cancelled' };
@@ -384,6 +453,28 @@ async function signWithVerdict(
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' };
   }
   state.paid = true;
+  return check;
+}
+
+/**
+ * Checks the verdict against the request digests, then signs the transaction once.
+ * `transaction` builds it from the checked verdict, because a bet carries the verdict to its
+ * contract. `summary` is the spoken summary of a general transaction, which the co-signer
+ * needs beside the verdict.
+ */
+async function signWithVerdict(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  expected: SpokenDigests,
+  transaction: (verdict: SignedVoiceVerdict) => TransactionInput,
+  summary: string | null,
+  verifierOutput: unknown,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+  onIncluded: ((transactionHash: string) => void) | null,
+): Promise<SpeakToSignPayment> {
+  const check = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, 'ask');
+  if (check.kind !== 'approved') return check;
   const result = await input.signVoiceApprovedTransaction(
     transaction(check.verdict),
     {
@@ -402,10 +493,7 @@ async function signWithVerdict(
     // Nothing left the Wallet, so another recording of this flow may still pay.
     if (result.kind === 'not_submitted') state.paid = false;
     if (result.kind !== 'not_submitted') return { kind: 'submission_unknown', error: result.error };
-    const refusal = parseCosignerVoiceRefusal(result.error);
-    if (!refusal) return { kind: 'not_submitted', error: result.error };
-    const limit = refusal === 'over_payment_limit' || refusal === 'over_daily_limit';
-    return { kind: 'refused', reason: limit ? 'voice_limit' : 'cosigner_refused', detail: refusal };
+    return cosignerRefusal(result.error) ?? { kind: 'not_submitted', error: result.error };
   }
   input.progress({ stage: 'settled', transactionHash: result.transactionId });
   const failure = executionFailure(result.result);

@@ -2,6 +2,8 @@ import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
 import type { TransactionInput } from '@/core/types/actions';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
+import type { Variant } from '@shared/utils/variant';
+import type { SpokenMessageAction } from './spokenMessage';
 import type { SpeakToSignNetwork } from './plugins';
 import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
@@ -198,6 +200,51 @@ export type SpeakToSignTransactionRequest = Readonly<{
 }> &
   WithProgress;
 
+/**
+ * One spoken NEP-413 message, as `near.signMessage` takes it. The owner says the summary only,
+ * and the verdict binds the exact message, nonce, recipient and callback URL. The Wallet draws
+ * the nonce.
+ */
+export type SpeakToSignMessageRequest = Readonly<{
+  walletId: string;
+  message: string;
+  recipient: string;
+  callbackUrl?: string;
+  /** The application's own value, which the result returns. It is not signed. */
+  state?: string;
+  /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
+  summary: string;
+}> &
+  WithProgress;
+
+/** A NEP-413 signature by the key of the owner's account. */
+export type SpeakToSignSignedMessage = Readonly<{
+  accountId: string;
+  /** `ed25519:<base58>`. */
+  publicKey: string;
+  /** base64 of the 64-byte signature. */
+  signature: string;
+  /** base64 of the 32-byte nonce that the Wallet drew. */
+  nonce: string;
+  state?: string;
+}>;
+
+/** Refusals of a spoken message. */
+export type SpeakToSignMessageRefusalReason =
+  | VerifierRefusal
+  | SpeakToSignCosignerRefusalReason
+  | 'summary_not_speakable'
+  /** The message or the recipient is empty. */
+  | 'message_not_valid'
+  | 'verdict_mismatch';
+
+export type SpeakToSignMessageResult =
+  | (Readonly<{ kind: 'signed'; approval: VoiceApproval; times: SpeakToSignTransferTimes }> &
+      SpeakToSignSignedMessage)
+  | Readonly<{ kind: 'refused'; reason: SpeakToSignMessageRefusalReason; detail?: string }>
+  | Readonly<{ kind: 'cancelled' }>
+  | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
+
 /** One verifier enrollment from the app. The Wallet iframe reads the owner itself. */
 export type SpeakToSignEnrollmentRequest = Readonly<{ walletId: string }>;
 
@@ -247,6 +294,12 @@ export type SpeakToSignPayment =
   /** The owner closed the step-up question. Nothing was signed. */
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; detail: string }>;
+
+/** A message that Wallet core signed, or why it signed nothing. */
+export type SpeakToSignMessageSigning =
+  | (Readonly<{ kind: 'signed'; approval: VoiceApproval }> & SpeakToSignSignedMessage)
+  | Readonly<{ kind: 'not_signed'; error: string }>
+  | Variant<SpeakToSignPayment, 'kind', 'refused' | 'cancelled' | 'unavailable'>;
 
 /** What the payment tells the open prompt, so the card follows it. */
 export type SpeakToSignPaymentHooks = Readonly<{
@@ -350,6 +403,16 @@ export type SpeakToSignHostOperations = Readonly<{
     signal: AbortSignal,
     hooks: SpeakToSignPaymentHooks,
   ): Promise<SpeakToSignPayment>;
+  /**
+   * Checks the verifier output against this message and, on an accepted verdict, signs it with
+   * the key of the owner's account, with no confirm. Each verdict signs once.
+   */
+  signMessageWithVerdict(
+    action: SpokenMessageAction,
+    verifierOutput: unknown,
+    signal: AbortSignal,
+    hooks: SpeakToSignPaymentHooks,
+  ): Promise<SpeakToSignMessageSigning>;
   /** Signs the enrollment message for three clips that core recorded in this flow. */
   authorizeEnrollment(
     clips: readonly Uint8Array<ArrayBuffer>[],
@@ -371,6 +434,14 @@ export type SpeakToSignHostTransfer = Readonly<{
 export type SpeakToSignHostNote = Readonly<{
   ownerAccountId: string;
   action: SpokenNoteAction;
+  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+  operations: SpeakToSignHostOperations;
+}>;
+
+/** One spoken message that the Wallet route asks the host plugin to run. */
+export type SpeakToSignHostMessage = Readonly<{
+  ownerAccountId: string;
+  action: SpokenMessageAction;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
   operations: SpeakToSignHostOperations;
 }>;
@@ -417,4 +488,10 @@ export interface SpeakToSignHostPlugin {
     readonly signal: AbortSignal;
     readonly note: SpeakToSignHostNote;
   }): Promise<SpeakToSignNoteResult>;
+  requestMessage(input: {
+    readonly walletId: WalletId;
+    readonly network: SpeakToSignNetwork;
+    readonly signal: AbortSignal;
+    readonly message: SpeakToSignHostMessage;
+  }): Promise<SpeakToSignMessageResult>;
 }

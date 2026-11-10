@@ -2,6 +2,8 @@ import type {
   SpeakToSignEnrollmentRefusalReason,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignMessageRefusalReason,
+  SpeakToSignMessageResult,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteResult,
   SpeakToSignProgress,
@@ -117,12 +119,24 @@ export type PMSpeakToSignNotePayload = Readonly<{
         /** The receiver and the actions in the signer's wire form. */
         transaction: TransactionInputWasm;
         summary: string;
+      }>
+    /** One NEP-413 message. Its result is a `SpeakToSignMessageResult`. */
+    | Readonly<{
+        kind: 'signed_message';
+        message: string;
+        recipient: string;
+        callbackUrl?: string;
+        state?: string;
+        summary: string;
       }>;
 }>;
 
 /** Generous text bounds; Wallet core checks the exact note and summary rules. */
 const MAX_NOTE_TEXT_LENGTH = 1_200;
 const MAX_SUMMARY_TEXT_LENGTH = 200;
+/** Generous bounds of a NEP-413 message. Wallet core signs the exact text. */
+const MAX_MESSAGE_LENGTH = 16_384;
+const MAX_MESSAGE_FIELD_LENGTH = 2_048;
 /** NEAR takes at most 100 actions in one transaction. */
 const MAX_TRANSACTION_ACTIONS = 100;
 /** Base units up to 1,000,000 USDC have at most 13 digits. */
@@ -170,8 +184,35 @@ function readTransactionAction(
   };
 }
 
+function readMessageAction(
+  value: Record<string, unknown>,
+): PMSpeakToSignNotePayload['action'] | null {
+  const optional = (['callbackUrl', 'state'] as const).filter((key) => key in value);
+  const { message, recipient, summary, callbackUrl, state } = value;
+  if (
+    !hasExactKeys(value, ['kind', 'message', 'recipient', 'summary', ...optional]) ||
+    !isBoundedString(message, MAX_MESSAGE_LENGTH) ||
+    !isBoundedString(recipient, MAX_MESSAGE_FIELD_LENGTH) ||
+    typeof summary !== 'string' ||
+    summary.length > MAX_SUMMARY_TEXT_LENGTH ||
+    ('callbackUrl' in value && !isBoundedString(callbackUrl, MAX_MESSAGE_FIELD_LENGTH)) ||
+    ('state' in value && !isBoundedString(state, MAX_MESSAGE_FIELD_LENGTH))
+  ) {
+    return null;
+  }
+  return {
+    kind: 'signed_message',
+    message,
+    recipient,
+    ...(typeof callbackUrl === 'string' ? { callbackUrl } : {}),
+    ...(typeof state === 'string' ? { state } : {}),
+    summary,
+  };
+}
+
 function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | null {
   if (isPlainObject(value) && value.kind === 'transaction') return readTransactionAction(value);
+  if (isPlainObject(value) && value.kind === 'signed_message') return readMessageAction(value);
   if (!isPlainObject(value) || typeof value.contract !== 'string') return null;
   if (!isValidAccountId(value.contract)) return null;
   if (value.kind === 'merge_approval') {
@@ -324,6 +365,23 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   cosigner_refused: true,
   transaction_failed: true,
 };
+const MESSAGE_REFUSAL_REASONS: Readonly<Record<SpeakToSignMessageRefusalReason, true>> = {
+  quality: true,
+  speaker: true,
+  words: true,
+  audio_reused: true,
+  audio_invalid: true,
+  template_missing: true,
+  unsupported: true,
+  speaker_unavailable: true,
+  storage: true,
+  transcriber_unavailable: true,
+  summary_not_speakable: true,
+  message_not_valid: true,
+  verdict_mismatch: true,
+  voice_limit: true,
+  cosigner_refused: true,
+};
 const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalReason, true>> = {
   quality: true,
   speaker: true,
@@ -351,6 +409,59 @@ export function parseSpeakToSignNoteResult(value: unknown): SpeakToSignNoteResul
   const result = readResult(value, NOTE_REFUSAL_REASONS);
   if (!result) throw new Error('Speak-to-Sign note result is invalid.');
   return result;
+}
+
+/** Reads the iframe's signed-message answer. Anything outside the union is a protocol error. */
+export function parseSpeakToSignMessageResult(value: unknown): SpeakToSignMessageResult {
+  const result = readMessageResult(value);
+  if (!result) throw new Error('Speak-to-Sign message result is invalid.');
+  return result;
+}
+
+function readMessageResult(value: unknown): SpeakToSignMessageResult | null {
+  if (!isPlainObject(value)) return null;
+  switch (value.kind) {
+    case 'signed': {
+      const keys = ['kind', 'accountId', 'publicKey', 'signature', 'nonce', 'approval', 'times'];
+      if (!hasExactKeys(value, 'state' in value ? [...keys, 'state'] : keys)) return null;
+      const { accountId, publicKey, signature, nonce, approval, state } = value;
+      const times = readTimes(value.times);
+      if (
+        !isNonEmptyString(accountId) ||
+        !isNonEmptyString(publicKey) ||
+        !isNonEmptyString(signature) ||
+        !isNonEmptyString(nonce) ||
+        typeof approval !== 'string' ||
+        !Object.hasOwn(APPROVALS, approval) ||
+        !times ||
+        ('state' in value && typeof state !== 'string')
+      ) {
+        return null;
+      }
+      return {
+        kind: 'signed',
+        accountId,
+        publicKey,
+        signature,
+        nonce,
+        ...(typeof state === 'string' ? { state } : {}),
+        approval: approval as VoiceApproval,
+        times,
+      };
+    }
+    case 'refused': {
+      const reason = readReason(value, MESSAGE_REFUSAL_REASONS);
+      if (reason === null) return null;
+      return typeof value.detail === 'string'
+        ? { kind: 'refused', reason, detail: value.detail }
+        : { kind: 'refused', reason };
+    }
+    case 'cancelled':
+    case 'unavailable':
+      return readSharedResult(value);
+    default:
+      return null;
+  }
 }
 
 /** Reads the iframe's enrollment answer. Anything outside the union is a protocol error. */

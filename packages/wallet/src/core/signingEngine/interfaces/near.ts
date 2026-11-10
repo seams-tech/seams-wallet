@@ -303,6 +303,8 @@ export type NearNep413Payload = {
     confirmationConfigOverride?: Partial<ConfirmationConfig>;
     operationId: SigningOperationId;
     nearRpcUrl?: string;
+    /** Only a Speak-to-Sign message carries a verdict, for the co-signer to check. */
+    voiceVerdict?: SignedVoiceVerdict;
   };
 };
 

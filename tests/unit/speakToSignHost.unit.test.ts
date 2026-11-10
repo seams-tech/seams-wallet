@@ -32,6 +32,12 @@ import {
 } from '@/core/transactionFeatures/spokenNote';
 import { parseSpeakableUsdc, type SpokenBetAction } from '@/core/transactionFeatures/spokenBet';
 import {
+  messageActionRefusal,
+  messageDigests,
+  messageVerifyRequest,
+  type SpokenMessageAction,
+} from '@/core/transactionFeatures/spokenMessage';
+import {
   checkVoiceVerdict,
   parseVerifyOutput,
   type SignedVoiceVerdict,
@@ -426,6 +432,9 @@ type CoreHarness = {
     verdict: SignedVoiceVerdict;
   }>;
   messages: Array<{ message: string; recipient: string }>;
+  /** Each message that core signed for a verdict, with the verdict it sent. */
+  voiceMessages: Array<{ action: SpokenMessageAction; verdict: SignedVoiceVerdict }>;
+  setMessageError(error: string | null): void;
   fetched: Array<{ url: string; init: RequestInit }>;
   progress: SpeakToSignProgress[];
   /** How many times core started the signing preparation. */
@@ -459,9 +468,14 @@ function coreHarness(verifier: Verifier): CoreHarness {
     samples: samples(2),
     endOfSpeechAt: 3,
   });
+  let messageError: string | null = null;
   const harness: CoreHarness = {
     signed: [],
     messages: [],
+    voiceMessages: [],
+    setMessageError(next) {
+      messageError = next;
+    },
     fetched: [],
     progress: [],
     prepared: 0,
@@ -490,6 +504,18 @@ function coreHarness(verifier: Verifier): CoreHarness {
         onBroadcast();
         onIncluded?.('tx-included');
         return outcome;
+      },
+      signVoiceApprovedMessage: async (action, verdict) => {
+        if (messageError !== null) return { success: false, error: messageError };
+        harness.voiceMessages.push({ action, verdict });
+        return {
+          success: true,
+          accountId: 'owner.testnet',
+          publicKey: 'ed25519:owner',
+          signature: 'c2lnbmF0dXJl',
+          nonce: action.nonce,
+          ...(action.state === null ? {} : { state: action.state }),
+        };
       },
       signMessage: async (params) => {
         harness.messages.push({ ...params });
@@ -1487,4 +1513,129 @@ test('core signs the application transaction as it is, and sends the summary to 
       },
     },
   ]);
+});
+
+// ---------------------------------------------------------------- NEP-413 messages
+
+const MESSAGE: SpokenMessageAction = {
+  message: 'Log in to example.app at 2026-11-10T09:00:00Z',
+  recipient: 'example.app',
+  nonce: Buffer.alloc(32, 5).toString('base64'),
+  callbackUrl: null,
+  state: 'login-1',
+  payloadSha256: new Uint8Array(32).fill(0x41),
+  summary: 'Log in to the example app',
+};
+
+test('the message port matches the signed message vector of the crate', async () => {
+  const vector = VECTORS.requests.find((candidate) => candidate.name === 'signed_message');
+  if (!vector) throw new Error('no signed_message vector');
+  const digests = await messageDigests('testnet', 'owner.testnet', MESSAGE);
+  expect(hex(digests.request)).toBe(vector.request_digest_hex);
+  expect(hex(digests.spokenText)).toBe(vector.spoken_text_digest_hex);
+  expect(messageVerifyRequest(MESSAGE)).toEqual({
+    kind: 'signed_message',
+    payload_sha256_hex: '41'.repeat(32),
+    summary: 'Log in to the example app',
+  });
+  expect(messageActionRefusal(MESSAGE)).toBeNull();
+  expect(messageActionRefusal({ ...MESSAGE, message: '' })).toBe('message_not_valid');
+  expect(messageActionRefusal({ ...MESSAGE, recipient: '' })).toBe('message_not_valid');
+  expect(messageActionRefusal({ ...MESSAGE, payloadSha256: new Uint8Array(31) })).toBe(
+    'message_not_valid',
+  );
+  expect(messageActionRefusal({ ...MESSAGE, summary: 'Log in at 9' })).toBe('summary_not_speakable');
+});
+
+test('core signs one NEP-413 message for the verdict of its exact bytes and summary', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const sign = async (verdictFor: SpokenMessageAction, overrides: Record<string, unknown> = {}) =>
+    await harness.operations.signMessageWithVerdict(
+      MESSAGE,
+      await verifyOutput(
+        verifier,
+        await verdictJsonFor(
+          await messageDigests('testnet', 'owner.testnet', verdictFor),
+          audio,
+          overrides,
+        ),
+      ),
+      signal,
+      paymentHooks(),
+    );
+
+  // The verdict of other bytes or of another summary does not pass.
+  for (const other of [
+    { ...MESSAGE, payloadSha256: new Uint8Array(32).fill(0x42) },
+    { ...MESSAGE, summary: 'Log in to another app' },
+  ]) {
+    expect(await sign(other)).toEqual({
+      kind: 'refused',
+      reason: 'verdict_mismatch',
+      detail: 'request_digest differs',
+    });
+  }
+  // The message path has no fresh approval, so a step_up verdict signs nothing.
+  expect(await sign(MESSAGE, { outcome: 'step_up', policy_rule: 'rule' })).toEqual({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'a message has no step-up',
+  });
+  expect(
+    await harness.operations.signMessageWithVerdict(
+      { ...MESSAGE, message: '' },
+      {},
+      signal,
+      paymentHooks(),
+    ),
+  ).toEqual({ kind: 'unavailable', detail: 'message_not_valid' });
+  expect(harness.voiceMessages).toEqual([]);
+
+  // A co-signer refusal or another error signs nothing, and the flow may sign after it.
+  harness.setMessageError('Speak-to-Sign verdict refused: reused');
+  expect(await sign(MESSAGE)).toEqual({
+    kind: 'refused',
+    reason: 'cosigner_refused',
+    detail: 'reused',
+  });
+  harness.setMessageError('network down');
+  expect(await sign(MESSAGE)).toEqual({ kind: 'not_signed', error: 'network down' });
+  harness.setMessageError(null);
+
+  const events: string[] = [];
+  const accepted = await verifyOutput(
+    verifier,
+    await verdictJsonFor(await messageDigests('testnet', 'owner.testnet', MESSAGE), audio),
+  );
+  expect(
+    await harness.operations.signMessageWithVerdict(MESSAGE, accepted, signal, paymentHooks(events)),
+  ).toEqual({
+    kind: 'signed',
+    approval: 'voice',
+    accountId: 'owner.testnet',
+    publicKey: 'ed25519:owner',
+    signature: 'c2lnbmF0dXJl',
+    nonce: MESSAGE.nonce,
+    state: 'login-1',
+  });
+  expect(events).toEqual(['accepted']);
+  expect(harness.voiceMessages).toEqual([
+    {
+      action: MESSAGE,
+      verdict: {
+        verdictJson: accepted.verdict_json,
+        signatureB64: accepted.signature_b64,
+        summary: 'Log in to the example app',
+      },
+    },
+  ]);
+  // The flow signs once.
+  expect(
+    await harness.operations.signMessageWithVerdict(MESSAGE, accepted, signal, paymentHooks()),
+  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'this flow already signed' });
 });

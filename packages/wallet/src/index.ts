@@ -25,6 +25,8 @@ export type {
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostPlugin,
+  SpeakToSignMessageRequest,
+  SpeakToSignMessageResult,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
