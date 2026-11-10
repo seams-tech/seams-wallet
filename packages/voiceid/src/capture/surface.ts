@@ -74,6 +74,7 @@ class VoiceIdCaptureSurface<T> {
   private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
   private phrase = newSpokenPhrase(null);
   private state: CaptureState<T> = { kind: 'preparing' };
+  private readonly purpose: VoiceCapturePurpose;
   private settlement: AuthMethodCaptureSettlement = 'closed';
   private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -85,6 +86,7 @@ class VoiceIdCaptureSurface<T> {
     mountCapture?: AuthMethodCaptureMount,
   ) {
     this.unlockSuccess = unlockSuccess;
+    this.purpose = purpose;
     const actionLabel = VOICE_CAPTURE_ACTION_LABELS[purpose];
     const parent = document.getElementById('root') ?? document.body;
     if (!parent) throw new Error('Wallet activation surface has no mount root.');
@@ -197,7 +199,8 @@ class VoiceIdCaptureSurface<T> {
 
   private async perform(capture: PreparedRecording<T>): Promise<void> {
     this.activateButton.disabled = true;
-    this.status.textContent = 'Opening microphone…';
+    // Activation opens the enrollment card next, which opens the microphone itself.
+    if (this.purpose !== 'activation') this.status.textContent = 'Opening microphone…';
     try {
       // Unlock begins after preparation. Enrollment and retries start from their controls.
       const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);

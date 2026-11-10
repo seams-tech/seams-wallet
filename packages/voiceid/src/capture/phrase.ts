@@ -14,6 +14,7 @@ import { recordVoice, voiceQualityMessage, type VoiceCaptureEvent } from '../bro
 import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 import { SPOKEN_PHRASES } from '../browser/phraseVocabulary';
 import { expectedSpeechMs } from '../browser/speechPause';
+import { voiceActivityModel } from '../browser/voiceActivity';
 import { PhraseCard } from './phraseCard';
 import { VoicePrompt } from './prompt';
 
@@ -45,6 +46,8 @@ class PhraseSurface implements AuthMethodPhraseSurface {
   private closed = false;
   /** The voiced time of the whole sentence, after which a shorter pause ends a recording. */
   private readonly expectedSpeechMs: number;
+  /** The speech detector has started; before that, a recording waits for it to load. */
+  private speechDetectorReady = false;
 
   constructor(
     sentence: string,
@@ -52,6 +55,9 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     private readonly outer: AbortSignal,
   ) {
     this.expectedSpeechMs = expectedSpeechMs(sentence);
+    // The first recording on a page waits for the speech detector (about 16 MB with its engine),
+    // so it starts loading while the owner reads the sentence. A failure shows on Record.
+    voiceActivityModel.prepare().then(this.detectorStarted, ignoreEarlyLoad);
     const parent = document.getElementById('root') ?? document.body;
     this.element = document.createElement('section');
     this.element.className =
@@ -140,7 +146,9 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     if (!this.recording || this.started) return;
     this.started = true;
     this.prompt.record.disabled = true;
-    this.prompt.status.textContent = 'Opening microphone…';
+    this.prompt.status.textContent = this.speechDetectorReady
+      ? 'Opening microphone…'
+      : 'Loading VoiceID…';
     void this.attempt(this.recording);
   };
 
@@ -174,6 +182,10 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     }
   }
 
+  private readonly detectorStarted = (): void => {
+    this.speechDetectorReady = true;
+  };
+
   /** The end of speech starts the check in place; every other capture event is the prompt's. */
   private readonly capture = (event: VoiceCaptureEvent): void => {
     if (event.kind === 'processing') this.card.beginCheck();
@@ -206,3 +218,6 @@ class PhraseSurface implements AuthMethodPhraseSurface {
     if (this.outer.aborted) this.close();
   };
 }
+
+/** A failed early load runs again when Record needs the detector, and shows its error there. */
+function ignoreEarlyLoad(): void {}

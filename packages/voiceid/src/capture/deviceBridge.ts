@@ -66,7 +66,7 @@ export async function captureVoiceIdActivation(
       { kind: 'activate', scope, guard, snapshot: { kind: 'missing' } },
       input.signal,
       model,
-      presentation.keepRecordings,
+      { keepRecordings: presentation.keepRecordings, phrase: presentation.phrase },
     );
   }
   input.signal.throwIfAborted();

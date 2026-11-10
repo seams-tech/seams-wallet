@@ -278,7 +278,12 @@ test('one VoiceID download survives failure, prepares real models, and reuses a 
     await expect(page.getByText(/Downloading VoiceID: .*%/)).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('downloading.png') });
     await expect(page.getByText('Preparing VoiceID…', { exact: true })).toBeVisible();
-    await expect(meter).not.toHaveAttribute('value');
+    // The bar stays full while the models start: an indeterminate bar paints an empty track.
+    const preparingMeter = await meter.evaluate((element: HTMLProgressElement) => [
+      element.value,
+      element.max,
+    ]);
+    expect(preparingMeter[0]).toBe(preparingMeter[1]);
     await page.screenshot({ path: testInfo.outputPath('preparing.png') });
     await expect(page.locator('body')).toHaveAttribute('data-result', 'ready', { timeout: 60_000 });
     const cold = await page.evaluate(observedProgress);

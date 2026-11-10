@@ -5,8 +5,12 @@ import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { VoiceIdLoadError, voiceInferenceEngine, type VoiceAssetProgress } from './inference';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 
-// Avoid flashing an indicator when the prepared sessions are already in memory.
-const REVEAL_DELAY_MS = 300;
+// A download shows at once. Saved models usually start within this time, so their indicator
+// shows only when the start is slow, and then stays long enough to read.
+const REVEAL_DELAY_MS = 600;
+const MIN_VISIBLE_MS = 400;
+// The indicator's rows fade out before the card's own rows fade back in (prompt.ts).
+const FADE_MS = 120;
 function modelAsset(model: typeof voiceModel) {
   return model.asset;
 }
@@ -24,6 +28,8 @@ class VoiceModelDownload {
   private retry: WorkerDeferred<void> | null = null;
   private readonly cancelled = new WorkerDeferred<never>();
   private readonly reveal: ReturnType<typeof setTimeout>;
+  /** `performance.now()` when the indicator showed, or null while it is not shown. */
+  private shownAt: number | null = null;
   private readonly received = new Map<DownloadAsset, number>();
   private readonly models: readonly (typeof voiceModel)[];
   private readonly assets: readonly DownloadAsset[];
@@ -41,7 +47,6 @@ class VoiceModelDownload {
     this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite');
     this.meter.setAttribute('aria-label', 'VoiceID download');
-    this.meter.style.width = '100%';
     this.retryButton.type = 'button';
     this.retryButton.className = 'seams-voiceid-primary';
     this.retryButton.textContent = 'Retry loading';
@@ -49,9 +54,16 @@ class VoiceModelDownload {
     this.retryButton.addEventListener('click', this.retryLoading);
     this.element.append(this.status, this.meter, this.retryButton);
     this.status.textContent = 'Loading saved VoiceID…';
-    this.reveal = setTimeout(parent.append.bind(parent, this.element), REVEAL_DELAY_MS);
+    this.reveal = setTimeout(this.show, REVEAL_DELAY_MS);
     signal.addEventListener('abort', this.abort, { once: true });
   }
+
+  private readonly show = (): void => {
+    clearTimeout(this.reveal);
+    if (this.shownAt !== null) return;
+    this.shownAt = performance.now();
+    this.parent.append(this.element);
+  };
 
   /** A load that finished first never shows; a shown one stays until its surface removes it. */
   readonly settle = (): void => {
@@ -91,13 +103,12 @@ class VoiceModelDownload {
           await model.prepare();
           this.signal.throwIfAborted();
         }
-        this.ready();
+        await this.ready();
         return;
       } catch (error) {
         this.signal.throwIfAborted();
         if (!(error instanceof VoiceIdLoadError)) throw error;
-        clearTimeout(this.reveal);
-        this.parent.append(this.element);
+        this.show();
         this.element.dataset.state = 'failed';
         this.meter.hidden = true;
         this.status.textContent = error.message;
@@ -116,6 +127,8 @@ class VoiceModelDownload {
       case 'downloading':
         this.received.set(asset, state.received);
         this.element.dataset.state = 'downloading';
+        // A download takes seconds, so it shows at once.
+        this.show();
         break;
       case 'ready':
         this.received.set(asset, asset.size);
@@ -131,17 +144,39 @@ class VoiceModelDownload {
     this.status.textContent = `Downloading VoiceID: ${(received / 1_000_000).toFixed(1)} of ${(this.total / 1_000_000).toFixed(1)} MB · ${Math.floor((received / this.total) * 100)}%`;
   };
 
+  /** The bar stays full: an indeterminate bar paints as an empty track. */
   preparing(): void {
     this.element.dataset.state = 'preparing';
-    this.meter.removeAttribute('value');
+    this.meter.max = this.total;
+    this.meter.value = this.total;
     this.status.textContent = 'Preparing VoiceID…';
   }
 
-  ready(): void {
+  /** A shown indicator stays for MIN_VISIBLE_MS, then fades out before the card goes on. */
+  async ready(): Promise<void> {
+    clearTimeout(this.reveal);
+    if (this.shownAt === null) return;
+    const shownFor = performance.now() - this.shownAt;
+    if (shownFor < MIN_VISIBLE_MS) await delay(MIN_VISIBLE_MS - shownFor, this.signal);
     this.element.dataset.state = 'ready';
-    this.meter.hidden = true;
     this.status.textContent = 'VoiceID is ready.';
+    await delay(FADE_MS, this.signal);
   }
+}
+
+function delay(ms: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  const waited = new WorkerDeferred<void>();
+  const stop = (): void => {
+    clearTimeout(timer);
+    waited.reject(new DOMException('VoiceID preparation was cancelled.', 'AbortError'));
+  };
+  const timer = setTimeout(() => {
+    signal.removeEventListener('abort', stop);
+    waited.resolve();
+  }, ms);
+  signal.addEventListener('abort', stop, { once: true });
+  return waited.promise;
 }
 
 export async function prepareVoiceModelWithProgress(

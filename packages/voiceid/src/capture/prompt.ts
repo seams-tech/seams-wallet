@@ -41,7 +41,10 @@ const CSS = `
 }
 @starting-style {
   .seams-voiceid-prompt { opacity: 0; transform: translateY(4px); }
+  .seams-voiceid-prompt.seams-voiceid-continued { opacity: 1; transform: none; }
 }
+/* A continued card holds focus itself until its first control is ready. */
+.seams-voiceid-prompt.seams-voiceid-continued:focus { outline: none; }
 /* Each line owns its row. The download overlays rows 3-5; an auto-placed line would move to new rows. */
 .seams-voiceid-prompt > h2 { grid-area: 1 / 1; }
 .seams-voiceid-prompt > .seams-voiceid-phrase { grid-area: 2 / 1; }
@@ -324,8 +327,22 @@ const CSS = `
 .seams-voiceid-progress-slot:has(> .seams-voiceid-model-download),
 .seams-voiceid-progress-slot > .seams-voiceid-model-download { display: contents; }
 .seams-voiceid-model-download > * { position: relative; z-index: 1; grid-column: 1; align-self: center; }
+.seams-voiceid-prompt > .seams-voiceid-status { transition: opacity 180ms ease; }
 .seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-ribbon,
-.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-status { visibility: hidden; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-status {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 0s linear 180ms;
+}
+/* The download's rows fade in over the rows they replace, and fade out when VoiceID is ready. */
+.seams-voiceid-model-download > * { transition: opacity 180ms ease; }
+@starting-style { .seams-voiceid-model-download > * { opacity: 0; } }
+/* Two texts in one place must not cross: the download's rows leave first, then the card's return. */
+.seams-voiceid-model-download[data-state="ready"] > * { opacity: 0; transition-duration: 120ms; }
+.seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="ready"]) > .seams-voiceid-ribbon,
+.seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="ready"]) > .seams-voiceid-status {
+  transition: opacity 180ms ease 120ms;
+}
 .seams-voiceid-prompt:has(.seams-voiceid-model-download:not([data-state="ready"])) > .seams-voiceid-phrase { opacity: 0.35; }
 .seams-voiceid-prompt:has(.seams-voiceid-model-download[data-state="failed"]) > .seams-voiceid-record-slot { display: none; }
 .seams-voiceid-model-download progress {
@@ -342,7 +359,20 @@ const CSS = `
   color: var(--seams-colors-textPrimary, #eff2f3);
 }
 .seams-voiceid-model-download progress::-webkit-progress-bar { background: var(--seams-colors-surface, #202b31); }
-.seams-voiceid-model-download progress::-webkit-progress-value { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; transition: width 200ms linear; }
+.seams-voiceid-model-download progress::-webkit-progress-value { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
+/* The bar stays full while the models start, and its fill pulses off the main thread, which the
+   start blocks. The pulse is on the fill, so the bar itself can still fade out when VoiceID is ready. */
+.seams-voiceid-model-download:is([data-state="preparing"], [data-state="ready"]) progress::-webkit-progress-value {
+  animation: seams-voiceid-preparing 900ms ease-in-out infinite alternate;
+}
+.seams-voiceid-model-download:is([data-state="preparing"], [data-state="ready"]) progress::-moz-progress-bar {
+  animation: seams-voiceid-preparing 900ms ease-in-out infinite alternate;
+}
+@keyframes seams-voiceid-preparing { to { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .seams-voiceid-model-download progress::-webkit-progress-value { animation: none !important; }
+  .seams-voiceid-model-download progress::-moz-progress-bar { animation: none !important; }
+}
 .seams-voiceid-model-download progress::-moz-progress-bar { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 999px; }
 .seams-voiceid-model-download p {
   grid-row: 4;
@@ -591,6 +621,21 @@ export class VoicePrompt {
         return assertNever(event);
     }
   };
+
+  /**
+   * This card replaces another card in the same surface. It skips the entrance, so the card does
+   * not blink, and only the title and the action row fade in, because the phrase stays.
+   */
+  continueCard(): void {
+    this.element.classList.add('seams-voiceid-continued');
+    this.element.tabIndex = -1;
+    for (const row of [this.title, this.actionRow]) {
+      row.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 180,
+        easing: 'cubic-bezier(0.23, 1, 0.32, 1)',
+      });
+    }
+  }
 
   /** Settle the visual when an enrollment sample is accepted. */
   accepted(): void {

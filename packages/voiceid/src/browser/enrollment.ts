@@ -1,4 +1,9 @@
-import { newSpokenPhrase, checkSpokenPhrase, VoicePhraseMismatchError } from './phrase';
+import {
+  newSpokenPhrase,
+  checkSpokenPhrase,
+  VoicePhraseMismatchError,
+  type SpokenPhrase,
+} from './phrase';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 import { prepareVoiceModelWithProgress } from './progress';
 import { recordVoice, requireVoiceUserAction, voiceQualityMessage } from './microphone';
@@ -24,6 +29,12 @@ import type { AuthMethodEnrollmentRecording } from '@seams/wallet/voiceid-host';
 type EnrollmentCapturePlan = Readonly<{ scope: VoiceEnrollmentScope }> &
   Variant<VoiceEnrollmentAuthorization, 'kind', 'activate' | 'replace' | 'improve'>;
 type KeepRecordings = (recordings: readonly AuthMethodEnrollmentRecording[]) => void;
+type EnrollmentOptions = Readonly<{
+  /** Receives the accepted samples after the save, for Speak-to-Sign. */
+  keepRecordings?: KeepRecordings;
+  /** The phrase that the card already shows, so the first sample keeps it. */
+  phrase?: SpokenPhrase;
+}>;
 
 /**
  * Records three accepted samples and saves the enrollment. With `keepRecordings`, the accepted
@@ -34,11 +45,11 @@ export async function enrollBrowserVoice(
   plan: EnrollmentCapturePlan,
   signal: AbortSignal,
   model: VoiceIdTranscriptionModel,
-  keepRecordings?: KeepRecordings,
+  options: EnrollmentOptions = {},
 ): Promise<void> {
   signal.throwIfAborted();
   // The prompt shows at once; VoiceID loads inside it, and recording waits until it is ready.
-  const surface = new VoiceEnrollmentSurface(parent, plan, signal, model, keepRecordings ?? null);
+  const surface = new VoiceEnrollmentSurface(parent, plan, signal, model, options);
   try {
     await Promise.race([surface.prepare(), surface.result]);
     await surface.result;
@@ -52,8 +63,9 @@ class VoiceEnrollmentSurface {
   readonly result = this.completion.promise;
   private readonly status: HTMLParagraphElement;
   private readonly prompt: VoicePrompt;
-  private phrase = newSpokenPhrase(null);
+  private phrase: SpokenPhrase;
   private readonly record: HTMLButtonElement;
+  private readonly keepRecordings: KeepRecordings | null;
   private readonly cancel: HTMLButtonElement;
   private readonly samples: number[][] = [];
   /** The accepted samples' audio, kept only for `keepRecordings`. */
@@ -71,8 +83,10 @@ class VoiceEnrollmentSurface {
     private readonly plan: EnrollmentCapturePlan,
     private readonly signal: AbortSignal,
     private readonly model: VoiceIdTranscriptionModel,
-    private readonly keepRecordings: KeepRecordings | null,
+    options: EnrollmentOptions,
   ) {
+    this.keepRecordings = options.keepRecordings ?? null;
+    this.phrase = options.phrase ?? newSpokenPhrase(null);
     this.prompt = new VoicePrompt(
       parent.ownerDocument,
       'Enroll your voice in this browser',
@@ -89,16 +103,22 @@ class VoiceEnrollmentSurface {
     this.prompt.ready(
       plan.kind === 'improve'
         ? 'Read naturally. Your original enrollment stays unchanged.'
-        : keepRecordings
+        : this.keepRecordings
           ? 'Read the full phrase at your normal pace. Speak-to-Sign uses the same samples.'
           : 'Read the full phrase at your normal pace.',
     );
     // Recording waits for VoiceID to load; prepare() enables it.
     this.record.disabled = true;
+    // A card that replaces the activation card continues it in place, with no second entrance.
+    const continued =
+      parent.querySelector('.seams-voiceid-prompt:not(.seams-voiceid-management)') !== null;
     parent.replaceChildren(this.prompt.element);
+    if (continued) this.prompt.continueCard();
     signal.addEventListener('abort', this.cancelled, { once: true });
     this.guardTimer = setInterval(this.checkGuard, 250);
     if (signal.aborted) this.cancelled();
+    // Focus stays in the card without a ring on Close until Record is ready.
+    else if (continued) this.prompt.element.focus({ preventScroll: true });
     else this.cancel.focus();
   }
 
