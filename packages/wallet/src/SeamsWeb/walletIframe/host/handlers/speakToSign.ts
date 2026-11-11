@@ -266,7 +266,7 @@ async function runTransfer(
   const amountYocto = parseSpeakableNear(payload.amount);
   if (amountYocto === null) return { kind: 'refused', reason: 'amount_not_speakable' };
   return await runSpeakToSignApproval({
-    ...flowInput(deps, flow, signal),
+    ...flowInput(deps, flow, signal, payload.autoStart),
     intent: { kind: 'account_transfer', receiver: payload.receiver, amountYocto },
   });
 }
@@ -285,16 +285,21 @@ async function runNote(
     action.kind === 'signed_message'
       ? { kind: 'signed_message', message: await messageAction(action) }
       : await noteAction(deps, ports, flow.ownerAccountId, action);
-  return await runSpeakToSignApproval({ ...flowInput(deps, flow, signal), intent });
+  return await runSpeakToSignApproval({
+    ...flowInput(deps, flow, signal, request.payload.autoStart),
+    intent,
+  });
 }
 
-/** What core's binder needs from a prepared flow. */
+/** What core's binder needs from a prepared flow. `autoStart` is the app's choice. */
 function flowInput(
   deps: HandlerDeps,
   flow: Extract<PreparedFlow, { kind: 'ready' }>,
   signal: AbortSignal,
+  autoStart: boolean,
 ) {
   return {
+    autoStart,
     plugin: flow.plugin,
     operations: flow.operations,
     walletId: flow.walletId,
@@ -401,7 +406,7 @@ async function runEnrollment(
     const flow = await prepareFlow(deps, ports, request, signal, adopted);
     if (flow.kind === 'unavailable') return flow;
     return await runSpeakToSignEnrollment({
-      ...flowInput(deps, flow, signal),
+      ...flowInput(deps, flow, signal, request.payload.autoStart),
       adopted: adopted?.recordings ?? null,
     });
   } finally {

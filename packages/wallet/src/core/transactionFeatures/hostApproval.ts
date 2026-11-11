@@ -57,6 +57,8 @@ type FlowInput = Readonly<{
   /** Core's signal. The operations check it, whatever the plugin does with its copy. */
   signal: AbortSignal;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+  /** Each card of the flow records when it opens, with no press on Record. The app chose it. */
+  autoStart: boolean;
 }>;
 
 /** The recordings of one flow, by handle. Only core reads them. */
@@ -156,10 +158,9 @@ export async function runSpeakToSignApproval(
   const rendered = renderIntent(intent);
   const verifyRequest = await intentVerifyRequest(intent);
   signal.throwIfAborted();
-  // The owner just asked for this request, so the card records at once, with no press on Record.
   const opened = await operations.openPrompt({
     sentence: rendered.displayText,
-    autoStart: true,
+    autoStart: input.autoStart,
     signal,
     surfaceMeasurementBinding: input.surfaceMeasurementBinding,
   });
@@ -330,6 +331,7 @@ export async function runSpeakToSignEnrollment(
     card = null;
     const opened = await operations.openPrompt({
       sentence,
+      autoStart: input.autoStart,
       signal,
       surfaceMeasurementBinding: input.surfaceMeasurementBinding,
     });

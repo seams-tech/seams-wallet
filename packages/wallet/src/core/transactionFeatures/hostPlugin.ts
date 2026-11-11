@@ -142,8 +142,20 @@ export type SpeakToSignProgress =
   /** NEAR returned the final outcome of the transaction. */
   | Readonly<{ stage: 'settled'; transactionHash: string }>;
 
-/** Spoken requests take an optional progress listener. It runs in the app. */
-type WithProgress = Readonly<{ onProgress?: (progress: SpeakToSignProgress) => void }>;
+/**
+ * Whether the VoiceID card starts its recording when it opens, with no press on Record. If the
+ * browser does not start audio without a press, the card keeps its Record button.
+ */
+type WithAutoStart = Readonly<{
+  /** Default: true for a spoken request, false for an enrollment. */
+  autoStart?: boolean;
+}>;
+
+/** Spoken requests take an optional progress listener, which runs in the app, and `autoStart`. */
+type SpokenRequestOptions = Readonly<{
+  onProgress?: (progress: SpeakToSignProgress) => void;
+}> &
+  WithAutoStart;
 
 export type SpeakToSignTransferRequest = Readonly<{
   walletId: string;
@@ -152,7 +164,7 @@ export type SpeakToSignTransferRequest = Readonly<{
   /** Decimal NEAR, such as `"2.5"`. */
   amount: string;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /** One spoken community note from the app. The author says only the summary. */
 export type SpeakToSignNoteRequest = Readonly<{
@@ -166,7 +178,7 @@ export type SpeakToSignNoteRequest = Readonly<{
   /** 1 to 12 plain words that the author reads aloud. */
   summary: string;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /** One spoken rating of a community note from the app. */
 export type SpeakToSignRatingRequest = Readonly<{
@@ -176,7 +188,7 @@ export type SpeakToSignRatingRequest = Readonly<{
   noteId: number;
   rating: NoteRating;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /** One spoken approval to merge a pull request. The owner says its number and its base only. */
 export type SpeakToSignMergeApprovalRequest = Readonly<{
@@ -192,7 +204,7 @@ export type SpeakToSignMergeApprovalRequest = Readonly<{
   /** The head commit, 40 lowercase hex characters. */
   headCommit: string;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /**
  * One spoken bet on a prediction market. The owner says the amount, the outcome and the market
@@ -210,7 +222,7 @@ export type SpeakToSignBetRequest = Readonly<{
   /** Decimal USDC with at most two decimals, such as `"0.5"`, from 0.01 to 1,000,000. */
   amount: string;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /**
  * One spoken transaction of any kind: any receiver and any actions, as `signAndSendTransaction`
@@ -224,7 +236,7 @@ export type SpeakToSignTransactionRequest = Readonly<{
   /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
   summary: string;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /**
  * One spoken NEP-366 delegate action, as `near.signDelegateAction` takes it: a relayer sends
@@ -244,7 +256,7 @@ export type SpeakToSignDelegateRequest = Readonly<{
   /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
   summary: string;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /**
  * One spoken NEP-413 message, as `near.signMessage` takes it. The owner says the summary only,
@@ -261,7 +273,7 @@ export type SpeakToSignMessageRequest = Readonly<{
   /** 1 to 12 plain words that the owner reads aloud. See `summaryRefusal`. */
   summary: string;
 }> &
-  WithProgress;
+  SpokenRequestOptions;
 
 /** A NEP-413 signature by the key of the owner's account. */
 export type SpeakToSignSignedMessage = Readonly<{
@@ -291,8 +303,12 @@ export type SpeakToSignMessageResult =
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
 
-/** One verifier enrollment from the app. The Wallet iframe reads the owner itself. */
-export type SpeakToSignEnrollmentRequest = Readonly<{ walletId: string }>;
+/**
+ * One verifier enrollment from the app. The Wallet iframe reads the owner itself. With
+ * `autoStart`, each phrase card records when it opens. A wallet without VoiceID first sets up
+ * VoiceID, and its cards still wait for a press on each sample.
+ */
+export type SpeakToSignEnrollmentRequest = Readonly<{ walletId: string }> & WithAutoStart;
 
 /** Refusals of an enrollment by the verifier. The verifier stored no template. */
 export type SpeakToSignEnrollmentRefusalReason =
@@ -402,7 +418,7 @@ export type SpeakToSignClipRequest = Readonly<{
   /** The sentence that the VoiceID surface shows. */
   sentence: string;
   /** The first recording starts with no press on Record, where the browser allows it. */
-  autoStart?: boolean;
+  autoStart: boolean;
   signal: AbortSignal;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 }>;

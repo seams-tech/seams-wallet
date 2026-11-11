@@ -83,6 +83,8 @@ const result = await seams.near.spoken?.transfer({
 
 検証者は結果を最後にだけ送るため、`verifier_running`と`verdict`の間にイベントはありません。リスナーのエラーはリクエストを止めません。
 
+`autoStart`は省略でき、`onProgress`と同じ場所に指定します。`true`(リクエストの既定値)では、カードは開いたときに「録音」を押さなくても録音を始めます。`false`では、所有者が「録音」を押します。ブラウザーが操作なしで音声を開始しない場合は、カードに「録音」ボタンが残ります。
+
 Seamsの共同署名者が判定を拒否した場合、結果は`refused`で、理由は`cosigner_refused`です。
 このとき`detail`には、`reused`や`request_mismatch`のような共同署名者の理由が入ります。
 何も署名されていません。Speak-to-Sign自体は金額の上限を設けません。
@@ -128,6 +130,8 @@ if (enrollment?.kind === 'enrolled') {
 `enroll`は、VoiceIDの画面に短い文を3つ表示します。ウォレットにまだVoiceIDがない場合、`enroll`は先にVoiceIDを有効にします。そのVoiceID登録の3つのサンプルが、検証者の録音にもなります。そのため、所有者は両方のために文を1組だけ読みます。その後、所有者はウォレットの確認画面で、署名付きのメッセージ(NEP-413)を1回承認します。
 メッセージには、これらの録音だけのダイジェストが入っています。検証者は、所有者のフルアクセスキーがそのメッセージに署名したことを確認し、その音声だけを登録します。
 新しい登録は以前のテンプレートを置き換えます。結果の`kind`は、`enrolled`、`refused`、`cancelled`、`unavailable`のいずれかです。
+
+既定では、所有者は各文で「録音」を押します。`enroll({ autoStart: true })`では、各文のカードは開いたときに録音を始めます。これはVoiceIDのあるウォレットに適用されます。`enroll`が先にVoiceIDを有効にする場合、VoiceIDのカードでは、これまでどおり各サンプルで「録音」を押します。
 
 所有者がVoiceIDを無効にした場合、`enroll`は理由`voiceid_unavailable`の`unavailable`を返します。`seams.registration.setAuthMethodEnabled({ walletId, method: 'voiceid', enabled: true })`で再び有効にしてください。
 

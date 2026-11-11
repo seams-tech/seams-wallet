@@ -165,6 +165,11 @@ The verifier sends its result only at the end, so no event comes between
 `verifier_running` and `verdict`. An error in the listener does not stop the
 request.
 
+`autoStart` is optional, in the same place as `onProgress`. With `true`
+(the default for a request), the card records when it opens, with no press on
+Record. With `false`, the owner presses Record. If the browser does not start
+audio without a press, the card keeps its Record button.
+
 When the Seams co-signer refuses the verdict, the result is `refused` with
 `cosigner_refused`. `detail` then holds the co-signer's reason, for example
 `reused` or `request_mismatch`. Nothing was signed. Speak-to-Sign sets no
@@ -193,6 +198,11 @@ wallet confirm. The message names the digest of exactly these recordings. The
 verifier checks that a full-access key of the owner signed it, and enrolls only
 that audio. A new enrollment replaces the template. The result `kind` is
 `enrolled`, `refused`, `cancelled` or `unavailable`.
+
+By default, the owner presses Record for each phrase. With
+`enroll({ autoStart: true })`, each phrase card records when it opens. This
+applies to a wallet that has VoiceID. When `enroll` turns VoiceID on first,
+the VoiceID cards still wait for a press on each sample.
 
 If the owner turned VoiceID off, `enroll` returns `unavailable` with the reason
 `voiceid_unavailable`. Turn it on again with

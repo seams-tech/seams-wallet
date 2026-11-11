@@ -43,6 +43,11 @@ export type SpokenApproval = Readonly<{
   summary: string;
   /** How the spoken request goes: the recording, the verifier, the signature. */
   onProgress?: (progress: SpeakToSignProgress) => void;
+  /**
+   * The card records when it opens, with no press on Record. Default: true. If the browser does
+   * not start audio without a press, the card keeps its Record button.
+   */
+  autoStart?: boolean;
 }>;
 
 /** The wallet that a spoken call is for. Omitted: the authenticated wallet. */
@@ -121,7 +126,8 @@ export type SpokenCalls = Readonly<{
   /**
    * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
    * message that authorizes exactly these recordings, and the verifier stores the template. A
-   * new enrollment replaces the template.
+   * new enrollment replaces the template. `autoStart: true` records each phrase when its card
+   * opens (default: false).
    */
   enroll(
     request?: Typed<{ walletId: string }, SpeakToSignEnrollmentResult>,
@@ -163,13 +169,14 @@ export function withSpokenApprovals(
         : { steps: args.steps }),
     };
   };
-  /** A general call: the summary and the progress listener come from `approval`. */
+  /** A general call: the summary, the progress listener and `autoStart` come from `approval`. */
   const general = async (args: AnyArgs, fields: AnyArgs) => {
     const approval = args.approval as SpokenApproval;
     return await request(args, {
       ...fields,
       summary: approval.summary,
       ...(approval.onProgress ? { onProgress: approval.onProgress } : {}),
+      ...(approval.autoStart === undefined ? {} : { autoStart: approval.autoStart }),
     });
   };
   /** A typed call: every field of the request but the subject and the surface. */

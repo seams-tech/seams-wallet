@@ -34,8 +34,18 @@ import { parseWalletId } from '@shared/utils/domainIds';
 import { isFiniteNumber, isNonEmptyString, isPlainObject } from '@shared/utils/validation';
 import type { Variant } from '@shared/utils/variant';
 
+/**
+ * Each payload carries `autoStart`: the app side fills its default, so the Wallet host gets the
+ * app's choice and has no default of its own.
+ */
+type AutoStart = Readonly<{ autoStart: boolean }>;
+
 /** The `PM_SPEAK_TO_SIGN_TRANSFER` payload. The owner never crosses the channel. */
-export type PMSpeakToSignTransferPayload = Omit<SpeakToSignTransferRequest, 'onProgress'>;
+export type PMSpeakToSignTransferPayload = Omit<
+  SpeakToSignTransferRequest,
+  'onProgress' | 'autoStart'
+> &
+  AutoStart;
 
 /** A progress message of one spoken request, from the Wallet iframe to the app. */
 export type SpeakToSignProgressV1 = Readonly<{
@@ -81,62 +91,68 @@ function readProgress(value: unknown): SpeakToSignProgress | null {
 }
 
 /** The `PM_SPEAK_TO_SIGN_ENROLL` payload. The owner never crosses the channel. */
-export type PMSpeakToSignEnrollPayload = SpeakToSignEnrollmentRequest;
+export type PMSpeakToSignEnrollPayload = Omit<SpeakToSignEnrollmentRequest, 'autoStart'> &
+  AutoStart;
 
 export function parseSpeakToSignEnrollPayload(value: unknown): PMSpeakToSignEnrollPayload {
-  if (!hasExactKeys(value, ['walletId']) || !parseWalletId(value.walletId).ok) {
+  if (
+    !hasExactKeys(value, ['walletId', 'autoStart']) ||
+    !parseWalletId(value.walletId).ok ||
+    typeof value.autoStart !== 'boolean'
+  ) {
     throw new Error('Speak-to-Sign enrollment request is invalid.');
   }
-  return { walletId: String(value.walletId) };
+  return { walletId: String(value.walletId), autoStart: value.autoStart };
 }
 
 /** The `PM_SPEAK_TO_SIGN_NOTE` payload: one note, rating, merge approval or market bet. */
-export type PMSpeakToSignNotePayload = Readonly<{
-  walletId: string;
-  action:
-    | Readonly<{
-        kind: 'community_note';
-        contract: string;
-        postId: number;
-        text: string;
-        summary: string;
-      }>
-    | Readonly<{ kind: 'note_rating'; contract: string; noteId: number; rating: NoteRating }>
-    | Readonly<{
-        kind: 'merge_approval';
-        contract: string;
-        repo: string;
-        pullRequest: number;
-        base: string;
-        headCommit: string;
-      }>
-    | Readonly<{
-        kind: 'market_bet';
-        /** The market contract. */
-        contract: string;
-        token: string;
-        marketId: number;
-        outcome: BetOutcome;
-        /** Decimal base units of the token (10^-6 USDC). Wallet core checks the amount rules. */
-        amountUnits: string;
-      }>
-    | Readonly<{
-        kind: 'transaction';
-        /** The receiver and the actions in the signer's wire form. */
-        transaction: TransactionInputWasm;
-        summary: string;
-        delivery: TransactionDelivery;
-      }>
-    /** One NEP-413 message. Its result is a `SpeakToSignMessageResult`. */
-    | Readonly<{
-        kind: 'signed_message';
-        message: string;
-        recipient: string;
-        callbackUrl?: string;
-        state?: string;
-        summary: string;
-      }>;
-}>;
+export type PMSpeakToSignNotePayload = AutoStart &
+  Readonly<{
+    walletId: string;
+    action:
+      | Readonly<{
+          kind: 'community_note';
+          contract: string;
+          postId: number;
+          text: string;
+          summary: string;
+        }>
+      | Readonly<{ kind: 'note_rating'; contract: string; noteId: number; rating: NoteRating }>
+      | Readonly<{
+          kind: 'merge_approval';
+          contract: string;
+          repo: string;
+          pullRequest: number;
+          base: string;
+          headCommit: string;
+        }>
+      | Readonly<{
+          kind: 'market_bet';
+          /** The market contract. */
+          contract: string;
+          token: string;
+          marketId: number;
+          outcome: BetOutcome;
+          /** Decimal base units of the token (10^-6 USDC). Wallet core checks the amount rules. */
+          amountUnits: string;
+        }>
+      | Readonly<{
+          kind: 'transaction';
+          /** The receiver and the actions in the signer's wire form. */
+          transaction: TransactionInputWasm;
+          summary: string;
+          delivery: TransactionDelivery;
+        }>
+      /** One NEP-413 message. Its result is a `SpeakToSignMessageResult`. */
+      | Readonly<{
+          kind: 'signed_message';
+          message: string;
+          recipient: string;
+          callbackUrl?: string;
+          state?: string;
+          summary: string;
+        }>;
+  }>;
 
 /** Generous text bounds; Wallet core checks the exact note and summary rules. */
 const MAX_NOTE_TEXT_LENGTH = 1_200;
@@ -151,10 +167,15 @@ const BET_UNITS_PATTERN = /^[1-9]\d{0,12}$/;
 
 export function parseSpeakToSignNotePayload(value: unknown): PMSpeakToSignNotePayload {
   const action = readNoteAction(isPlainObject(value) ? value.action : undefined);
-  if (!hasExactKeys(value, ['walletId', 'action']) || !parseWalletId(value.walletId).ok || !action) {
+  if (
+    !hasExactKeys(value, ['walletId', 'action', 'autoStart']) ||
+    !parseWalletId(value.walletId).ok ||
+    typeof value.autoStart !== 'boolean' ||
+    !action
+  ) {
     throw new Error('Speak-to-Sign note request is invalid.');
   }
-  return { walletId: String(value.walletId), action };
+  return { walletId: String(value.walletId), action, autoStart: value.autoStart };
 }
 
 function readTransactionAction(
@@ -323,8 +344,9 @@ const AMOUNT_PATTERN = /^\d{1,7}(\.\d{1,24})?$/;
 
 export function parseSpeakToSignTransferPayload(value: unknown): PMSpeakToSignTransferPayload {
   if (
-    !hasExactKeys(value, ['walletId', 'receiver', 'amount']) ||
+    !hasExactKeys(value, ['walletId', 'receiver', 'amount', 'autoStart']) ||
     !parseWalletId(value.walletId).ok ||
+    typeof value.autoStart !== 'boolean' ||
     typeof value.receiver !== 'string' ||
     !isValidAccountId(value.receiver) ||
     typeof value.amount !== 'string' ||
@@ -336,6 +358,7 @@ export function parseSpeakToSignTransferPayload(value: unknown): PMSpeakToSignTr
     walletId: String(value.walletId),
     receiver: value.receiver,
     amount: value.amount,
+    autoStart: value.autoStart,
   };
 }
 

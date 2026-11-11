@@ -74,6 +74,13 @@ function progressListener(
   };
 }
 
+/**
+ * The defaults of `autoStart`. The owner just asked for a spoken request, so its card records at
+ * once. An enrollment waits for a press on Record for each phrase.
+ */
+const REQUEST_AUTO_START = true;
+const ENROLLMENT_AUTO_START = false;
+
 /** A Speak-to-Sign request can show its VoiceID card in the app's own dialog. */
 export type WithPresentation<T> = T &
   Readonly<{
@@ -280,7 +287,11 @@ async function requestMessageFromHost(
 
 /** A request that travels as one note action. */
 type NoteActionRequest = WithPresentation<
-  Readonly<{ walletId: string; onProgress?: (progress: SpeakToSignProgress) => void }>
+  Readonly<{
+    walletId: string;
+    onProgress?: (progress: SpeakToSignProgress) => void;
+    autoStart?: boolean;
+  }>
 >;
 
 /** Posts one note action and returns the iframe's unparsed answer. */
@@ -289,7 +300,11 @@ async function postAction(
   request: NoteActionRequest,
   action: PMSpeakToSignNotePayload['action'],
 ): Promise<unknown> {
-  const payload = parseSpeakToSignNotePayload({ walletId: request.walletId, action });
+  const payload = parseSpeakToSignNotePayload({
+    walletId: request.walletId,
+    action,
+    autoStart: request.autoStart ?? REQUEST_AUTO_START,
+  });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_NOTE', payload },
     {
@@ -317,6 +332,7 @@ async function requestTransferFromHost(
     walletId: request.walletId,
     receiver: request.receiver,
     amount: request.amount,
+    autoStart: request.autoStart ?? REQUEST_AUTO_START,
   });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_TRANSFER', payload },
@@ -333,7 +349,10 @@ async function enrollFromHost(
   post: SpeakToSignPost,
   request: WithPresentation<SpeakToSignEnrollmentRequest>,
 ): Promise<SpeakToSignEnrollmentResult> {
-  const payload = parseSpeakToSignEnrollPayload({ walletId: request.walletId });
+  const payload = parseSpeakToSignEnrollPayload({
+    walletId: request.walletId,
+    autoStart: request.autoStart ?? ENROLLMENT_AUTO_START,
+  });
   const response = await post(
     { type: 'PM_SPEAK_TO_SIGN_ENROLL', payload },
     { timeout: 'interactive', ...speakToSignDispatch(request) },

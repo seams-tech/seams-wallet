@@ -41,7 +41,12 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/speakToSign';
 
 const WALLET_ID = 'wallet:speak-to-sign';
-const PAYLOAD = { walletId: WALLET_ID, receiver: 'bob.testnet', amount: '2.5' } as const;
+const PAYLOAD = {
+  walletId: WALLET_ID,
+  receiver: 'bob.testnet',
+  amount: '2.5',
+  autoStart: true,
+} as const;
 const FEATURE: WalletApprovalPlugin = { kind: 'spoken', network: 'testnet' };
 const ENROLLED: SpeakToSignEnrollmentResult = {
   kind: 'enrolled',
@@ -331,12 +336,13 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const enrollRequest = {
     type: 'PM_SPEAK_TO_SIGN_ENROLL',
     requestId: 'request-enroll',
-    payload: { walletId: WALLET_ID },
+    payload: { walletId: WALLET_ID, autoStart: false },
   } as Req<'PM_SPEAK_TO_SIGN_ENROLL'>;
   return {
-    run: (payload: typeof PAYLOAD | Record<string, string> = PAYLOAD) =>
+    run: (payload: typeof PAYLOAD | Record<string, unknown> = PAYLOAD) =>
       handler({ ...request, payload } as Req<'PM_SPEAK_TO_SIGN_TRANSFER'>),
-    runEnroll: () => enrollHandler(enrollRequest),
+    runEnroll: (autoStart = false) =>
+      enrollHandler({ ...enrollRequest, payload: { walletId: WALLET_ID, autoStart } }),
     posted,
     pluginCalls,
     enrollCalls,
@@ -421,7 +427,7 @@ test('the handler gives the plugin the owner, the request texts and bound operat
   // Core opened the card with the sentence of the request.
   expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual(['Send 2.5 NEAR to bob.testnet']);
   expect(harness.phrases[0].surfaceMeasurementBinding).toBe(harness.binding);
-  // The card of a spoken request records at once, with no press on Record.
+  // By default, the card of a spoken request records at once, with no press on Record.
   expect(harness.phrases[0].autoStart).toBe(true);
   expect(seen.clip).toEqual({ kind: 'captured', speechMs: 0, endOfSpeechAt: 7 });
   expect(seen.samples).toEqual([0, 0, 0]);
@@ -530,9 +536,10 @@ test('a host cancellation aborts the signal the plugin listens to', async () => 
   expect(harness.posted[0].payload).toEqual({ ok: true, result: { kind: 'cancelled' } });
 });
 
-test('the enrollment message carries only the wallet and its result parser is exact', async () => {
-  expect(parseSpeakToSignEnrollPayload({ walletId: WALLET_ID })).toEqual({ walletId: WALLET_ID });
-  for (const bad of [{ walletId: WALLET_ID, owner: 'victim.testnet' }, { walletId: '' }, null]) {
+test('the enrollment message carries only the wallet and autoStart, and its result parser is exact', async () => {
+  const enroll = { walletId: WALLET_ID, autoStart: false };
+  expect(parseSpeakToSignEnrollPayload({ ...enroll })).toEqual(enroll);
+  for (const bad of [{ ...enroll, owner: 'victim.testnet' }, { ...enroll, walletId: '' }, null]) {
     expect(() => parseSpeakToSignEnrollPayload(bad), JSON.stringify(bad)).toThrow(
       'Speak-to-Sign enrollment request is invalid.',
     );
@@ -565,15 +572,75 @@ test('the enrollment message carries only the wallet and its result parser is ex
   }, (result) => result);
   expect(await commands.enroll({ walletId: WALLET_ID })).toEqual(ENROLLED);
   expect(posted).toEqual([
-    [{ type: 'PM_SPEAK_TO_SIGN_ENROLL', payload: { walletId: WALLET_ID } }, { timeout: 'interactive' }],
+    [
+      { type: 'PM_SPEAK_TO_SIGN_ENROLL', payload: { walletId: WALLET_ID, autoStart: false } },
+      { timeout: 'interactive' },
+    ],
   ]);
   expect(
     routeWalletHostRequest({
       type: 'PM_SPEAK_TO_SIGN_ENROLL',
       requestId: 'request-3',
-      payload: { walletId: WALLET_ID },
+      payload: { walletId: WALLET_ID, autoStart: false },
     }),
   ).toMatchObject({ signingPolicy: 'none', kind: 'near', type: 'PM_SPEAK_TO_SIGN_ENROLL' });
+});
+
+test('the app side fills the default of autoStart, and the host accepts only a boolean', async () => {
+  const posted: { type: string; payload: Readonly<Record<string, unknown>> }[] = [];
+  const commands = createIframeSpeakToSignCommands(async (request) => {
+    posted.push(request);
+    return { result: request.type === 'PM_SPEAK_TO_SIGN_ENROLL' ? ENROLLED : SENT };
+  }, (result) => result);
+  const transfer = { walletId: WALLET_ID, receiver: 'bob.testnet', amount: '2.5' };
+  const rating = { walletId: WALLET_ID, contract: 'notes.testnet', noteId: 4, rating: 'helpful' } as const;
+  await commands.requestTransfer(transfer);
+  await commands.requestTransfer({ ...transfer, autoStart: false });
+  await commands.requestRating(rating);
+  await commands.requestRating({ ...rating, autoStart: false });
+  await commands.enroll({ walletId: WALLET_ID });
+  await commands.enroll({ walletId: WALLET_ID, autoStart: true });
+  // A spoken request records at once by default; an enrollment waits for Record by default.
+  expect(posted.map(({ payload }) => payload.autoStart)).toEqual([true, false, true, false, false, true]);
+
+  for (const autoStart of [undefined, 'yes', 1, null]) {
+    const { autoStart: _omitted, ...withoutAutoStart } = PAYLOAD;
+    const payload = autoStart === undefined ? withoutAutoStart : { ...PAYLOAD, autoStart };
+    expect(() => parseSpeakToSignTransferPayload(payload), String(autoStart)).toThrow(
+      'request is invalid',
+    );
+    const note = { ...posted[2].payload };
+    if (autoStart === undefined) delete note.autoStart;
+    else note.autoStart = autoStart;
+    expect(() => parseSpeakToSignNotePayload(note), String(autoStart)).toThrow('request is invalid');
+    const enroll = autoStart === undefined ? { walletId: WALLET_ID } : { walletId: WALLET_ID, autoStart };
+    expect(() => parseSpeakToSignEnrollPayload(enroll), String(autoStart)).toThrow(
+      'request is invalid',
+    );
+  }
+});
+
+test('each card of a flow records when it opens only as the app chose', async () => {
+  const request = buildHandler({
+    async plugin(input) {
+      await input.operations.record();
+      return { kind: 'cancelled' };
+    },
+  });
+  await request.run({ ...PAYLOAD, autoStart: false });
+  expect(request.phrases.map((phrase) => phrase.autoStart)).toEqual([false]);
+
+  const enrollment = buildHandler({
+    async enroll(input) {
+      for (let index = 0; index < input.phraseCount; index += 1) {
+        const clip = await input.operations.record(index);
+        if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
+      }
+      return { kind: 'cancelled' };
+    },
+  });
+  await enrollment.runEnroll(true);
+  expect(enrollment.phrases.map((phrase) => phrase.autoStart)).toEqual([true, true, true]);
 });
 
 test('the enrollment handler records the phrases of core and enrolls only clips of the flow', async () => {
@@ -613,7 +680,7 @@ test('the enrollment handler records the phrases of core and enrolls only clips 
   });
   expect(Object.keys(input.operations).sort()).toEqual(['enrollClips', 'record', 'show']);
   expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual([...ENROLLMENT_PHRASES]);
-  // An enrollment has three phrases, so each one waits for Record.
+  // By default, each phrase of an enrollment waits for Record.
   expect(harness.phrases.some((phrase) => phrase.autoStart)).toBe(false);
   expect(harness.phrases[0].surfaceMeasurementBinding).toBe(harness.binding);
   expect(seen.foreign).toEqual({
@@ -694,9 +761,10 @@ test('a wallet without VoiceID activates it, and its three samples are the enrol
   expect(closed.posted[0].payload).toEqual({ ok: true, result: { kind: 'cancelled' } });
 });
 
-test('the note message carries only the wallet and one note or rating, and its result is exact', async () => {
+test('the note message carries only the wallet, autoStart and one note or rating, and its result is exact', async () => {
   const note = {
     walletId: WALLET_ID,
+    autoStart: true,
     action: {
       kind: 'community_note',
       contract: 'community-notes.testnet',
@@ -707,6 +775,7 @@ test('the note message carries only the wallet and one note or rating, and its r
   } as const;
   const rating = {
     walletId: WALLET_ID,
+    autoStart: true,
     action: { kind: 'note_rating', contract: 'community-notes.testnet', noteId: 3, rating: 'helpful' },
   } as const;
   expect(parseSpeakToSignNotePayload(structuredClone(note))).toEqual(note);
@@ -760,6 +829,7 @@ test('the bet message carries exact base units, and an amount that cannot be sai
   const usdc = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
   const bet = {
     walletId: WALLET_ID,
+    autoStart: true,
     action: {
       kind: 'market_bet',
       contract: 'pm-notes.testnet',
@@ -825,6 +895,7 @@ test('the transaction message carries the receiver, checked actions and the summ
   };
   const payload = {
     walletId: WALLET_ID,
+    autoStart: true,
     action: {
       kind: 'transaction',
       transaction: {
@@ -956,6 +1027,7 @@ test('the transaction message carries the receiver, checked actions and the summ
 test('the message request carries the NEP-413 fields and the summary, and its result is exact', async () => {
   const payload = {
     walletId: WALLET_ID,
+    autoStart: true,
     action: {
       kind: 'signed_message',
       message: 'Log in to example.app',
@@ -1178,7 +1250,11 @@ test('a normal sign call with approval goes to the voice flow, with the wallet o
   const presentation = { kind: 'anchored' } as never;
 
   await near.signAndSendTransaction({ ...transaction, approval: { ...approval, onProgress }, presentation });
-  await near.signTransaction({ transaction, approval, walletSession: 'other.testnet' });
+  await near.signTransaction({
+    transaction,
+    approval: { ...approval, autoStart: false },
+    walletSession: 'other.testnet',
+  });
   await near.signDelegateAction({
     delegate: { ...transaction, senderId: 'ignored.testnet', nonce: 1n, maxBlockHeight: 2n, publicKey: 'ed25519:key' },
     approval,
@@ -1191,12 +1267,15 @@ test('a normal sign call with approval goes to the voice flow, with the wallet o
   await near.signAndSendTransaction(transaction);
   await near.spoken?.transfer({ receiver: 'bob.testnet', amount: '2.5', walletSession: 'other.testnet' });
   await near.spoken?.enroll();
+  // `autoStart` reaches the Wallet from `approval`, a typed request and an enrollment.
+  await near.spoken?.transfer({ receiver: 'bob.testnet', amount: '1', autoStart: false });
+  await near.spoken?.enroll({ autoStart: true });
   expect(calls).toEqual([
     [
       'send',
       { walletId: 'current.testnet', transaction, summary: approval.summary, onProgress, presentation },
     ],
-    ['sign', { walletId: 'other.testnet', transaction, summary: approval.summary }],
+    ['sign', { walletId: 'other.testnet', transaction, summary: approval.summary, autoStart: false }],
     [
       'delegate',
       {
@@ -1212,6 +1291,8 @@ test('a normal sign call with approval goes to the voice flow, with the wallet o
     ['plain send', transaction],
     ['transfer', { walletId: 'other.testnet', receiver: 'bob.testnet', amount: '2.5' }],
     ['enroll', { walletId: 'current.testnet' }],
+    ['transfer', { walletId: 'current.testnet', receiver: 'bob.testnet', amount: '1', autoStart: false }],
+    ['enroll', { walletId: 'current.testnet', autoStart: true }],
   ]);
 
   // Without the descriptor there is no `spoken`, and a call with `approval` says what is missing.

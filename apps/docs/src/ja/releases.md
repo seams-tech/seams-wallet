@@ -29,7 +29,7 @@ description: Speak-to-Signは@seams/walletの一部になり、NEARの通常の�
   - ベリファイアーのエラー出力は、`verifier_failed`の`failed`イベントになります。これまでは`verdict`イベントとして送り、Walletが無効な出力として扱っていました。
 - `@seams/voice-verdict`と`@seams/voice-capture`は **0.68.0** です。音声カードのメインボタンは、テーマのボタンの色(`appearance.theme.colors`の`buttonBackground`と`textButton`)を使います。既定のテーマでは、ライトテーマの「録音」ボタンが濃い灰色からほぼ黒に変わります。
 - OutLayerが時間内にベリファイアーを実行しない場合(`verifier_timeout`)、支払いのカードと登録のカードは「OutLayer timed out」と表示し、録音が原因ではないこと、1分後にもう一度試すことを伝えます。これまでは一般的な文を表示していました。Seamsの検証ルートがOutLayerを待つ時間は、20秒から30秒になりました。
-- 音声リクエストのカードは、「録音」を押さなくてもすぐに録音を始めます(`@seams/voice-capture`の`autoStart`)。ブラウザーが操作なしで音声を開始しない場合は、カードに「録音」ボタンが残ります。登録では、これまでどおり各文で「録音」を押します。
+- `autoStart`は、カードが開いたときに「録音」を押さなくても録音を始めるかどうかを決めます。通常の呼び出しでは`approval`の中に、`spoken`の呼び出しではリクエストの中に、または`spoken.enroll`に指定します。既定値は、音声リクエストでは`true`、登録では`false`です。ブラウザーが操作なしで音声を開始しない場合は、カードに「録音」ボタンが残ります。`enroll`の中のVoiceIDの設定では、これまでどおり各サンプルで「録音」を押します。
 - Walletのステップ:
   - アプリのダイアログ内のカードは`transition`を受け取ります: フェードインの前の待ち時間(`enterDelayMs`)、フェードイン、フェードアウトで、それぞれ0〜1000ミリ秒です。`WalletStep`、`HostedSeamsAuthMenu`、`surfaces.mount`、`authMenu.open`のステップ、アンカー付きの表示が受け取ります。
   - `chrome: 'back_and_close'`は、カードに「戻る」と「閉じる」の両方を表示します。「戻る」は`onBack`を、「閉じる」は`onClose`を呼びます。VoiceIDのカードも両方を表示します。
