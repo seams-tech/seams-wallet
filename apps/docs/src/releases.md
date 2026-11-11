@@ -24,6 +24,7 @@ The browser SDK, server SDK and VoiceID plugin use **0.68.0**. This release has 
   - Core holds the limits of each kind. A transfer that the sentence cannot say (an implicit receiver, or an amount that is not 0.01 to 1,000,000 NEAR in whole hundredths) is refused before the card opens.
   - The flow on the card holds no recording. Core records, seals and sends the audio, and clears it after use.
   - The co-signer refuses a bet whose `msg` carries another verdict than the verdict of the request.
+- When OutLayer does not run the verifier in time (`verifier_timeout`), the payment card and the enrollment card say "OutLayer timed out", that the recording is not the cause, and to try again in a minute. Before, they showed the general text. The Seams verify route waits 30 s for OutLayer, not 20 s.
 - Wallet steps:
   - A card in an app's dialog takes `transition`: the wait before the fade-in (`enterDelayMs`), the fade-in and the fade-out, each from 0 to 1000 ms. `WalletStep`, `HostedSeamsAuthMenu`, `surfaces.mount`, the step of `authMenu.open` and an anchored presentation take it.
   - `chrome: 'back_and_close'` draws Back and Close together in a card. Back calls `onBack` and Close calls `onClose`.
