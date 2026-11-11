@@ -8,16 +8,23 @@ import type {} from '../../typecheck/speak-to-sign-api.typecheck';
 const ORIGIN = 'https://wallet.example.test';
 const HOST_PATH = 'sdk/speak-to-sign/host.js';
 type Chunk = { fileName: string; code: string; imports: string[] };
-type HostResponse = 'compatible' | 'missing' | 'incompatible';
+type HostResponse = 'compatible' | 'missing' | 'incompatible' | 'no_approve';
 
 // A stand-in for the @seams/wallet-voice-sign host plugin, which seams-tech/speak-to-sign releases.
-// It has the Wallet's host API version and, like the plugin, has no flow for a call without a
-// transfer.
+// It has the Wallet's host API version and the two methods of the approver contract.
 const COMPATIBLE_HOST = `export const hostApiVersion = ${SPEAK_TO_SIGN_HOST_API_VERSION};
 const unavailable = async () => ({ kind: 'unavailable', reason: 'flow_not_available' });
 export function createSpeakToSignHostPlugin() {
-  return { requestTransfer: unavailable, requestNoteAction: unavailable, enroll: unavailable };
+  return { approve: unavailable, enroll: unavailable };
 }`;
+// The plugin of host API 10: its version and its three request methods.
+const HOST_API_10 = `export const hostApiVersion = 10;
+const unavailable = async () => ({ kind: 'unavailable', reason: 'flow_not_available' });
+export function createSpeakToSignHostPlugin() {
+  return { requestTransfer: unavailable, requestNoteAction: unavailable, requestMessage: unavailable, enroll: unavailable };
+}`;
+// The Wallet's version, with the methods of host API 10 and no `approve`.
+const HOST_WITHOUT_APPROVE = HOST_API_10.replace('= 10;', `= ${SPEAK_TO_SIGN_HOST_API_VERSION};`);
 
 const chunks: Chunk[] = JSON.parse(
   execFileSync(
@@ -58,8 +65,11 @@ class ProbeServer {
     if (this.host === 'incompatible') {
       return await route.fulfill({
         contentType: 'text/javascript',
-        body: 'export const hostApiVersion = 2; export function createSpeakToSignHostPlugin() { return { requestTransfer() {} }; }',
+        body: HOST_API_10,
       });
+    }
+    if (this.host === 'no_approve') {
+      return await route.fulfill({ contentType: 'text/javascript', body: HOST_WITHOUT_APPROVE });
     }
     await route.fulfill({ contentType: 'text/javascript', body: COMPATIBLE_HOST });
   }
@@ -84,8 +94,8 @@ function enable(): void {
 function disable(): void {
   window.speakToSignPluginProbe.configure(false);
 }
-function requestTransfer(): ReturnType<Window['speakToSignPluginProbe']['requestTransfer']> {
-  return window.speakToSignPluginProbe.requestTransfer();
+function requestTransfer(): ReturnType<Window['speakToSignPluginProbe']['loadHost']> {
+  return window.speakToSignPluginProbe.loadHost();
 }
 
 async function open(page: Page, host: HostResponse): Promise<ProbeServer> {
@@ -105,8 +115,8 @@ test('a Wallet without the Speak-to-Sign descriptor never requests its host plug
   await page.evaluate(enable);
   expect(server.speakToSignRequests()).toEqual([]);
   await expect(page.evaluate(requestTransfer)).resolves.toEqual({
-    kind: 'unavailable',
-    reason: 'flow_not_available',
+    kind: 'loaded',
+    methods: ['approve', 'enroll'],
   });
   expect(server.speakToSignRequests()).toEqual([HOST_PATH]);
   await page.evaluate(requestTransfer);
@@ -128,8 +138,15 @@ test('a Wallet host refuses a missing or incompatible Speak-to-Sign plugin', asy
   const incompatible = await browser.newPage();
   await open(incompatible, 'incompatible');
   await incompatible.evaluate(enable);
+  // A plugin of host API 10 does not load: nothing is recorded or signed.
   await expect(incompatible.evaluate(requestTransfer)).rejects.toThrow(
     'Speak-to-Sign is incompatible with this Wallet host',
+  );
+  const noApprove = await browser.newPage();
+  await open(noApprove, 'no_approve');
+  await noApprove.evaluate(enable);
+  await expect(noApprove.evaluate(requestTransfer)).rejects.toThrow(
+    'Speak-to-Sign host implementation is invalid',
   );
 });
 

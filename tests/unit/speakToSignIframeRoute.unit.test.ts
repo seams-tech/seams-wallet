@@ -14,6 +14,7 @@ import type {
   SpeakToSignHostPlugin,
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
+import { ENROLLMENT_PHRASES } from '@/core/transactionFeatures/hostApproval';
 import type { WalletTransactionFeaturePlugin } from '@/core/transactionFeatures/plugins';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { createIframeSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
@@ -194,14 +195,15 @@ type HandlerHarnessOptions = {
   readonly relayerUrl?: string;
   readonly nearReady?: boolean;
   readonly cancelled?: () => boolean;
-  readonly plugin?: SpeakToSignHostPlugin['requestTransfer'];
+  readonly plugin?: SpeakToSignHostPlugin['approve'];
+  readonly enroll?: SpeakToSignHostPlugin['enroll'];
   /** What VoiceID activation does: keep three samples, check an existing enrollment, or close. */
   readonly activation?: 'new_enrollment' | 'existing_enrollment' | 'cancelled';
 };
 
 function buildHandler(options: HandlerHarnessOptions = {}) {
   const posted: ChildToParentEnvelope[] = [];
-  const pluginCalls: Parameters<SpeakToSignHostPlugin['requestTransfer']>[0][] = [];
+  const pluginCalls: Parameters<SpeakToSignHostPlugin['approve']>[0][] = [];
   const enrollCalls: Parameters<SpeakToSignHostPlugin['enroll']>[0][] = [];
   const loads: (readonly WalletTransactionFeaturePlugin[])[] = [];
   const messages: unknown[] = [];
@@ -260,7 +262,7 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
         };
       },
     },
-    getContext: () => ({ nearClient: { view: async () => ({}) } }),
+    getContext: () => ({ nearClient: { view: async () => ({}), viewAccount: async () => ({}) } }),
     near: {
       async signMessage(args: unknown) {
         messages.push(args);
@@ -283,19 +285,13 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     surfaceMeasurementBinding: () => binding,
   } as unknown as HandlerDeps;
   const plugin: SpeakToSignHostPlugin = {
-    async requestTransfer(input) {
+    async approve(input) {
       pluginCalls.push(input);
       return options.plugin ? await options.plugin(input) : SENT;
     },
-    async requestNoteAction() {
-      throw new Error('This route test runs no note.');
-    },
-    async requestMessage() {
-      throw new Error('This route test runs no message.');
-    },
     async enroll(input) {
       enrollCalls.push(input);
-      return ENROLLED;
+      return options.enroll ? await options.enroll(input) : ENROLLED;
     },
   };
   const ports: SpeakToSignWalletPorts = {
@@ -337,7 +333,8 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     payload: { walletId: WALLET_ID },
   } as Req<'PM_SPEAK_TO_SIGN_ENROLL'>;
   return {
-    run: () => handler(request),
+    run: (payload: typeof PAYLOAD | Record<string, string> = PAYLOAD) =>
+      handler({ ...request, payload } as Req<'PM_SPEAK_TO_SIGN_TRANSFER'>),
     runEnroll: () => enrollHandler(enrollRequest),
     posted,
     pluginCalls,
@@ -355,71 +352,118 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   };
 }
 
-test('the handler gives the plugin the owner, the network and scoped operations', async () => {
-  const harness = buildHandler();
+const HOOKS = {
+  accepted: () => undefined,
+  approveStepUp: async () => true,
+  broadcasting: () => undefined,
+  included: () => undefined,
+};
+/** A verifier output that the pinned testnet key did not sign. */
+const FOREIGN_OUTPUT = {
+  kind: 'seams_voice_verify_output_v2',
+  verdict_json: '{}',
+  signature_b64: 'c2ln',
+  public_key: 'ed25519:other',
+  policy_text: null,
+  ms: {},
+};
+
+test('the handler gives the plugin the owner, the request texts and bound operations', async () => {
+  const seen: Record<string, unknown> = {};
+  const harness = buildHandler({
+    async plugin(input) {
+      expect(harness.recorderLoads).toEqual([harness.authMethods]);
+      const clip = await input.operations.record();
+      if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
+      seen.clip = clip;
+      // Core wipes the samples once the WAV holds them.
+      seen.samples = [...harness.recorded];
+      await input.operations.verify(clip);
+      // A handle verifies once, and a copy of a handle names no recording.
+      seen.again = await input.operations.verify(clip);
+      seen.forged = await input.operations.verify({ ...clip });
+      // A verdict that the pinned testnet key did not sign pays nothing.
+      seen.signing = await input.operations.sign(FOREIGN_OUTPUT, HOOKS);
+      return SENT;
+    },
+  });
   await harness.run();
   expect(harness.loads).toEqual([[FEATURE]]);
   expect(harness.pluginCalls).toHaveLength(1);
   const [input] = harness.pluginCalls;
-  expect(input).toMatchObject({ walletId: WALLET_ID, network: 'testnet' });
-  expect('vault' in input).toBe(false);
-  expect(input.signal.aborted).toBe(false);
-  const transfer = input.transfer;
-  if (!transfer) throw new Error('The handler sent no transfer');
-  expect(transfer.ownerAccountId).toBe('owner.testnet');
-  expect(transfer.receiver).toBe('bob.testnet');
-  expect(transfer.amount).toBe('2.5');
-  expect(transfer.surfaceMeasurementBinding).toBe(harness.binding);
-
-  const signal = new AbortController().signal;
-  expect(harness.recorderLoads).toEqual([]);
-  const opened = await transfer.operations.openPrompt({
-    sentence: 'Send two NEAR to bob',
-    signal,
-    surfaceMeasurementBinding: harness.binding,
+  expect(input).toMatchObject({
+    walletId: WALLET_ID,
+    network: 'testnet',
+    ownerAccountId: 'owner.testnet',
+    request: {
+      kind: 'account_transfer',
+      form: 'send',
+      displayText: 'Send 2.5 NEAR to bob.testnet',
+      spokenText: 'send two point five near to bob dot testnet',
+      counterparty: 'bob.testnet',
+      amount: '2.5',
+      summary: null,
+    },
   });
-  if (opened.kind !== 'opened') throw new Error('VoiceID did not open');
-  const clip = await opened.prompt.record();
-  expect(harness.recorderLoads).toEqual([harness.authMethods]);
-  expect(harness.phrases).toEqual([
-    { sentence: 'Send two NEAR to bob', signal, surfaceMeasurementBinding: harness.binding },
+  // The plugin gets no intent, no core operations and no audio.
+  expect(Object.keys(input).sort()).toEqual([
+    'network',
+    'operations',
+    'ownerAccountId',
+    'request',
+    'signal',
+    'surface',
+    'walletId',
   ]);
-  if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
-  expect(clip.wav.length).toBe(44 + 3 * 2);
-  expect(clip.endOfSpeechAt).toBe(7);
-  // Core wipes the samples once the WAV holds them.
-  expect([...harness.recorded]).toEqual([0, 0, 0]);
-  await transfer.operations.verify({ op: 'verify', owner: 'owner.testnet' }, signal);
+  expect(Object.keys(input.operations).sort()).toEqual(['record', 'sign', 'verify']);
+  expect(input.signal.aborted).toBe(false);
+  // Core opened the card with the sentence of the request.
+  expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual(['Send 2.5 NEAR to bob.testnet']);
+  expect(harness.phrases[0].surfaceMeasurementBinding).toBe(harness.binding);
+  expect(seen.clip).toEqual({ kind: 'captured', speechMs: 0, endOfSpeechAt: 7 });
+  expect(seen.samples).toEqual([0, 0, 0]);
+  // Core built the verifier input: the owner of the session, the request and the sealed clip.
   expect(harness.fetched.map(({ url }) => url)).toEqual([
     'https://relay.example.test/speak-to-sign/v1/verify',
   ]);
   expect(new Headers(harness.fetched[0].init.headers).get('authorization')).toBe(
     'Bearer wst_credential',
   );
-  // A verdict that the pinned testnet key did not sign pays nothing.
-  expect(
-    await transfer.operations.payWithVerdict(
-      { receiver: 'bob.testnet', amountYocto: 25n * 10n ** 23n },
-      {
-        kind: 'seams_voice_verify_output_v2',
-        verdict_json: '{}',
-        signature_b64: 'c2ln',
-        public_key: 'ed25519:other',
-        policy_text: null,
-        ms: {},
-      },
-      signal,
-      {
-        accepted: () => undefined,
-        approveStepUp: async () => true,
-        broadcasting: () => undefined,
-        included: () => undefined,
-      },
-    ),
-  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict fields are invalid' });
+  const sent = JSON.parse(String(harness.fetched[0].init.body)).input;
+  expect(sent).toMatchObject({
+    op: 'verify',
+    owner: 'owner.testnet',
+    request: { kind: 'transfer', receiver: 'bob.testnet', amount_yocto: '2500000000000000000000000' },
+    contacts: [],
+  });
+  expect(typeof sent.audio_sealed_b64).toBe('string');
+  expect('audio_wav_b64' in sent).toBe(false);
+  expect(seen.again).toEqual({ kind: 'failed', code: 'unknown_recording' });
+  expect(seen.forged).toEqual({ kind: 'failed', code: 'unknown_recording' });
+  expect(seen.signing).toEqual({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'verdict fields are invalid',
+  });
+  // The operations stop when the plugin's call settled.
+  await expect(input.operations.record()).rejects.toThrow('flow has ended');
+  await expect(input.operations.sign(FOREIGN_OUTPUT, HOOKS)).rejects.toThrow('flow has ended');
   expect(harness.posted).toEqual([
     { type: 'PM_RESULT', requestId: 'request-1', payload: { ok: true, result: SENT } },
   ]);
+});
+
+test('core refuses a request that it cannot sign before it loads a card or calls the plugin', async () => {
+  for (const [payload, reason] of [
+    [{ ...PAYLOAD, amount: '0.005' }, 'amount_not_speakable'],
+    [{ ...PAYLOAD, receiver: 'ab'.repeat(32) }, 'receiver_not_speakable'],
+  ] as const) {
+    const harness = buildHandler();
+    await harness.run(payload);
+    expect(harness.pluginCalls).toHaveLength(0);
+    expect(harness.phrases).toHaveLength(0);
+    expect(harness.posted[0].payload).toEqual({ ok: true, result: { kind: 'refused', reason } });
+  }
 });
 
 test('missing VoiceID or a missing Seams server ends as unavailable without loading the plugin', async () => {
@@ -512,8 +556,30 @@ test('the enrollment message carries only the wallet and its result parser is ex
   ).toMatchObject({ signingPolicy: 'none', kind: 'near', type: 'PM_SPEAK_TO_SIGN_ENROLL' });
 });
 
-test('the enrollment handler gives the plugin the owner and signs through the NEP-413 path', async () => {
-  const harness = buildHandler();
+test('the enrollment handler records the phrases of core and enrolls only clips of the flow', async () => {
+  const seen: Record<string, unknown> = {};
+  const harness = buildHandler({
+    async enroll(input) {
+      const clips = [];
+      for (let index = 0; index < input.phraseCount; index += 1) {
+        harness.recorded.set([0.5, -0.5, index / 10]);
+        const clip = await input.operations.record(index);
+        if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
+        clips.push(clip);
+      }
+      // A clip that this flow did not record is refused, and the owner signs nothing.
+      seen.foreign = await input.operations.enrollClips([clips[0], clips[1], { ...clips[2] }], () => {
+        throw new Error('not authorized');
+      });
+      seen.messagesBefore = harness.messages.length;
+      let authorized = false;
+      await input.operations.enrollClips(clips, () => {
+        authorized = true;
+      });
+      seen.authorized = authorized;
+      return ENROLLED;
+    },
+  });
   await harness.runEnroll();
   expect(harness.pluginCalls).toHaveLength(0);
   expect(harness.enrollCalls).toHaveLength(1);
@@ -522,26 +588,18 @@ test('the enrollment handler gives the plugin the owner and signs through the NE
     walletId: WALLET_ID,
     network: 'testnet',
     ownerAccountId: 'owner.testnet',
+    phraseCount: 3,
+    clips: null,
   });
-  expect(input.surfaceMeasurementBinding).toBe(harness.binding);
-  const signal = new AbortController().signal;
-  const clips: Uint8Array<ArrayBuffer>[] = [];
-  for (const sentence of ['one', 'two', 'three']) {
-    harness.recorded.set([0.5, -0.5, clips.length / 10]);
-    const opened = await input.operations.openPrompt({
-      sentence,
-      signal,
-      surfaceMeasurementBinding: harness.binding,
-    });
-    if (opened.kind !== 'opened') throw new Error('VoiceID did not open');
-    const clip = await opened.prompt.record();
-    if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
-    clips.push(clip.wav);
-  }
-  expect(await input.operations.authorizeEnrollment(clips, signal)).toEqual({
-    kind: 'signed',
-    authorization: { public_key: 'ed25519:owner', signature_b64: 'c2ln', nonce_b64: 'bm9uY2U=' },
+  expect(Object.keys(input.operations).sort()).toEqual(['enrollClips', 'record', 'show']);
+  expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual([...ENROLLMENT_PHRASES]);
+  expect(harness.phrases[0].surfaceMeasurementBinding).toBe(harness.binding);
+  expect(seen.foreign).toEqual({
+    kind: 'not_signed',
+    error: 'Only recordings of this enrollment can be enrolled.',
   });
+  expect(seen.messagesBefore).toBe(0);
+  expect(seen.authorized).toBe(true);
   expect(harness.messages).toMatchObject([
     {
       walletSession: { walletId: WALLET_ID },
@@ -549,12 +607,22 @@ test('the enrollment handler gives the plugin the owner and signs through the NE
       params: { recipient: 'seams-v1.testnet/voice-verifier' },
     },
   ]);
+  // Core sent the three clips, sealed, with the owner's authorization.
+  expect(harness.fetched).toHaveLength(1);
+  const sent = JSON.parse(String(harness.fetched[0].init.body)).input;
+  expect(sent).toMatchObject({
+    op: 'enroll',
+    owner: 'owner.testnet',
+    authorization: { public_key: 'ed25519:owner', signature_b64: 'c2ln', nonce_b64: 'bm9uY2U=' },
+  });
+  expect(sent.audio_sealed_b64).toHaveLength(3);
+  expect('audio_wav_b64' in sent).toBe(false);
+  await expect(input.operations.record(0)).rejects.toThrow('flow has ended');
   expect(harness.posted).toEqual([
     { type: 'PM_RESULT', requestId: 'request-enroll', payload: { ok: true, result: ENROLLED } },
   ]);
 
   expect(harness.activations).toHaveLength(0);
-  expect(input.recordings).toBeNull();
 
   const disabled = buildHandler({ voiceId: 'disabled' });
   await disabled.runEnroll();
@@ -567,33 +635,28 @@ test('the enrollment handler gives the plugin the owner and signs through the NE
 });
 
 test('a wallet without VoiceID activates it, and its three samples are the enrollment clips', async () => {
-  const harness = buildHandler({ voiceId: 'not_enrolled' });
+  const seen: Record<string, unknown> = {};
+  const harness = buildHandler({
+    voiceId: 'not_enrolled',
+    async enroll(input) {
+      if (!input.clips) throw new Error('The enrollment has no VoiceID recordings');
+      seen.clips = input.clips.length;
+      await input.operations.enrollClips(input.clips, () => undefined);
+      return ENROLLED;
+    },
+  });
   await harness.runEnroll();
   expect(harness.activations).toHaveLength(1);
   expect(harness.activations[0]).toMatchObject({ walletId: WALLET_ID });
   expect(harness.activations[0].surfaceMeasurementBinding).toBe(harness.binding);
   expect(harness.enrollCalls).toHaveLength(1);
-  const [input] = harness.enrollCalls;
-  const recordings = input.recordings;
-  if (!recordings) throw new Error('The enrollment has no VoiceID recordings');
-  expect(recordings.map((recording) => recording.sentence)).toEqual([
-    'Phrase 1.',
-    'Phrase 2.',
-    'Phrase 3.',
-  ]);
+  expect(seen.clips).toBe(3);
+  // The card opens on the last sentence that the owner read for VoiceID, and records nothing.
+  expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual(['Phrase 3.']);
   // The Wallet keeps only the WAV clips; the samples are cleared.
   for (const samples of harness.enrollmentSamples) expect([...samples]).toEqual([0, 0]);
-  const signal = new AbortController().signal;
-  const clips = recordings.map((recording) => recording.wav);
-  expect(await input.operations.authorizeEnrollment(clips, signal)).toMatchObject({
-    kind: 'signed',
-  });
-  // A clip that neither VoiceID nor this flow recorded stays refused.
-  const foreign = [clips[0], clips[1], new Uint8Array(clips[2].length)];
-  expect(await input.operations.authorizeEnrollment(foreign, signal)).toEqual({
-    kind: 'not_signed',
-    error: 'Only recordings of this enrollment can be authorized.',
-  });
+  expect(harness.messages).toHaveLength(1);
+  expect(JSON.parse(String(harness.fetched[0].init.body)).input.audio_sealed_b64).toHaveLength(3);
   expect(harness.posted).toEqual([
     { type: 'PM_RESULT', requestId: 'request-enroll', payload: { ok: true, result: ENROLLED } },
   ]);
@@ -601,7 +664,7 @@ test('a wallet without VoiceID activates it, and its three samples are the enrol
   const existing = buildHandler({ voiceId: 'not_enrolled', activation: 'existing_enrollment' });
   await existing.runEnroll();
   expect(existing.enrollCalls).toHaveLength(1);
-  expect(existing.enrollCalls[0].recordings).toBeNull();
+  expect(existing.enrollCalls[0].clips).toBeNull();
 
   const closed = buildHandler({ voiceId: 'not_enrolled', activation: 'cancelled' });
   await closed.runEnroll();

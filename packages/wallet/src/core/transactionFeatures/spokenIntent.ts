@@ -4,12 +4,26 @@
 
 import type { SpokenTypedFields } from '@shared/speakToSign/spokenKinds';
 import type { SpeakToSignNetwork } from './plugins';
-import { messageActionRefusal, messageDigests, type SpokenMessageAction } from './spokenMessage';
-import { noteActionDigests, noteActionRefusal, type SpokenNoteAction } from './spokenNote';
+import {
+  messageActionRefusal,
+  messageDigests,
+  messageVerifyRequest,
+  renderMessage,
+  type SpokenMessageAction,
+} from './spokenMessage';
+import {
+  noteActionDigests,
+  noteActionRefusal,
+  noteVerifyRequest,
+  renderNoteAction,
+  type SpokenNoteAction,
+} from './spokenNote';
 import {
   isSpeakableAccount,
   isSpeakableHundredths,
+  renderTransfer,
   transferDigests,
+  type RenderedTransfer,
   type SpokenDigests,
 } from './spokenTransfer';
 
@@ -32,7 +46,14 @@ export type SpokenEvidence = Readonly<{
 }>;
 
 /** Why core cannot sign this intent, or null. No verdict can approve a refused intent. */
-export function intentRefusal(network: SpeakToSignNetwork, intent: SpokenIntent): string | null {
+export function intentRefusal(
+  network: SpeakToSignNetwork,
+  intent: SpokenIntent,
+):
+  | ReturnType<typeof noteActionRefusal>
+  | ReturnType<typeof messageActionRefusal>
+  | 'receiver_not_speakable'
+  | 'amount_not_speakable' {
   if (intent.kind === 'signed_message') return messageActionRefusal(intent.message);
   if (intent.kind !== 'account_transfer') return noteActionRefusal(network, intent);
   if (!isSpeakableAccount(intent.receiver)) return 'receiver_not_speakable';
@@ -57,4 +78,23 @@ export async function intentDigests(
     receiver: intent.receiver,
     amountYocto: intent.amountYocto,
   });
+}
+
+/** The sentence of the intent: what the card shows and the words that the owner says. */
+export function renderIntent(intent: SpokenIntent): RenderedTransfer {
+  if (intent.kind === 'signed_message') return renderMessage(intent.message);
+  return intent.kind === 'account_transfer' ? renderTransfer(intent) : renderNoteAction(intent);
+}
+
+/** The `request` of the verifier's `verify` input for this intent. */
+export async function intentVerifyRequest(
+  intent: SpokenIntent,
+): Promise<Readonly<Record<string, unknown>>> {
+  if (intent.kind === 'signed_message') return messageVerifyRequest(intent.message);
+  if (intent.kind !== 'account_transfer') return await noteVerifyRequest(intent);
+  return {
+    kind: 'transfer',
+    receiver: intent.receiver,
+    amount_yocto: String(intent.amountYocto),
+  };
 }

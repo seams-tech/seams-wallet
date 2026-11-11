@@ -1,44 +1,30 @@
-// Scoped operations and data contracts for the trusted Speak-to-Sign plugin.
+// The data contracts of the trusted Speak-to-Sign plugin (host API 12). The plugin gets bound
+// operations for one request: it passes no intent, no sentence and no audio back to core.
 export {
   SPEAK_TO_SIGN_HOST_API_VERSION,
-  type SpeakToSignEnrollmentRecording,
+  type SpeakToSignApprovalOperations,
+  type SpeakToSignApprovalResult,
+  type SpeakToSignClipHandle,
+  type SpeakToSignEnrollmentOperations,
+  type SpeakToSignEnrollmentReply,
   type SpeakToSignEnrollmentResult,
+  type SpeakToSignHostApproval,
   type SpeakToSignHostEnrollment,
-  type SpeakToSignHostMessage,
-  type SpeakToSignHostNote,
-  type SpeakToSignHostOperations,
   type SpeakToSignHostPlugin,
   type SpeakToSignMessageResult,
-  type SpeakToSignMessageSigning,
   type SpeakToSignNoteActionResult,
-  type SpeakToSignNoteSigning,
-  type SpeakToSignNoteResult,
-  type SpeakToSignPayment,
   type SpeakToSignPaymentHooks,
-  type SpeakToSignPrompt,
+  type SpeakToSignRecording,
+  type SpeakToSignRequestView,
+  type SpeakToSignSigning,
+  type SpeakToSignSurface,
   type SpeakToSignTransferResult,
+  type SpeakToSignVerifyReply,
 } from './core/transactionFeatures/hostPlugin';
 export { type VerifierRefusal } from './core/transactionFeatures/voiceVerdict';
-export {
-  messageActionRefusal,
-  messageVerifyRequest,
-  renderMessage,
-} from './core/transactionFeatures/spokenMessage';
-export {
-  noteActionRefusal,
-  noteVerifyRequest,
-  renderNoteAction,
-  type SpokenNoteAction,
-} from './core/transactionFeatures/spokenNote';
 export {
   type PhraseCheckView,
   type PhraseResultView,
   type PhraseSegmentState,
 } from './core/authMethods/hostPlugin';
-export {
-  isSpeakableAccount,
-  parseSpeakableNear,
-  renderTransfer,
-} from './core/transactionFeatures/spokenTransfer';
 export { isPlainObject } from '@shared/utils/validation';
-export { base64Encode } from '@shared/utils/base64';

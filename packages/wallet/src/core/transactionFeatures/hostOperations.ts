@@ -426,9 +426,9 @@ export async function signWithEvidence(
 }
 
 /** What core does with the signature. It follows from the intent, never from the caller. */
-type SigningForm = 'send' | 'sign' | 'delegate' | 'message';
+export type SigningForm = 'send' | 'sign' | 'delegate' | 'message';
 
-function signingForm(intent: SpokenIntent): SigningForm {
+export function signingForm(intent: SpokenIntent): SigningForm {
   if (intent.kind === 'signed_message') return 'message';
   // A typed kind is always one transaction that core sends.
   if (intent.kind !== 'transaction' || intent.delivery === 'send') return 'send';

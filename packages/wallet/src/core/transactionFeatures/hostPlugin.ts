@@ -10,8 +10,11 @@ import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
-/** Wallet and `@seams/wallet-voice-sign` must use the same value. It is separate from VoiceID's. */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 10;
+/**
+ * Wallet and `@seams/wallet-voice-sign` must use the same value. It is separate from VoiceID's
+ * (11), so it went from 10 to 12 with the approver contract.
+ */
+export const SPEAK_TO_SIGN_HOST_API_VERSION = 12;
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -422,11 +425,9 @@ export type SpeakToSignPromptResult =
   | Readonly<{ kind: 'unavailable'; detail: string }>;
 
 /**
- * Scoped core operations for one spoken payment or one enrollment. The plugin can record clips
- * on the VoiceID surface, check that a receiver exists and call the Seams verify route. Core
- * itself checks each verdict and builds what it signs: one transfer from the owner, or one
- * enrollment message for clips that core recorded. The plugin gets no signing context, key or
- * session.
+ * Core's own operations for one spoken request or one enrollment. They are internal to the
+ * Wallet: the host plugin never gets them. It gets `SpeakToSignApprovalOperations` or
+ * `SpeakToSignEnrollmentOperations`, which core binds to the request (`./hostApproval`).
  */
 export type SpeakToSignHostOperations = Readonly<{
   openPrompt(request: SpeakToSignClipRequest): Promise<SpeakToSignPromptResult>;
@@ -477,78 +478,156 @@ export type SpeakToSignHostOperations = Readonly<{
   ): Promise<SpeakToSignEnrollmentAuthorization>;
 }>;
 
-/** One spoken payment that the Wallet route asks the host plugin to run. */
-export type SpeakToSignHostTransfer = Readonly<{
-  ownerAccountId: string;
-  receiver: string;
-  /** Decimal NEAR, such as `"2.5"`. */
-  amount: string;
-  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
-  operations: SpeakToSignHostOperations;
+/** What core signed for one spoken request, or why it signed nothing. */
+export type SpeakToSignSigning = SpeakToSignNoteSigning | SpeakToSignMessageSigning;
+
+/** What the host plugin returns for one spoken request, by its kind and delivery. */
+export type SpeakToSignApprovalResult =
+  | SpeakToSignTransferResult
+  | SpeakToSignNoteActionResult
+  | SpeakToSignMessageResult;
+
+/**
+ * A recording that core holds for the plugin. It has no bytes and no digest: core keeps the
+ * audio of each handle of this flow. A handle that the plugin makes, or a handle of another
+ * flow, names no recording.
+ */
+export type SpeakToSignClipHandle = Readonly<{
+  kind: 'captured';
+  speechMs: number;
+  /**
+   * `performance.now()` of the last voiced frame: the owner stopped speaking then, before the
+   * pause that ends the recording.
+   */
+  endOfSpeechAt: number;
 }>;
 
-/** One spoken note or rating that the Wallet route asks the host plugin to run. */
-export type SpeakToSignHostNote = Readonly<{
-  ownerAccountId: string;
-  action: SpokenNoteAction;
-  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
-  operations: SpeakToSignHostOperations;
+export type SpeakToSignRecording =
+  | SpeakToSignClipHandle
+  | Readonly<{ kind: 'cancelled' }>
+  /** VoiceID could not record on this Wallet host. */
+  | Readonly<{ kind: 'unavailable'; detail: string }>;
+
+/**
+ * The request as the plugin sees it: texts for the card. It cannot change what core signs. The
+ * plugin passes no intent, no sentence and no verifier input back to core.
+ */
+export type SpeakToSignRequestView = Readonly<{
+  kind:
+    | 'account_transfer'
+    | 'community_note'
+    | 'note_rating'
+    | 'merge_approval'
+    | 'market_bet'
+    | 'transaction'
+    | 'signed_message';
+  /** What core does with the signature: it sends a transaction, or it returns a signature. */
+  form: 'send' | 'sign' | 'delegate' | 'message';
+  /** The sentence on the card, which core shows. */
+  displayText: string;
+  /** The words that the owner says. */
+  spokenText: string;
+  /** The receiver of a transfer or a transaction, or the recipient of a message. */
+  counterparty: string | null;
+  /** The decimal NEAR of a transfer, such as `"2.5"`. */
+  amount: string | null;
+  /** The summary of a community note. */
+  summary: string | null;
 }>;
 
-/** One spoken message that the Wallet route asks the host plugin to run. */
-export type SpeakToSignHostMessage = Readonly<{
+/**
+ * The operations of one spoken request. Core bound the owner, the sentence and the thing to
+ * sign before it made them, so no operation takes one. They stop when `approve` settles.
+ */
+export type SpeakToSignApprovalOperations = Readonly<{
+  /** Records one clip of the sentence on the card. Core keeps the audio. */
+  record(): Promise<SpeakToSignRecording>;
+  /**
+   * Sends the clip, sealed, with the request of this flow to the Seams verify route. A handle
+   * verifies once: core clears its audio.
+   */
+  verify(clip: SpeakToSignClipHandle): Promise<SpeakToSignVerifyReply>;
+  /**
+   * Checks the verifier output against the request of this flow and, on an approved verdict,
+   * signs it. An `accept` verdict shows no confirm; a `step_up` verdict asks for a fresh
+   * approval with the session's own method. One flow signs once.
+   */
+  sign(verifierOutput: unknown, hooks: SpeakToSignPaymentHooks): Promise<SpeakToSignSigning>;
+}>;
+
+/** The card of the request, which core opened with its sentence. Core closes it. */
+export type SpeakToSignSurface = Readonly<{
+  show(view: PhraseView): Promise<PhraseChoice>;
+}>;
+
+/** One spoken request that the Wallet route asks the host plugin to run. */
+export type SpeakToSignHostApproval = Readonly<{
+  walletId: WalletId;
+  network: SpeakToSignNetwork;
+  /** Aborted when the application cancels the request. Core checks its own copy. */
+  signal: AbortSignal;
   ownerAccountId: string;
-  action: SpokenMessageAction;
-  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
-  operations: SpeakToSignHostOperations;
+  request: SpeakToSignRequestView;
+  surface: SpeakToSignSurface;
+  operations: SpeakToSignApprovalOperations;
+}>;
+
+/** What `enrollClips` returns: the verifier's reply, or why the owner signed no authorization. */
+export type SpeakToSignEnrollmentReply =
+  | SpeakToSignVerifyReply
+  | Readonly<{ kind: 'not_signed'; error: string }>;
+
+/** The operations of one enrollment. They stop when `enroll` settles. */
+export type SpeakToSignEnrollmentOperations = Readonly<{
+  /**
+   * Opens the card of enrollment phrase `index` (0 to `phraseCount` - 1) and records it. The
+   * card stays open until the next `record` or the end of the enrollment.
+   */
+  record(index: number): Promise<SpeakToSignRecording>;
+  /** Shows a view on the open card. */
+  show(view: PhraseView): Promise<PhraseChoice>;
+  /**
+   * Has the owner sign one authorization for exactly these clips of this flow, then sends them,
+   * sealed, to the verifier. `onAuthorized` runs when the owner signed.
+   */
+  enrollClips(
+    clips: readonly SpeakToSignClipHandle[],
+    onAuthorized: () => void,
+  ): Promise<SpeakToSignEnrollmentReply>;
 }>;
 
 /** One enrollment that the Wallet route asks the host plugin to run. */
+export type SpeakToSignHostEnrollment = Readonly<{
+  walletId: WalletId;
+  network: SpeakToSignNetwork;
+  signal: AbortSignal;
+  ownerAccountId: string;
+  /** The verifier needs exactly this many recordings. */
+  phraseCount: number;
+  /**
+   * The samples of the VoiceID enrollment that this flow made just before, or null. With them,
+   * the plugin enrolls these clips and records nothing. Their card is open.
+   */
+  clips: readonly SpeakToSignClipHandle[] | null;
+  operations: SpeakToSignEnrollmentOperations;
+}>;
+
 /** A clip that this flow already recorded: the verifier's WAV and the sentence the owner read. */
 export type SpeakToSignEnrollmentRecording = Readonly<{
   wav: Uint8Array<ArrayBuffer>;
   sentence: string;
 }>;
 
-export type SpeakToSignHostEnrollment = Readonly<{
-  walletId: WalletId;
-  network: SpeakToSignNetwork;
-  signal: AbortSignal;
-  ownerAccountId: string;
-  surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
-  operations: SpeakToSignHostOperations;
-  /**
-   * The three samples of the VoiceID enrollment that this flow made just before, or null. With
-   * them, the plugin enrolls these clips and records nothing.
-   */
-  recordings: readonly SpeakToSignEnrollmentRecording[] | null;
-}>;
-
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface SpeakToSignHostPlugin {
   /**
-   * Records the three enrollment phrases (or takes the given recordings), has the owner sign an
-   * authorization for exactly these recordings and asks the verifier to store the owner's voice
-   * template.
+   * Runs one spoken request on its card: records, verifies and hands the verifier output to
+   * core, which checks it and signs. The plugin draws the check and the result.
+   */
+  approve(input: SpeakToSignHostApproval): Promise<SpeakToSignApprovalResult>;
+  /**
+   * Records the enrollment phrases (or takes the given clips) and asks core to authorize and
+   * send them, so that the verifier stores the owner's voice template.
    */
   enroll(input: SpeakToSignHostEnrollment): Promise<SpeakToSignEnrollmentResult>;
-  requestTransfer(input: {
-    readonly walletId: WalletId;
-    readonly network: SpeakToSignNetwork;
-    readonly signal: AbortSignal;
-    /** The Wallet route adds the transfer when the app API carries a receiver and an amount. */
-    readonly transfer?: SpeakToSignHostTransfer;
-  }): Promise<SpeakToSignTransferResult>;
-  requestNoteAction(input: {
-    readonly walletId: WalletId;
-    readonly network: SpeakToSignNetwork;
-    readonly signal: AbortSignal;
-    readonly note: SpeakToSignHostNote;
-  }): Promise<SpeakToSignNoteActionResult>;
-  requestMessage(input: {
-    readonly walletId: WalletId;
-    readonly network: SpeakToSignNetwork;
-    readonly signal: AbortSignal;
-    readonly message: SpeakToSignHostMessage;
-  }): Promise<SpeakToSignMessageResult>;
 }
