@@ -1,6 +1,6 @@
 # Refactor 232: Wallet plugins by evidence (Speak-to-Sign)
 
-Status: plan, 2026-11-11. Nothing is built. Written against `dev` at `bb2014e1f` and
+Status: 2026-11-11. Slices 1 to 3 are built on the branch `refactor-232` (see "Slices"), not merged and not released. Written against `dev` at `bb2014e1f` and
 speak-to-sign `dev` at `4478fb8`. Slice 0 (the 0.67.0 release) is done. On 2026-11-11 the
 owner cut the plan to Slices 1 to 5: the Speak-to-Sign part. The parts that are not in the
 plan are listed at the end.
@@ -288,8 +288,9 @@ The plugin runs in the Wallet origin, so this contract is a rule for its author 
 wall (Section 1). The gain is that a fault in the plugin cannot sign another intent or send
 a recording.
 
-- **The version.** In Slice 3 the plugin is still a package, so the contract is host API 11
-  and core refuses another version, as today: it loads `host.js?api=11`, reads
+- **The version.** In Slice 3 the plugin is still a package, so the contract is host API 12
+  (VoiceID's host API is 11, and a type test keeps the two numbers apart) and core refuses
+  another version, as today: it loads `host.js?api=12`, reads
   `hostApiVersion` and throws before it records or signs. The change of the number and the
   check for `approve` in `isHostPlugin` go in one commit. From Slice 4 the contract is
   internal to `@seams/wallet` (D2): the flow is a chunk that core imports on first use, one
@@ -406,10 +407,24 @@ Each slice ships alone and leaves the tests green.
   form that only one side knows gives `request_mismatch`, so a wrong order refuses and signs
   nothing.
 - **Slice 3. The approver contract.** `approve` replaces the three request methods.
-  Host API 11 for Speak-to-Sign. New tests: `sign` has no intent parameter, a forged clip
+  Host API 12 for Speak-to-Sign. New tests: `sign` has no intent parameter, a forged clip
   handle and a handle of another flow are refused, `sign` after the flow ended is refused,
   a plugin of version 10 does not load, and a plugin of version 11 with no `approve` does
   not load (rows 2, 8 and 9).
+- **Status of Slice 3: built on 2026-11-11, not merged and not released.** Wallet side:
+  branch `refactor-232` (`core/transactionFeatures/hostApproval.ts` binds the operations).
+  Plugin side: speak-to-sign branch `plugin-host-api-12`. Details that differ from Section 4:
+  - Core keeps its own operations (`openPrompt`, `verify`, `payWithVerdict` and the others)
+    as an internal layer with its tests, and `hostApproval.ts` gives the plugin only the
+    bound operations. `@seams/wallet/speak-to-sign-host` exports data contracts only.
+  - `enrollClips(clips, onAuthorized)` has a callback, so the card can change when the owner
+    signed. `enroll` gets `phraseCount`, and the phrases are in core.
+  - The request view has texts only: `kind`, `form`, `displayText`, `spokenText`,
+    `counterparty`, `amount`, `summary`.
+  - Not built: a type test that `sign` has no intent parameter (the route test checks the
+    names of the operations), and a run of the plugin contract e2e test.
+  - The release must ship the Wallet and the plugin together, with new versions. The
+    hosted Wallet must compose the new plugin, because a plugin of host API 10 does not load.
 - **Slice 4. The plugin goes away** (D2). Its flow becomes a chunk of `@seams/wallet`, and
   the server's verify route uses `callVerifier` of `@seams/voice-sign/server` (after the two
   changes of Section 4 in speak-to-sign). Remove the Speak-to-Sign host API version, the
