@@ -1,9 +1,9 @@
 # Refactor 232: Wallet plugins by evidence (Speak-to-Sign)
 
-Status: 2026-11-11. Slices 1 to 3 are built on the branch `refactor-232` (see "Slices"), not merged and not released. Written against `dev` at `bb2014e1f` and
-speak-to-sign `dev` at `4478fb8`. Slice 0 (the 0.67.0 release) is done. On 2026-11-11 the
-owner cut the plan to Slices 1 to 5: the Speak-to-Sign part. The parts that are not in the
-plan are listed at the end.
+Status: 2026-11-12. Released in Wallet SDK 0.68.0 (seams-wallet `b605d3f99`), with the
+voice libraries 0.68.0 (speak-to-sign `4a3c8df`). On 2026-11-11 the owner cut the plan to
+Slices 1 to 5: the Speak-to-Sign part. All of Slices 0 to 5 and Slice 0b are done. The parts
+that are not in the plan are listed at the end.
 
 A security review of Slices 1 to 3 (2026-11-11) changed Sections 1, 3 and 4, added Section 8
 (the invariants that each slice keeps) and added a test to each of Slices 1 to 3.
@@ -384,8 +384,8 @@ Each slice ships alone and leaves the tests green.
 
 - **Slice 0 (0.67.0). Done on 2026-11-11.** Released as 0.66.0 was released. The plugin is
   `@seams/wallet-voice-sign` 0.67.0, from speak-to-sign.
-- **Status of Slices 1 and 2: built on 2026-11-11 on the branch `refactor-232`, not merged
-  and not released.** `signWithEvidence` (`core/transactionFeatures/hostOperations.ts`) is
+- **Status of Slices 1 and 2: built on 2026-11-11 on the branch `refactor-232`, merged
+  and released in 0.68.0.** `signWithEvidence` (`core/transactionFeatures/hostOperations.ts`) is
   the one sign path, and the three `...WithVerdict` operations call it. `SPOKEN_KINDS` has
   `request`, `call` and `fromCall` for each typed kind, and the co-signer builds a typed
   request only through `fromCall`. The 79 old tests passed with no change to their cases.
@@ -407,7 +407,7 @@ Each slice ships alone and leaves the tests green.
   handle and a handle of another flow are refused, `sign` after the flow ended is refused,
   a plugin of version 10 does not load, and a plugin of version 11 with no `approve` does
   not load (rows 2, 8 and 9).
-- **Status of Slice 3: built on 2026-11-11, not merged and not released.** Wallet side:
+- **Status of Slice 3: built on 2026-11-11, merged and released in 0.68.0.** Wallet side:
   branch `refactor-232` (`core/transactionFeatures/hostApproval.ts` binds the operations).
   Plugin side: speak-to-sign branch `plugin-host-api-12`. Details that differ from Section 4:
   - Core keeps its own operations (`openPrompt`, `verify`, `payWithVerdict` and the others)
@@ -432,27 +432,21 @@ Each slice ships alone and leaves the tests green.
   changes of Section 4 in speak-to-sign). Remove the Speak-to-Sign host API version, the
   host path `/sdk/speak-to-sign/host.js`, its `compose` step and the package in
   speak-to-sign. Deprecate the npm name.
-- **Status of Slice 4: built on 2026-11-12 on the branch `refactor-232-s4`, not merged and
-  not released.** The flow, its card and its tests are in
+- **Status of Slice 4: built on 2026-11-12 on the branch `refactor-232-s4`, merged and
+  released in 0.68.0.** The flow, its card and its tests are in
   `packages/wallet/src/core/transactionFeatures/approver/`. `loadSpeakToSignApprover`
   (`hostRegistry.ts`) imports the flow as a chunk on the first request. Gone: the host API
   version, the host path, `@seams/wallet/speak-to-sign-host`, and the compose step in the
   test services. `speakToSign({ network })` is an export of `@seams/wallet`. In
   speak-to-sign, the branch `remove-wallet-plugin` removes the package and its workflow.
-  Open for the release:
-  - The docs (`apps/docs`, README) still describe 0.67.0 with the plugin package. Change
-    them in the release prepare commit: no third package, no `seams-speak-to-sign-host`
-    step, the descriptor from `@seams/wallet`.
-  - The hosted Wallet deploy (seams-monorepo) must drop its Speak-to-Sign compose step.
-  - Merge `remove-wallet-plugin` only after that Wallet is on npm, then deprecate
-    `@seams/wallet-voice-sign` on npm and change the demo import.
-  - The verify route already uses `relayToVerifier` on another branch (Slice 0b,
-    worktree `wallet-server-voice-sign`, waits for `@seams/voice-sign` 0.67.2).
+  Done in the release: the docs and the README name no plugin package, the hosted Wallet
+  deploy in seams-monorepo has no Speak-to-Sign compose step, `remove-wallet-plugin` is
+  merged, and the verify route uses `relayToVerifier` (Slice 0b).
 - **Slice 5. The app API** (D3): `approval` on the sign calls, `approvals` in the
   configuration, descriptors from `@seams/wallet`. Breaking.
 
-- **Status of Slice 5: built on 2026-11-12 on the branch `refactor-232-s4`, not merged and
-  not released.** The owner decided on 2026-11-12: no alias for the old names, the typed
+- **Status of Slice 5: built on 2026-11-12 on the branch `refactor-232-s4`, merged and
+  released in 0.68.0.** The owner decided on 2026-11-12: no alias for the old names, the typed
   requests under `seams.near.spoken`, and `approvals` in the configuration.
   - Configuration: `approvals: [spoken({ network })]`. `spoken` is an export of
     `@seams/wallet`. `transactionFeatures` and `speakToSign()` are gone.
@@ -468,18 +462,18 @@ Each slice ships alone and leaves the tests green.
   - Kept on purpose: the type names `SpeakToSign...` of requests and results (the product
     name), the surface kind `speak_to_sign` of `WalletStep`, and the folder
     `core/transactionFeatures`.
-  - Open for the release: the docs (EN and JA), the README, the demo and the example in
-    speak-to-sign, and the apps in seams-monorepo still use the old names.
+  - Done in the release: the docs (EN and JA), the README, the demo and the example in
+    speak-to-sign, and the apps in seams-monorepo use the new names.
 
-- **Release 0.68.0 is prepared (2026-11-12, local `dev`, not pushed).** It ships Slices 1 to
-  5. The table entries now also hold `refusal` (the limits), `render` (the sentence) and
-  `verifyRequest`, so a new typed kind is one entry. The Wallet iframe protocol is 24.0.0,
-  because the configuration that the app sends has `approvals`. The docs (EN and JA), the
-  README and the release notes describe the new API. Slice 0b is in 0.68.0 too: the verify
-  route calls `relayToVerifier` of `@seams/voice-sign` 0.68.0 and serves only `verify` and
-  `enroll`.
-  After the release: the demo and the example in speak-to-sign, the apps and the deploy
-  step in seams-monorepo, then the branch `remove-wallet-plugin` and the npm deprecation.
+- **Release 0.68.0 (2026-11-12).** It ships Slices 1 to 5 and Slice 0b. The table entries
+  also hold `refusal` (the limits), `render` (the sentence) and `verifyRequest`, so a new
+  typed kind is one entry. The Wallet iframe protocol is 24.0.0, because the configuration
+  that the app sends has `approvals`. The verify route calls `relayToVerifier` of
+  `@seams/voice-sign` 0.68.0 and serves only `verify` and `enroll`. The app chooses
+  `autoStart` (default true for a request, false for an enrollment). The plugin package is
+  removed from speak-to-sign, and its npm names are deprecated. The demo and the example in
+  speak-to-sign and the apps in seams-monorepo move to 0.68.0, and the hosted Wallet deploy
+  has no Speak-to-Sign compose step.
 
 ## Not in this plan
 
