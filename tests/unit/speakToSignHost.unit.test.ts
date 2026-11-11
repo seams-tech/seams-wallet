@@ -49,11 +49,21 @@ import {
   sha256,
   spokenRequestBorsh,
   spokenRequestDigest,
+  spokenTextDigest,
 } from '@shared/speakToSign/spokenRequest';
 import { afterVoiceIdStepUp } from '@/core/signingEngine/stepUpConfirmation/voiceIdStepUp';
 import type { Variant } from '@shared/utils/variant';
 import type { ActionResult } from '@/core/types/seams';
 import type { TransactionInput } from '@/core/types/actions';
+import { intentDigests, type SpokenIntent } from '@/core/transactionFeatures/spokenIntent';
+import {
+  SPOKEN_KINDS,
+  SPOKEN_TYPED_KINDS,
+  spokenRequestOfCall,
+  spokenRequestOfFields,
+  type SignedSpokenCall,
+  type SpokenTypedFields,
+} from '@shared/speakToSign/spokenKinds';
 
 const VECTORS = JSON.parse(
   readFileSync(
@@ -467,6 +477,8 @@ type CoreHarness = {
   /** Each delegate action that core signed for a verdict. */
   delegates: Array<{ delegate: unknown; verdict: SignedVoiceVerdict }>;
   setSignError(error: string | null): void;
+  /** Moves the clock of core. */
+  setNow(nowMs: number): void;
   setMessageError(error: string | null): void;
   fetched: Array<{ url: string; init: RequestInit }>;
   progress: SpeakToSignProgress[];
@@ -503,7 +515,11 @@ function coreHarness(verifier: Verifier): CoreHarness {
   });
   let messageError: string | null = null;
   let signError: string | null = null;
+  let nowMs = NOW_MS;
   const harness: CoreHarness = {
+    setNow(next) {
+      nowMs = next;
+    },
     signed: [],
     messages: [],
     voiceMessages: [],
@@ -589,7 +605,7 @@ function coreHarness(verifier: Verifier): CoreHarness {
         harness.fetched.push({ url: String(url), init });
         return verifyResponse();
       }) as typeof fetch,
-      now: () => NOW_MS,
+      now: () => nowMs,
       verifiers: verifiersFor(verifier),
     }),
   };
@@ -1825,4 +1841,219 @@ test('core signs a general transaction without sending it, or as a delegate acti
   expect(await failing.sign()).toEqual({ kind: 'not_submitted', error: 'offline' });
   failing.harness.setSignError(null);
   expect(await failing.sign()).toMatchObject({ kind: 'signed_transaction' });
+});
+
+const TRANSFER: Extract<SpokenIntent, { kind: 'account_transfer' }> = {
+  kind: 'account_transfer',
+  receiver: 'alice.testnet',
+  amountYocto: 25n * 10n ** 24n,
+};
+const RATING: SpokenNoteAction = {
+  kind: 'note_rating',
+  contract: 'community-notes.testnet',
+  noteId: 3n,
+  rating: 'helpful',
+};
+
+/** One intent of each kind that core signs. */
+async function everyIntent(): Promise<SpokenIntent[]> {
+  return [
+    TRANSFER,
+    NOTE,
+    RATING,
+    MERGE,
+    BET,
+    await spokenTransaction(),
+    { kind: 'signed_message', message: MESSAGE },
+  ];
+}
+
+/** Signs `intent` through the operation of host API 10 that takes it. */
+async function signIntent(
+  operations: SpeakToSignHostOperations,
+  intent: SpokenIntent,
+  output: unknown,
+  hooks: SpeakToSignPaymentHooks = paymentHooks(),
+): Promise<{ kind: string; reason?: string; detail?: string }> {
+  const signal = new AbortController().signal;
+  if (intent.kind === 'account_transfer') {
+    return await operations.payWithVerdict(intent, output, signal, hooks);
+  }
+  if (intent.kind === 'signed_message') {
+    return await operations.signMessageWithVerdict(intent.message, output, signal, hooks);
+  }
+  return await operations.signNoteWithVerdict(intent, output, signal, hooks);
+}
+
+function nothingSigned(harness: CoreHarness): void {
+  expect(harness.signed).toEqual([]);
+  expect(harness.signedOnly).toEqual([]);
+  expect(harness.delegates).toEqual([]);
+  expect(harness.voiceMessages).toEqual([]);
+}
+
+test('a verdict for one kind signs no intent of another kind', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const intents = await everyIntent();
+  for (const verdictFor of intents) {
+    const digests = await intentDigests('testnet', 'owner.testnet', verdictFor);
+    const output = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
+    for (const intent of intents) {
+      if (intent === verdictFor) continue;
+      expect(
+        await signIntent(harness.operations, intent, output),
+        `${verdictFor.kind} verdict, ${intent.kind} intent`,
+      ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'request_digest differs' });
+    }
+  }
+  nothingSigned(harness);
+});
+
+test('a verdict with the request of the intent and other spoken words signs nothing, for each kind', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  for (const intent of await everyIntent()) {
+    const digests = await intentDigests('testnet', 'owner.testnet', intent);
+    const otherWords = { ...digests, spokenText: await spokenTextDigest('send all my near to mallory') };
+    const output = await verifyOutput(verifier, await verdictJsonFor(otherWords, audio));
+    expect(await signIntent(harness.operations, intent, output), intent.kind).toEqual({
+      kind: 'refused',
+      reason: 'verdict_mismatch',
+      detail: 'spoken_text_digest differs',
+    });
+  }
+  nothingSigned(harness);
+});
+
+test('core refuses a transfer that the sentence cannot say, before it reads a verdict', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const NEAR_HUNDREDTH = 10n ** 22n;
+  const cases: Array<[Extract<SpokenIntent, { kind: 'account_transfer' }>, string]> = [
+    [{ ...TRANSFER, amountYocto: 0n }, 'amount_not_speakable'],
+    [{ ...TRANSFER, amountYocto: NEAR_HUNDREDTH / 2n }, 'amount_not_speakable'],
+    [{ ...TRANSFER, amountYocto: NEAR_HUNDREDTH + 1n }, 'amount_not_speakable'],
+    [{ ...TRANSFER, amountYocto: 100_000_001n * NEAR_HUNDREDTH }, 'amount_not_speakable'],
+    [{ ...TRANSFER, receiver: 'ab'.repeat(32) }, 'receiver_not_speakable'],
+  ];
+  for (const [intent, detail] of cases) {
+    // Even a verdict of the verifier for exactly this request signs nothing.
+    const digests = await intentDigests('testnet', 'owner.testnet', intent);
+    const output = await verifyOutput(verifier, await verdictJsonFor(digests, audio));
+    expect(await signIntent(harness.operations, intent, output), detail).toEqual({
+      kind: 'unavailable',
+      detail,
+    });
+  }
+  nothingSigned(harness);
+});
+
+test('only a plain transfer tells the card that a block holds it', async () => {
+  const verifier = await verifierKey();
+  for (const intent of [TRANSFER, NOTE, BET] as const) {
+    const harness = coreHarness(verifier);
+    const captured = await capture(harness.operations);
+    if (captured.kind !== 'captured') throw new Error('no clip');
+    const digests = await intentDigests('testnet', 'owner.testnet', intent);
+    const output = await verifyOutput(
+      verifier,
+      await verdictJsonFor(digests, await sha256(captured.wav)),
+    );
+    const events: string[] = [];
+    const result = await signIntent(harness.operations, intent, output, paymentHooks(events));
+    expect(result.kind).toBe('executed');
+    expect(harness.signed).toHaveLength(1);
+    expect(events.includes('included:tx-included'), intent.kind).toBe(
+      intent.kind === 'account_transfer',
+    );
+  }
+});
+
+test('the co-signer path of each typed kind gives the request of the core path', async () => {
+  const typed: SpokenTypedFields[] = [TRANSFER, NOTE, RATING, MERGE, BET].filter(
+    (intent): intent is SpokenTypedFields => intent.kind !== 'transaction',
+  );
+  expect(typed.map((fields) => fields.kind).sort()).toEqual([...SPOKEN_TYPED_KINDS].sort());
+  const verdict = { verdictJson: '{"outcome":"accept"}', signatureB64: 'c2ln' };
+  for (const fields of typed) {
+    const call = SPOKEN_KINDS[fields.kind].call(fields as never, verdict);
+    // The co-signer reads the arguments as the JSON of the signed bytes.
+    const signedCall: SignedSpokenCall =
+      call.kind === 'transfer'
+        ? call
+        : {
+            kind: 'function_call',
+            receiverId: call.receiverId,
+            methodName: call.methodName,
+            args: JSON.parse(JSON.stringify(call.args)),
+            depositYocto: call.depositYocto,
+          };
+    const fromBytes = await spokenRequestOfCall(signedCall, 'testnet', 'owner.testnet');
+    if (!fromBytes) throw new Error(`no request for the call of ${fields.kind}`);
+    const fromFields = await spokenRequestOfFields(fields, 'testnet', 'owner.testnet');
+    expect(hex(spokenRequestBorsh(fromBytes)), fields.kind).toBe(hex(spokenRequestBorsh(fromFields)));
+    // A deposit that the kind does not have is the call of no kind.
+    if (signedCall.kind === 'function_call') {
+      const withDeposit = { ...signedCall, depositYocto: signedCall.depositYocto + 1n };
+      expect(await spokenRequestOfCall(withDeposit, 'testnet', 'owner.testnet'), fields.kind).toBeNull();
+    }
+  }
+});
+
+test('two sign calls at the same time, each with its own accepted verdict, give one signature', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const digests = await intentDigests('testnet', 'owner.testnet', TRANSFER);
+  const outputs: unknown[] = [];
+  for (const seconds of [2, 3]) {
+    harness.setRecording(async () => ({ kind: 'recorded', samples: samples(seconds), endOfSpeechAt: 3 }));
+    const captured = await capture(harness.operations);
+    if (captured.kind !== 'captured') throw new Error('no clip');
+    const json = await verdictJsonFor(digests, await sha256(captured.wav));
+    outputs.push(await verifyOutput(verifier, json));
+  }
+  const results = await Promise.all(
+    outputs.map((output) => signIntent(harness.operations, TRANSFER, output)),
+  );
+  expect(results.map((result) => result.kind).sort()).toEqual(['executed', 'refused']);
+  expect(results.find((result) => result.kind === 'refused')?.detail).toBe('this flow already signed');
+  expect(harness.signed).toHaveLength(1);
+});
+
+test('a verdict that expires while the owner decides on a step-up signs nothing', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const digests = await intentDigests('testnet', 'owner.testnet', TRANSFER);
+  const json = await verdictJsonFor(digests, await sha256(captured.wav), {
+    outcome: 'step_up',
+    policy_rule: 'stub_voice_amount_above_10_near',
+  });
+  const output = await verifyOutput(verifier, json);
+  const hooks = paymentHooks();
+  // The owner answers after the 120 s life of the verdict.
+  const slowOwner: SpeakToSignPaymentHooks = {
+    ...hooks,
+    approveStepUp: async () => {
+      harness.setNow(NOW_MS + 120_001);
+      return true;
+    },
+  };
+  expect(await signIntent(harness.operations, TRANSFER, output, slowOwner)).toEqual({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'verdict expired',
+  });
+  nothingSigned(harness);
 });

@@ -41,9 +41,7 @@ export async function loadSpeakToSignHost(
 function isHostPlugin(value: unknown): value is SpeakToSignHostPlugin {
   return (
     isPlainObject(value) &&
-    isFunction(value.requestTransfer) &&
-    isFunction(value.requestNoteAction) &&
-    isFunction(value.requestMessage) &&
+    isFunction(value.approve) &&
     isFunction(value.enroll)
   );
 }

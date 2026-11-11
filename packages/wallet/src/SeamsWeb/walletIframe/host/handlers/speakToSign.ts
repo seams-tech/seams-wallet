@@ -11,14 +11,18 @@ import {
   toWalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
+  SpeakToSignApprovalResult,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostOperations,
   SpeakToSignHostPlugin,
-  SpeakToSignMessageResult,
-  SpeakToSignNoteActionResult,
-  SpeakToSignTransferResult,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
+import {
+  runSpeakToSignApproval,
+  runSpeakToSignEnrollment,
+} from '@/core/transactionFeatures/hostApproval';
+import type { SpokenIntent } from '@/core/transactionFeatures/spokenIntent';
+import { parseSpeakableNear } from '@/core/transactionFeatures/spokenTransfer';
 import {
   adoptVoiceIdRecordings,
   createSpeakToSignHostOperations,
@@ -125,12 +129,7 @@ async function handleSpeakToSign(
   request: SpeakToSignRequest,
   run: (
     signal: AbortSignal,
-  ) => Promise<
-    | SpeakToSignTransferResult
-    | SpeakToSignNoteActionResult
-    | SpeakToSignMessageResult
-    | SpeakToSignEnrollmentResult
-  >,
+  ) => Promise<SpeakToSignApprovalResult | SpeakToSignEnrollmentResult>,
 ): Promise<void> {
   const controller = new AbortController();
   const timer = setInterval(
@@ -260,21 +259,15 @@ async function runTransfer(
   ports: SpeakToSignWalletPorts,
   request: Req<'PM_SPEAK_TO_SIGN_TRANSFER'>,
   signal: AbortSignal,
-): Promise<SpeakToSignTransferResult> {
+): Promise<SpeakToSignApprovalResult> {
   const flow = await prepareFlow(deps, ports, request, signal);
   if (flow.kind === 'unavailable') return flow;
   const payload: PMSpeakToSignTransferPayload = request.payload;
-  return await flow.plugin.requestTransfer({
-    walletId: flow.walletId,
-    network: flow.feature.network,
-    signal,
-    transfer: {
-      ownerAccountId: flow.ownerAccountId,
-      receiver: payload.receiver,
-      amount: payload.amount,
-      surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
-      operations: flow.operations,
-    },
+  const amountYocto = parseSpeakableNear(payload.amount);
+  if (amountYocto === null) return { kind: 'refused', reason: 'amount_not_speakable' };
+  return await runSpeakToSignApproval({
+    ...flowInput(deps, flow, signal),
+    intent: { kind: 'account_transfer', receiver: payload.receiver, amountYocto },
   });
 }
 
@@ -283,34 +276,33 @@ async function runNote(
   ports: SpeakToSignWalletPorts,
   request: Req<'PM_SPEAK_TO_SIGN_NOTE'>,
   signal: AbortSignal,
-): Promise<SpeakToSignNoteActionResult | SpeakToSignMessageResult> {
+): Promise<SpeakToSignApprovalResult> {
   const flow = await prepareFlow(deps, ports, request, signal);
   if (flow.kind === 'unavailable') return flow;
   const { action } = request.payload;
-  if (action.kind === 'signed_message') {
-    return await flow.plugin.requestMessage({
-      walletId: flow.walletId,
-      network: flow.feature.network,
-      signal,
-      message: {
-        ownerAccountId: flow.ownerAccountId,
-        action: await messageAction(action),
-        surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
-        operations: flow.operations,
-      },
-    });
-  }
-  return await flow.plugin.requestNoteAction({
+  // Core builds the intent here, before the plugin runs, and the plugin never gets it back.
+  const intent: SpokenIntent =
+    action.kind === 'signed_message'
+      ? { kind: 'signed_message', message: await messageAction(action) }
+      : await noteAction(deps, ports, flow.ownerAccountId, action);
+  return await runSpeakToSignApproval({ ...flowInput(deps, flow, signal), intent });
+}
+
+/** What core's binder needs from a prepared flow. */
+function flowInput(
+  deps: HandlerDeps,
+  flow: Extract<PreparedFlow, { kind: 'ready' }>,
+  signal: AbortSignal,
+) {
+  return {
+    plugin: flow.plugin,
+    operations: flow.operations,
     walletId: flow.walletId,
     network: flow.feature.network,
+    ownerAccountId: flow.ownerAccountId,
     signal,
-    note: {
-      ownerAccountId: flow.ownerAccountId,
-      action: await noteAction(deps, ports, flow.ownerAccountId, action),
-      surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
-      operations: flow.operations,
-    },
-  });
+    surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
+  };
 }
 
 type NotePayloadAction = PMSpeakToSignNotePayload['action'];
@@ -405,17 +397,17 @@ async function runEnrollment(
     signal.throwIfAborted();
     if (activation.recordings) adopted = await adoptVoiceIdRecordings(activation.recordings);
   }
-  const flow = await prepareFlow(deps, ports, request, signal, adopted);
-  if (flow.kind === 'unavailable') return flow;
-  return await flow.plugin.enroll({
-    walletId: flow.walletId,
-    network: flow.feature.network,
-    signal,
-    ownerAccountId: flow.ownerAccountId,
-    surfaceMeasurementBinding: deps.surfaceMeasurementBinding(),
-    operations: flow.operations,
-    recordings: adopted?.recordings ?? null,
-  });
+  try {
+    const flow = await prepareFlow(deps, ports, request, signal, adopted);
+    if (flow.kind === 'unavailable') return flow;
+    return await runSpeakToSignEnrollment({
+      ...flowInput(deps, flow, signal),
+      adopted: adopted?.recordings ?? null,
+    });
+  } finally {
+    // Every exit clears the adopted audio, also one before core's binder started.
+    for (const recording of adopted?.recordings ?? []) recording.wav.fill(0);
+  }
 }
 
 /** VoiceID activation in this request, which keeps the samples of a new enrollment. */

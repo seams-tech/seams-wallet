@@ -3,8 +3,6 @@ import {
   parseWalletTransactionFeaturePlugins,
   type WalletTransactionFeaturePlugin,
 } from '@/core/transactionFeatures/plugins';
-import type { SpeakToSignTransferResult } from '@/core/transactionFeatures/hostPlugin';
-import { walletIdFromString } from '@shared/utils/registrationIds';
 
 let enabled: readonly WalletTransactionFeaturePlugin[] = [];
 
@@ -14,18 +12,15 @@ function configure(useSpeakToSign: boolean): void {
   );
 }
 
-async function requestTransfer(): Promise<SpeakToSignTransferResult> {
+/** Loads the host plugin, as the first spoken request does, and names its methods. */
+async function loadHost(): Promise<{ kind: 'loaded'; methods: string[] }> {
   const plugin = await loadSpeakToSignHost(enabled);
-  return await plugin.requestTransfer({
-    walletId: walletIdFromString('alice.testnet'),
-    network: 'testnet',
-    signal: new AbortController().signal,
-  });
+  return { kind: 'loaded', methods: Object.keys(plugin).sort() };
 }
 
 declare global {
   interface Window {
-    speakToSignPluginProbe: { configure: typeof configure; requestTransfer: typeof requestTransfer };
+    speakToSignPluginProbe: { configure: typeof configure; loadHost: typeof loadHost };
   }
 }
-window.speakToSignPluginProbe = { configure, requestTransfer };
+window.speakToSignPluginProbe = { configure, loadHost };
