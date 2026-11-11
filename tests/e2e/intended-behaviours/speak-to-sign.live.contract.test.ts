@@ -27,7 +27,7 @@ const RPC_URL = 'https://test.rpc.fastnear.com';
 const ENROLL_PHRASES = [
   'My voice is my signature for this wallet.',
   'I send money only when I say so.',
-  'Seams, please learn how I sound today.',
+  'Please learn how I sound today.',
 ];
 /** The owner says 0.01 NEAR for any small amount, so a prompt for 0.02 NEAR gets wrong words. */
 const SPOKEN_TRANSFER = 'Send 0.01 NEAR to seams dash v1 dot testnet.';
