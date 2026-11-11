@@ -12,9 +12,9 @@ import {
   utf8,
   type SpokenRequest,
 } from '@shared/speakToSign/spokenRequest';
+import { verdictMessage as voiceVerdictMessage } from '@seams/voice-verdict';
 import {
   parseCosignerVoiceRefusal,
-  voiceVerdictMessage,
   type CosignerVoiceRefusal,
 } from '@shared/speakToSign/voiceVerdict';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';

@@ -1,15 +1,10 @@
-// The signed verdict of the Speak-to-Sign verifier (voice-verifier 0.4.0, verdict v2). Wallet
-// core checks it before it signs, because an accepted verdict replaces the confirm click. The
-// Seams co-signer checks it again. Both use `@shared/speakToSign/voiceVerdict`.
+// The signed verdict of the Speak-to-Sign verifier (verdict v2). Wallet core checks it before it
+// signs, because an accepted verdict replaces the confirm click. The Seams co-signer checks it
+// again. Both check it with `checkVerdict` of `@seams/voice-verdict`.
 
-import { base64UrlEncode } from '@shared/utils/base64';
+import { checkVerdict, parseVerdict, type VerdictRefusal } from '@seams/voice-verdict';
 import { isPlainObject } from '@shared/utils/validation';
-import {
-  parseVoiceVerdict,
-  verifyVoiceVerdictSignature,
-  voiceVerdictIsLive,
-  type SpeakToSignVerifier,
-} from '@shared/speakToSign/voiceVerdict';
+import type { SpeakToSignVerifier } from '@shared/speakToSign/voiceVerdict';
 import type { SpokenDigests } from './spokenTransfer';
 
 const VERIFY_OUTPUT_KIND = 'seams_voice_verify_output_v2';
@@ -87,9 +82,10 @@ export function parseVerifyOutput(value: unknown): VerifyOutput | null {
 }
 
 /**
- * Checks a verdict against the request that core will sign: the kind, renderer and fields, the
- * outcome, the request, spoken-text and audio digests, the expiry, the pinned key of the
- * network and the signature. A refusal signs nothing, so it needs no signature check.
+ * Checks a verdict against the request that core will sign: the key and signature, the shape,
+ * kind and renderer, the outcome, the expiry, the request and spoken-text digests (all in
+ * `checkVerdict`), and then that the audio digest is a clip of this flow. A refusal signs
+ * nothing, so it needs no signature check: core only shows its reason and what was heard.
  */
 export async function checkVoiceVerdict(input: {
   readonly output: VerifyOutput;
@@ -100,32 +96,33 @@ export async function checkVoiceVerdict(input: {
   readonly recordedAudio: ReadonlySet<string>;
   readonly nowMs: number;
 }): Promise<VoiceVerdictCheck> {
-  const verdict = parseVoiceVerdict(input.output.verdictJson);
-  if (verdict.kind === 'invalid') return { kind: 'mismatch', detail: verdict.detail };
-  if (verdict.kind === 'refuse') {
-    const reason = VERIFIER_REFUSALS.find((candidate) => candidate === verdict.reason);
+  const parsed = parseVerdict(input.output.verdictJson);
+  if ('refusal' in parsed) return { kind: 'mismatch', detail: refusalDetail(parsed.refusal) };
+  if (parsed.verdict.outcome === 'refuse') {
+    const { reason: said, heard } = parsed.verdict;
+    const reason = VERIFIER_REFUSALS.find((candidate) => candidate === said);
     return reason
-      ? { kind: 'refused', reason, ...heardDetail(verdict.heard) }
+      ? { kind: 'refused', reason, ...heardDetail(heard) }
       : { kind: 'mismatch', detail: 'unknown refusal' };
-  }
-  if (verdict.requestDigest !== base64UrlEncode(input.expected.request)) {
-    return { kind: 'mismatch', detail: 'request_digest differs' };
-  }
-  if (verdict.spokenTextDigest !== base64UrlEncode(input.expected.spokenText)) {
-    return { kind: 'mismatch', detail: 'spoken_text_digest differs' };
-  }
-  if (!input.recordedAudio.has(verdict.audioDigest)) {
-    return { kind: 'mismatch', detail: 'audio_digest is not a recording of this flow' };
-  }
-  if (!voiceVerdictIsLive(verdict.expiresAtMs, input.nowMs)) {
-    return { kind: 'mismatch', detail: 'verdict expired or not yet valid' };
   }
   const { signatureB64, publicKey } = input.output;
   if (!signatureB64 || publicKey !== input.verifier.publicKey) {
     return { kind: 'mismatch', detail: 'verdict key is not the pinned verifier key' };
   }
-  if (!(await verifyVoiceVerdictSignature(publicKey, input.output.verdictJson, signatureB64))) {
-    return { kind: 'mismatch', detail: 'verdict signature is invalid' };
+  const checked = await checkVerdict({
+    verdictJson: input.output.verdictJson,
+    signatureB64,
+    publicKey: input.verifier.publicKey,
+    requestDigest: input.expected.request,
+    spokenTextDigest: input.expected.spokenText,
+    nowMs: input.nowMs,
+    // A step-up verdict passes here; core then asks for the fresh approval that it names.
+    acceptStepUp: true,
+  });
+  if (!checked.ok) return { kind: 'mismatch', detail: refusalDetail(checked.refusal) };
+  const { verdict } = checked;
+  if (verdict.audio_digest === null || !input.recordedAudio.has(verdict.audio_digest)) {
+    return { kind: 'mismatch', detail: 'audio_digest is not a recording of this flow' };
   }
   return {
     kind: 'approved',
@@ -133,6 +130,35 @@ export async function checkVoiceVerdict(input: {
     policyText: input.output.policyText,
     verdict: { verdictJson: input.output.verdictJson, signatureB64 },
   };
+}
+
+/** The detail of a mismatch, for the log and the tests. */
+function refusalDetail(refusal: VerdictRefusal): string {
+  switch (refusal.code) {
+    case 'bad_public_key':
+    case 'bad_signature_encoding':
+    case 'bad_signature':
+      return 'verdict signature is invalid';
+    case 'malformed':
+      return 'verdict fields are invalid';
+    case 'wrong_kind':
+      return 'unknown verdict kind';
+    case 'wrong_renderer':
+      return 'unknown renderer';
+    case 'expired':
+    case 'not_yet_valid':
+      return 'verdict expired or not yet valid';
+    case 'request_mismatch':
+      return 'request_digest differs';
+    case 'spoken_text_mismatch':
+      return 'spoken_text_digest differs';
+    case 'audio_mismatch':
+      return 'audio_digest is not a recording of this flow';
+    // A refusal is read before the check, and core accepts a step-up.
+    case 'refused':
+    case 'step_up':
+      return `unexpected ${refusal.code}`;
+  }
 }
 
 function heardDetail(heard: unknown): { detail?: string } {
