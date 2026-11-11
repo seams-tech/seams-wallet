@@ -184,7 +184,8 @@ export function createSpeakToSignHostOperations(
       signWithEvidence(
         input,
         state,
-        { kind: 'account_transfer', ...transferRequest },
+        // The kind is last, so no property of the argument can replace it.
+        { ...transferRequest, kind: 'account_transfer' },
         voiceVerdict(output),
         signal,
         hooks,

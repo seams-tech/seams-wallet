@@ -397,12 +397,17 @@ async function runEnrollment(
     signal.throwIfAborted();
     if (activation.recordings) adopted = await adoptVoiceIdRecordings(activation.recordings);
   }
-  const flow = await prepareFlow(deps, ports, request, signal, adopted);
-  if (flow.kind === 'unavailable') return flow;
-  return await runSpeakToSignEnrollment({
-    ...flowInput(deps, flow, signal),
-    adopted: adopted?.recordings ?? null,
-  });
+  try {
+    const flow = await prepareFlow(deps, ports, request, signal, adopted);
+    if (flow.kind === 'unavailable') return flow;
+    return await runSpeakToSignEnrollment({
+      ...flowInput(deps, flow, signal),
+      adopted: adopted?.recordings ?? null,
+    });
+  } finally {
+    // Every exit clears the adopted audio, also one before core's binder started.
+    for (const recording of adopted?.recordings ?? []) recording.wav.fill(0);
+  }
 }
 
 /** VoiceID activation in this request, which keeps the samples of a new enrollment. */

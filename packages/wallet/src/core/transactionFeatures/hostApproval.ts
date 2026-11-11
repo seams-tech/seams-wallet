@@ -94,12 +94,47 @@ class FlowClips {
   }
 }
 
-/** Throws once the plugin's call settled, so that operations which it kept do nothing. */
-type Lease = { live: boolean };
+/**
+ * The time in which the plugin may use its operations: until its call settles. After that, a
+ * new operation throws, a late recording is cleared, and core waits for a signature that is
+ * still in progress before it answers the application.
+ */
+class Lease {
+  live = true;
+  /** Resolves when the flow ends. A hook of the plugin that still waits then answers "no". */
+  readonly ended: Promise<void>;
+  private finish: () => void = () => {};
+  private readonly open = new Set<Promise<unknown>>();
 
-function use(lease: Lease, signal: AbortSignal): void {
-  if (!lease.live) throw new Error('This Speak-to-Sign flow has ended.');
-  signal.throwIfAborted();
+  constructor() {
+    this.ended = new Promise((resolve) => {
+      this.finish = resolve;
+    });
+  }
+
+  /** Throws when the flow ended or core's signal aborted. */
+  use(signal: AbortSignal): void {
+    if (!this.live) throw new Error('This Speak-to-Sign flow has ended.');
+    signal.throwIfAborted();
+  }
+
+  /** An operation that must finish before the flow answers, such as a signature. */
+  track<T>(operation: Promise<T>): Promise<T> {
+    const settled = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.open.add(settled);
+    void settled.then(() => this.open.delete(settled));
+    return operation;
+  }
+
+  /** Ends the flow and waits for the tracked operations. */
+  async end(): Promise<void> {
+    this.live = false;
+    this.finish();
+    await Promise.all(this.open);
+  }
 }
 
 /**
@@ -129,7 +164,7 @@ export async function runSpeakToSignApproval(
   if (opened.kind === 'unavailable') return voiceIdUnavailable(opened.detail);
   const { prompt } = opened;
   const clips = new FlowClips();
-  const lease: Lease = { live: true };
+  const lease = new Lease();
   try {
     return await input.plugin.approve({
       walletId: input.walletId,
@@ -139,17 +174,17 @@ export async function runSpeakToSignApproval(
       request: requestView(intent, rendered),
       surface: {
         show: async (view) => {
-          use(lease, signal);
+          lease.use(signal);
           return await prompt.show(view);
         },
       },
       operations: {
         record: async () => {
-          use(lease, signal);
-          return await recordHandle(prompt, clips);
+          lease.use(signal);
+          return await recordHandle(prompt, clips, lease);
         },
         verify: async (clip) => {
-          use(lease, signal);
+          lease.use(signal);
           const wav = clips.read(clip);
           if (!wav) return { kind: 'failed', code: 'unknown_recording' };
           try {
@@ -168,15 +203,26 @@ export async function runSpeakToSignApproval(
           }
         },
         sign: async (verifierOutput, hooks) => {
-          use(lease, signal);
-          return await signIntent(operations, intent, verifierOutput, signal, hooks);
+          lease.use(signal);
+          // A step-up question that the plugin still shows when the flow ends is a "no".
+          const bound: SpeakToSignPaymentHooks = {
+            ...hooks,
+            approveStepUp: async (policyText) =>
+              await Promise.race([
+                hooks.approveStepUp(policyText),
+                lease.ended.then(() => false),
+              ]),
+          };
+          return await lease.track(signIntent(operations, intent, verifierOutput, signal, bound));
         },
       },
     });
   } finally {
-    lease.live = false;
-    clips.clearAll();
+    // The card closes first, so a recording that still waits ends. A signature in progress
+    // finishes before the application gets its answer.
     prompt.close();
+    await lease.end();
+    clips.clearAll();
   }
 }
 
@@ -246,9 +292,15 @@ async function receiverRefusal(
 async function recordHandle(
   prompt: SpeakToSignPrompt,
   clips: FlowClips,
+  lease: Lease,
 ): Promise<SpeakToSignRecording> {
   const clip = await prompt.record();
   if (clip.kind !== 'captured') return clip;
+  if (!lease.live) {
+    // The flow ended while the owner spoke. No one can use this recording.
+    clip.wav.fill(0);
+    throw new Error('This Speak-to-Sign flow has ended.');
+  }
   return clips.add(clip.wav, clip.speechMs, clip.endOfSpeechAt);
 }
 
@@ -269,7 +321,7 @@ export async function runSpeakToSignEnrollment(
   const { operations, signal, adopted } = input;
   signal.throwIfAborted();
   const clips = new FlowClips();
-  const lease: Lease = { live: true };
+  const lease = new Lease();
   let card: SpeakToSignPrompt | null = null;
   const open = async (sentence: string) => {
     card?.close();
@@ -283,13 +335,16 @@ export async function runSpeakToSignEnrollment(
     return opened;
   };
   try {
+    // Core holds the adopted audio from the first statement, so every exit clears it. Another
+    // count than the verifier needs cannot be enrolled: the owner then records the phrases.
+    const adoptedHandles = (adopted ?? []).map((recording) => clips.add(recording.wav, 0, 0));
     let handles: SpeakToSignClipHandle[] | null = null;
-    if (adopted) {
+    if (adopted && adopted.length === ENROLLMENT_PHRASES.length) {
       // The card opens on the last sentence that the owner read for VoiceID.
       const sentence = adopted.at(-1)?.sentence || ENROLLMENT_PHRASES[ENROLLMENT_PHRASES.length - 1];
       const opened = await open(sentence);
       if (opened.kind === 'unavailable') return voiceIdUnavailable(opened.detail);
-      handles = adopted.map((recording) => clips.add(recording.wav, 0, 0));
+      handles = adoptedHandles;
     }
     return await input.plugin.enroll({
       walletId: input.walletId,
@@ -300,28 +355,28 @@ export async function runSpeakToSignEnrollment(
       clips: handles,
       operations: {
         record: async (index) => {
-          use(lease, signal);
+          lease.use(signal);
           const sentence = ENROLLMENT_PHRASES[index];
           if (sentence === undefined) throw new RangeError('No such enrollment phrase.');
           const opened = await open(sentence);
           if (opened.kind === 'unavailable') return opened;
-          return await recordHandle(opened.prompt, clips);
+          return await recordHandle(opened.prompt, clips, lease);
         },
         show: async (view) => {
-          use(lease, signal);
+          lease.use(signal);
           if (!card) throw new Error('No enrollment card is open.');
           return await card.show(view);
         },
         enrollClips: async (enrolled, onAuthorized) => {
-          use(lease, signal);
-          return await enrollClips(input, clips, enrolled, onAuthorized);
+          lease.use(signal);
+          return await lease.track(enrollClips(input, clips, enrolled, onAuthorized));
         },
       },
     });
   } finally {
-    lease.live = false;
-    clips.clearAll();
     (card as SpeakToSignPrompt | null)?.close();
+    await lease.end();
+    clips.clearAll();
   }
 }
 

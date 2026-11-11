@@ -453,6 +453,23 @@ test('the handler gives the plugin the owner, the request texts and bound operat
   ]);
 });
 
+test('a signature that the plugin does not wait for ends before the application gets its answer', async () => {
+  const seen: { signing?: unknown; answersBefore?: number } = {};
+  const harness = buildHandler({
+    async plugin(input) {
+      void input.operations.sign(FOREIGN_OUTPUT, HOOKS).then((signing) => {
+        seen.signing = signing;
+        seen.answersBefore = harness.posted.length;
+      });
+      return { kind: 'cancelled' };
+    },
+  });
+  await harness.run();
+  expect(seen.signing).toMatchObject({ kind: 'refused', reason: 'verdict_mismatch' });
+  expect(seen.answersBefore).toBe(0);
+  expect(harness.posted[0].payload).toEqual({ ok: true, result: { kind: 'cancelled' } });
+});
+
 test('core refuses a request that it cannot sign before it loads a card or calls the plugin', async () => {
   for (const [payload, reason] of [
     [{ ...PAYLOAD, amount: '0.005' }, 'amount_not_speakable'],
