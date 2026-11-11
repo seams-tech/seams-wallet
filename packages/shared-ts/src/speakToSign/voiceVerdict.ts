@@ -1,11 +1,10 @@
-// The signed verdict of the Speak-to-Sign verifier (verdict v2) and the verifier key of each
-// network. Wallet core checks a verdict before it signs with no confirm, and the Seams co-signer
-// checks it again before it adds its part of the signature. Both use these definitions.
+// The verifier key of each network, and the co-signer's refusals of a Speak-to-Sign verdict.
+// Wallet core checks a verdict before it signs with no confirm, and the Seams co-signer checks it
+// again before it adds its part of the signature. Both check it with `checkVerdict` of
+// `@seams/voice-verdict` (speak-to-sign repository), against the key that this file pins.
 
-import { base58Decode } from '../utils/base58';
-import { base64Decode } from '../utils/base64';
-import { hasExactKeys } from '../utils/exactKeys';
-import { concat, sha256, utf8, type SpeakToSignNetwork } from './spokenRequest';
+import { VERDICT_LIFE_MS } from '@seams/voice-verdict';
+import type { SpeakToSignNetwork } from './spokenRequest';
 
 /**
  * The verifier of each network: its OutLayer project, its project-bound verdict key and its
@@ -34,132 +33,8 @@ export const SPEAK_TO_SIGN_VERIFIERS: Readonly<
   mainnet: null,
 };
 
-const RENDERER_VERSION = 'spoken-intent/1';
-const VERDICT_KIND = 'seams_voice_signed_verdict_v2';
-const VERDICT_DOMAIN = 'seams:outlayer:voice-verdict:v2';
-const VERDICT_FIELDS = [
-  'kind',
-  'renderer',
-  'verifier',
-  'request_digest',
-  'spoken_text_digest',
-  'audio_digest',
-  'outcome',
-  'reason',
-  'policy_rule',
-  'expires_at_ms',
-  'speaker_score_milli',
-  'word_margin_milli',
-  'heard',
-] as const;
 /** The verifier signs a verdict with `expires_at_ms` 120 s after its own clock. */
-export const VOICE_VERDICT_LIFE_MS = 120_000;
-/** A later expiry than this means a worker clock that runs ahead. */
-const MAX_VERDICT_LIFE_MS = VOICE_VERDICT_LIFE_MS + 30_000;
-
-/** `accept`: the voice alone approves. `step_up`: a policy rule asks for a fresh approval too. */
-type VoiceVerdictOutcome = 'accept' | 'step_up';
-
-type ParsedVoiceVerdict =
-  | Readonly<{ kind: 'invalid'; detail: string }>
-  /** The verifier refused. A refusal signs nothing, so it needs no signature check. */
-  | Readonly<{ kind: 'refuse'; reason: unknown; heard: unknown }>
-  | Readonly<{
-      kind: 'approve';
-      outcome: VoiceVerdictOutcome;
-      /** The rule that asked for the fresh approval of a `step_up` verdict. */
-      policyRule: string | null;
-      /** base64url SHA-256 values, as the verifier writes them. */
-      requestDigest: string;
-      spokenTextDigest: string;
-      audioDigest: string;
-      expiresAtMs: number;
-    }>;
-
-/** Reads the 13 fields of a verdict v2 in the verifier's JSON. It does not check the signature. */
-export function parseVoiceVerdict(verdictJson: string): ParsedVoiceVerdict {
-  let verdict: unknown;
-  try {
-    verdict = JSON.parse(verdictJson);
-  } catch {
-    return { kind: 'invalid', detail: 'verdict is not JSON' };
-  }
-  if (!hasExactKeys(verdict, VERDICT_FIELDS) || verdict.kind !== VERDICT_KIND) {
-    return { kind: 'invalid', detail: 'unknown verdict kind' };
-  }
-  if (verdict.renderer !== RENDERER_VERSION) return { kind: 'invalid', detail: 'unknown renderer' };
-  if (verdict.outcome === 'refuse') {
-    return { kind: 'refuse', reason: verdict.reason, heard: verdict.heard };
-  }
-  const outcome = outcomeOf(verdict.outcome, verdict.policy_rule, verdict.reason);
-  if (!outcome) return { kind: 'invalid', detail: 'unknown outcome' };
-  const { request_digest, spoken_text_digest, audio_digest, expires_at_ms } = verdict;
-  if (
-    typeof request_digest !== 'string' ||
-    typeof spoken_text_digest !== 'string' ||
-    typeof audio_digest !== 'string' ||
-    !Number.isSafeInteger(expires_at_ms)
-  ) {
-    return { kind: 'invalid', detail: 'verdict fields are invalid' };
-  }
-  return {
-    kind: 'approve',
-    outcome,
-    policyRule: outcome === 'step_up' ? (verdict.policy_rule as string) : null,
-    requestDigest: request_digest,
-    spokenTextDigest: spoken_text_digest,
-    audioDigest: audio_digest,
-    expiresAtMs: expires_at_ms as number,
-  };
-}
-
-function outcomeOf(
-  outcome: unknown,
-  policyRule: unknown,
-  reason: unknown,
-): VoiceVerdictOutcome | null {
-  if (reason !== null) return null;
-  if (outcome === 'accept' && policyRule === null) return 'accept';
-  if (outcome === 'step_up' && typeof policyRule === 'string' && policyRule) return 'step_up';
-  return null;
-}
-
-/** True while the verdict is valid: before its expiry, and not further ahead than one life. */
-export function voiceVerdictIsLive(expiresAtMs: number, nowMs: number): boolean {
-  return expiresAtMs > nowMs && expiresAtMs <= nowMs + MAX_VERDICT_LIFE_MS;
-}
-
-/** `sha256(VERDICT_DOMAIN || verdict_json)`: the message that the verifier key signs. */
-export async function voiceVerdictMessage(verdictJson: string): Promise<Uint8Array<ArrayBuffer>> {
-  return await sha256(concat([utf8(VERDICT_DOMAIN), utf8(verdictJson)]));
-}
-
-/** Checks the ed25519 signature (base64) of the verdict against `ed25519:<base58>` `publicKey`. */
-export async function verifyVoiceVerdictSignature(
-  publicKey: string,
-  verdictJson: string,
-  signatureB64: string,
-): Promise<boolean> {
-  let keyBytes: Uint8Array;
-  let signature: Uint8Array<ArrayBuffer>;
-  try {
-    if (!publicKey.startsWith('ed25519:')) return false;
-    keyBytes = base58Decode(publicKey.slice('ed25519:'.length));
-    signature = base64Decode(signatureB64);
-  } catch {
-    return false;
-  }
-  if (keyBytes.length !== 32 || signature.length !== 64) return false;
-  const key = await crypto.subtle.importKey(
-    'raw',
-    Uint8Array.from(keyBytes),
-    { name: 'Ed25519' },
-    false,
-    ['verify'],
-  );
-  const message = await voiceVerdictMessage(verdictJson);
-  return await crypto.subtle.verify({ name: 'Ed25519' }, key, signature, message);
-}
+export const VOICE_VERDICT_LIFE_MS = VERDICT_LIFE_MS;
 
 /**
  * Why the Seams co-signer refused a voice-approved signing request. It checks only a request

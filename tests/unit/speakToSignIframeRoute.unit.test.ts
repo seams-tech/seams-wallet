@@ -416,7 +416,7 @@ test('the handler gives the plugin the owner, the network and scoped operations'
         included: () => undefined,
       },
     ),
-  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'unknown verdict kind' });
+  ).toEqual({ kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict fields are invalid' });
   expect(harness.posted).toEqual([
     { type: 'PM_RESULT', requestId: 'request-1', payload: { ok: true, result: SENT } },
   ]);

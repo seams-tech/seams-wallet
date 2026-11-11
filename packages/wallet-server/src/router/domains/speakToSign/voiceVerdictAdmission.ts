@@ -5,6 +5,7 @@
 // rule of the Wallet's policy engine, as for a normal signature. A normal signing request carries no
 // verdict, and the co-signer does not run this check for it.
 
+import { checkVerdict, parseVerdict, verdictMessage, type VerdictRefusal } from '@seams/voice-verdict';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
@@ -18,12 +19,8 @@ import {
 import {
   COSIGNER_VOICE_REFUSAL_CODE,
   cosignerVoiceRefusalMessage,
-  parseVoiceVerdict,
   SPEAK_TO_SIGN_VERIFIERS,
-  verifyVoiceVerdictSignature,
   VOICE_VERDICT_LIFE_MS,
-  voiceVerdictIsLive,
-  voiceVerdictMessage,
   type CosignerVoiceRefusal,
   type SpeakToSignVerifier,
 } from '@shared/speakToSign/voiceVerdict';
@@ -160,20 +157,24 @@ async function admitVoiceVerdict(
   ) {
     return refuse('verdict_invalid');
   }
-  const verdict = parseVoiceVerdict(signed.verdict_json);
-  if (verdict.kind !== 'approve') return refuse('verdict_invalid');
+  const parsed = parseVerdict(signed.verdict_json);
+  if ('refusal' in parsed || parsed.verdict.outcome === 'refuse') return refuse('verdict_invalid');
   const target = readSigningTarget(route.body);
   if (!target) return refuse('request_mismatch');
   const verifier = (check.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[target.network];
   if (!verifier) return refuse('network_unsupported');
-  const signatureValid = await verifyVoiceVerdictSignature(
-    verifier.publicKey,
-    signed.verdict_json,
-    signed.signature_b64,
-  );
-  if (!signatureValid) return refuse('signature_invalid');
-  if (!voiceVerdictIsLive(verdict.expiresAtMs, nowMs)) return refuse('expired');
-  if (verdict.outcome === 'step_up' && !freshApproval(authorization, verdict.expiresAtMs)) {
+  // The request digest is compared below, after the co-signer builds the request from the bytes
+  // that it signs. A step-up passes here and needs the fresh approval next.
+  const checked = await checkVerdict({
+    verdictJson: signed.verdict_json,
+    signatureB64: signed.signature_b64,
+    publicKey: verifier.publicKey,
+    nowMs,
+    acceptStepUp: true,
+  });
+  if (!checked.ok) return refuse(cosignerRefusal(checked.refusal));
+  const { verdict } = checked;
+  if (verdict.outcome === 'step_up' && !freshApproval(authorization, verdict.expires_at_ms)) {
     return refuse('step_up_required');
   }
 
@@ -206,7 +207,7 @@ async function admitVoiceVerdict(
     return refuse('request_mismatch');
   }
   const digest = base64UrlEncode(await spokenRequestDigest(borsh));
-  if (digest !== verdict.requestDigest) return refuse('request_mismatch');
+  if (digest !== verdict.request_digest) return refuse('request_mismatch');
   // A verified bet or transfer verdict names a whole number of hundredths of USDC or NEAR.
   if (spoken.kind === 'market_bet' && spoken.amountUnits % USDC_UNITS_PER_HUNDREDTH !== 0n) {
     return refuse('request_mismatch');
@@ -219,16 +220,39 @@ async function admitVoiceVerdict(
   try {
     ledger = await check.ledger.admit({
       walletId: target.walletId,
-      verdictId: base64UrlEncode(await voiceVerdictMessage(signed.verdict_json)),
+      verdictId: base64UrlEncode(await verdictMessage(signed.verdict_json)),
       requestId: target.requestId,
       acceptedAtMs: nowMs,
-      expiresAtMs: verdict.expiresAtMs,
+      expiresAtMs: verdict.expires_at_ms,
     });
   } catch (error: unknown) {
     return { ok: false, reason: 'unavailable', detail: errorDetail(error, 'ledger') };
   }
   if (ledger === 'reused') return refuse('reused');
   return { ok: true };
+}
+
+/** The co-signer's reason for a verdict that `checkVerdict` refused. */
+function cosignerRefusal(refusal: VerdictRefusal): CosignerVoiceRefusal {
+  switch (refusal.code) {
+    case 'bad_public_key':
+    case 'bad_signature_encoding':
+    case 'bad_signature':
+      return 'signature_invalid';
+    case 'expired':
+    case 'not_yet_valid':
+      return 'expired';
+    case 'request_mismatch':
+    case 'spoken_text_mismatch':
+    case 'audio_mismatch':
+      return 'request_mismatch';
+    case 'malformed':
+    case 'wrong_kind':
+    case 'wrong_renderer':
+    case 'refused':
+    case 'step_up':
+      return 'verdict_invalid';
+  }
 }
 
 /**

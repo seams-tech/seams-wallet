@@ -405,11 +405,21 @@ test('the core check refuses a verdict that does not bind this transfer, clip, t
   expect(await check(await verifyOutput(verifier, v1))).toEqual(mismatch('unknown verdict kind'));
   const extraField = JSON.stringify({ ...JSON.parse(valid), note: 'x' });
   expect(await check(await verifyOutput(verifier, extraField))).toEqual(
-    mismatch('unknown verdict kind'),
+    mismatch('verdict fields are invalid'),
   );
   const stepUpWithoutRule = await verdictJson(request, audio, { outcome: 'step_up' });
   expect(await check(await verifyOutput(verifier, stepUpWithoutRule))).toEqual(
-    mismatch('unknown outcome'),
+    mismatch('verdict fields are invalid'),
+  );
+  const otherSentence = await verdictJson(request, audio, {
+    spoken_text_digest: b64u(new Uint8Array(32)),
+  });
+  expect(await check(await verifyOutput(verifier, otherSentence))).toEqual(
+    mismatch('spoken_text_digest differs'),
+  );
+  const otherRenderer = await verdictJson(request, audio, { renderer: 'spoken-intent/2' });
+  expect(await check(await verifyOutput(verifier, otherRenderer))).toEqual(
+    mismatch('unknown renderer'),
   );
   expect(parseVerifyOutput({ kind: 'seams_voice_verify_output_v1', verdict_json: valid })).toBe(
     null,
