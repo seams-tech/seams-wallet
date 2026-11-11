@@ -3,22 +3,21 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.67.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.68.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.67.0` — browser SDK and React components.
-- `@seams/wallet-server@0.67.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.67.0` — optional VoiceID authentication plugin.
-- `@seams/wallet-voice-sign@0.67.0` — experimental, testnet-only NEAR signing by voice; needs VoiceID. Until 0.66.0 its name was `@seams/speak-to-sign`.
+- `@seams/wallet@0.68.0` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
+- `@seams/wallet-server@0.68.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.68.0` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
-The browser and server SDKs use wallet iframe protocol `23.0.0`. Upgrade the browser
+The browser and server SDKs use wallet iframe protocol `24.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use version **0.67.0**.
+The browser SDK, server SDK and VoiceID plugin use version **0.68.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -27,6 +26,14 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Release 0.68.0
+
+- Breaking: Speak-to-Sign is a part of `@seams/wallet`. The plugin package `@seams/wallet-voice-sign`, its host file `/sdk/speak-to-sign/host.js` and the step `seams-speak-to-sign-host` go away. Remove them from the app and from the Wallet host.
+- Breaking: the app API of approval by voice. The configuration is `approvals: [spoken({ network })]`, with `spoken` from `@seams/wallet`. The normal NEAR sign calls take `approval: { kind: 'spoken', summary }`. The typed requests and `enroll` are in `seams.near.spoken`. `transactionFeatures`, `speakToSign()` and `seams.near.speakToSign` are removed, with no alias.
+- Inside: one sign path in Wallet core, and one table of typed kinds that core and the co-signer both read. The co-signer builds a typed request only from the bytes that it signs. Core holds the limits of a transfer, and the recording never reaches the flow on the card.
+- Wallet steps: a card in an app's dialog takes `transition` (wait and fades), and `chrome: 'back_and_close'` draws Back and Close together.
+- Wallet iframe protocol **24.0.0**: the configuration that the app sends has `approvals`. Ship the SDK, the hosted Wallet and the server together, the server first. Install all three packages at 0.68.0. No database migrations.
 
 ## Release 0.67.0
 
@@ -113,13 +120,11 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.67.0
+npm install @seams/wallet@0.68.0
 # Server applications:
-npm install @seams/wallet-server@0.67.0
-# Applications that enable VoiceID:
-npm install @seams/voiceid@0.67.0
-# Experimental Speak-to-Sign (needs VoiceID):
-npm install @seams/wallet-voice-sign@0.67.0
+npm install @seams/wallet-server@0.68.0
+# Applications that enable VoiceID, or the experimental Speak-to-Sign:
+npm install @seams/voiceid@0.68.0
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.

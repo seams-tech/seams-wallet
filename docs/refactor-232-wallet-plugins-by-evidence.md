@@ -389,10 +389,7 @@ Each slice ships alone and leaves the tests green.
   the one sign path, and the three `...WithVerdict` operations call it. `SPOKEN_KINDS` has
   `request`, `call` and `fromCall` for each typed kind, and the co-signer builds a typed
   request only through `fromCall`. The 79 old tests passed with no change to their cases.
-  Not built yet:
-  - `parse` and `spokenText` as table entries. The limits and the sentences are still
-    functions of core (`intentRefusal`, `renderTransfer`, `renderNoteAction`), and core
-    checks both digests for each kind.
+  (Built later, with 0.68.0: `refusal`, `render` and `verifyRequest` as table entries.)
   (The tests of both slices are built: 89 Speak-to-Sign unit tests.)
 - **Slice 1. `signWithEvidence` and the intent table in core and `shared-ts`.** The three
   `...WithVerdict` operations call it. No host API change. The unit tests of the four
@@ -473,6 +470,15 @@ Each slice ships alone and leaves the tests green.
     `core/transactionFeatures`.
   - Open for the release: the docs (EN and JA), the README, the demo and the example in
     speak-to-sign, and the apps in seams-monorepo still use the old names.
+
+- **Release 0.68.0 is prepared (2026-11-12, local `dev`, not pushed).** It ships Slices 1 to
+  5. The table entries now also hold `refusal` (the limits), `render` (the sentence) and
+  `verifyRequest`, so a new typed kind is one entry. The Wallet iframe protocol is 24.0.0,
+  because the configuration that the app sends has `approvals`. The docs (EN and JA), the
+  README and the release notes describe the new API. Not in 0.68.0: Slice 0b (the verify
+  route with `@seams/voice-sign`), which waits for `@seams/voice-sign` 0.67.2 on npm.
+  After the release: the demo and the example in speak-to-sign, the apps and the deploy
+  step in seams-monorepo, then the branch `remove-wallet-plugin` and the npm deprecation.
 
 ## Not in this plan
 

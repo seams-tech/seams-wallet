@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Route } from '@playwright/test';
 import type {} from '../../fixtures/ui/SpeakToSignPluginProbe';
 import type {} from '../../typecheck/speak-to-sign-api.typecheck';
 

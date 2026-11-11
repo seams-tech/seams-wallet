@@ -63,49 +63,46 @@ expired, the Wallet asks the owner to unlock first.
 
 ## Install
 
-Install the three packages at the same version:
+Install the two packages at the same version. Speak-to-Sign is a part of
+`@seams/wallet`: it has no package of its own.
 
 ```sh
-pnpm add @seams/wallet@0.67.0 @seams/voiceid@0.67.0 @seams/wallet-voice-sign@0.67.0
+pnpm add @seams/wallet@0.68.0 @seams/voiceid@0.68.0
 ```
 
-Add the descriptor to `transactionFeatures` beside the VoiceID auth method:
+Add the `spoken` descriptor to `approvals`, beside the VoiceID auth method:
 
 ```ts [Partial example]
-import { SeamsWeb } from '@seams/wallet';
+import { SeamsWeb, spoken } from '@seams/wallet';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/wallet-voice-sign';
 
 const seams = new SeamsWeb({
   // ...the rest of your configuration
   authMethods: [voiceIdAuthMethod()],
-  transactionFeatures: [speakToSign({ network: 'testnet' })],
+  approvals: [spoken({ network: 'testnet' })],
 });
 
-const voice = seams.near.speakToSign;
-if (voice) {
-  const result = await voice.signAndSendTransaction({
-    walletId,
-    transaction: { receiverId: 'guest-book.testnet', actions },
-    summary: 'Sign the guest book.',
-  });
-  if (result.kind === 'approved') console.log(result.result.transactionHash);
-}
+const result = await seams.near.signAndSendTransaction({
+  receiverId: 'guest-book.testnet',
+  actions,
+  approval: { kind: 'spoken', summary: 'Sign the guest book.' },
+});
+if (result.kind === 'approved') console.log(result.result.transactionHash);
 ```
 
-`seams.near.speakToSign` exists only when the configuration names the
-descriptor. It is the NEAR signer by voice: each call has the name of the
-`seams.near` call that it replaces, and takes the same transaction, delegate
-action or message with a `summary`.
+The normal NEAR sign calls take `approval`. With it, the owner approves by
+voice in place of the Wallet's confirm, and the call returns a result with a
+`kind`. Without it, the call is the normal call.
 
-| Normal call                   | Voice call                                | `result` of an approved call      |
-| ----------------------------- | ----------------------------------------- | --------------------------------- |
-| `near.signAndSendTransaction` | `near.speakToSign.signAndSendTransaction` | `{ transactionHash }`             |
-| `near.signTransaction`        | `near.speakToSign.signTransaction`        | The signed transaction            |
-| `near.signDelegateAction`     | `near.speakToSign.signDelegateAction`     | The signed delegate action        |
-| `near.signMessage`            | `near.speakToSign.signMessage`            | The NEP-413 signature and nonce   |
+| Call with `approval`          | `result` of an approved call      |
+| ----------------------------- | --------------------------------- |
+| `near.signAndSendTransaction` | `{ transactionHash }`             |
+| `near.signTransaction`        | The signed transaction            |
+| `near.signDelegateAction`     | The signed delegate action        |
+| `near.signMessage`            | The NEP-413 signature and nonce   |
 
-- The owner reads the summary aloud: 1 to 12 plain words (`summaryRefusal`).
+- `summary` is the sentence that the owner reads aloud: 1 to 12 plain words
+  (`summaryRefusal`).
 - The verdict binds what the Wallet signs: the receiver and the action bytes
   of a transaction or a delegate action, or the bytes of a NEP-413 message. The
   Seams co-signer checks the verdict again against the bytes that it signs.
@@ -114,42 +111,46 @@ action or message with a `summary`.
   request.
 - The Wallet sets the sender of a delegate action and draws the nonce of a
   message.
+- `walletSession` is optional, as for the normal calls. Without it, the call
+  is for the authenticated wallet.
+- A call with `approval` throws if `approvals` does not hold the descriptor.
 
-Every signing call returns one result shape. The `kind` is `approved`,
-`refused`, `cancelled` or `unavailable`. An `approved` result holds `result`,
-`times` and `approval`: `voice` when the verdict alone approved the request,
-and `voice_and_passkey` when a policy rule asked for the confirm again.
+Every call with `approval` returns one result shape, and it does not throw for
+a refusal. The `kind` is `approved`, `refused`, `cancelled` or `unavailable`.
+An `approved` result holds `result`, `times` and `approval`: `voice` when the
+verdict alone approved the request, and `voice_and_passkey` when a policy rule
+asked for the confirm again.
 
 ## Typed calls
 
-`seams.near.speakToSign.typed` has calls whose sentence comes from the request
-fields, so the owner says what the Wallet signs:
+`seams.near.spoken` has calls whose sentence comes from the request fields, so
+the owner says what the Wallet signs. It exists only when `approvals` holds the
+descriptor.
 
 ```ts [Partial example]
-const result = await seams.near.speakToSign.typed.transfer({
-  walletId,
+const result = await seams.near.spoken?.transfer({
   receiver: 'alice.testnet',
   amount: '2',
 });
 ```
 
-| Call                  | The owner says                                    |
-| --------------------- | ------------------------------------------------- |
-| `typed.transfer`      | "send two near to alice dot testnet"              |
-| `typed.note`          | The short summary of a community note             |
-| `typed.rating`        | "this note is helpful"                            |
-| `typed.mergeApproval` | "merge pull request forty two into main"          |
-| `typed.bet`           | "bet zero point five usdc yes on market nine"     |
+| Call                   | The owner says                                    |
+| ---------------------- | ------------------------------------------------- |
+| `spoken.transfer`      | "send two near to alice dot testnet"              |
+| `spoken.note`          | The short summary of a community note             |
+| `spoken.rating`        | "this note is helpful"                            |
+| `spoken.mergeApproval` | "merge pull request forty two into main"          |
+| `spoken.bet`           | "bet zero point five usdc yes on market nine"     |
 
-For `typed.transfer`, the receiver can be any named NEAR account that the owner
+For `spoken.transfer`, the receiver can be any named NEAR account that the owner
 can say, such as `alice.testnet`. The result is `refused` with
 `receiver_not_speakable` for an implicit (64-hex) or `0x` account, and with
 `receiver_missing` for an account that does not exist. The amount is decimal
 NEAR with at most two decimal places. Today the verifier has one stub rule: a
 voice transfer above 10 NEAR needs a passkey.
 
-`onProgress` is optional on every call. It gets each stage of the request, in
-order:
+`onProgress` is optional: in `approval` for a normal call, and in the request
+of a typed call. It gets each stage of the request, in order:
 
 | `stage`            | When                                                                 |
 | ------------------ | -------------------------------------------------------------------- |
@@ -169,8 +170,8 @@ When the Seams co-signer refuses the verdict, the result is `refused` with
 `reused` or `request_mismatch`. Nothing was signed. Speak-to-Sign sets no
 amount limit of its own.
 
-An app without the descriptor downloads no Speak-to-Sign code, WASM or assets.
-An app with it loads nothing more until a spoken payment starts.
+The flow of Speak-to-Sign is a part of the Wallet that loads on the first spoken
+request. A Wallet without the descriptor never loads it.
 
 ## Set up the owner
 
@@ -178,8 +179,8 @@ Before the first spoken payment, the owner needs a voice template at the
 verifier:
 
 ```ts [Partial example]
-const enrollment = await seams.near.speakToSign.enroll({ walletId });
-if (enrollment.kind === 'enrolled') {
+const enrollment = await seams.near.spoken?.enroll();
+if (enrollment?.kind === 'enrolled') {
   console.log('template', enrollment.templateEpoch);
 }
 ```
@@ -212,16 +213,14 @@ deposit and no confirm.
 import { summaryRefusal } from '@seams/wallet';
 
 if (summaryRefusal(summary) === null) {
-  await seams.near.speakToSign.typed.note({
-    walletId,
+  await seams.near.spoken?.note({
     contract: 'community-notes.testnet',
     postId: 7,
     text: 'The city closes one lane for two weeks. The bridge stays open.',
     summary: 'Only one lane closes for two weeks.',
   });
 }
-await seams.near.speakToSign.typed.rating({
-  walletId,
+await seams.near.spoken?.rating({
   contract: 'community-notes.testnet',
   noteId: 3,
   rating: 'helpful',
@@ -238,16 +237,16 @@ await seams.near.speakToSign.typed.rating({
 
 ## Prepare the Wallet host
 
-The operator of `walletOrigin` installs the same packages and composes the
-assets into a new directory:
+Speak-to-Sign needs no step of its own on the Wallet host. Its flow is in
+`@seams/wallet`. It records on the VoiceID surface, so the operator of
+`walletOrigin` composes VoiceID as for a VoiceID host:
 
 ```sh
-npx --no-install seams-speak-to-sign-host ./wallet-with-speak-to-sign
+npx --no-install seams-voiceid-host ./wallet-with-voiceid
 ```
 
-Deploy that directory as the static root of `walletOrigin`. The Wallet loads
-`/sdk/speak-to-sign/host.js` only when a spoken payment starts. It refuses a
-host plugin with a different host API version.
+Until 0.67.0 the host also installed the plugin `@seams/wallet-voice-sign` and
+composed it with `seams-speak-to-sign-host`. Remove both.
 
 ## Configure the Seams server
 

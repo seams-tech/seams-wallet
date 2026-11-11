@@ -38,43 +38,39 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 
 ## インストール {#install}
 
-3つのパッケージを同じバージョンでインストールします。
+2つのパッケージを同じバージョンでインストールします。Speak-to-Signは`@seams/wallet`の一部で、専用のパッケージはありません。
 
 ```sh
-pnpm add @seams/wallet@0.67.0 @seams/voiceid@0.67.0 @seams/wallet-voice-sign@0.67.0
+pnpm add @seams/wallet@0.68.0 @seams/voiceid@0.68.0
 ```
 
-VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加します。
+VoiceIDの認証方法と一緒に、`spoken`の記述子を`approvals`に追加します。
 
 ```ts [部分的な実装例]
-import { SeamsWeb } from '@seams/wallet';
+import { SeamsWeb, spoken } from '@seams/wallet';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/wallet-voice-sign';
 
 const seams = new SeamsWeb({
   // ...the rest of your configuration
   authMethods: [voiceIdAuthMethod()],
-  transactionFeatures: [speakToSign({ network: 'testnet' })],
+  approvals: [spoken({ network: 'testnet' })],
 });
 
-const voice = seams.near.speakToSign;
-if (voice) {
-  const result = await voice.typed.transfer({
-    walletId,
-    receiver: 'alice.testnet',
-    amount: '2',
-  });
-}
+const result = await seams.near.spoken?.transfer({
+  receiver: 'alice.testnet',
+  amount: '2',
+});
 ```
 
-`seams.near.speakToSign`は、設定に記述子がある場合だけ存在します。送金先には、`alice.testnet`のように所有者が読み上げられる任意の名前付きNEARアカウントを指定できます。
+`seams.near.spoken`は、`approvals`に記述子がある場合だけ存在します。送金先には、`alice.testnet`のように所有者が読み上げられる任意の名前付きNEARアカウントを指定できます。
 暗黙的アカウント(64桁の16進数)または`0x`アカウントの場合、結果は`receiver_not_speakable`の`refused`です。
 存在しないアカウントの場合、結果は`receiver_missing`の`refused`です。
 金額は小数点以下2桁までのNEARの10進数です。結果の`kind`は、`approved`、`refused`、`cancelled`、`unavailable`のいずれかです。
 `approved`の結果には`result`(`transactionHash`)、`times`、`approval`があります。判定だけで承認した場合は`voice`、ポリシーのルールが確認画面を再び求めた場合は`voice_and_passkey`です。
 現在、検証者には仮のルールが1つあります。10 NEARを超える音声による支払いにはパスキーが必要です。
+`walletSession`は、通常の呼び出しと同じく省略できます。省略した場合は、認証済みのウォレットが対象です。
 
-すべての呼び出しには、省略できる`onProgress`があります。リクエストの各段階を順に受け取ります。
+`onProgress`は省略できます。通常の呼び出しでは`approval`の中に、`spoken`の呼び出しではリクエストの中に指定します。リクエストの各段階を順に受け取ります。
 
 | `stage`            | タイミング                                                     |
 | ------------------ | -------------------------------------------------------------- |
@@ -91,31 +87,40 @@ Seamsの共同署名者が判定を拒否した場合、結果は`refused`で、
 このとき`detail`には、`reused`や`request_mismatch`のような共同署名者の理由が入ります。
 何も署名されていません。Speak-to-Sign自体は金額の上限を設けません。
 
-記述子を設定しないアプリは、Speak-to-Signのコード、WASM、アセットを一切ダウンロードしません。
-記述子を設定したアプリも、音声による支払いを始めるまでは何も追加で読み込みません。
+Speak-to-Signの流れはWalletの一部で、最初の音声リクエストのときに読み込まれます。記述子のないWalletは読み込みません。
 
-## 通常の署名と同じ呼び出し
+## 通常の署名の呼び出しで音声による承認を使う
 
-`seams.near.speakToSign`は、音声によるNEARの署名者です。各呼び出しは、置き換える`seams.near`の呼び出しと同じ名前で、同じ取引、デリゲートアクション、メッセージに`summary`を加えて受け取ります。
+NEARの通常の署名の呼び出しは`approval`を受け取ります。指定すると、所有者はWalletの確認画面の代わりに音声で承認し、呼び出しは`kind`のある結果を返します。指定しない場合は通常の呼び出しです。
 
-| 通常の呼び出し                | 音声の呼び出し                            | 承認された結果の`result`          |
-| ----------------------------- | ----------------------------------------- | --------------------------------- |
-| `near.signAndSendTransaction` | `near.speakToSign.signAndSendTransaction` | `{ transactionHash }`             |
-| `near.signTransaction`        | `near.speakToSign.signTransaction`        | 署名済みの取引                    |
-| `near.signDelegateAction`     | `near.speakToSign.signDelegateAction`     | 署名済みのデリゲートアクション    |
-| `near.signMessage`            | `near.speakToSign.signMessage`            | NEP-413の署名とノンス             |
+```ts [部分的な実装例]
+const result = await seams.near.signAndSendTransaction({
+  receiverId: 'guest-book.testnet',
+  actions,
+  approval: { kind: 'spoken', summary: 'Sign the guest book.' },
+});
+if (result.kind === 'approved') console.log(result.result.transactionHash);
+```
+
+| `approval`を指定する呼び出し  | 承認された結果の`result`          |
+| ----------------------------- | --------------------------------- |
+| `near.signAndSendTransaction` | `{ transactionHash }`             |
+| `near.signTransaction`        | 署名済みの取引                    |
+| `near.signDelegateAction`     | 署名済みのデリゲートアクション    |
+| `near.signMessage`            | NEP-413の署名とノンス             |
 
 所有者は`summary`(1〜12語の平易な単語)を読み上げます。判定は、Walletが署名する内容(取引の受取先とアクションのバイト列、またはNEP-413メッセージのバイト列)に結び付きます。`summary`はアプリが書きます。音声は、誰が承認し、何を言ったかを証明しますが、`summary`がリクエストを正しく説明していることは証明しません。
+`approval`を指定した呼び出しは、拒否のときに例外を投げません。`approvals`に記述子がない場合は例外を投げます。
 
-リクエストの項目から文を作る呼び出し(`transfer`、`note`、`rating`、`mergeApproval`、`bet`)は、`seams.near.speakToSign.typed`にあります。
+リクエストの項目から文を作る呼び出し(`transfer`、`note`、`rating`、`mergeApproval`、`bet`)と`enroll`は、`seams.near.spoken`にあります。
 
 ## 所有者の準備 {#set-up-the-owner}
 
 最初の音声による支払いの前に、所有者には検証者での声のテンプレートが必要です。
 
 ```ts [部分的な実装例]
-const enrollment = await seams.near.speakToSign.enroll({ walletId });
-if (enrollment.kind === 'enrolled') {
+const enrollment = await seams.near.spoken?.enroll();
+if (enrollment?.kind === 'enrolled') {
   console.log('template', enrollment.templateEpoch);
 }
 ```
@@ -139,16 +144,14 @@ Wallet coreが呼び出しを1件作り、デポジットも確認もなしで�
 import { summaryRefusal } from '@seams/wallet';
 
 if (summaryRefusal(summary) === null) {
-  await seams.near.speakToSign.typed.note({
-    walletId,
+  await seams.near.spoken?.note({
     contract: 'community-notes.testnet',
     postId: 7,
     text: 'The city closes one lane for two weeks. The bridge stays open.',
     summary: 'Only one lane closes for two weeks.',
   });
 }
-await seams.near.speakToSign.typed.rating({
-  walletId,
+await seams.near.spoken?.rating({
   contract: 'community-notes.testnet',
   noteId: 3,
   rating: 'helpful',
@@ -162,14 +165,13 @@ await seams.near.speakToSign.typed.rating({
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
-`walletOrigin`の運用者は、同じパッケージをインストールし、新しいディレクトリーにアセットを構成します。
+Speak-to-Signのために、Walletホストで行う専用の手順はありません。流れは`@seams/wallet`の中にあります。録音にはVoiceIDの画面を使うため、`walletOrigin`の運用者はVoiceIDのホストと同じようにVoiceIDを構成します。
 
 ```sh
-npx --no-install seams-speak-to-sign-host ./wallet-with-speak-to-sign
+npx --no-install seams-voiceid-host ./wallet-with-voiceid
 ```
 
-そのディレクトリーを`walletOrigin`の静的ルートとしてデプロイしてください。
-Walletは、音声による支払いを始めたときだけ`/sdk/speak-to-sign/host.js`を読み込みます。ホストAPIのバージョンが異なるホストプラグインは拒否します。
+0.67.0までは、ホストにプラグイン`@seams/wallet-voice-sign`もインストールし、`seams-speak-to-sign-host`で構成していました。両方とも削除してください。
 
 ## Seamsサーバーの設定 {#configure-the-seams-server}
 

@@ -82,17 +82,16 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Release 0.67.0
+## Release 0.68.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.67.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.68.0**.
 Pin `@seams/wallet-cli` to **0.29.0**. See the [recovery CLI guide](/deploy-and-operate/recovery-cli) for its signed native assets.
-VoiceID hosts also install `@seams/voiceid` **0.67.0** and compose the static deployment with
+VoiceID hosts also install `@seams/voiceid` **0.68.0** and compose the static deployment with
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`.
-The VoiceID host API is version 11, and the Speak-to-Sign host API is version 10. Install `@seams/voiceid` 0.67.0 and `@seams/wallet-voice-sign` 0.67.0 with `@seams/wallet` 0.67.0: the Wallet refuses a host plugin of another version.
-Speak-to-Sign hosts (experimental, NEAR testnet only) also install `@seams/wallet-voice-sign` **0.67.0** and compose with
-`npx --no-install seams-speak-to-sign-host ./wallet-with-speak-to-sign`. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host).
+The VoiceID host API is version 11. Install `@seams/voiceid` 0.68.0 with `@seams/wallet` 0.68.0: the Wallet refuses a host plugin of another version.
+Speak-to-Sign (experimental, NEAR testnet only) is a part of `@seams/wallet` from 0.68.0. A host that used `@seams/wallet-voice-sign` removes that package and its `seams-speak-to-sign-host` step. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host).
 See [VoiceID setup](/concepts/auth-methods/voiceid#prepare-the-wallet-host) for the app and host steps.
-See [Release 0.67.0](/releases) for the supported integration.
+See [Release 0.68.0](/releases) for the supported integration.
 
 The Gateway serves `/router-ab/ed25519/yao/reissue/admit` and
 `/router-ab/ed25519/yao/reissue/execute`. A Gateway that you assemble yourself
@@ -112,7 +111,7 @@ Deploy the matching wallet host, Gateway, Wallet Runtime, Router, control plane,
 both Derivers, and Signing Worker.
 The private address-allocation response carries a batch, so the custody
 Workers must move together. The application and wallet host both use public
-wallet iframe protocol **23.0.0**.
+wallet iframe protocol **24.0.0**.
 
 Registration reuses committed admission, commits custody with its completion
 receipt, and can finish after A's validated completion without waiting for B's

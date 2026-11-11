@@ -55,17 +55,16 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 公開アセットの`@seams/wallet/web/wallet-iframe-client-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
 
-## リリース 0.67.0 {#release-0-49-0}
+## リリース 0.68.0 {#release-0-49-0}
 
-`@seams/wallet`と`@seams/wallet-server`を**0.67.0**に固定してください。
+`@seams/wallet`と`@seams/wallet-server`を**0.68.0**に固定してください。
 `@seams/wallet-cli`も**0.29.0**を使用します。署名済みネイティブアセットは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
-VoiceIDをホストする場合は、`@seams/voiceid` **0.67.0**もインストールします。
+VoiceIDをホストする場合は、`@seams/voiceid` **0.68.0**もインストールします。
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`で静的デプロイ用のディレクトリーを作成してください。
-VoiceIDのホストAPIはバージョン11、Speak-to-SignのホストAPIはバージョン10です。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/voiceid` 0.67.0と`@seams/wallet-voice-sign` 0.67.0を`@seams/wallet` 0.67.0と一緒にインストールしてください。
-Speak-to-Sign(実験的機能、NEARテストネット専用)をホストする場合は、`@seams/wallet-voice-sign` **0.67.0**もインストールし、
-`npx --no-install seams-speak-to-sign-host ./wallet-with-speak-to-sign`で構成してください。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host)を参照してください。
+VoiceIDのホストAPIはバージョン11です。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/voiceid` 0.68.0を`@seams/wallet` 0.68.0と一緒にインストールしてください。
+Speak-to-Sign(実験的機能、NEARテストネット専用)は、0.68.0から`@seams/wallet`の一部です。`@seams/wallet-voice-sign`を使っていたホストは、そのパッケージと`seams-speak-to-sign-host`の手順を削除してください。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host)を参照してください。
 アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
-対応する導入方法は、[リリース 0.67.0](/ja/releases)を参照してください。
+対応する導入方法は、[リリース 0.68.0](/ja/releases)を参照してください。
 
 Gatewayは`/router-ab/ed25519/yao/reissue/admit`と`/router-ab/ed25519/yao/reissue/execute`を提供します。自分で組み立てるGatewayは、これらを`@seams/wallet-server/cloud-host`の`handleRouterAbEd25519YaoReissueRequestV1`に渡してください。Routerのプロジェクトポリシーは`reissue`の作業種別を許可する必要があります。
 
@@ -79,7 +78,7 @@ Consoleが代替承認を発行する前に、Routerは永続的なフェンス�
 開始済みの手順は、復旧用に元の承認をそのまま保持します。
 対応するウォレットホスト、Gateway、Wallet Runtime、Router、コントロールプレーン、両Deriver、Signing Workerをデプロイしてください。
 非公開のアドレス割り当て応答はバッチを含むため、鍵管理Workerは一緒に更新する必要があります。
-アプリとウォレットホストは、どちらも公開iframeプロトコル**23.0.0**を使います。
+アプリとウォレットホストは、どちらも公開iframeプロトコル**24.0.0**を使います。
 
 登録は確定済みの受付を再利用し、完了記録とともに鍵管理を確定します。
 Bの準備応答を待たず、検証済みのAの完了後に終了できます。
