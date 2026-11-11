@@ -1,7 +1,6 @@
 import { sealAudio } from '@seams/voice-verdict';
 import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
-import { transfer } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
 import type { DelegateActionInput } from '@/core/types/delegate';
 import type {
@@ -13,6 +12,7 @@ import type { Variant } from '@shared/utils/variant';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
 import { base64Decode, base64Encode, base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
+import { spokenCallOfFields } from '@shared/speakToSign/spokenKinds';
 import { concat, sha256, utf8 } from '@shared/speakToSign/spokenRequest';
 import {
   parseCosignerVoiceRefusal,
@@ -40,17 +40,14 @@ import type {
 } from './hostPlugin';
 import type { SpeakToSignFeaturePlugin } from './plugins';
 import {
-  messageActionRefusal,
-  messageDigests,
-  type SpokenMessageAction,
-} from './spokenMessage';
-import {
-  noteActionDigests,
-  noteActionRefusal,
-  noteTransaction,
-  type SpokenNoteAction,
-} from './spokenNote';
-import { transferDigests, type SpokenDigests } from './spokenTransfer';
+  intentDigests,
+  intentRefusal,
+  type SpokenEvidence,
+  type SpokenIntent,
+} from './spokenIntent';
+import type { SpokenMessageAction } from './spokenMessage';
+import { noteTransaction, spokenCallTransaction, type SpokenNoteAction } from './spokenNote';
+import type { SpokenDigests } from './spokenTransfer';
 import {
   checkVoiceVerdict,
   parseVerifyOutput,
@@ -164,10 +161,14 @@ function toEnrollmentRecording(
  * What one flow recorded and signed. A verdict binds a clip of this flow, and the flow signs at
  * most once, even when "Try again" brings it several accepted verdicts.
  */
-type FlowState = {
+export type FlowState = {
   readonly recordedAudio: Set<string>;
   paid: boolean;
 };
+
+function voiceVerdict(output: unknown): SpokenEvidence {
+  return { kind: 'voice_verdict_v2', output };
+}
 
 /** Builds the scoped operations for one spoken payment or enrollment. */
 export function createSpeakToSignHostOperations(
@@ -178,9 +179,27 @@ export function createSpeakToSignHostOperations(
     openPrompt: openPrompt.bind(null, input, state),
     receiverExists: receiverExists.bind(null, input),
     verify: verify.bind(null, input),
-    payWithVerdict: payWithVerdict.bind(null, input, state),
-    signNoteWithVerdict: signNoteWithVerdict.bind(null, input, state),
-    signMessageWithVerdict: signMessageWithVerdict.bind(null, input, state),
+    // The three operations of host API 10 are calls of the one sign path.
+    payWithVerdict: (transferRequest, output, signal, hooks) =>
+      signWithEvidence(
+        input,
+        state,
+        { kind: 'account_transfer', ...transferRequest },
+        voiceVerdict(output),
+        signal,
+        hooks,
+      ),
+    signNoteWithVerdict: (action, output, signal, hooks) =>
+      signWithEvidence(input, state, action, voiceVerdict(output), signal, hooks),
+    signMessageWithVerdict: (action, output, signal, hooks) =>
+      signWithEvidence(
+        input,
+        state,
+        { kind: 'signed_message', message: action },
+        voiceVerdict(output),
+        signal,
+        hooks,
+      ),
     authorizeEnrollment: authorizeEnrollment.bind(null, input, state),
   };
 }
@@ -344,88 +363,150 @@ function stageTimes(output: unknown): Readonly<Record<string, number>> {
   );
 }
 
-async function payWithVerdict(
+/**
+ * The one sign path of a spoken request. It checks the evidence against the request that core
+ * builds from `intent`, takes the one signature of the flow, and signs what the intent names:
+ * a transaction that it sends, a transaction or delegate action that it returns, or a message.
+ * The caller supplies no digest of the request and no sentence: both come from the intent.
+ */
+export async function signWithEvidence(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
-  transferRequest: Readonly<{ receiver: string; amountYocto: bigint }>,
-  verifierOutput: unknown,
+  intent: Extract<SpokenIntent, { kind: 'account_transfer' }>,
+  evidence: SpokenEvidence,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignPayment>;
+export async function signWithEvidence(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  intent: SpokenNoteAction,
+  evidence: SpokenEvidence,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignNoteSigning>;
+export async function signWithEvidence(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  intent: Extract<SpokenIntent, { kind: 'signed_message' }>,
+  evidence: SpokenEvidence,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignMessageSigning>;
+export async function signWithEvidence(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  intent: SpokenIntent,
+  evidence: SpokenEvidence,
+  signal: AbortSignal,
+  hooks: SpeakToSignPaymentHooks,
+): Promise<SpeakToSignNoteSigning | SpeakToSignMessageSigning> {
+  const { network } = input.feature;
+  const refusal = intentRefusal(network, intent);
+  if (refusal) return { kind: 'unavailable', detail: refusal };
+  const expected = await intentDigests(network, input.ownerAccountId, intent);
+  const form = signingForm(intent);
+  const approved = await approveVerdict(
+    input,
+    state,
+    expected,
+    evidence.output,
+    signal,
+    hooks,
+    STEP_UP[form],
+  );
+  if (approved.kind !== 'approved') return approved;
+  if (intent.kind === 'signed_message') {
+    return await signApprovedMessage(input, state, intent, approved, signal);
+  }
+  if (intent.kind === 'transaction' && form !== 'send') {
+    return await signApprovedWithoutSend(input, state, intent, approved, signal);
+  }
+  return await sendApproved(input, state, intent, approved, signal, hooks);
+}
+
+/** What core does with the signature. It follows from the intent, never from the caller. */
+type SigningForm = 'send' | 'sign' | 'delegate' | 'message';
+
+function signingForm(intent: SpokenIntent): SigningForm {
+  if (intent.kind === 'signed_message') return 'message';
+  // A typed kind is always one transaction that core sends.
+  if (intent.kind !== 'transaction' || intent.delivery === 'send') return 'send';
+  return intent.delivery === 'sign' ? 'sign' : 'delegate';
+}
+
+/**
+ * What a `step_up` verdict does. The delegate path and the message path have no fresh-approval
+ * mode, so such a verdict signs nothing there.
+ */
+const STEP_UP: Readonly<Record<SigningForm, 'ask' | 'refuse'>> = {
+  send: 'ask',
+  sign: 'ask',
+  delegate: 'refuse',
+  message: 'refuse',
+};
+
+/** Signs the transaction of the intent and sends it. */
+async function sendApproved(
+  input: SpeakToSignHostOperationsInput,
+  state: FlowState,
+  intent: Exclude<SpokenIntent, { kind: 'signed_message' }>,
+  approved: ApprovedVerdict,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
 ): Promise<SpeakToSignPayment> {
-  const expected = await transferDigests({
-    network: input.feature.network,
-    owner: input.ownerAccountId,
-    receiver: transferRequest.receiver,
-    amountYocto: transferRequest.amountYocto,
-  });
-  const transaction: TransactionInput = {
-    receiverId: transferRequest.receiver,
-    actions: [transfer(`${transferRequest.amountYocto} yoctoNEAR`)],
-  };
-  // Once a block holds a plain transfer, NEAR has checked its signature, nonce and balance.
-  // The receiver was checked before verify, so the transfer can show as sent.
-  const onIncluded = (transactionHash: string) => hooks.included(transactionHash);
-  return await signWithVerdict(
-    input,
-    state,
-    expected,
-    () => transaction,
-    null,
-    verifierOutput,
+  // A bet carries the checked verdict to its contract, so the transaction comes after the check.
+  const transaction =
+    intent.kind === 'account_transfer'
+      ? spokenCallTransaction(spokenCallOfFields(intent, approved.verdict))
+      : noteTransaction(intent, approved.verdict);
+  // The co-signer needs the spoken summary of a general transaction beside the verdict.
+  const verdict =
+    intent.kind === 'transaction' ? { ...approved.verdict, summary: intent.summary } : approved.verdict;
+  // Once a block holds a plain transfer, NEAR has checked its signature, nonce and balance, so
+  // the transfer can show as sent. A contract call can still fail in the contract, so it shows
+  // only its outcome.
+  const onIncluded =
+    intent.kind === 'account_transfer'
+      ? (transactionHash: string) => hooks.included(transactionHash)
+      : null;
+  const result = await input.signVoiceApprovedTransaction(
+    transaction,
+    { approval: approved.approval, policyText: approved.policyText, verdict },
     signal,
-    hooks,
+    () => {
+      input.progress({ stage: 'transaction_sent' });
+      hooks.broadcasting();
+    },
     onIncluded,
   );
-}
-
-async function signNoteWithVerdict(
-  input: SpeakToSignHostOperationsInput,
-  state: FlowState,
-  action: SpokenNoteAction,
-  verifierOutput: unknown,
-  signal: AbortSignal,
-  hooks: SpeakToSignPaymentHooks,
-): Promise<SpeakToSignNoteSigning> {
-  const refusal = noteActionRefusal(input.feature.network, action);
-  if (refusal) return { kind: 'unavailable', detail: refusal };
-  const expected = await noteActionDigests(input.feature.network, input.ownerAccountId, action);
-  if (action.kind === 'transaction' && action.delivery !== 'send') {
-    return await signWithoutSend(input, state, expected, action, verifierOutput, signal, hooks);
+  if (!result.success) {
+    // Nothing left the Wallet, so another recording of this flow may still pay.
+    if (result.kind === 'not_submitted') state.paid = false;
+    if (result.kind !== 'not_submitted') return { kind: 'submission_unknown', error: result.error };
+    return cosignerRefusal(result.error) ?? { kind: 'not_submitted', error: result.error };
   }
-  // A contract call can still fail in the contract, so it shows only its outcome.
-  return await signWithVerdict(
-    input,
-    state,
-    expected,
-    noteTransaction.bind(null, action),
-    action.kind === 'transaction' ? action.summary : null,
-    verifierOutput,
-    signal,
-    hooks,
-    null,
-  );
+  input.progress({ stage: 'settled', transactionHash: result.transactionId });
+  const failure = executionFailure(result.result);
+  return failure === null
+    ? { kind: 'executed', transactionHash: result.transactionId, approval: approved.approval }
+    : { kind: 'reverted', transactionHash: result.transactionId, error: failure };
 }
 
 /**
  * Signs a general transaction and does not send it: as a signed transaction for the
  * application, or as a NEP-366 delegate action for a relayer.
  */
-async function signWithoutSend(
+async function signApprovedWithoutSend(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
-  expected: SpokenDigests,
-  action: Variant<SpokenNoteAction, 'kind', 'transaction'>,
-  verifierOutput: unknown,
+  intent: Variant<SpokenNoteAction, 'kind', 'transaction'>,
+  approved: ApprovedVerdict,
   signal: AbortSignal,
-  hooks: SpeakToSignPaymentHooks,
 ): Promise<SpeakToSignNoteSigning> {
-  const { delivery, transaction } = action;
-  // The delegate path has no fresh-approval mode, so a verdict that asks for one signs nothing.
-  const stepUp = delivery === 'sign' ? 'ask' : 'refuse';
-  const approved = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, stepUp);
-  if (approved.kind !== 'approved') return approved;
+  const { delivery, transaction } = intent;
   const { approval, policyText } = approved;
-  const verdict = { ...approved.verdict, summary: action.summary };
+  const verdict = { ...approved.verdict, summary: intent.summary };
   try {
     if (delivery === 'send' || delivery === 'sign') {
       const signed = await input.signVoiceApprovedTransactionOnly(
@@ -455,20 +536,15 @@ async function signWithoutSend(
   }
 }
 
-async function signMessageWithVerdict(
+/** Signs the NEP-413 message of the intent with the key of the owner's account. */
+async function signApprovedMessage(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
-  action: SpokenMessageAction,
-  verifierOutput: unknown,
+  intent: Extract<SpokenIntent, { kind: 'signed_message' }>,
+  approved: ApprovedVerdict,
   signal: AbortSignal,
-  hooks: SpeakToSignPaymentHooks,
 ): Promise<SpeakToSignMessageSigning> {
-  const refusal = messageActionRefusal(action);
-  if (refusal) return { kind: 'unavailable', detail: refusal };
-  const expected = await messageDigests(input.feature.network, input.ownerAccountId, action);
-  // The message path has no fresh-approval mode, so a verdict that asks for one signs nothing.
-  const approved = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, 'refuse');
-  if (approved.kind !== 'approved') return approved;
+  const { message: action } = intent;
   let signed: SignNEP413MessageResult;
   try {
     signed = await input.signVoiceApprovedMessage(
@@ -557,52 +633,6 @@ async function approveVerdict(
   }
   state.paid = true;
   return check;
-}
-
-/**
- * Checks the verdict against the request digests, then signs the transaction once.
- * `transaction` builds it from the checked verdict, because a bet carries the verdict to its
- * contract. `summary` is the spoken summary of a general transaction, which the co-signer
- * needs beside the verdict.
- */
-async function signWithVerdict(
-  input: SpeakToSignHostOperationsInput,
-  state: FlowState,
-  expected: SpokenDigests,
-  transaction: (verdict: SignedVoiceVerdict) => TransactionInput,
-  summary: string | null,
-  verifierOutput: unknown,
-  signal: AbortSignal,
-  hooks: SpeakToSignPaymentHooks,
-  onIncluded: ((transactionHash: string) => void) | null,
-): Promise<SpeakToSignPayment> {
-  const check = await approveVerdict(input, state, expected, verifierOutput, signal, hooks, 'ask');
-  if (check.kind !== 'approved') return check;
-  const result = await input.signVoiceApprovedTransaction(
-    transaction(check.verdict),
-    {
-      approval: check.approval,
-      policyText: check.policyText,
-      verdict: summary === null ? check.verdict : { ...check.verdict, summary },
-    },
-    signal,
-    () => {
-      input.progress({ stage: 'transaction_sent' });
-      hooks.broadcasting();
-    },
-    onIncluded,
-  );
-  if (!result.success) {
-    // Nothing left the Wallet, so another recording of this flow may still pay.
-    if (result.kind === 'not_submitted') state.paid = false;
-    if (result.kind !== 'not_submitted') return { kind: 'submission_unknown', error: result.error };
-    return cosignerRefusal(result.error) ?? { kind: 'not_submitted', error: result.error };
-  }
-  input.progress({ stage: 'settled', transactionHash: result.transactionId });
-  const failure = executionFailure(result.result);
-  return failure === null
-    ? { kind: 'executed', transactionHash: result.transactionId, approval: check.approval }
-    : { kind: 'reverted', transactionHash: result.transactionId, error: failure };
 }
 
 async function authorizeEnrollment(
