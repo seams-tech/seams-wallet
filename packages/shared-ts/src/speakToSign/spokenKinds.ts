@@ -1,8 +1,12 @@
-// The typed kinds of a spoken request, in one table. Each entry holds what Wallet core and the
-// Seams co-signer must agree on for its kind:
+// The typed kinds of a spoken request, in one table. Each entry holds everything that is
+// particular to its kind:
+//   - `refusal`: every limit of the kind (core signs nothing for refused fields);
+//   - `render`: the sentence on the card and the words that the owner says;
+//   - `verifyRequest`: the request of the verifier's `verify` input;
 //   - `request`: the `SpokenRequestV1` that a verdict names, from the fields;
 //   - `call`: the one action that carries the request out (core signs it);
 //   - `fromCall`: the fields again, from that one action (the co-signer reads signed bytes).
+// Wallet core and the Seams co-signer must agree on the last three.
 // Core goes from fields to bytes. The co-signer goes only from the bytes that it signs to the
 // request, never from fields that a client sends. A new typed kind is one entry here, with its
 // tag and Borsh in `./spokenRequest` and its vectors from the `spoken-intent` crate.
@@ -21,7 +25,18 @@ import {
   type NoteRating,
   type SpeakToSignNetwork,
   type SpokenRequest,
+  USDC_UNITS_PER_HUNDREDTH,
 } from './spokenRequest';
+import { renderSummary, summaryRefusal } from './spokenSummary';
+import {
+  amountWords,
+  displayAmount,
+  integerWords,
+  isSpeakableAccount,
+  isSpeakableHundredths,
+  renderTransfer,
+  type RenderedTransfer,
+} from './spokenWords';
 
 /** The fields of each typed kind, as the application gives them. They hold no owner and no digest. */
 export type SpokenTypedFields =
@@ -95,7 +110,28 @@ export type SignedSpokenCall =
       depositYocto: bigint;
     }>;
 
+/** Why the fields are not a request that the Wallet signs by voice. */
+export type SpokenFieldsRefusal =
+  /** The receiver is not a named NEAR account that the sentence can say (an implicit one). */
+  | 'receiver_not_speakable'
+  /** The amount is not a whole number of hundredths of NEAR from 0.01 to 1,000,000. */
+  | 'amount_not_speakable'
+  /** The summary is not 1 to 12 plain words of ASCII letters (see `summaryRefusal`). */
+  | 'summary_not_speakable'
+  | 'note_not_valid'
+  | 'merge_not_valid'
+  | 'bet_not_valid';
+
 export type SpokenKindEntry<Kind extends SpokenTypedKind> = Readonly<{
+  /**
+   * Null for fields that are a request of this kind. It holds every limit of the kind, so a
+   * verdict can approve no fields that it refuses.
+   */
+  refusal(fields: FieldsOf<Kind>, network: SpeakToSignNetwork): SpokenFieldsRefusal | null;
+  /** The one sentence of the request. The verdict binds its spoken words, for every kind. */
+  render(fields: FieldsOf<Kind>): RenderedTransfer;
+  /** The `request` of the verifier's `verify` input. */
+  verifyRequest(fields: FieldsOf<Kind>): Promise<Readonly<Record<string, unknown>>>;
   /** The request that the verdict names. `owner` is the account of the session, never a field. */
   request(
     fields: FieldsOf<Kind>,
@@ -111,6 +147,20 @@ export type SpokenKindEntry<Kind extends SpokenTypedKind> = Readonly<{
   fromCall(call: SignedSpokenCall, network: SpeakToSignNetwork): FieldsOf<Kind> | null;
 }>;
 
+const YOCTO_PER_HUNDREDTH = 10n ** 22n;
+/** The notes contract keeps a note of at most this many characters. */
+export const MAX_NOTE_CHARS = 280;
+const MAX_ID = BigInt(Number.MAX_SAFE_INTEGER);
+/** The merge-approval contract's rule: no owner edge dash, and a name other than "." or "..". */
+const REPO_PATTERN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)\/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/;
+const BASE_PATTERN = /^[a-z]{1,32}$/;
+const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
+const RATING_WORDS: Readonly<Record<NoteRating, readonly string[]>> = {
+  helpful: ['this', 'note', 'is', 'helpful'],
+  somewhat_helpful: ['this', 'note', 'is', 'somewhat', 'helpful'],
+  not_helpful: ['this', 'note', 'is', 'not', 'helpful'],
+};
+
 /** The gas of one note call. The contract needs less than 10 Tgas. */
 const NOTE_CALL_GAS = '30000000000000';
 /** The market needs gas for `ft_on_transfer` and the token for its callback. */
@@ -120,6 +170,20 @@ const BET_CALL_DEPOSIT = 1n;
 
 export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry<Kind> } = {
   account_transfer: {
+    refusal: (fields) => {
+      if (!isSpeakableAccount(fields.receiver)) return 'receiver_not_speakable';
+      // The sentence says whole hundredths of NEAR, so another amount has no sentence.
+      const speakable =
+        fields.amountYocto % YOCTO_PER_HUNDREDTH === 0n &&
+        isSpeakableHundredths(fields.amountYocto / YOCTO_PER_HUNDREDTH);
+      return speakable ? null : 'amount_not_speakable';
+    },
+    render: (fields) => renderTransfer(fields),
+    verifyRequest: async (fields) => ({
+      kind: 'transfer',
+      receiver: fields.receiver,
+      amount_yocto: String(fields.amountYocto),
+    }),
     request: async (fields, network, owner) => ({ ...fields, network, owner }),
     call: (fields) => ({
       kind: 'transfer',
@@ -132,6 +196,21 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
         : null,
   },
   community_note: {
+    refusal: (fields) => {
+      if (!isSpeakableAccount(fields.contract) || !isId(fields.postId, 0n)) return 'note_not_valid';
+      const characters = [...fields.text].length;
+      if (characters === 0 || characters > MAX_NOTE_CHARS) return 'note_not_valid';
+      return summaryRefusal(fields.summary) === null ? null : 'summary_not_speakable';
+    },
+    // `displayText` keeps the summary as the author wrote it.
+    render: (fields) => renderSummary(fields.summary),
+    verifyRequest: async (fields) => ({
+      kind: 'community_note',
+      contract: fields.contract,
+      post_id: Number(fields.postId),
+      note_sha256_hex: hex(await sha256(utf8(fields.text))),
+      summary: fields.summary,
+    }),
     request: async (fields, network, owner) => ({
       kind: 'community_note',
       network,
@@ -162,6 +241,22 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
     },
   },
   note_rating: {
+    refusal: (fields) =>
+      isSpeakableAccount(fields.contract) &&
+      isId(fields.noteId, 0n) &&
+      NOTE_RATINGS.includes(fields.rating)
+        ? null
+        : 'note_not_valid',
+    render: (fields) => {
+      const words = RATING_WORDS[fields.rating];
+      return { displayText: ['This', ...words.slice(1)].join(' '), spokenText: words.join(' ') };
+    },
+    verifyRequest: async (fields) => ({
+      kind: 'note_rating',
+      contract: fields.contract,
+      note_id: Number(fields.noteId),
+      rating: fields.rating,
+    }),
     request: async (fields, network, owner) => ({ ...fields, network, owner }),
     call: (fields) =>
       noDepositCall(fields.contract, 'rate_note', {
@@ -178,6 +273,33 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
     },
   },
   merge_approval: {
+    refusal: (fields) =>
+      isSpeakableAccount(fields.contract) &&
+      isId(fields.pullRequest, 1n) &&
+      REPO_PATTERN.test(fields.repo) &&
+      BASE_PATTERN.test(fields.base) &&
+      COMMIT_PATTERN.test(fields.headCommit)
+        ? null
+        : 'merge_not_valid',
+    render: (fields) => ({
+      displayText: `Merge pull request ${fields.pullRequest} into ${fields.base}`,
+      spokenText: [
+        'merge',
+        'pull',
+        'request',
+        ...integerWords(fields.pullRequest),
+        'into',
+        fields.base,
+      ].join(' '),
+    }),
+    verifyRequest: async (fields) => ({
+      kind: 'merge_approval',
+      contract: fields.contract,
+      repo_sha256_hex: hex(await sha256(utf8(fields.repo))),
+      pull_request: Number(fields.pullRequest),
+      base: fields.base,
+      head_commit_hex: fields.headCommit,
+    }),
     request: async (fields, network, owner) => ({
       kind: 'merge_approval',
       network,
@@ -225,6 +347,40 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
     },
   },
   market_bet: {
+    refusal: (fields, network) =>
+      isSpeakableAccount(fields.contract) &&
+      // Another token can have other decimals, so "usdc" and the amount would name another value.
+      fields.token === SPEAK_TO_SIGN_USDC[network] &&
+      isId(fields.marketId, 1n) &&
+      BET_OUTCOMES.includes(fields.outcome) &&
+      fields.amountUnits % USDC_UNITS_PER_HUNDREDTH === 0n &&
+      isSpeakableHundredths(fields.amountUnits / USDC_UNITS_PER_HUNDREDTH)
+        ? null
+        : 'bet_not_valid',
+    // "bet zero point five usdc yes on market nine".
+    render: (fields) => {
+      const hundredths = fields.amountUnits / USDC_UNITS_PER_HUNDREDTH;
+      return {
+        displayText: `Bet ${displayAmount(hundredths)} USDC ${fields.outcome} on market ${fields.marketId}`,
+        spokenText: [
+          'bet',
+          ...amountWords(hundredths),
+          'usdc',
+          fields.outcome,
+          'on',
+          'market',
+          ...integerWords(fields.marketId),
+        ].join(' '),
+      };
+    },
+    verifyRequest: async (fields) => ({
+      kind: 'market_bet',
+      market: fields.contract,
+      token: fields.token,
+      market_id: Number(fields.marketId),
+      outcome: fields.outcome,
+      amount_units: fields.amountUnits.toString(),
+    }),
     request: async (fields, network, owner) => ({
       kind: 'market_bet',
       network,
@@ -352,6 +508,31 @@ export async function spokenRequestOfFields<Kind extends SpokenTypedKind>(
   return await entry.request(fields, network, owner);
 }
 
+/** Why core cannot sign the fields, or null. */
+export function spokenFieldsRefusal<Kind extends SpokenTypedKind>(
+  fields: FieldsOf<Kind>,
+  network: SpeakToSignNetwork,
+): SpokenFieldsRefusal | null {
+  const entry: SpokenKindEntry<Kind> = SPOKEN_KINDS[fields.kind as Kind];
+  return entry.refusal(fields, network);
+}
+
+/** The sentence of the fields. */
+export function renderSpokenFields<Kind extends SpokenTypedKind>(
+  fields: FieldsOf<Kind>,
+): RenderedTransfer {
+  const entry: SpokenKindEntry<Kind> = SPOKEN_KINDS[fields.kind as Kind];
+  return entry.render(fields);
+}
+
+/** The `request` of the verifier's `verify` input for the fields. */
+export async function spokenVerifyRequest<Kind extends SpokenTypedKind>(
+  fields: FieldsOf<Kind>,
+): Promise<Readonly<Record<string, unknown>>> {
+  const entry: SpokenKindEntry<Kind> = SPOKEN_KINDS[fields.kind as Kind];
+  return await entry.verifyRequest(fields);
+}
+
 /** The one action of the fields. Pass only a verdict that passed the check. */
 export function spokenCallOfFields<Kind extends SpokenTypedKind>(
   fields: FieldsOf<Kind>,
@@ -388,4 +569,13 @@ function isSafeId(value: unknown): value is number {
 /** 40 lowercase hex characters to the 20 bytes of a git commit. */
 function hexBytes(text: string): Uint8Array {
   return Uint8Array.from(text.match(/../g) ?? [], (pair) => Number.parseInt(pair, 16));
+}
+
+/** A whole number from `least` to `Number.MAX_SAFE_INTEGER`: the channel carries ids as JSON. */
+function isId(value: bigint, least: bigint): boolean {
+  return value >= least && value <= MAX_ID;
+}
+
+export function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

@@ -2,7 +2,13 @@
 // request of a verdict from the intent, so the caller of the sign path supplies no digest of
 // the request and no sentence.
 
-import type { SpokenTypedFields } from '@shared/speakToSign/spokenKinds';
+import {
+  renderSpokenFields,
+  spokenFieldsRefusal,
+  spokenVerifyRequest,
+  type SpokenFieldsRefusal,
+  type SpokenTypedFields,
+} from '@shared/speakToSign/spokenKinds';
 import type { SpeakToSignNetwork } from './plugins';
 import {
   messageActionRefusal,
@@ -19,15 +25,10 @@ import {
   type SpokenNoteAction,
 } from './spokenNote';
 import {
-  isSpeakableAccount,
-  isSpeakableHundredths,
-  renderTransfer,
   transferDigests,
   type RenderedTransfer,
   type SpokenDigests,
 } from './spokenTransfer';
-
-const YOCTO_PER_HUNDREDTH = 10n ** 22n;
 
 /**
  * The thing to sign for one spoken request: the fields of a typed kind (`SPOKEN_KINDS`), a
@@ -52,16 +53,10 @@ export function intentRefusal(
 ):
   | ReturnType<typeof noteActionRefusal>
   | ReturnType<typeof messageActionRefusal>
-  | 'receiver_not_speakable'
-  | 'amount_not_speakable' {
+  | SpokenFieldsRefusal {
   if (intent.kind === 'signed_message') return messageActionRefusal(intent.message);
-  if (intent.kind !== 'account_transfer') return noteActionRefusal(network, intent);
-  if (!isSpeakableAccount(intent.receiver)) return 'receiver_not_speakable';
-  // The sentence says whole hundredths of NEAR, so another amount has no sentence.
-  const speakable =
-    intent.amountYocto % YOCTO_PER_HUNDREDTH === 0n &&
-    isSpeakableHundredths(intent.amountYocto / YOCTO_PER_HUNDREDTH);
-  return speakable ? null : 'amount_not_speakable';
+  if (intent.kind === 'transaction') return noteActionRefusal(network, intent);
+  return spokenFieldsRefusal(intent, network);
 }
 
 /** The request digest and the spoken-text digest that a verdict for this intent names. */
@@ -83,7 +78,7 @@ export async function intentDigests(
 /** The sentence of the intent: what the card shows and the words that the owner says. */
 export function renderIntent(intent: SpokenIntent): RenderedTransfer {
   if (intent.kind === 'signed_message') return renderMessage(intent.message);
-  return intent.kind === 'account_transfer' ? renderTransfer(intent) : renderNoteAction(intent);
+  return intent.kind === 'transaction' ? renderNoteAction(intent) : renderSpokenFields(intent);
 }
 
 /** The `request` of the verifier's `verify` input for this intent. */
@@ -91,10 +86,6 @@ export async function intentVerifyRequest(
   intent: SpokenIntent,
 ): Promise<Readonly<Record<string, unknown>>> {
   if (intent.kind === 'signed_message') return messageVerifyRequest(intent.message);
-  if (intent.kind !== 'account_transfer') return await noteVerifyRequest(intent);
-  return {
-    kind: 'transfer',
-    receiver: intent.receiver,
-    amount_yocto: String(intent.amountYocto),
-  };
+  if (intent.kind === 'transaction') return await noteVerifyRequest(intent);
+  return await spokenVerifyRequest(intent);
 }

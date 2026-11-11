@@ -1,15 +1,20 @@
-// The kinds of the `spoken-intent` crate (seams-tech/speak-to-sign) that call one contract method:
-// `SpokenRequestV1::CommunityNote`, `NoteRating` and `MergeApproval`, which move no value, with
-// the same rules, rendered words, Borsh bytes and digests, and `MarketBet` (`./spokenBet`), which
-// moves a token, and the general `Transaction`: any actions for any receiver, with a spoken
-// summary. The crate's golden vectors check this port. Wallet core uses it to check a
-// verdict and to build the one call that it signs.
+// The requests that sign one transaction: the typed kinds of the `spoken-intent` crate
+// (seams-tech/speak-to-sign) other than the transfer, and the general `Transaction`: any actions
+// for any receiver, with a spoken summary. Everything that is particular to a typed kind (its
+// limits, its sentence, its request and its call) is its entry of `SPOKEN_KINDS`
+// (`@shared/speakToSign/spokenKinds`). This file adds the general transaction, and gives core one
+// function for each step. The crate's golden vectors check the ports.
 
 import { functionCall, transfer } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
 import {
+  hex,
+  MAX_NOTE_CHARS,
+  renderSpokenFields,
   spokenCallOfFields,
+  spokenFieldsRefusal,
   spokenRequestOfFields,
+  spokenVerifyRequest,
   type SpokenCall,
   type SpokenTypedFields,
 } from '@shared/speakToSign/spokenKinds';
@@ -20,41 +25,28 @@ import {
   utf8,
   type NoteRating,
 } from '@shared/speakToSign/spokenRequest';
+import {
+  MAX_SUMMARY_BYTES,
+  MAX_SUMMARY_WORDS,
+  renderSummary,
+  summaryRefusal,
+  type SummaryRefusal,
+} from '@shared/speakToSign/spokenSummary';
 import { isValidAccountId } from '@shared/utils/near';
 import type { SpeakToSignNetwork } from './plugins';
-import { betActionRefusal, betVerifyRequest, renderBet } from './spokenBet';
-import {
-  integerWords,
-  isMultiplierWord,
-  isNumberWord,
-  isSpeakableAccount,
-  spokenDigests,
-  type RenderedTransfer,
-  type SpokenDigests,
-} from './spokenTransfer';
+import { spokenDigests, type RenderedTransfer, type SpokenDigests } from './spokenTransfer';
 import type { SignedVoiceVerdict } from './voiceVerdict';
 
-export { NOTE_RATINGS, type NoteRating };
-
-/** Twelve plain words fit in one 8 s clip. */
-export const MAX_SUMMARY_WORDS = 12;
-export const MAX_SUMMARY_BYTES = 120;
-/** The notes contract keeps a note of at most this many characters. */
-export const MAX_NOTE_CHARS = 280;
-
-/** The first words of the transfer grammar. A summary cannot start with one. */
-const TRANSFER_VERBS = ['send', 'sent', 'sends'];
-/** The whole-word aliases that the crate's text step applies to a transcript. */
-const TEXT_ALIASES = new Map([
-  ['approved', 'approve'],
-  ['nir', 'near'],
-  ['neer', 'near'],
-]);
-
-const RATING_WORDS: Readonly<Record<NoteRating, readonly string[]>> = {
-  helpful: ['this', 'note', 'is', 'helpful'],
-  somewhat_helpful: ['this', 'note', 'is', 'somewhat', 'helpful'],
-  not_helpful: ['this', 'note', 'is', 'not', 'helpful'],
+export {
+  hex,
+  MAX_NOTE_CHARS,
+  MAX_SUMMARY_BYTES,
+  MAX_SUMMARY_WORDS,
+  NOTE_RATINGS,
+  renderSummary,
+  summaryRefusal,
+  type NoteRating,
+  type SummaryRefusal,
 };
 
 /**
@@ -86,31 +78,6 @@ export type TransactionDelivery =
   | 'sign'
   | Readonly<{ nonce: string; maxBlockHeight: string; publicKey: string }>;
 
-/** The merge-approval contract's rule: no owner edge dash, and a name other than "." or "..". */
-const REPO_PATTERN = /^(?!-)[A-Za-z0-9-]{1,39}(?<!-)\/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/;
-const BASE_PATTERN = /^[a-z]{1,32}$/;
-const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
-
-/** Why a text is not a speakable summary, as `spoken_intent::InvalidSummary`. */
-export type SummaryRefusal = 'empty' | 'too_long' | 'too_many_words' | 'character' | 'transfer_verb';
-
-/**
- * Null for a speakable summary: 1 to 12 words of ASCII letters with one space between two
- * words, a comma allowed at the end of a word and one `.`, `!` or `?` at the end.
- */
-export function summaryRefusal(text: string): SummaryRefusal | null {
-  if (text === '') return 'empty';
-  if (utf8(text).length > MAX_SUMMARY_BYTES) return 'too_long';
-  const body = /[.!?]$/.test(text) ? text.slice(0, -1) : text;
-  const words = body.split(' ');
-  for (const [index, word] of words.entries()) {
-    const letters = word.endsWith(',') ? word.slice(0, -1) : word;
-    if (!/^[A-Za-z]+$/.test(letters)) return 'character';
-    if (index === 0 && TRANSFER_VERBS.includes(letters.toLowerCase())) return 'transfer_verb';
-  }
-  return words.length > MAX_SUMMARY_WORDS ? 'too_many_words' : null;
-}
-
 /** Why core cannot build this action, or null. */
 export function noteActionRefusal(
   network: SpeakToSignNetwork,
@@ -122,91 +89,28 @@ export function noteActionRefusal(
   | 'bet_not_valid'
   | 'transaction_not_valid'
   | null {
-  if (action.kind === 'market_bet') return betActionRefusal(network, action);
-  if (action.kind === 'transaction') {
-    const { delivery } = action;
-    const valid =
-      isValidAccountId(action.transaction.receiverId) &&
-      action.transaction.actions.length > 0 &&
-      action.actionsSha256.length === 32 &&
-      (typeof delivery === 'string' ||
-        (/^\d{1,20}$/.test(delivery.nonce) &&
-          /^\d{1,20}$/.test(delivery.maxBlockHeight) &&
-          delivery.publicKey.startsWith('ed25519:')));
-    if (!valid) return 'transaction_not_valid';
-    return summaryRefusal(action.summary) === null ? null : 'summary_not_speakable';
+  if (action.kind !== 'transaction') {
+    const refusal = spokenFieldsRefusal(action, network);
+    // Only a transfer has a receiver and an amount to say.
+    if (refusal === 'receiver_not_speakable' || refusal === 'amount_not_speakable') return null;
+    return refusal;
   }
-  if (action.kind === 'merge_approval') {
-    const valid =
-      isSpeakableAccount(action.contract) &&
-      action.pullRequest >= 1n &&
-      action.pullRequest <= BigInt(Number.MAX_SAFE_INTEGER) &&
-      REPO_PATTERN.test(action.repo) &&
-      BASE_PATTERN.test(action.base) &&
-      COMMIT_PATTERN.test(action.headCommit);
-    return valid ? null : 'merge_not_valid';
-  }
-  if (!isSpeakableAccount(action.contract)) return 'note_not_valid';
-  const id = action.kind === 'community_note' ? action.postId : action.noteId;
-  if (id < 0n || id > BigInt(Number.MAX_SAFE_INTEGER)) return 'note_not_valid';
-  if (action.kind === 'note_rating') {
-    return NOTE_RATINGS.includes(action.rating) ? null : 'note_not_valid';
-  }
-  const characters = [...action.text].length;
-  if (characters === 0 || characters > MAX_NOTE_CHARS) return 'note_not_valid';
+  const { delivery } = action;
+  const valid =
+    isValidAccountId(action.transaction.receiverId) &&
+    action.transaction.actions.length > 0 &&
+    action.actionsSha256.length === 32 &&
+    (typeof delivery === 'string' ||
+      (/^\d{1,20}$/.test(delivery.nonce) &&
+        /^\d{1,20}$/.test(delivery.maxBlockHeight) &&
+        delivery.publicKey.startsWith('ed25519:')));
+  if (!valid) return 'transaction_not_valid';
   return summaryRefusal(action.summary) === null ? null : 'summary_not_speakable';
 }
 
 /** The sentence of the action. `displayText` keeps the summary as the author wrote it. */
 export function renderNoteAction(action: SpokenNoteAction): RenderedTransfer {
-  if (action.kind === 'market_bet') return renderBet(action);
-  if (action.kind === 'merge_approval') {
-    const words = ['merge', 'pull', 'request', ...integerWords(action.pullRequest), 'into', action.base];
-    return {
-      displayText: `Merge pull request ${action.pullRequest} into ${action.base}`,
-      spokenText: words.join(' '),
-    };
-  }
-  if (action.kind === 'note_rating') {
-    const words = RATING_WORDS[action.rating];
-    return { displayText: ['This', ...words.slice(1)].join(' '), spokenText: words.join(' ') };
-  }
-  return renderSummary(action.summary);
-}
-
-/** The sentence of a summary: shown as the author wrote it, said in the crate's words. */
-export function renderSummary(summary: string): RenderedTransfer {
-  return { displayText: summary, spokenText: summaryWords(summary).join(' ') };
-}
-
-/** The crate's text step on a summary: lowercase words, aliases, "a hundred", "one and two". */
-function summaryWords(summary: string): string[] {
-  const words = summary
-    .toLowerCase()
-    .replace(/[.!?]$/, '')
-    .split(' ')
-    .map((word) => (word.endsWith(',') ? word.slice(0, -1) : word))
-    .map((word) => TEXT_ALIASES.get(word) ?? word);
-  const tokens: string[] = [];
-  for (const [index, word] of words.entries()) {
-    const next = words[index + 1];
-    if (word === 'a' && next !== undefined && isMultiplierWord(next)) {
-      tokens.push('one');
-      continue;
-    }
-    const previous = tokens.at(-1);
-    if (
-      word === 'and' &&
-      previous !== undefined &&
-      isNumberWord(previous) &&
-      next !== undefined &&
-      isNumberWord(next)
-    ) {
-      continue;
-    }
-    tokens.push(word);
-  }
-  return tokens;
+  return action.kind === 'transaction' ? renderSummary(action.summary) : renderSpokenFields(action);
 }
 
 export async function noteSha256(text: string): Promise<Uint8Array<ArrayBuffer>> {
@@ -247,45 +151,13 @@ export async function noteActionDigests(
 export async function noteVerifyRequest(
   action: SpokenNoteAction,
 ): Promise<Readonly<Record<string, unknown>>> {
-  if (action.kind === 'market_bet') return betVerifyRequest(action);
-  if (action.kind === 'transaction') {
-    return {
-      kind: 'transaction',
-      receiver: action.transaction.receiverId,
-      actions_sha256_hex: hex(action.actionsSha256),
-      summary: action.summary,
-    };
-  }
-  if (action.kind === 'merge_approval') {
-    return {
-      kind: 'merge_approval',
-      contract: action.contract,
-      repo_sha256_hex: hex(await sha256(utf8(action.repo))),
-      pull_request: Number(action.pullRequest),
-      base: action.base,
-      head_commit_hex: action.headCommit,
-    };
-  }
-  if (action.kind === 'note_rating') {
-    return {
-      kind: 'note_rating',
-      contract: action.contract,
-      note_id: Number(action.noteId),
-      rating: action.rating,
-    };
-  }
-  const digest = await noteSha256(action.text);
+  if (action.kind !== 'transaction') return await spokenVerifyRequest(action);
   return {
-    kind: 'community_note',
-    contract: action.contract,
-    post_id: Number(action.postId),
-    note_sha256_hex: hex(digest),
+    kind: 'transaction',
+    receiver: action.transaction.receiverId,
+    actions_sha256_hex: hex(action.actionsSha256),
     summary: action.summary,
   };
-}
-
-export function hex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
