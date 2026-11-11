@@ -11,13 +11,12 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { requireNonEmptyString, requireRecord } from '@shared/utils/validation';
-import { loadIsolatedDatabaseSync } from './local-gateway-database';
+import { openGatewayDatabase } from './local-gateway-database';
 import {
   autoConfirmWalletIframeUntil,
   intendedTest as test,
   type IntendedBehaviourHarness,
 } from './harness';
-import { isolatedGatewayDatabasePath } from './local-gateway-database';
 
 async function verifyLocalEd25519YaoRegistration({
   harness,
@@ -407,8 +406,7 @@ test(
 );
 
 async function readNearOperationPersistence(walletId: string, operationId: string) {
-  const DatabaseSync = await loadIsolatedDatabaseSync();
-  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: true });
+  const database = await openGatewayDatabase('read');
   try {
     const rows = database
       .prepare(
@@ -499,8 +497,7 @@ class NearFinalizeReplayEvidence {
     const walletId = requireNonEmptyString(scope.account_id, 'wallet ID');
     const sessionId = requireNonEmptyString(authority.wallet_session_id, 'session ID');
     const operationId = requireNonEmptyString(receipt.operation_id, 'operation ID');
-    const DatabaseSync = await loadIsolatedDatabaseSync();
-    const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+    const database = await openGatewayDatabase('write');
     try {
       const retired = database
         .prepare(
@@ -574,8 +571,7 @@ async function setIsolatedNearSigningPolicy(
   walletId: string,
   policy: NearSigningPolicy,
 ): Promise<number> {
-  const DatabaseSync = await loadIsolatedDatabaseSync();
-  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+  const database = await openGatewayDatabase('write');
   try {
     const signers = database
       .prepare(

@@ -2,15 +2,13 @@ import { expect, type TestInfo } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { requireNonEmptyString } from '@shared/utils/validation';
-import { isolatedGatewayDatabasePath, type NodeSqliteModule } from './local-gateway-database';
+import { openGatewayDatabase } from './local-gateway-database';
 
 export async function verifyLinkedDeviceCleanup(
   testInfo: TestInfo,
   expectedRetainedProofNonces: readonly string[],
 ): Promise<void> {
-  const sqliteModule: string = 'node:sqlite';
-  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
-  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: true });
+  const database = await openGatewayDatabase('read');
   try {
     const deliveries = database.prepare(`
       SELECT link_session_id, lifecycle_kind, cleanup_state,
