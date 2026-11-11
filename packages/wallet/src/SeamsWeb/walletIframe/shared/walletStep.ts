@@ -59,8 +59,17 @@ export function walletStepTransitionTimes(
   return times;
 }
 
-/** A control that the SDK draws inside the card, beside the card's own controls. */
-export type WalletStepChrome = 'back' | 'close' | 'none';
+/**
+ * The controls that the SDK draws inside the card, beside the card's own controls: Back in the
+ * leading corner, Close in the trailing corner, both, or neither.
+ */
+export type WalletStepChrome = 'back' | 'close' | 'back_and_close' | 'none';
+
+/** The chrome that draws a control. */
+export type DrawnWalletStepChrome = Exclude<WalletStepChrome, 'none'>;
+
+/** One control of the chrome: the one that the person pressed. */
+export type WalletStepControl = 'back' | 'close';
 
 /** The card's layout size in CSS pixels. */
 export type WalletStepSize = Readonly<{ width: number; height: number }>;
@@ -83,19 +92,58 @@ export type WalletStepEvents = Readonly<{
   onResize?: (size: WalletStepSize) => void;
   /** The card is gone. The anchor keeps the card's last size until the app changes it. */
   onExit?: (exit: WalletStepExit) => void;
-  /** The person pressed Back in the card (`chrome: 'back'`). */
+  /** The person pressed Back in the card (`chrome: 'back'` or `'back_and_close'`). */
   onBack?: () => void;
-  /** The person pressed Close in the card (`chrome: 'close'`). */
+  /** The person pressed Close in the card (`chrome: 'close'` or `'back_and_close'`). */
   onClose?: () => void;
 }>;
 
 export function parseWalletStepChrome(value: unknown): WalletStepChrome | null {
-  return value === 'back' || value === 'close' || value === 'none' ? value : null;
+  return value === 'none' ? value : parseDrawnWalletStepChrome(value);
 }
 
-/** The exit of a card whose own cancel ran: the chrome says which control the person pressed. */
-export function walletStepExitForDismissal(chrome: WalletStepChrome): WalletStepExit {
-  return { kind: chrome === 'back' ? 'back' : 'closed' };
+export function parseDrawnWalletStepChrome(value: unknown): DrawnWalletStepChrome | null {
+  return value === 'back' || value === 'close' || value === 'back_and_close' ? value : null;
+}
+
+/** True when the chrome draws Back. */
+export function chromeHasBack(chrome: WalletStepChrome | null | undefined): boolean {
+  return chrome === 'back' || chrome === 'back_and_close';
+}
+
+/** True when the chrome draws Close. */
+export function chromeHasClose(chrome: WalletStepChrome | null | undefined): boolean {
+  return chrome === 'close' || chrome === 'back_and_close';
+}
+
+/**
+ * The exit of a card whose own cancel ran. It is the control that the person pressed. Escape and
+ * the card's own cancel count as Back when the chrome draws Back, and as Close when it does not.
+ */
+export function walletStepExitForDismissal(
+  chrome: WalletStepChrome,
+  pressed: WalletStepControl | null = null,
+): WalletStepExit {
+  const control = pressed ?? (chromeHasBack(chrome) ? 'back' : 'close');
+  return { kind: control === 'back' ? 'back' : 'closed' };
+}
+
+/** The Wallet host tells the parent which chrome control the person pressed in a card. */
+export type WalletSurfaceControlPayload = Readonly<{
+  requestId: string;
+  control: WalletStepControl;
+}>;
+
+export function parseWalletSurfaceControlPayload(
+  value: unknown,
+): WalletSurfaceControlPayload | null {
+  const record = asRecord(value);
+  return record &&
+    Object.keys(record).length === 2 &&
+    isNonEmptyString(record.requestId) &&
+    (record.control === 'back' || record.control === 'close')
+    ? { requestId: record.requestId, control: record.control }
+    : null;
 }
 
 /**
@@ -106,7 +154,7 @@ export type AnchoredWalletPresentation = WalletStepEvents &
   Readonly<{
     kind: 'anchored';
     anchor: HTMLElement;
-    /** Back or Close inside the card. Defaults to none: the card keeps only its own controls. */
+    /** Back, Close or both inside the card. Defaults to none: the card keeps only its own controls. */
     chrome?: WalletStepChrome;
     /** How long the card waits and fades. Defaults to the Wallet's own times. */
     transition?: WalletStepTransition;

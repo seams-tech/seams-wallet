@@ -19,7 +19,7 @@ type AuthMenuTestWindow = Window & {
 
 async function openTestAuthMenu(
   page: Page,
-  step?: { chrome: 'back' | 'close' },
+  step?: { chrome: 'back' | 'close' | 'back_and_close' },
 ): Promise<void> {
   await page.evaluate(
     async ({ walletOrigin, step }) => {
@@ -152,6 +152,34 @@ test.describe('wallet-host auth-menu integration', () => {
     expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'close', 'exit']);
     expect(events.at(-1)?.value).toEqual({ kind: 'closed' });
     console.log('[auth-menu-step] login card size', JSON.stringify(events[0].value));
+  });
+
+  test('a sign-in step draws Back and Close, and each one reports itself', async ({ page }) => {
+    await openTestAuthMenu(page, { chrome: 'back_and_close' });
+    const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
+    const controls = frame.locator('.seams-menu-origin [data-auth-menu-chrome]');
+    // Back before the site name, Close after it.
+    await expect(controls).toHaveCount(2);
+    await expect(controls.nth(0)).toHaveAttribute('data-auth-menu-chrome', 'back');
+    await expect(controls.nth(1)).toHaveAttribute('data-auth-menu-chrome', 'close');
+    const back = await controls.nth(0).boundingBox();
+    const close = (await controls.nth(1).boundingBox())!;
+    expect(back!.x).toBeLessThan(close.x);
+    await page.waitForFunction(() =>
+      (window as AuthMenuTestWindow).__authMenuStepEvents?.some((event) => event.name === 'ready'),
+    );
+    await expect(frame.locator('html[data-seams-anchored-card-held]')).toHaveCount(0);
+    await expect
+      .poll(async () => {
+        await page.mouse.click(close.x + close.width / 2, close.y + close.height / 2);
+        return page.evaluate(() =>
+          (window as AuthMenuTestWindow).__authMenuStepEvents!.some((e) => e.name === 'exit'),
+        );
+      })
+      .toBe(true);
+    const events = await page.evaluate(() => (window as AuthMenuTestWindow).__authMenuStepEvents!);
+    expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'close', 'exit']);
+    expect(events.at(-1)?.value).toEqual({ kind: 'closed' });
   });
 
   test('a top-layer card takes no click while anything covers it', async ({ page }) => {

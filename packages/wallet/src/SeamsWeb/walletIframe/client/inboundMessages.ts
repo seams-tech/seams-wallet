@@ -1,6 +1,10 @@
 import { parseSpeakToSignProgressV1 } from '../shared/speakToSign';
 import { parseWalletConnectionRequest } from '../shared/walletAlternatives';
 import { parseTransactionReviewState } from '../shared/transactionReview';
+import {
+  parseWalletSurfaceControlPayload,
+  type WalletSurfaceControlPayload,
+} from '../shared/walletStep';
 import { parseOwnerNearSubmissionProgress } from '../shared/ownerNearOperation';
 import {
   type ProgressPayload,
@@ -66,6 +70,11 @@ type ParsedChildToParentEnvelope =
       readonly type: 'SURFACE_MEASUREMENT';
       readonly requestId?: string;
       readonly payload: NonNullable<ReturnType<typeof parseWalletIframeSurfaceMeasurement>>;
+    }
+  | {
+      readonly type: 'SURFACE_CONTROL';
+      readonly requestId?: string;
+      readonly payload: WalletSurfaceControlPayload;
     }
   | {
       readonly type: 'TRANSACTION_ACTIVITY';
@@ -243,6 +252,10 @@ export function parseClientChildToParentEnvelope(
     }
     case 'SURFACE_MEASUREMENT': {
       const payload = parseWalletIframeSurfaceMeasurement(Reflect.get(record, 'payload'));
+      return payload ? { ...requestIdFields, type, payload } : null;
+    }
+    case 'SURFACE_CONTROL': {
+      const payload = parseWalletSurfaceControlPayload(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
     }
     case 'TRANSACTION_ACTIVITY': {

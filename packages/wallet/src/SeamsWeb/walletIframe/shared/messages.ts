@@ -26,7 +26,11 @@ import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSessi
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
 import {
+  parseDrawnWalletStepChrome,
   parseWalletStepChrome,
+  type DrawnWalletStepChrome,
+  type WalletStepChrome,
+  type WalletSurfaceControlPayload,
   type WalletSurfacePresentationWire,
   type WalletSurfaceViewPayload,
 } from './walletStep';
@@ -187,8 +191,8 @@ export type HostedAuthMenuOpenRequest = {
   walletAlternatives: WalletAlternatives;
   recoveryOptions: HostedAuthMenuRecoveryOptions;
   footerBrand: HostedAuthMenuFooterBrand;
-  /** Back or Close inside the card. Absent: the card draws neither. */
-  chrome?: 'back' | 'close';
+  /** Back, Close or both inside the card. Absent: the card draws neither. */
+  chrome?: DrawnWalletStepChrome;
 };
 
 export type HostedAuthMenuExternalAuthRequest = {
@@ -568,10 +572,11 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
       'chrome',
     ]) ||
     !hasOnlyHostedAuthMenuCopyKeys(record.copy) ||
-    (record.chrome !== undefined && record.chrome !== 'back' && record.chrome !== 'close')
+    (record.chrome !== undefined && parseDrawnWalletStepChrome(record.chrome) === null)
   ) {
     return null;
   }
+  const chrome = parseDrawnWalletStepChrome(record.chrome);
   const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(record.authMenuSessionId);
   const initialMode = parseAuthMenuMode(record.initialMode);
   const initialHeightCssPx = record.initialHeightCssPx;
@@ -637,7 +642,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
     walletAlternatives,
     recoveryOptions,
     footerBrand,
-    ...(record.chrome === undefined ? {} : { chrome: record.chrome }),
+    ...(chrome ? { chrome } : {}),
   };
 }
 
@@ -654,7 +659,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
   walletAlternatives?: WalletAlternatives;
   recoveryOptions?: HostedAuthMenuRecoveryOptions;
   footerBrand?: HostedAuthMenuFooterBrand;
-  chrome?: 'back' | 'close' | 'none';
+  chrome?: WalletStepChrome;
 }): HostedAuthMenuOpenRequest {
   if (!isWireSerializable(args, new Set<unknown>(), true)) {
     throw new Error('Hosted auth-menu open configuration must be serializable');
@@ -699,7 +704,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
     recoveryOptions: args.recoveryOptions ?? 'collapsible',
     footerBrand: args.footerBrand ?? { kind: 'seams' },
     // An absent chrome keeps the request readable by a Wallet host without step controls.
-    ...(args.chrome === 'back' || args.chrome === 'close' ? { chrome: args.chrome } : {}),
+    ...(args.chrome === undefined || args.chrome === 'none' ? {} : { chrome: args.chrome }),
   };
   const parsed = parseHostedAuthMenuOpenRequest(request);
   if (!parsed) {
@@ -1882,5 +1887,6 @@ export type ChildToParentEnvelope =
   | RpcEnvelope<'WALLET_CONNECTION_REQUEST', WalletConnectionRequest>
   | RpcEnvelope<'AUTH_MENU_ERROR', HostedAuthMenuErrorEvent>
   | RpcEnvelope<'SURFACE_MEASUREMENT', WalletIframeSurfaceMeasurement>
+  | RpcEnvelope<'SURFACE_CONTROL', WalletSurfaceControlPayload>
   | RpcEnvelope<'PM_RESULT', PMResultPayload>
   | RpcEnvelope<'ERROR', ErrorPayload>;

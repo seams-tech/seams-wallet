@@ -34,11 +34,12 @@ function SignInStep({ heldHeight, onCardReady, onSignedIn, onBack }) {
 ```
 
 - `layer="top"` paints the card in the browser's top layer, above all app content. The rest of
-  the page is inert while the card shows, so the card draws its own Back or Close. The default,
-  `layer="page"`, paints the card in the page's own stacking order, as page content does. Use
-  it for a sign-in menu that is part of a page.
-- `chrome` adds a Back (`'back'`) or Close (`'close'`) control inside the card, in its origin
-  line. `'none'` (default) adds nothing. The SDK never adds an approve control.
+  the page is inert while the card shows, so the card draws its own Back, Close or both. The
+  default, `layer="page"`, paints the card in the page's own stacking order, as page content
+  does. Use it for a sign-in menu that is part of a page.
+- `chrome` adds controls inside the card, in its origin line: Back (`'back'`), Close
+  (`'close'`) or both (`'back_and_close'`). Back is before the site name, Close after it.
+  `'none'` (default) adds nothing. The SDK never adds an approve control.
 - A `top` layer step reserves no space and shows no placeholder before `onEnter`. The app keeps
   its own step until then.
 
@@ -57,10 +58,11 @@ await wallet.near.signAndSendTransaction({
   presentation: {
     kind: 'anchored',
     anchor: slotRef.current, // an element in the app's dialog
-    chrome: 'back', // 'back' | 'close' | 'none'
+    chrome: 'back_and_close', // 'back' | 'close' | 'back_and_close' | 'none'
     onEnter: ({ height }) => resizeDialogTo(height),
     onReady: () => hideAppPanel(),
     onBack: () => setStep('note'),
+    onClose: () => closeDialog(),
   },
 });
 
@@ -75,8 +77,11 @@ await seams.speakToSign.requestNote({ walletId, contract, postId, text, summary,
   the card opens. The person still approves inside the Wallet's card.
 - With `chrome: 'back'`, the transaction card shows Back in its origin line in place of its
   close control, and the VoiceID card shows Back in place of Cancel, in its leading corner.
-  With `'close'` or `'none'`, each card keeps its own close control. The SDK reports the
-  card's own dismissal as Back or Close from `chrome`.
+  With `'back_and_close'`, each card shows Back in its leading corner and keeps its close
+  control in its trailing corner. With `'close'` or `'none'`, each card keeps only its own
+  close control.
+- Each control reports what the person pressed: Back calls `onBack`, Close calls `onClose`.
+  Escape counts as Back when the chrome draws Back, and as Close when it does not.
 - `presentation.signal` ends the card as `cancelled` when you abort it.
 - The app shows its own result step, so an anchored transaction card shows no receipt. The
   call's result carries the outcome.
@@ -152,8 +157,9 @@ const result = await seams.speakToSign.requestNote({
 
 - The SDK's modal opens with `before`. `continueToWallet()` opens the Wallet's card in the same
   modal. It never signs: the person approves inside the card.
-- With `before`, the card shows Back. Back returns to `before`, which stayed mounted, so its
-  state is kept. Continue again opens a new card for the same call.
+- With `before`, the card shows Back and Close. Back returns to `before`, which stayed mounted,
+  so its state is kept. Continue again opens a new card for the same call. Close closes the
+  modal.
 - Without `before`, the card opens at once and shows Close.
 - When the card completes, the call's promise settles first. Then `after` shows the result in
   the same modal, until `close()` or Escape. A card that did not complete, such as a refused
@@ -174,7 +180,7 @@ no approval data. The call's own result does.
 | `onEnter({ width, height })` | The card has its size and is still hidden. The anchor already reserves the height. The card shows one frame later, or after `transition.enterDelayMs`. |
 | `onReady()` | The card has faded in and is painted at its size. |
 | `onResize({ width, height })` | The card changes size. It runs before the new size paints. |
-| `onBack()`, `onClose()` | The person pressed Back or Close in the card. They run before the card fades out. |
+| `onBack()`, `onClose()` | The person pressed Back or Close in the card, or Escape (see `chrome`). They run before the card fades out. |
 | `onExit({ kind })` | The card has faded out and is gone. `kind` is `completed`, `back`, `closed`, `cancelled` or `failed`. |
 
 The sign-in card animates its own height when its view changes. Then `onResize` reports each
@@ -258,7 +264,7 @@ still works. The card takes input about 100 ms after `onReady`.
 
 - App content never renders inside the Wallet iframe.
 - Continue alone never signs. The person approves inside the Wallet's card.
-- The card keeps its own origin line and its own approve controls. `chrome` adds only Back or
+- The card keeps its own origin line and its own approve controls. `chrome` adds only Back and
   Close, never an approve control.
 - A `top` layer card stays above all app content, and it takes input only when nothing covers
   it.
@@ -273,7 +279,7 @@ still works. The card takes input about 100 ms after `onReady`.
 | Read `data-seams-auth-menu-ready` with CSS `:has()` | `onReady` |
 | Read the `--seams-auth-menu-height` variable | `onEnter` and `onResize` |
 | Reserve 450 px, then change to the measured height | Hold the app step's height until `onEnter` (`WalletStep` `initialHeight`) |
-| An app Close button in its own layer above the card | `chrome: 'back'` or `'close'` |
+| An app Close button in its own layer above the card | `chrome: 'back'`, `'close'` or `'back_and_close'` |
 | `--seams-wallet-inline-dialog-z` above the app's overlay | `layer: 'top'` |
 | A frame loop that follows the dialog | Nothing: the SDK follows the anchor while the card shows |
 | A Wallet confirm or VoiceID card on top of the app's dialog | `presentation: { kind: 'anchored', ... }` |
@@ -285,4 +291,10 @@ The attribute and the variable stay as internal details. Do not build new code o
 The SDK and the hosted Wallet ship together. A Wallet host without these changes rejects an
 auth-menu request that has `chrome`, draws no Back on the transaction card, and does not hold
 the card's controls. `@seams/voiceid` ships with the same release: its card reads the Back
-control from the Wallet host.
+and Close controls from the Wallet host.
+
+`'back_and_close'` needs a Wallet host that knows it. An older host rejects it in an
+auth-menu request. On the transaction and VoiceID cards, an older host ignores it: each card
+keeps only its own close control, and the host does not hold the card's controls. The host
+tells the SDK which control the person pressed (`SURFACE_CONTROL`). An older SDK ignores that
+message, so a newer host still works with it.

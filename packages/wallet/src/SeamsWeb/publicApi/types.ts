@@ -168,7 +168,7 @@ export interface AuthMenuCapability {
   /**
    * Opens the menu. With `anchorElement`, the card paints over that element in the app's layout,
    * and `step` gives its events and its layer (default `'page'`). The request's `chrome` draws
-   * Back or Close inside the card. Without an anchor, `{ steps }` shows the menu in the SDK's
+   * Back, Close or both inside the card. Without an anchor, `{ steps }` shows the menu in the SDK's
    * modal between the app's own steps (needs `TransactionReviewHost`).
    */
   open(

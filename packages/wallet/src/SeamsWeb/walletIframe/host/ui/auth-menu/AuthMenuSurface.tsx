@@ -57,6 +57,7 @@ import {
 } from '../../auth-menu/domain';
 import { isLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
 import { AuthMenuOrigin } from './AuthMenuOrigin';
+import type { DrawnWalletStepChrome } from '../../../shared/walletStep';
 import { blinkMenuItem } from '@/utils/menuItemBlink';
 import { AuthMenuFooter } from './AuthMenuFooter';
 import { RecoveryOptions } from './RecoveryOptions';
@@ -90,8 +91,8 @@ type AuthMenuSurfaceProps = {
   readonly element: HTMLElement;
   readonly onIntent: (intent: AuthMenuIntent) => void;
   readonly styles: CspStylesheetManager;
-  /** Back or Close for a menu that is a step of an app's dialog. */
-  readonly chrome?: 'back' | 'close';
+  /** Back, Close or both for a menu that is a step of an app's dialog. */
+  readonly chrome?: DrawnWalletStepChrome;
 };
 
 type AccountMenuState = 'closed' | 'open' | 'closing';
@@ -701,7 +702,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             hostname={viewModel.hostname}
             chrome={this.props.chrome}
             closeLabel={viewModel.closeLabel}
-            hidden={this.props.chrome === 'back' && backVisible}
+            backHidden={backVisible}
             disabled={success !== null}
             onChrome={this.onChromeClick}
           />

@@ -18,6 +18,7 @@ import {
 import { appearanceTokenCssRule } from '@/core/signingEngine/uiConfirm/ui/appearance-token-vars';
 import type { AuthMenuIntent, AuthMenuViewModel } from '../../auth-menu/domain';
 import { AuthMenuSurface } from './AuthMenuSurface';
+import type { DrawnWalletStepChrome } from '../../../shared/walletStep';
 
 export type AuthMenuSurfaceHandle = {
   readonly element: HTMLElement;
@@ -33,7 +34,7 @@ type MountAuthMenuSurfaceInput = {
   readonly walletAlternatives?: WalletAlternatives;
   readonly recoveryOptions?: HostedAuthMenuRecoveryOptions;
   readonly footerBrand?: HostedAuthMenuFooterBrand;
-  readonly chrome?: 'back' | 'close';
+  readonly chrome?: DrawnWalletStepChrome;
   readonly onIntent: (intent: AuthMenuIntent) => void;
 };
 
@@ -59,7 +60,7 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
   private readonly walletAlternatives: WalletAlternatives;
   private readonly recoveryOptions: HostedAuthMenuRecoveryOptions;
   private readonly footerBrand: HostedAuthMenuFooterBrand;
-  private readonly chrome: 'back' | 'close' | undefined;
+  private readonly chrome: DrawnWalletStepChrome | undefined;
   private walletConnection: WalletConnectionState = { kind: 'idle' };
   private viewModel: AuthMenuViewModel;
   private readonly styles: CspStylesheetManager;

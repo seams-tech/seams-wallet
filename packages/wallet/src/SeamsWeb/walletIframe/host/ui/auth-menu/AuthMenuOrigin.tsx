@@ -3,44 +3,56 @@ import type { ComponentChildren } from 'preact';
 import { PadlockIcon } from '@/core/signingEngine/uiConfirm/ui/preact/PadlockIcon';
 import { useWalletLocale } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import { walletDisplayText } from '@/core/ui/messages';
+import { pressCardControl } from '@/core/signingEngine/uiConfirm/anchoredCard';
+import {
+  chromeHasBack,
+  chromeHasClose,
+  type DrawnWalletStepChrome,
+  type WalletStepControl,
+} from '@/SeamsWeb/walletIframe/shared/walletStep';
 import { backIcon, closeIcon } from './icons';
 
 /**
  * The site asking. It stays put in every view, so switching views never moves it. When the menu
- * is a step of an app's dialog, the row also holds the Back or Close that the app asked for.
+ * is a step of an app's dialog, the row also holds the Back, Close or both that the app asked
+ * for: Back before the site, Close after it.
  */
 export function AuthMenuOrigin(props: {
   readonly hostname: string;
-  readonly chrome: 'back' | 'close' | undefined;
+  readonly chrome: DrawnWalletStepChrome | undefined;
   readonly closeLabel: string;
   /** The menu's own back button shows in an in-progress view, so the step's Back waits. */
-  readonly hidden: boolean;
+  readonly backHidden: boolean;
   readonly disabled: boolean;
+  /** Runs after the press is reported to the app. */
   readonly onChrome: () => void;
 }): ComponentChildren {
-  const label = walletDisplayText(
-    useWalletLocale(),
-    props.chrome === 'back' ? 'Back' : props.closeLabel,
-  );
-  const control = props.chrome ? (
-    <button
-      type="button"
-      class={`seams-menu-chrome is-${props.chrome}`}
-      aria-label={label}
-      title={label}
-      hidden={props.hidden}
-      disabled={props.disabled}
-      data-auth-menu-chrome={props.chrome}
-      onClick={props.onChrome}
-    >
-      {props.chrome === 'back' ? backIcon() : closeIcon()}
-    </button>
-  ) : null;
+  const locale = useWalletLocale();
+  const control = (kind: WalletStepControl): ComponentChildren => {
+    const label = walletDisplayText(locale, kind === 'back' ? 'Back' : props.closeLabel);
+    return (
+      <button
+        type="button"
+        class={`seams-menu-chrome is-${kind}`}
+        aria-label={label}
+        title={label}
+        hidden={kind === 'back' && props.backHidden}
+        disabled={props.disabled}
+        data-auth-menu-chrome={kind}
+        onClick={() => {
+          pressCardControl(kind);
+          props.onChrome();
+        }}
+      >
+        {kind === 'back' ? backIcon() : closeIcon()}
+      </button>
+    );
+  };
   return (
     <div class="seams-menu-origin">
-      {props.chrome === 'back' ? control : null}
+      {chromeHasBack(props.chrome) ? control('back') : null}
       <PadlockIcon /> <span>{props.hostname}</span>
-      {props.chrome === 'close' ? control : null}
+      {chromeHasClose(props.chrome) ? control('close') : null}
     </div>
   );
 }

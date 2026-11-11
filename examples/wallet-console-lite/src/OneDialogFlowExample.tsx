@@ -8,7 +8,8 @@ const SIGNED_IN = new Set(['authenticated', 'registered', 'account_synced']);
 /**
  * One dialog for a whole flow: an app step, then the Wallet's sign-in and confirm cards as steps
  * of the same dialog, then the app's result step. The Wallet cards stay in the Wallet iframe;
- * WalletStep places them over the dialog's body.
+ * WalletStep places them over the dialog's body. Back in a card returns to the bet; Close in a
+ * card closes the dialog.
  */
 export function OneDialogFlowExample() {
   const [open, setOpen] = useState(false);
@@ -52,7 +53,7 @@ function FlowDialog({ onClose }: { onClose: () => void }) {
       go('placed');
       return;
     }
-    // Back already returned to the bet; any other end shows why.
+    // Back already returned to the bet, and Close closed the dialog; any other end shows why.
     if (outcome.kind === 'result')
       setMessage(outcome.result.error ?? 'The Wallet did not send it.');
     if (outcome.kind === 'error') setMessage('The Wallet card could not open.');
@@ -89,9 +90,10 @@ function FlowDialog({ onClose }: { onClose: () => void }) {
           {step === 'sign_in' ? (
             <WalletStep
               surface={{ kind: 'auth_menu' }}
-              chrome="back"
+              chrome="back_and_close"
               initialHeight={heldHeight}
               onBack={() => go('bet')}
+              onClose={onClose}
               onOutcome={onSignIn}
             />
           ) : null}
@@ -106,9 +108,10 @@ function FlowDialog({ onClose }: { onClose: () => void }) {
                     presentation,
                   }),
               }}
-              chrome="back"
+              chrome="back_and_close"
               initialHeight={heldHeight}
               onBack={() => go('bet')}
+              onClose={onClose}
               onOutcome={onConfirm}
             />
           ) : null}

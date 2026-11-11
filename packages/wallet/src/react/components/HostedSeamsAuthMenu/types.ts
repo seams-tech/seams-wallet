@@ -72,7 +72,7 @@ export interface HostedSeamsAuthMenuProps extends WalletStepEvents {
   copy?: HostedAuthMenuCopyInput;
   /** App-origin provider broker, or null when no external provider is enabled. */
   externalAuthBroker?: HostedAuthMenuExternalAuthBroker | null;
-  /** Back or Close inside the card, beside the card's own controls. Defaults to none. */
+  /** Back, Close or both inside the card, beside the card's own controls. Defaults to none. */
   chrome?: WalletStepChrome;
   /**
    * How long the card waits and fades. Defaults to the Wallet's own times. A menu reads it when

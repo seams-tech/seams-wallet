@@ -9,14 +9,17 @@
      itself: the browser reports whether anything covers the card or changes how it looks. A page
      cannot change that report. */
 
-import type {
-  WalletStepChrome,
-  WalletSurfacePresentationWire,
-  WalletSurfaceViewPayload,
+import {
+  parseWalletStepChrome,
+  type WalletStepChrome,
+  type WalletStepControl,
+  type WalletSurfacePresentationWire,
+  type WalletSurfaceViewPayload,
 } from '@/SeamsWeb/walletIframe/shared/walletStep';
 
 const HELD_ATTRIBUTE = 'data-seams-anchored-card-held';
 const CHROME_ATTRIBUTE = 'data-seams-anchored-card-chrome';
+const CONTROL_EVENT = 'seams-card-control';
 const GUARDED_EVENTS = ['click', 'pointerdown', 'pointerup', 'auxclick', 'dblclick'] as const;
 
 type AnchoredCard = {
@@ -67,12 +70,42 @@ function endAnchoredCard(card: AnchoredCard): void {
 }
 
 /**
- * The Back or Close that the app asked the shown card to draw, or null for a card in the
+ * The Back, Close or both that the app asked the shown card to draw, or null for a card in the
  * Wallet's modal. The document carries it, so a separately loaded card module reads it too.
  */
 export function anchoredCardChrome(): WalletStepChrome | null {
-  const value = document.documentElement.getAttribute(CHROME_ATTRIBUTE);
-  return value === 'back' || value === 'close' || value === 'none' ? value : null;
+  return parseWalletStepChrome(document.documentElement.getAttribute(CHROME_ATTRIBUTE));
+}
+
+/**
+ * The person pressed the Back or Close that the app asked for. Call it before the card ends, so
+ * the app hears which control it was. The document carries the press, so a separately loaded
+ * card module can report it too.
+ */
+export function pressCardControl(control: WalletStepControl): void {
+  document.dispatchEvent(new CustomEvent(CONTROL_EVENT, { detail: control }));
+}
+
+/** The cards that report their Back and Close presses. The newest one gets each press. */
+const reporters: ((control: WalletStepControl) => void)[] = [];
+
+/**
+ * Sends each Back or Close press to `report` until the returned function runs. A card that the
+ * app placed in its dialog shows above any other Wallet card, so the newest reporter gets it.
+ */
+export function reportCardControls(report: (control: WalletStepControl) => void): () => void {
+  if (reporters.length === 0) document.addEventListener(CONTROL_EVENT, onControl);
+  reporters.push(report);
+  return () => {
+    const index = reporters.indexOf(report);
+    if (index >= 0) reporters.splice(index, 1);
+    if (reporters.length === 0) document.removeEventListener(CONTROL_EVENT, onControl);
+  };
+}
+
+function onControl(event: Event): void {
+  const control: unknown = (event as CustomEvent).detail;
+  if (control === 'back' || control === 'close') reporters.at(-1)?.(control);
 }
 
 export function setAnchoredCardView(view: WalletSurfaceViewPayload): void {

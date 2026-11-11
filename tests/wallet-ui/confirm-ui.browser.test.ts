@@ -166,6 +166,61 @@ test.describe('Preact production confirmation mount', () => {
     expect(result).toEqual({ confirmed: false, error: null });
   });
 
+  test('a card in an app dialog draws the Back and Close of its chrome, and each reports itself', async ({
+    page,
+  }) => {
+    const toolbar = async (chrome: string, press: number | null) =>
+      page.evaluate(
+        async ({ confirmUiPath, chrome, press }) => {
+          const { awaitConfirmUIDecision } = await import(confirmUiPath);
+          // The Wallet host marks a card in an app's dialog with the chrome that the app asked for.
+          document.documentElement.setAttribute('data-seams-anchored-card-chrome', chrome);
+          const pressed: unknown[] = [];
+          const onControl = (event: Event) => pressed.push((event as CustomEvent).detail);
+          document.addEventListener('seams-card-control', onControl);
+          const decision = awaitConfirmUIDecision({
+            ctx: { surfaceMeasurementBinding: { kind: 'disabled' as const } },
+            surface: { kind: 'mount_new' },
+            summary: { title: 'A card in an app dialog' },
+            txSigningRequests: [],
+            theme: 'dark',
+            uiMode: 'modal',
+          });
+          const startedAt = performance.now();
+          while (!document.querySelector('.seams-review-toolbar')) {
+            if (performance.now() - startedAt > 5_000) throw new Error('No toolbar');
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+          }
+          const bar = document.querySelector('.seams-review-toolbar')!;
+          const buttons = [...bar.querySelectorAll<HTMLButtonElement>('button')];
+          const controls = buttons.map((button) => ({
+            label: button.getAttribute('aria-label'),
+            x: Math.round(button.getBoundingClientRect().left),
+          }));
+          if (press === null) buttons.at(-1)!.click();
+          else buttons[press]!.click();
+          const resolved = await decision;
+          document.removeEventListener('seams-card-control', onControl);
+          document.documentElement.removeAttribute('data-seams-anchored-card-chrome');
+          return { controls, pressed, confirmed: resolved.confirmed };
+        },
+        { confirmUiPath: IMPORT_PATHS.confirmUi, chrome, press },
+      );
+
+    const both = await toolbar('back_and_close', 1);
+    expect(both.controls.map((control) => control.label)).toEqual(['Back', 'Cancel']);
+    expect(both.controls[0]!.x).toBeLessThan(both.controls[1]!.x);
+    expect(both).toMatchObject({ pressed: ['close'], confirmed: false });
+    expect(await toolbar('back_and_close', 0)).toMatchObject({
+      pressed: ['back'],
+      confirmed: false,
+    });
+    // Back alone takes the place of close.
+    const back = await toolbar('back', 0);
+    expect(back.controls.map((control) => control.label)).toEqual(['Back']);
+    expect(back).toMatchObject({ pressed: ['back'], confirmed: false });
+  });
+
   test('mounts every supported chain in standalone and hosted modal/drawer contexts', async ({
     page,
   }) => {

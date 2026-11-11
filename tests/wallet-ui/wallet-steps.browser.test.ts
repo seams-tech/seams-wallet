@@ -114,7 +114,7 @@ async function startStepRouter(page: Page): Promise<void> {
 async function openSignInStep(
   page: Page,
   options: {
-    chrome: 'back' | 'close' | 'none';
+    chrome: 'back' | 'close' | 'back_and_close' | 'none';
     hideAppStepOnEnter?: boolean;
     transition?: StepTransition;
   },
@@ -355,6 +355,49 @@ test.describe('Wallet cards as steps of an app dialog', () => {
     await expect(page.locator('#app-input')).toHaveValue('my draft');
   });
 
+  test('with Back and Close, the card reports the control that the person pressed', async ({
+    page,
+  }) => {
+    const cancelled = (ids: { requestId: string; sessionId: string }) =>
+      postFromHost(page, {
+        type: 'PM_RESULT',
+        requestId: ids.requestId,
+        payload: {
+          ok: true,
+          result: { kind: 'cancelled', authMenuSessionId: ids.sessionId, reason: 'close_button' },
+        },
+      });
+    const ids = await openSignInStep(page, { chrome: 'back_and_close' });
+    expect(ids.payload.chrome).toBe('back_and_close');
+    await measureAuthMenu(page, ids, 1, { width: 400, height: 320 });
+    await waitForStepEvent(page, 'ready');
+    // The Wallet host reports Close before the menu's cancelled outcome.
+    await postFromHost(page, {
+      type: 'SURFACE_CONTROL',
+      requestId: ids.requestId,
+      payload: { requestId: ids.requestId, control: 'close' },
+    });
+    await cancelled(ids);
+    await waitForStepEvent(page, 'exit');
+    let events = await stepEvents(page);
+    expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'close', 'exit']);
+    expect(events.at(-1)?.value).toEqual({ kind: 'closed' });
+
+    // Escape reports no control: with Back in the chrome, it counts as Back.
+    await page.evaluate(() => {
+      const state = window as unknown as StepWindow;
+      state.__stepEvents = [];
+      state.__stepRequests = [];
+    });
+    const again = await openSignInStep(page, { chrome: 'back_and_close' });
+    await measureAuthMenu(page, again, 1, { width: 400, height: 320 });
+    await waitForStepEvent(page, 'ready');
+    await cancelled(again);
+    await waitForStepEvent(page, 'exit');
+    events = await stepEvents(page);
+    expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'back', 'exit']);
+  });
+
   test("the card changes the app's layout once for each step change", async ({ page }) => {
     await page.evaluate(() => {
       const state = window as unknown as StepWindow & { __panelHeights: number[] };
@@ -416,7 +459,10 @@ test.describe('Wallet cards as steps of an app dialog', () => {
 type ConfirmWindow = StepWindow & { __confirmResult?: Promise<unknown> };
 
 /** Sends a NEAR transaction; with `chrome`, its Wallet card shows over #anchor. */
-async function sendTransaction(page: Page, chrome?: 'back' | 'close' | 'none'): Promise<string> {
+async function sendTransaction(
+  page: Page,
+  chrome?: 'back' | 'close' | 'back_and_close' | 'none',
+): Promise<string> {
   await page.evaluate((chrome) => {
     const state = window as unknown as ConfirmWindow & { __stepRecord: (name: string) => any };
     const anchor = document.getElementById('anchor')!;
@@ -980,9 +1026,9 @@ test.describe('App steps around a sign-in or VoiceID card in the Wallet modal', 
     await page.fill('#bet-note', 'my draft');
     await page.click('#bet-continue');
     const first = await waitForNthRequest(page, 'PM_OPEN_AUTH_MENU', 1);
-    // The card draws Back, and the Wallet host guards it as a card in an app's dialog.
-    expect(first.payload.chrome).toBe('back');
-    expect(first.presentation).toEqual({ kind: 'anchored_v1', chrome: 'back' });
+    // The card draws Back and Close, and the Wallet host guards it as a card in an app's dialog.
+    expect(first.payload.chrome).toBe('back_and_close');
+    expect(first.presentation).toEqual({ kind: 'anchored_v1', chrome: 'back_and_close' });
     // Until the card has its size, the modal keeps the app step's height.
     await page.waitForTimeout(100);
     expect((await modalBox(page)).height).toBe(before.height);
@@ -1076,6 +1122,41 @@ test.describe('App steps around a sign-in or VoiceID card in the Wallet modal', 
     expect(await page.evaluate(() => (window as unknown as StepWindow).__stepRequests.length)).toBe(
       0,
     );
+  });
+
+  test('Close in a card after a before step closes the modal', async ({ page }) => {
+    await startModalStepsApp(page, true);
+    await openSignInWithModalSteps(page);
+    await page.click('#bet-continue');
+    const request = await waitForNthRequest(page, 'PM_OPEN_AUTH_MENU', 1);
+    await measureAuthMenu(
+      page,
+      { requestId: request.requestId, sessionId: request.payload.authMenuSessionId },
+      1,
+      { width: 400, height: 300 },
+    );
+    await page.waitForFunction(
+      (selector) => document.querySelector(selector)?.hasAttribute('data-wallet-card-ready'),
+      STEPS_MODAL,
+    );
+    // The Wallet host reports Close, then the menu's cancelled outcome.
+    await postFromHost(page, {
+      type: 'SURFACE_CONTROL',
+      requestId: request.requestId,
+      payload: { requestId: request.requestId, control: 'close' },
+    });
+    const cancelled = {
+      kind: 'cancelled',
+      authMenuSessionId: 'modal-steps',
+      reason: 'close_button',
+    };
+    await postFromHost(page, {
+      type: 'PM_RESULT',
+      requestId: request.requestId,
+      payload: { ok: true, result: cancelled },
+    });
+    await expect.poll(() => settledCalls(page)).toEqual([{ kind: 'value', value: cancelled }]);
+    await expect(page.locator(STEPS_MODAL)).toHaveCount(0);
   });
 
   test('a Speak-to-Sign request with only an after step shows its card with Close', async ({

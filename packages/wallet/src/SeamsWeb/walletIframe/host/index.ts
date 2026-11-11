@@ -50,11 +50,13 @@ import {
 } from './requestRouter';
 import { startCardTiming, startReviewTiming, type CardTiming } from '../shared/reviewTiming';
 import {
+  parseDrawnWalletStepChrome,
   parseWalletSurfacePresentationWire,
   parseWalletSurfaceViewPayload,
 } from '../shared/walletStep';
 import {
   beginAnchoredCard,
+  reportCardControls,
   setAnchoredCardView,
 } from '@/core/signingEngine/uiConfirm/anchoredCard';
 
@@ -293,6 +295,17 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     const endAnchoredCard =
       presentation && typeof requestId === 'string'
         ? beginAnchoredCard(requestId, presentation)
+        : null;
+    // A card with Back or Close tells the parent which one the person pressed.
+    const drawsChrome =
+      presentation !== null ||
+      (req.type === 'PM_OPEN_AUTH_MENU' &&
+        parseDrawnWalletStepChrome(req.payload?.chrome) !== null);
+    const endCardControls =
+      drawsChrome && typeof requestId === 'string'
+        ? reportCardControls((control) =>
+            post({ type: 'SURFACE_CONTROL', requestId, payload: { requestId, control } }),
+          )
         : null;
     const requestExecutionGeneration = state.executionGeneration;
     const postForRequest = postExecutionMessage.bind(null, state, requestExecutionGeneration, post);
@@ -614,6 +627,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       reviewAdmission?.finish();
       untilCardReady?.discard();
       endAnchoredCard?.();
+      endCardControls?.();
     }
   };
 

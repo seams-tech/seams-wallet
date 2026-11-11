@@ -4219,7 +4219,7 @@ export class WalletIframeRouter {
       if (!outcome || outcome.authMenuSessionId !== normalized.authMenuSessionId) {
         throw new Error('Hosted auth-menu returned an invalid terminal outcome');
       }
-      exit = authMenuStepExit(outcome, chrome);
+      if (anchored) exit = authMenuStepExit(outcome, anchored);
       return outcome;
     } catch (error) {
       if (!this.cancelledHostedAuthMenuSessions.has(normalized.authMenuSessionId)) {
@@ -4411,6 +4411,11 @@ export class WalletIframeRouter {
     }
     if (msg.type === 'SURFACE_MEASUREMENT') {
       this.handleSurfaceMeasurement(msg.payload);
+      return;
+    }
+    if (msg.type === 'SURFACE_CONTROL') {
+      const { requestId, control } = msg.payload;
+      this.anchoredSurfaces.get(requestId as WalletIframeRequestId)?.controlPressed(control);
       return;
     }
     if (msg.type === 'TRANSACTION_ACTIVITY') {

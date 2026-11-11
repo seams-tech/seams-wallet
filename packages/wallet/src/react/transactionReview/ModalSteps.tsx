@@ -64,9 +64,9 @@ class ModalStepsFlow {
 
   readonly snapshot = (): Stage => this.current;
 
-  /** Back returns to the app's step before the card; without one, Close ends the modal. */
-  get chrome(): 'back' | 'close' {
-    return this.call.steps.before ? 'back' : 'close';
+  /** Back returns to the app's step before the card. Close ends the modal. */
+  get chrome(): 'back_and_close' | 'close' {
+    return this.call.steps.before ? 'back_and_close' : 'close';
   }
 
   readonly beforeControls = Object.freeze({

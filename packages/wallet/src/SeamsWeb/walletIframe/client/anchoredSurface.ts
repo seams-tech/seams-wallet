@@ -15,6 +15,7 @@ import {
   walletStepExitForDismissal,
   walletStepTransitionTimes,
   type WalletStepChrome,
+  type WalletStepControl,
   type WalletStepEvents,
   type WalletStepExit,
   type WalletStepSize,
@@ -160,13 +161,11 @@ function anchorPositionKey(anchor: HTMLElement): string {
 /** How an auth-menu card ended, for its step events. */
 export function authMenuStepExit(
   outcome: HostedAuthMenuOutcome,
-  chrome: WalletStepChrome,
+  anchored: AnchoredSurface,
 ): WalletStepExit {
   switch (outcome.kind) {
     case 'cancelled':
-      return outcome.reason === 'close_button'
-        ? walletStepExitForDismissal(chrome)
-        : { kind: 'cancelled' };
+      return outcome.reason === 'close_button' ? anchored.dismissalExit() : { kind: 'cancelled' };
     case 'failed':
       return { kind: 'failed' };
     default:
@@ -228,6 +227,8 @@ export class AnchoredSurface {
   private position = '';
   private unobstructed: boolean | null = null;
   private dismissedInCard = false;
+  /** The chrome control that the person pressed, as the Wallet host reported it. */
+  private pressed: WalletStepControl | null = null;
   /** How long the card waits and fades. The overlay runs the fades. */
   readonly transition: WalletStepTransitionTimes;
 
@@ -336,14 +337,24 @@ export class AnchoredSurface {
     this.dismissedInCard = true;
   }
 
+  /** The Wallet host reports the chrome control that the person pressed, before the card ends. */
+  controlPressed(control: WalletStepControl): void {
+    this.pressed = control;
+  }
+
+  /** How a card that the person dismissed ended: Back or Close. */
+  dismissalExit(): WalletStepExit {
+    return walletStepExitForDismissal(this.options.chrome, this.pressed);
+  }
+
   /** How the card ended, from its request's settlement. It carries no approval data. */
   exitFor(settlement: AnchoredSurfaceSettlement): WalletStepExit {
-    if (this.dismissedInCard) return walletStepExitForDismissal(this.options.chrome);
+    if (this.dismissedInCard) return this.dismissalExit();
     if (settlement.kind === 'error') {
       return { kind: isCancellation(settlement.error) ? 'cancelled' : 'failed' };
     }
     const result = asRecord(settlement.result);
-    if (result?.kind === 'cancelled') return walletStepExitForDismissal(this.options.chrome);
+    if (result?.kind === 'cancelled') return this.dismissalExit();
     if (result?.success === false || FAILED_RESULT_KINDS.has(String(result?.kind))) {
       return { kind: 'failed' };
     }

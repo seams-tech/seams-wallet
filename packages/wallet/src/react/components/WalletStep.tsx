@@ -34,7 +34,7 @@ export type WalletStepOutcome<T> =
 
 type WalletStepOptions<T> = WalletStepEvents &
   Readonly<{
-    /** Back or Close inside the card. Defaults to none. */
+    /** Back, Close or both inside the card. Defaults to none. */
     chrome?: WalletStepChrome;
     /**
      * How long the card waits and fades. Defaults to the Wallet's own times. The step reads it

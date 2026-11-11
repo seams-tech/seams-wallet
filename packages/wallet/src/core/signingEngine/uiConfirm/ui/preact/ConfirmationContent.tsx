@@ -26,7 +26,12 @@ import {
 } from './PasskeyRegistrationContent';
 import { EmailOtpContent, type EmailOtpContentProps } from './EmailOtpContent';
 import { PadlockIcon } from './PadlockIcon';
-import { anchoredCardChrome } from '../../anchoredCard';
+import { anchoredCardChrome, pressCardControl } from '../../anchoredCard';
+import {
+  chromeHasBack,
+  chromeHasClose,
+  type WalletStepControl,
+} from '@/SeamsWeb/walletIframe/shared/walletStep';
 import { copySurfaceText } from './clipboard';
 import {
   TransactionReview,
@@ -205,14 +210,18 @@ export class ConfirmationContent extends Component<{
 
   /**
    * The origin the request came from, with the review's back and close controls. A card in an
-   * app's dialog with `chrome: 'back'` shows Back in place of close; both end the card.
+   * app's dialog whose chrome draws Back shows the step's Back in place of the review's own back.
+   * With `chrome: 'back'` alone, that Back also takes the place of close. Both end the card.
    */
   private renderToolbar(
     model: Extract<ConfirmationContentModel, { kind: 'transaction' }>,
     decision: { readonly kind: string },
   ): ComponentChildren {
-    const stepBack = anchoredCardChrome() === 'back';
-    const back = stepBack ? model.transaction.onCancel : model.transaction.onBack;
+    const chrome = anchoredCardChrome();
+    const stepBack = chromeHasBack(chrome);
+    const { onCancel } = model.transaction;
+    const back = stepBack ? stepControl('back', onCancel) : model.transaction.onBack;
+    const close = stepBack && !chromeHasClose(chrome) ? null : stepControl('close', onCancel);
     const backLabel = walletText(this.context, stepBack ? 'Back' : 'Back to review');
     return (
       <div class="seams-review-toolbar">
@@ -235,11 +244,11 @@ export class ConfirmationContent extends Component<{
             <LoadingStatus label={walletText(this.context, 'Loading website')} />
           )}
         </div>
-        {!stepBack && (
+        {close && (
           <button
             type="button"
             aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
-            onClick={model.transaction.onCancel}
+            onClick={close}
           >
             <ReviewIcon kind="close" />
           </button>
@@ -247,6 +256,14 @@ export class ConfirmationContent extends Component<{
       </div>
     );
   }
+}
+
+/** A control that ends the card, and first tells the app which control the person pressed. */
+function stepControl(control: WalletStepControl, end: () => void): () => void {
+  return () => {
+    pressCardControl(control);
+    end();
+  };
 }
 
 function ignoreCopyFailure(): void {}
