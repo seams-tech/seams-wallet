@@ -1,3 +1,4 @@
+import { sealAudio } from '@seams/voice-verdict';
 import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import { transfer } from '@/core/types/actionBuilders';
@@ -56,7 +57,6 @@ import {
   type SignedVoiceVerdict,
   type VoiceApprovedSigning,
 } from './voiceVerdict';
-import { sealAudio } from './audioEnvelope';
 import { readVerifyStream } from './verifyStream';
 import { pcm16Wav, SAMPLE_RATE } from './wav';
 
@@ -294,8 +294,9 @@ async function verify(
 }
 
 /**
- * The verifier input with its recordings sealed to the pinned audio key: `audio_sealed_b64` in
- * place of `audio_wav_b64`, one clip or a list of clips. An input with no recording goes as it
+ * The verifier input with its recordings sealed to the pinned audio key (`sealAudio` of
+ * `@seams/voice-verdict`): `audio_sealed_b64` in place of `audio_wav_b64`, one clip or a list of
+ * clips. An input with no recording goes as it
  * is. Null if a recording cannot be sealed, so that no recording leaves the device in the clear.
  */
 async function withSealedAudio(
@@ -307,7 +308,8 @@ async function withSealedAudio(
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
   const { op, owner } = rest;
   const clips = Array.isArray(plain) ? plain : [plain];
-  if (!verifier || typeof op !== 'string' || typeof owner !== 'string') return null;
+  // The verify route serves only these two operations.
+  if (!verifier || (op !== 'verify' && op !== 'enroll') || typeof owner !== 'string') return null;
   if (!clips.every((clip) => typeof clip === 'string')) return null;
   let sealed: string[];
   try {

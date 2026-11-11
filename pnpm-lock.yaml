@@ -119,8 +119,8 @@ importers:
         specifier: 2.4.0
         version: 2.4.0
       '@seams/voice-verdict':
-        specifier: 0.67.0
-        version: 0.67.0
+        specifier: 0.67.1
+        version: 0.67.1
       bs58:
         specifier: 6.0.0
         version: 6.0.0
@@ -164,12 +164,9 @@ importers:
       '@near-js/types':
         specifier: 2.4.0
         version: 2.4.0
-      '@noble/ciphers':
-        specifier: 1.3.0
-        version: 1.3.0
       '@seams/voice-verdict':
-        specifier: 0.67.0
-        version: 0.67.0
+        specifier: 0.67.1
+        version: 0.67.1
       borsh:
         specifier: 1.0.0
         version: 1.0.0
@@ -220,8 +217,8 @@ importers:
   packages/wallet-server:
     dependencies:
       '@seams/voice-verdict':
-        specifier: 0.67.0
-        version: 0.67.0
+        specifier: 0.67.1
+        version: 0.67.1
       '@simplewebauthn/server':
         specifier: 13.2.2
         version: 13.2.2
@@ -251,8 +248,8 @@ importers:
         specifier: 1.64.1
         version: 1.64.1
       '@seams/voice-verdict':
-        specifier: 0.67.0
-        version: 0.67.0
+        specifier: 0.67.1
+        version: 0.67.1
       '@seams/voiceid':
         specifier: workspace:*
         version: link:../packages/voiceid
@@ -1568,8 +1565,8 @@ packages:
     resolution: {integrity: sha512-a0ji5N1e9qALwNddV5wdWpm7o+n7/4S0MiMAYoDiiBHeAZtM4ht1NZ1JgEIQCC3pzxn2uIyVUHTCH6fb8n7Z9w==}
     engines: {node: '>=24'}
 
-  '@seams/voice-verdict@0.67.0':
-    resolution: {integrity: sha512-NdjNeDmSelKkecfl3p1+GqlHgR2hruS+KvTnT5S7bGPX1LPZznbKXiYexdkSA7T/C1ytlbE9d2qUyTozN+Whfw==}
+  '@seams/voice-verdict@0.67.1':
+    resolution: {integrity: sha512-AZDpczKdKAuzhVUgn9ACvJlCAcmm0Zq9Z0mBrf8o2GTuAHrlIqofEBKYjpfcgAvh0mgv/vC+BGJHzX4xRp1aKg==}
     engines: {node: '>=20'}
 
   '@shikijs/core@2.5.0':
@@ -4237,7 +4234,9 @@ snapshots:
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@seams/voice-verdict@0.67.0': {}
+  '@seams/voice-verdict@0.67.1':
+    dependencies:
+      '@noble/ciphers': 1.3.0
 
   '@shikijs/core@2.5.0':
     dependencies:
