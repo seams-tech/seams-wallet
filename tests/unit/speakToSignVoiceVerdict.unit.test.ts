@@ -542,6 +542,81 @@ test('a transfer that is not a whole hundredth of NEAR is refused, also with its
   ).toEqual(refused('request_mismatch'));
 });
 
+test('a verdict for one typed kind is admitted for no transaction of another kind', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const contract = 'notes.seams-v1.testnet';
+  const text = 'The bridge reopened on Monday after repairs.';
+  const call = (method: string, args: unknown) =>
+    unsignedTransaction({ receiver: contract, actions: [{ kind: 'call', method, args }] });
+  // Each typed kind without a verdict in its call: its request and the transaction of core.
+  const kinds: Array<[SpokenRequest, Uint8Array]> = [
+    [
+      transfer(2n),
+      unsignedTransaction({
+        receiver: 'alice.testnet',
+        actions: [{ kind: 'transfer', yocto: 2n * NEAR }],
+      }),
+    ],
+    [
+      {
+        kind: 'community_note',
+        network: 'testnet',
+        owner: OWNER,
+        contract,
+        postId: 7n,
+        noteSha256: await sha256(utf8(text)),
+        summary: 'The bridge is open again.',
+      },
+      call('add_note', { post_id: 7, text, summary: 'The bridge is open again.' }),
+    ],
+    [
+      { kind: 'note_rating', network: 'testnet', owner: OWNER, contract, noteId: 3n, rating: 'helpful' },
+      call('rate_note', { note_id: 3, rating: 'helpful' }),
+    ],
+    [
+      {
+        kind: 'merge_approval',
+        network: 'testnet',
+        owner: OWNER,
+        contract,
+        repoSha256: await sha256(utf8('seams-tech/seams-wallet')),
+        pullRequest: 42n,
+        base: 'main',
+        headCommit: Uint8Array.from({ length: 20 }, (_, index) => index),
+      },
+      call('approve_merge', {
+        repo: 'seams-tech/seams-wallet',
+        pull_request: 42,
+        base: 'main',
+        head_commit: '000102030405060708090a0b0c0d0e0f10111213',
+      }),
+    ],
+  ];
+  let count = 0;
+  for (const [verdictFor] of kinds) {
+    const verdict = await signedVerdict(verifier, verdictFor);
+    for (const [request, tx] of kinds) {
+      if (request === verdictFor) continue;
+      count += 1;
+      expect(
+        await cosigner.check(withVerdict(prepareBody(tx, { requestId: `matrix-${count}` }), verdict)),
+        `${verdictFor.kind} verdict, ${request.kind} transaction`,
+      ).toEqual(refused('request_mismatch'));
+    }
+  }
+  // Each transaction is admitted with the verdict of its own kind.
+  for (const [request, tx] of kinds) {
+    count += 1;
+    expect(
+      await cosigner.check(
+        withVerdict(prepareBody(tx, { requestId: `matrix-${count}` }), await signedVerdict(verifier, request)),
+      ),
+      request.kind,
+    ).toEqual(ADMITTED);
+  }
+});
+
 test('a transaction of another owner than the session account is refused', async () => {
   const verifier = await verifierKey();
   const cosigner = harness(verifier);
@@ -1047,6 +1122,10 @@ test('a spoken delegate action is admitted as the general transaction of its sen
   const untagged = concat([Uint8Array.of(0x6e, 0x01, 0x00, 0x41), good.subarray(4)]);
   expect(await attempt(untagged, { ...verdict, summary })).toEqual(refused('request_mismatch'));
 
+  // A delegate action has no fresh approval of its own, so a step_up verdict is refused.
+  const stepUp = await signedVerdict(verifier, request, { outcome: 'step_up', policy_rule: 'rule' });
+  expect(await attempt(good, { ...stepUp, summary })).toEqual(refused('step_up_required'));
+
   expect(await attempt(good, { ...verdict, summary })).toEqual(ADMITTED);
   // The verdict is used once, as a delegate action or as a transaction.
   const direct = unsignedTransaction({
@@ -1136,6 +1215,10 @@ test('a spoken NEP-413 message is admitted for its exact bytes and summary only'
   // A verdict of another owner's message does not match the session account.
   const foreign = await signedVerdict(verifier, request({ owner: 'other.testnet' }));
   expect(await attempt({ ...foreign, summary })).toEqual(refused('request_mismatch'));
+
+  // A message has no fresh approval of its own, so a step_up verdict is refused.
+  const stepUp = await signedVerdict(verifier, request(), { outcome: 'step_up', policy_rule: 'rule' });
+  expect(await attempt({ ...stepUp, summary })).toEqual(refused('step_up_required'));
 
   expect(await attempt({ ...verdict, summary })).toEqual(ADMITTED);
   expect(await attempt({ ...verdict, summary })).toEqual(refused('reused'));

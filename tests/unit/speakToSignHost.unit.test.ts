@@ -477,6 +477,8 @@ type CoreHarness = {
   /** Each delegate action that core signed for a verdict. */
   delegates: Array<{ delegate: unknown; verdict: SignedVoiceVerdict }>;
   setSignError(error: string | null): void;
+  /** Moves the clock of core. */
+  setNow(nowMs: number): void;
   setMessageError(error: string | null): void;
   fetched: Array<{ url: string; init: RequestInit }>;
   progress: SpeakToSignProgress[];
@@ -513,7 +515,11 @@ function coreHarness(verifier: Verifier): CoreHarness {
   });
   let messageError: string | null = null;
   let signError: string | null = null;
+  let nowMs = NOW_MS;
   const harness: CoreHarness = {
+    setNow(next) {
+      nowMs = next;
+    },
     signed: [],
     messages: [],
     voiceMessages: [],
@@ -599,7 +605,7 @@ function coreHarness(verifier: Verifier): CoreHarness {
         harness.fetched.push({ url: String(url), init });
         return verifyResponse();
       }) as typeof fetch,
-      now: () => NOW_MS,
+      now: () => nowMs,
       verifiers: verifiersFor(verifier),
     }),
   };
@@ -2022,4 +2028,32 @@ test('two sign calls at the same time, each with its own accepted verdict, give 
   expect(results.map((result) => result.kind).sort()).toEqual(['executed', 'refused']);
   expect(results.find((result) => result.kind === 'refused')?.detail).toBe('this flow already signed');
   expect(harness.signed).toHaveLength(1);
+});
+
+test('a verdict that expires while the owner decides on a step-up signs nothing', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const digests = await intentDigests('testnet', 'owner.testnet', TRANSFER);
+  const json = await verdictJsonFor(digests, await sha256(captured.wav), {
+    outcome: 'step_up',
+    policy_rule: 'stub_voice_amount_above_10_near',
+  });
+  const output = await verifyOutput(verifier, json);
+  const hooks = paymentHooks();
+  // The owner answers after the 120 s life of the verdict.
+  const slowOwner: SpeakToSignPaymentHooks = {
+    ...hooks,
+    approveStepUp: async () => {
+      harness.setNow(NOW_MS + 120_001);
+      return true;
+    },
+  };
+  expect(await signIntent(harness.operations, TRANSFER, output, slowOwner)).toEqual({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'verdict expired',
+  });
+  nothingSigned(harness);
 });
