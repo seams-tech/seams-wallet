@@ -7,7 +7,6 @@
     "paths": {
       "@voiceid/*": ["../packages/voiceid/src/*"],
       "@seams/wallet/voiceid-host": ["../packages/wallet/src/voiceid-host.ts"],
-      "@seams/wallet/speak-to-sign-host": ["../packages/wallet/src/speak-to-sign-host.ts"],
       "@build-paths": ["../packages/wallet/build-paths.ts"],
       "@/*": ["../packages/wallet/src/*"],
       "@shared/*": ["../packages/shared-ts/src/*"]

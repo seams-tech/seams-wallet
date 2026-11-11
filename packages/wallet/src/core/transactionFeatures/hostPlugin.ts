@@ -10,12 +10,6 @@ import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
-/**
- * Wallet and `@seams/wallet-voice-sign` must use the same value. It is separate from VoiceID's
- * (11), so it went from 10 to 12 with the approver contract.
- */
-export const SPEAK_TO_SIGN_HOST_API_VERSION = 12;
-
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
   | 'flow_not_available'
@@ -618,7 +612,11 @@ export type SpeakToSignEnrollmentRecording = Readonly<{
   sentence: string;
 }>;
 
-/** Implementations run in the trusted Wallet host, never in the embedding app. */
+/**
+ * The approver of Speak-to-Sign: the flow on the card. It is a part of the Wallet
+ * (`./approver`) that loads on first use, so one build has both sides of this contract and no
+ * version check is necessary. It runs in the trusted Wallet host, never in the embedding app.
+ */
 export interface SpeakToSignHostPlugin {
   /**
    * Runs one spoken request on its card: records, verifies and hands the verifier output to

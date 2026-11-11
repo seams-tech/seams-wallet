@@ -435,6 +435,22 @@ Each slice ships alone and leaves the tests green.
   changes of Section 4 in speak-to-sign). Remove the Speak-to-Sign host API version, the
   host path `/sdk/speak-to-sign/host.js`, its `compose` step and the package in
   speak-to-sign. Deprecate the npm name.
+- **Status of Slice 4: built on 2026-11-12 on the branch `refactor-232-s4`, not merged and
+  not released.** The flow, its card and its tests are in
+  `packages/wallet/src/core/transactionFeatures/approver/`. `loadSpeakToSignApprover`
+  (`hostRegistry.ts`) imports the flow as a chunk on the first request. Gone: the host API
+  version, the host path, `@seams/wallet/speak-to-sign-host`, and the compose step in the
+  test services. `speakToSign({ network })` is an export of `@seams/wallet`. In
+  speak-to-sign, the branch `remove-wallet-plugin` removes the package and its workflow.
+  Open for the release:
+  - The docs (`apps/docs`, README) still describe 0.67.0 with the plugin package. Change
+    them in the release prepare commit: no third package, no `seams-speak-to-sign-host`
+    step, the descriptor from `@seams/wallet`.
+  - The hosted Wallet deploy (seams-monorepo) must drop its Speak-to-Sign compose step.
+  - Merge `remove-wallet-plugin` only after that Wallet is on npm, then deprecate
+    `@seams/wallet-voice-sign` on npm and change the demo import.
+  - The verify route already uses `relayToVerifier` on another branch (Slice 0b,
+    worktree `wallet-server-voice-sign`, waits for `@seams/voice-sign` 0.67.2).
 - **Slice 5. The app API** (D3): `approval` on the sign calls, `approvals` in the
   configuration, descriptors from `@seams/wallet`. Breaking.
 

@@ -19,8 +19,8 @@ export type {
   SpeakToSignNetwork,
   WalletTransactionFeaturePlugin,
 } from './core/transactionFeatures/plugins';
+export { speakToSign } from './core/transactionFeatures/plugins';
 export type {
-  SPEAK_TO_SIGN_HOST_API_VERSION,
   SpeakToSignBetRequest,
   SpeakToSignDelegateRequest,
   SpeakToSignEnrollmentRequest,

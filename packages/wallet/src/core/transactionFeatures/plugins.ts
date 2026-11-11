@@ -11,6 +11,17 @@ export type SpeakToSignFeaturePlugin = Readonly<{
 }>;
 
 /**
+ * The descriptor that turns Speak-to-Sign on: `transactionFeatures: [speakToSign({ network })]`.
+ * It is data only. The flow is a part of the Wallet that loads on the first spoken request.
+ * Only `testnet` has a verifier today.
+ */
+export function speakToSign(
+  options: Readonly<{ network: SpeakToSignNetwork }>,
+): SpeakToSignFeaturePlugin {
+  return { kind: 'speak_to_sign', network: options.network };
+}
+
+/**
  * Transaction features add an operation to an unlocked wallet. Unlike an auth method,
  * a feature never unlocks a wallet or opens a session.
  */

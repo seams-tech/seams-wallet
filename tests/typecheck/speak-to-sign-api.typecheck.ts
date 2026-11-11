@@ -1,5 +1,6 @@
 import {
   SeamsWeb,
+  speakToSign,
   type SeamsConfigsInput,
   type SpeakToSignCapability,
   type SpeakToSignFeaturePlugin,
@@ -7,8 +8,6 @@ import {
   type SpeakToSignSentTransaction,
   type WalletTransactionFeaturePlugin,
 } from '@seams/wallet';
-import type { SPEAK_TO_SIGN_HOST_API_VERSION } from '../../packages/wallet/src/core/transactionFeatures/hostPlugin';
-import type { VOICE_ID_HOST_API_VERSION } from '../../packages/wallet/src/core/authMethods/hostPlugin';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -136,12 +135,7 @@ void unknownFeature;
 const reasonless: SpeakToSignResult<SpeakToSignSentTransaction> = { kind: 'unavailable' };
 void reasonless;
 
-declare const hostVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION;
-// @ts-expect-error Speak-to-Sign has its own host API version, separate from VoiceID's.
-const sharedVersion: typeof VOICE_ID_HOST_API_VERSION = hostVersion;
-void sharedVersion;
-
-// The plugin's operations take no request: `record` nothing, `verify` one clip handle, and
+// The approver's operations take no request: `record` nothing, `verify` one clip handle, and
 // `sign` the verifier output and the hooks. Core bound the request before it made them.
 type ApprovalOperations = import('../../packages/wallet/src/core/transactionFeatures/hostPlugin').SpeakToSignApprovalOperations;
 const recordArity: Parameters<ApprovalOperations['record']>['length'] = 0;
@@ -151,3 +145,11 @@ void [recordArity, verifyArity, signArity];
 declare const approvalOperations: ApprovalOperations;
 // @ts-expect-error A clip handle has no audio: the plugin cannot pass bytes to `verify`.
 void approvalOperations.verify({ kind: 'captured', speechMs: 1, endOfSpeechAt: 1, wav: new Uint8Array(1) });
+
+// The descriptor comes from `@seams/wallet`. An app installs no plugin package.
+const builtIn: SpeakToSignFeaturePlugin = speakToSign({ network: 'testnet' });
+void builtIn;
+// @ts-expect-error The network is testnet or mainnet.
+speakToSign({ network: 'betanet' });
+// @ts-expect-error A spoken payment comes from the owner's own account; there is no vault.
+speakToSign({ vault: 'vault.testnet', network: 'testnet' });

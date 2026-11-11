@@ -4,7 +4,7 @@ import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB';
 import { buildThresholdEd25519NearTxUnsignedBorshWasm } from '@/core/signingEngine/chains/near/nearSignerWasm';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
-import { loadSpeakToSignHost } from '@/core/transactionFeatures/hostRegistry';
+import { loadSpeakToSignApprover } from '@/core/transactionFeatures/hostRegistry';
 import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
 import type { TransactionContext } from '@/core/types/rpc';
 import { nearTransactionActionsBorsh } from '@shared/speakToSign/spokenRequest';
@@ -16,7 +16,7 @@ import type { SpeakToSignWalletPorts } from './speakToSign';
 export const browserSpeakToSignPorts: SpeakToSignWalletPorts = {
   readVoiceIdAvailability,
   readOperationCredential,
-  loadHost: loadSpeakToSignHost,
+  loadHost: loadSpeakToSignApprover,
   loadVoiceIdHost,
   nearActionsBorsh,
   fetch: fetchFromWindow,

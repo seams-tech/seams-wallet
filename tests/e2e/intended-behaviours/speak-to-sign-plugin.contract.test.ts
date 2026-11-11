@@ -1,30 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { expect, test, type Page, type Route } from '@playwright/test';
-import { SPEAK_TO_SIGN_HOST_API_VERSION } from '../../../packages/wallet/src/core/transactionFeatures/hostPlugin';
 import type {} from '../../fixtures/ui/SpeakToSignPluginProbe';
 import type {} from '../../typecheck/speak-to-sign-api.typecheck';
 
 const ORIGIN = 'https://wallet.example.test';
-const HOST_PATH = 'sdk/speak-to-sign/host.js';
 type Chunk = { fileName: string; code: string; imports: string[] };
-type HostResponse = 'compatible' | 'missing' | 'incompatible' | 'no_approve';
 
-// A stand-in for the @seams/wallet-voice-sign host plugin, which seams-tech/speak-to-sign releases.
-// It has the Wallet's host API version and the two methods of the approver contract.
-const COMPATIBLE_HOST = `export const hostApiVersion = ${SPEAK_TO_SIGN_HOST_API_VERSION};
-const unavailable = async () => ({ kind: 'unavailable', reason: 'flow_not_available' });
-export function createSpeakToSignHostPlugin() {
-  return { approve: unavailable, enroll: unavailable };
-}`;
-// The plugin of host API 10: its version and its three request methods.
-const HOST_API_10 = `export const hostApiVersion = 10;
-const unavailable = async () => ({ kind: 'unavailable', reason: 'flow_not_available' });
-export function createSpeakToSignHostPlugin() {
-  return { requestTransfer: unavailable, requestNoteAction: unavailable, requestMessage: unavailable, enroll: unavailable };
-}`;
-// The Wallet's version, with the methods of host API 10 and no `approve`.
-const HOST_WITHOUT_APPROVE = HOST_API_10.replace('= 10;', `= ${SPEAK_TO_SIGN_HOST_API_VERSION};`);
+// Speak-to-Sign is a part of the Wallet. Its flow is a chunk that loads on first use, and the
+// Wallet host serves no separate plugin file for it.
 
 const chunks: Chunk[] = JSON.parse(
   execFileSync(
@@ -37,9 +21,11 @@ const chunks: Chunk[] = JSON.parse(
   ),
 );
 
+/** A text of the card of the flow. Only the chunk of the flow holds it. */
+const FLOW_TEXT = 'Checking your voice and words';
+
 class ProbeServer {
   readonly requested: string[] = [];
-  constructor(readonly host: HostResponse) {}
 
   async serve(route: Route): Promise<void> {
     const url = new URL(route.request().url());
@@ -52,38 +38,22 @@ class ProbeServer {
         body: '<!doctype html><title>Speak-to-Sign loading</title><script type="module" src="/probe.js"></script>',
       });
     }
-    if (name === HOST_PATH) return await this.serveHost(route);
     const chunk = chunks.find(hasName.bind(null, name));
     if (!chunk) return await route.fulfill({ status: 404, body: 'Not found' });
     await route.fulfill({ contentType: 'text/javascript', body: chunk.code });
   }
 
-  private async serveHost(route: Route): Promise<void> {
-    if (this.host === 'missing') {
-      return await route.fulfill({ status: 404, body: 'Optional package is not installed' });
-    }
-    if (this.host === 'incompatible') {
-      return await route.fulfill({
-        contentType: 'text/javascript',
-        body: HOST_API_10,
-      });
-    }
-    if (this.host === 'no_approve') {
-      return await route.fulfill({ contentType: 'text/javascript', body: HOST_WITHOUT_APPROVE });
-    }
-    await route.fulfill({ contentType: 'text/javascript', body: COMPATIBLE_HOST });
-  }
-
-  speakToSignRequests(): string[] {
-    return this.requested.filter(isSpeakToSignPath);
+  /** The requested chunks that hold the flow. */
+  flowRequests(): string[] {
+    return this.requested.filter(isFlowChunkName);
   }
 }
 
 function hasName(name: string, chunk: Chunk): boolean {
   return chunk.fileName === name;
 }
-function isSpeakToSignPath(name: string): boolean {
-  return name.startsWith('sdk/speak-to-sign/');
+function isFlowChunkName(name: string): boolean {
+  return chunks.some((chunk) => chunk.fileName === name && chunk.code.includes(FLOW_TEXT));
 }
 function ready(): boolean {
   return Boolean(window.speakToSignPluginProbe);
@@ -94,63 +64,38 @@ function enable(): void {
 function disable(): void {
   window.speakToSignPluginProbe.configure(false);
 }
-function requestTransfer(): ReturnType<Window['speakToSignPluginProbe']['loadHost']> {
+function loadApprover(): ReturnType<Window['speakToSignPluginProbe']['loadHost']> {
   return window.speakToSignPluginProbe.loadHost();
 }
+function startFlow(): ReturnType<Window['speakToSignPluginProbe']['startFlow']> {
+  return window.speakToSignPluginProbe.startFlow();
+}
 
-async function open(page: Page, host: HostResponse): Promise<ProbeServer> {
-  const server = new ProbeServer(host);
+test('the Speak-to-Sign flow is a chunk of the Wallet that loads on the first request', async ({
+  page,
+}) => {
+  const server = new ProbeServer();
   await page.route('**/*', server.serve.bind(server));
   await page.goto(ORIGIN);
   await page.waitForFunction(ready);
-  return server;
-}
 
-test('a Wallet without the Speak-to-Sign descriptor never requests its host plugin', async ({
-  page,
-}) => {
-  const server = await open(page, 'compatible');
-  expect(chunks.some(isSpeakToSignChunk)).toBe(false);
-  await expect(page.evaluate(requestTransfer)).rejects.toThrow('Enable Speak-to-Sign');
+  // The flow is in its own chunk, not in the entry.
+  const entry = chunks.find(hasName.bind(null, 'probe.js'));
+  expect(entry?.code.includes(FLOW_TEXT)).toBe(false);
+  expect(chunks.some((chunk) => chunk.code.includes(FLOW_TEXT))).toBe(true);
+
+  await expect(page.evaluate(loadApprover)).rejects.toThrow('Enable Speak-to-Sign');
   await page.evaluate(enable);
-  expect(server.speakToSignRequests()).toEqual([]);
-  await expect(page.evaluate(requestTransfer)).resolves.toEqual({
+  await expect(page.evaluate(loadApprover)).resolves.toEqual({
     kind: 'loaded',
     methods: ['approve', 'enroll'],
   });
-  expect(server.speakToSignRequests()).toEqual([HOST_PATH]);
-  await page.evaluate(requestTransfer);
-  expect(server.speakToSignRequests()).toEqual([HOST_PATH]);
+  // Nothing loads until a request starts, and the Wallet host serves no plugin file.
+  expect(server.flowRequests()).toEqual([]);
+  await page.evaluate(startFlow);
+  expect(server.flowRequests().length).toBeGreaterThan(0);
+  expect(server.requested.filter((name) => name.startsWith('sdk/'))).toEqual([]);
+
   await page.evaluate(disable);
-  await expect(page.evaluate(requestTransfer)).rejects.toThrow('Enable Speak-to-Sign');
-  expect(server.speakToSignRequests()).toEqual([HOST_PATH]);
+  await expect(page.evaluate(loadApprover)).rejects.toThrow('Enable Speak-to-Sign');
 });
-
-test('a Wallet host refuses a missing or incompatible Speak-to-Sign plugin', async ({
-  browser,
-}) => {
-  const missing = await browser.newPage();
-  await open(missing, 'missing');
-  await missing.evaluate(enable);
-  await expect(missing.evaluate(requestTransfer)).rejects.toThrow(
-    'Install @seams/wallet-voice-sign on this Wallet host',
-  );
-  const incompatible = await browser.newPage();
-  await open(incompatible, 'incompatible');
-  await incompatible.evaluate(enable);
-  // A plugin of host API 10 does not load: nothing is recorded or signed.
-  await expect(incompatible.evaluate(requestTransfer)).rejects.toThrow(
-    'Speak-to-Sign is incompatible with this Wallet host',
-  );
-  const noApprove = await browser.newPage();
-  await open(noApprove, 'no_approve');
-  await noApprove.evaluate(enable);
-  await expect(noApprove.evaluate(requestTransfer)).rejects.toThrow(
-    'Speak-to-Sign host implementation is invalid',
-  );
-});
-
-// Only the host plugin produces this result, so a Wallet chunk that holds it bundled the plugin.
-function isSpeakToSignChunk(chunk: Chunk): boolean {
-  return chunk.code.includes('flow_not_available');
-}
