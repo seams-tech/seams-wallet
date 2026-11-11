@@ -26,6 +26,9 @@ enrollment and uses the VoiceID capture surface.
 
 1. The Wallet shows the expected sentence on the VoiceID surface and records
    one clip of at most 8 s. The card stays open and shows each next step.
+   The Wallet seals the clip to the verifier's audio key before it sends it,
+   so the Seams server carries only ciphertext. The verifier opens the clip
+   inside its TEE.
 2. The Seams server sends the clip and the typed request to the verifier on
    OutLayer, a NEAR off-chain compute service that runs code in a TEE (trusted
    execution environment). While the verifier works, the Wallet reads the
@@ -255,10 +258,15 @@ variables are set:
 | ------------------------------------------- | ------------------------------------------------------------------ |
 | `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
 | `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` |
+| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946` |
 | `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | The OutLayer payment key. Keep it in a secret store.               |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
+
+The Wallet seals each recording, so the version must be verifier 0.12.0 or
+later, and the secrets profile must hold the secret `PROTECTED_AUDIO_KEY` of
+the audio key that the Wallet pins. An older version refuses each spoken
+request with `unsupported`.
 
 The route reads the caller's Wallet Session as identity. It answers 401
 `unauthorized` without a session and 503 `session_unavailable` when the

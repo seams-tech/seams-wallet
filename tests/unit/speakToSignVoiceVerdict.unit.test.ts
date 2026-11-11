@@ -254,7 +254,11 @@ function harness(verifier: Verifier, options: { configured?: boolean } = {}): Ha
   const voiceVerdicts: SpeakToSignVoiceVerdictCheck = {
     ledger,
     verifiers: {
-      testnet: { project: 'seams-v1.testnet/voice-verifier', publicKey: verifier.publicKey },
+      testnet: {
+        project: 'seams-v1.testnet/voice-verifier',
+        publicKey: verifier.publicKey,
+        audioKey: '',
+      },
       mainnet: null,
     },
     now: () => nowMs,

@@ -77,6 +77,9 @@ const VECTORS = JSON.parse(
 
 // The shared signed verdicts of seams-tech/speak-to-sign (voice-verifier/testdata/
 // signed_verdict_v2.json). Their audio digest is 32 bytes of 7; the key is a test key.
+/** The audio key of the verifier's vector `sealed_audio_v1.json` (X25519, standard base64). */
+const AUDIO_KEY = 'OKtmS9hvd9fma92a4HkpE6lP2LM6EmACfktGwfSITGc=';
+
 const SIGNED_VECTORS = {
   publicKey: 'ed25519:2iXtA8oeZqUU5pofxK971TCEvFGfems2AcDRaZHKD2pQ',
   expiresAtMs: 1_762_700_120_000,
@@ -157,7 +160,7 @@ async function verifierKey(): Promise<Verifier> {
 }
 
 function verifiersFor(verifier: Verifier) {
-  return { testnet: { project: PROJECT, publicKey: verifier.publicKey }, mainnet: null };
+  return { testnet: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY }, mainnet: null };
 }
 
 function transferRequest(overrides: Partial<SpokenTransferRequest> = {}): SpokenTransferRequest {
@@ -331,7 +334,7 @@ test('the shared signed verdict vectors pass the core check as voice and voice-a
       await checkVoiceVerdict({
         output: output!,
         expected: await transferDigests(request),
-        verifier: { project: PROJECT, publicKey: SIGNED_VECTORS.publicKey },
+        verifier: { project: PROJECT, publicKey: SIGNED_VECTORS.publicKey, audioKey: AUDIO_KEY },
         recordedAudio: new Set([SIGNED_VECTORS.audioDigest]),
         nowMs: SIGNED_VECTORS.expiresAtMs - 60_000,
       }),
@@ -358,7 +361,11 @@ test('the core check refuses a verdict that does not bind this transfer, clip, t
     await checkVoiceVerdict({
       output: parseVerifyOutput(output)!,
       expected: await transferDigests(request),
-      verifier: { project: PROJECT, publicKey: options.publicKey ?? verifier.publicKey },
+      verifier: {
+        project: PROJECT,
+        publicKey: options.publicKey ?? verifier.publicKey,
+        audioKey: AUDIO_KEY,
+      },
       recordedAudio: options.recordedAudio ?? recorded,
       nowMs: options.nowMs ?? NOW_MS,
     });
@@ -421,7 +428,7 @@ test('a verifier refusal passes through with its reason and what was heard', asy
     await checkVoiceVerdict({
       output: parseVerifyOutput(await verifyOutput(verifier, refusal))!,
       expected: await transferDigests(request),
-      verifier: { project: PROJECT, publicKey: verifier.publicKey },
+      verifier: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY },
       recordedAudio: new Set(),
       nowMs: NOW_MS,
     }),
@@ -608,6 +615,49 @@ function paymentHooks(events: string[] = []): SpeakToSignPaymentHooks {
     included: (hash) => void events.push(`included:${hash}`),
   };
 }
+
+test('core seals each recording before it calls the verify route', async () => {
+  const harness = coreHarness(await verifierKey());
+  const signal = new AbortController().signal;
+  const wav = Buffer.from(pcm16Wav(samples(1))).toString('base64');
+  const sent = () => JSON.parse(String(harness.fetched.at(-1)?.init.body)).input;
+
+  await harness.operations.verify(
+    { op: 'verify', owner: 'owner.testnet', contacts: [], audio_wav_b64: wav },
+    signal,
+  );
+  const one = sent();
+  expect(Object.keys(one)).toEqual(['op', 'owner', 'contacts', 'audio_sealed_b64']);
+  // The encapsulated key, the clip and the tag.
+  expect(Buffer.from(one.audio_sealed_b64, 'base64').length).toBe(
+    32 + Buffer.from(wav, 'base64').length + 16,
+  );
+  expect(String(harness.fetched.at(-1)?.init.body)).not.toContain(wav.slice(0, 64));
+
+  await harness.operations.verify(
+    { op: 'enroll', owner: 'owner.testnet', audio_wav_b64: [wav, wav, wav] },
+    signal,
+  );
+  const three = sent();
+  expect(three.audio_wav_b64).toBeUndefined();
+  expect(three.audio_sealed_b64).toHaveLength(3);
+  // Each clip has its own ephemeral key.
+  expect(new Set(three.audio_sealed_b64).size).toBe(3);
+
+  // A recording that core cannot seal does not leave the device.
+  const calls = harness.fetched.length;
+  for (const input of [
+    { op: 'verify', audio_wav_b64: wav },
+    { op: 'verify', owner: 'owner.testnet', audio_wav_b64: 7 },
+    { op: 'verify', owner: 'owner.testnet', audio_wav_b64: 'not base64!' },
+  ]) {
+    expect(await harness.operations.verify(input, signal)).toEqual({
+      kind: 'failed',
+      code: 'recording_not_sealed',
+    });
+  }
+  expect(harness.fetched.length).toBe(calls);
+});
 
 test('core records clips, checks receivers and calls only the Seams verify route', async () => {
   const harness = coreHarness(await verifierKey());

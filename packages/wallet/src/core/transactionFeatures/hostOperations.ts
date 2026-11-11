@@ -10,7 +10,7 @@ import type {
 } from '@/core/types/seams';
 import type { Variant } from '@shared/utils/variant';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
-import { base64UrlEncode } from '@shared/utils/base64';
+import { base64Decode, base64Encode, base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
 import { concat, sha256, utf8 } from '@shared/speakToSign/spokenRequest';
 import {
@@ -56,6 +56,7 @@ import {
   type SignedVoiceVerdict,
   type VoiceApprovedSigning,
 } from './voiceVerdict';
+import { sealAudio } from './audioEnvelope';
 import { readVerifyStream } from './verifyStream';
 import { pcm16Wav, SAMPLE_RATE } from './wav';
 
@@ -254,6 +255,8 @@ async function verify(
   verifierInput: Readonly<Record<string, unknown>>,
   signal: AbortSignal,
 ): Promise<SpeakToSignVerifyReply> {
+  const sealedInput = await withSealedAudio(input, verifierInput);
+  if (sealedInput === null) return { kind: 'failed', code: 'recording_not_sealed' };
   const credential = await input.operationCredential(signal);
   const url = new URL(VERIFY_PATH, input.serverUrl);
   if (verifierInput.op === 'verify') void input.prepareSigning().catch(() => {});
@@ -267,7 +270,7 @@ async function verify(
         accept: 'text/event-stream',
         authorization: `Bearer ${credential}`,
       },
-      body: JSON.stringify({ input: verifierInput }),
+      body: JSON.stringify({ input: sealedInput }),
       credentials: 'omit',
       signal,
     });
@@ -288,6 +291,36 @@ async function verify(
   }
   if (reply.kind === 'output') input.progress({ stage: 'verdict', ms: stageTimes(reply.output) });
   return reply;
+}
+
+/**
+ * The verifier input with its recordings sealed to the pinned audio key: `audio_sealed_b64` in
+ * place of `audio_wav_b64`, one clip or a list of clips. An input with no recording goes as it
+ * is. Null if a recording cannot be sealed, so that no recording leaves the device in the clear.
+ */
+async function withSealedAudio(
+  input: SpeakToSignHostOperationsInput,
+  verifierInput: Readonly<Record<string, unknown>>,
+): Promise<Readonly<Record<string, unknown>> | null> {
+  const { audio_wav_b64: plain, ...rest } = verifierInput;
+  if (plain === undefined) return verifierInput;
+  const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
+  const { op, owner } = rest;
+  const clips = Array.isArray(plain) ? plain : [plain];
+  if (!verifier || typeof op !== 'string' || typeof owner !== 'string') return null;
+  if (!clips.every((clip) => typeof clip === 'string')) return null;
+  let sealed: string[];
+  try {
+    const audioKey = base64Decode(verifier.audioKey);
+    sealed = await Promise.all(
+      clips.map(async (clip) =>
+        base64Encode(await sealAudio(audioKey, op, owner, base64Decode(clip))),
+      ),
+    );
+  } catch {
+    return null;
+  }
+  return { ...rest, audio_sealed_b64: Array.isArray(plain) ? sealed : sealed[0] };
 }
 
 async function refusalOf(response: Response): Promise<SpeakToSignVerifyReply> {

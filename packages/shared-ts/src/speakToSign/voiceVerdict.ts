@@ -8,12 +8,20 @@ import { hasExactKeys } from '../utils/exactKeys';
 import { concat, sha256, utf8, type SpeakToSignNetwork } from './spokenRequest';
 
 /**
- * The verifier of each network: its OutLayer project and its project-bound verdict key. The key
- * stays the same across verifier versions. It is pinned in code and never comes from the app,
- * which supplies the Seams server URL: a key from the app would let the app supply its own
- * verdicts.
+ * The verifier of each network: its OutLayer project, its project-bound verdict key and its
+ * audio key. Both keys stay the same across verifier versions. They are pinned in code and never
+ * come from the app, which supplies the Seams server URL: a verdict key from the app would let
+ * the app supply its own verdicts, and an audio key from the app would let the app read the
+ * recordings.
+ *
+ * `audioKey` is the X25519 public key (standard base64) that Wallet core seals each recording
+ * to. The verifier's `audio_key` operation returns it with a signature of the verdict key.
  */
-export type SpeakToSignVerifier = Readonly<{ project: string; publicKey: string }>;
+export type SpeakToSignVerifier = Readonly<{
+  project: string;
+  publicKey: string;
+  audioKey: string;
+}>;
 
 export const SPEAK_TO_SIGN_VERIFIERS: Readonly<
   Record<SpeakToSignNetwork, SpeakToSignVerifier | null>
@@ -21,6 +29,7 @@ export const SPEAK_TO_SIGN_VERIFIERS: Readonly<
   testnet: {
     project: 'seams-v1.testnet/voice-verifier',
     publicKey: 'ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U',
+    audioKey: 'swH9imlBy9lASO9868ouz/FUumuZIK9g/3R7QiFl7ig=',
   },
   mainnet: null,
 };

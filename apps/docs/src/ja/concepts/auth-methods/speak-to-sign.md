@@ -20,6 +20,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 ## 音声による支払いの流れ {#how-a-spoken-payment-works}
 
 1. WalletがVoiceIDの画面に話すべき文を表示し、最長8秒の音声を1回録音します。カードは開いたままで、次の各手順を示します。
+   Walletは送信の前に、録音を検証者の音声鍵で封印します。そのためSeamsのサーバーは暗号文だけを運び、検証者がTEEの中で録音を開きます。
 2. Seamsのサーバーが、録音と型付きのリクエストをOutLayer上の検証者に送ります。OutLayerは、TEE(信頼できる実行環境)でコードを実行するNEARのオフチェーン計算サービスです。
    検証者が動作している間に、Walletは支払いのためのアクセスキーのnonceと最近のブロックハッシュを読みます。判定の前には何も署名しません。
 3. 検証者は、Phala Cloud上のサービスから話者埋め込みを、NEAR AIから文字起こしを同時に受け取ります。
@@ -178,10 +179,13 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 | ------------------------------------------- | ------------------------------------------------------------------ |
 | `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
 | `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `d2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8` |
+| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946` |
 | `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | OutLayerの支払い用の鍵です。シークレットストアに保管してください。 |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
+
+Walletは各録音を封印するので、バージョンは検証者0.12.0以降が必要です。また、シークレットのプロファイルには、
+Walletが固定している音声鍵のシークレット`PROTECTED_AUDIO_KEY`が必要です。古いバージョンは、すべての音声リクエストを`unsupported`で拒否します。
 
 このルートは、呼び出し元のウォレットセッションを本人確認として読みます。セッションがない場合は401 `unauthorized`、
 セッションストアが失敗した場合は503 `session_unavailable`を返し、署名の使用回数は消費しません。
