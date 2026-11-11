@@ -1,4 +1,4 @@
-import { isolatedGatewayDatabasePath, type NodeSqliteModule } from './local-gateway-database';
+import { openGatewayDatabase, type NodeSqliteModule } from './local-gateway-database';
 import { SigningTimingEvidence } from './signing-timing-evidence';
 import { GatewayRequestEvidence } from './gateway-request-evidence';
 import {
@@ -782,10 +782,7 @@ async function signingOperationPersistence(
   readonly claims: number;
   readonly auditEvents: number;
 }> {
-  const sqliteModule: string = 'node:sqlite';
-  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
-  const databasePath = await isolatedGatewayDatabasePath();
-  const database = new DatabaseSync(databasePath, { readOnly: true });
+  const database = await openGatewayDatabase('read');
   try {
     const [row] = database
       .prepare(
@@ -852,9 +849,7 @@ async function setIsolatedSigningPolicy(request: Request, policy: SigningPolicy)
   }
   const walletId = body.scope.wallet_id;
   const activationId = body.material_activation.activation_id;
-  const sqliteModule: string = 'node:sqlite';
-  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
-  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+  const database = await openGatewayDatabase('write');
   try {
     const rows = database
       .prepare(

@@ -6,7 +6,7 @@ import type { D1DatabaseLike, D1PreparedStatementLike } from '@server/storage/te
 export type NodeSqliteModule = {
   readonly DatabaseSync: new (
     path: string,
-    options: { readonly readOnly: boolean },
+    options: { readonly readOnly: boolean; readonly timeout?: number },
   ) => {
     prepare(sql: string): {
       all(...parameters: (string | number | null)[]): Record<string, unknown>[];
@@ -15,6 +15,24 @@ export type NodeSqliteModule = {
     close(): void;
   };
 };
+
+/**
+ * How long a connection of a test waits for a lock of the local Gateway, which writes the same
+ * file during each request (for example a background presignature refill). Without it, SQLite
+ * refuses at once with "database is locked".
+ */
+const GATEWAY_LOCK_WAIT_MS = 10_000;
+
+/** A connection to the isolated Gateway D1 database that waits for the Gateway's locks. */
+export async function openGatewayDatabase(
+  access: 'read' | 'write',
+): Promise<InstanceType<NodeSqliteModule['DatabaseSync']>> {
+  const DatabaseSync = await loadIsolatedDatabaseSync();
+  return new DatabaseSync(await isolatedGatewayDatabasePath(), {
+    readOnly: access === 'read',
+    timeout: GATEWAY_LOCK_WAIT_MS,
+  });
+}
 
 export async function isolatedGatewayDatabasePath(): Promise<string> {
   const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
@@ -25,7 +43,10 @@ export async function isolatedGatewayDatabasePath(): Promise<string> {
   const databases: string[] = [];
   for (const file of files) {
     if (!file.endsWith('.sqlite')) continue;
-    const candidate = new DatabaseSync(path.join(state, file), { readOnly: true });
+    const candidate = new DatabaseSync(path.join(state, file), {
+      readOnly: true,
+      timeout: GATEWAY_LOCK_WAIT_MS,
+    });
     try {
       const tables = candidate
         .prepare(
@@ -48,8 +69,7 @@ export async function isolatedGatewayDatabasePath(): Promise<string> {
  * shares the session does to it, unseen by the page under test.
  */
 export async function exhaustWalletSessionQuota(walletId: string): Promise<void> {
-  const DatabaseSync = await loadIsolatedDatabaseSync();
-  const database = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: false });
+  const database = await openGatewayDatabase('write');
   try {
     const exhausted = database
       .prepare(
@@ -77,8 +97,7 @@ export async function loadIsolatedDatabaseSync(): Promise<NodeSqliteModule['Data
 
 /** Read-only inspection of real local D1 state through the production readers. */
 export async function openReadOnlyGatewayD1() {
-  const DatabaseSync = await loadIsolatedDatabaseSync();
-  const sqlite = new DatabaseSync(await isolatedGatewayDatabasePath(), { readOnly: true });
+  const sqlite = await openGatewayDatabase('read');
   return { database: new ReadOnlySqliteD1(sqlite), close: sqlite.close.bind(sqlite) };
 }
 

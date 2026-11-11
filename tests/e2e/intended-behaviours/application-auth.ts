@@ -24,7 +24,7 @@ import {
   fulfillNearRpcStub,
   waitForWalletIframeConfirmationSettlement,
 } from './harness';
-import { isolatedGatewayDatabasePath, loadIsolatedDatabaseSync } from './local-gateway-database';
+import { openGatewayDatabase } from './local-gateway-database';
 import { nearTransactionHash } from './near-transaction-hash';
 import {
   failOwnerReceiptWrites,
@@ -821,8 +821,7 @@ async function readSession() {
 }
 
 async function reusableAuthorityCount(walletId: string) {
-  const Database = await loadIsolatedDatabaseSync();
-  const database = new Database(await isolatedGatewayDatabasePath(), { readOnly: true });
+  const database = await openGatewayDatabase('read');
   try {
     const sessions = database
       .prepare('SELECT COUNT(*) AS count FROM wallet_session_authorizations_v2 WHERE wallet_id = ?')
@@ -975,8 +974,7 @@ async function verifyNearTransaction(
 }
 
 async function freshSigningAdmissions(walletId: string): Promise<number> {
-  const Database = await loadIsolatedDatabaseSync();
-  const database = new Database(await isolatedGatewayDatabasePath(), { readOnly: true });
+  const database = await openGatewayDatabase('read');
   try {
     const row = database
       .prepare(
