@@ -1,45 +1,35 @@
 ---
-title: Release 0.66.0
-description: Speak-to-Sign is the NEAR signer by voice, with a voice call for each signing call of seams.near.
+title: Release 0.67.0
+description: Wallet core seals each Speak-to-Sign recording to the verifier, and VoiceID records with @seams/voice-capture.
 ---
 
-# Release 0.66.0
+# Release 0.67.0
 
-The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.66.0**.
+The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.67.0**.
 
-- Speak-to-Sign is the NEAR signer by voice. Each signing call of `seams.near` has a voice call with the same name in `seams.near.speakToSign`.
-  - `signAndSendTransaction`, `signTransaction` and `signDelegateAction` sign any NEAR transaction or delegate action, with any receiver and any actions. The owner says a summary of 1 to 12 plain words. The verdict binds the receiver and the SHA-256 of the action bytes that the Wallet signs, and the co-signer builds the request again from the bytes that it signs.
-  - `signMessage` signs a NEP-413 message. The verdict binds the SHA-256 of the NEP-413 bytes. The Wallet draws the nonce before the owner speaks.
-  - The calls whose sentence comes from the request fields are in `typed`: `transfer`, `note`, `rating`, `mergeApproval` and the new `bet`. `typed.bet` signs the token's `ft_transfer_call` to a prediction market, with the checked verdict in `msg`, so that the market contract can check it too. Only the pinned USDC contract of the network is a bet token (testnet: Circle USDC).
-  - The app writes the summary of a general request, and the card shows only the summary. The voice proves who approves and what the owner said. It does not prove that the summary describes the transaction.
-  - One verdict signs once. A `step_up` verdict signs no delegate action and no message.
-  - The requests still take `presentation` and `steps`.
-- Breaking changes:
-  - `seams.speakToSign` is gone, and the old names have no aliases. Use `seams.near.speakToSign`:
-
-    | 0.65.0 | 0.66.0 |
-    | --- | --- |
-    | `seams.speakToSign.requestTransfer` | `seams.near.speakToSign.typed.transfer` |
-    | `seams.speakToSign.requestNote` | `seams.near.speakToSign.typed.note` |
-    | `seams.speakToSign.requestRating` | `seams.near.speakToSign.typed.rating` |
-    | `seams.speakToSign.requestMergeApproval` | `seams.near.speakToSign.typed.mergeApproval` |
-    | `seams.speakToSign.enroll` | `seams.near.speakToSign.enroll` |
-
-  - Every signing call returns `{ kind: 'approved', result, approval, times }` when it succeeds, or `refused`, `cancelled` or `unavailable`. The kind `sent` is gone. `result` is `{ transactionHash }` for a sent transaction and for each `typed` call, the normal result of `signTransaction` or `signDelegateAction`, or `{ accountId, publicKey, signature, nonce, state? }` for a message. The request fields do not change.
-  - The co-signer has no fixed voice limits (10 NEAR for one payment, 20 NEAR in 24 hours). The result reason `voice_limit` and the refusals `over_payment_limit` and `over_daily_limit` are gone. A limit is a rule of the Wallet policy engine.
-- The Speak-to-Sign host API is version **10**. The host plugin has the new method `requestMessage`. Install `@seams/speak-to-sign` 0.66.0 with `@seams/wallet` 0.66.0: the Wallet refuses a host plugin of another version. The VoiceID host API stays at version **11**.
-- The Speak-to-Sign verifier is **0.9.0**, OutLayer version key `6725917bd01355f08bb402271dff6265c0d03650c1b1acf8d0992b2537d65ef1`. `signAndSendTransaction`, `signTransaction`, `signDelegateAction` and `signMessage` need 0.9.0. `typed.bet` needs 0.8.0 or later. `typed.transfer`, `typed.note`, `typed.rating` and `typed.mergeApproval` also work with 0.5.2.
+- Wallet core seals each Speak-to-Sign recording before it leaves the device. The Seams server and OutLayer carry only ciphertext, and the verifier opens the recording inside its TEE.
+  - The Wallet pins the verifier's audio key (X25519) beside the verdict key in its own code. It never takes the key from the app.
+  - The seal is HPKE base mode with X25519, HKDF-SHA256 and ChaCha20-Poly1305. It binds the operation and the owner. The code is `sealAudio` of `@seams/voice-verdict`.
+  - Core seals the recordings of a spoken request and of an enrollment. A recording that core cannot seal does not leave the device. The call then ends as `unavailable` with the reason `verifier_unavailable` and the detail `recording_not_sealed`.
+  - The plugin gets no key, and the request and result fields do not change.
+- The Speak-to-Sign verifier is **0.12.0**, OutLayer version key `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946`. The Seams server must name verifier 0.12.0 or later in `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`, and its secrets profile must hold the secret `PROTECTED_AUDIO_KEY`. An older verifier refuses each spoken request with `unsupported`. Verifier 0.12.0 also takes plain recordings, so it works with a 0.66.0 Wallet.
+- Wallet core and the co-signer check a verdict with `checkVerdict` of `@seams/voice-verdict`. Before, each had its own copy of the rules. `@seams/voice-verdict` **0.67.1** is a new dependency of `@seams/wallet` and `@seams/wallet-server`.
+  - The rules do not change: the pinned key, the signature, the request, the spoken sentence, the renderer and the time limit. The check of the key and the signature now comes first.
+  - A verdict with an extra field, a `step_up` verdict with no rule and an empty verdict are refused with the detail `verdict fields are invalid`.
+- VoiceID records with `@seams/voice-capture` **0.67.1**, a new dependency of `@seams/voiceid`. The microphone, speech detection, the quality gate, asset loading, the model engine, the prompt and the phrase card come from that package. `onnxruntime-web` is not a direct dependency of `@seams/voiceid` now.
+  - The texts and the cards do not change. The VoiceID build copies the same model files to `/sdk/voiceid/`.
+  - Fix: the Record button stays in view after the microphone check. Before, the check could end during the fade of "Listening" and hide the button.
 - The transaction confirmer card has a 1px border in the new color token `transactionCardBorder` (`--seams-colors-transactionCardBorder`). It is transparent by default. Set it with `appearance.theme.colors.transactionCardBorder`.
 - The seams wordmark in the "Secured by seams" footers links to https://wallet.seams.sh and opens it in a new tab.
 - Fixes:
-  - In the Wallet modal, Transaction details open in one motion when the open card is taller than its frame. Before, the card opened in two steps and pushed Confirm out of view.
-  - The VoiceID and Speak-to-Sign plugins load the Wallet bridge (`/sdk/voiceid-host.js`, `/sdk/speak-to-sign-host.js`) with `?v=` and the pinned Wallet version. Before, a browser could run new plugin files against a cached bridge of the release before, and the plugin failed to load.
   - The Receive screen of Wallet settings shows the QR code in every app. `qrcode` is now a dependency of `@seams/wallet`, not an optional peer dependency, so apps do not install it. Before, an app without `qrcode` showed an empty box. If the Wallet cannot make the code, the screen says so.
+  - A transaction card keeps one corner radius while it opens, shows its details or closes them. Before, an app with `shape.card` `2rem` saw 32px corners at rest and 26px corners while the card moved.
   - The Add and Remove buttons of Authentication methods have room for their labels. Before, the label ran out of the button.
   - The "Secured by seams" footers center the wordmark on the line. Before, the wordmark sat higher than the text.
-- The SDK, the hosted Wallet and the server must ship together. The co-signer in `@seams/wallet-server` 0.66.0 checks the new request kinds, and an older Wallet host rejects them.
-- Install all four packages at 0.66.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
+- The Speak-to-Sign host API stays at version **10**, and the VoiceID host API stays at version **11**. Install `@seams/voiceid` 0.67.0 and `@seams/speak-to-sign` 0.67.0 with `@seams/wallet` 0.67.0.
+- Deploy in this order. First set the server's verifier to 0.12.0. Then ship the SDK, the hosted Wallet and the server together. A 0.67.0 Wallet with an older verifier cannot sign by voice.
+- Install all four packages at 0.67.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
+- For tests of VoiceID in WebKit, use Playwright 1.64.1 or later (WebKit 27.2). WebKit 26.0 of Playwright 1.56.1 corrupts ONNX Runtime at random, and the VoiceID models then fail to load. The Wallet's own tests use 1.64.1 now.
 
 The Wallet iframe protocol remains **23.0.0**, and the wallet-management protocol remains **5**.
-The signed recovery CLI remains **0.29.0**. This release adds no database migrations. The table
-`speak_to_sign_voice_verdicts` keeps its amount column, set to 0.
+The signed recovery CLI remains **0.29.0**. This release adds no database migrations.

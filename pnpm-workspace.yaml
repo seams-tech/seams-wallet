@@ -21,5 +21,5 @@ allowBuilds:
   utf-8-validate: true
   workerd: true
 minimumReleaseAgeExclude:
-  - '@seams/voice-capture@0.66.0'
+  - '@seams/voice-capture@0.67.1'
   - '@seams/voice-verdict@0.67.1'
