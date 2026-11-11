@@ -5,6 +5,9 @@ speak-to-sign `dev` at `4478fb8`. Slice 0 (the 0.67.0 release) is done. On 2026-
 owner cut the plan to Slices 1 to 5: the Speak-to-Sign part. The parts that are not in the
 plan are listed at the end.
 
+A security review of Slices 1 to 3 (2026-11-11) changed Sections 1, 3 and 4, added Section 8
+(the invariants that each slice keeps) and added a test to each of Slices 1 to 3.
+
 The owner's problem (2026-11-11): the Wallet needs too much custom code to carry VoiceID and
 Speak-to-Sign (`@seams/voiceid` and `@seams/wallet-voice-sign`). The owner wants a plugin
 surface for an authentication method and for a signing feature, and asks if that is secure.
@@ -126,6 +129,13 @@ Three results follow:
   a signature from a pinned key (a passkey, a TEE verdict). The Wallet then runs none of
   that party's code.
 
+**The limit of the co-signer's check.** The co-signer checks a verdict only when the signing
+request carries one (`checkSigningRequestVoiceVerdict` returns for a request with no
+`voice_verdict`). A client with a live Wallet Session can sign as a normal request. So the
+second check protects against a fault in Wallet core or in a plugin. It does not stop a
+hostile client. A limit that must hold against a hostile client belongs to the policy engine
+(F10), not to this check.
+
 ### 2. What must stay in Wallet code
 
 1. **Show.** The card that shows the request and the sentence.
@@ -163,21 +173,63 @@ signWithEvidence(
   this one operation, then they go away with the host API change of Slice 3.
 - The co-signer gets the same shape: one admission function for every kind.
 
-**The intent table.** One table in `packages/shared-ts/src/speakToSign/` has one entry for
-each `SpokenKind`:
+**The intent table.** One table in `packages/shared-ts/src/speakToSign/spokenKinds.ts` has
+one entry for each typed kind (transfer, note, rating, merge approval, bet):
 
 ```ts
 type SpokenKindEntry<Fields> = {
-  parse(fields: unknown): Fields | null;      // the app's request fields
-  sentence(fields: Fields): string | null;     // what the owner says, or null: app summary
-  request(fields: Fields, owner: string): Uint8Array;   // Borsh of SpokenRequestV1
-  intent(fields: Fields, owner: string): Intent;        // the bytes to sign
+  parse(fields: unknown, network): Fields | null;   // the app's fields and the limits of the kind
+  spokenText(fields: Fields): string;                // the words that the verdict binds
+  request(fields: Fields, network, owner: string): SpokenRequest;   // what the verdict names
+  call(fields: Fields, verdict: CheckedVerdict): SpokenCall;        // the one action to sign
+  fromCall(call: SignedSpokenCall, network): Fields | null;         // the fields of signed bytes
 };
 ```
 
 Core and the co-signer both read this table. A new kind is one entry and its vectors from
 speak-to-sign. Today the same knowledge is in four core files, one server file and one
 plugin method (F7).
+
+The table has two directions, and each side uses only one:
+
+- **Core goes from fields to bytes**: `parse`, then `request` and `spokenText`, then the
+  verdict check, then `call`.
+- **The co-signer goes from bytes to the request**: `fromCall` on the one action of the
+  transaction that it signs, then `request`. It never builds a request from fields, a kind
+  or a digest that the client sends. The kind that the client implies (a summary beside the
+  verdict or none) only selects the path. The digest decides.
+
+Rules for the table and the one sign path:
+
+1. **The fields hold no owner, no network and no digest.** `parse` refuses unknown keys. The
+   owner is the account of the session. The network is the network of the feature.
+2. **`parse` holds every limit of its kind.** The transfer rules (0.01 to 1,000,000 NEAR in
+   whole hundredths, a named receiver) are only in the plugin today, and core's
+   `payWithVerdict` accepts any amount. They move into `parse`. Core signs nothing when
+   `parse` returns null.
+3. **`spokenText` never returns null.** `checkVerdict` skips a digest that the caller omits.
+   So `signWithEvidence` and the admission function take the request digest as a required
+   value, and core takes the spoken-text digest as a required value, for every kind.
+4. **`call` takes only a verdict that passed the check.** The bet writes the verdict into
+   the call for the market contract. The co-signer checks that this verdict is the verdict
+   of the request.
+5. **A typed kind has one intent form**: one transaction with one action, signed and sent.
+   Only the general transaction reads a delivery (`send`, `sign` or the delegate fields)
+   from the application. The verdict does not bind the delivery.
+6. **The general kinds are not in the table.** A `transaction` and a `signed_message` have
+   no call form. Core computes `actionsSha256` and `payloadSha256` from the intent that it
+   signs, inside `signWithEvidence`. It builds the intent once for each flow, because a
+   message draws its nonce once. Today these two digests go through the plugin, and only
+   the co-signer finds a wrong one.
+7. **Core derives the step-up mode from the intent form**, never from the table or the
+   caller. A transaction asks for a fresh approval. A delegate action and a message have no
+   fresh-approval path, so they refuse a `step_up` verdict. A new intent form refuses.
+8. **"Once" is one synchronous block.** No `await` stands between the last test that the
+   flow has not signed and the assignment. Core clears the mark only for a result that
+   proves that nothing was signed.
+9. **The transfer keeps its two own behaviours.** Core checks that the receiver exists
+   before the owner speaks (today the plugin calls `receiverExists`). Only a plain transfer
+   reports `included`, because a contract call can still fail in its receipt.
 
 ### 4. The approver contract
 
@@ -192,21 +244,56 @@ interface Approver {
     surface: Surface;                  // the trusted card and its size binding
     operations: {
       record(): Promise<ClipHandle>;                         // core records and seals
-      verify(clips: ClipHandle[], signal): Promise<VerifyReply>;
-      sign(evidence: Evidence, signal, hooks): Promise<SignResult>;   // signWithEvidence
+      verify(clip: ClipHandle): Promise<VerifyReply>;
+      sign(evidence: Evidence, hooks): Promise<SignResult>;  // signWithEvidence
     };
     signal: AbortSignal;
   }): Promise<ApprovalResult>;
-  enroll(input: EnrollInput): Promise<EnrollResult>;
+  enroll(input: {
+    walletId: WalletId;
+    ownerAccountId: string;
+    surface: Surface;
+    clips: ClipHandle[] | null;        // the three clips of a VoiceID enrollment, or null
+    operations: {
+      record(sentenceIndex: number): Promise<ClipHandle>;
+      enrollClips(clips: ClipHandle[]): Promise<VerifyReply>;  // core signs and sends
+    };
+    signal: AbortSignal;
+  }): Promise<EnrollResult>;
 }
 ```
 
-- The plugin never holds raw audio that can leave the device. It holds a `ClipHandle`.
-  (Today it gets WAV bytes and core seals them at `verify`.)
+In host API 10 the plugin passes the intent to each sign operation, chooses the sentence on
+the card, builds the verifier input, holds the WAV bytes and supplies the abort signal that
+core checks. This contract removes each of these:
+
 - `sign` takes no intent. Core bound the intent when it made `operations`, so the plugin
   cannot sign a different thing with good evidence.
-- This contract is internal to `@seams/wallet` (D2). The flow is a chunk that core imports
-  on first use. No version check is necessary, because one build has both sides.
+- `record` takes no sentence. Core shows the sentence of the table on the surface.
+- `verify` takes a clip only. Core builds the verifier input: the operation, the owner of
+  the session and the request of the bound intent. Core seals with that owner.
+- The plugin never holds raw audio. A `ClipHandle` is an object with no bytes and no
+  digest. Core keeps its recording in a map of this flow, so a handle that the plugin makes,
+  or a handle of another flow, does not work. Core sets the WAV bytes to zero after it
+  seals them.
+- Enrollment obeys the same rule. Today the plugin gets the WAV of a VoiceID enrollment and
+  gives three WAV clips back for the authorization. With `enrollClips`, core signs the
+  enrollment message for the three handles and sends the sealed clips itself.
+- Core uses its own abort signal. The operations stop when `approve` or `enroll` settles,
+  so a plugin cannot sign later with operations that it kept.
+- The plugin still draws the check and the result on the surface, and it still gives
+  `sign` the verifier output. Core checks that output.
+
+The plugin runs in the Wallet origin, so this contract is a rule for its author and not a
+wall (Section 1). The gain is that a fault in the plugin cannot sign another intent or send
+a recording.
+
+- **The version.** In Slice 3 the plugin is still a package, so the contract is host API 11
+  and core refuses another version, as today: it loads `host.js?api=11`, reads
+  `hostApiVersion` and throws before it records or signs. The change of the number and the
+  check for `approve` in `isHostPlugin` go in one commit. From Slice 4 the contract is
+  internal to `@seams/wallet` (D2): the flow is a chunk that core imports on first use, one
+  build has both sides, and the version check goes away.
 - `record()` stays on the phrase surface that VoiceID gives to core (F9). Core gets the
   samples first and seals them, as today. So Speak-to-Sign still needs VoiceID on the Wallet
   host, which also serves the files of the speech model. The Wallet gets no dependency on
@@ -262,6 +349,33 @@ await seams.near.signAndSendTransaction(
 - VoiceID, passkey and Email OTP: their code, their host API and their unlock.
 - The limit of a general request: the voice proves who spoke and what they said. It does not
   prove that the app's summary describes the transaction.
+- The invariants of Section 8.
+
+### 8. Invariants that each slice keeps
+
+A slice is done only when each row has a passing test for each kind that the row applies
+to. A new kind is one table entry, its crate vectors, and its rows of the kind matrix and
+of the round trip.
+
+| # | Invariant | Where it holds | Test |
+| --- | --- | --- | --- |
+| 1 | The verdict key is pinned in code. It never comes from the app, the plugin or a server reply | Core, co-signer | A verdict of another key signs nothing |
+| 2 | The request digest comes from the bytes that are signed. No caller supplies a digest | Core: from the intent that it builds. Co-signer: from the bytes that it signs | Round trip: the co-signer builds the same request from the bytes that core built, for each kind |
+| 3 | The kind is in the digest (the tag byte). A verdict for one kind never signs another kind | Core, co-signer | Kind matrix: for each pair of kinds A and B, a verdict for B does not sign A |
+| 4 | The verdict binds the spoken words, for each kind | Core | A verdict with the correct request digest and a wrong spoken-text digest signs nothing, for each kind |
+| 5 | The verdict binds a recording of this flow | Core | A verdict with a clip of another flow signs nothing |
+| 6 | One flow signs once, and the co-signer admits one verdict once | Core (the flow), co-signer (the ledger) | Two `sign` calls at the same time give one signature. A second request with the verdict is refused |
+| 7 | A `step_up` verdict needs a fresh approval by the session's own method. An intent form with no fresh-approval path refuses | Core, co-signer | Step-up for each intent form. A verdict that expires while the owner decides signs nothing |
+| 8 | The owner is the account of the session. No field and no plugin input sets it | Core, the verify route, co-signer | A request, a verify input and a transaction of another owner are refused |
+| 9 | No recording leaves the device in the clear. From Slice 3 the plugin holds no raw audio | Core | Only sealed input reaches the verify route. A forged clip handle is refused |
+
+Rows 2 and 4 are only partly true today. The digest of a general transaction and of a
+message goes through the plugin (rule 6 of Section 3), and only the transfer has a test of
+the spoken words. Slices 1 and 3 make both rows fully true in core.
+
+The limits of each kind (no deposit on a note, a rating or a merge approval, the USDC
+`ft_transfer_call` of a bet with 1 yoctoNEAR, the amount rules) are not rows here. They
+belong to the table entries, and the crate vectors and the tests of each kind check them.
 
 ## Slices
 
@@ -271,10 +385,20 @@ Each slice ships alone and leaves the tests green.
   `@seams/wallet-voice-sign` 0.67.0, from speak-to-sign.
 - **Slice 1. `signWithEvidence` and the intent table in core and `shared-ts`.** The three
   `...WithVerdict` operations call it. No host API change. The unit tests of the four
-  Speak-to-Sign files must pass with no change to their cases.
-- **Slice 2. One admission function in the co-signer** that reads the same table.
+  Speak-to-Sign files must pass with no change to their cases. New tests: the kind matrix in
+  core, the spoken words for each kind, the transfer rules in core, two `sign` calls at the
+  same time, and a verdict that expires during a step-up (rows 3, 4, 6 and 7 of Section 8).
+- **Slice 2. One admission function in the co-signer** that reads the same table, from
+  bytes to the request only. New tests: the round trip and the kind matrix in the co-signer,
+  a transfer that is not a whole hundredth, and a `step_up` verdict for a message and for a
+  delegate action (rows 2, 3 and 7). Deploy the server before the Wallet: a kind or a call
+  form that only one side knows gives `request_mismatch`, so a wrong order refuses and signs
+  nothing.
 - **Slice 3. The approver contract.** `approve` replaces the three request methods.
-  Host API 11 for Speak-to-Sign.
+  Host API 11 for Speak-to-Sign. New tests: `sign` has no intent parameter, a forged clip
+  handle and a handle of another flow are refused, `sign` after the flow ended is refused,
+  a plugin of version 10 does not load, and a plugin of version 11 with no `approve` does
+  not load (rows 2, 8 and 9).
 - **Slice 4. The plugin goes away** (D2). Its flow becomes a chunk of `@seams/wallet`, and
   the server's verify route uses `callVerifier` of `@seams/voice-sign/server` (after the two
   changes of Section 4 in speak-to-sign). Remove the Speak-to-Sign host API version, the
@@ -293,6 +417,15 @@ The owner cut these on 2026-11-11. Each needs its own plan.
 - VoiceID unlock by a TEE verdict in place of the voice match in the browser.
 - A verifier from Wallet operator configuration.
 - `spoken-intent` as WASM in core and the co-signer, in place of the hand-written ports.
+
+The security review found these limits of today. This plan does not change them.
+
+- The co-signer's ledger admits one verdict once for each request id, not once for each
+  signed bytes. A second request with the same id and the same verdict passes the ledger.
+- The verdict does not bind the gas of a typed call.
+- The verifier does not sign `policy_text`, which the step-up confirm shows.
+- A summary cannot start with a transfer verb, but it can be the sentence of a bet or of a
+  merge approval. This rule is in the `spoken-intent` crate.
 
 ## Open questions for the owner
 
