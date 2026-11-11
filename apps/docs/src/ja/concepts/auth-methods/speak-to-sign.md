@@ -41,7 +41,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 3つのパッケージを同じバージョンでインストールします。
 
 ```sh
-pnpm add @seams/wallet@0.67.0 @seams/voiceid@0.67.0 @seams/speak-to-sign@0.67.0
+pnpm add @seams/wallet@0.67.0 @seams/voiceid@0.67.0 @seams/wallet-voice-sign@0.67.0
 ```
 
 VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加します。
@@ -49,7 +49,7 @@ VoiceIDの認証方法と一緒に、記述子を`transactionFeatures`に追加�
 ```ts [部分的な実装例]
 import { SeamsWeb } from '@seams/wallet';
 import { voiceIdAuthMethod } from '@seams/voiceid';
-import { speakToSign } from '@seams/speak-to-sign';
+import { speakToSign } from '@seams/wallet-voice-sign';
 
 const seams = new SeamsWeb({
   // ...the rest of your configuration

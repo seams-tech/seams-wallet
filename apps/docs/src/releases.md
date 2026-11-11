@@ -26,7 +26,7 @@ The browser SDK, server SDK, VoiceID plugin, and Speak-to-Sign plugin use **0.67
   - A transaction card keeps one corner radius while it opens, shows its details or closes them. Before, an app with `shape.card` `2rem` saw 32px corners at rest and 26px corners while the card moved.
   - The Add and Remove buttons of Authentication methods have room for their labels. Before, the label ran out of the button.
   - The "Secured by seams" footers center the wordmark on the line. Before, the wordmark sat higher than the text.
-- The Speak-to-Sign host API stays at version **10**, and the VoiceID host API stays at version **11**. Install `@seams/voiceid` 0.67.0 and `@seams/speak-to-sign` 0.67.0 with `@seams/wallet` 0.67.0.
+- The Speak-to-Sign host API stays at version **10**, and the VoiceID host API stays at version **11**. Install `@seams/voiceid` 0.67.0 and `@seams/wallet-voice-sign` 0.67.0 with `@seams/wallet` 0.67.0.
 - Deploy in this order. First set the server's verifier to 0.12.0. Then ship the SDK, the hosted Wallet and the server together. A 0.67.0 Wallet with an older verifier cannot sign by voice.
 - Install all four packages at 0.67.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 - For tests of VoiceID in WebKit, use Playwright 1.64.1 or later (WebKit 27.2). WebKit 26.0 of Playwright 1.56.1 corrupts ONNX Runtime at random, and the VoiceID models then fail to load. The Wallet's own tests use 1.64.1 now.

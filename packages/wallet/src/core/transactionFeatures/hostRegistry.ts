@@ -52,7 +52,7 @@ async function speakToSignLoadFailure(cause: unknown): Promise<Error> {
   const status = await probeStatus();
   return status === 404 || status === 410
     ? new Error(
-        'Speak-to-Sign is missing from this Wallet host. Install @seams/speak-to-sign on this Wallet host.',
+        'Speak-to-Sign is missing from this Wallet host. Install @seams/wallet-voice-sign on this Wallet host.',
         { cause },
       )
     : new Error('Speak-to-Sign could not load. Check your connection and retry.', { cause });
