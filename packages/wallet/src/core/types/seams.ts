@@ -8,7 +8,7 @@ import type {
 } from '../signingEngine/nonce/NonceCoordinator';
 import type { AuthenticatorOptions } from './authenticatorOptions';
 import type { WalletAuthMethodPlugin } from '../authMethods/plugins';
-import type { WalletTransactionFeaturePlugin } from '../transactionFeatures/plugins';
+import type { WalletApprovalPlugin } from '../transactionFeatures/plugins';
 import type { WalletHostVariant } from '../browser/walletIframe/hostVariant';
 import type { ClientUserData } from '../accountData/near/nearAccountData.types';
 import type { WasmSignedDelegate } from './signer-worker';
@@ -186,7 +186,7 @@ export interface SeamsConfigsInput {
   /** Opt-in wallet auth methods. Their implementation loads on first use. */
   authMethods?: readonly WalletAuthMethodPlugin[];
   /** Opt-in transaction features, such as Speak-to-Sign. Their implementation loads on first use. */
-  transactionFeatures?: readonly WalletTransactionFeaturePlugin[];
+  approvals?: readonly WalletApprovalPlugin[];
   chains?: SeamsChainConfigInput[];
   appearance?: AppearanceConfigInput;
   /**
@@ -974,7 +974,7 @@ interface SeamsUiConfig {
  */
 interface SeamsConfigsResolved {
   authMethods: readonly WalletAuthMethodPlugin[];
-  transactionFeatures: readonly WalletTransactionFeaturePlugin[];
+  approvals: readonly WalletApprovalPlugin[];
   network: SeamsNetworkConfig;
   registration: SeamsRegistrationConfig;
   signing: SeamsSigningConfig;

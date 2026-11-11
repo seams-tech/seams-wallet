@@ -29,9 +29,9 @@ import {
   type AdoptedRecordings,
 } from '@/core/transactionFeatures/hostOperations';
 import {
-  findWalletTransactionFeature,
-  type SpeakToSignFeaturePlugin,
-  type WalletTransactionFeaturePlugin,
+  findWalletApproval,
+  type SpokenApprovalPlugin,
+  type WalletApprovalPlugin,
 } from '@/core/transactionFeatures/plugins';
 import { fromTransactionInputsWasm, type TransactionInput } from '@/core/types/actions';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
@@ -65,7 +65,7 @@ import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 export type SpeakToSignWalletPorts = Readonly<{
   readVoiceIdAvailability(walletId: WalletId): Promise<AuthMethodAvailability>;
   readOperationCredential(walletId: WalletId): Promise<string>;
-  loadHost(features: readonly WalletTransactionFeaturePlugin[]): Promise<SpeakToSignHostPlugin>;
+  loadHost(features: readonly WalletApprovalPlugin[]): Promise<SpeakToSignHostPlugin>;
   /** The VoiceID host plugin shows the sentence and records the clip, so its prompt loads from VoiceID. */
   loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]): Promise<WalletAuthMethodHostPlugin>;
   /**
@@ -162,7 +162,7 @@ type PreparedFlow =
   | Readonly<{
       kind: 'ready';
       walletId: WalletId;
-      feature: SpeakToSignFeaturePlugin;
+      feature: SpokenApprovalPlugin;
       ownerAccountId: string;
       plugin: SpeakToSignHostPlugin;
       operations: SpeakToSignHostOperations;
@@ -177,8 +177,8 @@ async function prepareFlow(
   adopted?: AdoptedRecordings,
 ): Promise<PreparedFlow> {
   const runtime = deps.getWalletRuntime();
-  const features = runtime.configs.transactionFeatures;
-  const feature = findWalletTransactionFeature(features, 'speak_to_sign');
+  const features = runtime.configs.approvals;
+  const feature = findWalletApproval(features, 'spoken');
   if (!feature) throw new Error('Enable Speak-to-Sign in the SDK configuration before using it.');
   const walletId = toWalletId(request.payload.walletId);
 

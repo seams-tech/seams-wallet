@@ -81,11 +81,6 @@
       "types": "./dist/types/wallet/src/voiceid-host.d.ts",
       "import": "./dist/esm/voiceid-host.js",
       "default": "./dist/esm/voiceid-host.js"
-    },
-    "./speak-to-sign-host": {
-      "types": "./dist/types/wallet/src/speak-to-sign-host.d.ts",
-      "import": "./dist/esm/speak-to-sign-host.js",
-      "default": "./dist/esm/speak-to-sign-host.js"
     }
   },
   "files": [

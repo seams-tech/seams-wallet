@@ -904,7 +904,7 @@ async function startModalStepsApp(page: Page, host: boolean): Promise<void> {
         routerAb: { normalSigning: { mode: 'enabled', signingWorkerId: 'test-worker' } },
         registration: { projectEnvironmentId: 'proj_local:test', publishableKey: 'pk_local' },
         appearance: { theme: { id: 'default', mode: 'light' } },
-        transactionFeatures: [{ kind: 'speak_to_sign', network: 'testnet' }],
+        approvals: [{ kind: 'spoken', network: 'testnet' }],
       };
       const container = document.createElement('div');
       document.body.appendChild(container);
@@ -1165,9 +1165,9 @@ test.describe('App steps around a sign-in or VoiceID card in the Wallet modal', 
     await startModalStepsApp(page, true);
     await page.evaluate(() => {
       const state = window as unknown as ModalStepsWindow;
-      state.__seams.near.speakToSign.typed
+      state.__seams.near.spoken
         .note({
-          walletId: 'step.testnet',
+          walletSession: 'step.testnet',
           contract: 'notes.testnet',
           postId: 1,
           text: 'A note',
@@ -1239,8 +1239,8 @@ test.describe('App steps around a sign-in or VoiceID card in the Wallet modal', 
           ),
         ),
         await codeOf(
-          state.__seams.near.speakToSign.typed.note({
-            walletId: 'step.testnet',
+          state.__seams.near.spoken.note({
+            walletSession: 'step.testnet',
             contract: 'notes.testnet',
             postId: 1,
             text: 'A note',

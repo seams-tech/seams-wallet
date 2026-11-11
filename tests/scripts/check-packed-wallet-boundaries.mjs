@@ -238,10 +238,10 @@ async function smokePackedEntries() {
       2,
     ) + '\n',
   );
-  // The Speak-to-Sign host plugin (seams-tech/speak-to-sign) imports this Wallet entry.
+  // Speak-to-Sign is a part of the Wallet: the host serves no plugin file for it.
   assert.ok(
-    routes.includes('/sdk/speak-to-sign-host.js'),
-    'Composed Wallet host must serve /sdk/speak-to-sign-host.js',
+    !routes.some((route) => route.includes('speak-to-sign')),
+    'Composed Wallet host must serve no Speak-to-Sign plugin file',
   );
   const runtime = await import(
     path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/runtime.js')

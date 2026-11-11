@@ -435,8 +435,44 @@ Each slice ships alone and leaves the tests green.
   changes of Section 4 in speak-to-sign). Remove the Speak-to-Sign host API version, the
   host path `/sdk/speak-to-sign/host.js`, its `compose` step and the package in
   speak-to-sign. Deprecate the npm name.
+- **Status of Slice 4: built on 2026-11-12 on the branch `refactor-232-s4`, not merged and
+  not released.** The flow, its card and its tests are in
+  `packages/wallet/src/core/transactionFeatures/approver/`. `loadSpeakToSignApprover`
+  (`hostRegistry.ts`) imports the flow as a chunk on the first request. Gone: the host API
+  version, the host path, `@seams/wallet/speak-to-sign-host`, and the compose step in the
+  test services. `speakToSign({ network })` is an export of `@seams/wallet`. In
+  speak-to-sign, the branch `remove-wallet-plugin` removes the package and its workflow.
+  Open for the release:
+  - The docs (`apps/docs`, README) still describe 0.67.0 with the plugin package. Change
+    them in the release prepare commit: no third package, no `seams-speak-to-sign-host`
+    step, the descriptor from `@seams/wallet`.
+  - The hosted Wallet deploy (seams-monorepo) must drop its Speak-to-Sign compose step.
+  - Merge `remove-wallet-plugin` only after that Wallet is on npm, then deprecate
+    `@seams/wallet-voice-sign` on npm and change the demo import.
+  - The verify route already uses `relayToVerifier` on another branch (Slice 0b,
+    worktree `wallet-server-voice-sign`, waits for `@seams/voice-sign` 0.67.2).
 - **Slice 5. The app API** (D3): `approval` on the sign calls, `approvals` in the
   configuration, descriptors from `@seams/wallet`. Breaking.
+
+- **Status of Slice 5: built on 2026-11-12 on the branch `refactor-232-s4`, not merged and
+  not released.** The owner decided on 2026-11-12: no alias for the old names, the typed
+  requests under `seams.near.spoken`, and `approvals` in the configuration.
+  - Configuration: `approvals: [spoken({ network })]`. `spoken` is an export of
+    `@seams/wallet`. `transactionFeatures` and `speakToSign()` are gone.
+  - The four normal NEAR calls take `approval: { kind: 'spoken', summary, onProgress? }`:
+    `signAndSendTransaction`, `signTransaction`, `signDelegateAction`, `signMessage`. With
+    it, the call returns a result with a `kind` (`approved`, `refused`, `cancelled`,
+    `unavailable`) and does not throw for a refusal. Without the descriptor it throws.
+  - `seams.near.spoken` has `transfer`, `note`, `rating`, `mergeApproval`, `bet`, `enroll`
+    and `network`. A call names its wallet with `walletSession`, as the normal calls do,
+    or leaves it out for the authenticated wallet. `seams.near.speakToSign` is gone.
+  - The public layer is `SeamsWeb/publicApi/spoken.ts`. The channel to the Wallet iframe
+    and its messages did not change.
+  - Kept on purpose: the type names `SpeakToSign...` of requests and results (the product
+    name), the surface kind `speak_to_sign` of `WalletStep`, and the folder
+    `core/transactionFeatures`.
+  - Open for the release: the docs (EN and JA), the README, the demo and the example in
+    speak-to-sign, and the apps in seams-monorepo still use the old names.
 
 ## Not in this plan
 

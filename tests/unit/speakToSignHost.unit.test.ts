@@ -544,7 +544,7 @@ function coreHarness(verifier: Verifier): CoreHarness {
       recording = next;
     },
     operations: createSpeakToSignHostOperations({
-      feature: { kind: 'speak_to_sign', network: 'testnet' },
+      feature: { kind: 'spoken', network: 'testnet' },
       ownerAccountId: 'owner.testnet',
       serverUrl: 'https://relay.example.test/',
       nearClient: {

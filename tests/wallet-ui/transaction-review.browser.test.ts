@@ -211,7 +211,7 @@ test.beforeAll(() => {
 
 async function mountReviewApplication(
   page: Page,
-  transactionFeatures?: readonly Record<string, unknown>[],
+  approvals?: readonly Record<string, unknown>[],
 ): Promise<void> {
   await page.route('**/review-wallet-probe.js', (route) =>
     route.fulfill({ contentType: 'application/javascript', body: hostBundle }),
@@ -245,7 +245,7 @@ async function mountReviewApplication(
     '**://wallet.example.localhost/wallet-service*',
   );
   await page.evaluate(
-    async ({ walletOrigin, transactionFeatures }) => {
+    async ({ walletOrigin, approvals }) => {
       const state = window as any;
       state.reviewResults = [];
       state.reviewViolations = [];
@@ -331,7 +331,7 @@ async function mountReviewApplication(
         routerAb: { normalSigning: { mode: 'enabled', signingWorkerId: 'test-worker' } },
         registration: { projectEnvironmentId: 'proj_local:test', publishableKey: 'pk_local' },
         appearance: { theme: { id: 'default', mode: 'light' } },
-        ...(transactionFeatures ? { transactionFeatures } : {}),
+        ...(approvals ? { approvals } : {}),
       };
       const container = document.createElement('div');
       document.body.appendChild(container);
@@ -353,7 +353,7 @@ async function mountReviewApplication(
         ),
       );
     },
-    { walletOrigin, transactionFeatures },
+    { walletOrigin, approvals },
   );
   await expect(page.getByRole('button', { name: 'Buy', exact: true })).toBeEnabled();
 }
@@ -693,9 +693,9 @@ test('steps.after shows the signed result in the same modal until the app closes
 test('a reviewed transaction finds its review host when the config holds Speak-to-Sign', async ({
   page,
 }) => {
-  // `near.speakToSign` changes the `near` object that keys the review bridge.
-  await mountReviewApplication(page, [{ kind: 'speak_to_sign', network: 'testnet' }]);
-  expect(await page.evaluate(() => typeof (window as any).reviewSeams.near.speakToSign)).toBe(
+  // Approval by voice changes the `near` object that keys the review bridge.
+  await mountReviewApplication(page, [{ kind: 'spoken', network: 'testnet' }]);
+  expect(await page.evaluate(() => typeof (window as any).reviewSeams.near.spoken)).toBe(
     'object',
   );
   await page.evaluate(async () => {

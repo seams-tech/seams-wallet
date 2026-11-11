@@ -1,5 +1,5 @@
 import type { AuthMenuCapability, NearSignerCapability } from '@/SeamsWeb/publicApi/types';
-import type { SpeakToSignCapability } from '@/SeamsWeb/publicApi/speakToSign';
+import type { NearCapability, SpokenCalls } from '@/SeamsWeb/publicApi/spoken';
 import type { HostedAuthMenuOpenRequest } from '@/SeamsWeb/walletIframe/shared/messages';
 import type {
   ReviewedTransactionInput,
@@ -103,10 +103,10 @@ void both;
 
 // App steps around the sign-in card and a VoiceID card in the Wallet's own modal.
 declare const authMenu: AuthMenuCapability;
-declare const speakToSign: SpeakToSignCapability;
+declare const spoken: SpokenCalls;
 declare const request: HostedAuthMenuOpenRequest;
 const note = {
-  walletId: 'w.testnet',
+  walletSession: 'w.testnet',
   contract: 'notes.testnet',
   postId: 1,
   text: 'A note',
@@ -120,7 +120,7 @@ void authMenu.open(request, undefined, {
     after: (outcome, { close }) => (outcome.kind === 'authenticated' ? outcome.walletId : close),
   },
 });
-void speakToSign.typed.note({
+void spoken.note({
   ...note,
   steps: {
     title: 'Add a note',
@@ -128,4 +128,16 @@ void speakToSign.typed.note({
   },
 });
 // @ts-expect-error A request shows in the app's dialog or in the modal with steps, not both.
-void speakToSign.typed.note({ ...note, presentation: anchored, steps: { title: 'Add a note' } });
+void spoken.note({ ...note, presentation: anchored, steps: { title: 'Add a note' } });
+
+// A normal sign call with `approval` takes the same steps, with the spoken result.
+declare const appNear: NearCapability;
+void appNear.signAndSendTransaction({
+  receiverId: 'notes.testnet',
+  actions: [],
+  approval: { kind: 'spoken', summary: 'plain words' },
+  steps: {
+    title: 'Add a note',
+    after: (result) => (result.kind === 'approved' ? result.result.transactionHash : null),
+  },
+});

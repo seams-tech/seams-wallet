@@ -38,7 +38,7 @@ import type {
   SpeakToSignPromptResult,
   SpeakToSignVerifyReply,
 } from './hostPlugin';
-import type { SpeakToSignFeaturePlugin } from './plugins';
+import type { SpokenApprovalPlugin } from './plugins';
 import {
   intentDigests,
   intentRefusal,
@@ -65,7 +65,7 @@ const ENROLLMENT_MESSAGE_PREFIX = 'Speak-to-Sign voice enrollment ';
 const ENROLLMENT_RECORDINGS = 3;
 
 export type SpeakToSignHostOperationsInput = Readonly<{
-  feature: SpeakToSignFeaturePlugin;
+  feature: SpokenApprovalPlugin;
   ownerAccountId: string;
   /** The Seams server that serves the verify route. */
   serverUrl: string;

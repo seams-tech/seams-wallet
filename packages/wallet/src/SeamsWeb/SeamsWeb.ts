@@ -32,7 +32,6 @@ import type {
   DevicesCapability,
   EvmSignerCapability,
   KeyExportCapability,
-  NearSignerCapability,
   PreferencesCapability,
   RecoveryCapability,
   RegistrationCapability,
@@ -63,6 +62,7 @@ import type { AssetsCapability } from '@/SeamsWeb/publicApi/assets';
 import {
   createSpeakToSignCapability,
 } from '@/SeamsWeb/publicApi/speakToSign';
+import type { NearCapability } from '@/SeamsWeb/publicApi/spoken';
 import { createApplicationSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 /**
  * Main SeamsWeb class that provides framework-agnostic passkey operations
@@ -88,7 +88,7 @@ export class SeamsWeb {
   readonly auth: AuthCapability;
   readonly placement: WalletPlacementCapability;
   readonly registration: RegistrationCapability;
-  readonly near: NearSignerCapability;
+  readonly near: NearCapability;
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
   readonly assets: AssetsCapability;
@@ -170,7 +170,7 @@ export class SeamsWeb {
       getWalletIframe: this.getWalletIframe.bind(this),
       createSpeakToSign: () =>
         createSpeakToSignCapability(
-          this.configs.transactionFeatures,
+          this.configs.approvals,
           createApplicationSpeakToSignCommands(this.walletIframe),
           modalStepsOwner,
         ),

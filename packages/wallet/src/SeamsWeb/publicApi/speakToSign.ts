@@ -27,9 +27,9 @@ import type {
   WithPresentation,
 } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 import {
-  findWalletTransactionFeature,
+  findWalletApproval,
   type SpeakToSignNetwork,
-  type WalletTransactionFeaturePlugin,
+  type WalletApprovalPlugin,
 } from '@/core/transactionFeatures/plugins';
 import {
   runWalletModalSteps,
@@ -191,11 +191,11 @@ function signedMessage(result: SpeakToSignMessageResult): SignedMessage {
 }
 
 export function createSpeakToSignCapability(
-  features: readonly WalletTransactionFeaturePlugin[],
+  features: readonly WalletApprovalPlugin[],
   commands: SpeakToSignCommands,
   owner: WalletModalStepsOwner,
 ): SpeakToSignCapability | null {
-  const feature = findWalletTransactionFeature(features, 'speak_to_sign');
+  const feature = findWalletApproval(features, 'spoken');
   if (!feature) return null;
   /** A call that sends: the iframe's `sent` answer becomes the public `approved` result. */
   const sending =
