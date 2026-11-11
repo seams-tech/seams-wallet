@@ -18,7 +18,7 @@
   "devDependencies": {
     "@babel/plugin-transform-typescript": "7.28.5",
     "@noble/ed25519": "2.3.0",
-    "@playwright/test": "1.56.1",
+    "@playwright/test": "1.64.1",
     "@types/node": "24.2.0",
     "miniflare": "4.20260710.0",
     "viem": "2.46.0",
