@@ -522,6 +522,26 @@ test('a transaction that is not the verdict request is refused', async () => {
   expect(await cosigner.check(withVerdict(split, verdict))).toEqual(refused('request_mismatch'));
 });
 
+test('a transfer that is not a whole hundredth of NEAR is refused, also with its own verdict', async () => {
+  const verifier = await verifierKey();
+  const cosigner = harness(verifier);
+  const amountYocto = 2n * NEAR + 1n;
+  const request: SpokenRequest = {
+    kind: 'account_transfer',
+    network: 'testnet',
+    owner: OWNER,
+    receiver: 'alice.testnet',
+    amountYocto,
+  };
+  const tx = unsignedTransaction({
+    receiver: 'alice.testnet',
+    actions: [{ kind: 'transfer', yocto: amountYocto }],
+  });
+  expect(
+    await cosigner.check(withVerdict(prepareBody(tx), await signedVerdict(verifier, request))),
+  ).toEqual(refused('request_mismatch'));
+});
+
 test('a transaction of another owner than the session account is refused', async () => {
   const verifier = await verifierKey();
   const cosigner = harness(verifier);
@@ -818,6 +838,9 @@ test('a spoken bet is admitted only as one ft_transfer_call of the USDC contract
     withMsg({ ...msg, action: 'claim' }),
     withMsg({ ...msg, extra: 1 }),
     withMsg({ action: 'bet', market_id: 9, outcome: 'yes' }),
+    // The bet must carry the verdict of this request to the market contract.
+    withMsg({ ...msg, verdict_json: verdict.verdict_json.replace('accept', 'accepT') }),
+    withMsg({ ...msg, signature_b64: 'AAAA' }),
   ]) {
     expect(await cosigner.check(withVerdict(call(other), verdict)), JSON.stringify(other)).toEqual(
       refused('request_mismatch'),
