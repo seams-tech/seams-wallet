@@ -23,8 +23,12 @@ export const SPEAK_TO_SIGN_VERIFY_PATH = '/speak-to-sign/v1/verify';
  * base64, so three clips are about 1,000 KB, with room for the fields.
  */
 export const SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES = 1_100 * 1024;
-/** The verifier calls two remote models; the whole flow has a 10 s budget. */
-const OUTLAYER_TIMEOUT_MS = 20_000;
+/**
+ * The verifier calls two remote models, and OutLayer can hold a job before a worker runs it.
+ * On 2026-11-11 that wait swung from 1 s to more than 90 s within minutes, while the
+ * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s.
+ */
+const OUTLAYER_TIMEOUT_MS = 30_000;
 const OUTLAYER_RESOURCE_LIMITS = Object.freeze({
   max_instructions: 10_000_000_000,
   max_memory_mb: 128,
@@ -33,7 +37,7 @@ const OUTLAYER_RESOURCE_LIMITS = Object.freeze({
 
 /** The route exists only when the server configuration holds every field. */
 export type SpeakToSignVerifyConfig = Readonly<{
-  /** For example `https://api.outlayer.fastnear.com`. */
+  /** For example `https://testnet-api.outlayer.ai` (`*.outlayer.fastnear.com` is retired: 410). */
   outlayerBaseUrl: string;
   /** `owner/project`, for example `seams-v1.testnet/voice-verifier`. */
   project: string;
