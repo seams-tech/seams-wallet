@@ -5,8 +5,14 @@
 // summary. The crate's golden vectors check this port. Wallet core uses it to check a
 // verdict and to build the one call that it signs.
 
-import { functionCall } from '@/core/types/actionBuilders';
+import { functionCall, transfer } from '@/core/types/actionBuilders';
 import type { TransactionInput } from '@/core/types/actions';
+import {
+  spokenCallOfFields,
+  spokenRequestOfFields,
+  type SpokenCall,
+  type SpokenTypedFields,
+} from '@shared/speakToSign/spokenKinds';
 import {
   NOTE_RATINGS,
   sha256,
@@ -16,14 +22,7 @@ import {
 } from '@shared/speakToSign/spokenRequest';
 import { isValidAccountId } from '@shared/utils/near';
 import type { SpeakToSignNetwork } from './plugins';
-import {
-  betActionRefusal,
-  betBorsh,
-  betTransaction,
-  betVerifyRequest,
-  renderBet,
-  type SpokenBetAction,
-} from './spokenBet';
+import { betActionRefusal, betVerifyRequest, renderBet } from './spokenBet';
 import {
   integerWords,
   isMultiplierWord,
@@ -43,8 +42,6 @@ export const MAX_SUMMARY_BYTES = 120;
 /** The notes contract keeps a note of at most this many characters. */
 export const MAX_NOTE_CHARS = 280;
 
-/** The gas of one note call. The contract needs less than 10 Tgas. */
-const NOTE_CALL_GAS = '30000000000000';
 /** The first words of the transfer grammar. A summary cannot start with one. */
 const TRANSFER_VERBS = ['send', 'sent', 'sends'];
 /** The whole-word aliases that the crate's text step applies to a transcript. */
@@ -60,33 +57,12 @@ const RATING_WORDS: Readonly<Record<NoteRating, readonly string[]>> = {
   not_helpful: ['this', 'note', 'is', 'not', 'helpful'],
 };
 
-/** A spoken community note or note rating. The owner says the summary or the rating only. */
+/**
+ * A spoken request that signs one transaction: a typed kind of `SPOKEN_KINDS` other than the
+ * transfer (a note, a rating, a merge approval, a bet), or the general transaction.
+ */
 export type SpokenNoteAction =
-  | Readonly<{
-      kind: 'community_note';
-      /** The notes contract, a named NEAR account. */
-      contract: string;
-      postId: bigint;
-      /** The note, 1 to 280 characters. The verdict binds its SHA-256. */
-      text: string;
-      /** The sentence that the owner says. See `summaryRefusal`. */
-      summary: string;
-    }>
-  | Readonly<{ kind: 'note_rating'; contract: string; noteId: bigint; rating: NoteRating }>
-  /** A spoken approval to merge a pull request. The owner says its number and base only. */
-  | Readonly<{
-      kind: 'merge_approval';
-      /** The merge-approval contract, a named NEAR account. */
-      contract: string;
-      /** `owner/name`. The verdict binds its SHA-256. */
-      repo: string;
-      pullRequest: bigint;
-      /** The base branch, 1 to 32 lowercase letters, such as `main`. */
-      base: string;
-      /** The head commit, 40 lowercase hex characters. The verdict binds it. */
-      headCommit: string;
-    }>
-  | SpokenBetAction
+  | Exclude<SpokenTypedFields, { kind: 'account_transfer' }>
   /**
    * Any NEAR transaction from the owner's account. The owner says the summary only. The Wallet
    * host sets `actionsSha256` from the bytes that the signer builds.
@@ -243,42 +219,17 @@ export async function noteActionBorsh(
   owner: string,
   action: SpokenNoteAction,
 ): Promise<Uint8Array> {
-  if (action.kind === 'market_bet') return betBorsh(network, owner, action);
-  if (action.kind === 'transaction') {
-    return spokenRequestBorsh({
-      kind: 'transaction',
-      network,
-      owner,
-      receiver: action.transaction.receiverId,
-      actionsSha256: action.actionsSha256,
-      summary: action.summary,
-    });
+  if (action.kind !== 'transaction') {
+    return spokenRequestBorsh(await spokenRequestOfFields(action, network, owner));
   }
-  if (action.kind === 'merge_approval') {
-    return spokenRequestBorsh({
-      kind: 'merge_approval',
-      network,
-      owner,
-      contract: action.contract,
-      repoSha256: await sha256(utf8(action.repo)),
-      pullRequest: action.pullRequest,
-      base: action.base,
-      headCommit: hexBytes(action.headCommit),
-    });
-  }
-  return spokenRequestBorsh(
-    action.kind === 'note_rating'
-      ? { ...action, network, owner }
-      : {
-          kind: 'community_note',
-          network,
-          owner,
-          contract: action.contract,
-          postId: action.postId,
-          noteSha256: await noteSha256(action.text),
-          summary: action.summary,
-        },
-  );
+  return spokenRequestBorsh({
+    kind: 'transaction',
+    network,
+    owner,
+    receiver: action.transaction.receiverId,
+    actionsSha256: action.actionsSha256,
+    summary: action.summary,
+  });
 }
 
 export async function noteActionDigests(
@@ -337,49 +288,29 @@ export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-/** `headCommit` is 40 lowercase hex characters; `noteActionRefusal` checks it first. */
-function hexBytes(text: string): Uint8Array {
-  return Uint8Array.from(text.match(/../g) ?? [], (pair) => Number.parseInt(pair, 16));
-}
-
 /**
- * The transaction that core signs: `add_note`, `rate_note` or `approve_merge`, with no deposit,
- * the `ft_transfer_call` of a bet, which carries the checked verdict to the market contract, or
- * the application's own transaction of the general kind.
+ * The transaction that core signs: the one call of the typed kind (`SPOKEN_KINDS`), or the
+ * application's own transaction of the general kind. A bet carries the verdict to the market
+ * contract, so pass only a verdict that passed the check.
  */
 export function noteTransaction(
   action: SpokenNoteAction,
   verdict: SignedVoiceVerdict,
 ): TransactionInput {
-  if (action.kind === 'market_bet') return betTransaction(action, verdict);
   if (action.kind === 'transaction') return action.transaction;
-  if (action.kind === 'merge_approval') {
-    const call = functionCall({
-      method: 'approve_merge',
-      args: {
-        repo: action.repo,
-        pull_request: Number(action.pullRequest),
-        base: action.base,
-        head_commit: action.headCommit,
-      },
-      gas: NOTE_CALL_GAS,
-      deposit: '0',
-    });
-    return { receiverId: action.contract, actions: [call] };
-  }
-  const call =
-    action.kind === 'community_note'
-      ? functionCall({
-          method: 'add_note',
-          args: { post_id: Number(action.postId), text: action.text, summary: action.summary },
-          gas: NOTE_CALL_GAS,
-          deposit: '0',
-        })
+  return spokenCallTransaction(spokenCallOfFields(action, verdict));
+}
+
+/** The transaction of one action of a typed kind. */
+export function spokenCallTransaction(call: SpokenCall): TransactionInput {
+  const action =
+    call.kind === 'transfer'
+      ? transfer(`${call.depositYocto} yoctoNEAR`)
       : functionCall({
-          method: 'rate_note',
-          args: { note_id: Number(action.noteId), rating: action.rating },
-          gas: NOTE_CALL_GAS,
-          deposit: '0',
+          method: call.methodName,
+          args: { ...call.args },
+          gas: call.gas,
+          deposit: call.depositYocto.toString(),
         });
-  return { receiverId: action.contract, actions: [call] };
+  return { receiverId: call.receiverId, actions: [action] };
 }

@@ -29,6 +29,7 @@ import type { NormalizedRouterLogger } from '../../framework/logger';
 import type { RouterAbEd25519NormalSigningAuthorizationResult } from '../signingOperations/routerAbEd25519NormalSigningRoute';
 import { parseRouterAbEd25519NormalSigningScopeV2 } from '../signingOperations/routerAbPrivateSigningWorker';
 import {
+  betCarriesVerdict,
   decodeVoiceDelegate,
   decodeVoiceTransaction,
   spokenMessageRequest,
@@ -208,6 +209,17 @@ async function admitVoiceVerdict(
   }
   const digest = base64UrlEncode(await spokenRequestDigest(borsh));
   if (digest !== verdict.request_digest) return refuse('request_mismatch');
+  // A bet carries its verdict to the market contract. It must be the verdict of this request.
+  if (
+    summary === undefined &&
+    transaction &&
+    !betCarriesVerdict(target.network, transaction, {
+      verdictJson: signed.verdict_json,
+      signatureB64: signed.signature_b64,
+    })
+  ) {
+    return refuse('request_mismatch');
+  }
   // A verified bet or transfer verdict names a whole number of hundredths of USDC or NEAR.
   if (spoken.kind === 'market_bet' && spoken.amountUnits % USDC_UNITS_PER_HUNDREDTH !== 0n) {
     return refuse('request_mismatch');

@@ -2,16 +2,17 @@
 // unsigned transaction that it is asked to sign and rebuilds the `spoken-intent` request from it,
 // so the verdict's request digest can only match the transaction that is signed.
 
-import { hasExactKeys } from '@shared/utils/exactKeys';
 import { base64UrlEncode } from '@shared/utils/base64';
 import {
-  BET_OUTCOMES,
+  readBetCall,
+  spokenRequestOfCall,
+  type SignedSpokenCall,
+  type SpokenCallVerdict,
+} from '@shared/speakToSign/spokenKinds';
+import {
   isNep413Message,
   nearTransactionActionsBorsh,
-  NOTE_RATINGS,
-  SPEAK_TO_SIGN_USDC,
   sha256,
-  utf8,
   type SpeakToSignNetwork,
   type SpokenRequest,
 } from '@shared/speakToSign/spokenRequest';
@@ -27,7 +28,7 @@ type VoiceAction =
     }>;
 
 /** The fields of a NEAR `Transaction` (V0) that the check reads. */
-type VoiceTransaction = Readonly<{
+export type VoiceTransaction = Readonly<{
   signerId: string;
   receiverId: string;
   /** The one `Transfer` or `FunctionCall` of a typed request, or null for other actions. */
@@ -156,25 +157,43 @@ export async function spokenMessageRequest(
 }
 
 /**
- * The spoken request that the transaction carries out, with the signer as its owner, or null
- * when the transaction is none of the kinds that Wallet core signs for a verdict: one transfer,
- * one `add_note`, `rate_note` or `approve_merge` call with no deposit, or one bet: the
- * `ft_transfer_call` of the network's USDC contract with 1 yoctoNEAR.
+ * The typed spoken request that the transaction carries out, with the signer as its owner, or
+ * null when its one action is the call of no typed kind. The kinds and their calls are in
+ * `SPOKEN_KINDS` (`@shared/speakToSign/spokenKinds`), which Wallet core also reads: one
+ * transfer, one `add_note`, `rate_note` or `approve_merge` call with no deposit, or one bet.
  */
 export async function spokenRequestOfTransaction(
   network: SpeakToSignNetwork,
   transaction: VoiceTransaction,
 ): Promise<SpokenRequest | null> {
-  const { action, signerId: owner, receiverId } = transaction;
+  const call = signedCallOfTransaction(transaction);
+  return call ? await spokenRequestOfCall(call, network, transaction.signerId) : null;
+}
+
+/**
+ * True when the transaction is no bet, or is a bet that carries exactly this verdict to the
+ * market contract. A bet with another verdict in `msg` is not the call that core built.
+ */
+export function betCarriesVerdict(
+  network: SpeakToSignNetwork,
+  transaction: VoiceTransaction,
+  verdict: SpokenCallVerdict,
+): boolean {
+  const call = signedCallOfTransaction(transaction);
+  const bet = call ? readBetCall(call, network) : null;
+  if (!bet) return true;
+  return (
+    bet.verdict.verdictJson === verdict.verdictJson &&
+    bet.verdict.signatureB64 === verdict.signatureB64
+  );
+}
+
+/** The one action with its arguments as JSON, or null. */
+function signedCallOfTransaction(transaction: VoiceTransaction): SignedSpokenCall | null {
+  const { action, receiverId } = transaction;
   if (!action) return null;
   if (action.kind === 'transfer') {
-    return {
-      kind: 'account_transfer',
-      network,
-      owner,
-      receiver: receiverId,
-      amountYocto: action.depositYocto,
-    };
+    return { kind: 'transfer', receiverId, depositYocto: action.depositYocto };
   }
   let args: unknown;
   try {
@@ -182,121 +201,13 @@ export async function spokenRequestOfTransaction(
   } catch {
     return null;
   }
-  if (action.methodName === 'ft_transfer_call') {
-    return action.depositYocto === 1n ? marketBetOfCall(network, owner, receiverId, args) : null;
-  }
-  if (action.depositYocto !== 0n) return null;
-  if (action.methodName === 'add_note' && hasExactKeys(args, ['post_id', 'text', 'summary'])) {
-    const { post_id: postId, text, summary } = args;
-    if (!isNoteId(postId) || typeof text !== 'string' || typeof summary !== 'string') return null;
-    return {
-      kind: 'community_note',
-      network,
-      owner,
-      contract: receiverId,
-      postId: BigInt(postId),
-      noteSha256: await sha256(utf8(text)),
-      summary,
-    };
-  }
-  if (action.methodName === 'rate_note' && hasExactKeys(args, ['note_id', 'rating'])) {
-    const { note_id: noteId, rating } = args;
-    const known = NOTE_RATINGS.find((candidate) => candidate === rating);
-    if (!isNoteId(noteId) || !known) return null;
-    return {
-      kind: 'note_rating',
-      network,
-      owner,
-      contract: receiverId,
-      noteId: BigInt(noteId),
-      rating: known,
-    };
-  }
-  if (
-    action.methodName === 'approve_merge' &&
-    hasExactKeys(args, ['repo', 'pull_request', 'base', 'head_commit'])
-  ) {
-    const { repo, pull_request: pullRequest, base, head_commit: headCommit } = args;
-    if (
-      typeof repo !== 'string' ||
-      !isNoteId(pullRequest) ||
-      pullRequest < 1 ||
-      typeof base !== 'string' ||
-      typeof headCommit !== 'string' ||
-      !/^[0-9a-f]{40}$/.test(headCommit)
-    ) {
-      return null;
-    }
-    return {
-      kind: 'merge_approval',
-      network,
-      owner,
-      contract: receiverId,
-      repoSha256: await sha256(utf8(repo)),
-      pullRequest: BigInt(pullRequest),
-      base,
-      headCommit: Uint8Array.from(headCommit.match(/../g) ?? [], (pair) => Number.parseInt(pair, 16)),
-    };
-  }
-  return null;
-}
-
-/**
- * The bet of an `ft_transfer_call`: `msg` names the market id and the outcome, and it carries
- * the verdict for the market contract, which checks it. Only the network's USDC contract is a
- * bet token, because the sentence says "usdc" and an amount with 6 decimals. The Borsh of the
- * request refuses an amount that is not a `u128`.
- */
-function marketBetOfCall(
-  network: SpeakToSignNetwork,
-  owner: string,
-  token: string,
-  args: unknown,
-): SpokenRequest | null {
-  if (token !== SPEAK_TO_SIGN_USDC[network]) return null;
-  if (!hasExactKeys(args, ['receiver_id', 'amount', 'msg'])) return null;
-  const { receiver_id: market, amount, msg } = args;
-  if (typeof market !== 'string' || typeof amount !== 'string' || typeof msg !== 'string') {
-    return null;
-  }
-  if (!/^[1-9]\d{0,38}$/.test(amount)) return null;
-  let bet: unknown;
-  try {
-    bet = JSON.parse(msg);
-  } catch {
-    return null;
-  }
-  if (!hasExactKeys(bet, ['action', 'market_id', 'outcome', 'verdict_json', 'signature_b64'])) {
-    return null;
-  }
-  const { market_id: marketId, verdict_json: verdictJson, signature_b64: signatureB64 } = bet;
-  const said = bet.outcome;
-  const outcome = BET_OUTCOMES.find((candidate) => candidate === said);
-  if (
-    bet.action !== 'bet' ||
-    !isNoteId(marketId) ||
-    marketId < 1 ||
-    !outcome ||
-    typeof verdictJson !== 'string' ||
-    typeof signatureB64 !== 'string'
-  ) {
-    return null;
-  }
   return {
-    kind: 'market_bet',
-    network,
-    owner,
-    market,
-    token,
-    marketId: BigInt(marketId),
-    outcome,
-    amountUnits: BigInt(amount),
+    kind: 'function_call',
+    receiverId,
+    methodName: action.methodName,
+    args,
+    depositYocto: action.depositYocto,
   };
-}
-
-/** Wallet core sends note, post, pull request and market ids as JSON safe integers. */
-function isNoteId(value: unknown): value is number {
-  return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
 class BorshReader {
