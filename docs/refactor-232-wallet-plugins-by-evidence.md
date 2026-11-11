@@ -383,6 +383,17 @@ Each slice ships alone and leaves the tests green.
 
 - **Slice 0 (0.67.0). Done on 2026-11-11.** Released as 0.66.0 was released. The plugin is
   `@seams/wallet-voice-sign` 0.67.0, from speak-to-sign.
+- **Status of Slices 1 and 2: built on 2026-11-11 on the branch `refactor-232`, not merged
+  and not released.** `signWithEvidence` (`core/transactionFeatures/hostOperations.ts`) is
+  the one sign path, and the three `...WithVerdict` operations call it. `SPOKEN_KINDS` has
+  `request`, `call` and `fromCall` for each typed kind, and the co-signer builds a typed
+  request only through `fromCall`. The 79 old tests passed with no change to their cases.
+  Not built yet:
+  - `parse` and `spokenText` as table entries. The limits and the sentences are still
+    functions of core (`intentRefusal`, `renderTransfer`, `renderNoteAction`), and core
+    checks both digests for each kind.
+  - Tests: a verdict that expires during a step-up, the kind matrix in the co-signer, and
+    a `step_up` verdict for a message and for a delegate action in the co-signer.
 - **Slice 1. `signWithEvidence` and the intent table in core and `shared-ts`.** The three
   `...WithVerdict` operations call it. No host API change. The unit tests of the four
   Speak-to-Sign files must pass with no change to their cases. New tests: the kind matrix in

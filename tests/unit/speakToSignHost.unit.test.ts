@@ -2003,3 +2003,23 @@ test('the co-signer path of each typed kind gives the request of the core path',
     }
   }
 });
+
+test('two sign calls at the same time, each with its own accepted verdict, give one signature', async () => {
+  const verifier = await verifierKey();
+  const harness = coreHarness(verifier);
+  const digests = await intentDigests('testnet', 'owner.testnet', TRANSFER);
+  const outputs: unknown[] = [];
+  for (const seconds of [2, 3]) {
+    harness.setRecording(async () => ({ kind: 'recorded', samples: samples(seconds), endOfSpeechAt: 3 }));
+    const captured = await capture(harness.operations);
+    if (captured.kind !== 'captured') throw new Error('no clip');
+    const json = await verdictJsonFor(digests, await sha256(captured.wav));
+    outputs.push(await verifyOutput(verifier, json));
+  }
+  const results = await Promise.all(
+    outputs.map((output) => signIntent(harness.operations, TRANSFER, output)),
+  );
+  expect(results.map((result) => result.kind).sort()).toEqual(['executed', 'refused']);
+  expect(results.find((result) => result.kind === 'refused')?.detail).toBe('this flow already signed');
+  expect(harness.signed).toHaveLength(1);
+});
