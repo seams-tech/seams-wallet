@@ -3,7 +3,7 @@ import type {
   SpeakToSignHostEnrollment,
   SpeakToSignHostPlugin,
 } from './hostPlugin';
-import { findWalletTransactionFeature, type WalletTransactionFeaturePlugin } from './plugins';
+import { findWalletApproval, type WalletApprovalPlugin } from './plugins';
 
 /**
  * The Speak-to-Sign approver: the flow on the card. Its code is a chunk of the Wallet that
@@ -11,9 +11,9 @@ import { findWalletTransactionFeature, type WalletTransactionFeaturePlugin } fro
  * never loads it. Configuration cannot supply executable code.
  */
 export async function loadSpeakToSignApprover(
-  enabled: readonly WalletTransactionFeaturePlugin[],
+  enabled: readonly WalletApprovalPlugin[],
 ): Promise<SpeakToSignHostPlugin> {
-  if (!findWalletTransactionFeature(enabled, 'speak_to_sign')) {
+  if (!findWalletApproval(enabled, 'spoken')) {
     throw new Error('Enable Speak-to-Sign in the SDK configuration before using it.');
   }
   return { approve, enroll };

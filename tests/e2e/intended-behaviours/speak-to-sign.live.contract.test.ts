@@ -9,7 +9,7 @@ import { allowBrowserMicrophone, enrollBrowserMicrophone, requireActivatedVoiceI
 import { readNearIdentity } from './voiceid-near-signing';
 
 // A live testnet run: the Wallet enrolls a macOS `say` voice with the verifier through
-// `seams.near.speakToSign.enroll` (one NEP-413 confirm), then pays by voice from its own account. The
+// `seams.near.spoken.enroll` (one NEP-413 confirm), then pays by voice from its own account. The
 // Wallet's microphone plays the `say` recording of whatever sentence the VoiceID surface shows.
 // An accepted verdict must pay with no Wallet confirm. An 11 NEAR payment is above the stub
 // step-up rule, so it must show the confirm again; the account cannot pay 11 NEAR, so NEAR

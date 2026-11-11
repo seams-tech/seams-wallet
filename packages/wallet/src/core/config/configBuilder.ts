@@ -1,6 +1,6 @@
 import { normalizeWalletLocale } from '@/core/ui/locale';
 import { parseWalletAuthMethodPlugins } from '@/core/authMethods/plugins';
-import { parseWalletTransactionFeaturePlugins } from '@/core/transactionFeatures/plugins';
+import { parseWalletApprovalPlugins } from '@/core/transactionFeatures/plugins';
 import { toTrimmedString } from '@shared/utils/validation';
 import type {
   EmailOtpAuthPolicy,
@@ -309,8 +309,8 @@ export function buildConfigsFromDefaults(args: {
   const registration = resolveRegistrationConfig({ overrides, defaults });
   return {
     authMethods: parseWalletAuthMethodPlugins(overrides.authMethods ?? defaults.authMethods),
-    transactionFeatures: parseWalletTransactionFeaturePlugins(
-      overrides.transactionFeatures ?? defaults.transactionFeatures,
+    approvals: parseWalletApprovalPlugins(
+      overrides.approvals ?? defaults.approvals,
     ),
     network: {
       chains,

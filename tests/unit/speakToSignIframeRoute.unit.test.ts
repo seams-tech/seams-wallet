@@ -1,6 +1,7 @@
 import { createApplicationPublicApi } from '@/SeamsWeb/publicApi/createPublicApi';
 import { getTransactionReviewBridge } from '@/SeamsWeb/publicApi/transactionReview';
 import { createSpeakToSignCapability } from '@/SeamsWeb/publicApi/speakToSign';
+import { withSpokenApprovals } from '@/SeamsWeb/publicApi/spoken';
 import { expect, test } from '@playwright/test';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type {
@@ -15,7 +16,7 @@ import type {
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
 import { ENROLLMENT_PHRASES } from '@/core/transactionFeatures/hostApproval';
-import type { WalletTransactionFeaturePlugin } from '@/core/transactionFeatures/plugins';
+import type { WalletApprovalPlugin } from '@/core/transactionFeatures/plugins';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { createIframeSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
 import { routeWalletHostRequest } from '@/SeamsWeb/walletIframe/host/requestRouter';
@@ -41,7 +42,7 @@ import {
 
 const WALLET_ID = 'wallet:speak-to-sign';
 const PAYLOAD = { walletId: WALLET_ID, receiver: 'bob.testnet', amount: '2.5' } as const;
-const FEATURE: WalletTransactionFeaturePlugin = { kind: 'speak_to_sign', network: 'testnet' };
+const FEATURE: WalletApprovalPlugin = { kind: 'spoken', network: 'testnet' };
 const ENROLLED: SpeakToSignEnrollmentResult = {
   kind: 'enrolled',
   templateEpoch: 2,
@@ -190,7 +191,7 @@ test('the Wallet host routes the message to its NEAR runtime with a parsed paylo
 });
 
 type HandlerHarnessOptions = {
-  readonly features?: readonly WalletTransactionFeaturePlugin[];
+  readonly features?: readonly WalletApprovalPlugin[];
   readonly voiceId?: AuthMethodAvailability['kind'];
   readonly relayerUrl?: string;
   readonly nearReady?: boolean;
@@ -205,7 +206,7 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const posted: ChildToParentEnvelope[] = [];
   const pluginCalls: Parameters<SpeakToSignHostPlugin['approve']>[0][] = [];
   const enrollCalls: Parameters<SpeakToSignHostPlugin['enroll']>[0][] = [];
-  const loads: (readonly WalletTransactionFeaturePlugin[])[] = [];
+  const loads: (readonly WalletApprovalPlugin[])[] = [];
   const messages: unknown[] = [];
   const fetched: { url: string; init: RequestInit }[] = [];
   const binding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' };
@@ -249,7 +250,7 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const runtime = {
     configs: {
       authMethods,
-      transactionFeatures: features,
+      approvals: features,
       network: { relayer: { url: options.relayerUrl ?? 'https://relay.example.test' } },
     },
     auth: {
@@ -1021,7 +1022,7 @@ test('the message request carries the NEP-413 fields and the summary, and its re
   ]);
 });
 
-test('near.speakToSign has the names of the normal signer, and approved holds the normal result', async () => {
+test('the voice capability has the names of the normal signer, and approved holds the normal result', async () => {
   const calls: string[] = [];
   const answers: Record<string, unknown> = {
     requestTransaction: SENT,
@@ -1059,7 +1060,7 @@ test('near.speakToSign has the names of the normal signer, and approved holds th
       },
     },
   ) as never;
-  const feature = { kind: 'speak_to_sign', network: 'testnet' } as const;
+  const feature = { kind: 'spoken', network: 'testnet' } as const;
   expect(createSpeakToSignCapability([], commands, {} as never)).toBeNull();
   const voice = createSpeakToSignCapability([feature], commands, {} as never);
   if (!voice) throw new Error('no capability');
@@ -1117,7 +1118,7 @@ test('near.speakToSign has the names of the normal signer, and approved holds th
   ]);
 });
 
-test('the review bridge is registered for the near object that holds speakToSign', () => {
+test('the review bridge is registered for the near object that holds spoken', () => {
   // Any dependency: a callable object whose properties are the same kind of object.
   const anything = (): unknown =>
     new Proxy(() => anything(), { get: (_, name) => (name === 'then' ? undefined : anything()) });
@@ -1130,10 +1131,89 @@ test('the review bridge is registered for the near object that holds speakToSign
       ) as Parameters<typeof createApplicationPublicApi>[0],
     );
   const withVoice = build(voice);
-  expect(withVoice.near.speakToSign).toBe(voice);
+  expect(withVoice.near.spoken?.network).toBe('testnet');
+  expect('speakToSign' in withVoice.near).toBe(false);
   // A reviewed transaction (`steps`) finds its bridge by the `near` object that the app holds.
   expect(getTransactionReviewBridge(withVoice.near)).toBeTruthy();
   const plain = build(null);
-  expect('speakToSign' in plain.near).toBe(false);
+  expect('spoken' in plain.near).toBe(false);
   expect(getTransactionReviewBridge(plain.near)).toBeTruthy();
+});
+
+test('a normal sign call with approval goes to the voice flow, with the wallet of the session', async () => {
+  const calls: Array<[string, unknown]> = [];
+  const record =
+    (name: string) =>
+    async (request: unknown): Promise<unknown> => {
+      calls.push([name, request]);
+      return { kind: 'cancelled' };
+    };
+  const plain = {
+    signAndSendTransaction: record('plain send'),
+    signTransaction: record('plain sign'),
+    signDelegateAction: record('plain delegate'),
+    signMessage: record('plain message'),
+  };
+  const voice = {
+    network: 'testnet',
+    signAndSendTransaction: record('send'),
+    signTransaction: record('sign'),
+    signDelegateAction: record('delegate'),
+    signMessage: record('message'),
+    typed: { transfer: record('transfer'), note: record('note') },
+    enroll: record('enroll'),
+  };
+  const currentWallet = {
+    walletSession: async (explicit?: unknown) =>
+      ({ walletId: typeof explicit === 'string' ? explicit : 'current.testnet' }) as never,
+  };
+  const near = withSpokenApprovals(plain as never, voice as never, currentWallet);
+  const approval = { kind: 'spoken', summary: 'Sign the guest book.' } as const;
+  const transaction = { receiverId: 'guest-book.testnet', actions: [] };
+  const onProgress = () => undefined;
+  const presentation = { kind: 'anchored' } as never;
+
+  await near.signAndSendTransaction({ ...transaction, approval: { ...approval, onProgress }, presentation });
+  await near.signTransaction({ transaction, approval, walletSession: 'other.testnet' });
+  await near.signDelegateAction({
+    delegate: { ...transaction, senderId: 'ignored.testnet', nonce: 1n, maxBlockHeight: 2n, publicKey: 'ed25519:key' },
+    approval,
+  });
+  await near.signMessage({
+    params: { message: 'Log in', recipient: 'example.app', state: 's-1' },
+    approval,
+  });
+  // Without `approval` the call is the normal call, unchanged.
+  await near.signAndSendTransaction(transaction);
+  await near.spoken?.transfer({ receiver: 'bob.testnet', amount: '2.5', walletSession: 'other.testnet' });
+  await near.spoken?.enroll();
+  expect(calls).toEqual([
+    [
+      'send',
+      { walletId: 'current.testnet', transaction, summary: approval.summary, onProgress, presentation },
+    ],
+    ['sign', { walletId: 'other.testnet', transaction, summary: approval.summary }],
+    [
+      'delegate',
+      {
+        walletId: 'current.testnet',
+        delegate: { ...transaction, nonce: 1n, maxBlockHeight: 2n, publicKey: 'ed25519:key' },
+        summary: approval.summary,
+      },
+    ],
+    [
+      'message',
+      { walletId: 'current.testnet', message: 'Log in', recipient: 'example.app', state: 's-1', summary: approval.summary },
+    ],
+    ['plain send', transaction],
+    ['transfer', { walletId: 'other.testnet', receiver: 'bob.testnet', amount: '2.5' }],
+    ['enroll', { walletId: 'current.testnet' }],
+  ]);
+
+  // Without the descriptor there is no `spoken`, and a call with `approval` says what is missing.
+  const disabled = withSpokenApprovals(plain as never, null, currentWallet);
+  expect('spoken' in disabled).toBe(false);
+  await expect(disabled.signAndSendTransaction({ ...transaction, approval })).rejects.toThrow(
+    'add spoken({ network }) to `approvals`',
+  );
 });

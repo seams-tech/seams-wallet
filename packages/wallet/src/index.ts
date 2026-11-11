@@ -15,11 +15,11 @@ export type {
   VoiceIdAuthMethodPlugin,
 } from './core/authMethods/plugins';
 export type {
-  SpeakToSignFeaturePlugin,
+  SpokenApprovalPlugin,
   SpeakToSignNetwork,
-  WalletTransactionFeaturePlugin,
+  WalletApprovalPlugin,
 } from './core/transactionFeatures/plugins';
-export { speakToSign } from './core/transactionFeatures/plugins';
+export { spoken } from './core/transactionFeatures/plugins';
 export type {
   SpeakToSignBetRequest,
   SpeakToSignDelegateRequest,
@@ -48,11 +48,15 @@ export {
 } from './core/transactionFeatures/spokenNote';
 export type {
   SpeakToSignCall,
-  SpeakToSignCapability,
   SpeakToSignResult,
   SpeakToSignSentTransaction,
-  SpeakToSignTypedCalls,
 } from './SeamsWeb/publicApi/speakToSign';
+export type {
+  NearCapability,
+  SpokenApproval,
+  SpokenCalls,
+  SpokenNearSigner,
+} from './SeamsWeb/publicApi/spoken';
 export { normalizeWalletLocale } from './core/ui/locale';
 export type { WalletLocale } from './core/ui/locale';
 export type {

@@ -1,14 +1,14 @@
 import { loadSpeakToSignApprover } from '@/core/transactionFeatures/hostRegistry';
 import {
-  parseWalletTransactionFeaturePlugins,
-  type WalletTransactionFeaturePlugin,
+  parseWalletApprovalPlugins,
+  type WalletApprovalPlugin,
 } from '@/core/transactionFeatures/plugins';
 
-let enabled: readonly WalletTransactionFeaturePlugin[] = [];
+let enabled: readonly WalletApprovalPlugin[] = [];
 
 function configure(useSpeakToSign: boolean): void {
-  enabled = parseWalletTransactionFeaturePlugins(
-    useSpeakToSign ? [{ kind: 'speak_to_sign', network: 'testnet' }] : [],
+  enabled = parseWalletApprovalPlugins(
+    useSpeakToSign ? [{ kind: 'spoken', network: 'testnet' }] : [],
   );
 }
 

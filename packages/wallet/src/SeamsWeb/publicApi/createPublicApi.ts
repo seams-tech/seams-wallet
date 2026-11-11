@@ -27,6 +27,7 @@ import type {
 } from '@/SeamsWeb/signingSurface/types';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import type { SpeakToSignCapability } from './speakToSign';
+import { withSpokenApprovals, type NearCapability } from './spoken';
 import type { TransactionReviewReservation } from '../walletIframe/client/transactionReviewReservation';
 import type { CreateEvmFamilyCommands } from './evmFamilyCommands';
 import type { CreateNearCommands } from './nearCommands';
@@ -179,18 +180,20 @@ async function registerWallet(
 export function createApplicationPublicApi(
   deps: PublicApiDependencies & {
     getWalletIframe: () => WalletIframeCoordinator;
-    /** Null when the config does not hold the Speak-to-Sign descriptor. */
+    /** Null when `approvals` does not hold the `spoken` descriptor. */
     createSpeakToSign: () => SpeakToSignCapability | null;
   },
-): SeamsWebPublicApi {
+): Omit<SeamsWebPublicApi, 'near'> & { near: NearCapability } {
   const base = createPublicApi(deps);
-  const speakToSign = deps.createSpeakToSign();
-  // The review bridge and the modal steps are keyed by the `near` object that the app gets, so
-  // `near.speakToSign` is added before the bridge is registered.
-  const api = speakToSign ? { ...base, near: { ...base.near, speakToSign } } : base;
   const currentWallet = createCurrentWalletResolver({
     getWalletSession: deps.auth.getSession,
   });
+  // The review bridge and the modal steps are keyed by the `near` object that the app gets, so
+  // approval by voice is added before the bridge is registered.
+  const api = {
+    ...base,
+    near: withSpokenApprovals(base.near, deps.createSpeakToSign(), currentWallet),
+  };
   registerTransactionReviewBridge(api.near, {
     getWalletIframe: deps.getWalletIframe,
     createCapabilities: createReviewedCapabilities.bind(null, {

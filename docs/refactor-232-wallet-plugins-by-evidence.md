@@ -454,6 +454,26 @@ Each slice ships alone and leaves the tests green.
 - **Slice 5. The app API** (D3): `approval` on the sign calls, `approvals` in the
   configuration, descriptors from `@seams/wallet`. Breaking.
 
+- **Status of Slice 5: built on 2026-11-12 on the branch `refactor-232-s4`, not merged and
+  not released.** The owner decided on 2026-11-12: no alias for the old names, the typed
+  requests under `seams.near.spoken`, and `approvals` in the configuration.
+  - Configuration: `approvals: [spoken({ network })]`. `spoken` is an export of
+    `@seams/wallet`. `transactionFeatures` and `speakToSign()` are gone.
+  - The four normal NEAR calls take `approval: { kind: 'spoken', summary, onProgress? }`:
+    `signAndSendTransaction`, `signTransaction`, `signDelegateAction`, `signMessage`. With
+    it, the call returns a result with a `kind` (`approved`, `refused`, `cancelled`,
+    `unavailable`) and does not throw for a refusal. Without the descriptor it throws.
+  - `seams.near.spoken` has `transfer`, `note`, `rating`, `mergeApproval`, `bet`, `enroll`
+    and `network`. A call names its wallet with `walletSession`, as the normal calls do,
+    or leaves it out for the authenticated wallet. `seams.near.speakToSign` is gone.
+  - The public layer is `SeamsWeb/publicApi/spoken.ts`. The channel to the Wallet iframe
+    and its messages did not change.
+  - Kept on purpose: the type names `SpeakToSign...` of requests and results (the product
+    name), the surface kind `speak_to_sign` of `WalletStep`, and the folder
+    `core/transactionFeatures`.
+  - Open for the release: the docs (EN and JA), the README, the demo and the example in
+    speak-to-sign, and the apps in seams-monorepo still use the old names.
+
 ## Not in this plan
 
 The owner cut these on 2026-11-11. Each needs its own plan.
