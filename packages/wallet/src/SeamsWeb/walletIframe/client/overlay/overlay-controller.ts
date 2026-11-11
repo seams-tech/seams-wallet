@@ -7,8 +7,12 @@ import {
   type WalletIframeSurfaceGeometry,
 } from '../surface/geometry';
 import type { WalletIframeSurfaceRenderMode } from '../surface/renderer';
-import { ANCHORED_SURFACE_FADE_MS } from '../anchoredSurface';
-import { WALLET_CARD_RESIZE_EASING, WALLET_CARD_RESIZE_MS } from '../../shared/walletStep';
+import {
+  WALLET_CARD_RESIZE_EASING,
+  WALLET_CARD_RESIZE_MS,
+  walletStepTransitionTimes,
+  type WalletStepTransitionTimes,
+} from '../../shared/walletStep';
 import {
   clearDialogGeometry,
   setTransactionReviewAppearance,
@@ -68,6 +72,8 @@ type TransactionReviewReveal = {
   readonly origin: TransactionReviewRect | null;
   readonly onVisible: (rect: TransactionReviewRect | null) => void;
 };
+
+type AnchoredFadeTimes = Pick<WalletStepTransitionTimes, 'fadeInMs' | 'fadeOutMs'>;
 
 type SurfaceRect = {
   top: number;
@@ -331,6 +337,7 @@ export class OverlayController {
   private surfaceResizeTimer: ReturnType<typeof setTimeout> | null = null;
   private reviewReveal: TransactionReviewReveal | null = null;
   private anchoredFade: Animation | null = null;
+  private anchoredFadeTimes: AnchoredFadeTimes = walletStepTransitionTimes(undefined);
   private goneWaiters: Array<() => void> = [];
   private readonly laterTopLayer = new LaterTopLayer();
 
@@ -899,14 +906,23 @@ export class OverlayController {
     this.settleGone();
   }
 
+  /** How long the anchored card on screen fades in, and how long it fades out when it ends. */
+  setAnchoredFadeTimes(times: AnchoredFadeTimes): void {
+    this.anchoredFadeTimes = times;
+  }
+
   /** Fades an anchored card in or out. Returns false when no fade runs. */
   private fadeAnchored(dialog: HTMLDialogElement, direction: 'in' | 'out'): boolean {
     this.cancelAnchoredFade();
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+    const { fadeInMs, fadeOutMs } = this.anchoredFadeTimes;
+    const duration = direction === 'in' ? fadeInMs : fadeOutMs;
+    if (duration <= 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return false;
+    }
     const fade = dialog.animate(
       direction === 'in' ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }],
       {
-        duration: ANCHORED_SURFACE_FADE_MS,
+        duration,
         easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)',
         fill: direction === 'out' ? 'forwards' : 'none',
       },

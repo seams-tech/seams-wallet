@@ -26,14 +26,21 @@ import {
   type AnchoredSurfaceLayer,
   type AnchoredSurfaceStep,
 } from '@/SeamsWeb/walletIframe/client/anchoredSurface';
-import type { WalletStepChrome, WalletStepEvents } from '@/SeamsWeb/walletIframe/shared/walletStep';
+import type {
+  WalletStepChrome,
+  WalletStepEvents,
+  WalletStepTransition,
+} from '@/SeamsWeb/walletIframe/shared/walletStep';
 import type { HostedAuthMenuExternalAuthBroker, HostedSeamsAuthMenuProps } from './types';
 
 type HostedAuthMenuBridge = Pick<SeamsWeb, 'authMenu'>;
 
 type OutcomeRef = React.MutableRefObject<HostedSeamsAuthMenuProps['onOutcome']>;
 type BrokerRef = React.MutableRefObject<HostedAuthMenuExternalAuthBroker | null>;
-type StepEventsRef = React.MutableRefObject<WalletStepEvents>;
+/** The newest step events and transition times of the menu's props. */
+type StepEventsRef = React.MutableRefObject<
+  WalletStepEvents & { transition?: WalletStepTransition }
+>;
 type HostedAuthMenuFailureCode = Extract<HostedAuthMenuOutcome, { kind: 'failed' }>['code'];
 
 type HostedAuthMenuSessionArgs = {
@@ -220,10 +227,14 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
   }
 }
 
-/** The step events of one session. Each one reads the newest prop, so a re-render keeps it. */
+/**
+ * The step of one session. Each event reads the newest prop, so a re-render keeps it. The
+ * transition times are the ones at the session's start.
+ */
 function stepForEvents(layer: AnchoredSurfaceLayer, events: StepEventsRef): AnchoredSurfaceStep {
   return {
     layer,
+    transition: events.current.transition,
     onEnter: (size) => events.current.onEnter?.(size),
     onReady: () => events.current.onReady?.(),
     onResize: (size) => events.current.onResize?.(size),
@@ -507,6 +518,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   walletAlternatives,
   chrome = 'none',
   layer = 'page',
+  transition,
   onEnter,
   onReady,
   onResize,
@@ -532,8 +544,8 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     chrome,
     layer,
   });
-  const stepEventsRef = React.useRef<WalletStepEvents>({});
-  stepEventsRef.current = { onEnter, onReady, onResize, onExit, onBack, onClose };
+  const stepEventsRef: StepEventsRef = React.useRef({});
+  stepEventsRef.current = { onEnter, onReady, onResize, onExit, onBack, onClose, transition };
   const externalAuthBrokerRef = React.useRef<HostedAuthMenuExternalAuthBroker | null>(
     externalAuthBroker,
   );

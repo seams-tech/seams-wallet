@@ -51,7 +51,11 @@ type StepEvent = {
   modal: boolean;
   dialogHeight: number;
   anchorHeight: string;
+  /** When the event ran, on the page's clock. */
+  atMs: number;
 };
+
+type StepTransition = { enterDelayMs?: number; fadeInMs?: number; fadeOutMs?: number };
 
 type StepWindow = Window & {
   __stepRouter?: any;
@@ -109,9 +113,13 @@ async function startStepRouter(page: Page): Promise<void> {
 /** Opens a sign-in card over #anchor. The events record the card's state when they run. */
 async function openSignInStep(
   page: Page,
-  options: { chrome: 'back' | 'close' | 'none'; hideAppStepOnEnter?: boolean },
+  options: {
+    chrome: 'back' | 'close' | 'none';
+    hideAppStepOnEnter?: boolean;
+    transition?: StepTransition;
+  },
 ): Promise<{ requestId: string; sessionId: string; payload: any }> {
-  await page.evaluate(async ({ chrome, hideAppStepOnEnter }) => {
+  await page.evaluate(async ({ chrome, hideAppStepOnEnter, transition }) => {
     const state = window as unknown as StepWindow;
     const messages = await import('/_test-sdk/esm/SeamsWeb/walletIframe/shared/messages.js');
     const anchor = document.getElementById('anchor')!;
@@ -130,6 +138,7 @@ async function openSignInStep(
         modal: dialog instanceof HTMLDialogElement && dialog.matches(':modal'),
         dialogHeight: dialog?.getBoundingClientRect().height ?? 0,
         anchorHeight: anchor.style.getPropertyValue('--seams-auth-menu-height'),
+        atMs: performance.now(),
       });
     };
     const onEnter = record('enter');
@@ -141,6 +150,7 @@ async function openSignInStep(
       anchor,
       {
         layer: 'top',
+        transition,
         onEnter: (size: unknown) => {
           onEnter(size);
           // The recipe for one resize: the app's own step goes when the card has its size.
@@ -265,6 +275,60 @@ test.describe('Wallet cards as steps of an app dialog', () => {
     expect(exit.anchorHeight).toBe('320px');
     const outcome = await page.evaluate(() => (window as unknown as StepWindow).__stepOutcome);
     expect(outcome).toMatchObject({ kind: 'cancelled', reason: 'close_button' });
+  });
+
+  test('the app sets how long the card waits and fades', async ({ page }) => {
+    const ids = await openSignInStep(page, {
+      chrome: 'close',
+      transition: { enterDelayMs: 200, fadeInMs: 0, fadeOutMs: 300 },
+    });
+    await measureAuthMenu(page, ids, 1, { width: 400, height: 320 });
+    await waitForStepEvent(page, 'enter');
+    // The card waits for the app's dialog: it is still hidden well after one frame.
+    await page.waitForTimeout(100);
+    expect(
+      await page.evaluate(() =>
+        document
+          .querySelector('dialog.seams-wallet-overlay-dialog')!
+          .classList.contains('is-provisional'),
+      ),
+    ).toBe(true);
+    await waitForStepEvent(page, 'ready');
+
+    await postFromHost(page, {
+      type: 'PM_RESULT',
+      requestId: ids.requestId,
+      payload: {
+        ok: true,
+        result: { kind: 'cancelled', authMenuSessionId: ids.sessionId, reason: 'close_button' },
+      },
+    });
+    await waitForStepEvent(page, 'exit');
+    const events = await stepEvents(page);
+    const at = (name: string): number => events.find((event) => event.name === name)!.atMs;
+    expect(events.map((event) => event.name)).toEqual(['enter', 'ready', 'close', 'exit']);
+    expect(at('ready') - at('enter')).toBeGreaterThanOrEqual(200);
+    // With no fade-in, the card is whole when it shows.
+    expect(events[1]).toMatchObject({ name: 'ready', hidden: false, dialogHeight: 320 });
+    expect(at('exit') - at('close')).toBeGreaterThanOrEqual(290);
+  });
+
+  test('a transition time outside 0 to 1000 ms opens no card', async ({ page }) => {
+    const error = await page.evaluate(async () => {
+      const state = window as unknown as StepWindow;
+      const messages = await import('/_test-sdk/esm/SeamsWeb/walletIframe/shared/messages.js');
+      return state.__stepRouter
+        .openHostedAuthMenu(
+          messages.buildHostedAuthMenuOpenRequest({ authMenuSessionId: 'step-session-bad-time' }),
+          document.getElementById('anchor')!,
+          { layer: 'top', transition: { fadeInMs: -1 } },
+        )
+        .then(
+          () => null,
+          (cause: Error) => cause.message,
+        );
+    });
+    expect(error).toBe("A Wallet card's fadeInMs must be from 0 to 1000 milliseconds");
   });
 
   test('Back in the card reports back, and the app step keeps its state', async ({ page }) => {

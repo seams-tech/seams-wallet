@@ -7,6 +7,7 @@ import type {
   AnchoredWalletPresentation,
   WalletStepChrome,
   WalletStepEvents,
+  WalletStepTransition,
 } from '../walletIframe/shared/walletStep';
 import type { AnchoredSurfaceStep } from '../walletIframe/client/anchoredSurface';
 import type { AuthMenuCapability } from './types';
@@ -23,6 +24,8 @@ export type WalletSurfaceMountOptions<T> = WalletStepEvents &
   Readonly<{
     /** Back or Close inside the card. Defaults to none. */
     chrome?: WalletStepChrome;
+    /** How long the card waits and fades. Defaults to the Wallet's own times. */
+    transition?: WalletStepTransition;
     surface:
       | Readonly<{ kind: 'auth_menu'; request: HostedAuthMenuOpenRequest }>
       | Readonly<{ kind: 'transaction_confirm' | 'speak_to_sign'; send: WalletSurfaceSend<T> }>;
@@ -60,7 +63,7 @@ function mountWalletSurface<T>(
   anchor: HTMLElement,
   options: WalletSurfaceMountOptions<T>,
 ): MountedWalletSurface<T | HostedAuthMenuOutcome> {
-  const { surface, chrome = 'none', ...events } = options;
+  const { surface, chrome = 'none', ...step } = options;
   if (surface.kind === 'auth_menu') {
     const request = parseHostedAuthMenuOpenRequest({
       ...surface.request,
@@ -68,14 +71,14 @@ function mountWalletSurface<T>(
     });
     if (!request) throw new Error('Hosted auth-menu open request is invalid');
     return {
-      result: authMenu.open(request, anchor, { ...events, layer: 'top' }),
+      result: authMenu.open(request, anchor, { ...step, layer: 'top' }),
       dispose: () => void authMenu.cancel({ authMenuSessionId: request.authMenuSessionId }),
     };
   }
   const controller = new AbortController();
   return {
     result: surface.send({
-      ...events,
+      ...step,
       kind: 'anchored',
       anchor,
       chrome,
@@ -116,9 +119,9 @@ export function createAuthMenuOpen(
         reason: 'close_button',
       },
       send: (presentation) => {
-        const { kind: _kind, anchor, chrome, signal, ...events } = presentation;
+        const { kind: _kind, anchor, chrome, signal, ...step } = presentation;
         const mounted = mountWalletSurface(authMenu, anchor, {
-          ...events,
+          ...step,
           chrome,
           surface: { kind: 'auth_menu', request },
         });

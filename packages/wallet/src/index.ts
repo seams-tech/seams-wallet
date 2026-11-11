@@ -96,6 +96,7 @@ export type {
   WalletStepEvents,
   WalletStepExit,
   WalletStepSize,
+  WalletStepTransition,
 } from './SeamsWeb/walletIframe/shared/walletStep';
 export type {
   AnchoredSurfaceLayer,

@@ -1,6 +1,10 @@
 import type { WalletAlternativesConfig } from './walletAlternatives';
 import type { AnchoredSurfaceLayer } from '@/SeamsWeb/walletIframe/client/anchoredSurface';
-import type { WalletStepChrome, WalletStepEvents } from '@/SeamsWeb/walletIframe/shared/walletStep';
+import type {
+  WalletStepChrome,
+  WalletStepEvents,
+  WalletStepTransition,
+} from '@/SeamsWeb/walletIframe/shared/walletStep';
 export type { WalletAlternative, WalletAlternativesConfig } from './walletAlternatives';
 import type {
   HostedAuthMenuFooterBrand,
@@ -70,6 +74,11 @@ export interface HostedSeamsAuthMenuProps extends WalletStepEvents {
   externalAuthBroker?: HostedAuthMenuExternalAuthBroker | null;
   /** Back or Close inside the card, beside the card's own controls. Defaults to none. */
   chrome?: WalletStepChrome;
+  /**
+   * How long the card waits and fades. Defaults to the Wallet's own times. A menu reads it when
+   * it opens.
+   */
+  transition?: WalletStepTransition;
   /**
    * Where the card paints. `'page'` (default): in the page's own stacking order, as page
    * content does. `'top'`: above all app content, with the rest of the page inert while the

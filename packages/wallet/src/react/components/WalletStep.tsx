@@ -8,13 +8,14 @@ import {
   type WalletStepChrome,
   type WalletStepEvents,
   type WalletStepSize,
+  type WalletStepTransition,
 } from '../../SeamsWeb/walletIframe/shared/walletStep';
 import { HostedSeamsAuthMenu } from './HostedSeamsAuthMenu/shell';
 import type { HostedAuthMenuOutcome, HostedSeamsAuthMenuProps } from './HostedSeamsAuthMenu/types';
 
 type AuthMenuStepProps = Omit<
   HostedSeamsAuthMenuProps,
-  'onOutcome' | 'chrome' | 'layer' | keyof WalletStepEvents
+  'onOutcome' | 'chrome' | 'layer' | 'transition' | keyof WalletStepEvents
 >;
 
 /**
@@ -35,6 +36,11 @@ type WalletStepOptions<T> = WalletStepEvents &
   Readonly<{
     /** Back or Close inside the card. Defaults to none. */
     chrome?: WalletStepChrome;
+    /**
+     * How long the card waits and fades. Defaults to the Wallet's own times. The step reads it
+     * when it mounts.
+     */
+    transition?: WalletStepTransition;
     /**
      * The height that the step keeps until the card has its size, such as the height of the app
      * step before it. Then the app's dialog changes size once. Defaults to 0.
@@ -74,6 +80,7 @@ function AuthMenuWalletStep<T>(
         {...events}
         layer="top"
         chrome={props.chrome ?? 'none'}
+        transition={props.transition}
         onOutcome={(outcome) => latest.current.onOutcome?.({ kind: 'auth_menu', outcome })}
       />
     </div>
@@ -94,7 +101,7 @@ export function SentWalletStep<T>(props: SentWalletStepProps<T>): React.ReactEle
   React.useEffect(() => {
     const element = anchor.current;
     if (!element) return undefined;
-    const { send, chrome = 'none' } = latest.current;
+    const { send, chrome = 'none', transition } = latest.current;
     const controller = new AbortController();
     // Strict Mode mounts twice: only the mount that stays sends the call.
     queueMicrotask(() => {
@@ -104,6 +111,7 @@ export function SentWalletStep<T>(props: SentWalletStepProps<T>): React.ReactEle
         kind: 'anchored',
         anchor: element,
         chrome,
+        transition,
         signal: controller.signal,
       }).then(
         (result) => latest.current.onOutcome?.({ kind: 'result', result }),

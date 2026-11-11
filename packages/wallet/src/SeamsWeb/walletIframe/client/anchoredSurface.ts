@@ -11,11 +11,15 @@ import {
   type WalletIframeModalGeometry,
 } from './surface/geometry';
 import {
+  WALLET_STEP_TRANSITION_LIMIT_MS,
   walletStepExitForDismissal,
+  walletStepTransitionTimes,
   type WalletStepChrome,
   type WalletStepEvents,
   type WalletStepExit,
   type WalletStepSize,
+  type WalletStepTransition,
+  type WalletStepTransitionTimes,
 } from '../shared/walletStep';
 import { asRecord } from '@shared/utils/validation';
 import type { HostedAuthMenuOutcome } from '../shared/messages';
@@ -23,9 +27,6 @@ import type { HostedAuthMenuOutcome } from '../shared/messages';
 const ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
 const PLACEHOLDER_OPACITY_CSS_VAR = '--seams-auth-menu-placeholder-opacity';
 const READY_ATTRIBUTE = 'data-seams-auth-menu-ready';
-
-/** How long an anchored card fades in after its first size, and out after it ends. */
-export const ANCHORED_SURFACE_FADE_MS = 150;
 
 /**
  * `page`: the card paints in the page's own stacking order, as page content does.
@@ -39,6 +40,7 @@ export type AnchoredSurfaceOptions = WalletStepEvents &
     anchor: HTMLElement;
     layer: AnchoredSurfaceLayer;
     chrome: WalletStepChrome;
+    transition?: WalletStepTransition;
     /**
      * Checks on every frame whether the whole card is in view and uncovered, and reports each
      * change to the Wallet host, which holds the card's controls until then.
@@ -66,8 +68,12 @@ function isCancellation(error: unknown): boolean {
   return asRecord(error)?.code === 'cancelled';
 }
 
-/** The events and layer of an anchored card. The call gives the anchor and the chrome. */
-export type AnchoredSurfaceStep = WalletStepEvents & Readonly<{ layer?: AnchoredSurfaceLayer }>;
+/**
+ * The events, layer and transition times of an anchored card. The call gives the anchor and the
+ * chrome.
+ */
+export type AnchoredSurfaceStep = WalletStepEvents &
+  Readonly<{ layer?: AnchoredSurfaceLayer; transition?: WalletStepTransition }>;
 
 export type AnchoredSurfaceMetrics = {
   topCssPx: number;
@@ -204,7 +210,7 @@ function notify<T>(callback: ((value: T) => void) | undefined, value: T): void {
 
 type AnchoredSurfacePhase =
   | { readonly kind: 'loading' }
-  /** onEnter ran: the app has one frame to place the anchor before the card shows. */
+  /** onEnter ran: the app places the anchor, and then the card shows. */
   | { readonly kind: 'entering' }
   | { readonly kind: 'shown' }
   | { readonly kind: 'ready' }
@@ -222,11 +228,14 @@ export class AnchoredSurface {
   private position = '';
   private unobstructed: boolean | null = null;
   private dismissedInCard = false;
+  /** How long the card waits and fades. The overlay runs the fades. */
+  readonly transition: WalletStepTransitionTimes;
 
   constructor(
     readonly options: AnchoredSurfaceOptions,
     private readonly render: () => void,
   ) {
+    this.transition = walletStepTransitionTimes(options.transition);
     resetAnchoredSurfaceAnchor(options.anchor);
   }
 
@@ -258,7 +267,14 @@ export class AnchoredSurface {
       this.phase = { kind: 'entering' };
       publishAnchoredSurfaceHeight(this.anchor, size.height);
       notify(this.options.onEnter, size);
-      requestAnimationFrame(this.reveal);
+      // The app has at least one frame to place the anchor before the card shows.
+      const showNextFrame = (): void => {
+        this.timer = null;
+        requestAnimationFrame(this.reveal);
+      };
+      const wait = prefersReducedMotion() ? 0 : this.transition.enterDelayMs;
+      if (wait > 0) this.timer = setTimeout(showNextFrame, wait);
+      else showNextFrame();
       return;
     }
     if (!sameSize(previous, size)) notify(this.options.onResize, size);
@@ -352,7 +368,9 @@ export class AnchoredSurface {
     if (exit.kind === 'closed') notify(this.options.onClose, undefined);
     const onExit = (): void => notify(this.options.onExit, exit);
     // A card that some other surface keeps on screen still ends for the app within a second.
-    const limit = new Promise<void>((resolve) => setTimeout(resolve, 1_000));
+    const limit = new Promise<void>((resolve) =>
+      setTimeout(resolve, WALLET_STEP_TRANSITION_LIMIT_MS),
+    );
     void Promise.race([gone, limit]).then(() => requestAnimationFrame(onExit));
   }
 
@@ -363,7 +381,7 @@ export class AnchoredSurface {
     const ready = this.ready;
     this.timer = setTimeout(
       requestAnimationFrame.bind(null, ready),
-      prefersReducedMotion() ? 0 : ANCHORED_SURFACE_FADE_MS,
+      prefersReducedMotion() ? 0 : this.transition.fadeInMs,
     );
   };
 

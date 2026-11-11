@@ -171,7 +171,7 @@ no approval data. The call's own result does.
 
 | Event | When it runs |
 | --- | --- |
-| `onEnter({ width, height })` | The card has its size and is still hidden. The anchor already reserves the height. The card shows one frame later. |
+| `onEnter({ width, height })` | The card has its size and is still hidden. The anchor already reserves the height. The card shows one frame later, or after `transition.enterDelayMs`. |
 | `onReady()` | The card has faded in and is painted at its size. |
 | `onResize({ width, height })` | The card changes size. It runs before the new size paints. |
 | `onBack()`, `onClose()` | The person pressed Back or Close in the card. They run before the card fades out. |
@@ -188,6 +188,33 @@ height give the new size at once, so your dialog can ease to it with the same ti
 The anchor keeps the card's last height after `onExit`. Change it when the next app step
 shows, so that nothing jumps.
 
+## The transition times
+
+`transition` sets how long the card waits and fades. Each time is in milliseconds, from 0 to
+1000. A time that you leave out is the Wallet's own.
+
+| Time | What it sets | Default |
+| --- | --- | --- |
+| `enterDelayMs` | The wait between `onEnter` and the card's fade-in. Set it to the time that your dialog takes to animate to the card's size. | 0: the card shows one frame after `onEnter` |
+| `fadeInMs` | The card's fade-in. `onReady` runs after it. | 150 |
+| `fadeOutMs` | The card's fade-out. `onExit` runs after it. | 150 |
+
+```tsx
+<WalletStep surface={surface} transition={{ enterDelayMs: 200, fadeInMs: 100, fadeOutMs: 80 }} />
+```
+
+- `WalletStep`, `HostedSeamsAuthMenu`, `seams.surfaces.mount`, the `step` of
+  `seams.authMenu.open` and an anchored `presentation` all take `transition`.
+- A card reads `transition` when it opens. A later change applies to the next card.
+- With a time of 0, the card shows or goes with no fade.
+- A time outside 0 to 1000 makes the call fail before the card opens.
+- With reduced motion, the card does not wait and does not fade.
+- The times apply only to a card in your dialog. The Wallet's own modal keeps its own times.
+- The SDK in your page runs these transitions, so they need no change in the hosted Wallet.
+
+The time that a card eases a new size (180 ms) is not in `transition`. The Wallet iframe and
+the SDK ease the size together, so the two sides must have the same time.
+
 ## The hand-off
 
 The owner of the dialog animates the dialog. Each side fades only its own content.
@@ -196,7 +223,8 @@ Into the Wallet card:
 
 1. The app fades out its own step.
 2. The SDK loads the card at the anchor, hidden, and calls `onEnter`.
-3. The app animates its dialog to that size.
+3. The app animates its dialog to that size. `transition.enterDelayMs` holds the card for
+   that time.
 4. The SDK fades the card in and calls `onReady`.
 
 Back out:

@@ -225,7 +225,11 @@ import {
   authMenuStepExit,
   documentCoordinateGeometry,
 } from './anchoredSurface';
-import type { WalletSurfacePresentationWire, WalletStepExit } from '../shared/walletStep';
+import {
+  walletStepTransitionTimes,
+  type WalletSurfacePresentationWire,
+  type WalletStepExit,
+} from '../shared/walletStep';
 import {
   WalletIframeTransactionSurfaceQueue,
   type WalletIframeTransactionSurfaceDeadline,
@@ -1946,6 +1950,7 @@ export class WalletIframeRouter {
       geometry = documentCoordinateGeometry(geometry);
     }
     this.overlayState.controller.setAuthMenuVisualScale(authMenuVisualScale);
+    if (anchored) this.overlayState.controller.setAnchoredFadeTimes(anchored.transition);
     const toast = receiptView === 'toast';
     if (toast) {
       const width = Math.min(360, Math.max(1, viewport.widthCssPx - 32));
@@ -4173,6 +4178,8 @@ export class WalletIframeRouter {
   ): Promise<HostedAuthMenuOutcome> {
     const normalized = parseHostedAuthMenuOpenRequest(request);
     if (!normalized) throw new Error('Hosted auth-menu open request is invalid');
+    // A step with a wrong transition time opens no menu.
+    walletStepTransitionTimes(step?.transition);
     if (this.hostedAuthMenuRequestIds.has(normalized.authMenuSessionId)) {
       throw new Error('Hosted auth-menu session is already active');
     }
