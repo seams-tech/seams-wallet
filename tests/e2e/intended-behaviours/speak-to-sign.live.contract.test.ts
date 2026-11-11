@@ -17,7 +17,7 @@ import { readNearIdentity } from './voiceid-near-signing';
 // server, the local app built with VITE_SEAMS_INTENDED_SPEAK_TO_SIGN_NETWORK=testnet, and a
 // relayer that creates named accounts funded with ACCOUNT_INITIAL_BALANCE of at least 0.1 NEAR.
 // The local services serve the Speak-to-Sign host plugin only when SEAMS_SPEAK_TO_SIGN_PACKAGE_DIR
-// names a built @seams/speak-to-sign package, for example ../speak-to-sign/packages/speak-to-sign
+// names a built @seams/wallet-voice-sign package, for example ../speak-to-sign/packages/wallet-voice-sign
 // after `pnpm build` there (seams-tech/speak-to-sign).
 const LIVE = process.env.SEAMS_SPEAK_TO_SIGN_LIVE === '1';
 const RECEIVER = 'seams-v1.testnet';

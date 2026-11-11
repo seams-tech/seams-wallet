@@ -344,8 +344,8 @@ Each slice ships alone and leaves the tests green.
 
 - **Slice 0 (0.67.0). Release as 0.66.0 was released.** No API change. The plugin stays in
   speak-to-sign until Slice 4 removes it, so it does not move into this repository first.
-  Open: its npm name for the time that is left (`@seams/speak-to-sign`, which exists, or
-  `@seams/wallet-voice-sign`, which needs a first publish by hand).
+  Its npm name from 0.67.0 is `@seams/wallet-voice-sign` (the owner's choice), which needs a
+  first publish by hand.
 - **Slice 1. `signWithEvidence` and the intent table in core and `shared-ts`.** The three
   `...WithVerdict` operations call it. No host API change. The unit tests of the four
   Speak-to-Sign files must pass with no change to their cases.

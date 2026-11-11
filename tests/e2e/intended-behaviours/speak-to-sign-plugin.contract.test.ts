@@ -10,7 +10,7 @@ const HOST_PATH = 'sdk/speak-to-sign/host.js';
 type Chunk = { fileName: string; code: string; imports: string[] };
 type HostResponse = 'compatible' | 'missing' | 'incompatible';
 
-// A stand-in for the @seams/speak-to-sign host plugin, which seams-tech/speak-to-sign releases.
+// A stand-in for the @seams/wallet-voice-sign host plugin, which seams-tech/speak-to-sign releases.
 // It has the Wallet's host API version and, like the plugin, has no flow for a call without a
 // transfer.
 const COMPATIBLE_HOST = `export const hostApiVersion = ${SPEAK_TO_SIGN_HOST_API_VERSION};
@@ -123,7 +123,7 @@ test('a Wallet host refuses a missing or incompatible Speak-to-Sign plugin', asy
   await open(missing, 'missing');
   await missing.evaluate(enable);
   await expect(missing.evaluate(requestTransfer)).rejects.toThrow(
-    'Install @seams/speak-to-sign on this Wallet host',
+    'Install @seams/wallet-voice-sign on this Wallet host',
   );
   const incompatible = await browser.newPage();
   await open(incompatible, 'incompatible');

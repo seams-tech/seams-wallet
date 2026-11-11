@@ -10,7 +10,7 @@ Packages for this release:
 - `@seams/wallet@0.67.0` — browser SDK and React components.
 - `@seams/wallet-server@0.67.0` — server SDK and packaged Worker runtimes.
 - `@seams/voiceid@0.67.0` — optional VoiceID authentication plugin.
-- `@seams/speak-to-sign@0.67.0` — experimental, testnet-only NEAR signing by voice; needs VoiceID.
+- `@seams/wallet-voice-sign@0.67.0` — experimental, testnet-only NEAR signing by voice; needs VoiceID. Until 0.66.0 its name was `@seams/speak-to-sign`.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -119,7 +119,7 @@ npm install @seams/wallet-server@0.67.0
 # Applications that enable VoiceID:
 npm install @seams/voiceid@0.67.0
 # Experimental Speak-to-Sign (needs VoiceID):
-npm install @seams/speak-to-sign@0.67.0
+npm install @seams/wallet-voice-sign@0.67.0
 ```
 
 Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.

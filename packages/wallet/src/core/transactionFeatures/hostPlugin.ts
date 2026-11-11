@@ -10,7 +10,7 @@ import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
 
-/** Wallet and `@seams/speak-to-sign` must use the same value. It is separate from VoiceID's. */
+/** Wallet and `@seams/wallet-voice-sign` must use the same value. It is separate from VoiceID's. */
 export const SPEAK_TO_SIGN_HOST_API_VERSION = 10;
 
 export type SpeakToSignUnavailableReason =
