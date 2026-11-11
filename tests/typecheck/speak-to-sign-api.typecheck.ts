@@ -140,3 +140,14 @@ declare const hostVersion: typeof SPEAK_TO_SIGN_HOST_API_VERSION;
 // @ts-expect-error Speak-to-Sign has its own host API version, separate from VoiceID's.
 const sharedVersion: typeof VOICE_ID_HOST_API_VERSION = hostVersion;
 void sharedVersion;
+
+// The plugin's operations take no request: `record` nothing, `verify` one clip handle, and
+// `sign` the verifier output and the hooks. Core bound the request before it made them.
+type ApprovalOperations = import('../../packages/wallet/src/core/transactionFeatures/hostPlugin').SpeakToSignApprovalOperations;
+const recordArity: Parameters<ApprovalOperations['record']>['length'] = 0;
+const verifyArity: Parameters<ApprovalOperations['verify']>['length'] = 1;
+const signArity: Parameters<ApprovalOperations['sign']>['length'] = 2;
+void [recordArity, verifyArity, signArity];
+declare const approvalOperations: ApprovalOperations;
+// @ts-expect-error A clip handle has no audio: the plugin cannot pass bytes to `verify`.
+void approvalOperations.verify({ kind: 'captured', speechMs: 1, endOfSpeechAt: 1, wav: new Uint8Array(1) });

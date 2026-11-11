@@ -393,8 +393,7 @@ Each slice ships alone and leaves the tests green.
   - `parse` and `spokenText` as table entries. The limits and the sentences are still
     functions of core (`intentRefusal`, `renderTransfer`, `renderNoteAction`), and core
     checks both digests for each kind.
-  - Tests: a verdict that expires during a step-up, the kind matrix in the co-signer, and
-    a `step_up` verdict for a message and for a delegate action in the co-signer.
+  (The tests of both slices are built: 89 Speak-to-Sign unit tests.)
 - **Slice 1. `signWithEvidence` and the intent table in core and `shared-ts`.** The three
   `...WithVerdict` operations call it. No host API change. The unit tests of the four
   Speak-to-Sign files must pass with no change to their cases. New tests: the kind matrix in
@@ -421,8 +420,14 @@ Each slice ships alone and leaves the tests green.
     signed. `enroll` gets `phraseCount`, and the phrases are in core.
   - The request view has texts only: `kind`, `form`, `displayText`, `spokenText`,
     `counterparty`, `amount`, `summary`.
-  - Not built: a type test that `sign` has no intent parameter (the route test checks the
-    names of the operations), and a run of the plugin contract e2e test.
+  - The digests of the two general kinds (`actionsSha256`, `payloadSha256`) are computed by
+    the Wallet route (`handlers/speakToSign.ts`), which is core code, before the plugin
+    runs. They never pass through the plugin. They are not computed inside
+    `signWithEvidence`, because the action bytes come from the signer worker, which only
+    the route has. The co-signer computes both again from the bytes that it signs.
+  - Tested: the names and the arity of the operations (type test and route test), a copied
+    clip handle, the operations after the flow ended, and the plugin contract e2e test (a
+    plugin of host API 10 and a plugin with no `approve` do not load).
   - The release must ship the Wallet and the plugin together, with new versions. The
     hosted Wallet must compose the new plugin, because a plugin of host API 10 does not load.
 - **Slice 4. The plugin goes away** (D2). Its flow becomes a chunk of `@seams/wallet`, and
