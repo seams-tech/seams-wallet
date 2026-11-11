@@ -119,7 +119,8 @@
   },
   "homepage": "https://github.com/seams-tech/seams-wallet#readme",
   "dependencies": {
-    "@seams/voice-verdict": "0.67.1",
+    "@seams/voice-sign": "0.68.0",
+    "@seams/voice-verdict": "0.68.0",
     "@simplewebauthn/server": "13.2.2",
     "bs58": "6.0.0"
   },

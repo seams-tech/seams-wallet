@@ -270,12 +270,16 @@ request with `unsupported`.
 The route reads the caller's Wallet Session as identity. It answers 401
 `unauthorized` without a session and 503 `session_unavailable` when the
 session store fails, and it spends no signing use. It refuses a request for
-another owner's voice. It serves the verifier's `verify` and `enroll`
-operations and accepts a body of at most 1,100 KB. A refusal before the
-verifier call is a JSON error. After the checks, the route answers with
-`text/event-stream`: the event `verifier_running` at once, then one `verdict`
-event with the verifier output unchanged, or one `failed` event with a fixed
-code, such as `verifier_timeout`.
+another owner's voice. It serves only the verifier's `verify` and `enroll`
+operations (400 `unsupported_operation` for another one) and accepts a body
+of at most 1,100 KB. A refusal before the verifier call is a JSON error.
+After the checks, the route answers with `text/event-stream`: the event
+`verifier_running` at once, then one `verdict` event with the verifier output
+unchanged, or one `failed` event with a fixed code, such as
+`verifier_timeout`. The route calls the verifier with `relayToVerifier` of
+`@seams/voice-sign/server` (speak-to-sign repository). It cannot read the
+sealed recording, and it forwards only an output of a known kind: an error
+output of the verifier gives `failed` with `verifier_failed`.
 
 The same six variables turn on the co-signer's verdict check. It records each
 accepted verdict in the signer database table `speak_to_sign_voice_verdicts`

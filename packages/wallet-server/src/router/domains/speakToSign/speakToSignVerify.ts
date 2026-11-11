@@ -1,3 +1,4 @@
+import { relayToVerifier, VerifierCallError, type VerifierConfig } from '@seams/voice-sign/server';
 import { NEAR_ED25519_MPC_OPERATION_KINDS } from '@shared/authorization/capabilityKinds';
 import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
 import { hasExactKeys } from '@shared/utils/exactKeys';
@@ -29,6 +30,8 @@ export const SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES = 1_100 * 1024;
  * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s.
  */
 const OUTLAYER_TIMEOUT_MS = 30_000;
+/** The verifier operations that the route runs: a spoken request and an enrollment. */
+const SERVED_OPERATIONS: ReadonlySet<unknown> = new Set(['verify', 'enroll']);
 const OUTLAYER_RESOURCE_LIMITS = Object.freeze({
   max_instructions: 10_000_000_000,
   max_memory_mb: 128,
@@ -93,17 +96,14 @@ export function createSpeakToSignVerifyRouteExtensions(
   dependencies: SpeakToSignVerifyDependencies,
 ): readonly RouterApiRouteExtension[] {
   if (!config) return [];
-  return [new SpeakToSignVerifyRoutes(resolveConfig(config), dependencies)];
+  return [new SpeakToSignVerifyRoutes(resolveConfig(config, dependencies.fetch), dependencies)];
 }
 
-type ResolvedConfig = Readonly<{
-  callUrl: string;
-  versionKey: string;
-  paymentKey: string;
-  secretsRef: Readonly<{ profile: string; account_id: string }>;
-}>;
-
-function resolveConfig(config: SpeakToSignVerifyConfig): ResolvedConfig {
+/**
+ * The verifier call of `@seams/voice-sign/server` (speak-to-sign repository). The checks here are
+ * stricter than its own: a deployment error stops the server at start, not at the first call.
+ */
+function resolveConfig(config: SpeakToSignVerifyConfig, fetch: typeof globalThis.fetch): VerifierConfig {
   let base: URL;
   try {
     base = new URL(config.outlayerBaseUrl);
@@ -127,10 +127,14 @@ function resolveConfig(config: SpeakToSignVerifyConfig): ResolvedConfig {
     }
   }
   return {
-    callUrl: `${base.origin}${base.pathname.replace(/\/+$/, '')}/call/${config.project}`,
+    baseUrl: config.outlayerBaseUrl,
+    project: config.project,
     versionKey: config.versionKey,
     paymentKey: config.paymentKey,
     secretsRef: { profile: config.secretsRef.profile, account_id: config.secretsRef.accountId },
+    timeoutMs: OUTLAYER_TIMEOUT_MS,
+    resourceLimits: { ...OUTLAYER_RESOURCE_LIMITS },
+    fetch,
   };
 }
 
@@ -178,7 +182,7 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   private readonly now: () => number;
 
   constructor(
-    private readonly config: ResolvedConfig,
+    private readonly verifier: VerifierConfig,
     private readonly dependencies: SpeakToSignVerifyDependencies,
   ) {
     this.now = dependencies.now ?? Date.now;
@@ -199,6 +203,8 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     if (body === 'too_large') return failure(413, 'body_too_large');
     const verifierInput = parseVerifyBody(body);
     if (verifierInput === null) return failure(400, 'invalid_body');
+    // The payment key pays for each run. Wallet core needs only these two operations.
+    if (!SERVED_OPERATIONS.has(verifierInput.op)) return failure(400, 'unsupported_operation');
     // The verifier compares the audio with the voice template of `owner`. Only that owner may ask.
     const owner = await this.sessionNearAccount(subject);
     if (owner === null) return failure(403, 'owner_unavailable');
@@ -299,44 +305,29 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     return resolved.ok ? resolved.nearAccountId : null;
   }
 
+  /**
+   * Relays the input unchanged: the recording in it is sealed to the verifier, so this server
+   * cannot read it. `relayToVerifier` gives only an output of a known kind, unchanged.
+   */
   private async callVerifier(
     verifierInput: Record<string, unknown>,
     logger: NormalizedRouterLogger,
     startedAtMs: number,
   ): Promise<VerifierResult> {
     const outlayerStartedAtMs = this.now();
-    let response: Response;
+    let output: unknown;
     try {
-      response = await this.dependencies.fetch(this.config.callUrl, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-payment-key': this.config.paymentKey,
-        },
-        body: JSON.stringify({
-          input: verifierInput,
-          async: false,
-          version_key: this.config.versionKey,
-          secrets_ref: this.config.secretsRef,
-          resource_limits: OUTLAYER_RESOURCE_LIMITS,
-        }),
-        signal: AbortSignal.timeout(OUTLAYER_TIMEOUT_MS),
-      });
+      ({ output } = await relayToVerifier(this.verifier, verifierInput));
     } catch (error: unknown) {
-      const timedOut = error instanceof DOMException && error.name === 'TimeoutError';
-      logger.warn('[speak-to-sign] OutLayer call failed', { timedOut });
-      return { ok: false, code: timedOut ? 'verifier_timeout' : 'verifier_unreachable' };
+      const code = verifierFailure(error);
+      // The error's message can hold upstream text, so only the code and the status go to the log.
+      logger.warn('[speak-to-sign] verifier call failed', {
+        code,
+        ...(error instanceof VerifierCallError ? { cause: error.code, status: error.status } : {}),
+      });
+      return { ok: false, code };
     }
     const outlayerMs = this.now() - outlayerStartedAtMs;
-    if (!response.ok) {
-      logger.warn('[speak-to-sign] OutLayer refused the call', { status: response.status });
-      return { ok: false, code: outlayerStatusFailure(response.status) };
-    }
-    const output = readOutlayerOutput(await response.text());
-    if (output === null) {
-      logger.warn('[speak-to-sign] OutLayer returned no verifier output');
-      return { ok: false, code: 'verifier_failed' };
-    }
     return { ok: true, output, timing: { outlayerMs, serverMs: this.now() - startedAtMs } };
   }
 }
@@ -353,17 +344,20 @@ function parseVerifyBody(text: string): Record<string, unknown> | null {
   return raw.input;
 }
 
-/** The verifier's own output, unchanged, or null when the run did not complete. */
-function readOutlayerOutput(text: string): unknown {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return null;
+/** A fixed code for each failure of the call, without upstream text or the payment key. */
+function verifierFailure(error: unknown): string {
+  if (!(error instanceof VerifierCallError)) return 'verifier_failed';
+  switch (error.code) {
+    case 'timeout':
+      return 'verifier_timeout';
+    case 'network':
+      return 'verifier_unreachable';
+    case 'http':
+      return outlayerStatusFailure(error.status ?? 500);
+    case 'output':
+      // No completed run, or an output of no known kind, such as `seams_voice_error_v1`.
+      return 'verifier_failed';
   }
-  if (!isPlainObject(raw) || raw.error != null) return null;
-  if (typeof raw.status === 'string' && raw.status !== 'completed') return null;
-  return raw.output ?? null;
 }
 
 function outlayerStatusFailure(status: number): string {

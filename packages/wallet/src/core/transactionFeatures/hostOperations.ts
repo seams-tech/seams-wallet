@@ -216,6 +216,7 @@ async function openPrompt(
   try {
     surface = await input.openPhrase({
       sentence: request.sentence,
+      ...(request.autoStart ? { autoStart: true } : {}),
       signal: request.signal,
       surfaceMeasurementBinding: request.surfaceMeasurementBinding,
     });

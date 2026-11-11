@@ -22,6 +22,12 @@ const packages =
   packageTarget === 'all'
     ? [walletPackage, walletServerPackage, voiceIdPackage]
     : [walletPackage, voiceIdPackage];
+// Dependencies that each package must not name: VoiceID and its engine stay opt-in, and the
+// server needs no browser capture.
+const optInDependencies = {
+  '@seams/wallet': ['@seams/voiceid', 'onnxruntime-web', 'voice-glow'],
+  '@seams/wallet-server': ['@seams/voiceid', '@seams/voice-capture', 'onnxruntime-web', 'voice-glow'],
+};
 const forbidden = [
   '@seams-internal/console',
   '@seams-internal/wallet-console',
@@ -84,15 +90,13 @@ function inspectPackage(packageDirectory, packageDefinition) {
   assert.equal(packageJson.name, packageName);
   assert.equal(packageJson.version, packageDefinition.version);
   assert.equal(packageJson.license, 'Apache-2.0');
-  if (packageName === '@seams/wallet') {
-    for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
-      for (const dependency of ['@seams/voiceid', 'onnxruntime-web', 'voice-glow']) {
-        assert.equal(
-          packageJson[section]?.[dependency],
-          undefined,
-          `${dependency} must remain opt-in`,
-        );
-      }
+  for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+    for (const dependency of optInDependencies[packageName] ?? []) {
+      assert.equal(
+        packageJson[section]?.[dependency],
+        undefined,
+        `${dependency} must remain opt-in for ${packageName}`,
+      );
     }
   }
   assert.match(
@@ -157,6 +161,15 @@ function installPackedPackages(tarballs) {
 }
 
 async function smokePackedEntries() {
+  if (packages.includes(walletServerPackage)) {
+    // The server relays verifier calls with @seams/voice-sign/server. That package has the
+    // browser capture only as an optional peer, so a server install has no ONNX runtime.
+    const voiceSign = JSON.parse(
+      fs.readFileSync(path.join(nodeModulesDirectory, '@seams/voice-sign/package.json'), 'utf8'),
+    );
+    assert.equal(voiceSign.dependencies?.['@seams/voice-capture'], undefined);
+    assert.equal(voiceSign.peerDependenciesMeta?.['@seams/voice-capture']?.optional, true);
+  }
   const voiceId = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/index.js'));
   assert.deepEqual(voiceId.voiceIdAuthMethod(), { kind: 'voiceid', transcriptionModel: 'citrinet' });
   assert.deepEqual(voiceId.voiceIdAuthMethod({ transcriptionModel: 'aurora' }), { kind: 'voiceid', transcriptionModel: 'aurora' });

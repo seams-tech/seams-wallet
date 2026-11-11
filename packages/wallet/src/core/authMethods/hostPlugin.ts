@@ -74,6 +74,11 @@ export type AuthMethodPhraseRequest = Readonly<{
   sentence: string;
   signal: AbortSignal;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+  /**
+   * The first recording starts with no press on Record. Use it when the person just asked for
+   * the card. If the browser does not start audio without a press, the card keeps its button.
+   */
+  autoStart?: boolean;
 }>;
 
 /** One segment of the line that shows a check: waiting, working, passed, failed or held. */

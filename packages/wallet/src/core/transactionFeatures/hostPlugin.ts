@@ -401,6 +401,8 @@ export type SpeakToSignClip =
 export type SpeakToSignClipRequest = Readonly<{
   /** The sentence that the VoiceID surface shows. */
   sentence: string;
+  /** The first recording starts with no press on Record, where the browser allows it. */
+  autoStart?: boolean;
   signal: AbortSignal;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 }>;

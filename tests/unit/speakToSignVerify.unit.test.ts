@@ -24,6 +24,7 @@ const CONFIG: SpeakToSignVerifyConfig = {
   secretsRef: { profile: 'default', accountId: 'seams-v1.testnet' },
 };
 const VERIFIER_OUTPUT = {
+  kind: 'seams_voice_verify_output_v2',
   verdict_json: '{"kind":"seams_voice_verdict_v1","outcome":"accept"}',
   signature_b64: 'c2lnbmF0dXJl',
   public_key: 'ed25519:Bz1',
@@ -236,6 +237,18 @@ test('a verify input for another owner is refused before OutLayer', async () => 
   expect(harness.ownerReads[0]).toMatchObject({ walletId: harness.walletId });
 });
 
+test('an operation other than verify and enroll is refused before OutLayer', async () => {
+  const harness = await buildHarness(okOutlayer);
+  const operations = ['transcribe', 'select', 'detect', 'audio_key', undefined, ['verify']];
+  for (const op of operations) {
+    const response = await harness.send(JSON.stringify({ input: { ...VERIFIER_INPUT, op } }));
+    expect(response.status, String(op)).toBe(400);
+    expect(response.json).toEqual({ ok: false, code: 'unsupported_operation' });
+  }
+  expect(harness.calls).toHaveLength(0);
+  expect(harness.ownerReads).toHaveLength(0);
+});
+
 test('a session without a resolvable NEAR account is refused before OutLayer', async () => {
   const harness = await buildHarness(okOutlayer, { ownerResolvable: false });
   const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
@@ -318,6 +331,11 @@ test('OutLayer failures map to fixed codes without upstream text or the key', as
     [() => new Response('boom', { status: 500 }), 'verifier_failed'],
     [() => Response.json({ status: 'failed', output: null, error: `trap ${PAYMENT_KEY}` }), 'verifier_failed'],
     [() => new Response('<html>', { status: 200 }), 'verifier_failed'],
+    // An error output of the verifier is no verdict: the route does not forward it.
+    [
+      () => Response.json({ status: 'completed', output: { kind: 'seams_voice_error_v1', detail: 'no op' } }),
+      'verifier_failed',
+    ],
     [() => Promise.reject(new TypeError(`connect ${PAYMENT_KEY}`)), 'verifier_unreachable'],
     [() => Promise.reject(new DOMException('timed out', 'TimeoutError')), 'verifier_timeout'],
   ];

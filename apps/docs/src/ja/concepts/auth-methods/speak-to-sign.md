@@ -191,9 +191,11 @@ Walletが固定している音声鍵のシークレット`PROTECTED_AUDIO_KEY`�
 
 このルートは、呼び出し元のウォレットセッションを本人確認として読みます。セッションがない場合は401 `unauthorized`、
 セッションストアが失敗した場合は503 `session_unavailable`を返し、署名の使用回数は消費しません。
-別の所有者の声のリクエストは拒否します。検証者の`verify`と`enroll`の両方の操作を扱い、本文は最大1,100 KBです。
+別の所有者の声のリクエストは拒否します。検証者の操作は`verify`と`enroll`だけを扱い(ほかの操作は400 `unsupported_operation`)、本文は最大1,100 KBです。
 検証者を呼ぶ前の拒否はJSONのエラーです。確認の後、ルートは`text/event-stream`で応答します。すぐに`verifier_running`イベントを送り、
 次に検証者の出力をそのまま含む`verdict`イベントか、`verifier_timeout`のような固定のコードを含む`failed`イベントを1つ送ります。
+ルートは`@seams/voice-sign/server`(speak-to-signリポジトリ)の`relayToVerifier`で検証者を呼びます。封印された録音は読めません。
+転送するのは既知の種類の出力だけで、検証者のエラー出力は`verifier_failed`の`failed`になります。
 
 同じ6つの変数で、共同署名者による判定の確認も有効になります。共同署名者は、受け入れた判定を署名者データベースのテーブル
 `speak_to_sign_voice_verdicts`(D1のマイグレーション`0089_speak_to_sign_voice_verdicts.sql`)に記録します。

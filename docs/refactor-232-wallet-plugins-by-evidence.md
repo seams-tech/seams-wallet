@@ -475,8 +475,9 @@ Each slice ships alone and leaves the tests green.
   5. The table entries now also hold `refusal` (the limits), `render` (the sentence) and
   `verifyRequest`, so a new typed kind is one entry. The Wallet iframe protocol is 24.0.0,
   because the configuration that the app sends has `approvals`. The docs (EN and JA), the
-  README and the release notes describe the new API. Not in 0.68.0: Slice 0b (the verify
-  route with `@seams/voice-sign`), which waits for `@seams/voice-sign` 0.67.2 on npm.
+  README and the release notes describe the new API. Slice 0b is in 0.68.0 too: the verify
+  route calls `relayToVerifier` of `@seams/voice-sign` 0.68.0 and serves only `verify` and
+  `enroll`.
   After the release: the demo and the example in speak-to-sign, the apps and the deploy
   step in seams-monorepo, then the branch `remove-wallet-plugin` and the npm deprecation.
 

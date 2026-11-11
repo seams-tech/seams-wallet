@@ -421,6 +421,8 @@ test('the handler gives the plugin the owner, the request texts and bound operat
   // Core opened the card with the sentence of the request.
   expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual(['Send 2.5 NEAR to bob.testnet']);
   expect(harness.phrases[0].surfaceMeasurementBinding).toBe(harness.binding);
+  // The card of a spoken request records at once, with no press on Record.
+  expect(harness.phrases[0].autoStart).toBe(true);
   expect(seen.clip).toEqual({ kind: 'captured', speechMs: 0, endOfSpeechAt: 7 });
   expect(seen.samples).toEqual([0, 0, 0]);
   // Core built the verifier input: the owner of the session, the request and the sealed clip.
@@ -611,6 +613,8 @@ test('the enrollment handler records the phrases of core and enrolls only clips 
   });
   expect(Object.keys(input.operations).sort()).toEqual(['enrollClips', 'record', 'show']);
   expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual([...ENROLLMENT_PHRASES]);
+  // An enrollment has three phrases, so each one waits for Record.
+  expect(harness.phrases.some((phrase) => phrase.autoStart)).toBe(false);
   expect(harness.phrases[0].surfaceMeasurementBinding).toBe(harness.binding);
   expect(seen.foreign).toEqual({
     kind: 'not_signed',
