@@ -23,9 +23,15 @@ export function clip(): SpeakToSignClipHandle {
   return { kind: 'captured', speechMs: 2_000, endOfSpeechAt: 0 };
 }
 
-/** The verifier output. The plugin hands it to core unread, so any value stands for one. */
-export function verifierOutput(output: unknown = { verdict: 'opaque' }): SpeakToSignVerifyReply {
-  return { kind: 'output', output };
+/**
+ * The verifier output. The plugin hands it to core unread, so any value stands for one. Only the
+ * receipt of the result reads the verifier version from it.
+ */
+export function verifierOutput(
+  output: unknown = { verdict: 'opaque' },
+  attestationUrl: string | null = null,
+): SpeakToSignVerifyReply {
+  return { kind: 'output', output, attestationUrl };
 }
 
 /** The Seams verify route did not answer usefully. */
@@ -71,6 +77,8 @@ export type FakeHost = {
   views: string[];
   /** The caption of each result view, in order. */
   captions: unknown[];
+  /** The receipt of each result view, or undefined. */
+  receipts: unknown[];
   /** The handle of each `verify` call. */
   verified: SpeakToSignClipHandle[];
   /** The verifier output of each `sign` call. */
@@ -86,7 +94,10 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
   const show = async (view: PhraseView): Promise<PhraseChoice> => {
     host.events.push(`show: ${view.kind === 'check' ? view.caption : view.headline}`);
     host.views.push(viewName(view));
-    if (view.kind === 'result') host.captions.push(view.caption);
+    if (view.kind === 'result') {
+      host.captions.push(view.caption);
+      host.receipts.push(view.receipt);
+    }
     return view.kind === 'check' ? 'replaced' : (choices.shift() ?? 'closed');
   };
   const base = {
@@ -99,6 +110,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     events: [],
     views: [],
     captions: [],
+    receipts: [],
     verified: [],
     signed: [],
     enrolled: [],

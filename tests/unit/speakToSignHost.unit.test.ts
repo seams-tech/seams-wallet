@@ -712,6 +712,7 @@ test('core records clips, checks receivers and calls only the Seams verify route
   expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
     kind: 'output',
     output: VERIFIER_OUTPUT,
+    attestationUrl: null,
   });
   expect(harness.fetched[0].url).toBe('https://relay.example.test/speak-to-sign/v1/verify');
   expect(harness.fetched[0].init.body).toBe('{"input":{"op":"verify"}}');
@@ -768,7 +769,29 @@ test('core records clips, checks receivers and calls only the Seams verify route
   expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
     kind: 'output',
     output: VERIFIER_OUTPUT,
+    attestationUrl: null,
   });
+  // The verdict names the public OutLayer record of the call. Only an HTTPS record URL counts.
+  const record =
+    'https://testnet-api.outlayer.ai/attestations/by-call/357b87bb-c366-4327-8f09-eff79a722877';
+  for (const [given, kept] of [
+    [record, record],
+    [record.replace('https:', 'http:'), null],
+    ['https://testnet-api.outlayer.ai/other', null],
+    [42, null],
+  ] as const) {
+    harness.setVerifyResponse(() =>
+      verifyStream([
+        ['verifier_running', {}],
+        ['verdict', { ok: true, output: VERIFIER_OUTPUT, attestationUrl: given }],
+      ]),
+    );
+    expect(await harness.operations.verify({ op: 'verify' }, signal)).toEqual({
+      kind: 'output',
+      output: VERIFIER_OUTPUT,
+      attestationUrl: kept,
+    });
+  }
 });
 
 test('core pays once per flow, from the owner, with the approval the verdict names', async () => {

@@ -8,7 +8,12 @@ import type {
 } from '@/core/transactionFeatures/hostPlugin';
 import { runApproval } from '@/core/transactionFeatures/approver/flow';
 import { heardCaption } from '@/core/transactionFeatures/approver/heardWords';
-import { fakeHost, routeFailure, TRANSFER_VIEW } from './helpers/speakToSignFakeCore';
+import {
+  fakeHost,
+  routeFailure,
+  TRANSFER_VIEW,
+  verifierOutput,
+} from './helpers/speakToSignFakeCore';
 
 function view(overrides: Partial<SpeakToSignRequestView>): SpeakToSignRequestView {
   return { ...TRANSFER_VIEW, counterparty: null, amount: null, summary: null, ...overrides };
@@ -276,4 +281,64 @@ test('a general transaction that core signs and does not send ends with the sign
     expect(await runApproval(host.approval(request))).toMatchObject({ kind, signed, approval: 'voice' });
     expect(host.views.at(-1)).toBe(`result::${headline}:Done`);
   }
+});
+
+/** A verify output whose signed verdict names verifier `version`. Core checks it, not the card. */
+function signedOutput(version: string): unknown {
+  return {
+    kind: 'seams_voice_verify_output_v2',
+    verdict_json: JSON.stringify({ verifier: version, outcome: 'accept' }),
+    signature_b64: 'c2ln',
+    public_key: 'ed25519:key',
+    policy_text: null,
+    ms: {},
+    detail: null,
+  };
+}
+
+const ATTESTATION =
+  'https://testnet-api.outlayer.ai/attestations/by-call/357b87bb-c366-4327-8f09-eff79a722877';
+
+test('the paid card has the TEE receipt: the voice, the words, the verdict and the TDX quote', async () => {
+  const host = fakeHost({ reply: verifierOutput(signedOutput('0.13.0'), ATTESTATION) });
+  await runApproval(host.approval());
+  expect(host.receipts.at(-1)).toEqual({
+    title: 'TEE receipt',
+    source: 'Intel TDX · OutLayer',
+    rows: [
+      { label: 'Voice', value: 'matched owner.testnet' },
+      { label: 'Words', value: 'matched the sentence' },
+      { label: 'Verdict', value: 'signed by the OutLayer verifier 0.13.0' },
+    ],
+    link: { text: 'View TDX quote', href: ATTESTATION },
+  });
+});
+
+test('the receipt of a note has the summary check from verifier 0.13.0, and no link without a quote', async () => {
+  const note = view({ kind: 'community_note', summary: 'Only one lane closes.' });
+  const host = fakeHost({ reply: verifierOutput(signedOutput('0.13.0')) });
+  await runApproval(host.approval(note));
+  expect(host.receipts.at(-1)).toEqual({
+    title: 'TEE receipt',
+    source: 'Intel TDX · OutLayer',
+    rows: [
+      { label: 'Voice', value: 'matched owner.testnet' },
+      { label: 'Words', value: 'matched the summary' },
+      { label: 'Summary', value: 'fits the note (JEV)' },
+      { label: 'Verdict', value: 'signed by the OutLayer verifier 0.13.0' },
+    ],
+  });
+  // An older verifier did not check the summary, and an output with no version names none.
+  const older = fakeHost({ reply: verifierOutput(signedOutput('0.12.0')) });
+  await runApproval(older.approval(note));
+  expect((older.receipts.at(-1) as { rows: { label: string }[] }).rows.map((row) => row.label)).toEqual([
+    'Voice',
+    'Words',
+    'Verdict',
+  ]);
+  const opaque = fakeHost();
+  await runApproval(opaque.approval());
+  expect((opaque.receipts.at(-1) as { rows: { value: string }[] }).rows.at(-1)?.value).toBe(
+    'signed by the OutLayer verifier',
+  );
 });

@@ -301,6 +301,26 @@ test('a body above the cap or with other fields is refused before OutLayer', asy
   expect(harness.calls).toHaveLength(0);
 });
 
+test('the verdict names the full URL of the OutLayer attestation record of the call', async () => {
+  const call = '357b87bb-c366-4327-8f09-eff79a722877';
+  const harness = await buildHarness(() =>
+    Response.json({
+      status: 'completed',
+      output: VERIFIER_OUTPUT,
+      error: null,
+      job_id: 7,
+      attestation_url: `/attestations/by-call/${call}`,
+    }),
+  );
+  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  expect(response.json.attestationUrl).toBe(`https://outlayer.example.test/attestations/by-call/${call}`);
+  // Any other path is not a record of a call.
+  const other = await buildHarness(() =>
+    Response.json({ status: 'completed', output: VERIFIER_OUTPUT, error: null, attestation_url: 'https://elsewhere.test/x' }),
+  );
+  expect((await other.send(JSON.stringify({ input: VERIFIER_INPUT }))).json.attestationUrl).toBeNull();
+});
+
 test('the call forwards the exact OutLayer shape and returns the output unchanged', async () => {
   const harness = await buildHarness(okOutlayer);
   const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
@@ -309,7 +329,9 @@ test('the call forwards the exact OutLayer shape and returns the output unchange
   expect(response.events?.[0].data).toEqual({});
   expect(response.json.ok).toBe(true);
   expect(response.json.output).toEqual(VERIFIER_OUTPUT);
-  expect(Object.keys(response.json).sort()).toEqual(['ok', 'output', 'timing']);
+  expect(Object.keys(response.json).sort()).toEqual(['attestationUrl', 'ok', 'output', 'timing']);
+  // OutLayer gave no attestation path in this reply.
+  expect(response.json.attestationUrl).toBeNull();
   const timing = response.json.timing as Record<string, unknown>;
   expect(typeof timing.outlayerMs).toBe('number');
   expect(typeof timing.serverMs).toBe('number');

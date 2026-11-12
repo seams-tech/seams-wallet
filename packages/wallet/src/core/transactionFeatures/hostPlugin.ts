@@ -347,8 +347,13 @@ export type SpeakToSignEnrollmentResult =
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
 
+/**
+ * The verifier's answer through the Seams server. `attestationUrl` is the public OutLayer record
+ * of the call, with its TDX quote, or null when OutLayer gave none.
+ */
 export type SpeakToSignVerifyReply =
-  Readonly<{ kind: 'output'; output: unknown }> | SpeakToSignServerFailure;
+  | Readonly<{ kind: 'output'; output: unknown; attestationUrl: string | null }>
+  | SpeakToSignServerFailure;
 
 /** A Seams server route that did not answer: its fixed code, or the HTTP status. */
 type SpeakToSignServerFailure = Readonly<{ kind: 'failed'; code: string }>;

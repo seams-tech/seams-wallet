@@ -6,6 +6,7 @@ import type {
   SpeakToSignSurface,
 } from '../hostPlugin';
 import {
+  cardProof,
   failureView,
   paidView,
   sendingView,
@@ -13,6 +14,7 @@ import {
   stepUpView,
   verifyingView,
   type CardInput,
+  type CardProof,
 } from './card';
 import {
   mapSigning,
@@ -72,7 +74,12 @@ async function signOnce(
     return await showFailure(surface, card, verifierUnavailable(reply.code), canRetry);
   }
 
-  const onCard = paymentHooks(surface, card, clip.endOfSpeechAt);
+  const onCard = paymentHooks(
+    surface,
+    card,
+    clip.endOfSpeechAt,
+    cardProof(reply.output, reply.attestationUrl),
+  );
   const signing = await operations.sign(reply.output, onCard.hooks);
   const result = mapSigning(
     signing,
@@ -123,6 +130,7 @@ function paymentHooks(
   surface: SpeakToSignSurface,
   card: CardInput,
   endOfSpeechAt: number,
+  proof: CardProof,
 ): PaymentHooks {
   let approval: Approval = { kind: 'voice' };
   let paidCard: Promise<unknown> | null = null;
@@ -131,7 +139,7 @@ function paymentHooks(
     return (performance.now() - from) / 1_000;
   };
   const showPaid = (transactionHash: string) =>
-    surface.show(paidView(card, transactionHash, seconds()));
+    surface.show(paidView(card, transactionHash, seconds(), proof));
   return {
     hooks: {
       accepted: () => showNow(surface, sendingView(card, 'voice')),
@@ -150,7 +158,7 @@ function paymentHooks(
       },
     },
     paid: (transactionHash) => paidCard ?? showPaid(transactionHash),
-    signed: () => surface.show(signedView(card, seconds())),
+    signed: () => surface.show(signedView(card, seconds(), proof)),
   };
 }
 
@@ -167,7 +175,12 @@ async function showFailure(
 
 function cardInput(input: SpeakToSignHostApproval): CardInput {
   const { request } = input;
-  return { network: input.network, ...cardCopy(request), spokenText: request.spokenText };
+  return {
+    network: input.network,
+    owner: input.ownerAccountId,
+    ...cardCopy(request),
+    spokenText: request.spokenText,
+  };
 }
 
 /** The card copy of each kind of request, from the texts that core gives. */

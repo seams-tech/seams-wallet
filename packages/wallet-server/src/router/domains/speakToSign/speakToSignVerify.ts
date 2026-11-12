@@ -155,11 +155,15 @@ function resolveConfig(config: SpeakToSignVerifyConfig, fetch: typeof globalThis
 /** The events of the verify stream, in order. */
 type VerifyStreamEvent = 'verifier_running' | 'verdict' | 'failed';
 
-/** The data of the last event: the verifier output, or a fixed code without upstream text. */
+/**
+ * The data of the last event: the verifier output, or a fixed code without upstream text.
+ * `attestationUrl` is the public OutLayer record of the call, with its TDX quote, or null.
+ */
 type VerifierResult =
   | Readonly<{
       ok: true;
       output: unknown;
+      attestationUrl: string | null;
       timing: Readonly<{ outlayerMs: number; serverMs: number }>;
     }>
   | Readonly<{ ok: false; code: string }>;
@@ -366,8 +370,12 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   ): Promise<VerifierResult> {
     const outlayerStartedAtMs = this.now();
     let output: unknown;
+    let attestationPath: string | null;
     try {
-      ({ output } = await relayToVerifier(this.verifier, verifierInput));
+      ({ output, attestationUrl: attestationPath } = await relayToVerifier(
+        this.verifier,
+        verifierInput,
+      ));
     } catch (error: unknown) {
       const code = verifierFailure(error);
       // The error's message can hold upstream text, so only the code and the status go to the log.
@@ -378,8 +386,23 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
       return { ok: false, code };
     }
     const outlayerMs = this.now() - outlayerStartedAtMs;
-    return { ok: true, output, timing: { outlayerMs, serverMs: this.now() - startedAtMs } };
+    return {
+      ok: true,
+      output,
+      attestationUrl: attestationUrlOf(this.verifier.baseUrl, attestationPath),
+      timing: { outlayerMs, serverMs: this.now() - startedAtMs },
+    };
   }
+}
+
+/**
+ * The full URL of the OutLayer attestation record of a call, from the `attestation_url` path
+ * that OutLayer gives (`/attestations/by-call/<call id>`). Null for any other value.
+ */
+export function attestationUrlOf(baseUrl: string, path: string | null): string | null {
+  if (path === null || !/^\/attestations\/by-call\/[0-9a-f-]{1,64}$/.test(path)) return null;
+  const base = new URL(baseUrl);
+  return `${base.origin}${base.pathname.replace(/\/+$/, '')}${path}`;
 }
 
 /** Body: `{ input }`, where `input` is the verifier input object. The server does not read it. */

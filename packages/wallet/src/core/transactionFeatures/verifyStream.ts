@@ -29,6 +29,18 @@ export async function readVerifyStream(
   }
 }
 
+/** The OutLayer attestation record of the call: an HTTPS URL of a call's record, else null. */
+function attestationUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    const record = /^\/(?:.*\/)?attestations\/by-call\/[0-9a-f-]{1,64}$/;
+    return url.protocol === 'https:' && record.test(url.pathname) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function readEvent(block: string): SpeakToSignVerifyReply | 'verifier_running' | null {
   let name = '';
   let data = '';
@@ -44,7 +56,11 @@ function readEvent(block: string): SpeakToSignVerifyReply | 'verifier_running' |
     return null;
   }
   if (name === 'verdict' && isPlainObject(parsed) && parsed.ok === true && 'output' in parsed) {
-    return { kind: 'output', output: parsed.output };
+    return {
+      kind: 'output',
+      output: parsed.output,
+      attestationUrl: attestationUrl(parsed.attestationUrl),
+    };
   }
   if (name !== 'failed') return null;
   const code = isPlainObject(parsed) && typeof parsed.code === 'string' ? parsed.code : '';

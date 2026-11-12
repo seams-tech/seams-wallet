@@ -1,9 +1,12 @@
 import type { SpeakToSignNetwork } from '../plugins';
 import type {
   PhraseCheckView,
+  PhraseReceipt,
   PhraseResultView,
   PhraseSegmentState,
 } from '@/core/authMethods/hostPlugin';
+import { isPlainObject } from '@shared/utils/validation';
+import { parseVerifyOutput } from '../voiceVerdict';
 import { heardCaption } from './heardWords';
 import { isVerifierTimeout, type FailedResult } from './result';
 
@@ -62,6 +65,8 @@ export type CardNoun =
 
 export type CardInput = Readonly<{
   network: SpeakToSignNetwork;
+  /** The owner's NEAR account: the voice that the verifier matched. */
+  owner: string;
   noun: CardNoun;
   /** The result, such as "Sent 0.01 NEAR" and "To bob.testnet". */
   doneHeadline: string;
@@ -196,13 +201,86 @@ export function stepUpView(
   };
 }
 
-export function paidView(input: CardInput, hash: string, seconds: number): PhraseResultView {
+/** What a receipt shows of one verifier call: the version in its verdict, and its attestation. */
+export type CardProof = Readonly<{
+  /** The verifier version in the signed verdict, such as "0.13.0". */
+  verifier: string | null;
+  /** The public OutLayer record of the call, with its TDX quote. */
+  attestationUrl: string | null;
+}>;
+
+/** The proof of one verifier call, from its output and the attestation URL of the call. */
+export function cardProof(output: unknown, attestationUrl: string | null): CardProof {
+  return { verifier: verdictVersion(output), attestationUrl };
+}
+
+function verdictVersion(output: unknown): string | null {
+  const parsed = parseVerifyOutput(output);
+  if (!parsed) return null;
+  try {
+    const verdict: unknown = JSON.parse(parsed.verdictJson);
+    if (!isPlainObject(verdict) || typeof verdict.verifier !== 'string') return null;
+    return /^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(verdict.verifier) ? verdict.verifier : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The receipt of a signed request: the checks of the verifier, which the OutLayer worker signs
+ * in an Intel TDX TEE, and the link to the TDX quote of the call. The voice is the owner's
+ * account; a note also had its summary checked against the note.
+ */
+export function receiptView(input: CardInput, proof: CardProof): PhraseReceipt {
+  const rows = [
+    { label: 'Voice', value: `matched ${shortAccount(input.owner)}` },
+    {
+      label: 'Words',
+      value: input.noun === 'note' ? 'matched the summary' : 'matched the sentence',
+    },
+    ...(input.noun === 'note' && checksSummary(proof.verifier)
+      ? [{ label: 'Summary', value: 'fits the note (JEV)' }]
+      : []),
+    {
+      label: 'Verdict',
+      value: `signed by the OutLayer verifier${proof.verifier ? ` ${proof.verifier}` : ''}`,
+    },
+  ];
+  return {
+    title: 'TEE receipt',
+    source: 'Intel TDX · OutLayer',
+    rows,
+    ...(proof.attestationUrl
+      ? { link: { text: 'View TDX quote', href: proof.attestationUrl } }
+      : {}),
+  };
+}
+
+/** Verifier 0.13.0 and later check with JEV that a note's summary fits the note. */
+function checksSummary(version: string | null): boolean {
+  const [major = 0, minor = 0] = (version ?? '').split('.').map(Number);
+  return major > 0 || minor >= 13;
+}
+
+/** A long account in its short form: a 64-character implicit account becomes "10d3ca…25f5". */
+function shortAccount(account: string): string {
+  if (/^[0-9a-f]{64}$/.test(account)) return `${account.slice(0, 6)}…${account.slice(-4)}`;
+  return account.length > 32 ? `${account.slice(0, 20)}…${account.slice(-8)}` : account;
+}
+
+export function paidView(
+  input: CardInput,
+  hash: string,
+  seconds: number,
+  proof?: CardProof,
+): PhraseResultView {
   const { explorer } = NETWORKS[input.network];
   return {
     kind: 'result',
     label: '',
     headline: input.doneHeadline,
     caption: input.doneCaption,
+    ...(proof ? { receipt: receiptView(input, proof) } : {}),
     detail: `Checked and ${NOUN_COPY[input.noun].done} in ${seconds.toFixed(1)} s ·`,
     link: { text: 'View transaction', href: `${explorer}${encodeURIComponent(hash)}` },
     action: { label: 'Done' },
@@ -211,12 +289,13 @@ export function paidView(input: CardInput, hash: string, seconds: number): Phras
 }
 
 /** A signed message has no transaction to link to. */
-export function signedView(input: CardInput, seconds: number): PhraseResultView {
+export function signedView(input: CardInput, seconds: number, proof?: CardProof): PhraseResultView {
   return {
     kind: 'result',
     label: '',
     headline: input.doneHeadline,
     caption: input.doneCaption,
+    ...(proof ? { receipt: receiptView(input, proof) } : {}),
     detail: `Checked and ${NOUN_COPY[input.noun].done} in ${seconds.toFixed(1)} s`,
     action: { label: 'Done' },
     line: 'seal',

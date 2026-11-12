@@ -106,11 +106,25 @@ export type PhraseCheckView = Readonly<{
 }>;
 
 /** A result or a question: a headline takes the sentence's place, with one action. */
+/**
+ * The proof of a result, in a box between the caption and the detail: who checked what, and a
+ * link to check it again, such as a TEE attestation.
+ */
+export type PhraseReceipt = Readonly<{
+  title: string;
+  /** Where the checks ran, at the right of the title. */
+  source?: string;
+  rows: readonly Readonly<{ label: string; value: string }>[];
+  link?: Readonly<{ text: string; href: string }>;
+}>;
+
 export type PhraseResultView = Readonly<{
   kind: 'result';
   label: string;
   headline: string;
   caption: PhraseText;
+  /** The proof of the result, under the caption. */
+  receipt?: PhraseReceipt;
   detail: string;
   /** A link after the detail, such as the transaction in a block explorer. */
   link?: Readonly<{ text: string; href: string }>;
