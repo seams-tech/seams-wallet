@@ -8,12 +8,15 @@
   background: var(--seams-colors-surface2);
 }
 
+/* A fixed line box: the 11px status in the 10px title must not change the title height,
+   so the card does not move when "Updating…" goes away. */
 [data-seams-root].seams-theme-provider .seams-assets-card-title {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   margin: 8px 0 2px;
   font-size: 10px;
+  line-height: 15px;
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;

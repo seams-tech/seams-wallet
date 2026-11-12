@@ -135,11 +135,10 @@ export function BalancesCard({
     <section className="seams-assets-card" aria-label={walletText(locale, 'Balances')}>
       <h3 className="seams-assets-card-title">
         <WalletText message="Balances" />
-        {state.kind === 'loading' ? (
-          <span className="seams-assets-card-status" role="status">
-            <WalletText message="Updating…" />
-          </span>
-        ) : null}
+        {/* The live region stays in the page, so a screen reader announces the text when it comes. */}
+        <span className="seams-assets-card-status" role="status">
+          {state.kind === 'loading' ? <WalletText message="Updating…" /> : null}
+        </span>
       </h3>
       {failed ? (
         <div className="seams-assets-card-failed" role="alert">
