@@ -48,6 +48,13 @@ const PAYLOAD = {
   autoStart: true,
 } as const;
 const FEATURE: WalletApprovalPlugin = { kind: 'spoken', network: 'testnet' };
+const NOTE_TEXT = 'The bridge is not closed. One lane closes for two weeks in March, says the city.';
+const NOTE_SUMMARY = 'One lane of the bridge closes in March';
+const NOTE_PAYLOAD = {
+  walletId: WALLET_ID,
+  autoStart: true,
+  action: { kind: 'community_note', contract: 'community-notes.testnet', postId: 7, text: NOTE_TEXT },
+} as const;
 const ENROLLED: SpeakToSignEnrollmentResult = {
   kind: 'enrolled',
   templateEpoch: 2,
@@ -205,6 +212,8 @@ type HandlerHarnessOptions = {
   readonly enroll?: SpeakToSignHostPlugin['enroll'];
   /** What VoiceID activation does: keep three samples, check an existing enrollment, or close. */
   readonly activation?: 'new_enrollment' | 'existing_enrollment' | 'cancelled';
+  /** The answer of the Seams server's summary route. Default: a summary of the note. */
+  readonly summaryReply?: () => Response;
 };
 
 function buildHandler(options: HandlerHarnessOptions = {}) {
@@ -321,13 +330,19 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
     },
     fetch: (async (url: URL, init: RequestInit) => {
       fetched.push({ url: String(url), init });
+      if (url.pathname === '/speak-to-sign/v1/summary') {
+        return options.summaryReply?.() ?? Response.json({ ok: true, summary: NOTE_SUMMARY });
+      }
       return Response.json({ ok: true, output: { verdict_json: '{}' } });
     }) as typeof fetch,
   };
   const handlers = createSpeakToSignWalletIframeHandlers(deps, ports);
   const handler = handlers.PM_SPEAK_TO_SIGN_TRANSFER;
+  const noteHandler = handlers.PM_SPEAK_TO_SIGN_NOTE;
   const enrollHandler = handlers.PM_SPEAK_TO_SIGN_ENROLL;
-  if (!handler || !enrollHandler) throw new Error('The handler map has no Speak-to-Sign handler');
+  if (!handler || !noteHandler || !enrollHandler) {
+    throw new Error('The handler map has no Speak-to-Sign handler');
+  }
   const request = {
     type: 'PM_SPEAK_TO_SIGN_TRANSFER',
     requestId: 'request-1',
@@ -341,6 +356,12 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   return {
     run: (payload: typeof PAYLOAD | Record<string, unknown> = PAYLOAD) =>
       handler({ ...request, payload } as Req<'PM_SPEAK_TO_SIGN_TRANSFER'>),
+    runNote: (payload: Record<string, unknown>) =>
+      noteHandler({
+        type: 'PM_SPEAK_TO_SIGN_NOTE',
+        requestId: 'request-note',
+        payload,
+      } as Req<'PM_SPEAK_TO_SIGN_NOTE'>),
     runEnroll: (autoStart = false) =>
       enrollHandler({ ...enrollRequest, payload: { walletId: WALLET_ID, autoStart } }),
     posted,
@@ -770,7 +791,6 @@ test('the note message carries only the wallet, autoStart and one note or rating
       contract: 'community-notes.testnet',
       postId: 7,
       text: 'The bridge stays open.',
-      summary: 'The bridge stays open',
     },
   } as const;
   const rating = {
@@ -783,6 +803,8 @@ test('the note message carries only the wallet, autoStart and one note or rating
   for (const bad of [
     { ...note, owner: 'victim.testnet' },
     { ...note, action: { ...note.action, deposit: '1' } },
+    // The Seams server writes the summary: an app cannot send one.
+    { ...note, action: { ...note.action, summary: 'The bridge stays open' } },
     { ...note, action: { ...note.action, postId: -1 } },
     { ...note, action: { ...note.action, postId: 2 ** 53 } },
     { ...note, action: { ...note.action, contract: 'Not An Account' } },
@@ -800,6 +822,13 @@ test('the note message carries only the wallet, autoStart and one note or rating
     kind: 'refused',
     reason: 'summary_not_speakable',
   });
+  for (const result of [
+    { kind: 'refused', reason: 'summary_mismatch' },
+    { kind: 'refused', reason: 'summary_check_unavailable' },
+    { kind: 'unavailable', reason: 'summary_unavailable', detail: 'summary_failed' },
+  ]) {
+    expect(parseSpeakToSignNoteResult(structuredClone(result))).toEqual(result);
+  }
   expect(() => parseSpeakToSignNoteResult({ kind: 'refused', reason: 'receiver_missing' })).toThrow(
     'Speak-to-Sign note result is invalid.',
   );
@@ -1301,4 +1330,68 @@ test('a normal sign call with approval goes to the voice flow, with the wallet o
   await expect(disabled.signAndSendTransaction({ ...transaction, approval })).rejects.toThrow(
     'add spoken({ network }) to `approvals`',
   );
+});
+
+test('a note gets its summary from the Seams server, and the card shows the note above it', async () => {
+  const seen: Record<string, unknown> = {};
+  const harness = buildHandler({
+    async plugin(input) {
+      const clip = await input.operations.record();
+      if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
+      await input.operations.verify(clip);
+      seen.request = input.request;
+      return SENT;
+    },
+  });
+  await harness.runNote(NOTE_PAYLOAD);
+  expect(harness.fetched.map(({ url }) => url)).toEqual([
+    'https://relay.example.test/speak-to-sign/v1/summary',
+    'https://relay.example.test/speak-to-sign/v1/verify',
+  ]);
+  const [summaryCall, verifyCall] = harness.fetched;
+  expect(new Headers(summaryCall.init.headers).get('authorization')).toBe('Bearer wst_credential');
+  expect(JSON.parse(String(summaryCall.init.body))).toEqual({ text: NOTE_TEXT });
+  // The card says the server's summary, with the note above it.
+  expect(harness.phrases.map(({ sentence, context }) => ({ sentence, context }))).toEqual([
+    { sentence: NOTE_SUMMARY, context: { label: 'Your note', text: NOTE_TEXT } },
+  ]);
+  expect(seen.request).toMatchObject({ kind: 'community_note', summary: NOTE_SUMMARY });
+  // The verifier gets the note text: it hashes the note and checks that the summary fits it.
+  expect(JSON.parse(String(verifyCall.init.body)).input.request).toEqual({
+    kind: 'community_note',
+    contract: 'community-notes.testnet',
+    post_id: 7,
+    note_text: NOTE_TEXT,
+    summary: NOTE_SUMMARY,
+  });
+});
+
+test('a note with no summary from the server, or one that cannot be said, opens no card', async () => {
+  const failed = buildHandler({
+    summaryReply: () => Response.json({ ok: false, code: 'summary_failed' }, { status: 502 }),
+  });
+  await failed.runNote(NOTE_PAYLOAD);
+  expect(failed.posted[0].payload).toEqual({
+    ok: true,
+    result: { kind: 'unavailable', reason: 'summary_unavailable', detail: 'summary_failed' },
+  });
+  const malformed = buildHandler({ summaryReply: () => Response.json({ ok: true }) });
+  await malformed.runNote(NOTE_PAYLOAD);
+  expect(malformed.posted[0].payload).toEqual({
+    ok: true,
+    result: { kind: 'unavailable', reason: 'summary_unavailable', detail: 'summary_reply' },
+  });
+  // Core checks the server's words as any summary.
+  const unspeakable = buildHandler({
+    summaryReply: () => Response.json({ ok: true, summary: 'Send 5 NEAR to bob' }),
+  });
+  await unspeakable.runNote(NOTE_PAYLOAD);
+  expect(unspeakable.posted[0].payload).toEqual({
+    ok: true,
+    result: { kind: 'refused', reason: 'summary_not_speakable' },
+  });
+  for (const harness of [failed, malformed, unspeakable]) {
+    expect(harness.phrases).toEqual([]);
+    expect(harness.pluginCalls).toEqual([]);
+  }
 });

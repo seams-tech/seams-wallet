@@ -79,6 +79,11 @@ export type AuthMethodPhraseRequest = Readonly<{
    * the card. If the browser does not start audio without a press, the card keeps its button.
    */
   autoStart?: boolean;
+  /**
+   * The text that the sentence speaks for, such as the note that a spoken summary signs. The
+   * card shows it above the sentence, with its label.
+   */
+  context?: Readonly<{ label: string; text: string }>;
 }>;
 
 /** One segment of the line that shows a check: waiting, working, passed, failed or held. */

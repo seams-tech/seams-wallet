@@ -11,6 +11,7 @@ import type {
 import type { Variant } from '@shared/utils/variant';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
 import { base64Decode, base64Encode, base64UrlEncode } from '@shared/utils/base64';
+import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
 import { spokenCallOfFields } from '@shared/speakToSign/spokenKinds';
 import { concat, sha256, utf8 } from '@shared/speakToSign/spokenRequest';
@@ -32,6 +33,7 @@ import type {
   SpeakToSignHostOperations,
   SpeakToSignMessageSigning,
   SpeakToSignNoteSigning,
+  SpeakToSignNoteSummary,
   SpeakToSignPayment,
   SpeakToSignPaymentHooks,
   SpeakToSignProgress,
@@ -60,6 +62,7 @@ import { pcm16Wav, SAMPLE_RATE } from './wav';
 type Verifiers = typeof SPEAK_TO_SIGN_VERIFIERS;
 
 const VERIFY_PATH = '/speak-to-sign/v1/verify';
+const SUMMARY_PATH = '/speak-to-sign/v1/summary';
 const ENROLLMENT_DOMAIN = 'seams:voice-enrollment:v2';
 const ENROLLMENT_MESSAGE_PREFIX = 'Speak-to-Sign voice enrollment ';
 const ENROLLMENT_RECORDINGS = 3;
@@ -179,6 +182,7 @@ export function createSpeakToSignHostOperations(
     openPrompt: openPrompt.bind(null, input, state),
     receiverExists: receiverExists.bind(null, input),
     verify: verify.bind(null, input),
+    summarizeNote: summarizeNote.bind(null, input),
     // The three operations of host API 10 are calls of the one sign path.
     payWithVerdict: (transferRequest, output, signal, hooks) =>
       signWithEvidence(
@@ -216,6 +220,7 @@ async function openPrompt(
   try {
     surface = await input.openPhrase({
       sentence: request.sentence,
+      ...(request.context ? { context: request.context } : {}),
       autoStart: request.autoStart,
       signal: request.signal,
       surfaceMeasurementBinding: request.surfaceMeasurementBinding,
@@ -278,27 +283,12 @@ async function verify(
 ): Promise<SpeakToSignVerifyReply> {
   const sealedInput = await withSealedAudio(input, verifierInput);
   if (sealedInput === null) return { kind: 'failed', code: 'recording_not_sealed' };
-  const credential = await input.operationCredential(signal);
-  const url = new URL(VERIFY_PATH, input.serverUrl);
   if (verifierInput.op === 'verify') void input.prepareSigning().catch(() => {});
   input.progress({ stage: 'recording_sent' });
-  let response: Response;
-  try {
-    response = await input.fetch(url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'text/event-stream',
-        authorization: `Bearer ${credential}`,
-      },
-      body: JSON.stringify({ input: sealedInput }),
-      credentials: 'omit',
-      signal,
-    });
-  } catch (error) {
-    signal.throwIfAborted();
-    return { kind: 'failed', code: error instanceof Error ? error.name : 'network' };
-  }
+  const response = await postToServer(input, VERIFY_PATH, { input: sealedInput }, signal, {
+    accept: 'text/event-stream',
+  });
+  if ('kind' in response) return response;
   // The route refuses with a JSON error before it calls the verifier.
   if (!response.ok || !response.body) return await refusalOf(response);
   let reply: SpeakToSignVerifyReply;
@@ -346,7 +336,60 @@ async function withSealedAudio(
   return { ...rest, audio_sealed_b64: Array.isArray(plain) ? sealed : sealed[0] };
 }
 
-async function refusalOf(response: Response): Promise<SpeakToSignVerifyReply> {
+/**
+ * The summary of a community note, which the Seams server writes from the note. Core checks it
+ * as any summary (`summaryRefusal`) before it builds the request, and the verifier checks that it
+ * fits the note.
+ */
+async function summarizeNote(
+  input: SpeakToSignHostOperationsInput,
+  text: string,
+  signal: AbortSignal,
+): Promise<SpeakToSignNoteSummary> {
+  const response = await postToServer(input, SUMMARY_PATH, { text }, signal);
+  if ('kind' in response) return response;
+  if (!response.ok) return await refusalOf(response);
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { kind: 'failed', code: 'summary_reply' };
+  }
+  return hasExactKeys(body, ['ok', 'summary']) && body.ok === true && typeof body.summary === 'string'
+    ? { kind: 'summary', summary: body.summary }
+    : { kind: 'failed', code: 'summary_reply' };
+}
+
+/** A POST of JSON to a Seams server route with the session's operation credential. */
+async function postToServer(
+  input: SpeakToSignHostOperationsInput,
+  path: string,
+  body: unknown,
+  signal: AbortSignal,
+  headers: Readonly<Record<string, string>> = {},
+): Promise<Response | Readonly<{ kind: 'failed'; code: string }>> {
+  const credential = await input.operationCredential(signal);
+  try {
+    return await input.fetch(new URL(path, input.serverUrl), {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'content-type': 'application/json',
+        authorization: `Bearer ${credential}`,
+      },
+      body: JSON.stringify(body),
+      credentials: 'omit',
+      signal,
+    });
+  } catch (error) {
+    signal.throwIfAborted();
+    return { kind: 'failed', code: error instanceof Error ? error.name : 'network' };
+  }
+}
+
+async function refusalOf(
+  response: Response,
+): Promise<Readonly<{ kind: 'failed'; code: string }>> {
   let body: unknown;
   try {
     body = await response.json();

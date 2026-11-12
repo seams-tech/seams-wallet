@@ -1,4 +1,8 @@
-import type { PhraseChoice, PhraseView } from '@/core/authMethods/hostPlugin';
+import type {
+  AuthMethodPhraseRequest,
+  PhraseChoice,
+  PhraseView,
+} from '@/core/authMethods/hostPlugin';
 import type { ActionArgs, TransactionInput } from '@/core/types/actions';
 import type { SignDelegateActionResult, SignTransactionResult } from '@/core/types/seams';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
@@ -17,6 +21,8 @@ export type SpeakToSignUnavailableReason =
   | 'voiceid_unavailable'
   /** The network has no pinned verifier, or the Seams verify route did not answer usefully. */
   | 'verifier_unavailable'
+  /** The Seams server did not write the summary of a community note. Nothing was recorded. */
+  | 'summary_unavailable'
   /** The Wallet did not send the transaction. Nothing was paid. */
   | 'not_submitted'
   /** The transaction may have been sent. Check it before another payment. */
@@ -166,7 +172,11 @@ export type SpeakToSignTransferRequest = Readonly<{
 }> &
   SpokenRequestOptions;
 
-/** One spoken community note from the app. The author says only the summary. */
+/**
+ * One spoken community note from the app. The Seams server writes a summary of 1 to 12 plain
+ * words from the note, and the author says only the summary. The app gives no summary, so it
+ * cannot choose the words; the verifier checks that the summary fits the note.
+ */
 export type SpeakToSignNoteRequest = Readonly<{
   walletId: string;
   /** The notes contract, a named NEAR account. */
@@ -175,8 +185,6 @@ export type SpeakToSignNoteRequest = Readonly<{
   postId: number;
   /** The note, 1 to 280 characters. */
   text: string;
-  /** 1 to 12 plain words that the author reads aloud. */
-  summary: string;
 }> &
   SpokenRequestOptions;
 
@@ -340,7 +348,15 @@ export type SpeakToSignEnrollmentResult =
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
 
 export type SpeakToSignVerifyReply =
-  Readonly<{ kind: 'output'; output: unknown }> | Readonly<{ kind: 'failed'; code: string }>;
+  Readonly<{ kind: 'output'; output: unknown }> | SpeakToSignServerFailure;
+
+/** A Seams server route that did not answer: its fixed code, or the HTTP status. */
+type SpeakToSignServerFailure = Readonly<{ kind: 'failed'; code: string }>;
+
+/** The summary of a community note that the Seams server wrote, or why there is none. */
+export type SpeakToSignNoteSummary =
+  | Readonly<{ kind: 'summary'; summary: string }>
+  | SpeakToSignServerFailure;
 
 /** A transfer that Wallet core paid, or why it paid nothing. */
 export type SpeakToSignPayment =
@@ -417,6 +433,8 @@ export type SpeakToSignClip =
 export type SpeakToSignClipRequest = Readonly<{
   /** The sentence that the VoiceID surface shows. */
   sentence: string;
+  /** The text that the sentence speaks for, such as a note, shown above it. */
+  context?: AuthMethodPhraseRequest['context'];
   /** The first recording starts with no press on Record, where the browser allows it. */
   autoStart: boolean;
   signal: AbortSignal;
@@ -449,6 +467,8 @@ export type SpeakToSignHostOperations = Readonly<{
     input: Readonly<Record<string, unknown>>,
     signal: AbortSignal,
   ): Promise<SpeakToSignVerifyReply>;
+  /** Asks the Seams server for the spoken summary of a community note. */
+  summarizeNote(text: string, signal: AbortSignal): Promise<SpeakToSignNoteSummary>;
   /**
    * Checks the verifier output against this transfer and, on an approved verdict, signs and
    * sends it from the owner's account. An `accept` verdict shows no confirm; a `step_up`

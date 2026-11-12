@@ -105,6 +105,7 @@ import {
   createSpeakToSignVerifyRouteExtensions,
   readSpeakToSignVerifyConfig,
 } from './router/domains/speakToSign/speakToSignVerify';
+import { readSpeakToSignSummaryConfig } from './router/domains/speakToSign/speakToSignSummary';
 import { createD1VoiceVerdictLedger } from './router/cloudflare/d1/speakToSign/d1VoiceVerdictLedger';
 
 export interface CloudflareD1GatewayBaseEnv
@@ -174,6 +175,10 @@ export interface CloudflareD1GatewayBaseEnv
   readonly SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID?: string;
+  /** The NEAR AI key for the summary of a spoken community note. Without it, notes cannot be said. */
+  readonly SPEAK_TO_SIGN_NEAR_AI_API_KEY?: string;
+  /** Optional: the chat model of that summary. Default `Qwen/Qwen3.8-27B`. */
+  readonly SPEAK_TO_SIGN_SUMMARY_MODEL?: string;
 }
 
 export function readStagingHostedWalletOrigins(
@@ -774,6 +779,7 @@ export async function createHostedWalletGatewayCompositionV1(
   const tenantId = parseTenantId(scope.orgId);
   if (!tenantId.ok) throw new Error('Wallet placement authorization tenant is invalid');
   const speakToSign = readSpeakToSignVerifyConfig((name) => readEnvString(env, name));
+  const noteSummary = readSpeakToSignSummaryConfig((name) => readEnvString(env, name));
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,
@@ -795,11 +801,15 @@ export async function createHostedWalletGatewayCompositionV1(
         authorizationSessions: service.authorizationSessions,
         directory: env.WALLET_CONSOLE,
       }),
-      ...createSpeakToSignVerifyRouteExtensions(speakToSign, {
-        authorizationSessions: service.authorizationSessions,
-        walletRegistration: service.walletRegistration,
-        fetch: globalThis.fetch.bind(globalThis),
-      }),
+      ...createSpeakToSignVerifyRouteExtensions(
+        speakToSign,
+        {
+          authorizationSessions: service.authorizationSessions,
+          walletRegistration: service.walletRegistration,
+          fetch: globalThis.fetch.bind(globalThis),
+        },
+        noteSummary,
+      ),
     ],
     router: {
       healthz: true,

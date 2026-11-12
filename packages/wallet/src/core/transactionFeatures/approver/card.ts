@@ -405,7 +405,16 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
         at: 'speaker',
         retry: false,
       };
+    case 'summary_mismatch':
+      return {
+        headline: 'The summary did not fit the note',
+        caption: 'The verifier found that the sentence does not give the main point of the note.',
+        detail: 'Close the card and write the note again.',
+        at: 'words',
+        retry: false,
+      };
     case 'transcriber_unavailable':
+    case 'summary_check_unavailable':
       return { ...unavailable, at: 'words' };
     case 'speaker_unavailable':
     case 'storage':

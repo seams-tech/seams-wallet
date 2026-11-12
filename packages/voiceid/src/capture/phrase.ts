@@ -21,6 +21,8 @@ export function openPhrase(input: PhraseInput): AuthMethodPhraseSurface {
     sentence: input.sentence,
     signal: input.signal,
     autoStart: input.autoStart === true,
+    // The text that the sentence speaks for, such as a note, above the sentence.
+    ...(input.context ? { context: input.context } : {}),
     frame: {
       parent: document.getElementById('root') ?? document.body,
       className: 'seams-wallet-ui seams-auth-method-activation-surface',

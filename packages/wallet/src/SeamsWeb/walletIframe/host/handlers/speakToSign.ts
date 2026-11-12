@@ -281,10 +281,19 @@ async function runNote(
   if (flow.kind === 'unavailable') return flow;
   const { action } = request.payload;
   // Core builds the intent here, before the plugin runs, and the plugin never gets it back.
-  const intent: SpokenIntent =
-    action.kind === 'signed_message'
-      ? { kind: 'signed_message', message: await messageAction(action) }
-      : await noteAction(deps, ports, flow.ownerAccountId, action);
+  let intent: SpokenIntent;
+  if (action.kind === 'signed_message') {
+    intent = { kind: 'signed_message', message: await messageAction(action) };
+  } else if (action.kind === 'community_note') {
+    // The Seams server writes the summary from the note: the app cannot choose the words.
+    const summary = await flow.operations.summarizeNote(action.text, signal);
+    if (summary.kind === 'failed') {
+      return { kind: 'unavailable', reason: 'summary_unavailable', detail: summary.code };
+    }
+    intent = { ...action, postId: BigInt(action.postId), summary: summary.summary };
+  } else {
+    intent = await noteAction(deps, ports, flow.ownerAccountId, action);
+  }
   return await runSpeakToSignApproval({
     ...flowInput(deps, flow, signal, request.payload.autoStart),
     intent,
@@ -348,7 +357,7 @@ async function noteAction(
   deps: HandlerDeps,
   ports: SpeakToSignWalletPorts,
   ownerAccountId: string,
-  action: Exclude<NotePayloadAction, { kind: 'signed_message' }>,
+  action: Exclude<NotePayloadAction, { kind: 'signed_message' | 'community_note' }>,
 ): Promise<SpokenNoteAction> {
   switch (action.kind) {
     case 'transaction': {
@@ -366,8 +375,6 @@ async function noteAction(
         delivery: action.delivery,
       };
     }
-    case 'community_note':
-      return { ...action, postId: BigInt(action.postId) };
     case 'note_rating':
       return { ...action, noteId: BigInt(action.noteId) };
     case 'merge_approval':

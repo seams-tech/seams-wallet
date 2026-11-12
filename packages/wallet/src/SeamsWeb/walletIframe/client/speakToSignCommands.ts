@@ -160,7 +160,6 @@ async function requestNoteFromHost(
     contract: request.contract,
     postId: request.postId,
     text: request.text,
-    summary: request.summary,
   });
 }
 

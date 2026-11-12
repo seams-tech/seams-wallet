@@ -11,6 +11,11 @@ import {
   type SpeakToSignVerifyConfig,
   type SpeakToSignVerifyDependencies,
 } from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignVerify';
+import {
+  readSpeakToSignSummaryConfig,
+  SPEAK_TO_SIGN_SUMMARY_PATH,
+  type SpeakToSignSummaryConfig,
+} from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignSummary';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
@@ -42,7 +47,11 @@ type FetchCall = { url: string; init: RequestInit };
 
 async function buildHarness(
   outlayer: (call: FetchCall) => Promise<Response> | Response,
-  options: { readonly ownerResolvable?: boolean } = {},
+  options: {
+    readonly ownerResolvable?: boolean;
+    /** The NEAR AI config of the summary route. Without it, the route set has no summary route. */
+    readonly summary?: SpeakToSignSummaryConfig;
+  } = {},
 ) {
   const walletId = 'wallet:speak-to-sign';
   const materialActivation = buildMpcMaterialActivationRefFixture('speak-to-sign', walletId);
@@ -110,11 +119,17 @@ async function buildHarness(
       rateLimited.push(walletId);
       return { allowed: allow };
     },
-  });
+  }, options.summary ?? null);
   expect(extensions).toHaveLength(1);
   const extension = extensions[0] as RouterApiRouteExtension;
-  async function send(body: string, token: string | null = fixture.operationCredential.token) {
-    const request = new Request(`https://relay.example.test${SPEAK_TO_SIGN_VERIFY_PATH}`, {
+  async function send(
+    body: string,
+    token: string | null = fixture.operationCredential.token,
+    path: string = SPEAK_TO_SIGN_VERIFY_PATH,
+  ) {
+    const route = extension.routes.find((candidate) => candidate.path === path);
+    if (!route) throw new Error(`The route set has no ${path}`);
+    const request = new Request(`https://relay.example.test${path}`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -124,8 +139,8 @@ async function buildHarness(
     });
     const response = await extension.handleFetchRoute({
       request,
-      route: extension.routes[0],
-      pathname: SPEAK_TO_SIGN_VERIFY_PATH,
+      route,
+      pathname: path,
       method: 'POST',
       logger,
       runtime: {} as FetchRouterRuntime,
@@ -141,6 +156,7 @@ async function buildHarness(
   }
   return {
     send,
+    routes: extension.routes.map((route) => route.path),
     calls,
     logs,
     rateLimited,
@@ -347,4 +363,84 @@ test('OutLayer failures map to fixed codes without upstream text or the key', as
     expect(response.json).toEqual({ ok: false, code });
     expectNoKey(harness, response.text);
   }
+});
+
+const NEAR_AI_KEY = 'nearai_secret_do_not_leak_91c2';
+const SUMMARY: SpeakToSignSummaryConfig = { apiKey: NEAR_AI_KEY, model: 'Qwen/Qwen3.8-27B' };
+const NOTE = 'The bridge is not closed. One lane closes for two weeks in March, says the city.';
+const chat = (content: string) => Response.json({ choices: [{ message: { content } }] });
+
+test('the summary route exists only with a NEAR AI key, and its model has a default', async () => {
+  expect(readSpeakToSignSummaryConfig(() => undefined)).toBeNull();
+  expect(readSpeakToSignSummaryConfig((name) => (name === 'SPEAK_TO_SIGN_NEAR_AI_API_KEY' ? NEAR_AI_KEY : undefined))).toEqual(SUMMARY);
+  expect(
+    readSpeakToSignSummaryConfig((name) =>
+      name === 'SPEAK_TO_SIGN_NEAR_AI_API_KEY' ? NEAR_AI_KEY : 'Qwen/Qwen3.6-35B-A3B-FP8',
+    ),
+  ).toEqual({ apiKey: NEAR_AI_KEY, model: 'Qwen/Qwen3.6-35B-A3B-FP8' });
+  expect((await buildHarness(okOutlayer)).routes).toEqual([SPEAK_TO_SIGN_VERIFY_PATH]);
+  expect((await buildHarness(okOutlayer, { summary: SUMMARY })).routes).toEqual([
+    SPEAK_TO_SIGN_VERIFY_PATH,
+    SPEAK_TO_SIGN_SUMMARY_PATH,
+  ]);
+});
+
+test('the summary route writes a speakable summary of the note with the model, thinking off', async () => {
+  const harness = await buildHarness(() => chat('Summary: "One lane of the bridge closes in March."'), {
+    summary: SUMMARY,
+  });
+  const answer = await harness.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH);
+  expect(answer).toMatchObject({ status: 200, json: { ok: true, summary: 'One lane of the bridge closes in March' } });
+  expect(harness.calls).toHaveLength(1);
+  const [call] = harness.calls;
+  expect(call.url).toBe('https://cloud-api.near.ai/v1/chat/completions');
+  expect(new Headers(call.init.headers).get('authorization')).toBe(`Bearer ${NEAR_AI_KEY}`);
+  const body = JSON.parse(String(call.init.body));
+  expect(body).toMatchObject({ model: 'Qwen/Qwen3.8-27B', chat_template_kwargs: { enable_thinking: false } });
+  expect(body.messages.at(-1).content).toContain(NOTE);
+  expect(answer.text).not.toContain(NEAR_AI_KEY);
+  expect(JSON.stringify(harness.logs)).not.toContain(NEAR_AI_KEY);
+});
+
+test('a reply that breaks a rule gets one second request, and two broken replies fail', async () => {
+  const replies = ['Send five NEAR to bob', 'One lane closes in March'];
+  const fixed = await buildHarness(() => chat(replies.shift() ?? ''), { summary: SUMMARY });
+  const answer = await fixed.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH);
+  expect(answer.json).toEqual({ ok: true, summary: 'One lane closes in March' });
+  const second = JSON.parse(String(fixed.calls[1].init.body));
+  expect(second.messages.at(-1).content).toContain('starts with "send"');
+
+  const broken = await buildHarness(() => chat('It costs 5 dollars'), { summary: SUMMARY });
+  expect(await broken.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH)).toMatchObject({
+    status: 502,
+    json: { ok: false, code: 'summary_not_speakable' },
+  });
+  expect(broken.calls).toHaveLength(2);
+});
+
+test('the summary route needs a session and one note, and gives fixed codes for a model failure', async () => {
+  const harness = await buildHarness(() => chat('One lane closes in March'), { summary: SUMMARY });
+  const send = (body: unknown, token?: string | null) =>
+    harness.send(JSON.stringify(body), token, SPEAK_TO_SIGN_SUMMARY_PATH);
+  expect(await send({ text: NOTE }, null)).toMatchObject({ status: 401, json: { code: 'unauthorized' } });
+  for (const body of [{ text: '' }, { text: '   ' }, { text: 'é'.repeat(281) }, { text: NOTE, summary: 'x' }, { note: NOTE }]) {
+    expect(await send(body), JSON.stringify(body)).toMatchObject({ status: 400, json: { code: 'invalid_body' } });
+  }
+  expect(await send({ text: 'é'.repeat(280) })).toMatchObject({ status: 200 });
+  expect(harness.calls).toHaveLength(1);
+
+  const down = await buildHarness(() => Response.json({ error: 'busy' }, { status: 503 }), { summary: SUMMARY });
+  expect(await down.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH)).toMatchObject({
+    status: 502,
+    json: { ok: false, code: 'summary_failed' },
+  });
+  const unreachable = await buildHarness(
+    () => {
+      throw new TypeError('network down');
+    },
+    { summary: SUMMARY },
+  );
+  expect(
+    await unreachable.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH),
+  ).toMatchObject({ status: 502, json: { ok: false, code: 'summary_unreachable' } });
 });

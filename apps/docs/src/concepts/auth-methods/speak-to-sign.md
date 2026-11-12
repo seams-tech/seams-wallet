@@ -137,7 +137,7 @@ const result = await seams.near.spoken?.transfer({
 | Call                   | The owner says                                    |
 | ---------------------- | ------------------------------------------------- |
 | `spoken.transfer`      | "send two near to alice dot testnet"              |
-| `spoken.note`          | The short summary of a community note             |
+| `spoken.note`          | The summary of a community note, which Seams writes |
 | `spoken.rating`        | "this note is helpful"                            |
 | `spoken.mergeApproval` | "merge pull request forty two into main"          |
 | `spoken.bet`           | "bet zero point five usdc yes on market nine"     |
@@ -216,23 +216,29 @@ testnet.
 The same flow can sign a community note or a note rating on a notes contract
 with `add_note({ post_id, text, summary, verdict_json, signature_b64 })` and
 `rate_note({ note_id, rating, verdict_json, signature_b64 })`.
-The author types the note and reads aloud only a short summary. The verdict
-binds the full note by its SHA-256. Wallet core builds the one call, with no
-deposit and no confirm. The call carries the verdict and its signature, so
-the notes contract can check the verdict itself. A contract that does not
-check it ignores the two arguments.
+The author types the note and reads aloud only a short summary of it. The
+application gives the note, not the summary:
+
+1. The Wallet asks the Seams server for the summary
+   (`POST /speak-to-sign/v1/summary`). The server writes it from the note with
+   a chat model on NEAR AI.
+2. The card shows the note above the summary. The author says the summary.
+3. The verifier gets the note text. It binds the note by its SHA-256, and it
+   asks JEV (a NEAR AI model that answers yes-or-no questions) if the summary
+   gives the main point of the note. A summary that does not fit gives
+   `summary_mismatch`.
+
+So the application cannot choose the words that the author says. Wallet core
+builds the one call, with no deposit and no confirm. The call carries the
+verdict and its signature, so the notes contract can check the verdict itself.
+A contract that does not check it ignores the two arguments.
 
 ```ts [Partial example]
-import { summaryRefusal } from '@seams/wallet';
-
-if (summaryRefusal(summary) === null) {
-  await seams.near.spoken?.note({
-    contract: 'community-notes.testnet',
-    postId: 7,
-    text: 'The city closes one lane for two weeks. The bridge stays open.',
-    summary: 'Only one lane closes for two weeks.',
-  });
-}
+await seams.near.spoken?.note({
+  contract: 'community-notes.testnet',
+  postId: 7,
+  text: 'The city closes one lane for two weeks. The bridge stays open.',
+});
 await seams.near.spoken?.rating({
   contract: 'community-notes.testnet',
   noteId: 3,
@@ -240,13 +246,20 @@ await seams.near.spoken?.rating({
 });
 ```
 
-- A summary has 1 to 12 words of ASCII letters. Write numbers as words. Digits,
-  apostrophes, hyphens, URLs and handles give `summary_not_speakable`.
+- A note has 1 to 280 characters.
+- Without a summary from the server, the result is `unavailable` with the
+  reason `summary_unavailable`, and no card opens. The Wallet checks the
+  server's summary with the rules of `summaryRefusal`: 1 to 12 words of ASCII
+  letters, numbers as words. A summary that breaks them gives
+  `summary_not_speakable`.
+- Without an answer from JEV, the verifier refuses with
+  `summary_check_unavailable`.
 - A rating is said as "this note is helpful", "this note is somewhat helpful"
   or "this note is not helpful".
 - A summary of 4 or more words also passes with one word heard differently or
   dropped, but never with an added or dropped "not".
-- Notes need verifier 0.4.0 or later.
+- Notes need verifier 0.13.0 or later. An older verifier refuses the note text
+  with `unsupported`.
 
 ## Prepare the Wallet host
 
@@ -293,6 +306,17 @@ unchanged, or one `failed` event with a fixed code, such as
 `@seams/voice-sign/server` (speak-to-sign repository). It cannot read the
 sealed recording, and it forwards only an output of a known kind: an error
 output of the verifier gives `failed` with `verifier_failed`.
+
+The route `POST /speak-to-sign/v1/summary` writes the summary of a spoken
+community note. The server adds it only with the six variables above and
+`SPEAK_TO_SIGN_NEAR_AI_API_KEY`, a NEAR AI key. Keep it in a secret store.
+`SPEAK_TO_SIGN_SUMMARY_MODEL` is optional; the default is `Qwen/Qwen3.8-27B`,
+which the route calls with thinking off. The route reads the Wallet Session
+as the verify route does. It takes `{ text }` (1 to 280 characters) and answers
+`{ ok: true, summary }`. If the model breaks a summary rule, the route asks
+once more. A failure is a JSON error with a fixed code: `summary_unreachable`,
+`summary_failed` or `summary_not_speakable`. Without the key, the Wallet
+cannot sign a spoken note.
 
 The same six variables turn on the co-signer's verdict check. It records each
 accepted verdict in the signer database table `speak_to_sign_voice_verdicts`

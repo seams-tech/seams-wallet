@@ -114,8 +114,8 @@ export type PMSpeakToSignNotePayload = AutoStart &
           kind: 'community_note';
           contract: string;
           postId: number;
+          /** The note. The Wallet asks the Seams server for its spoken summary. */
           text: string;
-          summary: string;
         }>
       | Readonly<{ kind: 'note_rating'; contract: string; noteId: number; rating: NoteRating }>
       | Readonly<{
@@ -302,22 +302,14 @@ function readNoteAction(value: unknown): PMSpeakToSignNotePayload['action'] | nu
   }
   if (value.kind === 'community_note') {
     if (
-      !hasExactKeys(value, ['kind', 'contract', 'postId', 'text', 'summary']) ||
+      !hasExactKeys(value, ['kind', 'contract', 'postId', 'text']) ||
       !isNoteId(value.postId) ||
       typeof value.text !== 'string' ||
-      value.text.length > MAX_NOTE_TEXT_LENGTH ||
-      typeof value.summary !== 'string' ||
-      value.summary.length > MAX_SUMMARY_TEXT_LENGTH
+      value.text.length > MAX_NOTE_TEXT_LENGTH
     ) {
       return null;
     }
-    return {
-      kind: 'community_note',
-      contract: value.contract,
-      postId: value.postId,
-      text: value.text,
-      summary: value.summary,
-    };
+    return { kind: 'community_note', contract: value.contract, postId: value.postId, text: value.text };
   }
   if (value.kind === 'note_rating') {
     const rating = NOTE_RATINGS.find((candidate) => candidate === value.rating);
@@ -367,6 +359,7 @@ const UNAVAILABLE_REASONS: Readonly<Record<SpeakToSignUnavailableReason, true>> 
   flow_not_available: true,
   voiceid_unavailable: true,
   verifier_unavailable: true,
+  summary_unavailable: true,
   not_submitted: true,
   submission_unknown: true,
 };
@@ -381,6 +374,8 @@ const REFUSAL_REASONS: Readonly<Record<SpeakToSignRefusalReason, true>> = {
   speaker_unavailable: true,
   storage: true,
   transcriber_unavailable: true,
+  summary_mismatch: true,
+  summary_check_unavailable: true,
   amount_not_speakable: true,
   receiver_not_speakable: true,
   receiver_missing: true,
@@ -399,6 +394,8 @@ const NOTE_REFUSAL_REASONS: Readonly<Record<SpeakToSignNoteRefusalReason, true>>
   speaker_unavailable: true,
   storage: true,
   transcriber_unavailable: true,
+  summary_mismatch: true,
+  summary_check_unavailable: true,
   summary_not_speakable: true,
   note_not_valid: true,
   merge_not_valid: true,
@@ -419,6 +416,8 @@ const MESSAGE_REFUSAL_REASONS: Readonly<Record<SpeakToSignMessageRefusalReason, 
   speaker_unavailable: true,
   storage: true,
   transcriber_unavailable: true,
+  summary_mismatch: true,
+  summary_check_unavailable: true,
   summary_not_speakable: true,
   message_not_valid: true,
   verdict_mismatch: true,

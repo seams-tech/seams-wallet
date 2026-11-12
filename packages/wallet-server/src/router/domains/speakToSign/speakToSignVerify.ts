@@ -11,12 +11,19 @@ import type {
   RouterApiWalletSessionExactOperationContext as WalletSessionExactOperationContext,
 } from '../../framework/authServicePort';
 import type { NormalizedRouterLogger } from '../../framework/logger';
-import { defineRoute } from '../../framework/routeDefinitions';
+import { defineRoute, type RouteDefinition } from '../../framework/routeDefinitions';
 import type {
   RouterApiFetchRouteExtensionInput,
   RouterApiRouteExtension,
 } from '../../framework/routeExtensions';
 import { resolveWalletSessionAuthorizationV2Admission } from '../signingOperations/walletExecutionAdmission';
+import {
+  parseSummaryBody,
+  SPEAK_TO_SIGN_SUMMARY_MAX_BODY_BYTES,
+  SPEAK_TO_SIGN_SUMMARY_PATH,
+  type SpeakToSignSummaryConfig,
+  writeNoteSummary,
+} from './speakToSignSummary';
 
 export const SPEAK_TO_SIGN_VERIFY_PATH = '/speak-to-sign/v1/verify';
 /**
@@ -91,12 +98,19 @@ export function readSpeakToSignVerifyConfig(
   return { outlayerBaseUrl, project, versionKey, paymentKey, secretsRef: { profile, accountId } };
 }
 
+/**
+ * The verify route, and the summary route of a spoken community note when the server has a NEAR
+ * AI key (`speakToSignSummary`). Without the verify route, a summary has no use.
+ */
 export function createSpeakToSignVerifyRouteExtensions(
   config: SpeakToSignVerifyConfig | null,
   dependencies: SpeakToSignVerifyDependencies,
+  summary: SpeakToSignSummaryConfig | null = null,
 ): readonly RouterApiRouteExtension[] {
   if (!config) return [];
-  return [new SpeakToSignVerifyRoutes(resolveConfig(config, dependencies.fetch), dependencies)];
+  return [
+    new SpeakToSignVerifyRoutes(resolveConfig(config, dependencies.fetch), dependencies, summary),
+  ];
 }
 
 /**
@@ -162,30 +176,42 @@ type SessionAuthentication =
   /** The session store failed or holds a row it cannot read. */
   | { readonly kind: 'unavailable' };
 
+const SESSION_AUTH = {
+  plane: 'public',
+  rationale: 'The handler requires a live Wallet Session operation credential of the owner.',
+} as const;
+const VERIFY_ROUTE = defineRoute({
+  id: 'speak_to_sign_verify',
+  surface: 'relay',
+  method: 'POST',
+  path: SPEAK_TO_SIGN_VERIFY_PATH,
+  auth: SESSION_AUTH,
+  metering: { kind: 'none' },
+  summary: 'Run the pinned OutLayer voice verifier for a spoken payment or an enrollment',
+});
+const SUMMARY_ROUTE = defineRoute({
+  id: 'speak_to_sign_summary',
+  surface: 'relay',
+  method: 'POST',
+  path: SPEAK_TO_SIGN_SUMMARY_PATH,
+  auth: SESSION_AUTH,
+  metering: { kind: 'none' },
+  summary: 'Write the spoken summary of a community note with a chat model on NEAR AI',
+});
+
 class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   readonly kind = 'fetch_route_extension' as const;
   readonly id = 'speak_to_sign_verify';
-  readonly routes = [
-    defineRoute({
-      id: 'speak_to_sign_verify',
-      surface: 'relay',
-      method: 'POST',
-      path: SPEAK_TO_SIGN_VERIFY_PATH,
-      auth: {
-        plane: 'public',
-        rationale: 'The handler requires a live Wallet Session operation credential of the owner.',
-      },
-      metering: { kind: 'none' },
-      summary: 'Run the pinned OutLayer voice verifier for a spoken payment or an enrollment',
-    }),
-  ] as const;
+  readonly routes: readonly RouteDefinition[];
   private readonly now: () => number;
 
   constructor(
     private readonly verifier: VerifierConfig,
     private readonly dependencies: SpeakToSignVerifyDependencies,
+    private readonly summary: SpeakToSignSummaryConfig | null,
   ) {
     this.now = dependencies.now ?? Date.now;
+    this.routes = summary ? [VERIFY_ROUTE, SUMMARY_ROUTE] : [VERIFY_ROUTE];
   }
 
   async handleFetchRoute(input: RouterApiFetchRouteExtensionInput): Promise<Response> {
@@ -199,6 +225,9 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
       const limit = await this.dependencies.rateLimit({ walletId });
       if (!limit.allowed) return failure(429, 'rate_limited');
     }
+    if (input.route.id === SUMMARY_ROUTE.id && this.summary) {
+      return await this.writeSummary(input.request, this.summary, input.logger);
+    }
     const body = await readBoundedText(input.request, SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES);
     if (body === 'too_large') return failure(413, 'body_too_large');
     const verifierInput = parseVerifyBody(body);
@@ -210,6 +239,27 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     if (owner === null) return failure(403, 'owner_unavailable');
     if (verifierInput.owner !== owner) return failure(403, 'owner_mismatch');
     return this.streamVerifier(verifierInput, input.logger, startedAtMs);
+  }
+
+  /**
+   * Any owner with a live session may ask: the summary is only a proposal. The verifier checks
+   * that it fits the note, and the owner says it.
+   */
+  private async writeSummary(
+    request: Request,
+    config: SpeakToSignSummaryConfig,
+    logger: NormalizedRouterLogger,
+  ): Promise<Response> {
+    const body = await readBoundedText(request, SPEAK_TO_SIGN_SUMMARY_MAX_BODY_BYTES);
+    if (body === 'too_large') return failure(413, 'body_too_large');
+    const note = parseSummaryBody(body);
+    if (note === null) return failure(400, 'invalid_body');
+    const result = await writeNoteSummary(config, note, this.dependencies.fetch);
+    if (!result.ok) {
+      logger.warn('[speak-to-sign] summary failed', { code: result.code });
+      return failure(502, result.code);
+    }
+    return Response.json(result, { headers: { 'cache-control': 'no-store' } });
   }
 
   /**

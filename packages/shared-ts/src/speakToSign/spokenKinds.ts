@@ -50,7 +50,7 @@ export type SpokenTypedFields =
       postId: bigint;
       /** The note, 1 to 280 characters. The verdict binds its SHA-256. */
       text: string;
-      /** The sentence that the owner says. */
+      /** The sentence that the owner says: the Seams server writes it from the note. */
       summary: string;
     }>
   | Readonly<{ kind: 'note_rating'; contract: string; noteId: bigint; rating: NoteRating }>
@@ -219,7 +219,8 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
       kind: 'community_note',
       contract: fields.contract,
       post_id: Number(fields.postId),
-      note_sha256_hex: hex(await sha256(utf8(fields.text))),
+      // The verifier hashes the note itself and checks that the summary gives its main point.
+      note_text: fields.text,
       summary: fields.summary,
     }),
     request: async (fields, network, owner) => ({

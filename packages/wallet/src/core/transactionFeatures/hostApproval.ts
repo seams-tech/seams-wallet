@@ -160,6 +160,8 @@ export async function runSpeakToSignApproval(
   signal.throwIfAborted();
   const opened = await operations.openPrompt({
     sentence: rendered.displayText,
+    // A note's card shows the note above its summary, so the author sees what the words sign.
+    ...(intent.kind === 'community_note' ? { context: { label: 'Your note', text: intent.text } } : {}),
     autoStart: input.autoStart,
     signal,
     surfaceMeasurementBinding: input.surfaceMeasurementBinding,

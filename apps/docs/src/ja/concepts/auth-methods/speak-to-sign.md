@@ -142,22 +142,23 @@ if (enrollment?.kind === 'enrolled') {
 同じ流れで、コミュニティノートやノートの評価にも署名できます。ノートのコントラクトには
 `add_note({ post_id, text, summary, verdict_json, signature_b64 })` と
 `rate_note({ note_id, rating, verdict_json, signature_b64 })` が必要です。
-作成者はノートを入力し、短い要約だけを読み上げます。判定はノート全体をSHA-256で結び付けます。
+作成者はノートを入力し、その短い要約だけを読み上げます。アプリが渡すのはノートだけで、要約は渡しません。
+
+1. WalletはSeamsサーバーに要約を求めます(`POST /speak-to-sign/v1/summary`)。サーバーは、NEAR AIのチャットモデルでノートから要約を書きます。
+2. カードは、ノートを要約の上に表示します。作成者は要約を話します。
+3. 検証者はノートの本文を受け取ります。ノートをSHA-256で結び付け、要約がノートの要点を述べているかをJEV(はい・いいえで答えるNEAR AIのモデル)に尋ねます。合わない要約は`summary_mismatch`になります。
+
+そのため、アプリは作成者が話す言葉を選べません。
 Wallet coreが呼び出しを1件作り、デポジットも確認もなしで署名します。
 呼び出しは判定とその署名を運ぶので、ノートのコントラクトは判定を自分で確認できます。
 確認しないコントラクトは、この2つの引数を無視します。
 
 ```ts [Partial example]
-import { summaryRefusal } from '@seams/wallet';
-
-if (summaryRefusal(summary) === null) {
-  await seams.near.spoken?.note({
-    contract: 'community-notes.testnet',
-    postId: 7,
-    text: 'The city closes one lane for two weeks. The bridge stays open.',
-    summary: 'Only one lane closes for two weeks.',
-  });
-}
+await seams.near.spoken?.note({
+  contract: 'community-notes.testnet',
+  postId: 7,
+  text: 'The city closes one lane for two weeks. The bridge stays open.',
+});
 await seams.near.spoken?.rating({
   contract: 'community-notes.testnet',
   noteId: 3,
@@ -165,10 +166,12 @@ await seams.near.spoken?.rating({
 });
 ```
 
-- 要約は、ASCII文字だけの1〜12語です。数は単語で書きます。数字、アポストロフィ、ハイフン、URL、ハンドルは `summary_not_speakable` になります。
+- ノートは1〜280文字です。
+- サーバーから要約が来ない場合、結果は理由`summary_unavailable`の`unavailable`で、カードは開きません。Walletはサーバーの要約を`summaryRefusal`の規則(ASCII文字だけの1〜12語、数は単語)で確認します。規則に合わない要約は`summary_not_speakable`になります。
+- JEVが答えない場合、検証者は`summary_check_unavailable`で拒否します。
 - 評価は「this note is helpful」「this note is somewhat helpful」「this note is not helpful」のどれかを話します。
 - 4語以上の要約は、1語が違って聞こえても、1語が抜けても通ります。ただし「not」の追加や欠落は通りません。
-- ノートには検証者0.4.0以降が必要です。
+- ノートには検証者0.13.0以降が必要です。古い検証者は、ノートの本文を`unsupported`で拒否します。
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
@@ -203,6 +206,11 @@ Walletが固定している音声鍵のシークレット`PROTECTED_AUDIO_KEY`�
 次に検証者の出力をそのまま含む`verdict`イベントか、`verifier_timeout`のような固定のコードを含む`failed`イベントを1つ送ります。
 ルートは`@seams/voice-sign/server`(speak-to-signリポジトリ)の`relayToVerifier`で検証者を呼びます。封印された録音は読めません。
 転送するのは既知の種類の出力だけで、検証者のエラー出力は`verifier_failed`の`failed`になります。
+
+ルート`POST /speak-to-sign/v1/summary`は、音声によるコミュニティノートの要約を書きます。サーバーがこのルートを追加するのは、上の6つの変数と、NEAR AIの鍵`SPEAK_TO_SIGN_NEAR_AI_API_KEY`があるときだけです。鍵はシークレットストアに保管してください。
+`SPEAK_TO_SIGN_SUMMARY_MODEL`は任意で、既定は`Qwen/Qwen3.8-27B`です。ルートはこのモデルを思考なしで呼びます。ルートは、verifyのルートと同じくウォレットセッションを読みます。
+`{ text }`(1〜280文字)を受け取り、`{ ok: true, summary }`を返します。モデルが要約の規則を破った場合は、もう一度だけ尋ねます。
+失敗は固定のコードを含むJSONのエラーです:`summary_unreachable`、`summary_failed`、`summary_not_speakable`。鍵がないと、Walletは音声によるノートに署名できません。
 
 同じ6つの変数で、共同署名者による判定の確認も有効になります。共同署名者は、受け入れた判定を署名者データベースのテーブル
 `speak_to_sign_voice_verdicts`(D1のマイグレーション`0089_speak_to_sign_voice_verdicts.sql`)に記録します。

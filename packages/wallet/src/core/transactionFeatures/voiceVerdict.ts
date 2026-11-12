@@ -20,6 +20,9 @@ const VERIFIER_REFUSALS = [
   'speaker_unavailable',
   'storage',
   'transcriber_unavailable',
+  // A community note (verifier 0.13.0 and later): JEV checks that the summary fits the note.
+  'summary_mismatch',
+  'summary_check_unavailable',
 ] as const;
 
 export type VerifierRefusal = (typeof VERIFIER_REFUSALS)[number];

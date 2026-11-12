@@ -112,7 +112,11 @@ export type SpokenCalls = Readonly<{
   transfer(
     request: Typed<SpeakToSignTransferRequest, Sent<SpeakToSignRefusalReason>>,
   ): Promise<Sent<SpeakToSignRefusalReason>>;
-  /** `add_note` on a notes contract: the author says the note's short summary. */
+  /**
+   * `add_note` on a notes contract. The Seams server writes a short summary of the note, the card
+   * shows the note above it, and the author says the summary. The verifier checks that the
+   * summary gives the main point of the note.
+   */
   note(request: Typed<SpeakToSignNoteRequest, Sent>): Promise<Sent>;
   /** `rate_note` on a notes contract: "this note is helpful". */
   rating(request: Typed<SpeakToSignRatingRequest, Sent>): Promise<Sent>;
