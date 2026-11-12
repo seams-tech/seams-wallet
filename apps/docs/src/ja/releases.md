@@ -1,9 +1,32 @@
 ---
-title: リリース 0.69.2
-description: ノートの読み上げ要約をSeamsのサーバーが書き、ベリファイアーが要約とノートの一致を確認します。Walletのカードを最小化できます。
+title: リリース 0.70.0
+description: Seamsのサーバーがベリファイアーの各呼び出しのTDXクォートを確認し、Speak-to-Signの結果カードがTEEレシートを表示します。
 ---
 
-# リリース 0.69.2
+# リリース 0.70.0
+
+ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.70.0** を使います。0.69.2からアプリへの破壊的変更はありません。サーバーの運用者は最初の項目を読んでください。
+
+0.69.2からの変更:
+
+- Speak-to-Signの検証ルートは、判定を送る前に、ベリファイアーの各呼び出しのTDXクォートを確認します。判定の鍵はOutLayerのプロジェクトに結び付いているので、プロジェクトのすべてのバージョンが同じ鍵で署名します。クォートは実行されたWASMを示します。
+  - クォートは、出力をWASMハッシュ `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` とプロジェクトに結び付ける必要があります。Intelがクォートに署名し、`worker.outlayer.testnet` が5つの測定値を承認する必要があります。
+  - ルートはOutLayerから呼び出しの記録を読みます。最大15秒まで、1秒ごとに試します。
+  - 確認が失敗したとき、または記録が時間内に届かないとき、ルートは `attestation_<code>` で `failed` を送ります。例: `attestation_wasm_not_accepted`、`attestation_unavailable`。
+  - `verdict` にはOutLayerの記録のURL `attestationUrl` があります。その `timing` には `attestationMs` があります。
+  - `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` には、サーバーが呼ぶベリファイアーのバージョンのWASMハッシュを設定してください。ルートは別のWASMのクォートを拒否します。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)を参照してください。
+- 任意の`SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`: ベリファイアー(0.14.0以降)の`venice`ビルドのWASMハッシュです。このビルドはクリップをVenice AIに送ります。この変数と`SPEAK_TO_SIGN_NEAR_AI_API_KEY`があると、サーバーは1分に1回NEAR AIを確認します。NEAR AIまたはそのWhisperが停止している間だけ、Veniceが呼び出しを処理します。選ぶのはサーバーだけで、ページは選べません。
+  - Venice AIはTEEの中で動かないので、受け取った録音を聞くことができます。その呼び出しのレシートは「Speech to text: Venice AI, outside a TEE」を表示します。
+  - クォートの確認は、ルートが呼んだビルドのWASMハッシュだけを受け入れます。`verdict`イベントには`transcriber`(`nearai`または`venice`)があります。
+  - Walletのカードは、`0.14.0+venice`のようにビルド名を含むベリファイアーのバージョンを読みます。
+- 検証ルートは、ベリファイアーの各実行に40秒(以前は15秒)を与え、回答を60秒(以前は30秒)待ちます。ベリファイアーは各モデルを最大30秒待ちます。NEAR AIのWhisperが遅いとき、OutLayerが実行を止めるのではなく、署名付きの拒否(`transcriber_unavailable`)になります。
+- Speak-to-Signの支払い済みと署名済みのカードは、TEEレシートを表示します: 「TEE receipt · Intel TDX · OutLayer」、アカウントの声、言葉、ノートの要約の確認、判定のベリファイアーのバージョン、「View TDX quote」。サーバーが `attestationUrl` を送らないとき、レシートにリンクはありません。
+- VoiceIDの有効化は、VoiceIDの読み込みが終わるとすぐに最初の録音に進みます。以前は「Activate VoiceID」を押してから「Record sample 1」を押していました。
+- `@seams/voice-verdict`、`@seams/voice-capture`、`@seams/voice-sign`は **0.70.0** です。`@seams/voice-capture` の結果カードは `receipt`(`PhraseReceipt`)を受け取ります。タイトル、出典、確認済みの行、リンクを、キャプションと詳細の行の間に表示します。`@seams/voice-sign`では、実行時間の上限の既定値が40秒(以前は15秒)、`timeoutMs`の既定値が60,000(以前は20,000)です。
+- ウォレットのiframeプロトコルは **25.0.0** のままです。0.69.xのアプリは0.70.0のWalletホストで動きます。このリリースに新しいベリファイアーのバージョンは不要です。
+- サーバーとホストされたWalletを同時にデプロイしてください。3つのパッケージをすべて0.70.0でインストールしてください。データベースの移行はありません。
+
+## リリース 0.69.2
 
 ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.69.2** を使います。0.69.0からの破壊的変更はありません。
 

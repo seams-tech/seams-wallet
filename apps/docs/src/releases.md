@@ -1,9 +1,32 @@
 ---
-title: Release 0.69.2
-description: The Seams server writes the spoken summary of a note, the verifier checks that it fits the note, and a Wallet card can be minimized.
+title: Release 0.70.0
+description: The Seams server checks the TDX quote of each verifier call, and a Speak-to-Sign result card shows a TEE receipt.
 ---
 
-# Release 0.69.2
+# Release 0.70.0
+
+The browser SDK, server SDK and VoiceID plugin use **0.70.0**. An app has no breaking change since 0.69.2. A server operator must read the first item.
+
+Since 0.69.2:
+
+- The Speak-to-Sign verify route checks the TDX quote of each verifier call before it sends a verdict. The verdict key is bound to the OutLayer project, so every version of the project signs with it. The quote names the WASM that ran.
+  - The quote must bind the output to the WASM hash `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` and to the project. Intel must sign the quote, and `worker.outlayer.testnet` must approve its five measurements.
+  - The route reads the record of the call from OutLayer. It tries once each second for up to 15 s.
+  - If a check fails, or the record does not come in time, the route sends `failed` with `attestation_<code>`, for example `attestation_wasm_not_accepted` or `attestation_unavailable`.
+  - A `verdict` has `attestationUrl`, the URL of the OutLayer record. Its `timing` has `attestationMs`.
+  - Set `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` to the WASM hash of the verifier version that the server calls. The route refuses a quote of another WASM. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign).
+- Optional `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`: the WASM hash of the `venice` build of the verifier (0.14.0 and later), which sends the clip to Venice AI. With it and `SPEAK_TO_SIGN_NEAR_AI_API_KEY`, the server checks NEAR AI once a minute. Venice serves a call only while NEAR AI or its Whisper is down. Only the server chooses; the page cannot.
+  - Venice AI runs in no TEE, so it can hear the recordings that it gets. The receipt of such a call shows "Speech to text: Venice AI, outside a TEE".
+  - The quote check accepts only the WASM hash of the build that the route called. The verdict event has `transcriber` (`nearai` or `venice`).
+  - The Wallet card reads a verifier version with a build name, such as `0.14.0+venice`.
+- The verify route gives each verifier run 40 s (was 15 s) and waits 60 s for the answer (was 30 s). The verifier waits up to 30 s for each model. A slow NEAR AI Whisper now gives a signed refusal (`transcriber_unavailable`), not a run that OutLayer stopped.
+- The paid and signed Speak-to-Sign cards show a TEE receipt: "TEE receipt · Intel TDX · OutLayer", the voice of the account, the words, the summary check of a note, the verifier version of the verdict, and "View TDX quote". If the server sends no `attestationUrl`, the receipt has no link.
+- VoiceID activation goes to the first recording as soon as VoiceID has loaded. Before, the person pressed "Activate VoiceID" and then "Record sample 1".
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.0**. A result card of `@seams/voice-capture` takes `receipt` (`PhraseReceipt`): a title, a source, checked rows and a link, between the caption and the detail line. In `@seams/voice-sign`, the default run limit is 40 s (was 15 s) and the default `timeoutMs` is 60,000 (was 20,000).
+- The Wallet iframe protocol stays **25.0.0**. An app at 0.69.x works with a Wallet host at 0.70.0. This release needs no new verifier version.
+- Deploy the server and the hosted Wallet together. Install all three packages at 0.70.0. No database migrations.
+
+## Release 0.69.2
 
 The browser SDK, server SDK and VoiceID plugin use **0.69.2**. It has no breaking change since 0.69.0.
 
