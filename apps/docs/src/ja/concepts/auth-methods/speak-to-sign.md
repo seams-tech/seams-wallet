@@ -207,6 +207,18 @@ Walletが固定している音声鍵のシークレット`PROTECTED_AUDIO_KEY`�
 ルートは`@seams/voice-sign/server`(speak-to-signリポジトリ)の`relayToVerifier`で検証者を呼びます。封印された録音は読めません。
 転送するのは既知の種類の出力だけで、検証者のエラー出力は`verifier_failed`の`failed`になります。
 
+`verdict`を送る前に、ルートは呼び出しのTDXクォートを確認します。判定の鍵はOutLayerのプロジェクトに結び付いているので、プロジェクトのどのバージョンも同じ鍵で署名します。クォートは実行されたWASMを示します。
+ルートはOutLayerから呼び出しのアテステーションの記録を読みます。OutLayerは呼び出しの少し後に記録を保存するので、ルートは1秒ごとに最大15秒試します。
+その後、`@seams/voice-verdict`で次を確認します。
+
+- クォートが、出力をWASMのハッシュ`SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`とプロジェクトに結び付けていること(`checkAttestationBinding`)。
+- Intelがクォートに署名し、呼び出しの時点のIntelのコラテラルがプラットフォームを失効させていないこと(`checkQuoteCollateral`。コラテラルは`GET <api>/public/collateral`から取得)。
+- OutLayerのワーカーのコントラクト(`worker.outlayer.testnet`)が、クォートの5つの測定値を承認していること(`measurementsApproved`。`https://rpc.testnet.fastnear.com`を使用)。
+
+サーバーは、プラットフォームごとのコラテラルを次の更新までメモリーに保持し、コントラクトの承認を10分間保持します。
+確認が失敗した場合、または記録が時間内に来ない場合、ルートは`attestation_wasm_not_accepted`や`attestation_unavailable`のようなコード`attestation_<code>`を含む`failed`を送ります。
+ログにはコードと時間だけが出ます。`verdict`には記録の完全なURL`attestationUrl`があり、その`timing`には、待ち時間を含む確認の時間`attestationMs`があります。
+
 ルート`POST /speak-to-sign/v1/summary`は、音声によるコミュニティノートの要約を書きます。サーバーがこのルートを追加するのは、上の6つの変数と、NEAR AIの鍵`SPEAK_TO_SIGN_NEAR_AI_API_KEY`があるときだけです。鍵はシークレットストアに保管してください。
 `SPEAK_TO_SIGN_SUMMARY_MODEL`は任意で、既定は`Qwen/Qwen3.8-27B`です。ルートはこのモデルを思考なしで呼びます。ルートは、verifyのルートと同じくウォレットセッションを読みます。
 `{ text }`(1〜280文字)を受け取り、`{ ok: true, summary }`を返します。モデルが要約の規則を破った場合は、もう一度だけ尋ねます。

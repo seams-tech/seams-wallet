@@ -307,6 +307,31 @@ unchanged, or one `failed` event with a fixed code, such as
 sealed recording, and it forwards only an output of a known kind: an error
 output of the verifier gives `failed` with `verifier_failed`.
 
+Before it sends a `verdict`, the route checks the TDX quote of the call. The
+verdict key is bound to the OutLayer project, so every version of the project
+signs with it; the quote names the WASM that ran. The route reads the
+attestation record of the call from OutLayer. OutLayer stores the record a
+short time after the call, so the route tries once each second for up to
+15 s. Then it checks, with `@seams/voice-verdict`:
+
+- The quote binds the output to the WASM hash
+  `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` and to the project
+  (`checkAttestationBinding`).
+- Intel signed the quote, and Intel's collateral at the time of the call
+  does not revoke the platform (`checkQuoteCollateral`, with the collateral of
+  `GET <api>/public/collateral`).
+- The OutLayer worker contract (`worker.outlayer.testnet`) approves the five
+  measurements of the quote (`measurementsApproved`, through
+  `https://rpc.testnet.fastnear.com`).
+
+The server keeps the collateral of each platform in memory until its next
+update, and an approval of the contract for 10 minutes. If a check fails, or
+the record does not come in time, the route sends `failed` with the code
+`attestation_<code>`, for example `attestation_wasm_not_accepted` or
+`attestation_unavailable`. The log has the code and the times only. A
+`verdict` has `attestationUrl`, the full URL of the record, and its `timing`
+has `attestationMs`, the time of the check with the wait.
+
 The route `POST /speak-to-sign/v1/summary` writes the summary of a spoken
 community note. The server adds it only with the six variables above and
 `SPEAK_TO_SIGN_NEAR_AI_API_KEY`, a NEAR AI key. Keep it in a secret store.

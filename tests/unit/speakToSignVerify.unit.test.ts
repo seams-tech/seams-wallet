@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
 import type { NormalizedRouterLogger } from '../../packages/wallet-server/src/router/framework/logger';
@@ -16,6 +17,10 @@ import {
   SPEAK_TO_SIGN_SUMMARY_PATH,
   type SpeakToSignSummaryConfig,
 } from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignSummary';
+import type {
+  VerifierAttestation,
+  VerifierAttestationCall,
+} from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignAttestation';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
@@ -43,6 +48,9 @@ const VERIFIER_INPUT = {
   audio_b64: 'AAAA',
 };
 
+const CALL_ID = '304f41ef-1c01-42df-90b6-11bee354ae75';
+const ATTESTATION_URL = `/attestations/by-call/${CALL_ID}`;
+
 type FetchCall = { url: string; init: RequestInit };
 
 async function buildHarness(
@@ -51,6 +59,8 @@ async function buildHarness(
     readonly ownerResolvable?: boolean;
     /** The NEAR AI config of the summary route. Without it, the route set has no summary route. */
     readonly summary?: SpeakToSignSummaryConfig;
+    /** `server`: the server's own TDX quote check. Default: a check that passes. */
+    readonly attestation?: Pick<VerifierAttestation, 'check'> | 'server';
   } = {},
 ) {
   const walletId = 'wallet:speak-to-sign';
@@ -75,6 +85,13 @@ async function buildHarness(
   const logger: NormalizedRouterLogger = { debug: record, info: record, warn: record, error: record };
   const rateLimited: string[] = [];
   const ownerReads: unknown[] = [];
+  const attested: VerifierAttestationCall[] = [];
+  const passingAttestation: Pick<VerifierAttestation, 'check'> = {
+    async check(call) {
+      attested.push(call);
+      return { ok: true, tcbStatus: 'UpToDate', recordMs: 1_200, attestationMs: 1_450 };
+    },
+  };
   let allow = true;
   const extensions = createSpeakToSignVerifyRouteExtensions(CONFIG, {
     authorizationSessions: {
@@ -119,6 +136,9 @@ async function buildHarness(
       rateLimited.push(walletId);
       return { allowed: allow };
     },
+    ...(options.attestation === 'server'
+      ? {}
+      : { attestation: options.attestation ?? passingAttestation }),
   }, options.summary ?? null);
   expect(extensions).toHaveLength(1);
   const extension = extensions[0] as RouterApiRouteExtension;
@@ -161,6 +181,7 @@ async function buildHarness(
     logs,
     rateLimited,
     ownerReads,
+    attested,
     walletId: session.walletId,
     denyRateLimit: () => void (allow = false),
   };
@@ -182,7 +203,14 @@ function verifyEvents(text: string): Array<{ event: string; data: Record<string,
 }
 
 const okOutlayer = () =>
-  Response.json({ status: 'completed', output: VERIFIER_OUTPUT, error: null, job_id: 7 });
+  Response.json({
+    status: 'completed',
+    output: VERIFIER_OUTPUT,
+    error: null,
+    job_id: 7,
+    call_id: CALL_ID,
+    attestation_url: ATTESTATION_URL,
+  });
 
 function expectNoKey(harness: { logs: unknown[][] }, ...texts: string[]) {
   for (const text of texts) expect(text).not.toContain(PAYMENT_KEY);
@@ -330,11 +358,14 @@ test('the call forwards the exact OutLayer shape and returns the output unchange
   expect(response.json.ok).toBe(true);
   expect(response.json.output).toEqual(VERIFIER_OUTPUT);
   expect(Object.keys(response.json).sort()).toEqual(['attestationUrl', 'ok', 'output', 'timing']);
-  // OutLayer gave no attestation path in this reply.
-  expect(response.json.attestationUrl).toBeNull();
+  expect(response.json.attestationUrl).toBe(`https://outlayer.example.test${ATTESTATION_URL}`);
   const timing = response.json.timing as Record<string, unknown>;
   expect(typeof timing.outlayerMs).toBe('number');
+  expect(timing.attestationMs).toBe(1_450);
   expect(typeof timing.serverMs).toBe('number');
+  // The route checks the quote of this call before it sends the output.
+  expect(harness.attested).toEqual([{ output: VERIFIER_OUTPUT, attestationUrl: ATTESTATION_URL }]);
+  expect(JSON.stringify(harness.logs)).toContain('verifier attestation checked');
 
   expect(harness.calls).toHaveLength(1);
   const [call] = harness.calls;
@@ -385,6 +416,60 @@ test('OutLayer failures map to fixed codes without upstream text or the key', as
     expect(response.json).toEqual({ ok: false, code });
     expectNoKey(harness, response.text);
   }
+});
+
+test('the server check refuses an output that the TDX quote of the call does not bind', async () => {
+  // A real record of OutLayer testnet. Its quote binds another output than VERIFIER_OUTPUT.
+  const { record } = JSON.parse(
+    readFileSync(
+      new URL('../fixtures/outlayer-attestation/outlayer_attestation_0_11_0.json', import.meta.url),
+      'utf8',
+    ),
+  ) as { record: Record<string, unknown> };
+  const cases: Array<[() => Response, string]> = [
+    [okOutlayer, 'attestation_output_mismatch'],
+    [() => Response.json({ status: 'completed', output: VERIFIER_OUTPUT }), 'attestation_missing'],
+  ];
+  for (const [reply, code] of cases) {
+    const harness = await buildHarness(
+      ({ url }) => (url.endsWith(ATTESTATION_URL) ? Response.json(record) : reply()),
+      { attestation: 'server' },
+    );
+    const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+    expect(response.events?.map((entry) => entry.event), code).toEqual(['verifier_running', 'failed']);
+    expect(response.json).toEqual({ ok: false, code });
+    expect(response.text).not.toContain('verdict_json');
+    // The record read carries no payment key.
+    for (const call of harness.calls.slice(1)) {
+      expect(call.url).toBe(`https://outlayer.example.test${ATTESTATION_URL}`);
+      expect(new Headers(call.init.headers).get('x-payment-key')).toBeNull();
+    }
+    const refusal = harness.logs.find((entry) => entry[0] === '[speak-to-sign] verifier attestation refused');
+    expect(Object.keys(refusal?.[1] as object).sort()).toEqual(['attestationMs', 'code', 'recordMs']);
+    expectNoKey(harness, response.text);
+  }
+});
+
+test('a refused attestation sends a failed event with its code and no verdict', async () => {
+  const harness = await buildHarness(okOutlayer, {
+    attestation: {
+      check: async () => ({
+        ok: false,
+        code: 'attestation_wasm_not_accepted',
+        recordMs: 900,
+        attestationMs: 950,
+      }),
+    },
+  });
+  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  expect(response.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'failed']);
+  expect(response.json).toEqual({ ok: false, code: 'attestation_wasm_not_accepted' });
+  expect(response.text).not.toContain(VERIFIER_OUTPUT.verdict_json);
+  expect(harness.logs).toContainEqual([
+    '[speak-to-sign] verifier attestation refused',
+    { code: 'attestation_wasm_not_accepted', recordMs: 900, attestationMs: 950 },
+  ]);
+  expectNoKey(harness, response.text);
 });
 
 const NEAR_AI_KEY = 'nearai_secret_do_not_leak_91c2';

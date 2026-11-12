@@ -17,6 +17,7 @@ import type {
   RouterApiRouteExtension,
 } from '../../framework/routeExtensions';
 import { resolveWalletSessionAuthorizationV2Admission } from '../signingOperations/walletExecutionAdmission';
+import { VerifierAttestation } from './speakToSignAttestation';
 import {
   parseSummaryBody,
   SPEAK_TO_SIGN_SUMMARY_MAX_BODY_BYTES,
@@ -73,6 +74,8 @@ export type SpeakToSignVerifyDependencies = Readonly<{
   fetch: typeof fetch;
   rateLimit?: SpeakToSignVerifyRateLimit;
   now?: () => number;
+  /** Tests replace the TDX quote check. The server always checks with `VerifierAttestation`. */
+  attestation?: Pick<VerifierAttestation, 'check'>;
 }>;
 
 const ENV_NAMES = [
@@ -108,8 +111,24 @@ export function createSpeakToSignVerifyRouteExtensions(
   summary: SpeakToSignSummaryConfig | null = null,
 ): readonly RouterApiRouteExtension[] {
   if (!config) return [];
+  // Only the fields of the check: the payment key stays with the verifier call.
+  const attestation =
+    dependencies.attestation ??
+    new VerifierAttestation(
+      {
+        outlayerBaseUrl: config.outlayerBaseUrl,
+        project: config.project,
+        versionKey: config.versionKey,
+      },
+      { fetch: dependencies.fetch, now: dependencies.now ?? Date.now },
+    );
   return [
-    new SpeakToSignVerifyRoutes(resolveConfig(config, dependencies.fetch), dependencies, summary),
+    new SpeakToSignVerifyRoutes(
+      resolveConfig(config, dependencies.fetch),
+      attestation,
+      dependencies,
+      summary,
+    ),
   ];
 }
 
@@ -164,7 +183,8 @@ type VerifierResult =
       ok: true;
       output: unknown;
       attestationUrl: string | null;
-      timing: Readonly<{ outlayerMs: number; serverMs: number }>;
+      /** `attestationMs` is the check of the TDX quote, with the wait for its record. */
+      timing: Readonly<{ outlayerMs: number; attestationMs: number; serverMs: number }>;
     }>
   | Readonly<{ ok: false; code: string }>;
 
@@ -211,6 +231,7 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
 
   constructor(
     private readonly verifier: VerifierConfig,
+    private readonly attestation: Pick<VerifierAttestation, 'check'>,
     private readonly dependencies: SpeakToSignVerifyDependencies,
     private readonly summary: SpeakToSignSummaryConfig | null,
   ) {
@@ -361,7 +382,9 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
 
   /**
    * Relays the input unchanged: the recording in it is sealed to the verifier, so this server
-   * cannot read it. `relayToVerifier` gives only an output of a known kind, unchanged.
+   * cannot read it. `relayToVerifier` gives only an output of a known kind, unchanged. The route
+   * sends the output only when the TDX quote of the call binds it to the pinned version: every
+   * version of the project signs with the same verdict key.
    */
   private async callVerifier(
     verifierInput: Record<string, unknown>,
@@ -386,11 +409,27 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
       return { ok: false, code };
     }
     const outlayerMs = this.now() - outlayerStartedAtMs;
+    const attested = await this.attestation.check({ output, attestationUrl: attestationPath });
+    const { recordMs, attestationMs } = attested;
+    if (!attested.ok) {
+      logger.warn('[speak-to-sign] verifier attestation refused', {
+        code: attested.code,
+        recordMs,
+        attestationMs,
+      });
+      return { ok: false, code: attested.code };
+    }
+    // Only `Revoked` refuses. Another status than `UpToDate` names Intel advisories.
+    logger.info('[speak-to-sign] verifier attestation checked', {
+      tcbStatus: attested.tcbStatus,
+      recordMs,
+      attestationMs,
+    });
     return {
       ok: true,
       output,
       attestationUrl: attestationUrlOf(this.verifier.baseUrl, attestationPath),
-      timing: { outlayerMs, serverMs: this.now() - startedAtMs },
+      timing: { outlayerMs, attestationMs, serverMs: this.now() - startedAtMs },
     };
   }
 }
