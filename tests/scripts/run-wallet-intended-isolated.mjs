@@ -19,6 +19,7 @@ const testsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const resultsRoot = path.join(testsRoot, 'test-results', 'wallet-intended');
 const listCasesOnly = process.argv.includes('--list-cases');
 const requireGoogleToken = process.argv.includes('--require-google-token');
+const shard = parseShard(process.argv.slice(2));
 const selectionArgs = process.argv.slice(2).filter(isSelectionArgument);
 const report = parseJsonReport(
   runPnpmCapture([
@@ -32,16 +33,49 @@ const report = parseJsonReport(
     ...selectionArgs,
   ]),
 );
-const cases = collectCases(report.suites);
-if (cases.length === 0) throw new Error('The Wallet intended selection did not match any cases');
+const selectedCases = collectCases(report.suites);
+if (selectedCases.length === 0) {
+  throw new Error('The Wallet intended selection did not match any cases');
+}
+const cases = shardCases(selectedCases, shard);
 
 if (listCasesOnly) listCases(cases);
 else runCases(cases);
 
 function isSelectionArgument(argument) {
   return (
-    argument !== '--' && argument !== '--list-cases' && argument !== '--require-google-token'
+    argument !== '--' &&
+    argument !== '--list-cases' &&
+    argument !== '--require-google-token' &&
+    !argument.startsWith('--shard=')
   );
+}
+
+/** `--shard=<index>/<count>` keeps every count-th case, from case number index (1-based). */
+function parseShard(args) {
+  const values = [];
+  for (const argument of args) if (argument.startsWith('--shard=')) values.push(argument);
+  if (values.length === 0) return null;
+  const match = values.length === 1 ? /^--shard=(\d+)\/(\d+)$/u.exec(values[0]) : null;
+  const index = Number(match?.[1]);
+  const count = Number(match?.[2]);
+  if (!match || index < 1 || index > count) {
+    throw new Error('--shard must appear once as --shard=<index>/<count>, with 1 <= index <= count');
+  }
+  return { index, count };
+}
+
+function shardCases(casesToShard, selectedShard) {
+  if (!selectedShard) return casesToShard;
+  const { index, count } = selectedShard;
+  const shardedCases = [];
+  for (const [caseIndex, testCase] of casesToShard.entries()) {
+    if (caseIndex % count === index - 1) shardedCases.push(testCase);
+  }
+  console.log(
+    `[wallet-intended] shard ${String(index)}/${String(count)} holds ${String(shardedCases.length)} of ${String(casesToShard.length)} case(s)`,
+  );
+  return shardedCases;
 }
 
 function listCases(casesToList) {

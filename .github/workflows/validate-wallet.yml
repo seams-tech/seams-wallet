@@ -13,60 +13,32 @@ concurrency:
   group: validate-wallet-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The build job makes the Rust outputs once. The packages, browsers and lifecycle jobs
+# start together after it, and each one restores those outputs from the run's
+# wallet-rust-build-outputs artifact (.github/actions/setup-wallet-ci).
 jobs:
   build:
-    name: Build public Wallet boundary
+    name: Build Rust outputs
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: pnpm
-      - uses: oven-sh/setup-bun@v2
+      - uses: ./.github/actions/setup-wallet-ci
       - uses: dtolnay/rust-toolchain@stable
         id: rust-toolchain
         with:
           targets: wasm32-unknown-unknown
-      # Upstream prebuilt binaries with pinned SHA-256 digests. Compiling the
-      # four wasm-bindgen CLIs from source took 11-13 minutes of every build.
-      # GH_TOKEN makes the downloads authenticated API calls, because GitHub
-      # can answer anonymous release downloads with 504 under load.
-      - name: Install prebuilt wasm-pack and wasm-bindgen
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
-            --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
-          echo "$RUNNER_TEMP/wasm-pack" >> "$GITHUB_PATH"
-      # worker-build has no upstream prebuilt binary, so this job keeps the one
-      # it compiled. CARGO_INSTALL_ROOT makes every later `cargo install
-      # worker-build` in this job (wrangler build commands) find it.
-      - name: Restore Worker builder
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/seams-ci/worker-build-0.8.4
-          key: worker-build-0.8.4-${{ env.ImageOS }}-${{ runner.arch }}
-      - name: Install Worker builder
-        run: |
-          root="$HOME/.cache/seams-ci/worker-build-0.8.4"
-          echo "CARGO_INSTALL_ROOT=$root" >> "$GITHUB_ENV"
-          echo "$root/bin" >> "$GITHUB_PATH"
-          CARGO_INSTALL_ROOT="$root" cargo install worker-build --version 0.8.4 --locked
-      - run: pnpm install --frozen-lockfile
       - run: pnpm report:bloat --check
       - run: pnpm check:cargo-locks
       # The Rust outputs (WASM packages, release Workers, local tools) are
-      # cached by the rustc version and by the exact content of their inputs:
-      # every tracked file of each path package that a built manifest
-      # resolves, which includes its Cargo.lock, plus the Cargo settings and
-      # the build scripts (scripts/rust-build-inputs.mjs). A change to a crate
-      # that no build resolves keeps the cache.
-      # The Rust build takes about 22 of this job's minutes. There is no
-      # partial-key fallback: a restored output always matches its inputs.
-      # The release workflow never uses this cache; it builds from source.
+      # cached as one archive (scripts/rust-build-outputs.sh), keyed by the
+      # rustc version and by the exact content of their inputs: every tracked
+      # file of each path package that a built manifest resolves, which
+      # includes its Cargo.lock, plus the Cargo settings and the build scripts
+      # (scripts/rust-build-inputs.mjs). A change to a crate that no build
+      # resolves, or to this workflow, keeps the cache.
+      # The Rust build takes about 22 minutes. There is no partial-key
+      # fallback: a restored output always matches its inputs.
       - name: Hash Rust build inputs
         id: rust-inputs
         run: |
@@ -77,58 +49,76 @@ jobs:
         id: rust-outputs
         uses: actions/cache/restore@v6
         with:
-          key: rust-outputs-v2-${{ runner.os }}-${{ steps.rust-toolchain.outputs.cachekey }}-${{ steps.rust-inputs.outputs.hash }}
-          path: |
-            wasm/*/pkg
-            crates/router-ab-ed25519-yao-client/pkg
-            crates/router-ab-cloudflare/build/signing-worker
-            crates/router-ab-cloudflare/build/deriver-a
-            crates/router-ab-cloudflare/build/deriver-b
-            crates/router-ab-cloudflare/build/router
-            crates/router-ab-cloudflare/build/tenant-root-control-plane
-            crates/router-ab-cloudflare/build/local-tools
+          key: rust-outputs-v3-${{ runner.os }}-${{ steps.rust-toolchain.outputs.cachekey }}-${{ steps.rust-inputs.outputs.hash }}
+          path: ${{ runner.temp }}/rust-build-outputs.tgz
+      # Upstream prebuilt binaries with pinned SHA-256 digests. Compiling the
+      # four wasm-bindgen CLIs from source took 11-13 minutes of every build.
+      # GH_TOKEN makes the downloads authenticated API calls, because GitHub
+      # can answer anonymous release downloads with 504 under load.
+      - name: Install prebuilt wasm-pack and wasm-bindgen
+        if: steps.rust-outputs.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
+            --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
+          echo "$RUNNER_TEMP/wasm-pack" >> "$GITHUB_PATH"
+      # worker-build has no upstream prebuilt binary, so this job keeps the one
+      # it compiled. Its version is pinned in crates/router-ab-cloudflare/package.json.
+      - name: Restore Worker builder
+        if: steps.rust-outputs.outputs.cache-hit != 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/seams-ci/worker-build
+          key: worker-build-${{ env.ImageOS }}-${{ runner.arch }}-${{ hashFiles('crates/router-ab-cloudflare/package.json') }}
+      - name: Install Worker builder
+        if: steps.rust-outputs.outputs.cache-hit != 'true'
+        run: |
+          root="$HOME/.cache/seams-ci/worker-build"
+          echo "$root/bin" >> "$GITHUB_PATH"
+          CARGO_INSTALL_ROOT="$root" pnpm -C crates/router-ab-cloudflare run worker-build:install
       - name: Build Rust WASM packages, Workers and local tools
         if: steps.rust-outputs.outputs.cache-hit != 'true'
-        run: pnpm run build:wasm && pnpm run build:workers && pnpm run build:local-tools
+        run: bash scripts/rust-build-outputs.sh build
       # Rustc names every file it read in a dep-info file, including files
       # that include_bytes! or #[path] reach outside a package directory. If
       # one of them is not in the key, this step fails and nothing is saved.
       - name: Check that the Rust cache key covers every file rustc read
         if: steps.rust-outputs.outputs.cache-hit != 'true'
         run: node scripts/rust-build-inputs.mjs --check-dep-info
+      - name: Pack Rust build outputs
+        if: steps.rust-outputs.outputs.cache-hit != 'true'
+        run: bash scripts/rust-build-outputs.sh pack "$RUNNER_TEMP/rust-build-outputs.tgz"
       - name: Save Rust build outputs
         if: steps.rust-outputs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           key: ${{ steps.rust-outputs.outputs.cache-primary-key }}
-          path: |
-            wasm/*/pkg
-            crates/router-ab-ed25519-yao-client/pkg
-            crates/router-ab-cloudflare/build/signing-worker
-            crates/router-ab-cloudflare/build/deriver-a
-            crates/router-ab-cloudflare/build/deriver-b
-            crates/router-ab-cloudflare/build/router
-            crates/router-ab-cloudflare/build/tenant-root-control-plane
-            crates/router-ab-cloudflare/build/local-tools
+          path: ${{ runner.temp }}/rust-build-outputs.tgz
       - name: Check restored Rust build outputs
         if: steps.rust-outputs.outputs.cache-hit == 'true'
-        run: |
-          set -euo pipefail
-          WASM_SDK_USE_PREBUILT=1 pnpm run build:wasm
-          for role in signing-worker deriver-a deriver-b router tenant-root-control-plane; do
-            for file in index.js index_bg.wasm build-stamp.json; do
-              test -f "crates/router-ab-cloudflare/build/$role/$file"
-            done
-          done
-          test -x crates/router-ab-cloudflare/build/local-tools/linux-x64/router_ab_local_init
-          # The Worker freshness guards (`requireCurrentWorkerBuild` in
-          # crates/router-ab-cloudflare/scripts/test-private-d1.mjs) compare each
-          # build stamp with source file times. A checkout gives every source the
-          # current time, so a restored build would read as stale. The cache key
-          # proves that these sources equal the ones that made the restored build,
-          # so give the tracked Rust sources a time before any build stamp.
-          git ls-files -z -- crates wasm | xargs -0 touch -h -d @1
-      - run: pnpm run build:packages
+        run: bash scripts/rust-build-outputs.sh check "$RUNNER_TEMP/rust-build-outputs.tgz"
+      # Release wallet packages ships the Workers and the Linux local tool of
+      # the push run for the released commit, so a push run keeps them longer.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wallet-rust-build-outputs
+          path: ${{ runner.temp }}/rust-build-outputs.tgz
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+          retention-days: ${{ github.event_name == 'push' && 14 || 1 }}
+
+  packages:
+    name: Check Wallet packages and hosted flows
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-wallet-ci
+        with:
+          restore-build: 'true'
       - run: pnpm type-check
       - name: Verify hosted signing credit and login refusal
         run: node tests/e2e/signing-credit.e2e.mjs
@@ -153,6 +143,32 @@ jobs:
           name: tenant-grant-renewal-${{ github.run_id }}
           path: .artifacts/grant-renewal/**/evidence.json
           if-no-files-found: ignore
+      - run: pnpm check:packed-wallet
+      - name: Validate documentation links and snippets
+        run: |
+          pnpm -C apps/docs check:links
+          node apps/docs/scripts/check-code-fences.mjs
+      - run: pnpm build:docs
+      - run: pnpm build:example
+      - name: Build Wallet intended test app
+        env:
+          VITE_WALLET_ORIGIN: https://localhost:4002
+          VITE_RELAYER_URL: https://localhost:4101
+          VITE_SEAMS_PROJECT_ENVIRONMENT_ID: local-wallet-test:dev
+          VITE_SEAMS_PUBLISHABLE_KEY: pk_local_wallet_test
+          VITE_ROUTER_AB_NORMAL_SIGNING_WORKER_ID: local-signing-worker
+        run: pnpm build:test-app
+
+  browsers:
+    name: Test Wallet in browsers
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-wallet-ci
+        with:
+          restore-build: 'true'
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm -C tests test:wallet-browser:representative
       - name: Upload representative browser evidence
@@ -175,33 +191,38 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
       - run: pnpm -C tests test:wallet-unit
+
+  # Each lifecycle case starts a fresh local Wallet system, which takes about
+  # 35 seconds, so the cases run in shards on parallel runners.
+  lifecycle:
+    name: Verify Wallet lifecycle (${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-wallet-ci
+        with:
+          restore-build: 'true'
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Verify representative Wallet lifecycle
         env:
           SEAMS_INTENDED_SKIP_BUILD: '1'
-        run: pnpm -C tests test:intended:representative
+        run: >-
+          pnpm -C tests test:intended:representative
+          --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Upload representative lifecycle evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: wallet-intended-${{ github.run_id }}
+          name: wallet-intended-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             tests/test-results/wallet-intended/**
             tests/.artifacts/application-auth/receipt.json
             tests/.artifacts/application-auth/example.png
           include-hidden-files: true
           if-no-files-found: ignore
-      - run: pnpm check:packed-wallet
-      - name: Validate documentation links and snippets
-        run: |
-          pnpm -C apps/docs check:links
-          node apps/docs/scripts/check-code-fences.mjs
-      - run: pnpm build:docs
-      - run: pnpm build:example
-      - name: Build Wallet intended test app
-        env:
-          VITE_WALLET_ORIGIN: https://localhost:4002
-          VITE_RELAYER_URL: https://localhost:4101
-          VITE_SEAMS_PROJECT_ENVIRONMENT_ID: local-wallet-test:dev
-          VITE_SEAMS_PUBLISHABLE_KEY: pk_local_wallet_test
-          VITE_ROUTER_AB_NORMAL_SIGNING_WORKER_ID: local-signing-worker
-        run: pnpm build:test-app

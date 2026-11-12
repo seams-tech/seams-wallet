@@ -34,12 +34,14 @@ const builtManifests = [
 ];
 
 // The scripts that run the build, besides those inside the package directories.
+// rust-build-outputs.sh runs the build and names the cached outputs, so an edit to the
+// workflow that calls it keeps the cache.
 const buildScripts = [
-  '.github/workflows/validate-wallet.yml',
   'packages/wallet/build-paths.sh',
   'packages/wallet/scripts/build',
   'scripts/build-local-tools.mjs',
   'scripts/rust-build-inputs.mjs',
+  'scripts/rust-build-outputs.sh',
 ];
 
 // Only the package.json entries that run the build: a release changes each package's

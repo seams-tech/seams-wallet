@@ -1,0 +1,43 @@
+name: Set up Wallet CI
+description: >-
+  Installs pnpm, Node.js, Bun and the workspace packages. With restore-build, it also
+  restores the Rust outputs of this run's build job and builds the Wallet packages.
+
+inputs:
+  registry-url:
+    description: npm registry to authenticate for publishing; empty for none
+    required: false
+    default: ''
+  restore-build:
+    description: >-
+      'true' unpacks the wallet-rust-build-outputs artifact of this run (see
+      scripts/rust-build-outputs.sh) and runs build:packages
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v5
+    - uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+        cache: pnpm
+        registry-url: ${{ inputs.registry-url }}
+    - uses: oven-sh/setup-bun@v2
+    - shell: bash
+      run: pnpm install --frozen-lockfile
+    - if: inputs.restore-build == 'true'
+      uses: actions/download-artifact@v8
+      with:
+        name: wallet-rust-build-outputs
+        path: ${{ runner.temp }}
+    - if: inputs.restore-build == 'true'
+      name: Restore Rust build outputs
+      shell: bash
+      run: |
+        bash scripts/rust-build-outputs.sh unpack "$RUNNER_TEMP/rust-build-outputs.tgz"
+        WASM_SDK_USE_PREBUILT=1 pnpm run build:wasm
+    - if: inputs.restore-build == 'true'
+      shell: bash
+      run: pnpm run build:packages
