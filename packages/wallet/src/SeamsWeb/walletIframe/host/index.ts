@@ -303,9 +303,12 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         parseDrawnWalletStepChrome(req.payload?.chrome) !== null);
     const endCardControls =
       drawsChrome && typeof requestId === 'string'
-        ? reportCardControls((control) =>
-            post({ type: 'SURFACE_CONTROL', requestId, payload: { requestId, control } }),
-          )
+        ? reportCardControls({
+            control: (control) =>
+              post({ type: 'SURFACE_CONTROL', requestId, payload: { requestId, control } }),
+            progress: (progress) =>
+              post({ type: 'SURFACE_PROGRESS', requestId, payload: { requestId, progress } }),
+          })
         : null;
     const requestExecutionGeneration = state.executionGeneration;
     const postForRequest = postExecutionMessage.bind(null, state, requestExecutionGeneration, post);

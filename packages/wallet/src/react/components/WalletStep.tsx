@@ -7,6 +7,7 @@ import {
   WALLET_CARD_RESIZE_MS,
   type WalletStepChrome,
   type WalletStepEvents,
+  type WalletStepProgress,
   type WalletStepSize,
   type WalletStepTransition,
 } from '../../SeamsWeb/walletIframe/shared/walletStep';
@@ -36,6 +37,11 @@ type WalletStepOptions<T> = WalletStepEvents &
   Readonly<{
     /** Back, Close or both inside the card. Defaults to none. */
     chrome?: WalletStepChrome;
+    /**
+     * Minimize inside the card, beside Close. A press hides the card and runs `onMinimize`;
+     * the card's work goes on. Defaults to false. The step reads it when it mounts.
+     */
+    minimize?: boolean;
     /**
      * How long the card waits and fades. Defaults to the Wallet's own times. The step reads it
      * when it mounts.
@@ -101,7 +107,7 @@ export function SentWalletStep<T>(props: SentWalletStepProps<T>): React.ReactEle
   React.useEffect(() => {
     const element = anchor.current;
     if (!element) return undefined;
-    const { send, chrome = 'none', transition } = latest.current;
+    const { send, chrome = 'none', minimize = false, transition } = latest.current;
     const controller = new AbortController();
     // Strict Mode mounts twice: only the mount that stays sends the call.
     queueMicrotask(() => {
@@ -111,6 +117,7 @@ export function SentWalletStep<T>(props: SentWalletStepProps<T>): React.ReactEle
         kind: 'anchored',
         anchor: element,
         chrome,
+        minimize,
         transition,
         signal: controller.signal,
       }).then(
@@ -179,6 +186,9 @@ function useStepEvents<P extends WalletStepEvents>(
       onExit: (exit) => latest.current.onExit?.(exit),
       onBack: () => latest.current.onBack?.(),
       onClose: () => latest.current.onClose?.(),
+      onMinimize: (restore: () => void) => latest.current.onMinimize?.(restore),
+      onRestore: () => latest.current.onRestore?.(),
+      onProgress: (progress: WalletStepProgress) => latest.current.onProgress?.(progress),
     }),
     [],
   );

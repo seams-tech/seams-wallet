@@ -458,12 +458,16 @@ test.describe('Wallet cards as steps of an app dialog', () => {
 
 type ConfirmWindow = StepWindow & { __confirmResult?: Promise<unknown> };
 
-/** Sends a NEAR transaction; with `chrome`, its Wallet card shows over #anchor. */
+/**
+ * Sends a NEAR transaction; with `chrome`, its Wallet card shows over #anchor. With `minimize`,
+ * the card has Minimize, and `__restore` is the function that shows it again.
+ */
 async function sendTransaction(
   page: Page,
   chrome?: 'back' | 'close' | 'back_and_close' | 'none',
+  minimize = false,
 ): Promise<string> {
-  await page.evaluate((chrome) => {
+  await page.evaluate(({ chrome, minimize }) => {
     const state = window as unknown as ConfirmWindow & { __stepRecord: (name: string) => any };
     const anchor = document.getElementById('anchor')!;
     const record = (name: string) => (value?: unknown) => {
@@ -475,6 +479,7 @@ async function sendTransaction(
         modal: dialog instanceof HTMLDialogElement && dialog.matches(':modal'),
         dialogHeight: dialog?.getBoundingClientRect().height ?? 0,
         anchorHeight: anchor.style.getPropertyValue('--seams-auth-menu-height'),
+        atMs: performance.now(),
       });
     };
     const dispatch = chrome
@@ -484,6 +489,7 @@ async function sendTransaction(
             kind: 'anchored',
             anchor,
             chrome,
+            minimize,
             onEnter: (size: unknown) => {
               record('enter')(size);
               document.getElementById('app-step')!.hidden = true;
@@ -492,6 +498,12 @@ async function sendTransaction(
             onExit: record('exit'),
             onBack: record('back'),
             onClose: record('close'),
+            onMinimize: (restore: () => void) => {
+              (state as unknown as { __restore: () => void }).__restore = restore;
+              record('minimize')();
+            },
+            onRestore: record('restore'),
+            onProgress: record('progress'),
           },
         }
       : { kind: 'ordinary' };
@@ -504,7 +516,7 @@ async function sendTransaction(
       },
       dispatch,
     );
-  }, chrome);
+  }, { chrome, minimize });
   return (await waitForRequest(page, 'PM_SIGN_AND_SEND_TX')).requestId;
 }
 
@@ -631,6 +643,114 @@ test.describe('A transaction confirm as a step of an app dialog', () => {
     await waitForSurfaceView(page, true, seen);
   });
 
+  test('Minimize hides the card and keeps its request, and the app or the card shows it again', async ({
+    page,
+  }) => {
+    const requestId = await sendTransaction(page, 'back_and_close', true);
+    const request = await waitForRequest(page, 'PM_SIGN_AND_SEND_TX');
+    expect(request.presentation).toEqual({
+      kind: 'anchored_v1',
+      chrome: 'back_and_close',
+      minimize: true,
+    });
+    await waitForStepEvent(page, 'ready');
+    await waitForSurfaceView(page, true, 0);
+    let seen = (await surfaceViews(page)).length;
+    const control = (control: string) =>
+      postFromHost(page, { type: 'SURFACE_CONTROL', requestId, payload: { requestId, control } });
+    const overlay = () =>
+      page.evaluate(() => {
+        const dialog = document.querySelector<HTMLDialogElement>('dialog.seams-wallet-overlay-dialog')!;
+        return {
+          open: dialog.open,
+          modal: dialog.matches(':modal'),
+          inert: dialog.inert,
+          minimized: dialog.classList.contains('is-minimized'),
+          pointerEvents: getComputedStyle(dialog).pointerEvents,
+        };
+      });
+
+    // The person pressed Minimize: the card stays open but shows nothing and takes no input,
+    // and the page is not inert. The request goes on.
+    await control('minimize');
+    await waitForStepEvent(page, 'minimize');
+    expect(await overlay()).toEqual({
+      open: true,
+      modal: false,
+      inert: true,
+      minimized: true,
+      pointerEvents: 'none',
+    });
+    await waitForSurfaceView(page, false, seen);
+    seen = (await surfaceViews(page)).length;
+
+    // The card's stage reaches the app, for its progress.
+    const progress = { stage: 'checking', done: 2, total: 5 };
+    await postFromHost(page, {
+      type: 'SURFACE_PROGRESS',
+      requestId,
+      payload: { requestId, progress },
+    });
+    await waitForStepEvent(page, 'progress');
+
+    // The app shows the card again.
+    await page.evaluate(() => (window as unknown as { __restore: () => void }).__restore());
+    await page.waitForFunction(() =>
+      document.querySelector('dialog.seams-wallet-overlay-dialog')!.matches(':modal'),
+    );
+    expect(await overlay()).toMatchObject({ modal: true, inert: false, minimized: false });
+    await waitForSurfaceView(page, true, seen);
+
+    // Hidden again; now the card asks to show again (a result). A second ask does nothing.
+    await control('minimize');
+    await page.waitForFunction(
+      () =>
+        (window as unknown as StepWindow).__stepEvents.filter((event) => event.name === 'minimize')
+          .length === 2,
+    );
+    await control('restore');
+    await control('restore');
+    await page.waitForFunction(() =>
+      document.querySelector('dialog.seams-wallet-overlay-dialog')!.matches(':modal'),
+    );
+    const events = await stepEvents(page);
+    expect(events.map((event) => event.name)).toEqual([
+      'enter',
+      'ready',
+      'minimize',
+      'progress',
+      'restore',
+      'minimize',
+      'restore',
+    ]);
+    expect(events.find((event) => event.name === 'progress')?.value).toEqual(progress);
+  });
+
+  test('a card without Minimize ignores a minimize and a stage', async ({ page }) => {
+    const requestId = await sendTransaction(page, 'back_and_close');
+    expect((await waitForRequest(page, 'PM_SIGN_AND_SEND_TX')).presentation).toEqual({
+      kind: 'anchored_v1',
+      chrome: 'back_and_close',
+    });
+    await waitForStepEvent(page, 'ready');
+    await postFromHost(page, {
+      type: 'SURFACE_CONTROL',
+      requestId,
+      payload: { requestId, control: 'minimize' },
+    });
+    await postFromHost(page, {
+      type: 'SURFACE_PROGRESS',
+      requestId,
+      payload: { requestId, progress: { stage: 'recording', done: 0, total: 0 } },
+    });
+    await page.waitForTimeout(200);
+    expect((await stepEvents(page)).map((event) => event.name)).toEqual(['enter', 'ready']);
+    const modal = await page.evaluate(() =>
+      document.querySelector('dialog.seams-wallet-overlay-dialog')!.matches(':modal'),
+    );
+    expect(modal).toBe(true);
+  });
+
   test('the card eases a new size as the Wallet modal does, except with reduced motion', async ({
     page,
   }) => {
@@ -755,6 +875,7 @@ test.describe('WalletStep in a React dialog', () => {
             modal: false,
             dialogHeight: 0,
             anchorHeight: '',
+            atMs: performance.now(),
           });
         function Dialog() {
           const [step, setStep] = React.useState('app');
@@ -1180,9 +1301,10 @@ test.describe('App steps around a sign-in or VoiceID card in the Wallet modal', 
         .then((value: unknown) => state.__settled.push({ kind: 'value', value }));
     });
     const request = await waitForNthRequest(page, 'PM_SPEAK_TO_SIGN_NOTE', 1);
-    // The card opens at once, with Close, and the request carries no app steps.
+    // The card opens at once, with Close, and the request carries no app steps. Each
+    // Speak-to-Sign payload carries `autoStart`, with the app's default.
     expect(request.presentation).toEqual({ kind: 'anchored_v1', chrome: 'close' });
-    expect(Object.keys(request.payload).sort()).toEqual(['action', 'walletId']);
+    expect(Object.keys(request.payload).sort()).toEqual(['action', 'autoStart', 'walletId']);
     await postFromHost(page, {
       type: 'SURFACE_MEASUREMENT',
       payload: {

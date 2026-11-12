@@ -1,7 +1,10 @@
 import {
   anchoredCardChrome,
+  anchoredCardMinimizes,
   createWalletIframeSurfaceMeasurementReporter,
+  minimizeCard,
   pressCardControl,
+  reportCardProgress,
   type AuthMethodPhraseSurface,
   type WalletAuthMethodHostPlugin,
 } from '@seams/wallet/voiceid-host';
@@ -11,8 +14,8 @@ type PhraseInput = Parameters<WalletAuthMethodHostPlugin['openPhrase']>[0];
 
 /**
  * Shows the given sentence on the phrase card of `@seams/voice-capture`, in the Wallet's frame:
- * the Wallet's theme classes, the Back and Close that the app asked for, and the size reports that the Wallet iframe
- * needs. The card records clips with the quality gate and stays open, so the caller can show its
+ * the Wallet's theme classes, the Back, Close and Minimize that the app asked for, and the size
+ * reports that the Wallet iframe needs. The card records clips with the quality gate and stays open, so the caller can show its
  * check and the result on the same card.
  */
 export function openPhrase(input: PhraseInput): AuthMethodPhraseSurface {
@@ -29,6 +32,11 @@ export function openPhrase(input: PhraseInput): AuthMethodPhraseSurface {
       controls: cardControls(),
       // The app hears which control the person pressed, before the card ends.
       pressed: pressCardControl,
+      // Minimize, when the app asked for it: the app hides the card while its check goes on,
+      // and hears the card's stage for its progress.
+      ...(anchoredCardMinimizes()
+        ? { minimized: minimizeCard, progressed: reportCardProgress }
+        : {}),
       // The parent sizes the frame to this surface, so the card can follow the frame.
       hugged: binding.kind === 'wallet_iframe',
       mounted(element) {

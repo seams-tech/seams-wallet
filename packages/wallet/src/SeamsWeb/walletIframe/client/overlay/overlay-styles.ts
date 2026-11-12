@@ -30,6 +30,7 @@ const CLASS_HAS_GEOMETRY = 'has-geometry';
 const CLASS_RESIZE_ANIMATED = 'is-resize-animated';
 const CLASS_REVEAL_PENDING = 'is-reveal-pending';
 const CLASS_ANCHORED_TOP = 'is-anchored-top';
+const CLASS_MINIMIZED = 'is-minimized';
 const CLASS_STEPS_MODAL = 'seams-wallet-steps-modal';
 const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
 const DIALOG_SELECTOR = `dialog[data-seams-root].${CLASS_BASE}.${CLASS_DIALOG}`;
@@ -145,6 +146,16 @@ const BASE_CSS = `
   ${DIALOG_SELECTOR}.${CLASS_HIDDEN} {
     visibility: hidden;
     pointer-events: none;
+  }
+  /* A minimized card stays rendered, so its document keeps working, but it shows nothing and
+     takes no input. It fades out; the controller fades it in when it shows again. */
+  ${DIALOG_SELECTOR}.${CLASS_MINIMIZED} {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 150ms ease-in;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ${DIALOG_SELECTOR}.${CLASS_MINIMIZED} { transition: none; }
   }
   ${DIALOG_SELECTOR}.${CLASS_DRAWER}::backdrop {
     background: transparent;
@@ -558,6 +569,7 @@ export const OverlayStyleClasses = {
   HAS_GEOMETRY: CLASS_HAS_GEOMETRY,
   RESIZE_ANIMATED: CLASS_RESIZE_ANIMATED,
   REVEAL_PENDING: CLASS_REVEAL_PENDING,
+  MINIMIZED: CLASS_MINIMIZED,
 };
 
 export function setTransactionReviewAppearance(

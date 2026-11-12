@@ -80,6 +80,14 @@ export { backIcon } from './SeamsWeb/walletIframe/host/ui/auth-menu/icons';
 /**
  * `anchoredCardChrome()`: the Back, Close or both that the app asked the card to draw.
  * `pressCardControl()`: tells the app which of them the person pressed, before the card ends.
+ * `anchoredCardMinimizes()`: the app asked the card to draw Minimize. `minimizeCard()` tells the
+ * app to hide or show the card, and `reportCardProgress()` tells it the card's stage.
  */
-export { anchoredCardChrome, pressCardControl } from './core/signingEngine/uiConfirm/anchoredCard';
+export {
+  anchoredCardChrome,
+  anchoredCardMinimizes,
+  minimizeCard,
+  pressCardControl,
+  reportCardProgress,
+} from './core/signingEngine/uiConfirm/anchoredCard';
 export type { VoiceMicrophonePreference } from './core/authMethods/voiceId/microphonePreference';

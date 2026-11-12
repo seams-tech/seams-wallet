@@ -71,6 +71,17 @@ export type DrawnWalletStepChrome = Exclude<WalletStepChrome, 'none'>;
 /** One control of the chrome: the one that the person pressed. */
 export type WalletStepControl = 'back' | 'close';
 
+/**
+ * Where a minimized card is: it records the sentence (or waits for Record), it checks the
+ * recording, or it shows a result. `done` of `total` parts of the check are over; both are 0
+ * outside a check. It carries no approval data.
+ */
+export type WalletStepProgress = Readonly<{
+  stage: 'recording' | 'checking' | 'result';
+  done: number;
+  total: number;
+}>;
+
 /** The card's layout size in CSS pixels. */
 export type WalletStepSize = Readonly<{ width: number; height: number }>;
 
@@ -96,6 +107,19 @@ export type WalletStepEvents = Readonly<{
   onBack?: () => void;
   /** The person pressed Close in the card (`chrome: 'close'` or `'back_and_close'`). */
   onClose?: () => void;
+  /**
+   * The person pressed Minimize in the card (`minimize: true`). The SDK has hidden the card, and
+   * the page is no longer inert; the card's work goes on. Hide the dialog around the card, and
+   * call `restore` to show the card again, for example from a progress pill.
+   */
+  onMinimize?: (restore: () => void) => void;
+  /**
+   * The minimized card shows again: the app called `restore`, or the card needs the person (a
+   * result, or another try). Show the dialog around the card.
+   */
+  onRestore?: () => void;
+  /** The stage of a card with Minimize, on each change. Use it for the progress of a hidden card. */
+  onProgress?: (progress: WalletStepProgress) => void;
 }>;
 
 export function parseWalletStepChrome(value: unknown): WalletStepChrome | null {
@@ -128,11 +152,21 @@ export function walletStepExitForDismissal(
   return { kind: control === 'back' ? 'back' : 'closed' };
 }
 
-/** The Wallet host tells the parent which chrome control the person pressed in a card. */
+/**
+ * A control of a card in the app's dialog: Back or Close that the person pressed, Minimize that
+ * the person pressed (`minimize`), or the card's own ask to show again (`restore`).
+ */
+export type WalletSurfaceControl = WalletStepControl | 'minimize' | 'restore';
+
+/** The Wallet host tells the parent which control of a card ran. */
 export type WalletSurfaceControlPayload = Readonly<{
   requestId: string;
-  control: WalletStepControl;
+  control: WalletSurfaceControl;
 }>;
+
+function isWalletSurfaceControl(value: unknown): value is WalletSurfaceControl {
+  return value === 'back' || value === 'close' || value === 'minimize' || value === 'restore';
+}
 
 export function parseWalletSurfaceControlPayload(
   value: unknown,
@@ -141,9 +175,32 @@ export function parseWalletSurfaceControlPayload(
   return record &&
     Object.keys(record).length === 2 &&
     isNonEmptyString(record.requestId) &&
-    (record.control === 'back' || record.control === 'close')
+    isWalletSurfaceControl(record.control)
     ? { requestId: record.requestId, control: record.control }
     : null;
+}
+
+/** The Wallet host tells the parent the stage of a card with Minimize. */
+export type WalletSurfaceProgressPayload = Readonly<{
+  requestId: string;
+  progress: WalletStepProgress;
+}>;
+
+function isCount(value: unknown): value is number {
+  return isFiniteNumber(value) && Number.isInteger(value) && value >= 0 && value <= 1_000;
+}
+
+export function parseWalletSurfaceProgressPayload(
+  value: unknown,
+): WalletSurfaceProgressPayload | null {
+  const record = asRecord(value);
+  const progress = asRecord(record?.progress);
+  if (!record || !progress || Object.keys(record).length !== 2) return null;
+  if (!isNonEmptyString(record.requestId) || Object.keys(progress).length !== 3) return null;
+  const { stage, done, total } = progress;
+  if (stage !== 'recording' && stage !== 'checking' && stage !== 'result') return null;
+  if (!isCount(done) || !isCount(total) || done > total) return null;
+  return { requestId: record.requestId, progress: { stage, done, total } };
 }
 
 /**
@@ -156,6 +213,11 @@ export type AnchoredWalletPresentation = WalletStepEvents &
     anchor: HTMLElement;
     /** Back, Close or both inside the card. Defaults to none: the card keeps only its own controls. */
     chrome?: WalletStepChrome;
+    /**
+     * Minimize inside the card, beside Close, for a card whose work takes time (a Speak-to-Sign
+     * check). A press hides the card and runs `onMinimize`. Defaults to false.
+     */
+    minimize?: boolean;
     /** How long the card waits and fades. Defaults to the Wallet's own times. */
     transition?: WalletStepTransition;
     /** Aborting it ends the card as cancelled. */
@@ -172,6 +234,8 @@ export type WalletSurfacePresentation = Readonly<{ kind: 'modal' }> | AnchoredWa
 export type WalletSurfacePresentationWire = Readonly<{
   kind: 'anchored_v1';
   chrome: WalletStepChrome;
+  /** The card draws Minimize. Only `true` is sent. */
+  minimize?: true;
 }>;
 
 export function parseWalletSurfacePresentationWire(
@@ -179,9 +243,22 @@ export function parseWalletSurfacePresentationWire(
 ): WalletSurfacePresentationWire | null {
   const record = asRecord(value);
   const chrome = parseWalletStepChrome(record?.chrome);
-  return record?.kind === 'anchored_v1' && chrome && Object.keys(record).length === 2
-    ? { kind: 'anchored_v1', chrome }
+  if (record?.kind !== 'anchored_v1' || !chrome) return null;
+  const keys = Object.keys(record).length;
+  if (keys === 2) return { kind: 'anchored_v1', chrome };
+  return keys === 3 && record.minimize === true
+    ? { kind: 'anchored_v1', chrome, minimize: true }
     : null;
+}
+
+/** The wire presentation of an app's anchored card. */
+export function walletSurfacePresentationWire(
+  presentation: Pick<AnchoredWalletPresentation, 'chrome' | 'minimize'>,
+): WalletSurfacePresentationWire {
+  const chrome = presentation.chrome ?? 'none';
+  return presentation.minimize === true
+    ? { kind: 'anchored_v1', chrome, minimize: true }
+    : { kind: 'anchored_v1', chrome };
 }
 
 /** The parent's view of an anchored card: in view and uncovered, or not. */
@@ -201,7 +278,8 @@ export function assertAnchoredPresentation(value: unknown): AnchoredWalletPresen
     presentation.kind !== 'anchored' ||
     typeof HTMLElement === 'undefined' ||
     !(presentation.anchor instanceof HTMLElement) ||
-    (presentation.chrome !== undefined && parseWalletStepChrome(presentation.chrome) === null)
+    (presentation.chrome !== undefined && parseWalletStepChrome(presentation.chrome) === null) ||
+    (presentation.minimize !== undefined && typeof presentation.minimize !== 'boolean')
   ) {
     throw new Error('An anchored presentation needs an anchor element and a valid chrome');
   }

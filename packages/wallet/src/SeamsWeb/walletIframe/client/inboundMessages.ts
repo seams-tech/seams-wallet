@@ -3,7 +3,9 @@ import { parseWalletConnectionRequest } from '../shared/walletAlternatives';
 import { parseTransactionReviewState } from '../shared/transactionReview';
 import {
   parseWalletSurfaceControlPayload,
+  parseWalletSurfaceProgressPayload,
   type WalletSurfaceControlPayload,
+  type WalletSurfaceProgressPayload,
 } from '../shared/walletStep';
 import { parseOwnerNearSubmissionProgress } from '../shared/ownerNearOperation';
 import {
@@ -75,6 +77,11 @@ type ParsedChildToParentEnvelope =
       readonly type: 'SURFACE_CONTROL';
       readonly requestId?: string;
       readonly payload: WalletSurfaceControlPayload;
+    }
+  | {
+      readonly type: 'SURFACE_PROGRESS';
+      readonly requestId?: string;
+      readonly payload: WalletSurfaceProgressPayload;
     }
   | {
       readonly type: 'TRANSACTION_ACTIVITY';
@@ -256,6 +263,10 @@ export function parseClientChildToParentEnvelope(
     }
     case 'SURFACE_CONTROL': {
       const payload = parseWalletSurfaceControlPayload(Reflect.get(record, 'payload'));
+      return payload ? { ...requestIdFields, type, payload } : null;
+    }
+    case 'SURFACE_PROGRESS': {
+      const payload = parseWalletSurfaceProgressPayload(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
     }
     case 'TRANSACTION_ACTIVITY': {

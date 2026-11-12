@@ -99,6 +99,7 @@ export type {
   WalletStepChrome,
   WalletStepEvents,
   WalletStepExit,
+  WalletStepProgress,
   WalletStepSize,
   WalletStepTransition,
 } from './SeamsWeb/walletIframe/shared/walletStep';

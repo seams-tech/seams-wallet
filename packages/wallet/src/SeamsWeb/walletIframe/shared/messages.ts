@@ -31,6 +31,7 @@ import {
   type DrawnWalletStepChrome,
   type WalletStepChrome,
   type WalletSurfaceControlPayload,
+  type WalletSurfaceProgressPayload,
   type WalletSurfacePresentationWire,
   type WalletSurfaceViewPayload,
 } from './walletStep';
@@ -1888,5 +1889,6 @@ export type ChildToParentEnvelope =
   | RpcEnvelope<'AUTH_MENU_ERROR', HostedAuthMenuErrorEvent>
   | RpcEnvelope<'SURFACE_MEASUREMENT', WalletIframeSurfaceMeasurement>
   | RpcEnvelope<'SURFACE_CONTROL', WalletSurfaceControlPayload>
+  | RpcEnvelope<'SURFACE_PROGRESS', WalletSurfaceProgressPayload>
   | RpcEnvelope<'PM_RESULT', PMResultPayload>
   | RpcEnvelope<'ERROR', ErrorPayload>;

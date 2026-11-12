@@ -21,6 +21,8 @@ import {
   type WalletStepSize,
   type WalletStepTransition,
   type WalletStepTransitionTimes,
+  type WalletStepProgress,
+  type WalletSurfaceControl,
 } from '../shared/walletStep';
 import { asRecord } from '@shared/utils/validation';
 import type { HostedAuthMenuOutcome } from '../shared/messages';
@@ -41,6 +43,8 @@ export type AnchoredSurfaceOptions = WalletStepEvents &
     anchor: HTMLElement;
     layer: AnchoredSurfaceLayer;
     chrome: WalletStepChrome;
+    /** The card draws Minimize, and a press hides it until `restore`. */
+    minimize?: boolean;
     transition?: WalletStepTransition;
     /**
      * Checks on every frame whether the whole card is in view and uncovered, and reports each
@@ -229,6 +233,8 @@ export class AnchoredSurface {
   private dismissedInCard = false;
   /** The chrome control that the person pressed, as the Wallet host reported it. */
   private pressed: WalletStepControl | null = null;
+  /** The person pressed Minimize: the card is hidden, and its request goes on. */
+  private hidden = false;
   /** How long the card waits and fades. The overlay runs the fades. */
   readonly transition: WalletStepTransitionTimes;
 
@@ -337,10 +343,44 @@ export class AnchoredSurface {
     this.dismissedInCard = true;
   }
 
-  /** The Wallet host reports the chrome control that the person pressed, before the card ends. */
-  controlPressed(control: WalletStepControl): void {
-    this.pressed = control;
+  /** The card is minimized: the overlay hides it, and the page is not inert. */
+  get minimized(): boolean {
+    return this.hidden;
   }
+
+  /**
+   * The Wallet host reports a control of the card: Back or Close that the person pressed, before
+   * the card ends, Minimize that the person pressed, or the card's ask to show again.
+   */
+  controlPressed(control: WalletSurfaceControl): void {
+    if (control === 'minimize') this.minimize();
+    else if (control === 'restore') this.restore();
+    else this.pressed = control;
+  }
+
+  /** The Wallet host reports the stage of a card with Minimize. */
+  progressed(progress: WalletStepProgress): void {
+    if (this.exited || this.options.minimize !== true) return;
+    notify(this.options.onProgress, progress);
+  }
+
+  private minimize(): void {
+    if (this.exited || this.options.minimize !== true || this.hidden) return;
+    this.hidden = true;
+    this.render();
+    notify(this.options.onMinimize, this.restore);
+  }
+
+  /**
+   * Shows the minimized card again. The app hears it first, so it can show its dialog around
+   * the card before the card fades in over it.
+   */
+  readonly restore = (): void => {
+    if (this.exited || !this.hidden) return;
+    this.hidden = false;
+    notify(this.options.onRestore, undefined);
+    this.render();
+  };
 
   /** How a card that the person dismissed ended: Back or Close. */
   dismissalExit(): WalletStepExit {

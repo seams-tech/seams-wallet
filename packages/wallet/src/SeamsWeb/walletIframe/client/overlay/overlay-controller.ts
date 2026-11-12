@@ -320,6 +320,8 @@ export class OverlayController {
   private reviewSlot: HTMLDivElement | null = null;
   private mode: OverlayRenderMode = { kind: 'hidden' };
   private visible = false;
+  /** The anchored card on screen is minimized (setMinimized). */
+  private minimized = false;
   private generation = 0;
   private pointerCapture: PointerCapture | null = null;
   private restoreFocus: HTMLElement | null = null;
@@ -377,7 +379,13 @@ export class OverlayController {
    */
   isSurfaceUnobstructed(): boolean {
     const { dialog, iframe } = this;
-    if (!dialog || !iframe || !this.visible || this.anchoredFade?.playState === 'running') {
+    if (
+      !dialog ||
+      !iframe ||
+      !this.visible ||
+      this.minimized ||
+      this.anchoredFade?.playState === 'running'
+    ) {
       return false;
     }
     if (dialog.classList.contains(OverlayStyleClasses.PROVISIONAL)) return false;
@@ -431,6 +439,25 @@ export class OverlayController {
 
   setReviewAppearance(appearance: AppearanceConfigInput | undefined): void {
     setTransactionReviewAppearance(this.ensureDialog().dialog, appearance);
+  }
+
+  /**
+   * Hides the anchored card that the person minimized, or shows it again. The card stays
+   * rendered, so its request goes on, and the page is not inert while it is hidden.
+   */
+  setMinimized(minimized: boolean): void {
+    if (this.minimized === minimized) return;
+    this.minimized = minimized;
+    const dialog = this.dialog;
+    if (!dialog || !this.visible) return;
+    dialog.classList.toggle(OverlayStyleClasses.MINIMIZED, minimized);
+    if (minimized) {
+      this.cancelAnchoredFade();
+      this.restoreCapturedFocus();
+    } else {
+      this.fadeAnchored(dialog, 'in');
+    }
+    this.syncDialogInteractivity();
   }
 
   setAuthMenuVisualScale(scale: number): void {
@@ -542,6 +569,7 @@ export class OverlayController {
     }
     this.mode = mode;
     this.visible = true;
+    dialog.classList.toggle(OverlayStyleClasses.MINIMIZED, this.minimized);
 
     setVisible(iframe);
     setDialogPresentation(dialog, presentationKind(mode), geometryKind(mode.geometry));
@@ -617,12 +645,13 @@ export class OverlayController {
     if (!dialog || mode.kind === 'hidden') return;
     const preparing =
       geometryKind(mode.geometry) === 'provisional' || this.pendingRevealFrame !== null;
-    if (!dialog.open || (!preparing && dialog.inert)) this.captureFocusForDialog();
-    dialog.inert = preparing;
-    dialog.setAttribute('aria-hidden', String(preparing));
+    // A minimized card is shown to no one: it takes no input, and the page is not inert.
+    const away = preparing || this.minimized;
+    if (!dialog.open || (!away && dialog.inert)) this.captureFocusForDialog();
+    dialog.inert = away;
+    dialog.setAttribute('aria-hidden', String(away));
     // A top-layer card is modal: it paints above all app content, and the page is inert.
-    const modal =
-      !preparing && (mode.anchoredLayer ? mode.anchoredLayer === 'top' : mode.focusTrap);
+    const modal = !away && (mode.anchoredLayer ? mode.anchoredLayer === 'top' : mode.focusTrap);
     dialog.setAttribute('aria-modal', String(modal));
     const displayMode = modal ? 'modal' : 'nonmodal';
     if (dialog.open && this.dialogDisplayMode !== displayMode) {
@@ -852,6 +881,7 @@ export class OverlayController {
     // An anchored card that was on screen fades out before the dialog hides.
     const fadeOut =
       wasVisible &&
+      !this.minimized &&
       this.mode.kind !== 'hidden' &&
       this.mode.anchoredLayer !== null &&
       this.lastAppliedGeometry !== null &&
@@ -893,7 +923,8 @@ export class OverlayController {
     }
     this.dialog.removeAttribute('aria-label');
     this.dialog.classList.add(OverlayStyleClasses.HIDDEN);
-    this.dialog.classList.remove(OverlayStyleClasses.REVEAL_PENDING);
+    this.dialog.classList.remove(OverlayStyleClasses.REVEAL_PENDING, OverlayStyleClasses.MINIMIZED);
+    this.minimized = false;
     clearDialogGeometry(this.dialog);
     if (this.dialog.open) {
       this.closeDialogProgrammatically(this.dialog);

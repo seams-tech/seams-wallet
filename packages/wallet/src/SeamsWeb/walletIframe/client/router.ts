@@ -227,6 +227,7 @@ import {
 } from './anchoredSurface';
 import {
   walletStepTransitionTimes,
+  walletSurfacePresentationWire,
   type WalletSurfacePresentationWire,
   type WalletStepExit,
 } from '../shared/walletStep';
@@ -1951,6 +1952,7 @@ export class WalletIframeRouter {
     }
     this.overlayState.controller.setAuthMenuVisualScale(authMenuVisualScale);
     if (anchored) this.overlayState.controller.setAnchoredFadeTimes(anchored.transition);
+    this.overlayState.controller.setMinimized(anchored?.minimized === true);
     const toast = receiptView === 'toast';
     if (toast) {
       const width = Math.min(360, Math.max(1, viewport.widthCssPx - 32));
@@ -4418,6 +4420,11 @@ export class WalletIframeRouter {
       this.anchoredSurfaces.get(requestId as WalletIframeRequestId)?.controlPressed(control);
       return;
     }
+    if (msg.type === 'SURFACE_PROGRESS') {
+      const { requestId, progress } = msg.payload;
+      this.anchoredSurfaces.get(requestId as WalletIframeRequestId)?.progressed(progress);
+      return;
+    }
     if (msg.type === 'TRANSACTION_ACTIVITY') {
       const surface = this.walletIframeSurface;
       if (
@@ -4619,7 +4626,7 @@ export class WalletIframeRouter {
         ? postOpts.transactionDispatch.presentation
         : null;
     const presentation: WalletSurfacePresentationWire | undefined = anchoredPresentation
-      ? { kind: 'anchored_v1', chrome: anchoredPresentation.chrome ?? 'none' }
+      ? walletSurfacePresentationWire(anchoredPresentation)
       : postOpts?.presentation;
     const full = reservation
       ? { ...envelope, requestId, transactionReview: reservation.metadata }
