@@ -18,9 +18,10 @@ The browser SDK, server SDK and VoiceID plugin use **0.69.0**. This release has 
   - A press hides the card and keeps its request. The SDK runs `onMinimize(restore)`. `restore()` shows the card again, and the card also shows again when it needs the person. Both run `onRestore`.
   - The card reports its stage (`recording`, `checking` with done and total, `result`) with `onProgress`. It carries no approval data.
   - A Wallet host before 0.69.0 refuses `minimize`. Deploy the hosted Wallet before an app sends it.
-- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.69.0**. The voice card:
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.69.1**. The voice card:
   - shows a context (the note) above its sentence, and a form card shows Record in place of the voice line until it records;
-  - takes a `colors` prop, and the voice line can draw pixels in place of sine waves;
+  - takes a `colors` prop (with `surface3`, the colour of the check segments that have not run yet), and the voice line can draw pixels in place of sine waves;
+  - turns the Beam off with `voiceBeam: 'none'`, and takes the theme's Beam from the first frame. Before, it showed the default Beam until recording started;
   - shows a result as one group: the seal, the headline, the details and the button. The seal takes `voiceSeal`, else `voiceLine`, of `appearance.theme.colors`;
   - places its grid rows by name. A host that sets its own rows must use the names.
 - The Wallet iframe protocol is **25.0.0**: the note message has no summary. An app at 0.68.1 does not work with a Wallet host at 0.69.0, or the reverse.

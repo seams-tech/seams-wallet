@@ -197,7 +197,7 @@
   "dependencies": {
     "@levischuck/tiny-cbor": "0.2.11",
     "@near-js/types": "2.4.0",
-    "@seams/voice-verdict": "0.69.0",
+    "@seams/voice-verdict": "0.69.1",
     "borsh": "1.0.0",
     "bs58": "6.0.0",
     "idb": "8.0.3",
