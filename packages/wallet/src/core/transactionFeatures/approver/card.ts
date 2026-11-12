@@ -203,7 +203,10 @@ export function stepUpView(
 
 /** What a receipt shows of one verifier call: the version in its verdict, and its attestation. */
 export type CardProof = Readonly<{
-  /** The verifier version in the signed verdict, such as "0.13.0". */
+  /**
+   * The verifier version in the signed verdict, such as "0.13.0". A build for another
+   * speech-to-text service adds its name: "0.14.0+venice".
+   */
   verifier: string | null;
   /** The public OutLayer record of the call, with its TDX quote. */
   attestationUrl: string | null;
@@ -220,7 +223,9 @@ function verdictVersion(output: unknown): string | null {
   try {
     const verdict: unknown = JSON.parse(parsed.verdictJson);
     if (!isPlainObject(verdict) || typeof verdict.verifier !== 'string') return null;
-    return /^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(verdict.verifier) ? verdict.verifier : null;
+    return /^\d{1,4}\.\d{1,4}\.\d{1,4}(\+[a-z0-9]{1,16})?$/.test(verdict.verifier)
+      ? verdict.verifier
+      : null;
   } catch {
     return null;
   }
@@ -229,7 +234,8 @@ function verdictVersion(output: unknown): string | null {
 /**
  * The receipt of a signed request: the checks of the verifier, which the OutLayer worker signs
  * in an Intel TDX TEE, and the link to the TDX quote of the call. The voice is the owner's
- * account; a note also had its summary checked against the note.
+ * account; a note also had its summary checked against the note. The `venice` build sends the
+ * clip to Venice AI, which runs in no TEE: the receipt says so.
  */
 export function receiptView(input: CardInput, proof: CardProof): PhraseReceipt {
   const rows = [
@@ -240,6 +246,9 @@ export function receiptView(input: CardInput, proof: CardProof): PhraseReceipt {
     },
     ...(input.noun === 'note' && checksSummary(proof.verifier)
       ? [{ label: 'Summary', value: 'fits the note (JEV)' }]
+      : []),
+    ...(proof.verifier?.endsWith('+venice')
+      ? [{ label: 'Speech to text', value: 'Venice AI, outside a TEE' }]
       : []),
     {
       label: 'Verdict',
@@ -258,7 +267,7 @@ export function receiptView(input: CardInput, proof: CardProof): PhraseReceipt {
 
 /** Verifier 0.13.0 and later check with JEV that a note's summary fits the note. */
 function checksSummary(version: string | null): boolean {
-  const [major = 0, minor = 0] = (version ?? '').split('.').map(Number);
+  const [major = 0, minor = 0] = (version ?? '').split('+')[0].split('.').map(Number);
   return major > 0 || minor >= 13;
 }
 

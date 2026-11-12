@@ -23,8 +23,9 @@ const ATTESTATION_URL = `/attestations/by-call/${CALL.record.call_id}`;
 const CONFIG: VerifierAttestationConfig = {
   outlayerBaseUrl: BASE_URL,
   project: 'seams-v1.testnet/voice-verifier',
-  versionKey: 'd2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8',
 };
+/** The WASM hash of the version that the route called: the one of the record. */
+const VERSION_KEY = 'd2f8b63016e6465d614240989f60ff60ad1d0d8dcff7c247e2d4306fc197d9f8';
 
 function readFixture(name: string): unknown {
   return JSON.parse(
@@ -95,12 +96,13 @@ function harness(served: Served = {}, memory: AttestationMemory = createAttestat
     memory,
     advance: (ms: number) => void (nowMs += ms),
     check: (
-      call: { output?: unknown; attestationUrl?: string | null } = {},
+      call: { output?: unknown; attestationUrl?: string | null; versionKey?: string } = {},
       config: VerifierAttestationConfig = CONFIG,
     ) =>
       new VerifierAttestation(config, dependencies).check({
         output: call.output ?? CALL.output,
         attestationUrl: call.attestationUrl === undefined ? ATTESTATION_URL : call.attestationUrl,
+        versionKey: call.versionKey ?? VERSION_KEY,
       }),
   };
 }
@@ -129,7 +131,8 @@ test('a real record of the pinned version passes all three checks', async () => 
 
 test('a record of another WASM, another output or another project is refused', async () => {
   const otherWasm = harness();
-  expect(await otherWasm.check({}, { ...CONFIG, versionKey: '0'.repeat(64) })).toMatchObject({
+  // A call to another version, such as the `venice` build, accepts only its own WASM hash.
+  expect(await otherWasm.check({ versionKey: '0'.repeat(64) })).toMatchObject({
     ok: false,
     code: 'attestation_wasm_not_accepted',
   });
@@ -150,7 +153,7 @@ test('a record of another WASM, another output or another project is refused', a
 
   // A record whose fields do not match its quote, and one that is not a record.
   const edited = harness({ record: { ...CALL.record, wasm_hash: '0'.repeat(64) } });
-  expect(await edited.check({}, { ...CONFIG, versionKey: '0'.repeat(64) })).toMatchObject({
+  expect(await edited.check({ versionKey: '0'.repeat(64) })).toMatchObject({
     ok: false,
     code: 'attestation_task_hash_mismatch',
   });

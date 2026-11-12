@@ -23,7 +23,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
    Walletは送信の前に、録音を検証者の音声鍵で封印します。そのためSeamsのサーバーは暗号文だけを運び、検証者がTEEの中で録音を開きます。
 2. Seamsのサーバーが、録音と型付きのリクエストをOutLayer上の検証者に送ります。OutLayerは、TEE(信頼できる実行環境)でコードを実行するNEARのオフチェーン計算サービスです。
    検証者が動作している間に、Walletは支払いのためのアクセスキーのnonceと最近のブロックハッシュを読みます。判定の前には何も署名しません。
-3. 検証者は、Phala Cloud上のサービスから話者埋め込みを、NEAR AIから文字起こしを同時に受け取ります。
+3. 検証者は、Phala Cloud上のサービスから話者埋め込みを、NEAR AIから文字起こしを同時に受け取ります(サーバーに`venice`ビルドがあれば、NEAR AIのWhisperが停止している間はVenice AIから受け取ります。[Seamsサーバーの設定](#configure-the-seams-server)を参照)。
    声は所有者が登録したテンプレートと、言葉は検証者自身が作ったリクエストの文と比較します。
    金額は完全に一致する必要があります。値を持たない語は、似た音の語でも受け入れます(「NEAR」に対する「year」、「send」に対する「sent」、「testnet」に対する「testnode」など)。
    送金先も、アカウント名に似た音の名前を受け入れます。区切りは別の言い方でもかまいません(「dot」に対する「period」、「dash」に対する「hyphen」など)。
@@ -196,6 +196,16 @@ Seamsのサーバーは、6つの変数をすべて設定した場合だけ`POST
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
 
+もう1つの変数は任意です: `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`は、同じ検証者の`venice`ビルド(検証者0.14.0以降、speak-to-signリポジトリーの`./build.sh --venice`)のWASMハッシュです。
+このビルドは、NEAR AIのWhisperの代わりにVenice AIへクリップを送り、その判定は`0.14.0+venice`のようにビルドの名前を示します。
+サーバーが呼び出しごとにビルドを選び、ページは選べません。
+
+- この変数がない場合、または`SPEAK_TO_SIGN_NEAR_AI_API_KEY`がない場合、すべての呼び出しをNEAR AIが処理します。
+- 両方がある場合、サーバーはNEAR AIを確認します: モデルの一覧と、`openai/whisper-large-v3`への0.5秒の無音のクリップです。1回の確認を60秒間すべての呼び出しで使います。5xxの応答、または10秒以内に応答がない場合は停止とみなします。4xxの応答は停止とみなしません。
+- NEAR AIまたはそのWhisperが停止している間、または確認が3秒以内に応答しない場合だけ、Veniceが呼び出しを処理します。それ以外はNEAR AIが処理します。
+
+Venice AIはTEEの中で動かないので、受け取った録音を聞くことができます。その呼び出しの判定はそれを示し、Walletのレシートは「Speech to text: Venice AI, outside a TEE」を表示します。
+
 Walletは各録音を封印するので、バージョンは検証者0.12.0以降が必要です。また、シークレットのプロファイルには、
 Walletが固定している音声鍵のシークレット`PROTECTED_AUDIO_KEY`が必要です。古いバージョンは、すべての音声リクエストを`unsupported`で拒否します。
 
@@ -211,13 +221,13 @@ Walletが固定している音声鍵のシークレット`PROTECTED_AUDIO_KEY`�
 ルートはOutLayerから呼び出しのアテステーションの記録を読みます。OutLayerは呼び出しの少し後に記録を保存するので、ルートは1秒ごとに最大15秒試します。
 その後、`@seams/voice-verdict`で次を確認します。
 
-- クォートが、出力をWASMのハッシュ`SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`とプロジェクトに結び付けていること(`checkAttestationBinding`)。
+- クォートが、出力を、ルートが呼んだビルドのWASMのハッシュ(`SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`、Veniceの呼び出しでは`SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`)とプロジェクトに結び付けていること(`checkAttestationBinding`)。
 - Intelがクォートに署名し、呼び出しの時点のIntelのコラテラルがプラットフォームを失効させていないこと(`checkQuoteCollateral`。コラテラルは`GET <api>/public/collateral`から取得)。
 - OutLayerのワーカーのコントラクト(`worker.outlayer.testnet`)が、クォートの5つの測定値を承認していること(`measurementsApproved`。`https://rpc.testnet.fastnear.com`を使用)。
 
 サーバーは、プラットフォームごとのコラテラルを次の更新までメモリーに保持し、コントラクトの承認を10分間保持します。
 確認が失敗した場合、または記録が時間内に来ない場合、ルートは`attestation_wasm_not_accepted`や`attestation_unavailable`のようなコード`attestation_<code>`を含む`failed`を送ります。
-ログにはコードと時間だけが出ます。`verdict`には記録の完全なURL`attestationUrl`があり、その`timing`には、待ち時間を含む確認の時間`attestationMs`があります。
+ログにはコードと時間だけが出ます。`verdict`には記録の完全なURL`attestationUrl`と`transcriber`(`nearai`または`venice`)があり、その`timing`には、待ち時間を含む確認の時間`attestationMs`があります。
 
 ルート`POST /speak-to-sign/v1/summary`は、音声によるコミュニティノートの要約を書きます。サーバーがこのルートを追加するのは、上の6つの変数と、NEAR AIの鍵`SPEAK_TO_SIGN_NEAR_AI_API_KEY`があるときだけです。鍵はシークレットストアに保管してください。
 `SPEAK_TO_SIGN_SUMMARY_MODEL`は任意で、既定は`Qwen/Qwen3.8-27B`です。ルートはこのモデルを思考なしで呼びます。ルートは、verifyのルートと同じくウォレットセッションを読みます。
@@ -260,6 +270,7 @@ Walletは、1つの流れで最大1回だけ、同じ流れで録音した音声
 - 検証者はOutLayerのTEEで動作します。OutLayerのプロジェクトの所有者は、同じ鍵で署名する新しいバージョンをデプロイできます。
 - 話者の確認は、鍵を固定したPhalaのdstack CVMで動作します。Phalaのアプリの所有者は、その鍵を保ったままコードを変更できます。
 - 文字起こしはNEAR AIが作ります。文字起こしには署名がないため、検証者はNEAR AIのゲートウェイを信頼します。
+- NEAR AIのWhisperが停止している間、`venice`ビルドを持つサーバーはクリップをVenice AIに送ります。VeniceはTEEの中で動かないので、録音を聞くことができ、検証者はその文字起こしを信頼します。
 - `walletOrigin`のコードは、所有者が話した後にリクエストを変更できません。変更すると言葉が一致しなくなります。
 - 任意の名前付きアカウントが音声による支払いを受け取れます。声の確認が所有者の声の複製または再生を受け入れた場合、
   支払いは任意の名前付きアカウントに送られる可能性があります。ステップアップの金額より下では、声だけで支払えます。
@@ -267,7 +278,7 @@ Walletは、1つの流れで最大1回だけ、同じ流れで録音した音声
   区切りとネットワークの接尾辞のない名前も受け入れます。そのため、`bob.testnet`と`bobb.testnet`、`bob-1.testnet`と`bob1.testnet`のような2つのアカウントを区別できません。所有者は、話す前に画面のアカウントを読んでください。
 
 [VoiceID](/ja/concepts/auth-methods/voiceid)のアンロックと異なり、音声はブラウザーの外に送られます。
-音声はOutLayer、Phala、NEAR AIに送られ、声のテンプレートはOutLayerのストレージに保存されます。
+音声はOutLayer、Phala、NEAR AI(NEAR AIのWhisperが停止している間はVenice AI)に送られ、声のテンプレートはOutLayerのストレージに保存されます。
 
 次に読むページ:
 

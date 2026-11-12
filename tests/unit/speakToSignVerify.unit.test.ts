@@ -21,6 +21,7 @@ import type {
   VerifierAttestation,
   VerifierAttestationCall,
 } from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignAttestation';
+import type { TranscriberChoice } from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignTranscriber';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
@@ -33,6 +34,8 @@ const CONFIG: SpeakToSignVerifyConfig = {
   paymentKey: PAYMENT_KEY,
   secretsRef: { profile: 'default', accountId: 'seams-v1.testnet' },
 };
+const VENICE_KEY = 'b'.repeat(64);
+const VENICE_CONFIG: SpeakToSignVerifyConfig = { ...CONFIG, veniceVersionKey: VENICE_KEY };
 const VERIFIER_OUTPUT = {
   kind: 'seams_voice_verify_output_v2',
   verdict_json: '{"kind":"seams_voice_verdict_v1","outcome":"accept"}',
@@ -61,6 +64,10 @@ async function buildHarness(
     readonly summary?: SpeakToSignSummaryConfig;
     /** `server`: the server's own TDX quote check. Default: a check that passes. */
     readonly attestation?: Pick<VerifierAttestation, 'check'> | 'server';
+    /** Default: CONFIG, with no `venice` build. */
+    readonly config?: SpeakToSignVerifyConfig;
+    /** The choice of the speech-to-text service. Default: the server's own choice. */
+    readonly transcriber?: Pick<TranscriberChoice, 'choose'>;
   } = {},
 ) {
   const walletId = 'wallet:speak-to-sign';
@@ -93,7 +100,7 @@ async function buildHarness(
     },
   };
   let allow = true;
-  const extensions = createSpeakToSignVerifyRouteExtensions(CONFIG, {
+  const extensions = createSpeakToSignVerifyRouteExtensions(options.config ?? CONFIG, {
     authorizationSessions: {
       tenantId: session.tenantId,
       async readWalletSessionExactOperationContextByCredential(input) {
@@ -139,6 +146,7 @@ async function buildHarness(
     ...(options.attestation === 'server'
       ? {}
       : { attestation: options.attestation ?? passingAttestation }),
+    ...(options.transcriber ? { transcriber: options.transcriber } : {}),
   }, options.summary ?? null);
   expect(extensions).toHaveLength(1);
   const extension = extensions[0] as RouterApiRouteExtension;
@@ -240,6 +248,46 @@ test('the route set is absent without config and refuses a partial env', () => {
     SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID: 'seams-v1.testnet',
   };
   expect(readSpeakToSignVerifyConfig((name) => env[name])).toEqual(CONFIG);
+  // The `venice` build is optional, apart from the set of six.
+  expect(
+    readSpeakToSignVerifyConfig((name) =>
+      name === 'SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY' ? VENICE_KEY : env[name],
+    ),
+  ).toEqual(VENICE_CONFIG);
+  // A venice key that is not another WASM hash stops the server at start.
+  for (const veniceVersionKey of ['venice', CONFIG.versionKey]) {
+    expect(() =>
+      createSpeakToSignVerifyRouteExtensions(
+        { ...CONFIG, veniceVersionKey },
+        { authorizationSessions: {} as never, walletRegistration: {} as never, fetch },
+      ),
+    ).toThrow(/venice version key/);
+  }
+});
+
+test('a Venice call runs the venice build, and its quote must name that build', async () => {
+  const harness = await buildHarness(okOutlayer, {
+    config: VENICE_CONFIG,
+    transcriber: { choose: async () => 'venice' },
+  });
+  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  expect(response.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'verdict']);
+  expect(response.json.transcriber).toBe('venice');
+  const forwarded = JSON.parse(String(harness.calls[0].init.body)) as Record<string, unknown>;
+  expect(forwarded.version_key).toBe(VENICE_KEY);
+  expect(forwarded.input).toEqual(VERIFIER_INPUT);
+  expect(harness.attested.map((call) => call.versionKey)).toEqual([VENICE_KEY]);
+  expect(JSON.stringify(harness.logs)).toContain('"transcriber":"venice"');
+
+  // NEAR AI, with the same config: the default build and its own hash.
+  const nearAi = await buildHarness(okOutlayer, {
+    config: VENICE_CONFIG,
+    transcriber: { choose: async () => 'nearai' },
+  });
+  const usual = await nearAi.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  expect(usual.json.transcriber).toBe('nearai');
+  expect(JSON.parse(String(nearAi.calls[0].init.body)).version_key).toBe(CONFIG.versionKey);
+  expect(nearAi.attested.map((call) => call.versionKey)).toEqual([CONFIG.versionKey]);
 });
 
 test('a call without a live Wallet Session never reaches OutLayer', async () => {
@@ -357,14 +405,24 @@ test('the call forwards the exact OutLayer shape and returns the output unchange
   expect(response.events?.[0].data).toEqual({});
   expect(response.json.ok).toBe(true);
   expect(response.json.output).toEqual(VERIFIER_OUTPUT);
-  expect(Object.keys(response.json).sort()).toEqual(['attestationUrl', 'ok', 'output', 'timing']);
+  expect(Object.keys(response.json).sort()).toEqual([
+    'attestationUrl',
+    'ok',
+    'output',
+    'timing',
+    'transcriber',
+  ]);
+  // Without a `venice` build, NEAR AI serves each call.
+  expect(response.json.transcriber).toBe('nearai');
   expect(response.json.attestationUrl).toBe(`https://outlayer.example.test${ATTESTATION_URL}`);
   const timing = response.json.timing as Record<string, unknown>;
   expect(typeof timing.outlayerMs).toBe('number');
   expect(timing.attestationMs).toBe(1_450);
   expect(typeof timing.serverMs).toBe('number');
   // The route checks the quote of this call before it sends the output.
-  expect(harness.attested).toEqual([{ output: VERIFIER_OUTPUT, attestationUrl: ATTESTATION_URL }]);
+  expect(harness.attested).toEqual([
+    { output: VERIFIER_OUTPUT, attestationUrl: ATTESTATION_URL, versionKey: CONFIG.versionKey },
+  ]);
   expect(JSON.stringify(harness.logs)).toContain('verifier attestation checked');
 
   expect(harness.calls).toHaveLength(1);
@@ -445,7 +503,12 @@ test('the server check refuses an output that the TDX quote of the call does not
       expect(new Headers(call.init.headers).get('x-payment-key')).toBeNull();
     }
     const refusal = harness.logs.find((entry) => entry[0] === '[speak-to-sign] verifier attestation refused');
-    expect(Object.keys(refusal?.[1] as object).sort()).toEqual(['attestationMs', 'code', 'recordMs']);
+    expect(Object.keys(refusal?.[1] as object).sort()).toEqual([
+      'attestationMs',
+      'code',
+      'recordMs',
+      'transcriber',
+    ]);
     expectNoKey(harness, response.text);
   }
 });
@@ -467,7 +530,12 @@ test('a refused attestation sends a failed event with its code and no verdict', 
   expect(response.text).not.toContain(VERIFIER_OUTPUT.verdict_json);
   expect(harness.logs).toContainEqual([
     '[speak-to-sign] verifier attestation refused',
-    { code: 'attestation_wasm_not_accepted', recordMs: 900, attestationMs: 950 },
+    {
+      code: 'attestation_wasm_not_accepted',
+      transcriber: 'nearai',
+      recordMs: 900,
+      attestationMs: 950,
+    },
   ]);
   expectNoKey(harness, response.text);
 });

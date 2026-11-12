@@ -175,6 +175,8 @@ export interface CloudflareD1GatewayBaseEnv
   readonly SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID?: string;
+  /** Optional: the WASM hash of the `venice` build, for calls while NEAR AI Whisper is down. */
+  readonly SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY?: string;
   /** The NEAR AI key for the summary of a spoken community note. Without it, notes cannot be said. */
   readonly SPEAK_TO_SIGN_NEAR_AI_API_KEY?: string;
   /** Optional: the chat model of that summary. Default `Qwen/Qwen3.8-27B`. */

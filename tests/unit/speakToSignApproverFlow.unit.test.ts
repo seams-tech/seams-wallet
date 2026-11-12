@@ -314,6 +314,37 @@ test('the paid card has the TEE receipt: the voice, the words, the verdict and t
   });
 });
 
+test('a verdict of the venice build keeps its version and says that Venice heard the words outside a TEE', async () => {
+  const note = view({ kind: 'community_note', summary: 'Only one lane closes.' });
+  const host = fakeHost({ reply: verifierOutput(signedOutput('0.14.0+venice'), ATTESTATION) });
+  await runApproval(host.approval(note));
+  expect(host.receipts.at(-1)).toEqual({
+    title: 'TEE receipt',
+    source: 'Intel TDX · OutLayer',
+    rows: [
+      { label: 'Voice', value: 'matched owner.testnet' },
+      { label: 'Words', value: 'matched the summary' },
+      { label: 'Summary', value: 'fits the note (JEV)' },
+      { label: 'Speech to text', value: 'Venice AI, outside a TEE' },
+      { label: 'Verdict', value: 'signed by the OutLayer verifier 0.14.0+venice' },
+    ],
+    link: { text: 'View TDX quote', href: ATTESTATION },
+  });
+  // The default build names no service, and a version of another form names no version.
+  const usual = fakeHost({ reply: verifierOutput(signedOutput('0.14.0'), ATTESTATION) });
+  await runApproval(usual.approval());
+  expect((usual.receipts.at(-1) as { rows: { label: string }[] }).rows.map((row) => row.label)).toEqual([
+    'Voice',
+    'Words',
+    'Verdict',
+  ]);
+  const odd = fakeHost({ reply: verifierOutput(signedOutput('0.14.0+Venice AI'), ATTESTATION) });
+  await runApproval(odd.approval());
+  expect((odd.receipts.at(-1) as { rows: { value: string }[] }).rows.at(-1)?.value).toBe(
+    'signed by the OutLayer verifier',
+  );
+});
+
 test('the receipt of a note has the summary check from verifier 0.13.0, and no link without a quote', async () => {
   const note = view({ kind: 'community_note', summary: 'Only one lane closes.' });
   const host = fakeHost({ reply: verifierOutput(signedOutput('0.13.0')) });
