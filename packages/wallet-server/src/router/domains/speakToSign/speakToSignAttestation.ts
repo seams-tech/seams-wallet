@@ -2,8 +2,9 @@
 // OutLayer keystore key bound to the project, so every version of the project signs with it. The
 // quote names the build: its report data is the task hash over the WASM hash, the input hash, the
 // output hash, the caller, the project and the time. The verify route sends an output only when
-// the quote binds it to the pinned version (`versionKey`), Intel signed the quote for a platform
-// that it did not revoke, and the OutLayer worker contract approves the measurements.
+// the quote binds it to the version that the route called (`versionKey` of the call), Intel signed
+// the quote for a platform that it did not revoke, and the OutLayer worker contract approves the
+// measurements.
 
 import {
   checkAttestationBinding,
@@ -36,12 +37,17 @@ export type VerifierAttestationConfig = Readonly<{
   outlayerBaseUrl: string;
   /** `owner/project`. The owner's account names the network of the worker contract. */
   project: string;
-  /** The WASM hash of the pinned verifier version: the only one that the check accepts. */
-  versionKey: string;
 }>;
 
-/** One verifier call, as `relayToVerifier` returned it. */
-export type VerifierAttestationCall = Readonly<{ output: unknown; attestationUrl: string | null }>;
+/**
+ * One verifier call, as `relayToVerifier` returned it, and the WASM hash of the version that the
+ * route called: the only one that the check accepts for this call.
+ */
+export type VerifierAttestationCall = Readonly<{
+  output: unknown;
+  attestationUrl: string | null;
+  versionKey: string;
+}>;
 
 /**
  * `recordMs` is the wait for the record, `attestationMs` the whole check. A refusal has a fixed
@@ -111,7 +117,7 @@ export class VerifierAttestation {
     let outcome: Outcome;
     try {
       outcome =
-        typeof record === 'string' ? refused(record) : await this.checkRecord(record, call.output);
+        typeof record === 'string' ? refused(record) : await this.checkRecord(record, call);
     } catch {
       // The record is OutLayer's JSON: a field of another type can throw in the checks.
       outcome = refused('malformed');
@@ -141,11 +147,11 @@ export class VerifierAttestation {
     }
   }
 
-  private async checkRecord(record: AttestationRecord, output: unknown): Promise<Outcome> {
+  private async checkRecord(record: AttestationRecord, call: VerifierAttestationCall): Promise<Outcome> {
     const bound = await checkAttestationBinding({
       record,
-      output,
-      acceptedWasmHashes: [this.config.versionKey],
+      output: call.output,
+      acceptedWasmHashes: [call.versionKey],
       projectId: this.config.project,
     });
     if (!bound.ok) return refused(bound.refusal.code);

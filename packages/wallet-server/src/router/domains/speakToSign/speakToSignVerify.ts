@@ -18,6 +18,7 @@ import type {
 } from '../../framework/routeExtensions';
 import { resolveWalletSessionAuthorizationV2Admission } from '../signingOperations/walletExecutionAdmission';
 import { VerifierAttestation } from './speakToSignAttestation';
+import { TranscriberChoice, type Transcriber } from './speakToSignTranscriber';
 import {
   parseSummaryBody,
   SPEAK_TO_SIGN_SUMMARY_MAX_BODY_BYTES,
@@ -52,8 +53,14 @@ export type SpeakToSignVerifyConfig = Readonly<{
   outlayerBaseUrl: string;
   /** `owner/project`, for example `seams-v1.testnet/voice-verifier`. */
   project: string;
-  /** The WASM hash of the pinned verifier version. */
+  /** The WASM hash of the pinned verifier version: the default build, with NEAR AI Whisper. */
   versionKey: string;
+  /**
+   * Optional: the WASM hash of the `venice` build of the same verifier, which sends the clip to
+   * Venice AI. It serves a call only while NEAR AI or its Whisper is down
+   * (`speakToSignTranscriber`).
+   */
+  veniceVersionKey?: string;
   /** The OutLayer payment key. It goes only into the X-Payment-Key header. */
   paymentKey: string;
   secretsRef: Readonly<{ profile: string; accountId: string }>;
@@ -76,6 +83,8 @@ export type SpeakToSignVerifyDependencies = Readonly<{
   now?: () => number;
   /** Tests replace the TDX quote check. The server always checks with `VerifierAttestation`. */
   attestation?: Pick<VerifierAttestation, 'check'>;
+  /** Tests replace the choice of the speech-to-text service. */
+  transcriber?: Pick<TranscriberChoice, 'choose'>;
 }>;
 
 const ENV_NAMES = [
@@ -86,10 +95,12 @@ const ENV_NAMES = [
   'SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE',
   'SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID',
 ] as const;
+/** Optional, apart from the set of six. */
+const VENICE_ENV_NAME = 'SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY';
 
 /** Null when no Speak-to-Sign variable is set. A partial set is a deployment error. */
 export function readSpeakToSignVerifyConfig(
-  read: (name: (typeof ENV_NAMES)[number]) => string | undefined,
+  read: (name: (typeof ENV_NAMES)[number] | typeof VENICE_ENV_NAME) => string | undefined,
 ): SpeakToSignVerifyConfig | null {
   const values = ENV_NAMES.map((name) => read(name)?.trim() || '');
   if (values.every((value) => value === '')) return null;
@@ -98,7 +109,15 @@ export function readSpeakToSignVerifyConfig(
     throw new Error(`Speak-to-Sign verify needs ${missing.join(', ')}`);
   }
   const [outlayerBaseUrl, project, versionKey, paymentKey, profile, accountId] = values;
-  return { outlayerBaseUrl, project, versionKey, paymentKey, secretsRef: { profile, accountId } };
+  const veniceVersionKey = read(VENICE_ENV_NAME)?.trim() || '';
+  return {
+    outlayerBaseUrl,
+    project,
+    versionKey,
+    paymentKey,
+    secretsRef: { profile, accountId },
+    ...(veniceVersionKey ? { veniceVersionKey } : {}),
+  };
 }
 
 /**
@@ -111,32 +130,46 @@ export function createSpeakToSignVerifyRouteExtensions(
   summary: SpeakToSignSummaryConfig | null = null,
 ): readonly RouterApiRouteExtension[] {
   if (!config) return [];
+  const now = dependencies.now ?? Date.now;
   // Only the fields of the check: the payment key stays with the verifier call.
   const attestation =
     dependencies.attestation ??
     new VerifierAttestation(
-      {
-        outlayerBaseUrl: config.outlayerBaseUrl,
-        project: config.project,
-        versionKey: config.versionKey,
-      },
-      { fetch: dependencies.fetch, now: dependencies.now ?? Date.now },
+      { outlayerBaseUrl: config.outlayerBaseUrl, project: config.project },
+      { fetch: dependencies.fetch, now },
     );
-  return [
-    new SpeakToSignVerifyRoutes(
-      resolveConfig(config, dependencies.fetch),
-      attestation,
-      dependencies,
-      summary,
-    ),
-  ];
+  const verifiers = resolveVerifiers(config, dependencies.fetch);
+  // The status check of NEAR AI uses the key of the summary route.
+  const transcriber =
+    dependencies.transcriber ??
+    new TranscriberChoice(
+      { hasVeniceBuild: verifiers.venice !== null, nearAiApiKey: summary?.apiKey ?? null },
+      { fetch: dependencies.fetch, now },
+    );
+  return [new SpeakToSignVerifyRoutes(verifiers, attestation, transcriber, dependencies, summary)];
+}
+
+/** A verifier call that names its version: the quote check accepts only that WASM hash. */
+type PinnedVerifier = VerifierConfig & Readonly<{ versionKey: string }>;
+
+/** The verifier call of each speech-to-text service. The `venice` build is optional. */
+type Verifiers = Readonly<{ nearai: PinnedVerifier; venice: PinnedVerifier | null }>;
+
+function resolveVerifiers(config: SpeakToSignVerifyConfig, fetch: typeof globalThis.fetch): Verifiers {
+  const nearai = resolveConfig(config, fetch);
+  const { veniceVersionKey } = config;
+  if (veniceVersionKey === undefined) return { nearai, venice: null };
+  if (!/^[0-9a-f]{64}$/.test(veniceVersionKey) || veniceVersionKey === config.versionKey) {
+    throw new Error('Speak-to-Sign OutLayer venice version key must be another 64-hex WASM hash');
+  }
+  return { nearai, venice: { ...nearai, versionKey: veniceVersionKey } };
 }
 
 /**
  * The verifier call of `@seams/voice-sign/server` (speak-to-sign repository). The checks here are
  * stricter than its own: a deployment error stops the server at start, not at the first call.
  */
-function resolveConfig(config: SpeakToSignVerifyConfig, fetch: typeof globalThis.fetch): VerifierConfig {
+function resolveConfig(config: SpeakToSignVerifyConfig, fetch: typeof globalThis.fetch): PinnedVerifier {
   let base: URL;
   try {
     base = new URL(config.outlayerBaseUrl);
@@ -177,12 +210,14 @@ type VerifyStreamEvent = 'verifier_running' | 'verdict' | 'failed';
 /**
  * The data of the last event: the verifier output, or a fixed code without upstream text.
  * `attestationUrl` is the public OutLayer record of the call, with its TDX quote, or null.
+ * `transcriber` names the speech-to-text service of the build that ran; the verdict names it too.
  */
 type VerifierResult =
   | Readonly<{
       ok: true;
       output: unknown;
       attestationUrl: string | null;
+      transcriber: Transcriber;
       /** `attestationMs` is the check of the TDX quote, with the wait for its record. */
       timing: Readonly<{ outlayerMs: number; attestationMs: number; serverMs: number }>;
     }>
@@ -230,8 +265,9 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   private readonly now: () => number;
 
   constructor(
-    private readonly verifier: VerifierConfig,
+    private readonly verifiers: Verifiers,
     private readonly attestation: Pick<VerifierAttestation, 'check'>,
+    private readonly transcriber: Pick<TranscriberChoice, 'choose'>,
     private readonly dependencies: SpeakToSignVerifyDependencies,
     private readonly summary: SpeakToSignSummaryConfig | null,
   ) {
@@ -383,37 +419,42 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   /**
    * Relays the input unchanged: the recording in it is sealed to the verifier, so this server
    * cannot read it. `relayToVerifier` gives only an output of a known kind, unchanged. The route
-   * sends the output only when the TDX quote of the call binds it to the pinned version: every
-   * version of the project signs with the same verdict key.
+   * sends the output only when the TDX quote of the call binds it to the version that it called:
+   * every version of the project signs with the same verdict key.
    */
   private async callVerifier(
     verifierInput: Record<string, unknown>,
     logger: NormalizedRouterLogger,
     startedAtMs: number,
   ): Promise<VerifierResult> {
+    const transcriber = await this.transcriber.choose();
+    const verifier = (transcriber === 'venice' && this.verifiers.venice) || this.verifiers.nearai;
     const outlayerStartedAtMs = this.now();
     let output: unknown;
     let attestationPath: string | null;
     try {
-      ({ output, attestationUrl: attestationPath } = await relayToVerifier(
-        this.verifier,
-        verifierInput,
-      ));
+      ({ output, attestationUrl: attestationPath } = await relayToVerifier(verifier, verifierInput));
     } catch (error: unknown) {
       const code = verifierFailure(error);
       // The error's message can hold upstream text, so only the code and the status go to the log.
       logger.warn('[speak-to-sign] verifier call failed', {
         code,
+        transcriber,
         ...(error instanceof VerifierCallError ? { cause: error.code, status: error.status } : {}),
       });
       return { ok: false, code };
     }
     const outlayerMs = this.now() - outlayerStartedAtMs;
-    const attested = await this.attestation.check({ output, attestationUrl: attestationPath });
+    const attested = await this.attestation.check({
+      output,
+      attestationUrl: attestationPath,
+      versionKey: verifier.versionKey,
+    });
     const { recordMs, attestationMs } = attested;
     if (!attested.ok) {
       logger.warn('[speak-to-sign] verifier attestation refused', {
         code: attested.code,
+        transcriber,
         recordMs,
         attestationMs,
       });
@@ -422,13 +463,15 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     // Only `Revoked` refuses. Another status than `UpToDate` names Intel advisories.
     logger.info('[speak-to-sign] verifier attestation checked', {
       tcbStatus: attested.tcbStatus,
+      transcriber,
       recordMs,
       attestationMs,
     });
     return {
       ok: true,
       output,
-      attestationUrl: attestationUrlOf(this.verifier.baseUrl, attestationPath),
+      attestationUrl: attestationUrlOf(verifier.baseUrl, attestationPath),
+      transcriber,
       timing: { outlayerMs, attestationMs, serverMs: this.now() - startedAtMs },
     };
   }

@@ -35,7 +35,10 @@ enrollment and uses the VoiceID capture surface.
    access-key nonce and a recent block hash for the payment. It signs nothing
    before the verdict.
 3. The verifier gets a speaker embedding from a service on Phala Cloud and a
-   transcript from NEAR AI at the same time. It compares the voice with the
+   transcript from NEAR AI at the same time (from Venice AI while NEAR AI
+   Whisper is down, if the server has the `venice` build; see
+   [Configure the Seams server](#configure-the-seams-server)). It compares the
+   voice with the
    owner's enrolled template and the words with its own text of the request.
    The amount must match exactly. A word that holds no value can be a
    sound-alike: "year" for "NEAR", "sent" for "send" or "testnode" for
@@ -288,6 +291,25 @@ variables are set:
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
 | `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
 
+One more variable is optional: `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`,
+the WASM hash of the `venice` build of the same verifier (verifier 0.14.0 and
+later, `./build.sh --venice` in the speak-to-sign repository). That build sends
+the clip to Venice AI in place of NEAR AI Whisper, and its verdicts name it,
+for example `0.14.0+venice`. The server chooses the build for each call, and
+the page cannot choose it:
+
+- Without the variable, or without `SPEAK_TO_SIGN_NEAR_AI_API_KEY`, NEAR AI
+  serves each call.
+- With both, the server checks NEAR AI: its model list, and a silent clip of
+  0.5 s to `openai/whisper-large-v3`. One check serves all calls for 60 s.
+  A 5xx answer or no answer in 10 s is down; a 4xx answer is not.
+- Venice serves a call only while NEAR AI or its Whisper is down, or when the
+  check gives no answer in 3 s. Otherwise NEAR AI serves.
+
+Venice AI runs in no TEE, so it can hear each recording that it gets. The
+verdict of such a call says so, and the Wallet's receipt shows "Speech to
+text: Venice AI, outside a TEE".
+
 The Wallet seals each recording, so the version must be verifier 0.12.0 or
 later, and the secrets profile must hold the secret `PROTECTED_AUDIO_KEY` of
 the audio key that the Wallet pins. An older version refuses each spoken
@@ -314,9 +336,10 @@ attestation record of the call from OutLayer. OutLayer stores the record a
 short time after the call, so the route tries once each second for up to
 15 s. Then it checks, with `@seams/voice-verdict`:
 
-- The quote binds the output to the WASM hash
-  `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` and to the project
-  (`checkAttestationBinding`).
+- The quote binds the output to the WASM hash of the build that the route
+  called (`SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`, or
+  `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY` for a Venice call) and to the
+  project (`checkAttestationBinding`).
 - Intel signed the quote, and Intel's collateral at the time of the call
   does not revoke the platform (`checkQuoteCollateral`, with the collateral of
   `GET <api>/public/collateral`).
@@ -329,8 +352,9 @@ update, and an approval of the contract for 10 minutes. If a check fails, or
 the record does not come in time, the route sends `failed` with the code
 `attestation_<code>`, for example `attestation_wasm_not_accepted` or
 `attestation_unavailable`. The log has the code and the times only. A
-`verdict` has `attestationUrl`, the full URL of the record, and its `timing`
-has `attestationMs`, the time of the check with the wait.
+`verdict` has `attestationUrl`, the full URL of the record, `transcriber`
+(`nearai` or `venice`), and its `timing` has `attestationMs`, the time of the
+check with the wait.
 
 The route `POST /speak-to-sign/v1/summary` writes the summary of a spoken
 community note. The server adds it only with the six variables above and
@@ -403,6 +427,9 @@ recording that it made in the same flow.
   owner can change its code and keep that key.
 - NEAR AI makes the transcript. Transcripts carry no signature, so the verifier
   trusts the NEAR AI gateway.
+- While NEAR AI Whisper is down, a server with the `venice` build sends the
+  clip to Venice AI. Venice runs in no TEE: it can hear the recording, and the
+  verifier trusts its transcript.
 - Code at `walletOrigin` cannot change the request after the owner speaks: the
   words then do not match.
 - Any named account can receive a spoken payment. If the voice check accepts a
@@ -417,8 +444,8 @@ recording that it made in the same flow.
   speaking.
 
 Unlike a [VoiceID](/concepts/auth-methods/voiceid) unlock, the audio leaves the
-browser. It goes to OutLayer, Phala and NEAR AI, and the voice template stays in
-OutLayer storage.
+browser. It goes to OutLayer, Phala and NEAR AI (or Venice AI while NEAR AI
+Whisper is down), and the voice template stays in OutLayer storage.
 
 Read next:
 
