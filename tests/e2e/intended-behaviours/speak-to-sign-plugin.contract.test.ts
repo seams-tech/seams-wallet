@@ -22,7 +22,7 @@ const chunks: Chunk[] = JSON.parse(
 );
 
 /** A text of the card of the flow. Only the chunk of the flow holds it. */
-const FLOW_TEXT = 'Checking your voice and words';
+const FLOW_TEXT = 'Checking what you said';
 
 class ProbeServer {
   readonly requested: string[] = [];

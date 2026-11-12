@@ -144,7 +144,7 @@ export function verifyingView(): PhraseCheckView {
   return {
     kind: 'check',
     label: 'Checking',
-    caption: 'Checking your voice and words',
+    caption: 'Checking what you said',
     details: [
       VERIFIER_STEPS.speaker,
       VERIFIER_STEPS.words,

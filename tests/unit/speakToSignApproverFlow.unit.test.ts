@@ -21,7 +21,7 @@ test('a spoken payment sends each recording to core and lets core sign with the 
   expect(result).toMatchObject({ kind: 'sent', transactionHash: 'tx-hash', approval: 'voice' });
   expect(host.events).toEqual([
     'record',
-    'show: Checking your voice and words',
+    'show: Checking what you said',
     'verify',
     'sign',
     'show: Sending from your account',
@@ -31,7 +31,7 @@ test('a spoken payment sends each recording to core and lets core sign with the 
   expect(host.verified).toHaveLength(1);
   expect(host.signed).toEqual([{ verdict: 'opaque' }]);
   expect(host.views).toEqual([
-    'check:Checking your voice and words',
+    'check:Checking what you said',
     'check:Sending from your account',
     'result::Sent 25 NEAR:Done',
   ]);
@@ -47,7 +47,7 @@ test('a step-up asks for the passkey on the card, then pays', async () => {
     approval: 'voice_and_passkey',
   });
   expect(host.views).toEqual([
-    'check:Checking your voice and words',
+    'check:Checking what you said',
     'result:Not sent yet:Confirm with your passkey:Confirm with passkey',
     'result:Not sent yet:Confirm with your passkey:Confirm with passkey',
     'check:Sending from your account',
@@ -75,9 +75,9 @@ test('a refusal shows on the card, and "Try again" records the sentence again', 
     transactionHash: 'tx-4',
   });
   expect(host.views).toEqual([
-    'check:Checking your voice and words',
+    'check:Checking what you said',
     'result:Nothing was sent:The words did not match:Try again',
-    'check:Checking your voice and words',
+    'check:Checking what you said',
     'check:Sending from your account',
     'result::Sent 25 NEAR:Done',
   ]);
