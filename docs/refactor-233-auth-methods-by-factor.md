@@ -2,6 +2,9 @@
 
 Status: 2026-11-12. Plan only. Nothing is built. The owner decided D1 to D4 on 2026-11-12.
 
+Deferred (owner, 2026-11-12): the work starts after the NEAR hackathon and its judging, so the
+release 0.68.1 of the submission stays unchanged. The refactor ships in release 0.70.
+
 The owner's problem (2026-11-12): the method names (`passkey`, `email_otp`, `voiceid`) are in
 too many places. Today `case 'passkey'` has 154 arms, `case 'email_otp'` has 161 arms and
 `case 'voiceid'` has 77 arms in 103 files. The owner wants the configuration of a method in a
@@ -46,7 +49,7 @@ Scope, as the owner chose on 2026-11-12:
   - The list sets which methods the app can add, and which methods the auth menu offers.
   - A method that a wallet already has always unlocks, also if the app does not list it. The
     wallet belongs to its owner, not to the app.
-- **D3. Decided (2026-11-12): old names.** No alias, as in Refactor 232. The release is 0.69.
+- **D3. Decided (2026-11-12): old names.** No alias, as in Refactor 232. The release is 0.70.
   Remove `addPasskey`, `addEmail`, `activateAuthMethod`, `hasPasskey`, `unlockWithAuthMethod` and
   `getAuthMethodAvailability` in the same release (Slice 6).
 - **D4. Decided (2026-11-12): `@seams/wallet` depends on `@seams/voice-capture`.** Section 4 of
@@ -336,7 +339,7 @@ is the breaking release (D3).
   for each factor in one call with no retry, and `require_fresh_same_method` for each factor.
 - **Slice 6. Remove the old names** (D3). Breaking. Remove the old calls of F12 and the
   `voiceId()` export of `@seams/voiceid`. Update the docs (EN and JA), the README, the demo and
-  the example in speak-to-sign, and the apps in seams-monorepo. Release 0.69.
+  the example in speak-to-sign, and the apps in seams-monorepo. Release 0.70.
 
 ## Not in this plan
 
