@@ -1,11 +1,11 @@
 ---
-title: Release 0.68.0
+title: Release 0.68.1
 description: Speak-to-Sign is a part of @seams/wallet, and the normal NEAR sign calls take approval by voice.
 ---
 
-# Release 0.68.0
+# Release 0.68.1
 
-The browser SDK, server SDK and VoiceID plugin use **0.68.0**. This release has breaking changes for an app or a Wallet host that uses Speak-to-Sign. It has no alias for the old names.
+The browser SDK, server SDK and VoiceID plugin use **0.68.1**. This release has breaking changes for an app or a Wallet host that uses Speak-to-Sign. It has no alias for the old names.
 
 - Speak-to-Sign is a part of `@seams/wallet`. Its flow loads on the first spoken request, and a Wallet that does not use it never loads it.
   - Remove the package `@seams/wallet-voice-sign` from the app and from the Wallet host. Its last version is 0.67.0.
@@ -24,17 +24,18 @@ The browser SDK, server SDK and VoiceID plugin use **0.68.0**. This release has 
   - Core holds the limits of each kind. A transfer that the sentence cannot say (an implicit receiver, or an amount that is not 0.01 to 1,000,000 NEAR in whole hundredths) is refused before the card opens.
   - The flow on the card holds no recording. Core records, seals and sends the audio, and clears it after use.
   - The co-signer refuses a bet whose `msg` carries another verdict than the verdict of the request.
-- The Seams server calls the verifier with `relayToVerifier` of `@seams/voice-sign/server` **0.68.0**, a new dependency of `@seams/wallet-server`. The request to OutLayer, the events and the failure codes of `POST /speak-to-sign/v1/verify` do not change, with two exceptions:
+- The Seams server calls the verifier with `relayToVerifier` of `@seams/voice-sign/server` **0.68.1**, a new dependency of `@seams/wallet-server`. The request to OutLayer, the events and the failure codes of `POST /speak-to-sign/v1/verify` do not change, with two exceptions:
   - The route serves only the verifier's `verify` and `enroll` operations. Another operation gets 400 `unsupported_operation`. Before, the route ran any operation.
   - An error output of the verifier gives the event `failed` with `verifier_failed`. Before, the route sent it on as a `verdict` event, and the Wallet then called it an invalid output.
-- `@seams/voice-verdict` and `@seams/voice-capture` are **0.68.0**. The voice card's main button takes the theme's button colours (`buttonBackground` and `textButton` of `appearance.theme.colors`). With the default theme, Record goes from dark grey to near black on the light theme.
+- `@seams/voice-verdict` and `@seams/voice-capture` are **0.68.1**. The voice card's main button takes the theme's button colours (`buttonBackground` and `textButton` of `appearance.theme.colors`). With the default theme, Record goes from dark grey to near black on the light theme.
+- `@seams/voice-capture` 0.68.1 changes the voice card. The theme can set the voice line's colour (`voiceLine`), its echo lines (`voiceEcho`, `voiceEchoDeep`), the Beam palette (`voiceBeam`) and the widths (`voiceLineWidth`, `voiceEchoWidth`). The Wallet passes each theme key to the card. Without these values the card keeps its look. A card that records by itself (`autoStart`) has no Record row, so it is shorter. Record, Try again and a result's button bring the row back.
 - When OutLayer does not run the verifier in time (`verifier_timeout`), the payment card and the enrollment card say "OutLayer timed out", that the recording is not the cause, and to try again in a minute. Before, they showed the general text. The Seams verify route waits 30 s for OutLayer, not 20 s.
 - `autoStart` sets if the card records when it opens, with no press on Record. Put it in `approval` of a normal call, in the request of a `spoken` call, or in `spoken.enroll`. The default is `true` for a spoken request and `false` for an enrollment. If the browser does not start audio without a press, the card keeps its Record button. The VoiceID setup in `enroll` still waits for a press on each sample.
 - Wallet steps:
   - A card in an app's dialog takes `transition`: the wait before the fade-in (`enterDelayMs`), the fade-in and the fade-out, each from 0 to 1000 ms. `WalletStep`, `HostedSeamsAuthMenu`, `surfaces.mount`, the step of `authMenu.open` and an anchored presentation take it.
   - `chrome: 'back_and_close'` draws Back and Close together in a card. Back calls `onBack` and Close calls `onClose`. The VoiceID card draws them too.
-- The Wallet iframe protocol is **24.0.0**: the configuration that the app sends to the Wallet has `approvals`. An app at 0.67.0 does not work with a Wallet host at 0.68.0, or the reverse.
+- The Wallet iframe protocol is **24.0.0**: the configuration that the app sends to the Wallet has `approvals`. An app at 0.67.0 does not work with a Wallet host at 0.68.1, or the reverse.
 - Deploy in this order: the server, then the SDK and the hosted Wallet together. The verifier stays at 0.12.0.
-- Install all three packages at 0.68.0. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
+- Install all three packages at 0.68.1. Speak-to-Sign stays experimental and NEAR testnet only. Do not use it with real funds.
 
 The wallet-management protocol remains **5**. The signed recovery CLI remains **0.29.0**. This release adds no database migrations.
