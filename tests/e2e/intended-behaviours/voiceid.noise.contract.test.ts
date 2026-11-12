@@ -48,7 +48,6 @@ async function verifyNoise(
   await evidence.observe(context);
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const activation = page.evaluate(activate);
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   await harness.lockWallet();

@@ -89,7 +89,6 @@ async function verifyLivePage(
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey', { timeout: 60_000 });
   expect(assets.inference).toHaveLength(0);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await expect(wallet.getByRole('progressbar', { name: 'VoiceID download' })).toBeVisible();
   await expect(wallet.locator('.seams-voiceid-model-download')).toHaveAttribute(
     'data-state',
@@ -116,7 +115,6 @@ async function verifyLivePage(
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
   await wallet.locator('body').evaluate(cancelNextEnrollmentSave);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   await expect(status).toHaveAttribute('data-state', 'failed', { timeout: 60_000 });
   await expect(page.getByTestId('live-voiceid-method')).toHaveText(
@@ -125,7 +123,6 @@ async function verifyLivePage(
 
   await wallet.locator('body').evaluate(retireNextEnrollmentModel);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
   const enrollmentPhrase = await wallet
     .locator('[data-voiceid-phrase]')

@@ -37,7 +37,6 @@ test(`rs256 passkey manages VoiceID, voice unlocks and signs, and enrollment cha
   const toggle = page.getByRole('switch', { name: 'Enable VoiceID in this browser' });
   await expect(toggle).toBeEnabled();
   await toggle.click();
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   await expect(toggle).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
   await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');

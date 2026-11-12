@@ -77,7 +77,6 @@ async function run(
 
   const wallet = page.frameLocator(WALLET);
   const activation = page.evaluate(activateVoiceId);
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   requireActivatedVoiceId(await activation);
   log('voiceid', 'activated in the Wallet');

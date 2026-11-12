@@ -48,7 +48,6 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(0);
 
   const activation = page.evaluate(activate);
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.locator('body').evaluate(useNaturalPhrases);
   await enrollBrowserMicrophone(page);
   await activation;

@@ -218,7 +218,10 @@ class VoiceIdCaptureSurface<T> {
       for (const progress of this.element.querySelectorAll('.seams-voiceid-model-download'))
         progress.remove();
       this.activateButton.disabled = false;
-      if (this.autoStartUnlock) {
+      // An unlock in a mounted card starts at once. An activation starts at once too: its
+      // enrollment card takes this card's place and waits for "Record sample 1", so a press on
+      // "Activate VoiceID" first would only add a click.
+      if (this.autoStartUnlock || this.purpose === 'activation') {
         this.element.dataset.preparation = 'ready';
         this.begin();
         return;

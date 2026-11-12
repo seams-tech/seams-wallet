@@ -41,7 +41,6 @@ for (const exported of EXPORTS) {
     await exported.register(harness);
     const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
     const activation = page.evaluate(activate);
-    await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
     await wallet.locator('body').evaluate(useNaturalPhrases);
     await enrollBrowserMicrophone(page);
     const method = requireActivatedVoiceId(await activation);
@@ -95,7 +94,6 @@ test('an interrupted VoiceID Ed25519 admission returns its envelope to the exact
   await harness.registerPasskeyEd25519YaoWallet();
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const activation = page.evaluate(activate);
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.locator('body').evaluate(useNaturalPhrases);
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
@@ -135,7 +133,6 @@ test('cancelling the VoiceID export check exports nothing', async ({
   await harness.registerPasskeyEd25519YaoWallet();
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const activation = page.evaluate(activate);
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.locator('body').evaluate(useNaturalPhrases);
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);

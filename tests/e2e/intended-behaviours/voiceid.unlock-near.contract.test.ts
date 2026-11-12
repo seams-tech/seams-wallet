@@ -61,7 +61,6 @@ async function verifyUnlock(
   await expect(wallet.getByRole('dialog', { name: 'Activate VoiceID', exact: true })).toBeVisible();
   await expectPaintedPrompt(page);
   const activationDialogMs = performance.now() - activationStarted;
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   const enrollmentCaptures = await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   expect(method.walletId).toBe(identity.walletId);
@@ -340,7 +339,6 @@ async function verifyUnlockWithoutCustodyCache(
   const identity = await readNearIdentity(page);
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const activation = page.evaluate(activate);
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   await page.evaluate(lock);

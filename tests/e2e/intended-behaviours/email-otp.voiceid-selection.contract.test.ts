@@ -32,9 +32,7 @@ test('an Email-backed VoiceID session adds its first passkey with one fresh emai
   harness.enableVoiceIdPlugin();
   await harness.registerEmailOtpWallet();
   await harness.awaitNearReady();
-  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const activation = page.evaluate(activateVoice);
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   await harness.lockWallet();

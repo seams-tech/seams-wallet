@@ -39,7 +39,6 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     const nearIdentity = profile === 'add_ecdsa_after_voice' ? await readNearIdentity(page) : null;
     const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
     const activation = page.evaluate(activate);
-    await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
     await wallet.locator('body').evaluate(useNaturalPhrases);
     const enrollmentCaptures = await enrollBrowserMicrophone(page);
     const method = requireActivatedVoiceId(await activation);
