@@ -1,16 +1,28 @@
-// The inputs of the Rust outputs that validate-wallet.yml caches: the WASM packages, the
-// Ed25519 Yao client package, the release Workers and the local tools.
+// The inputs of the Rust outputs: the WASM packages and the Ed25519 Yao client package
+// (wasm), the release Workers (workers) and the local tools (local-tools).
 //
 //   node scripts/rust-build-inputs.mjs                   print the cache-key hash
 //   node scripts/rust-build-inputs.mjs --list            print each hashed input
 //   node scripts/rust-build-inputs.mjs --check-dep-info  after a build, fail when rustc read
 //                                                        a repository file the hash omits
+//   --outputs local-tools,workers   hash only the inputs of these outputs
+//   --commit <rev>                  hash the inputs as they are at <rev>, not at HEAD
 //
 // The hash covers every tracked file in the directory of each path package that
 // `cargo metadata` resolves for a built manifest. Each built manifest's Cargo.lock sits in
 // that directory and pins every registry and git package. A new path dependency enters the
 // hash on its own: the resolve lists it as soon as a manifest names it. A crate that no
 // built manifest resolves is not an input.
+//
+// With no --outputs, the hash is the cache key of validate-wallet.yml: all outputs, this
+// script, and rust-build-outputs.sh, which runs the build and names the cached outputs, so an
+// edit to the workflow that calls it keeps the cache. With --outputs, neither script is
+// hashed: the release compares the Mac local tools with those of the last published package
+// (release-wallet-packages.yml), and it builds them without rust-build-outputs.sh. This
+// script, at HEAD, reads both commits.
+//
+// --commit keeps the path packages that HEAD resolves. That is enough to see any change: a
+// path dependency that is new or gone since <rev> changes a manifest in that set.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -24,32 +36,55 @@ const git = (args) =>
     .filter(Boolean);
 const tracked = new Set(git(['ls-tree', '-r', '--name-only', 'HEAD']));
 
-// One manifest per cached output: build-wasm.sh builds every crate in wasm/ and the Yao
-// client, build-strict-worker.sh the Workers, build-local-tools.mjs the local tools.
-const builtManifests = [
-  ...[...tracked].filter((file) => /^wasm\/[^/]+\/Cargo\.toml$/.test(file)),
-  'crates/router-ab-ed25519-yao-client/Cargo.toml',
-  'crates/router-ab-cloudflare/Cargo.toml',
-  'crates/router-ab-dev/Cargo.toml',
-];
-
-// The scripts that run the build, besides those inside the package directories.
-// rust-build-outputs.sh runs the build and names the cached outputs, so an edit to the
-// workflow that calls it keeps the cache.
-const buildScripts = [
-  'packages/wallet/build-paths.sh',
-  'packages/wallet/scripts/build',
-  'scripts/build-local-tools.mjs',
-  'scripts/rust-build-inputs.mjs',
-  'scripts/rust-build-outputs.sh',
-];
-
-// Only the package.json entries that run the build: a release changes each package's
-// version, and no Rust output depends on it. pnpm also runs a pre or post entry if one exists.
-const packageScripts = {
-  'package.json': ['build:wasm', 'build:workers', 'build:local-tools'],
-  'packages/wallet/package.json': ['build:wasm'],
+const option = (name) => {
+  const at = process.argv.indexOf(name);
+  return at === -1 ? undefined : process.argv[at + 1];
 };
+const commit = option('--commit') ?? 'HEAD';
+
+// For each output: the manifest it builds (build-wasm.sh builds every crate in wasm/ and the
+// Yao client, build-strict-worker.sh the Workers, build-local-tools.mjs the local tools), the
+// scripts that run its build besides those inside the package directories, and the
+// package.json entries that run its build. Only those entries count: a release changes each
+// package's version, and no Rust output depends on it. pnpm also runs a pre or post entry if
+// one exists.
+const outputs = {
+  wasm: {
+    manifests: [
+      ...[...tracked].filter((file) => /^wasm\/[^/]+\/Cargo\.toml$/.test(file)),
+      'crates/router-ab-ed25519-yao-client/Cargo.toml',
+    ],
+    buildScripts: ['packages/wallet/build-paths.sh', 'packages/wallet/scripts/build'],
+    packageScripts: { 'package.json': ['build:wasm'], 'packages/wallet/package.json': ['build:wasm'] },
+  },
+  workers: {
+    manifests: ['crates/router-ab-cloudflare/Cargo.toml'],
+    buildScripts: [],
+    packageScripts: { 'package.json': ['build:workers'] },
+  },
+  'local-tools': {
+    manifests: ['crates/router-ab-dev/Cargo.toml'],
+    buildScripts: ['scripts/build-local-tools.mjs'],
+    packageScripts: { 'package.json': ['build:local-tools'] },
+  },
+};
+
+const outputsOption = option('--outputs');
+const selected = outputsOption?.split(',') ?? Object.keys(outputs);
+for (const name of selected) {
+  if (!outputs[name]) throw new Error(`Unknown output ${name}; use ${Object.keys(outputs).join(', ')}`);
+}
+const builtManifests = selected.flatMap((name) => outputs[name].manifests);
+const buildScripts = [
+  ...selected.flatMap((name) => outputs[name].buildScripts),
+  ...(outputsOption ? [] : ['scripts/rust-build-inputs.mjs', 'scripts/rust-build-outputs.sh']),
+];
+const packageScripts = {};
+for (const name of selected) {
+  for (const [file, entries] of Object.entries(outputs[name].packageScripts)) {
+    packageScripts[file] = [...(packageScripts[file] ?? []), ...entries];
+  }
+}
 
 function pathPackageDirs(manifest) {
   const metadata = JSON.parse(
@@ -90,9 +125,9 @@ if (process.argv.includes('--check-dep-info')) {
   checkDepInfo();
 } else {
   const inputs = [
-    ...git(['ls-tree', '-r', 'HEAD', '--', ...hashedPaths]),
+    ...git(['ls-tree', '-r', commit, '--', ...hashedPaths]),
     ...Object.entries(packageScripts).flatMap(([file, names]) => {
-      const { scripts } = JSON.parse(readFileSync(path.join(root, file), 'utf8'));
+      const { scripts } = JSON.parse(git(['show', `${commit}:${file}`]).join('\n'));
       return names
         .flatMap((name) => [`pre${name}`, name, `post${name}`])
         .map((name) => `${file} ${name} ${JSON.stringify(scripts[name] ?? null)}`);

@@ -26,8 +26,10 @@ permissions:
   id-token: write
 
 jobs:
-  # The Mac local tools come from router-ab-dev alone. When it is unchanged since the last
-  # published server package, that package's Mac binaries are reused, so no macOS runner is needed.
+  # The Mac local tools come from router-ab-dev and the path crates it uses. When none of their
+  # inputs changed since the last published server package (scripts/rust-build-inputs.mjs
+  # --outputs local-tools), and the current stable rustc built that package's Mac binaries,
+  # they are reused, so no macOS runner is needed.
   mac_local_tools_reuse:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -40,25 +42,43 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
+      # The same stable toolchain as mac_local_tools: cargo resolves the inputs, and rustc
+      # names the commit that a reused binary must name.
+      - uses: dtolnay/rust-toolchain@stable
       - id: reuse
         run: |
           set -euo pipefail
-          published="$(npm view @seams/wallet-server version)"
-          source_commit="$(npm view "@seams/wallet-server@$published" gitHead)"
-          if ! git cat-file -e "$source_commit^{commit}" 2>/dev/null ||
-            ! git diff --quiet "$source_commit" HEAD -- crates/router-ab-dev scripts/build-local-tools.mjs; then
-            echo "router-ab-dev changed since @seams/wallet-server@$published; building on macOS."
+          build_on_mac() {
+            echo "$1; building on macOS."
             echo "reuse=false" >> "$GITHUB_OUTPUT"
             exit 0
+          }
+          published="$(npm view @seams/wallet-server version)"
+          source_commit="$(npm view "@seams/wallet-server@$published" gitHead)"
+          if ! git cat-file -e "$source_commit^{commit}" 2>/dev/null; then
+            build_on_mac "This checkout has no $source_commit, the source of @seams/wallet-server@$published"
           fi
+          inputs_hash() { node scripts/rust-build-inputs.mjs --outputs local-tools --commit "$1"; }
+          if [ "$(inputs_hash "$source_commit")" != "$(inputs_hash HEAD)" ]; then
+            build_on_mac "The local-tools inputs changed since @seams/wallet-server@$published"
+          fi
+          rustc_commit="$(rustc -vV | sed -n 's/^commit-hash: //p')"
           mkdir -p .artifacts/published crates/router-ab-cloudflare/build/local-tools
           npm pack "@seams/wallet-server@$published" --pack-destination .artifacts/published
           tar -xzf .artifacts/published/*.tgz -C .artifacts/published
           for platform in darwin-arm64 darwin-x64; do
+            binary=".artifacts/published/package/cloudflare-router-ab/build/local-tools/$platform/router_ab_local_init"
+            # The standard library paths in a Rust binary's panic messages name the rustc commit.
+            named="$(grep -aoE '/rustc/[0-9a-f]{40}/' "$binary" | sort -u | paste -sd ' ' - || true)"
+            if [ "$named" != "/rustc/$rustc_commit/" ]; then
+              build_on_mac "The published $platform tool names ${named:-no rustc}, not /rustc/$rustc_commit/"
+            fi
+          done
+          for platform in darwin-arm64 darwin-x64; do
             cp -R ".artifacts/published/package/cloudflare-router-ab/build/local-tools/$platform" \
               crates/router-ab-cloudflare/build/local-tools/
           done
-          echo "Reusing the Mac local tools of @seams/wallet-server@$published ($source_commit)."
+          echo "Reusing the Mac local tools of @seams/wallet-server@$published ($source_commit, rustc $rustc_commit)."
           echo "reuse=true" >> "$GITHUB_OUTPUT"
       - if: steps.reuse.outputs.reuse == 'true'
         uses: actions/upload-artifact@v7
