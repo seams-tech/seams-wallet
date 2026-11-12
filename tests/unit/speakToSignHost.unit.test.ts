@@ -59,6 +59,7 @@ import { intentDigests, type SpokenIntent } from '@/core/transactionFeatures/spo
 import {
   SPOKEN_KINDS,
   SPOKEN_TYPED_KINDS,
+  carriedVerdictOfCall,
   spokenRequestOfCall,
   spokenRequestOfFields,
   type SignedSpokenCall,
@@ -1114,7 +1115,7 @@ const NOTE: SpokenNoteAction = {
   summary: 'Only one lane closes for two weeks.',
 };
 
-test('core signs one add_note call with no deposit for the verdict of this note only', async () => {
+test('core signs one add_note call with no deposit and its verdict, for the verdict of this note only', async () => {
   const verifier = await verifierKey();
   const harness = coreHarness(verifier);
   const signal = new AbortController().signal;
@@ -1151,7 +1152,14 @@ test('core signs one add_note call with no deposit for the verdict of this note 
           {
             type: 'FunctionCall',
             methodName: 'add_note',
-            args: { post_id: 7, text: NOTE.text, summary: NOTE.summary },
+            // The notes contract checks the verdict, so the call carries it.
+            args: {
+              post_id: 7,
+              text: NOTE.text,
+              summary: NOTE.summary,
+              verdict_json: accepted.verdict_json,
+              signature_b64: accepted.signature_b64,
+            },
             gas: '30000000000000',
             deposit: '0',
           },
@@ -2002,6 +2010,10 @@ test('the co-signer path of each typed kind gives the request of the core path',
     if (!fromBytes) throw new Error(`no request for the call of ${fields.kind}`);
     const fromFields = await spokenRequestOfFields(fields, 'testnet', 'owner.testnet');
     expect(hex(spokenRequestBorsh(fromBytes)), fields.kind).toBe(hex(spokenRequestBorsh(fromFields)));
+    // A note, a rating and a bet carry the verdict to a contract that checks it.
+    expect(carriedVerdictOfCall(signedCall, 'testnet'), fields.kind).toEqual(
+      ['community_note', 'note_rating', 'market_bet'].includes(fields.kind) ? verdict : null,
+    );
     // A deposit that the kind does not have is the call of no kind.
     if (signedCall.kind === 'function_call') {
       const withDeposit = { ...signedCall, depositYocto: signedCall.depositYocto + 1n };

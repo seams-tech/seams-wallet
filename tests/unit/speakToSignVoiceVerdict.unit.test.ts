@@ -750,7 +750,7 @@ test('a step_up verdict is admitted after a new VoiceID unlock that came after t
   );
 });
 
-test('spoken notes and ratings are admitted only as one add_note or rate_note call with no deposit', async () => {
+test('spoken notes and ratings are admitted only as one add_note or rate_note call with no deposit and its verdict', async () => {
   const verifier = await verifierKey();
   const cosigner = harness(verifier);
   const contract = 'notes.seams-v1.testnet';
@@ -787,8 +787,27 @@ test('spoken notes and ratings are admitted only as one add_note or rate_note ca
       withVerdict(addNote({ post_id: 7, text, summary, extra: 1 }), noteVerdict),
     ),
   ).toEqual(refused('request_mismatch'));
+  // The call must carry the verdict of this request to the notes contract, whole.
+  for (const other of [
+    { verdict_json: noteVerdict.verdict_json.replace('accept', 'accepT'), signature_b64: noteVerdict.signature_b64 },
+    { verdict_json: noteVerdict.verdict_json, signature_b64: 'AAAA' },
+    { verdict_json: noteVerdict.verdict_json },
+    { verdict_json: noteVerdict.verdict_json, signature_b64: 1 },
+  ]) {
+    expect(
+      await cosigner.check(withVerdict(addNote({ post_id: 7, text, summary, ...other }), noteVerdict)),
+      JSON.stringify(other),
+    ).toEqual(refused('request_mismatch'));
+  }
   expect(
-    await cosigner.check(withVerdict(addNote({ post_id: 7, text, summary }), noteVerdict)),
+    await cosigner.check(
+      withVerdict(addNote({ post_id: 7, text, summary, ...noteVerdict }), noteVerdict),
+    ),
+  ).toEqual(ADMITTED);
+  // A Wallet before 0.69 sends no verdict in the call. The contract decides if it takes that.
+  const oldNoteVerdict = await signedVerdict(verifier, note, { audio_digest: b64u(new Uint8Array(32).fill(8)) });
+  expect(
+    await cosigner.check(withVerdict(addNote({ post_id: 7, text, summary }), oldNoteVerdict)),
   ).toEqual(ADMITTED);
 
   const rating: SpokenRequest = {
@@ -813,7 +832,15 @@ test('spoken notes and ratings are admitted only as one add_note or rate_note ca
   ).toEqual(refused('request_mismatch'));
   expect(
     await cosigner.check(
-      withVerdict(rateNote({ note_id: 3, rating: 'somewhat_helpful' }), ratingVerdict),
+      withVerdict(
+        rateNote({ note_id: 3, rating: 'somewhat_helpful', ...ratingVerdict, signature_b64: 'AAAA' }),
+        ratingVerdict,
+      ),
+    ),
+  ).toEqual(refused('request_mismatch'));
+  expect(
+    await cosigner.check(
+      withVerdict(rateNote({ note_id: 3, rating: 'somewhat_helpful', ...ratingVerdict }), ratingVerdict),
     ),
   ).toEqual(ADMITTED);
 });

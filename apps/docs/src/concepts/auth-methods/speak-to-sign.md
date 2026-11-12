@@ -214,10 +214,13 @@ testnet.
 ## Spoken community notes
 
 The same flow can sign a community note or a note rating on a notes contract
-with `add_note({ post_id, text, summary })` and `rate_note({ note_id, rating })`.
+with `add_note({ post_id, text, summary, verdict_json, signature_b64 })` and
+`rate_note({ note_id, rating, verdict_json, signature_b64 })`.
 The author types the note and reads aloud only a short summary. The verdict
 binds the full note by its SHA-256. Wallet core builds the one call, with no
-deposit and no confirm.
+deposit and no confirm. The call carries the verdict and its signature, so
+the notes contract can check the verdict itself. A contract that does not
+check it ignores the two arguments.
 
 ```ts [Partial example]
 import { summaryRefusal } from '@seams/wallet';
@@ -324,6 +327,8 @@ recording that it made in the same flow.
     asked to sign and builds the request again: one transfer to the receiver
     with the amount, or one `add_note` or `rate_note` call with no deposit. The
     digest of that request must equal the digest in the verdict.
+  - The carried verdict. A note, a rating and a bet carry the verdict to their
+    contract. It must be the verdict beside the signing request.
   - The owner. The transaction signer must be the NEAR account of the Wallet
     Session.
   - Single use. The co-signer records each verdict that it accepts and refuses

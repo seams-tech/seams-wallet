@@ -5,7 +5,8 @@
 //   - `verifyRequest`: the request of the verifier's `verify` input;
 //   - `request`: the `SpokenRequestV1` that a verdict names, from the fields;
 //   - `call`: the one action that carries the request out (core signs it);
-//   - `fromCall`: the fields again, from that one action (the co-signer reads signed bytes).
+//   - `fromCall`: the fields again, from that one action (the co-signer reads signed bytes);
+//   - `carriedVerdict`: the verdict that the action carries, for a contract that checks it.
 // Wallet core and the Seams co-signer must agree on the last three.
 // Core goes from fields to bytes. The co-signer goes only from the bytes that it signs to the
 // request, never from fields that a client sends. A new typed kind is one entry here, with its
@@ -145,6 +146,11 @@ export type SpokenKindEntry<Kind extends SpokenTypedKind> = Readonly<{
    * kind: another method, another deposit or other argument keys.
    */
   fromCall(call: SignedSpokenCall, network: SpeakToSignNetwork): FieldsOf<Kind> | null;
+  /**
+   * The verdict that a call of this kind carries to its contract, or null when it carries
+   * none. Only a kind whose contract checks the verdict has it.
+   */
+  carriedVerdict?(call: SignedSpokenCall, network: SpeakToSignNetwork): SpokenCallVerdict | null;
 }>;
 
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
@@ -160,6 +166,11 @@ const RATING_WORDS: Readonly<Record<NoteRating, readonly string[]>> = {
   somewhat_helpful: ['this', 'note', 'is', 'somewhat', 'helpful'],
   not_helpful: ['this', 'note', 'is', 'not', 'helpful'],
 };
+
+const VERDICT_ARGS = ['verdict_json', 'signature_b64'] as const;
+type VerdictArg = (typeof VERDICT_ARGS)[number];
+const NOTE_ARGS = ['post_id', 'text', 'summary'] as const;
+const RATING_ARGS = ['note_id', 'rating'] as const;
 
 /** The gas of one note call. The contract needs less than 10 Tgas. */
 const NOTE_CALL_GAS = '30000000000000';
@@ -220,14 +231,17 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
       noteSha256: await sha256(utf8(fields.text)),
       summary: fields.summary,
     }),
-    call: (fields) =>
+    // The notes contract checks the verdict, so the call carries it.
+    call: (fields, verdict) =>
       noDepositCall(fields.contract, 'add_note', {
         post_id: Number(fields.postId),
         text: fields.text,
         summary: fields.summary,
+        ...verdictArgs(verdict),
       }),
+    carriedVerdict: (call) => verdictOfArgs(call, 'add_note', NOTE_ARGS),
     fromCall: (call) => {
-      const args = noDepositArgs(call, 'add_note', ['post_id', 'text', 'summary']);
+      const args = noDepositArgs(call, 'add_note', NOTE_ARGS, 'verdict_optional');
       if (!args) return null;
       const { post_id: postId, text, summary } = args;
       if (!isSafeId(postId) || typeof text !== 'string' || typeof summary !== 'string') return null;
@@ -258,13 +272,15 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
       rating: fields.rating,
     }),
     request: async (fields, network, owner) => ({ ...fields, network, owner }),
-    call: (fields) =>
+    call: (fields, verdict) =>
       noDepositCall(fields.contract, 'rate_note', {
         note_id: Number(fields.noteId),
         rating: fields.rating,
+        ...verdictArgs(verdict),
       }),
+    carriedVerdict: (call) => verdictOfArgs(call, 'rate_note', RATING_ARGS),
     fromCall: (call) => {
-      const args = noDepositArgs(call, 'rate_note', ['note_id', 'rating']);
+      const args = noDepositArgs(call, 'rate_note', RATING_ARGS, 'verdict_optional');
       if (!args) return null;
       const { note_id: noteId } = args;
       const rating = NOTE_RATINGS.find((candidate) => candidate === args.rating);
@@ -404,8 +420,7 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
           action: 'bet',
           market_id: Number(fields.marketId),
           outcome: fields.outcome,
-          verdict_json: verdict.verdictJson,
-          signature_b64: verdict.signatureB64,
+          ...verdictArgs(verdict),
         }),
       },
       gas: BET_CALL_GAS,
@@ -413,15 +428,13 @@ export const SPOKEN_KINDS: { readonly [Kind in SpokenTypedKind]: SpokenKindEntry
     }),
     // Only the network's USDC contract is a bet token, because the sentence says "usdc" and an
     // amount with 6 decimals. The Borsh of the request refuses an amount that is not a `u128`.
-    fromCall: (call, network) => {
-      const bet = readBetCall(call, network);
-      return bet ? bet.fields : null;
-    },
+    fromCall: (call, network) => readBetCall(call, network)?.fields ?? null,
+    carriedVerdict: (call, network) => readBetCall(call, network)?.verdict ?? null,
   },
 };
 
 /** A bet call and the verdict that its `msg` carries to the market contract. */
-export function readBetCall(
+function readBetCall(
   call: SignedSpokenCall,
   network: SpeakToSignNetwork,
 ): Readonly<{ fields: FieldsOf<'market_bet'>; verdict: SpokenCallVerdict }> | null {
@@ -441,19 +454,11 @@ export function readBetCall(
   } catch {
     return null;
   }
-  if (!hasExactKeys(bet, ['action', 'market_id', 'outcome', 'verdict_json', 'signature_b64'])) {
-    return null;
-  }
-  const { market_id: marketId, verdict_json: verdictJson, signature_b64: signatureB64 } = bet;
+  if (!hasExactKeys(bet, ['action', 'market_id', 'outcome', ...VERDICT_ARGS])) return null;
+  const { market_id: marketId } = bet;
   const outcome = BET_OUTCOMES.find((candidate) => candidate === bet.outcome);
-  if (
-    bet.action !== 'bet' ||
-    !isSafeId(marketId) ||
-    marketId < 1 ||
-    !outcome ||
-    typeof verdictJson !== 'string' ||
-    typeof signatureB64 !== 'string'
-  ) {
+  const verdict = readVerdictArgs(bet);
+  if (bet.action !== 'bet' || !isSafeId(marketId) || marketId < 1 || !outcome || !verdict) {
     return null;
   }
   return {
@@ -465,8 +470,24 @@ export function readBetCall(
       outcome,
       amountUnits: BigInt(amount),
     },
-    verdict: { verdictJson, signatureB64 },
+    verdict,
   };
+}
+
+/**
+ * The verdict that the signed action carries to its contract, or null when it is the call of
+ * no typed kind or of a kind that carries no verdict. The co-signer checks that a carried
+ * verdict is the verdict of the request.
+ */
+export function carriedVerdictOfCall(
+  call: SignedSpokenCall,
+  network: SpeakToSignNetwork,
+): SpokenCallVerdict | null {
+  for (const kind of SPOKEN_TYPED_KINDS) {
+    const verdict = SPOKEN_KINDS[kind].carriedVerdict?.(call, network);
+    if (verdict) return verdict;
+  }
+  return null;
 }
 
 /**
@@ -550,15 +571,45 @@ function noDepositCall(
   return { kind: 'function_call', receiverId, methodName, args, gas: NOTE_CALL_GAS, depositYocto: 0n };
 }
 
-/** The arguments of a call of `methodName` with no deposit and exactly `keys`, or null. */
+/**
+ * The arguments of a call of `methodName` with no deposit and exactly `keys`, or null. With
+ * `verdict_optional`, the call can also have the two arguments of a verdict: Wallet core sends
+ * them, and a Wallet before 0.69 does not.
+ */
 function noDepositArgs<const Keys extends readonly string[]>(
   call: SignedSpokenCall,
   methodName: string,
   keys: Keys,
+  verdict: 'no_verdict' | 'verdict_optional' = 'no_verdict',
 ): { readonly [Key in Keys[number]]: unknown } | null {
   if (call.kind !== 'function_call' || call.methodName !== methodName) return null;
   if (call.depositYocto !== 0n) return null;
-  return hasExactKeys(call.args, keys) ? call.args : null;
+  if (hasExactKeys(call.args, keys)) return call.args;
+  if (verdict === 'no_verdict' || !hasExactKeys(call.args, [...keys, ...VERDICT_ARGS])) return null;
+  return readVerdictArgs(call.args) ? (call.args as { [Key in Keys[number]]: unknown }) : null;
+}
+
+/** The verdict in the arguments of a call of `methodName` with no deposit, or null. */
+function verdictOfArgs(
+  call: SignedSpokenCall,
+  methodName: string,
+  keys: readonly string[],
+): SpokenCallVerdict | null {
+  const args = noDepositArgs(call, methodName, [...keys, ...VERDICT_ARGS]);
+  return args ? readVerdictArgs(args) : null;
+}
+
+/** The two JSON keys that carry a checked verdict to a contract: arguments, or keys of a `msg`. */
+function verdictArgs(verdict: SpokenCallVerdict): Readonly<Record<VerdictArg, string>> {
+  return { verdict_json: verdict.verdictJson, signature_b64: verdict.signatureB64 };
+}
+
+function readVerdictArgs(
+  args: Readonly<Partial<Record<VerdictArg, unknown>>>,
+): SpokenCallVerdict | null {
+  const { verdict_json: verdictJson, signature_b64: signatureB64 } = args;
+  if (typeof verdictJson !== 'string' || typeof signatureB64 !== 'string') return null;
+  return { verdictJson, signatureB64 };
 }
 
 /** Wallet core sends note, post, pull request and market ids as JSON safe integers. */
