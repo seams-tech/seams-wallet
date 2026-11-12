@@ -26,17 +26,13 @@ permissions:
   id-token: write
 
 jobs:
-  # The release Workers and the local tools come from Rust alone. When none of their inputs
-  # changed since the last published server package, that package's files are reused
-  # (scripts/reuse-published-rust-outputs.mjs says when, and why the bytes are the same).
-  # Reused Workers skip about 17 minutes of build and the worker-build install; reused local
-  # tools skip the Linux and macOS runners. The WASM packages always build from source.
-  rust_outputs_reuse:
+  # The Mac local tools come from router-ab-dev alone. When it is unchanged since the last
+  # published server package, that package's Mac binaries are reused, so no macOS runner is needed.
+  mac_local_tools_reuse:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     outputs:
-      workers: ${{ steps.workers.outputs.reuse }}
-      local_tools: ${{ steps.local-tools.outputs.reuse }}
+      reuse: ${{ steps.reuse.outputs.reuse }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -44,33 +40,37 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-      # The same toolchain as the builds below: a reused binary must name its rustc commit.
-      - uses: dtolnay/rust-toolchain@stable
-      - id: workers
-        run: node scripts/reuse-published-rust-outputs.mjs workers
-      - id: local-tools
-        run: node scripts/reuse-published-rust-outputs.mjs local-tools
-      - if: steps.workers.outputs.reuse == 'true'
+      - id: reuse
+        run: |
+          set -euo pipefail
+          published="$(npm view @seams/wallet-server version)"
+          source_commit="$(npm view "@seams/wallet-server@$published" gitHead)"
+          if ! git cat-file -e "$source_commit^{commit}" 2>/dev/null ||
+            ! git diff --quiet "$source_commit" HEAD -- crates/router-ab-dev scripts/build-local-tools.mjs; then
+            echo "router-ab-dev changed since @seams/wallet-server@$published; building on macOS."
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p .artifacts/published crates/router-ab-cloudflare/build/local-tools
+          npm pack "@seams/wallet-server@$published" --pack-destination .artifacts/published
+          tar -xzf .artifacts/published/*.tgz -C .artifacts/published
+          for platform in darwin-arm64 darwin-x64; do
+            cp -R ".artifacts/published/package/cloudflare-router-ab/build/local-tools/$platform" \
+              crates/router-ab-cloudflare/build/local-tools/
+          done
+          echo "Reusing the Mac local tools of @seams/wallet-server@$published ($source_commit)."
+          echo "reuse=true" >> "$GITHUB_OUTPUT"
+      - if: steps.reuse.outputs.reuse == 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: workers-reused
-          path: |
-            crates/router-ab-cloudflare/build
-            !crates/router-ab-cloudflare/build/local-tools
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
-      - if: steps.local-tools.outputs.reuse == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: local-tools-reused
+          name: local-tools-darwin-reused
           path: crates/router-ab-cloudflare/build/local-tools
           if-no-files-found: error
           retention-days: 1
 
   local_tools:
-    needs: rust_outputs_reuse
-    if: github.ref == 'refs/heads/main' && needs.rust_outputs_reuse.outputs.local_tools != 'true'
+    needs: mac_local_tools_reuse
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     env:
       TARGET: x86_64-unknown-linux-gnu
@@ -91,8 +91,8 @@ jobs:
           retention-days: 1
 
   mac_local_tools:
-    needs: rust_outputs_reuse
-    if: github.ref == 'refs/heads/main' && needs.rust_outputs_reuse.outputs.local_tools != 'true'
+    needs: mac_local_tools_reuse
+    if: github.ref == 'refs/heads/main' && needs.mac_local_tools_reuse.outputs.reuse != 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -118,8 +118,8 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: [rust_outputs_reuse, local_tools, mac_local_tools]
-    # A skipped local-tools build means its binaries were reused, so only a failure stops the release.
+    needs: [mac_local_tools_reuse, local_tools, mac_local_tools]
+    # A skipped Mac build means its binaries were reused, so only a failure stops the release.
     if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' }}
     name: Publish npm packages
     runs-on: ubuntu-24.04
@@ -155,21 +155,15 @@ jobs:
       # SHA-256 digests. GH_TOKEN makes their downloads authenticated API
       # calls, because GitHub can answer anonymous release downloads with 504
       # under load. worker-build has no upstream prebuilt binary; the release
-      # compiles it from source and never restores it from a cache. Only a
-      # server release that does not reuse the Workers needs it.
-      # scripts/reuse-published-rust-outputs.mjs reads the worker-build pin from
-      # the `cargo install` line, so keep its form.
+      # compiles it from source and never restores it from a cache.
       - name: Install build tools
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_WORKERS: ${{ inputs.package == 'all' && needs.rust_outputs_reuse.outputs.workers != 'true' }}
         run: |
           bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
             --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
           echo "$RUNNER_TEMP/wasm-pack" >> "$GITHUB_PATH"
-          if [ "$BUILD_WORKERS" = true ]; then
-            cargo install worker-build --version 0.8.4 --locked
-          fi
+          cargo install worker-build --version 0.8.4 --locked
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v8
         with:
@@ -183,31 +177,13 @@ jobs:
             test -s "crates/router-ab-cloudflare/build/local-tools/$platform/router_ab_local_init"
           done
       - run: chmod +x crates/router-ab-cloudflare/build/local-tools/*/router_ab_local_init
-      - if: inputs.package == 'all' && needs.rust_outputs_reuse.outputs.workers == 'true'
-        uses: actions/download-artifact@v8
-        with:
-          name: workers-reused
-          path: crates/router-ab-cloudflare/build
-      # The jobs above put every local tool in place, so the build does not build them again.
       - name: Build production Wallet artifacts
         env:
           WASM_SDK_BUILD_MODE: prod
-          REUSE_WORKERS: ${{ needs.rust_outputs_reuse.outputs.workers }}
         run: |
-          set -euo pipefail
           case "$SEAMS_RELEASE_PACKAGE" in
             all)
-              pnpm run build:wasm
-              if [ "$REUSE_WORKERS" = true ]; then
-                echo "Using the reused Workers."
-              else
-                pnpm run build:workers
-              fi
-              for role in router deriver-a deriver-b signing-worker tenant-root-control-plane; do
-                grep -q '"profile":"release"' "crates/router-ab-cloudflare/build/$role/build-stamp.json"
-                test -s "crates/router-ab-cloudflare/build/$role/index_bg.wasm"
-              done
-              pnpm run build:packages
+              pnpm build
               ;;
             wallet|voiceid)
               pnpm -C packages/wallet build:sdk-full
