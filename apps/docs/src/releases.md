@@ -1,9 +1,20 @@
 ---
-title: Release 0.69.0
+title: Release 0.69.2
 description: The Seams server writes the spoken summary of a note, the verifier checks that it fits the note, and a Wallet card can be minimized.
 ---
 
-# Release 0.69.0
+# Release 0.69.2
+
+The browser SDK, server SDK and VoiceID plugin use **0.69.2**. It has no breaking change since 0.69.0.
+
+Since 0.69.0:
+
+- The Speak-to-Sign card's check reads "Checking what you said". With the verifier step after it, the line now fits the card.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.69.2**. In a form card (a card with a context, such as a note), the check's line slides into the microphone's circle, and the microphone turns into a tick. A card with no context keeps the ring and the seal.
+- The Wallet iframe protocol stays **25.0.0**. The server and the verifier (0.13.0) do not change. An app at 0.69.0 works with a Wallet host at 0.69.2.
+- Install all three packages at 0.69.2. No database migrations.
+
+## Release 0.69.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.69.0**. This release has breaking changes for an app that signs community notes with Speak-to-Sign.
 

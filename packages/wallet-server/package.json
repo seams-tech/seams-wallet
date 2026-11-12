@@ -1,6 +1,6 @@
 {
   "name": "@seams/wallet-server",
-  "version": "0.69.0",
+  "version": "0.69.2",
   "type": "module",
   "description": "Seams server TypeScript SDK for NEAR and EVM-family wallets",
   "main": "./dist/esm/index.js",
@@ -119,8 +119,8 @@
   },
   "homepage": "https://github.com/seams-tech/seams-wallet#readme",
   "dependencies": {
-    "@seams/voice-sign": "0.69.1",
-    "@seams/voice-verdict": "0.69.1",
+    "@seams/voice-sign": "0.69.2",
+    "@seams/voice-verdict": "0.69.2",
     "@simplewebauthn/server": "13.2.2",
     "bs58": "6.0.0"
   },
