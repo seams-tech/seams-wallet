@@ -59,7 +59,9 @@ const CSS = `
   border-radius: 0;
   background: transparent;
   padding: 0.75rem 1.5rem 1.5rem;
-  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) auto auto;
+  /* The card places its rows by name (voice-capture 0.69.0): the same rows, with an auto action
+     row and one more auto row at the end. */
+  grid-template-rows: [context] auto [title] auto [phrase] minmax(6rem, auto) [line] 5rem [status] minmax(3.375rem, auto) [action] auto auto;
 }
 /* Only a hidden record button empties the slot; the microphone choice is hidden by default. */
 .seams-voiceid-unlock .seams-voiceid-record-slot:has(> .seams-voiceid-primary[hidden]) {

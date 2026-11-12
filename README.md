@@ -3,21 +3,21 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.68.1**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.69.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.68.1` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
-- `@seams/wallet-server@0.68.1` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.68.1` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.69.0` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
+- `@seams/wallet-server@0.69.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.69.0` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
-The browser and server SDKs use wallet iframe protocol `24.0.0`. Upgrade the browser
+The browser and server SDKs use wallet iframe protocol `25.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK and VoiceID plugin use version **0.68.1**.
+The browser SDK, server SDK and VoiceID plugin use version **0.69.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -26,6 +26,15 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Release 0.69.0
+
+- Breaking: `spoken.note` takes no `summary`. The Seams server writes the spoken summary of a note (new route `POST /speak-to-sign/v1/summary`, which needs `SPEAK_TO_SIGN_NEAR_AI_API_KEY`; `SPEAK_TO_SIGN_SUMMARY_MODEL` is optional). Without a summary the result is unavailable with `summary_unavailable`, and no card opens. The card shows the note above the summary.
+- The verifier is **0.13.0** (`1b777154…`): the Wallet sends `note_text`, and the verifier checks that the summary gives the main point of the note (refusals `summary_mismatch` and `summary_check_unavailable`). Set its version key on the server before this Wallet ships.
+- `add_note` and `rate_note` carry their verdict to the notes contract, as a bet does in its `msg`. The co-signer refuses a call that carries another verdict.
+- Wallet steps: an anchored card takes `minimize` (the `minimize` prop of `WalletStep`). Minimize hides the card and keeps its request; the app hears `onMinimize(restore)`, `onRestore` and `onProgress`. Deploy the hosted Wallet before an app sends `minimize`.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.69.0**. The voice card shows a context above its sentence, has a form card and a `colors` prop, draws Minimize, and shows a result as one group: the seal (`voiceSeal`, else `voiceLine`), the headline, the details and the button. Its grid rows have names.
+- Wallet iframe protocol **25.0.0**: the note message has no summary. An app at 0.68.1 does not work with a Wallet host at 0.69.0, or the reverse. Deploy the verifier, then the server, then the SDK and the hosted Wallet together. Install all three packages at 0.69.0. No database migrations.
 
 ## Release 0.68.1
 
