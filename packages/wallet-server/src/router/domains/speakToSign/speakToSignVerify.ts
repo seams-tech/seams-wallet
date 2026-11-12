@@ -35,15 +35,21 @@ export const SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES = 1_100 * 1024;
 /**
  * The verifier calls two remote models, and OutLayer can hold a job before a worker runs it.
  * On 2026-11-11 that wait swung from 1 s to more than 90 s within minutes, while the
- * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s.
+ * verifier's own time stayed at 1.7 s; 20 s failed calls that finished in 20-35 s. The wait is
+ * longer than the run limit, as in `@seams/voice-sign`.
  */
-const OUTLAYER_TIMEOUT_MS = 30_000;
+const OUTLAYER_TIMEOUT_MS = 60_000;
 /** The verifier operations that the route runs: a spoken request and an enrollment. */
 const SERVED_OPERATIONS: ReadonlySet<unknown> = new Set(['verify', 'enroll']);
+/**
+ * 40 s is above the verifier's own 30 s waits for its models, so a slow model gives a signed
+ * refusal (`transcriber_unavailable`), not a run that OutLayer stopped. On 2026-11-12 NEAR AI
+ * Whisper took 17 s, and the 15 s limit stopped the run.
+ */
 const OUTLAYER_RESOURCE_LIMITS = Object.freeze({
   max_instructions: 10_000_000_000,
   max_memory_mb: 128,
-  max_execution_seconds: 15,
+  max_execution_seconds: 40,
 });
 
 /** The route exists only when the server configuration holds every field. */
