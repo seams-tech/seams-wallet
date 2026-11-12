@@ -460,6 +460,33 @@ test('a verifier refusal passes through with its reason and what was heard', asy
   });
 });
 
+test('a refusal of verifier 0.14.1 that NEAR AI is not attested keeps its reason', async () => {
+  const verifier = await verifierKey();
+  const request = transferRequest();
+  const refusal = await verdictJson(request, new Uint8Array(32), {
+    outcome: 'refuse',
+    reason: 'transcriber_not_attested',
+    // No audio went out after the failed check, so nothing was heard.
+    heard: null,
+  });
+  const check = async (verdict: string) =>
+    await checkVoiceVerdict({
+      output: parseVerifyOutput(await verifyOutput(verifier, verdict))!,
+      expected: await transferDigests(request),
+      verifier: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY },
+      recordedAudio: new Set(),
+      nowMs: NOW_MS,
+    });
+  expect(await check(refusal)).toEqual({ kind: 'refused', reason: 'transcriber_not_attested' });
+  // A reason that the Wallet does not know is still no approval.
+  const unknown = await verdictJson(request, new Uint8Array(32), {
+    outcome: 'refuse',
+    reason: 'transcriber_on_fire',
+    heard: null,
+  });
+  expect(await check(unknown)).toEqual({ kind: 'mismatch', detail: 'unknown refusal' });
+});
+
 // ---------------------------------------------------------------- core host operations
 
 type CoreHarness = {

@@ -19,6 +19,7 @@ Since 0.69.2:
   - Venice AI runs in no TEE, so it can hear the recordings that it gets. The receipt of such a call shows "Speech to text: Venice AI, outside a TEE".
   - The quote check accepts only the WASM hash of the build that the route called. The verdict event has `transcriber` (`nearai` or `venice`).
   - The Wallet card reads a verifier version with a build name, such as `0.14.0+venice`.
+- New refusal `transcriber_not_attested` (verifier 0.14.0 and later): the verifier could not check the TEE of NEAR AI's gateway, or Whisper's reply did not open with the checked key. No audio went out after a failed check. Before, the Wallet read this refusal as `verdict_mismatch`. The card says that the recording is not the cause, and offers Try again. An app before 0.70.0 cannot read this reason.
 - The verify route gives each verifier run 40 s (was 15 s) and waits 60 s for the answer (was 30 s). The verifier waits up to 30 s for each model. A slow NEAR AI Whisper now gives a signed refusal (`transcriber_unavailable`), not a run that OutLayer stopped.
 - The paid and signed Speak-to-Sign cards show a TEE receipt: "TEE receipt · Intel TDX · OutLayer", the voice of the account, the words, the summary check of a note, the verifier version of the verdict, and "View TDX quote". If the server sends no `attestationUrl`, the receipt has no link.
 - VoiceID activation goes to the first recording as soon as VoiceID has loaded. Before, the person pressed "Activate VoiceID" and then "Record sample 1".

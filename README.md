@@ -31,6 +31,7 @@ in the private `seams-tech/seams-monorepo` repository.
 
 - The Speak-to-Sign verify route checks the TDX quote of each verifier call before it sends a verdict. The quote must bind the output to the WASM hash `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` and to the project, Intel must sign it, and `worker.outlayer.testnet` must approve its measurements. A refusal is `failed` with `attestation_<code>`. A `verdict` has `attestationUrl`, the OutLayer record of the call.
 - Optional `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`: while NEAR AI Whisper is down, the server calls the `venice` build of the verifier, which sends the clip to Venice AI (no TEE; the receipt says so). The quote check accepts only the hash of the build that it called.
+- New refusal `transcriber_not_attested` (verifier 0.14.0 and later): the check of NEAR AI's gateway TEE failed. Before, the Wallet read it as `verdict_mismatch`.
 - The verify route gives each verifier run 40 s (was 15 s) and waits 60 s (was 30 s), so a slow model gives a signed refusal.
 - The paid and signed Speak-to-Sign cards show a TEE receipt with a "View TDX quote" link. VoiceID activation goes to the first recording at once, with no "Activate VoiceID" press.
 - `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.0**. A result card of `@seams/voice-capture` takes a `receipt`.

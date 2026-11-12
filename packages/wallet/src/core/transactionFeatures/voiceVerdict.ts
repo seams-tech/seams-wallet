@@ -20,6 +20,9 @@ const VERIFIER_REFUSALS = [
   'speaker_unavailable',
   'storage',
   'transcriber_unavailable',
+  // Verifier 0.14.0 and later: the check of NEAR AI's gateway TEE failed, or Whisper's reply did
+  // not open with the checked key. No audio went out after a failed check.
+  'transcriber_not_attested',
   // A community note (verifier 0.13.0 and later): JEV checks that the summary fits the note.
   'summary_mismatch',
   'summary_check_unavailable',

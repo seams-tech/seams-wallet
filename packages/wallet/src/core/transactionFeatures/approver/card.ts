@@ -504,6 +504,14 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
     case 'transcriber_unavailable':
     case 'summary_check_unavailable':
       return { ...unavailable, at: 'words' };
+    case 'transcriber_not_attested':
+      return {
+        headline: 'The speech-to-text service was not attested',
+        caption: "The verifier could not check the TEE of NEAR AI's Whisper, so it did not use it.",
+        detail: 'Your recording is not the cause. Try again in a minute.',
+        at: 'words',
+        retry: true,
+      };
     case 'speaker_unavailable':
     case 'storage':
     case 'unsupported':

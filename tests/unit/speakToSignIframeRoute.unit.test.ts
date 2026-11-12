@@ -825,10 +825,14 @@ test('the note message carries only the wallet, autoStart and one note or rating
   for (const result of [
     { kind: 'refused', reason: 'summary_mismatch' },
     { kind: 'refused', reason: 'summary_check_unavailable' },
+    { kind: 'refused', reason: 'transcriber_not_attested' },
     { kind: 'unavailable', reason: 'summary_unavailable', detail: 'summary_failed' },
   ]) {
     expect(parseSpeakToSignNoteResult(structuredClone(result))).toEqual(result);
   }
+  expect(
+    parseSpeakToSignTransferResult({ kind: 'refused', reason: 'transcriber_not_attested' }),
+  ).toEqual({ kind: 'refused', reason: 'transcriber_not_attested' });
   expect(() => parseSpeakToSignNoteResult({ kind: 'refused', reason: 'receiver_missing' })).toThrow(
     'Speak-to-Sign note result is invalid.',
   );

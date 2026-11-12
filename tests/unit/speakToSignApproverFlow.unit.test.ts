@@ -60,6 +60,20 @@ test('a step-up asks for the passkey on the card, then pays', async () => {
   ]);
 });
 
+test('an unattested NEAR AI says that the recording is not the cause, and can be tried again', async () => {
+  const host = fakeHost({
+    outcomes: [{ kind: 'refused', reason: 'transcriber_not_attested' }],
+  });
+  expect(await runApproval(host.approval())).toEqual({
+    kind: 'refused',
+    reason: 'transcriber_not_attested',
+  });
+  expect(host.views).toEqual([
+    'check:Checking what you said',
+    'result:Nothing was sent:The speech-to-text service was not attested:Try again',
+  ]);
+});
+
 test('closing the step-up question signs nothing', async () => {
   const host = fakeHost({
     outcomes: [{ kind: 'executed', transactionHash: 'tx-3', approval: 'voice_and_passkey' }],

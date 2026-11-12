@@ -19,6 +19,7 @@ description: Seamsのサーバーがベリファイアーの各呼び出しのTD
   - Venice AIはTEEの中で動かないので、受け取った録音を聞くことができます。その呼び出しのレシートは「Speech to text: Venice AI, outside a TEE」を表示します。
   - クォートの確認は、ルートが呼んだビルドのWASMハッシュだけを受け入れます。`verdict`イベントには`transcriber`(`nearai`または`venice`)があります。
   - Walletのカードは、`0.14.0+venice`のようにビルド名を含むベリファイアーのバージョンを読みます。
+- 新しい拒否 `transcriber_not_attested`(ベリファイアー0.14.0以降): ベリファイアーがNEAR AIのゲートウェイのTEEを確認できなかったか、Whisperの応答が確認済みの鍵で開けませんでした。確認が失敗した後、音声は送られません。以前、Walletはこの拒否を`verdict_mismatch`として読んでいました。カードは録音が原因ではないことを示し、「Try again」を表示します。0.70.0より前のアプリはこの理由を読めません。
 - 検証ルートは、ベリファイアーの各実行に40秒(以前は15秒)を与え、回答を60秒(以前は30秒)待ちます。ベリファイアーは各モデルを最大30秒待ちます。NEAR AIのWhisperが遅いとき、OutLayerが実行を止めるのではなく、署名付きの拒否(`transcriber_unavailable`)になります。
 - Speak-to-Signの支払い済みと署名済みのカードは、TEEレシートを表示します: 「TEE receipt · Intel TDX · OutLayer」、アカウントの声、言葉、ノートの要約の確認、判定のベリファイアーのバージョン、「View TDX quote」。サーバーが `attestationUrl` を送らないとき、レシートにリンクはありません。
 - VoiceIDの有効化は、VoiceIDの読み込みが終わるとすぐに最初の録音に進みます。以前は「Activate VoiceID」を押してから「Record sample 1」を押していました。
