@@ -3,13 +3,13 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.69.2**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.70.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.69.2` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
-- `@seams/wallet-server@0.69.2` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.69.2` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.70.0` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
+- `@seams/wallet-server@0.70.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.70.0` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -17,7 +17,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `25.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK and VoiceID plugin use version **0.69.2**.
+The browser SDK, server SDK and VoiceID plugin use version **0.70.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -26,6 +26,15 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Release 0.70.0
+
+- The Speak-to-Sign verify route checks the TDX quote of each verifier call before it sends a verdict. The quote must bind the output to the WASM hash `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY` and to the project, Intel must sign it, and `worker.outlayer.testnet` must approve its measurements. A refusal is `failed` with `attestation_<code>`. A `verdict` has `attestationUrl`, the OutLayer record of the call.
+- Optional `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`: while NEAR AI Whisper is down, the server calls the `venice` build of the verifier, which sends the clip to Venice AI (no TEE; the receipt says so). The quote check accepts only the hash of the build that it called.
+- The verify route gives each verifier run 40 s (was 15 s) and waits 60 s (was 30 s), so a slow model gives a signed refusal.
+- The paid and signed Speak-to-Sign cards show a TEE receipt with a "View TDX quote" link. VoiceID activation goes to the first recording at once, with no "Activate VoiceID" press.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.0**. A result card of `@seams/voice-capture` takes a `receipt`.
+- The Wallet iframe protocol stays **25.0.0**. An app at 0.69.x works with a Wallet host at 0.70.0. Install all three packages at 0.70.0. No database migrations.
 
 ## Release 0.69.2
 
