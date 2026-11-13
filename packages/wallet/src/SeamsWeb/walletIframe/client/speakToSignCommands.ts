@@ -9,6 +9,8 @@ import type {
   SpeakToSignMessageResult,
   SpeakToSignNoteRequest,
   SpeakToSignNoteResult,
+  SpeakToSignPrepareRequest,
+  SpeakToSignPrepareResult,
   SpeakToSignProgress,
   SpeakToSignMergeApprovalRequest,
   SpeakToSignRatingRequest,
@@ -30,12 +32,15 @@ import {
   parseSpeakToSignMessageResult,
   parseSpeakToSignNotePayload,
   parseSpeakToSignNoteResult,
+  parseSpeakToSignPreparePayload,
+  parseSpeakToSignPrepareResult,
   parseSpeakToSignSignedDelegateResult,
   parseSpeakToSignSignedTransactionResult,
   parseSpeakToSignTransferPayload,
   parseSpeakToSignTransferResult,
   type PMSpeakToSignEnrollPayload,
   type PMSpeakToSignNotePayload,
+  type PMSpeakToSignPreparePayload,
   type PMSpeakToSignTransferPayload,
 } from '../shared/speakToSign';
 
@@ -52,10 +57,15 @@ type SpeakToSignPost = (
     | {
         readonly type: 'PM_SPEAK_TO_SIGN_ENROLL';
         readonly payload: PMSpeakToSignEnrollPayload;
+      }
+    | {
+        readonly type: 'PM_SPEAK_TO_SIGN_PREPARE';
+        readonly payload: PMSpeakToSignPreparePayload;
       },
-  // The owner speaks, and a step-up asks for a passkey, so the request has no deadline.
+  // The owner speaks, and a step-up asks for a passkey, so a spoken request has no deadline. A
+  // warm-up shows nothing, so it has the usual deadline of a request.
   options: {
-    readonly timeout: 'interactive';
+    readonly timeout?: 'interactive';
     readonly onProgress?: (payload: ProgressPayload) => void;
     readonly transactionDispatch?: TransactionDispatch;
   },
@@ -119,6 +129,8 @@ export type SpeakToSignCommands = Readonly<{
     request: WithPresentation<SpeakToSignMessageRequest>,
   ): Promise<SpeakToSignMessageResult>;
   enroll: SpeakToSignEnrollCommand;
+  /** The warm-up before a spoken request. It shows no card. */
+  prepare(request: SpeakToSignPrepareRequest): Promise<SpeakToSignPrepareResult>;
 }>;
 
 /** Only an anchored request carries a dispatch, so an ordinary request is posted as before. */
@@ -148,6 +160,7 @@ export function createIframeSpeakToSignCommands(
     requestTransaction: requestTransactionFromHost.bind(null, post),
     requestMessage: requestMessageFromHost.bind(null, post),
     enroll: enrollFromHost.bind(null, post),
+    prepare: prepareFromHost.bind(null, post),
   };
 }
 
@@ -359,6 +372,18 @@ async function enrollFromHost(
   return parseSpeakToSignEnrollmentResult(response.result);
 }
 
+async function prepareFromHost(
+  post: SpeakToSignPost,
+  request: SpeakToSignPrepareRequest,
+): Promise<SpeakToSignPrepareResult> {
+  const payload = parseSpeakToSignPreparePayload({
+    walletId: request.walletId,
+    ...(request.note === undefined ? {} : { noteText: request.note.text }),
+  });
+  const response = await post({ type: 'PM_SPEAK_TO_SIGN_PREPARE', payload }, {});
+  return parseSpeakToSignPrepareResult(response.result);
+}
+
 /** The app-side commands. Each one waits for the Wallet iframe router first. */
 export function createApplicationSpeakToSignCommands(
   iframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
@@ -376,6 +401,7 @@ export function createApplicationSpeakToSignCommands(
       await (await iframe.requireRouter()).speakToSign.requestDelegateAction(request),
     requestMessage: requestMessageFromIframe.bind(null, iframe),
     enroll: enrollFromIframe.bind(null, iframe),
+    prepare: async (request) => await (await iframe.requireRouter()).speakToSign.prepare(request),
   };
 }
 

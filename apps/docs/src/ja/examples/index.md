@@ -17,12 +17,12 @@ description: 動作するSeamsウォレットを作成し、署名、復元、�
 SDKをインストールし、アプリが使うウォレットオリジン、リレーヤー、登録用の環境変数を設定してください。
 
 ```sh
-pnpm add @seams/wallet@0.70.1
+pnpm add @seams/wallet@0.70.2
 ```
 
 <<< ../../examples/setup.tsx
 
-実装例の対象は、リリース**0.70.1**とiframeプロトコル**25.0.0**です。
+実装例の対象は、リリース**0.70.2**とiframeプロトコル**25.0.0**です。
 この設定例では、NEARとTempoのテストネットを設定します。
 Ethereum Sepoliaの実装例を使う場合は、[署名ガイド](/ja/examples/signing#execute-an-evm-family-transaction)のとおり、そのチェーンを追加してください。
 

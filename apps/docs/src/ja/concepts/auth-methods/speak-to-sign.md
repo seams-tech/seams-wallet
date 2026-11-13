@@ -41,7 +41,7 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 2つのパッケージを同じバージョンでインストールします。Speak-to-Signは`@seams/wallet`の一部で、専用のパッケージはありません。
 
 ```sh
-pnpm add @seams/wallet@0.70.1 @seams/voiceid@0.70.1
+pnpm add @seams/wallet@0.70.2 @seams/voiceid@0.70.2
 ```
 
 VoiceIDの認証方法と一緒に、`spoken`の記述子を`approvals`に追加します。
@@ -172,6 +172,21 @@ await seams.near.spoken?.rating({
 - 評価は「this note is helpful」「this note is somewhat helpful」「this note is not helpful」のどれかを話します。
 - 4語以上の要約は、1語が違って聞こえても、1語が抜けても通ります。ただし「not」の追加や欠落は通りません。
 - ノートには検証者0.13.0以降が必要です。古い検証者は、ノートの本文を`unsupported`で拒否します。
+
+### 音声リクエストの準備 {#prepare-a-spoken-request}
+
+要約には0.5〜2秒かかり、Walletは最初のリクエストのためにSpeak-to-Signのコードを読み込みます。カードを早く表示するには、フォームが画面に出た時点で、所有者がボタンを押す前に`prepare`を呼びます。
+
+```ts [Partial example]
+// ノートがフォームに入ったとき、そして本文が変わったときにもう一度。
+void seams.near.spoken?.prepare({ note: { text: noteText } });
+```
+
+- WalletはSpeak-to-Signのコードを読み込み、VoiceIDの状態を読みます。`note`がある場合は、その本文の要約もSeamsサーバーに求めます。
+- Walletは、ノートの本文ごとに1つの要約を5分間保持します。同じ本文の`spoken.note`の呼び出しは、新しいリクエストなしでその要約を表示します。ノートの2回目の試行でも同じ文が表示されます。
+- `prepare`はカードを表示せず、録音も署名もしません。結果は`{ kind: 'ready' }`または`{ kind: 'unavailable', reason }`です。結果を使う必要はありません。後に続くリクエストが同じ手順を自分で行います。
+- ノートのない`prepare()`は、送金、評価、ベットを準備します。
+- アプリケーションは引き続き要約を渡しません。Seamsサーバーが`@seams/voice-sign/server`の`writeSummary`で要約を書き、Walletが`@seams/voice-sign/summary`の`createSummarySource`で保持します。Seams Walletを使わないアプリケーションも、この2つの部品を使えます。
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 

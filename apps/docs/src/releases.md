@@ -1,9 +1,27 @@
 ---
-title: Release 0.70.1
-description: A Speak-to-Sign result card keeps a long account inside the card. The Seams server checks the TDX quote of each verifier call.
+title: Release 0.70.2
+description: A page can prepare a spoken request, so the Wallet card shows sooner. The summary writer and its rules are general parts of the voice libraries.
 ---
 
-# Release 0.70.1
+# Release 0.70.2
+
+The browser SDK, server SDK and VoiceID plugin use **0.70.2**. It has no breaking change since 0.70.1.
+
+Since 0.70.1:
+
+- New call `seams.near.spoken.prepare({ note? })`. Call it when your form is on the screen. The Wallet loads its Speak-to-Sign code, and with `note` it asks the Seams server for the summary of that text. The `spoken.note` call that follows shows its card sooner: before, the card waited 2.5 to 3 s for these steps. The call shows no card and signs nothing. See [Prepare a spoken request](/concepts/auth-methods/speak-to-sign#prepare-a-spoken-request).
+- The Wallet keeps one summary for each note text for 5 minutes. A second try of a note shows the same sentence. Before, each try asked the model again, and the sentence could change.
+- A note request asks for its summary while the Speak-to-Sign code loads. Before, it asked after the load.
+- The summary route writes a name with a number in it with one request to the model: "COP31" becomes "COP". Since 0.70.1 such a name got a second request, which added about 0.5 s. A number that stands alone still gets the second request.
+- The summary code is now a general part of the voice libraries, and the Wallet uses it:
+  - `@seams/voice-verdict` **0.70.2** has `summaryRefusal`, the rules of a spoken summary.
+  - `@seams/voice-sign/server` **0.70.2** has `writeSummary`. The Seams summary route calls it.
+  - `@seams/voice-sign/summary` is a new entry with `createSummarySource`. The Wallet keeps its summaries with it. `@seams/wallet` now depends on `@seams/voice-sign`.
+  - `@seams/voice-capture` **0.70.2** has no change.
+- The Wallet iframe protocol stays **25.0.0**. The new message `PM_SPEAK_TO_SIGN_PREPARE` is optional: an app at 0.70.1 works with a Wallet host at 0.70.2. An app at 0.70.2 that calls `prepare` needs a Wallet host at 0.70.2.
+- Install all three packages at 0.70.2. No new server setting, and no database migrations.
+
+## Release 0.70.1
 
 The browser SDK, server SDK and VoiceID plugin use **0.70.1**. It has no breaking change since 0.70.0.
 

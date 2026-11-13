@@ -55,16 +55,16 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 公開アセットの`@seams/wallet/web/wallet-iframe-client-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
 
-## リリース 0.70.1 {#release-0-49-0}
+## リリース 0.70.2 {#release-0-49-0}
 
-`@seams/wallet`と`@seams/wallet-server`を**0.70.1**に固定してください。
+`@seams/wallet`と`@seams/wallet-server`を**0.70.2**に固定してください。
 `@seams/wallet-cli`も**0.29.0**を使用します。署名済みネイティブアセットは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
-VoiceIDをホストする場合は、`@seams/voiceid` **0.70.1**もインストールします。
+VoiceIDをホストする場合は、`@seams/voiceid` **0.70.2**もインストールします。
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`で静的デプロイ用のディレクトリーを作成してください。
-VoiceIDのホストAPIはバージョン11です。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/voiceid` 0.70.1を`@seams/wallet` 0.70.1と一緒にインストールしてください。
+VoiceIDのホストAPIはバージョン11です。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/voiceid` 0.70.2を`@seams/wallet` 0.70.2と一緒にインストールしてください。
 Speak-to-Sign(実験的機能、NEARテストネット専用)は、0.68.0から`@seams/wallet`の一部です。`@seams/wallet-voice-sign`を使っていたホストは、そのパッケージと`seams-speak-to-sign-host`の手順を削除してください。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host)を参照してください。
 アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
-対応する導入方法は、[リリース 0.70.1](/ja/releases)を参照してください。
+対応する導入方法は、[リリース 0.70.2](/ja/releases)を参照してください。
 
 Gatewayは`/router-ab/ed25519/yao/reissue/admit`と`/router-ab/ed25519/yao/reissue/execute`を提供します。自分で組み立てるGatewayは、これらを`@seams/wallet-server/cloud-host`の`handleRouterAbEd25519YaoReissueRequestV1`に渡してください。Routerのプロジェクトポリシーは`reissue`の作業種別を許可する必要があります。
 

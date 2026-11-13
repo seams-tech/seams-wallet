@@ -16,6 +16,7 @@ import type {
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
 import { ENROLLMENT_PHRASES } from '@/core/transactionFeatures/hostApproval';
+import { forgetNoteSummaries } from '@/core/transactionFeatures/hostOperations';
 import type { WalletApprovalPlugin } from '@/core/transactionFeatures/plugins';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { createIframeSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
@@ -35,6 +36,8 @@ import {
   parseSpeakToSignMessageResult,
   parseSpeakToSignNotePayload,
   parseSpeakToSignNoteResult,
+  parseSpeakToSignPreparePayload,
+  parseSpeakToSignPrepareResult,
   parseSpeakToSignProgressV1,
   parseSpeakToSignTransferPayload,
   parseSpeakToSignTransferResult,
@@ -214,9 +217,13 @@ type HandlerHarnessOptions = {
   readonly activation?: 'new_enrollment' | 'existing_enrollment' | 'cancelled';
   /** The answer of the Seams server's summary route. Default: a summary of the note. */
   readonly summaryReply?: () => Response;
+  /** The frame of the harness before it: its kept summaries stay. */
+  readonly keepSummaries?: boolean;
 };
 
 function buildHandler(options: HandlerHarnessOptions = {}) {
+  // Each harness is a new Wallet frame: it has no kept summary.
+  if (!options.keepSummaries) forgetNoteSummaries();
   const posted: ChildToParentEnvelope[] = [];
   const pluginCalls: Parameters<SpeakToSignHostPlugin['approve']>[0][] = [];
   const enrollCalls: Parameters<SpeakToSignHostPlugin['enroll']>[0][] = [];
@@ -340,7 +347,8 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const handler = handlers.PM_SPEAK_TO_SIGN_TRANSFER;
   const noteHandler = handlers.PM_SPEAK_TO_SIGN_NOTE;
   const enrollHandler = handlers.PM_SPEAK_TO_SIGN_ENROLL;
-  if (!handler || !noteHandler || !enrollHandler) {
+  const prepareHandler = handlers.PM_SPEAK_TO_SIGN_PREPARE;
+  if (!handler || !noteHandler || !enrollHandler || !prepareHandler) {
     throw new Error('The handler map has no Speak-to-Sign handler');
   }
   const request = {
@@ -362,6 +370,12 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
         requestId: 'request-note',
         payload,
       } as Req<'PM_SPEAK_TO_SIGN_NOTE'>),
+    runPrepare: (noteText?: string) =>
+      prepareHandler({
+        type: 'PM_SPEAK_TO_SIGN_PREPARE',
+        requestId: 'request-prepare',
+        payload: { walletId: WALLET_ID, ...(noteText === undefined ? {} : { noteText }) },
+      } as Req<'PM_SPEAK_TO_SIGN_PREPARE'>),
     runEnroll: (autoStart = false) =>
       enrollHandler({ ...enrollRequest, payload: { walletId: WALLET_ID, autoStart } }),
     posted,
@@ -1176,6 +1190,7 @@ test('the voice capability has the names of the normal signer, and approved hold
   expect(Object.keys(voice).sort()).toEqual([
     'enroll',
     'network',
+    'prepare',
     'signAndSendTransaction',
     'signDelegateAction',
     'signMessage',
@@ -1271,6 +1286,7 @@ test('a normal sign call with approval goes to the voice flow, with the wallet o
     signMessage: record('message'),
     typed: { transfer: record('transfer'), note: record('note') },
     enroll: record('enroll'),
+    prepare: record('prepare'),
   };
   const currentWallet = {
     walletSession: async (explicit?: unknown) =>
@@ -1303,6 +1319,9 @@ test('a normal sign call with approval goes to the voice flow, with the wallet o
   // `autoStart` reaches the Wallet from `approval`, a typed request and an enrollment.
   await near.spoken?.transfer({ receiver: 'bob.testnet', amount: '1', autoStart: false });
   await near.spoken?.enroll({ autoStart: true });
+  // A warm-up names the wallet and the note, and nothing else.
+  await near.spoken?.prepare();
+  await near.spoken?.prepare({ note: { text: 'One lane closes.' }, walletSession: 'other.testnet' });
   expect(calls).toEqual([
     [
       'send',
@@ -1326,6 +1345,8 @@ test('a normal sign call with approval goes to the voice flow, with the wallet o
     ['enroll', { walletId: 'current.testnet' }],
     ['transfer', { walletId: 'current.testnet', receiver: 'bob.testnet', amount: '1', autoStart: false }],
     ['enroll', { walletId: 'current.testnet', autoStart: true }],
+    ['prepare', { walletId: 'current.testnet' }],
+    ['prepare', { walletId: 'other.testnet', note: { text: 'One lane closes.' } }],
   ]);
 
   // Without the descriptor there is no `spoken`, and a call with `approval` says what is missing.
@@ -1368,6 +1389,75 @@ test('a note gets its summary from the Seams server, and the card shows the note
     note_text: NOTE_TEXT,
     summary: NOTE_SUMMARY,
   });
+});
+
+test('prepare loads the flow and asks for the summary early; the note request then asks nothing', async () => {
+  const frame = buildHandler();
+  await frame.runPrepare(NOTE_TEXT);
+  // It answers `ready`, with no card and no plugin call.
+  expect(frame.posted[0].payload).toEqual({ ok: true, result: { kind: 'ready' } });
+  expect(frame.loads).toHaveLength(1);
+  expect(frame.phrases).toEqual([]);
+  expect(frame.pluginCalls).toEqual([]);
+  const summaryCalls = () => frame.fetched.filter((call) => call.url.endsWith('/speak-to-sign/v1/summary'));
+  expect(summaryCalls()).toHaveLength(1);
+  expect(JSON.parse(String(summaryCalls()[0].init.body))).toEqual({ text: NOTE_TEXT });
+
+  // The note request of the same text finds the kept summary.
+  await frame.runNote(NOTE_PAYLOAD);
+  expect(summaryCalls()).toHaveLength(1);
+  expect(frame.pluginCalls).toHaveLength(1);
+  // Another text has its own summary.
+  await frame.runNote({ ...NOTE_PAYLOAD, action: { ...NOTE_PAYLOAD.action, text: 'Another note.' } });
+  expect(summaryCalls()).toHaveLength(2);
+
+  // A warm-up with no note asks for no summary, and one without VoiceID says why.
+  const plain = buildHandler();
+  await plain.runPrepare();
+  expect(plain.posted[0].payload).toEqual({ ok: true, result: { kind: 'ready' } });
+  expect(plain.fetched.filter((call) => call.url.endsWith('/speak-to-sign/v1/summary'))).toHaveLength(0);
+});
+
+test('the prepare command posts one warm-up message with the usual deadline', async () => {
+  const posted: Array<{ request: unknown; options: unknown }> = [];
+  const commands = createIframeSpeakToSignCommands(async (request, options) => {
+    posted.push({ request, options });
+    return { result: { kind: 'ready' } };
+  }, (result) => result);
+  expect(await commands.prepare({ walletId: WALLET_ID, note: { text: NOTE_TEXT } })).toEqual({ kind: 'ready' });
+  expect(await commands.prepare({ walletId: WALLET_ID })).toEqual({ kind: 'ready' });
+  expect(posted).toEqual([
+    { request: { type: 'PM_SPEAK_TO_SIGN_PREPARE', payload: { walletId: WALLET_ID, noteText: NOTE_TEXT } }, options: {} },
+    { request: { type: 'PM_SPEAK_TO_SIGN_PREPARE', payload: { walletId: WALLET_ID } }, options: {} },
+  ]);
+});
+
+test('the prepare payload and result have exact shapes', () => {
+  expect(parseSpeakToSignPreparePayload({ walletId: WALLET_ID })).toEqual({ walletId: WALLET_ID });
+  expect(parseSpeakToSignPreparePayload({ walletId: WALLET_ID, noteText: NOTE_TEXT })).toEqual({
+    walletId: WALLET_ID,
+    noteText: NOTE_TEXT,
+  });
+  for (const bad of [
+    {},
+    { walletId: '' },
+    { walletId: WALLET_ID, noteText: '' },
+    { walletId: WALLET_ID, noteText: '   ' },
+    { walletId: WALLET_ID, noteText: 'é'.repeat(281) },
+    { walletId: WALLET_ID, noteText: 7 },
+    { walletId: WALLET_ID, summary: 'x' },
+  ]) {
+    expect(() => parseSpeakToSignPreparePayload(bad), JSON.stringify(bad)).toThrow('Speak-to-Sign prepare request is invalid.');
+  }
+  expect(parseSpeakToSignPrepareResult({ kind: 'ready' })).toEqual({ kind: 'ready' });
+  expect(parseSpeakToSignPrepareResult({ kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'missing' })).toEqual({
+    kind: 'unavailable',
+    reason: 'voiceid_unavailable',
+    detail: 'missing',
+  });
+  for (const bad of [null, { kind: 'ready', summary: 'x' }, { kind: 'sent' }, { kind: 'unavailable', reason: 'words' }]) {
+    expect(() => parseSpeakToSignPrepareResult(bad), JSON.stringify(bad)).toThrow('Speak-to-Sign prepare result is invalid.');
+  }
 });
 
 test('a note with no summary from the server, or one that cannot be said, opens no card', async () => {

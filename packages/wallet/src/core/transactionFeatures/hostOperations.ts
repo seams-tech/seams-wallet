@@ -1,3 +1,4 @@
+import { createSummarySource, type SummaryResult, type SummarySource } from '@seams/voice-sign/summary';
 import { sealAudio } from '@seams/voice-verdict';
 import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
@@ -183,6 +184,7 @@ export function createSpeakToSignHostOperations(
     receiverExists: receiverExists.bind(null, input),
     verify: verify.bind(null, input),
     summarizeNote: summarizeNote.bind(null, input),
+    prepareNote: (text) => summarySource(input).prepare(text),
     // The three operations of host API 10 are calls of the one sign path.
     payWithVerdict: (transferRequest, output, signal, hooks) =>
       signWithEvidence(
@@ -346,18 +348,61 @@ async function summarizeNote(
   text: string,
   signal: AbortSignal,
 ): Promise<SpeakToSignNoteSummary> {
+  const result = await summarySource(input).get(text, signal);
+  return result.ok ? { kind: 'summary', summary: result.summary } : { kind: 'failed', code: result.code };
+}
+
+/**
+ * The summaries of each owner on each Seams server, kept in this Wallet frame between requests
+ * (`createSummarySource` of `@seams/voice-sign`). A warm-up asks for a summary before the owner
+ * presses the button (`prepareNote`), and a second try of a note has the same sentence.
+ */
+type KeptSummaries = { source: SummarySource; input: SpeakToSignHostOperationsInput };
+const SUMMARY_SOURCES = new Map<string, KeptSummaries>();
+
+function summarySource(input: SpeakToSignHostOperationsInput): SummarySource {
+  const key = `${input.serverUrl}\n${input.ownerAccountId}`;
+  const kept = SUMMARY_SOURCES.get(key);
+  if (kept) {
+    // The newest request's session credential asks: an older one can be gone.
+    kept.input = input;
+    return kept.source;
+  }
+  const holder: KeptSummaries = {
+    input,
+    source: createSummarySource({
+      write: (text: string, signal: AbortSignal): Promise<SummaryResult> =>
+        requestSummary(holder.input, text, signal),
+    }),
+  };
+  SUMMARY_SOURCES.set(key, holder);
+  return holder.source;
+}
+
+/** Forgets every kept summary. Tests start from an empty frame. */
+export function forgetNoteSummaries(): void {
+  for (const { source } of SUMMARY_SOURCES.values()) source.forget();
+  SUMMARY_SOURCES.clear();
+}
+
+/** One request to the summary route of the Seams server. A failure has a code. */
+async function requestSummary(
+  input: SpeakToSignHostOperationsInput,
+  text: string,
+  signal: AbortSignal,
+): Promise<SummaryResult> {
   const response = await postToServer(input, SUMMARY_PATH, { text }, signal);
-  if ('kind' in response) return response;
-  if (!response.ok) return await refusalOf(response);
+  if ('kind' in response) return { ok: false, code: response.code };
+  if (!response.ok) return { ok: false, code: (await refusalOf(response)).code };
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    return { kind: 'failed', code: 'summary_reply' };
+    return { ok: false, code: 'summary_reply' };
   }
   return hasExactKeys(body, ['ok', 'summary']) && body.ok === true && typeof body.summary === 'string'
-    ? { kind: 'summary', summary: body.summary }
-    : { kind: 'failed', code: 'summary_reply' };
+    ? { ok: true, summary: body.summary }
+    : { ok: false, code: 'summary_reply' };
 }
 
 /** A POST of JSON to a Seams server route with the session's operation credential. */

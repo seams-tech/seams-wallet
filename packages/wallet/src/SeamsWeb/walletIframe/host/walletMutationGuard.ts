@@ -52,6 +52,7 @@ export function walletForHostRequest(
     case 'PM_SPEAK_TO_SIGN_TRANSFER':
     case 'PM_SPEAK_TO_SIGN_NOTE':
     case 'PM_SPEAK_TO_SIGN_ENROLL':
+    case 'PM_SPEAK_TO_SIGN_PREPARE':
       return requiredWallet(request.payload?.walletId);
     case 'PM_SIGN_TEMPO':
     case 'PM_RESOLVE_EXACT_KEY_EXPORT_LANE':

@@ -14,6 +14,7 @@ import type {
   SpeakToSignApprovalResult,
   SpeakToSignEnrollmentResult,
   SpeakToSignHostOperations,
+  SpeakToSignPrepareResult,
   SpeakToSignHostPlugin,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
@@ -91,13 +92,15 @@ export function createSpeakToSignWalletIframeHandlers(
     PM_SPEAK_TO_SIGN_TRANSFER: handleTransfer.bind(null, deps, ports),
     PM_SPEAK_TO_SIGN_NOTE: handleNote.bind(null, deps, ports),
     PM_SPEAK_TO_SIGN_ENROLL: handleEnrollment.bind(null, deps, ports),
+    PM_SPEAK_TO_SIGN_PREPARE: handlePrepare.bind(null, deps, ports),
   };
 }
 
 type SpeakToSignRequest =
   | Req<'PM_SPEAK_TO_SIGN_TRANSFER'>
   | Req<'PM_SPEAK_TO_SIGN_NOTE'>
-  | Req<'PM_SPEAK_TO_SIGN_ENROLL'>;
+  | Req<'PM_SPEAK_TO_SIGN_ENROLL'>
+  | Req<'PM_SPEAK_TO_SIGN_PREPARE'>;
 
 function handleTransfer(
   deps: HandlerDeps,
@@ -121,6 +124,30 @@ function handleEnrollment(
   request: Req<'PM_SPEAK_TO_SIGN_ENROLL'>,
 ): Promise<void> {
   return handleSpeakToSign(deps, request, runEnrollment.bind(null, deps, ports, request));
+}
+
+/**
+ * The app's warm-up before a spoken request: the steps of `prepareFlow` run now (the VoiceID
+ * state, the session, the Speak-to-Sign code), and a note's summary starts. It shows no card and
+ * signs nothing. The answer does not wait for the summary: the request that follows finds it
+ * kept or in flight.
+ */
+async function handlePrepare(
+  deps: HandlerDeps,
+  ports: SpeakToSignWalletPorts,
+  request: Req<'PM_SPEAK_TO_SIGN_PREPARE'>,
+): Promise<void> {
+  const { noteText } = request.payload;
+  const flow = await prepareFlow(
+    deps,
+    ports,
+    request,
+    new AbortController().signal,
+    undefined,
+    noteText === undefined ? undefined : (operations) => operations.prepareNote(noteText),
+  );
+  const result: SpeakToSignPrepareResult = flow.kind === 'ready' ? { kind: 'ready' } : flow;
+  respondOkResult(deps, request.requestId, result);
 }
 
 /** Turns host cancellation into a signal and answers with the flow's result. */
@@ -175,13 +202,17 @@ async function prepareFlow(
   request: SpeakToSignRequest,
   signal: AbortSignal,
   adopted?: AdoptedRecordings,
+  /**
+   * Runs as soon as the operations exist, while the Speak-to-Sign code still loads: a note
+   * starts its summary request here, so the two waits overlap.
+   */
+  early?: (operations: SpeakToSignHostOperations) => void,
 ): Promise<PreparedFlow> {
   const runtime = deps.getWalletRuntime();
   const features = runtime.configs.approvals;
   const feature = findWalletApproval(features, 'spoken');
   if (!feature) throw new Error('Enable Speak-to-Sign in the SDK configuration before using it.');
   const walletId = toWalletId(request.payload.walletId);
-
   // The owner records on the VoiceID surface, so VoiceID must be active for this wallet.
   const voiceId = await ports.readVoiceIdAvailability(walletId);
   if (voiceId.kind !== 'enabled') {
@@ -199,8 +230,6 @@ async function prepareFlow(
   if (!ownerAccountId) throw new Error('The NEAR account of this wallet is not ready.');
   signal.throwIfAborted();
 
-  const plugin = await ports.loadHost(features);
-  signal.throwIfAborted();
   const operations = createSpeakToSignHostOperations({
     feature,
     ownerAccountId,
@@ -251,6 +280,10 @@ async function prepareFlow(
     fetch: ports.fetch,
     adopted,
   });
+  // The flow is available: a note's summary starts while the Speak-to-Sign code loads.
+  early?.(operations);
+  const plugin = await ports.loadHost(features);
+  signal.throwIfAborted();
   return { kind: 'ready', walletId, feature, ownerAccountId, plugin, operations };
 }
 
@@ -277,9 +310,16 @@ async function runNote(
   request: Req<'PM_SPEAK_TO_SIGN_NOTE'>,
   signal: AbortSignal,
 ): Promise<SpeakToSignApprovalResult> {
-  const flow = await prepareFlow(deps, ports, request, signal);
-  if (flow.kind === 'unavailable') return flow;
   const { action } = request.payload;
+  const flow = await prepareFlow(
+    deps,
+    ports,
+    request,
+    signal,
+    undefined,
+    action.kind === 'community_note' ? (operations) => operations.prepareNote(action.text) : undefined,
+  );
+  if (flow.kind === 'unavailable') return flow;
   // Core builds the intent here, before the plugin runs, and the plugin never gets it back.
   let intent: SpokenIntent;
   if (action.kind === 'signed_message') {
