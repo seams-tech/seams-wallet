@@ -104,7 +104,7 @@ test('the result parser accepts each result kind and refuses anything else', () 
     { kind: 'unavailable', reason: 'flow_not_available' },
   ];
   for (const result of valid) expect(parseSpeakToSignTransferResult(result)).toEqual(result);
-  // A Wallet iframe before 0.70.3 sends no `attestationUrl`, and OutLayer can give none.
+  // A Wallet iframe before 0.70.4 sends no `attestationUrl`, and OutLayer can give none.
   const { attestationUrl: _url, ...older } = SENT as Extract<typeof SENT, { kind: 'sent' }>;
   expect(parseSpeakToSignTransferResult(older)).toEqual({ ...older, attestationUrl: null });
   expect(parseSpeakToSignTransferResult({ ...older, attestationUrl: null })).toEqual({

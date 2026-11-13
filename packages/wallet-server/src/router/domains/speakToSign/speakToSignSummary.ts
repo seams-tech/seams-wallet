@@ -47,14 +47,19 @@ export function parseSummaryBody(body: string): string | null {
 
 export type NoteSummary = WrittenSummary;
 
-/** The summary of one note, in the words of the model's request: a "Community Note". */
+/**
+ * The summary of one note, in the words of the model's request: a "Community Note". `signal`
+ * ends the request to the model: the Wallet ends its request when the note's text changed.
+ */
 export async function writeNoteSummary(
   config: SpeakToSignSummaryConfig,
   note: string,
   fetch: typeof globalThis.fetch,
+  signal?: AbortSignal,
 ): Promise<NoteSummary> {
   return await writeSummary(
     { apiKey: config.apiKey, model: config.model, subject: { name: 'Community Note', short: 'note' }, fetch },
     note,
+    signal ? { signal } : {},
   );
 }

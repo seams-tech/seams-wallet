@@ -485,7 +485,7 @@ const APPROVALS: Readonly<Record<VoiceApproval, true>> = { voice: true, voice_an
 const TIME_KEYS = ['speechMs', 'verifyMs', 'transactionMs', 'endOfSpeechToReceiptMs'] as const;
 
 /**
- * The keys of a success result. A Wallet iframe before 0.70.3 sends no `attestationUrl`: the
+ * The keys of a success result. A Wallet iframe before 0.70.4 sends no `attestationUrl`: the
  * result then has null there.
  */
 function successKeys(value: Record<string, unknown>, keys: readonly string[]): readonly string[] {

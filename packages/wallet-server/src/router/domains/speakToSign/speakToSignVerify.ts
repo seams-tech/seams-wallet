@@ -321,7 +321,8 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     if (body === 'too_large') return failure(413, 'body_too_large');
     const note = parseSummaryBody(body);
     if (note === null) return failure(400, 'invalid_body');
-    const result = await writeNoteSummary(config, note, this.dependencies.fetch);
+    // A caller that went away (the Wallet ended a request for an older text) ends the model call.
+    const result = await writeNoteSummary(config, note, this.dependencies.fetch, request.signal);
     if (!result.ok) {
       logger.warn('[speak-to-sign] summary failed', { code: result.code });
       return failure(502, result.code);

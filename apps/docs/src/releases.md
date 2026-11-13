@@ -1,9 +1,24 @@
 ---
-title: Release 0.70.2
-description: A page can prepare a spoken request, so the Wallet card shows sooner. The summary writer and its rules are general parts of the voice libraries.
+title: Release 0.70.4
+description: The Wallet ends a summary request for a note text that changed. A page can prepare a spoken request, so the Wallet card shows sooner.
 ---
 
-# Release 0.70.2
+# Release 0.70.4
+
+The browser SDK, server SDK and VoiceID plugin use **0.70.4**. It has no breaking change since 0.70.2. No Wallet package has the version 0.70.3; the voice libraries have it.
+
+Since 0.70.2:
+
+- When the owner edits a note, the Wallet ends the summary request of the older text, if only `prepare` asked for it. The summary route then ends its request to the model. Before, each pause in the typing left one model call.
+- The Wallet does not keep a summary that breaks a rule of `summaryRefusal`. Before, such a summary stayed for 5 minutes. When the server's model gives no summary that a person can say, the result of `spoken.note` is now the refusal `summary_not_speakable`. Before, it was `unavailable` with `summary_unavailable`.
+- The second request of the summary writer asks the model to leave out a number that is inside a name, such as "3D". Before, it asked for the number as words. Speech-to-text writes a said "three D" as "3D" again, and the verifier reads such a word digit by digit, so the words did not match.
+- A sent or signed result of a spoken request has `attestationUrl`: the OutLayer record of the verifier call, with its TDX quote, or null when the Wallet got none. An app can show the proof with its own result.
+- The last repair of the summary writer keeps a quantity. A word that starts with a digit or a currency sign ("10km", "$40m", "2nd") is not cut to its letters: the result is `summary_not_speakable`.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.4**. `writeSummary` takes `{ signal }`, and `createSummarySource` has the two changes above. The docs of `writeSummary` say that a summary is a draft: only a community note has the verifier's check that the summary fits the text.
+- The Wallet iframe protocol stays **25.0.0**. An app at 0.70.2 works with a Wallet host at 0.70.4.
+- Install all three packages at 0.70.4. No new server setting, and no database migrations.
+
+## Release 0.70.2
 
 The browser SDK, server SDK and VoiceID plugin use **0.70.2**. It has no breaking change since 0.70.1.
 
