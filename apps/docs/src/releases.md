@@ -1,9 +1,21 @@
 ---
-title: Release 0.70.0
-description: The Seams server checks the TDX quote of each verifier call, and a Speak-to-Sign result card shows a TEE receipt.
+title: Release 0.70.1
+description: A Speak-to-Sign result card keeps a long account inside the card. The Seams server checks the TDX quote of each verifier call.
 ---
 
-# Release 0.70.0
+# Release 0.70.1
+
+The browser SDK, server SDK and VoiceID plugin use **0.70.1**. It has no breaking change since 0.70.0.
+
+Since 0.70.0:
+
+- The result card of a transfer, a transaction or a message names a long receiver in its short form: an implicit account of 64 characters shows as "To 3e2210…7e55". A named account stays in full. The request that the person approves still names the full account. A request with no receiver shows its own text; before, the caption said "To null".
+- The summary route of a note no longer fails for a name with a number in it, such as "COP31". The second request to the model names the word and says to write its number as words or to leave it out. If both replies still have such a word, the route keeps the letters of each word ("COP31" becomes "COP"). A number that stands alone still gives `summary_not_speakable`. The verifier still checks that the summary fits the note.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.1**. In `@seams/voice-capture`, a word that is longer than the line breaks inside the card. Before, such a word made the receipt and the button wider than the card.
+- The Wallet iframe protocol stays **25.0.0**. An app at 0.70.0 works with a Wallet host at 0.70.1.
+- Install all three packages at 0.70.1. No database migrations.
+
+## Release 0.70.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.70.0**. An app has no breaking change since 0.69.2. A server operator must read the first item.
 
