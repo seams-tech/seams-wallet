@@ -72,12 +72,12 @@ export type DrawnWalletStepChrome = Exclude<WalletStepChrome, 'none'>;
 export type WalletStepControl = 'back' | 'close';
 
 /**
- * Where a minimized card is: it records the sentence (or waits for Record), it checks the
- * recording, or it shows a result. `done` of `total` parts of the check are over; both are 0
- * outside a check. It carries no approval data.
+ * Where a card is: it waits for a press on Record or "Try again" (the microphone is off), it
+ * records the sentence, it checks the recording, or it shows a result. `done` of `total` parts
+ * of the check are over; both are 0 outside a check. It carries no approval data.
  */
 export type WalletStepProgress = Readonly<{
-  stage: 'recording' | 'checking' | 'result';
+  stage: 'waiting' | 'recording' | 'checking' | 'result';
   done: number;
   total: number;
 }>;
@@ -120,7 +120,26 @@ export type WalletStepEvents = Readonly<{
   onRestore?: () => void;
   /** The stage of a card with Minimize, on each change. Use it for the progress of a hidden card. */
   onProgress?: (progress: WalletStepProgress) => void;
+  /**
+   * The card opens. `press` presses one control of the card for the person, for an app that
+   * takes commands, such as voice commands. The Wallet runs a press only while the whole card is
+   * in view and uncovered, and only when the card shows that control. See `WalletStepPress`.
+   */
+  onControls?: (press: (control: WalletStepPress) => void) => void;
 }>;
+
+/**
+ * A control that an app can press for the person. `retry` is the card's button while it starts
+ * a recording: Record or "Try again". It is never another action, such as a confirmation or a
+ * passkey prompt. `minimize`, `back` and `close` are the corner controls that the app asked for.
+ */
+export type WalletStepPress = 'retry' | 'minimize' | 'back' | 'close';
+
+export function parseWalletStepPress(value: unknown): WalletStepPress | null {
+  return value === 'retry' || value === 'minimize' || value === 'back' || value === 'close'
+    ? value
+    : null;
+}
 
 export function parseWalletStepChrome(value: unknown): WalletStepChrome | null {
   return value === 'none' ? value : parseDrawnWalletStepChrome(value);
@@ -198,7 +217,9 @@ export function parseWalletSurfaceProgressPayload(
   if (!record || !progress || Object.keys(record).length !== 2) return null;
   if (!isNonEmptyString(record.requestId) || Object.keys(progress).length !== 3) return null;
   const { stage, done, total } = progress;
-  if (stage !== 'recording' && stage !== 'checking' && stage !== 'result') return null;
+  if (stage !== 'waiting' && stage !== 'recording' && stage !== 'checking' && stage !== 'result') {
+    return null;
+  }
   if (!isCount(done) || !isCount(total) || done > total) return null;
   return { requestId: record.requestId, progress: { stage, done, total } };
 }
@@ -268,6 +289,17 @@ export function parseWalletSurfaceViewPayload(value: unknown): WalletSurfaceView
   const record = asRecord(value);
   return record && isNonEmptyString(record.requestId) && isBoolean(record.unobstructed)
     ? { requestId: record.requestId, unobstructed: record.unobstructed }
+    : null;
+}
+
+/** The parent asks the Wallet host to press one control of an anchored card for the person. */
+export type WalletSurfacePressPayload = Readonly<{ requestId: string; control: WalletStepPress }>;
+
+export function parseWalletSurfacePressPayload(value: unknown): WalletSurfacePressPayload | null {
+  const record = asRecord(value);
+  const control = parseWalletStepPress(record?.control);
+  return record && Object.keys(record).length === 2 && isNonEmptyString(record.requestId) && control
+    ? { requestId: record.requestId, control }
     : null;
 }
 

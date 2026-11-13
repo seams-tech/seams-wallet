@@ -75,6 +75,7 @@ export function walletForHostRequest(
 
     // Reads, fresh authentication, cancellation and completion of admitted work remain available.
     case 'PM_SURFACE_VIEW':
+    case 'PM_SURFACE_PRESS':
     case 'PM_SET_TRANSACTION_VIEW':
     case 'PM_TRANSACTION_BROADCAST_STARTED':
     case 'PING':

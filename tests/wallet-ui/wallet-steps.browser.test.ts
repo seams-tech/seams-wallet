@@ -23,7 +23,11 @@ const STEP_HOST_SCRIPT = String.raw`
     adoptedPort.onmessage = (event) => {
       ordinary?.(event);
       const message = event.data || {};
-      if (forwardedTypes.has(message.type) || message.type === 'PM_SURFACE_VIEW') {
+      if (
+        forwardedTypes.has(message.type) ||
+        message.type === 'PM_SURFACE_VIEW' ||
+        message.type === 'PM_SURFACE_PRESS'
+      ) {
         window.parent.postMessage({ type: 'TEST_STEP_REQUEST', message }, '*');
       }
     };
@@ -504,6 +508,9 @@ async function sendTransaction(
             },
             onRestore: record('restore'),
             onProgress: record('progress'),
+            onControls: (press: (control: string) => void) => {
+              (state as unknown as { __press: (control: string) => void }).__press = press;
+            },
           },
         }
       : { kind: 'ordinary' };
@@ -724,6 +731,43 @@ test.describe('A transaction confirm as a step of an app dialog', () => {
       'restore',
     ]);
     expect(events.find((event) => event.name === 'progress')?.value).toEqual(progress);
+  });
+
+  test('the app presses a control of the card for the person, and hears that the card waits', async ({
+    page,
+  }) => {
+    const requestId = await sendTransaction(page, 'back_and_close', true);
+    await waitForStepEvent(page, 'ready');
+    const presses = () =>
+      page.evaluate(() =>
+        (window as unknown as StepWindow).__stepRequests
+          .filter((request) => request.type === 'PM_SURFACE_PRESS')
+          .map((request) => request.payload),
+      );
+
+    // The card waits for a press on "Try again": the app hears that stage.
+    const progress = { stage: 'waiting', done: 0, total: 0 };
+    await postFromHost(page, {
+      type: 'SURFACE_PROGRESS',
+      requestId,
+      payload: { requestId, progress },
+    });
+    await waitForStepEvent(page, 'progress');
+    expect((await stepEvents(page)).find((event) => event.name === 'progress')?.value).toEqual(progress);
+
+    // A voice command of the app: the Wallet host gets the press for this request's card.
+    for (const control of ['retry', 'minimize', 'back', 'close']) {
+      await page.evaluate(
+        (name) => (window as unknown as { __press: (control: string) => void }).__press(name),
+        control,
+      );
+    }
+    await expect.poll(presses).toEqual([
+      { requestId, control: 'retry' },
+      { requestId, control: 'minimize' },
+      { requestId, control: 'back' },
+      { requestId, control: 'close' },
+    ]);
   });
 
   test('a card without Minimize ignores a minimize and a stage', async ({ page }) => {

@@ -52,10 +52,12 @@ import { startCardTiming, startReviewTiming, type CardTiming } from '../shared/r
 import {
   parseDrawnWalletStepChrome,
   parseWalletSurfacePresentationWire,
+  parseWalletSurfacePressPayload,
   parseWalletSurfaceViewPayload,
 } from '../shared/walletStep';
 import {
   beginAnchoredCard,
+  pressAnchoredCard,
   reportCardControls,
   setAnchoredCardView,
 } from '@/core/signingEngine/uiConfirm/anchoredCard';
@@ -435,6 +437,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
           case 'PM_SURFACE_VIEW': {
             const view = parseWalletSurfaceViewPayload(route.request.payload);
             if (view) setAnchoredCardView(view);
+            return;
+          }
+          case 'PM_SURFACE_PRESS': {
+            const press = parseWalletSurfacePressPayload(route.request.payload);
+            if (press) pressAnchoredCard(press);
             return;
           }
           case 'PM_ACTIVATE_TRANSACTION_REVIEW': {

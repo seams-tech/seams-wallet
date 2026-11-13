@@ -328,6 +328,7 @@ export type {
   WalletStepChrome,
   WalletStepEvents,
   WalletStepExit,
+  WalletStepPress,
   WalletStepProgress,
   WalletStepSize,
   WalletStepTransition,

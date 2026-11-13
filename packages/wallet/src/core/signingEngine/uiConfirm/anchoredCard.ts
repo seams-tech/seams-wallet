@@ -11,11 +11,14 @@
 
 import {
   parseWalletStepChrome,
+  parseWalletStepPress,
   type WalletStepChrome,
   type WalletStepControl,
+  type WalletStepPress,
   type WalletStepProgress,
   type WalletSurfaceControl,
   type WalletSurfacePresentationWire,
+  type WalletSurfacePressPayload,
   type WalletSurfaceViewPayload,
 } from '@/SeamsWeb/walletIframe/shared/walletStep';
 
@@ -24,6 +27,7 @@ const CHROME_ATTRIBUTE = 'data-seams-anchored-card-chrome';
 const MINIMIZE_ATTRIBUTE = 'data-seams-anchored-card-minimize';
 const CONTROL_EVENT = 'seams-card-control';
 const PROGRESS_EVENT = 'seams-card-progress';
+const PRESS_EVENT = 'seams-card-press';
 const GUARDED_EVENTS = ['click', 'pointerdown', 'pointerup', 'auxclick', 'dblclick'] as const;
 
 type AnchoredCard = {
@@ -154,6 +158,31 @@ function onProgress(event: Event): void {
   if (!anchoredCardMinimizes()) return;
   const progress = (event as CustomEvent<WalletStepProgress>).detail;
   reporters.at(-1)?.progress(progress);
+}
+
+/**
+ * The app asks to press one control of the shown card for the person, for example from a voice
+ * command. The press counts as a click does: only for the shown card, and only while the whole
+ * card is in view and nothing covers it. The card module decides if it shows that control; it
+ * presses no action but the one that starts a recording.
+ */
+export function pressAnchoredCard(press: WalletSurfacePressPayload): void {
+  if (active?.requestId !== press.requestId || !anchoredCardAcceptsInput()) return;
+  document.dispatchEvent(new CustomEvent(PRESS_EVENT, { detail: press.control }));
+}
+
+/**
+ * A card module hears the app's presses until the returned function runs. `press` is the card's
+ * own function for a press of the host. The document carries the press, so a separately loaded
+ * card module hears it too.
+ */
+export function onCardPress(press: (control: WalletStepPress) => boolean): () => void {
+  const listener = (event: Event): void => {
+    const control = parseWalletStepPress((event as CustomEvent).detail);
+    if (control) press(control);
+  };
+  document.addEventListener(PRESS_EVENT, listener);
+  return () => document.removeEventListener(PRESS_EVENT, listener);
 }
 
 export function setAnchoredCardView(view: WalletSurfaceViewPayload): void {

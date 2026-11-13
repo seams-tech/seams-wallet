@@ -34,6 +34,7 @@ import {
   type WalletSurfaceControlPayload,
   type WalletSurfaceProgressPayload,
   type WalletSurfacePresentationWire,
+  type WalletSurfacePressPayload,
   type WalletSurfaceViewPayload,
 } from './walletStep';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
@@ -912,6 +913,7 @@ export type WalletProtocolVersion = typeof WALLET_PROTOCOL_VERSION;
 
 export type ParentToChildType =
   | 'PM_SURFACE_VIEW'
+  | 'PM_SURFACE_PRESS'
   | 'PM_SET_TRANSACTION_VIEW'
   | 'PM_TRANSACTION_BROADCAST_STARTED'
   | 'PING'
@@ -1718,6 +1720,7 @@ type ReviewedTransactionEnvelope<T> = T &
 
 export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_SURFACE_VIEW', WalletSurfaceViewPayload>
+  | RpcEnvelope<'PM_SURFACE_PRESS', WalletSurfacePressPayload>
   | RpcEnvelope<'PM_ACTIVATE_TRANSACTION_REVIEW', TransactionReviewStateMessage>
   | RpcEnvelope<'PM_SET_TRANSACTION_VIEW', { requestId: string; view: 'toast' | 'closed' }>
   | RpcEnvelope<'PM_TRANSACTION_BROADCAST_STARTED', { signedTransaction: string }>

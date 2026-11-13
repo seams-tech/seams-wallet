@@ -189,6 +189,7 @@ function useStepEvents<P extends WalletStepEvents>(
       onMinimize: (restore: () => void) => latest.current.onMinimize?.(restore),
       onRestore: () => latest.current.onRestore?.(),
       onProgress: (progress: WalletStepProgress) => latest.current.onProgress?.(progress),
+      onControls: (press) => latest.current.onControls?.(press),
     }),
     [],
   );

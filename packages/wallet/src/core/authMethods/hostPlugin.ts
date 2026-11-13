@@ -129,7 +129,8 @@ export type PhraseResultView = Readonly<{
   /** A link after the detail, such as the transaction in a block explorer. */
   link?: Readonly<{ text: string; href: string }>;
   /** `busy` shows the action dimmed while something outside the surface finishes. */
-  action: Readonly<{ label: string; icon?: 'passkey'; busy?: boolean }>;
+  /** `retry`: the action records the sentence again, and an app's `retry` press can run it. */
+  action: Readonly<{ label: string; icon?: 'passkey'; busy?: boolean; retry?: boolean }>;
   /** `seal`: the line closes into the success seal. */
   line: 'seal' | readonly PhraseSegmentState[];
 }>;

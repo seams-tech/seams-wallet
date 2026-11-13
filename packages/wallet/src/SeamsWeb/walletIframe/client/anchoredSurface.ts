@@ -21,6 +21,7 @@ import {
   type WalletStepSize,
   type WalletStepTransition,
   type WalletStepTransitionTimes,
+  type WalletStepPress,
   type WalletStepProgress,
   type WalletSurfaceControl,
 } from '../shared/walletStep';
@@ -51,6 +52,8 @@ export type AnchoredSurfaceOptions = WalletStepEvents &
      * change to the Wallet host, which holds the card's controls until then.
      */
     view?: Readonly<{ check: () => boolean; report: (unobstructed: boolean) => void }>;
+    /** Sends a press of the app to the Wallet host, which runs it on the card. */
+    press?: (control: WalletStepPress) => void;
   }>;
 
 /** How a request of an anchored card settled. */
@@ -244,7 +247,14 @@ export class AnchoredSurface {
   ) {
     this.transition = walletStepTransitionTimes(options.transition);
     resetAnchoredSurfaceAnchor(options.anchor);
+    if (options.press) notify(options.onControls, this.press);
   }
+
+  /** A press of the app for the person. The Wallet host runs it only on a card in clear view. */
+  readonly press = (control: WalletStepPress): void => {
+    if (this.exited) return;
+    this.options.press?.(control);
+  };
 
   get anchor(): HTMLElement {
     return this.options.anchor;

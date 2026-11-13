@@ -400,7 +400,7 @@ export function failureView(
       headline: copy.headline,
       caption: copy.caption,
       detail: copy.detail,
-      action: { label: copy.retry ? 'Try again' : 'Close' },
+      action: copy.retry ? { label: 'Try again', retry: true } : { label: 'Close' },
       line: line(PAYMENT_LINE, copy.at, 'fail', 'skip'),
     },
   };

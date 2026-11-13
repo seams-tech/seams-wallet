@@ -55,6 +55,8 @@ export class AnchoredSurfaces {
       layer: 'top',
       chrome: presentation.chrome ?? 'none',
       view: this.viewReporter(requestId),
+      press: (control) =>
+        this.host.post({ type: 'PM_SURFACE_PRESS', payload: { requestId, control } }),
     });
     const { signal } = presentation;
     if (signal) {

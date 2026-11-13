@@ -3,6 +3,7 @@ import {
   anchoredCardMinimizes,
   createWalletIframeSurfaceMeasurementReporter,
   minimizeCard,
+  onCardPress,
   pressCardControl,
   reportCardProgress,
   type AuthMethodPhraseSurface,
@@ -37,6 +38,8 @@ export function openPhrase(input: PhraseInput): AuthMethodPhraseSurface {
       ...(anchoredCardMinimizes()
         ? { minimized: minimizeCard, progressed: reportCardProgress }
         : {}),
+      // The app can press "Try again", Minimize, Back and Close for the person (a voice command).
+      remote: onCardPress,
       // The parent sizes the frame to this surface, so the card can follow the frame.
       hugged: binding.kind === 'wallet_iframe',
       mounted(element) {
