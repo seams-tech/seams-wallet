@@ -87,6 +87,31 @@ const BROKEN_RULE: Readonly<Record<SummaryRefusal, string>> = {
   transfer_verb: 'The sentence starts with "send", "sent" or "sends".',
 };
 
+const LETTERS_ONLY = /^[A-Za-z]+$/;
+
+/**
+ * What the second request says about a refused summary. For a wrong character it names the
+ * word: a name with a number in it ("COP31") came back unchanged when the request named only
+ * the rule (seen with Qwen 3.8 on 2026-11-13, 3 of 3 times; with the word named, 3 of 3 passed).
+ */
+function brokenRule(refusal: SummaryRefusal, summary: string): string {
+  const word = refusal === 'character' ? summary.split(' ').find((candidate) => !LETTERS_ONLY.test(candidate)) : undefined;
+  if (word === undefined) return `${BROKEN_RULE[refusal]} Write it again and follow every rule.`;
+  return `The word ${JSON.stringify(word)} has a character that is not a letter from A to Z. Write the sentence again with that word in letters only: write its number as words, or leave the number out. Follow every rule.`;
+}
+
+/**
+ * A refused summary with only the letters of each word: "COP31" becomes "COP". Null if a word
+ * has no letter (a number alone holds a value, so it does not go), or if the result still
+ * breaks a rule. It is the last step, after the model had its second request: the voice
+ * verifier still checks that the summary fits the note.
+ */
+function lettersOnly(summary: string): string | null {
+  const words = summary.split(' ').map((word) => word.replace(/[^A-Za-z]/g, ''));
+  const repaired = words.join(' ');
+  return words.every((word) => word !== '') && summaryRefusal(repaired) === null ? repaired : null;
+}
+
 type ChatMessage = Readonly<{ role: 'system' | 'user' | 'assistant'; content: string }>;
 
 /** Asks the model for a summary, and once more if the reply breaks a rule of `summaryRefusal`. */
@@ -102,18 +127,21 @@ export async function writeNoteSummary(
       content: `Summarize this Community Note in ${MAX_SUMMARY_WORDS} words or fewer.\n\nNote:\n"""\n${note}\n"""`,
     },
   ];
+  let last = '';
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
     const reply = await askModel(config, messages, fetch);
     if (!reply.ok) return reply;
     const summary = cleanReply(reply.content);
     const refusal = summaryRefusal(summary);
     if (refusal === null) return { ok: true, summary };
+    last = summary;
     messages.push(
       { role: 'assistant', content: reply.content },
-      { role: 'user', content: `${BROKEN_RULE[refusal]} Write it again and follow every rule.` },
+      { role: 'user', content: brokenRule(refusal, summary) },
     );
   }
-  return { ok: false, code: 'summary_not_speakable' };
+  const repaired = lettersOnly(last);
+  return repaired === null ? { ok: false, code: 'summary_not_speakable' } : { ok: true, summary: repaired };
 }
 
 async function askModel(

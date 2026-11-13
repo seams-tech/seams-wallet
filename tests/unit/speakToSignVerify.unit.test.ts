@@ -585,12 +585,37 @@ test('a reply that breaks a rule gets one second request, and two broken replies
   const second = JSON.parse(String(fixed.calls[1].init.body));
   expect(second.messages.at(-1).content).toContain('starts with "send"');
 
-  const broken = await buildHarness(() => chat('It costs 5 dollars'), { summary: SUMMARY });
+  const broken = await buildHarness(() => chat('Send five NEAR to bob'), { summary: SUMMARY });
   expect(await broken.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH)).toMatchObject({
     status: 502,
     json: { ok: false, code: 'summary_not_speakable' },
   });
   expect(broken.calls).toHaveLength(2);
+});
+
+test('a name with a number in it: the second request names the word, and the last step keeps its letters', async () => {
+  // The model kept "COP31" when the request named only the rule.
+  const replies = ['Greta Thunberg quote at COP31 cannot be verified', 'Greta Thunberg quote at the climate summit cannot be verified'];
+  const fixed = await buildHarness(() => chat(replies.shift() ?? ''), { summary: SUMMARY });
+  const answer = await fixed.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH);
+  expect(answer.json).toEqual({ ok: true, summary: 'Greta Thunberg quote at the climate summit cannot be verified' });
+  const second = JSON.parse(String(fixed.calls[1].init.body)).messages.at(-1).content;
+  expect(second).toContain('The word "COP31" has a character that is not a letter');
+  expect(second).toContain('write its number as words, or leave the number out');
+
+  // Two replies with the number: the summary keeps the letters of each word.
+  const kept = await buildHarness(() => chat('Greta Thunberg quote at COP31 cannot be verified.'), { summary: SUMMARY });
+  expect((await kept.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH)).json).toEqual({
+    ok: true,
+    summary: 'Greta Thunberg quote at COP cannot be verified',
+  });
+  expect(kept.calls).toHaveLength(2);
+  // A number alone holds a value: it does not go, and the summary fails.
+  const number = await buildHarness(() => chat('It costs 5 dollars'), { summary: SUMMARY });
+  expect((await number.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH)).json).toEqual({
+    ok: false,
+    code: 'summary_not_speakable',
+  });
 });
 
 test('the summary route needs a session and one note, and gives fixed codes for a model failure', async () => {
