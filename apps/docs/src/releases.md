@@ -15,7 +15,7 @@ Since 0.70.2:
 - A sent or signed result of a spoken request has `attestationUrl`: the OutLayer record of the verifier call, with its TDX quote, or null when the Wallet got none. An app can show the proof with its own result.
 - The last repair of the summary writer keeps a quantity. A word that starts with a digit or a currency sign ("10km", "$40m", "2nd") is not cut to its letters: the result is `summary_not_speakable`.
 - `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.4**. `writeSummary` takes `{ signal }`, and `createSummarySource` has the two changes above. The docs of `writeSummary` say that a summary is a draft: only a community note has the verifier's check that the summary fits the text.
-- The Wallet iframe protocol stays **25.0.0**. An app at 0.70.2 works with a Wallet host at 0.70.4.
+- The Wallet iframe protocol stays **25.0.0**. Upgrade the app before the Wallet host: an app at 0.70.2 or older reads a result with exact keys, so it refuses the success result of a spoken request from a Wallet host at 0.70.4, which has `attestationUrl` ("Speak-to-Sign … result is invalid", after the transaction was sent). An app at 0.70.4 reads the result of an older Wallet host too.
 - Install all three packages at 0.70.4. No new server setting, and no database migrations.
 
 ## Release 0.70.2
