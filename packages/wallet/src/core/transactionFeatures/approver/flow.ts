@@ -10,6 +10,7 @@ import {
   failureView,
   paidView,
   sendingView,
+  shortAccount,
   signedView,
   stepUpView,
   verifyingView,
@@ -188,12 +189,16 @@ function cardCopy(
   request: SpeakToSignRequestView,
 ): Pick<CardInput, 'noun' | 'doneHeadline' | 'doneCaption'> {
   const { displayText } = request;
+  // A long account is short on the result card. A request with no receiver shows its own text.
+  const party = request.counterparty === null ? null : shortAccount(request.counterparty);
+  const to = party === null ? displayText : `To ${party}`;
+  const forParty = party === null ? displayText : `For ${party}`;
   switch (request.kind) {
     case 'account_transfer':
       return {
         noun: 'payment',
         doneHeadline: `Sent ${request.amount} NEAR`,
-        doneCaption: `To ${request.counterparty}`,
+        doneCaption: to,
       };
     case 'community_note':
       return { noun: 'note', doneHeadline: 'Note posted', doneCaption: `“${request.summary}”` };
@@ -207,20 +212,20 @@ function cardCopy(
       return {
         noun: 'message',
         doneHeadline: 'Message signed',
-        doneCaption: `For ${request.counterparty}`,
+        doneCaption: forParty,
       };
     case 'transaction':
       if (request.form === 'send') {
         return {
           noun: 'transaction',
           doneHeadline: 'Transaction sent',
-          doneCaption: `To ${request.counterparty}`,
+          doneCaption: to,
         };
       }
       return {
         noun: 'signature',
         doneHeadline: request.form === 'sign' ? 'Transaction signed' : 'Delegate action signed',
-        doneCaption: `For ${request.counterparty}`,
+        doneCaption: forParty,
       };
   }
 }

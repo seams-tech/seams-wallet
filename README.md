@@ -3,13 +3,13 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.70.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.70.1**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.70.0` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
-- `@seams/wallet-server@0.70.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.70.0` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.70.1` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
+- `@seams/wallet-server@0.70.1` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.70.1` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -17,7 +17,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `25.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK and VoiceID plugin use version **0.70.0**.
+The browser SDK, server SDK and VoiceID plugin use version **0.70.1**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -26,6 +26,12 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Release 0.70.1
+
+- The Speak-to-Sign result card names a long receiver in its short form ("To 3e2210…7e55"), and `@seams/voice-capture` 0.70.1 breaks a word that is longer than the line. Before, an implicit account made the receipt and the button wider than the card.
+- The summary route of a note no longer fails for a name with a number in it, such as "COP31".
+- The Wallet iframe protocol stays **25.0.0**. Install all three packages at 0.70.1. No database migrations.
 
 ## Release 0.70.0
 

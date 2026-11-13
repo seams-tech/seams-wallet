@@ -313,6 +313,20 @@ function signedOutput(version: string): unknown {
 const ATTESTATION =
   'https://testnet-api.outlayer.ai/attestations/by-call/357b87bb-c366-4327-8f09-eff79a722877';
 
+test('the result caption names a 64-character account in its short form, and a named account in full', async () => {
+  // An implicit account has no place to break a line: in full, it is wider than the card.
+  const implicit = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520df9b1a4c7e55';
+  const sent = fakeHost();
+  await runApproval(sent.approval(view({ kind: 'transaction', form: 'send', counterparty: implicit })));
+  expect(sent.captions.at(-1)).toBe('To 3e2210…7e55');
+  const signed = fakeHost();
+  await runApproval(signed.approval(view({ kind: 'transaction', form: 'sign', counterparty: implicit })));
+  expect(signed.captions.at(-1)).toBe('For 3e2210…7e55');
+  const named = fakeHost();
+  await runApproval(named.approval(view({ kind: 'transaction', form: 'send', counterparty: 'guest-book.testnet' })));
+  expect(named.captions.at(-1)).toBe('To guest-book.testnet');
+});
+
 test('the paid card has the TEE receipt: the voice, the words, the verdict and the TDX quote', async () => {
   const host = fakeHost({ reply: verifierOutput(signedOutput('0.13.0'), ATTESTATION) });
   await runApproval(host.approval());
