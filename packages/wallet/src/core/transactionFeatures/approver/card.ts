@@ -271,8 +271,12 @@ function checksSummary(version: string | null): boolean {
   return major > 0 || minor >= 13;
 }
 
-/** A long account in its short form: a 64-character implicit account becomes "10d3ca…25f5". */
-function shortAccount(account: string): string {
+/**
+ * A long account in its short form: a 64-character implicit account becomes "10d3ca…25f5". The
+ * result card uses it, after the signature. The request that the person approves names the
+ * full account.
+ */
+export function shortAccount(account: string): string {
   if (/^[0-9a-f]{64}$/.test(account)) return `${account.slice(0, 6)}…${account.slice(-4)}`;
   return account.length > 32 ? `${account.slice(0, 20)}…${account.slice(-8)}` : account;
 }
