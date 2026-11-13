@@ -5,13 +5,13 @@ description: Supported Wallet Server entry points, packaged runtime commands, an
 
 # Server SDK and CLI
 
-`@seams/wallet-server@0.70.5` supplies reusable Wallet services, storage
+`@seams/wallet-server@0.70.6` supplies reusable Wallet services, storage
 adapters, Cloudflare Workers, migrations, and signer WASM bindings.
 The current recovery CLI launcher is `@seams/wallet-cli@0.29.0`.
 See [release status](/releases) before selecting deployment artifacts.
 
 ```sh
-pnpm add @seams/wallet-server@0.70.5
+pnpm add @seams/wallet-server@0.70.6
 npm install --global @seams/wallet-cli@0.29.0
 ```
 

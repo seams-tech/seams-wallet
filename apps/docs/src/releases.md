@@ -1,9 +1,22 @@
 ---
-title: Release 0.70.5
-description: The result card of a spoken request stays whole in the Wallet frame. A page can prepare a spoken request, so the Wallet card shows sooner.
+title: Release 0.70.6
+description: An app can press "Try again", Minimize, Back and Close of a Wallet card for the person, for example from a voice command. The card tells the app when it waits for a press.
 ---
 
-# Release 0.70.5
+# Release 0.70.6
+
+The browser SDK, server SDK and VoiceID plugin use **0.70.6**. It has no breaking change since 0.70.5.
+
+Since 0.70.5:
+
+- An app can press a control of a Wallet card in its dialog for the person, for example from a voice command. The new step event `onControls` gives the app `press`, which takes `retry`, `minimize`, `back` or `close`. `retry` is the card's button while it starts a recording: Record or "Try again". The Wallet never presses another action for the app, such as "Confirm with passkey" or "Done". A press counts as a click does: only on a card that is whole in view and not covered.
+- The card's stage has the new value `waiting`: the card waits for a press on Record or "Try again", and its microphone is off. Before, the card reported `recording` there. An app that pauses its own speech recognition while the Wallet records can now listen again while the card waits.
+- After "Try again" on a failed check, the card records at once. Before, it showed Record, and the person pressed a second time.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.6**. Only `@seams/voice-capture` has a change.
+- The Wallet iframe protocol stays **25.0.0**. An app at 0.70.5 works with a Wallet host at 0.70.6: it does not see the stage `waiting`. A press of an app at 0.70.6 needs a Wallet host at 0.70.6.
+- Install all three packages at 0.70.6. No database migrations.
+
+## Release 0.70.5
 
 The browser SDK, server SDK and VoiceID plugin use **0.70.5**. It has no breaking change since 0.70.4.
 

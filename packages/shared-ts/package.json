@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@near-js/types": "2.4.0",
-    "@seams/voice-verdict": "0.70.5",
+    "@seams/voice-verdict": "0.70.6",
     "bs58": "6.0.0"
   }
 }
