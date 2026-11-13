@@ -328,6 +328,11 @@ async function runNote(
     // The Seams server writes the summary from the note: the app cannot choose the words.
     const summary = await flow.operations.summarizeNote(action.text, signal);
     if (summary.kind === 'failed') {
+      // No summary that the owner can say: the Wallet's check of the server's words refused it,
+      // or the server's model gave none. Any other code means that the server did not answer.
+      if (summary.code === 'summary_not_speakable') {
+        return { kind: 'refused', reason: 'summary_not_speakable' };
+      }
       return { kind: 'unavailable', reason: 'summary_unavailable', detail: summary.code };
     }
     intent = { ...action, postId: BigInt(action.postId), summary: summary.summary };
