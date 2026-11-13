@@ -1,6 +1,7 @@
 // The `text/event-stream` answer of the Seams verify route: `verifier_running` at once, then one
 // `verdict` with the verifier output or one `failed` with a code.
 
+import { readAttestationUrl } from '@shared/speakToSign/attestationUrl';
 import { isPlainObject } from '@shared/utils/validation';
 import type { SpeakToSignVerifyReply } from './hostPlugin';
 
@@ -29,18 +30,6 @@ export async function readVerifyStream(
   }
 }
 
-/** The OutLayer attestation record of the call: an HTTPS URL of a call's record, else null. */
-function attestationUrl(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  try {
-    const url = new URL(value);
-    const record = /^\/(?:.*\/)?attestations\/by-call\/[0-9a-f-]{1,64}$/;
-    return url.protocol === 'https:' && record.test(url.pathname) ? url.href : null;
-  } catch {
-    return null;
-  }
-}
-
 function readEvent(block: string): SpeakToSignVerifyReply | 'verifier_running' | null {
   let name = '';
   let data = '';
@@ -59,7 +48,7 @@ function readEvent(block: string): SpeakToSignVerifyReply | 'verifier_running' |
     return {
       kind: 'output',
       output: parsed.output,
-      attestationUrl: attestationUrl(parsed.attestationUrl),
+      attestationUrl: readAttestationUrl(parsed.attestationUrl),
     };
   }
   if (name !== 'failed') return null;

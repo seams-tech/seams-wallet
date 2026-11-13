@@ -5,6 +5,7 @@ import type {
   SpeakToSignEnrollmentResult,
   SpeakToSignPrepareRequest,
   SpeakToSignPrepareResult,
+  SpeakToSignProof,
   SpeakToSignMessageRefusalReason,
   SpeakToSignMessageRequest,
   SpeakToSignMessageResult,
@@ -19,10 +20,8 @@ import type {
   SpeakToSignTransactionRequest,
   SpeakToSignTransferRequest,
   SpeakToSignTransferResult,
-  SpeakToSignTransferTimes,
   SpeakToSignUnavailableReason,
 } from '@/core/transactionFeatures/hostPlugin';
-import type { VoiceApproval } from '@/core/transactionFeatures/voiceVerdict';
 import type { SignDelegateActionResult, SignTransactionResult } from '@/core/types/seams';
 import type {
   SpeakToSignCommands,
@@ -52,13 +51,7 @@ export type SpeakToSignCall<Request, Result> =
  * returns. The other kinds signed nothing, or the sent transaction failed (`transaction_failed`).
  */
 export type SpeakToSignResult<T, Reason extends string = SpeakToSignNoteRefusalReason> =
-  | Readonly<{
-      kind: 'approved';
-      result: T;
-      /** `voice_and_passkey` when a policy rule asked for a passkey after the voice. */
-      approval: VoiceApproval;
-      times: SpeakToSignTransferTimes;
-    }>
+  | (Readonly<{ kind: 'approved'; result: T }> & SpeakToSignProof)
   | Readonly<{ kind: 'refused'; reason: Reason; detail?: string }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
@@ -171,8 +164,8 @@ type SendAnswer<Reason extends string> =
 /** The public result of a sent transaction. */
 function sent<Reason extends string>(answer: SendAnswer<Reason>): Sent<Reason> {
   if (answer.kind !== 'sent') return answer;
-  const { transactionHash, approval, times } = answer;
-  return { kind: 'approved', result: { transactionHash }, approval, times };
+  const { transactionHash, approval, times, attestationUrl } = answer;
+  return { kind: 'approved', result: { transactionHash }, approval, times, attestationUrl };
 }
 
 /** The public result of a transaction that the Wallet signed and did not send. */
@@ -180,22 +173,22 @@ function signedTransaction(
   answer: SpeakToSignSignedTransactionResult,
 ): SpeakToSignResult<SignTransactionResult> {
   if (answer.kind !== 'signed_transaction') return answer;
-  const { signed, approval, times } = answer;
-  return { kind: 'approved', result: signed, approval, times };
+  const { signed, approval, times, attestationUrl } = answer;
+  return { kind: 'approved', result: signed, approval, times, attestationUrl };
 }
 
 function signedDelegate(
   answer: SpeakToSignSignedDelegateResult,
 ): SpeakToSignResult<SignDelegateActionResult> {
   if (answer.kind !== 'signed_delegate') return answer;
-  const { signed, approval, times } = answer;
-  return { kind: 'approved', result: signed, approval, times };
+  const { signed, approval, times, attestationUrl } = answer;
+  return { kind: 'approved', result: signed, approval, times, attestationUrl };
 }
 
 function signedMessage(result: SpeakToSignMessageResult): SignedMessage {
   if (result.kind !== 'signed') return result;
-  const { kind: _kind, approval, times, ...message } = result;
-  return { kind: 'approved', result: message, approval, times };
+  const { kind: _kind, approval, times, attestationUrl, ...message } = result;
+  return { kind: 'approved', result: message, approval, times, attestationUrl };
 }
 
 export function createSpeakToSignCapability(

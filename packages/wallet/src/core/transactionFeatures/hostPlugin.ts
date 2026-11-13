@@ -61,15 +61,21 @@ export type SpeakToSignTransferTimes = Readonly<{
   endOfSpeechToReceiptMs: number;
 }>;
 
+/** What each spoken request that signed carries, next to what it signed. */
+export type SpeakToSignProof = Readonly<{
+  /** `voice_and_passkey` when a policy rule asked for a passkey after the voice. */
+  approval: VoiceApproval;
+  times: SpeakToSignTransferTimes;
+  /**
+   * The public OutLayer record of the verifier call that approved the request, with its TDX
+   * quote: the "View TDX quote" link of the result card. Null when OutLayer gave none.
+   */
+  attestationUrl: string | null;
+}>;
+
 /** The result of one spoken request whose refusals are `Reason`. */
 type SpokenResult<Reason extends string> =
-  | Readonly<{
-      kind: 'sent';
-      transactionHash: string;
-      /** `voice_and_passkey` when a policy rule asked for a passkey after the voice. */
-      approval: VoiceApproval;
-      times: SpeakToSignTransferTimes;
-    }>
+  | (Readonly<{ kind: 'sent'; transactionHash: string }> & SpeakToSignProof)
   | SpokenFailure<Reason>;
 
 /** A spoken request that signed nothing, or whose transaction failed. */
@@ -105,22 +111,12 @@ export type SpeakToSignNoteResult = SpokenResult<SpeakToSignNoteRefusalReason>;
 
 /** A transaction that the Wallet signed and did not send, as `near.signTransaction` returns it. */
 export type SpeakToSignSignedTransactionResult =
-  | Readonly<{
-      kind: 'signed_transaction';
-      signed: SignTransactionResult;
-      approval: VoiceApproval;
-      times: SpeakToSignTransferTimes;
-    }>
+  | (Readonly<{ kind: 'signed_transaction'; signed: SignTransactionResult }> & SpeakToSignProof)
   | SpokenFailure<SpeakToSignNoteRefusalReason>;
 
 /** A NEP-366 delegate action that the Wallet signed, as `near.signDelegateAction` returns it. */
 export type SpeakToSignSignedDelegateResult =
-  | Readonly<{
-      kind: 'signed_delegate';
-      signed: SignDelegateActionResult;
-      approval: VoiceApproval;
-      times: SpeakToSignTransferTimes;
-    }>
+  | (Readonly<{ kind: 'signed_delegate'; signed: SignDelegateActionResult }> & SpeakToSignProof)
   | SpokenFailure<SpeakToSignNoteRefusalReason>;
 
 /** What the host plugin returns for one note action, by the kind and delivery of the action. */
@@ -305,8 +301,7 @@ export type SpeakToSignMessageRefusalReason =
   | 'verdict_mismatch';
 
 export type SpeakToSignMessageResult =
-  | (Readonly<{ kind: 'signed'; approval: VoiceApproval; times: SpeakToSignTransferTimes }> &
-      SpeakToSignSignedMessage)
+  | (Readonly<{ kind: 'signed' }> & SpeakToSignProof & SpeakToSignSignedMessage)
   | Readonly<{ kind: 'refused'; reason: SpeakToSignMessageRefusalReason; detail?: string }>
   | Readonly<{ kind: 'cancelled' }>
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;

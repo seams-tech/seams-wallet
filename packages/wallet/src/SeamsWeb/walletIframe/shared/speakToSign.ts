@@ -29,6 +29,7 @@ import {
   type ActionArgsWasm,
   type TransactionInputWasm,
 } from '@/core/types/actions';
+import { readAttestationUrl } from '@shared/speakToSign/attestationUrl';
 import { MAX_NOTE_CHARS } from '@shared/speakToSign/spokenKinds';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isValidAccountId } from '@shared/utils/near';
@@ -483,6 +484,21 @@ const ENROLLMENT_REFUSAL_REASONS: Readonly<Record<SpeakToSignEnrollmentRefusalRe
 const APPROVALS: Readonly<Record<VoiceApproval, true>> = { voice: true, voice_and_passkey: true };
 const TIME_KEYS = ['speechMs', 'verifyMs', 'transactionMs', 'endOfSpeechToReceiptMs'] as const;
 
+/**
+ * The keys of a success result. A Wallet iframe before 0.70.3 sends no `attestationUrl`: the
+ * result then has null there.
+ */
+function successKeys(value: Record<string, unknown>, keys: readonly string[]): readonly string[] {
+  return 'attestationUrl' in value ? [...keys, 'attestationUrl'] : keys;
+}
+
+/** The `attestationUrl` of a success result: the record's URL or null. `undefined`: not valid. */
+function readProofUrl(value: Record<string, unknown>): string | null | undefined {
+  const given = value.attestationUrl ?? null;
+  if (given === null) return null;
+  return readAttestationUrl(given) ?? undefined;
+}
+
 /** Reads the iframe's answer. Anything outside the result union is a protocol error. */
 export function parseSpeakToSignTransferResult(value: unknown): SpeakToSignTransferResult {
   const result = readResult(value, REFUSAL_REASONS);
@@ -524,17 +540,19 @@ function readSignedResult(value: unknown, kind: 'signed_transaction' | 'signed_d
     return result === null || result.kind === 'sent' ? null : result;
   }
   const times = readTimes(value.times);
+  const attestationUrl = readProofUrl(value);
   const { approval, signed } = value;
   if (
-    !hasExactKeys(value, ['kind', 'signed', 'approval', 'times']) ||
+    !hasExactKeys(value, successKeys(value, ['kind', 'signed', 'approval', 'times'])) ||
     !isPlainObject(signed) ||
     typeof approval !== 'string' ||
     !Object.hasOwn(APPROVALS, approval) ||
-    !times
+    !times ||
+    attestationUrl === undefined
   ) {
     return null;
   }
-  return { kind, signed, approval: approval as VoiceApproval, times };
+  return { kind, signed, approval: approval as VoiceApproval, times, attestationUrl };
 }
 
 /** Reads the iframe's signed-message answer. Anything outside the union is a protocol error. */
@@ -548,10 +566,11 @@ function readMessageResult(value: unknown): SpeakToSignMessageResult | null {
   if (!isPlainObject(value)) return null;
   switch (value.kind) {
     case 'signed': {
-      const keys = ['kind', 'accountId', 'publicKey', 'signature', 'nonce', 'approval', 'times'];
+      const keys = successKeys(value, ['kind', 'accountId', 'publicKey', 'signature', 'nonce', 'approval', 'times']);
       if (!hasExactKeys(value, 'state' in value ? [...keys, 'state'] : keys)) return null;
       const { accountId, publicKey, signature, nonce, approval, state } = value;
       const times = readTimes(value.times);
+      const attestationUrl = readProofUrl(value);
       if (
         !isNonEmptyString(accountId) ||
         !isNonEmptyString(publicKey) ||
@@ -560,6 +579,7 @@ function readMessageResult(value: unknown): SpeakToSignMessageResult | null {
         typeof approval !== 'string' ||
         !Object.hasOwn(APPROVALS, approval) ||
         !times ||
+        attestationUrl === undefined ||
         ('state' in value && typeof state !== 'string')
       ) {
         return null;
@@ -573,6 +593,7 @@ function readMessageResult(value: unknown): SpeakToSignMessageResult | null {
         ...(typeof state === 'string' ? { state } : {}),
         approval: approval as VoiceApproval,
         times,
+        attestationUrl,
       };
     }
     case 'refused': {
@@ -654,14 +675,17 @@ function readResult<R extends string>(
     case 'unavailable':
       return readSharedResult(value);
     case 'sent': {
-      if (!hasExactKeys(value, ['kind', 'transactionHash', 'approval', 'times'])) return null;
+      const keys = successKeys(value, ['kind', 'transactionHash', 'approval', 'times']);
+      if (!hasExactKeys(value, keys)) return null;
       const times = readTimes(value.times);
+      const attestationUrl = readProofUrl(value);
       const approval = value.approval;
       if (
         !isNonEmptyString(value.transactionHash) ||
         typeof approval !== 'string' ||
         !Object.hasOwn(APPROVALS, approval) ||
-        !times
+        !times ||
+        attestationUrl === undefined
       ) {
         return null;
       }
@@ -670,6 +694,7 @@ function readResult<R extends string>(
         transactionHash: value.transactionHash,
         approval: approval as VoiceApproval,
         times,
+        attestationUrl,
       };
     }
     case 'refused': {

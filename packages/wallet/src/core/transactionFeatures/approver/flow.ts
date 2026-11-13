@@ -91,6 +91,7 @@ async function signOnce(
       verifiedAt,
       receiptAt: performance.now(),
     }),
+    reply.attestationUrl,
   );
   switch (result.kind) {
     case 'cancelled':

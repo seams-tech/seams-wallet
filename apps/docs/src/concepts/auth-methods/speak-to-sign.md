@@ -122,7 +122,9 @@ Every call with `approval` returns one result shape, and it does not throw for
 a refusal. The `kind` is `approved`, `refused`, `cancelled` or `unavailable`.
 An `approved` result holds `result`, `times` and `approval`: `voice` when the
 verdict alone approved the request, and `voice_and_passkey` when a policy rule
-asked for the confirm again.
+asked for the confirm again. It also holds `attestationUrl`: the public
+OutLayer record of the verifier call, with its TDX quote. This is the link
+"View TDX quote" of the result card. It is `null` when OutLayer gave no record.
 
 ## Typed calls
 

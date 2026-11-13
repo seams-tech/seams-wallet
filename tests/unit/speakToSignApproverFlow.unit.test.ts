@@ -329,7 +329,8 @@ test('the result caption names a 64-character account in its short form, and a n
 
 test('the paid card has the TEE receipt: the voice, the words, the verdict and the TDX quote', async () => {
   const host = fakeHost({ reply: verifierOutput(signedOutput('0.13.0'), ATTESTATION) });
-  await runApproval(host.approval());
+  // The app gets the same link in the result, so it can open the quote itself.
+  expect(await runApproval(host.approval())).toMatchObject({ kind: 'sent', attestationUrl: ATTESTATION });
   expect(host.receipts.at(-1)).toEqual({
     title: 'TEE receipt',
     source: 'Intel TDX · OutLayer',

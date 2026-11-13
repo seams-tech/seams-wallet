@@ -66,7 +66,7 @@ const result = await seams.near.spoken?.transfer({
 暗黙的アカウント(64桁の16進数)または`0x`アカウントの場合、結果は`receiver_not_speakable`の`refused`です。
 存在しないアカウントの場合、結果は`receiver_missing`の`refused`です。
 金額は小数点以下2桁までのNEARの10進数です。結果の`kind`は、`approved`、`refused`、`cancelled`、`unavailable`のいずれかです。
-`approved`の結果には`result`(`transactionHash`)、`times`、`approval`があります。判定だけで承認した場合は`voice`、ポリシーのルールが確認画面を再び求めた場合は`voice_and_passkey`です。
+`approved`の結果には`result`(`transactionHash`)、`times`、`approval`があります。判定だけで承認した場合は`voice`、ポリシーのルールが確認画面を再び求めた場合は`voice_and_passkey`です。`attestationUrl`は、検証者の呼び出しのOutLayer公開記録(TDXクォート付き)のURLで、結果カードの「View TDX quote」リンクと同じものです。OutLayerが記録を返さなかった場合は`null`です。
 現在、検証者には仮のルールが1つあります。10 NEARを超える音声による支払いにはパスキーが必要です。
 `walletSession`は、通常の呼び出しと同じく省略できます。省略した場合は、認証済みのウォレットが対象です。
 

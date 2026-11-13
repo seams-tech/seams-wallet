@@ -63,11 +63,15 @@ const ENROLLED: SpeakToSignEnrollmentResult = {
   templateEpoch: 2,
   agreementMilli: 790,
 };
+/** The OutLayer record of the verifier call, as the result card links it. */
+const QUOTE =
+  'https://testnet-api.outlayer.ai/attestations/by-call/357b87bb-c366-4327-8f09-eff79a722877';
 const SENT: SpeakToSignTransferResult = {
   kind: 'sent',
   transactionHash: 'tx-1',
   approval: 'voice',
   times: { speechMs: 1, verifyMs: 2, transactionMs: 4, endOfSpeechToReceiptMs: 5 },
+  attestationUrl: QUOTE,
 };
 
 test('the transfer message carries only the wallet, a NEAR receiver and a decimal amount', () => {
@@ -100,6 +104,19 @@ test('the result parser accepts each result kind and refuses anything else', () 
     { kind: 'unavailable', reason: 'flow_not_available' },
   ];
   for (const result of valid) expect(parseSpeakToSignTransferResult(result)).toEqual(result);
+  // A Wallet iframe before 0.70.3 sends no `attestationUrl`, and OutLayer can give none.
+  const { attestationUrl: _url, ...older } = SENT as Extract<typeof SENT, { kind: 'sent' }>;
+  expect(parseSpeakToSignTransferResult(older)).toEqual({ ...older, attestationUrl: null });
+  expect(parseSpeakToSignTransferResult({ ...older, attestationUrl: null })).toEqual({
+    ...older,
+    attestationUrl: null,
+  });
+  // The link is the record of an OutLayer call over HTTPS, and nothing else.
+  for (const attestationUrl of ['http://testnet-api.outlayer.ai/attestations/by-call/1', 'https://evil.example/x', 'javascript:alert(1)', 7]) {
+    expect(() => parseSpeakToSignTransferResult({ ...older, attestationUrl })).toThrow(
+      'Speak-to-Sign transfer result is invalid.',
+    );
+  }
   for (const bad of [
     undefined,
     { kind: 'sent', transactionHash: 'tx' },
@@ -1003,7 +1020,7 @@ test('the transaction message carries the receiver, checked actions and the summ
     ],
   };
   // Sign only: the same action with delivery `sign`; the SDK rebuilds the signed transaction.
-  answer = { kind: 'signed_transaction', signed: { nearAccountId: 'raw' }, approval: 'voice', times: SENT.times };
+  answer = { kind: 'signed_transaction', signed: { nearAccountId: 'raw' }, approval: 'voice', times: SENT.times, attestationUrl: QUOTE };
   expect(
     await commands.requestSignedTransaction({
       walletId: WALLET_ID,
@@ -1015,9 +1032,10 @@ test('the transaction message carries the receiver, checked actions and the summ
     signed: { nearAccountId: 'normalized' },
     approval: 'voice',
     times: SENT.times,
+    attestationUrl: QUOTE,
   });
   // A delegate action: its fields travel as text, and the sender never crosses the channel.
-  answer = { kind: 'signed_delegate', signed: { hash: 'h' }, approval: 'voice', times: SENT.times };
+  answer = { kind: 'signed_delegate', signed: { hash: 'h' }, approval: 'voice', times: SENT.times, attestationUrl: QUOTE };
   expect(
     await commands.requestDelegateAction({
       walletId: WALLET_ID,
@@ -1106,6 +1124,7 @@ test('the message request carries the NEP-413 fields and the summary, and its re
     state: 'login-1',
     approval: 'voice',
     times: SENT.times,
+    attestationUrl: QUOTE,
   } as const;
   expect(parseSpeakToSignMessageResult({ ...signed })).toEqual(signed);
   const { state: _state, ...withoutState } = signed;
@@ -1156,12 +1175,14 @@ test('the voice capability has the names of the normal signer, and approved hold
       signed: { nearAccountId: 'owner.testnet' },
       approval: 'voice',
       times: SENT.times,
+      attestationUrl: QUOTE,
     },
     requestDelegateAction: {
       kind: 'signed_delegate',
       signed: { hash: 'delegate-hash' },
       approval: 'voice',
       times: SENT.times,
+      attestationUrl: QUOTE,
     },
     requestMessage: {
       kind: 'signed',
@@ -1171,6 +1192,7 @@ test('the voice capability has the names of the normal signer, and approved hold
       nonce: 'bm9uY2U=',
       approval: 'voice',
       times: SENT.times,
+      attestationUrl: QUOTE,
     },
     enroll: ENROLLED,
   };
@@ -1199,7 +1221,7 @@ test('the voice capability has the names of the normal signer, and approved hold
   ]);
   expect(Object.keys(voice.typed).sort()).toEqual(['bet', 'mergeApproval', 'note', 'rating', 'transfer']);
 
-  const approved = { kind: 'approved', approval: 'voice', times: SENT.times };
+  const approved = { kind: 'approved', approval: 'voice', times: SENT.times, attestationUrl: QUOTE };
   const request = { walletId: WALLET_ID } as never;
   expect(await voice.signAndSendTransaction(request)).toEqual({
     ...approved,

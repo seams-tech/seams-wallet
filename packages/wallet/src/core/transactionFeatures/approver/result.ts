@@ -90,23 +90,26 @@ type SignedMessageResult = Extract<SpeakToSignMessageResult, { kind: 'signed' }>
 
 /**
  * The result of the request from what core did: a sent transaction, a signature that core did
- * not send, a cancel or a failure. The times go on each success.
+ * not send, a cancel or a failure. The times and the record of the verifier call go on each
+ * success.
  */
 export function mapSigning(
   signing: SpeakToSignSigning,
   times: SentResult['times'],
+  attestationUrl: string | null,
 ): SpokenResult | SignedNoteResult | SignedMessageResult {
   switch (signing.kind) {
     case 'signed_transaction':
     case 'signed_delegate':
     case 'signed':
-      return { ...signing, times };
+      return { ...signing, times, attestationUrl };
     case 'executed':
       return {
         kind: 'sent',
         transactionHash: signing.transactionHash,
         approval: signing.approval,
         times,
+        attestationUrl,
       };
     case 'reverted':
       return { kind: 'refused', reason: 'transaction_failed', detail: signing.error };
