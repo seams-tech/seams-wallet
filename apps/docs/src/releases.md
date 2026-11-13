@@ -1,9 +1,20 @@
 ---
-title: Release 0.70.4
-description: The Wallet ends a summary request for a note text that changed. A page can prepare a spoken request, so the Wallet card shows sooner.
+title: Release 0.70.5
+description: The result card of a spoken request stays whole in the Wallet frame. A page can prepare a spoken request, so the Wallet card shows sooner.
 ---
 
-# Release 0.70.4
+# Release 0.70.5
+
+The browser SDK, server SDK and VoiceID plugin use **0.70.5**. It has no breaking change since 0.70.4.
+
+Since 0.70.4:
+
+- The result card of a spoken request stays whole in the Wallet frame. Before, a result with a TEE receipt showed about 10 px too high: its top was cut off, and an empty band showed under it. The result is taller than the view before it, and it shows while the frame still grows. The card put the focus on "Done" with a plain focus, so the browser scrolled the frame. Each focus of the card now keeps the scroll position. The VoiceID cards have the same change.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.70.5**. Only `@seams/voice-capture` has a change.
+- The Wallet iframe protocol stays **25.0.0**. An app at 0.70.4 works with a Wallet host at 0.70.5.
+- Install all three packages at 0.70.5. No database migrations.
+
+## Release 0.70.4
 
 The browser SDK, server SDK and VoiceID plugin use **0.70.4**. It has no breaking change since 0.70.2. No Wallet package has the version 0.70.3; the voice libraries have it.
 

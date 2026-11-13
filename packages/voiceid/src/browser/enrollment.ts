@@ -135,7 +135,7 @@ class VoiceEnrollmentSurface {
     this.prompt.progress.replaceChildren();
     this.phase = 'ready';
     this.record.disabled = false;
-    this.record.focus();
+    this.record.focus({ preventScroll: true });
   }
 
   private readonly capture = (): void => {
@@ -300,7 +300,7 @@ class VoiceEnrollmentSurface {
   }
 
   private readonly focusRecord = (): void => {
-    if (this.phase === 'ready') this.record.focus();
+    if (this.phase === 'ready') this.record.focus({ preventScroll: true });
   };
 
   private readonly cancelled = (): void => {
