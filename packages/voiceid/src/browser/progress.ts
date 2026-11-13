@@ -120,7 +120,7 @@ class VoiceModelDownload {
         this.status.textContent = error.message;
         this.retry = new WorkerDeferred<void>();
         this.retryButton.hidden = false;
-        this.retryButton.focus();
+        this.retryButton.focus({ preventScroll: true });
         await this.retry.promise;
       }
     }

@@ -234,7 +234,7 @@ class VoiceIdCaptureSurface<T> {
           this.element.dataset.preparation = 'ready';
         },
       });
-      if (this.state.kind === 'ready') this.activateButton.focus();
+      if (this.state.kind === 'ready') this.activateButton.focus({ preventScroll: true });
     } catch (error) {
       if (this.state.kind === 'closed') return;
       this.state = { kind: 'closed' };
@@ -280,7 +280,7 @@ class VoiceIdCaptureSurface<T> {
           phrase: this.phrase,
           action: { label: 'Try again' },
         });
-        if (this.state.kind === 'ready') this.activateButton.focus();
+        if (this.state.kind === 'ready') this.activateButton.focus({ preventScroll: true });
         return;
       }
       this.state = { kind: 'closed' };

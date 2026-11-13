@@ -70,7 +70,7 @@ Install the two packages at the same version. Speak-to-Sign is a part of
 `@seams/wallet`: it has no package of its own.
 
 ```sh
-pnpm add @seams/wallet@0.70.4 @seams/voiceid@0.70.4
+pnpm add @seams/wallet@0.70.5 @seams/voiceid@0.70.5
 ```
 
 Add the `spoken` descriptor to `approvals`, beside the VoiceID auth method:

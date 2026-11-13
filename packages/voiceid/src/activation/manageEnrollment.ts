@@ -109,7 +109,7 @@ class VoiceEnrollmentManagement {
     this.parent.replaceChildren(this.element);
     this.signal.addEventListener('abort', this.cancel, { once: true });
     void this.refresh();
-    back.focus();
+    back.focus({ preventScroll: true });
   }
 
   private enrollmentRow(): HTMLElement {

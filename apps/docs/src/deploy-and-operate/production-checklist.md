@@ -10,7 +10,7 @@ users.
 
 ## Build and identity
 
-- [ ] Browser SDK, Wallet Server, and hosted assets use **0.70.4**. The recovery CLI uses **0.29.0**.
+- [ ] Browser SDK, Wallet Server, and hosted assets use **0.70.5**. The recovery CLI uses **0.29.0**.
       Record exact package versions and source revisions.
 - [ ] Application and wallet host both use iframe protocol 25.0.0.
 - [ ] An already-open older client shows an upgrade message. After reload,
