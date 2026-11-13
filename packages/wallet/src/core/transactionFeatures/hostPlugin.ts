@@ -358,6 +358,22 @@ export type SpeakToSignVerifyReply =
 /** A Seams server route that did not answer: its fixed code, or the HTTP status. */
 type SpeakToSignServerFailure = Readonly<{ kind: 'failed'; code: string }>;
 
+/**
+ * A warm-up of the spoken flow, which the app asks for before the owner presses a button. The
+ * Wallet loads its Speak-to-Sign code and, for a note, asks the Seams server for the summary.
+ * It shows no card, records nothing and signs nothing.
+ */
+export type SpeakToSignPrepareRequest = Readonly<{
+  walletId: string;
+  /** The note that the owner is about to sign. The Wallet keeps its summary for the request. */
+  note?: Readonly<{ text: string }>;
+}>;
+
+/** `ready`: the next spoken request starts with these steps done. A summary can still be in flight. */
+export type SpeakToSignPrepareResult =
+  | Readonly<{ kind: 'ready' }>
+  | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
+
 /** The summary of a community note that the Seams server wrote, or why there is none. */
 export type SpeakToSignNoteSummary =
   | Readonly<{ kind: 'summary'; summary: string }>
@@ -472,8 +488,13 @@ export type SpeakToSignHostOperations = Readonly<{
     input: Readonly<Record<string, unknown>>,
     signal: AbortSignal,
   ): Promise<SpeakToSignVerifyReply>;
-  /** Asks the Seams server for the spoken summary of a community note. */
+  /**
+   * The spoken summary of a community note, which the Seams server writes. The Wallet keeps one
+   * summary for each note text for some minutes, so a second try has the same sentence.
+   */
   summarizeNote(text: string, signal: AbortSignal): Promise<SpeakToSignNoteSummary>;
+  /** Starts the request for a note's summary now, so that `summarizeNote` finds it. */
+  prepareNote(text: string): void;
   /**
    * Checks the verifier output against this transfer and, on an approved verdict, signs and
    * sends it from the owner's account. An `accept` verdict shows no confirm; a `step_up`

@@ -70,7 +70,7 @@ Install the two packages at the same version. Speak-to-Sign is a part of
 `@seams/wallet`: it has no package of its own.
 
 ```sh
-pnpm add @seams/wallet@0.70.1 @seams/voiceid@0.70.1
+pnpm add @seams/wallet@0.70.2 @seams/voiceid@0.70.2
 ```
 
 Add the `spoken` descriptor to `approvals`, beside the VoiceID auth method:
@@ -263,6 +263,31 @@ await seams.near.spoken?.rating({
   dropped, but never with an added or dropped "not".
 - Notes need verifier 0.13.0 or later. An older verifier refuses the note text
   with `unsupported`.
+
+### Prepare a spoken request
+
+The summary takes 0.5 to 2 s, and the Wallet loads its Speak-to-Sign code for
+the first request. To show the card sooner, call `prepare` when your form is
+on the screen, before the owner presses your button:
+
+```ts [Partial example]
+// When the note is in the form, and again when its text changes.
+void seams.near.spoken?.prepare({ note: { text: noteText } });
+```
+
+- The Wallet loads its Speak-to-Sign code and reads the VoiceID state. With
+  `note`, it also asks the Seams server for the summary of that text.
+- The Wallet keeps one summary for each note text for 5 minutes. The
+  `spoken.note` call with the same text shows that summary with no new
+  request. A second try of the note shows the same sentence.
+- `prepare` shows no card, records nothing and signs nothing. Its result is
+  `{ kind: 'ready' }` or `{ kind: 'unavailable', reason }`. You do not need
+  the result: the request that follows does the same steps itself.
+- `prepare()` with no note prepares a transfer, a rating or a bet.
+- Your application still gives no summary. The Seams server writes it with
+  `writeSummary` of `@seams/voice-sign/server`, and the Wallet keeps it with
+  `createSummarySource` of `@seams/voice-sign/summary`. An application with
+  no Seams Wallet can use both parts.
 
 ## Prepare the Wallet host
 

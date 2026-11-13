@@ -25,6 +25,7 @@ export type {
   SpeakToSignDelegateRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignPrepareResult,
   SpeakToSignHostPlugin,
   SpeakToSignMessageRefusalReason,
   SpeakToSignMessageRequest,
@@ -55,6 +56,7 @@ export type {
   NearCapability,
   SpokenApproval,
   SpokenCalls,
+  SpokenPrepareRequest,
   SpokenNearSigner,
 } from './SeamsWeb/publicApi/spoken';
 export { normalizeWalletLocale } from './core/ui/locale';

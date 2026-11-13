@@ -13,6 +13,7 @@ import type {
   SpeakToSignMessageRefusalReason,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteRequest,
+  SpeakToSignPrepareResult,
   SpeakToSignProgress,
   SpeakToSignRatingRequest,
   SpeakToSignRefusalReason,
@@ -136,6 +137,22 @@ export type SpokenCalls = Readonly<{
   enroll(
     request?: Typed<{ walletId: string }, SpeakToSignEnrollmentResult>,
   ): Promise<SpeakToSignEnrollmentResult>;
+  /**
+   * Prepares the next spoken request, before the owner asks for it: call it when your form with
+   * the request is on the screen. The Wallet loads its Speak-to-Sign code, and for `note` it
+   * asks the Seams server for the note's summary and keeps it for some minutes. The request
+   * that follows then shows its card about 1 to 3 s sooner. The call shows no card, records
+   * nothing and signs nothing. Call it again when the note's text changes. A failure is not an
+   * error of your flow: the request that follows does the same steps itself.
+   */
+  prepare(request?: SpokenPrepareRequest): Promise<SpeakToSignPrepareResult>;
+}>;
+
+/** What `seams.near.spoken.prepare` takes: the wallet session, and the note to summarize. */
+export type SpokenPrepareRequest = Readonly<{
+  walletSession?: WalletSessionInput;
+  /** The note of the `spoken.note` call that follows. */
+  note?: Readonly<{ text: string }>;
 }>;
 
 /** `seams.near`: the NEAR signer, its calls with `approval`, and `spoken` when it is enabled. */
@@ -237,6 +254,13 @@ export function withSpokenApprovals(
     mergeApproval: async (args) => await voice.typed.mergeApproval((await typed(args)) as never),
     bet: async (args) => await voice.typed.bet((await typed(args)) as never),
     enroll: async (args = {}) => await voice.enroll((await typed(args)) as never),
+    prepare: async (args = {}) => {
+      const session = await currentWallet.walletSession(args.walletSession);
+      return await voice.prepare({
+        walletId: String(session.walletId),
+        ...(args.note === undefined ? {} : { note: { text: args.note.text } }),
+      });
+    },
   };
   return { ...signer, spoken } as NearCapability;
 }

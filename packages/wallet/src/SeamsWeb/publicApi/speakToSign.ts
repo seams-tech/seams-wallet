@@ -3,6 +3,8 @@ import type {
   SpeakToSignDelegateRequest,
   SpeakToSignEnrollmentRequest,
   SpeakToSignEnrollmentResult,
+  SpeakToSignPrepareRequest,
+  SpeakToSignPrepareResult,
   SpeakToSignMessageRefusalReason,
   SpeakToSignMessageRequest,
   SpeakToSignMessageResult,
@@ -136,6 +138,8 @@ export type SpeakToSignCapability = Readonly<{
   enroll(
     request: SpeakToSignCall<SpeakToSignEnrollmentRequest, SpeakToSignEnrollmentResult>,
   ): Promise<SpeakToSignEnrollmentResult>;
+  /** The warm-up before a spoken request. It shows no card. */
+  prepare(request: SpeakToSignPrepareRequest): Promise<SpeakToSignPrepareResult>;
 }>;
 
 type SpeakToSignCommand<Request, Result> = (request: WithPresentation<Request>) => Promise<Result>;
@@ -240,5 +244,6 @@ export function createSpeakToSignCapability(
       bet: sending(commands.requestBet),
     },
     enroll: (request) => withModalSteps(commands.enroll, owner, CANCELLED, request),
+    prepare: commands.prepare,
   };
 }

@@ -6,6 +6,7 @@ import type {
   SpeakToSignMessageResult,
   SpeakToSignNoteRefusalReason,
   SpeakToSignNoteResult,
+  SpeakToSignPrepareResult,
   SpeakToSignProgress,
   SpeakToSignRefusalReason,
   SpeakToSignSignedDelegateResult,
@@ -28,6 +29,7 @@ import {
   type ActionArgsWasm,
   type TransactionInputWasm,
 } from '@/core/types/actions';
+import { MAX_NOTE_CHARS } from '@shared/speakToSign/spokenKinds';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isValidAccountId } from '@shared/utils/near';
 import { parseWalletId } from '@shared/utils/domainIds';
@@ -103,6 +105,46 @@ export function parseSpeakToSignEnrollPayload(value: unknown): PMSpeakToSignEnro
     throw new Error('Speak-to-Sign enrollment request is invalid.');
   }
   return { walletId: String(value.walletId), autoStart: value.autoStart };
+}
+
+/**
+ * The `PM_SPEAK_TO_SIGN_PREPARE` payload: a warm-up before a spoken request. `noteText` is the
+ * note whose summary the Wallet asks for now.
+ */
+export type PMSpeakToSignPreparePayload = Readonly<{ walletId: string; noteText?: string }>;
+
+export function parseSpeakToSignPreparePayload(value: unknown): PMSpeakToSignPreparePayload {
+  const keys = isPlainObject(value) && 'noteText' in value ? ['walletId', 'noteText'] : ['walletId'];
+  if (
+    !hasExactKeys(value, keys) ||
+    !parseWalletId(value.walletId).ok ||
+    ('noteText' in value && !isNoteText(value.noteText))
+  ) {
+    throw new Error('Speak-to-Sign prepare request is invalid.');
+  }
+  return {
+    walletId: String(value.walletId),
+    ...('noteText' in value ? { noteText: value.noteText as string } : {}),
+  };
+}
+
+/** A note of 1 to 280 characters, not only white space: what the summary route takes. */
+function isNoteText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '' && [...value].length <= MAX_NOTE_CHARS;
+}
+
+/** Reads the iframe's answer to a warm-up. Anything outside the union is a protocol error. */
+export function parseSpeakToSignPrepareResult(value: unknown): SpeakToSignPrepareResult {
+  if (isPlainObject(value) && value.kind === 'ready' && hasExactKeys(value, ['kind'])) {
+    return { kind: 'ready' };
+  }
+  const reason = isPlainObject(value) ? readReason(value, UNAVAILABLE_REASONS) : null;
+  if (!isPlainObject(value) || value.kind !== 'unavailable' || reason === null) {
+    throw new Error('Speak-to-Sign prepare result is invalid.');
+  }
+  return typeof value.detail === 'string'
+    ? { kind: 'unavailable', reason, detail: value.detail }
+    : { kind: 'unavailable', reason };
 }
 
 /** The `PM_SPEAK_TO_SIGN_NOTE` payload: one note, rating, merge approval or market bet. */

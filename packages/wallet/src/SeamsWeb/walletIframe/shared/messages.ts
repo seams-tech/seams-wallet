@@ -19,6 +19,7 @@ import {
 import type { OwnerNearCommand } from './ownerNearOperation';
 import type {
   PMSpeakToSignEnrollPayload,
+  PMSpeakToSignPreparePayload,
   PMSpeakToSignNotePayload,
   PMSpeakToSignTransferPayload,
 } from './speakToSign';
@@ -961,6 +962,7 @@ export type ParentToChildType =
   | 'PM_SPEAK_TO_SIGN_TRANSFER'
   | 'PM_SPEAK_TO_SIGN_NOTE'
   | 'PM_SPEAK_TO_SIGN_ENROLL'
+  | 'PM_SPEAK_TO_SIGN_PREPARE'
   | 'PM_SIGN_AND_SEND_TX'
   | 'PM_SEND_TRANSACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
@@ -1805,6 +1807,9 @@ export type ParentToChildEnvelope =
     })
   | (RpcEnvelope<'PM_SPEAK_TO_SIGN_ENROLL', PMSpeakToSignEnrollPayload> & {
       payload: PMSpeakToSignEnrollPayload;
+    })
+  | (RpcEnvelope<'PM_SPEAK_TO_SIGN_PREPARE', PMSpeakToSignPreparePayload> & {
+      payload: PMSpeakToSignPreparePayload;
     })
   | RpcEnvelope<'PM_SIGN_TX_WITH_ACTIONS', PMSignTxPayload>
   | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>>
