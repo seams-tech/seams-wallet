@@ -1,9 +1,21 @@
 ---
-title: Release 0.70.6
-description: An app can press "Try again", Minimize, Back and Close of a Wallet card for the person, for example from a voice command. The card tells the app when it waits for a press.
+title: Release 0.71.0
+description: A wallet with no VoiceID can set up its voice from an app again. The first voice setup opens the enrollment card, and it waits for "Record sample 1".
 ---
 
-# Release 0.70.6
+# Release 0.71.0
+
+The browser SDK, server SDK and VoiceID plugin use **0.71.0**. It has no breaking change since 0.70.6.
+
+Since 0.70.6:
+
+- A wallet with no VoiceID can set up its voice from an app again. Since 0.70.1, a VoiceID activation starts when VoiceID has loaded, with no press on "Activate VoiceID". But the activation still needed a press in the Wallet frame, and a press in the app does not count there. So the first voice setup of a new wallet failed with "Open the Wallet and select Record to use VoiceID." Now the enrollment card opens and waits for "Record sample 1". For Speak-to-Sign, the three samples are still the enrollment of VoiceID and of the verifier.
+- A VoiceID activation that records at once shows "Activate VoiceID" and waits, if the Wallet frame has no press. This is the case of a browser that already holds a voice enrollment of the wallet. Before, it failed with the same message.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.71.0**. Their behavior has no change. Their documents and tests follow verifier 0.15.0 of Speak-to-Sign: a verdict that passes has no heard words.
+- The Wallet iframe protocol stays **25.0.0**. The fix is in the Wallet host, so an app at 0.70.6 gets it from a Wallet host at 0.71.0.
+- Install all three packages at 0.71.0. No database migrations.
+
+## Release 0.70.6
 
 The browser SDK, server SDK and VoiceID plugin use **0.70.6**. It has no breaking change since 0.70.5.
 

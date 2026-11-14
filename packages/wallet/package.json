@@ -1,6 +1,6 @@
 {
   "name": "@seams/wallet",
-  "version": "0.70.6",
+  "version": "0.71.0",
   "type": "module",
   "description": "Seams web and runtime TypeScript SDK for NEAR and EVM-family wallets",
   "main": "./dist/esm/index.js",
@@ -197,8 +197,8 @@
   "dependencies": {
     "@levischuck/tiny-cbor": "0.2.11",
     "@near-js/types": "2.4.0",
-    "@seams/voice-sign": "0.70.6",
-    "@seams/voice-verdict": "0.70.6",
+    "@seams/voice-sign": "0.71.0",
+    "@seams/voice-verdict": "0.71.0",
     "borsh": "1.0.0",
     "bs58": "6.0.0",
     "idb": "8.0.3",
