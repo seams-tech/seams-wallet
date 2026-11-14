@@ -119,8 +119,8 @@ importers:
         specifier: 2.4.0
         version: 2.4.0
       '@seams/voice-verdict':
-        specifier: 0.71.0
-        version: 0.71.0
+        specifier: 0.72.0
+        version: 0.72.0
       bs58:
         specifier: 6.0.0
         version: 6.0.0
@@ -128,8 +128,8 @@ importers:
   packages/voiceid:
     dependencies:
       '@seams/voice-capture':
-        specifier: 0.71.0
-        version: 0.71.0
+        specifier: 0.72.0
+        version: 0.72.0
       preact:
         specifier: 10.29.8
         version: 10.29.8
@@ -165,11 +165,11 @@ importers:
         specifier: 2.4.0
         version: 2.4.0
       '@seams/voice-sign':
-        specifier: 0.71.0
-        version: 0.71.0(@seams/voice-capture@0.71.0)
+        specifier: 0.72.0
+        version: 0.72.0(@seams/voice-capture@0.72.0)
       '@seams/voice-verdict':
-        specifier: 0.71.0
-        version: 0.71.0
+        specifier: 0.72.0
+        version: 0.72.0
       borsh:
         specifier: 1.0.0
         version: 1.0.0
@@ -220,11 +220,11 @@ importers:
   packages/wallet-server:
     dependencies:
       '@seams/voice-sign':
-        specifier: 0.71.0
-        version: 0.71.0(@seams/voice-capture@0.71.0)
+        specifier: 0.72.0
+        version: 0.72.0(@seams/voice-capture@0.72.0)
       '@seams/voice-verdict':
-        specifier: 0.71.0
-        version: 0.71.0
+        specifier: 0.72.0
+        version: 0.72.0
       '@simplewebauthn/server':
         specifier: 13.2.2
         version: 13.2.2
@@ -254,8 +254,8 @@ importers:
         specifier: 1.64.1
         version: 1.64.1
       '@seams/voice-verdict':
-        specifier: 0.71.0
-        version: 0.71.0
+        specifier: 0.72.0
+        version: 0.72.0
       '@seams/voiceid':
         specifier: workspace:*
         version: link:../packages/voiceid
@@ -1567,21 +1567,21 @@ packages:
   '@scure/bip39@1.6.0':
     resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
 
-  '@seams/voice-capture@0.71.0':
-    resolution: {integrity: sha512-4KbVve/cWBihDiIToBCundWpeCr8kdrVbkPipBiDY7djRjspBNCWaHsVZ/gtgwIAykRZ21VmTsyGWcaBA7SD+A==}
+  '@seams/voice-capture@0.72.0':
+    resolution: {integrity: sha512-wrIL45lS/5rrHgjClPAbjfOOK94YbuwCKMOU3ORXera1igjhB5Ud/WLwF9bmSd2jtg0NIDjSTBt4Qyz+fQgg2A==}
     engines: {node: '>=24'}
 
-  '@seams/voice-sign@0.71.0':
-    resolution: {integrity: sha512-k6jIroya6bHDTIoCk7thveOge3ze0Oe3yu6VBSPn3tNu7aNsdiSaux3PSWwpaWTKdRT24LXMsvoylZCJMYUDtQ==}
+  '@seams/voice-sign@0.72.0':
+    resolution: {integrity: sha512-2nw/92dqZPsa3MZXS93cuivdu/Xq1l5JCajlT9GZ6R56Cd1XqwabwJMibdjFTNfUjL6YNf9PbEOuHP/qmpwT1w==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@seams/voice-capture': 0.71.0
+      '@seams/voice-capture': 0.72.0
     peerDependenciesMeta:
       '@seams/voice-capture':
         optional: true
 
-  '@seams/voice-verdict@0.71.0':
-    resolution: {integrity: sha512-wwqZC+W/2D5ASjQQGwDimuYCUaE9tEChkFriHutnIenRvKP5c6/rYcxVBRR5JLROnuL+fCF5gK52hTwhWM7f9Q==}
+  '@seams/voice-verdict@0.72.0':
+    resolution: {integrity: sha512-UZZpm1MOYkzEAIJcpexONcff4S2r3k0lBx6M/w1CsMdgpxbVcNKTfS2K3kr07EshpzDiOj9ckqfbsLm8huaRjw==}
     engines: {node: '>=20'}
 
   '@shikijs/core@2.5.0':
@@ -4242,20 +4242,20 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
-  '@seams/voice-capture@0.71.0':
+  '@seams/voice-capture@0.72.0':
     dependencies:
       onnxruntime-web: 1.30.0
       preact: 10.29.8
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@seams/voice-sign@0.71.0(@seams/voice-capture@0.71.0)':
+  '@seams/voice-sign@0.72.0(@seams/voice-capture@0.72.0)':
     dependencies:
-      '@seams/voice-verdict': 0.71.0
+      '@seams/voice-verdict': 0.72.0
     optionalDependencies:
-      '@seams/voice-capture': 0.71.0
+      '@seams/voice-capture': 0.72.0
 
-  '@seams/voice-verdict@0.71.0':
+  '@seams/voice-verdict@0.72.0':
     dependencies:
       '@noble/ciphers': 1.3.0
 
