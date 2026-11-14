@@ -16,6 +16,32 @@ test.use({ ...voiceIdBrowserAudio, video: 'off', trace: 'off' });
 test.setTimeout(300_000);
 // RS256 is the less common passkey algorithm; ES256 runs in every other passkey journey.
 const passkeyAlgorithm = 'rs256';
+
+/** In this frame, only a press inside the frame counts as a user action, for 5 s. */
+function countOnlyOwnPresses(): void {
+  let pressedAtMs = Number.NEGATIVE_INFINITY;
+  addEventListener(
+    'pointerdown',
+    () => {
+      pressedAtMs = performance.now();
+    },
+    true,
+  );
+  Object.defineProperty(navigator, 'userActivation', {
+    configurable: true,
+    get: () => ({
+      get isActive() {
+        return performance.now() - pressedAtMs < 5_000;
+      },
+      hasBeenActive: true,
+    }),
+  });
+}
+
+/** Gives the frame the browser's own user activation again. */
+function countAllPresses(): void {
+  Reflect.deleteProperty(navigator, 'userActivation');
+}
 test(`rs256 passkey manages VoiceID, voice unlocks and signs, and enrollment changes stay bounded`, async ({
   page,
   context,
@@ -36,9 +62,14 @@ test(`rs256 passkey manages VoiceID, voice unlocks and signs, and enrollment cha
   await openSettings(page);
   const toggle = page.getByRole('switch', { name: 'Enable VoiceID in this browser' });
   await expect(toggle).toBeEnabled();
+  // A Wallet frame of another origin gets no user action from a press in the app. The
+  // activation starts by itself, and the enrollment card must still open and wait for its
+  // own "Record sample 1".
+  await wallet.locator('body').evaluate(countOnlyOwnPresses);
   await toggle.click();
   await enrollBrowserMicrophone(page);
   await expect(toggle).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
+  await wallet.locator('body').evaluate(countAllPresses);
   await expect(wallet.locator('#unrelated-voice-surface')).toHaveText('Unrelated surface');
   await page
     .locator('.seams-profile-button-morphable.open')

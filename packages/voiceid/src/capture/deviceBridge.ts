@@ -27,6 +27,7 @@ import {
   requireVoiceUserAction,
   requireVoiceForeground,
   InsufficientVoiceAudioError,
+  VoiceUserActionNeededError,
 } from '@seams/voice-capture';
 
 import type {
@@ -46,11 +47,16 @@ export async function captureVoiceIdActivation(
     Readonly<{ parent: HTMLElement; keepRecordings: KeepRecordings | undefined }>,
   input: Parameters<VoiceIdActivationCapture>[0],
 ): ReturnType<VoiceIdActivationCapture> {
-  requireVoiceUserAction();
+  // An activation starts when VoiceID has loaded, with no press in this frame (surface.ts). So
+  // only the branch that records at once needs a press. The enrollment card of the other branch
+  // waits for "Record sample 1", and that press is the user action (browser/enrollment.ts).
+  requireVoiceForeground();
   const device = await createBrowserVoiceDevice(input.walletId, input.walletAuthMethodId);
   const scope = await resolveActivatingVoiceEnrollmentScope(device);
   const enrollment = await readVoiceEnrollment(scope);
   if (enrollment) {
+    // The voice match records at once. Without a press, the card shows its control and waits.
+    if (!navigator.userActivation.isActive) throw new VoiceUserActionNeededError();
     const owner = await prepareVoiceOwner(scope, 'activating');
     await requireVoiceMatch(
       { kind: 'activation', scope, owner },

@@ -16,7 +16,11 @@ import {
   VoicePhraseMismatchError,
   type SpokenPhrase,
 } from '../browser/phrase';
-import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '@seams/voice-capture';
+import {
+  InsufficientVoiceAudioError,
+  VoiceUserActionNeededError,
+  type VoiceCaptureObserver,
+} from '@seams/voice-capture';
 import { leaveSurface, VoicePrompt } from '@seams/voice-capture/card';
 import { VoiceUnlockFrame } from './unlockFrame';
 import { toError } from '@seams/wallet/voiceid-host';
@@ -226,20 +230,24 @@ class VoiceIdCaptureSurface<T> {
         this.begin();
         return;
       }
-      // The title and the status change in place; the action row follows them (prompt.ts CSS).
-      await this.prompt.change({
-        title: 'Read aloud',
-        status: 'Read naturally, then pause.',
-        apply: () => {
-          this.element.dataset.preparation = 'ready';
-        },
-      });
-      if (this.state.kind === 'ready') this.activateButton.focus({ preventScroll: true });
+      await this.offerAction();
     } catch (error) {
       if (this.state.kind === 'closed') return;
       this.state = { kind: 'closed' };
       this.completion.reject(toError(error));
     }
+  }
+
+  /** Shows the action for a press. The title and the status change in place (prompt.ts CSS). */
+  private async offerAction(): Promise<void> {
+    await this.prompt.change({
+      title: 'Read aloud',
+      status: 'Read naturally, then pause.',
+      apply: () => {
+        this.element.dataset.preparation = 'ready';
+      },
+    });
+    if (this.state.kind === 'ready') this.activateButton.focus({ preventScroll: true });
   }
 
   private readonly begin = (): void => {
@@ -281,6 +289,14 @@ class VoiceIdCaptureSurface<T> {
           action: { label: 'Try again' },
         });
         if (this.state.kind === 'ready') this.activateButton.focus({ preventScroll: true });
+        return;
+      }
+      // An action that started by itself needs a press in this frame before it records. The
+      // card shows its control and waits. A mounted unlock has no control of its own.
+      if (error instanceof VoiceUserActionNeededError && !this.autoStartUnlock) {
+        this.state = { kind: 'ready', capture };
+        this.activateButton.disabled = false;
+        await this.offerAction();
         return;
       }
       this.state = { kind: 'closed' };
