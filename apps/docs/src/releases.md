@@ -1,9 +1,21 @@
 ---
-title: Release 0.71.0
-description: A wallet with no VoiceID can set up its voice from an app again. The first voice setup opens the enrollment card, and it waits for "Record sample 1".
+title: Release 0.72.0
+description: One unlock of the Wallet now gives 5 signatures, not 3. The Wallet asks for a step-up after 5 transactions.
 ---
 
-# Release 0.71.0
+# Release 0.72.0
+
+The browser SDK, server SDK and VoiceID plugin use **0.72.0**. It has no breaking change since 0.71.0.
+
+Since 0.71.0:
+
+- One unlock gives a Wallet Session of 5 signatures. Before, it gave 3. After the last one, the Wallet asks for a step-up, as before. A session that exists keeps its count until the next unlock.
+- The default is one constant now, `DEFAULT_WALLET_SESSION_REMAINING_USES`. The client defaults and the server read it. `signingSessionDefaults.remainingUses` can still lower the count for an app, and it cannot raise it above the default.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` are **0.72.0**. They have no change.
+- The Wallet iframe protocol stays **25.0.0**. The count comes from the Wallet host and the server, so an app at 0.71.0 gets 5 signatures from a host at 0.72.0.
+- Install all three packages at 0.72.0. No database migrations.
+
+## Release 0.71.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.71.0**. It has no breaking change since 0.70.6.
 
