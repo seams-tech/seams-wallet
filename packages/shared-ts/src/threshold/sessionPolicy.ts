@@ -2,7 +2,8 @@ import type { WebAuthnRpId } from '../utils/domainIds';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
 
 export const DEFAULT_WALLET_SESSION_TTL_MS = 24 * 60 * 60_000;
-export const DEFAULT_WALLET_SESSION_REMAINING_USES = 3;
+// One unlock gives this many signatures. After them, the Wallet asks for a step-up.
+export const DEFAULT_WALLET_SESSION_REMAINING_USES = 5;
 export const LINKED_DEVICE_WALLET_SESSION_TTL_MS = 15 * 60 * 1000;
 export const LINKED_DEVICE_WALLET_SESSION_REMAINING_USES = 100;
 export const MAX_WALLET_SESSION_TTL_MS = 30 * 24 * 60 * 60_000;

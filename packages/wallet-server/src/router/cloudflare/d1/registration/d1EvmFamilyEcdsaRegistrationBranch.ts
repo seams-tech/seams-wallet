@@ -6,6 +6,7 @@ import {
   parseSdkEcdsaDerivationSigningRootVersion,
   parseSdkEcdsaDerivationThresholdKeyId,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
+import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseRootShareEpoch } from '@shared/utils/domainIds';
 import { buildRouterAbEcdsaDerivationActiveStateIdV1 } from '@shared/utils/routerAbEcdsaDerivation';
@@ -19,7 +20,7 @@ import type {
 import { deriveEvmFamilySigningKeySlotId } from './d1RegistrationCeremonyRecords';
 import type { RouterAbEcdsaStrictRegistrationPort } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
 
-const REGISTRATION_WALLET_SIGNING_SESSION_REMAINING_USES = 3;
+const REGISTRATION_WALLET_SIGNING_SESSION_REMAINING_USES = DEFAULT_WALLET_SESSION_REMAINING_USES;
 const ROUTER_AB_ECDSA_REGISTRATION_REQUEST_TTL_MS = 5 * 60_000;
 
 function requireRegistrationRootShareEpoch(value: unknown) {

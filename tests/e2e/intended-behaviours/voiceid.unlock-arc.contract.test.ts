@@ -20,6 +20,7 @@ import {
 import { readNearIdentity, VoiceIdNearSigningEvidence } from './voiceid-near-signing';
 import { VoiceIdArcRpc } from './voiceid-arc-rpc';
 import type {} from '../../intended-app/src/voiceIdHelpers';
+import { DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES } from '@shared/threshold/sessionPolicy';
 
 test.use({ ...voiceIdBrowserAudio, video: 'off', trace: 'off' });
 test.setTimeout(240_000);
@@ -142,9 +143,10 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       await near.observe(context);
       await signTransfer(page);
       expect(near.transfers).toHaveLength(1);
-      // NEAR and Arc share the session's three signatures; one more NEAR transfer uses it up.
-      await signTransfer(page);
-      expect(near.transfers).toHaveLength(2);
+      // NEAR and Arc share the signatures of the session. Arc used one; the NEAR transfers use
+      // the others up.
+      for (let sent = 2; sent < SESSION_SIGNATURES; sent += 1) await signTransfer(page);
+      expect(near.transfers).toHaveLength(SESSION_SIGNATURES - 1);
       // The next Arc transfer steps up with VoiceID inside the Wallet, never with a passkey.
       const capturesBeforeStepUp = await wallet.locator('body').evaluate(microphoneCount);
       const passkeysBeforeStepUp = await wallet.locator('body').evaluate(readPasskeyRequests);
@@ -159,11 +161,11 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       });
       steppedUpWithVoice = true;
 
-      // Two NEAR transfers use the fresh session up. A send without a review then steps up
-      // inside its own confirm card: Confirm with VoiceID, the capture, then the signature.
-      await signTransfer(page);
-      await signTransfer(page);
-      expect(near.transfers).toHaveLength(4);
+      // The step-up used one signature of the fresh session, and the NEAR transfers use the
+      // others up. A send without a review then steps up inside its own confirm card: Confirm
+      // with VoiceID, the capture, then the signature.
+      for (let sent = 1; sent < SESSION_SIGNATURES; sent += 1) await signTransfer(page);
+      expect(near.transfers).toHaveLength(2 * (SESSION_SIGNATURES - 1));
       const capturesBeforeInCard = await wallet.locator('body').evaluate(microphoneCount);
       const passkeysBeforeInCard = await wallet.locator('body').evaluate(readPasskeyRequests);
       await page.getByRole('button', { name: 'Send Arc testnet transfer', exact: true }).click();

@@ -1,7 +1,10 @@
 import { UserVerificationPolicy } from '../types/authenticatorOptions';
 import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '@/core/config/presignatures';
-import { DEFAULT_THRESHOLD_SESSION_TTL_MS } from '../signingEngine/threshold/sessionPolicy';
+import {
+  DEFAULT_THRESHOLD_SESSION_TTL_MS,
+  DEFAULT_UNLOCK_REMAINING_USES,
+} from '../signingEngine/threshold/sessionPolicy';
 import {
   SIGNING_SESSION_SEAL_ALG,
   SIGNING_SESSION_SEAL_GROUP_ID,
@@ -43,7 +46,7 @@ const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvisioningDefa
     signingSession: {
       kind: 'jwt',
       ttlMs: DEFAULT_THRESHOLD_SESSION_TTL_MS,
-      remainingUses: 3,
+      remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     },
   },
   evm: {
@@ -51,7 +54,7 @@ const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvisioningDefa
     signingSession: {
       kind: 'jwt',
       ttlMs: DEFAULT_THRESHOLD_SESSION_TTL_MS,
-      remainingUses: 3,
+      remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     },
   },
 };
@@ -130,7 +133,7 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
     // Enforcement (TTL/uses) is owned by the UserConfirm worker (wallet origin); signer workers remain one-shot.
     sessionDefaults: {
       ttlMs: DEFAULT_THRESHOLD_SESSION_TTL_MS,
-      remainingUses: 3,
+      remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     },
     emailOtp: {
       authPolicy: 'session',

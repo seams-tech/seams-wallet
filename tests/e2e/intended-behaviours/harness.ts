@@ -3897,6 +3897,9 @@ export class IntendedBehaviourHarness {
     this.recordStage(`${stage}:tempo_arc.concurrent_sign`);
     const registration = this.requireRegisteredWalletForSigning();
     await this.ensureIntendedPageOpen();
+    // The concurrent pair must spend the last two signatures of the session, with any default
+    // budget (DEFAULT_WALLET_SESSION_REMAINING_USES).
+    await this.spendSigningBudgetDownTo(2, stage);
     this.latestWalletBudgetStatusRequest = null;
     this.preparedWalletBudgetStatus = null;
     await this.page.evaluate(installIntendedConcurrentActionObserver);
@@ -3951,6 +3954,20 @@ export class IntendedBehaviourHarness {
       `concurrent Tempo/Arc signatures verified wallet=${this.walletId} remainingUses=0`,
     );
     await waitForWalletIframeConfirmationSettlement(this.page);
+  }
+
+  /**
+   * Signs Tempo transactions until the server says that the Wallet Session has at most `uses`
+   * signatures left. Without a session status from an earlier signature, it does nothing.
+   */
+  private async spendSigningBudgetDownTo(uses: number, stage: IntendedSigningStage): Promise<void> {
+    if (!this.latestWalletBudgetStatusRequest && !this.preparedWalletBudgetStatus) return;
+    for (let attempt = 0; attempt < MAX_BUDGET_EXHAUSTION_SIGNS; attempt += 1) {
+      const status = await this.readCurrentWalletSessionStatus();
+      if (status.remainingUses <= uses) return;
+      await this.signTempoTransaction(stage);
+    }
+    throw new Error(`The Wallet Session did not reach ${uses} remaining signatures`);
   }
 
   async exhaustSigningBudget(): Promise<void> {
