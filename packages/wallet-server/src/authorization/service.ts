@@ -86,6 +86,13 @@ import type { AuthorizationEvidenceRequirement } from '@shared/authorization/cap
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import {
+  grantWalletSessionBudget,
+  UNREADABLE_TENANT_WALLET_SESSION_LIMITS,
+  type WalletSessionBudget,
+  type WalletSessionBudgetRequest,
+  type WalletSessionLimits,
+} from '@shared/threshold/walletSessionBudget';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
 import type { CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 
@@ -283,6 +290,12 @@ export type AuthorizedOperationMaterialScope = EcdsaMaterialActivationScope & {
   readonly kind?: 'ecdsa_material_activation';
 };
 
+/** The tenant's maximum Wallet Session budget for this deployment's project environment. */
+export interface WalletSessionLimitsPort {
+  /** Throws when the tenant's setting cannot be read. */
+  readWalletSessionLimits(): Promise<WalletSessionLimits>;
+}
+
 export type AuthorizationServicePorts = {
   readonly sessionRouting?: WalletSessionRoutingPublisher;
   readonly policy: CapabilityPolicyPort;
@@ -290,6 +303,7 @@ export type AuthorizationServicePorts = {
   readonly evidence: AuthorizationEvidencePort;
   readonly grants: AuthorizationGrantPort;
   readonly authorizedOperations: AuthorizedOperationPort;
+  readonly walletSessionLimits: WalletSessionLimitsPort;
   readonly audit: object;
 };
 
@@ -300,9 +314,9 @@ type IssueWalletSessionAuthorizationV2InputBase = {
   readonly authority: import('@shared/authorization/walletAuthority').ActiveWalletAuthorityV1;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly mintId: WalletSessionMintId;
-  readonly remainingUses: number;
+  /** What the app asked for. The service grants it up to the tenant's maximum. */
+  readonly budget: WalletSessionBudgetRequest;
   readonly issuedAtMs: number;
-  readonly expiresAtMs: number;
 };
 
 export type IssueWalletSessionAuthorizationV2Input = IssueWalletSessionAuthorizationV2InputBase;
@@ -663,6 +677,7 @@ export class AuthorizationService {
     if (input.authority.walletId !== input.walletId) {
       throw new Error('Wallet Session authorization authority does not identify the wallet');
     }
+    const budget = await this.grantWalletSessionBudget(input.budget);
     const authorizationId = parseRequired(
       await deriveWalletSessionAuthorizationV2Id(input, 'authorization'),
       parseWalletSessionAuthorizationId,
@@ -689,17 +704,31 @@ export class AuthorizationService {
       quotaId,
       capabilitySubjects: buildWalletSessionCapabilitySubjectsV1(input.authority),
       createdAtMs: input.issuedAtMs,
-      expiresAtMs: input.expiresAtMs,
+      expiresAtMs: input.issuedAtMs + budget.ttlMs,
     });
     const quota = buildActiveWalletSessionQuota({
       tenantId: session.tenantId,
       principalId: session.principalId,
       walletSessionId,
       quotaId,
-      remainingUses: input.remainingUses,
+      remainingUses: budget.remainingUses,
       expiresAtMs: session.expiresAtMs,
     });
     return { session, quota };
+  }
+
+  /** Grants min(request, the tenant's maximum). An unreadable maximum grants at most the default. */
+  async grantWalletSessionBudget(request: WalletSessionBudgetRequest): Promise<WalletSessionBudget> {
+    let limits: WalletSessionLimits;
+    try {
+      limits = await this.ports.walletSessionLimits.readWalletSessionLimits();
+    } catch (error) {
+      console.warn('[wallet-session] tenant limits are unreadable; granting at most the default', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      limits = UNREADABLE_TENANT_WALLET_SESSION_LIMITS;
+    }
+    return grantWalletSessionBudget({ request, limits });
   }
 
   async readWalletSessionAuthorizationV2ByMint(

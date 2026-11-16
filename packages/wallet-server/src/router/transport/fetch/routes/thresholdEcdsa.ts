@@ -1,4 +1,5 @@
 import { resolveWalletSessionAuthorizationV2Admission } from '../../../domains/signingOperations/walletExecutionAdmission';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import {
   walletSessionAuthorizationV2RecordsEqual,
   type WalletSessionExactOperationContext,
@@ -2702,6 +2703,8 @@ type StrictEcdsaSessionActivationInput =
       readonly body: unknown;
       readonly source: 'verified_wallet_unlock' | 'additional_wallet_target';
       readonly proof: VerifiedOwnerWalletSessionProof;
+      /** The app's budget for the Wallet Session this activation issues. Null: none. */
+      readonly walletSessionBudget: WalletSessionBudget | null;
     }
   | {
       readonly ctx: FetchRouterApiContext;
@@ -2755,8 +2758,6 @@ export async function handleStrictEcdsaSessionActivation(
     ) ||
       request.session_policy.wallet_session_mint_id !==
         authorized.admission.context.authorization.session.mintId ||
-      request.session_policy.remaining_uses !==
-        authorized.admission.context.authorization.quota.remainingUses ||
       authorized.admission.context.authorization.session.tenantId !==
         authorized.admission.context.authorization.quota.tenantId ||
       authorized.admission.context.authorization.session.principalId !==
@@ -2877,9 +2878,11 @@ export async function handleStrictEcdsaSessionActivation(
         authority: activeAuthority.authority,
         walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
         mintId: mintId.value,
-        remainingUses: activated.session.remainingUses,
-        issuedAtMs: activated.session.expiresAtMs - request.session_policy.ttl_ms,
-        expiresAtMs: activated.session.expiresAtMs,
+        budget: {
+          profile: 'default',
+          requested: 'walletSessionBudget' in input ? input.walletSessionBudget : null,
+        },
+        issuedAtMs: Date.now(),
       });
     if (directIssue.kind === 'already_committed') {
       return json(

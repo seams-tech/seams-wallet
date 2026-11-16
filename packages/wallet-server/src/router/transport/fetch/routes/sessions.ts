@@ -7,6 +7,10 @@ import { emitRouterApiWebhookEvent } from '../../../framework/routerApiWebhooks'
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import {
+  parseOptionalWalletSessionBudget,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import {
   handleWalletUnlockChallengeRoute,
@@ -650,6 +654,7 @@ function parseWalletUnlockEcdsaActivationResponse(
 function walletUnlockEcdsaSessionContext(
   ctx: FetchRouterApiContext,
   body: unknown,
+  walletSessionBudget: WalletSessionBudget | null,
 ): WalletUnlockEcdsaSessionContext {
   if (isPlainObject(body) && body.ecdsaSessionActivation !== undefined) {
     throw new Error('ecdsaSessionActivation is no longer accepted; send ecdsaSessionPolicy');
@@ -685,6 +690,7 @@ function walletUnlockEcdsaSessionContext(
           body: request,
           source: 'verified_wallet_unlock',
           proof: authorization.proof,
+          walletSessionBudget,
         });
       }
       const responseBody: unknown = await response.json();
@@ -1347,9 +1353,14 @@ export async function handleWalletUnlockVerify(
     await readJson(ctx.request),
     ctx.service.authorizedOperations.tenantId,
   );
+  let walletSessionBudget: WalletSessionBudget | null;
   let ecdsaSession: WalletUnlockEcdsaSessionContext;
   try {
-    ecdsaSession = walletUnlockEcdsaSessionContext(ctx, body);
+    walletSessionBudget = parseOptionalWalletSessionBudget(
+      isPlainObject(body) ? body.walletSessionBudget : undefined,
+      'walletSessionBudget',
+    );
+    ecdsaSession = walletUnlockEcdsaSessionContext(ctx, body, walletSessionBudget);
   } catch (error: unknown) {
     return json(
       {
@@ -1437,6 +1448,7 @@ export async function handleWalletUnlockVerify(
     },
     capabilityContext,
     ecdsaSession,
+    walletSessionBudget,
     tenantId: ctx.service.authorizationSessions.tenantId,
     buildVerifiedOwnerProof: ctx.service.authorizedOperations.buildVerifiedOwnerProof,
     emitRouterApiWebhook: async (event) => {

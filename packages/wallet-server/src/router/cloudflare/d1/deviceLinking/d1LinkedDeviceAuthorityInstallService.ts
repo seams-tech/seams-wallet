@@ -258,8 +258,6 @@ export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
     'prepareLinkedDeviceEnrollment'
   >;
   readonly tenantId: TenantId;
-  readonly walletSessionTtlMs?: number;
-  readonly walletSessionRemainingUses?: number;
   readonly nowV1?: () => number;
 };
 
@@ -1881,7 +1879,13 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
         'linked-device Wallet Session authorization is not active',
       );
     }
-    if (!walletSessionAuthorizationV2RecordsEqual(committed.session, prepared.session)) {
+    // The grant reads the tenant's current maximum, so only the expiry may differ from the commit.
+    if (
+      !walletSessionAuthorizationV2RecordsEqual(committed.session, {
+        ...prepared.session,
+        expiresAtMs: committed.session.expiresAtMs,
+      })
+    ) {
       throw new LinkedDeviceActivationIntegrityErrorV1(
         'linked-device Wallet Session authorization differs from its commit',
       );
@@ -2008,16 +2012,6 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       parseWalletSessionMintId(`linked-device-authority:${String(authority.authorityId)}`),
       'mintId',
     );
-    const ttlMs = this.options.walletSessionTtlMs ?? 15 * 60 * 1000;
-    const remainingUses = this.options.walletSessionRemainingUses ?? 100;
-    if (
-      !Number.isSafeInteger(ttlMs) ||
-      ttlMs <= 0 ||
-      !Number.isSafeInteger(remainingUses) ||
-      remainingUses <= 0
-    ) {
-      throw new Error('ordinary Wallet Session policy is invalid');
-    }
     const input: IssueWalletSessionAuthorizationV2Input = {
       tenantId,
       principalId,
@@ -2025,9 +2019,8 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       authority,
       walletAuthMethodId: authMethod.walletAuthMethodId,
       mintId,
-      remainingUses,
+      budget: { profile: 'linked_device', requested: null },
       issuedAtMs,
-      expiresAtMs: issuedAtMs + ttlMs,
     };
     return input;
   }

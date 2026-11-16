@@ -24,6 +24,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, writeFile, access, rename } from 'node:fs/promises';
 import path from 'node:path';
+import { DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES } from '@shared/threshold/sessionPolicy';
 
 type PresignRefillTag = 'background' | 'foreground' | 'unidentified';
 type PresignRefillRoute = 'init' | 'step';
@@ -313,7 +314,8 @@ test('failed background refill falls back to timed foreground refill and preserv
       harness.walletId,
       'unclaimed-evidence-probe',
     );
-    expect(persistence.remainingUses).toBe(1);
+    // Two Tempo signatures spend two uses of the registration budget.
+    expect(persistence.remainingUses).toBe(SESSION_SIGNATURES - 2);
     const evidence = {
       kind: 'ecdsa_failed_background_refill_timing_v1',
       host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
@@ -1032,7 +1034,8 @@ async function verifyLiveSigningPolicy(
   }
   const after = await signingOperationPersistence(harness.walletId, body.operation_id);
   expect(after).toMatchObject({ claims: 1, auditEvents: 1 });
-  if (stage === 'post_registration') expect(after.remainingUses).toBe(0);
+  // The probe and two Tempo signatures spend three uses of the registration budget.
+  if (stage === 'post_registration') expect(after.remainingUses).toBe(SESSION_SIGNATURES - 3);
   const evidence = {
     kind: 'gateway_ecdsa_live_policy_v1',
     host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',

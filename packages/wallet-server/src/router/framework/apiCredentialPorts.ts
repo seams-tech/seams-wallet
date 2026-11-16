@@ -125,6 +125,8 @@ export interface RouterApiProjectEnvironment {
   key: string;
   signingRootVersion: string;
   status?: string;
+  /** The tenant's maximum Wallet Session budget. Null: the tenant set none. */
+  walletSessionLimits?: import('@shared/threshold/walletSessionBudget').WalletSessionLimits | null;
 }
 
 export interface RouterApiProjectEnvironmentResolver {

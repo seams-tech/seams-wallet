@@ -4,3 +4,4 @@ export * from './participants';
 export * from './secp256k1';
 export * from './sessionPolicy';
 export * from './signingRootScope';
+export * from './walletSessionBudget';

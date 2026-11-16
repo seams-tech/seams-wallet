@@ -5,6 +5,7 @@ import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTI
 import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 import { warmSigningSessionSealRuntime } from './threshold/session/signingSessionSeal/crypto/shamir3PassWasm';
 import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
+import { createProjectEnvironmentWalletSessionLimits } from './router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { parseSessionOrigin } from './authorization/domain';
 import { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
@@ -301,6 +302,27 @@ function stagingTenantScope(env: CloudflareD1GatewayBaseEnv): RouterApiTenantSco
   };
 }
 
+/** The tenant's Wallet Session maximum, read from the Console. None without a Console binding. */
+function stagingWalletSessionLimits(
+  env: CloudflareD1GatewayBaseEnv,
+  scope: RouterApiTenantScope,
+): CloudflareD1RouterApiAuthServiceOptions['walletSessionLimits'] {
+  const binding = env.WALLET_CONSOLE;
+  if (!isWalletConsoleServiceBinding(binding)) return undefined;
+  return createProjectEnvironmentWalletSessionLimits({
+    resolver: createWalletConsoleOpsClient(binding).projectEnvironments,
+    scope,
+  });
+}
+
+function isWalletConsoleServiceBinding(value: unknown): value is WalletConsoleServiceBinding {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { readonly fetch?: unknown }).fetch === 'function'
+  );
+}
+
 type StagingTenantRootIdentity = Parameters<
   CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage']['resolveActiveLineage']
 >[0];
@@ -535,6 +557,7 @@ async function createStagingRouterApiAuthComposition(
     identityStore: dependencies.identityStore,
     googleRegistrationAttempts: dependencies.googleRegistrationAttempts,
     sessionRouting: dependencies.sessionRouting,
+    walletSessionLimits: stagingWalletSessionLimits(env, scope),
     recoveryRouting: dependencies.recoveryRouting,
     lifecycleRouting: dependencies.lifecycleRouting,
     registrationAuthority: dependencies.registrationAuthority,

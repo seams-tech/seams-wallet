@@ -160,9 +160,8 @@ export async function verifyDestinationOperationGeneration({
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: 'wallet-mint:destination-operation-generation',
-    remainingUses: 5,
+    budget: { profile: 'default', requested: { ttlMs: fixture.issuedSession.session.expiresAtMs - nowMs, remainingUses: 5 } },
     issuedAtMs: nowMs,
-    expiresAtMs: fixture.issuedSession.session.expiresAtMs,
   });
   const store = new api.CloudflareD1AuthorizationStore({
     database,

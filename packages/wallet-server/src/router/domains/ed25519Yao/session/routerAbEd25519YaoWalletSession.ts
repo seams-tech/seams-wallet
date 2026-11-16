@@ -1,4 +1,5 @@
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import type {
   PasskeyWalletAuthAuthority,
@@ -143,14 +144,17 @@ export type RouterAbEd25519YaoBudgetRefreshResponseV1 =
 type RouterAbEd25519YaoVerifiedWalletUnlockRequestBaseV1 = {
   readonly walletId: string;
   readonly signerSlot: number;
-  readonly remainingUses: number;
   readonly verifiedChallengeId: string;
   readonly authority: WalletAuthAuthority;
   readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
 };
 
 type RouterAbEd25519YaoWalletSessionIdentityV1 =
-  | { readonly kind: 'new_wallet_session' }
+  | {
+      readonly kind: 'new_wallet_session';
+      /** The app's budget. Null: the app asked for none. */
+      readonly walletSessionBudget: WalletSessionBudget | null;
+    }
   | {
       readonly kind: 'reuse_wallet_session_v2';
       readonly authorizationId: WalletSessionAuthorizationId;

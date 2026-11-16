@@ -7,7 +7,6 @@ const EMAIL_OTP_ED25519_YAO_REQUESTED_CAPABILITIES_KIND = 'ed25519_yao' as const
 
 type WalletUnlockEmailOtpRequestedCapabilitiesBase = {
   readonly signerSlot: number;
-  readonly remainingUses: number;
 };
 
 export type WalletUnlockEmailOtpRequestedCapabilitiesV1 =
@@ -39,6 +38,7 @@ type WalletUnlockRequestedCapabilitiesParseResult =
   | { readonly ok: true; readonly request: WalletUnlockEmailOtpRequestedCapabilitiesRequestV1 }
   | WalletUnlockRequestedCapabilitiesParseFailure;
 
+// A 0.72 SDK also sends remainingUses. The budget now comes from walletSessionBudget.
 const REQUESTED_CAPABILITIES_KEYS = ['kind', 'signerSlot', 'remainingUses'] as const;
 
 function invalidWalletUnlockRequestedCapabilitiesRequest(
@@ -101,16 +101,7 @@ function parseWalletUnlockEmailOtpRequestedCapabilities(
         'requestedCapabilities.signerSlot',
       );
       if (typeof signerSlot !== 'number') return signerSlot;
-      const remainingUses = parsePositiveInteger(
-        raw.remainingUses,
-        'requestedCapabilities.remainingUses',
-      );
-      if (typeof remainingUses !== 'number') return remainingUses;
-      return {
-        kind: EMAIL_OTP_ED25519_YAO_REQUESTED_CAPABILITIES_KIND,
-        signerSlot,
-        remainingUses,
-      };
+      return { kind: EMAIL_OTP_ED25519_YAO_REQUESTED_CAPABILITIES_KIND, signerSlot };
     }
     default:
       return invalidWalletUnlockRequestedCapabilitiesRequest('requestedCapabilities.kind is invalid');

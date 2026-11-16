@@ -9,6 +9,9 @@ import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedRegistrationHome } from './execution-generation.scenario.mjs';
 
+// The default tenant maximum: 100 signatures and 30 days.
+const DEFAULT_TENANT_LIMITS = { maxTtlMs: 30 * 24 * 60 * 60_000, maxRemainingUses: 100 };
+
 class CredentialDirectory {
   requests = [];
   pending = [];
@@ -501,6 +504,7 @@ async function verifyWalletAndSessionCommit(database, now) {
     walletSignerScope: scope,
   });
   const service = new api.AuthorizationService({
+    walletSessionLimits: { readWalletSessionLimits: async () => DEFAULT_TENANT_LIMITS },
     policy: api.capabilityPolicyPort,
     sessions: sessionStore,
     grants: sessionStore,
@@ -517,9 +521,8 @@ async function verifyWalletAndSessionCommit(database, now) {
     authority: founding.authority,
     walletAuthMethodId: founding.authMethod.walletAuthMethodId,
     mintId: api.registrationEstablishedMintId(ceremonyId),
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
     issuedAtMs: now,
-    expiresAtMs: now + 3_600_000,
   };
   const ceremonies = new api.D1RegistrationCeremonyRecordStore({
     database: traced,

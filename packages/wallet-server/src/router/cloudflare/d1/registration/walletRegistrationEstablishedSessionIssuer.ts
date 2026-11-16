@@ -48,10 +48,7 @@ import { base64UrlEncode } from '@shared/utils/encoders';
 import { parseImplicitNearAccountId, parseNamedNearAccountId } from '@shared/utils/near';
 import { deriveThresholdEcdsaKeyHandle } from '@shared/utils/thresholdEcdsaKeyHandle';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import {
-  DEFAULT_WALLET_SESSION_REMAINING_USES,
-  DEFAULT_WALLET_SESSION_TTL_MS,
-} from '@shared/threshold/sessionPolicy';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type {
   RegistrationEstablishedSessionProjectionTokensV2,
   RegistrationEstablishedSessionProjectionV2,
@@ -99,8 +96,8 @@ type InitialEd25519RegistrationSessionInput = {
   readonly registrationCeremonyId: string;
   readonly authority: WalletAuthAuthority;
   readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly expiresAtMs: number;
-  readonly remainingUses: number;
+  /** The app's budget. Null: the app asked for none. */
+  readonly walletSessionBudget: WalletSessionBudget | null;
   readonly proof: Extract<VerifiedOwnerProof, { readonly purpose: 'wallet_session' }>;
 };
 
@@ -117,11 +114,6 @@ export async function commitInitialEd25519RegistrationSession(
     walletAuthMethodId: input.walletAuthMethodId,
     nowMs: issuedAtMs,
   });
-  const policy = registrationSessionPolicy({
-    issuedAtMs,
-    expiresAtMs: input.expiresAtMs,
-    remainingUses: input.remainingUses,
-  });
   return input.authorizationService.commitDirectWalletSessionAuthorizationV2(
     {
       tenantId: input.authorizationTenantId,
@@ -130,9 +122,8 @@ export async function commitInitialEd25519RegistrationSession(
       authority: input.foundingAuthority,
       walletAuthMethodId: input.walletAuthMethodId,
       mintId: registrationEstablishedMintId(input.registrationCeremonyId),
-      remainingUses: policy.remainingUses,
+      budget: { profile: 'default', requested: input.walletSessionBudget },
       issuedAtMs,
-      expiresAtMs: policy.expiresAtMs,
     },
     { kind: 'validated_registration_authority_projection' },
     { kind: 'registration', ceremonyId: input.registrationCeremonyId },
@@ -345,23 +336,6 @@ function registrationSignMaterialActivation(
     );
   }
   return subject.materialActivation;
-}
-
-function registrationSessionPolicy(input: {
-  readonly expiresAtMs: number;
-  readonly remainingUses: number;
-  readonly issuedAtMs: number;
-}): { readonly expiresAtMs: number; readonly remainingUses: number } {
-  if (!Number.isSafeInteger(input.remainingUses) || input.remainingUses <= 0) {
-    throw new Error('Registration-established session remaining uses is invalid');
-  }
-  if (!Number.isSafeInteger(input.expiresAtMs) || input.expiresAtMs <= input.issuedAtMs) {
-    throw new Error('Registration-established session expiry is invalid');
-  }
-  return {
-    expiresAtMs: Math.min(input.expiresAtMs, input.issuedAtMs + DEFAULT_WALLET_SESSION_TTL_MS),
-    remainingUses: Math.min(DEFAULT_WALLET_SESSION_REMAINING_USES, input.remainingUses),
-  };
 }
 
 function directRegistrationSession(
@@ -578,8 +552,8 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     readonly registrationCeremonyId: string;
     readonly authority: WalletAuthAuthority;
     readonly walletAuthMethodId: WalletAuthMethodId;
-    readonly expiresAtMs: number;
-    readonly remainingUses: number;
+    /** The app's budget. Null: the app asked for none. */
+    readonly walletSessionBudget: WalletSessionBudget | null;
     readonly bootstrap: EcdsaDerivationServerBootstrapResponse;
     readonly runtimePolicyScope: RuntimePolicyScope;
     readonly keyManifestDigestB64u: DigestB64u;
@@ -595,11 +569,7 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
     walletAuthMethodId: input.walletAuthMethodId,
     nowMs: issuedAtMs,
   });
-  const policy = registrationSessionPolicy({
-    issuedAtMs,
-    expiresAtMs: input.expiresAtMs,
-    remainingUses: input.remainingUses,
-  });
+  // The session lasts the granted lifetime, not the lifetime of the ECDSA prepare request.
   const committed = await input.authorizationService.commitDirectWalletSessionAuthorizationV2(
     {
       tenantId: input.authorizationTenantId,
@@ -608,9 +578,8 @@ export async function issueDirectRegistrationEstablishedEcdsaSession(
       authority: input.foundingAuthority,
       walletAuthMethodId: input.walletAuthMethodId,
       mintId: registrationEstablishedMintId(input.registrationCeremonyId),
-      remainingUses: policy.remainingUses,
+      budget: { profile: 'default', requested: input.walletSessionBudget },
       issuedAtMs,
-      expiresAtMs: policy.expiresAtMs,
     },
     { kind: 'strict' },
     { kind: 'registration', ceremonyId: input.registrationCeremonyId },
@@ -659,8 +628,8 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     readonly registrationCeremonyId: string;
     readonly authority: WalletAuthAuthority;
     readonly walletAuthMethodId: WalletAuthMethodId;
-    readonly expiresAtMs: number;
-    readonly remainingUses: number;
+    /** The app's budget. Null: the app asked for none. */
+    readonly walletSessionBudget: WalletSessionBudget | null;
     readonly publicResult: WalletRegistrationEd25519YaoPublicResult;
     readonly predecessor: Ed25519RegistrationSessionPredecessor;
     readonly initialSession: RegistrationInitialSessionCommit;

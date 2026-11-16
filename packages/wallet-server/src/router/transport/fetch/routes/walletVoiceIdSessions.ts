@@ -6,6 +6,10 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import { rejectUnknownFields } from '@shared/utils/exactRecord';
+import {
+  parseOptionalWalletSessionBudget,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import { requireRecord } from '@shared/utils/validation';
 import {
   parseSessionOrigin,
@@ -116,10 +120,15 @@ export async function handleVoiceIdVerifyRequest(
   const requestOrigin = hostedOrigin(request, deps.hostedWalletOrigins);
   if (!requestOrigin) return json({ ok: false, code: 'origin_mismatch' }, { status: 403 });
   let assertion: ReturnType<typeof parseVoiceIdDeviceAssertion>;
+  let walletSessionBudget: WalletSessionBudget | null;
   try {
     const body = requireRecord(await readJson(request), 'VoiceID verification');
-    rejectUnknownFields(body, ['assertion'], 'VoiceID verification');
+    rejectUnknownFields(body, ['assertion', 'walletSessionBudget'], 'VoiceID verification');
     assertion = parseVoiceIdDeviceAssertion(body.assertion);
+    walletSessionBudget = parseOptionalWalletSessionBudget(
+      body.walletSessionBudget,
+      'VoiceID verification.walletSessionBudget',
+    );
   } catch (error: unknown) {
     return json({
       ok: false,
@@ -132,6 +141,7 @@ export async function handleVoiceIdVerifyRequest(
       assertion,
       requestOrigin,
       nowMs: Date.now(),
+      walletSessionBudget,
     });
     if (result.kind === 'rejected') {
       const status = result.code === 'issuance_unavailable' ? 503 : 403;

@@ -10,7 +10,11 @@ import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import { CloudflareD1WalletCustodyCommitStore } from '../passkeyCustody/d1WalletCustodyCommitStore';
 import type { NormalizedCloudflareD1RouterApiAuthServiceOptions } from './d1RouterApiAuthConfig';
-import { AuthorizationService } from '../../../../authorization/service';
+import {
+  AuthorizationService,
+  type WalletSessionLimitsPort,
+} from '../../../../authorization/service';
+import { UNAVAILABLE_WALLET_SESSION_LIMITS } from '../../runtime/projectEnvironmentWalletSessionLimits';
 import { capabilityPolicyPort } from '../../../../authorization/capabilityPolicy';
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
 import {
@@ -21,6 +25,7 @@ import {
 export function createD1AuthorizationAssembly(
   options: D1AuthorizationStoreOptions,
   sessionRouting: WalletSessionRoutingPublisher | undefined,
+  walletSessionLimits: WalletSessionLimitsPort | undefined,
 ) {
   const authorizationStore = new CloudflareD1AuthorizationStore(options);
   const authorizationService = new AuthorizationService({
@@ -29,6 +34,7 @@ export function createD1AuthorizationAssembly(
     evidence: authorizationStore,
     grants: authorizationStore,
     authorizedOperations: authorizationStore,
+    walletSessionLimits: walletSessionLimits ?? UNAVAILABLE_WALLET_SESSION_LIMITS,
     audit: authorizationStore,
     sessionRouting,
   });

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type TestInfo } from '@playwright/test';
 import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
+import { DEFAULT_TENANT_WALLET_SESSION_LIMITS } from '@shared/threshold/walletSessionBudget';
 import {
   parseVoiceIdDeviceAssertion,
   parseVoiceIdDevicePublicKeyB64u,
@@ -354,6 +355,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       grants: authorizationStore,
       evidence: authorizationStore,
       authorizedOperations: authorizationStore,
+      walletSessionLimits: { readWalletSessionLimits: async () => DEFAULT_TENANT_WALLET_SESSION_LIMITS },
       audit: {},
     });
     const tenantId = parseTenantId(SCOPE.orgId);
@@ -366,9 +368,8 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: fixture.issuedSession.session.mintId,
-      remainingUses: 7,
+      budget: { profile: 'default', requested: { ttlMs: 120_000, remainingUses: 7 } },
       issuedAtMs,
-      expiresAtMs: issuedAtMs + 120_000,
     });
     if (issued.kind !== 'issued') throw new Error('Source owner Wallet Session was not issued');
     const source: VoiceIdActivationOwnerSession = {

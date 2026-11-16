@@ -7,6 +7,7 @@ import {
   type Page,
 } from '@playwright/test';
 import type { IntendedBehaviourHarness } from './harness';
+import { DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES } from '@shared/threshold/sessionPolicy';
 
 export class NearRegistrationGate {
   private releaseGate: () => void = ignoreRelease;
@@ -82,7 +83,12 @@ export async function assertIndependentNearRegistration(input: {
     }
     await input.harness.signTempoTransaction('post_registration');
     await input.harness.signArcEvmTransaction('post_registration');
-    if (input.exhaustBudget) await input.harness.signTempoTransaction('post_registration');
+    // The two signatures above, and Tempo signatures until the budget is spent.
+    if (input.exhaustBudget) {
+      for (let sent = 2; sent < SESSION_SIGNATURES; sent += 1) {
+        await input.harness.signTempoTransaction('post_registration');
+      }
+    }
     pendingSession = await input.harness.readCurrentWalletSessionStatus();
     if (input.exhaustBudget) expect(pendingSession.remainingUses).toBe(0);
     await Promise.all([input.harness.awaitNearReady(), releaseAfterPendingNearWait(page, gate)]);

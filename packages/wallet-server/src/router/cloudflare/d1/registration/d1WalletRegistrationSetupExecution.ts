@@ -216,6 +216,9 @@ async function completeReservedRegistrationSetup(
     signerSelection: normalized.signerSelection,
     foundingWalletAuthMethodId: registrationOperation.walletAuthMethodId,
     ...(runtimePolicyScope ? { runtimePolicyScope } : {}),
+    ...(input.request.walletSessionBudget
+      ? { walletSessionBudget: input.request.walletSessionBudget }
+      : {}),
   });
   const digestB64u = await walletRegistrationSetupIntentDigest(intent);
   const branches = registrationIntentSignerBranches(intent);
