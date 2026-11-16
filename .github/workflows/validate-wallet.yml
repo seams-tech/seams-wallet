@@ -132,6 +132,16 @@ jobs:
             .artifacts/signing-credit/login-refusal.json
           include-hidden-files: true
           if-no-files-found: ignore
+      - name: Verify Wallet Session issuance in one D1 transaction
+        run: node tests/e2e/session-issuance-transaction.e2e.mjs
+      - name: Upload Wallet Session issuance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wallet-session-issuance-${{ github.run_id }}
+          path: .artifacts/session-issuance-transaction/proof.json
+          include-hidden-files: true
+          if-no-files-found: ignore
       - name: Verify unused tenant authorization renewal on real Workers
         env:
           ROUTER_AB_WORKER_BUILD_PROFILE: release

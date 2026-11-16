@@ -411,11 +411,16 @@ async function verifyRegistrationCompletion(database, now) {
   assert.deepEqual(completionCalls.map(callMethod), ['batch', 'run']);
   assert.equal(directory.calls, 1);
   assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, true);
+  const publishedSession = {
+    kind: 'credential',
+    walletId: identity.walletId,
+    digest: winner.publication.digest,
+    expiresAtMs: winner.publication.expiresAtMs,
+  };
   assert.deepEqual(await pendingPublications(database, identity.walletId), [
     {
       ceremony_id: identity.ceremonyId,
-      session_digest: winner.publication.digest,
-      session_expires_at_ms: winner.publication.expiresAtMs,
+      session: publishedSession,
       state: 'pending',
       attempts: 1,
     },
@@ -453,12 +458,7 @@ async function verifyRegistrationCompletion(database, now) {
   );
   assert.equal(directory.calls, 2);
   assert.deepEqual(directory.sessions[1], directory.sessions[0]);
-  assert.deepEqual(directory.sessions[0], {
-    kind: 'credential',
-    walletId: identity.walletId,
-    digest: winner.publication.digest,
-    expiresAtMs: winner.publication.expiresAtMs,
-  });
+  assert.deepEqual(directory.sessions[0], publishedSession);
   assert.deepEqual(await pendingPublications(database, identity.walletId), []);
   await database
     .prepare("UPDATE wallet_execution_generations SET state = 'retired' WHERE wallet_id = ?")
@@ -490,15 +490,18 @@ async function verifyRegistrationCompletion(database, now) {
 }
 
 async function pendingPublications(database, walletId) {
-  return (
-    await database
-      .prepare(
-        `SELECT ceremony_id, session_digest, session_expires_at_ms, state, attempts
-         FROM wallet_registration_directory_publications WHERE wallet_id = ?`,
-      )
-      .bind(walletId)
-      .all()
-  ).results;
+  const { results } = await database
+    .prepare(
+      `SELECT ceremony_id, session_json, state, attempts
+       FROM wallet_registration_directory_publications WHERE wallet_id = ?`,
+    )
+    .bind(walletId)
+    .all();
+  return results.map(publicationRow);
+}
+
+function publicationRow({ session_json, ...row }) {
+  return { ...row, session: JSON.parse(session_json) };
 }
 
 function registrationResultKind(value) {
