@@ -538,8 +538,10 @@ async function verifyNearFinalizeReplay(
   testInfo: TestInfo,
 ): Promise<void> {
   await harness.registerPasskeyEd25519YaoWallet();
-  await harness.signNearTransaction('post_registration');
-  await harness.signNearTransaction('post_registration');
+  // Spend all uses but one, so that the intercepted signature exhausts the quota.
+  for (let sent = 1; sent < SESSION_SIGNATURES; sent += 1) {
+    await harness.signNearTransaction('post_registration');
+  }
   const evidence = new NearFinalizeReplayEvidence();
   const intercept = evidence.discardFirstReplyAndRetry.bind(evidence);
   const path = '**/router-ab/ed25519/sign';

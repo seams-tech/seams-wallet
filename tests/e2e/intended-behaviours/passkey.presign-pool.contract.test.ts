@@ -24,7 +24,13 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, writeFile, access, rename } from 'node:fs/promises';
 import path from 'node:path';
-import { DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES } from '@shared/threshold/sessionPolicy';
+import {
+  DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES,
+  DEFAULT_WALLET_SESSION_TTL_MS,
+} from '@shared/threshold/sessionPolicy';
+
+// The quota-exhaustion tests ask for a small session, so that a few signatures use all of it.
+const THREE_USE_SESSION = { ttlMs: DEFAULT_WALLET_SESSION_TTL_MS, remainingUses: 3 } as const;
 
 type PresignRefillTag = 'background' | 'foreground' | 'unidentified';
 type PresignRefillRoute = 'init' | 'step';
@@ -495,6 +501,7 @@ async function measureFirstWarmAndBurstSigning(
   context.on('request', record);
   context.on('response', recordResponse);
   try {
+    harness.useSigningSessionBudget(THREE_USE_SESSION);
     await harness.registerPasskeyWallet();
     const firstStartedAt = performance.now();
     await harness.signTempoTransaction('post_registration');
@@ -1203,6 +1210,7 @@ test('distinct concurrent prepares consume the last quota use once and preserve 
   harness,
   context,
 }, testInfo) => {
+  harness.useSigningSessionBudget(THREE_USE_SESSION);
   await harness.registerPasskeyEcdsaOnlyWallet();
   await harness.signTempoTransaction('post_registration');
   await harness.signTempoTransaction('post_registration');
