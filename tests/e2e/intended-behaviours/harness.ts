@@ -1189,7 +1189,17 @@ export class IntendedBehaviourHarness {
 
   private reloadIntendedPageBeforeNextAction = true;
 
+  /** The app's Wallet Session budget (`signingSessionDefaults`). Null: the app sets none. */
+  private signingSessionBudget: { readonly ttlMs: number; readonly remainingUses: number } | null =
+    null;
+
   private registeredWallet: RegisteredWalletSnapshot | null = null;
+
+  /** Sets the app's Wallet Session budget. The app reads it when the page loads next. */
+  useSigningSessionBudget(budget: { readonly ttlMs: number; readonly remainingUses: number }): void {
+    this.signingSessionBudget = budget;
+    this.reloadIntendedPageBeforeNextAction = true;
+  }
 
   private recoveryCodes: readonly string[] = [];
 
@@ -4380,6 +4390,10 @@ export class IntendedBehaviourHarness {
     }
     url.searchParams.set('passkeyEcdsaTargetProfile', this.config.passkeyEcdsaTargetProfile);
     url.searchParams.set('emailOtpEcdsaTargetProfile', this.config.emailOtpEcdsaTargetProfile);
+    if (this.signingSessionBudget) {
+      url.searchParams.set('signingSessionTtlMs', String(this.signingSessionBudget.ttlMs));
+      url.searchParams.set('signingSessionUses', String(this.signingSessionBudget.remainingUses));
+    }
     return url;
   }
 
@@ -5392,6 +5406,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('speak-to-sign.live.contract.test.ts') ||
     normalized.endsWith('presign-generation-storage.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
+    normalized.endsWith('passkey.signing-session-budget.contract.test.ts') ||
     normalized.endsWith('passkey.near-registration-commit.contract.test.ts') ||
     normalized.endsWith('passkey.near-submission.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
