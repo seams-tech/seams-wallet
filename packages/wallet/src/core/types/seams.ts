@@ -202,7 +202,12 @@ export interface SeamsConfigsInput {
    */
   relayerAccount?: string;
   /**
-   * Default warm signing-session budgets for threshold signing flows.
+   * The Wallet Session budget that the app asks for on each unlock and registration:
+   * a lifetime (`ttlMs`) and a count of signatures (`remainingUses`).
+   * The server grants at most the maximum that the tenant set for the project
+   * environment in the Seams Console. If the tenant set no maximum, the maximum
+   * is 100 signatures and 30 days. The granted budget can be lower than the
+   * request. The unlock result gives the granted values in `signingSession`.
    */
   signingSessionDefaults?: SeamsSigningSessionDefaultsInput;
   /**
@@ -841,8 +846,12 @@ export type SeamsRegistrationNearAccountProvisioning =
 
 interface SeamsSigningSessionDefaultsInput {
   /**
-   * Defaults for relay-minted warm signing sessions minted by `unlock()`.
-   * These can be overridden per-call via `LoginHooksOptions.signingSession`.
+   * The app asks for this Wallet Session budget on each unlock. One login can
+   * ask for a different budget with `LoginHooksOptions.signingSession`.
+   * The server grants at most the maximum that the tenant set for the project
+   * environment in the Seams Console (100 signatures and 30 days when the tenant
+   * set none). The unlock result gives the granted values.
+   * Set `ttlMs` or `remainingUses` to 0 to ask for no warm session on unlock.
    */
   ttlMs?: number;
   remainingUses?: number;

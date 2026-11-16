@@ -1,27 +1,34 @@
 import type { LoginHooksOptions } from '@/core/types/sdkSentEvents';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
-import {
-  DEFAULT_UNLOCK_REMAINING_USES,
-  resolveWalletUnlockSessionUsesFromRequestedUses,
-} from '@/core/signingEngine/threshold/sessionPolicy';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
+import { resolveRequestedWalletSessionBudget } from '@/core/signingEngine/threshold/sessionPolicy';
 
+/**
+ * The Wallet Session budget that one unlock asks for. The server grants at most
+ * the maximum of the project environment, so the granted budget can be lower.
+ * When the policy is disabled, the unlock asks for no budget and warms no signer.
+ */
 export type UnlockSessionPolicy =
-  | { readonly kind: 'disabled'; readonly ttlMs: 0; readonly unlockRemainingUses: null }
-  | { readonly kind: 'enabled'; readonly ttlMs: number; readonly unlockRemainingUses: number };
+  | { readonly kind: 'disabled'; readonly budget: null }
+  | { readonly kind: 'enabled'; readonly budget: WalletSessionBudget };
 
 export function resolveUnlockSessionPolicy(args: {
   readonly defaults: SeamsConfigsReadonly['signing']['sessionDefaults'];
   readonly override: LoginHooksOptions['signingSession'];
 }): UnlockSessionPolicy {
-  const ttlMsRaw = args.override?.ttlMs ?? args.defaults.ttlMs;
-  const ttlMs =
-    typeof ttlMsRaw === 'number' ? Math.floor(ttlMsRaw) : Math.floor(Number(ttlMsRaw) || 0);
-  const unlockRemainingUses = resolveWalletUnlockSessionUsesFromRequestedUses({
-    requestedRemainingUses:
-      args.override?.remainingUses ?? args.defaults.remainingUses ?? DEFAULT_UNLOCK_REMAINING_USES,
+  const budget = resolveRequestedWalletSessionBudget({
+    defaults: args.defaults,
+    override: args.override,
   });
-  if (!(ttlMs > 0) || unlockRemainingUses === null) {
-    return { kind: 'disabled', ttlMs: 0, unlockRemainingUses: null };
-  }
-  return { kind: 'enabled', ttlMs, unlockRemainingUses };
+  return budget ? { kind: 'enabled', budget } : { kind: 'disabled', budget: null };
+}
+
+/** The app's budget from its config alone, for an unlock that has no per-login override. */
+export function resolveConfiguredWalletSessionBudget(
+  configs: Pick<SeamsConfigsReadonly, 'signing'>,
+): WalletSessionBudget | null {
+  return resolveUnlockSessionPolicy({
+    defaults: configs.signing.sessionDefaults,
+    override: undefined,
+  }).budget;
 }

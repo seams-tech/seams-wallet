@@ -74,8 +74,8 @@ function buildEcdsaUnlockPolicy(args: {
       wallet_session_mint_id: requireParsedWalletSessionMintId(
         generateSessionId('wallet-session-mint'),
       ),
-      ttl_ms: args.sessionPolicy.ttlMs,
-      remaining_uses: args.sessionPolicy.unlockRemainingUses,
+      ttl_ms: args.sessionPolicy.budget.ttlMs,
+      remaining_uses: args.sessionPolicy.budget.remainingUses,
       runtime_policy_scope: args.runtimePolicyScope,
     },
   });
@@ -261,6 +261,7 @@ async function unlockWithPasskey(args: {
       walletId: String(args.pending.walletId),
       webauthn_authentication: credential,
       ed25519SessionRequest: { kind: 'not_requested' },
+      walletSessionBudget: args.sessionPolicy.budget,
       expected_origin: expectedOrigin,
       ecdsaSessionPolicy: buildEcdsaUnlockPolicy({
         keyHandle: primaryKey.keyHandle,
@@ -349,6 +350,7 @@ async function unlockWithEmailOtp(args: {
     },
     relayUrl: args.relayerUrl,
     groupId: SIGNING_SESSION_SEAL_GROUP_ID,
+    walletSessionBudget: args.sessionPolicy.budget,
     routePlan: buildFreshEmailOtpRoutePlan({
       freshRouteFamily: 'login',
       operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,

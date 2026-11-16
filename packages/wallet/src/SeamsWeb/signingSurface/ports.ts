@@ -851,7 +851,6 @@ export interface EmailOtpSigningSessionSurface {
     walletSession: WalletSessionRef;
     providerSubjectId: string;
     walletAuthMethodId: string;
-    remainingUses: number;
   }): Promise<EmailOtpAuthorityUnlockEd25519Request | null>;
   activateOwnerAuthorityEd25519RuntimeInternal(args: {
     walletSession: WalletSessionRef;

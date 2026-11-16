@@ -25,6 +25,7 @@ import {
 } from '@/core/indexedDB/pendingWalletRegistrationCommit';
 import { isObject } from '@shared/utils/validation';
 import { scheduleEcdsaSessionPresignaturePrefill } from '../auth/scheduleEcdsaSessionPresignaturePrefill';
+import { resolveConfiguredWalletSessionBudget } from '../auth/unlockSessionPolicy';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   parseCorrelationId,
@@ -1770,6 +1771,11 @@ async function setupThreeRouteRegistration(args: {
     authMethod: args.authMethod,
     signerSelection: args.signerSelection,
   });
+  // Only a registration that gives a Wallet Session asks for the app's budget.
+  const walletSessionBudget =
+    args.completion === 'wallet_session'
+      ? resolveConfiguredWalletSessionBudget(args.context.configs)
+      : null;
   const setup = await args.recorder.measure('registrationIntentMs', () =>
     setupWalletRegistration({
       relayerUrl,
@@ -1778,6 +1784,7 @@ async function setupThreeRouteRegistration(args: {
         ...(args.wallet.kind === 'provided' ? { wallet: args.wallet } : {}),
         signerSelection: args.signerSelection,
         authMethod: args.authMethod,
+        ...(walletSessionBudget ? { walletSessionBudget } : {}),
       },
       auth: { publishableKey, environmentId },
     }),

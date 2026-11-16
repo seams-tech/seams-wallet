@@ -184,9 +184,8 @@ function samePendingEcdsaProjection(
     session.walletSession.authMethodId === pending.walletAuthMethodId &&
     session.tokens.kind === 'evm_family_ecdsa' &&
     projection.ecdsa.keyHandle === walletKey.keyHandle &&
-    projection.ecdsa.thresholdSessionId === response.ecdsa.bootstrap.thresholdSessionId &&
-    session.expiresAtMs === response.ecdsa.bootstrap.expiresAtMs &&
-    session.remainingUses === response.ecdsa.bootstrap.remainingUses
+    // The session has its own granted budget; the bootstrap budget belongs to the registration request.
+    projection.ecdsa.thresholdSessionId === response.ecdsa.bootstrap.thresholdSessionId
   );
 }
 

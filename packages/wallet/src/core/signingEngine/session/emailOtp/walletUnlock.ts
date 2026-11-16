@@ -19,6 +19,7 @@ import type { EmailOtpRoutePlan } from '../../stepUpConfirmation/otpPrompt/authL
 import type { ThresholdRuntimePolicyScope } from '../../threshold/sessionPolicy';
 import type { EmailOtpBootstrapRecovery } from '../../stepUpConfirmation/otpPrompt/bootstrapRecovery';
 import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import { ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1 } from '@shared/utils/routerAbEd25519Yao';
 import type {
   RouterAbEcdsaCredentialFreeSessionActivationResponseV1,
@@ -102,6 +103,11 @@ type EmailOtpWalletUnlockBaseArgs = {
   workerCtx: WorkerOperationContext;
   onProgress?: (progress: EmailOtpWorkerProgressEvent) => void;
   verification: EmailOtpWalletUnlockVerification;
+  /**
+   * The app's budget for the Wallet Session of a wallet unlock. Null: the
+   * request asks for none, as a step-up or an export does.
+   */
+  walletSessionBudget: WalletSessionBudget | null;
 };
 
 export type EmailOtpAuthorityWalletUnlockResult =
@@ -117,6 +123,7 @@ export async function unlockEmailOtpAuthorityWallet(args: {
   readonly walletAuthMethodId: string;
   readonly challengeId: string;
   readonly otpCode: string;
+  readonly walletSessionBudget: WalletSessionBudget | null;
   readonly ed25519: EmailOtpAuthorityUnlockEd25519Request;
   readonly workerCtx: WorkerOperationContext;
 }): Promise<EmailOtpAuthorityWalletUnlockResult> {
@@ -131,6 +138,7 @@ export async function unlockEmailOtpAuthorityWallet(args: {
         walletAuthMethodId: args.walletAuthMethodId,
         challengeId: args.challengeId,
         otpCode: args.otpCode,
+        walletSessionBudget: args.walletSessionBudget,
         ed25519: args.ed25519,
       },
     },
@@ -156,6 +164,7 @@ async function requestEmailOtpWalletUnlock(args: {
         routePlan: args.base.routePlan,
         otpChannel: EMAIL_OTP_CHANNEL,
         material: args.material,
+        walletSessionBudget: args.base.walletSessionBudget,
       },
       onEvent: args.base.onProgress,
     },
@@ -228,7 +237,6 @@ export async function unlockEmailOtpEd25519YaoCapability(
   args: EmailOtpWalletUnlockBaseArgs & {
     providerSubject: string;
     signerSlot: number;
-    remainingUses: number;
     orgId: string;
     nearAccountId: string;
     expectedOperationalPublicKey: string;
@@ -248,7 +256,6 @@ export async function unlockEmailOtpEd25519YaoCapability(
       ed25519YaoRecovery: {
         kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
         signerSlot: args.signerSlot,
-        remainingUses: args.remainingUses,
         orgId: args.orgId,
       },
     },
@@ -286,7 +293,6 @@ export async function unlockEmailOtpWalletCapabilities(
     runtimePolicyScope: ThresholdRuntimePolicyScope;
     providerSubject: string;
     signerSlot: number;
-    remainingUses: number;
     nearAccountId: string;
     expectedOperationalPublicKey: string;
     expectedThresholdSessionId: string;
@@ -312,7 +318,6 @@ export async function unlockEmailOtpWalletCapabilities(
         recovery: {
           kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
           signerSlot: args.signerSlot,
-          remainingUses: args.remainingUses,
           orgId: args.runtimePolicyScope.orgId,
         },
       },

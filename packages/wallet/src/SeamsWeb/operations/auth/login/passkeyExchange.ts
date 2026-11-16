@@ -6,6 +6,7 @@ import type { LoginWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { isObject } from '@shared/utils/validation';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import {
@@ -235,8 +236,7 @@ export async function preparePasskeyExchangeEcdsaActivation(args: {
   context: LoginWebContext;
   walletIdentity: ResolvedLoginWalletIdentity;
   selection: WalletUnlockSelection;
-  ttlMs: number;
-  remainingUses: number;
+  walletSessionBudget: WalletSessionBudget;
 }): Promise<PreparedPasskeyExchangeEcdsaActivation | null> {
   const configuredTargets = listConfiguredThresholdEcdsaPublicationTargets(
     args.context.configs.network.chains,
@@ -279,8 +279,9 @@ export async function preparePasskeyExchangeEcdsaActivation(args: {
       session_policy: {
         threshold_session_id: thresholdSessionId,
         wallet_session_mint_id: walletSessionMintId,
-        ttl_ms: args.ttlMs,
-        remaining_uses: args.remainingUses,
+        // The wire format keeps these fields. The server takes the budget from walletSessionBudget.
+        ttl_ms: args.walletSessionBudget.ttlMs,
+        remaining_uses: args.walletSessionBudget.remainingUses,
         runtime_policy_scope: runtimePolicyScope,
       },
     },
@@ -294,7 +295,7 @@ type CompletePasskeyWalletUnlockArgs = {
   onEvent?: LoginHooksOptions['onEvent'];
   authenticators: readonly LoginPasskeyAuthenticator[];
   signerSlot: number;
-  remainingUses: number;
+  walletSessionBudget: WalletSessionBudget;
   relayUrl: string;
   rpId: string;
   activation: PreparedPasskeyExchangeEcdsaActivation | null;
@@ -305,17 +306,16 @@ type CompletePasskeyWalletUnlockArgs = {
   }) => Promise<WebAuthnAuthenticationCredential>;
 };
 
-function passkeyUnlockEd25519SessionRequest(args: {
-  walletIdentity: ResolvedLoginWalletIdentity;
-  remainingUses: number;
-}): PasskeyWalletUnlockInput['ed25519SessionRequest'] {
-  switch (args.walletIdentity.kind) {
+function passkeyUnlockEd25519SessionRequest(
+  walletIdentity: ResolvedLoginWalletIdentity,
+): PasskeyWalletUnlockInput['ed25519SessionRequest'] {
+  switch (walletIdentity.kind) {
     case 'near_ed25519_capable_wallet':
-      return { kind: 'requested', remainingUses: args.remainingUses };
+      return { kind: 'requested' };
     case 'evm_family_ecdsa_only_wallet':
       return { kind: 'not_requested' };
     default:
-      return assertNeverLoginState(args.walletIdentity);
+      return assertNeverLoginState(walletIdentity);
   }
 }
 
@@ -323,29 +323,26 @@ function passkeyWalletUnlockInput(args: {
   challengeId: string;
   credential: WebAuthnAuthenticationCredential;
   ed25519SessionRequest: PasskeyWalletUnlockInput['ed25519SessionRequest'];
+  walletSessionBudget: WalletSessionBudget;
   expectedOrigin: string;
   walletIdentity: ResolvedLoginWalletIdentity;
   activation: PreparedPasskeyExchangeEcdsaActivation | null;
 }): PasskeyWalletUnlockInput {
-  if (args.activation) {
-    return {
-      type: 'passkey_assertion' as const,
-      challengeId: args.challengeId,
-      walletId: String(args.walletIdentity.walletId),
-      webauthn_authentication: args.credential,
-      ed25519SessionRequest: args.ed25519SessionRequest,
-      expected_origin: args.expectedOrigin,
-      ecdsaSessionPolicy: args.activation.policy,
-    };
-  }
-
-  return {
+  const common = {
     type: 'passkey_assertion' as const,
     challengeId: args.challengeId,
     webauthn_authentication: args.credential,
     ed25519SessionRequest: args.ed25519SessionRequest,
+    walletSessionBudget: args.walletSessionBudget,
     expected_origin: args.expectedOrigin,
   };
+  return args.activation
+    ? {
+        ...common,
+        walletId: String(args.walletIdentity.walletId),
+        ecdsaSessionPolicy: args.activation.policy,
+      }
+    : common;
 }
 
 async function validatePasskeyWalletSessionAuthorization(args: {
@@ -450,10 +447,8 @@ export async function completePasskeyWalletUnlock(
   const unlockInput = passkeyWalletUnlockInput({
     challengeId,
     credential,
-    ed25519SessionRequest: passkeyUnlockEd25519SessionRequest({
-      walletIdentity: args.walletIdentity,
-      remainingUses: args.remainingUses,
-    }),
+    ed25519SessionRequest: passkeyUnlockEd25519SessionRequest(args.walletIdentity),
+    walletSessionBudget: args.walletSessionBudget,
     expectedOrigin,
     walletIdentity: args.walletIdentity,
     activation,

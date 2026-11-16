@@ -35,8 +35,8 @@ import {
   walletCustodyCeremonyTransportFromWorkerContextV1,
 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 import { type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { DEFAULT_UNLOCK_REMAINING_USES } from '@/core/signingEngine/threshold/sessionPolicy';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
+import { resolveConfiguredWalletSessionBudget } from '../unlockSessionPolicy';
 import { passkeyPrfFirstB64uFromCredential } from '@/SeamsWeb/operations/authMethods/passkey/ecdsaBootstrap';
 import { destroyLinkedDeviceEcdsaHolderMaterialWasm } from '@/core/signingEngine/threshold/crypto/ecdsaDerivationClientWasm';
 import {
@@ -195,7 +195,6 @@ async function emailOtpAuthorityUnlockEd25519Request(input: {
     return {
       kind: 'linked_device',
       signerSlot: ed25519Material.publicFacts.applicationBinding.key_creation_signer_slot,
-      remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     };
   }
   if (
@@ -211,7 +210,6 @@ async function emailOtpAuthorityUnlockEd25519Request(input: {
       },
       providerSubjectId: input.providerIdentity.providerSubjectId,
       walletAuthMethodId: String(source.selection.authMethod.walletAuthMethodId),
-      remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     });
   return request ?? { kind: 'no_ed25519' };
 }
@@ -365,6 +363,11 @@ export async function unlockLinkedDeviceEmailOtpWallet(args: {
     walletAuthMethodId: String(selection.authMethod.walletAuthMethodId),
     challengeId: args.challengeId,
     otpCode: args.otpCode,
+    // The server gives a linked device the budget of a linked device, so only an owner asks.
+    walletSessionBudget:
+      source.kind === 'owner_authority'
+        ? resolveConfiguredWalletSessionBudget(args.context.configs)
+        : null,
     ed25519: ed25519Request,
     workerCtx: args.context.signingEngine.getSignerWorkerContext(),
   });
@@ -641,7 +644,7 @@ export async function unlockLinkedDevicePasskey(
       ed25519SessionRequest: selection.signerMaterials.some(
         (material) => material.keyFamily === 'ed25519',
       )
-        ? { kind: 'requested', remainingUses: DEFAULT_UNLOCK_REMAINING_USES }
+        ? { kind: 'requested' }
         : { kind: 'not_requested' },
       ...(expectedOrigin ? { expected_origin: expectedOrigin } : {}),
     };

@@ -300,6 +300,8 @@ export async function resolveEmailOtpEd25519ExportCustodyEnvelope(
       enrollmentSealKeyVersion: released.enrollmentSealKeyVersion,
       clientSecret32: factorSecret32,
       material: { kind: 'ed25519_yao_export' },
+      // An export, not a wallet unlock: it asks for no session budget.
+      walletSessionBudget: null,
       sessionAuth: undefined,
     });
     if (unlocked.kind !== 'ed25519_yao_export') {

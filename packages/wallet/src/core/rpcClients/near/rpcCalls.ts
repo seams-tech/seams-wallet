@@ -68,14 +68,20 @@ import {
   requireRouterAbEd25519NormalSigningState,
   type RouterAbEd25519NormalSigningState,
 } from '@shared/utils/signingSessionSeal';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
+
+/** Whether the unlock also issues an Ed25519 session. Its budget is the Wallet Session budget. */
+type PasskeyEd25519SessionRequest =
+  | { readonly kind: 'not_requested' }
+  | { readonly kind: 'requested' };
 
 type PasskeyWalletUnlockInputCore = {
   type: 'passkey_assertion';
   challengeId: string;
   webauthn_authentication: WebAuthnAuthenticationCredential;
-  ed25519SessionRequest:
-    | { readonly kind: 'not_requested' }
-    | { readonly kind: 'requested'; readonly remainingUses: number };
+  ed25519SessionRequest: PasskeyEd25519SessionRequest;
+  /** The app's budget. Null: the app asks for none, and the server uses its default. */
+  walletSessionBudget: WalletSessionBudget | null;
   expected_origin?: string;
 };
 
@@ -672,6 +678,7 @@ export async function verifyPasskeyWalletUnlock(
       ...('walletId' in input && input.walletId ? { walletId: input.walletId } : {}),
       webauthn_authentication: redactCredentialExtensionOutputs(webauthnAuthentication),
       ed25519SessionRequest: input.ed25519SessionRequest,
+      ...(input.walletSessionBudget ? { walletSessionBudget: input.walletSessionBudget } : {}),
       ...(expectedOrigin ? { expected_origin: expectedOrigin } : {}),
       ...(input.ecdsaSessionPolicy
         ? {
@@ -820,9 +827,8 @@ export async function verifyPasskeyWalletUnlock(
 export type LinkedDevicePasskeyWalletSessionUnlockInput = {
   readonly challengeId: string;
   readonly webauthn_authentication: WebAuthnAuthenticationCredential;
-  readonly ed25519SessionRequest:
-    | { readonly kind: 'not_requested' }
-    | { readonly kind: 'requested'; readonly remainingUses: number };
+  /** A linked device sends no budget: the server gives it the budget of a linked device. */
+  readonly ed25519SessionRequest: PasskeyEd25519SessionRequest;
   readonly expected_origin?: string;
 };
 

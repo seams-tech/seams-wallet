@@ -115,6 +115,7 @@ import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 
 export type EmailOtpAuthoritySelector =
   | { readonly kind: 'wallet' }
@@ -123,10 +124,10 @@ export type EmailOtpAuthoritySelector =
       readonly walletAuthMethodId: string;
     };
 
+/** The Ed25519 session of an Email OTP unlock. Its budget is the Wallet Session budget. */
 export type EmailOtpEd25519YaoRecoveryAugmentationV1 = {
   readonly kind: typeof ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1;
   readonly signerSlot: number;
-  readonly remainingUses: number;
   readonly orgId: string;
 };
 
@@ -758,6 +759,8 @@ export interface EmailOtpWorkerOperationMap {
             challengeId: string;
           };
       material: EmailOtpWalletUnlockMaterialRequest;
+      /** The app's budget for a wallet unlock. Null: the request asks for none. */
+      walletSessionBudget: WalletSessionBudget | null;
     };
     result: {
       recovery: {
@@ -778,6 +781,8 @@ export interface EmailOtpWorkerOperationMap {
       walletAuthMethodId: string;
       challengeId: string;
       otpCode: string;
+      /** The app's budget. Null: the request asks for none, as a linked device does. */
+      walletSessionBudget: WalletSessionBudget | null;
       /**
        * Which branch is unlocking, and what that branch requires.
        *
@@ -793,7 +798,6 @@ export interface EmailOtpWorkerOperationMap {
         | {
             readonly kind: 'owner_authority';
             readonly signerSlot: number;
-            readonly remainingUses: number;
             readonly recovery: {
               readonly ed25519YaoRecovery: EmailOtpEd25519YaoRecoveryAugmentationV1;
               readonly providerSubject: string;
@@ -806,7 +810,6 @@ export interface EmailOtpWorkerOperationMap {
         | {
             readonly kind: 'linked_device';
             readonly signerSlot: number;
-            readonly remainingUses: number;
             readonly recovery?: never;
           };
     };
@@ -954,7 +957,6 @@ export interface EmailOtpWorkerOperationMap {
       readonly providerSubjectId: string;
       readonly nearAccountId: string;
       readonly signerSlot: number;
-      readonly remainingUses: number;
       readonly expectedOperationalPublicKey: string;
       readonly expectedThresholdSessionId: ThresholdEd25519SessionId;
       readonly operationCredential: WalletSessionOperationCredentialV1;

@@ -1,6 +1,7 @@
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EmailOtpAuthoritySelector } from '@/core/signingEngine/workerManager/workerTypes';
 import type { EmailOtpUnlockSignerSelection } from '@/core/signingEngine/session/emailOtp/publicTypes';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 
 export type LoginWithEmailOtpWalletCustodyEd25519Args = {
   walletSession: WalletSessionRef;
@@ -13,7 +14,8 @@ export type LoginWithEmailOtpWalletCustodyEd25519Args = {
   providerSubjectId: string;
   challengeId: string;
   otpCode: string;
-  remainingUses: number;
+  /** The app's budget for this unlock. Null: the app asks for none. */
+  walletSessionBudget: WalletSessionBudget | null;
   emailOtpAuthorityEmail: string;
   emailHashHex: string;
   ed25519Selection: Extract<EmailOtpUnlockSignerSelection, { readonly kind: 'ed25519_only' }>;

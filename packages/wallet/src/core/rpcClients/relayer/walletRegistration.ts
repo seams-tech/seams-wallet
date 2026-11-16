@@ -17,6 +17,10 @@ import type {
   WebAuthnRpId,
 } from '@shared/utils/registrationIntent';
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import {
+  parseOptionalWalletSessionBudget,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import type {
   RegistrationNearAccountProvisioning,
   RegistrationSignerRequest,
@@ -1200,6 +1204,7 @@ function parseWalletRegistrationSetupIntent(value: unknown): RegistrationIntentV
       'signerSelection',
       'foundingWalletAuthMethodId',
       'runtimePolicyScope',
+      'walletSessionBudget',
       'nonceB64u',
     ],
     responseName,
@@ -1233,27 +1238,23 @@ function parseWalletRegistrationSetupIntent(value: unknown): RegistrationIntentV
     readOptionalWalletRegistrationResponseField(intent, 'runtimePolicyScope', responseName),
     responseName,
   );
+  const walletSessionBudget = parseOptionalWalletSessionBudget(
+    readOptionalWalletRegistrationResponseField(intent, 'walletSessionBudget', responseName),
+    `${responseName}.walletSessionBudget`,
+  );
   const nonceB64u = readWalletRegistrationSetupString(intent, 'nonceB64u', responseName);
-  return runtimePolicyScope === undefined
-    ? {
-        version: 'registration_intent_v1',
-        completion,
-        walletId: walletId.value,
-        authMethod,
-        signerSelection,
-        foundingWalletAuthMethodId: foundingWalletAuthMethodId.value,
-        nonceB64u,
-      }
-    : {
-        version: 'registration_intent_v1',
-        completion,
-        walletId: walletId.value,
-        authMethod,
-        signerSelection,
-        foundingWalletAuthMethodId: foundingWalletAuthMethodId.value,
-        runtimePolicyScope,
-        nonceB64u,
-      };
+  // An optional field is absent, not undefined, so the intent digest stays the same.
+  return {
+    version: 'registration_intent_v1',
+    completion,
+    walletId: walletId.value,
+    authMethod,
+    signerSelection,
+    foundingWalletAuthMethodId: foundingWalletAuthMethodId.value,
+    ...(runtimePolicyScope === undefined ? {} : { runtimePolicyScope }),
+    ...(walletSessionBudget ? { walletSessionBudget } : {}),
+    nonceB64u,
+  };
 }
 
 function parseWalletAddSignerEcdsaRespondResponse(
@@ -2513,6 +2514,11 @@ type WalletRegistrationSetupRequestForBinding = {
   readonly wallet?: RegisterWalletInput;
   readonly authMethod: RegistrationAuthMethodInput;
   readonly signerSelection: RegistrationSignerSetSelection;
+  /**
+   * The app's budget for the Wallet Session that registration gives. Only a
+   * `wallet_session` registration gives one. Absent: the app asks for none.
+   */
+  readonly walletSessionBudget?: WalletSessionBudget;
 };
 
 function normalizeWalletRegistrationSetupRequestForBinding(
@@ -2522,9 +2528,13 @@ function normalizeWalletRegistrationSetupRequestForBinding(
   readonly wallet: RegisterWalletInput;
   readonly authMethod: RegistrationAuthMethodInput;
   readonly signerSelection: RegistrationSignerSetSelection;
+  readonly walletSessionBudget?: WalletSessionBudget;
 } {
   const completion = request.completion ?? 'wallet_session';
   if (completion !== 'wallet_session' && completion !== 'owner_operations') throw new Error('Invalid registration completion');
+  if (request.walletSessionBudget && completion !== 'wallet_session') {
+    throw new Error('Only a wallet_session registration asks for a Wallet Session budget');
+  }
   const authMethod = normalizeRegistrationAuthMethodInput(request.authMethod);
   if (!authMethod) throw new Error('Wallet registration setup request authMethod is invalid');
   const signerPlan = normalizeRegistrationSignerPlan(request.signerSelection);
@@ -2546,28 +2556,29 @@ function normalizeWalletRegistrationSetupRequestForBinding(
     wallet: request.wallet ?? { kind: 'server_allocated' },
     authMethod,
     signerSelection: signerSelection.value,
+    // Absent, not undefined: the request digest of the setup journal stays the same.
+    ...(request.walletSessionBudget ? { walletSessionBudget: request.walletSessionBudget } : {}),
   };
 }
 
+/** The intent that the server must sign for this request, with the server's own fields. */
 function registrationIntentWithExpectedSetupRequest(
   intent: RegistrationIntentV1,
   request: ReturnType<typeof normalizeWalletRegistrationSetupRequestForBinding>,
 ): RegistrationIntentV1 {
-  const base = {
-    version: 'registration_intent_v1' as const,
+  return {
+    version: 'registration_intent_v1',
     completion: request.completion,
     walletId: intent.walletId,
     authMethod: request.authMethod,
     signerSelection: request.signerSelection,
     foundingWalletAuthMethodId: intent.foundingWalletAuthMethodId,
+    ...(intent.runtimePolicyScope === undefined
+      ? {}
+      : { runtimePolicyScope: intent.runtimePolicyScope }),
+    ...(request.walletSessionBudget ? { walletSessionBudget: request.walletSessionBudget } : {}),
     nonceB64u: intent.nonceB64u,
   };
-  return intent.runtimePolicyScope === undefined
-    ? base
-    : {
-        ...base,
-        runtimePolicyScope: intent.runtimePolicyScope,
-      };
 }
 
 async function assertWalletRegistrationSetupRequestBindings(args: {
@@ -3136,6 +3147,7 @@ export async function setupWalletRegistration(args: {
     wallet?: RegisterWalletInput;
     signerSelection: CreateRegistrationIntentRequest['signerSelection'];
     authMethod: CreateRegistrationIntentRequest['authMethod'];
+    walletSessionBudget?: WalletSessionBudget;
   };
   auth: { publishableKey: string; environmentId: string };
   headers?: Record<string, string>;
@@ -3171,6 +3183,7 @@ export async function setupWalletRegistration(args: {
       wallet: request.wallet,
       signerSelection: request.signerSelection,
       authMethod: request.authMethod,
+      ...(request.walletSessionBudget ? { walletSessionBudget: request.walletSessionBudget } : {}),
     },
     ...(args.onServerTiming ? { onServerTiming: args.onServerTiming } : {}),
   });

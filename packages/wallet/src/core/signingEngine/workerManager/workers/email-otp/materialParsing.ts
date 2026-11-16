@@ -190,22 +190,15 @@ export function parseEmailOtpEd25519YaoRecoveryAugmentation(
 ): EmailOtpEd25519YaoRecoveryAugmentationV1 {
   const obj = asRecord(value);
   if (!obj) throw new Error('Email OTP Ed25519 Yao recovery augmentation is required');
-  rejectUnknownEmailOtpYaoFields(
-    obj,
-    ['kind', 'signerSlot', 'remainingUses', 'orgId'],
-    'ed25519YaoRecovery',
-  );
+  rejectUnknownEmailOtpYaoFields(obj, ['kind', 'signerSlot', 'orgId'], 'ed25519YaoRecovery');
   if (obj.kind !== ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1) {
     throw new Error('Email OTP Ed25519 Yao recovery augmentation kind is invalid');
   }
   const signerSlot = normalizePositiveInteger(obj.signerSlot);
   if (!signerSlot) throw new Error('Email OTP Ed25519 Yao recovery signerSlot is invalid');
-  const remainingUses = normalizePositiveInteger(obj.remainingUses);
-  if (!remainingUses) throw new Error('Email OTP Ed25519 Yao recovery budget is invalid');
   return {
     kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
     signerSlot,
-    remainingUses,
     orgId: readString(obj.orgId, 'ed25519YaoRecovery.orgId'),
   };
 }

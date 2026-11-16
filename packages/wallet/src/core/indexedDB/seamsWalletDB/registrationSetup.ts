@@ -10,6 +10,7 @@ import type {
   RegistrationAuthMethodInput,
 } from '@shared/utils/registrationAuthMethodInput';
 import type { RegistrationSignerSetSelection } from '@shared/utils/registrationSignerPlan';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import { SEAMS_WALLET_STORES } from '../schemaNames';
 import { seamsWalletDB } from '../singletons';
 import type { SeamsWalletDBManager } from './manager';
@@ -104,6 +105,7 @@ export class RegistrationSetupRepository {
       readonly wallet: RegisterWalletInput;
       readonly authMethod: RegistrationAuthMethodInput;
       readonly signerSelection: RegistrationSignerSetSelection;
+      readonly walletSessionBudget?: WalletSessionBudget;
     },
   ): Promise<SetupAttempt> {
     const requestDigest = await sha256HexUtf8(alphabetizeStringify(request));

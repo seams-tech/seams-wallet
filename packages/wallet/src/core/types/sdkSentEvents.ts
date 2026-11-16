@@ -977,8 +977,11 @@ export interface LoginHooksOptions {
    */
   signerSlot?: number;
   /**
-   * Optional: override the warm signing session policy minted during login.
-   * Defaults come from `SeamsConfigsReadonly.signing.sessionDefaults`.
+   * Optional: the Wallet Session budget that this login asks for. Each field
+   * not set here comes from `SeamsConfigsReadonly.signing.sessionDefaults`.
+   * The server grants at most the maximum that the tenant set for the project
+   * environment in the Seams Console (100 signatures and 30 days when the tenant
+   * set none). The granted values are in the `signingSession` of the unlock result.
    */
   signingSession?: {
     ttlMs?: number;

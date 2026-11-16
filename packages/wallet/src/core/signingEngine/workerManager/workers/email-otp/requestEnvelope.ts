@@ -12,6 +12,7 @@ import {
 } from '@shared/utils/normalize';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
+import { parseOptionalWalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type {
   EmailOtpWorkerOperationMap,
   EmailOtpWorkerOperationRequestEnvelope,
@@ -319,6 +320,7 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           'otpChannel',
           'verification',
           'material',
+          'walletSessionBudget',
         ],
         type,
       );
@@ -336,13 +338,25 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           ...(otpChannel === undefined ? {} : { otpChannel }),
           verification: parseEmailOtpWalletUnlockVerification(payload.verification),
           material: parseEmailOtpWalletUnlockMaterialRequest(payload.material),
+          walletSessionBudget: parseOptionalWalletSessionBudget(
+            payload.walletSessionBudget,
+            `${type}.walletSessionBudget`,
+          ),
         },
       };
     }
     case 'unlockEmailOtpAuthorityWallet': {
       rejectUnknownEmailOtpYaoFields(
         payload,
-        ['relayUrl', 'walletId', 'walletAuthMethodId', 'challengeId', 'otpCode', 'ed25519'],
+        [
+          'relayUrl',
+          'walletId',
+          'walletAuthMethodId',
+          'challengeId',
+          'otpCode',
+          'walletSessionBudget',
+          'ed25519',
+        ],
         type,
       );
       const ed25519Payload = asRecord(payload.ed25519);
@@ -356,19 +370,18 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           case 'linked_device': {
             rejectUnknownEmailOtpYaoFields(
               ed25519Payload,
-              ['kind', 'signerSlot', 'remainingUses'],
+              ['kind', 'signerSlot'],
               `${type}.ed25519`,
             );
             return {
               kind: 'linked_device' as const,
               signerSlot: normalizePositiveInteger(ed25519Payload.signerSlot) || 0,
-              remainingUses: normalizePositiveInteger(ed25519Payload.remainingUses) || 0,
             };
           }
           case 'owner_authority': {
             rejectUnknownEmailOtpYaoFields(
               ed25519Payload,
-              ['kind', 'signerSlot', 'remainingUses', 'recovery'],
+              ['kind', 'signerSlot', 'recovery'],
               `${type}.ed25519`,
             );
             const recovery = asRecord(ed25519Payload.recovery);
@@ -381,7 +394,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
             return {
               kind: 'owner_authority' as const,
               signerSlot: normalizePositiveInteger(ed25519Payload.signerSlot) || 0,
-              remainingUses: normalizePositiveInteger(ed25519Payload.remainingUses) || 0,
               recovery: {
                 ed25519YaoRecovery: parseEmailOtpEd25519YaoRecoveryAugmentation(
                   recovery.ed25519YaoRecovery,
@@ -396,8 +408,7 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
       })();
       if (
         !parsedEd25519 ||
-        (parsedEd25519.kind !== 'no_ed25519' &&
-          (parsedEd25519.signerSlot <= 0 || parsedEd25519.remainingUses <= 0))
+        (parsedEd25519.kind !== 'no_ed25519' && parsedEd25519.signerSlot <= 0)
       ) {
         throw new Error(`${type}.ed25519 is invalid`);
       }
@@ -410,6 +421,10 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           walletAuthMethodId: readString(payload.walletAuthMethodId, 'walletAuthMethodId'),
           challengeId: readString(payload.challengeId, 'challengeId'),
           otpCode: readString(payload.otpCode, 'otpCode'),
+          walletSessionBudget: parseOptionalWalletSessionBudget(
+            payload.walletSessionBudget,
+            `${type}.walletSessionBudget`,
+          ),
           ed25519: parsedEd25519,
         },
       };
@@ -548,7 +563,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
         payload,
         [
           ...EMAIL_OTP_ED25519_REHYDRATE_LANE_FIELDS,
-          'remainingUses',
           'expectedOperationalPublicKey',
           'expectedThresholdSessionId',
           'operationCredential',
@@ -575,7 +589,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           providerSubjectId: readString(payload.providerSubjectId, 'providerSubjectId'),
           nearAccountId: readString(payload.nearAccountId, 'nearAccountId'),
           signerSlot: normalizePositiveInteger(payload.signerSlot) || 0,
-          remainingUses: normalizeNonNegativeInteger(payload.remainingUses) ?? 0,
           expectedOperationalPublicKey: readString(
             payload.expectedOperationalPublicKey,
             'expectedOperationalPublicKey',

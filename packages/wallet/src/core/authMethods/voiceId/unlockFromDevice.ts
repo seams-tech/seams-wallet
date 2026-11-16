@@ -1,5 +1,6 @@
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type { VoiceIdUnlockCapture } from './contracts';
 import type { VoiceIdHttpClient, VoiceIdVerifiedSession } from './httpClient';
 
@@ -8,6 +9,8 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
   readonly authMethod: ActiveVoiceIdWalletAuthMethodRecordV2;
   readonly challenge: VoiceIdWalletSessionChallenge;
   readonly http: Pick<VoiceIdHttpClient, 'verify'>;
+  /** The app's Wallet Session budget. Absent or null: the app asks for none. */
+  readonly walletSessionBudget?: WalletSessionBudget | null;
   readonly capture: VoiceIdUnlockCapture;
   readonly install: (verified: VoiceIdVerifiedSession, factorSecret32: Uint8Array) => Promise<T>;
   readonly signal: AbortSignal;
@@ -29,6 +32,7 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
     if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');
     const verified = await input.http.verify({
       assertion: captured.assertion,
+      walletSessionBudget: input.walletSessionBudget,
       signal: input.signal,
     });
     if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');
