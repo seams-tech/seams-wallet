@@ -11,7 +11,16 @@ import { isEvmChainNetwork, isNearChainNetwork } from '@/core/config/chains';
  * review calls verified is the same token that Settings lists.
  */
 
-export type TokenArtworkKey = 'NEAR' | 'stNEAR' | 'ETH' | 'USDC' | 'USDT' | 'BTC' | 'SOL' | 'ZEC';
+export type TokenArtworkKey =
+  | 'NEAR'
+  | 'stNEAR'
+  | 'ETH'
+  | 'USDC'
+  | 'USDT'
+  | 'JPYC'
+  | 'BTC'
+  | 'SOL'
+  | 'ZEC';
 
 type ListedToken = {
   readonly contract: string;
@@ -170,6 +179,14 @@ const ERC20_TOKENS: Readonly<Record<number, readonly ListedToken[]>> = {
       name: 'Tether USD',
       artwork: 'USDT',
       primary: true,
+    },
+    {
+      contract: '0xe7c3d8c9a439fede00d2600032d5db0be71c3c29',
+      symbol: 'JPYC',
+      decimals: 18,
+      name: 'JPY Coin',
+      artwork: 'JPYC',
+      primary: false,
     },
     {
       contract: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',

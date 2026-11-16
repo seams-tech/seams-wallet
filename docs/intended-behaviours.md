@@ -133,7 +133,8 @@ names tokens in the transfer review, so a token the review calls verified is the
 that Settings lists. On NEAR mainnet the primary assets are NEAR, stNEAR, USDC, USDt,
 ETH, BTC, SOL and ZEC; BTC, SOL and ZEC are NEAR Intents tokens (`*.omft.near`). On NEAR
 testnet they are NEAR, stNEAR and USDC. Other listed variants (wNEAR, USDT.e, nBTC, WBTC)
-appear only while held. Ethereum networks add ETH and listed ERC-20 tokens. Arc lists
+appear only while held. Ethereum networks add ETH and listed ERC-20 tokens; on Ethereum
+mainnet JPYC (JPY Coin), WBTC and cbBTC appear only while held. Arc lists
 only its USDC token, because its native balance is the same money.
 
 A read uses public RPC data and needs no session. It never rejects. A failed read is

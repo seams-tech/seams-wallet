@@ -124,6 +124,10 @@ test('the transfer review still reads token names from the shared asset list', (
     symbol: 'USDC',
     decimals: 6,
   });
+  expect(listedErc20Token(1, '0xE7C3D8C9a439feDe00D2600032D5dB0Be71C3c29')).toEqual({
+    symbol: 'JPYC',
+    decimals: 18,
+  });
   expect(listedErc20Token(8453, '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913')?.symbol).toBe('USDC');
 });
 

@@ -15,6 +15,7 @@ const ARTWORK_BY_SYMBOL: Readonly<Record<string, TokenArtworkKey>> = {
   USDT: 'USDT',
   USDt: 'USDT',
   'USDT.e': 'USDT',
+  JPYC: 'JPYC',
   BTC: 'BTC',
   WBTC: 'BTC',
   cbBTC: 'BTC',

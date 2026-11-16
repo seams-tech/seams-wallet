@@ -13,19 +13,19 @@ import type { SendOutcome } from './SendPanel';
 export const PREVIEW_NEAR_ACCOUNT = 'alex.near';
 export const PREVIEW_EVM_ADDRESS = '0x42010000000000000000000000000000000000891c';
 
-// Whole-unit sample amounts by asset id; anything else shows zero.
+// Sample amounts in base units by asset id; anything else shows zero. The overview card leads
+// with held assets in list order, so holding only these three makes it read NEAR, USDC, JPYC.
 const SAMPLE_AMOUNTS: Readonly<Record<string, { available: string; reserved?: string }>> = {
   'near-mainnet:native': {
     available: '12480000000000000000000000',
     reserved: '50000000000000000000000',
   },
-  'near-mainnet:meta-pool.near': { available: '4100000000000000000000000' },
   'near-mainnet:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1': {
     available: '250000000',
   },
-  'near-mainnet:sol.omft.near': { available: '1250000000' },
-  'ethereum-mainnet:native': { available: '42000000000000000' },
-  'ethereum-mainnet:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': { available: '18200000' },
+  'ethereum-mainnet:0xe7c3d8c9a439fede00d2600032d5db0be71c3c29': {
+    available: '25000000000000000000000',
+  },
 };
 
 function sampleBalance(asset: WalletAsset): AssetBalance {
