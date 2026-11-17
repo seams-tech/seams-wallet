@@ -1,9 +1,26 @@
 ---
-title: Release 0.72.0
-description: One unlock of the Wallet now gives 5 signatures, not 3. The Wallet asks for a step-up after 5 transactions.
+title: Release 0.73.0
+description: The app asks for its Wallet Session budget, and the server grants it up to the tenant's maximum. Deploy the 0.73.0 server before the Wallet host.
 ---
 
-# Release 0.72.0
+# Release 0.73.0
+
+The browser SDK, server SDK and VoiceID plugin use **0.73.0**. A Wallet host at 0.73.0 needs a server at 0.73.0, so deploy the server first.
+
+Since 0.72.0:
+
+- The app sets the Wallet Session budget: `signingSessionDefaults: { ttlMs, remainingUses }` in the provider config, or `signingSession` in the options of one login. Before, an app could only lower the count below 5. See [Set the session budget](/guides/wallet-sessions-and-signing-lanes#set-the-session-budget).
+- The server grants the request up to the maximum of the project environment. A tenant sets that maximum in the Seams Console. With no setting, the maximum is 100 signatures and 30 days. The highest maximum is 1,000,000 signatures and 30 days. With no request, a session gives 5 signatures and lasts 24 hours, as before.
+- Read the granted budget from the unlock result (`signingSession.remainingUses` and `signingSession.expiresAtMs`). It can be lower than the request.
+- The budget goes to the server as `walletSessionBudget` on the passkey, Email OTP and VoiceID unlock and on registration setup. The session that registration gives lasts the granted time. Before, its ECDSA session lasted 5 minutes.
+- A linked device gets its own session of 100 signatures and 15 minutes, also capped by the tenant's maximum.
+- A server that you host reads the maximum through the Console binding. The static Console binding takes the optional `deployment.walletSessionLimits` (`{ maxTtlMs, maxRemainingUses }`).
+- The Wallet lists JPYC (JPY Coin) on Ethereum, with JPYC's coin mark. Like WBTC and cbBTC, it shows only while the wallet holds it.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` stay at **0.72.0**. They have no change.
+- The Wallet iframe protocol stays **25.0.0**. A server at 0.73.0 accepts the requests of a 0.72.0 Wallet host and ignores their old counts. A Wallet host at 0.73.0 does not work with a server at 0.72.0.
+- Install all three packages at 0.73.0. No database migrations.
+
+## Release 0.72.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.72.0**. It has no breaking change since 0.71.0.
 
