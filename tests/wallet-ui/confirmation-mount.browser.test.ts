@@ -12,6 +12,7 @@ import type {
   MessageReceiptState,
   TransactionReceiptState,
 } from '@/core/signingEngine/uiConfirm/ui/transaction-receipt';
+import type { WalletLocale } from '@/core/ui/locale';
 
 const walletUiCss = fs.readFileSync(
   path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
@@ -25,6 +26,7 @@ declare global {
         variant: 'modal' | 'drawer',
         context: 'standalone' | 'wallet-iframe',
         shape?: Record<string, string>,
+        locale?: WalletLocale,
       ): string;
       update(index: number, heading: string, ready: boolean): void;
       error(index: number): void;
@@ -62,8 +64,9 @@ test.beforeEach(async ({ page }) => {
       '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.js';
     const { mountConfirmationSurface } = await import(moduleUrl);
     const handles: ConfirmationSurfaceHandle[] = [];
-    // The shape an app sets, kept for every model the fixture builds after mount.
+    // The shape and locale an app sets, kept for every model the fixture builds after mount.
     let appShape: Record<string, string> | undefined;
+    let appLocale: WalletLocale | undefined;
     function firstConfirm() {
       window.__confirmationMount.calls.push('first');
     }
@@ -86,6 +89,7 @@ test.beforeEach(async ({ page }) => {
             colors: { accent: 'rgb(12, 34, 56)' },
             ...(appShape ? { shape: appShape } : {}),
           },
+          ...(appLocale ? { locale: appLocale } : {}),
         },
         content: {
           kind: 'transaction',
@@ -119,8 +123,10 @@ test.beforeEach(async ({ page }) => {
       variant: 'modal' | 'drawer',
       context: 'standalone' | 'wallet-iframe',
       shape?: Record<string, string>,
+      locale?: WalletLocale,
     ) {
       appShape = shape;
+      appLocale = locale;
       const handle = mountConfirmationSurface({
         parent: document.querySelector('main')!,
         presentation: { variant, context },
@@ -429,6 +435,68 @@ test('a failed NEAR receipt states the reason that NEAR gave', async ({ page }) 
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
+test('each receipt stage keeps its heading and description on one line on a phone', async ({
+  page,
+}) => {
+  // A change of line count between stages moves the card while the signature runs.
+  const stages = [
+    { subject: 'transaction', state: { kind: 'signing' } },
+    { subject: 'transaction', state: { kind: 'signed' } },
+    { subject: 'transaction', state: { kind: 'broadcasting' } },
+    { subject: 'transaction', state: { kind: 'submitted', hash: null } },
+    { subject: 'transaction', state: { kind: 'confirmed', hash: null } },
+    { subject: 'message', state: { kind: 'signing' } },
+    { subject: 'message', state: { kind: 'signed' } },
+  ] as const;
+  // A Japanese glyph is one em wide in every font, so Japanese runs at the narrowest
+  // common phone. Latin text follows the test machine's font, which on Linux is wider
+  // than a phone's, so English runs at 390 px.
+  const runs = [
+    ['ja', 360],
+    ['en', 390],
+  ] as const;
+  for (const [index, [locale, width]] of runs.entries()) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.evaluate(
+      (locale) => window.__confirmationMount.mount('modal', 'wallet-iframe', undefined, locale),
+      locale,
+    );
+    for (const stage of stages) {
+      await page.evaluate(
+        ({ index, stage }) => {
+          if (stage.subject === 'message') {
+            window.__confirmationMount.messageReceipt(index, stage.state, 'expanded');
+          } else {
+            window.__confirmationMount.receipt(index, stage.state, 'expanded');
+          }
+        },
+        { index, stage },
+      );
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const receipts = document.querySelectorAll('.seams-transaction-receipt');
+              const receipt = receipts[receipts.length - 1];
+              const lines = (selector: string) => {
+                const range = document.createRange();
+                range.selectNodeContents(receipt.querySelector(selector)!);
+                const tops = [...range.getClientRects()].map((rect) => Math.round(rect.top));
+                return new Set(tops).size;
+              };
+              return {
+                heading: lines('.seams-receipt-heading h2'),
+                description: lines('.seams-receipt-heading p'),
+              };
+            }),
+          { message: `${locale} ${stage.subject} ${stage.state.kind}` },
+        )
+        .toEqual({ heading: 1, description: 1 });
+    }
+    await page.evaluate((index) => window.__confirmationMount.dispose(index), index);
+  }
+});
+
 test('a message signature receipt is complete once signed and has no network stages', async ({
   page,
 }) => {
@@ -440,7 +508,7 @@ test('a message signature receipt is complete once signed and has no network sta
   await expect(receipt.locator('.seams-review-toolbar')).toHaveText('Message signature');
   await expect(receipt.getByRole('status')).toHaveText('Message signed');
   await expect(receipt.locator('.seams-receipt-heading p')).toHaveText(
-    'Signed off-chain. Nothing was sent to the network.',
+    'Nothing was sent to the network.',
   );
   const steps = receipt.locator('.seams-receipt-step');
   await expect(steps).toHaveCount(3);

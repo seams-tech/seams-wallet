@@ -79,8 +79,8 @@ export function receiptDescription(receipt: ReceiptProgress): string {
   switch (state.kind) {
     case 'signing': return 'Preparing your signed transaction.';
     case 'signed': return 'Signature created, ready to broadcast.';
-    case 'broadcasting': return 'Submitting your signed transaction to the network.';
-    case 'submitted': return 'Submitted to the network. Waiting for the receipt.';
+    case 'broadcasting': return 'Sending it to the network.';
+    case 'submitted': return 'Sent. Waiting for the receipt.';
     case 'confirmed': return 'The network confirmed your transaction.';
     case 'failed': case 'reverted': case 'rejected': case 'unknown': return state.message;
     default: return assertNever(state);
@@ -99,7 +99,7 @@ function messageHeading(state: MessageReceiptState): string {
 function messageDescription(state: MessageReceiptState): string {
   switch (state.kind) {
     case 'signing': return 'Preparing your message signature.';
-    case 'signed': return 'Signed off-chain. Nothing was sent to the network.';
+    case 'signed': return 'Nothing was sent to the network.';
     case 'failed': return state.message;
     default: return assertNever(state);
   }
