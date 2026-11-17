@@ -1,4 +1,5 @@
 import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import {
   parseAuthFactorId,
   parsePrincipalId,
@@ -614,6 +615,7 @@ async function provisionFirstEcdsaWalletSession(input: {
 /** The Ed25519 session joins the unlock's Wallet Session when there is one, else starts its own. */
 function walletUnlockEd25519SessionIdentity(
   linkedWalletSession: IssuedWalletSessionAuthorizationV2 | null,
+  walletSessionBudget: WalletSessionBudget | null,
 ): Parameters<
   RouterApiWalletRegistrationService['provisionEd25519YaoWalletSession']
 >[0]['walletSessionIdentity'] {
@@ -626,7 +628,7 @@ function walletUnlockEd25519SessionIdentity(
         expiresAtMs: linkedWalletSession.session.expiresAtMs,
         remainingUses: linkedWalletSession.quota.remainingUses,
       }
-    : { kind: 'new_wallet_session' };
+    : { kind: 'new_wallet_session', walletSessionBudget };
 }
 
 function walletUnlockScopeMismatchResponse(): WalletUnlockProvisionedCapabilityResult {
@@ -663,6 +665,7 @@ async function provisionEmailOtpEd25519YaoCapability(input: {
   readonly verifiedUnlock: VerifiedEmailOtpUnlockResult;
   readonly authorization: WalletUnlockOwnerAuthorization;
   readonly linkedWalletSession: IssuedWalletSessionAuthorizationV2 | null;
+  readonly walletSessionBudget: WalletSessionBudget | null;
 }): Promise<WalletUnlockProvisionedCapabilityResult> {
   const request = input.context.request;
   if (
@@ -681,10 +684,12 @@ async function provisionEmailOtpEd25519YaoCapability(input: {
     {
       walletId: request.walletId,
       signerSlot: capabilities.signerSlot,
-      remainingUses: capabilities.remainingUses,
       verifiedChallengeId: request.challengeId,
       authority: input.authorization.authority,
-      walletSessionIdentity: walletUnlockEd25519SessionIdentity(input.linkedWalletSession),
+      walletSessionIdentity: walletUnlockEd25519SessionIdentity(
+        input.linkedWalletSession,
+        input.walletSessionBudget,
+      ),
     },
     input.authorization.proof,
   );
@@ -703,7 +708,7 @@ async function provisionEmailOtpEd25519YaoCapability(input: {
 
 type PasskeyEd25519SessionRequest =
   | { readonly kind: 'not_requested' }
-  | { readonly kind: 'requested'; readonly remainingUses: number };
+  | { readonly kind: 'requested' };
 
 type PasskeyEd25519SessionProvisionResult =
   | { readonly ok: true; readonly session: WalletRegistrationEd25519YaoBootstrapSession | null }
@@ -813,11 +818,8 @@ function parsePasskeyEd25519SessionRequest(value: unknown): PasskeyEd25519Sessio
   if (request.kind !== 'requested') {
     throw new Error('ed25519SessionRequest.kind is invalid');
   }
-  const remainingUses = Math.floor(Number(request.remainingUses));
-  if (!Number.isSafeInteger(remainingUses) || remainingUses < 1) {
-    throw new Error('ed25519SessionRequest.remainingUses is invalid');
-  }
-  return { kind: 'requested', remainingUses };
+  // A 0.72 SDK also sends remainingUses here. The budget now comes from walletSessionBudget.
+  return { kind: 'requested' };
 }
 
 async function provisionPasskeyEd25519YaoSession(input: {
@@ -830,6 +832,7 @@ async function provisionPasskeyEd25519YaoSession(input: {
   readonly walletId: string;
   readonly authorization: WalletUnlockOwnerAuthorization;
   readonly linkedWalletSession: IssuedWalletSessionAuthorizationV2 | null;
+  readonly walletSessionBudget: WalletSessionBudget | null;
 }): Promise<PasskeyEd25519SessionProvisionResult> {
   if (input.request.kind === 'not_requested') return { ok: true, session: null };
   if (input.ed25519.kind !== 'active') {
@@ -844,11 +847,13 @@ async function provisionPasskeyEd25519YaoSession(input: {
   const provisioned = await input.context.provisionWalletSession({
     walletId: input.walletId,
     signerSlot: input.ed25519.signerSlot,
-    remainingUses: input.request.remainingUses,
     verifiedChallengeId: input.challengeId,
     authority: input.authorization.authority,
     proof: input.authorization.proof,
-    walletSessionIdentity: walletUnlockEd25519SessionIdentity(input.linkedWalletSession),
+    walletSessionIdentity: walletUnlockEd25519SessionIdentity(
+      input.linkedWalletSession,
+      input.walletSessionBudget,
+    ),
   });
   if (!provisioned.ok) {
     return { ok: false, response: walletUnlockEd25519SessionFailureResponse(provisioned) };
@@ -1280,6 +1285,8 @@ export async function handleWalletUnlockVerifyRoute(input: {
   emitEmailOtpWebhook: EmitWalletUnlockEmailOtpWebhook;
   capabilityContext: WalletUnlockCapabilityContext;
   ecdsaSession: WalletUnlockEcdsaSessionContext;
+  /** The app's budget for the Wallet Session of this unlock. Null: the app asked for none. */
+  walletSessionBudget: WalletSessionBudget | null;
   tenantId: TenantId;
   buildVerifiedOwnerProof: RouterApiAuthorizedOperationService['buildVerifiedOwnerProof'];
 }): Promise<WalletUnlockRouteResponse> {
@@ -1434,6 +1441,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
             rpId: rpId.value,
             credentialIdB64u: credentialIdB64u.value,
             verifiedChallengeId: challengeId,
+            walletSessionBudget: input.walletSessionBudget,
           });
         } catch (error: unknown) {
           return {
@@ -1504,6 +1512,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
       walletId: userId,
       authorization,
       linkedWalletSession: walletUnlockSessionAuthorization(walletSessionState),
+      walletSessionBudget: input.walletSessionBudget,
     });
     if (!ed25519Session.ok) return ed25519Session.response;
     let ecdsaAuthorization: WalletUnlockEcdsaAuthorization = {
@@ -1727,6 +1736,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
         providerUserId: result.providerUserId,
         verifiedChallengeId: challengeId,
         requestedCapabilities,
+        walletSessionBudget: input.walletSessionBudget,
       });
     } catch (error: unknown) {
       return {
@@ -1823,6 +1833,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
     verifiedUnlock: result,
     authorization,
     linkedWalletSession: walletUnlockSessionAuthorization(walletSessionState),
+    walletSessionBudget: input.walletSessionBudget,
   });
   if (!capabilityResult.ok) return capabilityResult.response;
   const ed25519OperationCredential = walletUnlockEcdsaOperationCredential({

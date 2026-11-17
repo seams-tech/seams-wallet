@@ -14,6 +14,9 @@ import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
+// The default tenant maximum: 100 signatures and 30 days.
+const DEFAULT_TENANT_LIMITS = { maxTtlMs: 30 * 24 * 60 * 60_000, maxRemainingUses: 100 };
+
 const output = resolve('.artifacts/signer-rows-read');
 const scope = { namespace: 'rows-read', orgId: 'org', projectId: 'project', envId: 'test' };
 // A lookup without a usable index reads a row for each added wallet, or for
@@ -138,9 +141,8 @@ async function useWallet(database, index, now) {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: expiresAtMs - now, remainingUses: 7 } },
     issuedAtMs: now,
-    expiresAtMs,
   });
   assert.equal(issued.kind, 'issued');
   rows.sessionIssuance = rowsRead(sessionTrace);
@@ -191,6 +193,7 @@ function authorizationService(database) {
     walletSignerScope: scope,
   });
   return new api.AuthorizationService({
+    walletSessionLimits: { readWalletSessionLimits: async () => DEFAULT_TENANT_LIMITS },
     policy: api.capabilityPolicyPort,
     sessions: store,
     grants: store,

@@ -299,9 +299,8 @@ export async function issueSyncAccountBootstrapV1(
       authority: input.activeAuthority,
       walletAuthMethodId: input.walletAuthMethodId,
       mintId: input.mintId,
-      remainingUses: DEFAULT_WALLET_SESSION_REMAINING_USES,
+      budget: { profile: 'default', requested: null },
       issuedAtMs: input.issuedAtMs,
-      expiresAtMs: input.issuedAtMs + DEFAULT_WALLET_SESSION_TTL_MS,
     });
   if (directIssue.kind === 'already_committed') {
     return { kind: 'already_committed', committed: directIssue };

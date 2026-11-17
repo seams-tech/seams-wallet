@@ -73,7 +73,7 @@ import {
 import {
   createThresholdLoginWarmSessionId,
   createThresholdEd25519DeviceLinkRequiredError,
-  requireLoginUnlockSessionUses,
+  requireLoginWalletSessionBudget,
   exactAuthorizationFromPasskeyEcdsaActivation,
 } from './signerState';
 import {
@@ -479,10 +479,7 @@ async function unlockInternal(
         relayerUrl: warmupInput.relayerUrl,
         relayerKeyId: thresholdKeyMaterial?.relayerKeyId || '',
         participantIds,
-        ttlMs: signingSessionPolicy.ttlMs,
-        unlockRemainingUses: requireLoginUnlockSessionUses(
-          signingSessionPolicy.unlockRemainingUses,
-        ),
+        walletSessionBudget: requireLoginWalletSessionBudget(signingSessionPolicy),
         ecdsaContext: warmupPlan.ecdsaContext,
         credentialState,
         runtimeScopeBootstrapState,
@@ -609,12 +606,12 @@ async function unlockInternal(
     const statusReads = new WalletSessionStatusReadScope();
     // One verified wallet-unlock assertion mints every passkey warm session requested below.
     if (requireThresholdWarmup && localUnlockAuthMethod === SIGNER_AUTH_METHODS.passkey) {
+      const walletSessionBudget = requireLoginWalletSessionBudget(signingSessionPolicy);
       const preparedActivation = await preparePasskeyExchangeEcdsaActivation({
         context,
         walletIdentity,
         selection: walletUnlockSelection,
-        ttlMs: signingSessionPolicy.ttlMs,
-        remainingUses: requireLoginUnlockSessionUses(signingSessionPolicy.unlockRemainingUses),
+        walletSessionBudget,
       });
       const relayUrl = String(context.configs.network.relayer.url || '').trim();
       const rpId = String(signingEngine.getRpId() || '').trim();
@@ -629,7 +626,7 @@ async function unlockInternal(
           onEvent,
           authenticators,
           signerSlot: baseSignerSlot,
-          remainingUses: requireLoginUnlockSessionUses(signingSessionPolicy.unlockRemainingUses),
+          walletSessionBudget,
           relayUrl,
           rpId,
           expectedOrigin: undefined,

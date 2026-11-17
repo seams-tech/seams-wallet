@@ -16,6 +16,7 @@ import {
   parseWalletSessionOperationCredentialV1,
   type WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import { bindEmailOtpEcdsaSessionPolicyToUnlockChallenge } from '@/core/signingEngine/session/emailOtp/ecdsaUnlockChallengeBinding';
 import type { EmailOtpVerifiedAuthorityProjection } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
@@ -236,14 +237,11 @@ export async function unlockEmailOtpAuthorityWallet(
           publicKey: base64UrlEncode(unlockPublicKey33),
           signature: base64UrlEncode(unlockSignature65),
         },
+        ...(args.walletSessionBudget ? { walletSessionBudget: args.walletSessionBudget } : {}),
         requestedCapabilities:
           args.ed25519.kind === 'no_ed25519'
             ? { kind: 'wallet_session' }
-            : {
-                kind: 'ed25519_yao',
-                signerSlot: args.ed25519.signerSlot,
-                remainingUses: args.ed25519.remainingUses,
-              },
+            : { kind: 'ed25519_yao', signerSlot: args.ed25519.signerSlot },
       },
     });
     const verifiedAuthorityProjection = requireVerifiedEmailOtpAuthorityProjection({
@@ -452,7 +450,6 @@ type EmailOtpRequestedCapabilities =
   | {
       kind: 'ed25519_yao';
       signerSlot: number;
-      remainingUses: number;
     };
 
 function buildEmailOtpRequestedCapabilities(args: {
@@ -468,11 +465,9 @@ function buildEmailOtpRequestedCapabilities(args: {
       return { kind: 'none' };
     case 'ed25519_yao_recovery':
     case 'wallet_unlock_capabilities': {
-      const request = emailOtpEd25519SessionRequest(args.material);
       return {
         kind: 'ed25519_yao',
-        signerSlot: request.signerSlot,
-        remainingUses: request.remainingUses,
+        signerSlot: emailOtpEd25519SessionRequest(args.material).signerSlot,
       };
     }
     default:
@@ -490,6 +485,8 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
   enrollmentSealKeyVersion: string;
   clientSecret32: Uint8Array;
   material: EmailOtpUnlockSecretMaterialRequest;
+  /** The app's budget for a new Wallet Session. Null: the request asks for none. */
+  walletSessionBudget: WalletSessionBudget | null;
   sessionAuth: WalletSessionOperationCredentialV1 | undefined;
 }): Promise<EmailOtpUnlockProof & EmailOtpUnlockCompletionMaterial> {
   await ensureEvmCryptoWasm();
@@ -559,6 +556,7 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
           signature: unlockSignatureB64u,
         },
         ...(ecdsaSessionPolicy ? { ecdsaSessionPolicy } : {}),
+        ...(args.walletSessionBudget ? { walletSessionBudget: args.walletSessionBudget } : {}),
         requestedCapabilities,
       },
     });
@@ -832,6 +830,7 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
   routePlan: EmailOtpRoutePlan;
   factorReleaseSessionAuth?: WalletSessionOperationCredentialV1;
   material: EmailOtpUnlockSecretMaterialRequest;
+  walletSessionBudget: WalletSessionBudget | null;
   onProgress?: (code: EmailOtpWorkerProgressCode) => void;
 }): Promise<
   { challengeId: string; enrollmentSealKeyVersion: string } & EmailOtpUnlockProof &
@@ -899,6 +898,7 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
       enrollmentSealKeyVersion,
       clientSecret32,
       material: args.material,
+      walletSessionBudget: args.walletSessionBudget,
       sessionAuth,
     });
     const commonResult = {
@@ -1008,6 +1008,8 @@ export async function unlockEmailOtpWalletCustodySeed(
     orgId,
     verification: args.verification,
     material: { kind: 'ed25519_yao_export' },
+    // A custody operation, not a wallet unlock: it asks for no session budget.
+    walletSessionBudget: null,
   });
   if (recovered.kind !== 'ed25519_yao_export') throw new Error(missingMaterialMessage);
   return recovered;

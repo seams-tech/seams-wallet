@@ -290,6 +290,8 @@ export async function rehydrateEmailOtpEd25519YaoOperationMaterial(
       enrollmentSealKeyVersion: released.enrollmentSealKeyVersion,
       clientSecret32: factorSecret32,
       material,
+      // The operation keeps the Wallet Session of its credential.
+      walletSessionBudget: null,
       sessionAuth: operationCredential,
     });
     if (unlocked.kind !== 'ed25519_yao_operation_capability') {
@@ -356,6 +358,8 @@ export async function rehydrateActiveEmailOtpEd25519YaoSessionMaterial(
       enrollmentSealKeyVersion: released.enrollmentSealKeyVersion,
       clientSecret32: factorSecret32,
       material: activeEmailOtpNearRestoreMaterial(args),
+      // The restore joins the active Wallet Session of sessionAuth and keeps its budget.
+      walletSessionBudget: null,
       sessionAuth,
     });
     factorSecret32 = null;
@@ -417,7 +421,6 @@ function activeEmailOtpNearRestoreMaterial(
   const recovery = {
     kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
     signerSlot: args.signerSlot,
-    remainingUses: args.remainingUses,
     orgId: args.orgId,
   };
   switch (args.ecdsa.kind) {

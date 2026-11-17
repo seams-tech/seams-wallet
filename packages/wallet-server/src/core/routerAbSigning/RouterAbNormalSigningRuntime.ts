@@ -2,10 +2,6 @@ import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSes
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { MpcMaterialActivationId } from '@shared/utils/domainIds';
 import {
-  MAX_WALLET_SESSION_REMAINING_USES,
-  MAX_WALLET_SESSION_TTL_MS,
-} from '@shared/threshold/sessionPolicy';
-import {
   validateRouterAbNormalSigningServerPolicy,
   type ParseResult,
   type RouterAbNormalSigningServerPolicy,
@@ -65,11 +61,6 @@ type RouterAbNormalSigningPrepareReplayReservationResult =
       readonly message: string;
     };
 
-type RouterAbClampedSessionPolicy = {
-  readonly ttlMs: number;
-  readonly remainingUses: number;
-};
-
 export class RouterAbNormalSigningRuntime {
   private readonly walletSessionStore: Ed25519WalletSessionStore;
   private readonly ecdsaWalletSessionStore: EcdsaWalletSessionStore;
@@ -100,18 +91,6 @@ export class RouterAbNormalSigningRuntime {
       requested,
       policy: this.config.policy,
     });
-  }
-
-  clampSessionPolicy(input: {
-    readonly ttlMs: number;
-    readonly remainingUses: number;
-  }): RouterAbClampedSessionPolicy {
-    const ttlMs = Math.max(0, Math.floor(Number(input.ttlMs) || 0));
-    const remainingUses = Math.max(0, Math.floor(Number(input.remainingUses) || 0));
-    return {
-      ttlMs: Math.min(ttlMs, MAX_WALLET_SESSION_TTL_MS),
-      remainingUses: Math.min(remainingUses, MAX_WALLET_SESSION_REMAINING_USES),
-    };
   }
 
   async reservePrepareReplay(

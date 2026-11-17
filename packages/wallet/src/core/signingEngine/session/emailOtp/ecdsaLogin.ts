@@ -87,8 +87,8 @@ import {
   type EmailOtpEcdsaBootstrapAuthorization,
 } from './routePlan';
 import {
-  DEFAULT_UNLOCK_REMAINING_USES,
-  resolveWalletUnlockSessionUsesFromRequestedUses,
+  isGrantedWithinRequestedUses,
+  resolveRequestedWalletSessionBudget,
 } from '../../threshold/sessionPolicy';
 import {
   parseEmailOtpEcdsaExportWorkerIssuedSessionHandle,
@@ -107,7 +107,7 @@ import {
 import { SigningSessionIds } from '../operationState/types';
 import {
   buildStrictEcdsaPostRegistrationSessionActivationRequest,
-  isEcdsaCredentialFreeSessionActivationAuthorization,
+  ecdsaPreauthorizedActivationSession,
   type EcdsaPreauthorizedSessionActivation,
 } from '../../threshold/ecdsa/postRegistrationSessionActivation';
 
@@ -527,6 +527,10 @@ export type LoginEmailOtpEcdsaCapabilityArgs = {
   participantIds?: number[];
   sessionKind?: never;
   routePlan: EmailOtpRoutePlan;
+  /**
+   * A wallet unlock: they override the app's configured Wallet Session budget.
+   * A step-up (`emailOtpAuthReason: 'sign'`): they are the budget of the step-up lane.
+   */
   ttlMs?: number;
   remainingUses?: number;
   runtimePolicyScope?: ThresholdRuntimePolicyScope;
@@ -635,58 +639,28 @@ function requireEmailOtpEcdsaExportAuthContext(
   return context;
 }
 
-function buildEmailOtpEcdsaOnlySigningBudget(args: {
-  ttlMs: number | undefined;
-  remainingUses: number;
+/**
+ * A wallet unlock signs within the budget that the server granted. The server
+ * grants at most the request, so the granted budget can be lower than the request.
+ */
+function grantedEmailOtpUnlockSigningBudget(args: {
+  readonly response: EcdsaPreauthorizedSessionActivation;
+  readonly request: RouterAbEcdsaPostRegistrationSessionActivationRequestV1;
 }): EmailOtpLoginSessionPolicy {
-  const policy = clampThresholdSessionPolicy({
-    ttlMs: args.ttlMs ?? DEFAULT_THRESHOLD_SESSION_POLICY.ttlMs,
-    remainingUses: args.remainingUses,
-  });
-  return {
-    ttlMs: policy.ttlMs,
-    remainingUses: policy.remainingUses,
-  };
-}
-
-function buildAuthoritativeEmailOtpMixedWalletSigningBudget(args: {
-  bootstrap: EmailOtpEd25519YaoRecoveryBootstrapV1;
-  expectedRemainingUses: number;
-}): EmailOtpLoginSessionPolicy {
-  const session = args.bootstrap.session;
-  const expiresAtMs = Math.floor(Number(session.expiresAtMs));
-  const remainingUses = Math.floor(Number(session.remainingUses));
-  const ttlMs = expiresAtMs - Date.now();
-  if (!Number.isSafeInteger(expiresAtMs) || ttlMs < 1) {
-    throw new Error('Email OTP capability unlock returned an invalid server signing budget');
+  const session = ecdsaPreauthorizedActivationSession(args.response);
+  const ttlMs = session.expires_at_ms - Date.now();
+  if (!Number.isSafeInteger(ttlMs) || ttlMs < 1) {
+    throw new Error('Email OTP unlock returned an expired Wallet Session');
   }
-  if (remainingUses !== args.expectedRemainingUses) {
-    throw new Error('Email OTP capability unlock changed the requested signing budget uses');
+  if (
+    !isGrantedWithinRequestedUses(
+      session.remaining_uses,
+      args.request.session_policy.remaining_uses,
+    )
+  ) {
+    throw new Error('Email OTP unlock granted a signing budget outside its request');
   }
-  return {
-    ttlMs,
-    remainingUses,
-  };
-}
-
-function resolveEmailOtpLoginSigningBudget(args: {
-  ed25519YaoResult: EmailOtpEd25519YaoUnlockResult | null;
-  requestedTtlMs: number | undefined;
-  requestedRemainingUses: number;
-}): EmailOtpLoginSessionPolicy {
-  if (args.ed25519YaoResult) {
-    return buildAuthoritativeEmailOtpMixedWalletSigningBudget({
-      bootstrap:
-        args.ed25519YaoResult.kind === 'wallet_custody_cache_absent'
-          ? args.ed25519YaoResult.ed25519YaoRecovery
-          : args.ed25519YaoResult.ed25519YaoCapability,
-      expectedRemainingUses: args.requestedRemainingUses,
-    });
-  }
-  return buildEmailOtpEcdsaOnlySigningBudget({
-    ttlMs: args.requestedTtlMs,
-    remainingUses: args.requestedRemainingUses,
-  });
+  return { ttlMs, remainingUses: session.remaining_uses };
 }
 
 function requireEmailOtpUnlockSessionPolicy(
@@ -1046,9 +1020,7 @@ function resolveEmailOtpPrimaryEcdsaSessionProvisioning(
       };
     case 'preauthorized_wallet_unlock': {
       const policy = provisioning.request.session_policy;
-      const session = isEcdsaCredentialFreeSessionActivationAuthorization(provisioning.response)
-        ? provisioning.response.activation.session
-        : provisioning.response.session;
+      const session = ecdsaPreauthorizedActivationSession(provisioning.response);
       if (policy.threshold_session_id !== session.threshold_session_id) {
         throw new Error('Email OTP unlock returned a different prepared ECDSA session identity');
       }
@@ -1365,30 +1337,21 @@ async function runEmailOtpEcdsaCapability(
     emailOtpAuthRetention === 'session' ? 'session' : emailOtpAuthPolicy;
   const relayUrl = String(args.relayUrl || ports.requireRelayUrl()).trim();
   const groupId = String(args.groupId || ports.requireSigningSessionSealGroupId()).trim();
-  const configuredRemainingUses = args.remainingUses;
-  const defaultRemainingUses = ports.configs.signing.sessionDefaults?.remainingUses;
-  const requestedRemainingUses = Math.min(
-    Math.max(
-      1,
-      Math.floor(
-        Number(configuredRemainingUses ?? defaultRemainingUses ?? DEFAULT_UNLOCK_REMAINING_USES) ||
-          1,
-      ),
-    ),
-    DEFAULT_UNLOCK_REMAINING_USES,
-  );
-  const requestedStepUpSignatureUses = Math.max(
-    1,
-    Math.floor(Number(configuredRemainingUses) || 1),
-  );
-  const unlockRemainingUses =
-    resolveWalletUnlockSessionUsesFromRequestedUses({
-      requestedRemainingUses,
-    }) ||
-    (() => {
-      throw new Error('[SigningEngine][email-otp] unlock session uses are required');
-    })();
-  const remainingUses = isSigningStepUp ? requestedStepUpSignatureUses : unlockRemainingUses;
+  const isWalletUnlock = operation === WALLET_EMAIL_OTP_UNLOCK_OPERATION;
+  // The app's budget for a wallet unlock. Null: the app asks for none, and the server uses its default.
+  const walletSessionBudget = isWalletUnlock
+    ? resolveRequestedWalletSessionBudget({
+        defaults: ports.configs.signing.sessionDefaults,
+        override: { ttlMs: args.ttlMs, remainingUses: args.remainingUses },
+      })
+    : null;
+  // The ECDSA session policy and a step-up lane still carry a count and a lifetime.
+  const requestedSigningBudget = isSigningStepUp
+    ? {
+        ttlMs: args.ttlMs ?? DEFAULT_THRESHOLD_SESSION_POLICY.ttlMs,
+        remainingUses: Math.max(1, Math.floor(Number(args.remainingUses) || 1)),
+      }
+    : (walletSessionBudget ?? DEFAULT_THRESHOLD_SESSION_POLICY);
   const workerCtx = ports.getSignerWorkerContext();
   const routePlan = args.routePlan;
   const bootstrapRouteAuth =
@@ -1464,7 +1427,6 @@ async function runEmailOtpEcdsaCapability(
       : {}),
   });
   const publicationPorts = ports.publicationPorts;
-  const isWalletUnlock = operation === WALLET_EMAIL_OTP_UNLOCK_OPERATION;
   const requestedKeyHandle = String(args.keyHandle || '').trim();
   let existingKey = await resolveEmailOtpExistingEcdsaKey({
     walletId: toWalletId(args.walletSession.walletId),
@@ -1495,10 +1457,7 @@ async function runEmailOtpEcdsaCapability(
         })
       : null;
   const preparedUnlockSessionPolicy = isWalletUnlock
-    ? clampThresholdSessionPolicy({
-        ttlMs: args.ttlMs ?? DEFAULT_THRESHOLD_SESSION_POLICY.ttlMs,
-        remainingUses,
-      })
+    ? clampThresholdSessionPolicy(requestedSigningBudget)
     : null;
   const preparedUnlockThresholdSessionId = preparedUnlockSessionPolicy
     ? requireEmailOtpUnlockThresholdSessionId(generateSessionId('threshold-ecdsa-login'))
@@ -1543,6 +1502,7 @@ async function runEmailOtpEcdsaCapability(
         verification: requireEmailOtpExplicitExportUnsealGrant(
           exportInput.explicitExportAuthorization,
         ),
+        walletSessionBudget,
         routePlan,
         workerCtx,
         runtimePolicyScope,
@@ -1558,6 +1518,7 @@ async function runEmailOtpEcdsaCapability(
           ...(args.challengeId ? { challengeId: args.challengeId } : {}),
           otpCode: args.otpCode,
         },
+        walletSessionBudget,
         routePlan,
         workerCtx,
         runtimePolicyScope,
@@ -1607,7 +1568,6 @@ async function runEmailOtpEcdsaCapability(
           expectedOperationalPublicKey: args.ed25519YaoRecovery.expectedOperationalPublicKey,
           expectedThresholdSessionId: args.ed25519YaoRecovery.expectedThresholdSessionId,
           walletCustodyEd25519Material: walletCustodyEd25519Material || { kind: 'absent' },
-          remainingUses,
           ecdsaSessionPolicy: preparedUnlockSessionActivation
             ? emailOtpUnlockSessionPolicyFromActivationRequest({
                 request: preparedUnlockSessionActivation,
@@ -1682,16 +1642,16 @@ async function runEmailOtpEcdsaCapability(
     const preparedUnlockSessionResponse = effectivePreparedUnlockSessionActivation
       ? requireEmailOtpUnlockSessionResponse(workerResult, walletSessionAuthorization)
       : null;
-    const sessionPolicy = preparedUnlockSessionResponse
-      ? buildEmailOtpEcdsaOnlySigningBudget({
-          ttlMs: args.ttlMs,
-          remainingUses,
-        })
-      : resolveEmailOtpLoginSigningBudget({
-          ed25519YaoResult,
-          requestedTtlMs: args.ttlMs,
-          requestedRemainingUses: remainingUses,
-        });
+    /* A wallet unlock always prepares its ECDSA session, and a combined unlock
+       with Ed25519 is a wallet unlock, so every unlock takes the granted budget.
+       Only a step-up lane, which issues no Wallet Session, signs within its request. */
+    const sessionPolicy =
+      preparedUnlockSessionResponse && effectivePreparedUnlockSessionActivation
+        ? grantedEmailOtpUnlockSigningBudget({
+            response: preparedUnlockSessionResponse,
+            request: effectivePreparedUnlockSessionActivation,
+          })
+        : clampThresholdSessionPolicy(requestedSigningBudget);
     timingStartedAtMs = nowMs();
     if (operation === WALLET_EMAIL_OTP_EXPORT_OPERATION) {
       if (!exportEmailOtpSessionHandle || !exportEmailOtpAuthContext) {

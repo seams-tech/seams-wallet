@@ -23,6 +23,7 @@ import {
   waitForWalletIframeConfirmationSettlement,
 } from './harness';
 import { startReviewedTransfer, VoiceIdNearSigningEvidence } from './voiceid-near-signing';
+import { DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES } from '@shared/threshold/sessionPolicy';
 
 test('manual VoiceID page allocates its wallet and signs after voice unlock', verifyLivePage);
 test.use(voiceIdBrowserAudio);
@@ -252,7 +253,7 @@ async function verifyLivePage(
   const budget = await harness.readCurrentWalletSessionStatus();
   expect(budget.status).toBe('active');
   // Each warm review prepares once. Its claimed use remains spent on cancellation.
-  expect(budget.remainingUses).toBe(1);
+  expect(budget.remainingUses).toBe(SESSION_SIGNATURES - 2);
   expect(assets.native).toHaveLength(0);
   expect(assets.inference.length).toBeGreaterThan(0);
   const report = testInfo.outputPath('voiceid-live-page.json');

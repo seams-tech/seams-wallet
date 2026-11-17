@@ -9,6 +9,9 @@ import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 import { verifySigningCredit } from './signing-credit.scenario.mjs';
 
+// The default tenant maximum: 100 signatures and 30 days.
+const DEFAULT_TENANT_LIMITS = { maxTtlMs: 30 * 24 * 60 * 60_000, maxRemainingUses: 100 };
+
 class BillingRefusingDirectory {
   home() {
     return { kind: 'direct' };
@@ -91,6 +94,7 @@ try {
     walletSignerScope: scope,
   });
   const service = new api.AuthorizationService({
+    walletSessionLimits: { readWalletSessionLimits: async () => DEFAULT_TENANT_LIMITS },
     policy: api.capabilityPolicyPort,
     sessions: store,
     grants: store,
@@ -105,9 +109,8 @@ try {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: 3600000, remainingUses: 7 } },
     issuedAtMs: now,
-    expiresAtMs: now + 3600000,
   });
   assert.equal(issued.kind, 'issued');
   await verifySigningCredit({
@@ -120,6 +123,7 @@ try {
     output,
   });
   const refusedService = new api.AuthorizationService({
+    walletSessionLimits: { readWalletSessionLimits: async () => DEFAULT_TENANT_LIMITS },
     policy: api.capabilityPolicyPort,
     sessions: store,
     grants: store,
@@ -136,9 +140,8 @@ try {
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: 'wallet-mint:billing-refusal',
-      remainingUses: 7,
+      budget: { profile: 'default', requested: { ttlMs: 3_599_999, remainingUses: 7 } },
       issuedAtMs: now + 1,
-      expiresAtMs: now + 3600000,
     }),
     { code: 'billing_credit_exhausted' },
   );

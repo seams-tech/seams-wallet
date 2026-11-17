@@ -12,6 +12,9 @@ import {
   seedExecutionGeneration,
 } from './execution-generation.scenario.mjs';
 
+// The default tenant maximum: 100 signatures and 30 days.
+const DEFAULT_TENANT_LIMITS = { maxTtlMs: 30 * 24 * 60 * 60_000, maxRemainingUses: 100 };
+
 class RegistrationDirectoryWithLostReply {
   calls = 0;
   sessions = [];
@@ -90,9 +93,8 @@ try {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
     issuedAtMs: now,
-    expiresAtMs: now + 3_600_000,
   };
   const traced = new api.TracedD1Database(database);
   const service = authorizationService(traced);
@@ -114,7 +116,7 @@ try {
     appOrigin,
     walletOrigin,
     issuedAtMs: now,
-    expiresAtMs: input.expiresAtMs,
+    expiresAtMs: winner.session.expiresAtMs,
   });
   const beforeReplay = await snapshot(database);
   assert.equal(
@@ -133,7 +135,7 @@ try {
     appOrigin,
     walletOrigin,
     issuedAtMs: now + 1,
-    expiresAtMs: input.expiresAtMs,
+    expiresAtMs: winner.session.expiresAtMs,
   });
   const hosted = await service.redeemHostedWalletSeamsSessionExchange({
     exchangeCode: exchange.exchangeCode,
@@ -148,7 +150,7 @@ try {
     appOrigin,
     walletOrigin,
     issuedAtMs: now + 2,
-    expiresAtMs: input.expiresAtMs,
+    expiresAtMs: winner.session.expiresAtMs,
   });
   const beforeRetiredReplay = await snapshot(database);
   assert.equal(
@@ -221,9 +223,8 @@ try {
     authority: closedFixture.authority,
     walletAuthMethodId: closedFixture.authMethod.walletAuthMethodId,
     mintId: closedFixture.issuedSession.session.mintId,
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
     issuedAtMs: now,
-    expiresAtMs: now + 3_600_000,
   };
   assert.equal((await service.issueDirectWalletSessionAuthorizationV2(closedInput)).kind, 'issued');
   const beforeClosedGeneration = await snapshot(database);
@@ -277,6 +278,7 @@ function authorizationService(database) {
     walletSignerScope: scope,
   });
   return new api.AuthorizationService({
+    walletSessionLimits: { readWalletSessionLimits: async () => DEFAULT_TENANT_LIMITS },
     policy: api.capabilityPolicyPort,
     sessions: store,
     grants: store,
@@ -351,9 +353,8 @@ async function verifyRegistrationCompletion(database, now) {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
     issuedAtMs: now,
-    expiresAtMs: now + 3_600_000,
   };
   const service = authorizationService(database);
   const beforeWrongCeremony = await snapshot(database);
@@ -410,11 +411,16 @@ async function verifyRegistrationCompletion(database, now) {
   assert.deepEqual(completionCalls.map(callMethod), ['batch', 'run']);
   assert.equal(directory.calls, 1);
   assert.equal((await authority.admitEstablishedHome({ walletId: identity.walletId })).ok, true);
+  const publishedSession = {
+    kind: 'credential',
+    walletId: identity.walletId,
+    digest: winner.publication.digest,
+    expiresAtMs: winner.publication.expiresAtMs,
+  };
   assert.deepEqual(await pendingPublications(database, identity.walletId), [
     {
       ceremony_id: identity.ceremonyId,
-      session_digest: winner.publication.digest,
-      session_expires_at_ms: winner.publication.expiresAtMs,
+      session: publishedSession,
       state: 'pending',
       attempts: 1,
     },
@@ -452,12 +458,7 @@ async function verifyRegistrationCompletion(database, now) {
   );
   assert.equal(directory.calls, 2);
   assert.deepEqual(directory.sessions[1], directory.sessions[0]);
-  assert.deepEqual(directory.sessions[0], {
-    kind: 'credential',
-    walletId: identity.walletId,
-    digest: winner.publication.digest,
-    expiresAtMs: winner.publication.expiresAtMs,
-  });
+  assert.deepEqual(directory.sessions[0], publishedSession);
   assert.deepEqual(await pendingPublications(database, identity.walletId), []);
   await database
     .prepare("UPDATE wallet_execution_generations SET state = 'retired' WHERE wallet_id = ?")
@@ -489,15 +490,18 @@ async function verifyRegistrationCompletion(database, now) {
 }
 
 async function pendingPublications(database, walletId) {
-  return (
-    await database
-      .prepare(
-        `SELECT ceremony_id, session_digest, session_expires_at_ms, state, attempts
-         FROM wallet_registration_directory_publications WHERE wallet_id = ?`,
-      )
-      .bind(walletId)
-      .all()
-  ).results;
+  const { results } = await database
+    .prepare(
+      `SELECT ceremony_id, session_json, state, attempts
+       FROM wallet_registration_directory_publications WHERE wallet_id = ?`,
+    )
+    .bind(walletId)
+    .all();
+  return results.map(publicationRow);
+}
+
+function publicationRow({ session_json, ...row }) {
+  return { ...row, session: JSON.parse(session_json) };
 }
 
 function registrationResultKind(value) {

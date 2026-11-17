@@ -5,6 +5,7 @@ import {
   type VoiceIdOperationRequest,
 } from '@/core/authMethods/voiceId/operationProof';
 import { unlockPendingRegistration } from '@/SeamsWeb/operations/auth/unlockPendingRegistration';
+import { resolveConfiguredWalletSessionBudget } from '@/SeamsWeb/operations/auth/unlockSessionPolicy';
 import { HostedExternalAuth } from './externalAuth';
 import {
   readPendingEcdsaRegistrationForWallet,
@@ -146,6 +147,7 @@ async function unlockWithAuthMethod(
       walletId,
       walletAuthMethodId: methodId.value,
       relayerUrl: context.configs.network.relayer.url,
+      walletSessionBudget: resolveConfiguredWalletSessionBudget(context.configs),
       assertActive,
       prepareSession: prepareAuthMethodSession.bind(null, context, walletId, assertActive),
     }),

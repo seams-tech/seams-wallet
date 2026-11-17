@@ -312,6 +312,7 @@ async function linkedDeviceEd25519SessionAfterLink(args: {
     walletSessionId: walletSessionId.value,
     quotaId: quotaId.value,
     expiresAtMs,
+    // The bootstrap response carries no granted count, so this local count is not the server's.
     remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     runtimePolicyScope,
     routerAbNormalSigning,

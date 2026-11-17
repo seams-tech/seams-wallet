@@ -335,7 +335,6 @@ const emailOtpEd25519YaoWalletUnlockMaterial: EmailOtpEd25519YaoWalletUnlockMate
   ed25519YaoRecovery: {
     kind: 'router_ab_ed25519_yao_email_otp_recovery_v1',
     signerSlot: 1,
-    remainingUses: 3,
     orgId: 'org-test',
   },
 };
@@ -374,7 +373,6 @@ const emailOtpEd25519YaoWalletUnlockWithoutThresholdIdentity = {
   ed25519YaoRecovery: {
     kind: 'router_ab_ed25519_yao_email_otp_recovery_v1',
     signerSlot: 1,
-    remainingUses: 3,
     orgId: 'org-test',
   },
   walletCustodyEd25519Material: { kind: 'absent' },
@@ -571,6 +569,7 @@ const emailOtpWalletUnlockPayload: EmailOtpWalletUnlockPayload = {
   groupId: 'prime',
   routePlan: emailOtpWalletUnlockRoutePlan,
   material: emailOtpEcdsaWalletUnlockMaterial,
+  walletSessionBudget: { ttlMs: 60_000, remainingUses: 3 },
 };
 void emailOtpWalletUnlockPayload;
 

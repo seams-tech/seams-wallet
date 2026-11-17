@@ -44,6 +44,7 @@ import { type ExactWalletSessionAuthorization } from '@/core/signingEngine/sessi
 import { parseSignerSlot } from '@/core/signingEngine/webauthnAuth/device/signerSlot';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '@/core/signingEngine/session/identity/laneIdentity';
 import {
+  isGrantedWithinRequestedUses,
   type EmailOtpEd25519SessionPolicyAuthority,
   type PasskeyEd25519SessionPolicyAuthority,
   type ThresholdRuntimePolicyScope,
@@ -545,7 +546,8 @@ export function passkeyUnlockEd25519Connection(args: {
   readonly custody: ActivePasskeySessionCustodyUnlockV1;
   readonly provisionScope: LoginEd25519ProvisionScope;
   readonly credential: WebAuthnAuthenticationCredential | undefined;
-  readonly remainingUses: number;
+  /** The count that the unlock asked for. The server can grant fewer; the session keeps its own. */
+  readonly requestedRemainingUses: number;
   readonly unlockAuthorization: ExactWalletSessionAuthorization | null;
 }): PasskeyUnlockEd25519Connection {
   const session = args.session;
@@ -560,7 +562,7 @@ export function passkeyUnlockEd25519Connection(args: {
     custody.signerSlot !== args.signerSlot ||
     session.relayerKeyId !== args.provisionScope.relayerKeyId ||
     session.thresholdSessionId !== custody.capability.lifecycle.thresholdSessionId ||
-    session.remainingUses !== args.remainingUses ||
+    !isGrantedWithinRequestedUses(session.remainingUses, args.requestedRemainingUses) ||
     !sameEd25519ParticipantIds(session.participantIds, args.provisionScope.participantIds) ||
     !args.provisionScope.runtimePolicyScope ||
     !sameThresholdRuntimePolicyScope(

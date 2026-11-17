@@ -1,4 +1,5 @@
 import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
+import type { WalletSessionBudget } from '../threshold/walletSessionBudget';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
@@ -67,6 +68,12 @@ export type RegistrationIntentV1 = {
    */
   foundingWalletAuthMethodId: WalletAuthMethodId;
   runtimePolicyScope?: RuntimePolicyScopeLike;
+  /**
+   * The app's budget for the Wallet Session that registration gives. Absent
+   * when the app asked for none. Part of the intent digest; the server still
+   * grants at most the tenant's maximum.
+   */
+  walletSessionBudget?: WalletSessionBudget;
   nonceB64u: string;
 };
 

@@ -32,11 +32,9 @@ import {
 } from '@shared/utils/domainIds';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import {
-  DEFAULT_WALLET_SESSION_REMAINING_USES,
-  DEFAULT_WALLET_SESSION_TTL_MS,
-  LINKED_DEVICE_WALLET_SESSION_REMAINING_USES,
-  LINKED_DEVICE_WALLET_SESSION_TTL_MS,
-} from '@shared/threshold/sessionPolicy';
+  unlockWalletSessionBudgetRequest,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import type { WalletRegistrationSessionCommitReceiptV2 } from '../../../../core/threeRouteRegistrationContracts';
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import { D1VoiceIdActivation } from '../wallet/d1VoiceIdActivation';
@@ -1251,6 +1249,7 @@ function createCloudflareD1RouterApiAuthAssembly(
       getLinkedDeviceAuthorityReader: getLinkedDeviceEd25519AuthorityReader,
     },
     options.sessionRouting,
+    options.walletSessionLimits,
   );
   const googleEmailOtpRegistrationAttempts = createD1GoogleRegistrationAttempts(options, prepare);
   const { webAuthnStore, webAuthnAuthService } = createD1WebAuthnAssembly(
@@ -1839,6 +1838,7 @@ async function issueWalletSessionForActiveAuthority(input: {
   readonly authorizationService: AuthorizationService;
   readonly orgId: string;
   readonly verifiedChallengeId: string;
+  readonly walletSessionBudget: WalletSessionBudget | null;
 }): Promise<WalletUnlockPasskeySessionResolution> {
   const tenantId = parseTenantId(input.orgId);
   const principalId = parsePrincipalId(
@@ -1855,8 +1855,6 @@ async function issueWalletSessionForActiveAuthority(input: {
     };
   }
 
-  const issuedAtMs = Date.now();
-  const deviceLinked = input.resolved.authority.provenance.kind === 'device_link';
   try {
     const directIssue = await input.authorizationService.issueDirectWalletSessionAuthorizationV2({
       tenantId: tenantId.value,
@@ -1865,13 +1863,11 @@ async function issueWalletSessionForActiveAuthority(input: {
       authority: input.resolved.authority,
       walletAuthMethodId: input.resolved.authMethod.walletAuthMethodId,
       mintId: mintId.value,
-      remainingUses: deviceLinked
-        ? LINKED_DEVICE_WALLET_SESSION_REMAINING_USES
-        : DEFAULT_WALLET_SESSION_REMAINING_USES,
-      issuedAtMs,
-      expiresAtMs:
-        issuedAtMs +
-        (deviceLinked ? LINKED_DEVICE_WALLET_SESSION_TTL_MS : DEFAULT_WALLET_SESSION_TTL_MS),
+      budget: unlockWalletSessionBudgetRequest({
+        deviceLinked: input.resolved.authority.provenance.kind === 'device_link',
+        requested: input.walletSessionBudget,
+      }),
+      issuedAtMs: Date.now(),
     });
     const authorityProvenanceKind = input.resolved.authority.provenance.kind;
     if (directIssue.kind === 'already_committed') {
@@ -1935,6 +1931,7 @@ async function issueWalletSessionForPasskeyUnlock(input: {
     authorizationService: input.authorizationService,
     orgId: input.orgId,
     verifiedChallengeId: input.request.verifiedChallengeId,
+    walletSessionBudget: input.request.walletSessionBudget,
   });
 }
 
@@ -1977,6 +1974,7 @@ async function issueWalletSessionForEmailOtpUnlock(input: {
     authorizationService: input.authorizationService,
     orgId: input.request.orgId,
     verifiedChallengeId: input.request.verifiedChallengeId,
+    walletSessionBudget: input.request.walletSessionBudget,
   });
 }
 

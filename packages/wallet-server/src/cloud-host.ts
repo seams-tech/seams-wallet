@@ -6,6 +6,11 @@ export {
   type ExternalAuthConfiguration,
   type ExternalAuthProvider,
 } from '@shared/auth/externalAuth';
+export {
+  DEFAULT_TENANT_WALLET_SESSION_LIMITS,
+  parseWalletSessionLimits,
+  type WalletSessionLimits,
+} from '@shared/threshold/walletSessionBudget';
 export * from './core/SessionService';
 export * from './core/ThresholdService/evmCryptoWasm';
 export * from './core/d1WalletStore';

@@ -46,10 +46,11 @@ import {
   type EcdsaClientRootPublicKey33B64u,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
+import { DEFAULT_WALLET_SESSION_TTL_MS } from '@shared/threshold/sessionPolicy';
 import {
-  DEFAULT_WALLET_SESSION_REMAINING_USES,
-  DEFAULT_WALLET_SESSION_TTL_MS,
-} from '@shared/threshold/sessionPolicy';
+  unlockWalletSessionBudgetRequest,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import {
   signingRootScopeFromRuntimePolicyScope,
   type RuntimePolicyScope,
@@ -2466,11 +2467,7 @@ export class CloudflareD1WalletRegistrationService {
     | {
         readonly ok: true;
         readonly walletKey: WalletEcdsaSignerKey;
-        readonly session: {
-          readonly thresholdSessionId: string;
-          readonly expiresAtMs: number;
-          readonly remainingUses: number;
-        };
+        readonly session: { readonly thresholdSessionId: string };
         readonly normalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
         /** Recorded on the signer record when registration verified this key set. */
         readonly keyManifestDigestB64u: DigestB64u;
@@ -2478,7 +2475,6 @@ export class CloudflareD1WalletRegistrationService {
     | { readonly ok: false; readonly code: string; readonly message: string }
   > {
     try {
-      const nowMs = Date.now();
       const walletId = walletIdFromString(input.public_capability.client_id);
       const store = this.getWalletStore();
       const signer = await store.getEcdsaSignerByPublicCapability({
@@ -2510,16 +2506,10 @@ export class CloudflareD1WalletRegistrationService {
         walletKey,
         publicCapability: input.public_capability,
       });
-      const activeThresholdSessionId = input.session_policy.threshold_session_id;
-      const expiresAtMs = nowMs + input.session_policy.ttl_ms;
       return {
         ok: true,
         walletKey,
-        session: {
-          thresholdSessionId: activeThresholdSessionId,
-          expiresAtMs,
-          remainingUses: input.session_policy.remaining_uses,
-        },
+        session: { thresholdSessionId: input.session_policy.threshold_session_id },
         normalSigning,
         keyManifestDigestB64u: parseDigestB64u(signer.custodyKeyManifestDigestB64u),
       };
@@ -2626,8 +2616,6 @@ export class CloudflareD1WalletRegistrationService {
         };
       }
       const issuedAtMs = Date.now();
-      const expiresAtMs = issuedAtMs + DEFAULT_WALLET_SESSION_TTL_MS;
-      const remainingUses = Math.min(DEFAULT_WALLET_SESSION_REMAINING_USES, policy.remainingUses);
       await assertDirectWalletSessionOwnerProof({
         proof: authorization.proof,
         tenantId: this.authorizationTenantId,
@@ -2646,9 +2634,12 @@ export class CloudflareD1WalletRegistrationService {
         authority: activeAuthority.authority,
         walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
         mintId: requireWalletSessionMintId(authorization.verifiedChallengeId),
-        remainingUses,
+        // The passkey assertion signs this policy, so it is the app's request.
+        budget: {
+          profile: 'default',
+          requested: { ttlMs: policy.ttlMs, remainingUses: policy.remainingUses },
+        },
         issuedAtMs,
-        expiresAtMs,
       });
       if (directIssue.kind === 'already_committed') {
         return ed25519AlreadyCommittedWalletSessionResponse(directIssue);
@@ -2718,15 +2709,7 @@ export class CloudflareD1WalletRegistrationService {
       const walletId = toOptionalTrimmedString(request.walletId);
       const verifiedChallengeId = toOptionalTrimmedString(request.verifiedChallengeId);
       const signerSlot = Math.floor(Number(request.signerSlot));
-      const remainingUses = Math.floor(Number(request.remainingUses));
-      if (
-        !walletId ||
-        !verifiedChallengeId ||
-        !Number.isSafeInteger(signerSlot) ||
-        signerSlot < 1 ||
-        !Number.isSafeInteger(remainingUses) ||
-        remainingUses < 1
-      ) {
+      if (!walletId || !verifiedChallengeId || !Number.isSafeInteger(signerSlot) || signerSlot < 1) {
         return {
           ok: false,
           code: 'invalid_body',
@@ -2905,11 +2888,6 @@ export class CloudflareD1WalletRegistrationService {
       };
       switch (request.walletSessionIdentity.kind) {
         case 'new_wallet_session': {
-          const expiresAtMs = issuedAtMs + DEFAULT_WALLET_SESSION_TTL_MS;
-          const issuedRemainingUses = Math.min(
-            DEFAULT_WALLET_SESSION_REMAINING_USES,
-            remainingUses,
-          );
           await assertDirectWalletSessionOwnerProof({
             proof: request.proof,
             tenantId: this.authorizationTenantId,
@@ -2926,9 +2904,11 @@ export class CloudflareD1WalletRegistrationService {
               authority: activeAuthority.authority,
               walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
               mintId: requireWalletSessionMintId(verifiedChallengeId),
-              remainingUses: issuedRemainingUses,
+              budget: unlockWalletSessionBudgetRequest({
+                deviceLinked: activeAuthority.authority.provenance.kind === 'device_link',
+                requested: request.walletSessionIdentity.walletSessionBudget,
+              }),
               issuedAtMs,
-              expiresAtMs,
             });
           switch (directIssue.kind) {
             case 'issued':
@@ -2936,8 +2916,8 @@ export class CloudflareD1WalletRegistrationService {
                 authorizationId: directIssue.session.authorizationId,
                 walletSessionId: directIssue.quota.walletSessionId,
                 quotaId: directIssue.quota.quotaId,
-                expiresAtMs,
-                remainingUses: issuedRemainingUses,
+                expiresAtMs: directIssue.session.expiresAtMs,
+                remainingUses: directIssue.quota.remainingUses,
                 walletSessionCredential: {
                   kind: 'issued_exact_wallet_session',
                   operationCredential: directIssue.operationCredential,
@@ -3907,6 +3887,10 @@ export class CloudflareD1WalletRegistrationService {
           : ownerProofContext.expiresAtMs,
     });
     const completion = source.kind === 'stored_ceremony' ? source.ceremony.intent.completion : 'wallet_session';
+    /* The app's budget travels in the setup intent. A mixed wallet's NEAR leg
+       may read a committed installation instead; its session was issued at activation. */
+    const walletSessionBudget: WalletSessionBudget | null =
+      source.kind === 'stored_ceremony' ? (source.ceremony.intent.walletSessionBudget ?? null) : null;
     if (completion === 'owner_operations' && args.input.onSessionCommitted) return unissuedRegistrationCommit({ ok: false, code: 'invalid_body', message: 'Owner-operation registration cannot seal a Wallet Session' });
     const initialSessionPlan: RegistrationInitialSessionPlan =
       completion === 'wallet_session' &&
@@ -3921,8 +3905,7 @@ export class CloudflareD1WalletRegistrationService {
               registrationCeremonyId: args.input.registrationCeremonyId,
               authority: sessionAuthority,
               walletAuthMethodId: effectivePrepared.walletAuthMethodId,
-              expiresAtMs: Date.now() + DEFAULT_WALLET_SESSION_TTL_MS,
-              remainingUses: DEFAULT_WALLET_SESSION_REMAINING_USES,
+              walletSessionBudget,
               proof,
             },
           }
@@ -3985,8 +3968,7 @@ export class CloudflareD1WalletRegistrationService {
           registrationCeremonyId: args.input.registrationCeremonyId,
           authority: finalized.authority,
           walletAuthMethodId: effectivePrepared.walletAuthMethodId,
-          expiresAtMs: Date.now() + DEFAULT_WALLET_SESSION_TTL_MS,
-          remainingUses: DEFAULT_WALLET_SESSION_REMAINING_USES,
+          walletSessionBudget,
           publicResult: finalized.ed25519,
           predecessor: sessionPredecessor,
           initialSession: execution.initialSession,
@@ -5048,8 +5030,7 @@ export class CloudflareD1WalletRegistrationService {
         registrationCeremonyId: context.registrationCeremonyId,
         authority: commit.authority,
         walletAuthMethodId: prepared.walletAuthMethodId,
-        expiresAtMs: activated.ecdsa.bootstrap.expiresAtMs,
-        remainingUses: activated.ecdsa.bootstrap.remainingUses,
+        walletSessionBudget: ceremony.intent.walletSessionBudget ?? null,
         bootstrap: activated.ecdsa.bootstrap,
         runtimePolicyScope,
         keyManifestDigestB64u: commit.custodyKeyManifestDigestB64u,

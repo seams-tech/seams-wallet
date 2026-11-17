@@ -29,7 +29,7 @@ import {
   type EcdsaRoleLocalMaterialResolution,
   type PersistedEcdsaRoleLocalMaterial,
 } from '../../session/material/ecdsaRoleLocalMaterialResolver';
-import type { ThresholdRuntimePolicyScope } from '../sessionPolicy';
+import { isGrantedWithinRequestedUses, type ThresholdRuntimePolicyScope } from '../sessionPolicy';
 import { bytesToHex } from '../../chains/evm/bytes';
 import { routerAbEcdsaDerivationPublicCapabilitiesEqual } from '../../session/material/ecdsaCapabilityManifest';
 
@@ -102,6 +102,17 @@ export function isEcdsaCredentialFreeSessionActivationAuthorization(
   value: EcdsaPreauthorizedSessionActivation,
 ): value is EcdsaCredentialFreeSessionActivationAuthorization {
   return value.kind === 'credential_free_ecdsa_session_activation_authorization_v1';
+}
+
+/** The session that the server issued, with its granted budget, for either activation kind. */
+export function ecdsaPreauthorizedActivationSession(
+  value: EcdsaPreauthorizedSessionActivation,
+):
+  | RouterAbEcdsaCredentialFreeSessionActivationResponseV1['session']
+  | RouterAbEcdsaPostRegistrationSessionActivationResponseV1['session'] {
+  return isEcdsaCredentialFreeSessionActivationAuthorization(value)
+    ? value.activation.session
+    : value.session;
 }
 
 function routeFailureMessage(
@@ -230,7 +241,7 @@ function validateCredentialFreeSessionAuthorization(input: {
     record.authorizationId !== activation.session.authorization_id ||
     record.quotaId !== activation.session.quota_id ||
     record.expiresAtMs !== activation.session.expires_at_ms ||
-    activation.session.remaining_uses !== input.remainingUses ||
+    !isGrantedWithinRequestedUses(activation.session.remaining_uses, input.remainingUses) ||
     authorization.operationCredential.walletSessionId !== activation.session.wallet_session_id ||
     !mpcMaterialActivationRefsEqual(
       materialActivation,

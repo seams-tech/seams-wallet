@@ -7,6 +7,7 @@ import type { IdentityStore } from '../../../../core/IdentityStore';
 import type { WalletLifecycleRoutingPublisher } from '../../../../authorization/lifecycleRouting';
 import type { WalletRecoveryRoutingPublisher } from '../../../../authorization/recoveryRouting';
 import type { WalletSessionRoutingPublisher } from '../../../../authorization/sessionRouting';
+import type { WalletSessionLimitsPort } from '../../../../authorization/service';
 import type { WalletRegistrationSetupDispatcher } from '../../../framework/registrationSetupDispatch';
 import type {
   RegistrationWalletStarter,
@@ -167,6 +168,8 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly syncChallenges?: WebAuthnSyncChallengeStore;
   readonly googleRegistrationAttempts?: GoogleEmailOtpRegistrationAttemptStore;
   readonly sessionRouting?: WalletSessionRoutingPublisher;
+  /** The tenant's Wallet Session maximum. Absent: the default budget is the maximum. */
+  readonly walletSessionLimits?: WalletSessionLimitsPort;
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
   readonly registrationSetupDispatcher?: WalletRegistrationSetupDispatcher;
@@ -373,6 +376,7 @@ export function normalizeD1RouterApiAuthOptions(
     linkedDeviceBootstrap: input.linkedDeviceBootstrap,
     googleRegistrationAttempts: input.googleRegistrationAttempts,
     sessionRouting: input.sessionRouting,
+    walletSessionLimits: input.walletSessionLimits,
     recoveryRouting: input.recoveryRouting,
     lifecycleRouting: input.lifecycleRouting,
     registrationAuthority: input.registrationAuthority

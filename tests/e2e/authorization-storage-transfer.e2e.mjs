@@ -44,6 +44,9 @@ import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 
+// The default tenant maximum: 100 signatures and 30 days.
+const DEFAULT_TENANT_LIMITS = { maxTtlMs: 30 * 24 * 60 * 60_000, maxRemainingUses: 100 };
+
 const output = resolve('.artifacts/r153/authorization-storage-transfer');
 const scope = {
   namespace: 'transfer-probe',
@@ -468,9 +471,8 @@ try {
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: 'wallet-mint:inactive-import-issuance',
-      remainingUses: 7,
+      budget: { profile: 'default', requested: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 20), remainingUses: 7 } },
       issuedAtMs: issuedAtMs + 20,
-      expiresAtMs: issued.session.expiresAtMs,
     }),
     /Wallet session issuance requires an open execution generation/u,
   );
@@ -494,9 +496,8 @@ try {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: 'wallet-mint:activated-destination',
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 30), remainingUses: 7 } },
     issuedAtMs: issuedAtMs + 30,
-    expiresAtMs: issued.session.expiresAtMs,
   });
   assert.equal(resumedSession.session.walletId, fixture.authority.walletId);
   assert.equal(resumedSession.operationCredential.ownershipGeneration, 2);
@@ -550,9 +551,8 @@ try {
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: 'wallet-mint:cleaned-source',
-      remainingUses: 7,
+      budget: { profile: 'default', requested: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 32), remainingUses: 7 } },
       issuedAtMs: issuedAtMs + 32,
-      expiresAtMs: issued.session.expiresAtMs,
     }),
   );
   assert.equal(
@@ -682,6 +682,7 @@ function service(database, walletScope) {
     walletSignerScope: walletScope,
   });
   return new api.AuthorizationService({
+    walletSessionLimits: { readWalletSessionLimits: async () => DEFAULT_TENANT_LIMITS },
     policy: api.capabilityPolicyPort,
     sessions: store,
     grants: store,
@@ -704,9 +705,8 @@ async function issueDeviceSession(database, authorizationService, fixture, issue
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    remainingUses: 7,
+    budget: { profile: 'default', requested: { ttlMs: fixture.issuedSession.session.expiresAtMs - issuedAtMs, remainingUses: 7 } },
     issuedAtMs,
-    expiresAtMs: fixture.issuedSession.session.expiresAtMs,
   });
   assert.equal(issued.kind, 'issued');
   return issued;

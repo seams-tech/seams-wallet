@@ -46,8 +46,7 @@ export async function commitWalletRegistration(
           authority: session.request.authority,
           foundingAuthority: input.foundingAuthority,
           walletAuthMethodId: session.request.walletAuthMethodId,
-          expiresAtMs: session.request.expiresAtMs,
-          remainingUses: session.request.remainingUses,
+          walletSessionBudget: session.request.walletSessionBudget,
           proof: session.request.proof,
         },
         session.store.commitRegistrationWalletSessionAuthorizationV2.bind(

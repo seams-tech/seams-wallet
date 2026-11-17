@@ -295,10 +295,7 @@ import {
   type Ed25519YaoPublicCapabilityReferenceStorePort,
   type Ed25519YaoPublicCapabilityReferenceV1,
 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
-import {
-  DEFAULT_THRESHOLD_SESSION_POLICY,
-  DEFAULT_UNLOCK_REMAINING_USES,
-} from '@/core/signingEngine/threshold/sessionPolicy';
+import { DEFAULT_THRESHOLD_SESSION_POLICY } from '@/core/signingEngine/threshold/sessionPolicy';
 import type {
   PasskeyMpcSessionPort,
   UiConfirmRuntimeBridgePort,
@@ -549,6 +546,8 @@ function buildEmailOtpEcdsaRehydrationPolicy(args: {
         generateSessionId('threshold-ecdsa-login'),
       ),
       wallet_session_mint_id: walletSessionMintId.value,
+      /* The rehydration joins the active Wallet Session and keeps its budget. The
+         wire format keeps these two fields; the server does not take a budget from them. */
       ttl_ms: DEFAULT_THRESHOLD_SESSION_POLICY.ttlMs,
       remaining_uses: args.remainingUses,
       runtime_policy_scope: args.manifest.durableMaterial.runtimePolicyScope,
@@ -4076,7 +4075,6 @@ export class BrowserSigningSurface {
           providerSubjectId: input.auth.providerSubjectId,
           nearAccountId: String(input.nearAccountId),
           signerSlot: user.signerSlot,
-          remainingUses: args.remainingUses,
           expectedOperationalPublicKey: user.operationalPublicKey,
           expectedThresholdSessionId: publicLane.thresholdSessionId,
           operationCredential,
@@ -5040,7 +5038,6 @@ export class BrowserSigningSurface {
         ed25519YaoRecovery: {
           kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
           signerSlot: context.publicLane.signerSlot,
-          remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
           orgId: context.publicLane.runtimePolicyScope.orgId,
         },
         walletCustodyEd25519Material: {
@@ -6493,7 +6490,6 @@ export class BrowserSigningSurface {
     walletSession: WalletSessionRef;
     providerSubjectId: string;
     walletAuthMethodId: string;
-    remainingUses: number;
   }): Promise<EmailOtpAuthorityUnlockEd25519Request | null> {
     const projection = await this.resolveEmailOtpEd25519CustodyProjectionInternal({
       walletSession: args.walletSession,
@@ -6508,12 +6504,10 @@ export class BrowserSigningSurface {
     return {
       kind: 'owner_authority',
       signerSlot,
-      remainingUses: args.remainingUses,
       recovery: {
         ed25519YaoRecovery: {
           kind: ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
           signerSlot,
-          remainingUses: args.remainingUses,
           orgId: projection.identity.runtimePolicyScope.orgId,
         },
         providerSubject: projection.providerSubject,
@@ -6741,7 +6735,7 @@ export class BrowserSigningSurface {
       workerCtx: this.signerWorkerManager.getContext(),
       providerSubject: args.providerSubjectId,
       signerSlot: selection.signerSlot,
-      remainingUses: args.remainingUses,
+      walletSessionBudget: args.walletSessionBudget,
       orgId: selection.runtimePolicyScope.orgId,
       nearAccountId: selection.nearAccountId,
       expectedOperationalPublicKey: selection.operationalPublicKey,

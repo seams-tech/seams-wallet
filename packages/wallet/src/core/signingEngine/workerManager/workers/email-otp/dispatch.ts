@@ -258,6 +258,7 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
           groupId: readString(msg.payload.groupId, 'groupId'),
           routePlan,
           material,
+          walletSessionBudget: msg.payload.walletSessionBudget,
           onProgress: (code) => postEmailOtpWorkerProgress(msg.id, code),
         });
         const recovery = {

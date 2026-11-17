@@ -3,6 +3,7 @@ import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerH
 import type { WalletId, WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import { readAuthMethodEnabled } from '../availability';
 import type { AuthMethodSessionInstaller, AuthMethodUnlockSuccess } from '../hostPlugin';
 import type { VoiceIdUnlockPreparation, VoiceIdUnlockChallenge } from './boundary';
@@ -11,11 +12,21 @@ import { resolveVoiceEnrollmentScope } from './enrollmentStorage';
 import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from './httpClient';
 import { verifyVoiceIdChallengeWithDevice } from './unlockFromDevice';
 
+/** What one VoiceID unlock sends with the voice proof. */
+type VoiceIdUnlockRequest = {
+  readonly authMethod: ActiveVoiceIdWalletAuthMethodRecordV2;
+  readonly http: VoiceIdHttpClient;
+  readonly install: AuthMethodSessionInstaller;
+  /** The app's Wallet Session budget. Null: the app asks for none. */
+  readonly walletSessionBudget: WalletSessionBudget | null;
+};
+
 export async function prepareVoiceIdUnlock(
   input: {
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly relayerUrl: string;
+    readonly walletSessionBudget: WalletSessionBudget | null;
     readonly prepareSession: (signal: AbortSignal) => Promise<AuthMethodSessionInstaller>;
     readonly assertActive: () => void;
   },
@@ -41,49 +52,52 @@ export async function prepareVoiceIdUnlock(
     fetchWithWalletHomeDiscovery,
   );
   const scope = await resolveVoiceEnrollmentScope(input.walletId, input.walletAuthMethodId);
+  const request: VoiceIdUnlockRequest = {
+    authMethod,
+    http,
+    install,
+    walletSessionBudget: input.walletSessionBudget,
+  };
   return {
     scope,
-    challenge: issueChallenge.bind(null, authMethod, http, install, input.assertActive),
+    challenge: issueChallenge.bind(null, request, input.assertActive),
   };
 }
 
 async function issueChallenge(
-  authMethod: ActiveVoiceIdWalletAuthMethodRecordV2,
-  http: VoiceIdHttpClient,
-  install: AuthMethodSessionInstaller,
+  request: VoiceIdUnlockRequest,
   assertActive: () => void,
   signal: AbortSignal,
 ): Promise<VoiceIdUnlockChallenge> {
   signal.throwIfAborted();
   assertActive();
-  const challenge = await http.challenge({
-    walletId: authMethod.walletId,
-    walletAuthMethodId: authMethod.walletAuthMethodId,
+  const challenge = await request.http.challenge({
+    walletId: request.authMethod.walletId,
+    walletAuthMethodId: request.authMethod.walletAuthMethodId,
     signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
   });
   assertActive();
   signal.throwIfAborted();
   return {
     expiresAtMs: challenge.expiresAtMs,
-    complete: completeUnlock.bind(null, authMethod, challenge, http, install),
+    complete: completeUnlock.bind(null, request, challenge),
   };
 }
 
 function completeUnlock(
-  authMethod: ActiveVoiceIdWalletAuthMethodRecordV2,
+  request: VoiceIdUnlockRequest,
   challenge: VoiceIdWalletSessionChallenge,
-  http: VoiceIdHttpClient,
-  install: AuthMethodSessionInstaller,
   capture: VoiceIdUnlockCapture,
   signal: AbortSignal,
 ): Promise<AuthMethodUnlockSuccess> {
   return verifyVoiceIdChallengeWithDevice({
-    authMethod,
+    authMethod: request.authMethod,
     challenge,
-    http,
+    http: request.http,
+    walletSessionBudget: request.walletSessionBudget,
     capture,
     signal,
-    install: installVerifiedSession.bind(null, install, signal),
+    install: installVerifiedSession.bind(null, request.install, signal),
   });
 }
 

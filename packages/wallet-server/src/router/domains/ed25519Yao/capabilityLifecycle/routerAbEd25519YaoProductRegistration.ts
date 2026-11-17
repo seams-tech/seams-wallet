@@ -83,7 +83,6 @@ import {
   type RouterAbEd25519YaoTenantRootWireV1,
 } from '../routerAbEd25519YaoGatewayEnvelope';
 import type { RouterAbEd25519YaoPreparedWriteV1 } from './routerAbEd25519YaoProductRegistrationPartitionedStateStore';
-import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
 /**
@@ -547,30 +546,17 @@ function assertNeverWalletSessionMintInput(value: never): never {
 async function resolveRouterAbEd25519YaoWalletSessionTermsV1(
   input: RouterAbEd25519YaoWalletSessionMintInputV1,
 ): Promise<RouterAbEd25519YaoWalletSessionTermsV1> {
-  const nowMs = Date.now();
   switch (input.kind) {
     case 'verified_wallet_unlock_v1':
-      if (!Number.isSafeInteger(input.expiresAtMs) || input.expiresAtMs <= nowMs) {
-        throw new Error('Verified wallet unlock expiry must follow issuance');
-      }
-      return {
-        expiresAtMs: input.expiresAtMs,
-        remainingUses: Math.min(
-          DEFAULT_WALLET_SESSION_REMAINING_USES,
-          Math.max(1, Math.floor(input.remainingUses)),
-        ),
-      };
     case 'same_identity_budget_refresh_v1':
-      if (!Number.isSafeInteger(input.expiresAtMs) || input.expiresAtMs <= nowMs) {
-        throw new Error('Budget refresh expiry must follow issuance');
+      // The terms are the issued quota's: the issuer already granted them.
+      if (!Number.isSafeInteger(input.expiresAtMs) || input.expiresAtMs <= Date.now()) {
+        throw new Error('Ed25519 Wallet Session expiry must follow issuance');
       }
-      return {
-        expiresAtMs: input.expiresAtMs,
-        remainingUses: Math.min(
-          DEFAULT_WALLET_SESSION_REMAINING_USES,
-          Math.max(1, Math.floor(input.remainingUses)),
-        ),
-      };
+      if (!Number.isSafeInteger(input.remainingUses) || input.remainingUses < 1) {
+        throw new Error('Ed25519 Wallet Session remaining uses must be a positive integer');
+      }
+      return { expiresAtMs: input.expiresAtMs, remainingUses: input.remainingUses };
     default:
       return assertNeverWalletSessionMintInput(input);
   }

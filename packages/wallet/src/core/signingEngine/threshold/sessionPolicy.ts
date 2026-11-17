@@ -8,6 +8,7 @@ import {
   MAX_WALLET_SESSION_REMAINING_USES,
   MAX_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type {
   EmailOtpWalletAuthAuthority,
   PasskeyWalletAuthAuthority,
@@ -130,12 +131,38 @@ export function parsePositiveSessionUses(value: unknown, fieldName: string): Pos
   return remainingUses as PositiveRemainingUses;
 }
 
-export function resolveWalletUnlockSessionUsesFromRequestedUses(args: {
-  requestedRemainingUses: unknown;
-}): number | null {
-  const normalized = Math.floor(Number(args.requestedRemainingUses) || 0);
-  if (!Number.isFinite(normalized) || normalized <= 0) return null;
-  return Math.min(normalized, DEFAULT_UNLOCK_REMAINING_USES);
+type RequestedWalletSessionBudgetFields = {
+  readonly ttlMs?: unknown;
+  readonly remainingUses?: unknown;
+};
+
+/**
+ * The Wallet Session budget that the app asks for: each field of the override,
+ * else of the defaults. It is null when a field is not a positive integer; the
+ * app then asks for no warm session. The client does not clamp it: the server
+ * grants at most the maximum of the project environment.
+ */
+export function resolveRequestedWalletSessionBudget(args: {
+  readonly defaults: RequestedWalletSessionBudgetFields;
+  readonly override?: RequestedWalletSessionBudgetFields | null;
+}): WalletSessionBudget | null {
+  const ttlMs = Math.floor(Number(args.override?.ttlMs ?? args.defaults.ttlMs) || 0);
+  const remainingUses = Math.floor(
+    Number(
+      args.override?.remainingUses ?? args.defaults.remainingUses ?? DEFAULT_UNLOCK_REMAINING_USES,
+    ) || 0,
+  );
+  if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0) return null;
+  if (!Number.isSafeInteger(remainingUses) || remainingUses <= 0) return null;
+  return { ttlMs, remainingUses };
+}
+
+/**
+ * The server grants at most the count that the client asked for. A granted
+ * count from 1 to the request is valid; any other count is an error.
+ */
+export function isGrantedWithinRequestedUses(granted: number, requested: number): boolean {
+  return Number.isSafeInteger(granted) && granted >= 1 && granted <= requested;
 }
 
 export function clampThresholdSessionPolicy(input: { ttlMs: number; remainingUses: number }): {

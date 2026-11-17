@@ -10,6 +10,7 @@ import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { VoiceIdSeedEnvelope } from '@shared/passkey-custody/custodyEnvelope';
 import type { DirectV2IssueResult, IssuedWalletSessionAuthorizationV2 } from '../../../authorization/domain';
 import type { SessionOrigin } from '../../../authorization/domain';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 
 export type VoiceIdChallengeRequest = Readonly<{
   walletId: WalletId;
@@ -26,6 +27,8 @@ export type VoiceIdVerifyRequest = Readonly<{
   assertion: VoiceIdDeviceAssertion;
   requestOrigin: SessionOrigin;
   nowMs: number;
+  /** The app's budget. Null: the app asked for none. */
+  walletSessionBudget: WalletSessionBudget | null;
 }>;
 
 export type VoiceIdVerifyResult =

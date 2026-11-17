@@ -9,7 +9,8 @@ import {
   walletSessionRefFromSession,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { DEFAULT_UNLOCK_REMAINING_USES } from '@/core/signingEngine/threshold/sessionPolicy';
+import { resolveConfiguredWalletSessionBudget } from '@/SeamsWeb/operations/auth/unlockSessionPolicy';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import {
   listConfiguredThresholdEcdsaPublicationTargets,
   listThresholdEcdsaProvisionTargets,
@@ -80,7 +81,8 @@ type GoogleLoginEmailOtpEd25519YaoCapabilityArgs = {
   emailOtpAuthorityEmail: string;
   challengeId: string;
   otpCode: string;
-  remainingUses: number;
+  /** The app's Wallet Session budget. Null: the app asks for none. */
+  walletSessionBudget: WalletSessionBudget | null;
   ed25519Selection: Extract<
     EmailOtpOperationChallengeResult['signerSelection'],
     { readonly kind: 'ed25519_only' }
@@ -516,12 +518,6 @@ function registrationOptionsFromInput(args: {
   };
 }
 
-function resolveGoogleEmailOtpEd25519RemainingUses(configs: SeamsConfigsReadonly): number {
-  const configured = Math.floor(Number(configs.signing.sessionDefaults?.remainingUses) || 0);
-  if (configured <= 0) return DEFAULT_UNLOCK_REMAINING_USES;
-  return Math.min(configured, DEFAULT_UNLOCK_REMAINING_USES);
-}
-
 async function loginWithConfiguredTargets(args: {
   deps: GoogleEmailOtpWalletAuthDeps;
   state: GoogleSessionState;
@@ -549,7 +545,7 @@ async function loginWithConfiguredTargets(args: {
       emailOtpAuthorityEmail: args.state.emailHint,
       challengeId: args.challenge.challengeId,
       otpCode: args.otpCode,
-      remainingUses: resolveGoogleEmailOtpEd25519RemainingUses(args.deps.configs),
+      walletSessionBudget: resolveConfiguredWalletSessionBudget(args.deps.configs),
       ed25519Selection: args.challenge.signerSelection,
     });
     return;

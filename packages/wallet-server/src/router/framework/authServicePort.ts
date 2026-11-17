@@ -112,6 +112,7 @@ import type {
 } from '../../authorization/domain';
 import type { IssueWalletSessionAuthorizationV2Input } from '../../authorization/service';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 
 type WalletAuthMethodManagementSubject = Readonly<{
   kind: 'wallet_auth_method_management';
@@ -1269,11 +1270,8 @@ export interface RouterApiWalletRegistrationService {
     | {
         readonly ok: true;
         readonly walletKey: WalletEcdsaSignerKey;
-        readonly session: {
-          readonly thresholdSessionId: string;
-          readonly expiresAtMs: number;
-          readonly remainingUses: number;
-        };
+        /** The Wallet Session's budget comes from its issuer, not from this activation. */
+        readonly session: { readonly thresholdSessionId: string };
         readonly normalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
         /** Recorded on the signer record when registration verified this key set. */
         readonly keyManifestDigestB64u: DigestB64u;
@@ -1478,6 +1476,8 @@ export interface RouterApiWalletUnlockService {
     readonly rpId: WebAuthnRpId;
     readonly credentialIdB64u: WebAuthnCredentialIdB64u;
     readonly verifiedChallengeId: string;
+    /** The app's budget. Null: the app asked for none. */
+    readonly walletSessionBudget: WalletSessionBudget | null;
   }): Promise<WalletUnlockPasskeySessionResolution>;
   issueWalletSessionForEmailOtpUnlock(input: {
     readonly walletId: WalletId;
@@ -1486,6 +1486,8 @@ export interface RouterApiWalletUnlockService {
     readonly providerUserId: string;
     readonly verifiedChallengeId: string;
     readonly requestedCapabilities: WalletUnlockEmailOtpSessionRequest;
+    /** The app's budget. Null: the app asked for none. */
+    readonly walletSessionBudget: WalletSessionBudget | null;
   }): Promise<WalletUnlockPasskeySessionResolution>;
   refreshWalletSessionAuthorityProjection(input: {
     readonly existing: IssuedWalletSessionAuthorizationV2;

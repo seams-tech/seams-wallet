@@ -1,5 +1,9 @@
 import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
 import {
+  parseOptionalWalletSessionBudget,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
+import {
   recordRegistrationServerTiming,
   registrationServerTimingHeaders,
 } from '../../framework/registrationTiming';
@@ -558,6 +562,26 @@ export function parseWalletRegistrationSetupRequest(
   if (completion !== 'wallet_session' && completion !== 'owner_operations') return { ok: false, code: 'invalid_body', message: 'Invalid registration completion' };
   const wallet = parseWalletRegistrationSetupWallet(body.wallet);
   if (!wallet.ok) return wallet;
+  let walletSessionBudget: WalletSessionBudget | null;
+  try {
+    walletSessionBudget = parseOptionalWalletSessionBudget(
+      body.walletSessionBudget,
+      'walletSessionBudget',
+    );
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: error instanceof Error ? error.message : 'walletSessionBudget is invalid',
+    };
+  }
+  if (walletSessionBudget && completion !== 'wallet_session') {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'walletSessionBudget needs a wallet_session completion',
+    };
+  }
   return {
     ok: true,
     value: {
@@ -566,6 +590,7 @@ export function parseWalletRegistrationSetupRequest(
       ...(wallet.value ? { wallet: wallet.value } : {}),
       signerSelection: signerSelection.value.selection,
       authMethod,
+      ...(walletSessionBudget ? { walletSessionBudget } : {}),
     },
   };
 }

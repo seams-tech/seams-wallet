@@ -24,6 +24,7 @@ const activatedInput: PasskeyWalletUnlockInputWithEcdsaActivation = {
   challengeId: 'challenge-1',
   webauthn_authentication: credential,
   ed25519SessionRequest: { kind: 'not_requested' },
+  walletSessionBudget: null,
   ecdsaSessionPolicy: activationPolicy,
   walletId: 'wallet.testnet',
 };
@@ -50,7 +51,8 @@ const ed25519OnlyInput: PasskeyWalletUnlockInputWithoutEcdsaActivation = {
   type: 'passkey_assertion',
   challengeId: 'challenge-2',
   webauthn_authentication: credential,
-  ed25519SessionRequest: { kind: 'requested', remainingUses: 2 },
+  ed25519SessionRequest: { kind: 'requested' },
+  walletSessionBudget: { ttlMs: 60_000, remainingUses: 2 },
 };
 
 void verifyPasskeyWalletUnlock(

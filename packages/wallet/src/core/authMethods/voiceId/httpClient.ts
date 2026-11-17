@@ -19,6 +19,7 @@ import type {
 } from '@shared/device-linking/contracts';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import {
   parseWalletAuthMethodRecordV2,
   type ActiveVoiceIdWalletAuthMethodRecordV2,
@@ -149,6 +150,8 @@ export class VoiceIdHttpClient {
 
   async verify(input: {
     readonly assertion: VoiceIdDeviceAssertion;
+    /** The app's budget. Absent or null: the app asks for none, and the server uses its default. */
+    readonly walletSessionBudget?: WalletSessionBudget | null;
     readonly signal: AbortSignal;
   }): Promise<VoiceIdVerifiedSession> {
     if (
@@ -158,7 +161,12 @@ export class VoiceIdHttpClient {
       throw new Error('VoiceID assertion belongs to a different Wallet origin.');
     }
     const request = new Request(joinNormalizedUrl(this.relayerUrl, '/wallet/voiceid/verify'), {
-      ...buildRelayerJsonPostRequestInit({ body: { assertion: input.assertion } }),
+      ...buildRelayerJsonPostRequestInit({
+        body: {
+          assertion: input.assertion,
+          ...(input.walletSessionBudget ? { walletSessionBudget: input.walletSessionBudget } : {}),
+        },
+      }),
       signal: input.signal,
     });
     const body = await requireSuccessfulResponse(await this.send(request));

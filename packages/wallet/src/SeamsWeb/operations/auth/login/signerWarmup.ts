@@ -11,6 +11,7 @@ import type {
 } from '@/SeamsWeb/signingSurface/types';
 import { toError } from '@shared/utils/errors';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import {
   type MpcWalletSigningQuotaId,
   type WalletSessionAuthorizationId,
@@ -447,8 +448,8 @@ export async function primeThresholdLoginWarmSigners(args: {
   relayerUrl: string;
   relayerKeyId: string;
   participantIds: number[];
-  ttlMs: number;
-  unlockRemainingUses: number;
+  /** The budget that this unlock asked for. Each session adopts the budget that the server granted. */
+  walletSessionBudget: WalletSessionBudget;
   ecdsaContext: CanonicalThresholdEcdsaWarmSessionContext;
   credentialState: LoginWarmupCredentialState;
   runtimeScopeBootstrapState: LoginWarmupRuntimeScopeBootstrapState;
@@ -492,7 +493,7 @@ export async function primeThresholdLoginWarmSigners(args: {
     generatedThresholdSessionId:
       args.passkeyExchangeEcdsaActivation?.policy.session_policy.threshold_session_id || '',
   };
-  const unlockRemainingUses = args.unlockRemainingUses;
+  const walletSessionBudget = args.walletSessionBudget;
   const ecdsaBootstraps: ThresholdEcdsaSessionBootstrapResult[] = [];
   let ed25519Session: LoginWarmEd25519Session | null = null;
   let ecdsaAuthorizedEd25519Mint: ThresholdEcdsaAuthorizedEd25519Mint | null = null;
@@ -537,8 +538,8 @@ export async function primeThresholdLoginWarmSigners(args: {
           routerAbNormalSigning: provisionScope.routerAbNormalSigning,
           runtimeScopeBootstrap: runtimeScopeBootstrap || undefined,
           participantIds: provisionScope.participantIds,
-          ttlMs: args.ttlMs,
-          remainingUses: unlockRemainingUses,
+          ttlMs: walletSessionBudget.ttlMs,
+          remainingUses: walletSessionBudget.remainingUses,
           onWalletSessionAuthorityReady: stageMintedLoginEd25519WalletSessionAuthority.bind(
             undefined,
             {
@@ -588,7 +589,7 @@ export async function primeThresholdLoginWarmSigners(args: {
               custody: args.ed25519MintPlan.custody,
               provisionScope,
               credential,
-              remainingUses: unlockRemainingUses,
+              requestedRemainingUses: walletSessionBudget.remainingUses,
               unlockAuthorization: args.passkeyUnlockWalletSessionAuthorization,
             });
             break;
@@ -762,8 +763,8 @@ export async function primeThresholdLoginWarmSigners(args: {
           const lanePolicy = buildEvmFamilyEcdsaSessionLanePolicy({
             chainTarget: target.chainTarget,
             thresholdSessionId,
-            ttlMs: args.ttlMs,
-            remainingUses: unlockRemainingUses,
+            ttlMs: walletSessionBudget.ttlMs,
+            remainingUses: walletSessionBudget.remainingUses,
             runtimePolicyScope,
           });
           const existingRoleLocalMaterial = targetEcdsaKey.existingRoleLocalMaterial;

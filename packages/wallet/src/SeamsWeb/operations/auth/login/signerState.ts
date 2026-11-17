@@ -9,6 +9,7 @@ import { type RouterAbEd25519NormalSigningState } from '@shared/utils/signingSes
 import { type PasskeySessionEcdsaCustodyContinuityV1 } from '@/core/rpcClients/near/rpcCalls';
 import { type ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
 import {
+  ecdsaPreauthorizedActivationSession,
   isEcdsaCredentialFreeSessionActivationAuthorization,
   type EcdsaPreauthorizedSessionActivation,
 } from '@/core/signingEngine/threshold/ecdsa/postRegistrationSessionActivation';
@@ -18,13 +19,13 @@ import {
   type CanonicalThresholdEcdsaWarmSessionContext,
 } from '@/core/signingEngine/session/passkey/unlockEcdsaWarmupPlanner';
 import { base64UrlDecode } from '@shared/utils/base64';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
+import type { UnlockSessionPolicy } from '../unlockSessionPolicy';
 
 export function thresholdSessionIdFromPasskeyEcdsaActivation(
   activation: EcdsaPreauthorizedSessionActivation,
 ): ThresholdEcdsaSessionId {
-  return isEcdsaCredentialFreeSessionActivationAuthorization(activation)
-    ? activation.activation.session.threshold_session_id
-    : activation.session.threshold_session_id;
+  return ecdsaPreauthorizedActivationSession(activation).threshold_session_id;
 }
 
 export function exactAuthorizationFromPasskeyEcdsaActivation(
@@ -134,11 +135,11 @@ export function requireThresholdLoginWalletSessionMintId(value: string) {
   return parsed.value;
 }
 
-export function requireLoginUnlockSessionUses(remainingUses: number | null): number {
-  if (remainingUses == null || remainingUses <= 0) {
-    throw new Error('[login] unlock warm-up requires positive unlock session uses');
+export function requireLoginWalletSessionBudget(policy: UnlockSessionPolicy): WalletSessionBudget {
+  if (policy.kind !== 'enabled') {
+    throw new Error('[login] unlock warm-up requires an enabled Wallet Session budget');
   }
-  return remainingUses;
+  return policy.budget;
 }
 
 export function createThresholdEcdsaDeviceLinkRequiredError(targetKey: string): Error & {

@@ -7,6 +7,10 @@ import {
   type EcdsaClientRootPublicKey33B64u,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import {
+  parseOptionalWalletSessionBudget,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import { parseWalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
 import {
   parseChallengeSubjectId,
@@ -201,29 +205,19 @@ export function buildRegistrationIntent(input: {
      would give the custody seal a different owner than finalize commits. */
   readonly foundingWalletAuthMethodId: WalletAuthMethodId;
   readonly runtimePolicyScope?: RuntimePolicyScope;
+  readonly walletSessionBudget?: WalletSessionBudget;
 }): RegistrationIntentV1 {
-  const nonceB64u = input.nonceB64u;
-  const foundingWalletAuthMethodId = input.foundingWalletAuthMethodId;
-  if (input.runtimePolicyScope) {
-    return {
-      version: 'registration_intent_v1',
-      completion: input.completion,
-      walletId: input.walletId,
-      authMethod: input.authMethod,
-      signerSelection: input.signerSelection,
-      foundingWalletAuthMethodId,
-      runtimePolicyScope: input.runtimePolicyScope,
-      nonceB64u,
-    };
-  }
+  // Optional fields stay absent, not undefined, so that the intent digest is stable.
   return {
     version: 'registration_intent_v1',
-      completion: input.completion,
+    completion: input.completion,
     walletId: input.walletId,
     authMethod: input.authMethod,
     signerSelection: input.signerSelection,
-    foundingWalletAuthMethodId,
-    nonceB64u,
+    foundingWalletAuthMethodId: input.foundingWalletAuthMethodId,
+    ...(input.runtimePolicyScope ? { runtimePolicyScope: input.runtimePolicyScope } : {}),
+    ...(input.walletSessionBudget ? { walletSessionBudget: input.walletSessionBudget } : {}),
+    nonceB64u: input.nonceB64u,
   };
 }
 
@@ -318,27 +312,25 @@ function parseD1RegistrationIntent(raw: unknown): RegistrationIntentV1 | null {
   if (!walletId || !authMethod || !signerSelection.ok || !nonceB64u) return null;
   if (!foundingWalletAuthMethodId.ok) return null;
   if (record.runtimePolicyScope !== undefined && !runtimePolicyScope) return null;
-  if (runtimePolicyScope) {
-    return {
-      version: 'registration_intent_v1',
-    completion: parsePersistedRegistrationCompletion(record.completion),
-      walletId,
-      authMethod,
-      signerSelection: signerSelection.value,
-      foundingWalletAuthMethodId: foundingWalletAuthMethodId.value,
-      runtimePolicyScope,
-      nonceB64u,
-    };
+  let walletSessionBudget: WalletSessionBudget | null;
+  try {
+    walletSessionBudget = parseOptionalWalletSessionBudget(
+      record.walletSessionBudget,
+      'registration intent walletSessionBudget',
+    );
+  } catch {
+    return null;
   }
-  return {
-    version: 'registration_intent_v1',
+  return buildRegistrationIntent({
     completion: parsePersistedRegistrationCompletion(record.completion),
     walletId,
     authMethod,
     signerSelection: signerSelection.value,
     foundingWalletAuthMethodId: foundingWalletAuthMethodId.value,
+    ...(runtimePolicyScope ? { runtimePolicyScope } : {}),
+    ...(walletSessionBudget ? { walletSessionBudget } : {}),
     nonceB64u,
-  };
+  });
 }
 
 export function parseD1StoredWalletRegistrationCeremony(

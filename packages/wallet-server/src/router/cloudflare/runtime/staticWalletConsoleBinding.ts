@@ -6,6 +6,10 @@ import {
   parseExternalAuthConfiguration,
   type ExternalAuthConfiguration,
 } from '@shared/auth/externalAuth';
+import {
+  parseWalletSessionLimits,
+  type WalletSessionLimits,
+} from '@shared/threshold/walletSessionBudget';
 import { WALLET_CONSOLE_OP_PATHS_V1, type WalletConsolePrincipalV1 } from './walletConsoleOps';
 import { decodeWalletConsoleTenantRootActiveLineageRequestV1 } from './walletConsoleOps';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
@@ -26,6 +30,7 @@ export interface StaticWalletConsoleBindingConfigV1 {
     readonly environmentId: string;
     readonly environmentKey: string;
     readonly signingRootVersion: string;
+    readonly walletSessionLimits?: WalletSessionLimits | null;
   };
   readonly tenantRoot: {
     readonly identityDigestB64u: string;
@@ -63,6 +68,13 @@ export function parseStaticWalletConsoleBindingConfigV1(
         deployment.signingRootVersion,
         'deployment.signingRootVersion',
       ),
+      walletSessionLimits:
+        deployment.walletSessionLimits == null
+          ? null
+          : parseWalletSessionLimits(
+              deployment.walletSessionLimits,
+              'deployment.walletSessionLimits',
+            ),
     },
     tenantRoot: {
       identityDigestB64u: requiredConfigText(
@@ -185,6 +197,7 @@ function projectEnvironment(config: StaticWalletConsoleBindingConfigV1) {
     key: config.deployment.environmentKey,
     signingRootVersion: config.deployment.signingRootVersion,
     status: 'ACTIVE',
+    walletSessionLimits: config.deployment.walletSessionLimits ?? null,
   };
 }
 

@@ -26,6 +26,8 @@ export type WalletRegistrationSetupRequest = {
   readonly wallet?: RegisterWalletInput;
   readonly signerSelection: RegistrationSignerSetSelection;
   readonly authMethod: RegistrationAuthMethodInput;
+  /** The app's budget for the Wallet Session that registration gives. Absent: none. */
+  readonly walletSessionBudget?: import('@shared/threshold/walletSessionBudget').WalletSessionBudget;
 };
 
 export type WalletRegistrationSetupInput = {

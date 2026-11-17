@@ -2,12 +2,7 @@ import { isBillingCreditFailure } from '../../../../authorization/sessionRouting
 import { parsePrincipalId, parseTenantId, type TenantId } from '@shared/authorization/capabilityKinds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import {
-  DEFAULT_WALLET_SESSION_REMAINING_USES,
-  DEFAULT_WALLET_SESSION_TTL_MS,
-  LINKED_DEVICE_WALLET_SESSION_REMAINING_USES,
-  LINKED_DEVICE_WALLET_SESSION_TTL_MS,
-} from '@shared/threshold/sessionPolicy';
+import { unlockWalletSessionBudgetRequest } from '@shared/threshold/walletSessionBudget';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { AuthorizationService } from '../../../../authorization/service';
 import {
@@ -132,7 +127,6 @@ export class D1VoiceIdSessions {
     }
     const principalId = parsePrincipalId(String(active.authority.walletId));
     if (!principalId.ok) return { kind: 'rejected', code: 'issuance_unavailable' };
-    const deviceLinked = active.authority.provenance.kind === 'device_link';
     let issued: Awaited<ReturnType<AuthorizationService['issueDirectWalletSessionAuthorizationV2']>>;
     try {
       issued = await this.authorization.issueDirectWalletSessionAuthorizationV2({
@@ -142,13 +136,11 @@ export class D1VoiceIdSessions {
         authority: active.authority,
         walletAuthMethodId: active.authMethod.walletAuthMethodId,
         mintId: verified.challenge.challengeId,
-        remainingUses: deviceLinked
-          ? LINKED_DEVICE_WALLET_SESSION_REMAINING_USES
-          : DEFAULT_WALLET_SESSION_REMAINING_USES,
+        budget: unlockWalletSessionBudgetRequest({
+          deviceLinked: active.authority.provenance.kind === 'device_link',
+          requested: input.walletSessionBudget,
+        }),
         issuedAtMs: input.nowMs,
-        expiresAtMs:
-          input.nowMs +
-          (deviceLinked ? LINKED_DEVICE_WALLET_SESSION_TTL_MS : DEFAULT_WALLET_SESSION_TTL_MS),
       });
     } catch (error: unknown) {
       if (isBillingCreditFailure(error)) throw error;
