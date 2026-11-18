@@ -4,8 +4,9 @@ Status: 2026-11-18. Checklist only. Nothing is moved. The owner set the date of 
 organisation rename to 2026-11-20. The brand rename from Seams to Purin (package names,
 product names, domains) is later and separate
 ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D22 and D23). Steps 1, 4 and 6,
-and part of step 5, were checked on 2026-11-18. The edits of steps 10 to 12 are ready to run.
-They were checked again on 2026-11-18 against `origin/dev` of each repository. No trademark check
+and part of step 5, were checked on 2026-11-18. The edits of steps 11, 12, 14 and 16 are in
+`scripts/org-move-purin-io.sh`; a dry run passed on 2026-11-18 on `origin/dev` of each
+repository. No trademark check
 is necessary: the owner removed that condition on 2026-11-18.
 
 This rename changes only the GitHub organisation name. It does not change a repository name, an
@@ -182,30 +183,40 @@ container image `speaker-service`.
     A checkout can follow the redirect, but do not depend on it. Also check that each token or
     GitHub App of these checkouts has access in `purin-io`.
 
-    The edits of steps 10 to 12 are ready to run. Run each command in its clone after step 8,
-    then commit and push in each clone. seams-monorepo also changes the name that its docs
-    receipt records (`scripts/prepare-wallet-docs-source.mjs`) and the test that checks it.
+    `scripts/org-move-purin-io.sh` (in seams-wallet) does the file edits of steps 11, 12, 14
+    and the links of step 16 for one repository. It holds the file list of each repository.
+    After step 8, make a clean worktree of `origin/dev` in each of seams-wallet,
+    seams-monorepo, speak-to-sign, pantry and satyr, and run:
 
     ```bash
-    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/deploy-production-frontend.yml .github/workflows/deploy-staging-frontend.yml .github/workflows/release-seams-cli.yml .github/workflows/sign-recovery-trust.yml deployment/wallet-system/scripts/apply-github-external-values.mjs scripts/console-deployment-environment.mjs scripts/dispatch-deployment-workflow.mjs scripts/prepare-wallet-docs-source.mjs tests/e2e/wallet-marketing-seo.e2e.mjs docs/wallet-cli-release.md
+    bash ~/Dev/rust/seams-wallet/scripts/org-move-purin-io.sh <worktree>
     ```
 
-    ```bash
-    sed -i '' 's|seams-tech/|purin-io/|g' scripts/npm-trust-standalone.sh .github/workflows/release-standalone.yml crates/speaker-service/docker-compose.yml
-    ```
+    Change the path of the script if the seams-wallet clone has moved. The script changes
+    files only. Review its output, then commit and push in each repository. seams-monorepo
+    also changes the name that its docs receipt records (`scripts/prepare-wallet-docs-source.mjs`)
+    and the test that checks it.
 
-    ```bash
-    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/pantry.yml
-    ```
+    Dry run on 2026-11-18, on `origin/dev` of each repository. Each changed line differs from
+    the old line only in the organisation name, and no history file changes:
 
-    ```bash
-    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/satyr.yml
-    ```
+    | Repository | Files of steps 11 to 14 | Files with links | Lines left for review |
+    | --- | ---: | ---: | ---: |
+    | seams-wallet | 0 | 22 | 22 |
+    | seams-monorepo | 10 | 17 | 13 |
+    | speak-to-sign | 3 | 15 | 1 |
+    | pantry | 1 | 79 | 39 |
+    | satyr | 1 | 1 | 10 |
 
-    The commands are, in order, for seams-monorepo, speak-to-sign, pantry and satyr. The
-    speak-to-sign command also does step 14. Then `git grep -n seams-tech -- .github scripts`
-    in each clone finds nothing, except in pantry `scripts/`. There, two port scripts name the
-    old repositories as history, and links to `seams-tech/pantry-history` stay for step 16.
+    The lines left for review are text, not links:
+    - The repository name as a test input: the merge-approval tests of seams-wallet hash
+      `seams-tech/seams-wallet`. Keep them (step 6).
+    - The Console OIDC checks in seams-monorepo `automationRoute.ts` and
+      `tests/helpers/githubDeploymentOidc.ts`. The owner left them out of this checklist on
+      2026-11-18.
+    - Plan history, such as Plan 91 in pantry and satyr. Keep it.
+    - Current facts in README, SECURITY, AGENTS and comments, for example "the private
+      `seams-tech/seams-monorepo` repository". Change these by hand in step 16.
 13. **Run one workflow of each kind.** A validation run in each repository, one staging
     deploy, and one dry run of each release workflow. Then the releases of step 3 can start
     again.
@@ -215,8 +226,9 @@ container image `speaker-service`.
     pinned digest. Check each other image of step 1.
 15. **Update the download URL of the CLI.** `packages/seams-cli/bin/seams-wallet.mjs` downloads
     release files from `github.com/seams-tech/seams-wallet/releases/...`. The redirect covers
-    it. Change it in the next CLI release, so that it does not depend on the redirect.
-16. **Update the links in each repository** in one change for each repository:
+    it. The script of step 12 changes the link. It reaches users with the next CLI release.
+16. **Update the links in each repository** in one change for each repository. The script of
+    step 12 changes every link. The rest is by hand, from the lines that the script prints:
     - the `repository.url` of each `package.json` (the npm page shows it, and npm provenance
       compares it with the repository of the build)
     - README, SECURITY, the docs site (`apps/docs`, its footer) and the badges
