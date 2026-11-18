@@ -437,37 +437,6 @@ export interface EcdsaDerivationServerBootstrapResponse {
   routerAbEcdsaDerivationNormalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
 }
 
-export type EcdsaSessionPolicy = {
-  version: 'threshold_session_policy_v2';
-  walletId: string;
-  evmFamilySigningKeySlotId: string;
-  relayerKeyId: string;
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyHandle?: string;
-  ecdsaThresholdKeyId?: EcdsaThresholdKeyId;
-  thresholdSessionId: string;
-  runtimePolicyScope?: ThresholdRuntimePolicyScope;
-  /** Optional participant ids that scope the session to a signer set. */
-  participantIds?: number[];
-  ttlMs: number;
-  remainingUses: number;
-};
-
-export type ThresholdEcdsaBootstrapSessionPolicy = {
-  version: 'threshold_session_policy_v2';
-  walletId: string;
-  evmFamilySigningKeySlotId: string;
-  chainTarget: ThresholdEcdsaChainTarget;
-  keyHandle?: string;
-  ecdsaThresholdKeyId?: EcdsaThresholdKeyId;
-  thresholdSessionId: string;
-  runtimePolicyScope?: ThresholdRuntimePolicyScope;
-  /** Optional participant ids that scope the session to a signer set. */
-  participantIds?: number[];
-  ttlMs: number;
-  remainingUses: number;
-};
-
 // =====================================
 // Router A/B ECDSA derivation pool-fill routes
 // =====================================

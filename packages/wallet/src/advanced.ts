@@ -20,6 +20,11 @@ export {
   MAX_WALLET_SESSION_REMAINING_USES,
   MAX_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
+export {
+  DEFAULT_TENANT_WALLET_SESSION_LIMITS,
+  parseWalletSessionLimits,
+  type WalletSessionLimits,
+} from '@shared/threshold/walletSessionBudget';
 export { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 export { createIntentId } from './core/idempotency/createIntentId';
 export {

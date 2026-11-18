@@ -2701,7 +2701,7 @@ type StrictEcdsaSessionActivationInput =
   | {
       readonly ctx: FetchRouterApiContext;
       readonly body: unknown;
-      readonly source: 'verified_wallet_unlock' | 'additional_wallet_target';
+      readonly source: 'verified_wallet_unlock';
       readonly proof: VerifiedOwnerWalletSessionProof;
       /** The app's budget for the Wallet Session this activation issues. Null: none. */
       readonly walletSessionBudget: WalletSessionBudget | null;
@@ -2878,7 +2878,7 @@ export async function handleStrictEcdsaSessionActivation(
         authority: activeAuthority.authority,
         walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
         mintId: mintId.value,
-        requestedBudget: 'walletSessionBudget' in input ? input.walletSessionBudget : null,
+        requestedBudget: input.source === 'verified_wallet_unlock' ? input.walletSessionBudget : null,
         issuedAtMs: Date.now(),
       });
     if (directIssue.kind === 'already_committed') {

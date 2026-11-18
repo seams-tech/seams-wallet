@@ -127,7 +127,7 @@ export async function handleVoiceIdVerifyRequest(
     assertion = parseVoiceIdDeviceAssertion(body.assertion);
     walletSessionBudget = parseOptionalWalletSessionBudget(
       body.walletSessionBudget,
-      'VoiceID verification.walletSessionBudget',
+      'walletSessionBudget',
     );
   } catch (error: unknown) {
     return json({

@@ -13,6 +13,7 @@ import {
   DEFAULT_TENANT_WALLET_SESSION_LIMITS,
   grantWalletSessionBudget,
   parseOptionalWalletSessionBudget,
+  parseSignedPolicyWalletSessionBudget,
   parseWalletSessionLimits,
   type WalletSessionBudget,
   type WalletSessionLimits,
@@ -233,6 +234,23 @@ test.describe('Wallet Session budget parsers', () => {
       ),
     ).toThrow(/maxRemainingUses/);
     expect(() => parseWalletSessionLimits({ maxTtlMs: 1 }, 'limits')).toThrow();
+  });
+
+  test('a signed session policy holds a budget within the platform ceiling', () => {
+    expect(
+      parseSignedPolicyWalletSessionBudget(
+        { version: 'threshold_session_v1', ttlMs: 60_000, remainingUses: 7 },
+        'sessionPolicy',
+      ),
+    ).toEqual({ ttlMs: 60_000, remainingUses: 7 });
+    for (const [policy, field] of [
+      [{ ttlMs: MAX_WALLET_SESSION_TTL_MS + 1, remainingUses: 1 }, /sessionPolicy\.ttlMs/],
+      [{ ttlMs: 1, remainingUses: MAX_WALLET_SESSION_REMAINING_USES + 1 }, /remainingUses/],
+      [{ ttlMs: 0, remainingUses: 1 }, /sessionPolicy\.ttlMs/],
+      [{ ttlMs: 1 }, /sessionPolicy\.remainingUses/],
+    ] as const) {
+      expect(() => parseSignedPolicyWalletSessionBudget(policy, 'sessionPolicy')).toThrow(field);
+    }
   });
 
   test('the grant takes each field on its own', () => {

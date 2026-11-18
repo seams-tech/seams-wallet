@@ -539,27 +539,17 @@ type RouterAbEd25519YaoWalletSessionTermsV1 = {
   readonly remainingUses: number;
 };
 
-function assertNeverWalletSessionMintInput(value: never): never {
-  throw new Error(`Unexpected Ed25519 Yao Wallet Session mint kind: ${String(value)}`);
-}
-
-async function resolveRouterAbEd25519YaoWalletSessionTermsV1(
+/** The terms of each mint kind are the issued quota's: the issuer already granted them. */
+function walletSessionTermsOfIssuedQuotaV1(
   input: RouterAbEd25519YaoWalletSessionMintInputV1,
-): Promise<RouterAbEd25519YaoWalletSessionTermsV1> {
-  switch (input.kind) {
-    case 'verified_wallet_unlock_v1':
-    case 'same_identity_budget_refresh_v1':
-      // The terms are the issued quota's: the issuer already granted them.
-      if (!Number.isSafeInteger(input.expiresAtMs) || input.expiresAtMs <= Date.now()) {
-        throw new Error('Ed25519 Wallet Session expiry must follow issuance');
-      }
-      if (!Number.isSafeInteger(input.remainingUses) || input.remainingUses < 1) {
-        throw new Error('Ed25519 Wallet Session remaining uses must be a positive integer');
-      }
-      return { expiresAtMs: input.expiresAtMs, remainingUses: input.remainingUses };
-    default:
-      return assertNeverWalletSessionMintInput(input);
+): RouterAbEd25519YaoWalletSessionTermsV1 {
+  if (!Number.isSafeInteger(input.expiresAtMs) || input.expiresAtMs <= Date.now()) {
+    throw new Error('Ed25519 Wallet Session expiry must follow issuance');
   }
+  if (!Number.isSafeInteger(input.remainingUses) || input.remainingUses < 1) {
+    throw new Error('Ed25519 Wallet Session remaining uses must be a positive integer');
+  }
+  return { expiresAtMs: input.expiresAtMs, remainingUses: input.remainingUses };
 }
 
 class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519YaoProductRegistrationRuntimeV1 {
@@ -694,7 +684,7 @@ export async function projectRouterAbEd25519YaoExactWalletSession(input: {
   ) {
     throw new Error('Ed25519 Yao Wallet Session credential does not identify its session');
   }
-  const terms = await resolveRouterAbEd25519YaoWalletSessionTermsV1(sessionInput);
+  const terms = walletSessionTermsOfIssuedQuotaV1(sessionInput);
   const identity = {
     walletId: sessionInput.walletId,
     nearAccountId: sessionInput.nearAccountId,
