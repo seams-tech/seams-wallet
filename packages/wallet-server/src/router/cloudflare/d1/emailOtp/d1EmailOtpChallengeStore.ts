@@ -13,7 +13,7 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
-import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
+import { D1_BATCH_CAS_GUARD_SQL, d1ChangedRows } from '../../../../storage/d1Sql';
 import { parseD1NonNegativeCount } from '../auth/d1RouterApiAuthBoundary';
 import {
   emailOtpChallengeContextValues,
@@ -53,6 +53,16 @@ type EmailOtpChallengeContextInput = {
   readonly operation: EmailOtpChallengeOperation;
   readonly nowMs: number;
 };
+
+/**
+ * The record that the caller verified, apart from its attempt count. A parallel
+ * request can count an attempt on the same challenge after this one read it;
+ * the consume must still match, so that the first consume to commit wins and a
+ * later one fails only after that commit.
+ */
+function sameChallengeRecordSql(parameter: string): string {
+  return `json_remove(record_json, '$.attemptCount') = json_remove(${parameter}, '$.attemptCount')`;
+}
 
 export class CloudflareD1EmailOtpChallengeStore {
   private readonly database: D1DatabaseLike;
@@ -195,20 +205,26 @@ export class CloudflareD1EmailOtpChallengeStore {
     await emailOtpChallengeRows.insert(this.prepare, record).run();
   }
 
-  async updateAttemptCount(record: EmailOtpChallengeRecord, attemptCount: number): Promise<void> {
-    const next = emailOtpChallengeWithAttemptCount(record, attemptCount);
-    await this.prepare(
+  /**
+   * Counts one attempt on the exact record that the caller read, before the
+   * caller compares the code. The compare-and-set on record_json means that two
+   * parallel guesses never share one attempt. Null: another request changed or
+   * removed the record first.
+   */
+  async reserveAttempt(record: EmailOtpChallengeRecord): Promise<EmailOtpChallengeRecord | null> {
+    const next = emailOtpChallengeWithAttemptCount(record, record.attemptCount + 1);
+    const result = await this.prepare(
       `UPDATE email_otp_challenges
-          SET record_json = ?5,
-              otp_code = ?6,
-              expires_at_ms = ?7
+          SET record_json = ?5
         WHERE namespace = ?1
           AND org_id = ?2
           AND project_id = ?3
           AND env_id = ?4
-          AND challenge_id = ?8`,
-      [JSON.stringify(next), next.otpCode, next.expiresAtMs, next.challengeId],
+          AND challenge_id = ?6
+          AND record_json = ?7`,
+      [JSON.stringify(next), next.challengeId, JSON.stringify(record)],
     ).run();
+    return d1ChangedRows(result) === 1 ? next : null;
   }
 
   async delete(challengeId: string): Promise<void> {
@@ -250,7 +266,7 @@ export class CloudflareD1EmailOtpChallengeStore {
               AND project_id = ?3
               AND env_id = ?4
               AND challenge_id = ?5
-              AND record_json = ?6
+              AND ${sameChallengeRecordSql('?6')}
               AND otp_code = ?7
               AND expires_at_ms > ?8`,
         )
@@ -364,7 +380,7 @@ export class CloudflareD1EmailOtpChallengeStore {
             AND project_id = ?12
             AND env_id = ?13
             AND challenge_id = ?14
-            AND record_json = ?15
+            AND ${sameChallengeRecordSql('?15')}
             AND otp_code = ?16
             AND expires_at_ms > ?17`,
       )
@@ -395,7 +411,7 @@ export class CloudflareD1EmailOtpChallengeStore {
             AND project_id = ?3
             AND env_id = ?4
             AND challenge_id = ?5
-            AND record_json = ?6
+            AND ${sameChallengeRecordSql('?6')}
             AND otp_code = ?7
             AND expires_at_ms > ?8`,
       )
