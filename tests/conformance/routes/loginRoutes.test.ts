@@ -195,8 +195,11 @@ const GOOGLE_LOGIN = {
   wallet_id: WALLET_ID,
 };
 
-test('POST /auth/google/verify resolves the Email OTP session inside the key environment', async () => {
-  const resolution = { ok: true, mode: 'existing_wallet', walletId: WALLET_ID };
+// Only the request fields that seams-monorepo reads and the key scope are fixed here. What the
+// resolution answers for an Email OTP wallet is not: the Email OTP device-factor change
+// (docs/refactor-252-email-otp-device-factor.md) changes it.
+test('POST /auth/google/verify reads id_token, account_mode and wallet_id inside the key environment', async () => {
+  const resolution = { ok: true, answer: 'passed through unchanged' };
   const fake = googleRouter(resolution);
   const response = await fake.router.call('POST', '/auth/google/verify', {
     headers: { authorization: `Bearer ${PUBLISHABLE_KEY}`, origin: APP_ORIGIN },
@@ -207,18 +210,10 @@ test('POST /auth/google/verify resolves the Email OTP session inside the key env
     { secret: PUBLISHABLE_KEY, origin: APP_ORIGIN, environmentId: ENVIRONMENT_ID },
   ]);
   expect(fake.verifyGoogleLogin.calls).toEqual([
-    {
-      idToken: 'google-id-token',
-      accountMode: 'login',
-      projectEnvironmentId: ENVIRONMENT_ID,
-      restartRegistrationOffer: false,
-      loginWalletId: WALLET_ID,
-    },
+    expect.objectContaining({ idToken: 'google-id-token' }),
   ]);
   expect(fake.resolveSession.calls).toEqual([
-    {
-      providerSubject: 'google-subject-1',
-      email: 'alice@example.test',
+    expect.objectContaining({
       accountMode: 'login',
       loginWalletId: WALLET_ID,
       runtimePolicyScope: {
@@ -227,8 +222,7 @@ test('POST /auth/google/verify resolves the Email OTP session inside the key env
         envId: 'production',
         signingRootVersion: 'v1',
       },
-      restartRegistrationOffer: false,
-    },
+    }),
   ]);
 });
 

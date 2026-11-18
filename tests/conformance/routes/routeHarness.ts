@@ -70,19 +70,24 @@ export function routerWith(services: ServiceFakes, options: RouterApiOptions = {
   const router = createFetchRouter(bag as unknown as RouterApiServiceBag, options, {
     kind: 'inline',
   });
+  type RequestInit = { body?: unknown; headers?: Record<string, string> };
+  async function send(method: string, path: string, init: RequestInit = {}): Promise<Response> {
+    return await router(
+      new Request(`https://gateway.example.test${path}`, {
+        method,
+        headers: { 'content-type': 'application/json', ...init.headers },
+        ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+      }),
+    );
+  }
   return {
+    send,
     async call(
       method: string,
       path: string,
-      init: { body?: unknown; headers?: Record<string, string> } = {},
+      init: RequestInit = {},
     ): Promise<{ status: number; body: Record<string, unknown> }> {
-      const response = await router(
-        new Request(`https://gateway.example.test${path}`, {
-          method,
-          headers: { 'content-type': 'application/json', ...init.headers },
-          ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
-        }),
-      );
+      const response = await send(method, path, init);
       const body: unknown = await response.json();
       if (!isPlainObject(body)) throw new Error(`${method} ${path} did not return a JSON object`);
       return { status: response.status, body };
