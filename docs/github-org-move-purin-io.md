@@ -86,8 +86,21 @@ container image `speaker-service`.
    working. Write down each one that shows a repository by name.
 
    Checked on 2026-11-18 with `gh`: no repository has a webhook or a deploy key. The
-   organisation webhooks and the GitHub App installs need the `admin:org_hook` scope, so the
-   owner checks them in the organisation settings. The owner also checks Cloudflare.
+   organisation webhooks and the GitHub App installs need the `admin:org_hook` and
+   `admin:read` scopes, so the owner checks them in the organisation settings (GitHub Apps,
+   Webhooks).
+
+   Cloudflare, from the repositories on 2026-11-18: each Pages and Workers deploy is a direct
+   upload with an API token, not a Cloudflare Git connection. seams-monorepo deploys from its
+   workflows (`deploy-*-frontend.yml`, `deploy-*-backend.yml`, `scripts/deploy-surface.mjs`).
+   pantry and satyr deploy with `wrangler` from the `package.json` scripts of `apps/docs` and
+   `apps/storefront`. seams-wallet and speak-to-sign do not deploy to Cloudflare. A direct
+   upload does not name the repository, so the rename does not change it. A project that was
+   connected to Git in the dashboard does not show in the repositories, so the owner checks
+   each project in Workers & Pages, Settings, Build.
+
+   seams-monorepo also has 26 deployment environments. Their secrets belong to the
+   repository, so they move with it.
 6. **Check the voice merge approvals.** A merge approval binds the SHA-256 of the repository
    name, for example `seams-tech/seams-wallet` (`repo_sha256_hex` in the voice verifier of
    speak-to-sign). After the rename, GitHub reports `purin-io/seams-wallet`, which has another
