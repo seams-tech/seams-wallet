@@ -267,6 +267,16 @@ Checked on 2026-11-18. Paths are the paths before the rename.
   recovery-wrapped escrow records. The sealed secret stays in the iframe's IndexedDB
   ([Email OTP](otp/email-otp.md)).
 - **F21.** 68 test files name the `SeamsWeb` API, which goes away in Release B.
+- **F22.** An app with its own login provider (Better Auth, Auth0, Okta and others) can connect
+  it today with a handoff from a trusted application issuer
+  (`apps/docs/src/guides/application-auth.md`):
+  - The operator trusts the issuer: a canonical HTTPS origin and an Ed25519 public key. The
+    app's backend keeps the private key and signs the handoff.
+  - An application identity is the provider, the issuer and a stable subject. Email matching
+    never proves wallet ownership.
+  - The handoff gives settings access only. Each transaction needs a fresh owner proof.
+  - An existing wallet needs one association that an enrolled owner passkey approves.
+  - A change of issuer trust revokes the earlier external sessions.
 
 ## Unknowns to check first
 
@@ -398,6 +408,20 @@ const user = await verifyLoginToken(token, { projectId });
   recover a wallet (Section 6).
 - **Google.** Google external auth moves to auth. It gives a login session, as
   `external_authenticated` gives settings access today (Fact F7).
+- **The app's own login provider.** The handoff from a trusted application issuer (Fact F22)
+  moves to auth, beside Google:
+  - A valid handoff gives a login session for the app's identity: the provider, the issuer and
+    the subject. It never gives custody, and it never opens a wallet.
+  - An app with its own login still uses `@seams/auth` for the MPC wallet. The handoff signs
+    the user in. At unlock, the wallet asks for a factor with `prove` (Section 4), as today
+    each transaction needs a fresh owner proof.
+  - A new account from a handoff has no method. The user adds a passkey, Email OTP or VoiceID
+    before the first wallet is created. The association of an existing wallet still needs an
+    owner proof.
+  - The Auth Worker holds the trusted issuers and their public keys. A change of trust revokes
+    the login sessions of that issuer.
+  - The checkout uses the same idea for a shop's own login: `CheckoutIdentity` with the shop's
+    JWKS ([Refactor 250](refactor-250-seams-checkout.md), D4).
 - **The stage dialog.** The auth core needs a dialog that moves between stages (the auth menu,
   a plugin's screen, an app's card). It is written new in the frame kit (D17). The checkout
   uses the same dialog. The wallet's old overlay (`overlay-controller.ts`, 1,125 lines) goes
@@ -484,8 +508,8 @@ const external = await connectExternalEvm(); // or the customer's own wallet
 
 ## 6. The server split
 
-- **Auth Worker.** Accounts, methods, login sessions, Email OTP delivery, Google SSO, the login
-  token key and the JWKS endpoint. New code in `packages/auth`, built by `@seams/host`.
+- **Auth Worker.** Accounts, methods, login sessions, Email OTP delivery, Google SSO, the
+  trusted application issuers, the login token key and the JWKS endpoint. New code in `packages/auth`, built by `@seams/host`.
 - **Wallet Gateway.** Wallets with their `account_id`, custody envelopes, Wallet Sessions and
   the service bindings to the router roles. The envelope binding (wallet, method, key set) does
   not change (Fact F1).
@@ -683,6 +707,8 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
   email provider key and no login token key.
 - `@seams/wallet-connect` creates no Seams session and no custody record.
 - A recovered login never recovers a wallet seed.
+- A login from Google or from an application issuer never opens a wallet. Email matching never
+  proves wallet ownership.
 - Auth imports nothing from the wallet or the checkout. The wallet imports nothing from the
   checkout. The checkout has no required Seams dependency.
 - After the audit, `@seams-internal/shared-ts` holds no auth or wallet contract.
@@ -699,6 +725,9 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
 - A login-only app loads no wallet code and starts no worker (a bundle check and a browser
   check).
 - A login session and a login token are refused for a wallet unlock and for signing.
+- A handoff from a trusted application issuer gives a login session and no wallet access. A
+  handoff with a bad signature or from an issuer that is not trusted is refused. A change of
+  issuer trust revokes its login sessions.
 - A proof for one audience is refused by the server of each other audience, for each factor.
 - The app page cannot ask for the audience `wallet` and cannot pass a secret sink.
 - An unlock passes while the Auth Worker is down.
