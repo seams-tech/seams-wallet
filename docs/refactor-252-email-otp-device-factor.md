@@ -1,6 +1,6 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-18. Plan only. All decisions are made. Nothing is built.
+Status: 2026-11-18. Slices 0 and 1 are done. D9 and D10 are open.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -19,7 +19,7 @@ factor key a device factor, as passkeys and VoiceID already are.
   email code on a new device give a sign-in only.
 - Each existing wallet changes to a new factor key at its next unlock, and the server deletes
   its copy. After the deadline of D4, no server copy remains.
-- The server stores each email code as an HMAC value, not as plain text.
+- The server stores each email code encrypted, not as plain text.
 - The public custody docs become true for Email OTP.
 
 ## Facts this plan builds on
@@ -91,18 +91,66 @@ The owner accepted D2 to D7, as recommended, on 2026-11-18:
   server until this plan is done. It was added on 2026-11-18 to the custody page and the Email
   OTP page, in English and Japanese. Slice 5 replaces it with the device-factor text.
 
-## Unknowns to check first
+Added by Slice 0 on 2026-11-18:
 
-- **U1.** How many owner Email OTP wallets exist in staging and in production? How many were
-  unlocked in the last 30 days?
-- **U2.** How many of them have a recovery-code backup that the owner acknowledged? A wallet
-  with no backup and no device loses access at the D4 deadline.
-- **U3.** What do the three callers of the Wallet Session release (F4) need? Can the
-  warm-session seal give it?
-- **U4.** Does the dispatch of seams-monorepo (F12) read more than the wallet ID from the release
-  body?
-- **U5.** Do the linked-device Email OTP materials (F7) use the same seal key? If yes, their code
-  and the new release share one blinded step.
+- **D8. A seal key for each wallet and enrollment.** Required by D1 (F13). The lock context of
+  the Email OTP seal names the wallet and the enrollment, as the signing-session seal names the
+  wallet and the session. A code for one wallet then removes the seal only from that wallet's
+  factor.
+- **D9. The primitive of the blinded release (open).** Recommended: an OPRF (RFC 9497,
+  ristretto255) in place of Shamir three-pass for the Email OTP factor. The device keeps a
+  random input, and S is the OPRF output under the server's key for that wallet. The server
+  learns neither the input nor S. It is a standard primitive at the 128-bit level, and no
+  existing wallet needs the old scheme (U1). The other choice keeps Shamir three-pass with a
+  group of at least 2048 bits. The signing-session seal uses the same 1024-bit group for every
+  method; a separate plan replaces it.
+- **D10. No rotation and no deadline (open).** No hosted Email OTP wallet exists (U1), so the
+  rotation of D3 and the deadline of D4 would migrate nothing. Recommended: Slice 2 replaces the
+  server-held path and deletes it in the same change, and Slices 3 and 5 lose their migration
+  parts. A self-hosted server that has Email OTP wallets from an older version: the release
+  notes say that such a wallet recovers with its recovery code after the upgrade.
+- **D5, changed by U3.** Remove the bearer release. The NEAR Ed25519 re-hydrate gets S from an
+  Ed25519 warm seal under the signing-session key (per wallet and per session, with the server's
+  use and time limits) and a blinded restore. The `verified_grant` branch checks the operation.
+
+## Unknowns: the answers of Slice 0
+
+Answered on 2026-11-18. The counts come from read-only queries on the 12 signer databases
+(staging, production testnet and production mainnet, four regions each). The queries returned
+counts only.
+
+- **U1. No hosted Email OTP wallet exists.** Staging has 3,764 wallets, production testnet 6
+  and production mainnet 58. Each one has a passkey, and 12 also have VoiceID. No database has
+  an Email OTP method or an Email OTP enrollment.
+- **U2. Each wallet has an acknowledged recovery-code backup.** Registration does not commit
+  custody without the acknowledgement (`walletCustodyRegistrationCommit.ts:114`).
+- **U3. The Wallet Session release has one real caller.** It is the NEAR Ed25519 re-hydrate
+  after a reload or a worker restart (`wk/email-otp/recovery.ts:331-345`). The other matches
+  were a different `wallet_session` union. Two gaps:
+  - The bearer branch checks no operation and uses no budget (`sessions.ts:1204-1227`). The
+    same bearer gets the envelope from `/wallet/unlock/verify`, and S opens it. So code that
+    holds the bearer, such as the iframe main thread, can get the seed with no export code.
+  - The `verified_grant` branch consumes a grant with no operation check
+    (`sessions.ts:1279-1293`).
+  - Also, `recovery.ts:365` and `unlock.ts:785-792` drop S without zeroing it.
+- **U4. seams-monorepo needs no product change.** Its dispatch reads only the top-level
+  `walletId` of the release body, forwards the body unchanged, and turns a status of 500 or
+  more into 503. Two seams-monorepo tests change: one matches the `operation` field of the
+  release, and the harness checks the device-link factor release that Slice 3 removes.
+- **U5. Linked-device material is sealed on the device under a key from S** (AES-GCM, HKDF of
+  S; `core/indexedDB/linkedAuthoritySignerMaterial.ts:105-170`). It uses no server seal. The
+  linked device gets S from the same unblinded release, so after D1 it also stores its sealed
+  factor.
+
+Two facts from the same reading change the design:
+
+- **F13. The Email OTP seal key is the same for every wallet.** Its lock context names no
+  wallet and no enrollment (`threshold/session/signingSessionSeal/crypto/cipher.ts:204-215`).
+  Under D1 alone, a copy of the sealed factor of wallet A and a valid code for the attacker's
+  own wallet B would give S of wallet A (D8).
+- **F14. The Shamir three-pass group is 1024 bits.** Both seals use `rfc2409-group2`
+  (`shared-ts/src/utils/signingSessionSeal.ts:16`). With one key for all wallets, one discrete
+  logarithm opens every sealed factor (D9).
 
 ## 1. The design
 
@@ -157,8 +205,16 @@ column.
 
 ### Email codes
 
-The server stores HMAC-SHA-256 of each code, with a new Worker secret, and compares in constant
-time. A code that is in flight at the deploy fails, and the user asks for a new code.
+The server stores each code encrypted with AES-256-GCM, with the challenge ID as associated
+data, and compares codes in constant time. The key comes from the Email OTP seal root with its
+own label, so no new secret is needed (`core/authService/emailOtpCodeSeal.ts`). A reader of D1
+alone cannot read a code.
+
+The first version stored an HMAC of each code. A test showed that a retried relocation
+challenge must send the same code again, and that a reused challenge, the demo modes and the
+dev outbox read the code. With the key, an HMAC of a six-digit code gives no more protection
+than encryption, so encryption replaced it. A code that is in flight at the deploy fails, and
+the user asks for a new code.
 
 ## 2. Invariants
 
@@ -174,9 +230,10 @@ time. A code that is in flight at the deploy fails, and the user asks for a new 
 
 ## 3. Slices
 
-- **Slice 0: facts.** Answer U1 to U5. No product code. The decisions are made.
-- **Slice 1: hashed email codes.** The HMAC change of Section 1. It does not depend on the other
-  slices and can ship first.
+- **Slice 0: facts.** Answer U1 to U5. No product code. Done on 2026-11-18. D9 and D10 are open.
+- **Slice 1: encrypted email codes.** The change of Section 1, "Email codes". It does not depend on
+  the other slices and can ship first. Done on 2026-11-18 (migration
+  `0090_email_otp_code_seal.sql`).
 - **Slice 2: new enrollments.** The device-held factor and the blinded release for
   registration, adding Email OTP, unlock, step-up and export. A new wallet never has a server
   copy. The operator test for new wallets. Update [Browser workers](browser-workers.md), because
@@ -203,7 +260,7 @@ time. A code that is in flight at the deploy fails, and the user asks for a new 
   no enc_s(S). A second unlock does not rotate again. A failed commit keeps the old state.
 - **Device linking** with an Email OTP target that enrolls its own factor.
 - **Google recovery** releases no S and enrolls a new factor.
-- **Email codes:** D1 holds no code. A wrong code fails. The lockout limits do not change.
+- **Email codes:** D1 holds no plain code. A wrong code fails. The lockout limits do not change.
 - **The Wallet Session release (D5)** needs the device's sealed factor. Export needs a fresh
   code.
 

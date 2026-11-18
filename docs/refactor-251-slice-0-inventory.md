@@ -86,8 +86,8 @@ What this means:
   on the server since the first commit of this repository (2026-09-12).
 - **Not affected:** a method that exists only on a linked device (its material is on that
   device), and recovery (it needs a recovery code).
-- **Also measured:** the server stores Email OTP codes in plaintext
-  (`d1EmailOtpChallengeVerifier.ts:346`).
+- **Also measured:** the server stored Email OTP codes in plaintext
+  (`d1EmailOtpChallengeVerifier.ts:346`). Refactor 252 Slice 1 fixed this on 2026-11-18.
 
 What the split must keep in the Wallet Gateway: the seal root secret, the enrollment records,
 the envelopes, the grants and every route that releases S (factor release, step-up, the device
@@ -108,7 +108,7 @@ breaks a contract has an expected failure there (see "What Slice 2 writes first"
 | --- | --- | --- |
 | The wallet server alone can open an owner Email OTP wallet, against the public custody docs | See U4 | 2 |
 | The server never requires user verification for a passkey assertion or registration (`requireUserVerification: false` in 4 checks). The browser asks for it as `preferred`. The VoiceID owner check requires it | `packages/wallet-server/src/core/authService/webauthn.ts:261,393`, `d1WebAuthnAuthService.ts:476`, `d1WalletAuthMethodService.ts:2815` | 1 |
-| Email OTP codes are stored in plaintext | `d1EmailOtpChallengeVerifier.ts:346` | 3 |
+| Email OTP codes were stored in plaintext. Fixed on 2026-11-18 by Refactor 252 Slice 1: the server stores each code encrypted | `d1EmailOtpChallengeVerifier.ts:346` | 3 |
 | Slice 2: the host event of the auth menu gets nothing from the link view, and nothing from the recovery view before `sign_in_ready` (for example a failed Google step). This breaks the integrator contract of Fact F16. Slice 2 corrected the Slice 0 claim about Google views: they send the raw text today. Their `status.message` branch would send the shown sentence, but no flow reaches it | `auth-menu/session.ts:532-549` | 7, 8 |
 | Slice 2: the passkey button ignores the app's `passkeyCta` copy. It shows a fixed label for each mode, and the passkey view's `ctaLabel` is never rendered | `host/ui/auth-menu/AuthMenuSurface.tsx:1022` | 7 |
 | Slice 2: a substring match maps `otp_locked_out` and `otp_attempts_exhausted` to `email_otp_invalid_code` | `googleEmailOtpWalletAuthFlow.ts:209` | 8 |
@@ -528,7 +528,7 @@ Area 2: 52 source files with 15,869 lines, and 25 test files with 5,197 lines.
 | 3.11 | Wallet Session and warm-session rows name the method | `walletSessionAuthorizationStore.ts`, `signingSessionSeals.ts` | Type check | wallet | The sealed rows of each method restore | 1,200 | - |
 | 3.12 | The D1 method table has a foreign key to `wallet_authorities` and holds the key that D7 pins | `srv/core/d1WalletAuthMethodStore.ts` and 4 files | `ib/local-gateway-database.ts` | split | Staging rows of each kind and status; the counts of migration steps 2 and 4 | 2,664 | The V1 parser in two places; a local `trimString`; DDL copied into TypeScript; 5 exports used only in their file |
 | 3.13 | The passkey key and counter are in two tables | `d1/webauthn/d1WebAuthnStore.ts`, `d1WebAuthnRecords.ts`, `webAuthnD1Statements.ts`, `WebAuthnCredentialBindingStore.ts` | `tests/e2e/registration-credential-reservation.e2e.mjs` | auth; bindings to the wallet | One source for the key and the counter | 1,469 | The key and the counter are stored twice |
-| 3.14 | Email OTP challenges and grants (auth) and enrollment seals (wallet) | `emailOtpD1Statements.ts`, `d1/emailOtp/*` (3 files) | The Email OTP behaviours | split; the grants are the boundary | Staging enrollment and challenge rows | 1,760 | Codes stored in plaintext (U4) |
+| 3.14 | Email OTP challenges and grants (auth) and enrollment seals (wallet) | `emailOtpD1Statements.ts`, `d1/emailOtp/*` (3 files) | The Email OTP behaviours | split; the grants are the boundary | Staging enrollment and challenge rows | 1,760 | Codes were stored in plaintext (fixed by Refactor 252 Slice 1) |
 | 3.15 | The envelope server record names the method but has no public key | `d1PasskeyCustodyEnvelopeStore.ts`, `passkey-custody/*` (3 files) | Shared | wallet; credential activity to auth | The binding bytes do not change; migration step 4 adds the pinned key | 2,115 | - |
 | 3.16 | Identity links and external associations that name a wallet authority | `srv/core/d1IdentityStore.ts`, `IdentityStore.ts`, `srv/auth/externalAuthStore.ts` | `tests/e2e/external-auth.e2e.mjs` | auth; the association is the boundary | A trust revision revokes the association | 943 | DDL copied into TypeScript |
 | 3.17 | VoiceID server rows | `d1VoiceIdWalletSessionChallenges.ts`, `d1VoiceIdActivation.ts`, `d1VoiceVerdictLedger.ts` | Shared | wallet | A challenge is used once | 426 | - |
