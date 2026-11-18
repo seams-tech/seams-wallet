@@ -11,6 +11,11 @@ export {
   parseWalletSessionLimits,
   type WalletSessionLimits,
 } from '@shared/threshold/walletSessionBudget';
+export type { WalletSessionLimitsPort } from './authorization/service';
+export {
+  createProjectEnvironmentWalletSessionLimits,
+  UNAVAILABLE_WALLET_SESSION_LIMITS,
+} from './router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
 export * from './core/SessionService';
 export * from './core/ThresholdService/evmCryptoWasm';
 export * from './core/d1WalletStore';

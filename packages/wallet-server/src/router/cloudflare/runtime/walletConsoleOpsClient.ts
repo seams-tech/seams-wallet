@@ -14,7 +14,6 @@ import type {
   WalletRegistrationContextResult,
 } from '../../framework/apiCredentialPorts';
 import { parseExternalAuthConfiguration } from '@shared/auth/externalAuth';
-import { parseWalletSessionLimits } from '@shared/threshold/walletSessionBudget';
 import {
   unavailableRegistrationContext,
   walletRegistrationContext,
@@ -212,10 +211,7 @@ function parseProjectEnvironment(value: unknown): RouterApiProjectEnvironment | 
     externalAuth: parseExternalAuthConfiguration(
       record.externalAuth ?? { kind: 'disabled', revision: 0 },
     ),
-    walletSessionLimits:
-      record.walletSessionLimits == null
-        ? null
-        : parseWalletSessionLimits(record.walletSessionLimits, 'environment.walletSessionLimits'),
+    walletSessionLimits: record.walletSessionLimits ?? null,
     ...(status ? { status } : {}),
   };
 }

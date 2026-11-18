@@ -552,7 +552,6 @@ export async function prepareAuthorizedOperationAdmission(
         walletSignerScope: context.walletSignerScope,
         operation,
         material: null,
-        materialSnapshot: null,
         existingOperation: 'reject',
       }),
     ],
@@ -575,7 +574,6 @@ export async function admitAuthorizedOperation(
   const result = await admitAuthorizedOperationRecord(context, {
     operation: input.operation,
     material: input.material,
-    materialSnapshot: null,
   });
   if (
     result.kind === 'claimed' ||
@@ -668,7 +666,6 @@ export async function admitEcdsaWalletSessionOperation(
     await admitAuthorizedOperationRecord(context, {
       operation: input.operation,
       material: input.material,
-      materialSnapshot: input.material.readSnapshot,
     }),
     input.material.walletId,
   );
@@ -682,7 +679,6 @@ export async function admitEd25519WalletSessionOperation(
     await admitAuthorizedOperationRecord(context, {
       operation: input.operation,
       material: undefined,
-      materialSnapshot: null,
     }),
     input.walletId,
   );
@@ -705,19 +701,12 @@ async function admitAuthorizedOperationRecord(
   context: D1AuthorizationContext,
   input: {
     readonly operation: AuthorizedOperationInput;
-  } & (
-    | {
-        readonly material: AuthorizedOperationMaterialScope | undefined;
-        readonly materialSnapshot: null;
-      }
-    | {
-        readonly material: EcdsaWalletSessionAdmissionInput['material'];
-        readonly materialSnapshot: EcdsaMaterialReadSnapshot;
-      }
-  ),
+    readonly material: AuthorizedOperationMaterialScope | undefined;
+  },
 ): Promise<AuthorizedOperationAdmissionOutcome> {
   const operation = await buildAuthorizedOperation(input.operation);
-  if (!authorizedOperationMaterialScopeMatches(operation, input.material, input.materialSnapshot)) {
+  const materialSnapshot = input.material?.readSnapshot ?? null;
+  if (!authorizedOperationMaterialScopeMatches(operation, input.material, materialSnapshot)) {
     return { kind: 'material_mismatch' };
   }
   let committedRow: D1Row | null;
@@ -729,7 +718,6 @@ async function admitAuthorizedOperationRecord(
       walletSignerScope: context.walletSignerScope,
       operation,
       material: input.material ?? null,
-      materialSnapshot: input.materialSnapshot,
       existingOperation: 'preserve',
     });
     const [result, readback] = await context.database.batch<D1ResultLike<D1Row>>([
@@ -741,7 +729,7 @@ async function admitAuthorizedOperationRecord(
         tenantId: operation.tenantId,
         operationFingerprintDigest: operation.operationFingerprintDigest,
         nowMs: operation.claimedAtMs,
-        materialSnapshot: input.materialSnapshot,
+        materialSnapshot,
       }),
     ]);
     if (!result?.success || !readback?.success) {
@@ -754,7 +742,7 @@ async function admitAuthorizedOperationRecord(
       tenantId: operation.tenantId,
       operationFingerprintDigest: operation.operationFingerprintDigest,
       nowMs: operation.claimedAtMs,
-      materialSnapshot: input.materialSnapshot,
+      materialSnapshot,
     });
     if (raced) {
       return answerExistingAuthorizedOperation(context, raced, operation, input.material);

@@ -1,6 +1,6 @@
 import { alphabetizeStringify, sha256BytesUtf8 } from '../utils/digests';
 import { base64UrlEncode } from '../utils/base64';
-import { coerceNonEmptyString, requireRecord } from '../utils/validation';
+import { coerceNonEmptyString, requireExactString, requireRecord } from '../utils/validation';
 
 type ThresholdEd25519CanonicalScope = {
   nearAccountId: string;
@@ -138,8 +138,9 @@ export async function thresholdEd25519Nep413OperationFingerprint(
     payload: {
       purpose: 'nep413_message',
       ...canonicalScope(input),
-      message: coerceNonEmptyString(input.message, 'message'),
-      recipient: coerceNonEmptyString(input.recipient, 'recipient'),
+      // Exact text, so two messages that differ in whitespace are two operations.
+      message: requireExactString(input.message, 'message'),
+      recipient: requireExactString(input.recipient, 'recipient'),
       nonce: coerceNonEmptyString(input.nonce, 'nonce'),
       callbackUrl: input.callbackUrl,
     },

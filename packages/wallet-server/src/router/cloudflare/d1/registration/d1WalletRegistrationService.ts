@@ -47,10 +47,7 @@ import {
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
 import { DEFAULT_WALLET_SESSION_TTL_MS } from '@shared/threshold/sessionPolicy';
-import {
-  unlockWalletSessionBudgetRequest,
-  type WalletSessionBudget,
-} from '@shared/threshold/walletSessionBudget';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import {
   signingRootScopeFromRuntimePolicyScope,
   type RuntimePolicyScope,
@@ -2635,10 +2632,7 @@ export class CloudflareD1WalletRegistrationService {
         walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
         mintId: requireWalletSessionMintId(authorization.verifiedChallengeId),
         // The passkey assertion signs this policy, so it is the app's request.
-        budget: {
-          profile: 'default',
-          requested: { ttlMs: policy.ttlMs, remainingUses: policy.remainingUses },
-        },
+        requestedBudget: { ttlMs: policy.ttlMs, remainingUses: policy.remainingUses },
         issuedAtMs,
       });
       if (directIssue.kind === 'already_committed') {
@@ -2904,10 +2898,7 @@ export class CloudflareD1WalletRegistrationService {
               authority: activeAuthority.authority,
               walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
               mintId: requireWalletSessionMintId(verifiedChallengeId),
-              budget: unlockWalletSessionBudgetRequest({
-                deviceLinked: activeAuthority.authority.provenance.kind === 'device_link',
-                requested: request.walletSessionIdentity.walletSessionBudget,
-              }),
+              requestedBudget: request.walletSessionIdentity.walletSessionBudget,
               issuedAtMs,
             });
           switch (directIssue.kind) {

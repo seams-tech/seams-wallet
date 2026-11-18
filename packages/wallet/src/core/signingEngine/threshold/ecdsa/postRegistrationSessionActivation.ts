@@ -29,7 +29,7 @@ import {
   type EcdsaRoleLocalMaterialResolution,
   type PersistedEcdsaRoleLocalMaterial,
 } from '../../session/material/ecdsaRoleLocalMaterialResolver';
-import { isGrantedWithinRequestedUses, type ThresholdRuntimePolicyScope } from '../sessionPolicy';
+import { isGrantedWithinRequestedBudget, type ThresholdRuntimePolicyScope } from '../sessionPolicy';
 import { bytesToHex } from '../../chains/evm/bytes';
 import { routerAbEcdsaDerivationPublicCapabilitiesEqual } from '../../session/material/ecdsaCapabilityManifest';
 
@@ -207,6 +207,7 @@ function validateStrictSessionActivationIdentity(input: {
 function validateCredentialFreeSessionAuthorization(input: {
   readonly walletId: string;
   readonly thresholdSessionId: ThresholdEcdsaSessionId;
+  readonly ttlMs: number;
   readonly remainingUses: number;
   readonly publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
   readonly persistedRoleLocalMaterial: PersistedEcdsaRoleLocalMaterial;
@@ -241,7 +242,10 @@ function validateCredentialFreeSessionAuthorization(input: {
     record.authorizationId !== activation.session.authorization_id ||
     record.quotaId !== activation.session.quota_id ||
     record.expiresAtMs !== activation.session.expires_at_ms ||
-    !isGrantedWithinRequestedUses(activation.session.remaining_uses, input.remainingUses) ||
+    !isGrantedWithinRequestedBudget(
+      { ttlMs: input.ttlMs, remainingUses: input.remainingUses },
+      { remainingUses: activation.session.remaining_uses, lifetimeMs: null },
+    ) ||
     authorization.operationCredential.walletSessionId !== activation.session.wallet_session_id ||
     !mpcMaterialActivationRefsEqual(
       materialActivation,
@@ -357,6 +361,14 @@ export async function adoptStrictEcdsaPostRegistrationSession(
     thresholdSessionId: input.thresholdSessionId,
     sessionActivation: input.sessionActivation,
   });
+  if (
+    !isGrantedWithinRequestedBudget(
+      { ttlMs: input.ttlMs, remainingUses: input.remainingUses },
+      { remainingUses: input.sessionActivation.session.remaining_uses, lifetimeMs: null },
+    )
+  ) {
+    throw new Error('Strict ECDSA session activation granted a budget outside its request');
+  }
   return {
     sessionActivation: input.sessionActivation,
     roleLocalActivation: await activateExistingEcdsaRoleLocalMaterial(input),

@@ -38,7 +38,7 @@ import {
   type RouterAbMpcMaterialActivationRefWire,
   type RouterAbNormalSigningAuthorizationWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
-import { coerceNonEmptyString } from '@shared/utils/validation';
+import { coerceNonEmptyString, requireExactString } from '@shared/utils/validation';
 
 const INTENT_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/intent/v2';
 const PAYLOAD_VERSION_V2 = 'router-ab-protocol/ed25519-normal-signing/payload/v2';
@@ -432,11 +432,12 @@ export function routerAbEd25519Nep413CanonicalMessageB64uV2(args: {
   nonce: string;
   callbackUrl?: string | null;
 }): string {
-  const message = coerceNonEmptyString(args.message, 'nep413.message');
-  const recipient = coerceNonEmptyString(args.recipient, 'nep413.recipient');
+  // The app's exact text: a trim here would sign other bytes than the app asked for.
+  const message = requireExactString(args.message, 'nep413.message');
+  const recipient = requireExactString(args.recipient, 'nep413.recipient');
   const nonce = base64UrlDecode(normalizeNonceToB64u(args.nonce, 'nep413.nonce'));
   const callbackUrl =
-    args.callbackUrl == null ? undefined : coerceNonEmptyString(args.callbackUrl, 'callbackUrl');
+    args.callbackUrl == null ? undefined : requireExactString(args.callbackUrl, 'callbackUrl');
   const out: number[] = [];
   pushU32Le(out, NEP413_PREFIX);
   pushBorshString(out, message);
@@ -530,7 +531,7 @@ export async function buildRouterAbEd25519Nep413PrepareRequestV2(args: {
 }): Promise<RouterAbNormalSigningPrepareRequestV2BuildResult> {
   const nonceB64u = normalizeNonceToB64u(args.nonce, 'nonce');
   const callbackUrl =
-    args.callbackUrl == null ? undefined : coerceNonEmptyString(args.callbackUrl, 'callbackUrl');
+    args.callbackUrl == null ? undefined : requireExactString(args.callbackUrl, 'callbackUrl');
   const canonicalMessageB64u = routerAbEd25519Nep413CanonicalMessageB64uV2({
     message: args.message,
     recipient: args.recipient,
@@ -552,8 +553,8 @@ export async function buildRouterAbEd25519Nep413PrepareRequestV2(args: {
       ),
       near_account_id: coerceNonEmptyString(args.nearAccountId, 'nearAccountId'),
       near_network_id: args.nearNetworkId,
-      recipient: coerceNonEmptyString(args.recipient, 'recipient'),
-      message: coerceNonEmptyString(args.message, 'message'),
+      recipient: requireExactString(args.recipient, 'recipient'),
+      message: requireExactString(args.message, 'message'),
       nonce_b64u: nonceB64u,
       ...(callbackUrl ? { callback_url: callbackUrl } : {}),
     },

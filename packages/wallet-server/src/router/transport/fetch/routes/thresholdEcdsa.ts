@@ -78,6 +78,7 @@ import type {
   RouterAbEcdsaDerivationPoolFillStepRequest,
 } from '../../../../core/types';
 import type { RouterAbEcdsaDerivationPoolFillBinding } from '../../../../core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
+import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type {
   RouterAbEcdsaStrictPostRegistrationPort,
   RouterAbEcdsaStrictExportResult,
@@ -624,7 +625,10 @@ type RouterAbEcdsaResolvedMaterialActivation = Omit<
     { readonly ok: true }
   >,
   'routerAbEcdsaDerivationNormalSigning' | 'readSnapshot'
->;
+> & {
+  /** The database read that found the material; the V2 custody resolution has none. */
+  readonly readSnapshot?: EcdsaMaterialReadSnapshot;
+};
 
 type RouterAbEcdsaV2OperationStepUpResolution =
   | { readonly kind: 'not_found' }
@@ -1073,6 +1077,7 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
       keyHandle: freshMaterial.keyHandle,
       runtimePolicyScope: authenticated.session.runtimePolicyScope,
       materialActivation: freshMaterial.materialActivation,
+      readSnapshot: freshMaterial.readSnapshot,
     },
   });
   switch (atomicOperation.kind) {
@@ -1380,6 +1385,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
     operation: input.operation,
     materialActivation: freshMaterial.materialActivation,
     keyHandle: freshMaterial.keyHandle,
+    readSnapshot: freshMaterial.readSnapshot,
     authenticated,
   });
   input.timing.admit = performance.now() - admissionStartedAt;
@@ -2193,6 +2199,7 @@ type StrictEcdsaExportOperationStepUpInput = {
   readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   readonly keyHandle: string;
   readonly runtimePolicyScope: RuntimePolicyScope;
+  readonly readSnapshot: EcdsaMaterialReadSnapshot | undefined;
   readonly authorizedOperations: RouterApiAuthorizedOperationService;
 };
 
@@ -2266,6 +2273,7 @@ async function admitStrictEcdsaExportOperationStepUp(
       keyHandle: input.keyHandle,
       runtimePolicyScope: input.runtimePolicyScope,
       materialActivation: input.materialActivation,
+      readSnapshot: input.readSnapshot,
     },
   });
   switch (result.kind) {
@@ -2384,6 +2392,7 @@ async function authorizeStrictEcdsaV2ExportOperationStepUp(input: {
     materialActivation: activeMaterial.materialActivation,
     keyHandle: activeMaterial.keyHandle,
     runtimePolicyScope: activeMaterial.runtimePolicyScope,
+    readSnapshot: activeMaterial.readSnapshot,
     authorizedOperations: input.ctx.service.authorizedOperations,
   });
   if (!admission.ok) return admission;
@@ -2531,6 +2540,7 @@ async function authorizeStrictEcdsaExport(input: {
       materialActivation: freshMaterial.materialActivation,
       keyHandle: freshMaterial.keyHandle,
       runtimePolicyScope: activeMaterial.runtimePolicyScope,
+      readSnapshot: freshMaterial.readSnapshot,
       authorizedOperations: input.ctx.service.authorizedOperations,
     });
     if (!admission.ok) return admission;
@@ -2701,7 +2711,7 @@ type StrictEcdsaSessionActivationInput =
   | {
       readonly ctx: FetchRouterApiContext;
       readonly body: unknown;
-      readonly source: 'verified_wallet_unlock' | 'additional_wallet_target';
+      readonly source: 'verified_wallet_unlock';
       readonly proof: VerifiedOwnerWalletSessionProof;
       /** The app's budget for the Wallet Session this activation issues. Null: none. */
       readonly walletSessionBudget: WalletSessionBudget | null;
@@ -2878,10 +2888,7 @@ export async function handleStrictEcdsaSessionActivation(
         authority: activeAuthority.authority,
         walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
         mintId: mintId.value,
-        budget: {
-          profile: 'default',
-          requested: 'walletSessionBudget' in input ? input.walletSessionBudget : null,
-        },
+        requestedBudget: input.source === 'verified_wallet_unlock' ? input.walletSessionBudget : null,
         issuedAtMs: Date.now(),
       });
     if (directIssue.kind === 'already_committed') {

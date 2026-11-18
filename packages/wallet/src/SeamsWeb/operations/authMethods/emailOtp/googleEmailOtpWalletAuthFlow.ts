@@ -585,8 +585,8 @@ function registrationOptionsForNoEcdsa(args: {
   return {
     ...args.options,
     signerOptions: {
-      tempo: { enabled: false, signingSession: { kind: 'jwt', ttlMs: 0, remainingUses: 0 } },
-      evm: { enabled: false, signingSession: { kind: 'jwt', ttlMs: 0, remainingUses: 0 } },
+      tempo: { enabled: false },
+      evm: { enabled: false },
     },
   };
 }

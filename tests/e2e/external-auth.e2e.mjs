@@ -307,6 +307,10 @@ try {
     walletSignerScope: scope,
   });
   const authorization = new api.AuthorizationService({
+    // The default tenant maximum: 100 signatures and 30 days.
+    walletSessionLimits: {
+      readWalletSessionLimits: async () => ({ maxTtlMs: 30 * 86_400_000, maxRemainingUses: 100 }),
+    },
     policy: api.capabilityPolicyPort,
     sessions: store,
     grants: store,

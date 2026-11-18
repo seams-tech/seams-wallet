@@ -141,7 +141,7 @@ async function useWallet(database, index, now) {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    budget: { profile: 'default', requested: { ttlMs: expiresAtMs - now, remainingUses: 7 } },
+    requestedBudget: { ttlMs: expiresAtMs - now, remainingUses: 7 },
     issuedAtMs: now,
   });
   assert.equal(issued.kind, 'issued');

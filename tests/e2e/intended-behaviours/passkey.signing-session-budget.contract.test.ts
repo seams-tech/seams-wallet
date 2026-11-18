@@ -62,6 +62,19 @@ test('registration and unlock grant the budget that the app asks for', async ({
   expect(await grantedBudget(harness)).toEqual({ remainingUses: 6, ttlMs: asked.ttlMs });
 });
 
+test('a cold sync grants the budget that the app asks for', async ({ harness, page }) => {
+  const asked = { ttlMs: 2 * DAY_MS, remainingUses: 7 };
+  harness.useSigningSessionBudget(asked);
+  const syncs = BudgetRequests.start(page, '/sync-account/verify');
+
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.syncPasskeyWalletFromEmptyStorage();
+  expect(syncs.bodies).toEqual([asked]);
+  await harness.signNearTransaction('post_unlock');
+  expect(await grantedBudget(harness)).toEqual({ remainingUses: 6, ttlMs: asked.ttlMs });
+});
+
 test('an unlock that asks for more than the maximum gets the maximum', async ({
   harness,
   page,

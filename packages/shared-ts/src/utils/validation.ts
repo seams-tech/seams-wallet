@@ -49,6 +49,14 @@ export function requireCanonicalString(
   return value;
 }
 
+// Signed text: a non-empty string, returned byte for byte. Whitespace is part of what is signed.
+export function requireExactString(value: unknown, label: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`${label} must be a non-empty string`);
+  }
+  return value;
+}
+
 // Stringifies any truthy value: 42 passes as '42', while 0 and false count as missing.
 export function coerceNonEmptyString(value: unknown, label: string): string {
   const normalized = String(value || '').trim();

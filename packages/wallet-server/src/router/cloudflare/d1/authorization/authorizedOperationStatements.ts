@@ -1,53 +1,10 @@
 import type { EcdsaMaterialReadSnapshot } from '../../../../core/ecdsaMaterialReadSnapshot';
 import type { AuthorizedOperation } from '../../../../authorization/domain';
-import type { AuthorizedOperationMaterialScope, EcdsaMaterialActivationScope } from '../../../../authorization/service';
+import type { AuthorizedOperationMaterialScope } from '../../../../authorization/service';
 import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type { TenantId } from '@shared/authorization/capabilityKinds';
 import type { CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
-
-const ECDSA_SIGNER_MATCH = `
-  EXISTS (
-    SELECT 1
-      FROM wallet_signers AS signer
-     WHERE signer.namespace = ?
-       AND signer.org_id = ?
-       AND signer.project_id = ?
-       AND signer.env_id = ?
-       AND signer.wallet_id = ?
-       AND signer.signer_family = 'ecdsa'
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.material_owner') = signer.wallet_id
-       AND json_extract(signer.record_json, '$.walletKey.keyHandle') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.kind') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.activation_id') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.capability') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.material_owner') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.key_binding') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.lifecycle_binding') = ?
-       AND json_extract(signer.record_json, '$.walletKey.publicCapability.material_activation.signing_worker') = ?
-  )`;
-
-function ecdsaSignerMatchBindings(
-  walletSignerScope: D1WalletStoreScope,
-  material: EcdsaMaterialActivationScope,
-): readonly unknown[] {
-  const activation = material.materialActivation;
-  return [
-    walletSignerScope.namespace,
-    walletSignerScope.orgId,
-    walletSignerScope.projectId,
-    walletSignerScope.envId,
-    material.walletId,
-    material.keyHandle,
-    activation.kind,
-    activation.activation_id,
-    activation.capability,
-    activation.material_owner,
-    activation.key_binding,
-    activation.lifecycle_binding,
-    activation.signing_worker,
-  ];
-}
 
 const PINNED_OWNER_WALLET = `
   CASE operation.authorization_source_kind
@@ -204,7 +161,6 @@ export function prepareAuthorizedOperationInsert(input: {
   readonly walletSignerScope: D1WalletStoreScope;
   readonly operation: AuthorizedOperation;
   readonly material: AuthorizedOperationMaterialScope | null;
-  readonly materialSnapshot: EcdsaMaterialReadSnapshot | null;
   readonly existingOperation: 'reject' | 'preserve';
 }): D1PreparedStatementLike {
   const { database, namespace, walletSignerScope, operation, material } = input;
@@ -249,12 +205,8 @@ export function prepareAuthorizedOperationInsert(input: {
     source.kind === 'authorization_grant' ? walletSignerScope.projectId : null,
     source.kind === 'authorization_grant' ? walletSignerScope.envId : null,
   ] as const;
-  let condition = input.materialSnapshot?.condition(walletSignerScope) ?? null;
-  if (condition === null) {
-    condition = material?.kind === 'ecdsa_material_activation'
-      ? { sql: ECDSA_SIGNER_MATCH, bindings: ecdsaSignerMatchBindings(walletSignerScope, material) }
-      : { sql: '1', bindings: [] };
-  }
+  // Material is admitted only while the signer row still matches the read that found it.
+  let condition = material?.readSnapshot?.condition(walletSignerScope) ?? { sql: '1', bindings: [] };
   if (source.kind === 'verified_step_up') {
     condition = {
       sql: `(${condition.sql}) AND EXISTS (

@@ -319,15 +319,15 @@ export class CloudflareD1EmailOtpChallengeVerifier {
 
       const nowMs = Date.now();
       await this.emailOtpChallenges.pruneExpired(nowMs);
-      const record = await this.emailOtpChallenges.read(challengeId);
-      if (!record) return emailOtpChallengeInvalidOrExpired();
-      if (nowMs > record.expiresAtMs) {
-        await this.emailOtpChallenges.delete(record.challengeId);
+      const read = await this.emailOtpChallenges.read(challengeId);
+      if (!read) return emailOtpChallengeInvalidOrExpired();
+      if (nowMs > read.expiresAtMs) {
+        await this.emailOtpChallenges.delete(read.challengeId);
         return emailOtpChallengeInvalidOrExpired();
       }
 
       const bindingMismatch = emailOtpChallengeBindingMismatchCode({
-        record,
+        record: read,
         userId,
         walletId,
         orgId,
@@ -343,6 +343,9 @@ export class CloudflareD1EmailOtpChallengeVerifier {
         };
       }
 
+      const reservation = await this.reserveAttempt(read);
+      if (reservation.kind !== 'reserved') return reservation.failure;
+      const record = reservation.record;
       if (record.otpCode !== otpCode) {
         return await this.recordInvalidAttempt({
           enrollment: enrollment.enrollment,
@@ -546,26 +549,26 @@ export class CloudflareD1EmailOtpChallengeVerifier {
 
       const nowMs = Date.now();
       await this.emailOtpChallenges.pruneExpired(nowMs);
-      const record = await this.emailOtpChallenges.read(challengeId);
-      if (!record) return emailOtpChallengeInvalidOrExpired();
-      if (nowMs > record.expiresAtMs) {
-        await this.emailOtpChallenges.delete(record.challengeId);
+      const read = await this.emailOtpChallenges.read(challengeId);
+      if (!read) return emailOtpChallengeInvalidOrExpired();
+      if (nowMs > read.expiresAtMs) {
+        await this.emailOtpChallenges.delete(read.challengeId);
         return emailOtpChallengeInvalidOrExpired();
       }
-      const resolvedProviderSubject = providerSubject || record.challengeSubjectId;
+      const resolvedProviderSubject = providerSubject || read.challengeSubjectId;
 
       const bindingMismatch = recoveryBootstrap
         ? emailOtpChallengeBindingMismatchCode({
-            record,
+            record: read,
             userId: resolvedProviderSubject,
             walletId,
             orgId,
             ownerProofBindingDigest,
             action: WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap,
             operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,
-          }) || (record.email !== proofEmail ? 'challenge_email_mismatch' : null)
+          }) || (read.email !== proofEmail ? 'challenge_email_mismatch' : null)
         : emailOtpRegistrationChallengeBindingMismatchCode({
-            record,
+            record: read,
             providerSubject: resolvedProviderSubject,
             walletId,
             orgId,
@@ -580,6 +583,9 @@ export class CloudflareD1EmailOtpChallengeVerifier {
         };
       }
 
+      const reservation = await this.reserveAttempt(read);
+      if (reservation.kind !== 'reserved') return reservation.failure;
+      const record = reservation.record;
       if (record.otpCode !== otpCode) {
         return await this.recordInvalidRegistrationAttempt({
           enrollment: existingEnrollment,
@@ -683,14 +689,38 @@ export class CloudflareD1EmailOtpChallengeVerifier {
     return { ok: true, enrollment };
   }
 
+  /**
+   * Counts one attempt before the code is compared. Each guess, right or
+   * wrong, first wins a compare-and-set on the stored record, so parallel
+   * requests cannot compare more guesses than the challenge allows. When
+   * another request wins first, this reads the record again and tries again,
+   * until the challenge is gone or has no attempt left.
+   */
+  private async reserveAttempt(read: EmailOtpChallengeRecord): Promise<
+    | { readonly kind: 'reserved'; readonly record: EmailOtpChallengeRecord }
+    | { readonly kind: 'refused'; readonly failure: EmailOtpChallengeFailure }
+  > {
+    let current: EmailOtpChallengeRecord | null = read;
+    while (current) {
+      if (current.attemptCount >= current.maxAttempts) {
+        await this.emailOtpChallenges.delete(current.challengeId);
+        return { kind: 'refused', failure: emailOtpAttemptsExhausted(undefined) };
+      }
+      const reserved = await this.emailOtpChallenges.reserveAttempt(current);
+      if (reserved) return { kind: 'reserved', record: reserved };
+      current = await this.emailOtpChallenges.read(current.challengeId);
+    }
+    return { kind: 'refused', failure: emailOtpChallengeInvalidOrExpired() };
+  }
+
+  /** A wrong code on a challenge whose attempt reserveAttempt already counted. */
   private async recordInvalidAttempt(input: {
     readonly enrollment: EmailOtpWalletEnrollmentRecord;
     readonly authState: EmailOtpAuthStateRecord | null;
     readonly record: EmailOtpChallengeRecord;
   }): Promise<Extract<EmailOtpExistingChallengeVerifyResult, { ok: false }>> {
-    const nextAttemptCount = input.record.attemptCount + 1;
     const nextFailureCount = Number(input.authState?.otpFailureCount || 0) + 1;
-    const exhausted = nextAttemptCount >= input.record.maxAttempts;
+    const exhausted = input.record.attemptCount >= input.record.maxAttempts;
     const nowMs = Date.now();
     const lockedUntilMs = exhausted ? nowMs + this.lockoutTtlMs : undefined;
     await this.emailOtpEnrollments.putAuthStateForEnrollment(input.enrollment, {
@@ -700,23 +730,16 @@ export class CloudflareD1EmailOtpChallengeVerifier {
     });
     if (exhausted) {
       await this.emailOtpChallenges.delete(input.record.challengeId);
-      return {
-        ok: false,
-        code: 'otp_attempts_exhausted',
-        message: 'Email OTP challenge exceeded the maximum number of attempts',
-        attemptsRemaining: 0,
-        ...(lockedUntilMs ? { lockedUntilMs } : {}),
-      };
+      return emailOtpAttemptsExhausted(lockedUntilMs);
     }
-    await this.emailOtpChallenges.updateAttemptCount(input.record, nextAttemptCount);
-    return {
-      ok: false,
-      code: 'invalid_otp',
-      message: 'OTP code is invalid',
-      attemptsRemaining: input.record.maxAttempts - nextAttemptCount,
-    };
+    return emailOtpInvalidCode(input.record);
   }
 
+  /**
+   * A wrong registration code. With no enrollment there is no wallet to lock,
+   * so a used-up challenge reports no lock: the next challenge can be asked for
+   * at once, within the issue rate limit.
+   */
   private async recordInvalidRegistrationAttempt(input: {
     readonly enrollment: EmailOtpWalletEnrollmentRecord | null;
     readonly authState: EmailOtpAuthStateRecord | null;
@@ -729,25 +752,37 @@ export class CloudflareD1EmailOtpChallengeVerifier {
         record: input.record,
       });
     }
-    const nextAttemptCount = input.record.attemptCount + 1;
-    const exhausted = nextAttemptCount >= input.record.maxAttempts;
-    const lockedUntilMs = exhausted ? Date.now() + this.lockoutTtlMs : undefined;
-    if (exhausted) {
+    if (input.record.attemptCount >= input.record.maxAttempts) {
       await this.emailOtpChallenges.delete(input.record.challengeId);
-      return {
-        ok: false,
-        code: 'otp_attempts_exhausted',
-        message: 'Email OTP challenge exceeded the maximum number of attempts',
-        attemptsRemaining: 0,
-        ...(lockedUntilMs ? { lockedUntilMs } : {}),
-      };
+      return emailOtpAttemptsExhausted(undefined);
     }
-    await this.emailOtpChallenges.updateAttemptCount(input.record, nextAttemptCount);
-    return {
-      ok: false,
-      code: 'invalid_otp',
-      message: 'OTP code is invalid',
-      attemptsRemaining: input.record.maxAttempts - nextAttemptCount,
-    };
+    return emailOtpInvalidCode(input.record);
   }
+}
+
+type EmailOtpChallengeFailure = {
+  readonly ok: false;
+  readonly code: string;
+  readonly message: string;
+  readonly attemptsRemaining?: number;
+  readonly lockedUntilMs?: number;
+};
+
+function emailOtpAttemptsExhausted(lockedUntilMs: number | undefined): EmailOtpChallengeFailure {
+  return {
+    ok: false,
+    code: 'otp_attempts_exhausted',
+    message: 'Email OTP challenge exceeded the maximum number of attempts',
+    attemptsRemaining: 0,
+    ...(lockedUntilMs ? { lockedUntilMs } : {}),
+  };
+}
+
+function emailOtpInvalidCode(record: EmailOtpChallengeRecord): EmailOtpChallengeFailure {
+  return {
+    ok: false,
+    code: 'invalid_otp',
+    message: 'OTP code is invalid',
+    attemptsRemaining: record.maxAttempts - record.attemptCount,
+  };
 }

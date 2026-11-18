@@ -456,7 +456,7 @@ function custodyEnvelopeFromRegistrationCommit(args: {
   });
 }
 
-/* Exported for tests: ECDSA-only and deferred mixed registration share this
+/* ECDSA-only and deferred mixed registration share this
    post-persistence capability handoff. */
 async function establishPasskeyRegistrationEd25519ExportRootCapability(args: {
   readonly signingEngine: Pick<
@@ -1896,7 +1896,7 @@ function ecdsaRegistrationClientCeremonyOperation(args: {
   }
 }
 
-/* Exported for tests: mixed registration joins and journals both custody
+/* Mixed registration joins and journals both custody
    branches before Route 3, while user-facing NEAR provisioning remains
    deferred after the ECDSA branch is committed. */
 async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
@@ -3003,7 +3003,7 @@ function mixedRegistrationSessionFromDeferredResult(
     result.kind !== 'already_committed' ||
     result.session.tokens.kind !== 'near_ed25519_and_evm_family_ecdsa'
   ) {
-    throw new Error('NEAR completion must extend the current Wallet Session');
+    throw new NearRegistrationSessionError('NEAR completion must extend the current Wallet Session');
   }
   const projection = result.session;
   const current = existing.record;
@@ -3028,7 +3028,7 @@ function mixedRegistrationSessionFromDeferredResult(
     finalAuthMethod.walletId !== next.walletId ||
     finalAuthMethod.walletAuthorityId !== next.authorityId
   ) {
-    throw new Error('NEAR completion changed the current Wallet Session authority');
+    throw new NearRegistrationSessionError('NEAR completion changed the current Wallet Session authority');
   }
   return {
     kind: 'registration_established_wallet_session_v2',
@@ -3059,7 +3059,7 @@ async function requireCurrentNearRegistrationSession(
     current.record.authorityRevocationEpoch !== expected.record.authorityRevocationEpoch ||
     current.operationCredential.token !== expected.operationCredential.token
   ) {
-    throw new Error('NEAR continuation requires the current unlocked Wallet Session');
+    throw new NearRegistrationSessionError('NEAR continuation requires the current unlocked Wallet Session');
   }
 }
 
@@ -3702,7 +3702,7 @@ async function commitDeferredEd25519Registration(args: {
   }
 }
 
-/* Exported for tests: the persist-before-publish ordering below is the
+/* The persist-before-publish ordering below is the
    lifecycle's core guarantee and is only observable by driving this runner. */
 async function runDeferredEd25519Provisioning(args: {
   context: NearRegistrationContext;
@@ -3741,12 +3741,19 @@ async function runDeferredEd25519Provisioning(args: {
   });
 }
 
+/** A deferred NEAR commit that cannot use the current Wallet Session. */
+class NearRegistrationSessionError extends Error {
+  override readonly name = 'NearRegistrationSessionError';
+}
+
 /** Maps a deferred-commit throw onto the closed set of provisioning codes. */
 function nearProvisioningErrorCode(error: unknown): NearProvisioningErrorCode {
+  // A typed error, not message text: the old match on 'wallet session' never
+  // matched the capitalized "Wallet Session" that these errors say.
+  if (error instanceof NearRegistrationSessionError) return 'near_capability_persist_failed';
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes('finalize')) return 'near_finalize_failed';
   if (message.includes('seal') || message.includes('Yao')) return 'near_seal_failed';
-  if (message.includes('wallet session')) return 'near_capability_persist_failed';
   return 'near_provisioning_failed';
 }
 

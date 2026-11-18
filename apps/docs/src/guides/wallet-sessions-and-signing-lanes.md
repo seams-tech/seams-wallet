@@ -30,10 +30,14 @@ Size the session's lifetime and budget for the expected burst of operations.
 The app asks for the budget. The server decides it.
 
 - Set `signingSessionDefaults: { ttlMs, remainingUses }` in the provider config. It
-  applies to unlock and to the session that registration gives.
+  applies to unlock, to the session that registration gives and to the session that
+  a passkey account sync gives.
 - To ask for a different budget for one login, pass `signingSession: { ttlMs,
   remainingUses }` in the login options.
 - With no setting, a session gives 5 signatures and lasts 24 hours.
+- Each value is a non-negative integer. Another value fails the config.
+- `0` in either value skips the warm session of a passkey unlock. An Email OTP or
+  VoiceID unlock always opens a session, so with `0` it asks for the default budget.
 
 The server grants the request up to the maximum of the project environment. A tenant
 sets that maximum in the Seams Console. When the tenant sets none, the maximum is 100

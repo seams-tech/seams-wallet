@@ -1,8 +1,10 @@
-import type { EcdsaMaterialReadSnapshot } from '../core/ecdsaMaterialReadSnapshot';
 import type { CapabilityOperationEnvelope } from '@shared/authorization/operationFingerprint';
 import type { Variant } from '@shared/utils/variant';
 import type { AuthorizedOperation, AuthorizedOperationInput } from './domain';
-import type { AuthorizedOperationAdmissionRejection, EcdsaMaterialActivationScope } from './service';
+import type {
+  AuthorizedOperationAdmissionRejection,
+  AuthorizedOperationMaterialScope,
+} from './service';
 
 export type EcdsaWalletSessionAdmissionInput = {
   readonly operation: AuthorizedOperationInput & {
@@ -13,7 +15,9 @@ export type EcdsaWalletSessionAdmissionInput = {
     readonly authorization: { readonly kind: 'authorization_grant' };
     readonly quota: { readonly kind: 'consume_reusable_wallet_session' };
   };
-  readonly material: EcdsaMaterialActivationScope & { readonly readSnapshot: EcdsaMaterialReadSnapshot };
+  readonly material: AuthorizedOperationMaterialScope & {
+    readonly readSnapshot: NonNullable<AuthorizedOperationMaterialScope['readSnapshot']>;
+  };
 };
 
 export type PinnedOwnerWalletScope = {

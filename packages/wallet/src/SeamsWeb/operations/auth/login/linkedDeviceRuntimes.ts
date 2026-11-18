@@ -59,7 +59,7 @@ import {
 import { type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { toRpId } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import { nearEd25519SignerBindingFromBoundaryFields } from '@/core/signingEngine/session/identity/exactSigningLaneIdentity';
-import { DEFAULT_UNLOCK_REMAINING_USES } from '@/core/signingEngine/threshold/sessionPolicy';
+import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { base58Encode } from '@shared/utils/base58';
 import { deriveImplicitNearAccountIdFromEd25519PublicKey } from '@shared/utils/near';
@@ -301,6 +301,15 @@ async function linkedDeviceEd25519SessionAfterLink(args: {
   if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= Date.now()) {
     throw new Error('[login] linked Ed25519 post-link bootstrap is expired');
   }
+  // The bootstrap carries no count. The server granted a linked device its own
+  // budget, capped by the tenant's maximum, so read the count of that quota.
+  const status = await createRelayerExactWalletSessionStatusPort({
+    relayerUrl: args.relayerUrl,
+    operationCredential: args.operationCredential,
+  }).read({ walletSessionId: walletSessionId.value, quotaId: quotaId.value });
+  if (status.status !== 'active') {
+    throw new Error(`[login] linked Wallet Session is ${status.status} after link`);
+  }
   return {
     walletId: String(args.selection.walletId),
     nearAccountId: requestResult.value.nearAccountId,
@@ -312,8 +321,7 @@ async function linkedDeviceEd25519SessionAfterLink(args: {
     walletSessionId: walletSessionId.value,
     quotaId: quotaId.value,
     expiresAtMs,
-    // The bootstrap response carries no granted count, so this local count is not the server's.
-    remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
+    remainingUses: status.remainingUses,
     runtimePolicyScope,
     routerAbNormalSigning,
     operationCredential: args.operationCredential,

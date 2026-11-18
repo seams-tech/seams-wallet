@@ -101,15 +101,9 @@ function isSessionDefaults(value: unknown): boolean {
   return isPlainObject(value) && isFiniteNumber(value.ttlMs) && isFiniteNumber(value.remainingUses);
 }
 
+// An app SDK released before 0.73.0 also sends an unused `signingSession`; it is ignored.
 function isProvisioningPolicy(value: unknown): boolean {
-  if (
-    !isPlainObject(value) ||
-    typeof value.enabled !== 'boolean' ||
-    !isSessionDefaults(value.signingSession)
-  )
-    return false;
-  const session = requireRecord(value.signingSession, 'signingSession');
-  return session.kind === 'jwt' || session.kind === 'cookie';
+  return isPlainObject(value) && typeof value.enabled === 'boolean';
 }
 
 function isNormalSigning(value: unknown): boolean {

@@ -26,16 +26,10 @@ export type WalletSessionLimits = {
 };
 
 /**
- * Which budget applies when the app asks for none. A linked device gets a
- * short session with many signatures; every other Wallet Session gets the default.
+ * Which budget applies. A linked device gets a short session with many
+ * signatures; every other Wallet Session gets the app's budget or the default.
  */
 export type WalletSessionBudgetProfile = 'default' | 'linked_device';
-
-/** The request of one issuance: the app's budget, or none for the profile's budget. */
-export type WalletSessionBudgetRequest = {
-  readonly profile: WalletSessionBudgetProfile;
-  readonly requested: WalletSessionBudget | null;
-};
 
 export const DEFAULT_TENANT_WALLET_SESSION_LIMITS: WalletSessionLimits = Object.freeze({
   maxTtlMs: DEFAULT_TENANT_WALLET_SESSION_MAX_TTL_MS,
@@ -69,24 +63,19 @@ export function walletSessionProfileBudget(profile: WalletSessionBudgetProfile):
 }
 
 /**
- * The request of an unlock: the app's budget. A linked device keeps its own
- * budget, because its short session is a property of the device link.
+ * The budget that the server grants: min(asked, maximum), field by field. The
+ * app's request applies only to the default profile: a linked device keeps
+ * its own budget, because its short session is a property of the device link.
  */
-export function unlockWalletSessionBudgetRequest(input: {
-  readonly deviceLinked: boolean;
-  readonly requested: WalletSessionBudget | null;
-}): WalletSessionBudgetRequest {
-  return input.deviceLinked
-    ? { profile: 'linked_device', requested: null }
-    : { profile: 'default', requested: input.requested };
-}
-
-/** The budget that the server grants: min(request, maximum), field by field. */
 export function grantWalletSessionBudget(input: {
-  readonly request: WalletSessionBudgetRequest;
+  readonly profile: WalletSessionBudgetProfile;
+  readonly requested: WalletSessionBudget | null;
   readonly limits: WalletSessionLimits;
 }): WalletSessionBudget {
-  const asked = input.request.requested ?? walletSessionProfileBudget(input.request.profile);
+  const asked =
+    input.profile === 'default' && input.requested
+      ? input.requested
+      : walletSessionProfileBudget(input.profile);
   return {
     ttlMs: Math.min(asked.ttlMs, input.limits.maxTtlMs),
     remainingUses: Math.min(asked.remainingUses, input.limits.maxRemainingUses),
@@ -102,6 +91,17 @@ export function parseWalletSessionBudget(value: unknown, label: string): WalletS
   };
 }
 
+/**
+ * Parses one field of the app's budget in the SDK config: a non-negative
+ * integer. 0 asks for no warm session after a passkey unlock.
+ */
+export function parseWalletSessionBudgetSetting(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${label} must be a non-negative integer`);
+  }
+  return value;
+}
+
 /** Parses an optional budget field: absent or null means that the app asks for none. */
 export function parseOptionalWalletSessionBudget(
   value: unknown,
@@ -111,25 +111,38 @@ export function parseOptionalWalletSessionBudget(
 }
 
 /**
+ * Parses the budget of a passkey-signed session policy: `ttlMs` and
+ * `remainingUses` among the policy's other fields, both positive integers at
+ * most the platform ceiling. The budget refresh asks for this budget.
+ */
+export function parseSignedPolicyWalletSessionBudget(
+  record: Readonly<Record<string, unknown>>,
+  label: string,
+): WalletSessionBudget {
+  return {
+    ttlMs: requireWithinCeiling(record.ttlMs, MAX_WALLET_SESSION_TTL_MS, `${label}.ttlMs`),
+    remainingUses: requireWithinCeiling(
+      record.remainingUses,
+      MAX_WALLET_SESSION_REMAINING_USES,
+      `${label}.remainingUses`,
+    ),
+  };
+}
+
+/**
  * Parses a tenant's maximum: `{ maxTtlMs, maxRemainingUses }`, both positive
  * integers at most the platform ceiling.
  */
 export function parseWalletSessionLimits(value: unknown, label: string): WalletSessionLimits {
   const record = exactRecord(value, ['maxTtlMs', 'maxRemainingUses'], label);
-  const maxTtlMs = requirePositiveInteger(record.maxTtlMs, `${label}.maxTtlMs`);
-  const maxRemainingUses = requirePositiveInteger(
-    record.maxRemainingUses,
-    `${label}.maxRemainingUses`,
-  );
-  if (maxTtlMs > MAX_WALLET_SESSION_TTL_MS) {
-    throw new Error(`${label}.maxTtlMs must be at most ${MAX_WALLET_SESSION_TTL_MS}`);
-  }
-  if (maxRemainingUses > MAX_WALLET_SESSION_REMAINING_USES) {
-    throw new Error(
-      `${label}.maxRemainingUses must be at most ${MAX_WALLET_SESSION_REMAINING_USES}`,
-    );
-  }
-  return { maxTtlMs, maxRemainingUses };
+  return {
+    maxTtlMs: requireWithinCeiling(record.maxTtlMs, MAX_WALLET_SESSION_TTL_MS, `${label}.maxTtlMs`),
+    maxRemainingUses: requireWithinCeiling(
+      record.maxRemainingUses,
+      MAX_WALLET_SESSION_REMAINING_USES,
+      `${label}.maxRemainingUses`,
+    ),
+  };
 }
 
 function requirePositiveInteger(value: unknown, label: string): number {
@@ -137,6 +150,12 @@ function requirePositiveInteger(value: unknown, label: string): number {
     throw new Error(`${label} must be a positive integer`);
   }
   return value;
+}
+
+function requireWithinCeiling(value: unknown, ceiling: number, label: string): number {
+  const parsed = requirePositiveInteger(value, label);
+  if (parsed > ceiling) throw new Error(`${label} must be at most ${ceiling}`);
+  return parsed;
 }
 
 function assertNeverWalletSessionBudgetProfile(value: never): never {

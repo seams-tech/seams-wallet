@@ -93,7 +93,7 @@ try {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
+    requestedBudget: { ttlMs: 3_600_000, remainingUses: 7 },
     issuedAtMs: now,
   };
   const traced = new api.TracedD1Database(database);
@@ -223,7 +223,7 @@ try {
     authority: closedFixture.authority,
     walletAuthMethodId: closedFixture.authMethod.walletAuthMethodId,
     mintId: closedFixture.issuedSession.session.mintId,
-    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
+    requestedBudget: { ttlMs: 3_600_000, remainingUses: 7 },
     issuedAtMs: now,
   };
   assert.equal((await service.issueDirectWalletSessionAuthorizationV2(closedInput)).kind, 'issued');
@@ -353,7 +353,7 @@ async function verifyRegistrationCompletion(database, now) {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
+    requestedBudget: { ttlMs: 3_600_000, remainingUses: 7 },
     issuedAtMs: now,
   };
   const service = authorizationService(database);

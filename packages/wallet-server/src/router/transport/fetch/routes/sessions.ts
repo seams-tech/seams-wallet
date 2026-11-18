@@ -665,8 +665,9 @@ function walletUnlockEcdsaSessionContext(
   const policy = parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1(
     body.ecdsaSessionPolicy,
   );
-  const walletId = String(body.walletId || '').trim();
-  if (!walletId) throw new Error('walletId is required with ecdsaSessionPolicy');
+  const parsedWalletId = parseWalletId(body.walletId);
+  if (!parsedWalletId.ok) throw new Error('walletId is required with ecdsaSessionPolicy');
+  const walletId: string = parsedWalletId.value;
   return {
     kind: 'provision_first_ecdsa_session',
     walletId,

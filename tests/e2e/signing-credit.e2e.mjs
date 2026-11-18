@@ -109,7 +109,7 @@ try {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    budget: { profile: 'default', requested: { ttlMs: 3600000, remainingUses: 7 } },
+    requestedBudget: { ttlMs: 3600000, remainingUses: 7 },
     issuedAtMs: now,
   });
   assert.equal(issued.kind, 'issued');
@@ -140,7 +140,7 @@ try {
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: 'wallet-mint:billing-refusal',
-      budget: { profile: 'default', requested: { ttlMs: 3_599_999, remainingUses: 7 } },
+      requestedBudget: { ttlMs: 3_599_999, remainingUses: 7 },
       issuedAtMs: now + 1,
     }),
     { code: 'billing_credit_exhausted' },

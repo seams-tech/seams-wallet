@@ -41,10 +41,10 @@ export async function beginDirectVoiceUnlock(page: Page): Promise<void> {
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const button = wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true });
   await expect(button).toBeEnabled({ timeout: 45_000 });
-  await expect(wallet.locator('.seams-voiceid-prompt')).not.toHaveAttribute(
-    'data-capture',
-    'listening',
-  );
+  // The enrollment prompt can still be closing, so name the unlock prompt.
+  await expect(
+    wallet.getByRole('region', { name: 'Unlock with VoiceID', exact: true }),
+  ).not.toHaveAttribute('data-capture', 'listening');
   await button.click();
 }
 

@@ -521,7 +521,7 @@ async function verifyWalletAndSessionCommit(database, now) {
     authority: founding.authority,
     walletAuthMethodId: founding.authMethod.walletAuthMethodId,
     mintId: api.registrationEstablishedMintId(ceremonyId),
-    budget: { profile: 'default', requested: { ttlMs: 3_600_000, remainingUses: 7 } },
+    requestedBudget: { ttlMs: 3_600_000, remainingUses: 7 },
     issuedAtMs: now,
   };
   const ceremonies = new api.D1RegistrationCeremonyRecordStore({

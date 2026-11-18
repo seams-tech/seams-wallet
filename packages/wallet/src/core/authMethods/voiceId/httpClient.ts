@@ -20,6 +20,7 @@ import type {
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
+import { isGrantedWithinRequestedBudget } from '@/core/signingEngine/threshold/sessionPolicy';
 import {
   parseWalletAuthMethodRecordV2,
   type ActiveVoiceIdWalletAuthMethodRecordV2,
@@ -191,6 +192,14 @@ export class VoiceIdHttpClient {
       throw new Error('VoiceID server returned a different Wallet Session or custody envelope.');
     }
     const near = parseNearInstallation(body.near);
+    if (
+      !isGrantedWithinRequestedBudget(input.walletSessionBudget ?? null, {
+        remainingUses: near.kind === 'ready' ? near.remainingUses : null,
+        lifetimeMs: walletSession.expiresAtMs - walletSession.issuedAtMs,
+      })
+    ) {
+      throw new Error('VoiceID server granted a Wallet Session budget outside its request.');
+    }
     if (
       near.kind === 'ready' &&
       (near.capability.applicationBinding.wallet_id !== walletSession.walletId ||

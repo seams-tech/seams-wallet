@@ -5,7 +5,10 @@ import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTI
 import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 import { warmSigningSessionSealRuntime } from './threshold/session/signingSessionSeal/crypto/shamir3PassWasm';
 import { WalletAuthorizationRelocationRoutes } from './router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
-import { createProjectEnvironmentWalletSessionLimits } from './router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
+import {
+  createProjectEnvironmentWalletSessionLimits,
+  UNAVAILABLE_WALLET_SESSION_LIMITS,
+} from './router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import { parseSessionOrigin } from './authorization/domain';
 import { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
@@ -302,13 +305,13 @@ function stagingTenantScope(env: CloudflareD1GatewayBaseEnv): RouterApiTenantSco
   };
 }
 
-/** The tenant's Wallet Session maximum, read from the Console. None without a Console binding. */
+/** The tenant's Wallet Session maximum, read from the Console. Without a Console binding, the default budget is the maximum. */
 function stagingWalletSessionLimits(
   env: CloudflareD1GatewayBaseEnv,
   scope: RouterApiTenantScope,
 ): CloudflareD1RouterApiAuthServiceOptions['walletSessionLimits'] {
   const binding = env.WALLET_CONSOLE;
-  if (!isWalletConsoleServiceBinding(binding)) return undefined;
+  if (!isWalletConsoleServiceBinding(binding)) return UNAVAILABLE_WALLET_SESSION_LIMITS;
   return createProjectEnvironmentWalletSessionLimits({
     resolver: createWalletConsoleOpsClient(binding).projectEnvironments,
     scope,

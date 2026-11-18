@@ -1,7 +1,9 @@
 import { coerceThemeMode } from '@shared/utils/theme';
 import { toTrimmedString } from '@shared/utils/validation';
-import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
-import { parsePositiveSessionUses } from '../signingEngine/threshold/sessionPolicy';
+import type {
+  EcdsaSignerProvisioningDefaults,
+  EcdsaSignerProvisioningPolicy,
+} from '../types/ecdsaSignerProvisioningDefaults';
 import type {
   AppearanceTheme,
   SeamsChainConfig,
@@ -188,30 +190,22 @@ export function resolveThemePalette(args: {
 export function copyEcdsaSignerProvisioningDefaults(
   value: EcdsaSignerProvisioningDefaults,
 ): EcdsaSignerProvisioningDefaults {
-  const tempoAllowance = parsePositiveSessionUses(
-    value.tempo.signingSession.remainingUses,
-    'tempo.signingSession.remainingUses',
-  );
-  const evmAllowance = parsePositiveSessionUses(
-    value.evm.signingSession.remainingUses,
-    'evm.signingSession.remainingUses',
-  );
   return {
-    tempo: {
-      ...value.tempo,
-      signingSession: {
-        ...value.tempo.signingSession,
-        remainingUses: tempoAllowance,
-      },
-    },
-    evm: {
-      ...value.evm,
-      signingSession: {
-        ...value.evm.signingSession,
-        remainingUses: evmAllowance,
-      },
-    },
+    tempo: copyEcdsaSignerProvisioningPolicy(value.tempo, 'tempo'),
+    evm: copyEcdsaSignerProvisioningPolicy(value.evm, 'evm'),
   };
+}
+
+function copyEcdsaSignerProvisioningPolicy(
+  value: EcdsaSignerProvisioningPolicy,
+  family: keyof EcdsaSignerProvisioningDefaults,
+): EcdsaSignerProvisioningPolicy {
+  if (typeof value?.enabled !== 'boolean') {
+    throw new Error(
+      `[configPresets] Invalid config: provisioningDefaults.${family}.enabled must be a boolean`,
+    );
+  }
+  return { enabled: value.enabled };
 }
 
 function resolveChainNetwork(network: unknown): SeamsChainNetwork {

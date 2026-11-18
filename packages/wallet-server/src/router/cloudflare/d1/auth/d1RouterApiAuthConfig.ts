@@ -168,8 +168,11 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly syncChallenges?: WebAuthnSyncChallengeStore;
   readonly googleRegistrationAttempts?: GoogleEmailOtpRegistrationAttemptStore;
   readonly sessionRouting?: WalletSessionRoutingPublisher;
-  /** The tenant's Wallet Session maximum. Absent: the default budget is the maximum. */
-  readonly walletSessionLimits?: WalletSessionLimitsPort;
+  /**
+   * The tenant's Wallet Session maximum. A deployment with no Console passes
+   * `UNAVAILABLE_WALLET_SESSION_LIMITS`, and the default budget is then the maximum.
+   */
+  readonly walletSessionLimits: WalletSessionLimitsPort;
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly recoveryRouting?: WalletRecoveryRoutingPublisher;
   readonly registrationSetupDispatcher?: WalletRegistrationSetupDispatcher;

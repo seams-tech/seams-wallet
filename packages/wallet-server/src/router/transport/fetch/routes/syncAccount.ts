@@ -220,6 +220,7 @@ export async function handleSyncAccount(ctx: FetchRouterApiContext): Promise<Res
         issuedAtMs,
         ecdsaThresholdSessionId: `sync-account-ecdsa:${parsed.request.challengeId}`,
         custody: { kind: 'read_verified_factor' },
+        walletSessionBudget: parsed.walletSessionBudget,
       });
       if (bootstrap.kind === 'already_committed') {
         return json(

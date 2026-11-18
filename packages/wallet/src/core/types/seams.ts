@@ -141,20 +141,8 @@ type SigningSessionSealConfig =
  *     refillAttemptTimeoutMs?: number;
  *   };
  *   provisioningDefaults?: {
- *     tempo: {
- *       enabled: boolean;
- *       signingSession: {
- *         kind: 'jwt' | 'cookie';
- *         ttlMs: number;
- *         remainingUses: number;
- *       }; *     };
- *     evm: {
- *       enabled: boolean;
- *       signingSession: {
- *         kind: 'jwt' | 'cookie';
- *         ttlMs: number;
- *         remainingUses: number;
- *       }; *     };
+ *     tempo: { enabled: boolean };
+ *     evm: { enabled: boolean };
  *   };
  *   iframeWallet?: {
  *     walletOrigin?: string;
@@ -202,8 +190,9 @@ export interface SeamsConfigsInput {
    */
   relayerAccount?: string;
   /**
-   * The Wallet Session budget that the app asks for on each unlock and registration:
-   * a lifetime (`ttlMs`) and a count of signatures (`remainingUses`).
+   * The Wallet Session budget that the app asks for on each unlock, registration
+   * and passkey account sync: a lifetime (`ttlMs`) and a count of signatures
+   * (`remainingUses`).
    * The server grants at most the maximum that the tenant set for the project
    * environment in the Seams Console. If the tenant set no maximum, the maximum
    * is 100 signatures and 30 days. The granted budget can be lower than the
@@ -238,21 +227,12 @@ export interface SeamsConfigsInput {
    */
   routerAbEcdsaDerivationPresignaturePool?: RouterAbEcdsaDerivationPresignaturePoolPolicyInput;
   /**
-   * Default threshold-ECDSA provisioning policy used at registration time for
-   * `tempo` and `evm` chains.
+   * Which chain families get a threshold ECDSA signer at registration:
+   * `tempo.enabled` and `evm.enabled`. Both are true by default.
    *
-   * Shape:
-   * - `tempo`: `EcdsaSignerProvisioningPolicy`
-   * - `evm`: `EcdsaSignerProvisioningPolicy`
-   *
-   * `EcdsaSignerProvisioningPolicy` contains:
-   * - `enabled`: enable/disable provisioning on that chain.
-   * - `signingSession.kind`: `'jwt' | 'cookie'` for the minted signer session.
-   * - `signingSession.ttlMs`: session expiration window in milliseconds.
-   * - `signingSession.remainingUses`: max allowed signer operations for the session.
-   *
-   * Used when a registration call does not provide per-call overrides via
-   * `RegistrationHooksOptions.signerOptions`.
+   * A registration call can override this with
+   * `RegistrationHooksOptions.signerOptions`. The Wallet Session budget is
+   * `signingSessionDefaults`, for all signers.
    */
   provisioningDefaults?: EcdsaSignerProvisioningDefaults;
   // Iframe Wallet configuration (when using a separate wallet origin)
@@ -851,7 +831,10 @@ interface SeamsSigningSessionDefaultsInput {
    * The server grants at most the maximum that the tenant set for the project
    * environment in the Seams Console (100 signatures and 30 days when the tenant
    * set none). The unlock result gives the granted values.
-   * Set `ttlMs` or `remainingUses` to 0 to ask for no warm session on unlock.
+   * Each value is a non-negative integer; another value fails the config.
+   * Set `ttlMs` or `remainingUses` to 0 to skip the warm session of a passkey
+   * unlock. An Email OTP or VoiceID unlock always opens a Wallet Session, so with
+   * 0 it asks for the default budget. A pending registration cannot resume with 0.
    */
   ttlMs?: number;
   remainingUses?: number;

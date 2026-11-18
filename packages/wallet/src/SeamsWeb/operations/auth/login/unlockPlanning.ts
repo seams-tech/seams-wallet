@@ -44,11 +44,12 @@ import { type ExactWalletSessionAuthorization } from '@/core/signingEngine/sessi
 import { parseSignerSlot } from '@/core/signingEngine/webauthnAuth/device/signerSlot';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '@/core/signingEngine/session/identity/laneIdentity';
 import {
-  isGrantedWithinRequestedUses,
+  isGrantedWithinRequestedBudget,
   type EmailOtpEd25519SessionPolicyAuthority,
   type PasskeyEd25519SessionPolicyAuthority,
   type ThresholdRuntimePolicyScope,
 } from '@/core/signingEngine/threshold/sessionPolicy';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import { createRouterAbNormalSigningPolicy } from '@/SeamsWeb/operations/session/thresholdWarmSessionBootstrap';
 import { listConfiguredThresholdEcdsaPublicationTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
 import { assertWalletRuntimePostconditions } from '@/core/signingEngine/session/postconditions/runtimePostconditions';
@@ -546,8 +547,8 @@ export function passkeyUnlockEd25519Connection(args: {
   readonly custody: ActivePasskeySessionCustodyUnlockV1;
   readonly provisionScope: LoginEd25519ProvisionScope;
   readonly credential: WebAuthnAuthenticationCredential | undefined;
-  /** The count that the unlock asked for. The server can grant fewer; the session keeps its own. */
-  readonly requestedRemainingUses: number;
+  /** The budget that the unlock asked for. The server can grant less; the session keeps its own. */
+  readonly requestedBudget: WalletSessionBudget;
   readonly unlockAuthorization: ExactWalletSessionAuthorization | null;
 }): PasskeyUnlockEd25519Connection {
   const session = args.session;
@@ -562,7 +563,10 @@ export function passkeyUnlockEd25519Connection(args: {
     custody.signerSlot !== args.signerSlot ||
     session.relayerKeyId !== args.provisionScope.relayerKeyId ||
     session.thresholdSessionId !== custody.capability.lifecycle.thresholdSessionId ||
-    !isGrantedWithinRequestedUses(session.remainingUses, args.requestedRemainingUses) ||
+    !isGrantedWithinRequestedBudget(args.requestedBudget, {
+      remainingUses: session.remainingUses,
+      lifetimeMs: null,
+    }) ||
     !sameEd25519ParticipantIds(session.participantIds, args.provisionScope.participantIds) ||
     !args.provisionScope.runtimePolicyScope ||
     !sameThresholdRuntimePolicyScope(

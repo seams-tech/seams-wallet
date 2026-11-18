@@ -16,7 +16,7 @@ import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { AuthorizedOperationReplayResponse } from '../../../authorization/domain';
 import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { MpcMaterialActivationId } from '@shared/utils/domainIds';
-import { isPlainObject } from '@shared/utils/validation';
+import { isPlainObject, requireExactString } from '@shared/utils/validation';
 import {
   requireMpcMaterialActivationId,
   routerAbSigningError,
@@ -526,7 +526,7 @@ function pushPrivateSigningOptionalString(out: number[], value: unknown, label: 
     return;
   }
   out.push(1);
-  pushLen32(out, textBytes(requirePrivateSigningString(value, label)));
+  pushLen32(out, textBytes(requireExactString(value, label)));
 }
 
 function canonicalPrivateSigningIntentBytes(value: unknown): Uint8Array {
@@ -579,8 +579,9 @@ function canonicalPrivateSigningIntentBytes(value: unknown): Uint8Array {
       return Uint8Array.from(out);
     }
     case 'nep413_v1':
-      pushLen32(out, textBytes(requirePrivateSigningString(intent.recipient, 'intent.recipient')));
-      pushLen32(out, textBytes(requirePrivateSigningString(intent.message, 'intent.message')));
+      // The signed text stays exact; the client encodes the same bytes.
+      pushLen32(out, textBytes(requireExactString(intent.recipient, 'intent.recipient')));
+      pushLen32(out, textBytes(requireExactString(intent.message, 'intent.message')));
       pushLen32(
         out,
         textBytes(requirePrivateSigningString(intent.nonce_b64u, 'intent.nonce_b64u')),

@@ -1,4 +1,8 @@
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
+import {
+  parseOptionalWalletSessionBudget,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import { parseWebAuthnAuthenticationCredential } from '../../auth/webAuthnCredentialCodecs';
 import type { PasskeyVerifyRequest } from '../../auth/authRequestValidation';
 
@@ -14,17 +18,18 @@ type SyncAccountRouteErrorBody = {
   message: string;
 };
 
-type SyncAccountRouteParseResult<T> =
-  | { ok: true; request: T }
-  | { ok: false; status: 400; body: SyncAccountRouteErrorBody };
+type SyncAccountRouteParseFailure = { ok: false; status: 400; body: SyncAccountRouteErrorBody };
+
+type SyncAccountRouteParseResult<T> = { ok: true; request: T } | SyncAccountRouteParseFailure;
 
 const SYNC_ACCOUNT_OPTIONS_KEYS = ['rp_id', 'account_id', 'ttl_ms'] as const;
 const SYNC_ACCOUNT_VERIFY_KEYS = [
   'challengeId',
   'webauthn_authentication',
+  'walletSessionBudget',
 ] as const;
 
-function invalidSyncAccountBody(message: string): SyncAccountRouteParseResult<never> {
+function invalidSyncAccountBody(message: string): SyncAccountRouteParseFailure {
   return {
     ok: false,
     status: 400,
@@ -82,10 +87,20 @@ export function parseSyncAccountOptionsRequest(
   };
 }
 
+/**
+ * The verified request, and beside it the app's Wallet Session budget. The
+ * budget stays out of the request, because the owner proof digests the request.
+ */
 export function parseSyncAccountVerifyRequest(input: {
   body: unknown;
   origin: unknown;
-}): SyncAccountRouteParseResult<PasskeyVerifyRequest> {
+}):
+  | {
+      ok: true;
+      request: PasskeyVerifyRequest;
+      walletSessionBudget: WalletSessionBudget | null;
+    }
+  | SyncAccountRouteParseFailure {
   if (!isPlainObject(input.body)) {
     return invalidSyncAccountBody('Expected JSON object body');
   }
@@ -108,6 +123,17 @@ export function parseSyncAccountVerifyRequest(input: {
   if (!expectedOrigin) {
     return invalidSyncAccountBody('Origin header is required');
   }
+  let walletSessionBudget: WalletSessionBudget | null;
+  try {
+    walletSessionBudget = parseOptionalWalletSessionBudget(
+      input.body.walletSessionBudget,
+      'walletSessionBudget',
+    );
+  } catch (error: unknown) {
+    return invalidSyncAccountBody(
+      error instanceof Error ? error.message : 'walletSessionBudget is invalid',
+    );
+  }
   return {
     ok: true,
     request: {
@@ -115,5 +141,6 @@ export function parseSyncAccountVerifyRequest(input: {
       webauthn_authentication: webauthnAuthentication,
       expected_origin: expectedOrigin,
     },
+    walletSessionBudget,
   };
 }

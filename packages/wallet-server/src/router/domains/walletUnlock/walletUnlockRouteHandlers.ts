@@ -1056,8 +1056,11 @@ async function emitEmailOtpUnlockFailure(input: {
   readonly message: string;
   readonly emitEmailOtpWebhook: EmitWalletUnlockEmailOtpWebhook;
 }): Promise<void> {
-  const walletId = String(input.body.walletId || '').trim();
-  if (!walletId) return;
+  // A failed proof does not prove the wallet: the caller only claims it. Report
+  // only a valid wallet ID, never a value that the request turned into a string.
+  const claimed = parseWalletId(input.body.walletId);
+  if (!claimed.ok) return;
+  const walletId = claimed.value;
   for (const descriptor of emailOtpFailureWebhookEventDescriptors({
     source: 'unlock_verify',
     code: input.code,
@@ -1293,7 +1296,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
   const parsed = parseWalletUnlockRouteBody(input.body);
   if (!parsed.ok) return parsed.response;
   const { body, unlockBackend } = parsed;
-  const challengeId = String(body.challengeId || '').trim();
+  const challengeId = typeof body.challengeId === 'string' ? body.challengeId.trim() : '';
   if (!challengeId) {
     return {
       status: 400,

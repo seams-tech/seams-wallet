@@ -1,8 +1,8 @@
 import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
 import {
-  MAX_WALLET_SESSION_REMAINING_USES,
-  MAX_WALLET_SESSION_TTL_MS,
-} from '@shared/threshold/sessionPolicy';
+  parseSignedPolicyWalletSessionBudget,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import { isPlainObject } from '@shared/utils/validation';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { parseRouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
@@ -178,21 +178,13 @@ function parseRouterAbEd25519YaoSessionPolicyV1(
   if (!relayerKeyId.ok) return relayerKeyId;
   const thresholdSessionId = requiredThresholdEd25519SessionId(raw, 'thresholdSessionId');
   if (!thresholdSessionId.ok) return thresholdSessionId;
-  if (
-    typeof raw.ttlMs !== 'number' ||
-    !Number.isSafeInteger(raw.ttlMs) ||
-    raw.ttlMs <= 0 ||
-    raw.ttlMs > MAX_WALLET_SESSION_TTL_MS
-  ) {
-    return invalidThresholdEd25519Body('sessionPolicy.ttlMs is required');
-  }
-  if (
-    typeof raw.remainingUses !== 'number' ||
-    !Number.isSafeInteger(raw.remainingUses) ||
-    raw.remainingUses <= 0 ||
-    raw.remainingUses > MAX_WALLET_SESSION_REMAINING_USES
-  ) {
-    return invalidThresholdEd25519Body('sessionPolicy.remainingUses is required');
+  let budget: WalletSessionBudget;
+  try {
+    budget = parseSignedPolicyWalletSessionBudget(raw, 'sessionPolicy');
+  } catch (error: unknown) {
+    return invalidThresholdEd25519Body(
+      error instanceof Error ? error.message : 'sessionPolicy budget is invalid',
+    );
   }
   const participantIds = normalizeThresholdEd25519ParticipantIds(raw.participantIds);
   if (!participantIds || participantIds.length !== 2 || participantIds[0] === participantIds[1]) {
@@ -222,8 +214,8 @@ function parseRouterAbEd25519YaoSessionPolicyV1(
       runtimePolicyScope,
       routerAbNormalSigning,
       participantIds: [participantIds[0]!, participantIds[1]!],
-      ttlMs: raw.ttlMs,
-      remainingUses: raw.remainingUses,
+      ttlMs: budget.ttlMs,
+      remainingUses: budget.remainingUses,
     },
   };
 }

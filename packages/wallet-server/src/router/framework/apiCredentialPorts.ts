@@ -125,8 +125,12 @@ export interface RouterApiProjectEnvironment {
   key: string;
   signingRootVersion: string;
   status?: string;
-  /** The tenant's maximum Wallet Session budget. Null: the tenant set none. */
-  walletSessionLimits?: import('@shared/threshold/walletSessionBudget').WalletSessionLimits | null;
+  /**
+   * The tenant's maximum Wallet Session budget as the Console sends it; null or
+   * absent: the tenant set none. The Wallet Session limits port parses it, so a
+   * value that does not parse changes only the grant, not the environment.
+   */
+  walletSessionLimits?: unknown;
 }
 
 export interface RouterApiProjectEnvironmentResolver {

@@ -471,7 +471,7 @@ try {
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: 'wallet-mint:inactive-import-issuance',
-      budget: { profile: 'default', requested: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 20), remainingUses: 7 } },
+      requestedBudget: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 20), remainingUses: 7 },
       issuedAtMs: issuedAtMs + 20,
     }),
     /Wallet session issuance requires an open execution generation/u,
@@ -496,7 +496,7 @@ try {
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: 'wallet-mint:activated-destination',
-    budget: { profile: 'default', requested: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 30), remainingUses: 7 } },
+    requestedBudget: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 30), remainingUses: 7 },
     issuedAtMs: issuedAtMs + 30,
   });
   assert.equal(resumedSession.session.walletId, fixture.authority.walletId);
@@ -551,7 +551,7 @@ try {
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: 'wallet-mint:cleaned-source',
-      budget: { profile: 'default', requested: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 32), remainingUses: 7 } },
+      requestedBudget: { ttlMs: issued.session.expiresAtMs - (issuedAtMs + 32), remainingUses: 7 },
       issuedAtMs: issuedAtMs + 32,
     }),
   );
@@ -705,7 +705,7 @@ async function issueDeviceSession(database, authorizationService, fixture, issue
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: fixture.issuedSession.session.mintId,
-    budget: { profile: 'default', requested: { ttlMs: fixture.issuedSession.session.expiresAtMs - issuedAtMs, remainingUses: 7 } },
+    requestedBudget: { ttlMs: fixture.issuedSession.session.expiresAtMs - issuedAtMs, remainingUses: 7 },
     issuedAtMs,
   });
   assert.equal(issued.kind, 'issued');

@@ -87,7 +87,7 @@ import {
   type EmailOtpEcdsaBootstrapAuthorization,
 } from './routePlan';
 import {
-  isGrantedWithinRequestedUses,
+  isGrantedWithinRequestedBudget,
   resolveRequestedWalletSessionBudget,
 } from '../../threshold/sessionPolicy';
 import {
@@ -653,9 +653,12 @@ function grantedEmailOtpUnlockSigningBudget(args: {
     throw new Error('Email OTP unlock returned an expired Wallet Session');
   }
   if (
-    !isGrantedWithinRequestedUses(
-      session.remaining_uses,
-      args.request.session_policy.remaining_uses,
+    !isGrantedWithinRequestedBudget(
+      {
+        ttlMs: args.request.session_policy.ttl_ms,
+        remainingUses: args.request.session_policy.remaining_uses,
+      },
+      { remainingUses: session.remaining_uses, lifetimeMs: null },
     )
   ) {
     throw new Error('Email OTP unlock granted a signing budget outside its request');

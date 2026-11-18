@@ -22,6 +22,7 @@ import type { FetchRouterApiContext } from '../createFetchRouter';
 import { hostedWalletOriginAllowed } from './walletVoiceIdActivation';
 import { prepareVoiceIdNearInstallation, type VoiceIdNearInstallation } from './walletVoiceIdNear';
 import type { VoiceIdVerifyResult } from '../../../domains/voiceId/voiceIdSessions';
+import { isBillingCreditFailure } from '../../../../authorization/sessionRouting';
 
 type HostedVoiceIdRoute = Readonly<{
   hostedWalletOrigins: readonly (string | undefined)[];
@@ -127,7 +128,7 @@ export async function handleVoiceIdVerifyRequest(
     assertion = parseVoiceIdDeviceAssertion(body.assertion);
     walletSessionBudget = parseOptionalWalletSessionBudget(
       body.walletSessionBudget,
-      'VoiceID verification.walletSessionBudget',
+      'walletSessionBudget',
     );
   } catch (error: unknown) {
     return json({
@@ -136,25 +137,43 @@ export async function handleVoiceIdVerifyRequest(
       message: error instanceof Error ? error.message : 'VoiceID assertion is invalid',
     }, { status: 400 });
   }
+  let result: VoiceIdVerifyResult;
   try {
-    const result = await deps.verifyAndIssueVoiceId({
+    result = await deps.verifyAndIssueVoiceId({
       assertion,
       requestOrigin,
       nowMs: Date.now(),
       walletSessionBudget,
     });
-    if (result.kind === 'rejected') {
-      const status = result.code === 'issuance_unavailable' ? 503 : 403;
-      return json({ ok: false, code: result.code }, { status });
-    }
-    return json({
-      ok: true,
-      walletSession: projectActiveWalletSession(result.authorization),
-      operationCredential: result.operationCredential,
-      custodyEnvelope: result.custodyEnvelope,
-      near: await deps.prepareNear(result),
-    }, { status: 200 });
-  } catch {
+  } catch (error: unknown) {
+    // The router answers a billing failure with 402.
+    if (isBillingCreditFailure(error)) throw error;
+    console.error('[voiceid] verification failed', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return json({ ok: false, code: 'verification_unavailable' }, { status: 503 });
   }
+  if (result.kind === 'rejected') {
+    const status = result.code === 'issuance_unavailable' ? 503 : 403;
+    return json({ ok: false, code: result.code }, { status });
+  }
+  // The session is issued, and this response is the only delivery of its
+  // one-time credential. A NEAR lookup failure must not lose it: the Wallet
+  // gets the session without NEAR.
+  let near: VoiceIdNearInstallation;
+  try {
+    near = await deps.prepareNear(result);
+  } catch (error: unknown) {
+    console.error('[voiceid] NEAR capability lookup failed after issuance', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    near = { kind: 'unavailable' };
+  }
+  return json({
+    ok: true,
+    walletSession: projectActiveWalletSession(result.authorization),
+    operationCredential: result.operationCredential,
+    custodyEnvelope: result.custodyEnvelope,
+    near,
+  }, { status: 200 });
 }

@@ -2,6 +2,7 @@ import type { WalletSessionLimitsPort } from '../../../authorization/service';
 import type { RouterApiProjectEnvironmentResolver } from '../../framework/apiCredentialPorts';
 import {
   DEFAULT_TENANT_WALLET_SESSION_LIMITS,
+  parseWalletSessionLimits,
   type WalletSessionLimits,
 } from '@shared/threshold/walletSessionBudget';
 
@@ -14,8 +15,8 @@ type ProjectEnvironmentScope = {
 /**
  * Reads the tenant's Wallet Session maximum of this deployment's project
  * environment from the Console, once for each composition. A tenant that set
- * none gets the default maximum. A failed read rejects, and the issuer then
- * grants at most the default budget.
+ * none gets the default maximum. A failed read or a value that does not parse
+ * rejects, and the issuer then grants at most the default budget.
  */
 export function createProjectEnvironmentWalletSessionLimits(input: {
   readonly resolver: RouterApiProjectEnvironmentResolver;
@@ -55,5 +56,7 @@ async function readProjectEnvironmentWalletSessionLimits(
   if (!environment) {
     throw new Error(`Project environment ${scope.envId} is not active`);
   }
-  return environment.walletSessionLimits ?? DEFAULT_TENANT_WALLET_SESSION_LIMITS;
+  return environment.walletSessionLimits == null
+    ? DEFAULT_TENANT_WALLET_SESSION_LIMITS
+    : parseWalletSessionLimits(environment.walletSessionLimits, 'environment.walletSessionLimits');
 }
