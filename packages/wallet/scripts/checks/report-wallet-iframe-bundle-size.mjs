@@ -216,8 +216,6 @@ const workerTargets = [
     'Ed25519 Yao client WASM',
     'dist/workers/router_ab_ed25519_yao_client_bg.wasm',
   ],
-  ['shamir3PassWorker', 'Shamir3Pass worker', 'dist/workers/shamir3pass.worker.js'],
-  ['shamir3PassWasm', 'Shamir3Pass WASM', 'dist/workers/shamir3pass_runtime_bg.wasm'],
   ['emailOtpRuntimeWasm', 'Email OTP runtime WASM', 'dist/workers/email_otp_runtime_bg.wasm'],
   ['oprfRuntimeWasm', 'OPRF runtime WASM', 'dist/workers/oprf_runtime_bg.wasm'],
   [

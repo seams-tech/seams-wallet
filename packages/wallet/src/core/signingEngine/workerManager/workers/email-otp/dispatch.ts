@@ -254,7 +254,6 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
           ...(orgId ? { orgId } : {}),
           userId: msg.payload.userId,
           verification: msg.payload.verification,
-          groupId: readString(msg.payload.groupId, 'groupId'),
           routePlan,
           material,
           walletSessionBudget: msg.payload.walletSessionBudget,

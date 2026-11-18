@@ -11,6 +11,7 @@ import type {
   RouterAbEd25519NormalSigningState,
   SealedSigningSessionEcdsaRestoreMetadata,
   SealedSigningSessionEd25519RestoreMetadata,
+  SigningSessionSealEvaluation,
 } from '@shared/utils/signingSessionSeal';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
@@ -19,7 +20,6 @@ type WarmSessionSealTransportCommon = {
   walletId?: string;
   relayerUrl: string;
   signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
-  groupId?: string;
 };
 
 type EmailOtpWarmSessionSealTransportCommon = WarmSessionSealTransportCommon & {
@@ -28,13 +28,6 @@ type EmailOtpWarmSessionSealTransportCommon = WarmSessionSealTransportCommon & {
 
 type PasskeyWarmSessionSealTransportCommon = WarmSessionSealTransportCommon & {
   walletSessionToken?: string;
-  serverSealedSecretCacheScope?: {
-    kind: 'passkey_registration';
-    walletId: string;
-    credentialIdB64u: string;
-    walletSessionId: string;
-    quotaId: string;
-  };
 };
 
 export type PasskeyEd25519SealRestoreMetadata = Extract<
@@ -50,16 +43,15 @@ export interface UiConfirmManagerConfig {
   workerTimeout?: number;
   debug?: boolean;
   signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
-  signingSessionSealGroupId?: string;
 }
 
 type PasskeyMpcSessionWorkerMessageType =
   | 'PING'
-  | 'PREWARM_SHAMIR3PASS'
-  | 'PREPARE_SESSION_CLIENT_SEAL'
-  | 'READ_SESSION_CLIENT_SEAL'
-  | 'COMPLETE_SESSION_CLIENT_SEAL'
-  | 'DISCARD_SESSION_CLIENT_SEAL'
+  | 'PREWARM_SESSION_SEAL'
+  | 'PREPARE_SESSION_SEAL_BLIND'
+  | 'READ_SESSION_SEAL_BLIND'
+  | 'COMPLETE_SESSION_SEAL'
+  | 'DISCARD_SESSION_SEAL_BLIND'
   | 'WARM_SESSION_MATERIAL_PUT'
   | 'WARM_SESSION_STATUS_READ'
   | 'WARM_SESSION_STATUS_BATCH_READ'
@@ -136,10 +128,9 @@ export interface WarmSessionSealAndPersistPayload {
   transport: WarmSessionSealTransportInput;
 }
 
-type PreparedWarmSessionServerSeal = {
+/** The registration's evaluation of a prepared blind, with the session's policy. */
+type PreparedWarmSessionServerSeal = SigningSessionSealEvaluation & {
   readonly preparationId: string;
-  readonly ciphertext: string;
-  readonly keyVersion: string;
   readonly expiresAtMs: number;
   readonly remainingUses: number;
 };
@@ -184,10 +175,9 @@ export type WarmSessionSealAndPersistResult =
   | { ok: false; code: string; message: string };
 
 export type WarmSessionSealAndPersistDiagnostics = {
-  runtimeSetupMs: number;
-  clientSealMs: number;
-  serverSealRouteMs: number;
-  clientUnsealMs: number;
+  blindMs: number;
+  serverRouteMs: number;
+  finalizeMs: number;
   policyUpdateMs: number;
 };
 

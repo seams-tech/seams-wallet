@@ -1,13 +1,5 @@
-/**
- * The worker's cryptographic runtimes: its wasm modules, the Ed25519 Yao client and the
- * Shamir client seal of the warm session.
- */
+/** The worker's cryptographic runtimes: its wasm modules and the Ed25519 Yao client. */
 import { initializeWasm, resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
-import {
-  decodeEmailOtpEscrowSecret32,
-  type EmailOtpEscrowSecret32DecodeResult,
-} from '@/core/signingEngine/session/emailOtp/secretEscrow';
-import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
 import { RouterAbEd25519YaoClientV1 } from '../../../threshold/ed25519/yaoClient';
 import initEvmCrypto, {
   init_evm_crypto,
@@ -17,7 +9,6 @@ import initEmailOtpRuntime, {
   init_email_otp_runtime,
 } from '../../../../../../../../wasm/email_otp_runtime/pkg/email_otp_runtime.js';
 import initWalletCustodyCeremony from '../../../../../../../../wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony.js';
-import { getShamir3PassRuntime } from '../shamir3pass/runtime';
 
 export function generateRandomSecret32(): Uint8Array {
   const cryptoApi = globalThis.crypto;
@@ -110,18 +101,3 @@ export async function deriveEmailOtpUnlockAuthSeedInWorker(args: {
   );
 }
 
-export async function removeClientSealToSecret32(args: {
-  runtime: Awaited<ReturnType<typeof getShamir3PassRuntime>>;
-  keyHandle: string;
-  ciphertextB64u: string;
-}): Promise<EmailOtpEscrowSecret32DecodeResult> {
-  const plaintext = await args.runtime.removeClientSealWithKeyHandleToBytes({
-    ciphertextB64u: args.ciphertextB64u,
-    keyHandle: args.keyHandle,
-  });
-  try {
-    return decodeEmailOtpEscrowSecret32(plaintext);
-  } finally {
-    zeroizeBytes(plaintext);
-  }
-}

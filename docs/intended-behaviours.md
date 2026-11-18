@@ -1475,11 +1475,13 @@ Expected behaviour:
   The response waits for publication and the finalization receipt. It binds the seal
   to the committed wallet, session and expiry. A sealing failure does not prevent
   the registration receipt from committing. The client can recover through normal unlock.
-  The server derives each signing-session seal lock key from the committed wallet ID
-  and exact threshold session ID. The remove route checks an unexpired Wallet
-  Session for both IDs before it transforms the stored ciphertext.
-  Preparation creates no signing authority. Temporary keys are consumed once for
-  the matching session and factor, or discarded on failure, lock, expiry, or abandonment.
+  The signing-session seal is the RFC 9497 POPRF on ristretto255. The server builds
+  its `info` from the committed wallet ID and exact threshold session ID, and the
+  evaluate route checks an unexpired Wallet Session for both IDs before it
+  evaluates. The server sees only a blinded element; the device keeps the OPRF
+  input and the encrypted secret. Preparation creates no signing authority. A
+  prepared blind is consumed once for the matching session, or discarded on
+  failure, lock, expiry, or abandonment.
 - After NEAR authority publication, passkey session hydration and local signer
   installation may overlap. Durable readiness waits for both; a failed hydration
   retains the repair journal for normal unlock.

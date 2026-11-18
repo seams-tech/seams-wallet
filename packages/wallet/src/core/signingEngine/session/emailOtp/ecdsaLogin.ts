@@ -521,7 +521,6 @@ export type LoginEmailOtpEcdsaCapabilityArgs = {
   challengeId?: string;
   otpCode: string;
   operation?: WalletEmailOtpLoginOperation;
-  groupId?: string;
   routeAuth?: never;
   ecdsaBootstrapAuthorization: EmailOtpEcdsaBootstrapAuthorization;
   keyHandle?: string;
@@ -1160,7 +1159,6 @@ type EmailOtpEcdsaLoginPorts = EmailOtpEcdsaLoginAuthorityPorts & {
     request: ThresholdEcdsaEmailOtpExportActivationRequest,
   ) => Promise<EmailOtpEcdsaExplicitExportBootstrapResult>;
   requireRelayUrl: () => string;
-  requireSigningSessionSealGroupId: () => string;
   publicationPorts: EmailOtpEcdsaPublicationPorts;
 };
 
@@ -1335,7 +1333,6 @@ async function runEmailOtpEcdsaCapability(
   const emailOtpAuthContextPolicy: EmailOtpAuthPolicy =
     emailOtpAuthRetention === 'session' ? 'session' : emailOtpAuthPolicy;
   const relayUrl = String(args.relayUrl || ports.requireRelayUrl()).trim();
-  const groupId = String(args.groupId || ports.requireSigningSessionSealGroupId()).trim();
   const isWalletUnlock = operation === WALLET_EMAIL_OTP_UNLOCK_OPERATION;
   // The app's budget for a wallet unlock. Null: the app asks for none, and the server uses its default.
   const walletSessionBudget = isWalletUnlock
@@ -1504,7 +1501,6 @@ async function runEmailOtpEcdsaCapability(
         walletSession: args.walletSession,
         authoritySelector: args.authoritySelector,
         relayUrl,
-        groupId,
         verification: requireEmailOtpExplicitExportUnsealGrant(
           exportInput.explicitExportAuthorization,
         ),
@@ -1518,7 +1514,6 @@ async function runEmailOtpEcdsaCapability(
         walletSession: args.walletSession,
         authoritySelector: args.authoritySelector,
         relayUrl,
-        groupId,
         verification: {
           kind: 'otp' as const,
           ...(args.challengeId ? { challengeId: args.challengeId } : {}),
@@ -1715,7 +1710,6 @@ async function runEmailOtpEcdsaCapability(
         authority: existingKey.persistedRoleLocalMaterial.authority,
         emailOtpAuthContext,
         relayerUrl: relayUrl,
-        groupId,
       },
       publicationPorts,
     );

@@ -61,7 +61,6 @@ type EmailOtpEcdsaExportLogin = (
 type EmailOtpWorkerPorts = {
   getSignerWorkerContext: () => WorkerOperationContext | null | undefined;
   requireRelayUrl: () => string;
-  requireSigningSessionSealGroupId: () => string;
   resolveSelectedWalletAuthority: (
     walletId: string,
   ) => Promise<ResolveSelectedWalletAuthorityResultV1>;

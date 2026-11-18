@@ -20,7 +20,6 @@ import {
   sameRouterAbEcdsaRegistrationActivationReceiptV1,
   type RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { base64UrlDecode } from '@shared/utils/base64';
 import { requireRecord, requireNonEmptyString } from '@shared/utils/validation';
@@ -349,7 +348,6 @@ async function unlockWithEmailOtp(args: {
       walletAuthMethodId: args.pending.walletAuthMethodId,
     },
     relayUrl: args.relayerUrl,
-    groupId: SIGNING_SESSION_SEAL_GROUP_ID,
     walletSessionBudget: args.sessionPolicy.budget,
     routePlan: buildFreshEmailOtpRoutePlan({
       freshRouteFamily: 'login',

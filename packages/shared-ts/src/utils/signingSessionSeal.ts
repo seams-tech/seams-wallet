@@ -11,9 +11,8 @@ import type { MpcMaterialActivationRef } from './domainIds';
 import type { ThresholdEcdsaChainTarget } from './thresholdEcdsaChainTarget';
 import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from './signerDomain';
 
-export const SIGNING_SESSION_SEALED_RECORD_VERSION = 2 as const;
-export const SIGNING_SESSION_SEAL_ALG = 'shamir3pass-v2' as const;
-export const SIGNING_SESSION_SEAL_GROUP_ID = 'rfc2409-group2' as const;
+export const SIGNING_SESSION_SEALED_RECORD_VERSION = 3 as const;
+export const SIGNING_SESSION_SEAL_ALG = 'ristretto255-sha512-poprf-v1' as const;
 export const SIGNING_SESSION_SEAL_STORAGE_SCOPE = 'iframe_origin_indexeddb' as const;
 export const SIGNING_SESSION_SECRET_KIND = 'signing_session_secret32' as const;
 export const ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND =
@@ -25,14 +24,57 @@ export const ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH =
 export const ROUTER_AB_ED25519_NORMAL_SIGNING_PATH = '/router-ab/ed25519/sign' as const;
 export const WALLET_SESSION_SEAL_BASE_PATH = '/wallet-session/seal' as const;
 
-export function decodeSigningSessionSecret32(
-  plaintext: Uint8Array,
-): Uint8Array<ArrayBuffer> | null {
-  if (plaintext.length < 1 || plaintext.length > 32) return null;
-  // Group elements use minimal big-endian encoding; the original secret has fixed width.
-  const secret32 = new Uint8Array(32);
-  secret32.set(plaintext, 32 - plaintext.length);
-  return secret32;
+/** The key label of the signing-session POPRF. Each key version derives its own key under it. */
+export const SIGNING_SESSION_SEAL_OPRF_KEY_INFO = new TextEncoder().encode(
+  'seams/signing-session-seal/oprf/key/v1',
+);
+
+/**
+ * The POPRF `info` of one signing session. The server builds it from the admitted Wallet
+ * Session, so an evaluation for one wallet and threshold session never opens another's record.
+ */
+export function signingSessionSealOprfInfo(input: {
+  readonly walletId: string;
+  readonly thresholdSessionId: string;
+}): Uint8Array {
+  return encodeSigningSessionHkdfTuple([
+    'seams/signing-session-seal/oprf/info/v1',
+    input.walletId,
+    input.thresholdSessionId,
+  ]);
+}
+
+/** The server's POPRF answer for one blinded element, with the public key it used. */
+export type SigningSessionSealEvaluation = {
+  readonly evaluatedElementB64u: string;
+  readonly proofB64u: string;
+  readonly publicKeyB64u: string;
+  readonly keyVersion: string;
+};
+
+export const SIGNING_SESSION_SEAL_EVALUATION_FIELDS = [
+  'evaluatedElementB64u',
+  'proofB64u',
+  'publicKeyB64u',
+  'keyVersion',
+] as const;
+
+/** Reads the evaluation fields of a parsed response record, or null when one is missing. */
+export function readSigningSessionSealEvaluation(
+  record: object,
+): SigningSessionSealEvaluation | null {
+  const values = SIGNING_SESSION_SEAL_EVALUATION_FIELDS.map((field) => {
+    const value: unknown = Reflect.get(record, field);
+    return typeof value === 'string' ? value.trim() : '';
+  });
+  if (values.some((value) => !value)) return null;
+  const [evaluatedElementB64u, proofB64u, publicKeyB64u, keyVersion] = values as [
+    string,
+    string,
+    string,
+    string,
+  ];
+  return { evaluatedElementB64u, proofB64u, publicKeyB64u, keyVersion };
 }
 
 export const PASSKEY_PRF_FIRST_SALT_V1 = new Uint8Array([
@@ -50,10 +92,8 @@ export type SigningSessionSealAuthMethod = Extract<
   typeof SIGNER_AUTH_METHODS.passkey | typeof SIGNER_AUTH_METHODS.emailOtp
 >;
 export type SigningSessionSealCurve = 'ed25519' | 'ecdsa';
-export type SigningSessionSealGroupId = typeof SIGNING_SESSION_SEAL_GROUP_ID;
 export type SigningSessionSealProtocol = {
   algorithm: typeof SIGNING_SESSION_SEAL_ALG;
-  groupId: SigningSessionSealGroupId;
 };
 /** The signing-session seal capabilities a relayer publishes in its well-known document. */
 export type WellKnownSigningSessionSealCapabilities =
@@ -186,10 +226,10 @@ type SealedSigningSessionRecordBase = {
   authMethod: SigningSessionSealAuthMethod;
   secretKind: typeof SIGNING_SESSION_SECRET_KIND;
   storeKey: string;
+  /** The OPRF input, an AES-GCM nonce and the encrypted secret, opened only with the server. */
   sealedSecretB64u: string;
   walletId: string;
   relayerUrl: string;
-  groupId: SigningSessionSealGroupId;
   keyVersion: string;
   issuedAtMs: number;
   expiresAtMs: number;

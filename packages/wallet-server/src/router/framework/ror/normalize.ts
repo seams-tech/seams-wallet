@@ -1,6 +1,5 @@
 import {
   SIGNING_SESSION_SEAL_ALG,
-  SIGNING_SESSION_SEAL_GROUP_ID,
   type WellKnownSigningSessionSealCapabilities,
 } from '@shared/utils/signingSessionSeal';
 import { toOptionalTrimmedString, toRorOriginOrNull } from '@shared/utils/validation';
@@ -49,21 +48,13 @@ function normalizeWellKnownSigningSessionSealCapabilities(
   if (!protocolRaw || typeof protocolRaw !== 'object' || Array.isArray(protocolRaw)) return null;
   const protocol = protocolRaw as Record<string, unknown>;
   const algorithm = toOptionalTrimmedString(protocol.algorithm);
-  const groupId = toOptionalTrimmedString(protocol.groupId);
   const currentKeyVersion = toOptionalTrimmedString(obj.currentKeyVersion);
-  if (
-    algorithm !== SIGNING_SESSION_SEAL_ALG ||
-    groupId !== SIGNING_SESSION_SEAL_GROUP_ID ||
-    !currentKeyVersion
-  ) {
+  if (algorithm !== SIGNING_SESSION_SEAL_ALG || !currentKeyVersion) {
     return null;
   }
   return {
     mode: 'sealed_refresh_v1',
-    protocol: {
-      algorithm: SIGNING_SESSION_SEAL_ALG,
-      groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-    },
+    protocol: { algorithm: SIGNING_SESSION_SEAL_ALG },
     currentKeyVersion,
   };
 }

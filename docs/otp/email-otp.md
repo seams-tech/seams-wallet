@@ -197,13 +197,11 @@ Worker communication topology:
 flowchart TD
   Main["JS main thread<br/>SDK facade + WarmSessionManager"]
   EmailWorker["emailOtp worker<br/>owns Email OTP flow"]
-  ShamirWorker["shamir3pass worker<br/>nested worker"]
   OtpWasm["email_otp_runtime WASM"]
   EvmCryptoWasm["evm_crypto WASM"]
   DerivationWasm["Router A/B ECDSA derivation client WASM"]
 
   Main <-->|"postMessage RPC"| EmailWorker
-  EmailWorker <-->|"nested postMessage"| ShamirWorker
   EmailWorker --> OtpWasm
   EmailWorker --> EvmCryptoWasm
   EmailWorker --> DerivationWasm
@@ -212,7 +210,7 @@ flowchart TD
 The worker owns:
 
 1. Email OTP challenge and verify requests for secret-bearing flows.
-2. `shamir3pass` unwrap/seal operations.
+2. the OPRF blinds of the device factor and the warm-session seal (`oprf_runtime`).
 3. recovered secret `S`.
 4. Email OTP HKDF derivation.
 5. unlock proof generation.
@@ -221,7 +219,7 @@ The worker owns:
 
 The main thread must not:
 
-1. call `getShamir3PassRuntime()` for Email OTP runtime flows.
+1. load `oprf_runtime` or hold an OPRF blind for Email OTP runtime flows.
 2. derive Email OTP secrets from recovered `S`.
 3. assemble secret-bearing Email OTP HTTP payloads.
 4. create unlock proofs from secret-derived material.
@@ -246,7 +244,7 @@ Rules:
 In wallet-iframe mode, the wallet iframe origin owns:
 
 1. the `SeamsWeb` runtime used for Email OTP.
-2. the dedicated `emailOtp` worker and nested `shamir3pass` worker.
+2. the dedicated `emailOtp` worker.
 3. Email OTP challenge, verify, enrollment, unseal, bootstrap, and recovery
    route calls.
 4. non-secret wallet profile and account-projection persistence.

@@ -19,7 +19,6 @@ import {
 } from '../session/persistence/sealedSessionRecords';
 import { thresholdEcdsaChainTargetKey } from '../interfaces/ecdsaChainTarget';
 import { thresholdEcdsaChainTargetsEqual } from '../interfaces/ecdsaChainTarget';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import {
   normalizeRuntimePolicyScope,
@@ -83,21 +82,14 @@ function recordSealResultDiagnostics(args: {
   resultDiagnostics: WarmSessionSealAndPersistDiagnostics | undefined;
 }): void {
   if (!args.diagnostics || !args.resultDiagnostics) return;
-  args.diagnostics.recordDuration(
-    'sealed_record_apply_runtime_setup',
-    args.resultDiagnostics.runtimeSetupMs,
-  );
-  args.diagnostics.recordDuration(
-    'sealed_record_apply_client_seal',
-    args.resultDiagnostics.clientSealMs,
-  );
+  args.diagnostics.recordDuration('sealed_record_apply_blind', args.resultDiagnostics.blindMs);
   args.diagnostics.recordDuration(
     'sealed_record_apply_server_route',
-    args.resultDiagnostics.serverSealRouteMs,
+    args.resultDiagnostics.serverRouteMs,
   );
   args.diagnostics.recordDuration(
-    'sealed_record_apply_client_unseal',
-    args.resultDiagnostics.clientUnsealMs,
+    'sealed_record_apply_finalize',
+    args.resultDiagnostics.finalizeMs,
   );
   args.diagnostics.recordDuration(
     'sealed_record_apply_policy_update',
@@ -186,7 +178,6 @@ type BuildCurrentRecordInputArgs = {
   sealedSecretB64u: string;
   relayerUrl: string;
   keyVersion: string;
-  groupId: typeof SIGNING_SESSION_SEAL_GROUP_ID;
   issuedAtMs: number;
   expiresAtMs: number;
   remainingUses: number;
@@ -230,7 +221,6 @@ function buildCurrentRecordInput(
       walletId,
       relayerUrl: args.relayerUrl,
       keyVersion: args.keyVersion,
-      groupId: args.groupId,
       ecdsaRestore: args.metadata.ecdsaRestore,
       ...(args.metadata.ed25519Restore ? { ed25519Restore: args.metadata.ed25519Restore } : {}),
       issuedAtMs: args.issuedAtMs,
@@ -260,7 +250,6 @@ function buildCurrentRecordInput(
       : {}),
     relayerUrl: args.relayerUrl,
     keyVersion: args.keyVersion,
-    groupId: args.groupId,
     ...(args.metadata.ecdsaRestore ? { ecdsaRestore: args.metadata.ecdsaRestore } : {}),
     ed25519Restore: args.metadata.ed25519Restore,
     issuedAtMs: args.issuedAtMs,
@@ -387,12 +376,11 @@ function existingRecordMetadata(
 
 function normalizedPasskeyTransport(
   transport: PasskeyWarmSessionSealTransportInput,
-  groupId: typeof SIGNING_SESSION_SEAL_GROUP_ID,
 ): PasskeyWarmSessionSealTransportInput {
   if (transport.curve === 'ecdsa') {
-    return { ...transport, authMethod: 'passkey', groupId };
+    return { ...transport, authMethod: 'passkey' };
   }
-  return { ...transport, authMethod: 'passkey', groupId };
+  return { ...transport, authMethod: 'passkey' };
 }
 
 async function readExactPasskeyRecord(args: {
@@ -610,7 +598,6 @@ export class PasskeyMpcSessionDurableState {
             sealedSecretB64u: existing.sealedSecretB64u,
             relayerUrl: existing.relayerUrl,
             keyVersion: existing.keyVersion,
-            groupId: existing.groupId,
             issuedAtMs: existing.issuedAtMs,
             expiresAtMs: policyExpiresAtMs,
             remainingUses: policyRemainingUses,
@@ -624,7 +611,6 @@ export class PasskeyMpcSessionDurableState {
             sealedSecretB64u: existing.sealedSecretB64u,
             relayerUrl: existing.relayerUrl,
             keyVersion: existing.keyVersion,
-            groupId: existing.groupId,
             issuedAtMs: existing.issuedAtMs,
             expiresAtMs: policyExpiresAtMs,
             remainingUses: policyRemainingUses,
@@ -675,21 +661,12 @@ export class PasskeyMpcSessionDurableState {
       };
     }
 
-    const requestedGroupId = String(args.transport.groupId || SIGNING_SESSION_SEAL_GROUP_ID).trim();
-    if (requestedGroupId !== SIGNING_SESSION_SEAL_GROUP_ID) {
-      return {
-        ok: false,
-        code: 'invalid_args',
-        message: 'Unsupported groupId for Passkey signing-session seal persistence',
-      };
-    }
-    const groupId = SIGNING_SESSION_SEAL_GROUP_ID;
     const sealStartedAt = performance.now();
     const sealed =
       args.completedSeal ??
       (await this.deps.sealAndPersistWarmSessionMaterial({
         thresholdSessionId: args.thresholdSessionId,
-        transport: normalizedPasskeyTransport(args.transport, groupId),
+        transport: normalizedPasskeyTransport(args.transport),
       }));
     recordDiagnosticDuration({
       diagnostics: args.diagnostics,
@@ -719,7 +696,6 @@ export class PasskeyMpcSessionDurableState {
           sealedSecretB64u: sealed.sealedSecretB64u,
           relayerUrl: args.relayerUrl,
           keyVersion,
-          groupId,
           issuedAtMs: persistedAtMs,
           expiresAtMs: sealed.expiresAtMs,
           remainingUses: sealed.remainingUses,
@@ -732,7 +708,6 @@ export class PasskeyMpcSessionDurableState {
           sealedSecretB64u: sealed.sealedSecretB64u,
           relayerUrl: args.relayerUrl,
           keyVersion,
-          groupId,
           issuedAtMs: persistedAtMs,
           expiresAtMs: sealed.expiresAtMs,
           remainingUses: sealed.remainingUses,

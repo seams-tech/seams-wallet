@@ -1,11 +1,9 @@
 import type { NormalizedLogger } from '../../../../core/logger';
 import { headersToRecord, readJson } from '../../../../router/framework/http';
 import {
-  buildSigningSessionSealApplyPath,
-  buildSigningSessionSealRemovePath,
+  buildSigningSessionSealEvaluatePath,
   authorizeSigningSessionSealRequest,
-  parseSigningSessionSealApplyBody,
-  parseSigningSessionSealRemoveBody,
+  parseSigningSessionSealEvaluateBody,
   signingSessionSealAuthorizeStatusCode,
   signingSessionSealStatusCode,
   resolveSigningSessionSealBasePath,
@@ -40,28 +38,17 @@ export async function handleSigningSessionSealRoutes(
   if (!options) return null;
 
   const basePath = resolveSigningSessionSealBasePath(options.basePath);
-  const applyPath = buildSigningSessionSealApplyPath(basePath);
-  const removePath = buildSigningSessionSealRemovePath(basePath);
-
-  const isApply = ctx.method === 'POST' && ctx.pathname === applyPath;
-  const isRemove = ctx.method === 'POST' && ctx.pathname === removePath;
-  if (!isApply && !isRemove) return null;
+  const route = buildSigningSessionSealEvaluatePath(basePath);
+  if (ctx.method !== 'POST' || ctx.pathname !== route) return null;
 
   const startedAtMs = Date.now();
-  const operation = isApply ? 'apply-server-seal' : 'remove-server-seal';
   try {
-    ctx.logger.info('[threshold-signing-session-seal] request', {
-      route: isApply ? applyPath : removePath,
-      operation,
-    });
+    ctx.logger.info('[threshold-signing-session-seal] request', { route });
     const body = await readJson(ctx.request);
-    const parsed = isApply
-      ? parseSigningSessionSealApplyBody(body)
-      : parseSigningSessionSealRemoveBody(body);
+    const parsed = parseSigningSessionSealEvaluateBody(body);
     if (!parsed.ok) {
       ctx.logger.warn('[threshold-signing-session-seal] invalid_body', {
-        route: isApply ? applyPath : removePath,
-        operation,
+        route,
         code: parsed.code,
         message: parsed.message,
         durationMs: Math.max(0, Date.now() - startedAtMs),
@@ -77,8 +64,7 @@ export async function handleSigningSessionSealRoutes(
     });
     if (!authorized.ok) {
       ctx.logger.warn('[threshold-signing-session-seal] unauthorized', {
-        route: isApply ? applyPath : removePath,
-        operation,
+        route,
         code: authorized.code || 'unauthorized',
         message: authorized.message || 'Unauthorized',
         durationMs: Math.max(0, Date.now() - startedAtMs),
@@ -89,13 +75,10 @@ export async function handleSigningSessionSealRoutes(
       );
     }
 
-    const result = isApply
-      ? await options.service.applyServerSeal(parsed.value, authorized.auth)
-      : await options.service.removeServerSeal(parsed.value, authorized.auth);
+    const result = await options.service.evaluate(parsed.value, authorized.auth);
     const status = signingSessionSealStatusCode(result);
     ctx.logger.info('[threshold-signing-session-seal] response', {
-      route: isApply ? applyPath : removePath,
-      operation,
+      route,
       status,
       ok: result.ok,
       durationMs: Math.max(0, Date.now() - startedAtMs),
@@ -105,7 +88,7 @@ export async function handleSigningSessionSealRoutes(
   } catch (error: unknown) {
     const message = errMessage(error);
     ctx.logger.error('[threshold-signing-session-seal] error', {
-      route: isApply ? applyPath : removePath,
+      route,
       message,
       durationMs: Math.max(0, Date.now() - startedAtMs),
     });

@@ -597,12 +597,11 @@ export interface SigningSessionSurface {
   prepareSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;
-    prfFirstB64u: string;
   }): Promise<void>;
   readPreparedSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;
-  }): Promise<{ readonly ciphertext: string }>;
+  }): Promise<{ readonly blindedElementB64u: string }>;
   discardSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;

@@ -19,7 +19,6 @@ import {
   persistEmailOtpEcdsaSigningSessionForRefresh,
   type EmailOtpEcdsaPublicationPorts,
 } from './ecdsaPublication';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 
 export class EmailOtpSealedSessionRegistry {
@@ -83,7 +82,6 @@ export class EmailOtpSealedSessionRegistry {
         runtimePolicyScope: args.runtimePolicyScope,
         emailOtpAuthContext: args.emailOtpAuthContext,
         relayerUrl: this.ports.configs.network.relayer?.url || '',
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
       },
       this.ecdsaPublicationPorts(),
     );

@@ -295,18 +295,15 @@ export function resolveEcdsaSealTransport(args: {
   runtime: NonNullable<WarmSessionEcdsaCapabilityState['runtime']>;
   auth: ExactEvmFamilyWalletSessionAuthorization | null;
   signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
-  groupId?: string;
 }): EcdsaSealTransportAuthMaterial | null {
   const walletSessionToken = args.auth?.operationCredential.token || null;
   if (!walletSessionToken) return null;
   const relayerUrl = String(args.runtime.relayerUrl || '').trim();
   if (!relayerUrl) return null;
-  const groupId = String(args.groupId || '').trim();
   return {
     curve: 'ecdsa',
     ...(args.signingSessionSealKeyVersion
       ? { signingSessionSealKeyVersion: args.signingSessionSealKeyVersion }
       : {}),
-    ...(groupId ? { groupId } : {}),
   };
 }

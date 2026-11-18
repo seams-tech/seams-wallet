@@ -204,7 +204,7 @@ export function createWorkerResourceWarmupDepsFactory(
     prewarmUiConfirmUi: async () => {
       await Promise.all([
         args.touchConfirm.initialize(),
-        args.passkeyMpcSession.prewarmShamir3Pass(),
+        args.passkeyMpcSession.prewarmSessionSeal(),
       ]);
     },
     activateAuthenticatedWalletState: args.activateAuthenticatedWalletState,

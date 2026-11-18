@@ -2,7 +2,6 @@ import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode'
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import {
   SIGNING_SESSION_SEAL_ALG,
-  SIGNING_SESSION_SEAL_GROUP_ID,
   type WellKnownSigningSessionSealCapabilities,
 } from '@shared/utils/signingSessionSeal';
 
@@ -65,13 +64,8 @@ function normalizeSigningSessionSealCapabilities(
 
   const protocol = decodePlainObject(fields.get('protocol'));
   const algorithm = protocol ? readOptionalNonEmptyString(protocol, 'algorithm') : undefined;
-  const groupId = protocol ? readOptionalNonEmptyString(protocol, 'groupId') : undefined;
   const currentKeyVersion = readOptionalNonEmptyString(fields, 'currentKeyVersion');
-  if (
-    algorithm !== SIGNING_SESSION_SEAL_ALG ||
-    groupId !== SIGNING_SESSION_SEAL_GROUP_ID ||
-    !currentKeyVersion
-  ) {
+  if (algorithm !== SIGNING_SESSION_SEAL_ALG || !currentKeyVersion) {
     return null;
   }
 
@@ -79,7 +73,6 @@ function normalizeSigningSessionSealCapabilities(
     mode: 'sealed_refresh_v1',
     protocol: {
       algorithm: SIGNING_SESSION_SEAL_ALG,
-      groupId: SIGNING_SESSION_SEAL_GROUP_ID,
     },
     currentKeyVersion,
   };
@@ -116,7 +109,6 @@ function buildParityConfigKey(configs: SeamsConfigsReadonly): string {
     relayerUrl,
     mode,
     SIGNING_SESSION_SEAL_ALG,
-    SIGNING_SESSION_SEAL_GROUP_ID,
     hostMode,
     walletMode,
   ].join('|');
@@ -247,20 +239,14 @@ export async function verifySealedRefreshStartupParity(
     ) {
       mismatches.push('algorithm');
     }
-    if (
-      server.mode === 'sealed_refresh_v1' &&
-      server.protocol.groupId !== SIGNING_SESSION_SEAL_GROUP_ID
-    ) {
-      mismatches.push('groupId');
-    }
 
     if (mismatches.length > 0) {
       throw createErrorWithCode(
         `[sealed-refresh-parity] Client/server mismatch for fields: ${mismatches.join(', ')}. ` +
-          `client={mode:${clientMode},algorithm:${SIGNING_SESSION_SEAL_ALG},groupId:${SIGNING_SESSION_SEAL_GROUP_ID}} ` +
+          `client={mode:${clientMode},algorithm:${SIGNING_SESSION_SEAL_ALG}} ` +
           `server={mode:${server.mode}${
             server.mode === 'sealed_refresh_v1'
-              ? `,algorithm:${server.protocol.algorithm},groupId:${server.protocol.groupId}`
+              ? `,algorithm:${server.protocol.algorithm}`
               : ''
           }}`,
         'sealed_refresh_parity_mismatch',

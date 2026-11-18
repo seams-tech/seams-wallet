@@ -22,7 +22,6 @@ import type {
   UiConfirmRuntimeBridgePort,
   WarmSessionStatusResult,
 } from '../../uiConfirm/uiConfirm.types';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { persistThresholdEcdsaBootstrapForWalletTarget } from '../../session/warmCapabilities/ecdsaBootstrapPersistence';
 import type { ThresholdEcdsaBootstrapStorePort } from '../../session/warmCapabilities/ecdsaBootstrapPersistence';
 import {
@@ -59,7 +58,6 @@ type WarmSigningPortsArgs = {
   getEmailOtpWarmSessionStatus: (
     target: EmailOtpWarmMaterialTarget,
   ) => Promise<WarmSessionStatusResult>;
-  signingSessionSeal: SeamsConfigsReadonly['signing']['sessionSeal'];
   ecdsaExportArtifacts: EcdsaExportArtifactStorePorts;
   resolveActiveEcdsaWalletSessionAuthorization?: ExactEcdsaWalletSessionAuthorizationResolver;
   resolveActiveEd25519WalletSessionAuthorization?: WarmSigningEd25519AuthorizationResolver;
@@ -94,10 +92,6 @@ export function createWarmSigningPorts(args: WarmSigningPortsArgs): WarmSigningP
     resolveActiveEcdsaCapabilityRuntime: args.resolveActiveEcdsaCapabilityRuntime,
     resolveActiveEcdsaCapabilityRuntimeForChain: args.resolveActiveEcdsaCapabilityRuntimeForChain,
     touchConfirm: args.passkeyMpcSession,
-    signingSessionSeal:
-      args.signingSessionSeal.mode === 'sealed_refresh_v1'
-        ? { groupId: SIGNING_SESSION_SEAL_GROUP_ID }
-        : null,
     getEmailOtpWarmSessionStatus: args.getEmailOtpWarmSessionStatus,
     ...(args.resolveActiveEcdsaWalletSessionAuthorization
       ? {

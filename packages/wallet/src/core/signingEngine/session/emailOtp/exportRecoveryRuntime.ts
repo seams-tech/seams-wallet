@@ -110,7 +110,6 @@ export class EmailOtpExportRecoveryRuntime {
     private readonly ports: {
       getSignerWorkerContext: () => WorkerOperationContext | null | undefined;
       requireRelayUrl: () => string;
-      requireSigningSessionSealGroupId: () => string;
       resolveSelectedWalletAuthority: (
         walletId: string,
       ) => Promise<ResolveSelectedWalletAuthorityResultV1>;
@@ -171,7 +170,6 @@ export class EmailOtpExportRecoveryRuntime {
     return {
       getSignerWorkerContext: this.ports.getSignerWorkerContext,
       requireRelayUrl: this.ports.requireRelayUrl,
-      requireSigningSessionSealGroupId: this.ports.requireSigningSessionSealGroupId,
       resolveSelectedWalletAuthority: this.ports.resolveSelectedWalletAuthority,
       buildSigningSessionRoutePlan: buildEmailOtpSigningSessionRoutePlan,
     };

@@ -98,7 +98,6 @@ type EmailOtpWalletUnlockBaseArgs = {
   walletSession: WalletSessionRef;
   authoritySelector: EmailOtpAuthoritySelector;
   relayUrl: string;
-  groupId: string;
   routePlan: EmailOtpRoutePlan;
   workerCtx: WorkerOperationContext;
   onProgress?: (progress: EmailOtpWorkerProgressEvent) => void;
@@ -160,7 +159,6 @@ async function requestEmailOtpWalletUnlock(args: {
         authoritySelector: args.base.authoritySelector,
         userId: String(args.base.walletSession.walletSessionUserId),
         verification: args.base.verification,
-        groupId: args.base.groupId,
         routePlan: args.base.routePlan,
         otpChannel: EMAIL_OTP_CHANNEL,
         material: args.material,

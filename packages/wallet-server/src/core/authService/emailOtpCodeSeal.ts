@@ -1,6 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { encodeSigningSessionHkdfTuple } from '@shared/utils/signingSessionSeal';
-import { deriveEmailOtpRootBytes } from './emailOtpRootKey';
+import { deriveSealRootBytes } from '../sealRootKey';
 
 /**
  * Encrypts an Email OTP code for storage. The key comes from the Email OTP
@@ -64,7 +64,7 @@ function associatedData(challengeId: string): ArrayBuffer {
 }
 
 async function deriveCodeKey(rootSecretB64u: string): Promise<CryptoKey> {
-  const derived = await deriveEmailOtpRootBytes(rootSecretB64u, KEY_CONTEXT);
+  const derived = await deriveSealRootBytes(rootSecretB64u, KEY_CONTEXT);
   const copy = toArrayBuffer(derived);
   try {
     return await crypto.subtle.importKey('raw', copy, { name: 'AES-GCM' }, false, [

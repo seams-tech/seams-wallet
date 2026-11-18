@@ -1,7 +1,7 @@
 # Refactor 253: an OPRF for the signing-session seal
 
-Status: 2026-11-18. D1 to D9 are decided. Slice 0 is done (Section 7). Slices 1 and 2 wait until
-the Refactor 252 work commits `wasm/oprf_runtime` (F17). No product code has changed.
+Status: 2026-11-19. D1 to D9 are decided. Slices 0, 1, 2 and 4 are done (Section 8, "What Slice
+2 changed"). Slice 3, the release with seams-monorepo, waits for the owner.
 
 The owner asked: "We use shamir-3-pass to persist signing session material between page
 refreshes. Can it be replaced with the faster OPRF?" This plan answers the question. The OPRF is
@@ -216,10 +216,11 @@ RFC 9497, suite ristretto255-SHA512, mode POPRF (0x02), from the runtime of F17 
 - **`info`.** The length-prefixed tuple of `encodeSigningSessionHkdfTuple`: a label, the wallet ID
   and the threshold session ID. The server builds it from the admission (F4). For ECDSA the
   session ID is the active state ID (F10).
-- **Device record (v3).** `oprfInputB64u` (x, 32 random bytes), `ciphertextB64u` (AES-256-GCM
-  with a random 12-byte nonce), `keyVersion`, `expiresAtMs` and `remainingUses`. The AEAD key is
-  HKDF-SHA256 of the 64-byte OPRF output with a label. The associated data is the wallet, the
-  session ID, the auth method, the curve and the key version. No `groupId`.
+- **Device record (v3).** `sealedSecretB64u` holds x (32 random bytes), a random 12-byte nonce
+  and the AES-256-GCM ciphertext of the secret (92 bytes in all), next to `keyVersion`,
+  `expiresAtMs` and `remainingUses`. The AEAD key is HKDF-SHA256 of the 64-byte OPRF output with
+  a label. The associated data is the wallet, the threshold session ID and the key version. No
+  `groupId`.
 
 ### Seal at session start (one evaluation)
 
@@ -246,11 +247,11 @@ that choice was declined.
   in WASM.
 - **D2. Verify the proof.** Recommended. The RFC POPRF mode includes the proof. It shows a wrong
   key version or a wrong `info` at seal time, before the device writes a record that never opens.
-  The well-known document publishes `pkS` for each accepted key version (`srv/router/framework/
-  ror/normalize.ts:37-71`). This is a check of consistency, not of trust, because the same server
-  publishes the key. Cost: about 0.3 ms on the device. The other choice is the base OPRF mode
-  with a key derived for each scope, as the lock key is today. It has no proof and no public key,
-  and a wrong key shows only at restore.
+  Each evaluation response carries `pkS`, as the Refactor 252 device factor does, so the
+  well-known document does not change (Section 8). This is a check of consistency, not of trust,
+  because the same server publishes the key. Cost: about 0.3 ms on the device. The other choice
+  is the base OPRF mode with a key derived for each scope, as the lock key was. It has no proof
+  and no public key, and a wrong key shows only at restore.
 - **D3. Reuse the runtime of F17.** Recommended, so that both seals have one implementation
   (D8). It uses the `voprf` crate, which is also the OPRF of `opaque-ke`, and it passes the RFC
   vectors. The other choice is our own RFC 9497 code on `curve25519-dalek` =4.1.3. We need only
@@ -352,12 +353,12 @@ The Gateway swaps its 117 KB three-pass module for the 130 KB runtime.
   - Routes: `apply-server-seal` and `remove-server-seal` become `evaluate`.
   - Request: `ciphertext` becomes `blindedElementB64u`. `metadata` goes away (the server logs
     only its keys, and no client sends it).
-  - Response: `ciphertext` becomes `evaluatedElementB64u` and `proofB64u`.
+  - Response: `ciphertext` becomes `evaluatedElementB64u`, `proofB64u` and `publicKeyB64u`.
   - Registration `sessionSeal`, request and response
     (`packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts:4057-4284`,
     `registrationSessionSeal.ts:137-169`): the same change.
   - Well-known `signingSessionSeal.protocol`: `{algorithm: 'shamir3pass-v2', groupId}` becomes
-    `{algorithm: 'ristretto255-sha512-poprf-v1'}`, plus `publicKeys` by key version (D2).
+    `{algorithm: 'ristretto255-sha512-poprf-v1'}`.
   - Client config defaults (`packages/wallet/src/core/config/defaultConfigs.ts:127-135`,
     `configBuilder.ts:138-151`) and the Email OTP seal transport `groupId`
     (`wk/email-otp/sessionState.ts:698-706`).
@@ -427,18 +428,34 @@ Answered on 2026-11-18.
 
 - **Slice 0: measure.** Answer U1 to U5. No change to behaviour. Done on 2026-11-18 (Section 7).
   The restore diagnostics moved to Slice 2.
-- **Slice 1: the shared runtime.** `wasm/oprf_runtime` lands with Refactor 252 (F17, D3). This
-  plan adds the `signing_session` key label and its `info` builder beside the Email OTP ones, and
-  loads the runtime in the passkey session worker.
-- **Slice 2: the seal.** Server and Wallet in one change: the `evaluate` route, the keys and
-  `pkS` in the well-known document, the prepared registration evaluation, the rate limit (D9),
-  the in-process client (D5), record v3, the Gateway warm-up of the runtime and restore
-  diagnostics in both workers. In the same change, delete the apply and remove routes and the
-  three-pass calls of this seal. Update [Browser workers](browser-workers.md).
+- **Slice 1: the shared runtime.** `wasm/oprf_runtime` landed with Refactor 252 (`14fb169e9`).
+  Done with Slice 2.
+- **Slice 2: the seal.** Server and Wallet in one change. Done on 2026-11-19, together with Slice
+  4, because no code used three-pass any more. See "What Slice 2 changed" below.
 - **Slice 3: the release (D7).** seams-monorepo in one coordinated commit. Staging first, then
   production. The release notes say that open sessions need one unlock after the upgrade.
-- **Slice 4: the deletion.** Section 6, after Refactor 252 Slice 2 moves the Email OTP factor
-  seal.
+- **Slice 4: the deletion.** Section 6. Done with Slice 2. The idempotency store stays.
+
+### What Slice 2 changed
+
+- **Server.** `seal/crypto/oprf.ts` (the evaluator and the Gateway warm-up) replaces
+  `cipher.ts` and `shamir3PassWasm.ts`. `core/oprfKeyring.ts` holds the per-version keys of one
+  POPRF purpose; the Email OTP factor and the signing-session seal both use it, with the root
+  helper `core/sealRootKey.ts`. One `POST /wallet-session/seal/evaluate` route replaces apply
+  and remove. `createSigningSessionSealOptions` keeps its input and turns on a rate limit of 30
+  evaluations a minute for each wallet and threshold session (D9).
+- **Wallet.** `workers/oprf/signingSessionSeal.ts` holds the seal, the restore, the route call
+  and the prepared blinds. The passkey session worker and the Email OTP worker use it in
+  process. The nested Shamir worker, the three-pass runtime, the passkey sealed-value cache, the
+  32-byte decode helpers and every `groupId` field are gone, also from the capability reader.
+- **Public types.** `groupId` is gone from the Email OTP login options and from the seal
+  protocol. The prepared seal API takes no PRF output and returns `blindedElementB64u`.
+- **A bug fixed on the way.** The Email OTP export and rotation sent the seal group
+  (`rfc2409-group2`) as `orgId` in `/wallet/unlock/challenge`. That field is now absent, as in
+  the login path.
+- **Not done.** Restore diagnostics: nothing would read them, and F18 measures the same steps.
+  The well-known `publicKeys` of D2: each response carries the key instead. The deploy config of
+  seams-monorepo (F16) changes in Slice 3.
 
 ### The change list of Slice 2
 

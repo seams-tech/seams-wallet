@@ -145,7 +145,7 @@ function coercePositiveInt(value: unknown, defaultValue: number): number {
 }
 
 function defaultKey(input: SigningSessionSealGuardInput): string {
-  return `${input.auth.userId}:${input.thresholdSessionId}:${input.operation}`;
+  return `${input.auth.userId}:${input.thresholdSessionId}`;
 }
 
 export function createInMemorySigningSessionSealRateLimiter(

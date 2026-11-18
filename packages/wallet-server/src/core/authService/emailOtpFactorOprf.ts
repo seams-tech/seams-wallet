@@ -2,8 +2,7 @@ import {
   EMAIL_OTP_FACTOR_OPRF_KEY_INFO,
   emailOtpFactorOprfInfo,
 } from '@shared/utils/emailOtpDomain';
-import { evaluateOprf, oprfPublicKey } from '../oprfWasm';
-import { deriveEmailOtpRootBytes } from './emailOtpRootKey';
+import { createOprfKeyring } from '../oprfKeyring';
 
 /**
  * The server half of the Email OTP device factor. The device keeps a random
@@ -23,43 +22,23 @@ export type EmailOtpFactorOprf = {
   }) => Promise<{ readonly evaluatedElement: Uint8Array; readonly proof: Uint8Array }>;
 };
 
-const SEED_CONTEXT = ['seams/email-otp/factor-oprf', 'poprf-ristretto255-sha512/v1'];
-
 export function createEmailOtpFactorOprf(input: {
   readonly rootSecretB64u: string;
   readonly currentKeyVersion: string;
   readonly acceptedKeyVersions: readonly string[];
 }): EmailOtpFactorOprf {
-  const accepted = new Set(input.acceptedKeyVersions);
-  if (!accepted.has(input.currentKeyVersion)) {
-    throw new Error('The accepted Email OTP key versions must include the current version');
-  }
-  const withSeed = async <T>(keyVersion: string, use: (seed32: Uint8Array) => Promise<T>) => {
-    if (!accepted.has(keyVersion)) throw new Error(`Unknown Email OTP key version "${keyVersion}"`);
-    const seed32 = await deriveEmailOtpRootBytes(input.rootSecretB64u, [
-      ...SEED_CONTEXT,
-      keyVersion,
-    ]);
-    try {
-      return await use(seed32);
-    } finally {
-      seed32.fill(0);
-    }
-  };
-  return {
+  const keyring = createOprfKeyring({
+    label: 'Email OTP',
+    rootSecretB64u: input.rootSecretB64u,
+    seedContext: ['seams/email-otp/factor-oprf', 'poprf-ristretto255-sha512/v1'],
+    keyInfo: EMAIL_OTP_FACTOR_OPRF_KEY_INFO,
     currentKeyVersion: input.currentKeyVersion,
-    publicKey: (keyVersion) =>
-      withSeed(keyVersion, (seed32) =>
-        oprfPublicKey({ seed32, keyInfo: EMAIL_OTP_FACTOR_OPRF_KEY_INFO }),
-      ),
+    acceptedKeyVersions: input.acceptedKeyVersions,
+  });
+  return {
+    currentKeyVersion: keyring.currentKeyVersion,
+    publicKey: keyring.publicKey,
     evaluate: ({ keyVersion, blindedElement, ...scope }) =>
-      withSeed(keyVersion, (seed32) =>
-        evaluateOprf({
-          seed32,
-          keyInfo: EMAIL_OTP_FACTOR_OPRF_KEY_INFO,
-          blindedElement,
-          info: emailOtpFactorOprfInfo(scope),
-        }),
-      ),
+      keyring.evaluate({ keyVersion, blindedElement, info: emailOtpFactorOprfInfo(scope) }),
   };
 }

@@ -723,7 +723,6 @@ export interface EmailOtpWorkerOperationMap {
       walletId: string;
       walletAuthMethodId: string;
       userId: string;
-      groupId: string;
       routePlan: EmailOtpRoutePlan;
       verification: {
         kind: 'otp';
@@ -740,7 +739,6 @@ export interface EmailOtpWorkerOperationMap {
       walletId: string;
       authoritySelector: EmailOtpAuthoritySelector;
       userId: string;
-      groupId: string;
       routePlan: EmailOtpRoutePlan;
       otpChannel?: WalletEmailOtpChannel;
       verification:
@@ -882,7 +880,7 @@ export interface EmailOtpWorkerOperationMap {
         authorizationThresholdSessionId: string;
         operationCredential?: WalletSessionOperationCredentialV1;
         signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
-        groupId?: string;
+        walletId: string;
       };
     };
     result:
@@ -915,7 +913,7 @@ export interface EmailOtpWorkerOperationMap {
         authorizationThresholdSessionId: string;
         operationCredential?: WalletSessionOperationCredentialV1;
         signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
-        groupId?: string;
+        walletId: string;
       };
       restore: {
         thresholdSessionId: string;

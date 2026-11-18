@@ -1,9 +1,6 @@
 import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { WarmSessionStatusResult } from '../../uiConfirm/uiConfirm.types';
-import {
-  createWarmSessionCapabilityReaderCore,
-  type WarmSessionCapabilityReaderSeal,
-} from './capabilityReaderCore';
+import { createWarmSessionCapabilityReaderCore } from './capabilityReaderCore';
 import { createWarmSessionStatusReader, type WarmSessionStatusReaderDeps } from './statusReader';
 import {
   normalizeWarmSessionReadPorts,
@@ -19,10 +16,6 @@ import type {
   ActiveEcdsaCapabilityRuntimeForChainResolver,
   ActiveEcdsaCapabilityRuntimeResolver,
 } from '../material/activeEcdsaCapabilityRuntime';
-
-type WarmSessionCapabilityReaderSealInput = {
-  groupId: string;
-} | null;
 
 type WarmSessionCapabilityReaderTouchConfirmInput = Exclude<WarmSessionReadPortsInput, undefined>;
 
@@ -53,7 +46,6 @@ export type WarmSessionCapabilityReaderFactoryDeps = Omit<
   resolveActiveEcdsaCapabilityRuntime: ActiveEcdsaCapabilityRuntimeResolver;
   resolveActiveEcdsaCapabilityRuntimeForChain: ActiveEcdsaCapabilityRuntimeForChainResolver;
   touchConfirm: WarmSessionCapabilityReaderTouchConfirmInput;
-  signingSessionSeal: WarmSessionCapabilityReaderSealInput;
   getEmailOtpWarmSessionStatus:
     | ((target: EmailOtpWarmMaterialTarget) => Promise<WarmSessionStatusResult>)
     | null;
@@ -109,19 +101,6 @@ function normalizeWarmCapabilityReaderPorts(
   };
 }
 
-function normalizeWarmSessionCapabilityReaderSeal(
-  sealInput: WarmSessionCapabilityReaderSealInput,
-): WarmSessionCapabilityReaderSeal {
-  const groupId = String(sealInput?.groupId || '').trim();
-  if (!groupId) {
-    return { seal: 'unconfigured' };
-  }
-  return {
-    seal: 'configured',
-    groupId,
-  };
-}
-
 export function createWarmSessionCapabilityReader(
   deps: WarmSessionCapabilityReaderFactoryDeps,
 ): WarmSessionCapabilityReader {
@@ -135,7 +114,6 @@ export function createWarmSessionCapabilityReader(
     resolveActiveEcdsaCapabilityRuntimeForChain:
       deps.resolveActiveEcdsaCapabilityRuntimeForChain,
     statusReader,
-    signingSessionSeal: normalizeWarmSessionCapabilityReaderSeal(deps.signingSessionSeal),
     ...(deps.resolveActiveEcdsaWalletSessionAuthorization
       ? {
           resolveActiveEcdsaWalletSessionAuthorization:

@@ -501,7 +501,6 @@ export type EmailOtpEcdsaCapabilityArgs = {
   relayUrl?: string;
   challengeId?: string;
   otpCode: string;
-  groupId?: string;
   registrationAttemptId?: string;
   emailOtpAuthorityEmail: string;
   onEvent?: (event: UnlockFlowEvent) => void;

@@ -121,7 +121,6 @@ export type EmailOtpEcdsaRestoreSource = {
   chainTarget: ThresholdEcdsaChainTarget;
   keyHandle: string;
   signingSessionSealKeyVersion: string;
-  signingSessionSealGroupId: string;
   runtimePolicyScope?: EmailOtpEcdsaSealedRecoveryRecord['runtimePolicyScope'];
 };
 
@@ -200,16 +199,13 @@ function requireEmailOtpEcdsaSealedTransportSource(
   sealedRecord: EmailOtpEcdsaSealedRecoveryRecord,
 ): {
   signingSessionSealKeyVersion: string;
-  signingSessionSealGroupId: string;
 } {
   const signingSessionSealKeyVersion = String(sealedRecord.keyVersion || '').trim();
-  const signingSessionSealGroupId = String(sealedRecord.groupId || '').trim();
-  if (!signingSessionSealKeyVersion || !signingSessionSealGroupId) {
+  if (!signingSessionSealKeyVersion) {
     throw new Error('Email OTP sealed refresh is missing normalized seal transport metadata');
   }
   return {
     signingSessionSealKeyVersion,
-    signingSessionSealGroupId,
   };
 }
 
@@ -439,7 +435,7 @@ async function restoreEmailOtpEcdsaSigningSessionMaterialFromSealedRecordInQueue
       signingSessionSealKeyVersion: parseSigningSessionSealKeyVersion(
         restoreSource.signingSessionSealKeyVersion,
       ),
-      groupId: restoreSource.signingSessionSealGroupId,
+      walletId: sealedRecord.walletId,
     },
     restore: {
       thresholdSessionId,

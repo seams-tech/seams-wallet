@@ -391,10 +391,9 @@ function parseWarmSessionSealAndPersistResult(
   }
   const diagnostics = isObjectRecord(data.diagnostics)
     ? {
-        runtimeSetupMs: positiveInteger(data.diagnostics.runtimeSetupMs),
-        clientSealMs: positiveInteger(data.diagnostics.clientSealMs),
-        serverSealRouteMs: positiveInteger(data.diagnostics.serverSealRouteMs),
-        clientUnsealMs: positiveInteger(data.diagnostics.clientUnsealMs),
+        blindMs: positiveInteger(data.diagnostics.blindMs),
+        serverRouteMs: positiveInteger(data.diagnostics.serverRouteMs),
+        finalizeMs: positiveInteger(data.diagnostics.finalizeMs),
         policyUpdateMs: positiveInteger(data.diagnostics.policyUpdateMs),
       }
     : undefined;
@@ -451,11 +450,11 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
     this.workerBaseOrigin = origin;
   }
 
-  async prewarmShamir3Pass(): Promise<void> {
+  async prewarmSessionSeal(): Promise<void> {
     try {
       await this.sendMessage(
         {
-          type: 'PREWARM_SHAMIR3PASS',
+          type: 'PREWARM_SESSION_SEAL',
           id: this.generateMessageId(),
           payload: {},
         },
@@ -469,14 +468,13 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
   async prepareSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;
-    prfFirstB64u: string;
   }): Promise<void> {
     const response = await this.sendMessage({
-      type: 'PREPARE_SESSION_CLIENT_SEAL',
+      type: 'PREPARE_SESSION_SEAL_BLIND',
       id: this.generateMessageId(),
       payload: input,
     });
-    if (!response.success) throw new Error(response.error || 'Client seal preparation failed');
+    if (!response.success) throw new Error(response.error || 'Seal preparation failed');
   }
 
   async discardSigningSessionHydration(input: {
@@ -484,19 +482,19 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
     thresholdSessionId: string;
   }): Promise<void> {
     const response = await this.sendMessage({
-      type: 'DISCARD_SESSION_CLIENT_SEAL',
+      type: 'DISCARD_SESSION_SEAL_BLIND',
       id: this.generateMessageId(),
       payload: input,
     });
-    if (!response.success) throw new Error(response.error || 'Client seal cleanup failed');
+    if (!response.success) throw new Error(response.error || 'Seal preparation cleanup failed');
   }
 
   async readPreparedSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;
-  }): Promise<{ readonly ciphertext: string }> {
+  }): Promise<{ readonly blindedElementB64u: string }> {
     const response = await this.sendMessage({
-      type: 'READ_SESSION_CLIENT_SEAL',
+      type: 'READ_SESSION_SEAL_BLIND',
       id: this.generateMessageId(),
       payload: input,
     });
@@ -504,16 +502,16 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
       !response.success ||
       !isObjectRecord(response.data) ||
       response.data.ok !== true ||
-      typeof response.data.ciphertext !== 'string' ||
-      !response.data.ciphertext.trim()
+      typeof response.data.blindedElementB64u !== 'string' ||
+      !response.data.blindedElementB64u.trim()
     ) {
       throw new Error(
         response.success
-          ? 'Prepared client seal is invalid'
-          : response.error || 'Client seal read failed',
+          ? 'Prepared seal blind is invalid'
+          : response.error || 'Seal preparation read failed',
       );
     }
-    return { ciphertext: response.data.ciphertext };
+    return { blindedElementB64u: response.data.blindedElementB64u };
   }
 
   putWarmSessionMaterial = async (
@@ -555,20 +553,15 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
 
     let completedSeal: Extract<WarmSessionSealAndPersistResult, { readonly ok: true }> | undefined;
     if (preparedServerSeal && args.transport) {
+      const { preparationId, ...evaluation } = preparedServerSeal;
       const completed = await this.sendMessage({
-        type: 'COMPLETE_SESSION_CLIENT_SEAL',
+        type: 'COMPLETE_SESSION_SEAL',
         id: this.generateMessageId(),
         payload: {
-          preparationId: preparedServerSeal.preparationId,
+          preparationId,
           thresholdSessionId: args.thresholdSessionId,
           transport: requirePasskeySealTransport(args.transport),
-          serverSeal: {
-            ok: true,
-            ciphertext: preparedServerSeal.ciphertext,
-            keyVersion: preparedServerSeal.keyVersion,
-            expiresAtMs: preparedServerSeal.expiresAtMs,
-            remainingUses: preparedServerSeal.remainingUses,
-          },
+          evaluation: { ok: true, ...evaluation },
         },
       });
       const parsed = completed.success
@@ -743,8 +736,6 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
       const walletSessionToken = operationCredential.token;
       const restoreWalletId = String(ecdsaRestore.authority.walletId).trim();
       if (!restoreWalletId || restoreWalletId !== String(args.walletId).trim()) return null;
-      const groupId = String(args.record.groupId || '').trim();
-      if (!groupId) return null;
       const transport: WarmSessionSealTransportInput = {
         curve: 'ecdsa',
         authMethod: 'passkey',
@@ -752,7 +743,6 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
         chainTarget,
         relayerUrl: args.record.relayerUrl,
         signingSessionSealKeyVersion: parseSigningSessionSealKeyVersion(args.record.keyVersion),
-        groupId,
         walletSessionToken,
         ecdsaRestore,
       };
@@ -760,7 +750,6 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
         record: args.record,
         purpose: args.purpose,
         transport,
-        groupId,
         rehydrateWarmSessionMaterial: this.rehydrateWarmSessionMaterial.bind(this),
         deletePersistedRecord: async () =>
           await deleteInvalidPasskeyEcdsaRecord({ thresholdSessionId, chainTarget }),

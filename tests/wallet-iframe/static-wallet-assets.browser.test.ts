@@ -280,13 +280,6 @@ const RETRY_SCENARIOS = [
       hex: '84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870',
     },
   },
-  {
-    workerUrl: '/sdk/workers/shamir3pass.worker.js',
-    wasmUrl: '/sdk/workers/shamir3pass_runtime_bg.wasm',
-    operation: 'warmup',
-    payload: {},
-    expectedResult: { ok: true, ready: true },
-  },
 ];
 
 function countAssetRequests(faults: AssetFaults, route: string, status: number): number {

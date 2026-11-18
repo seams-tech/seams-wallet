@@ -826,7 +826,6 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
   orgId?: string;
   userId: string;
   verification: EmailOtpWalletUnlockVerification;
-  groupId: string;
   routePlan: EmailOtpRoutePlan;
   factorReleaseSessionAuth?: WalletSessionOperationCredentialV1;
   material: EmailOtpUnlockSecretMaterialRequest;
@@ -838,7 +837,6 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
 > {
   const relayUrl = readString(args.relayUrl, 'relayUrl');
   const walletId = readString(args.walletId, 'walletId');
-  readString(args.groupId, 'groupId');
   let clientSecret32: Uint8Array | null = null;
   try {
     const sessionAuth = emailOtpRouteSessionAuth(args.routePlan);
@@ -980,7 +978,6 @@ export type EmailOtpWalletCustodySeedUnlock = {
   readonly walletId: string;
   readonly walletAuthMethodId: string;
   readonly userId: string;
-  readonly groupId: string;
   readonly routePlan: EmailOtpRoutePlan;
   readonly verification: {
     readonly kind: 'otp';
@@ -994,7 +991,6 @@ export async function unlockEmailOtpWalletCustodySeed(
   args: EmailOtpWalletCustodySeedUnlock,
   missingMaterialMessage: string,
 ) {
-  const orgId = readString(args.groupId, 'groupId');
   const recovered = await loginWithEmailOtpAndUnlockWallet({
     relayUrl: args.relayUrl,
     walletId: args.walletId,
@@ -1003,9 +999,7 @@ export async function unlockEmailOtpWalletCustodySeed(
       walletAuthMethodId: args.walletAuthMethodId,
     },
     userId: args.userId,
-    groupId: args.groupId,
     routePlan: args.routePlan,
-    orgId,
     verification: args.verification,
     material: { kind: 'ed25519_yao_export' },
     // A custody operation, not a wallet unlock: it asks for no session budget.

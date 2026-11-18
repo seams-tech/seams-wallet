@@ -142,7 +142,9 @@ const validPreparedServerSealTransportState = {
   transport: validWarmSessionSealTransportWithWalletSessionToken,
   preparedServerSeal: {
     preparationId: 'preparation-1',
-    ciphertext: 'ciphertext',
+    evaluatedElementB64u: 'evaluated-element',
+    proofB64u: 'proof',
+    publicKeyB64u: 'public-key',
     keyVersion: 'key-version',
     expiresAtMs: Date.now() + 60_000,
     remainingUses: 10,

@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 476 dependency records (89 npm, 387 Cargo).
+Inventory: 480 dependency records (92 npm, 388 Cargo).
 
 ## Dependency inventory
 
@@ -36,6 +36,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | bumpalo | 3.19.1 | MIT OR Apache-2.0 | Nick Fitzgerald <fitzgen@gmail.com> |
 | cargo | bumpalo | 3.20.2 | MIT OR Apache-2.0 | Nick Fitzgerald <fitzgen@gmail.com> |
 | cargo | bumpalo | 3.20.3 | MIT OR Apache-2.0 | Nick Fitzgerald <fitzgen@gmail.com> |
+| cargo | bumpalo | 3.20.4 | MIT OR Apache-2.0 | Nick Fitzgerald <fitzgen@gmail.com> |
 | cargo | byteorder | 1.5.0 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com> |
 | cargo | bytes | 1.11.1 | MIT | Carl Lerche <me@carllerche.com>; Sean McArthur <sean@seanmonstar.com> |
 | cargo | bytes | 1.12.1 | MIT | Carl Lerche <me@carllerche.com>; Sean McArthur <sean@seanmonstar.com> |
@@ -46,6 +47,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | cfg_aliases | 0.2.2 | MIT | Zicklag <zicklag@katharostech.com> |
 | cargo | cfg-if | 1.0.1 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
 | cargo | cfg-if | 1.0.4 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
+| cargo | cfg-if | 1.0.5 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
 | cargo | chacha20 | 0.9.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | chacha20poly1305 | 0.10.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | ciborium-io | 0.2.2 | Apache-2.0 | Nathaniel McCallum <npmccallum@profian.com> |
@@ -85,6 +87,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | der | 0.8.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | derive_arbitrary | 1.4.2 | MIT OR Apache-2.0 | Andre Bogus <bogusandre@gmail.com>; Corey Farwell <coreyf@rwell.org>; Manish Goregaokar <manishsmail@gmail.com>; Nick Fitzgerald <fitzgen@gmail.com>; The Rust-Fuzz Project Developers |
 | cargo | derive-getters | 0.5.0 | MIT | Stephan Luther <stephan@kvsari.org> |
+| cargo | derive-where | 1.7.0 | MIT OR Apache-2.0 |  |
 | cargo | digest | 0.10.7 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | digest | 0.11.3 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | displaydoc | 0.2.7 | MIT OR Apache-2.0 | Jane Lusby <jlusby@yaah.dev> |
@@ -171,7 +174,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | js-sys | 0.3.105 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | js-sys | 0.3.77 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | js-sys | 0.3.85 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
-| cargo | js-sys | 0.3.90 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
+| cargo | js-sys | 0.3.95 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | k256 | 0.13.4 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | keccak | 0.1.5 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | keccak | 0.1.6 | Apache-2.0 OR MIT | RustCrypto Developers |
@@ -180,10 +183,10 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | keccak | 0.2.2 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | libc | 0.2.174 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | libc | 0.2.180 | MIT OR Apache-2.0 | The Rust Project Developers |
-| cargo | libc | 0.2.182 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | libc | 0.2.185 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | libc | 0.2.186 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | libc | 0.2.189 | MIT OR Apache-2.0 |  |
+| cargo | libc | 0.2.191 | MIT OR Apache-2.0 |  |
 | cargo | libm | 0.2.16 | MIT | Alex Crichton <alex@alexcrichton.com>; Amanieu d'Antras <amanieu@gmail.com>; Jorge Aparicio <japaricious@gmail.com>; Trevor Gross <tg@trevorgross.com> |
 | cargo | libsqlite3-sys | 0.30.1 | MIT | The rusqlite developers |
 | cargo | litrs | 1.0.0 | MIT OR Apache-2.0 | Lukas Kalbertodt <lukas.kalbertodt@gmail.com> |
@@ -270,7 +273,6 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | sha3 | 0.10.9 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | sha3 | 0.12.0 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | shake | 0.1.0 | MIT OR Apache-2.0 | RustCrypto Developers |
-| cargo | shamir-3-pass | 0.6.0 | Apache-2.0 |  |
 | cargo | shlex | 2.0.1 | MIT OR Apache-2.0 | Adrian Taylor <adetaylor@chromium.org>; Alex Touchet <alextouchet@outlook.com>; Daniel Parks <dp+git@oxidized.org>; Fenhl <fenhl@fenhl.net>; Garrett Berg <googberg@gmail.com>; comex <comexk@gmail.com> |
 | cargo | signature | 2.2.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | simd_cesu8 | 1.2.0 | Apache-2.0 OR MIT | Sean C. Roach <me@seancroach.dev> |
@@ -290,6 +292,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | syn | 2.0.117 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 2.0.118 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 2.0.119 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | syn | 3.0.10 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 3.0.3 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 3.0.5 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 3.0.9 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
@@ -324,6 +327,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | unicode-ident | 1.0.18 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | unicode-ident | 1.0.22 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | unicode-ident | 1.0.24 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | universal-hash | 0.5.1 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | untrusted | 0.9.0 | ISC | Brian Smith <brian@briansmith.org> |
 | cargo | ureq-proto | 0.6.1 | MIT OR Apache-2.0 | Martin Algesten <martin@algesten.se> |
@@ -332,6 +336,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | vcpkg | 0.2.15 | MIT/Apache-2.0 | Jim McGrath <jimmc2@gmail.com> |
 | cargo | version_check | 0.9.5 | MIT/Apache-2.0 | Sergio Benitez <sb@sergio.bz> |
 | cargo | visibility | 0.1.1 | Zlib OR MIT OR Apache-2.0 | Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com> |
+| cargo | voprf | 0.5.0 | MIT | Kevin Lewi <lewi.kevin.k@gmail.com> |
 | cargo | walkdir | 2.5.0 | Unlicense/MIT | Andrew Gallant <jamslam@gmail.com> |
 | cargo | wasi | 0.11.1+wasi-snapshot-preview1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | The Cranelift Project Developers |
 | cargo | wasip2 | 1.0.4+wasi-0.2.12 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |  |
@@ -339,19 +344,16 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | wasm-bindgen-futures | 0.4.73 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro-support | 0.2.100 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro-support | 0.2.108 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
-| cargo | wasm-bindgen-macro-support | 0.2.113 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro-support | 0.2.118 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro-support | 0.2.123 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro-support | 0.2.128 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro | 0.2.100 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro | 0.2.108 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
-| cargo | wasm-bindgen-macro | 0.2.113 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro | 0.2.118 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro | 0.2.123 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-macro | 0.2.128 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-shared | 0.2.100 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-shared | 0.2.108 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
-| cargo | wasm-bindgen-shared | 0.2.113 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-shared | 0.2.118 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-shared | 0.2.123 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen-shared | 0.2.128 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
@@ -360,7 +362,6 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | wasm-bindgen-test | 0.3.73 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen | 0.2.100 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen | 0.2.108 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
-| cargo | wasm-bindgen | 0.2.113 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen | 0.2.118 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen | 0.2.123 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | wasm-bindgen | 0.2.128 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
@@ -429,6 +430,9 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | npm | @scure/base | 1.2.6 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @scure/bip32 | 1.7.0 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @scure/bip39 | 1.6.0 | MIT | Paul Miller (https://paulmillr.com) |
+| npm | @seams/voice-capture | 0.72.0 | Apache-2.0 |  |
+| npm | @seams/voice-sign | 0.72.0 | Apache-2.0 |  |
+| npm | @seams/voice-verdict | 0.72.0 | Apache-2.0 |  |
 | npm | @simplewebauthn/server | 13.2.2 | MIT | Matthew Miller <matthew@millerti.me> |
 | npm | @types/node | 24.2.0 | MIT | Alberto Schiabel; Andrew Makarov; Anna Henningsen; Benjamin Toueg; David Junger; Dmitry Semigradsky; ExE Boss; Ilia Baryshnikov; Junxiao Shi; Linus Unnebäck; Marcin Kopacz; Matteo Collina; Microsoft TypeScript; Mohsen Azimi; Nikita Galkin; NodeJS Contributors; Piotr Błażejewicz; René; Sebastian Silbermann; Trivikram Kamat; Victor Perin; Wilco Bakker; Yagiz Nizipli; wafuwafu13 |
 | npm | abitype | 1.2.3 | MIT | awkweb.eth <t@wevm.dev>; jxom.eth <j@wevm.dev> |
@@ -1970,10 +1974,10 @@ Packaged as: LICENSE-MIT
 
 Applies to:
 
-- cargo:libc@0.2.182
 - cargo:libc@0.2.185
 - cargo:libc@0.2.186
 - cargo:libc@0.2.189
+- cargo:libc@0.2.191
 
     Copyright (c) The Rust Project Developers
 
@@ -2961,6 +2965,7 @@ Applies to:
 - cargo:syn@2.0.117
 - cargo:syn@2.0.118
 - cargo:syn@2.0.119
+- cargo:syn@3.0.10
 - cargo:syn@3.0.3
 - cargo:syn@3.0.5
 - cargo:syn@3.0.9
@@ -2975,7 +2980,9 @@ Applies to:
 - cargo:unicode-ident@1.0.18
 - cargo:unicode-ident@1.0.22
 - cargo:unicode-ident@1.0.24
+- cargo:unicode-ident@1.0.27
 - cargo:utf8-zero@0.8.1
+- cargo:voprf@0.5.0
 - cargo:wasi@0.11.1+wasi-snapshot-preview1
 - cargo:wasip2@1.0.4+wasi-0.2.12
 - cargo:wit-bindgen@0.57.1
@@ -4041,13 +4048,14 @@ Applies to:
 - cargo:cc@1.4.5
 - cargo:cfg-if@1.0.1
 - cargo:cfg-if@1.0.4
+- cargo:cfg-if@1.0.5
 - cargo:find-msvc-tools@0.1.12
 - cargo:find-msvc-tools@0.1.9
 - cargo:js-sys@0.3.100
 - cargo:js-sys@0.3.105
 - cargo:js-sys@0.3.77
 - cargo:js-sys@0.3.85
-- cargo:js-sys@0.3.90
+- cargo:js-sys@0.3.95
 - cargo:openssl-probe@0.2.1
 - cargo:pkg-config@0.3.34
 - cargo:socket2@0.6.5
@@ -4055,19 +4063,16 @@ Applies to:
 - cargo:wasm-bindgen-futures@0.4.73
 - cargo:wasm-bindgen-macro-support@0.2.100
 - cargo:wasm-bindgen-macro-support@0.2.108
-- cargo:wasm-bindgen-macro-support@0.2.113
 - cargo:wasm-bindgen-macro-support@0.2.118
 - cargo:wasm-bindgen-macro-support@0.2.123
 - cargo:wasm-bindgen-macro-support@0.2.128
 - cargo:wasm-bindgen-macro@0.2.100
 - cargo:wasm-bindgen-macro@0.2.108
-- cargo:wasm-bindgen-macro@0.2.113
 - cargo:wasm-bindgen-macro@0.2.118
 - cargo:wasm-bindgen-macro@0.2.123
 - cargo:wasm-bindgen-macro@0.2.128
 - cargo:wasm-bindgen-shared@0.2.100
 - cargo:wasm-bindgen-shared@0.2.108
-- cargo:wasm-bindgen-shared@0.2.113
 - cargo:wasm-bindgen-shared@0.2.118
 - cargo:wasm-bindgen-shared@0.2.123
 - cargo:wasm-bindgen-shared@0.2.128
@@ -4076,7 +4081,6 @@ Applies to:
 - cargo:wasm-bindgen-test@0.3.73
 - cargo:wasm-bindgen@0.2.100
 - cargo:wasm-bindgen@0.2.108
-- cargo:wasm-bindgen@0.2.113
 - cargo:wasm-bindgen@0.2.118
 - cargo:wasm-bindgen@0.2.123
 - cargo:wasm-bindgen@0.2.128
@@ -6267,10 +6271,10 @@ Applies to:
 - cargo:itoa@1.0.18
 - cargo:libc@0.2.174
 - cargo:libc@0.2.180
-- cargo:libc@0.2.182
 - cargo:libc@0.2.185
 - cargo:libc@0.2.186
 - cargo:libc@0.2.189
+- cargo:libc@0.2.191
 - cargo:litrs@1.0.0
 - cargo:proc-macro2@1.0.106
 - cargo:proc-macro2@1.0.107
@@ -6294,6 +6298,7 @@ Applies to:
 - cargo:syn@2.0.117
 - cargo:syn@2.0.118
 - cargo:syn@2.0.119
+- cargo:syn@3.0.10
 - cargo:syn@3.0.3
 - cargo:syn@3.0.5
 - cargo:syn@3.0.9
@@ -6308,7 +6313,9 @@ Applies to:
 - cargo:unicode-ident@1.0.18
 - cargo:unicode-ident@1.0.22
 - cargo:unicode-ident@1.0.24
+- cargo:unicode-ident@1.0.27
 - cargo:utf8-zero@0.8.1
+- cargo:voprf@0.5.0
 
                                   Apache License
                             Version 2.0, January 2004
@@ -6646,6 +6653,7 @@ Applies to:
 - cargo:bumpalo@3.19.1
 - cargo:bumpalo@3.20.2
 - cargo:bumpalo@3.20.3
+- cargo:bumpalo@3.20.4
 
     Copyright (c) 2019 Nick Fitzgerald
 
@@ -9343,6 +9351,37 @@ Applies to:
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+### 937230c05b5673fe
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:derive-where@1.7.0
+
+    MIT License
+
+    Copyright (c) 2021 Roland Fredenhagen
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+
 ### 949ab7b3e7140fee
 
 Packaged as: LICENSE-MIT
@@ -9768,11 +9807,13 @@ Applies to:
 - cargo:bumpalo@3.19.1
 - cargo:bumpalo@3.20.2
 - cargo:bumpalo@3.20.3
+- cargo:bumpalo@3.20.4
 - cargo:cast@0.3.0
 - cargo:cc@1.2.64
 - cargo:cc@1.4.5
 - cargo:cfg-if@1.0.1
 - cargo:cfg-if@1.0.4
+- cargo:cfg-if@1.0.5
 - cargo:core-foundation-sys@0.8.7
 - cargo:core-foundation@0.10.1
 - cargo:critical-section@1.2.0
@@ -9806,7 +9847,7 @@ Applies to:
 - cargo:js-sys@0.3.105
 - cargo:js-sys@0.3.77
 - cargo:js-sys@0.3.85
-- cargo:js-sys@0.3.90
+- cargo:js-sys@0.3.95
 - cargo:lock_api@0.4.14
 - cargo:log@0.4.27
 - cargo:log@0.4.33
@@ -9839,19 +9880,16 @@ Applies to:
 - cargo:wasm-bindgen-futures@0.4.73
 - cargo:wasm-bindgen-macro-support@0.2.100
 - cargo:wasm-bindgen-macro-support@0.2.108
-- cargo:wasm-bindgen-macro-support@0.2.113
 - cargo:wasm-bindgen-macro-support@0.2.118
 - cargo:wasm-bindgen-macro-support@0.2.123
 - cargo:wasm-bindgen-macro-support@0.2.128
 - cargo:wasm-bindgen-macro@0.2.100
 - cargo:wasm-bindgen-macro@0.2.108
-- cargo:wasm-bindgen-macro@0.2.113
 - cargo:wasm-bindgen-macro@0.2.118
 - cargo:wasm-bindgen-macro@0.2.123
 - cargo:wasm-bindgen-macro@0.2.128
 - cargo:wasm-bindgen-shared@0.2.100
 - cargo:wasm-bindgen-shared@0.2.108
-- cargo:wasm-bindgen-shared@0.2.113
 - cargo:wasm-bindgen-shared@0.2.118
 - cargo:wasm-bindgen-shared@0.2.123
 - cargo:wasm-bindgen-shared@0.2.128
@@ -9860,7 +9898,6 @@ Applies to:
 - cargo:wasm-bindgen-test@0.3.73
 - cargo:wasm-bindgen@0.2.100
 - cargo:wasm-bindgen@0.2.108
-- cargo:wasm-bindgen@0.2.113
 - cargo:wasm-bindgen@0.2.118
 - cargo:wasm-bindgen@0.2.123
 - cargo:wasm-bindgen@0.2.128
@@ -12499,7 +12536,7 @@ Applies to:
 
 ### c71d239df91726fc
 
-Packaged as: LICENSE, LICENSE-APACHE
+Packaged as: LICENSE, LICENSE-APACHE, LICENSE.md
 
 Applies to:
 
@@ -12507,8 +12544,10 @@ Applies to:
 - cargo:ciborium-ll@0.2.2
 - cargo:ciborium@0.2.2
 - cargo:rustls-platform-verifier@0.7.0
-- cargo:shamir-3-pass@0.6.0
 - cargo:ureq@3.4.0
+- npm:@seams/voice-capture@0.72.0
+- npm:@seams/voice-sign@0.72.0
+- npm:@seams/voice-verdict@0.72.0
 
                                      Apache License
                                Version 2.0, January 2004
@@ -12928,6 +12967,7 @@ Applies to:
 
 - cargo:cmov@0.5.4
 - cargo:ctutils@0.4.2
+- cargo:derive-where@1.7.0
 - cargo:hpke-ng@0.1.0
 - cargo:serdect@0.2.0
 - cargo:tinyvec@1.11.0
@@ -13863,6 +13903,7 @@ Applies to:
 - cargo:unicode-ident@1.0.18
 - cargo:unicode-ident@1.0.22
 - cargo:unicode-ident@1.0.24
+- cargo:unicode-ident@1.0.27
 
     UNICODE LICENSE V3
 

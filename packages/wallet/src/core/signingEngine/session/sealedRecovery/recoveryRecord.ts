@@ -69,7 +69,6 @@ export type RawSigningSessionSealedStoreRecord = RawSealedSessionRecord & {
   signingRootVersion?: unknown;
   relayerUrl?: unknown;
   keyVersion?: unknown;
-  groupId?: unknown;
   ecdsaRestore?: RawEcdsaRestoreMetadata | unknown;
   issuedAtMs?: unknown;
   expiresAtMs?: unknown;
@@ -107,7 +106,6 @@ type SealedRecoveryRecordBase = {
   remainingUses: number;
   updatedAtMs: number;
   keyVersion?: string;
-  groupId?: string;
 };
 
 type EcdsaSealedRecoveryRecordBase = SealedRecoveryRecordBase & {
@@ -483,9 +481,6 @@ export function normalizeSealedRecoveryRecord(
           ...(normalizeNonEmptyString(raw.keyVersion)
             ? { keyVersion: normalizeNonEmptyString(raw.keyVersion)! }
             : {}),
-          ...(normalizeNonEmptyString(raw.groupId)
-            ? { groupId: normalizeNonEmptyString(raw.groupId)! }
-            : {}),
           chainTarget,
           source: passkeySource!,
           authority: passkeyAuthority!,
@@ -517,9 +512,6 @@ export function normalizeSealedRecoveryRecord(
           updatedAtMs,
           ...(normalizeNonEmptyString(raw.keyVersion)
             ? { keyVersion: normalizeNonEmptyString(raw.keyVersion)! }
-            : {}),
-          ...(normalizeNonEmptyString(raw.groupId)
-            ? { groupId: normalizeNonEmptyString(raw.groupId)! }
             : {}),
           chainTarget,
           source: 'email_otp',

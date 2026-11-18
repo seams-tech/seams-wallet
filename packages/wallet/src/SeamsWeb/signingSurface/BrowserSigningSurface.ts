@@ -432,7 +432,7 @@ import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext'
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { requirePersistedSignerAuthMethod, WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
-import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND, SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
+import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
 import {
   isEmailOtpWalletAuthAuthority,
   parseWalletAuthAuthorityRef,
@@ -1076,8 +1076,7 @@ async function ensurePasskeyEd25519WarmSessionForSigning(args: {
   const walletSessionToken = String(
     args.walletSessionState.walletSessionAuth.walletSessionToken || '',
   ).trim();
-  const groupId = String(args.runtime.sealedRecord.groupId || '').trim();
-  if (!walletSessionToken || !groupId) {
+  if (!walletSessionToken) {
     return {
       ok: false,
       code: 'invalid_args',
@@ -1105,7 +1104,6 @@ async function ensurePasskeyEd25519WarmSessionForSigning(args: {
       walletId: String(args.runtime.walletId),
       relayerUrl: args.runtime.relayerUrl,
       signingSessionSealKeyVersion: keyVersion,
-      groupId,
       walletSessionToken,
       ed25519Restore: buildPasskeyEd25519RestoreMetadata({
         rpId: args.runtime.factor.rpId,
@@ -2480,7 +2478,6 @@ export class BrowserSigningSurface {
       passkeyMpcSession: this.passkeyMpcSession,
       getEmailOtpWarmSessionStatus: (target) =>
         this.emailOtpSessions.readWarmSessionStatusOnly(target),
-      signingSessionSeal: this.seamsWebConfigs.signing.sessionSeal,
       ecdsaExportArtifacts: ecdsaExportArtifactStore,
       resolveActiveEcdsaWalletSessionAuthorization:
         createBrowserActiveEcdsaWalletSessionAuthorizationResolver({
@@ -2537,7 +2534,6 @@ export class BrowserSigningSurface {
     });
     this.emailOtpPublicDeps = {
       relayerUrl: this.seamsWebConfigs.network.relayer?.url || '',
-      groupId: SIGNING_SESSION_SEAL_GROUP_ID,
       getSignerWorkerContext: () =>
         this.enginePorts.walletSessionActivationDeps.getSignerWorkerContext(),
       emailOtpSessions: this.emailOtpSessions,
@@ -6220,7 +6216,6 @@ export class BrowserSigningSurface {
   prepareSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;
-    prfFirstB64u: string;
   }): Promise<void> {
     return this.passkeyMpcSession.prepareSigningSessionHydration(input);
   }
@@ -6228,7 +6223,7 @@ export class BrowserSigningSurface {
   readPreparedSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;
-  }): Promise<{ readonly ciphertext: string }> {
+  }): Promise<{ readonly blindedElementB64u: string }> {
     return this.passkeyMpcSession.readPreparedSigningSessionHydration(input);
   }
 
@@ -6740,7 +6735,6 @@ export class BrowserSigningSurface {
       walletSession: args.walletSession,
       authoritySelector: args.authoritySelector,
       relayUrl: this.seamsWebConfigs.network.relayer?.url || '',
-      groupId: SIGNING_SESSION_SEAL_GROUP_ID,
       verification: { kind: 'otp', challengeId: args.challengeId, otpCode: args.otpCode },
       routePlan: buildFreshEmailOtpRoutePlan({
         freshRouteFamily: 'login',

@@ -38,7 +38,6 @@ export type LoginWithEmailOtpEcdsaCapabilityInternalArgs = {
   challengeId?: string;
   otpCode: string;
   operation?: WalletEmailOtpLoginOperation;
-  groupId?: string;
   keyHandle?: string;
   participantIds?: number[];
   publicationChainTargets?: readonly ThresholdEcdsaChainTarget[];
@@ -72,7 +71,6 @@ export type PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult = Awaite
 
 export type EmailOtpPublicDeps = {
   relayerUrl: string;
-  groupId: string;
   getSignerWorkerContext: () => WorkerOperationContext;
   emailOtpSessions: {
     loginWithEcdsaCapabilityInternal: (
@@ -112,7 +110,6 @@ function emailOtpEcdsaLoginCoreArgsFromBoundary(
     ...(args.relayUrl ? { relayUrl: args.relayUrl } : {}),
     ...(args.challengeId ? { challengeId: args.challengeId } : {}),
     ...(args.operation ? { operation: args.operation } : {}),
-    ...(args.groupId ? { groupId: args.groupId } : {}),
     ...(args.keyHandle ? { keyHandle: args.keyHandle } : {}),
     ...(args.participantIds ? { participantIds: args.participantIds } : {}),
     ...(args.publicationChainTargets

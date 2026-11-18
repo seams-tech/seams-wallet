@@ -63,7 +63,8 @@ No worker receives an application issuer key or a new custody secret.
 The [worker transport](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
 creates one worker per kind, on first use. Other managers create the
 confirmation, export, session, and device-linking workers. The Email OTP and
-passkey session workers each create their own nested Shamir worker.
+passkey session workers run the signing-session seal in process, with the
+`oprf_runtime` WASM module.
 
 ```mermaid
 flowchart TD
@@ -80,8 +81,6 @@ flowchart TD
     Main --> PC["passkey-confirm"]
     Main --> PX["passkey-mpc-export"]
     Main --> DL["device-linking-key"]
-    OTP --> SH1["shamir3pass"]
-    PS --> SH2["shamir3pass"]
     ED <-->|"authority port"| EP
     EP <-->|"online port"| EO
 ```
@@ -99,17 +98,16 @@ Workers that the worker transport creates:
 | `ecdsaOnlineClient` | [`ecdsa-online-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-online-client.worker.ts) | None | None. It forwards signature-share requests to the presign worker. |
 | `evmCrypto` | [`evm-crypto.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/evm-crypto.worker.ts) | `evm_crypto` at worker start | None. Hashing, encoding, and verification helpers. |
 | `tempoSigner` | [`tempo-signer.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/tempo-signer.worker.ts) | `tempo_signer` at worker start | None. Tempo sender hash and transaction encoding. |
-| `emailOtp` | [`email-otp.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `oprf_runtime` (the device factor), `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. Nested Shamir worker (warm session seal). | The device factor inputs, in its own IndexedDB database `seams_email_otp_device_factors` that no other context reads. Factor secrets that a device-factor release opens, and warm session secrets (JavaScript bytes). Active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
+| `emailOtp` | [`email-otp.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `oprf_runtime` (the device factor), `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. `oprf_runtime` also seals the warm session. | The device factor inputs, in its own IndexedDB database `seams_email_otp_device_factors` that no other context reads. Factor secrets that a device-factor release opens, and warm session secrets (JavaScript bytes). Active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
 
 Workers that other managers create:
 
 | Worker | Created by | WASM modules | Secret state it holds |
 | --- | --- | --- | --- |
-| [`passkey-mpc-session`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts) | `PasskeyMpcSessionManager` | None directly. Nested Shamir worker. | Warm-session PRF material and its sealed copies, until expiry, use, or clear. |
+| [`passkey-mpc-session`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts) | `PasskeyMpcSessionManager` | `oprf_runtime` on the first seal or restore, or a prewarm | Warm-session PRF material and its sealed copies, until expiry, use, or clear. The OPRF blind of one seal or restore stays in WASM behind a handle. |
 | [`passkey-confirm`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-confirm.worker.ts) | `UiConfirmManager` | None | None. It runs the confirmation exchange off the main thread. |
 | [`passkey-mpc-export`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-export.worker.ts) | `PasskeyMpcExportManager` | Yao client, for Ed25519 export only | Per request only: PRF output and the private key shown to the user. Both are cleared after the request. |
 | [`device-linking-key`](../packages/wallet/src/core/signingEngine/workerManager/workers/device-linking-key.worker.ts) | `deviceLinkingWorkerChannels` | Yao client, for Ed25519 sealing only | Non-extractable link keys, recipient private keys, and a factor secret, until the attempt is discarded or closed. |
-| [`shamir3pass`](../packages/wallet/src/core/signingEngine/workerManager/workers/shamir3pass.worker.ts) | Nested in `emailOtp` and `passkey-mpc-session` | `shamir3pass_runtime` on first message | Lock key pairs inside WASM memory. JavaScript holds only numeric handles. |
 
 ## WASM modules
 
@@ -122,8 +120,7 @@ Workers that other managers create:
 | `evm_crypto` | `wasm/evm_crypto` | 1,304 KB | `evmCrypto`, `emailOtp` |
 | `tempo_signer` | `wasm/tempo_signer` | 778 KB | `tempoSigner` |
 | `email_otp_runtime` | `wasm/email_otp_runtime` | 201 KB | `emailOtp` |
-| `oprf_runtime` | `wasm/oprf_runtime` | 127 KB | `emailOtp` (in process), the Gateway |
-| `shamir3pass_runtime` | `wasm/shamir3pass_runtime` | 119 KB | `shamir3pass` |
+| `oprf_runtime` | `wasm/oprf_runtime` | 127 KB | `emailOtp` and `passkey-mpc-session` (in process), the Gateway |
 
 Sizes are uncompressed release builds. `wallet_custody_ceremony` links both the
 NEAR Ed25519 and the ECDSA protocol crates. It is the largest dependency set in
@@ -175,7 +172,6 @@ change of the worker base origin terminates all transport workers.
 | --- | --- |
 | `nearSigner`, `ecdsaDerivationClient` | 60 s |
 | Other transport kinds | 20 s, or the request's own timeout |
-| Nested `shamir3pass` | 15 s, and a timeout does not terminate it |
 
 Separate workers limit what one fault destroys. For example, a NEAR signer
 timeout does not erase open custody ceremonies or unlocked capabilities. If two
@@ -221,7 +217,7 @@ Some WASM modules load in more than one worker:
   NEAR registration, both instances can exist.
 - The Yao client loads on the iframe main thread and in four workers.
 - `wallet_custody_ceremony` and `evm_crypto` each load in two workers.
-- Two parents each start their own Shamir worker.
+- `oprf_runtime` loads in `emailOtp` and in `passkey-mpc-session`.
 
 Each extra instance costs one compile from the HTTP cache and its own WASM
 memory. This duplication is accepted. Rules 1 to 3 outweigh it. Worker start and
@@ -254,13 +250,16 @@ recorded in this document.
 
 ## Separations with no recorded reason
 
-Two separations have no recorded reason:
+One separation has no recorded reason:
 
 - **The three ECDSA workers.** All ECDSA secrets are in `ecdsaDerivationClient`.
   The presign and online workers hold only handles and public bytes. The likely
   reason is rule 1, but no document states it.
-- **The nested Shamir worker.** Its lock keys stay in WASM memory, behind numeric
-  handles. No document states why it runs in its own worker.
+
+The nested Shamir worker of the old signing-session seal is gone (Refactor 253).
+The OPRF that replaced it runs in the worker that holds the sealed secret,
+because its blind is a one-request secret and that worker already holds the
+value the seal protects. No new kind of secret enters the worker.
 
 Do not merge these workers on the assumption that the separation is accidental.
 First record a reason here, and check rules 1 to 6.

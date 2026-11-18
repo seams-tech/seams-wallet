@@ -62,8 +62,6 @@ export class EmailOtpEcdsaLifecycleRuntime {
       provisionEmailOtpEcdsaExplicitExportSession:
         this.ports.provisionEmailOtpEcdsaExplicitExportSession,
       requireRelayUrl: () => this.ports.runtimeConfig.requireRelayUrl(),
-      requireSigningSessionSealGroupId: () =>
-        this.ports.runtimeConfig.requireSigningSessionSealGroupId(),
       ownerLaneScopeStores: this.ports.ownerLaneScopeStores,
       resolveSelectedWalletAuthority: this.ports.resolveSelectedWalletAuthority,
       publicationPorts: this.ports.publicationPorts(),
@@ -82,8 +80,6 @@ export class EmailOtpEcdsaLifecycleRuntime {
       provisionEmailOtpEcdsaExplicitExportSession:
         this.ports.provisionEmailOtpEcdsaExplicitExportSession,
       requireRelayUrl: () => this.ports.runtimeConfig.requireRelayUrl(),
-      requireSigningSessionSealGroupId: () =>
-        this.ports.runtimeConfig.requireSigningSessionSealGroupId(),
       ownerLaneScopeStores: this.ports.ownerLaneScopeStores,
       resolveSelectedWalletAuthority: this.ports.resolveSelectedWalletAuthority,
       publicationPorts: this.ports.publicationPorts(),

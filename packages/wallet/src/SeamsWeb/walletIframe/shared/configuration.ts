@@ -9,7 +9,6 @@ import { isNearChainNetwork, isSeamsChainNetwork } from '@/core/config/chains';
 import { isPlainObject, isString, isFiniteNumber, requireRecord } from '@shared/utils/validation';
 import {
   SIGNING_SESSION_SEAL_ALG,
-  SIGNING_SESSION_SEAL_GROUP_ID,
 } from '@shared/utils/signingSessionSeal';
 
 export type WalletHostConfig = Omit<SeamsConfigsReadonly, 'wallet'> & {
@@ -170,8 +169,7 @@ function isSigning(value: unknown): boolean {
     value.sessionPersistenceMode === 'sealed_refresh_v1' &&
     seal.mode === 'sealed_refresh_v1' &&
     isPlainObject(seal.protocol) &&
-    seal.protocol.algorithm === SIGNING_SESSION_SEAL_ALG &&
-    seal.protocol.groupId === SIGNING_SESSION_SEAL_GROUP_ID
+    seal.protocol.algorithm === SIGNING_SESSION_SEAL_ALG
   );
 }
 

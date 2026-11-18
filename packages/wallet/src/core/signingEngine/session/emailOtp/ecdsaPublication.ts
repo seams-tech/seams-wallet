@@ -33,7 +33,6 @@ import { SigningSessionIds } from '../operationState/types';
 import { configuredEmailOtpEcdsaSnapshotChainTargets } from './persistedSnapshot';
 import { requestSealEmailOtpWarmSessionMaterial } from './workerRequests';
 import {
-  SIGNING_SESSION_SEAL_GROUP_ID,
   type SealedSigningSessionEcdsaRoleLocalMaterialRef,
 } from '@shared/utils/signingSessionSeal';
 import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -388,7 +387,6 @@ export async function commitEmailOtpEcdsaPublicationBootstraps(
     authority: WalletAuthAuthorityRef;
     emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
     relayerUrl: string;
-    groupId: string;
   },
   ports: EmailOtpEcdsaPublicationPorts,
 ): Promise<{
@@ -491,7 +489,6 @@ async function commitEmailOtpEcdsaPublicationLane(
       runtimePolicyScope: context.args.runtimePolicyScope,
       emailOtpAuthContext: context.args.emailOtpAuthContext,
       relayerUrl: context.args.relayerUrl,
-      groupId: context.args.groupId,
     },
     context.ports,
   );
@@ -545,7 +542,6 @@ export async function persistEmailOtpEcdsaSigningSessionForRefresh(
     runtimePolicyScope: ThresholdRuntimePolicyScope;
     emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
     relayerUrl: string;
-    groupId: string;
   },
   ports: EmailOtpEcdsaPublicationPorts,
 ): Promise<EmailOtpEcdsaPublicationTimings> {
@@ -562,10 +558,6 @@ export async function persistEmailOtpEcdsaSigningSessionForRefresh(
   const session = args.bootstrap.session;
   const thresholdSessionId = String(session.thresholdSessionId || '').trim();
   const relayerUrl = String(args.relayerUrl || keyRef.relayerUrl || '').trim();
-  if (args.groupId && args.groupId !== SIGNING_SESSION_SEAL_GROUP_ID) {
-    throw new Error('Email OTP sealed refresh received an unsupported Shamir group');
-  }
-  const groupId = SIGNING_SESSION_SEAL_GROUP_ID;
   if (!thresholdSessionId || !relayerUrl) {
     throw new Error('Email OTP sealed refresh is missing threshold-session persistence metadata');
   }
@@ -679,7 +671,7 @@ export async function persistEmailOtpEcdsaSigningSessionForRefresh(
     transport: {
       relayerUrl,
       operationCredential,
-      groupId,
+      walletId: String(args.walletId),
     },
   }).catch((error) => {
     const message = error instanceof Error ? error.message : String(error || 'unknown error');
@@ -704,7 +696,6 @@ export async function persistEmailOtpEcdsaSigningSessionForRefresh(
     walletId: String(args.walletId || '').trim(),
     relayerUrl,
     keyVersion: sealKeyVersion,
-    groupId,
     issuedAtMs: persistedAtMs,
     expiresAtMs,
     remainingUses,

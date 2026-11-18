@@ -14,7 +14,7 @@ export type EmailOtpWarmSessionTransport = {
   relayerUrl: string;
   operationCredential?: WalletSessionOperationCredentialV1;
   signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
-  groupId?: string;
+  walletId: string;
 };
 
 type EmailOtpEcdsaWarmSessionRestore = {

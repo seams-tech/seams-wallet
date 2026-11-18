@@ -1,8 +1,9 @@
 import type { RegistrationEstablishedSessionProjectionV2 } from '@shared/utils/registrationEstablishedSession';
+import type { SigningSessionSealEvaluation } from '@shared/utils/signingSessionSeal';
 import { isPlainObject } from '@shared/utils/validation';
 import type {
+  SigningSessionSealEvaluateRequest,
   SigningSessionSealRouteResult,
-  SigningSessionSealServerSealRequest,
   SigningSessionSealService,
 } from '../../../threshold/session/signingSessionSeal/signingSessionSeal.types';
 
@@ -15,9 +16,7 @@ type SealFailure = { readonly ok: false; readonly code: string; readonly message
 type SealResult =
   | {
       readonly ok: true;
-      readonly value: {
-        readonly ciphertext: string;
-        readonly keyVersion: string;
+      readonly value: SigningSessionSealEvaluation & {
         readonly expiresAtMs: number;
         readonly remainingUses: number;
       };
@@ -34,7 +33,7 @@ class RegistrationPreparedSessionSeal {
   } | null = null;
 
   constructor(
-    private readonly request: SigningSessionSealServerSealRequest,
+    private readonly request: SigningSessionSealEvaluateRequest,
     private readonly service: SigningSessionSealService | null,
   ) {}
 
@@ -62,7 +61,7 @@ class RegistrationPreparedSessionSeal {
         walletId: String(session.walletId),
         walletSessionId: String(session.walletSessionId),
         expiresAtMs: session.expiresAtMs,
-        result: applyRegistrationSessionSeal(this.service, this.request, session),
+        result: evaluateRegistrationSessionSeal(this.service, this.request, session),
       };
     }
     if (
@@ -78,23 +77,17 @@ class RegistrationPreparedSessionSeal {
     }
     const sealed = await this.prepared.result;
     if (!sealed.ok) return sealed;
-    const keyVersion = String(sealed.keyVersion || '').trim();
-    if (!keyVersion) {
-      return {
-        ok: false,
-        code: 'invalid_session_seal',
-        message: 'Signing-session seal response is missing its key version',
-      };
-    }
-    const expiresAtMs = Math.min(sealed.expiresAtMs ?? session.expiresAtMs, session.expiresAtMs);
+    const expiresAtMs = Math.min(sealed.expiresAtMs, session.expiresAtMs);
     if (expiresAtMs <= Date.now()) {
       return { ok: false, code: 'expired', message: 'threshold session expired' };
     }
     return {
       ok: true,
       value: {
-        ciphertext: sealed.ciphertext,
-        keyVersion,
+        evaluatedElementB64u: sealed.evaluatedElementB64u,
+        proofB64u: sealed.proofB64u,
+        publicKeyB64u: sealed.publicKeyB64u,
+        keyVersion: sealed.keyVersion,
         expiresAtMs,
         remainingUses: session.remainingUses,
       },
@@ -102,9 +95,9 @@ class RegistrationPreparedSessionSeal {
   }
 }
 
-async function applyRegistrationSessionSeal(
+async function evaluateRegistrationSessionSeal(
   service: SigningSessionSealService | null,
-  request: SigningSessionSealServerSealRequest,
+  request: SigningSessionSealEvaluateRequest,
   session: SealSession,
 ): Promise<SigningSessionSealRouteResult> {
   if (!service) {
@@ -115,7 +108,7 @@ async function applyRegistrationSessionSeal(
     };
   }
   try {
-    return await service.applyServerSeal(request, {
+    return await service.evaluate(request, {
       userId: String(session.walletId),
       session: {
         kind: 'exact_wallet_session_operation_credential',
@@ -145,24 +138,24 @@ export function parseRegistrationPreparedSessionSeal(
     return { ok: false, code: 'invalid_body', message: 'sessionSeal must be an object' };
   }
   for (const field of Object.keys(raw)) {
-    if (!['thresholdSessionId', 'ciphertext', 'keyVersion'].includes(field)) {
+    if (!['thresholdSessionId', 'blindedElementB64u', 'keyVersion'].includes(field)) {
       return { ok: false, code: 'invalid_body', message: 'sessionSeal has unknown fields' };
     }
   }
   const thresholdSessionId = String(raw.thresholdSessionId || '').trim();
-  const ciphertext = String(raw.ciphertext || '').trim();
+  const blindedElementB64u = String(raw.blindedElementB64u || '').trim();
   const keyVersion = String(raw.keyVersion || '').trim();
-  if (!thresholdSessionId || !ciphertext) {
+  if (!thresholdSessionId || !blindedElementB64u) {
     return {
       ok: false,
       code: 'invalid_body',
-      message: 'sessionSeal thresholdSessionId and ciphertext are required',
+      message: 'sessionSeal thresholdSessionId and blindedElementB64u are required',
     };
   }
   return {
     ok: true,
     value: new RegistrationPreparedSessionSeal(
-      { thresholdSessionId, ciphertext, ...(keyVersion ? { keyVersion } : {}) },
+      { thresholdSessionId, blindedElementB64u, ...(keyVersion ? { keyVersion } : {}) },
       service,
     ),
   };

@@ -9,7 +9,6 @@ import {
 import {
   SIGNING_SESSION_SEALED_RECORD_VERSION,
   SIGNING_SESSION_SEAL_ALG,
-  SIGNING_SESSION_SEAL_GROUP_ID,
   SIGNING_SESSION_SEAL_STORAGE_SCOPE,
   SIGNING_SESSION_SECRET_KIND,
   type SealedSigningSessionEcdsaRestoreMetadata,
@@ -135,7 +134,6 @@ type EcdsaInactiveSealedMaterialRecordBase = {
   secretKind: typeof SIGNING_SESSION_SECRET_KIND;
   sealedSecretB64u: string;
   keyVersion: string;
-  groupId: typeof SIGNING_SESSION_SEAL_GROUP_ID;
   updatedAtMs: number;
   issuedAtMs?: never;
   expiresAtMs?: never;
@@ -246,7 +244,6 @@ type BuildCurrentSealedSessionRecordCommonInput = {
   sealedSecretB64u: string;
   authMethod: 'passkey' | 'email_otp';
   keyVersion: string;
-  groupId: typeof SIGNING_SESSION_SEAL_GROUP_ID;
   issuedAtMs: number;
   expiresAtMs: number;
   remainingUses: number;
@@ -771,13 +768,12 @@ export function classifyRawSealedSessionRecord(raw: unknown): SealedSessionRecor
   const signingRootVersion = explicitSigningRootVersion || (signingRootId ? 'default' : null);
   const relayerUrl = normalizeOptionalNonEmptyString(obj.relayerUrl);
   const keyVersion = normalizeOptionalNonEmptyString(obj.keyVersion);
-  const groupId = normalizeOptionalNonEmptyString(obj.groupId);
   const issuedAtMs = normalizeInteger(obj.issuedAtMs);
   const expiresAtMs = normalizeInteger(obj.expiresAtMs);
   const remainingUses = normalizeInteger(obj.remainingUses);
   const updatedAtMs = normalizeInteger(obj.updatedAtMs);
 
-  if (!sealedSecretB64u || !keyVersion || groupId !== SIGNING_SESSION_SEAL_GROUP_ID) {
+  if (!sealedSecretB64u || !keyVersion) {
     return classifyNonCurrentRecord('malformed', obj, 'invalid_identity');
   }
   if (authMethod !== 'passkey' && authMethod !== 'email_otp') {
@@ -849,7 +845,6 @@ export function classifyRawSealedSessionRecord(raw: unknown): SealedSessionRecor
         walletId,
         relayerUrl,
         keyVersion,
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
         ecdsaRestore,
         ...(ed25519Restore ? { ed25519Restore } : {}),
         issuedAtMs,
@@ -899,7 +894,6 @@ export function classifyRawSealedSessionRecord(raw: unknown): SealedSessionRecor
       ...(signingRootVersion ? { signingRootVersion } : {}),
       relayerUrl,
       keyVersion,
-      groupId: SIGNING_SESSION_SEAL_GROUP_ID,
       ...(ecdsaRestore ? { ecdsaRestore } : {}),
       ed25519Restore,
       issuedAtMs,
@@ -1066,7 +1060,6 @@ function normalizeEcdsaInactiveSealedMaterialRecord(
   const ecdsaRestore = normalizeEcdsaInactiveMaterialPublicRestore(obj.ecdsaRestore);
   const sealedSecretB64u = normalizeOptionalNonEmptyString(obj.sealedSecretB64u);
   const keyVersion = normalizeOptionalNonEmptyString(obj.keyVersion);
-  const groupId = normalizeOptionalNonEmptyString(obj.groupId);
   const updatedAtMs = normalizeInteger(obj.updatedAtMs);
   const authorizationRetirementReason = obj.authorizationRetirementReason;
   if (
@@ -1079,7 +1072,6 @@ function normalizeEcdsaInactiveSealedMaterialRecord(
     obj.secretKind !== SIGNING_SESSION_SECRET_KIND ||
     !sealedSecretB64u ||
     !keyVersion ||
-    groupId !== SIGNING_SESSION_SEAL_GROUP_ID ||
     obj.issuedAtMs != null ||
     obj.expiresAtMs != null ||
     obj.remainingUses != null ||
@@ -1137,7 +1129,6 @@ function inactiveEcdsaSealedMaterialRecord(args: {
     secretKind: SIGNING_SESSION_SECRET_KIND,
     sealedSecretB64u: args.sealedSecretB64u,
     keyVersion: args.keyVersion,
-    groupId: SIGNING_SESSION_SEAL_GROUP_ID,
     updatedAtMs: args.updatedAtMs,
     authorizationRetirementReason: args.authorizationRetirementReason,
   } as const;
@@ -1189,13 +1180,7 @@ export function buildCurrentSealedSessionRecord(
   const issuedAtMs = normalizeInteger(args.issuedAtMs);
   const updatedAtMs = normalizeInteger(args.updatedAtMs);
   const keyVersion = normalizeOptionalNonEmptyString(args.keyVersion);
-  if (
-    !thresholdSessionId ||
-    !sealedSecretB64u ||
-    !keyVersion ||
-    args.groupId !== SIGNING_SESSION_SEAL_GROUP_ID
-  )
-    return null;
+  if (!thresholdSessionId || !sealedSecretB64u || !keyVersion) return null;
   if (!thresholdSessionIds.ed25519 && !thresholdSessionIds.ecdsa) return null;
   if (issuedAtMs == null || issuedAtMs <= 0) return null;
   if (expiresAtMs == null || expiresAtMs <= 0) return null;
@@ -1227,7 +1212,6 @@ export function buildCurrentSealedSessionRecord(
       ? { relayerUrl: normalizeOptionalNonEmptyString(args.relayerUrl) }
       : {}),
     keyVersion,
-    groupId: SIGNING_SESSION_SEAL_GROUP_ID,
     ...(ecdsaRestore ? { ecdsaRestore } : {}),
     ...(ed25519Restore ? { ed25519Restore } : {}),
     issuedAtMs,

@@ -6,21 +6,15 @@ import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
-import { base64UrlEncode } from '@shared/utils/base64';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import type { Variant } from '@shared/utils/variant';
 import { asRecordOrArray, requirePositiveSafeInteger } from '@shared/utils/validation';
 import {
-  joinNormalizedUrl,
   normalizeNonNegativeInteger,
   normalizeOptionalNonEmptyString,
   normalizeOptionalTrimmedString,
   normalizePositiveInteger,
 } from '@shared/utils/normalize';
-import {
-  SIGNING_SESSION_SEAL_GROUP_ID,
-  WALLET_SESSION_SEAL_BASE_PATH,
-} from '@shared/utils/signingSessionSeal';
 import {
   parseWalletSessionOperationCredentialV1,
   type WalletSessionOperationCredentialV1,
@@ -40,13 +34,19 @@ import type {
   RouterAbEd25519YaoClientSigningShareV1,
 } from '../../../threshold/ed25519/yaoClient';
 import type { RouterAbEcdsaPostRegistrationSessionActivationResponseV1 } from '@shared/utils/routerAbEcdsaDerivation';
-import { getShamir3PassRuntime } from '../shamir3pass/runtime';
+import {
+  blindNewSigningSessionSealInput,
+  blindSealedSigningSessionSecret,
+  callSigningSessionSealEvaluateRoute,
+  discardSigningSessionSealBlind,
+  openSigningSessionSecret,
+  sealSigningSessionSecret,
+} from '../oprf/signingSessionSeal';
 import {
   readString,
   rejectUnknownEmailOtpYaoFields,
   SIGNING_SESSION_SEAL_TRANSPORT_FIELDS,
 } from './payloadParsing';
-import { removeClientSealToSecret32 } from './crypto';
 
 const MAX_EMAIL_OTP_ED25519_YAO_ACTIVE_CLIENTS = 64;
 
@@ -81,13 +81,7 @@ type EmailOtpEcdsaWarmSessionRehydrateResult =
 type ExactEmailOtpEcdsaWarmSessionRestore =
   EmailOtpWorkerOperationMap['rehydrateEmailOtpEcdsaWarmSessionMaterial']['payload']['restore'];
 
-type ExactEmailOtpEcdsaWarmSessionTransport = {
-  relayerUrl: string;
-  authorizationThresholdSessionId: string;
-  operationCredential: WalletSessionOperationCredentialV1;
-  keyVersion?: string;
-  groupId: string;
-};
+type ExactEmailOtpEcdsaWarmSessionTransport = SigningSessionSealTransport;
 
 type ExactEmailOtpEcdsaWarmSessionRehydrateArgs = {
   sealedSecretB64u: string;
@@ -105,19 +99,9 @@ type SigningSessionSealTransport = {
   relayerUrl: string;
   authorizationThresholdSessionId: string;
   operationCredential: WalletSessionOperationCredentialV1;
+  walletId: string;
   keyVersion?: string;
-  groupId?: string;
 };
-
-type SigningSessionSealRouteResult =
-  | {
-      ok: true;
-      ciphertext: string;
-      keyVersion?: string;
-      expiresAtMs?: number;
-      remainingUses?: number;
-    }
-  | { ok: false; code: string; message: string };
 
 type EmailOtpEd25519YaoActiveClientEntry = {
   kind: 'active_client';
@@ -140,7 +124,6 @@ const signingSessionSealRemoveInFlight = new Map<
   string,
   Promise<EmailOtpEcdsaWarmSessionRehydrateResult>
 >();
-const SIGNING_SESSION_SEAL_BASE_PATH = WALLET_SESSION_SEAL_BASE_PATH;
 
 function cloneEmailOtpEd25519YaoMetadata(
   metadata: RouterAbEd25519YaoActiveClientMetadataV1,
@@ -223,18 +206,17 @@ function parseEmailOtpEcdsaWarmSessionRehydrateArgs(args: {
       error: { ok: false, code: 'invalid_args', message: 'Missing sealedSecretB64u' },
     };
   }
-  const groupId = normalizeOptionalNonEmptyString(args.transport.groupId);
-  if (!groupId) {
+  const walletId = readString(args.restore.walletId, 'walletId');
+  if (walletId !== args.transport.walletId) {
     return {
       kind: 'error',
       error: {
         ok: false,
         code: 'invalid_args',
-        message: 'Missing groupId for signing-session restore',
+        message: 'Email OTP restore wallet does not match the seal transport',
       },
     };
   }
-  const walletId = readString(args.restore.walletId, 'walletId');
   const keyHandle = readString(args.restore.keyHandle, 'keyHandle');
   return {
     kind: 'parsed',
@@ -249,8 +231,8 @@ function parseEmailOtpEcdsaWarmSessionRehydrateArgs(args: {
           'authorizationThresholdSessionId',
         ),
         operationCredential: args.transport.operationCredential,
+        walletId,
         ...(args.transport.keyVersion ? { keyVersion: args.transport.keyVersion } : {}),
-        groupId,
       },
       restore: {
         thresholdSessionId,
@@ -284,14 +266,15 @@ export function parseSigningSessionSealTransport(
   } catch {
     return null;
   }
+  const walletId = normalizeOptionalTrimmedString(transport.walletId);
+  if (!walletId) return null;
   const keyVersion = normalizeOptionalNonEmptyString(transport.signingSessionSealKeyVersion);
-  const groupId = normalizeOptionalNonEmptyString(transport.groupId);
   return {
     relayerUrl,
     authorizationThresholdSessionId,
     operationCredential,
+    walletId,
     ...(keyVersion ? { keyVersion } : {}),
-    ...(groupId ? { groupId } : {}),
   };
 }
 
@@ -299,105 +282,22 @@ export function invalidSigningSessionSealTransport(): { ok: false; code: string;
   return { ok: false, code: 'invalid_args', message: 'Invalid signing-session seal transport' };
 }
 
-function parseSigningSessionSealRouteResult(value: unknown): SigningSessionSealRouteResult {
-  const result = asRecordOrArray(value);
-  if (!result || typeof result.ok !== 'boolean') {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: 'Invalid signing-session seal response',
-    };
-  }
-  if (!result.ok) {
-    return {
-      ok: false,
-      code: typeof result.code === 'string' ? result.code : 'request_failed',
-      message:
-        typeof result.message === 'string' ? result.message : 'Signing-session seal request failed',
-    };
-  }
-  const ciphertext = normalizeOptionalTrimmedString(result.ciphertext);
-  if (!ciphertext) {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: 'Missing ciphertext in signing-session seal response',
-    };
-  }
-  const keyVersion = normalizeOptionalNonEmptyString(result.keyVersion);
-  const expiresAtMs = normalizePositiveInteger(result.expiresAtMs);
-  const remainingUses = normalizeNonNegativeInteger(result.remainingUses);
-  return {
-    ok: true,
-    ciphertext,
-    ...(keyVersion ? { keyVersion } : {}),
-    ...(expiresAtMs != null ? { expiresAtMs } : {}),
-    ...(remainingUses != null ? { remainingUses } : {}),
-  };
-}
-
 function makeSigningSessionSealSingleFlightKey(args: {
-  operation: 'apply-server-seal' | 'remove-server-seal';
+  operation: 'seal' | 'restore';
   thresholdSessionId: string;
   materialIdentity: string;
   relayerUrl: string;
   keyVersion?: string;
-  groupId?: string;
   payloadB64u?: string;
 }): string {
-  const operation =
-    args.operation === 'remove-server-seal' ? 'remove-server-seal' : 'apply-server-seal';
   return [
-    operation,
+    args.operation,
     normalizeOptionalTrimmedString(args.thresholdSessionId) || '',
     normalizeOptionalTrimmedString(args.materialIdentity) || '',
     normalizeOptionalTrimmedString(args.relayerUrl) || '',
     normalizeOptionalNonEmptyString(args.keyVersion) || '',
-    normalizeOptionalNonEmptyString(args.groupId) || '',
     normalizeOptionalNonEmptyString(args.payloadB64u) || '',
   ].join('|');
-}
-
-async function callSigningSessionSealRoute(args: {
-  operation: 'apply-server-seal' | 'remove-server-seal';
-  transport: SigningSessionSealTransport;
-  thresholdSessionId: string;
-  ciphertext: string;
-  keyVersion?: string;
-}): Promise<SigningSessionSealRouteResult> {
-  const operation =
-    args.operation === 'remove-server-seal' ? 'remove-server-seal' : 'apply-server-seal';
-  const url = joinNormalizedUrl(
-    args.transport.relayerUrl,
-    `${SIGNING_SESSION_SEAL_BASE_PATH}/${operation}`,
-  );
-  try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    const keyVersion = normalizeOptionalNonEmptyString(args.keyVersion);
-    headers.Authorization = `Bearer ${args.transport.operationCredential.token}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'omit',
-      headers,
-      body: JSON.stringify({
-        thresholdSessionId: args.thresholdSessionId,
-        ciphertext: args.ciphertext,
-        ...(keyVersion ? { keyVersion } : {}),
-      }),
-    });
-    const data = await response.json().catch(() => null);
-    const parsed = parseSigningSessionSealRouteResult(data);
-    if (!response.ok && parsed.ok) {
-      return {
-        ok: false,
-        code: 'http_error',
-        message: `Signing-session seal route returned HTTP ${response.status}`,
-      };
-    }
-    return parsed;
-  } catch (error: unknown) {
-    return signingSessionSealFailure('network_error', error, 'Signing-session seal request failed');
-  }
 }
 
 function signingSessionSealFailure(
@@ -696,21 +596,11 @@ export async function sealEmailOtpWarmSessionMaterial(args: {
   transport: SigningSessionSealTransport;
 }): Promise<EmailOtpWarmSessionSealResult> {
   const authorizationThresholdSessionId = args.transport.authorizationThresholdSessionId;
-  const groupId = normalizeOptionalNonEmptyString(args.transport.groupId);
-  if (!groupId) {
-    return {
-      ok: false,
-      code: 'invalid_args',
-      message: 'Missing groupId for signing-session seal',
-    };
-  }
   const usable = readUsableEmailOtpWarmMaterial(args.target);
   if (!usable.ok) return usable;
   const material = usable.material;
-  const secret32 = emailOtpWarmMaterialSecret32(material);
-  const payloadB64u = base64UrlEncode(secret32);
   const singleFlightKey = makeSigningSessionSealSingleFlightKey({
-    operation: 'apply-server-seal',
+    operation: 'seal',
     thresholdSessionId: authorizationThresholdSessionId,
     materialIdentity:
       args.target.kind === 'ecdsa'
@@ -718,56 +608,53 @@ export async function sealEmailOtpWarmSessionMaterial(args: {
         : materialActivationKey(args.target.materialActivation),
     relayerUrl: args.transport.relayerUrl,
     keyVersion: args.transport.keyVersion,
-    groupId,
-    payloadB64u,
   });
   const inFlight = signingSessionSealApplyInFlight.get(singleFlightKey);
   if (inFlight) return await inFlight;
 
   const task = (async (): Promise<EmailOtpWarmSessionSealResult> => {
     try {
-      const runtime = await getShamir3PassRuntime();
-      const clientKeyHandle = await runtime.createClientKeyHandle({
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-      });
+      const blind = await blindNewSigningSessionSealInput();
+      let blindOwned = true;
       try {
-        const clientEncryptedCiphertext = await runtime.addClientSealBytesWithKeyHandle({
-          ciphertext: secret32,
-          keyHandle: clientKeyHandle.keyHandle,
-        });
-        const applied = await callSigningSessionSealRoute({
-          operation: 'apply-server-seal',
-          transport: args.transport,
+        const evaluation = await callSigningSessionSealEvaluateRoute({
+          relayerUrl: args.transport.relayerUrl,
+          bearerToken: args.transport.operationCredential.token,
           thresholdSessionId: authorizationThresholdSessionId,
-          ciphertext: readString(clientEncryptedCiphertext, 'clientEncryptedCiphertext'),
-          keyVersion: args.transport.keyVersion,
+          blindedElementB64u: blind.blindedElementB64u,
+          ...(args.transport.keyVersion ? { keyVersion: args.transport.keyVersion } : {}),
         });
-        if (!applied.ok) return applied;
-        const sealedSecretB64u = await runtime.removeClientSealWithKeyHandle({
-          ciphertextB64u: applied.ciphertext,
-          keyHandle: clientKeyHandle.keyHandle,
-        });
+        if (!evaluation.ok) return evaluation;
         const policy = resolvePolicyFromServerAndLocal({
           localRemainingUses: material.entry.remainingUses,
           localExpiresAtMs: material.entry.expiresAtMs,
-          serverRemainingUses: applied.remainingUses,
-          serverExpiresAtMs: applied.expiresAtMs,
+          serverRemainingUses: evaluation.remainingUses,
+          serverExpiresAtMs: evaluation.expiresAtMs,
         });
         if (!policy.ok) {
           deleteEmailOtpWarmMaterial(args.target);
           return policy;
         }
+        blindOwned = false;
+        const sealedSecretB64u = await sealSigningSessionSecret({
+          blind,
+          scope: {
+            walletId: args.transport.walletId,
+            thresholdSessionId: authorizationThresholdSessionId,
+          },
+          evaluation,
+          secret32: emailOtpWarmMaterialSecret32(material),
+        });
         updateEmailOtpWarmMaterialPolicy({
           target: args.target,
           material,
           remainingUses: policy.remainingUses,
           expiresAtMs: policy.expiresAtMs,
         });
-        const keyVersion = normalizeOptionalNonEmptyString(applied.keyVersion);
         const common = {
           ok: true,
-          sealedSecretB64u: readString(sealedSecretB64u, 'sealedSecretB64u'),
-          ...(keyVersion ? { keyVersion } : {}),
+          sealedSecretB64u,
+          keyVersion: evaluation.keyVersion,
           remainingUses: policy.remainingUses,
           expiresAtMs: policy.expiresAtMs,
         } as const;
@@ -782,9 +669,7 @@ export async function sealEmailOtpWarmSessionMaterial(args: {
             };
         }
       } finally {
-        await runtime
-          .destroyClientKeyHandle({ keyHandle: clientKeyHandle.keyHandle })
-          .catch(() => undefined);
+        if (blindOwned) discardSigningSessionSealBlind(blind);
       }
     } catch (error: unknown) {
       return signingSessionSealFailure('internal', error, 'Failed to apply signing-session seal');
@@ -830,12 +715,11 @@ export async function rehydrateEmailOtpEcdsaWarmSessionMaterial(args: {
     return { ok: false, code: 'expired', message: 'Email OTP signing-session seal expired' };
   }
   const singleFlightKey = makeSigningSessionSealSingleFlightKey({
-    operation: 'remove-server-seal',
+    operation: 'restore',
     thresholdSessionId: authorizationThresholdSessionId,
     materialIdentity: thresholdSessionId,
     relayerUrl: transport.relayerUrl,
     keyVersion: transport.keyVersion,
-    groupId: transport.groupId,
     payloadB64u: sealedSecretB64u,
   });
   const inFlight = signingSessionSealRemoveInFlight.get(singleFlightKey);
@@ -843,46 +727,37 @@ export async function rehydrateEmailOtpEcdsaWarmSessionMaterial(args: {
 
   const task = (async (): Promise<EmailOtpEcdsaWarmSessionRehydrateResult> => {
     let signingSessionSecret32: Uint8Array | null = null;
-    let serverRemainingUses: number | undefined;
-    let serverExpiresAtMs: number | undefined;
     try {
-      const runtime = await getShamir3PassRuntime();
-      const clientKeyHandle = await runtime.createClientKeyHandle({
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-      });
+      const opening = await blindSealedSigningSessionSecret(sealedSecretB64u);
+      let blindOwned = true;
+      let evaluated: Awaited<ReturnType<typeof callSigningSessionSealEvaluateRoute>>;
       try {
-        const clientEncryptedCiphertext = await runtime.addClientSealWithKeyHandle({
-          ciphertextB64u: sealedSecretB64u,
-          keyHandle: clientKeyHandle.keyHandle,
-        });
-        const removed = await callSigningSessionSealRoute({
-          operation: 'remove-server-seal',
-          transport,
+        evaluated = await callSigningSessionSealEvaluateRoute({
+          relayerUrl: transport.relayerUrl,
+          bearerToken: transport.operationCredential.token,
           thresholdSessionId: authorizationThresholdSessionId,
-          ciphertext: readString(clientEncryptedCiphertext, 'clientEncryptedCiphertext'),
-          keyVersion: transport.keyVersion,
+          blindedElementB64u: opening.blind.blindedElementB64u,
+          ...(transport.keyVersion ? { keyVersion: transport.keyVersion } : {}),
         });
-        if (!removed.ok) return removed;
-        serverRemainingUses = removed.remainingUses;
-        serverExpiresAtMs = removed.expiresAtMs;
-        const unsealedSecret = await removeClientSealToSecret32({
-          runtime,
-          ciphertextB64u: removed.ciphertext,
-          keyHandle: clientKeyHandle.keyHandle,
+        if (!evaluated.ok) return evaluated;
+        blindOwned = false;
+        signingSessionSecret32 = await openSigningSessionSecret({
+          opening,
+          scope: {
+            walletId: transport.walletId,
+            thresholdSessionId: authorizationThresholdSessionId,
+          },
+          evaluation: evaluated,
         });
-        if (unsealedSecret.kind === 'corrupt_local_custody') return unsealedSecret;
-        signingSessionSecret32 = unsealedSecret.secret32;
       } finally {
-        await runtime
-          .destroyClientKeyHandle({ keyHandle: clientKeyHandle.keyHandle })
-          .catch(() => undefined);
+        if (blindOwned) discardSigningSessionSealBlind(opening.blind);
       }
 
       const policy = resolvePolicyFromServerAndLocal({
         localRemainingUses,
         localExpiresAtMs,
-        serverRemainingUses,
-        serverExpiresAtMs,
+        serverRemainingUses: evaluated.remainingUses,
+        serverExpiresAtMs: evaluated.expiresAtMs,
       });
       if (!policy.ok) return policy;
       const emailOtpSessionHandle = issueEmailOtpEcdsaSessionHandle({
@@ -895,9 +770,6 @@ export async function rehydrateEmailOtpEcdsaWarmSessionMaterial(args: {
           chainTarget: restore.chainTarget,
         },
       });
-      if (!signingSessionSecret32) {
-        throw new Error('Email OTP signing-session seal returned no local material');
-      }
       deleteEmailOtpWarmSession(thresholdSessionId);
       emailOtpWarmSessions.set(thresholdSessionId, {
         signingSessionSecret32,

@@ -15,7 +15,7 @@ declare const validPasskeyNearProvisioningWithSeal: NearProvisioningArgs & {
   auth: { kind: 'passkey' };
   sessionSeal: {
     thresholdSessionId: string;
-    ciphertext: string;
+    blindedElementB64u: string;
   };
 };
 

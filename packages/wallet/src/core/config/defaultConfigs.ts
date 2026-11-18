@@ -7,7 +7,6 @@ import {
 } from '../signingEngine/threshold/sessionPolicy';
 import {
   SIGNING_SESSION_SEAL_ALG,
-  SIGNING_SESSION_SEAL_GROUP_ID,
 } from '@shared/utils/signingSessionSeal';
 import type {
   SeamsChainConfig,
@@ -129,7 +128,6 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
       mode: 'sealed_refresh_v1',
       protocol: {
         algorithm: SIGNING_SESSION_SEAL_ALG,
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
       },
     },
     routerAb: {

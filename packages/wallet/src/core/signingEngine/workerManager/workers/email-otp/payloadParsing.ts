@@ -172,7 +172,7 @@ export const SIGNING_SESSION_SEAL_TRANSPORT_FIELDS = [
   'authorizationThresholdSessionId',
   'operationCredential',
   'signingSessionSealKeyVersion',
-  'groupId',
+  'walletId',
 ] as const;
 
 export function requireFixed32ArrayBuffer(value: unknown, label: string): Uint8Array<ArrayBuffer> {
@@ -434,7 +434,7 @@ export function parseWorkerSealTransport(value: unknown): {
   authorizationThresholdSessionId: string;
   operationCredential: WalletSessionOperationCredentialV1;
   signingSessionSealKeyVersion?: SigningSessionSealKeyVersion;
-  groupId?: string;
+  walletId: string;
 } {
   const obj = asRecord(value);
   if (!obj) throw new Error('Email OTP worker request requires transport');
@@ -454,9 +454,7 @@ export function parseWorkerSealTransport(value: unknown): {
           ),
         }
       : {}),
-    ...(toOptionalTrimmedNonEmptyString(obj.groupId)
-      ? { groupId: toOptionalTrimmedNonEmptyString(obj.groupId)! }
-      : {}),
+    walletId: readString(obj.walletId, 'transport.walletId'),
   };
 }
 

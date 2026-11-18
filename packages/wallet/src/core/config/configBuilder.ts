@@ -23,7 +23,6 @@ import {
 import { normalizeWalletHostVariant } from '../browser/walletIframe/hostVariant';
 import {
   SIGNING_SESSION_SEAL_ALG,
-  SIGNING_SESSION_SEAL_GROUP_ID,
 } from '@shared/utils/signingSessionSeal';
 import { parseWalletSessionBudgetSetting } from '@shared/threshold/walletSessionBudget';
 
@@ -145,7 +144,6 @@ function resolveSigningSessionSeal(args: {
     mode: 'sealed_refresh_v1',
     protocol: {
       algorithm: SIGNING_SESSION_SEAL_ALG,
-      groupId: SIGNING_SESSION_SEAL_GROUP_ID,
     },
   };
 }

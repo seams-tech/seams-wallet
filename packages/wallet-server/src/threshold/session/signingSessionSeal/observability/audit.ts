@@ -26,7 +26,6 @@ function logAtLevel(
 
 function buildPayload(event: SigningSessionSealAuditEvent): Record<string, unknown> {
   return {
-    operation: event.operation,
     thresholdSessionId: event.thresholdSessionId,
     userId: event.userId,
     ok: event.ok,

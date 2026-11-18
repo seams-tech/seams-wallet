@@ -1,4 +1,7 @@
-import type { SigningSessionSealProtocol } from '@shared/utils/signingSessionSeal';
+import type {
+  SigningSessionSealEvaluation,
+  SigningSessionSealProtocol,
+} from '@shared/utils/signingSessionSeal';
 import type { NormalizedLogger } from '../../../core/logger';
 
 export type SigningSessionSealRouteHeaders = Record<string, string | string[] | undefined>;
@@ -6,10 +9,6 @@ export type SigningSessionSealRouteHeaders = Record<string, string | string[] | 
 export interface SigningSessionSealAuthContext {
   userId: string;
   session: SigningSessionSealAuthorizationSessionRecord;
-}
-
-export interface SigningSessionSealCipherAuthContext {
-  userId: string;
 }
 
 export interface SigningSessionSealAuthorizeInput {
@@ -21,29 +20,18 @@ export type SigningSessionSealAuthorizeResult =
   | { ok: true; auth: SigningSessionSealAuthContext }
   | { ok: false; code?: string; message?: string; status?: number };
 
-/** Applying and removing the server seal take the same request. */
-export interface SigningSessionSealServerSealRequest {
+/**
+ * One POPRF evaluation for a signing session. The device sends a blinded element; the server
+ * never sees the OPRF input or the sealed secret. Without `keyVersion`, the current key applies.
+ */
+export interface SigningSessionSealEvaluateRequest {
   thresholdSessionId: string;
-  ciphertext: string;
+  blindedElementB64u: string;
   keyVersion?: string;
-  metadata?: Record<string, unknown>;
 }
 
-export interface SigningSessionSealApplyServerSealRequest
-  extends SigningSessionSealServerSealRequest {}
-
-export interface SigningSessionSealRemoveServerSealRequest
-  extends SigningSessionSealServerSealRequest {}
-
-type SigningSessionSealRouteSuccessBase = {
-  ok: true;
-  ciphertext: string;
-  keyVersion?: string;
-  expiresAtMs?: number;
-};
-
 export type SigningSessionSealRouteResult =
-  | SigningSessionSealRouteSuccessBase
+  | (SigningSessionSealEvaluation & { ok: true; expiresAtMs: number })
   | {
       ok: false;
       code: string;
@@ -72,13 +60,8 @@ export interface SigningSessionSealServiceIdempotencyOptions {
 }
 
 export interface SigningSessionSealService {
-  applyServerSeal(
-    request: SigningSessionSealApplyServerSealRequest,
-    auth: SigningSessionSealAuthContext,
-  ): Promise<SigningSessionSealRouteResult>;
-
-  removeServerSeal(
-    request: SigningSessionSealRemoveServerSealRequest,
+  evaluate(
+    request: SigningSessionSealEvaluateRequest,
     auth: SigningSessionSealAuthContext,
   ): Promise<SigningSessionSealRouteResult>;
 }
@@ -97,8 +80,6 @@ export interface SigningSessionSealStartupCapabilities {
   protocol: SigningSessionSealProtocol;
   currentKeyVersion: string;
 }
-
-export type SigningSessionSealOperation = 'apply-server-seal' | 'remove-server-seal';
 
 export type { SigningSessionSealCurve } from '@shared/utils/signingSessionSeal';
 
@@ -129,27 +110,21 @@ export type SigningSessionSealThresholdSessionRecord =
 
 export type SigningSessionSealAuthorizationSessionRecord = SigningSessionSealThresholdSessionRecord;
 
-export interface SigningSessionSealCipherOperationInput {
-  operation: SigningSessionSealOperation;
-  thresholdSessionId: string;
-  ciphertext: string;
-  keyVersion?: string;
-  metadata?: Record<string, unknown>;
-  auth: SigningSessionSealCipherAuthContext;
-}
-
-export type SigningSessionSealCipherOperationResult =
-  | { ok: true; ciphertext: string; keyVersion?: string }
-  | { ok: false; code: string; message: string };
-
-export interface SigningSessionSealCipherAdapter {
-  run(
-    input: SigningSessionSealCipherOperationInput,
-  ): Promise<SigningSessionSealCipherOperationResult>;
+/** The server keys of the seal. `info` comes from the admitted wallet and threshold session. */
+export interface SigningSessionSealEvaluator {
+  readonly currentKeyVersion: string;
+  evaluate(input: {
+    readonly walletId: string;
+    readonly thresholdSessionId: string;
+    readonly keyVersion: string;
+    readonly blindedElementB64u: string;
+  }): Promise<
+    | (SigningSessionSealEvaluation & { readonly ok: true })
+    | { readonly ok: false; readonly code: string; readonly message: string }
+  >;
 }
 
 export interface SigningSessionSealGuardInput {
-  operation: SigningSessionSealOperation;
   thresholdSessionId: string;
   auth: SigningSessionSealAuthContext;
 }
@@ -163,7 +138,6 @@ export type SigningSessionSealGuard = (
 ) => Promise<SigningSessionSealGuardResult> | SigningSessionSealGuardResult;
 
 export interface SigningSessionSealAuditEvent {
-  operation: SigningSessionSealOperation;
   thresholdSessionId: string;
   userId: string;
   ok: boolean;
@@ -176,7 +150,7 @@ export type SigningSessionSealAuditSink = (
 ) => Promise<void> | void;
 
 export interface CreateSigningSessionSealServiceOptions {
-  cipher: SigningSessionSealCipherAdapter;
+  evaluator: SigningSessionSealEvaluator;
   idempotency?: SigningSessionSealServiceIdempotencyOptions;
   guard?: SigningSessionSealGuard;
   audit?: SigningSessionSealAuditSink;

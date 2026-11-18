@@ -81,11 +81,14 @@ class NearRegistrationReplay {
     }
     if (this.delivery === 'failed_seal' && this.finalizedWalletId === null) {
       const failed = await route.fetch({
-        postData: { ...request, sessionSeal: { ...request.sessionSeal, ciphertext: 'invalid' } },
+        postData: {
+          ...request,
+          sessionSeal: { ...request.sessionSeal, blindedElementB64u: 'invalid' },
+        },
       });
       expect(failed.status()).toBe(503);
       const failure = await failed.json();
-      expect(failure).toMatchObject({ ok: false, code: 'invalid_ciphertext' });
+      expect(failure).toMatchObject({ ok: false, code: 'invalid_blinded_element' });
       expect(failure).not.toHaveProperty('sessionSeal');
       expect(failure).not.toHaveProperty('registrationEstablishedSession');
       this.failedSeals += 1;

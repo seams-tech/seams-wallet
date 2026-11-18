@@ -19,9 +19,8 @@ declare const emailOtpAuthority: EmailOtpWalletAuthAuthority;
 declare const materialActivation: MpcMaterialActivationRef;
 
 const validEcdsaSealedSessionRecord = {
-  v: 2,
-  alg: 'shamir3pass-v2',
-  groupId: 'rfc2409-group2',
+  v: 3,
+  alg: 'ristretto255-sha512-poprf-v1',
   keyVersion: 'seal-v2',
   storageScope: 'iframe_origin_indexeddb',
   authMethod: 'email_otp',
@@ -65,9 +64,8 @@ const validEcdsaSealedSessionRecord = {
 void validEcdsaSealedSessionRecord;
 
 const validEd25519SealedSessionRecord = {
-  v: 2,
-  alg: 'shamir3pass-v2',
-  groupId: 'rfc2409-group2',
+  v: 3,
+  alg: 'ristretto255-sha512-poprf-v1',
   keyVersion: 'seal-v2',
   storageScope: 'iframe_origin_indexeddb',
   authMethod: 'passkey',
@@ -107,22 +105,17 @@ const invalidPasskeyRestoreMissingActivation: SealedSigningSessionEd25519Restore
   passkeyRestoreMissingActivation;
 void invalidPasskeyRestoreMissingActivation;
 
-const { groupId: _groupId, ...recordMissingGroupId } = validEd25519SealedSessionRecord;
-// @ts-expect-error v2 sealed records require the crate-owned group identifier.
-const invalidRecordMissingGroupId: SealedSigningSessionRecord = recordMissingGroupId;
-void invalidRecordMissingGroupId;
-
 const { keyVersion: _keyVersion, ...recordMissingKeyVersion } = validEd25519SealedSessionRecord;
-// @ts-expect-error v2 sealed records require the exact server key version used to seal them.
+// @ts-expect-error sealed records require the exact server key version used to seal them.
 const invalidRecordMissingKeyVersion: SealedSigningSessionRecord = recordMissingKeyVersion;
 void invalidRecordMissingKeyVersion;
 
-const invalidRecordWithRawPrime = {
+const invalidRecordWithGroup = {
   ...validEd25519SealedSessionRecord,
-  // @ts-expect-error v2 records identify a built-in group and never persist a raw prime.
-  shamirPrimeB64u: 'prime',
+  // @ts-expect-error POPRF records name no group.
+  groupId: 'rfc2409-group2',
 } satisfies SealedSigningSessionRecord;
-void invalidRecordWithRawPrime;
+void invalidRecordWithGroup;
 
 const invalidEcdsaSealedSessionRecordWithSubject = {
   ...validEcdsaSealedSessionRecord,

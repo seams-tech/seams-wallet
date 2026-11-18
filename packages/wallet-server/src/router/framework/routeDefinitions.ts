@@ -1,7 +1,6 @@
 import { externalAuthRoutes } from '../transport/fetch/routes/externalAuth';
 import {
-  buildSigningSessionSealApplyPath,
-  buildSigningSessionSealRemovePath,
+  buildSigningSessionSealEvaluatePath,
   resolveSigningSessionSealBasePath,
 } from '../../threshold/session/signingSessionSeal/transport/shared';
 import {
@@ -1227,17 +1226,10 @@ export function createRouterApiRouteDefinitions(
   if (options.enableSigningSessionSeal) {
     definitions.push(
       sessionPrincipalRoute(
-        'signing_session_seal_apply_server_seal',
+        'signing_session_seal_evaluate',
         'POST',
-        buildSigningSessionSealApplyPath(signingSessionSealBasePath),
-        'Apply signing session server seal',
-        ['signingSessionSeal', 'session'],
-      ),
-      sessionPrincipalRoute(
-        'signing_session_seal_remove_server_seal',
-        'POST',
-        buildSigningSessionSealRemovePath(signingSessionSealBasePath),
-        'Remove signing session server seal',
+        buildSigningSessionSealEvaluatePath(signingSessionSealBasePath),
+        'Evaluate the signing-session seal POPRF',
         ['signingSessionSeal', 'session'],
       ),
     );

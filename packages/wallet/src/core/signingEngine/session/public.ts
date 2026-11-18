@@ -32,10 +32,6 @@ const EMPTY_DISCOVER_PERSISTED_SESSIONS_FOR_WALLET_RESULT: DiscoverPersistedSess
 export type SessionPublicDeps = {
   availableLanes: PersistedAvailableSigningLanesDeps;
   getConfiguredEcdsaChainTargets: () => readonly ThresholdEcdsaChainTarget[];
-  signingSessionSeal?: {
-    keyVersion?: string;
-    groupId?: string;
-  };
   discovery: {
     emailOtp: (
       args: DiscoverPersistedSessionsForWalletInput & {

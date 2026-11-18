@@ -4,7 +4,6 @@ import type {
   WarmCapabilityReaderPortsConfigured,
   WarmCapabilityReaderPortsNoRuntimeStatus,
 } from './capabilityReader';
-import type { WarmSessionCapabilityReaderSeal } from './capabilityReaderCore';
 import type { WarmSessionReadPorts } from './readModel';
 import type { EmailOtpWarmMaterialTarget } from '../../workerManager/workerTypes';
 import type {
@@ -52,16 +51,12 @@ const factoryDeps: WarmSessionCapabilityReaderFactoryDeps = {
   resolveActiveEcdsaCapabilityRuntime,
   resolveActiveEcdsaCapabilityRuntimeForChain,
   touchConfirm,
-  signingSessionSeal: {
-    groupId: 'rfc2409-group2',
-  },
   getEmailOtpWarmSessionStatus,
 };
 void factoryDeps;
 
 // @ts-expect-error capability-reader factory deps require an explicit touch-confirm port or null.
 const factoryDepsWithoutTouchConfirm: WarmSessionCapabilityReaderFactoryDeps = {
-  signingSessionSeal: null,
   getEmailOtpWarmSessionStatus,
 };
 void factoryDepsWithoutTouchConfirm;
@@ -69,7 +64,6 @@ void factoryDepsWithoutTouchConfirm;
 // @ts-expect-error capability-reader factory deps require an explicit Email OTP status reader or null.
 const factoryDepsWithoutEmailOtpStatus: WarmSessionCapabilityReaderFactoryDeps = {
   touchConfirm,
-  signingSessionSeal: null,
 };
 void factoryDepsWithoutEmailOtpStatus;
 
@@ -77,28 +71,8 @@ const factoryDepsWithNullPorts: WarmSessionCapabilityReaderFactoryDeps = {
   resolveActiveEcdsaCapabilityRuntime,
   resolveActiveEcdsaCapabilityRuntimeForChain,
   touchConfirm: null,
-  signingSessionSeal: null,
   getEmailOtpWarmSessionStatus: null,
 };
 void factoryDepsWithNullPorts;
-
-const configuredSeal: WarmSessionCapabilityReaderSeal = {
-  seal: 'configured',
-  groupId: 'rfc2409-group2',
-};
-void configuredSeal;
-
-// @ts-expect-error configured seal fallback requires the public group ID.
-const configuredSealWithoutGroup: WarmSessionCapabilityReaderSeal = {
-  seal: 'configured',
-};
-void configuredSealWithoutGroup;
-
-// @ts-expect-error unconfigured seal fallback rejects partial protocol state.
-const unconfiguredSealWithGroup: WarmSessionCapabilityReaderSeal = {
-  seal: 'unconfigured',
-  groupId: 'rfc2409-group2',
-};
-void unconfiguredSealWithGroup;
 
 export {};

@@ -1,17 +1,9 @@
 import { base64UrlDecode } from '@shared/utils/encoders';
-import {
-  SIGNING_SESSION_SEAL_ALG,
-  SIGNING_SESSION_SEAL_GROUP_ID,
-} from '@shared/utils/signingSessionSeal';
+import { SIGNING_SESSION_SEAL_ALG } from '@shared/utils/signingSessionSeal';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import {
-  parseSigningSessionSealKeyVersion,
-  type SigningSessionSealKeyVersion,
-} from '../../../core/keyMaterialBrands';
-import {
-  createSigningSessionSealShamir3PassCipherAdapter,
-  type SigningSessionSealShamir3PassRootConfig,
-} from './crypto/cipher';
+import { parseSigningSessionSealKeyVersion } from '../../../core/keyMaterialBrands';
+import { createSigningSessionSealEvaluator } from './crypto/oprf';
+import { createInMemorySigningSessionSealRateLimiter } from './guards';
 import { createSigningSessionSealRoutesOptions } from './routesOptions';
 
 export type CreateSigningSessionSealOptionsInput = {
@@ -20,50 +12,55 @@ export type CreateSigningSessionSealOptionsInput = {
   readonly acceptedWarmKeyVersions?: readonly unknown[];
 };
 
-function parseKeyVersion(value: unknown, label: string): SigningSessionSealKeyVersion {
+/** Evaluations allowed for one wallet and threshold session in each window. */
+const SIGNING_SESSION_SEAL_RATE_LIMIT = 30;
+const SIGNING_SESSION_SEAL_RATE_LIMIT_WINDOW_MS = 60_000;
+
+function parseKeyVersion(value: unknown, label: string): string {
   const parsed = toOptionalTrimmedString(value);
   if (!parsed) throw new Error(`${label} is required`);
-  return parseSigningSessionSealKeyVersion(parsed);
+  return String(parseSigningSessionSealKeyVersion(parsed));
 }
 
-function parseRootSecret32(value: unknown): Uint8Array {
+function requireRootSecretB64u(value: unknown): string {
   const encoded = toOptionalTrimmedString(value);
   if (!encoded) throw new Error('SIGNING_SESSION_SEAL_ROOT_SECRET_B64U is required');
   const rootSecret32 = base64UrlDecode(encoded);
-  if (rootSecret32.length !== 32) {
-    rootSecret32.fill(0);
+  const length = rootSecret32.length;
+  rootSecret32.fill(0);
+  if (length !== 32) {
     throw new Error('SIGNING_SESSION_SEAL_ROOT_SECRET_B64U must decode to exactly 32 bytes');
   }
-  return rootSecret32;
+  return encoded;
 }
 
-export function parseSigningSessionSealRootConfig(
-  input: CreateSigningSessionSealOptionsInput,
-): SigningSessionSealShamir3PassRootConfig {
+/**
+ * The signing-session seal routes. The evaluation is an oracle for the POPRF under one key, so a
+ * rate limit for each wallet and threshold session bounds the evaluations that one key answers.
+ */
+export function createSigningSessionSealOptions(input: CreateSigningSessionSealOptionsInput) {
   const currentKeyVersion = parseKeyVersion(input.currentKeyVersion, 'currentKeyVersion');
-  const acceptedWarmKeyVersions = (input.acceptedWarmKeyVersions ?? [currentKeyVersion]).map(
+  const acceptedKeyVersions = (input.acceptedWarmKeyVersions ?? [currentKeyVersion]).map(
     (value, index) => parseKeyVersion(value, `acceptedWarmKeyVersions[${index}]`),
   );
-  return {
-    kind: 'shamir3pass_root_v2',
-    rootSecret32: parseRootSecret32(input.rootSecretB64u),
-    currentKeyVersion,
-    acceptedWarmKeyVersions,
-    protocol: {
-      algorithm: SIGNING_SESSION_SEAL_ALG,
-      groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-    },
-  };
-}
-
-export function createSigningSessionSealOptions(input: CreateSigningSessionSealOptionsInput) {
-  const config = parseSigningSessionSealRootConfig(input);
+  if (new Set(acceptedKeyVersions).size !== acceptedKeyVersions.length) {
+    throw new Error('acceptedWarmKeyVersions must not contain duplicates');
+  }
   return createSigningSessionSealRoutesOptions({
-    cipher: createSigningSessionSealShamir3PassCipherAdapter({ config }),
+    evaluator: createSigningSessionSealEvaluator({
+      rootSecretB64u: requireRootSecretB64u(input.rootSecretB64u),
+      currentKeyVersion,
+      acceptedKeyVersions,
+    }),
     capabilities: {
       mode: 'sealed_refresh_v1',
-      protocol: config.protocol,
-      currentKeyVersion: config.currentKeyVersion,
+      protocol: { algorithm: SIGNING_SESSION_SEAL_ALG },
+      currentKeyVersion,
+    },
+    rateLimit: {
+      limiter: createInMemorySigningSessionSealRateLimiter(),
+      limit: SIGNING_SESSION_SEAL_RATE_LIMIT,
+      windowMs: SIGNING_SESSION_SEAL_RATE_LIMIT_WINDOW_MS,
     },
     logger: console,
   });

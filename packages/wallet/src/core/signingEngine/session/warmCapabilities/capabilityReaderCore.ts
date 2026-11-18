@@ -62,25 +62,10 @@ function signingLaneAuthBindingFromEcdsaRuntime(
   }
 }
 
-type WarmSessionCapabilityReaderSealConfigured = {
-  seal: 'configured';
-  groupId: string;
-};
-
-type WarmSessionCapabilityReaderSealUnavailable = {
-  seal: 'unconfigured';
-  groupId?: never;
-};
-
-export type WarmSessionCapabilityReaderSeal =
-  | WarmSessionCapabilityReaderSealConfigured
-  | WarmSessionCapabilityReaderSealUnavailable;
-
 type WarmSessionCapabilityReaderCoreDeps = {
   resolveActiveEcdsaCapabilityRuntime: ActiveEcdsaCapabilityRuntimeResolver;
   resolveActiveEcdsaCapabilityRuntimeForChain: ActiveEcdsaCapabilityRuntimeForChainResolver;
   statusReader: Pick<WarmSigningStatusReader, 'readEd25519WarmSessionClaim'>;
-  signingSessionSeal: WarmSessionCapabilityReaderSeal;
   resolveActiveEcdsaWalletSessionAuthorization?: ExactEcdsaWalletSessionAuthorizationResolver;
   resolveActiveEd25519WalletSessionAuthorization?: (
     walletId: WalletId,
@@ -415,18 +400,8 @@ export function createWarmSessionCapabilityReaderCore(
     });
   }
 
-  function ecdsaSealConfig(): {
-    groupId: string;
-  } {
-    if (deps.signingSessionSeal.seal !== 'configured') return { groupId: '' };
-    return {
-      groupId: String(deps.signingSessionSeal.groupId || '').trim(),
-    };
-  }
-
-  /** Seal parameters come from configuration alone. The sealed record's own
-   * `keyVersion` seals that record's secret at rest and is not the signing
-   * session's transport seal; the two must not be interchanged. */
+  /** The sealed record's own `keyVersion` seals that record's secret at rest and is not the
+   * signing session's transport seal; the two must not be interchanged. */
   async function resolveEcdsaSealTransportForLane(args: {
     lane: ExactEcdsaSigningLaneIdentity;
     authorization: ExactEvmFamilyWalletSessionAuthorization;
@@ -436,11 +411,9 @@ export function createWarmSessionCapabilityReaderCore(
       chainTarget: args.lane.signer.chainTarget,
     });
     if (resolution.kind !== 'resolved') return null;
-    const seal = ecdsaSealConfig();
     return resolveEcdsaSealTransport({
       runtime: resolution.runtime,
       auth: args.authorization,
-      groupId: seal.groupId,
     });
   }
 

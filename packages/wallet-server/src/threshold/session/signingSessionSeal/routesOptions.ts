@@ -7,7 +7,7 @@ import type {
   SigningSessionSealAuditSink,
   SigningSessionSealAuthorizeInput,
   SigningSessionSealAuthorizeResult,
-  SigningSessionSealCipherAdapter,
+  SigningSessionSealEvaluator,
   SigningSessionSealGuard,
   SigningSessionSealRoutesOptions,
   SigningSessionSealServiceIdempotencyOptions,
@@ -18,7 +18,7 @@ import type { CreateSigningSessionSealRateLimitGuardOptions } from './guards';
 
 export interface CreateSigningSessionSealRoutesOptionsInput {
   basePath?: string;
-  cipher: SigningSessionSealCipherAdapter;
+  evaluator: SigningSessionSealEvaluator;
   idempotency?: SigningSessionSealServiceIdempotencyOptions;
   guard?: SigningSessionSealGuard | null;
   guards?: Array<SigningSessionSealGuard | null | undefined>;
@@ -78,7 +78,7 @@ export function createSigningSessionSealRoutesOptions(
   const guard = buildGuard(input);
   const audit = buildAuditSink(input);
   const serviceOptions: CreateSigningSessionSealServiceOptions = {
-    cipher: input.cipher,
+    evaluator: input.evaluator,
   };
   if (input.idempotency) {
     serviceOptions.idempotency = input.idempotency;

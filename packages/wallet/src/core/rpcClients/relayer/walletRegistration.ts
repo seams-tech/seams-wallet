@@ -104,7 +104,10 @@ import {
 import {
   ROUTER_AB_ED25519_NORMAL_SIGNING_PATH,
   ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH,
+  SIGNING_SESSION_SEAL_EVALUATION_FIELDS,
+  readSigningSessionSealEvaluation,
   type RouterAbEd25519NormalSigningState,
+  type SigningSessionSealEvaluation,
 } from '@shared/utils/signingSessionSeal';
 import {
   parseRouterAbEcdsaRegistrationPublicActivationReceiptV1,
@@ -4064,9 +4067,7 @@ export type WalletRegistrationNearProvisioningResponseV2 =
       nearProvisioning?: { status: 'near_failed_retryable' };
     };
 
-type WalletRegistrationSessionSealResponse = {
-  readonly ciphertext: string;
-  readonly keyVersion: string;
+type WalletRegistrationSessionSealResponse = SigningSessionSealEvaluation & {
   readonly expiresAtMs: number;
   readonly remainingUses: number;
 };
@@ -4078,18 +4079,14 @@ function parseWalletRegistrationSessionSealResponse(
   const record = requireWalletRegistrationResponseObject({ responseName, field: 'body', value });
   assertWalletRegistrationResponseKeys(
     record,
-    ['ciphertext', 'keyVersion', 'expiresAtMs', 'remainingUses'],
+    [...SIGNING_SESSION_SEAL_EVALUATION_FIELDS, 'expiresAtMs', 'remainingUses'],
     responseName,
   );
-  const ciphertext = readWalletRegistrationResponseField(record, 'ciphertext', responseName);
-  const keyVersion = readWalletRegistrationResponseField(record, 'keyVersion', responseName);
+  const evaluation = readSigningSessionSealEvaluation(record);
   const expiresAtMs = readWalletRegistrationResponseField(record, 'expiresAtMs', responseName);
   const remainingUses = readWalletRegistrationResponseField(record, 'remainingUses', responseName);
   if (
-    typeof ciphertext !== 'string' ||
-    !ciphertext.trim() ||
-    typeof keyVersion !== 'string' ||
-    !keyVersion.trim() ||
+    !evaluation ||
     typeof expiresAtMs !== 'number' ||
     !Number.isSafeInteger(expiresAtMs) ||
     expiresAtMs <= 0 ||
@@ -4099,7 +4096,7 @@ function parseWalletRegistrationSessionSealResponse(
   ) {
     throw new Error(`${responseName} is invalid`);
   }
-  return { ciphertext, keyVersion, expiresAtMs, remainingUses };
+  return { ...evaluation, expiresAtMs, remainingUses };
 }
 
 function parseWalletRegistrationNearProvisioningResponseV2(
@@ -4255,7 +4252,7 @@ type CompleteWalletRegistrationNearProvisioningArgs =
           auth: { kind: 'passkey' };
           sessionSeal: {
             readonly thresholdSessionId: string;
-            readonly ciphertext: string;
+            readonly blindedElementB64u: string;
             readonly keyVersion?: string;
           };
         }

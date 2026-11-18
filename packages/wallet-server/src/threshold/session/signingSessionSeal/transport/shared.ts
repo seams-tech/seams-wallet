@@ -3,9 +3,8 @@ import { WALLET_SESSION_SEAL_BASE_PATH } from '@shared/utils/signingSessionSeal'
 import { parseThresholdSessionId } from '@shared/utils/domainIds';
 import { failure } from '@shared/utils/failure';
 import type {
-  SigningSessionSealApplyServerSealRequest,
   SigningSessionSealAuthorizeResult,
-  SigningSessionSealRemoveServerSealRequest,
+  SigningSessionSealEvaluateRequest,
   SigningSessionSealRouteHeaders,
   SigningSessionSealRouteResult,
   SigningSessionSealRoutesOptions,
@@ -24,35 +23,36 @@ function readOptionalString(obj: Record<string, unknown>, key: string): string |
   return value || undefined;
 }
 
-function readOptionalMetadata(value: unknown): Record<string, unknown> | undefined {
-  const obj = asRecord(value);
-  return obj || undefined;
-}
-
 export function resolveSigningSessionSealBasePath(input: string | undefined): string {
   const withLeadingSlash = ensureLeadingSlash(String(input || '').trim());
   const normalized = withLeadingSlash.replace(/\/+$/g, '');
   return normalized || DEFAULT_BASE_PATH;
 }
 
-export function buildSigningSessionSealApplyPath(basePath: string): string {
-  return `${basePath}/apply-server-seal`;
+export function buildSigningSessionSealEvaluatePath(basePath: string): string {
+  return `${basePath}/evaluate`;
 }
 
-export function buildSigningSessionSealRemovePath(basePath: string): string {
-  return `${basePath}/remove-server-seal`;
-}
+const SIGNING_SESSION_SEAL_EVALUATE_BODY_FIELDS = [
+  'thresholdSessionId',
+  'blindedElementB64u',
+  'keyVersion',
+];
 
-export function parseSigningSessionSealApplyBody(
+export function parseSigningSessionSealEvaluateBody(
   body: unknown,
-): ParseResult<SigningSessionSealApplyServerSealRequest> {
+): ParseResult<SigningSessionSealEvaluateRequest> {
   const obj = asRecord(body);
   if (!obj) return failure('invalid_body', 'Request body must be a JSON object');
+  const fields = Object.keys(obj);
+  if (fields.some((field) => !SIGNING_SESSION_SEAL_EVALUATE_BODY_FIELDS.includes(field))) {
+    return failure('invalid_body', 'Request body has unknown fields');
+  }
 
   const thresholdSessionId = readRequiredString(obj, 'thresholdSessionId');
-  const ciphertext = readRequiredString(obj, 'ciphertext');
-  if (!thresholdSessionId || !ciphertext) {
-    return failure('invalid_body', 'thresholdSessionId and ciphertext are required');
+  const blindedElementB64u = readRequiredString(obj, 'blindedElementB64u');
+  if (!thresholdSessionId || !blindedElementB64u) {
+    return failure('invalid_body', 'thresholdSessionId and blindedElementB64u are required');
   }
   const parsedThresholdSessionId = parseThresholdSessionId(thresholdSessionId);
   if (!parsedThresholdSessionId.ok) {
@@ -63,18 +63,10 @@ export function parseSigningSessionSealApplyBody(
     ok: true,
     value: {
       thresholdSessionId: parsedThresholdSessionId.value,
-      ciphertext,
+      blindedElementB64u,
       keyVersion: readOptionalString(obj, 'keyVersion'),
-      metadata: readOptionalMetadata(obj.metadata),
     },
   };
-}
-
-/** Removal takes the same body as apply. */
-export function parseSigningSessionSealRemoveBody(
-  body: unknown,
-): ParseResult<SigningSessionSealRemoveServerSealRequest> {
-  return parseSigningSessionSealApplyBody(body);
 }
 
 export async function authorizeSigningSessionSealRequest(args: {

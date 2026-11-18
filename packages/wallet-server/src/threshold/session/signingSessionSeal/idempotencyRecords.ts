@@ -1,5 +1,7 @@
+import { readSigningSessionSealEvaluation } from '@shared/utils/signingSessionSeal';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
+import type { SigningSessionSealRouteResult } from './signingSessionSeal.types';
 
 function toPositiveInt(value: unknown): number | null {
   const parsed = Number(value);
@@ -7,51 +9,21 @@ function toPositiveInt(value: unknown): number | null {
   return Math.floor(parsed);
 }
 
-type CurrentSigningSessionSealSuccessIdempotencyResultRecord = {
-  ok: true;
-  ciphertext: string;
-  keyVersion?: string;
-  expiresAtMs?: number;
-};
-
-type CurrentSigningSessionSealFailureIdempotencyResultRecord = {
-  ok: false;
-  code: string;
-  message: string;
-};
-
-type CurrentSigningSessionSealIdempotencyResultRecord =
-  | CurrentSigningSessionSealSuccessIdempotencyResultRecord
-  | CurrentSigningSessionSealFailureIdempotencyResultRecord;
-
 type CurrentSigningSessionSealIdempotencyStoredEntry = {
-  result: CurrentSigningSessionSealIdempotencyResultRecord;
+  result: SigningSessionSealRouteResult;
   expiresAtMs: number;
 };
 
 export function parseCurrentSigningSessionSealIdempotencyResultRecord(
   raw: unknown,
-): CurrentSigningSessionSealIdempotencyResultRecord | null {
+): SigningSessionSealRouteResult | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const obj = raw as Record<string, unknown>;
   if (obj.ok === true) {
-    const ciphertext = toOptionalTrimmedString(obj.ciphertext);
-    if (!ciphertext) return null;
-    const keyVersion = toOptionalTrimmedString(obj.keyVersion);
+    const evaluation = readSigningSessionSealEvaluation(obj);
     const expiresAtMs = toPositiveInt(obj.expiresAtMs);
-    if (
-      ('keyVersion' in obj && obj.keyVersion != null && !keyVersion) ||
-      ('expiresAtMs' in obj && obj.expiresAtMs != null && expiresAtMs == null) ||
-      'remainingUses' in obj
-    ) {
-      return null;
-    }
-    return {
-      ok: true,
-      ciphertext,
-      ...(keyVersion ? { keyVersion } : {}),
-      ...(expiresAtMs != null ? { expiresAtMs } : {}),
-    };
+    if (!evaluation || expiresAtMs == null || 'remainingUses' in obj) return null;
+    return { ok: true, ...evaluation, expiresAtMs };
   }
 
   if (obj.ok === false) {

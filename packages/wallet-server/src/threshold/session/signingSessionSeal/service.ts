@@ -4,9 +4,8 @@ import { failure } from '@shared/utils/failure';
 import type {
   CreateSigningSessionSealServiceOptions,
   SigningSessionSealAuthorizationSessionRecord,
-  SigningSessionSealOperation,
+  SigningSessionSealEvaluateRequest,
   SigningSessionSealRouteResult,
-  SigningSessionSealServerSealRequest,
   SigningSessionSealService,
 } from './signingSessionSeal.types';
 
@@ -17,7 +16,7 @@ const SIGNING_SESSION_SEAL_REPLAYABLE_ERROR_CODES = new Set([
   'exhausted',
   'forbidden',
   'not_found',
-  'invalid_ciphertext',
+  'invalid_blinded_element',
   'invalid_key_version',
 ]);
 
@@ -46,7 +45,6 @@ function isExpired(
 
 async function emitAudit(input: {
   options: CreateSigningSessionSealServiceOptions;
-  operation: SigningSessionSealOperation;
   thresholdSessionId: string;
   userId: string;
   result: SigningSessionSealRouteResult;
@@ -56,7 +54,6 @@ async function emitAudit(input: {
   if (!input.options.audit) return;
   try {
     await input.options.audit({
-      operation: input.operation,
       thresholdSessionId: input.thresholdSessionId,
       userId: input.userId,
       ok: input.result.ok,
@@ -68,27 +65,21 @@ async function emitAudit(input: {
 
 function emitOperationRequestLog(input: {
   options: CreateSigningSessionSealServiceOptions;
-  operation: SigningSessionSealOperation;
   thresholdSessionId: string;
   userId: string;
   keyVersion?: string;
-  metadata?: Record<string, unknown>;
 }): void {
   const logger = input.options.logger;
   if (!logger) return;
-  const metadataKeys = input.metadata ? Object.keys(input.metadata) : [];
-  logger.info(`${SIGNING_SESSION_SEAL_LOG_LABEL} ${input.operation} request`, {
-    operation: input.operation,
+  logger.info(`${SIGNING_SESSION_SEAL_LOG_LABEL} evaluate request`, {
     thresholdSessionId: input.thresholdSessionId,
     userId: input.userId,
     ...(input.keyVersion ? { keyVersion: input.keyVersion } : {}),
-    metadataKeys,
   });
 }
 
 function emitOperationResultLog(input: {
   options: CreateSigningSessionSealServiceOptions;
-  operation: SigningSessionSealOperation;
   thresholdSessionId: string;
   userId: string;
   result: SigningSessionSealRouteResult;
@@ -97,7 +88,6 @@ function emitOperationResultLog(input: {
   const logger = input.options.logger;
   if (!logger) return;
   const payload = {
-    operation: input.operation,
     thresholdSessionId: input.thresholdSessionId,
     userId: input.userId,
     durationMs: input.durationMs,
@@ -112,10 +102,10 @@ function emitOperationResultLog(input: {
         }),
   };
   if (input.result.ok) {
-    logger.info(`${SIGNING_SESSION_SEAL_LOG_LABEL} ${input.operation} success`, payload);
+    logger.info(`${SIGNING_SESSION_SEAL_LOG_LABEL} evaluate success`, payload);
     return;
   }
-  logger.warn(`${SIGNING_SESSION_SEAL_LOG_LABEL} ${input.operation} failure`, payload);
+  logger.warn(`${SIGNING_SESSION_SEAL_LOG_LABEL} evaluate failure`, payload);
 }
 
 type SigningSessionSealAuthInput = {
@@ -141,8 +131,8 @@ function fnv1aHex(input: string): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-async function hashCiphertextForIdempotency(ciphertext: string): Promise<string> {
-  const normalized = String(ciphertext || '').trim();
+async function hashBlindedElementForIdempotency(blindedElementB64u: string): Promise<string> {
+  const normalized = String(blindedElementB64u || '').trim();
   if (!normalized) return '';
   try {
     const digest32 = await sha256BytesUtf8(normalized);
@@ -153,25 +143,23 @@ async function hashCiphertextForIdempotency(ciphertext: string): Promise<string>
 }
 
 async function makeOperationRequestKey(args: {
-  operation: SigningSessionSealOperation;
-  request: SigningSessionSealServerSealRequest;
+  request: SigningSessionSealEvaluateRequest;
   auth: SigningSessionSealAuthInput;
 }): Promise<string> {
   const thresholdSessionId = String(args.request.thresholdSessionId || '').trim();
   const userId = String(args.auth.userId || '').trim();
-  const ciphertext = String(args.request.ciphertext || '').trim();
-  if (!thresholdSessionId || !userId || !ciphertext) return '';
+  const blindedElementB64u = String(args.request.blindedElementB64u || '').trim();
+  if (!thresholdSessionId || !userId || !blindedElementB64u) return '';
   const keyVersion = String(args.request.keyVersion || '').trim();
-  const operation = args.operation === 'apply-server-seal' ? 'apply' : 'remove';
-  const ciphertextHash = await hashCiphertextForIdempotency(ciphertext);
-  if (!ciphertextHash) return '';
+  const blindedElementHash = await hashBlindedElementForIdempotency(blindedElementB64u);
+  if (!blindedElementHash) return '';
   return [
     'signing-session-seal',
-    operation,
+    'evaluate',
     userId,
     thresholdSessionId,
     keyVersion || '_',
-    ciphertextHash,
+    blindedElementHash,
   ].join(':');
 }
 
@@ -182,13 +170,7 @@ function shouldPersistIdempotentResult(result: SigningSessionSealRouteResult): b
 
 async function runSealOperation(input: {
   options: CreateSigningSessionSealServiceOptions;
-  operation: SigningSessionSealOperation;
-  request: {
-    thresholdSessionId: string;
-    ciphertext: string;
-    keyVersion?: string;
-    metadata?: Record<string, unknown>;
-  };
+  request: SigningSessionSealEvaluateRequest;
   auth: SigningSessionSealAuthInput;
 }): Promise<SigningSessionSealRouteResult> {
   const nowMs = input.options.nowMs || Date.now;
@@ -198,11 +180,9 @@ async function runSealOperation(input: {
   try {
     emitOperationRequestLog({
       options: input.options,
-      operation: input.operation,
       thresholdSessionId: input.request.thresholdSessionId,
       userId: input.auth.userId,
       keyVersion: input.request.keyVersion,
-      metadata: input.request.metadata,
     });
 
     const session = input.auth.session;
@@ -223,7 +203,6 @@ async function runSealOperation(input: {
 
     if (input.options.guard) {
       const guard = await input.options.guard({
-        operation: input.operation,
         thresholdSessionId: input.request.thresholdSessionId,
         auth: input.auth,
       });
@@ -236,28 +215,28 @@ async function runSealOperation(input: {
       }
     }
 
-    // Router/SigningWorker private D1 owns the live signing budget; sealing only binds
-    // ciphertext to the signed Wallet Session identity and expiry.
-    const sealed = await input.options.cipher.run({
-      operation: input.operation,
+    // Router/SigningWorker private D1 owns the live signing budget. The evaluation only binds
+    // the seal to the admitted wallet, threshold session and expiry, through the POPRF info.
+    const evaluated = await input.options.evaluator.evaluate({
+      walletId: input.auth.userId,
       thresholdSessionId: input.request.thresholdSessionId,
-      ciphertext: input.request.ciphertext,
-      keyVersion: input.request.keyVersion,
-      metadata: input.request.metadata,
-      auth: { userId: input.auth.userId },
+      keyVersion: input.request.keyVersion || input.options.evaluator.currentKeyVersion,
+      blindedElementB64u: input.request.blindedElementB64u,
     });
-    if (!sealed.ok) {
+    if (!evaluated.ok) {
       result = failure(
-        toCode(sealed.code, 'internal'),
-        toMessage(sealed.message, 'Signing-session seal operation failed'),
+        toCode(evaluated.code, 'internal'),
+        toMessage(evaluated.message, 'Signing-session seal evaluation failed'),
       );
       return result;
     }
 
     result = {
       ok: true,
-      ciphertext: sealed.ciphertext,
-      keyVersion: sealed.keyVersion || input.request.keyVersion,
+      evaluatedElementB64u: evaluated.evaluatedElementB64u,
+      proofB64u: evaluated.proofB64u,
+      publicKeyB64u: evaluated.publicKeyB64u,
+      keyVersion: evaluated.keyVersion,
       expiresAtMs: session.expiresAtMs,
     };
     return result;
@@ -271,7 +250,6 @@ async function runSealOperation(input: {
     const durationMs = Math.max(0, nowMs() - startedAtMs);
     emitOperationResultLog({
       options: input.options,
-      operation: input.operation,
       thresholdSessionId: input.request.thresholdSessionId,
       userId: input.auth.userId,
       result,
@@ -279,7 +257,6 @@ async function runSealOperation(input: {
     });
     await emitAudit({
       options: input.options,
-      operation: input.operation,
       thresholdSessionId: input.request.thresholdSessionId,
       userId: input.auth.userId,
       result,
@@ -301,7 +278,6 @@ export function createSigningSessionSealService(
   );
 
   const tryReplayIdempotentResult = async (
-    operation: SigningSessionSealOperation,
     thresholdSessionId: string,
     userId: string,
     idempotencyKey: string,
@@ -314,14 +290,12 @@ export function createSigningSessionSealService(
       });
       if (!replay) return null;
       options.logger?.info(`${SIGNING_SESSION_SEAL_LOG_LABEL} idempotency_replay_hit`, {
-        operation,
         thresholdSessionId,
         userId,
       });
       return replay;
     } catch (error: unknown) {
       options.logger?.warn(`${SIGNING_SESSION_SEAL_LOG_LABEL} idempotency_replay_error`, {
-        operation,
         thresholdSessionId,
         userId,
         message: toMessage(error instanceof Error ? error.message : error, 'Unknown error'),
@@ -331,7 +305,6 @@ export function createSigningSessionSealService(
   };
 
   const tryPersistIdempotentResult = async (
-    operation: SigningSessionSealOperation,
     thresholdSessionId: string,
     userId: string,
     idempotencyKey: string,
@@ -346,7 +319,6 @@ export function createSigningSessionSealService(
       });
     } catch (error: unknown) {
       options.logger?.warn(`${SIGNING_SESSION_SEAL_LOG_LABEL} idempotency_persist_error`, {
-        operation,
         thresholdSessionId,
         userId,
         message: toMessage(error instanceof Error ? error.message : error, 'Unknown error'),
@@ -354,14 +326,12 @@ export function createSigningSessionSealService(
     }
   };
 
-  const runWithSingleFlight = async (
-    operation: SigningSessionSealOperation,
-    request: SigningSessionSealServerSealRequest,
+  const evaluate = async (
+    request: SigningSessionSealEvaluateRequest,
     auth: SigningSessionSealAuthInput,
   ): Promise<SigningSessionSealRouteResult> => {
-    const operationKey = await makeOperationRequestKey({ operation, request, auth });
+    const operationKey = await makeOperationRequestKey({ request, auth });
     const idempotentReplay = await tryReplayIdempotentResult(
-      operation,
       request.thresholdSessionId,
       auth.userId,
       operationKey,
@@ -371,13 +341,11 @@ export function createSigningSessionSealService(
     const runAndPersist = async (): Promise<SigningSessionSealRouteResult> => {
       const result = await runSealOperation({
         options,
-        operation,
         request,
         auth,
       });
       if (shouldPersistIdempotentResult(result)) {
         await tryPersistIdempotentResult(
-          operation,
           request.thresholdSessionId,
           auth.userId,
           operationKey,
@@ -394,7 +362,6 @@ export function createSigningSessionSealService(
     const inFlight = singleFlight.get(operationKey);
     if (inFlight) {
       options.logger?.info(`${SIGNING_SESSION_SEAL_LOG_LABEL} single_flight_hit`, {
-        operation,
         thresholdSessionId: request.thresholdSessionId,
         userId: auth.userId,
       });
@@ -408,10 +375,5 @@ export function createSigningSessionSealService(
     return await task;
   };
 
-  return {
-    applyServerSeal: async (request, auth) =>
-      await runWithSingleFlight('apply-server-seal', request, auth),
-    removeServerSeal: async (request, auth) =>
-      await runWithSingleFlight('remove-server-seal', request, auth),
-  };
+  return { evaluate };
 }

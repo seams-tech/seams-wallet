@@ -1,30 +1,19 @@
 export type {
-  CreateSigningSessionSealCipherAdapterOptions,
-  CreateSigningSessionSealShamir3PassCipherAdapterOptions,
-  SigningSessionSealShamir3PassRootConfig,
-  SigningSessionSealShamir3PassRuntime,
-} from './crypto/cipher';
-export type {
   CreateSigningSessionSealServiceOptions,
-  SigningSessionSealApplyServerSealRequest,
   SigningSessionSealAuthorizationSessionRecord,
   SigningSessionSealAuthContext,
-  SigningSessionSealCipherAuthContext,
   SigningSessionSealAuditSink,
   SigningSessionSealAuditEvent,
   SigningSessionSealAuthorizeInput,
   SigningSessionSealAuthorizeResult,
-  SigningSessionSealCipherAdapter,
-  SigningSessionSealCipherOperationInput,
-  SigningSessionSealCipherOperationResult,
+  SigningSessionSealEvaluateRequest,
+  SigningSessionSealEvaluator,
   SigningSessionSealGuardInput,
   SigningSessionSealGuard,
   SigningSessionSealGuardResult,
   SigningSessionSealIdempotencyGetInput,
   SigningSessionSealIdempotencySetInput,
   SigningSessionSealIdempotencyStore,
-  SigningSessionSealOperation,
-  SigningSessionSealRemoveServerSealRequest,
   SigningSessionSealRouteHeaders,
   SigningSessionSealRouteResult,
   SigningSessionSealRoutesOptions,
@@ -55,24 +44,17 @@ export {
   signingSessionSealStatusCode,
 } from './transport/shared';
 export {
-  buildSigningSessionSealApplyPath,
-  buildSigningSessionSealRemovePath,
+  buildSigningSessionSealEvaluatePath,
   resolveSigningSessionSealBasePath,
-  parseSigningSessionSealApplyBody,
-  parseSigningSessionSealRemoveBody,
+  parseSigningSessionSealEvaluateBody,
   authorizeSigningSessionSealRequest,
 } from './transport/shared';
-export {
-  createSigningSessionSealCipherAdapter,
-  createPassthroughSigningSessionSealCipherAdapter,
-  createSigningSessionSealShamir3PassCipherAdapter,
-  encodeSigningSessionSealServerLockContext,
-} from './crypto/cipher';
+export { createSigningSessionSealEvaluator } from './crypto/oprf';
 export { createSigningSessionSealService } from './service';
 export { createInMemorySigningSessionSealIdempotencyStore } from './idempotency';
 export { createSigningSessionSealAuditLogger } from './observability/audit';
 export { createSigningSessionSealRoutesOptions } from './routesOptions';
-export { createSigningSessionSealOptions, parseSigningSessionSealRootConfig } from './options';
+export { createSigningSessionSealOptions } from './options';
 export {
   createInMemorySigningSessionSealRateLimiter,
   createSigningSessionSealRateLimitGuard,

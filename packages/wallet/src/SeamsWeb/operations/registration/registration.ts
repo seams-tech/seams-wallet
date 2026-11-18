@@ -3205,7 +3205,6 @@ function startNearRegistrationSealPreparation(args: {
   signingEngine: NearRegistrationContinuationSigningSurface;
   ceremonyId: string;
   thresholdSessionId: string;
-  prfFirstB64u: string;
 }): NearRegistrationSealPreparation {
   const sessionId = parseThresholdEd25519SessionId(args.thresholdSessionId);
   if (!sessionId.ok) throw new Error('Invalid admitted NEAR session identity');
@@ -3220,7 +3219,6 @@ function startNearRegistrationSealPreparation(args: {
       input: {
         preparationId,
         thresholdSessionId: String(sessionId.value),
-        prfFirstB64u: args.prfFirstB64u,
       },
     }),
   };
@@ -3230,7 +3228,6 @@ async function prepareNearSessionSealWhileCustodyRuns(args: {
   signingEngine: NearRegistrationContinuationSigningSurface;
   ceremonyId: string;
   sessionAuthority: NearRegistrationSessionAuthority;
-  prfFirstB64u: string;
 }): Promise<NearRegistrationSealPreparation> {
   try {
     await requireCurrentNearRegistrationSession(args.sessionAuthority);
@@ -3249,7 +3246,6 @@ async function prepareNearSessionSealWhileCustodyRuns(args: {
       signingEngine: args.signingEngine,
       ceremonyId: args.ceremonyId,
       thresholdSessionId: pending.admissionRequest.scope.threshold_session_id,
-      prfFirstB64u: args.prfFirstB64u,
     });
   } catch {
     // The normal continuation still validates the joined journal and current authority.
@@ -3289,7 +3285,6 @@ async function commitDeferredEd25519Registration(args: {
         signingEngine: args.context.signingEngine,
         ceremonyId: args.registrationCeremonyId,
         sessionAuthority: args.sessionAuthority,
-        prfFirstB64u: auth.prfFirstB64u,
       });
     }
     const nearCustody = await args.nearCustodyWork();
@@ -3314,14 +3309,13 @@ async function commitDeferredEd25519Registration(args: {
         signingEngine: args.context.signingEngine,
         ceremonyId: args.registrationCeremonyId,
         thresholdSessionId: joined.metadata.scope.threshold_session_id,
-        prfFirstB64u: auth.prfFirstB64u,
       });
     }
     let preparedSessionSeal:
       | {
           readonly preparationId: string;
           readonly thresholdSessionId: string;
-          readonly ciphertext: string;
+          readonly blindedElementB64u: string;
         }
       | undefined;
     if (preparation.kind === 'preparing') {
@@ -3342,7 +3336,7 @@ async function commitDeferredEd25519Registration(args: {
       preparedSessionSeal = {
         preparationId: preparation.preparationId,
         thresholdSessionId: preparation.thresholdSessionId,
-        ciphertext: clientSeal.ciphertext,
+        blindedElementB64u: clientSeal.blindedElementB64u,
       };
     }
     const finalizationStartedAt = performance.now();
@@ -3376,7 +3370,7 @@ async function commitDeferredEd25519Registration(args: {
         auth: { kind: 'passkey' },
         sessionSeal: {
           thresholdSessionId: preparedSessionSeal.thresholdSessionId,
-          ciphertext: preparedSessionSeal.ciphertext,
+          blindedElementB64u: preparedSessionSeal.blindedElementB64u,
         },
       });
     } else {
@@ -5019,7 +5013,6 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
         custodyRun.catch(ignoreCustodyRunFailureUntilAwaited);
         passkeyAuthority = await passkeyAuthorityPending;
         sealPreparation = startSealPreparation(
-          passkeyAuthority,
           described.admissionRequest.scope.threshold_session_id,
         );
         established = await signerDelay(custodyRun);
@@ -5027,7 +5020,6 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
         passkeyAuthority = await passkeyAuthorityPending;
         admission = await respond(passkeyAuthority);
         sealPreparation = startSealPreparation(
-          passkeyAuthority,
           admission.admissionRequest.scope.threshold_session_id,
         );
         established = await signerDelay(
@@ -5089,13 +5081,16 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
       setup.registrationCeremonyId,
       'near_only.provision_checkpoint',
     );
-    let serverSeal: { thresholdSessionId: string; ciphertext: string } | null = null;
+    let serverSeal: { thresholdSessionId: string; blindedElementB64u: string } | null = null;
     if (args.completion === 'wallet_session') {
       if (sealPreparation.kind !== 'preparing') throw new Error('NEAR registration session seal preparation is missing');
       const sealPreparationResult = await sealPreparation.result;
       if (sealPreparationResult.kind === 'failed') throw sealPreparationResult.error;
       const clientSeal = await context.signingEngine.readPreparedSigningSessionHydration({ thresholdSessionId: sealPreparation.thresholdSessionId, preparationId: sealPreparation.preparationId });
-      serverSeal = { thresholdSessionId: sealPreparation.thresholdSessionId, ciphertext: clientSeal.ciphertext };
+      serverSeal = {
+        thresholdSessionId: sealPreparation.thresholdSessionId,
+        blindedElementB64u: clientSeal.blindedElementB64u,
+      };
     }
     const finalized = await registrationDelayNotice(
       options.onEvent,
@@ -6145,11 +6140,10 @@ function startRegistrationSealForCompletion(
   signingEngine: Parameters<typeof startNearRegistrationSealPreparation>[0]['signingEngine'],
   ceremonyId: string,
   completion: import('@shared/utils/registrationIntent').RegistrationCompletion,
-  authority: RegistrationPasskeyAuthority,
   thresholdSessionId: string,
 ): NearRegistrationSealPreparation {
   if (completion === 'owner_operations') return { kind: 'none' };
-  return startNearRegistrationSealPreparation({ signingEngine, ceremonyId, thresholdSessionId, prfFirstB64u: authority.prfFirstB64u });
+  return startNearRegistrationSealPreparation({ signingEngine, ceremonyId, thresholdSessionId });
 }
 
 function registeredNearCapability(finalized: Extract<Awaited<ReturnType<typeof completeWalletRegistrationNearProvisioning>>, { ok: true; kind: 'near_ed25519' }>, publicKey: string): import('@/core/types/seams').RegisteredNearEd25519Capability {

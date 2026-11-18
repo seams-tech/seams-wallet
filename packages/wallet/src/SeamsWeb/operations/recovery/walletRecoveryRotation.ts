@@ -17,7 +17,6 @@ import {
   createWalletRecoveryAdminEmailOtpProof,
   selectedEmailOtpOwnerMethod,
 } from './walletRecoveryAdminProof';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { buildEmailOtpRoutePlan } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
 import { WALLET_EMAIL_OTP_UNLOCK_OPERATION } from '@shared/utils/emailOtpDomain';
 import { base64UrlDecode } from '@shared/utils/base64';
@@ -255,7 +254,6 @@ async function rotateEmailOtpRecoverySetInWorker(
         walletId: args.walletId,
         walletAuthMethodId: selected.walletAuthMethodId,
         userId: args.walletId,
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
         routePlan,
         verification: {
           kind: 'otp',

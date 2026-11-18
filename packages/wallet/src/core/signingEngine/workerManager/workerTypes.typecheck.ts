@@ -566,7 +566,6 @@ const emailOtpWalletUnlockPayload: EmailOtpWalletUnlockPayload = {
     challengeId: 'challenge-1',
     otpCode: '123456',
   },
-  groupId: 'prime',
   routePlan: emailOtpWalletUnlockRoutePlan,
   material: emailOtpEcdsaWalletUnlockMaterial,
   walletSessionBudget: { ttlMs: 60_000, remainingUses: 3 },
@@ -577,7 +576,6 @@ const emailOtpWalletUnlockPayloadWithoutRuntimeScope = {
   relayUrl: 'https://relay.example',
   walletId: 'wallet.testnet',
   otpCode: '123456',
-  groupId: 'prime',
   routePlan: emailOtpWalletUnlockRoutePlan,
 };
 // @ts-expect-error Email OTP wallet unlock must carry one exact material branch.

@@ -2,11 +2,12 @@ import { base64UrlDecode } from '@shared/utils/encoders';
 import { encodeSigningSessionHkdfTuple } from '@shared/utils/signingSessionSeal';
 
 /**
- * Derives 32 bytes from the Email OTP seal root under a context. Each context
- * gives an independent key: HMAC-SHA256 of the encoded context, keyed by the root.
- * The caller zeroes the result.
+ * Derives 32 bytes from the seal root under a context. Each context gives an
+ * independent key: HMAC-SHA256 of the encoded context, keyed by the root. The
+ * signing-session seal and the Email OTP seals share the root, and each names
+ * its own context. The caller zeroes the result.
  */
-export async function deriveEmailOtpRootBytes(
+export async function deriveSealRootBytes(
   rootSecretB64u: string,
   context: readonly string[],
 ): Promise<Uint8Array> {
@@ -14,7 +15,7 @@ export async function deriveEmailOtpRootBytes(
   const rootCopy = new ArrayBuffer(root.length);
   new Uint8Array(rootCopy).set(root);
   try {
-    if (root.length !== 32) throw new Error('The Email OTP seal root secret must be 32 bytes');
+    if (root.length !== 32) throw new Error('The seal root secret must be 32 bytes');
     const rootKey = await crypto.subtle.importKey(
       'raw',
       rootCopy,

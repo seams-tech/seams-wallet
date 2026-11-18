@@ -84,7 +84,6 @@ export class EmailOtpWalletSessionCoordinator {
     this.exportRecoveryRuntime = new EmailOtpExportRecoveryRuntime({
       getSignerWorkerContext: deps.getSignerWorkerContext,
       requireRelayUrl: () => this.runtimeConfig.requireRelayUrl(),
-      requireSigningSessionSealGroupId: () => this.runtimeConfig.requireSigningSessionSealGroupId(),
       resolveSelectedWalletAuthority: deps.resolveSelectedWalletAuthority,
       prepareEcdsaExportCapability: (request) =>
         this.ecdsaLifecycleRuntime.prepareEcdsaExportCapability(request),

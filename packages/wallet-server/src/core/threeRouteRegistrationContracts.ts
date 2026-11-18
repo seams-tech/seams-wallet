@@ -1,4 +1,5 @@
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type { SigningSessionSealEvaluation } from '@shared/utils/signingSessionSeal';
 import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   WalletRegistrationEcdsaPreparePayload,
@@ -394,9 +395,7 @@ type WalletRegistrationNearProvisioningSuccessV2 =
       { authMethod: { kind: 'passkey' } }
     > &
       WalletRegistrationNearProvisioningSuccessBaseV2 & {
-        sessionSeal?: {
-          readonly ciphertext: string;
-          readonly keyVersion: string;
+        sessionSeal?: SigningSessionSealEvaluation & {
           readonly expiresAtMs: number;
           readonly remainingUses: number;
         };

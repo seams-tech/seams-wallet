@@ -1,5 +1,4 @@
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 
 type EmailOtpRuntimeConfigPorts = {
   configs: SeamsConfigsReadonly;
@@ -15,10 +14,6 @@ export class EmailOtpRuntimeConfig {
       throw new Error('Missing relayer url (configs.network.relayer.url)');
     }
     return relayUrl;
-  }
-
-  requireSigningSessionSealGroupId(): string {
-    return SIGNING_SESSION_SEAL_GROUP_ID;
   }
 
   requireRpId(operation: string): string {

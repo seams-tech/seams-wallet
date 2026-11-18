@@ -5,56 +5,43 @@ import type {
   WarmSessionSealAndPersistDiagnostics,
 } from '@/core/types/secure-confirm-worker';
 import { parseClearVolatileWarmMaterialCommand } from '@/core/signingEngine/session/warmCapabilities/volatileWarmMaterialCommands';
-import { bytesToHex } from '../../chains/evm/bytes';
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
-  decodeSigningSessionSecret32,
-  SIGNING_SESSION_SEAL_GROUP_ID,
-  WALLET_SESSION_SEAL_BASE_PATH,
-} from '@shared/utils/signingSessionSeal';
-import { base64UrlEncode } from '@shared/utils/base64';
-import {
-  joinNormalizedUrl,
   normalizeNonNegativeInteger,
   normalizeOptionalTrimmedString,
   normalizeOptionalNonEmptyString,
   normalizePositiveInteger,
 } from '@shared/utils/normalize';
-import { getShamir3PassRuntime, warmupShamir3PassRuntime } from './shamir3pass/runtime';
-
-import { ClientSealPreparations } from './shamir3pass/clientSealPreparation';
+import {
+  blindNewSigningSessionSealInput,
+  blindSealedSigningSessionSecret,
+  callSigningSessionSealEvaluateRoute,
+  discardSigningSessionSealBlind,
+  openSigningSessionSecret,
+  parseSigningSessionSealRouteResult,
+  sealSigningSessionSecret,
+  SigningSessionSealPreparations,
+  type SigningSessionSealRouteResult,
+} from './oprf/signingSessionSeal';
 import {
   WarmSessionPrfHandles,
   type ErrResult,
   type OkResult,
 } from './passkeyMpcSession/warmSessionPrfHandles';
-const clientSealPreparations = new ClientSealPreparations(getShamir3PassRuntime);
 
-type PasskeyServerSealedSecretCacheEntry = {
-  sealedSecretB64u: string;
-  expiresAtMs: number;
-};
-
-type PasskeyServerSealedSecretCacheScope = {
-  kind: 'passkey_registration';
-  walletId: string;
-  credentialIdB64u: string;
-  walletSessionId: string;
-  quotaId: string;
-};
+const sealPreparations = new SigningSessionSealPreparations();
 
 type OkSealResult = OkResult & {
   sealedSecretB64u: string;
-  keyVersion?: string;
+  keyVersion: string;
   diagnostics?: WarmSessionSealAndPersistDiagnostics;
 };
 
-const PASSKEY_SERVER_SEALED_SECRET_CACHE_MAX_ENTRIES = 32;
-
 type SigningSessionSealTransport = {
+  walletId: string;
   relayerUrl: string;
   walletSessionToken: string;
   keyVersion?: string;
-  serverSealedSecretCacheScope?: PasskeyServerSealedSecretCacheScope;
 };
 
 type WarmSessionMaterialPutPayload = {
@@ -100,53 +87,30 @@ type WarmSessionRehydratePayload = {
   transport: SigningSessionSealTransport;
 };
 
-type SigningSessionSealRouteResult =
-  | {
-      ok: true;
-      ciphertext: string;
-      keyVersion?: string;
-      expiresAtMs?: number;
-      remainingUses?: number;
-    }
-  | ErrResult;
+type SigningSessionSealEvaluationResult = Extract<SigningSessionSealRouteResult, { ok: true }>;
 
 const warmSessionPrfHandles = new WarmSessionPrfHandles();
-const passkeyServerSealedSecretCache = new Map<string, PasskeyServerSealedSecretCacheEntry>();
 const signingSessionSealApplyInFlight = new Map<string, Promise<OkSealResult | ErrResult>>();
 const signingSessionSealRemoveInFlight = new Map<string, Promise<OkResult | ErrResult>>();
-const SIGNING_SESSION_SEAL_BASE_PATH = WALLET_SESSION_SEAL_BASE_PATH;
-const SIGNING_SESSION_SEAL_ROUTE_TIMEOUT_MS = 15_000;
 
-function abortSigningSessionSealRoute(controller: AbortController): void {
-  controller.abort('timeout');
-}
+type SealPreparationRef = { preparationId: string; thresholdSessionId: string };
 
 type PasskeyMpcSessionWorkerIncomingMessage =
   | { kind: 'ping'; id?: string }
   | { kind: 'prewarm'; id?: string }
   | {
-      kind: 'prepare_client_seal';
+      kind: 'prepare_seal_blind' | 'discard_seal_blind' | 'read_seal_blind';
       id?: string;
-      payload: { preparationId: string; thresholdSessionId: string; prfFirstB64u: string } | null;
+      payload: SealPreparationRef | null;
     }
   | {
-      kind: 'discard_client_seal';
-      id?: string;
-      payload: { preparationId: string; thresholdSessionId: string } | null;
-    }
-  | {
-      kind: 'read_client_seal';
-      id?: string;
-      payload: { preparationId: string; thresholdSessionId: string } | null;
-    }
-  | {
-      kind: 'complete_client_seal';
+      kind: 'complete_seal';
       id?: string;
       payload: {
         preparationId: string;
         thresholdSessionId: string;
         transport: SigningSessionSealTransport;
-        serverSeal: Extract<SigningSessionSealRouteResult, { ok: true }>;
+        evaluation: SigningSessionSealEvaluationResult;
       } | null;
     }
   | { kind: 'material_put'; id?: string; payload: WarmSessionMaterialPutPayload | null }
@@ -186,29 +150,7 @@ function parseSessionStringArray(value: unknown): string[] | null {
   return output;
 }
 
-function parseClientSealPreparation(
-  value: unknown,
-): { preparationId: string; thresholdSessionId: string; prfFirstB64u: string } | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const fields = Object.keys(value);
-  if (
-    fields.length !== 3 ||
-    !fields.includes('preparationId') ||
-    !fields.includes('thresholdSessionId') ||
-    !fields.includes('prfFirstB64u')
-  )
-    return null;
-  const preparationId = parseSessionString(Reflect.get(value, 'preparationId'));
-  const thresholdSessionId = parseSessionString(Reflect.get(value, 'thresholdSessionId'));
-  const prfFirstB64u = parseSessionString(Reflect.get(value, 'prfFirstB64u'));
-  return preparationId && thresholdSessionId && prfFirstB64u
-    ? { preparationId, thresholdSessionId, prfFirstB64u }
-    : null;
-}
-
-function parseClientSealDiscard(
-  value: unknown,
-): { preparationId: string; thresholdSessionId: string } | null {
+function parseSealPreparationRef(value: unknown): SealPreparationRef | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const fields = Object.keys(value);
   if (
@@ -222,9 +164,9 @@ function parseClientSealDiscard(
   return preparationId && thresholdSessionId ? { preparationId, thresholdSessionId } : null;
 }
 
-function parseClientSealCompletion(
+function parseSealCompletion(
   value: unknown,
-): Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'complete_client_seal' }>['payload'] {
+): Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'complete_seal' }>['payload'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const fields = Object.keys(value);
   if (
@@ -232,16 +174,16 @@ function parseClientSealCompletion(
     !fields.includes('preparationId') ||
     !fields.includes('thresholdSessionId') ||
     !fields.includes('transport') ||
-    !fields.includes('serverSeal')
+    !fields.includes('evaluation')
   ) {
     return null;
   }
   const preparationId = parseSessionString(Reflect.get(value, 'preparationId'));
   const thresholdSessionId = parseSessionString(Reflect.get(value, 'thresholdSessionId'));
   const transport = parseSigningSessionSealTransport(Reflect.get(value, 'transport'));
-  const serverSeal = parseSigningSessionSealRouteResult(Reflect.get(value, 'serverSeal'));
-  if (!preparationId || !thresholdSessionId || !transport || !serverSeal.ok) return null;
-  return { preparationId, thresholdSessionId, transport, serverSeal };
+  const evaluation = parseSigningSessionSealRouteResult(Reflect.get(value, 'evaluation'));
+  if (!preparationId || !thresholdSessionId || !transport || !evaluation.ok) return null;
+  return { preparationId, thresholdSessionId, transport, evaluation };
 }
 
 function parseWarmSessionMaterialPutPayload(value: unknown): WarmSessionMaterialPutPayload | null {
@@ -461,7 +403,7 @@ function parsePasskeyMpcSessionWorkerMessage(
       return fields.length === (fields.includes('id') ? 2 : 1)
         ? { kind: 'ping', ...(id ? { id } : {}) }
         : { kind: 'unknown', id, type };
-    case 'PREWARM_SHAMIR3PASS':
+    case 'PREWARM_SESSION_SEAL':
       if (
         !hasPayload ||
         payload === null ||
@@ -472,14 +414,14 @@ function parsePasskeyMpcSessionWorkerMessage(
       }
       if (Object.keys(payload).length !== 0) return { kind: 'unknown', id, type };
       return { kind: 'prewarm', ...(id ? { id } : {}) };
-    case 'PREPARE_SESSION_CLIENT_SEAL':
-      return { kind: 'prepare_client_seal', id, payload: parseClientSealPreparation(payload) };
-    case 'READ_SESSION_CLIENT_SEAL':
-      return { kind: 'read_client_seal', id, payload: parseClientSealDiscard(payload) };
-    case 'COMPLETE_SESSION_CLIENT_SEAL':
-      return { kind: 'complete_client_seal', id, payload: parseClientSealCompletion(payload) };
-    case 'DISCARD_SESSION_CLIENT_SEAL':
-      return { kind: 'discard_client_seal', id, payload: parseClientSealDiscard(payload) };
+    case 'PREPARE_SESSION_SEAL_BLIND':
+      return { kind: 'prepare_seal_blind', id, payload: parseSealPreparationRef(payload) };
+    case 'READ_SESSION_SEAL_BLIND':
+      return { kind: 'read_seal_blind', id, payload: parseSealPreparationRef(payload) };
+    case 'COMPLETE_SESSION_SEAL':
+      return { kind: 'complete_seal', id, payload: parseSealCompletion(payload) };
+    case 'DISCARD_SESSION_SEAL_BLIND':
+      return { kind: 'discard_seal_blind', id, payload: parseSealPreparationRef(payload) };
     case 'WARM_SESSION_MATERIAL_PUT':
       return {
         kind: 'material_put',
@@ -545,10 +487,9 @@ function roundWorkerDurationMs(startedAt: number): number {
 
 function createWarmSessionSealAndPersistDiagnostics(): WarmSessionSealAndPersistDiagnostics {
   return {
-    runtimeSetupMs: 0,
-    clientSealMs: 0,
-    serverSealRouteMs: 0,
-    clientUnsealMs: 0,
+    blindMs: 0,
+    serverRouteMs: 0,
+    finalizeMs: 0,
     policyUpdateMs: 0,
   };
 }
@@ -561,78 +502,9 @@ function recordWarmSessionSealAndPersistDiagnosticDuration(args: {
   args.diagnostics[args.bucket] += roundWorkerDurationMs(args.startedAt);
 }
 
-async function sha256HexUtf8(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return bytesToHex(new Uint8Array(digest));
-}
-
-async function passkeyServerSealedSecretCacheKey(args: {
-  prfFirstB64u: string;
-  relayerUrl: string;
-  keyVersion: string;
-  cacheScope: PasskeyServerSealedSecretCacheScope | undefined;
-}): Promise<string | null> {
-  const prfFirstB64u = normalizeOptionalTrimmedString(args.prfFirstB64u);
-  const relayerUrl = normalizeOptionalTrimmedString(args.relayerUrl);
-  const keyVersion = normalizeOptionalNonEmptyString(args.keyVersion);
-  const cacheScope = args.cacheScope;
-  if (!prfFirstB64u || !relayerUrl || !keyVersion || !cacheScope) return null;
-  const prfDigestHex = await sha256HexUtf8(prfFirstB64u);
-  return [
-    'passkey-server-sealed-secret-v1',
-    relayerUrl,
-    keyVersion,
-    SIGNING_SESSION_SEAL_GROUP_ID,
-    cacheScope.walletId,
-    cacheScope.credentialIdB64u,
-    cacheScope.walletSessionId,
-    cacheScope.quotaId,
-    prfDigestHex,
-  ].join('|');
-}
-
-function prunePasskeyServerSealedSecretCache(): void {
-  const now = nowMs();
-  for (const [key, entry] of passkeyServerSealedSecretCache) {
-    if (entry.expiresAtMs <= now) passkeyServerSealedSecretCache.delete(key);
-  }
-  while (passkeyServerSealedSecretCache.size > PASSKEY_SERVER_SEALED_SECRET_CACHE_MAX_ENTRIES) {
-    const firstKey = passkeyServerSealedSecretCache.keys().next().value;
-    if (typeof firstKey !== 'string') return;
-    passkeyServerSealedSecretCache.delete(firstKey);
-  }
-}
-
-function readPasskeyServerSealedSecretCache(
-  cacheKey: string | null,
-): PasskeyServerSealedSecretCacheEntry | null {
-  if (!cacheKey) return null;
-  prunePasskeyServerSealedSecretCache();
-  const entry = passkeyServerSealedSecretCache.get(cacheKey);
-  if (!entry || entry.expiresAtMs <= nowMs()) {
-    if (entry) passkeyServerSealedSecretCache.delete(cacheKey);
-    return null;
-  }
-  return entry;
-}
-
-function writePasskeyServerSealedSecretCache(args: {
-  cacheKey: string | null;
-  sealedSecretB64u: string;
-  expiresAtMs: number;
-}): void {
-  if (!args.cacheKey) return;
-  const sealedSecretB64u = normalizeOptionalTrimmedString(args.sealedSecretB64u);
-  const expiresAtMs = Math.floor(Number(args.expiresAtMs) || 0);
-  if (!sealedSecretB64u || expiresAtMs <= nowMs()) return;
-  passkeyServerSealedSecretCache.set(args.cacheKey, { sealedSecretB64u, expiresAtMs });
-  prunePasskeyServerSealedSecretCache();
-}
-
 function clearWarmSessionPrfHandles(): void {
-  clientSealPreparations.clear();
+  sealPreparations.clear();
   warmSessionPrfHandles.clear();
-  passkeyServerSealedSecretCache.clear();
 }
 
 function parseSigningSessionSealTransport(value: unknown): SigningSessionSealTransport | null {
@@ -653,11 +525,7 @@ function parseSigningSessionSealTransport(value: unknown): SigningSessionSealTra
             'ecdsaRestore',
           ]
         : [];
-  const optionalFields = [
-    'signingSessionSealKeyVersion',
-    'groupId',
-    'serverSealedSecretCacheScope',
-  ];
+  const optionalFields = ['signingSessionSealKeyVersion'];
   const fields = Object.keys(value);
   if (
     (curve !== 'ed25519' && curve !== 'ecdsa') ||
@@ -677,10 +545,6 @@ function parseSigningSessionSealTransport(value: unknown): SigningSessionSealTra
   const rawKeyVersion = Reflect.get(value, 'signingSessionSealKeyVersion');
   const hasKeyVersion = fields.includes('signingSessionSealKeyVersion');
   const keyVersion = normalizeOptionalNonEmptyString(rawKeyVersion);
-  const hasCacheScope = fields.includes('serverSealedSecretCacheScope');
-  const serverSealedSecretCacheScope = parsePasskeyServerSealedSecretCacheScope(
-    Reflect.get(value, 'serverSealedSecretCacheScope'),
-  );
   if (
     !walletId ||
     !relayerUrl ||
@@ -690,180 +554,32 @@ function parseSigningSessionSealTransport(value: unknown): SigningSessionSealTra
     Array.isArray(restore) ||
     (curve === 'ecdsa' &&
       (chainTarget === null || typeof chainTarget !== 'object' || Array.isArray(chainTarget))) ||
-    (hasKeyVersion && !keyVersion) ||
-    (hasCacheScope && !serverSealedSecretCacheScope)
+    (hasKeyVersion && !keyVersion)
   ) {
     return null;
   }
   return {
+    walletId,
     relayerUrl,
     walletSessionToken,
     ...(hasKeyVersion && keyVersion ? { keyVersion } : {}),
-    ...(serverSealedSecretCacheScope ? { serverSealedSecretCacheScope } : {}),
-  };
-}
-
-function parsePasskeyServerSealedSecretCacheScope(
-  value: unknown,
-): PasskeyServerSealedSecretCacheScope | undefined {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const fields = Object.keys(value);
-  if (
-    fields.length !== 5 ||
-    !['kind', 'walletId', 'credentialIdB64u', 'walletSessionId', 'quotaId'].every((field) =>
-      fields.includes(field),
-    ) ||
-    Reflect.get(value, 'kind') !== 'passkey_registration'
-  ) {
-    return undefined;
-  }
-  const walletId = normalizeOptionalNonEmptyString(Reflect.get(value, 'walletId'));
-  const credentialIdB64u = normalizeOptionalNonEmptyString(Reflect.get(value, 'credentialIdB64u'));
-  const walletSessionId = normalizeOptionalNonEmptyString(Reflect.get(value, 'walletSessionId'));
-  const quotaId = normalizeOptionalNonEmptyString(Reflect.get(value, 'quotaId'));
-  if (!walletId || !credentialIdB64u || !walletSessionId || !quotaId) return undefined;
-  return {
-    kind: 'passkey_registration',
-    walletId,
-    credentialIdB64u,
-    walletSessionId,
-    quotaId,
-  };
-}
-
-function parseSigningSessionSealRouteResult(value: unknown): SigningSessionSealRouteResult {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: 'Invalid signing-session seal response',
-    };
-  }
-  const ok = Reflect.get(value, 'ok');
-  if (typeof ok !== 'boolean') {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: 'Invalid signing-session seal response',
-    };
-  }
-  const fields = Object.keys(value);
-  const allowedFields = ok
-    ? ['ok', 'ciphertext', 'keyVersion', 'expiresAtMs', 'remainingUses']
-    : ['ok', 'code', 'message'];
-  if (fields.some((field) => !allowedFields.includes(field))) {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: 'Invalid signing-session seal response',
-    };
-  }
-  if (!ok) {
-    const code = Reflect.get(value, 'code');
-    const message = Reflect.get(value, 'message');
-    return {
-      ok: false,
-      code: typeof code === 'string' ? code : 'request_failed',
-      message: typeof message === 'string' ? message : 'Signing-session seal request failed',
-    };
-  }
-  const ciphertext = normalizeOptionalTrimmedString(Reflect.get(value, 'ciphertext'));
-  const keyVersion = normalizeOptionalNonEmptyString(Reflect.get(value, 'keyVersion'));
-  const expiresAtMs = normalizePositiveInteger(Reflect.get(value, 'expiresAtMs'));
-  const remainingUses = normalizeNonNegativeInteger(Reflect.get(value, 'remainingUses'));
-  if (!ciphertext) {
-    return {
-      ok: false,
-      code: 'invalid_response',
-      message: 'Missing ciphertext in signing-session seal response',
-    };
-  }
-  return {
-    ok: true,
-    ciphertext,
-    ...(keyVersion ? { keyVersion } : {}),
-    ...(expiresAtMs != null ? { expiresAtMs } : {}),
-    ...(remainingUses != null ? { remainingUses } : {}),
   };
 }
 
 function makeSigningSessionSealSingleFlightKey(args: {
-  operation: 'apply-server-seal' | 'remove-server-seal';
+  operation: 'seal' | 'restore';
   thresholdSessionId: string;
   relayerUrl: string;
   keyVersion?: string;
   payloadKey?: string;
 }): string {
-  const operation =
-    args.operation === 'apply-server-seal' ? 'apply-server-seal' : 'remove-server-seal';
-  const thresholdSessionId = normalizeOptionalTrimmedString(args.thresholdSessionId) || '';
-  const relayerUrl = normalizeOptionalTrimmedString(args.relayerUrl) || '';
-  const keyVersion = normalizeOptionalNonEmptyString(args.keyVersion) || '';
-  const payloadKey = normalizeOptionalNonEmptyString(args.payloadKey) || '';
-  return `${operation}|${thresholdSessionId}|${relayerUrl}|${keyVersion}|${SIGNING_SESSION_SEAL_GROUP_ID}|${payloadKey}`;
-}
-
-async function callSigningSessionSealRoute(args: {
-  operation: 'apply-server-seal' | 'remove-server-seal';
-  transport: SigningSessionSealTransport;
-  thresholdSessionId: string;
-  ciphertext: string;
-  keyVersion?: string;
-}): Promise<SigningSessionSealRouteResult> {
-  const routePath =
-    args.operation === 'apply-server-seal' ? 'apply-server-seal' : 'remove-server-seal';
-  const url = joinNormalizedUrl(
-    args.transport.relayerUrl,
-    `${SIGNING_SESSION_SEAL_BASE_PATH}/${routePath}`,
-  );
-  const controller = new AbortController();
-  const timeoutId = setTimeout(
-    abortSigningSessionSealRoute,
-    SIGNING_SESSION_SEAL_ROUTE_TIMEOUT_MS,
-    controller,
-  );
-
-  try {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    const keyVersion = normalizeOptionalNonEmptyString(args.keyVersion);
-    headers.Authorization = `Bearer ${args.transport.walletSessionToken}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'omit',
-      headers,
-      signal: controller.signal,
-      body: JSON.stringify({
-        thresholdSessionId: args.thresholdSessionId,
-        ciphertext: args.ciphertext,
-        ...(keyVersion ? { keyVersion } : {}),
-      }),
-    });
-    const data = await response.json().catch(() => null);
-    const parsed = parseSigningSessionSealRouteResult(data);
-    if (!response.ok && parsed.ok) {
-      return {
-        ok: false,
-        code: 'http_error',
-        message: `Signing-session seal route returned HTTP ${response.status}`,
-      };
-    }
-    if (!parsed.ok) return parsed;
-    return parsed;
-  } catch (error: unknown) {
-    return {
-      ok: false,
-      code: controller.signal.aborted ? 'timeout' : 'network_error',
-      message: controller.signal.aborted
-        ? `Signing-session seal request timed out after ${SIGNING_SESSION_SEAL_ROUTE_TIMEOUT_MS}ms`
-        : error instanceof Error
-          ? error.message
-          : String(error || 'Signing-session seal request failed'),
-    };
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return [
+    args.operation,
+    normalizeOptionalTrimmedString(args.thresholdSessionId) || '',
+    normalizeOptionalTrimmedString(args.relayerUrl) || '',
+    normalizeOptionalNonEmptyString(args.keyVersion) || '',
+    normalizeOptionalNonEmptyString(args.payloadKey) || '',
+  ].join('|');
 }
 
 function resolvePolicyFromServerAndLocal(args: {
@@ -900,14 +616,19 @@ type SigningSessionSealExecution = {
   readonly thresholdSessionId: string;
   readonly transport: SigningSessionSealTransport;
 } & (
-  | { readonly kind: 'server_route'; readonly preparationId?: never; readonly serverSeal?: never }
+  | { readonly kind: 'server_route'; readonly preparationId?: never; readonly evaluation?: never }
   | {
       readonly kind: 'prepared_response';
       readonly preparationId: string;
-      readonly serverSeal: Extract<SigningSessionSealRouteResult, { readonly ok: true }>;
+      readonly evaluation: SigningSessionSealEvaluationResult;
     }
 );
 
+/**
+ * Seals the warm PRF output of a threshold session. A prepared registration seal uses the blind
+ * and the evaluation that the registration request carried; otherwise a new blind goes to the
+ * seal route.
+ */
 async function runSigningSessionSealAndPersist(
   args: SigningSessionSealExecution,
 ): Promise<OkSealResult | ErrResult> {
@@ -919,7 +640,7 @@ async function runSigningSessionSealAndPersist(
   if (!activeEntry.ok) return activeEntry;
   const entry = activeEntry.entry;
   const singleFlightKey = makeSigningSessionSealSingleFlightKey({
-    operation: 'apply-server-seal',
+    operation: 'seal',
     thresholdSessionId,
     relayerUrl: args.transport.relayerUrl,
     keyVersion: args.transport.keyVersion,
@@ -931,43 +652,43 @@ async function runSigningSessionSealAndPersist(
   const task = (async (): Promise<OkSealResult | ErrResult> => {
     const diagnostics = createWarmSessionSealAndPersistDiagnostics();
     try {
-      const prepared =
+      const blindStartedAt = performance.now();
+      const blind =
         args.kind === 'prepared_response'
-          ? await clientSealPreparations.takeExact(
-              thresholdSessionId,
-              args.preparationId,
-              activeEntry.secret.prfFirstB64u,
-            )
-          : await clientSealPreparations.take(thresholdSessionId, activeEntry.secret.prfFirstB64u);
-      const { runtime, keyHandle, ciphertext: clientEncryptedCiphertext } = prepared;
-      diagnostics.runtimeSetupMs = prepared.runtimeSetupMs;
-      diagnostics.clientSealMs = prepared.clientSealMs;
+          ? await sealPreparations.takeExact(thresholdSessionId, args.preparationId)
+          : await blindNewSigningSessionSealInput();
+      recordWarmSessionSealAndPersistDiagnosticDuration({
+        diagnostics,
+        bucket: 'blindMs',
+        startedAt: blindStartedAt,
+      });
+      let blindOwned = true;
       try {
-        const serverSealRouteStartedAt = performance.now();
-        const applied =
+        const routeStartedAt = performance.now();
+        const evaluation =
           args.kind === 'prepared_response'
-            ? args.serverSeal
-            : await callSigningSessionSealRoute({
-                operation: 'apply-server-seal',
-                transport: args.transport,
+            ? args.evaluation
+            : await callSigningSessionSealEvaluateRoute({
+                relayerUrl: args.transport.relayerUrl,
+                bearerToken: args.transport.walletSessionToken,
                 thresholdSessionId,
-                ciphertext: clientEncryptedCiphertext,
-                keyVersion: args.transport.keyVersion,
+                blindedElementB64u: blind.blindedElementB64u,
+                ...(args.transport.keyVersion ? { keyVersion: args.transport.keyVersion } : {}),
               });
         if (args.kind === 'server_route') {
           recordWarmSessionSealAndPersistDiagnosticDuration({
             diagnostics,
-            bucket: 'serverSealRouteMs',
-            startedAt: serverSealRouteStartedAt,
+            bucket: 'serverRouteMs',
+            startedAt: routeStartedAt,
           });
         }
-        if (!applied.ok) return applied;
+        if (!evaluation.ok) return evaluation;
         const policyUpdateStartedAt = performance.now();
         const policy = resolvePolicyFromServerAndLocal({
           localRemainingUses: entry.remainingUses,
           localExpiresAtMs: entry.expiresAtMs,
-          serverRemainingUses: applied.remainingUses,
-          serverExpiresAtMs: applied.expiresAtMs,
+          serverRemainingUses: evaluation.remainingUses,
+          serverExpiresAtMs: evaluation.expiresAtMs,
         });
         if (!policy.ok) {
           warmSessionPrfHandles.deleteEntry(thresholdSessionId, entry);
@@ -980,53 +701,42 @@ async function runSigningSessionSealAndPersist(
           bucket: 'policyUpdateMs',
           startedAt: policyUpdateStartedAt,
         });
-        const keyVersion =
-          normalizeOptionalNonEmptyString(applied.keyVersion) ||
-          normalizeOptionalNonEmptyString(args.transport.keyVersion);
-        const sealedSecretCacheKey = keyVersion
-          ? await passkeyServerSealedSecretCacheKey({
-              prfFirstB64u: activeEntry.secret.prfFirstB64u,
-              relayerUrl: args.transport.relayerUrl,
-              keyVersion,
-              cacheScope: args.transport.serverSealedSecretCacheScope,
-            })
-          : null;
-        const cachedSealedSecret = readPasskeyServerSealedSecretCache(sealedSecretCacheKey);
-        let sealedSecretB64u = cachedSealedSecret?.sealedSecretB64u || '';
-        if (!sealedSecretB64u) {
-          const clientUnsealStartedAt = performance.now();
-          sealedSecretB64u = await runtime.removeClientSealWithKeyHandle({
-            ciphertextB64u: applied.ciphertext,
-            keyHandle: keyHandle,
+        const finalizeStartedAt = performance.now();
+        const secret32 = base64UrlDecode(activeEntry.secret.prfFirstB64u);
+        blindOwned = false;
+        let sealedSecretB64u: string;
+        try {
+          sealedSecretB64u = await sealSigningSessionSecret({
+            blind,
+            scope: { walletId: args.transport.walletId, thresholdSessionId },
+            evaluation,
+            secret32,
           });
-          recordWarmSessionSealAndPersistDiagnosticDuration({
-            diagnostics,
-            bucket: 'clientUnsealMs',
-            startedAt: clientUnsealStartedAt,
-          });
-          writePasskeyServerSealedSecretCache({
-            cacheKey: sealedSecretCacheKey,
-            sealedSecretB64u,
-            expiresAtMs: policy.expiresAtMs,
-          });
+        } finally {
+          secret32.fill(0);
         }
+        recordWarmSessionSealAndPersistDiagnosticDuration({
+          diagnostics,
+          bucket: 'finalizeMs',
+          startedAt: finalizeStartedAt,
+        });
         return {
           ok: true,
           sealedSecretB64u,
-          ...(keyVersion ? { keyVersion } : {}),
+          keyVersion: evaluation.keyVersion,
           remainingUses: policy.remainingUses,
           expiresAtMs: policy.expiresAtMs,
           diagnostics,
         };
       } finally {
-        await runtime.destroyClientKeyHandle({ keyHandle: keyHandle }).catch(() => undefined);
+        if (blindOwned) discardSigningSessionSealBlind(blind);
       }
     } catch (error: unknown) {
       return {
         ok: false,
         code: 'internal',
         message:
-          error instanceof Error ? error.message : String(error || 'Failed to apply server seal'),
+          error instanceof Error ? error.message : String(error || 'Failed to seal warm session'),
       };
     }
   })().finally(() => {
@@ -1037,6 +747,7 @@ async function runSigningSessionSealAndPersist(
   return await task;
 }
 
+/** Restores the warm PRF output from a sealed record with one evaluation of its blinded input. */
 async function runSigningSessionRehydrate(args: {
   thresholdSessionId: string;
   sealedSecretB64u: string;
@@ -1069,11 +780,12 @@ async function runSigningSessionRehydrate(args: {
       message: 'Warm-session material expired for threshold session',
     };
   }
+  const keyVersion = normalizeOptionalNonEmptyString(args.keyVersion) || args.transport.keyVersion;
   const singleFlightKey = makeSigningSessionSealSingleFlightKey({
-    operation: 'remove-server-seal',
+    operation: 'restore',
     thresholdSessionId,
     relayerUrl: args.transport.relayerUrl,
-    keyVersion: args.keyVersion || args.transport.keyVersion,
+    keyVersion,
     payloadKey: sealedSecretB64u,
   });
   const inFlight = signingSessionSealRemoveInFlight.get(singleFlightKey);
@@ -1082,39 +794,30 @@ async function runSigningSessionRehydrate(args: {
 
   const task = (async (): Promise<OkResult | ErrResult> => {
     try {
-      const runtime = await getShamir3PassRuntime();
-      const clientKeyHandle = await runtime.createClientKeyHandle({
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-      });
+      const opening = await blindSealedSigningSessionSecret(sealedSecretB64u);
+      let blindOwned = true;
       try {
-        const clientEncryptedCiphertext = await runtime.addClientSealWithKeyHandle({
-          ciphertextB64u: sealedSecretB64u,
-          keyHandle: clientKeyHandle.keyHandle,
-        });
-
-        const removed = await callSigningSessionSealRoute({
-          operation: 'remove-server-seal',
-          transport: args.transport,
+        const evaluation = await callSigningSessionSealEvaluateRoute({
+          relayerUrl: args.transport.relayerUrl,
+          bearerToken: args.transport.walletSessionToken,
           thresholdSessionId,
-          ciphertext: clientEncryptedCiphertext,
-          keyVersion: normalizeOptionalNonEmptyString(args.keyVersion) || args.transport.keyVersion,
+          blindedElementB64u: opening.blind.blindedElementB64u,
+          ...(keyVersion ? { keyVersion } : {}),
         });
-        if (!removed.ok) return removed;
-
-        const plaintext = await runtime.removeClientSealWithKeyHandleToBytes({
-          ciphertextB64u: removed.ciphertext,
-          keyHandle: clientKeyHandle.keyHandle,
+        if (!evaluation.ok) return evaluation;
+        blindOwned = false;
+        const secret32 = await openSigningSessionSecret({
+          opening,
+          scope: { walletId: args.transport.walletId, thresholdSessionId },
+          evaluation,
         });
-        const secret32 = decodeSigningSessionSecret32(plaintext);
-        plaintext.fill(0);
-        if (!secret32) throw new Error('Restored passkey PRF has invalid length');
         const prfFirstB64u = base64UrlEncode(secret32);
         secret32.fill(0);
         const policy = resolvePolicyFromServerAndLocal({
           localRemainingUses,
           localExpiresAtMs,
-          serverRemainingUses: removed.remainingUses,
-          serverExpiresAtMs: removed.expiresAtMs,
+          serverRemainingUses: evaluation.remainingUses,
+          serverExpiresAtMs: evaluation.expiresAtMs,
         });
         if (!policy.ok) return policy;
 
@@ -1126,16 +829,16 @@ async function runSigningSessionRehydrate(args: {
           expiresAtMs: policy.expiresAtMs,
         });
       } finally {
-        await runtime
-          .destroyClientKeyHandle({ keyHandle: clientKeyHandle.keyHandle })
-          .catch(() => undefined);
+        if (blindOwned) discardSigningSessionSealBlind(opening.blind);
       }
     } catch (error: unknown) {
       return {
         ok: false,
         code: 'internal',
         message:
-          error instanceof Error ? error.message : String(error || 'Failed to remove server seal'),
+          error instanceof Error
+            ? error.message
+            : String(error || 'Failed to restore warm session'),
       };
     }
   })().finally(() => {
@@ -1166,63 +869,52 @@ function postPasskeyMpcSessionWorkerResponse(
   } catch {}
 }
 
-async function handleClientSealPreparation(
+async function handleSealPreparation(
   incoming: Extract<
     PasskeyMpcSessionWorkerIncomingMessage,
-    { kind: 'prepare_client_seal' | 'discard_client_seal' }
+    { kind: 'prepare_seal_blind' | 'discard_seal_blind' | 'read_seal_blind' }
   >,
 ): Promise<void> {
   try {
-    if (!incoming.payload) throw new Error('Invalid client seal preparation request');
-    if (incoming.kind === 'prepare_client_seal')
-      await clientSealPreparations.prepare(
-        incoming.payload.thresholdSessionId,
-        incoming.payload.preparationId,
-        incoming.payload.prfFirstB64u,
-      );
-    else
-      await clientSealPreparations.discard(
-        incoming.payload.thresholdSessionId,
-        incoming.payload.preparationId,
-      );
-    postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
+    const payload = incoming.payload;
+    if (!payload) throw new Error('Invalid signing-session seal preparation request');
+    switch (incoming.kind) {
+      case 'prepare_seal_blind':
+        await sealPreparations.prepare(payload.thresholdSessionId, payload.preparationId);
+        postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
+        return;
+      case 'read_seal_blind': {
+        const blindedElementB64u = await sealPreparations.readBlindedElement(
+          payload.thresholdSessionId,
+          payload.preparationId,
+        );
+        postPasskeyMpcSessionWorkerResponse(incoming.id, {
+          success: true,
+          data: { ok: true, blindedElementB64u },
+        });
+        return;
+      }
+      case 'discard_seal_blind':
+        sealPreparations.discard(payload.thresholdSessionId, payload.preparationId);
+        postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
+        return;
+    }
   } catch (error: unknown) {
     postPasskeyMpcSessionWorkerResponse(incoming.id, {
       success: false,
-      error: error instanceof Error ? error.message : 'Client seal preparation failed',
+      error: error instanceof Error ? error.message : 'Signing-session seal preparation failed',
     });
   }
 }
 
-async function handleClientSealRead(
-  incoming: Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'read_client_seal' }>,
-): Promise<void> {
-  try {
-    if (!incoming.payload) throw new Error('Invalid client seal read request');
-    const ciphertext = await clientSealPreparations.readCiphertext(
-      incoming.payload.thresholdSessionId,
-      incoming.payload.preparationId,
-    );
-    postPasskeyMpcSessionWorkerResponse(incoming.id, {
-      success: true,
-      data: { ok: true, ciphertext },
-    });
-  } catch (error: unknown) {
-    postPasskeyMpcSessionWorkerResponse(incoming.id, {
-      success: false,
-      error: error instanceof Error ? error.message : 'Client seal read failed',
-    });
-  }
-}
-
-async function handleClientSealCompletion(
-  incoming: Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'complete_client_seal' }>,
+async function handleSealCompletion(
+  incoming: Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'complete_seal' }>,
 ): Promise<void> {
   const payload = incoming.payload;
   if (!payload) {
     postPasskeyMpcSessionWorkerResponse(incoming.id, {
       success: false,
-      error: 'Invalid client seal completion request',
+      error: 'Invalid signing-session seal completion request',
     });
     return;
   }
@@ -1231,31 +923,41 @@ async function handleClientSealCompletion(
     thresholdSessionId: payload.thresholdSessionId,
     preparationId: payload.preparationId,
     transport: payload.transport,
-    serverSeal: payload.serverSeal,
+    evaluation: payload.evaluation,
   });
   postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: result });
+}
+
+/** Starts the OPRF runtime ahead of the first seal. It never rejects; failure is data. */
+async function prewarmSessionSeal(): Promise<
+  { kind: 'succeeded'; elapsedMs: number } | { kind: 'failed'; elapsedMs: number }
+> {
+  const startedAt = performance.now();
+  try {
+    discardSigningSessionSealBlind(await blindNewSigningSessionSealInput());
+    return { kind: 'succeeded', elapsedMs: Math.round(performance.now() - startedAt) };
+  } catch {
+    return { kind: 'failed', elapsedMs: Math.round(performance.now() - startedAt) };
+  }
 }
 
 self.onmessage = (event: MessageEvent) => {
   const incoming = parsePasskeyMpcSessionWorkerMessage(event.data);
   switch (incoming.kind) {
-    case 'prepare_client_seal':
-    case 'discard_client_seal':
-      void handleClientSealPreparation(incoming);
+    case 'prepare_seal_blind':
+    case 'discard_seal_blind':
+    case 'read_seal_blind':
+      void handleSealPreparation(incoming);
       return;
-    case 'read_client_seal':
-      void handleClientSealRead(incoming);
-      return;
-    case 'complete_client_seal':
-      void handleClientSealCompletion(incoming);
+    case 'complete_seal':
+      void handleSealCompletion(incoming);
       return;
     case 'ping':
       postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
       return;
     case 'prewarm':
       void (async () => {
-        // warmupShamir3PassRuntime never rejects; it reports failure as data.
-        const outcome = await warmupShamir3PassRuntime();
+        const outcome = await prewarmSessionSeal();
         postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: outcome });
       })();
       return;
@@ -1370,7 +1072,7 @@ self.onmessage = (event: MessageEvent) => {
     case 'volatile_clear': {
       const command = parseClearVolatileWarmMaterialCommand(incoming.payload);
       if (command?.scope.kind === 'session') {
-        clientSealPreparations.clearSession(String(command.scope.thresholdSessionId));
+        sealPreparations.clearSession(String(command.scope.thresholdSessionId));
         warmSessionPrfHandles.delete(String(command.scope.thresholdSessionId));
       }
       postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
