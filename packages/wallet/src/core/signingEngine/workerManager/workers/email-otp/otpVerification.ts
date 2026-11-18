@@ -1,8 +1,10 @@
 /** OTP challenges and the factor release that a verified OTP, grant or Wallet Session unlocks. */
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { asRecord } from '@shared/utils/validation';
 import { normalizeOptionalTrimmedString } from '@shared/utils/normalize';
-import type { WalletEmailOtpOperation } from '@shared/utils/emailOtpDomain';
+import {
+  readEmailOtpFactorEvaluation,
+  type WalletEmailOtpOperation,
+} from '@shared/utils/emailOtpDomain';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import { parseEmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/challengeDelivery';
@@ -10,7 +12,6 @@ import {
   parseEmailOtpUnlockEd25519Identity,
   parseEmailOtpUnlockEd25519Selection,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
-import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
 import type {
   EmailOtpAuthoritySelector,
   EmailOtpWorkerOperationMap,
@@ -22,9 +23,10 @@ import {
 } from '../../../stepUpConfirmation/otpPrompt/authLane';
 import { emailOtpAuthoritySelectorBody, readString } from './payloadParsing';
 import {
-  generateEmailOtpFactorReleaseKeyPair,
-  openEmailOtpFactorReleaseCiphertext,
-} from './crypto';
+  blindEmailOtpDeviceFactors,
+  discardEmailOtpDeviceFactorBlinds,
+  openEmailOtpFactorEvaluation,
+} from './deviceFactor';
 
 export function parseEmailOtpChallengeSignerSelection(
   value: unknown,
@@ -137,15 +139,7 @@ export async function releaseEmailOtpFactorSecret(
   enrollmentSealKeyVersion: string;
   factorSecret32: Uint8Array;
 }> {
-  const { subtle, privateKey, workerPublicKey } = await generateEmailOtpFactorReleaseKeyPair(
-    'Email OTP factor release',
-  );
-  if (workerPublicKey.length !== 65) {
-    throw new Error('Email OTP factor release generated an invalid public key');
-  }
-  let serverPublicKey: Uint8Array<ArrayBuffer> | null = null;
-  let nonce: Uint8Array<ArrayBuffer> | null = null;
-  let ciphertext: Uint8Array<ArrayBuffer> | null = null;
+  const blinds = await blindEmailOtpDeviceFactors(args.walletId);
   try {
     const released = await postEmailOtpJson({
       relayUrl: args.relayUrl,
@@ -164,59 +158,19 @@ export async function releaseEmailOtpFactorSecret(
                 operation: args.operation,
               }
             : { kind: 'wallet_session' }),
-        workerEphemeralPublicKey65B64u: base64UrlEncode(workerPublicKey),
+        deviceFactors: blinds.deviceFactors,
       },
     });
-    if (readString(released.kind, 'factor-release.kind') !== 'email_otp_factor_release_v1') {
-      throw new Error('Email OTP factor release returned an invalid response kind');
-    }
-    const releasedChallengeId = readString(released.challengeId, 'factor-release.challengeId');
-    if (args.kind !== 'wallet_session' && releasedChallengeId !== args.challengeId) {
+    const evaluation = readEmailOtpFactorEvaluation(released);
+    if (args.kind !== 'wallet_session' && evaluation.challengeId !== args.challengeId) {
       throw new Error('Email OTP factor release challenge binding changed');
     }
-    const enrollmentId = readString(released.enrollmentId, 'factor-release.enrollmentId');
-    const enrollmentSealKeyVersion = readString(
-      released.enrollmentSealKeyVersion,
-      'factor-release.enrollmentSealKeyVersion',
-    );
-    serverPublicKey = base64UrlDecode(
-      readString(
-        released.serverEphemeralPublicKey65B64u,
-        'factor-release.serverEphemeralPublicKey65B64u',
-      ),
-    );
-    if (serverPublicKey.length !== 65) {
-      throw new Error('Email OTP factor release returned an invalid server public key');
-    }
-    nonce = base64UrlDecode(readString(released.nonce12B64u, 'factor-release.nonce12B64u'));
-    if (nonce.length !== 12) {
-      throw new Error('Email OTP factor release returned an invalid nonce');
-    }
-    ciphertext = base64UrlDecode(
-      readString(released.ciphertextB64u, 'factor-release.ciphertextB64u'),
-    );
-    if (ciphertext.length < 16) {
-      throw new Error('Email OTP factor release returned an invalid ciphertext');
-    }
     return {
-      enrollmentId,
-      enrollmentSealKeyVersion,
-      factorSecret32: await openEmailOtpFactorReleaseCiphertext({
-        subtle,
-        workerPrivateKey: privateKey,
-        serverPublicKey,
-        nonce,
-        ciphertext,
-        walletId: args.walletId,
-        enrollmentId,
-        enrollmentSealKeyVersion,
-        challengeId: releasedChallengeId,
-      }),
+      enrollmentId: evaluation.enrollmentId,
+      enrollmentSealKeyVersion: evaluation.enrollmentSealKeyVersion,
+      factorSecret32: await openEmailOtpFactorEvaluation({ blinds, evaluation }),
     };
   } finally {
-    zeroizeBytes(workerPublicKey);
-    zeroizeBytes(serverPublicKey);
-    zeroizeBytes(nonce);
-    zeroizeBytes(ciphertext);
+    discardEmailOtpDeviceFactorBlinds(blinds);
   }
 }

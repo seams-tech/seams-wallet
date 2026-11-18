@@ -7,9 +7,9 @@ import {
   type MpcMaterialActivationRef,
   type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
-import { base64UrlEncode } from '@shared/utils/base64';
 import { base58Encode } from '@shared/utils/base58';
 import { asRecord } from '@shared/utils/validation';
+import { readEmailOtpFactorEvaluation } from '@shared/utils/emailOtpDomain';
 import { normalizePositiveInteger } from '@shared/utils/normalize';
 import { ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1 } from '@shared/utils/routerAbEd25519Yao';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
@@ -31,11 +31,12 @@ import {
 import { parseWalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-recovery/walletRecoveryRotation';
 import { postEmailOtpJson } from './fetch';
 import { readString, readThresholdEd25519SessionId } from './payloadParsing';
+import { ensureWalletCustodyCeremonyWasm } from './crypto';
 import {
-  decryptEmailOtpFactorReleaseEnvelope,
-  ensureWalletCustodyCeremonyWasm,
-  generateEmailOtpFactorReleaseKeyPair,
-} from './crypto';
+  blindEmailOtpDeviceFactors,
+  discardEmailOtpDeviceFactorBlinds,
+  openEmailOtpFactorEvaluation,
+} from './deviceFactor';
 import { releaseEmailOtpFactorSecret } from './otpVerification';
 import { removeEmailOtpEd25519YaoActiveClient } from './sessionState';
 import type {
@@ -51,12 +52,8 @@ import {
 export async function releaseWalletRecoveryEmailOtpFactor(
   args: EmailOtpWorkerOperationMap['releaseWalletRecoveryEmailOtpFactor']['payload'],
 ): Promise<EmailOtpWorkerOperationMap['releaseWalletRecoveryEmailOtpFactor']['result']> {
-  const { privateKey, workerPublicKey } = await generateEmailOtpFactorReleaseKeyPair(
-    'Email OTP recovery factor release',
-  );
-  if (workerPublicKey.length !== 65 || workerPublicKey[0] !== 4) {
-    throw new Error('Email OTP recovery factor release generated an invalid public key');
-  }
+  const walletId = readString(args.walletId, 'walletId');
+  const blinds = await blindEmailOtpDeviceFactors(walletId);
   let factorSecret32: Uint8Array | null = null;
   try {
     const released = await postEmailOtpJson({
@@ -65,7 +62,7 @@ export async function releaseWalletRecoveryEmailOtpFactor(
       body: {
         recoveryOperationId: readString(args.recoveryOperationId, 'recoveryOperationId'),
         reservationId: readString(args.reservationId, 'reservationId'),
-        workerEphemeralPublicKey65B64u: base64UrlEncode(workerPublicKey),
+        deviceFactors: blinds.deviceFactors,
       },
     });
     const responseKind = readString(released.kind, 'recovery factor release.kind');
@@ -105,11 +102,7 @@ export async function releaseWalletRecoveryEmailOtpFactor(
         ),
       };
     }
-    if (responseKind !== 'email_otp_factor_release_v1') {
-      throw new Error('Email OTP recovery factor release returned an invalid response kind');
-    }
-    const challengeId = readString(released.challengeId, 'recovery factor release.challengeId');
-    const enrollmentId = readString(released.enrollmentId, 'recovery factor release.enrollmentId');
+    const evaluation = readEmailOtpFactorEvaluation(released);
     const providerSubject = readString(
       released.providerSubject,
       'recovery factor release.providerSubject',
@@ -118,47 +111,21 @@ export async function releaseWalletRecoveryEmailOtpFactor(
       released.verifiedEmail,
       'recovery factor release.verifiedEmail',
     );
-    const enrollmentSealKeyVersion = readString(
-      released.enrollmentSealKeyVersion,
-      'recovery factor release.enrollmentSealKeyVersion',
-    );
-    const decrypted = await decryptEmailOtpFactorReleaseEnvelope({
-      walletId: String(args.walletId).trim(),
-      challengeId,
-      workerPrivateKey: privateKey,
-      materialRecovery: {
-        kind: 'email_otp_factor_release_v1',
-        challengeId,
-        enrollmentId,
-        enrollmentSealKeyVersion,
-        serverEphemeralPublicKey65B64u: readString(
-          released.serverEphemeralPublicKey65B64u,
-          'recovery factor release.serverEphemeralPublicKey65B64u',
-        ),
-        nonce12B64u: readString(released.nonce12B64u, 'recovery factor release.nonce12B64u'),
-        ciphertextB64u: readString(
-          released.ciphertextB64u,
-          'recovery factor release.ciphertextB64u',
-        ),
-      },
-    });
-    factorSecret32 = decrypted.factorSecret32;
+    factorSecret32 = await openEmailOtpFactorEvaluation({ blinds, evaluation });
     const ownedFactorSecret32 = Uint8Array.from(factorSecret32).buffer;
-    factorSecret32.fill(0);
-    factorSecret32 = null;
     return {
       kind: 'existing',
       recoveryOperationId,
       reservationId,
       providerSubject,
       verifiedEmail,
-      enrollmentId,
-      enrollmentSealKeyVersion,
+      enrollmentId: evaluation.enrollmentId,
+      enrollmentSealKeyVersion: evaluation.enrollmentSealKeyVersion,
       factorSecret32: ownedFactorSecret32,
     };
   } finally {
-    workerPublicKey.fill(0);
-    if (factorSecret32) factorSecret32.fill(0);
+    discardEmailOtpDeviceFactorBlinds(blinds);
+    factorSecret32?.fill(0);
   }
 }
 
@@ -247,15 +214,10 @@ export async function rehydrateEmailOtpEd25519YaoOperationMaterial(
     expectedThresholdSessionId: String(expectedThresholdSessionId),
     walletCustodyEd25519Material: args.walletCustodyEd25519Material,
   };
-  const { privateKey, workerPublicKey } = await generateEmailOtpFactorReleaseKeyPair(
-    'Email OTP operation material',
-  );
+  const blinds = await blindEmailOtpDeviceFactors(walletId);
   let factorSecret32: Uint8Array | null = null;
   let activeClientHandle: string | null = null;
   try {
-    if (workerPublicKey.length !== 65 || workerPublicKey[0] !== 4) {
-      throw new Error('Email OTP operation material generated an invalid public key');
-    }
     const issuedAuthorization = await issueEd25519OperationStepUpAuthorization({
       relayerUrl: relayUrl,
       normalSigningRequest: args.normalSigningRequest,
@@ -263,20 +225,18 @@ export async function rehydrateEmailOtpEd25519YaoOperationMaterial(
       proof: args.proof,
       credential,
       materialRecovery: {
-        kind: 'email_otp_factor_release_v1',
-        workerEphemeralPublicKey65B64u: base64UrlEncode(workerPublicKey),
+        kind: 'email_otp_factor_evaluation_v1',
+        deviceFactors: blinds.deviceFactors,
       },
     });
-    if (issuedAuthorization.materialRecovery.kind !== 'email_otp_factor_release_v1') {
-      throw new Error('Email OTP operation step-up did not return factor-release material');
+    const released = issuedAuthorization.materialRecovery;
+    if (released.kind !== 'email_otp_factor_evaluation_v1') {
+      throw new Error('Email OTP operation step-up did not return a factor evaluation');
     }
-    const released = await decryptEmailOtpFactorReleaseEnvelope({
-      walletId,
-      challengeId: args.proof.challengeId,
-      workerPrivateKey: privateKey,
-      materialRecovery: issuedAuthorization.materialRecovery,
-    });
-    factorSecret32 = released.factorSecret32;
+    if (released.challengeId !== args.proof.challengeId) {
+      throw new Error('Email OTP factor evaluation challenge binding changed');
+    }
+    factorSecret32 = await openEmailOtpFactorEvaluation({ blinds, evaluation: released });
     const unlocked = await completeEmailOtpUnlockFromSecret32({
       relayUrl,
       walletId,
@@ -323,7 +283,7 @@ export async function rehydrateEmailOtpEd25519YaoOperationMaterial(
     if (activeClientHandle) removeEmailOtpEd25519YaoActiveClient(activeClientHandle);
     throw error;
   } finally {
-    zeroizeBytes(workerPublicKey);
+    discardEmailOtpDeviceFactorBlinds(blinds);
     zeroizeBytes(factorSecret32);
   }
 }

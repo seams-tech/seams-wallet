@@ -155,7 +155,8 @@ export type EmailOtpEnrollmentMaterial = {
   otpChannel: WalletEmailOtpChannel;
   enrollmentId: string;
   enrollmentSealKeyVersion: string;
-  serverSealedFactorCiphertextB64u: string;
+  factorNonceB64u: string;
+  wrappedFactorB64u: string;
   clientUnlockPublicKeyB64u: string;
   unlockKeyVersion: string;
 };

@@ -1,3 +1,4 @@
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
@@ -156,7 +157,6 @@ export async function prepareEmailOtpRegistrationEnrollmentMaterial(args: {
   relayUrl: string;
   walletId: string;
   userId: string;
-  groupId: string;
   workerCtx: WorkerOperationContext;
   otpChannel?: WalletEmailOtpChannel;
   clientSecret32?: Uint8Array;
@@ -165,16 +165,12 @@ export async function prepareEmailOtpRegistrationEnrollmentMaterial(args: {
   otpChannel: WalletEmailOtpChannel;
   enrollmentId: string;
   enrollmentSealKeyVersion: string;
-  serverSealedFactorCiphertextB64u: string;
+  factorNonceB64u: string;
+  wrappedFactorB64u: string;
   clientUnlockPublicKeyB64u: string;
   unlockKeyVersion: string;
   emailOtpSessionHandle: EmailOtpWalletRegistrationEcdsaPrepareHandleResult;
-  emailOtpEnrollment: {
-    enrollmentSealKeyVersion: string;
-    serverSealedFactorCiphertextB64u: string;
-    clientUnlockPublicKeyB64u: string;
-    unlockKeyVersion: string;
-  };
+  emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1;
 }> {
   const workerCtx = requireWorkerCtx(args.workerCtx);
   let workerClientSecret32: Uint8Array | null = null;
@@ -190,7 +186,6 @@ export async function prepareEmailOtpRegistrationEnrollmentMaterial(args: {
           relayUrl: readString(args.relayUrl, 'relayUrl'),
           walletId: readString(args.walletId, 'walletId'),
           userId: readString(args.userId, 'userId'),
-          groupId: readString(args.groupId, 'groupId'),
           routePlan: buildWorkerEmailOtpRoutePlan({
             routeFamily: 'registration',
           }),

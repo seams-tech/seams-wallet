@@ -173,8 +173,8 @@ async function writeAuthRecords(database: D1DatabaseLike): Promise<void> {
       challengeB64u: base64UrlEncode(new Uint8Array(32).fill(46)),
     },
   });
-  // An enrollment row as the old code makes it. A later rotation of the Email OTP factor reads
-  // such rows; this check states no rule about which fields a new enrollment keeps.
+  // An enrollment row as the code makes it: the server keeps the factor nonce and the wrapped
+  // factor, never the factor itself.
   await enrollmentStore(database).putEnrollment({
     version: 'email_otp_wallet_enrollment_v1',
     walletId: WALLET_ID,
@@ -186,7 +186,8 @@ async function writeAuthRecords(database: D1DatabaseLike): Promise<void> {
     enrollmentSealKeyVersion: 'seal-v1',
     clientUnlockPublicKeyB64u: base64UrlEncode(new Uint8Array(65).fill(4)),
     unlockKeyVersion: 'unlock-v1',
-    serverSealedFactorCiphertextB64u: base64UrlEncode(new Uint8Array(48).fill(47)),
+    factorNonceB64u: base64UrlEncode(new Uint8Array(32).fill(46)),
+    wrappedFactorB64u: base64UrlEncode(new Uint8Array(48).fill(47)),
     createdAtMs: 100,
     updatedAtMs: 200,
   });

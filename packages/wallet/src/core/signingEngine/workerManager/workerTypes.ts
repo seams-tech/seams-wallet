@@ -1,3 +1,4 @@
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import {
   type NearWorkerProgressEvent,
   NearSignerWorkerCustomRequestType,
@@ -662,7 +663,6 @@ export interface EmailOtpWorkerOperationMap {
       relayUrl: string;
       walletId: string;
       userId: string;
-      groupId: string;
       routePlan: EmailOtpRoutePlan;
       otpChannel?: WalletEmailOtpChannel;
       clientSecret32?: ArrayBuffer;
@@ -672,16 +672,12 @@ export interface EmailOtpWorkerOperationMap {
       otpChannel: WalletEmailOtpChannel;
       enrollmentId: string;
       enrollmentSealKeyVersion: string;
-      serverSealedFactorCiphertextB64u: string;
+      factorNonceB64u: string;
+      wrappedFactorB64u: string;
       clientUnlockPublicKeyB64u: string;
       unlockKeyVersion: string;
       emailOtpSessionHandle: EmailOtpWalletRegistrationEcdsaPrepareHandleResult;
-      emailOtpEnrollment: {
-        enrollmentSealKeyVersion: string;
-        serverSealedFactorCiphertextB64u: string;
-        clientUnlockPublicKeyB64u: string;
-        unlockKeyVersion: string;
-      };
+      emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1;
     };
   };
   releaseWalletRecoveryEmailOtpFactor: {

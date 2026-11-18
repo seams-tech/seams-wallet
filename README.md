@@ -30,9 +30,11 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Next release (not released yet)
 
 - Email OTP: the server stores each code encrypted (AES-256-GCM, bound to its challenge), never in plain text. The key comes from the Email OTP seal root (`SIGNING_SESSION_SEAL_ROOT_SECRET_B64U`), so no new secret is needed. Delivery, resend and the dev outbox do not change.
-- Email OTP: the server seal of the Email OTP factor uses a key for each wallet and enrollment. Before, one key served every wallet: a reader of D1 could store another wallet's sealed factor in an Email OTP wallet of their own and unseal it with their own email code. `/wallet/email-otp/registration/seal` now requires `enrollmentId`.
-- Breaking for self-hosted servers: an Email OTP wallet that an older server made does not open after the upgrade, and its owner recovers with the recovery code. The hosted servers have no Email OTP wallets.
-- Deploy: apply D1 migration `0090_email_otp_code_seal.sql` before the server. It drops the open Email OTP challenges, so a code that is open at the deploy fails and the user asks for a new one. Ship the server and the Wallet host together: a 0.74.0 Wallet host sends no `enrollmentId`, so the new server refuses its Email OTP registration.
+- Email OTP is a device factor. The device keeps a random input, and the server keeps a factor nonce and the factor encrypted under the RFC 9497 POPRF output (ristretto255-SHA512) for that input. The server cannot compute that output without the device, so neither the server nor the device alone can open an Email OTP wallet. The POPRF `info` names the wallet, the enrollment and the server-chosen nonce. A new WASM module, `oprf_runtime`, serves the Email OTP worker and the Gateway.
+- Breaking: `/wallet/email-otp/registration/seal` is now `/wallet/email-otp/registration/factor`, which takes a blinded element. The factor release, the Ed25519 step-up material recovery and the Google recovery release take `deviceFactors` in place of a worker public key, and they return an `email_otp_factor_evaluation_v1`. The enrollment material carries `factorNonceB64u` and `wrappedFactorB64u`.
+- Email OTP on a new device: a device-link target cannot reuse the wallet's Email OTP factor, and Google recovery of an Email OTP wallet works only on a device that holds the factor. Choose a passkey or VoiceID for the new device, or use the recovery code. A later change gives each device its own factor.
+- Reset: Email OTP wallets from an earlier version do not open after the upgrade.
+- Deploy: apply D1 migration `0090_email_otp_code_seal.sql` before the server. It drops the open Email OTP challenges, so a code that is open at the deploy fails and the user asks for a new one. Ship the server and the Wallet host together, because the Email OTP wire changed.
 
 ## Release 0.74.0
 

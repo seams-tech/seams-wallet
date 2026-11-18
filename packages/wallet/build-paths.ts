@@ -23,6 +23,7 @@ export const BUILD_PATHS = {
     WASM_TEMPO_SIGNER: '../../wasm/tempo_signer',
     WASM_SHAMIR3PASS_RUNTIME: '../../wasm/shamir3pass_runtime',
     WASM_EMAIL_OTP_RUNTIME: '../../wasm/email_otp_runtime',
+    WASM_OPRF_RUNTIME: '../../wasm/oprf_runtime',
     WASM_WALLET_CUSTODY_CEREMONY: '../../wasm/wallet_custody_ceremony',
     CRITICAL_DIRS: [
       'src/core',
@@ -38,6 +39,7 @@ export const BUILD_PATHS = {
       '../../wasm/tempo_signer',
       '../../wasm/shamir3pass_runtime',
       '../../wasm/email_otp_runtime',
+      '../../wasm/oprf_runtime',
       '../../wasm/wallet_custody_ceremony',
     ],
   },
@@ -80,7 +82,9 @@ export const BUILD_PATHS = {
     WASM_EVM_CRYPTO_BG_WASM: 'evm_crypto_bg.wasm',
     WASM_TEMPO_SIGNER_BG_WASM: 'tempo_signer_bg.wasm',
     EMAIL_OTP_RUNTIME_JS: 'email_otp_runtime.js',
+    OPRF_RUNTIME_JS: 'oprf_runtime.js',
     EMAIL_OTP_RUNTIME_WASM: 'email_otp_runtime_bg.wasm',
+    OPRF_RUNTIME_WASM: 'oprf_runtime_bg.wasm',
     WALLET_CUSTODY_CEREMONY_WASM: 'wallet_custody_ceremony_bg.wasm',
   },
 
@@ -106,7 +110,9 @@ export const BUILD_PATHS = {
     WASM_EVM_CRYPTO_BG_WASM: '/sdk/workers/evm_crypto_bg.wasm',
     WASM_TEMPO_SIGNER_BG_WASM: '/sdk/workers/tempo_signer_bg.wasm',
     EMAIL_OTP_RUNTIME_JS: '/sdk/workers/email_otp_runtime.js',
+    OPRF_RUNTIME_JS: '/sdk/workers/oprf_runtime.js',
     EMAIL_OTP_RUNTIME_WASM: '/sdk/workers/email_otp_runtime_bg.wasm',
+    OPRF_RUNTIME_WASM: '/sdk/workers/oprf_runtime_bg.wasm',
     WALLET_CUSTODY_CEREMONY_WASM: '/sdk/workers/wallet_custody_ceremony_bg.wasm',
   },
 } as const;

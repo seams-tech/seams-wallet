@@ -864,7 +864,8 @@ function emailOtpEnrollmentMaterialV1() {
   const text = journalField(parseCanonicalString);
   return wireObject({
     enrollmentSealKeyVersion: text,
-    serverSealedFactorCiphertextB64u: text,
+    factorNonceB64u: text,
+    wrappedFactorB64u: text,
     clientUnlockPublicKeyB64u: text,
     unlockKeyVersion: text,
   });

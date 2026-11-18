@@ -1,3 +1,4 @@
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { openPasskeyRegistrationEd25519Material, passkeyRegistrationLocalMaterialIdentity, prepareOwnerRegistrationPublication } from './registrationPasskeyMaterial';
 import { publicationInputFromPending } from './pendingRegistrationRecovery';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
@@ -173,7 +174,6 @@ import {
   type WalletRegistrationActivateResponseV2,
   type WalletRegistrationSetupEcdsaPreparePayload,
   type WalletRegistrationRespondEd25519DeferredWork,
-  type WalletRegistrationEmailOtpEnrollmentMaterial,
   type WalletRegistrationEcdsaPreparePayload,
   type WalletRegistrationSetupSuccessV2,
   type WalletAddSignerFinalizeResponse,
@@ -1917,7 +1917,7 @@ async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
    * of the Router legs it can overlap.
    */
   resolveActivateEmailOtp: () => Promise<{
-    enrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null;
+    enrollment: WalletEmailOtpEnrollmentMaterialV1 | null;
     walletCustodyFactorJson: string | null;
   }>;
   traceContext?: RouterAbTraceContextV1;
@@ -1937,7 +1937,7 @@ async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
   deferredNear: WalletRegistrationRespondEd25519DeferredWork | null;
   /** Returned so the deferred NEAR commit reuses it instead of resolving twice. */
   activateEmailOtp: {
-    enrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null;
+    enrollment: WalletEmailOtpEnrollmentMaterialV1 | null;
   };
   walletCustody: Awaited<
     ReturnType<RegistrationWebContext['signingEngine']['establishWalletCustodyEvmFamilyKeySet']>
@@ -2309,7 +2309,7 @@ type DeferredRegistrationFinalizeAuthMaterial =
     }
   | {
       kind: 'email_otp';
-      enrollment: WalletRegistrationEmailOtpEnrollmentMaterial;
+      enrollment: WalletEmailOtpEnrollmentMaterialV1;
       emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
     };
 
@@ -2327,7 +2327,7 @@ function pendingRegistrationAuthFromRegistrationInputs(args: {
   email: string;
   registrationAuthorityId: string;
   providerSubject: string;
-  emailOtpEnrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null;
+  emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1 | null;
 }): Parameters<typeof buildPendingRegistrationCommit>[0]['auth'] {
   if (args.authMethod.kind === 'passkey') {
     if (!args.passkeyAuthority) {
@@ -2352,8 +2352,8 @@ function pendingRegistrationAuthFromRegistrationInputs(args: {
 }
 
 function requirePendingEmailOtpEnrollment(
-  enrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null,
-): WalletRegistrationEmailOtpEnrollmentMaterial {
+  enrollment: WalletEmailOtpEnrollmentMaterialV1 | null,
+): WalletEmailOtpEnrollmentMaterialV1 {
   if (!enrollment) {
     throw new Error('Email OTP registration has no enrollment material for pending recovery');
   }
@@ -2378,7 +2378,7 @@ type PendingRegistrationActivationPersistenceInput =
       Extract<PendingRegistrationActivationInput, { readonly signerPlanKind: 'evm_family_ecdsa' }>,
       'signerPlanKind' | 'localMaterial'
     > & {
-      readonly emailOtpEnrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null;
+      readonly emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1 | null;
     })
   | (Pick<
       Extract<
@@ -2388,7 +2388,7 @@ type PendingRegistrationActivationPersistenceInput =
       'signerPlanKind' | 'localMaterial'
     > & {
       readonly deferredNear: WalletRegistrationRespondEd25519DeferredWork;
-      readonly emailOtpEnrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null;
+      readonly emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1 | null;
     });
 
 async function persistPendingRegistrationCommit(
@@ -2518,7 +2518,7 @@ async function discardDeferredNearCustodyWork(
 
 function buildDeferredRegistrationFinalizeAuthMaterial(args: {
   auth: RegistrationPersistenceAuth;
-  emailOtpEnrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null;
+  emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1 | null;
   passkeyAuthority: RegistrationPasskeyAuthority | null;
 }): DeferredRegistrationFinalizeAuthMaterial {
   switch (args.auth.kind) {
@@ -4027,7 +4027,7 @@ async function registerEcdsaOrMixedWallet(
           materialAuthority,
           idempotencyKey: finalizeIdempotencyKey,
           resolveActivateEmailOtp: async () => {
-            let enrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null = null;
+            let enrollment: WalletEmailOtpEnrollmentMaterialV1 | null = null;
             let walletCustodyFactorJson: string | null = null;
             if (args.authMethod.kind === 'email_otp') {
               const material = await requireEmailOtpRegistrationEnrollmentMaterial({

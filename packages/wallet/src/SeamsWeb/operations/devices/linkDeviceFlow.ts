@@ -828,35 +828,11 @@ export class LinkDeviceFlow {
         throw new Error('linked-device Email OTP verification target email changed');
       }
       if (existingEnrollment) {
-        const existingVerificationGrant = verification.verificationGrant;
-        if (existingVerificationGrant.enrollment.kind !== 'existing_enrollment') {
-          throw new Error('linked-device Email OTP verification enrollment changed');
-        }
-        const baseWalletAuthMethodId = existingVerificationGrant.baseWalletAuthMethodId;
-        if (!baseWalletAuthMethodId) {
-          throw new Error('linked-device Email OTP base auth method is unavailable');
-        }
-        const factorRelease = verification.factorRelease;
-        if (!factorRelease) {
-          throw new Error('linked-device Email OTP factor release is unavailable');
-        }
-        const opened = await this.ports.keyMaterial.openEmailOtpFactorReleaseV1({
-          keyMaterial: this.requireKeyMaterialHandleV1(),
-          walletId: preparation.walletId,
-          linkSessionId: preparation.linkSessionId,
-          enrollmentId: preparation.enrollmentId,
-          deviceId: preparation.deviceId,
-          walletAuthMethodId: preparation.walletAuthMethodId,
-          baseWalletAuthMethodId,
-          targetPreparationDigestB64u,
-          expectedChallengeId: context.challenge.challengeId,
-          verificationGrant: existingVerificationGrant,
-          factorRelease,
-        });
-        factorSecret = opened.factorSecret;
-        verificationGrant = opened.verificationGrant;
-        emailOtpEnrollmentId = factorRelease.enrollmentId;
-        emailOtpEnrollmentSealKeyVersion = factorRelease.enrollmentSealKeyVersion;
+        // The wallet's Email OTP factor lives on the device that enrolled it, and
+        // the server holds no copy, so a linked device cannot reuse it.
+        throw new Error(
+          'A linked device cannot reuse the wallet Email OTP factor. Choose a passkey or VoiceID for this device, or use the recovery code.',
+        );
       } else {
         const newVerificationGrant = verification.verificationGrant;
         if (newVerificationGrant.enrollment.kind !== 'new_enrollment') {

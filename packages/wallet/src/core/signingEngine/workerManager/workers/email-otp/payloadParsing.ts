@@ -16,7 +16,6 @@ import {
   toOptionalTrimmedNonEmptyString,
 } from '@shared/utils/validation';
 import { EMAIL_OTP_CHANNEL, type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import {
   parseWalletSessionOperationCredentialV1,
   type WalletSessionOperationCredentialV1,
@@ -57,15 +56,6 @@ export function resolveEmailOtpAuthSubjectId(args: { userId?: unknown }): string
 
 export function readString(value: unknown, label: string): string {
   return requireTrimmedString(value, label);
-}
-
-export function readSigningSessionSealGroupId(
-  value: unknown,
-): typeof SIGNING_SESSION_SEAL_GROUP_ID {
-  if (readString(value, 'groupId') !== SIGNING_SESSION_SEAL_GROUP_ID) {
-    throw new Error('Unsupported signing-session seal groupId');
-  }
-  return SIGNING_SESSION_SEAL_GROUP_ID;
 }
 
 export function readThresholdEd25519SessionId(

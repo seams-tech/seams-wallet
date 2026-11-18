@@ -52,7 +52,8 @@ export type EmailOtpEnrollmentMaterialBoundaryInput = {
   readonly enrollmentSealKeyVersion?: unknown;
   readonly clientUnlockPublicKeyB64u?: unknown;
   readonly unlockKeyVersion?: unknown;
-  readonly serverSealedFactorCiphertextB64u?: unknown;
+  readonly factorNonceB64u?: unknown;
+  readonly wrappedFactorB64u?: unknown;
 };
 
 type EmailOtpEnrollmentMaterialValidationResult =
@@ -61,7 +62,8 @@ type EmailOtpEnrollmentMaterialValidationResult =
       readonly enrollmentSealKeyVersion: string;
       readonly clientUnlockPublicKeyB64u: string;
       readonly unlockKeyVersion: string;
-      readonly serverSealedFactorCiphertextB64u: string;
+      readonly factorNonceB64u: string;
+      readonly wrappedFactorB64u: string;
     }
   | {
       readonly ok: false;
@@ -240,9 +242,8 @@ function parseEmailOtpWalletEnrollmentRecord(
   const enrollmentSealKeyVersion = toOptionalTrimmedString(record.enrollmentSealKeyVersion);
   const clientUnlockPublicKeyB64u = toOptionalTrimmedString(record.clientUnlockPublicKeyB64u);
   const unlockKeyVersion = toOptionalTrimmedString(record.unlockKeyVersion);
-  const serverSealedFactorCiphertextB64u = toOptionalTrimmedString(
-    record.serverSealedFactorCiphertextB64u,
-  );
+  const factorNonceB64u = toOptionalTrimmedString(record.factorNonceB64u);
+  const wrappedFactorB64u = toOptionalTrimmedString(record.wrappedFactorB64u);
   const createdAtMs = positiveSafeInteger(record.createdAtMs);
   const updatedAtMs = positiveSafeInteger(record.updatedAtMs);
   if (
@@ -256,7 +257,8 @@ function parseEmailOtpWalletEnrollmentRecord(
     !enrollmentSealKeyVersion ||
     !clientUnlockPublicKeyB64u ||
     !unlockKeyVersion ||
-    !serverSealedFactorCiphertextB64u ||
+    !factorNonceB64u ||
+    !wrappedFactorB64u ||
     !createdAtMs ||
     !updatedAtMs ||
     updatedAtMs < createdAtMs
@@ -274,7 +276,8 @@ function parseEmailOtpWalletEnrollmentRecord(
     enrollmentSealKeyVersion,
     clientUnlockPublicKeyB64u,
     unlockKeyVersion,
-    serverSealedFactorCiphertextB64u,
+    factorNonceB64u,
+    wrappedFactorB64u,
     createdAtMs,
     updatedAtMs,
   };
@@ -638,6 +641,19 @@ export function parseEmailOtpGrantRow(row: D1EmailOtpGrantRow | null): EmailOtpG
   return record && record.expiresAtMs > record.issuedAtMs ? record : null;
 }
 
+/** The server-chosen nonce of a device factor. */
+const EMAIL_OTP_FACTOR_NONCE_BYTES = 32;
+/** S under the device's OPRF output: a 12-byte nonce, 32 bytes of S and a 16-byte tag. */
+const EMAIL_OTP_WRAPPED_FACTOR_BYTES = 60;
+
+function decodedLength(value: string): number {
+  try {
+    return base64UrlDecode(value).length;
+  } catch {
+    return -1;
+  }
+}
+
 export async function validateEmailOtpEnrollmentMaterial(input: {
   readonly material: EmailOtpEnrollmentMaterialBoundaryInput;
   readonly validateSecp256k1PublicKey33: EmailOtpPublicKey33Validator;
@@ -647,9 +663,8 @@ export async function validateEmailOtpEnrollmentMaterial(input: {
     input.material.clientUnlockPublicKeyB64u,
   );
   const unlockKeyVersion = toOptionalTrimmedString(input.material.unlockKeyVersion);
-  const serverSealedFactorCiphertextB64u = toOptionalTrimmedString(
-    input.material.serverSealedFactorCiphertextB64u,
-  );
+  const factorNonceB64u = toOptionalTrimmedString(input.material.factorNonceB64u);
+  const wrappedFactorB64u = toOptionalTrimmedString(input.material.wrappedFactorB64u);
   if (!enrollmentSealKeyVersion) {
     return failure('invalid_body', 'enrollmentSealKeyVersion is required');
   }
@@ -659,8 +674,11 @@ export async function validateEmailOtpEnrollmentMaterial(input: {
   if (!unlockKeyVersion) {
     return failure('invalid_body', 'unlockKeyVersion is required');
   }
-  if (!serverSealedFactorCiphertextB64u) {
-    return failure('invalid_body', 'serverSealedFactorCiphertextB64u is required');
+  if (!factorNonceB64u || decodedLength(factorNonceB64u) !== EMAIL_OTP_FACTOR_NONCE_BYTES) {
+    return failure('invalid_body', 'factorNonceB64u must decode to 32 bytes');
+  }
+  if (!wrappedFactorB64u || decodedLength(wrappedFactorB64u) !== EMAIL_OTP_WRAPPED_FACTOR_BYTES) {
+    return failure('invalid_body', 'wrappedFactorB64u must decode to 60 bytes');
   }
   let unlockPublicKeyBytes: Uint8Array;
   try {
@@ -685,7 +703,8 @@ export async function validateEmailOtpEnrollmentMaterial(input: {
     enrollmentSealKeyVersion,
     clientUnlockPublicKeyB64u,
     unlockKeyVersion,
-    serverSealedFactorCiphertextB64u,
+    factorNonceB64u,
+    wrappedFactorB64u,
   };
 }
 

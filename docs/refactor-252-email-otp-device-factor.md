@@ -1,6 +1,6 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-18. Slices 0 and 1 and D8 are done. D10 is decided. D9 is open.
+Status: 2026-11-18. Slices 0, 1 and 2 are done, with the POPRF of D9. Slice 3 (new devices) is next.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -99,9 +99,10 @@ Added by Slice 0 on 2026-11-18:
   seals now derive their key through one path in `signingSessionSeal/crypto/cipher.ts`, and the
   four releases share `releaseEmailOtpFactorToWorker`. The registration seal request carries
   the enrollment ID. With an OPRF (D9), the same wallet and enrollment become the POPRF `info`.
-- **D9. The primitive of the blinded release (open).** Recommended: an OPRF (RFC 9497,
-  ristretto255) in place of Shamir three-pass for the Email OTP factor. The device keeps a
-  random input, and S is the OPRF output under the server's key for that wallet. The server
+- **D9. The primitive of the blinded release.** The owner chose the POPRF on 2026-11-18 and
+  asked for a full switch with no migration, because the wallets will be reset. An OPRF (RFC
+  9497, ristretto255) replaces Shamir three-pass for the Email OTP factor. The device keeps a
+  random input, and S is encrypted under the POPRF output for that input (Section 1). The server
   learns neither the input nor S. It is a standard primitive at the 128-bit level, and no
   existing wallet needs the old scheme (U1). The other choice keeps Shamir three-pass with a
   group of at least 2048 bits. The signing-session seal uses the same 1024-bit group for every
@@ -172,28 +173,51 @@ Two facts from the same reading change the design:
 
 ## 1. The design
 
+### The device factor
+
+RFC 9497, ristretto255-SHA512, POPRF mode, from `wasm/oprf_runtime` (the `voprf` crate 0.5.0).
+The worker and the Gateway load the same module.
+
+- **Server key.** For each key version: a 32-byte seed from the seal root (HMAC over a labelled
+  tuple, `core/authService/emailOtpRootKey.ts`), then `DeriveKeyPair(seed, keyInfo)`
+  (`core/authService/emailOtpFactorOprf.ts`).
+- **`info`.** The tuple of the wallet, the enrollment and the factor nonce
+  (`emailOtpFactorOprfInfo`, shared). The server takes all three from its own enrollment record.
+- **Device.** The Email OTP worker keeps x (32 random bytes) for each wallet and nonce in its own
+  IndexedDB database `seams_email_otp_device_factors` (`wk/email-otp/deviceFactor.ts`).
+- **Server record.** The enrollment keeps `factorNonceB64u` and `wrappedFactorB64u`: S under
+  AES-256-GCM with a key from HKDF of the POPRF output, bound to the wallet, the enrollment and the
+  nonce. The server cannot compute the output without x, so it cannot open S.
+
 ### Enrollment
 
-1. The Email OTP worker makes S, as today.
-2. Shamir three-pass runs as today and ends with enc_s(S) in the worker.
-3. The worker stores enc_s(S) in a new IndexedDB store `email_otp_device_factors`, keyed by the
-   wallet and the method, with the enrollment ID and the seal key version.
-4. The server stores the pinned unlock public key and the seal key version. It refuses a request
-   that carries enc_s(S).
+1. The worker makes S, as today, and a random x. It blinds x.
+2. `/wallet/email-otp/registration/factor` picks a fresh factor nonce and evaluates the blinded
+   element under the current key. Because the nonce is new on each call, this route, which needs
+   no proof, never evaluates the function of an existing enrollment.
+3. The worker checks the proof, removes the blind, wraps S under the output and stores x.
+4. The finalize step stores the nonce, the wrapped factor and the pinned unlock key.
 
-### Release (unlock, step-up, export)
+### Release (unlock, step-up, export, Google recovery on the same device)
 
-1. The worker reads enc_s(S) and adds a temporary client seal: enc_c(enc_s(S)).
-2. It sends this value with the code proof to `factor-release`.
-3. The server checks the code for its operation, removes its own seal and returns enc_c(S).
-4. The worker removes its client seal. S stays in the worker.
-5. The worker proves the pinned unlock key, as today.
+1. The worker blinds x of each of its factors for the wallet (at most 4) and sends them as
+   `deviceFactors` with the code proof.
+2. The server picks the factor whose nonce matches its enrollment, before it uses the code. A
+   device with no matching factor gets `email_otp_device_factor_missing` (409).
+3. The server checks the code for its operation and returns an `email_otp_factor_evaluation_v1`:
+   the evaluated element, the proof, the public key and the wrapped factor.
+4. The worker checks the proof, removes the blind, opens S and deletes its other factors for
+   the wallet. It proves the pinned unlock key, as today.
 
-The response carries no ECDH-sealed S, and the route takes no worker public key. One blinded
-helper serves this release, the warm-session restore (F6) and, if U5 says so, the linked-device
-material.
+The Wallet Session release (`wallet_session`) uses the same evaluation, so it now needs the
+device input too. Its operation check and the Ed25519 warm seal of D5 remain open.
 
 ### A new device
+
+Until Slice 3, the new-device paths refuse early: the device-link base factor is unavailable and
+an existing-enrollment link challenge is refused (`email_otp_device_factor_missing`), and Google
+recovery of an existing Email OTP wallet on a fresh browser fails with the same code. Slice 3 is
+the design below.
 
 - A device with no sealed factor does not offer the Email OTP unlock. Google and an email code
   give a sign-in only. The menu then offers two choices: link from a device that has the wallet,
@@ -244,12 +268,14 @@ the user asks for a new code.
   registration, adding Email OTP, unlock, step-up and export. In the same change, delete the
   server-held path, the ECDH release code and the column (D10). The operator test. Update
   [Browser workers](browser-workers.md), because the Email OTP worker then stores the sealed
-  factor.
+  factor. Done on 2026-11-18 with the POPRF. The new-device paths refuse until Slice 3.
 - **Slice 3: new devices.** The sign-in-only state with its two choices in the menu (English and
   Japanese text), device linking with the target's own factor, and recovery with no release.
 - **Slice 4: the release.** seams-monorepo in one coordinated commit if U4 needs it. The wallet,
   `wallet-server` and the seams-monorepo site ship together. Staging first, then production.
-  The release notes carry the self-hosted note of D10.
+  The release notes carry the self-hosted note of D10. When seams-monorepo installs the new
+  `wallet-server`, add the two `oprf_runtime` files to
+  `packages/wallet-console-server-ts/scripts/ensure-d1-local-wasm.mjs`.
 - **Slice 5: the docs.** When production has Slice 4, replace the D7 note and update the
   documents of the last section.
 

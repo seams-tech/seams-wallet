@@ -219,6 +219,7 @@ const workerTargets = [
   ['shamir3PassWorker', 'Shamir3Pass worker', 'dist/workers/shamir3pass.worker.js'],
   ['shamir3PassWasm', 'Shamir3Pass WASM', 'dist/workers/shamir3pass_runtime_bg.wasm'],
   ['emailOtpRuntimeWasm', 'Email OTP runtime WASM', 'dist/workers/email_otp_runtime_bg.wasm'],
+  ['oprfRuntimeWasm', 'OPRF runtime WASM', 'dist/workers/oprf_runtime_bg.wasm'],
   [
     'walletCustodyCeremonyWorker',
     'Wallet custody ceremony worker',

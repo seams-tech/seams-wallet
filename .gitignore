@@ -50,7 +50,9 @@ wasm/tempo_signer/target
 wasm/shamir3pass_runtime/pkg
 wasm/shamir3pass_runtime/target
 wasm/email_otp_runtime/pkg
+wasm/oprf_runtime/pkg
 wasm/email_otp_runtime/target
+wasm/oprf_runtime/target
 crates/*/target
 tools/*/target
 tools/ed25519-yao-generator/artifact-fs-policy/target/

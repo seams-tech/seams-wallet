@@ -3,6 +3,7 @@ import {
   type MpcMaterialActivationRef,
 } from './domainIds';
 import { requireRecord } from './validation';
+import type { EmailOtpDeviceFactorBlindV1, EmailOtpFactorEvaluationV1 } from './emailOtpDomain';
 import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from './routerAbEcdsaDerivation';
 import type { RouterAbMpcMaterialActivationRefV1 } from './generated/routerAbEd25519YaoCore';
 
@@ -55,21 +56,13 @@ export type RouterAbEd25519OperationStepUpPreparationV1Wire = {
 export type RouterAbEd25519OperationStepUpMaterialRecoveryRequest =
   | { kind: 'not_requested' }
   | {
-      kind: 'email_otp_factor_release_v1';
-      workerEphemeralPublicKey65B64u: string;
+      kind: 'email_otp_factor_evaluation_v1';
+      deviceFactors: readonly EmailOtpDeviceFactorBlindV1[];
     };
 
 export type RouterAbEd25519OperationStepUpMaterialRecoveryResponse =
   | { kind: 'not_requested' }
-  | {
-      kind: 'email_otp_factor_release_v1';
-      challengeId: string;
-      enrollmentId: string;
-      enrollmentSealKeyVersion: string;
-      serverEphemeralPublicKey65B64u: string;
-      nonce12B64u: string;
-      ciphertextB64u: string;
-    };
+  | EmailOtpFactorEvaluationV1;
 
 export type RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire =
   | {

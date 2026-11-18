@@ -1,36 +1,90 @@
+import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
-import { createEmailOtpEnrollmentShamir3PassCipher } from '../../../../threshold/session/signingSessionSeal/crypto/cipher';
 import type { EmailOtpServerSealRuntimeConfig } from '../auth/d1RouterApiAuthConfig';
 import type {
-  EmailOtpServerSealApplyRequest,
-  EmailOtpServerSealRemoveRequest,
-  EmailOtpServerSealResult as CoreEmailOtpServerSealResult,
-  EmailOtpShamirCipherResult,
+  EmailOtpFactorEnrollRequest,
+  EmailOtpFactorEnrollResult,
+  EmailOtpFactorEvaluateRequest,
+  EmailOtpFactorEvaluateResult,
 } from '../../../../core/authService/emailOtpSeal';
 
-type EmailOtpServerSealResult = Readonly<CoreEmailOtpServerSealResult>;
+const FACTOR_NONCE_BYTES = 32;
 
-const SEAL_OPERATION_FAILURES = {
-  'apply-server-seal': 'Failed to apply Email OTP server seal',
-  'remove-server-seal': 'Failed to remove Email OTP server seal',
-} as const;
-
+/**
+ * The server keys of Email OTP: the factor key of the device-held factor
+ * (an RFC 9497 POPRF) and the key that encrypts stored email codes.
+ */
 export class CloudflareD1EmailOtpServerSealRuntime {
-  private readonly cipherResult: EmailOtpShamirCipherResult;
+  constructor(private readonly config: EmailOtpServerSealRuntimeConfig) {}
 
-  constructor(private readonly config: EmailOtpServerSealRuntimeConfig) {
-    this.cipherResult = this.createCipher();
+  /**
+   * Starts a new factor. The server picks the factor nonce, so this route can
+   * never evaluate the function of an enrollment that exists.
+   */
+  async enrollEmailOtpFactor(
+    input: EmailOtpFactorEnrollRequest,
+  ): Promise<EmailOtpFactorEnrollResult> {
+    if (!this.config.configured) return failure('not_configured', this.config.message);
+    const blindedElement = readBlindedElement(input.blindedElementB64u);
+    if (!blindedElement) return failure('invalid_body', 'Missing or invalid blindedElementB64u');
+    const factorOprf = this.config.factorOprf;
+    const keyVersion = factorOprf.currentKeyVersion;
+    const factorNonceB64u = base64UrlEncode(
+      crypto.getRandomValues(new Uint8Array(FACTOR_NONCE_BYTES)),
+    );
+    try {
+      const [publicKey, evaluation] = await Promise.all([
+        factorOprf.publicKey(keyVersion),
+        factorOprf.evaluate({
+          keyVersion,
+          walletId: input.walletId,
+          enrollmentId: input.enrollmentId,
+          factorNonceB64u,
+          blindedElement,
+        }),
+      ]);
+      return {
+        ok: true,
+        enrollmentSealKeyVersion: keyVersion,
+        factorNonceB64u,
+        publicKeyB64u: base64UrlEncode(publicKey),
+        evaluatedElementB64u: base64UrlEncode(evaluation.evaluatedElement),
+        proofB64u: base64UrlEncode(evaluation.proof),
+      };
+    } catch (error: unknown) {
+      return evaluationFailure(error);
+    }
   }
 
-  async removeEmailOtpServerSeal(
-    input: EmailOtpServerSealRemoveRequest,
-  ): Promise<EmailOtpServerSealResult> {
-    const keyVersion = toOptionalTrimmedString(input.enrollmentSealKeyVersion);
-    if (!keyVersion) {
-      return failure('invalid_body', 'Missing enrollmentSealKeyVersion');
+  /** Evaluates the factor of a stored enrollment for a blinded element from its device. */
+  async evaluateEmailOtpFactor(
+    input: EmailOtpFactorEvaluateRequest,
+  ): Promise<EmailOtpFactorEvaluateResult> {
+    if (!this.config.configured) return failure('not_configured', this.config.message);
+    const blindedElement = readBlindedElement(input.blindedElementB64u);
+    if (!blindedElement) return failure('invalid_body', 'Missing or invalid blindedElementB64u');
+    const factorOprf = this.config.factorOprf;
+    try {
+      const [publicKey, evaluation] = await Promise.all([
+        factorOprf.publicKey(input.enrollmentSealKeyVersion),
+        factorOprf.evaluate({
+          keyVersion: input.enrollmentSealKeyVersion,
+          walletId: input.walletId,
+          enrollmentId: input.enrollmentId,
+          factorNonceB64u: input.factorNonceB64u,
+          blindedElement,
+        }),
+      ]);
+      return {
+        ok: true,
+        publicKeyB64u: base64UrlEncode(publicKey),
+        evaluatedElementB64u: base64UrlEncode(evaluation.evaluatedElement),
+        proofB64u: base64UrlEncode(evaluation.proof),
+      };
+    } catch (error: unknown) {
+      return evaluationFailure(error);
     }
-    return await this.runServerSealOperation(input, 'remove-server-seal', keyVersion);
   }
 
   /** The stored form of an Email OTP code: encrypted under a key from the seal root. */
@@ -67,68 +121,25 @@ export class CloudflareD1EmailOtpServerSealRuntime {
       return failure('internal', 'Email OTP challenge code could not be opened');
     }
   }
+}
 
-  async applyEmailOtpServerSeal(
-    input: EmailOtpServerSealApplyRequest,
-  ): Promise<EmailOtpServerSealResult> {
-    const shamir = this.cipherResult;
-    if (!shamir.ok) return shamir;
-    return await this.runServerSealOperation(input, 'apply-server-seal', shamir.keyVersion);
+function readBlindedElement(value: unknown): Uint8Array | null {
+  const encoded = toOptionalTrimmedString(value);
+  if (!encoded) return null;
+  try {
+    const bytes = base64UrlDecode(encoded);
+    return bytes.length === 32 ? bytes : null;
+  } catch {
+    return null;
   }
+}
 
-  private async runServerSealOperation(
-    input: EmailOtpServerSealApplyRequest,
-    operation: keyof typeof SEAL_OPERATION_FAILURES,
-    keyVersion: string,
-  ): Promise<EmailOtpServerSealResult> {
-    try {
-      const wrappedCiphertext = toOptionalTrimmedString(input.wrappedCiphertext);
-      if (!wrappedCiphertext) {
-        return failure('invalid_body', 'Missing wrappedCiphertext');
-      }
-      const shamir = this.cipherResult;
-      if (!shamir.ok) return shamir;
-      const result = await shamir.cipher.run({
-        operation,
-        walletId: input.walletId,
-        enrollmentId: input.enrollmentId,
-        ciphertext: wrappedCiphertext,
-        keyVersion,
-      });
-      if (!result.ok) return result;
-      return {
-        ok: true,
-        ciphertext: result.ciphertext,
-        enrollmentSealKeyVersion: result.keyVersion || keyVersion,
-      };
-    } catch (error: unknown) {
-      return failure(
-        'internal',
-        serverSealErrorMessage(error) || SEAL_OPERATION_FAILURES[operation],
-      );
-    }
+function evaluationFailure(error: unknown) {
+  const message = serverSealErrorMessage(error);
+  if (/blinded element/i.test(message)) {
+    return failure('invalid_body', 'The blinded element is not a valid group element');
   }
-
-  private createCipher(): EmailOtpShamirCipherResult {
-    if (!this.config.configured) {
-      return failure('not_configured', this.config.message);
-    }
-    try {
-      const keyVersion = this.config.rootConfig.currentKeyVersion;
-      return {
-        ok: true,
-        keyVersion,
-        cipher: createEmailOtpEnrollmentShamir3PassCipher({
-          config: this.config.rootConfig,
-        }),
-      };
-    } catch (error: unknown) {
-      return failure(
-        'not_configured',
-        serverSealErrorMessage(error) || 'Email OTP Shamir configuration is invalid',
-      );
-    }
-  }
+  return failure('internal', message || 'Email OTP factor evaluation failed');
 }
 
 function serverSealErrorMessage(error: unknown): string {

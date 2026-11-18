@@ -69,8 +69,10 @@ import type {
 import type { LinkIdentityResult, UnlinkIdentityResult } from '../../core/IdentityStore';
 import type { ResolvedEd25519WalletBinding } from '../../core/authService/webauthnWalletBinding';
 import type {
-  EmailOtpServerSealApplyRequest,
-  EmailOtpServerSealRemoveRequest,
+  EmailOtpFactorEnrollRequest,
+  EmailOtpFactorEnrollResult,
+  EmailOtpFactorEvaluateRequest,
+  EmailOtpFactorEvaluateResult,
 } from '../../core/authService/emailOtpSeal';
 import type { RouterAbEcdsaPresignRuntime } from '../../core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 import type { DeviceLinkingRouteServiceV1 } from '../transport/fetch/routes/deviceLinking';
@@ -485,7 +487,8 @@ type EmailOtpEnrollmentVerifyInput = {
   readonly proofEmail?: unknown;
   readonly clientIp?: unknown;
   readonly enrollmentSealKeyVersion?: unknown;
-  readonly serverSealedFactorCiphertextB64u?: unknown;
+  readonly factorNonceB64u?: unknown;
+  readonly wrappedFactorB64u?: unknown;
   readonly clientUnlockPublicKeyB64u?: unknown;
   readonly unlockKeyVersion?: unknown;
   readonly googleEmailOtpRegistrationAttemptId?: unknown;
@@ -606,15 +609,9 @@ type RouterApiOkFailure = {
 };
 
 type RouterApiMethodTypes = {
-  applyEmailOtpServerSeal: {
-    readonly input: EmailOtpServerSealApplyRequest;
-    readonly result:
-      | {
-          readonly ok: true;
-          readonly ciphertext: string;
-          readonly enrollmentSealKeyVersion: string;
-        }
-      | RouterApiOkFailure;
+  enrollEmailOtpFactor: {
+    readonly input: EmailOtpFactorEnrollRequest;
+    readonly result: EmailOtpFactorEnrollResult;
   };
 
   cleanupGoogleEmailOtpDevRegistrationState: {
@@ -884,9 +881,9 @@ type RouterApiMethodTypes = {
         }
       | RouterApiOkFailure;
   };
-  removeEmailOtpServerSeal: {
-    readonly input: EmailOtpServerSealRemoveRequest;
-    readonly result: RouterApiMethodTypes['applyEmailOtpServerSeal']['result'];
+  evaluateEmailOtpFactor: {
+    readonly input: EmailOtpFactorEvaluateRequest;
+    readonly result: EmailOtpFactorEvaluateResult;
   };
   respondWalletAddSignerEcdsaDerivation: {
     readonly input: WalletAddSignerEcdsaDerivationRespondRequest;
@@ -1509,9 +1506,9 @@ export interface RouterApiEmailOtpRouteService extends RouterApiEmailOtpChalleng
       }
     | { readonly ok: false; readonly code: string; readonly message: string }
   >;
-  applyEmailOtpServerSeal(
-    input: RouterApiMethodTypes['applyEmailOtpServerSeal']['input'],
-  ): Promise<RouterApiMethodTypes['applyEmailOtpServerSeal']['result']>;
+  enrollEmailOtpFactor(
+    input: RouterApiMethodTypes['enrollEmailOtpFactor']['input'],
+  ): Promise<RouterApiMethodTypes['enrollEmailOtpFactor']['result']>;
   cleanupGoogleEmailOtpDevRegistrationState(
     input: RouterApiMethodTypes['cleanupGoogleEmailOtpDevRegistrationState']['input'],
   ): Promise<RouterApiMethodTypes['cleanupGoogleEmailOtpDevRegistrationState']['result']>;
@@ -1533,9 +1530,9 @@ export interface RouterApiEmailOtpRouteService extends RouterApiEmailOtpChalleng
   readEmailOtpOutboxEntry(
     input: RouterApiMethodTypes['readEmailOtpOutboxEntry']['input'],
   ): Promise<RouterApiMethodTypes['readEmailOtpOutboxEntry']['result']>;
-  removeEmailOtpServerSeal(
-    input: RouterApiMethodTypes['removeEmailOtpServerSeal']['input'],
-  ): Promise<RouterApiMethodTypes['removeEmailOtpServerSeal']['result']>;
+  evaluateEmailOtpFactor(
+    input: RouterApiMethodTypes['evaluateEmailOtpFactor']['input'],
+  ): Promise<RouterApiMethodTypes['evaluateEmailOtpFactor']['result']>;
   validateGoogleEmailOtpRegistrationCandidateWallet(
     input: GoogleEmailOtpRegistrationCandidateWalletValidationRequest,
   ): Promise<GoogleEmailOtpRegistrationCandidateWalletValidationResult>;

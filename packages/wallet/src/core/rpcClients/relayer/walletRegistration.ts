@@ -1,3 +1,4 @@
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { WALLET_REGISTRATION_SETUP_PATH } from './walletRegistrationSetupPrewarm';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
@@ -1408,13 +1409,6 @@ export function isEmailOtpWalletRegistrationFinalizeResponse(
 ): response is EmailOtpWalletRegistrationFinalizeResponse {
   return response.authMethod.kind === 'email_otp';
 }
-
-export type WalletRegistrationEmailOtpEnrollmentMaterial = {
-  enrollmentSealKeyVersion: string;
-  serverSealedFactorCiphertextB64u: string;
-  clientUnlockPublicKeyB64u: string;
-  unlockKeyVersion: string;
-};
 
 export type CreateAddAuthMethodIntentRequest = {
   walletId: WalletId;
@@ -3981,7 +3975,7 @@ type ActivateWalletRegistrationArgsBase = {
   registrationCeremonyId: string;
   signedSetup: string;
   idempotencyKey: string;
-  emailOtpEnrollment?: WalletRegistrationEmailOtpEnrollmentMaterial;
+  emailOtpEnrollment?: WalletEmailOtpEnrollmentMaterialV1;
   /** The custody ceremony's sealed output for the key set this call activates. */
   walletCustodyCommit?: WalletCustodyCeremonyCommitPayload;
   onServerTiming?: (header: string | null) => void;
@@ -4253,7 +4247,7 @@ type CompleteWalletRegistrationNearProvisioningArgs =
             | { kind: 'passkey' }
             | {
                 kind: 'email_otp';
-                enrollment: WalletRegistrationEmailOtpEnrollmentMaterial;
+                enrollment: WalletEmailOtpEnrollmentMaterialV1;
               };
           sessionSeal?: never;
         }
@@ -4297,7 +4291,7 @@ type FinalizeWalletRegistrationBaseArgs = {
   headers?: Record<string, string>;
   registrationCeremonyId: string;
   idempotencyKey: string;
-  emailOtpEnrollment?: WalletRegistrationEmailOtpEnrollmentMaterial;
+  emailOtpEnrollment?: WalletEmailOtpEnrollmentMaterialV1;
 };
 
 export type FinalizeWalletRegistrationArgs = FinalizeWalletRegistrationBaseArgs &

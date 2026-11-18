@@ -201,64 +201,6 @@ export function encodeSigningSessionSealServerLockContext(input: {
   ]);
 }
 
-function encodeEmailOtpEnrollmentServerLockContext(input: {
-  readonly protocol: SigningSessionSealProtocol;
-  readonly keyVersion: string;
-  readonly walletId: string;
-  readonly enrollmentId: string;
-}): Uint8Array {
-  return encodeSigningSessionHkdfTuple([
-    'seams/router-ab/signing-session-seal',
-    input.protocol.algorithm,
-    input.protocol.groupId,
-    input.keyVersion,
-    'server-lock/email-otp-enrollment/v1',
-    input.walletId,
-    input.enrollmentId,
-  ]);
-}
-
-/**
- * What a server lock key belongs to. Each scope derives its own key from the
- * root, so a seal removed for one wallet never opens a value sealed for another.
- */
-type ServerLockScope =
-  | {
-      readonly kind: 'signing_session';
-      readonly walletId: string;
-      readonly thresholdSessionId: string;
-    }
-  | {
-      readonly kind: 'email_otp_enrollment';
-      readonly walletId: string;
-      readonly enrollmentId: string;
-    };
-
-function encodeServerLockContext(
-  protocol: SigningSessionSealProtocol,
-  keyVersion: string,
-  scope: ServerLockScope,
-): Uint8Array {
-  switch (scope.kind) {
-    case 'signing_session':
-      return encodeSigningSessionSealServerLockContext({
-        protocol,
-        keyVersion,
-        walletId: scope.walletId,
-        thresholdSessionId: scope.thresholdSessionId,
-      });
-    case 'email_otp_enrollment':
-      return encodeEmailOtpEnrollmentServerLockContext({
-        protocol,
-        keyVersion,
-        walletId: scope.walletId,
-        enrollmentId: scope.enrollmentId,
-      });
-    default:
-      return assertNeverServerLockScope(scope);
-  }
-}
-
 function defaultRuntime(): SigningSessionSealShamir3PassRuntime {
   return {
     deriveLockKeyHandle: deriveSigningSessionSealLockKeyHandle,
@@ -313,32 +255,30 @@ async function importSigningSessionSealRootKey(rootSecret32: Uint8Array): Promis
 async function deriveScopedLockHandle(input: {
   readonly state: Shamir3PassCipherState;
   readonly keyVersion: SigningSessionSealKeyVersion;
-  readonly scope: ServerLockScope;
+  readonly walletId: string;
+  readonly thresholdSessionId: string;
 }): Promise<number> {
-  const context = encodeServerLockContext(
-    input.state.config.protocol,
-    input.keyVersion,
-    input.scope,
-  );
-  let scopeRoot32: Uint8Array | null = null;
+  const context = encodeSigningSessionSealServerLockContext({
+    protocol: input.state.config.protocol,
+    keyVersion: input.keyVersion,
+    walletId: input.walletId,
+    thresholdSessionId: input.thresholdSessionId,
+  });
+  let sessionRoot32: Uint8Array | null = null;
   try {
     const rootKey = await input.state.rootKey;
-    scopeRoot32 = new Uint8Array(
+    sessionRoot32 = new Uint8Array(
       await crypto.subtle.sign('HMAC', rootKey, copyToArrayBuffer(context)),
     );
     return await input.state.runtime.deriveLockKeyHandle({
       groupId: input.state.config.protocol.groupId,
-      rootSecret32: scopeRoot32,
+      rootSecret32: sessionRoot32,
       context,
     });
   } finally {
-    scopeRoot32?.fill(0);
+    sessionRoot32?.fill(0);
     context.fill(0);
   }
-}
-
-function assertNeverServerLockScope(value: never): never {
-  throw new Error(`Unsupported server lock scope: ${String(value)}`);
 }
 
 function assertNeverSigningSessionSealOperation(value: never): never {
@@ -349,7 +289,8 @@ async function runShamir3PassCipher(
   state: Shamir3PassCipherState,
   operation: SigningSessionSealOperation,
   input: {
-    readonly scope: ServerLockScope;
+    readonly walletId: string;
+    readonly thresholdSessionId: string;
     readonly keyVersion?: string;
     readonly ciphertext: string;
   },
@@ -383,7 +324,12 @@ async function runShamir3PassCipher(
   }
 
   try {
-    const handle = await deriveScopedLockHandle({ state, keyVersion, scope: input.scope });
+    const handle = await deriveScopedLockHandle({
+      state,
+      keyVersion,
+      walletId: input.walletId,
+      thresholdSessionId: input.thresholdSessionId,
+    });
     try {
       let ciphertext: string;
       switch (operation) {
@@ -417,37 +363,6 @@ function createShamir3PassCipherState(
   };
 }
 
-/** Adds or removes the Email OTP server seal under the key of one wallet and enrollment. */
-export type EmailOtpEnrollmentSealCipher = {
-  readonly run: (input: {
-    readonly operation: SigningSessionSealOperation;
-    readonly walletId: string;
-    readonly enrollmentId: string;
-    readonly keyVersion: string;
-    readonly ciphertext: string;
-  }) => Promise<SigningSessionSealCipherOperationResult>;
-};
-
-export function createEmailOtpEnrollmentShamir3PassCipher(
-  options: CreateSigningSessionSealShamir3PassCipherAdapterOptions,
-): EmailOtpEnrollmentSealCipher {
-  const state = createShamir3PassCipherState(options);
-  return {
-    run: async ({ operation, walletId, enrollmentId, keyVersion, ciphertext }) => {
-      if (!toOptionalTrimmedString(walletId) || !toOptionalTrimmedString(enrollmentId)) {
-        return failure('invalid_scope', 'Email OTP wallet and enrollment are required');
-      }
-      return normalizeResult(
-        await runShamir3PassCipher(state, operation, {
-          scope: { kind: 'email_otp_enrollment', walletId, enrollmentId },
-          keyVersion,
-          ciphertext,
-        }),
-      );
-    },
-  };
-}
-
 export function createSigningSessionSealShamir3PassCipherAdapter(
   options: CreateSigningSessionSealShamir3PassCipherAdapterOptions,
 ): SigningSessionSealCipherAdapter {
@@ -463,11 +378,8 @@ export function createSigningSessionSealShamir3PassCipherAdapter(
       return failure('invalid_scope', 'Authenticated wallet and threshold session are required');
     }
     return await runShamir3PassCipher(state, operation, {
-      scope: {
-        kind: 'signing_session',
-        walletId: input.auth.userId,
-        thresholdSessionId: input.thresholdSessionId,
-      },
+      walletId: input.auth.userId,
+      thresholdSessionId: input.thresholdSessionId,
       keyVersion: input.keyVersion,
       ciphertext: input.ciphertext,
     });

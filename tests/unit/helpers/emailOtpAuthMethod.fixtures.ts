@@ -79,7 +79,8 @@ export function buildEmailOtpEnrollmentFixture(input: {
     enrollmentSealKeyVersion: 'test-seal-v1',
     clientUnlockPublicKeyB64u: 'dGVzdC1wdWJsaWMta2V5',
     unlockKeyVersion: 'test-unlock-v1',
-    serverSealedFactorCiphertextB64u: 'dGVzdC1zZWFsZWQtZmFjdG9y',
+    factorNonceB64u: 'CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg',
+    wrappedFactorB64u: 'CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJ',
     createdAtMs: input.nowMs,
     updatedAtMs: input.nowMs,
   };

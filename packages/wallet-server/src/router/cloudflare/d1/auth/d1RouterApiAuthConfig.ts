@@ -16,6 +16,7 @@ import type {
 } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import { admitD1EstablishedWalletHome, D1WalletExecutionAuthority } from '../registration/d1WalletExecutionAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { base64UrlDecode } from '@shared/utils/encoders';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
 import type { LinkedDevicePasskeyTargetConfigurationFieldsV1 } from '@shared/device-linking/contracts';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
@@ -34,8 +35,11 @@ import type { RouterAbEcdsaPresignRuntime } from '../../../../core/routerAbSigni
 import type { RouterAbEd25519YaoProductRegistrationRuntimeV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import type { RouterAbEcdsaStrictRegistrationPort } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
 import type { TenantRootCustodyLineageResolverV1 } from '../../../domains/tenantRoot/tenantRootCustodyLineage';
-import type { SigningSessionSealShamir3PassRootConfig } from '../../../../threshold/session/signingSessionSeal/crypto/cipher';
-import { parseSigningSessionSealRootConfig } from '../../../../threshold/session/signingSessionSeal/options';
+import {
+  createEmailOtpFactorOprf,
+  type EmailOtpFactorOprf,
+} from '../../../../core/authService/emailOtpFactorOprf';
+import { parseSigningSessionSealKeyVersion } from '../../../../core/keyMaterialBrands';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import type { DeviceLinkingRouteServiceV1 } from '../../../transport/fetch/routes/deviceLinking';
 import type {
@@ -266,7 +270,7 @@ export type EmailOtpRateLimitPolicy = {
 export type EmailOtpServerSealRuntimeConfig =
   | {
       readonly configured: true;
-      readonly rootConfig: SigningSessionSealShamir3PassRootConfig;
+      readonly factorOprf: EmailOtpFactorOprf;
       readonly codeSeal: EmailOtpCodeSeal;
     }
   | {
@@ -706,19 +710,26 @@ function normalizeEmailOtpServerSealConfig(
     return missingEmailOtpServerSealConfig();
   }
   try {
+    const root = base64UrlDecode(rootSecretB64u);
+    const rootLength = root.length;
+    root.fill(0);
+    if (rootLength !== 32) throw new Error('The Email OTP seal root secret must be 32 bytes');
+    const current = parseSigningSessionSealKeyVersion(currentKeyVersion);
     return {
       configured: true,
-      rootConfig: parseSigningSessionSealRootConfig({
+      factorOprf: createEmailOtpFactorOprf({
         rootSecretB64u,
-        currentKeyVersion,
-        acceptedWarmKeyVersions: raw.acceptedWarmKeyVersions,
+        currentKeyVersion: current,
+        acceptedKeyVersions: (raw.acceptedWarmKeyVersions ?? [current]).map((version) =>
+          parseSigningSessionSealKeyVersion(String(version).trim()),
+        ),
       }),
       codeSeal: createEmailOtpCodeSeal(rootSecretB64u),
     };
   } catch (error: unknown) {
     return {
       configured: false,
-      message: configErrorMessage(error) || 'Email OTP Shamir configuration is invalid',
+      message: configErrorMessage(error) || 'Email OTP key configuration is invalid',
     };
   }
 }

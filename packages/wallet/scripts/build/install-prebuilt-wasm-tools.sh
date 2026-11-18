@@ -161,6 +161,7 @@ for source_dir in \
   "$SOURCE_WASM_TEMPO_SIGNER" \
   "$SOURCE_WASM_SHAMIR3PASS_RUNTIME" \
   "$SOURCE_WASM_EMAIL_OTP_RUNTIME" \
+  "$SOURCE_WASM_OPRF_RUNTIME" \
   "$SOURCE_WASM_WALLET_CUSTODY_CEREMONY"; do
   version="$(resolve_wasm_bindgen_cli_version_from_lockfile "$SDK_ROOT/$source_dir/Cargo.lock")"
   case "$installed_versions" in *" $version "*) continue ;; esac

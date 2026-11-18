@@ -31,7 +31,7 @@ import {
   handleWalletEmailOtpFactorRelease,
   handleWalletEmailOtpDevCleanupGoogleRegistration,
   handleWalletEmailOtpDevOutbox,
-  handleWalletEmailOtpRegistrationSeal,
+  handleWalletEmailOtpRegistrationFactor,
   handleHostedWalletSessionExchangeIssue,
   handleHostedWalletSessionExchangeRedeem,
   handleWalletUnlockChallenge,
@@ -399,7 +399,7 @@ export function createFetchRouter(
     handleWalletEmailOtpChallenge,
     handleWalletEmailOtpFactorRelease,
     handleWalletEmailOtpDevCleanupGoogleRegistration,
-    handleWalletEmailOtpRegistrationSeal,
+    handleWalletEmailOtpRegistrationFactor,
     handleWalletEmailOtpDevOutbox,
     ...fetchRouteExtensions.map((extension) => {
       const extensionRoutes = getRouterApiRouteExtensionRoutes(extension, 'fetch');

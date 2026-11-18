@@ -136,7 +136,8 @@ function sameEmailOtpWalletEnrollmentRecordV1(
     left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion &&
     left.clientUnlockPublicKeyB64u === right.clientUnlockPublicKeyB64u &&
     left.unlockKeyVersion === right.unlockKeyVersion &&
-    left.serverSealedFactorCiphertextB64u === right.serverSealedFactorCiphertextB64u &&
+    left.factorNonceB64u === right.factorNonceB64u &&
+    left.wrappedFactorB64u === right.wrappedFactorB64u &&
     left.createdAtMs === right.createdAtMs &&
     left.updatedAtMs === right.updatedAtMs
   );

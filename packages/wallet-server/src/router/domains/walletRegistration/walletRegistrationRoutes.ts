@@ -1688,7 +1688,8 @@ function parseWalletAddAuthMethodEmailOtpTarget(
     enrollmentSealKeyVersion: '',
     clientUnlockPublicKeyB64u: '',
     unlockKeyVersion: '',
-    serverSealedFactorCiphertextB64u: '',
+    factorNonceB64u: '',
+    wrappedFactorB64u: '',
   };
   for (const field of Object.keys(material) as (keyof typeof material)[]) {
     const value = enrollment[field];

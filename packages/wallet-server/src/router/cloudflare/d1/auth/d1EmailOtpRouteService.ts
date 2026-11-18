@@ -20,7 +20,7 @@ export function createD1EmailOtpRouteService(
     prepareEmailOtpOwnerProof: assembly.emailOtpChallengeService.prepareEmailOtpOwnerProof.bind(
       assembly.emailOtpChallengeService,
     ),
-    applyEmailOtpServerSeal: assembly.emailOtpServerSeal.applyEmailOtpServerSeal.bind(
+    enrollEmailOtpFactor: assembly.emailOtpServerSeal.enrollEmailOtpFactor.bind(
       assembly.emailOtpServerSeal,
     ),
     cleanupGoogleEmailOtpDevRegistrationState:
@@ -55,7 +55,7 @@ export function createD1EmailOtpRouteService(
     readEmailOtpOutboxEntry: assembly.emailOtpChallengeService.readEmailOtpOutboxEntry.bind(
       assembly.emailOtpChallengeService,
     ),
-    removeEmailOtpServerSeal: assembly.emailOtpServerSeal.removeEmailOtpServerSeal.bind(
+    evaluateEmailOtpFactor: assembly.emailOtpServerSeal.evaluateEmailOtpFactor.bind(
       assembly.emailOtpServerSeal,
     ),
     validateGoogleEmailOtpRegistrationCandidateWallet:

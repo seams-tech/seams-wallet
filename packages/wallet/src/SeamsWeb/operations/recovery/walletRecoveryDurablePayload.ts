@@ -59,7 +59,7 @@ import { parseWalletRecoveryEcdsaPossessionProofV1 } from '@shared/wallet-recove
 import { requireRecord } from '@shared/utils/validation';
 import { rejectUnknownFields } from '@shared/utils/exactRecord';
 import type { PendingWalletRecoveryCommitV1 } from '@/core/indexedDB/pendingWalletRecoveryCommit';
-import type { WalletRecoveryEmailOtpEnrollmentMaterial } from '@/core/rpcClients/relayer/walletRecoveryGoogleEmailOtp';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 
 export const WALLET_RECOVERY_DURABLE_PAYLOAD_VERSION = 1 as const;
 
@@ -74,7 +74,7 @@ export type WalletRecoveryEmailOtpEnrollment =
       readonly enrollmentId: string;
       readonly providerSubject: string;
       readonly verifiedEmail: string;
-      readonly material: WalletRecoveryEmailOtpEnrollmentMaterial;
+      readonly material: WalletEmailOtpEnrollmentMaterialV1;
     };
 
 type WalletRecoveryDurableOperationCommon = {
@@ -585,7 +585,8 @@ function parseWalletRecoveryDurableEnrollment(raw: unknown): WalletRecoveryEmail
       'enrollmentSealKeyVersion',
       'clientUnlockPublicKeyB64u',
       'unlockKeyVersion',
-      'serverSealedFactorCiphertextB64u',
+      'factorNonceB64u',
+      'wrappedFactorB64u',
     ],
     'recovery durable enrollment material',
   );
@@ -607,9 +608,13 @@ function parseWalletRecoveryDurableEnrollment(raw: unknown): WalletRecoveryEmail
         material.unlockKeyVersion,
         'recovery enrollment unlock-key version',
       ),
-      serverSealedFactorCiphertextB64u: durableBase64Url(
-        material.serverSealedFactorCiphertextB64u,
-        'recovery enrollment sealed factor ciphertext',
+      factorNonceB64u: durableBase64Url(
+        material.factorNonceB64u,
+        'recovery enrollment factor nonce',
+      ),
+      wrappedFactorB64u: durableBase64Url(
+        material.wrappedFactorB64u,
+        'recovery enrollment wrapped factor',
       ),
     },
   };

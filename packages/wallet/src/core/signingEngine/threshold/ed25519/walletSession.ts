@@ -1,3 +1,4 @@
+import { readEmailOtpFactorEvaluation } from '@shared/utils/emailOtpDomain';
 import { isPlainObject, stripTrailingSlashes, toTrimmedString } from '@shared/utils/validation';
 import { errorMessage } from '@shared/utils/errors';
 import { ROUTER_AB_ED25519_WALLET_SESSION_PATH } from '@shared/utils/signingSessionSeal';
@@ -396,9 +397,9 @@ type Ed25519NoMaterialRecoveryRequest = Extract<
   RouterAbEd25519OperationStepUpMaterialRecoveryRequest,
   { kind: 'not_requested' }
 >;
-type Ed25519EmailOtpFactorReleaseRequest = Extract<
+type Ed25519EmailOtpFactorEvaluationRequest = Extract<
   RouterAbEd25519OperationStepUpMaterialRecoveryRequest,
-  { kind: 'email_otp_factor_release_v1' }
+  { kind: 'email_otp_factor_evaluation_v1' }
 >;
 
 type Ed25519OperationStepUpAuthorizationRequestBase = {
@@ -419,7 +420,8 @@ export type Ed25519OperationStepUpAuthorizationRequest =
         }
       | {
           proof: Ed25519EmailOtpOperationStepUpProof;
-          materialRecovery: Ed25519NoMaterialRecoveryRequest | Ed25519EmailOtpFactorReleaseRequest;
+          materialRecovery:
+            Ed25519NoMaterialRecoveryRequest | Ed25519EmailOtpFactorEvaluationRequest;
         }
     );
 
@@ -520,13 +522,10 @@ function buildEd25519OperationStepUpMaterialRecoveryRequest(
       switch (request.materialRecovery.kind) {
         case 'not_requested':
           return { kind: 'not_requested' };
-        case 'email_otp_factor_release_v1':
+        case 'email_otp_factor_evaluation_v1':
           return {
-            kind: 'email_otp_factor_release_v1',
-            workerEphemeralPublicKey65B64u: requireNormalizedEd25519OperationStepUpString(
-              request.materialRecovery.workerEphemeralPublicKey65B64u,
-              'workerEphemeralPublicKey65B64u',
-            ),
+            kind: 'email_otp_factor_evaluation_v1',
+            deviceFactors: request.materialRecovery.deviceFactors,
           };
         default:
           request.materialRecovery satisfies never;
@@ -560,7 +559,7 @@ function parseEd25519OperationStepUpMaterialRecoveryResponse(args: {
       }
       return { kind: 'not_requested' };
     }
-    case 'email_otp_factor_release_v1': {
+    case 'email_otp_factor_evaluation_v1': {
       requireExactEd25519OperationStepUpResponseKeys(
         response,
         [
@@ -568,44 +567,20 @@ function parseEd25519OperationStepUpMaterialRecoveryResponse(args: {
           'challengeId',
           'enrollmentId',
           'enrollmentSealKeyVersion',
-          'serverEphemeralPublicKey65B64u',
-          'nonce12B64u',
-          'ciphertextB64u',
+          'factorNonceB64u',
+          'publicKeyB64u',
+          'evaluatedElementB64u',
+          'proofB64u',
+          'wrappedFactorB64u',
         ],
         'operation step-up material recovery',
       );
-      if (args.requested.kind !== 'email_otp_factor_release_v1') {
+      if (args.requested.kind !== 'email_otp_factor_evaluation_v1') {
         throw new Error(
           '[threshold-ed25519] operation step-up material recovery response does not match the request',
         );
       }
-      return {
-        kind: 'email_otp_factor_release_v1',
-        challengeId: requireNormalizedEd25519OperationStepUpString(
-          response.challengeId,
-          'materialRecovery.challengeId',
-        ),
-        enrollmentId: requireNormalizedEd25519OperationStepUpString(
-          response.enrollmentId,
-          'materialRecovery.enrollmentId',
-        ),
-        enrollmentSealKeyVersion: requireNormalizedEd25519OperationStepUpString(
-          response.enrollmentSealKeyVersion,
-          'materialRecovery.enrollmentSealKeyVersion',
-        ),
-        serverEphemeralPublicKey65B64u: requireNormalizedEd25519OperationStepUpString(
-          response.serverEphemeralPublicKey65B64u,
-          'materialRecovery.serverEphemeralPublicKey65B64u',
-        ),
-        nonce12B64u: requireNormalizedEd25519OperationStepUpString(
-          response.nonce12B64u,
-          'materialRecovery.nonce12B64u',
-        ),
-        ciphertextB64u: requireNormalizedEd25519OperationStepUpString(
-          response.ciphertextB64u,
-          'materialRecovery.ciphertextB64u',
-        ),
-      };
+      return readEmailOtpFactorEvaluation(response);
     }
     default:
       throw new Error('[threshold-ed25519] operation step-up material recovery kind is invalid');
@@ -681,10 +656,13 @@ export async function issueEd25519OperationStepUpAuthorization(
       displayDigest: args.displayDigest,
       proof: serializeEd25519OperationStepUpProof(args.proof),
       materialRecovery:
-        materialRecovery.kind === 'email_otp_factor_release_v1'
+        materialRecovery.kind === 'email_otp_factor_evaluation_v1'
           ? {
               kind: materialRecovery.kind,
-              worker_ephemeral_public_key_65_b64u: materialRecovery.workerEphemeralPublicKey65B64u,
+              device_factors: materialRecovery.deviceFactors.map((factor) => ({
+                factor_nonce_b64u: factor.factorNonceB64u,
+                blinded_element_b64u: factor.blindedElementB64u,
+              })),
             }
           : materialRecovery,
     },

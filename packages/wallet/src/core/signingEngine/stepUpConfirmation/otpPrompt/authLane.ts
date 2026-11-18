@@ -141,14 +141,14 @@ export function buildEmailOtpRoutePlan(
 
 export function emailOtpRoutePath(
   plan: EmailOtpRoutePlan,
-  action: 'challenge' | 'seal' | 'finalize',
+  action: 'challenge' | 'factor' | 'finalize',
 ): string {
   if (plan.routeFamily === 'signing_session' || plan.routeFamily === 'operation_step_up') {
     if (action === 'challenge') return '/wallet/email-otp/challenge';
   }
   if (plan.routeFamily === 'registration') {
     if (action === 'challenge') return '/wallet/email-otp/registration/challenge';
-    if (action === 'seal') return '/wallet/email-otp/registration/seal';
+    if (action === 'factor') return '/wallet/email-otp/registration/factor';
     if (action === 'finalize') return '/wallet/email-otp/registration/finalize';
   }
   if (plan.routeFamily === 'login') {

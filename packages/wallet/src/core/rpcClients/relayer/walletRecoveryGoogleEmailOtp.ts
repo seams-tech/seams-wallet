@@ -1,3 +1,4 @@
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import {
   parsePasskeyCustodyEnvelopeRecord,
   type PasskeyCustodyEnvelopeRecord,
@@ -61,13 +62,6 @@ type WalletRecoveryEmailOtpVerifyResult =
       readonly challengeId: EmailOtpChallengeId;
     }
   | WalletRecoveryAttemptFailure;
-
-export type WalletRecoveryEmailOtpEnrollmentMaterial = {
-  readonly enrollmentSealKeyVersion: string;
-  readonly clientUnlockPublicKeyB64u: string;
-  readonly unlockKeyVersion: string;
-  readonly serverSealedFactorCiphertextB64u: string;
-};
 
 export type WalletRecoveryGoogleEmailOtpFinalizeResult =
   | {
@@ -148,7 +142,7 @@ export async function finalizeWalletRecoveryGoogleEmailOtp(
     }[];
     readonly emailOtpEnrollment: {
       readonly kind: 'create';
-      readonly material: WalletRecoveryEmailOtpEnrollmentMaterial;
+      readonly material: WalletEmailOtpEnrollmentMaterialV1;
     } | null;
   },
 ): Promise<WalletRecoveryGoogleEmailOtpFinalizeResult> {
@@ -354,7 +348,7 @@ type RecoveryRequestBody =
       }[];
       readonly emailOtpEnrollment?: {
         readonly kind: 'create';
-        readonly material: WalletRecoveryEmailOtpEnrollmentMaterial;
+        readonly material: WalletEmailOtpEnrollmentMaterialV1;
       };
     }
   | {

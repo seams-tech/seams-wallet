@@ -7,7 +7,9 @@ import initShamir3PassWasm, {
 } from '../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime.js';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 
-const SHAMIR3PASS_WASM_PATH_CANDIDATES = [
+import { initializeServerWasm } from '../../../../core/serverWasmLoader';
+
+const SHAMIR3PASS_WASM_PATHS = [
   '../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm',
   '../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm',
   '../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm',
@@ -15,77 +17,19 @@ const SHAMIR3PASS_WASM_PATH_CANDIDATES = [
 
 let initialization: Promise<void> | null = null;
 
-function isNodeEnvironment(): boolean {
-  const processObject = (globalThis as { process?: { versions?: { node?: string } } }).process;
-  const isNode = Boolean(processObject?.versions?.node);
-  const webSocketPair = (globalThis as { WebSocketPair?: unknown }).WebSocketPair;
-  const navigatorObject = (globalThis as { navigator?: { userAgent?: unknown } }).navigator;
-  const isCloudflareWorker =
-    typeof webSocketPair !== 'undefined' ||
-    (typeof navigatorObject?.userAgent === 'string' &&
-      navigatorObject.userAgent.includes('Cloudflare-Workers'));
-  return isNode && !isCloudflareWorker;
-}
-
-function wasmUrls(): URL[] {
-  return SHAMIR3PASS_WASM_PATH_CANDIDATES.map((path) => new URL(path, import.meta.url));
-}
-
-async function initializeCompiledModule(module: WebAssembly.Module): Promise<void> {
-  await initShamir3PassWasm({ module_or_path: module });
-  init_shamir3pass_runtime();
-}
-
-async function loadBundledModule(): Promise<WebAssembly.Module | null> {
-  try {
-    const imported =
-      await import('../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm');
-    return imported.default instanceof WebAssembly.Module ? imported.default : null;
-  } catch {
-    return null;
-  }
-}
-
-async function initializeNodeRuntime(): Promise<void> {
-  const { fileURLToPath } = await import('node:url');
-  const { readFile } = await import('node:fs/promises');
-  for (const url of wasmUrls()) {
-    try {
-      const bytes = await readFile(fileURLToPath(url));
-      await initializeCompiledModule(await WebAssembly.compile(new Uint8Array(bytes)));
-      return;
-    } catch {
-      // Try the next package layout.
-    }
-  }
-  throw new Error('[shamir3pass] Failed to initialize WASM from filesystem candidates');
-}
-
-async function initializeWorkerRuntime(): Promise<void> {
-  const bundledModule = await loadBundledModule();
-  if (bundledModule) {
-    await initializeCompiledModule(bundledModule);
-    return;
-  }
-
-  let lastError: unknown = null;
-  for (const url of wasmUrls()) {
-    try {
-      await initShamir3PassWasm({ module_or_path: url });
-      init_shamir3pass_runtime();
-      return;
-    } catch (error: unknown) {
-      lastError = error;
-    }
-  }
-  throw lastError instanceof Error
-    ? lastError
-    : new Error('[shamir3pass] Failed to initialize WASM');
-}
-
 async function ensureSigningSessionSealShamir3PassWasm(): Promise<void> {
   if (!initialization) {
-    initialization = isNodeEnvironment() ? initializeNodeRuntime() : initializeWorkerRuntime();
+    initialization = initializeServerWasm({
+      label: 'shamir3pass',
+      baseUrl: import.meta.url,
+      paths: SHAMIR3PASS_WASM_PATHS,
+      loadBundled: () =>
+        import('../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm'),
+      initialize: async (moduleOrPath) => {
+        await initShamir3PassWasm({ module_or_path: moduleOrPath });
+        init_shamir3pass_runtime();
+      },
+    });
   }
   await initialization;
 }

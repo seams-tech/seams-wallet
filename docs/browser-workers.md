@@ -99,7 +99,7 @@ Workers that the worker transport creates:
 | `ecdsaOnlineClient` | [`ecdsa-online-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-online-client.worker.ts) | None | None. It forwards signature-share requests to the presign worker. |
 | `evmCrypto` | [`evm-crypto.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/evm-crypto.worker.ts) | `evm_crypto` at worker start | None. Hashing, encoding, and verification helpers. |
 | `tempoSigner` | [`tempo-signer.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/tempo-signer.worker.ts) | `tempo_signer` at worker start | None. Tempo sender hash and transaction encoding. |
-| `emailOtp` | [`email-otp.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. Nested Shamir worker. | OTP-released factor secrets and warm session secrets (JavaScript bytes), and active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
+| `emailOtp` | [`email-otp.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `oprf_runtime` (the device factor), `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. Nested Shamir worker (warm session seal). | The device factor inputs, in its own IndexedDB database `seams_email_otp_device_factors` that no other context reads. Factor secrets that a device-factor release opens, and warm session secrets (JavaScript bytes). Active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
 
 Workers that other managers create:
 
@@ -122,6 +122,7 @@ Workers that other managers create:
 | `evm_crypto` | `wasm/evm_crypto` | 1,304 KB | `evmCrypto`, `emailOtp` |
 | `tempo_signer` | `wasm/tempo_signer` | 778 KB | `tempoSigner` |
 | `email_otp_runtime` | `wasm/email_otp_runtime` | 201 KB | `emailOtp` |
+| `oprf_runtime` | `wasm/oprf_runtime` | 127 KB | `emailOtp` (in process), the Gateway |
 | `shamir3pass_runtime` | `wasm/shamir3pass_runtime` | 119 KB | `shamir3pass` |
 
 Sizes are uncompressed release builds. `wallet_custody_ceremony` links both the
@@ -154,7 +155,7 @@ secret-bearing operations out of these workers, not only on the guard.
 | --- | --- |
 | `walletCustodyCeremony` | The wallet custody seed, owner roots, and unlocked export-root capabilities |
 | `ecdsaDerivationClient` | ECDSA client shares, linked-holder material, and presign authority |
-| `emailOtp` | Email OTP factor secrets and Email OTP warm sessions |
+| `emailOtp` | Email OTP device factors, factor secrets and Email OTP warm sessions |
 | `passkey-mpc-session` | Passkey warm-session PRF material |
 | `device-linking-key` | Device-linking keys for one linking attempt |
 | `passkey-mpc-export` | Material for one export, for one request |

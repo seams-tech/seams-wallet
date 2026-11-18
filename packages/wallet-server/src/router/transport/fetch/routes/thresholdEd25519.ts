@@ -114,7 +114,10 @@ import {
   emailOtpStatusCode,
   hashEmailOtpOperationBinding,
 } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
-import { releaseEmailOtpFactorToWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
+import {
+  evaluateEmailOtpFactorForDevice,
+  selectEmailOtpDeviceFactor,
+} from '../../../domains/emailOtp/emailOtpRouteHandlers';
 import type { RouterAbEd25519YaoOperationStepUpMaterialRecoveryResponse } from '../../../domains/ed25519Yao/session/routerAbEd25519YaoWalletSession';
 import type { RouterApiWalletAuthMethodService } from '../../../framework/authServicePort';
 import {
@@ -301,15 +304,14 @@ function buildRouterAbEd25519AuthorizedOperationWire(
   return buildAuthorizedOperationWire(input, commonAuthorizedOperation);
 }
 
-type EmailOtpFactorReleaseEnrollment = {
-  readonly enrollmentId: string;
-  readonly enrollmentSealKeyVersion: string;
-  readonly serverSealedFactorCiphertextB64u: string;
-};
-
-type EmailOtpFactorReleaseRequest = {
-  readonly enrollment: EmailOtpFactorReleaseEnrollment;
-  readonly workerEphemeralPublicKey65B64u: string;
+type EmailOtpFactorEvaluationRequest = {
+  readonly enrollment: {
+    readonly enrollmentId: string;
+    readonly enrollmentSealKeyVersion: string;
+    readonly factorNonceB64u: string;
+    readonly wrappedFactorB64u: string;
+  };
+  readonly blindedElementB64u: string;
 };
 
 type PasskeyEd25519AuthorizationResult =
@@ -1138,7 +1140,7 @@ async function issueEd25519OperationStepUpGrant(input: {
   let materialRecovery: RouterAbEd25519YaoOperationStepUpMaterialRecoveryResponse = {
     kind: 'not_requested',
   };
-  let pendingFactorRelease: EmailOtpFactorReleaseRequest | null = null;
+  let pendingFactorRelease: EmailOtpFactorEvaluationRequest | null = null;
   let factorReleaseChallengeId: string | null = null;
   switch (proof.kind) {
     case 'passkey': {
@@ -1219,7 +1221,7 @@ async function issueEd25519OperationStepUpGrant(input: {
       if (!verified.ok) {
         return json(verified, { status: verified.code === 'invalid_body' ? 400 : 401 });
       }
-      if (input.request.materialRecovery.kind === 'email_otp_factor_release_v1') {
+      if (input.request.materialRecovery.kind === 'email_otp_factor_evaluation_v1') {
         const enrollment = await input.ctx.service.emailOtp.readActiveEmailOtpEnrollment({
           walletId: authenticated.session.walletId,
           orgId: authenticated.session.tenantId,
@@ -1228,15 +1230,21 @@ async function issueEd25519OperationStepUpGrant(input: {
         if (!enrollment.ok) {
           return json(enrollment, { status: emailOtpStatusCode(enrollment.code) });
         }
+        const deviceFactor = selectEmailOtpDeviceFactor({
+          enrollment: enrollment.enrollment,
+          deviceFactors: input.request.materialRecovery.deviceFactors,
+        });
+        if (!deviceFactor.ok) {
+          return json(deviceFactor, { status: emailOtpStatusCode(deviceFactor.code) });
+        }
         pendingFactorRelease = {
           enrollment: {
             enrollmentId: enrollment.enrollment.enrollmentId,
             enrollmentSealKeyVersion: enrollment.enrollment.enrollmentSealKeyVersion,
-            serverSealedFactorCiphertextB64u:
-              enrollment.enrollment.serverSealedFactorCiphertextB64u,
+            factorNonceB64u: enrollment.enrollment.factorNonceB64u,
+            wrappedFactorB64u: enrollment.enrollment.wrappedFactorB64u,
           },
-          workerEphemeralPublicKey65B64u:
-            input.request.materialRecovery.workerEphemeralPublicKey65B64u,
+          blindedElementB64u: deviceFactor.blindedElementB64u,
         };
       }
       const consumed = await input.ctx.service.emailOtp.consumeEmailOtpGrant({
@@ -1370,8 +1378,10 @@ async function issueEd25519OperationStepUpGrant(input: {
       currentEnrollment.enrollment.enrollmentId !== pendingFactorRelease.enrollment.enrollmentId ||
       currentEnrollment.enrollment.enrollmentSealKeyVersion !==
         pendingFactorRelease.enrollment.enrollmentSealKeyVersion ||
-      currentEnrollment.enrollment.serverSealedFactorCiphertextB64u !==
-        pendingFactorRelease.enrollment.serverSealedFactorCiphertextB64u
+      currentEnrollment.enrollment.factorNonceB64u !==
+        pendingFactorRelease.enrollment.factorNonceB64u ||
+      currentEnrollment.enrollment.wrappedFactorB64u !==
+        pendingFactorRelease.enrollment.wrappedFactorB64u
     ) {
       return json(
         {
@@ -1382,25 +1392,17 @@ async function issueEd25519OperationStepUpGrant(input: {
         { status: 409 },
       );
     }
-    const released = await releaseEmailOtpFactorToWorker({
-      serverSeal: input.ctx.service.emailOtp,
+    const evaluated = await evaluateEmailOtpFactorForDevice({
+      factorKey: input.ctx.service.emailOtp,
       walletId: authenticated.session.walletId,
       enrollment: pendingFactorRelease.enrollment,
-      workerEphemeralPublicKey65B64u: pendingFactorRelease.workerEphemeralPublicKey65B64u,
+      blindedElementB64u: pendingFactorRelease.blindedElementB64u,
       challengeId: factorReleaseChallengeId,
     });
-    if (!released.ok) {
-      return json(released, { status: emailOtpStatusCode(released.code) });
+    if (!evaluated.ok) {
+      return json(evaluated, { status: emailOtpStatusCode(evaluated.code) });
     }
-    materialRecovery = {
-      kind: 'email_otp_factor_release_v1',
-      challengeId: factorReleaseChallengeId,
-      enrollmentId: pendingFactorRelease.enrollment.enrollmentId,
-      enrollmentSealKeyVersion: pendingFactorRelease.enrollment.enrollmentSealKeyVersion,
-      serverEphemeralPublicKey65B64u: released.serverEphemeralPublicKey65B64u,
-      nonce12B64u: released.nonce12B64u,
-      ciphertextB64u: released.ciphertextB64u,
-    };
+    materialRecovery = evaluated.evaluation;
   }
   return json(
     {

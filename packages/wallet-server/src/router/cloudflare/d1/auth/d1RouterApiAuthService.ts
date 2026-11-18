@@ -30,7 +30,6 @@ import {
   parseWalletAuthorityId,
   parseWalletId,
 } from '@shared/utils/domainIds';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type { WalletRegistrationSessionCommitReceiptV2 } from '../../../../core/threeRouteRegistrationContracts';
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
@@ -365,10 +364,6 @@ function createD1LinkedDeviceComposition(input: {
       'verifyExisting' | 'verifyExistingForBatch' | 'verifyRegistration'
     >;
     readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
-    readonly walletAuthMethodStore: {
-      listForWalletV2(input: { readonly walletId: string }): Promise<WalletAuthMethodRecordV2[]>;
-    };
-    readonly serverSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'removeEmailOtpServerSeal'>;
     readonly enrollmentFinalizer: Pick<
       CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
       'prepareLinkedDeviceEnrollment'
@@ -508,9 +503,6 @@ function createD1LinkedDeviceComposition(input: {
         verifier: input.emailOtpLinkedDevice.verifier,
         enrollments: input.emailOtpLinkedDevice.enrollments,
         orgId: input.options.orgId,
-        walletAuthMethods: input.emailOtpLinkedDevice.walletAuthMethodStore,
-        walletAuthorities: authorityStore,
-        serverSeal: input.emailOtpLinkedDevice.serverSeal,
         grants: linkedEmailOtpGrants,
       });
     }
@@ -1492,19 +1484,17 @@ function createCloudflareD1RouterApiAuthAssembly(
     issuer: emailOtpChallengeIssuer,
     verifier: emailOtpChallengeVerifier,
     enrollments: emailOtpEnrollments,
-    serverSeal: emailOtpServerSeal,
+    factorKey: emailOtpServerSeal,
     orgId: options.orgId,
   });
   // Composed after the Email OTP pieces so the linked-device Email OTP
-  // target factor reuses this deployment's exact issuer, verifier, enrollment
-  // store, and server-seal runtime — never a second OTP implementation.
+  // target factor reuses this deployment's exact issuer, verifier and enrollment
+  // store — never a second OTP implementation.
   const linkedDeviceComposition = createD1LinkedDeviceComposition({
     emailOtpLinkedDevice: {
       issuer: emailOtpChallengeIssuer,
       verifier: emailOtpChallengeVerifier,
       enrollments: emailOtpEnrollments,
-      walletAuthMethodStore,
-      serverSeal: emailOtpServerSeal,
       enrollmentFinalizer: emailOtpRegistrationEnrollmentFinalizer,
     },
     options,

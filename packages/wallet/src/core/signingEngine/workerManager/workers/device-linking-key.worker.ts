@@ -6,8 +6,6 @@ import {
   assertLinkedDeviceWalletSessionCredentialDeliveryIntegrityV1,
   encodeLinkedDeviceWalletSessionCredentialDeliveryAadV1,
   type LinkedDeviceRequestProofV1,
-  type LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  type LinkedDeviceEmailOtpVerificationGrantV1,
   type LinkedDeviceWalletSessionCredentialDeliveryV1,
   type WalletSessionOperationCredentialV1,
   type LinkDevicePublicKeyB64u,
@@ -18,7 +16,6 @@ import {
 import { computeWalletSessionOperationCredentialDigestB64u } from '@shared/device-linking/digests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { alphabetizeStringify } from '@shared/utils/digests';
-import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
 import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
@@ -80,7 +77,6 @@ type DeviceLinkingKeySlotV1 = {
   readonly linkPublicKeyB64u: LinkDevicePublicKeyB64u;
   readonly deliveryRecipientPrivateKey: CryptoKey;
   readonly deliveryRecipientPublicKey65B64u: string;
-  emailOtpFactorReleaseChallengeId: string | null;
   ordinaryMaterialRecipientPreparation: DeviceLinkingOrdinarySignerMaterialRecipientPreparationStateV1 | null;
   ordinaryMaterial: DeviceLinkingOrdinaryMaterialStateV1 | null;
   ordinaryMaterialSeal: DeviceLinkingOrdinaryMaterialSealStateV1 | null;
@@ -393,7 +389,6 @@ async function generateKeySlot(): Promise<{
       linkPublicKeyB64u,
       deliveryRecipientPrivateKey: deliveryRecipientPair.privateKey,
       deliveryRecipientPublicKey65B64u,
-      emailOtpFactorReleaseChallengeId: null,
       ordinaryMaterialRecipientPreparation: null,
       ordinaryMaterial: null,
       ordinaryMaterialSeal: null,
@@ -417,13 +412,6 @@ async function generateKeySlot(): Promise<{
 function responseTransferables(
   result: DeviceLinkingKeyWorkerResponseV1 | undefined,
 ): Transferable[] | undefined {
-  if (
-    result &&
-    'kind' in result &&
-    result.kind === 'device_linking_email_otp_factor_release_result_v1'
-  ) {
-    return [result.factorSecret];
-  }
   if (
     result &&
     'kind' in result &&
@@ -455,64 +443,6 @@ function postWorkerResponse(
     return;
   }
   scope.postMessage(message);
-}
-
-async function openEmailOtpFactorRelease(
-  request: Extract<
-    DeviceLinkingKeyWorkerRequestV1,
-    { readonly kind: 'device_linking_email_otp_factor_release_open_v1' }
-  >,
-): Promise<{
-  readonly kind: 'device_linking_email_otp_factor_release_result_v1';
-  readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
-  readonly factorSecret: ArrayBuffer;
-}> {
-  const slot = requireKeySlot(request.handleId);
-  assertEmailOtpFactorReleaseBinding(request);
-  if (slot.emailOtpFactorReleaseChallengeId !== null) {
-    throw new Error('device-linking Email OTP factor release has already been consumed');
-  }
-  const factorSecret = await decryptEmailOtpFactorReleaseEnvelope({
-    slot,
-    walletId: String(request.walletId),
-    factorRelease: request.factorRelease,
-    expectedChallengeId: request.expectedChallengeId,
-  });
-  slot.emailOtpFactorReleaseChallengeId = request.expectedChallengeId;
-  try {
-    return {
-      kind: 'device_linking_email_otp_factor_release_result_v1',
-      verificationGrant: request.verificationGrant,
-      factorSecret: factorSecret.slice().buffer,
-    };
-  } finally {
-    factorSecret.fill(0);
-  }
-}
-
-function assertEmailOtpFactorReleaseBinding(
-  request: Extract<
-    DeviceLinkingKeyWorkerRequestV1,
-    { readonly kind: 'device_linking_email_otp_factor_release_open_v1' }
-  >,
-): void {
-  const grant = request.verificationGrant;
-  if (
-    String(grant.walletId) !== String(request.walletId) ||
-    String(grant.linkSessionId) !== String(request.linkSessionId) ||
-    String(grant.enrollmentId) !== String(request.enrollmentId) ||
-    String(grant.deviceId) !== String(request.deviceId) ||
-    String(grant.baseWalletAuthMethodId) !== String(request.baseWalletAuthMethodId) ||
-    grant.targetPreparationDigestB64u !== request.targetPreparationDigestB64u ||
-    grant.challengeId !== request.expectedChallengeId ||
-    request.factorRelease.challengeId !== request.expectedChallengeId
-  ) {
-    throw new Error('device-linking Email OTP factor release identity binding changed');
-  }
-  const nowMs = Date.now();
-  if (grant.issuedAtMs > nowMs || grant.expiresAtMs <= nowMs) {
-    throw new Error('device-linking Email OTP factor release grant is expired');
-  }
 }
 
 function discardKeyMaterialSlot(handleId: string): void {
@@ -948,29 +878,6 @@ function destroyOrdinaryRecipientInputs(
   }
 }
 
-async function decryptEmailOtpFactorReleaseEnvelope(input: {
-  readonly slot: DeviceLinkingKeySlotV1;
-  readonly walletId: string;
-  readonly factorRelease: LinkedDeviceEmailOtpFactorReleaseEnvelopeV1;
-  readonly expectedChallengeId: string;
-}): Promise<Uint8Array> {
-  const release = input.factorRelease;
-  if (input.expectedChallengeId !== release.challengeId) {
-    throw new Error('Email OTP factor release challenge does not match the submitted challenge');
-  }
-  const factorSecret = await openDeliveryRecipientEnvelope({
-    slot: input.slot,
-    envelope: release,
-    aad: () =>
-      `${EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1}\0${input.walletId}\0${release.enrollmentId}\0${release.enrollmentSealKeyVersion}\0${release.challengeId}`,
-  });
-  if (factorSecret.length !== 32) {
-    factorSecret.fill(0);
-    throw new Error('Email OTP factor release plaintext must contain exactly 32 bytes');
-  }
-  return factorSecret;
-}
-
 /**
  * Opens a P-256 ECDH, AES-256-GCM envelope sealed to the slot's delivery recipient key. `aad`
  * is encoded just before decryption, and every intermediate buffer is zeroed.
@@ -1131,8 +1038,6 @@ async function handleRequest(
       return await sealCommittedOrdinarySignerMaterial(request, ordinaryMaterialSealer);
     case 'device_linking_request_sign_v1':
       return await signRequest(request);
-    case 'device_linking_email_otp_factor_release_open_v1':
-      return await openEmailOtpFactorRelease(request);
     case 'device_linking_wallet_session_credential_delivery_open_v1':
       return await openWalletSessionCredentialDelivery(request);
     case 'device_linking_key_material_discard_v1':

@@ -1,6 +1,4 @@
 import {
-  parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  parseLinkedDeviceEmailOtpVerificationGrantV1,
   parseLinkDevicePublicKeyB64u,
   parseLinkedDeviceWalletSessionCredentialDeliveryV1,
   parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1,
@@ -9,11 +7,7 @@ import {
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { hasExactKeys } from '@shared/utils/exactKeys';
-import {
-  parseLinkedDeviceEnrollmentId,
-  parseLinkedDeviceId,
-  parseLinkDeviceSessionId,
-} from '@shared/signing-lanes/ids';
+import { parseLinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
@@ -25,8 +19,6 @@ import {
   type DeviceLinkingOrdinaryMaterialWorkerPortV1,
 } from './deviceLinkingOrdinaryMaterialWorker';
 import type {
-  DeviceLinkingEmailOtpFactorReleasePortV1,
-  DeviceLinkingEmailOtpFactorReleaseResultV1,
   DeviceLinkingKeyMaterialHandleV1,
   DeviceLinkingKeyMaterialPortV1,
   DeviceLinkingKeyMaterialBundleV1,
@@ -44,8 +36,7 @@ export type DeviceLinkingWorkerEndpointV1 = {
 
 type DeviceLinkingWorkerKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 & {
   close(): void;
-} & DeviceLinkingEmailOtpFactorReleasePortV1 &
-  DeviceLinkingOrdinaryMaterialWorkerPortV1;
+} & DeviceLinkingOrdinaryMaterialWorkerPortV1;
 
 type DeviceLinkingWorkerResponseFrameV1 =
   | { readonly id: string; readonly ok: true; readonly result: unknown }
@@ -126,26 +117,6 @@ function parseCreateResult(value: unknown): DeviceLinkingKeyMaterialBundleV1 {
       65,
       'deliveryRecipientPublicKey65B64u',
     ),
-  };
-}
-
-function parseEmailOtpFactorReleaseResult(
-  value: unknown,
-): DeviceLinkingEmailOtpFactorReleaseResultV1 {
-  if (!hasExactKeys(value, ['kind', 'verificationGrant', 'factorSecret'])) {
-    throw new Error('device-linking Email OTP factor release response has invalid fields');
-  }
-  const record = value;
-  if (record.kind !== 'device_linking_email_otp_factor_release_result_v1') {
-    throw new Error('device-linking Email OTP factor release response kind is invalid');
-  }
-  if (!(record.factorSecret instanceof ArrayBuffer) || record.factorSecret.byteLength !== 32) {
-    throw new Error('device-linking Email OTP factor release secret is invalid');
-  }
-  return {
-    kind: 'device_linking_email_otp_factor_release_result_v1',
-    verificationGrant: parseLinkedDeviceEmailOtpVerificationGrantV1(record.verificationGrant),
-    factorSecret: record.factorSecret,
   };
 }
 
@@ -364,46 +335,6 @@ export function createDeviceLinkingKeyMaterialPortV1(
     async discardKeyMaterialV1(input) {
       const handle = parseHandle(input.handle);
       await request({ kind: 'device_linking_key_material_discard_v1', handleId: handle.handleId });
-    },
-    async openEmailOtpFactorReleaseV1(input) {
-      const handle = parseHandle(input.keyMaterial);
-      const walletId = parseWalletId(input.walletId);
-      if (!walletId.ok) throw new Error(walletId.error.message);
-      const linkSessionId = parseLinkDeviceSessionId(input.linkSessionId);
-      if (!linkSessionId.ok) throw new Error(linkSessionId.error.message);
-      const enrollmentId = parseLinkedDeviceEnrollmentId(input.enrollmentId);
-      if (!enrollmentId.ok) throw new Error(enrollmentId.error.message);
-      const deviceId = parseLinkedDeviceId(input.deviceId);
-      if (!deviceId.ok) throw new Error(deviceId.error.message);
-      const walletAuthMethodId = parseWalletAuthMethodId(input.walletAuthMethodId);
-      if (!walletAuthMethodId.ok) throw new Error(walletAuthMethodId.error.message);
-      const baseWalletAuthMethodId = parseWalletAuthMethodId(input.baseWalletAuthMethodId);
-      if (!baseWalletAuthMethodId.ok) throw new Error(baseWalletAuthMethodId.error.message);
-      const targetPreparationDigestB64u = parseDigest(
-        input.targetPreparationDigestB64u,
-        'targetPreparationDigestB64u',
-      );
-      const expectedChallengeId = nonEmpty(input.expectedChallengeId, 'expectedChallengeId');
-      const verificationGrant = parseLinkedDeviceEmailOtpVerificationGrantV1(
-        input.verificationGrant,
-      );
-      const factorRelease = parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(input.factorRelease);
-      return parseEmailOtpFactorReleaseResult(
-        await request({
-          kind: 'device_linking_email_otp_factor_release_open_v1',
-          handleId: handle.handleId,
-          walletId: walletId.value,
-          linkSessionId: linkSessionId.value,
-          enrollmentId: enrollmentId.value,
-          deviceId: deviceId.value,
-          walletAuthMethodId: walletAuthMethodId.value,
-          baseWalletAuthMethodId: baseWalletAuthMethodId.value,
-          targetPreparationDigestB64u,
-          expectedChallengeId,
-          verificationGrant,
-          factorRelease,
-        }),
-      );
     },
     async openWalletSessionCredentialDeliveryV1(input) {
       const handle = parseHandle(input.keyMaterial);

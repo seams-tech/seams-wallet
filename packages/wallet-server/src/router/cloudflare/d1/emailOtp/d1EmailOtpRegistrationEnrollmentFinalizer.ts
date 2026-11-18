@@ -48,7 +48,8 @@ function parseEmailOtpEnrollmentMaterialBoundaryInput(
         key !== 'enrollmentSealKeyVersion' &&
         key !== 'clientUnlockPublicKeyB64u' &&
         key !== 'unlockKeyVersion' &&
-        key !== 'serverSealedFactorCiphertextB64u',
+        key !== 'factorNonceB64u' &&
+        key !== 'wrappedFactorB64u',
     )
   ) {
     return null;
@@ -57,7 +58,8 @@ function parseEmailOtpEnrollmentMaterialBoundaryInput(
     enrollmentSealKeyVersion: Reflect.get(value, 'enrollmentSealKeyVersion'),
     clientUnlockPublicKeyB64u: Reflect.get(value, 'clientUnlockPublicKeyB64u'),
     unlockKeyVersion: Reflect.get(value, 'unlockKeyVersion'),
-    serverSealedFactorCiphertextB64u: Reflect.get(value, 'serverSealedFactorCiphertextB64u'),
+    factorNonceB64u: Reflect.get(value, 'factorNonceB64u'),
+    wrappedFactorB64u: Reflect.get(value, 'wrappedFactorB64u'),
   };
 }
 
@@ -321,7 +323,8 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
       enrollmentSealKeyVersion: material.enrollmentSealKeyVersion,
       clientUnlockPublicKeyB64u: material.clientUnlockPublicKeyB64u,
       unlockKeyVersion: material.unlockKeyVersion,
-      serverSealedFactorCiphertextB64u: material.serverSealedFactorCiphertextB64u,
+      factorNonceB64u: material.factorNonceB64u,
+      wrappedFactorB64u: material.wrappedFactorB64u,
       createdAtMs: existing?.createdAtMs ?? input.nowMs,
       updatedAtMs: input.nowMs,
     };

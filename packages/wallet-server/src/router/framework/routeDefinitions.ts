@@ -1163,10 +1163,10 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_EMAIL_OTP_PUBLIC_SERVICES,
     ),
     publicRoute(
-      'wallet_email_otp_registration_seal',
+      'wallet_email_otp_registration_factor',
       'POST',
-      '/wallet/email-otp/registration/seal',
-      'Seal an Email OTP enrollment ciphertext with the server enrollment key',
+      '/wallet/email-otp/registration/factor',
+      'Evaluate a new Email OTP device factor under a fresh factor nonce',
       {
         plane: 'public',
         proof: 'threshold_protocol_state',

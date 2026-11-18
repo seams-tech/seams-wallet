@@ -2,12 +2,8 @@
 import {
   LINKED_DEVICE_REQUEST_PROOF_MAX_TTL_MS_V1,
   LINKED_DEVICE_REQUEST_PROOF_NONCE_BYTES_V1,
-  parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  parseLinkedDeviceEmailOtpVerificationGrantV1,
   parseLinkedDeviceWalletSessionCredentialDeliveryV1,
   parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1,
-  type LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  type LinkedDeviceEmailOtpVerificationGrantV1,
   type LinkedDeviceWalletSessionCredentialDeliveryV1,
   type LinkedDeviceWalletSessionCredentialDeliveryBindingV1,
   type WalletSessionOperationCredentialV1,
@@ -31,14 +27,7 @@ import {
   type WalletAuthorityId,
   type WalletId,
 } from '@shared/utils/domainIds';
-import {
-  parseLinkedDeviceEnrollmentId,
-  parseLinkedDeviceId,
-  parseLinkDeviceSessionId,
-  type LinkedDeviceEnrollmentId,
-  type LinkedDeviceId,
-  type LinkDeviceSessionId,
-} from '@shared/signing-lanes/ids';
+import { parseLinkDeviceSessionId, type LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject, requireCanonicalString } from '@shared/utils/validation';
 import {
@@ -67,20 +56,6 @@ export type DeviceLinkingKeyWorkerRequestV1 =
       readonly challengeB64u: string;
       readonly issuedAtMs: number;
       readonly expiresAtMs: number;
-    }
-  | {
-      readonly kind: 'device_linking_email_otp_factor_release_open_v1';
-      readonly handleId: string;
-      readonly walletId: WalletId;
-      readonly linkSessionId: LinkDeviceSessionId;
-      readonly enrollmentId: LinkedDeviceEnrollmentId;
-      readonly deviceId: LinkedDeviceId;
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly baseWalletAuthMethodId: WalletAuthMethodId;
-      readonly targetPreparationDigestB64u: DigestB64u;
-      readonly expectedChallengeId: string;
-      readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
-      readonly factorRelease: LinkedDeviceEmailOtpFactorReleaseEnvelopeV1;
     }
   | {
       readonly kind: 'device_linking_wallet_session_credential_delivery_open_v1';
@@ -119,11 +94,6 @@ export type DeviceLinkingKeyWorkerResponseV1 =
         DeviceLinkingOrdinarySignerMaterialReservationPreparationV1,
         ...DeviceLinkingOrdinarySignerMaterialReservationPreparationV1[],
       ];
-    }
-  | {
-      readonly kind: 'device_linking_email_otp_factor_release_result_v1';
-      readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
-      readonly factorSecret: ArrayBuffer;
     }
   | WalletSessionOperationCredentialV1
   | {
@@ -314,59 +284,6 @@ export function parseRequest(value: unknown): DeviceLinkingKeyWorkerRequestV1 {
   if (hasExactKeys(value, SIGN_REQUEST_FIELDS)) {
     const parsed = parseSignRequest(value);
     return { kind: 'device_linking_request_sign_v1', ...parsed };
-  }
-  if (
-    hasExactKeys(value, [
-      'kind',
-      'handleId',
-      'walletId',
-      'linkSessionId',
-      'enrollmentId',
-      'deviceId',
-      'walletAuthMethodId',
-      'baseWalletAuthMethodId',
-      'targetPreparationDigestB64u',
-      'expectedChallengeId',
-      'verificationGrant',
-      'factorRelease',
-    ])
-  ) {
-    if (value.kind !== 'device_linking_email_otp_factor_release_open_v1') {
-      throw new Error('device-linking worker request kind is unsupported');
-    }
-    const walletId = parseWalletId(value.walletId);
-    if (!walletId.ok) throw new Error(walletId.error.message);
-    const linkSessionId = parseLinkDeviceSessionId(value.linkSessionId);
-    if (!linkSessionId.ok) throw new Error(linkSessionId.error.message);
-    const enrollmentId = parseLinkedDeviceEnrollmentId(value.enrollmentId);
-    if (!enrollmentId.ok) throw new Error(enrollmentId.error.message);
-    const deviceId = parseLinkedDeviceId(value.deviceId);
-    if (!deviceId.ok) throw new Error(deviceId.error.message);
-    const walletAuthMethodId = parseWalletAuthMethodId(value.walletAuthMethodId);
-    if (!walletAuthMethodId.ok) throw new Error(walletAuthMethodId.error.message);
-    const baseWalletAuthMethodId = parseWalletAuthMethodId(value.baseWalletAuthMethodId);
-    if (!baseWalletAuthMethodId.ok) throw new Error(baseWalletAuthMethodId.error.message);
-    return {
-      kind: 'device_linking_email_otp_factor_release_open_v1',
-      handleId: parseHandleId(value.handleId),
-      walletId: walletId.value,
-      linkSessionId: linkSessionId.value,
-      enrollmentId: enrollmentId.value,
-      deviceId: deviceId.value,
-      walletAuthMethodId: walletAuthMethodId.value,
-      baseWalletAuthMethodId: baseWalletAuthMethodId.value,
-      targetPreparationDigestB64u: parseDigest(
-        value.targetPreparationDigestB64u,
-        'targetPreparationDigestB64u',
-      ),
-      expectedChallengeId: requireCanonicalString(
-        value.expectedChallengeId,
-        'expectedChallengeId',
-        'is required',
-      ),
-      verificationGrant: parseLinkedDeviceEmailOtpVerificationGrantV1(value.verificationGrant),
-      factorRelease: parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(value.factorRelease),
-    };
   }
   if (hasExactKeys(value, ['kind', 'handleId', 'delivery', 'expected'])) {
     if (value.kind !== 'device_linking_wallet_session_credential_delivery_open_v1') {

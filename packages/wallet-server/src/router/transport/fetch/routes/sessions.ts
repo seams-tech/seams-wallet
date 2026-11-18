@@ -42,8 +42,9 @@ import {
 import {
   handleEmailOtpDevCleanupGoogleRegistrationRoute,
   handleEmailOtpDevOutboxRoute,
-  handleEmailOtpRegistrationSealRoute,
-  releaseEmailOtpFactorToWorker,
+  handleEmailOtpRegistrationFactorRoute,
+  evaluateEmailOtpFactorForDevice,
+  selectEmailOtpDeviceFactor,
 } from '../../../domains/emailOtp/emailOtpRouteHandlers';
 import {
   parseOrgId,
@@ -56,6 +57,7 @@ import {
 import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_EXPORT_OPERATION,
+  parseEmailOtpDeviceFactorBlinds,
   type WalletEmailOtpLoginOperation,
   type WalletEmailOtpOperation,
 } from '@shared/utils/emailOtpDomain';
@@ -1082,7 +1084,7 @@ export async function handleWalletEmailOtpChallenge(
 
 type WalletEmailOtpFactorReleaseRequest = {
   readonly walletId: unknown;
-  readonly workerEphemeralPublicKey65B64u: unknown;
+  readonly deviceFactors: unknown;
 } & (
   | { readonly kind: 'verified_grant'; readonly loginGrant: unknown }
   | { readonly kind: 'wallet_session' }
@@ -1102,18 +1104,18 @@ function parseWalletEmailOtpFactorReleaseRequest(
   const kind = value.kind;
   const expectedFields =
     kind === 'verified_grant'
-      ? ['kind', 'loginGrant', 'walletId', 'workerEphemeralPublicKey65B64u']
+      ? ['deviceFactors', 'kind', 'loginGrant', 'walletId']
       : kind === 'wallet_session'
-        ? ['kind', 'walletId', 'workerEphemeralPublicKey65B64u']
+        ? ['deviceFactors', 'kind', 'walletId']
         : kind === 'email_otp'
           ? [
               'challengeId',
+              'deviceFactors',
               'kind',
               'operation',
               'otpCode',
               'walletId',
               'walletAuthMethodId',
-              'workerEphemeralPublicKey65B64u',
             ].sort()
           : null;
   if (!expectedFields || Object.keys(value).sort().join(',') !== expectedFields.join(',')) {
@@ -1124,14 +1126,14 @@ function parseWalletEmailOtpFactorReleaseRequest(
       kind,
       walletId: value.walletId,
       loginGrant: value.loginGrant,
-      workerEphemeralPublicKey65B64u: value.workerEphemeralPublicKey65B64u,
+      deviceFactors: value.deviceFactors,
     };
   }
   if (kind === 'wallet_session') {
     return {
       kind,
       walletId: value.walletId,
-      workerEphemeralPublicKey65B64u: value.workerEphemeralPublicKey65B64u,
+      deviceFactors: value.deviceFactors,
     };
   }
   const operation = parseWalletEmailOtpLoginOperation(value.operation);
@@ -1143,7 +1145,7 @@ function parseWalletEmailOtpFactorReleaseRequest(
     challengeId: value.challengeId,
     otpCode: value.otpCode,
     operation: operation.operation,
-    workerEphemeralPublicKey65B64u: value.workerEphemeralPublicKey65B64u,
+    deviceFactors: value.deviceFactors,
   };
 }
 
@@ -1176,11 +1178,8 @@ export async function handleWalletEmailOtpFactorRelease(
   }
   const walletId = parseWalletId(body.walletId);
   const orgId = parseOrgId(ctx.service.authorizedOperations.tenantId);
-  const workerEphemeralPublicKey65B64u =
-    typeof body.workerEphemeralPublicKey65B64u === 'string'
-      ? body.workerEphemeralPublicKey65B64u.trim()
-      : '';
-  if (!walletId.ok || !orgId.ok || !workerEphemeralPublicKey65B64u) {
+  const deviceFactors = parseEmailOtpDeviceFactorBlinds(body.deviceFactors);
+  if (!walletId.ok || !orgId.ok || !deviceFactors) {
     return json(
       { ok: false, code: 'invalid_body', message: 'Email OTP factor release request is invalid' },
       { status: 400 },
@@ -1192,6 +1191,13 @@ export async function handleWalletEmailOtpFactorRelease(
   });
   if (!enrollment.ok) {
     return json(enrollment, { status: emailOtpStatusCode(enrollment.code) });
+  }
+  const deviceFactor = selectEmailOtpDeviceFactor({
+    enrollment: enrollment.enrollment,
+    deviceFactors,
+  });
+  if (!deviceFactor.ok) {
+    return json(deviceFactor, { status: emailOtpStatusCode(deviceFactor.code) });
   }
   const providerSubject = parseProviderSubject(enrollment.enrollment.providerUserId);
   if (!providerSubject.ok) {
@@ -1303,29 +1309,17 @@ export async function handleWalletEmailOtpFactorRelease(
     }
     factorReleaseChallengeId = consumed.challengeId;
   }
-  const sealed = await releaseEmailOtpFactorToWorker({
-    serverSeal: ctx.service.emailOtp,
+  const evaluated = await evaluateEmailOtpFactorForDevice({
+    factorKey: ctx.service.emailOtp,
     walletId: String(walletId.value),
     enrollment: enrollment.enrollment,
-    workerEphemeralPublicKey65B64u,
+    blindedElementB64u: deviceFactor.blindedElementB64u,
     challengeId: factorReleaseChallengeId,
   });
-  if (!sealed.ok) {
-    return json(sealed, { status: emailOtpStatusCode(sealed.code) });
+  if (!evaluated.ok) {
+    return json(evaluated, { status: emailOtpStatusCode(evaluated.code) });
   }
-  return json(
-    {
-      ok: true,
-      kind: 'email_otp_factor_release_v1',
-      challengeId: factorReleaseChallengeId,
-      enrollmentId: enrollment.enrollment.enrollmentId,
-      enrollmentSealKeyVersion: enrollment.enrollment.enrollmentSealKeyVersion,
-      serverEphemeralPublicKey65B64u: sealed.serverEphemeralPublicKey65B64u,
-      nonce12B64u: sealed.nonce12B64u,
-      ciphertextB64u: sealed.ciphertextB64u,
-    },
-    { status: 200 },
-  );
+  return json({ ok: true, ...evaluated.evaluation }, { status: 200 });
 }
 
 export async function handleWalletUnlockVerify(
@@ -1473,13 +1467,13 @@ export async function handleWalletEmailOtpDevCleanupGoogleRegistration(
   return json(response.body, { status: response.status });
 }
 
-export async function handleWalletEmailOtpRegistrationSeal(
+export async function handleWalletEmailOtpRegistrationFactor(
   ctx: FetchRouterApiContext,
 ): Promise<Response | null> {
-  if (ctx.method !== 'POST' || ctx.pathname !== '/wallet/email-otp/registration/seal') {
+  if (ctx.method !== 'POST' || ctx.pathname !== '/wallet/email-otp/registration/factor') {
     return null;
   }
-  const response = await handleEmailOtpRegistrationSealRoute({
+  const response = await handleEmailOtpRegistrationFactorRoute({
     body: await readJson(ctx.request),
     service: routerApiEmailOtpRouteService(ctx.service),
   });

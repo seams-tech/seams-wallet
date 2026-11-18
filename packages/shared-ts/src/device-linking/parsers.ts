@@ -309,7 +309,8 @@ function emailOtpEnrollmentMaterialV1() {
     enrollmentSealKeyVersion: parseNonEmptyToken,
     clientUnlockPublicKeyB64u: parseNonEmptyToken,
     unlockKeyVersion: parseNonEmptyToken,
-    serverSealedFactorCiphertextB64u: parseNonEmptyToken,
+    factorNonceB64u: parseNonEmptyToken,
+    wrappedFactorB64u: parseNonEmptyToken,
   });
 }
 
@@ -1368,7 +1369,7 @@ function emailOtpFactorReleaseEnvelopeV1() {
   });
 }
 
-export function parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(
+function parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(
   raw: unknown,
 ): LinkedDeviceEmailOtpFactorReleaseEnvelopeV1 {
   return emailOtpFactorReleaseEnvelopeV1()(raw, 'LinkedDeviceEmailOtpFactorReleaseEnvelopeV1');

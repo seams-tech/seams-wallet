@@ -243,7 +243,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           relayUrl: readString(payload.relayUrl, 'relayUrl'),
           walletId: readString(payload.walletId, 'walletId'),
           userId: readString(payload.userId, 'userId'),
-          groupId: readString(payload.groupId, 'groupId'),
           routePlan: readRegistrationRoutePlan(payload.routePlan, type),
           ...(otpChannel === undefined ? {} : { otpChannel }),
           ...(payload.clientSecret32 instanceof ArrayBuffer

@@ -53,7 +53,8 @@ const emailOtpProvisioningWithSessionSeal: NearProvisioningArgs = {
     // @ts-expect-error Email OTP provisioning cannot carry a passkey session seal.
     enrollment: {
       enrollmentSealKeyVersion: 'seal-key-v1',
-      serverSealedFactorCiphertextB64u: 'server-sealed-factor',
+      factorNonceB64u: 'factor-nonce',
+      wrappedFactorB64u: 'wrapped-factor',
       clientUnlockPublicKeyB64u: 'client-unlock-key',
       unlockKeyVersion: 'unlock-key-v1',
     },

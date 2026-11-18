@@ -59,7 +59,6 @@ type PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgsBase = {
   walletId: WalletId;
   userId: string;
   relayUrl?: string;
-  groupId?: string;
   otpChannel?: WalletEmailOtpChannel;
   clientSecret32?: Uint8Array;
 };
@@ -144,10 +143,6 @@ export async function prepareEmailOtpRegistrationEnrollmentMaterialInternal(
   if (!relayUrl) {
     throw new Error('Missing relayer url (configs.network.relayer.url)');
   }
-  const groupId = String(args.groupId || deps.groupId || '').trim();
-  if (!groupId) {
-    throw new Error('Missing shamir prime for Email OTP runtime');
-  }
   const userId = String(args.userId).trim();
   if (!userId) {
     throw new Error('Email OTP registration enrollment material requires userId');
@@ -156,7 +151,6 @@ export async function prepareEmailOtpRegistrationEnrollmentMaterialInternal(
     relayUrl,
     walletId: String(walletId),
     userId,
-    groupId,
     workerCtx: deps.getSignerWorkerContext(),
     otpChannel: args.otpChannel,
     ecdsaSessionHandle: { kind: 'not_requested' },

@@ -21,7 +21,12 @@ import {
   type WalletId,
   type WalletRecoveryOperationId,
 } from '@shared/utils/domainIds';
-import { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_UNLOCK_OPERATION } from '@shared/utils/emailOtpDomain';
+import {
+  EMAIL_OTP_CHANNEL,
+  WALLET_EMAIL_OTP_UNLOCK_OPERATION,
+  parseEmailOtpDeviceFactorBlinds,
+  type EmailOtpDeviceFactorBlindV1,
+} from '@shared/utils/emailOtpDomain';
 import {
   isPlainObject,
   requireTrimmedString,
@@ -666,26 +671,20 @@ export async function handleWalletRecoveryEmailOtpRelease(
     const result = await ctx.service.passkeyCustody.releaseRecoveryEmailOtpFactor({
       recoveryOperationId: request.recoveryOperationId,
       reservationId: String(request.reservationId),
-      workerEphemeralPublicKey65B64u: request.workerEphemeralPublicKey65B64u,
+      deviceFactors: request.deviceFactors,
     });
     if (!result.ok) return walletRecoveryGoogleFailureResponse(result);
     switch (result.kind) {
-      case 'email_otp_factor_release_v1':
+      case 'email_otp_factor_evaluation_v1':
         return toFetchRouteResponse({
           status: 200,
           body: {
             ok: true,
-            kind: result.kind,
+            ...result.evaluation,
             recoveryOperationId: String(result.recovery.recoveryOperationId),
             reservationId: String(result.recovery.reservationId),
-            challengeId: String(result.recovery.challengeId),
             providerSubject: result.recovery.providerSubject,
             verifiedEmail: result.recovery.verifiedEmail,
-            enrollmentId: result.enrollment.enrollmentId,
-            enrollmentSealKeyVersion: result.enrollment.enrollmentSealKeyVersion,
-            serverEphemeralPublicKey65B64u: result.serverEphemeralPublicKey65B64u,
-            nonce12B64u: result.nonce12B64u,
-            ciphertextB64u: result.ciphertextB64u,
           },
         });
       case 'wallet_recovery_google_email_otp_new_enrollment_v1':
@@ -754,7 +753,7 @@ type WalletRecoveryEmailOtpVerifyRequest = WalletRecoveryOperationRequest & {
 };
 
 type WalletRecoveryEmailOtpReleaseRequest = WalletRecoveryOperationRequest & {
-  readonly workerEphemeralPublicKey65B64u: string;
+  readonly deviceFactors: readonly EmailOtpDeviceFactorBlindV1[];
 };
 
 function parseWalletRecoveryOperationRequest(
@@ -800,19 +799,22 @@ function parseWalletRecoveryEmailOtpVerifyRequest(
   };
 }
 
+function requireDeviceFactorBlinds(value: unknown): readonly EmailOtpDeviceFactorBlindV1[] {
+  const blinds = parseEmailOtpDeviceFactorBlinds(value);
+  if (!blinds) throw new Error('deviceFactors is invalid');
+  return blinds;
+}
+
 function parseWalletRecoveryEmailOtpReleaseRequest(
   body: Record<string, unknown> | null,
 ): WalletRecoveryEmailOtpReleaseRequest {
   return {
     ...parseWalletRecoveryOperationRequest(
       body,
-      ['recoveryOperationId', 'reservationId', 'workerEphemeralPublicKey65B64u'],
+      ['recoveryOperationId', 'reservationId', 'deviceFactors'],
       'wallet recovery Email OTP factor release',
     ),
-    workerEphemeralPublicKey65B64u: requireTrimmedString(
-      body?.workerEphemeralPublicKey65B64u,
-      'workerEphemeralPublicKey65B64u',
-    ),
+    deviceFactors: requireDeviceFactorBlinds(body?.deviceFactors),
   };
 }
 
@@ -897,7 +899,8 @@ function parseWalletRecoveryGoogleEmailOtpCreateEnrollment(
       'enrollmentSealKeyVersion',
       'clientUnlockPublicKeyB64u',
       'unlockKeyVersion',
-      'serverSealedFactorCiphertextB64u',
+      'factorNonceB64u',
+      'wrappedFactorB64u',
     ],
     'new recovery Email enrollment material',
   );
@@ -911,9 +914,10 @@ function parseWalletRecoveryGoogleEmailOtpCreateEnrollment(
       'clientUnlockPublicKeyB64u',
     ),
     unlockKeyVersion: requireTrimmedString(material.unlockKeyVersion, 'unlockKeyVersion'),
-    serverSealedFactorCiphertextB64u: requireTrimmedString(
-      material.serverSealedFactorCiphertextB64u,
-      'serverSealedFactorCiphertextB64u',
+    factorNonceB64u: requireTrimmedString(material.factorNonceB64u, 'factorNonceB64u'),
+    wrappedFactorB64u: requireTrimmedString(
+      material.wrappedFactorB64u,
+      'wrappedFactorB64u',
     ),
   };
   return { kind: 'create', material: normalized };

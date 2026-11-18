@@ -1,5 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { encodeSigningSessionHkdfTuple } from '@shared/utils/signingSessionSeal';
+import { deriveEmailOtpRootBytes } from './emailOtpRootKey';
 
 /**
  * Encrypts an Email OTP code for storage. The key comes from the Email OTP
@@ -63,34 +64,15 @@ function associatedData(challengeId: string): ArrayBuffer {
 }
 
 async function deriveCodeKey(rootSecretB64u: string): Promise<CryptoKey> {
-  const root = base64UrlDecode(rootSecretB64u);
-  let derived: Uint8Array | null = null;
+  const derived = await deriveEmailOtpRootBytes(rootSecretB64u, KEY_CONTEXT);
+  const copy = toArrayBuffer(derived);
   try {
-    if (root.length !== 32) throw new Error('The Email OTP seal root secret must be 32 bytes');
-    const rootKey = await importKey(root, { name: 'HMAC', hash: 'SHA-256' }, ['sign']);
-    derived = new Uint8Array(
-      await crypto.subtle.sign(
-        'HMAC',
-        rootKey,
-        toArrayBuffer(encodeSigningSessionHkdfTuple(KEY_CONTEXT)),
-      ),
-    );
-    return await importKey(derived, { name: 'AES-GCM' }, ['encrypt', 'decrypt']);
+    return await crypto.subtle.importKey('raw', copy, { name: 'AES-GCM' }, false, [
+      'encrypt',
+      'decrypt',
+    ]);
   } finally {
-    root.fill(0);
-    derived?.fill(0);
-  }
-}
-
-async function importKey(
-  bytes: Uint8Array,
-  algorithm: HmacImportParams | AlgorithmIdentifier,
-  usages: KeyUsage[],
-): Promise<CryptoKey> {
-  const copy = toArrayBuffer(bytes);
-  try {
-    return await crypto.subtle.importKey('raw', copy, algorithm, false, usages);
-  } finally {
+    derived.fill(0);
     new Uint8Array(copy).fill(0);
   }
 }

@@ -421,7 +421,10 @@ export type WalletEmailOtpEnrollmentMaterialV1 = {
   enrollmentSealKeyVersion: string;
   clientUnlockPublicKeyB64u: string;
   unlockKeyVersion: string;
-  serverSealedFactorCiphertextB64u: string;
+  /** The server-chosen nonce of the device factor. */
+  factorNonceB64u: string;
+  /** S encrypted under the device's OPRF output. The server cannot open it alone. */
+  wrappedFactorB64u: string;
 };
 
 export type WalletAddAuthMethodEmailOtpTargetV1 =

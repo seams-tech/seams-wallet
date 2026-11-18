@@ -30,8 +30,6 @@ import type {
   LinkedDeviceEmailOtpVerificationResultV1,
   LinkedDeviceEmailOtpBaseFactorRequestV1,
   LinkedDeviceEmailOtpBaseFactorResolutionResultV1,
-  LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  LinkedDeviceEmailOtpVerificationGrantV1,
   ActivateInstalledAuthorityResultV1,
   CommittedAuthorityPackagesV1,
   LocalAuthorityActivationFinalAckV1,
@@ -52,11 +50,7 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import type { ExactAdministeredSignerManifestV1 } from '@shared/device-linking/delegatedActivationPlan';
-import type {
-  LinkedDeviceId,
-  LinkedDeviceEnrollmentId,
-  LinkDeviceSessionId,
-} from '@shared/signing-lanes/ids';
+import type { LinkDeviceSessionId } from '@shared/signing-lanes/ids';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { WalletAuthorityId } from '@shared/utils/domainIds';
 import type { DeviceLinkingOrdinaryMaterialWorkerPortV1 } from './deviceLinkingOrdinaryMaterialWorker';
@@ -256,33 +250,6 @@ export type DeviceLinkingKeyMaterialBundleV1 = {
   readonly deliveryRecipientPublicKey65B64u: string;
 };
 
-type DeviceLinkingEmailOtpFactorReleaseInputV1 = {
-  /** The fresh server envelope is opened only by this worker slot. */
-  readonly keyMaterial: DeviceLinkingKeyMaterialHandleV1;
-  readonly walletId: WalletId;
-  readonly linkSessionId: LinkDeviceSessionId;
-  readonly enrollmentId: LinkedDeviceEnrollmentId;
-  readonly deviceId: LinkedDeviceId;
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly baseWalletAuthMethodId: WalletAuthMethodId;
-  readonly targetPreparationDigestB64u: DigestB64u;
-  readonly expectedChallengeId: string;
-  readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
-  readonly factorRelease: LinkedDeviceEmailOtpFactorReleaseEnvelopeV1;
-};
-
-export type DeviceLinkingEmailOtpFactorReleaseResultV1 = {
-  readonly kind: 'device_linking_email_otp_factor_release_result_v1';
-  readonly verificationGrant: LinkedDeviceEmailOtpVerificationGrantV1;
-  readonly factorSecret: ArrayBuffer;
-};
-
-export type DeviceLinkingEmailOtpFactorReleasePortV1 = {
-  openEmailOtpFactorReleaseV1(
-    input: DeviceLinkingEmailOtpFactorReleaseInputV1,
-  ): Promise<DeviceLinkingEmailOtpFactorReleaseResultV1>;
-};
-
 export type DeviceLinkingWalletSessionCredentialDeliveryOpenInputV1 = {
   readonly keyMaterial: DeviceLinkingKeyMaterialHandleV1;
   readonly delivery: LinkedDeviceWalletSessionCredentialDeliveryV1;
@@ -327,7 +294,6 @@ export type DeviceLinkingKeyMaterialPortV1 = {
 };
 
 type DeviceLinkingLiveKeyMaterialPortV1 = DeviceLinkingKeyMaterialPortV1 &
-  DeviceLinkingEmailOtpFactorReleasePortV1 &
   DeviceLinkingOrdinaryMaterialWorkerPortV1;
 
 type LinkedDeviceOwnerAuthorizationResultBaseV1 = {

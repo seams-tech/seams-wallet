@@ -1,5 +1,7 @@
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
-import { EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1 } from '@shared/utils/emailOtpDomain';
+import type {
+  EmailOtpDeviceFactorBlindV1,
+  EmailOtpFactorEvaluationV1,
+} from '@shared/utils/emailOtpDomain';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
 import type { RouterApiEmailOtpRouteService } from '../../framework/authServicePort';
@@ -10,147 +12,74 @@ type EmailOtpRouteResponse = {
   body: Record<string, unknown>;
 };
 
-function decodeEmailOtpFactorSecret32(value: string): Uint8Array<ArrayBuffer> {
-  const magnitude = base64UrlDecode(value);
-  if (magnitude.length === 0 || magnitude.length > 32) {
-    magnitude.fill(0);
-    throw new Error('Email OTP factor secret magnitude is invalid');
-  }
-  const factorSecret32 = new Uint8Array(32);
-  factorSecret32.set(magnitude, factorSecret32.length - magnitude.length);
-  magnitude.fill(0);
-  return factorSecret32;
-}
+type EmailOtpFactorFailure = {
+  readonly ok: false;
+  readonly code: string;
+  readonly message: string;
+};
 
-function emailOtpFactorReleaseAad(input: {
-  readonly walletId: string;
-  readonly enrollmentId: string;
-  readonly enrollmentSealKeyVersion: string;
-  readonly challengeId: string;
-}): Uint8Array<ArrayBuffer> {
-  return new TextEncoder().encode(
-    [
-      EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1,
-      input.walletId,
-      input.enrollmentId,
-      input.enrollmentSealKeyVersion,
-      input.challengeId,
-    ].join('\0'),
+/**
+ * Picks the device factor whose nonce matches the stored enrollment. Run it
+ * before a code or grant is used, so a device without the factor fails without
+ * using the code.
+ */
+export function selectEmailOtpDeviceFactor(input: {
+  readonly enrollment: { readonly factorNonceB64u: string };
+  readonly deviceFactors: readonly EmailOtpDeviceFactorBlindV1[];
+}): { readonly ok: true; readonly blindedElementB64u: string } | EmailOtpFactorFailure {
+  const match = input.deviceFactors.find(
+    (factor) => factor.factorNonceB64u === input.enrollment.factorNonceB64u,
   );
-}
-
-async function sealEmailOtpFactorSecretForWorker(input: {
-  readonly factorSecret32B64u: string;
-  readonly workerEphemeralPublicKey65B64u: string;
-  readonly walletId: string;
-  readonly enrollmentId: string;
-  readonly enrollmentSealKeyVersion: string;
-  readonly challengeId: string;
-}): Promise<
-  | {
-      readonly ok: true;
-      readonly serverEphemeralPublicKey65B64u: string;
-      readonly nonce12B64u: string;
-      readonly ciphertextB64u: string;
-    }
-  | { readonly ok: false; readonly code: string; readonly message: string }
-> {
-  let factorSecret32: Uint8Array<ArrayBuffer>;
-  let workerPublicKey65: Uint8Array<ArrayBuffer>;
-  try {
-    factorSecret32 = decodeEmailOtpFactorSecret32(input.factorSecret32B64u);
-    workerPublicKey65 = base64UrlDecode(input.workerEphemeralPublicKey65B64u);
-  } catch {
-    return failure('invalid_body', 'Email OTP factor release key is invalid');
+  if (!match) {
+    return failure(
+      'email_otp_device_factor_missing',
+      'This device has no Email OTP factor for this wallet. Use the recovery code, or link this device from one that has the wallet.',
+    );
   }
-  if (workerPublicKey65.length !== 65 || workerPublicKey65[0] !== 4) {
-    factorSecret32.fill(0);
-    return failure('invalid_body', 'Email OTP factor release key is invalid');
-  }
-  try {
-    const workerPublicKey = await crypto.subtle.importKey(
-      'raw',
-      workerPublicKey65,
-      { name: 'ECDH', namedCurve: 'P-256' },
-      false,
-      [],
-    );
-    const serverKeyPair = await crypto.subtle.generateKey(
-      { name: 'ECDH', namedCurve: 'P-256' },
-      false,
-      ['deriveKey'],
-    );
-    const encryptionKey = await crypto.subtle.deriveKey(
-      { name: 'ECDH', public: workerPublicKey },
-      serverKeyPair.privateKey,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      ['encrypt'],
-    );
-    const nonce12 = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = new Uint8Array(
-      await crypto.subtle.encrypt(
-        {
-          name: 'AES-GCM',
-          iv: nonce12,
-          additionalData: emailOtpFactorReleaseAad(input),
-          tagLength: 128,
-        },
-        encryptionKey,
-        factorSecret32,
-      ),
-    );
-    const serverPublicKey65 = new Uint8Array(
-      await crypto.subtle.exportKey('raw', serverKeyPair.publicKey),
-    );
-    return {
-      ok: true,
-      serverEphemeralPublicKey65B64u: base64UrlEncode(serverPublicKey65),
-      nonce12B64u: base64UrlEncode(nonce12),
-      ciphertextB64u: base64UrlEncode(ciphertext),
-    };
-  } catch {
-    return failure('factor_release_failed', 'Email OTP factor release encryption failed');
-  } finally {
-    factorSecret32.fill(0);
-  }
+  return { ok: true, blindedElementB64u: match.blindedElementB64u };
 }
 
 /**
- * Removes the server seal from a stored Email OTP factor and encrypts the factor to the worker
- * key. The wallet ID chooses the seal key and is bound into the worker ciphertext, so the factor
- * of another wallet does not open.
+ * Evaluates the stored factor for the device's blinded input. The response
+ * carries S encrypted under the device's OPRF output, which only the device
+ * can compute, so the server never holds or sends S.
  */
-export async function releaseEmailOtpFactorToWorker(input: {
-  readonly serverSeal: Pick<RouterApiEmailOtpRouteService, 'removeEmailOtpServerSeal'>;
+export async function evaluateEmailOtpFactorForDevice(input: {
+  readonly factorKey: Pick<RouterApiEmailOtpRouteService, 'evaluateEmailOtpFactor'>;
   readonly walletId: string;
   readonly enrollment: {
     readonly enrollmentId: string;
     readonly enrollmentSealKeyVersion: string;
-    readonly serverSealedFactorCiphertextB64u: string;
+    readonly factorNonceB64u: string;
+    readonly wrappedFactorB64u: string;
   };
-  readonly workerEphemeralPublicKey65B64u: string;
+  readonly blindedElementB64u: string;
   readonly challengeId: string;
-}): ReturnType<typeof sealEmailOtpFactorSecretForWorker> {
-  const { enrollmentId, enrollmentSealKeyVersion } = input.enrollment;
-  const unsealed = await input.serverSeal.removeEmailOtpServerSeal({
+}): Promise<
+  { readonly ok: true; readonly evaluation: EmailOtpFactorEvaluationV1 } | EmailOtpFactorFailure
+> {
+  const evaluated = await input.factorKey.evaluateEmailOtpFactor({
     walletId: input.walletId,
-    enrollmentId,
-    wrappedCiphertext: input.enrollment.serverSealedFactorCiphertextB64u,
-    enrollmentSealKeyVersion,
+    enrollmentId: input.enrollment.enrollmentId,
+    factorNonceB64u: input.enrollment.factorNonceB64u,
+    enrollmentSealKeyVersion: input.enrollment.enrollmentSealKeyVersion,
+    blindedElementB64u: input.blindedElementB64u,
   });
-  if (!unsealed.ok) return unsealed;
-  if (unsealed.enrollmentSealKeyVersion !== enrollmentSealKeyVersion) {
-    return failure('scope_mismatch', 'Email OTP factor release seal key version changed');
-  }
-  return await sealEmailOtpFactorSecretForWorker({
-    factorSecret32B64u: unsealed.ciphertext,
-    workerEphemeralPublicKey65B64u: input.workerEphemeralPublicKey65B64u,
-    walletId: input.walletId,
-    enrollmentId,
-    enrollmentSealKeyVersion,
-    challengeId: input.challengeId,
-  });
+  if (!evaluated.ok) return evaluated;
+  return {
+    ok: true,
+    evaluation: {
+      kind: 'email_otp_factor_evaluation_v1',
+      challengeId: input.challengeId,
+      enrollmentId: input.enrollment.enrollmentId,
+      enrollmentSealKeyVersion: input.enrollment.enrollmentSealKeyVersion,
+      factorNonceB64u: input.enrollment.factorNonceB64u,
+      publicKeyB64u: evaluated.publicKeyB64u,
+      evaluatedElementB64u: evaluated.evaluatedElementB64u,
+      proofB64u: evaluated.proofB64u,
+      wrappedFactorB64u: input.enrollment.wrappedFactorB64u,
+    },
+  };
 }
 
 export async function handleEmailOtpDevCleanupGoogleRegistrationRoute(input: {
@@ -189,14 +118,14 @@ export async function handleEmailOtpDevCleanupGoogleRegistrationRoute(input: {
   return { status: result.ok ? 200 : emailOtpStatusCode(result.code), body: result };
 }
 
-export async function handleEmailOtpRegistrationSealRoute(input: {
+export async function handleEmailOtpRegistrationFactorRoute(input: {
   body: unknown;
   service: RouterApiEmailOtpRouteService;
 }): Promise<EmailOtpRouteResponse> {
   if (!isPlainObject(input.body)) {
     return { status: 400, body: failure('invalid_body', 'Invalid body') };
   }
-  const allowedFields = new Set(['walletId', 'enrollmentId', 'wrappedCiphertext']);
+  const allowedFields = new Set(['walletId', 'enrollmentId', 'blindedElementB64u']);
   for (const field of Object.keys(input.body)) {
     if (!allowedFields.has(field)) {
       return {
@@ -207,20 +136,19 @@ export async function handleEmailOtpRegistrationSealRoute(input: {
   }
   const walletId = toOptionalTrimmedString(input.body.walletId);
   const enrollmentId = toOptionalTrimmedString(input.body.enrollmentId);
-  const wrappedCiphertext = toOptionalTrimmedString(input.body.wrappedCiphertext);
-  if (!walletId || !enrollmentId || !wrappedCiphertext) {
+  if (!walletId || !enrollmentId) {
     return {
       status: 400,
-      body: failure('invalid_body', 'Missing walletId, enrollmentId or wrappedCiphertext'),
+      body: failure('invalid_body', 'Missing walletId or enrollmentId'),
     };
   }
-  // The seal key belongs to this wallet and enrollment. Adding a seal reveals nothing, and the
-  // finalize step stores the enrollment ID that the server derives from the verified subject.
-  // A factor sealed here for another ID never opens, so the route needs no proof of the subject.
-  const result = await input.service.applyEmailOtpServerSeal({
+  // The server picks a new factor nonce for each call, so this unauthenticated
+  // route never evaluates the function of an existing enrollment. The finalize
+  // step stores the enrollment ID that the server derives from the verified subject.
+  const result = await input.service.enrollEmailOtpFactor({
     walletId,
     enrollmentId,
-    wrappedCiphertext,
+    blindedElementB64u: input.body.blindedElementB64u,
   });
   return {
     status: result.ok ? 200 : emailOtpStatusCode(result.code),

@@ -33,6 +33,7 @@ export function emailOtpStatusCode(code: string | undefined): number {
   if (
     code === 'reenrollment_required' ||
     code === 'scope_mismatch' ||
+    code === 'email_otp_device_factor_missing' ||
     code === 'registration_attempt_missing' ||
     code === 'registration_attempt_expired'
   ) {

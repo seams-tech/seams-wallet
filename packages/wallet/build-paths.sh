@@ -21,6 +21,7 @@ SOURCE_WASM_EVM_CRYPTO="../../wasm/evm_crypto"
 SOURCE_WASM_TEMPO_SIGNER="../../wasm/tempo_signer"
 SOURCE_WASM_SHAMIR3PASS_RUNTIME="../../wasm/shamir3pass_runtime"
 SOURCE_WASM_EMAIL_OTP_RUNTIME="../../wasm/email_otp_runtime"
+SOURCE_WASM_OPRF_RUNTIME="../../wasm/oprf_runtime"
 SOURCE_WASM_WALLET_CUSTODY_CEREMONY="../../wasm/wallet_custody_ceremony"
 
 # Critical directories for build freshness checking
@@ -42,6 +43,7 @@ CRITICAL_DIRS=(
     "../../wasm/tempo_signer"
     "../../wasm/shamir3pass_runtime"
     "../../wasm/email_otp_runtime"
+    "../../wasm/oprf_runtime"
     "../../wasm/wallet_custody_ceremony"
 )
 
@@ -78,7 +80,9 @@ WORKER_WASM_TEMPO_SIGNER_BG_WASM="tempo_signer_bg.wasm"
 WORKER_SHAMIR3PASS_RUNTIME_JS="shamir3pass_runtime.js"
 WORKER_SHAMIR3PASS_RUNTIME_WASM="shamir3pass_runtime_bg.wasm"
 WORKER_EMAIL_OTP_RUNTIME_JS="email_otp_runtime.js"
+WORKER_OPRF_RUNTIME_JS="oprf_runtime.js"
 WORKER_EMAIL_OTP_RUNTIME_WASM="email_otp_runtime_bg.wasm"
+WORKER_OPRF_RUNTIME_WASM="oprf_runtime_bg.wasm"
 WORKER_WALLET_CUSTODY_CEREMONY="wallet-custody-ceremony.worker.js"
 WALLET_CUSTODY_CEREMONY_JS="wallet_custody_ceremony.js"
 WALLET_CUSTODY_CEREMONY_WASM="wallet_custody_ceremony_bg.wasm"

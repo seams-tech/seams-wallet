@@ -97,7 +97,8 @@ export type EmailOtpWalletEnrollmentRecord = {
   enrollmentSealKeyVersion: string;
   clientUnlockPublicKeyB64u: string;
   unlockKeyVersion: string;
-  serverSealedFactorCiphertextB64u: string;
+  factorNonceB64u: string;
+  wrappedFactorB64u: string;
   createdAtMs: number;
   updatedAtMs: number;
 };

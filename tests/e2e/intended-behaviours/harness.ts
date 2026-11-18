@@ -3267,7 +3267,13 @@ export class IntendedBehaviourHarness {
     this.recordService('Passkey recovery replayed its committed finalization after response loss');
   }
 
-  async recoverGoogleEmailOtpWalletFromFreshBrowser(): Promise<void> {
+  /**
+   * `expect: 'device_factor_missing'` stops at the release: a fresh browser holds no Email OTP
+   * device factor, so the server refuses to evaluate one for the wallet's enrollment.
+   */
+  async recoverGoogleEmailOtpWalletFromFreshBrowser(
+    expect: 'recovered' | 'device_factor_missing' = 'recovered',
+  ): Promise<void> {
     this.recordStage('recover_google_email_otp_wallet_from_fresh_browser');
     requireUsableIntendedGoogleIdToken(this.config);
     const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({
@@ -3275,6 +3281,20 @@ export class IntendedBehaviourHarness {
     });
     await fillHostedRecoveryCode(this.page, recoveryCode, 'google_email_otp');
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
+    if (expect === 'device_factor_missing') {
+      const release = await autoConfirmWalletIframeUntil(
+        this.page,
+        this.page.waitForResponse(isRecoveryEmailOtpReleaseResponse, { timeout: 120_000 }),
+        { timeoutMs: 120_000, intervalMs: 250, diagnostics },
+      );
+      if (release.status() !== 409) throw new Error(`Release answered ${release.status()}`);
+      const body = (await release.json()) as { readonly code?: unknown };
+      if (body.code !== 'email_otp_device_factor_missing') {
+        throw new Error(`Release refused with ${JSON.stringify(body)}`);
+      }
+      this.recordService('fresh-browser Google recovery refused: no Email OTP device factor');
+      return;
+    }
     const snapshot = await autoConfirmWalletIframeUntil(
       this.page,
       this.waitForIntendedPageActionCompletion('recoverGoogleEmailOtpWallet', 'success'),
@@ -8536,6 +8556,13 @@ async function waitForWalletRecoveryCodeBackup(
     await page.waitForTimeout(100);
   }
   throw new Error('Wallet registration did not present recovery codes');
+}
+
+function isRecoveryEmailOtpReleaseResponse(response: Response): boolean {
+  return (
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === '/wallets/recovery/email-otp/release'
+  );
 }
 
 export async function autoConfirmWalletIframeUntil<T>(

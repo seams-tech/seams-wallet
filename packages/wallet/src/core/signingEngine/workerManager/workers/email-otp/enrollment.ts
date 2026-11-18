@@ -1,11 +1,11 @@
-/** Email OTP enrollment: seals a new factor secret with the Router and derives its unlock key. */
+/** Email OTP enrollment: enrolls a device factor for a new factor secret and derives its unlock key. */
 import { base64UrlEncode } from '@shared/utils/base64';
 import {
   EMAIL_OTP_CHANNEL,
   emailOtpDeviceEnrollmentId,
   type WalletEmailOtpChannel,
 } from '@shared/utils/emailOtpDomain';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
+import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
 import type {
   EmailOtpWalletRegistrationEcdsaPrepareHandleRequest,
@@ -14,19 +14,17 @@ import type {
 } from '@/core/signingEngine/workerManager/workerTypes';
 import { secp256k1_private_key_32_to_public_key_33 } from '../../../../../../../../wasm/evm_crypto/pkg/evm_crypto.js';
 import { postEmailOtpJson } from './fetch';
-import { getShamir3PassRuntime } from '../shamir3pass/runtime';
+import { enrollEmailOtpDeviceFactor } from './deviceFactor';
 import {
   emailOtpRoutePath,
   type EmailOtpRoutePlan,
 } from '../../../stepUpConfirmation/otpPrompt/authLane';
 import {
-  readSigningSessionSealGroupId,
   readString,
   requireFixed32ArrayBuffer,
   resolveEmailOtpAuthSubjectId,
 } from './payloadParsing';
 import {
-  addClientSealFromBytes,
   deriveEmailOtpUnlockAuthSeedInWorker,
   ensureEvmCryptoWasm,
   generateRandomSecret32,
@@ -48,7 +46,6 @@ export async function prepareEmailOtpEnrollmentFromSecret32(args: {
   relayUrl: string;
   walletId: string;
   userId: string;
-  groupId: string;
   routePlan: EmailOtpRoutePlan;
   clientSecret32?: Uint8Array;
   onProgress?: (code: EmailOtpWorkerProgressCode) => void;
@@ -56,26 +53,16 @@ export async function prepareEmailOtpEnrollmentFromSecret32(args: {
   otpChannel: WalletEmailOtpChannel;
   enrollmentId: string;
   enrollmentSealKeyVersion: string;
-  serverSealedFactorCiphertextB64u: string;
+  factorNonceB64u: string;
+  wrappedFactorB64u: string;
   clientUnlockPublicKeyB64u: string;
   unlockKeyVersion: string;
-  emailOtpEnrollment: {
-    enrollmentSealKeyVersion: string;
-    serverSealedFactorCiphertextB64u: string;
-    clientUnlockPublicKeyB64u: string;
-    unlockKeyVersion: string;
-  };
+  emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1;
 }> {
   await ensureEvmCryptoWasm();
-  const runtime = await getShamir3PassRuntime();
   const relayUrl = readString(args.relayUrl, 'relayUrl');
   const walletId = readString(args.walletId, 'walletId');
   const userId = resolveEmailOtpAuthSubjectId({ userId: args.userId });
-  readSigningSessionSealGroupId(args.groupId);
-  const keyHandle = readString(
-    (await runtime.createClientKeyHandle({ groupId: SIGNING_SESSION_SEAL_GROUP_ID })).keyHandle,
-    'keyHandle',
-  );
   let clientSecret32: Uint8Array | null = args.clientSecret32
     ? Uint8Array.from(args.clientSecret32)
     : generateRandomSecret32();
@@ -84,33 +71,18 @@ export async function prepareEmailOtpEnrollmentFromSecret32(args: {
   try {
     const sessionAuth = emailOtpRouteSessionAuth(args.routePlan);
     const enrollmentId = emailOtpDeviceEnrollmentId(walletId, userId);
-    const wrappedCiphertext = await addClientSealFromBytes({
-      runtime,
-      keyHandle,
-      ciphertext: clientSecret32,
+    const factor = await enrollEmailOtpDeviceFactor({
+      walletId,
+      enrollmentId,
+      factorSecret32: clientSecret32,
+      evaluate: (blindedElementB64u) =>
+        postEmailOtpJson({
+          relayUrl,
+          route: emailOtpRoutePath(args.routePlan, 'factor'),
+          ...(sessionAuth ? { sessionAuth } : {}),
+          body: { walletId, enrollmentId, blindedElementB64u },
+        }),
     });
-    const applied = await postEmailOtpJson({
-      relayUrl,
-      route: emailOtpRoutePath(args.routePlan, 'seal'),
-      ...(sessionAuth ? { sessionAuth } : {}),
-      body: {
-        walletId,
-        enrollmentId,
-        wrappedCiphertext,
-      },
-    });
-    const enrollmentSealKeyVersion = readString(
-      applied.enrollmentSealKeyVersion,
-      'enrollmentSealKeyVersion',
-    );
-    const clientCiphertext = readString(applied.ciphertext, 'ciphertext');
-    const serverSealedFactorCiphertextB64u = readString(
-      await runtime.removeClientSealWithKeyHandle({
-        ciphertextB64u: clientCiphertext,
-        keyHandle,
-      }),
-      'serverSealedFactorCiphertextB64u',
-    );
 
     unlockPrivateKey32 = await deriveEmailOtpUnlockAuthSeedInWorker({
       clientSecret32,
@@ -121,25 +93,23 @@ export async function prepareEmailOtpEnrollmentFromSecret32(args: {
     args.onProgress?.('signer.email_otp.enroll.started');
     args.onProgress?.('signer.email_otp.enroll.succeeded');
 
+    const emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1 = {
+      enrollmentSealKeyVersion: factor.enrollmentSealKeyVersion,
+      factorNonceB64u: factor.factorNonceB64u,
+      wrappedFactorB64u: factor.wrappedFactorB64u,
+      clientUnlockPublicKeyB64u,
+      unlockKeyVersion: EMAIL_OTP_UNLOCK_KEY_VERSION,
+    };
     return {
       otpChannel: EMAIL_OTP_CHANNEL,
       enrollmentId,
-      enrollmentSealKeyVersion,
-      serverSealedFactorCiphertextB64u,
-      clientUnlockPublicKeyB64u,
-      unlockKeyVersion: EMAIL_OTP_UNLOCK_KEY_VERSION,
-      emailOtpEnrollment: {
-        enrollmentSealKeyVersion,
-        serverSealedFactorCiphertextB64u,
-        clientUnlockPublicKeyB64u,
-        unlockKeyVersion: EMAIL_OTP_UNLOCK_KEY_VERSION,
-      },
+      ...emailOtpEnrollment,
+      emailOtpEnrollment,
     };
   } finally {
     zeroizeBytes(clientSecret32);
     zeroizeBytes(unlockPrivateKey32);
     zeroizeBytes(unlockPublicKey33);
-    await runtime.destroyClientKeyHandle({ keyHandle }).catch(() => undefined);
     clientSecret32 = null;
   }
 }

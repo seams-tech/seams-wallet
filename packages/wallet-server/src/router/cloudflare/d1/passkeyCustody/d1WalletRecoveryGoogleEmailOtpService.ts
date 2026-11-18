@@ -52,7 +52,14 @@ import type { CloudflareD1EmailOtpEnrollmentStore } from '../emailOtp/d1EmailOtp
 import type { CloudflareD1EmailOtpServerSealRuntime } from '../emailOtp/d1EmailOtpServerSealRuntime';
 import type { CloudflareD1OidcVerificationService } from '../oidc/d1OidcVerificationService';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
-import { releaseEmailOtpFactorToWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
+import {
+  evaluateEmailOtpFactorForDevice,
+  selectEmailOtpDeviceFactor,
+} from '../../../domains/emailOtp/emailOtpRouteHandlers';
+import type {
+  EmailOtpDeviceFactorBlindV1,
+  EmailOtpFactorEvaluationV1,
+} from '@shared/utils/emailOtpDomain';
 import type { EmailOtpChallengeDelivery } from '../../../framework/authServicePort';
 import type {
   OtpIssuedWalletRecoveryGoogleEmailOtpAttempt,
@@ -149,16 +156,9 @@ type WalletRecoveryGoogleEmailOtpChallengeResult =
 type WalletRecoveryGoogleEmailOtpFactorReleaseResult =
   | {
       readonly ok: true;
-      readonly kind: 'email_otp_factor_release_v1';
+      readonly kind: 'email_otp_factor_evaluation_v1';
       readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
-      readonly enrollment: {
-        readonly kind: 'existing';
-        readonly enrollmentId: string;
-        readonly enrollmentSealKeyVersion: string;
-      };
-      readonly serverEphemeralPublicKey65B64u: string;
-      readonly nonce12B64u: string;
-      readonly ciphertextB64u: string;
+      readonly evaluation: EmailOtpFactorEvaluationV1;
     }
   | {
       readonly ok: true;
@@ -199,10 +199,7 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
   private readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
   private readonly verifier: Pick<CloudflareD1EmailOtpChallengeVerifier, 'verifyRecoveryBootstrap'>;
   private readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
-  private readonly serverSeal: Pick<
-    CloudflareD1EmailOtpServerSealRuntime,
-    'removeEmailOtpServerSeal'
-  >;
+  private readonly factorKey: Pick<CloudflareD1EmailOtpServerSealRuntime, 'evaluateEmailOtpFactor'>;
   private readonly orgId: string;
   private readonly nowMs: () => number;
 
@@ -212,7 +209,7 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
     readonly verifier: Pick<CloudflareD1EmailOtpChallengeVerifier, 'verifyRecoveryBootstrap'>;
     readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
-    readonly serverSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'removeEmailOtpServerSeal'>;
+    readonly factorKey: Pick<CloudflareD1EmailOtpServerSealRuntime, 'evaluateEmailOtpFactor'>;
     readonly orgId: string;
     readonly nowMs?: () => number;
   }) {
@@ -221,7 +218,7 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     this.issuer = input.issuer;
     this.verifier = input.verifier;
     this.enrollments = input.enrollments;
-    this.serverSeal = input.serverSeal;
+    this.factorKey = input.factorKey;
     this.orgId = input.orgId;
     this.nowMs = input.nowMs ?? Date.now;
   }
@@ -364,13 +361,17 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     };
   }
 
-  /** Releases existing Email material, or returns authorization to create the first enrollment. */
+  /**
+   * Evaluates the device factor of an existing enrollment, or returns the
+   * authorization to create the first enrollment. Only a device that holds the
+   * factor can recover an existing Email OTP wallet this way.
+   */
   async releaseFactor(input: {
     readonly recoveryOperationId: Parameters<
       CloudflareD1WalletRecoveryGoogleEmailOtpAttemptStore['read']
     >[0];
     readonly reservationId: string;
-    readonly workerEphemeralPublicKey65B64u?: unknown;
+    readonly deviceFactors: readonly EmailOtpDeviceFactorBlindV1[];
   }): Promise<WalletRecoveryGoogleEmailOtpFactorReleaseResult> {
     const stored = await this.attempts.read(input.recoveryOperationId);
     if (stored.kind !== 'present' || stored.value.state !== 'otp_verified') {
@@ -393,10 +394,6 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
         enrollment: attempt.targetEnrollment,
       };
     }
-    const workerEphemeralPublicKey65B64u = nonEmpty(input.workerEphemeralPublicKey65B64u);
-    if (!workerEphemeralPublicKey65B64u) {
-      return failure('invalid_body', 'Email OTP recovery factor release key is required');
-    }
     const enrollment = await this.enrollments.readEnrollment(String(attempt.walletId));
     if (
       !enrollment ||
@@ -411,26 +408,24 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
         'Email OTP recovery enrollment changed after verification',
       );
     }
-    const sealed = await releaseEmailOtpFactorToWorker({
-      serverSeal: this.serverSeal,
+    const deviceFactor = selectEmailOtpDeviceFactor({
+      enrollment,
+      deviceFactors: input.deviceFactors,
+    });
+    if (!deviceFactor.ok) return deviceFactor;
+    const evaluated = await evaluateEmailOtpFactorForDevice({
+      factorKey: this.factorKey,
       walletId: String(attempt.walletId),
       enrollment,
-      workerEphemeralPublicKey65B64u,
+      blindedElementB64u: deviceFactor.blindedElementB64u,
       challengeId: attempt.challengeId,
     });
-    if (!sealed.ok) return sealed;
+    if (!evaluated.ok) return evaluated;
     return {
       ok: true,
-      kind: 'email_otp_factor_release_v1',
+      kind: 'email_otp_factor_evaluation_v1',
       recovery,
-      enrollment: {
-        kind: 'existing',
-        enrollmentId: enrollment.enrollmentId,
-        enrollmentSealKeyVersion: enrollment.enrollmentSealKeyVersion,
-      },
-      serverEphemeralPublicKey65B64u: sealed.serverEphemeralPublicKey65B64u,
-      nonce12B64u: sealed.nonce12B64u,
-      ciphertextB64u: sealed.ciphertextB64u,
+      evaluation: evaluated.evaluation,
     };
   }
 
@@ -991,10 +986,6 @@ function preparedAttemptFromIssued(
     createdAtMs: attempt.createdAtMs,
     expiresAtMs: attempt.expiresAtMs,
   };
-}
-
-function nonEmpty(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function recoveryAttemptUnavailable(): GoogleRecoveryFailure {

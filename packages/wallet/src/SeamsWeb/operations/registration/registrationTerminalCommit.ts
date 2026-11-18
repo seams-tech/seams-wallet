@@ -445,9 +445,13 @@ function buildPendingRegistrationAuth(
         authInput.enrollment.enrollmentSealKeyVersion,
         'enrollment.enrollmentSealKeyVersion',
       ),
-      serverSealedFactorCiphertextB64u: requireCanonicalRegistrationString(
-        authInput.enrollment.serverSealedFactorCiphertextB64u,
-        'enrollment.serverSealedFactorCiphertextB64u',
+      factorNonceB64u: requireCanonicalRegistrationString(
+        authInput.enrollment.factorNonceB64u,
+        'enrollment.factorNonceB64u',
+      ),
+      wrappedFactorB64u: requireCanonicalRegistrationString(
+        authInput.enrollment.wrappedFactorB64u,
+        'enrollment.wrappedFactorB64u',
       ),
       clientUnlockPublicKeyB64u: requireCanonicalRegistrationString(
         authInput.enrollment.clientUnlockPublicKeyB64u,

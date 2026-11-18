@@ -191,7 +191,6 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
           relayUrl: readString(msg.payload.relayUrl, 'relayUrl'),
           walletId: readString(msg.payload.walletId, 'walletId'),
           userId: msg.payload.userId,
-          groupId: readString(msg.payload.groupId, 'groupId'),
           routePlan,
           onProgress: (code) => postEmailOtpWorkerProgress(msg.id, code),
           ...enrollmentClientSecret32(msg.payload.clientSecret32),
