@@ -391,14 +391,14 @@ export function parseD1StoredWalletRegistrationCeremony(
     signerPlan,
     preparedContext,
     orgId,
+    signingRootId,
+    signingRootVersion,
     expiresAtMs,
     authorityState,
     ed25519YaoMint,
     signerState,
   };
   const expectedOrigin = toOptionalTrimmedString(record.expectedOrigin);
-  if (signingRootId) ceremony.signingRootId = signingRootId;
-  if (signingRootVersion) ceremony.signingRootVersion = signingRootVersion;
   if (expectedOrigin) ceremony.expectedOrigin = expectedOrigin;
   return ceremony;
 }
