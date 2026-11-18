@@ -1,7 +1,8 @@
 # Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
 Status: 2026-11-18. Plan only. Nothing is built. Revised on 2026-11-18 after a review of the
-architecture. This plan builds on
+architecture. The Slice 0 unknowns have answers from public documentation (2026-11-18). With
+them, D1, D13 and D14 changed, and D2, D3, D5 and D8 got new facts. This plan builds on
 [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), which separates auth, the
 MPC wallet, the wallet connectors and the checkout, and renames `@seams/wallet` to
 `@seams/mpc-wallet`. The Seams names in this plan change to Purin with the brand rename
@@ -96,27 +97,51 @@ Open, with a recommendation:
 
 - **D1. Account model.** Recommended: each merchant connects its own Stripe and KOMOJU
   accounts. A Stripe Connect platform with Seams fees comes later, after legal advice
-  (Section 11).
+  (Section 11). Changed on 2026-11-18: the hosted model needs that review too. The sources name
+  PCI DSS duties for a provider that can affect a payment page, and the Japanese guideline
+  names duties for a provider of an EC payment system (U10). A lawyer and a PCI QSA review the
+  U10 list before a live merchant uses the hosted checkout.
 - **D2. Routing on the server.** Recommended: the routing table lives on the server. The
-  browser can choose the order and a subset of the enabled methods, never the rail.
+  browser can choose the order and a subset of the enabled methods, never the rail. U2
+  confirms that the server can start each KOMOJU redirect method without a KOMOJU page.
 - **D3. A separate checkout origin.** Recommended: yes. It keeps third-party scripts out of the
   account origin (Fact F4) and makes the payment page a Seams document with a short script list
-  (Fact F12).
+  (Fact F12). U10 adds a reason: for SAQ A, a merchant relies on written confirmation from
+  Seams about the frame's scripts. A short, fixed script list makes that confirmation easy to
+  check.
 - **D5. Stripe card form.** Recommended: the Payment Element in card-only mode, styled with the
-  Appearance API. Stripe marks the split card fields as legacy (Fact F10).
+  Appearance API. Stripe calls the Card Element a legacy integration (Fact F10).
 - **D8. Stablecoin currency.** Recommended: the token matches the order currency. A JPY order
   takes JPYC, and a USD order takes USDC. There is no conversion, so Seams quotes no exchange
-  rate.
+  rate. JPYC is on Ethereum, Polygon, Avalanche and Kaia, not on Base or NEAR (U9). So a
+  merchant that receives only on Base or NEAR gets no JPYC option. The checkout names a token
+  by its contract address, because the old prepaid JPYC has the same name and symbol (U8).
 - **D9. Guest checkout.** Recommended: yes. Sign-in is an offer to the customer, not a step
   before payment. A shop that forces an account before payment loses sales.
 - **D13. Merchant keys.** Recommended: the checkout accepts only a Stripe restricted key with
   the permissions for payments, refunds and webhooks. A leaked key then cannot pay out or read
-  other data (Fact F16). Unknown U12 asks the same for KOMOJU.
-- **D14. Gas for a stablecoin payment.** A customer who pays from a connected wallet pays the
-  gas there. For the MPC wallet, decide after Unknowns U8 and U9. Recommended: if both tokens
-  support signed transfer authorizations, a relayer pays the gas, so that the customer needs
-  only the stablecoin. If not, the checkout offers the MPC wallet only on chains where the gas
-  is small against the order.
+  other data (Fact F16). Changed on 2026-11-18: KOMOJU has no restricted key (U12). Its secret
+  key reaches all API resources, and KOMOJU's own incident exposed some merchants' secret keys
+  (U7). So the checkout encrypts the KOMOJU secret key with a separate encryption key, uses it
+  only in the KOMOJU rail and never logs it. The Console shows the merchant that this key has full
+  access and lets the merchant replace it. Seams asks KOMOJU for scoped keys or an IP allowlist
+  before a live merchant connects KOMOJU.
+- **D14. Gas for a stablecoin payment.** Changed on 2026-11-18 after U8 and U9. Recommended: a
+  relayer pays the gas for the MPC wallet, so that the customer needs only the stablecoin.
+  - JPYC on its four chains and USDC on Ethereum, Base and the other checked chains support
+    EIP-3009 (U8). The MPC wallet signs a `transferWithAuthorization` with one passkey
+    approval. Its nonce comes from the quote ID, and its `validBefore` is the quote expiry. The
+    relayer sends it.
+  - On NEAR, the relayer sends a NEP-366 delegate action that the MPC wallet signed, and the
+    `ft_transfer` memo carries the quote ID.
+  - A customer who pays from a connected wallet pays the gas there. A connected wallet can sign
+    the same authorization as EIP-712 typed data, so the relayer can serve it later. JPYC takes
+    no ERC-1271 signature, so a smart contract wallet always sends a plain transfer.
+  - A transfer costs ¥3 or less on each chain today (U9). The relayer refuses a payment when the
+    gas is above a cap against the order amount. Then the customer pays from a connected
+    wallet.
+  - The relayer holds only the gas token of each chain, never a customer's or a merchant's
+    money. Open: who funds the relayer, Seams or the merchant.
 
 ## How one page uses two providers
 
@@ -175,6 +200,7 @@ Repository facts, checked on 2026-11-18. Paths are the paths before the rename o
   `packages/wallet-server/src/router/domains/`.
 - **F7.** The wallet's asset list has USDC on NEAR and Ethereum, and JPYC on Ethereum. Base is
   reviewed but is not a configurable network (`packages/wallet/src/core/assets/assetList.ts`).
+  The JPYC entry (`0xe7c3…3c29`) is the current JPYC, not the old prepaid token (U8).
 - **F8.** `examples/wallet-console-lite/src/PurchaseReviewExample.tsx` already shows an app
   purchase card before the Wallet confirmer.
 - **F18.** `@seams/voiceid` lists `@seams/wallet` as a peer dependency. This is the pattern for
@@ -190,22 +216,26 @@ prices in Japan:
 
 | Item | Stripe | KOMOJU |
 | --- | --- | --- |
-| Cards, Apple Pay | 3.6% (+2% for currency conversion) | 3.25% |
+| Cards, Apple Pay | 3.6% for each brand, JCB included (+2% for currency conversion) | 3.25% |
 | Konbini | 3.6%, minimum ¥120 | 2.75% |
 | Bank transfer | 1.5% | 1.4% |
-| PayPay | 3.98% (digital goods 9.48%) | 3.5% and up |
+| PayPay | 3.98% (digital goods 9.48%) | 3.5% and up (digital goods 9%) |
 | Merpay, d払い, au PAY | Not offered | 3.5% and up |
 | Rakuten Pay | Not offered | 4.4% and up |
 | Paidy | Not offered | 3.5% and up |
 | Pay-easy | Not offered | 2.75% |
-| Konbini or bank refund | ¥250 + tax | Not stated |
-| Dispute | ¥1,500 | Not stated |
+| Konbini or bank refund | ¥250 + tax | ¥300 including tax (Pay-easy too) |
+| Other refund | No fee. The payment fee is not returned | The payment fee is not returned |
+| Dispute | ¥1,500 | No fee |
 | Monthly or setup fee | None | None |
 
-Neither page says whether the rates include consumption tax.
+Consumption tax comes on top of these rates at both providers (U6). Stripe lists which of its
+fees are taxable. KOMOJU charges no consumption tax to a merchant registered outside Japan. A
+special agreement with KOMOJU takes priority over its list prices.
 
-- **F10.** Stripe recommends the Payment Element for cards. It marks the Card Element and the
-  split card fields as legacy, with maintenance only.
+- **F10.** Stripe recommends the Payment Element for cards. Its comparison page calls the Card
+  Element a legacy integration. That page does not name the split card fields
+  (https://docs.stripe.com/payments/payment-card-element-comparison, read 2026-11-18).
 - **F11.** The Stripe Appearance API sets themes, about 80 variables and rules on public
   classes (`.Input`, `.Label`, `.Error`, `.Tab` and others) with a list of allowed CSS
   properties. It cannot change the DOM. KOMOJU Hosted Fields load a theme CSS file from a URL.
@@ -220,40 +250,391 @@ Neither page says whether the rates include consumption tax.
   smartphone wallets need a Japanese legal entity.
 - **F15.** Apple Pay in a cross-origin frame needs Safari 17 or later, `allow="payment"` on
   every frame in the chain, and a registered domain.
-- **F16.** Secondary reports say KOMOJU had unauthorized access in October 2026 that leaked
-  about 4,100 personal records and some merchant API credentials. KOMOJU says no card data
-  leaked.
+- **F16.** KOMOJU's own final report (2026-11-13) says that a third party entered its systems
+  through a pre-release environment from 2026-10-13. The attacker saw about 4,100 consumer
+  records, the API secret keys of some merchants and KOMOJU's credentials for its payment method
+  providers. No card data leaked (U7).
 
 ## Unknowns to check first (Slice 0)
+
+Answered on 2026-11-18 from public documentation only. Nobody opened an account or entered data
+at a provider. Each answer names its sources, all read on 2026-11-18. A **next check** is the
+test or the question to the provider that closes what the documentation leaves open. The test
+accounts run these checks.
 
 - **U1.** Does KOMOJU return konbini and bank transfer details as data (payment number, stores,
   deadline), or only an instructions URL? If only a URL, the Seams voucher shows the amount and
   deadline and links to KOMOJU's page.
+  - **Answer: as data, with one exception.** A konbini payment has `payment_details.store`,
+    `receipt`, `confirmation_code` and `instructions_url`. The deadline is the payment's
+    `payment_deadline`. Only some chains send `confirmation_code`, and the docs do not name them.
+  - **The exception is 7-Eleven.** Its `receipt` is deprecated, and KOMOJU says to show
+    `instructions_url`. `GET /barcodes/{payment_id}` returns a barcode image that is valid for
+    about 10 minutes.
+  - A bank transfer has `bank_name`, `account_branch_name`, `account_number`, `account_type`,
+    `account_name`, `payment_deadline` and `instructions_url`. The docs show no bank code and no
+    branch code.
+  - So the Seams voucher draws the data. For 7-Eleven, it shows the barcode or links to
+    KOMOJU's page.
+  - Sources:
+    - https://docs.komoju.com/en/api-reference
+    - https://docs.komoju.com/en/docs/integration-guides/direct-integrations/payments-api/overview
+  - **Next check:** create one test konbini payment for each chain and one bank transfer. Record
+    the fields that come back.
 - **U2.** Can a KOMOJU session be paid from the server for redirect methods (PayPay, Rakuten
   Pay, Merpay), so that Seams needs no KOMOJU UI for them?
+  - **Answer: yes.** `POST /api/v1/sessions/{id}/pay` accepts the secret key. For PayPay,
+    Merpay, Rakuten Pay, au PAY and d払い, `payment_details` needs only `type`. The response has
+    `status` and `redirect_url`, and sometimes `app_url`. `POST /api/v1/payments` also returns
+    `payment_details.redirect_url`. No page says that these methods need the KOMOJU hosted page.
+  - Paidy also needs `customer_name`. Pay-easy is asynchronous, as konbini is.
+  - This supports D2: the server starts each KOMOJU redirect method itself.
+  - Sources:
+    - https://docs.komoju.com/en/api-reference
+    - https://docs.komoju.com/en/docs/integration-guides/direct-integrations/payments-api/overview
+  - **Next check:** see whether `redirect_url` goes straight to the wallet provider or to a
+    KOMOJU page first. Confirm the `type` value for d払い (probably `docomo`).
 - **U3.** What events does `<komoju-fields>` send (change, error, complete)? Without them the
   Seams pay button cannot show field errors before submit.
+  - **Answer: one documented event.** The docs name only `komoju-error`
+    (`event.detail.error`). `preventDefault()` on it hides KOMOJU's own message. The script
+    `fields.js` also sends `komoju-invalid` when `submit()` fails validation, and
+    `komoju-session-change`. The docs do not name these two. There is no ready, change or
+    complete event, and no way to read the field state before submit.
+  - `fields.submit()` or a form submit sends the card. In token mode, it returns a token, and the
+    server uses `token.id`. The `theme` attribute takes a CSS URL, and only color changes are
+    supported (Fact F11).
+  - **Effect on the plan.** For a KOMOJU card, the Seams pay button stays on. Field errors show
+    after the customer selects pay.
+  - Sources:
+    - https://docs.komoju.com/en/docs/integration-guides/hosted-fields-handling-errors.md
+    - https://docs.komoju.com/en/docs/integration-guides/hosted-fields-custom-styling.md
+    - https://multipay.komoju.com/fields.js (the code, for the two other events)
+  - **Next check:** ask KOMOJU whether `komoju-invalid` and `komoju-session-change` are stable.
 - **U4.** How does KOMOJU sign webhooks, and does its API accept an idempotency key?
+  - **Signature.** The `X-Komoju-Signature` header is the HMAC-SHA256 of the raw body. The key
+    is the secret token of the webhook in the dashboard. No timestamp is signed, so the
+    signature does not stop a replay. KOMOJU retries a failed delivery 25 times over about 25
+    days.
+  - **Idempotency.** The `X-KOMOJU-IDEMPOTENCY` header works on `POST` requests, with at most
+    100 ASCII characters. A key is valid for 24 hours. A retry must send the same body. A
+    concurrent retry gets 409.
+  - **Lookup.** `GET /api/v1/payments?external_order_num=…` finds a payment by the Seams
+    reference, which must be unique. A session sets it as `payment_data[external_order_num]`.
+  - **Effect on the plan (Section 3).** The KOMOJU webhook route reads the payment from the API
+    before it changes an attempt, so a replayed event cannot set a state that the payment does
+    not have. A retry after 24 hours uses the lookup, not the idempotency key.
+  - Sources:
+    - https://docs.komoju.com/en/docs/introduction/core-concepts/webhooks
+    - https://docs.komoju.com/en/docs/introduction/core-concepts/idempotent-requests
+    - https://docs.komoju.com/en/api-reference
 - **U5.** Does KOMOJU support Apple Pay inside a cross-origin frame?
+  - **Answer: Apple Pay yes. The frame case is not documented.** KOMOJU offers Apple Pay through
+    its hosted page, Hosted Fields and the API: JPY only, Visa and Mastercard only, for
+    corporations only. Hosted Fields and the API need the Apple domain file and each domain
+    registered in the dashboard. The API flow calls `POST /api/v1/apple_pay/validate_merchant`.
+  - The docs say nothing about a cross-origin frame or a Safari version. The frame that
+    `fields.js` makes has `allow="payment *"`.
+  - Google Pay: the eligibility page names only the hosted page and WooCommerce. A changelog of
+    2026-08-31 names Hosted Fields too.
+  - **No change to the plan.** Apple Pay and Google Pay stay on Stripe (Fact F15).
+  - Sources:
+    - https://docs.komoju.com/en/docs/integration-guides/apple-pay/using-apple-pay
+    - https://docs.komoju.com/en/docs/integration-guides/apple-pay/using-apple-pay-api
+    - https://docs.komoju.com/en/docs/integration-guides/google-pay/eligibility-criteria.md
+  - **Next check:** ask KOMOJU which domain to register when its fields run in a frame on another
+    origin, and whether Google Pay works in Hosted Fields.
 - **U6.** Which consumption tax applies to each fee, and what are the JCB and foreign card rates
   on Stripe?
+  - These are the published rates and statements only. They are not tax advice.
+  - **Stripe card rates.** Stripe Japan lists one rate, 3.6%, for all card brands, JCB
+    included. It lists no surcharge for a card from outside Japan. A payment that needs currency
+    conversion costs 2% more.
+  - **Stripe tax.** Stripe adds Japanese consumption tax to its fees. Its list of taxable fees
+    names JCB, American Express, Diners, Discover, konbini, PayPay, bank transfer, disputes and
+    software services. Visa and Mastercard fees are taxable from 2026-04-01, and currency
+    conversion from 2025-10-31. Apple Pay, Google Pay and Link follow the card behind them.
+    Stripe sends a qualified invoice (適格請求書) each month.
+  - **KOMOJU tax.** KOMOJU's help center says that consumption tax is added to the rates. Its
+    example: a ¥5,000 konbini payment at 2.75% costs ¥138 + ¥14 tax. A merchant registered
+    outside Japan pays no consumption tax on the fees. The refund fee for bank transfer, konbini
+    and Pay-easy is ¥300 including tax.
+  - Fact F9 now has these facts.
+  - Sources:
+    - https://stripe.com/jp/pricing
+    - https://stripe.com/jp/pricing/local-payment-methods
+    - https://support.stripe.com/questions/taxes-on-stripe-fees-for-businesses-in-japan
+    - https://ja.komoju.com/pricing/
+    - https://help.komoju.com/hc/ja/articles/4747472702622
+    - https://help.komoju.com/hc/ja/articles/5726428923422
+    - https://help.komoju.com/hc/ja/articles/4747518260254
+  - **Next check:** in Stripe test mode, charge a test card from outside Japan and read
+    `balance_transaction.fee_details`. Ask Stripe Japan to confirm in writing that there is no
+    cross-border surcharge.
 - **U7.** Read KOMOJU's own notice about the October 2026 incident before the owner signs with
   KOMOJU.
+  - **What happened.** From the evening of 2026-10-13, a third party used a fault in the
+    authentication settings of a pre-release environment. That environment tests code before a
+    production deploy. It connects to the production database and is reachable from the
+    internet. The attacker entered the staff admin screen and some systems, and used a stored
+    CRM API key to read inquiry records. KOMOJU detected the access early on 2026-10-14 and
+    blocked it the same morning.
+  - **What the attacker saw.**
+    - Payment system: about 4,100 records of consumers of some merchants (email, and for some,
+      name and phone).
+    - Payment system: the API secret keys of some merchants, and KOMOJU's credentials for its
+      payment method providers.
+    - CRM: about 12,400 inquiry records of merchant staff, partner staff and consumers. Some
+      have an address, a birth date, a bank account or an ID document.
+    - No card data. KOMOJU found no fraudulent payment or refund and no change to a settlement
+      account.
+  - **What KOMOJU changed.** It closed the access path and disabled the related accounts,
+    sessions and the settings that the attacker made. It changed or restricted the viewed
+    credentials and renewed the CRM API key. It changes the provider credentials one provider at
+    a time. It reported to the Personal Information Protection Commission and told each
+    affected person. It names the cause as the authentication setting, plus gaps in access
+    control, credential management, the development process and detection. It fixed the
+    setting. It says that it will check all systems for the same fault and make access control
+    and detection stronger. An outside specialist helped the investigation.
+  - **Side effects.** The credential changes broke a KOMOJU payment app for Shopify on 10-16 and
+    some 7-Eleven barcodes on 10-19.
+  - **What merchants must do.** A merchant that KOMOJU did not contact needs to do nothing.
+    KOMOJU suggests a new dashboard password and two-factor authentication.
+  - This replaces the secondary reports in Fact F16, and it is a reason for D13.
+  - Sources (the reports are PDFs linked from the notices):
+    - https://ja.komoju.com/news/1022-notice/ (first report)
+    - https://ja.komoju.com/news/1026-notice/ (second report)
+    - https://ja.komoju.com/news/1113-notice/ (final report, 2026-11-13)
+    - https://help.komoju.com/hc/ja/articles/5744672965150
+    - https://help.komoju.com/hc/ja/articles/5744669041822
 - **U8.** Do JPYC and USDC support signed transfer authorizations (EIP-3009
   `transferWithAuthorization`) on each chain that the checkout uses? With them, the nonce can
   name the order and a relayer can pay the gas (D14).
+  - **Answer: yes on every EVM chain that the checkout considers.**
+  - **JPYC.** The current JPYC is the electronic payment instrument (電子決済手段) of JPYC Inc.
+    It has one address on all its chains: `0xE7C3D8C9a439feDe00D2600032D5dB0Be71C3c29`. This is
+    an ERC-1967 proxy. On each chain it points to the verified `FiatTokenV1` at
+    `0xafAC17FC3936A29CA2D2787cEd3c5d1c52007d2e`. That contract has
+    `transferWithAuthorization`, `receiveWithAuthorization`, `cancelAuthorization`, `permit`,
+    and the event `AuthorizationUsed` with the authorizer and the nonce as indexed topics.
+  - It takes only the `v, r, s` signature form. So an EOA and the MPC wallet can sign, but a
+    smart contract wallet (ERC-1271) cannot. The EIP-712 domain is "JPY Coin", version "1".
+  - **The wallet's JPYC entry is the current JPYC** (Fact F7). The old prepaid JPYC v2
+    (`0x431D5dfF03120AFA4bDf332c61A6e1766eF37BDB`) has the same name and symbol. So the checkout
+    names a token only by its address.
+  - **USDC.** Circle's FiatToken is compatible with EIP-3009 and EIP-2612. On Ethereum, Base,
+    Polygon, Avalanche, Arbitrum and OP, the code has the `v, r, s` form and the ERC-1271 form.
+    The EIP-712 domain on Ethereum and Base is "USD Coin", version "2". Circle lists 38 chains.
+    Nobody checked the others.
+  - **The relayer uses `transferWithAuthorization`.** `receiveWithAuthorization` requires the
+    caller to be the payee, and the relayer is not the merchant. A third party that sends the
+    signed authorization first only pays the gas: the transfer stays the same.
+  - **USDC on NEAR** is a NEP-141 token, so it has no EIP-3009. NEP-366 meta transactions let a
+    relayer send a transaction that the user signed and pay its gas. `ft_transfer` has an
+    optional `memo`, and the NEP-141 `ft_transfer` event can carry it. So a memo can name the
+    order.
+  - The selectors were read from the implementation bytecode with `cast` through public RPC.
+  - Sources:
+    - https://github.com/jpycoin/.github/blob/main/profile/README.md
+    - https://etherscan.io/address/0xafAC17FC3936A29CA2D2787cEd3c5d1c52007d2e#code
+    - https://github.com/circlefin/stablecoin-evm/blob/master/doc/tokendesign.md
+    - https://developers.circle.com/stablecoins/usdc-contract-addresses
+    - https://eips.ethereum.org/EIPS/eip-3009
+    - https://github.com/near/NEPs/blob/master/neps/nep-0366.md
+    - https://github.com/near/NEPs/blob/master/neps/nep-0141.md
+  - **Next check:** on NEAR testnet, send one USDC `ft_transfer` with a memo and read its logs
+    with `EXPERIMENTAL_tx_status`. This shows whether Circle's contract logs the memo. A
+    receiver also needs a storage deposit at the USDC contract before its first transfer.
 - **U9.** On which chains is JPYC issued, and what does a transfer cost on each? The wallet's
   asset list has JPYC only on Ethereum (Fact F7), where the gas can cost more than a small
   order.
+  - **Chains.** JPYC is on Ethereum (1), Polygon (137), Avalanche C-Chain (43114) and Kaia
+    (8217). It is not on Base and not on NEAR.
+  - **Cost, measured on 2026-11-18.** Gas prices change, so this is one sample. Prices: ETH
+    $1,809, POL $0.082, AVAX $7.14, KAIA $0.030, and ¥159 for each US dollar.
+
+    | Chain | Gas price | Plain transfer (46k–63k gas) | EIP-3009 transfer (about 110k gas) |
+    | --- | --- | --- | --- |
+    | Ethereum | 0.105 gwei | ¥1.4–1.9 | About ¥3.3 |
+    | Polygon | 273.5 gwei | ¥0.16–0.23 | ¥0.39 |
+    | Avalanche | 8.2 nAVAX | ¥0.4–0.6 | About ¥1.0 |
+    | Kaia | 27.5 gkei | Less than ¥0.02 | Less than ¥0.02 |
+    | Base (USDC only) | 0.005 gwei | ¥0.07–0.11 | ¥0.25 |
+    | NEAR (USDC only) | Not applicable | ¥0.14 (0.000266 NEAR) | Not applicable |
+
+  - A JPYC `transfer` used 46,072 gas to a holder and about 63,170 to a new holder. A JPYC
+    `transferWithAuthorization` on Polygon used 109,854. A USDC `transferWithAuthorization` on
+    Base used 86,486. The "about" cells are estimates at 110,000 gas.
+  - **The premise of U9 does not hold at today's gas price.** A transfer on Ethereum costs
+    about ¥2. Gas can rise again, so D14 keeps a cap.
+  - **JPYC terms.** JPYC Inc. can restrict transfers from or to an address when it suspects a
+    crime (Art. 10(5)), and the contract has `blocklist` and `pause`. Art. 17 allows a payment
+    in JPYC when the counterparty agrees. For a redemption, JPYC counts a transfer as complete
+    after 32 blocks on Ethereum, 256 on Polygon, 12 on Avalanche and 12 on Kaia. The checkout
+    can use the same counts (Section 4, step 6).
+  - Sources (gas used comes from recent transfers on each explorer; Kaia's gas price from its
+    public RPC):
+    - https://github.com/jpycoin/.github/blob/main/profile/README.md
+    - https://jpyc.co.jp/legal/terms.pdf
+    - https://etherscan.io/gastracker
+    - https://polygonscan.com/gastracker
+    - https://snowtrace.io/gastracker
+    - https://basescan.org/gastracker
 - **U10.** Does the hosted model need legal review too? Seams hosts the payment page and stores
   the merchants' provider keys. Check the PCI DSS duties of a service provider and the
   Installment Sales Act, not only for the Connect platform of Section 11.
+  - **This needs a lawyer.** The list below names the duties that the sources describe. It is
+    not a legal conclusion. A lawyer, a PCI QSA and the merchants' acquirers must decide how
+    each duty applies to Seams.
+  - **PCI DSS.**
+    - The glossary: a service provider handles card data for another entity, or gives a service
+      that could affect the security of that data. Hosting providers are an example.
+    - FAQ 1579: PCI DSS applies to a provider that can affect account data, also when it never
+      stores, processes or transmits that data.
+    - FAQ 1580: such a provider is assessed on its whole service, with a Report on Compliance
+      (ROC) or SAQ D for Service Providers.
+    - FAQ 1576 and requirements 12.9.1 and 12.9.2: the provider gives its Attestation of
+      Compliance (AOC) or other evidence to its customers, and states which requirements it
+      owns.
+    - SAQ A: each element of the merchant's payment page must come only and directly from a
+      PCI DSS compliant service provider or processor. FAQ 1588: for the script criterion, the
+      merchant can rely on written confirmation from that provider (Fact F12).
+    - FAQ 1604 (June 2026): ASV scans also apply to a page with an iframe that holds another
+      provider's iframe. A checkout frame in the merchant's page is that case.
+    - Requirement 12.8: the merchant keeps a written agreement with each provider and checks it
+      each year. This comes from secondary sources only.
+    - No PCI SSC FAQ was found about a provider that holds merchants' API keys.
+  - **Card brand levels for service providers.**
+    - Visa: level 1 is 300,000 or more Visa transactions a year and needs a yearly AOC signed
+      by a QSA. Level 2 is fewer and needs a yearly AOC for SAQ D. Visa asks third-party agents
+      that store, process, transmit or access card data to register.
+    - Mastercard: level 1 is every third-party processor, and data storage entities and payment
+      facilitators above 300,000 transactions a year. Level 1 needs a yearly ROC by a QSA.
+      Level 2 needs a yearly SAQ D for Service Providers.
+  - **Installment Sales Act (割賦販売法).**
+    - Art. 35-16(1): seven types of クレジットカード番号等取扱業者 must manage card numbers
+      properly. Type 7 is a type that the ordinance names.
+    - Art. 35-16(3): a handler that outsources the work supervises its contractor
+      (クレジットカード番号等取扱受託業者).
+    - Art. 35-17-2: a company that signs merchant contracts registers as a
+      クレジットカード番号等取扱契約締結事業者 (Fact F13).
+    - Art. 35-17-15: merchants take measures against fraudulent use.
+    - Ordinance Art. 132-2, item 7: a business that, for specific merchants, gives card numbers
+      to an acquirer, directly or through others.
+  - **Security guideline 6.1 (March 2026).** The Act treats the guideline's measures as the
+    necessary measures. Online merchants: 非保持化 (no card data in their own systems) or PCI
+    DSS, vulnerability measures, EMV 3-D Secure on each payment as a rule, and measures against
+    fraudulent login. Payment agencies (決済代行業者等): PCI DSS compliance. An EC system
+    provider, which runs a payment system for EC merchants as ASP or SaaS: PCI DSS compliance
+    and a system with the measures built in.
+  - **For the lawyer.** The checkout origin and the Worker seem to match the PCI "could affect"
+    wording and the guideline's EC system provider. Whether a frame-only flow "gives card
+    numbers" under the ordinance is a legal question.
+  - **Effect on the plan.** D1 and D3 now say that the hosted model needs this review.
+  - Sources:
+    - https://www.pcisecuritystandards.org/glossary/service-provider/
+    - https://www.pcisecuritystandards.org/faqs/1579/
+    - https://www.pcisecuritystandards.org/faqs/1580/
+    - https://www.pcisecuritystandards.org/faqs/1576/
+    - https://www.pcisecuritystandards.org/faqs/1588/
+    - https://www.pcisecuritystandards.org/faqs/1604
+    - https://corporate.visa.com/en/resources/security-compliance.html
+    - https://laws.e-gov.go.jp/law/336AC0000000159 (the Act)
+    - https://laws.e-gov.go.jp/law/336M50000400095 (the ordinance)
+    - https://www.j-credit.or.jp/security/pdf/Creditcardsecurityguidelines_6.1_published.pdf
+    - Visa's service provider PDF (2017) and Mastercard's Site Data Protection FAQ (June 2024),
+      read only through search excerpts. SAQ A was read through a quote in Adyen's docs.
+  - **Next check:** read SAQ A and PCI DSS v4.0.1 in the PCI SSC document library, and the two
+    brand PDFs. Then give this list to a lawyer.
 - **U11.** Can a konbini or bank voucher be cancelled at each provider when the customer changes
   the method?
+  - **Answer: yes at both providers, with limits.**
+  - **Stripe konbini.** The PaymentIntent can be cancelled after confirmation and before
+    `next_action.konbini_display_details.expires_at`. The cancel fails while the customer pays
+    at the store. After a cancel, the payment instructions are invalid. `expires_after_days`
+    takes 1 to 60 days (default 3, until 23:59:59 JST), or `expires_at` takes a time. A slip
+    from before the deadline can still be paid in a short period after it.
+  - **Stripe bank transfer.** The PaymentIntent can be cancelled while it waits for funds
+    (`requires_action`). Money that matches no open payment goes to the customer's cash
+    balance. The merchant applies it to a payment or refunds it. After 75 days, Stripe tries
+    to return unreconciled money, and after 90 days it moves the money to the merchant's
+    balance. This method has no expiry setting on the PaymentIntent.
+  - **KOMOJU.** `POST /api/v1/payments/{id}/cancel` works on a `pending` or `authorized`
+    payment. An unpaid konbini, bank transfer or Pay-easy payment is `authorized`.
+    `payment_details[expiry_days]` sets the deadline of each payment. The API docs give no
+    limits. The docs do not say what happens when a customer pays after a cancel.
+  - **Effect on the plan.** Both rails can cancel an unpaid voucher (Section 3). A Stripe bank
+    transfer after a cancel arrives as cash balance, not as a payment. The Stripe rail reports
+    it as an `unexpected_payment` (Section 5).
+  - Sources:
+    - https://docs.stripe.com/payments/konbini/accept-a-payment
+    - https://docs.stripe.com/api/payment_intents/cancel
+    - https://docs.stripe.com/payments/bank-transfers/accept-a-payment
+    - https://docs.stripe.com/payments/customer-balance/reconciliation
+    - https://docs.komoju.com/en/api-reference
+    - https://docs.komoju.com/en/docs/introduction/core-concepts/payments
+  - **Next checks:** cancel a KOMOJU test konbini payment, then simulate the store payment. In
+    Stripe test mode, cancel a bank transfer PaymentIntent, then fund the cash balance with the
+    test helper. Ask Stripe what the store shows after a konbini cancel, and whether a return
+    of cash balance costs the ¥250 refund fee.
 - **U12.** Does KOMOJU offer restricted keys (D13)?
+  - **Answer: no, as documented.** KOMOJU has a secret key and a publishable key, each in a
+    live and a test pair. The secret key "grants access to all API resources". The publishable
+    key can only create tokens and pay sessions. The docs name no restricted key, no scope and
+    no IP allowlist.
+  - **Effect on the plan.** D13 changes.
+  - Source: https://docs.komoju.com/en/docs/introduction/core-concepts/authentication
+  - **Next check:** ask KOMOJU whether it has, or plans, scoped keys or an IP allowlist.
 - **U13.** Can the checkout Worker find a NEAR token transfer without the transaction hash?
   Plain NEAR RPC has no log search. If not, the NEAR path needs an indexer, or it needs the
   hint.
+  - **Answer: plain RPC cannot do it in practice.**
+    - No RPC method searches transactions, receipts, logs or events by account. `tx` and
+      `EXPERIMENTAL_tx_status` need the transaction hash and the sender.
+      `EXPERIMENTAL_receipt` needs a receipt ID.
+    - `chunk` returns transactions and receipts, but no outcomes and no logs. The logs, with
+      the NEP-141 events, come only from `tx` and `EXPERIMENTAL_tx_status`.
+    - `EXPERIMENTAL_changes` with `data_changes` returns the storage changes of one block under
+      a key prefix, and each change names the receipt that caused it. A server could watch the
+      receiver's balance key in the USDC contract. But it must ask for each block, and the key
+      layout depends on the contract code (not checked).
+    - A block comes every 600 ms, about 144,000 a day. The public RPC allows 30 requests a
+      minute since 2025-08-01, and nearcore accepts no batch requests. A regular node keeps
+      about 36 hours of history. So a block scan works only on an own node.
+  - **Indexer options.**
+    - Intear transfers API: `transfers.query` and `transfers.subscribe`, with sender, receiver
+      and token filters, updated after each block. Free in beta, and the terms can change. It
+      documents no memo field.
+    - FastNEAR neardata: one JSON file for each block, with receipt outcomes and logs, and no
+      key. The FastNEAR Transfers API gives NEAR and token transfers by account (mainnet only,
+      with a key).
+    - NearBlocks API: `/v3/accounts/{account}/ft-txns`, with a key. Versions 1 and 2 stop on
+      2026-11-22.
+    - Pikespeak: event history of an account, with a key.
+    - Goldsky: hosted pipelines with NEAR receipts and outcomes.
+    - NEAR Indexer: self-run on an own node. It streams each block.
+    - Not usable: NEAR Lake stopped indexing on 2026-03-24. The Graph does not list NEAR, and
+      Substreams support for NEAR is still "upcoming".
+  - **Effect on the plan (Section 4).** While a NEAR quote is open, the Worker reads each final
+    block from an indexer and filters the USDC `ft_transfer` events. Then it confirms the match
+    with `EXPERIMENTAL_tx_status` on RPC. The indexer result is a hint, as the browser hint is
+    (D11).
+  - Sources:
+    - https://docs.near.org/api/rpc/transactions
+    - https://docs.near.org/api/rpc/block-chunk
+    - https://docs.near.org/api/rpc/contracts
+    - https://github.com/near/nearcore/blob/master/core/primitives/src/views.rs
+    - https://docs.near.org/integrations/nodes
+    - https://near.org/blog/deprecation-of-near-org-and-pagoda-co-rpc-endpoints
+    - https://docs.near.org/data-infrastructure/what-is
+    - https://docs.near.org/data-infrastructure/lake-framework/near-lake
+    - https://docs.fastnear.com/neardata
+    - https://docs.fastnear.com/transfers
+    - https://docs.intear.tech/api/reference/transfers.md
+    - https://api.nearblocks.io/api-docs/migration
+    - https://goldsky.com/chains/near
+  - **Next check:** measure the time a Worker takes to read one neardata block. Ask FastNEAR
+    about rate limits and Intear about the terms after the beta.
 
 ## 1. Modules and where they run
 
@@ -466,9 +847,9 @@ type PaymentRail = {
 - **`RailEvents` is a union of two members.** A webhook rail gives `verify(request)`. A poll
   rail gives an interval, and the Worker calls `read` for each active attempt on a schedule.
   Stripe and KOMOJU are webhook rails. The stablecoin rail is a poll rail.
-- **`cancel` and `refund` say what the rail cannot do.** A rail that cannot cancel a voucher
-  answers `not_supported` (Unknown U11). The stablecoin rail answers `manual` for a refund: the
-  merchant sends the tokens back itself.
+- **`cancel` and `refund` say what the rail cannot do.** Stripe and KOMOJU can cancel an
+  unpaid voucher (U11). A later rail that cannot answers `not_supported`. The stablecoin rail
+  answers `manual` for a refund: the merchant sends the tokens back itself.
 - **The rails are a list, not a closed type.** The Worker's configuration names the rails that
   it loads. A deployment without stablecoins loads no chain code.
 
@@ -503,7 +884,8 @@ Server details for every rail:
   timeouts and error mapping. No provider SDK enters the server bundle.
 - **Webhooks.** One route for each webhook rail (`/checkout/webhooks/stripe`,
   `/checkout/webhooks/komoju`). Each checks the signature with WebCrypto before it reads the
-  body. Duplicate and late events converge, as in Spec 8.
+  body. Duplicate and late events converge, as in Spec 8. KOMOJU signs no timestamp (U4), so
+  the KOMOJU route reads the payment from the API before it changes an attempt.
 - **Secret keys.** The merchant's provider keys stay in the checkout Worker, encrypted at rest.
   The checkout accepts only restricted keys where the provider has them (D13). The browser gets
   only a publishable key and a per-payment client secret or session ID.
@@ -526,9 +908,11 @@ A stablecoin payment:
    - **Connected wallet.** The connected wallet opens its own window. The checkout frame shows a
      wait.
 5. The checkout Worker finds the transfer (D11). On each poll it searches the token's transfer
-   events from the block of the quote for the payer, the receiver and the exact amount. With a
-   hint, it reads that transaction first.
-6. The Worker accepts the transfer after the required confirmations.
+   events from the block of the quote for the payer, the receiver and the exact amount. For a
+   signed authorization (D14), it searches the `AuthorizationUsed` event by the quote's nonce.
+   With a hint, it reads that transaction first.
+6. The Worker accepts the transfer after the required confirmations. JPYC's own counts are a
+   start: 32 blocks on Ethereum, 256 on Polygon, 12 on Avalanche and 12 on Kaia (U9).
 7. One transfer pays one order. If two open quotes match one transfer, the oldest quote gets
    it. A second use is refused.
 
@@ -537,10 +921,13 @@ A stablecoin payment:
   order status.
 - **A transfer after the expiry** is an `unexpected_payment` (Section 5). The merchant refunds
   it or accepts it by hand.
-- **NEAR.** The search needs an indexer or the hint (Unknown U13).
-- **Signed authorizations (D14).** If the tokens support them (Unknown U8), the customer signs
-  an authorization whose nonce comes from the order ID. Then the transfer names its order, the
-  match of step 5 is exact, and a relayer can pay the gas.
+- **NEAR.** Plain RPC cannot search by account (U13). While a NEAR quote is open, the Worker
+  reads each final block from an indexer and filters the USDC `ft_transfer` events for the
+  payer, the receiver and the amount. It confirms a match with `EXPERIMENTAL_tx_status` on RPC.
+- **Signed authorizations (D14).** Both tokens support them on their EVM chains (U8). The
+  customer signs an authorization whose nonce comes from the quote ID. Then the transfer names
+  its order, the match of step 5 is exact, and a relayer can pay the gas. The authorization
+  cannot run after the quote expires.
 
 The MPC wallet as a funded wallet:
 
@@ -599,7 +986,9 @@ stateDiagram-v2
 - **Only a rail event moves an attempt to `succeeded`:** a verified webhook or a confirmed
   transfer. A browser result is a hint. A closed window proves nothing (Spec 7).
 - **A change of method cancels the old attempt.** The Worker calls the rail's `cancel`. A
-  voucher that the rail cannot cancel stays payable.
+  voucher that the rail cannot cancel stays payable. At Stripe, a bank transfer that arrives
+  after the cancel goes to the customer's cash balance (U11). The Stripe rail reports it as an
+  unexpected payment.
 - **An unexpected payment.** Money can arrive when the order does not wait for it:
   - a konbini voucher is paid after the customer paid by card
   - a transfer is confirmed after its quote expired
@@ -654,8 +1043,9 @@ modal. The repo rules allow one copy of that code.
 
 Each slice ships alone and keeps the invariants of Section 9.
 
-- **Slice 0: checks and accounts.** Answer U1 to U13. Open Stripe (Japan) and KOMOJU test
-  accounts. Get the open decisions. No code.
+- **Slice 0: checks and accounts.** U1 to U13 have answers from public documentation
+  (2026-11-18). Open Stripe (Japan) and KOMOJU test accounts, and run the next checks that the
+  answers name. Give the U10 list to a lawyer. Get the open decisions. No code.
 - **Slice 1: the stage dialog.** Built as Refactor 251 Slice 3 (Section 6). The checkout starts
   after it.
 - **Slice 2: the checkout package and server.** `packages/checkout` with its `/client` and
@@ -677,7 +1067,7 @@ Each slice ships alone and keeps the invariants of Section 9.
   `prove`. Needs the login token of Refactor 251 (its Slices 5 and 6).
 - **Slice 6: the stablecoin rail.** Both halves, with the MPC wallet and the wallet connectors:
   the onchain quote, the move to the Wallet confirmer, the transfer search and the poll. JPYC
-  on Ethereum and USDC on Ethereum and NEAR (Fact F7), or the chains that D14 selects. Build it
+  on Ethereum and USDC on Ethereum and NEAR (Fact F7), with the relayer of D14. Build it
   against the API of Refactor 251 Release B, so that it needs no second change.
 - **Slice 7: the other KOMOJU methods.** Rakuten Pay, Merpay, au PAY, d払い, Paidy and Pay-easy
   as redirect methods (Unknown U2).
