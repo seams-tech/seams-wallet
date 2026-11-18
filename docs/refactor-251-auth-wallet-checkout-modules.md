@@ -167,6 +167,11 @@ Decided by the owner on 2026-11-18:
     `/client` and `/react`, and a test checks this (Section 10).
   - Decide whether to publish the source maps. They are the largest part of the JavaScript
     packages.
+- **D26. Email OTP custody.** The owner decided on 2026-11-18 that the wallet server alone must not
+  be able to open an owner Email OTP wallet. Today it can ([Slice 0
+  inventory](refactor-251-slice-0-inventory.md), U4). [Refactor
+  252](refactor-252-email-otp-device-factor.md) makes the Email OTP factor key a device factor with
+  a blinded release. A new device then needs device linking or a recovery code.
 
 Open, with a recommendation:
 
@@ -195,17 +200,6 @@ Open, with a recommendation:
   inventory](refactor-251-slice-0-inventory.md), row 5.14). Recommended: after the recovery
   finalize, the wallet server signs a one-time statement for auth, and auth accepts it once to add
   one method.
-- **D26. Email OTP custody.** Today the wallet server alone can open each wallet that has an
-  owner Email OTP method. The public custody docs say that hosted infrastructure cannot
-  ([Slice 0 inventory](refactor-251-slice-0-inventory.md), U4). Choose one:
-  - Keep the factor key on the server. Correct the public docs, and keep the email code check
-    for the audience `wallet` in the wallet server.
-  - Keep the factor key on the device, as [Email OTP](otp/email-otp.md) says. A new device then
-    gets it by device linking or recovery. This needs its own plan and a migration.
-
-  Recommended: correct the public docs now, because they are wrong today. Keep the first option
-  for this plan. Write the second as its own plan if the non-custodial promise must cover
-  Email OTP.
 
 ## Facts this plan builds on
 
@@ -561,11 +555,11 @@ What a compromised Auth Worker can do:
 | --- | --- |
 | Passkey | It can make a login session. It cannot unlock a wallet: the assertion must match the pinned key, and the envelope opens only with the PRF result of the user's authenticator |
 | VoiceID | The same. The device key is pinned, and it cannot leave the device |
-| Email OTP | If the wallet server accepts its email statement, it can open each wallet that has an owner Email OTP method (U4). So the wallet server keeps its own email code check for the audience `wallet` until D26 is decided |
+| Email OTP | Today: if the wallet server accepts its email statement, it can open each wallet that has an owner Email OTP method (U4). After [Refactor 252](refactor-252-email-otp-device-factor.md): nothing, because the sealed factor is on the device |
 
-Slice 0 showed that a false statement opens the envelope (U4). It also showed that the wallet
-server alone can open an owner Email OTP wallet today. D26 decides what Email OTP custody is.
-Until then:
+Slice 0 showed that a false statement opens the envelope (U4). It also showed that the wallet server
+alone can open an owner Email OTP wallet today. [Refactor
+252](refactor-252-email-otp-device-factor.md) fixes this (D26). Until its Slice 5 is done:
 
 - The wallet server keeps its own email code check for the audience `wallet`, with its own
   email provider key. The Auth Worker checks codes only for the audience `login`.
