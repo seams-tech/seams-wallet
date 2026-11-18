@@ -172,6 +172,10 @@ Decided by the owner on 2026-11-18:
   inventory](refactor-251-slice-0-inventory.md), U4). [Refactor
   252](refactor-252-email-otp-device-factor.md) makes the Email OTP factor key a device factor with
   a blinded release. A new device then needs device linking or a recovery code.
+- **D11. The repository name.** The owner decided on 2026-11-18: `seams-wallet` becomes `pay`,
+  and `seams-monorepo` becomes `purin`, together with the brand rename (D22). The GitHub
+  organisation rename of 2026-11-20 ([checklist](github-org-move-purin-io.md)) keeps the
+  repository names.
 
 Open, with a recommendation:
 
@@ -187,7 +191,6 @@ Open, with a recommendation:
   `createMpcWallet({ auth, ... })` and `createCheckout({ identity: auth, ... })`. Each
   constructor takes one object. `SeamsWeb` goes away in Release B with no alias. The method
   names in this document are provisional.
-- **D11. The repository name.** Recommended: it stays `seams-wallet` for now.
 - **D20. A file limit for the new code.** Recommended: 1,000 lines for each file in the new
   folders. The repository limit stays 2,000 lines.
 - **D22. The brand rename and Release A.** The owner changes the brand from Seams to Purin

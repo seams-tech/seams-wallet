@@ -254,4 +254,6 @@ container image `speaker-service`.
   and Cloudflare names. See [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D22
   and D23.
 - **Repository names.** `seams-wallet`, `seams-monorepo`, `speak-to-sign` and `pantry` keep
-  their names in this step.
+  their names in this step. The owner decided on 2026-11-18 that `seams-wallet` becomes `pay`
+  and `seams-monorepo` becomes `purin` together with the brand rename
+  ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D11).
