@@ -40,8 +40,14 @@ import type {
   WalletSessionAdmissionSnapshotV2,
   WalletSessionExactOperationContext,
 } from '../../../../../authorization/domain';
-import type { WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type {
+  ActiveWalletAuthorityV1,
+  WalletAuthorityV1,
+} from '@shared/authorization/walletAuthority';
+import type {
+  ActiveWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
 import {
   buildActiveWalletSessionQuota,
   buildExactWalletSessionQuotaProjectionV1,
@@ -209,12 +215,56 @@ async function joinedAuthorityAndMethod(row: D1Row): Promise<{
   return { authority, authMethod };
 }
 
+/**
+ * The session still names this exact authority and auth method, and both are
+ * active. Every reader that admits a session from its joined rows uses this
+ * one rule. Returns the pair narrowed to active, or null.
+ */
+export function currentWalletSessionAuthority(input: {
+  readonly session: WalletSessionAuthorizationV2;
+  readonly authority: WalletAuthorityV1 | null;
+  readonly authMethod: WalletAuthMethodRecordV2 | null;
+}): {
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: ActiveWalletAuthMethodRecordV2;
+} | null {
+  const { session, authority, authMethod } = input;
+  if (
+    !authority ||
+    authority.state !== 'active' ||
+    !authMethod ||
+    authMethod.status !== 'active' ||
+    authority.walletId !== session.walletId ||
+    authority.authorityId !== session.authorityId ||
+    authority.authorityDigestB64u !== session.authorityDigestB64u ||
+    authority.revocationEpoch !== session.authorityRevocationEpoch ||
+    authMethod.walletId !== session.walletId ||
+    authMethod.walletAuthorityId !== session.authorityId ||
+    authMethod.walletAuthMethodId !== session.walletAuthMethodId
+  ) {
+    return null;
+  }
+  return { authority, authMethod };
+}
+
+/**
+ * A well-formed session that can no longer authorize: retired, expired, its
+ * quota closed, or its authority or auth method changed. A reader that maps
+ * lifecycle states to "no session" catches only this; a corrupt row or a
+ * storage failure still throws a plain error.
+ */
+export class WalletSessionAuthorizationV2InactiveError extends Error {
+  override readonly name = 'WalletSessionAuthorizationV2InactiveError';
+}
+
 function parseLiveWalletSessionAuthorizationV2Row(
   row: D1Row,
   input: WalletSessionAuthorizationV2Read,
 ): WalletSessionAuthorizationV2 {
   if (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) {
-    throw new Error('Stored V2 Wallet Session authorization is retired');
+    throw new WalletSessionAuthorizationV2InactiveError(
+      'Stored V2 Wallet Session authorization is retired',
+    );
   }
   const session = parsePersistedWalletSessionAuthorizationV2(
     parseD1JsonColumn(row.session_record_json),
@@ -232,16 +282,22 @@ function parseLiveWalletSessionAuthorizationV2Row(
   if (
     row.authority_id !== String(session.authorityId) ||
     row.authority_wallet_id !== String(session.walletId) ||
+    row.auth_method_id !== String(session.walletAuthMethodId) ||
+    row.auth_method_wallet_id !== String(session.walletId) ||
+    row.auth_method_authority_id !== String(session.authorityId)
+  ) {
+    throw new Error('Stored V2 Wallet Session authority provenance disagrees with record');
+  }
+  if (
     row.authority_lifecycle_state !== 'active' ||
     row.authority_digest_b64u !== String(session.authorityDigestB64u) ||
     integerColumn(row.authority_revocation_epoch, 'authority.revocationEpoch') !==
       session.authorityRevocationEpoch ||
-    row.auth_method_id !== String(session.walletAuthMethodId) ||
-    row.auth_method_wallet_id !== String(session.walletId) ||
-    row.auth_method_authority_id !== String(session.authorityId) ||
     row.auth_method_status !== 'active'
   ) {
-    throw new Error('Stored V2 Wallet Session authority provenance is no longer active');
+    throw new WalletSessionAuthorizationV2InactiveError(
+      'Stored V2 Wallet Session authority provenance is no longer active',
+    );
   }
   if (
     'identity' in input &&
@@ -256,7 +312,9 @@ function parseLiveWalletSessionAuthorizationV2Row(
   }
   const nowMs = requirePositiveInteger(input.nowMs, 'V2 authorization read time');
   if (session.expiresAtMs <= nowMs) {
-    throw new Error('Stored V2 Wallet Session authorization has expired');
+    throw new WalletSessionAuthorizationV2InactiveError(
+      'Stored V2 Wallet Session authorization has expired',
+    );
   }
   return session;
 }
@@ -266,7 +324,9 @@ function parseWalletSessionAuthorizationV2QuotaRow(
   session: WalletSessionAuthorizationV2,
 ): ActiveWalletSessionQuota {
   if (row.quota_lifecycle_kind !== 'active') {
-    throw new Error('Stored V2 Wallet Session quota is no longer active');
+    throw new WalletSessionAuthorizationV2InactiveError(
+      'Stored V2 Wallet Session quota is no longer active',
+    );
   }
   const quotaTenantId = requireParsed(row.quota_tenant_id, parseTenantId, 'V2 quota.tenantId');
   const quotaPrincipalId = requireParsed(
@@ -698,26 +758,16 @@ export async function readWalletSessionExactOperationContextByCredential(
   });
   // Exhaustion permits identity resolution; exact-operation admission grants authority.
   parseExactWalletSessionQuotaProjectionRow(row, session);
-  const authority = await parseD1WalletAuthorityRow(row);
-  const authMethod = normalizeWalletAuthMethodV2(parseD1JsonColumn(row.auth_method_record_json));
-  if (
-    authority.state !== 'active' ||
-    !authMethod ||
-    authMethod.status !== 'active' ||
-    authority.walletId !== session.walletId ||
-    authority.authorityId !== session.authorityId ||
-    authority.authorityDigestB64u !== session.authorityDigestB64u ||
-    authority.revocationEpoch !== session.authorityRevocationEpoch ||
-    authMethod.walletId !== session.walletId ||
-    authMethod.walletAuthorityId !== session.authorityId ||
-    authMethod.walletAuthMethodId !== session.walletAuthMethodId
-  ) {
-    return null;
-  }
+  const current = currentWalletSessionAuthority({
+    session,
+    authority: await parseD1WalletAuthorityRow(row),
+    authMethod: normalizeWalletAuthMethodV2(parseD1JsonColumn(row.auth_method_record_json)),
+  });
+  if (!current) return null;
   return {
     session,
-    authority,
-    authMethod,
+    authority: current.authority,
+    authMethod: current.authMethod,
     retiredAtMs: null,
     ownerWalletScope: {
       ownershipGeneration: requirePositiveInteger(

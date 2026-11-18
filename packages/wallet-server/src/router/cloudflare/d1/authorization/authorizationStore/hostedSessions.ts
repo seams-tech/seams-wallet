@@ -25,7 +25,10 @@ import {
   requireParsed,
 } from './rowValues';
 import { ACTIVE_V2_HOSTED_PARENT_PROVENANCE_SQL } from './sessionBindings';
-import { readWalletSessionAuthorizationV2ByAuthorizationId } from './sessions';
+import {
+  readWalletSessionAuthorizationV2ByAuthorizationId,
+  WalletSessionAuthorizationV2InactiveError,
+} from './sessions';
 import type { D1AuthorizationContext } from './context';
 
 type HostedWalletExchangeV2Row = {
@@ -584,8 +587,10 @@ export async function readHostedWalletSessionOperationCredentialV2(
       expected,
       nowMs: input.nowMs,
     });
-  } catch {
-    return null;
+  } catch (error: unknown) {
+    // A session that ended is "no credential"; a corrupt row or a D1 failure is not.
+    if (error instanceof WalletSessionAuthorizationV2InactiveError) return null;
+    throw error;
   }
   if (!authorization) return null;
   return {
