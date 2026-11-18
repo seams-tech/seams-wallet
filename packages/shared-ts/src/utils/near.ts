@@ -5,7 +5,9 @@
  * modules (`validation`, `errors`, `encoders`, etc.) stay chain-agnostic.
  */
 
+import { describeNearTxExecution } from '../near/nearTxExecutionError';
 import { base58Decode } from './base58';
+import { asRecord } from './validation';
 
 export type ImplicitNearAccountId = string & {
   readonly __implicitNearAccountIdBrand: unique symbol;
@@ -213,57 +215,12 @@ export function deriveImplicitNearAccountIdFromEd25519PublicKey(
  * Falls back to undefined when structure is not recognized.
  */
 export function getNearShortErrorMessage(error: unknown): string | undefined {
-  try {
-    const err = error as { details?: unknown; message?: string };
-    const details = err?.details as Record<string, unknown> | undefined;
-    const isObj = (v: unknown): v is Record<string, unknown> =>
-      !!v && typeof v === 'object' && !Array.isArray(v);
-    if (!isObj(details)) return undefined;
-
-    const txExec = details.TxExecutionError as unknown;
-    if (isObj(txExec)) {
-      if (isObj(txExec.InvalidTxError)) {
-        const inv = txExec.InvalidTxError;
-        if (isObj(inv.ActionsValidation)) {
-          const kind = Object.keys(inv.ActionsValidation)[0];
-          if (kind) return `InvalidTxError: ${kind}`;
-        }
-        const first = Object.keys(inv)[0];
-        if (first) return `InvalidTxError: ${first}`;
-        return 'InvalidTxError';
-      }
-      if (isObj(txExec.ActionError)) {
-        const ae = txExec.ActionError;
-        const kindObj = isObj(ae.kind) ? ae.kind : undefined;
-        const kind = kindObj ? Object.keys(kindObj)[0] : undefined;
-        if (kind) return `ActionError: ${kind}`;
-        return 'ActionError';
-      }
+  const details = asRecord(asRecord(error)?.details);
+  if (!details) return undefined;
+  for (const execution of [asRecord(details.TxExecutionError), asRecord(details.Failure)]) {
+    if (execution && ('InvalidTxError' in execution || asRecord(execution.ActionError))) {
+      return describeNearTxExecution('', execution).short;
     }
-
-    const failure = details.Failure as unknown;
-    if (isObj(failure)) {
-      if (isObj(failure.InvalidTxError)) {
-        const inv = failure.InvalidTxError;
-        if (isObj(inv.ActionsValidation)) {
-          const kind = Object.keys(inv.ActionsValidation)[0];
-          if (kind) return `InvalidTxError: ${kind}`;
-        }
-        const first = Object.keys(inv)[0];
-        if (first) return `InvalidTxError: ${first}`;
-        return 'InvalidTxError';
-      }
-      if (isObj(failure.ActionError)) {
-        const ae = failure.ActionError;
-        const kindObj = isObj(ae.kind) ? ae.kind : undefined;
-        const kind = kindObj ? Object.keys(kindObj)[0] : undefined;
-        if (kind) return `ActionError: ${kind}`;
-        return 'ActionError';
-      }
-    }
-
-    return undefined;
-  } catch {
-    return undefined;
   }
+  return undefined;
 }

@@ -5,6 +5,10 @@ import type {
   NearRpcErrorType,
 } from '@shared/utils/nearRpcResults';
 import { NearJsonRpcClient } from '@shared/near/nearClient';
+import {
+  describeNearTxExecution,
+  nearTxExecutionFromRpcData,
+} from '@shared/near/nearTxExecutionError';
 
 export type { AccessKeyList } from '@near-js/types';
 export { SignedTransaction, type NearClient } from '@shared/near/nearClient';
@@ -23,12 +27,6 @@ type NearRpcFailureKind =
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
-}
-
-function firstKey(o: Record<string, unknown> | undefined): string | undefined {
-  if (!o) return undefined;
-  const keys = Object.keys(o);
-  return keys.length ? keys[0] : undefined;
 }
 
 export class NearRpcError extends Error {
@@ -115,12 +113,10 @@ function describeDetails(
 } {
   const details = error.data;
   const rpcMessage = typeof error.message === 'string' ? error.message : '';
-  const d = isObj(details) ? details : undefined;
-  const txExec = isObj(d?.TxExecutionError) ? d.TxExecutionError : undefined;
-  const directExecution = d && ('InvalidTxError' in d || 'ActionError' in d) ? d : undefined;
-  if (txExec) return describeTxExecution(operationName, txExec);
-  if (directExecution) return describeTxExecution(operationName, directExecution);
+  const execution = nearTxExecutionFromRpcData(details);
+  if (execution) return describeTxExecution(operationName, execution);
 
+  const d = isObj(details) ? details : undefined;
   const structuredName = rpcFailureName(error, d);
   const structuredFailureKind = classifyStructuredRpcFailure(structuredName);
   const detail =
@@ -195,52 +191,15 @@ function describeTxExecution(
   short?: string;
   failureKind: NearRpcFailureKind;
 } {
-  if ('InvalidTxError' in exec) {
-    const kind = invalidTransactionKind(exec.InvalidTxError);
-    const short = kind.startsWith('ActionsValidation.')
-      ? `InvalidTxError: ${kind.split('.')[1] || 'ActionsValidation'}`
-      : `InvalidTxError: ${kind}`;
-    return {
-      message: `${operationName} failed (InvalidTxError: ${kind})`,
-      type: 'InvalidTxError',
-      kind,
-      short,
-      failureKind: classifyInvalidTransaction(kind),
-    };
+  const described = describeNearTxExecution(operationName, exec);
+  switch (described.type) {
+    case 'InvalidTxError':
+      return { ...described, failureKind: classifyInvalidTransaction(described.kind) };
+    case 'ActionError':
+      return { ...described, failureKind: 'action_error' };
+    case 'TxExecutionError':
+      return { ...described, failureKind: 'execution_failure' };
   }
-
-  if (isObj(exec.ActionError)) {
-    const ae = exec.ActionError;
-    const idx = typeof (ae.index as unknown) === 'number' ? (ae.index as number) : undefined;
-    const kobj = isObj(ae.kind) ? ae.kind : undefined;
-    const kind = firstKey(kobj) || 'ActionError';
-    const idxStr = typeof idx === 'number' ? ` at action ${idx}` : '';
-    return {
-      message: `${operationName} failed${idxStr} (ActionError: ${kind})`,
-      type: 'ActionError',
-      kind,
-      index: idx,
-      short: `ActionError: ${kind}`,
-      failureKind: 'action_error',
-    };
-  }
-
-  return {
-    message: `${operationName} failed (TxExecutionError)`,
-    type: 'TxExecutionError',
-    kind: 'TxExecutionError',
-    short: 'TxExecutionError',
-    failureKind: 'execution_failure',
-  };
-}
-
-function invalidTransactionKind(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (!isObj(value)) return 'InvalidTxError';
-  if (isObj(value.ActionsValidation)) {
-    return `ActionsValidation.${firstKey(value.ActionsValidation) || 'ActionsValidation'}`;
-  }
-  return firstKey(value) || 'InvalidTxError';
 }
 
 function classifyInvalidTransaction(kind: string): NearRpcFailureKind {
