@@ -56,7 +56,10 @@ import {
   buildVerifiedWalletOperationPasskeyFactorResult,
   type VerifiedWalletOperationFactorResult,
 } from '../../../authorization/factorEvidence';
-import { parseWebAuthnAuthenticationCredential } from '../../auth/webAuthnCredentialCodecs';
+import {
+  parseWebAuthnAuthenticationCredential,
+  webAuthnCredentialIdB64uFromCredential,
+} from '../../auth/webAuthnCredentialCodecs';
 import { hashEmailOtpOperationBinding } from '../../domains/emailOtp/emailOtpSessionRouteHelpers';
 import { toFetchRouteResponse } from '../../framework/routeResponses';
 import type { FetchRouterApiContext } from './fetchRouter.types';
@@ -280,8 +283,8 @@ export async function prepareWalletOwnerOperation(
         'passkey assertion is invalid',
       );
     }
-    const credentialId = String(credential.rawId || credential.id).trim();
-    if (credentialId !== authority.factor.credentialIdB64u) {
+    const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
+    if (!credentialId.ok || credentialId.credentialIdB64u !== authority.factor.credentialIdB64u) {
       return toCustodyAuthorizationFailure(401, 'unauthorized', 'passkey credential changed');
     }
     if (!recorded) {

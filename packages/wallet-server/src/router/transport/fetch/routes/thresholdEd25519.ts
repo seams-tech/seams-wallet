@@ -11,7 +11,8 @@ import {
   type OperationStepUpBinding,
 } from '../../../domains/signingOperations/authorizedOperationWire';
 import type { FetchRouterApiContext } from '../createFetchRouter';
-import { json, readJson } from '../../../framework/http';
+import { json, jsonFailure, readJson } from '../../../framework/http';
+import { webAuthnCredentialIdB64uFromCredential } from '../../../auth/webAuthnCredentialCodecs';
 import { thresholdEd25519StatusCode } from '../../../../threshold/statusCodes';
 import {
   ROUTER_AB_ED25519_HEALTH_PATH,
@@ -24,7 +25,10 @@ import {
 } from '../../../auth/commonRouterUtils';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
 import { buildRouterAbEd25519PrivateSigningWorkerBody } from '../../../domains/signingOperations/routerAbPrivateSigningWorker';
-import { authenticateRouterAbWalletOperationStepUpIdentity } from '../../../domains/signingOperations/routerAbOperationStepUp';
+import {
+  authenticateRouterAbWalletOperationStepUpIdentity,
+  operationStepUpFactorExpiredResponse,
+} from '../../../domains/signingOperations/routerAbOperationStepUp';
 import {
   checkSigningRequestVoiceVerdict,
   splitVoiceVerdict,
@@ -379,10 +383,11 @@ async function validatePasskeyEd25519SessionAuthorization(input: {
   if (credential.kind !== 'passkey') {
     throw new Error('validatePasskeyEd25519SessionAuthorization requires passkey route auth');
   }
-  const credentialIdB64u = String(
-    credential.webauthnAuthentication.rawId || credential.webauthnAuthentication.id || '',
-  ).trim();
-  if (!credentialIdB64u || credentialIdB64u !== input.authority.factor.credentialIdB64u) {
+  const credentialId = webAuthnCredentialIdB64uFromCredential(credential.webauthnAuthentication);
+  if (
+    !credentialId.ok ||
+    credentialId.credentialIdB64u !== input.authority.factor.credentialIdB64u
+  ) {
     return {
       ok: false,
       response: json(
@@ -432,9 +437,11 @@ async function validatePasskeyEd25519SessionAuthorization(input: {
         authorityRef,
         requestOrigin: parseSessionOrigin(expectedOrigin),
         audience: parseSessionOrigin(expectedOrigin),
-        factorId: requireAuthorizationValue(parseAuthFactorId(`passkey:${credentialIdB64u}`)),
+        factorId: requireAuthorizationValue(
+          parseAuthFactorId(`passkey:${credentialId.credentialIdB64u}`),
+        ),
         credentialIdB64u: requireAuthorizationValue(
-          parseWebAuthnCredentialIdB64u(credentialIdB64u),
+          parseWebAuthnCredentialIdB64u(credentialId.credentialIdB64u),
         ),
         assertionDigest: parseDigestB64u(
           base64UrlEncode(
@@ -1027,6 +1034,19 @@ async function issueEd25519OperationStepUpGrant(input: {
       { status: 400 },
     );
   }
+  const expiresAtMs = Number(input.request.normalSigningRequest.expires_at_ms);
+  if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= 0) {
+    return json(
+      { ok: false, code: 'invalid_body', message: 'Operation step-up expiry is invalid' },
+      { status: 400 },
+    );
+  }
+  if (expiresAtMs <= Date.now()) {
+    return json(
+      { ok: false, code: 'expired_request', message: 'Operation step-up request is expired' },
+      { status: 408 },
+    );
+  }
   const proof = input.request.proof;
   const activeAuthority = await resolveActiveEd25519OperationStepUpAuthority(
     input.ctx.service.walletAuthMethods,
@@ -1086,7 +1106,7 @@ async function issueEd25519OperationStepUpGrant(input: {
     operationId: String(operation.operationId),
     authority,
     runtimePolicyScope: activeMaterial.runtimePolicyScope,
-    expiresAtMs: Number(input.request.normalSigningRequest.expires_at_ms),
+    expiresAtMs,
     authorizedOperations: input.ctx.service.authorizedOperations,
   });
   if (!authenticated.ok) {
@@ -1158,8 +1178,6 @@ async function issueEd25519OperationStepUpGrant(input: {
       { status: 403 },
     );
   }
-  const nowMs = Date.now();
-  const expiresAtMs = Number(input.request.normalSigningRequest.expires_at_ms);
   const requestOrigin = authenticated.requestOrigin;
   const requestId = String(scope.request_id);
   const evidenceId = requireAuthorizationValue(
@@ -1177,8 +1195,11 @@ async function issueEd25519OperationStepUpGrant(input: {
   switch (proof.kind) {
     case 'passkey': {
       const credential = proof.webauthnAuthentication;
-      const credentialId = String(credential.rawId || credential.id || '').trim();
-      if (credentialId !== proof.authority.factor.credentialIdB64u) {
+      const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
+      if (
+        !credentialId.ok ||
+        credentialId.credentialIdB64u !== proof.authority.factor.credentialIdB64u
+      ) {
         return json(
           { ok: false, code: 'unauthorized', message: 'Passkey credential changed' },
           { status: 401 },
@@ -1201,6 +1222,10 @@ async function issueEd25519OperationStepUpGrant(input: {
           { status: 401 },
         );
       }
+      const verifiedAtMs = Date.now();
+      if (expiresAtMs <= verifiedAtMs) {
+        return operationStepUpFactorExpiredResponse();
+      }
       factor = buildVerifiedWalletOperationPasskeyFactorResult({
         tenantId: authenticated.session.tenantId,
         principalId: authenticated.session.principalId,
@@ -1216,7 +1241,7 @@ async function issueEd25519OperationStepUpGrant(input: {
         assertionDigest: parseDigestB64u(
           base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(credential))),
         ),
-        verifiedAtMs: nowMs,
+        verifiedAtMs,
         expiresAtMs,
       });
       materialRecovery = { kind: 'not_requested' };
@@ -1280,6 +1305,11 @@ async function issueEd25519OperationStepUpGrant(input: {
         return json(consumed, { status: consumed.code === 'invalid_body' ? 400 : 401 });
       }
       factorReleaseChallengeId = consumed.challengeId;
+      const verifiedAtMs = Date.now();
+      const factorExpiresAtMs = Math.min(expiresAtMs, verified.grantExpiresAtMs);
+      if (factorExpiresAtMs <= verifiedAtMs) {
+        return operationStepUpFactorExpiredResponse();
+      }
       factor = buildVerifiedWalletOperationEmailOtpFactorResult({
         tenantId: authenticated.session.tenantId,
         principalId: authenticated.session.principalId,
@@ -1302,19 +1332,27 @@ async function issueEd25519OperationStepUpGrant(input: {
             ),
           ),
         ),
-        verifiedAtMs: nowMs,
-        expiresAtMs: Math.min(expiresAtMs, verified.grantExpiresAtMs),
+        verifiedAtMs,
+        expiresAtMs: factorExpiresAtMs,
       });
       break;
     }
   }
-  const evidenceSet =
+  const recordedEvidence =
     await input.ctx.service.authorizedOperations.recordVerifiedWalletOperationFactorEvidenceSet({
       operation: envelope,
       evidenceId,
       evidenceSetId,
       factor,
     });
+  if (recordedEvidence.kind === 'evidence_conflict') {
+    return jsonFailure(
+      409,
+      'step_up_evidence_conflict',
+      'This request already holds other step-up evidence; start a new request',
+    );
+  }
+  const evidenceSet = recordedEvidence.evidenceSet;
   const atomicOperation = await input.ctx.service.authorizedOperations.admitAuthorizedOperation({
     operation: {
       tenantId: authenticated.session.tenantId,
@@ -1330,7 +1368,7 @@ async function issueEd25519OperationStepUpGrant(input: {
         evidenceSetDigest: evidenceSet.evidenceSetDigest,
       },
       quota: { kind: 'quota_neutral' },
-      claimedAtMs: nowMs,
+      claimedAtMs: Date.now(),
     },
   });
   switch (atomicOperation.kind) {

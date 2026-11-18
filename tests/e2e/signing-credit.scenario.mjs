@@ -45,8 +45,17 @@ export async function verifySigningCredit({
     rpId: authMethod.rpId,
     credentialIdB64u: authMethod.credentialIdB64u,
   });
-  await store.putVerifiedEvidenceSet(first.evidence);
-  await store.putVerifiedEvidenceSet(second.evidence);
+  assert.equal(await store.putVerifiedEvidenceSet(first.evidence), 'recorded');
+  assert.equal(await store.putVerifiedEvidenceSet(second.evidence), 'recorded');
+  // A retry of the same evidence replays; other evidence under the same id is a conflict.
+  assert.equal(await store.putVerifiedEvidenceSet(first.evidence), 'replayed');
+  assert.equal(
+    await store.putVerifiedEvidenceSet({
+      ...second.evidence,
+      evidenceSetId: first.evidence.evidenceSetId,
+    }),
+    'conflict',
+  );
   const race = await Promise.all([
     store.admitAuthorizedOperation({ operation: first.operation }),
     store.admitAuthorizedOperation({ operation: second.operation }),

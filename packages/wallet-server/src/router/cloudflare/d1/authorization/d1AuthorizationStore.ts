@@ -2,6 +2,7 @@ import type {
   EcdsaWalletSessionAdmissionRead,
   Ed25519WalletSessionAdmissionRead,
   DirectWalletSessionCommitPurpose,
+  PutVerifiedEvidenceSetResult,
 } from '../../../../authorization/service';
 import type { D1RegistrationCommitBatch } from '../registration/d1WalletRegistrationCommitStore';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
@@ -146,7 +147,9 @@ export class CloudflareD1AuthorizationStore
     return evidence.readRecordedWalletOperationEvidence(this.context, input);
   }
 
-  putVerifiedEvidenceSet(evidenceSet: VerifiedAuthorizationEvidenceSet): Promise<void> {
+  putVerifiedEvidenceSet(
+    evidenceSet: VerifiedAuthorizationEvidenceSet,
+  ): Promise<PutVerifiedEvidenceSetResult> {
     return evidence.putVerifiedEvidenceSet(this.context, evidenceSet);
   }
 

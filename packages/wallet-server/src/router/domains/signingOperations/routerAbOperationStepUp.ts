@@ -2,6 +2,7 @@
 // a step-up session, and a recorded step-up operation is claimed.
 import { resolveWalletSessionOperationCredentialAdmission } from '../../auth/commonRouterUtils';
 import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
+import { jsonFailure } from '../../framework/http';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type {
@@ -242,6 +243,11 @@ export function walletSessionScopeInvalidFailure(): RouterAbOperationStepUpAuthe
     ok: false,
     error: routerAbStepUpError(403, 'scope_mismatch', 'Wallet Session scope is invalid'),
   };
+}
+
+/** The verified factor ends before it could authorize the operation. */
+export function operationStepUpFactorExpiredResponse(): Response {
+  return jsonFailure(403, 'verified_step_up_rejected', 'Operation step-up authorization expired');
 }
 
 export function parseStepUpRequestOrigin(

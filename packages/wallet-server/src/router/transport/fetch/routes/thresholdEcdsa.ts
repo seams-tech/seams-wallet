@@ -15,7 +15,7 @@ import {
 } from '../../../domains/signingOperations/authorizedOperationWire';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { parseEcdsaServerTiming } from '@shared/utils/ecdsaServerTiming';
-import { json, readJson } from '../../../framework/http';
+import { json, jsonFailure, readJson } from '../../../framework/http';
 import { thresholdEcdsaStatusCode } from '../../../../threshold/statusCodes';
 import {
   resolveWalletSessionOperationCredentialAdmission,
@@ -1047,13 +1047,21 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
     voiceId: input.ctx.service.walletUnlock,
   });
   if (!verifiedFactor.ok) return verifiedFactor.response;
-  const evidenceSet =
+  const recordedEvidence =
     await input.ctx.service.authorizedOperations.recordVerifiedWalletOperationFactorEvidenceSet({
       operation: envelope,
       evidenceId,
       evidenceSetId,
       factor: verifiedFactor.factor,
     });
+  if (recordedEvidence.kind === 'evidence_conflict') {
+    return jsonFailure(
+      409,
+      'step_up_evidence_conflict',
+      'This request already holds other step-up evidence; start a new request',
+    );
+  }
+  const evidenceSet = recordedEvidence.evidenceSet;
   const authorizedOperationId = requireAuthorizationValue(
     parseAuthorizedOperationId(`ecdsa-step-up-authorized-operation:${operation.operation_id}`),
   );
