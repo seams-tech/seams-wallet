@@ -3637,29 +3637,43 @@ export class BrowserSigningSurface {
     }
   }
 
+  /**
+   * Locks the wallet after a signing-state failure. Each step runs even when an
+   * earlier one fails, and the caller rethrows the signing error, so a cleanup
+   * failure must not replace it. Each failed step is named in one error log; a
+   * failed clear of warm key material is the one that matters most.
+   */
   private async terminateWalletStateAfterSigningFailure(walletId: WalletId): Promise<void> {
+    const failures: string[] = [];
+    const attempt = async (step: string, run: () => unknown): Promise<void> => {
+      try {
+        await run();
+      } catch (error: unknown) {
+        failures.push(`${step}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
     const authentication = this.readWalletAuthenticationState();
     let authenticationCleared = false;
-    try {
-      await this.advanceWalletLockGeneration(walletId);
-    } catch { }
-    try {
-      await this.retireActiveWalletSessionAuthorizationForLock(walletId);
-    } catch { }
-    try {
+    await attempt('advance lock generation', () => this.advanceWalletLockGeneration(walletId));
+    await attempt('retire Wallet Session authorization', () =>
+      this.retireActiveWalletSessionAuthorizationForLock(walletId),
+    );
+    await attempt('clear authentication', () => {
       authenticationCleared = this.clearWalletAuthenticationIfCurrent(authentication);
-    } catch { }
+    });
     if (authenticationCleared) {
-      try {
-        this.nonceCoordinator.clearAll();
-      } catch { }
-      try {
-        this.clearThresholdEcdsaSigningQueue();
-      } catch { }
+      await attempt('clear nonces', () => this.nonceCoordinator.clearAll());
+      await attempt('clear ECDSA signing queue', () => this.clearThresholdEcdsaSigningQueue());
     }
-    try {
-      await this.clearVolatileWarmSigningMaterial(walletId);
-    } catch { }
+    await attempt('clear warm signing material', () =>
+      this.clearVolatileWarmSigningMaterial(walletId),
+    );
+    if (failures.length > 0) {
+      console.error(
+        '[BrowserSigningSurface] wallet lock after a signing failure was incomplete:',
+        failures.join('; '),
+      );
+    }
   }
 
   private async ensureNearEd25519YaoCapabilityForSigning(
