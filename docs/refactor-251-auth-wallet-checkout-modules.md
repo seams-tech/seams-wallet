@@ -154,6 +154,11 @@ Open, with a recommendation:
     roles and the checkout Worker. The large files go here: the WASM modules and the VoiceID
     voice models.
 
+  The services stay a published package, because the owner keeps self-hosting as a product
+  promise (2026-11-18). Two users depend on it: `seams-monorepo` builds its production Workers
+  from it (394 imports of `@seams/wallet-server/cloud-host` on 2026-11-18), and the public docs
+  say that each hosting target runs the released Wallet Server package.
+
   Then VoiceID is not a separate package. The app enables it with `voiceId()` from
   `@purin-io/auth`, and its models are in `host`. The project credentials become a folder of
   `host`, so the internal packages go from three to two.
