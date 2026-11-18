@@ -2,7 +2,8 @@
 
 Status: 2026-11-18. Plan only. Nothing is built. Revised on 2026-11-18 after a review of the
 architecture. The Slice 0 unknowns have answers from public documentation (2026-11-18). With
-them, D1, D13 and D14 changed, and D2, D3, D5 and D8 got new facts. This plan builds on
+them, D1, D13 and D14 changed, and D2, D3, D5 and D8 got new facts. Tasks T1 to T19 finish
+Slice 0. This plan builds on
 [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), which separates auth, the
 MPC wallet, the wallet connectors and the checkout, and renames `@seams/wallet` to
 `@seams/mpc-wallet`. The Seams names in this plan change to Purin with the brand rename
@@ -259,8 +260,8 @@ special agreement with KOMOJU takes priority over its list prices.
 
 Answered on 2026-11-18 from public documentation only. Nobody opened an account or entered data
 at a provider. Each answer names its sources, all read on 2026-11-18. A **next check** is the
-test or the question to the provider that closes what the documentation leaves open. The test
-accounts run these checks.
+test or the question to the provider that closes what the documentation leaves open.
+"Remaining Slice 0 tasks" below lists each one as a task.
 
 - **U1.** Does KOMOJU return konbini and bank transfer details as data (payment number, stores,
   deadline), or only an instructions URL? If only a URL, the Seams voucher shows the amount and
@@ -635,6 +636,65 @@ accounts run these checks.
     - https://goldsky.com/chains/near
   - **Next check:** measure the time a Worker takes to read one neardata block. Ask FastNEAR
     about rate limits and Intear about the terms after the beta.
+
+## Remaining Slice 0 tasks
+
+Slice 0 ends when each task below is done, or when the owner drops it. Record each result
+under its unknown or decision, with the date. A task marked **owner** needs the owner's
+accounts, signature or decision. The other tasks can run as soon as the test accounts exist.
+No test moves real money.
+
+Accounts, decisions and review (owner):
+
+- **T1.** Open a Stripe (Japan) test account and a KOMOJU test account. T6 to T10 need them.
+- **T2.** Decide D1, D2, D3, D5, D8, D9, D13 and D14. Each has a recommendation.
+- **T3.** Decide who funds the gas relayer, Seams or the merchant, and the gas cap against the
+  order amount (D14).
+- **T4.** Give the U10 duty list to a lawyer and a PCI QSA. Their answer comes before a live
+  merchant uses the hosted checkout (D1).
+- **T5.** Open SAQ A and PCI DSS v4.0.1 in the PCI SSC document library, which asks the reader
+  to accept a licence. Read the Visa and Mastercard service provider PDFs. Correct the U10 list
+  where these texts differ from the excerpts.
+
+Tests in the KOMOJU test account:
+
+- **T6.** U1: create one konbini payment for each chain and one bank transfer. Record the
+  fields that come back for each.
+- **T7.** U2: pay a session from the server for PayPay, Merpay, Rakuten Pay, au PAY and d払い.
+  Record where each `redirect_url` goes, and the `type` value for d払い.
+- **T8.** U11: cancel an unpaid konbini payment, then simulate the store payment. Record the
+  payment state and the webhook that comes.
+
+Tests in the Stripe test account:
+
+- **T9.** U6: charge a test card from outside Japan, with and without currency conversion.
+  Read `balance_transaction.fee_details`.
+- **T10.** U11: cancel a bank transfer PaymentIntent, then fund the customer's cash balance
+  with the test helper. Record where the money goes and which events come.
+
+Chain checks (no real money):
+
+- **T11.** U8: on NEAR testnet, send a USDC `ft_transfer` with a memo from a testnet account.
+  Read its logs through `EXPERIMENTAL_tx_status`, and check that the `ft_transfer` event has
+  the memo.
+- **T12.** U8 and D14: sign a JPYC and a USDC `transferWithAuthorization` with the key type of
+  the MPC wallet. Run each through `eth_call` on Ethereum and Polygon, so that no transaction
+  is sent. Check that the contracts accept the signature and the EIP-712 domain.
+- **T13.** U13: measure the time a Worker takes to read one final block from neardata. Then
+  estimate the reads for one open quote, at one block each 600 ms.
+
+Questions to the providers:
+
+- **T14.** KOMOJU (U12, D13): does KOMOJU have, or plan, scoped keys or an IP allowlist?
+- **T15.** KOMOJU (U3): are the events `komoju-invalid` and `komoju-session-change` stable?
+- **T16.** KOMOJU (U5): which domain must be registered for Apple Pay when the fields run in a
+  frame on another origin? Does Google Pay work in Hosted Fields?
+- **T17.** Stripe (U6): confirm in writing that a card from outside Japan has no surcharge
+  other than currency conversion.
+- **T18.** Stripe (U11): what does the store show after a konbini cancel? Does a return of
+  cash balance cost the ¥250 refund fee?
+- **T19.** FastNEAR and Intear (U13): the rate limits of neardata, and Intear's terms after
+  its beta.
 
 ## 1. Modules and where they run
 
@@ -1044,8 +1104,8 @@ modal. The repo rules allow one copy of that code.
 Each slice ships alone and keeps the invariants of Section 9.
 
 - **Slice 0: checks and accounts.** U1 to U13 have answers from public documentation
-  (2026-11-18). Open Stripe (Japan) and KOMOJU test accounts, and run the next checks that the
-  answers name. Give the U10 list to a lawyer. Get the open decisions. No code.
+  (2026-11-18). Tasks T1 to T19 remain: the test accounts, the owner's decisions, the legal
+  review, the tests and the questions to the providers (Remaining Slice 0 tasks). No code.
 - **Slice 1: the stage dialog.** Built as Refactor 251 Slice 3 (Section 6). The checkout starts
   after it.
 - **Slice 2: the checkout package and server.** `packages/checkout` with its `/client` and
