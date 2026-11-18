@@ -509,7 +509,8 @@ const external = await connectExternalEvm(); // or the customer's own wallet
 ## 6. The server split
 
 - **Auth Worker.** Accounts, methods, login sessions, Email OTP delivery, Google SSO, the
-  trusted application issuers, the login token key and the JWKS endpoint. New code in `packages/auth`, built by `@seams/host`.
+  trusted application issuers, the login token key and the JWKS endpoint. New code in
+  `packages/auth`, built by `@seams/host`.
 - **Wallet Gateway.** Wallets with their `account_id`, custody envelopes, Wallet Sessions and
   the service bindings to the router roles. The envelope binding (wallet, method, key set) does
   not change (Fact F1).
