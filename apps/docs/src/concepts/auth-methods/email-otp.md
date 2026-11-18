@@ -8,6 +8,14 @@ description: Use email OTP as a server-verified challenge while keeping recovery
 Email OTP uses a one-time password to check access to an email address. The server
 verifies the challenge. A dedicated worker handles the secret material.
 
+::: warning The server can recover the factor key today
+Today, the hosted wallet server stores the Email OTP factor key under its own seal. It
+can recover the key of an owner Email OTP wallet without the user's device. A planned
+change keeps the sealed factor key on the user's device, so that the server needs that
+device and a fresh email code. After that change, a new device needs device linking or a
+recovery code. Google and an email code on a new device then give a sign-in only.
+:::
+
 ## Role in the model
 
 Email OTP can:

@@ -10,6 +10,14 @@ export wallet keys by itself. Signing requires holder-side participation and the
 server-side material for the selected lane. The request must pass Wallet Session
 admission, policy, replay, quota, and budget checks.
 
+::: warning Email OTP wallets
+Today, the hosted wallet server can recover the Email OTP factor key of a wallet that
+uses Email OTP as its owner method, without the user's device. So the statement above
+does not cover these wallets yet. Passkey and VoiceID wallets are not affected. A planned
+change keeps the Email OTP factor key on the user's device. After that change, a new
+device needs device linking or a recovery code.
+:::
+
 Export uses a separate, freshly authorized flow. Ordinary signing uses shares and
 presignature state. It does not reconstruct the full private key.
 

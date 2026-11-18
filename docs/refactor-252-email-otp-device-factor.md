@@ -1,6 +1,6 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-18. Plan only. Nothing is built.
+Status: 2026-11-18. Plan only. All decisions are made. Nothing is built.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -69,27 +69,27 @@ Decided:
   seal from a value that it cannot read. The owner chose the goal on 2026-11-18: the wallet
   server alone must not open an owner Email OTP wallet.
 
-Open, with a recommendation:
+The owner accepted D2 to D7, as recommended, on 2026-11-18:
 
-- **D2. Access on a new device.** Recommended: device linking or a recovery code. Google and an
+- **D2. Access on a new device.** Device linking or a recovery code. Google and an
   email code on a new device give a sign-in only. This follows from D1. Each path that opens a
   wallet with only an email check lets the operator open it, because the operator runs the
   check and its email provider can see the code.
-- **D3. Rotate, not copy.** Recommended: each existing wallet gets a new factor key S′ at its
+- **D3. Rotate, not copy.** Each existing wallet gets a new factor key S′ at its
   next unlock. Only moving enc_s(S) to the device is not enough, because the server held S.
   The seed and the addresses stay the same, so the rotation cannot undo an earlier copy of S.
-- **D4. The deadline for server copies.** Recommended: 30 days after Slice 3 reaches
+- **D4. The deadline for server copies.** 30 days after Slice 3 reaches
   production. Then the server deletes each copy that is left. Those owners recover with their
   recovery code.
-- **D5. The Wallet Session release (F4).** Recommended: keep it only with the sealed factor of
+- **D5. The Wallet Session release (F4).** Keep it only with the sealed factor of
   the device, which it needs after D1 anyway. Export keeps its fresh email code. If the
   warm-session seal can serve its callers (U3), remove it.
-- **D6. Rotation of the server seal key.** Recommended: a blinded re-seal at unlock. The device
+- **D6. Rotation of the server seal key.** A blinded re-seal at unlock. The device
   adds a client seal, the server removes the old seal and applies the new one, and the device
   removes its client seal. An old key version stays accepted until the D4 deadline.
-- **D7. The public docs until Slice 5.** Recommended: add a short note now that Email OTP wallets
-  depend on the server until this plan is done. Replace the note with the device-factor text in
-  Slice 5.
+- **D7. The public docs until Slice 5.** A short note says that Email OTP wallets depend on the
+  server until this plan is done. It was added on 2026-11-18 to the custody page and the Email
+  OTP page, in English and Japanese. Slice 5 replaces it with the device-factor text.
 
 ## Unknowns to check first
 
@@ -174,7 +174,7 @@ time. A code that is in flight at the deploy fails, and the user asks for a new 
 
 ## 3. Slices
 
-- **Slice 0: facts and decisions.** Answer U1 to U5. Get D2 to D7. No product code.
+- **Slice 0: facts.** Answer U1 to U5. No product code. The decisions are made.
 - **Slice 1: hashed email codes.** The HMAC change of Section 1. It does not depend on the other
   slices and can ship first.
 - **Slice 2: new enrollments.** The device-held factor and the blinded release for
