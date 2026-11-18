@@ -5411,14 +5411,13 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.near-submission.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
-    normalized.endsWith('auth-method-addition.matrix.contract.test.ts')
+    normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
+    normalized.endsWith('/conformance/journeys/passkey.journeys.contract.test.ts')
   ) {
     return 'passkey.registration';
   }
   if (normalized.endsWith('passkey.unlock.contract.test.ts')) return 'passkey.unlock';
-  if (normalized.endsWith('passkey.recovery.contract.test.ts')) {
-    return 'passkey.recovery';
-  }
+  if (normalized.endsWith('passkey.recovery.contract.test.ts')) return 'passkey.recovery';
   if (normalized.endsWith('google-email-otp.recovery.contract.test.ts')) {
     return 'email_otp.recovery';
   }
@@ -5427,7 +5426,8 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('email-otp.voiceid-selection.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.assets.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
-    normalized.endsWith('email-otp.add-passkey.contract.test.ts')
+    normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||
+    normalized.endsWith('/conformance/journeys/email-otp.journeys.contract.test.ts')
   ) {
     return 'email_otp.registration';
   }
