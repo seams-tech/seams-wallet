@@ -132,9 +132,20 @@ Open, with a recommendation:
 - **D22. The brand rename and Release A.** The owner changes the brand from Seams to Purin
   after the hackathon. Recommended: do Release A together with the brand rename, so that each
   package gets a new name one time. For example, `@seams/wallet` then goes directly to the
-  Purin name of the MPC wallet. The npm scope and the product names of Purin are the owner's
-  choice. Until then, each `@seams/...` name and each "Seams ..." name in this plan stands for
-  its Purin name.
+  Purin name of the MPC wallet. The product names of Purin are the owner's choice. Until then,
+  each `@seams/...` name and each "Seams ..." name in this plan stands for its Purin name.
+- **D23. The npm scope.** The owner wants `@purin` in place of `@seams`, if it is possible.
+  Checked on 2026-11-18 on npmjs.com:
+  - `purin` is a user account with no packages and no organisations. A user and an
+    organisation cannot have the same name, so `@purin` is not free.
+  - `purin-io` and `purinio` do not exist. `@purin-io` matches the GitHub organisation.
+  - An unscoped package `purin` exists. It belongs to another person and does not block a
+    scope.
+
+  Recommended: if the `purin` account is the owner's, change it into an organisation. If not,
+  ask npm support for the name now, and use `@purin-io` if there is no answer before the
+  rename. Select one scope before Release A, because a second change of scope breaks every
+  import again.
 
 ## Facts this plan builds on
 
