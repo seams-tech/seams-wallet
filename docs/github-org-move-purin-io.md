@@ -34,10 +34,12 @@ From GitHub's page "Renaming an organization", read on 2026-11-18:
 | `seams-tech/seams-wallet` | public | 1,658 | `~/Dev/rust/seams-wallet` | 70 |
 | `seams-tech/seams-monorepo` | public | 811 | `~/Dev/rust/seams-monorepo` | 69 |
 | `seams-tech/speak-to-sign` | public | 3,492 | `~/Dev/rust/speak-to-sign` | 20 |
-| `seams-tech/pantry` | private | - | `~/Dev/lowerarchy/seams-atelier` | 15 |
+| `seams-tech/pantry` | private | - | `~/Dev/lowerarchy/pantry` | 84 |
+| `seams-tech/pantry-history` | private, archived | - | `~/Dev/lowerarchy/seams-atelier` | - |
 | `seams-tech/satyr` | private | - | `~/Dev/lowerarchy/satyr` | 15 |
 | `seams-tech/seams-sdk` | private, archived | - | none | - |
 
+Pantry restarted with a new history on 2026-11-18. The old history is `pantry-history`.
 Listed with `gh repo list seams-tech` and counted with `gh api .../traffic/clones` and
 `git grep -l seams-tech` on 2026-11-18. The organisation has one GitHub package: the public
 container image `speaker-service`.
@@ -131,7 +133,7 @@ container image `speaker-service`.
     name: `repository: seams-tech/...`:
     - seams-monorepo `deploy-production-frontend.yml`, `deploy-staging-frontend.yml`,
       `release-seams-cli.yml` and `sign-recovery-trust.yml`.
-    - pantry `.github/workflows/atelier.yml`.
+    - pantry `.github/workflows/pantry.yml`.
     - satyr `.github/workflows/satyr.yml`.
 
     A checkout can follow the redirect, but do not depend on it. Also check that each token or
@@ -150,7 +152,7 @@ container image `speaker-service`.
     ```
 
     ```bash
-    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/atelier.yml
+    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/pantry.yml
     ```
 
     ```bash
@@ -159,8 +161,8 @@ container image `speaker-service`.
 
     The commands are, in order, for seams-monorepo, speak-to-sign, pantry and satyr. The
     speak-to-sign command also does step 14. Then `git grep -n seams-tech -- .github scripts`
-    in each clone finds nothing. The one exception is a history comment in pantry
-    `scripts/rename/plan-91-port.sh`, which stays.
+    in each clone finds nothing, except in pantry `scripts/`. There, two port scripts name the
+    old repositories as history, and links to `seams-tech/pantry-history` stay for step 16.
 13. **Run one workflow of each kind.** A validation run in each repository, one staging
     deploy, and one dry run of each release workflow. Then the releases of step 3 can start
     again.
