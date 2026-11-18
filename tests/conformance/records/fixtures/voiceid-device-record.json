@@ -1,0 +1,43 @@
+{
+  "appStateKey": "voiceid-browser-device-v1:wallet%3Aconformance-records:wallet-auth-method%3Aconformance-voiceid",
+  "fields": [
+    "ciphertext",
+    "deviceKeyId",
+    "kind",
+    "nonce",
+    "privateKey",
+    "publicKeyB64u",
+    "walletAuthMethodId",
+    "walletId",
+    "wrappingKey"
+  ],
+  "kind": "browser_voiceid_device_v1",
+  "walletId": "wallet:conformance-records",
+  "walletAuthMethodId": "wallet-auth-method:conformance-voiceid",
+  "privateKey": {
+    "type": "private",
+    "extractable": false,
+    "algorithm": "Ed25519",
+    "usages": [
+      "sign"
+    ]
+  },
+  "wrappingKey": {
+    "type": "secret",
+    "extractable": false,
+    "algorithm": "AES-GCM",
+    "usages": [
+      "decrypt",
+      "encrypt"
+    ]
+  },
+  "nonceBytes": 12,
+  "ciphertextBytes": 48,
+  "publicKeyBytes": 32,
+  "deviceKeyIdIsPublicKeyDigest": true,
+  "readBack": true,
+  "factorBytes": 32,
+  "aadOpensWithOwnOrigin": true,
+  "aadOpensWithOtherOrigin": false,
+  "misfiled": "VoiceID device belongs to another wallet method."
+}

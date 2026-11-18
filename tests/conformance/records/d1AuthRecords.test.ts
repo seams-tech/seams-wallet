@@ -1,15 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
-import { parseVoiceIdDevicePublicKeyB64u } from '@shared/authorization/voiceIdDeviceAssertion';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
-import { allocateWalletAuthMethodId, parseWebAuthnCredentialIdB64u } from '@shared/utils/domainIds';
-import { requireParsed } from '@shared/passkey-custody/primitives';
-import {
-  buildWalletAuthMethodRecordV2,
-  type ActivePasskeyWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
-} from '@shared/utils/walletAuthMethodRecord';
 import { deriveWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import type { D1DatabaseLike } from '../../../packages/wallet-server/src/storage/tenantRoute';
 import { prepareD1TenantStatement } from '../../../packages/wallet-server/src/core/d1TenantStore';
@@ -25,7 +15,14 @@ import { prepareD1WalletAuthorityPutStatement } from '../../../packages/wallet-s
 import { CloudflareD1WebAuthnStore } from '../../../packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
 import { openSignerD1 } from '../../fixtures/signer-d1.mjs';
 import { seedExecutionGeneration } from '../../e2e/execution-generation.scenario.mjs';
-import { buildLinkedDeviceManagementAuthorityFixture } from '../../unit/helpers/linkedDeviceManagement.fixtures';
+import {
+  RECORDS_EMAIL_HASH_HEX,
+  RECORDS_RP_ID,
+  RECORDS_WALLET_ID,
+  authMethodRecordsV2,
+  credentialId,
+  recordsAuthority,
+} from './authMethodRecords';
 import { committedRecordFixture, readRecordFixture } from './recordFixtures';
 
 /* D1 rows of the auth tables, as today's writers make them. The new Auth Worker must read
@@ -37,8 +34,8 @@ const SCOPE = {
   projectId: 'conformance-project',
   envId: 'test',
 } as const;
-const WALLET_ID = 'wallet:conformance-records';
-const RP_ID = 'wallet.example.test';
+const WALLET_ID = RECORDS_WALLET_ID;
+const RP_ID = RECORDS_RP_ID;
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
 /** Far in the future, so that a consume from the fixture is never expired. */
@@ -59,21 +56,9 @@ const AUTH_TABLES = {
 type AuthTable = keyof typeof AUTH_TABLES;
 type AuthTableRows = Record<AuthTable, Record<string, unknown>[]>;
 
-const authorityFixture = buildLinkedDeviceManagementAuthorityFixture({
-  label: 'conformance-records',
-  permissions: buildFullOwnerPermissionsV1(),
-  provenance: 'wallet_registration',
-  identity: {
-    walletId: WALLET_ID,
-    authorityId: 'authority:conformance-records',
-    walletAuthMethodId: 'auth-method:conformance-passkey-active',
-    rpId: RP_ID,
-  },
-});
-
 async function openAuthorityDatabase() {
   const runtime = await openSignerD1();
-  const { authority } = await authorityFixture;
+  const { authority } = await recordsAuthority;
   await seedExecutionGeneration({
     api: { D1WalletExecutionAuthority },
     database: runtime.database,
@@ -86,72 +71,6 @@ async function openAuthorityDatabase() {
     authority,
   }).run();
   return runtime;
-}
-
-function credentialId(fill: number) {
-  return requireParsed(
-    parseWebAuthnCredentialIdB64u(base64UrlEncode(new Uint8Array(32).fill(fill))),
-    'credentialIdB64u',
-  );
-}
-
-/** One method row of each kind and status that the V2 table admits. */
-async function methodRecords(
-  active: ActivePasskeyWalletAuthMethodRecordV2,
-): Promise<WalletAuthMethodRecordV2[]> {
-  const devicePublicKeyB64u = parseVoiceIdDevicePublicKeyB64u(
-    base64UrlEncode(new Uint8Array(32).fill(41)),
-  );
-  const common = {
-    version: 'wallet_auth_method_v2',
-    walletId: active.walletId,
-    walletAuthorityId: active.walletAuthorityId,
-    createdAtMs: 100,
-    updatedAtMs: 300,
-  } as const;
-  const passkey = {
-    kind: 'passkey',
-    rpId: active.rpId,
-    credentialPublicKeyB64u: active.credentialPublicKeyB64u,
-    counter: 0,
-  } as const;
-  return [
-    active,
-    buildWalletAuthMethodRecordV2({
-      ...common,
-      ...passkey,
-      walletAuthMethodId: allocateWalletAuthMethodId('conformance-passkey-pending'),
-      credentialIdB64u: credentialId(42),
-      status: 'pending_local_install',
-    }),
-    buildWalletAuthMethodRecordV2({
-      ...common,
-      ...passkey,
-      walletAuthMethodId: allocateWalletAuthMethodId('conformance-passkey-revoked'),
-      credentialIdB64u: credentialId(43),
-      status: 'revoked',
-      activatedAtMs: 200,
-      revokedAtMs: 300,
-    }),
-    buildWalletAuthMethodRecordV2({
-      ...common,
-      walletAuthMethodId: allocateWalletAuthMethodId('conformance-email-otp'),
-      kind: 'email_otp',
-      emailHashHex: 'a'.repeat(64),
-      registrationAuthorityId: 'registration-authority:conformance',
-      status: 'active',
-      activatedAtMs: 200,
-    }),
-    buildWalletAuthMethodRecordV2({
-      ...common,
-      walletAuthMethodId: allocateWalletAuthMethodId('conformance-voiceid'),
-      kind: 'voiceid',
-      devicePublicKeyB64u,
-      deviceKeyId: await sha256DigestB64u(new Uint8Array(32).fill(41)),
-      status: 'active',
-      activatedAtMs: 200,
-    }),
-  ];
 }
 
 function webAuthnStore(database: D1DatabaseLike): CloudflareD1WebAuthnStore {
@@ -175,9 +94,9 @@ function versionedRecords(database: D1DatabaseLike) {
 }
 
 async function writeAuthRecords(database: D1DatabaseLike): Promise<void> {
-  const { authMethod } = await authorityFixture;
+  const { authMethod } = await recordsAuthority;
   await database.batch(
-    (await methodRecords(authMethod)).map((record) =>
+    (await authMethodRecordsV2(authMethod)).map((record) =>
       prepareD1WalletAuthMethodV2PutStatement({ database, scope: SCOPE, record }),
     ),
   );
@@ -319,9 +238,9 @@ test('today reads each D1 auth row of the committed fixture', async () => {
   try {
     const database = runtime.database;
     await insertAuthTableRows(database, fixture);
-    const { authMethod } = await authorityFixture;
+    const { authMethod } = await recordsAuthority;
     const methods = new D1WalletAuthMethodStore({ database, ...SCOPE, ensureSchema: false });
-    const expected = await methodRecords(authMethod);
+    const expected = await authMethodRecordsV2(authMethod);
     expect(await methods.listForWalletV2({ walletId: WALLET_ID })).toEqual(
       expect.arrayContaining(expected),
     );
@@ -334,7 +253,7 @@ test('today reads each D1 auth row of the committed fixture', async () => {
       await methods.getPasskeyV2({ rpId: RP_ID, credentialIdB64u: authMethod.credentialIdB64u }),
     ).toEqual(authMethod);
     expect(
-      await methods.getEmailOtpV2({ walletId: WALLET_ID, emailHashHex: 'a'.repeat(64) }),
+      await methods.getEmailOtpV2({ walletId: WALLET_ID, emailHashHex: RECORDS_EMAIL_HASH_HEX }),
     ).toMatchObject({ kind: 'email_otp', status: 'active' });
     expect(
       await methods.getActiveVoiceIdV2({
@@ -389,7 +308,7 @@ test('today reads each D1 auth row of the committed fixture', async () => {
 test('the D1 method table refuses a V1 method row', async () => {
   const runtime = await openAuthorityDatabase();
   try {
-    const { authMethod } = await authorityFixture;
+    const { authMethod } = await recordsAuthority;
     await expect(
       prepareD1WalletAuthMethodPutStatement({
         database: runtime.database,
