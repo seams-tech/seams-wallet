@@ -118,3 +118,26 @@ export function isD1DatabaseLike(value: unknown): value is D1DatabaseLike {
 export const D1_BATCH_CAS_GUARD_SQL = `INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id)
 SELECT 1
  WHERE changes() = 0`;
+
+function d1ErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * A UNIQUE or PRIMARY KEY conflict: the row already exists. A failed
+ * `D1_BATCH_CAS_GUARD_SQL` is one too. CHECK, NOT NULL and FOREIGN KEY
+ * failures do not match: they are caller bugs, not conflicts. With `table`,
+ * only a conflict on that table matches.
+ */
+export function isD1UniqueConstraintError(error: unknown, table?: string): boolean {
+  const message = d1ErrorMessage(error);
+  if (!/UNIQUE constraint failed|SQLITE_CONSTRAINT_(?:UNIQUE|PRIMARYKEY)/u.test(message)) {
+    return false;
+  }
+  return table === undefined || message.includes(`${table}.`);
+}
+
+/** A trigger refused the write with RAISE(ABORT, ...): a rule of the current state, not a bug. */
+export function isD1TriggerRefusal(error: unknown): boolean {
+  return /SQLITE_CONSTRAINT_TRIGGER/u.test(d1ErrorMessage(error));
+}

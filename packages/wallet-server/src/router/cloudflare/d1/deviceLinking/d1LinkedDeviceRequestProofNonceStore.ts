@@ -3,7 +3,7 @@ import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { isObject, requireCanonicalString } from '@shared/utils/validation';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
-import { d1ChangedRows } from '../../../../storage/d1Sql';
+import { d1ChangedRows, isD1UniqueConstraintError } from '../../../../storage/d1Sql';
 import type { LinkedDeviceRequestProofNonceStoreV1 } from '../../../../core/deviceLinking/requestProof';
 import type { D1LinkedDeviceSessionScopeV1 } from './d1LinkedDeviceSessionStore';
 
@@ -70,7 +70,7 @@ export class D1LinkedDeviceRequestProofNonceStoreV1 implements LinkedDeviceReque
       if (d1ChangedRows(result) === 1) return { outcome: 'consumed' };
       throw new Error('device request proof nonce insert did not persist');
     } catch (error: unknown) {
-      if (!isUniqueConstraintError(error)) throw error;
+      if (!isD1UniqueConstraintError(error)) throw error;
       const existing = await this.readNonceV1(
         normalized.linkSessionId,
         normalized.requestNonceB64u,
@@ -202,7 +202,3 @@ function scopeValues(scope: D1LinkedDeviceSessionScopeV1): readonly string[] {
   return [scope.namespace, scope.orgId, scope.projectId, scope.envId];
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /unique|constraint/i.test(message);
-}

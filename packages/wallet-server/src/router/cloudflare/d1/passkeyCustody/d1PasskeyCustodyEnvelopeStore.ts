@@ -27,6 +27,7 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
+import { isD1TriggerRefusal, isD1UniqueConstraintError } from '../../../../storage/d1Sql';
 import {
   CloudflareD1VersionedJsonRecordStore,
   type CloudflareD1VersionedJsonRecordMutationV1,
@@ -289,9 +290,9 @@ async function ciphertextDigestB64u(sealedCustodySecretB64u: string): Promise<st
   return base64UrlEncode(await sha256Bytes(ciphertext));
 }
 
-function isD1ConstraintError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error || '');
-  return /constraint|unique|foreign key|not null/i.test(message);
+/** Another writer holds the row, or a state rule (a relocation fence) refused the link. */
+function isCustodyLinkConflict(error: unknown): boolean {
+  return isD1UniqueConstraintError(error) || isD1TriggerRefusal(error);
 }
 
 /**
@@ -800,7 +801,7 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
       if (!version) throw new Error('wallet custody link did not report envelope version');
       return { kind: 'stored', storeVersion: version };
     } catch (error: unknown) {
-      if (isD1ConstraintError(error)) return { kind: 'conflict' };
+      if (isCustodyLinkConflict(error)) return { kind: 'conflict' };
       throw error;
     }
   }
@@ -826,7 +827,7 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
       }
       return { kind: 'stored' };
     } catch (error: unknown) {
-      if (isD1ConstraintError(error)) return { kind: 'conflict' };
+      if (isCustodyLinkConflict(error)) return { kind: 'conflict' };
       throw error;
     }
   }

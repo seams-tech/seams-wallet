@@ -41,7 +41,7 @@ import {
 } from '@shared/authorization/walletSignerActivationEquality';
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
-import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
+import { D1_BATCH_CAS_GUARD_SQL, isD1UniqueConstraintError } from '../../../../storage/d1Sql';
 import {
   CloudflareD1VersionedJsonRecordStore,
   type CloudflareD1VersionedJsonRecordBatchPutResultV1,
@@ -352,8 +352,7 @@ function commitInconsistency(commit: WalletCustodyRegistrationCommit): string | 
 }
 
 function isRecoveryCodeLocatorCollision(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.includes('wallet_recovery_code_locators') && /unique|constraint/i.test(message);
+  return isD1UniqueConstraintError(error, 'wallet_recovery_code_locators');
 }
 
 export class CloudflareD1WalletCustodyCommitStore {
