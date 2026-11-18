@@ -3,7 +3,8 @@
 Status: 2026-11-18. Checklist only. Nothing is moved. The owner set the date of the
 organisation rename to 2026-11-20. The brand rename from Seams to Purin (package names,
 product names, domains) is later and separate
-([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D22 and D23).
+([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D22 and D23). Steps 1 and 6, and
+part of step 5, were checked on 2026-11-18. The edits of steps 10 to 12 are ready to run.
 
 This rename changes only the GitHub organisation name. It does not change a repository name, an
 npm scope, a domain or a Cloudflare resource.
@@ -28,21 +29,29 @@ From GitHub's page "Renaming an organization", read on 2026-11-18:
 
 ## The repositories
 
-| Repository | Local clone | Files that name `seams-tech` |
-| --- | --- | ---: |
-| `seams-tech/seams-wallet` | `~/Dev/rust/seams-wallet` | 70 |
-| `seams-tech/seams-monorepo` | `~/Dev/rust/seams-monorepo` | 69 |
-| `seams-tech/speak-to-sign` | `~/Dev/rust/speak-to-sign` | 20 |
-| `seams-tech/pantry` | `~/Dev/lowerarchy/seams-atelier` | 15 |
+| Repository | Visibility | Clones in 7 days | Local clone | Files that name `seams-tech` |
+| --- | --- | ---: | --- | ---: |
+| `seams-tech/seams-wallet` | public | 1,658 | `~/Dev/rust/seams-wallet` | 70 |
+| `seams-tech/seams-monorepo` | public | 811 | `~/Dev/rust/seams-monorepo` | 69 |
+| `seams-tech/speak-to-sign` | public | 3,492 | `~/Dev/rust/speak-to-sign` | 20 |
+| `seams-tech/pantry` | private | - | `~/Dev/lowerarchy/seams-atelier` | 15 |
+| `seams-tech/satyr` | private | - | `~/Dev/lowerarchy/satyr` | 15 |
+| `seams-tech/seams-sdk` | private, archived | - | none | - |
 
-Counted with `git grep -l seams-tech` on 2026-11-18. Other repositories of the organisation are
-not counted. Step 1 lists them.
+Listed with `gh repo list seams-tech` and counted with `gh api .../traffic/clones` and
+`git grep -l seams-tech` on 2026-11-18. The organisation has one GitHub package: the public
+container image `speaker-service`.
+
+- **The public repositories are protected.** Each has far more than 100 clones in 7 days, so
+  GitHub retires its old name at the rename. Its redirect stays, even if somebody takes the
+  name `seams-tech`.
+- **The private repositories are not protected.** Step 8 protects them.
 
 ## Before the rename
 
 1. **List every repository of the organisation**, with `gh repo list seams-tech --limit 200`.
    Mark the public ones. Each one without the protection above loses its redirect if somebody
-   takes the old name.
+   takes the old name. Done on 2026-11-18: see the table above.
 2. **Ask every session and person to push their work.** An open pull request and a branch stay
    valid. A script or a workflow that is running during the rename can fail.
 3. **Hold the releases.** Do not start a release from 2026-11-20 until step 13 passes.
@@ -60,11 +69,28 @@ not counted. Step 1 lists them.
 5. **List the outside connections to GitHub**: Cloudflare Pages and Workers builds, GitHub Apps,
    deploy keys, webhooks and tokens with a repository list. Most use a numeric ID and keep
    working. Write down each one that shows a repository by name.
+
+   Checked on 2026-11-18 with `gh`: no repository has a webhook or a deploy key. The
+   organisation webhooks and the GitHub App installs need the `admin:org_hook` scope, so the
+   owner checks them in the organisation settings. The owner also checks Cloudflare.
 6. **Check the voice merge approvals.** A merge approval binds the SHA-256 of the repository
    name, for example `seams-tech/seams-wallet` (`repo_sha256_hex` in the voice verifier of
    speak-to-sign). After the rename, GitHub reports `purin-io/seams-wallet`, which has another
    hash. Find each place that compares the hash: the merge-approval contract, a merge gate, the
    demo and the test vectors. Decide whether old approvals stay valid.
+
+   Checked on 2026-11-18. No decision is necessary before the rename:
+   - The Wallet hashes the repository name that the app gives to `requestMergeApproval`.
+     `approve_merge` gets the same name as text.
+   - No merge-approval contract and no merge gate exist in seams-wallet, seams-monorepo,
+     speak-to-sign, speak-to-sign-notes, pantry or satyr. No app or demo calls
+     `requestMergeApproval`. So no approval depends on the old name.
+   - A merge gate that is written later must compare the name that GitHub reports at the time
+     of the check.
+   - The test vectors use `seams-tech/seams-wallet` as a fixed input: speak-to-sign
+     `crates/spoken-intent/tests/vectors.rs` and the copy of the vector file in seams-wallet
+     `tests/fixtures/spoken-intent`. It is test data, not a live name. Keep it, so that the
+     vector file stays the same in both repositories.
 
 ## The rename (2026-11-20)
 
@@ -81,6 +107,11 @@ not counted. Step 1 lists them.
    git remote set-url origin https://github.com/purin-io/<repository>.git
    ```
 
+   The owner also plans to move the local clones to `/Users/pta/Dev/purin-io`. Move each
+   folder with `mv`. Do not make a fresh clone: Git ignores the build outputs, the linked WASM
+   package folders, the Lean `.lake` folders and `output/`, so a fresh clone does not have them.
+   After the move, run `git worktree repair` in each clone that has worktrees. The agents'
+   memory folders are named by the path of the clone, so move them too.
 10. **Update each npm trusted publisher** to `purin-io/<repository>` and the same workflow
     file. Do this for every package of step 4. The publish token of a workflow names the new
     organisation, so npm refuses the old setting. Then edit
@@ -91,6 +122,9 @@ not counted. Step 1 lists them.
       "repos/seams-tech/seams-wallet/actions/runs/..."` and `--repo seams-tech/seams-wallet`.
     - seams-monorepo `deployment/wallet-system/scripts/apply-github-external-values.mjs`: the
       `--repo seams-tech/seams-monorepo` commands.
+    - seams-monorepo `scripts/console-deployment-environment.mjs` and
+      `scripts/dispatch-deployment-workflow.mjs`: the default value of `--repo`.
+      `gh workflow run` uses it.
     - seams-monorepo `docs/wallet-cli-release.md`: `gh release create ... --repo
       seams-tech/seams-wallet`.
 12. **Fix the cross-repository checkouts.** These workflows check out another repository by
@@ -98,9 +132,35 @@ not counted. Step 1 lists them.
     - seams-monorepo `deploy-production-frontend.yml`, `deploy-staging-frontend.yml`,
       `release-seams-cli.yml` and `sign-recovery-trust.yml`.
     - pantry `.github/workflows/atelier.yml`.
+    - satyr `.github/workflows/satyr.yml`.
 
     A checkout can follow the redirect, but do not depend on it. Also check that each token or
     GitHub App of these checkouts has access in `purin-io`.
+
+    The edits of steps 10 to 12 are ready to run. Run each command in its clone after step 8,
+    then commit and push in each clone. seams-monorepo also changes the name that its docs
+    receipt records (`scripts/prepare-wallet-docs-source.mjs`) and the test that checks it.
+
+    ```bash
+    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/deploy-production-frontend.yml .github/workflows/deploy-staging-frontend.yml .github/workflows/release-seams-cli.yml .github/workflows/sign-recovery-trust.yml deployment/wallet-system/scripts/apply-github-external-values.mjs scripts/console-deployment-environment.mjs scripts/dispatch-deployment-workflow.mjs scripts/prepare-wallet-docs-source.mjs tests/e2e/wallet-marketing-seo.e2e.mjs docs/wallet-cli-release.md
+    ```
+
+    ```bash
+    sed -i '' 's|seams-tech/|purin-io/|g' scripts/npm-trust-standalone.sh .github/workflows/release-standalone.yml crates/speaker-service/docker-compose.yml
+    ```
+
+    ```bash
+    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/atelier.yml
+    ```
+
+    ```bash
+    sed -i '' 's|seams-tech/|purin-io/|g' .github/workflows/satyr.yml
+    ```
+
+    The commands are, in order, for seams-monorepo, speak-to-sign, pantry and satyr. The
+    speak-to-sign command also does step 14. Then `git grep -n seams-tech -- .github scripts`
+    in each clone finds nothing. The one exception is a history comment in pantry
+    `scripts/rename/plan-91-port.sh`, which stays.
 13. **Run one workflow of each kind.** A validation run in each repository, one staging
     deploy, and one dry run of each release workflow. Then the releases of step 3 can start
     again.
