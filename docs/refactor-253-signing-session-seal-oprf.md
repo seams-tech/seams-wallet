@@ -1,6 +1,7 @@
 # Refactor 253: an OPRF for the signing-session seal
 
-Status: 2026-11-18. D1 to D9 are decided. No product code has changed. Slice 0 is next.
+Status: 2026-11-18. D1 to D9 are decided. Slice 0 is done (Section 7). Slices 1 and 2 wait until
+the Refactor 252 work commits `wasm/oprf_runtime` (F17). No product code has changed.
 
 The owner asked: "We use shamir-3-pass to persist signing session material between page
 refreshes. Can it be replaced with the faster OPRF?" This plan answers the question. The OPRF is
@@ -22,13 +23,16 @@ Yes, with four conditions:
 - The three-pass code goes away only if the Email OTP factor seal moves too (Refactor 252 D9).
   If only one seal moves, the WASM runtime, its worker and the group fields stay (D8).
 
-The gain today is mainly security of the primitive, not speed. It is not a fix for a practical
-attack on this seal:
+The gain today is mainly security of the primitive, with a small speed gain. It is not a fix for
+a practical attack on this seal:
 
-- **Speed.** The math of one restore is about 5.5 ms with three-pass at 1024 bits and 0.8 ms
-  with the POPRF WASM runtime that Refactor 252 is building (F17, Section 4). The seal route alone
-  took 44 to 75 ms in a local benchmark (F14). The speed gain is large only against a three-pass
-  group of 2048 bits (about 50 ms of math) or 3072 bits (about 165 ms, inferred).
+- **Speed.** In Node, the math of one restore is about 5.5 ms with three-pass at 1024 bits and
+  0.8 ms with the POPRF WASM runtime that Refactor 252 is building (F17, Section 4). In the
+  browser, a restore after a reload runs cold code. There, the device work took about 33 ms with
+  three-pass and about 13 ms with the POPRF (F18). So the POPRF saves about 20 ms for each restore
+  after a reload. The seal route alone took 44 to 75 ms in a local benchmark (F14). The gain is
+  much larger against a three-pass group of 2048 bits (about 50 ms of math in Node) or 3072 bits
+  (about 165 ms, inferred).
 - **Security.** The 1024-bit group gives about 80 bits, and ristretto255 about 128 bits. For this
   seal the practical risk today is small (F13). The gains are a standard primitive, constant-time
   code and one implementation for both seals.
@@ -37,8 +41,8 @@ attack on this seal:
   carries both runtimes, about 146 KB more (52 KB with gzip) (Section 4).
 
 The 1024-bit group must go in any case. Of the two ways to replace it, a 2048-bit three-pass costs
-about 45 ms more per seal and per restore. The POPRF costs about 5 ms less. So the POPRF is the
-recommended replacement.
+about 45 ms more per seal and per restore. The POPRF costs about 5 ms less in Node, and about
+20 ms less on the device after a reload. So the POPRF is the recommended replacement.
 
 ## Facts this plan builds on
 
@@ -119,8 +123,8 @@ Checked in the code on 2026-11-18 at `eb3ad8d77`. `seal/` is
   Chromium, local Workers; `docs/near-custody-overlap-latency.json`) recorded the seal at session
   start: runtime setup 9 to 20 ms (median 11), client lock 41 to 74 ms (median 45), server route
   44 to 75 ms (median 48) and client unlock 39 to 49 ms (median 45). In Node, one lock step takes
-  1.7 ms (Section 4). The cause of the difference of about 43 ms for each client step is not known
-  (U1). The restore records no timings (`wk/passkey-mpc-session.worker.ts:1040-1147`).
+  1.7 ms (Section 4). F18 explains a part of the difference (U1). The restore records no timings
+  (`wk/passkey-mpc-session.worker.ts:1040-1147`).
 - **F15. Code that both seals share.** `seal/crypto/cipher.ts` (the scopes, key versions and lock
   key derivation), `seal/crypto/shamir3PassWasm.ts`, `parseSigningSessionSealRootConfig`
   (`seal/options.ts:40-57`, also read by `srv/router/cloudflare/d1/auth/
@@ -142,6 +146,19 @@ Checked in the code on 2026-11-18 at `eb3ad8d77`. `seal/` is
   blind and finalize, with the blind kept in WASM behind a handle, a server evaluation from a
   32-byte seed and a key label, and the public key. Its tests check RFC 9497 Appendix A.1.3. The
   module is 129,500 bytes, and its JavaScript glue 16,083 bytes.
+- **F18. Browser timings of the device steps.** Measured on 2026-11-18 in the Chromium 156 pane of
+  the Claude app on an Apple Silicon Mac, with the built `shamir3pass.worker.js` and its WASM, and
+  the runtime of F17. Each round ran in a new module worker, as a restore after a reload does.
+  After a page reload, all 5 rounds ran cold:
+  - Three-pass through the nested worker: the first client key 12 to 21 ms (worker start and WASM
+    start), the first lock 7.5 to 14 ms and the first unlock 6 to 11 ms. Medians 16, 10 and 7 ms,
+    about 33 ms for one restore. Later lock steps in the same worker took about 6.5 ms each.
+  - The POPRF in process: module start 3 to 4.4 ms, the first blind 2.5 to 3.2 ms and the first
+    finalize 5.4 to 12.5 ms. Medians 3.5, 2.7 and 6.8 ms, about 13 ms for one restore.
+  - A message round trip to the nested worker took 0.1 ms. So the messages cost almost nothing.
+    The cost is the worker start and cold WASM code. In one earlier page load, rounds 4 and 5
+    became 3 to 4 times faster (1.7 ms for a lock step, as in Node), because the browser had
+    compiled faster code by then. A reload lost that gain.
 
 ## 1. The flows
 
@@ -303,9 +320,11 @@ So:
 
 - In JavaScript, the POPRF is slower than three-pass at 1024 bits. The WASM runtime of D5 is the
   condition for any speed gain.
-- The math is a small part of a seal. The route took 44 to 75 ms and each client step about
-  45 ms in the browser (F14). The math explains about 2 ms of each client step. If the rest is the
-  nested worker, D5 removes it, but this is not measured (U1).
+- In the browser, cold code and the worker start cost more than the math. A restore after a
+  reload took about 33 ms on the device with three-pass and about 13 ms with the POPRF (F18). The
+  route took 44 to 75 ms (F14). The Gateway must also warm the POPRF runtime, as it warms the
+  three-pass runtime today (`shamir3PassWasm.ts:93-114`), because a cold first evaluation took 5 to
+  45 ms in the browser.
 
 Size. The three-pass client assets are `shamir3pass_runtime_bg.wasm` (117,117 bytes, 46,480 with
 gzip), `shamir3pass_runtime.js` (15,390 and 3,417) and `shamir3pass.worker.js` (22,825 and 5,743):
@@ -326,8 +345,9 @@ The Gateway swaps its 117 KB three-pass module for the 130 KB runtime.
 - **Records on devices.** The new reader deletes v2 records and v2 inactive ECDSA records (F11).
   The restore fails, and the next operation uses a normal unlock or step-up
   ([Intended behaviours](intended-behaviours.md), "Page refresh must not create new authority").
-  Sessions alive at the deploy lose their reload restore once: most within 24 hours, all within
-  30 days (F12). No key or fund is at risk.
+  Sessions alive at the deploy lose their reload restore once. Every hosted Wallet Session so far
+  had a TTL of 24 hours or less, and none was alive on 2026-11-18 (U4). No key or fund is at
+  risk.
 - **Wire fields that change.**
   - Routes: `apply-server-seal` and `remove-server-seal` become `evaluate`.
   - Request: `ciphertext` becomes `blindedElementB64u`. `metadata` goes away (the server logs
@@ -373,31 +393,48 @@ When both seals have moved (D8):
 If only this seal moves, the WASM runtime, the nested worker, the client runtime and the group
 constants stay for the Email OTP factor seal.
 
-## 7. Unknowns
+## 7. Unknowns: the answers of Slice 0
 
-- **U1. Where the browser time goes.** Each client lock step took about 45 ms in the browser, and
-  the math takes 1.7 ms (F14). Add restore diagnostics, then measure seal and restore on staging.
-- **U2. The bearer after a reload.** Where does the restore read its Wallet Session token? If it
-  is in the same IndexedDB, a copy of IndexedDB restores within the session limits. This is the
-  same for both schemes, but the docs should say it.
-- **U3. Inactive ECDSA records.** Confirm that nothing unseals them (F11). If nothing does,
-  delete their `sealedSecretB64u`.
-- **U4. Hosted session lengths.** How many hosted sessions use a TTL longer than 24 hours? This
-  sets how many users see the one extra unlock of D6.
-- **U5. `@noble/curves` in the bundle.** The Wallet source imports none. A dependency can still
-  bring it in. This matters only if D5 changes to JavaScript.
+Answered on 2026-11-18.
+
+- **U1. Where the browser time goes.** Mostly the worker start and cold WASM code, not the
+  messages and not the math (F18). The 41 to 74 ms of F14 is more than the 7.5 to 14 ms of F18.
+  The difference is probably CPU load from the local Workers and 40 back-to-back registrations
+  (inferred, not measured). The restore diagnostics move to Slice 2, because Slice 2 rewrites the
+  same functions, and their numbers then show the POPRF path.
+- **U2. The bearer after a reload.** The restore reads the operation credential, with its token,
+  from the `wallet_session_authorizations` store (`packages/wallet/src/core/indexedDB/
+  seamsWalletDB/walletSessionAuthorizationStore.ts`). The sealed records are in
+  `signing_session_seals` of the same database (`packages/wallet/src/core/indexedDB/
+  schemaNames.ts:18-21`). So a copy of the Wallet origin's IndexedDB restores the value while the
+  session is live and not retired. The seal protects a copy taken after expiry or retirement, and
+  it keeps the value from the server alone. This is the same for both schemes.
+- **U3. Inactive ECDSA records.** Nothing unseals them. Both restore paths need a positive
+  `remainingUses` and a future `expiresAtMs`, which inactive records do not have
+  (`sess/passkey/ecdsaRecovery.ts:84-110`, `sess/emailOtp/ecdsaRecovery.ts:415-433`). Their only
+  reader skips them (`sess/availability/persistedAvailableSigningLanes.ts:262-276`). Record v3
+  retires a record without its sealed fields.
+- **U4. Hosted session lengths.** Read-only counts on the 12 signer databases on 2026-11-18.
+  `wallet_session_authorizations_v2` holds 3,838 sessions on staging, 19 on production testnet
+  and 58 on production mainnet, all in the `sin` databases. Each one has a TTL of 24 hours or
+  less (the largest is 86,400,000 ms). None was alive: the latest expiry was 71 hours earlier on
+  staging and 28 days earlier on mainnet.
+- **U5. `@noble/curves` in the bundle.** The built `email-otp` and `passkey-mpc-session` workers
+  hold no curve code (no `ristretto` or `edwards` symbols). So a JavaScript POPRF would add
+  `@noble/curves`. D5 keeps the WASM runtime, so this does not apply.
 
 ## 8. Slices
 
-- **Slice 0: measure.** Restore diagnostics in both workers. Seal and restore timings on staging
-  with the current code. Answer U1 to U5. No change to behaviour.
+- **Slice 0: measure.** Answer U1 to U5. No change to behaviour. Done on 2026-11-18 (Section 7).
+  The restore diagnostics moved to Slice 2.
 - **Slice 1: the shared runtime.** `wasm/oprf_runtime` lands with Refactor 252 (F17, D3). This
   plan adds the `signing_session` key label and its `info` builder beside the Email OTP ones, and
   loads the runtime in the passkey session worker.
 - **Slice 2: the seal.** Server and Wallet in one change: the `evaluate` route, the keys and
   `pkS` in the well-known document, the prepared registration evaluation, the rate limit (D9),
-  the in-process client (D5) and record v3. In the same change, delete the apply and remove
-  routes and the three-pass calls of this seal. Update [Browser workers](browser-workers.md).
+  the in-process client (D5), record v3, the Gateway warm-up of the runtime and restore
+  diagnostics in both workers. In the same change, delete the apply and remove routes and the
+  three-pass calls of this seal. Update [Browser workers](browser-workers.md).
 - **Slice 3: the release (D7).** seams-monorepo in one coordinated commit. Staging first, then
   production. The release notes say that open sessions need one unlock after the upgrade.
 - **Slice 4: the deletion.** Section 6, after Refactor 252 Slice 2 moves the Email OTP factor
@@ -416,7 +453,8 @@ constants stay for the Email OTP factor seal.
 - **Reload.** `tests/e2e/intended-behaviours/passkey.unlock.contract.test.ts` ("default sealed
   refresh hydrates ...") passes, and so does the Email OTP ECDSA reload restore. A v2 record is
   deleted, and the next operation unlocks.
-- **Timing.** The restore diagnostics show less than 1 ms of math on the device.
+- **Timing.** After a reload, the restore diagnostics show the POPRF device steps below the
+  three-pass numbers of F18 (about 13 ms against about 33 ms in the same browser).
 - `pnpm report:bloat --check` passes after the deletion.
 
 ## 10. Relation to other plans
