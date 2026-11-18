@@ -142,10 +142,11 @@ Open, with a recommendation:
   - An unscoped package `purin` exists. It belongs to another person and does not block a
     scope.
 
-  Recommended: if the `purin` account is the owner's, change it into an organisation. If not,
-  ask npm support for the name now, and use `@purin-io` if there is no answer before the
-  rename. Select one scope before Release A, because a second change of scope breaks every
-  import again.
+  The `purin` account is not the owner's (owner, 2026-11-18). Recommended: ask npm support
+  for the name now, and create the `purin-io` organisation on npm at the same time, so that
+  the fallback stays free. Use `@purin` only if npm gives the name before the rename. If not,
+  use `@purin-io`. Select one scope before Release A, because a second change of scope breaks
+  every import again.
 
 ## Facts this plan builds on
 
