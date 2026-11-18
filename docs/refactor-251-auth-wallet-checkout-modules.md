@@ -685,6 +685,11 @@ Rules for the cleanup:
   - Do not start this slice before the owner gives the Purin names (D22).
 - **Slice 2: the conformance suite.** The journeys, the record fixtures and the route checks of
   Section 2, with the driver for the old API. The suite passes against the old code.
+
+  Done on 2026-11-18 in `tests/conformance` (its README says how to run it). The [Slice 0
+  inventory](refactor-251-slice-0-inventory.md) lists the checks, the expected failures and the
+  gaps under "What Slice 2 writes first". The suite does not freeze the Email OTP release routes,
+  which [Refactor 252](refactor-252-email-otp-device-factor.md) changes.
 - **Slice 3: the frame kit.** New `packages/frame-kit`: the stage dialog, the frame transport
   and the message checks (D17). The checkout of Refactor 250 can start from here.
 - **Slice 4: the project credentials.** Move the ports and checks into `packages/host` (D19),

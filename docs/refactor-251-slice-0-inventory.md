@@ -100,35 +100,95 @@ wallet server. The owner decides D26.
 
 ## Findings for the owner
 
-Problems found in passing. Slice 0 changes no product code, so none is fixed here.
+Problems found in passing. Slice 0 and Slice 2 change no product code, so none is fixed here.
+The rows marked "Slice 2" were measured by a check of the conformance suite. Each fault that
+breaks a contract has an expected failure there (see "What Slice 2 writes first").
 
 | Finding | Where | Area |
 | --- | --- | --- |
 | The wallet server alone can open an owner Email OTP wallet, against the public custody docs | See U4 | 2 |
 | The server never requires user verification for a passkey assertion or registration (`requireUserVerification: false` in 4 checks). The browser asks for it as `preferred`. The VoiceID owner check requires it | `packages/wallet-server/src/core/authService/webauthn.ts:261,393`, `d1WebAuthnAuthService.ts:476`, `d1WalletAuthMethodService.ts:2815` | 1 |
 | Email OTP codes are stored in plaintext | `d1EmailOtpChallengeVerifier.ts:346` | 3 |
-| The host event of the auth menu gets the shown sentence, not the raw error, from Google views, and nothing from the link view. This breaks the integrator contract of Fact F16 | `auth-menu/session.ts:539-545` | 7, 8 |
-| A substring match maps `otp_locked_out` and `otp_attempts_exhausted` to `email_otp_invalid_code` (inferred) | `googleEmailOtpWalletAuthFlow.ts:209` | 8 |
+| Slice 2: the host event of the auth menu gets nothing from the link view, and nothing from the recovery view before `sign_in_ready` (for example a failed Google step). This breaks the integrator contract of Fact F16. Slice 2 corrected the Slice 0 claim about Google views: they send the raw text today. Their `status.message` branch would send the shown sentence, but no flow reaches it | `auth-menu/session.ts:532-549` | 7, 8 |
+| Slice 2: the passkey button ignores the app's `passkeyCta` copy. It shows a fixed label for each mode, and the passkey view's `ctaLabel` is never rendered | `host/ui/auth-menu/AuthMenuSurface.tsx:1022` | 7 |
+| Slice 2: a substring match maps `otp_locked_out` and `otp_attempts_exhausted` to `email_otp_invalid_code` | `googleEmailOtpWalletAuthFlow.ts:209` | 8 |
+| Slice 2: a lockout or a rate limit that reaches the Google flow as a message only gives `unlock_failed`, because the Email OTP worker drops the server code. A valid code with no local signing session also gives `unlock_failed` | `googleEmailOtpWalletAuthFlow.ts:211-214,605`, `workers/email-otp/fetch.ts:44` | 8 |
+| Slice 2: public codes that no code produces: `local_signing_session_not_ready`, `wallet_iframe_unavailable` and `flow_cancelled` (8.6), and `ACCOUNT_NOT_OWNED`, `AUTHORIZATION_TIMEOUT` and `INSUFFICIENT_BALANCE` (8.7) | `publicApi/types.ts:585`, `core/types/linkDevice.ts:59` | 8 |
+| Slice 2: the V1 writers of the D1 method table (`put`, `preparePasskeyRegistrationStatements`) have no caller, and migration 0084 refuses the rows that they build | `wallet-server/src/core/d1WalletAuthMethodStore.ts:788,802` | 3 |
 | Server messages, signer codes and the VoiceID mismatch text show in English under `ja` | `packages/wallet/src/core/ui/messages.ts:1171` | 8 |
 | Dead code: 7 `lane_*` D1 tables, the `PasskeyErrorCode` enum, `shared-ts/src/index.ts`, and 7 Gateway environment fields | Areas 3, 8, 9 | 3, 8, 9 |
 
 ## What Slice 2 writes first
 
-These behaviours have no test today. The conformance suite needs them before any new code
-replaces the old code:
+These behaviours had no test before Slice 2. The conformance suite needs them before any new
+code replaces the old code.
 
-- **Integrator contracts (F16):** the card radius, the menu copy and the host event `detail`
-  (rows 7.7, 7.8, 7.9, 8.2).
-- **Methods in the account menu** (7.10) and the auth-menu outcome codes (8.1).
-- **Key and scope refusals:** the publishable-key codes (10.2) and the login scope (10.10).
-- **Stored records:** the VoiceID device record, the NEAR profile pivot, `d1WebAuthnRecords.ts`,
-  `linkedAuthoritySignerMaterial.ts` and `d1VersionedJsonRecordStore.ts` (area 3).
-- **Ceremonies:** the WebAuthn option builders and server checks (1.1, 1.2), the PRF salts (1.3)
-  and the user handle (1.5).
-- **Routes:** Google link and unlink (6.3), the custody credential list (6.12), account sync
-  (6.15), the WebAuthn metadata (6.16) and the step-up factor routes (6.17).
-- **Error codes:** signer codes (8.5), Google and Email OTP codes (8.6) and device-linking codes
-  (8.7).
+**Done on 2026-11-18** in `tests/conformance/` (paths below are in that folder; its README says how
+to run it). Each item has a check:
+
+- **Integrator contracts (F16)** (rows 7.7, 7.8, 7.9, 8.2):
+  `ui/authMenuIntegratorContracts.browser.test.ts` (the card radius, the copy and the host event,
+  through the real wallet iframe), `ui/authMenuCopy.unit.test.ts` and
+  `ui/authMenuErrorReports.unit.test.ts`.
+- **Methods in the account menu** (7.10): `ui/authenticationMethods.browser.test.ts`. **The
+  auth-menu outcome codes** (8.1): `ui/authMenuOutcomes.unit.test.ts`.
+- **Key and scope refusals** (10.2, 10.3, 10.4, 10.10): `routes/projectKeys.test.ts`.
+- **Stored records** (area 3):
+  - `records/d1AuthRecords.test.ts`: `d1WebAuthnRecords.ts`, `d1VersionedJsonRecordStore.ts`, and
+    the D1 method, authenticator, credential binding, challenge and Email OTP enrollment rows.
+  - `records/linkedSignerMaterial.test.ts`: `linkedAuthoritySignerMaterial.ts`.
+  - `records/indexedDbRecords.test.ts`: the VoiceID device record, the NEAR profile pivot, the V1
+    and V2 method rows, the selection, and the VoiceID enrollment and availability records.
+  - The fixtures are in `records/fixtures/`. Today's writers make them;
+    `SEAMS_CONFORMANCE_WRITE_FIXTURES=1` writes them again.
+- **Ceremonies** (1.1, 1.2, 1.3, 1.5): `ceremonies/webauthnServerChecks.test.ts`,
+  `ceremonies/webauthnOptionBuilders.test.ts` and `ceremonies/prfSalts.test.ts`.
+- **Routes** (6.3, 6.12, 6.15, 6.16, 6.17, and the routes of U3 that seams-monorepo uses):
+  `routes/identityRoutes.test.ts`, `routes/custodyCredentialRoutes.test.ts`,
+  `routes/syncAndMetadataRoutes.test.ts`, `routes/stepUpFactors.test.ts`,
+  `routes/loginRoutes.test.ts` (6.1, 6.2), `routes/emailOtpChallengeRoutes.test.ts` and
+  `routes/routeTable.test.ts`.
+- **Error codes** (8.5, 8.6, 8.7): `errors/signerBoundaryCodes.test.ts`,
+  `errors/googleEmailOtpCodes.test.ts` and `errors/deviceLinkingCodes.test.ts`.
+- **Journeys** (Section 2 of the plan): `journeys/journeys.ts` holds 12 journeys as steps of the
+  driver in `journeys/driver.ts`. `journeys/seamsWebDriver.ts` runs them with today's API through
+  the intended-behaviour harness. `journeys/passkey.journeys.contract.test.ts` and
+  `journeys/email-otp.journeys.contract.test.ts` define the tests.
+
+Result against `dev` on 2026-11-18: the 120 fast checks give 114 passes and 6 expected failures.
+The 12 journeys pass, each on a fresh local Wallet system.
+
+**Expected failures.** Each one calls `expectKnownFault` with its row. Playwright reports the
+check as failed when the fault is fixed, so the fix removes the marker.
+
+| Row | Fault | Check |
+| --- | --- | --- |
+| 7.8 | The passkey button ignores the app's `passkeyCta` | `ui/authMenuIntegratorContracts.browser.test.ts` |
+| 8.2 | The link view sends no host event | `ui/authMenuIntegratorContracts.browser.test.ts` |
+| 8.2 | A failed Google step in recovery sends no host event | `ui/authMenuErrorReports.unit.test.ts` |
+| 8.6 | `otp_locked_out` and `otp_attempts_exhausted` give `email_otp_invalid_code` | `errors/googleEmailOtpCodes.test.ts` |
+| 8.6 | A lockout or rate limit that arrives as a message only gives `unlock_failed` | `errors/googleEmailOtpCodes.test.ts` |
+| 8.6 | A valid code with no local signing session gives `unlock_failed` | `errors/googleEmailOtpCodes.test.ts` |
+
+**Not covered, and why:**
+
+- The three server-side WebAuthn option builders (`d1LinkedDeviceTargetPlanner.ts:259`,
+  `d1WalletAuthMethodService.ts:2503` and the recovery builder in `d1PasskeyCustodyRouteService.ts`)
+  and the add-passkey registration check (`d1WalletAuthMethodService.ts:2754`) are private. The
+  journeys run them: registration, add a passkey, device linking and recovery.
+- `voiceid-activation-v1` holds an envelope that only the WASM ceremony makes;
+  `ib/voiceid-activation.contract.test.ts` covers it. The CryptoKeys of the VoiceID device record
+  cannot go into a JSON file, so its fixture describes the record. A reader in new code must run
+  today's writer in the same origin.
+- `failureCodeForError` in `HostedSeamsAuthMenu/shell.tsx` is private to the React component.
+- The journeys use a passkey for sign-in on an empty browser, device linking and recovery. The
+  VoiceID journeys stay in the VoiceID contracts, which need audio fixtures. Google recovery is not
+  a journey, because Refactor 252 removes it.
+- No route check covers the Email OTP release (`/wallet/email-otp/factor-release`,
+  `/wallet/email-otp/registration/seal`, the device-link base factor and the Google recovery
+  release), because Refactor 252 changes it. The journeys and the stored enrollment rows check
+  Email OTP, and no check requires that the server keeps the sealed factor.
+- The Firefox and WebKit projects do not run the conformance UI checks.
 
 ## The package entries
 
@@ -611,7 +671,7 @@ seams-monorepo files of U3 add 20 source files with 3,544 lines.
 | 7.6 | Menu surface: wallet views | `AuthMenuSurface.tsx` recovery and link blocks (about 880 lines), `RecoveryOptions.tsx`, `recovery-code-input.tsx`, `linkDeviceBadge.tsx` | As 7.4 | wallet | As 7.4 | 289 | - |
 | 7.7 | F16 radius (`--seams-shape-card`) | `react/components/theme/*`, `src/theme/*`, `uiConfirm/ui/appearance*.ts` | **None.** The last test went in `3d87be7fd` | frame kit | An app's token sets the card radius exactly | 1,177 | The overlay caps the radius at `2rem`; the menu does not |
 | 7.8 | F16 copy (`HostedAuthMenuCopy`) | `walletIframe/shared/messages.ts:165-704` | **None** for an override | auth | The app's copy renders; unknown keys are refused | shared | `messages.ts` has 1,902 lines |
-| 7.9 | F16 host event `detail` | `session.ts:1786-1805`, `client/inboundMessages.ts`, `client/router.ts:602-614` | The status keeps `detail`. The event: **none** | auth | The raw text reaches the host event once for each change | shared | Google views send `message`, not `detail`; the link view sends no event |
+| 7.9 | F16 host event `detail` | `session.ts:1786-1805`, `client/inboundMessages.ts`, `client/router.ts:602-614` | The status keeps `detail`. The event: **none** | auth | The raw text reaches the host event once for each change | shared | The link view sends no event; the recovery view sends one only at `sign_in_ready` (Slice 2) |
 | 7.10 | Methods in the account menu | `AccountMenuButton/AuthenticationMethodsModal.tsx`, `VoiceIdAvailabilityControl.tsx` | **None** | auth | List, add and remove a method; the "sign-in only" label | 959 | - |
 | 7.11 | The rest of the account menu (assets, send, receive, devices, export, region, QR) | `AccountMenuButton/*` (73 files), `ShowQRCode.*`, `QRCodeScanner.*` | `tests/wallet-ui/account-settings-modal`, `asset-send*`, `tests/e2e/account-menu-mock.e2e.mjs` | wallet (moves) | A journey for each panel | 13,603 | 6 exports of `types.ts` are used only in that file |
 | 7.12 | Wallet steps with Back and Close | `walletIframe/shared/walletStep.ts`, `WalletStep.tsx`, `ModalSteps.tsx`, `walletModalSteps.ts`, `surfaces.ts`, `anchoredSurface*.ts`, `anchoredCard.ts` | `tests/wallet-ui/wallet-steps.browser.test.ts` | frame kit | The step events keep their wire shape and times | 1,911 | 3 parsers used only in their file |
@@ -636,11 +696,11 @@ Area 7: 214 source files with 54,590 lines, and 44 test files with 13,105 lines.
 | # | Touch point | Old code | Old test | New owner | Compatibility check | Lines now | Bloat found |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
 | 8.1 | Auth-menu outcome codes (9) | `walletIframe/shared/messages.ts:260`, a copy in `HostedSeamsAuthMenu/shell.tsx:44` | **None** | auth; `wallet_error` and `registered` go to the wallet plugin | Each outcome kind and code | 652 | The type is defined twice |
-| 8.2 | The raw error in the host event `detail` | `host/auth-menu/domain.ts:96-117`, `session.ts:532-555`, `client/router.ts:602-612` | The status only; the event: **none** | auth | Event name, flags, payload and raw text for passkey, Google and recovery | 615 | **Google views send the shown sentence, not the raw error, and the link view sends nothing.** The event name is not exported; seams-monorepo copies it as a literal |
+| 8.2 | The raw error in the host event `detail` | `host/auth-menu/domain.ts:96-117`, `session.ts:532-555`, `client/router.ts:602-612` | The status only; the event: **none** | auth | Event name, flags, payload and raw text for passkey, Google and recovery | 615 | **The link view sends nothing, and the recovery view sends nothing before `sign_in_ready` (Slice 2).** The event name is not exported; seams-monorepo copies it as a literal |
 | 8.3 | Server route codes | 232 code literals in 118 files, no registry: 31 auth, 23 both, 178 wallet | Few | auth or wallet by route; generic codes to `host` | Code and HTTP status for each route | spread | Auth folders hold wallet codes |
 | 8.4 | Wallet Session codes (8) | `T/utils/walletSessionFailure.ts` and 2 files | `tests/unit/walletSessionStatusReadScope.unit.test.ts` | wallet | Same code and status | 174 | 38 files write the codes as literals |
 | 8.5 | Signer boundary codes (14) | `host/canonicalSignerErrorCode.ts` | **None** | wallet; two step-up codes are the boundary | Step-up keeps the code | 391 | No Japanese text |
-| 8.6 | Google and Email OTP flow codes (14) | `publicApi/types.ts:585`, `googleEmailOtpWalletAuthFlow.ts:203-225`, `googleEmailOtpErrors.ts` | **None** | split | Each server code gives the same public code | 2 | A substring match maps `otp_locked_out` and `otp_attempts_exhausted` to `email_otp_invalid_code` (inferred) |
+| 8.6 | Google and Email OTP flow codes (14) | `publicApi/types.ts:585`, `googleEmailOtpWalletAuthFlow.ts:203-225`, `googleEmailOtpErrors.ts` | **None** | split | Each server code gives the same public code | 2 | A substring match maps `otp_locked_out` and `otp_attempts_exhausted` to `email_otp_invalid_code` (measured in Slice 2) |
 | 8.7 | Device linking codes (9) | `W/core/types/linkDevice.ts:59` | **None** | wallet | The journey codes | 196 | A literal repeated in two files |
 | 8.8 | The old passkey error enum | `W/core/types/errors.ts`, exported at `W/index.ts:351` | **None** | delete | - | 114 | No user here or in seams-monorepo |
 | 8.9 | Plain text for thrown errors | `T/utils/errors.ts` | `ib/passkey-browser-security.ts` | split | The same text for cancel, missing PRF and RP ID errors | 280 | 28 local `errorMessage` copies; English only |
