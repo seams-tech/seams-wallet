@@ -7,6 +7,7 @@ import {
   parseNamedNearAccountId,
 } from './near';
 import { inspectRawObject, trimString } from './registrationAuthMethodInput';
+import { normalizeThresholdEd25519ParticipantIds } from '../threshold/participants';
 import type { NearEd25519SigningKeyId } from './registrationIds';
 import type { ThresholdEcdsaChainTargetWire } from './thresholdEcdsaChainTarget';
 import type { ExclusiveUnion } from './variant';
@@ -145,17 +146,22 @@ export function sponsoredNamedNearAccountProvisioning(
   };
 }
 
-function normalizePositiveInteger(raw: unknown, fallback: number): number {
-  const value = typeof raw === 'number' ? raw : Number(raw);
-  return Number.isFinite(value) && value >= 1 ? Math.floor(value) : fallback;
+/** A JSON number that is a positive safe integer; anything else is refused, never rounded. */
+function positiveSafeInteger(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 1 ? raw : null;
 }
 
-function collectPositiveParticipantIds(raw: unknown): number[] {
+/**
+ * Participant ids in their given order. One bad entry refuses the whole list:
+ * dropping it would sign for a different participant set than the app sent.
+ */
+function strictParticipantIds(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
   const participantIds: number[] = [];
   for (const id of raw) {
-    const numericId = Number(id);
-    if (Number.isInteger(numericId) && numericId > 0) participantIds.push(numericId);
+    const participantId = positiveSafeInteger(id);
+    if (participantId === null) return [];
+    participantIds.push(participantId);
   }
   return participantIds;
 }
@@ -207,7 +213,7 @@ function normalizeRegistrationEcdsaSpec(
 ): ThresholdEcdsaRegistrationSpec | null {
   if (!value) return null;
   if (!('participantIds' in value) || !('chainTargets' in value)) return null;
-  const participantIds = collectPositiveParticipantIds(value.participantIds);
+  const participantIds = strictParticipantIds(value.participantIds);
   const chainTargets = normalizeUnknownArray(value.chainTargets);
   if (participantIds.length === 0 || chainTargets.length === 0) return null;
   return { participantIds, chainTargets };
@@ -420,14 +426,14 @@ function normalizeRegistrationNearEd25519SignerRequest(
   const accountProvisioning = normalizeRegistrationNearAccountProvisioning(
     'accountProvisioning' in raw ? raw.accountProvisioning : undefined,
   );
-  const signerSlot = normalizePositiveInteger('signerSlot' in raw ? raw.signerSlot : undefined, 0);
+  const signerSlot = positiveSafeInteger('signerSlot' in raw ? raw.signerSlot : undefined);
   const derivationVersion = Number('derivationVersion' in raw ? raw.derivationVersion : undefined);
-  const participantIds = collectPositiveParticipantIds(
+  const participantIds = strictParticipantIds(
     'participantIds' in raw ? raw.participantIds : undefined,
   );
   if (
     !accountProvisioning ||
-    signerSlot < 1 ||
+    signerSlot === null ||
     participantIds.length === 0 ||
     derivationVersion !== REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION
   ) {
@@ -637,14 +643,14 @@ function normalizeAddSignerEcdsaSelection(
   options: NormalizeAddSignerSelectionOptions,
 ): NormalizeSignerSelectionResult<AddSignerSelection> {
   const ecdsaRecord = inspectRawObject(raw);
-  const participantIds = collectPositiveParticipantIds(
+  const participantIds = normalizeThresholdEd25519ParticipantIds(
     ecdsaRecord && 'participantIds' in ecdsaRecord ? ecdsaRecord.participantIds : undefined,
   );
   const chainTargets = normalizeAddSignerEcdsaChainTargets(
     ecdsaRecord && 'chainTargets' in ecdsaRecord ? ecdsaRecord.chainTargets : undefined,
     options,
   );
-  if (participantIds.length === 0 || chainTargets.length === 0) {
+  if (!participantIds || chainTargets.length === 0) {
     return { ok: false, code: 'invalid_body', message: 'ecdsa add-signer spec is invalid' };
   }
   return {
@@ -680,9 +686,8 @@ function normalizeAddSignerEd25519Selection(
   const ed25519Mode = trimString(
     ed25519Record && 'mode' in ed25519Record ? ed25519Record.mode : undefined,
   );
-  const signerSlot = normalizePositiveInteger(
+  const signerSlot = positiveSafeInteger(
     ed25519Record && 'signerSlot' in ed25519Record ? ed25519Record.signerSlot : undefined,
-    1,
   );
   const keyPurpose = trimString(
     ed25519Record && 'keyPurpose' in ed25519Record ? ed25519Record.keyPurpose : undefined,
@@ -690,16 +695,21 @@ function normalizeAddSignerEd25519Selection(
   const keyVersion = trimString(
     ed25519Record && 'keyVersion' in ed25519Record ? ed25519Record.keyVersion : undefined,
   );
-  const derivationVersion = normalizePositiveInteger(
+  const derivationVersion = positiveSafeInteger(
     ed25519Record && 'derivationVersion' in ed25519Record
       ? ed25519Record.derivationVersion
       : undefined,
-    0,
   );
-  const participantIds = collectPositiveParticipantIds(
+  const participantIds = normalizeThresholdEd25519ParticipantIds(
     ed25519Record && 'participantIds' in ed25519Record ? ed25519Record.participantIds : undefined,
   );
-  if (!keyPurpose || !keyVersion || !derivationVersion || participantIds.length === 0) {
+  if (
+    signerSlot === null ||
+    !keyPurpose ||
+    !keyVersion ||
+    derivationVersion === null ||
+    !participantIds
+  ) {
     return { ok: false, code: 'invalid_body', message: 'ed25519 add-signer spec is invalid' };
   }
   if (ed25519Mode === 'create_implicit_near_account') {

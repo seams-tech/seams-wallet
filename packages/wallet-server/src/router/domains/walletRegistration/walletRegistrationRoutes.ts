@@ -132,6 +132,7 @@ import {
 } from '@shared/utils/registrationIntent';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import {
+  normalizeAddSignerSelection,
   normalizeRegistrationSignerPlan,
   registrationSignerSetSelectionFromPlan,
   type AddSignerSelection,
@@ -388,124 +389,15 @@ function findUnknownField(
   return Object.keys(raw).find((field) => !allowed.includes(field));
 }
 
-function parseChainTargets(raw: unknown): ParseResult<ThresholdEcdsaChainTarget[]> {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'auth.policy.chainTargets must contain at least one chain target',
-    };
-  }
-  const targets: ThresholdEcdsaChainTarget[] = [];
-  for (const value of raw) {
-    const target = thresholdEcdsaChainTargetFromValue(value);
-    if (!target) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'auth.policy.chainTargets contains an invalid chain target',
-      };
-    }
-    targets.push(target);
-  }
-  return { ok: true, value: targets };
-}
-
-function parseParticipantIds(raw: unknown, field: string): ParseResult<number[]> {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return { ok: false, code: 'invalid_body', message: `${field} must contain participant ids` };
-  }
-  const participantIds = raw.map((value) => Math.floor(Number(value)));
-  if (participantIds.some((value) => !Number.isFinite(value) || value < 1)) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: `${field} contains an invalid participant id`,
-    };
-  }
-  return { ok: true, value: Array.from(new Set(participantIds)).sort((a, b) => a - b) };
-}
-
+/** One parse for the add-signer selection: the shared rule the intent store also applies. */
 function parseAddSignerSelection(raw: unknown): ParseResult<AddSignerSelection> {
-  if (!isPlainObject(raw)) {
-    return { ok: false, code: 'invalid_body', message: 'add-signer signerSelection is required' };
+  const normalized = normalizeAddSignerSelection(raw, {
+    normalizeEcdsaChainTarget: thresholdEcdsaChainTargetFromValue,
+  });
+  if (!normalized.ok) {
+    return { ok: false, code: 'invalid_body', message: `add-signer ${normalized.message}` };
   }
-  if (raw.mode === 'ecdsa') {
-    const ecdsa = isPlainObject(raw.ecdsa) ? raw.ecdsa : null;
-    if (!ecdsa) {
-      return { ok: false, code: 'invalid_body', message: 'add-signer ECDSA spec is required' };
-    }
-    const chainTargets = parseChainTargets(ecdsa.chainTargets);
-    if (!chainTargets.ok) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'add-signer ECDSA chainTargets are invalid',
-      };
-    }
-    const participantIds = parseParticipantIds(
-      ecdsa.participantIds,
-      'add-signer ECDSA participantIds',
-    );
-    if (!participantIds.ok) return participantIds;
-    return {
-      ok: true,
-      value: {
-        mode: 'ecdsa',
-        ecdsa: {
-          chainTargets: chainTargets.value,
-          participantIds: participantIds.value,
-        },
-      },
-    };
-  }
-  if (raw.mode === 'ed25519') {
-    const ed25519 = isPlainObject(raw.ed25519) ? raw.ed25519 : null;
-    if (!ed25519) {
-      return { ok: false, code: 'invalid_body', message: 'add-signer Ed25519 spec is required' };
-    }
-    const mode = typeof ed25519.mode === 'string' ? ed25519.mode.trim() : '';
-    const signerSlot = Math.floor(Number(ed25519.signerSlot));
-    const keyPurpose = typeof ed25519.keyPurpose === 'string' ? ed25519.keyPurpose.trim() : '';
-    const keyVersion = typeof ed25519.keyVersion === 'string' ? ed25519.keyVersion.trim() : '';
-    const derivationVersion = Math.floor(Number(ed25519.derivationVersion));
-    const participantIds = parseParticipantIds(
-      ed25519.participantIds,
-      'add-signer Ed25519 participantIds',
-    );
-    if (!participantIds.ok) return participantIds;
-    if (
-      !Number.isFinite(signerSlot) ||
-      signerSlot < 1 ||
-      !keyPurpose ||
-      !keyVersion ||
-      !Number.isFinite(derivationVersion) ||
-      derivationVersion < 1
-    ) {
-      return { ok: false, code: 'invalid_body', message: 'add-signer Ed25519 spec is invalid' };
-    }
-    if (mode === 'create_implicit_near_account') {
-      return {
-        ok: true,
-        value: {
-          mode: 'ed25519',
-          ed25519: {
-            mode: 'create_implicit_near_account',
-            signerSlot,
-            participantIds: participantIds.value,
-            keyPurpose,
-            keyVersion,
-            derivationVersion,
-          },
-        },
-      };
-    }
-  }
-  return {
-    ok: false,
-    code: 'invalid_body',
-    message: 'add-signer signerSelection mode is unsupported',
-  };
+  return { ok: true, value: normalized.value };
 }
 
 function parseRegistrationSignerSet(raw: unknown): ParseResult<ParsedRegistrationSignerSet> {
