@@ -1,4 +1,5 @@
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import {
   parsePrincipalId,
   type WalletSessionMintId,
@@ -140,6 +141,8 @@ type SyncAccountBootstrapInputV1 = {
   readonly mintId: WalletSessionMintId;
   readonly issuedAtMs: number;
   readonly ecdsaThresholdSessionId: string;
+  /** The app's budget for the Wallet Session of this sync. Null: the app asked for none. */
+  readonly walletSessionBudget: WalletSessionBudget | null;
   readonly custody:
     | { readonly kind: 'read_verified_factor' }
     | {
@@ -299,7 +302,7 @@ export async function issueSyncAccountBootstrapV1(
       authority: input.activeAuthority,
       walletAuthMethodId: input.walletAuthMethodId,
       mintId: input.mintId,
-      requestedBudget: null,
+      requestedBudget: input.walletSessionBudget,
       issuedAtMs: input.issuedAtMs,
     });
   if (directIssue.kind === 'already_committed') {

@@ -190,8 +190,9 @@ export interface SeamsConfigsInput {
    */
   relayerAccount?: string;
   /**
-   * The Wallet Session budget that the app asks for on each unlock and registration:
-   * a lifetime (`ttlMs`) and a count of signatures (`remainingUses`).
+   * The Wallet Session budget that the app asks for on each unlock, registration
+   * and passkey account sync: a lifetime (`ttlMs`) and a count of signatures
+   * (`remainingUses`).
    * The server grants at most the maximum that the tenant set for the project
    * environment in the Seams Console. If the tenant set no maximum, the maximum
    * is 100 signatures and 30 days. The granted budget can be lower than the

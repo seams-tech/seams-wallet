@@ -30,7 +30,8 @@ Size the session's lifetime and budget for the expected burst of operations.
 The app asks for the budget. The server decides it.
 
 - Set `signingSessionDefaults: { ttlMs, remainingUses }` in the provider config. It
-  applies to unlock and to the session that registration gives.
+  applies to unlock, to the session that registration gives and to the session that
+  a passkey account sync gives.
 - To ask for a different budget for one login, pass `signingSession: { ttlMs,
   remainingUses }` in the login options.
 - With no setting, a session gives 5 signatures and lasts 24 hours.

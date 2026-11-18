@@ -39,6 +39,11 @@ import {
   type WebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
 import { isPlainObject } from '@shared/utils/validation';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
+import {
+  isGrantedWithinRequestedBudget,
+  resolveRequestedWalletSessionBudget,
+} from '@/core/signingEngine/threshold/sessionPolicy';
 import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB';
 import { persistPasskeyEd25519YaoSignerMaterialV1 } from '@/core/signingEngine/session/passkey/ed25519YaoLocalMaterial';
 import { buildThresholdEd25519Participants2pV1 } from '@shared/threshold/participants';
@@ -162,6 +167,8 @@ type RecoverPasskeyEd25519YaoForUnlockInputV1 = {
   readonly fetch: typeof fetch;
   readonly expectedCredentialIdB64u: WebAuthnCredentialIdB64u | null;
   readonly expectedWalletAuthMethodId: WalletAuthMethodId | null;
+  /** The app's Wallet Session budget. Null: the app asks for the server's default. */
+  readonly walletSessionBudget: WalletSessionBudget | null;
   readonly collectCredential: (input: {
     readonly challengeB64u: string;
     readonly credentialIds: readonly string[];
@@ -562,6 +569,7 @@ async function verifySyncCredential(input: {
   readonly expectedWalletId: WalletId | null;
   readonly selectedCredentialId: WebAuthnCredentialIdB64u;
   readonly credential: WebAuthnAuthenticationCredential;
+  readonly walletSessionBudget: WalletSessionBudget | null;
   readonly fetch: typeof fetch;
   readonly onRelayVerifySucceeded?: (binding: RecoveryResolvedWalletBinding) => void;
 }): Promise<SyncAccountVerificationResultV1> {
@@ -573,6 +581,7 @@ async function verifySyncCredential(input: {
       webauthn_authentication: redactCredentialExtensionOutputs<WebAuthnAuthenticationCredential>(
         input.credential,
       ),
+      ...(input.walletSessionBudget ? { walletSessionBudget: input.walletSessionBudget } : {}),
     }),
   });
   const raw = await readJsonOrNull(response);
@@ -599,6 +608,15 @@ async function verifySyncCredential(input: {
   );
   input.onRelayVerifySucceeded?.(verifiedBinding);
   const parsedYaoResponse = parsePasskeyEd25519YaoSyncResponseV1(raw);
+  const grantedSession = parsedYaoResponse.walletSession;
+  if (
+    !isGrantedWithinRequestedBudget(input.walletSessionBudget, {
+      remainingUses: parsedYaoResponse.session.remainingUses,
+      lifetimeMs: grantedSession.expiresAtMs - grantedSession.issuedAtMs,
+    })
+  ) {
+    throw new Error('sync-account/verify granted a Wallet Session budget outside its request');
+  }
   const ecdsaContinuity = parseWalletCustodyEcdsaContinuity(raw, parsedYaoResponse);
   return {
     kind: 'verified',
@@ -1021,6 +1039,7 @@ async function recoverPasskeyEd25519YaoForUnlockV1(
     expectedWalletId: requestedWalletId,
     selectedCredentialId,
     credential,
+    walletSessionBudget: input.walletSessionBudget,
     fetch: input.fetch,
     onRelayVerifySucceeded: input.onRelayVerifySucceeded,
   });
@@ -1304,6 +1323,10 @@ async function syncAccountInternal(
         attempt.kind === 'replacement_after_committed' ? attempt.credentialIdB64u : null,
       expectedWalletAuthMethodId:
         attempt.kind === 'replacement_after_committed' ? attempt.walletAuthMethodId : null,
+      // A sync gives a Wallet Session, so it asks for the app's budget as an unlock does.
+      walletSessionBudget: resolveRequestedWalletSessionBudget({
+        defaults: context.configs.signing.sessionDefaults,
+      }),
       ...(preparedChallenge
         ? { prepared: preparedChallenge.syncOptions, credential: preparedCredential }
         : {}),
