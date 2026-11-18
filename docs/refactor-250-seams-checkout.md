@@ -641,8 +641,9 @@ test or the question to the provider that closes what the documentation leaves o
 
 Slice 0 ends when each task below is done, or when the owner drops it. Record each result
 under its unknown or decision, with the date. A task marked **owner** needs the owner's
-accounts, signature or decision. The other tasks can run as soon as the test accounts exist.
-No test moves real money.
+accounts, signature or decision. T6 to T10 can run as soon as the test accounts exist. T11 to
+T13 need no provider account. No test moves real money. The handoff
+[refactor-250-slice-0.md](handoffs/refactor-250-slice-0.md) says how to continue.
 
 Accounts, decisions and review (owner):
 
