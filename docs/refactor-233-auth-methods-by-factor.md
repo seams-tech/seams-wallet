@@ -6,6 +6,11 @@ Deferred (owner, 2026-11-12): the work starts after the NEAR hackathon and its j
 release 0.68.1 of the submission stays unchanged. The refactor ships in a later breaking release.
 The owner gave 0.70.0 to the non-breaking changes of 2026-11-13 (TDX quote check, TEE receipt).
 
+Changed (owner, 2026-11-18): [Refactor 251](refactor-251-auth-wallet-checkout-modules.md) writes
+a new auth library in `packages/auth` instead of changing the old wallet code. Sections 3 to 5 of
+this plan become the design of that new auth core, so they are not built on the old code.
+Section 2 (the phrase card in core) is a wallet change and stays in this plan.
+
 The owner's problem (2026-11-12): the method names (`passkey`, `email_otp`, `voiceid`) are in
 too many places. Today `case 'passkey'` has 154 arms, `case 'email_otp'` has 161 arms and
 `case 'voiceid'` has 77 arms in 103 files. The owner wants the configuration of a method in a
