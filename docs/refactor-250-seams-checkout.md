@@ -1,4 +1,4 @@
-# Refactor 234: Seams Checkout with Stripe and KOMOJU
+# Refactor 250: Seams Checkout with Stripe and KOMOJU
 
 Status: 2026-11-18. Plan only. Nothing is built.
 
