@@ -28,6 +28,9 @@ The owner's requests (2026-11-18):
   - two breaking releases in place of one (D15), and one version for every package (D16)
   - a conformance suite before the new code (Section 2)
   - owners for the frame code, the shared contracts and the project credentials (D17 to D19)
+- **A new brand (2026-11-18).** The GitHub organisation changes from `seams-tech` to
+  `purin-io`. All Seams branding changes to Purin some days after the hackathon. This plan
+  keeps the Seams names until then (D22).
 
 ## Result
 
@@ -126,6 +129,12 @@ Open, with a recommendation:
   (Fact F18).
 - **D20. A file limit for the new code.** Recommended: 1,000 lines for each file in the new
   folders. The repository limit stays 2,000 lines.
+- **D22. The brand rename and Release A.** The owner changes the brand from Seams to Purin
+  after the hackathon. Recommended: do Release A together with the brand rename, so that each
+  package gets a new name one time. For example, `@seams/wallet` then goes directly to the
+  Purin name of the MPC wallet. The npm scope and the product names of Purin are the owner's
+  choice. Until then, each `@seams/...` name and each "Seams ..." name in this plan stands for
+  its Purin name.
 
 ## Facts this plan builds on
 
@@ -554,6 +563,7 @@ Rules for the cleanup:
   - History stays: earlier release notes, `docs/evidence` and `docs/archive` keep the old
     names.
   - Tell the other sessions first. Each open branch conflicts with a rename of this size.
+  - Do not start this slice before the owner gives the Purin names (D22).
 - **Slice 2: the conformance suite.** The journeys, the record fixtures and the route checks of
   Section 2, with the driver for the old API. The suite passes against the old code.
 - **Slice 3: the frame kit.** New `packages/frame-kit`: the stage dialog, the frame transport

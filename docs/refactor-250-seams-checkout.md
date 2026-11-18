@@ -4,7 +4,8 @@ Status: 2026-11-18. Plan only. Nothing is built. Revised on 2026-11-18 after a r
 architecture. This plan builds on
 [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), which separates auth, the
 MPC wallet, the wallet connectors and the checkout, and renames `@seams/wallet` to
-`@seams/mpc-wallet`.
+`@seams/mpc-wallet`. The Seams names in this plan change to Purin with the brand rename
+(Refactor 251, D22).
 
 The owner's requests (2026-11-17 and 2026-11-18):
 
