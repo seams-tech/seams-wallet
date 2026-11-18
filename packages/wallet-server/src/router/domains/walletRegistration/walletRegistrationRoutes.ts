@@ -94,7 +94,7 @@ import type { SigningSessionSealRoutesOptions } from '../../../threshold/session
 import { parseRegistrationPreparedSessionSeal } from './registrationSessionSeal';
 import type { RouteErrorBody } from '../../framework/routeResponses';
 import { routeError, routeJson } from '../../framework/routeResponses';
-import { isPlainObject } from '@shared/utils/validation';
+import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { base58Encode, base64UrlDecode } from '@shared/utils/encoders';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import {
@@ -231,7 +231,7 @@ function parseRegistrationTraceContext(headers: HeaderRecord): RegistrationTrace
 function registrationUserAgentFromHeaders(headers: HeaderRecord): string | undefined {
   const raw = headers['user-agent'] ?? headers['User-Agent'];
   const value = Array.isArray(raw) ? raw[0] : raw;
-  const trimmed = String(value || '').trim();
+  const trimmed = toOptionalTrimmedString(value);
   return trimmed ? trimmed : undefined;
 }
 
@@ -923,7 +923,7 @@ async function parseWalletAddSignerStartBody(
     return { ok: false, code: 'invalid_body', message: 'add-signer intent grant is required' };
   }
   const addSignerIntentGrant = addSignerIntentGrantFromString(rawAddSignerIntentGrant);
-  if (String(intent.walletId || '').trim() !== walletId) {
+  if (toOptionalTrimmedString(intent.walletId) !== walletId) {
     return { ok: false, code: 'invalid_body', message: 'add-signer walletId mismatch' };
   }
   const signerSelection = parseAddSignerSelection(intent.signerSelection);
@@ -1006,7 +1006,7 @@ async function parseWalletAddAuthMethodStartBody(
       message: 'add-auth-method intent grant is required',
     };
   }
-  if (String(intent.walletId || '').trim() !== walletId) {
+  if (toOptionalTrimmedString(intent.walletId) !== walletId) {
     return { ok: false, code: 'invalid_body', message: 'add-auth-method walletId mismatch' };
   }
   const authMethod = normalizeAddAuthMethodInput(intent.authMethod);
@@ -1895,7 +1895,7 @@ export async function handleRouterApiWalletAddSignerIntent(
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   if (!walletId) {
     return routeError(400, 'invalid_body', 'walletId path parameter is required');
   }
@@ -2126,8 +2126,8 @@ export async function handleRouterApiWalletRegistrationNearAdmission(
     return routeError(500, 'internal', 'NEAR admission requires setup verification');
   }
   const body = input.body as Record<string, unknown>;
-  const registrationCeremonyId = String(body.registrationCeremonyId || '').trim();
-  const signedSetup = String(body.signedSetup || '').trim();
+  const registrationCeremonyId = toOptionalTrimmedString(body.registrationCeremonyId);
+  const signedSetup = toOptionalTrimmedString(body.signedSetup);
   if (!registrationCeremonyId || !signedSetup) {
     return routeError(400, 'invalid_body', 'registrationCeremonyId and signedSetup are required');
   }
@@ -2189,18 +2189,18 @@ function parseWalletRegistrationRespondRequest(body: unknown): ParseResult<{
   if (!isPlainObject(body)) {
     return { ok: false, code: 'invalid_body', message: 'JSON body required' };
   }
-  const registrationCeremonyId = String(body.registrationCeremonyId || '').trim();
+  const registrationCeremonyId = toOptionalTrimmedString(body.registrationCeremonyId);
   if (!registrationCeremonyId) {
     return { ok: false, code: 'invalid_body', message: 'registrationCeremonyId is required' };
   }
-  const signedSetup = String(body.signedSetup || '').trim();
+  const signedSetup = toOptionalTrimmedString(body.signedSetup);
   if (!signedSetup) {
     return { ok: false, code: 'invalid_body', message: 'signedSetup is required' };
   }
   /* The signer-plan discriminant. The service checks it against the plan the
      ceremony actually recorded, so a caller cannot drive an Ed25519-only
      ceremony down the ECDSA arm or the reverse. */
-  const planKind = String(body.kind || '').trim();
+  const planKind = toOptionalTrimmedString(body.kind);
   if (
     planKind !== 'evm_family_ecdsa' &&
     planKind !== 'near_ed25519_and_evm_family_ecdsa' &&
@@ -2320,15 +2320,15 @@ export async function handleRouterApiWalletRegistrationActivate(
     return routeError(500, 'internal', 'wallet registration activate requires setup verification');
   }
   const body = input.body as Record<string, unknown>;
-  const registrationCeremonyId = String(body.registrationCeremonyId || '').trim();
+  const registrationCeremonyId = toOptionalTrimmedString(body.registrationCeremonyId);
   if (!registrationCeremonyId) {
     return routeError(400, 'invalid_body', 'registrationCeremonyId is required');
   }
-  const signedSetup = String(body.signedSetup || '').trim();
+  const signedSetup = toOptionalTrimmedString(body.signedSetup);
   if (!signedSetup) return routeError(400, 'invalid_body', 'signedSetup is required');
-  const idempotencyKey = String(body.idempotencyKey || '').trim();
+  const idempotencyKey = toOptionalTrimmedString(body.idempotencyKey);
   if (!idempotencyKey) return routeError(400, 'invalid_body', 'idempotencyKey is required');
-  const planKind = String(body.kind || '').trim();
+  const planKind = toOptionalTrimmedString(body.kind);
   if (planKind !== 'evm_family_ecdsa' && planKind !== 'near_ed25519_and_evm_family_ecdsa') {
     return routeError(400, 'invalid_body', 'activation requires an ECDSA signer plan');
   }
@@ -2424,9 +2424,9 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
     return routeError(500, 'internal', 'NEAR provisioning requires setup verification');
   }
   const body = input.body as Record<string, unknown>;
-  const registrationCeremonyId = String(body.registrationCeremonyId || '').trim();
-  const signedSetup = String(body.signedSetup || '').trim();
-  const idempotencyKey = String(body.idempotencyKey || '').trim();
+  const registrationCeremonyId = toOptionalTrimmedString(body.registrationCeremonyId);
+  const signedSetup = toOptionalTrimmedString(body.signedSetup);
+  const idempotencyKey = toOptionalTrimmedString(body.idempotencyKey);
   if (!registrationCeremonyId || !signedSetup || !idempotencyKey) {
     return routeError(
       400,
@@ -2500,7 +2500,7 @@ export async function handleRouterApiWalletAddSignerStart(
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   if (!walletId) {
     return routeError(400, 'invalid_body', 'walletId is required');
   }
@@ -2579,7 +2579,7 @@ export async function handleRouterApiWalletAddAuthMethodIntent(
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   if (!walletId) {
     return routeError(400, 'invalid_body', 'walletId path parameter is required');
   }
@@ -2682,13 +2682,13 @@ export async function handleRouterApiWalletAddAuthMethodEmailOtpChallenge(
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
-  const rawWalletId = String(input.pathParams?.walletId || '').trim();
+  const rawWalletId = toOptionalTrimmedString(input.pathParams?.walletId);
   const walletId = parseWalletId(rawWalletId);
   if (!walletId.ok) return routeError(400, 'invalid_body', 'walletId is required');
   const grant = addAuthMethodIntentGrantFromString(
-    String(input.body.addAuthMethodIntentGrant || '').trim(),
+    toOptionalTrimmedString(input.body.addAuthMethodIntentGrant),
   );
-  const digestB64u = String(input.body.addAuthMethodIntentDigestB64u || '').trim();
+  const digestB64u = toOptionalTrimmedString(input.body.addAuthMethodIntentDigestB64u);
   if (!grant || !digestB64u) {
     return routeError(
       400,
@@ -2732,7 +2732,7 @@ export async function handleRouterApiWalletAddAuthMethodStart(
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   if (!walletId) {
     return routeError(400, 'invalid_body', 'walletId is required');
   }
@@ -2877,7 +2877,7 @@ export async function handleRouterApiWalletAddAuthMethodFinalize(
   }
   const request = parseWalletAddAuthMethodFinalizeRequest(input.body);
   if (!request.ok) return routeError(400, request.code, request.message);
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   if (!walletId) return routeError(400, 'invalid_body', 'walletId is required');
   const result = await input.services.walletRegistration.finalizeWalletAddAuthMethod({
     ...request.value,
@@ -2897,11 +2897,11 @@ export async function handleRouterApiWalletRevokeAuthMethod(
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   if (!walletId) {
     return routeError(400, 'invalid_body', 'walletId is required');
   }
-  const pathWalletAuthMethodId = String(input.pathParams?.walletAuthMethodId || '').trim();
+  const pathWalletAuthMethodId = toOptionalTrimmedString(input.pathParams?.walletAuthMethodId);
   const parsedPathWalletAuthMethodId = parseWalletAuthMethodId(pathWalletAuthMethodId);
   if (!parsedPathWalletAuthMethodId.ok) {
     return routeError(400, 'invalid_body', 'walletAuthMethodId path parameter is invalid');
@@ -2938,7 +2938,7 @@ export async function handleRouterApiWalletEcdsaKeyFactsInventory(
   if (!isPlainObject(input.body)) {
     return routeError(400, 'invalid_body', 'JSON body required');
   }
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   if (!walletId) {
     return routeError(400, 'invalid_body', 'walletId is required');
   }
@@ -3013,7 +3013,7 @@ export async function handleRouterApiWalletEcdsaKeyFactsInventory(
 export async function handleRouterApiWalletNearImplicitAccountFund(
   input: RouterApiWalletRegistrationInput,
 ): Promise<RouteResponse<RouteErrorBody | FundImplicitNearAccountResult>> {
-  const walletId = String(input.pathParams?.walletId || '').trim();
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
   const parsedBody = parseFundImplicitNearAccountBody(input.body, walletId);
   if (!parsedBody.ok) return routeError(400, parsedBody.code, parsedBody.message);
 
