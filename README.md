@@ -35,6 +35,10 @@ in the private `seams-tech/seams-monorepo` repository.
 - Email OTP on a new device: a device-link target cannot reuse the wallet's Email OTP factor, and Google recovery of an Email OTP wallet works only on a device that holds the factor. Choose a passkey or VoiceID for the new device, or use the recovery code. A later change gives each device its own factor.
 - Reset: Email OTP wallets from an earlier version do not open after the upgrade.
 - Deploy: apply D1 migration `0090_email_otp_code_seal.sql` before the server. It drops the open Email OTP challenges, so a code that is open at the deploy fails and the user asks for a new one. Ship the server and the Wallet host together, because the Email OTP wire changed.
+- Signing-session seal: the warm session that survives a page reload is sealed with the same RFC 9497 POPRF (`oprf_runtime`) in place of Shamir three-pass. The device keeps a random input and the session secret under AES-256-GCM, with a key from the POPRF output. The POPRF `info` names the wallet and the threshold session. A restore is one server call. The `shamir3pass_runtime` module and its nested worker are gone.
+- Breaking: `/wallet-session/seal/apply-server-seal` and `/wallet-session/seal/remove-server-seal` are now one route, `POST /wallet-session/seal/evaluate`, which takes a blinded element. The seal protocol in `/.well-known/webauthn` is `{ algorithm: 'ristretto255-sha512-poprf-v1' }` with no `groupId`, and the Email OTP login options have no `groupId`. The registration `sessionSeal` carries `blindedElementB64u`. The server allows 30 evaluations a minute for each wallet and threshold session.
+- Upgrade: the Wallet deletes sealed sessions from an earlier version when it reads them, so each open session needs one unlock after the upgrade. A Wallet host refuses a server with another seal protocol (`sealed_refresh_parity_mismatch`), so ship them together. A deploy config that checks `signingSessionSeal.algorithm` must change it to `ristretto255-sha512-poprf-v1` and drop `groupId`.
+- Fix: the Email OTP export and rotation no longer send the seal group as `orgId` in `/wallet/unlock/challenge`.
 
 ## Release 0.74.0
 
