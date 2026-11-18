@@ -135,19 +135,12 @@ Open, with a recommendation:
   package gets a new name one time. For example, `@seams/wallet` then goes directly to the
   Purin name of the MPC wallet. The product names of Purin are the owner's choice. Until then,
   each `@seams/...` name and each "Seams ..." name in this plan stands for its Purin name.
-- **D23. The npm scope.** The owner wants `@purin` in place of `@seams`, if it is possible.
-  Checked on 2026-11-18 on npmjs.com:
-  - `purin` is a user account with no packages and no organisations. A user and an
-    organisation cannot have the same name, so `@purin` is not free.
-  - `purin-io` and `purinio` do not exist. `@purin-io` matches the GitHub organisation.
-  - An unscoped package `purin` exists. It belongs to another person and does not block a
-    scope.
-
-  The `purin` account is not the owner's (owner, 2026-11-18). Recommended: ask npm support
-  for the name now, and create the `purin-io` organisation on npm at the same time, so that
-  the fallback stays free. Use `@purin` only if npm gives the name before the rename. If not,
-  use `@purin-io`. Select one scope before Release A, because a second change of scope breaks
-  every import again.
+- **D23. The npm scope: `@purin-io`.** The owner chose it on 2026-11-18, so that the npm
+  organisation and the GitHub organisation have the same name. The first wish was `@purin`.
+  Checked on 2026-11-18 on npmjs.com: `purin` is a user account of another person, so
+  `@purin` is not free. `purin-io` did not exist then. The owner creates the npm organisation
+  `purin-io` before the rename. Internal packages use `@purin-io-internal`, or keep
+  `@seams-internal`, because they are never published.
 
 ## Facts this plan builds on
 
