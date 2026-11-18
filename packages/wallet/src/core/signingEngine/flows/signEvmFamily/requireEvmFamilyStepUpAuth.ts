@@ -20,6 +20,7 @@ import type { ReadySecp256k1SigningMaterial } from './readySecp256k1Material';
 import type { PreparedEcdsaOperationStepUp } from '../../threshold/ecdsa/operationStepUp';
 import type { HydratedEcdsaSignerMaterial } from '../../session/identity/evmFamilyEcdsaIdentity';
 import type { SignerAuthMethod } from '@shared/utils/signerDomain';
+import { requirePositiveSafeInteger } from '@shared/utils/validation';
 
 type EvmFamilyEmailOtpStepUpRuntime = {
   prepare: () => Promise<{ challengeId: string; emailHint?: string }>;
@@ -142,7 +143,10 @@ export async function requireEvmFamilyStepUpAuth(args: {
   const prepared = await prepareStepUpAuth({
     operation: {
       kind: 'evm_family_threshold_ecdsa_step_up' as const,
-      usesNeeded: Math.max(1, Math.floor(Number(args.requiredSignatureUses) || 1)),
+      usesNeeded: requirePositiveSafeInteger(
+        args.requiredSignatureUses,
+        `[chains] ${args.explicitAuthErrorLabel} required signature uses`,
+      ),
     },
     selectedLane,
     policy: stepUpPolicyFromSigningAuthPlan(signingAuthPlan, reusableAuthorization),

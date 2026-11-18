@@ -43,7 +43,6 @@ import {
   registrationSignerSetSelectionFromPlan,
   type RegistrationSignerSetSelection,
 } from '@shared/utils/registrationSignerPlan';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { StoredWalletRegistrationCeremony } from '../../../../core/RegistrationCeremonyStore';
 import type {
   RespondEd25519DeferredWorkV2,
@@ -99,8 +98,8 @@ export async function buildWalletRegistrationSetupSignature(input: {
 }): Promise<{
   readonly signedSetup: Awaited<ReturnType<typeof mintSignedWalletRegistrationSetup>>;
 }> {
-  const signingRootId = toOptionalTrimmedString(input.ceremony.signingRootId) || '';
-  const signingRootVersion = toOptionalTrimmedString(input.ceremony.signingRootVersion) || '';
+  const signingRootId = input.ceremony.signingRootId;
+  const signingRootVersion = input.ceremony.signingRootVersion;
   const setupDigestB64u = await computeWalletRegistrationSetupDigestB64u({
     registrationCeremonyId: input.ceremony.registrationCeremonyId,
     intent: input.ceremony.intent,

@@ -1704,7 +1704,7 @@ export interface RouterApiAuthorizedOperationService {
   buildVerifiedOwnerProof(input: VerifiedOwnerProofInput): Promise<VerifiedOwnerProof>;
   recordVerifiedWalletOperationFactorEvidenceSet(
     input: VerifiedWalletOperationFactorEvidenceSetInput,
-  ): Promise<VerifiedAuthorizationEvidenceSet>;
+  ): Promise<import('../../authorization/service').RecordWalletOperationFactorEvidenceSetResult>;
   readWalletOperationEvidence(
     input: import('../../authorization/service').WalletOperationEvidenceLookup,
   ): Promise<import('../../authorization/service').StoredWalletOperationEvidence | null>;

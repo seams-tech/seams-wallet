@@ -58,11 +58,12 @@ class DelayedAuthorizationStore extends api.CloudflareD1AuthorizationStore {
   }
 
   async putVerifiedEvidenceSet(evidence) {
-    await super.putVerifiedEvidenceSet(evidence);
+    const result = await super.putVerifiedEvidenceSet(evidence);
     this.scenario.evidenceSet = evidence;
     if (this.scenario.pause === 'evidence') {
       await waitPast(evidence.expiresAtMs);
     }
+    return result;
   }
 
   async admitAuthorizedOperation(input) {
@@ -171,7 +172,7 @@ function proofFor(method, walletId) {
         rawId: credentialIdB64u,
         type: 'public-key',
         authenticatorAttachment: null,
-        clientExtensionResults: {},
+        clientExtensionResults: null,
         response: {
           clientDataJSON: 'e30',
           authenticatorData: 'AQ',
@@ -432,6 +433,9 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
         project_id: claim.owner_scope_project_id,
         env_id: claim.owner_scope_env_id,
         completed_at_ms: completed.completedAtMs,
+        wallet_id: String(state.evidenceSet.walletId),
+        credit_grant_id: null,
+        outcome: 'succeeded',
       },
     ]);
     result.signatureCompletions = signatures;

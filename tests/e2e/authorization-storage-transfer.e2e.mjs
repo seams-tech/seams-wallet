@@ -321,6 +321,15 @@ try {
     }),
     null,
   );
+  await verifyHostedCredentialLifecycleAndCorruption({
+    database: source,
+    service: sourceService,
+    hostedInput,
+    hostedBefore,
+    walletAuthMethodId: String(issued.session.walletAuthMethodId),
+    authorizationId: String(issued.session.authorizationId),
+    revokedAtMs: issuedAtMs + 1,
+  });
   const sessionSource = api.WalletRelocationSessionSource.parse({
     walletId: issued.session.walletId,
     moveId: `wmove_${'s'.repeat(43)}`,
@@ -2388,4 +2397,58 @@ async function verifyWalletSessionRetirement(input) {
 
 function methodIsActive(method) {
   return method.status === 'active';
+}
+
+/**
+ * A hosted credential whose auth method ended reads as no credential (401 at
+ * the route); a storage failure in the session read is an error, not a missing
+ * credential. Both changes are undone before the scenario goes on.
+ */
+async function verifyHostedCredentialLifecycleAndCorruption(input) {
+  const method = await input.database
+    .prepare('SELECT record_json FROM wallet_auth_methods WHERE wallet_auth_method_id = ?')
+    .bind(input.walletAuthMethodId)
+    .first();
+  assert.ok(method);
+  await input.database
+    .prepare(
+      `UPDATE wallet_auth_methods
+          SET status = 'revoked', revoked_at_ms = ?,
+              record_json = json_set(record_json, '$.status', 'revoked', '$.revokedAtMs', ?)
+        WHERE wallet_auth_method_id = ?`,
+    )
+    .bind(input.revokedAtMs, input.revokedAtMs, input.walletAuthMethodId)
+    .run();
+  assert.equal(
+    await input.service.readHostedWalletSessionOperationCredentialV2(input.hostedInput),
+    null,
+  );
+  await input.database
+    .prepare(
+      `UPDATE wallet_auth_methods
+          SET status = 'active', revoked_at_ms = NULL, record_json = ?
+        WHERE wallet_auth_method_id = ?`,
+    )
+    .bind(method.record_json, input.walletAuthMethodId)
+    .run();
+  assert.deepEqual(
+    await input.service.readHostedWalletSessionOperationCredentialV2(input.hostedInput),
+    input.hostedBefore,
+  );
+
+  // The session read joins the auth methods; the hosted credential read does not.
+  await input.database
+    .prepare('ALTER TABLE wallet_auth_methods RENAME TO wallet_auth_methods_offline')
+    .run();
+  await assert.rejects(
+    input.service.readHostedWalletSessionOperationCredentialV2(input.hostedInput),
+    /wallet_auth_methods/u,
+  );
+  await input.database
+    .prepare('ALTER TABLE wallet_auth_methods_offline RENAME TO wallet_auth_methods')
+    .run();
+  assert.deepEqual(
+    await input.service.readHostedWalletSessionOperationCredentialV2(input.hostedInput),
+    input.hostedBefore,
+  );
 }

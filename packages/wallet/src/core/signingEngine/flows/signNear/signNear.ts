@@ -142,6 +142,7 @@ import {
   type TransactionReadinessClassifiedState,
 } from '../../session/operationState/transactionState';
 import { requiredNearTransactionSignatureUses } from './signatureUses';
+import { requirePositiveSafeInteger } from '@shared/utils/validation';
 import { VoiceIdStepUpRequiredError, isVoiceIdStepUpRequired } from '../../stepUpConfirmation/voiceIdStepUp';
 
 function nearOwnerOperationAuthorizationDecisionFromError(
@@ -1224,7 +1225,10 @@ async function prepareNearEd25519TransactionOperation(args: {
   operationUsesNeeded: number;
 }): Promise<NearEd25519TransactionOperationPrepareResult> {
   const nearAccountId = args.commandSubject.nearAccount.accountId;
-  const operationUsesNeeded = Math.max(1, Math.floor(Number(args.operationUsesNeeded) || 1));
+  const operationUsesNeeded = requirePositiveSafeInteger(
+    args.operationUsesNeeded,
+    '[SigningEngine][near] operation uses',
+  );
   const selectedSessionLane = args.selectedLane.lane;
   const authContext = resolveNearSigningSessionAuthContext({
     commandSubject: args.commandSubject,

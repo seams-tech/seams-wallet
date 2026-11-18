@@ -32,6 +32,8 @@ import type {
 import { walletAuthAuthoritiesMatch } from '@shared/utils/walletAuthAuthority';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
 import { json } from '../../../framework/http';
+import { webAuthnCredentialIdB64uFromCredential } from '../../../auth/webAuthnCredentialCodecs';
+import { operationStepUpFactorExpiredResponse } from '../../../domains/signingOperations/routerAbOperationStepUp';
 
 type StepUpUnseal =
   | { readonly kind: 'not_requested' }
@@ -77,8 +79,8 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
         };
       }
       const credential = proof.webauthn_authentication;
-      const credentialId = String(credential.rawId || credential.id).trim();
-      if (credentialId !== input.authSource.credentialIdB64u) {
+      const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
+      if (!credentialId.ok || credentialId.credentialIdB64u !== input.authSource.credentialIdB64u) {
         return {
           ok: false,
           response: json(
@@ -298,15 +300,5 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
 }
 
 function expiredStepUpFactor(): VerifiedStepUpFactorResult {
-  return {
-    ok: false,
-    response: json(
-      {
-        ok: false,
-        code: 'verified_step_up_rejected',
-        message: 'Operation step-up authorization expired',
-      },
-      { status: 403 },
-    ),
-  };
+  return { ok: false, response: operationStepUpFactorExpiredResponse() };
 }

@@ -164,6 +164,24 @@ test('claim returns the secret and spends uses only when asked', () => {
   expect(handles.readClaim(sessionId)).toMatchObject({ ok: false, code: 'not_found' });
 });
 
+test('a bad uses count is refused, not turned into one use', () => {
+  const handles = new WarmSessionPrfHandles();
+  storeSession(handles, prfFirst, 3);
+
+  for (const uses of [0, -1, 1.5, Number.NaN, '2' as unknown as number]) {
+    expect(() => handles.consume(sessionId, uses)).toThrow(
+      'Warm-session uses must be a positive safe integer',
+    );
+    expect(() => handles.claim(sessionId, uses, true)).toThrow(
+      'Warm-session uses must be a positive safe integer',
+    );
+    expect(() => handles.claim(sessionId, uses, false)).toThrow(
+      'Warm-session uses must be a positive safe integer',
+    );
+  }
+  expect(handles.readClaim(sessionId)).toMatchObject({ ok: true, remainingUses: 3 });
+});
+
 test('an invalid PRF secret does not remove the stored session', () => {
   const handles = new WarmSessionPrfHandles();
   storeSession(handles, prfFirst);

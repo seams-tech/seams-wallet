@@ -390,8 +390,8 @@ async function buildRespondEd25519AdmissionRequest(input: {
   return buildRouterAbEd25519YaoProductAdmissionRequestV1({
     registrationCeremonyId: input.ceremony.registrationCeremonyId,
     walletId: input.ceremony.intent.walletId,
-    signingRootId: toOptionalTrimmedString(input.ceremony.signingRootId) || '',
-    signingRootVersion: toOptionalTrimmedString(input.ceremony.signingRootVersion) || '',
+    signingRootId: input.ceremony.signingRootId,
+    signingRootVersion: input.ceremony.signingRootVersion,
     authorityScope: registrationEd25519AuthorityScopeFromAuthority(input.authority),
     branch: input.branch,
     signingWorkerId: input.signingWorkerId,
@@ -3034,8 +3034,8 @@ export class CloudflareD1WalletRegistrationService {
         intent: ceremony.intent,
         intentDigestB64u: ceremony.digestB64u,
         orgId: ceremony.orgId,
-        signingRootId: toOptionalTrimmedString(ceremony.signingRootId) || '',
-        signingRootVersion: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
+        signingRootId: ceremony.signingRootId,
+        signingRootVersion: ceremony.signingRootVersion,
         expectedOrigin,
       });
       const verifiedSetup = await verifySignedWalletRegistrationSetup(
@@ -3173,8 +3173,8 @@ export class CloudflareD1WalletRegistrationService {
         intent: ceremony.intent,
         intentDigestB64u: ceremony.digestB64u,
         orgId: ceremony.orgId,
-        signingRootId: toOptionalTrimmedString(ceremony.signingRootId) || '',
-        signingRootVersion: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
+        signingRootId: ceremony.signingRootId,
+        signingRootVersion: ceremony.signingRootVersion,
         expectedOrigin,
       });
       if (
@@ -3197,8 +3197,8 @@ export class CloudflareD1WalletRegistrationService {
         planNearEd25519 &&
         !storedRespondEd25519DeferredWork(ceremony.signerState)
           ? (this.getEd25519YaoProductRegistration()?.startRegistrationDispatchRoot({
-              signing_root_id: toOptionalTrimmedString(ceremony.signingRootId) || '',
-              root_share_epoch: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
+              signing_root_id: ceremony.signingRootId,
+              root_share_epoch: ceremony.signingRootVersion,
             }) ?? null)
           : null;
       const registrationBearerToken = toOptionalTrimmedString(input.signedSetup);

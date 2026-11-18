@@ -1,5 +1,6 @@
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { normalizeOptionalTrimmedString } from '@shared/utils/normalize';
+import { requirePositiveSafeInteger } from '@shared/utils/validation';
 
 type WarmSessionMaterialEntry = {
   readonly prfFirstHandle: string;
@@ -26,10 +27,6 @@ type WarmSessionMaterialReadResult =
 
 function notFound(message: string): ErrResult {
   return { ok: false, code: 'not_found', message };
-}
-
-function usesNeeded(uses: number): number {
-  return Math.max(1, Math.floor(Number(uses) || 1));
 }
 
 function exhausted(): ErrResult {
@@ -209,8 +206,11 @@ export class WarmSessionPrfHandles {
     return this.#entries.get(thresholdSessionId) === entry;
   }
 
+  /** Throws on a `uses` that is not a positive safe integer. */
   #check(entry: WarmSessionMaterialEntry, uses: number): OkResult | ErrResult {
-    if (entry.remainingUses < usesNeeded(uses)) return exhausted();
+    if (entry.remainingUses < requirePositiveSafeInteger(uses, 'Warm-session uses')) {
+      return exhausted();
+    }
     return { ok: true, remainingUses: entry.remainingUses, expiresAtMs: entry.expiresAtMs };
   }
 
@@ -221,7 +221,7 @@ export class WarmSessionPrfHandles {
   ): OkResult | ErrResult {
     const checked = this.#check(entry, uses);
     if (!checked.ok) return checked;
-    entry.remainingUses -= usesNeeded(uses);
+    entry.remainingUses -= uses;
     if (entry.remainingUses <= 0) this.delete(thresholdSessionId);
     return { ok: true, remainingUses: entry.remainingUses, expiresAtMs: entry.expiresAtMs };
   }

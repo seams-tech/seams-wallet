@@ -129,13 +129,22 @@ export interface AuthorizationEvidencePort {
   readWalletOperationEvidence(
     input: WalletOperationEvidenceLookup,
   ): Promise<StoredWalletOperationEvidence | null>;
-  putVerifiedEvidenceSet(evidenceSet: VerifiedAuthorizationEvidenceSet): Promise<void>;
+  putVerifiedEvidenceSet(
+    evidenceSet: VerifiedAuthorizationEvidenceSet,
+  ): Promise<PutVerifiedEvidenceSetResult>;
   consumeVerifiedOwnerProof(
     proof: VerifiedOwnerProof,
     consumedAtMs: number,
     consumptionScopeId: string,
   ): Promise<boolean>;
 }
+
+/** `conflict`: the evidence set id already holds other evidence. */
+export type PutVerifiedEvidenceSetResult = 'recorded' | 'replayed' | 'conflict';
+
+export type RecordWalletOperationFactorEvidenceSetResult =
+  | { readonly kind: 'recorded'; readonly evidenceSet: VerifiedAuthorizationEvidenceSet }
+  | { readonly kind: 'evidence_conflict' };
 
 export type WalletOperationEvidenceLookup = Readonly<{
   tenantId: TenantId;
@@ -477,10 +486,11 @@ export class AuthorizationService {
 
   async recordVerifiedWalletOperationFactorEvidenceSet(
     input: VerifiedWalletOperationFactorEvidenceSetInput,
-  ): Promise<VerifiedAuthorizationEvidenceSet> {
+  ): Promise<RecordWalletOperationFactorEvidenceSetResult> {
     const evidenceSet = await buildVerifiedWalletOperationFactorEvidenceSet(input);
-    await this.ports.evidence.putVerifiedEvidenceSet(evidenceSet);
-    return evidenceSet;
+    const put = await this.ports.evidence.putVerifiedEvidenceSet(evidenceSet);
+    if (put === 'conflict') return { kind: 'evidence_conflict' };
+    return { kind: 'recorded', evidenceSet };
   }
 
   async readWalletOperationEvidence(

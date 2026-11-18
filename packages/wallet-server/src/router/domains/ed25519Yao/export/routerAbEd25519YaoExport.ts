@@ -1987,12 +1987,21 @@ async function recordFreshExportProof(args: {
       });
       break;
   }
-  const evidence = await args.authorizedOperations.recordVerifiedWalletOperationFactorEvidenceSet({
-    operation,
-    evidenceId: evidenceId.value,
-    evidenceSetId: evidenceSetId.value,
-    factor,
-  });
+  const recordedEvidence =
+    await args.authorizedOperations.recordVerifiedWalletOperationFactorEvidenceSet({
+      operation,
+      evidenceId: evidenceId.value,
+      evidenceSetId: evidenceSetId.value,
+      factor,
+    });
+  if (recordedEvidence.kind === 'evidence_conflict') {
+    return authorizationFailure({
+      status: 409,
+      code: 'export_evidence_conflict',
+      message: 'This export already holds other owner evidence; start a new export',
+    });
+  }
+  const evidence = recordedEvidence.evidenceSet;
   await args.authorizedOperations.buildVerifiedOwnerProof({
     purpose: 'operation',
     proofId,

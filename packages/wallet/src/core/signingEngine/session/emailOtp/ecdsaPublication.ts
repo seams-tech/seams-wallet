@@ -42,6 +42,8 @@ import {
   type EvmFamilyEcdsaWalletKey,
 } from '../identity/evmFamilyEcdsaIdentity';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
+import { normalizeOptionalTrimmedString } from '@shared/utils/normalize';
+import { requirePositiveSafeInteger } from '@shared/utils/validation';
 import { buildEcdsaRoleLocalPublicFacts } from '../persistence/ecdsaRoleLocalRecords';
 import {
   buildPersistedEcdsaRoleLocalMaterial,
@@ -497,6 +499,44 @@ async function commitEmailOtpEcdsaPublicationLane(
   return { result, timings };
 }
 
+/**
+ * Reads the persistence fields of a successful seal, which crossed the worker
+ * boundary. The seal's budget is the one in force: an older count or
+ * lifetime never fills a missing or bad value.
+ */
+export function readEmailOtpSealedRefreshSeal(sealed: {
+  readonly sealedSecretB64u?: unknown;
+  readonly keyVersion?: unknown;
+  readonly expiresAtMs?: unknown;
+  readonly remainingUses?: unknown;
+}): {
+  sealedSecretB64u: string;
+  sealKeyVersion: string;
+  expiresAtMs: number;
+  remainingUses: number;
+} {
+  const sealedSecretB64u = normalizeOptionalTrimmedString(sealed.sealedSecretB64u);
+  if (!sealedSecretB64u) {
+    throw new Error('Email OTP sealed refresh seal returned no sealed secret');
+  }
+  const sealKeyVersion = normalizeOptionalTrimmedString(sealed.keyVersion);
+  if (!sealKeyVersion) {
+    throw new Error('Email OTP sealed refresh seal returned no key version');
+  }
+  return {
+    sealedSecretB64u,
+    sealKeyVersion,
+    expiresAtMs: requirePositiveSafeInteger(
+      sealed.expiresAtMs,
+      'Email OTP sealed refresh seal expiresAtMs',
+    ),
+    remainingUses: requirePositiveSafeInteger(
+      sealed.remainingUses,
+      'Email OTP sealed refresh seal remainingUses',
+    ),
+  };
+}
+
 export async function persistEmailOtpEcdsaSigningSessionForRefresh(
   args: {
     walletId: WalletId;
@@ -651,18 +691,8 @@ export async function persistEmailOtpEcdsaSigningSessionForRefresh(
     const message = String(sealed?.message || sealed?.code || 'unknown error').trim();
     throw new Error(`Email OTP sealed refresh seal failed: ${message}`);
   }
-  const sealedSecretB64u = String(sealed.sealedSecretB64u || '').trim();
-  const expiresAtMs = Math.floor(Number(sealed.expiresAtMs) || Number(session?.expiresAtMs) || 0);
-  const remainingUses = Math.floor(
-    Number(sealed.remainingUses) || Number(session?.remainingUses) || 0,
-  );
-  if (!sealedSecretB64u || expiresAtMs <= 0 || remainingUses < 0) {
-    throw new Error('Email OTP sealed refresh seal returned invalid persistence metadata');
-  }
-  const sealKeyVersion = String(sealed.keyVersion || '').trim();
-  if (!sealKeyVersion) {
-    throw new Error('Email OTP sealed refresh seal returned no key version');
-  }
+  const { sealedSecretB64u, expiresAtMs, remainingUses, sealKeyVersion } =
+    readEmailOtpSealedRefreshSeal(sealed);
   const persistedAtMs = Date.now();
 
   const sealedRecordBase = {

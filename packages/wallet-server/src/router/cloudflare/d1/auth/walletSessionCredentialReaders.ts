@@ -1,5 +1,6 @@
 import type { AuthorizationService } from '../../../../authorization/service';
 import type { WalletSessionAdmissionSnapshotV2Variant } from '../../../../authorization/domain';
+import { currentWalletSessionAuthority } from '../authorization/authorizationStore/sessions';
 import type {
   RouterApiEd25519WalletSessionSigningRead,
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
@@ -28,25 +29,13 @@ function activeContext(
 function exhaustedContext(
   snapshot: WalletSessionAdmissionSnapshotV2Variant<'exhausted'>,
 ): RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext | null {
-  const { session, quota, authority, authMethod } = snapshot;
-  if (
-    !authority ||
-    authority.state !== 'active' ||
-    !authMethod ||
-    authMethod.status !== 'active' ||
-    authority.walletId !== session.walletId ||
-    authority.authorityDigestB64u !== session.authorityDigestB64u ||
-    authority.revocationEpoch !== session.authorityRevocationEpoch ||
-    authMethod.walletId !== session.walletId ||
-    authMethod.walletAuthorityId !== session.authorityId ||
-    authMethod.walletAuthMethodId !== session.walletAuthMethodId
-  ) {
-    return null;
-  }
+  const { session, quota } = snapshot;
+  const current = currentWalletSessionAuthority(snapshot);
+  if (!current) return null;
   return {
     status: { kind: 'exhausted', session, quota },
-    authority,
-    authMethod,
+    authority: current.authority,
+    authMethod: current.authMethod,
     retiredAtMs: null,
   };
 }

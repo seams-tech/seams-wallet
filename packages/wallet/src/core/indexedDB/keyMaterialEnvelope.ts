@@ -34,52 +34,37 @@ export function buildEnvelopeAAD(args: {
   };
 }
 
+const ENVELOPE_AAD_KEYS = [
+  'profileId',
+  'signerSlot',
+  'chainIdKey',
+  'accountAddress',
+  'keyKind',
+  'schemaVersion',
+  'signerId',
+] as const satisfies readonly (keyof KeyMaterialPayloadEnvelopeAAD)[];
+
+/**
+ * The stored AAD must name the same row as `expected`, field by field. Every
+ * writer builds it with `buildEnvelopeAAD`, so a missing or different field is
+ * a row that belongs to another signer or was changed, never a value to fill in.
+ */
 function normalizeEnvelopeAAD(
   raw: unknown,
   expected: KeyMaterialPayloadEnvelopeAAD,
   context: string,
 ): KeyMaterialPayloadEnvelopeAAD {
   const record = asRecord(raw);
-  const profileId = String(record?.profileId ?? expected.profileId).trim();
-  const chainIdKey = String(record?.chainIdKey ?? expected.chainIdKey)
-    .trim()
-    .toLowerCase();
-  const keyKind = String(record?.keyKind ?? expected.keyKind).trim();
-  const schemaVersionRaw = Number(record?.schemaVersion ?? expected.schemaVersion);
-  const schemaVersion =
-    Number.isSafeInteger(schemaVersionRaw) && schemaVersionRaw >= 1
-      ? schemaVersionRaw
-      : expected.schemaVersion;
-  const signerSlotRaw = Number(record?.signerSlot ?? expected.signerSlot);
-  const signerSlot =
-    Number.isSafeInteger(signerSlotRaw) && signerSlotRaw >= 1 ? signerSlotRaw : expected.signerSlot;
-  const signerId = String(record?.signerId ?? expected.signerId).trim();
-  const accountAddress = toTrimmedString(
-    record?.accountAddress ?? expected.accountAddress,
-  ).toLowerCase();
-  const normalized: KeyMaterialPayloadEnvelopeAAD = {
-    profileId,
-    signerSlot,
-    chainIdKey,
-    accountAddress,
-    keyKind,
-    schemaVersion,
-    signerId,
-  };
-
-  const matchesExpected =
-    normalized.profileId === expected.profileId &&
-    normalized.signerSlot === expected.signerSlot &&
-    normalized.chainIdKey === expected.chainIdKey &&
-    normalized.accountAddress === expected.accountAddress &&
-    normalized.keyKind === expected.keyKind &&
-    normalized.schemaVersion === expected.schemaVersion &&
-    normalized.signerId === expected.signerId;
-  if (!matchesExpected) {
-    throw new Error(`KeyMaterialStore: payloadEnvelope.aad mismatch for ${context}`);
+  if (!record) {
+    throw new Error(`KeyMaterialStore: payloadEnvelope.aad is missing for ${context}`);
   }
-
-  return normalized;
+  const mismatched = ENVELOPE_AAD_KEYS.filter((key) => record[key] !== expected[key]);
+  if (mismatched.length > 0) {
+    throw new Error(
+      `KeyMaterialStore: payloadEnvelope.aad mismatch (${mismatched.join(', ')}) for ${context}`,
+    );
+  }
+  return { ...expected };
 }
 
 export function normalizePayloadEnvelope(

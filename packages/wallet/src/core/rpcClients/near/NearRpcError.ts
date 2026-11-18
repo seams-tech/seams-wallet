@@ -3,15 +3,13 @@ import type {
   DecodedNearFinalExecutionOutcome,
   NearRpcErrorType,
 } from '@shared/utils/nearRpcResults';
+import {
+  describeNearTxExecution,
+  nearTxExecutionFromRpcData,
+} from '@shared/near/nearTxExecutionError';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
-}
-
-function firstKey(o: Record<string, unknown> | undefined): string | undefined {
-  if (!o) return undefined;
-  const keys = Object.keys(o);
-  return keys.length ? keys[0] : undefined;
 }
 
 export class NearRpcError extends Error {
@@ -116,78 +114,33 @@ function describeDetails(
   details: unknown,
   rpcMessage = '',
 ): FailureDescription {
-  const d = isObj(details) ? details : undefined;
-  const txExec = isObj(d?.TxExecutionError) ? d.TxExecutionError : undefined;
-  if (!txExec) {
-    const detail =
-      typeof details === 'string' && details.trim()
-        ? details.trim()
-        : d
-          ? JSON.stringify(d)
-          : rpcMessage.trim();
-    const suffix = detail ? `: ${detail}` : '';
-    return { message: `${operationName} RPC error${suffix}` };
-  }
-  return describeTxExecution(operationName, txExec);
+  const execution = nearTxExecutionFromRpcData(details);
+  if (execution) return describeTxExecution(operationName, execution);
+  const detail =
+    typeof details === 'string' && details.trim()
+      ? details.trim()
+      : isObj(details)
+        ? JSON.stringify(details)
+        : rpcMessage.trim();
+  const suffix = detail ? `: ${detail}` : '';
+  return { message: `${operationName} RPC error${suffix}` };
 }
 
 function describeFailure(operationName: string, failure: unknown): FailureDescription {
-  const f = isObj(failure) ? failure : undefined;
-  if (!f) {
+  if (!isObj(failure)) {
     return { message: `${operationName} failed (Unknown Failure)` };
   }
-  // Reuse TxExecutionError shape if available
-  return describeTxExecution(operationName, f);
+  return describeTxExecution(operationName, failure);
 }
 
 function describeTxExecution(
   operationName: string,
   exec: Record<string, unknown>,
 ): FailureDescription {
-  // InvalidTxError
-  if (isObj(exec.InvalidTxError)) {
-    const inv = exec.InvalidTxError;
-    let kind = firstKey(inv) || 'InvalidTxError';
-    if (isObj(inv.ActionsValidation)) {
-      kind = `ActionsValidation.${firstKey(inv.ActionsValidation)}`;
-    }
-    const short = kind.startsWith('ActionsValidation.')
-      ? `InvalidTxError: ${kind.split('.')[1] || 'ActionsValidation'}`
-      : `InvalidTxError: ${kind}`;
-    return {
-      message: `${operationName} failed (InvalidTxError: ${kind})`,
-      type: 'InvalidTxError',
-      kind,
-      short,
-    };
-  }
-
-  // ActionError
-  if (isObj(exec.ActionError)) {
-    const ae = exec.ActionError;
-    const idx = typeof (ae.index as unknown) === 'number' ? (ae.index as number) : undefined;
-    const kobj = isObj(ae.kind) ? ae.kind : undefined;
-    const kind = firstKey(kobj) || 'ActionError';
-    const idxStr = typeof idx === 'number' ? ` at action ${idx}` : '';
-    const short = `ActionError: ${kind}`;
-    // The message stays free of contract text: the retrying client matches words in it.
-    return {
-      message: `${operationName} failed${idxStr} (ActionError: ${kind})`,
-      type: 'ActionError',
-      kind,
-      index: idx,
-      short,
-      reason: actionErrorReason(ae),
-    };
-  }
-
-  // Fallback TxExecutionError without specifics
-  return {
-    message: `${operationName} failed (TxExecutionError)`,
-    type: 'TxExecutionError',
-    kind: 'TxExecutionError',
-    short: 'TxExecutionError',
-  };
+  const described = describeNearTxExecution(operationName, exec);
+  return described.type === 'ActionError' && isObj(exec.ActionError)
+    ? { ...described, reason: actionErrorReason(exec.ActionError) }
+    : described;
 }
 
 /** Why NEAR could not execute a transaction, from the `Failure` of its outcome status. */

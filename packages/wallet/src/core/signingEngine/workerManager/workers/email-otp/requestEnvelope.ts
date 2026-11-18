@@ -3,6 +3,7 @@ import { parseMpcMaterialActivationRef } from '@shared/utils/domainIds';
 import {
   asRecord,
   asRecordOrArray,
+  requirePositiveSafeInteger,
   toOptionalTrimmedNonEmptyString,
 } from '@shared/utils/validation';
 import {
@@ -19,7 +20,6 @@ import type {
 } from '@/core/signingEngine/workerManager/workerTypes';
 import { parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
-  optionalWorkerPositiveInteger,
   parseEmailOtpWarmMaterialTarget,
   parseOptionalEmailOtpChannel,
   parseOptionalWorkerEcdsaSessionBootstrapHandleBinding,
@@ -444,9 +444,9 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
         type,
         payload: {
           target: parseEmailOtpWarmMaterialTarget(payload.target),
-          ...(optionalWorkerPositiveInteger(payload.uses)
-            ? { uses: optionalWorkerPositiveInteger(payload.uses)! }
-            : {}),
+          ...(payload.uses === undefined
+            ? {}
+            : { uses: requirePositiveSafeInteger(payload.uses, `${type}.uses`) }),
         },
       };
     case 'sealEmailOtpWarmSessionMaterial':

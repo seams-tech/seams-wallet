@@ -442,8 +442,8 @@ type StoredWalletRegistrationCeremonyBase = {
   signerPlan: RegistrationSignerPlan;
   preparedContext: StoredWalletRegistrationPreparedContext;
   orgId: string;
-  signingRootId?: string;
-  signingRootVersion?: string;
+  signingRootId: string;
+  signingRootVersion: string;
   expectedOrigin?: string;
   expiresAtMs: number;
   authorityState: StoredWalletRegistrationCeremonyAuthorityState;

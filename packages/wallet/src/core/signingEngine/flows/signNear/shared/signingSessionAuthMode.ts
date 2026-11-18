@@ -17,6 +17,7 @@ import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SelectedEd25519Lane } from '@/core/signingEngine/session/identity/laneIdentity';
 import type { NearEd25519YaoSigningPreparation } from '@/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
 import type { ThresholdEd25519SessionId } from '@shared/utils/domainIds';
+import { requirePositiveSafeInteger } from '@shared/utils/validation';
 
 type NearSigningSessionAuthPlan = { signingAuthPlan: SigningAuthPlan };
 
@@ -157,10 +158,13 @@ export function resolveNearSigningSessionAuthContext(args: {
   selectedLane: SelectedEd25519Lane;
   preparation: NearEd25519YaoSigningPreparation;
   forceFreshAuth: boolean;
-  requiredSignatureUses?: number;
+  requiredSignatureUses: number;
 }): NearSigningSessionAuthContext {
   requireSelectedLaneSubject(args);
-  const requiredSignatureUses = Math.max(1, Math.floor(Number(args.requiredSignatureUses) || 1));
+  const requiredSignatureUses = requirePositiveSafeInteger(
+    args.requiredSignatureUses,
+    '[SigningEngine][near] required signature uses',
+  );
   const lane = buildPlanningLane(args);
   const resolved = readinessFromPreparation({
     selectedLane: args.selectedLane,

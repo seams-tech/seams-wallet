@@ -11,6 +11,7 @@ import { d1ChangedRows } from '../../../../../storage/d1Sql';
 import type { D1PreparedStatementLike } from '../../../../../storage/tenantRoute';
 import { requirePositiveInteger } from './rowValues';
 import type { D1AuthorizationContext } from './context';
+import type { PutVerifiedEvidenceSetResult } from '../../../../../authorization/service';
 
 export function readRecordedWalletOperationEvidence(
   context: D1AuthorizationContext,
@@ -19,15 +20,34 @@ export function readRecordedWalletOperationEvidence(
   return readWalletOperationEvidence(context.database, context.walletSignerScope, input);
 }
 
+/**
+ * Records one evidence set. Its id comes from the request, so a second write
+ * for the same id is a retry. The insert skips only an identical row
+ * (`replayed`); the `wallet_operation_evidence_replace_identity` trigger
+ * refuses other evidence under the same id or digest, which is a `conflict`
+ * for the caller to answer, not a storage failure.
+ */
 export async function putVerifiedEvidenceSet(
   context: D1AuthorizationContext,
   evidenceSet: VerifiedAuthorizationEvidenceSet,
-): Promise<void> {
-  await prepareWalletOperationEvidence(
-    context.database,
-    context.walletSignerScope,
-    evidenceSet,
-  ).run();
+): Promise<PutVerifiedEvidenceSetResult> {
+  let result: Awaited<ReturnType<D1PreparedStatementLike['run']>>;
+  try {
+    result = await prepareWalletOperationEvidence(
+      context.database,
+      context.walletSignerScope,
+      evidenceSet,
+    ).run();
+  } catch (error: unknown) {
+    if (isEvidenceIdentityConflict(error)) return 'conflict';
+    throw error;
+  }
+  return d1ChangedRows(result) > 0 ? 'recorded' : 'replayed';
+}
+
+function isEvidenceIdentityConflict(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('wallet_operation_evidence_immutable');
 }
 
 export async function commitWalletOperationEvidence(
