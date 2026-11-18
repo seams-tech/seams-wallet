@@ -142,24 +142,34 @@ Open, with a recommendation:
   `purin-io` before the rename. Internal packages use `@purin-io-internal`, or keep
   `@seams-internal`, because they are never published.
 - **D24. Fewer packages.** The owner is concerned about the number of packages (12 published,
-  3 internal; see "Package names after the Purin rename"). Recommended: publish by who installs
-  the code, not by product. Four packages: `@purin-io/sdk` for the app page,
-  `@purin-io/server` for the app's backend, `@purin-io/host` for the operator of the services,
-  and `@purin-io/cli`. Auth, the MPC wallet, wallet connect and the checkout stay separate
-  modules. They become entries of these packages, with the same import rules (Section 1),
-  checked by a test. Reasons:
-  - One version for all packages (D16) already removes the main gain of separate packages.
-  - Separation by secrets comes from the deployment: separate Workers and separate origins. One
-    package can build several Workers.
-  - The large files (WASM, voice assets) run only in the hosted origins, so only the operator
-    installs them. Unpacked today: `@seams/wallet` 30.3 MB, `@seams/wallet-server` 52.2 MB,
-    `@seams/voiceid` 37.7 MB.
-  - The frame kit and the project credentials become folders of `sdk` and `host`, so the
-    internal packages go from three to one.
+  3 internal; see "Package names after the Purin rename"). A first proposal of four packages
+  by audience (`sdk`, `server`, `host`, `cli`) lost the choice of product, so the owner
+  rejected it. Recommended now: six packages, by two rules:
+  - **One package for each product that a developer chooses:** auth, the MPC wallet, wallet
+    connect and the checkout. The browser code, the React code and the server code of a product
+    are entries of its package (`.`, `/react`, `/server`). The `/server` entries are small
+    clients for the app's backend, such as `verifyLoginToken` and `createOrder`.
+  - **One package for the services:** `@purin-io/host` holds what only an operator deploys: the
+    account origin, the checkout origin, the Auth Worker, the Wallet Gateway with its router
+    roles and the checkout Worker. The large files go here: the WASM modules and the VoiceID
+    voice models.
 
-  Costs: a shop that uses only the checkout also installs the small page code of auth and the
-  wallet. The import rules need a test in place of package boundaries. If the owner accepts
-  D24, Release A publishes the four new names, and the connectors become an entry.
+  Then VoiceID is not a separate package. The app enables it with `voiceId()` from
+  `@purin-io/auth`, and its models are in `host`. The project credentials become a folder of
+  `host`, so the internal packages go from three to two.
+
+  Sizes today, as built locally on 2026-11-18:
+
+  | Package | npm unpacked | WASM or models | Source maps |
+  | --- | ---: | ---: | ---: |
+  | `@seams/wallet` | 30.3 MB | 12.6 MB | 15.4 MB |
+  | `@seams/wallet-server` | 52.2 MB | 1.8 MB | 18.2 MB |
+  | `@seams/voiceid` | 37.7 MB | 35.5 MB | 0.1 MB |
+
+  Costs: an operator that runs only the checkout installs all of `host`. Each product package
+  has three kinds of entry, so its build must keep the server code out of the browser entries.
+  Also decide whether to publish the source maps, because they are the largest part of the
+  JavaScript packages.
 
 ## Facts this plan builds on
 
@@ -713,13 +723,15 @@ With D24 (recommended, open):
 
 | Package | Who installs it | Entries |
 | --- | --- | --- |
-| `@purin-io/sdk` | App developers, for the app page | `/auth`, `/mpc-wallet`, `/wallet-connect`, `/checkout`, `/checkout/stablecoin`, and a React entry beside each |
-| `@purin-io/server` | App developers, for their backend | `/auth` (`verifyLoginToken`), `/checkout` (orders, merchant event checks) |
-| `@purin-io/host` | The operator of the services | The Auth Worker, the Wallet Gateway and its router roles, the checkout Worker, the account origin and the checkout origin |
+| `@purin-io/auth` | App developers | `.` (with `passkey()`, `emailCode()`, `voiceId()`), `/react`, `/server` (`verifyLoginToken`) |
+| `@purin-io/mpc-wallet` | App developers who want embedded wallets | `.`, `/react`, `/server` (wallet API client) |
+| `@purin-io/wallet-connect` | App developers who connect existing wallets | `.`, `/react` |
+| `@purin-io/checkout` | Shops | `.`, `/react`, `/stablecoin`, `/server` (orders, merchant event checks) |
+| `@purin-io/host` | The operator of the services | One entry for each service: the account origin, the checkout origin, the Auth Worker, the Wallet Gateway and router roles, the checkout Worker |
 | `@purin-io/cli` | People who recover a wallet | The recovery CLI |
-| `@purin-io/voice` | `host`, and app developers who use Speak-to-Sign | `/capture`, `/sign`, `/verdict` (a change in speak-to-sign) |
+| `@purin-io/voice` | `host`, and apps that use Speak-to-Sign | `/capture`, `/sign`, `/verdict` (a change in speak-to-sign, in place of three packages) |
 
-Internal: `shared-ts` only.
+Internal: `frame-kit` and `shared-ts`.
 
 ## Documents to update when the slices land
 
