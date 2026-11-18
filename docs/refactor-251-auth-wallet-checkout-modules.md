@@ -190,6 +190,22 @@ Open, with a recommendation:
   package gets a new name one time. For example, `@seams/wallet` then goes directly to the
   Purin name of the MPC wallet. The product names of Purin are the owner's choice. Until then,
   each `@seams/...` name and each "Seams ..." name in this plan stands for its Purin name.
+- **D25. A first method after recovery.** A user who recovers with a recovery code can have no
+  method left, so auth has no login proof for the new method ([Slice 0
+  inventory](refactor-251-slice-0-inventory.md), row 5.14). Recommended: after the recovery
+  finalize, the wallet server signs a one-time statement for auth, and auth accepts it once to add
+  one method.
+- **D26. Email OTP custody.** Today the wallet server alone can open each wallet that has an
+  owner Email OTP method. The public custody docs say that hosted infrastructure cannot
+  ([Slice 0 inventory](refactor-251-slice-0-inventory.md), U4). Choose one:
+  - Keep the factor key on the server. Correct the public docs, and keep the email code check
+    for the audience `wallet` in the wallet server.
+  - Keep the factor key on the device, as [Email OTP](otp/email-otp.md) says. A new device then
+    gets it by device linking or recovery. This needs its own plan and a migration.
+
+  Recommended: correct the public docs now, because they are wrong today. Keep the first option
+  for this plan. Write the second as its own plan if the non-custodial promise must cover
+  Email OTP.
 
 ## Facts this plan builds on
 
@@ -263,9 +279,10 @@ Checked on 2026-11-18. Paths are the paths before the rename.
 - **F19.** The largest files of Fact F15 create wallets. They are not login code.
   `registration.ts` holds `registerWallet`, `addSigner` and the hosted passkey registration.
 - **F20.** Email OTP challenges already carry an operation, such as `wallet_unlock`,
-  `transaction_sign` or `export_key`. The server owns the challenge check and the
-  recovery-wrapped escrow records. The sealed secret stays in the iframe's IndexedDB
-  ([Email OTP](otp/email-otp.md)).
+  `transaction_sign` or `export_key`. The server owns the challenge check and the recovery-wrapped
+  escrow records. It also stores the factor key under its own seal, enc_s(S), and removes the seal
+  on each release after a valid code. [Email OTP](otp/email-otp.md) says that enc_s(S) stays in the
+  iframe's IndexedDB. The code differs ([Slice 0 inventory](refactor-251-slice-0-inventory.md), U4).
 - **F21.** 68 test files name the `SeamsWeb` API, which goes away in Release B.
 - **F22.** An app with its own login provider (Better Auth, Auth0, Okta and others) can connect
   it today with a handoff from a trusted application issuer
@@ -277,8 +294,18 @@ Checked on 2026-11-18. Paths are the paths before the rename.
   - The handoff gives settings access only. Each transaction needs a fresh owner proof.
   - An existing wallet needs one association that an enrolled owner passkey approves.
   - A change of issuer trust revokes the earlier external sessions.
+- **F23.** Each method add needs an unlocked wallet today. A "sign-in only" method (Section 6)
+  is new behaviour. Removal needs a fresh proof from another method, and the envelope is
+  revoked in the same D1 batch ([Slice 0 inventory](refactor-251-slice-0-inventory.md), area 5).
+- **F24.** No factor secret reaches the custody worker through a port today. The PRF result and the
+  Email OTP factor key cross the iframe main thread, and VoiceID plugin code holds its factor key.
+  The secret sink of Section 4 is new code ([Slice 0 inventory](refactor-251-slice-0-inventory.md),
+  area 2).
 
 ## Unknowns to check first
+
+Slice 0 answered U2 to U5 on 2026-11-18. The answers are in the [Slice 0
+inventory](refactor-251-slice-0-inventory.md).
 
 - **U1.** Can the release workflow publish a new npm package name with trusted publishing, or
   does each new name need one first publish with a token? Release A answers this.
@@ -534,13 +561,16 @@ What a compromised Auth Worker can do:
 | --- | --- |
 | Passkey | It can make a login session. It cannot unlock a wallet: the assertion must match the pinned key, and the envelope opens only with the PRF result of the user's authenticator |
 | VoiceID | The same. The device key is pinned, and it cannot leave the device |
-| Email OTP | It can sign a false statement for the audience `wallet`. Unknown U4 says whether this opens an envelope. Until then, the Auth Worker is in the trust base of Email OTP wallets, as the single server is today |
+| Email OTP | If the wallet server accepts its email statement, it can open each wallet that has an owner Email OTP method (U4). So the wallet server keeps its own email code check for the audience `wallet` until D26 is decided |
 
-If Unknown U4 shows that a false statement opens an envelope, the owner chooses one:
+Slice 0 showed that a false statement opens the envelope (U4). It also showed that the wallet
+server alone can open an owner Email OTP wallet today. D26 decides what Email OTP custody is.
+Until then:
 
-- Accept it. It is the same trust as today.
-- The wallet server sends and checks its own email code for the audience `wallet`, with its own
-  email provider key. Then the invariant about email provider keys changes.
+- The wallet server keeps its own email code check for the audience `wallet`, with its own
+  email provider key. The Auth Worker checks codes only for the audience `login`.
+- The seal root secret, the enrollment records, the grants and every route that releases the
+  factor key stay in the Wallet Gateway.
 
 ### The lifecycle of a method and its envelope
 
@@ -552,7 +582,7 @@ A method in auth and an envelope in the wallet are separate records. Each change
 | A method is added while the wallet is locked, or with no wallet | A new method record | No envelope. The method can sign in but cannot unlock. The menu shows "sign-in only", and the wallet offers the envelope at the next unlock |
 | A method is removed | The record goes away only after each subscriber agrees | The wallet deletes the envelope and the pinned key. It refuses when this is the last envelope |
 | An envelope is removed in the wallet | Nothing. The method still signs in | The envelope and the pinned key go away |
-| A device is linked | The method records are copied once | The envelopes are copied once (Fact F12) |
+| A device is linked | Auth adds the new device's own method: a new passkey or an Email OTP target. The local method records are copied once (Fact F12) | The envelopes are copied once |
 | A login is recovered by email | A new login session | No access. The wallet needs the recovery codes or a remaining method |
 
 - **Removal is reliable.** The wallet does not read auth at unlock, so an envelope that stays
@@ -639,6 +669,9 @@ Rules for the cleanup:
   the audit table of Section 7 from the old code and its tests, with the lines of each area and
   the budgets. Map each entry of today's packages to a path of the six packages: 16 entries of
   `@seams/wallet`, 16 of `@seams/wallet-server` and 5 of `@seams/voiceid`. No product code.
+
+  Done on 2026-11-18 in the [Slice 0 inventory](refactor-251-slice-0-inventory.md), except the open
+  decisions. It also lists what Slice 2 writes first and the problems found in passing.
 - **Slice 1: Release A, the rename and the connectors.** A mechanical change with no change in
   behaviour:
   - The package names, the folder names and the paths of D2, D5 and D24. The `SeamsWeb` API
@@ -666,7 +699,9 @@ Rules for the cleanup:
   methods, login sessions, Email OTP delivery, the login token and JWKS (D8), the proof checks
   and the signed email statement (Section 4), and the removal subscribers (Section 6). The
   additive migration. The Auth Worker deploys beside the Gateway. The Gateway still serves the
-  old routes.
+  old routes. The Console Gateway of `seams-monorepo` forwards auth routes to the wallet's home
+  region and injects the identity stores and the email sender (U3). The Auth Worker needs its
+  own home-region lookup, agreed with `seams-monorepo`.
 - **Slice 6: the auth client and the account origin.** New code in `packages/auth`: the
   `/client`, `/react` and `/server` paths, the account origin document, the auth
   menu, `prove`, `signIn`, the methods API, the plugin contract and the channel (Section 5). A
@@ -704,8 +739,9 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
   last envelope by a removal in auth.
 - The auth core starts no worker and loads no signing WASM. It does not read the body of a
   plugin's channel messages.
-- The Auth Worker holds no custody material and no signing share. The wallet servers hold no
-  email provider key and no login token key.
+- The Auth Worker holds no custody material, no signing share and no Email OTP factor seal. The
+  wallet servers hold no login token key. Their only email provider key sends the codes for the
+  audience `wallet` (D26).
 - `@seams/wallet-connect` creates no Seams session and no custody record.
 - A recovered login never recovers a wallet seed.
 - A login from Google or from an application issuer never opens a wallet. Email matching never

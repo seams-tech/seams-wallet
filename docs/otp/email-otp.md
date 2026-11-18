@@ -159,6 +159,11 @@ server:
   C_i = ChaCha20-Poly1305_Encrypt(K_recovery_i, enc_s(S))
 ```
 
+> **The code differs (checked on 2026-11-18).** The server stores `enc_s(S)` in its Email OTP
+> enrollment record and removes its seal on each factor release, so the server alone can
+> recover `S`. See U4 in the [Slice 0 inventory](../refactor-251-slice-0-inventory.md) and D26
+> in [Refactor 251](../refactor-251-auth-wallet-checkout-modules.md).
+
 The server must not store direct `enc_s(S)`, plaintext `S`, recovery keys, or
 derived recovery KEKs. App-origin code must not own `enc_s(S)`, `S`, recovery
 keys, recovery KEKs, client root shares, or Email OTP-derived signing shares in
