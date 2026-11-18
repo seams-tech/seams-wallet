@@ -1,4 +1,4 @@
-# Refactor 251: Auth, Stablecoin Wallet and Checkout as separate modules
+# Refactor 251: Auth, the MPC wallet, wallet connectors and checkout as separate modules
 
 Status: 2026-11-18. Plan only. Nothing is built. [Refactor 250](refactor-250-seams-checkout.md)
 (the checkout) builds on this plan. The design of
@@ -10,23 +10,24 @@ The owner's requests (2026-11-18):
 - **Separate three modules.**
   - **Web2 auth.** Auth and its methods (passkey, Email OTP, VoiceID) work alone, for a normal
     login service.
-  - **The cryptographic wallet.** The MPC stablecoin wallet is an optional plugin. It also
-    connects existing wallets (MetaMask, Rabby and others). A platform uses the MPC wallet only
-    when it wants embedded wallets.
-  - **The checkout.** A standalone library. It requires auth. The stablecoin wallet is
-    optional.
+  - **The cryptographic wallets.** The MPC wallet is an optional plugin. A platform uses it
+    only when it wants embedded wallets. Separate wallet connectors connect existing wallets
+    (MetaMask, Rabby and others).
+  - **The checkout.** A standalone library. It requires auth. The wallets are optional.
 - **Write new code.** The current wallet code has much generated bloat. Re-implement the auth
   library in a new folder instead of copying files from the wallet. Write the checkout from
   scratch in its own new folder.
 - **Then audit.** Check every place where auth touches the wallet, make the two compatible,
   and remove bloat and duplicate code on the way.
-- **Rename** `@seams/wallet` to `@seams/stablecoin-wallet`. This moves from Refactor 250 into
-  this plan, so that one breaking release does the split and the rename.
+- **Names** (after the first choice, `stablecoin-wallet`): `@seams/mpc-wallet`,
+  `@seams/mpc-wallet-server` and `@seams/wallet-connectors`. The rename moves from Refactor 250
+  into this plan, so that one breaking release does the split and the rename.
 
 ## Result
 
-- **Three modules, one dependency direction.** The wallet depends on auth. The checkout depends
-  on auth and, optionally, on the wallet. Auth depends on neither.
+- **Separate packages, one dependency direction.** The MPC wallet depends on auth. The wallet
+  connectors depend on nothing. The checkout depends on auth and, optionally, on either wallet
+  package. Auth depends on none of them.
 - **New code for auth and checkout.** `packages/auth`, `packages/auth-server` and
   `packages/checkout` are new folders. No file is copied from `packages/wallet` or
   `packages/wallet-server`. The old code is a reference for behaviour, not a source of files.
@@ -36,8 +37,11 @@ The owner's requests (2026-11-18):
 - **The bloat measures go down.** Each audit slice records a lower `pnpm report:bloat` baseline.
 - **A login app loads only auth.** It starts no worker, loads no signing WASM and creates no
   custody record.
-- **Auth is the core of the account origin.** VoiceID and the embedded wallet become plugins of
-  auth inside that origin. Today the wallet is the core and VoiceID is its plugin.
+- **Auth runs in the account iframe.** The auth core is the core of the account origin. Passkey
+  ceremonies, email codes and voice capture stay inside the iframe, away from the app page's
+  scripts. The app page gets only results: a login session and a login token. VoiceID and the
+  MPC wallet become plugins of auth inside that origin. Today the wallet is the core and
+  VoiceID is its plugin.
 - **The account origin is today's Wallet origin.** Its host and its passkey relying party ID do
   not change, so every existing passkey keeps working.
 - **Two sessions.** A login session says who the user is. A Wallet Session gives permission to
@@ -46,17 +50,19 @@ The owner's requests (2026-11-18):
   wallets, custody envelopes, Wallet Sessions and the signing roles. Each existing wallet gets
   an account with the same ID.
 - **External wallets need neither auth nor MPC.** The MetaMask, Rabby and NEAR connectors move
-  to `@seams/stablecoin-wallet/external`.
+  to their own package, `@seams/wallet-connectors`.
 - **One breaking release** for the split, the cutover and the rename.
 
 ## Decisions
 
 Decided by the owner on 2026-11-18:
 
-- **D1. Three modules:** auth, the stablecoin wallet and the checkout.
-- **D2. The rename:** `@seams/wallet` becomes `@seams/stablecoin-wallet`.
-- **D3. The embedded wallet is an optional plugin** of auth, and the package also connects
-  existing wallets.
+- **D1. Separate modules:** auth, the MPC wallet, the wallet connectors and the checkout.
+- **D2. The names:** `@seams/wallet` becomes `@seams/mpc-wallet`, `@seams/wallet-server`
+  becomes `@seams/mpc-wallet-server`, and the external connectors become
+  `@seams/wallet-connectors`. These replace the first choice, `stablecoin-wallet`.
+- **D3. The MPC wallet is an optional plugin** of auth. The connectors for existing wallets are
+  a separate package.
 - **D4. The checkout requires auth.** Refactor 250 says how a guest still pays.
 - **D12. New code, then an audit.** Auth and the checkout are written new in new folders. An
   audit then makes the wallet compatible with the new auth and removes the old auth code and
@@ -64,9 +70,9 @@ Decided by the owner on 2026-11-18:
 
 Open, with a recommendation:
 
-- **D5. Package names.** Recommended: `@seams/auth`, `@seams/auth-server`,
-  `@seams/stablecoin-wallet`, `@seams/stablecoin-wallet-server` and
-  `@seams/stablecoin-wallet-cli`. `@seams/voiceid` keeps its name. The CLI command name stays.
+- **D5. The other package names.** Recommended: `@seams/auth` and `@seams/auth-server`, and
+  `@seams/mpc-wallet-cli` for the recovery CLI. `@seams/voiceid` keeps its name. The CLI command
+  name stays.
 - **D6. The account origin keeps the Wallet origin's host.** Recommended: yes. A new host
   changes the relying party ID and breaks every existing passkey.
 - **D7. Who checks the factor for a wallet unlock.** Recommended: the wallet server checks the
@@ -75,10 +81,11 @@ Open, with a recommendation:
 - **D8. The login token for app backends.** Recommended: a short-lived signed JWT and a JWKS
   endpoint, so that an app backend checks it with a standard library.
   `@seams/auth-server` gives `verifyLoginToken`.
-- **D9. Names in the docs.** Recommended: "Seams Auth", "Seams Stablecoin Wallet" and "Seams
-  Checkout". "Wallet origin" becomes "account origin". "Wallet Session" stays.
+- **D9. Names in the docs.** Recommended: "Seams Auth", "Seams MPC Wallet", "Seams Wallet
+  Connectors" and "Seams Checkout". "Wallet origin" becomes "account origin". "Wallet Session"
+  stays.
 - **D10. The public API.** Recommended: `createSeamsAuth(config)`,
-  `createStablecoinWallet(auth, config)` and `createCheckout({ auth, ... })`. `SeamsWeb` goes
+  `createMpcWallet(auth, config)` and `createCheckout({ auth, ... })`. `SeamsWeb` goes
   away with no alias. The method names in this document are provisional.
 - **D11. The repository name.** Recommended: it stays `seams-wallet` for now.
 - **D13. The scope of the rewrite.** Recommended: the TypeScript auth layer and the checkout.
@@ -155,18 +162,18 @@ Checked on 2026-11-18. Paths are the paths before the rename.
 | Auth, browser | `@seams/auth` | `packages/auth` (new) | App page (SDK), account origin (iframe) | Login session, method records on this device | Nothing from Seams |
 | Auth, server | `@seams/auth-server` | `packages/auth-server` (new) | Auth Worker | Accounts, methods, login sessions, email provider keys, login token key | Nothing from Seams |
 | VoiceID | `@seams/voiceid` | `packages/voiceid` | Account origin | Voice template, device keys | `@seams/auth` |
-| Embedded wallet | `@seams/stablecoin-wallet` | `packages/stablecoin-wallet` (renamed) | App page (SDK), account origin (plugin and workers) | Custody material, Wallet Sessions | `@seams/auth` (peer) |
-| External connectors | `@seams/stablecoin-wallet/external` | in the wallet package | App page | Nothing | Nothing from Seams |
-| Wallet server | `@seams/stablecoin-wallet-server` | `packages/stablecoin-wallet-server` (renamed) | Wallet Gateway, router roles | Wallets, envelopes, signing roles | Account IDs from auth |
-| Checkout | `@seams/checkout` | `packages/checkout` (new) | See Refactor 250 | Provider keys, orders | `@seams/auth` (peer), the wallet (optional peer) |
+| MPC wallet | `@seams/mpc-wallet` | `packages/mpc-wallet` (renamed) | App page (SDK), account origin (plugin and workers) | Custody material, Wallet Sessions | `@seams/auth` (peer) |
+| Wallet connectors | `@seams/wallet-connectors` | `packages/wallet-connectors` (moved) | App page | Nothing | Nothing from Seams |
+| MPC wallet server | `@seams/mpc-wallet-server` | `packages/mpc-wallet-server` (renamed) | Wallet Gateway, router roles | Wallets, envelopes, signing roles | Account IDs from auth |
+| Checkout | `@seams/checkout` | `packages/checkout` (new) | See Refactor 250 | Provider keys, orders | `@seams/auth` (peer), the wallet packages (optional peers) |
 | Shared code | `@seams-internal/shared-ts` | `packages/shared-ts` | Bundled into each package | Nothing | Nothing |
 
 ```mermaid
 flowchart BT
     Auth["@seams/auth"]
     Voice["@seams/voiceid"] --> Auth
-    Wallet["@seams/stablecoin-wallet"] --> Auth
-    External["@seams/stablecoin-wallet/external"]
+    Wallet["@seams/mpc-wallet"] --> Auth
+    External["@seams/wallet-connectors"]
     Checkout["@seams/checkout"] --> Auth
     Plugin["@seams/checkout/stablecoin"] -. optional .-> Wallet
     Plugin -. optional .-> External
@@ -174,8 +181,8 @@ flowchart BT
 ```
 
 - Auth imports nothing from the wallet or the checkout.
-- The wallet imports nothing from the checkout. The external entry imports nothing from auth or
-  from the embedded wallet.
+- The MPC wallet imports nothing from the checkout. `@seams/wallet-connectors` imports nothing
+  from auth or from the MPC wallet.
 - Each link to another package is a peer dependency, as `@seams/voiceid` uses today.
 
 ## 2. How the new code is written
@@ -233,10 +240,10 @@ const user = await verifyLoginToken(token, { projectId });
   The checkout uses the same dialog. The wallet's old overlay (`overlay-controller.ts`, 1,125
   lines) goes away in the audit.
 
-## 4. The embedded wallet as a plugin of auth
+## 4. The MPC wallet as a plugin of auth
 
 - **Loading.** The account origin loads the wallet from a fixed path,
-  `/sdk/stablecoin-wallet/host.js`, only when the app enables the wallet. This keeps the rule
+  `/sdk/mpc-wallet/host.js`, only when the app enables the wallet. This keeps the rule
   of Refactor 232: code in the account origin comes only from the operator (Fact F3).
 - **Workers.** The wallet plugin owns every worker and WASM module of
   [Browser workers](browser-workers.md). They move as one group, and the separation between
@@ -248,15 +255,15 @@ const user = await verifyLoginToken(token, { projectId });
   code never receives it. This is the same path as today, with a new owner at each end.
 - **Creating a wallet for an account.** `wallet.create()` makes the custody seed and one
   envelope for each method that can carry one: a passkey with PRF, Email OTP and VoiceID.
-- **External wallets.** `@seams/stablecoin-wallet/external` keeps the EIP-6963 connector
+- **External wallets.** `@seams/wallet-connectors` keeps the EIP-6963 connector
   (MetaMask, Rabby, and others that announce themselves), the Phantom namespace and the NEAR
   connector (Fact F6). It needs no account.
 
 ```ts
-import { createStablecoinWallet } from '@seams/stablecoin-wallet';
-import { connectExternalEvm } from '@seams/stablecoin-wallet/external';
+import { createMpcWallet } from '@seams/mpc-wallet';
+import { connectExternalEvm } from '@seams/wallet-connectors';
 
-const wallet = createStablecoinWallet(auth, { chains: ['ethereum', 'near'] });
+const wallet = createMpcWallet(auth, { chains: ['ethereum', 'near'] });
 await wallet.create();                       // embedded MPC wallet for the signed-in account
 const external = await connectExternalEvm(); // or the customer's own wallet
 ```
@@ -344,10 +351,11 @@ Rules for the cleanup:
   release port replaces the old path, and the old auth code in the wallet and the Gateway goes
   away. Update [Browser workers](browser-workers.md). This slice can be several changes, one
   area of Section 6 each. The old and the new auth never both serve one flow.
-- **Slice 5: external connectors.** Move them to `@seams/stablecoin-wallet/external`, with no
-  import of auth or MPC code.
+- **Slice 5: the wallet connectors.** Move `externalEvm` and `externalNear` to
+  `packages/wallet-connectors` (`@seams/wallet-connectors`), with no import of auth or MPC code.
+  Clean them by the rules of Section 6.
 - **Slice 6: the breaking release.**
-  - New package names (D5) and the new API (D10), with no aliases.
+  - New package names (D2, D5) and the new API (D10), with no aliases.
   - Every import, script, test, example and public doc page here (Fact F13).
   - `seams-monorepo` in one coordinated commit that names the seams-wallet commit.
   - npm deprecation messages on the old names that name the new packages.
@@ -361,6 +369,8 @@ in one breaking release. The checkout of Refactor 250 starts after Slice 1.
 ## 8. Invariants
 
 - The account origin has today's Wallet origin host and passkey relying party ID.
+- Passkey ceremonies, email code entry and voice capture happen only in the account iframe. The
+  app page receives only SDK results.
 - A factor secret never leaves the account origin. It goes only to the wallet plugin's custody
   worker.
 - A login session or login token never opens a custody envelope and never gives a signing
@@ -368,7 +378,7 @@ in one breaking release. The checkout of Refactor 250 starts after Slice 1.
 - The auth core starts no worker and loads no signing WASM.
 - The Auth Worker holds no custody material and no signing share. The wallet servers hold no
   email provider key and no login token key.
-- The external connectors create no Seams session and no custody record.
+- `@seams/wallet-connectors` creates no Seams session and no custody record.
 - A recovered login never recovers a wallet seed.
 - Auth imports nothing from the wallet or the checkout. The wallet imports nothing from the
   checkout.

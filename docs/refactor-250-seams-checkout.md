@@ -1,8 +1,9 @@
-# Refactor 250: Seams Checkout, with the Stablecoin Wallet as a plugin
+# Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
 Status: 2026-11-18. Plan only. Nothing is built. This plan builds on
 [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), which separates auth, the
-stablecoin wallet and the checkout, and renames `@seams/wallet` to `@seams/stablecoin-wallet`.
+MPC wallet, the wallet connectors and the checkout, and renames `@seams/wallet` to
+`@seams/mpc-wallet`.
 
 The owner's requests (2026-11-17 and 2026-11-18):
 
@@ -13,22 +14,22 @@ The owner's requests (2026-11-17 and 2026-11-18):
   chooses Stripe, KOMOJU or both.
 - The checkout is a standalone library. It requires auth. It is written from scratch in a new
   folder, `packages/checkout`, with no file copied from the wallet.
-- The stablecoin wallet is an optional plugin of the checkout, so that customers can pay with
+- The wallets are an optional plugin of the checkout, so that customers can pay with
   stablecoins. USDC and JPYC are the main ones.
 
 ## Result
 
 - **A standalone package of new code.** `@seams/checkout` lives in `packages/checkout` and
   follows the new-code rules of Refactor 251 (its Section 2). It depends on `@seams/auth`. Only
-  its `./stablecoin` entry uses the stablecoin wallet, and only as an optional peer.
+  its `./stablecoin` entry uses the wallet packages, and only as optional peers.
 - **Guests can pay.** A signed-in customer gets saved methods, order history and one-tap
   payment with a passkey. A guest pays with an email address only.
 - **One checkout page, two providers behind it.** Seams draws the list of payment methods. A
   routing table on the server sends each method to Stripe or KOMOJU. One order can send a card
   to Stripe and PayPay to KOMOJU.
 - **Stablecoins through the plugin.** With the plugin, the checkout shows JPYC for a JPY order
-  and USDC for a USD order. The customer pays from the embedded wallet (passkey) or from an
-  external wallet such as MetaMask or Rabby. The checkout server checks the transfer onchain.
+  and USDC for a USD order. The customer pays from the MPC wallet (passkey) or from a
+  connected wallet such as MetaMask or Rabby. The checkout server checks the transfer onchain.
   Seams holds no funds.
 - **Seams draws almost everything.** Only three parts stay with the provider or the issuer:
   the card number fields, the 3-D Secure challenge and the approval screen of a QR wallet
@@ -49,7 +50,7 @@ The owner's requests (2026-11-17 and 2026-11-18):
 Decided by the owner on 2026-11-18:
 
 - **D4. A separate package.** The checkout is `@seams/checkout`. It requires `@seams/auth`. The
-  stablecoin wallet is its optional plugin.
+  wallets are its optional plugin.
 - **D7. Moved.** The rename and the module split are decisions of Refactor 251.
 
 Open, with a recommendation:
@@ -89,7 +90,7 @@ of its plugins. When the customer selects a method, the page mounts that method'
 | PayPay, Rakuten Pay, Merpay, au PAY, d払い | KOMOJU | Nothing | The wallet app, then Seams status |
 | Paidy, Pay-easy | KOMOJU | Nothing | Paidy or the bank, then Seams status |
 | Apple Pay, Google Pay | Stripe | Stripe Express Checkout Element | The device sheet |
-| JPYC, USDC | Stablecoin plugin | Nothing | Embedded wallet confirmer, or the external wallet |
+| JPYC, USDC | Stablecoin plugin | Nothing | MPC wallet confirmer, or the connected wallet |
 
 KOMOJU's weak styling matters only for cards. Its extra methods are a button, a redirect or a
 voucher, and Seams draws those. So the strong mix is cards on Stripe and the other Japanese
@@ -205,7 +206,8 @@ Neither page says whether the rates include consumption tax.
 | Checkout, server | `@seams/checkout/server` | Checkout Worker, own D1 database | Merchant provider keys (encrypted), orders |
 | Stablecoin plugin | `@seams/checkout/stablecoin` | App page | Nothing. It calls the wallet's public API |
 | Auth | `@seams/auth` (Refactor 251) | App page and account origin | Login session |
-| Stablecoin Wallet | `@seams/stablecoin-wallet` (Refactor 251) | Account origin plugin, or external wallets on the app page | Custody material (embedded only) |
+| MPC wallet | `@seams/mpc-wallet` (Refactor 251) | Account origin plugin | Custody material |
+| Wallet connectors | `@seams/wallet-connectors` (Refactor 251) | App page | Nothing |
 | Shared code | `@seams-internal/shared-ts` | Bundled into each package | Nothing |
 
 ```mermaid
@@ -213,15 +215,15 @@ flowchart BT
     Auth["@seams/auth"]
     Checkout["@seams/checkout"] --> Auth
     Plugin["@seams/checkout/stablecoin"] --> Checkout
-    Plugin -. optional peer .-> Wallet["@seams/stablecoin-wallet"]
-    Plugin -. optional peer .-> External["@seams/stablecoin-wallet/external"]
+    Plugin -. optional peer .-> Wallet["@seams/mpc-wallet"]
+    Plugin -. optional peer .-> External["@seams/wallet-connectors"]
     Wallet --> Auth
 ```
 
 Rules of the dependency direction:
 
 - `@seams/checkout` lists `@seams/auth` as a peer dependency.
-- Only `@seams/checkout/stablecoin` imports the stablecoin wallet. It lists it as an optional
+- Only `@seams/checkout/stablecoin` imports the wallet packages. It lists each as an optional
   peer dependency (Fact F18).
 - The base entries of `@seams/checkout` import nothing from the wallet. A shop without
   stablecoins ships no wallet code.
@@ -235,8 +237,8 @@ Runtime parts:
 flowchart LR
     MS["Merchant server"] -->|"create order (secret key)"| CW["Checkout Worker"]
     App["Merchant page: checkout + auth SDK (+ plugin)"] -->|"open"| CF["Checkout frame (checkout origin)"]
-    App -->|"sign-in, embedded wallet"| AI["Account iframe (account origin)"]
-    App -. "external wallet" .-> EW["MetaMask, Rabby"]
+    App -->|"sign-in, MPC wallet"| AI["Account iframe (account origin)"]
+    App -. "connected wallet" .-> EW["MetaMask, Rabby"]
     CF -->|"card fields, redirects"| PSP["Stripe / KOMOJU"]
     CF -->|"order status"| CW
     AI -->|"JPYC / USDC transfer"| Chain["Ethereum, NEAR"]
@@ -257,7 +259,7 @@ flowchart LR
   configuration). It draws the method list, loads Stripe.js or KOMOJU Fields only when a method
   needs them, and draws vouchers, waits and errors.
 - **Account iframe.** The auth core of Refactor 251. It signs a returning customer in. With the
-  embedded wallet plugin, it runs the passkey approval and the token transfer.
+  MPC wallet plugin, it runs the passkey approval and the token transfer.
 
 ## 2. The developer API
 
@@ -324,19 +326,24 @@ const result = await checkout.open({
 Browser, with stablecoins:
 
 ```ts
-import { createStablecoinWallet } from '@seams/stablecoin-wallet';
+import { createMpcWallet } from '@seams/mpc-wallet';
+import { walletConnectors } from '@seams/wallet-connectors';
 import { stablecoinPayments } from '@seams/checkout/stablecoin';
 
-const wallet = createStablecoinWallet(auth, { chains: ['ethereum', 'near'] });
+const mpcWallet = createMpcWallet(auth, { chains: ['ethereum', 'near'] });
 const checkout = createCheckout({
   auth,
   checkoutOrigin,
   publishableKey,
-  plugins: [stablecoinPayments({ wallet, external: true, tokens: ['JPYC', 'USDC'] })],
+  plugins: [
+    stablecoinPayments({ mpcWallet, connectors: walletConnectors(), tokens: ['JPYC', 'USDC'] }),
+  ],
 });
 ```
 
-A shop that wants only external wallets omits `wallet`. Then the app loads no MPC code.
+A shop that wants only existing wallets omits `mpcWallet` and installs only
+`@seams/wallet-connectors`. Then the app loads no MPC code. A shop that wants only the MPC wallet
+omits `connectors`.
 
 - **`modal`.** The checkout dialog opens with the checkout frame.
 - **`inline`.** The checkout frame mounts into an element of the developer's page
@@ -369,13 +376,14 @@ A stablecoin payment:
 
 1. The customer selects JPYC (JPY order) or USDC (USD order). A token that does not match the
    order currency does not appear (D8).
-2. The customer chooses the embedded wallet or an external wallet (Fact F20). The plugin reads
+2. The customer chooses the MPC wallet or a connected wallet such as MetaMask or Rabby (Fact
+   F20). The plugin reads
    the payer address on the chosen chain. The checkout Worker issues an onchain quote: chain,
    token contract, receiver, exact amount in token units, payer address and expiry.
 3. The customer confirms the transfer:
-   - **Embedded wallet.** The dialog moves from the checkout frame to the Wallet confirmer in
+   - **MPC wallet.** The dialog moves from the checkout frame to the Wallet confirmer in
      the same modal (Section 5). The customer confirms with a passkey.
-   - **External wallet.** The external wallet opens its own window. The checkout frame shows a
+   - **Connected wallet.** The connected wallet opens its own window. The checkout frame shows a
      wait until the wallet returns a transaction hash or a refusal.
 4. The plugin sends the transaction hash to the checkout Worker as a hint.
 5. The checkout Worker reads the receipt. It accepts the payment only if the token contract,
@@ -383,8 +391,8 @@ A stablecoin payment:
    confirmations have passed.
 6. One transaction hash pays one order. A second use is refused.
 
-If the browser closes after the transfer, `resume` sends the hash again from the embedded
-wallet's record of submitted transactions. An external wallet keeps no such record for Seams,
+If the browser closes after the transfer, `resume` sends the hash again from the MPC
+wallet's record of submitted transactions. A connected wallet keeps no such record for Seams,
 so the checkout frame keeps the hash in session storage until the Worker confirms it. A
 transfer that arrives after the quote expires puts the order in `late_onchain_payment`. The
 merchant then refunds or accepts it by hand.
@@ -512,8 +520,8 @@ Each slice ships alone and keeps the invariants of Section 9.
 - **Slice 5: returning customers.** `signIn: 'offer'`, the login token check in the checkout
   Worker, order history and saved methods per provider. Needs the login token of Refactor 251
   (its Slice 3).
-- **Slice 6: the stablecoin plugin.** `@seams/checkout/stablecoin` with the embedded and the
-  external wallets, the onchain quote, the move to the Wallet confirmer, receipt checks in the
+- **Slice 6: the stablecoin plugin.** `@seams/checkout/stablecoin` with the MPC wallet and the
+  wallet connectors, the onchain quote, the move to the Wallet confirmer, receipt checks in the
   checkout Worker, `resume` and the `late_onchain_payment` state. JPYC on Ethereum and USDC on
   Ethereum and NEAR (Fact F7). Build it against the API of the Refactor 251 release, so that it
   needs no second change.
@@ -535,8 +543,8 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
 - No card number, CVC or expiry date reaches a Seams server, a Seams log or a Seams frame's
   JavaScript. Only provider frames hold them.
 - No provider script runs in the account origin or on the merchant's page.
-- Only `@seams/checkout/stablecoin` imports the stablecoin wallet. The wallet imports nothing
-  from the checkout.
+- Only `@seams/checkout/stablecoin` imports the wallet packages. Neither wallet package imports
+  anything from the checkout.
 - The checkout origin and the checkout Worker hold no account or wallet secret, open no wallet
   worker, read no account-origin storage and have no binding to the wallet's router roles.
   [Browser workers](browser-workers.md) stays unchanged.
@@ -555,13 +563,13 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
 - Intended behaviours: one journey per method and per provider, in
   [Intended Behaviours](intended-behaviours.md): card success, card decline, 3-D Secure,
   konbini issued then paid, konbini expired, bank transfer, PayPay approve and cancel, a guest
-  order, a returning customer's order, JPYC paid from the embedded wallet, USDC paid from an
-  external wallet, a reused transaction hash, a late transfer, and a mixed routing order (card
+  order, a returning customer's order, JPYC paid from the MPC wallet, USDC paid from a
+  connected wallet, a reused transaction hash, a late transfer, and a mixed routing order (card
   on Stripe, konbini on KOMOJU).
 - Browser tests in Chromium, Firefox and WebKit for the frame, the theme mapping, the move to
   sign-in and to the Wallet confirmer, and keyboard and screen reader use.
-- A packed-package test that fails if the base entries of `@seams/checkout` import the wallet,
-  or if the wallet imports the checkout. `tests/scripts/check-packed-wallet-boundaries.mjs` is
+- A packed-package test that fails if the base entries of `@seams/checkout` import a wallet package,
+  or if a wallet package imports the checkout. `tests/scripts/check-packed-wallet-boundaries.mjs` is
   the model.
 - A CSP test that fails if the checkout document allows another script host.
 - Webhook tests for bad signatures, duplicates and reordered events.
