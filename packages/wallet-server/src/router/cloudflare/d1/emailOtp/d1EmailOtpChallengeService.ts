@@ -341,7 +341,7 @@ export class CloudflareD1EmailOtpChallengeService {
       return failure('not_found', 'Email OTP outbox entry was not found');
     }
     if (Date.now() > record.expiresAtMs) {
-      await this.challenges.delete(challengeId);
+      await this.challenges.delete(record.challengeId);
       return failure('not_found', 'Email OTP outbox entry expired');
     }
     return {
