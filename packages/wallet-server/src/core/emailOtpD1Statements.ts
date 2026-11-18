@@ -30,7 +30,7 @@ const INSERT_CHALLENGE_SQL = `INSERT INTO email_otp_challenges (
         owner_proof_binding_digest,
         action,
         operation,
-        otp_code,
+        otp_code_sealed,
         record_json,
         created_at_ms,
         expires_at_ms
@@ -48,7 +48,7 @@ function challengeValues(record: EmailOtpChallengeRecord): readonly unknown[] {
     record.ownerProofBindingDigest,
     record.action,
     record.operation,
-    record.otpCode,
+    record.otpCodeSealedB64u,
     JSON.stringify(record),
     record.createdAtMs,
     record.expiresAtMs,

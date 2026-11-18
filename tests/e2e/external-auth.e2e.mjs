@@ -10,6 +10,7 @@ import { build } from 'esbuild';
 import { chromium } from '@playwright/test';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
+import { emailOtpTestCodeSeal } from './emailOtpTestCodeSeal.mjs';
 import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
@@ -140,6 +141,7 @@ const bundle = await build({
     contents: `
     export { prepareEmailOtpOwnerProof } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeService';
     export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
+    export { createEmailOtpCodeSeal } from './packages/wallet-server/src/core/authService/emailOtpCodeSeal';
     export { CloudflareD1EmailOtpChallengeStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
     export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
     export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
@@ -1377,6 +1379,7 @@ async function verifyEmailOtpOwnerWriteRecovery() {
     emailOtpEnrollments: enrollments,
     emailOtpRateLimits: rateLimits,
     lockoutTtlMs: 60_000,
+    codeSeal: emailOtpTestCodeSeal(api),
   });
   serverState.service.emailOtp = {
     prepareEmailOtpOwnerProof: api.prepareEmailOtpOwnerProof.bind(null, verifier),
@@ -1458,13 +1461,17 @@ async function verifyEmailOtpActionRecovery(action, binding, fixture, challenges
     authorityRef,
     operationFingerprintDigest: challenge.body.value.challengeB64u,
   });
+  const otpCode = '123456';
+  const otpChallengeId = crypto.randomUUID();
   const otp = api.emailOtpChallengeRecord({
-    challengeId: crypto.randomUUID(),
+    challengeId: otpChallengeId,
     challengeSubjectId: providerUserId,
     walletId: binding.walletId,
     orgId: scope.orgId,
     email: 'byo-owner@example.test',
-    otpCode: '123456',
+    otpCodeSealedB64u: (
+      await emailOtpTestCodeSeal(api).sealEmailOtpCode({ challengeId: otpChallengeId, otpCode })
+    ).otpCodeSealedB64u,
     ownerProofBindingDigest,
     action: api.WALLET_EMAIL_OTP_ACTIONS.login,
     operation: api.WALLET_EMAIL_OTP_UNLOCK_OPERATION,
@@ -1479,7 +1486,7 @@ async function verifyEmailOtpActionRecovery(action, binding, fixture, challenges
       kind: 'email_otp',
       provider_subject_id: providerUserId,
       challenge_id: otp.challengeId,
-      otp_code: otp.otpCode,
+      otp_code: otpCode,
       challenge_digest: challenge.body.value.challengeB64u,
     },
   };

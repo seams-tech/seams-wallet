@@ -12,6 +12,7 @@ import { emailOtpGrantRecord, maskEmail, parseEmailOtpLoginOperation } from './d
 import type { CloudflareD1EmailOtpChallengeIssuer } from './d1EmailOtpChallengeIssuer';
 import type { CloudflareD1EmailOtpChallengeStore } from './d1EmailOtpChallengeStore';
 import type { CloudflareD1EmailOtpChallengeVerifier } from './d1EmailOtpChallengeVerifier';
+import type { CloudflareD1EmailOtpServerSealRuntime } from './d1EmailOtpServerSealRuntime';
 import type { CloudflareD1EmailOtpGrantStore } from './d1EmailOtpGrantStore';
 import type { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from './d1EmailOtpRegistrationEnrollmentFinalizer';
 import type { GoogleEmailOtpRegistrationAttemptStore } from './d1GoogleEmailOtpRegistrationAttemptStore';
@@ -60,6 +61,7 @@ function errorMessage(error: unknown): string {
 export class CloudflareD1EmailOtpChallengeService {
   private readonly challenges: CloudflareD1EmailOtpChallengeStore;
   private readonly devOutboxEnabled: boolean;
+  private readonly codeSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'openEmailOtpCode'>;
   private readonly finalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
   private readonly grantTtlMs: number;
   private readonly grants: CloudflareD1EmailOtpGrantStore;
@@ -71,6 +73,7 @@ export class CloudflareD1EmailOtpChallengeService {
   constructor(input: {
     readonly challenges: CloudflareD1EmailOtpChallengeStore;
     readonly devOutboxEnabled: boolean;
+    readonly codeSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'openEmailOtpCode'>;
     readonly finalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
     readonly grantTtlMs: number;
     readonly grants: CloudflareD1EmailOtpGrantStore;
@@ -80,6 +83,7 @@ export class CloudflareD1EmailOtpChallengeService {
   }) {
     this.challenges = input.challenges;
     this.devOutboxEnabled = input.devOutboxEnabled;
+    this.codeSeal = input.codeSeal;
     this.finalizer = input.finalizer;
     this.grantTtlMs = input.grantTtlMs;
     this.grants = input.grants;
@@ -344,6 +348,11 @@ export class CloudflareD1EmailOtpChallengeService {
       await this.challenges.delete(challengeId);
       return failure('not_found', 'Email OTP outbox entry expired');
     }
+    const opened = await this.codeSeal.openEmailOtpCode({
+      challengeId: record.challengeId,
+      otpCodeSealedB64u: record.otpCodeSealedB64u,
+    });
+    if (!opened.ok) return opened;
     return {
       ok: true,
       challengeId: record.challengeId,
@@ -351,7 +360,7 @@ export class CloudflareD1EmailOtpChallengeService {
       userId,
       otpChannel: EMAIL_OTP_CHANNEL,
       emailHint: maskEmail(record.email),
-      otpCode: record.otpCode,
+      otpCode: opened.otpCode,
       expiresAtMs: record.expiresAtMs,
     };
   }

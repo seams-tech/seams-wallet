@@ -358,8 +358,9 @@ class SubmissionDirectory {
 
 class MoveApprovalPrompt {
   calls = 0;
-  constructor(challenges) {
-    this.challenges = challenges;
+  constructor(emailOtp) {
+    this.challenges = emailOtp.emailOtpChallenges;
+    this.codeSeal = emailOtp.codeSeal;
   }
   async requestEmailOtpOwnerConfirmation(input) {
     this.calls += 1;
@@ -368,7 +369,12 @@ class MoveApprovalPrompt {
     assert.ok(record);
     assert.equal(record.operation, 'wallet_relocation');
     if (this.beforeReturn) this.beforeReturn();
-    return { challengeId: input.challengeId, otpCode: record.otpCode };
+    // The server keeps the code sealed; the test opens it as the user reads the email.
+    const opened = await this.codeSeal.openEmailOtpCode({
+      challengeId: input.challengeId,
+      otpCodeSealedB64u: record.otpCodeSealedB64u,
+    });
+    return { challengeId: input.challengeId, otpCode: opened.otpCode };
   }
 }
 
@@ -411,7 +417,7 @@ export async function verifyMoveSubmissionClient({
   const { api, bundleSha256 } = await loadPlacementClient(output);
   const directory = new SubmissionDirectory(binding);
   const routes = new WalletPlacementRoutes({ ...routeOptions, directory });
-  const prompt = new MoveApprovalPrompt(routeOptions.emailOtp.emailOtpChallenges);
+  const prompt = new MoveApprovalPrompt(routeOptions.emailOtp);
   const client = new LostMoveReplyJourney(api, routes, binding, token, prompt);
   client.TransportError = api.WalletHostOwnerRequestTransportError;
   const localState = new Map();
@@ -443,7 +449,7 @@ export async function verifyMoveSubmissionClient({
   };
   const blockedDirectory = new SubmissionDirectory(blockedBinding);
   const blockedRoutes = new WalletPlacementRoutes({ ...routeOptions, directory: blockedDirectory });
-  const blockedPrompt = new MoveApprovalPrompt(routeOptions.emailOtp.emailOtpChallenges);
+  const blockedPrompt = new MoveApprovalPrompt(routeOptions.emailOtp);
   const blockedClient = new PlacementClientJourney(
     api,
     blockedRoutes,
@@ -466,7 +472,7 @@ export async function verifyMoveSubmissionClient({
   const retryDirectory = new SubmissionDirectory(retryBinding);
   retryDirectory.failNextPreparation = true;
   const retryRoutes = new WalletPlacementRoutes({ ...routeOptions, directory: retryDirectory });
-  const retryPrompt = new MoveApprovalPrompt(routeOptions.emailOtp.emailOtpChallenges);
+  const retryPrompt = new MoveApprovalPrompt(routeOptions.emailOtp);
   const retryClient = new PlacementClientJourney(
     api,
     retryRoutes,

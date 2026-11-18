@@ -52,7 +52,7 @@ function parseCurrentEmailOtpChallengeRecord(raw: unknown): EmailOtpChallengeRec
   const orgId = toOptionalTrimmedString(obj.orgId) || undefined;
   const otpChannel = toOptionalTrimmedString(obj.otpChannel);
   const email = toOptionalTrimmedString(obj.email);
-  const otpCode = toOptionalTrimmedString(obj.otpCode);
+  const otpCodeSealedB64u = toOptionalTrimmedString(obj.otpCodeSealedB64u);
   const ownerProofBindingDigest = toOptionalTrimmedString(obj.ownerProofBindingDigest);
   const action = toOptionalTrimmedString(obj.action);
   const operationRaw = toOptionalTrimmedString(obj.operation);
@@ -60,13 +60,13 @@ function parseCurrentEmailOtpChallengeRecord(raw: unknown): EmailOtpChallengeRec
   const expiresAtMs = toPositiveSafeInt(obj.expiresAtMs);
   const attemptCount = toNonNegativeSafeInt(obj.attemptCount);
   const maxAttempts = toPositiveSafeInt(obj.maxAttempts);
-  if (version !== 'email_otp_challenge_v1') return null;
+  if (version !== 'email_otp_challenge_v2') return null;
   if (
     !challengeId ||
     !challengeSubjectId ||
     !walletId ||
     !email ||
-    !otpCode ||
+    !otpCodeSealedB64u ||
     !ownerProofBindingDigest ||
     !action ||
     !operationRaw ||
@@ -81,14 +81,14 @@ function parseCurrentEmailOtpChallengeRecord(raw: unknown): EmailOtpChallengeRec
   const purpose = parseEmailOtpChallengePurpose(action, operationRaw);
   if (!purpose) return null;
   return {
-    version: 'email_otp_challenge_v1',
+    version: 'email_otp_challenge_v2',
     challengeId,
     challengeSubjectId,
     walletId,
     ...(orgId ? { orgId } : {}),
     otpChannel: EMAIL_OTP_CHANNEL,
     email,
-    otpCode,
+    otpCodeSealedB64u,
     ownerProofBindingDigest,
     ...purpose,
     createdAtMs,

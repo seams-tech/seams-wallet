@@ -19,7 +19,9 @@ import type {
 import type { CloudflareD1EmailOtpChallengeStore } from './d1EmailOtpChallengeStore';
 import type { CloudflareD1EmailOtpEnrollmentStore } from './d1EmailOtpEnrollmentStore';
 import type { CloudflareD1EmailOtpRateLimitStore } from './d1EmailOtpRateLimitStore';
+import type { CloudflareD1EmailOtpServerSealRuntime } from './d1EmailOtpServerSealRuntime';
 import {
+  bytesEqual,
   emailOtpChallengeBindingMismatchCode,
   emailOtpChallengeInvalidOrExpired,
   emailOtpRegistrationChallengeBindingMismatchCode,
@@ -204,17 +206,42 @@ export class CloudflareD1EmailOtpChallengeVerifier {
   private readonly emailOtpEnrollments: CloudflareD1EmailOtpEnrollmentStore;
   private readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
   private readonly lockoutTtlMs: number;
+  private readonly codeSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'openEmailOtpCode'>;
 
   constructor(input: {
     readonly emailOtpChallenges: CloudflareD1EmailOtpChallengeStore;
     readonly emailOtpEnrollments: CloudflareD1EmailOtpEnrollmentStore;
     readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
     readonly lockoutTtlMs: number;
+    readonly codeSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'openEmailOtpCode'>;
   }) {
+    this.codeSeal = input.codeSeal;
     this.emailOtpChallenges = input.emailOtpChallenges;
     this.emailOtpEnrollments = input.emailOtpEnrollments;
     this.emailOtpRateLimits = input.emailOtpRateLimits;
     this.lockoutTtlMs = input.lockoutTtlMs;
+  }
+
+  /** Opens the stored code and compares it with the submitted code, in constant time. */
+  private async checkCode(
+    record: EmailOtpChallengeRecord,
+    otpCode: string,
+  ): Promise<
+    | { readonly kind: 'match' | 'mismatch' }
+    | {
+        readonly kind: 'failure';
+        readonly failure: { readonly ok: false; readonly code: string; readonly message: string };
+      }
+  > {
+    const stored = await this.codeSeal.openEmailOtpCode({
+      challengeId: record.challengeId,
+      otpCodeSealedB64u: record.otpCodeSealedB64u,
+    });
+    if (!stored.ok) return { kind: 'failure', failure: stored };
+    const encoder = new TextEncoder();
+    return bytesEqual(encoder.encode(stored.otpCode), encoder.encode(otpCode))
+      ? { kind: 'match' }
+      : { kind: 'mismatch' };
   }
 
   async readActiveEnrollmentForWallet(input: {
@@ -346,7 +373,9 @@ export class CloudflareD1EmailOtpChallengeVerifier {
       const reservation = await this.reserveAttempt(read);
       if (reservation.kind !== 'reserved') return reservation.failure;
       const record = reservation.record;
-      if (record.otpCode !== otpCode) {
+      const codeCheck = await this.checkCode(record, otpCode);
+      if (codeCheck.kind === 'failure') return codeCheck.failure;
+      if (codeCheck.kind === 'mismatch') {
         return await this.recordInvalidAttempt({
           enrollment: enrollment.enrollment,
           authState: authState.state,
@@ -586,7 +615,9 @@ export class CloudflareD1EmailOtpChallengeVerifier {
       const reservation = await this.reserveAttempt(read);
       if (reservation.kind !== 'reserved') return reservation.failure;
       const record = reservation.record;
-      if (record.otpCode !== otpCode) {
+      const codeCheck = await this.checkCode(record, otpCode);
+      if (codeCheck.kind === 'failure') return codeCheck.failure;
+      if (codeCheck.kind === 'mismatch') {
         return await this.recordInvalidRegistrationAttempt({
           enrollment: existingEnrollment,
           authState: authState.state,

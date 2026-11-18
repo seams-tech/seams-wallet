@@ -47,7 +47,7 @@ export type EmailOtpChallengePurpose =
     };
 
 export type EmailOtpChallengeRecord = {
-  version: 'email_otp_challenge_v1';
+  version: 'email_otp_challenge_v2';
   challengeId: string;
   /**
    * Subject that owns the OTP challenge.
@@ -62,7 +62,8 @@ export type EmailOtpChallengeRecord = {
   otpChannel: EmailOtpChannel;
   /** Normalized email address that received the OTP code. */
   email: string;
-  otpCode: string;
+  /** The code, encrypted under a key from the Email OTP seal root. D1 never holds the code. */
+  otpCodeSealedB64u: string;
   /** Exact wallet, owner, operation, origin, and audience binding digest. */
   ownerProofBindingDigest: string;
   createdAtMs: number;

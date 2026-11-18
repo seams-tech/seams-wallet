@@ -1,3 +1,4 @@
+import { emailOtpTestCodeSeal } from './emailOtpTestCodeSeal.mjs';
 import assert from 'node:assert/strict';
 
 const policy = { limit: 2, windowMs: 600_000 };
@@ -42,6 +43,7 @@ export async function verifyAtomicEmailOtpGrant(api, database, scope) {
     emailOtpEnrollments: enrollments,
     emailOtpRateLimits: rateLimits,
     lockoutTtlMs: 60_000,
+    codeSeal: emailOtpTestCodeSeal(api),
   });
   const recovery = new api.CloudflareD1EmailOtpRecoveryService({
     challengeVerifier: verifier,

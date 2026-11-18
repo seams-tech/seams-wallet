@@ -472,7 +472,7 @@ export function emailOtpChallengeRecord(input: {
   readonly walletId: string;
   readonly orgId: string;
   readonly email: string;
-  readonly otpCode: string;
+  readonly otpCodeSealedB64u: string;
   readonly ownerProofBindingDigest: string;
   readonly action: EmailOtpChallengeIssueAction;
   readonly operation: EmailOtpChallengeOperation;
@@ -483,14 +483,14 @@ export function emailOtpChallengeRecord(input: {
   const purpose = parseEmailOtpChallengePurpose(input.action, input.operation);
   if (!purpose) throw new Error('Invalid Email OTP challenge purpose');
   return {
-    version: 'email_otp_challenge_v1',
+    version: 'email_otp_challenge_v2',
     challengeId: input.challengeId,
     challengeSubjectId: input.challengeSubjectId,
     walletId: input.walletId,
     orgId: input.orgId,
     otpChannel: EMAIL_OTP_CHANNEL,
     email: input.email,
-    otpCode: input.otpCode,
+    otpCodeSealedB64u: input.otpCodeSealedB64u,
     ownerProofBindingDigest: input.ownerProofBindingDigest,
     ...purpose,
     createdAtMs: input.createdAtMs,
@@ -507,14 +507,14 @@ export function emailOtpChallengeWithAttemptCount(
   const purpose = parseEmailOtpChallengePurpose(record.action, record.operation);
   if (!purpose) throw new Error('Invalid Email OTP challenge purpose');
   return {
-    version: 'email_otp_challenge_v1',
+    version: 'email_otp_challenge_v2',
     challengeId: record.challengeId,
     challengeSubjectId: record.challengeSubjectId,
     walletId: record.walletId,
     ...(record.orgId ? { orgId: record.orgId } : {}),
     otpChannel: EMAIL_OTP_CHANNEL,
     email: record.email,
-    otpCode: record.otpCode,
+    otpCodeSealedB64u: record.otpCodeSealedB64u,
     ownerProofBindingDigest: record.ownerProofBindingDigest,
     ...purpose,
     createdAtMs: record.createdAtMs,

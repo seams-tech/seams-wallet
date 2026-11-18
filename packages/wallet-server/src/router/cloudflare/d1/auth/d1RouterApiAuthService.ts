@@ -1293,6 +1293,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     emailOtpEnrollments,
     emailOtpRateLimits,
     lockoutTtlMs: options.emailOtp.lockoutTtlMs,
+    codeSeal: emailOtpServerSeal,
   });
   /* The custody envelope store is shared by registration, unlock, recovery,
      and auth-method revocation; every route must address the same rows. */
@@ -1451,10 +1452,12 @@ function createCloudflareD1RouterApiAuthAssembly(
     emailOtpDelivery,
     emailOtpEnrollments,
     emailOtpRateLimits,
+    codeSeal: emailOtpServerSeal,
   });
   const emailOtpChallengeService = new CloudflareD1EmailOtpChallengeService({
     challenges: emailOtpChallenges,
     devOutboxEnabled: options.emailOtp.devOutboxEnabled,
+    codeSeal: emailOtpServerSeal,
     finalizer: emailOtpRegistrationEnrollmentFinalizer,
     grantTtlMs: options.emailOtp.grantTtlMs,
     grants: emailOtpGrants,

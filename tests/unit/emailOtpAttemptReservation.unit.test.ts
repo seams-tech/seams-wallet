@@ -15,7 +15,7 @@ function challenge(maxAttempts: number) {
     walletId: 'wallet-1',
     orgId: 'org-1',
     email: 'owner@example.com',
-    otpCode: '123456',
+    otpCodeSealedB64u: 'sealed-code',
     ownerProofBindingDigest: 'binding-digest',
     action: WALLET_EMAIL_OTP_ACTIONS.login,
     operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,

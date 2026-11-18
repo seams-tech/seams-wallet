@@ -56,6 +56,41 @@ export class CloudflareD1EmailOtpServerSealRuntime {
     );
   }
 
+  /** The stored form of an Email OTP code: encrypted under a key from the seal root. */
+  async sealEmailOtpCode(input: {
+    readonly challengeId: string;
+    readonly otpCode: string;
+  }): Promise<
+    | { readonly ok: true; readonly otpCodeSealedB64u: string }
+    | { readonly ok: false; readonly code: string; readonly message: string }
+  > {
+    if (!this.config.configured) return failure('not_configured', this.config.message);
+    try {
+      return { ok: true, otpCodeSealedB64u: await this.config.codeSeal.seal(input) };
+    } catch (error: unknown) {
+      return failure(
+        'not_configured',
+        serverSealErrorMessage(error) || 'Email OTP code key is invalid',
+      );
+    }
+  }
+
+  /** Opens a stored code. A code sealed for another challenge does not open. */
+  async openEmailOtpCode(input: {
+    readonly challengeId: string;
+    readonly otpCodeSealedB64u: string;
+  }): Promise<
+    | { readonly ok: true; readonly otpCode: string }
+    | { readonly ok: false; readonly code: string; readonly message: string }
+  > {
+    if (!this.config.configured) return failure('not_configured', this.config.message);
+    try {
+      return { ok: true, otpCode: await this.config.codeSeal.open(input) };
+    } catch {
+      return failure('internal', 'Email OTP challenge code could not be opened');
+    }
+  }
+
   async applyEmailOtpServerSeal(
     input: EmailOtpServerSealApplyRequest,
   ): Promise<EmailOtpServerSealResult> {

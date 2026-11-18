@@ -16,6 +16,7 @@ import type {
 import { EMAIL_OTP_CODE_LENGTH } from '../../../../core/authService/emailOtpConfig';
 import type { CloudflareD1EmailOtpChallengeStore } from './d1EmailOtpChallengeStore';
 import type { CloudflareD1EmailOtpDeliveryRuntime } from './d1EmailOtpDeliveryRuntime';
+import type { CloudflareD1EmailOtpServerSealRuntime } from './d1EmailOtpServerSealRuntime';
 import type { CloudflareD1EmailOtpEnrollmentStore } from './d1EmailOtpEnrollmentStore';
 import type { CloudflareD1EmailOtpRateLimitStore } from './d1EmailOtpRateLimitStore';
 import type { ActiveEmailOtpEnrollmentResult } from './d1EmailOtpChallengeVerifier';
@@ -119,6 +120,10 @@ export class CloudflareD1EmailOtpChallengeIssuer {
   private readonly emailOtpDelivery: CloudflareD1EmailOtpDeliveryRuntime;
   private readonly emailOtpEnrollments: CloudflareD1EmailOtpEnrollmentStore;
   private readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
+  private readonly codeSeal: Pick<
+    CloudflareD1EmailOtpServerSealRuntime,
+    'sealEmailOtpCode' | 'openEmailOtpCode'
+  >;
 
   constructor(input: {
     readonly config: EmailOtpChallengeIssuerConfig;
@@ -126,8 +131,13 @@ export class CloudflareD1EmailOtpChallengeIssuer {
     readonly emailOtpDelivery: CloudflareD1EmailOtpDeliveryRuntime;
     readonly emailOtpEnrollments: CloudflareD1EmailOtpEnrollmentStore;
     readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
+    readonly codeSeal: Pick<
+      CloudflareD1EmailOtpServerSealRuntime,
+      'sealEmailOtpCode' | 'openEmailOtpCode'
+    >;
   }) {
     this.config = input.config;
+    this.codeSeal = input.codeSeal;
     this.emailOtpChallenges = input.emailOtpChallenges;
     this.emailOtpDelivery = input.emailOtpDelivery;
     this.emailOtpEnrollments = input.emailOtpEnrollments;
@@ -214,8 +224,14 @@ export class CloudflareD1EmailOtpChallengeIssuer {
           nowMs,
         });
         if (existing) {
+          const existingCode = await this.codeSeal.openEmailOtpCode({
+            challengeId: existing.challengeId,
+            otpCodeSealedB64u: existing.otpCodeSealedB64u,
+          });
+          if (!existingCode.ok) return existingCode;
           const delivery = this.emailOtpDelivery.resolveReusedEmailOtpDelivery(
             existing,
+            existingCode.otpCode,
             input.requestOrigin,
           );
           if (!delivery.ok) return delivery;
@@ -266,6 +282,8 @@ export class CloudflareD1EmailOtpChallengeIssuer {
           ? `relocation:${ownerProofBindingDigest}`
           : secureRandomBase64Url(16, 'email otp challenge ids');
       const otpCode = generateNumericOtp(this.config.codeLength);
+      const sealed = await this.codeSeal.sealEmailOtpCode({ challengeId, otpCode });
+      if (!sealed.ok) return sealed;
       const expiresAtMs =
         input.action === WALLET_EMAIL_OTP_ACTIONS.relocation
           ? input.expiresAtMs
@@ -276,7 +294,7 @@ export class CloudflareD1EmailOtpChallengeIssuer {
         walletId,
         orgId,
         email: challengeEmail,
-        otpCode,
+        otpCodeSealedB64u: sealed.otpCodeSealedB64u,
         ownerProofBindingDigest,
         action,
         operation,
@@ -287,7 +305,22 @@ export class CloudflareD1EmailOtpChallengeIssuer {
       if (action === WALLET_EMAIL_OTP_ACTIONS.relocation)
         record = await this.emailOtpChallenges.putIfAbsent(record);
       else await this.emailOtpChallenges.put(record);
-      const delivery = await this.emailOtpDelivery.deliverEmailOtpCode(record, input.requestOrigin);
+      // A relocation challenge is issued once for its binding. A retry sends the code of
+      // the challenge that exists.
+      let deliveredCode = otpCode;
+      if (record.otpCodeSealedB64u !== sealed.otpCodeSealedB64u) {
+        const existingCode = await this.codeSeal.openEmailOtpCode({
+          challengeId: record.challengeId,
+          otpCodeSealedB64u: record.otpCodeSealedB64u,
+        });
+        if (!existingCode.ok) return existingCode;
+        deliveredCode = existingCode.otpCode;
+      }
+      const delivery = await this.emailOtpDelivery.deliverEmailOtpCode(
+        record,
+        deliveredCode,
+        input.requestOrigin,
+      );
       if (!delivery.ok) {
         if (action !== WALLET_EMAIL_OTP_ACTIONS.relocation)
           await this.emailOtpChallenges.delete(challengeId);

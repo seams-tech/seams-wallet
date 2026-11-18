@@ -267,7 +267,7 @@ export class CloudflareD1EmailOtpChallengeStore {
               AND env_id = ?4
               AND challenge_id = ?5
               AND ${sameChallengeRecordSql('?6')}
-              AND otp_code = ?7
+              AND otp_code_sealed = ?7
               AND expires_at_ms > ?8`,
         )
         .bind(
@@ -277,7 +277,7 @@ export class CloudflareD1EmailOtpChallengeStore {
           this.envId,
           challenge.challengeId,
           JSON.stringify(challenge),
-          challenge.otpCode,
+          challenge.otpCodeSealedB64u,
           nowMs,
         ),
       this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
@@ -381,7 +381,7 @@ export class CloudflareD1EmailOtpChallengeStore {
             AND env_id = ?13
             AND challenge_id = ?14
             AND ${sameChallengeRecordSql('?15')}
-            AND otp_code = ?16
+            AND otp_code_sealed = ?16
             AND expires_at_ms > ?17`,
       )
       .bind(
@@ -400,7 +400,7 @@ export class CloudflareD1EmailOtpChallengeStore {
         this.envId,
         input.challenge.challengeId,
         challengeJson,
-        input.challenge.otpCode,
+        input.challenge.otpCodeSealedB64u,
         input.receipt.verifiedAtMs,
       );
     const deleteChallenge = this.database
@@ -412,7 +412,7 @@ export class CloudflareD1EmailOtpChallengeStore {
             AND env_id = ?4
             AND challenge_id = ?5
             AND ${sameChallengeRecordSql('?6')}
-            AND otp_code = ?7
+            AND otp_code_sealed = ?7
             AND expires_at_ms > ?8`,
       )
       .bind(
@@ -422,7 +422,7 @@ export class CloudflareD1EmailOtpChallengeStore {
         this.envId,
         input.challenge.challengeId,
         challengeJson,
-        input.challenge.otpCode,
+        input.challenge.otpCodeSealedB64u,
         input.receipt.verifiedAtMs,
       );
     const statements = [

@@ -5,6 +5,7 @@ import {
   verifyActivatedWalletOtp,
   verifyCleanedWalletOtp,
 } from './regional-wallet-otp.scenario.mjs';
+import { emailOtpTestCodeSeal } from './emailOtpTestCodeSeal.mjs';
 import { verifyPlacementClient, verifyRetiredMoveClient, verifyMoveSubmissionClient } from './wallet-placement-client.scenario.mjs';
 import {
   seedExecutionGeneration,
@@ -136,6 +137,7 @@ const bundle = await build({
       export { CloudflareD1EmailOtpDeliveryRuntime } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpDeliveryRuntime';
       export { CloudflareD1EmailOtpChallengeIssuer } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer';
       export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
+      export { createEmailOtpCodeSeal } from './packages/wallet-server/src/core/authService/emailOtpCodeSeal';
       export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
       export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
       export { CloudflareD1EmailOtpGrantStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpGrantStore';
@@ -717,17 +719,19 @@ async function migrate(database, verifyUpgrade = false) {
   const migrations = [];
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
     if (verifyUpgrade && name > '0071_regional_wallet_otp_counters.sql') break;
+    // Migration 0051 keeps the open challenges. Later code writes another record format,
+    // so this row uses the format of that time.
     const preservedChallenge = name === '0051_wallet_relocation_email_otp.sql'
-      ? api.emailOtpChallengeRecord({
-          challengeId: 'otp:migration', challengeSubjectId: 'google:migration',
-          walletId: 'wallet:migration', orgId: scope.orgId, email: 'migration@example.test',
-          otpCode: '135790', ownerProofBindingDigest: 'migration-binding',
-          action: 'wallet_email_otp_login', operation: 'wallet_unlock',
-          createdAtMs: 100, expiresAtMs: 200, maxAttempts: 5,
+      ? JSON.stringify({
+          version: 'email_otp_challenge_v1', challengeId: 'otp:migration',
+          challengeSubjectId: 'google:migration', walletId: 'wallet:migration', orgId: scope.orgId,
+          otpChannel: 'email_otp', email: 'migration@example.test', otpCode: '135790',
+          ownerProofBindingDigest: 'migration-binding', action: 'wallet_email_otp_login',
+          operation: 'wallet_unlock', createdAtMs: 100, expiresAtMs: 200, attemptCount: 0,
+          maxAttempts: 5,
         })
       : null;
-    const challengeStore = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
-    if (preservedChallenge) await challengeStore.put(preservedChallenge);
+    if (preservedChallenge) await putVersionOneChallenge(database, preservedChallenge);
     const original = await readFile(`${directory}/${name}`, 'utf8');
     if (verifyUpgrade && (name.startsWith('0070_') || name.startsWith('0071_'))) {
       await verifyRetainedImportUpgrade(database, original, name);
@@ -741,10 +745,37 @@ async function migrate(database, verifyUpgrade = false) {
       statements.push(database.prepare(query));
     }
     await database.batch(statements);
-    if (preservedChallenge) assert.deepEqual(await challengeStore.read(preservedChallenge.challengeId), preservedChallenge);
+    if (preservedChallenge) assert.equal(await readChallengeJson(database, 'otp:migration'), preservedChallenge);
     migrations.push({ name, sha256: digest(original), ...(preservedChallenge ? { existingOtpChallengePreserved: true } : {}) });
   }
   return migrations;
+}
+
+async function putVersionOneChallenge(database, recordJson) {
+  const record = JSON.parse(recordJson);
+  await database
+    .prepare(
+      `INSERT INTO email_otp_challenges (
+        namespace, org_id, project_id, env_id, challenge_id, challenge_subject_id, wallet_id,
+        record_org_id, otp_channel, owner_proof_binding_digest, action, operation, otp_code,
+        record_json, created_at_ms, expires_at_ms
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)`,
+    )
+    .bind(
+      scope.namespace, scope.orgId, scope.projectId, scope.envId, record.challengeId,
+      record.challengeSubjectId, record.walletId, record.orgId, record.otpChannel,
+      record.ownerProofBindingDigest, record.action, record.operation, record.otpCode,
+      recordJson, record.createdAtMs, record.expiresAtMs,
+    )
+    .run();
+}
+
+async function readChallengeJson(database, challengeId) {
+  const row = await database
+    .prepare('SELECT record_json FROM email_otp_challenges WHERE challenge_id = ?1')
+    .bind(challengeId)
+    .first();
+  return row?.record_json ?? null;
 }
 
 async function verifyRetainedImportUpgrade(database, sql, walletId) {
@@ -1022,6 +1053,7 @@ function relocationEmailOtpServices(database) {
     emailOtpEnrollments,
     emailOtpRateLimits,
     lockoutTtlMs: 60_000,
+    codeSeal: emailOtpTestCodeSeal(api),
   });
   const deliveryProvider = new RecordingOtpDelivery();
   const issuer = new api.CloudflareD1EmailOtpChallengeIssuer({
@@ -1034,6 +1066,7 @@ function relocationEmailOtpServices(database) {
     emailOtpChallenges,
     emailOtpEnrollments,
     emailOtpRateLimits,
+    codeSeal: emailOtpTestCodeSeal(api),
     emailOtpDelivery: new api.CloudflareD1EmailOtpDeliveryRuntime({
       production: true,
       deliveryMode: 'email_provider',
@@ -1836,10 +1869,17 @@ async function verifyRelocationEmailOtp(database) {
   assert.equal(otpInput.ownerProofBindingDigest, ownerProofBindingDigest);
   assert.equal(otpInput.expiresAtMs, challenge.expiresAtMs);
   nowMs = Date.now();
+  // The server keeps each code sealed, so the code comes from the delivery.
+  const otpCode = deliveryProvider.attempts[0].otpCode;
+  const signingSeal = await emailOtpTestCodeSeal(api).sealEmailOtpCode({
+    challengeId: 'otp:signing',
+    otpCode,
+  });
   await emailOtpChallenges.put(
     api.emailOtpChallengeRecord({
       ...otpInput,
       challengeId: 'otp:signing',
+      otpCodeSealedB64u: signingSeal.otpCodeSealedB64u,
       action: 'wallet_email_otp_login',
       operation: 'transaction_sign',
     }),
@@ -1849,7 +1889,7 @@ async function verifyRelocationEmailOtp(database) {
     owner,
     binding,
     challengeId: otpInput.challengeId,
-    otpCode: otpInput.otpCode,
+    otpCode,
     nowMs: nowMs + 1,
     verifier,
     emailOtpChallenges,
@@ -1905,7 +1945,7 @@ async function verifyRelocationEmailOtp(database) {
         sourceProof: {
           kind: 'email_otp',
           challengeId: otpInput.challengeId,
-          otpCode: otpInput.otpCode,
+          otpCode,
         },
       }),
     }),
@@ -1946,7 +1986,7 @@ async function verifyRelocationEmailOtp(database) {
     routeOptions: {
       database,
       scope,
-      emailOtp: { verifier, emailOtpChallenges, issuer },
+      emailOtp: { verifier, emailOtpChallenges, issuer, codeSeal: emailOtpTestCodeSeal(api) },
       tenantId: issued.session.tenantId,
       allowedOrigins: [binding.origin],
       authorizationSessions,

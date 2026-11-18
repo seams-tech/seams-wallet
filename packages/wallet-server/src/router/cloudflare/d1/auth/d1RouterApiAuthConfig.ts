@@ -26,6 +26,10 @@ import type {
 } from '../../../../core/EmailOtpStores';
 import type { SignerWasmModuleSupplier } from '../../../../core/types';
 import { EMAIL_OTP_CODE_LENGTH } from '../../../../core/authService/emailOtpConfig';
+import {
+  createEmailOtpCodeSeal,
+  type EmailOtpCodeSeal,
+} from '../../../../core/authService/emailOtpCodeSeal';
 import type { RouterAbEcdsaPresignRuntime } from '../../../../core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 import type { RouterAbEd25519YaoProductRegistrationRuntimeV1 } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import type { RouterAbEcdsaStrictRegistrationPort } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
@@ -263,6 +267,7 @@ export type EmailOtpServerSealRuntimeConfig =
   | {
       readonly configured: true;
       readonly rootConfig: SigningSessionSealShamir3PassRootConfig;
+      readonly codeSeal: EmailOtpCodeSeal;
     }
   | {
       readonly configured: false;
@@ -708,6 +713,7 @@ function normalizeEmailOtpServerSealConfig(
         currentKeyVersion,
         acceptedWarmKeyVersions: raw.acceptedWarmKeyVersions,
       }),
+      codeSeal: createEmailOtpCodeSeal(rootSecretB64u),
     };
   } catch (error: unknown) {
     return {

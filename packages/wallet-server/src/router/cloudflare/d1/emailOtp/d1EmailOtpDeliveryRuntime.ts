@@ -15,6 +15,7 @@ type EmailOtpProviderDispatchResult =
 
 function logDevelopmentEmailOtpCode(
   record: EmailOtpChallengeRecord,
+  otpCode: string,
   deliveryMode: EmailOtpDeliveryMode,
   deliveryStatus: 'sent' | 'reused',
 ): void {
@@ -28,7 +29,7 @@ function logDevelopmentEmailOtpCode(
     deliveryMode,
     deliveryStatus,
     emailHint: maskEmail(record.email),
-    devOtpCode: record.otpCode,
+    devOtpCode: otpCode,
     expiresAtMs: record.expiresAtMs,
   });
 }
@@ -38,13 +39,15 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
 
   resolveReusedEmailOtpDelivery(
     record: EmailOtpChallengeRecord,
+    otpCode: string,
     requestOrigin: unknown,
   ): EmailOtpDeliveryRuntimeResult {
-    return this.resolveDelivery(record, requestOrigin, 'reused');
+    return this.resolveDelivery(record, otpCode, requestOrigin, 'reused');
   }
 
   async deliverEmailOtpCode(
     record: EmailOtpChallengeRecord,
+    otpCode: string,
     requestOrigin: unknown,
   ): Promise<EmailOtpDeliveryRuntimeResult> {
     if (
@@ -61,14 +64,14 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
     const emailHint = maskEmail(record.email);
     switch (this.config.deliveryMode) {
       case 'provider_and_demo_code': {
-        const demoDelivery = this.resolveDemoCodeDelivery(record, requestOrigin, 'sent', emailHint);
+        const demoDelivery = this.resolveDemoCodeDelivery(otpCode, requestOrigin, 'sent', emailHint);
         if (!demoDelivery.ok) return demoDelivery;
-        const providerDelivery = await this.dispatchProviderEmail(record, emailHint);
+        const providerDelivery = await this.dispatchProviderEmail(record, otpCode, emailHint);
         if (!providerDelivery.ok) return providerDelivery;
         return demoDelivery;
       }
       case 'email_provider': {
-        const providerDelivery = await this.dispatchProviderEmail(record, emailHint);
+        const providerDelivery = await this.dispatchProviderEmail(record, otpCode, emailHint);
         if (!providerDelivery.ok) return providerDelivery;
         return {
           ok: true,
@@ -78,12 +81,13 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
       case 'log':
       case 'dev_d1_outbox':
       case 'demo_code_response':
-        return this.resolveDelivery(record, requestOrigin, 'sent');
+        return this.resolveDelivery(record, otpCode, requestOrigin, 'sent');
     }
   }
 
   private async dispatchProviderEmail(
     record: EmailOtpChallengeRecord,
+    otpCode: string,
     emailHint: string,
   ): Promise<EmailOtpProviderDispatchResult> {
     const provider = this.config.deliveryProvider;
@@ -100,7 +104,7 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
       ...(record.orgId ? { orgId: record.orgId } : {}),
       email: record.email,
       emailHint,
-      otpCode: record.otpCode,
+      otpCode,
       otpChannel: EMAIL_OTP_CHANNEL,
       action: record.action,
       operation: record.operation,
@@ -117,6 +121,7 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
 
   private resolveDelivery(
     record: EmailOtpChallengeRecord,
+    otpCode: string,
     requestOrigin: unknown,
     status: 'sent' | 'reused',
   ): EmailOtpDeliveryRuntimeResult {
@@ -140,10 +145,10 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
             'Email OTP email_provider delivery is not configured',
           );
         }
-        return this.resolveDemoCodeDelivery(record, requestOrigin, status, emailHint);
+        return this.resolveDemoCodeDelivery(otpCode, requestOrigin, status, emailHint);
       case 'log':
       case 'dev_d1_outbox':
-        logDevelopmentEmailOtpCode(record, this.config.deliveryMode, status);
+        logDevelopmentEmailOtpCode(record, otpCode, this.config.deliveryMode, status);
         return {
           ok: true,
           delivery: {
@@ -154,13 +159,13 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
           },
         };
       case 'demo_code_response': {
-        return this.resolveDemoCodeDelivery(record, requestOrigin, status, emailHint);
+        return this.resolveDemoCodeDelivery(otpCode, requestOrigin, status, emailHint);
       }
     }
   }
 
   private resolveDemoCodeDelivery(
-    record: EmailOtpChallengeRecord,
+    otpCode: string,
     requestOrigin: unknown,
     status: 'sent' | 'reused',
     emailHint: string,
@@ -180,7 +185,7 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
           status,
           mode: 'provider_and_demo_code',
           emailHint,
-          otpCode: record.otpCode,
+          otpCode,
         },
       };
     }
@@ -191,7 +196,7 @@ export class CloudflareD1EmailOtpDeliveryRuntime {
         status,
         mode: 'demo_code_response',
         emailHint,
-        otpCode: record.otpCode,
+        otpCode,
       },
     };
   }
