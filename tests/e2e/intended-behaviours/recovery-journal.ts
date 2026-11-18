@@ -44,7 +44,7 @@ export async function readPendingWalletRecoveryCommitIdentity(
     securityOrigin,
     databaseName,
     objectStoreName: SEAMS_WALLET_STORES.appState,
-    indexName: '',
+    // Chromium 156 refuses an empty index name, so the store is read with none.
     skipCount: 0,
     pageSize: 1,
     keyRange: { lower: key, upper: key, lowerOpen: false, upperOpen: false },
