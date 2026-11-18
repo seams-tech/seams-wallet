@@ -1,38 +1,86 @@
-# Refactor 250: Seams Checkout with Stripe and KOMOJU
+# Refactor 250: Seams Checkout, with the Stablecoin Wallet as a plugin
 
 Status: 2026-11-18. Plan only. Nothing is built.
 
-The owner's request (2026-11-17 and 2026-11-18): turn the Wallet into a checkout library for
-online shops. It must accept credit cards and Japanese payment methods. It must use Stripe and
-KOMOJU in one checkout page: Stripe for its customizable card form, KOMOJU for its extra
-Japanese methods and lower fees. A developer chooses how the page looks, and chooses Stripe,
-KOMOJU or both.
+The owner's requests (2026-11-17 and 2026-11-18):
+
+- Make a checkout library for online shops. It accepts credit cards and Japanese payment
+  methods.
+- Use Stripe and KOMOJU in one checkout page: Stripe for its customizable card form, KOMOJU
+  for its extra Japanese methods and lower fees. A developer chooses how the page looks, and
+  chooses Stripe, KOMOJU or both.
+- Keep the wallet and the checkout as separate modules.
+- Rename the wallet to `stablecoin-wallet`, so that its purpose is clear without the word
+  "crypto".
+- The checkout imports the stablecoin wallet as an optional plugin, so that customers can pay
+  with stablecoins. USDC and JPYC are the main ones.
 
 ## Result
 
-- **One checkout page, two providers behind it.** Seams draws the list of payment methods.
-  The server sends each method to one provider. A developer can send cards to Stripe and
-  PayPay to KOMOJU in the same order.
+- **Two products, one dependency direction.** `@seams/checkout` is a new package.
+  `@seams/wallet` becomes `@seams/stablecoin-wallet`. Only the checkout's `./stablecoin` entry
+  imports the wallet. The wallet never imports the checkout.
+- **One checkout page, two providers behind it.** Seams draws the list of payment methods. A
+  routing table on the server sends each method to Stripe or KOMOJU. One order can send a card
+  to Stripe and PayPay to KOMOJU.
+- **Stablecoins through the plugin.** With the plugin, the checkout shows JPYC for a JPY order
+  and USDC for a USD order. The customer confirms in the Stablecoin Wallet with a passkey. The
+  checkout server checks the transfer onchain. Seams holds no funds.
 - **Seams draws almost everything.** Only three parts stay with the provider or the issuer:
   the card number fields, the 3-D Secure challenge and the approval screen of a QR wallet
-  (PayPay and similar). Konbini vouchers, bank transfer details, receipts and errors are
-  Seams screens.
-- **The provider code runs in its own origin.** A new checkout origin holds the Stripe and
-  KOMOJU scripts. The Wallet origin never loads them, and the checkout origin holds no
-  wallet secret.
-- **A developer chooses the presentation.** Three modes: a Seams modal, a Seams form inside
-  the developer's page, or headless (the developer draws the list and the vouchers, and
-  mounts only the card frame).
-- **One order state machine for every method.** Card, konbini, bank transfer, QR wallets,
-  JPYC and USDC end in the same states. Provider webhooks and onchain receipts decide the
-  final state, not the browser.
-- **Seams is never the acquirer and never holds the money.** Each merchant uses its own
-  Stripe and KOMOJU accounts. Card numbers go only to the provider.
+  (PayPay and similar).
+- **Separated by the secrets they hold.** The checkout has its own origin, its own Worker and
+  its own database. It holds the merchants' provider keys and no wallet secret. The wallet
+  holds custody material and no provider key.
+- **A developer chooses the presentation.** Three modes: a Seams modal, a Seams form inside the
+  developer's page, or headless (the developer draws the list and the vouchers, and mounts only
+  the card frame).
+- **One order state machine for every method.** Card, konbini, bank transfer, QR wallets and
+  stablecoins end in the same states. Provider webhooks and onchain receipts decide the final
+  state, not the browser.
+- **Seams is never the acquirer and never holds the money.** Each merchant uses its own Stripe
+  and KOMOJU accounts. Card numbers go only to the provider.
+
+## Decisions
+
+Decided by the owner on 2026-11-18:
+
+- **D4. Separate modules.** The checkout is the new package `@seams/checkout`. The Stablecoin
+  Wallet is its optional plugin.
+- **D7. The rename.** `@seams/wallet` becomes `@seams/stablecoin-wallet`.
+
+Open, with a recommendation:
+
+- **D1. Account model.** Recommended: each merchant connects its own Stripe and KOMOJU
+  accounts. A Stripe Connect platform with Seams fees comes later, after legal advice
+  (Section 10).
+- **D2. Routing on the server.** Recommended: the routing table lives on the server. The
+  browser can choose the order and a subset of the enabled methods, never the provider.
+- **D3. A separate checkout origin.** Recommended: yes. It keeps third-party scripts out of the
+  Wallet origin (Fact F4) and makes the payment page a Seams document with a short script list
+  (Fact F12).
+- **D5. Stripe card form.** Recommended: the Payment Element in card-only mode, styled with the
+  Appearance API. Stripe marks the split card fields as legacy (Fact F10).
+- **D6. The checkout server.** Recommended: `@seams/checkout/server`, deployed as its own
+  Worker with its own D1 database. It is public, so that a self-hosted operator can run
+  checkout with its own keys. The Console screens for the hosted service live in
+  `seams-monorepo`.
+- **D7a. The other package names.** Recommended: rename `@seams/wallet-server` to
+  `@seams/stablecoin-wallet-server` and `@seams/wallet-cli` to `@seams/stablecoin-wallet-cli`
+  in the same release, so that the family has one name. The CLI command name stays.
+- **D7b. Product terms.** Recommended: public pages say "Seams Stablecoin Wallet". The defined
+  terms Wallet Session, Wallet origin and Wallet iframe stay. The API names (`SeamsWeb`,
+  `seams.near`, `seams.evm`) stay. The package still signs NEAR transactions and messages, and
+  the name describes its main use.
+- **D7c. Repository name.** Recommended: the GitHub repository stays `seams-wallet` for now.
+- **D8. Stablecoin currency.** Recommended: the token matches the order currency. A JPY order
+  takes JPYC, and a USD order takes USDC. There is no conversion, so Seams quotes no exchange
+  rate.
 
 ## How one page uses two providers
 
-The checkout page shows the methods that the merchant's routing table enables. When the
-customer selects a method, the page mounts that method's part:
+The checkout page shows the methods that the merchant's routing table enables, and the methods
+of its plugins. When the customer selects a method, the page mounts that method's part:
 
 | Method | Provider (example routing) | What the page mounts | Who draws the next step |
 | --- | --- | --- | --- |
@@ -43,10 +91,10 @@ customer selects a method, the page mounts that method's part:
 | PayPay, Rakuten Pay, Merpay, au PAY, d払い | KOMOJU | Nothing | The wallet app, then Seams status |
 | Paidy, Pay-easy | KOMOJU | Nothing | Paidy or the bank, then Seams status |
 | Apple Pay, Google Pay | Stripe | Stripe Express Checkout Element | The device sheet |
-| JPYC, USDC | None | Nothing | Wallet confirmer and passkey |
+| JPYC, USDC | Stablecoin plugin | Nothing | Stablecoin Wallet confirmer and passkey |
 
 KOMOJU's weak styling matters only for cards. Its extra methods are a button, a redirect or a
-voucher, and Seams draws those. So the strong mix is: cards on Stripe, the other Japanese
+voucher, and Seams draws those. So the strong mix is cards on Stripe and the other Japanese
 methods on KOMOJU. The cost of this mix is the card fee: 3.6% on Stripe against 3.25% on
 KOMOJU (Fact F9). A merchant that wants the lowest fees routes cards to KOMOJU too.
 
@@ -55,60 +103,46 @@ Limits of the mix:
 - **A card belongs to one provider.** The provider that collects the card number is the
   provider that charges it. A declined card cannot move to the other provider without new
   entry. A saved card can be charged only through the provider that saved it.
-- **Two accounts, two reviews, two payouts.** The merchant passes KYC at both providers,
-  gets two payout streams and makes refunds through the provider that took the payment.
+- **Two accounts, two reviews, two payouts.** The merchant passes KYC at both providers, gets
+  two payout streams and makes refunds through the provider that took the payment.
 - **One provider per method per merchant.** The routing table has one entry for each method.
-  This keeps reconciliation simple and avoids a second contract for the same method.
-
-## Decisions for the owner
-
-- **D1. Account model.** Recommended: each merchant connects its own Stripe and KOMOJU
-  accounts. A Stripe Connect platform with application fees comes later, after legal advice
-  (Section 9).
-- **D2. Routing on the server.** Recommended: the merchant's routing table lives on the
-  server. The browser can choose the order and a subset of the enabled methods, never the
-  provider. The provider decides which account takes the money.
-- **D3. A separate checkout origin.** Recommended: yes. It keeps third-party scripts out of
-  the Wallet origin (Fact F4) and makes the payment page a Seams document with a strict
-  script list (Fact F12).
-- **D4. Package.** Recommended: checkout is part of `@seams/wallet` (`seams.checkout`) and
-  `@seams/wallet-server`, with no new package. Refactor 232 removed a package for the same
-  reason.
-- **D5. Stripe card form.** Recommended: the Payment Element in card-only mode, styled with
-  the Appearance API. Stripe marks the split card fields as legacy (Fact F10).
-- **D6. Open adapters.** Recommended: the provider adapters live in the public
-  `@seams/wallet-server`, so a self-hosted operator can run checkout with its own keys. The
-  Console screens for the hosted service live in `seams-monorepo`. This differs from Spec 8,
-  which keeps its agent-payment adapters private.
 
 ## Facts this plan builds on
 
-Repository facts, checked on 2026-11-18:
+Repository facts, checked on 2026-11-18. Paths are the paths before the rename (Slice 1).
 
 - **F1.** The app-side overlay has a review slot on the app's document
-  (`getTransactionReviewSlot`,
-  `packages/wallet/src/SeamsWeb/walletIframe/client/overlay/overlay-controller.ts`). The React
-  `TransactionReviewHost` renders an app card there and hands off to the Wallet iframe in the
-  same modal. The homepage showcase checkout uses this.
+  (`getTransactionReviewSlot` in
+  `packages/wallet/src/SeamsWeb/walletIframe/client/overlay/overlay-controller.ts`, 1,125
+  lines). The React `TransactionReviewHost` renders an app card there and hands off to the
+  Wallet iframe in the same modal. The homepage showcase checkout uses this.
 - **F2.** The Wallet iframe `allow` attribute lists passkeys, clipboard and microphone. It does
   not list `payment`
   ([iframe-transport-dom.ts](../packages/wallet/src/SeamsWeb/walletIframe/client/transport/iframe-transport-dom.ts)).
 - **F3.** The Wallet document sends no `Cross-Origin-Embedder-Policy`
   (`packages/wallet/scripts/build/emit-static-wallet-assets.mjs`). A cross-origin frame can
-  load inside the overlay.
+  load beside it.
 - **F4.** Refactor 232 decision D1: code in the Wallet origin comes only from the Wallet
   operator. The Wallet origin runs the Yao client WASM on its main thread
   ([Browser workers](browser-workers.md)).
 - **F5.** Spec 8 already defines integer minor units, explicit currencies, one execution per
   proposal, persisted operation identity and reconciliation by provider events
   ([Spec 8](spec-8-agent-authority-spending-and-payment-rails.md)).
-- **F6.** The server has one folder per domain in
-  `packages/wallet-server/src/router/domains/` and D1 migrations in
-  `packages/wallet-server/migrations/`.
-- **F7.** The Wallet lists JPYC on Ethereum (0.73.0) and sends ERC-20 transfers through the
-  EVM capability.
+- **F6.** The Gateway is one Worker that builds every wallet domain
+  (`packages/wallet-server/src/hosted-wallet-gateway.ts`), with one folder per domain in
+  `packages/wallet-server/src/router/domains/`.
+- **F7.** The wallet's asset list has USDC on NEAR and Ethereum, and JPYC on Ethereum. Base is
+  reviewed but is not a configurable network (`packages/wallet/src/core/assets/assetList.ts`).
 - **F8.** `examples/wallet-console-lite/src/PurchaseReviewExample.tsx` already shows an app
   purchase card before the Wallet confirmer.
+- **F17.** `@seams/wallet` is named in 172 files (442 times) in this repository and in 102
+  files in `seams-monorepo`. `@seams/wallet-server` is named in 44 files here and in 278 files
+  there. The largest groups here are `apps/docs` (63), `packages/voiceid` (21) and
+  `tests/intended-app` (20).
+- **F18.** `@seams/voiceid` lists `@seams/wallet` as a peer dependency. This is the pattern for
+  an optional link between packages.
+- **F19.** `@seams-internal/shared-ts` is private. Each published package bundles the parts it
+  uses.
 
 Provider facts, from the providers' pages on 2026-11-17 and 2026-11-18. **F9** is the list
 prices in Japan:
@@ -133,9 +167,8 @@ Neither page says whether the rates include consumption tax.
   split card fields as legacy, with maintenance only.
 - **F11.** The Stripe Appearance API sets themes, about 80 variables and rules on public
   classes (`.Input`, `.Label`, `.Error`, `.Tab` and others) with a list of allowed CSS
-  properties. It cannot change the DOM. KOMOJU Hosted Fields load a theme CSS file from a
-  URL. KOMOJU supports only color changes officially. Layout changes are at the developer's
-  risk.
+  properties. It cannot change the DOM. KOMOJU Hosted Fields load a theme CSS file from a URL.
+  KOMOJU supports only color changes officially. Layout changes are at the developer's risk.
 - **F12.** PCI DSS 4.0.1 SAQ A asks the merchant to confirm that scripts cannot attack its
   payment page. The merchant can rely on written confirmation from its vendor.
 - **F13.** Japanese rules: online merchants must not let card numbers pass through their
@@ -152,56 +185,91 @@ Neither page says whether the rates include consumption tax.
 
 ## Unknowns to check first (Slice 0)
 
-- **U1.** Does KOMOJU return konbini and bank transfer details as data (payment number,
-  stores, deadline), or only an instructions URL? If only a URL, the Seams voucher shows the
-  amount and deadline and links to KOMOJU's page.
+- **U1.** Does KOMOJU return konbini and bank transfer details as data (payment number, stores,
+  deadline), or only an instructions URL? If only a URL, the Seams voucher shows the amount and
+  deadline and links to KOMOJU's page.
 - **U2.** Can a KOMOJU session be paid from the server for redirect methods (PayPay, Rakuten
   Pay, Merpay), so that Seams needs no KOMOJU UI for them?
 - **U3.** What events does `<komoju-fields>` send (change, error, complete)? Without them the
   Seams pay button cannot show field errors before submit.
 - **U4.** How does KOMOJU sign webhooks, and does its API accept an idempotency key?
 - **U5.** Does KOMOJU support Apple Pay inside a cross-origin frame?
-- **U6.** Which consumption tax applies to each fee, and what are the JCB and foreign card
-  rates on Stripe?
-- **U7.** Read KOMOJU's own notice about the October 2026 incident before the owner signs
-  with KOMOJU.
+- **U6.** Which consumption tax applies to each fee, and what are the JCB and foreign card rates
+  on Stripe?
+- **U7.** Read KOMOJU's own notice about the October 2026 incident before the owner signs with
+  KOMOJU.
+- **U8.** Can the release workflow publish a new npm package name with trusted publishing, or
+  does each new name need one first publish with a token?
 
-## 1. Parts and where they run
+## 1. Modules and where they run
+
+| Module | Package | Runs in | Holds |
+| --- | --- | --- | --- |
+| Stablecoin Wallet, browser | `@seams/stablecoin-wallet` | App page (SDK) and Wallet origin (iframe, workers) | Custody material, Wallet Sessions |
+| Stablecoin Wallet, server | `@seams/stablecoin-wallet-server` | Gateway Worker and router roles | Server signing roles, wallet records |
+| VoiceID | `@seams/voiceid` (name unchanged) | Wallet origin | Voice template, device keys |
+| Checkout, browser | `@seams/checkout` (`.`, `./react`) | App page (SDK) and checkout origin (frame) | No secret. Provider client secrets for one payment |
+| Checkout, server | `@seams/checkout/server` | Checkout Worker, own D1 database | Merchant provider keys (encrypted), orders |
+| Stablecoin plugin | `@seams/checkout/stablecoin` | App page | Nothing. It calls the wallet's public API |
+| Shared code | `@seams-internal/shared-ts` | Bundled into each package | Nothing |
 
 ```mermaid
 flowchart LR
-    MS["Merchant server"] -->|"create order (secret key)"| GW["Gateway: checkout domain"]
-    App["Merchant page + Seams SDK"] -->|"open checkout"| CF["Checkout frame (checkout origin)"]
-    App --> WI["Wallet iframe (Wallet origin)"]
-    CF -->|"card fields, redirects"| PSP["Stripe / KOMOJU"]
-    CF -->|"order status"| GW
-    WI -->|"JPYC / USDC transfer"| Chain["Ethereum"]
-    GW -->|"payments, refunds"| PSP
-    PSP -->|"signed webhooks"| GW
-    GW -->|"signed order events"| MS
+    subgraph checkout ["@seams/checkout"]
+        Base["browser SDK and frame"]
+        Server["./server"]
+        Plugin["./stablecoin"]
+    end
+    subgraph wallet ["@seams/stablecoin-wallet"]
+        WalletSDK["browser SDK and iframe"]
+    end
+    Shared["@seams-internal/shared-ts"]
+    Plugin -->|"public API, optional peer"| WalletSDK
+    Plugin --> Base
+    Base --> Shared
+    WalletSDK --> Shared
 ```
 
-- **Merchant server.** Creates the order with the cart lines, the amount and the currency.
-  The browser never sets the amount. It receives the final result from a signed Seams
-  webhook.
-- **Gateway, checkout domain.** A new folder `router/domains/checkout/`. It stores orders and
-  payments, calls the providers with the merchant's secret keys, checks provider webhooks and
-  sends order events to the merchant.
-- **Checkout frame.** A new Seams document on a new origin (`checkoutOrigin` in the public
-  configuration). It draws the method list, loads Stripe.js or KOMOJU Fields only when a
-  method needs them, and draws vouchers, waits and errors. It holds no wallet secret and
-  opens no wallet worker.
-- **Wallet iframe.** Unchanged in role. It runs the passkey approval and the JPYC or USDC
-  transfer. The overlay moves from the checkout frame to the Wallet confirmer in the same
-  modal, as the review slot does today (Fact F1).
+Rules of the dependency direction:
 
-The checkout frame is a sibling of the Wallet iframe inside the overlay. It is not nested in
-the Wallet iframe. So the Wallet iframe does not need `payment` (Fact F2). The checkout frame
-gets `allow="payment"` for Apple Pay and Google Pay.
+- Only `@seams/checkout/stablecoin` imports `@seams/stablecoin-wallet`. The package lists it as
+  an optional peer dependency, as `@seams/voiceid` does today (Fact F18).
+- The base entries of `@seams/checkout` import nothing from the wallet. A shop without the
+  wallet ships no wallet code.
+- `@seams/stablecoin-wallet` imports nothing from the checkout.
+- The plugin uses only the wallet's public API. So the peer dependency range is the only
+  version contract. There is no second host API version.
+
+Runtime parts:
+
+```mermaid
+flowchart LR
+    MS["Merchant server"] -->|"create order (secret key)"| CW["Checkout Worker"]
+    App["Merchant page: checkout SDK (+ plugin, wallet SDK)"] -->|"open"| CF["Checkout frame (checkout origin)"]
+    App -->|"plugin only"| WI["Wallet iframe (Wallet origin)"]
+    CF -->|"card fields, redirects"| PSP["Stripe / KOMOJU"]
+    CF -->|"order status"| CW
+    WI -->|"JPYC / USDC transfer"| Chain["Ethereum, NEAR"]
+    CW -->|"payments, refunds"| PSP
+    PSP -->|"signed webhooks"| CW
+    CW -->|"read receipts"| Chain
+    CW -->|"signed order events"| MS
+```
+
+- **Merchant server.** Creates the order with the cart lines, the amount and the currency. The
+  browser never sets the amount. It receives the final result from a signed Seams webhook.
+- **Checkout Worker.** Stores orders and payments, calls the providers with the merchant's
+  secret keys, checks provider webhooks, reads onchain receipts and sends order events to the
+  merchant. It has no service binding to the wallet's router roles.
+- **Checkout frame.** A Seams document on the checkout origin (`checkoutOrigin` in the public
+  configuration). It draws the method list, loads Stripe.js or KOMOJU Fields only when a method
+  needs them, and draws vouchers, waits and errors.
+- **Wallet iframe.** Unchanged in role. With the plugin, it runs the passkey approval and the
+  token transfer.
 
 ## 2. The developer API
 
-Server (`@seams/wallet-server`, or the Gateway route with the project secret key):
+Server (`@seams/checkout/server`, or the checkout route with the project secret key):
 
 ```ts
 const order = await checkout.createOrder({
@@ -217,7 +285,7 @@ const order = await checkout.createOrder({
 // order.id and order.clientToken go to the browser.
 ```
 
-Routing and accounts are project configuration, not order fields:
+Routing, accounts and receiving addresses are project configuration, not order fields:
 
 ```ts
 checkoutConfig = {
@@ -229,21 +297,28 @@ checkoutConfig = {
     paypay: 'komoju',
     rakuten_pay: 'komoju',
     apple_pay: 'stripe',
-    jpyc: 'onchain',
+  },
+  stablecoins: {
+    JPYC: { chains: ['ethereum'], receiver: '0x…' },
+    USDC: { chains: ['ethereum', 'near'], receiver: { ethereum: '0x…', near: 'shop.near' } },
   },
 };
 ```
 
 A method with no route does not appear. A merchant with only Stripe sets only Stripe routes.
+The stablecoin entries appear only when the app also installs the plugin.
 
-Browser (`@seams/wallet`):
+Browser, without stablecoins:
 
 ```ts
-const result = await seams.checkout.open({
+import { createCheckout } from '@seams/checkout';
+
+const checkout = createCheckout({ checkoutOrigin, publishableKey });
+const result = await checkout.open({
   clientToken: order.clientToken,
   presentation: 'modal',            // 'modal' | 'inline' | 'headless'
   layout: 'list',                   // 'list' | 'accordion' | 'tabs'
-  methods: ['card', 'paypay', 'konbini', 'jpyc'], // order and subset, optional
+  methods: ['card', 'paypay', 'konbini'], // order and subset, optional
   theme: { accent: '#2b7a52', radius: 12, buttonHeight: 48, fontFamily: 'Noto Sans JP' },
   locale: 'ja',
 });
@@ -251,19 +326,68 @@ const result = await seams.checkout.open({
 // 'pending' is a konbini or bank transfer voucher. The webhook decides the end.
 ```
 
-- **`modal`.** The Seams overlay opens with the checkout frame.
+Browser, with stablecoins:
+
+```ts
+import { createCheckout } from '@seams/checkout';
+import { stablecoinPayments } from '@seams/checkout/stablecoin';
+import { SeamsWeb } from '@seams/stablecoin-wallet';
+
+const wallet = new SeamsWeb(walletConfig);
+const checkout = createCheckout({
+  checkoutOrigin,
+  publishableKey,
+  plugins: [stablecoinPayments({ wallet, tokens: ['JPYC', 'USDC'] })],
+});
+```
+
+- **`modal`.** The checkout dialog opens with the checkout frame.
 - **`inline`.** The checkout frame mounts into an element of the developer's page
-  (`seams.checkout.mount(element, options)`).
+  (`checkout.mount(element, options)`).
 - **`headless`.** The developer reads `checkout.methods`, draws its own list, vouchers and
   status, and calls `checkout.select(method)` and `checkout.pay()`. For a card, it mounts the
   small Seams card frame (`checkout.mountCardFrame(element)`), which holds only the provider's
   card fields. The provider's script still never runs on the developer's page.
 
-One theme object maps to both providers: the checkout frame turns it into a Stripe
-`appearance` object and serves a generated KOMOJU theme CSS file from the checkout origin.
-React gets `<CheckoutHost>` beside `TransactionReviewHost`.
+One theme object maps to both providers: the checkout frame turns it into a Stripe `appearance`
+object and serves a generated KOMOJU theme CSS file from the checkout origin. React gets
+`<CheckoutHost>` from `@seams/checkout/react`.
 
-## 3. Order and payment states
+## 3. The stablecoin plugin
+
+The plugin implements the checkout's method plugin interface:
+
+```ts
+type CheckoutMethodPlugin = {
+  readonly id: string;
+  methods(order: CheckoutOrderView): readonly PluginMethod[];
+  pay(input: PluginPayInput): Promise<PluginPaymentHint>;
+  resume(order: CheckoutOrderView): Promise<PluginPaymentHint | null>;
+};
+```
+
+The interface is generic. The stablecoin plugin is its first and only user now.
+
+A stablecoin payment:
+
+1. The customer selects JPYC (JPY order) or USDC (USD order). A token that does not match the
+   order currency does not appear (D8).
+2. The plugin asks the wallet for the customer's address on the chosen chain. The checkout
+   Worker issues an onchain quote: chain, token contract, receiver, exact amount in token
+   units, payer address and expiry.
+3. The dialog moves from the checkout frame to the Wallet confirmer in the same modal
+   (Section 5). The customer confirms the transfer with a passkey.
+4. The plugin sends the transaction hash to the checkout Worker as a hint.
+5. The checkout Worker reads the receipt. It accepts the payment only if the token contract,
+   receiver, amount and payer match the quote, the block is after the quote, and the required
+   confirmations have passed.
+6. One transaction hash pays one order. A second use is refused.
+
+If the browser closes after the transfer, `resume` sends the hash again from the wallet's
+record of submitted transactions. A transfer that arrives after the quote expires puts the
+order in `late_onchain_payment`. The merchant then refunds or accepts it by hand.
+
+## 4. Order and payment states
 
 One order has one or more payment attempts. Only one attempt can be active.
 
@@ -273,10 +397,13 @@ stateDiagram-v2
     open --> awaiting_customer: method selected
     awaiting_customer --> requires_action: 3-D Secure or wallet app
     awaiting_customer --> pending_offline: konbini or bank voucher issued
+    awaiting_customer --> awaiting_chain: stablecoin transfer sent
     requires_action --> paid
     awaiting_customer --> paid
     pending_offline --> paid: provider webhook
     pending_offline --> expired: deadline passed
+    awaiting_chain --> paid: receipt confirmed
+    awaiting_chain --> late_onchain_payment: confirmed after expiry
     requires_action --> open: declined or cancelled
     awaiting_customer --> open: declined
     paid --> refunded: full refund
@@ -284,20 +411,37 @@ stateDiagram-v2
 ```
 
 - Amounts are integer minor units with an explicit currency (Fact F5). JPY has no minor unit.
-- Before a provider call, the Gateway stores the attempt's operation identity. A retry uses
-  the provider's idempotency key, or looks up the provider payment by the Seams reference
+  Token amounts are integer token units with the token's decimals.
+- Before a provider call, the checkout Worker stores the attempt's operation identity. A retry
+  uses the provider's idempotency key, or looks up the provider payment by the Seams reference
   (Unknown U4).
-- Only a verified provider webhook, or a confirmed onchain receipt for JPYC and USDC, moves an
-  attempt to `paid`. A browser result is a hint. A closed window proves nothing (Spec 7).
-- A konbini or bank order keeps its stock reservation until `expired`. The merchant chooses
-  the deadline within the provider's limits.
+- Only a verified provider webhook or a confirmed onchain receipt moves an attempt to `paid`. A
+  browser result is a hint. A closed window proves nothing (Spec 7).
+- A konbini or bank order keeps its stock reservation until `expired`. The merchant chooses the
+  deadline within the provider's limits.
 - Each state change sends one signed event to the merchant: `order.paid`, `order.pending`,
-  `order.expired`, `order.refunded`. Delivery retries until the merchant answers 2xx.
+  `order.expired`, `order.refunded`, `order.late_onchain_payment`. Delivery retries until the
+  merchant answers 2xx.
 
-## 4. Provider adapters
+## 5. Shared code: the stage dialog
 
-Both providers implement one interface in
-`packages/wallet-server/src/router/domains/checkout/providers/`:
+Today the wallet owns the overlay that moves from the app's review card to the Wallet iframe in
+one modal (Fact F1). The checkout needs the same dialog, and the plugin needs both in one
+modal. The repo rules allow one copy of that code.
+
+- Move the overlay, the frame transport and the message checks (expected origin, window,
+  request and surface instance) from the wallet into `@seams-internal/shared-ts` as a stage
+  dialog. A stage is one frame or one app element. The dialog moves between stages.
+- The wallet uses the stage dialog with no change in behaviour.
+- The wallet's public API gets one option to show its confirmer as a stage of a dialog that the
+  caller gives. The plugin passes the checkout's dialog. So the checkout frame moves to the
+  Wallet confirmer in the same modal.
+- The checkout frame gets `allow="payment"` for Apple Pay and Google Pay. The Wallet iframe does
+  not need it (Fact F2), because no provider runs in the Wallet origin.
+
+## 6. Provider adapters
+
+Both providers implement one interface in `@seams/checkout/server`:
 
 ```ts
 type CheckoutProvider = {
@@ -312,98 +456,128 @@ type CheckoutProvider = {
 
 `ProviderStart` is a union named with `Variant`: client data for a card form (Stripe client
 secret or KOMOJU session), a redirect URL, a voucher, or bank account details. The checkout
-frame switches on the variant, not on the provider. A third provider adds one file and no
-frame change.
+frame switches on the variant, not on the provider. A third provider adds one file and no frame
+change.
 
-- **Plain `fetch` clients.** The Gateway runs on Cloudflare Workers. Each adapter calls the
-  provider's REST API through one shared HTTP helper that sets the idempotency header,
+- **Plain `fetch` clients.** The checkout Worker runs on Cloudflare Workers. Each adapter calls
+  the provider's REST API through one shared HTTP helper that sets the idempotency header,
   timeouts and error mapping. No provider SDK enters the server bundle.
 - **Webhooks.** One route per provider (`/checkout/webhooks/stripe`,
   `/checkout/webhooks/komoju`). Each checks the signature with WebCrypto before it reads the
   body. Duplicate and late events converge, as in Spec 8.
-- **Secret keys.** The merchant's provider keys stay on the server, encrypted at rest. The
-  browser gets only a publishable key and a per-payment client secret or session ID.
+- **Secret keys.** The merchant's provider keys stay in the checkout Worker, encrypted at rest.
+  The browser gets only a publishable key and a per-payment client secret or session ID.
+- **Chain reads.** The checkout Worker reads receipts through the RPC endpoints of its own
+  configuration. It shares no endpoint secret with the wallet servers.
 
-## 5. The checkout frame
+## 7. The checkout frame
 
-- **Origin.** A new static document `checkout-service/index.html`, built with the Wallet
-  assets and served from `checkoutOrigin`. A local run serves it on its own port.
+- **Origin.** A static document `checkout-service/index.html` in the `@seams/checkout` build,
+  served from `checkoutOrigin`. A local run serves it on its own port.
 - **CSP.** `script-src` allows only the checkout origin, Stripe.js and KOMOJU Fields.
-  `frame-src` and `connect-src` allow only the providers' hosts. `frame-ancestors` lists the
-  project's allowed origins. No analytics and no other third-party script. This is the basis
-  of the written PCI statement for merchants (Fact F12).
-- **Lazy provider scripts.** Stripe.js loads only when a Stripe method is selected or Apple
-  Pay is enabled. KOMOJU Fields load only for a KOMOJU card. A redirect method loads no
-  provider script.
-- **Apple Pay and Google Pay.** The overlay sets `allow="payment"` on the checkout frame. The
-  Console registers the merchant's domains and the checkout origin with Stripe (Fact F15).
-- **Messages.** The checkout frame and the SDK use the same checks as the Wallet iframe:
-  expected origin, window, request and live surface instance (Spec 7). The checkout frame
-  talks to the Wallet iframe only through the SDK on the app page.
+  `frame-src` and `connect-src` allow only the providers' hosts and the checkout Worker.
+  `frame-ancestors` lists the project's allowed origins. No analytics and no other third-party
+  script. This is the basis of the written PCI statement for merchants (Fact F12).
+- **Lazy provider scripts.** Stripe.js loads only when a Stripe method is selected or Apple Pay
+  is enabled. KOMOJU Fields load only for a KOMOJU card. A redirect method or a stablecoin
+  loads no provider script.
+- **Apple Pay and Google Pay.** The Console registers the merchant's domains and the checkout
+  origin with Stripe (Fact F15).
 - **Accessibility and language.** Labels, errors and vouchers are Seams text in English and
   Japanese. The Stripe and KOMOJU fields get the same `locale`.
 
-## 6. Slices
+## 8. Slices
 
-Each slice ships alone and keeps the invariants of Section 7.
+Each slice ships alone and keeps the invariants of Section 9.
 
-- **Slice 0: checks and accounts.** Answer U1 to U7. Open Stripe (Japan) and KOMOJU test
-  accounts. Get the owner's D1 to D6. No code.
-- **Slice 1: orders and cards on the server.** The checkout domain, the order and attempt
-  tables (one D1 migration), the provider interface, the Stripe and KOMOJU adapters for
-  cards, both webhook routes and the merchant events. Tests use provider fakes. A sandbox
-  test runs one real test payment at each provider.
-- **Slice 2: the checkout frame with cards.** `checkoutOrigin`, the frame document, its CSP,
-  `seams.checkout.open` in `modal` and `inline`, the Seams method list, the Stripe Payment
-  Element (card only) and KOMOJU Fields, the theme mapping, 3-D Secure, and the receipt. A new
-  example shop in `examples/` shows both providers in one page.
-- **Slice 3: konbini, bank transfer and PayPay.** The voucher and bank screens, the
+- **Slice 0: checks and accounts.** Answer U1 to U8. Open Stripe (Japan) and KOMOJU test
+  accounts. Get the owner's D1 to D8. No code.
+- **Slice 1: the rename.** One breaking release:
+  - Rename `packages/wallet` to `packages/stablecoin-wallet` and its package to
+    `@seams/stablecoin-wallet`. Rename the server and CLI packages too if D7a says so.
+  - Change every import, script, test, example and public doc page here (Fact F17).
+  - Change the `@seams/voiceid` peer dependency.
+  - In `seams-monorepo`, change the pins and imports in one coordinated commit that names the
+    seams-wallet commit.
+  - Mark the old npm names deprecated with a message that names the new package. Add no
+    re-export package and no alias.
+  - Keep the history unchanged: earlier release notes, `docs/evidence` and `docs/archive` keep
+    the old names.
+  - The wallet iframe protocol version does not change, because the wire does not change.
+- **Slice 2: the stage dialog.** Move the overlay, the frame transport and the message checks
+  into `@seams-internal/shared-ts` (Section 5). The wallet behaves as before. Add the wallet
+  option that shows its confirmer in a dialog that the caller gives.
+- **Slice 3: the checkout package and server.** `packages/checkout`, the checkout Worker, its D1
+  database and migrations, the order and attempt tables, the provider interface, the Stripe and
+  KOMOJU adapters for cards, both webhook routes and the merchant events. Tests use provider
+  fakes. A sandbox test runs one real test payment at each provider.
+- **Slice 4: the checkout frame with cards.** `checkoutOrigin`, the frame document, its CSP,
+  `checkout.open` in `modal` and `inline`, the Seams method list, the Stripe Payment Element
+  (card only), KOMOJU Fields, the theme mapping, 3-D Secure and the receipt. A new example shop
+  in `examples/` shows both providers in one page.
+- **Slice 5: konbini, bank transfer and PayPay.** The voucher and bank screens, the
   `pending_offline` state, deadlines, expiry and stock release. PayPay through both providers,
   so that a merchant can route it either way.
-- **Slice 4: JPYC and USDC.** The order moves from the checkout frame to the Wallet confirmer
-  for an ERC-20 transfer to the merchant's address. The Gateway marks the order `paid` after
-  a confirmed receipt of the exact amount and token. No Seams custody of funds.
-- **Slice 5: the other KOMOJU methods.** Rakuten Pay, Merpay, au PAY, d払い, Paidy and
-  Pay-easy as redirect methods (Unknown U2).
-- **Slice 6: Apple Pay and Google Pay.** The Stripe Express Checkout Element in the frame,
+- **Slice 6: the stablecoin plugin.** `@seams/checkout/stablecoin`, the onchain quote, the move
+  to the Wallet confirmer, receipt checks in the checkout Worker, `resume` and the
+  `late_onchain_payment` state. JPYC on Ethereum and USDC on Ethereum and NEAR (Fact F7).
+- **Slice 7: the other KOMOJU methods.** Rakuten Pay, Merpay, au PAY, d払い, Paidy and Pay-easy
+  as redirect methods (Unknown U2).
+- **Slice 8: Apple Pay and Google Pay.** The Stripe Express Checkout Element in the frame,
   domain registration and the `allow="payment"` chain.
-- **Slice 7: headless mode and refunds.** `checkout.methods`, `select`, `pay`,
+- **Slice 9: headless mode and refunds.** `checkout.methods`, `select`, `pay`,
   `mountCardFrame`, and server refunds (full and partial) through the provider of the payment.
-- **Slice 8: Console (seams-monorepo).** Connect the provider accounts, edit the routing
-  table and the theme, set the merchant webhook URL, view orders and refund.
+- **Slice 10: Console and deployment (seams-monorepo).** Deploy the checkout Worker and origin.
+  Connect the provider accounts, set the receiving addresses, edit the routing table and the
+  theme, set the merchant webhook URL, view orders and refund.
 
-## 7. Invariants
+Slice 1 and Slice 2 do not depend on the checkout. Slice 3 can start after Slice 0 in parallel
+with them, because it touches only new files.
+
+## 9. Invariants
 
 - No card number, CVC or expiry date reaches a Seams server, a Seams log or a Seams frame's
   JavaScript. Only provider frames hold them.
 - No provider script runs in the Wallet origin or on the merchant's page.
-- The checkout origin holds no wallet secret, opens no wallet worker and reads no Wallet
-  storage. [Browser workers](browser-workers.md) stays unchanged.
-- The amount, currency and provider of a payment come from the server. The browser cannot
-  change them.
-- One active attempt per order. One provider payment per attempt.
+- Only `@seams/checkout/stablecoin` imports `@seams/stablecoin-wallet`. The wallet imports
+  nothing from the checkout.
+- The checkout origin and the checkout Worker hold no wallet secret, open no wallet worker,
+  read no Wallet storage and have no binding to the wallet's router roles.
+  [Browser workers](browser-workers.md) stays unchanged.
+- The wallet servers hold no provider key.
+- The amount, currency, provider and stablecoin receiver of a payment come from the server.
+  The browser cannot change them.
+- One active attempt per order. One provider payment per attempt. One transaction hash per
+  order.
 - A paid state needs a verified provider webhook or a confirmed onchain receipt.
 - Seams never holds the merchant's money and never decides which merchant may accept cards.
 
-## 8. Tests
+## 10. Tests
 
 - Intended behaviours: one journey per method and per provider, in
   [Intended Behaviours](intended-behaviours.md): card success, card decline, 3-D Secure,
   konbini issued then paid, konbini expired, bank transfer, PayPay approve and cancel, JPYC
-  paid, and a mixed routing order (card on Stripe, konbini on KOMOJU).
-- Browser tests in Chromium, Firefox and WebKit for the frame, the theme mapping, the overlay
-  move to the Wallet confirmer, and keyboard and screen reader use.
+  paid, USDC paid, a reused transaction hash, a late transfer, and a mixed routing order (card
+  on Stripe, konbini on KOMOJU).
+- Browser tests in Chromium, Firefox and WebKit for the frame, the theme mapping, the move to
+  the Wallet confirmer, and keyboard and screen reader use.
+- A packed-package test that fails if the base entries of `@seams/checkout` import the wallet,
+  or if the wallet imports the checkout. `tests/scripts/check-packed-wallet-boundaries.mjs` is
+  the model.
+- A rename test that fails if `@seams/wallet` appears outside the history files.
 - A CSP test that fails if the checkout document allows another script host.
-- A test that fails if a provider script URL appears in a Wallet origin document.
 - Webhook tests for bad signatures, duplicates and reordered events.
 
-## 9. Not in this plan
+## 11. Not in this plan
 
-- **A Stripe Connect platform with Seams fees.** It needs Japanese legal advice first,
-  direct charges (the merchant stays the merchant of record) and the per-account konbini and
-  PayPay reviews. KOMOJU has no confirmed platform product.
-- **Saved cards across merchants with a passkey.** It needs the Connect platform
-  (platform customers and copied payment methods). It works only for Stripe cards.
+- **A Stripe Connect platform with Seams fees.** It needs Japanese legal advice first, direct
+  charges (the merchant stays the merchant of record) and the per-account konbini and PayPay
+  reviews. KOMOJU has no confirmed platform product.
+- **Saved cards across merchants with a passkey.** It needs the Connect platform (platform
+  customers and copied payment methods). It works only for Stripe cards.
+- **Stablecoins from an external wallet.** The plugin could later accept an external EVM
+  account through the wallet's external EVM connector (Spec 7).
+- **Conversion between currencies.** A JPY order cannot be paid in USDC (D8).
 - **Agent checkout.** Stripe Shared Payment Tokens with the agent grants of Spec 8. Japanese
   availability is not confirmed.
 - **Provider fallback for a declined card.** A card cannot move between providers without new
@@ -411,8 +585,9 @@ Each slice ships alone and keeps the invariants of Section 7.
 
 ## Documents to update when the slices land
 
-- [Spec 7](spec-7-hosted-surfaces-and-provider-boundaries.md): the checkout origin, its
-  messages and its CSP.
-- [Spec 8](spec-8-agent-authority-spending-and-payment-rails.md): the shared payment states,
-  and why checkout adapters are public (D6).
-- [Intended Behaviours](intended-behaviours.md) and the public docs in `apps/docs`.
+- [Spec 7](spec-7-hosted-surfaces-and-provider-boundaries.md): the checkout origin, the stage
+  dialog, the messages and the CSP.
+- [Spec 8](spec-8-agent-authority-spending-and-payment-rails.md): the shared payment states, and
+  why the checkout adapters are public (D6).
+- [Intended Behaviours](intended-behaviours.md), the README, the doc index and the public docs
+  in `apps/docs`, with the new package names.
