@@ -1,9 +1,41 @@
 ---
-title: Release 0.73.1
-description: The transaction receipt keeps each stage on one line on a phone, so the card no longer changes height while it signs.
+title: Release 0.74.0
+description: A passkey account sync asks for the app's Wallet Session budget, and the 0.73.0 budget gets its review fixes. Deploy the server, then the Wallet host, then the apps.
 ---
 
-# Release 0.73.1
+# Release 0.74.0
+
+The browser SDK, server SDK and VoiceID plugin use **0.74.0**. Deploy in this order: the server, then the Wallet host, then the apps.
+
+Since 0.73.1:
+
+- A passkey account sync asks for the app's Wallet Session budget (`signingSessionDefaults`), as unlock does. The client sends `walletSessionBudget` to `/sync-account/verify`. Before, a sync always got 5 signatures and 24 hours.
+- A linked device reads the count of its session from the server after the link. Before, it recorded 5. The server grants a linked device 100 signatures and 15 minutes, capped by the tenant's maximum.
+- The server picks the budget profile from the authority. A linked device gets the linked-device budget on every path: unlock, budget refresh, ECDSA activation and VoiceID.
+- A retry of a session issue replays after the tenant changed the maximum. A stored maximum that does not parse changes only the grant (5 signatures and 24 hours, with a log line), not the rest of the environment.
+- `signingSessionDefaults` and `signingSession` values must be non-negative integers. Another value fails the config or the login. Before, it disabled the warm session with no error.
+- The client checks every grant with one rule: 1 ≤ granted ≤ requested. VoiceID and the ECDSA session now check it too.
+- Email OTP counts each attempt before it compares the code. Before, parallel guesses on one challenge could pass the limit of attempts.
+- NEP-413 signs the app's exact message, recipient and callback URL. Before, the SDK trimmed the whitespace, so a message with a leading or trailing space failed.
+- An ECDSA step-up is admitted only while the signer rows that it read still hold. A failed Email OTP unlock names a wallet in its webhook only when the request has a valid wallet ID.
+- VoiceID unlock answers 402 for a billing failure. A NEAR lookup failure after the session is issued no longer loses the session: the response says `near: unavailable`.
+- The lock after a signing failure logs each step that failed.
+
+Breaking changes:
+
+- A server that composes `AuthorizationService` itself passes a `walletSessionLimits` port. The service refuses a composition with none. `@seams/wallet-server/cloud-host` exports `createProjectEnvironmentWalletSessionLimits` and `UNAVAILABLE_WALLET_SESSION_LIMITS` (for a server with no Console).
+- `provisioningDefaults.{tempo,evm}` and `RegistrationHooksOptions.signerOptions` hold only `enabled`. Nothing read their `signingSession`. Set the budget with `signingSessionDefaults`. A Wallet host at 0.74.0 ignores the `signingSession` that an older app sends.
+- The unused types `EcdsaSessionPolicy` and `ThresholdEcdsaBootstrapSessionPolicy` are removed from `@seams/wallet-server`.
+- `@seams/wallet/advanced` exports `DEFAULT_TENANT_WALLET_SESSION_LIMITS`, `parseWalletSessionLimits` and `WalletSessionLimits`.
+
+Compatibility:
+
+- A Wallet host at 0.74.0 needs a server at 0.74.0: a 0.73 server refuses the `walletSessionBudget` of a sync. A server at 0.74.0 accepts a Wallet host at 0.73.
+- An app at 0.74.0 needs a Wallet host at 0.74.0: a 0.73 Wallet host refuses a config with no `provisioningDefaults.signingSession`. A Wallet host at 0.74.0 accepts an app at 0.73 or 0.72.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` stay at **0.72.0**. They have no change.
+- The Wallet iframe protocol stays **25.0.0**. Install all three packages at 0.74.0. No database migrations.
+
+## Release 0.73.1
 
 The browser SDK, server SDK and VoiceID plugin use **0.73.1**. It has no breaking change since 0.73.0.
 

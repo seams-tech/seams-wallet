@@ -1,9 +1,41 @@
 ---
-title: リリース 0.73.1
-description: トランザクションのレシートは、スマートフォンでも各段階を1行で表示します。署名中にカードの高さが変わりません。
+title: リリース 0.74.0
+description: パスキーのアカウント同期がアプリのWallet Sessionの利用上限を要求します。0.73.0の利用上限にレビューの修正が入ります。サーバー、Walletホスト、アプリの順にデプロイしてください。
 ---
 
-# リリース 0.73.1
+# リリース 0.74.0
+
+ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.74.0** を使います。サーバー、Walletホスト、アプリの順にデプロイしてください。
+
+0.73.1からの変更:
+
+- パスキーのアカウント同期は、アンロックと同じく、アプリのWallet Sessionの利用上限(`signingSessionDefaults`)を要求します。クライアントは`walletSessionBudget`を`/sync-account/verify`に送ります。以前は、同期のセッションは常に5回の署名と24時間でした。
+- リンクしたデバイスは、リンクの後にセッションの回数をサーバーから読みます。以前は5回と記録していました。サーバーはリンクしたデバイスに100回の署名と15分を付与します。これもテナントの上限を超えません。
+- サーバーは、認証主体から利用上限の種類を決めます。リンクしたデバイスは、アンロック、利用上限の更新、ECDSAの有効化、VoiceIDのすべての経路で、リンクしたデバイスの利用上限を受け取ります。
+- セッション発行の再試行は、テナントが上限を変えた後も同じ結果を返します。保存された上限を解析できない場合は、付与だけが変わります(5回の署名と24時間、ログを出力)。環境のほかの設定には影響しません。
+- `signingSessionDefaults`と`signingSession`の値は0以上の整数でなければなりません。それ以外の値は、設定またはログインのエラーになります。以前は、エラーなしでウォームセッションを無効にしました。
+- クライアントは、すべての付与を1つの規則で確認します: 1 ≤ 付与 ≤ 要求。VoiceIDとECDSAのセッションも確認するようになりました。
+- Email OTPは、コードを比較する前に各試行を数えます。以前は、1つのチャレンジへの並行した推測が試行の上限を超えることがありました。
+- NEP-413は、アプリのメッセージ、受信者、コールバックURLをそのまま署名します。以前は、SDKが前後の空白を削除したため、先頭か末尾に空白があるメッセージは失敗しました。
+- ECDSAの追加認証は、読み取った署名者の行が変わっていない間だけ受け付けます。Email OTPのアンロックが失敗したとき、Webhookは要求に有効なウォレットIDがある場合だけウォレットを示します。
+- VoiceIDのアンロックは、課金の失敗に402を返します。セッションの発行後にNEARの照会が失敗しても、セッションは失われません。応答は`near: unavailable`を示します。
+- 署名の失敗後のロックは、失敗した各手順をログに出力します。
+
+破壊的変更:
+
+- `AuthorizationService`を自分で組み立てるサーバーは、`walletSessionLimits`ポートを渡します。ポートがない場合、サービスは組み立てを拒否します。`@seams/wallet-server/cloud-host`は`createProjectEnvironmentWalletSessionLimits`と`UNAVAILABLE_WALLET_SESSION_LIMITS`(Consoleがないサーバー用)をエクスポートします。
+- `provisioningDefaults.{tempo,evm}`と`RegistrationHooksOptions.signerOptions`は`enabled`だけを持ちます。その`signingSession`を読むコードはありませんでした。利用上限は`signingSessionDefaults`で設定してください。0.74.0のWalletホストは、古いアプリが送る`signingSession`を無視します。
+- 使われていない型`EcdsaSessionPolicy`と`ThresholdEcdsaBootstrapSessionPolicy`を`@seams/wallet-server`から削除しました。
+- `@seams/wallet/advanced`は`DEFAULT_TENANT_WALLET_SESSION_LIMITS`、`parseWalletSessionLimits`、`WalletSessionLimits`をエクスポートします。
+
+互換性:
+
+- 0.74.0のWalletホストには0.74.0のサーバーが必要です。0.73のサーバーは、同期の`walletSessionBudget`を拒否します。0.74.0のサーバーは0.73のWalletホストを受け付けます。
+- 0.74.0のアプリには0.74.0のWalletホストが必要です。0.73のWalletホストは、`provisioningDefaults.signingSession`のない設定を拒否します。0.74.0のWalletホストは0.73と0.72のアプリを受け付けます。
+- `@seams/voice-verdict`、`@seams/voice-capture`、`@seams/voice-sign`は **0.72.0** のままです。変更はありません。
+- ウォレットのiframeプロトコルは **25.0.0** のままです。3つのパッケージをすべて0.74.0でインストールしてください。データベースのマイグレーションはありません。
+
+## リリース 0.73.1
 
 ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.73.1** を使います。0.73.0からの破壊的変更はありません。
 
