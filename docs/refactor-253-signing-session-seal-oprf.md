@@ -1,6 +1,6 @@
 # Refactor 253: an OPRF for the signing-session seal
 
-Status: 2026-11-18. Investigation only. No product code changed. D1 to D9 wait for the owner.
+Status: 2026-11-18. D1 to D9 are decided. No product code has changed. Slice 0 is next.
 
 The owner asked: "We use shamir-3-pass to persist signing session material between page
 refreshes. Can it be replaced with the faster OPRF?" This plan answers the question. The OPRF is
@@ -219,7 +219,10 @@ RFC 9497, suite ristretto255-SHA512, mode POPRF (0x02), from the runtime of F17 
 The same four steps with the stored x. Step 4 decrypts instead of encrypting. A failed proof or
 a failed AEAD tag is a restore failure. The next operation then uses a normal unlock, as today.
 
-### Decisions for the owner
+### Decisions
+
+The owner accepted D1 to D9, as recommended, on 2026-11-18. Where an item names another choice,
+that choice was declined.
 
 - **D1. Replace three-pass with the POPRF for this seal.** Recommended. The group must change in
   any case (Refactor 252 F14), and the POPRF is faster than three-pass at 1024 bits when it runs
