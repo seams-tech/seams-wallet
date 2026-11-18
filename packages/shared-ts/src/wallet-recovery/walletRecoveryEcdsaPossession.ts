@@ -1,6 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, sha256DigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
-import { requireRecord } from '../utils/validation';
+import { requirePositiveSafeInteger, requireRecord } from '../utils/validation';
 
 const POSSESSION_CHALLENGE_DOMAIN_V1 =
   'seams/wallet-recovery/ecdsa-existing-material-possession/v1';
@@ -89,13 +89,6 @@ function requireCompressedPublicKey(value: unknown, label: string): string {
     base64UrlEncode(bytes) !== value
   ) {
     throw new Error(`${label} must be canonical compressed secp256k1 public key bytes`);
-  }
-  return value;
-}
-
-function requirePositiveSafeInteger(value: unknown, label: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
-    throw new Error(`${label} must be a positive safe integer`);
   }
   return value;
 }

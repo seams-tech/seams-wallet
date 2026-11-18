@@ -15,7 +15,6 @@ import {
   requireTrimmedString,
   toOptionalTrimmedNonEmptyString,
 } from '@shared/utils/validation';
-import { normalizePositiveInteger } from '@shared/utils/normalize';
 import { EMAIL_OTP_CHANNEL, type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import {
@@ -258,11 +257,6 @@ export function parseOptionalEmailOtpChannel(
     throw new Error(`${label} must be ${EMAIL_OTP_CHANNEL}`);
   }
   return EMAIL_OTP_CHANNEL;
-}
-
-export function optionalWorkerPositiveInteger(value: unknown): number | undefined {
-  const normalized = normalizePositiveInteger(value);
-  return normalized == null ? undefined : normalized;
 }
 
 export function parseWorkerRuntimePolicyScope(

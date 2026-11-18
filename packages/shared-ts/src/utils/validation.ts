@@ -95,6 +95,14 @@ export function isFiniteNumber(x: unknown): x is number {
   return typeof x === 'number' && Number.isFinite(x);
 }
 
+// A count such as a number of signature uses: a number, never a numeric string, and never coerced.
+export function requirePositiveSafeInteger(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${label} must be a positive safe integer`);
+  }
+  return value;
+}
+
 export function isFunction(x: unknown): x is (...args: unknown[]) => unknown {
   return typeof x === 'function';
 }

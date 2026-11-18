@@ -10,7 +10,6 @@
  */
 
 import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/diagnostics/registration';
-import { isObject } from '@shared/utils/validation';
 import type {
   RegistrationHooksOptions,
   RegistrationTimingSpanV1,
@@ -23,10 +22,7 @@ import type {
   RegistrationSignerPlanBranch,
 } from '@shared/utils/registrationSignerPlan';
 import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
-import {
-  type WalletRegistrationRouteDiagnostics,
-  type WalletRegistrationRouteTimingName,
-} from '@/core/rpcClients/relayer/walletRegistration';
+import type { WalletRegistrationRouteDiagnostics } from '@shared/utils/registrationContracts';
 import { type PasskeyRegistrationAuthorityDiagnostics } from '@/SeamsWeb/operations/authMethods/passkey/registrationAuthority';
 import { type RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
 export const REGISTRATION_TIMING_LABEL = '[Registration] wallet timing summary';
@@ -541,67 +537,6 @@ export function roundDurationMs(startedAt: number): number {
   return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
-function parseWalletRegistrationRouteTimingName(
-  value: unknown,
-): WalletRegistrationRouteTimingName | null {
-  switch (value) {
-    case 'registrationIntentLoadMs':
-    case 'registrationIntentDigestMs':
-    case 'registrationIntentConsumeMs':
-    case 'registrationPreparationPersistMs':
-    case 'registrationPreparationLoadMs':
-    case 'registrationPreparationConsumeMs':
-    case 'registrationPreparationScopeCheckMs':
-    case 'registrationAuthorityVerifyMs':
-    case 'registrationEcdsaPrepareMs':
-    case 'registrationCeremonyPersistMs':
-    case 'registerPrepareTotalMs':
-    case 'registerStartTotalMs':
-    case 'registrationEcdsaRespondMs':
-    case 'registrationFinalizeReplayLoadMs':
-    case 'registrationCeremonyLoadMs':
-    case 'registrationEcdsaBootstrapVerifyMs':
-    case 'sponsoredNearAccountCreateMs':
-    case 'registrationKeygenMs':
-    case 'registrationEmailOtpEnrollmentPlanMs':
-    case 'relaySessionMintMs':
-    case 'relayGoogleEmailOtpActivationPlanMs':
-    case 'relayPersistenceMs':
-    case 'registrationFinalizeReplayCacheMs':
-    case 'registerFinalizeTotalMs':
-      return value;
-    default:
-      return null;
-  }
-}
-
-function sanitizeWalletRegistrationRouteDiagnostics(
-  value: unknown,
-): WalletRegistrationRouteDiagnostics | null {
-  if (!isObject(value) || value.kind !== 'wallet_registration_route_diagnostics_v1') return null;
-  if (
-    value.route !== 'wallets_register_start' &&
-    value.route !== 'wallets_register_ecdsa_derivation_respond' &&
-    value.route !== 'wallets_register_finalize'
-  ) {
-    return null;
-  }
-  if (!Array.isArray(value.entries)) return null;
-  const entries: WalletRegistrationRouteDiagnostics['entries'] = [];
-  for (const entry of value.entries) {
-    if (!isObject(entry)) continue;
-    const name = parseWalletRegistrationRouteTimingName(entry.name);
-    const durationMs = Number(entry.durationMs);
-    if (!name || !Number.isFinite(durationMs) || durationMs < 0) continue;
-    entries.push({ name, durationMs });
-  }
-  return {
-    kind: 'wallet_registration_route_diagnostics_v1',
-    route: value.route,
-    entries,
-  };
-}
-
 function copyWalletRegistrationRouteDiagnostics(
   diagnostics: WalletRegistrationRouteDiagnostics,
 ): WalletRegistrationRouteDiagnostics {
@@ -884,9 +819,10 @@ export class RegistrationTimingRecorder {
     });
   }
 
-  captureRouteDiagnostics(value: unknown): void {
-    const sanitized = sanitizeWalletRegistrationRouteDiagnostics(value);
-    if (sanitized) this.relayDiagnostics.push(sanitized);
+  /** Takes diagnostics that the finalize response parse already checked. */
+  captureRouteDiagnostics(diagnostics: WalletRegistrationRouteDiagnostics | undefined): void {
+    if (!diagnostics) return;
+    this.relayDiagnostics.push(copyWalletRegistrationRouteDiagnostics(diagnostics));
   }
 
   captureWarmupDiagnostics(diagnostics: RegistrationWarmupDiagnostics): void {

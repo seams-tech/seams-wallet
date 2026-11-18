@@ -19,7 +19,60 @@ import type {
 } from './routerAbEd25519Yao';
 import type { WALLET_AUTH_METHODS } from './signerDomain';
 import type { RouterAbEd25519NormalSigningState } from './signingSessionSeal';
+import { isPlainObject } from './validation';
 import type { Variant } from './variant';
+
+/** The timings that the registration finalize route measures and reports. */
+const WALLET_REGISTRATION_ROUTE_TIMING_NAMES = [
+  'registrationEcdsaBootstrapVerifyMs',
+  'registrationEmailOtpEnrollmentPlanMs',
+  'relayPersistenceMs',
+  'registerFinalizeTotalMs',
+] as const;
+
+export type WalletRegistrationRouteTimingName =
+  (typeof WALLET_REGISTRATION_ROUTE_TIMING_NAMES)[number];
+
+export type WalletRegistrationRouteDiagnostics = {
+  kind: 'wallet_registration_route_diagnostics_v1';
+  route: 'wallets_register_finalize';
+  entries: {
+    name: WalletRegistrationRouteTimingName;
+    durationMs: number;
+  }[];
+};
+
+function isWalletRegistrationRouteTimingName(
+  value: unknown,
+): value is WalletRegistrationRouteTimingName {
+  return (WALLET_REGISTRATION_ROUTE_TIMING_NAMES as readonly unknown[]).includes(value);
+}
+
+/**
+ * Route diagnostics are for measurement only, so this parse never throws: it
+ * returns null for a bad envelope and drops each entry with an unknown name or
+ * a bad duration. A newer server can add a timing, and an older reader ignores it.
+ */
+export function parseWalletRegistrationRouteDiagnostics(
+  value: unknown,
+): WalletRegistrationRouteDiagnostics | null {
+  if (
+    !isPlainObject(value) ||
+    value.kind !== 'wallet_registration_route_diagnostics_v1' ||
+    value.route !== 'wallets_register_finalize' ||
+    !Array.isArray(value.entries)
+  ) {
+    return null;
+  }
+  const entries: WalletRegistrationRouteDiagnostics['entries'] = [];
+  for (const entry of value.entries) {
+    if (!isPlainObject(entry) || !isWalletRegistrationRouteTimingName(entry.name)) continue;
+    const durationMs = entry.durationMs;
+    if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0) continue;
+    entries.push({ name: entry.name, durationMs });
+  }
+  return { kind: 'wallet_registration_route_diagnostics_v1', route: value.route, entries };
+}
 
 export type CreateRegistrationIntentRequest = {
   wallet: RegisterWalletInput;

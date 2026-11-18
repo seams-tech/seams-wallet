@@ -40,7 +40,7 @@ import {
   sameRouterAbEcdsaVerifiedClientActivationFactsV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import { requireRecord } from '@shared/utils/validation';
+import { requirePositiveSafeInteger, requireRecord } from '@shared/utils/validation';
 import type { PersistInitialCanonicalEcdsaActivationRequestV1 } from '../../routerAb/ecdsaDerivation/clientCeremony';
 import { toParticipantId, type ParticipantId } from '../identity/evmFamilyEcdsaIdentity';
 import {
@@ -256,13 +256,6 @@ function parseInitialEcdsaRuntimePolicyScope(value: unknown): RuntimePolicyScope
     'signingRootVersion',
   ]);
   return normalizeRuntimePolicyScope(record);
-}
-
-function requirePositiveSafeInteger(value: unknown, label: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
-    throw new Error(`${label} must be a positive safe integer`);
-  }
-  return value;
 }
 
 function requireNonEmptyCanonicalString(value: unknown, label: string): string {

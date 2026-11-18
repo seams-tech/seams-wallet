@@ -150,6 +150,7 @@ import {
 import type { ImportWalletCustodyEcdsaContinuityInput } from '@/core/indexedDB/seamsWalletDB/walletCustodyEcdsaContinuity';
 import type { EmailOtpEcdsaCustodyContinuityV1 } from '../../workerManager/workerTypes';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
+import { requirePositiveSafeInteger } from '@shared/utils/validation';
 
 type EmailOtpLoginSessionPolicy = {
   readonly ttlMs: number;
@@ -1191,14 +1192,6 @@ export type LoginEmailOtpEcdsaCapabilityForSigningArgs = {
   authLane?: never;
 };
 
-function normalizeEmailOtpEcdsaSigningRemainingUses(value: unknown): number {
-  const remainingUses = Math.floor(Number(value) || 0);
-  if (!Number.isFinite(remainingUses) || remainingUses <= 0) {
-    throw new Error('[SigningEngine][email-otp][ecdsa] signing remainingUses is required');
-  }
-  return remainingUses;
-}
-
 type EmailOtpEcdsaSigningRefreshFacts = {
   keyHandle: string;
   participantIds: number[];
@@ -1285,7 +1278,10 @@ export async function loginWithEmailOtpEcdsaCapabilityForSigning(
 ): Promise<EmailOtpThresholdEcdsaLoginResult> {
   const operation = WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION;
   const emailOtpAuthPolicy: EmailOtpAuthPolicy = 'session';
-  const remainingUses = normalizeEmailOtpEcdsaSigningRemainingUses(args.remainingUses);
+  const remainingUses = requirePositiveSafeInteger(
+    args.remainingUses,
+    '[SigningEngine][email-otp][ecdsa] signing remainingUses',
+  );
   const committedLane = args.committedLane;
   const refreshFacts = await buildEmailOtpEcdsaSigningRefreshFacts({
     committedLane,
@@ -1352,7 +1348,14 @@ async function runEmailOtpEcdsaCapability(
   const requestedSigningBudget = isSigningStepUp
     ? {
         ttlMs: args.ttlMs ?? DEFAULT_THRESHOLD_SESSION_POLICY.ttlMs,
-        remainingUses: Math.max(1, Math.floor(Number(args.remainingUses) || 1)),
+        // An absent count gives the step-up one use. A count that is present must be valid.
+        remainingUses:
+          args.remainingUses === undefined
+            ? 1
+            : requirePositiveSafeInteger(
+                args.remainingUses,
+                '[SigningEngine][email-otp][ecdsa] step-up remainingUses',
+              ),
       }
     : (walletSessionBudget ?? DEFAULT_THRESHOLD_SESSION_POLICY);
   const workerCtx = ports.getSignerWorkerContext();

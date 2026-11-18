@@ -26,6 +26,8 @@ import type {
   WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEd25519YaoActivationReference,
   WalletRegistrationEd25519YaoStart,
+  WalletRegistrationRouteDiagnostics,
+  WalletRegistrationRouteTimingName,
 } from '@shared/utils/registrationContracts';
 import type {
   RouterAbEcdsaDerivationPublicCapabilityV1,
@@ -711,45 +713,7 @@ export type WalletRegistrationFinalizeSignerWork =
       ed25519?: never;
     };
 
-export type WalletRegistrationRouteTimingName =
-  | 'registrationIntentLoadMs'
-  | 'registrationIntentDigestMs'
-  | 'registrationIntentConsumeMs'
-  | 'registrationAttemptGateMs'
-  | 'registrationPreparationPersistMs'
-  | 'registrationPreparationLoadMs'
-  | 'registrationPreparationConsumeMs'
-  | 'registrationPreparationScopeCheckMs'
-  | 'registrationAuthorityVerifyMs'
-  | 'registrationEcdsaPrepareMs'
-  | 'registrationCeremonyPersistMs'
-  | 'registerPrepareTotalMs'
-  | 'registerStartTotalMs'
-  | 'registrationEcdsaRespondMs'
-  | 'registrationFinalizeReplayLoadMs'
-  | 'registrationCeremonyLoadMs'
-  | 'registrationEcdsaBootstrapVerifyMs'
-  | 'sponsoredNearAccountCreateMs'
-  | 'registrationKeygenMs'
-  | 'relaySessionMintMs'
-  | 'relayGoogleEmailOtpActivationPlanMs'
-  | 'registrationEmailOtpEnrollmentPlanMs'
-  | 'relayPersistenceMs'
-  | 'registrationFinalizeReplayCacheMs'
-  | 'registerFinalizeTotalMs'
-  /* Setup: the ceremony insert is the route's only D1 write, so it gets
-     its own mark rather than being folded into a persistence total. */
-  | 'registrationCeremonyInsertMs'
-  | 'registerSetupTotalMs';
-
-export type WalletRegistrationRouteDiagnostics = {
-  kind: 'wallet_registration_route_diagnostics_v1';
-  route: 'wallets_register_setup' | 'wallets_register_finalize';
-  entries: {
-    name: WalletRegistrationRouteTimingName;
-    durationMs: number;
-  }[];
-};
+export type { WalletRegistrationRouteDiagnostics, WalletRegistrationRouteTimingName };
 
 export type WalletRegistrationStartResponse =
   | ({

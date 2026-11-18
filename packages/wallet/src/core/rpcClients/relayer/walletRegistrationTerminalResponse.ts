@@ -44,12 +44,11 @@ import type {
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,
   WalletRegistrationFinalizeResponse,
-  WalletRegistrationRouteDiagnostics,
-  WalletRegistrationRouteTimingName,
 } from './walletRegistration';
-import type {
-  WalletEd25519YaoSignerPublicResult,
-  WalletRegistrationFinalizeAuthMethod,
+import {
+  parseWalletRegistrationRouteDiagnostics,
+  type WalletEd25519YaoSignerPublicResult,
+  type WalletRegistrationFinalizeAuthMethod,
 } from '@shared/utils/registrationContracts';
 
 export function requireResponseString(args: {
@@ -403,81 +402,6 @@ export function parseWalletAddSignerEcdsaWalletKey(
     }),
     participantIds: requireResponseParticipantPair(key.participantIds, responseName),
     publicCapability: parseRouterAbEcdsaDerivationPublicCapabilityV1(key.publicCapability),
-  };
-}
-
-function parseWalletRegistrationRouteTimingName(value: unknown): WalletRegistrationRouteTimingName {
-  switch (value) {
-    case 'registrationIntentLoadMs':
-    case 'registrationIntentDigestMs':
-    case 'registrationIntentConsumeMs':
-    case 'registrationAttemptGateMs':
-    case 'registrationPreparationPersistMs':
-    case 'registrationPreparationLoadMs':
-    case 'registrationPreparationConsumeMs':
-    case 'registrationPreparationScopeCheckMs':
-    case 'registrationAuthorityVerifyMs':
-    case 'registrationEcdsaPrepareMs':
-    case 'registrationCeremonyPersistMs':
-    case 'registerPrepareTotalMs':
-    case 'registerStartTotalMs':
-    case 'registrationEcdsaRespondMs':
-    case 'registrationFinalizeReplayLoadMs':
-    case 'registrationCeremonyLoadMs':
-    case 'registrationEcdsaBootstrapVerifyMs':
-    case 'sponsoredNearAccountCreateMs':
-    case 'registrationKeygenMs':
-    case 'registrationEmailOtpEnrollmentPlanMs':
-    case 'relaySessionMintMs':
-    case 'relayGoogleEmailOtpActivationPlanMs':
-    case 'relayPersistenceMs':
-    case 'registrationFinalizeReplayCacheMs':
-    case 'registerFinalizeTotalMs':
-      return value;
-    default:
-      throw new Error('Wallet registration finalize response has invalid diagnostics timing name');
-  }
-}
-
-export function parseWalletRegistrationFinalizeDiagnostics(
-  value: unknown,
-): WalletRegistrationRouteDiagnostics {
-  const responseName = 'Wallet registration finalize';
-  const diagnostics = requireResponseRecord({
-    responseName,
-    field: 'registrationDiagnostics',
-    value,
-  });
-  assertExactResponseKeys(diagnostics, ['kind', 'route', 'entries'], responseName);
-  if (
-    diagnostics.kind !== 'wallet_registration_route_diagnostics_v1' ||
-    diagnostics.route !== 'wallets_register_finalize' ||
-    !Array.isArray(diagnostics.entries)
-  ) {
-    throw new Error(`${responseName} response has invalid registrationDiagnostics`);
-  }
-  return {
-    kind: 'wallet_registration_route_diagnostics_v1',
-    route: 'wallets_register_finalize',
-    entries: diagnostics.entries.map((entryValue) => {
-      const entry = requireResponseRecord({
-        responseName,
-        field: 'registrationDiagnostics.entries[]',
-        value: entryValue,
-      });
-      assertExactResponseKeys(entry, ['name', 'durationMs'], responseName);
-      if (
-        typeof entry.durationMs !== 'number' ||
-        !Number.isFinite(entry.durationMs) ||
-        entry.durationMs < 0
-      ) {
-        throw new Error(`${responseName} response has invalid diagnostics durationMs`);
-      }
-      return {
-        name: parseWalletRegistrationRouteTimingName(entry.name),
-        durationMs: entry.durationMs,
-      };
-    }),
   };
 }
 
@@ -847,10 +771,10 @@ export function parseWalletRegistrationFinalizeResponse(args: {
     walletId,
     authority,
   });
-  const registrationDiagnostics =
-    response.registrationDiagnostics === undefined
-      ? undefined
-      : parseWalletRegistrationFinalizeDiagnostics(response.registrationDiagnostics);
+  // Diagnostics only: a bad value is dropped, and it never fails the finalize.
+  const registrationDiagnostics = parseWalletRegistrationRouteDiagnostics(
+    response.registrationDiagnostics,
+  );
   /* Absent is a real state — no custody payload rode this leg — and distinct
      from every reported outcome. It must not be conflated with `committed`. */
   const walletCustody =

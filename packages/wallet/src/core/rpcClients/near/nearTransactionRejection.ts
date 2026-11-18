@@ -1,5 +1,6 @@
 import { isPlainObject, requireNonEmptyString, requireRecord } from '@shared/utils/validation';
 import { formatDeposit } from '@/core/signingEngine/uiConfirm/ui/transaction-display/formatters';
+import { nearTxExecutionFromRpcData } from '@shared/near/nearTxExecutionError';
 import { NearRpcError } from './NearRpcError';
 
 /** NEAR refused a signed transaction when it was sent, before any block included it. */
@@ -31,11 +32,9 @@ const PERMANENT_REJECTIONS = new Set([
 
 /** Reads an `InvalidTxError` from a `send_tx` failure. Any other failure returns `null`. */
 export function nearTransactionRejection(error: unknown): NearTransactionRejection | null {
-  // A unit variant arrives as a string, which `NearRpcError.type` does not classify.
+  // The variant's fields are only in the details, so this reads them, not `NearRpcError.kind`.
   if (!(error instanceof NearRpcError)) return null;
-  const details = isPlainObject(error.details) ? error.details : null;
-  const execution = details && isPlainObject(details.TxExecutionError) ? details.TxExecutionError : null;
-  const invalid = execution?.InvalidTxError;
+  const invalid = nearTxExecutionFromRpcData(error.details)?.InvalidTxError;
   const [name, value] = variant(invalid);
   if (!name) return null;
   // Nested variants name their inner case, such as `InvalidAccessKeyError.AccessKeyNotFound`.

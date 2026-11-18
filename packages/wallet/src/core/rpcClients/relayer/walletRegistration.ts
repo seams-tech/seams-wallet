@@ -94,6 +94,7 @@ import type {
   WalletRegistrationEd25519YaoActivationReference,
   WalletRegistrationEd25519YaoStart,
   WalletRegistrationFinalizeAuthMethod,
+  WalletRegistrationRouteDiagnostics,
 } from '@shared/utils/registrationContracts';
 import {
   parseWalletAuthAuthority,
@@ -521,45 +522,6 @@ export function registrationPreparationIdFromString(value: string): Registration
   }
   return normalized as RegistrationPreparationId;
 }
-
-export type WalletRegistrationRouteTimingName =
-  | 'registrationIntentLoadMs'
-  | 'registrationIntentDigestMs'
-  | 'registrationIntentConsumeMs'
-  | 'registrationAttemptGateMs'
-  | 'registrationPreparationPersistMs'
-  | 'registrationPreparationLoadMs'
-  | 'registrationPreparationConsumeMs'
-  | 'registrationPreparationScopeCheckMs'
-  | 'registrationAuthorityVerifyMs'
-  | 'registrationEcdsaPrepareMs'
-  | 'registrationCeremonyPersistMs'
-  | 'registerPrepareTotalMs'
-  | 'registerStartTotalMs'
-  | 'registrationEcdsaRespondMs'
-  | 'registrationFinalizeReplayLoadMs'
-  | 'registrationCeremonyLoadMs'
-  | 'registrationEcdsaBootstrapVerifyMs'
-  | 'sponsoredNearAccountCreateMs'
-  | 'registrationKeygenMs'
-  | 'registrationEmailOtpEnrollmentPlanMs'
-  | 'relaySessionMintMs'
-  | 'relayGoogleEmailOtpActivationPlanMs'
-  | 'relayPersistenceMs'
-  | 'registrationFinalizeReplayCacheMs'
-  | 'registerFinalizeTotalMs';
-
-export type WalletRegistrationRouteDiagnostics = {
-  kind: 'wallet_registration_route_diagnostics_v1';
-  route:
-    | 'wallets_register_start'
-    | 'wallets_register_ecdsa_derivation_respond'
-    | 'wallets_register_finalize';
-  entries: {
-    name: WalletRegistrationRouteTimingName;
-    durationMs: number;
-  }[];
-};
 
 export type WalletRegistrationEcdsaPreparePayload = {
   kind: 'evm_family_ecdsa_keygen';
