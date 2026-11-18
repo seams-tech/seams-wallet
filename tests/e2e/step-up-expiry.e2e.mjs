@@ -300,6 +300,10 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
     .run();
   const store = new DelayedAuthorizationStore(database, state);
   const service = new api.AuthorizationService({
+    // The default tenant maximum: 100 signatures and 30 days.
+    walletSessionLimits: {
+      readWalletSessionLimits: async () => ({ maxTtlMs: 30 * 86_400_000, maxRemainingUses: 100 }),
+    },
     sessions: store,
     evidence: store,
     grants: store,

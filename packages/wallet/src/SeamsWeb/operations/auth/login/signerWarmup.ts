@@ -589,7 +589,7 @@ export async function primeThresholdLoginWarmSigners(args: {
               custody: args.ed25519MintPlan.custody,
               provisionScope,
               credential,
-              requestedRemainingUses: walletSessionBudget.remainingUses,
+              requestedBudget: walletSessionBudget,
               unlockAuthorization: args.passkeyUnlockWalletSessionAuthorization,
             });
             break;

@@ -90,7 +90,7 @@ import {
   grantWalletSessionBudget,
   UNREADABLE_TENANT_WALLET_SESSION_LIMITS,
   type WalletSessionBudget,
-  type WalletSessionBudgetRequest,
+  type WalletSessionBudgetProfile,
   type WalletSessionLimits,
 } from '@shared/threshold/walletSessionBudget';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
@@ -314,8 +314,11 @@ type IssueWalletSessionAuthorizationV2InputBase = {
   readonly authority: import('@shared/authorization/walletAuthority').ActiveWalletAuthorityV1;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly mintId: WalletSessionMintId;
-  /** What the app asked for. The service grants it up to the tenant's maximum. */
-  readonly budget: WalletSessionBudgetRequest;
+  /**
+   * The app's budget, or null for the default. The service grants it up to the
+   * tenant's maximum. A linked device's authority gets the linked-device budget.
+   */
+  readonly requestedBudget: WalletSessionBudget | null;
   readonly issuedAtMs: number;
 };
 
@@ -335,7 +338,13 @@ export type PreparedWalletSessionAuthorizationV2 = {
 };
 
 export class AuthorizationService {
-  constructor(private readonly ports: AuthorizationServicePorts) {}
+  constructor(private readonly ports: AuthorizationServicePorts) {
+    // The grant falls back to the default budget when a read fails, so a
+    // missing port would pass silently. Every composition names its port.
+    if (typeof ports.walletSessionLimits?.readWalletSessionLimits !== 'function') {
+      throw new Error('AuthorizationService requires a walletSessionLimits port');
+    }
+  }
 
   async retireWalletSessionAuthorizationsForAuthMethod(input: {
     readonly tenantId: TenantId;
@@ -671,26 +680,47 @@ export class AuthorizationService {
     return refreshed;
   }
 
+  /** The Wallet Session of an issue input, with the budget that the tenant's maximum allows. */
   async prepareWalletSessionAuthorizationV2(
     input: IssueWalletSessionAuthorizationV2Input,
   ): Promise<PreparedWalletSessionAuthorizationV2> {
+    const budget = await this.grantWalletSessionBudget({
+      profile: walletSessionBudgetProfile(input.authority),
+      requested: input.requestedBudget,
+    });
+    const session = await this.walletSessionAuthorizationV2ForIssue(
+      input,
+      input.issuedAtMs + budget.ttlMs,
+    );
+    const quota = buildActiveWalletSessionQuota({
+      tenantId: session.tenantId,
+      principalId: session.principalId,
+      walletSessionId: session.walletSessionId,
+      quotaId: session.quotaId,
+      remainingUses: budget.remainingUses,
+      expiresAtMs: session.expiresAtMs,
+    });
+    return { session, quota };
+  }
+
+  /**
+   * The Wallet Session that an issue input names, with a known expiry. It reads
+   * nothing: a replay compares a commit with its input this way, because the
+   * tenant's maximum, and so the grant, can change between two calls.
+   */
+  async walletSessionAuthorizationV2ForIssue(
+    input: IssueWalletSessionAuthorizationV2Input,
+    expiresAtMs: number,
+  ): Promise<WalletSessionAuthorizationV2> {
     if (input.authority.walletId !== input.walletId) {
       throw new Error('Wallet Session authorization authority does not identify the wallet');
     }
-    const budget = await this.grantWalletSessionBudget(input.budget);
-    const authorizationId = parseRequired(
-      await deriveWalletSessionAuthorizationV2Id(input, 'authorization'),
-      parseWalletSessionAuthorizationId,
-    );
-    const walletSessionId = parseRequired(
-      await deriveWalletSessionAuthorizationV2Id(input, 'wallet_session'),
-      parseWalletSessionId,
-    );
-    const quotaId = parseRequired(
-      await deriveWalletSessionAuthorizationV2Id(input, 'quota'),
-      parseMpcWalletSigningQuotaId,
-    );
-    const session = buildWalletSessionAuthorizationV2({
+    const [authorizationId, walletSessionId, quotaId] = await Promise.all([
+      deriveWalletSessionAuthorizationV2Id(input, 'authorization'),
+      deriveWalletSessionAuthorizationV2Id(input, 'wallet_session'),
+      deriveWalletSessionAuthorizationV2Id(input, 'quota'),
+    ]);
+    return buildWalletSessionAuthorizationV2({
       tenantId: input.tenantId,
       principalId: input.principalId,
       walletId: input.walletId,
@@ -699,26 +729,20 @@ export class AuthorizationService {
       authorityDigestB64u: input.authority.authorityDigestB64u,
       authorityRevocationEpoch: input.authority.revocationEpoch,
       mintId: input.mintId,
-      authorizationId,
-      walletSessionId,
-      quotaId,
+      authorizationId: parseRequired(authorizationId, parseWalletSessionAuthorizationId),
+      walletSessionId: parseRequired(walletSessionId, parseWalletSessionId),
+      quotaId: parseRequired(quotaId, parseMpcWalletSigningQuotaId),
       capabilitySubjects: buildWalletSessionCapabilitySubjectsV1(input.authority),
       createdAtMs: input.issuedAtMs,
-      expiresAtMs: input.issuedAtMs + budget.ttlMs,
+      expiresAtMs,
     });
-    const quota = buildActiveWalletSessionQuota({
-      tenantId: session.tenantId,
-      principalId: session.principalId,
-      walletSessionId,
-      quotaId,
-      remainingUses: budget.remainingUses,
-      expiresAtMs: session.expiresAtMs,
-    });
-    return { session, quota };
   }
 
   /** Grants min(request, the tenant's maximum). An unreadable maximum grants at most the default. */
-  async grantWalletSessionBudget(request: WalletSessionBudgetRequest): Promise<WalletSessionBudget> {
+  private async grantWalletSessionBudget(request: {
+    readonly profile: WalletSessionBudgetProfile;
+    readonly requested: WalletSessionBudget | null;
+  }): Promise<WalletSessionBudget> {
     let limits: WalletSessionLimits;
     try {
       limits = await this.ports.walletSessionLimits.readWalletSessionLimits();
@@ -728,7 +752,7 @@ export class AuthorizationService {
       });
       limits = UNREADABLE_TENANT_WALLET_SESSION_LIMITS;
     }
-    return grantWalletSessionBudget({ request, limits });
+    return grantWalletSessionBudget({ ...request, limits });
   }
 
   async readWalletSessionAuthorizationV2ByMint(
@@ -904,6 +928,11 @@ export class AuthorizationService {
   }
 }
 
+/** A linked device's authority gets the linked-device budget; every other authority gets the default. */
+function walletSessionBudgetProfile(authority: ActiveWalletAuthorityV1): WalletSessionBudgetProfile {
+  return authority.provenance.kind === 'device_link' ? 'linked_device' : 'default';
+}
+
 async function deriveWalletSessionAuthorizationV2Id(
   input: IssueWalletSessionAuthorizationV2Input,
   kind: 'authorization' | 'wallet_session' | 'quota',
@@ -985,11 +1014,9 @@ function directV2StrictReplayMatches(
     prepared.authorizationId === committed.authorizationId &&
     prepared.walletSessionId === committed.walletSessionId &&
     prepared.quotaId === committed.quotaId &&
-    walletSessionCapabilitySubjectsV1Equal(
-      prepared.capabilitySubjects,
-      committed.capabilitySubjects,
-    ) &&
-    prepared.expiresAtMs - prepared.createdAtMs === committed.expiresAtMs - committed.createdAtMs
+    // The budget is not compared: the grant reads the tenant's current maximum,
+    // so a retry can grant another budget than the commit holds.
+    walletSessionCapabilitySubjectsV1Equal(prepared.capabilitySubjects, committed.capabilitySubjects)
   );
 }
 

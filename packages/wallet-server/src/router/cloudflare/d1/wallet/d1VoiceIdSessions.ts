@@ -2,7 +2,6 @@ import { isBillingCreditFailure } from '../../../../authorization/sessionRouting
 import { parsePrincipalId, parseTenantId, type TenantId } from '@shared/authorization/capabilityKinds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import { unlockWalletSessionBudgetRequest } from '@shared/threshold/walletSessionBudget';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { AuthorizationService } from '../../../../authorization/service';
 import {
@@ -136,10 +135,7 @@ export class D1VoiceIdSessions {
         authority: active.authority,
         walletAuthMethodId: active.authMethod.walletAuthMethodId,
         mintId: verified.challenge.challengeId,
-        budget: unlockWalletSessionBudgetRequest({
-          deviceLinked: active.authority.provenance.kind === 'device_link',
-          requested: input.walletSessionBudget,
-        }),
+        requestedBudget: input.walletSessionBudget,
         issuedAtMs: input.nowMs,
       });
     } catch (error: unknown) {

@@ -851,7 +851,10 @@ interface SeamsSigningSessionDefaultsInput {
    * The server grants at most the maximum that the tenant set for the project
    * environment in the Seams Console (100 signatures and 30 days when the tenant
    * set none). The unlock result gives the granted values.
-   * Set `ttlMs` or `remainingUses` to 0 to ask for no warm session on unlock.
+   * Each value is a non-negative integer; another value fails the config.
+   * Set `ttlMs` or `remainingUses` to 0 to skip the warm session of a passkey
+   * unlock. An Email OTP or VoiceID unlock always opens a Wallet Session, so with
+   * 0 it asks for the default budget. A pending registration cannot resume with 0.
    */
   ttlMs?: number;
   remainingUses?: number;

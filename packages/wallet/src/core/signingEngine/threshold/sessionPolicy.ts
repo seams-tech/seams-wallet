@@ -8,7 +8,10 @@ import {
   MAX_WALLET_SESSION_REMAINING_USES,
   MAX_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
-import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
+import {
+  parseWalletSessionBudgetSetting,
+  type WalletSessionBudget,
+} from '@shared/threshold/walletSessionBudget';
 import type {
   EmailOtpWalletAuthAuthority,
   PasskeyWalletAuthAuthority,
@@ -138,31 +141,62 @@ type RequestedWalletSessionBudgetFields = {
 
 /**
  * The Wallet Session budget that the app asks for: each field of the override,
- * else of the defaults. It is null when a field is not a positive integer; the
- * app then asks for no warm session. The client does not clamp it: the server
- * grants at most the maximum of the project environment.
+ * else of the defaults. Each field is a non-negative integer; any other value
+ * is an error. 0 in a field asks for no warm session, and the result is null.
+ * The client does not clamp the budget: the server grants at most the maximum
+ * of the project environment.
  */
 export function resolveRequestedWalletSessionBudget(args: {
   readonly defaults: RequestedWalletSessionBudgetFields;
   readonly override?: RequestedWalletSessionBudgetFields | null;
 }): WalletSessionBudget | null {
-  const ttlMs = Math.floor(Number(args.override?.ttlMs ?? args.defaults.ttlMs) || 0);
-  const remainingUses = Math.floor(
-    Number(
-      args.override?.remainingUses ?? args.defaults.remainingUses ?? DEFAULT_UNLOCK_REMAINING_USES,
-    ) || 0,
+  const ttlMs = parseWalletSessionBudgetSetting(
+    args.override?.ttlMs ?? args.defaults.ttlMs ?? DEFAULT_THRESHOLD_SESSION_TTL_MS,
+    'signingSession.ttlMs',
   );
-  if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0) return null;
-  if (!Number.isSafeInteger(remainingUses) || remainingUses <= 0) return null;
+  const remainingUses = parseWalletSessionBudgetSetting(
+    args.override?.remainingUses ?? args.defaults.remainingUses ?? DEFAULT_UNLOCK_REMAINING_USES,
+    'signingSession.remainingUses',
+  );
+  if (ttlMs === 0 || remainingUses === 0) return null;
   return { ttlMs, remainingUses };
 }
 
+/** A granted Wallet Session budget as one server response reports it. */
+export type GrantedWalletSessionBudget = {
+  /** Null when the response has no count. */
+  readonly remainingUses: number | null;
+  /** The lifetime by the server clock. Null when the response has no issue time. */
+  readonly lifetimeMs: number | null;
+};
+
 /**
- * The server grants at most the count that the client asked for. A granted
- * count from 1 to the request is valid; any other count is an error.
+ * The one rule by which the client adopts a grant. The server grants at most
+ * the request, so a lower grant is valid and a higher one is an error. With no
+ * request, the server's default applies. The client compares the lifetime only
+ * by the server clock, because its own clock can differ from the server clock.
  */
-export function isGrantedWithinRequestedUses(granted: number, requested: number): boolean {
-  return Number.isSafeInteger(granted) && granted >= 1 && granted <= requested;
+export function isGrantedWithinRequestedBudget(
+  requested: Pick<WalletSessionBudget, 'ttlMs' | 'remainingUses'> | null,
+  granted: GrantedWalletSessionBudget,
+): boolean {
+  if (
+    granted.remainingUses !== null &&
+    (!Number.isSafeInteger(granted.remainingUses) || granted.remainingUses < 1)
+  ) {
+    return false;
+  }
+  if (
+    granted.lifetimeMs !== null &&
+    (!Number.isSafeInteger(granted.lifetimeMs) || granted.lifetimeMs < 1)
+  ) {
+    return false;
+  }
+  if (!requested) return true;
+  return (
+    (granted.remainingUses === null || granted.remainingUses <= requested.remainingUses) &&
+    (granted.lifetimeMs === null || granted.lifetimeMs <= requested.ttlMs)
+  );
 }
 
 export function clampThresholdSessionPolicy(input: { ttlMs: number; remainingUses: number }): {

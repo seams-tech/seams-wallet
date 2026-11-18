@@ -160,7 +160,7 @@ export async function verifyDestinationOperationGeneration({
     authority: fixture.authority,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     mintId: 'wallet-mint:destination-operation-generation',
-    budget: { profile: 'default', requested: { ttlMs: fixture.issuedSession.session.expiresAtMs - nowMs, remainingUses: 5 } },
+    requestedBudget: { ttlMs: fixture.issuedSession.session.expiresAtMs - nowMs, remainingUses: 5 },
     issuedAtMs: nowMs,
   });
   const store = new api.CloudflareD1AuthorizationStore({
@@ -214,7 +214,8 @@ export async function verifyDestinationOperationGeneration({
     )
     .bind(scope.namespace, issued.session.tenantId, issued.session.quotaId)
     .first('remaining_uses');
-  assert.equal(remaining, 4);
+  // The claim spends one use of what the issuer granted to this authority.
+  assert.equal(remaining, issued.quota.remainingUses - 1);
   await store.completeAuthorizedOperation({
     operation: claimed.operation,
     result: 'failed_before_side_effect',

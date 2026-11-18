@@ -2878,10 +2878,7 @@ export async function handleStrictEcdsaSessionActivation(
         authority: activeAuthority.authority,
         walletAuthMethodId: activeAuthority.authMethod.walletAuthMethodId,
         mintId: mintId.value,
-        budget: {
-          profile: 'default',
-          requested: 'walletSessionBudget' in input ? input.walletSessionBudget : null,
-        },
+        requestedBudget: 'walletSessionBudget' in input ? input.walletSessionBudget : null,
         issuedAtMs: Date.now(),
       });
     if (directIssue.kind === 'already_committed') {

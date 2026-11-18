@@ -982,6 +982,7 @@ export interface LoginHooksOptions {
    * The server grants at most the maximum that the tenant set for the project
    * environment in the Seams Console (100 signatures and 30 days when the tenant
    * set none). The granted values are in the `signingSession` of the unlock result.
+   * Each value is a non-negative integer; 0 skips the warm session of a passkey unlock.
    */
   signingSession?: {
     ttlMs?: number;

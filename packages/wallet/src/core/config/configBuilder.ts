@@ -25,6 +25,7 @@ import {
   SIGNING_SESSION_SEAL_ALG,
   SIGNING_SESSION_SEAL_GROUP_ID,
 } from '@shared/utils/signingSessionSeal';
+import { parseWalletSessionBudgetSetting } from '@shared/threshold/walletSessionBudget';
 
 export const THRESHOLD_ECDSA_PRESIGN_POOL_LIMITS = {
   targetDepth: { min: 1, max: 64 } satisfies IntRange,
@@ -324,11 +325,17 @@ export function buildConfigsFromDefaults(args: {
     },
     registration,
     signing: {
+      // A value that is not a non-negative integer fails here, not at the first unlock.
       sessionDefaults: {
-        ttlMs: overrides.signingSessionDefaults?.ttlMs ?? defaults.signing.sessionDefaults.ttlMs,
-        remainingUses:
+        ttlMs: parseWalletSessionBudgetSetting(
+          overrides.signingSessionDefaults?.ttlMs ?? defaults.signing.sessionDefaults.ttlMs,
+          'signingSessionDefaults.ttlMs',
+        ),
+        remainingUses: parseWalletSessionBudgetSetting(
           overrides.signingSessionDefaults?.remainingUses ??
-          defaults.signing.sessionDefaults.remainingUses,
+            defaults.signing.sessionDefaults.remainingUses,
+          'signingSessionDefaults.remainingUses',
+        ),
       },
       emailOtp: {
         authPolicy: emailOtpAuthPolicy,

@@ -299,7 +299,7 @@ export async function issueSyncAccountBootstrapV1(
       authority: input.activeAuthority,
       walletAuthMethodId: input.walletAuthMethodId,
       mintId: input.mintId,
-      budget: { profile: 'default', requested: null },
+      requestedBudget: null,
       issuedAtMs: input.issuedAtMs,
     });
   if (directIssue.kind === 'already_committed') {

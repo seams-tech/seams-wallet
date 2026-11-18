@@ -186,6 +186,7 @@ const bundle = await build({
       export { WalletHomeCustodyBinding } from './packages/wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings';
       export { WalletObjectAddresses, WalletObjectAddressSnapshot, walletObjectIdentity, walletObjectIdentityHeaders } from './packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
       export { createCloudflareD1RouterApiAuthService } from './packages/wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService';
+      export { UNAVAILABLE_WALLET_SESSION_LIMITS } from './packages/wallet-server/src/router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
       export { LocalRegistrationSetupAuthority } from './packages/wallet-server/src/localRegistrationSetupAuthority';
       export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
       export { createRegistrationSetupOperationId } from './packages/shared-ts/src/utils/registrationSetupOperation';
@@ -255,6 +256,7 @@ try {
   const options = {
     database,
     ...scope,
+    walletSessionLimits: api.UNAVAILABLE_WALLET_SESSION_LIMITS,
     registrationAuthority: new ObservedRegistrationAuthority(database, scope),
     // Setup mints the Yao identity of a NEAR branch for this SigningWorker and
     // describes the admission that respond will issue over it.
@@ -303,6 +305,7 @@ try {
         ],
       },
       authMethod: { kind: 'passkey', rpId: 'wallet.example.test' },
+      completion: 'wallet_session',
     },
     orgId: scope.orgId,
     expectedOrigin: 'https://app.example.test',

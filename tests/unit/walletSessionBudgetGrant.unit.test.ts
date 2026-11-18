@@ -14,8 +14,7 @@ import {
   grantWalletSessionBudget,
   parseOptionalWalletSessionBudget,
   parseWalletSessionLimits,
-  unlockWalletSessionBudgetRequest,
-  type WalletSessionBudgetRequest,
+  type WalletSessionBudget,
   type WalletSessionLimits,
 } from '@shared/threshold/walletSessionBudget';
 import { AuthorizationService, type WalletSessionLimitsPort } from '../../packages/wallet-server/src/authorization/service';
@@ -74,12 +73,13 @@ function serviceWithLimits(limits: WalletSessionLimitsPort): AuthorizationServic
 
 async function prepareGrant(input: {
   readonly limits: WalletSessionLimits | Error;
-  readonly budget: WalletSessionBudgetRequest;
+  readonly requestedBudget: WalletSessionBudget | null;
+  readonly provenance?: 'wallet_registration' | 'device_link';
 }) {
   const fixture = await buildLinkedDeviceManagementAuthorityFixture({
     label: 'budget-grant',
     permissions: buildFullOwnerPermissionsV1(),
-    provenance: 'wallet_registration',
+    provenance: input.provenance ?? 'wallet_registration',
   });
   const tenantId = parseTenantId(SCOPE.orgId);
   if (!tenantId.ok) throw new Error(tenantId.error.message);
@@ -92,7 +92,7 @@ async function prepareGrant(input: {
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: fixture.issuedSession.session.mintId,
-      budget: input.budget,
+      requestedBudget: input.requestedBudget,
       issuedAtMs,
     });
   return {
@@ -107,7 +107,7 @@ test.describe('Wallet Session budget grant', () => {
   test('no request grants the default budget', async () => {
     const granted = await prepareGrant({
       limits: DEFAULT_TENANT_WALLET_SESSION_LIMITS,
-      budget: { profile: 'default', requested: null },
+      requestedBudget: null,
     });
     expect(granted.remainingUses).toBe(DEFAULT_WALLET_SESSION_REMAINING_USES);
     expect(granted.ttlMs).toBe(DEFAULT_WALLET_SESSION_TTL_MS);
@@ -117,7 +117,7 @@ test.describe('Wallet Session budget grant', () => {
   test('a request under the maximum is granted as asked', async () => {
     const granted = await prepareGrant({
       limits: DEFAULT_TENANT_WALLET_SESSION_LIMITS,
-      budget: { profile: 'default', requested: { ttlMs: 2 * DAY_MS, remainingUses: 7 } },
+      requestedBudget: { ttlMs: 2 * DAY_MS, remainingUses: 7 },
     });
     expect(granted).toMatchObject({ ttlMs: 2 * DAY_MS, remainingUses: 7 });
   });
@@ -125,7 +125,7 @@ test.describe('Wallet Session budget grant', () => {
   test('a request above the default maximum gets 100 signatures and 30 days', async () => {
     const granted = await prepareGrant({
       limits: DEFAULT_TENANT_WALLET_SESSION_LIMITS,
-      budget: { profile: 'default', requested: { ttlMs: 60 * DAY_MS, remainingUses: 500 } },
+      requestedBudget: { ttlMs: 60 * DAY_MS, remainingUses: 500 },
     });
     expect(granted).toMatchObject({ ttlMs: 30 * DAY_MS, remainingUses: 100 });
   });
@@ -133,7 +133,7 @@ test.describe('Wallet Session budget grant', () => {
   test("the tenant's own maximum caps the request", async () => {
     const granted = await prepareGrant({
       limits: { maxTtlMs: DAY_MS, maxRemainingUses: 10 },
-      budget: { profile: 'default', requested: { ttlMs: 60 * DAY_MS, remainingUses: 500 } },
+      requestedBudget: { ttlMs: 60 * DAY_MS, remainingUses: 500 },
     });
     expect(granted).toMatchObject({ ttlMs: DAY_MS, remainingUses: 10 });
   });
@@ -141,7 +141,7 @@ test.describe('Wallet Session budget grant', () => {
   test('a tenant maximum above 100 lets a request above 100 through', async () => {
     const granted = await prepareGrant({
       limits: { maxTtlMs: MAX_WALLET_SESSION_TTL_MS, maxRemainingUses: 1_000 },
-      budget: { profile: 'default', requested: { ttlMs: DAY_MS, remainingUses: 500 } },
+      requestedBudget: { ttlMs: DAY_MS, remainingUses: 500 },
     });
     expect(granted).toMatchObject({ ttlMs: DAY_MS, remainingUses: 500 });
   });
@@ -149,7 +149,7 @@ test.describe('Wallet Session budget grant', () => {
   test('an unreadable maximum grants at most the default budget', async () => {
     const granted = await prepareGrant({
       limits: new Error('Console is unavailable'),
-      budget: { profile: 'default', requested: { ttlMs: 60 * DAY_MS, remainingUses: 500 } },
+      requestedBudget: { ttlMs: 60 * DAY_MS, remainingUses: 500 },
     });
     expect(granted).toMatchObject({
       ttlMs: DEFAULT_WALLET_SESSION_TTL_MS,
@@ -160,18 +160,18 @@ test.describe('Wallet Session budget grant', () => {
   test('an unreadable maximum keeps a smaller request', async () => {
     const granted = await prepareGrant({
       limits: new Error('Console is unavailable'),
-      budget: { profile: 'default', requested: { ttlMs: 60_000, remainingUses: 2 } },
+      requestedBudget: { ttlMs: 60_000, remainingUses: 2 },
     });
     expect(granted).toMatchObject({ ttlMs: 60_000, remainingUses: 2 });
   });
 
-  test("a linked device keeps its own budget under the tenant's maximum", async () => {
+  test("a linked device's authority keeps its own budget under the tenant's maximum", async () => {
+    // The issuer reads the profile from the authority, so no caller can give a
+    // linked device the app's budget.
     const own = await prepareGrant({
       limits: DEFAULT_TENANT_WALLET_SESSION_LIMITS,
-      budget: unlockWalletSessionBudgetRequest({
-        deviceLinked: true,
-        requested: { ttlMs: 60 * DAY_MS, remainingUses: 500 },
-      }),
+      provenance: 'device_link',
+      requestedBudget: { ttlMs: 60 * DAY_MS, remainingUses: 500 },
     });
     expect(own).toMatchObject({
       ttlMs: LINKED_DEVICE_WALLET_SESSION_TTL_MS,
@@ -179,7 +179,8 @@ test.describe('Wallet Session budget grant', () => {
     });
     const capped = await prepareGrant({
       limits: { maxTtlMs: DAY_MS, maxRemainingUses: 10 },
-      budget: { profile: 'linked_device', requested: null },
+      provenance: 'device_link',
+      requestedBudget: null,
     });
     expect(capped).toMatchObject({ ttlMs: LINKED_DEVICE_WALLET_SESSION_TTL_MS, remainingUses: 10 });
   });
@@ -237,7 +238,8 @@ test.describe('Wallet Session budget parsers', () => {
   test('the grant takes each field on its own', () => {
     expect(
       grantWalletSessionBudget({
-        request: { profile: 'default', requested: { ttlMs: 10, remainingUses: 1_000 } },
+        profile: 'default',
+        requested: { ttlMs: 10, remainingUses: 1_000 },
         limits: { maxTtlMs: 100, maxRemainingUses: 20 },
       }),
     ).toEqual({ ttlMs: 10, remainingUses: 20 });
@@ -308,6 +310,39 @@ test.describe('the tenant maximum from the Console', () => {
       await expect(limits.readWalletSessionLimits()).rejects.toThrow();
     }
   });
+
+  test('an invalid setting leaves the rest of the environment readable', async () => {
+    // Registration and external auth read the same environment; only the grant
+    // falls back when the tenant's maximum does not parse.
+    const environments = await createWalletConsoleOpsClient(
+      consoleBinding({ ...ENVIRONMENT, walletSessionLimits: { maxTtlMs: 0, maxRemainingUses: 1 } }),
+    ).projectEnvironments.listEnvironments(
+      {
+        orgId: SCOPE.orgId,
+        projectId: SCOPE.projectId,
+        environmentId: SCOPE.envId,
+        actorUserId: 'test',
+        roles: [],
+      },
+      { status: 'ACTIVE' },
+    );
+    expect(environments.map((environment) => environment.id)).toEqual([SCOPE.envId]);
+  });
+
+  test('a composition without a limits port is refused', () => {
+    expect(
+      () =>
+        new AuthorizationService({
+          policy: capabilityPolicyPort,
+          sessions: UNUSED_PORT as never,
+          evidence: UNUSED_PORT as never,
+          grants: UNUSED_PORT as never,
+          authorizedOperations: UNUSED_PORT as never,
+          walletSessionLimits: undefined as never,
+          audit: {},
+        }),
+    ).toThrow(/walletSessionLimits/);
+  });
 });
 
 test('an issued Wallet Session stores the granted budget in its quota', async () => {
@@ -335,29 +370,42 @@ test('an issued Wallet Session stores the granted budget in its quota', async ()
       namespace: SCOPE.namespace,
       walletSignerScope: SCOPE,
     });
-    const service = new AuthorizationService({
-      policy: capabilityPolicyPort,
-      sessions: store,
-      grants: store,
-      evidence: store,
-      authorizedOperations: store,
-      walletSessionLimits: new FixedLimits({ maxTtlMs: DAY_MS, maxRemainingUses: 10 }),
-      audit: {},
-    });
+    const serviceWithStore = (limits: WalletSessionLimits) =>
+      new AuthorizationService({
+        policy: capabilityPolicyPort,
+        sessions: store,
+        grants: store,
+        evidence: store,
+        authorizedOperations: store,
+        walletSessionLimits: new FixedLimits(limits),
+        audit: {},
+      });
+    const service = serviceWithStore({ maxTtlMs: DAY_MS, maxRemainingUses: 10 });
     const tenantId = parseTenantId(SCOPE.orgId);
     if (!tenantId.ok) throw new Error(tenantId.error.message);
     const issuedAtMs = Date.now();
-    const issued = await service.issueDirectWalletSessionAuthorizationV2({
+    const input = {
       tenantId: tenantId.value,
       principalId: fixture.issuedSession.session.principalId,
       walletId: fixture.authority.walletId,
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: fixture.issuedSession.session.mintId,
-      budget: { profile: 'default', requested: { ttlMs: 60 * DAY_MS, remainingUses: 500 } },
+      requestedBudget: { ttlMs: 60 * DAY_MS, remainingUses: 500 },
       issuedAtMs,
-    });
+    };
+    const issued = await service.issueDirectWalletSessionAuthorizationV2(input);
     if (issued.kind !== 'issued') throw new Error('The Wallet Session was not issued');
+    // A retry of the same mint after the tenant changed the maximum replays the
+    // commit: the grant of the retry differs, and the identity does not.
+    const retried = await serviceWithStore({
+      maxTtlMs: 2 * DAY_MS,
+      maxRemainingUses: 20,
+    }).issueDirectWalletSessionAuthorizationV2({ ...input, issuedAtMs: issuedAtMs + 5 });
+    expect(retried).toMatchObject({
+      kind: 'already_committed',
+      authorizationId: issued.session.authorizationId,
+    });
     const stored = await service.readWalletSessionAuthorizationV2ByAuthorizationId({
       expected: issued.session,
       nowMs: issuedAtMs + 1,

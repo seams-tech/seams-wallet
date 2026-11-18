@@ -31,10 +31,7 @@ import {
   parseWalletId,
 } from '@shared/utils/domainIds';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import {
-  unlockWalletSessionBudgetRequest,
-  type WalletSessionBudget,
-} from '@shared/threshold/walletSessionBudget';
+import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type { WalletRegistrationSessionCommitReceiptV2 } from '../../../../core/threeRouteRegistrationContracts';
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import { D1VoiceIdActivation } from '../wallet/d1VoiceIdActivation';
@@ -1863,10 +1860,7 @@ async function issueWalletSessionForActiveAuthority(input: {
       authority: input.resolved.authority,
       walletAuthMethodId: input.resolved.authMethod.walletAuthMethodId,
       mintId: mintId.value,
-      budget: unlockWalletSessionBudgetRequest({
-        deviceLinked: input.resolved.authority.provenance.kind === 'device_link',
-        requested: input.walletSessionBudget,
-      }),
+      requestedBudget: input.walletSessionBudget,
       issuedAtMs: Date.now(),
     });
     const authorityProvenanceKind = input.resolved.authority.provenance.kind;

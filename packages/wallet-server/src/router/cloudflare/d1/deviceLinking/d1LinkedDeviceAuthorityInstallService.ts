@@ -150,7 +150,7 @@ import type {
 import {
   walletSessionAuthorizationV2RecordsEqual,
   type PersistedActiveWalletSessionAuthorizationV2,
-  type IssuedWalletSessionAuthorizationV2,
+  type WalletSessionAuthorizationV2,
 } from '../../../../authorization/domain';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -237,6 +237,7 @@ export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
   readonly authorizationService: Pick<
     AuthorizationService,
     | 'prepareWalletSessionAuthorizationV2'
+    | 'walletSessionAuthorizationV2ForIssue'
     | 'readWalletSessionAuthorizationV2ByMint'
     | 'prepareDirectWalletSessionCredential'
   >;
@@ -279,6 +280,12 @@ export type CommitPendingAuthorityResultV1 =
   | { readonly kind: 'conflict'; readonly message: string }
   | { readonly kind: 'invalid_input'; readonly message: string };
 
+/** The committed Wallet Session of a linked device. Its quota changes with each signature, so it is not here. */
+export type CommittedLinkedDeviceWalletSessionV1 = {
+  readonly session: WalletSessionAuthorizationV2;
+  readonly primaryOperationCredentialDigestB64u: DigestB64u;
+};
+
 export type ActivateInstalledAuthorityResultV1 =
   | {
       readonly kind: 'active';
@@ -286,7 +293,7 @@ export type ActivateInstalledAuthorityResultV1 =
       readonly authority: ActiveWalletAuthorityV1;
       readonly authMethod: ActiveWalletAuthMethodRecordV2;
       readonly session: LinkedDeviceSessionRecordV1;
-      readonly walletSession: IssuedWalletSessionAuthorizationV2;
+      readonly walletSession: CommittedLinkedDeviceWalletSessionV1;
       readonly deliveryBinding: LinkedDeviceWalletSessionCredentialDeliveryBindingV1;
       readonly sealedDelivery: LinkedDeviceWalletSessionCredentialDeliveryV1;
     }
@@ -1502,9 +1509,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
   private async assertCredentialDeliveryMatchesCommittedSession(input: {
     readonly stored: StoredInstallationRow;
     readonly receipt: LocalAuthorityInstallationReceiptV1;
-    readonly walletSession: IssuedWalletSessionAuthorizationV2 & {
-      readonly primaryOperationCredentialDigestB64u: DigestB64u;
-    };
+    readonly walletSession: CommittedLinkedDeviceWalletSessionV1;
     readonly delivery: LinkedDeviceWalletSessionCredentialDeliveryV1;
   }): Promise<void> {
     await this.assertCredentialDeliveryMatchesStoredInstallation(input);
@@ -1515,7 +1520,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       aad.principalId !== session.principalId ||
       aad.authorizationId !== session.authorizationId ||
       aad.walletSessionId !== session.walletSessionId ||
-      aad.quotaId !== input.walletSession.quota.quotaId ||
+      aad.quotaId !== session.quotaId ||
       aad.credentialDigestB64u !== input.walletSession.primaryOperationCredentialDigestB64u ||
       aad.issuedAtMs !== session.createdAtMs ||
       aad.expiresAtMs !== session.expiresAtMs
@@ -1857,42 +1862,34 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     authority: ActiveWalletAuthorityV1,
     authMethod: ActiveWalletAuthMethodRecordV2,
     issuedAtMs: number,
-  ): Promise<
-    IssuedWalletSessionAuthorizationV2 & {
-      readonly primaryOperationCredentialDigestB64u: DigestB64u;
-    }
-  > {
-    const prepared = await this.options.authorizationService.prepareWalletSessionAuthorizationV2(
-      this.buildWalletSessionAuthorizationInput(authority, authMethod, issuedAtMs),
-    );
+  ): Promise<CommittedLinkedDeviceWalletSessionV1> {
+    const input = this.buildWalletSessionAuthorizationInput(authority, authMethod, issuedAtMs);
     const committed =
       await this.options.authorizationService.readWalletSessionAuthorizationV2ByMint({
-        tenantId: prepared.session.tenantId,
-        principalId: prepared.session.principalId,
-        walletId: prepared.session.walletId,
-        authorityId: prepared.session.authorityId,
-        walletAuthMethodId: prepared.session.walletAuthMethodId,
-        mintId: prepared.session.mintId,
+        tenantId: input.tenantId,
+        principalId: input.principalId,
+        walletId: input.walletId,
+        authorityId: input.authority.authorityId,
+        walletAuthMethodId: input.walletAuthMethodId,
+        mintId: input.mintId,
       });
     if (!committed || committed.retiredAtMs !== null) {
       throw new LinkedDeviceActivationIntegrityErrorV1(
         'linked-device Wallet Session authorization is not active',
       );
     }
-    // The grant reads the tenant's current maximum, so only the expiry may differ from the commit.
-    if (
-      !walletSessionAuthorizationV2RecordsEqual(committed.session, {
-        ...prepared.session,
-        expiresAtMs: committed.session.expiresAtMs,
-      })
-    ) {
+    // The expiry is the grant of the commit; every other field follows from the input.
+    const expected = await this.options.authorizationService.walletSessionAuthorizationV2ForIssue(
+      input,
+      committed.session.expiresAtMs,
+    );
+    if (!walletSessionAuthorizationV2RecordsEqual(committed.session, expected)) {
       throw new LinkedDeviceActivationIntegrityErrorV1(
         'linked-device Wallet Session authorization differs from its commit',
       );
     }
     return {
       session: committed.session,
-      quota: prepared.quota,
       primaryOperationCredentialDigestB64u: committed.primaryOperationCredentialDigestB64u,
     };
   }
@@ -2019,7 +2016,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       authority,
       walletAuthMethodId: authMethod.walletAuthMethodId,
       mintId,
-      budget: { profile: 'linked_device', requested: null },
+      requestedBudget: null,
       issuedAtMs,
     };
     return input;

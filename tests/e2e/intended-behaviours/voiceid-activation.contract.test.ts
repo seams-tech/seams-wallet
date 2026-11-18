@@ -368,7 +368,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       authority: fixture.authority,
       walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
       mintId: fixture.issuedSession.session.mintId,
-      budget: { profile: 'default', requested: { ttlMs: 120_000, remainingUses: 7 } },
+      requestedBudget: { ttlMs: 120_000, remainingUses: 7 },
       issuedAtMs,
     });
     if (issued.kind !== 'issued') throw new Error('Source owner Wallet Session was not issued');
