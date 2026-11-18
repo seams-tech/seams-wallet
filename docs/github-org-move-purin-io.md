@@ -75,10 +75,9 @@ container image `speaker-service`.
    - The registry does not show if a trusted publisher also names the environment
      `npm-release`. Before step 10, the owner runs `npm trust list <package>` for each
      package of the first two rows and writes down the environment.
-   - The npm organisation `purin-io` does not exist yet: on 2026-11-18 the registry answered
-     "Scope not found". The Purin rename publishes under `@purin-io`
-     ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D23). Only the owner
-     creates it, on npmjs.com.
+   - The owner created the npm organisation `purin-io` on 2026-11-18. The registry confirms
+     the scope, with no packages yet. The Purin rename publishes under `@purin-io`
+     ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D23).
    - The GitHub name `purin-io` is still free (`gh api users/purin-io` answered 404 on
      2026-11-18).
 5. **List the outside connections to GitHub**: Cloudflare Pages and Workers builds, GitHub Apps,
