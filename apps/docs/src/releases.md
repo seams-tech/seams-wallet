@@ -1,9 +1,21 @@
 ---
-title: Release 0.73.0
-description: The app asks for its Wallet Session budget, and the server grants it up to the tenant's maximum. Deploy the 0.73.0 server before the Wallet host.
+title: Release 0.73.1
+description: The transaction receipt keeps each stage on one line on a phone, so the card no longer changes height while it signs.
 ---
 
-# Release 0.73.0
+# Release 0.73.1
+
+The browser SDK, server SDK and VoiceID plugin use **0.73.1**. It has no breaking change since 0.73.0.
+
+Since 0.73.0:
+
+- The transaction receipt keeps the heading and description of each stage on one line on a phone. Before, a stage that took two lines followed a stage that took one, and the card changed height while it signed and sent the transaction.
+- The Japanese text of the stages is shorter, for example 署名中 and 送信中 in the headings. Three English descriptions are shorter: "Sending it to the network.", "Sent. Waiting for the receipt." and, for a signed message, "Nothing was sent to the network."
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` stay at **0.72.0**. They have no change.
+- No server or protocol change. The Wallet iframe protocol stays **25.0.0**, and a Wallet host at 0.73.1 works with a server at 0.73.0.
+- Install all three packages at 0.73.1. No database migrations.
+
+## Release 0.73.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.73.0**. A Wallet host at 0.73.0 needs a server at 0.73.0, so deploy the server first.
 
