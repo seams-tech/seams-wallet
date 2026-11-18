@@ -5,7 +5,10 @@ const hostedBenchmark = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
 export default defineConfig({
   tsconfig: './tsconfig.wallet-intended.json',
   testDir: '.',
-  testMatch: ['**/e2e/intended-behaviours/**/*.contract.test.ts'],
+  testMatch: [
+    '**/e2e/intended-behaviours/**/*.contract.test.ts',
+    '**/conformance/journeys/**/*.contract.test.ts',
+  ],
   fullyParallel: false,
   workers: 1,
   retries: 0,

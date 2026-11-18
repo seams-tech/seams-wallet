@@ -201,6 +201,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
       - run: pnpm -C tests test:wallet-unit
+      - run: pnpm -C tests test:conformance
 
   # Each lifecycle case starts a fresh local Wallet system, which takes about
   # 35 seconds, so the cases run in shards on parallel runners.

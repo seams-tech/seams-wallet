@@ -12,7 +12,14 @@ process.env.SEAMS_TEST_FRONTEND_URL = browserTestOrigin;
 const browserConfig = defineConfig({
   tsconfig: './tsconfig.wallet-browser.json',
   testDir: '.',
-  testMatch: ['**/wallet-iframe/**/*.test.ts', '**/wallet-ui/**/*.test.ts', '**/unit/**/*.test.ts'],
+  testMatch: [
+    '**/wallet-iframe/**/*.test.ts',
+    '**/wallet-ui/**/*.test.ts',
+    '**/unit/**/*.test.ts',
+    '**/conformance/**/*.test.ts',
+  ],
+  // The conformance journeys need the local Wallet system of the intended config.
+  testIgnore: ['**/conformance/journeys/**'],
   fullyParallel: false,
   workers: 1,
   retries: 0,

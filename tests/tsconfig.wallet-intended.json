@@ -44,6 +44,8 @@
   },
   "include": [
     "e2e/intended-behaviours/**/*.ts",
+    "conformance/**/*.ts",
+    "types/sdk-paths.d.ts",
     "r150-hosted/gateway/**/*.ts",
     "intended-app/src/**/*.ts",
     "intended-app/src/**/*.tsx"
