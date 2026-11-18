@@ -440,6 +440,56 @@ Answered on 2026-11-18.
 - **Slice 4: the deletion.** Section 6, after Refactor 252 Slice 2 moves the Email OTP factor
   seal.
 
+### The change list of Slice 2
+
+Written on 2026-11-18 from the Refactor 252 code that was not yet committed. It already has the
+shared parts: the server wrapper `packages/wallet-server/src/core/oprfWasm.ts`, the Email OTP
+evaluator `core/authService/emailOtpFactorOprf.ts`, and the client wrapper
+`wk/oprf/runtime.ts` (blind, finalize and the AES-GCM key from the output). Check the names
+again before Slice 2 starts.
+
+Server (`srv/`):
+
+1. `core/authService/emailOtpRootKey.ts`: make `deriveEmailOtpRootBytes` the one root helper of
+   both seals. Remove the copy of the same HMAC in `seal/crypto/cipher.ts:297-338`.
+2. A new `seal/crypto/oprf.ts`, built like `emailOtpFactorOprf.ts`: a seed for each key version
+   from the root under the label `seams/signing-session-seal/oprf`, a fixed key label, and `info`
+   from the admitted wallet and threshold session. It calls `core/oprfWasm.ts`.
+3. `seal/service.ts`, `seal/transport/` and `seal/signingSessionSeal.types.ts`: one `evaluate`
+   operation and route, the request and response of Section 5, and a replay key on a hash of the
+   blinded element.
+4. `seal/options.ts` and `seal/routesOptions.ts`: the evaluator in place of the cipher adapter,
+   and the rate-limit guard on by default (D9). `createSigningSessionSealOptions` keeps its name
+   and its input (F16).
+5. `router/framework/ror/normalize.ts` and `router/transport/fetch/routes/wellKnown.ts`: the new
+   protocol and `publicKeys` by key version.
+6. `router/domains/walletRegistration/registrationSessionSeal.ts`: the prepared evaluation.
+7. `hosted-wallet-gateway.ts`: warm the OPRF runtime in place of the three-pass runtime.
+8. Delete the signing-session scope and adapter of `seal/crypto/cipher.ts`.
+
+Shared (`shared/signingSessionSeal.ts`): record v3, the algorithm
+`ristretto255-sha512-poprf-v1`, the key label and the `info` builder. This seal has no group ID.
+
+Wallet (`packages/wallet/src/core/`):
+
+1. `wk/passkey-mpc-session.worker.ts`: seal and restore through `wk/oprf/runtime.ts`. Delete the
+   client seal preparation, the sealed-value cache and the nested-worker calls. Add the restore
+   diagnostics.
+2. `wk/email-otp/sessionState.ts`: the same for the ECDSA seal and restore.
+3. `signingEngine/uiConfirm/PasskeyMpcSessionManager.ts` and `PasskeyMpcSessionDurableState.ts`:
+   a prepared blind in place of the prepared client lock, and the v3 fields.
+4. `sess/persistence/sealedSessionRecords.ts` and `sealedSessionStore.ts`: record v3. A v2 record
+   is malformed. An inactive record keeps no sealed fields (U3).
+5. `rpcClients/relayer/walletRegistration.ts` and `sealedRefreshCapabilities.ts`: the
+   registration `sessionSeal` fields and the published keys.
+6. `config/defaultConfigs.ts`, `config/configBuilder.ts` and
+   `../SeamsWeb/walletIframe/shared/configuration.ts`: the new protocol.
+7. `../SeamsWeb/signingSurface/BrowserSigningSurface.ts`, `sess/passkey/ecdsaRecovery.ts`,
+   `sess/emailOtp/ecdsaRecovery.ts` and `sess/emailOtp/ecdsaPublication.ts`: pass the v3 record
+   and drop `groupId`.
+
+Then the tests of Section 9 and the documents at the end of this plan.
+
 ## 9. Tests
 
 - **RFC 9497 vectors** for ristretto255-SHA512 in POPRF mode, in the runtime of F17. Add the
