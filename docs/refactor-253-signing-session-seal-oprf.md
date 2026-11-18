@@ -139,7 +139,11 @@ Checked in the code on 2026-11-18 at `eb3ad8d77`. `seal/` is
   gateway-deployment-config.mjs:387-408`, `deployment/wallet-system/targets.json`,
   `generate-github-env-values.mjs:1079-1081`,
   `scripts/local-wallet/d1-local-runtime-config.mjs:173`). `ensure-d1-local-wasm.mjs:12-13`
-  copies the three-pass WASM.
+  requires the three-pass WASM in the installed server package; after Slice 2 it must require
+  `dist/esm/wasm/oprf_runtime/pkg/oprf_runtime_bg.wasm` instead. The local worker's root
+  response lists `/wallet-session/seal/apply-server-seal` and `remove-server-seal`
+  (`d1LocalDevWorker.ts:2535-2536`); it becomes `/wallet-session/seal/evaluate`. Checked again
+  on 2026-11-19 at seams-monorepo `cb0b80eb`.
 - **F17. A POPRF runtime is being built.** On 2026-11-18 the Refactor 252 work added
   `wasm/oprf_runtime` (not yet committed). It wraps `voprf` 0.5.0 in POPRF mode on
   ristretto255-SHA512, and its lock file resolves `curve25519-dalek` to 4.1.3. It exports a client
@@ -456,6 +460,10 @@ Answered on 2026-11-18.
 - **Not done.** Restore diagnostics: nothing would read them, and F18 measures the same steps.
   The well-known `publicKeys` of D2: each response carries the key instead. The deploy config of
   seams-monorepo (F16) changes in Slice 3.
+- **Checked on `9890aae37`, with a full build.** Six behaviour cases pass: the passkey and the
+  Email OTP reload journeys, `passkey.unlock` "default sealed refresh", both NEAR-only
+  registration-commit cases (one with a failed server seal), and the custom email unlock after
+  a reload. The new unit file `signingSessionSealOprf.unit.test.ts` passes.
 
 ### The change list of Slice 2
 
