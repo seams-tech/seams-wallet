@@ -1,9 +1,9 @@
-# Refactor 250: Seams Checkout, with stablecoin payments as a plugin
+# Refactor 250: Seams Checkout, with stablecoin payments by address
 
 Status: 2026-11-18. Plan only. Nothing is built. Revised on 2026-11-18 after a review of the
 architecture. This plan builds on
 [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), which separates auth, the
-MPC wallet, the wallet connectors and the checkout, and renames `@seams/wallet` to
+MPC wallet and the checkout, and renames `@seams/wallet` to
 `@seams/mpc-wallet`.
 
 The owner's requests (2026-11-17 and 2026-11-18):
@@ -15,8 +15,11 @@ The owner's requests (2026-11-17 and 2026-11-18):
   chooses Stripe, KOMOJU or both.
 - The checkout is a standalone library. It is written from scratch in new folders,
   `packages/checkout` and `packages/checkout-server`, with no file copied from the wallet.
-- The wallets are an optional plugin of the checkout, so that customers can pay with
-  stablecoins. USDC and JPYC are the main ones.
+- Customers can pay with stablecoins. USDC and JPYC are the main ones.
+- **Stablecoins by address (2026-11-18).** The checkout shows a QR code and an address, and
+  the customer sends the tokens from any wallet. So the checkout integrates no wallet
+  connector. The MPC wallet stays as an optional plugin: a persistent wallet that the customer
+  funds once and then pays from in one tap, as Stripe Link does for cards.
 - **Review changes.** The owner accepted these changes after the review:
   - auth is an optional peer of the checkout, behind a small identity interface (D4)
   - one payment rail interface for Stripe, KOMOJU and stablecoins (D10)
@@ -29,7 +32,7 @@ The owner's requests (2026-11-17 and 2026-11-18):
 
 - **A standalone package of new code.** `@seams/checkout` lives in `packages/checkout` and
   follows the new-code rules of Refactor 251 (its Section 2). It has no required Seams
-  dependency. Auth and the wallet packages are optional peers.
+  dependency. Auth and the MPC wallet are optional peers.
 - **Guests can pay.** A guest pays with an email address only. A signed-in customer gets saved
   methods, order history and one-tap payment with a passkey.
 - **A shop can use its own login.** The checkout needs only a small identity interface. Seams
@@ -37,10 +40,11 @@ The owner's requests (2026-11-17 and 2026-11-18):
 - **One checkout page, several payment rails behind it.** Seams draws the list of payment
   methods. A routing table on the server sends each method to one rail: Stripe, KOMOJU or the
   stablecoin rail. One order can send a card to Stripe and PayPay to KOMOJU.
-- **Stablecoins are one more rail.** With the rail's browser half, the checkout shows JPYC for a
-  JPY order and USDC for a USD order. The customer pays from the MPC wallet (passkey) or from a
-  connected wallet such as MetaMask or Rabby. The checkout server finds the transfer on the
-  chain. Seams holds no funds.
+- **Stablecoins are one more rail.** The checkout shows JPYC for a JPY order and USDC for a USD
+  order, with a QR code and an address. The customer sends the tokens from any wallet or
+  exchange. The checkout server finds the transfer on the chain. Seams holds no funds.
+- **One-tap payment from the MPC wallet.** With the optional plugin, a signed-in customer pays
+  from a Seams wallet that already holds tokens, with one passkey approval.
 - **Seams draws almost everything.** Only three parts stay with the provider or the issuer:
   the card number fields, the 3-D Secure challenge and the approval screen of a QR wallet
   (PayPay and similar).
@@ -61,16 +65,19 @@ Decided by the owner on 2026-11-18:
 
 - **D4. A separate package, with optional peers.** The checkout is `@seams/checkout`. It uses
   auth through an identity interface (Section 2), and `@seams/auth` is an optional peer. The
-  wallets are optional too. The first choice was a required dependency on auth. The review
+  MPC wallet is optional too. The first choice was a required dependency on auth. The review
   changed it, because a guest checkout calls no auth code.
 - **D7. Moved.** The rename and the module split are decisions of Refactor 251.
 - **D10. One rail interface.** Stripe, KOMOJU and stablecoins are three rails of one interface.
-  A rail has a server half, and it can have a browser half (Section 3). This replaces the
+  A rail has a server half, and it can have a part on the app page (Section 3). This replaces the
   provider interface and the separate method plugin interface of the first plan.
 - **D11. The server finds the transfer.** The checkout Worker searches the chain for the
   stablecoin transfer of a quote. A transaction hash from the browser is only a hint.
 - **D12. Order states and attempt states are separate.** A payment that arrives when its order
   does not wait for it becomes an `unexpected_payment` (Section 5).
+- **D15. Stablecoins by address.** The checkout shows a QR code and an address. It integrates
+  no wallet connector, and it does not know the payer. The MPC wallet is the one optional
+  plugin, for one-tap payment (Section 4).
 
 Open, with a recommendation:
 
@@ -96,10 +103,17 @@ Open, with a recommendation:
 - **D13. Merchant keys.** Recommended: the checkout accepts only a Stripe restricted key with
   the permissions for payments, refunds and webhooks. A leaked key then cannot pay out or read
   other data (Fact F16). Unknown U12 asks the same for KOMOJU.
-- **D14. Gas for a stablecoin payment.** Recommended: decide after Unknowns U8 and U9. If both
-  tokens support signed transfer authorizations, a relayer can pay the gas and the transfer
-  names its order. If not, the customer pays the gas, and the checkout shows JPYC and USDC only
-  on chains where the gas is small against the order.
+- **D14. Gas for a payment from the MPC wallet.** A customer who pays by QR code pays the gas
+  from the customer's own wallet. For the MPC wallet, decide after Unknowns U8 and U9.
+  Recommended: if both tokens support signed transfer authorizations, a relayer pays the gas,
+  so that the customer needs only the stablecoin. If not, the checkout offers the MPC wallet
+  only on chains where the gas is small against the order.
+- **D16. How a transfer names its order.** The checkout does not know the payer, so the
+  transfer must name the order itself. Recommended: a unique amount. The quote adds a small
+  mark, below one minor unit of the currency, so that no two open quotes of one receiver have
+  the same amount. It needs no contract and no key. The other choice is one deposit address
+  for each order, from a forwarder contract that can send only to the merchant. It matches
+  every amount, but it needs an audited contract and gas for each order.
 
 ## How one page uses two providers
 
@@ -115,7 +129,7 @@ customer selects a method, the page mounts that method's part:
 | PayPay, Rakuten Pay, Merpay, au PAY, d払い | KOMOJU | Nothing | The wallet app, then Seams status |
 | Paidy, Pay-easy | KOMOJU | Nothing | Paidy or the bank, then Seams status |
 | Apple Pay, Google Pay | Stripe | Stripe Express Checkout Element | The device sheet |
-| JPYC, USDC | Stablecoin rail | Nothing | MPC wallet confirmer, or the connected wallet |
+| JPYC, USDC | Stablecoin rail | A QR code and an address | The customer's own wallet, or the MPC wallet confirmer |
 
 KOMOJU's weak styling matters only for cards. Its extra methods are a button, a redirect or a
 voucher, and Seams draws those. So the strong mix is cards on Stripe and the other Japanese
@@ -223,8 +237,8 @@ Neither page says whether the rates include consumption tax.
 - **U7.** Read KOMOJU's own notice about the October 2026 incident before the owner signs with
   KOMOJU.
 - **U8.** Do JPYC and USDC support signed transfer authorizations (EIP-3009
-  `transferWithAuthorization`) on each chain that the checkout uses? With them, the nonce can
-  name the order and a relayer can pay the gas (D14).
+  `transferWithAuthorization`) on each chain that the checkout uses? With them, a relayer can
+  pay the gas of a payment from the MPC wallet (D14).
 - **U9.** On which chains is JPYC issued, and what does a transfer cost on each? The wallet's
   asset list has JPYC only on Ethereum (Fact F7), where the gas can cost more than a small
   order.
@@ -235,8 +249,10 @@ Neither page says whether the rates include consumption tax.
   the method?
 - **U12.** Does KOMOJU offer restricted keys (D13)?
 - **U13.** Can the checkout Worker find a NEAR token transfer without the transaction hash?
-  Plain NEAR RPC has no log search. If not, the NEAR path needs an indexer, or it needs the
-  hint.
+  Plain NEAR RPC has no log search. If not, the NEAR path needs an indexer. A NEAR transfer has
+  a memo field, which can carry the order reference.
+- **U14.** Which wallets and exchanges read a payment QR code with the token and the amount
+  (EIP-681)? Where a wallet does not, the customer copies the address and the amount by hand.
 
 ## 1. Modules and where they run
 
@@ -244,11 +260,10 @@ Neither page says whether the rates include consumption tax.
 | --- | --- | --- | --- |
 | Checkout, browser | `@seams/checkout` (`.`, `./react`) | App page (SDK) and checkout origin (frame) | No secret. Provider client secrets for one payment |
 | Checkout, server | `@seams/checkout-server` | Checkout Worker, own D1 database | Merchant provider keys (encrypted), orders |
-| Stablecoin rail, browser half | `@seams/checkout/stablecoin` | App page | Nothing. It calls the wallet's public API |
+| MPC wallet payment (plugin) | `@seams/checkout/stablecoin` | App page | Nothing. It calls the MPC wallet's public API |
 | Stablecoin rail, server half | `@seams/checkout-server/stablecoin` | Checkout Worker | Chain RPC endpoints |
 | Auth | `@seams/auth` (Refactor 251) | App page and account origin | Login session |
 | MPC wallet | `@seams/mpc-wallet` (Refactor 251) | Account origin plugin | Custody material |
-| Wallet connectors | `@seams/wallet-connectors` (Refactor 251) | App page | Nothing |
 | Frame kit | `@seams-internal/frame-kit` (Refactor 251) | Bundled into each browser package | Nothing |
 
 ```mermaid
@@ -257,7 +272,6 @@ flowchart BT
     Checkout["@seams/checkout"] -. optional peer .-> Auth
     Rail["@seams/checkout/stablecoin"] --> Checkout
     Rail -. optional peer .-> Wallet["@seams/mpc-wallet"]
-    Rail -. optional peer .-> External["@seams/wallet-connectors"]
     Wallet --> Auth
 ```
 
@@ -265,12 +279,13 @@ Rules of the dependency direction:
 
 - `@seams/checkout` has no required Seams dependency. It lists `@seams/auth` as an optional
   peer (Fact F18).
-- Only `@seams/checkout/stablecoin` imports the wallet packages. It lists each as an optional
+- Only `@seams/checkout/stablecoin` imports `@seams/mpc-wallet`. It lists it as an optional
   peer dependency.
-- The base entries of `@seams/checkout` import nothing from auth or the wallet. A shop without
-  stablecoins ships no wallet code. A shop with its own login ships no Seams Auth code.
+- The base entries of `@seams/checkout` import nothing from auth or the wallet. A shop that
+  takes stablecoins only by QR code ships no wallet code. A shop with its own login ships no
+  Seams Auth code.
 - Auth and the wallet import nothing from the checkout.
-- The rail's browser half uses only the wallet's public API. So the peer dependency range is
+- The plugin uses only the MPC wallet's public API. So the peer dependency range is
   the only version contract. Every Seams package has one version (Refactor 251, D16).
 
 Runtime parts:
@@ -278,9 +293,9 @@ Runtime parts:
 ```mermaid
 flowchart LR
     MS["Merchant server"] -->|"create order (secret key)"| CW["Checkout Worker"]
-    App["Merchant page: checkout SDK (+ auth, + rail)"] -->|"open"| CF["Checkout frame (checkout origin)"]
+    App["Merchant page: checkout SDK (+ auth, + MPC wallet)"] -->|"open"| CF["Checkout frame (checkout origin)"]
     App -->|"sign-in, MPC wallet"| AI["Account iframe (account origin)"]
-    App -. "connected wallet" .-> EW["MetaMask, Rabby"]
+    CF -. "QR code, address" .-> EW["Any wallet or exchange"]
     CF -->|"card fields, redirects"| PSP["Stripe / KOMOJU"]
     CF -->|"order status"| CW
     AI -->|"JPYC / USDC transfer"| Chain["Ethereum, NEAR"]
@@ -346,7 +361,7 @@ checkoutConfig = {
 ```
 
 A method with no route does not appear. A merchant with only Stripe sets only Stripe routes.
-A stablecoin method appears only when the app also installs the rail's browser half.
+A stablecoin method needs no code in the app. The checkout frame draws the QR code.
 
 Browser, without stablecoins:
 
@@ -389,11 +404,10 @@ type CheckoutIdentity = {
   The customer approves with a passkey for the audience `checkout` (Refactor 251, its
   Section 4). Only Seams Auth gives `prove` now.
 
-Browser, with stablecoins:
+Browser, with one-tap payment from the MPC wallet:
 
 ```ts
 import { createMpcWallet } from '@seams/mpc-wallet';
-import { walletConnectors } from '@seams/wallet-connectors';
 import { stablecoinPayments } from '@seams/checkout/stablecoin';
 
 const mpcWallet = createMpcWallet({ auth, chains: ['ethereum', 'near'] });
@@ -401,15 +415,12 @@ const checkout = createCheckout({
   identity: auth,
   checkoutOrigin,
   publishableKey,
-  rails: [
-    stablecoinPayments({ mpcWallet, connectors: walletConnectors(), tokens: ['JPYC', 'USDC'] }),
-  ],
+  rails: [stablecoinPayments({ mpcWallet })],
 });
 ```
 
-A shop that wants only existing wallets omits `mpcWallet` and installs only
-`@seams/wallet-connectors`. Then the app loads no MPC code. A shop that wants only the MPC wallet
-omits `connectors`.
+Without this plugin, a stablecoin method still works: the customer pays by QR code or address.
+With it, a signed-in customer also sees "Pay with Seams wallet".
 
 - **`modal`.** The checkout dialog opens with the checkout frame.
 - **`inline`.** The checkout frame mounts into an element of the developer's page
@@ -460,21 +471,20 @@ A variant needs a part in the browser that can run it:
 | `card_form` | The provider's card fields | Checkout frame (built in) |
 | `redirect` | A redirect and a status screen | Checkout frame (built in) |
 | `voucher`, `bank_details` | A Seams screen from the rail's data | Checkout frame (built in) |
-| `onchain_quote` | The stablecoin rail's browser half | App page, because it calls the wallet SDKs |
+| `onchain_quote` | A QR code, an address and a status screen | Checkout frame (built in) |
 
-A rail's browser half implements one small interface:
+A rail can also have a part on the app page, for a step that needs another SDK. The stablecoin
+rail has one: the payment from the MPC wallet.
 
 ```ts
 type RailClient = {
   readonly rail: string;
-  options(order: CheckoutOrderView): Promise<readonly RailClientOption[]>; // "Seams wallet", "MetaMask"
-  prepare(option: RailClientOption): Promise<RailClientInput>;             // the payer address and chain
+  options(order: CheckoutOrderView): Promise<readonly RailClientOption[]>; // "Pay with Seams wallet"
   run(start: RailStart, stage: StageHost): Promise<RailHint | null>;       // ask the wallet to pay
 };
 ```
 
-- A method whose variant has no browser part on this page does not appear.
-- `prepare` gives the rail the input that it needs before `start`. The server half checks it.
+- An option appears beside the built-in part of the variant, not in place of it.
 - `run` returns a hint or nothing. The checkout never needs the hint (Section 4).
 
 Server details for every rail:
@@ -493,35 +503,56 @@ Server details for every rail:
 
 ## 4. The stablecoin rail
 
-A stablecoin payment:
+A stablecoin payment by address:
 
-1. The customer selects JPYC (JPY order) or USDC (USD order). A token that does not match the
-   order currency does not appear (D8).
-2. The customer chooses the MPC wallet or a connected wallet such as MetaMask or Rabby (Fact
-   F20). The browser half reads the payer address on the chosen chain (`prepare`).
-3. The server half issues an onchain quote (`start`): chain, token contract, receiver, exact
-   amount in token units, payer address, the block of the quote and the expiry.
-4. The customer confirms the transfer (`run`):
-   - **MPC wallet.** The dialog moves from the checkout frame to the Wallet confirmer in
-     the same modal (Section 6). The customer confirms with a passkey.
-   - **Connected wallet.** The connected wallet opens its own window. The checkout frame shows a
-     wait.
+1. The customer selects JPYC (JPY order) or USDC (USD order), and a chain. A token that does
+   not match the order currency does not appear (D8).
+2. The server half issues an onchain quote (`start`): chain, token contract, receiver, the
+   amount in token units, the block of the quote and the expiry.
+3. The checkout frame shows the quote: a QR code, the address, the amount, copy buttons and the
+   time that is left. On a phone, a link opens the customer's wallet app (Unknown U14).
+4. The customer sends the tokens from any wallet or exchange. The checkout does not connect to
+   that wallet and does not know the payer.
 5. The checkout Worker finds the transfer (D11). On each poll it searches the token's transfer
-   events from the block of the quote for the payer, the receiver and the exact amount. With a
-   hint, it reads that transaction first.
-6. The Worker accepts the transfer after the required confirmations.
-7. One transfer pays one order. If two open quotes match one transfer, the oldest quote gets
-   it. A second use is refused.
+   events from the block of the quote for the receiver and the amount of the quote.
+6. The Worker accepts the transfer after the required confirmations. The frame shows the
+   status. The order becomes `paid` also when the frame is closed.
+
+How a transfer names its order (D16, recommended: a unique amount):
+
+- The quote amount is the order amount plus a small mark. The mark is below one minor unit of
+  the currency: below 1 yen for JPYC, below 1 cent for USDC.
+- The Worker selects the mark so that no two open quotes of one receiver, token and chain have
+  the same amount. So one transfer matches one quote.
+- The receipt shows the order amount and the amount that was sent.
+- **The weak point is a wrong amount.** A transfer with a different amount matches no quote,
+  and the checkout cannot see its order. The frame tells the customer to send the exact amount,
+  and the QR code carries it. The Console lists each transfer to the receiver that matched no
+  quote, so that the merchant can refund it.
+- With a deposit address for each order, the amount is the order amount, and every transfer to
+  that address belongs to the order. This is the other choice of D16.
+
+One-tap payment from the MPC wallet (the optional plugin):
+
+- This is for a customer who keeps tokens in a Seams wallet, as Stripe Link keeps a card. The
+  customer funds the wallet once, at its address, and then pays each order in one tap.
+- A signed-in customer with a wallet sees "Pay with Seams wallet" and the balance, above the QR
+  code.
+- The dialog moves from the checkout frame to the Wallet confirmer in the same modal
+  (Section 6). The customer approves with a passkey. The wallet sends the amount of the same
+  quote to the same receiver.
+- The Worker finds this transfer by the same search. The plugin's hint only makes the first
+  poll faster.
+- If the balance is too low, the button is off. The customer pays by QR code, or funds the
+  wallet first.
+- Gas is decision D14.
+
+Rules for both paths:
 
 - **A closed browser changes nothing.** The Worker finds the transfer without the browser.
-  There is no resume step and no stored hash. When the customer returns, the frame reads the
-  order status.
 - **A transfer after the expiry** is an `unexpected_payment` (Section 5). The merchant refunds
   it or accepts it by hand.
-- **NEAR.** The search needs an indexer or the hint (Unknown U13).
-- **Signed authorizations (D14).** If the tokens support them (Unknown U8), the customer signs
-  an authorization whose nonce comes from the order ID. Then the transfer names its order, the
-  match of step 5 is exact, and a relayer can pay the gas.
+- **NEAR.** The search needs an indexer (Unknown U13).
 
 ## 5. Order and attempt states
 
@@ -626,7 +657,7 @@ modal. The repo rules allow one copy of that code.
 
 Each slice ships alone and keeps the invariants of Section 9.
 
-- **Slice 0: checks and accounts.** Answer U1 to U13. Open Stripe (Japan) and KOMOJU test
+- **Slice 0: checks and accounts.** Answer U1 to U14. Open Stripe (Japan) and KOMOJU test
   accounts. Get the open decisions. No code.
 - **Slice 1: the stage dialog.** Built as Refactor 251 Slice 3 (Section 6). The checkout starts
   after it.
@@ -646,23 +677,27 @@ Each slice ships alone and keeps the invariants of Section 9.
 - **Slice 5: returning customers.** The identity interface, `signIn: 'offer'`, the JWKS check
   in the checkout Worker, order history, saved methods per provider and one-tap payment with
   `prove`. Needs the login token of Refactor 251 (its Slices 5 and 6).
-- **Slice 6: the stablecoin rail.** Both halves, with the MPC wallet and the wallet connectors:
-  the onchain quote, the move to the Wallet confirmer, the transfer search and the poll. JPYC
-  on Ethereum and USDC on Ethereum and NEAR (Fact F7), or the chains that D14 selects. Build it
-  against the API of Refactor 251 Release B, so that it needs no second change.
-- **Slice 7: the other KOMOJU methods.** Rakuten Pay, Merpay, au PAY, d払い, Paidy and Pay-easy
+- **Slice 6: stablecoins by address.** The server half of the stablecoin rail and the QR screen
+  in the frame: the onchain quote, the unique amount (D16), the transfer search, the poll and
+  the list of unmatched transfers. JPYC and USDC on the chains that Slice 0 selects (Fact F7,
+  Unknown U9). It needs no account and no wallet code, so it does not wait for Refactor 251.
+- **Slice 7: one-tap payment from the MPC wallet.** `@seams/checkout/stablecoin`: the button,
+  the balance, the move to the Wallet confirmer and the gas path of D14. Build it against the
+  API of Refactor 251 Release B, so that it needs no second change.
+- **Slice 8: the other KOMOJU methods.** Rakuten Pay, Merpay, au PAY, d払い, Paidy and Pay-easy
   as redirect methods (Unknown U2).
-- **Slice 8: Apple Pay and Google Pay.** The Stripe Express Checkout Element in the frame,
+- **Slice 9: Apple Pay and Google Pay.** The Stripe Express Checkout Element in the frame,
   domain registration and the `allow="payment"` chain.
-- **Slice 9: headless mode, refunds and disputes.** `checkout.methods`, `select`, `pay`,
+- **Slice 10: headless mode, refunds and disputes.** `checkout.methods`, `select`, `pay`,
   `mountCardFrame`, server refunds (full and partial) through the rail of the payment, and the
   dispute event.
-- **Slice 10: Console and deployment (seams-monorepo).** Deploy the checkout Worker and origin.
+- **Slice 11: Console and deployment (seams-monorepo).** Deploy the checkout Worker and origin.
   Connect the provider accounts, set the receiving addresses, edit the routing table and the
-  theme, set the merchant webhook URL, view orders, review unexpected payments and refund.
+  theme, set the merchant webhook URL, view orders, review unexpected payments and unmatched
+  transfers, and refund.
 
-Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no account. Slice
-5 waits for the login token of Refactor 251. Slice 6 waits for Release B of Refactor 251.
+Slices 2 to 4 and Slice 6 wait only for the stage dialog, because they need no account. Slice
+5 waits for the login token of Refactor 251. Slice 7 waits for Release B of Refactor 251.
 
 ## 9. Invariants
 
@@ -670,7 +705,7 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
   JavaScript. Only provider frames hold them.
 - No provider script runs in the account origin or on the merchant's page.
 - `@seams/checkout` has no required Seams dependency. Only `@seams/checkout/stablecoin` imports
-  the wallet packages. Auth and the wallet packages import nothing from the checkout.
+  `@seams/mpc-wallet`. Auth and the MPC wallet import nothing from the checkout.
 - The checkout origin and the checkout Worker hold no account or wallet secret, open no wallet
   worker, read no account-origin storage and have no binding to the wallet's router roles.
   [Browser workers](browser-workers.md) stays unchanged.
@@ -679,6 +714,8 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
 - The amount, currency, rail and stablecoin receiver of a payment come from the server.
   The browser cannot change them.
 - One active attempt per order. One provider payment per attempt. One transfer pays one order.
+- No two open quotes of one receiver, token and chain have the same amount.
+- The checkout integrates no wallet connector and does not need the payer's address.
 - Only a rail event moves an attempt to `succeeded`: a verified webhook or a confirmed
   transfer. A hint from the browser is never needed and never enough.
 - One function computes the order state from the attempts and the refunds.
@@ -693,17 +730,20 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
 - Intended behaviours: one journey per method and per rail, in
   [Intended Behaviours](intended-behaviours.md): card success, card decline, 3-D Secure,
   konbini issued then paid, konbini expired, bank transfer, PayPay approve and cancel, a guest
-  order, a returning customer's order, a one-tap payment, JPYC paid from the MPC wallet, USDC
-  paid from a connected wallet, and a mixed routing order (card on Stripe, konbini on KOMOJU).
+  order, a returning customer's order, a one-tap payment, JPYC paid by QR code, USDC paid from
+  the MPC wallet in one tap, and a mixed routing order (card on Stripe, konbini on KOMOJU).
 - Unexpected payments: a voucher paid after a card payment, a transfer after the quote expired,
-  a bank transfer with the wrong amount, and two open quotes that match one transfer.
+  and a bank transfer with the wrong amount.
+- Two open orders with the same price get different quote amounts. A transfer with a wrong
+  amount appears in the list of unmatched transfers.
+- A checkout with stablecoins by QR code loads no wallet code.
 - A stablecoin payment completes when the browser closes before the transfer confirms and
   sends no hint.
 - A guest-only checkout and a checkout with a shop's own identity load no Seams Auth code.
 - Browser tests in Chromium, Firefox and WebKit for the frame, the theme mapping, the move to
   sign-in and to the Wallet confirmer, and keyboard and screen reader use.
-- A packed-package test that fails if the base entries of `@seams/checkout` import auth or a
-  wallet package, or if one of those imports the checkout.
+- A packed-package test that fails if the base entries of `@seams/checkout` import auth or the
+  MPC wallet, or if one of those imports the checkout.
   `tests/scripts/check-packed-wallet-boundaries.mjs` is the model.
 - A type test that the object of `createSeamsAuth` satisfies `CheckoutIdentity`.
 - A CSP test that fails if the checkout document allows another script host.
@@ -717,6 +757,8 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
 - **Saved cards across merchants with a passkey.** It needs the Connect platform (platform
   customers and copied payment methods). It works only for Stripe cards.
 - **Authorization now and capture later.** Every card payment is captured at once.
+- **Wallet connectors in the checkout.** The customer sends to the address from any wallet
+  (D15). A connect button for MetaMask or Rabby can come later.
 - **Conversion between currencies.** A JPY order cannot be paid in USDC (D8).
 - **Agent checkout.** Stripe Shared Payment Tokens with the agent grants of Spec 8. Japanese
   availability is not confirmed.
