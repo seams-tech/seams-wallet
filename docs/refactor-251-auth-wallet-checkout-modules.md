@@ -141,6 +141,25 @@ Open, with a recommendation:
   `@purin` is not free. `purin-io` did not exist then. The owner creates the npm organisation
   `purin-io` before the rename. Internal packages use `@purin-io-internal`, or keep
   `@seams-internal`, because they are never published.
+- **D24. Fewer packages.** The owner is concerned about the number of packages (12 published,
+  3 internal; see "Package names after the Purin rename"). Recommended: publish by who installs
+  the code, not by product. Four packages: `@purin-io/sdk` for the app page,
+  `@purin-io/server` for the app's backend, `@purin-io/host` for the operator of the services,
+  and `@purin-io/cli`. Auth, the MPC wallet, wallet connect and the checkout stay separate
+  modules. They become entries of these packages, with the same import rules (Section 1),
+  checked by a test. Reasons:
+  - One version for all packages (D16) already removes the main gain of separate packages.
+  - Separation by secrets comes from the deployment: separate Workers and separate origins. One
+    package can build several Workers.
+  - The large files (WASM, voice assets) run only in the hosted origins, so only the operator
+    installs them. Unpacked today: `@seams/wallet` 30.3 MB, `@seams/wallet-server` 52.2 MB,
+    `@seams/voiceid` 37.7 MB.
+  - The frame kit and the project credentials become folders of `sdk` and `host`, so the
+    internal packages go from three to one.
+
+  Costs: a shop that uses only the checkout also installs the small page code of auth and the
+  wallet. The import rules need a test in place of package boundaries. If the owner accepts
+  D24, Release A publishes the four new names, and the connectors become an entry.
 
 ## Facts this plan builds on
 
@@ -662,6 +681,45 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
 - **Syncing methods between devices.** There is no sync, by design (Fact F12).
 - **Other SSO providers.**
 - **The checkout.** See [Refactor 250](refactor-250-seams-checkout.md).
+
+## Package names after the Purin rename
+
+The npm scope is `@purin-io` (D23). Until the rename, this plan uses the `@seams/...` names.
+
+As planned now:
+
+| Package | Replaces | Repository |
+| --- | --- | --- |
+| `@purin-io/auth` | Auth code in `@seams/wallet` | seams-wallet |
+| `@purin-io/auth-server` | Auth code in `@seams/wallet-server` | seams-wallet |
+| `@purin-io/mpc-wallet` | `@seams/wallet` | seams-wallet |
+| `@purin-io/mpc-wallet-server` | `@seams/wallet-server` | seams-wallet |
+| `@purin-io/mpc-wallet-cli` | `@seams/wallet-cli` | seams-wallet |
+| `@purin-io/wallet-connect` | `@seams/wallet/external-evm` and `external-near` | seams-wallet |
+| `@purin-io/voiceid` | `@seams/voiceid` | seams-wallet |
+| `@purin-io/checkout` | New ([Refactor 250](refactor-250-seams-checkout.md)) | seams-wallet |
+| `@purin-io/checkout-server` | New (Refactor 250) | seams-wallet |
+| `@purin-io/voice-capture` | `@seams/voice-capture` | speak-to-sign |
+| `@purin-io/voice-sign` | `@seams/voice-sign` | speak-to-sign |
+| `@purin-io/voice-verdict` | `@seams/voice-verdict` | speak-to-sign |
+
+- Entries: `@purin-io/checkout/react`, `@purin-io/checkout/stablecoin` and
+  `@purin-io/checkout-server/stablecoin`.
+- Internal, never published: `frame-kit`, `project-credentials` and `shared-ts`, under
+  `@purin-io-internal` or `@seams-internal`.
+- Open: `voiceid` or `voice-id`, to match the three `voice-*` packages.
+
+With D24 (recommended, open):
+
+| Package | Who installs it | Entries |
+| --- | --- | --- |
+| `@purin-io/sdk` | App developers, for the app page | `/auth`, `/mpc-wallet`, `/wallet-connect`, `/checkout`, `/checkout/stablecoin`, and a React entry beside each |
+| `@purin-io/server` | App developers, for their backend | `/auth` (`verifyLoginToken`), `/checkout` (orders, merchant event checks) |
+| `@purin-io/host` | The operator of the services | The Auth Worker, the Wallet Gateway and its router roles, the checkout Worker, the account origin and the checkout origin |
+| `@purin-io/cli` | People who recover a wallet | The recovery CLI |
+| `@purin-io/voice` | `host`, and app developers who use Speak-to-Sign | `/capture`, `/sign`, `/verdict` (a change in speak-to-sign) |
+
+Internal: `shared-ts` only.
 
 ## Documents to update when the slices land
 

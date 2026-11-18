@@ -53,6 +53,10 @@ not counted. Step 1 lists them.
    - The speak-to-sign packages: `seams-tech/speak-to-sign`, `release-standalone.yml`
      (`scripts/npm-trust-standalone.sh` sets them).
    - The CLI package of seams-monorepo, if it uses trusted publishing.
+
+   Also create the npm organisation `purin-io` now, if nobody has done it. The Purin rename
+   publishes under `@purin-io` ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md),
+   D23). Only the owner creates it.
 5. **List the outside connections to GitHub**: Cloudflare Pages and Workers builds, GitHub Apps,
    deploy keys, webhooks and tokens with a repository list. Most use a numeric ID and keep
    working. Write down each one that shows a repository by name.
