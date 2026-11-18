@@ -122,18 +122,6 @@ export const DEFAULT_THRESHOLD_SESSION_POLICY: Pick<
 
 export const DEFAULT_UNLOCK_REMAINING_USES = DEFAULT_WALLET_SESSION_REMAINING_USES;
 
-type PositiveRemainingUses = number & {
-  readonly __brand: 'PositiveRemainingUses';
-};
-
-export function parsePositiveSessionUses(value: unknown, fieldName: string): PositiveRemainingUses {
-  const remainingUses = Math.floor(Number(value) || 0);
-  if (!Number.isFinite(remainingUses) || remainingUses <= 0) {
-    throw new Error(`[ThresholdSessionPolicy] ${fieldName} must be a positive integer`);
-  }
-  return remainingUses as PositiveRemainingUses;
-}
-
 type RequestedWalletSessionBudgetFields = {
   readonly ttlMs?: unknown;
   readonly remainingUses?: unknown;

@@ -41,22 +41,8 @@ export const DEFAULT_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_POLICY: Router
   };
 
 const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvisioningDefaults = {
-  tempo: {
-    enabled: true,
-    signingSession: {
-      kind: 'jwt',
-      ttlMs: DEFAULT_THRESHOLD_SESSION_TTL_MS,
-      remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
-    },
-  },
-  evm: {
-    enabled: true,
-    signingSession: {
-      kind: 'jwt',
-      ttlMs: DEFAULT_THRESHOLD_SESSION_TTL_MS,
-      remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
-    },
-  },
+  tempo: { enabled: true },
+  evm: { enabled: true },
 };
 
 //////////////////////////////////////////

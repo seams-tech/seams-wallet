@@ -1,12 +1,6 @@
-interface EcdsaSignerProvisioningSession {
-  kind: 'jwt' | 'cookie';
-  ttlMs: number;
-  remainingUses: number;
-}
-
+/** Whether registration provisions a threshold ECDSA signer for a chain family. */
 export interface EcdsaSignerProvisioningPolicy {
   enabled: boolean;
-  signingSession: EcdsaSignerProvisioningSession;
 }
 
 export interface EcdsaSignerProvisioningDefaults {

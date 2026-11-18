@@ -141,20 +141,8 @@ type SigningSessionSealConfig =
  *     refillAttemptTimeoutMs?: number;
  *   };
  *   provisioningDefaults?: {
- *     tempo: {
- *       enabled: boolean;
- *       signingSession: {
- *         kind: 'jwt' | 'cookie';
- *         ttlMs: number;
- *         remainingUses: number;
- *       }; *     };
- *     evm: {
- *       enabled: boolean;
- *       signingSession: {
- *         kind: 'jwt' | 'cookie';
- *         ttlMs: number;
- *         remainingUses: number;
- *       }; *     };
+ *     tempo: { enabled: boolean };
+ *     evm: { enabled: boolean };
  *   };
  *   iframeWallet?: {
  *     walletOrigin?: string;
@@ -238,21 +226,12 @@ export interface SeamsConfigsInput {
    */
   routerAbEcdsaDerivationPresignaturePool?: RouterAbEcdsaDerivationPresignaturePoolPolicyInput;
   /**
-   * Default threshold-ECDSA provisioning policy used at registration time for
-   * `tempo` and `evm` chains.
+   * Which chain families get a threshold ECDSA signer at registration:
+   * `tempo.enabled` and `evm.enabled`. Both are true by default.
    *
-   * Shape:
-   * - `tempo`: `EcdsaSignerProvisioningPolicy`
-   * - `evm`: `EcdsaSignerProvisioningPolicy`
-   *
-   * `EcdsaSignerProvisioningPolicy` contains:
-   * - `enabled`: enable/disable provisioning on that chain.
-   * - `signingSession.kind`: `'jwt' | 'cookie'` for the minted signer session.
-   * - `signingSession.ttlMs`: session expiration window in milliseconds.
-   * - `signingSession.remainingUses`: max allowed signer operations for the session.
-   *
-   * Used when a registration call does not provide per-call overrides via
-   * `RegistrationHooksOptions.signerOptions`.
+   * A registration call can override this with
+   * `RegistrationHooksOptions.signerOptions`. The Wallet Session budget is
+   * `signingSessionDefaults`, for all signers.
    */
   provisioningDefaults?: EcdsaSignerProvisioningDefaults;
   // Iframe Wallet configuration (when using a separate wallet origin)
