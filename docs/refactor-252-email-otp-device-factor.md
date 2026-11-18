@@ -1,6 +1,6 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-18. Slices 0 and 1 are done. D10 is decided. D9 is open.
+Status: 2026-11-18. Slices 0 and 1 and D8 are done. D10 is decided. D9 is open.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -93,7 +93,12 @@ Added by Slice 0 on 2026-11-18:
 - **D8. A seal key for each wallet and enrollment.** Required by D1 (F13). The lock context of
   the Email OTP seal names the wallet and the enrollment, as the signing-session seal names the
   wallet and the session. A code for one wallet then removes the seal only from that wallet's
-  factor.
+  factor. Done on 2026-11-18, before Slice 2, because the gap is also open today: registration
+  takes the sealed factor from the client, so a reader of D1 could store another wallet's
+  sealed factor in an Email OTP wallet of their own and unseal it with their own code. Both
+  seals now derive their key through one path in `signingSessionSeal/crypto/cipher.ts`, and the
+  four releases share `releaseEmailOtpFactorToWorker`. The registration seal request carries
+  the enrollment ID. With an OPRF (D9), the same wallet and enrollment become the POPRF `info`.
 - **D9. The primitive of the blinded release (open).** Recommended: an OPRF (RFC 9497,
   ristretto255) in place of Shamir three-pass for the Email OTP factor. The device keeps a
   random input, and S is the OPRF output under the server's key for that wallet. The server
@@ -158,10 +163,9 @@ counts only.
 
 Two facts from the same reading change the design:
 
-- **F13. The Email OTP seal key is the same for every wallet.** Its lock context names no
-  wallet and no enrollment (`threshold/session/signingSessionSeal/crypto/cipher.ts:204-215`).
-  Under D1 alone, a copy of the sealed factor of wallet A and a valid code for the attacker's
-  own wallet B would give S of wallet A (D8).
+- **F13. The Email OTP seal key was the same for every wallet.** Its lock context named no
+  wallet and no enrollment. Under D1 alone, a copy of the sealed factor of wallet A and a valid
+  code for the attacker's own wallet B would give S of wallet A. D8 fixed this on 2026-11-18.
 - **F14. The Shamir three-pass group is 1024 bits.** Both seals use `rfc2409-group2`
   (`shared-ts/src/utils/signingSessionSeal.ts:16`). With one key for all wallets, one discrete
   logarithm opens every sealed factor (D9).

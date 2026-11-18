@@ -1,6 +1,6 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
-import { createEmailOtpEnrollmentShamir3PassCipherAdapter } from '../../../../threshold/session/signingSessionSeal/crypto/cipher';
+import { createEmailOtpEnrollmentShamir3PassCipher } from '../../../../threshold/session/signingSessionSeal/crypto/cipher';
 import type { EmailOtpServerSealRuntimeConfig } from '../auth/d1RouterApiAuthConfig';
 import type {
   EmailOtpServerSealApplyRequest,
@@ -11,29 +11,10 @@ import type {
 
 type EmailOtpServerSealResult = Readonly<CoreEmailOtpServerSealResult>;
 
-type EmailOtpServerSealOperation =
-  | {
-      readonly cipherOperation: 'apply-server-seal';
-      readonly thresholdSessionId: 'email-otp-enroll';
-      readonly failureMessage: 'Failed to apply Email OTP server seal';
-    }
-  | {
-      readonly cipherOperation: 'remove-server-seal';
-      readonly thresholdSessionId: 'email-otp-unseal';
-      readonly failureMessage: 'Failed to remove Email OTP server seal';
-    };
-
-const applyEmailOtpServerSealOperation: EmailOtpServerSealOperation = {
-  cipherOperation: 'apply-server-seal',
-  thresholdSessionId: 'email-otp-enroll',
-  failureMessage: 'Failed to apply Email OTP server seal',
-};
-
-const removeEmailOtpServerSealOperation: EmailOtpServerSealOperation = {
-  cipherOperation: 'remove-server-seal',
-  thresholdSessionId: 'email-otp-unseal',
-  failureMessage: 'Failed to remove Email OTP server seal',
-};
+const SEAL_OPERATION_FAILURES = {
+  'apply-server-seal': 'Failed to apply Email OTP server seal',
+  'remove-server-seal': 'Failed to remove Email OTP server seal',
+} as const;
 
 export class CloudflareD1EmailOtpServerSealRuntime {
   private readonly cipherResult: EmailOtpShamirCipherResult;
@@ -49,11 +30,7 @@ export class CloudflareD1EmailOtpServerSealRuntime {
     if (!keyVersion) {
       return failure('invalid_body', 'Missing enrollmentSealKeyVersion');
     }
-    return await this.runServerSealOperation(
-      input.wrappedCiphertext,
-      removeEmailOtpServerSealOperation,
-      keyVersion,
-    );
+    return await this.runServerSealOperation(input, 'remove-server-seal', keyVersion);
   }
 
   /** The stored form of an Email OTP code: encrypted under a key from the seal root. */
@@ -96,31 +73,27 @@ export class CloudflareD1EmailOtpServerSealRuntime {
   ): Promise<EmailOtpServerSealResult> {
     const shamir = this.cipherResult;
     if (!shamir.ok) return shamir;
-    return await this.runServerSealOperation(
-      input.wrappedCiphertext,
-      applyEmailOtpServerSealOperation,
-      shamir.keyVersion,
-    );
+    return await this.runServerSealOperation(input, 'apply-server-seal', shamir.keyVersion);
   }
 
   private async runServerSealOperation(
-    wrappedCiphertextRaw: unknown,
-    operation: EmailOtpServerSealOperation,
+    input: EmailOtpServerSealApplyRequest,
+    operation: keyof typeof SEAL_OPERATION_FAILURES,
     keyVersion: string,
   ): Promise<EmailOtpServerSealResult> {
     try {
-      const wrappedCiphertext = toOptionalTrimmedString(wrappedCiphertextRaw);
+      const wrappedCiphertext = toOptionalTrimmedString(input.wrappedCiphertext);
       if (!wrappedCiphertext) {
         return failure('invalid_body', 'Missing wrappedCiphertext');
       }
       const shamir = this.cipherResult;
       if (!shamir.ok) return shamir;
       const result = await shamir.cipher.run({
-        operation: operation.cipherOperation,
-        thresholdSessionId: operation.thresholdSessionId,
+        operation,
+        walletId: input.walletId,
+        enrollmentId: input.enrollmentId,
         ciphertext: wrappedCiphertext,
         keyVersion,
-        auth: { userId: 'email_otp' },
       });
       if (!result.ok) return result;
       return {
@@ -129,7 +102,10 @@ export class CloudflareD1EmailOtpServerSealRuntime {
         enrollmentSealKeyVersion: result.keyVersion || keyVersion,
       };
     } catch (error: unknown) {
-      return failure('internal', serverSealErrorMessage(error) || operation.failureMessage);
+      return failure(
+        'internal',
+        serverSealErrorMessage(error) || SEAL_OPERATION_FAILURES[operation],
+      );
     }
   }
 
@@ -142,7 +118,7 @@ export class CloudflareD1EmailOtpServerSealRuntime {
       return {
         ok: true,
         keyVersion,
-        cipher: createEmailOtpEnrollmentShamir3PassCipherAdapter({
+        cipher: createEmailOtpEnrollmentShamir3PassCipher({
           config: this.config.rootConfig,
         }),
       };

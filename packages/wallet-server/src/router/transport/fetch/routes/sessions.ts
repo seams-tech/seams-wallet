@@ -43,7 +43,7 @@ import {
   handleEmailOtpDevCleanupGoogleRegistrationRoute,
   handleEmailOtpDevOutboxRoute,
   handleEmailOtpRegistrationSealRoute,
-  sealEmailOtpFactorSecretForWorker,
+  releaseEmailOtpFactorToWorker,
 } from '../../../domains/emailOtp/emailOtpRouteHandlers';
 import {
   parseOrgId,
@@ -1303,29 +1303,11 @@ export async function handleWalletEmailOtpFactorRelease(
     }
     factorReleaseChallengeId = consumed.challengeId;
   }
-  const unsealed = await ctx.service.emailOtp.removeEmailOtpServerSeal({
-    wrappedCiphertext: enrollment.enrollment.serverSealedFactorCiphertextB64u,
-    enrollmentSealKeyVersion: enrollment.enrollment.enrollmentSealKeyVersion,
-  });
-  if (!unsealed.ok) {
-    return json(unsealed, { status: emailOtpStatusCode(unsealed.code) });
-  }
-  if (unsealed.enrollmentSealKeyVersion !== enrollment.enrollment.enrollmentSealKeyVersion) {
-    return json(
-      {
-        ok: false,
-        code: 'scope_mismatch',
-        message: 'Email OTP factor release seal key version changed',
-      },
-      { status: 409 },
-    );
-  }
-  const sealed = await sealEmailOtpFactorSecretForWorker({
-    factorSecret32B64u: unsealed.ciphertext,
-    workerEphemeralPublicKey65B64u,
+  const sealed = await releaseEmailOtpFactorToWorker({
+    serverSeal: ctx.service.emailOtp,
     walletId: String(walletId.value),
-    enrollmentId: enrollment.enrollment.enrollmentId,
-    enrollmentSealKeyVersion: enrollment.enrollment.enrollmentSealKeyVersion,
+    enrollment: enrollment.enrollment,
+    workerEphemeralPublicKey65B64u,
     challengeId: factorReleaseChallengeId,
   });
   if (!sealed.ok) {

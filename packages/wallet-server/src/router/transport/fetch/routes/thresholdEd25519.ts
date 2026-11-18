@@ -114,12 +114,9 @@ import {
   emailOtpStatusCode,
   hashEmailOtpOperationBinding,
 } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
-import { sealEmailOtpFactorSecretForWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
+import { releaseEmailOtpFactorToWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
 import type { RouterAbEd25519YaoOperationStepUpMaterialRecoveryResponse } from '../../../domains/ed25519Yao/session/routerAbEd25519YaoWalletSession';
-import type {
-  RouterApiEmailOtpRouteService,
-  RouterApiWalletAuthMethodService,
-} from '../../../framework/authServicePort';
+import type { RouterApiWalletAuthMethodService } from '../../../framework/authServicePort';
 import {
   parseEd25519ReusableAuthorizedOperationReceipt,
   parseEd25519VerifiedStepUpAuthorizedOperationReceipt,
@@ -314,55 +311,6 @@ type EmailOtpFactorReleaseRequest = {
   readonly enrollment: EmailOtpFactorReleaseEnrollment;
   readonly workerEphemeralPublicKey65B64u: string;
 };
-
-type EmailOtpFactorReleaseResponse = Extract<
-  RouterAbEd25519YaoOperationStepUpMaterialRecoveryResponse,
-  { readonly kind: 'email_otp_factor_release_v1' }
->;
-
-async function releaseEmailOtpFactorForWorker(input: {
-  readonly emailOtp: Pick<RouterApiEmailOtpRouteService, 'removeEmailOtpServerSeal'>;
-  readonly request: EmailOtpFactorReleaseRequest;
-  readonly walletId: string;
-  readonly challengeId: string;
-}): Promise<
-  | { readonly ok: true; readonly recovery: EmailOtpFactorReleaseResponse }
-  | { readonly ok: false; readonly code: string; readonly message: string }
-> {
-  const unsealed = await input.emailOtp.removeEmailOtpServerSeal({
-    wrappedCiphertext: input.request.enrollment.serverSealedFactorCiphertextB64u,
-    enrollmentSealKeyVersion: input.request.enrollment.enrollmentSealKeyVersion,
-  });
-  if (!unsealed.ok) return unsealed;
-  if (unsealed.enrollmentSealKeyVersion !== input.request.enrollment.enrollmentSealKeyVersion) {
-    return {
-      ok: false,
-      code: 'scope_mismatch',
-      message: 'Email OTP factor release seal key version changed',
-    };
-  }
-  const sealed = await sealEmailOtpFactorSecretForWorker({
-    factorSecret32B64u: unsealed.ciphertext,
-    workerEphemeralPublicKey65B64u: input.request.workerEphemeralPublicKey65B64u,
-    walletId: input.walletId,
-    enrollmentId: input.request.enrollment.enrollmentId,
-    enrollmentSealKeyVersion: input.request.enrollment.enrollmentSealKeyVersion,
-    challengeId: input.challengeId,
-  });
-  if (!sealed.ok) return sealed;
-  return {
-    ok: true,
-    recovery: {
-      kind: 'email_otp_factor_release_v1',
-      challengeId: input.challengeId,
-      enrollmentId: input.request.enrollment.enrollmentId,
-      enrollmentSealKeyVersion: input.request.enrollment.enrollmentSealKeyVersion,
-      serverEphemeralPublicKey65B64u: sealed.serverEphemeralPublicKey65B64u,
-      nonce12B64u: sealed.nonce12B64u,
-      ciphertextB64u: sealed.ciphertextB64u,
-    },
-  };
-}
 
 type PasskeyEd25519AuthorizationResult =
   | {
@@ -1434,16 +1382,25 @@ async function issueEd25519OperationStepUpGrant(input: {
         { status: 409 },
       );
     }
-    const released = await releaseEmailOtpFactorForWorker({
-      emailOtp: input.ctx.service.emailOtp,
-      request: pendingFactorRelease,
+    const released = await releaseEmailOtpFactorToWorker({
+      serverSeal: input.ctx.service.emailOtp,
       walletId: authenticated.session.walletId,
+      enrollment: pendingFactorRelease.enrollment,
+      workerEphemeralPublicKey65B64u: pendingFactorRelease.workerEphemeralPublicKey65B64u,
       challengeId: factorReleaseChallengeId,
     });
     if (!released.ok) {
       return json(released, { status: emailOtpStatusCode(released.code) });
     }
-    materialRecovery = released.recovery;
+    materialRecovery = {
+      kind: 'email_otp_factor_release_v1',
+      challengeId: factorReleaseChallengeId,
+      enrollmentId: pendingFactorRelease.enrollment.enrollmentId,
+      enrollmentSealKeyVersion: pendingFactorRelease.enrollment.enrollmentSealKeyVersion,
+      serverEphemeralPublicKey65B64u: released.serverEphemeralPublicKey65B64u,
+      nonce12B64u: released.nonce12B64u,
+      ciphertextB64u: released.ciphertextB64u,
+    };
   }
   return json(
     {

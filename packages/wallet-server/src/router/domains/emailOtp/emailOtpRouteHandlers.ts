@@ -39,7 +39,7 @@ function emailOtpFactorReleaseAad(input: {
   );
 }
 
-export async function sealEmailOtpFactorSecretForWorker(input: {
+async function sealEmailOtpFactorSecretForWorker(input: {
   readonly factorSecret32B64u: string;
   readonly workerEphemeralPublicKey65B64u: string;
   readonly walletId: string;
@@ -116,6 +116,43 @@ export async function sealEmailOtpFactorSecretForWorker(input: {
   }
 }
 
+/**
+ * Removes the server seal from a stored Email OTP factor and encrypts the factor to the worker
+ * key. The wallet ID chooses the seal key and is bound into the worker ciphertext, so the factor
+ * of another wallet does not open.
+ */
+export async function releaseEmailOtpFactorToWorker(input: {
+  readonly serverSeal: Pick<RouterApiEmailOtpRouteService, 'removeEmailOtpServerSeal'>;
+  readonly walletId: string;
+  readonly enrollment: {
+    readonly enrollmentId: string;
+    readonly enrollmentSealKeyVersion: string;
+    readonly serverSealedFactorCiphertextB64u: string;
+  };
+  readonly workerEphemeralPublicKey65B64u: string;
+  readonly challengeId: string;
+}): ReturnType<typeof sealEmailOtpFactorSecretForWorker> {
+  const { enrollmentId, enrollmentSealKeyVersion } = input.enrollment;
+  const unsealed = await input.serverSeal.removeEmailOtpServerSeal({
+    walletId: input.walletId,
+    enrollmentId,
+    wrappedCiphertext: input.enrollment.serverSealedFactorCiphertextB64u,
+    enrollmentSealKeyVersion,
+  });
+  if (!unsealed.ok) return unsealed;
+  if (unsealed.enrollmentSealKeyVersion !== enrollmentSealKeyVersion) {
+    return failure('scope_mismatch', 'Email OTP factor release seal key version changed');
+  }
+  return await sealEmailOtpFactorSecretForWorker({
+    factorSecret32B64u: unsealed.ciphertext,
+    workerEphemeralPublicKey65B64u: input.workerEphemeralPublicKey65B64u,
+    walletId: input.walletId,
+    enrollmentId,
+    enrollmentSealKeyVersion,
+    challengeId: input.challengeId,
+  });
+}
+
 export async function handleEmailOtpDevCleanupGoogleRegistrationRoute(input: {
   body: unknown;
   service: RouterApiEmailOtpRouteService;
@@ -159,7 +196,7 @@ export async function handleEmailOtpRegistrationSealRoute(input: {
   if (!isPlainObject(input.body)) {
     return { status: 400, body: failure('invalid_body', 'Invalid body') };
   }
-  const allowedFields = new Set(['walletId', 'wrappedCiphertext']);
+  const allowedFields = new Set(['walletId', 'enrollmentId', 'wrappedCiphertext']);
   for (const field of Object.keys(input.body)) {
     if (!allowedFields.has(field)) {
       return {
@@ -169,14 +206,22 @@ export async function handleEmailOtpRegistrationSealRoute(input: {
     }
   }
   const walletId = toOptionalTrimmedString(input.body.walletId);
+  const enrollmentId = toOptionalTrimmedString(input.body.enrollmentId);
   const wrappedCiphertext = toOptionalTrimmedString(input.body.wrappedCiphertext);
-  if (!walletId || !wrappedCiphertext) {
+  if (!walletId || !enrollmentId || !wrappedCiphertext) {
     return {
       status: 400,
-      body: failure('invalid_body', 'Missing walletId or wrappedCiphertext'),
+      body: failure('invalid_body', 'Missing walletId, enrollmentId or wrappedCiphertext'),
     };
   }
-  const result = await input.service.applyEmailOtpServerSeal({ wrappedCiphertext });
+  // The seal key belongs to this wallet and enrollment. Adding a seal reveals nothing, and the
+  // finalize step stores the enrollment ID that the server derives from the verified subject.
+  // A factor sealed here for another ID never opens, so the route needs no proof of the subject.
+  const result = await input.service.applyEmailOtpServerSeal({
+    walletId,
+    enrollmentId,
+    wrappedCiphertext,
+  });
   return {
     status: result.ok ? 200 : emailOtpStatusCode(result.code),
     body: result.ok ? { ...result, walletId } : result,

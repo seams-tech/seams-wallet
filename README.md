@@ -27,14 +27,20 @@ changes that npm does not yet publish.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
+## Next release (not released yet)
+
+- Email OTP: the server stores each code encrypted (AES-256-GCM, bound to its challenge), never in plain text. The key comes from the Email OTP seal root (`SIGNING_SESSION_SEAL_ROOT_SECRET_B64U`), so no new secret is needed. Delivery, resend and the dev outbox do not change.
+- Email OTP: the server seal of the Email OTP factor uses a key for each wallet and enrollment. Before, one key served every wallet: a reader of D1 could store another wallet's sealed factor in an Email OTP wallet of their own and unseal it with their own email code. `/wallet/email-otp/registration/seal` now requires `enrollmentId`.
+- Breaking for self-hosted servers: an Email OTP wallet that an older server made does not open after the upgrade, and its owner recovers with the recovery code. The hosted servers have no Email OTP wallets.
+- Deploy: apply D1 migration `0090_email_otp_code_seal.sql` before the server. It drops the open Email OTP challenges, so a code that is open at the deploy fails and the user asks for a new one. Ship the server and the Wallet host together: a 0.74.0 Wallet host sends no `enrollmentId`, so the new server refuses its Email OTP registration.
+
 ## Release 0.74.0
 
 - A passkey account sync asks for the app's Wallet Session budget, as unlock does. A linked device records the count that the server granted.
 - Fixes from the review of 0.73.0: the grant follows the authority (a linked device always gets the linked-device budget), a retry replays after the tenant's maximum changes, and the SDK refuses a budget value that is not a non-negative integer.
 - Email OTP counts each attempt before it compares the code. NEP-413 signs the app's exact message, recipient and callback URL. An ECDSA step-up is admitted only while its signer read still holds.
 - Breaking: a server that composes `AuthorizationService` itself passes a `walletSessionLimits` port. `provisioningDefaults.{tempo,evm}` hold only `enabled`.
-- Email OTP: the server stores each code encrypted (AES-256-GCM, bound to its challenge), never in plain text. The key comes from the Email OTP seal root (`SIGNING_SESSION_SEAL_ROOT_SECRET_B64U`), so no new secret is needed. Delivery, resend and the dev outbox do not change.
-- Deploy order: the server, then the Wallet host, then the apps. A Wallet host at 0.74.0 needs a server at 0.74.0, and an app at 0.74.0 needs a Wallet host at 0.74.0. The voice libraries stay at **0.72.0**. Apply D1 migration `0090_email_otp_code_seal.sql` before the server. It drops the open Email OTP challenges, so a code that is open at the deploy fails and the user asks for a new one.
+- Deploy order: the server, then the Wallet host, then the apps. A Wallet host at 0.74.0 needs a server at 0.74.0, and an app at 0.74.0 needs a Wallet host at 0.74.0. The voice libraries stay at **0.72.0**. No database migrations.
 
 ## Release 0.73.1
 

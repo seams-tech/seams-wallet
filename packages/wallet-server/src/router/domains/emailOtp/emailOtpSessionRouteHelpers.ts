@@ -32,6 +32,7 @@ export function emailOtpStatusCode(code: string | undefined): number {
   if (code === 'stronger_auth_required') return 403;
   if (
     code === 'reenrollment_required' ||
+    code === 'scope_mismatch' ||
     code === 'registration_attempt_missing' ||
     code === 'registration_attempt_expired'
   ) {

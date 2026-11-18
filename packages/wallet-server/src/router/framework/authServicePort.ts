@@ -68,6 +68,10 @@ import type {
 } from '../../core/EmailOtpStores';
 import type { LinkIdentityResult, UnlinkIdentityResult } from '../../core/IdentityStore';
 import type { ResolvedEd25519WalletBinding } from '../../core/authService/webauthnWalletBinding';
+import type {
+  EmailOtpServerSealApplyRequest,
+  EmailOtpServerSealRemoveRequest,
+} from '../../core/authService/emailOtpSeal';
 import type { RouterAbEcdsaPresignRuntime } from '../../core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 import type { DeviceLinkingRouteServiceV1 } from '../transport/fetch/routes/deviceLinking';
 import type { DeviceManagementRouteServiceV1 } from '../transport/fetch/routes/deviceManagement';
@@ -603,7 +607,7 @@ type RouterApiOkFailure = {
 
 type RouterApiMethodTypes = {
   applyEmailOtpServerSeal: {
-    readonly input: { readonly wrappedCiphertext?: unknown };
+    readonly input: EmailOtpServerSealApplyRequest;
     readonly result:
       | {
           readonly ok: true;
@@ -881,10 +885,7 @@ type RouterApiMethodTypes = {
       | RouterApiOkFailure;
   };
   removeEmailOtpServerSeal: {
-    readonly input: {
-      readonly wrappedCiphertext?: unknown;
-      readonly enrollmentSealKeyVersion: string;
-    };
+    readonly input: EmailOtpServerSealRemoveRequest;
     readonly result: RouterApiMethodTypes['applyEmailOtpServerSeal']['result'];
   };
   respondWalletAddSignerEcdsaDerivation: {

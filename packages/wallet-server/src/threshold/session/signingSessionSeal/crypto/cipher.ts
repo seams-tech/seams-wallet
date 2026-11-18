@@ -204,14 +204,59 @@ export function encodeSigningSessionSealServerLockContext(input: {
 function encodeEmailOtpEnrollmentServerLockContext(input: {
   readonly protocol: SigningSessionSealProtocol;
   readonly keyVersion: string;
+  readonly walletId: string;
+  readonly enrollmentId: string;
 }): Uint8Array {
   return encodeSigningSessionHkdfTuple([
     'seams/router-ab/signing-session-seal',
     input.protocol.algorithm,
     input.protocol.groupId,
     input.keyVersion,
-    'server-lock/v1',
+    'server-lock/email-otp-enrollment/v1',
+    input.walletId,
+    input.enrollmentId,
   ]);
+}
+
+/**
+ * What a server lock key belongs to. Each scope derives its own key from the
+ * root, so a seal removed for one wallet never opens a value sealed for another.
+ */
+type ServerLockScope =
+  | {
+      readonly kind: 'signing_session';
+      readonly walletId: string;
+      readonly thresholdSessionId: string;
+    }
+  | {
+      readonly kind: 'email_otp_enrollment';
+      readonly walletId: string;
+      readonly enrollmentId: string;
+    };
+
+function encodeServerLockContext(
+  protocol: SigningSessionSealProtocol,
+  keyVersion: string,
+  scope: ServerLockScope,
+): Uint8Array {
+  switch (scope.kind) {
+    case 'signing_session':
+      return encodeSigningSessionSealServerLockContext({
+        protocol,
+        keyVersion,
+        walletId: scope.walletId,
+        thresholdSessionId: scope.thresholdSessionId,
+      });
+    case 'email_otp_enrollment':
+      return encodeEmailOtpEnrollmentServerLockContext({
+        protocol,
+        keyVersion,
+        walletId: scope.walletId,
+        enrollmentId: scope.enrollmentId,
+      });
+    default:
+      return assertNeverServerLockScope(scope);
+  }
 }
 
 function defaultRuntime(): SigningSessionSealShamir3PassRuntime {
@@ -221,51 +266,6 @@ function defaultRuntime(): SigningSessionSealShamir3PassRuntime {
     removeLock: removeSigningSessionSealLock,
     destroyLockKeyHandle: destroySigningSessionSealLockKeyHandle,
   };
-}
-
-async function deriveEmailOtpEnrollmentKeyHandles(input: {
-  readonly config: SigningSessionSealShamir3PassRootConfig;
-  readonly runtime: SigningSessionSealShamir3PassRuntime;
-}): Promise<ReadonlyMap<string, number>> {
-  const handles = new Map<string, number>();
-  try {
-    for (const keyVersion of input.config.acceptedWarmKeyVersions) {
-      const handle = await input.runtime.deriveLockKeyHandle({
-        groupId: input.config.protocol.groupId,
-        rootSecret32: input.config.rootSecret32,
-        context: encodeEmailOtpEnrollmentServerLockContext({
-          protocol: input.config.protocol,
-          keyVersion,
-        }),
-      });
-      handles.set(keyVersion, handle);
-    }
-    return handles;
-  } catch (error: unknown) {
-    for (const handle of handles.values()) input.runtime.destroyLockKeyHandle(handle);
-    throw error;
-  } finally {
-    input.config.rootSecret32.fill(0);
-  }
-}
-
-class EmailOtpEnrollmentKeyHandles {
-  private initialization: Promise<ReadonlyMap<string, number>> | null = null;
-
-  constructor(
-    private readonly config: SigningSessionSealShamir3PassRootConfig,
-    private readonly runtime: SigningSessionSealShamir3PassRuntime,
-  ) {}
-
-  get(): Promise<ReadonlyMap<string, number>> {
-    if (!this.initialization) {
-      this.initialization = deriveEmailOtpEnrollmentKeyHandles({
-        config: this.config,
-        runtime: this.runtime,
-      });
-    }
-    return this.initialization;
-  }
 }
 
 function mapCipherError(
@@ -282,25 +282,11 @@ function mapCipherError(
   return failure('internal', message);
 }
 
-type EmailOtpEnrollmentCipherState = {
-  readonly kind: 'email_otp_enrollment';
-  readonly config: SigningSessionSealShamir3PassRootConfig;
-  readonly runtime: SigningSessionSealShamir3PassRuntime;
-  readonly handles: EmailOtpEnrollmentKeyHandles;
-};
-
-type SigningSessionScopedCipherState = {
-  readonly kind: 'signing_session';
+type Shamir3PassCipherState = {
   readonly config: SigningSessionSealShamir3PassRootConfig;
   readonly runtime: SigningSessionSealShamir3PassRuntime;
   readonly rootKey: Promise<CryptoKey>;
 };
-
-type Shamir3PassCipherState = EmailOtpEnrollmentCipherState | SigningSessionScopedCipherState;
-
-type LockHandleLease =
-  | { readonly kind: 'borrowed'; readonly handle: number }
-  | { readonly kind: 'owned'; readonly handle: number };
 
 function copyToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new ArrayBuffer(bytes.length);
@@ -324,62 +310,35 @@ async function importSigningSessionSealRootKey(rootSecret32: Uint8Array): Promis
   }
 }
 
-async function deriveScopedSigningSessionHandle(input: {
-  readonly state: SigningSessionScopedCipherState;
+async function deriveScopedLockHandle(input: {
+  readonly state: Shamir3PassCipherState;
   readonly keyVersion: SigningSessionSealKeyVersion;
-  readonly walletId: string;
-  readonly thresholdSessionId: string;
+  readonly scope: ServerLockScope;
 }): Promise<number> {
-  const context = encodeSigningSessionSealServerLockContext({
-    protocol: input.state.config.protocol,
-    keyVersion: input.keyVersion,
-    walletId: input.walletId,
-    thresholdSessionId: input.thresholdSessionId,
-  });
-  let sessionRoot32: Uint8Array | null = null;
+  const context = encodeServerLockContext(
+    input.state.config.protocol,
+    input.keyVersion,
+    input.scope,
+  );
+  let scopeRoot32: Uint8Array | null = null;
   try {
     const rootKey = await input.state.rootKey;
-    sessionRoot32 = new Uint8Array(
+    scopeRoot32 = new Uint8Array(
       await crypto.subtle.sign('HMAC', rootKey, copyToArrayBuffer(context)),
     );
     return await input.state.runtime.deriveLockKeyHandle({
       groupId: input.state.config.protocol.groupId,
-      rootSecret32: sessionRoot32,
+      rootSecret32: scopeRoot32,
       context,
     });
   } finally {
-    sessionRoot32?.fill(0);
+    scopeRoot32?.fill(0);
     context.fill(0);
   }
 }
 
-async function acquireLockHandle(
-  state: Shamir3PassCipherState,
-  input: HandlerInput,
-  keyVersion: SigningSessionSealKeyVersion,
-): Promise<LockHandleLease> {
-  switch (state.kind) {
-    case 'email_otp_enrollment': {
-      const handle = (await state.handles.get()).get(keyVersion);
-      if (handle === undefined) throw new Error('Email OTP enrollment lock key handle is unavailable');
-      return { kind: 'borrowed', handle };
-    }
-    case 'signing_session': {
-      const handle = await deriveScopedSigningSessionHandle({
-        state,
-        keyVersion,
-        walletId: input.auth.userId,
-        thresholdSessionId: input.thresholdSessionId,
-      });
-      return { kind: 'owned', handle };
-    }
-    default:
-      return assertNeverShamir3PassCipherState(state);
-  }
-}
-
-function assertNeverShamir3PassCipherState(value: never): never {
-  throw new Error(`Unsupported Shamir 3-pass cipher state: ${String(value)}`);
+function assertNeverServerLockScope(value: never): never {
+  throw new Error(`Unsupported server lock scope: ${String(value)}`);
 }
 
 function assertNeverSigningSessionSealOperation(value: never): never {
@@ -389,14 +348,12 @@ function assertNeverSigningSessionSealOperation(value: never): never {
 async function runShamir3PassCipher(
   state: Shamir3PassCipherState,
   operation: SigningSessionSealOperation,
-  input: HandlerInput,
+  input: {
+    readonly scope: ServerLockScope;
+    readonly keyVersion?: string;
+    readonly ciphertext: string;
+  },
 ): Promise<HandlerResult> {
-  if (state.kind === 'signing_session') {
-    if (!toOptionalTrimmedString(input.auth.userId) || !toOptionalTrimmedString(input.thresholdSessionId)) {
-      return failure('invalid_scope', 'Authenticated wallet and threshold session are required');
-    }
-  }
-
   let keyVersion: SigningSessionSealKeyVersion;
   switch (operation) {
     case 'apply-server-seal': {
@@ -426,78 +383,97 @@ async function runShamir3PassCipher(
   }
 
   try {
-    const lease = await acquireLockHandle(state, input, keyVersion);
+    const handle = await deriveScopedLockHandle({ state, keyVersion, scope: input.scope });
     try {
       let ciphertext: string;
       switch (operation) {
         case 'apply-server-seal':
-          ciphertext = await state.runtime.addLock({
-            handle: lease.handle,
-            ciphertextB64u: input.ciphertext,
-          });
+          ciphertext = await state.runtime.addLock({ handle, ciphertextB64u: input.ciphertext });
           break;
         case 'remove-server-seal':
-          ciphertext = await state.runtime.removeLock({
-            handle: lease.handle,
-            ciphertextB64u: input.ciphertext,
-          });
+          ciphertext = await state.runtime.removeLock({ handle, ciphertextB64u: input.ciphertext });
           break;
         default:
           return assertNeverSigningSessionSealOperation(operation);
       }
       return { ok: true, ciphertext, keyVersion };
     } finally {
-      if (lease.kind === 'owned') state.runtime.destroyLockKeyHandle(lease.handle);
+      state.runtime.destroyLockKeyHandle(handle);
     }
   } catch (error: unknown) {
     return mapCipherError(error, 'Failed to process server seal');
   }
 }
 
-function applyShamir3PassCipher(
-  state: Shamir3PassCipherState,
-  input: HandlerInput,
-): Promise<HandlerResult> {
-  return runShamir3PassCipher(state, 'apply-server-seal', input);
-}
-
-function removeShamir3PassCipher(
-  state: Shamir3PassCipherState,
-  input: HandlerInput,
-): Promise<HandlerResult> {
-  return runShamir3PassCipher(state, 'remove-server-seal', input);
-}
-
-function createShamir3PassCipherAdapter(state: Shamir3PassCipherState): SigningSessionSealCipherAdapter {
-  return createSigningSessionSealCipherAdapter({
-    applyServerSeal: applyShamir3PassCipher.bind(null, state),
-    removeServerSeal: removeShamir3PassCipher.bind(null, state),
-  });
-}
-
-export function createEmailOtpEnrollmentShamir3PassCipherAdapter(
+function createShamir3PassCipherState(
   options: CreateSigningSessionSealShamir3PassCipherAdapterOptions,
-): SigningSessionSealCipherAdapter {
+): Shamir3PassCipherState {
   const config = normalizeConfig(options.config);
   options.config.rootSecret32.fill(0);
-  const runtime = options.runtime ?? defaultRuntime();
-  return createShamir3PassCipherAdapter({
-    kind: 'email_otp_enrollment',
+  return {
     config,
-    runtime,
-    handles: new EmailOtpEnrollmentKeyHandles(config, runtime),
-  });
+    runtime: options.runtime ?? defaultRuntime(),
+    rootKey: importSigningSessionSealRootKey(config.rootSecret32),
+  };
+}
+
+/** Adds or removes the Email OTP server seal under the key of one wallet and enrollment. */
+export type EmailOtpEnrollmentSealCipher = {
+  readonly run: (input: {
+    readonly operation: SigningSessionSealOperation;
+    readonly walletId: string;
+    readonly enrollmentId: string;
+    readonly keyVersion: string;
+    readonly ciphertext: string;
+  }) => Promise<SigningSessionSealCipherOperationResult>;
+};
+
+export function createEmailOtpEnrollmentShamir3PassCipher(
+  options: CreateSigningSessionSealShamir3PassCipherAdapterOptions,
+): EmailOtpEnrollmentSealCipher {
+  const state = createShamir3PassCipherState(options);
+  return {
+    run: async ({ operation, walletId, enrollmentId, keyVersion, ciphertext }) => {
+      if (!toOptionalTrimmedString(walletId) || !toOptionalTrimmedString(enrollmentId)) {
+        return failure('invalid_scope', 'Email OTP wallet and enrollment are required');
+      }
+      return normalizeResult(
+        await runShamir3PassCipher(state, operation, {
+          scope: { kind: 'email_otp_enrollment', walletId, enrollmentId },
+          keyVersion,
+          ciphertext,
+        }),
+      );
+    },
+  };
 }
 
 export function createSigningSessionSealShamir3PassCipherAdapter(
   options: CreateSigningSessionSealShamir3PassCipherAdapterOptions,
 ): SigningSessionSealCipherAdapter {
-  const config = normalizeConfig(options.config);
-  options.config.rootSecret32.fill(0);
-  return createShamir3PassCipherAdapter({
-    kind: 'signing_session',
-    config,
-    runtime: options.runtime ?? defaultRuntime(),
-    rootKey: importSigningSessionSealRootKey(config.rootSecret32),
+  const state = createShamir3PassCipherState(options);
+  const run = async (
+    operation: SigningSessionSealOperation,
+    input: HandlerInput,
+  ): Promise<HandlerResult> => {
+    if (
+      !toOptionalTrimmedString(input.auth.userId) ||
+      !toOptionalTrimmedString(input.thresholdSessionId)
+    ) {
+      return failure('invalid_scope', 'Authenticated wallet and threshold session are required');
+    }
+    return await runShamir3PassCipher(state, operation, {
+      scope: {
+        kind: 'signing_session',
+        walletId: input.auth.userId,
+        thresholdSessionId: input.thresholdSessionId,
+      },
+      keyVersion: input.keyVersion,
+      ciphertext: input.ciphertext,
+    });
+  };
+  return createSigningSessionSealCipherAdapter({
+    applyServerSeal: (input) => run('apply-server-seal', input),
+    removeServerSeal: (input) => run('remove-server-seal', input),
   });
 }

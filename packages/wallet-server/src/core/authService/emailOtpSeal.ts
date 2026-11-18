@@ -1,10 +1,10 @@
-import type { SigningSessionSealCipherAdapter } from '../../threshold/session/signingSessionSeal/signingSessionSeal.types';
+import type { EmailOtpEnrollmentSealCipher } from '../../threshold/session/signingSessionSeal/crypto/cipher';
 
 export type EmailOtpShamirCipherResult =
   | {
       readonly ok: true;
       readonly keyVersion: string;
-      readonly cipher: SigningSessionSealCipherAdapter;
+      readonly cipher: EmailOtpEnrollmentSealCipher;
     }
   | {
       readonly ok: false;
@@ -12,12 +12,14 @@ export type EmailOtpShamirCipherResult =
       readonly message: string;
     };
 
+/** The wallet and the enrollment choose the seal key, so a seal opens only for its own wallet. */
 export type EmailOtpServerSealApplyRequest = {
+  readonly walletId: string;
+  readonly enrollmentId: string;
   readonly wrappedCiphertext?: unknown;
 };
 
-export type EmailOtpServerSealRemoveRequest = {
-  readonly wrappedCiphertext?: unknown;
+export type EmailOtpServerSealRemoveRequest = EmailOtpServerSealApplyRequest & {
   readonly enrollmentSealKeyVersion: string;
 };
 

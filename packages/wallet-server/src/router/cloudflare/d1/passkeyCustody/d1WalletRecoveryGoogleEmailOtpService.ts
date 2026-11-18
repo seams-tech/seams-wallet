@@ -52,7 +52,7 @@ import type { CloudflareD1EmailOtpEnrollmentStore } from '../emailOtp/d1EmailOtp
 import type { CloudflareD1EmailOtpServerSealRuntime } from '../emailOtp/d1EmailOtpServerSealRuntime';
 import type { CloudflareD1OidcVerificationService } from '../oidc/d1OidcVerificationService';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
-import { sealEmailOtpFactorSecretForWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
+import { releaseEmailOtpFactorToWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
 import type { EmailOtpChallengeDelivery } from '../../../framework/authServicePort';
 import type {
   OtpIssuedWalletRecoveryGoogleEmailOtpAttempt,
@@ -411,23 +411,11 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
         'Email OTP recovery enrollment changed after verification',
       );
     }
-    const unsealed = await this.serverSeal.removeEmailOtpServerSeal({
-      wrappedCiphertext: enrollment.serverSealedFactorCiphertextB64u,
-      enrollmentSealKeyVersion: enrollment.enrollmentSealKeyVersion,
-    });
-    if (!unsealed.ok) return unsealed;
-    if (unsealed.enrollmentSealKeyVersion !== enrollment.enrollmentSealKeyVersion) {
-      return failure(
-        'recovery_conflict',
-        'Email OTP recovery enrollment seal changed after verification',
-      );
-    }
-    const sealed = await sealEmailOtpFactorSecretForWorker({
-      factorSecret32B64u: unsealed.ciphertext,
-      workerEphemeralPublicKey65B64u,
+    const sealed = await releaseEmailOtpFactorToWorker({
+      serverSeal: this.serverSeal,
       walletId: String(attempt.walletId),
-      enrollmentId: enrollment.enrollmentId,
-      enrollmentSealKeyVersion: enrollment.enrollmentSealKeyVersion,
+      enrollment,
+      workerEphemeralPublicKey65B64u,
       challengeId: attempt.challengeId,
     });
     if (!sealed.ok) return sealed;

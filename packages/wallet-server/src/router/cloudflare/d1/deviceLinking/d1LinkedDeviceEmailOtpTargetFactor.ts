@@ -46,7 +46,7 @@ import {
 import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type { D1WalletAuthorityStore } from '../wallet/d1WalletAuthorityStore';
 import type { EmailOtpWalletEnrollmentRecord } from '../../../../core/EmailOtpStores';
-import { sealEmailOtpFactorSecretForWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
+import { releaseEmailOtpFactorToWorker } from '../../../domains/emailOtp/emailOtpRouteHandlers';
 import type { DeviceLinkingEmailOtpTargetFactorProviderV1 } from '../../../transport/fetch/routes/deviceLinking';
 import type {
   LinkedDeviceEmailOtpGrantRegistrationPortV1,
@@ -344,28 +344,11 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     // Release the existing factor material to the worker recipient key the
     // authenticated link-session device supplied. The AAD names the verified
     // challenge, so this ciphertext is useless outside this exact completion.
-    const unsealed = await this.options.serverSeal.removeEmailOtpServerSeal({
-      wrappedCiphertext: context.resolved.enrollment.serverSealedFactorCiphertextB64u,
-      enrollmentSealKeyVersion: context.resolved.enrollment.enrollmentSealKeyVersion,
-    });
-    if (!unsealed.ok) {
-      return { kind: 'refused', code: unsealed.code, message: unsealed.message };
-    }
-    if (
-      unsealed.enrollmentSealKeyVersion !== context.resolved.enrollment.enrollmentSealKeyVersion
-    ) {
-      return {
-        kind: 'refused',
-        code: 'scope_mismatch',
-        message: 'Email OTP factor release seal key version changed',
-      };
-    }
-    const sealed = await sealEmailOtpFactorSecretForWorker({
-      factorSecret32B64u: unsealed.ciphertext,
-      workerEphemeralPublicKey65B64u: recipientKey,
+    const sealed = await releaseEmailOtpFactorToWorker({
+      serverSeal: this.options.serverSeal,
       walletId: String(input.approval.walletId),
-      enrollmentId: context.resolved.enrollment.enrollmentId,
-      enrollmentSealKeyVersion: context.resolved.enrollment.enrollmentSealKeyVersion,
+      enrollment: context.resolved.enrollment,
+      workerEphemeralPublicKey65B64u: recipientKey,
       challengeId: verified.challengeId,
     });
     if (!sealed.ok) {

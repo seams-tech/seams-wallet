@@ -1,6 +1,10 @@
 /** Email OTP enrollment: seals a new factor secret with the Router and derives its unlock key. */
 import { base64UrlEncode } from '@shared/utils/base64';
-import { EMAIL_OTP_CHANNEL, type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
+import {
+  EMAIL_OTP_CHANNEL,
+  emailOtpDeviceEnrollmentId,
+  type WalletEmailOtpChannel,
+} from '@shared/utils/emailOtpDomain';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { zeroizeBytes } from '@/core/signingEngine/session/emailOtp/zeroize';
 import type {
@@ -30,10 +34,6 @@ import {
 import { emailOtpRouteSessionAuth } from './otpVerification';
 
 const EMAIL_OTP_UNLOCK_KEY_VERSION = 'email-otp-unlock-v1';
-
-function emailOtpDeviceEnrollmentId(walletId: string, authSubjectId: string): string {
-  return `email-otp-device-enrollment-v1:${walletId}:${authSubjectId}`;
-}
 
 export function emailOtpWalletRegistrationEcdsaHandleResult(
   request: EmailOtpWalletRegistrationEcdsaPrepareHandleRequest,
@@ -83,6 +83,7 @@ export async function prepareEmailOtpEnrollmentFromSecret32(args: {
   let unlockPublicKey33: Uint8Array | null = null;
   try {
     const sessionAuth = emailOtpRouteSessionAuth(args.routePlan);
+    const enrollmentId = emailOtpDeviceEnrollmentId(walletId, userId);
     const wrappedCiphertext = await addClientSealFromBytes({
       runtime,
       keyHandle,
@@ -94,6 +95,7 @@ export async function prepareEmailOtpEnrollmentFromSecret32(args: {
       ...(sessionAuth ? { sessionAuth } : {}),
       body: {
         walletId,
+        enrollmentId,
         wrappedCiphertext,
       },
     });
@@ -116,7 +118,6 @@ export async function prepareEmailOtpEnrollmentFromSecret32(args: {
     });
     unlockPublicKey33 = secp256k1_private_key_32_to_public_key_33(unlockPrivateKey32);
     const clientUnlockPublicKeyB64u = base64UrlEncode(unlockPublicKey33);
-    const enrollmentId = emailOtpDeviceEnrollmentId(walletId, userId);
     args.onProgress?.('signer.email_otp.enroll.started');
     args.onProgress?.('signer.email_otp.enroll.succeeded');
 
