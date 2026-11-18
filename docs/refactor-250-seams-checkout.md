@@ -262,7 +262,7 @@ Neither page says whether the rates include consumption tax.
 | Stablecoin rail, server half | `@seams/checkout-server/stablecoin` | Checkout Worker | Chain RPC endpoints |
 | Auth | `@seams/auth` (Refactor 251) | App page and account origin | Login session |
 | MPC wallet | `@seams/mpc-wallet` (Refactor 251) | Account origin plugin | Custody material |
-| Wallet connectors | `@seams/wallet-connectors` (Refactor 251) | App page | Nothing |
+| Wallet connectors | `@seams/wallet-connect` (Refactor 251) | App page | Nothing |
 | Frame kit | `@seams-internal/frame-kit` (Refactor 251) | Bundled into each browser package | Nothing |
 
 ```mermaid
@@ -271,7 +271,7 @@ flowchart BT
     Checkout["@seams/checkout"] -. optional peer .-> Auth
     Rail["@seams/checkout/stablecoin"] --> Checkout
     Rail -. optional peer .-> Wallet["@seams/mpc-wallet"]
-    Rail -. optional peer .-> External["@seams/wallet-connectors"]
+    Rail -. optional peer .-> External["@seams/wallet-connect"]
     Wallet --> Auth
 ```
 
@@ -407,7 +407,7 @@ Browser, with stablecoins:
 
 ```ts
 import { createMpcWallet } from '@seams/mpc-wallet';
-import { walletConnectors } from '@seams/wallet-connectors';
+import { walletConnect } from '@seams/wallet-connect';
 import { stablecoinPayments } from '@seams/checkout/stablecoin';
 
 const mpcWallet = createMpcWallet({ auth, chains: ['ethereum', 'near'] });
@@ -416,13 +416,13 @@ const checkout = createCheckout({
   checkoutOrigin,
   publishableKey,
   rails: [
-    stablecoinPayments({ mpcWallet, connectors: walletConnectors(), tokens: ['JPYC', 'USDC'] }),
+    stablecoinPayments({ mpcWallet, connectors: walletConnect(), tokens: ['JPYC', 'USDC'] }),
   ],
 });
 ```
 
 A shop that wants only existing wallets omits `mpcWallet` and installs only
-`@seams/wallet-connectors`. Then the app loads no MPC code. A shop that wants only the MPC wallet
+`@seams/wallet-connect`. Then the app loads no MPC code. A shop that wants only the MPC wallet
 omits `connectors`.
 
 - **`modal`.** The checkout dialog opens with the checkout frame.

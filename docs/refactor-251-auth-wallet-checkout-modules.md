@@ -20,7 +20,7 @@ The owner's requests (2026-11-18):
 - **Then audit.** Check every place where auth touches the wallet, make the two compatible,
   and remove bloat and duplicate code on the way.
 - **Names** (after the first choice, `stablecoin-wallet`): `@seams/mpc-wallet`,
-  `@seams/mpc-wallet-server` and `@seams/wallet-connectors`.
+  `@seams/mpc-wallet-server` and `@seams/wallet-connect`.
 - **Review changes.** The owner accepted these changes after the review:
   - one proof operation in auth, in place of a special wallet purpose (D14)
   - the wallet pins the public key of each factor (D7)
@@ -65,7 +65,7 @@ The owner's requests (2026-11-18):
   wallets, custody envelopes, Wallet Sessions and the signing roles. Each existing wallet gets
   an account with the same ID.
 - **External wallets need neither auth nor MPC.** The MetaMask, Rabby and NEAR connectors move
-  to their own package, `@seams/wallet-connectors`.
+  to their own package, `@seams/wallet-connect`.
 - **Two breaking releases.** Release A is the rename and the connectors package. It changes no
   behaviour. Release B is the cutover to the new auth and the new API.
 
@@ -76,7 +76,8 @@ Decided by the owner on 2026-11-18:
 - **D1. Separate modules:** auth, the MPC wallet, the wallet connectors and the checkout.
 - **D2. The names:** `@seams/wallet` becomes `@seams/mpc-wallet`, `@seams/wallet-server`
   becomes `@seams/mpc-wallet-server`, and the external connectors become
-  `@seams/wallet-connectors`. These replace the first choice, `stablecoin-wallet`.
+  `@seams/wallet-connect`. These replace the first choices, `stablecoin-wallet` and
+  `@seams/wallet-connectors`.
 - **D3. The MPC wallet is an optional plugin** of auth. The connectors for existing wallets are
   a separate package.
 - **D4. The checkout uses auth as an optional peer.** The first choice was a required
@@ -115,7 +116,7 @@ Open, with a recommendation:
   endpoint, so that an app backend checks it with a standard library.
   `@seams/auth-server` gives `verifyLoginToken`.
 - **D9. Names in the docs.** Recommended: "Seams Auth", "Seams MPC Wallet", "Seams Wallet
-  Connectors" and "Seams Checkout". "Wallet origin" becomes "account origin". "Wallet Session"
+  Connect" and "Seams Checkout". "Wallet origin" becomes "account origin". "Wallet Session"
   stays.
 - **D10. The public API.** Recommended: `createSeamsAuth(config)`,
   `createMpcWallet({ auth, ... })` and `createCheckout({ identity: auth, ... })`. Each
@@ -246,7 +247,7 @@ Checked on 2026-11-18. Paths are the paths before the rename.
 | Auth, server | `@seams/auth-server` | `packages/auth-server` (new) | Auth Worker | Accounts, methods, login sessions, email provider keys, the login token key | Nothing from Seams |
 | VoiceID | `@seams/voiceid` | `packages/voiceid` | Account origin | Voice template, device keys | `@seams/auth` |
 | MPC wallet | `@seams/mpc-wallet` | `packages/mpc-wallet` (renamed) | App page (SDK), account origin (plugin and workers) | Custody material, Wallet Sessions | `@seams/auth` (peer) |
-| Wallet connectors | `@seams/wallet-connectors` | `packages/wallet-connectors` (moved) | App page | Nothing | Nothing from Seams |
+| Wallet connectors | `@seams/wallet-connect` | `packages/wallet-connect` (moved) | App page | Nothing | Nothing from Seams |
 | MPC wallet server | `@seams/mpc-wallet-server` | `packages/mpc-wallet-server` (renamed) | Wallet Gateway, router roles | Wallets, envelopes with pinned factor keys, signing roles | `@seams/auth-server` (the proof checks only) |
 | Checkout | `@seams/checkout`, `@seams/checkout-server` | `packages/checkout`, `packages/checkout-server` (new) | See Refactor 250 | Provider keys, orders | Nothing from Seams. Auth and the wallet packages are optional peers |
 | Frame kit | `@seams-internal/frame-kit` | `packages/frame-kit` (new) | Bundled into each browser package | Nothing | Nothing |
@@ -258,7 +259,7 @@ flowchart BT
     Auth["@seams/auth"]
     Voice["@seams/voiceid"] --> Auth
     Wallet["@seams/mpc-wallet"] --> Auth
-    External["@seams/wallet-connectors"]
+    External["@seams/wallet-connect"]
     Checkout["@seams/checkout"] -. optional .-> Auth
     Rail["@seams/checkout/stablecoin"] -. optional .-> Wallet
     Rail -. optional .-> External
@@ -266,7 +267,7 @@ flowchart BT
 ```
 
 - Auth imports nothing from the wallet or the checkout.
-- The MPC wallet imports nothing from the checkout. `@seams/wallet-connectors` imports nothing
+- The MPC wallet imports nothing from the checkout. `@seams/wallet-connect` imports nothing
   from auth or from the MPC wallet.
 - Each link to another package is a peer dependency, as `@seams/voiceid` uses today.
 - The servers follow the same direction. The wallet server imports only the pure proof checks
@@ -421,13 +422,13 @@ const proof = await auth.prove({
   Section 2.
 - **Creating a wallet for an account.** `wallet.create()` makes the custody seed and one
   envelope for each method that can carry one: a passkey with PRF, Email OTP and VoiceID.
-- **External wallets.** `@seams/wallet-connectors` keeps the EIP-6963 connector
+- **External wallets.** `@seams/wallet-connect` keeps the EIP-6963 connector
   (MetaMask, Rabby, and others that announce themselves), the Phantom namespace and the NEAR
   connector (Fact F6). It needs no account.
 
 ```ts
 import { createMpcWallet } from '@seams/mpc-wallet';
-import { connectExternalEvm } from '@seams/wallet-connectors';
+import { connectExternalEvm } from '@seams/wallet-connect';
 
 const wallet = createMpcWallet({ auth, chains: ['ethereum', 'near'] });
 await wallet.create();                       // embedded MPC wallet for the signed-in account
@@ -567,7 +568,7 @@ Rules for the cleanup:
 - **Slice 1: Release A, the rename and the connectors.** A mechanical change with no change in
   behaviour:
   - New package and folder names (D2, D5). The `SeamsWeb` API stays in this release.
-  - `externalEvm` and `externalNear` move to `packages/wallet-connectors`, with no import of
+  - `externalEvm` and `externalNear` move to `packages/wallet-connect`, with no import of
     auth or MPC code, cleaned by the rules of Section 7.
   - Every import, script, test, example and public doc page here (Fact F13).
   - `seams-monorepo` in one coordinated commit that names the seams-wallet commit.
@@ -624,7 +625,7 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
   plugin's channel messages.
 - The Auth Worker holds no custody material and no signing share. The wallet servers hold no
   email provider key and no login token key.
-- `@seams/wallet-connectors` creates no Seams session and no custody record.
+- `@seams/wallet-connect` creates no Seams session and no custody record.
 - A recovered login never recovers a wallet seed.
 - Auth imports nothing from the wallet or the checkout. The wallet imports nothing from the
   checkout. The checkout has no required Seams dependency.
