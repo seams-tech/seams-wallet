@@ -11,7 +11,7 @@ import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from './routerAbNormalSigningIdentity';
-import { requireRecord } from './validation';
+import { requirePositiveSafeInteger, requireRecord } from './validation';
 import {
   equalBytes,
   requireBytes,
@@ -562,13 +562,6 @@ function requireExactKeys(
 function requirePositiveU32(value: unknown, label: string): number {
   if (!Number.isInteger(value) || typeof value !== 'number' || value <= 0 || value > 0xffffffff) {
     throw new Error(`${label} must be a positive u32`);
-  }
-  return value;
-}
-
-function requirePositiveSafeInteger(value: unknown, label: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
-    throw new Error(`${label} must be a positive safe integer`);
   }
   return value;
 }

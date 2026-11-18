@@ -9,7 +9,7 @@ import {
 import { base64UrlEncode } from '@shared/utils/base64';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import type { Variant } from '@shared/utils/variant';
-import { asRecordOrArray } from '@shared/utils/validation';
+import { asRecordOrArray, requirePositiveSafeInteger } from '@shared/utils/validation';
 import {
   joinNormalizedUrl,
   normalizeNonNegativeInteger,
@@ -662,10 +662,14 @@ export function consumeEmailOtpWarmSessionUses(args: {
   target: EmailOtpWarmMaterialTarget;
   uses?: number;
 }): EmailOtpWarmSessionStatusResult {
+  // An absent count spends one use. A count that is present must be valid.
+  const uses =
+    args.uses === undefined
+      ? 1
+      : requirePositiveSafeInteger(args.uses, 'Email OTP warm-session uses');
   const usable = readUsableEmailOtpWarmMaterial(args.target);
   if (!usable.ok) return usable;
   const material = usable.material;
-  const uses = Math.max(1, Math.floor(Number(args.uses) || 1));
   if (material.entry.remainingUses < uses) return emailOtpWarmMaterialFailure('exhausted');
   material.entry.remainingUses -= uses;
   const remainingUses = material.entry.remainingUses;
