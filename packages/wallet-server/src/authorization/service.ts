@@ -7,6 +7,7 @@ import type {
   D1Ed25519AdmissionPolicyRead,
 } from '../router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../core/d1EcdsaSignerRead';
+import type { EcdsaMaterialReadSnapshot } from '../core/ecdsaMaterialReadSnapshot';
 import type { Ed25519SignerRead } from '../core/d1Ed25519SignerRead';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
@@ -286,8 +287,14 @@ export type EcdsaMaterialActivationScope = Readonly<{
   readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
 }>;
 
+/**
+ * The ECDSA material that an operation signs with. With the read that found it
+ * active, the admission insert is conditional on that read, so a material that
+ * changed after the read is refused at admission. Without it (the V2 custody
+ * step-up builds its material from custody records), only the scope check runs.
+ */
 export type AuthorizedOperationMaterialScope = EcdsaMaterialActivationScope & {
-  readonly kind?: 'ecdsa_material_activation';
+  readonly readSnapshot?: EcdsaMaterialReadSnapshot;
 };
 
 /** The tenant's maximum Wallet Session budget for this deployment's project environment. */

@@ -1,6 +1,7 @@
 import { signingPrepareSessionResponse } from './signingPrepareSession';
 import type { D1EcdsaAdmissionPolicyRead } from '../../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../../../core/d1EcdsaSignerRead';
+import type { EcdsaMaterialReadSnapshot } from '../../../core/ecdsaMaterialReadSnapshot';
 import type { EcdsaWalletSessionAdmissionInput, EcdsaWalletSessionPhaseAdmission } from '../../../authorization/ecdsaWalletSessionAdmission';
 // The ECDSA derivation normal-signing route: Wallet Session and step-up authorization, operation
 // admission, replay and completion, and forwarding to the SigningWorker.
@@ -361,6 +362,7 @@ export async function resolveFreshRouterAbEcdsaMaterialActivation(input: {
 }): Promise<
   | {
       readonly ok: true;
+      readonly readSnapshot: EcdsaMaterialReadSnapshot;
       readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
       readonly keyHandle: string;
       readonly relayerKeyId: string;
@@ -385,6 +387,7 @@ export async function resolveFreshRouterAbEcdsaMaterialActivation(input: {
   }
   return {
     ok: true,
+    readSnapshot: resolved.readSnapshot,
     materialActivation: resolved.materialActivation,
     keyHandle: resolved.keyHandle,
     relayerKeyId: resolved.relayerKeyId,
@@ -1006,6 +1009,8 @@ export async function claimRouterAbEcdsaOperationStepUp(input: {
   >;
   readonly materialActivation: RouterAbMpcMaterialActivationRefWire;
   readonly keyHandle: string;
+  /** The read that found the material active; admission is conditional on it. */
+  readonly readSnapshot: EcdsaMaterialReadSnapshot;
   readonly authenticated: Extract<
     Awaited<ReturnType<typeof authenticateRouterAbEcdsaOperationStepUp>>,
     { readonly ok: true }
@@ -1067,6 +1072,7 @@ export async function claimRouterAbEcdsaOperationStepUp(input: {
       keyHandle: input.keyHandle,
       runtimePolicyScope: input.authenticated.session.runtimePolicyScope,
       materialActivation: input.materialActivation,
+      readSnapshot: input.readSnapshot,
     },
   });
   if (result.kind === 'material_mismatch') {
@@ -1211,6 +1217,7 @@ async function handleRouterAbEcdsaOperationStepUpRoute(input: {
     },
     materialActivation: freshMaterial.materialActivation,
     keyHandle: freshMaterial.keyHandle,
+    readSnapshot: freshMaterial.readSnapshot,
     authenticated,
   });
   if (!claimResult) {

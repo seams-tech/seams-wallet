@@ -368,7 +368,7 @@ import type {
   VerifiedWalletOperationFactorEvidenceSetInput,
   VerifiedOwnerProofInput,
 } from '../../authorization/factorEvidence';
-import type { EcdsaMaterialActivationScope } from '../../authorization/service';
+import type { AuthorizedOperationMaterialScope } from '../../authorization/service';
 import type { PrincipalId, TenantId } from '@shared/authorization/capabilityKinds';
 
 export type EmailOtpChallengeDelivery =
@@ -1718,7 +1718,7 @@ export interface RouterApiAuthorizedOperationService {
   }): Promise<AuthorizedOperation | null>;
   admitAuthorizedOperation(input: {
     readonly operation: AuthorizedOperationInput;
-    readonly material?: EcdsaMaterialActivationScope;
+    readonly material?: AuthorizedOperationMaterialScope;
   }): Promise<
     | { readonly kind: 'claimed'; readonly operation: AuthorizedOperation }
     | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
