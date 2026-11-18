@@ -280,6 +280,16 @@ function parseLiveWalletSessionAuthorizationV2Row(
     throw new Error('Stored V2 Wallet Session capability subjects disagree with record');
   }
   if (
+    row.authority_id === null ||
+    row.authority_id === undefined ||
+    row.auth_method_id === null ||
+    row.auth_method_id === undefined
+  ) {
+    throw new WalletSessionAuthorizationV2InactiveError(
+      'Stored V2 Wallet Session authority or auth method is gone',
+    );
+  }
+  if (
     row.authority_id !== String(session.authorityId) ||
     row.authority_wallet_id !== String(session.walletId) ||
     row.auth_method_id !== String(session.walletAuthMethodId) ||
