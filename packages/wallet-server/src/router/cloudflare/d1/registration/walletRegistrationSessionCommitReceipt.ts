@@ -2,10 +2,11 @@ import type { RouterAbEd25519YaoPreparedWriteV1 } from '../../../domains/ed25519
 import type {
   WalletRegistrationFinalizeResponse,
   WalletRegistrationFinalizeSuccess,
-  WalletRegistrationRouteDiagnostics,
-  WalletRegistrationRouteTimingName,
 } from '../../../../core/registrationContracts';
-import type { WalletRegistrationFinalizeAuthMethod } from '@shared/utils/registrationContracts';
+import {
+  parseWalletRegistrationRouteDiagnostics,
+  type WalletRegistrationFinalizeAuthMethod,
+} from '@shared/utils/registrationContracts';
 import { parseSessionOrigin } from '../../../../authorization/domain';
 import type { RegistrationActivationWrite } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type {
@@ -415,7 +416,9 @@ export function parseWalletRegistrationSessionCommitReceiptV2(
   ) {
     return null;
   }
-  const registrationDiagnostics = parseRegistrationDiagnostics(record.registrationDiagnostics);
+  const registrationDiagnostics = parseWalletRegistrationRouteDiagnostics(
+    record.registrationDiagnostics,
+  );
   if (record.registrationDiagnostics !== undefined && registrationDiagnostics === null) return null;
   const common = {
     kind: 'wallet_registration_session_commit_receipt_v2' as const,
@@ -596,42 +599,6 @@ function parseWalletRegistrationFinalizeAuthMethod(
   return null;
 }
 
-function parseRegistrationDiagnostics(
-  raw: unknown,
-): WalletRegistrationRouteDiagnostics | undefined | null {
-  if (raw === undefined) return undefined;
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const record = raw as Readonly<Record<string, unknown>>;
-  if (
-    !hasExactKeys(record, ['kind', 'route', 'entries']) ||
-    record.kind !== 'wallet_registration_route_diagnostics_v1'
-  ) {
-    return null;
-  }
-  if (record.route !== 'wallets_register_finalize' || !Array.isArray(record.entries)) return null;
-  const entries: WalletRegistrationRouteDiagnostics['entries'] = [];
-  for (const entryRaw of record.entries) {
-    if (entryRaw === null || typeof entryRaw !== 'object' || Array.isArray(entryRaw)) {
-      return null;
-    }
-    const entry = entryRaw as Readonly<Record<string, unknown>>;
-    if (!hasExactKeys(entry, ['name', 'durationMs'])) return null;
-    if (typeof entry.name !== 'string') return null;
-    const durationMs = entry.durationMs;
-    if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0) {
-      return null;
-    }
-    const name = parseRegistrationRouteTimingName(entry.name);
-    if (name === null) return null;
-    entries.push({ name, durationMs });
-  }
-  return {
-    kind: 'wallet_registration_route_diagnostics_v1',
-    route: 'wallets_register_finalize',
-    entries,
-  };
-}
-
 function parseRegistrationRouteError(raw: unknown): WalletRegistrationRouteErrorV2 | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const record = raw as Readonly<Record<string, unknown>>;
@@ -653,41 +620,6 @@ function parseRegistrationRouteError(raw: unknown): WalletRegistrationRouteError
     message,
     retryAfterMs,
   };
-}
-
-function parseRegistrationRouteTimingName(value: string): WalletRegistrationRouteTimingName | null {
-  switch (value) {
-    case 'registrationIntentLoadMs':
-    case 'registrationIntentDigestMs':
-    case 'registrationIntentConsumeMs':
-    case 'registrationAttemptGateMs':
-    case 'registrationPreparationPersistMs':
-    case 'registrationPreparationLoadMs':
-    case 'registrationPreparationConsumeMs':
-    case 'registrationPreparationScopeCheckMs':
-    case 'registrationAuthorityVerifyMs':
-    case 'registrationEcdsaPrepareMs':
-    case 'registrationCeremonyPersistMs':
-    case 'registerPrepareTotalMs':
-    case 'registerStartTotalMs':
-    case 'registrationEcdsaRespondMs':
-    case 'registrationFinalizeReplayLoadMs':
-    case 'registrationCeremonyLoadMs':
-    case 'registrationEcdsaBootstrapVerifyMs':
-    case 'sponsoredNearAccountCreateMs':
-    case 'registrationKeygenMs':
-    case 'registrationEmailOtpEnrollmentPlanMs':
-    case 'relaySessionMintMs':
-    case 'relayGoogleEmailOtpActivationPlanMs':
-    case 'relayPersistenceMs':
-    case 'registrationFinalizeReplayCacheMs':
-    case 'registerFinalizeTotalMs':
-    case 'registrationCeremonyInsertMs':
-    case 'registerSetupTotalMs':
-      return value;
-    default:
-      return null;
-  }
 }
 
 function parseNonEmptyString(value: unknown): string | null {
