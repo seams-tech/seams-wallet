@@ -19,8 +19,11 @@ The owner's requests (2026-11-18):
   scratch in its own new folder.
 - **Then audit.** Check every place where auth touches the wallet, make the two compatible,
   and remove bloat and duplicate code on the way.
-- **Names** (after the first choice, `stablecoin-wallet`): `@seams/mpc-wallet`,
-  `@seams/mpc-wallet-server` and `@seams/wallet-connect`.
+- **Names** (after the first choice, `stablecoin-wallet`): `@seams/mpc-wallet` and
+  `@seams/wallet-connect`.
+- **Six packages (2026-11-18).** One package for each product, with its browser code and its
+  server code as `/client` and `/server` paths of the same package. One package for the
+  services and one for the recovery CLI (D24).
 - **Review changes.** The owner accepted these changes after the review:
   - one proof operation in auth, in place of a special wallet purpose (D14)
   - the wallet pins the public key of each factor (D7)
@@ -34,13 +37,15 @@ The owner's requests (2026-11-18):
 
 ## Result
 
-- **Separate packages, one dependency direction.** The MPC wallet depends on auth. The wallet
-  connectors depend on nothing. The checkout depends on nothing from Seams, and can use auth
-  and either wallet package. Auth depends on none of them.
+- **Six packages, one dependency direction.** One package for each product (auth, the MPC
+  wallet, wallet connect, the checkout), one for the services and one for the CLI (D24). Each
+  product package has `/client` and `/server` paths. The MPC wallet depends on auth. Wallet
+  connect depends on nothing. The checkout depends on nothing from Seams, and can use auth and
+  either wallet package. Auth depends on none of them.
 - **New code for auth, the checkout and the wallet's account layer.** `packages/auth`,
-  `packages/auth-server` and `packages/checkout` are new folders. The wallet's code that
-  creates a wallet, adds a method to it and unlocks it is also written new. No file is copied
-  from the old code. The old code is a reference for behaviour, not a source of files.
+  `packages/checkout`, `packages/frame-kit` and `packages/host` are new folders. The wallet's
+  code that creates a wallet, adds a method to it and unlocks it is also written new. No file is
+  copied from the old code. The old code is a reference for behaviour, not a source of files.
 - **One proof operation.** Auth gives one call, `prove`, that proves a method to one audience.
   A login, a wallet unlock and a one-tap payment are the same call with a different audience.
   Auth has no code for the wallet.
@@ -74,10 +79,9 @@ The owner's requests (2026-11-18):
 Decided by the owner on 2026-11-18:
 
 - **D1. Separate modules:** auth, the MPC wallet, the wallet connectors and the checkout.
-- **D2. The names:** `@seams/wallet` becomes `@seams/mpc-wallet`, `@seams/wallet-server`
-  becomes `@seams/mpc-wallet-server`, and the external connectors become
-  `@seams/wallet-connect`. These replace the first choices, `stablecoin-wallet` and
-  `@seams/wallet-connectors`.
+- **D2. The names:** `@seams/wallet` becomes `@seams/mpc-wallet`, and the external connectors
+  become `@seams/wallet-connect`. These replace the first choices, `stablecoin-wallet` and
+  `@seams/wallet-connectors`. D24 sets the other names.
 - **D3. The MPC wallet is an optional plugin** of auth. The connectors for existing wallets are
   a separate package.
 - **D4. The checkout uses auth as an optional peer.** The first choice was a required
@@ -104,64 +108,50 @@ Decided by the owner on 2026-11-18:
   one internal package, `@seams-internal/frame-kit`, not in the shared helpers.
 - **D18. The shared helpers hold no contract.** `@seams-internal/shared-ts` keeps only pure
   helpers. Each auth or wallet contract in it moves to the package that owns it (Fact F17).
-
-Open, with a recommendation:
-
-- **D5. The other package names.** Recommended: `@seams/auth` and `@seams/auth-server`, and
-  `@seams/mpc-wallet-cli` for the recovery CLI. `@seams/voiceid` keeps its name. The CLI command
+- **D5. The package names.** Decided with D24: `@seams/auth`, `@seams/mpc-wallet`,
+  `@seams/wallet-connect`, `@seams/checkout`, `@seams/host` and `@seams/cli`.
+  `@seams/wallet-server` and `@seams/voiceid` are no longer published alone. The CLI command
   name stays.
-- **D6. The account origin keeps the Wallet origin's host.** Recommended: yes. A new host
-  changes the relying party ID and breaks every existing passkey.
-- **D8. The login token for app backends.** Recommended: a short-lived signed JWT and a JWKS
-  endpoint, so that an app backend checks it with a standard library.
-  `@seams/auth-server` gives `verifyLoginToken`.
-- **D9. Names in the docs.** Recommended: "Seams Auth", "Seams MPC Wallet", "Seams Wallet
-  Connect" and "Seams Checkout". "Wallet origin" becomes "account origin". "Wallet Session"
-  stays.
-- **D10. The public API.** Recommended: `createSeamsAuth(config)`,
-  `createMpcWallet({ auth, ... })` and `createCheckout({ identity: auth, ... })`. Each
-  constructor takes one object. `SeamsWeb` goes away in Release B with no alias. The method
-  names in this document are provisional.
-- **D11. The repository name.** Recommended: it stays `seams-wallet` for now.
-- **D19. The owner of the project credentials.** Recommended: one internal package,
-  `@seams-internal/project-credentials`, holds the checks of publishable keys, secret keys,
-  allowed origins and environments. The Auth Worker, the Wallet Gateway and the checkout Worker
-  bundle it. The store of the keys stays with the operator, behind the ports that exist today
-  (Fact F18).
-- **D20. A file limit for the new code.** Recommended: 1,000 lines for each file in the new
-  folders. The repository limit stays 2,000 lines.
-- **D22. The brand rename and Release A.** The owner changes the brand from Seams to Purin
-  after the hackathon. Recommended: do Release A together with the brand rename, so that each
-  package gets a new name one time. For example, `@seams/wallet` then goes directly to the
-  Purin name of the MPC wallet. The product names of Purin are the owner's choice. Until then,
-  each `@seams/...` name and each "Seams ..." name in this plan stands for its Purin name.
+- **D19. The owner of the project credentials.** Decided with D24: the checks of publishable
+  keys, secret keys, allowed origins and environments are one folder of `packages/host`. Each
+  module declares the scopes of its routes. `host` checks the key and the origin before it
+  calls the module, and gives the module the checked principal. The store of the keys stays
+  with the operator, behind the ports that exist today (Fact F18).
 - **D23. The npm scope: `@purin-io`.** The owner chose it on 2026-11-18, so that the npm
   organisation and the GitHub organisation have the same name. The first wish was `@purin`.
   Checked on 2026-11-18 on npmjs.com: `purin` is a user account of another person, so
   `@purin` is not free. `purin-io` did not exist then. The owner creates the npm organisation
   `purin-io` before the rename. Internal packages use `@purin-io-internal`, or keep
   `@seams-internal`, because they are never published.
-- **D24. Fewer packages.** The owner is concerned about the number of packages (12 published,
-  3 internal; see "Package names after the Purin rename"). A first proposal of four packages
-  by audience (`sdk`, `server`, `host`, `cli`) lost the choice of product, so the owner
-  rejected it. Recommended now: six packages, by two rules:
-  - **One package for each product that a developer chooses:** auth, the MPC wallet, wallet
-    connect and the checkout. The browser code, the React code and the server code of a product
-    are entries of its package (`.`, `/react`, `/server`). The `/server` entries are small
-    clients for the app's backend, such as `verifyLoginToken` and `createOrder`.
-  - **One package for the services:** `@purin-io/host` holds what only an operator deploys: the
+- **D24. Six packages.** The owner chose this on 2026-11-18. The first plan had 12 published
+  packages and 3 internal packages. A proposal of four packages by audience (`sdk`, `server`,
+  `host`, `cli`) lost the choice of product, so the owner rejected it. The six packages follow
+  two rules:
+  - **One package for each product that a developer chooses:** `@seams/auth`,
+    `@seams/mpc-wallet`, `@seams/wallet-connect` and `@seams/checkout`. The browser code and
+    the server code of a product are paths of one package: `/client`, `/react` and `/server`.
+    No package has a root path (`.`), so each import says where its code runs. The `/server`
+    paths are small clients for the app's backend, such as `verifyLoginToken` and
+    `createOrder`.
+  - **One package for the services:** `@seams/host` holds what only an operator deploys: the
     account origin, the checkout origin, the Auth Worker, the Wallet Gateway with its router
     roles and the checkout Worker. The large files go here: the WASM modules and the VoiceID
     voice models.
+
+  The sixth package is the recovery CLI, `@seams/cli`.
 
   The services stay a published package, because the owner keeps self-hosting as a product
   promise (2026-11-18). Two users depend on it: `seams-monorepo` builds its production Workers
   from it (394 imports of `@seams/wallet-server/cloud-host` on 2026-11-18), and the public docs
   say that each hosting target runs the released Wallet Server package.
 
-  Then VoiceID is not a separate package. The app enables it with `voiceId()` from
-  `@purin-io/auth`, and its models are in `host`. The project credentials become a folder of
-  `host`, so the internal packages go from three to two.
+  A folder and a package are different things. A folder holds one module, with its code for
+  each place where it runs. A package publishes only the paths that a developer imports.
+  `host` builds the services from the folders of the modules (Section 1).
+
+  VoiceID is not a separate package. The app enables it with `voiceId()` from
+  `@seams/auth/client`, and its models are in `host`. The project credentials become a folder
+  of `host` (D19), so the internal packages go from three to two: `frame-kit` and `shared-ts`.
 
   Sizes today, as built locally on 2026-11-18:
 
@@ -171,10 +161,35 @@ Open, with a recommendation:
   | `@seams/wallet-server` | 52.2 MB | 1.8 MB | 18.2 MB |
   | `@seams/voiceid` | 37.7 MB | 35.5 MB | 0.1 MB |
 
-  Costs: an operator that runs only the checkout installs all of `host`. Each product package
-  has three kinds of entry, so its build must keep the server code out of the browser entries.
-  Also decide whether to publish the source maps, because they are the largest part of the
-  JavaScript packages.
+  Costs:
+  - An operator that runs only the checkout installs all of `host`.
+  - Each product package has browser and server paths. Its build must keep server code out of
+    `/client` and `/react`, and a test checks this (Section 10).
+  - Decide whether to publish the source maps. They are the largest part of the JavaScript
+    packages.
+
+Open, with a recommendation:
+
+- **D6. The account origin keeps the Wallet origin's host.** Recommended: yes. A new host
+  changes the relying party ID and breaks every existing passkey.
+- **D8. The login token for app backends.** Recommended: a short-lived signed JWT and a JWKS
+  endpoint, so that an app backend checks it with a standard library.
+  `@seams/auth/server` gives `verifyLoginToken`.
+- **D9. Names in the docs.** Recommended: "Seams Auth", "Seams MPC Wallet", "Seams Wallet
+  Connect" and "Seams Checkout". "Wallet origin" becomes "account origin". "Wallet Session"
+  stays.
+- **D10. The public API.** Recommended: `createSeamsAuth(config)`,
+  `createMpcWallet({ auth, ... })` and `createCheckout({ identity: auth, ... })`. Each
+  constructor takes one object. `SeamsWeb` goes away in Release B with no alias. The method
+  names in this document are provisional.
+- **D11. The repository name.** Recommended: it stays `seams-wallet` for now.
+- **D20. A file limit for the new code.** Recommended: 1,000 lines for each file in the new
+  folders. The repository limit stays 2,000 lines.
+- **D22. The brand rename and Release A.** The owner changes the brand from Seams to Purin
+  after the hackathon. Recommended: do Release A together with the brand rename, so that each
+  package gets a new name one time. For example, `@seams/wallet` then goes directly to the
+  Purin name of the MPC wallet. The product names of Purin are the owner's choice. Until then,
+  each `@seams/...` name and each "Seams ..." name in this plan stands for its Purin name.
 
 ## Facts this plan builds on
 
@@ -268,37 +283,43 @@ Checked on 2026-11-18. Paths are the paths before the rename.
 
 ## 1. Modules
 
-| Module | Package | Folder | Runs in | Holds | Depends on |
+| Module | Folder | Published as | Runs in | Holds | Depends on |
 | --- | --- | --- | --- | --- | --- |
-| Auth, browser | `@seams/auth` | `packages/auth` (new) | App page (SDK), account origin (iframe) | Login session, method records on this device | Nothing from Seams |
-| Auth, server | `@seams/auth-server` | `packages/auth-server` (new) | Auth Worker | Accounts, methods, login sessions, email provider keys, the login token key | Nothing from Seams |
-| VoiceID | `@seams/voiceid` | `packages/voiceid` | Account origin | Voice template, device keys | `@seams/auth` |
-| MPC wallet | `@seams/mpc-wallet` | `packages/mpc-wallet` (renamed) | App page (SDK), account origin (plugin and workers) | Custody material, Wallet Sessions | `@seams/auth` (peer) |
-| Wallet connectors | `@seams/wallet-connect` | `packages/wallet-connect` (moved) | App page | Nothing | Nothing from Seams |
-| MPC wallet server | `@seams/mpc-wallet-server` | `packages/mpc-wallet-server` (renamed) | Wallet Gateway, router roles | Wallets, envelopes with pinned factor keys, signing roles | `@seams/auth-server` (the proof checks only) |
-| Checkout | `@seams/checkout`, `@seams/checkout-server` | `packages/checkout`, `packages/checkout-server` (new) | See Refactor 250 | Provider keys, orders | Nothing from Seams. Auth and the wallet packages are optional peers |
-| Frame kit | `@seams-internal/frame-kit` | `packages/frame-kit` (new) | Bundled into each browser package | Nothing | Nothing |
-| Project credentials | `@seams-internal/project-credentials` | `packages/project-credentials` (new, D19) | Bundled into each Worker | Nothing. The operator owns the store | Nothing |
-| Shared helpers | `@seams-internal/shared-ts` | `packages/shared-ts` | Bundled into each package | Nothing | Nothing |
+| Auth | `packages/auth` (new) | `@seams/auth`: `/client`, `/react`, `/server` | App page, account origin, Auth Worker, app backend | Login session and method records on this device. On the server: accounts, methods, login sessions, email provider keys, the login token key | Nothing from Seams |
+| VoiceID | `packages/voiceid` | Not alone: `voiceId()` in `@seams/auth/client`, the plugin and the models in `@seams/host` | Account origin | Voice template, device keys | Auth |
+| MPC wallet | `packages/mpc-wallet` (renamed from `wallet`) | `@seams/mpc-wallet`: `/client`, `/react`, `/server` | App page, account origin (plugin and workers), app backend | Custody material, Wallet Sessions | `@seams/auth` (peer) |
+| MPC wallet server | `packages/mpc-wallet-server` (renamed from `wallet-server`) | Not alone: in `@seams/host` | Wallet Gateway, router roles | Wallets, envelopes with pinned factor keys, signing roles | The proof checks of auth |
+| Wallet connect | `packages/wallet-connect` (moved) | `@seams/wallet-connect`: `/client`, `/react` | App page | Nothing | Nothing from Seams |
+| Checkout | `packages/checkout` (new) | `@seams/checkout`: `/client`, `/react`, `/stablecoin`, `/server` | See Refactor 250 | Provider keys, orders | Nothing from Seams. Auth and the wallet packages are optional peers |
+| Services | `packages/host` (new) | `@seams/host`: one path for each service | The operator's Workers and hosted origins | The project credential checks (D19), the WASM modules, the voice models | The module folders, at build time |
+| Recovery CLI | `packages/cli` (renamed from `seams-cli`) | `@seams/cli` | The user's computer | Nothing | Nothing from Seams |
+| Frame kit | `packages/frame-kit` (new) | Internal | Bundled into each browser path | Nothing | Nothing |
+| Shared helpers | `packages/shared-ts` | Internal | Bundled into each package | Nothing | Nothing |
 
 ```mermaid
 flowchart BT
     Auth["@seams/auth"]
-    Voice["@seams/voiceid"] --> Auth
     Wallet["@seams/mpc-wallet"] --> Auth
     External["@seams/wallet-connect"]
     Checkout["@seams/checkout"] -. optional .-> Auth
     Rail["@seams/checkout/stablecoin"] -. optional .-> Wallet
     Rail -. optional .-> External
     Rail --> Checkout
+    Host["@seams/host"] -. builds .-> Auth
+    Host -. builds .-> Wallet
+    Host -. builds .-> Checkout
 ```
 
 - Auth imports nothing from the wallet or the checkout.
 - The MPC wallet imports nothing from the checkout. `@seams/wallet-connect` imports nothing
   from auth or from the MPC wallet.
-- Each link to another package is a peer dependency, as `@seams/voiceid` uses today.
-- The servers follow the same direction. The wallet server imports only the pure proof checks
-  of `@seams/auth-server`.
+- Each link between product packages is a peer dependency. `@seams/host` bundles the code of
+  the modules when it builds, so it has no runtime dependency on a product package.
+- The server code follows the same direction. The wallet server imports only the proof checks
+  of the auth module.
+- **Paths.** `/client` and `/react` never import server code, and `/server` never imports
+  browser code. The account origin code and the Worker code of a module are not paths of its
+  package. Only `host` builds them.
 - **The internal packages.** Each published package bundles the internal code that it uses.
   The frame kit defines a small `StageHost` interface with a version. A package accepts each
   object that satisfies it, so two packages on one page share one dialog without a shared
@@ -308,10 +329,9 @@ flowchart BT
 
 ## 2. How the new code is written
 
-- **New folders, no copied files.** `packages/auth`, `packages/auth-server`,
-  `packages/checkout`, `packages/checkout-server`, `packages/frame-kit` and the wallet's new
-  account layer start empty. An agent can read the old code to learn a behaviour, but does not
-  copy a file or a block from it.
+- **New folders, no copied files.** `packages/auth`, `packages/checkout`, `packages/frame-kit`,
+  `packages/host` and the wallet's new account layer start empty. An agent can read the old code
+  to learn a behaviour, but does not copy a file or a block from it.
 - **One exception: a reviewed move.** A small file of security checks can move, in place of a
   rewrite, when each of these is true:
   - it checks a proof or parses a credential (the WebAuthn assertion check, the COSE key
@@ -355,7 +375,7 @@ flowchart BT
 A login app installs only `@seams/auth`:
 
 ```ts
-import { createSeamsAuth, passkey, emailCode } from '@seams/auth';
+import { createSeamsAuth, passkey, emailCode } from '@seams/auth/client';
 
 const auth = createSeamsAuth({ accountOrigin, publishableKey, methods: [passkey(), emailCode()] });
 const session = await auth.signIn(); // opens the auth menu in the account iframe
@@ -363,7 +383,7 @@ await fetch('/api/me', { headers: { authorization: `Bearer ${session.token}` } }
 ```
 
 ```ts
-import { verifyLoginToken } from '@seams/auth-server';
+import { verifyLoginToken } from '@seams/auth/server';
 
 const user = await verifyLoginToken(token, { projectId });
 // user.accountId, user.methods, user.email when the user gave one
@@ -399,8 +419,8 @@ const proof = await auth.prove({
   package registers its own: `wallet` for the MPC wallet, `checkout` for the checkout. To auth
   the name is only text.
 - **The audience's server issues the challenge and checks the proof.**
-  `@seams/auth-server` exports the checks as pure functions. The Auth Worker, the wallet server
-  and the checkout server use the same functions.
+  The auth module has the checks as pure functions. The Auth Worker, the Wallet Gateway and the
+  checkout Worker use the same functions. `host` bundles them into each Worker.
 - **`signIn` is `prove` for the audience `login`,** and then the Auth Worker makes the login
   session.
 - **A proof for one audience is refused by every other server.** The audience name is in the
@@ -454,8 +474,8 @@ const proof = await auth.prove({
   connector (Fact F6). It needs no account.
 
 ```ts
-import { createMpcWallet } from '@seams/mpc-wallet';
-import { connectExternalEvm } from '@seams/wallet-connect';
+import { createMpcWallet } from '@seams/mpc-wallet/client';
+import { connectExternalEvm } from '@seams/wallet-connect/client';
 
 const wallet = createMpcWallet({ auth, chains: ['ethereum', 'near'] });
 await wallet.create();                       // embedded MPC wallet for the signed-in account
@@ -465,12 +485,13 @@ const external = await connectExternalEvm(); // or the customer's own wallet
 ## 6. The server split
 
 - **Auth Worker.** Accounts, methods, login sessions, Email OTP delivery, Google SSO, the login
-  token key and the JWKS endpoint. New code in `packages/auth-server`.
+  token key and the JWKS endpoint. New code in `packages/auth`, built by `@seams/host`.
 - **Wallet Gateway.** Wallets with their `account_id`, custody envelopes, Wallet Sessions and
   the service bindings to the router roles. The envelope binding (wallet, method, key set) does
   not change (Fact F1).
-- **Project credentials (D19).** Each Worker checks publishable keys, secret keys and allowed
-  origins with the same internal package. The ports and the operator's store stay (Fact F18).
+- **Project credentials (D19).** `host` checks publishable keys, secret keys and allowed
+  origins for each Worker with one folder of code. The ports and the operator's store stay
+  (Fact F18).
 
 ### Wallet unlock and the pinned key (D7)
 
@@ -591,10 +612,16 @@ Rules for the cleanup:
 
 - **Slice 0: decisions, inventory and measures.** Get the open decisions. Answer U2 to U5. Write
   the audit table of Section 7 from the old code and its tests, with the lines of each area and
-  the budgets. No product code.
+  the budgets. Map each entry of today's packages to a path of the six packages: 16 entries of
+  `@seams/wallet`, 16 of `@seams/wallet-server` and 5 of `@seams/voiceid`. No product code.
 - **Slice 1: Release A, the rename and the connectors.** A mechanical change with no change in
   behaviour:
-  - New package and folder names (D2, D5). The `SeamsWeb` API stays in this release.
+  - The package names, the folder names and the paths of D2, D5 and D24. The `SeamsWeb` API
+    stays in this release. Release A publishes four of the six packages: `@seams/mpc-wallet`,
+    `@seams/wallet-connect`, `@seams/host` (from `@seams/wallet-server`) and `@seams/cli`.
+    Auth and the checkout come later.
+  - VoiceID's page code becomes a path of `@seams/mpc-wallet` until Release B moves it to
+    `voiceId()` in auth. Its hosting code and models go into `@seams/host`.
   - `externalEvm` and `externalNear` move to `packages/wallet-connect`, with no import of
     auth or MPC code, cleaned by the rules of Section 7.
   - Every import, script, test, example and public doc page here (Fact F13).
@@ -608,13 +635,15 @@ Rules for the cleanup:
   Section 2, with the driver for the old API. The suite passes against the old code.
 - **Slice 3: the frame kit.** New `packages/frame-kit`: the stage dialog, the frame transport
   and the message checks (D17). The checkout of Refactor 250 can start from here.
-- **Slice 4: the project credentials.** `packages/project-credentials` (D19), as a reviewed
-  move of the ports and checks. The Gateway uses it from its new place.
-- **Slice 5: the auth server.** New `packages/auth-server`: accounts, methods, login sessions,
-  Email OTP delivery, the login token and JWKS (D8), the proof checks and the signed email
-  statement (Section 4), and the removal subscribers (Section 6). The additive migration. The
-  Auth Worker deploys beside the Gateway. The Gateway still serves the old routes.
-- **Slice 6: the auth browser core.** New `packages/auth`: the account origin document, the auth
+- **Slice 4: the project credentials.** Move the ports and checks into `packages/host` (D19),
+  as a reviewed move. The Gateway's routes declare their scopes, and `host` checks them.
+- **Slice 5: the Auth Worker.** New code in `packages/auth`, built by `@seams/host`: accounts,
+  methods, login sessions, Email OTP delivery, the login token and JWKS (D8), the proof checks
+  and the signed email statement (Section 4), and the removal subscribers (Section 6). The
+  additive migration. The Auth Worker deploys beside the Gateway. The Gateway still serves the
+  old routes.
+- **Slice 6: the auth client and the account origin.** New code in `packages/auth`: the
+  `/client`, `/react` and `/server` paths, the account origin document, the auth
   menu, `prove`, `signIn`, the methods API, the plugin contract and the channel (Section 5). A
   login-only example app signs in with a passkey, Email OTP and VoiceID and loads no wallet
   code.
@@ -660,6 +689,8 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
 - Every published package and both hosted origins have one version.
 - No file in the new folders is a copy of a file in the old code. A reviewed move leaves one
   copy.
+- A `/client` or `/react` path contains no server code. A `/server` path contains no browser
+  code. No package has a root path.
 
 ## 10. Tests
 
@@ -680,7 +711,8 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
 - A login recovered by email shows no wallet access until wallet recovery.
 - Every row of the audit table has a passing compatibility check and is inside its line budget,
   or has a reason.
-- A packed-package test checks the import rules of Section 1.
+- A packed-package test checks the import rules and the paths of Section 1. It fails if a
+  `/client` or `/react` path contains server code, or a `/server` path contains browser code.
   `tests/scripts/check-packed-wallet-boundaries.mjs` is the model.
 - A rename test fails if an old package name appears outside the history files.
 - A page SDK refuses a hosted origin of a different major version.
@@ -699,44 +731,25 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
 
 ## Package names after the Purin rename
 
-The npm scope is `@purin-io` (D23). Until the rename, this plan uses the `@seams/...` names.
+The npm scope is `@purin-io` (D23). Until the rename, this plan uses the `@seams/...` names. The
+owner chose six packages for this repository (D24).
 
-As planned now:
+| Package | Who installs it | Paths | Replaces |
+| --- | --- | --- | --- |
+| `@purin-io/auth` | App developers | `/client` (with `passkey()`, `emailCode()`, `voiceId()`), `/react`, `/server` (`verifyLoginToken`) | The auth code of `@seams/wallet` and `@seams/wallet-server`, and the page code of `@seams/voiceid` |
+| `@purin-io/mpc-wallet` | Apps with embedded wallets | `/client`, `/react`, `/server` (wallet API client) | `@seams/wallet` |
+| `@purin-io/wallet-connect` | Apps that connect existing wallets | `/client`, `/react` | `@seams/wallet/external-evm` and `external-near` |
+| `@purin-io/checkout` | Shops | `/client`, `/react`, `/stablecoin`, `/server` (orders, merchant event checks) | New ([Refactor 250](refactor-250-seams-checkout.md)) |
+| `@purin-io/host` | The operator of the services | One path for each service | `@seams/wallet-server`, and the hosting code and models of `@seams/voiceid` |
+| `@purin-io/cli` | People who recover a wallet | The recovery CLI | `@seams/wallet-cli` |
 
-| Package | Replaces | Repository |
-| --- | --- | --- |
-| `@purin-io/auth` | Auth code in `@seams/wallet` | seams-wallet |
-| `@purin-io/auth-server` | Auth code in `@seams/wallet-server` | seams-wallet |
-| `@purin-io/mpc-wallet` | `@seams/wallet` | seams-wallet |
-| `@purin-io/mpc-wallet-server` | `@seams/wallet-server` | seams-wallet |
-| `@purin-io/mpc-wallet-cli` | `@seams/wallet-cli` | seams-wallet |
-| `@purin-io/wallet-connect` | `@seams/wallet/external-evm` and `external-near` | seams-wallet |
-| `@purin-io/voiceid` | `@seams/voiceid` | seams-wallet |
-| `@purin-io/checkout` | New ([Refactor 250](refactor-250-seams-checkout.md)) | seams-wallet |
-| `@purin-io/checkout-server` | New (Refactor 250) | seams-wallet |
-| `@purin-io/voice-capture` | `@seams/voice-capture` | speak-to-sign |
-| `@purin-io/voice-sign` | `@seams/voice-sign` | speak-to-sign |
-| `@purin-io/voice-verdict` | `@seams/voice-verdict` | speak-to-sign |
-
-- Entries: `@purin-io/checkout/react`, `@purin-io/checkout/stablecoin` and
-  `@purin-io/checkout-server/stablecoin`.
-- Internal, never published: `frame-kit`, `project-credentials` and `shared-ts`, under
-  `@purin-io-internal` or `@seams-internal`.
-- Open: `voiceid` or `voice-id`, to match the three `voice-*` packages.
-
-With D24 (recommended, open):
-
-| Package | Who installs it | Entries |
-| --- | --- | --- |
-| `@purin-io/auth` | App developers | `.` (with `passkey()`, `emailCode()`, `voiceId()`), `/react`, `/server` (`verifyLoginToken`) |
-| `@purin-io/mpc-wallet` | App developers who want embedded wallets | `.`, `/react`, `/server` (wallet API client) |
-| `@purin-io/wallet-connect` | App developers who connect existing wallets | `.`, `/react` |
-| `@purin-io/checkout` | Shops | `.`, `/react`, `/stablecoin`, `/server` (orders, merchant event checks) |
-| `@purin-io/host` | The operator of the services | One entry for each service: the account origin, the checkout origin, the Auth Worker, the Wallet Gateway and router roles, the checkout Worker |
-| `@purin-io/cli` | People who recover a wallet | The recovery CLI |
-| `@purin-io/voice` | `host`, and apps that use Speak-to-Sign | `/capture`, `/sign`, `/verdict` (a change in speak-to-sign, in place of three packages) |
-
-Internal: `frame-kit` and `shared-ts`.
+- `/stablecoin` runs in the browser. It is the payment from the MPC wallet or a connected
+  wallet.
+- Internal, never published: `frame-kit` and `shared-ts`, under `@purin-io-internal` or
+  `@seams-internal`.
+- speak-to-sign (not in this plan): `@seams/voice-capture`, `@seams/voice-sign` and
+  `@seams/voice-verdict` can become one package, `@purin-io/voice`, with the paths
+  `/capture`, `/sign` and `/verdict`. That is a change in that repository.
 
 ## Documents to update when the slices land
 

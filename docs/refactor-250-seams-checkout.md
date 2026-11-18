@@ -14,8 +14,8 @@ The owner's requests (2026-11-17 and 2026-11-18):
 - Use Stripe and KOMOJU in one checkout page: Stripe for its customizable card form, KOMOJU
   for its extra Japanese methods and lower fees. A developer chooses how the page looks, and
   chooses Stripe, KOMOJU or both.
-- The checkout is a standalone library. It is written from scratch in new folders,
-  `packages/checkout` and `packages/checkout-server`, with no file copied from the wallet.
+- The checkout is a standalone library. It is written from scratch in a new folder,
+  `packages/checkout`, with no file copied from the wallet.
 - The wallets are an optional plugin of the checkout, so that customers can pay with
   stablecoins. USDC and JPYC are the main ones.
 - **How a customer pays with stablecoins (2026-11-18).** The customer pays from a connected
@@ -30,13 +30,15 @@ The owner's requests (2026-11-17 and 2026-11-18):
   - the server finds a stablecoin transfer on the chain itself (D11)
   - separate states for an order and for a payment attempt, and one state for each payment
     that nobody expected (D12)
-  - the server is its own package, `@seams/checkout-server` (D6)
+  - one package with `/client` and `/server` paths, and the checkout Worker in the services
+    package (D6, from Refactor 251 D24)
 
 ## Result
 
 - **A standalone package of new code.** `@seams/checkout` lives in `packages/checkout` and
-  follows the new-code rules of Refactor 251 (its Section 2). It has no required Seams
-  dependency. Auth and the wallet packages are optional peers.
+  follows the new-code rules of Refactor 251 (its Section 2). Its paths are `/client`, `/react`,
+  `/stablecoin` and `/server`. It has no required Seams dependency. Auth and the wallet packages
+  are optional peers.
 - **Guests can pay.** A guest pays with an email address only. A signed-in customer gets saved
   methods, order history and one-tap payment with a passkey.
 - **A shop can use its own login.** The checkout needs only a small identity interface. Seams
@@ -84,6 +86,11 @@ Decided by the owner on 2026-11-18:
   MPC wallet, so the checkout knows the payer before it issues the quote. The quote has the
   exact order amount. There is no unique amount, and no payment to a bare address or QR code
   (Section 11).
+- **D6. The checkout server.** Decided with Refactor 251 D24. The merchant's backend uses
+  `@seams/checkout/server` (`createOrder`, merchant event checks). The checkout Worker, with
+  its own D1 database, is a service of `@seams/host`, so that a self-hosted operator can run
+  checkout with its own keys. Its code lives in `packages/checkout`. The Console screens for
+  the hosted service live in `seams-monorepo`.
 
 Open, with a recommendation:
 
@@ -97,10 +104,6 @@ Open, with a recommendation:
   (Fact F12).
 - **D5. Stripe card form.** Recommended: the Payment Element in card-only mode, styled with the
   Appearance API. Stripe marks the split card fields as legacy (Fact F10).
-- **D6. The checkout server.** Recommended: its own package, `@seams/checkout-server`, as auth
-  has `@seams/auth-server`. It deploys as its own Worker with its own D1 database. It is
-  public, so that a self-hosted operator can run checkout with its own keys. The Console
-  screens for the hosted service live in `seams-monorepo`.
 - **D8. Stablecoin currency.** Recommended: the token matches the order currency. A JPY order
   takes JPYC, and a USD order takes USDC. There is no conversion, so Seams quotes no exchange
   rate.
@@ -256,13 +259,14 @@ Neither page says whether the rates include consumption tax.
 
 | Module | Package | Runs in | Holds |
 | --- | --- | --- | --- |
-| Checkout, browser | `@seams/checkout` (`.`, `./react`) | App page (SDK) and checkout origin (frame) | No secret. Provider client secrets for one payment |
-| Checkout, server | `@seams/checkout-server` | Checkout Worker, own D1 database | Merchant provider keys (encrypted), orders |
+| Checkout, browser | `@seams/checkout/client`, `/react` | App page (SDK) and checkout origin (frame) | No secret. Provider client secrets for one payment |
+| Checkout, merchant backend | `@seams/checkout/server` | The merchant's server | The merchant's Seams secret key |
+| Checkout Worker | `packages/checkout`, deployed by `@seams/host` | Checkout Worker, own D1 database | Merchant provider keys (encrypted), orders |
 | Stablecoin rail, browser half | `@seams/checkout/stablecoin` | App page | Nothing. It calls the wallet's public API |
-| Stablecoin rail, server half | `@seams/checkout-server/stablecoin` | Checkout Worker | Chain RPC endpoints |
-| Auth | `@seams/auth` (Refactor 251) | App page and account origin | Login session |
-| MPC wallet | `@seams/mpc-wallet` (Refactor 251) | Account origin plugin | Custody material |
-| Wallet connectors | `@seams/wallet-connect` (Refactor 251) | App page | Nothing |
+| Stablecoin rail, server half | Part of the checkout Worker | Checkout Worker | Chain RPC endpoints |
+| Auth | `@seams/auth/client` (Refactor 251) | App page and account origin | Login session |
+| MPC wallet | `@seams/mpc-wallet/client` (Refactor 251) | Account origin plugin | Custody material |
+| Wallet connectors | `@seams/wallet-connect/client` (Refactor 251) | App page | Nothing |
 | Frame kit | `@seams-internal/frame-kit` (Refactor 251) | Bundled into each browser package | Nothing |
 
 ```mermaid
@@ -281,8 +285,9 @@ Rules of the dependency direction:
   peer (Fact F18).
 - Only `@seams/checkout/stablecoin` imports the wallet packages. It lists each as an optional
   peer dependency.
-- The base entries of `@seams/checkout` import nothing from auth or the wallet. A shop without
-  stablecoins ships no wallet code. A shop with its own login ships no Seams Auth code.
+- `@seams/checkout/client`, `/react` and `/server` import nothing from auth or the wallet. A
+  shop without stablecoins ships no wallet code. A shop with its own login ships no Seams Auth
+  code.
 - Auth and the wallet import nothing from the checkout.
 - The rail's browser half uses only the wallet's public API. So the peer dependency range is
   the only version contract. Every Seams package has one version (Refactor 251, D16).
@@ -319,7 +324,7 @@ flowchart LR
 
 ## 2. The developer API
 
-Server (`@seams/checkout-server`, or the checkout route with the project secret key):
+Server (`@seams/checkout/server`, or the checkout route with the project secret key):
 
 ```ts
 const order = await checkout.createOrder({
@@ -365,8 +370,8 @@ A stablecoin method appears only when the app also installs the rail's browser h
 Browser, without stablecoins:
 
 ```ts
-import { createSeamsAuth } from '@seams/auth';
-import { createCheckout } from '@seams/checkout';
+import { createSeamsAuth } from '@seams/auth/client';
+import { createCheckout } from '@seams/checkout/client';
 
 const auth = createSeamsAuth({ accountOrigin, publishableKey });
 const checkout = createCheckout({ identity: auth, checkoutOrigin, publishableKey });
@@ -406,8 +411,8 @@ type CheckoutIdentity = {
 Browser, with stablecoins:
 
 ```ts
-import { createMpcWallet } from '@seams/mpc-wallet';
-import { walletConnect } from '@seams/wallet-connect';
+import { createMpcWallet } from '@seams/mpc-wallet/client';
+import { walletConnect } from '@seams/wallet-connect/client';
 import { stablecoinPayments } from '@seams/checkout/stablecoin';
 
 const mpcWallet = createMpcWallet({ auth, chains: ['ethereum', 'near'] });
@@ -440,7 +445,7 @@ object and serves a generated KOMOJU theme CSS file from the checkout origin. Re
 ## 3. Payment rails
 
 A rail is one way to move money: Stripe, KOMOJU or a stablecoin transfer. Each rail implements
-one server interface in `@seams/checkout-server`:
+one server interface in the checkout Worker:
 
 ```ts
 type PaymentRail = {
@@ -631,7 +636,7 @@ modal. The repo rules allow one copy of that code.
 
 ## 7. The checkout frame
 
-- **Origin.** A static document `checkout-service/index.html` in the `@seams/checkout` build,
+- **Origin.** A static document `checkout-service/index.html` in the `@seams/host` build,
   served from `checkoutOrigin`. A local run serves it on its own port.
 - **CSP.** `script-src` allows only the checkout origin, Stripe.js and KOMOJU Fields.
   `frame-src` and `connect-src` allow only the providers' hosts and the checkout Worker.
@@ -653,8 +658,9 @@ Each slice ships alone and keeps the invariants of Section 9.
   accounts. Get the open decisions. No code.
 - **Slice 1: the stage dialog.** Built as Refactor 251 Slice 3 (Section 6). The checkout starts
   after it.
-- **Slice 2: the checkout packages and server.** `packages/checkout`,
-  `packages/checkout-server`, the checkout Worker, its D1 database and migrations, the order
+- **Slice 2: the checkout package and server.** `packages/checkout` with its `/client` and
+  `/server` paths, the checkout Worker as a service of `@seams/host`, its D1 database and
+  migrations, the order
   and attempt tables with the one function that computes the order state, the rail interface,
   the Stripe and KOMOJU rails for cards, both webhook routes and the merchant events. Tests use
   rail fakes. A sandbox test runs one real test payment at each provider.
@@ -709,8 +715,7 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
 - Each payment that arrives is recorded. A payment that nobody expected never changes the
   order state alone.
 - Seams never holds the merchant's money and never decides which merchant may accept cards.
-- No file in `packages/checkout` or `packages/checkout-server` is a copy of a file in the
-  wallet packages.
+- No file in `packages/checkout` is a copy of a file in the wallet packages.
 
 ## 10. Tests
 
@@ -726,8 +731,8 @@ Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no 
 - A guest-only checkout and a checkout with a shop's own identity load no Seams Auth code.
 - Browser tests in Chromium, Firefox and WebKit for the frame, the theme mapping, the move to
   sign-in and to the Wallet confirmer, and keyboard and screen reader use.
-- A packed-package test that fails if the base entries of `@seams/checkout` import auth or a
-  wallet package, or if one of those imports the checkout.
+- A packed-package test that fails if a path of `@seams/checkout` other than `/stablecoin`
+  imports auth or a wallet package, or if one of those imports the checkout.
   `tests/scripts/check-packed-wallet-boundaries.mjs` is the model.
 - A type test that the object of `createSeamsAuth` satisfies `CheckoutIdentity`.
 - A CSP test that fails if the checkout document allows another script host.
