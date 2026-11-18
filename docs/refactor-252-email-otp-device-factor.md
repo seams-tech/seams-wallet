@@ -1,6 +1,6 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-18. Slices 0 and 1 are done. D9 and D10 are open.
+Status: 2026-11-18. Slices 0 and 1 are done. D10 is decided. D9 is open.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -17,8 +17,8 @@ factor key a device factor, as passkeys and VoiceID already are.
   (D5).
 - A new device gets wallet access by device linking or with a recovery code. Google and an
   email code on a new device give a sign-in only.
-- Each existing wallet changes to a new factor key at its next unlock, and the server deletes
-  its copy. After the deadline of D4, no server copy remains.
+- No server copy of a factor remains. No hosted Email OTP wallet exists (U1), so Slice 2
+  deletes the server-held path in the same change (D10).
 - The server stores each email code encrypted, not as plain text.
 - The public custody docs become true for Email OTP.
 
@@ -75,18 +75,15 @@ The owner accepted D2 to D7, as recommended, on 2026-11-18:
   email code on a new device give a sign-in only. This follows from D1. Each path that opens a
   wallet with only an email check lets the operator open it, because the operator runs the
   check and its email provider can see the code.
-- **D3. Rotate, not copy.** Each existing wallet gets a new factor key S′ at its
-  next unlock. Only moving enc_s(S) to the device is not enough, because the server held S.
-  The seed and the addresses stay the same, so the rotation cannot undo an earlier copy of S.
-- **D4. The deadline for server copies.** 30 days after Slice 3 reaches
-  production. Then the server deletes each copy that is left. Those owners recover with their
-  recovery code.
+- **D3. Rotate, not copy,** and **D4. A 30-day deadline for server copies.** D10 replaced both
+  on 2026-11-18, because no wallet needs them.
 - **D5. The Wallet Session release (F4).** Keep it only with the sealed factor of
   the device, which it needs after D1 anyway. Export keeps its fresh email code. If the
   warm-session seal can serve its callers (U3), remove it.
 - **D6. Rotation of the server seal key.** A blinded re-seal at unlock. The device
   adds a client seal, the server removes the old seal and applies the new one, and the device
-  removes its client seal. An old key version stays accepted until the D4 deadline.
+  removes its client seal. An old key version stays accepted until the operator retires it.
+  The re-seal uses the primitive of D9.
 - **D7. The public docs until Slice 5.** A short note says that Email OTP wallets depend on the
   server until this plan is done. It was added on 2026-11-18 to the custody page and the Email
   OTP page, in English and Japanese. Slice 5 replaces it with the device-factor text.
@@ -104,11 +101,28 @@ Added by Slice 0 on 2026-11-18:
   existing wallet needs the old scheme (U1). The other choice keeps Shamir three-pass with a
   group of at least 2048 bits. The signing-session seal uses the same 1024-bit group for every
   method; a separate plan replaces it.
-- **D10. No rotation and no deadline (open).** No hosted Email OTP wallet exists (U1), so the
-  rotation of D3 and the deadline of D4 would migrate nothing. Recommended: Slice 2 replaces the
-  server-held path and deletes it in the same change, and Slices 3 and 5 lose their migration
-  parts. A self-hosted server that has Email OTP wallets from an older version: the release
-  notes say that such a wallet recovers with its recovery code after the upgrade.
+
+  Facts for the choice, measured on 2026-11-18 on an Apple Silicon Mac in Node:
+  - One lock step of the three-pass WASM (`shamir-3-pass` 0.6.0, `num-bigint`) takes 1.6 ms at
+    1024 bits and 15.3 ms at 2048 bits. A release is three steps: two on the device, one on the
+    server. 3072 bits is about 3.4 times the 2048-bit cost (inferred, not measured).
+  - One ristretto255 scalar multiplication in JavaScript (`@noble/curves` 1.9.1) takes about
+    1 ms. WASM on `curve25519-dalek` is faster.
+  - The security level is about 80 bits at 1024, 112 at 2048 and 128 at 3072 bits (NIST SP
+    800-57). ristretto255 gives about 128 bits.
+  - `num-bigint` does not claim constant time. `curve25519-dalek` is constant time.
+  - The crate already has `rfc3526-group14` (2048 bits), so the larger group is a one-line
+    change. An OPRF needs the `voprf` crate or our own RFC 9497 code on `curve25519-dalek`,
+    which `crates/threshold-prf` already uses with ristretto255.
+  - D8 is needed with either primitive. With an OPRF, the POPRF mode of RFC 9497 takes the
+    wallet and the enrollment as its public `info` input. With three-pass, they go in the
+    context of `derive_lock_key_pair`. In both, the server sets them from the checked challenge,
+    never from the request.
+- **D10. No rotation and no deadline.** The owner decided on 2026-11-18. No hosted Email OTP
+  wallet exists (U1), so the rotation of D3 and the deadline of D4 would migrate nothing. Slice 2
+  replaces the server-held path and deletes it in the same change. A self-hosted server that has
+  Email OTP wallets from an older version: the release notes say that such a wallet recovers
+  with its recovery code after the upgrade.
 - **D5, changed by U3.** Remove the bearer release. The NEAR Ed25519 re-hydrate gets S from an
   Ed25519 warm seal under the signing-session key (per wallet and per session, with the server's
   use and time limits) and a blinded restore. The `verified_grant` branch checks the operation.
@@ -188,20 +202,9 @@ material.
 
 ### Existing wallets
 
-At the next unlock of an owner method that still has a server copy:
-
-1. The release runs as today. This is the last time that the server sees S.
-2. In the same unlock, the worker makes S′, enrolls it with the blinded three-pass, and reseals
-   the custody envelope for S′ (`resealWalletCustodyFromUnlockedCapability`).
-3. One server commit, with a check on the enrollment version, stores the new pinned key, the new
-   seal key version and the new envelope. In the same commit it deletes enc_s(S), the old
-   envelope and the old pinned key.
-4. If the commit fails, the old state stays, and the next unlock tries again.
-
-A server copy is used only for this rotation. It never unlocks a wallet without the rotation.
-If an owner used Email OTP on two devices, the second device has no factor after the rotation,
-and it uses device linking or the recovery code. Slice 5 deletes the rotation path and the
-column.
+None exist on the hosted servers (U1), so there is no migration (D10). Slice 2 deletes the
+server-held path, the ECDH release and the `enc_s(S)` column in the same change. A wallet that
+an older self-hosted server made recovers with its recovery code.
 
 ### Email codes
 
@@ -219,8 +222,7 @@ the user asks for a new code.
 ## 2. Invariants
 
 - No route returns S, or a value that the server can turn into S without data from the device.
-- After the rotation of a wallet, the server stores no enc_s(S) for it. After Slice 5, the server
-  stores none.
+- The server stores no enc_s(S).
 - With every D1 row and every Worker secret, and no device data, nobody can get S or open an
   Email OTP envelope.
 - An email code alone never opens a wallet on a device that has no sealed factor.
@@ -230,34 +232,31 @@ the user asks for a new code.
 
 ## 3. Slices
 
-- **Slice 0: facts.** Answer U1 to U5. No product code. Done on 2026-11-18. D9 and D10 are open.
+- **Slice 0: facts.** Answer U1 to U5. No product code. Done on 2026-11-18.
 - **Slice 1: encrypted email codes.** The change of Section 1, "Email codes". It does not depend on
   the other slices and can ship first. Done on 2026-11-18 (migration
   `0090_email_otp_code_seal.sql`).
-- **Slice 2: new enrollments.** The device-held factor and the blinded release for
-  registration, adding Email OTP, unlock, step-up and export. A new wallet never has a server
-  copy. The operator test for new wallets. Update [Browser workers](browser-workers.md), because
-  the Email OTP worker then stores the sealed factor.
-- **Slice 3: existing wallets and new devices.** The rotation at unlock, the sign-in-only state
-  with its two choices in the menu (English and Japanese text), device linking with the target's
-  own factor, and recovery with no release.
+- **Slice 2: the device factor.** The device-held factor and the blinded release for
+  registration, adding Email OTP, unlock, step-up and export. In the same change, delete the
+  server-held path, the ECDH release code and the column (D10). The operator test. Update
+  [Browser workers](browser-workers.md), because the Email OTP worker then stores the sealed
+  factor.
+- **Slice 3: new devices.** The sign-in-only state with its two choices in the menu (English and
+  Japanese text), device linking with the target's own factor, and recovery with no release.
 - **Slice 4: the release.** seams-monorepo in one coordinated commit if U4 needs it. The wallet,
   `wallet-server` and the seams-monorepo site ship together. Staging first, then production.
-  The D4 deadline starts when production has Slice 3.
-- **Slice 5: the end of server copies.** After the D4 deadline: delete each server copy that is
-  left, the rotation path, the ECDH release code and the column. Run the operator test for all
-  wallets. Update the docs of the last section.
+  The release notes carry the self-hosted note of D10.
+- **Slice 5: the docs.** When production has Slice 4, replace the D7 note and update the
+  documents of the last section.
 
 ## 4. Tests
 
 - **The operator test.** It loads every D1 row and every Worker secret and no device data. It
-  must fail to get S and to open the envelope. Slice 2 runs it for new wallets, Slice 5 for all.
+  must fail to get S and to open the envelope. Slice 2 adds it.
 - **Email OTP unlock** on the same browser still works, and no release response carries an
   ECDH payload.
 - **A new browser:** Google and an email code give a sign-in only. Then device linking gives an
   unlock. In a second run, a recovery code gives a new factor and an unlock.
-- **Rotation:** a wallet that the old code made unlocks once and rotates. Its server row then has
-  no enc_s(S). A second unlock does not rotate again. A failed commit keeps the old state.
 - **Device linking** with an Email OTP target that enrolls its own factor.
 - **Google recovery** releases no S and enrolls a new factor.
 - **Email codes:** D1 holds no plain code. A wrong code fails. The lockout limits do not change.
@@ -266,7 +265,7 @@ the user asks for a new code.
 
 ## 5. Relation to other plans
 
-- **Refactor 251.** This plan decides D26. After Slice 5, a compromised Auth Worker cannot open
+- **Refactor 251.** This plan decides D26. After Slice 4, a compromised Auth Worker cannot open
   an Email OTP wallet, because it has no sealed factor. So the Email OTP code check can move to
   the Auth Worker like the other methods, and the temporary rule of Section 6 of Refactor 251
   goes away. The conformance suite of Refactor 251 Slice 2 records the Email OTP journeys at the

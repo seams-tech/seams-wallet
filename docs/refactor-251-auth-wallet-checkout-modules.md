@@ -559,7 +559,7 @@ What a compromised Auth Worker can do:
 
 Slice 0 showed that a false statement opens the envelope (U4). It also showed that the wallet server
 alone can open an owner Email OTP wallet today. [Refactor
-252](refactor-252-email-otp-device-factor.md) fixes this (D26). Until its Slice 5 is done:
+252](refactor-252-email-otp-device-factor.md) fixes this (D26). Until production has its Slice 4:
 
 - The wallet server keeps its own email code check for the audience `wallet`, with its own
   email provider key. The Auth Worker checks codes only for the audience `login`.
