@@ -1,4 +1,4 @@
-import type { FrameLocator, Page } from '@playwright/test';
+import { expect, type FrameLocator, type Page } from '@playwright/test';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import type { HostedAuthMenuCopyInput } from '@/SeamsWeb/walletIframe/shared/messages';
 import { setupBasicPasskeyTest } from '../../setup';
@@ -62,6 +62,10 @@ export async function openHostedAuthMenu(
     ownerTag: OWNER_TAG,
     authMenuSessionId: CONFORMANCE_AUTH_MENU_SESSION_ID,
     options,
+  });
+  // The menu first loads the wallet iframe and its workers, which is slow on a busy machine.
+  await expect(hostedAuthMenuFrame(page).locator('.seams-auth-menu-surface')).toBeVisible({
+    timeout: 30_000,
   });
 }
 
