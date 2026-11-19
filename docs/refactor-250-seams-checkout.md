@@ -6,7 +6,7 @@ them, D1, D13 and D14 changed, and D2, D3, D5 and D8 got new facts. Tasks T1 to 
 Slice 0. This plan builds on
 [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), which separates auth, the
 MPC wallet, the wallet connectors and the checkout, and renames `@seams/wallet` to
-`@seams/mpc-wallet`. The Seams names in this plan change to Purin with the brand rename
+`@seams/mpc-wallet`. The Seams names in this plan are final: the wallet keeps the Seams brand
 (Refactor 251, D22).
 
 The owner's requests (2026-11-17 and 2026-11-18):
