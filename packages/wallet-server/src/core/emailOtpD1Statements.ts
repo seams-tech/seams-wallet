@@ -2,6 +2,7 @@
 // the tenant scope first, through the caller's `prepare`, and the statement's own values after it.
 import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
 import type { D1PreparedStatementLike } from '../storage/tenantRoute';
+import { D1_BATCH_CAS_GUARD_SQL } from '../storage/d1Sql';
 import { runtimePolicyScopeKey } from './EmailOtpRecords';
 import type {
   EmailOtpAuthStateRecord,
@@ -201,8 +202,8 @@ export const emailOtpWalletEnrollmentRows = {
   /**
    * Adds the factor of a new Email OTP method to the wallet's enrollment. It changes no row when
    * the enrollment's identity or key versions differ from `enrollment`, when the enrollment
-   * already holds a factor for the method or the nonce, or when it is full. Follow it with a
-   * batch guard, so that such a commit fails as a whole.
+   * already holds a factor for the method or the nonce, or when it is full. `batchGuard` after it
+   * then fails the whole commit.
    */
   addMethodFactor: (
     prepare: ScopedD1Prepare,
@@ -261,6 +262,18 @@ export const emailOtpWalletEnrollmentRows = {
         input.factor.walletAuthMethodId,
         input.factor.factorNonceB64u,
       ],
+    ),
+
+  /**
+   * Aborts the batch when the statement just before it changed no row, as
+   * `D1_BATCH_CAS_GUARD_SQL` does. A scoped prepare binds the tenant scope first, so the guard
+   * takes it in a common table expression that it does not read.
+   */
+  batchGuard: (prepare: ScopedD1Prepare) =>
+    prepare(
+      `WITH scope AS (SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id)
+${D1_BATCH_CAS_GUARD_SQL}`,
+      [],
     ),
 
   /** Removes the factor of one Email OTP method from the wallet's enrollment. */

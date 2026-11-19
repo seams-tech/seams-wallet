@@ -143,15 +143,15 @@ const approval: LinkedDeviceApprovalV1 = {
 
 const invalidEmailApproval: LinkedDeviceApprovalV1 = {
   ...approval,
-  // @ts-expect-error Email OTP approval requires the exact base method.
+  // @ts-expect-error Email OTP approval requires the address that receives the code.
   targetFactor: { kind: 'email_otp' },
 };
 void invalidEmailApproval;
 
 const invalidPasskeyApproval: LinkedDeviceApprovalV1 = {
   ...approval,
-  // @ts-expect-error Passkey approval cannot carry an Email OTP base method.
-  targetFactor: { kind: 'passkey_prf', baseWalletAuthMethodId: walletAuthMethodId },
+  // @ts-expect-error Passkey approval cannot carry an Email OTP address.
+  targetFactor: { kind: 'passkey_prf', targetEmail },
 };
 void invalidPasskeyApproval;
 
@@ -464,7 +464,6 @@ const verifiedEmailOtpTarget = {
   authMethod: emailOtpAuthMethod,
   targetEmail,
   enrollment: { kind: 'existing_enrollment' },
-  baseWalletAuthMethodId: walletAuthMethodId,
   providerUserId: 'provider-user-id',
   verificationDigestB64u: digest,
   verifiedAtMs: 9,

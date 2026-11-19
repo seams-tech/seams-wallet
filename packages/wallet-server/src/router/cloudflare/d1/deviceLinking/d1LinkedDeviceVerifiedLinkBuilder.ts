@@ -172,9 +172,6 @@ export async function computeVerifiedTargetFactorVerificationDigestV1(input: {
           targetEmail: input.evidence.grant.targetEmail,
           enrollment: input.evidence.grant.enrollment.kind,
           providerUserId: input.evidence.grant.providerUserId,
-          ...(input.evidence.grant.enrollment.kind === 'existing_enrollment'
-            ? { baseWalletAuthMethodId: input.evidence.grant.baseWalletAuthMethodId }
-            : {}),
           authorityDigestB64u: input.evidence.grant.authorityDigestB64u,
           descriptorCredentialIdB64u: input.evidence.grant.descriptorCredentialIdB64u,
         };
@@ -261,18 +258,7 @@ export async function buildVerifiedTargetFactorV1(
   ) {
     throw new Error('Email OTP target factor enrollment identity changed');
   }
-  if (grant.enrollment.kind === 'existing_enrollment') {
-    if (
-      input.evidence.grant.enrollment.kind !== 'existing_enrollment' ||
-      grant.baseWalletAuthMethodId !== input.evidence.grant.baseWalletAuthMethodId ||
-      grant.baseWalletAuthMethodId !== input.preparation.baseWalletAuthMethodId
-    ) {
-      throw new Error('Email OTP target factor base identity changed');
-    }
-  } else if (
-    input.evidence.grant.enrollment.kind !== 'new_enrollment' ||
-    input.registration.emailOtpEnrollment === undefined
-  ) {
+  if (input.registration.emailOtpEnrollment === undefined) {
     throw new Error('Email OTP target factor enrollment material is missing');
   }
   const authMethod: EmailOtpWalletAuthMethodDraftV1 = {
@@ -283,22 +269,6 @@ export async function buildVerifiedTargetFactorV1(
     emailHashHex: grant.emailHashHex,
     registrationAuthorityId: grant.registrationAuthorityId,
   };
-  if (grant.enrollment.kind === 'existing_enrollment') {
-    const baseWalletAuthMethodId = grant.baseWalletAuthMethodId;
-    if (!baseWalletAuthMethodId) {
-      throw new Error('Email OTP existing target factor is missing its base factor');
-    }
-    return {
-      kind: 'verified_email_otp_target_v1',
-      authMethod,
-      targetEmail: grant.targetEmail,
-      enrollment: grant.enrollment,
-      baseWalletAuthMethodId,
-      providerUserId: grant.providerUserId,
-      verificationDigestB64u,
-      verifiedAtMs,
-    };
-  }
   return {
     kind: 'verified_email_otp_target_v1',
     authMethod,

@@ -25,7 +25,10 @@ import type { UnifiedIndexedDBManager } from '@/core/indexedDB';
 import type { LocalAuthorityActivationPublicationResultV1 } from '@/core/indexedDB';
 import type { SealedLocalAuthorityMaterialSetV1 } from '@/core/signingEngine/workerManager/deviceLinkingPorts';
 import { base64UrlDecode } from '@shared/utils/base64';
-import { buildEmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
+import {
+  buildEmailOtpWalletAuthAuthority,
+  emailOtpProviderOfSubject,
+} from '@shared/utils/walletAuthAuthority';
 import type {
   DeviceLinkingAuthorityActivationTransportPortV1,
   DeviceLinkingKeyMaterialHandleV1,
@@ -185,7 +188,7 @@ function localAuthorityProfileProjectionV1(
       }
       const baseAuthority = buildEmailOtpWalletAuthAuthority({
         walletId: authMethod.walletId,
-        provider: targetFactor.enrollment.kind === 'existing_enrollment' ? 'google' : 'email',
+        provider: emailOtpProviderOfSubject(targetFactor.providerUserId),
         providerUserId: targetFactor.providerUserId,
         emailHashHex: authMethod.emailHashHex,
       });

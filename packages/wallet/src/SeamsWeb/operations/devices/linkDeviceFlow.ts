@@ -32,7 +32,6 @@ import type {
   LocalAuthorityActivationFinalAckV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
-import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { errorMessage } from '@shared/utils/errors';
 import type {
   Device2LinkingFlowPortsV1,
@@ -96,10 +95,9 @@ import {
   isEmailOtpTargetPreparation,
   isPasskeyTargetPreparation,
   type PasskeyTargetPreparationV1,
-  prepareNewEmailOtpEnrollmentMaterialV1,
+  prepareEmailOtpFactorMaterialV1,
   requireCompletedEmailOtpTargetActivationStateV1,
   requireEmailOtpTargetPreparationV1,
-  requireNewEmailOtpEnrollmentMaterialV1,
   requireTargetRpIdV1,
   resolvePostLinkActivationV1,
   type TargetCredentialActivationState,
@@ -658,15 +656,10 @@ export class LinkDeviceFlow {
   ): Promise<void> {
     try {
       this.assertCurrentRun(context.runEpoch);
-      const workerEphemeralPublicKey65B64u = this.deliveryRecipientPublicKey65B64u;
-      if (!workerEphemeralPublicKey65B64u) {
-        throw new Error('Email OTP factor-release recipient is unavailable');
-      }
       const challenge = await this.requireAuthenticatedTransport().startTargetEmailOtpChallengeV1({
         request: {
           kind: 'linked_device_email_otp_challenge_start_request_v1',
           linkSessionId: context.event.linkSessionId,
-          workerEphemeralPublicKey65B64u,
         },
       });
       this.assertCurrentRun(context.runEpoch);
@@ -812,60 +805,29 @@ export class LinkDeviceFlow {
     let recipient = context.exportRoot.kind === 'required' ? context.exportRoot.recipient : null;
     let factorSecret: ArrayBuffer | null = null;
     let retainedFactorSecret: Uint8Array | null = null;
-    let verificationGrant:
-      | Awaited<
-          ReturnType<DeviceLinkingAuthenticatedTransportPortV1['verifyTargetEmailOtpChallengeV1']>
-        >['verificationGrant']
-      | null = null;
-    let emailOtpEnrollmentId: string | null = null;
-    let emailOtpEnrollmentSealKeyVersion: string | null = null;
-    let emailOtpEnrollmentMaterial: WalletEmailOtpEnrollmentMaterialV1 | null = null;
-    const existingEnrollment = preparation.enrollment.kind === 'existing_enrollment';
     try {
       const targetPreparationDigestB64u =
         await computeLinkedDeviceTargetPreparationDigestV1(preparation);
       if (verification.verificationGrant.targetEmail !== preparation.targetEmail) {
         throw new Error('linked-device Email OTP verification target email changed');
       }
-      if (existingEnrollment) {
-        // The wallet's Email OTP factor lives on the device that enrolled it, and
-        // the server holds no copy, so a linked device cannot reuse it.
-        throw new Error(
-          'A linked device cannot reuse the wallet Email OTP factor. Choose a passkey or VoiceID for this device, or use the recovery code.',
-        );
-      } else {
-        const newVerificationGrant = verification.verificationGrant;
-        if (newVerificationGrant.enrollment.kind !== 'new_enrollment') {
-          throw new Error('linked-device Email OTP verification enrollment changed');
-        }
-        if (verification.factorRelease !== null) {
-          throw new Error('new linked-device Email OTP enrollment returned a factor release');
-        }
-        const authenticationContext = this.getAuthenticationContext?.();
-        if (!authenticationContext) {
-          throw new Error('linked-device authentication context is unavailable');
-        }
-        const freshFactorSecret = createEmailOtpFactorSecretV1();
-        factorSecret = freshFactorSecret.buffer;
-        const enrollment = await prepareNewEmailOtpEnrollmentMaterialV1({
-          context: authenticationContext,
-          walletId: preparation.walletId,
-          targetEmail: preparation.targetEmail,
-          factorSecret: freshFactorSecret,
-        });
-        emailOtpEnrollmentId = enrollment.enrollmentId;
-        emailOtpEnrollmentSealKeyVersion = enrollment.enrollment.enrollmentSealKeyVersion;
-        emailOtpEnrollmentMaterial = enrollment.enrollment;
-        verificationGrant = newVerificationGrant;
+      const verificationGrant = verification.verificationGrant;
+      const authenticationContext = this.getAuthenticationContext?.();
+      if (!authenticationContext) {
+        throw new Error('linked-device authentication context is unavailable');
       }
-      if (
-        !factorSecret ||
-        !verificationGrant ||
-        !emailOtpEnrollmentId ||
-        !emailOtpEnrollmentSealKeyVersion
-      ) {
-        throw new Error('linked-device Email OTP factor material is unavailable');
-      }
+      // This device enrolls its own Email OTP factor under the verified identity. The install
+      // commit adds it to the wallet's enrollment, or creates the enrollment with it.
+      const freshFactorSecret = createEmailOtpFactorSecretV1();
+      factorSecret = freshFactorSecret.buffer;
+      const enrollment = await prepareEmailOtpFactorMaterialV1({
+        context: authenticationContext,
+        walletId: preparation.walletId,
+        providerUserId: verificationGrant.providerUserId,
+        factorSecret: freshFactorSecret,
+      });
+      const emailOtpEnrollmentId = enrollment.enrollmentId;
+      const emailOtpEnrollmentSealKeyVersion = enrollment.enrollment.enrollmentSealKeyVersion;
       this.assertCurrentRun(context.runEpoch);
       if (context.exportRoot.kind === 'required') {
         if (!recipient) {
@@ -892,36 +854,20 @@ export class LinkDeviceFlow {
         this.resealedExportRoot = resealed;
         recipient = null;
       }
-      const registration = existingEnrollment
-        ? buildLinkedDeviceTargetCredentialRegistrationV1({
-            linkSessionId: preparation.linkSessionId,
-            walletId: preparation.walletId,
-            enrollmentId: preparation.enrollmentId,
-            deviceId: preparation.deviceId,
-            walletAuthMethodId: preparation.walletAuthMethodId,
-            targetFactor: { kind: 'email_otp' },
-            targetEmail: preparation.targetEmail,
-            emailOtpVerificationGrant: verificationGrant,
-            targetPreparationDigestB64u,
-            ordinarySignerMaterialRecipientRequests:
-              context.ordinarySignerMaterialRecipientRequests,
-            registeredAtMs: Date.now(),
-          })
-        : buildLinkedDeviceTargetCredentialRegistrationV1({
-            linkSessionId: preparation.linkSessionId,
-            walletId: preparation.walletId,
-            enrollmentId: preparation.enrollmentId,
-            deviceId: preparation.deviceId,
-            walletAuthMethodId: preparation.walletAuthMethodId,
-            targetFactor: { kind: 'email_otp' },
-            targetEmail: preparation.targetEmail,
-            emailOtpVerificationGrant: verificationGrant,
-            emailOtpEnrollment: requireNewEmailOtpEnrollmentMaterialV1(emailOtpEnrollmentMaterial),
-            targetPreparationDigestB64u,
-            ordinarySignerMaterialRecipientRequests:
-              context.ordinarySignerMaterialRecipientRequests,
-            registeredAtMs: Date.now(),
-          });
+      const registration = buildLinkedDeviceTargetCredentialRegistrationV1({
+        linkSessionId: preparation.linkSessionId,
+        walletId: preparation.walletId,
+        enrollmentId: preparation.enrollmentId,
+        deviceId: preparation.deviceId,
+        walletAuthMethodId: preparation.walletAuthMethodId,
+        targetFactor: { kind: 'email_otp' },
+        targetEmail: preparation.targetEmail,
+        emailOtpVerificationGrant: verificationGrant,
+        emailOtpEnrollment: enrollment.enrollment,
+        targetPreparationDigestB64u,
+        ordinarySignerMaterialRecipientRequests: context.ordinarySignerMaterialRecipientRequests,
+        registeredAtMs: Date.now(),
+      });
       const registrationResult =
         await this.requireAuthenticatedTransport().registerTargetCredentialV1({ registration });
       this.assertCurrentRun(context.runEpoch);
@@ -948,9 +894,6 @@ export class LinkDeviceFlow {
       this.emailOtpTargetActivationState = {
         kind: 'completed',
         runEpoch: context.runEpoch,
-        enrollment: existingEnrollment
-          ? { kind: 'existing_enrollment' }
-          : { kind: 'new_enrollment' },
         factorSecret: retainedFactorSecret,
         providerUserId: verificationGrant.providerUserId,
       };

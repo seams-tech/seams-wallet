@@ -253,10 +253,10 @@ export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
       D1PreparedStatementLike,
     ];
   };
-  /** Supplies first-Email enrollment statements for the new linked target branch. */
+  /** Supplies the statements that create the Email OTP enrollment or add the target factor. */
   readonly emailOtpEnrollmentFinalizer?: Pick<
     CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
-    'prepareFirstEnrollment'
+    'prepareFirstEnrollment' | 'prepareAddedFactor'
   >;
   readonly tenantId: TenantId;
   readonly nowV1?: () => number;
@@ -2061,20 +2061,23 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     return { authorityId: candidate, statement };
   }
 
+  /**
+   * The target's own Email OTP factor: it creates the wallet's enrollment, or
+   * it is added to the enrollment that the code was verified against.
+   */
   private async prepareEmailOtpEnrollmentStatements(
     input: CommitPendingAuthorityInputV1,
   ): Promise<readonly D1PreparedStatementLike[]> {
     if (input.targetFactor.kind !== 'verified_email_otp_target_v1') return [];
-    if (input.targetFactor.enrollment.kind !== 'new_enrollment') return [];
     const material = input.emailOtpEnrollment;
     if (!material) {
-      throw new Error('new Email OTP target is missing enrollment material');
+      throw new Error('Email OTP target is missing its factor material');
     }
     const finalizer = this.options.emailOtpEnrollmentFinalizer;
     if (!finalizer) {
-      throw new Error('new Email OTP target enrollment finalizer is not configured');
+      throw new Error('Email OTP target enrollment finalizer is not configured');
     }
-    const prepared = await finalizer.prepareFirstEnrollment({
+    const factorInput = {
       walletId: String(input.walletId),
       walletAuthMethodId: String(input.targetFactor.authMethod.walletAuthMethodId),
       orgId: this.options.scope.orgId,
@@ -2082,7 +2085,11 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       verifiedEmail: input.targetFactor.targetEmail,
       material,
       nowMs: input.nowMs,
-    });
+    };
+    const prepared =
+      input.targetFactor.enrollment.kind === 'existing_enrollment'
+        ? await finalizer.prepareAddedFactor(factorInput)
+        : await finalizer.prepareFirstEnrollment(factorInput);
     if (!prepared.ok) throw new Error(prepared.message);
     return prepared.statements;
   }
@@ -2490,12 +2497,8 @@ async function validateVerifiedLinkInput(
   if (input.targetFactor.authMethod.walletId !== input.walletId)
     throw new Error('target auth method wallet does not match link wallet');
   if (input.targetFactor.kind === 'verified_email_otp_target_v1') {
-    if (
-      input.targetFactor.enrollment.kind === 'new_enrollment'
-        ? input.emailOtpEnrollment === null
-        : input.emailOtpEnrollment !== null
-    ) {
-      throw new Error('Email OTP target enrollment material does not match its branch');
+    if (input.emailOtpEnrollment === null) {
+      throw new Error('Email OTP target is missing its factor material');
     }
   } else if (input.emailOtpEnrollment !== null) {
     throw new Error('Passkey target cannot carry Email OTP enrollment material');

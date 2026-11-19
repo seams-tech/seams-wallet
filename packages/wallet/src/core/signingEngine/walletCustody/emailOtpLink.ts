@@ -173,11 +173,9 @@ export async function linkWalletEmailOtpCustody(input: {
     walletId: input.walletId,
     addAuthMethodCeremonyId: started.addAuthMethodCeremonyId,
     custodyEnvelope,
-    /* This branch enrols. A wallet that already has a shared Email enrollment
-       — one that linked a device, or holds an Email method on another
-       authority — binds to it instead, and that case does not come through
-       here: it needs the existing enrollment's factor secret, which only an
-       OTP factor release can hand back. */
+    /* This branch creates the wallet's Email enrollment. On a wallet that
+       already has one for the same email, `existing_enrollment` adds this
+       device's factor to it instead. */
     emailOtpTarget: { kind: 'new_enrollment', enrollment: enrollment.emailOtpEnrollment },
   });
   return { finalized };

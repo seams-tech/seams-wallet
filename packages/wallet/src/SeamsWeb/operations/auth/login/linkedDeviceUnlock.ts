@@ -8,6 +8,7 @@ import { isWalletCustodySeedBinding } from '@shared/passkey-custody/custodySecre
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { isObject } from '@shared/utils/validation';
+import { emailOtpProviderOfSubject } from '@shared/utils/walletAuthAuthority';
 import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
@@ -331,7 +332,7 @@ export async function unlockLinkedDeviceEmailOtpWallet(args: {
   readonly relayUrl: string;
 }): Promise<void> {
   const providerIdentity: LinkedDeviceEmailOtpProviderIdentity = {
-    provider: args.providerSubjectId.startsWith('google:') ? 'google' : 'email',
+    provider: emailOtpProviderOfSubject(args.providerSubjectId),
     providerSubjectId: args.providerSubjectId,
   };
   const resolution = await resolveLinkedDeviceEmailOtpAuthoritySelection({

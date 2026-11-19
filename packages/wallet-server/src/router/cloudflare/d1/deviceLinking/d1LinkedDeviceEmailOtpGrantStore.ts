@@ -46,12 +46,11 @@ export class D1LinkedDeviceEmailOtpGrantStoreV1 {
            grant_token_digest_b64u, wallet_id, link_session_id, enrollment_id,
            device_id, target_factor, target_preparation_digest_b64u,
            target_email, enrollment_kind, email_hash_hex,
-           registration_authority_id, provider_user_id,
-           base_wallet_auth_method_id, linked_owner_auth_method_id,
+           registration_authority_id, provider_user_id, linked_owner_auth_method_id,
            authority_digest_b64u, challenge_id, state, record_json,
            issued_at_ms, expires_at_ms, consumed_at_ms
          ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'email_otp',
-                  ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, 'issued', ?21, ?22, ?23, NULL
+                  ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, 'issued', ?20, ?21, ?22, NULL
              FROM linked_device_sessions
             WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
               AND link_session_id = ?8 AND state = 'awaiting_target_factor'`,
@@ -70,7 +69,6 @@ export class D1LinkedDeviceEmailOtpGrantStoreV1 {
         parsed.emailHashHex,
         parsed.registrationAuthorityId,
         parsed.providerUserId,
-        parsed.baseWalletAuthMethodId ?? null,
         String(parsed.walletAuthMethodId),
         parsed.authorityDigestB64u,
         parsed.challengeId,

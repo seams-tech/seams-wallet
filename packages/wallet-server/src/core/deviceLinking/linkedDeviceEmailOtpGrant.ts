@@ -63,13 +63,8 @@ export async function computeLinkedDeviceEmailOtpChallengeBindingDigestV1(input:
   readonly targetPreparationDigestB64u: DigestB64u;
   readonly targetEmail: VerifiedEmailAddress;
   readonly enrollment: LinkedDeviceEmailOtpEnrollmentSelectionV1;
-  readonly baseWalletAuthMethodId?: WalletAuthMethodId;
   readonly walletAuthMethodId: WalletAuthMethodId;
 }): Promise<DigestB64u> {
-  const baseWalletAuthMethodId =
-    input.enrollment.kind === 'existing_enrollment'
-      ? requirePresentBaseMethod(input.baseWalletAuthMethodId)
-      : '';
   const preimage = [
     CHALLENGE_BINDING_DOMAIN,
     String(input.walletId),
@@ -80,7 +75,6 @@ export async function computeLinkedDeviceEmailOtpChallengeBindingDigestV1(input:
     String(input.targetPreparationDigestB64u),
     input.targetEmail,
     input.enrollment.kind,
-    String(baseWalletAuthMethodId),
     String(input.walletAuthMethodId),
   ].join('\\u0000');
   return sha256Utf8DigestB64u(preimage);
@@ -105,7 +99,6 @@ export type LinkedDeviceEmailOtpGrantRecordV1 = {
   readonly emailHashHex: string;
   readonly registrationAuthorityId: string;
   readonly providerUserId: string;
-  readonly baseWalletAuthMethodId?: WalletAuthMethodId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authorityDigestB64u: DigestB64u;
   readonly challengeId: string;
@@ -129,7 +122,6 @@ const GRANT_RECORD_FIELDS = [
   'emailHashHex',
   'registrationAuthorityId',
   'providerUserId',
-  'baseWalletAuthMethodId',
   'walletAuthMethodId',
   'authorityDigestB64u',
   'challengeId',
@@ -148,7 +140,7 @@ export function parseLinkedDeviceEmailOtpGrantRecordV1(
     'LinkedDeviceEmailOtpGrantRecordV1.enrollment',
   );
   for (const field of GRANT_RECORD_FIELDS) {
-    if (record[field] === undefined && !(field === 'baseWalletAuthMethodId' && enrollment.kind === 'new_enrollment')) {
+    if (record[field] === undefined) {
       throw new Error(`LinkedDeviceEmailOtpGrantRecordV1.${field} is required`);
     }
   }
@@ -171,7 +163,7 @@ export function parseLinkedDeviceEmailOtpGrantRecordV1(
   if (expiresAtMs <= issuedAtMs) {
     throw new Error('LinkedDeviceEmailOtpGrantRecordV1.expiresAtMs must follow issuedAtMs');
   }
-  const base = {
+  return {
     kind: 'linked_device_email_otp_grant_record_v1',
     grantId: requireToken(record.grantId, 'LinkedDeviceEmailOtpGrantRecordV1.grantId'),
     grantTokenDigestB64u: requireGrantDigest(
@@ -225,17 +217,6 @@ export function parseLinkedDeviceEmailOtpGrantRecordV1(
     state: parseGrantStateV1(record.state, issuedAtMs),
     issuedAtMs,
     expiresAtMs,
-  } as const;
-  if (enrollment.kind === 'new_enrollment') {
-    return { ...base, enrollment: { kind: 'new_enrollment' } };
-  }
-  return {
-    ...base,
-    enrollment: { kind: 'existing_enrollment' },
-    baseWalletAuthMethodId: requireParsed(
-      parseWalletAuthMethodId(record.baseWalletAuthMethodId),
-      'LinkedDeviceEmailOtpGrantRecordV1.baseWalletAuthMethodId',
-    ),
   };
 }
 
@@ -290,10 +271,9 @@ export async function computeLinkedDeviceEmailOtpGrantTokenDigestV1(
 
 /**
  * The digest every Wallet Session and admission surface compares to name this
- * one target authority. It covers the full identity chain —
- * wallet, enrollment, device, derived principal, base factor — so two devices
- * sharing an email produce different digests, and a digest computed against a
- * substituted base factor matches nothing.
+ * one target authority. It covers the full identity chain — wallet,
+ * enrollment, device, derived principal — so two devices sharing an email
+ * produce different digests.
  */
 export async function computeLinkedDeviceEmailOtpAuthorityDigestV1(input: {
   readonly walletId: WalletId;
@@ -302,12 +282,7 @@ export async function computeLinkedDeviceEmailOtpAuthorityDigestV1(input: {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly targetEmail: string;
   readonly enrollment: LinkedDeviceEmailOtpEnrollmentSelectionV1;
-  readonly baseWalletAuthMethodId?: WalletAuthMethodId;
 }): Promise<DigestB64u> {
-  const baseWalletAuthMethodId =
-    input.enrollment.kind === 'existing_enrollment'
-      ? requirePresentBaseMethod(input.baseWalletAuthMethodId)
-      : '';
   const preimage = [
     AUTHORITY_DIGEST_DOMAIN,
     String(input.walletId),
@@ -316,7 +291,6 @@ export async function computeLinkedDeviceEmailOtpAuthorityDigestV1(input: {
     String(input.walletAuthMethodId),
     input.targetEmail,
     input.enrollment.kind,
-    String(baseWalletAuthMethodId),
   ].join('\u0000');
   return sha256Utf8DigestB64u(preimage);
 }
@@ -344,11 +318,6 @@ function requireToken(raw: unknown, label: string): string {
     throw new Error(`${label} must be a non-empty canonical string`);
   }
   return raw;
-}
-
-function requirePresentBaseMethod(value: WalletAuthMethodId | undefined): WalletAuthMethodId {
-  if (!value) throw new Error('Email OTP existing enrollment requires a base auth method');
-  return value;
 }
 
 function requireTargetEmail(raw: unknown): VerifiedEmailAddress {

@@ -369,7 +369,7 @@ function createD1LinkedDeviceComposition(input: {
     >;
     readonly enrollmentFinalizer: Pick<
       CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
-      'prepareFirstEnrollment'
+      'prepareFirstEnrollment' | 'prepareAddedFactor'
     >;
   };
 }): D1LinkedDeviceCompositionAssembly {

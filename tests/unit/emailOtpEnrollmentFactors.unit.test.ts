@@ -8,7 +8,6 @@ import type {
 import { CloudflareD1EmailOtpEnrollmentStore } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
 import { parseEmailOtpWalletEnrollmentRow } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
 import { selectEmailOtpDeviceFactor } from '../../packages/wallet-server/src/router/domains/emailOtp/emailOtpRouteHandlers';
-import { D1_BATCH_CAS_GUARD_SQL } from '../../packages/wallet-server/src/storage/d1Sql';
 import type { D1DatabaseLike } from '../../packages/wallet-server/src/storage/tenantRoute';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';
 import { buildEmailOtpEnrollmentFixture } from './helpers/emailOtpAuthMethod.fixtures';
@@ -144,8 +143,7 @@ function addFactorBatch(
   },
 ) {
   return database.batch([
-    enrollmentStore(database).prepareAddMethodFactorStatement({ ...input, nowMs: 500 }),
-    database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ...enrollmentStore(database).prepareAddMethodFactorStatements({ ...input, nowMs: 500 }),
   ]);
 }
 

@@ -51,8 +51,8 @@ import {
 } from '@shared/utils/webauthnDeviceInfo';
 import {
   buildEmailOtpWalletAuthAuthority,
+  emailOtpProviderOfSubject,
   walletAuthAuthorityRef,
-  type EmailOtpProvider,
   type EmailOtpWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
   type WalletAuthAuthorityRef,
@@ -1687,11 +1687,11 @@ export class CloudflareD1WalletAuthMethodService {
   /**
    * Resolves which enrollment an added Email OTP method binds to.
    *
-   * The wallet's Email OTP enrollment is per provider identity, not per method:
-   * every Email method on the wallet reads its factor secret through the same
-   * record, and its seal key version is inside each of their envelopes' AAD. So
-   * re-enrolling on a wallet that already has one would leave the existing
-   * methods holding ciphertext that no longer opens.
+   * The wallet's Email OTP enrollment is per provider identity: every Email
+   * method on the wallet checks its codes through the same record, and each
+   * method keeps its own factor in it. So an added method on a wallet that has
+   * an enrollment adds its factor to it, and re-enrolling would replace the
+   * factors of the other methods.
    *
    * The caller states which case it believes it is in and is refused when live
    * state disagrees, rather than being silently switched to the other branch —
@@ -1722,13 +1722,23 @@ export class CloudflareD1WalletAuthMethodService {
     switch (input.target.kind) {
       case 'existing_enrollment': {
         if (!existing.ok) return existing;
+        const prepared = await this.emailOtpEnrollmentFinalizer.prepareAddedFactor({
+          walletId: String(input.walletId),
+          walletAuthMethodId: String(input.ceremony.targetWalletAuthMethodId),
+          orgId: input.ceremony.orgId,
+          authSubjectId: String(input.ceremony.authority.providerSubject),
+          verifiedEmail: String(input.ceremony.authority.email),
+          material: input.target.enrollment,
+          nowMs: input.nowMs,
+        });
+        if (!prepared.ok) return prepared;
         return {
           ok: true,
           enrollment: {
-            enrollmentId: existing.enrollment.enrollmentId,
-            enrollmentSealKeyVersion: existing.enrollment.enrollmentSealKeyVersion,
+            enrollmentId: prepared.enrollment.enrollmentId,
+            enrollmentSealKeyVersion: prepared.enrollment.enrollmentSealKeyVersion,
           },
-          statements: [],
+          statements: prepared.statements,
         };
       }
       case 'new_enrollment': {
@@ -1759,7 +1769,7 @@ export class CloudflareD1WalletAuthMethodService {
         };
       }
       default:
-        return unreachableAddAuthMethodEmailOtpTarget(input.target);
+        return unreachableAddAuthMethodEmailOtpTarget(input.target.kind);
     }
   }
 
@@ -2169,9 +2179,7 @@ export class CloudflareD1WalletAuthMethodService {
       };
     }
 
-    const provider: EmailOtpProvider = input.providerUserId.startsWith('google:')
-      ? 'google'
-      : 'email';
+    const provider = emailOtpProviderOfSubject(input.providerUserId);
     let boundAuthority: EmailOtpWalletAuthAuthority;
     try {
       boundAuthority = bindEmailOtpAuthorityToMethod(
@@ -2286,7 +2294,7 @@ export class CloudflareD1WalletAuthMethodService {
         message: 'Full owner authority is required',
       };
     }
-    const provider: EmailOtpProvider = providerUserId.startsWith('google:') ? 'google' : 'email';
+    const provider = emailOtpProviderOfSubject(providerUserId);
     try {
       const authority = buildEmailOtpWalletAuthAuthority({
         walletId,
@@ -2346,7 +2354,7 @@ export class CloudflareD1WalletAuthMethodService {
         message: 'Named Email OTP method is not active for this wallet',
       };
     }
-    const provider: EmailOtpProvider = providerUserId.startsWith('google:') ? 'google' : 'email';
+    const provider = emailOtpProviderOfSubject(providerUserId);
     try {
       return {
         ok: true,

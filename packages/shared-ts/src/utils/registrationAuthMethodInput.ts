@@ -427,9 +427,12 @@ export type WalletEmailOtpEnrollmentMaterialV1 = {
   wrappedFactorB64u: string;
 };
 
-export type WalletAddAuthMethodEmailOtpTargetV1 =
-  | { readonly kind: 'existing_enrollment'; readonly enrollment?: never }
-  | {
-      readonly kind: 'new_enrollment';
-      readonly enrollment: WalletEmailOtpEnrollmentMaterialV1;
-    };
+/**
+ * The factor of an added Email OTP method, which this device enrolled. `existing_enrollment` adds
+ * it to the wallet's enrollment for the same email identity; `new_enrollment` creates the
+ * enrollment with it.
+ */
+export type WalletAddAuthMethodEmailOtpTargetV1 = {
+  readonly kind: 'existing_enrollment' | 'new_enrollment';
+  readonly enrollment: WalletEmailOtpEnrollmentMaterialV1;
+};

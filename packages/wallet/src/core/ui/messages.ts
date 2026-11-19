@@ -816,13 +816,6 @@ const walletMessages = [
   ['Device linking expired', 'デバイス連携の有効期限が切れました'],
   ['Device linking was cancelled', 'デバイス連携がキャンセルされました'],
   ['Unable to scan a QR code', 'QR コードをスキャンできません'],
-  ['Choose an Email OTP method', 'メール認証の方法を選択'],
-  [
-    'Select the masked address to authorize this linked device.',
-    '一部を伏せたアドレスを選択して、連携するデバイスを認証してください。',
-  ],
-  ['Available methods', '利用可能な方法'],
-  ['Authorizing', '認証中'],
   ['Close scanner', 'スキャナーを閉じる'],
   ['Scan and link a device', 'スキャンしてデバイスを連携'],
   [

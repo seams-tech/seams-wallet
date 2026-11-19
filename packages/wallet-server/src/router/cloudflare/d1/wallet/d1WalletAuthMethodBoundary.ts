@@ -12,6 +12,7 @@ import {
 import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
 import {
   buildEmailOtpWalletAuthAuthority,
+  emailOtpProviderOfSubject,
   buildPasskeyWalletAuthAuthority,
   type EmailOtpWalletAuthAuthority,
   type WalletAuthAuthority,
@@ -218,7 +219,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
        selectors bind an authorityRef carrying one walletAuthMethodId. Resolve
        the source as the unique active method that reproduces the presented
        digest against current wallet state. */
-    const provider = enrollment.providerUserId.startsWith('google:') ? 'google' : 'email';
+    const provider = emailOtpProviderOfSubject(enrollment.providerUserId);
     let sourceMethod: ActiveEmailOtpWalletAuthMethodRecordV2 | null = null;
     for (const record of sourceCandidates) {
       let boundAuthority: EmailOtpWalletAuthAuthority;

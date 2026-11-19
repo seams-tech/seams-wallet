@@ -64,11 +64,6 @@ export async function computeWalletSessionInstallationReceiptDigestB64u(
   return sha256Utf8DigestB64u(encodeWalletSessionInstallationReceiptV1(receipt));
 }
 
-function requirePresentString(value: string | undefined, label: string): string {
-  if (value === undefined) throw new Error(`${label} is required`);
-  return value;
-}
-
 function encodeOwnerAuthorization(value: LinkedDeviceOwnerAuthorizationSourceV1): Uint8Array {
   return concat([
     text(value.kind, 'ownerAuthorization.kind'),
@@ -108,18 +103,6 @@ function encodeApprovedTargetFactor(value: LinkedDeviceApprovedTargetFactorV1): 
       return concat([
         text(value.kind, 'targetFactor.kind'),
         text(value.targetEmail, 'targetFactor.targetEmail'),
-        text(value.enrollment.kind, 'targetFactor.enrollment.kind'),
-        ...(value.enrollment.kind === 'existing_enrollment'
-          ? [
-              text(
-                requirePresentString(
-                  value.baseWalletAuthMethodId,
-                  'targetFactor.baseWalletAuthMethodId',
-                ),
-                'targetFactor.baseWalletAuthMethodId',
-              ),
-            ]
-          : []),
       ]);
   }
 }
@@ -318,18 +301,7 @@ function encodeEmailTargetPreparationFactorBindingV1(
   if (isPasskeyTargetPreparationV1(value)) {
     return [];
   }
-  return [
-    text(value.targetEmail, 'targetEmail'),
-    text(value.enrollment.kind, 'enrollment.kind'),
-    ...(value.enrollment.kind === 'existing_enrollment'
-      ? [
-          text(
-            requirePresentString(value.baseWalletAuthMethodId, 'baseWalletAuthMethodId'),
-            'baseWalletAuthMethodId',
-          ),
-        ]
-      : []),
-  ];
+  return [text(value.targetEmail, 'targetEmail')];
 }
 
 function isPasskeyTargetPreparationV1(
@@ -374,22 +346,10 @@ export async function assertLinkedDeviceTargetCredentialRegistrationMatchesPrepa
     if (
       !emailRegistration ||
       !grant ||
-      !emailPreparation.enrollment ||
       emailRegistration.targetEmail !== emailPreparation.targetEmail ||
-      grant.enrollment.kind !== emailPreparation.enrollment.kind
+      grant.targetEmail !== emailPreparation.targetEmail
     ) {
       throw new Error('linked-device Email OTP target registration differs from preparation');
-    }
-    if (emailPreparation.enrollment.kind === 'existing_enrollment') {
-      if (
-        !grant.baseWalletAuthMethodId ||
-        !emailPreparation.baseWalletAuthMethodId ||
-        grant.baseWalletAuthMethodId !== emailPreparation.baseWalletAuthMethodId
-      ) {
-        throw new Error('linked-device Email OTP base factor differs from preparation');
-      }
-    } else if (emailRegistration.emailOtpEnrollment === undefined) {
-      throw new Error('linked-device Email OTP enrollment material is missing');
     }
   }
   for (

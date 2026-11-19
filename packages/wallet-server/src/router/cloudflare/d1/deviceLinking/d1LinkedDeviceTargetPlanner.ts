@@ -222,7 +222,7 @@ export class D1LinkedDeviceTargetPlannerV1 implements LinkedDeviceTargetPlannerV
     }
 
     const target = input.approval.targetFactor;
-    const common = {
+    return buildLinkedDeviceTargetPreparationV1({
       linkSessionId: input.approval.linkSessionId,
       walletId: input.approval.walletId,
       enrollmentId: input.approval.enrollmentId,
@@ -238,20 +238,6 @@ export class D1LinkedDeviceTargetPlannerV1 implements LinkedDeviceTargetPlannerV
       ),
       issuedAtMs: input.requestedAtMs,
       expiresAtMs,
-    };
-    if (target.enrollment.kind === 'existing_enrollment') {
-      if (!target.baseWalletAuthMethodId) {
-        throw new Error('existing Email OTP target is missing its base factor');
-      }
-      return buildLinkedDeviceTargetPreparationV1({
-        ...common,
-        enrollment: target.enrollment,
-        baseWalletAuthMethodId: target.baseWalletAuthMethodId,
-      });
-    }
-    return buildLinkedDeviceTargetPreparationV1({
-      ...common,
-      enrollment: target.enrollment,
     });
   }
 }

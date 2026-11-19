@@ -2,7 +2,6 @@ import type { AfterCall, EventCallback, LinkDeviceFlowEvent } from './sdkSentEve
 import type { ConfirmationConfig } from './signer-worker';
 import type {
   LinkedDeviceTargetFactorV1,
-  LinkedDeviceEmailOtpBaseFactorChoiceV1,
   LinkSessionStateV1,
   QrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking';
@@ -13,7 +12,7 @@ import type {
   LinkDeviceSessionId,
 } from '@shared/signing-lanes/ids';
 import type { VerifiedEmailAddress } from '@shared/utils/domainIds';
-import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
+import type { WalletId } from '@shared/utils/domainIds';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export { LinkDeviceEventPhase } from './sdkSentEvents';
@@ -178,13 +177,6 @@ export interface StartDeviceLinkingOptionsDevice2 {
 }
 
 export interface ScanAndLinkDeviceOptionsDevice1 {
-  /** Selects one server-masked Email OTP base method when several are eligible. */
-  onEmailOtpBaseFactorRequired?: (
-    choices: readonly [
-      LinkedDeviceEmailOtpBaseFactorChoiceV1,
-      ...LinkedDeviceEmailOtpBaseFactorChoiceV1[],
-    ],
-  ) => Promise<WalletAuthMethodId>;
   onEvent?: EventCallback<LinkDeviceFlowEvent>;
   onError?: (error: Error) => void;
   afterCall?: AfterCall<LinkDeviceResult>;

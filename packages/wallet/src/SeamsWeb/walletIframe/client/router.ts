@@ -41,9 +41,7 @@ import {
   type PreferencesChangedPayload,
   type PMExportKeypairUiPayload,
   type PMRegistrationAuthMethodInput,
-  isDeviceLinkEmailOtpBaseFactorSelectionProgressV1,
   isDeviceLinkTargetFactorActivationProgressV1,
-  type DeviceLinkEmailOtpBaseFactorSelectionProgressV1,
   type DeviceLinkTargetFactorActivationProgressV1,
   HOSTED_AUTH_MENU_ERROR_EVENT,
   buildPMRedeemHostedWalletSeamsSessionPayload,
@@ -3812,7 +3810,6 @@ export class WalletIframeRouter {
     qrData: QrLinkedDeviceSessionPayloadV5;
     options?: ScanAndLinkDeviceOptionsDevice1;
   }): Promise<LinkDeviceResult> {
-    const requestId = this.allocateRequestId();
     const res = await this.post<LinkDeviceResult>(
       {
         type: 'PM_SCAN_AND_LINK_DEVICE',
@@ -3833,44 +3830,13 @@ export class WalletIframeRouter {
         },
         options: {
           onProgress: (progress: ProgressPayload) => {
-            if (isDeviceLinkEmailOtpBaseFactorSelectionProgressV1(progress)) {
-              void this.handleEmailOtpBaseFactorSelectionProgressV1(
-                requestId,
-                payload.options?.onEmailOtpBaseFactorRequired,
-                progress,
-              );
-              return;
-            }
             if (isLinkDeviceFlowEvent(progress)) payload.options?.onEvent?.(progress);
           },
         },
       },
-      { requestId, timeout: 'interactive' },
+      { timeout: 'interactive' },
     );
     return res.result;
-  }
-
-  private async handleEmailOtpBaseFactorSelectionProgressV1(
-    scanRequestId: WalletIframeRequestId,
-    selector: ScanAndLinkDeviceOptionsDevice1['onEmailOtpBaseFactorRequired'],
-    progress: DeviceLinkEmailOtpBaseFactorSelectionProgressV1,
-  ): Promise<void> {
-    try {
-      if (!selector) throw new Error('Choose the Email OTP method to use for the linked device');
-      const baseWalletAuthMethodId = await selector(progress.choices);
-      await this.post<void>({
-        type: 'PM_DEVICE_LINK_EMAIL_OTP_BASE_FACTOR_ACTION',
-        payload: {
-          scanRequestId,
-          action: { kind: 'select', baseWalletAuthMethodId },
-        },
-      });
-    } catch {
-      await this.post<void>({
-        type: 'PM_DEVICE_LINK_EMAIL_OTP_BASE_FACTOR_ACTION',
-        payload: { scanRequestId, action: { kind: 'cancel' } },
-      }).catch(() => undefined);
-    }
   }
 
   async startDevice2LinkingFlow(

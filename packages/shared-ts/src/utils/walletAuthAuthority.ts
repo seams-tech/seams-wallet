@@ -279,6 +279,11 @@ function buildEmailOtpFactorIdentity(args: {
   };
 }
 
+/** A Google identity's subject starts with `google:`; any other subject is an email identity. */
+export function emailOtpProviderOfSubject(providerUserId: string): EmailOtpProvider {
+  return providerUserId.startsWith('google:') ? 'google' : 'email';
+}
+
 export function buildEmailOtpWalletAuthAuthority(args: {
   walletId: unknown;
   provider: unknown;

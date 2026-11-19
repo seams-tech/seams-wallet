@@ -7,6 +7,7 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import type { EmailOtpVerifiedAuthorityProjection } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import {
   buildEmailOtpWalletAuthAuthority,
+  emailOtpProviderOfSubject,
   walletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
@@ -114,7 +115,7 @@ export async function walletAuthAuthorityRefForVerifiedEmailOtpUnlock(args: {
   }
   const base = buildEmailOtpWalletAuthAuthority({
     walletId: args.walletId,
-    provider: args.providerSubject.startsWith('google:') ? 'google' : 'email',
+    provider: emailOtpProviderOfSubject(args.providerSubject),
     providerUserId: args.providerSubject,
     emailHashHex: args.emailHashHex,
   });

@@ -223,8 +223,8 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
   /**
    * Adds a factor for a new Email OTP method to the wallet's enrollment, for a device that
    * recovers the wallet or links to it. The enrollment keeps its email identity and key
-   * versions, so the material must use them. The statement changes no row when the enrollment
-   * changed after this read; commit it with a batch guard after it.
+   * versions, so the material must use them. The statements fail the caller's batch when the
+   * enrollment changed after this read.
    */
   async prepareAddedFactor(input: EnrollmentFactorInput): Promise<PreparedEnrollmentStatements> {
     const validated = await validateEnrollmentFactorInput(input);
@@ -271,13 +271,11 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
         factors: [...existing.factors, validated.factor],
         updatedAtMs: Math.max(existing.updatedAtMs, input.nowMs),
       },
-      statements: [
-        this.emailOtpEnrollments.prepareAddMethodFactorStatement({
-          expected: existing,
-          factor: validated.factor,
-          nowMs: input.nowMs,
-        }),
-      ],
+      statements: this.emailOtpEnrollments.prepareAddMethodFactorStatements({
+        expected: existing,
+        factor: validated.factor,
+        nowMs: input.nowMs,
+      }),
     };
   }
 

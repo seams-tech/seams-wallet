@@ -13,6 +13,7 @@ import { parseProviderSubject } from '@shared/utils/domainIds';
 import type { WalletId } from '@shared/utils/domainIds';
 import {
   buildEmailOtpWalletAuthAuthority,
+  emailOtpProviderOfSubject,
   buildPasskeyWalletAuthAuthority,
   buildVoiceIdWalletAuthAuthority,
   walletAuthAuthorityRef,
@@ -442,7 +443,7 @@ function walletAuthAuthorityFromExactV2MethodV1(input: {
   try {
     const derived = buildEmailOtpWalletAuthAuthority({
       walletId: input.walletId,
-      provider: input.principalId.startsWith('google:') ? 'google' : 'email',
+      provider: emailOtpProviderOfSubject(input.principalId),
       providerUserId: providerSubject.value,
       emailHashHex: input.authMethod.emailHashHex,
     });

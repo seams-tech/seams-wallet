@@ -45,7 +45,6 @@ import {
   type VerifiedTargetFactorV1,
   type LinkedDeviceEd25519ExportRootPreparationV1,
   type LinkedDeviceEmailOtpVerificationGrantV1,
-  type LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
   type LinkedDeviceEmailOtpChallengeStartRequestV1,
   type LinkedDeviceEmailOtpChallengeResendRequestV1,
   type LinkedDeviceEmailOtpChallengeVerifyRequestV1,
@@ -58,11 +57,7 @@ import {
   type QrLinkedDeviceSessionPayloadV5,
   type LinkedDeviceTargetFactorV1,
   type LinkedDeviceApprovedTargetFactorV1,
-  type LinkedDeviceEmailOtpBaseFactorChoiceV1,
   type LinkedDeviceEmailOtpEnrollmentSelectionV1,
-  type LinkedDeviceEmailOtpBaseFactorRequestV1,
-  type LinkedDeviceEmailOtpBaseFactorResolutionV1,
-  type LinkedDeviceEmailOtpBaseFactorResolutionResultV1,
 } from './contracts';
 import {
   parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1,
@@ -297,13 +292,6 @@ function emailOtpEnrollmentSelectionV1() {
   return wireUnion('kind', [existingEnrollmentV1(), newEnrollmentV1()]);
 }
 
-function parseEmailOtpEnrollmentSelection(
-  raw: unknown,
-  label: string,
-): LinkedDeviceEmailOtpEnrollmentSelectionV1 {
-  return emailOtpEnrollmentSelectionV1()(raw, label);
-}
-
 function emailOtpEnrollmentMaterialV1() {
   return wireObject({
     enrollmentSealKeyVersion: parseNonEmptyToken,
@@ -314,8 +302,8 @@ function emailOtpEnrollmentMaterialV1() {
   });
 }
 
-// Hand-written: the enrollment and address are checked before the keys, so a missing
-// address reports what the address parser says about it.
+// Hand-written: the address is checked before the keys, so a missing address reports what the
+// address parser says about it.
 function parseApprovedTargetFactor(
   raw: unknown,
   label: string,
@@ -326,26 +314,9 @@ function parseApprovedTargetFactor(
     return { kind: 'passkey_prf' };
   }
   if (record.kind === 'email_otp') {
-    const enrollment = parseEmailOtpEnrollmentSelection(record.enrollment, `${label}.enrollment`);
     const targetEmail = parseTargetEmail(record.targetEmail, `${label}.targetEmail`);
-    if (enrollment.kind === 'existing_enrollment') {
-      const exact = exactRecord(
-        record,
-        ['kind', 'targetEmail', 'enrollment', 'baseWalletAuthMethodId'],
-        label,
-      );
-      return {
-        kind: 'email_otp',
-        targetEmail,
-        enrollment,
-        baseWalletAuthMethodId: walletAuthMethodId(
-          exact.baseWalletAuthMethodId,
-          `${label}.baseWalletAuthMethodId`,
-        ),
-      };
-    }
-    exactRecord(record, ['kind', 'targetEmail', 'enrollment'], label);
-    return { kind: 'email_otp', targetEmail, enrollment };
+    exactRecord(record, ['kind', 'targetEmail'], label);
+    return { kind: 'email_otp', targetEmail };
   }
   throw new Error(`${label}.kind is unsupported`);
 }
@@ -762,20 +733,6 @@ function emailOtpTargetPreparationV1() {
       ...linkedDeviceTargetPreparationFields(),
       targetFactor: emailOtpTargetFactorV1(),
       targetEmail: parseTargetEmail,
-      enrollment: existingEnrollmentV1(),
-      baseWalletAuthMethodId: walletAuthMethodId,
-    },
-    preparationExpiresAfterIssue,
-  );
-}
-
-function newEmailOtpTargetPreparationV1() {
-  return wireObject(
-    {
-      ...linkedDeviceTargetPreparationFields(),
-      targetFactor: emailOtpTargetFactorV1(),
-      targetEmail: parseTargetEmail,
-      enrollment: newEnrollmentV1(),
     },
     preparationExpiresAfterIssue,
   );
@@ -788,12 +745,7 @@ export function parseLinkedDeviceTargetPreparationV1(
   const record = requireRecord(raw, label);
   const targetFactor = parseTargetFactor(record.targetFactor, `${label}.targetFactor`);
   if (targetFactor.kind === 'passkey_prf') return passkeyTargetPreparationV1()(record, label);
-  const enrollment = parseEmailOtpEnrollmentSelection(record.enrollment, `${label}.enrollment`);
-  return (
-    enrollment.kind === 'new_enrollment'
-      ? newEmailOtpTargetPreparationV1()
-      : emailOtpTargetPreparationV1()
-  )(record, label);
+  return emailOtpTargetPreparationV1()(record, label);
 }
 
 function linkedDeviceTargetPreparationRequestV1() {
@@ -812,98 +764,6 @@ export function parseLinkedDeviceTargetPreparationRequestV1(
 
 // Hand-written: the revision is checked before the kind and the keys, so a missing
 // revision reports what the time parser says about it.
-export function parseLinkedDeviceEmailOtpBaseFactorRequestV1(
-  raw: unknown,
-): LinkedDeviceEmailOtpBaseFactorRequestV1 {
-  const record = requireRecord(raw, 'LinkedDeviceEmailOtpBaseFactorRequestV1');
-  const expectedRevision = parseUnixTime(
-    record.expectedRevision,
-    'LinkedDeviceEmailOtpBaseFactorRequestV1.expectedRevision',
-  );
-  if (record.kind === 'resolve') {
-    exactRecord(record, ['kind', 'expectedRevision'], 'LinkedDeviceEmailOtpBaseFactorRequestV1');
-    return { kind: 'resolve', expectedRevision };
-  }
-  if (record.kind === 'select') {
-    const exact = exactRecord(
-      record,
-      ['kind', 'expectedRevision', 'baseWalletAuthMethodId'],
-      'LinkedDeviceEmailOtpBaseFactorRequestV1',
-    );
-    return {
-      kind: 'select',
-      expectedRevision,
-      baseWalletAuthMethodId: walletAuthMethodId(
-        exact.baseWalletAuthMethodId,
-        'LinkedDeviceEmailOtpBaseFactorRequestV1.baseWalletAuthMethodId',
-      ),
-    };
-  }
-  throw new Error('LinkedDeviceEmailOtpBaseFactorRequestV1.kind is unsupported');
-}
-
-function emailOtpBaseFactorChoiceV1() {
-  return wireObject({
-    baseWalletAuthMethodId: walletAuthMethodId,
-    maskedEmailHint: (raw, label): string => {
-      if (typeof raw !== 'string' || raw.length === 0) throw new Error(`${label} is invalid`);
-      return raw;
-    },
-  });
-}
-
-// Choices report their errors under their own record name, not their place in the list.
-function emailOtpBaseFactorResolutionsV1() {
-  const choice = emailOtpBaseFactorChoiceV1();
-  const parseChoice = (raw: unknown) => choice(raw, 'LinkedDeviceEmailOtpBaseFactorChoiceV1');
-  return {
-    selected: wireObject({ kind: wireLiteral('selected'), choice: parseChoice }),
-    selection_required: wireObject({
-      kind: wireLiteral('selection_required'),
-      choices: (raw, label) => {
-        if (!Array.isArray(raw) || raw.length === 0) throw new Error(`${label} must not be empty`);
-        const choices = raw.map(parseChoice);
-        return [choices[0]!, ...choices.slice(1)] as const;
-      },
-    }),
-    unavailable: wireObject({
-      kind: wireLiteral('unavailable'),
-      reason: supportedLiteral('no_active_email_otp_base_factor'),
-    }),
-  };
-}
-
-function parseLinkedDeviceEmailOtpBaseFactorResolutionV1(
-  raw: unknown,
-): LinkedDeviceEmailOtpBaseFactorResolutionV1 {
-  const label = 'LinkedDeviceEmailOtpBaseFactorResolutionV1';
-  const record = requireRecord(raw, label);
-  const resolutions = emailOtpBaseFactorResolutionsV1();
-  switch (record.kind) {
-    case 'selected':
-    case 'selection_required':
-    case 'unavailable':
-      return resolutions[record.kind](record, label);
-    default:
-      throw new Error(`${label}.kind is unsupported`);
-  }
-}
-
-function emailOtpBaseFactorResolutionResultV1() {
-  return wireObject({
-    revision: parseUnixTime,
-    resolution: parseLinkedDeviceEmailOtpBaseFactorResolutionV1,
-  });
-}
-
-export function parseLinkedDeviceEmailOtpBaseFactorResolutionResultV1(
-  raw: unknown,
-): LinkedDeviceEmailOtpBaseFactorResolutionResultV1 {
-  return emailOtpBaseFactorResolutionResultV1()(
-    raw,
-    'LinkedDeviceEmailOtpBaseFactorResolutionResultV1',
-  );
-}
 
 // Checks the ceremony's keys; parseWalletAddAuthMethodRegistrationOptions checks its values.
 function parseLinkedDevicePasskeyCreationOptionsV1(
@@ -1125,25 +985,11 @@ function emailOtpTargetCredentialRegistrationV1() {
     targetPreparationDigestB64u: digest,
     ordinarySignerMaterialRecipientRequests: parseRecipientRequests,
     emailOtpVerificationGrant: parseLinkedDeviceEmailOtpVerificationGrantV1,
-    registeredAtMs: parseUnixTime,
-  });
-}
-
-function newEmailOtpTargetCredentialRegistrationV1() {
-  return wireObject({
-    ...targetCredentialRegistrationIdentity(),
-    targetFactor: emailOtpTargetFactorV1(),
-    targetEmail: parseTargetEmail,
-    targetPreparationDigestB64u: digest,
-    ordinarySignerMaterialRecipientRequests: parseRecipientRequests,
-    emailOtpVerificationGrant: parseLinkedDeviceEmailOtpVerificationGrantV1,
     emailOtpEnrollment: emailOtpEnrollmentMaterialV1(),
     registeredAtMs: parseUnixTime,
   });
 }
 
-// An Email OTP registration's fields depend on its grant's enrollment, so the grant is
-// read first.
 export function parseLinkedDeviceTargetCredentialRegistrationV1(
   raw: unknown,
 ): LinkedDeviceTargetCredentialRegistrationV1 {
@@ -1153,12 +999,7 @@ export function parseLinkedDeviceTargetCredentialRegistrationV1(
   if (targetFactor.kind === 'passkey_prf') {
     return passkeyTargetCredentialRegistrationV1()(record, label);
   }
-  const grant = parseLinkedDeviceEmailOtpVerificationGrantV1(record.emailOtpVerificationGrant);
-  return (
-    grant.enrollment.kind === 'new_enrollment'
-      ? newEmailOtpTargetCredentialRegistrationV1()
-      : emailOtpTargetCredentialRegistrationV1()
-  )(record, label);
+  return emailOtpTargetCredentialRegistrationV1()(record, label);
 }
 
 function targetCredentialRegistrationResultV1() {
@@ -1226,23 +1067,7 @@ function verifiedEmailOtpTargetV1() {
       kind: wireLiteral('verified_email_otp_target_v1'),
       authMethod: parseEmailOtpWalletAuthMethodDraftV1,
       targetEmail: parseTargetEmail,
-      enrollment: existingEnrollmentV1(),
-      baseWalletAuthMethodId: walletAuthMethodId,
-      providerUserId: parseNonEmptyToken,
-      verificationDigestB64u: digest,
-      verifiedAtMs: parseUnixTime,
-    },
-    verifiedAfterCreation,
-  );
-}
-
-function verifiedNewEmailOtpTargetV1() {
-  return wireObject(
-    {
-      kind: wireLiteral('verified_email_otp_target_v1'),
-      authMethod: parseEmailOtpWalletAuthMethodDraftV1,
-      targetEmail: parseTargetEmail,
-      enrollment: newEnrollmentV1(),
+      enrollment: emailOtpEnrollmentSelectionV1(),
       providerUserId: parseNonEmptyToken,
       verificationDigestB64u: digest,
       verifiedAtMs: parseUnixTime,
@@ -1255,12 +1080,7 @@ function parseVerifiedTargetFactorV1(raw: unknown, label: string): VerifiedTarge
   const record = requireRecord(raw, label);
   if (record.kind === 'verified_passkey_target_v1') return verifiedPasskeyTargetV1()(record, label);
   if (record.kind !== 'verified_email_otp_target_v1') throw new Error(`${label}.kind is invalid`);
-  const enrollment = parseEmailOtpEnrollmentSelection(record.enrollment, `${label}.enrollment`);
-  return (
-    enrollment.kind === 'existing_enrollment'
-      ? verifiedEmailOtpTargetV1()
-      : verifiedNewEmailOtpTargetV1()
-  )(record, label);
+  return verifiedEmailOtpTargetV1()(record, label);
 }
 
 function passkeyWalletAuthMethodDraftV1() {
@@ -1301,7 +1121,7 @@ function parseEmailOtpWalletAuthMethodDraftV1(
   return emailOtpWalletAuthMethodDraftV1()(raw, label);
 }
 
-function emailOtpVerificationGrantFields<E>(enrollment: WireParser<E>) {
+function emailOtpVerificationGrantFields() {
   return {
     kind: wireLiteral('linked_device_email_otp_verification_grant_v1'),
     grantId: parseNonEmptyToken,
@@ -1313,7 +1133,7 @@ function emailOtpVerificationGrantFields<E>(enrollment: WireParser<E>) {
     deviceId: linkedDeviceId,
     targetPreparationDigestB64u: digest,
     targetEmail: parseTargetEmail,
-    enrollment,
+    enrollment: emailOtpEnrollmentSelectionV1(),
     emailHashHex: parseEmailHashHex,
     registrationAuthorityId: parseNonEmptyToken,
     providerUserId: parseNonEmptyToken,
@@ -1331,55 +1151,19 @@ function grantIssuedBeforeExpiry(
 }
 
 function emailOtpVerificationGrantV1() {
-  return wireObject(
-    {
-      ...emailOtpVerificationGrantFields(existingEnrollmentV1()),
-      baseWalletAuthMethodId: walletAuthMethodId,
-    },
-    grantIssuedBeforeExpiry,
-  );
-}
-
-function newEnrollmentEmailOtpVerificationGrantV1() {
-  return wireObject(emailOtpVerificationGrantFields(newEnrollmentV1()), grantIssuedBeforeExpiry);
+  return wireObject(emailOtpVerificationGrantFields(), grantIssuedBeforeExpiry);
 }
 
 export function parseLinkedDeviceEmailOtpVerificationGrantV1(
   raw: unknown,
 ): LinkedDeviceEmailOtpVerificationGrantV1 {
-  const label = 'LinkedDeviceEmailOtpVerificationGrantV1';
-  const record = requireRecord(raw, label);
-  const enrollment = parseEmailOtpEnrollmentSelection(record.enrollment, `${label}.enrollment`);
-  return (
-    enrollment.kind === 'new_enrollment'
-      ? newEnrollmentEmailOtpVerificationGrantV1()
-      : emailOtpVerificationGrantV1()
-  )(record, label);
-}
-
-function emailOtpFactorReleaseEnvelopeV1() {
-  return wireObject({
-    kind: wireLiteral('email_otp_factor_release_v1'),
-    challengeId: parseNonEmptyToken,
-    enrollmentId: parseNonEmptyToken,
-    enrollmentSealKeyVersion: parseNonEmptyToken,
-    serverEphemeralPublicKey65B64u: parseUncompressedP256PointB64u,
-    nonce12B64u: (raw, label) => parseCanonicalFixedBase64UrlBytes(raw, 12, label),
-    ciphertextB64u: parseCanonicalBase64UrlBytes,
-  });
-}
-
-function parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(
-  raw: unknown,
-): LinkedDeviceEmailOtpFactorReleaseEnvelopeV1 {
-  return emailOtpFactorReleaseEnvelopeV1()(raw, 'LinkedDeviceEmailOtpFactorReleaseEnvelopeV1');
+  return emailOtpVerificationGrantV1()(raw, 'LinkedDeviceEmailOtpVerificationGrantV1');
 }
 
 function emailOtpChallengeStartRequestV1() {
   return wireObject({
     kind: wireLiteral('linked_device_email_otp_challenge_start_request_v1'),
     linkSessionId: sessionId,
-    workerEphemeralPublicKey65B64u: parseUncompressedP256PointB64u,
   });
 }
 
@@ -1439,47 +1223,17 @@ export function parseLinkedDeviceEmailOtpChallengeResultV1(
   return emailOtpChallengeResultV1()(raw, 'LinkedDeviceEmailOtpChallengeResultV1');
 }
 
-// Hand-written: whether the factor release may be null depends on the grant's enrollment.
+function emailOtpVerificationResultV1() {
+  return wireObject({
+    kind: wireLiteral('linked_device_email_otp_verification_result_v1'),
+    verificationGrant: parseLinkedDeviceEmailOtpVerificationGrantV1,
+  });
+}
+
 export function parseLinkedDeviceEmailOtpVerificationResultV1(
   raw: unknown,
 ): LinkedDeviceEmailOtpVerificationResultV1 {
-  const record = exactRecord(
-    raw,
-    ['kind', 'verificationGrant', 'factorRelease'],
-    'LinkedDeviceEmailOtpVerificationResultV1',
-  );
-  if (record.kind !== 'linked_device_email_otp_verification_result_v1') {
-    throw new Error('LinkedDeviceEmailOtpVerificationResultV1.kind is invalid');
-  }
-  const verificationGrant = parseLinkedDeviceEmailOtpVerificationGrantV1(record.verificationGrant);
-  if (isNewEnrollmentEmailOtpVerificationGrantV1(verificationGrant)) {
-    if (record.factorRelease !== null) {
-      throw new Error('new linked-device Email OTP enrollment cannot carry a factor release');
-    }
-    return {
-      kind: 'linked_device_email_otp_verification_result_v1',
-      verificationGrant,
-      factorRelease: null,
-    };
-  }
-  const factorRelease = parseLinkedDeviceEmailOtpFactorReleaseEnvelopeV1(record.factorRelease);
-  if (factorRelease.challengeId !== verificationGrant.challengeId) {
-    throw new Error('LinkedDeviceEmailOtpVerificationResultV1 challenge binding changed');
-  }
-  return {
-    kind: 'linked_device_email_otp_verification_result_v1',
-    verificationGrant,
-    factorRelease,
-  };
-}
-
-function isNewEnrollmentEmailOtpVerificationGrantV1(
-  grant: LinkedDeviceEmailOtpVerificationGrantV1,
-): grant is Extract<
-  LinkedDeviceEmailOtpVerificationGrantV1,
-  { readonly enrollment: { readonly kind: 'new_enrollment' } }
-> {
-  return grant.enrollment.kind === 'new_enrollment';
+  return emailOtpVerificationResultV1()(raw, 'LinkedDeviceEmailOtpVerificationResultV1');
 }
 
 function cancelUnclaimedRequestV1() {
@@ -1749,25 +1503,12 @@ declare const schemasParseTheirDeclaredTypes: AllTrue<
     >,
     ParsesExactly<typeof linkedDeviceApprovalDeliveryV1, LinkedDeviceApprovalDeliveryV1>,
     ParsesExactly<
-      | typeof passkeyTargetPreparationV1
-      | typeof emailOtpTargetPreparationV1
-      | typeof newEmailOtpTargetPreparationV1,
+      typeof passkeyTargetPreparationV1 | typeof emailOtpTargetPreparationV1,
       LinkedDeviceTargetPreparationV1
     >,
     ParsesExactly<
       typeof linkedDeviceTargetPreparationRequestV1,
       LinkedDeviceTargetPreparationRequestV1
-    >,
-    ParsesExactly<typeof emailOtpBaseFactorChoiceV1, LinkedDeviceEmailOtpBaseFactorChoiceV1>,
-    ParsesExactly<
-      ReturnType<typeof emailOtpBaseFactorResolutionsV1>[keyof ReturnType<
-        typeof emailOtpBaseFactorResolutionsV1
-      >],
-      LinkedDeviceEmailOtpBaseFactorResolutionV1
-    >,
-    ParsesExactly<
-      typeof emailOtpBaseFactorResolutionResultV1,
-      LinkedDeviceEmailOtpBaseFactorResolutionResultV1
     >,
     ParsesExactly<
       typeof ed25519ExportRootPreparationV1,
@@ -1777,9 +1518,7 @@ declare const schemasParseTheirDeclaredTypes: AllTrue<
     ParsesExactly<typeof linkedDeviceWebAuthnRegistrationV1, LinkedDeviceWebAuthnRegistrationV1>,
     ParsesExactly<typeof recipientRequestV1, OrdinarySignerMaterialRecipientRequestV1>,
     ParsesExactly<
-      | typeof passkeyTargetCredentialRegistrationV1
-      | typeof emailOtpTargetCredentialRegistrationV1
-      | typeof newEmailOtpTargetCredentialRegistrationV1,
+      typeof passkeyTargetCredentialRegistrationV1 | typeof emailOtpTargetCredentialRegistrationV1,
       LinkedDeviceTargetCredentialRegistrationV1
     >,
     ParsesExactly<
@@ -1787,21 +1526,13 @@ declare const schemasParseTheirDeclaredTypes: AllTrue<
       LinkedDeviceTargetCredentialRegistrationResultV1
     >,
     ParsesExactly<
-      | typeof verifiedPasskeyTargetV1
-      | typeof verifiedEmailOtpTargetV1
-      | typeof verifiedNewEmailOtpTargetV1,
+      typeof verifiedPasskeyTargetV1 | typeof verifiedEmailOtpTargetV1,
       VerifiedTargetFactorV1
     >,
     ParsesExactly<typeof passkeyWalletAuthMethodDraftV1, PasskeyWalletAuthMethodDraftV1>,
     ParsesExactly<typeof emailOtpWalletAuthMethodDraftV1, EmailOtpWalletAuthMethodDraftV1>,
-    ParsesExactly<
-      typeof emailOtpVerificationGrantV1 | typeof newEnrollmentEmailOtpVerificationGrantV1,
-      LinkedDeviceEmailOtpVerificationGrantV1
-    >,
-    ParsesExactly<
-      typeof emailOtpFactorReleaseEnvelopeV1,
-      LinkedDeviceEmailOtpFactorReleaseEnvelopeV1
-    >,
+    ParsesExactly<typeof emailOtpVerificationGrantV1, LinkedDeviceEmailOtpVerificationGrantV1>,
+    ParsesExactly<typeof emailOtpVerificationResultV1, LinkedDeviceEmailOtpVerificationResultV1>,
     ParsesExactly<
       typeof emailOtpChallengeStartRequestV1,
       LinkedDeviceEmailOtpChallengeStartRequestV1

@@ -148,20 +148,23 @@ export class CloudflareD1EmailOtpEnrollmentStore {
   }
 
   /**
-   * Adds a method's factor to the enrollment `expected` names. It changes no row when that
-   * enrollment changed, so the commit puts a batch guard after it.
+   * Adds a method's factor to the enrollment `expected` names. The guard after the update fails
+   * the caller's batch when that enrollment changed, so the factor is never lost silently.
    */
-  prepareAddMethodFactorStatement(input: {
+  prepareAddMethodFactorStatements(input: {
     readonly expected: EmailOtpWalletEnrollmentRecord;
     readonly factor: EmailOtpEnrollmentFactorRecord;
     readonly nowMs: number;
-  }): D1PreparedStatementLike {
-    return emailOtpWalletEnrollmentRows.addMethodFactor(this.prepare, {
-      enrollment: input.expected,
-      factor: input.factor,
-      factorLimit: EMAIL_OTP_ENROLLMENT_FACTOR_LIMIT,
-      nowMs: input.nowMs,
-    });
+  }): readonly D1PreparedStatementLike[] {
+    return [
+      emailOtpWalletEnrollmentRows.addMethodFactor(this.prepare, {
+        enrollment: input.expected,
+        factor: input.factor,
+        factorLimit: EMAIL_OTP_ENROLLMENT_FACTOR_LIMIT,
+        nowMs: input.nowMs,
+      }),
+      emailOtpWalletEnrollmentRows.batchGuard(this.prepare),
+    ];
   }
 
   /** Inserts the first enrollment without turning a concurrent winner into an update. */

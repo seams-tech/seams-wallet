@@ -124,7 +124,6 @@ export function walletForHostRequest(
     case 'PM_LIST_LINKED_DEVICES':
     case 'PM_START_DEVICE2_LINKING_FLOW':
     case 'PM_DEVICE_LINK_TARGET_FACTOR_ACTION':
-    case 'PM_DEVICE_LINK_EMAIL_OTP_BASE_FACTOR_ACTION':
     case 'PM_CANCEL_DEVICE_LINKING':
       return null;
     default:

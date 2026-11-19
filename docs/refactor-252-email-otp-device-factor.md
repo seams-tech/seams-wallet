@@ -1,8 +1,8 @@
 # Refactor 252: Email OTP as a device factor
 
 Status: 2026-11-19. Slices 0, 1 and 2 are done, with the POPRF of D9, and are in the 0.75.0
-release commit. Slice 3 (new devices) is in progress: 3a (the factor list of D11) and 3b
-(recovery) are written. 3c (device linking) is next.
+release commit. Slice 3 (new devices) is in progress: 3a (the factor list of D11), 3b
+(recovery) and 3c (device linking) are written. 3d (the menu) is next.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -234,20 +234,22 @@ device input too. Its operation check and the Ed25519 warm seal of D5 remain ope
 
 ### A new device
 
-Until 3c, device linking refuses early: the device-link base factor is unavailable and an
-existing-enrollment link challenge is refused (`email_otp_device_factor_missing`). Google recovery
-on a new device works since 3b. Slice 3 is the design below.
+Since 3b and 3c, Google recovery and device linking give a new device its own factor. Until 3d,
+the menu does not offer them to a device with no factor. Slice 3 is the design below.
 
 - A device with no sealed factor does not offer the Email OTP unlock. Google and an email code
   give a sign-in only. The menu then offers two choices: link from a device that has the wallet,
   or enter a recovery code.
 - **Device linking.** The new device enrolls its own Email OTP factor as a new linked-device
   method. The source device reseals the seed for it over the link channel. The server releases
-  nothing, and the `email-otp-base-factor` route goes away. With D11:
-  - A wallet with no Email OTP: `new_enrollment`, as now. The target's factor is the first one.
-  - A wallet with Email OTP: the code goes to the enrollment's address, and the install commit
-    adds the target's factor to the row. The base method choice, its iframe event and chooser,
-    and the factor release envelope go away.
+  nothing, and the `email-otp-base-factor` route goes away. The source approves only the target
+  address. The server picks the branch from the wallet's enrollment when it issues the code:
+  - A wallet with no Email OTP: `new_enrollment`. The code is a registration code to the target
+    address, and the install commit creates the enrollment with the target's factor.
+  - A wallet with Email OTP: `existing_enrollment`. The target address must be the enrollment's
+    address. The code is a device-link code under the enrollment's identity and lockout, and
+    the install commit adds the target's factor to the row. The base method choice, its iframe
+    event and chooser, and the factor release envelope go away.
 - **A recovery code.** The code opens the seed (F8). The device then enrolls a new owner Email
   OTP factor. Google recovery releases no S, and that release (F3) goes away. With D11, the
   `existing` target adds the recovered method's factor to the row, and `create` makes the row.
@@ -316,8 +318,18 @@ the user asks for a new code.
     `existing` finalize branch are deleted. The verify route returns the identity, and the
     finalize route requires the factor material. Unit tests: the added factor and its guard in
     `emailOtpEnrollmentFactors.unit.test.ts`.
-  - Left for 3c: the add-method `existing_enrollment` target makes a method with no factor. No
-    client sends it today; 3c gives it its own factor or deletes it.
+  - 3c, written on 2026-11-19: the approval and the target preparation carry only the target
+    address; the grant and the verified target keep the branch. The target always enrolls its
+    own factor under the grant's identity, and the install commit adds it
+    (`prepareAddedFactor`) or creates the enrollment. The base-factor route, its types, the
+    chooser in the iframe and `QRCodeScanner`, `onEmailOtpBaseFactorRequired`, the release
+    envelope and the worker recipient key of the challenge start are deleted. Migration
+    `0091_linked_device_email_otp_own_factor.sql` rebuilds `linked_device_email_otp_grants`
+    without `base_wallet_auth_method_id`. The add-method `existing_enrollment` target carries
+    its own factor, as `new_enrollment` does. The added factor's batch guard is part of its
+    statements. Unit tests: `linkedDeviceEmailOtpTarget.unit.test.ts`. Not written: an Email OTP
+    target device-link behaviour test; the harness links only Passkey targets, and the Email
+    OTP tests need the Google token.
 - **Slice 4: the release.** seams-monorepo in one coordinated commit if U4 needs it. The wallet,
   `wallet-server` and the seams-monorepo site ship together. Staging first, then production.
   The release notes carry the self-hosted note of D10. When seams-monorepo installs the new
@@ -325,7 +337,8 @@ the user asks for a new code.
   `packages/wallet-console-server-ts/scripts/ensure-d1-local-wasm.mjs`, and remove
   `/wallets/recovery/email-otp/release` from `walletPlacement/recoveryDispatch.ts`,
   `tests/e2e/regional-recovery-routing.scenario.mjs` and `tests/helpers/regional-real-gateway.mjs`
-  (3b deleted the route).
+  (3b deleted the route). Apply migration `0091_linked_device_email_otp_own_factor.sql` before
+  the server.
 - **Slice 5: the docs.** When production has Slice 4, replace the D7 note and update the
   documents of the last section.
 

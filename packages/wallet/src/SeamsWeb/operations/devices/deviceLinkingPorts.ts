@@ -28,8 +28,6 @@ import type {
   LinkedDeviceEmailOtpChallengeVerifyRequestV1,
   LinkedDeviceEmailOtpChallengeResultV1,
   LinkedDeviceEmailOtpVerificationResultV1,
-  LinkedDeviceEmailOtpBaseFactorRequestV1,
-  LinkedDeviceEmailOtpBaseFactorResolutionResultV1,
   ActivateInstalledAuthorityResultV1,
   CommittedAuthorityPackagesV1,
   LocalAuthorityActivationFinalAckV1,
@@ -181,11 +179,6 @@ export type LinkSessionOwnerTransportPortV1 = {
     readonly request: LinkedDeviceSessionClaimRequestV1;
     readonly authentication: LinkSessionAuthenticationV1;
   }): Promise<LinkedDeviceSessionClaimV1>;
-  resolveEmailOtpBaseFactorV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly request: LinkedDeviceEmailOtpBaseFactorRequestV1;
-    readonly authentication: LinkSessionAuthenticationV1;
-  }): Promise<LinkedDeviceEmailOtpBaseFactorResolutionResultV1>;
   cancelClaimedSessionV1(input: {
     readonly linkSessionId: LinkDeviceSessionId;
     readonly expectedRevision: number;

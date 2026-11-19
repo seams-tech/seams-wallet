@@ -1,7 +1,6 @@
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOk, respondOkResult, withProgress } from './shared';
 import {
-  LinkedDeviceEmailOtpBaseFactorChoiceV1,
   parseLinkedDeviceListRequestV1,
   parseLinkedDeviceListResultV1,
   parseLinkedDeviceRevokeResultV1,
@@ -13,14 +12,10 @@ import type {
 } from '@/core/types/linkDevice';
 import { classifyLinkDeviceFlowEvent, type LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
 import type {
-  DeviceLinkEmailOtpBaseFactorActionPayloadV1,
   DeviceLinkTargetFactorActionV1,
   DeviceLinkTargetFactorActivationProgressV1,
 } from '../../shared/messages';
-import {
-  parseDeviceLinkEmailOtpBaseFactorActionPayloadV1,
-  parseDeviceLinkTargetFactorActionPayloadV1,
-} from '../../shared/messages';
+import { parseDeviceLinkTargetFactorActionPayloadV1 } from '../../shared/messages';
 
 type ActiveDeviceLinkTargetFactorV1 = {
   readonly activationId: string;
@@ -30,109 +25,6 @@ type ActiveDeviceLinkTargetFactorV1 = {
 type ActiveDeviceLinkTargetFactorStoreV1 = {
   current: ActiveDeviceLinkTargetFactorV1 | null;
 };
-
-type PendingEmailOtpBaseFactorSelectionV1 = {
-  readonly choices: readonly [
-    LinkedDeviceEmailOtpBaseFactorChoiceV1,
-    ...LinkedDeviceEmailOtpBaseFactorChoiceV1[],
-  ];
-  readonly resolve: (
-    baseWalletAuthMethodId: LinkedDeviceEmailOtpBaseFactorChoiceV1['baseWalletAuthMethodId'],
-  ) => void;
-  readonly reject: (reason?: unknown) => void;
-};
-
-type PendingEmailOtpBaseFactorSelectionStoreV1 = Map<string, PendingEmailOtpBaseFactorSelectionV1>;
-
-/** The QR payload's own lifetime; a selection older than this blocks nothing. */
-const EMAIL_OTP_BASE_FACTOR_SELECTION_DEADLINE_MS = 15 * 60 * 1000;
-
-function waitForEmailOtpBaseFactorSelectionV1(
-  store: PendingEmailOtpBaseFactorSelectionStoreV1,
-  deps: Pick<HandlerDeps, 'postProgress'>,
-  requestId: string | undefined,
-  choices: readonly [
-    LinkedDeviceEmailOtpBaseFactorChoiceV1,
-    ...LinkedDeviceEmailOtpBaseFactorChoiceV1[],
-  ],
-): Promise<LinkedDeviceEmailOtpBaseFactorChoiceV1['baseWalletAuthMethodId']> {
-  if (!requestId) return Promise.reject(new Error('Device-link request id is required'));
-  const previous = store.get(requestId);
-  previous?.reject(new Error('A newer Email OTP method selection is required'));
-  return new Promise((resolve, reject) => {
-    /* Backstop for exits that bypass the selector - overlay dismissal reaches
-       only the client side, and a parent can drop the chooser UI without
-       answering. The deadline matches the QR lifetime: past it the claim this
-       selection was blocking has expired anyway, and an unbounded wait parks
-       the scan coroutine forever. */
-    const deadline = setTimeout(
-      () =>
-        cancelPendingEmailOtpBaseFactorSelectionV1(
-          store,
-          requestId,
-          new Error('Email OTP method selection timed out'),
-        ),
-      EMAIL_OTP_BASE_FACTOR_SELECTION_DEADLINE_MS,
-    );
-    store.set(requestId, {
-      choices,
-      resolve: (value) => {
-        clearTimeout(deadline);
-        resolve(value);
-      },
-      reject: (reason) => {
-        clearTimeout(deadline);
-        reject(reason instanceof Error ? reason : new Error(String(reason)));
-      },
-    });
-    deps.postProgress(requestId, {
-      event: 'wallet_device_link_email_otp_base_factor_selection_required_v1',
-      choices,
-    });
-  });
-}
-
-function cancelPendingEmailOtpBaseFactorSelectionV1(
-  store: PendingEmailOtpBaseFactorSelectionStoreV1,
-  requestId: string | undefined,
-  reason: Error,
-): void {
-  if (!requestId) return;
-  const pending = store.get(requestId);
-  if (!pending) return;
-  store.delete(requestId);
-  pending.reject(reason);
-}
-
-function resolveEmailOtpBaseFactorSelectionV1(
-  store: PendingEmailOtpBaseFactorSelectionStoreV1,
-  payload: DeviceLinkEmailOtpBaseFactorActionPayloadV1,
-): void {
-  const pending = store.get(payload.scanRequestId);
-  if (!pending) throw new Error('Email OTP method selection is unavailable');
-  switch (payload.action.kind) {
-    case 'cancel':
-      store.delete(payload.scanRequestId);
-      pending.reject(new Error('Device linking was cancelled'));
-      return;
-    case 'select': {
-      const selectedBaseWalletAuthMethodId = payload.action.baseWalletAuthMethodId;
-      if (
-        !pending.choices.some(
-          (choice) => choice.baseWalletAuthMethodId === selectedBaseWalletAuthMethodId,
-        )
-      ) {
-        throw new Error('The selected Email OTP method is unavailable for this linked device');
-      }
-      store.delete(payload.scanRequestId);
-      pending.resolve(selectedBaseWalletAuthMethodId);
-      return;
-    }
-    default:
-      payload.action satisfies never;
-      throw new Error('Unsupported Email OTP method selection action');
-  }
-}
 
 function targetFactorProgressV1(
   active: ActiveDeviceLinkTargetFactorV1,
@@ -225,7 +117,6 @@ function forwardDeviceLinkEventV1(
 
 export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   const activeTargetFactor: ActiveDeviceLinkTargetFactorStoreV1 = { current: null };
-  const pendingEmailOtpBaseFactorSelections: PendingEmailOtpBaseFactorSelectionStoreV1 = new Map();
   return {
     PM_START_DEVICE2_LINKING_FLOW: async (req: Req<'PM_START_DEVICE2_LINKING_FLOW'>) => {
       const pm = deps.getWalletRuntime();
@@ -280,31 +171,11 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
       respondOk(deps, req.requestId);
     },
 
-    PM_DEVICE_LINK_EMAIL_OTP_BASE_FACTOR_ACTION: async (
-      req: Req<'PM_DEVICE_LINK_EMAIL_OTP_BASE_FACTOR_ACTION'>,
-    ) => {
-      const payload = parseDeviceLinkEmailOtpBaseFactorActionPayloadV1(req.payload);
-      if (!payload) throw new Error('Email OTP method selection payload is invalid');
-      resolveEmailOtpBaseFactorSelectionV1(pendingEmailOtpBaseFactorSelections, payload);
-      respondOk(deps, req.requestId);
-    },
-
     PM_CANCEL_DEVICE_LINKING: async (req: Req<'PM_CANCEL_DEVICE_LINKING'>) => {
       const pm = deps.getWalletRuntime();
       if (deps.respondIfCancelled(req.requestId)) return;
       await pm.devices.cancelLinking();
       activeTargetFactor.current = null;
-      /* A scan parked on the Email OTP method chooser is part of what this
-         cancels: rejecting the pending selection is what unparks that
-         coroutine so its catch can owner-cancel the claimed session. Without
-         it the claim stays held until expiry. */
-      for (const requestId of [...pendingEmailOtpBaseFactorSelections.keys()]) {
-        cancelPendingEmailOtpBaseFactorSelectionV1(
-          pendingEmailOtpBaseFactorSelections,
-          requestId,
-          new Error('Device linking was cancelled'),
-        );
-      }
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOk(deps, req.requestId);
     },
@@ -313,29 +184,12 @@ export function createDeviceLinkWalletIframeHandlers(deps: HandlerDeps): Handler
       const pm = deps.getWalletRuntime();
       const { qrData, options } = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
-      try {
-        const result = await pm.devices.approveLinking(
-          parseQrLinkedDeviceSessionPayloadV5(qrData),
-          {
-            ...withProgress(deps, req.requestId, options || {}),
-            onEmailOtpBaseFactorRequired: (choices) =>
-              waitForEmailOtpBaseFactorSelectionV1(
-                pendingEmailOtpBaseFactorSelections,
-                deps,
-                req.requestId,
-                choices,
-              ),
-          },
-        );
-        if (deps.respondIfCancelled(req.requestId)) return;
-        respondOkResult(deps, req.requestId, result);
-      } finally {
-        cancelPendingEmailOtpBaseFactorSelectionV1(
-          pendingEmailOtpBaseFactorSelections,
-          req.requestId,
-          new Error('Device-link request ended before Email OTP method selection completed'),
-        );
-      }
+      const result = await pm.devices.approveLinking(
+        parseQrLinkedDeviceSessionPayloadV5(qrData),
+        withProgress(deps, req.requestId, options || {}),
+      );
+      if (deps.respondIfCancelled(req.requestId)) return;
+      respondOkResult(deps, req.requestId, result);
     },
 
     PM_HAS_PASSKEY: async (req: Req<'PM_HAS_PASSKEY'>) => {

@@ -13,9 +13,7 @@ import {
   type PreferencesChangedPayload,
   type ErrorPayload,
   type PMResultPayload,
-  isDeviceLinkEmailOtpBaseFactorSelectionProgressV1,
   isDeviceLinkTargetFactorActivationProgressV1,
-  type DeviceLinkEmailOtpBaseFactorSelectionProgressV1,
   type DeviceLinkTargetFactorActivationProgressV1,
   parseWalletIframeSurfaceMeasurement,
   parseHostedAuthMenuErrorEvent,
@@ -158,16 +156,11 @@ export function parseClientPreferencesChangedPayload(
 
 function isClientDeviceLinkProgressCandidate(
   value: unknown,
-): value is
-  | DeviceLinkEmailOtpBaseFactorSelectionProgressV1
-  | DeviceLinkTargetFactorActivationProgressV1 {
+): value is DeviceLinkTargetFactorActivationProgressV1 {
   const record = rawClientMessageObject(value);
   if (!record) return false;
   const event: unknown = Reflect.get(record, 'event');
-  return (
-    event === 'wallet_device_link_email_otp_base_factor_selection_required_v1' ||
-    event === 'wallet_device_link_target_factor_activation_v1'
-  );
+  return event === 'wallet_device_link_target_factor_activation_v1';
 }
 
 function parseClientProgressPayload(value: unknown): ProgressPayload | null {
@@ -182,7 +175,6 @@ function parseClientProgressPayload(value: unknown): ProgressPayload | null {
     return null;
   }
   if (!isClientDeviceLinkProgressCandidate(value)) return null;
-  if (isDeviceLinkEmailOtpBaseFactorSelectionProgressV1(value)) return value;
   return isDeviceLinkTargetFactorActivationProgressV1(value) ? value : null;
 }
 

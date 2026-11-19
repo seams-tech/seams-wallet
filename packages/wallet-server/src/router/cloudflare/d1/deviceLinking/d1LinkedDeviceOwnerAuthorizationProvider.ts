@@ -50,6 +50,7 @@ import {
 import type { WalletExecutionLaneAuthSource } from '../../../../core/signingLanes/WalletExecutionLaneProjection';
 import {
   buildEmailOtpWalletAuthAuthority,
+  emailOtpProviderOfSubject,
   buildPasskeyWalletAuthAuthority,
   walletAuthAuthorityRef,
   type WalletAuthAuthority,
@@ -750,7 +751,7 @@ function walletAuthAuthorityFromVerifiedSourceV1(source: VerifiedLinkSourceReadV
   try {
     const derived = buildEmailOtpWalletAuthAuthority({
       walletId: source.authority.walletId,
-      provider: String(source.principalId).startsWith('google:') ? 'google' : 'email',
+      provider: emailOtpProviderOfSubject(String(source.principalId)),
       providerUserId: providerSubject.value,
       emailHashHex: source.authMethod.emailHashHex,
     });

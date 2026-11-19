@@ -227,8 +227,8 @@ type WalletCustodyRecoveryAuthorityInstallCommitResult =
 
 /**
  * The recovered method's factor: `existing` adds it to the wallet's enrollment, `create` inserts
- * the enrollment with it. The commit puts a batch guard after the statements, so an enrollment
- * that changed after the read fails the commit.
+ * the enrollment with it. Either statement list fails the commit when the enrollment changed
+ * after the read.
  */
 export type WalletRecoveryEmailEnrollmentCommit = {
   readonly kind: 'existing' | 'create';
@@ -1484,7 +1484,6 @@ export class CloudflareD1WalletCustodyCommitStore {
         [
           authorityStatement,
           ...input.enrollmentCommit.statements,
-          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
           ...walletAuthMethodStatements,
           this.prepareWalletRecoveryGoogleEmailOtpChallengeDeleteStatement({ recovery }),
           this.prepareWalletRecoveryGoogleEmailOtpAttemptFinalizeStatement({

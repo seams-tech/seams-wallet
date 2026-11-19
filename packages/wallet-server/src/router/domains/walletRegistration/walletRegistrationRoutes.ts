@@ -1639,13 +1639,12 @@ function parseWalletAddSignerFinalizeRequest(
 }
 
 /**
- * The caller's statement about the wallet's shared Email OTP enrollment.
+ * The caller's statement about the wallet's shared Email OTP enrollment, with
+ * the factor that the device enrolled for the new method.
  *
- * Required on this branch rather than optional. The two cases carry different
- * material and land on different persistence, and a body that simply omitted
- * the field would read as "reuse whatever is there" — which on a wallet with no
- * enrollment is not a reusable state, and on a wallet with one is a claim the
- * caller never made.
+ * Required on this branch rather than optional. The two cases land on
+ * different persistence, and a body that simply omitted the field would leave
+ * the server to guess which one the caller verified for.
  */
 function parseWalletAddAuthMethodEmailOtpTarget(
   raw: unknown,
@@ -1659,17 +1658,8 @@ function parseWalletAddAuthMethodEmailOtpTarget(
       message: 'emailOtpTarget is required for an Email OTP add-auth-method finalize',
     };
   }
-  if (raw.kind === 'existing_enrollment') {
-    if (raw.enrollment !== undefined) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'emailOtpTarget.enrollment belongs to the new_enrollment branch',
-      };
-    }
-    return { ok: true, value: { kind: 'existing_enrollment' } };
-  }
-  if (raw.kind !== 'new_enrollment') {
+  const kind = raw.kind;
+  if (kind !== 'existing_enrollment' && kind !== 'new_enrollment') {
     return {
       ok: false,
       code: 'invalid_body',
@@ -1681,7 +1671,7 @@ function parseWalletAddAuthMethodEmailOtpTarget(
     return {
       ok: false,
       code: 'invalid_body',
-      message: 'emailOtpTarget.enrollment is required to create an enrollment',
+      message: 'emailOtpTarget.enrollment is required',
     };
   }
   const material = {
@@ -1702,7 +1692,7 @@ function parseWalletAddAuthMethodEmailOtpTarget(
     }
     material[field] = value.trim();
   }
-  return { ok: true, value: { kind: 'new_enrollment', enrollment: material } };
+  return { ok: true, value: { kind, enrollment: material } };
 }
 
 function parseWalletAddAuthMethodFinalizeRequest(

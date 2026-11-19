@@ -13,6 +13,7 @@ import type {
 } from '@shared/device-linking';
 import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import { secureRandomId } from '@shared/utils/secureRandomId';
+import { emailOtpProviderOfSubject } from '@shared/utils/walletAuthAuthority';
 import type { DeviceLinkingEd25519ExportRootRecipientHandleV1 } from './deviceLinkingEd25519ExportRoot';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import { parsePasskeyEnvelopeId, type PasskeyEnvelopeId } from '@shared/utils/domainIds';
@@ -130,14 +131,10 @@ export type EmailOtpTargetActivationStateV1 =
   | {
       readonly kind: 'completed';
       readonly runEpoch: number;
-      readonly enrollment:
-        | { readonly kind: 'existing_enrollment' }
-        | { readonly kind: 'new_enrollment' };
       readonly factorSecret: Uint8Array;
       readonly providerUserId: string;
       readonly exportRootRequirement?: never;
       readonly verificationGrant?: never;
-      readonly factorRelease?: never;
     };
 
 type CompletedEmailOtpTargetActivationStateV1 = Extract<
@@ -158,7 +155,6 @@ export function requireCompletedEmailOtpTargetActivationStateV1(
   return {
     kind: 'completed',
     runEpoch: state.runEpoch,
-    enrollment: state.enrollment,
     factorSecret: state.factorSecret,
     providerUserId: state.providerUserId,
   };
@@ -230,7 +226,7 @@ export function resolvePostLinkActivationV1(input: {
           walletAuthMethodId: input.walletAuthMethodId,
           emailHashHex: input.targetFactor.authMethod.emailHashHex,
           providerIdentity: {
-            provider: emailOtpProviderForLinkedEnrollment(activation.enrollment),
+            provider: emailOtpProviderOfSubject(activation.providerUserId),
             providerSubjectId: activation.providerUserId,
           },
         },
@@ -248,12 +244,6 @@ function assertNeverVerifiedTargetFactor(value: never): never {
 
 export function zeroizeLiveBytes(value: Uint8Array): void {
   if (value.byteLength > 0) value.fill(0);
-}
-
-function emailOtpProviderForLinkedEnrollment(
-  enrollment: CompletedEmailOtpTargetActivationStateV1['enrollment'],
-): 'google' | 'email' {
-  return enrollment.kind === 'existing_enrollment' ? 'google' : 'email';
 }
 
 export function requireTargetRpIdV1(preparation: PasskeyTargetPreparationV1): WebAuthnRpId {
@@ -281,10 +271,14 @@ export function createEmailOtpFactorSecretV1(): Uint8Array<ArrayBuffer> {
   return crypto.getRandomValues(new Uint8Array(32));
 }
 
-export async function prepareNewEmailOtpEnrollmentMaterialV1(input: {
+/**
+ * Enrolls this device's own Email OTP factor under the verified identity. The enrollment ID comes
+ * from the wallet and that identity, so a factor added to an existing enrollment names it.
+ */
+export async function prepareEmailOtpFactorMaterialV1(input: {
   readonly context: DeviceLinkingWebContext;
   readonly walletId: EmailOtpTargetPreparationV1['walletId'];
-  readonly targetEmail: EmailOtpTargetPreparationV1['targetEmail'];
+  readonly providerUserId: string;
   readonly factorSecret: Uint8Array;
 }): Promise<{
   readonly enrollmentId: string;
@@ -296,7 +290,7 @@ export async function prepareNewEmailOtpEnrollmentMaterialV1(input: {
       await input.context.signingEngine.prepareEmailOtpRegistrationEnrollmentMaterialInternal({
         relayUrl: String(input.context.configs.network.relayer.url || '').trim(),
         walletId: input.walletId,
-        userId: input.targetEmail,
+        userId: input.providerUserId,
         clientSecret32: disposableSecret,
       });
     if (material.emailOtpSessionHandle.kind !== 'not_requested') {
@@ -309,13 +303,4 @@ export async function prepareNewEmailOtpEnrollmentMaterialV1(input: {
   } finally {
     zeroizeLiveBytes(disposableSecret);
   }
-}
-
-export function requireNewEmailOtpEnrollmentMaterialV1(
-  value: WalletEmailOtpEnrollmentMaterialV1 | null,
-): WalletEmailOtpEnrollmentMaterialV1 {
-  if (!value) {
-    throw new Error('new linked-device Email OTP enrollment material is unavailable');
-  }
-  return value;
 }

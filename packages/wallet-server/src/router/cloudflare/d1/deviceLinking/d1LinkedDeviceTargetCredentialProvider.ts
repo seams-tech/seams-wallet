@@ -31,7 +31,6 @@ import {
   hasControlCharacter,
   mpcMaterialActivationRefsEqual,
   parseWebAuthnCredentialIdB64u,
-  type WalletAuthMethodId,
   type WebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -72,7 +71,7 @@ export type VerifiedLinkedDeviceWebAuthnCredentialV1 = {
 };
 
 /** The consumed-grant projection an email OTP completion is committed under. */
-type VerifiedLinkedDeviceEmailOtpGrantBaseV1 = {
+export type VerifiedLinkedDeviceEmailOtpGrantV1 = {
   readonly grantId: string;
   readonly targetEmail: import('@shared/utils/domainIds').VerifiedEmailAddress;
   readonly enrollment: import('@shared/device-linking/contracts').LinkedDeviceEmailOtpEnrollmentSelectionV1;
@@ -80,16 +79,6 @@ type VerifiedLinkedDeviceEmailOtpGrantBaseV1 = {
   readonly authorityDigestB64u: DigestB64u;
   readonly descriptorCredentialIdB64u: WebAuthnCredentialIdB64u;
 };
-
-export type VerifiedLinkedDeviceEmailOtpGrantV1 =
-  | (VerifiedLinkedDeviceEmailOtpGrantBaseV1 & {
-      readonly enrollment: { readonly kind: 'existing_enrollment' };
-      readonly baseWalletAuthMethodId: WalletAuthMethodId;
-    })
-  | (VerifiedLinkedDeviceEmailOtpGrantBaseV1 & {
-      readonly enrollment: { readonly kind: 'new_enrollment' };
-      readonly baseWalletAuthMethodId?: never;
-    });
 
 /**
  * The exact evidence a target registration was verified against, one branch
@@ -1225,7 +1214,7 @@ function assertPreparationMatchesSession(
     preparation.enrollmentId !== approval.enrollmentId ||
     preparation.deviceId !== approval.deviceId ||
     preparation.targetFactor.kind !== approval.targetFactor.kind ||
-    !preparationBaseFactorMatchesApprovalV1(preparation, approval) ||
+    !preparationTargetMatchesApprovalV1(preparation, approval) ||
     preparation.ordinarySignerMaterialRecipientRequirements.length !==
       sourceSignerManifest.signers.length
   ) {
@@ -1251,23 +1240,15 @@ function assertPreparationMatchesSession(
   }
 }
 
-function preparationBaseFactorMatchesApprovalV1(
+function preparationTargetMatchesApprovalV1(
   preparation: LinkedDeviceTargetPreparationV1,
   approval: LinkedDeviceApprovalV1,
 ): boolean {
   if (isEmailOtpPreparationV1(preparation)) {
-    const approvalTargetFactor = approval.targetFactor;
-    if (
-      approvalTargetFactor.kind !== 'email_otp' ||
-      preparation.targetEmail !== approvalTargetFactor.targetEmail ||
-      preparation.enrollment.kind !== approvalTargetFactor.enrollment.kind
-    ) {
-      return false;
-    }
-    return preparation.enrollment.kind === 'existing_enrollment'
-      ? preparation.baseWalletAuthMethodId === approvalTargetFactor.baseWalletAuthMethodId
-      : preparation.baseWalletAuthMethodId === undefined &&
-          approvalTargetFactor.baseWalletAuthMethodId === undefined;
+    return (
+      approval.targetFactor.kind === 'email_otp' &&
+      preparation.targetEmail === approval.targetFactor.targetEmail
+    );
   }
   return (
     preparation.targetFactor.kind === 'passkey_prf' && approval.targetFactor.kind === 'passkey_prf'
@@ -1605,28 +1586,12 @@ function buildVerifiedEmailOtpGrantProjectionV1(input: {
   readonly grant: NonNullable<LinkedDeviceTargetCredentialRegistrationV1['emailOtpVerificationGrant']>;
   readonly descriptorCredentialIdB64u: WebAuthnCredentialIdB64u;
 }): VerifiedLinkedDeviceEmailOtpGrantV1 {
-  const grant = input.grant;
-  if (grant.enrollment.kind === 'existing_enrollment') {
-    const baseWalletAuthMethodId = grant.baseWalletAuthMethodId;
-    if (!baseWalletAuthMethodId) {
-      throw new Error('linked-device Email OTP existing grant is missing its base factor');
-    }
-    return {
-      grantId: grant.grantId,
-      targetEmail: grant.targetEmail,
-      enrollment: grant.enrollment,
-      providerUserId: grant.providerUserId,
-      baseWalletAuthMethodId,
-      authorityDigestB64u: grant.authorityDigestB64u,
-      descriptorCredentialIdB64u: input.descriptorCredentialIdB64u,
-    };
-  }
   return {
-    grantId: grant.grantId,
-    targetEmail: grant.targetEmail,
-    enrollment: grant.enrollment,
-    providerUserId: grant.providerUserId,
-    authorityDigestB64u: grant.authorityDigestB64u,
+    grantId: input.grant.grantId,
+    targetEmail: input.grant.targetEmail,
+    enrollment: input.grant.enrollment,
+    providerUserId: input.grant.providerUserId,
+    authorityDigestB64u: input.grant.authorityDigestB64u,
     descriptorCredentialIdB64u: input.descriptorCredentialIdB64u,
   };
 }

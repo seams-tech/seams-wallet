@@ -1,21 +1,20 @@
 /**
- * The D1 composition behind the linked-device Email OTP challenge routes and
- * the approval-time base-factor provenance reader.
+ * The D1 composition behind the linked-device Email OTP challenge routes.
  *
- * Everything identity-bearing is resolved server-side: the destination comes
- * from the wallet's active verified enrollment, the base factor from the
- * canonical wallet auth-method store, and the target authority identity
- * from the enrollment identity. Device 2 supplies only the code it received
- * and its worker's ephemeral recipient key. Challenges reuse the Email OTP
- * issuer, verifier, rate limits, and lockouts under the dedicated
- * `wallet_email_otp_device_link` purpose, bound by a digest over the whole
- * device-link context.
+ * The target device enrolls its own Email OTP factor; the server releases no
+ * factor of another method. Everything identity-bearing is resolved
+ * server-side from the wallet's enrollment: with an enrollment, the code goes
+ * to its address under the `wallet_email_otp_device_link` purpose, and the
+ * install commit adds the target's factor to it (`existing_enrollment`).
+ * Without one, the code goes to the target address as a registration, and the
+ * install commit creates the enrollment (`new_enrollment`). Device 2 supplies
+ * only the code it received. Challenges reuse the Email OTP issuer, verifier,
+ * rate limits and lockouts, bound by a digest over the whole device-link
+ * context.
  */
 import type {
   LinkedDeviceApprovalV1,
-  LinkedDeviceEmailOtpFactorReleaseEnvelopeV1,
-  LinkedDeviceEmailOtpBaseFactorRequestV1,
-  LinkedDeviceEmailOtpBaseFactorResolutionV1,
+  LinkedDeviceEmailOtpEnrollmentSelectionV1,
   LinkedDeviceEmailOtpVerificationGrantV1,
   LinkedDeviceTargetPreparationV1,
 } from '@shared/device-linking/contracts';
@@ -23,14 +22,11 @@ import { computeLinkedDeviceTargetPreparationDigestV1 } from '@shared/device-lin
 import { base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { sha256HexUtf8 } from '@shared/utils/digests';
-import type {
-  WalletAuthMethodId,
-  WalletId,
-  VerifiedEmailAddress,
-} from '@shared/utils/domainIds';
+import type { WalletAuthMethodId, VerifiedEmailAddress } from '@shared/utils/domainIds';
 import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
+  WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 import {
@@ -55,17 +51,18 @@ import { type D1LinkedDeviceEmailOtpGrantStoreV1 } from './d1LinkedDeviceEmailOt
 const DEFAULT_GRANT_TTL_MS = 5 * 60 * 1_000;
 const DEFAULT_RESEND_COOLDOWN_MS = 30 * 1_000;
 
-type ResolvedChallengeContextV1 =
-  | {
-      readonly kind: 'new_enrollment';
-      readonly targetEmail: VerifiedEmailAddress;
-      readonly targetPreparationDigestB64u: ReturnType<typeof parseDigestB64u>;
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly authorityDigestB64u: ReturnType<typeof parseDigestB64u>;
-      readonly bindingDigestB64u: string;
-      readonly providerUserId: string;
-      readonly orgId: string;
-    };
+type ResolvedChallengeContextV1 = {
+  readonly enrollment: LinkedDeviceEmailOtpEnrollmentSelectionV1;
+  readonly targetEmail: VerifiedEmailAddress;
+  readonly targetPreparationDigestB64u: ReturnType<typeof parseDigestB64u>;
+  readonly walletAuthMethodId: WalletAuthMethodId;
+  readonly authorityDigestB64u: ReturnType<typeof parseDigestB64u>;
+  readonly bindingDigestB64u: string;
+  readonly providerUserId: string;
+  readonly orgId: string;
+};
+
+type RefusedV1 = { readonly kind: 'refused'; readonly code: string; readonly message: string };
 
 type SentEmailOtpChallengeV1 = Extract<
   NonNullable<
@@ -100,6 +97,7 @@ type D1LinkedDeviceEmailOtpTargetFactorOptionsV1 = {
     CloudflareD1EmailOtpChallengeVerifier,
     'verifyExisting' | 'verifyRegistration'
   >;
+  /** The wallet's enrollment decides between a new enrollment and an added factor. */
   readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
   readonly orgId: string;
   readonly grants: Pick<
@@ -122,18 +120,6 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
       options.resendCooldownMs ?? DEFAULT_RESEND_COOLDOWN_MS,
       'resendCooldownMs',
     );
-  }
-
-  /**
-   * A linked device cannot reuse the wallet's Email OTP enrollment: the factor
-   * lives on the device that enrolled it, and the server holds no copy. Until
-   * each device can enroll its own factor, no base factor is offered.
-   */
-  async resolveBaseFactorSelectionV1(_input: {
-    readonly walletId: WalletId;
-    readonly request: LinkedDeviceEmailOtpBaseFactorRequestV1;
-  }): Promise<LinkedDeviceEmailOtpBaseFactorResolutionV1> {
-    return { kind: 'unavailable', reason: 'no_active_email_otp_base_factor' };
   }
 
   async startChallengeV1(
@@ -160,23 +146,35 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
         readonly expiresAtMs: number;
         readonly resendAvailableAtMs: number;
       }
-    | { readonly kind: 'refused'; readonly code: string; readonly message: string }
+    | RefusedV1
   > {
     const context = await this.resolveChallengeContextV1(input.approval, input.preparation);
     if (context.kind === 'refused') return context;
-    const issued = await this.options.issuer.create({
+    const common = {
       userId: context.providerUserId,
-      email: context.targetEmail,
       walletId: String(input.approval.walletId),
       orgId: context.orgId,
       otpChannel: EMAIL_OTP_CHANNEL,
       ownerProofBindingDigest: context.bindingDigestB64u,
-      action: WALLET_EMAIL_OTP_ACTIONS.registration,
-      operation: WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
       // A fresh start reuses an outstanding challenge instead of racing it;
       // an explicit resend, arriving after the route's cooldown gate, mints anew.
       reuseActiveChallenge: !input.resend,
-    });
+    } as const;
+    // With an enrollment, the issuer sends the code to the enrollment's address
+    // and applies its lockout.
+    const issued =
+      context.enrollment.kind === 'existing_enrollment'
+        ? await this.options.issuer.create({
+            ...common,
+            action: WALLET_EMAIL_OTP_ACTIONS.deviceLink,
+            operation: WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
+          })
+        : await this.options.issuer.create({
+            ...common,
+            email: context.targetEmail,
+            action: WALLET_EMAIL_OTP_ACTIONS.registration,
+            operation: WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
+          });
     if (!issued.ok) {
       return { kind: 'refused', code: issued.code, message: issued.message };
     }
@@ -197,74 +195,26 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     readonly otpCode: string;
     readonly requestedAtMs: number;
   }): Promise<
-    | {
-        readonly kind: 'verified';
-        readonly grant: LinkedDeviceEmailOtpVerificationGrantV1;
-        readonly factorRelease: LinkedDeviceEmailOtpFactorReleaseEnvelopeV1 | null;
-      }
-    | { readonly kind: 'refused'; readonly code: string; readonly message: string }
+    | { readonly kind: 'verified'; readonly grant: LinkedDeviceEmailOtpVerificationGrantV1 }
+    | RefusedV1
   > {
     const context = await this.resolveChallengeContextV1(input.approval, input.preparation);
     if (context.kind === 'refused') return context;
-    const challenge = resolveSentEmailOtpChallengeV1(input.session, input.challengeId);
-    if (!challenge) {
+    if (!resolveSentEmailOtpChallengeV1(input.session, input.challengeId)) {
       return {
         kind: 'refused',
-        code: 'release_recipient_missing',
-        message: 'the link session has no worker recipient for this challenge',
+        code: 'challenge_missing',
+        message: 'the link session has no sent challenge with this ID',
       };
     }
-    return await this.verifyNewEnrollmentChallengeV1({ input, context, challenge });
-  }
-
-  private async verifyNewEnrollmentChallengeV1(input: {
-    readonly input: {
-      readonly session: LinkedDeviceSessionRecordV1;
-      readonly approval: LinkedDeviceApprovalV1;
-      readonly preparation: LinkedDeviceTargetPreparationV1;
-      readonly challengeId: string;
-      readonly otpCode: string;
-      readonly requestedAtMs: number;
-    };
-    readonly context: Extract<ResolvedChallengeContextV1, { readonly kind: 'new_enrollment' }>;
-    readonly challenge: SentEmailOtpChallengeV1;
-  }): Promise<
-    | {
-        readonly kind: 'verified';
-        readonly grant: LinkedDeviceEmailOtpVerificationGrantV1;
-        readonly factorRelease: null;
-      }
-    | { readonly kind: 'refused'; readonly code: string; readonly message: string }
-  > {
-    const verified = await this.options.verifier.verifyRegistration({
-      providerSubject: input.context.providerUserId,
-      walletId: String(input.input.approval.walletId),
-      orgId: input.context.orgId,
-      challengeId: input.input.challengeId,
-      otpCode: input.input.otpCode,
-      otpChannel: EMAIL_OTP_CHANNEL,
-      ownerProofBindingDigest: input.context.bindingDigestB64u,
-      proofEmail: input.context.targetEmail,
-    });
-    if (!verified.ok) {
-      return { kind: 'refused', code: verified.code, message: verified.message };
-    }
-    if (
-      verified.email !== input.context.targetEmail ||
-      verified.challengeSubjectId !== input.context.providerUserId ||
-      verified.challengeId !== input.challenge.challengeId
-    ) {
-      return {
-        kind: 'refused',
-        code: 'scope_mismatch',
-        message: 'Email OTP registration challenge identity changed',
-      };
-    }
-    const issuedAtMs = input.input.requestedAtMs;
+    const verified = await this.verifyCodeV1(input, context);
+    if (verified.kind === 'refused') return verified;
+    const issuedAtMs = input.requestedAtMs;
+    // The grant must not outlive the artifacts it authorizes against.
     const expiresAtMs = Math.min(
       issuedAtMs + this.grantTtlMs,
-      input.input.approval.expiresAtMs,
-      input.input.preparation.expiresAtMs,
+      input.approval.expiresAtMs,
+      input.preparation.expiresAtMs,
     );
     if (expiresAtMs <= issuedAtMs) {
       return {
@@ -275,24 +225,24 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     }
     const grantId = randomTokenB64u(16);
     const grantToken = randomTokenB64u(32);
-    const emailHashHex = await sha256HexUtf8(input.context.targetEmail);
+    const emailHashHex = await sha256HexUtf8(context.targetEmail);
     const grantRecord = parseLinkedDeviceEmailOtpGrantRecordV1({
       kind: 'linked_device_email_otp_grant_record_v1',
       grantId,
       grantTokenDigestB64u: await computeLinkedDeviceEmailOtpGrantTokenDigestV1(grantToken),
-      walletId: input.input.approval.walletId,
-      linkSessionId: input.input.approval.linkSessionId,
-      enrollmentId: input.input.approval.enrollmentId,
-      deviceId: input.input.approval.deviceId,
+      walletId: input.approval.walletId,
+      linkSessionId: input.approval.linkSessionId,
+      enrollmentId: input.approval.enrollmentId,
+      deviceId: input.approval.deviceId,
       targetFactor: { kind: 'email_otp' },
-      targetPreparationDigestB64u: input.context.targetPreparationDigestB64u,
-      targetEmail: input.context.targetEmail,
-      enrollment: { kind: 'new_enrollment' },
+      targetPreparationDigestB64u: context.targetPreparationDigestB64u,
+      targetEmail: context.targetEmail,
+      enrollment: context.enrollment,
       emailHashHex,
       registrationAuthorityId: verified.challengeId,
-      providerUserId: input.context.providerUserId,
-      walletAuthMethodId: input.context.walletAuthMethodId,
-      authorityDigestB64u: input.context.authorityDigestB64u,
+      providerUserId: context.providerUserId,
+      walletAuthMethodId: context.walletAuthMethodId,
+      authorityDigestB64u: context.authorityDigestB64u,
       challengeId: verified.challengeId,
       state: { kind: 'issued' },
       issuedAtMs,
@@ -307,22 +257,80 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
         grantId,
         grantToken,
         challengeId: verified.challengeId,
-        linkSessionId: input.input.approval.linkSessionId,
-        walletId: input.input.approval.walletId,
-        enrollmentId: input.input.approval.enrollmentId,
-        deviceId: input.input.approval.deviceId,
-        targetPreparationDigestB64u: input.context.targetPreparationDigestB64u,
-        targetEmail: input.context.targetEmail,
-        enrollment: { kind: 'new_enrollment' },
+        linkSessionId: input.approval.linkSessionId,
+        walletId: input.approval.walletId,
+        enrollmentId: input.approval.enrollmentId,
+        deviceId: input.approval.deviceId,
+        targetPreparationDigestB64u: context.targetPreparationDigestB64u,
+        targetEmail: context.targetEmail,
+        enrollment: context.enrollment,
         emailHashHex,
         registrationAuthorityId: verified.challengeId,
-        providerUserId: input.context.providerUserId,
-        authorityDigestB64u: input.context.authorityDigestB64u,
+        providerUserId: context.providerUserId,
+        authorityDigestB64u: context.authorityDigestB64u,
         issuedAtMs,
         expiresAtMs,
       },
-      factorRelease: null,
     };
+  }
+
+  /** Checks the code under the purpose the challenge was issued for. */
+  private async verifyCodeV1(
+    input: {
+      readonly approval: LinkedDeviceApprovalV1;
+      readonly challengeId: string;
+      readonly otpCode: string;
+    },
+    context: ResolvedChallengeContextV1,
+  ): Promise<{ readonly kind: 'verified'; readonly challengeId: string } | RefusedV1> {
+    if (context.enrollment.kind === 'existing_enrollment') {
+      const verified = await this.options.verifier.verifyExisting({
+        userId: context.providerUserId,
+        walletId: String(input.approval.walletId),
+        orgId: context.orgId,
+        challengeId: input.challengeId,
+        otpCode: input.otpCode,
+        otpChannel: EMAIL_OTP_CHANNEL,
+        ownerProofBindingDigest: context.bindingDigestB64u,
+        action: WALLET_EMAIL_OTP_ACTIONS.deviceLink,
+        operation: WALLET_EMAIL_OTP_DEVICE_LINK_OPERATION,
+      });
+      if (!verified.ok) return { kind: 'refused', code: verified.code, message: verified.message };
+      if (
+        verified.challengeId !== input.challengeId ||
+        verified.enrollment.verifiedEmail !== context.targetEmail
+      ) {
+        return {
+          kind: 'refused',
+          code: 'scope_mismatch',
+          message: 'Email OTP device-link challenge identity changed',
+        };
+      }
+      return { kind: 'verified', challengeId: verified.challengeId };
+    }
+    const verified = await this.options.verifier.verifyRegistration({
+      providerSubject: context.providerUserId,
+      walletId: String(input.approval.walletId),
+      orgId: context.orgId,
+      challengeId: input.challengeId,
+      otpCode: input.otpCode,
+      otpChannel: EMAIL_OTP_CHANNEL,
+      ownerProofBindingDigest: context.bindingDigestB64u,
+      proofEmail: context.targetEmail,
+    });
+    if (!verified.ok) return { kind: 'refused', code: verified.code, message: verified.message };
+    if (
+      verified.email !== context.targetEmail ||
+      verified.challengeSubjectId !== context.providerUserId ||
+      verified.challengeId !== input.challengeId
+    ) {
+      return {
+        kind: 'refused',
+        code: 'scope_mismatch',
+        message: 'Email OTP registration challenge identity changed',
+      };
+    }
+    return { kind: 'verified', challengeId: verified.challengeId };
   }
 
   async verifyRegistrationGrantV1(
@@ -343,7 +351,7 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     if (!isEmailOtpTargetPreparationV1(input.preparation)) {
       return { kind: 'rejected', message: 'Email OTP target preparation is unavailable' };
     }
-    const commonIdentityMatches =
+    const identityMatches =
       tokenDigest === durable.grantTokenDigestB64u &&
       durable.walletId === input.preparation.walletId &&
       durable.linkSessionId === input.preparation.linkSessionId &&
@@ -353,51 +361,46 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
       durable.targetPreparationDigestB64u === input.registration.targetPreparationDigestB64u &&
       durable.targetEmail === input.preparation.targetEmail &&
       durable.targetEmail === wireGrant.targetEmail &&
-      durable.enrollment.kind === input.preparation.enrollment.kind &&
       durable.enrollment.kind === wireGrant.enrollment.kind &&
       durable.authorityDigestB64u === wireGrant.authorityDigestB64u &&
       durable.challengeId === wireGrant.challengeId &&
       durable.issuedAtMs === wireGrant.issuedAtMs &&
       durable.expiresAtMs === wireGrant.expiresAtMs &&
-      durable.targetEmail === wireGrant.targetEmail &&
       durable.emailHashHex === wireGrant.emailHashHex &&
       durable.registrationAuthorityId === wireGrant.registrationAuthorityId &&
       durable.providerUserId === wireGrant.providerUserId;
-    if (!commonIdentityMatches) {
+    if (!identityMatches) {
       return { kind: 'rejected', message: 'Email OTP verification grant identity changed' };
     }
-    if (input.preparation.enrollment.kind === 'new_enrollment') {
-      if (input.registration.emailOtpEnrollment === undefined) {
-        return { kind: 'rejected', message: 'new Email OTP enrollment material is missing' };
-      }
-      if (durable.baseWalletAuthMethodId !== undefined || wireGrant.baseWalletAuthMethodId !== undefined) {
-        return { kind: 'rejected', message: 'new Email OTP grant cannot carry a base factor' };
-      }
-      if (durable.targetEmail !== wireGrant.targetEmail) {
-        return { kind: 'rejected', message: 'Email OTP target email changed' };
-      }
-      const existingEnrollment = await this.options.enrollments.readEnrollment(
-        String(input.preparation.walletId),
-      );
-      if (existingEnrollment) {
-        return { kind: 'rejected', message: 'wallet already has an Email OTP enrollment' };
-      }
-      return {
-        kind: 'verified',
-        grant: {
-          grantId: durable.grantId,
-          targetEmail: durable.targetEmail,
-          enrollment: { kind: 'new_enrollment' },
-          providerUserId: durable.providerUserId,
-          authorityDigestB64u: durable.authorityDigestB64u,
-          descriptorCredentialIdB64u: await linkedDeviceEmailOtpDescriptorCredentialIdV1(
-            durable.walletAuthMethodId,
-          ),
-        },
-      };
+    // The install commit inserts the enrollment or adds a factor to it, so the
+    // wallet's enrollment must still be in the state the code was verified for.
+    const enrollment = await this.options.enrollments.readEnrollment(
+      String(input.preparation.walletId),
+    );
+    if (durable.enrollment.kind === 'new_enrollment' && enrollment) {
+      return { kind: 'rejected', message: 'wallet already has an Email OTP enrollment' };
     }
-    // No existing-enrollment grant is issued (see resolveBaseFactorSelectionV1).
-    return { kind: 'rejected', message: 'a linked device cannot reuse the wallet Email OTP factor' };
+    if (
+      durable.enrollment.kind === 'existing_enrollment' &&
+      (!enrollment ||
+        enrollment.verifiedEmail !== durable.targetEmail ||
+        enrollment.providerUserId !== durable.providerUserId)
+    ) {
+      return { kind: 'rejected', message: 'the wallet Email OTP enrollment changed' };
+    }
+    return {
+      kind: 'verified',
+      grant: {
+        grantId: durable.grantId,
+        targetEmail: durable.targetEmail,
+        enrollment: durable.enrollment,
+        providerUserId: durable.providerUserId,
+        authorityDigestB64u: durable.authorityDigestB64u,
+        descriptorCredentialIdB64u: await linkedDeviceEmailOtpDescriptorCredentialIdV1(
+          durable.walletAuthMethodId,
+        ),
+      },
+    };
   }
 
   async buildCompletionStatementsV1(
@@ -411,37 +414,25 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     });
   }
 
+  /**
+   * Resolves who receives the code and how the target's factor joins the
+   * wallet. With an enrollment, the target address must be the enrollment's
+   * address, because the enrollment keeps one email identity for all its
+   * factors.
+   */
   private async resolveChallengeContextV1(
     approval: LinkedDeviceApprovalV1,
     preparation: LinkedDeviceTargetPreparationV1,
-  ): Promise<
-    | ResolvedChallengeContextV1
-    | { readonly kind: 'refused'; readonly code: string; readonly message: string }
-  > {
-    if (approval.targetFactor.kind !== 'email_otp') {
+  ): Promise<({ readonly kind: 'resolved' } & ResolvedChallengeContextV1) | RefusedV1> {
+    if (approval.targetFactor.kind !== 'email_otp' || !isEmailOtpTargetPreparationV1(preparation)) {
       return {
         kind: 'refused',
         code: 'wrong_target_factor',
         message: 'approved target factor is not email OTP',
       };
     }
-    if (preparation.targetFactor.kind !== 'email_otp') {
-      return {
-        kind: 'refused',
-        code: 'wrong_target_factor',
-        message: 'target preparation is not email OTP',
-      };
-    }
     const targetEmail = approval.targetFactor.targetEmail;
-    const enrollment = approval.targetFactor.enrollment;
-    if (
-      !targetEmail ||
-      !enrollment ||
-      !preparation.targetEmail ||
-      !preparation.enrollment ||
-      targetEmail !== preparation.targetEmail ||
-      enrollment.kind !== preparation.enrollment.kind
-    ) {
+    if (targetEmail !== preparation.targetEmail) {
       return {
         kind: 'refused',
         code: 'target_changed',
@@ -452,39 +443,25 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
       await computeLinkedDeviceTargetPreparationDigestV1(preparation),
     );
     const walletAuthMethodId = preparation.walletAuthMethodId;
-    if (enrollment.kind === 'existing_enrollment') {
+    const existing = await this.options.enrollments.readEnrollment(String(approval.walletId));
+    if (existing && existing.verifiedEmail !== targetEmail) {
       return {
         kind: 'refused',
-        code: 'email_otp_device_factor_missing',
+        code: 'target_email_mismatch',
         message:
-          'A linked device cannot reuse the wallet Email OTP factor. Choose a passkey or VoiceID for this device, or use the recovery code.',
+          "This wallet's Email OTP uses another email address. Enter that address on the new device.",
       };
     }
-    if (preparation.baseWalletAuthMethodId || approval.targetFactor.baseWalletAuthMethodId) {
-      return {
-        kind: 'refused',
-        code: 'base_factor_changed',
-        message: 'new Email OTP enrollment cannot carry an existing base factor',
-      };
-    }
-    const existingEnrollment = await this.options.enrollments.readEnrollment(
-      String(approval.walletId),
-    );
-    if (existingEnrollment) {
-      return {
-        kind: 'refused',
-        code: 'target_enrollment_exists',
-        message: 'wallet already has an Email OTP enrollment',
-      };
-    }
-    const providerUserId = String(targetEmail);
+    const enrollment: LinkedDeviceEmailOtpEnrollmentSelectionV1 = existing
+      ? { kind: 'existing_enrollment' }
+      : { kind: 'new_enrollment' };
     const authorityDigestB64u = await computeLinkedDeviceEmailOtpAuthorityDigestV1({
       walletId: approval.walletId,
       enrollmentId: approval.enrollmentId,
       deviceId: approval.deviceId,
       walletAuthMethodId,
       targetEmail,
-      enrollment: { kind: 'new_enrollment' },
+      enrollment,
     });
     const bindingDigestB64u = await computeLinkedDeviceEmailOtpChallengeBindingDigestV1({
       walletId: approval.walletId,
@@ -493,18 +470,19 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
       deviceId: approval.deviceId,
       targetPreparationDigestB64u,
       targetEmail,
-      enrollment: { kind: 'new_enrollment' },
+      enrollment,
       walletAuthMethodId,
     });
     return {
-      kind: 'new_enrollment',
+      kind: 'resolved',
+      enrollment,
       targetEmail,
       targetPreparationDigestB64u,
       walletAuthMethodId,
       authorityDigestB64u,
       bindingDigestB64u,
-      providerUserId,
-      orgId: this.options.orgId,
+      providerUserId: existing ? existing.providerUserId : String(targetEmail),
+      orgId: existing ? existing.orgId : this.options.orgId,
     };
   }
 }

@@ -295,7 +295,6 @@ type LinkedDeviceSessionEmailOtpChallengeInputV1 = {
   readonly expectedRevision: number;
   readonly challenge: {
     readonly challengeId: string;
-    readonly workerEphemeralPublicKey65B64u: string;
     readonly maskedEmailHint: string;
     readonly expiresAtMs: number;
     readonly resendAvailableAtMs: number;

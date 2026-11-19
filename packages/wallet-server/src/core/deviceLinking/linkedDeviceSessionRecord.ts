@@ -23,7 +23,6 @@ import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimiti
 import {
   hasWhitespaceOrControlCharacters,
   parseVerifiedEmailAddress,
-  parseWalletAuthMethodId,
   parseWalletAuthorityId,
   type DomainIdParseResult,
   type WalletAuthorityId,
@@ -83,7 +82,6 @@ type LinkedDeviceEmailOtpChallengeV1 =
   | {
       readonly state: 'sent';
       readonly challengeId: string;
-      readonly workerEphemeralPublicKey65B64u: string;
       readonly maskedEmailHint: string;
       readonly expiresAtMs: number;
       readonly resendAvailableAtMs: number;
@@ -788,7 +786,6 @@ export function linkedDeviceEmailOtpChallengesEqualV1(
       return (
         right.state === 'sent' &&
         left.challengeId === right.challengeId &&
-        left.workerEphemeralPublicKey65B64u === right.workerEphemeralPublicKey65B64u &&
         left.maskedEmailHint === right.maskedEmailHint &&
         left.expiresAtMs === right.expiresAtMs &&
         left.resendAvailableAtMs === right.resendAvailableAtMs
@@ -971,31 +968,8 @@ function parseOptionalApprovedTargetFactor(
       parseVerifiedEmailAddress,
       'targetFactor.targetEmail',
     );
-    const enrollment = requireRecordCopy(record.enrollment, 'targetFactor.enrollment');
-    if (enrollment.kind === 'existing_enrollment') {
-      requireExactKeys(record, ['kind', 'targetEmail', 'enrollment', 'baseWalletAuthMethodId']);
-      requireExactKeys(enrollment, ['kind']);
-      return {
-        kind: 'email_otp',
-        targetEmail,
-        enrollment: { kind: 'existing_enrollment' },
-        baseWalletAuthMethodId: parseId(
-          record.baseWalletAuthMethodId,
-          parseWalletAuthMethodId,
-          'targetFactor.baseWalletAuthMethodId',
-        ),
-      };
-    }
-    if (enrollment.kind === 'new_enrollment') {
-      requireExactKeys(record, ['kind', 'targetEmail', 'enrollment']);
-      requireExactKeys(enrollment, ['kind']);
-      return {
-        kind: 'email_otp',
-        targetEmail,
-        enrollment: { kind: 'new_enrollment' },
-      };
-    }
-    throw new Error('targetFactor.enrollment.kind is invalid');
+    requireExactKeys(record, ['kind', 'targetEmail']);
+    return { kind: 'email_otp', targetEmail };
   }
   throw new Error('targetFactor.kind is invalid');
 }
@@ -1029,7 +1003,6 @@ export function parseEmailOtpChallengeV1(raw: unknown): LinkedDeviceEmailOtpChal
 
 const SENT_EMAIL_OTP_CHALLENGE_KEYS = [
   'challengeId',
-  'workerEphemeralPublicKey65B64u',
   'maskedEmailHint',
   'expiresAtMs',
   'resendAvailableAtMs',
@@ -1043,10 +1016,6 @@ function parseSentEmailOtpChallengeFieldsV1(
   return {
     state: 'sent',
     challengeId: parseIdentityString(record.challengeId, `${field}.challengeId`),
-    workerEphemeralPublicKey65B64u: parseIdentityString(
-      record.workerEphemeralPublicKey65B64u,
-      `${field}.workerEphemeralPublicKey65B64u`,
-    ),
     maskedEmailHint: parseIdentityString(record.maskedEmailHint, `${field}.maskedEmailHint`),
     expiresAtMs: requireTimestamp(record.expiresAtMs, `${field}.expiresAtMs`),
     resendAvailableAtMs: requireTimestamp(
