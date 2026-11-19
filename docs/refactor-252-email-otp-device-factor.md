@@ -2,9 +2,11 @@
 
 Status: 2026-11-19. Slices 0, 1 and 2, with the POPRF of D9, shipped in 0.75.0. Slice 3 (new
 devices: 3a the factor list of D11, 3b recovery, 3c device linking, 3d the menu) shipped in
-0.76.0 (a040adbc7), with its Email OTP behaviour tests passing. Slice 4 is on staging:
-seams-monorepo d61dc43f, and the staging deploy applied migration 0091 in the four regions.
-Production waits for the owner. The 0.76.0 docs already replace the D7 note of Slice 5.
+0.76.0 (a040adbc7), with its Email OTP behaviour tests passing. Slice 4 is done: seams-monorepo
+d61dc43f is on staging, and main c6f9cf37 is on production mainnet and production testnet. Each
+lane applied migration 0091 in its four regions (production also 0090). Production mainnet had
+58 wallets, all passkey, so the Email OTP reset affected none. The 0.76.0 docs already replace
+the D7 note of Slice 5.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
