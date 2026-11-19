@@ -1,7 +1,8 @@
 # Refactor 253: an OPRF for the signing-session seal
 
 Status: 2026-11-19. D1 to D9 are decided. Slices 0, 1, 2 and 4 are done (Section 8, "What Slice
-2 changed"). Slice 3, the release with seams-monorepo, waits for the owner.
+2 changed"). Slice 3 is on staging: Wallet 0.75.0 and seams-monorepo `28981072`. Production waits
+for the owner.
 
 The owner asked: "We use shamir-3-pass to persist signing session material between page
 refreshes. Can it be replaced with the faster OPRF?" This plan answers the question. The OPRF is
@@ -438,6 +439,12 @@ Answered on 2026-11-18.
   4, because no code used three-pass any more. See "What Slice 2 changed" below.
 - **Slice 3: the release (D7).** seams-monorepo in one coordinated commit. Staging first, then
   production. The release notes say that open sessions need one unlock after the upgrade.
+  Staging done on 2026-11-19: npm 0.75.0 from `81e876ea7` (release run 44445475006),
+  seams-monorepo `28981072` (seal config and pin), staging full-stack run 44447458811 with
+  migration 0090. Staging then served `ristretto255-sha512-poprf-v1` in `/.well-known/webauthn`,
+  the evaluate route, a 404 for `apply-server-seal`, and the 0.75.0 Wallet host files. The
+  release also added `e1b062781`: the app config names the seal mode only, so a 0.75 Wallet host
+  accepts a 0.74 app. Production (seams-monorepo `main`) waits for the owner.
 - **Slice 4: the deletion.** Section 6. Done with Slice 2. The idempotency store stays.
 
 ### What Slice 2 changed
