@@ -44,7 +44,7 @@ const browserConfig = defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm exec vite browser-app --host 127.0.0.1 --port ${browserTestPort} --strictPort`,
+    command: `pnpm exec vite browser-app --config browser-app/vite.config.ts --host 127.0.0.1 --port ${browserTestPort} --strictPort`,
     url: browserTestOrigin,
     reuseExistingServer: false,
     timeout: 60_000,
