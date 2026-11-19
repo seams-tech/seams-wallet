@@ -30,6 +30,8 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Next release (not released yet)
 
 - Email OTP: the enrollment of a wallet keeps one factor for each Email OTP method, each with its own nonce, wrapped factor and pinned unlock key. The release picks the factor whose nonce the device sends. A revoke removes the method's factor in the same commit, also when a linked device is revoked, and the enrollment goes with its last factor or method. This prepares each new device to get its own factor.
+- Email OTP: Google recovery works on a new device again. The recovery code opens the seed, and the device enrolls its own Email OTP factor for the recovered method, so the server releases no factor. The factors of the wallet's other devices stay.
+- Breaking: `/wallets/recovery/email-otp/release` is gone. `/wallets/recovery/email-otp/verify` also returns `providerSubject` and `verifiedEmail`. `/wallets/recovery/google-email-otp/finalize` requires `emailOtpEnrollment`, which is now the enrollment material itself, with no `kind` wrapper.
 - Reset: Email OTP wallets made by 0.75.0 do not open after the upgrade, because the stored enrollment changed.
 
 ## Release 0.75.0

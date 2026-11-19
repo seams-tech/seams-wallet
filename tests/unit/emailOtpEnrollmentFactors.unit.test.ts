@@ -8,6 +8,7 @@ import type {
 import { CloudflareD1EmailOtpEnrollmentStore } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
 import { parseEmailOtpWalletEnrollmentRow } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
 import { selectEmailOtpDeviceFactor } from '../../packages/wallet-server/src/router/domains/emailOtp/emailOtpRouteHandlers';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../packages/wallet-server/src/storage/d1Sql';
 import type { D1DatabaseLike } from '../../packages/wallet-server/src/storage/tenantRoute';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';
 import { buildEmailOtpEnrollmentFixture } from './helpers/emailOtpAuthMethod.fixtures';
@@ -130,6 +131,65 @@ test('the enrollment goes with its last unrevoked Email OTP method', async () =>
       }),
     ]);
     expect(await store.readEnrollment(WALLET_ID)).toBeNull();
+  } finally {
+    await runtime.close();
+  }
+});
+
+function addFactorBatch(
+  database: D1DatabaseLike,
+  input: {
+    readonly expected: EmailOtpWalletEnrollmentRecord;
+    readonly factor: EmailOtpEnrollmentFactorRecord;
+  },
+) {
+  return database.batch([
+    enrollmentStore(database).prepareAddMethodFactorStatement({ ...input, nowMs: 500 }),
+    database.prepare(D1_BATCH_CAS_GUARD_SQL),
+  ]);
+}
+
+test('a recovered or linked device adds its own factor beside the others', async () => {
+  const runtime = await openSignerD1();
+  try {
+    const store = enrollmentStore(runtime.database);
+    const stored = enrollment([factor(1)]);
+    await store.putEnrollment(stored);
+    await addFactorBatch(runtime.database, { expected: stored, factor: factor(2) });
+    const after = await store.readEnrollment(WALLET_ID);
+    expect(after?.factors).toEqual([factor(1), factor(2)]);
+    expect(after?.updatedAtMs).toBe(500);
+  } finally {
+    await runtime.close();
+  }
+});
+
+test('an added factor fails its batch when the enrollment is not the one read', async () => {
+  const runtime = await openSignerD1();
+  try {
+    const store = enrollmentStore(runtime.database);
+    const stored = enrollment([factor(1)]);
+    await store.putEnrollment(stored);
+    const refusals = [
+      {
+        expected: stored,
+        factor: { ...factor(2), walletAuthMethodId: factor(1).walletAuthMethodId },
+      },
+      { expected: stored, factor: { ...factor(2), factorNonceB64u: factor(1).factorNonceB64u } },
+      { expected: { ...stored, enrollmentSealKeyVersion: 'another-key' }, factor: factor(2) },
+      { expected: { ...stored, verifiedEmail: 'other@example.test' }, factor: factor(2) },
+    ];
+    for (const refusal of refusals) {
+      await expect(addFactorBatch(runtime.database, refusal)).rejects.toThrow();
+    }
+    expect((await store.readEnrollment(WALLET_ID))?.factors).toEqual([factor(1)]);
+
+    const full = enrollment(Array.from({ length: 8 }, (_, index) => factor(index + 1)));
+    await store.putEnrollment(full);
+    await expect(
+      addFactorBatch(runtime.database, { expected: full, factor: factor(9) }),
+    ).rejects.toThrow();
+    expect((await store.readEnrollment(WALLET_ID))?.factors).toHaveLength(8);
   } finally {
     await runtime.close();
   }

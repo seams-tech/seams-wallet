@@ -241,7 +241,7 @@ type CloudflareD1RouterApiAuthAssembly = {
   readonly emailOtpRecoveryService: CloudflareD1EmailOtpRecoveryService;
   readonly emailOtpRegistrationEnrollmentFinalizer: Pick<
     CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
-    'prepareLinkedDeviceEnrollment'
+    'prepareFirstEnrollment' | 'prepareAddedFactor'
   >;
   readonly walletRecoveryGoogleEmailOtp: CloudflareD1WalletRecoveryGoogleEmailOtpService;
   readonly identityService: CloudflareD1IdentityService;
@@ -369,7 +369,7 @@ function createD1LinkedDeviceComposition(input: {
     >;
     readonly enrollmentFinalizer: Pick<
       CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
-      'prepareLinkedDeviceEnrollment'
+      'prepareFirstEnrollment'
     >;
   };
 }): D1LinkedDeviceCompositionAssembly {
@@ -1488,7 +1488,6 @@ function createCloudflareD1RouterApiAuthAssembly(
     issuer: emailOtpChallengeIssuer,
     verifier: emailOtpChallengeVerifier,
     enrollments: emailOtpEnrollments,
-    factorKey: emailOtpServerSeal,
     orgId: options.orgId,
   });
   // Composed after the Email OTP pieces so the linked-device Email OTP

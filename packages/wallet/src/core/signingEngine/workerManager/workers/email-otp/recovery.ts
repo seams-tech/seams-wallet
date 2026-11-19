@@ -1,6 +1,6 @@
 /**
- * Recovery flows: releasing the recovery factor, rehydrating Ed25519 operation and Wallet
- * Session material, and rotating the recovery set.
+ * Recovery flows: rehydrating Ed25519 operation and Wallet Session material, and rotating the
+ * recovery set.
  */
 import {
   mpcMaterialActivationRefsEqual,
@@ -8,8 +8,6 @@ import {
   type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
 import { base58Encode } from '@shared/utils/base58';
-import { asRecord } from '@shared/utils/validation';
-import { readEmailOtpFactorEvaluation } from '@shared/utils/emailOtpDomain';
 import { normalizePositiveInteger } from '@shared/utils/normalize';
 import { ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1 } from '@shared/utils/routerAbEd25519Yao';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
@@ -29,7 +27,6 @@ import {
   type WasmCeremonySeedHeldV1,
 } from '../../../../../../../../wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony.js';
 import { parseWalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-recovery/walletRecoveryRotation';
-import { postEmailOtpJson } from './fetch';
 import { readString, readThresholdEd25519SessionId } from './payloadParsing';
 import { ensureWalletCustodyCeremonyWasm } from './crypto';
 import {
@@ -48,86 +45,6 @@ import {
   type EmailOtpWalletCustodySeedUnlock,
   unlockEmailOtpWalletCustodySeed,
 } from './unlock';
-
-export async function releaseWalletRecoveryEmailOtpFactor(
-  args: EmailOtpWorkerOperationMap['releaseWalletRecoveryEmailOtpFactor']['payload'],
-): Promise<EmailOtpWorkerOperationMap['releaseWalletRecoveryEmailOtpFactor']['result']> {
-  const walletId = readString(args.walletId, 'walletId');
-  const blinds = await blindEmailOtpDeviceFactors(walletId);
-  let factorSecret32: Uint8Array | null = null;
-  try {
-    const released = await postEmailOtpJson({
-      relayUrl: readString(args.relayUrl, 'relayUrl'),
-      route: '/wallets/recovery/email-otp/release',
-      body: {
-        recoveryOperationId: readString(args.recoveryOperationId, 'recoveryOperationId'),
-        reservationId: readString(args.reservationId, 'reservationId'),
-        deviceFactors: blinds.deviceFactors,
-      },
-    });
-    const responseKind = readString(released.kind, 'recovery factor release.kind');
-    const recoveryOperationId = readString(
-      released.recoveryOperationId,
-      'recovery factor release.recoveryOperationId',
-    );
-    const reservationId = readString(
-      released.reservationId,
-      'recovery factor release.reservationId',
-    );
-    if (
-      recoveryOperationId !== String(args.recoveryOperationId).trim() ||
-      reservationId !== String(args.reservationId).trim()
-    ) {
-      throw new Error('Email OTP recovery factor release changed its operation identity');
-    }
-    if (responseKind === 'wallet_recovery_google_email_otp_new_enrollment_v1') {
-      const enrollment = asRecord(released.enrollment);
-      if (!enrollment) {
-        throw new Error('Email OTP recovery new enrollment response is invalid');
-      }
-      if (enrollment.kind !== 'create') {
-        throw new Error('Email OTP recovery new enrollment kind is invalid');
-      }
-      return {
-        kind: 'create',
-        recoveryOperationId,
-        reservationId,
-        providerSubject: readString(
-          enrollment.providerSubject,
-          'recovery factor release.enrollment.providerSubject',
-        ),
-        verifiedEmail: readString(
-          enrollment.verifiedEmail,
-          'recovery factor release.enrollment.verifiedEmail',
-        ),
-      };
-    }
-    const evaluation = readEmailOtpFactorEvaluation(released);
-    const providerSubject = readString(
-      released.providerSubject,
-      'recovery factor release.providerSubject',
-    );
-    const verifiedEmail = readString(
-      released.verifiedEmail,
-      'recovery factor release.verifiedEmail',
-    );
-    factorSecret32 = await openEmailOtpFactorEvaluation({ blinds, evaluation });
-    const ownedFactorSecret32 = Uint8Array.from(factorSecret32).buffer;
-    return {
-      kind: 'existing',
-      recoveryOperationId,
-      reservationId,
-      providerSubject,
-      verifiedEmail,
-      enrollmentId: evaluation.enrollmentId,
-      enrollmentSealKeyVersion: evaluation.enrollmentSealKeyVersion,
-      factorSecret32: ownedFactorSecret32,
-    };
-  } finally {
-    discardEmailOtpDeviceFactorBlinds(blinds);
-    factorSecret32?.fill(0);
-  }
-}
 
 function assertEmailOtpEd25519OperationMaterialContinuity(args: {
   walletId: string;

@@ -21,12 +21,7 @@ import {
   type WalletId,
   type WalletRecoveryOperationId,
 } from '@shared/utils/domainIds';
-import {
-  EMAIL_OTP_CHANNEL,
-  WALLET_EMAIL_OTP_UNLOCK_OPERATION,
-  parseEmailOtpDeviceFactorBlinds,
-  type EmailOtpDeviceFactorBlindV1,
-} from '@shared/utils/emailOtpDomain';
+import { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_UNLOCK_OPERATION } from '@shared/utils/emailOtpDomain';
 import {
   isPlainObject,
   requireTrimmedString,
@@ -107,7 +102,6 @@ const CREDENTIAL_LABEL_ROUTE_ID = 'wallet_custody_credential_label';
 const RECOVERY_PREPARE_ROUTE_ID = 'wallet_recovery_prepare';
 const RECOVERY_GOOGLE_VERIFY_ROUTE_ID = 'wallet_recovery_google_verify';
 const RECOVERY_EMAIL_OTP_VERIFY_ROUTE_ID = 'wallet_recovery_email_otp_verify';
-const RECOVERY_EMAIL_OTP_RELEASE_ROUTE_ID = 'wallet_recovery_email_otp_release';
 const RECOVERY_GOOGLE_EMAIL_OTP_FINALIZE_ROUTE_ID = 'wallet_recovery_google_email_otp_finalize';
 const RECOVERY_FINALIZE_ROUTE_ID = 'wallet_recovery_finalize';
 const RECOVERY_ACK_ROUTE_ID = 'wallet_recovery_backup_acknowledge';
@@ -648,61 +642,11 @@ export async function handleWalletRecoveryEmailOtpVerify(
         recoveryOperationId: String(result.recovery.recoveryOperationId),
         reservationId: String(result.recovery.reservationId),
         challengeId: String(result.recovery.challengeId),
+        // The device enrolls its factor for the new method under this identity.
+        providerSubject: result.recovery.providerSubject,
+        verifiedEmail: result.recovery.verifiedEmail,
       },
     });
-  } catch {
-    return walletRecoveryInternalError();
-  }
-}
-
-export async function handleWalletRecoveryEmailOtpRelease(
-  ctx: FetchRouterApiContext,
-): Promise<Response | null> {
-  const route = matchRoute(ctx, RECOVERY_EMAIL_OTP_RELEASE_ROUTE_ID);
-  if (!route) return null;
-
-  let request: WalletRecoveryEmailOtpReleaseRequest;
-  try {
-    request = parseWalletRecoveryEmailOtpReleaseRequest(await readJsonObject(ctx.request));
-  } catch {
-    return walletRecoveryRequestError();
-  }
-  try {
-    const result = await ctx.service.passkeyCustody.releaseRecoveryEmailOtpFactor({
-      recoveryOperationId: request.recoveryOperationId,
-      reservationId: String(request.reservationId),
-      deviceFactors: request.deviceFactors,
-    });
-    if (!result.ok) return walletRecoveryGoogleFailureResponse(result);
-    switch (result.kind) {
-      case 'email_otp_factor_evaluation_v1':
-        return toFetchRouteResponse({
-          status: 200,
-          body: {
-            ok: true,
-            ...result.evaluation,
-            recoveryOperationId: String(result.recovery.recoveryOperationId),
-            reservationId: String(result.recovery.reservationId),
-            providerSubject: result.recovery.providerSubject,
-            verifiedEmail: result.recovery.verifiedEmail,
-          },
-        });
-      case 'wallet_recovery_google_email_otp_new_enrollment_v1':
-        return toFetchRouteResponse({
-          status: 200,
-          body: {
-            ok: true,
-            kind: result.kind,
-            recoveryOperationId: String(result.recovery.recoveryOperationId),
-            reservationId: String(result.recovery.reservationId),
-            enrollment: {
-              kind: 'create',
-              providerSubject: result.enrollment.providerSubject,
-              verifiedEmail: result.enrollment.verifiedEmail,
-            },
-          },
-        });
-    }
   } catch {
     return walletRecoveryInternalError();
   }
@@ -711,7 +655,8 @@ export async function handleWalletRecoveryEmailOtpRelease(
 /**
  * Installs the Google/Email OTP recovery target selected by the persisted
  * `otp_verified` attempt. Recovery identity and enrollment identifiers stay
- * server-side; the body can add only a new-enrollment material bundle.
+ * server-side; the body adds only the factor material that the device enrolled
+ * for the new method.
  */
 export async function handleWalletRecoveryGoogleEmailOtpFinalize(
   ctx: FetchRouterApiContext,
@@ -750,10 +695,6 @@ type WalletRecoveryGoogleVerifyRequest = WalletRecoveryOperationRequest & {
 type WalletRecoveryEmailOtpVerifyRequest = WalletRecoveryOperationRequest & {
   readonly challengeId: EmailOtpChallengeId;
   readonly otpCode: string;
-};
-
-type WalletRecoveryEmailOtpReleaseRequest = WalletRecoveryOperationRequest & {
-  readonly deviceFactors: readonly EmailOtpDeviceFactorBlindV1[];
 };
 
 function parseWalletRecoveryOperationRequest(
@@ -799,25 +740,6 @@ function parseWalletRecoveryEmailOtpVerifyRequest(
   };
 }
 
-function requireDeviceFactorBlinds(value: unknown): readonly EmailOtpDeviceFactorBlindV1[] {
-  const blinds = parseEmailOtpDeviceFactorBlinds(value);
-  if (!blinds) throw new Error('deviceFactors is invalid');
-  return blinds;
-}
-
-function parseWalletRecoveryEmailOtpReleaseRequest(
-  body: Record<string, unknown> | null,
-): WalletRecoveryEmailOtpReleaseRequest {
-  return {
-    ...parseWalletRecoveryOperationRequest(
-      body,
-      ['recoveryOperationId', 'reservationId', 'deviceFactors'],
-      'wallet recovery Email OTP factor release',
-    ),
-    deviceFactors: requireDeviceFactorBlinds(body?.deviceFactors),
-  };
-}
-
 function parseWalletRecoveryGoogleEmailOtpFinalizeRequest(
   value: unknown,
 ): WalletRecoveryGoogleEmailOtpRouteFinalizationRequest {
@@ -857,14 +779,11 @@ function parseWalletRecoveryGoogleEmailOtpFinalizeRequest(
       'reservationId',
       'replacementEnvelope',
       'ecdsaMaterialPossessionProofs',
-      ...(value.emailOtpEnrollment === undefined ? [] : ['emailOtpEnrollment']),
+      'emailOtpEnrollment',
     ],
     'wallet recovery Google Email OTP finalization',
   );
-  const emailOtpEnrollment =
-    value.emailOtpEnrollment === undefined
-      ? null
-      : parseWalletRecoveryGoogleEmailOtpCreateEnrollment(value.emailOtpEnrollment);
+  const emailOtpEnrollment = parseWalletRecoveryEmailOtpFactorMaterial(value.emailOtpEnrollment);
   return {
     kind: 'finalize',
     recoveryOperationId: recoveryOperationId.value,
@@ -877,22 +796,12 @@ function parseWalletRecoveryGoogleEmailOtpFinalizeRequest(
   };
 }
 
-function parseWalletRecoveryGoogleEmailOtpCreateEnrollment(
-  value: unknown,
-): NonNullable<
-  Extract<
-    WalletRecoveryGoogleEmailOtpRouteFinalizationRequest,
-    { readonly kind: 'finalize' }
-  >['emailOtpEnrollment']
-> {
-  if (!isPlainObject(value)) {
-    throw new Error('new recovery Email enrollment is invalid');
+function parseWalletRecoveryEmailOtpFactorMaterial(
+  material: unknown,
+): EmailOtpEnrollmentMaterialBoundaryInput {
+  if (!isPlainObject(material)) {
+    throw new Error('recovery Email OTP factor material is invalid');
   }
-  requireExactObjectFields(value, ['kind', 'material'], 'new recovery Email enrollment');
-  if (value.kind !== 'create' || !isPlainObject(value.material)) {
-    throw new Error('new recovery Email enrollment is invalid');
-  }
-  const material = value.material;
   requireExactObjectFields(
     material,
     [
@@ -902,9 +811,9 @@ function parseWalletRecoveryGoogleEmailOtpCreateEnrollment(
       'factorNonceB64u',
       'wrappedFactorB64u',
     ],
-    'new recovery Email enrollment material',
+    'recovery Email OTP factor material',
   );
-  const normalized: EmailOtpEnrollmentMaterialBoundaryInput = {
+  return {
     enrollmentSealKeyVersion: requireTrimmedString(
       material.enrollmentSealKeyVersion,
       'enrollmentSealKeyVersion',
@@ -920,7 +829,6 @@ function parseWalletRecoveryGoogleEmailOtpCreateEnrollment(
       'wrappedFactorB64u',
     ),
   };
-  return { kind: 'create', material: normalized };
 }
 
 function walletRecoveryFinalizationResponse(

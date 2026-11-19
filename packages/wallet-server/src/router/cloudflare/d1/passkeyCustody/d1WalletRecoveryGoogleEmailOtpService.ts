@@ -49,17 +49,8 @@ import { failure } from '@shared/utils/failure';
 import type { CloudflareD1EmailOtpChallengeIssuer } from '../emailOtp/d1EmailOtpChallengeIssuer';
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
 import type { CloudflareD1EmailOtpEnrollmentStore } from '../emailOtp/d1EmailOtpEnrollmentStore';
-import type { CloudflareD1EmailOtpServerSealRuntime } from '../emailOtp/d1EmailOtpServerSealRuntime';
 import type { CloudflareD1OidcVerificationService } from '../oidc/d1OidcVerificationService';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
-import {
-  evaluateEmailOtpFactorForDevice,
-  selectEmailOtpDeviceFactor,
-} from '../../../domains/emailOtp/emailOtpRouteHandlers';
-import type {
-  EmailOtpDeviceFactorBlindV1,
-  EmailOtpFactorEvaluationV1,
-} from '@shared/utils/emailOtpDomain';
 import type { EmailOtpChallengeDelivery } from '../../../framework/authServicePort';
 import type {
   OtpIssuedWalletRecoveryGoogleEmailOtpAttempt,
@@ -86,20 +77,6 @@ type GoogleRecoveryFailure = {
   readonly message: string;
 };
 
-type WalletRecoveryGoogleEmailOtpFinalizationEnrollment =
-  | {
-      readonly kind: 'existing';
-      readonly enrollmentId: string;
-      readonly enrollmentSealKeyVersion: string;
-      readonly material?: never;
-    }
-  | {
-      readonly kind: 'create';
-      readonly providerSubject: string;
-      readonly verifiedEmail: string;
-      readonly material: EmailOtpEnrollmentMaterialBoundaryInput;
-    };
-
 type WalletRecoveryGoogleEmailOtpFinalizationDependencies = {
   readonly envelopeStore: CloudflareD1PasskeyCustodyEnvelopeStore;
   readonly walletCustodyCommits: CloudflareD1WalletCustodyCommitStore;
@@ -107,7 +84,7 @@ type WalletRecoveryGoogleEmailOtpFinalizationDependencies = {
   readonly walletStore: D1WalletStore;
   readonly enrollmentFinalizer: Pick<
     CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
-    'prepareLinkedDeviceEnrollment'
+    'prepareFirstEnrollment' | 'prepareAddedFactor'
   >;
 };
 
@@ -129,7 +106,8 @@ type WalletRecoveryGoogleEmailOtpFinalizationRequest =
       readonly kind: 'finalize';
       readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
       readonly replacementEnvelope: PasskeyCustodyEnvelopeRecord;
-      readonly emailOtpEnrollment: WalletRecoveryGoogleEmailOtpFinalizationEnrollment;
+      /** The factor that the recovering device enrolled for the new method. */
+      readonly emailOtpEnrollment: EmailOtpEnrollmentMaterialBoundaryInput;
       readonly ecdsaMaterialPossessionProofs: readonly WalletRecoveryEcdsaMaterialPossessionProofInputV1[];
       readonly dependencies: WalletRecoveryGoogleEmailOtpFinalizationDependencies;
     }
@@ -153,25 +131,6 @@ type WalletRecoveryGoogleEmailOtpChallengeResult =
     }
   | GoogleRecoveryFailure;
 
-type WalletRecoveryGoogleEmailOtpFactorReleaseResult =
-  | {
-      readonly ok: true;
-      readonly kind: 'email_otp_factor_evaluation_v1';
-      readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
-      readonly evaluation: EmailOtpFactorEvaluationV1;
-    }
-  | {
-      readonly ok: true;
-      readonly kind: 'wallet_recovery_google_email_otp_new_enrollment_v1';
-      readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
-      readonly enrollment: {
-        readonly kind: 'create';
-        readonly providerSubject: string;
-        readonly verifiedEmail: string;
-      };
-    }
-  | GoogleRecoveryFailure;
-
 type WalletRecoveryGoogleEmailOtpVerificationResult =
   | {
       readonly ok: true;
@@ -187,8 +146,10 @@ type GoogleIdentity = {
 
 /**
  * Recovery-scoped Google and Email OTP coordinator. It owns only the
- * recovery operation binding; Google verification, OTP issuance/consumption,
- * and factor unsealing stay in their existing services.
+ * recovery operation binding; Google verification and OTP issuance and
+ * consumption stay in their existing services. The server releases no Email OTP
+ * factor here: the recovery code opens the seed, and the recovering device
+ * enrolls its own factor for the new method.
  */
 export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
   private readonly attempts: CloudflareD1WalletRecoveryGoogleEmailOtpAttemptStore;
@@ -199,7 +160,6 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
   private readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
   private readonly verifier: Pick<CloudflareD1EmailOtpChallengeVerifier, 'verifyRecoveryBootstrap'>;
   private readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
-  private readonly factorKey: Pick<CloudflareD1EmailOtpServerSealRuntime, 'evaluateEmailOtpFactor'>;
   private readonly orgId: string;
   private readonly nowMs: () => number;
 
@@ -209,7 +169,6 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     readonly issuer: Pick<CloudflareD1EmailOtpChallengeIssuer, 'create'>;
     readonly verifier: Pick<CloudflareD1EmailOtpChallengeVerifier, 'verifyRecoveryBootstrap'>;
     readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
-    readonly factorKey: Pick<CloudflareD1EmailOtpServerSealRuntime, 'evaluateEmailOtpFactor'>;
     readonly orgId: string;
     readonly nowMs?: () => number;
   }) {
@@ -218,7 +177,6 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     this.issuer = input.issuer;
     this.verifier = input.verifier;
     this.enrollments = input.enrollments;
-    this.factorKey = input.factorKey;
     this.orgId = input.orgId;
     this.nowMs = input.nowMs ?? Date.now;
   }
@@ -315,7 +273,7 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     };
   }
 
-  /** Consumes the recovery-bound OTP; factor release is a separate retryable gate. */
+  /** Consumes the recovery-bound OTP. The finalization then installs the new method. */
   async verifyOtp(input: {
     readonly recoveryOperationId: Parameters<
       CloudflareD1WalletRecoveryGoogleEmailOtpAttemptStore['read']
@@ -362,75 +320,6 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
   }
 
   /**
-   * Evaluates the device factor of an existing enrollment, or returns the
-   * authorization to create the first enrollment. Only a device that holds the
-   * factor can recover an existing Email OTP wallet this way.
-   */
-  async releaseFactor(input: {
-    readonly recoveryOperationId: Parameters<
-      CloudflareD1WalletRecoveryGoogleEmailOtpAttemptStore['read']
-    >[0];
-    readonly reservationId: string;
-    readonly deviceFactors: readonly EmailOtpDeviceFactorBlindV1[];
-  }): Promise<WalletRecoveryGoogleEmailOtpFactorReleaseResult> {
-    const stored = await this.attempts.read(input.recoveryOperationId);
-    if (stored.kind !== 'present' || stored.value.state !== 'otp_verified') {
-      return recoveryAttemptUnavailable();
-    }
-    const attempt = stored.value;
-    if (
-      attempt.orgId !== this.orgId ||
-      String(attempt.reservationId) !== input.reservationId ||
-      attempt.expiresAtMs <= this.nowMs()
-    ) {
-      return recoveryAttemptUnavailable();
-    }
-    const recovery = walletRecoveryGoogleEmailOtpFinalizationInput(attempt);
-    if (attempt.targetEnrollment.kind === 'create') {
-      return {
-        ok: true,
-        kind: 'wallet_recovery_google_email_otp_new_enrollment_v1',
-        recovery,
-        enrollment: attempt.targetEnrollment,
-      };
-    }
-    const enrollment = await this.enrollments.readEnrollment(String(attempt.walletId));
-    if (
-      !enrollment ||
-      enrollment.orgId !== attempt.orgId ||
-      enrollment.providerUserId !== attempt.providerSubject ||
-      enrollment.verifiedEmail !== attempt.verifiedEmail ||
-      enrollment.enrollmentId !== attempt.targetEnrollment.enrollmentId ||
-      enrollment.enrollmentSealKeyVersion !== attempt.targetEnrollment.enrollmentSealKeyVersion
-    ) {
-      return failure(
-        'recovery_conflict',
-        'Email OTP recovery enrollment changed after verification',
-      );
-    }
-    const deviceFactor = selectEmailOtpDeviceFactor({
-      enrollment,
-      deviceFactors: input.deviceFactors,
-    });
-    if (!deviceFactor.ok) return deviceFactor;
-    const evaluated = await evaluateEmailOtpFactorForDevice({
-      factorKey: this.factorKey,
-      walletId: String(attempt.walletId),
-      enrollment,
-      factor: deviceFactor.factor,
-      blindedElementB64u: deviceFactor.blindedElementB64u,
-      challengeId: attempt.challengeId,
-    });
-    if (!evaluated.ok) return evaluated;
-    return {
-      ok: true,
-      kind: 'email_otp_factor_evaluation_v1',
-      recovery,
-      evaluation: evaluated.evaluation,
-    };
-  }
-
-  /**
    * Completes the verified Google/Email recovery by installing a fresh target
    * authority and Email method. The durable commit owns every write; this
    * coordinator only resolves the continuity anchor and target envelope.
@@ -469,11 +358,6 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     if (input.kind === 'replay') {
       return recoveryAttemptUnavailableForFinalization();
     }
-    const enrollmentInput = validateFinalizationEnrollment({
-      recovery,
-      enrollment: input.emailOtpEnrollment,
-    });
-    if (!enrollmentInput.ok) return enrollmentInput;
     if (stored.value.state !== 'otp_verified') {
       return recoveryAttemptUnavailableForFinalization();
     }
@@ -564,9 +448,8 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
 
     const enrollment = await prepareGoogleEmailRecoveryEnrollment({
       recovery,
-      enrollment: enrollmentInput,
+      material: input.emailOtpEnrollment,
       enrollmentFinalizer: input.dependencies.enrollmentFinalizer,
-      enrollments: this.enrollments,
       nowMs: this.nowMs(),
     });
     if (!enrollment.ok) return enrollment;
@@ -650,55 +533,6 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
   }
 }
 
-type ValidatedGoogleEmailRecoveryEnrollment =
-  | {
-      readonly ok: true;
-      readonly enrollment: WalletRecoveryGoogleEmailOtpFinalizationEnrollment;
-    }
-  | { readonly ok: false; readonly kind: 'enrollment_rejected'; readonly reason: string };
-
-function validateFinalizationEnrollment(input: {
-  readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
-  readonly enrollment: WalletRecoveryGoogleEmailOtpFinalizationEnrollment;
-}): ValidatedGoogleEmailRecoveryEnrollment {
-  if (input.recovery.targetEnrollment.kind !== input.enrollment.kind) {
-    return {
-      ok: false,
-      kind: 'enrollment_rejected',
-      reason: 'recovery Email enrollment target changed',
-    };
-  }
-  switch (input.enrollment.kind) {
-    case 'existing':
-      if (
-        input.recovery.targetEnrollment.kind !== 'existing' ||
-        input.recovery.targetEnrollment.enrollmentId !== input.enrollment.enrollmentId ||
-        input.recovery.targetEnrollment.enrollmentSealKeyVersion !==
-          input.enrollment.enrollmentSealKeyVersion
-      ) {
-        return {
-          ok: false,
-          kind: 'enrollment_rejected',
-          reason: 'recovery Email enrollment reference changed',
-        };
-      }
-      return { ok: true, enrollment: input.enrollment };
-    case 'create':
-      if (
-        input.recovery.targetEnrollment.kind !== 'create' ||
-        input.recovery.targetEnrollment.providerSubject !== input.enrollment.providerSubject ||
-        input.recovery.targetEnrollment.verifiedEmail !== input.enrollment.verifiedEmail
-      ) {
-        return {
-          ok: false,
-          kind: 'enrollment_rejected',
-          reason: 'recovery Email enrollment identity changed',
-        };
-      }
-      return { ok: true, enrollment: input.enrollment };
-  }
-}
-
 type PreparedGoogleEmailRecoveryEnrollment =
   | {
       readonly ok: true;
@@ -707,66 +541,53 @@ type PreparedGoogleEmailRecoveryEnrollment =
     }
   | { readonly ok: false; readonly kind: 'enrollment_rejected'; readonly reason: string };
 
+/**
+ * The new method's factor: the first factor of a new enrollment, or one more factor in the
+ * wallet's enrollment. The factors of the wallet's other Email OTP methods stay.
+ */
 async function prepareGoogleEmailRecoveryEnrollment(input: {
   readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
-  readonly enrollment: ValidatedGoogleEmailRecoveryEnrollment & { readonly ok: true };
+  readonly material: EmailOtpEnrollmentMaterialBoundaryInput;
   readonly enrollmentFinalizer: Pick<
     CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
-    'prepareLinkedDeviceEnrollment'
+    'prepareFirstEnrollment' | 'prepareAddedFactor'
   >;
-  readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
   readonly nowMs: number;
 }): Promise<PreparedGoogleEmailRecoveryEnrollment> {
   const recovery = input.recovery;
-  const enrollmentInput = input.enrollment.enrollment;
-  switch (enrollmentInput.kind) {
-    case 'existing': {
-      const existing = await input.enrollments.readEnrollment(String(recovery.walletId));
-      if (
-        !existing ||
-        existing.walletId !== recovery.walletId ||
-        existing.orgId !== recovery.orgId ||
-        existing.providerUserId !== recovery.providerSubject ||
-        existing.verifiedEmail !== recovery.verifiedEmail ||
-        existing.enrollmentId !== enrollmentInput.enrollmentId ||
-        existing.enrollmentSealKeyVersion !== enrollmentInput.enrollmentSealKeyVersion
-      ) {
-        return {
-          ok: false,
-          kind: 'enrollment_rejected',
-          reason: 'Email OTP recovery enrollment changed after verification',
-        };
-      }
-      return {
-        ok: true,
-        enrollment: existing,
-        commit: { kind: 'existing', enrollment: existing, statements: [] },
-      };
-    }
-    case 'create': {
-      const prepared = await input.enrollmentFinalizer.prepareLinkedDeviceEnrollment({
-        walletId: String(recovery.walletId),
-        walletAuthMethodId: String(recovery.targetWalletAuthMethodId),
-        orgId: recovery.orgId,
-        authSubjectId: recovery.providerSubject,
-        verifiedEmail: recovery.verifiedEmail,
-        material: enrollmentInput.material,
-        nowMs: input.nowMs,
-      });
-      if (!prepared.ok) {
-        return { ok: false, kind: 'enrollment_rejected', reason: prepared.message };
-      }
-      return {
-        ok: true,
-        enrollment: prepared.enrollment,
-        commit: {
-          kind: 'create',
-          enrollment: prepared.enrollment,
-          statements: prepared.statements,
-        },
-      };
-    }
+  const factorInput = {
+    walletId: String(recovery.walletId),
+    walletAuthMethodId: String(recovery.targetWalletAuthMethodId),
+    orgId: recovery.orgId,
+    authSubjectId: recovery.providerSubject,
+    verifiedEmail: recovery.verifiedEmail,
+    material: input.material,
+    nowMs: input.nowMs,
+  };
+  const target = recovery.targetEnrollment;
+  const prepared =
+    target.kind === 'existing'
+      ? await input.enrollmentFinalizer.prepareAddedFactor(factorInput)
+      : await input.enrollmentFinalizer.prepareFirstEnrollment(factorInput);
+  if (!prepared.ok) {
+    return { ok: false, kind: 'enrollment_rejected', reason: prepared.message };
   }
+  if (
+    target.kind === 'existing' &&
+    (prepared.enrollment.enrollmentId !== target.enrollmentId ||
+      prepared.enrollment.enrollmentSealKeyVersion !== target.enrollmentSealKeyVersion)
+  ) {
+    return {
+      ok: false,
+      kind: 'enrollment_rejected',
+      reason: 'Email OTP recovery enrollment changed after verification',
+    };
+  }
+  return {
+    ok: true,
+    enrollment: prepared.enrollment,
+    commit: { kind: target.kind, enrollment: prepared.enrollment, statements: prepared.statements },
+  };
 }
 
 function validateGoogleEmailRecoveryEnvelope(input: {

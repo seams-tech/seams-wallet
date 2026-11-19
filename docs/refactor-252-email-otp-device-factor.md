@@ -1,7 +1,8 @@
 # Refactor 252: Email OTP as a device factor
 
 Status: 2026-11-19. Slices 0, 1 and 2 are done, with the POPRF of D9, and are in the 0.75.0
-release commit. Slice 3 (new devices) is next, with the factor list of D11.
+release commit. Slice 3 (new devices) is in progress: 3a (the factor list of D11) and 3b
+(recovery) are written. 3c (device linking) is next.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -217,7 +218,7 @@ The worker and the Gateway load the same module.
 3. The worker checks the proof, removes the blind, wraps S under the output and stores x.
 4. The finalize step stores the nonce, the wrapped factor and the pinned unlock key.
 
-### Release (unlock, step-up, export, Google recovery on the same device)
+### Release (unlock, step-up, export)
 
 1. The worker blinds x of each of its factors for the wallet (at most 4) and sends them as
    `deviceFactors` with the code proof.
@@ -233,10 +234,9 @@ device input too. Its operation check and the Ed25519 warm seal of D5 remain ope
 
 ### A new device
 
-Until Slice 3, the new-device paths refuse early: the device-link base factor is unavailable and
-an existing-enrollment link challenge is refused (`email_otp_device_factor_missing`), and Google
-recovery of an existing Email OTP wallet on a fresh browser fails with the same code. Slice 3 is
-the design below.
+Until 3c, device linking refuses early: the device-link base factor is unavailable and an
+existing-enrollment link challenge is refused (`email_otp_device_factor_missing`). Google recovery
+on a new device works since 3b. Slice 3 is the design below.
 
 - A device with no sealed factor does not offer the Email OTP unlock. Google and an email code
   give a sign-in only. The menu then offers two choices: link from a device that has the wallet,
@@ -309,13 +309,23 @@ the user asks for a new code.
     remove the method's factor, and the row goes with its last factor or method. The unused
     `verifyEmailOtpEnrollment` path is deleted. No wire change. Unit tests:
     `emailOtpEnrollmentFactors.unit.test.ts`.
+  - 3b, written on 2026-11-19: Google recovery releases no factor. After the code check, the
+    device enrolls a new factor for the recovered method. The finalization adds it to the
+    wallet's enrollment (`existing`, `prepareAddedFactor`, with a batch guard after it) or
+    creates the enrollment (`create`). The release route, its worker operation and the
+    `existing` finalize branch are deleted. The verify route returns the identity, and the
+    finalize route requires the factor material. Unit tests: the added factor and its guard in
+    `emailOtpEnrollmentFactors.unit.test.ts`.
   - Left for 3c: the add-method `existing_enrollment` target makes a method with no factor. No
     client sends it today; 3c gives it its own factor or deletes it.
 - **Slice 4: the release.** seams-monorepo in one coordinated commit if U4 needs it. The wallet,
   `wallet-server` and the seams-monorepo site ship together. Staging first, then production.
   The release notes carry the self-hosted note of D10. When seams-monorepo installs the new
   `wallet-server`, add the two `oprf_runtime` files to
-  `packages/wallet-console-server-ts/scripts/ensure-d1-local-wasm.mjs`.
+  `packages/wallet-console-server-ts/scripts/ensure-d1-local-wasm.mjs`, and remove
+  `/wallets/recovery/email-otp/release` from `walletPlacement/recoveryDispatch.ts`,
+  `tests/e2e/regional-recovery-routing.scenario.mjs` and `tests/helpers/regional-real-gateway.mjs`
+  (3b deleted the route).
 - **Slice 5: the docs.** When production has Slice 4, replace the D7 note and update the
   documents of the last section.
 

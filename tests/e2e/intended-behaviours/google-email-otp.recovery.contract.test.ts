@@ -44,15 +44,21 @@ test('a code held by an active Google recovery reports that it was already used'
   await harness.assertReservedRecoveryCodeReportedAsUsed();
 });
 
-// The Email OTP factor lives on the device that enrolled it, so a fresh browser cannot recover
-// with it until each device can enroll its own factor (Refactor 252 Slice 3).
-test('a fresh browser cannot recover a Combined wallet with Google and Email OTP', async ({
+// The fresh browser enrolls its own Email OTP factor for the recovered method. The server
+// releases no factor, and the factor of the registering browser stays.
+test('a fresh browser recovers a Combined wallet with Google and Email OTP, signs, and refuses reuse', async ({
   harness,
 }) => {
   await registerCombinedWallet(harness);
   await harness.awaitNearReady();
   await harness.signTempoTransaction('post_registration');
-  await harness.recoverGoogleEmailOtpWalletFromFreshBrowser('device_factor_missing');
+  await harness.recoverGoogleEmailOtpWalletFromFreshBrowser();
+  await harness.assertRecoveryAuthorityIsAdditive(recoveryTarget);
+  await harness.assertSourceWalletSessionRemainsActive();
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.signNearTransaction('post_unlock');
+  await harness.signTempoAndArcEvmConcurrently('post_unlock');
+  await harness.assertConsumedRecoveryCodeReportedAsUsed(recoveryTarget);
 });
 
 test('a committed Google recovery survives a lost finalization response and runtime reset', async ({

@@ -36,7 +36,6 @@ import {
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { sha256Bytes, sha256HexUtf8 } from '@shared/utils/digests';
 import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
-import type { EmailOtpWorkerOperationMap } from '@/core/signingEngine/workerManager/workerTypes';
 import { IndexedDBManager } from '@/core/indexedDB';
 import {
   isDurablePasskeyPayload,
@@ -467,27 +466,6 @@ function isEmailOtpManifestRecovery(
   return operation.target.kind === 'google_email_otp' && operation.replacement.kind === 'email_otp';
 }
 
-async function releaseRecoveryEmailOtpFactorFromWorker(input: {
-  readonly context: WalletRecoveryWebContext;
-  readonly relayUrl: string;
-  readonly walletId: WalletId;
-  readonly recoveryOperationId: string;
-  readonly reservationId: string;
-}): Promise<EmailOtpWorkerOperationMap['releaseWalletRecoveryEmailOtpFactor']['result']> {
-  return await input.context.signingEngine.getSignerWorkerContext().requestWorkerOperation({
-    kind: 'emailOtp',
-    request: {
-      type: 'releaseWalletRecoveryEmailOtpFactor',
-      payload: {
-        relayUrl: input.relayUrl,
-        walletId: String(input.walletId),
-        recoveryOperationId: input.recoveryOperationId,
-        reservationId: input.reservationId,
-      },
-    },
-  });
-}
-
 async function finalizePasskeyRecovery(
   operation: Extract<
     RecoveryOperation,
@@ -745,60 +723,8 @@ export class WalletRecoveryCoordinator {
         return { kind: 'transport_uncertain' };
       }
 
-      const released = await releaseRecoveryEmailOtpFactorFromWorker({
-        context: input.context,
-        relayUrl: current.relayUrl,
-        walletId: current.walletId,
-        recoveryOperationId: current.prepared.recoveryOperationId,
-        reservationId: String(current.prepared.reservationId),
-      });
-      if (released.kind === 'existing') {
-        if (
-          released.recoveryOperationId !== String(current.prepared.recoveryOperationId) ||
-          released.reservationId !== String(current.prepared.reservationId) ||
-          released.factorSecret32.byteLength !== 32
-        ) {
-          zeroizeBuffer(released.factorSecret32);
-          return { kind: 'transport_uncertain' };
-        }
-        const replacement: RecoveryEmailOtpReplacement = {
-          kind: 'email_otp',
-          factor: {
-            replacementId: String(current.prepared.recoveryOperationId),
-            walletAuthMethodId: current.prepared.targetWalletAuthMethodId,
-            factor: buildEmailOtpEnvelopeFactor({
-              enrollmentId: released.enrollmentId,
-              enrollmentSealKeyVersion: released.enrollmentSealKeyVersion,
-            }),
-            factorSecret: released.factorSecret32,
-          },
-          enrollment: {
-            kind: 'existing',
-            enrollmentId: released.enrollmentId,
-            enrollmentSealKeyVersion: released.enrollmentSealKeyVersion,
-          },
-          providerSubject: released.providerSubject,
-          verifiedEmail: released.verifiedEmail,
-          registrationAuthorityId: input.challengeId,
-        };
-        const next = emailOtpVerifiedOperation(current, replacement);
-        this.#operations.set(next.recoveryOperationId, next);
-        return {
-          kind: 'email_otp_verified',
-          recoveryOperationId: next.recoveryOperationId,
-          walletId: next.walletId,
-          target: next.target,
-          challengeId: input.challengeId,
-        };
-      }
-      if (released.kind !== 'create') return released;
-      if (
-        released.recoveryOperationId !== String(current.prepared.recoveryOperationId) ||
-        released.reservationId !== String(current.prepared.reservationId)
-      ) {
-        return { kind: 'transport_uncertain' };
-      }
-
+      // The server releases no factor. The device enrolls its own factor for the new method,
+      // and the finalization adds it to the wallet's enrollment or creates the enrollment.
       const clientSecret32 = crypto.getRandomValues(new Uint8Array(32));
       let factorSecret: ArrayBuffer | null = null;
       try {
@@ -806,7 +732,7 @@ export class WalletRecoveryCoordinator {
           await input.context.signingEngine.prepareEmailOtpRegistrationEnrollmentMaterialInternal({
             relayUrl: current.relayUrl,
             walletId: current.walletId,
-            userId: released.providerSubject,
+            userId: verified.providerSubject,
             clientSecret32,
           });
         factorSecret = clientSecret32.slice().buffer;
@@ -822,14 +748,11 @@ export class WalletRecoveryCoordinator {
             factorSecret,
           },
           enrollment: {
-            kind: 'create',
             enrollmentId: material.enrollmentId,
-            providerSubject: released.providerSubject,
-            verifiedEmail: released.verifiedEmail,
             material: material.emailOtpEnrollment,
           },
-          providerSubject: released.providerSubject,
-          verifiedEmail: released.verifiedEmail,
+          providerSubject: verified.providerSubject,
+          verifiedEmail: verified.verifiedEmail,
           registrationAuthorityId: input.challengeId,
         };
         const next = emailOtpVerifiedOperation(current, replacement);
@@ -951,10 +874,7 @@ export class WalletRecoveryCoordinator {
                   keySetId: keySet.entry.keySetId,
                   proof: keySet.activation.possessionProof,
                 })),
-                emailOtpEnrollment:
-                  current.replacement.enrollment.kind === 'create'
-                    ? { kind: 'create', material: current.replacement.enrollment.material }
-                    : null,
+                emailOtpEnrollment: current.replacement.enrollment.material,
               })
             : { kind: 'refused' as const };
         if (finalized.kind === 'refused') {

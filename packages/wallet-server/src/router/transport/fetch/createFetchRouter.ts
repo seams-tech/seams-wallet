@@ -22,7 +22,6 @@ import {
   handleWalletRecoveryPrepare,
   handleWalletRecoveryGoogleVerify,
   handleWalletRecoveryEmailOtpVerify,
-  handleWalletRecoveryEmailOtpRelease,
   handleWalletRecoveryGoogleEmailOtpFinalize,
 } from './routes/passkeyCustody';
 import {
@@ -373,7 +372,6 @@ export function createFetchRouter(
     handleWalletRecoveryPrepare,
     handleWalletRecoveryGoogleVerify,
     handleWalletRecoveryEmailOtpVerify,
-    handleWalletRecoveryEmailOtpRelease,
     handleWalletRecoveryGoogleEmailOtpFinalize,
     handleWalletRecoveryFinalize,
     handleWalletRecoveryBackupAcknowledge,

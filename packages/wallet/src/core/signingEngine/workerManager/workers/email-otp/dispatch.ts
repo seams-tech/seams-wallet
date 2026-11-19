@@ -43,7 +43,6 @@ import { walletCustodyActivationFactsFromEmailOtpBootstrap } from './custodyRest
 import {
   rehydrateActiveEmailOtpEd25519YaoSessionMaterial,
   rehydrateEmailOtpEd25519YaoOperationMaterial,
-  releaseWalletRecoveryEmailOtpFactor,
   rotateEmailOtpWalletRecoverySet,
 } from './recovery';
 import {
@@ -205,14 +204,6 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
             emailOtpSessionHandle,
           },
         });
-        return;
-      }
-      case 'releaseWalletRecoveryEmailOtpFactor': {
-        const result = await releaseWalletRecoveryEmailOtpFactor(msg.payload);
-        postToMainThread(
-          { id: msg.id, ok: true, result },
-          result.kind === 'existing' ? [result.factorSecret32] : [],
-        );
         return;
       }
       case 'createEmailOtpEd25519YaoSigningShare': {

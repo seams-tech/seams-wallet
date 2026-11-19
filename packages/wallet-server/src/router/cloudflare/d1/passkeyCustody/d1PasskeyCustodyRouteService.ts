@@ -70,7 +70,6 @@ import type {
 import {
   buildPreparedWalletRecoveryGoogleEmailOtpAttempt,
   walletRecoveryGoogleEmailOtpFinalizationInput,
-  type WalletRecoveryGoogleEmailOtpFinalizationInput,
 } from './d1WalletRecoveryGoogleEmailOtpRecords';
 import type { EmailOtpEnrollmentMaterialBoundaryInput } from '../emailOtp/d1EmailOtpRecords';
 import {
@@ -301,10 +300,6 @@ export interface RouterApiPasskeyCustodyService {
     request: Parameters<CloudflareD1WalletRecoveryGoogleEmailOtpService['verifyOtp']>[0],
   ): ReturnType<CloudflareD1WalletRecoveryGoogleEmailOtpService['verifyOtp']>;
 
-  releaseRecoveryEmailOtpFactor(
-    request: Parameters<CloudflareD1WalletRecoveryGoogleEmailOtpService['releaseFactor']>[0],
-  ): ReturnType<CloudflareD1WalletRecoveryGoogleEmailOtpService['releaseFactor']>;
-
   readPreparedEd25519RecoveryAdmission(request: {
     readonly challengeId: string;
     readonly nowMs: number;
@@ -406,11 +401,8 @@ export type WalletRecoveryGoogleEmailOtpRouteFinalizationRequest =
         readonly keySetId: string;
         readonly proof: WalletRecoveryEcdsaPossessionProofV1;
       }[];
-      /** Null is the existing-enrollment branch; the attempt supplies its IDs. */
-      readonly emailOtpEnrollment: {
-        readonly kind: 'create';
-        readonly material: EmailOtpEnrollmentMaterialBoundaryInput;
-      } | null;
+      /** The factor that the recovering device enrolled for the new method. */
+      readonly emailOtpEnrollment: EmailOtpEnrollmentMaterialBoundaryInput;
     }
   | {
       readonly kind: 'replay';
@@ -704,16 +696,6 @@ async function unavailableWalletRecoveryEmailOtpVerify(
   };
 }
 
-async function unavailableWalletRecoveryEmailOtpRelease(
-  _request: Parameters<CloudflareD1WalletRecoveryGoogleEmailOtpService['releaseFactor']>[0],
-) {
-  return {
-    ok: false as const,
-    code: 'not_configured',
-    message: 'Google Email OTP recovery is not configured',
-  };
-}
-
 export function createD1PasskeyCustodyRouteService(assembly: {
   readonly orgId: string;
   readonly passkeyCustodyEnvelopes: CloudflareD1PasskeyCustodyEnvelopeStore;
@@ -968,9 +950,6 @@ export function createD1PasskeyCustodyRouteService(assembly: {
     verifyRecoveryEmailOtp: googleRecovery
       ? googleRecovery.verifyOtp.bind(googleRecovery)
       : unavailableWalletRecoveryEmailOtpVerify,
-    releaseRecoveryEmailOtpFactor: googleRecovery
-      ? googleRecovery.releaseFactor.bind(googleRecovery)
-      : unavailableWalletRecoveryEmailOtpRelease,
     readPreparedEd25519RecoveryAdmission: readPreparedEd25519RecoveryAdmission.bind(
       undefined,
       assembly,
@@ -1586,10 +1565,12 @@ async function finalizeGoogleEmailOtpRecoveryForRoute(
           replacementEnvelope: request.replacementEnvelope,
           dependencies,
         })
-      : await finalizeGoogleEmailOtpRouteRequest({
-          googleRecovery,
+      : await googleRecovery.finalizeRecovery({
+          kind: 'finalize',
           recovery,
-          request,
+          replacementEnvelope: request.replacementEnvelope,
+          emailOtpEnrollment: request.emailOtpEnrollment,
+          ecdsaMaterialPossessionProofs: request.ecdsaMaterialPossessionProofs,
           dependencies,
         });
   if (result.kind !== 'promoted') return result;
@@ -1635,87 +1616,6 @@ async function finalizeGoogleEmailOtpRecoveryForRoute(
       },
     }),
   };
-}
-
-async function finalizeGoogleEmailOtpRouteRequest(input: {
-  readonly googleRecovery: CloudflareD1WalletRecoveryGoogleEmailOtpService;
-  readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
-  readonly request: Extract<
-    WalletRecoveryGoogleEmailOtpRouteFinalizationRequest,
-    { readonly kind: 'finalize' }
-  >;
-  readonly dependencies: Parameters<
-    CloudflareD1WalletRecoveryGoogleEmailOtpService['finalizeRecovery']
-  >[0]['dependencies'];
-}): Promise<WalletRecoveryGoogleEmailOtpFinalizationResult> {
-  const emailOtpEnrollment = googleEmailOtpEnrollmentForRoute({
-    recovery: input.recovery,
-    emailOtpEnrollment: input.request.emailOtpEnrollment,
-  });
-  if (emailOtpEnrollment.kind !== 'ready') return emailOtpEnrollment;
-  return await input.googleRecovery.finalizeRecovery({
-    kind: 'finalize',
-    recovery: input.recovery,
-    replacementEnvelope: input.request.replacementEnvelope,
-    emailOtpEnrollment: emailOtpEnrollment.enrollment,
-    ecdsaMaterialPossessionProofs: input.request.ecdsaMaterialPossessionProofs,
-    dependencies: input.dependencies,
-  });
-}
-
-type GoogleEmailOtpEnrollmentForRouteResult =
-  | {
-      readonly kind: 'ready';
-      readonly enrollment: Extract<
-        Parameters<CloudflareD1WalletRecoveryGoogleEmailOtpService['finalizeRecovery']>[0],
-        { readonly kind: 'finalize' }
-      >['emailOtpEnrollment'];
-    }
-  | Extract<
-      WalletRecoveryGoogleEmailOtpFinalizationResult,
-      { readonly kind: 'enrollment_rejected' }
-    >;
-
-function googleEmailOtpEnrollmentForRoute(input: {
-  readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
-  readonly emailOtpEnrollment: Extract<
-    WalletRecoveryGoogleEmailOtpRouteFinalizationRequest,
-    { readonly kind: 'finalize' }
-  >['emailOtpEnrollment'];
-}): GoogleEmailOtpEnrollmentForRouteResult {
-  switch (input.recovery.targetEnrollment.kind) {
-    case 'existing':
-      if (input.emailOtpEnrollment !== null) {
-        return {
-          kind: 'enrollment_rejected',
-          reason: 'existing recovery Email enrollment accepts no client material',
-        };
-      }
-      return {
-        kind: 'ready',
-        enrollment: {
-          kind: 'existing',
-          enrollmentId: input.recovery.targetEnrollment.enrollmentId,
-          enrollmentSealKeyVersion: input.recovery.targetEnrollment.enrollmentSealKeyVersion,
-        },
-      };
-    case 'create':
-      if (input.emailOtpEnrollment === null) {
-        return {
-          kind: 'enrollment_rejected',
-          reason: 'new recovery Email enrollment material is required',
-        };
-      }
-      return {
-        kind: 'ready',
-        enrollment: {
-          kind: 'create',
-          providerSubject: input.recovery.providerSubject,
-          verifiedEmail: input.recovery.verifiedEmail,
-          material: input.emailOtpEnrollment.material,
-        },
-      };
-  }
 }
 
 async function buildEcdsaPossessionChallenges(input: {

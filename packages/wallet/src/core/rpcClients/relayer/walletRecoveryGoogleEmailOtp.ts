@@ -60,6 +60,9 @@ type WalletRecoveryEmailOtpVerifyResult =
       readonly recoveryOperationId: WalletRecoveryOperationId;
       readonly reservationId: RecoveryCodeReservationId;
       readonly challengeId: EmailOtpChallengeId;
+      /** The verified identity that the device enrolls its new factor under. */
+      readonly providerSubject: string;
+      readonly verifiedEmail: string;
     }
   | WalletRecoveryAttemptFailure;
 
@@ -120,7 +123,13 @@ export async function verifyWalletRecoveryEmailOtp(
     const identity = parseRecoveryResponseIdentity(body, args);
     const challengeId = requireParsed(parseEmailOtpChallengeId(body.challengeId));
     if (challengeId !== args.challengeId) throw new Error('challenge changed');
-    return { kind: 'verified', ...identity, challengeId };
+    return {
+      kind: 'verified',
+      ...identity,
+      challengeId,
+      providerSubject: requireParsed(parseEmailOtpProviderUserId(body.providerSubject)),
+      verifiedEmail: requireString(body.verifiedEmail),
+    };
   } catch {
     return { kind: 'transport_uncertain' };
   }
@@ -140,10 +149,8 @@ export async function finalizeWalletRecoveryGoogleEmailOtp(
       readonly keySetId: `evm_family_ecdsa:${string}`;
       readonly proof: WalletRecoveryEcdsaPossessionProofV1;
     }[];
-    readonly emailOtpEnrollment: {
-      readonly kind: 'create';
-      readonly material: WalletEmailOtpEnrollmentMaterialV1;
-    } | null;
+    /** The factor that this device enrolled for the new method. */
+    readonly emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1;
   },
 ): Promise<WalletRecoveryGoogleEmailOtpFinalizeResult> {
   let replacementEnvelope: PasskeyCustodyEnvelopeRecord;
@@ -170,7 +177,7 @@ export async function finalizeWalletRecoveryGoogleEmailOtp(
     reservationId: args.reservationId,
     replacementEnvelope,
     ecdsaMaterialPossessionProofs,
-    ...(args.emailOtpEnrollment ? { emailOtpEnrollment: args.emailOtpEnrollment } : {}),
+    emailOtpEnrollment: args.emailOtpEnrollment,
   });
   if (!response.ok) return response.failure;
   try {
@@ -319,6 +326,8 @@ type WalletRecoveryGoogleVerifyResponseDto = RecoveryIdentityResponseDto & {
 
 type WalletRecoveryEmailOtpVerifyResponseDto = RecoveryIdentityResponseDto & {
   readonly challengeId: unknown;
+  readonly providerSubject: unknown;
+  readonly verifiedEmail: unknown;
 };
 
 type WalletRecoveryProjectionResponseDto = {
@@ -346,10 +355,7 @@ type RecoveryRequestBody =
         readonly keySetId: `evm_family_ecdsa:${string}`;
         readonly proof: WalletRecoveryEcdsaPossessionProofV1;
       }[];
-      readonly emailOtpEnrollment?: {
-        readonly kind: 'create';
-        readonly material: WalletEmailOtpEnrollmentMaterialV1;
-      };
+      readonly emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1;
     }
   | {
       readonly kind: 'replay';
@@ -381,7 +387,14 @@ function decodeWalletRecoveryEmailOtpVerifyResponse(
 ): WalletRecoveryEmailOtpVerifyResponseDto {
   const response = requireExactJsonResponse(
     value,
-    ['ok', 'recoveryOperationId', 'reservationId', 'challengeId'],
+    [
+      'ok',
+      'recoveryOperationId',
+      'reservationId',
+      'challengeId',
+      'providerSubject',
+      'verifiedEmail',
+    ],
     'walletRecoveryEmailOtpVerify',
   );
   requireSuccessfulResponse(response, 'walletRecoveryEmailOtpVerify');
@@ -389,6 +402,8 @@ function decodeWalletRecoveryEmailOtpVerifyResponse(
     recoveryOperationId: readResponseField(response, 'recoveryOperationId'),
     reservationId: readResponseField(response, 'reservationId'),
     challengeId: readResponseField(response, 'challengeId'),
+    providerSubject: readResponseField(response, 'providerSubject'),
+    verifiedEmail: readResponseField(response, 'verifiedEmail'),
   };
 }
 

@@ -688,19 +688,6 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_PASSKEY_CUSTODY_SERVICES,
     ),
     publicRoute(
-      'wallet_recovery_email_otp_release',
-      'POST',
-      '/wallets/recovery/email-otp/release',
-      'Release the verified recovery Email OTP factor for replacement enrollment',
-      {
-        plane: 'public',
-        proof: 'recovery_proof',
-        rationale:
-          'Factor material is released only after the recovery operation records a verified Email OTP.',
-      },
-      ROUTER_API_PASSKEY_CUSTODY_SERVICES,
-    ),
-    publicRoute(
       'wallet_recovery_google_email_otp_finalize',
       'POST',
       '/wallets/recovery/google-email-otp/finalize',

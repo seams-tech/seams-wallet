@@ -6,6 +6,7 @@ import { runtimePolicyScopeKey } from './EmailOtpRecords';
 import type {
   EmailOtpAuthStateRecord,
   EmailOtpChallengeRecord,
+  EmailOtpEnrollmentFactorRecord,
   EmailOtpGrantRecord,
   EmailOtpUnlockChallengeRecord,
   EmailOtpWalletEnrollmentRecord,
@@ -195,6 +196,71 @@ export const emailOtpWalletEnrollmentRows = {
           AND env_id = ?
           AND wallet_id = ?`,
       [walletId],
+    ),
+
+  /**
+   * Adds the factor of a new Email OTP method to the wallet's enrollment. It changes no row when
+   * the enrollment's identity or key versions differ from `enrollment`, when the enrollment
+   * already holds a factor for the method or the nonce, or when it is full. Follow it with a
+   * batch guard, so that such a commit fails as a whole.
+   */
+  addMethodFactor: (
+    prepare: ScopedD1Prepare,
+    input: {
+      readonly enrollment: Pick<
+        EmailOtpWalletEnrollmentRecord,
+        | 'walletId'
+        | 'providerUserId'
+        | 'orgId'
+        | 'verifiedEmail'
+        | 'enrollmentId'
+        | 'enrollmentSealKeyVersion'
+        | 'unlockKeyVersion'
+      >;
+      readonly factor: EmailOtpEnrollmentFactorRecord;
+      readonly factorLimit: number;
+      readonly nowMs: number;
+    },
+  ) =>
+    prepare(
+      `WITH scope AS (SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id)
+    UPDATE email_otp_wallet_enrollments
+    SET record_json = json_set(record_json,
+        '$.factors[#]', json(?),
+        '$.updatedAtMs', MAX(updated_at_ms, ?)),
+      updated_at_ms = MAX(updated_at_ms, ?)
+    WHERE namespace = (SELECT namespace FROM scope)
+      AND org_id = (SELECT org_id FROM scope)
+      AND project_id = (SELECT project_id FROM scope)
+      AND env_id = (SELECT env_id FROM scope)
+      AND wallet_id = ?
+      AND provider_user_id = ?
+      AND record_org_id = ?
+      AND verified_email = ?
+      AND json_extract(record_json, '$.enrollmentId') = ?
+      AND json_extract(record_json, '$.enrollmentSealKeyVersion') = ?
+      AND json_extract(record_json, '$.unlockKeyVersion') = ?
+      AND json_array_length(record_json, '$.factors') < ?
+      AND NOT EXISTS (
+        SELECT 1 FROM json_each(record_json, '$.factors')
+        WHERE json_extract(value, '$.walletAuthMethodId') = ?
+          OR json_extract(value, '$.factorNonceB64u') = ?
+      )`,
+      [
+        JSON.stringify(input.factor),
+        input.nowMs,
+        input.nowMs,
+        input.enrollment.walletId,
+        input.enrollment.providerUserId,
+        input.enrollment.orgId,
+        input.enrollment.verifiedEmail,
+        input.enrollment.enrollmentId,
+        input.enrollment.enrollmentSealKeyVersion,
+        input.enrollment.unlockKeyVersion,
+        input.factorLimit,
+        input.factor.walletAuthMethodId,
+        input.factor.factorNonceB64u,
+      ],
     ),
 
   /** Removes the factor of one Email OTP method from the wallet's enrollment. */

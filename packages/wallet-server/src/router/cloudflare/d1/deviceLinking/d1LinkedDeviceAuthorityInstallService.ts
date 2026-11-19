@@ -256,7 +256,7 @@ export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
   /** Supplies first-Email enrollment statements for the new linked target branch. */
   readonly emailOtpEnrollmentFinalizer?: Pick<
     CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
-    'prepareLinkedDeviceEnrollment'
+    'prepareFirstEnrollment'
   >;
   readonly tenantId: TenantId;
   readonly nowV1?: () => number;
@@ -2074,7 +2074,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     if (!finalizer) {
       throw new Error('new Email OTP target enrollment finalizer is not configured');
     }
-    const prepared = await finalizer.prepareLinkedDeviceEnrollment({
+    const prepared = await finalizer.prepareFirstEnrollment({
       walletId: String(input.walletId),
       walletAuthMethodId: String(input.targetFactor.authMethod.walletAuthMethodId),
       orgId: this.options.scope.orgId,

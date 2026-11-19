@@ -121,34 +121,37 @@ function hasFullOwnerPermissionsV1(permissions: ActiveWalletAuthorityV1['permiss
   );
 }
 
-function sameEmailOtpWalletEnrollmentRecordV1(
-  left: EmailOtpWalletEnrollmentRecord,
-  right: EmailOtpWalletEnrollmentRecord,
+/**
+ * The stored enrollment still has the recovered identity and key versions, and holds the factor
+ * that the recovery committed for its method. The other methods' factors may change after the
+ * commit, so they are not compared.
+ */
+function holdsRecoveredMethodFactorV1(
+  stored: EmailOtpWalletEnrollmentRecord,
+  committed: EmailOtpWalletEnrollmentRecord,
+  walletAuthMethodId: string,
 ): boolean {
+  const storedFactor = stored.factors.find(
+    (factor) => factor.walletAuthMethodId === walletAuthMethodId,
+  );
+  const committedFactor = committed.factors.find(
+    (factor) => factor.walletAuthMethodId === walletAuthMethodId,
+  );
   return (
-    left.version === right.version &&
-    left.walletId === right.walletId &&
-    left.providerUserId === right.providerUserId &&
-    left.orgId === right.orgId &&
-    left.verifiedEmail === right.verifiedEmail &&
-    left.enrollmentId === right.enrollmentId &&
-    left.enrollmentVersion === right.enrollmentVersion &&
-    left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion &&
-    left.unlockKeyVersion === right.unlockKeyVersion &&
-    left.factors.length === right.factors.length &&
-    left.factors.every((factor, index) => {
-      const other = right.factors[index];
-      return (
-        other !== undefined &&
-        factor.walletAuthMethodId === other.walletAuthMethodId &&
-        factor.factorNonceB64u === other.factorNonceB64u &&
-        factor.wrappedFactorB64u === other.wrappedFactorB64u &&
-        factor.clientUnlockPublicKeyB64u === other.clientUnlockPublicKeyB64u &&
-        factor.createdAtMs === other.createdAtMs
-      );
-    }) &&
-    left.createdAtMs === right.createdAtMs &&
-    left.updatedAtMs === right.updatedAtMs
+    storedFactor !== undefined &&
+    committedFactor !== undefined &&
+    stored.version === committed.version &&
+    stored.walletId === committed.walletId &&
+    stored.providerUserId === committed.providerUserId &&
+    stored.orgId === committed.orgId &&
+    stored.verifiedEmail === committed.verifiedEmail &&
+    stored.enrollmentId === committed.enrollmentId &&
+    stored.enrollmentSealKeyVersion === committed.enrollmentSealKeyVersion &&
+    stored.unlockKeyVersion === committed.unlockKeyVersion &&
+    storedFactor.factorNonceB64u === committedFactor.factorNonceB64u &&
+    storedFactor.wrappedFactorB64u === committedFactor.wrappedFactorB64u &&
+    storedFactor.clientUnlockPublicKeyB64u === committedFactor.clientUnlockPublicKeyB64u &&
+    storedFactor.createdAtMs === committedFactor.createdAtMs
   );
 }
 
@@ -222,17 +225,16 @@ type WalletCustodyRecoveryAuthorityInstallCommitResult =
   | { readonly kind: 'conflict' }
   | { readonly kind: 'inconsistent'; readonly reason: string };
 
-export type WalletRecoveryEmailEnrollmentCommit =
-  | {
-      readonly kind: 'existing';
-      readonly enrollment: EmailOtpWalletEnrollmentRecord;
-      readonly statements: readonly [];
-    }
-  | {
-      readonly kind: 'create';
-      readonly enrollment: EmailOtpWalletEnrollmentRecord;
-      readonly statements: readonly D1PreparedStatementLike[];
-    };
+/**
+ * The recovered method's factor: `existing` adds it to the wallet's enrollment, `create` inserts
+ * the enrollment with it. The commit puts a batch guard after the statements, so an enrollment
+ * that changed after the read fails the commit.
+ */
+export type WalletRecoveryEmailEnrollmentCommit = {
+  readonly kind: 'existing' | 'create';
+  readonly enrollment: EmailOtpWalletEnrollmentRecord;
+  readonly statements: readonly D1PreparedStatementLike[];
+};
 
 type WalletRecoveryGoogleEmailOtpAuthorityInstallCommit = {
   readonly recovery: WalletRecoveryGoogleEmailOtpFinalizationInput;
@@ -1315,7 +1317,11 @@ export class CloudflareD1WalletCustodyCommitStore {
       method.registrationAuthorityId === recovery.challengeId;
     const sameEnrollment =
       enrollment !== null &&
-      sameEmailOtpWalletEnrollmentRecordV1(enrollment, input.enrollment) &&
+      holdsRecoveredMethodFactorV1(
+        enrollment,
+        input.enrollment,
+        recovery.targetWalletAuthMethodId,
+      ) &&
       (recovery.targetEnrollment.kind === 'existing'
         ? enrollment.enrollmentId === recovery.targetEnrollment.enrollmentId &&
           enrollment.enrollmentSealKeyVersion === recovery.targetEnrollment.enrollmentSealKeyVersion
@@ -1410,11 +1416,18 @@ export class CloudflareD1WalletCustodyCommitStore {
     ) {
       return { kind: 'inconsistent', reason: 'recovery Email enrollment identity changed' };
     }
+    if (
+      input.enrollmentCommit.statements.length === 0 ||
+      !enrollment.factors.some(
+        (factor) => factor.walletAuthMethodId === targetMethod.walletAuthMethodId,
+      )
+    ) {
+      return { kind: 'inconsistent', reason: 'recovery Email method has no factor' };
+    }
     switch (recovery.targetEnrollment.kind) {
       case 'existing':
         if (
           input.enrollmentCommit.kind !== 'existing' ||
-          input.enrollmentCommit.statements.length !== 0 ||
           enrollment.enrollmentId !== recovery.targetEnrollment.enrollmentId ||
           enrollment.enrollmentSealKeyVersion !== recovery.targetEnrollment.enrollmentSealKeyVersion
         ) {
@@ -1424,7 +1437,6 @@ export class CloudflareD1WalletCustodyCommitStore {
       case 'create':
         if (
           input.enrollmentCommit.kind !== 'create' ||
-          input.enrollmentCommit.statements.length === 0 ||
           enrollment.providerUserId !== recovery.targetEnrollment.providerSubject ||
           enrollment.verifiedEmail !== recovery.targetEnrollment.verifiedEmail ||
           enrollment.enrollmentId !==
@@ -1472,6 +1484,7 @@ export class CloudflareD1WalletCustodyCommitStore {
         [
           authorityStatement,
           ...input.enrollmentCommit.statements,
+          this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
           ...walletAuthMethodStatements,
           this.prepareWalletRecoveryGoogleEmailOtpChallengeDeleteStatement({ recovery }),
           this.prepareWalletRecoveryGoogleEmailOtpAttemptFinalizeStatement({

@@ -54,7 +54,6 @@ import {
   type WalletRecoveryDurableOperationInput,
   type WalletRecoveryDurablePasskeyPayload,
   type WalletRecoveryDurablePayloadV1,
-  type WalletRecoveryEmailOtpEnrollment,
 } from './walletRecoveryJournal';
 import {
   buildWalletRecoveryCommittedProjectionV1,
@@ -240,17 +239,11 @@ async function finalizeAwaitingCommit(input: {
     expectedRegistrationAuthorityId: payload.registrationAuthorityId,
     replacementEnvelope: payload.replacementEnvelope,
     ecdsaMaterialPossessionProofs: ecdsaPossessionProofs(payload),
-    emailOtpEnrollment: emailOtpEnrollmentMaterial(payload.enrollment),
+    emailOtpEnrollment: payload.enrollment.material,
     fetchImpl: input.fetchImpl,
   });
   if (promotion.kind !== 'promoted') return promotion;
   return { kind: 'google_email_otp', payload, promotion };
-}
-
-function emailOtpEnrollmentMaterial(enrollment: WalletRecoveryEmailOtpEnrollment) {
-  return enrollment.kind === 'create'
-    ? { kind: 'create' as const, material: enrollment.material }
-    : null;
 }
 
 async function replayPromotedCommit(input: {

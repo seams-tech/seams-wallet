@@ -249,22 +249,6 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
         },
       };
     }
-    case 'releaseWalletRecoveryEmailOtpFactor':
-      rejectUnknownEmailOtpYaoFields(
-        payload,
-        ['relayUrl', 'walletId', 'recoveryOperationId', 'reservationId'],
-        type,
-      );
-      return {
-        id,
-        type,
-        payload: {
-          relayUrl: readString(payload.relayUrl, 'relayUrl'),
-          walletId: readString(payload.walletId, 'walletId'),
-          recoveryOperationId: readString(payload.recoveryOperationId, 'recoveryOperationId'),
-          reservationId: readString(payload.reservationId, 'reservationId'),
-        },
-      };
     case 'createEmailOtpEd25519YaoSigningShare':
       rejectUnknownEmailOtpYaoFields(payload, ['activeClientHandle', 'input'], type);
       return {

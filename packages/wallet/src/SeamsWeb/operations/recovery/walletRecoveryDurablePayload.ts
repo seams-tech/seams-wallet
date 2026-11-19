@@ -63,19 +63,14 @@ import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrat
 
 export const WALLET_RECOVERY_DURABLE_PAYLOAD_VERSION = 1 as const;
 
-export type WalletRecoveryEmailOtpEnrollment =
-  | {
-      readonly kind: 'existing';
-      readonly enrollmentId: string;
-      readonly enrollmentSealKeyVersion: string;
-    }
-  | {
-      readonly kind: 'create';
-      readonly enrollmentId: string;
-      readonly providerSubject: string;
-      readonly verifiedEmail: string;
-      readonly material: WalletEmailOtpEnrollmentMaterialV1;
-    };
+/**
+ * The factor that the recovering device enrolled for the new Email OTP method. The server adds
+ * it to the wallet's enrollment, or creates the enrollment with it.
+ */
+export type WalletRecoveryEmailOtpEnrollment = {
+  readonly enrollmentId: string;
+  readonly material: WalletEmailOtpEnrollmentMaterialV1;
+};
 
 type WalletRecoveryDurableOperationCommon = {
   readonly recoveryOperationId: string;
@@ -181,7 +176,7 @@ type WalletRecoveryDurableEcdsaKeySetRecordV1 = {
 
 type WalletRecoveryDurablePayloadCommonV1 = {
   readonly kind: 'wallet_recovery_durable_payload_v1';
-  readonly version: 1;
+  readonly version: typeof WALLET_RECOVERY_DURABLE_PAYLOAD_VERSION;
   readonly recoveryOperationId: string;
   readonly walletId: WalletId;
   readonly reservationId: RecoveryCodeReservationId;
@@ -235,10 +230,7 @@ export function durableEmailEnrollmentReference(payload: WalletRecoveryDurableEm
   return {
     kind: 'email_otp_enrollment_reference_v1',
     enrollmentId: payload.enrollment.enrollmentId,
-    enrollmentSealKeyVersion:
-      payload.enrollment.kind === 'existing'
-        ? payload.enrollment.enrollmentSealKeyVersion
-        : payload.enrollment.material.enrollmentSealKeyVersion,
+    enrollmentSealKeyVersion: payload.enrollment.material.enrollmentSealKeyVersion,
   };
 }
 
@@ -555,29 +547,7 @@ function parseWalletRecoveryDurableRegistration(
 
 function parseWalletRecoveryDurableEnrollment(raw: unknown): WalletRecoveryEmailOtpEnrollment {
   const record = requireRecord(raw, 'recovery durable Email OTP enrollment');
-  if (record.kind === 'existing') {
-    durableExactFields(
-      record,
-      ['kind', 'enrollmentId', 'enrollmentSealKeyVersion'],
-      'recovery durable existing Email OTP enrollment',
-    );
-    return {
-      kind: 'existing',
-      enrollmentId: durableString(record.enrollmentId, 'recovery enrollmentId'),
-      enrollmentSealKeyVersion: durableString(
-        record.enrollmentSealKeyVersion,
-        'recovery enrollment seal-key version',
-      ),
-    };
-  }
-  if (record.kind !== 'create') {
-    throw new Error('recovery durable Email OTP enrollment kind is invalid');
-  }
-  durableExactFields(
-    record,
-    ['kind', 'enrollmentId', 'providerSubject', 'verifiedEmail', 'material'],
-    'recovery durable create Email OTP enrollment',
-  );
+  durableExactFields(record, ['enrollmentId', 'material'], 'recovery durable Email OTP enrollment');
   const material = requireRecord(record.material, 'recovery durable enrollment material');
   durableExactFields(
     material,
@@ -591,10 +561,7 @@ function parseWalletRecoveryDurableEnrollment(raw: unknown): WalletRecoveryEmail
     'recovery durable enrollment material',
   );
   return {
-    kind: 'create',
     enrollmentId: durableString(record.enrollmentId, 'recovery enrollmentId'),
-    providerSubject: durableString(record.providerSubject, 'recovery enrollment providerSubject'),
-    verifiedEmail: durableString(record.verifiedEmail, 'recovery enrollment verifiedEmail'),
     material: {
       enrollmentSealKeyVersion: durableString(
         material.enrollmentSealKeyVersion,
@@ -780,28 +747,12 @@ export function parseWalletRecoveryDurablePayload(raw: unknown): WalletRecoveryD
   if (common.replacementEnvelope.factor.kind !== 'email_otp') {
     throw new Error('wallet recovery durable Email OTP envelope factor is invalid');
   }
-  const enrollmentReference =
-    enrollment.kind === 'existing'
-      ? {
-          enrollmentId: enrollment.enrollmentId,
-          enrollmentSealKeyVersion: enrollment.enrollmentSealKeyVersion,
-        }
-      : {
-          enrollmentId: enrollment.enrollmentId,
-          enrollmentSealKeyVersion: enrollment.material.enrollmentSealKeyVersion,
-        };
   if (
-    common.replacementEnvelope.factor.enrollmentId !== enrollmentReference.enrollmentId ||
+    common.replacementEnvelope.factor.enrollmentId !== enrollment.enrollmentId ||
     common.replacementEnvelope.factor.enrollmentSealKeyVersion !==
-      enrollmentReference.enrollmentSealKeyVersion
+      enrollment.material.enrollmentSealKeyVersion
   ) {
     throw new Error('wallet recovery durable Email OTP envelope identity changed');
-  }
-  if (
-    enrollment.kind === 'create' &&
-    (enrollment.providerSubject !== providerSubject || enrollment.verifiedEmail !== verifiedEmail)
-  ) {
-    throw new Error('wallet recovery durable Email OTP enrollment identity changed');
   }
   const replacementId = durableString(
     record.replacementId,
@@ -895,13 +846,6 @@ export async function validateWalletRecoveryDurablePayloadBindings(
   const expectedEmailHashHex = await sha256HexUtf8(payload.verifiedEmail);
   if (payload.emailHashHex !== expectedEmailHashHex) {
     throw new Error('wallet recovery durable email hash does not match verified email');
-  }
-  if (
-    payload.enrollment.kind === 'create' &&
-    (payload.enrollment.providerSubject !== payload.providerSubject ||
-      payload.enrollment.verifiedEmail !== payload.verifiedEmail)
-  ) {
-    throw new Error('wallet recovery durable enrollment does not match Email OTP identity');
   }
 }
 
