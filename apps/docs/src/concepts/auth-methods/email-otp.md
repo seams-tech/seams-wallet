@@ -8,12 +8,14 @@ description: Use email OTP as a server-verified challenge while keeping recovery
 Email OTP uses a one-time password to check access to an email address. The server
 verifies the challenge. A dedicated worker handles the secret material.
 
-::: warning The server can recover the factor key today
-Today, the hosted wallet server stores the Email OTP factor key under its own seal. It
-can recover the key of an owner Email OTP wallet without the user's device. A planned
-change keeps the sealed factor key on the user's device, so that the server needs that
-device and a fresh email code. After that change, a new device needs device linking or a
-recovery code. Google and an email code on a new device then give a sign-in only.
+::: info Each device holds its own factor
+The server cannot open an Email OTP wallet alone. Each device keeps a random input, and
+the server keeps that device's factor encrypted under the RFC 9497 POPRF output for the
+input. An unlock needs the device and a fresh email code. A new device gets its own factor
+by device linking, or by Google recovery with the recovery code. On a device with no
+factor, a Google or email sign-in sends no code. It fails with
+`email_otp_device_factor_missing`, and the hosted menu offers "Link this device" and
+"Recover wallet".
 :::
 
 ## Role in the model

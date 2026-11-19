@@ -1,9 +1,36 @@
 ---
-title: リリース 0.75.0
-description: Email OTPはデバイスの要素になります。再読み込みの後も続くウォームセッションは、Shamir three-passの代わりにRFC 9497のPOPRFを使います。マイグレーション0090を適用し、サーバーとWalletホストを一緒にデプロイしてください。
+title: リリース 0.76.0
+description: 各デバイスが自分のEmail OTPの要素を持つため、新しいデバイスでGoogle復元とデバイス連携を再び使えます。マイグレーション0091を適用し、サーバーとWalletホストを一緒にデプロイしてください。
 ---
 
-# リリース 0.75.0
+# リリース 0.76.0
+
+ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.76.0** を使います。D1のマイグレーション`0091_linked_device_email_otp_own_factor.sql`を適用し、次にサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。
+
+0.75.0からの変更:
+
+- ウォレットのEmail OTPの登録は、Email OTPの方式ごとに1つの要素を保持します。各要素は、自分のnonce、ラップした要素、固定したアンロック鍵を持ちます。解放は、デバイスが送るnonceの要素を選びます。取り消しは、同じコミットで方式の要素を削除します。連携したデバイスの取り消しでも同じです。
+- 新しいデバイスでGoogle復元を再び使えます。復元コードがシードを開き、デバイスは復元した方式に自分のEmail OTPの要素を登録します。サーバーは要素を解放しません。ウォレットの他のデバイスの要素は残ります。
+- 連携したデバイスは、Email OTPがあるウォレットでも、自分のEmail OTPの要素を登録します。コードはウォレットのEmail OTPのアドレスに届きます。新しいデバイスはそのアドレスを入力する必要があります。連携は、デバイスの要素を登録に追加します。
+- ウォレットのEmail OTPの要素を持たないデバイスでは、Googleまたはメールのサインインはコードを送りません。サインインは新しいコード`email_otp_device_factor_missing`で失敗し、`account`にウォレットIDとメールのヒントを含めます。ホストされたメニューは「このデバイスを連携」と「ウォレットを復元」を表示します。
+- Email OTPの所有者は、サインイン方法や連携したデバイスを削除するとき、およびウォレットを別のリージョンに移すときに、Walletのメールコードの入力欄を見られます。以前は入力欄が隠れたままで、リクエストはタイムアウトの後に失敗しました。
+
+破壊的変更:
+
+- `/wallets/recovery/email-otp/release`を削除しました。`/wallets/recovery/email-otp/verify`は`providerSubject`と`verifiedEmail`も返します。`/wallets/recovery/google-email-otp/finalize`は`emailOtpEnrollment`を必須とし、これは`kind`のラッパーのない登録素材そのものです。
+- デバイス連携のルート`/email-otp-base-factor`と、基になる方式の選択画面を削除しました。`QRCodeScanner`と`useDeviceLinking`は`onEmailOtpBaseFactorRequired`を受け取りません。
+- Email OTPのデバイス連携の承認と対象の準備は、`targetEmail`だけを持ちます。チャレンジの開始に`workerEphemeralPublicKey65B64u`はなく、検証結果に`factorRelease`はありません。Email OTPの対象の登録は、常に`emailOtpEnrollment`を持ちます。方式の追加の`emailOtpTarget`で種別が`existing_enrollment`のものも`enrollment`を持ちます。
+- 0.75.0で作ったEmail OTPのウォレットは、保存した登録が変わったため、アップグレードの後に開けません。
+
+互換性:
+
+- サーバーの前に、D1のマイグレーション`0091_linked_device_email_otp_own_factor.sql`を適用してください。このマイグレーションは開いているデバイス連携のEmail OTPの許可を削除するため、そのような連携は新しいコードを要求します。0.74からアップグレードする場合は、先に`0090_email_otp_code_seal.sql`を適用してください。
+- 0.76.0のWalletホストには0.76.0のサーバーが必要です。逆も同じです。Email OTPの復元とデバイス連携の契約が両側で変わりました。
+- 0.76.0のアプリには0.76.0のWalletホストが必要です。0.76.0のWalletホストは0.74と0.75のアプリを受け付けます。
+- `@seams/voice-verdict`、`@seams/voice-capture`、`@seams/voice-sign`は **0.72.0** のままです。変更はありません。
+- ウォレットのiframeプロトコルは **25.0.0** のままで、VoiceIDのホストAPIは11のままです。3つのパッケージをすべて0.76.0でインストールしてください。
+
+## リリース 0.75.0
 
 ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.75.0** を使います。D1のマイグレーション`0090_email_otp_code_seal.sql`を適用し、次にサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。
 

@@ -55,17 +55,17 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 公開アセットの`@seams/wallet/web/wallet-iframe-client-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
 
-## リリース 0.75.0 {#release-0-49-0}
+## リリース 0.76.0 {#release-0-49-0}
 
-`@seams/wallet`と`@seams/wallet-server`を**0.75.0**に固定してください。
-最初にD1のマイグレーション`0090_email_otp_code_seal.sql`を適用してください。次に0.75.0のサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。Email OTPのルートと署名セッションの封印は両側で変わったため、0.75.0のWalletホストには0.75.0のサーバーが必要です。逆も同じです。0.75.0のアプリには0.75.0のWalletホストが必要です。0.75.0のWalletホストは0.74のアプリを受け付けます。
+`@seams/wallet`と`@seams/wallet-server`を**0.76.0**に固定してください。
+最初にD1のマイグレーション`0091_linked_device_email_otp_own_factor.sql`を適用してください。次に0.76.0のサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。Email OTPの復元とデバイス連携のルートは両側で変わったため、0.76.0のWalletホストには0.76.0のサーバーが必要です。逆も同じです。0.76.0のアプリには0.76.0のWalletホストが必要です。0.76.0のWalletホストは0.74と0.75のアプリを受け付けます。0.74からアップグレードする場合は、`0091`の前に`0090_email_otp_code_seal.sql`を適用してください。
 `@seams/wallet-cli`も**0.29.0**を使用します。署名済みネイティブアセットは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
-VoiceIDをホストする場合は、`@seams/voiceid` **0.75.0**もインストールします。
+VoiceIDをホストする場合は、`@seams/voiceid` **0.76.0**もインストールします。
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`で静的デプロイ用のディレクトリーを作成してください。
-VoiceIDのホストAPIはバージョン11です。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/voiceid` 0.75.0を`@seams/wallet` 0.75.0と一緒にインストールしてください。
+VoiceIDのホストAPIはバージョン11です。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/voiceid` 0.76.0を`@seams/wallet` 0.76.0と一緒にインストールしてください。
 Speak-to-Sign(実験的機能、NEARテストネット専用)は、0.68.0から`@seams/wallet`の一部です。`@seams/wallet-voice-sign`を使っていたホストは、そのパッケージと`seams-speak-to-sign-host`の手順を削除してください。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host)を参照してください。
 アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
-対応する導入方法は、[リリース 0.75.0](/ja/releases)を参照してください。
+対応する導入方法は、[リリース 0.76.0](/ja/releases)を参照してください。
 
 Gatewayは`/router-ab/ed25519/yao/reissue/admit`と`/router-ab/ed25519/yao/reissue/execute`を提供します。自分で組み立てるGatewayは、これらを`@seams/wallet-server/cloud-host`の`handleRouterAbEd25519YaoReissueRequestV1`に渡してください。Routerのプロジェクトポリシーは`reissue`の作業種別を許可する必要があります。
 

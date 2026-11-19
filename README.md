@@ -27,17 +27,18 @@ changes that npm does not yet publish.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
-## Next release (not released yet)
+## Release 0.76.0
 
-- Email OTP: the enrollment of a wallet keeps one factor for each Email OTP method, each with its own nonce, wrapped factor and pinned unlock key. The release picks the factor whose nonce the device sends. A revoke removes the method's factor in the same commit, also when a linked device is revoked, and the enrollment goes with its last factor or method. This prepares each new device to get its own factor.
+- Email OTP: the enrollment of a wallet keeps one factor for each Email OTP method, each with its own nonce, wrapped factor and pinned unlock key. The release picks the factor whose nonce the device sends. A revoke removes the method's factor in the same commit, also when a linked device is revoked, and the enrollment goes with its last factor or method.
 - Email OTP: Google recovery works on a new device again. The recovery code opens the seed, and the device enrolls its own Email OTP factor for the recovered method, so the server releases no factor. The factors of the wallet's other devices stay.
-- Breaking: `/wallets/recovery/email-otp/release` is gone. `/wallets/recovery/email-otp/verify` also returns `providerSubject` and `verifiedEmail`. `/wallets/recovery/google-email-otp/finalize` requires `emailOtpEnrollment`, which is now the enrollment material itself, with no `kind` wrapper.
 - Email OTP: a linked device enrolls its own Email OTP factor, also on a wallet that has Email OTP. The code goes to the wallet's Email OTP address, which the new device must enter, and the link adds the device's factor to the enrollment. The server releases no factor of another device.
+- Breaking: `/wallets/recovery/email-otp/release` is gone. `/wallets/recovery/email-otp/verify` also returns `providerSubject` and `verifiedEmail`. `/wallets/recovery/google-email-otp/finalize` requires `emailOtpEnrollment`, which is now the enrollment material itself, with no `kind` wrapper.
 - Breaking: the device-link route `/email-otp-base-factor` is gone, with the base method chooser. `QRCodeScanner` and `useDeviceLinking` no longer take `onEmailOtpBaseFactorRequired`. A device-link approval and target preparation for Email OTP carry only `targetEmail`, the challenge start has no `workerEphemeralPublicKey65B64u`, the verification result has no `factorRelease`, and an Email OTP target registration always carries `emailOtpEnrollment`. The add-method `emailOtpTarget` of kind `existing_enrollment` now carries `enrollment` too.
 - Email OTP: on a device that holds no Email OTP key for the wallet, a Google or email sign-in sends no code. It fails with the new code `email_otp_device_factor_missing`, which carries the wallet ID and the email hint in `account`. The hosted menu then offers "Link this device" and "Recover wallet".
 - Fix: an Email OTP owner sees the Wallet's email code prompt when removing a sign-in method or a linked device, and when moving a wallet to another region. The prompt stayed hidden, so the request failed after its timeout.
-- Deploy: apply D1 migration `0091_linked_device_email_otp_own_factor.sql` before the server. It drops the open device-link Email OTP grants, so such a link asks for a new code.
 - Reset: Email OTP wallets made by 0.75.0 do not open after the upgrade, because the stored enrollment changed.
+- Deploy: apply D1 migration `0091_linked_device_email_otp_own_factor.sql` before the server. It drops the open device-link Email OTP grants, so such a link asks for a new code. Then ship the server and the Wallet host together, then the apps: a 0.76.0 server has no Email OTP recovery release and no base-factor route for a 0.75 Wallet host, and a 0.76.0 Wallet host uses the new recovery and device-link contracts.
+- Compatibility: an app at 0.76.0 needs a Wallet host at 0.76.0. A Wallet host at 0.76.0 accepts an app at 0.74 or 0.75. The Wallet iframe protocol stays **25.0.0**, and the VoiceID host API stays 11. The voice libraries stay at **0.72.0**. Install all three packages at 0.76.0.
 
 ## Release 0.75.0
 

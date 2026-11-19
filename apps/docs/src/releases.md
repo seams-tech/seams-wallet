@@ -1,9 +1,36 @@
 ---
-title: Release 0.75.0
-description: Email OTP becomes a device factor, and the warm session that survives a reload uses the RFC 9497 POPRF in place of Shamir three-pass. Apply migration 0090, then ship the server and the Wallet host together.
+title: Release 0.76.0
+description: Each device gets its own Email OTP factor, so Google recovery and device linking work on a new device again. Apply migration 0091, then ship the server and the Wallet host together.
 ---
 
-# Release 0.75.0
+# Release 0.76.0
+
+The browser SDK, server SDK and VoiceID plugin use **0.76.0**. Apply the D1 migration `0091_linked_device_email_otp_own_factor.sql`, then deploy the server and the Wallet host together, then the apps.
+
+Since 0.75.0:
+
+- The Email OTP enrollment of a wallet keeps one factor for each Email OTP method, each with its own nonce, wrapped factor and pinned unlock key. The release picks the factor whose nonce the device sends. A revoke removes the method's factor in the same commit, also when a linked device is revoked.
+- Google recovery works on a new device again. The recovery code opens the seed, and the device enrolls its own Email OTP factor for the recovered method. The server releases no factor, and the factors of the wallet's other devices stay.
+- A linked device enrolls its own Email OTP factor, also on a wallet that has Email OTP. The code goes to the wallet's Email OTP address, which the new device must enter, and the link adds the device's factor to the enrollment.
+- On a device that holds no Email OTP factor for the wallet, a Google or email sign-in sends no code. It fails with the new code `email_otp_device_factor_missing`, which carries the wallet ID and the email hint in `account`. The hosted menu then offers "Link this device" and "Recover wallet".
+- An Email OTP owner sees the Wallet's email code prompt when removing a sign-in method or a linked device, and when moving a wallet to another region. The prompt stayed hidden, so the request failed after its timeout.
+
+Breaking changes:
+
+- `/wallets/recovery/email-otp/release` is removed. `/wallets/recovery/email-otp/verify` also returns `providerSubject` and `verifiedEmail`. `/wallets/recovery/google-email-otp/finalize` requires `emailOtpEnrollment`, which is now the enrollment material itself, with no `kind` wrapper.
+- The device-link route `/email-otp-base-factor` is removed, with the base method chooser. `QRCodeScanner` and `useDeviceLinking` no longer take `onEmailOtpBaseFactorRequired`.
+- A device-link approval and target preparation for Email OTP carry only `targetEmail`. The challenge start has no `workerEphemeralPublicKey65B64u`, the verification result has no `factorRelease`, and an Email OTP target registration always carries `emailOtpEnrollment`. The add-method `emailOtpTarget` of kind `existing_enrollment` carries `enrollment` too.
+- Email OTP wallets made by 0.75.0 do not open after the upgrade, because the stored enrollment changed.
+
+Compatibility:
+
+- Apply the D1 migration `0091_linked_device_email_otp_own_factor.sql` before the server. It drops the open device-link Email OTP grants, so such a link asks for a new code. An upgrade from 0.74 applies `0090_email_otp_code_seal.sql` first.
+- A Wallet host at 0.76.0 needs a server at 0.76.0, and the reverse: the Email OTP recovery and device-link contracts changed on both sides.
+- An app at 0.76.0 needs a Wallet host at 0.76.0. A Wallet host at 0.76.0 accepts an app at 0.74 or 0.75.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` stay at **0.72.0**. They have no change.
+- The Wallet iframe protocol stays **25.0.0**, and the VoiceID host API stays 11. Install all three packages at 0.76.0.
+
+## Release 0.75.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.75.0**. Apply the D1 migration `0090_email_otp_code_seal.sql`, then deploy the server and the Wallet host together, then the apps.
 

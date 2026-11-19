@@ -82,17 +82,17 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Release 0.75.0
+## Release 0.76.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.75.0**.
-Apply the D1 migration `0090_email_otp_code_seal.sql` first. Then deploy the 0.75.0 server and the Wallet host together, then the apps: the Email OTP routes and the signing-session seal changed on both sides, so a 0.75.0 Wallet host needs a 0.75.0 server and the reverse. An app at 0.75.0 needs a Wallet host at 0.75.0. A Wallet host at 0.75.0 accepts an app at 0.74.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.76.0**.
+Apply the D1 migration `0091_linked_device_email_otp_own_factor.sql` first. Then deploy the 0.76.0 server and the Wallet host together, then the apps: the Email OTP recovery and device-link routes changed on both sides, so a 0.76.0 Wallet host needs a 0.76.0 server and the reverse. An app at 0.76.0 needs a Wallet host at 0.76.0. A Wallet host at 0.76.0 accepts an app at 0.74 or 0.75. An upgrade from 0.74 applies `0090_email_otp_code_seal.sql` before `0091`.
 Pin `@seams/wallet-cli` to **0.29.0**. See the [recovery CLI guide](/deploy-and-operate/recovery-cli) for its signed native assets.
-VoiceID hosts also install `@seams/voiceid` **0.75.0** and compose the static deployment with
+VoiceID hosts also install `@seams/voiceid` **0.76.0** and compose the static deployment with
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`.
-The VoiceID host API is version 11. Install `@seams/voiceid` 0.75.0 with `@seams/wallet` 0.75.0: the Wallet refuses a host plugin of another version.
+The VoiceID host API is version 11. Install `@seams/voiceid` 0.76.0 with `@seams/wallet` 0.76.0: the Wallet refuses a host plugin of another version.
 Speak-to-Sign (experimental, NEAR testnet only) is a part of `@seams/wallet` from 0.68.0. A host that used `@seams/wallet-voice-sign` removes that package and its `seams-speak-to-sign-host` step. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host).
 See [VoiceID setup](/concepts/auth-methods/voiceid#prepare-the-wallet-host) for the app and host steps.
-See [Release 0.75.0](/releases) for the supported integration.
+See [Release 0.76.0](/releases) for the supported integration.
 
 The Gateway serves `/router-ab/ed25519/yao/reissue/admit` and
 `/router-ab/ed25519/yao/reissue/execute`. A Gateway that you assemble yourself
