@@ -282,7 +282,10 @@ the user asks for a new code.
 ## 4. Tests
 
 - **The operator test.** It loads every D1 row and every Worker secret and no device data. It
-  must fail to get S and to open the envelope. Slice 2 adds it.
+  must fail to get S and to open the envelope. Done on 2026-11-19 in
+  `tests/unit/emailOtpFactorOprf.unit.test.ts`: with the seal root, the enrollment record and
+  every value of the enrollment route, no tried key opens the wrapped factor, and the device
+  input does. The wrap uses the real worker code (`wk/email-otp/deviceFactorWrap.ts`).
 - **Email OTP unlock** on the same browser still works, and no release response carries an
   ECDH payload.
 - **A new browser:** Google and an email code give a sign-in only. Then device linking gives an

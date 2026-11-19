@@ -71,32 +71,3 @@ export async function finalizeOprf(input: {
 export function discardOprfBlind(blind: OprfBlindedInput): void {
   oprf_client_discard(blind.handle);
 }
-
-/**
- * The AES-256-GCM key that protects a device record: HKDF-SHA256 of the
- * 64-byte OPRF output under a label. The caller zeroes the output.
- */
-export async function importOprfOutputKey(
-  output: Uint8Array,
-  label: string,
-  usages: readonly KeyUsage[],
-): Promise<CryptoKey> {
-  const ikm = new Uint8Array(output);
-  try {
-    const base = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveKey']);
-    return await crypto.subtle.deriveKey(
-      {
-        name: 'HKDF',
-        hash: 'SHA-256',
-        salt: new Uint8Array(0),
-        info: new TextEncoder().encode(label),
-      },
-      base,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      [...usages],
-    );
-  } finally {
-    ikm.fill(0);
-  }
-}

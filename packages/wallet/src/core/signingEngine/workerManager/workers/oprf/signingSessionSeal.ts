@@ -12,13 +12,8 @@ import {
   signingSessionSealOprfInfo,
   type SigningSessionSealEvaluation,
 } from '@shared/utils/signingSessionSeal';
-import {
-  blindOprfInput,
-  discardOprfBlind,
-  finalizeOprf,
-  importOprfOutputKey,
-  type OprfBlindedInput,
-} from './runtime';
+import { decryptUnderOprfOutput, encryptUnderOprfOutput } from './outputCipher';
+import { blindOprfInput, discardOprfBlind, finalizeOprf, type OprfBlindedInput } from './runtime';
 
 /**
  * The signing-session seal on the device (RFC 9497 POPRF, ristretto255-SHA512). It keeps a
@@ -31,9 +26,8 @@ import {
 const SEAL_LABEL = 'seams/signing-session-seal/aead/v1';
 const INPUT_BYTES = 32;
 const NONCE_BYTES = 12;
-const SECRET_BYTES = 32;
-const TAG_BYTES = 16;
-const SEALED_BYTES = INPUT_BYTES + NONCE_BYTES + SECRET_BYTES + TAG_BYTES;
+// The input, the nonce, the 32-byte secret and the 16-byte AES-GCM tag.
+const SEALED_BYTES = INPUT_BYTES + NONCE_BYTES + 32 + 16;
 const ROUTE_TIMEOUT_MS = 15_000;
 
 export type SigningSessionSealScope = {
@@ -93,13 +87,13 @@ function associatedData(
   );
 }
 
-async function sealKey(args: {
+/** Checks the server's proof and returns the POPRF output for the blinded input. */
+function sealOutput(args: {
   readonly blind: SigningSessionSealBlind;
   readonly scope: SigningSessionSealScope;
   readonly evaluation: SigningSessionSealEvaluation;
-  readonly usage: KeyUsage;
-}): Promise<CryptoKey> {
-  const output = await finalizeOprf({
+}): Promise<Uint8Array> {
+  return finalizeOprf({
     blind: args.blind.blind,
     input: args.blind.oprfInput,
     evaluatedElement: base64UrlDecode(args.evaluation.evaluatedElementB64u),
@@ -107,17 +101,12 @@ async function sealKey(args: {
     publicKey: base64UrlDecode(args.evaluation.publicKeyB64u),
     info: signingSessionSealOprfInfo(args.scope),
   });
-  try {
-    return await importOprfOutputKey(output, SEAL_LABEL, [args.usage]);
-  } finally {
-    output.fill(0);
-  }
 }
 
 /**
  * Encrypts the secret under the key from the server's evaluation of `blind`, and returns the
- * sealed value. The proof check fails when the server used another key or another `info`. The
- * blind is gone afterwards, even on failure.
+ * sealed value: the input, the AES-GCM nonce and the ciphertext. The proof check fails when the
+ * server used another key or another `info`. The blind is gone afterwards, even on failure.
  */
 export async function sealSigningSessionSecret(args: {
   readonly blind: SigningSessionSealBlind;
@@ -125,31 +114,19 @@ export async function sealSigningSessionSecret(args: {
   readonly evaluation: SigningSessionSealEvaluation;
   readonly secret32: Uint8Array;
 }): Promise<string> {
-  const plaintext = new Uint8Array(args.secret32);
   const sealed = new Uint8Array(SEALED_BYTES);
   try {
-    if (plaintext.length !== SECRET_BYTES) {
-      throw new Error('Signing-session secret must be 32 bytes');
-    }
-    const key = await sealKey({ ...args, usage: 'encrypt' });
-    const nonce = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
-    const ciphertext = new Uint8Array(
-      await crypto.subtle.encrypt(
-        {
-          name: 'AES-GCM',
-          iv: nonce,
-          additionalData: associatedData(args.scope, args.evaluation.keyVersion),
-        },
-        key,
-        plaintext,
-      ),
-    );
+    const { nonce, ciphertext } = await encryptUnderOprfOutput({
+      output: await sealOutput(args),
+      label: SEAL_LABEL,
+      associatedData: associatedData(args.scope, args.evaluation.keyVersion),
+      secret32: args.secret32,
+    });
     sealed.set(args.blind.oprfInput, 0);
     sealed.set(nonce, INPUT_BYTES);
     sealed.set(ciphertext, INPUT_BYTES + NONCE_BYTES);
     return base64UrlEncode(sealed);
   } finally {
-    plaintext.fill(0);
     sealed.fill(0);
     discardSigningSessionSealBlind(args.blind);
   }
@@ -184,28 +161,17 @@ export async function openSigningSessionSecret(args: {
   readonly evaluation: SigningSessionSealEvaluation;
 }): Promise<Uint8Array> {
   try {
-    const key = await sealKey({
-      blind: args.opening.blind,
-      scope: args.scope,
-      evaluation: args.evaluation,
-      usage: 'decrypt',
+    return await decryptUnderOprfOutput({
+      output: await sealOutput({
+        blind: args.opening.blind,
+        scope: args.scope,
+        evaluation: args.evaluation,
+      }),
+      label: SEAL_LABEL,
+      associatedData: associatedData(args.scope, args.evaluation.keyVersion),
+      nonce: args.opening.nonce,
+      ciphertext: args.opening.ciphertext,
     });
-    const secret32 = new Uint8Array(
-      await crypto.subtle.decrypt(
-        {
-          name: 'AES-GCM',
-          iv: args.opening.nonce,
-          additionalData: associatedData(args.scope, args.evaluation.keyVersion),
-        },
-        key,
-        args.opening.ciphertext,
-      ),
-    );
-    if (secret32.length !== SECRET_BYTES) {
-      secret32.fill(0);
-      throw new Error('Signing-session secret must be 32 bytes');
-    }
-    return secret32;
   } finally {
     discardSigningSessionSealBlind(args.opening.blind);
   }

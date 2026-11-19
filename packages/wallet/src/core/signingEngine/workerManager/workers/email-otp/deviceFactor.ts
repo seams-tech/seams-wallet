@@ -6,14 +6,13 @@ import {
   type EmailOtpDeviceFactorBlindV1,
   type EmailOtpFactorEvaluationV1,
 } from '@shared/utils/emailOtpDomain';
-import { encodeSigningSessionHkdfTuple } from '@shared/utils/signingSessionSeal';
 import {
   blindOprfInput,
   discardOprfBlind,
   finalizeOprf,
-  importOprfOutputKey,
   type OprfBlindedInput,
 } from '../oprf/runtime';
+import { unwrapEmailOtpFactorSecret, wrapEmailOtpFactorSecret } from './deviceFactorWrap';
 
 /**
  * The Email OTP device factor. The device keeps a random OPRF input x for each
@@ -24,9 +23,6 @@ import {
 
 const DB_NAME = 'seams_email_otp_device_factors';
 const STORE = 'factors';
-const WRAP_LABEL = 'seams/email-otp/device-factor-wrap/v1';
-const WRAP_NONCE_BYTES = 12;
-const FACTOR_SECRET_BYTES = 32;
 
 type DeviceFactorRecord = {
   readonly walletId: string;
@@ -95,20 +91,6 @@ async function deleteOtherFactors(walletId: string, keepNonceB64u: string): Prom
   }
 }
 
-function wrapAssociatedData(input: {
-  readonly walletId: string;
-  readonly enrollmentId: string;
-  readonly factorNonceB64u: string;
-}): Uint8Array<ArrayBuffer> {
-  const encoded = encodeSigningSessionHkdfTuple([
-    WRAP_LABEL,
-    input.walletId,
-    input.enrollmentId,
-    input.factorNonceB64u,
-  ]);
-  return new Uint8Array(encoded);
-}
-
 function readEvaluationField(value: Record<string, unknown>, field: string): string {
   const text = value[field];
   if (typeof text !== 'string' || !text) {
@@ -117,7 +99,8 @@ function readEvaluationField(value: Record<string, unknown>, field: string): str
   return text;
 }
 
-async function finalizeFactorKey(input: {
+/** Checks the server's proof and returns the POPRF output for the device input. */
+function finalizeFactorOutput(input: {
   readonly blind: OprfBlindedInput;
   readonly oprfInput: Uint8Array;
   readonly walletId: string;
@@ -126,9 +109,8 @@ async function finalizeFactorKey(input: {
   readonly publicKeyB64u: string;
   readonly evaluatedElementB64u: string;
   readonly proofB64u: string;
-  readonly usage: KeyUsage;
-}): Promise<CryptoKey> {
-  const output = await finalizeOprf({
+}): Promise<Uint8Array> {
+  return finalizeOprf({
     blind: input.blind,
     input: input.oprfInput,
     evaluatedElement: base64UrlDecode(input.evaluatedElementB64u),
@@ -136,11 +118,6 @@ async function finalizeFactorKey(input: {
     publicKey: base64UrlDecode(input.publicKeyB64u),
     info: emailOtpFactorOprfInfo(input),
   });
-  try {
-    return await importOprfOutputKey(output, WRAP_LABEL, [input.usage]);
-  } finally {
-    output.fill(0);
-  }
 }
 
 /**
@@ -158,9 +135,6 @@ export async function enrollEmailOtpDeviceFactor(args: {
   readonly factorNonceB64u: string;
   readonly wrappedFactorB64u: string;
 }> {
-  if (args.factorSecret32.length !== FACTOR_SECRET_BYTES) {
-    throw new Error('Email OTP factor secret must be 32 bytes');
-  }
   const oprfInput = crypto.getRandomValues(new Uint8Array(32));
   const blind = await blindOprfInput(oprfInput);
   try {
@@ -168,36 +142,25 @@ export async function enrollEmailOtpDeviceFactor(args: {
     const factorNonceB64u = readEvaluationField(response, 'factorNonceB64u');
     const enrollmentSealKeyVersion = readEvaluationField(response, 'enrollmentSealKeyVersion');
     const scope = { walletId: args.walletId, enrollmentId: args.enrollmentId, factorNonceB64u };
-    const key = await finalizeFactorKey({
+    const output = await finalizeFactorOutput({
       blind,
       oprfInput,
       ...scope,
       publicKeyB64u: readEvaluationField(response, 'publicKeyB64u'),
       evaluatedElementB64u: readEvaluationField(response, 'evaluatedElementB64u'),
       proofB64u: readEvaluationField(response, 'proofB64u'),
-      usage: 'encrypt',
     });
-    const nonce = crypto.getRandomValues(new Uint8Array(WRAP_NONCE_BYTES));
-    const ciphertext = new Uint8Array(
-      await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: nonce, additionalData: wrapAssociatedData(scope) },
-        key,
-        new Uint8Array(args.factorSecret32),
-      ),
-    );
-    const wrapped = new Uint8Array(WRAP_NONCE_BYTES + ciphertext.length);
-    wrapped.set(nonce, 0);
-    wrapped.set(ciphertext, WRAP_NONCE_BYTES);
+    const wrappedFactorB64u = await wrapEmailOtpFactorSecret({
+      output,
+      scope,
+      factorSecret32: args.factorSecret32,
+    });
     await putFactor({
       ...scope,
       inputB64u: base64UrlEncode(oprfInput),
       createdAtMs: Date.now(),
     });
-    return {
-      enrollmentSealKeyVersion,
-      factorNonceB64u,
-      wrappedFactorB64u: base64UrlEncode(wrapped),
-    };
+    return { enrollmentSealKeyVersion, factorNonceB64u, wrappedFactorB64u };
   } finally {
     discardOprfBlind(blind);
     oprfInput.fill(0);
@@ -269,32 +232,25 @@ export async function openEmailOtpFactorEvaluation(args: {
       enrollmentId: entry.enrollmentId,
       factorNonceB64u: args.evaluation.factorNonceB64u,
     };
-    const key = await finalizeFactorKey({
+    const output = await finalizeFactorOutput({
       blind: entry.blind,
       oprfInput: entry.oprfInput,
       ...scope,
       publicKeyB64u: args.evaluation.publicKeyB64u,
       evaluatedElementB64u: args.evaluation.evaluatedElementB64u,
       proofB64u: args.evaluation.proofB64u,
-      usage: 'decrypt',
     });
-    const wrapped = base64UrlDecode(args.evaluation.wrappedFactorB64u);
-    const factorSecret32 = new Uint8Array(
-      await crypto.subtle.decrypt(
-        {
-          name: 'AES-GCM',
-          iv: wrapped.slice(0, WRAP_NONCE_BYTES),
-          additionalData: wrapAssociatedData(scope),
-        },
-        key,
-        wrapped.slice(WRAP_NONCE_BYTES),
-      ),
-    );
-    if (factorSecret32.length !== FACTOR_SECRET_BYTES) {
+    const factorSecret32 = await unwrapEmailOtpFactorSecret({
+      output,
+      scope,
+      wrappedFactorB64u: args.evaluation.wrappedFactorB64u,
+    });
+    try {
+      await deleteOtherFactors(scope.walletId, scope.factorNonceB64u);
+    } catch (error: unknown) {
       factorSecret32.fill(0);
-      throw new Error('Email OTP factor secret must be 32 bytes');
+      throw error;
     }
-    await deleteOtherFactors(scope.walletId, scope.factorNonceB64u);
     return factorSecret32;
   } finally {
     discardEmailOtpDeviceFactorBlinds(args.blinds);
