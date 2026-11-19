@@ -31,9 +31,10 @@ The owner's requests (2026-11-18):
   - two breaking releases in place of one (D15), and one version for every package (D16)
   - a conformance suite before the new code (Section 2)
   - owners for the frame code, the shared contracts and the project credentials (D17 to D19)
-- **A new brand (2026-11-18).** The GitHub organisation changes from `seams-tech` to
-  `purin-io`. All Seams branding changes to Purin some days after the hackathon. This plan
-  keeps the Seams names until then (D22).
+- **The brand split (2026-11-19).** The wallet keeps the Seams brand and stays in the GitHub
+  organisation `seams-tech`. Purin is the brand of Pantry and its products, in the new
+  organisation `purin-labs`. This replaces the plan of 2026-11-18 to rename this repository,
+  its organisation and its packages to Purin (D11, D22, D23).
 
 ## Result
 
@@ -117,12 +118,11 @@ Decided by the owner on 2026-11-18:
   module declares the scopes of its routes. `host` checks the key and the origin before it
   calls the module, and gives the module the checked principal. The store of the keys stays
   with the operator, behind the ports that exist today (Fact F18).
-- **D23. The npm scope: `@purin-io`.** The owner chose it on 2026-11-18, so that the npm
-  organisation and the GitHub organisation have the same name. The first wish was `@purin`.
-  Checked on 2026-11-18 on npmjs.com: `purin` is a user account of another person, so
-  `@purin` is not free. `purin-io` did not exist then. The owner creates the npm organisation
-  `purin-io` before the rename. Internal packages use `@purin-io-internal`, or keep
-  `@seams-internal`, because they are never published.
+- **D23. The npm scope: `@seams`.** Changed on 2026-11-19 by the brand split: the wallet stays
+  Seams, so the packages keep the scope that they have today. The npm organisation, the trusted
+  publishers and the provenance do not change. Internal packages use `@seams-internal`, because
+  they are never published. (On 2026-11-18 the owner chose `@purin-io`, to match the
+  organisation rename that the split replaced.)
 - **D24. Six packages.** The owner chose this on 2026-11-18. The first plan had 12 published
   packages and 3 internal packages. A proposal of four packages by audience (`sdk`, `server`,
   `host`, `cli`) lost the choice of product, so the owner rejected it. The six packages follow
@@ -172,10 +172,12 @@ Decided by the owner on 2026-11-18:
   inventory](refactor-251-slice-0-inventory.md), U4). [Refactor
   252](refactor-252-email-otp-device-factor.md) makes the Email OTP factor key a device factor with
   a blinded release. A new device then needs device linking or a recovery code.
-- **D11. The repository name.** The owner decided on 2026-11-18: `seams-wallet` becomes `pay`,
-  and `seams-monorepo` becomes `purin`, together with the brand rename (D22). The GitHub
-  organisation rename of 2026-11-20 ([checklist](github-org-move-purin-io.md)) keeps the
-  repository names.
+- **D11. The repository name.** Changed on 2026-11-19 by the brand split: `seams-wallet` and
+  `seams-monorepo` keep their names and stay in `seams-tech`. (On 2026-11-18 the owner chose
+  `pay` and `purin`, together with a Purin rename of the wallet.)
+- **D22. Release A and the brand.** Decided on 2026-11-19 by the brand split: the wallet keeps
+  the Seams brand, so Release A waits for no rename. Each `@seams/...` name and each
+  "Seams ..." name in this plan is final.
 
 Open, with a recommendation:
 
@@ -193,11 +195,6 @@ Open, with a recommendation:
   names in this document are provisional.
 - **D20. A file limit for the new code.** Recommended: 1,000 lines for each file in the new
   folders. The repository limit stays 2,000 lines.
-- **D22. The brand rename and Release A.** The owner changes the brand from Seams to Purin
-  after the hackathon. Recommended: do Release A together with the brand rename, so that each
-  package gets a new name one time. For example, `@seams/wallet` then goes directly to the
-  Purin name of the MPC wallet. The product names of Purin are the owner's choice. Until then,
-  each `@seams/...` name and each "Seams ..." name in this plan stands for its Purin name.
 - **D25. A first method after recovery.** A user who recovers with a recovery code can have no
   method left, so auth has no login proof for the new method ([Slice 0
   inventory](refactor-251-slice-0-inventory.md), row 5.14). Recommended: after the recovery
@@ -685,7 +682,7 @@ Rules for the cleanup:
   - History stays: earlier release notes, `docs/evidence` and `docs/archive` keep the old
     names.
   - Tell the other sessions first. Each open branch conflicts with a rename of this size.
-  - Do not start this slice before the owner gives the Purin names (D22).
+  - The names are final (D22, D23). This slice waits for no brand rename.
 - **Slice 2: the conformance suite.** The journeys, the record fixtures and the route checks of
   Section 2, with the driver for the old API. The suite passes against the old code.
 
@@ -797,26 +794,26 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
 - **Other SSO providers.**
 - **The checkout.** See [Refactor 250](refactor-250-seams-checkout.md).
 
-## Package names after the Purin rename
+## Package names
 
-The npm scope is `@purin-io` (D23). Until the rename, this plan uses the `@seams/...` names. The
+The npm scope stays `@seams` (D23). The
 owner chose six packages for this repository (D24).
 
 | Package | Who installs it | Paths | Replaces |
 | --- | --- | --- | --- |
-| `@purin-io/auth` | App developers | `/client` (with `passkey()`, `emailCode()`, `voiceId()`), `/react`, `/server` (`verifyLoginToken`) | The auth code of `@seams/wallet` and `@seams/wallet-server`, and the page code of `@seams/voiceid` |
-| `@purin-io/mpc-wallet` | Apps with embedded wallets | `/client`, `/react`, `/server` (wallet API client) | `@seams/wallet` |
-| `@purin-io/wallet-connect` | Apps that connect existing wallets | `/client`, `/react` | `@seams/wallet/external-evm` and `external-near` |
-| `@purin-io/checkout` | Shops | `/client`, `/react`, `/stablecoin`, `/server` (orders, merchant event checks) | New ([Refactor 250](refactor-250-seams-checkout.md)) |
-| `@purin-io/host` | The operator of the services | One path for each service | `@seams/wallet-server`, and the hosting code and models of `@seams/voiceid` |
-| `@purin-io/cli` | People who recover a wallet | The recovery CLI | `@seams/wallet-cli` |
+| `@seams/auth` | App developers | `/client` (with `passkey()`, `emailCode()`, `voiceId()`), `/react`, `/server` (`verifyLoginToken`) | The auth code of `@seams/wallet` and `@seams/wallet-server`, and the page code of `@seams/voiceid` |
+| `@seams/mpc-wallet` | Apps with embedded wallets | `/client`, `/react`, `/server` (wallet API client) | `@seams/wallet` |
+| `@seams/wallet-connect` | Apps that connect existing wallets | `/client`, `/react` | `@seams/wallet/external-evm` and `external-near` |
+| `@seams/checkout` | Shops | `/client`, `/react`, `/stablecoin`, `/server` (orders, merchant event checks) | New ([Refactor 250](refactor-250-seams-checkout.md)) |
+| `@seams/host` | The operator of the services | One path for each service | `@seams/wallet-server`, and the hosting code and models of `@seams/voiceid` |
+| `@seams/cli` | People who recover a wallet | The recovery CLI | `@seams/wallet-cli` |
 
 - `/stablecoin` runs in the browser. It is the payment from the MPC wallet or a connected
   wallet.
-- Internal, never published: `frame-kit` and `shared-ts`, under `@purin-io-internal` or
+- Internal, never published: `frame-kit` and `shared-ts`, under
   `@seams-internal`.
 - speak-to-sign (not in this plan): `@seams/voice-capture`, `@seams/voice-sign` and
-  `@seams/voice-verdict` can become one package, `@purin-io/voice`, with the paths
+  `@seams/voice-verdict` can become one package, `@seams/voice`, with the paths
   `/capture`, `/sign` and `/verdict`. That is a change in that repository.
 
 ## Documents to update when the slices land
