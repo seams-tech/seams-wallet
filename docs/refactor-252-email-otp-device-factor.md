@@ -1,6 +1,7 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-18. Slices 0, 1 and 2 are done, with the POPRF of D9. Slice 3 (new devices) is next.
+Status: 2026-11-19. Slices 0, 1 and 2 are done, with the POPRF of D9, and are in the 0.75.0
+release commit. Slice 3 (new devices) is next, with the factor list of D11.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -133,6 +134,17 @@ Added by Slice 0 on 2026-11-18:
   Ed25519 warm seal under the signing-session key (per wallet and per session, with the server's
   use and time limits) and a blinded restore. The `verified_grant` branch checks the operation.
 
+Added on 2026-11-19, before Slice 3:
+
+- **D11. A factor for each Email OTP method.** Required by F15. The enrollment row of a wallet
+  keeps the email identity, the code checks and the lockouts. It holds a list of factors, one
+  for each active Email OTP auth method, at most 8. Each factor has its own S, nonce, wrapped
+  factor and pinned unlock key, and names its `walletAuthMethodId`. The row keeps one key version
+  for all its factors, because nothing rotates it (D10). The release picks the factor by the
+  device's nonce, as in Slice 2. A revoke deletes the method's factor
+  in the same commit; the row goes with the last method, as now. The record keeps its version
+  name, so an Email OTP wallet made by 0.75.0 does not open after Slice 3 and is reset (D9, D10).
+
 ## Unknowns: the answers of Slice 0
 
 Answered on 2026-11-18. The counts come from read-only queries on the 12 signer databases
@@ -170,6 +182,13 @@ Two facts from the same reading change the design:
 - **F14. The Shamir three-pass group is 1024 bits.** Both seals use `rfc2409-group2`
   (`shared-ts/src/utils/signingSessionSeal.ts:16`). With one key for all wallets, one discrete
   logarithm opens every sealed factor (D9).
+- **F15. One enrollment row and one factor for each wallet.** The primary key of
+  `email_otp_wallet_enrollments` ends with `wallet_id`, and the record holds one nonce and one
+  wrapped factor. So a device-link target gets `new_enrollment` only when the wallet has no row
+  (`target_enrollment_exists`, `d1LinkedDeviceEmailOtpTargetFactor.ts`), and the Google
+  recovery `create` path refuses a wallet that has a row (`enrollment_conflict`,
+  `prepareLinkedDeviceEnrollment`). Found on 2026-11-19. No test links an Email OTP target
+  device end to end.
 
 ## 1. The design
 
@@ -224,9 +243,18 @@ the design below.
   or enter a recovery code.
 - **Device linking.** The new device enrolls its own Email OTP factor as a new linked-device
   method. The source device reseals the seed for it over the link channel. The server releases
-  nothing, and the `email-otp-base-factor` route goes away.
+  nothing, and the `email-otp-base-factor` route goes away. With D11:
+  - A wallet with no Email OTP: `new_enrollment`, as now. The target's factor is the first one.
+  - A wallet with Email OTP: the code goes to the enrollment's address, and the install commit
+    adds the target's factor to the row. The base method choice, its iframe event and chooser,
+    and the factor release envelope go away.
 - **A recovery code.** The code opens the seed (F8). The device then enrolls a new owner Email
-  OTP factor. Google recovery releases no S, and that release (F3) goes away.
+  OTP factor. Google recovery releases no S, and that release (F3) goes away. With D11, the
+  `existing` target adds the recovered method's factor to the row, and `create` makes the row.
+  The factors of other devices stay, as the other methods of a recovered wallet stay.
+- **The menu.** The Email OTP worker answers whether the device holds a factor for the wallet.
+  If it does not, a Google sign-in requests no code and shows the existing "Link this device"
+  and "Recover wallet" choices.
 
 ### Existing wallets
 
@@ -271,6 +299,10 @@ the user asks for a new code.
   factor. Done on 2026-11-18 with the POPRF. The new-device paths refuse until Slice 3.
 - **Slice 3: new devices.** The sign-in-only state with its two choices in the menu (English and
   Japanese text), device linking with the target's own factor, and recovery with no release.
+  Order: 3a the factor list of D11 (server record, registration, release, revoke); 3b recovery;
+  3c device linking; 3d the menu. Each part ships its behaviour test. The Email OTP behaviour
+  tests need a fresh Google ID token (`pnpm ensure:intended-google-token`, which needs
+  `gcloud` or the service account).
 - **Slice 4: the release.** seams-monorepo in one coordinated commit if U4 needs it. The wallet,
   `wallet-server` and the seams-monorepo site ship together. Staging first, then production.
   The release notes carry the self-hosted note of D10. When seams-monorepo installs the new
