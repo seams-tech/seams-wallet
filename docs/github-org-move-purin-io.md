@@ -129,11 +129,18 @@ container image `speaker-service`.
 
 ## After the rename
 
-9. **Update each git remote.** In each local clone and each worktree:
+9. **Update each git remote.** A worktree uses the remote of its clone, so only the clones
+   change. On 2026-11-19 six clones on the owner's Mac named `seams-tech`, each in `origin`:
+   `~/Dev/rust/seams-wallet`, `~/Dev/rust/seams-monorepo`, `~/Dev/rust/speak-to-sign`,
+   `~/Dev/purin-io/pantry`, `~/Dev/lowerarchy/satyr` and `~/Dev/lowerarchy/seams-atelier`
+   (`pantry-history`). No submodule and no global Git setting names the organisation. This
+   command finds each clone under `~/Dev` and changes its remote:
 
    ```bash
-   git remote set-url origin https://github.com/purin-io/<repository>.git
+   find ~/Dev -maxdepth 5 -name .git -type d -not -path '*/node_modules/*' | while read -r g; do d=${g%/.git}; u=$(git -C "$d" remote get-url origin 2>/dev/null) || continue; case "$u" in *github.com/seams-tech/*) git -C "$d" remote set-url origin "${u/github.com\/seams-tech\//github.com/purin-io/}" && echo "$d -> $(git -C "$d" remote get-url origin)";; esac; done
    ```
+
+   Then `git fetch` in each clone must work with no redirect.
 
    The owner also plans to move the local clones to `/Users/pta/Dev/purin-io`. Move each
    folder with `mv`. Do not make a fresh clone: Git ignores the build outputs, the linked WASM
