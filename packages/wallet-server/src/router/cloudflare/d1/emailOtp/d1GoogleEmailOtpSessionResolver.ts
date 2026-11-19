@@ -70,10 +70,6 @@ type GoogleEmailOtpIdentityLinker = (input: {
   readonly allowMoveIfSoleIdentity?: boolean;
 }) => Promise<LinkIdentityResult>;
 
-type CompleteGoogleEmailOtpRegistrationAttemptResult =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly code: string; readonly message: string };
-
 export class CloudflareD1GoogleEmailOtpSessionResolver {
   private readonly emailOtpEnrollments: CloudflareD1EmailOtpEnrollmentStore;
   private readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
@@ -264,22 +260,6 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
 
   completeCommittedRegistrationAttempt(input: { readonly registrationAttemptId: string; readonly walletId: string; readonly intentDigest: string }) {
     return this.registrationAttempts.completeCommitted({ attemptId: input.registrationAttemptId, walletId: input.walletId, intentDigest: input.intentDigest });
-  }
-
-  async completeRegistrationAttempt(input: {
-    readonly registrationAttemptId?: unknown;
-    readonly walletId?: unknown;
-  }): Promise<CompleteGoogleEmailOtpRegistrationAttemptResult> {
-    const registrationAttemptId = toOptionalTrimmedString(input.registrationAttemptId);
-    if (!registrationAttemptId) return { ok: true };
-    const walletId = parseD1BoundaryWalletIdResult(input.walletId);
-    if (!walletId.ok) {
-      return failure(
-        'invalid_body',
-        walletId.code === 'missing' ? 'Missing walletId' : 'Invalid walletId',
-      );
-    }
-    return this.registrationAttempts.complete({ attemptId: registrationAttemptId, walletId: walletId.value });
   }
 
   async validateRegistrationCandidateWallet(

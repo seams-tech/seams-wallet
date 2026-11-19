@@ -2076,6 +2076,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     }
     const prepared = await finalizer.prepareLinkedDeviceEnrollment({
       walletId: String(input.walletId),
+      walletAuthMethodId: String(input.targetFactor.authMethod.walletAuthMethodId),
       orgId: this.options.scope.orgId,
       authSubjectId: input.targetFactor.providerUserId,
       verifiedEmail: input.targetFactor.targetEmail,

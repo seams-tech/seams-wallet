@@ -18,29 +18,36 @@ type EmailOtpFactorFailure = {
   readonly message: string;
 };
 
+type StoredEmailOtpFactor = {
+  readonly factorNonceB64u: string;
+  readonly wrappedFactorB64u: string;
+};
+
 /**
- * Picks the device factor whose nonce matches the stored enrollment. Run it
- * before a code or grant is used, so a device without the factor fails without
- * using the code.
+ * Picks the enrollment factor that this device holds: the first device factor,
+ * newest first, whose nonce names a stored factor. Run it before a code or
+ * grant is used, so a device without a factor fails without using the code.
  */
-export function selectEmailOtpDeviceFactor(input: {
-  readonly enrollment: { readonly factorNonceB64u: string };
+export function selectEmailOtpDeviceFactor<Factor extends StoredEmailOtpFactor>(input: {
+  readonly enrollment: { readonly factors: readonly Factor[] };
   readonly deviceFactors: readonly EmailOtpDeviceFactorBlindV1[];
-}): { readonly ok: true; readonly blindedElementB64u: string } | EmailOtpFactorFailure {
-  const match = input.deviceFactors.find(
-    (factor) => factor.factorNonceB64u === input.enrollment.factorNonceB64u,
-  );
-  if (!match) {
-    return failure(
-      'email_otp_device_factor_missing',
-      'This device has no Email OTP factor for this wallet. Use the recovery code, or link this device from one that has the wallet.',
+}):
+  | { readonly ok: true; readonly factor: Factor; readonly blindedElementB64u: string }
+  | EmailOtpFactorFailure {
+  for (const deviceFactor of input.deviceFactors) {
+    const factor = input.enrollment.factors.find(
+      (stored) => stored.factorNonceB64u === deviceFactor.factorNonceB64u,
     );
+    if (factor) return { ok: true, factor, blindedElementB64u: deviceFactor.blindedElementB64u };
   }
-  return { ok: true, blindedElementB64u: match.blindedElementB64u };
+  return failure(
+    'email_otp_device_factor_missing',
+    'This device has no Email OTP factor for this wallet. Use the recovery code, or link this device from one that has the wallet.',
+  );
 }
 
 /**
- * Evaluates the stored factor for the device's blinded input. The response
+ * Evaluates the selected factor for the device's blinded input. The response
  * carries S encrypted under the device's OPRF output, which only the device
  * can compute, so the server never holds or sends S.
  */
@@ -50,9 +57,8 @@ export async function evaluateEmailOtpFactorForDevice(input: {
   readonly enrollment: {
     readonly enrollmentId: string;
     readonly enrollmentSealKeyVersion: string;
-    readonly factorNonceB64u: string;
-    readonly wrappedFactorB64u: string;
   };
+  readonly factor: StoredEmailOtpFactor;
   readonly blindedElementB64u: string;
   readonly challengeId: string;
 }): Promise<
@@ -61,7 +67,7 @@ export async function evaluateEmailOtpFactorForDevice(input: {
   const evaluated = await input.factorKey.evaluateEmailOtpFactor({
     walletId: input.walletId,
     enrollmentId: input.enrollment.enrollmentId,
-    factorNonceB64u: input.enrollment.factorNonceB64u,
+    factorNonceB64u: input.factor.factorNonceB64u,
     enrollmentSealKeyVersion: input.enrollment.enrollmentSealKeyVersion,
     blindedElementB64u: input.blindedElementB64u,
   });
@@ -73,11 +79,11 @@ export async function evaluateEmailOtpFactorForDevice(input: {
       challengeId: input.challengeId,
       enrollmentId: input.enrollment.enrollmentId,
       enrollmentSealKeyVersion: input.enrollment.enrollmentSealKeyVersion,
-      factorNonceB64u: input.enrollment.factorNonceB64u,
+      factorNonceB64u: input.factor.factorNonceB64u,
       publicKeyB64u: evaluated.publicKeyB64u,
       evaluatedElementB64u: evaluated.evaluatedElementB64u,
       proofB64u: evaluated.proofB64u,
-      wrappedFactorB64u: input.enrollment.wrappedFactorB64u,
+      wrappedFactorB64u: input.factor.wrappedFactorB64u,
     },
   };
 }

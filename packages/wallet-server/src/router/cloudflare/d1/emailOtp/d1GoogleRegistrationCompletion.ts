@@ -13,30 +13,15 @@ const PENDING_OFFER = `SELECT * FROM email_otp_registration_attempts
 export async function completeGoogleRegistration(
   prepare: ScopedD1Prepare,
   batch: D1DatabaseLike['batch'],
-  input:
-    | {
-        readonly kind: 'live_offer';
-        readonly attemptId: string;
-        readonly walletId: string;
-        readonly intentDigest?: never;
-      }
-    | {
-        readonly kind: 'committed_wallet';
-        readonly attemptId: string;
-        readonly walletId: string;
-        readonly intentDigest: string;
-      },
+  input: {
+    readonly attemptId: string;
+    readonly walletId: string;
+    readonly intentDigest: string;
+  },
 ): Promise<GoogleRegistrationCompletionResult> {
   const nowMs = Date.now();
-  const eligibility =
-    input.kind === 'live_offer'
-      ? `${PENDING_OFFER} AND expires_at_ms > ?`
-      : `${PENDING_OFFER} AND selection_digest = ?`;
-  const scopeValues = [
-    input.attemptId,
-    input.walletId,
-    input.kind === 'live_offer' ? nowMs : input.intentDigest,
-  ];
+  const eligibility = `${PENDING_OFFER} AND selection_digest = ?`;
+  const scopeValues = [input.attemptId, input.walletId, input.intentDigest];
   const results = await batch<D1ResultLike<{ readonly completed: number }>>([
     prepare(
       `WITH offer AS (${eligibility})
@@ -84,11 +69,8 @@ export async function completeGoogleRegistration(
         AND link.subject = 'wallet:' || offer.provider_subject AND link.user_id = offer.wallet_id
       WHERE offer.namespace = ? AND offer.org_id = ? AND offer.project_id = ? AND offer.env_id = ?
         AND offer.attempt_id = ? AND offer.wallet_id = ?
-        AND offer.selection_digest IS NOT NULL AND offer.state = 'active'
-        ${input.kind === 'committed_wallet' ? 'AND offer.selection_digest = ?' : ''}`,
-      input.kind === 'committed_wallet'
-        ? [input.attemptId, input.walletId, input.intentDigest]
-        : [input.attemptId, input.walletId],
+        AND offer.state = 'active' AND offer.selection_digest = ?`,
+      [input.attemptId, input.walletId, input.intentDigest],
     ),
   ]);
   if (results.some(batchFailed)) throw new Error('Registration completion transaction failed');

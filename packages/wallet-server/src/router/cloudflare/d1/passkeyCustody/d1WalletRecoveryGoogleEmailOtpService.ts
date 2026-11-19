@@ -417,6 +417,7 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
       factorKey: this.factorKey,
       walletId: String(attempt.walletId),
       enrollment,
+      factor: deviceFactor.factor,
       blindedElementB64u: deviceFactor.blindedElementB64u,
       challengeId: attempt.challengeId,
     });
@@ -745,6 +746,7 @@ async function prepareGoogleEmailRecoveryEnrollment(input: {
     case 'create': {
       const prepared = await input.enrollmentFinalizer.prepareLinkedDeviceEnrollment({
         walletId: String(recovery.walletId),
+        walletAuthMethodId: String(recovery.targetWalletAuthMethodId),
         orgId: recovery.orgId,
         authSubjectId: recovery.providerSubject,
         verifiedEmail: recovery.verifiedEmail,

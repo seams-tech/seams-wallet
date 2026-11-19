@@ -363,7 +363,10 @@ function createD1LinkedDeviceComposition(input: {
       CloudflareD1EmailOtpChallengeVerifier,
       'verifyExisting' | 'verifyExistingForBatch' | 'verifyRegistration'
     >;
-    readonly enrollments: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
+    readonly enrollments: Pick<
+      CloudflareD1EmailOtpEnrollmentStore,
+      'readEnrollment' | 'prepareRevokedMethodStatements'
+    >;
     readonly enrollmentFinalizer: Pick<
       CloudflareD1EmailOtpRegistrationEnrollmentFinalizer,
       'prepareLinkedDeviceEnrollment'
@@ -413,6 +416,9 @@ function createD1LinkedDeviceComposition(input: {
     authorizationService: input.authorizationService,
     walletSessionAuthorizations: input.authorizationStore,
     webAuthnStore: input.webAuthnStore,
+    ...(input.emailOtpLinkedDevice
+      ? { emailOtpEnrollments: input.emailOtpLinkedDevice.enrollments }
+      : {}),
     materialDeactivation: createCloudflareOrdinaryInactiveSignerMaterialDeactivationPortV1({
       endpoint: deactivationEndpoint,
     }),
@@ -1450,11 +1456,9 @@ function createCloudflareD1RouterApiAuthAssembly(
     challenges: emailOtpChallenges,
     devOutboxEnabled: options.emailOtp.devOutboxEnabled,
     codeSeal: emailOtpServerSeal,
-    finalizer: emailOtpRegistrationEnrollmentFinalizer,
     grantTtlMs: options.emailOtp.grantTtlMs,
     grants: emailOtpGrants,
     issuer: emailOtpChallengeIssuer,
-    registrationAttempts: googleEmailOtpRegistrationAttempts,
     verifier: emailOtpChallengeVerifier,
   });
   const emailOtpRecoveryService = new CloudflareD1EmailOtpRecoveryService({

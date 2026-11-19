@@ -82,39 +82,53 @@ export class CloudflareD1EmailOtpEnrollmentStore {
   }
 
   /**
-   * Deletes the shared provider enrollment only once nothing references it.
+   * The statements that follow the revocation of an Email OTP method, in the
+   * same batch: remove the method's factor, then delete the enrollment once it
+   * has no factor or no unrevoked Email OTP method.
    *
-   * The enrollment is deliberately shared: every Email method on a wallet
-   * unwraps through it, and both active and pending methods keep pointing at
-   * one row. So revoking a method must not remove it — only the disappearance
-   * of its last reference may.
-   *
-   * The count is a predicate inside the statement rather than a read taken
-   * beforehand, so a method activating concurrently cannot lose its enrollment
-   * between the check and the delete. Sequenced after the method revocation in
-   * the same batch, the revoked method already reads as revoked here.
+   * The enrollment is shared: every Email OTP method of the wallet checks its
+   * codes through it, and each method keeps its own factor in it. So revoking
+   * one method removes only its factor. The delete tests its predicate inside
+   * the statement rather than in a read taken beforehand, so a method that
+   * activates at the same time cannot lose its enrollment between the check
+   * and the delete. Sequenced after the method revocation, the revoked method
+   * already reads as revoked here.
    */
-  prepareDeleteEnrollmentIfUnreferencedStatement(walletId: string): D1PreparedStatementLike {
-    return this.prepare(
-      `DELETE FROM email_otp_wallet_enrollments
-        WHERE namespace = ?
-          AND org_id = ?
-          AND project_id = ?
-          AND env_id = ?
-          AND wallet_id = ?
-          AND NOT EXISTS (
-            SELECT 1
-              FROM wallet_auth_methods
-             WHERE wallet_auth_methods.namespace = email_otp_wallet_enrollments.namespace
-               AND wallet_auth_methods.org_id = email_otp_wallet_enrollments.org_id
-               AND wallet_auth_methods.project_id = email_otp_wallet_enrollments.project_id
-               AND wallet_auth_methods.env_id = email_otp_wallet_enrollments.env_id
-               AND wallet_auth_methods.wallet_id = email_otp_wallet_enrollments.wallet_id
-               AND wallet_auth_methods.kind = 'email_otp'
-               AND wallet_auth_methods.status <> 'revoked'
-          )`,
-      [walletId],
-    );
+  prepareRevokedMethodStatements(input: {
+    readonly walletId: string;
+    readonly walletAuthMethodId: string;
+    readonly revokedAtMs: number;
+  }): readonly D1PreparedStatementLike[] {
+    return [
+      emailOtpWalletEnrollmentRows.removeMethodFactor(this.prepare, {
+        walletId: input.walletId,
+        walletAuthMethodId: input.walletAuthMethodId,
+        nowMs: input.revokedAtMs,
+      }),
+      this.prepare(
+        `DELETE FROM email_otp_wallet_enrollments
+          WHERE namespace = ?
+            AND org_id = ?
+            AND project_id = ?
+            AND env_id = ?
+            AND wallet_id = ?
+            AND (
+              json_array_length(record_json, '$.factors') = 0
+              OR NOT EXISTS (
+                SELECT 1
+                  FROM wallet_auth_methods
+                 WHERE wallet_auth_methods.namespace = email_otp_wallet_enrollments.namespace
+                   AND wallet_auth_methods.org_id = email_otp_wallet_enrollments.org_id
+                   AND wallet_auth_methods.project_id = email_otp_wallet_enrollments.project_id
+                   AND wallet_auth_methods.env_id = email_otp_wallet_enrollments.env_id
+                   AND wallet_auth_methods.wallet_id = email_otp_wallet_enrollments.wallet_id
+                   AND wallet_auth_methods.kind = 'email_otp'
+                   AND wallet_auth_methods.status <> 'revoked'
+              )
+            )`,
+        [input.walletId],
+      ),
+    ];
   }
 
   prepareDeleteEnrollmentStatement(walletId: string): D1PreparedStatementLike {

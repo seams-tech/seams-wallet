@@ -5630,6 +5630,7 @@ export class CloudflareD1WalletRegistrationService {
             authority: ceremonyAuthority,
             request,
             walletId: ceremony.intent.walletId,
+            walletAuthMethodId: prepared.walletAuthMethodId,
             orgId: ceremony.orgId,
             nowMs: now,
           });

@@ -14,8 +14,6 @@ import type { CloudflareD1EmailOtpChallengeStore } from './d1EmailOtpChallengeSt
 import type { CloudflareD1EmailOtpChallengeVerifier } from './d1EmailOtpChallengeVerifier';
 import type { CloudflareD1EmailOtpServerSealRuntime } from './d1EmailOtpServerSealRuntime';
 import type { CloudflareD1EmailOtpGrantStore } from './d1EmailOtpGrantStore';
-import type { CloudflareD1EmailOtpRegistrationEnrollmentFinalizer } from './d1EmailOtpRegistrationEnrollmentFinalizer';
-import type { GoogleEmailOtpRegistrationAttemptStore } from './d1GoogleEmailOtpRegistrationAttemptStore';
 
 type CreateEmailOtpChallengeInput = Parameters<
   RouterApiEmailOtpRouteService['createEmailOtpChallenge']
@@ -41,12 +39,6 @@ type VerifyEmailOtpWalletRecoveryChallengeInput = Parameters<
 type VerifyEmailOtpWalletRecoveryChallengeResult = Awaited<
   ReturnType<RouterApiEmailOtpRouteService['verifyEmailOtpWalletRecoveryChallenge']>
 >;
-type VerifyEmailOtpEnrollmentInput = Parameters<
-  RouterApiEmailOtpRouteService['verifyEmailOtpEnrollment']
->[0];
-type VerifyEmailOtpEnrollmentResult = Awaited<
-  ReturnType<RouterApiEmailOtpRouteService['verifyEmailOtpEnrollment']>
->;
 type ReadEmailOtpOutboxEntryInput = Parameters<
   RouterApiEmailOtpRouteService['readEmailOtpOutboxEntry']
 >[0];
@@ -54,19 +46,13 @@ type ReadEmailOtpOutboxEntryResult = Awaited<
   ReturnType<RouterApiEmailOtpRouteService['readEmailOtpOutboxEntry']>
 >;
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error || '');
-}
-
 export class CloudflareD1EmailOtpChallengeService {
   private readonly challenges: CloudflareD1EmailOtpChallengeStore;
   private readonly devOutboxEnabled: boolean;
   private readonly codeSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'openEmailOtpCode'>;
-  private readonly finalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
   private readonly grantTtlMs: number;
   private readonly grants: CloudflareD1EmailOtpGrantStore;
   private readonly issuer: CloudflareD1EmailOtpChallengeIssuer;
-  private readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
   private readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
   readonly prepareEmailOtpOwnerProof: RouterApiEmailOtpRouteService['prepareEmailOtpOwnerProof'];
 
@@ -74,21 +60,17 @@ export class CloudflareD1EmailOtpChallengeService {
     readonly challenges: CloudflareD1EmailOtpChallengeStore;
     readonly devOutboxEnabled: boolean;
     readonly codeSeal: Pick<CloudflareD1EmailOtpServerSealRuntime, 'openEmailOtpCode'>;
-    readonly finalizer: CloudflareD1EmailOtpRegistrationEnrollmentFinalizer;
     readonly grantTtlMs: number;
     readonly grants: CloudflareD1EmailOtpGrantStore;
     readonly issuer: CloudflareD1EmailOtpChallengeIssuer;
-    readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
     readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
   }) {
     this.challenges = input.challenges;
     this.devOutboxEnabled = input.devOutboxEnabled;
     this.codeSeal = input.codeSeal;
-    this.finalizer = input.finalizer;
     this.grantTtlMs = input.grantTtlMs;
     this.grants = input.grants;
     this.issuer = input.issuer;
-    this.registrationAttempts = input.registrationAttempts;
     this.verifier = input.verifier;
     this.prepareEmailOtpOwnerProof = prepareEmailOtpOwnerProof.bind(null, input.verifier);
   }
@@ -161,80 +143,6 @@ export class CloudflareD1EmailOtpChallengeService {
       },
       delivery: result.delivery,
     };
-  }
-
-  async verifyEmailOtpEnrollment(
-    input: VerifyEmailOtpEnrollmentInput,
-  ): Promise<VerifyEmailOtpEnrollmentResult> {
-    try {
-      const providerSubject = toOptionalTrimmedString(input.providerSubject);
-      const walletId = toOptionalTrimmedString(input.walletId);
-      const orgId = toOptionalTrimmedString(input.orgId);
-      const challengeId = toOptionalTrimmedString(input.challengeId);
-      const registrationAttemptId = toOptionalTrimmedString(
-        input.googleEmailOtpRegistrationAttemptId,
-      );
-      if (!providerSubject) {
-        return failure('invalid_body', 'Email OTP registration requires providerSubject');
-      }
-      if (!walletId) {
-        return failure('invalid_body', 'Email OTP registration requires walletId');
-      }
-      if (!orgId) {
-        return failure('invalid_body', 'Email OTP registration requires orgId');
-      }
-      if (!challengeId) {
-        return failure('invalid_body', 'Email OTP registration requires challengeId');
-      }
-
-      const proofEmail = await this.resolveRegistrationProofEmail({
-        explicitProofEmail: input.proofEmail,
-        providerSubject,
-        registrationAttemptId,
-        walletId,
-      });
-      if (!proofEmail.ok) return proofEmail;
-
-      const verified = await this.verifier.verifyRegistration({
-        providerSubject,
-        walletId,
-        orgId,
-        challengeId,
-        otpCode: input.otpCode,
-        otpChannel: input.otpChannel,
-        ownerProofBindingDigest: input.ownerProofBindingDigest,
-        proofEmail: proofEmail.email,
-        clientIp: input.clientIp,
-      });
-      if (!verified.ok) return verified;
-
-      const verifiedEmail = toOptionalTrimmedString(verified.email)?.toLowerCase() || '';
-      if (!verifiedEmail) {
-        return failure(
-          'internal',
-          'Email OTP enrollment verification did not include a verified email',
-        );
-      }
-
-      const persisted = await this.finalizer.persistVerifiedEnrollment({
-        walletId: verified.walletId,
-        orgId: verified.orgId,
-        authSubjectId: verified.challengeSubjectId,
-        verifiedEmail,
-        material: input,
-        registrationAttemptId,
-        nowMs: Date.now(),
-      });
-      if (!persisted.ok) return persisted;
-      return {
-        ok: true,
-        walletId: verified.walletId,
-        otpChannel: verified.otpChannel,
-        enrollment: persisted.enrollment,
-      };
-    } catch (error: unknown) {
-      return failure('internal', errorMessage(error) || 'Failed to verify Email OTP enrollment');
-    }
   }
 
   async verifyEmailOtpChallenge(
@@ -363,44 +271,6 @@ export class CloudflareD1EmailOtpChallengeService {
       otpCode: opened.otpCode,
       expiresAtMs: record.expiresAtMs,
     };
-  }
-
-  private async resolveRegistrationProofEmail(input: {
-    readonly explicitProofEmail: unknown;
-    readonly providerSubject: string;
-    readonly registrationAttemptId: string | undefined;
-    readonly walletId: string;
-  }): Promise<{ ok: true; email: string } | { ok: false; code: string; message: string }> {
-    let proofEmail = toOptionalTrimmedString(input.explicitProofEmail)?.toLowerCase() || '';
-    if (!input.registrationAttemptId) {
-      if (proofEmail) return { ok: true, email: proofEmail };
-      return failure('invalid_body', 'Email OTP registration requires proofEmail');
-    }
-
-    const attempt = await this.registrationAttempts.read(input.registrationAttemptId);
-    if (!attempt) {
-      return failure(
-        'registration_attempt_missing',
-        'Google Email OTP registration attempt expired or was not found',
-      );
-    }
-    if (attempt.providerSubject !== input.providerSubject) {
-      return failure(
-        'challenge_subject_mismatch',
-        'Email OTP registration attempt does not match the provider subject',
-      );
-    }
-    if (attempt.expiresAtMs <= Date.now()) {
-      return failure(
-        'registration_attempt_expired',
-        'Google Email OTP registration attempt expired',
-      );
-    }
-    if (attempt.walletId !== input.walletId) {
-      return failure('wallet_identity_mismatch', 'registrationAttemptId does not match walletId');
-    }
-    proofEmail = attempt.email.toLowerCase();
-    return { ok: true, email: proofEmail };
   }
 }
 

@@ -198,7 +198,7 @@
       "provider_user_id": "provider-user:conformance",
       "record_org_id": "conformance-org",
       "verified_email": "owner@example.test",
-      "record_json": "{\"version\":\"email_otp_wallet_enrollment_v1\",\"walletId\":\"wallet:conformance-records\",\"providerUserId\":\"provider-user:conformance\",\"orgId\":\"conformance-org\",\"verifiedEmail\":\"owner@example.test\",\"enrollmentId\":\"email-enrollment:wallet:conformance-records\",\"enrollmentVersion\":\"1\",\"enrollmentSealKeyVersion\":\"seal-v1\",\"clientUnlockPublicKeyB64u\":\"BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ\",\"unlockKeyVersion\":\"unlock-v1\",\"factorNonceB64u\":\"Li4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4\",\"wrappedFactorB64u\":\"Ly8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8v\",\"createdAtMs\":100,\"updatedAtMs\":200}",
+      "record_json": "{\"version\":\"email_otp_wallet_enrollment_v1\",\"walletId\":\"wallet:conformance-records\",\"providerUserId\":\"provider-user:conformance\",\"orgId\":\"conformance-org\",\"verifiedEmail\":\"owner@example.test\",\"enrollmentId\":\"email-enrollment:wallet:conformance-records\",\"enrollmentVersion\":\"1\",\"enrollmentSealKeyVersion\":\"seal-v1\",\"unlockKeyVersion\":\"unlock-v1\",\"factors\":[{\"walletAuthMethodId\":\"wallet-auth-method:conformance-email\",\"factorNonceB64u\":\"Li4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4\",\"wrappedFactorB64u\":\"Ly8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8vLy8v\",\"clientUnlockPublicKeyB64u\":\"BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ\",\"createdAtMs\":100}],\"createdAtMs\":100,\"updatedAtMs\":200}",
       "created_at_ms": 100,
       "updated_at_ms": 200
     }

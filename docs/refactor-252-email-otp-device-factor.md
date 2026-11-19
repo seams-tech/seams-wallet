@@ -303,6 +303,14 @@ the user asks for a new code.
   3c device linking; 3d the menu. Each part ships its behaviour test. The Email OTP behaviour
   tests need a fresh Google ID token (`pnpm ensure:intended-google-token`, which needs
   `gcloud` or the service account).
+  - 3a, written on 2026-11-19: the record holds `factors`; the release, the step-up and the
+    unlock proof pick their factor; registration, an added method, a linked device and Google
+    recovery name the factor by the new method. The owner revoke and the linked-device revoke
+    remove the method's factor, and the row goes with its last factor or method. The unused
+    `verifyEmailOtpEnrollment` path is deleted. No wire change. Unit tests:
+    `emailOtpEnrollmentFactors.unit.test.ts`.
+  - Left for 3c: the add-method `existing_enrollment` target makes a method with no factor. No
+    client sends it today; 3c gives it its own factor or deletes it.
 - **Slice 4: the release.** seams-monorepo in one coordinated commit if U4 needs it. The wallet,
   `wallet-server` and the seams-monorepo site ship together. Staging first, then production.
   The release notes carry the self-hosted note of D10. When seams-monorepo installs the new

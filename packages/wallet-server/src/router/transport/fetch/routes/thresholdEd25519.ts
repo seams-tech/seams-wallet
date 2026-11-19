@@ -308,6 +308,8 @@ type EmailOtpFactorEvaluationRequest = {
   readonly enrollment: {
     readonly enrollmentId: string;
     readonly enrollmentSealKeyVersion: string;
+  };
+  readonly factor: {
     readonly factorNonceB64u: string;
     readonly wrappedFactorB64u: string;
   };
@@ -1241,8 +1243,10 @@ async function issueEd25519OperationStepUpGrant(input: {
           enrollment: {
             enrollmentId: enrollment.enrollment.enrollmentId,
             enrollmentSealKeyVersion: enrollment.enrollment.enrollmentSealKeyVersion,
-            factorNonceB64u: enrollment.enrollment.factorNonceB64u,
-            wrappedFactorB64u: enrollment.enrollment.wrappedFactorB64u,
+          },
+          factor: {
+            factorNonceB64u: deviceFactor.factor.factorNonceB64u,
+            wrappedFactorB64u: deviceFactor.factor.wrappedFactorB64u,
           },
           blindedElementB64u: deviceFactor.blindedElementB64u,
         };
@@ -1374,14 +1378,16 @@ async function issueEd25519OperationStepUpGrant(input: {
     if (!currentEnrollment.ok) {
       return json(currentEnrollment, { status: emailOtpStatusCode(currentEnrollment.code) });
     }
+    const pendingFactor = pendingFactorRelease.factor;
     if (
       currentEnrollment.enrollment.enrollmentId !== pendingFactorRelease.enrollment.enrollmentId ||
       currentEnrollment.enrollment.enrollmentSealKeyVersion !==
         pendingFactorRelease.enrollment.enrollmentSealKeyVersion ||
-      currentEnrollment.enrollment.factorNonceB64u !==
-        pendingFactorRelease.enrollment.factorNonceB64u ||
-      currentEnrollment.enrollment.wrappedFactorB64u !==
-        pendingFactorRelease.enrollment.wrappedFactorB64u
+      !currentEnrollment.enrollment.factors.some(
+        (factor) =>
+          factor.factorNonceB64u === pendingFactor.factorNonceB64u &&
+          factor.wrappedFactorB64u === pendingFactor.wrappedFactorB64u,
+      )
     ) {
       return json(
         {
@@ -1396,6 +1402,7 @@ async function issueEd25519OperationStepUpGrant(input: {
       factorKey: input.ctx.service.emailOtp,
       walletId: authenticated.session.walletId,
       enrollment: pendingFactorRelease.enrollment,
+      factor: pendingFactor,
       blindedElementB64u: pendingFactorRelease.blindedElementB64u,
       challengeId: factorReleaseChallengeId,
     });

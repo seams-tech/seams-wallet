@@ -134,10 +134,19 @@ function sameEmailOtpWalletEnrollmentRecordV1(
     left.enrollmentId === right.enrollmentId &&
     left.enrollmentVersion === right.enrollmentVersion &&
     left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion &&
-    left.clientUnlockPublicKeyB64u === right.clientUnlockPublicKeyB64u &&
     left.unlockKeyVersion === right.unlockKeyVersion &&
-    left.factorNonceB64u === right.factorNonceB64u &&
-    left.wrappedFactorB64u === right.wrappedFactorB64u &&
+    left.factors.length === right.factors.length &&
+    left.factors.every((factor, index) => {
+      const other = right.factors[index];
+      return (
+        other !== undefined &&
+        factor.walletAuthMethodId === other.walletAuthMethodId &&
+        factor.factorNonceB64u === other.factorNonceB64u &&
+        factor.wrappedFactorB64u === other.wrappedFactorB64u &&
+        factor.clientUnlockPublicKeyB64u === other.clientUnlockPublicKeyB64u &&
+        factor.createdAtMs === other.createdAtMs
+      );
+    }) &&
     left.createdAtMs === right.createdAtMs &&
     left.updatedAtMs === right.updatedAtMs
   );

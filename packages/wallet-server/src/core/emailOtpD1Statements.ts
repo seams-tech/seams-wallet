@@ -196,6 +196,44 @@ export const emailOtpWalletEnrollmentRows = {
           AND wallet_id = ?`,
       [walletId],
     ),
+
+  /** Removes the factor of one Email OTP method from the wallet's enrollment. */
+  removeMethodFactor: (
+    prepare: ScopedD1Prepare,
+    input: {
+      readonly walletId: string;
+      readonly walletAuthMethodId: string;
+      readonly nowMs: number;
+    },
+  ) =>
+    prepare(
+      `WITH scope AS (SELECT ? AS namespace, ? AS org_id, ? AS project_id, ? AS env_id)
+    UPDATE email_otp_wallet_enrollments
+    SET record_json = json_set(record_json,
+        '$.factors', (
+          SELECT json_group_array(json(value))
+          FROM json_each(record_json, '$.factors')
+          WHERE json_extract(value, '$.walletAuthMethodId') <> ?
+        ),
+        '$.updatedAtMs', MAX(updated_at_ms, ?)),
+      updated_at_ms = MAX(updated_at_ms, ?)
+    WHERE namespace = (SELECT namespace FROM scope)
+      AND org_id = (SELECT org_id FROM scope)
+      AND project_id = (SELECT project_id FROM scope)
+      AND env_id = (SELECT env_id FROM scope)
+      AND wallet_id = ?
+      AND EXISTS (
+        SELECT 1 FROM json_each(record_json, '$.factors')
+        WHERE json_extract(value, '$.walletAuthMethodId') = ?
+      )`,
+      [
+        input.walletAuthMethodId,
+        input.nowMs,
+        input.nowMs,
+        input.walletId,
+        input.walletAuthMethodId,
+      ],
+    ),
 };
 
 /** Statements on `email_otp_auth_states`. */

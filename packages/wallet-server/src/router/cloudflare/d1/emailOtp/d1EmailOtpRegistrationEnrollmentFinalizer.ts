@@ -79,6 +79,8 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
     readonly authority: RegistrationAuthority;
     readonly request: { readonly emailOtpEnrollment?: unknown };
     readonly walletId: WalletId;
+    /** The Email OTP method that this registration creates; it names the first factor. */
+    readonly walletAuthMethodId: string;
     readonly orgId: string;
     readonly nowMs: number;
   }): Promise<EnrollmentResult> {
@@ -112,24 +114,13 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
     }
     return await this.buildPersistence({
       walletId: input.walletId,
+      walletAuthMethodId: input.walletAuthMethodId,
       orgId: input.orgId,
       authSubjectId: input.authority.providerSubject,
       verifiedEmail: input.authority.email,
       material,
       nowMs: input.nowMs,
     });
-  }
-
-  async persistPrepared(
-    persistence: D1EmailOtpRegistrationEnrollmentPersistence,
-  ): Promise<{ readonly ok: true }> {
-    await this.emailOtpEnrollments.putEnrollment(persistence.enrollment);
-    await this.emailOtpEnrollments.resetAuthStateForEnrollment({
-      enrollment: persistence.enrollment,
-      existingState: persistence.existingAuthState,
-      updatedAtMs: persistence.enrollment.updatedAtMs,
-    });
-    return { ok: true };
   }
 
   prepareRegistrationCommitPlan(
@@ -167,42 +158,6 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
     }
   }
 
-  async persistVerifiedEnrollment(input: {
-    readonly walletId: string;
-    readonly orgId: string;
-    readonly authSubjectId: string;
-    readonly verifiedEmail: string;
-    readonly material: EmailOtpEnrollmentMaterialBoundaryInput;
-    readonly registrationAttemptId?: string;
-    readonly nowMs: number;
-  }) {
-    if (!(await this.emailOtpEnrollments.signerWalletExists(input.walletId))) {
-      return {
-        ok: false as const,
-        code: 'wallet_registration_incomplete',
-        message: 'Email OTP enrollment requires a canonical wallet',
-      };
-    }
-    const prepared = await this.buildPersistence(input);
-    if (!prepared.ok) return prepared;
-    await this.persistPrepared(prepared.persistence);
-    const completed = await this.googleEmailOtpSessions.completeRegistrationAttempt({
-      registrationAttemptId: input.registrationAttemptId,
-      walletId: input.walletId,
-    });
-    if (!completed.ok) return completed;
-    const enrollment = prepared.persistence.enrollment;
-    return {
-      ok: true as const,
-      enrollment: {
-        createdAtMs: enrollment.createdAtMs,
-        updatedAtMs: enrollment.updatedAtMs,
-        enrollmentSealKeyVersion: enrollment.enrollmentSealKeyVersion,
-        unlockKeyVersion: enrollment.unlockKeyVersion,
-      },
-    };
-  }
-
   /**
    * The enrollment statements for a wallet's first Email OTP method, to commit
    * in the batch that inserts that method.
@@ -215,6 +170,7 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
    */
   async prepareAddedAuthMethodEnrollment(input: {
     readonly walletId: string;
+    readonly walletAuthMethodId: string;
     readonly orgId: string;
     readonly authSubjectId: string;
     readonly verifiedEmail: string;
@@ -244,6 +200,7 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
    */
   async prepareLinkedDeviceEnrollment(input: {
     readonly walletId: string;
+    readonly walletAuthMethodId: string;
     readonly orgId: string;
     readonly authSubjectId: string;
     readonly verifiedEmail: string;
@@ -289,6 +246,7 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
 
   private async buildPersistence(input: {
     readonly walletId: string;
+    readonly walletAuthMethodId: string;
     readonly orgId: string;
     readonly authSubjectId: string;
     readonly verifiedEmail: string;
@@ -302,9 +260,10 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
     if (!material.ok) return material;
     const orgId = toOptionalTrimmedString(input.orgId) || '';
     const walletId = toOptionalTrimmedString(input.walletId) || '';
+    const walletAuthMethodId = toOptionalTrimmedString(input.walletAuthMethodId) || '';
     const authSubjectId = toOptionalTrimmedString(input.authSubjectId) || '';
     const verifiedEmail = toOptionalTrimmedString(input.verifiedEmail)?.toLowerCase() || '';
-    if (!orgId || !walletId || !authSubjectId || !verifiedEmail) {
+    if (!orgId || !walletId || !walletAuthMethodId || !authSubjectId || !verifiedEmail) {
       return failure(
         'invalid_body',
         'Email OTP registration enrollment requires wallet, org, and email identity',
@@ -321,10 +280,16 @@ export class CloudflareD1EmailOtpRegistrationEnrollmentFinalizer {
       enrollmentId: emailOtpDeviceEnrollmentId(walletId, authSubjectId),
       enrollmentVersion: EMAIL_OTP_INITIAL_ENROLLMENT_VERSION,
       enrollmentSealKeyVersion: material.enrollmentSealKeyVersion,
-      clientUnlockPublicKeyB64u: material.clientUnlockPublicKeyB64u,
       unlockKeyVersion: material.unlockKeyVersion,
-      factorNonceB64u: material.factorNonceB64u,
-      wrappedFactorB64u: material.wrappedFactorB64u,
+      factors: [
+        {
+          walletAuthMethodId,
+          factorNonceB64u: material.factorNonceB64u,
+          wrappedFactorB64u: material.wrappedFactorB64u,
+          clientUnlockPublicKeyB64u: material.clientUnlockPublicKeyB64u,
+          createdAtMs: input.nowMs,
+        },
+      ],
       createdAtMs: existing?.createdAtMs ?? input.nowMs,
       updatedAtMs: input.nowMs,
     };

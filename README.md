@@ -17,7 +17,7 @@ Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `25.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK and VoiceID plugin use version **0.74.0**.
+The browser SDK, server SDK and VoiceID plugin use version **0.75.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -26,6 +26,11 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## Next release (not released yet)
+
+- Email OTP: the enrollment of a wallet keeps one factor for each Email OTP method, each with its own nonce, wrapped factor and pinned unlock key. The release picks the factor whose nonce the device sends. A revoke removes the method's factor in the same commit, also when a linked device is revoked, and the enrollment goes with its last factor or method. This prepares each new device to get its own factor.
+- Reset: Email OTP wallets made by 0.75.0 do not open after the upgrade, because the stored enrollment changed.
 
 ## Release 0.75.0
 

@@ -86,6 +86,27 @@ export type EmailOtpGrantRecord = {
   expiresAtMs: number;
 };
 
+/** The most factors one enrollment holds: one for each active Email OTP method. */
+export const EMAIL_OTP_ENROLLMENT_FACTOR_LIMIT = 8;
+
+/**
+ * The factor of one Email OTP method. Each method has its own S, wrapped under
+ * the POPRF output for an input that only its device holds, and its own pinned
+ * unlock key from S. The release picks the factor by the device's nonce.
+ */
+export type EmailOtpEnrollmentFactorRecord = {
+  walletAuthMethodId: string;
+  factorNonceB64u: string;
+  wrappedFactorB64u: string;
+  clientUnlockPublicKeyB64u: string;
+  createdAtMs: number;
+};
+
+/**
+ * The Email OTP enrollment of a wallet: one email identity, its code checks and
+ * lockouts, and the factors of its Email OTP methods. All factors use the
+ * enrollment's key version.
+ */
 export type EmailOtpWalletEnrollmentRecord = {
   version: 'email_otp_wallet_enrollment_v1';
   walletId: string;
@@ -95,10 +116,8 @@ export type EmailOtpWalletEnrollmentRecord = {
   enrollmentId: string;
   enrollmentVersion: string;
   enrollmentSealKeyVersion: string;
-  clientUnlockPublicKeyB64u: string;
   unlockKeyVersion: string;
-  factorNonceB64u: string;
-  wrappedFactorB64u: string;
+  factors: readonly EmailOtpEnrollmentFactorRecord[];
   createdAtMs: number;
   updatedAtMs: number;
 };

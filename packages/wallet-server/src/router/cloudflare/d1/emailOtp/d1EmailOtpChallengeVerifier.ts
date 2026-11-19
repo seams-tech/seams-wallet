@@ -256,13 +256,11 @@ export class CloudflareD1EmailOtpChallengeVerifier {
     return await this.emailOtpEnrollments.readEnrollment(walletId);
   }
 
-  /**
-   * The shared provider enrollment's delete, conditional on its reference count
-   * reaching zero. Exposed as a statement so it commits in the same batch as
-   * the method revocation that may have removed its last reference.
-   */
-  prepareDeleteEnrollmentIfUnreferencedStatement(walletId: string): D1PreparedStatementLike {
-    return this.emailOtpEnrollments.prepareDeleteEnrollmentIfUnreferencedStatement(walletId);
+  /** See `CloudflareD1EmailOtpEnrollmentStore.prepareRevokedMethodStatements`. */
+  prepareRevokedMethodStatements(
+    input: Parameters<CloudflareD1EmailOtpEnrollmentStore['prepareRevokedMethodStatements']>[0],
+  ): readonly D1PreparedStatementLike[] {
+    return this.emailOtpEnrollments.prepareRevokedMethodStatements(input);
   }
 
   async verifyExisting(

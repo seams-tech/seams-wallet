@@ -173,8 +173,8 @@ async function writeAuthRecords(database: D1DatabaseLike): Promise<void> {
       challengeB64u: base64UrlEncode(new Uint8Array(32).fill(46)),
     },
   });
-  // An enrollment row as the code makes it: the server keeps the factor nonce and the wrapped
-  // factor, never the factor itself.
+  // An enrollment row as the code makes it: for each Email OTP method the server keeps the
+  // factor nonce and the wrapped factor, never the factor itself.
   await enrollmentStore(database).putEnrollment({
     version: 'email_otp_wallet_enrollment_v1',
     walletId: WALLET_ID,
@@ -184,10 +184,16 @@ async function writeAuthRecords(database: D1DatabaseLike): Promise<void> {
     enrollmentId: `email-enrollment:${WALLET_ID}`,
     enrollmentVersion: '1',
     enrollmentSealKeyVersion: 'seal-v1',
-    clientUnlockPublicKeyB64u: base64UrlEncode(new Uint8Array(65).fill(4)),
     unlockKeyVersion: 'unlock-v1',
-    factorNonceB64u: base64UrlEncode(new Uint8Array(32).fill(46)),
-    wrappedFactorB64u: base64UrlEncode(new Uint8Array(48).fill(47)),
+    factors: [
+      {
+        walletAuthMethodId: 'wallet-auth-method:conformance-email',
+        factorNonceB64u: base64UrlEncode(new Uint8Array(32).fill(46)),
+        wrappedFactorB64u: base64UrlEncode(new Uint8Array(48).fill(47)),
+        clientUnlockPublicKeyB64u: base64UrlEncode(new Uint8Array(65).fill(4)),
+        createdAtMs: 100,
+      },
+    ],
     createdAtMs: 100,
     updatedAtMs: 200,
   });

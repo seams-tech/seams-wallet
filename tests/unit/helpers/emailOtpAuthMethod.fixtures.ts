@@ -67,6 +67,7 @@ export function buildEmailOtpEnrollmentFixture(input: {
   readonly providerUserId: string;
   readonly email: string;
   readonly nowMs: number;
+  readonly walletAuthMethodId?: string;
 }): import('../../../packages/wallet-server/src/core/EmailOtpStores').EmailOtpWalletEnrollmentRecord {
   return {
     version: 'email_otp_wallet_enrollment_v1',
@@ -77,10 +78,17 @@ export function buildEmailOtpEnrollmentFixture(input: {
     enrollmentId: `email-enrollment:${input.walletId}`,
     enrollmentVersion: '1',
     enrollmentSealKeyVersion: 'test-seal-v1',
-    clientUnlockPublicKeyB64u: 'dGVzdC1wdWJsaWMta2V5',
     unlockKeyVersion: 'test-unlock-v1',
-    factorNonceB64u: 'CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg',
-    wrappedFactorB64u: 'CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJ',
+    factors: [
+      {
+        walletAuthMethodId: input.walletAuthMethodId ?? `wallet-auth-method:email-${input.walletId}`,
+        factorNonceB64u: 'CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg',
+        wrappedFactorB64u:
+          'CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJ',
+        clientUnlockPublicKeyB64u: 'dGVzdC1wdWJsaWMta2V5',
+        createdAtMs: input.nowMs,
+      },
+    ],
     createdAtMs: input.nowMs,
     updatedAtMs: input.nowMs,
   };

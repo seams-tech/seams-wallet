@@ -38,21 +38,12 @@ export class CloudflareD1GoogleEmailOtpRegistrationAttemptStore {
     this.batch = input.batch;
   }
 
-  complete(input: { readonly attemptId: string; readonly walletId: string }) {
-    return completeGoogleRegistration(this.prepare, this.batch, {
-      kind: 'live_offer',
-      attemptId: input.attemptId,
-      walletId: input.walletId,
-    });
-  }
-
   completeCommitted(input: {
     readonly attemptId: string;
     readonly walletId: string;
     readonly intentDigest: string;
   }) {
     return completeGoogleRegistration(this.prepare, this.batch, {
-      kind: 'committed_wallet',
       attemptId: input.attemptId,
       walletId: input.walletId,
       intentDigest: input.intentDigest,

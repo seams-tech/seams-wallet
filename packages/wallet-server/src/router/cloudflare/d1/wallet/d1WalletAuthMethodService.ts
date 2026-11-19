@@ -1741,6 +1741,7 @@ export class CloudflareD1WalletAuthMethodService {
         }
         const prepared = await this.emailOtpEnrollmentFinalizer.prepareAddedAuthMethodEnrollment({
           walletId: String(input.walletId),
+          walletAuthMethodId: String(input.ceremony.targetWalletAuthMethodId),
           orgId: input.ceremony.orgId,
           authSubjectId: String(input.ceremony.authority.providerSubject),
           verifiedEmail: String(input.ceremony.authority.email),
@@ -2716,14 +2717,14 @@ export class CloudflareD1WalletAuthMethodService {
             committedAtMs: Date.now(),
           }),
           /* Last, so the reference count it tests already excludes the method
-             this batch just revoked. The shared provider enrollment survives
-             every revocation but the one that removes its final reference. */
+             this batch just revoked. The revoked method's factor goes; the
+             shared enrollment goes only with its last factor or method. */
           ...(targetMethod.kind === 'email_otp'
-            ? [
-                this.emailOtpChallengeVerifier.prepareDeleteEnrollmentIfUnreferencedStatement(
-                  String(walletId),
-                ),
-              ]
+            ? this.emailOtpChallengeVerifier.prepareRevokedMethodStatements({
+                walletId: String(walletId),
+                walletAuthMethodId: String(input.targetWalletAuthMethodId),
+                revokedAtMs: input.requestedAtMs,
+              })
             : []),
         ],
       });

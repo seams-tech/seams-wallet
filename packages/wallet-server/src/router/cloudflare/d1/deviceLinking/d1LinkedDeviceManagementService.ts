@@ -14,6 +14,7 @@ import {
   type D1WalletAuthorityStoreScope,
 } from '../wallet/d1WalletAuthorityStore';
 import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
+import type { CloudflareD1EmailOtpEnrollmentStore } from '../emailOtp/d1EmailOtpEnrollmentStore';
 import type { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
 
 export function createD1LinkedDeviceManagementServiceV1(input: {
@@ -28,6 +29,11 @@ export function createD1LinkedDeviceManagementServiceV1(input: {
     | 'prepareRetireWalletSessionAuthorizationsV2ForAuthority'
   >;
   readonly webAuthnStore: CloudflareD1WebAuthnStore;
+  /** Removes a revoked Email OTP method's factor; absent when Email OTP is off. */
+  readonly emailOtpEnrollments?: Pick<
+    CloudflareD1EmailOtpEnrollmentStore,
+    'prepareRevokedMethodStatements'
+  >;
   readonly materialDeactivation?: OrdinaryInactiveSignerMaterialDeactivationPortV1;
 }): LinkedDeviceManagementServiceV1 {
   return new LinkedDeviceManagementServiceV1({
@@ -37,6 +43,7 @@ export function createD1LinkedDeviceManagementServiceV1(input: {
       store: input.authorityStore,
       tenantId: input.tenantId,
       walletSessionAuthorizations: input.walletSessionAuthorizations,
+      ...(input.emailOtpEnrollments ? { emailOtpEnrollments: input.emailOtpEnrollments } : {}),
     }),
     authMethod: authMethodPortV1(input.authMethodStore),
     sessions: input.authorizationService,
@@ -81,6 +88,10 @@ function authorityPortV1(input: {
     CloudflareD1AuthorizationStore,
     'prepareRetireWalletSessionAuthorizationsV2ForAuthority'
   >;
+  readonly emailOtpEnrollments?: Pick<
+    CloudflareD1EmailOtpEnrollmentStore,
+    'prepareRevokedMethodStatements'
+  >;
 }): ConstructorParameters<typeof LinkedDeviceManagementServiceV1>[0]['authority'] {
   return {
     listActiveForWalletV1: async ({ walletId, limit, cursor }) => {
@@ -124,6 +135,12 @@ function authorityPortV1(input: {
               nowMs: request.requestedAtMs,
             },
           ),
+          // After the method update, so a revoked Email OTP method loses its factor.
+          ...(input.emailOtpEnrollments?.prepareRevokedMethodStatements({
+            walletId: String(request.walletId),
+            walletAuthMethodId: String(request.walletAuthMethodId),
+            revokedAtMs: request.requestedAtMs,
+          }) ?? []),
           ...(commit?.statements ?? []),
         ],
         trailingStatements: commit?.trailingStatements ?? [],

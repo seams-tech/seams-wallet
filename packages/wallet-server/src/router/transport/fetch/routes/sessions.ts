@@ -1313,6 +1313,7 @@ export async function handleWalletEmailOtpFactorRelease(
     factorKey: ctx.service.emailOtp,
     walletId: String(walletId.value),
     enrollment: enrollment.enrollment,
+    factor: deviceFactor.factor,
     blindedElementB64u: deviceFactor.blindedElementB64u,
     challengeId: factorReleaseChallengeId,
   });

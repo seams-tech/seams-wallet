@@ -385,14 +385,15 @@ export class CloudflareD1EmailOtpRecoveryService {
       if (!signature) {
         return failedVerification('invalid_body', 'unlockProof.signature must decode to 65 bytes');
       }
-      const enrolledPublicKey = decodeFixedBase64Url(
-        enrollment.enrollment.clientUnlockPublicKeyB64u,
-        33,
-      );
-      if (!enrolledPublicKey || !bytesEqual(enrolledPublicKey, publicKey)) {
+      // Each factor pins the unlock key of its own S, so the proof names its factor.
+      const pinned = enrollment.enrollment.factors.some((factor) => {
+        const enrolledPublicKey = decodeFixedBase64Url(factor.clientUnlockPublicKeyB64u, 33);
+        return enrolledPublicKey !== null && bytesEqual(enrolledPublicKey, publicKey);
+      });
+      if (!pinned) {
         return failedVerification(
           'invalid_unlock_proof',
-          'unlockProof.publicKey does not match the enrolled clientUnlockPublicKeyB64u',
+          'unlockProof.publicKey does not match an enrolled clientUnlockPublicKeyB64u',
         );
       }
       const challengeDigest = decodeFixedBase64Url(challenge.challengeB64u, 32);

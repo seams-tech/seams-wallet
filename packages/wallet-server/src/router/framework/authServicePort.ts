@@ -476,46 +476,6 @@ type EmailOtpChallengeVerifyResult =
       readonly resetAtMs?: number;
     };
 
-type EmailOtpEnrollmentVerifyInput = {
-  readonly providerSubject: unknown;
-  readonly walletId: unknown;
-  readonly orgId: unknown;
-  readonly challengeId: unknown;
-  readonly otpCode: unknown;
-  readonly otpChannel: unknown;
-  readonly ownerProofBindingDigest: unknown;
-  readonly proofEmail?: unknown;
-  readonly clientIp?: unknown;
-  readonly enrollmentSealKeyVersion?: unknown;
-  readonly factorNonceB64u?: unknown;
-  readonly wrappedFactorB64u?: unknown;
-  readonly clientUnlockPublicKeyB64u?: unknown;
-  readonly unlockKeyVersion?: unknown;
-  readonly googleEmailOtpRegistrationAttemptId?: unknown;
-};
-
-type EmailOtpEnrollmentVerifyResult =
-  | {
-      readonly ok: true;
-      readonly walletId: string;
-      readonly otpChannel: EmailOtpChannel;
-      readonly enrollment: {
-        readonly createdAtMs: number;
-        readonly updatedAtMs: number;
-        readonly enrollmentSealKeyVersion: string;
-        readonly unlockKeyVersion: string;
-      };
-    }
-  | {
-      readonly ok: false;
-      readonly code: string;
-      readonly message: string;
-      readonly attemptsRemaining?: number;
-      readonly lockedUntilMs?: number;
-      readonly retryAfterMs?: number;
-      readonly resetAtMs?: number;
-    };
-
 type GoogleEmailOtpRegistrationOfferCandidate = {
   readonly candidateId: string;
   readonly walletId: string;
@@ -944,10 +904,6 @@ type RouterApiMethodTypes = {
   verifyEmailOtpWalletRecoveryChallenge: {
     readonly input: Omit<EmailOtpChallengeVerifyInput, 'operation'>;
     readonly result: EmailOtpChallengeVerifyResult;
-  };
-  verifyEmailOtpEnrollment: {
-    readonly input: EmailOtpEnrollmentVerifyInput;
-    readonly result: EmailOtpEnrollmentVerifyResult;
   };
   verifyEmailOtpUnlockProof: {
     readonly input: {
@@ -1542,9 +1498,6 @@ export interface RouterApiEmailOtpRouteService extends RouterApiEmailOtpChalleng
   verifyEmailOtpWalletRecoveryChallenge(
     input: RouterApiMethodTypes['verifyEmailOtpWalletRecoveryChallenge']['input'],
   ): Promise<RouterApiMethodTypes['verifyEmailOtpWalletRecoveryChallenge']['result']>;
-  verifyEmailOtpEnrollment(
-    input: RouterApiMethodTypes['verifyEmailOtpEnrollment']['input'],
-  ): Promise<RouterApiMethodTypes['verifyEmailOtpEnrollment']['result']>;
   verifyGoogleLogin(
     input: RouterApiMethodTypes['verifyGoogleLogin']['input'],
   ): Promise<RouterApiMethodTypes['verifyGoogleLogin']['result']>;

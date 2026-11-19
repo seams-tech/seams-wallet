@@ -69,9 +69,6 @@ export function createD1EmailOtpRouteService(
       assembly.emailOtpChallengeService.verifyEmailOtpWalletRecoveryChallenge.bind(
         assembly.emailOtpChallengeService,
       ),
-    verifyEmailOtpEnrollment: assembly.emailOtpChallengeService.verifyEmailOtpEnrollment.bind(
-      assembly.emailOtpChallengeService,
-    ),
     verifyGoogleLogin: assembly.oidcVerification.verifyGoogleLogin.bind(assembly.oidcVerification),
   };
 }

@@ -15,16 +15,18 @@ import {
   parseCurrentEmailOtpGrantRow,
   parseCurrentEmailOtpUnlockChallengeRow,
 } from '../../../../core/EmailOtpRecords';
-import type {
-  EmailOtpAuthStateRecord,
-  EmailOtpChallengeAction,
-  EmailOtpChallengeOperation,
-  EmailOtpChallengeRecord,
-  EmailOtpGrantAction,
-  EmailOtpGrantRecord,
-  EmailOtpLoginChallengeOperation,
-  EmailOtpUnlockChallengeRecord,
-  EmailOtpWalletEnrollmentRecord,
+import {
+  EMAIL_OTP_ENROLLMENT_FACTOR_LIMIT,
+  type EmailOtpAuthStateRecord,
+  type EmailOtpChallengeAction,
+  type EmailOtpChallengeOperation,
+  type EmailOtpChallengeRecord,
+  type EmailOtpEnrollmentFactorRecord,
+  type EmailOtpGrantAction,
+  type EmailOtpGrantRecord,
+  type EmailOtpLoginChallengeOperation,
+  type EmailOtpUnlockChallengeRecord,
+  type EmailOtpWalletEnrollmentRecord,
 } from '../../../../core/EmailOtpStores';
 import type { EmailOtpRateLimitScope } from '../../../../core/authService/emailOtpConfig';
 import {
@@ -227,6 +229,66 @@ export function emailOtpRateLimitExceeded(row: D1EmailOtpRateLimitRow | null): {
   };
 }
 
+const ENROLLMENT_FACTOR_FIELDS = [
+  'walletAuthMethodId',
+  'factorNonceB64u',
+  'wrappedFactorB64u',
+  'clientUnlockPublicKeyB64u',
+  'createdAtMs',
+] as const;
+
+function parseEmailOtpEnrollmentFactor(input: unknown): EmailOtpEnrollmentFactorRecord | null {
+  if (!hasExactKeys(input, ENROLLMENT_FACTOR_FIELDS)) return null;
+  const walletAuthMethodId = toOptionalTrimmedString(input.walletAuthMethodId);
+  const factorNonceB64u = toOptionalTrimmedString(input.factorNonceB64u);
+  const wrappedFactorB64u = toOptionalTrimmedString(input.wrappedFactorB64u);
+  const clientUnlockPublicKeyB64u = toOptionalTrimmedString(input.clientUnlockPublicKeyB64u);
+  const createdAtMs = positiveSafeInteger(input.createdAtMs);
+  if (
+    !walletAuthMethodId ||
+    !factorNonceB64u ||
+    !wrappedFactorB64u ||
+    !clientUnlockPublicKeyB64u ||
+    !createdAtMs
+  ) {
+    return null;
+  }
+  return {
+    walletAuthMethodId,
+    factorNonceB64u,
+    wrappedFactorB64u,
+    clientUnlockPublicKeyB64u,
+    createdAtMs,
+  };
+}
+
+/** One to `EMAIL_OTP_ENROLLMENT_FACTOR_LIMIT` factors, with distinct methods and nonces. */
+function parseEmailOtpEnrollmentFactors(input: unknown): EmailOtpEnrollmentFactorRecord[] | null {
+  if (
+    !Array.isArray(input) ||
+    input.length === 0 ||
+    input.length > EMAIL_OTP_ENROLLMENT_FACTOR_LIMIT
+  ) {
+    return null;
+  }
+  const factors: EmailOtpEnrollmentFactorRecord[] = [];
+  for (const item of input) {
+    const factor = parseEmailOtpEnrollmentFactor(item);
+    if (
+      !factor ||
+      factors.some(
+        (other) =>
+          other.walletAuthMethodId === factor.walletAuthMethodId ||
+          other.factorNonceB64u === factor.factorNonceB64u,
+      )
+    ) {
+      return null;
+    }
+    factors.push(factor);
+  }
+  return factors;
+}
+
 function parseEmailOtpWalletEnrollmentRecord(
   input: unknown,
 ): EmailOtpWalletEnrollmentRecord | null {
@@ -240,10 +302,8 @@ function parseEmailOtpWalletEnrollmentRecord(
   const enrollmentId = toOptionalTrimmedString(record.enrollmentId);
   const enrollmentVersion = toOptionalTrimmedString(record.enrollmentVersion);
   const enrollmentSealKeyVersion = toOptionalTrimmedString(record.enrollmentSealKeyVersion);
-  const clientUnlockPublicKeyB64u = toOptionalTrimmedString(record.clientUnlockPublicKeyB64u);
   const unlockKeyVersion = toOptionalTrimmedString(record.unlockKeyVersion);
-  const factorNonceB64u = toOptionalTrimmedString(record.factorNonceB64u);
-  const wrappedFactorB64u = toOptionalTrimmedString(record.wrappedFactorB64u);
+  const factors = parseEmailOtpEnrollmentFactors(record.factors);
   const createdAtMs = positiveSafeInteger(record.createdAtMs);
   const updatedAtMs = positiveSafeInteger(record.updatedAtMs);
   if (
@@ -255,10 +315,8 @@ function parseEmailOtpWalletEnrollmentRecord(
     !enrollmentId ||
     !enrollmentVersion ||
     !enrollmentSealKeyVersion ||
-    !clientUnlockPublicKeyB64u ||
     !unlockKeyVersion ||
-    !factorNonceB64u ||
-    !wrappedFactorB64u ||
+    !factors ||
     !createdAtMs ||
     !updatedAtMs ||
     updatedAtMs < createdAtMs
@@ -274,10 +332,8 @@ function parseEmailOtpWalletEnrollmentRecord(
     enrollmentId,
     enrollmentVersion,
     enrollmentSealKeyVersion,
-    clientUnlockPublicKeyB64u,
     unlockKeyVersion,
-    factorNonceB64u,
-    wrappedFactorB64u,
+    factors,
     createdAtMs,
     updatedAtMs,
   };
