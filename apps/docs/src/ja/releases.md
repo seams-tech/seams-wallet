@@ -1,9 +1,38 @@
 ---
-title: リリース 0.74.0
-description: パスキーのアカウント同期がアプリのWallet Sessionの利用上限を要求します。0.73.0の利用上限にレビューの修正が入ります。サーバー、Walletホスト、アプリの順にデプロイしてください。
+title: リリース 0.75.0
+description: Email OTPはデバイスの要素になります。再読み込みの後も続くウォームセッションは、Shamir three-passの代わりにRFC 9497のPOPRFを使います。マイグレーション0090を適用し、サーバーとWalletホストを一緒にデプロイしてください。
 ---
 
-# リリース 0.74.0
+# リリース 0.75.0
+
+ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.75.0** を使います。D1のマイグレーション`0090_email_otp_code_seal.sql`を適用し、次にサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。
+
+0.74.0からの変更:
+
+- Email OTPはデバイスの要素です。デバイスはランダムな入力を保持します。サーバーは要素のnonceと、その入力に対するRFC 9497のPOPRF出力(ristretto255-SHA512)で暗号化した要素を保持します。サーバーはデバイスなしでその出力を計算できないため、サーバーとデバイスのどちらも単独ではEmail OTPのウォレットを開けません。POPRFの`info`は、ウォレット、登録、サーバーが選ぶnonceを示します。
+- サーバーは各Email OTPのコードを暗号化して保存します(AES-256-GCM、チャレンジに紐付け)。平文では保存しません。鍵は既存の封印のルート(`SIGNING_SESSION_SEAL_ROOT_SECRET_B64U`)から作るため、新しいシークレットは不要です。
+- 再読み込みの後も続くウォームセッションは、Shamir three-passの代わりに同じPOPRFで封印します。デバイスはランダムな入力と、POPRF出力から作った鍵によるAES-256-GCMで暗号化したセッションのシークレットを保持します。POPRFの`info`は、ウォレットとしきい値セッションを示します。復元はサーバーへの1回の呼び出しです。新しいWASMモジュール`oprf_runtime`がWalletのワーカーとGatewayで動きます。`shamir3pass_runtime`モジュールとその入れ子のワーカーは削除しました。
+- サーバーとSDKは、不正な署名回数、署名者スロット、参加者ID、追加認証の有効期限、鍵エンベロープの紐付けを、既定値で補わずに拒否します。`{"InvalidTxError":"Expired"}`のようなNEAR RPCのエラーは名前を保ちます。認証主体の行がないWallet Sessionは、破損ではなく終了として読みます。
+- Email OTPのエクスポートとローテーションは、`/wallet/unlock/challenge`に封印のグループを`orgId`として送らなくなりました。
+
+破壊的変更:
+
+- `/wallet/email-otp/registration/seal`は`/wallet/email-otp/registration/factor`になり、ブラインドした要素を受け取ります。要素の解放、Ed25519の追加認証素材の復元、Google復元の解放は、ワーカーの公開鍵の代わりに`deviceFactors`を受け取り、`email_otp_factor_evaluation_v1`を返します。
+- `/wallet-session/seal/apply-server-seal`と`/wallet-session/seal/remove-server-seal`は、1つのルート`POST /wallet-session/seal/evaluate`になり、ブラインドした要素を受け取ります。サーバーは、ウォレットとしきい値セッションごとに1分間に30回まで評価します。`/.well-known/webauthn`の封印のプロトコルは`{ algorithm: 'ristretto255-sha512-poprf-v1' }`で、`groupId`はありません。`signingSessionSeal.algorithm`を確認するデプロイ設定は、この値に変更し、`groupId`を削除してください。
+- `@seams/wallet-server`は、封印の暗号アダプターとそのShamir three-passの型の代わりに`createSigningSessionSealEvaluator`をエクスポートします。`parseSigningSessionSealRootConfig`は削除しました。`createSigningSessionSealOptions`の入力は変わりません。
+- Email OTPのログインのオプションに`groupId`はありません。
+- デバイスリンクの対象は、ウォレットのEmail OTPの要素を再利用できません。Email OTPのウォレットのGoogle復元は、要素を持つデバイスだけで使えます。新しいデバイスにはパスキーかVoiceIDを選ぶか、復元コードを使ってください。今後のリリースで、各デバイスが自分の要素を持つようになります。
+- 以前のバージョンのEmail OTPのウォレットは、アップグレードの後に開けません。Walletは、以前のバージョンで封印したウォームセッションを読むときに削除します。そのため、開いている各セッションは1回のアンロックが必要です。
+
+互換性:
+
+- サーバーの前に、D1のマイグレーション`0090_email_otp_code_seal.sql`を適用してください。このマイグレーションは開いているEmail OTPのチャレンジを削除します。デプロイの時点で開いていたコードは失敗するため、ユーザーは新しいコードを要求します。
+- 0.75.0のWalletホストには0.75.0のサーバーが必要です。逆も同じです。0.75.0のWalletホストは、別の封印のプロトコルのサーバーを拒否します(`sealed_refresh_parity_mismatch`)。0.75.0のサーバーには、0.74のWalletホストが使うEmail OTPの登録と封印のルートがありません。
+- 0.75.0のアプリには0.75.0のWalletホストが必要です。0.75.0のWalletホストは0.74のアプリを受け付けます。アプリの設定は封印のモードだけを示し、ホストは古いアプリが送る封印のプロトコルを無視します。
+- `@seams/voice-verdict`、`@seams/voice-capture`、`@seams/voice-sign`は **0.72.0** のままです。変更はありません。
+- ウォレットのiframeプロトコルは **25.0.0** のままです。3つのパッケージをすべて0.75.0でインストールしてください。
+
+## リリース 0.74.0
 
 ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.74.0** を使います。サーバー、Walletホスト、アプリの順にデプロイしてください。
 

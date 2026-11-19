@@ -1,9 +1,38 @@
 ---
-title: Release 0.74.0
-description: A passkey account sync asks for the app's Wallet Session budget, and the 0.73.0 budget gets its review fixes. Deploy the server, then the Wallet host, then the apps.
+title: Release 0.75.0
+description: Email OTP becomes a device factor, and the warm session that survives a reload uses the RFC 9497 POPRF in place of Shamir three-pass. Apply migration 0090, then ship the server and the Wallet host together.
 ---
 
-# Release 0.74.0
+# Release 0.75.0
+
+The browser SDK, server SDK and VoiceID plugin use **0.75.0**. Apply the D1 migration `0090_email_otp_code_seal.sql`, then deploy the server and the Wallet host together, then the apps.
+
+Since 0.74.0:
+
+- Email OTP is a device factor. The device keeps a random input. The server keeps a factor nonce and the factor, encrypted under the RFC 9497 POPRF output (ristretto255-SHA512) for that input. The server cannot compute that output without the device, so neither the server nor the device alone can open an Email OTP wallet. The POPRF `info` names the wallet, the enrollment and a nonce that the server picks.
+- The server stores each Email OTP code encrypted (AES-256-GCM, bound to its challenge), never in plain text. The key comes from the existing seal root (`SIGNING_SESSION_SEAL_ROOT_SECRET_B64U`), so no new secret is needed.
+- The warm session that survives a page reload is sealed with the same POPRF in place of Shamir three-pass. The device keeps a random input and the session secret under AES-256-GCM, with a key from the POPRF output. The POPRF `info` names the wallet and the threshold session. A restore is one server call. A new WASM module, `oprf_runtime`, serves the Wallet workers and the Gateway, and the `shamir3pass_runtime` module and its nested worker are gone.
+- The server and the SDK refuse a bad signing count, signer slot, participant ID, step-up expiry or key-envelope binding instead of filling in a default. A NEAR RPC error such as `{"InvalidTxError":"Expired"}` keeps its name. A Wallet Session whose authority row is gone reads as ended, not corrupt.
+- The Email OTP export and rotation no longer send the seal group as `orgId` in `/wallet/unlock/challenge`.
+
+Breaking changes:
+
+- `/wallet/email-otp/registration/seal` is now `/wallet/email-otp/registration/factor`, which takes a blinded element. The factor release, the Ed25519 step-up material recovery and the Google recovery release take `deviceFactors` in place of a worker public key, and they return an `email_otp_factor_evaluation_v1`.
+- `/wallet-session/seal/apply-server-seal` and `/wallet-session/seal/remove-server-seal` are now one route, `POST /wallet-session/seal/evaluate`, which takes a blinded element. The server allows 30 evaluations a minute for each wallet and threshold session. The seal protocol in `/.well-known/webauthn` is `{ algorithm: 'ristretto255-sha512-poprf-v1' }` with no `groupId`. A deploy config that checks `signingSessionSeal.algorithm` must change it and drop `groupId`.
+- `@seams/wallet-server` exports `createSigningSessionSealEvaluator` in place of the seal cipher adapters and their Shamir three-pass types. `parseSigningSessionSealRootConfig` is removed. `createSigningSessionSealOptions` keeps its input.
+- The Email OTP login options have no `groupId`.
+- A device-link target cannot reuse the wallet's Email OTP factor, and Google recovery of an Email OTP wallet works only on a device that holds the factor. Choose a passkey or VoiceID for the new device, or use the recovery code. A later release gives each device its own factor.
+- Email OTP wallets from an earlier version do not open after the upgrade. The Wallet deletes the sealed warm sessions of an earlier version when it reads them, so each open session needs one unlock.
+
+Compatibility:
+
+- Apply the D1 migration `0090_email_otp_code_seal.sql` before the server. It drops the open Email OTP challenges, so a code that is open at the deploy fails and the user asks for a new one.
+- A Wallet host at 0.75.0 needs a server at 0.75.0, and the reverse: a 0.75.0 Wallet host refuses a server with another seal protocol (`sealed_refresh_parity_mismatch`), and a 0.75.0 server has no route for the Email OTP registration and the seal of a 0.74 Wallet host.
+- An app at 0.75.0 needs a Wallet host at 0.75.0. A Wallet host at 0.75.0 accepts an app at 0.74: the app config names the seal mode only, and the host ignores the seal protocol that an older app sends.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` stay at **0.72.0**. They have no change.
+- The Wallet iframe protocol stays **25.0.0**. Install all three packages at 0.75.0.
+
+## Release 0.74.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.74.0**. Deploy in this order: the server, then the Wallet host, then the apps.
 
