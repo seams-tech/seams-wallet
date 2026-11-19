@@ -380,13 +380,6 @@ function requestSurfaceKindForMessage(
   type: ParentToChildEnvelope['type'],
   payload: unknown,
 ): WalletIframeRequestSurfaceKind | null {
-  if (
-    isTransactionSurfaceMessage(type) &&
-    confirmationUiModeForRequest(type, payload) === 'none' &&
-    !needsExplicitActivation()
-  ) {
-    return null;
-  }
   switch (type) {
     case 'PM_OPEN_AUTH_MENU':
       return 'auth_menu';
@@ -397,6 +390,10 @@ function requestSurfaceKindForMessage(
       return 'registration';
     case 'PM_ACTIVATE_AUTH_METHOD':
       return 'auth_method_activation';
+    // An Email OTP owner enters its code for these in the Wallet's own prompt.
+    case 'PM_REVOKE_AUTH_METHOD':
+    case 'PM_REVOKE_LINKED_DEVICE':
+    case 'PM_MOVE_WALLET':
     case 'PM_EXTERNAL_OWNER_AUTH':
     case 'PM_SPEAK_TO_SIGN_TRANSFER':
     case 'PM_SPEAK_TO_SIGN_NOTE':
@@ -414,7 +411,9 @@ function requestSurfaceKindForMessage(
     case 'PM_SIGN_DELEGATE_ACTION':
     case 'PM_SIGN_NEP413':
     case 'PM_SIGN_TEMPO':
-      return 'transaction';
+      return confirmationUiModeForRequest(type, payload) === 'none' && !needsExplicitActivation()
+        ? null
+        : 'transaction';
     case 'PM_EXPORT_KEYPAIR_UI':
       return isObject(payload) && payload.kind === 'ecdsa'
         ? 'key_export_threshold'
@@ -428,19 +427,6 @@ function requestSurfaceKindForMessage(
       return 'device_link_qr';
     default:
       return null;
-  }
-}
-
-function isTransactionSurfaceMessage(type: ParentToChildEnvelope['type']): boolean {
-  switch (type) {
-    case 'PM_SIGN_TX_WITH_ACTIONS':
-    case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_SIGN_DELEGATE_ACTION':
-    case 'PM_SIGN_NEP413':
-    case 'PM_SIGN_TEMPO':
-      return true;
-    default:
-      return false;
   }
 }
 

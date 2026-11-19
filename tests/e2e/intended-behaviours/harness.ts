@@ -5422,11 +5422,10 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     return 'email_otp.recovery';
   }
   if (
-    normalized.endsWith('email-otp.registration.contract.test.ts') ||
+    /email-otp\.registration(?:\.assets|\.resume)?\.contract\.test\.ts$/u.test(normalized) ||
     normalized.endsWith('email-otp.voiceid-selection.contract.test.ts') ||
-    normalized.endsWith('email-otp.registration.assets.contract.test.ts') ||
-    normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
     normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||
+    normalized.endsWith('google-email-otp.rotation.contract.test.ts') ||
     normalized.endsWith('/conformance/journeys/email-otp.journeys.contract.test.ts')
   ) {
     return 'email_otp.registration';
