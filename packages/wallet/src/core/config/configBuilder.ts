@@ -21,9 +21,6 @@ import {
   type IntRange,
 } from './configHelpers';
 import { normalizeWalletHostVariant } from '../browser/walletIframe/hostVariant';
-import {
-  SIGNING_SESSION_SEAL_ALG,
-} from '@shared/utils/signingSessionSeal';
 import { parseWalletSessionBudgetSetting } from '@shared/threshold/walletSessionBudget';
 
 export const THRESHOLD_ECDSA_PRESIGN_POOL_LIMITS = {
@@ -134,20 +131,6 @@ function resolveRegistrationConfig(args: {
   };
 }
 
-function resolveSigningSessionSeal(args: {
-  mode: SigningSessionPersistenceMode;
-}): SeamsConfigsReadonly['signing']['sessionSeal'] {
-  if (args.mode !== 'sealed_refresh_v1') {
-    return { mode: 'none' };
-  }
-  return {
-    mode: 'sealed_refresh_v1',
-    protocol: {
-      algorithm: SIGNING_SESSION_SEAL_ALG,
-    },
-  };
-}
-
 /**
  * The Router A/B SigningWorker of each Seams-hosted Wallet origin. The Gateway of each one admits
  * Ed25519 normal signing only for its own worker, and NEAR signing needs normal signing.
@@ -235,9 +218,6 @@ export function buildConfigsFromDefaults(args: {
   const emailOtpAuthPolicy = resolveEmailOtpAuthPolicy({
     value: overrides.emailOtpAuthPolicy,
     fallback: defaults.signing.emailOtp.authPolicy,
-  });
-  const signingSessionSeal = resolveSigningSessionSeal({
-    mode: signingSessionPersistenceMode,
   });
   const walletOrigin = toTrimmedString(overrides.iframeWallet?.walletOrigin);
   const routerAbNormalSigning = resolveRouterAbNormalSigningConfig({
@@ -339,7 +319,7 @@ export function buildConfigsFromDefaults(args: {
         authPolicy: emailOtpAuthPolicy,
       },
       sessionPersistenceMode: signingSessionPersistenceMode,
-      sessionSeal: signingSessionSeal,
+      sessionSeal: { mode: signingSessionPersistenceMode },
       routerAb: {
         normalSigning: routerAbNormalSigning,
       },

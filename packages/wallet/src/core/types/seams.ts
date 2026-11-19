@@ -13,7 +13,6 @@ import type { WalletHostVariant } from '../browser/walletIframe/hostVariant';
 import type { ClientUserData } from '../accountData/near/nearAccountData.types';
 import type { WasmSignedDelegate } from './signer-worker';
 import type { EcdsaSignerProvisioningDefaults } from './ecdsaSignerProvisioningDefaults';
-import type { SigningSessionSealProtocol } from '@shared/utils/signingSessionSeal';
 import type {
   SignerAuthMethod,
   SigningSessionPolicy,
@@ -85,9 +84,8 @@ export type WalletAuthIntent =
 
 export type WalletAuthCurve = 'ed25519' | 'ecdsa';
 
-type SigningSessionSealConfig =
-  | { mode: 'none'; protocol?: never }
-  | { mode: 'sealed_refresh_v1'; protocol: SigningSessionSealProtocol };
+/** The Wallet host and the server pick the seal algorithm; the app config names the mode only. */
+type SigningSessionSealConfig = { mode: SigningSessionPersistenceMode };
 
 /**
  * Public SDK configuration overrides accepted by `new SeamsWeb(config)`.

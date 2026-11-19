@@ -5,9 +5,6 @@ import {
   DEFAULT_THRESHOLD_SESSION_TTL_MS,
   DEFAULT_UNLOCK_REMAINING_USES,
 } from '../signingEngine/threshold/sessionPolicy';
-import {
-  SIGNING_SESSION_SEAL_ALG,
-} from '@shared/utils/signingSessionSeal';
 import type {
   SeamsChainConfig,
   SeamsConfigsInput,
@@ -124,12 +121,7 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
       authPolicy: 'session',
     },
     sessionPersistenceMode: 'sealed_refresh_v1',
-    sessionSeal: {
-      mode: 'sealed_refresh_v1',
-      protocol: {
-        algorithm: SIGNING_SESSION_SEAL_ALG,
-      },
-    },
+    sessionSeal: { mode: 'sealed_refresh_v1' },
     routerAb: {
       normalSigning: {
         mode: 'disabled',

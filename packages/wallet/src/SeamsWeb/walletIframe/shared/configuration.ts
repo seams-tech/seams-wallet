@@ -7,9 +7,6 @@ import type { AppearanceConfig, SeamsClientConfig, SeamsConfigsReadonly } from '
 import { THRESHOLD_ECDSA_PRESIGN_POOL_LIMITS } from '@/core/config/configBuilder';
 import { isNearChainNetwork, isSeamsChainNetwork } from '@/core/config/chains';
 import { isPlainObject, isString, isFiniteNumber, requireRecord } from '@shared/utils/validation';
-import {
-  SIGNING_SESSION_SEAL_ALG,
-} from '@shared/utils/signingSessionSeal';
 
 export type WalletHostConfig = Omit<SeamsConfigsReadonly, 'wallet'> & {
   readonly wallet: Variant<SeamsConfigsReadonly['wallet'], 'mode', 'direct'>;
@@ -161,15 +158,14 @@ function isSigning(value: unknown): boolean {
   const provisioning = value.thresholdEcdsa.provisioningDefaults;
   if (!isProvisioningPolicy(provisioning.tempo) || !isProvisioningPolicy(provisioning.evm))
     return false;
+  // An app SDK before 0.75.0 also sends the seal `protocol`. The host ignores it: the Wallet host
+  // and the server pick the seal algorithm, and the parity check compares those two.
   const seal = value.sessionSeal;
-  if (!isPlainObject(seal)) return false;
-  if (value.sessionPersistenceMode === 'none')
-    return seal.mode === 'none' && seal.protocol === undefined;
   return (
-    value.sessionPersistenceMode === 'sealed_refresh_v1' &&
-    seal.mode === 'sealed_refresh_v1' &&
-    isPlainObject(seal.protocol) &&
-    seal.protocol.algorithm === SIGNING_SESSION_SEAL_ALG
+    (value.sessionPersistenceMode === 'none' ||
+      value.sessionPersistenceMode === 'sealed_refresh_v1') &&
+    isPlainObject(seal) &&
+    seal.mode === value.sessionPersistenceMode
   );
 }
 

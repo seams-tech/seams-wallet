@@ -40,7 +40,7 @@ test('a provisioning policy without a boolean enabled is an error', () => {
   );
 });
 
-test('the wallet host accepts the provisioning defaults of an older app SDK', () => {
+test('the wallet host accepts the provisioning and seal config of an older app SDK', () => {
   const config = createWalletHostConfig(buildConfigsFromEnv(INPUT));
   const legacyPolicy = {
     enabled: true,
@@ -53,7 +53,18 @@ test('the wallet host accepts the provisioning defaults of an older app SDK', ()
       thresholdEcdsa: { provisioningDefaults: { tempo: legacyPolicy, evm: legacyPolicy } },
     },
   };
-  for (const sent of [config, olderConfig]) {
+  // A 0.74 app also names the Shamir three-pass seal; the 0.75 host picks the seal itself.
+  const olderSealConfig = {
+    ...config,
+    signing: {
+      ...config.signing,
+      sessionSeal: {
+        mode: 'sealed_refresh_v1',
+        protocol: { algorithm: 'shamir3pass-v2', groupId: 'rfc2409-group2' },
+      },
+    },
+  };
+  for (const sent of [config, olderConfig, olderSealConfig]) {
     expect(
       parseWalletConfigurationUpdate({
         kind: 'configure',
@@ -62,4 +73,20 @@ test('the wallet host accepts the provisioning defaults of an older app SDK', ()
       }).kind,
     ).toBe('configure');
   }
+});
+
+test('the wallet host refuses a seal mode that differs from the persistence mode', () => {
+  const config = createWalletHostConfig(buildConfigsFromEnv(INPUT));
+  const mismatched = {
+    ...config,
+    signing: { ...config.signing, sessionSeal: { mode: 'none' } },
+  };
+  expect(config.signing.sessionPersistenceMode).toBe('sealed_refresh_v1');
+  expect(() =>
+    parseWalletConfigurationUpdate({
+      kind: 'configure',
+      config: mismatched,
+      assetsBaseUrl: 'https://staging.sign.seams.sh/sdk/',
+    }),
+  ).toThrow(/Invalid resolved wallet host configuration/);
 });
