@@ -427,3 +427,11 @@
   cursor: default;
   opacity: 0.5;
 }
+
+/* The no-key view after a sign-in: the account line sits above the title, quieter than it. */
+:where(.seams-auth-menu-surface) .seams-device-factor-missing-account {
+  margin: 0;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}

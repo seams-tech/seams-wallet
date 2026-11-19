@@ -6,6 +6,7 @@ import type {
   GoogleEmailOtpWalletAuthFailureCode,
 } from '@/SeamsWeb/publicApi/types';
 import {
+  requestEmailCode,
   startGoogleSignIn,
   type GoogleEmailOtpWalletAuthDeps,
 } from '../../../packages/wallet/src/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow';
@@ -24,13 +25,14 @@ const CONFIGS = buildConfigsFromEnv(
 );
 
 /**
- * The 14 public failure codes of the Google and Email OTP flow. The flow produces 11 of them;
+ * The 15 public failure codes of the Google and Email OTP flow. The flow produces 12 of them;
  * nothing produces the three marked `unused` today, but apps can branch on every one.
  */
 const FLOW_CODES: Record<GoogleEmailOtpWalletAuthFailureCode, 'produced' | 'unused'> = {
   google_verification_failed: 'produced',
   google_account_registration_required: 'produced',
   email_otp_challenge_failed: 'produced',
+  email_otp_device_factor_missing: 'produced',
   email_otp_invalid_code: 'produced',
   email_otp_expired: 'produced',
   email_otp_rate_limited: 'produced',
@@ -86,6 +88,7 @@ function flowDeps(overrides: Partial<GoogleEmailOtpWalletAuthDeps>): GoogleEmail
     }),
     requestEmailOtpChallenge: async () => challenge(),
     prewarmEmailOtpYao: async () => {},
+    hasEmailOtpDeviceFactor: async () => true,
     registerWallet: unused,
     loginWithEmailOtpEcdsaCapability: unused,
     loginWithEmailOtpEd25519YaoCapability: unused,
@@ -135,9 +138,9 @@ function submitCode(error: unknown, otpCode = '123456') {
   );
 }
 
-test('the flow has 14 public failure codes; three of them are never produced', () => {
+test('the flow has 15 public failure codes; three of them are never produced', () => {
   const unused = Object.entries(FLOW_CODES).filter(([, use]) => use === 'unused');
-  expect(Object.keys(FLOW_CODES)).toHaveLength(14);
+  expect(Object.keys(FLOW_CODES)).toHaveLength(15);
   expect(unused.map(([code]) => code)).toEqual([
     'local_signing_session_not_ready',
     'wallet_iframe_unavailable',
@@ -177,6 +180,27 @@ test('Google verification and the challenge request give their codes', async () 
   expect(await startCode(challengeFailing(new Error('network down')))).toMatchObject({
     code: 'email_otp_challenge_failed',
   });
+});
+
+test('a device with no Email OTP factor for the wallet gets no code', async () => {
+  let codeRequests = 0;
+  const deps = flowDeps({
+    hasEmailOtpDeviceFactor: async (walletId) => walletId !== WALLET_ID,
+    requestEmailOtpChallenge: async () => {
+      codeRequests += 1;
+      return challenge();
+    },
+  });
+  expect(await startCode(deps)).toMatchObject({ code: 'email_otp_device_factor_missing' });
+  const byEmail = await requestEmailCode(deps, {
+    method: 'email',
+    walletId: WALLET_ID,
+    email: EMAIL,
+  });
+  expect(byEmail.ok ? 'started' : byEmail.error).toMatchObject({
+    code: 'email_otp_device_factor_missing',
+  });
+  expect(codeRequests).toBe(0);
 });
 
 test('a wrong, malformed or expired code and a rate limit keep their codes', async () => {

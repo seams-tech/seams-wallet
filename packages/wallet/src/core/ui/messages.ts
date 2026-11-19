@@ -879,6 +879,13 @@ const walletMessages = [
   ['Copy contract address {value}', 'コントラクトアドレス {value} をコピー'],
   ['Use the code already sent to {value}.', '{value} に送信済みのコードを使用してください。'],
   ['A 6-digit code was sent to {value}.', '{value} に6桁のコードを送信しました。'],
+  ['Signed in as {value}', '{value} でサインイン済み'],
+  ['Use your wallet on this device', 'このデバイスでウォレットを使う'],
+  [
+    'This device has no key for this wallet yet, so no email code was sent. Link it from a device that has the wallet, or use a recovery code.',
+    'このデバイスにはまだこのウォレットの鍵がないため、メールのコードは送っていません。ウォレットのあるデバイスから連携するか、リカバリーコードを使ってください。',
+  ],
+  ['Use another sign-in method', '別の方法でサインイン'],
   ['Loading...', '読み込み中…'],
   ['Scanning...', 'スキャン中…'],
   ['with', '金額：'],

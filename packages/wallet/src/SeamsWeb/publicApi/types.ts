@@ -585,6 +585,9 @@ export type GoogleEmailOtpWalletAuthFailureCode =
   | 'google_verification_failed'
   | 'google_account_registration_required'
   | 'email_otp_challenge_failed'
+  /** This device holds no Email OTP factor for the wallet, so no code was sent. Link the device
+   *  from one that has the wallet, or recover the wallet with a recovery code. */
+  | 'email_otp_device_factor_missing'
   | 'email_otp_invalid_code'
   | 'email_otp_expired'
   | 'email_otp_rate_limited'
@@ -601,6 +604,9 @@ export type GoogleEmailOtpWalletAuthFailure = {
   code: GoogleEmailOtpWalletAuthFailureCode;
   message: string;
   retryAfterMs?: number;
+  /** Set with `email_otp_device_factor_missing`: the wallet that the sign-in found, and the email
+   *  it uses, so the app can offer device linking or recovery for that wallet. */
+  account?: { walletId: WalletId; emailHint: string };
 };
 
 export type GoogleEmailOtpWalletAuthResult<T> =

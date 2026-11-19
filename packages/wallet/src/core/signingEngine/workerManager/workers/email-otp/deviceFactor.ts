@@ -55,6 +55,14 @@ async function listFactors(walletId: string): Promise<DeviceFactorRecord[]> {
   }
 }
 
+/**
+ * Whether this device holds a factor for the wallet. Without one, an email code cannot open the
+ * wallet here, so the caller sends no code and offers device linking or the recovery code.
+ */
+export async function hasEmailOtpDeviceFactor(walletId: string): Promise<boolean> {
+  return (await listFactors(walletId)).length > 0;
+}
+
 /** Stores a factor and keeps only the newest `EMAIL_OTP_DEVICE_FACTOR_LIMIT` for the wallet. */
 async function putFactor(record: DeviceFactorRecord): Promise<void> {
   const database = await openFactorStore();

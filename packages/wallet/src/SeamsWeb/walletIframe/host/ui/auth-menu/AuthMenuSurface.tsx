@@ -61,6 +61,7 @@ import type { DrawnWalletStepChrome } from '../../../shared/walletStep';
 import { blinkMenuItem } from '@/utils/menuItemBlink';
 import { AuthMenuFooter } from './AuthMenuFooter';
 import { RecoveryOptions } from './RecoveryOptions';
+import { DeviceFactorMissingView } from './DeviceFactorMissingView';
 import type {
   HostedAuthMenuFooterBrand,
   HostedAuthMenuRecoveryOptions,
@@ -80,6 +81,7 @@ import {
   passkeyRingIcon,
   passkeySuccessIcon,
   rerollIcon,
+  voiceMethodIcon,
 } from './icons';
 
 type AuthMenuSurfaceProps = {
@@ -676,7 +678,12 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     // The success view keeps the waiting view's layout, so the ring holds still.
     const success = viewModel.status.kind === 'succeeded' ? viewModel.status.phase : null;
     const linkDevice = viewModel.kind === 'link_device';
-    const otpPrompt = viewModel.kind === 'google_otp_login';
+    const factorMissing =
+      viewModel.kind === 'passkey' && viewModel.mode === 'login'
+        ? viewModel.deviceFactorMissing
+        : undefined;
+    // The no-key view after a sign-in uses the code prompt's layout and back arrow.
+    const otpPrompt = viewModel.kind === 'google_otp_login' || factorMissing !== undefined;
     const registrationPrompt = viewModel.kind === 'google_registration';
     const recovery = viewModel.kind === 'recovery';
     const backVisible =
@@ -756,6 +763,16 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     if (viewModel.kind === 'link_device') return this.renderLinkDevice(viewModel);
     if (viewModel.kind === 'google_otp_login') return this.renderGoogleOtp(viewModel);
     if (viewModel.kind === 'google_registration') return this.renderGoogleRegistration(viewModel);
+    if (viewModel.mode === 'login' && viewModel.deviceFactorMissing) {
+      return (
+        <DeviceFactorMissingView
+          account={viewModel.deviceFactorMissing}
+          onLinkDevice={this.onLinkDeviceOpen}
+          onRecovery={this.onRecoveryOpen}
+          onBack={this.onBackClick}
+        />
+      );
+    }
     return (
       <>
         {this.renderMenuHeader(viewModel)}
@@ -1996,23 +2013,6 @@ function voiceAvailableForWallet(
   account: import('../../auth-menu/domain').AuthMenuAccountOption,
 ): boolean {
   return account.walletId === walletId && account.authMethod === 'voiceid';
-}
-
-function voiceMethodIcon(): ComponentChildren {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4" />
-    </svg>
-  );
 }
 
 function isAvailableMenuControl(element: HTMLElement): boolean {

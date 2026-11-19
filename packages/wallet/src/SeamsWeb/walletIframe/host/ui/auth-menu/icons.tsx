@@ -215,3 +215,20 @@ export function alertIcon(): ComponentChildren {
     <circle cx="12" cy="12" r="9" />,
   );
 }
+
+export function voiceMethodIcon(): ComponentChildren {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4" />
+    </svg>
+  );
+}

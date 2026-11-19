@@ -1,8 +1,8 @@
 # Refactor 252: Email OTP as a device factor
 
 Status: 2026-11-19. Slices 0, 1 and 2 are done, with the POPRF of D9, and are in the 0.75.0
-release commit. Slice 3 (new devices) is in progress: 3a (the factor list of D11), 3b
-(recovery) and 3c (device linking) are written. 3d (the menu) is next.
+release commit. Slice 3 (new devices) is written: 3a (the factor list of D11), 3b (recovery),
+3c (device linking) and 3d (the menu). Its Email OTP behaviour tests wait for a Google token.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -234,8 +234,8 @@ device input too. Its operation check and the Ed25519 warm seal of D5 remain ope
 
 ### A new device
 
-Since 3b and 3c, Google recovery and device linking give a new device its own factor. Until 3d,
-the menu does not offer them to a device with no factor. Slice 3 is the design below.
+Since 3b and 3c, Google recovery and device linking give a new device its own factor, and since
+3d the menu offers them to a device with no factor. Slice 3 is the design below.
 
 - A device with no sealed factor does not offer the Email OTP unlock. Google and an email code
   give a sign-in only. The menu then offers two choices: link from a device that has the wallet,
@@ -330,6 +330,14 @@ the user asks for a new code.
     statements. Unit tests: `linkedDeviceEmailOtpTarget.unit.test.ts`. Not written: an Email OTP
     target device-link behaviour test; the harness links only Passkey targets, and the Email
     OTP tests need the Google token.
+  - 3d, written on 2026-11-19: the Email OTP worker answers `hasEmailOtpDeviceFactor` from
+    its store. A Google or email sign-in that finds a wallet with no factor on this device sends
+    no code and fails with `email_otp_device_factor_missing`, with the wallet ID and the email
+    hint in `account`. The hosted menu then shows the login view with "Link this device" and
+    "Recover wallet" (`DeviceFactorMissingView.tsx`, English and Japanese), whatever the app set
+    for its recovery options. A new device usually opens the create view, so this view is rare.
+    The check reads only this device's store: a factor that the server removed still gets a
+    code, and the release then fails with the server's `email_otp_device_factor_missing`.
 - **Slice 4: the release.** seams-monorepo in one coordinated commit if U4 needs it. The wallet,
   `wallet-server` and the seams-monorepo site ship together. Staging first, then production.
   The release notes carry the self-hosted note of D10. When seams-monorepo installs the new

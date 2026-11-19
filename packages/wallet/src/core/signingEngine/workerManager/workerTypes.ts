@@ -680,6 +680,11 @@ export interface EmailOtpWorkerOperationMap {
       emailOtpEnrollment: WalletEmailOtpEnrollmentMaterialV1;
     };
   };
+  /** Whether this device holds an Email OTP factor for the wallet. Reads no secret. */
+  hasEmailOtpDeviceFactor: {
+    payload: { walletId: string };
+    result: { held: boolean };
+  };
   createEmailOtpEd25519YaoSigningShare: {
     payload: {
       activeClientHandle: string;

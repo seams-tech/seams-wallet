@@ -44,11 +44,16 @@ import {
   type WalletIframeSurfaceMeasurement,
 } from '../../shared/messages';
 import type {
-  GoogleEmailOtpWalletAuthFlow,
   GoogleEmailOtpWalletAuthLoginFlow,
   GoogleEmailOtpWalletAuthLoginTarget,
   GoogleEmailOtpWalletAuthRegistrationFlow,
 } from '@/SeamsWeb/publicApi/types';
+import {
+  deviceFactorMissingViewModel,
+  googleLoginViewModel,
+  googleRegistrationViewModel,
+  type AuthMenuGoogleSignInResult,
+} from './googleViewModels';
 import type { ChildToParentEnvelope } from '../../shared/messages';
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import {
@@ -312,7 +317,7 @@ type BeginGoogleEmailOtp = (args: {
   readonly idToken: string;
   readonly authTarget: GoogleEmailOtpAuthTarget;
   readonly signal: AbortSignal;
-}) => Promise<GoogleEmailOtpWalletAuthFlow>;
+}) => Promise<AuthMenuGoogleSignInResult>;
 type PrepareLoginPasskey = (
   walletId: string | null,
   cancellation: Extract<WebAuthnPromptCancellation, { kind: 'abort_signal' }>,
@@ -440,89 +445,6 @@ function randomExternalAuthRequestId(): string {
     if (uuid) return `auth-menu-external-${uuid}`;
   } catch {}
   return `auth-menu-external-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function googleViewModelBase(args: {
-  base: AuthMenuViewModel;
-  flow: GoogleEmailOtpWalletAuthFlow;
-  status: AuthMenuViewModel['status'];
-}): Pick<
-  AuthMenuViewModel,
-  'appearance' | 'hostname' | 'closeLabel' | 'showProgress' | 'enabledExternalProviders' | 'status'
-> & {
-  heading: string;
-  subtitle: string;
-  ctaLabel: string;
-} {
-  return {
-    appearance: args.base.appearance,
-    hostname: args.base.hostname,
-    closeLabel: args.base.closeLabel,
-    heading: args.flow.prompt.title,
-    subtitle: args.flow.prompt.description,
-    ctaLabel: args.flow.prompt.submitLabel,
-    showProgress: args.base.showProgress,
-    enabledExternalProviders: args.base.enabledExternalProviders,
-    status: args.status,
-  };
-}
-
-function googleLoginViewModel(args: {
-  base: AuthMenuViewModel;
-  flow: GoogleEmailOtpWalletAuthLoginFlow;
-  otpCode?: string;
-  resendBusy?: boolean;
-  submitBusy?: boolean;
-  error?: string;
-  status?: AuthMenuViewModel['status'];
-}): AuthMenuGoogleLoginViewModel {
-  const challengePrefix = `google-email-otp-login:${args.flow.walletId}:`;
-  if (!args.flow.flowId.startsWith(challengePrefix)) {
-    throw new Error('Google Email OTP login flow identity is invalid');
-  }
-  return {
-    ...googleViewModelBase({
-      base: args.base,
-      flow: args.flow,
-      status: args.status ?? { kind: 'idle', interaction: 'actionable' },
-    }),
-    kind: 'google_otp_login',
-    mode: 'login',
-    emailHint: args.flow.emailHint,
-    walletId: String(args.flow.walletId),
-    challengeId: args.flow.flowId.slice(challengePrefix.length),
-    prompt: args.flow.prompt,
-    delivery: args.flow.delivery,
-    otpCode: args.otpCode ?? '',
-    resendBusy: args.resendBusy ?? false,
-    submitBusy: args.submitBusy ?? false,
-    ...(args.error ? { error: args.error } : {}),
-  };
-}
-
-function googleRegistrationViewModel(args: {
-  base: AuthMenuViewModel;
-  flow: GoogleEmailOtpWalletAuthRegistrationFlow;
-  rerollBusy?: boolean;
-  submitBusy?: boolean;
-  error?: string;
-  status?: AuthMenuViewModel['status'];
-}): AuthMenuGoogleRegistrationViewModel {
-  return {
-    ...googleViewModelBase({
-      base: args.base,
-      flow: args.flow,
-      status: args.status ?? { kind: 'idle', interaction: 'actionable' },
-    }),
-    kind: 'google_registration',
-    mode: 'register',
-    emailHint: args.flow.emailHint,
-    walletId: String(args.flow.walletId),
-    prompt: args.flow.prompt,
-    rerollBusy: args.rerollBusy ?? false,
-    submitBusy: args.submitBusy ?? false,
-    ...(args.error ? { error: args.error } : {}),
-  };
 }
 
 function errorMessage(error: unknown): string {
@@ -1484,11 +1406,14 @@ export class AuthMenuSession {
           cancellation.signal.aborted ||
           this.stateValue.kind === 'complete'
         ) {
-          void flow.cancel().catch(() => {});
+          if (flow.kind !== 'device_factor_missing') void flow.cancel().catch(() => {});
           return;
         }
         this.googleCancellation = null;
-        if (flow.mode === 'login') {
+        if (flow.kind === 'device_factor_missing') {
+          const viewModel = deviceFactorMissingViewModel(this.passkeyModeViewModel('login'), flow);
+          this.stateValue = { kind: 'preparing', viewModel };
+        } else if (flow.mode === 'login') {
           this.stateValue = {
             kind: 'google_login',
             flow,
@@ -2029,27 +1954,29 @@ export class AuthMenuSession {
     this.showPasskeyMode(mode);
   }
 
-  private showPasskeyMode(mode: HostedAuthMenuMode): void {
-    if (this.stateValue.kind === 'complete' || this.stateValue.kind === 'link_device') return;
+  /** The main menu of a mode, with the login accounts this session knows. */
+  private passkeyModeViewModel(mode: HostedAuthMenuMode): AuthMenuViewModel {
     const currentViewModel = this.currentViewModel();
-    this.invalidatePreparation();
     const nextViewModel = createPreparingViewModel({
       request: { ...this.request, initialMode: mode },
       appearance: currentViewModel.appearance,
       hostname: currentViewModel.hostname,
       mode,
     });
-    this.stateValue = {
-      kind: 'preparing',
-      viewModel:
-        nextViewModel.kind === 'passkey' && nextViewModel.mode === 'login'
-          ? {
-              ...nextViewModel,
-              accountOptions: this.loginAccountOptions,
-              selectedAccount: this.selectedLoginAccount,
-            }
-          : nextViewModel,
-    };
+    return nextViewModel.kind === 'passkey' && nextViewModel.mode === 'login'
+      ? {
+          ...nextViewModel,
+          accountOptions: this.loginAccountOptions,
+          selectedAccount: this.selectedLoginAccount,
+        }
+      : nextViewModel;
+  }
+
+  private showPasskeyMode(mode: HostedAuthMenuMode): void {
+    if (this.stateValue.kind === 'complete' || this.stateValue.kind === 'link_device') return;
+    const viewModel = this.passkeyModeViewModel(mode);
+    this.invalidatePreparation();
+    this.stateValue = { kind: 'preparing', viewModel };
     this.updateElement();
     if (mode === 'login') {
       this.activateSelectedLoginMethod();
@@ -2073,13 +2000,16 @@ export class AuthMenuSession {
       this.closeLinkDevice();
       return;
     }
+    if (this.stateValue.kind === 'complete') return;
+    const viewModel = this.stateValue.viewModel;
     if (
       this.stateValue.kind === 'performing' ||
       this.stateValue.kind === 'awaiting_external_auth' ||
       this.stateValue.kind === 'google_login' ||
-      this.stateValue.kind === 'google_registration'
+      this.stateValue.kind === 'google_registration' ||
+      (viewModel.kind === 'passkey' && viewModel.mode === 'login' && viewModel.deviceFactorMissing)
     ) {
-      this.showPasskeyMode(this.stateValue.viewModel.mode);
+      this.showPasskeyMode(viewModel.mode);
     }
   }
 

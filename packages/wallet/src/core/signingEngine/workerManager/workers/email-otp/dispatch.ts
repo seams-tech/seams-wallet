@@ -60,6 +60,7 @@ import {
   requireWorkerWalletAuthMethodId,
 } from './payloadParsing';
 import { emailOtpCustodyMaterialMatchesLane } from './materialParsing';
+import { hasEmailOtpDeviceFactor } from './deviceFactor';
 import { parseEmailOtpWorkerRequest, workerRequestIdFromRawMessage } from './requestEnvelope';
 
 export function postToMainThread(message: unknown, transfer?: Transferable[]): void {
@@ -220,6 +221,11 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
           ok: true,
           result: cloneEmailOtpEd25519YaoSigningShare(share),
         });
+        return;
+      }
+      case 'hasEmailOtpDeviceFactor': {
+        const held = await hasEmailOtpDeviceFactor(msg.payload.walletId);
+        postToMainThread({ id: msg.id, ok: true, result: { held } });
         return;
       }
       case 'disposeEmailOtpEd25519YaoActiveClient': {

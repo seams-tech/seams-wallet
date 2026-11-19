@@ -687,6 +687,7 @@ class HostEmailOtpCommands {
       resolveGoogleEmailOtpProvider: this.resolveGoogleEmailOtpProviderDomain.bind(this),
       requestEmailOtpChallenge: this.requestUnlockChallenge.bind(this),
       prewarmEmailOtpYao: this.prewarmEmailOtpYaoDomain.bind(this),
+      hasEmailOtpDeviceFactor: this.hasEmailOtpDeviceFactorDomain.bind(this),
       registerWallet: this.deps.registerWallet,
       loginWithEmailOtpEcdsaCapability: this.loginWithEmailOtpEcdsaCapabilityDomain.bind(this),
       loginWithEmailOtpEd25519YaoCapability:
@@ -845,6 +846,17 @@ class HostEmailOtpCommands {
         resolution satisfies never;
         throw new Error('Linked Email OTP authority resolution is invalid');
     }
+  }
+
+  private async hasEmailOtpDeviceFactorDomain(walletId: string): Promise<boolean> {
+    const result = await this.deps
+      .getContext()
+      .signingEngine.getSignerWorkerContext()
+      .requestWorkerOperation({
+        kind: 'emailOtp',
+        request: { type: 'hasEmailOtpDeviceFactor', payload: { walletId } },
+      });
+    return result.held;
   }
 
   private async prewarmEmailOtpYaoDomain(): Promise<void> {

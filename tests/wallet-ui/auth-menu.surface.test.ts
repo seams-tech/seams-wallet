@@ -314,6 +314,33 @@ test.describe('wallet-host Preact auth menu surface', () => {
     });
   });
 
+  test('a sign-in to a wallet that this device has no key for offers linking and recovery, not a code', async ({
+    page,
+  }) => {
+    await mountAuthMenu(page, {
+      ...loginViewModel(),
+      deviceFactorMissing: { walletId: 'wallet-1.test', emailHint: 'f***@example.test' },
+    });
+    await recordIntents(page);
+    const view = page.locator(`${AUTH_MENU_TAG} .seams-device-factor-missing`);
+    await expect(view.locator('.seams-otp-title')).toHaveText('Use your wallet on this device');
+    await expect(view.locator('.seams-device-factor-missing-account')).toHaveText(
+      'Signed in as f***@example.test',
+    );
+    await expect(view.locator('.seams-otp-account-value')).toHaveText('wallet-1.test');
+    await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-input]`)).toHaveCount(0);
+    await view.getByRole('button', { name: /Link this device/ }).click();
+    await view.getByRole('button', { name: /Recover wallet/ }).click();
+    await view.getByRole('button', { name: 'Use another sign-in method' }).click();
+    await page.locator(`${AUTH_MENU_TAG} [data-auth-menu-close]`).click();
+    expect(await recordedIntents(page)).toEqual([
+      { kind: 'link_device_open' },
+      { kind: 'recovery_open' },
+      { kind: 'back' },
+      { kind: 'back' },
+    ]);
+  });
+
   test('Back and Escape leave a running passkey wait; Escape on the menu is ignored', async ({
     page,
   }) => {

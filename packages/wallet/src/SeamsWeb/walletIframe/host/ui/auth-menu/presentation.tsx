@@ -65,7 +65,12 @@ export function renderOtpCodeDigit(digit: string): ComponentChildren {
 }
 
 export function authViewKey(viewModel: AuthMenuViewModel): string {
-  const stage = viewModel.kind === 'recovery' ? `:${viewModel.stage}` : '';
+  const stage =
+    viewModel.kind === 'recovery'
+      ? `:${viewModel.stage}`
+      : viewModel.kind === 'passkey' && viewModel.mode === 'login' && viewModel.deviceFactorMissing
+        ? ':device_factor_missing'
+        : '';
   return `${viewModel.kind}:${viewModel.mode}:${viewModel.status.kind}${stage}`;
 }
 

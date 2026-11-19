@@ -4,10 +4,13 @@ import { WalletText } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocal
 import type { HostedAuthMenuRecoveryOptions } from '../../../shared/authMenuPresentation';
 import { chevronIcon, linkDeviceIcon, recoveryIcon } from './icons';
 
-type RecoveryOptionsProps = {
-  readonly display: HostedAuthMenuRecoveryOptions;
+type RecoveryOptionListProps = {
   readonly onLinkDevice: () => void;
   readonly onRecovery: () => void;
+};
+
+type RecoveryOptionsProps = RecoveryOptionListProps & {
+  readonly display: HostedAuthMenuRecoveryOptions;
 };
 
 export function RecoveryOptions({
@@ -16,30 +19,7 @@ export function RecoveryOptions({
   onRecovery,
 }: RecoveryOptionsProps): ComponentChildren {
   if (display === 'hidden') return null;
-  const options = (
-    <div class="seams-menu-options">
-      <button class="seams-menu-option" type="button" onClick={onLinkDevice}>
-        <span class="seams-menu-option-icon">{linkDeviceIcon()}</span>
-        <span class="seams-menu-option-text">
-          <WalletText message="Link this device" />
-          <small>
-            <WalletText message="Scan a code with your other device" />
-          </small>
-        </span>
-        {chevronIcon()}
-      </button>
-      <button class="seams-menu-option" type="button" data-recovery-action onClick={onRecovery}>
-        <span class="seams-menu-option-icon">{recoveryIcon()}</span>
-        <span class="seams-menu-option-text">
-          <WalletText message="Recover wallet" />
-          <small>
-            <WalletText message="Use your recovery code" />
-          </small>
-        </span>
-        {chevronIcon()}
-      </button>
-    </div>
-  );
+  const options = <RecoveryOptionList onLinkDevice={onLinkDevice} onRecovery={onRecovery} />;
   switch (display) {
     case 'expanded':
       return (
@@ -63,6 +43,37 @@ export function RecoveryOptions({
     default:
       return assertNever(display);
   }
+}
+
+/** Link this device, or recover the wallet with a recovery code. */
+export function RecoveryOptionList({
+  onLinkDevice,
+  onRecovery,
+}: RecoveryOptionListProps): ComponentChildren {
+  return (
+    <div class="seams-menu-options">
+      <button class="seams-menu-option" type="button" onClick={onLinkDevice}>
+        <span class="seams-menu-option-icon">{linkDeviceIcon()}</span>
+        <span class="seams-menu-option-text">
+          <WalletText message="Link this device" />
+          <small>
+            <WalletText message="Scan a code with your other device" />
+          </small>
+        </span>
+        {chevronIcon()}
+      </button>
+      <button class="seams-menu-option" type="button" data-recovery-action onClick={onRecovery}>
+        <span class="seams-menu-option-icon">{recoveryIcon()}</span>
+        <span class="seams-menu-option-text">
+          <WalletText message="Recover wallet" />
+          <small>
+            <WalletText message="Use your recovery code" />
+          </small>
+        </span>
+        {chevronIcon()}
+      </button>
+    </div>
+  );
 }
 
 function assertNever(value: never): never {

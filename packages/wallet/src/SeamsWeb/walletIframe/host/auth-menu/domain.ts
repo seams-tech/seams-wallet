@@ -133,6 +133,9 @@ export type AuthMenuLoginViewModel = AuthMenuViewModelCommon & {
   readonly mode: 'login';
   readonly accountOptions: readonly AuthMenuAccountOption[];
   readonly selectedAccount: AuthMenuAccountOption | null;
+  /** Set after a sign-in found a wallet whose Email OTP key this device does not hold. The menu
+   *  sent no code and offers device linking or the recovery code instead. */
+  readonly deviceFactorMissing?: { readonly walletId: string; readonly emailHint: string };
   readonly passkeyName?: never;
   readonly passkeyNameLabel?: never;
 };

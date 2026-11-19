@@ -259,6 +259,9 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
           input: parseEmailOtpEd25519YaoSigningInput(payload.input),
         },
       };
+    case 'hasEmailOtpDeviceFactor':
+      rejectUnknownEmailOtpYaoFields(payload, ['walletId'], type);
+      return { id, type, payload: { walletId: readString(payload.walletId, 'walletId') } };
     case 'disposeEmailOtpEd25519YaoActiveClient':
       rejectUnknownEmailOtpYaoFields(payload, ['activeClientHandle'], type);
       return {

@@ -136,6 +136,8 @@ export type GoogleEmailOtpWalletAuthDeps = {
     onEvent?: (event: UnlockFlowEvent) => void;
   }): Promise<EmailOtpOperationChallengeResult>;
   prewarmEmailOtpYao(): Promise<void>;
+  /** Whether this device holds an Email OTP factor for the wallet. */
+  hasEmailOtpDeviceFactor(walletId: string): Promise<boolean>;
   registerWallet(args: GoogleEmailOtpWalletRegistrationArgs): Promise<RegistrationResult>;
   loginWithEmailOtpEcdsaCapability(
     args: GoogleLoginEmailOtpEcdsaCapabilityArgs,
@@ -452,6 +454,26 @@ function selectedGoogleEmailOtpRegistrationCandidate(
   return candidate;
 }
 
+/**
+ * An email code opens a wallet only on a device that holds the wallet's Email OTP factor. Without
+ * one, the flow sends no code and asks for device linking or the recovery code.
+ */
+async function deviceFactorMissing<T>(
+  deps: GoogleEmailOtpWalletAuthDeps,
+  state: Pick<GoogleSessionState, 'walletId' | 'emailHint'>,
+): Promise<GoogleEmailOtpWalletAuthResult<T> | null> {
+  if (await deps.hasEmailOtpDeviceFactor(String(state.walletId))) return null;
+  return {
+    ok: false,
+    error: {
+      code: 'email_otp_device_factor_missing',
+      message:
+        'This device has no Email OTP key for this wallet. Link it from a device that has the wallet, or use a recovery code.',
+      account: { walletId: state.walletId, emailHint: state.emailHint },
+    },
+  };
+}
+
 async function requestLoginChallenge(args: {
   deps: GoogleEmailOtpWalletAuthDeps;
   state: GoogleSessionState;
@@ -664,6 +686,8 @@ export async function startGoogleSignIn(
   }
 
   try {
+    const missing = await deviceFactorMissing<GoogleEmailOtpWalletAuthFlow>(deps, sessionState);
+    if (missing) return missing;
     const challenge = await requestLoginChallenge({
       deps,
       state: sessionState,
@@ -717,6 +741,8 @@ export async function requestEmailCode(
     if (!state.linkedEmailOtpSelection) {
       return fail('unlock_failed', new Error('No active email method matches this wallet'));
     }
+    const missing = await deviceFactorMissing<GoogleEmailOtpWalletAuthLoginFlow>(deps, state);
+    if (missing) return missing;
     const challenge = await requestLoginChallenge({ deps, state, onEvent: input.onEvent });
     return ok(
       createGoogleEmailOtpWalletLoginFlow(deps, {

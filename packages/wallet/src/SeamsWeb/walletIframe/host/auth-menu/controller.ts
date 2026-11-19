@@ -30,7 +30,7 @@ import {
   prepareHostedPasskeyLogin,
   type HostedPasskeyPrepared,
 } from './passkey';
-import type { GoogleEmailOtpWalletAuthFlow } from '@/SeamsWeb/publicApi/types';
+import type { AuthMenuGoogleSignInResult } from './googleViewModels';
 import { defaultLoginAccount, loginAccountOptions, passkeyRecentWalletId } from './account-options';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type { LinkDeviceFlowEvent, RegistrationFlowEvent } from '@/core/types/sdkSentEvents';
@@ -460,13 +460,19 @@ export class AuthMenuController {
           readonly loginTarget: import('@/SeamsWeb/publicApi/types').GoogleEmailOtpWalletAuthLoginTarget;
         };
     signal: AbortSignal;
-  }): Promise<GoogleEmailOtpWalletAuthFlow> {
+  }): Promise<AuthMenuGoogleSignInResult> {
     if (args.signal.aborted) throw new Error('Google sign-in was cancelled');
     const result = await this.deps.getWalletRuntime().auth.startGoogleSignIn({
       idToken: args.idToken,
       ...args.authTarget,
     });
-    if (!result.ok) throw new Error(result.error.message);
+    if (!result.ok) {
+      const account = result.error.account;
+      if (result.error.code !== 'email_otp_device_factor_missing' || !account) {
+        throw new Error(result.error.message);
+      }
+      return { kind: 'device_factor_missing', ...account, walletId: String(account.walletId) };
+    }
     const flow = result.value;
     if (args.signal.aborted) {
       await flow.cancel().catch(() => {});
