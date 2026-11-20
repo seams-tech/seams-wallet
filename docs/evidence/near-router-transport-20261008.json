@@ -979,7 +979,7 @@
       "status": "completed",
       "conclusion": "success",
       "headSha": "cc3993c35726521b8c489aa3c4344d627bbf39e0",
-      "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37795353494"
+      "url": "https://github.com/purin-labs/monorepo/actions/runs/37795353494"
     },
     "initialBrowserLauncher": "failed before registration; rerun with the matching frozen Playwright CLI"
   },

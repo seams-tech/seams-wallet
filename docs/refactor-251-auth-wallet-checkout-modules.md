@@ -174,7 +174,8 @@ Decided by the owner on 2026-11-18:
   a blinded release. A new device then needs device linking or a recovery code.
 - **D11. The repository name.** Changed on 2026-11-19 by the brand split: `seams-wallet` and
   `seams-monorepo` keep their names and stay in `seams-tech`. (On 2026-11-18 the owner chose
-  `pay` and `purin`, together with a Purin rename of the wallet.)
+  `pay` and `purin`, together with a Purin rename of the wallet.) On 2026-11-20 the owner moved
+  the private repository to `purin-labs/monorepo`; `seams-wallet` stays in `seams-tech`.
 - **D22. Release A and the brand.** Decided on 2026-11-19 by the brand split: the wallet keeps
   the Seams brand, so Release A waits for no rename. Each `@seams/...` name and each
   "Seams ..." name in this plan is final.

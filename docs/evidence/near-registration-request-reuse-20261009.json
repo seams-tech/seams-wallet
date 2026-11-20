@@ -3089,7 +3089,7 @@
     "runId": 37848816704,
     "status": "completed",
     "conclusion": "success",
-    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37848816704"
+    "url": "https://github.com/purin-labs/monorepo/actions/runs/37848816704"
   },
   "limitations": [
     "Three samples per arm do not establish percentiles, statistical significance or a latency guarantee.",

@@ -1142,7 +1142,7 @@
     "runId": 37802617976,
     "status": "completed",
     "conclusion": "success",
-    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37802617976"
+    "url": "https://github.com/purin-labs/monorepo/actions/runs/37802617976"
   },
   "rawArtifacts": {
     "public": ".artifacts/r155b-phase6ac",

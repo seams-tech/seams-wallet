@@ -2745,7 +2745,7 @@
       "runId": 37835795083,
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37835795083"
+      "url": "https://github.com/purin-labs/monorepo/actions/runs/37835795083"
     }
   },
   "restoration": {
@@ -2979,7 +2979,7 @@
     "runId": 37838708308,
     "status": "completed",
     "conclusion": "success",
-    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37838708308"
+    "url": "https://github.com/purin-labs/monorepo/actions/runs/37838708308"
   },
   "limitations": [
     "Three samples per arm do not establish percentiles, statistical significance or a latency guarantee.",

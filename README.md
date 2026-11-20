@@ -25,7 +25,7 @@ for changes and deployment requirements. The development checkout can contain
 changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
-in the private `seams-tech/seams-monorepo` repository.
+in the private `purin-labs/monorepo` repository.
 
 ## Release 0.76.0
 

@@ -6,7 +6,7 @@ Cloudflare settings were changed.
 ## Backend signing worker
 
 The latest successful production-testnet backend workflow inspected was
-[35735576885](https://github.com/seams-tech/seams-monorepo/actions/runs/35735576885),
+[35735576885](https://github.com/purin-labs/monorepo/actions/runs/35735576885),
 at commit `f91abd800ce7989196d1b70f5d7d14943b461feb`. Its exact Wallet Server
 dependency was `0.5.33`.
 
@@ -22,7 +22,7 @@ reports a total upload of 6620.57 KiB, consistent with that release package, and
 version `16fe65d1-7ac2-4200-8c01-b1f4274d14f9`.
 
 The last successful mainnet backend workflow inspected was
-[35443614586](https://github.com/seams-tech/seams-monorepo/actions/runs/35443614586),
+[35443614586](https://github.com/purin-labs/monorepo/actions/runs/35443614586),
 September 19, using Wallet Server `0.5.24`. Its signing-worker upload was
 6549.56 KiB, version `759eff7a-755d-4a21-bbfe-3f955760d684`. This size is
 consistent with release artifacts; the historical mainnet binary was not hashed.

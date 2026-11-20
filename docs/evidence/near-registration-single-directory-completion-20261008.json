@@ -3082,7 +3082,7 @@
     "conclusion": "success",
     "headSha": "cc3993c35726521b8c489aa3c4344d627bbf39e0",
     "status": "completed",
-    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37786339927"
+    "url": "https://github.com/purin-labs/monorepo/actions/runs/37786339927"
   },
   "limitations": [
     "Three sequential samples per arm establish neither percentiles nor a maximum guarantee.",

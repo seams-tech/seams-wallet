@@ -49,7 +49,7 @@ The follow-up removes unhelpful timing code, without changing the baseline thres
 
 ## Follow-up cleanup after hosted capture
 
-The [hosted capture](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-hosted-trace-20261024.md) matched 44 requests through the wallet object.
+The [hosted capture](https://github.com/purin-labs/monorepo/blob/dev/docs/evidence/near-hosted-trace-20261024.md) matched 44 requests through the wallet object.
 Seven detailed fields read zero throughout that capture and could not establish their hosted costs.
 The cleanup removes those fields and the temporary `timing` parameter from `fetch_wallet_request`.
 It also removes their header plumbing, parser entries, and obsolete diagnostic assertions.
@@ -67,7 +67,7 @@ The complete bloat check passed at 13,737 duplicated Rust lines, below the uncha
 
 The cleanup artifacts live under `.artifacts/optimization-11-near/20261024-trace-cleanup/`.
 Their retired analyzer verified source hashes, build hashes, frozen SDK assets, trace joins, replay evidence, and test results.
-The private hosted report retains this [separate cleanup evidence](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-hosted-trace-20261024.json).
+The private hosted report retains this [separate cleanup evidence](https://github.com/purin-labs/monorepo/blob/dev/docs/evidence/near-hosted-trace-20261024.json).
 These checks establish local behavior and diagnostic preservation.
 The cleanup was not deployed and establishes no hosted latency gain.
 

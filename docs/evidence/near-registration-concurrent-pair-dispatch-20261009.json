@@ -5208,7 +5208,7 @@
     "runId": 37916869561,
     "status": "completed",
     "conclusion": "success",
-    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37916869561"
+    "url": "https://github.com/purin-labs/monorepo/actions/runs/37916869561"
   },
   "decision": {
     "status": "accepted_serial_stage_removed_with_measured_gain",

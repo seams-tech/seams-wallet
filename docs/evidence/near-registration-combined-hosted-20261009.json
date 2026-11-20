@@ -4767,7 +4767,7 @@
     "runId": 37913703147,
     "status": "completed",
     "conclusion": "success",
-    "url": "https://github.com/seams-tech/seams-monorepo/actions/runs/37913703147"
+    "url": "https://github.com/purin-labs/monorepo/actions/runs/37913703147"
   },
   "setupReadbackNote": "The first setup attempt saw a stale Console deployment readback and restored its only changed assignment before any benchmark ran. Deployment history contained only this experiment's setup and restore operations. Bounded read-only retries resolved subsequent readback convergence.",
   "retentionDecision": "Keep both changes. The request reductions are demonstrated in every sample.\nCandidate finalization has the lowest arm median: **2.234s**, compared with\n**2.345s** before and **2.504s** after. The observed differences are **111ms**\nand **270ms**. Three sequential samples per arm do not isolate a repeatable\ncausal saving from network and scheduling variation.\n\nRegistration to verified signature measures **14.467s \u2192 11.532s \u2192 12.160s**.\nThe restored control also improves over the initial baseline. Therefore, the\nentire baseline-to-candidate difference cannot be assigned to these changes.\nSDK registration measures **10.355s \u2192 8.773s \u2192 8.887s**. These results support\nretaining fewer calls, with modest observed finalization gains. The **3\u20134s**\nregistration-to-signature target remains unmet. This comparison completes the\nthree independent Gateway, Console, and SDK items in Phases 6AP\u20136AQ. R155C's\nseparate A/B transport measurement remains the next major comparison."
