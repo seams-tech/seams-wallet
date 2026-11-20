@@ -2,7 +2,8 @@
 
 The two JSON files are compiled into `seams`. They contain public keys only;
 verification works offline. The private signing keys are held in distinct GitHub
-environments in `purin-labs/monorepo`.
+environments in `seams-tech/seams-console`. That repository moved there from
+`purin-labs/monorepo` on 2026-11-21 and kept these environments.
 
 | Public pin | Private-key environment | Signing secret |
 | --- | --- | --- |
