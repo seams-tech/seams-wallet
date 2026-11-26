@@ -1,17 +1,17 @@
 ---
 title: UI components
-description: The ready-made React components in @seams/wallet/react, what each one renders, and where to find its props and examples.
+description: The ready-made React components in @seams/mpc-wallet/react, what each one renders, and where to find its props and examples.
 ---
 
 # UI components
 
-`@seams/wallet/react` ships ready-made components for sign-in, wallet settings,
+`@seams/mpc-wallet/react` ships ready-made components for sign-in, wallet settings,
 device linking, and transaction review. Import the stylesheet once, and mount every
 component except the mocks inside `SeamsWebProvider`.
 
 ```tsx [Import example]
-import { SeamsWebProvider, HostedSeamsAuthMenu, AccountMenuButton } from '@seams/wallet/react';
-import '@seams/wallet/react/styles';
+import { SeamsWebProvider, HostedSeamsAuthMenu, AccountMenuButton } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 ```
 
 ## Component list
@@ -28,18 +28,14 @@ import '@seams/wallet/react/styles';
 | `ShowQRCode`              | The new device's link code, from start to expiry.                             | Yes                |
 | `QRCodeScanner`           | The existing device's camera scanner and link approval.                       | Yes                |
 | `TransactionReviewHost`   | The dialog for your own review content before wallet approval.                | Yes                |
-| `ExternalEvmWalletPicker` | A picker for injected EVM wallets.                                            | No                 |
 | `Theme`                   | Theme tokens for every component below it.                                    | No                 |
 
 The package also exports the small icons `TouchIcon`, `QRCodeIcon`, `SunIcon`, and
 `MoonIcon` for your own controls.
 
-Focused entrypoints give smaller or SSR-specific imports:
-
-- `@seams/wallet/react/hosted-seams-auth-menu` for the auth menu and its mock.
-- `@seams/wallet/react/profile` for the account menu, its mock, and the settings page.
-- `@seams/wallet/react/provider` for `SeamsWebProvider`.
-- `@seams/wallet/react/external-near` for the external NEAR picker (development preview).
+Every component on this page comes from `@seams/mpc-wallet/react`. A bundler keeps only the
+components that your app uses. The pickers for existing wallets are in
+`@seams/wallet-connect/react` (see [External wallets](#external-wallets)).
 
 ## Sign-in
 
@@ -124,9 +120,15 @@ for the `ShowQRCode` example.
 
 ## External wallets
 
+`@seams/wallet-connect/react` has the pickers for existing wallets. They need no provider.
 `ExternalEvmWalletPicker` lists the injected EVM wallets that `useExternalEvm`
 discovers. It takes the controller and its snapshot. See
-[external EVM wallets](/guides/external-evm-wallets).
+[external EVM wallets](/guides/external-evm-wallets). `ExternalNearWalletPicker` lists the
+enabled NEAR wallets of an `ExternalNearController` (development preview); see
+[external NEAR wallets](/guides/external-near-wallets).
+
+The pickers draw their own theme boundary. They do not read the `Theme` tokens of
+`@seams/mpc-wallet/react`. Set the `--seams-wallet-picker-*` CSS variables to change their colours.
 
 ## Transaction review
 
@@ -141,8 +143,8 @@ a session, sign, export keys, or read wallet storage. Use them for design review
 loading states, and marketing pages.
 
 ```tsx [Partial example]
-import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
-import '@seams/wallet/react/styles';
+import { AccountMenuButtonMock } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```

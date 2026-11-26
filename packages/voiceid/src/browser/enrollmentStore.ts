@@ -6,7 +6,7 @@ import {
   type VoiceEnrollmentChange,
   requireRecord,
   isFiniteNumber,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 import {
   normalizeVoiceVector,
   voiceSimilarity,

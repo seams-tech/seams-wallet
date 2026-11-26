@@ -1,14 +1,14 @@
 ---
 title: ブラウザーSDKの基本API
-description: メインの@seams/walletエントリーポイントが公開するクラス、機能、ビルダー、結果の型。
+description: '@seams/mpc-wallet/clientが公開するクラス、機能、ビルダー、結果の型。'
 ---
 
 # ブラウザーSDKの基本API {#core-browser-sdk}
 
-フレームワークに依存しないブラウザーAPIを、`@seams/wallet`からインポートします。
+フレームワークに依存しないブラウザーAPIを、`@seams/mpc-wallet/client`からインポートします。
 
 ```ts [インポート例]
-import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
+import { SeamsWeb, type SeamsConfigsInput } from '@seams/mpc-wallet/client';
 ```
 
 ## 主なAPI {#primary-surface}
@@ -103,7 +103,7 @@ if (outcome.kind === 'not_submitted' && outcome.shortfall && near) {
 - `chainTarget`は、`'tempo-testnet'`など設定済みネットワークのスラッグを受け取ります。EVM系の署名とエクスポートには必須です。一致する設定は1つである必要があります。曖昧な選択子は、一致した対象を示すエラーを送出します。
 
 正確な参照を作るビルダー（`walletSessionRefFromSession`、`nearAccountRefFromAccountId`、`thresholdEcdsaChainTargetFromConfig`）は、
-このエントリーポイントと`@seams/wallet/react`から公開されます。
+このエントリーポイントと`@seams/mpc-wallet/react`から公開されます。
 
 ## 公開する値と型 {#public-values-and-types}
 
@@ -168,8 +168,8 @@ Reactの`useWalletAuth()`とコンテキストも、`getSession`を公開しま�
 | `getLastMoveRequest(walletId)` | このブラウザーが最後に送信した移動リクエストを取得。 |
 
 ```ts [部分的な実装例]
-import { parseWalletMoveId, toWalletId } from '@seams/wallet';
-import { base64UrlEncode } from '@seams/wallet/advanced';
+import { parseWalletMoveId, toWalletId } from '@seams/mpc-wallet/client';
+import { base64UrlEncode } from '@seams/mpc-wallet/client';
 
 const id = toWalletId(walletId);
 const current = await seams.placement.get(id);

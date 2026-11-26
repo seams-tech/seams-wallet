@@ -1,0 +1,186 @@
+import React from 'react';
+import { SeamsContextProvider } from '.';
+import { DARK_TOKENS, LIGHT_TOKENS, Theme } from '../components/theme';
+import type { ThemeOverrides, ThemeProps, ThemeMode } from '../components/theme';
+import { usePreconnectWalletAssets } from '../hooks/usePreconnectWalletAssets';
+import { useWalletIframeZIndex } from '../hooks/useWalletIframeZIndex';
+import type { SeamsContextProviderProps } from '../types';
+import { deepMerge } from '../components/theme/utils';
+
+export type SeamsWebProviderThemeProps = Omit<ThemeProps, 'children'> & {
+  setTheme?: (theme: ThemeMode) => void;
+};
+
+export interface SeamsWebProviderProps {
+  /** SeamsContextProvider configuration */
+  config: SeamsContextProviderProps['config'];
+  /** Theme props for the boundary (defaults to provider+scope).
+   * Token precedence:
+   * 1) `theme.tokens` (React override)
+   * 2) `config.appearance.theme` colors and shape (SDK config defaults)
+   * 3) built-in SDK theme tokens
+   */
+  theme?: SeamsWebProviderThemeProps;
+  /**
+   * Optional z-index override for the wallet iframe overlay.
+   * Sets the CSS variable --seams-wallet-overlay-z on the document root.
+   *
+   * Defaults and layering:
+   * - Wallet iframe overlay: `var(--seams-wallet-overlay-z, 2147483646)`
+   * - Linked Devices modal + QR scanner: `overlayZ - 2` / `overlayZ - 1`
+   *   (always below the wallet overlay so tx confirmer wins)
+   * - ProfileSettingsMenu/HostedSeamsAuthMenu: small local z-indexes only (1–3),
+   *   no fullscreen overlay z-index.
+   */
+  walletOverlayZIndex?: number;
+  children: React.ReactNode;
+}
+
+function resolveConfigTokenOverrides(
+  config: SeamsWebProviderProps['config'],
+): ThemeOverrides | undefined {
+  const theme = config.appearance?.theme;
+  const mode = theme?.mode;
+  const colors = theme?.colors;
+  const shape = theme?.shape;
+  if ((mode !== 'light' && mode !== 'dark') || (!colors && !shape)) return undefined;
+  return {
+    [mode]: { colors, shape },
+  };
+}
+
+function resolveConfigThemeMode(config: SeamsWebProviderProps['config']): ThemeMode | undefined {
+  const mode = config.appearance?.theme?.mode;
+  return mode === 'light' || mode === 'dark' ? mode : undefined;
+}
+
+function resolveConfigThemeId(config: SeamsWebProviderProps['config']): string {
+  return config.appearance?.theme?.id || 'default';
+}
+
+function mergeThemeOverrideLayers(
+  layers: Array<ThemeOverrides | undefined>,
+): ThemeOverrides | undefined {
+  let hasLayer = false;
+  let merged: ThemeOverrides = {};
+  for (const layer of layers) {
+    if (!layer) continue;
+    hasLayer = true;
+    if (layer.light) {
+      merged = { ...merged, light: deepMerge(merged.light ?? {}, layer.light) };
+    }
+    if (layer.dark) {
+      merged = { ...merged, dark: deepMerge(merged.dark ?? {}, layer.dark) };
+    }
+  }
+  return hasLayer ? merged : undefined;
+}
+
+function toStringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === 'string') out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * SeamsWebProvider — ergonomic composition of Theme + PasskeyProvider.
+ * Renders a theming boundary (Theme) and provides Passkey context.
+ */
+export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
+  config,
+  theme,
+  walletOverlayZIndex,
+  children,
+}) => {
+  // Internal: opportunistically add preconnect/prefetch hints for wallet + relayer
+  usePreconnectWalletAssets(config);
+
+  // Optionally override the wallet iframe overlay z-index via CSS variable
+  useWalletIframeZIndex(walletOverlayZIndex);
+
+  const {
+    theme: controlledTheme,
+    setTheme: controlledSetTheme,
+    tokens: reactTokenOverrides,
+    ...themeOverrides
+  } = theme ?? {};
+  const configTokenOverrides = React.useMemo(() => resolveConfigTokenOverrides(config), [config]);
+  const [selectedTheme, setSelectedTheme] = React.useState<ThemeMode | null>(null);
+  const configTheme = controlledTheme || resolveConfigThemeMode(config) || 'dark';
+  const rootTheme = controlledTheme || selectedTheme || configTheme;
+  const setTheme = controlledSetTheme ?? setSelectedTheme;
+  const resolvedReactTokenOverrides = React.useMemo<ThemeOverrides | undefined>(() => {
+    if (!reactTokenOverrides) return undefined;
+    return typeof reactTokenOverrides === 'function'
+      ? reactTokenOverrides({ light: LIGHT_TOKENS, dark: DARK_TOKENS })
+      : reactTokenOverrides;
+  }, [reactTokenOverrides]);
+  const mergedTokenOverrides = React.useMemo<ThemeOverrides | undefined>(
+    () => mergeThemeOverrideLayers([configTokenOverrides, resolvedReactTokenOverrides]),
+    [configTokenOverrides, resolvedReactTokenOverrides],
+  );
+  const mergedTokens = React.useMemo<ThemeProps['tokens']>(() => {
+    if (!mergedTokenOverrides) return undefined;
+    return mergedTokenOverrides;
+  }, [mergedTokenOverrides]);
+
+  const providerConfig = React.useMemo<SeamsWebProviderProps['config']>(() => {
+    const activeTokens = mergedTokenOverrides?.[configTheme];
+    return {
+      ...config,
+      appearance: {
+        ...(config.appearance || {}),
+        theme: {
+          id: resolveConfigThemeId(config),
+          mode: configTheme,
+          colors: toStringRecord(activeTokens?.colors),
+          shape: toStringRecord(activeTokens?.shape),
+        },
+      },
+    };
+  }, [config, mergedTokenOverrides, configTheme]);
+
+  // Apply theme changes without replacing the manager's connection configuration.
+  const providerAppearance = React.useMemo(
+    () => ({
+      ...providerConfig.appearance,
+      theme: {
+        id: resolveConfigThemeId(config),
+        mode: rootTheme,
+        colors: toStringRecord(mergedTokenOverrides?.[rootTheme]?.colors),
+        shape: toStringRecord(mergedTokenOverrides?.[rootTheme]?.shape),
+      },
+    }),
+    [config, providerConfig, rootTheme, mergedTokenOverrides],
+  );
+
+  React.useEffect(() => {
+    if (rootTheme === 'light' || rootTheme === 'dark') {
+      try {
+        document.documentElement.setAttribute('data-seams-theme', rootTheme);
+      } catch {}
+    }
+  }, [rootTheme]);
+
+  const themeProps: ThemeProps = {
+    theme: rootTheme,
+    setTheme,
+    tokens: mergedTokens,
+    ...themeOverrides,
+  };
+  return (
+    <SeamsContextProvider
+      config={providerConfig}
+      theme={
+        rootTheme === 'light' || rootTheme === 'dark'
+          ? { theme: rootTheme, setTheme, appearance: providerAppearance }
+          : undefined
+      }
+    >
+      <Theme {...themeProps}>{children}</Theme>
+    </SeamsContextProvider>
+  );
+};

@@ -38,10 +38,10 @@ export async function installWalletSdkCorsShim(
   const repoRoot = (() => {
     if (process.env.SEAMS_REPO_ROOT) return process.env.SEAMS_REPO_ROOT;
     const cwd = process.cwd();
-    if (fs.existsSync(path.join(cwd, 'packages/wallet'))) return cwd;
+    if (fs.existsSync(path.join(cwd, 'packages/mpc-wallet'))) return cwd;
     return path.resolve(cwd, '..');
   })();
-  const sdkPublicRoot = path.join(repoRoot, 'packages/wallet/dist/public');
+  const sdkPublicRoot = path.join(repoRoot, 'packages/mpc-wallet/dist/public');
 
   // Prefer BrowserContext glob patterns to ensure reliable matching across transports
   const walletHost = (() => {

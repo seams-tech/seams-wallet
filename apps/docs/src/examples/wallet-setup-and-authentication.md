@@ -23,7 +23,7 @@ wallet. Create a wallet session before signing.
 
 ## Prerequisites
 
-Install `@seams/wallet`, serve the configured wallet origin, and provide the
+Install `@seams/mpc-wallet`, serve the configured wallet origin, and provide the
 registration and relayer environment variables shown in the setup example.
 
 ## Configure the provider

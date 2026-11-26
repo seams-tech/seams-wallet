@@ -9,7 +9,7 @@ import { ActionType } from '@/core/types/actions';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const walletUiCss = fs.readFileSync(
-  path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css'),
+  path.join(root, 'packages/mpc-wallet/dist/esm/sdk/wallet-ui.css'),
   'utf8',
 );
 

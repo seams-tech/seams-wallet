@@ -38,17 +38,17 @@ Speak-to-Signは取引機能であり、認証方法ではありません。ウ�
 
 ## インストール {#install}
 
-2つのパッケージを同じバージョンでインストールします。Speak-to-Signは`@seams/wallet`の一部で、専用のパッケージはありません。
+MPCウォレットのパッケージをインストールします。Speak-to-SignとVoiceIDの記述子は`@seams/mpc-wallet`の一部で、専用のパッケージはありません。
 
 ```sh
-pnpm add @seams/wallet@0.76.0 @seams/voiceid@0.76.0
+pnpm add @seams/mpc-wallet@0.76.0
 ```
 
 VoiceIDの認証方法と一緒に、`spoken`の記述子を`approvals`に追加します。
 
 ```ts [部分的な実装例]
-import { SeamsWeb, spoken } from '@seams/wallet';
-import { voiceIdAuthMethod } from '@seams/voiceid';
+import { SeamsWeb, spoken } from '@seams/mpc-wallet/client';
+import { voiceIdAuthMethod } from '@seams/mpc-wallet/voiceid';
 
 const seams = new SeamsWeb({
   // ...the rest of your configuration
@@ -190,7 +190,7 @@ void seams.near.spoken?.prepare({ note: { text: noteText } });
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
-Speak-to-Signのために、Walletホストで行う専用の手順はありません。流れは`@seams/wallet`の中にあります。録音にはVoiceIDの画面を使うため、`walletOrigin`の運用者はVoiceIDのホストと同じようにVoiceIDを構成します。
+Speak-to-Signのために、Walletホストで行う専用の手順はありません。流れは`@seams/mpc-wallet`の中にあります。録音にはVoiceIDの画面を使うため、`walletOrigin`の運用者は`@seams/host`をインストールし、VoiceIDのホストと同じようにVoiceIDを構成します。
 
 ```sh
 npx --no-install seams-voiceid-host ./wallet-with-voiceid

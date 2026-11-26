@@ -97,8 +97,7 @@ test('public account queries use the injected RPC and distinguish absence from u
   const bundle = await build({
     stdin: {
       contents: `
-        export { SeamsWeb, defineSeamsConfig } from './packages/wallet/dist/esm/index.js';
-        export { MinimalNearClient } from './packages/wallet/dist/esm/advanced.js';
+        export { SeamsWeb, defineSeamsConfig, MinimalNearClient } from './packages/mpc-wallet/dist/esm/client.js';
       `,
       resolveDir: root,
     },

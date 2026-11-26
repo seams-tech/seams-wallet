@@ -4,7 +4,7 @@ import {
   TxExecutionStatus,
   useSeams,
   type BoundNearSigner,
-} from '@seams/wallet/react';
+} from '@seams/mpc-wallet/react';
 
 async function signGreeting(near: BoundNearSigner): Promise<void> {
   await near.signAndSendTransaction({

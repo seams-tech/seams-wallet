@@ -8,7 +8,7 @@ import type { EmailOtpVerificationState } from '@/core/signingEngine/uiConfirm/u
 import type { ConfirmationBodyModel } from '@/core/signingEngine/uiConfirm/ui/confirmation-body-model';
 
 const walletUiCss = fs.readFileSync(
-  path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
+  path.resolve(import.meta.dirname, '../../packages/mpc-wallet/dist/esm/sdk/wallet-ui.css'),
   'utf8',
 );
 

@@ -8,13 +8,14 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = path.join(root, 'dist');
 const assets = path.join(dist, 'public/sdk/voiceid');
 // The Wallet host serves /sdk/voiceid-host.js at a fixed path with a long cache life, while this
-// plugin's hashed chunks load fresh after a deploy. Each import of it carries the one Wallet
-// version this plugin pins, which is also the Wallet's asset version, so a new chunk never runs
-// against a cached older bridge.
-const walletVersion = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
-  .peerDependencies['@seams/wallet'];
+// plugin's hashed chunks load fresh after a deploy. Each import of it carries the version of the
+// MPC wallet in this repository, which is also the Wallet's asset version, so a new chunk never
+// runs against a cached older bridge.
+const walletVersion = JSON.parse(
+  await readFile(path.join(root, '../mpc-wallet/package.json'), 'utf8'),
+).version;
 if (!/^\d+\.\d+\.\d+$/.test(walletVersion)) {
-  throw new Error(`@seams/voiceid must pin one exact @seams/wallet version, not ${walletVersion}`);
+  throw new Error(`The VoiceID plugin needs one exact @seams/mpc-wallet version, not ${walletVersion}`);
 }
 process.chdir(root);
 await rm(dist, { recursive: true, force: true });
@@ -22,20 +23,8 @@ await mkdir(assets, { recursive: true });
 
 await build(
   {
-    input: ['src/index.ts', 'src/react.ts'],
-    external: ['@seams/wallet/voiceid-host', 'voice-glow', 'preact', 'react', 'react/jsx-runtime'],
-  },
-  { dir: path.join(dist, 'esm'), format: 'esm', preserveModules: true, preserveModulesRoot: 'src' },
-);
-await cp(
-  path.join(root, 'src/react/VoiceAssistantCard.css'),
-  path.join(dist, 'esm/react/VoiceAssistantCard.css'),
-);
-
-await build(
-  {
     input: { host: 'src/host.ts' },
-    external: ['@seams/wallet/voiceid-host'],
+    external: ['@seams/mpc-wallet/voiceid'],
     plugins: [{ name: 'production-environment', transform: productionEnvironment }],
     resolve: { alias: { react: 'preact/compat', 'react/jsx-runtime': 'preact/jsx-runtime' } },
   },
@@ -45,7 +34,7 @@ await build(
     entryFileNames: '[name].js',
     chunkFileNames: '[name]-[hash].js',
     minify: true,
-    paths: { '@seams/wallet/voiceid-host': `../voiceid-host.js?v=${walletVersion}` },
+    paths: { '@seams/mpc-wallet/voiceid': `../voiceid-host.js?v=${walletVersion}` },
   },
 );
 

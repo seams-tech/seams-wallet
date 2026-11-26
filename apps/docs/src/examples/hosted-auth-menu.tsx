@@ -2,7 +2,7 @@ import {
   HostedSeamsAuthMenu,
   useSeams,
   type HostedAuthMenuOutcome,
-} from '@seams/wallet/react';
+} from '@seams/mpc-wallet/react';
 
 export function HostedRegistration({ onOutcome }: {
   onOutcome: (outcome: HostedAuthMenuOutcome) => void;

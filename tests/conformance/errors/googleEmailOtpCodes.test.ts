@@ -9,7 +9,7 @@ import {
   requestEmailCode,
   startGoogleSignIn,
   type GoogleEmailOtpWalletAuthDeps,
-} from '../../../packages/wallet/src/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow';
+} from '../../../packages/mpc-wallet/src/SeamsWeb/operations/authMethods/emailOtp/googleEmailOtpWalletAuthFlow';
 import { expectKnownFault } from '../knownFault';
 
 const WALLET_ID = 'conformance-wallet-1';

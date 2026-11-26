@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSeams } from '@seams/wallet/react';
+import { useSeams } from '@seams/mpc-wallet/react';
 
 type Auth = ReturnType<typeof useSeams>['seams']['auth'];
 type UnlockResult = Awaited<ReturnType<Auth['unlock']>>;

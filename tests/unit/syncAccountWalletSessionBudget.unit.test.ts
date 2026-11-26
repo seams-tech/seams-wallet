@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { parseSyncAccountVerifyRequest } from '../../packages/wallet-server/src/router/domains/syncAccount/syncAccountRequestValidation';
+import { parseSyncAccountVerifyRequest } from '../../packages/mpc-wallet-server/src/router/domains/syncAccount/syncAccountRequestValidation';
 
 const ASSERTION = {
   id: 'credential-1',

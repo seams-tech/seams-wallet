@@ -5,7 +5,7 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 
 # ホスト環境への導入 {#hosted-integration}
 
-製品のアプリは、`@seams/wallet`をインポートします。
+製品のアプリは、`@seams/mpc-wallet/client`と`@seams/mpc-wallet/react`をインポートします。
 専用のウォレットオリジンは、分離したiframeが使うウォレットサービス、SDK補助アセット、Worker、エクスポートビューアーを配信します。
 
 ## 必要なルート {#required-routes}
@@ -52,8 +52,20 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 - 本番のCSPでWorkerとWASMが読み込めることを確認する。
 - エクスポート内容が、ウォレットオリジンのビューアー内に留まることを確認する。
 
-公開アセットの`@seams/wallet/web/wallet-iframe-client-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
+公開アセットの`@seams/host/wallet-origin-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
+
+## 次のリリース {#next-release}
+
+次のリリースはパッケージの名前を変えます。動作は変わりません。
+
+- アプリは`@seams/wallet`の代わりに`@seams/mpc-wallet`をインストールし、`@seams/wallet-connect`も一緒にインストールします。
+- 運用者は`@seams/wallet-server`の代わりに`@seams/host`をインストールします。パスの名前は変わりません。ルートのパスは`@seams/host/server-types`になります。
+- `@seams/voiceid`は公開しません。アプリは`voiceIdAuthMethod`を`@seams/mpc-wallet/voiceid`からインポートします。`@seams/host`にVoiceIDのホストプラグインとモデルが含まれ、`seams-voiceid-host`はこれまでと同じように構成します。
+- 復元CLIのランチャーは`@seams/cli` **0.29.0**です。`seams-wallet`コマンドと署名済みネイティブアセットは同じです。
+- ウォレットオリジンのドキュメントは`@seams/host/wallet-origin-html`です。
+
+各リリースと同じように、同じリリースのサーバー、Walletホスト、アプリを一緒にデプロイしてください。古いインポートから新しいインポートへの表は[リリースノート](/ja/releases)にあります。
 
 ## リリース 0.76.0 {#release-0-49-0}
 
@@ -67,7 +79,7 @@ Speak-to-Sign(実験的機能、NEARテストネット専用)は、0.68.0から`
 アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
 対応する導入方法は、[リリース 0.76.0](/ja/releases)を参照してください。
 
-Gatewayは`/router-ab/ed25519/yao/reissue/admit`と`/router-ab/ed25519/yao/reissue/execute`を提供します。自分で組み立てるGatewayは、これらを`@seams/wallet-server/cloud-host`の`handleRouterAbEd25519YaoReissueRequestV1`に渡してください。Routerのプロジェクトポリシーは`reissue`の作業種別を許可する必要があります。
+Gatewayは`/router-ab/ed25519/yao/reissue/admit`と`/router-ab/ed25519/yao/reissue/execute`を提供します。自分で組み立てるGatewayは、これらを`@seams/host/cloud-host`の`handleRouterAbEd25519YaoReissueRequestV1`に渡してください。Routerのプロジェクトポリシーは`reissue`の作業種別を許可する必要があります。
 
 APACのウォレットオブジェクトは、`apac-se`で東南アジアへの配置を要求します。
 ホスト環境を受け入れる前に、実際のオブジェクトとデータベースの配置を確認してください。
@@ -94,7 +106,7 @@ Bの準備応答を待たず、検証済みのAの完了後に終了できます
 登録の応答は、完了情報のディレクトリー書き込みを待ちません。
 Gatewayは1つのローカルトランザクションで、ウォレットの有効化と完了の保留記録を行い、応答後に完了情報を送ります。
 署名は直ちに利用できます。書き込みが失敗すると、定期ハンドラーが同じセッションダイジェストと有効期限を、確認されるまで再送します。
-独自の登録権限サービスでGatewayを構成する場合は、定期ハンドラーで`@seams/wallet-server/cloud-host`の`resumeRegistrationDirectoryPublicationsV1`を呼んでください。
+独自の登録権限サービスでGatewayを構成する場合は、定期ハンドラーで`@seams/host/cloud-host`の`resumeRegistrationDirectoryPublicationsV1`を呼んでください。
 例えば、1分ごとに実行します。同梱のローカルGateway Workerは、この処理を実行します。
 
 ディレクトリーの確認まで、通常は1秒以内ですが、ウォレットはConsoleの一覧に現れず、別リージョンへ移動できません。

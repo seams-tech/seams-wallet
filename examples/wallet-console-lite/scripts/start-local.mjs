@@ -28,7 +28,8 @@ async function main() {
   }
   installSignalHandlers();
   if (!options.skipBuild) {
-    runRequired('public Wallet SDK build', 'pnpm', ['-C', 'packages/wallet', 'build:sdk']);
+    runRequired('Wallet Connect build', 'pnpm', ['-C', 'packages/wallet-connect', 'build']);
+    runRequired('public Wallet SDK build', 'pnpm', ['-C', 'packages/mpc-wallet', 'build:sdk']);
   }
   controllerServer = startController();
   startVite('Wallet Console Lite', 4201, false);

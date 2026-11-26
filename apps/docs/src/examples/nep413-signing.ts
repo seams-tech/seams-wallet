@@ -1,4 +1,4 @@
-import { logWalletEvents, type SeamsWeb } from '@seams/wallet';
+import { logWalletEvents, type SeamsWeb } from '@seams/mpc-wallet/client';
 
 export async function signCheckoutMessage(seams: SeamsWeb) {
   const result = await seams.near.signMessage({

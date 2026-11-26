@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { QRCodeScanner } from '@seams/wallet/react';
-import type { LinkDeviceFlowEvent } from '@seams/wallet';
+import { QRCodeScanner } from '@seams/mpc-wallet/react';
+import type { LinkDeviceFlowEvent } from '@seams/mpc-wallet/client';
 
 function logLinkEvent(event: LinkDeviceFlowEvent): void {
   console.log(event.phase, event.status, event.message);

@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import type { NearProvisioningState } from '../../packages/wallet/src/core/types/seams';
+import type { NearProvisioningState } from '../../packages/mpc-wallet/src/core/types/seams';
 import type { WalletId } from '../../packages/shared-ts/src/utils/registrationIntent';
 import {
   runSingleFlightNearProvisioning,
   subscribeToNearProvisioning,
-} from '../../packages/wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry';
+} from '../../packages/mpc-wallet/src/core/signingEngine/flows/registration/nearProvisioningRegistry';
 
 const ready: NearProvisioningState = {
   status: 'near_ready',

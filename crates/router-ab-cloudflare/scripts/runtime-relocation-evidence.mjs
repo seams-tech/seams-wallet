@@ -344,7 +344,7 @@ class RuntimeRelocationSource {
 export async function runtimeRelocationSource(topology, credential, command) {
   const entry = fileURLToPath(
     new URL(
-      '../../../packages/wallet-server/src/router/cloudflare/runtime/walletControlOps.ts',
+      '../../../packages/mpc-wallet-server/src/router/cloudflare/runtime/walletControlOps.ts',
       import.meta.url,
     ),
   );

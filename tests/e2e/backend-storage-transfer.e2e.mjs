@@ -206,7 +206,7 @@ async function doCommand(runtime, destination, command, locationHint = 'weur') {
 
 async function inventorySignerSchema() {
   const database = new DatabaseSync(':memory:');
-  const directory = 'packages/wallet-server/migrations/d1-signer';
+  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
   const migrations = [];
   try {
     database.exec('PRAGMA foreign_keys = ON');

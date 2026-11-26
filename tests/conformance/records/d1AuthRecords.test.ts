@@ -1,18 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { deriveWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
-import type { D1DatabaseLike } from '../../../packages/wallet-server/src/storage/tenantRoute';
-import { prepareD1TenantStatement } from '../../../packages/wallet-server/src/core/d1TenantStore';
+import type { D1DatabaseLike } from '../../../packages/mpc-wallet-server/src/storage/tenantRoute';
+import { prepareD1TenantStatement } from '../../../packages/mpc-wallet-server/src/core/d1TenantStore';
 import {
   D1WalletAuthMethodStore,
   prepareD1WalletAuthMethodPutStatement,
   prepareD1WalletAuthMethodV2PutStatement,
-} from '../../../packages/wallet-server/src/core/d1WalletAuthMethodStore';
-import { CloudflareD1EmailOtpEnrollmentStore } from '../../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
-import { D1WalletExecutionAuthority } from '../../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
-import { createCloudflareD1VersionedJsonRecordStore } from '../../../packages/wallet-server/src/router/cloudflare/d1/versionedJson/d1VersionedJsonRecordStore';
-import { prepareD1WalletAuthorityPutStatement } from '../../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
-import { CloudflareD1WebAuthnStore } from '../../../packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+} from '../../../packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';
+import { CloudflareD1EmailOtpEnrollmentStore } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
+import { D1WalletExecutionAuthority } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+import { createCloudflareD1VersionedJsonRecordStore } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/versionedJson/d1VersionedJsonRecordStore';
+import { prepareD1WalletAuthorityPutStatement } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+import { CloudflareD1WebAuthnStore } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
 import { openSignerD1 } from '../../fixtures/signer-d1.mjs';
 import { seedExecutionGeneration } from '../../e2e/execution-generation.scenario.mjs';
 import {

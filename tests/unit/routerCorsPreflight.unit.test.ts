@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { withCors } from '../../packages/wallet-server/src/router/framework/http';
+import { withCors } from '../../packages/mpc-wallet-server/src/router/framework/http';
 
 const endpoint =
   'https://test.api.wallet.seams.sh/router-ab/ecdsa-derivation/presignature-pool/fill/step';

@@ -3,26 +3,26 @@ import type {
   RouterApiKeyAuthResult,
   RouterApiPublishableKeyAuthResult,
   WalletRegistrationContextResult,
-} from '../../../packages/wallet-server/src/router/framework/apiCredentialPorts';
-import { resolveThresholdRuntimePolicyScope } from '../../../packages/wallet-server/src/router/auth/commonRouterUtils';
+} from '../../../packages/mpc-wallet-server/src/router/framework/apiCredentialPorts';
+import { resolveThresholdRuntimePolicyScope } from '../../../packages/mpc-wallet-server/src/router/auth/commonRouterUtils';
 import {
   resolvePublishableKeyApiCredentialAuth,
   resolveSecretKeyApiCredentialAuth,
   resolveWalletRegistrationContext,
-} from '../../../packages/wallet-server/src/router/auth/routerApiCredentialAuth';
+} from '../../../packages/mpc-wallet-server/src/router/auth/routerApiCredentialAuth';
 import {
   extractBearerCredential,
   extractRouterApiEnvironmentId,
-} from '../../../packages/wallet-server/src/router/auth/routerApiKeyAuth';
+} from '../../../packages/mpc-wallet-server/src/router/auth/routerApiKeyAuth';
 import {
   createRouterApiRouteDefinitions,
   defineRoute,
   findRouteDefinitionById,
-} from '../../../packages/wallet-server/src/router/framework/routeDefinitions';
+} from '../../../packages/mpc-wallet-server/src/router/framework/routeDefinitions';
 import { APP_ORIGIN, recordedCalls } from './routeHarness';
 
 // The publishable key, origin and environment checks, the secret key check, and the login
-// scope check. seams-monorepo calls the first two through @seams/wallet-server/cloud-host, and
+// scope check. seams-monorepo calls the first two through @seams/host/cloud-host, and
 // its key store returns the adapter codes used below.
 
 const ENVIRONMENT_ID = 'project-1:production';

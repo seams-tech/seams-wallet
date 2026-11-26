@@ -7,7 +7,7 @@ import {
   buildTenantRootIdentityFromAuthenticatedDeploymentV1,
   randomTenantRootCreationGrantBytesV1,
   signTenantRootCreationGrantV1,
-} from '@seams/wallet-server/cloud-host';
+} from '@seams/host/cloud-host';
 
 import { resolveLocalTenantRootKeyMaterial } from './prepare-local-runtime-config.mjs';
 

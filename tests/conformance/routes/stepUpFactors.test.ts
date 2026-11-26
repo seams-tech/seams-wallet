@@ -21,13 +21,13 @@ import {
   buildVoiceIdWalletAuthAuthority,
   walletAuthAuthorityRef,
 } from '../../../packages/shared-ts/src/utils/walletAuthAuthority';
-import { parseSessionOrigin } from '../../../packages/wallet-server/src/authorization/domain';
-import { verifyEcdsaOperationStepUpFactor } from '../../../packages/wallet-server/src/router/transport/fetch/routes/ecdsaOperationStepUpFactor';
+import { parseSessionOrigin } from '../../../packages/mpc-wallet-server/src/authorization/domain';
+import { verifyEcdsaOperationStepUpFactor } from '../../../packages/mpc-wallet-server/src/router/transport/fetch/routes/ecdsaOperationStepUpFactor';
 import {
   resolveEd25519WalletSessionOperation,
   revalidateEd25519StepUpOperation,
-} from '../../../packages/wallet-server/src/router/transport/fetch/routes/ed25519AuthorizedOperationRevalidation';
-import type { FetchRouterApiContext } from '../../../packages/wallet-server/src/router/transport/fetch/fetchRouter.types';
+} from '../../../packages/mpc-wallet-server/src/router/transport/fetch/routes/ed25519AuthorizedOperationRevalidation';
+import type { FetchRouterApiContext } from '../../../packages/mpc-wallet-server/src/router/transport/fetch/fetchRouter.types';
 import { APP_ORIGIN, recordedCalls, webAuthnAssertion } from './routeHarness';
 
 // The fresh proof that each signing or export operation needs (step-up). Each factor keeps its

@@ -1,5 +1,5 @@
 import { VoiceSpeakerMismatchError } from '../browser/verificationError';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
+import type { VoiceIdTranscriptionModel } from '@seams/mpc-wallet/voiceid';
 import type { VoiceCaptureObserver } from '@seams/voice-capture';
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import {
@@ -7,22 +7,22 @@ import {
   parseVoiceIdDeviceAssertion,
   voiceIdOperationStatementBytes,
   parseVoiceIdOperationAssertion,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 
-import { base64UrlEncode } from '@seams/wallet/voiceid-host';
+import { base64UrlEncode } from '@seams/mpc-wallet/voiceid';
 import {
   createBrowserVoiceDevice,
   readBrowserVoiceDevice,
   openBrowserVoiceFactor,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 import { enrollBrowserVoice } from '../browser/enrollment';
 import { verifyBrowserVoice } from '../browser/verification';
 import { readVoiceEnrollment } from '../browser/enrollmentStore';
-import { resolveVoiceEnrollmentScope, type VoiceTemplateAccess } from '@seams/wallet/voiceid-host';
+import { resolveVoiceEnrollmentScope, type VoiceTemplateAccess } from '@seams/mpc-wallet/voiceid';
 import {
   prepareVoiceOwner,
   resolveActivatingVoiceEnrollmentScope,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 import {
   requireVoiceUserAction,
   requireVoiceForeground,
@@ -35,7 +35,7 @@ import type {
   VoiceIdOperationCapture,
   VoiceIdUnlockCapture,
   WalletAuthMethodHostPlugin,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 type VoiceCapturePresentation = Readonly<{ onCapture: VoiceCaptureObserver; phrase: SpokenPhrase }>;
 type KeepRecordings = NonNullable<
   Parameters<WalletAuthMethodHostPlugin['activate']>[0]['keepRecordings']

@@ -4,10 +4,10 @@ import {
   type WalletAddAuthMethodRegistrationOptions,
 } from '@shared/utils/addAuthMethodRegistration';
 import { parseWalletAuthMethodId, parseWebAuthnRpId } from '@shared/utils/domainIds';
-import { createBrowserPlatformRuntime } from '../../../packages/wallet/src/core/platform/browser/createBrowserPlatformRuntime';
-import { toRpId } from '../../../packages/wallet/src/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
-import { TouchIdPrompt } from '../../../packages/wallet/src/core/signingEngine/stepUpConfirmation/passkeyPrompt/touchIdPrompt';
-import type { WalletRecoveryRegistrationOptions } from '../../../packages/wallet/src/core/rpcClients/relayer/walletRecoveryPrepare';
+import { createBrowserPlatformRuntime } from '../../../packages/mpc-wallet/src/core/platform/browser/createBrowserPlatformRuntime';
+import { toRpId } from '../../../packages/mpc-wallet/src/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
+import { TouchIdPrompt } from '../../../packages/mpc-wallet/src/core/signingEngine/stepUpConfirmation/passkeyPrompt/touchIdPrompt';
+import type { WalletRecoveryRegistrationOptions } from '../../../packages/mpc-wallet/src/core/rpcClients/relayer/walletRecoveryPrepare';
 import {
   PRF_FIRST_SALT_V1_HEX,
   PRF_SECOND_SALT_V1_HEX,

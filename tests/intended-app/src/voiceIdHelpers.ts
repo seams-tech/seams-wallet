@@ -1,4 +1,4 @@
-import type { useSeams } from '@seams/wallet/react';
+import type { useSeams } from '@seams/mpc-wallet/react';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type VoiceIdContext = {

@@ -1,6 +1,6 @@
-import type { SignNEP413MessageParams, SignNEP413MessageResult } from '@seams/wallet';
-import { ActionType, type ActionResult } from '@seams/wallet';
-import type { useSeams } from '@seams/wallet/react';
+import type { SignNEP413MessageParams, SignNEP413MessageResult } from '@seams/mpc-wallet/client';
+import { ActionType, type ActionResult } from '@seams/mpc-wallet/client';
+import type { useSeams } from '@seams/mpc-wallet/react';
 
 type NearSigner = ReturnType<typeof useSeams>['seams']['near'];
 type DelegateInput = Parameters<NearSigner['signDelegateAction']>[0]['delegate'];

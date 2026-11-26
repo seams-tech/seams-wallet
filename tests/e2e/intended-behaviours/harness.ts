@@ -6,7 +6,7 @@ import {
 import type {
   SignNEP413MessageParams,
   SignNEP413MessageResult,
-} from '../../../packages/wallet/src/core/types/sdkPublicResults';
+} from '../../../packages/mpc-wallet/src/core/types/sdkPublicResults';
 import { verifyNearMessageSignature } from './near-message-signatures';
 import { VirtualPasskeyAuthenticator } from './virtual-authenticator';
 import { nearTransactionHash } from './near-transaction-hash';
@@ -20,7 +20,7 @@ import {
   type RecoveryFinalizeFailure,
 } from './recovery-finalization-fault';
 import { IntendedActionTiming } from './signing-timing-evidence';
-import { parseExactWalletSessionStatusResponse } from '../../../packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import { parseExactWalletSessionStatusResponse } from '../../../packages/mpc-wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   parseWalletSessionId,
   parseMpcWalletSigningQuotaId,
@@ -311,7 +311,7 @@ declare global {
       readonly release: (spoil: boolean) => void;
     };
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
-      authenticationKind: import('../../../packages/wallet/src/core/types/seams').WalletSession['authentication']['kind'];
+      authenticationKind: import('../../../packages/mpc-wallet/src/core/types/seams').WalletSession['authentication']['kind'];
     }>;
     __seamsIntendedE2EReadAuthenticationMethods?: () => Promise<{
       ownerDeviceCount: number;

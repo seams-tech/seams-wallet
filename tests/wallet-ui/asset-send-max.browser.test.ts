@@ -17,7 +17,7 @@ test('Send locks the form while the Max fee probe is in flight', async ({ page, 
     external: ['react', 'react-dom/client', 'react/jsx-runtime'],
     // The components import their own CSS; this test checks behaviour, not styles.
     loader: { '.css': 'empty' },
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
   });
   await injectImportMap(page, { frontendUrl: baseURL });
   await routePreactModules(page);

@@ -1,4 +1,4 @@
-import { logWalletEvents, type SeamsWeb } from '@seams/wallet';
+import { logWalletEvents, type SeamsWeb } from '@seams/mpc-wallet/client';
 
 export async function exportNearKey(seams: SeamsWeb): Promise<void> {
   await seams.keys.exportKey({

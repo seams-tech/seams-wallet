@@ -6,7 +6,7 @@ import {
   createLinkDeviceFlowEvent,
   LinkDeviceEventPhase,
 } from '@/core/types/sdkSentEvents';
-import { validateQrLinkedDeviceSessionPayloadV5 } from '../../../packages/wallet/src/SeamsWeb/operations/devices/scanDevice';
+import { validateQrLinkedDeviceSessionPayloadV5 } from '../../../packages/mpc-wallet/src/SeamsWeb/operations/devices/scanDevice';
 
 /**
  * The nine device-linking codes, as the app receives them on `DeviceLinkingError.code` and on

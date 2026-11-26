@@ -61,7 +61,7 @@ async function openOverlayPage(page: Page): Promise<void> {
   const root = path.resolve(import.meta.dirname, '../..');
   const bundle = await build({
     stdin: {
-      contents: `export * from './packages/wallet/src/SeamsWeb/walletIframe/client/overlay/overlay-styles';`,
+      contents: `export * from './packages/mpc-wallet/src/SeamsWeb/walletIframe/client/overlay/overlay-styles';`,
       resolveDir: root,
     },
     bundle: true,
@@ -69,7 +69,7 @@ async function openOverlayPage(page: Page): Promise<void> {
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
   });
   await page.route(
     '**/__overlay-styles.js',

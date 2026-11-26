@@ -1,5 +1,5 @@
-import { functionCall } from '@seams/wallet';
-import type { ExternalNearController } from '@seams/wallet/external-near';
+import { functionCall } from '@seams/mpc-wallet/client';
+import type { ExternalNearController } from '@seams/wallet-connect/client';
 
 export async function sendGreeting(controller: ExternalNearController) {
   const { connection } = controller.getSnapshot();

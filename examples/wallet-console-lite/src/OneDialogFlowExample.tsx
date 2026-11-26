@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { WalletStep, transfer, useSeams, type WalletStepOutcome } from '@seams/wallet/react';
+import { WalletStep, transfer, useSeams, type WalletStepOutcome } from '@seams/mpc-wallet/react';
 
 type Step = 'bet' | 'sign_in' | 'confirm' | 'placed';
 

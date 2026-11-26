@@ -60,11 +60,11 @@ other delayed response handlers require separate checks. The
 
 | Boundary | Production owner |
 | --- | --- |
-| Shared lock generation | [`advanceWalletLockGeneration`](../../../../packages/wallet/src/core/indexedDB/seamsWalletDB/repositories.ts), a transaction over wallet selections. |
-| Lock ordering and final restoration lock check | [`lock` and `setRestoredWalletAuthenticationIfUnlocked`](../../../../packages/wallet/src/SeamsWeb/operations/auth/login.ts). Lock publishes the generation, retires local sessions, then clears runtime state. |
-| Exact credential retirement and conditional refresh | [`WalletSessionAuthorizationRepository`](../../../../packages/wallet/src/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore.ts). `retireExactActiveForWallet` deletes active rows; `refreshExactWithOperationCredential` compares and updates one existing row in a read/write transaction. |
-| Original snapshot, awaited status, identity checks, conditional write | [`exactSessionReconciliation.ts`](../../../../packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionReconciliation.ts). An unchanged status skips writing; superseded refresh skips publication. |
-| Reconciliation followed by current exact-state read | [`auth.ts`](../../../../packages/wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts) and [`exactSessionState.ts`](../../../../packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionState.ts). |
+| Shared lock generation | [`advanceWalletLockGeneration`](../../../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/repositories.ts), a transaction over wallet selections. |
+| Lock ordering and final restoration lock check | [`lock` and `setRestoredWalletAuthenticationIfUnlocked`](../../../../packages/mpc-wallet/src/SeamsWeb/operations/auth/login.ts). Lock publishes the generation, retires local sessions, then clears runtime state. |
+| Exact credential retirement and conditional refresh | [`WalletSessionAuthorizationRepository`](../../../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore.ts). `retireExactActiveForWallet` deletes active rows; `refreshExactWithOperationCredential` compares and updates one existing row in a read/write transaction. |
+| Original snapshot, awaited status, identity checks, conditional write | [`exactSessionReconciliation.ts`](../../../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/exactSessionReconciliation.ts). An unchanged status skips writing; superseded refresh skips publication. |
+| Reconciliation followed by current exact-state read | [`auth.ts`](../../../../packages/mpc-wallet/src/SeamsWeb/walletIframe/host/handlers/auth.ts) and [`exactSessionState.ts`](../../../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/exactSessionState.ts). |
 
 The model does not execute TypeScript. Source review, the transaction assumption,
 and controlled browser schedules provide the correspondence evidence. The
@@ -135,7 +135,7 @@ No new runner, CI job, production flag, or verification dependency is added.
 Use the existing isolated browser runner on available service ports:
 
 ```sh
-pnpm -C packages/wallet build:sdk
+pnpm -C packages/mpc-wallet build:sdk
 SEAMS_INTENDED_WALLET_HOST=vm SEAMS_INTENDED_SKIP_BUILD=1 \
   node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- \
   e2e/intended-behaviours/passkey.unlock.contract.test.ts \

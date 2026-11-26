@@ -6,7 +6,7 @@ that host. Context follows the host's ancestry; a provider local to the calling
 button is not captured by passing a renderer.
 
 ```tsx
-import { TransactionReviewHost, useSeams } from '@seams/wallet/react';
+import { TransactionReviewHost, useSeams } from '@seams/mpc-wallet/react';
 
 <SeamsWebProvider config={config}>
   <PurchaseContext.Provider value={purchase}>

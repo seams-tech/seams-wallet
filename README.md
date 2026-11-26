@@ -3,21 +3,24 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.74.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.76.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
-Packages for this release:
+From the next release, the packages are:
 
-- `@seams/wallet@0.74.0` — browser SDK and React components. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
-- `@seams/wallet-server@0.74.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.74.0` — optional VoiceID authentication plugin.
-- `@seams/wallet-cli@0.29.0` — with its signed native release;
+- `@seams/mpc-wallet` — the embedded MPC wallet: browser SDK, React components and the VoiceID page code. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
+- `@seams/wallet-connect` — connectors for existing EVM and NEAR wallets, with no Seams account or custody.
+- `@seams/host` — the services that an operator deploys: the Wallet Gateway, packaged Worker runtimes, migrations, the wallet origin document and the VoiceID host plugin.
+- `@seams/cli@0.29.0` — the recovery CLI launcher, with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
+
+They replace `@seams/wallet`, `@seams/wallet-server`, `@seams/voiceid` and `@seams/wallet-cli`
+(see "Next release" below).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `25.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK and VoiceID plugin use version **0.75.0**.
+The browser SDK, server SDK and VoiceID plugin use version **0.76.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -33,6 +36,40 @@ in the `seams-tech/seams-console` repository.
 - Breaking: a security key with no PIN can no longer register a passkey, sign in, unlock, sign or run an owner operation.
 - Breaking: the add-method, device-link and recovery passkey options carry `authenticatorSelection.userVerification: 'required'`, and the Wallet accepts only that value. Deploy the server and the Wallet host together.
 - Breaking: `webauthn.authenticatorOptions.userVerification` and the `UserVerificationPolicy` enum are removed. The field had no effect.
+- Breaking: the packages have new names (Refactor 251, Release A). The code works as before; the names, the paths and the package boundaries change. `@seams/wallet` becomes `@seams/mpc-wallet`, `@seams/wallet-server` becomes `@seams/host`, and `@seams/wallet-cli` becomes `@seams/cli` with the same `seams-wallet` command. `@seams/voiceid` is not published any more: its page code is in `@seams/mpc-wallet`, and its host plugin and models are in `@seams/host`. The connectors for existing wallets move to the new `@seams/wallet-connect`, which imports no Seams auth or MPC wallet code.
+- Breaking: no package has a root import. Each import says where its code runs:
+
+| Import before | Import now |
+| --- | --- |
+| `@seams/wallet` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/advanced` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/threshold` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/runtime` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/react` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/profile` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/hosted-seams-auth-menu` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/provider` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/styles` | `@seams/mpc-wallet/styles.css` |
+| `@seams/wallet/voiceid-host` | `@seams/mpc-wallet/voiceid` |
+| `@seams/wallet/external-evm` | `@seams/wallet-connect/client` |
+| `@seams/wallet/external-near` | `@seams/wallet-connect/client` |
+| `@seams/wallet/react/external-evm` | `@seams/wallet-connect/react` |
+| `@seams/wallet/react/external-near` | `@seams/wallet-connect/react` |
+| `@seams/wallet/web/wallet-iframe-client-html` | `@seams/host/wallet-origin-html` |
+| `@seams/voiceid` | `@seams/mpc-wallet/voiceid` |
+| `@seams/voiceid/react` | `@seams/mpc-wallet/react` |
+| `@seams/voiceid/styles` | `@seams/mpc-wallet/styles.css` |
+| `@seams/voiceid/hosting` | `@seams/host/voiceid` |
+| `@seams/wallet-server` | `@seams/host/server-types` |
+| `@seams/wallet-server/application-auth` | `@seams/mpc-wallet/server` |
+| `@seams/wallet-server/<path>` (each other path) | `@seams/host/<path>` (the same path) |
+| `@seams/wallet-cli` | `@seams/cli` |
+
+- Breaking: the default exports of `@seams/wallet/react/provider` and `@seams/wallet/react/hosted-seams-auth-menu` are gone with those paths. Import `SeamsWebProvider` and `HostedSeamsAuthMenu` by name from `@seams/mpc-wallet/react`. That path also loads the component stylesheets, so import it through a bundler, also for server-side rendering.
+- `@seams/mpc-wallet` names `@seams/wallet-connect` as a peer, because the hosted auth menu takes its controllers as wallet alternatives. It also depends on `voice-glow` for `VoiceBeam`. Install the four packages at one version.
+- The connector pickers draw their own theme boundary and no longer read the `Theme` tokens of the React package. They look the same; their boundary element has no `data-seams-theme`, `lang` or token variables. Their colours come from the `--seams-wallet-picker-*` CSS variables, as before.
+- The wallet asset manifest names `@seams/mpc-wallet`, and the host artifact manifest names `@seams/host`. `seams-voiceid-host` and `composeVoiceIdWalletAssets` come from `@seams/host`; the other `seams-wallet-server-*` commands keep their names.
+- The old names get npm deprecation messages that name the new packages.
 
 ## Release 0.76.0
 
@@ -221,14 +258,15 @@ in the `seams-tech/seams-console` repository.
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.68.1
-# Server applications:
-npm install @seams/wallet-server@0.68.1
-# Applications that enable VoiceID, or the experimental Speak-to-Sign:
-npm install @seams/voiceid@0.68.1
+npm install @seams/mpc-wallet @seams/wallet-connect
+# Operators of the Wallet Gateway and the Wallet host, also for VoiceID:
+npm install @seams/host
 ```
 
-Use `HostedSeamsAuthMenu` from `@seams/wallet/react` inside `SeamsWebProvider`.
+VoiceID and the experimental Speak-to-Sign need no other package in the app:
+`voiceIdAuthMethod()` comes from `@seams/mpc-wallet/voiceid`.
+
+Use `HostedSeamsAuthMenu` from `@seams/mpc-wallet/react` inside `SeamsWebProvider`.
 Its optional `walletAlternatives` configuration supplies ordered `primary` and
 `secondary` groups. Omitted or empty groups stay hidden. Authentication stays on
 the wallet origin, while external connections remain owned by application controllers.
@@ -266,9 +304,9 @@ Vite, Rolldown, and Bun still produce application JavaScript.
 
 ```sh
 pnpm type-check
-pnpm -C packages/wallet build:sdk
-pnpm -C packages/wallet-server build
-pnpm -C packages/wallet check:declarations-external
+pnpm -C packages/mpc-wallet build:sdk
+pnpm -C packages/mpc-wallet-server build
+pnpm -C packages/mpc-wallet check:declarations-external
 ```
 
 The SDK build uses existing WASM outputs. Use `pnpm build:wasm` when those outputs
@@ -297,7 +335,7 @@ Logs, declarations, source manifests, times, and peak resident memory go to
 
 ### Packaged local runtime
 
-`@seams/wallet-server` includes prebuilt Worker roles, signer/private-role
+`@seams/host` includes prebuilt Worker roles, signer/private-role
 migrations, and the native local identity initializer. Consumers can run
 `seams-wallet-server-local` (complete local Wallet system),
 `seams-wallet-server-local-roles`, or `seams-wallet-server-local-init --root <directory>`.
@@ -305,8 +343,8 @@ Supported initializer targets match the CLI release: macOS arm64/x64 and Linux
 x64. `pnpm build:local-tools` builds the host initializer in this source repo;
 the npm release pipeline assembles all supported targets.
 
-Private Console adapters use `@seams/wallet-server/local-runtime` for local
-configuration and `@seams/wallet-server/tenant-root` for portable protocol
+Private Console adapters use `@seams/host/local-runtime` for local
+configuration and `@seams/host/tenant-root` for portable protocol
 contracts. Console governance/security-state models stay in the private repo.
 
 ## Architecture specifications

@@ -117,13 +117,13 @@ test('setup delivery survives lost replies, concurrent tabs and reloads with sco
   const bundle = await build({
     stdin: {
       contents: `
-        export { setupWalletRegistration } from './packages/wallet/src/core/rpcClients/relayer/walletRegistration';
-        export { registrationSetupRepository, registrationSetupScopeDigest } from './packages/wallet/src/core/indexedDB/seamsWalletDB/registrationSetup';
-        export { seamsWalletDB } from './packages/wallet/src/core/indexedDB/singletons';
+        export { setupWalletRegistration } from './packages/mpc-wallet/src/core/rpcClients/relayer/walletRegistration';
+        export { registrationSetupRepository, registrationSetupScopeDigest } from './packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/registrationSetup';
+        export { seamsWalletDB } from './packages/mpc-wallet/src/core/indexedDB/singletons';
       `,
       resolveDir: root,
     },
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
     bundle: true,
     format: 'esm',
     platform: 'browser',

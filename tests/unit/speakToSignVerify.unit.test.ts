@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
-import type { NormalizedRouterLogger } from '../../packages/wallet-server/src/router/framework/logger';
-import type { RouterApiRouteExtension } from '../../packages/wallet-server/src/router/framework/routeExtensions';
-import type { FetchRouterRuntime } from '../../packages/wallet-server/src/router/transport/fetch/fetchRouter.types';
+import type { NormalizedRouterLogger } from '../../packages/mpc-wallet-server/src/router/framework/logger';
+import type { RouterApiRouteExtension } from '../../packages/mpc-wallet-server/src/router/framework/routeExtensions';
+import type { FetchRouterRuntime } from '../../packages/mpc-wallet-server/src/router/transport/fetch/fetchRouter.types';
 import {
   SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES,
   SPEAK_TO_SIGN_VERIFY_PATH,
@@ -11,17 +11,17 @@ import {
   readSpeakToSignVerifyConfig,
   type SpeakToSignVerifyConfig,
   type SpeakToSignVerifyDependencies,
-} from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignVerify';
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignVerify';
 import {
   readSpeakToSignSummaryConfig,
   SPEAK_TO_SIGN_SUMMARY_PATH,
   type SpeakToSignSummaryConfig,
-} from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignSummary';
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignSummary';
 import type {
   VerifierAttestation,
   VerifierAttestationCall,
-} from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignAttestation';
-import type { TranscriberChoice } from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignTranscriber';
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignAttestation';
+import type { TranscriberChoice } from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignTranscriber';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';

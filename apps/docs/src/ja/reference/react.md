@@ -1,20 +1,20 @@
 ---
 title: React SDK
-description: '@seams/wallet/reactが提供するプロバイダー、フック、コンポーネント、ホストする認証UI、テーマの公開API。'
+description: '@seams/mpc-wallet/reactが提供するプロバイダー、フック、コンポーネント、ホストする認証UI、テーマの公開API。'
 ---
 
 # React SDK {#react-sdk}
 
-Seamsの認証と鍵管理に使うReact向けの機能を`@seams/wallet/react`からインポートし、利用するコンポーネントを`SeamsWebProvider`または`SeamsContextProvider`内に配置します。
+Seamsの認証と鍵管理に使うReact向けの機能を`@seams/mpc-wallet/react`からインポートし、利用するコンポーネントを`SeamsWebProvider`または`SeamsContextProvider`内に配置します。
 
 ```tsx [インポート例]
-import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/react';
+import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/mpc-wallet/react';
 ```
 
 ## 外部NEAR向けのReact機能 {#external-near-bindings}
 
-開発プレビューでは`@seams/wallet/react/external-near`を使用します。
-セレクターとフックには`ExternalNearController`が必要ですが、以下のSeamsプロバイダーは不要です。
+開発プレビューでは`@seams/wallet-connect/react`を使用します。
+セレクターとフックには`@seams/wallet-connect/client`の`ExternalNearController`が必要ですが、以下のSeamsプロバイダーは不要です。
 セレクターはアンマウント時に切断します。フックは購読だけを行います。
 [実装例と提供状況](/ja/guides/external-near-wallets#react-example)を確認してください。
 
@@ -119,8 +119,8 @@ Seamsの認証セッションは作成しません。メニューを閉じても
 
 ```tsx [部分的な実装例]
 import { useState } from 'react';
-import { AccountMenuButton, useSeams } from '@seams/wallet/react';
-import '@seams/wallet/react/styles';
+import { AccountMenuButton, useSeams } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 function WalletSettingsControl() {
   const [open, setOpen] = useState(false);
@@ -178,8 +178,8 @@ Escape、閉じるボタン、背景のクリックは`onMenuOpenChange(false)`�
 鍵のエクスポートは、共通の鍵選択画面を開きます。NEARとEVMのサンプル選択肢は、認証が必要であることを表示します。
 
 ```tsx [部分的な実装例]
-import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
-import '@seams/wallet/react/styles';
+import { AccountMenuButtonMock } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```
@@ -201,12 +201,9 @@ import '@seams/wallet/react/styles';
 この設定は`useSeams().seams.placement`を使います。
 呼び出し、結果、移動後に各デバイスで必要なアンロックは、[ウォレットのリージョン](/ja/reference/core#wallet-region)を参照してください。
 
-小さなインポートやSSR専用のインポートが必要なアプリには、用途別のエントリーポイントがあります。
-
-- `@seams/wallet/react/provider`。
-- `@seams/wallet/react/profile`。
-- `@seams/wallet/react/hosted-seams-auth-menu`。
-- `@seams/wallet/react/styles`。
+これらのエクスポートは、すべて`@seams/mpc-wallet/react`から提供し、スタイルシートは`@seams/mpc-wallet/styles.css`から提供します。
+バンドラーは、アプリが使うコンポーネントだけを残します。
+`@seams/mpc-wallet/react`は`VoiceAssistantCard`と`VoiceBeam`もエクスポートします。これらは`SeamsWebProvider`なしで動きます。
 
 ## 取引確認UIのカスタマイズ {#custom-transaction-review}
 

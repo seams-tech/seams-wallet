@@ -23,7 +23,7 @@ and connect from a clean trust file. The old root has no continuity bridge.
 Use Node.js 22 or later to install the launcher, and verify that it executes:
 
 ```bash
-npm install --global @seams/wallet-cli@0.29.0
+npm install --global @seams/cli@0.29.0
 seams-wallet --help
 ```
 

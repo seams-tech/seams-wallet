@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   isD1TriggerRefusal,
   isD1UniqueConstraintError,
-} from '../../packages/wallet-server/src/storage/d1Sql';
+} from '../../packages/mpc-wallet-server/src/storage/d1Sql';
 
 const unique = new Error(
   'D1_ERROR: UNIQUE constraint failed: wallet_recovery_code_locators.locator_digest: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)',

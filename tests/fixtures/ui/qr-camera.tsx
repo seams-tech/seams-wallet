@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 const modulePath = '/_test-sdk/esm/react/hooks/useQRCamera.js';
 const { useQRCamera, QRScanMode } = (await import(
   modulePath
-)) as typeof import('../../../packages/wallet/src/react/hooks/useQRCamera');
+)) as typeof import('../../../packages/mpc-wallet/src/react/hooks/useQRCamera');
 const requests: MediaStreamConstraints[] = [];
 const tracks: MediaStreamTrack[] = [];
 

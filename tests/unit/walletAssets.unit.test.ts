@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
-import type { EvmClient } from '@/core/rpcClients/evm/EvmClient';
+import type { EvmClient } from '@shared/utils/evmClient';
 import { assetsForChain, listedErc20Token, listedNearToken } from '@/core/assets/assetList';
 import { nearSpendableBalance } from '@/core/assets/nearBalance';
 import { readAssetBalances } from '@/core/assets/readAssetBalances';

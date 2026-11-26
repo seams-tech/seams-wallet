@@ -20,7 +20,7 @@ CLIは、コマンドライン引数や環境変数から、復元・移行先�
 Node.js 22以降でランチャーをインストールし、実行できることを確認してください。
 
 ```bash
-npm install --global @seams/wallet-cli@0.29.0
+npm install --global @seams/cli@0.29.0
 seams-wallet --help
 ```
 

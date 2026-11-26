@@ -1,15 +1,15 @@
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
-import type { NearEd25519WalletSessionAuthorizationDisposition } from '../../packages/wallet/src/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
-import type { EcdsaSessionPresignaturePrefillInput } from '../../packages/wallet/src/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
-import type { RouterAbEcdsaDerivationClientPresignatureRefillInput } from '../../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool';
+import type { NearEd25519WalletSessionAuthorizationDisposition } from '../../packages/mpc-wallet/src/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
+import type { EcdsaSessionPresignaturePrefillInput } from '../../packages/mpc-wallet/src/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
+import type { RouterAbEcdsaDerivationClientPresignatureRefillInput } from '../../packages/mpc-wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool';
 import type {
   AuthorizedEcdsaPreprocessingCapability,
   CanonicalEvmFamilyEcdsaSigningCapability,
-} from '../../packages/wallet/src/core/signingEngine/session/material/ecdsaSigningCapability';
+} from '../../packages/mpc-wallet/src/core/signingEngine/session/material/ecdsaSigningCapability';
 import {
   fullWalletLoginRequired,
   invalidWalletSigningMaterial,
-} from '../../packages/wallet/src/core/signingEngine/session/material/walletSigningStateFailure';
+} from '../../packages/mpc-wallet/src/core/signingEngine/session/material/walletSigningStateFailure';
 
 declare const disposition: NearEd25519WalletSessionAuthorizationDisposition;
 
@@ -74,7 +74,7 @@ const missingRefillKeyHandle: RouterAbEcdsaDerivationClientPresignatureRefillInp
 void missingRefillKeyHandle;
 
 // A step-up response cannot carry reusable session facts, even through a spread.
-type NearPrepareResult = Awaited<ReturnType<typeof import('../../packages/wallet/src/core/rpcClients/relayer/routerAbNormalSigning').prepareRouterAbNormalSigningV2>>;
+type NearPrepareResult = Awaited<ReturnType<typeof import('../../packages/mpc-wallet/src/core/rpcClients/relayer/routerAbNormalSigning').prepareRouterAbNormalSigningV2>>;
 declare const reusableNearPrepare: Variant<NearPrepareResult, 'kind', 'reusable_wallet_session'>;
 // @ts-expect-error Changing only the branch cannot retain session authority.
 const stepUpWithSession: NearPrepareResult = { ...reusableNearPrepare, kind: 'operation_step_up' };
@@ -88,7 +88,7 @@ const stepUpLiteral: NearPrepareResult = {
 };
 void [stepUpWithSession, reusableWithoutSession, stepUpLiteral];
 
-type EcdsaStepUpTransport = import('../../packages/wallet/src/core/signingEngine/threshold/ecdsa/operationStepUp').EcdsaOperationStepUpTransport;
+type EcdsaStepUpTransport = import('../../packages/mpc-wallet/src/core/signingEngine/threshold/ecdsa/operationStepUp').EcdsaOperationStepUpTransport;
 declare const authenticatedStepUp: Variant<EcdsaStepUpTransport, 'kind', 'wallet_session'>;
 // @ts-expect-error A session transport requires its canonical operation credential.
 const credentiallessStepUp: EcdsaStepUpTransport = { kind: 'wallet_session' };
@@ -97,7 +97,7 @@ const factorOnlyWithSession: EcdsaStepUpTransport = { ...authenticatedStepUp, ki
 void [credentiallessStepUp, factorOnlyWithSession];
 
 
-import type { EmailOtpRoutePlan } from '../../packages/wallet/src/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
+import type { EmailOtpRoutePlan } from '../../packages/mpc-wallet/src/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
 import { WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION } from '../../packages/shared-ts/src/utils/emailOtpDomain';
 declare const emailOtpOperationStepUp: Variant<EmailOtpRoutePlan, 'routeFamily', 'operation_step_up'>;
 // @ts-expect-error An operation step-up must carry its exact session credential.
@@ -110,14 +110,14 @@ void emailOtpLoginWithStepUpCredential;
 import type {
   RequestEmailOtpTransactionChallengeArgs,
   RequestEmailOtpExportChallengeArgs,
-} from '../../packages/wallet/src/core/signingEngine/session/emailOtp/exportRecoveryRuntime';
+} from '../../packages/mpc-wallet/src/core/signingEngine/session/emailOtp/exportRecoveryRuntime';
 declare const emailOtpExportLogin: Variant<RequestEmailOtpExportChallengeArgs, 'kind', 'wallet_login_challenge'>;
 // @ts-expect-error Transaction signing cannot use an unauthenticated login challenge.
 const transactionLoginChallenge: RequestEmailOtpTransactionChallengeArgs = emailOtpExportLogin;
 void transactionLoginChallenge;
 
 
-import { resolveLoginWarmEd25519ProvisioningIdentity } from '../../packages/wallet/src/SeamsWeb/operations/auth/login/unlockPlanning';
+import { resolveLoginWarmEd25519ProvisioningIdentity } from '../../packages/mpc-wallet/src/SeamsWeb/operations/auth/login/unlockPlanning';
 type LoginProvisioningIdentity = ReturnType<typeof resolveLoginWarmEd25519ProvisioningIdentity>;
 declare const freshLoginProvisioning: Variant<
   LoginProvisioningIdentity,

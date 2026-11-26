@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   createRouterApiRouteDefinitions,
   findRouteDefinitionForRequest,
-} from '../../../packages/wallet-server/src/router/framework/routeDefinitions';
+} from '../../../packages/mpc-wallet-server/src/router/framework/routeDefinitions';
 
 // The route table entries of the auth routes that move to the Auth Worker, and of the routes
 // that seams-monorepo forwards or calls. Each keeps its ID, method, path and auth plane, so a

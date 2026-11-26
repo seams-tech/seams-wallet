@@ -118,7 +118,7 @@ function assertWorkerArtifacts() {
     .filter(isMissingPath);
   if (missing.length === 0) return;
   throw new Error(
-    `Wallet role Worker artifacts are missing: ${missing.map(repoRelativePath).join(', ')}. Install a complete @seams/wallet-server release.`,
+    `Wallet role Worker artifacts are missing: ${missing.map(repoRelativePath).join(', ')}. Install a complete @seams/host release.`,
   );
 }
 

@@ -1,4 +1,4 @@
-import type { VoiceAssistantInput, VoiceAssistantState } from '../../packages/voiceid/src/react/VoiceAssistantCard';
+import type { VoiceAssistantInput, VoiceAssistantState } from '../../packages/mpc-wallet/src/react/components/VoiceAssistantCard/VoiceAssistantCard';
 
 // @ts-expect-error Listening requires an explicit audio source.
 const voiceWithoutInput: VoiceAssistantState = { kind: 'listening' };

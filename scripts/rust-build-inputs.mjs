@@ -54,8 +54,8 @@ const outputs = {
       ...[...tracked].filter((file) => /^wasm\/[^/]+\/Cargo\.toml$/.test(file)),
       'crates/router-ab-ed25519-yao-client/Cargo.toml',
     ],
-    buildScripts: ['packages/wallet/build-paths.sh', 'packages/wallet/scripts/build'],
-    packageScripts: { 'package.json': ['build:wasm'], 'packages/wallet/package.json': ['build:wasm'] },
+    buildScripts: ['packages/mpc-wallet/build-paths.sh', 'packages/mpc-wallet/scripts/build'],
+    packageScripts: { 'package.json': ['build:wasm'], 'packages/mpc-wallet/package.json': ['build:wasm'] },
   },
   workers: {
     manifests: ['crates/router-ab-cloudflare/Cargo.toml'],

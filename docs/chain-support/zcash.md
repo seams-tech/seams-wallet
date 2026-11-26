@@ -30,8 +30,8 @@ Ironwood readiness for mainnet.
 The current SDK has no Zcash chain network, chain family, public API, Orchard
 prover, lightwalletd client, PCZT codec, Pallas implementation, or Zcash route.
 The configured networks and families are currently NEAR, Tempo, and EVM in
-`packages/wallet/src/core/config/chains.ts` and
-`packages/wallet/src/core/types/seams.ts`. The shared chain-target type in
+`packages/mpc-wallet/src/core/config/chains.ts` and
+`packages/mpc-wallet/src/core/types/seams.ts`. The shared chain-target type in
 `packages/shared-ts/src/signing-lanes/ids.ts` is deliberately limited to EVM
 and Tempo targets.
 

@@ -1,5 +1,5 @@
-import type { SeamsWeb } from '@seams/wallet';
-import { toWalletId } from '@seams/wallet/advanced';
+import type { SeamsWeb } from '@seams/mpc-wallet/client';
+import { toWalletId } from '@seams/mpc-wallet/client';
 import { computeWalletOwnerAdminChallengeDigest } from '../../../packages/shared-ts/src/authorization/walletOwnerOperation';
 import { base64UrlDecode, base64UrlEncode } from '../../../packages/shared-ts/src/utils/base64';
 

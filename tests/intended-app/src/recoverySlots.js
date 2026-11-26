@@ -1,6 +1,6 @@
-import { mountAuthMenuSurface } from '../../../packages/wallet/dist/esm/SeamsWeb/walletIframe/host/ui/auth-menu/mountAuthMenuSurface.js';
-import { LIGHT_THEME } from '../../../packages/wallet/dist/esm/base-styles.js';
-import '../../../packages/wallet/dist/esm/sdk/wallet-ui.css';
+import { mountAuthMenuSurface } from '../../../packages/mpc-wallet/dist/esm/SeamsWeb/walletIframe/host/ui/auth-menu/mountAuthMenuSurface.js';
+import { LIGHT_THEME } from '../../../packages/mpc-wallet/dist/esm/base-styles.js';
+import '../../../packages/mpc-wallet/dist/esm/sdk/wallet-ui.css';
 
 const display = {
   kind: 'recovery',

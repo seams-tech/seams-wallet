@@ -22,10 +22,10 @@ export async function composeVoiceIdWalletAssets({ walletPublicDirectory, output
   );
   if (
     manifest.schemaVersion !== 1 ||
-    manifest.packageName !== '@seams/wallet' ||
+    manifest.packageName !== '@seams/mpc-wallet' ||
     !Array.isArray(manifest.assets)
   ) {
-    throw new Error('Expected the static asset manifest from a compatible @seams/wallet package.');
+    throw new Error('Expected the static asset manifest from a compatible @seams/mpc-wallet package.');
   }
   // An existing directory is never overwritten, including either package's dist tree.
   await mkdir(output);

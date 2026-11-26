@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedRegistrationHome } from './execution-generation.scenario.mjs';
 
 // The default tenant maximum: 100 signatures and 30 days.
@@ -42,28 +42,28 @@ const bundle = await build({
   platform: 'node',
   external: ['bs58'],
   write: false,
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { D1RegistrationCeremonyRecordStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
-      export { parseRegistrationFoundingRead } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
-      export { CloudflareD1WalletRegistrationCommitStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
-      export { buildD1WalletRecord } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords';
+      export { D1RegistrationCeremonyRecordStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
+      export { parseRegistrationFoundingRead } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
+      export { CloudflareD1WalletRegistrationCommitStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
+      export { buildD1WalletRecord } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecords';
       export { buildPasskeyRegistrationAuthorityFixture } from './tests/unit/helpers/nearRegistration.fixtures';
       export { buildNearRegistrationSignerFixture } from './tests/unit/helpers/nearRegistrationSigner.fixtures';
       export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
       export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
-      export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
-      export { capabilityPolicyPort } from './packages/wallet-server/src/authorization/capabilityPolicy';
-      export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
-      export { registrationEstablishedMintId } from './packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationSessionCommitReceipt';
+      export { AuthorizationService } from './packages/mpc-wallet-server/src/authorization/service';
+      export { capabilityPolicyPort } from './packages/mpc-wallet-server/src/authorization/capabilityPolicy';
+      export { CloudflareD1AuthorizationStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+      export { registrationEstablishedMintId } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/walletRegistrationSessionCommitReceipt';
       export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
-      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
-      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
-      export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
-      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
+      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
+      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/mpc-wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { D1WalletAuthorizationFreeze } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
+      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
     `,
   },
 });
@@ -619,7 +619,7 @@ function sessionWasAlreadyCommitted(commit) {
 }
 
 async function migrate(database) {
-  const directory = 'packages/wallet-server/migrations/d1-signer';
+  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
     let sql = await readFile(`${directory}/${name}`, 'utf8');
     if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {

@@ -5,7 +5,7 @@ import {
   type BoundEvmSigner,
   type TransactionReviewControls,
   type TransactionReviewRect,
-} from '@seams/wallet/react';
+} from '@seams/mpc-wallet/react';
 
 // Your backend prices the trade and builds the call to your market contract.
 // `expiresAtMs` is the quote deadline as a Unix timestamp in milliseconds.

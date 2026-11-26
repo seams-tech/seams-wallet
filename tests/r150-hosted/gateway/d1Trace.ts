@@ -4,7 +4,7 @@ import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
   D1ResultLike,
-} from '../../../packages/wallet-server/src/storage/tenantRoute';
+} from '../../../packages/mpc-wallet-server/src/storage/tenantRoute';
 
 type QueryIdentity = {
   readonly id: string;

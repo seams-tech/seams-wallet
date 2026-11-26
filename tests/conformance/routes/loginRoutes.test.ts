@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { RouterApiPublishableKeyAuthResult } from '../../../packages/wallet-server/src/router/framework/apiCredentialPorts';
+import type { RouterApiPublishableKeyAuthResult } from '../../../packages/mpc-wallet-server/src/router/framework/apiCredentialPorts';
 import {
   APP_ORIGIN,
   WALLET_ID,

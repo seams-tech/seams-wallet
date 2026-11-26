@@ -32,7 +32,7 @@ class ProbeServer {
       if (name.startsWith('sdk/voiceid/') && !this.installed) {
         return await route.fulfill({ status: 404, body: 'Optional package is not installed' });
       }
-      const packageName = name.startsWith('sdk/voiceid/') ? 'voiceid' : 'wallet';
+      const packageName = name.startsWith('sdk/voiceid/') ? 'voiceid' : 'mpc-wallet';
       const file = path.resolve(
         import.meta.dirname,
         '../../../packages',
@@ -163,7 +163,7 @@ test('a Wallet host rejects missing and incompatible VoiceID packages', async ({
   await page.waitForFunction(ready);
   await page.evaluate(enable);
   expect([...server.fetched].sort()).toEqual([...staticGraph(chunks)].sort());
-  await expect(page.evaluate(load)).rejects.toThrow('Install @seams/voiceid on this Wallet host');
+  await expect(page.evaluate(load)).rejects.toThrow('Compose the VoiceID plugin of @seams/host into this Wallet host');
   expect([...server.fetched].some(isModelOrEngine)).toBe(false);
   await page.route(isVoiceIdHost, serveIncompatiblePlugin);
   await page.reload();

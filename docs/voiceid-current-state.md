@@ -13,7 +13,7 @@ defines the Wallet flow.
 
 ## Current behavior
 
-- An application adds `voiceIdAuthMethod()` from `@seams/voiceid`. The Wallet
+- An application adds `voiceIdAuthMethod()` from `@seams/mpc-wallet/voiceid`. The Wallet
   host also needs a matching VoiceID installation. Other authentication methods
   do not load VoiceID inference assets.
 - An owner first unlocks with a passkey or Email OTP. VoiceID enrollment then

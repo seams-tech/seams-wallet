@@ -1,6 +1,6 @@
 // #region configuration
-import { defineSeamsConfig } from '@seams/wallet';
-import { voiceIdAuthMethod } from '@seams/voiceid';
+import { defineSeamsConfig } from '@seams/mpc-wallet/client';
+import { voiceIdAuthMethod } from '@seams/mpc-wallet/voiceid';
 
 export const voiceIdConfig = defineSeamsConfig({
   walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,
@@ -12,7 +12,7 @@ export const voiceIdConfig = defineSeamsConfig({
 // #endregion configuration
 
 // #region activation
-import type { SeamsContextType } from '@seams/wallet/react';
+import type { SeamsContextType } from '@seams/mpc-wallet/react';
 
 export async function enableVoiceId(seams: SeamsContextType['seams'], walletId: string) {
   const result = await seams.registration.activateAuthMethod({

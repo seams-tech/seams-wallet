@@ -73,7 +73,7 @@ async function installProbe(page: Page): Promise<void> {
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
   });
   await page.route(
     '**/__presign-generation-storage.js',
@@ -144,7 +144,7 @@ declare global {
     __seamsIntendedE2EReadWalletMove?: (
       moveId: string,
     ) => Promise<
-      import('../../../packages/wallet/src/SeamsWeb/publicApi/placement').WalletMoveStatusResult
+      import('../../../packages/mpc-wallet/src/SeamsWeb/publicApi/placement').WalletMoveStatusResult
     >;
   }
 }

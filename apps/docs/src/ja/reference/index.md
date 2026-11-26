@@ -5,23 +5,23 @@ description: ブラウザー、React、しきい値署名、低レベル操作�
 
 # SDKリファレンス {#sdk-reference}
 
-このリファレンスは、**@seams/wallet 0.76.0**を説明します。
-Seamsパッケージは、少数の公開インポートパスを提供します。まずブラウザーAPIまたはReact APIから始めてください。
-低レベルのインポートパスは、対応するランタイムやプロトコルを自社の実装で管理する場合に使います。
+このリファレンスは、**@seams/mpc-wallet 0.76.0**と、一緒に提供するパッケージを説明します。
+各インポートパスは、コードが動く場所を示します。ルートのインポートを持つパッケージはありません。まずブラウザーAPIまたはReact APIから始めてください。
+低レベルのエクスポートは、対応するランタイムやプロトコルを自社の実装で管理する場合に使います。
 
-| インポートパス                                                  | 用途                                                                                                |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [`@seams/wallet`](/ja/reference/core)                           | ブラウザーSDKの設定、登録、認証、署名、復元、デバイス、公開される結果の型。                         |
-| [`@seams/wallet/react`](/ja/reference/react)                    | プロバイダー、フック、認証・プロフィール用コンポーネント、QRフロー、テーマのトークン。              |
-| [`@seams/wallet/advanced`](/ja/reference/advanced)              | 対象を明示した識別情報のビルダー、RPCクライアント、エンコーダー、その他の低レベルの導入用ヘルパー。 |
-| [`@seams/wallet/threshold`](/ja/reference/threshold)            | 安定したしきい値セッションのポリシーと、暗号処理の定数。                                            |
-| [`@seams/wallet/runtime`](/ja/reference/runtime)                | プラットフォームの明示的な入出力インターフェースから、独自の署名ランタイムを作成。                  |
-| [`@seams/wallet/external-evm`](/ja/guides/external-evm-wallets) | Seamsの鍵管理と独立した、ブラウザーのEVMウォレット拡張機能への接続。                                |
-| [`@seams/wallet-server`](/ja/reference/server)                  | サーバーサービス、Workers、マイグレーション、ローカルランタイムのエントリーポイント。               |
-| [`@seams/wallet-cli`](/ja/deploy-and-operate/recovery-cli)      | 署名済みネイティブバイナリーによるバックアップの検証と、テナントルートの復元。                      |
-
-パッケージは、用途を絞ったReactコンポーネントのサブパスと、ホストするウォレットHTMLアセットも公開します。
-これらは、[Reactリファレンス](/ja/reference/react)と[ホスト環境への導入](/ja/deploy-and-operate/hosted-integration)で説明します。
+| インポートパス | 用途 |
+| --- | --- |
+| [`@seams/mpc-wallet/client`](/ja/reference/core) | ブラウザーSDKの設定、登録、認証、署名、復元、デバイス、公開される結果の型。 |
+| [`@seams/mpc-wallet/client`](/ja/reference/advanced) | 対象を明示した識別情報のビルダー、RPCクライアント、エンコーダー、その他の低レベルの導入用ヘルパーも提供。 |
+| [`@seams/mpc-wallet/client`](/ja/reference/threshold) | 安定したしきい値セッションのポリシーと、暗号処理の定数も提供。 |
+| [`@seams/mpc-wallet/client`](/ja/reference/runtime) | プラットフォームの明示的な入出力インターフェースから作る、独自の署名ランタイムも提供。 |
+| [`@seams/mpc-wallet/react`](/ja/reference/react) | プロバイダー、フック、認証・プロフィール用コンポーネント、QRフロー、VoiceIDの表示部品、テーマのトークン。 |
+| `@seams/mpc-wallet/styles.css` | Reactコンポーネントのスタイルシート。 |
+| [`@seams/mpc-wallet/voiceid`](/ja/concepts/auth-methods/voiceid) | VoiceIDの記述子`voiceIdAuthMethod()`と、VoiceIDのホスト契約。 |
+| [`@seams/mpc-wallet/server`](/ja/guides/application-auth) | アプリのバックエンド向けの`createApplicationAuthAssertion`。 |
+| [`@seams/wallet-connect/client`と`/react`](/ja/reference/wallet-connect) | 既存のEVMとNEARのブラウザーウォレットへの接続。Seamsのアカウントも鍵管理も不要です。 |
+| [`@seams/host`](/ja/reference/server) | サーバーサービス、Workers、マイグレーション、ローカルランタイムのエントリーポイント、ウォレットオリジンのドキュメント、VoiceIDのホストプラグイン。 |
+| [`@seams/cli`](/ja/deploy-and-operate/recovery-cli) | 署名済みネイティブバイナリーによるバックアップの検証と、テナントルートの復元。 |
 
 ブラウザーSDKとサーバーSDKは**0.76.0**を使用します。復元CLIは**0.29.0**です。
 導入とデプロイの要件は、[リリース 0.76.0](/ja/releases)を参照してください。
@@ -33,8 +33,8 @@ Seamsパッケージは、少数の公開インポートパスを提供します
 
 | インポート先                        | 公開API                                                                                      |
 | ----------------------------------- | -------------------------------------------------------------------------------------------- |
-| `@seams/wallet/external-near`       | `ExternalNearController`、`ExternalNearConfig`、`nearWalletName`、外部NEARの状態・結果の型。 |
-| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker`、`useExternalNear`。                                              |
+| `@seams/wallet-connect/client` | `ExternalNearController`、`ExternalNearConfig`、`nearWalletName`、外部NEARの状態・結果の型。 |
+| `@seams/wallet-connect/react` | `ExternalNearWalletPicker`、`useExternalNear`。 |
 
 ## 状態と失敗のリファレンス {#state-and-failure-references}
 

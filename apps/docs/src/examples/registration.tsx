@@ -1,5 +1,5 @@
-import type { RegistrationFlowEvent, SeamsWeb } from '@seams/wallet';
-import { useSeams, type SeamsContextType } from '@seams/wallet/react';
+import type { RegistrationFlowEvent, SeamsWeb } from '@seams/mpc-wallet/client';
+import { useSeams, type SeamsContextType } from '@seams/mpc-wallet/react';
 
 function logRegistrationEvent(event: RegistrationFlowEvent): void {
   console.log(event.phase, event.status, event.message);

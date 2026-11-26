@@ -5,25 +5,24 @@ description: Choose the supported Seams SDK entrypoint for browser, React, thres
 
 # SDK reference
 
-This reference describes **@seams/wallet 0.76.0**. The Seams package provides a small set
-of public import paths. Start with the browser or React API. Use lower-level import
-paths only when your integration manages the corresponding runtime or protocol.
+This reference describes **@seams/mpc-wallet 0.76.0** and the packages that ship with it.
+Each import path says where its code runs: no package has a root import. Start with the
+browser or React API. Use the lower-level exports only when your integration manages the
+corresponding runtime or protocol.
 
-| Import path                                                  | Use it for                                                                                                    |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| [`@seams/wallet`](/reference/core)                           | Browser SDK configuration, registration, authentication, signing, recovery, devices, and public result types. |
-| [`@seams/wallet/react`](/reference/react)                    | Providers, hooks, auth and profile components, QR flows, and theme tokens.                                    |
-| [`@seams/wallet/advanced`](/reference/advanced)              | Exact identity builders, RPC clients, encoders, and other low-level integration helpers.                      |
-| [`@seams/wallet/threshold`](/reference/threshold)            | Stable threshold session-policy and cryptographic constants.                                                  |
-| [`@seams/wallet/runtime`](/reference/runtime)                | Building a custom signing runtime from explicit platform ports.                                               |
-| [`@seams/wallet/external-evm`](/guides/external-evm-wallets) | Connecting browser EVM wallet extensions independently of Seams custody.                                      |
-| [`@seams/wallet-server`](/reference/server)                  | Server services, Workers, migrations, and local runtime entry points.                                         |
-| [`@seams/wallet-cli`](/deploy-and-operate/recovery-cli)      | Signed native backup verification and tenant-root recovery tooling.                                           |
-
-The package also publishes focused React component subpaths and the hosted
-wallet HTML asset. Those surfaces are documented on the [React
-reference](/reference/react) and [hosted integration](/deploy-and-operate/hosted-integration)
-pages.
+| Import path | Use it for |
+| --- | --- |
+| [`@seams/mpc-wallet/client`](/reference/core) | Browser SDK configuration, registration, authentication, signing, recovery, devices, and public result types. |
+| [`@seams/mpc-wallet/client`](/reference/advanced) | Also exact identity builders, RPC clients, encoders, and other low-level integration helpers. |
+| [`@seams/mpc-wallet/client`](/reference/threshold) | Also stable threshold session-policy and cryptographic constants. |
+| [`@seams/mpc-wallet/client`](/reference/runtime) | Also a custom signing runtime from explicit platform ports. |
+| [`@seams/mpc-wallet/react`](/reference/react) | Providers, hooks, auth and profile components, QR flows, VoiceID visuals, and theme tokens. |
+| `@seams/mpc-wallet/styles.css` | The stylesheet of the React components. |
+| [`@seams/mpc-wallet/voiceid`](/concepts/auth-methods/voiceid) | The VoiceID descriptor `voiceIdAuthMethod()` and the VoiceID host contract. |
+| [`@seams/mpc-wallet/server`](/guides/application-auth) | `createApplicationAuthAssertion` for your application backend. |
+| [`@seams/wallet-connect/client` and `/react`](/reference/wallet-connect) | Connecting existing EVM and NEAR browser wallets, with no Seams account or custody. |
+| [`@seams/host`](/reference/server) | Server services, Workers, migrations, local runtime entry points, the wallet origin document, and the VoiceID host plugin. |
+| [`@seams/cli`](/deploy-and-operate/recovery-cli) | Signed native backup verification and tenant-root recovery tooling. |
 
 The browser and server SDKs use **0.76.0**. The recovery CLI uses **0.29.0**.
 See [Release 0.76.0](/releases) for integration and deployment requirements.
@@ -35,8 +34,8 @@ See [external NEAR wallets](/guides/external-near-wallets) for availability, exa
 
 | Import path                         | Exports                                                                                                 |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `@seams/wallet/external-near`       | `ExternalNearController`, `ExternalNearConfig`, `nearWalletName`, and external NEAR state/result types. |
-| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker` and `useExternalNear`.                                                       |
+| `@seams/wallet-connect/client` | `ExternalNearController`, `ExternalNearConfig`, `nearWalletName`, and external NEAR state/result types. |
+| `@seams/wallet-connect/react` | `ExternalNearWalletPicker` and `useExternalNear`. |
 
 ## State and failure references
 

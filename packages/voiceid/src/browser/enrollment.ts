@@ -5,7 +5,7 @@ import {
   VoicePhraseMismatchError,
   type SpokenPhrase,
 } from './phrase';
-import { WorkerDeferred } from '@seams/wallet/voiceid-host';
+import { WorkerDeferred } from '@seams/mpc-wallet/voiceid';
 import { prepareVoiceModelWithProgress } from './progress';
 import { recordVoice, requireVoiceUserAction, voiceQualityMessage } from '@seams/voice-capture';
 import { VoicePrompt } from '@seams/voice-capture/card';
@@ -21,11 +21,11 @@ import {
   assertVoiceOwner,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentAuthorization,
-} from '@seams/wallet/voiceid-host';
-import { toError } from '@seams/wallet/voiceid-host';
-import type { Variant } from '@seams/wallet/voiceid-host';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
-import type { AuthMethodEnrollmentRecording } from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
+import { toError } from '@seams/mpc-wallet/voiceid';
+import type { Variant } from '@seams/mpc-wallet/voiceid';
+import type { VoiceIdTranscriptionModel } from '@seams/mpc-wallet/voiceid';
+import type { AuthMethodEnrollmentRecording } from '@seams/mpc-wallet/voiceid';
 
 type EnrollmentCapturePlan = Readonly<{ scope: VoiceEnrollmentScope }> &
   Variant<VoiceEnrollmentAuthorization, 'kind', 'activate' | 'replace' | 'improve'>;

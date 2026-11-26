@@ -5,7 +5,7 @@ import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 import { normalizeVoiceVector, voiceEmbedding, voiceSimilarity, VOICE_MODEL_ID, VOICE_MATCH_THRESHOLD } from '@voiceid/browser/model';
 import { VoicePrompt } from '@seams/voice-capture/card';
 import { configureVoiceIdCapture } from '@voiceid/capture/configure';
-import { isPlainObject } from '@seams/wallet/voiceid-host';
+import { isPlainObject } from '@seams/mpc-wallet/voiceid';
 import { calibrationReport, freezeCalibration, type CutoffFit, type Attempt, type Cohort, type Reading, type Source, type SpeakerScore, type PhraseObservation } from '../../../tests/scripts/voiceid-human-calibration/report';
 
 // The capture package reads the Wallet's settings, as in the Wallet host.

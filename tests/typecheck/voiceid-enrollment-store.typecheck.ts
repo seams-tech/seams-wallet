@@ -5,10 +5,10 @@ import type {
   VoiceChangeGuard,
   VoiceEnrollmentConfirmationRequest,
   VoiceTemplateAccess,
-} from '../../packages/wallet/src/core/authMethods/voiceId/contracts';
+} from '../../packages/mpc-wallet/src/core/authMethods/voiceId/contracts';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
 import { commitVoiceEnrollment } from '../../packages/voiceid/src/browser/enrollmentStore';
-import type { VoiceEnrollmentChange } from '../../packages/wallet/src/core/authMethods/voiceId/contracts';
+import type { VoiceEnrollmentChange } from '../../packages/mpc-wallet/src/core/authMethods/voiceId/contracts';
 import { enrollBrowserVoice } from '../../packages/voiceid/src/browser/enrollment';
 import { manageVoiceEnrollment } from '../../packages/voiceid/src/activation/manageEnrollment';
 
@@ -130,7 +130,7 @@ void [
   crossedCapture,
 ];
 
-import { voiceEnrollmentStorage } from '../../packages/wallet/src/core/authMethods/voiceId/enrollmentStorage';
+import { voiceEnrollmentStorage } from '../../packages/mpc-wallet/src/core/authMethods/voiceId/enrollmentStorage';
 type StorageChange = Parameters<ReturnType<typeof voiceEnrollmentStorage>['commit']>[0];
 declare const unrelatedEnrollment: VoiceEnrollment;
 const constructedRecord: StorageChange = {

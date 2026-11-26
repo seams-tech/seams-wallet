@@ -1,13 +1,13 @@
 import {
   ActionType,
   parseOwnerNearRecovery,
+  parseWebAuthnRpId,
   type ExternalWalletAuthentication,
   type OwnerNearOperation,
   type OwnerNearOperationState,
   type OwnerNearRecovery,
-} from '@seams/wallet';
-import { parseWebAuthnRpId } from '@seams/wallet/advanced';
-import { useOwnerNearOperation, useSeams } from '@seams/wallet/react';
+} from '@seams/mpc-wallet/client';
+import { useOwnerNearOperation, useSeams } from '@seams/mpc-wallet/react';
 import React from 'react';
 
 type Seams = ReturnType<typeof useSeams>['seams'];

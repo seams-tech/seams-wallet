@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import type { RouterApiAuthorizedOperationService } from '../../packages/wallet-server/src/router/framework/authServicePort';
-import { finishRouterAbEcdsaSigningResponse } from '../../packages/wallet-server/src/router/domains/signingOperations/ecdsaSigningResponse';
+import type { RouterApiAuthorizedOperationService } from '../../packages/mpc-wallet-server/src/router/framework/authServicePort';
+import { finishRouterAbEcdsaSigningResponse } from '../../packages/mpc-wallet-server/src/router/domains/signingOperations/ecdsaSigningResponse';
 import { buildClaimedSigningOperationFixture } from './helpers/authorizedOperation.fixtures';
 
 type CompletionInput = Parameters<

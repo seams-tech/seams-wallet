@@ -1,7 +1,7 @@
-import { CloudflareD1RouterAbNormalSigningAdmissionStore } from '../../../packages/wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
-import { createRouterAbNormalSigningAdmissionAdapter, InMemoryRouterAbNormalSigningAdmissionStore } from '../../../packages/wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmissionCore';
-import type { RouterAbNormalSigningAdmissionInput } from '../../../packages/wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmission';
-import type { D1DatabaseLike } from '../../../packages/wallet-server/src/storage/tenantRoute';
+import { CloudflareD1RouterAbNormalSigningAdmissionStore } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import { createRouterAbNormalSigningAdmissionAdapter, InMemoryRouterAbNormalSigningAdmissionStore } from '../../../packages/mpc-wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmissionCore';
+import type { RouterAbNormalSigningAdmissionInput } from '../../../packages/mpc-wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmission';
+import type { D1DatabaseLike } from '../../../packages/mpc-wallet-server/src/storage/tenantRoute';
 import { parseMpcMaterialActivationId } from '../../../packages/shared-ts/src/utils/domainIds';
 import { TracedD1Database } from './d1Trace';
 

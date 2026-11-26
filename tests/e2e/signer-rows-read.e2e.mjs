@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
 // The default tenant maximum: 100 signatures and 30 days.
@@ -30,18 +30,18 @@ const bundle = await build({
   format: 'esm',
   platform: 'node',
   write: false,
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
-      export { capabilityPolicyPort } from './packages/wallet-server/src/authorization/capabilityPolicy';
-      export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
-      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
-      export { D1RegistrationCeremonyRecordStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
-      export { prepareD1WalletAuthorityPutStatement } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
-      export { prepareD1WalletAuthMethodV2PutStatement } from './packages/wallet-server/src/core/d1WalletAuthMethodStore';
+      export { AuthorizationService } from './packages/mpc-wallet-server/src/authorization/service';
+      export { capabilityPolicyPort } from './packages/mpc-wallet-server/src/authorization/capabilityPolicy';
+      export { CloudflareD1AuthorizationStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+      export { D1WalletExecutionAuthority } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+      export { D1RegistrationCeremonyRecordStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
+      export { prepareD1WalletAuthorityPutStatement } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+      export { prepareD1WalletAuthMethodV2PutStatement } from './packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';
       export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
       export { buildSessionSigningOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
@@ -204,7 +204,7 @@ function authorizationService(database) {
 }
 
 async function migrate(database) {
-  const directory = 'packages/wallet-server/migrations/d1-signer';
+  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
     let sql = await readFile(`${directory}/${name}`, 'utf8');
     if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {

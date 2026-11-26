@@ -2,7 +2,7 @@ import type {
   ExternalEvmResult,
   ExternalEvmState,
   ExternalEvmTransactionInput,
-} from '@/externalEvm';
+} from '@seams/wallet-connect/client';
 import type { WalletSessionRef } from '@/boundary/walletRefs';
 
 const wallet = {

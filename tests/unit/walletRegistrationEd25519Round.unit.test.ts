@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 } from '@shared/utils/routerAbEd25519Yao';
-import { executeWalletRegistrationEd25519RoundV1 } from '../../packages/wallet/src/core/signingEngine/walletCustody/walletRegistrationEd25519';
+import { executeWalletRegistrationEd25519RoundV1 } from '../../packages/mpc-wallet/src/core/signingEngine/walletCustody/walletRegistrationEd25519';
 
 type Transport = Parameters<typeof executeWalletRegistrationEd25519RoundV1>[0]['transport'];
 type Answer = Awaited<ReturnType<Transport['send']>>;

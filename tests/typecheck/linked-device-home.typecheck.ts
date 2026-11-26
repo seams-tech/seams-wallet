@@ -1,6 +1,6 @@
-import type { LinkedDeviceBootstrapResult } from '../../packages/wallet-server/src/core/deviceLinking/linkedDeviceBootstrap';
-import type { LinkedDeviceSessionServiceResultV1 } from '../../packages/wallet-server/src/core/deviceLinking/linkedDeviceSession';
-import type { LinkedDeviceSessionRecordV1 } from '../../packages/wallet-server/src/core/deviceLinking/linkedDeviceSessionRecord';
+import type { LinkedDeviceBootstrapResult } from '../../packages/mpc-wallet-server/src/core/deviceLinking/linkedDeviceBootstrap';
+import type { LinkedDeviceSessionServiceResultV1 } from '../../packages/mpc-wallet-server/src/core/deviceLinking/linkedDeviceSession';
+import type { LinkedDeviceSessionRecordV1 } from '../../packages/mpc-wallet-server/src/core/deviceLinking/linkedDeviceSessionRecord';
 
 declare const record: LinkedDeviceSessionRecordV1;
 declare const result: LinkedDeviceSessionServiceResultV1;

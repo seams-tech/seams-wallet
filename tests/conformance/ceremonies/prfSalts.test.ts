@@ -6,12 +6,15 @@ import {
 import {
   getPrfFirstSaltV1,
   getPrfSecondSaltV1,
-} from '../../../packages/wallet/src/core/signingEngine/webauthnAuth/credentials/helpers';
+} from '../../../packages/mpc-wallet/src/core/signingEngine/webauthnAuth/credentials/helpers';
 import {
   getPrfFirstB64uFromCredential,
   redactCredentialExtensionOutputs,
-} from '../../../packages/wallet/src/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
-import { PRF_FIRST_SALT_V1, PRF_SECOND_SALT_V1 } from '../../../packages/wallet/src/threshold';
+} from '../../../packages/mpc-wallet/src/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
+import {
+  PRF_FIRST_SALT_V1,
+  PRF_SECOND_SALT_V1,
+} from '../../../packages/mpc-wallet/src/core/signingEngine/threshold/crypto/prfSalts';
 import { PRF_FIRST_SALT_V1_HEX, PRF_SECOND_SALT_V1_HEX, bytesToBase64Url } from './ceremonyFixtures';
 
 function hex(bytes: Uint8Array): string {
@@ -24,7 +27,7 @@ test('every path to the PRF salts gives the same fixed bytes', () => {
     PRF_FIRST_SALT_V1_HEX,
     PRF_SECOND_SALT_V1_HEX,
   ]);
-  // The public `@seams/wallet/threshold` entry.
+  // The salts that `@seams/mpc-wallet/client` exports.
   expect([hex(PRF_FIRST_SALT_V1), hex(PRF_SECOND_SALT_V1)]).toEqual([
     PRF_FIRST_SALT_V1_HEX,
     PRF_SECOND_SALT_V1_HEX,

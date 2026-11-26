@@ -22,7 +22,7 @@ That path needs no Seams provider or login. It is a development preview.
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet@0.76.0
+pnpm add @seams/mpc-wallet@0.76.0
 ```
 
 ## 2. Mount the provider
@@ -34,8 +34,8 @@ values from `import.meta.env`. Use the same environment variable names or your o
 configuration loader. Pass `chains` to configure different networks. Use
 `defineSeamsConfig` for networks other than testnet.
 
-These docs target `@seams/wallet` **0.76.0**. Keep the wallet-origin assets and
-`@seams/wallet-server` on the matching release. See
+These docs target `@seams/mpc-wallet` **0.76.0**. Keep the wallet-origin assets and
+`@seams/host` on the matching release. See
 [the deployment requirements](/deploy-and-operate/hosted-integration)
 before updating an existing integration.
 

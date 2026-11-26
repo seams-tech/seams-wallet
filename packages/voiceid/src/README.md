@@ -9,7 +9,7 @@ defines the Wallet flow. [Release notes](../../../apps/docs/src/releases.md) ret
 
 ## Implementation boundaries
 
-- [`descriptor.ts`](descriptor.ts) exposes the application descriptor without loading capture code or inference assets.
+- The application descriptor is [`descriptor.ts`](../../mpc-wallet/src/core/authMethods/voiceId/descriptor.ts) in the MPC wallet, published as `@seams/mpc-wallet/voiceid`. It loads no capture code or inference assets.
 - [`host.ts`](host.ts) implements the trusted Wallet host plugin.
 - [`browser/`](browser/) owns microphone capture, inference, phrase matching, and enrollment-template normalization. `verification.ts` runs voice verification independently of the enrollment UI.
 - [`activation/`](activation/) presents enrollment and management through scoped core operations.
@@ -19,7 +19,7 @@ defines the Wallet flow. [Release notes](../../../apps/docs/src/releases.md) ret
 SDK core owns authority checks, passkey confirmation, device persistence, guarded enrollment transactions,
 custody resealing, server proof exchanges, session installation, quotas, and NEAR/ECDSA threshold signing.
 The host API exposes scoped operations and data contracts. It exposes no database schemas, signing contexts,
-session credential stores, or worker transports. Wallet and VoiceID must use matching host API version 10.
+session credential stores, or worker transports. The Wallet and the VoiceID plugin must use the same host API version (11, `VOICE_ID_HOST_API_VERSION`).
 Enrollment and management use the container supplied by the capture surface. Confirmation, capture,
 and persistence share the same action-specific guard and snapshot types.
 Core constructs enrollment records from these commands. Improvements and resets preserve the stored identity and baseline.

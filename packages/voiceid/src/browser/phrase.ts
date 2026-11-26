@@ -4,7 +4,7 @@ import {
   SPOKEN_PHRASES,
   PHRASE_TOKEN_PIECES,
 } from './phraseVocabulary';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
+import type { VoiceIdTranscriptionModel } from '@seams/mpc-wallet/voiceid';
 import { PHRASE_TOKEN_PIECES as CITRINET_TOKEN_PIECES } from './phraseTokens';
 
 export type SpokenPhrase = (typeof SPOKEN_PHRASES)[number];

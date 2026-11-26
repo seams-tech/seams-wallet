@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AuthenticationMethodsModal } from '../../../packages/wallet/src/react/components/AccountMenuButton/AuthenticationMethodsModal';
+import { AuthenticationMethodsModal } from '../../../packages/mpc-wallet/src/react/components/AccountMenuButton/AuthenticationMethodsModal';
 import { provideSeams } from './seamsContextStub';
 
 /**

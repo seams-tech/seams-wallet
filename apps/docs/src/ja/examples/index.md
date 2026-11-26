@@ -17,7 +17,7 @@ description: 動作するSeamsウォレットを作成し、署名、復元、�
 SDKをインストールし、アプリが使うウォレットオリジン、リレーヤー、登録用の環境変数を設定してください。
 
 ```sh
-pnpm add @seams/wallet@0.76.0
+pnpm add @seams/mpc-wallet@0.76.0
 ```
 
 <<< ../../examples/setup.tsx

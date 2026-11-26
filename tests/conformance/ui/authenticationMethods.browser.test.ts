@@ -49,7 +49,7 @@ function bundleFixture(): Promise<string> {
     jsx: 'automatic',
     loader: { '.css': 'empty' },
     external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'],
-    tsconfig: path.join(repoRoot, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(repoRoot, 'packages/mpc-wallet/tsconfig.json'),
     plugins: [seamsContextStub],
   }).then((result) => result.outputFiles[0]!.text);
   return fixtureBundle;

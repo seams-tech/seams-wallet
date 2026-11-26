@@ -6,7 +6,7 @@ import { SDK_ESM_PATHS } from '../setup/sdkEsmPaths';
 import {
   WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH,
   WALLET_PROTOCOL_VERSION,
-} from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+} from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/messages';
 
 export interface WalletServiceHtmlOptions {
   respondReady?: boolean;

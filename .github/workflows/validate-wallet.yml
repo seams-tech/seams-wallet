@@ -29,6 +29,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - run: pnpm report:bloat --check
+      - run: pnpm check:package-names
       - run: pnpm check:cargo-locks
       # The Rust outputs (WASM packages, release Workers, local tools) are
       # cached as one archive (scripts/rust-build-outputs.sh), keyed by the
@@ -60,7 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
+          bash packages/mpc-wallet/scripts/build/install-prebuilt-wasm-tools.sh \
             --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
           echo "$RUNNER_TEMP/wasm-pack" >> "$GITHUB_PATH"
       # worker-build has no upstream prebuilt binary, so this job keeps the one

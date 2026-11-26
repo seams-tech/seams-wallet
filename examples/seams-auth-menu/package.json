@@ -8,7 +8,8 @@
     "type-check": "tsrs --noEmit"
   },
   "dependencies": {
-    "@seams/wallet": "workspace:*",
+    "@seams/mpc-wallet": "workspace:*",
+    "@seams/wallet-connect": "workspace:*",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
@@ -17,6 +18,6 @@
     "@types/react-dom": "19.1.9",
     "@vitejs/plugin-react": "6.0.1",
     "vite": "8.0.0",
-    "@seams/wallet-server": "workspace:*"
+    "@seams/host": "workspace:*"
   }
 }

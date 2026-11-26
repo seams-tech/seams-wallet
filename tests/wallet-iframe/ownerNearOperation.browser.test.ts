@@ -285,7 +285,7 @@ async function initializeOwnerOperations(args: {
   }: typeof import('@/SeamsWeb/publicApi/ownerNearOperation') =
     await import('/_test-sdk/esm/SeamsWeb/publicApi/ownerNearOperation.js');
   const { ActionType }: typeof import('@/core/types/actions') =
-    await import('/_test-sdk/esm/index.js');
+    await import('/_test-sdk/esm/client.js');
   const command = parseOwnerNearCommand({
     action: 'recover',
     authentication: {

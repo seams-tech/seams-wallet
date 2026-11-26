@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { EcdsaMaterialReadSnapshot } from '../../packages/wallet-server/src/core/ecdsaMaterialReadSnapshot';
-import { prepareAuthorizedOperationInsert } from '../../packages/wallet-server/src/router/cloudflare/d1/authorization/authorizedOperationStatements';
+import { EcdsaMaterialReadSnapshot } from '../../packages/mpc-wallet-server/src/core/ecdsaMaterialReadSnapshot';
+import { prepareAuthorizedOperationInsert } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/authorizedOperationStatements';
 
 const SCOPE = { namespace: 'test', orgId: 'org-1', projectId: 'project-1', envId: 'env-1' };
 const WALLET_ID = 'wallet-1';

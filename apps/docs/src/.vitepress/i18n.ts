@@ -1,5 +1,5 @@
 import type { DefaultTheme } from 'vitepress';
-import { version as sdkVersion } from '../../../../packages/wallet/package.json';
+import { version as sdkVersion } from '../../../../packages/mpc-wallet/package.json';
 
 export type DocsLocale = 'en' | 'ja';
 
@@ -102,12 +102,13 @@ const japaneseSidebarLabels: Record<string, string> = {
   'Advanced wallet operations': 'ウォレットの高度な操作',
   'UI customization': 'UIのカスタマイズ',
   'SDK reference': 'SDKリファレンス',
-  '@seams/wallet': '@seams/wallet',
-  '@seams/wallet/react': '@seams/wallet/react',
-  '@seams/wallet/advanced': '@seams/wallet/advanced',
-  '@seams/wallet/threshold': '@seams/wallet/threshold',
-  '@seams/wallet/runtime': '@seams/wallet/runtime',
-  'Server SDK and CLI': 'サーバーSDKとCLI',
+  '@seams/mpc-wallet/client': '@seams/mpc-wallet/client',
+  '@seams/mpc-wallet/react': '@seams/mpc-wallet/react',
+  'RPC clients and encoders': 'RPCクライアントとエンコーダー',
+  'Threshold constants': 'しきい値の定数',
+  'Custom signing runtime': '独自の署名ランタイム',
+  '@seams/wallet-connect': '@seams/wallet-connect',
+  '@seams/host and @seams/cli': '@seams/hostと@seams/cli',
   Configuration: '設定',
   'Results and errors': '結果とエラー',
   'Events and progress': 'イベントと進行状況',

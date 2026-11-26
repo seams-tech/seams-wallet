@@ -1,4 +1,4 @@
-import type { ExternalNearController } from '@seams/wallet/external-near';
+import type { ExternalNearController } from '@seams/wallet-connect/client';
 
 export async function signOwnershipChallenge(
   controller: ExternalNearController,

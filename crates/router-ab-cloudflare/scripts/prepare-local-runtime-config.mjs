@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const runtimeRoot = fileURLToPath(new URL('../', import.meta.url));
-const walletServerRoot = path.dirname(require.resolve('@seams/wallet-server/package.json'));
+const walletServerRoot = path.dirname(require.resolve('@seams/host/package.json'));
 const localPortOffset = Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0);
 const STRICT_WORKER_ROLES = Object.freeze([
   { role: 'router', port: 4102 + localPortOffset },
@@ -78,7 +78,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     'main',
     relativePosixPath(
       outputRoot,
-      require.resolve('@seams/wallet-server/local-hosted-wallet-gateway-worker'),
+      require.resolve('@seams/host/local-hosted-wallet-gateway-worker'),
     ),
   );
   config = replaceTomlAssignment(

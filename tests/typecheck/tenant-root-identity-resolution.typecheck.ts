@@ -2,11 +2,11 @@ import {
   resolveTenantRootIdentityV1,
   type ActiveEcdsaMaterialActivationV1,
   type ActiveEd25519MaterialActivationV1,
-} from '../../packages/wallet-server/src/router/domains/tenantRoot/tenantRootIdentityResolution';
+} from '../../packages/mpc-wallet-server/src/router/domains/tenantRoot/tenantRootIdentityResolution';
 import type { TenantRootIdentityV1 } from '../../packages/shared-ts/src/tenant-root/tenantRootIdentity';
-import type { WalletConsoleTenantRootActiveLineageResponseV1 } from '@seams/wallet-server/cloud-host';
+import type { WalletConsoleTenantRootActiveLineageResponseV1 } from '@seams/host/cloud-host';
 
-import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 as publicBuilder } from '../../packages/wallet-server/src/cloud-host';
+import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 as publicBuilder } from '../../packages/mpc-wallet-server/src/cloud-host';
 void publicBuilder;
 
 const directIdentityFields = {

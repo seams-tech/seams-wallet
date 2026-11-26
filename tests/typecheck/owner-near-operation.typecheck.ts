@@ -1,13 +1,13 @@
-import type { ActionResult } from '../../packages/wallet/src/core/types/seams';
+import type { ActionResult } from '../../packages/mpc-wallet/src/core/types/seams';
 import type {
   OwnerNearOutcome,
   OwnerNearOperationState,
   OwnerNearRetirementWait,
   PrepareOwnerNearTransaction,
-} from '../../packages/wallet/src/SeamsWeb/publicApi/ownerNearOperation';
+} from '../../packages/mpc-wallet/src/SeamsWeb/publicApi/ownerNearOperation';
 import type { ExternalWalletAuthentication } from '../../packages/shared-ts/src/auth/externalAuth';
 import type { RegistrationEstablishedSessionResultV2 } from '../../packages/shared-ts/src/utils/registrationEstablishedSession';
-import type { OwnerNearRecovery } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/ownerNearOperation';
+import type { OwnerNearRecovery } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/ownerNearOperation';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
 
 declare const completedResult: Extract<ActionResult, { success: true }>;

@@ -76,7 +76,7 @@ node tests/scripts/voiceid-model-evaluation/run-browser.mjs \
   "$voiceid_eval" "$voiceid_eval/ecapa.onnx" webkit
 /private/tmp/voiceid-model-env/bin/python tests/scripts/voiceid-model-evaluation/analyze.py \
   --root "$voiceid_eval" \
-  --sdk-assets packages/wallet/dist/public/sdk \
+  --sdk-assets packages/mpc-wallet/dist/public/sdk \
   --engines chromium webkit
 ```
 

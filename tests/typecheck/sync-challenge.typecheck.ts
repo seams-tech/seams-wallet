@@ -1,7 +1,7 @@
 import type {
   WebAuthnSyncChallengeStore,
   WebAuthnSyncChallengeRecord,
-} from '../../packages/wallet-server/src/core/WebAuthnSyncChallengeStore';
+} from '../../packages/mpc-wallet-server/src/core/WebAuthnSyncChallengeStore';
 
 type Consumed = Awaited<ReturnType<WebAuthnSyncChallengeStore['consume']>>;
 type Created = Awaited<ReturnType<WebAuthnSyncChallengeStore['create']>>;

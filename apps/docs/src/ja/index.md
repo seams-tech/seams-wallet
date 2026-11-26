@@ -24,7 +24,7 @@ SDK 0.76.0では、関連付けたウォレットに対してGoogle IDトーク�
 ## 1. SDKをインストール {#\_1-install-the-sdk}
 
 ```sh
-pnpm add @seams/wallet@0.76.0
+pnpm add @seams/mpc-wallet@0.76.0
 ```
 
 <!-- prettier-ignore -->
@@ -36,8 +36,8 @@ pnpm add @seams/wallet@0.76.0
 同じ環境変数名を使うか、独自の設定ローダーを使用してください。
 別のネットワークを設定する場合は`chains`を渡します。テストネット以外では`defineSeamsConfig`を使います。
 
-このドキュメントは`@seams/wallet` **0.76.0**を対象としています。
-ウォレットオリジンのアセットと`@seams/wallet-server`も、対応するリリースに合わせてください。
+このドキュメントは`@seams/mpc-wallet` **0.76.0**を対象としています。
+ウォレットオリジンのアセットと`@seams/host`も、対応するリリースに合わせてください。
 既存の実装を更新する前に、[デプロイ要件](/ja/deploy-and-operate/hosted-integration)を確認してください。
 
 [VoiceID](/ja/concepts/auth-methods/voiceid)は、音声の登録、アンロック、署名に使う任意のパッケージです。

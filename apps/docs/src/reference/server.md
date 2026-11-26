@@ -1,39 +1,42 @@
 ---
-title: Server SDK and CLI
-description: Supported Wallet Server entry points, packaged runtime commands, and recovery CLI ownership.
+title: Host and CLI
+description: Supported @seams/host entry points, packaged runtime commands, and recovery CLI ownership.
 ---
 
-# Server SDK and CLI
+# Host and CLI
 
-`@seams/wallet-server@0.76.0` supplies reusable Wallet services, storage
-adapters, Cloudflare Workers, migrations, and signer WASM bindings.
-The current recovery CLI launcher is `@seams/wallet-cli@0.29.0`.
+`@seams/host@0.76.0` is the package of the services that an operator deploys: reusable Wallet
+services, storage adapters, Cloudflare Workers, migrations, signer WASM bindings, the wallet
+origin document, and the VoiceID host plugin. It replaces `@seams/wallet-server`.
+The current recovery CLI launcher is `@seams/cli@0.29.0`.
 See [release status](/releases) before selecting deployment artifacts.
 
 ```sh
-pnpm add @seams/wallet-server@0.76.0
-npm install --global @seams/wallet-cli@0.29.0
+pnpm add @seams/host@0.76.0
+npm install --global @seams/cli@0.29.0
 ```
 
 ## Server entry points
 
 | Import path | Scope |
 | --- | --- |
-| `@seams/wallet-server` | Shared server services and contracts |
-| `@seams/wallet-server/router/cloudflare` | Cloudflare Router adapter |
-| `@seams/wallet-server/router/ror` | Router-of-Routers adapter |
-| `@seams/wallet-server/storage/tenant-route` | Tenant route storage |
-| `@seams/wallet-server/wasm/signer` | Signer WASM bindings |
-| `@seams/wallet-server/cloud-host` | Hosted registration and authority services |
-| `@seams/wallet-server/hosted-wallet-gateway` | Gateway composition |
-| `@seams/wallet-server/hosted-wallet-gateway-worker` | Hosted Gateway Worker |
-| `@seams/wallet-server/local-hosted-wallet-gateway-worker` | Local Gateway Worker |
-| `@seams/wallet-server/tenant-root` | Tenant-root lifecycle and recovery contracts |
-| `@seams/wallet-server/local-runtime` | Local runtime configuration script |
-| `@seams/wallet-server/local-runtime/*` | Packaged local runtime scripts |
-| `@seams/wallet-server/artifact-manifest.json` | Packaged runtime identity |
-| `@seams/wallet-server/migrations/d1-signer/*` | Signer migration files |
-| `@seams/wallet-server/package.json` | Package metadata |
+| `@seams/host/server-types` | Shared server services and contracts |
+| `@seams/host/router/cloudflare` | Cloudflare Router adapter |
+| `@seams/host/router/ror` | Router-of-Routers adapter |
+| `@seams/host/storage/tenant-route` | Tenant route storage |
+| `@seams/host/wasm/signer` | Signer WASM bindings |
+| `@seams/host/cloud-host` | Hosted registration and authority services |
+| `@seams/host/hosted-wallet-gateway` | Gateway composition |
+| `@seams/host/hosted-wallet-gateway-worker` | Hosted Gateway Worker |
+| `@seams/host/local-hosted-wallet-gateway-worker` | Local Gateway Worker |
+| `@seams/host/tenant-root` | Tenant-root lifecycle and recovery contracts |
+| `@seams/host/local-runtime` | Local runtime configuration script |
+| `@seams/host/local-runtime/*` | Packaged local runtime scripts |
+| `@seams/host/artifact-manifest.json` | Packaged runtime identity |
+| `@seams/host/migrations/d1-signer/*` | Signer migration files |
+| `@seams/host/wallet-origin-html` | The HTML document of the wallet origin (`getWalletServiceHtml`) |
+| `@seams/host/voiceid` | The VoiceID host plugin, its models and `composeVoiceIdWalletAssets` |
+| `@seams/host/package.json` | Package metadata |
 
 These entry points expose different boundaries. Import through the documented
 package paths. Internal source files do not form a supported API.
@@ -48,6 +51,8 @@ Installed server packages provide:
 - `seams-wallet-server-local-roles`: start the isolated protocol roles.
 - `seams-wallet-server-local-init --root <directory>`: initialize local identity.
 - `seams-wallet-server-d1-migrate`: apply packaged local signer migrations.
+- `seams-voiceid-host <new-directory>`: compose the Wallet assets of `@seams/mpc-wallet` and
+  the VoiceID host plugin into a new static directory.
 
 In the public source checkout, use `pnpm router` and `pnpm site` in separate
 terminals. In the private Console checkout, use that repository's commands
@@ -58,7 +63,7 @@ into the Console repository.
 
 A custom registration authority must schedule
 `resumeRegistrationDirectoryPublicationsV1` from
-`@seams/wallet-server/cloud-host`. It retries completions committed locally
+`@seams/host/cloud-host`. It retries completions committed locally
 but not yet acknowledged by the directory. The bundled local Gateway schedules it.
 See [hosted integration](/deploy-and-operate/hosted-integration#registration-completion)
 for migration and timing requirements.

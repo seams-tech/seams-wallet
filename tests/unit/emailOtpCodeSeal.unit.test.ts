@@ -3,9 +3,9 @@ import {
   WALLET_EMAIL_OTP_ACTIONS,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
-import { createEmailOtpCodeSeal } from '../../packages/wallet-server/src/core/authService/emailOtpCodeSeal';
-import { CloudflareD1EmailOtpChallengeStore } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
-import { emailOtpChallengeRecord } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+import { createEmailOtpCodeSeal } from '../../packages/mpc-wallet-server/src/core/authService/emailOtpCodeSeal';
+import { CloudflareD1EmailOtpChallengeStore } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
+import { emailOtpChallengeRecord } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';
 
 const rootA = Buffer.alloc(32, 1).toString('base64url');

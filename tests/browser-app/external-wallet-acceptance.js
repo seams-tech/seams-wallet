@@ -1,4 +1,4 @@
-import { ExternalNearController } from '../../packages/wallet/dist/esm/externalNear/index.js';
+import { ExternalNearController } from '../../packages/wallet-connect/dist/esm/client.js';
 
 const rpc = 'https://rpc.testnet.near.org';
 const controller = new ExternalNearController({

@@ -43,7 +43,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
 
 // The default tenant maximum: 100 signatures and 30 days.
 const DEFAULT_TENANT_LIMITS = { maxTtlMs: 30 * 24 * 60 * 60_000, maxRemainingUses: 100 };
@@ -107,72 +107,72 @@ const bundle = await build({
   platform: 'node',
   external: ['*.wasm'],
   write: false,
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
         export { buildSessionSigningOperationInputFixture, buildStepUpSigningOperationFixture, buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
-      export { reserveWalletCustodyRegistration } from './packages/wallet-server/src/router/domains/passkeyCustody/walletCustodyRegistrationCommit';
-      export { CloudflareD1WalletCustodyCommitStore } from './packages/wallet-server/src/router/cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
-      export { registrationCommitCompletionWrite } from './packages/wallet-server/src/router/cloudflare/d1/registration/registrationCompletionWrite';
+      export { reserveWalletCustodyRegistration } from './packages/mpc-wallet-server/src/router/domains/passkeyCustody/walletCustodyRegistrationCommit';
+      export { CloudflareD1WalletCustodyCommitStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
+      export { registrationCommitCompletionWrite } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/registrationCompletionWrite';
       export { buildPasskeyEnvelopeFactor } from './packages/shared-ts/src/passkey-custody/custodyEnvelope';
-      export { D1WalletOperationStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletOperationStore';
+      export { D1WalletOperationStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletOperationStore';
       export { TracedD1Database } from './tests/r150-hosted/gateway/d1Trace';
-      export { runRouterAbEd25519YaoRegistrationSideEffectV2, parseRouterAbEd25519YaoRegistrationSideEffectRecordV2 } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
+      export { runRouterAbEd25519YaoRegistrationSideEffectV2, parseRouterAbEd25519YaoRegistrationSideEffectRecordV2 } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
       export { parseRouterAbEd25519YaoRegistrationAdmissionRequestV1 } from './packages/shared-ts/src/utils/routerAbEd25519Yao';
-      export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
-      export { InMemoryRouterAbEd25519YaoRegistrationService } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
+      export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
+      export { InMemoryRouterAbEd25519YaoRegistrationService } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
       export { buildNearRecoveryCacheFixture } from './tests/unit/helpers/nearRecovery.fixtures';
-      export { D1WalletAuthorizationSnapshot } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';
-      export { D1WalletRelocationWriteBlock } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationWriteBlock';
-      export { D1WalletAuthorizationFreeze } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
-      export { D1WalletAuthorizationIntake } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
-      export { D1WalletAuthorizationHistory } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationHistory';
-      export { D1WalletExecutionAuthority, admitD1EstablishedWalletHome } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
-      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
-      export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
-      export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';
-      export { CloudflareD1EmailOtpChallengeStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
-      export { CloudflareD1EmailOtpDeliveryRuntime } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpDeliveryRuntime';
-      export { CloudflareD1EmailOtpChallengeIssuer } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer';
-      export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
-      export { createEmailOtpCodeSeal } from './packages/wallet-server/src/core/authService/emailOtpCodeSeal';
-      export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
-      export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
-      export { CloudflareD1EmailOtpGrantStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpGrantStore';
-      export { CloudflareD1EmailOtpRecoveryService } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecoveryService';
-      export { emailOtpGrantRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+      export { D1WalletAuthorizationSnapshot } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationSnapshot';
+      export { D1WalletRelocationWriteBlock } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationWriteBlock';
+      export { D1WalletAuthorizationFreeze } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationFreeze';
+      export { D1WalletAuthorizationIntake } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
+      export { D1WalletAuthorizationHistory } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationHistory';
+      export { D1WalletExecutionAuthority, admitD1EstablishedWalletHome } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
+      export { CloudflareD1WebAuthnStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+      export { walletRelocationEmailOtpBinding, verifyWalletRelocationEmailOtp } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationEmailOtp';
+      export { CloudflareD1EmailOtpChallengeStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
+      export { CloudflareD1EmailOtpDeliveryRuntime } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpDeliveryRuntime';
+      export { CloudflareD1EmailOtpChallengeIssuer } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer';
+      export { CloudflareD1EmailOtpChallengeVerifier } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
+      export { createEmailOtpCodeSeal } from './packages/mpc-wallet-server/src/core/authService/emailOtpCodeSeal';
+      export { CloudflareD1EmailOtpEnrollmentStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
+      export { CloudflareD1EmailOtpRateLimitStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
+      export { CloudflareD1EmailOtpGrantStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpGrantStore';
+      export { CloudflareD1EmailOtpRecoveryService } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecoveryService';
+      export { emailOtpGrantRecord } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
       export { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_ACTIONS } from './packages/shared-ts/src/utils/emailOtpDomain';
-      export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
-      export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
+      export { emailOtpChallengeRecord } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+      export { prepareD1TenantStatement } from './packages/mpc-wallet-server/src/core/d1TenantStore';
       export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
-      export { WalletAuthorizationRelocationRoutes } from './packages/wallet-server/src/router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
-      export { WalletPlacementRoutes } from './packages/wallet-server/src/router/cloudflare/runtime/walletPlacementRoutes';
-      export { WalletRelocationReadAccess } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
-      export { WalletRelocationOwnerRequest } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
-      export { D1WalletRelocationApprovals } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
-      export { verifyWalletRelocationPasskey } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationPasskey';
-      export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
-      export { D1WalletRelocationChallenges, WalletRelocationChallengeBinding } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationChallenges';
-      export { capabilityPolicyPort } from './packages/wallet-server/src/authorization/capabilityPolicy';
-      export { parseSessionOrigin } from './packages/wallet-server/src/authorization/domain';
-      export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
-      export { D1WalletAuthorityStore, prepareD1WalletAuthorityPutStatement } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
-      export { prepareD1WalletAuthMethodV2PutStatement } from './packages/wallet-server/src/core/d1WalletAuthMethodStore';
+      export { WalletAuthorizationRelocationRoutes } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletAuthorizationRelocationRoutes';
+      export { WalletPlacementRoutes } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletPlacementRoutes';
+      export { WalletRelocationReadAccess } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
+      export { WalletRelocationOwnerRequest } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
+      export { D1WalletRelocationApprovals } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
+      export { verifyWalletRelocationPasskey } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationPasskey';
+      export { AuthorizationService } from './packages/mpc-wallet-server/src/authorization/service';
+      export { D1WalletRelocationChallenges, WalletRelocationChallengeBinding } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationChallenges';
+      export { capabilityPolicyPort } from './packages/mpc-wallet-server/src/authorization/capabilityPolicy';
+      export { parseSessionOrigin } from './packages/mpc-wallet-server/src/authorization/domain';
+      export { CloudflareD1AuthorizationStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+      export { D1WalletAuthorityStore, prepareD1WalletAuthorityPutStatement } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+      export { prepareD1WalletAuthMethodV2PutStatement } from './packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';
       export { buildLinkedDeviceManagementAuthorityFixture, buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
       export { buildFullOwnerPermissionsV1, buildSigningOnlyDelegatedWalletAuthorityV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
       export { routerAbMpcMaterialActivationRefToWire } from './packages/shared-ts/src/utils/routerAbNormalSigningIdentity';
-      export { readWalletSessionSigningCandidate } from './packages/wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
+      export { readWalletSessionSigningCandidate } from './packages/mpc-wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
-      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/mpc-wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
       export { buildNearRegistrationAuthorityFixture, buildNearRecoveryAdmissionFixture } from './tests/unit/helpers/nearRegistration.fixtures';
-      export { D1RegistrationCeremonyRecordStore } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
-      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
-      export { routerAbEd25519YaoRegistrationSigningRootIdV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/routerAbEd25519YaoGatewayEnvelope';
+      export { D1RegistrationCeremonyRecordStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
+      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
+      export { routerAbEd25519YaoRegistrationSigningRootIdV1 } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/routerAbEd25519YaoGatewayEnvelope';
       export { registrationIntentGrantFromString } from './packages/shared-ts/src/utils/registrationIntent';
       export { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './packages/shared-ts/src/tenant-root/tenantRootIdentity';
-      export { tenantRootIdentityDigestB64uV1 } from './packages/wallet-server/src/router/cloudflare/runtime/tenantRootCreationGrant';
+      export { tenantRootIdentityDigestB64uV1 } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/tenantRootCreationGrant';
     `,
   },
 });
@@ -724,7 +724,7 @@ async function issueDeviceSession(database, authorizationService, fixture, issue
 }
 
 async function migrate(database, verifyUpgrade = false) {
-  const directory = 'packages/wallet-server/migrations/d1-signer';
+  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
   const migrations = [];
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
     if (verifyUpgrade && name > '0071_regional_wallet_otp_counters.sql') break;

@@ -133,11 +133,11 @@ try {
   const modulePath = resolve(output, 'address-store.mjs');
   await build({
     stdin: {
-      contents: `export { D1WalletObjectAddresses } from './packages/wallet-server/src/router/cloudflare/d1/walletObjectAddresses';
-        export { walletObjectIdentity } from './packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';`,
+      contents: `export { D1WalletObjectAddresses } from './packages/mpc-wallet-server/src/router/cloudflare/d1/walletObjectAddresses';
+        export { walletObjectIdentity } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';`,
       resolveDir: process.cwd(), loader: 'ts',
     },
-    tsconfig: 'packages/wallet-server/tsconfig.json', bundle: true, platform: 'node', format: 'esm', outfile: modulePath,
+    tsconfig: 'packages/mpc-wallet-server/tsconfig.json', bundle: true, platform: 'node', format: 'esm', outfile: modulePath,
   });
   const { D1WalletObjectAddresses, walletObjectIdentity } = await import(modulePath);
   const database = await topology.getD1Database('GATEWAY_DB', 'router');

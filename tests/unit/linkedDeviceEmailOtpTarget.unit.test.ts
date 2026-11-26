@@ -15,9 +15,9 @@ import {
   parseWalletId,
   parseWalletKeyId,
 } from '../../packages/shared-ts/src/utils/domainIds';
-import type { EmailOtpWalletEnrollmentRecord } from '../../packages/wallet-server/src/core/EmailOtpStores';
-import type { LinkedDeviceSessionRecordV1 } from '../../packages/wallet-server/src/core/deviceLinking/linkedDeviceSessionRecord';
-import { D1LinkedDeviceEmailOtpTargetFactorV1 } from '../../packages/wallet-server/src/router/cloudflare/d1/deviceLinking/d1LinkedDeviceEmailOtpTargetFactor';
+import type { EmailOtpWalletEnrollmentRecord } from '../../packages/mpc-wallet-server/src/core/EmailOtpStores';
+import type { LinkedDeviceSessionRecordV1 } from '../../packages/mpc-wallet-server/src/core/deviceLinking/linkedDeviceSessionRecord';
+import { D1LinkedDeviceEmailOtpTargetFactorV1 } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/deviceLinking/d1LinkedDeviceEmailOtpTargetFactor';
 import { buildEmailOtpEnrollmentFixture } from './helpers/emailOtpAuthMethod.fixtures';
 
 function required<T>(parsed: { ok: true; value: T } | { ok: false; error: { message: string } }) {

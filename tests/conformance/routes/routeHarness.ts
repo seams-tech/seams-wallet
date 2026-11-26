@@ -3,9 +3,9 @@ import {
   buildSigningOnlyDelegatedWalletAuthorityV1,
 } from '../../../packages/shared-ts/src/authorization/delegatedAuthority';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
-import type { RouterApiServiceBag } from '../../../packages/wallet-server/src/router/framework/authServicePort';
-import type { RouterApiOptions } from '../../../packages/wallet-server/src/router/framework/routerApi';
-import { createFetchRouter } from '../../../packages/wallet-server/src/router/transport/fetch/createFetchRouter';
+import type { RouterApiServiceBag } from '../../../packages/mpc-wallet-server/src/router/framework/authServicePort';
+import type { RouterApiOptions } from '../../../packages/mpc-wallet-server/src/router/framework/routerApi';
+import { createFetchRouter } from '../../../packages/mpc-wallet-server/src/router/transport/fetch/createFetchRouter';
 
 /** The app origin that calls the Wallet Gateway in these checks. */
 export const APP_ORIGIN = 'https://app.example.test';

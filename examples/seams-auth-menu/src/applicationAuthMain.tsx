@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
-import { SeamsWebProvider } from '@seams/wallet/react';
-import '@seams/wallet/react/styles';
+import { SeamsWebProvider } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 import { ApplicationAuthExample } from './ApplicationAuth';
 import { exampleConfig, walletOrigin } from './exampleConfig';
 import './styles.css';

@@ -2,14 +2,14 @@ import { VoiceSpeakerMismatchError } from '../browser/verificationError';
 import type {
   AuthMethodCaptureMount,
   AuthMethodCaptureSettlement,
-} from '@seams/wallet/voiceid-host';
-import { authMenuSuccessCopy } from '@seams/wallet/voiceid-host';
-import type { UiConfirmSurfaceMeasurementBinding } from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
+import { authMenuSuccessCopy } from '@seams/mpc-wallet/voiceid';
+import type { UiConfirmSurfaceMeasurementBinding } from '@seams/mpc-wallet/voiceid';
 import {
   createWalletIframeSurfaceMeasurementReporter,
   type WalletIframeSurfaceMeasurementReporter,
-} from '@seams/wallet/voiceid-host';
-import { WorkerDeferred } from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
+import { WorkerDeferred } from '@seams/mpc-wallet/voiceid';
 import {
   displayPhrase,
   newSpokenPhrase,
@@ -23,7 +23,7 @@ import {
 } from '@seams/voice-capture';
 import { leaveSurface, VoicePrompt } from '@seams/voice-capture/card';
 import { VoiceUnlockFrame } from './unlockFrame';
-import { toError } from '@seams/wallet/voiceid-host';
+import { toError } from '@seams/mpc-wallet/voiceid';
 import { VoiceMicrophoneInterruptedError } from '@seams/voice-capture';
 
 type CaptureAction<T> = (

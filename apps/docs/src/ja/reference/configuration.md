@@ -11,7 +11,7 @@ NEARとTempoのテストネットには、`seamsTestnetConfig`を使います。
 型は、次の必須値の指定を要求します。
 
 ```ts [部分的な実装例]
-import { seamsTestnetConfig } from '@seams/wallet/react';
+import { seamsTestnetConfig } from '@seams/mpc-wallet/react';
 
 const config = seamsTestnetConfig({
   walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,
@@ -67,7 +67,7 @@ NEARの署名には、Router A/Bの通常署名(`routerAb.normalSigning`)が必�
 ## 任意のVoiceID {#optional-voiceid}
 
 SDK 0.76.0では、`authMethods: [voiceIdAuthMethod()]`を設定できます。
-記述子は`@seams/voiceid`からインポートします。Walletホストにも、このパッケージのアセットが必要です。
+記述子は`@seams/mpc-wallet/voiceid`からインポートします。Walletホストには、`@seams/host`のVoiceIDホストプラグインも必要です。
 記述子は利用可能な方法を定めます。所有者は、登録とVoiceIDでのアンロックを別に選びます。
 パスキーやメールOTPの処理中は、エンジンやモデルを読み込みません。
 インストールとコード例は[VoiceIDの設定](/ja/concepts/auth-methods/voiceid)を参照してください。
@@ -120,7 +120,7 @@ EVM系チェーンには、数値のチェーン識別子も必要です。
 ## 表示の設定 {#appearance-branch}
 
 SDK 0.18.0で、`appearance.locale: 'en' | 'ja'`が追加されました。既定は英語です。
-設定前に`@seams/wallet`の`normalizeWalletLocale`で、生の言語タグを正規化してください。
+設定前に`@seams/mpc-wallet/client`の`normalizeWalletLocale`で、生の言語タグを正規化してください。
 例えば、`ja-JP`は`ja`を選びます。非対応のタグは`en`を選びます。
 言語設定は、表示設定を通じてSDKのReact部品とホストするウォレットiframeへ伝わります。
 言語は、署名や認証の状態に影響しません。

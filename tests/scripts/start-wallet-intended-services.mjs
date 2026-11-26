@@ -16,7 +16,7 @@ const runtimeRoot =
   process.env.SEAMS_INTENDED_ROUTER_AB_ROOT ||
   path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-intended`);
 const walletDistRoot =
-  process.env.SEAMS_INTENDED_WALLET_DIST_ROOT || path.join(repoRoot, 'packages', 'wallet', 'dist');
+  process.env.SEAMS_INTENDED_WALLET_DIST_ROOT || path.join(repoRoot, 'packages', 'mpc-wallet', 'dist');
 const productionApp = process.env.SEAMS_INTENDED_PRODUCTION === '1';
 const externalGateway = parseExternalGatewayMode();
 const children = [];
@@ -50,10 +50,11 @@ async function main() {
 }
 
 function buildWalletRuntime() {
+  runRequired('Wallet Connect build', 'pnpm', ['-C', 'packages/wallet-connect', 'build']);
   runRequired(
     'Wallet SDK build',
     'pnpm',
-    ['-C', 'packages/wallet', 'run', productionApp ? 'build:prod' : 'build:sdk-full'],
+    ['-C', 'packages/mpc-wallet', 'run', productionApp ? 'build:prod' : 'build:sdk-full'],
     process.env,
   );
   runRequired('VoiceID package build', 'pnpm', ['-C', 'packages/voiceid', 'build']);
@@ -72,13 +73,16 @@ function buildWalletRuntime() {
       `build:${role}`,
     ]);
   }
-  runRequired('Wallet server build', 'pnpm', ['-C', 'packages/wallet-server', 'run', 'build']);
+  runRequired('Wallet server build', 'pnpm', ['-C', 'packages/mpc-wallet-server', 'run', 'build']);
   runRequired('Wallet local initializer build', 'pnpm', ['run', 'build:local-tools']);
 }
 
-/** The test host serves Wallet and VoiceID. Speak-to-Sign is a part of the Wallet. */
+/**
+ * The test host serves Wallet and VoiceID. Speak-to-Sign is a part of the Wallet. The composer
+ * is the one that `@seams/host/voiceid` publishes, read from the VoiceID build.
+ */
 async function walletAssetComposer() {
-  const { composeVoiceIdWalletAssets } = await import('@seams/voiceid/hosting');
+  const { composeVoiceIdWalletAssets } = await import('@seams-internal/voiceid/hosting');
   return composeVoiceIdWalletAssets;
 }
 

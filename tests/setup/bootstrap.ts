@@ -17,7 +17,7 @@ const TEST_ESM_ROUTE_PATTERN = `**${SDK_ESM_BASE_PATH}/**`;
 function resolveRepoRoot(): string {
   if (process.env.SEAMS_REPO_ROOT) return process.env.SEAMS_REPO_ROOT;
   const cwd = process.cwd();
-  if (fs.existsSync(path.join(cwd, 'packages/wallet-server'))) return cwd;
+  if (fs.existsSync(path.join(cwd, 'packages/mpc-wallet-server'))) return cwd;
   return path.resolve(cwd, '..');
 }
 
@@ -44,11 +44,12 @@ function resolveEsmFixturePath(url: string): string | null {
   if (markerIndex < 0) return null;
 
   const rel = decodeURIComponent(parsed.pathname.slice(markerIndex + marker.length));
-  const isServerFixture = rel === 'server' || rel.startsWith('server/');
-  const root = isServerFixture
-    ? path.join(resolveRepoRoot(), 'packages/wallet-server/dist/esm')
-    : path.join(resolveRepoRoot(), 'packages/wallet/dist/esm');
-  const fileRel = isServerFixture ? rel.replace(/^server\/?/, '') : rel;
+  // `server/` serves the host build and `wallet-connect/` the connectors; the rest is the wallet.
+  const prefix = /^(server|wallet-connect)(?:\/|$)/.exec(rel)?.[1];
+  const packageDirectory =
+    prefix === 'server' ? 'mpc-wallet-server' : prefix === 'wallet-connect' ? 'wallet-connect' : 'mpc-wallet';
+  const root = path.join(resolveRepoRoot(), 'packages', packageDirectory, 'dist/esm');
+  const fileRel = prefix ? rel.slice(prefix.length).replace(/^\//, '') : rel;
   const candidate = path.normalize(path.join(root, fileRel));
   const normalizedRoot = path.normalize(root);
   if (candidate !== normalizedRoot && !candidate.startsWith(`${normalizedRoot}${path.sep}`)) {

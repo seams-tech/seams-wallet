@@ -24,10 +24,10 @@ import {
   type SigningRouteVoiceVerdict,
   type SpeakToSignVoiceVerdictCheck,
   type VoiceVerdictLedger,
-} from '../../packages/wallet-server/src/router/domains/speakToSign/voiceVerdictAdmission';
-import { createD1VoiceVerdictLedger } from '../../packages/wallet-server/src/router/cloudflare/d1/speakToSign/d1VoiceVerdictLedger';
-import { isD1DatabaseLike } from '../../packages/wallet-server/src/storage/d1Sql';
-import type { D1DatabaseLike } from '../../packages/wallet-server/src/storage/tenantRoute';
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/voiceVerdictAdmission';
+import { createD1VoiceVerdictLedger } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/speakToSign/d1VoiceVerdictLedger';
+import { isD1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/d1Sql';
+import type { D1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/tenantRoute';
 import { prepareRouterAbNormalSigningV2 } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 

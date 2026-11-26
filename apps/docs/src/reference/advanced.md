@@ -1,21 +1,21 @@
 ---
 title: Advanced helpers
-description: Low-level identity builders, RPC clients, encoding helpers, and Tempo utilities exported from @seams/wallet/advanced.
+description: Low-level identity builders, RPC clients, encoding helpers, and Tempo utilities exported from @seams/mpc-wallet/client.
 ---
 
 # Advanced helpers
 
-`@seams/wallet/advanced` provides low-level tools for integrations that manage their own
+`@seams/mpc-wallet/client` provides low-level tools for integrations that manage their own
 lifecycle and security boundaries.
 
 ```ts [Import example]
-import { createEvmClient, MinimalNearClient } from '@seams/wallet/advanced';
+import { createEvmClient, MinimalNearClient } from '@seams/mpc-wallet/client';
 ```
 
 ## Identity builders moved
 
 The boundary reference builders are exported from
-[`@seams/wallet`](/reference/core) and `@seams/wallet/react` as well as here. A
+[`@seams/mpc-wallet`](/reference/core) and `@seams/mpc-wallet/react` as well as here. A
 first signing call needs no import from this entrypoint.
 
 - `toWalletId`.

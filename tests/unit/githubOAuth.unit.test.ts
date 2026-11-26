@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';
-import { isD1DatabaseLike } from '../../packages/wallet-server/src/storage/d1Sql';
-import { verifyGithubOAuthCodeWithIdentityStore } from '../../packages/wallet-server/src/core/authService/githubOAuth';
-import { D1IdentityStore } from '../../packages/wallet-server/src/core/d1IdentityStore';
+import { isD1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/d1Sql';
+import { verifyGithubOAuthCodeWithIdentityStore } from '../../packages/mpc-wallet-server/src/core/authService/githubOAuth';
+import { D1IdentityStore } from '../../packages/mpc-wallet-server/src/core/d1IdentityStore';
 
 const CONFIG = {
   clientId: 'github-client-id',

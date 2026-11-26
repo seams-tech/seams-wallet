@@ -159,7 +159,7 @@ Baseline from `pnpm report:bloat` at `7c8a163`:
 | Refactor plan docs | 32 docs, 13,291 lines | |
 | Code comments citing refactor or phase numbers | 281 | |
 
-`tsc --noUnusedLocals --noUnusedParameters` over the `packages/wallet` program,
+`tsc --noUnusedLocals --noUnusedParameters` over the `packages/mpc-wallet` program,
 which includes `wallet-server` and `shared-ts`, also reports about 200 unused
 imports, locals and parameters.
 
@@ -218,8 +218,8 @@ formats, public APIs and behavior stay unchanged.
 - [x] Add `--rev <commit>` so a baseline measures a commit, not a working tree
   that other agents are editing, and leave generated modules out of dead
   exports (acc9f9f).
-- [x] Enable `noUnusedLocals` and `noUnusedParameters` for `packages/wallet`
-  and `packages/wallet-server`; `shared-ts` and the test projects inherit them.
+- [x] Enable `noUnusedLocals` and `noUnusedParameters` for `packages/mpc-wallet`
+  and `packages/mpc-wallet-server`; `shared-ts` and the test projects inherit them.
   Fixing the reports deleted about 2,200 lines (5f5e527).
 - [x] Add rules to `AGENTS.md`: run the check before committing; use the shared
   validation helpers instead of local copies; name a union's variants beside it
@@ -330,18 +330,18 @@ by side; the commit messages describe each harness.
   39 copies left in 29 files each have their own message or rule.
 - [x] Give `WebAuthnLoginChallengeStore`, `WebAuthnSyncChallengeStore`,
   `WebAuthnAuthenticatorStore` and `WebAuthnCredentialBindingStore`
-  (`packages/wallet-server/src/core/`) one shared store implementation. The first
+  (`packages/mpc-wallet-server/src/core/`) one shared store implementation. The first
   two share 120 runs. 996423f: `webAuthnStoreBackends.ts` holds the backends,
   and the four files shrink from 2,980 to 1,691 lines.
 - [x] Move `NearClient` (91 runs, 7 same-named exports) and `keyMaterialBrands`
-  (21 same-named exports) from `packages/wallet` and `packages/wallet-server` into
+  (21 same-named exports) from `packages/mpc-wallet` and `packages/mpc-wallet-server` into
   `packages/shared-ts` (b6e1cee). Each package keeps only what differs: its
   `NearRpcError`, the wallet's throttling and retries, the server's failure
   classification, and `parseEcdsaThresholdKeyId`, whose messages differ. The
   server's unused `getAccessKeys` now sends a request like the wallet's.
 - [x] Define once in `packages/shared-ts` the 27 types that both
-  `packages/wallet-server/src/core/registrationContracts.ts` and
-  `packages/wallet/src/core/rpcClients/relayer/walletRegistration.ts` declare.
+  `packages/mpc-wallet-server/src/core/registrationContracts.ts` and
+  `packages/mpc-wallet/src/core/rpcClients/relayer/walletRegistration.ts` declare.
   Some copies differ on purpose (the client's `WalletRegistrationFinalizeResponse`
   has no failure member); rename those instead of merging them. b6e1cee moved the
   6 identical ones. The other 21 differ and keep their names, because no file
@@ -487,7 +487,7 @@ the file defines its own small parsers such as `parseIso`.
   3. a third-party schema library in strict mode.
 - [x] Judge them on strictness (unknown keys rejected, exact literals, branded
   IDs), error messages, wallet bundle size
-  (`packages/wallet/scripts/checks/report-wallet-iframe-bundle-size.mjs`) and how
+  (`packages/mpc-wallet/scripts/checks/report-wallet-iframe-bundle-size.mjs`) and how
   easy the result is to review.
   - The combinators won. `utils/wireSchema.ts` (129 lines) provides
     `wireObject`, `wireLiteral`, `wireUnion`, `wireNonEmptyArray`, `wireResult`
@@ -721,7 +721,7 @@ Found along the way, for their owners:
   summary, and `registrationTiming.ts` lacks `registrationAttemptGateMs`.
 - `tests/unit` has 47 type errors, since nothing type-checks it.
   `esbuild` is imported by two `tests/r150-hosted` scripts but no
-  `package.json` declares it. `pnpm -C packages/wallet test` fails: nine
+  `package.json` declares it. `pnpm -C packages/mpc-wallet test` fails: nine
   wallet `test*` scripts call scripts that never existed.
 - `crates/ed25519-yao/README.md` and `docs/formal-verification-plan.md`
   still say production waits on a Phase 13A "go", whose evaluator went
@@ -850,8 +850,8 @@ renames without a split.
 ```bash
 pnpm report:bloat
 pnpm -C packages/shared-ts type-check
-pnpm -C packages/wallet-server type-check
-pnpm -C packages/wallet type-check
+pnpm -C packages/mpc-wallet-server type-check
+pnpm -C packages/mpc-wallet type-check
 pnpm -C tests type-check:intended
 pnpm -C tests type-check:wallet-state
 ```
@@ -867,7 +867,7 @@ consolidated cluster before committing it.
 - Whether to add Prettier as a dev dependency. `.prettierrc.json` exists, but no
   package installs Prettier, so formatting depends on each editor's copy.
 - Which refactor plans are finished, and where finished plans go.
-- Whether the Vite plugin factories are public API. `packages/wallet` builds and
+- Whether the Vite plugin factories are public API. `packages/mpc-wallet` builds and
   ships them, but its `package.json` exports no path to them, so users cannot
   import them. b74937c restored them after the dead-export pass removed them.
 

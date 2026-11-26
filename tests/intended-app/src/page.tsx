@@ -8,13 +8,19 @@ import type {
   WalletSession,
   WalletMoveStatusResult,
   WalletMoveRequest,
-} from '@seams/wallet';
+} from '@seams/mpc-wallet/client';
 import {
   parseWalletMoveId,
   buildHostedAuthMenuOpenRequest,
   hostedAuthMenuSessionIdFromBoundary,
   LinkDeviceEventPhase,
-} from '@seams/wallet';
+  encodeSignedTransactionBase64,
+  nearAccountRefFromAccountId,
+  parseWebAuthnRpId,
+  toWalletId,
+  type ThresholdEcdsaChainTarget,
+  walletSessionRefFromSession,
+} from '@seams/mpc-wallet/client';
 import {
   ActionType,
   useSeams,
@@ -23,15 +29,7 @@ import {
   type RegisteredNearEd25519Capability,
   type RegistrationResult,
   type RegistrationSignerSetSelection,
-} from '@seams/wallet/react';
-import {
-  encodeSignedTransactionBase64,
-  nearAccountRefFromAccountId,
-  parseWebAuthnRpId,
-  toWalletId,
-  type ThresholdEcdsaChainTarget,
-  walletSessionRefFromSession,
-} from '@seams/wallet/advanced';
+} from '@seams/mpc-wallet/react';
 import { resolveEmailOtpRegistrationSession } from './registrationSession';
 import {
   probeRecoveryAdministration,

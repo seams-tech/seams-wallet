@@ -1,4 +1,4 @@
-import { WalletSettingsPage } from '@seams/wallet/react';
+import { WalletSettingsPage } from '@seams/mpc-wallet/react';
 import { WalletConsoleLite } from './WalletConsoleLite';
 import { TransactionPreviews } from './TransactionPreviews';
 import './console-shell.css';

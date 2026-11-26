@@ -13,8 +13,8 @@ const RELAYER_ORIGIN = 'https://recovery-relay.example.localhost';
 const WALLET_ID = 'wallet:email-recovery-backup';
 const ISSUED_AT_MS = 1_700_000_000_000;
 const SEED_SOURCE = `
-import { configureIndexedDB, IndexedDBManager } from './packages/wallet/src/core/indexedDB';
-import { pendingWalletRecoveryCodeBackupRepository } from './packages/wallet/src/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
+import { configureIndexedDB, IndexedDBManager } from './packages/mpc-wallet/src/core/indexedDB';
+import { pendingWalletRecoveryCodeBackupRepository } from './packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import { issueWalletRecoveryCodes, zeroizeIssuedWalletRecoveryCodes } from './packages/shared-ts/src/wallet-recovery/recoveryCodes';
 import { buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
 
@@ -190,7 +190,7 @@ test('Email OTP-only wallet confirms recovery backup with separate wallet-owned 
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
-    tsconfig: path.resolve(import.meta.dirname, '../../packages/wallet/tsconfig.json'),
+    tsconfig: path.resolve(import.meta.dirname, '../../packages/mpc-wallet/tsconfig.json'),
   });
   const observations: RelayObservation[] = [];
   await setupBasicPasskeyTest(page, {

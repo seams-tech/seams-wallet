@@ -1,4 +1,4 @@
-import type { RouterAbEd25519YaoHttpTransportConfigV1 } from '../../packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient';
+import type { RouterAbEd25519YaoHttpTransportConfigV1 } from '../../packages/mpc-wallet/src/core/signingEngine/threshold/ed25519/yaoClient';
 
 declare const config: RouterAbEd25519YaoHttpTransportConfigV1;
 declare const withoutRouting: Omit<RouterAbEd25519YaoHttpTransportConfigV1, 'routing'>;

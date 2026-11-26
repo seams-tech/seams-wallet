@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 
-const walletRequire = createRequire(new URL('../../packages/wallet/package.json', import.meta.url));
+const walletRequire = createRequire(new URL('../../packages/mpc-wallet/package.json', import.meta.url));
 const preactRoot = path.dirname(walletRequire.resolve('preact/package.json'));
 const preactModules: Record<string, string> = {
   'preact.module.js': path.join(preactRoot, 'dist/preact.module.js'),

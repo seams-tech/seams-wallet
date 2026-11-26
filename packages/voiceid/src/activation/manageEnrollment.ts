@@ -1,6 +1,6 @@
-import type { VoiceOwnerConfirmation } from '@seams/wallet/voiceid-host';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
-import { WorkerDeferred } from '@seams/wallet/voiceid-host';
+import type { VoiceOwnerConfirmation } from '@seams/mpc-wallet/voiceid';
+import type { VoiceIdTranscriptionModel } from '@seams/mpc-wallet/voiceid';
+import { WorkerDeferred } from '@seams/mpc-wallet/voiceid';
 import { enrollBrowserVoice } from '../browser/enrollment';
 import {
   commitVoiceEnrollment,
@@ -13,9 +13,9 @@ import {
   type VoiceEnrollmentSnapshot,
   type VoiceEnrollmentConfirmationRequest,
   type Variant,
-} from '@seams/wallet/voiceid-host';
-import { prepareVoiceOwner } from '@seams/wallet/voiceid-host';
-import { toError } from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
+import { prepareVoiceOwner } from '@seams/mpc-wallet/voiceid';
+import { toError } from '@seams/mpc-wallet/voiceid';
 
 type ManagementAction = VoiceEnrollmentConfirmationRequest['kind'];
 type PreparedManagementChange =

@@ -205,7 +205,7 @@ export async function verifyWalletProtocolCutover(
   await context.unroute('**/wallets/register/respond', captureRespond);
   const databaseBundle = await build({
     entryPoints: [
-      path.resolve(import.meta.dirname, '../../../packages/wallet/src/core/indexedDB/singletons.ts'),
+      path.resolve(import.meta.dirname, '../../../packages/mpc-wallet/src/core/indexedDB/singletons.ts'),
     ],
     bundle: true,
     format: 'esm',

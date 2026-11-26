@@ -78,7 +78,7 @@ function handle(state, request, response) {
 
 function failed(response, error) {
   response.statusCode = 500;
-  response.end('Calibration asset could not load. Build @seams/voiceid before starting this page.');
+  response.end('Calibration asset could not load. Build packages/voiceid before starting this page.');
   process.stderr.write(`${String(error)}\n`);
 }
 

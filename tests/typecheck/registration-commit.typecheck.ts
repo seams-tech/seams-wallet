@@ -4,10 +4,10 @@ import type {
   D1WalletRegistrationCommitStore,
   RegistrationFoundingRead,
   RegistrationFoundingSnapshot,
-} from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
-import type { runRouterAbEd25519YaoRegistrationSideEffectV2 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
-import type { RegistrationInitialSessionCommit } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationEstablishedSessionIssuer';
-import type { RegistrationInitialSessionPlan } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationInitialSession';
+} from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationCommitStore';
+import type { runRouterAbEd25519YaoRegistrationSideEffectV2 } from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationSideEffectBoundary';
+import type { RegistrationInitialSessionCommit } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/walletRegistrationEstablishedSessionIssuer';
+import type { RegistrationInitialSessionPlan } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationInitialSession';
 
 declare const store: D1WalletRegistrationCommitStore;
 declare const authority: RegistrationAuthority;
@@ -73,8 +73,8 @@ void conflictingFoundingRead;
 
 
 // Custody cannot claim a prepared commit without its terminal transaction.
-import type { RegistrationCustodyReservation } from '../../packages/wallet-server/src/router/domains/passkeyCustody/registrationCustodyOutcome';
-import type { RegistrationCommitExecution } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/walletRegistrationSessionCommitReceipt';
+import type { RegistrationCustodyReservation } from '../../packages/mpc-wallet-server/src/router/domains/passkeyCustody/registrationCustodyOutcome';
+import type { RegistrationCommitExecution } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/walletRegistrationSessionCommitReceipt';
 
 // @ts-expect-error Prepared custody must carry the write that its receipt commits.
 const custodyWithoutWrite: RegistrationCustodyReservation = { kind: 'prepared', outcome: { status: 'committed' } };

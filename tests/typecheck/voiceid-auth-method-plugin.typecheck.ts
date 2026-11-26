@@ -1,7 +1,7 @@
-import { type WalletAuthMethodPlugin } from '../../packages/wallet/src/core/authMethods/plugins';
-import { voiceIdAuthMethod } from '../../packages/voiceid/src/descriptor';
-import * as voiceHost from '../../packages/wallet/src/voiceid-host';
-import type { VoiceIdActivationPreparation } from '../../packages/wallet/src/core/authMethods/voiceId/boundary';
+import { type WalletAuthMethodPlugin } from '../../packages/mpc-wallet/src/core/authMethods/plugins';
+import { voiceIdAuthMethod } from '../../packages/mpc-wallet/src/core/authMethods/voiceId/descriptor';
+import * as voiceHost from '../../packages/mpc-wallet/src/voiceid-host';
+import type { VoiceIdActivationPreparation } from '../../packages/mpc-wallet/src/core/authMethods/voiceId/boundary';
 
 // @ts-expect-error The optional plugin cannot access the wallet database manager.
 void voiceHost.IndexedDBManager;
@@ -30,8 +30,8 @@ const crossedWrite: VoiceEnrollmentChange = { ...changeWrite, guard: activationW
 // @ts-expect-error Activation cannot acquire an enrollment-change confirmation.
 const confirmedActivation: VoiceEnrollmentChange = { ...activationWrite, confirmation: changeWrite.confirmation };
 void [crossedPreparation, castPreparation, missingActivation, crossedWrite, confirmedActivation];
-import { ConfirmedVoiceChange } from '../../packages/wallet/src/core/authMethods/voiceId/ownerConfirmation';
-import type { VoiceEnrollmentChange } from '../../packages/wallet/src/core/authMethods/voiceId/contracts';
+import { ConfirmedVoiceChange } from '../../packages/mpc-wallet/src/core/authMethods/voiceId/ownerConfirmation';
+import type { VoiceEnrollmentChange } from '../../packages/mpc-wallet/src/core/authMethods/voiceId/contracts';
 
 declare const assertCurrentOwner: (signal: AbortSignal) => Promise<void>;
 // @ts-expect-error Confirmation must verify a fresh passkey assertion.
@@ -66,12 +66,12 @@ const mixedCapture: PreparedVoiceCapture<void> = {
   ...recordingDeadline,
 };
 void mixedCapture;
-import type { SeamsConfigsInput } from '../../packages/wallet/src/core/types/seams';
-import type { VerifiedVoiceIdSessionProof } from '../../packages/wallet-server/src/authorization/voiceIdDeviceProof';
+import type { SeamsConfigsInput } from '../../packages/mpc-wallet/src/core/types/seams';
+import type { VerifiedVoiceIdSessionProof } from '../../packages/mpc-wallet-server/src/authorization/voiceIdDeviceProof';
 import type {
   WalletAuthMethodHostPlugin,
   AuthMethodSessionInstaller,
-} from '../../packages/wallet/src/core/authMethods/hostPlugin';
+} from '../../packages/mpc-wallet/src/core/authMethods/hostPlugin';
 import type { WalletId, WalletAuthMethodId } from '../../packages/shared-ts/src/utils/domainIds';
 import type {
   SigningLaneAuthBinding,
@@ -260,11 +260,11 @@ void transcriptAsCandidate;
 void leakedPhraseVector;
 void leakedPhraseTemplate;
 
-import type { AuthMethodAvailability } from '../../packages/wallet/src/core/authMethods/availabilityTypes';
+import type { AuthMethodAvailability } from '../../packages/mpc-wallet/src/core/authMethods/availabilityTypes';
 import type {
   HostedAuthMenuOutcome,
   HostedAuthMenuSessionId,
-} from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+} from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/messages';
 declare const authMenuSessionId: HostedAuthMenuSessionId;
 const existingMethod = { walletAuthMethodId };
 // @ts-expect-error An unenrolled method cannot retain an enrolled identity through a spread.

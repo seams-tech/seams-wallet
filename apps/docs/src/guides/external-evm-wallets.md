@@ -5,14 +5,14 @@ description: Connect MetaMask, Rabby, or Phantom EVM accounts without importing 
 
 # External EVM wallets
 
-`@seams/wallet` can connect an existing MetaMask, Rabby, or Phantom EVM account without
+`@seams/wallet-connect` can connect an existing MetaMask, Rabby, or Phantom EVM account without
 importing its key material. The application chooses a discovered provider. The wallet
 extension owns account permission and every approval prompt.
 
 The connector is host-side and does not require a Seams Wallet Session. For
 framework-independent use, import `ExternalEvmController` from
-`@seams/wallet/external-evm`. React applications can use the picker and hook
-shown below.
+`@seams/wallet-connect/client`. React applications can use the picker and hook of
+`@seams/wallet-connect/react`, shown below. The package needs no Seams account and no MPC wallet.
 
 Outside React, call `controller.start(window)` when the host UI mounts and
 `controller.dispose()` when it unmounts.

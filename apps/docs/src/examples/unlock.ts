@@ -1,5 +1,5 @@
-import type { UnlockFlowEvent } from '@seams/wallet';
-import type { SeamsContextType } from '@seams/wallet/react';
+import type { UnlockFlowEvent } from '@seams/mpc-wallet/client';
+import type { SeamsContextType } from '@seams/mpc-wallet/react';
 
 export async function unlockWallet(unlock: SeamsContextType['unlock'], walletId: string) {
   const result = await unlock(walletId, {

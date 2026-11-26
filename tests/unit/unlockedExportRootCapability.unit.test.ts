@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import type { PasskeyCustodyEnvelopeRecord } from '../../packages/shared-ts/src/passkey-custody';
-import type { WalletCustodyCeremonyTransportPort } from '../../packages/wallet/src/core/signingEngine/walletCustody/ceremonyStepRunner';
+import type { WalletCustodyCeremonyTransportPort } from '../../packages/mpc-wallet/src/core/signingEngine/walletCustody/ceremonyStepRunner';
 import {
   destroyUnlockedWalletEd25519ExportRootCapabilitiesV1,
   dropUnlockedWalletEd25519ExportRootCapabilityReferenceV1,
   establishUnlockedWalletEd25519ExportRootCapabilityV1,
   readUnlockedEd25519ExportRootLinkingCapabilityV1,
-} from '../../packages/wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
+} from '../../packages/mpc-wallet/src/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 
 type WorkerCall = { readonly type: string; readonly payload: Record<string, unknown> };
 

@@ -34,7 +34,7 @@ Network work happens after that transaction. Its result is saved separately.
 Operations that involve several services keep enough progress in each service
 to resume after a restart.
 
-The [execution admission types](../packages/wallet-server/src/router/domains/signingOperations/walletExecutionAdmission.ts)
+The [execution admission types](../packages/mpc-wallet-server/src/router/domains/signingOperations/walletExecutionAdmission.ts)
 make the stage before completion explicit:
 
 ```ts
@@ -94,4 +94,4 @@ that is safe.
 
 [Tenant backups and restore](spec-6-tenant-roots-recovery-and-portability.md)
 explain how this works across deployments. For implementation, start with the
-[Gateway repositories](../packages/wallet-server/src/router/cloudflare/d1).
+[Gateway repositories](../packages/mpc-wallet-server/src/router/cloudflare/d1).

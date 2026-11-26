@@ -1,4 +1,4 @@
-import { SeamsWebProvider, seamsTestnetConfig, useSeams } from '@seams/wallet/react';
+import { SeamsWebProvider, seamsTestnetConfig, useSeams } from '@seams/mpc-wallet/react';
 
 // Everything else — wallet service path, SDK base path, relayer account, chain
 // RPC and explorer URLs — comes from the SDK defaults.

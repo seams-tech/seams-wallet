@@ -10,7 +10,7 @@ description: Seamsのしきい値ウォレットを作成する代わりに、Me
 - **Seamsウォレットを使う：** 既存のSeams認証フローで、しきい値ウォレットを作成またはアンロックします。
 - **既存のウォレットを接続する：** アプリが有効にしたウォレットから選び、そのウォレットでリクエストを承認します。
 
-`@seams/wallet@0.76.0`は外部NEARウォレットの接続、取引送信、Meteorの`signMessage` APIに対応しています。
+`@seams/wallet-connect@0.76.0`は外部NEARウォレットの接続、取引送信、Meteorの`signMessage` APIに対応しています。SeamsのアカウントもMPCウォレットも必要ありません。
 
 ## ウォレットとネットワーク {#wallets-and-networks}
 
@@ -108,10 +108,10 @@ Meteorは、NEARのメッセージ署名規格NEP-413に対応しています。
 
 ## コントローラーAPI {#controller-api}
 
-独自UIやReact以外のアプリでは、`@seams/wallet/external-near`から
+独自UIやReact以外のアプリでは、`@seams/wallet-connect/client`から
 `ExternalNearController`をインポートします。
-React向けの機能は`@seams/wallet/react/external-near`にあります。
-`@seams/wallet/react`とは別のインポート先です。
+React向けの機能は`@seams/wallet-connect/react`にあります。
+`@seams/mpc-wallet/react`とは別のインポート先です。
 
 | API                                                        | 動作                                                                                                                             |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -172,5 +172,5 @@ Meteor拡張機能は、ページの読み込み後にページ用APIを追加�
 アダプターは、固定のウォレットオリジンと、そのリクエスト用に開いたポップアップからの応答だけを受け入れます。
 別オリジンへの転送や、ネイティブアプリ向けのブリッジセッションは拒否します。
 
-インポート先が見つからない場合は、`@seams/wallet`のバージョン`0.76.0`がインストールされていることを確認してください。
+インポート先が見つからない場合は、`@seams/wallet-connect`のバージョン`0.76.0`がインストールされていることを確認してください。
 運用ガイドの[外部NEARウォレットのトラブルシューティング](/ja/deploy-and-operate/troubleshooting#external-near-wallets)も参照してください。

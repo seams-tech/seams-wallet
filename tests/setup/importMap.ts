@@ -12,6 +12,8 @@ export const TEST_BROWSER_IMPORTS = {
   qrcode: 'https://esm.sh/qrcode@1.5.4',
   jsqr: 'https://esm.sh/jsqr@1.4.0',
   '@near-js/types': 'https://esm.sh/@near-js/types@2.0.1',
+  // The wallet's hosted auth menu imports the connectors as a peer package.
+  '@seams/wallet-connect/client': '/_test-sdk/esm/wallet-connect/client.js',
 } as const;
 
 export const TEST_BROWSER_IMPORT_MAP_ATTR = 'data-seams-importmap';

@@ -16,6 +16,55 @@ Breaking changes:
 - The server options for an added passkey, a device-link passkey and a recovery passkey carry `authenticatorSelection.userVerification: 'required'`, and the Wallet accepts only that value. Deploy the server and the Wallet host together. A ceremony that starts before the deploy and ends after it fails, and the user starts it again.
 - `webauthn.authenticatorOptions.userVerification` is removed from the SDK config, with the `UserVerificationPolicy` enum. The field had no effect.
 
+### New package names
+
+The packages have new names, so that each product is its own package. The code works as
+before; the names, the import paths and the package boundaries change.
+
+| Package before | Package now | What it holds |
+| --- | --- | --- |
+| `@seams/wallet` | `@seams/mpc-wallet` | The embedded MPC wallet: browser SDK, React components, and the VoiceID page code |
+| `@seams/wallet/external-*` | `@seams/wallet-connect` (new) | The connectors for existing EVM and NEAR wallets, with no Seams account or custody |
+| `@seams/wallet-server` | `@seams/host` | The services that an operator deploys, the wallet origin document, and the VoiceID host plugin and models |
+| `@seams/voiceid` | `@seams/mpc-wallet` and `@seams/host` | Not published alone any more |
+| `@seams/wallet-cli` | `@seams/cli` | The recovery CLI launcher, still **0.29.0** with the `seams-wallet` command |
+
+No package has a root import. Each import says where its code runs:
+
+| Import before | Import now |
+| --- | --- |
+| `@seams/wallet` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/advanced` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/threshold` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/runtime` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/react` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/profile` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/hosted-seams-auth-menu` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/provider` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/styles` | `@seams/mpc-wallet/styles.css` |
+| `@seams/wallet/voiceid-host` | `@seams/mpc-wallet/voiceid` |
+| `@seams/wallet/external-evm` | `@seams/wallet-connect/client` |
+| `@seams/wallet/external-near` | `@seams/wallet-connect/client` |
+| `@seams/wallet/react/external-evm` | `@seams/wallet-connect/react` |
+| `@seams/wallet/react/external-near` | `@seams/wallet-connect/react` |
+| `@seams/wallet/web/wallet-iframe-client-html` | `@seams/host/wallet-origin-html` |
+| `@seams/voiceid` | `@seams/mpc-wallet/voiceid` |
+| `@seams/voiceid/react` | `@seams/mpc-wallet/react` |
+| `@seams/voiceid/styles` | `@seams/mpc-wallet/styles.css` |
+| `@seams/voiceid/hosting` | `@seams/host/voiceid` |
+| `@seams/wallet-server` | `@seams/host/server-types` |
+| `@seams/wallet-server/application-auth` | `@seams/mpc-wallet/server` |
+| `@seams/wallet-server/<path>` (each other path) | `@seams/host/<path>` (the same path) |
+| `@seams/wallet-cli` | `@seams/cli` |
+
+Also changed:
+
+- The default exports of `@seams/wallet/react/provider` and `@seams/wallet/react/hosted-seams-auth-menu` are gone with those paths. Import `SeamsWebProvider` and `HostedSeamsAuthMenu` by name from `@seams/mpc-wallet/react`. That path also loads the component stylesheets, so import it through a bundler, also for server-side rendering.
+- `@seams/mpc-wallet` names `@seams/wallet-connect` as a peer, because the hosted auth menu takes its controllers as wallet alternatives. It also depends on `voice-glow` for `VoiceBeam`. Install the packages at one version.
+- The connector pickers draw their own theme boundary and do not read the `Theme` tokens of `@seams/mpc-wallet/react`. They look the same. Their boundary element has no `data-seams-theme`, `lang` or token variables. Set the `--seams-wallet-picker-*` CSS variables to change their colours, as before.
+- The wallet asset manifest names `@seams/mpc-wallet`, and the host artifact manifest names `@seams/host`. `seams-voiceid-host` and `composeVoiceIdWalletAssets` come from `@seams/host`. The other `seams-wallet-server-*` commands keep their names.
+- The old package names get npm deprecation messages that name the new packages.
+
 # Release 0.76.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.76.0**. Apply the D1 migration `0091_linked_device_email_otp_own_factor.sql`, then deploy the server and the Wallet host together, then the apps.

@@ -3,8 +3,8 @@ import type {
   RouterAbEd25519YaoRegistrationCeremonySnapshotV1,
   RouterAbEd25519YaoCapabilitySnapshotV1,
   RouterAbEd25519YaoCapabilityMutationV1,
-} from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
-import type { RouterAbEd25519YaoRegistrationAdmissionSourceV1, RouterAbEd25519YaoProductRegistrationStateV1, RouterAbEd25519YaoProductRegistrationRuntimeV1 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
+} from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
+import type { RouterAbEd25519YaoRegistrationAdmissionSourceV1, RouterAbEd25519YaoProductRegistrationStateV1, RouterAbEd25519YaoProductRegistrationRuntimeV1 } from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 
 declare const snapshot: RouterAbEd25519YaoRegistrationCeremonySnapshotV1;
 declare const shared: RouterAbEd25519YaoProductRegistrationStateV1;

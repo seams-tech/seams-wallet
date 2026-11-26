@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { ExternalNearController } from '@seams/wallet/external-near';
-import { ExternalNearWalletPicker } from '@seams/wallet/react/external-near';
+import { ExternalNearController } from '@seams/wallet-connect/client';
+import { ExternalNearWalletPicker } from '@seams/wallet-connect/react';
 
 function createController() {
   return new ExternalNearController({

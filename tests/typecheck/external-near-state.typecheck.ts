@@ -1,4 +1,4 @@
-import type { ExternalNearConnection, ExternalNearState, ExternalNearResult } from '@/externalNear';
+import type { ExternalNearConnection, ExternalNearState, ExternalNearResult } from '@seams/wallet-connect/client';
 import type { WalletSessionRef } from '@/boundary/walletRefs';
 const disconnected: ExternalNearState = { kind: 'disconnected' };
 // @ts-expect-error Disconnected states cannot contain account authority.
@@ -19,7 +19,7 @@ void invalid;
 void session;
 void result;
 
-import type { ExternalNearWalletId } from '@/externalNear';
+import type { ExternalNearWalletId } from '@seams/wallet-connect/client';
 const hot: ExternalNearWalletId = 'hot';
 const intear: ExternalNearWalletId = 'intear';
 // @ts-expect-error An unqualified wallet cannot become a selected provider.
@@ -28,7 +28,7 @@ void hot;
 void intear;
 void unknownWallet;
 
-import { ExternalNearController, type ExternalNearConfig } from '@/externalNear';
+import { ExternalNearController, type ExternalNearConfig } from '@seams/wallet-connect/client';
 // @ts-expect-error Applications must explicitly choose which wallets to enable.
 const missingWallets: ExternalNearConfig = {
   network: 'testnet',
@@ -50,8 +50,8 @@ configured.setWallets(['ledger']);
 void missingPendingWallet;
 void invalidConfiguration;
 
-import type { NearWalletProvider } from '@/externalNear/types';
-import type { ValidatedNearMessage } from '@/externalNear/message';
+import type { NearWalletProvider } from '@wallet-connect/externalNear/types';
+import type { ValidatedNearMessage } from '@wallet-connect/externalNear/message';
 declare const provider: NearWalletProvider;
 declare const message: ValidatedNearMessage;
 if (provider.messageSigning === 'unsupported') {

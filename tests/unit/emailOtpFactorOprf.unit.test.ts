@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { base64UrlDecode } from '@shared/utils/encoders';
 import { emailOtpFactorOprfInfo } from '@shared/utils/emailOtpDomain';
-import { createEmailOtpFactorOprf } from '../../packages/wallet-server/src/core/authService/emailOtpFactorOprf';
-import { createEmailOtpCodeSeal } from '../../packages/wallet-server/src/core/authService/emailOtpCodeSeal';
-import { CloudflareD1EmailOtpServerSealRuntime } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpServerSealRuntime';
+import { createEmailOtpFactorOprf } from '../../packages/mpc-wallet-server/src/core/authService/emailOtpFactorOprf';
+import { createEmailOtpCodeSeal } from '../../packages/mpc-wallet-server/src/core/authService/emailOtpCodeSeal';
+import { CloudflareD1EmailOtpServerSealRuntime } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpServerSealRuntime';
 import {
   unwrapEmailOtpFactorSecret,
   wrapEmailOtpFactorSecret,
-} from '../../packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/deviceFactorWrap';
+} from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/email-otp/deviceFactorWrap';
 import {
   oprf_client_blind,
   oprf_client_finalize,

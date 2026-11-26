@@ -7,10 +7,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// The VoiceID plugin is not published alone: `@seams/host` ships its built assets.
 const npmPackageManifests = [
-  'packages/wallet/package.json',
-  'packages/wallet-server/package.json',
+  'packages/mpc-wallet/package.json',
+  'packages/mpc-wallet-server/package.json',
   'packages/voiceid/package.json',
+  'packages/wallet-connect/package.json',
 ];
 const cargoManifests = [
   'crates/seams-cli/Cargo.toml',
@@ -26,8 +28,9 @@ const cargoManifests = [
 ];
 const outputPaths = [
   'THIRD_PARTY_NOTICES.md',
-  'packages/wallet/THIRD_PARTY_NOTICES.md',
-  'packages/wallet-server/THIRD_PARTY_NOTICES.md',
+  'packages/mpc-wallet/THIRD_PARTY_NOTICES.md',
+  'packages/mpc-wallet-server/THIRD_PARTY_NOTICES.md',
+  'packages/wallet-connect/THIRD_PARTY_NOTICES.md',
 ];
 
 main();
@@ -39,12 +42,6 @@ function main() {
   for (const outputPath of outputPaths) {
     fs.writeFileSync(path.join(repositoryRoot, outputPath), notice);
   }
-  const voiceRecords = collectNpmRuntimeDependencies(['packages/voiceid/package.json']);
-  voiceRecords.sort(compareDependencyRecords);
-  fs.writeFileSync(
-    path.join(repositoryRoot, 'packages/voiceid/THIRD_PARTY_NOTICES.md'),
-    renderNotice(voiceRecords, collectLicenseTexts(voiceRecords)),
-  );
   process.stdout.write(
     `Generated Wallet third-party notices for ${String(records.length)} dependency records\n`,
   );

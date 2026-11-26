@@ -1,4 +1,4 @@
-import type { registrationSetupRepository } from '../../packages/wallet/src/core/indexedDB/seamsWalletDB/registrationSetup';
+import type { registrationSetupRepository } from '../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/registrationSetup';
 import type { WalletId } from '../../packages/shared-ts/src/utils/domainIds';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
 import type {
@@ -6,7 +6,7 @@ import type {
   RegistrationWalletStartup,
   RegistrationPairStartup,
   WalletRegistrationSetupReservationResult,
-} from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+} from '../../packages/mpc-wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 
 type SetupAttempt = Awaited<ReturnType<typeof registrationSetupRepository.begin>>;
 declare const pending: Variant<SetupAttempt, 'state', 'pending'>;
@@ -57,7 +57,7 @@ void [missingLifecycle, cancelledAdmission, failedAdmission];
 import type {
   WalletExecutionAuthority,
   WalletRegistrationReservationAuthority,
-} from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+} from '../../packages/mpc-wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 type HomeAdmission = Awaited<ReturnType<WalletRegistrationReservationAuthority['admitHome']>>;
 // @ts-expect-error Successful admission must retain its ownership generation and purpose.
 const admissionWithoutGeneration: HomeAdmission = { ok: true };
@@ -71,7 +71,7 @@ const mixedHomeAdmission: HomeAdmission = {
 void admissionWithoutGeneration;
 void mixedHomeAdmission;
 
-import type { RouterAbEd25519YaoVerifiedActivationIntentV1 } from '../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+import type { RouterAbEd25519YaoVerifiedActivationIntentV1 } from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 
 declare const verifiedActivationIntent: RouterAbEd25519YaoVerifiedActivationIntentV1;
 declare const intentWithoutGeneration: Omit<
@@ -97,7 +97,7 @@ const registrationAuthorityForEstablishedWallet: EstablishedHomeAdmission = {
 };
 void [missingIntentGeneration, erasedIntentGeneration, registrationAuthorityForEstablishedWallet];
 
-import type { RouterAbEd25519YaoRegistrationAuthorizationResult } from '../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
+import type { RouterAbEd25519YaoRegistrationAuthorizationResult } from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistration';
 // @ts-expect-error Successful execution authorization must carry an ownership generation.
 const missingAuthorizedGeneration: RouterAbEd25519YaoRegistrationAuthorizationResult = { ok: true };
 declare const authorizedRegistration: Extract<
@@ -114,7 +114,7 @@ const failedWithGeneration: RouterAbEd25519YaoRegistrationAuthorizationResult = 
 };
 void [missingAuthorizedGeneration, failedWithGeneration];
 
-import type { RouterAbEd25519YaoRecoveryAuthorizationResult } from '../../packages/wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
+import type { RouterAbEd25519YaoRecoveryAuthorizationResult } from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 declare const authorizedRecovery: Extract<
   RouterAbEd25519YaoRecoveryAuthorizationResult,
   { ok: true }
@@ -134,7 +134,7 @@ const rejectedRecoveryWithHome: RouterAbEd25519YaoRecoveryAuthorizationResult = 
 };
 void [recoveryWithoutHome, rejectedRecoveryWithHome];
 
-import type { RouterAbEd25519YaoRecoveryAuthorizationInput } from '../../packages/wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
+import type { RouterAbEd25519YaoRecoveryAuthorizationInput } from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 type RecoveryExecutionAuthorization = Extract<
   RouterAbEd25519YaoRecoveryAuthorizationInput,
   { kind: 'execute' }
@@ -151,7 +151,7 @@ void unpinnedRecoveryExecution;
 import type {
   RouterAbEd25519YaoExportAdmissionAuthorizationResultV1,
   RouterAbEd25519YaoExportExecuteClaimV1,
-} from '../../packages/wallet-server/src/router/domains/ed25519Yao/export/routerAbEd25519YaoExport';
+} from '../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/export/routerAbEd25519YaoExport';
 declare const authorizedExport: Extract<
   RouterAbEd25519YaoExportAdmissionAuthorizationResultV1,
   { ok: true }
@@ -188,7 +188,7 @@ const executionFromRegistrationSpread: WalletExecutionAuthority = { ...registrat
 void executionFromRegistration;
 void executionFromRegistrationSpread;
 
-import type { WalletRegistrationContextResult } from '../../packages/wallet-server/src/router/framework/apiCredentialPorts';
+import type { WalletRegistrationContextResult } from '../../packages/mpc-wallet-server/src/router/framework/apiCredentialPorts';
 
 declare const registrationContext: Variant<WalletRegistrationContextResult, 'ok', true>;
 // @ts-expect-error A credential alone cannot authorize setup without an active environment.

@@ -9,7 +9,7 @@ import { prepareLocalHostedWalletGatewayConfig } from '../../crates/router-ab-cl
 import {
   buildTenantRootIdentityFromAuthenticatedDeploymentV1,
   encodeTenantRootIdentityV1,
-} from '../../packages/wallet-server/dist/esm/cloud-host.js';
+} from '../../packages/mpc-wallet-server/dist/esm/cloud-host.js';
 
 const sourceRoot = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(sourceRoot, '../..');

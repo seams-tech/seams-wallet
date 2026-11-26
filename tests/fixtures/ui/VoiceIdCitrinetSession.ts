@@ -2,7 +2,7 @@ import { recordVoice, voiceActivityModel, voiceQualityMessage } from '@seams/voi
 import { VoicePrompt } from '@seams/voice-capture/card';
 import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import type { SpokenPhrase } from '@voiceid/browser/phrase';
-import { isPlainObject } from '@seams/wallet/voiceid-host';
+import { isPlainObject } from '@seams/mpc-wallet/voiceid';
 import {
   compareRecording,
   prepareComparison,

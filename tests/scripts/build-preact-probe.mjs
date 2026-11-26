@@ -4,11 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { rolldown } from 'rolldown';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const walletRoot = path.join(repoRoot, 'packages/wallet');
+const walletRoot = path.join(repoRoot, 'packages/mpc-wallet');
 process.chdir(walletRoot);
-const { default: configs } = await import('../../packages/wallet/rolldown.config.ts');
+const { default: configs } = await import('../../packages/mpc-wallet/rolldown.config.ts');
 const libraryConfig = configs.find(
-  (config) => Array.isArray(config.input) && config.input.includes('src/index.ts'),
+  (config) => Array.isArray(config.input) && config.input.includes('src/client.ts'),
 );
 const reactConfig = configs.find(
   (config) => Array.isArray(config.input) && config.input.includes('src/react/index.ts'),
@@ -45,7 +45,7 @@ async function buildProbe(config, fixtureName) {
       alias: {
         ...options.resolve.alias,
         '@voiceid/*': path.join(repoRoot, 'packages/voiceid/src/*'),
-        '@seams/wallet/voiceid-host': path.join(walletRoot, 'src/voiceid-host.ts'),
+        '@seams/mpc-wallet/voiceid': path.join(walletRoot, 'src/voiceid-host.ts'),
       },
     },
     plugins: [

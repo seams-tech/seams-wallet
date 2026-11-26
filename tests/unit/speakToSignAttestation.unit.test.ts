@@ -6,7 +6,7 @@ import {
   VerifierAttestation,
   type AttestationMemory,
   type VerifierAttestationConfig,
-} from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignAttestation';
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignAttestation';
 
 /** A real call of verifier 0.11.0 on OutLayer testnet (2026-11-11), from the speak-to-sign repository. */
 const CALL = readFixture('outlayer_attestation_0_11_0.json') as {

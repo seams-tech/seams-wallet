@@ -1,13 +1,13 @@
 import { voiceActivityModel } from '@seams/voice-capture';
 import { voiceModel } from './model';
 import { getPhraseModel } from './phrase';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
+import type { VoiceIdTranscriptionModel } from '@seams/mpc-wallet/voiceid';
 import {
   VoiceAssetLoadError,
   voiceInferenceEngine,
   type VoiceAssetProgress,
 } from '@seams/voice-capture';
-import { WorkerDeferred } from '@seams/wallet/voiceid-host';
+import { WorkerDeferred } from '@seams/mpc-wallet/voiceid';
 
 // A download shows at once. Saved models usually start within this time, so their indicator
 // shows only when the start is slow, and then stays long enough to read.

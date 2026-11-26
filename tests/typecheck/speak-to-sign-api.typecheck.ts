@@ -7,7 +7,7 @@ import {
   type SpeakToSignResult,
   type SpeakToSignSentTransaction,
   type WalletApprovalPlugin,
-} from '@seams/wallet';
+} from '@seams/mpc-wallet/client';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<T extends true> = T;
@@ -142,7 +142,7 @@ void reasonless;
 
 // The approver's operations take no request: `record` nothing, `verify` one clip handle, and
 // `sign` the verifier output and the hooks. Core bound the request before it made them.
-type ApprovalOperations = import('../../packages/wallet/src/core/transactionFeatures/hostPlugin').SpeakToSignApprovalOperations;
+type ApprovalOperations = import('../../packages/mpc-wallet/src/core/transactionFeatures/hostPlugin').SpeakToSignApprovalOperations;
 const recordArity: Parameters<ApprovalOperations['record']>['length'] = 0;
 const verifyArity: Parameters<ApprovalOperations['verify']>['length'] = 1;
 const signArity: Parameters<ApprovalOperations['sign']>['length'] = 2;
@@ -151,7 +151,7 @@ declare const approvalOperations: ApprovalOperations;
 // @ts-expect-error A clip handle has no audio: the plugin cannot pass bytes to `verify`.
 void approvalOperations.verify({ kind: 'captured', speechMs: 1, endOfSpeechAt: 1, wav: new Uint8Array(1) });
 
-// The descriptor comes from `@seams/wallet`. An app installs no plugin package.
+// The descriptor comes from `@seams/mpc-wallet/client`. An app installs no plugin package.
 // @ts-expect-error The network is testnet or mainnet.
 spoken({ network: 'betanet' });
 // @ts-expect-error A spoken payment comes from the owner's own account; there is no vault.

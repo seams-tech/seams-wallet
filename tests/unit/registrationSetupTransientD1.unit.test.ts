@@ -1,17 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';
-import { isD1DatabaseLike } from '../../packages/wallet-server/src/storage/d1Sql';
+import { isD1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/d1Sql';
 import { parseWebAuthnRpId } from '@shared/utils/domainIds';
-import { LocalRegistrationSetupAuthority } from '../../packages/wallet-server/src/localRegistrationSetupAuthority';
-import { CloudflareD1RegistrationCeremonyIntentStore } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyStore';
-import { executeD1WalletRegistrationSetup } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationSetupExecution';
-import type { RouterAbEcdsaStrictRegistrationPort } from '../../packages/wallet-server/src/router/domains/ecdsa/routerAbEcdsaStrictRegistration';
-import type { WalletRegistrationSetupInput } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationInputs';
-import { dispatchWalletRegistrationSetup } from '../../packages/wallet-server/src/router/framework/registrationSetupDispatch';
+import { LocalRegistrationSetupAuthority } from '../../packages/mpc-wallet-server/src/localRegistrationSetupAuthority';
+import { CloudflareD1RegistrationCeremonyIntentStore } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyStore';
+import { executeD1WalletRegistrationSetup } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationSetupExecution';
+import type { RouterAbEcdsaStrictRegistrationPort } from '../../packages/mpc-wallet-server/src/router/domains/ecdsa/routerAbEcdsaStrictRegistration';
+import type { WalletRegistrationSetupInput } from '../../packages/mpc-wallet-server/src/router/domains/walletRegistration/walletRegistrationInputs';
+import { dispatchWalletRegistrationSetup } from '../../packages/mpc-wallet-server/src/router/framework/registrationSetupDispatch';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
-} from '../../packages/wallet-server/src/storage/tenantRoute';
+} from '../../packages/mpc-wallet-server/src/storage/tenantRoute';
 
 const CONNECTION_LOST = 'D1_ERROR: Network connection lost.';
 const SCOPE = { namespace: 'namespace', orgId: 'org', projectId: 'project', envId: 'dev' };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { TransactionReviewControls } from '@seams/wallet/react';
+import type { TransactionReviewControls } from '@seams/mpc-wallet/react';
 import { ConfirmationPreview } from './ConfirmationPreview';
 
 type FixtureQuote = {

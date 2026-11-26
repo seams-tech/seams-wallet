@@ -204,16 +204,16 @@ async function loadPlacementClient(output) {
     format: 'esm',
     platform: 'node',
     write: false,
-    tsconfig: 'packages/wallet/tsconfig.json',
+    tsconfig: 'packages/mpc-wallet/tsconfig.json',
     stdin: {
       resolveDir: process.cwd(),
       loader: 'ts',
       contents: `
-        export { IndexedDBManager, seamsWalletDB } from './packages/wallet/src/core/indexedDB';
-        export { createApplicationPlacementCommands, createIframePlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/client/placementCommands';
-        export { createWalletHostPlacementCommands } from './packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands';
-        export { WalletHostOwnerRequestTransportError } from './packages/wallet/src/SeamsWeb/operations/devices/walletHostOwnerAuthority';
-        export { createPlacementWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/placement';
+        export { IndexedDBManager, seamsWalletDB } from './packages/mpc-wallet/src/core/indexedDB';
+        export { createApplicationPlacementCommands, createIframePlacementCommands } from './packages/mpc-wallet/src/SeamsWeb/walletIframe/client/placementCommands';
+        export { createWalletHostPlacementCommands } from './packages/mpc-wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands';
+        export { WalletHostOwnerRequestTransportError } from './packages/mpc-wallet/src/SeamsWeb/operations/devices/walletHostOwnerAuthority';
+        export { createPlacementWalletIframeHandlers } from './packages/mpc-wallet/src/SeamsWeb/walletIframe/host/handlers/placement';
       `,
     },
   });

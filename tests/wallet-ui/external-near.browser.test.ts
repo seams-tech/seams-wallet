@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { injectImportMap } from '../setup/bootstrap';
 
 async function exerciseConnections() {
-  const path = '/_test-sdk/esm/externalNear/index.js';
+  const path = '/_test-sdk/esm/wallet-connect/client.js';
   const { ExternalNearController } = await import(path);
   const controller = new ExternalNearController({
     network: 'testnet',
@@ -86,7 +86,7 @@ async function hotRequest(method) {
 `;
 
 async function exerciseHot() {
-  const path = '/_test-sdk/esm/externalNear/index.js';
+  const path = '/_test-sdk/esm/wallet-connect/client.js';
   const { ExternalNearController } = await import(path);
   const fixture = Reflect.get(window, 'hotFixture');
   Reflect.set(window, 'hotExtension', { request: fixture.request });
@@ -131,7 +131,7 @@ test('HOT routes to its captured extension and rejects replacement and testnet',
 });
 
 async function exerciseIntear() {
-  const path = '/_test-sdk/esm/externalNear/index.js';
+  const path = '/_test-sdk/esm/wallet-connect/client.js';
   const { ExternalNearController } = await import(path);
   const controller = new ExternalNearController({
     network: 'testnet',
@@ -202,8 +202,8 @@ async function renderPicker(config: {
 }) {
   const reactPath = 'react';
   const domPath = 'react-dom/client';
-  const pickerPath = '/_test-sdk/esm/react/externalNear.js';
-  const controllerPath = '/_test-sdk/esm/externalNear/index.js';
+  const pickerPath = '/_test-sdk/esm/wallet-connect/react/externalNear.js';
+  const controllerPath = '/_test-sdk/esm/wallet-connect/client.js';
   const React = await import(reactPath);
   const { createRoot } = await import(domPath);
   const { ExternalNearWalletPicker } = await import(pickerPath);
@@ -230,7 +230,7 @@ test('NEAR picker on testnet refuses HOT as mainnet only', async ({ page, baseUR
 });
 
 async function beginIntearConnection() {
-  const path = '/_test-sdk/esm/externalNear/index.js';
+  const path = '/_test-sdk/esm/wallet-connect/client.js';
   const { ExternalNearController } = await import(path);
   const controller = new ExternalNearController({
     network: 'testnet',
@@ -311,7 +311,7 @@ async function replyWithMeteorBlock(route: Route): Promise<void> {
   });
 }
 async function exerciseMeteorWire() {
-  const path = '/_test-sdk/esm/externalNear/index.js';
+  const path = '/_test-sdk/esm/wallet-connect/client.js';
   const { ExternalNearController } = await import(path);
   const controller = new ExternalNearController({
     network: 'testnet',

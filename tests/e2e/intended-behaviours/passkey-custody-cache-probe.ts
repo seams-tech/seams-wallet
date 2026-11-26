@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
-import { SEAMS_WALLET_DB_NAME } from '../../../packages/wallet/src/core/indexedDB/walletDbName';
-import { SEAMS_WALLET_STORES } from '../../../packages/wallet/src/core/indexedDB/schemaNames';
-import { WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND } from '../../../packages/wallet/src/core/indexedDB/walletCustodyEd25519MaterialRecord';
+import { SEAMS_WALLET_DB_NAME } from '../../../packages/mpc-wallet/src/core/indexedDB/walletDbName';
+import { SEAMS_WALLET_STORES } from '../../../packages/mpc-wallet/src/core/indexedDB/schemaNames';
+import { WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND } from '../../../packages/mpc-wallet/src/core/indexedDB/walletCustodyEd25519MaterialRecord';
 import { parseWalletAuthorityV1 } from '../../../packages/shared-ts/src/authorization/walletAuthority';
 import {
   requireRecord,

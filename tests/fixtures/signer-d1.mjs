@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
 
 const migrationsDirectory = fileURLToPath(
-  new URL('../../packages/wallet-server/migrations/d1-signer/', import.meta.url),
+  new URL('../../packages/mpc-wallet-server/migrations/d1-signer/', import.meta.url),
 );
 
 /** @param {string | null} beforeMigration */

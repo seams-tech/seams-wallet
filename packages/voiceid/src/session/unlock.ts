@@ -6,7 +6,7 @@ import type {
   AuthMethodUnlockSuccess,
   WalletAuthMethodHostPlugin,
   VoiceIdUnlockChallenge,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 import { prepareVoiceModelWithProgress } from '../browser/progress';
 import { readVoiceEnrollment } from '../browser/enrollmentStore';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';

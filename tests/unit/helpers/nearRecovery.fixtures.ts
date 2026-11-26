@@ -5,7 +5,7 @@ import {
 import {
   InMemoryRouterAbEd25519YaoRecoveryService,
   InMemoryRouterAbEd25519YaoRecoveryStateV1,
-} from '../../../packages/wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
+} from '../../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 import { buildNearRecoveryAdmissionFixture } from './nearRegistration.fixtures';
 
 function unexpectedBackendCall(): never {

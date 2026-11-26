@@ -2,7 +2,7 @@ import type {
   GoogleEmailOtpWalletAuthLoginFlow,
   GoogleEmailOtpWalletAuthSubmitSuccess,
   SeamsWeb,
-} from '@seams/wallet';
+} from '@seams/mpc-wallet/client';
 
 export async function startGoogleEmailOtpLogin(
   seams: SeamsWeb,

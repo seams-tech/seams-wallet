@@ -1,11 +1,11 @@
 ---
 title: しきい値署名API
-description: '@seams/wallet/thresholdが公開する、安定したセッションポリシーのヘルパー、PRFソルト、操作意図のダイジェスト。'
+description: '@seams/mpc-wallet/thresholdが公開する、安定したセッションポリシーのヘルパー、PRFソルト、操作意図のダイジェスト。'
 ---
 
 # しきい値署名API {#threshold-apis}
 
-`@seams/wallet/threshold`は、しきい値セッションポリシーの入力や登録ダイジェストを再現する必要があるアプリ向けの、安定したプロトコルAPIです。
+`@seams/mpc-wallet/client`は、しきい値セッションポリシーの入力や登録ダイジェストを再現する必要があるアプリ向けに、安定したプロトコルAPIも公開します。
 
 次の機能を公開します。
 

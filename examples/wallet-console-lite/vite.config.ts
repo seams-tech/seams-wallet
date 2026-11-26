@@ -4,7 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
   const exampleRoot = fileURLToPath(new URL('.', import.meta.url));
-  const walletDistRoot = fileURLToPath(new URL('../../packages/wallet/dist', import.meta.url));
+  const walletDistRoot = fileURLToPath(new URL('../../packages/mpc-wallet/dist', import.meta.url));
   const environment = loadEnv(mode, exampleRoot, '');
   const walletAssetHost = environment.VITE_SEAMS_WALLET_ASSET_HOST === '1';
 

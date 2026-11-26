@@ -2,7 +2,7 @@ import {
   getDefaultCspNonce,
   readVoiceMicrophonePreference,
   saveVoiceMicrophonePreference,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 import { configureVoiceCapture } from '@seams/voice-capture';
 
 /**

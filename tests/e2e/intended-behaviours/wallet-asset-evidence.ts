@@ -167,7 +167,7 @@ export class WalletAssetEvidence {
     const report = {
       revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
       productionApp: process.env.SEAMS_INTENDED_PRODUCTION === '1',
-      walletDistRoot: process.env.SEAMS_INTENDED_WALLET_DIST_ROOT ?? 'packages/wallet/dist',
+      walletDistRoot: process.env.SEAMS_INTENDED_WALLET_DIST_ROOT ?? 'packages/mpc-wallet/dist',
       accounting: {
         scope: 'BrowserContext requestfinished events and Page dedicated-worker events',
         phaseAttribution:

@@ -71,14 +71,14 @@ VoiceID fits best as a modality-preserving unlock and step-up method alongside a
 
 ## Install and configure
 
-Install matching package versions in your application. Replace `VERSION` with
-the matching version from the [release notes](/releases):
+Install the MPC wallet package in your application. Replace `VERSION` with
+the version from the [release notes](/releases):
 
 ```sh
-pnpm add @seams/wallet@VERSION @seams/voiceid@VERSION
+pnpm add @seams/mpc-wallet@VERSION
 ```
 
-Import the descriptor from the optional package and add `authMethods` to your existing configuration.
+Import the descriptor from `@seams/mpc-wallet/voiceid` and add `authMethods` to your existing configuration.
 This example enables NEAR and Arc testnets:
 
 <<< ../../examples/voiceid.ts#configuration
@@ -94,7 +94,8 @@ preserves saved speaker enrollment.
 
 ## Prepare the Wallet host
 
-The operator serving `walletOrigin` must install both packages at matching versions.
+The operator serving `walletOrigin` installs `@seams/mpc-wallet` and `@seams/host` at the same version.
+`@seams/host` holds the VoiceID host plugin and its models.
 If another operator hosts your Wallet, ask them to enable VoiceID on that origin.
 
 Run this command from the host project after installing the packages:

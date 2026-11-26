@@ -46,7 +46,7 @@ await seams.auth.associateExternalAuth({
 ```
 
 バックエンドは、検証済みのアプリセッションからユーザーIDを取得します。
-`@seams/wallet-server/application-auth` の `createApplicationAuthAssertion` で署名します。
+`@seams/mpc-wallet/server` の `createApplicationAuthAssertion` で署名します。
 アサーションは、試行、ウォレット、環境、用途、有効期限に紐付きます。
 有効期限は最大2分です。
 ブラウザーには、バックエンドの交換処理が返す引き継ぎコードだけを渡します。

@@ -3,8 +3,8 @@ import {
   buildHostedAuthMenuOpenRequest,
   hostedAuthMenuSessionIdFromBoundary,
   type HostedAuthMenuOutcome,
-} from '@seams/wallet';
-import { useSeams, type WalletModalBeforeControls } from '@seams/wallet/react';
+} from '@seams/mpc-wallet/client';
+import { useSeams, type WalletModalBeforeControls } from '@seams/mpc-wallet/react';
 
 /**
  * App steps around the sign-in card in the Wallet's own modal: the app's step, then the

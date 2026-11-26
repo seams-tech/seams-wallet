@@ -1,4 +1,4 @@
-import type { WalletCustodyCeremonyWorkerOperationMap } from '../../packages/wallet/src/core/signingEngine/workerManager/workerTypes';
+import type { WalletCustodyCeremonyWorkerOperationMap } from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/workerTypes';
 
 type RestoreRequest = WalletCustodyCeremonyWorkerOperationMap['restoreNearRegistration']['payload'];
 
@@ -33,7 +33,7 @@ void [withoutFactor, suppliedSeed, suppliedRecipientKey, freshPreparation];
 import type {
   PendingWalletRegistrationCommitV1,
   PendingNearRegistrationContinuationV1,
-} from '../../packages/wallet/src/core/indexedDB/pendingWalletRegistrationCommit';
+} from '../../packages/mpc-wallet/src/core/indexedDB/pendingWalletRegistrationCommit';
 declare const planned: Extract<
   PendingNearRegistrationContinuationV1,
   { readonly phase: 'planned' }
@@ -79,7 +79,7 @@ void [nearOnlyActivation, invalidNearActivation];
 import type {
   IssuedWalletSessionAuthorizationV2,
   LiveWalletSessionAuthorizationProjectionV2,
-} from '../../packages/wallet-server/src/authorization/domain';
+} from '../../packages/mpc-wallet-server/src/authorization/domain';
 
 declare const observedRegistrationSession: LiveWalletSessionAuthorizationProjectionV2;
 // @ts-expect-error A live authorization projection may have an exhausted quota.
@@ -92,8 +92,8 @@ const spreadRegistrationAllowance: IssuedWalletSessionAuthorizationV2 = {
 void reusableRegistrationAllowance;
 void spreadRegistrationAllowance;
 
-import type { PendingEcdsaRegistrationUnlockMaterial } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
-import type { LoginAndCreateSessionResult } from '../../packages/wallet/src/core/types/seams';
+import type { PendingEcdsaRegistrationUnlockMaterial } from '../../packages/mpc-wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
+import type { LoginAndCreateSessionResult } from '../../packages/mpc-wallet/src/core/types/seams';
 
 declare const pendingEmailUnlock: Extract<
   PendingEcdsaRegistrationUnlockMaterial,
@@ -119,8 +119,8 @@ declare const publicUnlockResult: LoginAndCreateSessionResult;
 publicUnlockResult.credential;
 void [missingPasskeyProof, mixedPendingProof];
 
-import type { UnlockSessionPolicy } from '../../packages/wallet/src/SeamsWeb/operations/auth/unlockSessionPolicy';
-import type { PendingEcdsaRegistrationUnlockInput } from '../../packages/wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
+import type { UnlockSessionPolicy } from '../../packages/mpc-wallet/src/SeamsWeb/operations/auth/unlockSessionPolicy';
+import type { PendingEcdsaRegistrationUnlockInput } from '../../packages/mpc-wallet/src/SeamsWeb/operations/registration/pendingEcdsaRegistrationRecoveryValidation';
 
 declare const disabledSessionPolicy: Extract<UnlockSessionPolicy, { kind: 'disabled' }>;
 declare const pendingUnlockInput: PendingEcdsaRegistrationUnlockInput;

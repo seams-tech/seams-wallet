@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { QRScanMode, ShowQRCode, useDeviceLinking } from '@seams/wallet/react';
-import type { LinkDeviceFlowEvent, QrLinkedDeviceSessionPayloadV5 } from '@seams/wallet';
+import { QRScanMode, ShowQRCode, useDeviceLinking } from '@seams/mpc-wallet/react';
+import type { LinkDeviceFlowEvent, QrLinkedDeviceSessionPayloadV5 } from '@seams/mpc-wallet/client';
 
 function logLinkEvent(event: LinkDeviceFlowEvent): void {
   console.log(event.phase, event.status, event.message);

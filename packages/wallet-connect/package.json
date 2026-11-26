@@ -1,0 +1,87 @@
+{
+  "name": "@seams/wallet-connect",
+  "version": "0.76.0",
+  "type": "module",
+  "description": "Connect existing EVM and NEAR browser wallets to a web app, with no Seams account or MPC wallet",
+  "exports": {
+    "./package.json": "./package.json",
+    "./client": {
+      "types": "./dist/types/wallet-connect/src/client.d.ts",
+      "import": "./dist/esm/client.js",
+      "default": "./dist/esm/client.js"
+    },
+    "./react": {
+      "types": "./dist/types/wallet-connect/src/react/index.d.ts",
+      "import": "./dist/esm/react/index.js",
+      "default": "./dist/esm/react/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "client": [
+        "dist/types/wallet-connect/src/client.d.ts"
+      ],
+      "react": [
+        "dist/types/wallet-connect/src/react/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "LICENSE.md",
+    "THIRD_PARTY_NOTICES.md",
+    "dist/",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rm -rf dist && pnpm run build:types && rolldown -c rolldown.config.ts",
+    "build:types": "rm -rf dist/types && tsrs -p tsconfig.build.json && node ../../scripts/rewrite-declaration-imports.mjs",
+    "type-check": "tsrs --noEmit",
+    "prepack": "node ../../scripts/package-license.mjs stage",
+    "postpack": "node ../../scripts/package-license.mjs clean"
+  },
+  "keywords": [
+    "seams",
+    "wallet",
+    "EIP-6963",
+    "NEAR",
+    "EVM",
+    "react",
+    "typescript"
+  ],
+  "author": "web3authn.org",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seams-tech/seams-wallet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seams-tech/seams-wallet/issues"
+  },
+  "homepage": "https://github.com/seams-tech/seams-wallet#readme",
+  "peerDependencies": {
+    "react": ">=19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "borsh": "1.0.0",
+    "bs58": "6.0.0",
+    "viem": "2.46.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.13",
+    "@types/react": "19.2.18",
+    "react": "19.2.9",
+    "rolldown": "1.0.0-rc.9"
+  }
+}

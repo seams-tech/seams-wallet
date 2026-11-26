@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { walletIdFromString } from '@shared/utils/registrationIds';
-import { Ed25519SignerRead } from '../../packages/wallet-server/src/core/d1Ed25519SignerRead';
-import { D1Ed25519AdmissionPolicyRead } from '../../packages/wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
-import type { RouterAbNormalSigningAdmissionInput } from '../../packages/wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmission';
-import type { D1DatabaseLike } from '../../packages/wallet-server/src/storage/tenantRoute';
+import { Ed25519SignerRead } from '../../packages/mpc-wallet-server/src/core/d1Ed25519SignerRead';
+import { D1Ed25519AdmissionPolicyRead } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type { RouterAbNormalSigningAdmissionInput } from '../../packages/mpc-wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmission';
+import type { D1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/tenantRoute';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 
 const WALLET = 'wallet:credential-reads';

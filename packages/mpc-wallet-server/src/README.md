@@ -1,0 +1,114 @@
+# Server Package
+
+The Router API implements wallet registration, built-in owner verification,
+opaque Wallet Sessions, signing admission, and recovery. Wallet application
+authentication is intentionally outside this package.
+
+## Authorization model
+
+- Passkey and Email OTP verifiers create a server-internal
+  `VerifiedOwnerProof`.
+- Registration and unlock may consume that proof to mint an opaque, D1-backed
+  Wallet Session token.
+- Signing routes resolve the token into trusted curve-specific admission,
+  consume server-authoritative budget, and never decode claims supplied by the
+  client.
+- Fresh step-up and export proofs authorize one exact operation without
+  renewing a reusable Wallet Session.
+- Linked-device signing keeps its separate JWT, local-presence, permission,
+  quota, and revocation boundary.
+- Console authentication uses its independent `console_session_v1` boundary in
+  the console server package.
+
+## Primary wallet routes
+
+Wallet-management routes (registration, signer setup/inventory, auth-method
+management and implicit NEAR funding) require `X-Seams-Wallet-Protocol: 4`.
+Missing or unsupported values return HTTP 409, `wallet_protocol_mismatch`, with
+reload/upgrade instructions before parsing the body or invoking route services.
+The current Wallet SDK sends this header automatically. Direct HTTP clients,
+including deployment registration canaries, must send it explicitly. The header
+declares the wire contract and does not replace authentication.
+
+- `POST /wallets/register/setup`
+- `POST /wallets/register/respond`
+- `POST /wallets/register/activate`
+- `POST /wallets/register/near-provisioning`
+- `POST /wallet/unlock/challenge`
+- `POST /wallet/unlock/verify`
+- `POST /wallet/session/exchange/issue`
+- `POST /wallet/session/exchange/redeem`
+- `POST /router-ab/ecdsa-derivation/sign/prepare`
+- `POST /router-ab/ed25519/sign/prepare`
+- `GET /healthz`
+- `GET /readyz`
+- `GET /.well-known/webauthn`
+
+The hosted-wallet exchange routes deliver one opaque Wallet Session token
+through a short-lived, origin-bound, single-use capability. They do not create
+an application session, and the outer application never receives the token.
+
+## Initial Cloudflare wallet placement
+
+The regional host must admit each request to the wallet's fixed home before calling
+custody services. Wrap the existing `MPC_ROUTER` and `SIGNING_WORKER` bindings with
+`WalletHomeCustodyBinding` from `@seams/host/cloud-host`. Pass the admitted
+`US`, `WEUR`, `APAC`, or `OC` home. Never use an incoming client header as this value.
+This applies to custom hosts that call the exported hosted Gateway Worker as well.
+
+The binding overwrites `x-seams-wallet-home-region`. The Router accepts this header
+only after checking the existing private Gateway credential. Missing or invalid
+values fail before wallet-object access. Gateway and custody versions must deploy
+together. No additional environment variable or service credential is required.
+
+The Router carries the home through Yao setup, status lookups, retries, deferred
+execution, and signing-worker delivery. Initial object lookups request `enam`,
+`weur`, `apac`, or `oc`, respectively. Wallet identity and ownership generation
+remain unchanged. The local fixture explicitly uses `US`.
+
+Cloudflare location hints are advisory and apply to initial placement. They do not
+move existing objects or guarantee D1, Workers, and objects share one data centre.
+Use fresh wallets when measuring this change.
+
+## PRF Session Seal Module
+
+`signingSessionSeal` is optional and preserves sealed signing refresh material.
+It does not authorize wallet ownership.
+
+```ts
+import { createCloudflareRouter } from '@seams/host/router/cloudflare';
+import { createSigningSessionSealOptions } from '@seams/host/server-types';
+
+const signingSessionSeal = createSigningSessionSealOptions({
+  rootSecretB64u: process.env.SIGNING_SESSION_SEAL_ROOT_SECRET_B64U!,
+  currentKeyVersion: 'signing-session-seal-production-r3',
+  acceptedWarmKeyVersions: ['signing-session-seal-production-r3'],
+});
+
+const fetch = createCloudflareRouter(service, {
+  threshold,
+  signingSessionSeal,
+});
+
+export default { fetch };
+```
+
+Store the random 32-byte root secret in a secrets manager. Use a fresh key
+version when deploying wallet- and session-bound seals. Let sessions sealed
+under the earlier global key expire, or require normal unlock. Accept older
+key versions only when they already use wallet- and session-bound sealing.
+
+Email OTP factor enrollments read their stored seal key version when removing
+the server seal. Keep the prior Email OTP version in
+`EMAIL_OTP_SERVER_SEAL_ACCEPTED_WARM_KEY_VERSIONS` while those enrollments remain
+active. The signing-session accepted list contains only scoped seal versions.
+
+## Required runtime configuration
+
+```bash
+RELAYER_ACCOUNT_ID=relayer.testnet
+RELAYER_PRIVATE_KEY=ed25519:...
+ROR_RP_ID=wallet.example.localhost
+NEAR_RPC_URL=https://rpc.testnet.fastnear.com
+NETWORK_ID=testnet
+```

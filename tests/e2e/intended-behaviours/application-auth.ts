@@ -7,8 +7,8 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { parseStaticWalletConsoleBindingConfigV1 } from '@server/router/cloudflare/runtime/staticWalletConsoleBinding';
-import { ActionType } from '../../../packages/wallet/src/core/types/actions';
-import type { PrepareOwnerNearTransaction } from '../../../packages/wallet/src/SeamsWeb/publicApi/ownerNearOperation';
+import { ActionType } from '../../../packages/mpc-wallet/src/core/types/actions';
+import type { PrepareOwnerNearTransaction } from '../../../packages/mpc-wallet/src/SeamsWeb/publicApi/ownerNearOperation';
 import { base58Encode } from '@shared/utils/base58';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { execFileSync } from 'node:child_process';
@@ -1029,7 +1029,7 @@ function readApiRecovery() {
   return window.ownerAuthOperation.getState().recovery;
 }
 
-async function recoverApiOperation(recovery: import('@seams/wallet').OwnerNearRecovery) {
+async function recoverApiOperation(recovery: import('@seams/mpc-wallet/client').OwnerNearRecovery) {
   const seams = window.ownerAuthApi;
   if (!seams) throw new Error('Missing application API.');
   const session = await seams.auth.getSession();
@@ -1339,7 +1339,7 @@ function readOutcomeKind(outcome: { kind: string }): string {
   return outcome.kind;
 }
 
-async function cancelApiTransaction(recovery: import('@seams/wallet').OwnerNearRecovery) {
+async function cancelApiTransaction(recovery: import('@seams/mpc-wallet/client').OwnerNearRecovery) {
   const seams = window.ownerAuthApi;
   if (!seams) throw new Error('Missing application API.');
   const session = await seams.auth.getSession();
@@ -1550,7 +1550,7 @@ async function verifyOwnerBinding(page: Page, backend: ApplicationBackend) {
   return { networkBound, legacyRetired };
 }
 
-async function retireApiOperation(recovery: import('@seams/wallet').OwnerNearRecovery) {
+async function retireApiOperation(recovery: import('@seams/mpc-wallet/client').OwnerNearRecovery) {
   const seams = window.ownerAuthApi;
   if (!seams) throw new Error('Missing application API.');
   const session = await seams.auth.getSession();

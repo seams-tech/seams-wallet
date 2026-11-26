@@ -1,10 +1,13 @@
 import { exampleConfig } from './exampleConfig';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SeamsWebProvider, HostedSeamsAuthMenu } from '@seams/wallet/react';
-import { type HostedAuthMenuOutcome } from '@seams/wallet/react/hosted-seams-auth-menu';
-import '@seams/wallet/react/styles';
-import { ExternalNearController, type ExternalNearConnection } from '@seams/wallet/external-near';
+import {
+  SeamsWebProvider,
+  HostedSeamsAuthMenu,
+  type HostedAuthMenuOutcome,
+} from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
+import { ExternalNearController, type ExternalNearConnection } from '@seams/wallet-connect/client';
 import './styles.css';
 
 function handleOutcome(outcome: HostedAuthMenuOutcome): void {

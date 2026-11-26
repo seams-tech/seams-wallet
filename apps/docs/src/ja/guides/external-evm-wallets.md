@@ -5,12 +5,12 @@ description: 秘密鍵を取り込まずに、MetaMask、Rabby、PhantomのEVM�
 
 # 外部EVMウォレット {#external-evm-wallets}
 
-`@seams/wallet`は、秘密鍵を取り込まずに、既存のMetaMask、Rabby、PhantomのEVMアカウントに接続できます。
+`@seams/wallet-connect`は、秘密鍵を取り込まずに、既存のMetaMask、Rabby、PhantomのEVMアカウントに接続できます。
 アプリが、検出したプロバイダーを選択します。アカウントへのアクセス許可と、すべての承認画面は、ウォレット拡張機能が管理します。
 
 このコネクターはホスト側で動作し、Seamsのウォレットセッションを必要としません。
-フレームワークに依存せずに使う場合は、`@seams/wallet/external-evm`から`ExternalEvmController`をインポートします。
-Reactアプリでは、以下のピッカーとフックを使えます。
+フレームワークに依存せずに使う場合は、`@seams/wallet-connect/client`から`ExternalEvmController`をインポートします。
+Reactアプリでは、以下の`@seams/wallet-connect/react`のピッカーとフックを使えます。このパッケージには、SeamsのアカウントもMPCウォレットも必要ありません。
 
 React以外では、ホストUIのマウント時に`controller.start(window)`、アンマウント時に`controller.dispose()`を呼び出してください。
 

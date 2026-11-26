@@ -7,19 +7,21 @@ import url from 'node:url';
 test.describe('SSR sanity: HostedSeamsAuthMenu adapter', () => {
   test('SSR import and render do not touch window', async () => {
     const here = path.dirname(url.fileURLToPath(import.meta.url));
-    const packageJsonPath = path.resolve(here, '../../packages/wallet/package.json');
+    const packageJsonPath = path.resolve(here, '../../packages/mpc-wallet/package.json');
     const packageRequire = createRequire(packageJsonPath);
     const React = packageRequire('react');
     const { renderToString } = packageRequire('react-dom/server');
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    const exportTarget =
-      packageJson.exports?.['./react/hosted-seams-auth-menu']?.import ||
-      packageJson.exports?.['./react/hosted-seams-auth-menu']?.default;
-
-    const distMarkerCandidates = [path.resolve(path.dirname(packageJsonPath), exportTarget)];
+    // The auth menu module itself: `@seams/mpc-wallet/react` also loads component stylesheets,
+    // which only a bundler resolves.
+    const distMarkerCandidates = [
+      path.resolve(
+        path.dirname(packageJsonPath),
+        'dist/esm/react/components/HostedSeamsAuthMenu/public.js',
+      ),
+    ];
     test.skip(
       distMarkerCandidates.every((candidate) => !fs.existsSync(candidate)),
-      `SDK dist not found at ${distMarkerCandidates[0]}; run pnpm -C packages/wallet build:rolldown`,
+      `SDK dist not found at ${distMarkerCandidates[0]}; run pnpm -C packages/mpc-wallet build:rolldown`,
     );
 
     expect(typeof (globalThis as any).window).toBe('undefined');

@@ -48,7 +48,7 @@ provider your review needs. The component that submits the transaction must
 also descend from this host.
 
 ```tsx [Partial example]
-import { SeamsWebProvider, TransactionReviewHost } from '@seams/wallet/react';
+import { SeamsWebProvider, TransactionReviewHost } from '@seams/mpc-wallet/react';
 
 <SeamsWebProvider config={config}>
   <TransactionReviewHost>

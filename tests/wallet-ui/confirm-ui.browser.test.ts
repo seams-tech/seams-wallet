@@ -15,7 +15,7 @@ test.describe('Preact production confirmation mount', () => {
     await injectImportMap(page);
     await routePreactModules(page);
     const walletUiCss = fs.readFileSync(
-      path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
+      path.resolve(import.meta.dirname, '../../packages/mpc-wallet/dist/esm/sdk/wallet-ui.css'),
       'utf8',
     );
     await page.route('**/wallet-ui.css', (route) =>

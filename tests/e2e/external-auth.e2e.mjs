@@ -11,7 +11,7 @@ import { chromium } from '@playwright/test';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
 import { emailOtpTestCodeSeal } from './emailOtpTestCodeSeal.mjs';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
 class InterruptedOwnerWrites {
@@ -134,47 +134,47 @@ const bundle = await build({
   platform: 'node',
   format: 'esm',
   write: false,
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-    export { prepareEmailOtpOwnerProof } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeService';
-    export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
-    export { createEmailOtpCodeSeal } from './packages/wallet-server/src/core/authService/emailOtpCodeSeal';
-    export { CloudflareD1EmailOtpChallengeStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
-    export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
-    export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
-    export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
-    export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
-    export { hashEmailOtpOperationBinding } from './packages/wallet-server/src/router/domains/emailOtp/emailOtpSessionRouteHelpers';
+    export { prepareEmailOtpOwnerProof } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeService';
+    export { CloudflareD1EmailOtpChallengeVerifier } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
+    export { createEmailOtpCodeSeal } from './packages/mpc-wallet-server/src/core/authService/emailOtpCodeSeal';
+    export { CloudflareD1EmailOtpChallengeStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
+    export { CloudflareD1EmailOtpEnrollmentStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
+    export { CloudflareD1EmailOtpRateLimitStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
+    export { prepareD1TenantStatement } from './packages/mpc-wallet-server/src/core/d1TenantStore';
+    export { emailOtpChallengeRecord } from './packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+    export { hashEmailOtpOperationBinding } from './packages/mpc-wallet-server/src/router/domains/emailOtp/emailOtpSessionRouteHelpers';
     export { walletAuthAuthorityRef } from './packages/shared-ts/src/utils/walletAuthAuthority';
     export { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_ACTIONS, WALLET_EMAIL_OTP_UNLOCK_OPERATION } from './packages/shared-ts/src/utils/emailOtpDomain';
     export { buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
     export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
-    export { createApplicationAuthAssertion } from './packages/wallet-server/src/auth/applicationAuth';
-    export { CloudflareD1WebAuthnAuthService } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
-    export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
-    export { D1WalletAuthorityStore } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+    export { createApplicationAuthAssertion } from './packages/mpc-wallet-server/src/auth/applicationAuth';
+    export { CloudflareD1WebAuthnAuthService } from './packages/mpc-wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
+    export { CloudflareD1WebAuthnStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+    export { D1WalletAuthorityStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
     export { buildPasskeyWalletAuthAuthority } from './packages/shared-ts/src/utils/walletAuthAuthority';
     export { unknownWebAuthnAuthenticatorDeviceInfo } from './packages/shared-ts/src/utils/webauthnDeviceInfo';
-    export { ExternalAuthStore } from './packages/wallet-server/src/auth/externalAuthStore';
-    export { ExternalAuthService } from './packages/wallet-server/src/auth/externalAuthService';
-    export { handleExternalAuth } from './packages/wallet-server/src/router/transport/fetch/routes/externalAuth';
-    export { handleWebAuthnAuthenticators } from './packages/wallet-server/src/router/transport/fetch/routes/webauthnAuthenticators';
-    export { createStaticWalletConsoleBindingV1 } from './packages/wallet-server/src/router/cloudflare/runtime/staticWalletConsoleBinding';
-    export { createWalletConsoleOpsClient } from './packages/wallet-server/src/router/cloudflare/runtime/walletConsoleOpsClient';
-    export { D1WalletStore } from './packages/wallet-server/src/core/d1WalletStore';
-    export { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from './packages/wallet-server/src/core/d1WalletAuthMethodStore';
-    export { prepareD1WalletAuthorityPutStatement } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
-    export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
-    export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
-    export { capabilityPolicyPort } from './packages/wallet-server/src/authorization/capabilityPolicy';
-    export { readActiveWalletSessionCredential } from './packages/wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
-    export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+    export { ExternalAuthStore } from './packages/mpc-wallet-server/src/auth/externalAuthStore';
+    export { ExternalAuthService } from './packages/mpc-wallet-server/src/auth/externalAuthService';
+    export { handleExternalAuth } from './packages/mpc-wallet-server/src/router/transport/fetch/routes/externalAuth';
+    export { handleWebAuthnAuthenticators } from './packages/mpc-wallet-server/src/router/transport/fetch/routes/webauthnAuthenticators';
+    export { createStaticWalletConsoleBindingV1 } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/staticWalletConsoleBinding';
+    export { createWalletConsoleOpsClient } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletConsoleOpsClient';
+    export { D1WalletStore } from './packages/mpc-wallet-server/src/core/d1WalletStore';
+    export { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from './packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';
+    export { prepareD1WalletAuthorityPutStatement } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+    export { CloudflareD1AuthorizationStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+    export { AuthorizationService } from './packages/mpc-wallet-server/src/authorization/service';
+    export { capabilityPolicyPort } from './packages/mpc-wallet-server/src/authorization/capabilityPolicy';
+    export { readActiveWalletSessionCredential } from './packages/mpc-wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
+    export { D1WalletExecutionAuthority } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
     export { buildFullOwnerPermissionsV1 } from './packages/shared-ts/src/authorization/delegatedAuthority';
     export { buildLinkedDeviceManagementAuthorityFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
-    export { buildWalletServiceHtml } from './packages/wallet/src/plugins/plugin-utils';
+    export { buildWalletServiceHtml } from './packages/mpc-wallet/src/plugins/plugin-utils';
   `,
   },
 });
@@ -186,21 +186,21 @@ const browserBundle = await build({
   format: 'esm',
   write: false,
   alias: {
-    react: resolve('packages/wallet/node_modules/react'),
-    'react-dom': resolve('packages/wallet/node_modules/react-dom'),
+    react: resolve('packages/mpc-wallet/node_modules/react'),
+    'react-dom': resolve('packages/mpc-wallet/node_modules/react-dom'),
   },
   outfile: `${output}/probe.js`,
-  tsconfig: 'packages/wallet/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-    import { HostedExternalAuth } from './packages/wallet/src/SeamsWeb/walletIframe/host/externalAuth';
+    import { HostedExternalAuth } from './packages/mpc-wallet/src/SeamsWeb/walletIframe/host/externalAuth';
     import React from 'react';
     import { createRoot } from 'react-dom/client';
-    import { SeamsWebProvider } from './packages/wallet/src/react/context/SeamsWebProvider';
-    import { useSeams } from './packages/wallet/src/react/context';
-    import { WalletSettingsPage } from './packages/wallet/src/react/components/AccountMenuButton';
+    import { SeamsWebProvider } from './packages/mpc-wallet/src/react/context/SeamsWebProvider';
+    import { useSeams } from './packages/mpc-wallet/src/react/context';
+    import { WalletSettingsPage } from './packages/mpc-wallet/src/react/components/AccountMenuButton';
     function Capture() {
       const context = useSeams();
       window.app = context.seams;
@@ -625,8 +625,8 @@ try {
         { encoding: 'utf8' },
       ).trim().length !== 0,
     packageManifestVersions: {
-      wallet: JSON.parse(await readFile('packages/wallet/package.json', 'utf8')).version,
-      server: JSON.parse(await readFile('packages/wallet-server/package.json', 'utf8')).version,
+      wallet: JSON.parse(await readFile('packages/mpc-wallet/package.json', 'utf8')).version,
+      server: JSON.parse(await readFile('packages/mpc-wallet-server/package.json', 'utf8')).version,
     },
     command: 'node tests/e2e/external-auth.e2e.mjs',
     coverage: [
@@ -760,7 +760,7 @@ async function serve(incoming, outgoing) {
       return;
     }
     if (incoming.url.startsWith('/sdk/')) {
-      const root = resolve('packages/wallet/dist/public/sdk');
+      const root = resolve('packages/mpc-wallet/dist/public/sdk');
       const pathname = new URL(incoming.url, 'http://localhost').pathname;
       const file = resolve(root, pathname.slice('/sdk/'.length));
       assert.ok(file.startsWith(`${root}/`));
@@ -815,7 +815,7 @@ async function serve(incoming, outgoing) {
   }
 }
 async function migrate() {
-  const directory = 'packages/wallet-server/migrations/d1-signer';
+  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
     let sql = await readFile(`${directory}/${name}`, 'utf8');
     if (name === '0028_r103f_phase1_additive_schema_bridge.sql')

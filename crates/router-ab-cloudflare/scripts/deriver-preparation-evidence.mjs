@@ -22,7 +22,7 @@ async function post(worker, route, body, credential) {
 }
 
 async function loadRuntime() {
-  const entry = new URL('../../../packages/wallet-server/src/router/cloudflare/runtime/walletRelocationOps.ts', import.meta.url);
+  const entry = new URL('../../../packages/mpc-wallet-server/src/router/cloudflare/runtime/walletRelocationOps.ts', import.meta.url);
   const bundled = await build({
     entryPoints: [fileURLToPath(entry)],
     bundle: true,

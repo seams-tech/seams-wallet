@@ -1,4 +1,4 @@
-import { createApplicationAuthAssertion } from '@seams/wallet-server/application-auth';
+import { createApplicationAuthAssertion } from '@seams/mpc-wallet/server';
 
 type ApplicationSession = {
   readonly subject: string;

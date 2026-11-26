@@ -1,0 +1,50 @@
+/* The stylesheet of @seams/mpc-wallet/react, published as @seams/mpc-wallet/styles.css */
+
+@import './components/theme/Theme.css';
+@import './components/AccountMenuButton/icons/Icon.css';
+@import './components/VoiceAssistantCard/VoiceAssistantCard.css';
+
+/* Import AccountMenuButton styles */
+@import './components/AccountMenuButton/ExportKeysSection.css';
+@import './components/AccountMenuButton/AccountsSection.css';
+@import './components/AccountMenuButton/LinkedDevicesModal.css';
+@import './components/AccountMenuButton/MenuItem.css';
+@import './components/AccountMenuButton/ProfileDropdown.css';
+@import './components/AccountMenuButton/icons/HoverArrowIcon.css';
+@import './components/AccountMenuButton/icons/TouchIcon.css';
+@import './components/AccountMenuButton/TransactionSettingsSection.css';
+@import './components/AccountMenuButton/UserAccountButton.css';
+@import './components/AccountMenuButton/Web3AuthProfileButton.css';
+@import './components/AccountMenuButton/WalletSettingsLayout.css';
+@import './components/AccountMenuButton/assets/Assets.css';
+
+/* Import QR Code Scanner styles */
+@import './components/QRCodeScanner.css';
+@import './components/ShowQRCode.css';
+
+/* Global default z-index tokens for wallet overlay + SDK modals */
+:root {
+  /* Base z-index for wallet iframe overlay (host surface) */
+  --seams-wallet-overlay-z: 2147483646;
+  /* Offset used by SDK modals that should sit just under the wallet overlay */
+  --seams-wallet-underlay-backdrop-offset: 2;
+  --seams-wallet-underlay-content-offset: 1;
+
+  /* Derived z-index layers (SDK defaults)
+   *
+   * These are provided so host apps and examples can opt into consistent layering
+   * without duplicating calc() expressions:
+   * - Underlay backdrops/content sit just below the wallet iframe overlay so the
+   *   tx confirmer always wins.
+   * - Nav/profile overlays should sit below these SDK modals and the wallet overlay
+   *   but above typical app chrome.
+   */
+  --seams-z-underlay-backdrop: calc(
+    var(--seams-wallet-overlay-z, 2147483646) - var(--seams-wallet-underlay-backdrop-offset, 2)
+  );
+  --seams-z-underlay-content: calc(
+    var(--seams-wallet-overlay-z, 2147483646) - var(--seams-wallet-underlay-content-offset, 1)
+  );
+  --seams-z-profile-overlay: calc(var(--seams-wallet-overlay-z, 2147483646) - 4);
+  --seams-z-nav-root: calc(var(--seams-wallet-overlay-z, 2147483646) - 5);
+}

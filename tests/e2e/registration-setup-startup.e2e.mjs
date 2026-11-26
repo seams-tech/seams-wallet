@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
 import { verifyRegistrationRespondRecovery } from './registration-respond-recovery.scenario.mjs';
 
 class AddressAllocator {
@@ -177,27 +177,27 @@ const bundle = await build({
   platform: 'node',
   write: false,
   external: ['*.wasm', 'bs58'],
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { D1WalletObjectAddresses } from './packages/wallet-server/src/router/cloudflare/d1/walletObjectAddresses';
-      export { WalletHomeCustodyBinding } from './packages/wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings';
-      export { WalletObjectAddresses, WalletObjectAddressSnapshot, walletObjectIdentity, walletObjectIdentityHeaders } from './packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
-      export { createCloudflareD1RouterApiAuthService } from './packages/wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService';
-      export { UNAVAILABLE_WALLET_SESSION_LIMITS } from './packages/wallet-server/src/router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
-      export { LocalRegistrationSetupAuthority } from './packages/wallet-server/src/localRegistrationSetupAuthority';
-      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+      export { D1WalletObjectAddresses } from './packages/mpc-wallet-server/src/router/cloudflare/d1/walletObjectAddresses';
+      export { WalletHomeCustodyBinding } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings';
+      export { WalletObjectAddresses, WalletObjectAddressSnapshot, walletObjectIdentity, walletObjectIdentityHeaders } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
+      export { createCloudflareD1RouterApiAuthService } from './packages/mpc-wallet-server/src/router/cloudflare/d1/auth/d1RouterApiAuthService';
+      export { UNAVAILABLE_WALLET_SESSION_LIMITS } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
+      export { LocalRegistrationSetupAuthority } from './packages/mpc-wallet-server/src/localRegistrationSetupAuthority';
+      export { D1WalletExecutionAuthority } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
       export { createRegistrationSetupOperationId } from './packages/shared-ts/src/utils/registrationSetupOperation';
       export { implicitNearAccountProvisioning, REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION } from './packages/shared-ts/src/utils/registrationSignerPlan';
       export { THRESHOLD_ED25519_2P_PARTICIPANT_IDS } from './packages/shared-ts/src/threshold/participants';
-      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
-      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
-      export { consumeRegistrationSetupRateLimit } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1RegistrationSetupRateLimit';
-      export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
+      export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
+      export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/mpc-wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
+      export { consumeRegistrationSetupRateLimit } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1RegistrationSetupRateLimit';
+      export { RouterAbEd25519YaoHttpRegistrationBackend } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoHttpRegistrationBackend';
       export { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './packages/shared-ts/src/tenant-root/tenantRootIdentity';
-      export { tenantRootIdentityDigestB64uV1 } from './packages/wallet-server/src/router/cloudflare/runtime/tenantRootCreationGrant';
+      export { tenantRootIdentityDigestB64uV1 } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/tenantRootCreationGrant';
     `,
   },
 });
@@ -655,7 +655,7 @@ async function signJwt(sub, extra) {
 }
 
 async function migrate(database) {
-  const directory = 'packages/wallet-server/migrations/d1-signer';
+  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
     let sql = await readFile(`${directory}/${name}`, 'utf8');
     if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
@@ -767,7 +767,7 @@ async function verifySetupRateLimit(database) {
   await database.prepare('DROP TABLE registration_setup_rate_limits').run();
   await assert.rejects(consume, /registration_setup_rate_limits/);
   await database.batch(unstable_splitSqlQuery(await readFile(
-    'packages/wallet-server/migrations/d1-signer/0080_registration_setup_rate_limits.sql', 'utf8',
+    'packages/mpc-wallet-server/migrations/d1-signer/0080_registration_setup_rate_limits.sql', 'utf8',
   )).map(prepareStatement.bind(null, database)));
   return { attempts: attempts.length, accepted, keyAndIpIsolation: true, expiredWindow: true, storageFailureRefused: true };
 }

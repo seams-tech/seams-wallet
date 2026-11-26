@@ -48,7 +48,7 @@ description: ウォレットセッションで、NEARトランザクション、
 Ethereum Sepoliaの実装例を実行するには、プロバイダーを作成する前に明示的に設定してください。
 
 ```ts [部分的な実装例]
-import { defineSeamsConfig } from '@seams/wallet/react';
+import { defineSeamsConfig } from '@seams/mpc-wallet/react';
 
 const config = defineSeamsConfig({
   walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,

@@ -1,12 +1,13 @@
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { useState, type ReactElement } from 'react';
-import { ExternalNearController } from '@seams/wallet/external-near';
-import { ExternalNearWalletPicker } from '@seams/wallet/react/external-near';
+import { ExternalEvmController, ExternalNearController } from '@seams/wallet-connect/client';
 import {
-  ExternalEvmController,
   ExternalEvmWalletPicker,
+  ExternalNearWalletPicker,
   useExternalEvm,
+} from '@seams/wallet-connect/react';
+import {
   TouchIcon,
   QRCodeIcon,
   SunIcon,
@@ -18,8 +19,8 @@ import {
   WalletSettingsPage,
   AccountMenuButton,
   defineSeamsConfig,
-} from '@seams/wallet/react';
-import '@seams/wallet/react/styles';
+} from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 const nearController = new ExternalNearController({
   network: 'testnet',

@@ -1,121 +1,42 @@
-# @seams/voiceid
+# VoiceID host plugin (internal)
 
-Optional browser VoiceID authentication for `@seams/wallet` 1.0.0.
-This package owns microphone capture, enrollment, local inference, voice UI,
-and the model/runtime assets. The Wallet SDK owns custody, sessions, signing,
-and the trusted host API. Existing voice enrollments keep their storage identity.
+`@seams-internal/voiceid` is not published. It builds the trusted VoiceID plugin that the
+Wallet host loads from `/sdk/voiceid/host.js`: microphone capture, enrollment, local inference,
+the voice UI in the Wallet iframe, and the model and engine assets. The Wallet SDK owns custody,
+sessions, signing and the host API.
 
-## Enable in the application
+The packages publish the parts of VoiceID:
 
-Install matching Wallet and VoiceID versions, then import the descriptor:
+| Part | Package path |
+| --- | --- |
+| The app descriptor `voiceIdAuthMethod()` and the host contract | `@seams/mpc-wallet/voiceid` |
+| `VoiceAssistantCard` and `VoiceBeam` | `@seams/mpc-wallet/react`, styles in `@seams/mpc-wallet/styles.css` |
+| This plugin, its models and `composeVoiceIdWalletAssets` | `@seams/host/voiceid` |
+| The `seams-voiceid-host` command | `@seams/host` |
+
+## Build
 
 ```sh
-pnpm add @seams/wallet@0.76.0 @seams/voiceid@0.76.0
+pnpm -C packages/voiceid build
 ```
 
-```ts
-import { defineSeamsConfig } from '@seams/wallet';
-import { voiceIdAuthMethod } from '@seams/voiceid';
+The build needs the MPC wallet types (`pnpm -C packages/mpc-wallet build:sdk`). It writes
+`dist/public/sdk/voiceid/` (the plugin chunks, the models and their licences) and
+`dist/hosting.mjs`. Each import of the Wallet's `/sdk/voiceid-host.js` carries the version
+of `packages/mpc-wallet`, so a new plugin chunk never runs against a cached older bridge.
+`pnpm -C packages/mpc-wallet-server package:voiceid` copies the build into the host package.
 
-const config = defineSeamsConfig({
-  walletOrigin,
-  relayerUrl,
-  publishableKey,
-  authMethods: [voiceIdAuthMethod({ transcriptionModel: 'citrinet' })],
-});
-```
-
-Choose `transcriptionModel: 'aurora'` for the smaller speech model. Citrinet is
-the default when this option is omitted. The choice applies to enrollment
-and unlock. Each action keeps its chosen model throughout
-preparation and recording.
+The browser downloads only the selected speech model, plus the shared speaker model, speech
+detector and inference engine:
 
 | Speech model | Uncompressed | Gzip |
 | --- | ---: | ---: |
-| Citrinet INT8 | 10.48 MB | 8.84 MB |
+| Citrinet INT8 (default) | 10.48 MB | 8.84 MB |
 | Aurora INT8 | 1.34 MB | 1.02 MB |
 
-Both models ship with this package. The browser downloads only the selected
-speech model, plus the shared speaker model, speech detector, and inference
-engine. Each model has its own integrity-checked cache. Changing the speech
-model preserves saved speaker samples and verification thresholds.
-
-The root entry contains only the descriptor. Importing it or enabling it does not
-load capture code, ONNX Runtime, or models. The selected VoiceID action starts
-loading in the trusted Wallet iframe. Passkey and Email OTP flows remain independent.
-
-The optional `VoiceBeam` and `VoiceAssistantCard` visuals are exported from
-`@seams/voiceid/react`. Import `@seams/voiceid/styles` when using the card.
-
-## Signing after a VoiceID unlock
-
-VoiceID works like a passkey. A VoiceID unlock opens a normal signing session.
-Each operation on any chain shows the ordinary **Confirm**, with no further voice
-check, within the session's uses and expiry. When the session runs out or
-expires, the next operation asks for VoiceID again inside the Wallet, then signs. A
-transaction asks inside its own confirm card: **Confirm with VoiceID**, the voice
-capture in the same card, then the receipt.
-It never asks for a passkey. Key export asks for one more voice check, bound to
-that export, and never for a passkey or Email OTP.
-
-## Install on the Wallet host
-
-The Wallet host operator must also install this package. App configuration cannot
-provide executable code or choose a plugin URL. A plain `@seams/wallet` deployment
-contains no VoiceID implementation, engine, or models.
-
-Compose a separate deployment directory from the two installed packages:
-
-```sh
-npx --no-install seams-voiceid-host ./wallet-with-voiceid
-```
-
-The command finds the installed Wallet package automatically, including pnpm layouts.
-The output directory must be new and separate from the installed package trees.
-Serve its `/wallet-service`, `/sdk/*`, and manifest files from the Wallet origin.
-The command preserves the plain Wallet package and extends the existing asset
-manifest with `/sdk/voiceid/*`.
-
-Node deployments that compose a specific Wallet build can call the operation directly:
-
-```ts
-import { composeVoiceIdWalletAssets } from '@seams/voiceid/hosting';
-
-await composeVoiceIdWalletAssets({
-  walletPublicDirectory: './node_modules/@seams/wallet/dist/public',
-  outputDirectory: './wallet-with-voiceid',
-});
-```
-
-The host loads `/sdk/voiceid/host.js` only for an enabled VoiceID action. Both sides
-check the host API version. A missing package produces an explicit installation
-error. It cannot fall back to a different authentication method.
-
-## Loading and storage
-
-One cumulative indicator covers the engine WASM and three models. It then shows
-**Preparing VoiceID…** until inference is ready. Downloaded assets are checked by
-length and SHA-256 before use. Browser cache retention is best effort.
-
-Interrupted downloads receive one automatic retry. A stalled download times out
-after 30 seconds without progress. Further failures show **Retry loading** in the
-same card. Retry keeps verified assets and voice enrollment. Close the card to
-choose a passkey instead. A missing or incompatible host package requires an
-operator fix; other module failures include connection and reload instructions.
-
-VoiceID remembers the microphone used for usable audio in this browser. Enrollment
-and unlock request that input even when the system default changes.
-If it is unavailable, VoiceID can use the current default. Reconnecting the saved
-microphone restores it. Interrupted recordings require a new attempt. Voice
-enrollment and verification thresholds stay unchanged.
-Choose **Use system microphone** on the retry prompt to switch inputs. The next
-Record click uses the system default and remembers it after usable audio.
-
-The cold payload before transfer compression is roughly 27 MB with Aurora or
-36 MB with Citrinet.
-Splitting it removes that payload from Wallet-only installations. It does not
-reduce the bytes needed for the first VoiceID operation.
+The cold payload before transfer compression is roughly 27 MB with Aurora or 36 MB with
+Citrinet. A Wallet host without VoiceID serves none of it.
 
 Use the [public VoiceID guide](https://docs.wallet.seams.sh/concepts/auth-methods/voiceid)
-for enrollment, unlock, signing, and storage behavior.
-See [implementation notes](src/README.md) for code boundaries and enrollment storage.
+for the app and host steps, enrollment, unlock, signing and storage. See the
+[implementation notes](src/README.md) for the code boundaries and enrollment storage.

@@ -158,9 +158,9 @@ smallest inventory projection that supports the decisions above. Update
 
 Primary files:
 
-- `packages/wallet/src/SeamsWeb/walletIframe/host/auth-menu/domain.ts`
-- `packages/wallet/src/SeamsWeb/walletIframe/host/auth-menu/account-options.ts`
-- `packages/wallet/src/SeamsWeb/walletIframe/host/auth-menu/controller.ts`
+- `packages/mpc-wallet/src/SeamsWeb/walletIframe/host/auth-menu/domain.ts`
+- `packages/mpc-wallet/src/SeamsWeb/walletIframe/host/auth-menu/account-options.ts`
+- `packages/mpc-wallet/src/SeamsWeb/walletIframe/host/auth-menu/controller.ts`
 - Existing key inventory, authority, and account-binding boundaries identified by that trace.
 
 Deliverable: precise inventory and selection types, boundary parsing, and type fixtures.
@@ -185,11 +185,11 @@ refresh, cancellation, and authentication changes without selecting a sibling ke
 
 Update the existing host surface and styles:
 
-- `packages/wallet/src/SeamsWeb/walletIframe/host/ui/auth-menu/AuthMenuSurface.tsx`
-- `packages/wallet/src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css`
-- `packages/wallet/src/SeamsWeb/walletIframe/host/ui/auth-menu/menu-view.css`
-- `packages/wallet/src/react/components/AccountMenuButton/LinkedDevicesModal.tsx`
-  and `packages/wallet/src/react/hooks/useWalletDevices.ts` only for required device projections.
+- `packages/mpc-wallet/src/SeamsWeb/walletIframe/host/ui/auth-menu/AuthMenuSurface.tsx`
+- `packages/mpc-wallet/src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css`
+- `packages/mpc-wallet/src/SeamsWeb/walletIframe/host/ui/auth-menu/menu-view.css`
+- `packages/mpc-wallet/src/react/components/AccountMenuButton/LinkedDevicesModal.tsx`
+  and `packages/mpc-wallet/src/react/hooks/useWalletDevices.ts` only for required device projections.
 
 Use development fixtures to review the future two-key state while production
 ML-DSA support is incomplete. Keep fixtures inside the existing test harness.
@@ -239,7 +239,7 @@ Relevant existing validation entry points:
 ```sh
 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-ui/auth-menu.browser.test.ts
 pnpm -C tests type-check:wallet-state
-pnpm -C packages/wallet type-check
+pnpm -C packages/mpc-wallet type-check
 pnpm report:bloat --check
 ```
 

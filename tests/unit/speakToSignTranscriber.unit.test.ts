@@ -6,7 +6,7 @@ import {
   stateOf,
   TranscriberChoice,
   type NearAiStatus,
-} from '../../packages/wallet-server/src/router/domains/speakToSign/speakToSignTranscriber';
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignTranscriber';
 
 const NEAR_AI_KEY = 'nearai_secret_do_not_leak_4b1e';
 const MODELS = 'https://cloud-api.near.ai/v1/models';

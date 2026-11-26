@@ -1,7 +1,7 @@
 import type {
   WalletSession,
   WalletAuthenticationState,
-} from '../../packages/wallet/src/core/types/seams';
+} from '../../packages/mpc-wallet/src/core/types/seams';
 import type {
   ExternalAuthenticateInput,
   ExternalWalletSettings,
@@ -67,8 +67,8 @@ const assertedGoogle = applicationIdentity as Extract<ExternalIdentity, { provid
 
 void [mixedProvider, spreadProvider, assertedGoogle];
 
-import type { ExternalAuthStore } from '../../packages/wallet-server/src/auth/externalAuthStore';
-import type { PreparedAuthorizedOperationAdmission } from '../../packages/wallet-server/src/authorization/service';
+import type { ExternalAuthStore } from '../../packages/mpc-wallet-server/src/auth/externalAuthStore';
+import type { PreparedAuthorizedOperationAdmission } from '../../packages/mpc-wallet-server/src/authorization/service';
 
 declare const commit: Parameters<ExternalAuthStore['commitOwnerOperation']>[0];
 declare const replay: Extract<PreparedAuthorizedOperationAdmission, { kind: 'replayed' }>;
@@ -87,7 +87,7 @@ const replayFields = { operation: replay.operation };
 const missingStatements: typeof commit.admission = { kind: 'prepared', ...replayFields };
 void [replayedCommit, rejectedAdmission, missingStatements];
 
-import type { PreparedWebAuthnAuthentication } from '../../packages/wallet-server/src/router/framework/authServicePort';
+import type { PreparedWebAuthnAuthentication } from '../../packages/mpc-wallet-server/src/router/framework/authServicePort';
 declare const preparedProof: Extract<PreparedWebAuthnAuthentication, { success: true }>;
 // @ts-expect-error Verified proofs require a prepared consumption transaction.
 const proofWithoutConsumption: PreparedWebAuthnAuthentication = { success: true, verified: true };

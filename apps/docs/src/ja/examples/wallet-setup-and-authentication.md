@@ -23,7 +23,7 @@ description: Seamsプロバイダーを設定し、パスキーでウォレッ�
 
 ## 前提条件 {#prerequisites}
 
-`@seams/wallet`をインストールし、設定したウォレットオリジンを配信してください。
+`@seams/mpc-wallet`をインストールし、設定したウォレットオリジンを配信してください。
 設定例にある登録用とリレーヤー用の環境変数を指定してください。
 
 ## プロバイダーを設定する {#configure-the-provider}

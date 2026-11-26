@@ -68,7 +68,7 @@ export function buildEmailOtpEnrollmentFixture(input: {
   readonly email: string;
   readonly nowMs: number;
   readonly walletAuthMethodId?: string;
-}): import('../../../packages/wallet-server/src/core/EmailOtpStores').EmailOtpWalletEnrollmentRecord {
+}): import('../../../packages/mpc-wallet-server/src/core/EmailOtpStores').EmailOtpWalletEnrollmentRecord {
   return {
     version: 'email_otp_wallet_enrollment_v1',
     walletId: input.walletId,

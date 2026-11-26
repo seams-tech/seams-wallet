@@ -1,5 +1,5 @@
 import React, { useLayoutEffect } from 'react';
-import type { TransactionReviewControls } from '@seams/wallet/react';
+import type { TransactionReviewControls } from '@seams/mpc-wallet/react';
 import './DirectWalletReview.css';
 
 // Keep the SDK's request binding and deadline while opening its wallet review directly.

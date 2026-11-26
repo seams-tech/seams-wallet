@@ -7,7 +7,8 @@ on:
     paths:
       - '.github/workflows/build-wallet-docs.yml'
       - 'apps/docs/**'
-      - 'packages/wallet/**'
+      - 'packages/mpc-wallet/**'
+      - 'packages/wallet-connect/**'
       - 'packages/shared-ts/**'
       - 'package.json'
       - 'pnpm-lock.yaml'

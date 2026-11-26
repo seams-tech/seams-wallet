@@ -1,4 +1,4 @@
-import type { EmailOtpWorkerOperationMap } from '../../packages/wallet/src/core/signingEngine/workerManager/workerTypes';
+import type { EmailOtpWorkerOperationMap } from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/workerTypes';
 
 type Restore = EmailOtpWorkerOperationMap['rehydrateActiveEmailOtpEd25519YaoSessionMaterial'];
 type EcdsaRequest = Restore['payload']['ecdsa'];

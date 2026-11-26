@@ -39,7 +39,7 @@ const recoveryCodes = [
 ];
 const recoveryMountModuleFile = path.resolve(
   import.meta.dirname,
-  '../../packages/wallet/dist/esm/core/signingEngine/uiConfirm/ui/preact/mountRecoveryCodeBackupSurface.js',
+  '../../packages/mpc-wallet/dist/esm/core/signingEngine/uiConfirm/ui/preact/mountRecoveryCodeBackupSurface.js',
 );
 
 async function prepare(page: Page): Promise<void> {

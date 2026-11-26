@@ -1,19 +1,19 @@
 ---
 title: 高度なヘルパー
-description: '@seams/wallet/advancedが公開する低レベルの識別情報ビルダー、RPCクライアント、符号化ヘルパー、Tempoのユーティリティー。'
+description: '@seams/mpc-wallet/advancedが公開する低レベルの識別情報ビルダー、RPCクライアント、符号化ヘルパー、Tempoのユーティリティー。'
 ---
 
 # 高度なヘルパー {#advanced-helpers}
 
-`@seams/wallet/advanced`は、ライフサイクルとセキュリティの境界を独自に管理する実装に、低レベルのツールを提供します。
+`@seams/mpc-wallet/client`は、ライフサイクルとセキュリティの境界を独自に管理する実装に、低レベルのツールを提供します。
 
 ```ts [インポート例]
-import { createEvmClient, MinimalNearClient } from '@seams/wallet/advanced';
+import { createEvmClient, MinimalNearClient } from '@seams/mpc-wallet/client';
 ```
 
 ## 識別情報ビルダーの公開先 {#identity-builders-moved}
 
-境界で使う参照ビルダーは、このパスに加え、[`@seams/wallet`](/ja/reference/core)と`@seams/wallet/react`からも公開されます。
+境界で使う参照ビルダーは、このパスに加え、[`@seams/mpc-wallet`](/ja/reference/core)と`@seams/mpc-wallet/react`からも公開されます。
 最初の署名呼び出しに、このパスからのインポートは必要ありません。
 
 - `toWalletId`。

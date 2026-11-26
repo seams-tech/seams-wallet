@@ -138,7 +138,7 @@ Neither run establishes Multi-AZ failover, a provider pooler such as RDS Proxy, 
 Run the same lifecycle scenarios through the intended deployment connection before claiming that deployment ready.
 
 The complete Wallet backend still needs additional ports.
-Gateway stores live under `packages/wallet-server/src/router/cloudflare/d1`, with schemas under `packages/wallet-server/migrations/d1-signer`.
+Gateway stores live under `packages/mpc-wallet-server/src/router/cloudflare/d1`, with schemas under `packages/mpc-wallet-server/migrations/d1-signer`.
 Private Console stores live in `seams-monorepo`.
 They contain their own SQLite JSON functions, time functions, conflict rules, triggers, and transaction boundaries.
 Port and test each store with its lifecycle behavior.

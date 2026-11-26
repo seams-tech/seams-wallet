@@ -4,7 +4,7 @@ import {
   useSeams,
   type BoundNearSigner,
   type TransactionReviewControls,
-} from '@seams/wallet/react';
+} from '@seams/mpc-wallet/react';
 
 type TransferState =
   | { kind: 'ready'; message: string }

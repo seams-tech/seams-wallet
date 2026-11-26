@@ -1,4 +1,4 @@
-import type { SeamsWeb } from '@seams/wallet';
+import type { SeamsWeb } from '@seams/mpc-wallet/client';
 
 type SyncAccountResult = Awaited<ReturnType<SeamsWeb['recovery']['syncAccount']>>;
 

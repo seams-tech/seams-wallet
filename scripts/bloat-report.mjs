@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const self = 'scripts/bloat-report.mjs';
 const baselinePath = path.join(root, 'scripts/bloat-baseline.json');
-const ts = createRequire(path.join(root, 'packages/wallet/package.json'))('typescript');
+const ts = createRequire(path.join(root, 'packages/mpc-wallet/package.json'))('typescript');
 const revAt = process.argv.indexOf('--rev');
 const rev = revAt > 0 ? process.argv[revAt + 1] : null;
 const sourceRoot = rev ? mkdtempSync(path.join(tmpdir(), 'bloat-report-')) : root;
@@ -164,7 +164,7 @@ function measureDuplication(language) {
 function resolveModule(fromFile, specifier) {
   let base;
   if (specifier.startsWith('.')) base = path.join(path.dirname(fromFile), specifier);
-  else if (specifier.startsWith('@/')) base = `packages/wallet/src/${specifier.slice(2)}`;
+  else if (specifier.startsWith('@/')) base = `packages/mpc-wallet/src/${specifier.slice(2)}`;
   else if (specifier.startsWith('@shared/')) base = `packages/shared-ts/src/${specifier.slice(8)}`;
   else return null;
   base = base.replace(/\.(js|mjs|ts|tsx)$/, '');

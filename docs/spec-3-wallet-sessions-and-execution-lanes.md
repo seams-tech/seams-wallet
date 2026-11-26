@@ -55,7 +55,7 @@ match the same server session and signing access. Refresh grants no new time,
 uses, or permissions.
 
 The client keeps the session and its allowance tied together. This excerpt from
-the [session status types](../packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus.ts)
+the [session status types](../packages/mpc-wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus.ts)
 shows the quota snapshot:
 
 ```ts
@@ -97,5 +97,5 @@ Owner key export returns only the supported owner key material. Per-lane and
 server shares stay with their holders.
 
 See [Intended Behaviours](intended-behaviours.md) for the exact flows and
-[the session runtime](../packages/wallet/src/core/signingEngine/session) for
+[the session runtime](../packages/mpc-wallet/src/core/signingEngine/session) for
 implementation details.

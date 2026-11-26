@@ -4,12 +4,12 @@ import { unknownWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDe
 import {
   verifyWebAuthnAuthenticationLiteWithStore,
   verifyWebAuthnRegistrationCredentialForIntent,
-} from '../../../packages/wallet-server/src/core/authService/webauthn';
-import { normalizeLogger } from '../../../packages/wallet-server/src/core/logger';
-import type { WebAuthnAuthenticatorRecord } from '../../../packages/wallet-server/src/core/WebAuthnAuthenticatorStore';
-import { D1WalletAuthMethodStore } from '../../../packages/wallet-server/src/core/d1WalletAuthMethodStore';
-import { CloudflareD1WebAuthnAuthService } from '../../../packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
-import { CloudflareD1WebAuthnStore } from '../../../packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+} from '../../../packages/mpc-wallet-server/src/core/authService/webauthn';
+import { normalizeLogger } from '../../../packages/mpc-wallet-server/src/core/logger';
+import type { WebAuthnAuthenticatorRecord } from '../../../packages/mpc-wallet-server/src/core/WebAuthnAuthenticatorStore';
+import { D1WalletAuthMethodStore } from '../../../packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';
+import { CloudflareD1WebAuthnAuthService } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
+import { CloudflareD1WebAuthnStore } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
 import { openSignerD1 } from '../../fixtures/signer-d1.mjs';
 import {
   assertionResponse,

@@ -4,12 +4,12 @@ import {
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
   parseRouterAbEd25519YaoRegistrationActivationResultV1,
 } from '@shared/utils/routerAbEd25519Yao';
-import { buildRouterAbEd25519YaoRegistrationCapabilityRecordV1 } from '../../../packages/wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
+import { buildRouterAbEd25519YaoRegistrationCapabilityRecordV1 } from '../../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
 import {
   buildYaoEd25519WalletSignerRecord,
   ed25519NearPublicKeyFromBytes,
   implicitNearAccountIdFromEd25519PublicKeyBytes,
-} from '../../../packages/wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoWalletSigner';
+} from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoWalletSigner';
 import { buildNearRegistrationAuthorityFixture } from './nearRegistration.fixtures';
 
 function clientPackage(deriver: 'deriver_a' | 'deriver_b') {

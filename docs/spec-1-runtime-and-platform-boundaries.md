@@ -24,7 +24,7 @@ With a configured `SeamsWeb` client and NEAR enabled, registration looks like
 this:
 
 ```ts
-import type { SeamsWeb } from '@seams/wallet';
+import type { SeamsWeb } from '@seams/mpc-wallet/client';
 
 async function createNearWallet(
   wallet: SeamsWeb,
@@ -42,7 +42,7 @@ async function createNearWallet(
 ```
 
 The SDK handles the prompts, server calls, and cryptography. The
-[registration API](../packages/wallet/src/SeamsWeb/publicApi/types.ts) separates
+[registration API](../packages/mpc-wallet/src/SeamsWeb/publicApi/types.ts) separates
 creating the wallet from waiting for its NEAR account to become usable.
 
 ## TypeScript and Rust
@@ -74,7 +74,7 @@ provider, or worker is checked when it enters the system. The rest of the code
 uses that checked representation.
 
 For example, the
-[NEAR readiness result](../packages/wallet/src/SeamsWeb/publicApi/waitForNearAccount.ts)
+[NEAR readiness result](../packages/mpc-wallet/src/SeamsWeb/publicApi/waitForNearAccount.ts)
 states exactly what the caller can use in each case:
 
 ```ts
@@ -104,8 +104,8 @@ Hosted Wallet documents remain separate bundles even when served together.
 
 ## Finding the code
 
-The [client package](../packages/wallet/src),
-[server package](../packages/wallet-server/src), and
+The [client package](../packages/mpc-wallet/src),
+[server package](../packages/mpc-wallet-server/src), and
 [Rust cryptographic core](../crates/signer-core/src) are the main starting points.
 
 The public repository also contains the hosted Wallet UI, examples, and recovery

@@ -2,7 +2,7 @@ import type {
   AuthorizedEcdsaPreprocessingCapability,
   AuthorizedEvmFamilyEcdsaSigningCapability,
   ExactEvmFamilyWalletSessionAuthorization,
-} from '../../packages/wallet/src/core/signingEngine/session/material/ecdsaSigningCapability';
+} from '../../packages/mpc-wallet/src/core/signingEngine/session/material/ecdsaSigningCapability';
 
 declare const preprocessing: AuthorizedEcdsaPreprocessingCapability;
 // @ts-expect-error Preprocessing proves no remaining transaction signing allowance.
@@ -43,7 +43,7 @@ const mismatchedAuth: AuthorizedEcdsaPreprocessingCapability['authorization'] = 
 void mismatchedAuth;
 
 type SigningFlowRuntimeInput = Parameters<
-  typeof import('../../packages/wallet/src/core/signingEngine/flows/signEvmFamily/signingFlowRuntime').createEvmFamilySigningFlowRuntime
+  typeof import('../../packages/mpc-wallet/src/core/signingEngine/flows/signEvmFamily/signingFlowRuntime').createEvmFamilySigningFlowRuntime
 >[0];
 declare const p256RuntimeInput: Extract<
   SigningFlowRuntimeInput,
@@ -82,7 +82,7 @@ void castRuntimeInput;
 
 // Linked presign admission carries the trusted deployment scope through transport.
 type LinkedPresignInit = Parameters<
-  import('../../packages/wallet-server/src/core/routerAbSigning/RouterAbEcdsaPresignRuntime').RouterAbEcdsaPresignRuntime['initializeLinkedDevicePresign']
+  import('../../packages/mpc-wallet-server/src/core/routerAbSigning/RouterAbEcdsaPresignRuntime').RouterAbEcdsaPresignRuntime['initializeLinkedDevicePresign']
 >[0];
 declare const linkedWithoutWalletScope: Omit<LinkedPresignInit, 'walletScope'>;
 // @ts-expect-error A request cannot admit linked presigning without deployment scope.
@@ -94,7 +94,7 @@ void unscopedLinkedPresignSpread;
 
 // Prepare binds fresh session authority to the admitted reusable operation.
 type PrepareSessionResult =
-  import('../../packages/wallet/src/core/rpcClients/relayer/ecdsaPrepareSession').EcdsaPrepareSessionResult;
+  import('../../packages/mpc-wallet/src/core/rpcClients/relayer/ecdsaPrepareSession').EcdsaPrepareSessionResult;
 declare const sessionPrepare: Extract<PrepareSessionResult, { kind: 'reusable_wallet_session' }>;
 declare const stepUpPrepare: Extract<PrepareSessionResult, { kind: 'operation_step_up' }>;
 // @ts-expect-error Reusable prepare requires its admitted session projection.

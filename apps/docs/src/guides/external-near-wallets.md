@@ -10,7 +10,7 @@ Offer two wallet choices in your application:
 - **Use a Seams wallet:** create or unlock a threshold wallet through the existing Seams authentication flow.
 - **Connect an existing wallet:** choose from the wallets your app enables and approve requests in that wallet.
 
-`@seams/wallet@0.76.0` includes external NEAR connections, transactions, and Meteor's `signMessage` API.
+`@seams/wallet-connect@0.76.0` includes external NEAR connections, transactions, and Meteor's `signMessage` API. It needs no Seams account and no MPC wallet.
 
 ## Wallets and networks
 
@@ -112,8 +112,8 @@ HOT and Intear return `unavailable` for message signing in this connector.
 ## Controller API
 
 For a custom UI or a framework-independent application, import
-`ExternalNearController` from `@seams/wallet/external-near`. React bindings live at
-`@seams/wallet/react/external-near`; they are separate from `@seams/wallet/react`.
+`ExternalNearController` from `@seams/wallet-connect/client`. React bindings live at
+`@seams/wallet-connect/react`; they are separate from `@seams/mpc-wallet/react`.
 
 | API                                                        | Behavior                                                                                                                              |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -175,5 +175,5 @@ Allow Intear's popup for the application origin. The adapter accepts replies onl
 from its fixed wallet origin and the popup opened for that request. It rejects
 redirected wallet origins and native bridge sessions.
 
-If imports cannot be resolved, check that `@seams/wallet` version `0.76.0` is installed. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
+If imports cannot be resolved, check that `@seams/wallet-connect` version `0.76.0` is installed. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
 for the same boundaries in the operational guide.

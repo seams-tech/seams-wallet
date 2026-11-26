@@ -11,7 +11,7 @@ import {
   createWalletControlClientBindings,
   handleWalletControlRequest,
   signTenantRootCreationGrantV1,
-} from '@seams/wallet-server/cloud-host';
+} from '@seams/host/cloud-host';
 import {
   configureRouterJwt,
   loadFixture,

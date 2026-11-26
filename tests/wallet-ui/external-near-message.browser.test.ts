@@ -103,7 +103,7 @@ async function completeMessage(request, mode) {
 `;
 
 async function exerciseOwnershipCheck() {
-  const path = '/_test-sdk/esm/externalNear/index.js';
+  const path = '/_test-sdk/esm/wallet-connect/client.js';
   const { ExternalNearController } = await import(path);
   const controller = new ExternalNearController({
     network: 'testnet',
@@ -239,7 +239,7 @@ function recordRpcRequest(requests: string[], request: { url(): string }): void 
 }
 
 async function beginMessageApproval() {
-  const path = '/_test-sdk/esm/externalNear/index.js';
+  const path = '/_test-sdk/esm/wallet-connect/client.js';
   const { ExternalNearController } = await import(path);
   const controller = new ExternalNearController({
     network: 'mainnet',

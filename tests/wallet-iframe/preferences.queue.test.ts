@@ -349,9 +349,9 @@ async function verifyFailedWrite({ page }: { page: Page }, info: TestInfo): Prom
   const bundle = await build({
     stdin: {
       contents: `
-        export { UserPreferencesManager } from './packages/wallet/src/core/signingEngine/session/userPreferences.ts';
-        export { IndexedDBManager, configureIndexedDB } from './packages/wallet/src/core/indexedDB/index.ts';
-        export { createPreferencesWalletIframeHandlers } from './packages/wallet/src/SeamsWeb/walletIframe/host/handlers/preferences.ts';
+        export { UserPreferencesManager } from './packages/mpc-wallet/src/core/signingEngine/session/userPreferences.ts';
+        export { IndexedDBManager, configureIndexedDB } from './packages/mpc-wallet/src/core/indexedDB/index.ts';
+        export { createPreferencesWalletIframeHandlers } from './packages/mpc-wallet/src/SeamsWeb/walletIframe/host/handlers/preferences.ts';
       `,
       resolveDir: root,
     },
@@ -360,7 +360,7 @@ async function verifyFailedWrite({ page }: { page: Page }, info: TestInfo): Prom
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
   });
   await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
   await page.route(

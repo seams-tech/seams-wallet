@@ -1,14 +1,16 @@
 {
-  "extends": "../packages/wallet/tsconfig.json",
+  "extends": "../packages/mpc-wallet/tsconfig.json",
   "compilerOptions": {
     "rootDir": "..",
     "noEmit": true,
     "types": ["@playwright/test", "node", "qrcode", "vite/client"],
     "paths": {
       "@voiceid/*": ["../packages/voiceid/src/*"],
-      "@seams/wallet/voiceid-host": ["../packages/wallet/src/voiceid-host.ts"],
-      "@build-paths": ["../packages/wallet/build-paths.ts"],
-      "@/*": ["../packages/wallet/src/*"],
+      "@wallet-connect/*": ["../packages/wallet-connect/src/*"],
+      "@seams/mpc-wallet/voiceid": ["../packages/mpc-wallet/src/voiceid.ts"],
+      "@seams/wallet-connect/client": ["../packages/wallet-connect/src/client.ts"],
+      "@build-paths": ["../packages/mpc-wallet/build-paths.ts"],
+      "@/*": ["../packages/mpc-wallet/src/*"],
       "@shared/*": ["../packages/shared-ts/src/*"]
     }
   },

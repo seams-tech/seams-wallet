@@ -18,14 +18,14 @@ import {
   type WalletSessionBudget,
   type WalletSessionLimits,
 } from '@shared/threshold/walletSessionBudget';
-import { AuthorizationService, type WalletSessionLimitsPort } from '../../packages/wallet-server/src/authorization/service';
-import { capabilityPolicyPort } from '../../packages/wallet-server/src/authorization/capabilityPolicy';
-import { CloudflareD1AuthorizationStore } from '../../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
-import { D1WalletExecutionAuthority } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
-import { prepareD1WalletAuthorityPutStatement } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
-import { prepareD1WalletAuthMethodV2PutStatement } from '../../packages/wallet-server/src/core/d1WalletAuthMethodStore';
-import { createWalletConsoleOpsClient } from '../../packages/wallet-server/src/router/cloudflare/runtime/walletConsoleOpsClient';
-import { createProjectEnvironmentWalletSessionLimits } from '../../packages/wallet-server/src/router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
+import { AuthorizationService, type WalletSessionLimitsPort } from '../../packages/mpc-wallet-server/src/authorization/service';
+import { capabilityPolicyPort } from '../../packages/mpc-wallet-server/src/authorization/capabilityPolicy';
+import { CloudflareD1AuthorizationStore } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+import { D1WalletExecutionAuthority } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+import { prepareD1WalletAuthorityPutStatement } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+import { prepareD1WalletAuthMethodV2PutStatement } from '../../packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';
+import { createWalletConsoleOpsClient } from '../../packages/mpc-wallet-server/src/router/cloudflare/runtime/walletConsoleOpsClient';
+import { createProjectEnvironmentWalletSessionLimits } from '../../packages/mpc-wallet-server/src/router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';
 import { seedExecutionGeneration } from '../e2e/execution-generation.scenario.mjs';

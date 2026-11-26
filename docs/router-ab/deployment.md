@@ -19,7 +19,7 @@ deployment must validate its authenticated transport before activation. The
 current manifests and hosted measurements cover the same-account configuration.
 
 The deployable Worker artifacts are built and packaged by `seams-wallet`. The
-private `seams-monorepo` consumes an exact `@seams/wallet-server` release and
+private `seams-monorepo` consumes an exact `@seams/host` release and
 owns deployment targets, provisioned resource identifiers, migrations,
 deployment sequencing, and smoke checks.
 
@@ -179,7 +179,7 @@ control plane. `test:private-d1` builds the development Worker profile and
 exercises role-private persistence, tenant-root lifecycle, managed restore,
 and recovery boundaries.
 
-The published `@seams/wallet-server` package must contain the five Worker
+The published `@seams/host` package must contain the five Worker
 artifacts, manifests, and migrations referenced by its artifact manifest. The
 hosted deployment consumes that package; it does not rebuild from an unrelated
 Wallet checkout.
@@ -256,7 +256,7 @@ Self-hosted qualification runs the same artifacts through the pinned private cel
 Runtime packaging, permissions, and process supervision belong to the deployment boundary.
 The application uses Worker service bindings, Durable Objects, D1, KV, and separate A/B object-storage bindings.
 
-The Server package no longer publishes `@seams/wallet-server/router/express`.
+The Server package no longer publishes `@seams/host/router/express`.
 The Express Router constructor, response conversion, session-seal registration, and Express-specific source-IP helpers are removed.
 Use the existing Worker/fetch entrypoints, including `router/cloudflare` and `hosted-wallet-gateway-worker`.
 The `router/cloudflare` name identifies the Workers API surface used by both hosts.

@@ -4,7 +4,7 @@ import {
   resolveWalletBoundaryErrorCode,
   resolveWalletBoundaryErrorMessage,
   resolveWalletBoundarySignerKind,
-} from '../../../packages/wallet/src/SeamsWeb/walletIframe/host/canonicalSignerErrorCode';
+} from '../../../packages/mpc-wallet/src/SeamsWeb/walletIframe/host/canonicalSignerErrorCode';
 
 /**
  * The 14 codes that the wallet iframe gives the app when a signing request fails. The app

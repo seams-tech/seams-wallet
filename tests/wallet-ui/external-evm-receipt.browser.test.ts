@@ -47,8 +47,9 @@ async function replyToRpc(counts: Map<string, number>, route: Route): Promise<vo
 }
 
 async function waitInBrowser(scenario: ReceiptCase) {
-  const modulePath = '/_test-sdk/esm/externalEvm/index.js';
-  const { ExternalEvmController } = (await import(modulePath)) as typeof import('@/externalEvm');
+  // The EVM controller module alone: this page maps no bare imports.
+  const modulePath = '/_test-sdk/esm/wallet-connect/externalEvm/controller.js';
+  const { ExternalEvmController } = (await import(modulePath)) as typeof import('@seams/wallet-connect/client');
   const controller = new ExternalEvmController([
     {
       chainId: 1,

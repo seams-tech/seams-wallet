@@ -1,6 +1,6 @@
-import { mountConfirmationSurface } from '../../packages/wallet/dist/esm/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.js';
-import { buildDisplayTreeFromModel } from '../../packages/wallet/dist/esm/core/signingEngine/uiConfirm/ui/transaction-display/tree.js';
-import { enrichDisplayModelWithAbi } from '../../packages/wallet/dist/esm/core/signingEngine/uiConfirm/ui/transaction-display/abi/enrichDisplayModelWithAbi.js';
+import { mountConfirmationSurface } from '../../packages/mpc-wallet/dist/esm/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.js';
+import { buildDisplayTreeFromModel } from '../../packages/mpc-wallet/dist/esm/core/signingEngine/uiConfirm/ui/transaction-display/tree.js';
+import { enrichDisplayModelWithAbi } from '../../packages/mpc-wallet/dist/esm/core/signingEngine/uiConfirm/ui/transaction-display/abi/enrichDisplayModelWithAbi.js';
 
 const parent = document.querySelector('main');
 const status = document.querySelector('#status');

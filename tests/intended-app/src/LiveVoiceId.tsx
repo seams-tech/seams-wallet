@@ -1,8 +1,7 @@
 import React from 'react';
-import { useSeams } from '@seams/wallet/react';
-import type { WalletSession } from '@seams/wallet';
-import type { WalletId } from '@seams/wallet/advanced';
-import { parseWebAuthnRpId, toWalletId } from '@seams/wallet/advanced';
+import { useSeams } from '@seams/mpc-wallet/react';
+import type { WalletId, WalletSession } from '@seams/mpc-wallet/client';
+import { parseWebAuthnRpId, toWalletId } from '@seams/mpc-wallet/client';
 import { ReviewedNearTransfer } from './ReviewedNearTransfer';
 import { ReviewedArcTransfer } from './ReviewedArcTransfer';
 import { AccountMenu } from './AccountMenu';

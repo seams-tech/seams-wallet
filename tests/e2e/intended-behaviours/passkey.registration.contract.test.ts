@@ -12,7 +12,7 @@ import {
 import { intendedTest as test, type IntendedSigningStage } from './harness';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
-import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/config/presignatures';
+import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/mpc-wallet/src/core/config/presignatures';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';

@@ -2,7 +2,7 @@ import {
   deriveEmailOtpUnlockAuthSeedInWorker,
   ensureEvmCryptoWasm,
   ensureWalletCustodyCeremonyWasm,
-} from '../../packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/crypto';
+} from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/email-otp/crypto';
 
 type Loader = 'evm' | 'email' | 'custody';
 type Outcome = { ok: true } | { ok: false; error: string };

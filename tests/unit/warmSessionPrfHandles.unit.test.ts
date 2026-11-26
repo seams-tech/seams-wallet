@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { WarmSessionPrfHandles } from '../../packages/wallet/src/core/signingEngine/workerManager/workers/passkeyMpcSession/warmSessionPrfHandles';
+import { WarmSessionPrfHandles } from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/passkeyMpcSession/warmSessionPrfHandles';
 
 const sessionId = 'threshold-session-1';
 const prfFirst = Buffer.alloc(32, 7).toString('base64url');

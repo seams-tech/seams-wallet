@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
-import '@seams/wallet/react/styles';
+import { AccountMenuButtonMock } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 import './settingsDrawer.css';
 
 type PreviewState = {

@@ -1,5 +1,5 @@
 {
-  "extends": "../wallet/tsconfig.json",
+  "extends": "../mpc-wallet/tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
     "types": ["node"],

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSeams } from '@seams/wallet/react';
+import { useSeams } from '@seams/mpc-wallet/react';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type Spoken = NonNullable<Seams['near']['spoken']>;

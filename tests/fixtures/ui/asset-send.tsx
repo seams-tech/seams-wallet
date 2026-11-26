@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AssetBalance } from '../../../packages/wallet/src/core/assets/readAssetBalances';
-import type { ReadySend } from '../../../packages/wallet/src/react/components/AccountMenuButton/assets/SendPanel';
+import type { AssetBalance } from '../../../packages/mpc-wallet/src/core/assets/readAssetBalances';
+import type { ReadySend } from '../../../packages/mpc-wallet/src/react/components/AccountMenuButton/assets/SendPanel';
 
 // The Send screen with the built SDK: the real panel, the real checks against a fake NEAR
 // node, and the real wallet review card for the prepared transaction. Nothing is signed.
@@ -11,25 +11,25 @@ async function load<T>(path: string): Promise<T> {
 }
 
 const { SendPanel } = await load<
-  typeof import('../../../packages/wallet/src/react/components/AccountMenuButton/assets/SendPanel')
+  typeof import('../../../packages/mpc-wallet/src/react/components/AccountMenuButton/assets/SendPanel')
 >('react/components/AccountMenuButton/assets/SendPanel.js');
 const { prepareSend } =
-  await load<typeof import('../../../packages/wallet/src/core/assets/send')>('core/assets/send.js');
+  await load<typeof import('../../../packages/mpc-wallet/src/core/assets/send')>('core/assets/send.js');
 const { assetsForChain } = await load<
-  typeof import('../../../packages/wallet/src/core/assets/assetList')
+  typeof import('../../../packages/mpc-wallet/src/core/assets/assetList')
 >('core/assets/assetList.js');
 const { toActionArgsWasm } = await load<
   typeof import('../../../packages/shared-ts/src/near/actions')
 >('shared-ts/src/near/actions.js');
 const { immediateNearTokenMetadata } = await load<
-  typeof import('../../../packages/wallet/src/core/signingEngine/chains/near/tokenTransfers')
+  typeof import('../../../packages/mpc-wallet/src/core/signingEngine/chains/near/tokenTransfers')
 >('core/signingEngine/chains/near/tokenTransfers.js');
 const { buildNearPreparationDisplayModel } = await load<
-  typeof import('../../../packages/wallet/src/core/signingEngine/chains/near/display')
+  typeof import('../../../packages/mpc-wallet/src/core/signingEngine/chains/near/display')
 >('core/signingEngine/chains/near/display.js');
 const { awaitConfirmUIDecision } =
   await load<
-    typeof import('../../../packages/wallet/src/core/signingEngine/uiConfirm/ui/confirm-ui')
+    typeof import('../../../packages/mpc-wallet/src/core/signingEngine/uiConfirm/ui/confirm-ui')
   >('sdk/tx-confirm-ui.js');
 
 const stylesheet = document.createElement('link');

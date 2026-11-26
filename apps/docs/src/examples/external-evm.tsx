@@ -1,10 +1,6 @@
 import { useMemo } from 'react';
-import {
-  ExternalEvmController,
-  ExternalEvmWalletPicker,
-  useExternalEvm,
-  type ExternalEvmConnection,
-} from '@seams/wallet/react';
+import { ExternalEvmController, type ExternalEvmConnection } from '@seams/wallet-connect/client';
+import { ExternalEvmWalletPicker, useExternalEvm } from '@seams/wallet-connect/react';
 
 function createExternalEvmController(): ExternalEvmController {
   return new ExternalEvmController([

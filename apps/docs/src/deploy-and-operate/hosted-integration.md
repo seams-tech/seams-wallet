@@ -5,7 +5,7 @@ description: Serve the Seams wallet service and SDK runtime assets from a dedica
 
 # Hosted integration
 
-The product application imports `@seams/wallet`. A dedicated wallet origin serves
+The product application imports `@seams/mpc-wallet/client` and `@seams/mpc-wallet/react`. A dedicated wallet origin serves
 the wallet service, SDK support assets, workers, and export viewer used by the
 isolated iframe.
 
@@ -78,9 +78,21 @@ the menu stays open long enough. It does not reduce total server work.
 - Confirm workers and WASM load under the production CSP.
 - Confirm export content remains inside the wallet-origin viewer.
 
-Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for the
+Use the published `@seams/host/wallet-origin-html` asset only for the
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
+
+## Next release
+
+The next release renames the packages and changes no behaviour:
+
+- The app installs `@seams/mpc-wallet` in place of `@seams/wallet`, and `@seams/wallet-connect` with it.
+- The operator installs `@seams/host` in place of `@seams/wallet-server`. Its paths keep their names, and the root path is now `@seams/host/server-types`.
+- `@seams/voiceid` is not published any more. The app imports `voiceIdAuthMethod` from `@seams/mpc-wallet/voiceid`. `@seams/host` holds the VoiceID host plugin and its models, and `seams-voiceid-host` composes them as before.
+- The recovery CLI launcher is `@seams/cli` **0.29.0**, with the same `seams-wallet` command and signed native assets.
+- The wallet origin document is `@seams/host/wallet-origin-html`.
+
+Deploy the server, the Wallet host and the apps of one release together, as for each release. The [release notes](/releases) have a table from each old import to its new import.
 
 ## Release 0.76.0
 
@@ -97,7 +109,7 @@ See [Release 0.76.0](/releases) for the supported integration.
 The Gateway serves `/router-ab/ed25519/yao/reissue/admit` and
 `/router-ab/ed25519/yao/reissue/execute`. A Gateway that you assemble yourself
 routes them to `handleRouterAbEd25519YaoReissueRequestV1` from
-`@seams/wallet-server/cloud-host`. The Router project policy must allow the
+`@seams/host/cloud-host`. The Router project policy must allow the
 `reissue` work kind.
 
 APAC wallet objects request Southeast Asia placement through `apac-se`.
@@ -131,7 +143,7 @@ transaction, then sends the completion after the response. Signing works at once
 If that write fails, the Gateway's scheduled handler resends the same session digest
 and expiry until the directory acknowledges it. A Gateway that you assemble with your
 own registration authority must call `resumeRegistrationDirectoryPublicationsV1` from
-`@seams/wallet-server/cloud-host` in its scheduled handler, for example once a minute.
+`@seams/host/cloud-host` in its scheduled handler, for example once a minute.
 The bundled local Gateway Worker does this.
 
 Until the directory acknowledges a completion, normally within a second, the wallet

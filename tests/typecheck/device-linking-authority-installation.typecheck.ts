@@ -2,9 +2,9 @@ import type {
   ActivateInstalledAuthorityResultV1,
   WalletSessionOperationCredentialV1,
 } from '../../packages/shared-ts/src/device-linking/contracts';
-import type { DeviceLinkingAuthorityInstallationPortV1 } from '../../packages/wallet/src/SeamsWeb/operations/devices/deviceLinkingAuthorityInstallation';
-import type { DeviceLinkingOrdinaryMaterialSealerV1 } from '../../packages/wallet/src/core/signingEngine/workerManager/deviceLinkingPorts';
-import type { DeviceLinkingOrdinaryMaterialStateV1 } from '../../packages/wallet/src/core/signingEngine/workerManager/workers/device-linking-key/ordinaryMaterialState';
+import type { DeviceLinkingAuthorityInstallationPortV1 } from '../../packages/mpc-wallet/src/SeamsWeb/operations/devices/deviceLinkingAuthorityInstallation';
+import type { DeviceLinkingOrdinaryMaterialSealerV1 } from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/deviceLinkingPorts';
+import type { DeviceLinkingOrdinaryMaterialStateV1 } from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/device-linking-key/ordinaryMaterialState';
 import type {
   LinkedDeviceEd25519SourceContributionPreparationV1,
   LinkedDeviceEd25519SourceContributionV1,

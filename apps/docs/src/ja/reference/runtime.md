@@ -1,12 +1,12 @@
 ---
 title: 独自の署名ランタイム
-description: 署名ランタイム全体を管理するアプリ向けに、@seams/wallet/runtimeが公開するポートとファクトリー。
+description: 署名ランタイム全体を管理するアプリ向けに、@seams/mpc-wallet/runtimeが公開するポートとファクトリー。
 ---
 
 # 独自の署名ランタイム {#custom-signing-runtime}
 
-`@seams/wallet/runtime`は、署名エンジンの周囲のプラットフォームを提供するホスト向けです。
-`SeamsWeb`より低レベルの導入方法です。
+`@seams/mpc-wallet/client`は、署名エンジンの周囲のプラットフォームを提供するホスト向けのランタイムも公開します。
+`SeamsWeb`より低レベルの導入方法です。バンドラーは、インポートしたランタイムのモジュールだけを残します。パッケージのビルドは、これらがブラウザーのコードを読み込まないことを確認します。
 
 `createSigningRuntime`、`createSigningRuntimeStatePorts`と、ランタイム設定、サービス、状態ポート、UI依存関係、準備済みセッションのUIポートの型を公開します。
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-// This is the exact component re-exported by @seams/wallet/react.
+// This is the exact component re-exported by @seams/mpc-wallet/react.
 import { VoiceBeam } from 'voice-glow';
 
 const element = React.createElement;

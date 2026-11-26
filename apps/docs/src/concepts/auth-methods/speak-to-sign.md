@@ -66,18 +66,18 @@ expired, the Wallet asks the owner to unlock first.
 
 ## Install
 
-Install the two packages at the same version. Speak-to-Sign is a part of
-`@seams/wallet`: it has no package of its own.
+Install the MPC wallet package. Speak-to-Sign and the VoiceID descriptor are parts of
+`@seams/mpc-wallet`: they have no package of their own.
 
 ```sh
-pnpm add @seams/wallet@0.76.0 @seams/voiceid@0.76.0
+pnpm add @seams/mpc-wallet@0.76.0
 ```
 
 Add the `spoken` descriptor to `approvals`, beside the VoiceID auth method:
 
 ```ts [Partial example]
-import { SeamsWeb, spoken } from '@seams/wallet';
-import { voiceIdAuthMethod } from '@seams/voiceid';
+import { SeamsWeb, spoken } from '@seams/mpc-wallet/client';
+import { voiceIdAuthMethod } from '@seams/mpc-wallet/voiceid';
 
 const seams = new SeamsWeb({
   // ...the rest of your configuration
@@ -294,8 +294,8 @@ void seams.near.spoken?.prepare({ note: { text: noteText } });
 ## Prepare the Wallet host
 
 Speak-to-Sign needs no step of its own on the Wallet host. Its flow is in
-`@seams/wallet`. It records on the VoiceID surface, so the operator of
-`walletOrigin` composes VoiceID as for a VoiceID host:
+`@seams/mpc-wallet`. It records on the VoiceID surface, so the operator of
+`walletOrigin` installs `@seams/host` and composes VoiceID as for a VoiceID host:
 
 ```sh
 npx --no-install seams-voiceid-host ./wallet-with-voiceid

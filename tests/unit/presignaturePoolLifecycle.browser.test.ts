@@ -191,7 +191,7 @@ async function runPoolScenario(page: Page, scenario: PoolScenario): Promise<Pool
   const root = path.resolve(import.meta.dirname, '../..');
   const bundle = await build({
     stdin: {
-      contents: `export * as pool from './packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool';`,
+      contents: `export * as pool from './packages/mpc-wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool';`,
       resolveDir: root,
     },
     bundle: true,
@@ -199,7 +199,7 @@ async function runPoolScenario(page: Page, scenario: PoolScenario): Promise<Pool
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
   });
   await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
   await page.route(

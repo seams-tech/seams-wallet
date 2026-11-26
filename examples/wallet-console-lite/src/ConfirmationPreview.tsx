@@ -13,7 +13,7 @@ import {
   walletIframeRequestIdFromBoundary,
   walletIframeSurfaceIdFromBoundary,
 } from '@wallet-preview/core/types/walletIframeIdentity';
-import type { TransactionReviewControls } from '@seams/wallet/react';
+import type { TransactionReviewControls } from '@seams/mpc-wallet/react';
 
 type PreviewProps = {
   render: (controls: TransactionReviewControls) => ReactNode;

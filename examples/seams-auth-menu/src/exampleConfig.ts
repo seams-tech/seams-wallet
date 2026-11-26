@@ -1,4 +1,4 @@
-import { defineSeamsConfig } from '@seams/wallet/react';
+import { defineSeamsConfig } from '@seams/mpc-wallet/react';
 
 function requiredEnvironmentVariable(name: string): string {
   const value = import.meta.env[name];

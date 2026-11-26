@@ -11,7 +11,7 @@ import {
 } from '@playwright/test';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { readNearIdentity, verifyVoiceIdNearTransfer } from './voiceid-near-signing';
-import type { ActionResult } from '@seams/wallet';
+import type { ActionResult } from '@seams/mpc-wallet/client';
 import type {} from '../../intended-app/src/nearSigningHelpers';
 import { nearTransactionHash } from './near-transaction-hash';
 

@@ -16,10 +16,11 @@ apps/docs/src/.vitepress/cache
 .local/
 
 # Local Wrangler secrets.
-packages/wallet-server/.dev.vars
+packages/mpc-wallet-server/.dev.vars
 sqlite/
-packages/wallet-server/.wrangler/
-packages/wallet-server/cloudflare-router-ab/
+packages/mpc-wallet-server/.wrangler/
+packages/mpc-wallet-server/cloudflare-router-ab/
+packages/mpc-wallet-server/voiceid/
 crates/router-ab-cloudflare/.wrangler/
 
 
@@ -29,12 +30,12 @@ test-results
 .artifacts/
 .playwright-cli/
 .playwright-mcp/
-packages/wallet/THIRD_PARTY_NOTICES.md
-packages/wallet-server/THIRD_PARTY_NOTICES.md
-packages/voiceid/THIRD_PARTY_NOTICES.md
-packages/wallet/LICENSE.md
-packages/wallet-server/LICENSE.md
-packages/voiceid/LICENSE.md
+packages/mpc-wallet/THIRD_PARTY_NOTICES.md
+packages/mpc-wallet-server/THIRD_PARTY_NOTICES.md
+packages/wallet-connect/THIRD_PARTY_NOTICES.md
+packages/mpc-wallet/LICENSE.md
+packages/mpc-wallet-server/LICENSE.md
+packages/wallet-connect/LICENSE.md
 
 # Benchmark artifacts
 crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/

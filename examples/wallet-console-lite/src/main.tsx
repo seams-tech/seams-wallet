@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@seams/wallet/react/styles';
+import '@seams/mpc-wallet/styles.css';
 import { ConsoleApp } from './ConsoleApp';
 import './styles.css';
 

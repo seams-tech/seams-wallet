@@ -6,7 +6,7 @@ import {
 } from '../../../packages/shared-ts/src/authorization/delegatedAuthority';
 import { computeWalletOwnerAdminChallengeDigest } from '../../../packages/shared-ts/src/authorization/walletOwnerOperation';
 import { buildPasskeyWalletAuthAuthority } from '../../../packages/shared-ts/src/utils/walletAuthAuthority';
-import { buildVerifiedOwnerProof } from '../../../packages/wallet-server/src/authorization/factorEvidence';
+import { buildVerifiedOwnerProof } from '../../../packages/mpc-wallet-server/src/authorization/factorEvidence';
 import { APP_ORIGIN, recordedCalls, routerWith, webAuthnAssertion } from './routeHarness';
 
 // The custody credential list. The browser signs a challenge that names the wallet, the

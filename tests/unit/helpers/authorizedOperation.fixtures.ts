@@ -21,14 +21,14 @@ import {
   buildVerifiedWalletOperationPasskeyFactorResult,
   buildVerifiedWalletOperationFactorEvidenceSet,
   type VerifiedAuthorizationEvidenceSet,
-} from '../../../packages/wallet-server/src/authorization/factorEvidence';
+} from '../../../packages/mpc-wallet-server/src/authorization/factorEvidence';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   type AuthorizedOperationInput,
   type WalletSessionAuthorizationV2,
   buildAuthorizedOperation,
   parseSessionOrigin,
-} from '../../../packages/wallet-server/src/authorization/domain';
+} from '../../../packages/mpc-wallet-server/src/authorization/domain';
 
 function parsed<T>(result: AuthorizationParseResult<T>): T {
   if (!result.ok) throw new Error(result.error.message);

@@ -21,7 +21,7 @@ import { buildMpcMaterialActivationRefFixture } from './ecdsaMaterialRef.fixture
 import {
   InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter,
   InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1,
-} from '../../../packages/wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
+} from '../../../packages/mpc-wallet-server/src/router/domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 
 function required<T>(parsed: DomainIdParseResult<T>): T {
   if (!parsed.ok) throw new Error(parsed.error.message);

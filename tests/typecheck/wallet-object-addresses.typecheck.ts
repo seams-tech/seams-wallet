@@ -1,4 +1,4 @@
-import { WalletObjectAddresses, WalletObjectAddressSnapshot } from '../../packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
+import { WalletObjectAddresses, WalletObjectAddressSnapshot } from '../../packages/mpc-wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
 
 const raw = {
   router: 'untrusted',

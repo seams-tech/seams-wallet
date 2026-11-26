@@ -5,7 +5,7 @@ import { base58Decode } from '@shared/utils/encoders';
 import type {
   SignNEP413MessageParams,
   SignNEP413MessageResult,
-} from '../../../packages/wallet/src/core/types/sdkPublicResults';
+} from '../../../packages/mpc-wallet/src/core/types/sdkPublicResults';
 
 function encodeBorshString(value: string): Buffer {
   const bytes = Buffer.from(value, 'utf8');

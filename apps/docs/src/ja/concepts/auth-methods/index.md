@@ -14,7 +14,7 @@ description: 共通の鍵管理、ポリシー、セッションのライフサ�
 | Google BYO認証 | 提供中 | 所有者が承認した関連付けを使い、アプリのログインを設定の読み取りに再利用 |
 | VoiceID   | 提供中・任意のパッケージ | ローカルでの話者・発話確認と、デバイスに紐づくアンロック・操作承認 |
 
-VoiceIDには、アプリとWalletホストの両方で任意の`@seams/voiceid`パッケージが必要です。
+VoiceIDには、アプリで`@seams/mpc-wallet/voiceid`の`voiceIdAuthMethod()`が必要で、Walletホストで`@seams/host`のVoiceIDホストプラグインが必要です。
 [VoiceIDのページ](/ja/concepts/auth-methods/voiceid)では、ローカルの鍵管理エンベロープ設計、他の生体認証モデルとの比較、セキュリティ境界、導入とアンロックのコード例を説明します。
 
 次に読むページ：

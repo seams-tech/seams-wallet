@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const runtimeRoot = path.join(repoRoot, '.runtime', 'r150-hosted');
-const walletDist = path.join(repoRoot, 'packages', 'wallet', 'dist');
+const walletDist = path.join(repoRoot, 'packages', 'mpc-wallet', 'dist');
 
 if (process.argv.length !== 2) {
   throw new Error('Usage: node tests/r150-hosted/probe/prepare-image-context.mjs');
@@ -19,7 +19,7 @@ for (const changedPath of changedPaths) {
     throw new Error('Commit the exact probe runtime source before preparing a deployment image');
   }
 }
-run(path.join(repoRoot, 'packages/wallet/scripts/build/check-build-freshness.sh'), [], {
+run(path.join(repoRoot, 'packages/mpc-wallet/scripts/build/check-build-freshness.sh'), [], {
   encoding: 'utf8',
 });
 if (!existsSync(path.join(walletDist, 'public', 'wallet-assets.manifest.json'))) {
@@ -40,7 +40,7 @@ const archive = run('git', ['archive', '--format=tar', 'HEAD'], {
   maxBuffer: 512 * 1024 * 1024,
 }).stdout;
 run('tar', ['-x', '-f', '-', '-C', contextRoot], { input: archive, maxBuffer: 1024 * 1024 });
-cpSync(walletDist, path.join(contextRoot, 'packages', 'wallet', 'dist'), {
+cpSync(walletDist, path.join(contextRoot, 'packages', 'mpc-wallet', 'dist'), {
   recursive: true,
   force: false,
   errorOnExist: true,

@@ -1,19 +1,19 @@
-import { reconcileWalletPlacement } from '../../../packages/wallet/src/SeamsWeb/walletIframe/host/reconcileWalletPlacement';
-import { parseWalletPlacement } from '../../../packages/wallet/src/SeamsWeb/publicApi/placement';
+import { reconcileWalletPlacement } from '../../../packages/mpc-wallet/src/SeamsWeb/walletIframe/host/reconcileWalletPlacement';
+import { parseWalletPlacement } from '../../../packages/mpc-wallet/src/SeamsWeb/publicApi/placement';
 import { parseWalletId } from '../../../packages/shared-ts/src/utils/domainIds';
-import { configureIndexedDB } from '../../../packages/wallet/src/core/indexedDB';
-import type { SeamsWalletTransactionContext } from '../../../packages/wallet/src/core/indexedDB/seamsWalletDB/manager';
-import { seamsWalletDB } from '../../../packages/wallet/src/core/indexedDB/singletons';
-import { SEAMS_WALLET_STORES as stores } from '../../../packages/wallet/src/core/indexedDB/schemaNames';
-import { acceptWalletOwnershipGeneration } from '../../../packages/wallet/src/core/indexedDB/seamsWalletDB/walletOwnershipGeneration';
-import { IndexedDbEcdsaCapabilityManifestStore } from '../../../packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import { configureIndexedDB } from '../../../packages/mpc-wallet/src/core/indexedDB';
+import type { SeamsWalletTransactionContext } from '../../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/manager';
+import { seamsWalletDB } from '../../../packages/mpc-wallet/src/core/indexedDB/singletons';
+import { SEAMS_WALLET_STORES as stores } from '../../../packages/mpc-wallet/src/core/indexedDB/schemaNames';
+import { acceptWalletOwnershipGeneration } from '../../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/walletOwnershipGeneration';
+import { IndexedDbEcdsaCapabilityManifestStore } from '../../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import {
   decryptPresignatureBytes,
   metadataFromPresignatureRow,
   parseSealedAvailableClientPresignatureRow,
-} from '../../../packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaClientPresignatures';
-import { parseSealingKeyRow } from '../../../packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestRecords';
-import { parseEcdsaClientPresignPoolIdentity } from '../../../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignPoolIdentity';
+} from '../../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/ecdsaClientPresignatures';
+import { parseSealingKeyRow } from '../../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestRecords';
+import { parseEcdsaClientPresignPoolIdentity } from '../../../packages/mpc-wallet/src/core/signingEngine/workerManager/ecdsaPresignPoolIdentity';
 import { base64UrlDecode } from '../../../packages/shared-ts/src/utils/base64';
 
 async function accept(walletId: string, generation: number): Promise<void> {

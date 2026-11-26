@@ -3,21 +3,21 @@ import { base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseRouterAbEcdsaDerivationNormalSigningScopeV1 } from '@shared/utils/routerAbEcdsaDerivation';
-import type { RouterApiWalletSessionExactOperationContext } from '../../packages/wallet-server/src/router/framework/authServicePort';
-import type { FetchRouterApiContext } from '../../packages/wallet-server/src/router/transport/fetch/fetchRouter.types';
-import { authorizeEcdsaPoolFill } from '../../packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
+import type { RouterApiWalletSessionExactOperationContext } from '../../packages/mpc-wallet-server/src/router/framework/authServicePort';
+import type { FetchRouterApiContext } from '../../packages/mpc-wallet-server/src/router/transport/fetch/fetchRouter.types';
+import { authorizeEcdsaPoolFill } from '../../packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
 import {
   parseRouterAbEcdsaDerivationPoolFillInitRouteRequest,
   parseRouterAbEcdsaDerivationPoolFillStepRouteRequest,
-} from '../../packages/wallet-server/src/router/domains/ecdsa/thresholdEcdsaRequestValidation';
+} from '../../packages/mpc-wallet-server/src/router/domains/ecdsa/thresholdEcdsaRequestValidation';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildEmailOtpEcdsaWalletSessionFixture } from './helpers/linkedDeviceManagement.fixtures';
-import { CloudflareD1AuthorizationStore } from '../../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+import { CloudflareD1AuthorizationStore } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
 import type {
   D1DatabaseLike,
   D1PreparedStatementLike,
   D1ResultLike,
-} from '../../packages/wallet-server/src/storage/tenantRoute';
+} from '../../packages/mpc-wallet-server/src/storage/tenantRoute';
 
 async function buildPresignStepFixture() {
   const walletId = 'wallet:presign-material-reads';

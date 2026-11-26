@@ -7,7 +7,7 @@ import { unstable_splitSqlQuery } from 'wrangler';
 const root = '.artifacts/r152/admission-ownership';
 await mkdir(root, { recursive: true });
 const migration = await readFile(
-  'packages/wallet-server/migrations/d1-signer/0001_signer_d1_initial.sql',
+  'packages/mpc-wallet-server/migrations/d1-signer/0001_signer_d1_initial.sql',
   'utf8',
 );
 const schema = /CREATE TABLE router_ab_normal_signing_admission_records \([\s\S]*?\n\);/u.exec(
@@ -15,7 +15,7 @@ const schema = /CREATE TABLE router_ab_normal_signing_admission_records \([\s\S]
 )?.[0];
 assert.ok(schema);
 const ownershipMigration = await readFile(
-  'packages/wallet-server/migrations/d1-signer/0046_wallet_owned_signing_abuse.sql',
+  'packages/mpc-wallet-server/migrations/d1-signer/0046_wallet_owned_signing_abuse.sql',
   'utf8',
 );
 const options = {
@@ -23,7 +23,7 @@ const options = {
   format: 'esm',
   platform: 'neutral',
   write: false,
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   external: ['node:crypto'],
 };
 const workerBuild = await build({

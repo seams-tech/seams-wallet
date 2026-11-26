@@ -44,7 +44,7 @@ export async function routeCustodyCacheProbe(context: BrowserContext): Promise<v
     write: false,
     platform: 'browser',
     format: 'esm',
-    tsconfig: fileURLToPath(new URL('../../../packages/wallet/tsconfig.json', import.meta.url)),
+    tsconfig: fileURLToPath(new URL('../../../packages/mpc-wallet/tsconfig.json', import.meta.url)),
   });
   const source = bundle.outputFiles[0]?.text;
   if (!source) throw new Error('Custody cache probe did not build');

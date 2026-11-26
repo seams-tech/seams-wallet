@@ -130,7 +130,7 @@ Wallet relocation preserves associations. External sessions and pending handoffs
 
 Use the [release notes](/releases) for matching package versions and the Wallet iframe protocol.
 
-Run `pnpm -C packages/wallet build:sdk`, then `node tests/e2e/external-auth.e2e.mjs` from the repository root.
+Run `pnpm -C packages/mpc-wallet build:sdk`, then `node tests/e2e/external-auth.e2e.mjs` from the repository root.
 The scenario writes `.artifacts/external-auth/result.json` and a settings screenshot.
 It uses real signature verification with generated test tokens and test-only Google public-key interception.
 The E2E uses controlled test identities. Verify the application's actual Google login and logout flow before enabling it for users.

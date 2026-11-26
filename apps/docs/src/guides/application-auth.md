@@ -59,7 +59,7 @@ if (!connected.ok) throw new Error(connected.code);
 ```
 
 The backend reads its verified application session. It never accepts the subject from the browser.
-Use `createApplicationAuthAssertion` from `@seams/wallet-server/application-auth` to sign the attempt, wallet, environment, purpose, and session expiry.
+Use `createApplicationAuthAssertion` from `@seams/mpc-wallet/server` to sign the attempt, wallet, environment, purpose, and session expiry.
 Send the assertion as `proof: { kind: 'application', assertion }` to `POST /wallet/external-auth/backend-exchange` with the environment's secret API key.
 Return only the handoff code to the browser.
 

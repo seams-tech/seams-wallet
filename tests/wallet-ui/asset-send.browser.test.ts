@@ -30,7 +30,7 @@ async function openSendScreen(page: Page, baseURL: string): Promise<void> {
     external: ['react', 'react-dom/client', 'react/jsx-runtime'],
   });
   const walletUiCss = fs.readFileSync(
-    path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
+    path.resolve(import.meta.dirname, '../../packages/mpc-wallet/dist/esm/sdk/wallet-ui.css'),
     'utf8',
   );
   await page.route('**/wallet-ui.css', (route) =>

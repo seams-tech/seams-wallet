@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   isGrantedWithinRequestedBudget,
   resolveRequestedWalletSessionBudget,
-} from '../../packages/wallet/src/core/signingEngine/threshold/sessionPolicy';
+} from '../../packages/mpc-wallet/src/core/signingEngine/threshold/sessionPolicy';
 
 const DEFAULTS = { ttlMs: 60_000, remainingUses: 5 };
 

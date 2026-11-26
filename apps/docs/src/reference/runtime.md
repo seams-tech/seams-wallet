@@ -1,12 +1,13 @@
 ---
 title: Custom signing runtime
-description: Ports and factories exported from @seams/wallet/runtime for applications that own a complete signing runtime.
+description: Ports and factories exported from @seams/mpc-wallet/client for applications that own a complete signing runtime.
 ---
 
 # Custom signing runtime
 
-`@seams/wallet/runtime` is for hosts that supply the platform around the signing
-engine. It is a lower-level integration than `SeamsWeb`.
+`@seams/mpc-wallet/client` also has the runtime for hosts that supply the platform around the
+signing engine. It is a lower-level integration than `SeamsWeb`. A bundler keeps only the runtime
+modules that you import, and the package build checks that they load no browser code.
 
 The entrypoint exports `createSigningRuntime`,
 `createSigningRuntimeStatePorts`, and types for the runtime configuration,

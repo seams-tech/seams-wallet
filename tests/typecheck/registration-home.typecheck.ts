@@ -1,6 +1,6 @@
-import type { WalletRegistrationSetupSuccessV2 } from '../../packages/wallet/src/core/rpcClients/relayer/walletRegistration';
-import type { WalletRegistrationSetupResponseV2 } from '../../packages/wallet-server/src/core/threeRouteRegistrationContracts';
-import type { DirectWalletSessionCommitPurpose } from '../../packages/wallet-server/src/authorization/service';
+import type { WalletRegistrationSetupSuccessV2 } from '../../packages/mpc-wallet/src/core/rpcClients/relayer/walletRegistration';
+import type { WalletRegistrationSetupResponseV2 } from '../../packages/mpc-wallet-server/src/core/threeRouteRegistrationContracts';
+import type { DirectWalletSessionCommitPurpose } from '../../packages/mpc-wallet-server/src/authorization/service';
 
 declare const setup: WalletRegistrationSetupSuccessV2;
 declare const withoutHome: Omit<WalletRegistrationSetupSuccessV2, 'home'>;
@@ -27,7 +27,7 @@ void erasedHome;
 void invalidHome;
 void erasedServerHome;
 
-import type { PublishPendingWalletRegistrationCommitInputV1 } from '../../packages/wallet/src/core/indexedDB/seamsWalletDB/repositories';
+import type { PublishPendingWalletRegistrationCommitInputV1 } from '../../packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/repositories';
 type SessionPublication = PublishPendingWalletRegistrationCommitInputV1['walletSessionPublication'];
 declare const issued: Extract<SessionPublication, { kind: 'issued' }>;
 // @ts-expect-error A broad spread must not carry an operation credential into credential-free recovery.
@@ -37,7 +37,7 @@ const credentialInProjection: SessionPublication = {
 };
 void credentialInProjection;
 
-import type { WalletRegistrationReservationAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+import type { WalletRegistrationReservationAuthority } from '../../packages/mpc-wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 type RegistrationCompletion = Parameters<WalletRegistrationReservationAuthority['complete']>[0];
 declare const established: Extract<RegistrationCompletion, { outcome: 'established' }>;
 declare const completionIdentity: Pick<RegistrationCompletion, 'ceremonyId' | 'walletId'>;

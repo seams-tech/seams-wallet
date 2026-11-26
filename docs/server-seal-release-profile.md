@@ -56,7 +56,7 @@ WASM to Wallet Server.
 ## Release state
 
 The source fix is committed, and this investigation adds measurement evidence.
-The currently deployed `@seams/wallet-server` release still contains development
+The currently deployed `@seams/host` release still contains development
 Shamir3Pass WASM. Publishing, Console adoption, deployment, and deployed
 measurement remain under the existing release hold.
 

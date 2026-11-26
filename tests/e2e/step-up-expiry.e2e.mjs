@@ -14,20 +14,20 @@ const bundle = await build({
   format: 'esm',
   platform: 'node',
   write: false,
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { D1WalletExecutionAuthority } from './packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
-      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
+      export { D1WalletExecutionAuthority } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
+      export { D1WalletRelocationSessions, WalletRelocationSessionSource } from './packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
       export { buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
-      export { handleThresholdEcdsa } from './packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
-      export { AuthorizationService } from './packages/wallet-server/src/authorization/service';
-      export { CloudflareD1AuthorizationStore } from './packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+      export { handleThresholdEcdsa } from './packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
+      export { AuthorizationService } from './packages/mpc-wallet-server/src/authorization/service';
+      export { CloudflareD1AuthorizationStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
       export { buildEcdsaSigningRequestFixture } from './tests/unit/helpers/ecdsaSigningRequest.fixtures';
       export { buildRouterAbEcdsaDerivationEvmDigestSigningRequestV1, ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH } from './packages/shared-ts/src/utils/routerAbEcdsaDerivation';
-      export { buildRouterAbEcdsaOwnerOperationStepUpPreparation } from './packages/wallet-server/src/router/domains/signingOperations/routerAbEcdsaDerivationNormalSigningRoute';
+      export { buildRouterAbEcdsaOwnerOperationStepUpPreparation } from './packages/mpc-wallet-server/src/router/domains/signingOperations/routerAbEcdsaDerivationNormalSigningRoute';
       export { buildPasskeyWalletAuthAuthority, buildEmailOtpWalletAuthAuthority } from './packages/shared-ts/src/utils/walletAuthAuthority';
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
     `,

@@ -52,7 +52,7 @@ The default `seamsTestnetConfig` selects NEAR and Tempo. To run the Ethereum
 Sepolia example, configure it explicitly before creating the provider:
 
 ```ts [Partial example]
-import { defineSeamsConfig } from '@seams/wallet/react';
+import { defineSeamsConfig } from '@seams/mpc-wallet/react';
 
 const config = defineSeamsConfig({
   walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,

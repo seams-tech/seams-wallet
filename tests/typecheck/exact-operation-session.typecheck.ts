@@ -1,23 +1,23 @@
-import type { D1EcdsaAdmissionPolicyRead } from '../../packages/wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
+import type { D1EcdsaAdmissionPolicyRead } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type {
   EcdsaMaterialRead,
   EcdsaMaterialReadSource,
-} from '../../packages/wallet-server/src/core/d1EcdsaSignerRead';
+} from '../../packages/mpc-wallet-server/src/core/d1EcdsaSignerRead';
 import type {
   EcdsaWalletSessionAdmissionVariant,
   EcdsaWalletSessionPhaseAdmission,
   EcdsaWalletSessionResolutionResult,
-} from '../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission';
+} from '../../packages/mpc-wallet-server/src/authorization/ecdsaWalletSessionAdmission';
 import type {
   RouterApiWalletSessionExactOperationContext,
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
   RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
   RouterApiWalletSessionSigningCandidate,
-} from '../../packages/wallet-server/src/router/framework/authServicePort';
+} from '../../packages/mpc-wallet-server/src/router/framework/authServicePort';
 import type {
   WalletSessionAdmissionSnapshotV2,
   WalletSessionAdmissionSnapshotV2Variant,
-} from '../../packages/wallet-server/src/authorization/domain';
+} from '../../packages/mpc-wallet-server/src/authorization/domain';
 
 declare const exact: RouterApiWalletSessionExactOperationContext;
 
@@ -76,10 +76,10 @@ void relabeled;
 void widenedSnapshot;
 void castAdmission;
 
-declare const snapshot: import('../../packages/wallet-server/src/core/ecdsaMaterialReadSnapshot').EcdsaMaterialReadSnapshot;
-declare const sessionOperation: import('../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput['operation'];
-declare const materialScope: import('../../packages/wallet-server/src/authorization/service').EcdsaMaterialActivationScope;
-const missingMaterialSnapshot: import('../../packages/wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput =
+declare const snapshot: import('../../packages/mpc-wallet-server/src/core/ecdsaMaterialReadSnapshot').EcdsaMaterialReadSnapshot;
+declare const sessionOperation: import('../../packages/mpc-wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput['operation'];
+declare const materialScope: import('../../packages/mpc-wallet-server/src/authorization/service').EcdsaMaterialActivationScope;
+const missingMaterialSnapshot: import('../../packages/mpc-wallet-server/src/authorization/ecdsaWalletSessionAdmission').EcdsaWalletSessionAdmissionInput =
   // @ts-expect-error An admission requires the snapshot read with its verified material.
   { operation: sessionOperation, material: materialScope };
 // @ts-expect-error A plain object cannot manufacture the private record-set evidence.
@@ -139,7 +139,7 @@ const fabricatedPolicyRead: D1EcdsaAdmissionPolicyRead = { resolve: policyRead.r
 const spreadPolicyRead: D1EcdsaAdmissionPolicyRead = { ...policyRead };
 // @ts-expect-error Raw data cannot be cast directly to a policy snapshot.
 const castPolicyRead = 'policy' as D1EcdsaAdmissionPolicyRead;
-declare const policyInput: import('../../packages/wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmission').RouterAbNormalSigningAdmissionInput & {
+declare const policyInput: import('../../packages/mpc-wallet-server/src/router/domains/signingOperations/routerAbNormalSigningAdmission').RouterAbNormalSigningAdmissionInput & {
   curve: 'ecdsa';
 };
 // @ts-expect-error Database policy reads cannot carry a credential snapshot.
@@ -148,7 +148,7 @@ const mixedPolicySource: typeof policyInput.policyReadSource = { kind: 'database
 const missingPolicyRead: typeof policyInput.policyReadSource = { kind: 'credential_snapshot' };
 void [fabricatedPolicyRead, spreadPolicyRead, castPolicyRead, mixedPolicySource, missingPolicyRead];
 
-import type { DirectV2CommitResult } from '../../packages/wallet-server/src/authorization/domain';
+import type { DirectV2CommitResult } from '../../packages/mpc-wallet-server/src/authorization/domain';
 declare const insertedSession: Extract<DirectV2CommitResult, { kind: 'inserted' }>;
 declare const replayedSession: Extract<DirectV2CommitResult, { kind: 'already_committed' }>;
 // @ts-expect-error An inserted session requires the generation read by its commit.
@@ -165,7 +165,7 @@ void insertedWithoutGeneration;
 void replayWithGeneration;
 void insertedAsReplay;
 
-import type { WalletRegistrationHomeAuthority } from '../../packages/wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
+import type { WalletRegistrationHomeAuthority } from '../../packages/mpc-wallet-server/src/router/domains/walletRegistration/walletRegistrationReservation';
 type RegistrationPublication = Parameters<WalletRegistrationHomeAuthority['prepareEstablished']>[0];
 declare const registrationPublication: RegistrationPublication;
 // @ts-expect-error A commit must report whether it fixed a registration decision.

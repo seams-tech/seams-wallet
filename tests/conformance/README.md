@@ -10,10 +10,15 @@ each check covers are in `docs/refactor-251-slice-0-inventory.md`, "What Slice 2
 ## Run
 
 - The fast checks (Node and Chromium). CI runs them in the Validate Wallet workflow. The UI checks
-  load the built wallet CSS and modules, so build first:
+  load the built wallet CSS and modules, and the wallet's auth menu loads the connectors of
+  `@seams/wallet-connect`, so build both first:
 
   ```bash
-  pnpm -C packages/wallet build:rolldown
+  pnpm -C packages/wallet-connect build
+  ```
+
+  ```bash
+  pnpm -C packages/mpc-wallet build:rolldown
   ```
 
   ```bash

@@ -15,7 +15,7 @@ import type {
 import type { WalletLocale } from '@/core/ui/locale';
 
 const walletUiCss = fs.readFileSync(
-  path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
+  path.resolve(import.meta.dirname, '../../packages/mpc-wallet/dist/esm/sdk/wallet-ui.css'),
   'utf8',
 );
 

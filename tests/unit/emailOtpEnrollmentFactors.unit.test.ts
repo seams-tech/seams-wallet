@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { prepareD1TenantStatement } from '../../packages/wallet-server/src/core/d1TenantStore';
-import { emailOtpWalletEnrollmentRows } from '../../packages/wallet-server/src/core/emailOtpD1Statements';
+import { prepareD1TenantStatement } from '../../packages/mpc-wallet-server/src/core/d1TenantStore';
+import { emailOtpWalletEnrollmentRows } from '../../packages/mpc-wallet-server/src/core/emailOtpD1Statements';
 import type {
   EmailOtpEnrollmentFactorRecord,
   EmailOtpWalletEnrollmentRecord,
-} from '../../packages/wallet-server/src/core/EmailOtpStores';
-import { CloudflareD1EmailOtpEnrollmentStore } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
-import { parseEmailOtpWalletEnrollmentRow } from '../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
-import { selectEmailOtpDeviceFactor } from '../../packages/wallet-server/src/router/domains/emailOtp/emailOtpRouteHandlers';
-import type { D1DatabaseLike } from '../../packages/wallet-server/src/storage/tenantRoute';
+} from '../../packages/mpc-wallet-server/src/core/EmailOtpStores';
+import { CloudflareD1EmailOtpEnrollmentStore } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
+import { parseEmailOtpWalletEnrollmentRow } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+import { selectEmailOtpDeviceFactor } from '../../packages/mpc-wallet-server/src/router/domains/emailOtp/emailOtpRouteHandlers';
+import type { D1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/tenantRoute';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';
 import { buildEmailOtpEnrollmentFixture } from './helpers/emailOtpAuthMethod.fixtures';
 

@@ -1,9 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SendPanel } from '../../../packages/wallet/src/react/components/AccountMenuButton/assets/SendPanel';
-import { assetsForChain } from '../../../packages/wallet/src/core/assets/assetList';
-import type { AssetBalance } from '../../../packages/wallet/src/core/assets/readAssetBalances';
-import type { PreparedSend } from '../../../packages/wallet/src/core/assets/send';
+import { SendPanel } from '../../../packages/mpc-wallet/src/react/components/AccountMenuButton/assets/SendPanel';
+import { assetsForChain } from '../../../packages/mpc-wallet/src/core/assets/assetList';
+import type { AssetBalance } from '../../../packages/mpc-wallet/src/core/assets/readAssetBalances';
+import type { PreparedSend } from '../../../packages/mpc-wallet/src/core/assets/send';
 
 // The Send panel from source with an EVM native balance. The Max fee probe waits until the
 // page calls releaseMaxProbe(), so a test can act while the probe is in flight.

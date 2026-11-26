@@ -18,12 +18,12 @@ await build({
   platform: 'node',
   external: ['*.wasm', 'bs58'],
   outfile: `${output}/api/fixture.mjs`,
-  tsconfig: 'packages/wallet-server/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet-server/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      export { createSponsoredNamedNearAccountForOptions } from './packages/wallet-server/src/router/cloudflare/d1/near/d1SponsoredNearAccount';
+      export { createSponsoredNamedNearAccountForOptions } from './packages/mpc-wallet-server/src/router/cloudflare/d1/near/d1SponsoredNearAccount';
       export { parseWalletId } from './packages/shared-ts/src/utils/domainIds';
       export { base58Encode } from './packages/shared-ts/src/utils/base58';
     `,

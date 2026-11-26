@@ -1,14 +1,14 @@
 import { ApplicationAuthPage } from './ApplicationAuthPage';
-import { voiceIdAuthMethod } from '@seams/voiceid';
+import { voiceIdAuthMethod } from '@seams/mpc-wallet/voiceid';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import type { SpokenApprovalPlugin } from '@seams/wallet';
+import type { SpokenApprovalPlugin } from '@seams/mpc-wallet/client';
 import {
   SeamsWebProvider,
   TransactionReviewHost,
   defineSeamsConfig,
-} from '@seams/wallet/react';
-import '@seams/wallet/react/styles';
+} from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 import { IntendedBehaviourE2EPage } from './page';
 import { EmailCodeUnlock } from './EmailCodeUnlock';
 import { UnlockWallet } from './UnlockWallet';

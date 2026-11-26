@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { secureRandomBase64Url } from '../../../packages/shared-ts/src/utils/secureRandomId';
-import { WalletLifecycleLocator } from '../../../packages/wallet-server/src/authorization/lifecycleRouting';
-import { webAuthnCredentialIdB64uFromCredential } from '../../../packages/wallet-server/src/router/auth/webAuthnCredentialCodecs';
+import { WalletLifecycleLocator } from '../../../packages/mpc-wallet-server/src/authorization/lifecycleRouting';
+import { webAuthnCredentialIdB64uFromCredential } from '../../../packages/mpc-wallet-server/src/router/auth/webAuthnCredentialCodecs';
 import {
   APP_ORIGIN,
   SIGNING_ONLY_SESSION_TOKEN,

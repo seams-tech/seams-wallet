@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { WorkerTransport } from '../../packages/wallet/src/core/signingEngine/workerManager/workerTransport';
+import { WorkerTransport } from '../../packages/mpc-wallet/src/core/signingEngine/workerManager/workerTransport';
 
 const PREWARM_ECDSA_REGISTRATION_CRYPTO = 70_018;
 const PREWARM_EMAIL_OTP = 'prewarmEmailOtpRegistrationCrypto';

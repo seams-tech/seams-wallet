@@ -1,38 +1,40 @@
 ---
-title: サーバーSDKとCLI
-description: 対応するWallet Serverのエントリーポイント、同梱ランタイムのコマンド、復元CLIの管理範囲。
+title: HostとCLI
+description: 対応する@seams/hostのエントリーポイント、同梱ランタイムのコマンド、復元CLIの管理範囲。
 ---
 
-# サーバーSDKとCLI {#server-sdk-and-cli}
+# HostとCLI {#server-sdk-and-cli}
 
-`@seams/wallet-server@0.76.0`は、再利用可能なWalletサービス、ストレージアダプター、Cloudflare Workers、マイグレーション、署名用WASMバインディングを提供します。
-現在の復元CLIランチャーは、`@seams/wallet-cli@0.29.0`です。
+`@seams/host@0.76.0`は、運用者がデプロイするサービスのパッケージです。再利用可能なWalletサービス、ストレージアダプター、Cloudflare Workers、マイグレーション、署名用WASMバインディング、ウォレットオリジンのドキュメント、VoiceIDのホストプラグインを提供します。`@seams/wallet-server`に代わるパッケージです。
+現在の復元CLIランチャーは、`@seams/cli@0.29.0`です。
 デプロイ用アセットを選ぶ前に、[リリース状況](/ja/releases)を確認してください。
 
 ```sh
-pnpm add @seams/wallet-server@0.76.0
-npm install --global @seams/wallet-cli@0.29.0
+pnpm add @seams/host@0.76.0
+npm install --global @seams/cli@0.29.0
 ```
 
 ## サーバーのエントリーポイント {#server-entry-points}
 
 | インポートパス                                            | 範囲                                       |
 | --------------------------------------------------------- | ------------------------------------------ |
-| `@seams/wallet-server`                                    | 共通のサーバーサービスと契約               |
-| `@seams/wallet-server/router/cloudflare`                  | Cloudflare Routerアダプター                |
-| `@seams/wallet-server/router/ror`                         | Router-of-Routersアダプター                |
-| `@seams/wallet-server/storage/tenant-route`               | テナントルートの経路ストレージ             |
-| `@seams/wallet-server/wasm/signer`                        | 署名用WASMバインディング                   |
-| `@seams/wallet-server/cloud-host`                         | ホストする登録・権限サービス               |
-| `@seams/wallet-server/hosted-wallet-gateway`              | Gatewayの構成                              |
-| `@seams/wallet-server/hosted-wallet-gateway-worker`       | ホストするGateway Worker                   |
-| `@seams/wallet-server/local-hosted-wallet-gateway-worker` | ローカルGateway Worker                     |
-| `@seams/wallet-server/tenant-root`                        | テナントルートのライフサイクルと復元の契約 |
-| `@seams/wallet-server/local-runtime`                      | ローカルランタイムの設定スクリプト         |
-| `@seams/wallet-server/local-runtime/*`                    | 同梱のローカルランタイムスクリプト         |
-| `@seams/wallet-server/artifact-manifest.json`             | 同梱ランタイムの識別情報                   |
-| `@seams/wallet-server/migrations/d1-signer/*`             | 署名用マイグレーションファイル             |
-| `@seams/wallet-server/package.json`                       | パッケージのメタデータ                     |
+| `@seams/host/server-types` | 共通のサーバーサービスと契約               |
+| `@seams/host/router/cloudflare`                  | Cloudflare Routerアダプター                |
+| `@seams/host/router/ror`                         | Router-of-Routersアダプター                |
+| `@seams/host/storage/tenant-route`               | テナントルートの経路ストレージ             |
+| `@seams/host/wasm/signer`                        | 署名用WASMバインディング                   |
+| `@seams/host/cloud-host`                         | ホストする登録・権限サービス               |
+| `@seams/host/hosted-wallet-gateway`              | Gatewayの構成                              |
+| `@seams/host/hosted-wallet-gateway-worker`       | ホストするGateway Worker                   |
+| `@seams/host/local-hosted-wallet-gateway-worker` | ローカルGateway Worker                     |
+| `@seams/host/tenant-root`                        | テナントルートのライフサイクルと復元の契約 |
+| `@seams/host/local-runtime`                      | ローカルランタイムの設定スクリプト         |
+| `@seams/host/local-runtime/*`                    | 同梱のローカルランタイムスクリプト         |
+| `@seams/host/artifact-manifest.json`             | 同梱ランタイムの識別情報                   |
+| `@seams/host/migrations/d1-signer/*`             | 署名用マイグレーションファイル             |
+| `@seams/host/wallet-origin-html` | ウォレットオリジンのHTMLドキュメント（`getWalletServiceHtml`） |
+| `@seams/host/voiceid` | VoiceIDのホストプラグイン、そのモデル、`composeVoiceIdWalletAssets` |
+| `@seams/host/package.json`                       | パッケージのメタデータ                     |
 
 各エントリーポイントは、異なる境界を公開します。記載したパッケージパスからインポートしてください。
 内部ソースファイルは、対応する公開APIに含まれません。
@@ -47,6 +49,7 @@ Walletバックエンドは、Workers、Durable Objects、D1、Rust/WASMを使�
 - `seams-wallet-server-local-roles`：分離したプロトコルロールを起動。
 - `seams-wallet-server-local-init --root <directory>`：ローカルの識別情報を初期化。
 - `seams-wallet-server-d1-migrate`：同梱のローカル署名用マイグレーションを適用。
+- `seams-voiceid-host <新しいディレクトリー>`：`@seams/mpc-wallet`のWalletアセットとVoiceIDのホストプラグインを、新しい静的ディレクトリーに構成。
 
 公開ソースのチェックアウトでは、別々のターミナルで`pnpm router`と`pnpm site`を使います。
 非公開Consoleのチェックアウトでは、そのリポジトリーのコマンドと、バージョンを固定したnpm依存関係を使います。
@@ -54,7 +57,7 @@ Walletバックエンドは、Workers、Durable Objects、D1、Rust/WASMを使�
 
 ## ホスト環境での登録 {#hosted-registration}
 
-独自の登録権限サービスでは、`@seams/wallet-server/cloud-host`の`resumeRegistrationDirectoryPublicationsV1`を定期実行する必要があります。
+独自の登録権限サービスでは、`@seams/host/cloud-host`の`resumeRegistrationDirectoryPublicationsV1`を定期実行する必要があります。
 ローカルで確定済みでも、ディレクトリーから未確認の完了通知を再試行します。
 同梱のローカルGatewayは、この処理を定期実行します。
 マイグレーションと実行時期の要件は、[ホスト環境への導入](/ja/deploy-and-operate/hosted-integration#registration-completion)を参照してください。

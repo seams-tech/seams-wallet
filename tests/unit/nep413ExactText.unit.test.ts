@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { thresholdEd25519Nep413OperationFingerprint } from '@shared/threshold/ed25519OperationFingerprint';
-import { routerAbEd25519Nep413CanonicalMessageB64uV2 } from '../../packages/wallet/src/core/rpcClients/relayer/routerAbNormalSigning';
+import { routerAbEd25519Nep413CanonicalMessageB64uV2 } from '../../packages/mpc-wallet/src/core/rpcClients/relayer/routerAbNormalSigning';
 
 const NONCE = base64UrlEncode(new Uint8Array(32).fill(7));
 

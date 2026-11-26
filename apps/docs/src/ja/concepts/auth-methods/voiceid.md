@@ -71,14 +71,14 @@ VoiceIDは、パスキーやメールOTPと併用する、モダリティを維�
 
 ## インストールと設定 {#install-and-configure}
 
-アプリには同じバージョンのパッケージをインストールしてください。
-`VERSION`を[リリースノート](/ja/releases)に記載された対応するバージョンに置き換えます。
+アプリにMPCウォレットのパッケージをインストールしてください。
+`VERSION`を[リリースノート](/ja/releases)に記載されたバージョンに置き換えます。
 
 ```sh
-pnpm add @seams/wallet@VERSION @seams/voiceid@VERSION
+pnpm add @seams/mpc-wallet@VERSION
 ```
 
-任意のパッケージから記述子をインポートし、既存の設定に`authMethods`を追加します。
+`@seams/mpc-wallet/voiceid`から記述子をインポートし、既存の設定に`authMethods`を追加します。
 次の例はNEARとArcのテストネットを有効にします。
 
 <<< ../../../examples/voiceid.ts#configuration
@@ -92,7 +92,8 @@ pnpm add @seams/wallet@VERSION @seams/voiceid@VERSION
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
-`walletOrigin`の運用者も、両方のパッケージを同じバージョンでインストールする必要があります。
+`walletOrigin`の運用者は、`@seams/mpc-wallet`と`@seams/host`を同じバージョンでインストールします。
+`@seams/host`には、VoiceIDのホストプラグインとそのモデルが含まれます。
 別の運用者がWalletをホストする場合は、そのオリジンでのVoiceID対応を依頼してください。
 
 インストール後、ホスト側のプロジェクトで次のコマンドを実行します。

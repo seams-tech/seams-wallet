@@ -161,8 +161,8 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
   );
   if (!styled)
     throw new Error(
-      '/sdk/wallet-ui.css did not load. The route serves packages/wallet/dist/public: build it ' +
-        'with `pnpm -C packages/wallet build:static-wallet-assets` after the SDK build.',
+      '/sdk/wallet-ui.css did not load. The route serves packages/mpc-wallet/dist/public: build it ' +
+        'with `pnpm -C packages/mpc-wallet build:static-wallet-assets` after the SDK build.',
     );
   // Let the confirmer's own settling (headings, halo) finish before measuring.
   await page.waitForTimeout(600);

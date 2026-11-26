@@ -47,7 +47,7 @@ builds for `shamir3pass_runtime`, `evm_crypto`, `tempo_signer`, and
 at 13:03:18 UTC. This is independent of the backend artifact overwrite problem.
 
 The release workflow calls `pnpm build` without setting `WASM_SDK_BUILD_MODE`.
-`packages/wallet/scripts/build/build-wasm.sh` defaults that setting to `dev`:
+`packages/mpc-wallet/scripts/build/build-wasm.sh` defaults that setting to `dev`:
 it forces release mode for the main signing/custody modules, but passes
 `--dev --no-opt` to the four runtimes above. `prod` already selects `--release`
 for all modules. Shamir3Pass is used by client session seal/unseal, so this is a

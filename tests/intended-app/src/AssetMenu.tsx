@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HostedSeamsAuthMenu, useSeams } from '@seams/wallet/react';
+import { HostedSeamsAuthMenu, useSeams } from '@seams/mpc-wallet/react';
 
 export function AssetMenu() {
   const { seams } = useSeams();

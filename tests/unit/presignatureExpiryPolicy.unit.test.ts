@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { resolveRouterAbEcdsaPresignDeadlines } from '../../packages/wallet-server/src/core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
+import { resolveRouterAbEcdsaPresignDeadlines } from '../../packages/mpc-wallet-server/src/core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
 
 test('operation step-up bounds completed presignature material to the operation expiry', () => {
   const nowMs = 1_000_000;

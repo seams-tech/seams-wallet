@@ -1,7 +1,7 @@
-import type { NearCommands } from '../../packages/wallet/src/SeamsWeb/publicApi/nearCommands';
-import type { EvmFamilyCommands } from '../../packages/wallet/src/SeamsWeb/publicApi/evmFamilyCommands';
-import type { WalletRegistrationCommand } from '../../packages/wallet/src/SeamsWeb/publicApi/createPublicApi';
-import type { ThresholdEd25519ComputeNep413SigningDigestRequest } from '../../packages/wallet/src/core/types/signer-worker';
+import type { NearCommands } from '../../packages/mpc-wallet/src/SeamsWeb/publicApi/nearCommands';
+import type { EvmFamilyCommands } from '../../packages/mpc-wallet/src/SeamsWeb/publicApi/evmFamilyCommands';
+import type { WalletRegistrationCommand } from '../../packages/mpc-wallet/src/SeamsWeb/publicApi/createPublicApi';
+import type { ThresholdEd25519ComputeNep413SigningDigestRequest } from '../../packages/mpc-wallet/src/core/types/signer-worker';
 
 declare const nep413Digest: ThresholdEd25519ComputeNep413SigningDigestRequest;
 const nep413WithState: ThresholdEd25519ComputeNep413SigningDigestRequest = {
@@ -48,9 +48,9 @@ evm.signEvmFamily({ ...evmInput, chainTarget: undefined });
 import {
   createDevicesCapability,
   type DeviceCommands,
-} from '../../packages/wallet/src/SeamsWeb/publicApi/devices';
-import { DeviceLinkingDomain } from '../../packages/wallet/src/SeamsWeb/operations/devices/linkDevice';
-import type { DeviceLinkingWebContext } from '../../packages/wallet/src/SeamsWeb/signingSurface/types';
+} from '../../packages/mpc-wallet/src/SeamsWeb/publicApi/devices';
+import { DeviceLinkingDomain } from '../../packages/mpc-wallet/src/SeamsWeb/operations/devices/linkDevice';
+import type { DeviceLinkingWebContext } from '../../packages/mpc-wallet/src/SeamsWeb/signingSurface/types';
 declare const devices: DeviceCommands;
 declare const getContext: () => DeviceLinkingWebContext;
 // @ts-expect-error Host linking requires authenticated ports.
@@ -60,8 +60,8 @@ createDevicesCapability({ ...devices, cancelLinking: undefined });
 // @ts-expect-error Device inventory cannot own an implicit unlock path.
 createDevicesCapability({ ...devices, ownerSessionRenewal: {} });
 
-import type { ClientPreferenceState } from '../../packages/wallet/src/SeamsWeb/walletIframe/client/preferenceState';
-import type { PreferencesCapability } from '../../packages/wallet/src/SeamsWeb/publicApi/types';
+import type { ClientPreferenceState } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/client/preferenceState';
+import type { PreferencesCapability } from '../../packages/mpc-wallet/src/SeamsWeb/publicApi/types';
 declare const preferenceState: ClientPreferenceState;
 declare const preferences: PreferencesCapability;
 const preferenceFlush: Promise<void> = preferences.flush();
@@ -71,7 +71,7 @@ preferenceState.applyWalletHostConfirmationConfig({
   confirmationConfig: preferences.getConfirmationConfig(),
 });
 
-import type { SeamsWeb } from '../../packages/wallet/src/SeamsWeb/SeamsWeb';
+import type { SeamsWeb } from '../../packages/mpc-wallet/src/SeamsWeb/SeamsWeb';
 declare const applicationClient: SeamsWeb;
 declare const registrationCommand: WalletRegistrationCommand;
 const registrationWithDefaults = {
@@ -111,9 +111,9 @@ applicationClient.theme = 'dark';
 applicationClient.getContext();
 
 
-import { WalletHostRuntime } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime';
-import type { WalletHostConfig } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/configuration';
-import type { SeamsConfigsInput, SeamsConfigsReadonly } from '../../packages/wallet/src/core/types/seams';
+import { WalletHostRuntime } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime';
+import type { WalletHostConfig } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/configuration';
+import type { SeamsConfigsInput, SeamsConfigsReadonly } from '../../packages/mpc-wallet/src/core/types/seams';
 declare const rawWalletConfig: SeamsConfigsInput;
 declare const commonWalletConfig: SeamsConfigsReadonly;
 declare const hostConfig: WalletHostConfig;
@@ -135,7 +135,7 @@ const nestedHostConfig = {
 new WalletHostRuntime(nestedHostConfig, 'https://app.example.com');
 
 
-import type { PMSetConfigPayload } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+import type { PMSetConfigPayload } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/messages';
 // @ts-expect-error Configuration messages require a complete resolved configuration.
 const missingHostConfig: PMSetConfigPayload = { kind: 'configure', assetsBaseUrl: 'https://wallet.example.com/sdk/' };
 // @ts-expect-error Appearance updates cannot replace execution settings.
@@ -160,7 +160,7 @@ void missingHostRpId;
 void rawHostRpId;
 void mixedWalletConfig;
 
-import type { PreferencesChangedPayload } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+import type { PreferencesChangedPayload } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/messages';
 // @ts-expect-error Preference observations require an ordered revision, not a timestamp.
 const timestampedPreferences: PreferencesChangedPayload = { walletId: null, confirmationConfig: preferences.getConfirmationConfig(), updatedAt: 1 };
 // @ts-expect-error Preference snapshots must identify the wallet whose values they contain.
@@ -173,7 +173,7 @@ declare const walletHostRuntime: WalletHostRuntime;
 const persistedPreferenceWrite: Promise<void> = walletHostRuntime.preferences.setConfirmationConfig({ uiMode: 'drawer' });
 void persistedPreferenceWrite;
 
-import type { WalletHostRuntimeRequest, WalletHostRuntimeState } from '../../packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext';
+import type { WalletHostRuntimeRequest, WalletHostRuntimeState } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/host/runtimeContext';
 declare const requestWithoutExecutionGeneration: Omit<WalletHostRuntimeRequest, 'executionGeneration'>;
 declare const stateWithoutExecutionGeneration: Omit<WalletHostRuntimeState, 'executionGeneration'>;
 // @ts-expect-error A request must capture its execution generation before asynchronous work.
@@ -190,7 +190,7 @@ import type {
   WalletIframeExactSessionSnapshot,
   WalletIframeExactSessionState,
   WalletIframeSessionPublication,
-} from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/exactSessionState';
+} from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/exactSessionState';
 declare const observedSession: WalletIframeExactSessionState;
 // @ts-expect-error Session snapshots require a host-issued revision.
 const unversionedSession: WalletIframeExactSessionSnapshot = { walletId: null, state: observedSession };
@@ -219,7 +219,7 @@ void optionalSessionRevision;
 const unboundSessionSnapshot: WalletIframeExactSessionSnapshot = { revision: 1, state: observedSession };
 void unboundSessionSnapshot;
 
-import type { ClientConnectionState } from '../../packages/wallet/src/SeamsWeb';
+import type { ClientConnectionState } from '../../packages/mpc-wallet/src/SeamsWeb';
 const connectionState: ClientConnectionState = applicationClient.connection.getState();
 void connectionState;
 applicationClient.connection.connect();
@@ -265,6 +265,6 @@ applicationClient.onWalletIframeLoginStatusChanged(() => {});
 applicationClient.prewarm({ iframe: true, workers: true });
 // @ts-expect-error Block preparation belongs to the selected host operation.
 applicationClient.prefetchBlockheight();
-declare const providerProps: import('../../packages/wallet/src/react/context/SeamsWebProvider').SeamsWebProviderProps;
+declare const providerProps: import('../../packages/mpc-wallet/src/react/context/SeamsWebProvider').SeamsWebProviderProps;
 // @ts-expect-error Provider mount already connects; the redundant idle flag is removed.
 providerProps.eager;

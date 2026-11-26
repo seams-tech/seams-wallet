@@ -6,28 +6,33 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { collectBrowserGraph } from '../../packages/mpc-wallet/scripts/checks/browser-module-graph.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const walletPackage = packageDefinition('packages/wallet', '@seams/wallet');
-const walletServerPackage = packageDefinition('packages/wallet-server', '@seams/wallet-server');
-const voiceIdPackage = packageDefinition('packages/voiceid', '@seams/voiceid');
+const walletPackage = packageDefinition('packages/mpc-wallet', '@seams/mpc-wallet');
+const walletConnectPackage = packageDefinition('packages/wallet-connect', '@seams/wallet-connect');
+const hostPackage = packageDefinition('packages/mpc-wallet-server', '@seams/host');
 const packageTarget = process.argv[2] ?? 'all';
 assert.ok(
-  ['all', 'wallet', 'voiceid'].includes(packageTarget),
+  ['all', 'wallet-connect', 'mpc-wallet'].includes(packageTarget),
   `Unknown package target: ${packageTarget}`,
 );
-assert.ok(process.argv.length <= 3, 'Expected one package target: all, wallet, or voiceid');
-// VoiceID is a peer of Wallet, so every target installs both.
+assert.ok(process.argv.length <= 3, 'Expected one package target: all, wallet-connect, or mpc-wallet');
+// The MPC wallet has the connectors as a peer, so every target installs both.
 const packages =
   packageTarget === 'all'
-    ? [walletPackage, walletServerPackage, voiceIdPackage]
-    : [walletPackage, voiceIdPackage];
-// Dependencies that each package must not name: VoiceID and its engine stay opt-in, and the
-// server needs no browser capture.
-const optInDependencies = {
-  '@seams/wallet': ['@seams/voiceid', 'onnxruntime-web', 'voice-glow'],
-  '@seams/wallet-server': ['@seams/voiceid', '@seams/voice-capture', 'onnxruntime-web', 'voice-glow'],
+    ? [walletPackage, walletConnectPackage, hostPackage]
+    : [walletPackage, walletConnectPackage];
+// Dependencies that each package must not name: the VoiceID engine stays in the host's plugin
+// assets, the connectors need neither the MPC wallet nor auth, and the server needs no browser
+// capture.
+const forbiddenDependencies = {
+  '@seams/mpc-wallet': ['@seams/voice-capture', 'onnxruntime-web'],
+  '@seams/wallet-connect': ['@seams/mpc-wallet', '@seams/host', '@seams/voice-capture', '@seams/voice-sign'],
+  '@seams/host': ['@seams/voice-capture', 'onnxruntime-web', 'voice-glow'],
 };
+// Old package names. A packed file that names one points a user at a package that is gone.
+const oldPackageNames = ['@seams/wallet/', "@seams/wallet'", '@seams/wallet"', '@seams/wallet-server', '@seams/voiceid', '@seams/wallet-cli'];
 const forbidden = [
   '@seams-internal/console',
   '@seams-internal/wallet-console',
@@ -39,6 +44,13 @@ const forbidden = [
   'CONSOLE_SESSION_HMAC_SECRET',
   'STRIPE_API_SK',
 ];
+// Browser paths must not reach server code, and the server path must not reach browser code.
+const browserPaths = new Set(['./client', './react', './voiceid']);
+const serverOnlySpecifiers = [/^node:/u, /^(?:fs|path|crypto|module|url|util)$/u, /^@simplewebauthn\/server$/u];
+const serverOnlyFiles = /(?:^|\/)(?:mpc-wallet-server\/|server\.js$)/u;
+const browserOnlySpecifiers = [/^react(?:-dom)?(?:\/|$)/u, /^preact(?:\/|$)/u, /^(?:idb|qrcode|jsqr|voice-glow)$/u, /^@seams\/wallet-connect\//u];
+const browserOnlyFiles = /^(?:react|SeamsWeb|core|externalEvm|externalNear)\//u;
+
 const workDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'r105-wallet-pack-'));
 const tarballDirectory = path.join(workDirectory, 'tarballs');
 const nodeModulesDirectory = path.join(workDirectory, 'node_modules');
@@ -55,6 +67,7 @@ try {
     inspectPackage(unpacked, packageDefinition);
   }
   installPackedPackages(tarballs);
+  for (const packageDefinition of packages) checkEntryBoundaries(packageDefinition);
   await smokePackedEntries();
   process.stdout.write('[check-packed-wallet-boundaries] passed\n');
 } finally {
@@ -90,12 +103,17 @@ function inspectPackage(packageDirectory, packageDefinition) {
   assert.equal(packageJson.name, packageName);
   assert.equal(packageJson.version, packageDefinition.version);
   assert.equal(packageJson.license, 'Apache-2.0');
+  // Each import names where its code runs: no package has a root path.
+  for (const field of ['main', 'module', 'types']) {
+    assert.equal(packageJson[field], undefined, `${packageName} must have no ${field} field`);
+  }
+  assert.equal(packageJson.exports['.'], undefined, `${packageName} must have no root path`);
   for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
-    for (const dependency of optInDependencies[packageName] ?? []) {
+    for (const dependency of forbiddenDependencies[packageName] ?? []) {
       assert.equal(
         packageJson[section]?.[dependency],
         undefined,
-        `${dependency} must remain opt-in for ${packageName}`,
+        `${packageName} must not depend on ${dependency}`,
       );
     }
   }
@@ -110,7 +128,7 @@ function inspectPackage(packageDirectory, packageDefinition) {
 
   for (const file of listFiles(packageDirectory)) {
     const relativePath = path.relative(packageDirectory, file);
-    if (packageName === '@seams/wallet') {
+    if (packageName !== '@seams/host') {
       assert.ok(!relativePath.endsWith('.onnx'), `VoiceID models must not ship in ${packageName}`);
       assert.ok(
         !/ort-wasm|ort\.wasm/u.test(relativePath),
@@ -118,9 +136,12 @@ function inspectPackage(packageDirectory, packageDefinition) {
       );
     }
     assert.ok(!relativePath.endsWith('.map'), `${packageName} contains source map ${relativePath}`);
-    if (!/\.(?:js|mjs|cjs|d\.ts|json|toml|sql)$/u.test(file) || file.endsWith('.wasm')) continue;
+    // Code, declarations and data only: the README may name the package it replaces.
+    if (!/\.(?:js|mjs|cjs|d\.ts|d\.mts|json|toml|sql)$/u.test(file) || file.endsWith('.wasm')) {
+      continue;
+    }
     const source = fs.readFileSync(file, 'utf8');
-    for (const value of forbidden) {
+    for (const value of [...forbidden, ...oldPackageNames]) {
       assert.ok(!source.includes(value), `${packageName}/${relativePath} contains ${value}`);
     }
   }
@@ -160,8 +181,34 @@ function installPackedPackages(tarballs) {
   );
 }
 
+function checkEntryBoundaries(packageDefinition) {
+  // The rule is for product packages; each path of the services package runs on a server.
+  if (packageDefinition === hostPackage) return;
+  const installed = path.join(nodeModulesDirectory, packageDefinition.name);
+  const packageJson = JSON.parse(fs.readFileSync(path.join(installed, 'package.json'), 'utf8'));
+  const esmRoot = path.join(installed, 'dist/esm');
+  for (const [subpath, target] of Object.entries(packageJson.exports)) {
+    const browser = browserPaths.has(subpath);
+    if (!browser && subpath !== './server') continue;
+    const graph = collectBrowserGraph([path.join(installed, target.import)], {
+      root: installed,
+      includeDynamic: true,
+    });
+    const label = `${packageDefinition.name}${subpath.slice(1)}`;
+    for (const specifier of graph.external) {
+      const rules = browser ? serverOnlySpecifiers : browserOnlySpecifiers;
+      assert.ok(!rules.some((rule) => rule.test(specifier)), `${label} imports ${specifier}`);
+    }
+    for (const file of graph.files) {
+      const relative = path.relative(esmRoot, file).split(path.sep).join('/');
+      if (browser) assert.ok(!serverOnlyFiles.test(relative), `${label} reaches server code ${relative}`);
+      else assert.ok(!browserOnlyFiles.test(relative), `${label} reaches browser code ${relative}`);
+    }
+  }
+}
+
 async function smokePackedEntries() {
-  if (packages.includes(walletServerPackage)) {
+  if (packages.includes(hostPackage)) {
     // The server relays verifier calls with @seams/voice-sign/server. That package has the
     // browser capture only as an optional peer, so a server install has no ONNX runtime.
     const voiceSign = JSON.parse(
@@ -170,19 +217,51 @@ async function smokePackedEntries() {
     assert.equal(voiceSign.dependencies?.['@seams/voice-capture'], undefined);
     assert.equal(voiceSign.peerDependenciesMeta?.['@seams/voice-capture']?.optional, true);
   }
-  const voiceId = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/index.js'));
+  const voiceId = await import(path.join(nodeModulesDirectory, '@seams/mpc-wallet/dist/esm/voiceid.js'));
   assert.deepEqual(voiceId.voiceIdAuthMethod(), { kind: 'voiceid', transcriptionModel: 'citrinet' });
   assert.deepEqual(voiceId.voiceIdAuthMethod({ transcriptionModel: 'aurora' }), { kind: 'voiceid', transcriptionModel: 'aurora' });
-  const voiceUi = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react.js'));
-  assert.equal(typeof voiceUi.VoiceAssistantCard, 'function');
-  assert.ok('VoiceBeam' in voiceUi);
   assert.ok(
-    fs.existsSync(
-      path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react/VoiceAssistantCard.css'),
-    ),
+    fs
+      .readFileSync(path.join(nodeModulesDirectory, '@seams/mpc-wallet/dist/esm/react/styles/styles.css'), 'utf8')
+      .includes('.voice-assistant-card'),
+    'The MPC wallet stylesheet must carry the VoiceID card styles',
   );
-  const hosting = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/hosting.mjs'));
-  const walletPublicDirectory = path.join(nodeModulesDirectory, '@seams/wallet/dist/public');
+  const walletClient = await import(path.join(nodeModulesDirectory, '@seams/mpc-wallet/dist/esm/client.js'));
+  assert.equal(typeof walletClient.createSigningRuntime, 'function');
+  assert.equal(typeof walletClient.MinimalNearClient, 'function');
+  assert.equal(walletClient.PRF_FIRST_SALT_V1.length, 32);
+  const walletServer = await import(path.join(nodeModulesDirectory, '@seams/mpc-wallet/dist/esm/server.js'));
+  assert.equal(typeof walletServer.createApplicationAuthAssertion, 'function');
+
+  const connectors = await import(path.join(nodeModulesDirectory, '@seams/wallet-connect/dist/esm/client.js'));
+  const near = new connectors.ExternalNearController({
+    network: 'testnet',
+    rpcUrl: 'https://rpc.testnet.near.org',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
+  assert.equal(near.getSnapshot().connection.kind, 'disconnected');
+  near.disconnect();
+  assert.equal(near.getSnapshot().busy, false);
+  assert.equal(connectors.nearWalletName('meteor'), 'Meteor Wallet');
+  assert.equal(typeof connectors.ExternalEvmController, 'function');
+
+  if (!packages.includes(hostPackage)) return;
+
+  const host = await import(path.join(nodeModulesDirectory, '@seams/host/dist/esm/index.js'));
+  assert.equal(typeof host.SessionService, 'function');
+  const walletOrigin = await import(
+    path.join(nodeModulesDirectory, '@seams/host/dist/esm/wallet-origin-html.js')
+  );
+  assert.match(walletOrigin.getWalletServiceHtml('/sdk'), /<script type="module" src="\/sdk\//u);
+  const artifactManifest = JSON.parse(
+    fs.readFileSync(path.join(nodeModulesDirectory, '@seams/host/artifact-manifest.json'), 'utf8'),
+  );
+  assert.equal(artifactManifest.schemaVersion, 'seams_wallet_server_artifact_manifest_v1');
+  assert.equal(artifactManifest.package.name, hostPackage.name);
+  assert.equal(artifactManifest.package.version, hostPackage.version);
+
+  const hosting = await import(path.join(nodeModulesDirectory, '@seams/host/voiceid/hosting.mjs'));
+  const walletPublicDirectory = path.join(nodeModulesDirectory, '@seams/mpc-wallet/dist/public');
   const combined = await hosting.composeVoiceIdWalletAssets({
     walletPublicDirectory,
     outputDirectory: path.join(workDirectory, 'voiceid-wallet'),
@@ -241,7 +320,7 @@ async function smokePackedEntries() {
     JSON.stringify(
       {
         walletVersion: walletPackage.version,
-        voiceIdVersion: voiceIdPackage.version,
+        hostVersion: hostPackage.version,
         command: 'npx --no-install seams-voiceid-host ./cli-wallet',
         installedFromTarballs: true,
         walletPackageHasNoVoiceAssets: true,
@@ -256,46 +335,6 @@ async function smokePackedEntries() {
     !routes.some((route) => route.includes('speak-to-sign')),
     'Composed Wallet host must serve no Speak-to-Sign plugin file',
   );
-  const runtime = await import(
-    path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/runtime.js')
-  );
-  assert.equal(typeof runtime.createSigningRuntime, 'function');
-
-  const externalNear = await import(
-    path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/externalNear/index.js')
-  );
-  const near = new externalNear.ExternalNearController({
-    network: 'testnet',
-    rpcUrl: 'https://rpc.testnet.near.org',
-    wallets: ['meteor', 'hot', 'intear'],
-  });
-  assert.equal(near.getSnapshot().connection.kind, 'disconnected');
-  near.disconnect();
-  assert.equal(near.getSnapshot().busy, false);
-
-  const authMenu = await import(
-    path.join(
-      nodeModulesDirectory,
-      '@seams/wallet/dist/esm/react/components/HostedSeamsAuthMenu/public.js',
-    )
-  );
-  assert.equal(typeof authMenu.HostedSeamsAuthMenu, 'function');
-
-  if (!packages.includes(walletServerPackage)) return;
-
-  const walletServer = await import(
-    path.join(nodeModulesDirectory, '@seams/wallet-server/dist/esm/index.js')
-  );
-  assert.equal(typeof walletServer.SessionService, 'function');
-
-  const artifactManifest = JSON.parse(
-    fs.readFileSync(
-      path.join(nodeModulesDirectory, '@seams/wallet-server/artifact-manifest.json'),
-      'utf8',
-    ),
-  );
-  assert.equal(artifactManifest.schemaVersion, 'seams_wallet_server_artifact_manifest_v1');
-  assert.equal(artifactManifest.package.version, walletServerPackage.version);
 }
 
 function assetRoute(asset) {

@@ -232,7 +232,7 @@ signing session. That session signs every operation a passkey session can sign,
 on every chain and network, with the same confirmation UI and the same session
 uses and expiry. A signature needs no further voice check.
 
-Applications import `voiceIdAuthMethod` from the optional `@seams/voiceid` package
+Applications import `voiceIdAuthMethod` from `@seams/mpc-wallet/voiceid`
 and enable it with `authMethods: [voiceIdAuthMethod()]`. The descriptor
 imports no inference or capture code. The Wallet origin loads the plugin on its
 first enabled operation. Model and inference-runtime downloads start only when
@@ -586,9 +586,11 @@ Transfer review always uses the wallet displayed on the page.
 
 The Wallet host owns a typed registry of trusted plugin loaders. Applications
 send declarative descriptors only. Activation and transaction review dispatch
-through the registry. VoiceID's browser implementation lives in `@seams/voiceid`;
-its descriptor imports no implementation. `@seams/wallet` has no VoiceID package,
-ONNX Runtime, or voice-glow dependency and ships no VoiceID engine or model files.
+through the registry. VoiceID's browser implementation is the host plugin that `@seams/host`
+ships; its descriptor in `@seams/mpc-wallet/voiceid` imports no implementation.
+`@seams/mpc-wallet` has no voice capture or ONNX Runtime dependency and ships no VoiceID engine
+or model files. Its React path exports the `VoiceAssistantCard` and `VoiceBeam` visuals, which
+use `voice-glow`.
 The operator explicitly composes VoiceID assets into a new Wallet deployment tree.
 The loader uses the fixed same-origin `/sdk/voiceid/host.js` URL and checks its host
 API version. Missing installation fails explicitly. App input cannot select code URLs.

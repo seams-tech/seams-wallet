@@ -2,7 +2,7 @@ import { recordVoice, type VoiceCaptureObserver, type VoiceCaptureQuality } from
 import { checkSpokenPhrase, type SpokenPhrase } from './phrase';
 import { voiceEmbedding, voiceSimilarity, VOICE_MATCH_THRESHOLD } from './model';
 import { readVoiceTemplate } from './enrollmentStore';
-import type { VoiceTemplateAccess, VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
+import type { VoiceTemplateAccess, VoiceIdTranscriptionModel } from '@seams/mpc-wallet/voiceid';
 
 export async function verifyBrowserVoice(
   access: VoiceTemplateAccess,

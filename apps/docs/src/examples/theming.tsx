@@ -1,10 +1,10 @@
-import type { SeamsWeb } from '@seams/wallet';
+import type { SeamsWeb } from '@seams/mpc-wallet/client';
 import {
   HostedSeamsAuthMenu,
   type HostedAuthMenuOutcome,
   SHAPE_PRESETS,
   Theme,
-} from '@seams/wallet/react';
+} from '@seams/mpc-wallet/react';
 
 const colors = {
   colorBackground: '#ffffff',

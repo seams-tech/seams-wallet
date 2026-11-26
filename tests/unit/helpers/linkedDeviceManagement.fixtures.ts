@@ -15,7 +15,7 @@ import {
   buildWalletSessionCapabilitySubjectsV1,
   projectActiveWalletSession,
   type IssuedWalletSessionAuthorizationV2,
-} from '../../../packages/wallet-server/src/authorization/domain';
+} from '../../../packages/mpc-wallet-server/src/authorization/domain';
 import {
   parseDeviceId,
   parseMpcWalletSigningQuotaId,
@@ -53,7 +53,7 @@ import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
 } from '../../../packages/shared-ts/src/device-linking/contracts';
-import type { WalletSelectionRecordV1 } from '../../../packages/wallet/src/core/indexedDB/passkeyClientDB.types';
+import type { WalletSelectionRecordV1 } from '../../../packages/mpc-wallet/src/core/indexedDB/passkeyClientDB.types';
 import {
   buildEmailOtpWalletAuthAuthority,
   walletAuthAuthorityRef,

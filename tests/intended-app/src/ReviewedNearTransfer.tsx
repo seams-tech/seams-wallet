@@ -1,6 +1,6 @@
 import React from 'react';
-import { useSeams, type BoundNearSigner, type BoundWallet } from '@seams/wallet/react';
-import { ActionType } from '@seams/wallet';
+import { useSeams, type BoundNearSigner, type BoundWallet } from '@seams/mpc-wallet/react';
+import { ActionType } from '@seams/mpc-wallet/client';
 import { renderDirectWalletReview } from './DirectWalletReview';
 
 type TransferState =

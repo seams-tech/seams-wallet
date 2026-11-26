@@ -662,17 +662,17 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
 
 await mkdir(resolve(output, 'migrations'), { recursive: true });
 await copyFile(
-  resolve(root, 'packages/wallet-server/migrations/d1-signer/0077_wallet_object_addresses.sql'),
+  resolve(root, 'packages/mpc-wallet-server/migrations/d1-signer/0077_wallet_object_addresses.sql'),
   resolve(output, 'migrations/0077_wallet_object_addresses.sql'),
 );
 const bindingModule = resolve(output, 'binding.mjs');
 await build({
   stdin: {
     contents: `
-    export { WalletHomeCustodyBinding } from './packages/wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings';
-    export { walletObjectIdentity, walletObjectIdentityHeaders } from './packages/wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
-    export { handleWalletRelocationRequest } from './packages/wallet-server/src/router/cloudflare/runtime/walletRelocationOps';
-    export { D1WalletObjectAddresses } from './packages/wallet-server/src/router/cloudflare/d1/walletObjectAddresses';
+    export { WalletHomeCustodyBinding } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/routerAbServiceBindings';
+    export { walletObjectIdentity, walletObjectIdentityHeaders } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletObjectAddresses';
+    export { handleWalletRelocationRequest } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletRelocationOps';
+    export { D1WalletObjectAddresses } from './packages/mpc-wallet-server/src/router/cloudflare/d1/walletObjectAddresses';
   `,
     resolveDir: root,
     loader: 'ts',

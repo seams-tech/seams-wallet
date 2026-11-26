@@ -11,17 +11,17 @@ const bundle = await build({
   format: 'esm',
   platform: 'browser',
   write: false,
-  tsconfig: 'packages/wallet/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
-      import { observeWalletOwnershipGeneration } from "./packages/wallet/src/core/indexedDB/seamsWalletDB/walletOwnershipGeneration";
-      import { createWalletHostPlacementCommands } from "./packages/wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands";
+      import { observeWalletOwnershipGeneration } from "./packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/walletOwnershipGeneration";
+      import { createWalletHostPlacementCommands } from "./packages/mpc-wallet/src/SeamsWeb/walletIframe/host/createPlacementCommands";
       import {
         configureIndexedDB,
         IndexedDBManager,
-      } from "./packages/wallet/src/core/indexedDB";
+      } from "./packages/mpc-wallet/src/core/indexedDB";
       configureIndexedDB({ mode: "wallet" });
       const walletId = "locator-wallet.testnet";
       const intent = {

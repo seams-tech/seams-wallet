@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { ExternalEvmController } from '@/externalEvm';
-import type { ExternalProvider } from '@/externalEvm/boundary';
+import { ExternalEvmController } from '@seams/wallet-connect/client';
+import type { ExternalProvider } from '@wallet-connect/externalEvm/boundary';
 
 const ICON = 'data:image/png;base64,AA==';
 const WALLET_ID = '00000000-0000-4000-8000-000000000001';

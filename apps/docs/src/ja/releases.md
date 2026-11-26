@@ -3,6 +3,67 @@ title: リリース 0.76.0
 description: 各デバイスが自分のEmail OTPの要素を持つため、新しいデバイスでGoogle復元とデバイス連携を再び使えます。マイグレーション0091を適用し、サーバーとWalletホストを一緒にデプロイしてください。
 ---
 
+## 次のリリース（未リリース） {#next-release}
+
+0.76.0からの変更:
+
+- パスキー: サーバーは、すべてのパスキーの登録とアサーションで、ユーザー検証（PIN、生体認証、デバイスのパスコード）を必須にします。以前は、ユーザーの存在だけを示すアサーションも受け付けていました。ほかの点では有効でもユーザー検証のないセレモニーは、新しいコード`user_verification_required`で失敗します。Walletは「このパスキーはPINや生体認証を確認しませんでした。PINや生体認証のあるパスキーを使うか、セキュリティキーにPINを設定してください。」と表示します。
+- Walletは、すべてのパスキーの画面で`userVerification: 'required'`を求めます。サーバーが送る方式の追加、デバイス連携、復元のオプションでも同じです。
+
+破壊的変更:
+
+- PINのないセキュリティキーや、ユーザーを検証できない認証器では、パスキーの登録、サインイン、アンロック、署名、所有者の操作ができません。キーにPINを設定するか、別のパスキーやサインイン方法を使ってください。
+- 追加するパスキー、デバイス連携のパスキー、復元のパスキーのサーバーのオプションは`authenticatorSelection.userVerification: 'required'`を含み、Walletはこの値だけを受け付けます。サーバーとWalletホストを一緒にデプロイしてください。デプロイの前に始まり、後に終わるセレモニーは失敗します。ユーザーはもう一度始めます。
+- SDKの設定から`webauthn.authenticatorOptions.userVerification`を削除しました。`UserVerificationPolicy`の列挙型も削除しました。このフィールドに効果はありませんでした。
+
+### 新しいパッケージ名 {#new-package-names}
+
+製品ごとに1つのパッケージにするため、パッケージの名前を変えました。コードの動作は以前と同じです。変わるのは、名前、インポートパス、パッケージの境界です。
+
+| 以前のパッケージ | 現在のパッケージ | 内容 |
+| --- | --- | --- |
+| `@seams/wallet` | `@seams/mpc-wallet` | 組み込みのMPCウォレット。ブラウザーSDK、Reactコンポーネント、VoiceIDのページのコード |
+| `@seams/wallet/external-*` | `@seams/wallet-connect`（新規） | 既存のEVMとNEARのウォレットへのコネクター。Seamsのアカウントも鍵管理も不要 |
+| `@seams/wallet-server` | `@seams/host` | 運用者がデプロイするサービス、ウォレットオリジンのドキュメント、VoiceIDのホストプラグインとモデル |
+| `@seams/voiceid` | `@seams/mpc-wallet`と`@seams/host` | 単独では公開しません |
+| `@seams/wallet-cli` | `@seams/cli` | 復元CLIのランチャー。引き続き**0.29.0**で、コマンドは`seams-wallet`です |
+
+ルートのインポートを持つパッケージはありません。各インポートは、コードが動く場所を示します。
+
+| 以前のインポート | 現在のインポート |
+| --- | --- |
+| `@seams/wallet` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/advanced` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/threshold` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/runtime` | `@seams/mpc-wallet/client` |
+| `@seams/wallet/react` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/profile` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/hosted-seams-auth-menu` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/provider` | `@seams/mpc-wallet/react` |
+| `@seams/wallet/react/styles` | `@seams/mpc-wallet/styles.css` |
+| `@seams/wallet/voiceid-host` | `@seams/mpc-wallet/voiceid` |
+| `@seams/wallet/external-evm` | `@seams/wallet-connect/client` |
+| `@seams/wallet/external-near` | `@seams/wallet-connect/client` |
+| `@seams/wallet/react/external-evm` | `@seams/wallet-connect/react` |
+| `@seams/wallet/react/external-near` | `@seams/wallet-connect/react` |
+| `@seams/wallet/web/wallet-iframe-client-html` | `@seams/host/wallet-origin-html` |
+| `@seams/voiceid` | `@seams/mpc-wallet/voiceid` |
+| `@seams/voiceid/react` | `@seams/mpc-wallet/react` |
+| `@seams/voiceid/styles` | `@seams/mpc-wallet/styles.css` |
+| `@seams/voiceid/hosting` | `@seams/host/voiceid` |
+| `@seams/wallet-server` | `@seams/host/server-types` |
+| `@seams/wallet-server/application-auth` | `@seams/mpc-wallet/server` |
+| `@seams/wallet-server/<path>` （その他の各パス） | `@seams/host/<path>` （同じパス） |
+| `@seams/wallet-cli` | `@seams/cli` |
+
+そのほかの変更:
+
+- `@seams/wallet/react/provider`と`@seams/wallet/react/hosted-seams-auth-menu`のデフォルトエクスポートは、これらのパスと一緒になくなりました。`SeamsWebProvider`と`HostedSeamsAuthMenu`は、`@seams/mpc-wallet/react`から名前でインポートしてください。このパスはコンポーネントのスタイルシートも読み込むため、サーバーサイドレンダリングでもバンドラーを通してインポートしてください。
+- ホストされた認証メニューが別のウォレットとしてコネクターのコントローラーを受け取るため、`@seams/mpc-wallet`は`@seams/wallet-connect`をピア依存関係にしています。また、`VoiceBeam`のために`voice-glow`に依存します。パッケージは同じバージョンでインストールしてください。
+- コネクターのセレクターは自分のテーマ境界を描画し、`@seams/mpc-wallet/react`の`Theme`トークンを読みません。見た目は同じです。境界の要素には`data-seams-theme`、`lang`、トークンの変数がありません。色を変えるには、これまでと同じく`--seams-wallet-picker-*`のCSS変数を設定してください。
+- Walletのアセットマニフェストは`@seams/mpc-wallet`を、ホストの成果物マニフェストは`@seams/host`を記載します。`seams-voiceid-host`と`composeVoiceIdWalletAssets`は`@seams/host`から提供します。ほかの`seams-wallet-server-*`コマンドの名前は変わりません。
+- 古いパッケージ名には、新しいパッケージを示すnpmの非推奨メッセージを付けます。
+
 # リリース 0.76.0
 
 ブラウザーSDK、サーバーSDK、VoiceIDプラグインは **0.76.0** を使います。D1のマイグレーション`0091_linked_device_email_otp_own_factor.sql`を適用し、次にサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。

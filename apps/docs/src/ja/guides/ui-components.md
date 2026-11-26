@@ -1,16 +1,16 @@
 ---
 title: UIコンポーネント
-description: '@seams/wallet/reactが提供する既製のReactコンポーネント、それぞれが表示する内容、プロパティと実装例の参照先。'
+description: '@seams/mpc-wallet/reactが提供する既製のReactコンポーネント、それぞれが表示する内容、プロパティと実装例の参照先。'
 ---
 
 # UIコンポーネント {#ui-components}
 
-`@seams/wallet/react`は、サインイン、ウォレット設定、デバイスのリンク、取引の確認に使う既製のコンポーネントを提供します。
+`@seams/mpc-wallet/react`は、サインイン、ウォレット設定、デバイスのリンク、取引の確認に使う既製のコンポーネントを提供します。
 スタイルシートを一度だけインポートします。モック以外のコンポーネントは、すべて`SeamsWebProvider`内に配置します。
 
 ```tsx [インポート例]
-import { SeamsWebProvider, HostedSeamsAuthMenu, AccountMenuButton } from '@seams/wallet/react';
-import '@seams/wallet/react/styles';
+import { SeamsWebProvider, HostedSeamsAuthMenu, AccountMenuButton } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 ```
 
 ## コンポーネントの一覧 {#component-list}
@@ -27,17 +27,12 @@ import '@seams/wallet/react/styles';
 | `ShowQRCode`              | 新しいデバイスのリンクコード。開始から期限切れまでを処理。                 | 必要         |
 | `QRCodeScanner`           | 既存デバイスのカメラスキャナーとリンクの承認。                             | 必要         |
 | `TransactionReviewHost`   | ウォレットの承認前に独自の確認内容を表示するダイアログ。                   | 必要         |
-| `ExternalEvmWalletPicker` | ブラウザーに注入されたEVMウォレットのセレクター。                          | 不要         |
 | `Theme`                   | 配下のすべてのコンポーネントにテーマトークンを提供。                       | 不要         |
 
 独自のコントロールに使う小さなアイコンとして、`TouchIcon`、`QRCodeIcon`、`SunIcon`、`MoonIcon`も提供します。
 
-インポートを小さくする場合や、SSRで使う場合は、個別のエントリーポイントを使います。
-
-- `@seams/wallet/react/hosted-seams-auth-menu`：認証メニューとそのモック。
-- `@seams/wallet/react/profile`：アカウントメニュー、そのモック、設定ページ。
-- `@seams/wallet/react/provider`：`SeamsWebProvider`。
-- `@seams/wallet/react/external-near`：外部NEARウォレットのセレクター（開発プレビュー）。
+このページのコンポーネントは、すべて`@seams/mpc-wallet/react`から提供します。バンドラーは、アプリが使うコンポーネントだけを残します。
+既存のウォレットのセレクターは`@seams/wallet-connect/react`にあります（[外部ウォレット](#external-wallets)を参照）。
 
 ## サインイン {#sign-in}
 
@@ -104,8 +99,12 @@ import '@seams/wallet/react/styles';
 
 ## 外部ウォレット {#external-wallets}
 
+`@seams/wallet-connect/react`には、既存のウォレットのセレクターがあります。プロバイダーは不要です。
 `ExternalEvmWalletPicker`は、`useExternalEvm`が検出した、ブラウザーに注入されたEVMウォレットを表示します。
 コントローラーとそのスナップショットを受け取ります。[外部EVMウォレット](/ja/guides/external-evm-wallets)を参照してください。
+`ExternalNearWalletPicker`は、`ExternalNearController`で有効にしたNEARウォレットを表示します（開発プレビュー）。[外部NEARウォレット](/ja/guides/external-near-wallets)を参照してください。
+
+セレクターは自分のテーマ境界を描画し、`@seams/mpc-wallet/react`の`Theme`トークンを読みません。色を変えるには、`--seams-wallet-picker-*`のCSS変数を設定してください。
 
 ## 取引の確認 {#transaction-review}
 
@@ -119,8 +118,8 @@ import '@seams/wallet/react/styles';
 デザインの確認、読み込み中の表示、マーケティングページに使います。
 
 ```tsx [部分的な実装例]
-import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
-import '@seams/wallet/react/styles';
+import { AccountMenuButtonMock } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```

@@ -1,9 +1,9 @@
-import type { WalletAuthMethodHostPlugin } from '@seams/wallet/voiceid-host';
+import type { WalletAuthMethodHostPlugin } from '@seams/mpc-wallet/voiceid';
 import { showVoiceIdCaptureSurface, VoiceIdCaptureCancelledError } from './capture/surface';
 import type { VoiceCaptureElements } from './capture/surface';
 import { configureVoiceIdCapture } from './capture/configure';
-import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
-import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
+import { VOICE_ID_HOST_API_VERSION } from '@seams/mpc-wallet/voiceid';
+import type { VoiceIdTranscriptionModel } from '@seams/mpc-wallet/voiceid';
 
 export const hostApiVersion = 11;
 if (VOICE_ID_HOST_API_VERSION !== hostApiVersion) {

@@ -243,7 +243,7 @@ Inspect these existing components before creating new abstractions:
 - `crates/router-ab-core` for admission, role contexts, and lifecycle types.
 - `crates/router-ab-cloudflare` for Worker transport and role-private persistence.
 - `crates/router-ab-dev` for separate-process execution and evidence reports.
-- `packages/wallet` and `packages/wallet-server` for SDK APIs and release packaging.
+- `packages/mpc-wallet` and `packages/mpc-wallet-server` for SDK APIs and release packaging.
 
 Select one production protocol after the comparison.
 Keep benchmark alternatives outside production routes.

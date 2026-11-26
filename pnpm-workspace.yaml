@@ -3,11 +3,12 @@ packages:
   - crates/router-ab-cloudflare
   - examples/seams-auth-menu
   - examples/wallet-console-lite
-  - packages/seams-cli
+  - packages/cli
   - packages/shared-ts
-  - packages/wallet-server
-  - packages/wallet
+  - packages/mpc-wallet-server
+  - packages/mpc-wallet
   - packages/voiceid
+  - packages/wallet-connect
   - tests
   - tests/intended-app
 nodeLinker: hoisted

@@ -1,4 +1,4 @@
-import { logWalletEvents, parseEther, type SeamsWeb } from '@seams/wallet';
+import { logWalletEvents, parseEther, type SeamsWeb } from '@seams/mpc-wallet/client';
 
 // EIP-1559 on any configured EVM chain. `seams.tempo` mirrors this API for
 // Tempo's EIP-2718 typed transactions; the two stay separate because the

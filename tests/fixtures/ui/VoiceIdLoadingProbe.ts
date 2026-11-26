@@ -3,7 +3,7 @@ import { VoicePrompt } from '@seams/voice-capture/card';
 import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import { checkSpokenPhrase } from '@voiceid/browser/phrase';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
-import { voiceIdAuthMethod } from '../../../packages/voiceid/src/descriptor';
+import { voiceIdAuthMethod } from '../../../packages/mpc-wallet/src/core/authMethods/voiceId/descriptor';
 import { parseWalletAuthMethodPlugins } from '@/core/authMethods/plugins';
 
 // The capture package reads the Wallet's settings, as in the Wallet host.

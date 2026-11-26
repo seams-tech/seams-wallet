@@ -4,7 +4,7 @@ import type {
   Variant,
   VoiceIdActivationPreparation,
   VoiceIdTranscriptionModel,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 import type { VoiceCaptureObserver } from '@seams/voice-capture';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { PreparedVoiceCapture } from '../capture/surface';

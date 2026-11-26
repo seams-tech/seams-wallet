@@ -9,7 +9,7 @@ import type { WorkerRetryResult } from './worker-retry-probe';
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(TEST_DIR, '../..');
-const PUBLIC_ROOT = path.join(REPO_ROOT, 'packages/wallet/dist/public');
+const PUBLIC_ROOT = path.join(REPO_ROOT, 'packages/mpc-wallet/dist/public');
 const ASSETS_MANIFEST_PATH = path.join(PUBLIC_ROOT, 'wallet-assets.manifest.json');
 
 type StaticAsset = {
@@ -296,7 +296,7 @@ test('Email OTP loaders retry delivery failure and reuse successful initializati
   const { server, baseUrl, faults } = await createWalletServerFixture();
   const bundle = await build({
     entryPoints: [path.join(TEST_DIR, 'email-otp-loader-retry-probe.ts')],
-    tsconfig: path.join(REPO_ROOT, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(REPO_ROOT, 'packages/mpc-wallet/tsconfig.json'),
     bundle: true,
     format: 'iife',
     platform: 'browser',

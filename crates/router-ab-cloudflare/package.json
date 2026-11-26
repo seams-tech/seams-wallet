@@ -23,7 +23,7 @@
     "test:wasm-vectors": "bash -lc 'if [ -z \"${CC_wasm32_unknown_unknown:-}\" ] && [ -x /opt/homebrew/opt/llvm/bin/clang ]; then export CC_wasm32_unknown_unknown=/opt/homebrew/opt/llvm/bin/clang; fi; wasm-pack test --node . --features strict-worker-router-entrypoint --test vector_adapters'"
   },
   "dependencies": {
-    "@seams/wallet-server": "workspace:*"
+    "@seams/host": "workspace:*"
   },
   "devDependencies": {
     "@noble/curves": "1.9.1",

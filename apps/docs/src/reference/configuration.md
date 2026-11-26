@@ -11,7 +11,7 @@ start a wallet. They provide defaults for the remaining settings. Their types re
 you to supply those essential values:
 
 ```ts [Partial example]
-import { seamsTestnetConfig } from '@seams/wallet/react';
+import { seamsTestnetConfig } from '@seams/mpc-wallet/react';
 
 const config = seamsTestnetConfig({
   walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,
@@ -71,7 +71,7 @@ wallet origin needed this setting.
 ## Optional VoiceID
 
 SDK 0.76.0 accepts `authMethods: [voiceIdAuthMethod()]`. Import the descriptor from
-`@seams/voiceid`. The Wallet host operator must deploy that package's assets too.
+`@seams/mpc-wallet/voiceid`. The Wallet host operator must also deploy the VoiceID host plugin of `@seams/host`.
 The descriptor enables availability. The wallet owner chooses enrollment and VoiceID unlock separately.
 It does not load the engine or models during passkey or Email OTP flows.
 See [VoiceID setup](/concepts/auth-methods/voiceid) for installation and code examples.
@@ -136,7 +136,7 @@ Passkey unlock and signing remain available. A reload can require fresh authenti
 ## Appearance branch
 
 SDK 0.18.0 adds `appearance.locale: 'en' | 'ja'`. English is the default.
-Use `normalizeWalletLocale` from `@seams/wallet` to normalize raw language tags before configuration.
+Use `normalizeWalletLocale` from `@seams/mpc-wallet/client` to normalize raw language tags before configuration.
 For example, `ja-JP` selects `ja`. Unsupported tags select `en`.
 The locale reaches SDK-owned React controls and the hosted wallet iframe through appearance configuration.
 Locale has no effect on signing or authentication state.

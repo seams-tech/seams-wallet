@@ -1,14 +1,14 @@
 ---
 title: Core browser SDK
-description: Public classes, capabilities, builders, and result types exported from the main @seams/wallet entrypoint.
+description: Public classes, capabilities, builders, and result types exported from @seams/mpc-wallet/client.
 ---
 
 # Core browser SDK
 
-Import the framework-neutral browser API from `@seams/wallet`.
+Import the framework-neutral browser API from `@seams/mpc-wallet/client`.
 
 ```ts [Import example]
-import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
+import { SeamsWeb, type SeamsConfigsInput } from '@seams/mpc-wallet/client';
 ```
 
 ## Primary surface
@@ -119,7 +119,7 @@ chain it targets:
 
 The exact-reference builders (`walletSessionRefFromSession`,
 `nearAccountRefFromAccountId`, `thresholdEcdsaChainTargetFromConfig`) are
-exported from this entrypoint and from `@seams/wallet/react`.
+exported from this entrypoint and from `@seams/mpc-wallet/react`.
 
 ## Public values and types
 
@@ -194,8 +194,8 @@ starts a move, and the deployment must provide the destination region.
 | `getLastMoveRequest(walletId)` | Read the last move request that this browser submitted. |
 
 ```ts [Partial example]
-import { parseWalletMoveId, toWalletId } from '@seams/wallet';
-import { base64UrlEncode } from '@seams/wallet/advanced';
+import { parseWalletMoveId, toWalletId } from '@seams/mpc-wallet/client';
+import { base64UrlEncode } from '@seams/mpc-wallet/client';
 
 const id = toWalletId(walletId);
 const current = await seams.placement.get(id);

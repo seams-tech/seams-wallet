@@ -45,7 +45,7 @@ description: ウォレットでの承認前に独自のReactコンポーネン�
 取引を送信するコンポーネントも、このホストの内側に配置してください。
 
 ```tsx [部分的な実装例]
-import { SeamsWebProvider, TransactionReviewHost } from '@seams/wallet/react';
+import { SeamsWebProvider, TransactionReviewHost } from '@seams/mpc-wallet/react';
 
 <SeamsWebProvider config={config}>
   <TransactionReviewHost>

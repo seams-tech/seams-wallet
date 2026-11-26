@@ -1,8 +1,8 @@
-import { buildConfigsFromEnv } from '../../packages/wallet/src/core/config/defaultConfigs';
+import { buildConfigsFromEnv } from '../../packages/mpc-wallet/src/core/config/defaultConfigs';
 import {
   createWalletHostConfig,
   type WalletHostConfig,
-} from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/configuration';
+} from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/configuration';
 import type { PasskeyTestConfig } from './types';
 
 export function createTestWalletHostConfig(config: PasskeyTestConfig): WalletHostConfig {

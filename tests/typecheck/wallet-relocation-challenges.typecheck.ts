@@ -1,5 +1,5 @@
-import { WalletRelocationOwnerRequest } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
-import type { D1WalletRegistrationOperationPreparedV1 } from '../../packages/wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationPreparation';
+import { WalletRelocationOwnerRequest } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationOwnerRequest';
+import type { D1WalletRegistrationOperationPreparedV1 } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletRegistrationPreparation';
 
 declare const preparedOperation: D1WalletRegistrationOperationPreparedV1;
 // @ts-expect-error Operation activity requires its wallet owner before the first durable claim.
@@ -16,11 +16,11 @@ const ownerlessSpread: D1WalletRegistrationOperationPreparedV1 = {
 };
 void ownerlessOperation;
 void ownerlessSpread;
-import type { D1WalletRelocationApprovals } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
+import type { D1WalletRelocationApprovals } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationApprovals';
 import type {
   D1WalletRelocationChallenges,
   WalletRelocationChallengeBinding,
-} from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationChallenges';
+} from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationChallenges';
 
 declare const store: D1WalletRelocationChallenges;
 declare const binding: WalletRelocationChallengeBinding;
@@ -47,7 +47,7 @@ void deniedApproval;
 void absentApproval;
 
 type OtpPurpose =
-  import('../../packages/wallet-server/src/core/EmailOtpStores').EmailOtpChallengePurpose;
+  import('../../packages/mpc-wallet-server/src/core/EmailOtpStores').EmailOtpChallengePurpose;
 declare const relocationPurpose: OtpPurpose & { readonly action: 'wallet_email_otp_relocation' };
 // @ts-expect-error Relocation proof cannot use the signing operation.
 const wrongOtpPurpose: OtpPurpose = {
@@ -71,7 +71,7 @@ declare const approvals: D1WalletRelocationApprovals;
 // @ts-expect-error A factor assertion alone cannot authorize a new relocation approval.
 approvals.approvePasskey({ binding, credential: null, nowMs: 1 });
 
-import { WalletRelocationReadAccess } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
+import { WalletRelocationReadAccess } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationReadAccess';
 declare const readAccess: WalletRelocationReadAccess;
 // @ts-expect-error Move-only access cannot authorize new admission.
 approvals.approvePasskey({ owner: readAccess, binding, credential: null, nowMs: 1 });
@@ -82,11 +82,11 @@ const directReadAccess = new WalletRelocationReadAccess(binding);
 void forgedReadAccess;
 void directReadAccess;
 
-declare const otpIssuer: import('../../packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer').CloudflareD1EmailOtpChallengeIssuer;
+declare const otpIssuer: import('../../packages/mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeIssuer').CloudflareD1EmailOtpChallengeIssuer;
 // @ts-expect-error Relocation OTP issuance must retain the relocation challenge expiry.
 otpIssuer.create({ action: 'wallet_email_otp_relocation', operation: 'wallet_relocation' });
 
-import { WalletRelocationSessionSource } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
+import { WalletRelocationSessionSource } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
 declare const sessionSource: WalletRelocationSessionSource;
 // @ts-expect-error A broad spread cannot forge a validated source identity.
 const forgedSessionSource: WalletRelocationSessionSource = { ...sessionSource };
@@ -100,7 +100,7 @@ new WalletRelocationSessionSource(
 void forgedSessionSource;
 
 // The SQL layout is parsed once before the snapshot engine uses it.
-import { AuthorizationSnapshotLayout } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/authorizationSnapshotLayout';
+import { AuthorizationSnapshotLayout } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/authorizationSnapshotLayout';
 declare const snapshotLayout: AuthorizationSnapshotLayout;
 // @ts-expect-error A spread cannot forge validated SQL identifiers.
 const forgedSnapshotLayout: AuthorizationSnapshotLayout = { ...snapshotLayout };
@@ -113,7 +113,7 @@ const directSnapshotLayout = new AuthorizationSnapshotLayout(
 void forgedSnapshotLayout;
 void directSnapshotLayout;
 
-import type { D1WalletAuthorizationIntake } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
+import type { D1WalletAuthorizationIntake } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorizationIntake';
 type AuthorizationIntakeProgress = Awaited<ReturnType<D1WalletAuthorizationIntake['prepare']>>;
 // @ts-expect-error Receiving progress requires the durable next chunk position.
 const missingIntakePosition: AuthorizationIntakeProgress = { state: 'receiving', chunkCount: 2 };

@@ -13,21 +13,21 @@ Checked against the source on October 21, 2026.
 ## Where the workers run
 
 All workers start inside the wallet iframe, from the wallet's own origin. The
-[wallet host runtime](../packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts)
+[wallet host runtime](../packages/mpc-wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts)
 constructs the signing surface that creates them. The application page never
 creates a wallet worker.
 
 The iframe main thread is a facade. It runs the UI, routing, validation, and
 non-secret result handling. It also loads the Ed25519 Yao client WASM for
 registration, login, and local session material (see
-[`yaoClient.ts`](../packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
+[`yaoClient.ts`](../packages/mpc-wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
 
-Applications enable the separately installed `@seams/voiceid` package by configuration.
-The Wallet operator explicitly deploys its assets. The Wallet iframe loads its
-implementation on first use through a fixed same-origin URL. The package imports
-scoped Wallet host operations. Wallet core owns storage transactions and worker access.
+Applications enable VoiceID by configuration, with `voiceIdAuthMethod()` from
+`@seams/mpc-wallet/voiceid`. The Wallet operator explicitly deploys the VoiceID host plugin of
+`@seams/host`. The Wallet iframe loads the plugin on first use through a fixed same-origin
+URL. The plugin imports scoped Wallet host operations. Wallet core owns storage transactions and worker access.
 The plugin receives no database manager, session credential store, or custody worker transport.
-This package split moves no signing or custody operation between workers.
+This plugin split moves no signing or custody operation between workers.
 Browser MediaRecorder captures deliberate
 samples, and local ONNX Runtime Web inference verifies the speaker. Inference
 uses one WebAssembly thread. A same-origin AudioWorklet supplies 16 kHz frames
@@ -60,7 +60,7 @@ Owner-only registration seals local material without installing a reusable sessi
 Submission recovery retains public transaction hashes and queries the existing transaction.
 No worker receives an application issuer key or a new custody secret.
 
-The [worker transport](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
+The [worker transport](../packages/mpc-wallet/src/core/signingEngine/workerManager/workerTransport.ts)
 creates one worker per kind, on first use. Other managers create the
 confirmation, export, session, and device-linking workers. The Email OTP and
 passkey session workers run the signing-session seal in process, with the
@@ -91,23 +91,23 @@ Workers that the worker transport creates:
 
 | Kind | Script | WASM modules and when they load | Secret state it holds |
 | --- | --- | --- | --- |
-| `nearSigner` | [`near-signer.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/near-signer.worker.ts) | `near_signer` at worker start | None. It builds and finalizes NEAR transactions, delegates, and NEP-413 digests. It rejects payloads with PRF, seed, private key, or signing share fields. |
-| `walletCustodyCeremony` | [`wallet-custody-ceremony.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts) | `wallet_custody_ceremony` only to start a key-set ceremony, restore a NEAR registration, or rotate recovery codes. `near_signer` for envelope open, reseal, and linking. Yao client for lane-source operations. | Ceremony handles that hold the wallet custody seed and owner roots (WASM). Unlocked export-root capabilities: a WASM custody handle and a JavaScript copy of the factor secret, kept for the owner Wallet Session. Receives `factorSecret` (a passkey PRF result, the Email OTP factor key, or the VoiceID factor key) and recovery codes. |
-| `ecdsaDerivationClient` | [`ecdsa-derivation-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts) | `router_ab_ecdsa_client` at worker start; registration can prewarm it | All ECDSA client secrets: role-local signing state, linked-holder material, registration and export ceremonies, and the opaque presign authority. Rejects PRF and private key fields. |
-| `ecdsaPresignClient` | [`ecdsa-presign-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts) | None | No key bytes. It holds presignature lifecycle state, handles, and public points, and sends all cryptography to the derivation worker. |
-| `ecdsaOnlineClient` | [`ecdsa-online-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-online-client.worker.ts) | None | None. It forwards signature-share requests to the presign worker. |
-| `evmCrypto` | [`evm-crypto.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/evm-crypto.worker.ts) | `evm_crypto` at worker start | None. Hashing, encoding, and verification helpers. |
-| `tempoSigner` | [`tempo-signer.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/tempo-signer.worker.ts) | `tempo_signer` at worker start | None. Tempo sender hash and transaction encoding. |
-| `emailOtp` | [`email-otp.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `oprf_runtime` (the device factor), `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. `oprf_runtime` also seals the warm session. | The device factor inputs, in its own IndexedDB database `seams_email_otp_device_factors` that no other context reads. Factor secrets that a device-factor release opens, and warm session secrets (JavaScript bytes). Active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
+| `nearSigner` | [`near-signer.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/near-signer.worker.ts) | `near_signer` at worker start | None. It builds and finalizes NEAR transactions, delegates, and NEP-413 digests. It rejects payloads with PRF, seed, private key, or signing share fields. |
+| `walletCustodyCeremony` | [`wallet-custody-ceremony.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts) | `wallet_custody_ceremony` only to start a key-set ceremony, restore a NEAR registration, or rotate recovery codes. `near_signer` for envelope open, reseal, and linking. Yao client for lane-source operations. | Ceremony handles that hold the wallet custody seed and owner roots (WASM). Unlocked export-root capabilities: a WASM custody handle and a JavaScript copy of the factor secret, kept for the owner Wallet Session. Receives `factorSecret` (a passkey PRF result, the Email OTP factor key, or the VoiceID factor key) and recovery codes. |
+| `ecdsaDerivationClient` | [`ecdsa-derivation-client.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts) | `router_ab_ecdsa_client` at worker start; registration can prewarm it | All ECDSA client secrets: role-local signing state, linked-holder material, registration and export ceremonies, and the opaque presign authority. Rejects PRF and private key fields. |
+| `ecdsaPresignClient` | [`ecdsa-presign-client.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts) | None | No key bytes. It holds presignature lifecycle state, handles, and public points, and sends all cryptography to the derivation worker. |
+| `ecdsaOnlineClient` | [`ecdsa-online-client.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/ecdsa-online-client.worker.ts) | None | None. It forwards signature-share requests to the presign worker. |
+| `evmCrypto` | [`evm-crypto.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/evm-crypto.worker.ts) | `evm_crypto` at worker start | None. Hashing, encoding, and verification helpers. |
+| `tempoSigner` | [`tempo-signer.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/tempo-signer.worker.ts) | `tempo_signer` at worker start | None. Tempo sender hash and transaction encoding. |
+| `emailOtp` | [`email-otp.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `oprf_runtime` (the device factor), `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. `oprf_runtime` also seals the warm session. | The device factor inputs, in its own IndexedDB database `seams_email_otp_device_factors` that no other context reads. Factor secrets that a device-factor release opens, and warm session secrets (JavaScript bytes). Active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
 
 Workers that other managers create:
 
 | Worker | Created by | WASM modules | Secret state it holds |
 | --- | --- | --- | --- |
-| [`passkey-mpc-session`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts) | `PasskeyMpcSessionManager` | `oprf_runtime` on the first seal or restore, or a prewarm | Warm-session PRF material and its sealed copies, until expiry, use, or clear. The OPRF blind of one seal or restore stays in WASM behind a handle. |
-| [`passkey-confirm`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-confirm.worker.ts) | `UiConfirmManager` | None | None. It runs the confirmation exchange off the main thread. |
-| [`passkey-mpc-export`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-export.worker.ts) | `PasskeyMpcExportManager` | Yao client, for Ed25519 export only | Per request only: PRF output and the private key shown to the user. Both are cleared after the request. |
-| [`device-linking-key`](../packages/wallet/src/core/signingEngine/workerManager/workers/device-linking-key.worker.ts) | `deviceLinkingWorkerChannels` | Yao client, for Ed25519 sealing only | Non-extractable link keys, recipient private keys, and a factor secret, until the attempt is discarded or closed. |
+| [`passkey-mpc-session`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts) | `PasskeyMpcSessionManager` | `oprf_runtime` on the first seal or restore, or a prewarm | Warm-session PRF material and its sealed copies, until expiry, use, or clear. The OPRF blind of one seal or restore stays in WASM behind a handle. |
+| [`passkey-confirm`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/passkey-confirm.worker.ts) | `UiConfirmManager` | None | None. It runs the confirmation exchange off the main thread. |
+| [`passkey-mpc-export`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-export.worker.ts) | `PasskeyMpcExportManager` | Yao client, for Ed25519 export only | Per request only: PRF output and the private key shown to the user. Both are cleared after the request. |
+| [`device-linking-key`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/device-linking-key.worker.ts) | `deviceLinkingWorkerChannels` | Yao client, for Ed25519 sealing only | Non-extractable link keys, recipient private keys, and a factor secret, until the attempt is discarded or closed. |
 
 ## WASM modules
 
@@ -183,7 +183,7 @@ Resetting `ecdsaOnlineClient` terminates only that worker.
 
 ### 4. Registration-only code stays off the signing path
 
-The [ceremony worker URL resolver](../packages/wallet/src/core/walletRuntimePaths/walletCustodyCeremonyWorker.ts)
+The [ceremony worker URL resolver](../packages/mpc-wallet/src/core/walletRuntimePaths/walletCustodyCeremonyWorker.ts)
 states the rule. The ceremony worker loads a module that links both protocol
 crates, so nothing on the recurring signing path should resolve it. Ordinary
 signing must not load `wallet_custody_ceremony`.
@@ -236,7 +236,7 @@ The proposal was declined:
 
 - The custody worker receives `factorSecret`, which is a passkey PRF result
   (see `WalletCustodyCeremonyWorkerOperationMap` in
-  [`workerTypes.ts`](../packages/wallet/src/core/signingEngine/workerManager/workerTypes.ts)).
+  [`workerTypes.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workerTypes.ts)).
   The NEAR signer must receive no PRF material (rule 1).
 - A NEAR signer timeout would destroy open ceremonies and unlocked capabilities
   (rule 3).

@@ -172,13 +172,13 @@ test('execution replacement fences loading and active host requests while appear
 }, info) => {
   const root = path.resolve(import.meta.dirname, '../..');
   const result = await build({
-    entryPoints: [path.join(root, 'packages/wallet/src/SeamsWeb/walletIframe/host/index.ts')],
+    entryPoints: [path.join(root, 'packages/mpc-wallet/src/SeamsWeb/walletIframe/host/index.ts')],
     bundle: true,
     write: false,
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
     plugins: [
       {
         name: 'controlled-runtime-loader',

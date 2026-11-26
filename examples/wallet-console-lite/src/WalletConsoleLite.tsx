@@ -9,20 +9,18 @@ import {
 } from 'react';
 import {
   AccountMenuButton,
+  HostedSeamsAuthMenu,
   SeamsWebProvider,
   TransactionReviewHost,
   SHAPE_PRESETS,
   defineSeamsConfig,
   transfer,
   useSeams,
+  type HostedAuthMenuOutcome,
   type LoginState,
   type SeamsContextType,
   type WalletShapeId,
-} from '@seams/wallet/react';
-import {
-  HostedSeamsAuthMenu,
-  type HostedAuthMenuOutcome,
-} from '@seams/wallet/react/hosted-seams-auth-menu';
+} from '@seams/mpc-wallet/react';
 import {
   provisionLocalWorkspace,
   restoreLocalWorkspace,

@@ -4,10 +4,10 @@ import { signingSessionSealOprfInfo } from '@shared/utils/signingSessionSeal';
 import {
   createSigningSessionSealEvaluator,
   warmSigningSessionSealRuntime,
-} from '../../packages/wallet-server/src/threshold/session/signingSessionSeal/crypto/oprf';
-import { createSigningSessionSealService } from '../../packages/wallet-server/src/threshold/session/signingSessionSeal/service';
-import { parseSigningSessionSealEvaluateBody } from '../../packages/wallet-server/src/threshold/session/signingSessionSeal/transport/shared';
-import type { SigningSessionSealAuthContext } from '../../packages/wallet-server/src/threshold/session/signingSessionSeal/signingSessionSeal.types';
+} from '../../packages/mpc-wallet-server/src/threshold/session/signingSessionSeal/crypto/oprf';
+import { createSigningSessionSealService } from '../../packages/mpc-wallet-server/src/threshold/session/signingSessionSeal/service';
+import { parseSigningSessionSealEvaluateBody } from '../../packages/mpc-wallet-server/src/threshold/session/signingSessionSeal/transport/shared';
+import type { SigningSessionSealAuthContext } from '../../packages/mpc-wallet-server/src/threshold/session/signingSessionSeal/signingSessionSeal.types';
 import {
   oprf_client_blind,
   oprf_client_finalize,

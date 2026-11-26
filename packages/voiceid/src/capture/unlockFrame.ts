@@ -2,9 +2,9 @@ import { createElement, render } from 'preact';
 import {
   createCspStylesheetManager,
   getDefaultCspNonce,
-} from '@seams/wallet/voiceid-host';
-import { SeamsWordmark } from '@seams/wallet/voiceid-host';
-import { backIcon } from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
+import { SeamsWordmark } from '@seams/mpc-wallet/voiceid';
+import { backIcon } from '@seams/mpc-wallet/voiceid';
 import type { VoicePrompt } from '@seams/voice-capture/card';
 
 const CSS = `

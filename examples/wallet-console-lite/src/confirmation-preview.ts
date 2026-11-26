@@ -1,4 +1,4 @@
-import '@seams/wallet/react/styles';
+import '@seams/mpc-wallet/styles.css';
 import '@wallet-preview/sdk/wallet-ui.css';
 import './confirmation-preview.css';
 import { mountConfirmUI } from '@wallet-preview/core/signingEngine/uiConfirm/ui/confirm-ui';

@@ -1,22 +1,22 @@
 ---
 title: React SDK
-description: Providers, hooks, components, hosted auth surfaces, and theme exports available from @seams/wallet/react.
+description: Providers, hooks, components, hosted auth surfaces, and theme exports available from @seams/mpc-wallet/react.
 ---
 
 # React SDK
 
-For Seams authentication and custody, import React integrations from `@seams/wallet/react` and place consumers inside a
+For Seams authentication and custody, import React integrations from `@seams/mpc-wallet/react` and place consumers inside a
 `SeamsWebProvider` or `SeamsContextProvider`.
 
 ```tsx [Import example]
-import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/react';
+import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/mpc-wallet/react';
 ```
 
 ## External NEAR bindings
 
-The development preview uses `@seams/wallet/react/external-near`.
-Its picker and hook require an `ExternalNearController`, independently of the
-Seams providers below. The picker disconnects on unmount; the hook only subscribes.
+The development preview uses `@seams/wallet-connect/react`.
+Its picker and hook require an `ExternalNearController` from `@seams/wallet-connect/client`,
+independently of the Seams providers below. The picker disconnects on unmount; the hook only subscribes.
 See the [compiled example and availability notice](/guides/external-near-wallets#react-example).
 
 The picker displays only the controller's configured `wallets`. Change the list
@@ -91,8 +91,8 @@ in one wallet-origin screen. Pass `walletAlternatives` to choose the groups and 
 Omit it to hide both groups. Empty arrays hide their own headings and controls.
 
 ```tsx [Partial example]
-import { HostedSeamsAuthMenu } from '@seams/wallet/react';
-import { ExternalNearController } from '@seams/wallet/external-near';
+import { HostedSeamsAuthMenu } from '@seams/mpc-wallet/react';
+import { ExternalNearController } from '@seams/wallet-connect/client';
 
 const nearWallets = new ExternalNearController({
   network: 'testnet',
@@ -169,8 +169,8 @@ Both modes require `isMenuOpen` and `onMenuOpenChange` and render no SDK trigger
 
 ```tsx [Partial example]
 import { useState } from 'react';
-import { AccountMenuButton, useSeams } from '@seams/wallet/react';
-import '@seams/wallet/react/styles';
+import { AccountMenuButton, useSeams } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 function WalletSettingsControl() {
   const [open, setOpen] = useState(false);
@@ -232,8 +232,8 @@ or accesses wallet storage. Export keys opens the shared key-selection screen. I
 choices show an authentication-required summary.
 
 ```tsx [Partial example]
-import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
-import '@seams/wallet/react/styles';
+import { AccountMenuButtonMock } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```
@@ -256,13 +256,10 @@ the deployment and the current device allow it. The setting uses
 `useSeams().seams.placement`. See [Wallet region](/reference/core#wallet-region) for
 the calls, their results, and the unlock that each device needs after a move.
 
-Focused entrypoints are available for applications that need smaller or
-SSR-specific imports:
-
-- `@seams/wallet/react/provider`.
-- `@seams/wallet/react/profile`.
-- `@seams/wallet/react/hosted-seams-auth-menu`.
-- `@seams/wallet/react/styles`.
+All of these exports come from `@seams/mpc-wallet/react`, and the stylesheet from
+`@seams/mpc-wallet/styles.css`. A bundler keeps only the components that your app uses.
+`@seams/mpc-wallet/react` also exports `VoiceAssistantCard` and `VoiceBeam`, which work without
+`SeamsWebProvider`.
 
 ## Custom transaction review
 

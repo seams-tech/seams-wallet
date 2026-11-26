@@ -3,7 +3,7 @@ import { recordVoice, type VoiceCaptureEvent } from '@seams/voice-capture';
 import { VoicePrompt } from '@seams/voice-capture/card';
 import { configureVoiceIdCapture } from '@voiceid/capture/configure';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
-import { WorkerDeferred } from '@seams/wallet/voiceid-host';
+import { WorkerDeferred } from '@seams/mpc-wallet/voiceid';
 
 // The capture package reads the Wallet's settings, as in the Wallet host.
 configureVoiceIdCapture();

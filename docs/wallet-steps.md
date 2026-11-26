@@ -12,7 +12,7 @@ card does. App content never renders inside the Wallet iframe.
 ## The sign-in step
 
 ```tsx
-import { HostedSeamsAuthMenu } from '@seams/wallet/react';
+import { HostedSeamsAuthMenu } from '@seams/mpc-wallet/react';
 
 function SignInStep({ heldHeight, onCardReady, onSignedIn, onBack }) {
   const [height, setHeight] = useState(heldHeight);
@@ -94,7 +94,7 @@ await seams.speakToSign.requestNote({ walletId, contract, postId, text, summary,
 Unmount it to end the card. Each mount starts one call.
 
 ```tsx
-import { WalletStep } from '@seams/wallet/react';
+import { WalletStep } from '@seams/mpc-wallet/react';
 
 {step === 'confirm' && (
   <WalletStep
@@ -124,7 +124,7 @@ It returns `{ result, dispose }`. `dispose()` ends the card as `cancelled`.
 ## App steps inside the Wallet's own modal
 
 When the app has no dialog of its own, the Wallet's modal can hold the app's steps. These steps
-need `TransactionReviewHost` from `@seams/wallet/react`; without it, the call rejects with
+need `TransactionReviewHost` from `@seams/mpc-wallet/react`; without it, the call rejects with
 `review_host_unavailable`.
 
 A transaction takes `steps: { title, validity, before, after }`. `before` shows before the
@@ -290,8 +290,8 @@ The attribute and the variable stay as internal details. Do not build new code o
 
 The SDK and the hosted Wallet ship together. A Wallet host without these changes rejects an
 auth-menu request that has `chrome`, draws no Back on the transaction card, and does not hold
-the card's controls. `@seams/voiceid` ships with the same release: its card reads the Back
-and Close controls from the Wallet host.
+the card's controls. The VoiceID host plugin of `@seams/host` ships with the same release: its
+card reads the Back and Close controls from the Wallet host.
 
 `'back_and_close'` needs a Wallet host that knows it. An older host rejects it in an
 auth-menu request. On the transaction and VoiceID cards, an older host ignores it: each card

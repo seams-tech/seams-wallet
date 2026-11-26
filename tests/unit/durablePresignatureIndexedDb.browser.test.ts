@@ -252,9 +252,9 @@ async function runDurablePresignatureChecks(page: Page): Promise<DurablePresigna
   const bundle = await build({
     stdin: {
       contents: `
-        export * as storeModule from './packages/wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
-        export * as managerModule from './packages/wallet/src/core/indexedDB/seamsWalletDB/manager';
-        export * as schemaModule from './packages/wallet/src/core/indexedDB/schemaNames';
+        export * as storeModule from './packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+        export * as managerModule from './packages/mpc-wallet/src/core/indexedDB/seamsWalletDB/manager';
+        export * as schemaModule from './packages/mpc-wallet/src/core/indexedDB/schemaNames';
         export * as encoders from './packages/shared-ts/src/utils/base64';
         export * as digests from './packages/shared-ts/src/utils/digests';
         export * as ecdsaDerivation from './packages/shared-ts/src/utils/routerAbEcdsaDerivation';
@@ -267,7 +267,7 @@ async function runDurablePresignatureChecks(page: Page): Promise<DurablePresigna
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
-    tsconfig: path.join(root, 'packages/wallet/tsconfig.json'),
+    tsconfig: path.join(root, 'packages/mpc-wallet/tsconfig.json'),
   });
   await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
   await page.route(

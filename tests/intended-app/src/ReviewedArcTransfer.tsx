@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSeams, type BoundWallet } from '@seams/wallet/react';
+import { useSeams, type BoundWallet } from '@seams/mpc-wallet/react';
 import { renderDirectWalletReview } from './DirectWalletReview';
 
 type Seams = ReturnType<typeof useSeams>['seams'];

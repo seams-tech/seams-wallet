@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 const modulePath = '/_test-sdk/esm/react/components/AccountMenuButton/index.js';
 const { AccountMenuButtonMock } = (await import(
   modulePath
-)) as typeof import('../../../packages/wallet/src/react/components/AccountMenuButton');
+)) as typeof import('../../../packages/mpc-wallet/src/react/components/AccountMenuButton');
 const stylesheet = document.createElement('link');
 stylesheet.rel = 'stylesheet';
 stylesheet.href = '/_test-sdk/esm/react/styles/styles.css';

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { buildWalletServiceHtml as buildWalletHostServiceHtml } from '@/plugins/plugin-utils';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildWalletServiceHtml, initRouter, registerWalletServiceRoute } from './harness';
-import { WALLET_PROTOCOL_VERSION } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+import { WALLET_PROTOCOL_VERSION } from '../../packages/mpc-wallet/src/SeamsWeb/walletIframe/shared/messages';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service';

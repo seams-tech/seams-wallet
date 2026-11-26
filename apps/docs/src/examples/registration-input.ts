@@ -1,5 +1,5 @@
-import type { SeamsWeb } from '@seams/wallet';
-import { parseWebAuthnRpId } from '@seams/wallet/advanced';
+import type { SeamsWeb } from '@seams/mpc-wallet/client';
+import { parseWebAuthnRpId } from '@seams/mpc-wallet/client';
 
 const rpId = parseWebAuthnRpId('wallet.example.com');
 if (!rpId.ok) throw new Error(rpId.error.message);

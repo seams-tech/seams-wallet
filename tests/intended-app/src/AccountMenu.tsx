@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 
 async function loadAccountMenu() {
-  const { AccountMenuButton } = await import('@seams/wallet/react');
+  const { AccountMenuButton } = await import('@seams/mpc-wallet/react');
   return { default: AccountMenuButton };
 }
 

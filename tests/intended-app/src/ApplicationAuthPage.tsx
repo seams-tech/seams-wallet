@@ -1,9 +1,9 @@
-import { ActionType, type OwnerNearOperation, type WalletSession } from '@seams/wallet';
+import { ActionType, type OwnerNearOperation, type WalletSession } from '@seams/mpc-wallet/client';
 import {
   useSeams,
   type TransactionReviewControls,
   type TransactionReviewSurface,
-} from '@seams/wallet/react';
+} from '@seams/mpc-wallet/react';
 import React from 'react';
 import { ApplicationAuthExample } from '../../../examples/seams-auth-menu/src/ApplicationAuth';
 

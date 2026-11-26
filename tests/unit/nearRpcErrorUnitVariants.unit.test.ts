@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { NearRpcError } from '@/core/rpcClients/near/NearRpcError';
 import { nearTransactionRejection } from '@/core/rpcClients/near/nearTransactionRejection';
 import { getNearShortErrorMessage } from '@shared/utils/near';
-import { NearRpcError as ServerNearRpcError } from '../../packages/wallet-server/src/core/rpcClients/near/NearClient';
+import { NearRpcError as ServerNearRpcError } from '../../packages/mpc-wallet-server/src/core/rpcClients/near/NearClient';
 
 function sendTxError(data: unknown) {
   return {

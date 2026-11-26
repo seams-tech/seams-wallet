@@ -11,14 +11,14 @@ const bundle = await build({
   format: 'esm',
   platform: 'browser',
   write: false,
-  tsconfig: 'packages/wallet/tsconfig.json',
+  tsconfig: 'packages/mpc-wallet/tsconfig.json',
   stdin: {
     resolveDir: process.cwd(),
     loader: 'tsx',
     contents: `
       import React from "react";
       import { createRoot } from "react-dom/client";
-      import { WalletRegionSection } from "./packages/wallet/src/react/components/AccountMenuButton/WalletRegionSection";
+      import { WalletRegionSection } from "./packages/mpc-wallet/src/react/components/AccountMenuButton/WalletRegionSection";
       const walletId = "settings-wallet.testnet";
       let intent = null;
       let calls = [];
@@ -106,7 +106,7 @@ const bundle = await build({
 });
 const source = bundle.outputFiles[0].text;
 const css = await readFile(
-  'packages/wallet/src/react/components/AccountMenuButton/WalletSettingsLayout.css',
+  'packages/mpc-wallet/src/react/components/AccountMenuButton/WalletSettingsLayout.css',
   'utf8',
 );
 const browser = await chromium.launch();

@@ -8,7 +8,7 @@ import {
   reportCardProgress,
   type AuthMethodPhraseSurface,
   type WalletAuthMethodHostPlugin,
-} from '@seams/wallet/voiceid-host';
+} from '@seams/mpc-wallet/voiceid';
 import { openPhraseCard, type PhraseCardControls } from '@seams/voice-capture/card';
 
 type PhraseInput = Parameters<WalletAuthMethodHostPlugin['openPhrase']>[0];

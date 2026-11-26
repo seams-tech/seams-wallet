@@ -15,7 +15,7 @@
           "binding": "SIGNER_DB",
           "database_name": "r150-bench-20260925-d1-signer-db",
           "database_id": "__R150_BENCH_D1_SIGNER_DB_ID__",
-          "migrations_dir": "../../../packages/wallet-server/migrations/d1-signer"
+          "migrations_dir": "../../../packages/mpc-wallet-server/migrations/d1-signer"
         }
       ],
       "services": [
@@ -66,7 +66,7 @@
           "binding": "SIGNER_DB",
           "database_name": "r150-bench-20260925-do-signer-db",
           "database_id": "__R150_BENCH_DO_SIGNER_DB_ID__",
-          "migrations_dir": "../../../packages/wallet-server/migrations/d1-signer"
+          "migrations_dir": "../../../packages/mpc-wallet-server/migrations/d1-signer"
         }
       ],
       "services": [

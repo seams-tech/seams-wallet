@@ -1,6 +1,6 @@
 import React from 'react';
-import { useSeams } from '@seams/wallet/react';
-import type { GoogleEmailOtpWalletAuthLoginFlow } from '@seams/wallet';
+import { useSeams } from '@seams/mpc-wallet/react';
+import type { GoogleEmailOtpWalletAuthLoginFlow } from '@seams/mpc-wallet/client';
 
 type Auth = ReturnType<typeof useSeams>['seams']['auth'];
 type State =

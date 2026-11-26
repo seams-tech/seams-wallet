@@ -136,7 +136,7 @@ await seams.auth.removeExternalAuth({ walletId, associationId });
 ## 検証 {#verification}
 
 パッケージの対応バージョンとウォレットiframeプロトコルは、[リリースノート](/ja/releases)を参照してください。
-リポジトリのルートで、`pnpm -C packages/wallet build:sdk`の後に`node tests/e2e/external-auth.e2e.mjs`を実行します。
+リポジトリのルートで、`pnpm -C packages/mpc-wallet build:sdk`の後に`node tests/e2e/external-auth.e2e.mjs`を実行します。
 構造化された結果と設定画面の画像を、`.artifacts/external-auth/`に保存します。
 E2Eは生成したテストトークンと、テスト専用のGoogle公開鍵の差し替えを使います。
 実際の利用を有効にする前に、アプリのGoogleログインとログアウトを検証してください。

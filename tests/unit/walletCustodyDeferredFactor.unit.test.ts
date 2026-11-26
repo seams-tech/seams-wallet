@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   runWalletCustodyKeySetCeremony,
   type WalletCustodyCeremonyStepRunner,
-} from '../../packages/wallet/src/core/signingEngine/walletCustody/ceremonyDriver';
+} from '../../packages/mpc-wallet/src/core/signingEngine/walletCustody/ceremonyDriver';
 
 /** Records which worker steps ran, and answers as the custody worker does. */
 class RecordedWorker {

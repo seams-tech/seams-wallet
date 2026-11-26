@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSeams, type BoundEvmSigner, type TransactionReviewControls } from '@seams/wallet/react';
+import { useSeams, type BoundEvmSigner, type TransactionReviewControls } from '@seams/mpc-wallet/react';
 
 type SigningInput = Pick<
   Parameters<BoundEvmSigner['signTransaction']>[0],

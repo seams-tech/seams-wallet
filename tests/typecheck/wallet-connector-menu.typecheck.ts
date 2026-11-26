@@ -1,6 +1,6 @@
-import type { ExternalNearController } from '@/externalNear/controller';
-import type { ExternalEvmController } from '@/externalEvm/controller';
-import type { ExternalEvmWallet } from '@/externalEvm/types';
+import type { ExternalNearController } from '@wallet-connect/externalNear/controller';
+import type { ExternalEvmController } from '@wallet-connect/externalEvm/controller';
+import type { ExternalEvmWallet } from '@wallet-connect/externalEvm/types';
 import type { HostedSeamsAuthMenuProps } from '@/react/components/HostedSeamsAuthMenu/types';
 import type { WalletAlternative } from '@/react/components/HostedSeamsAuthMenu/walletAlternatives';
 import type {

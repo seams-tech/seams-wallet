@@ -15,18 +15,15 @@ export default defineConfig(({ mode }) => {
   const walletAliases = walletDistRoot
     ? [
         {
-          find: /^@seams\/wallet\/react\/styles$/,
+          find: /^@seams\/mpc-wallet\/styles\.css$/,
           replacement: `${walletDistRoot}/esm/react/styles/styles.css`,
         },
         {
-          find: /^@seams\/wallet\/react$/,
+          find: /^@seams\/mpc-wallet\/react$/,
           replacement: `${walletDistRoot}/esm/react/index.js`,
         },
-        {
-          find: /^@seams\/wallet\/advanced$/,
-          replacement: `${walletDistRoot}/esm/advanced.js`,
-        },
-        { find: /^@seams\/wallet$/, replacement: `${walletDistRoot}/esm/index.js` },
+        { find: /^@seams\/mpc-wallet\/client$/, replacement: `${walletDistRoot}/esm/client.js` },
+        { find: /^@seams\/mpc-wallet\/voiceid$/, replacement: `${walletDistRoot}/esm/voiceid.js` },
       ]
     : [];
 

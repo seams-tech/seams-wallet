@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   buildEnvelopeAAD,
   normalizePayloadEnvelope,
-} from '../../packages/wallet/src/core/indexedDB/keyMaterialEnvelope';
+} from '../../packages/mpc-wallet/src/core/indexedDB/keyMaterialEnvelope';
 
 const expectedAAD = buildEnvelopeAAD({
   profileId: 'wallet-1',

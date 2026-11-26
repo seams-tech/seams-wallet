@@ -1,13 +1,13 @@
 import {
   createStaticWalletConsoleBindingV1,
   parseStaticWalletConsoleBindingConfigV1,
-} from '../../../packages/wallet-server/src/router/cloudflare/runtime/staticWalletConsoleBinding';
+} from '../../../packages/mpc-wallet-server/src/router/cloudflare/runtime/staticWalletConsoleBinding';
 import {
   handleSplitGatewayRequest,
   type CloudflareD1GatewayBaseEnv,
   type CloudflareD1GatewayEnv,
-} from '../../../packages/wallet-server/src/hosted-wallet-gateway';
-import type { CfExecutionContext } from '../../../packages/wallet-server/src/router/cloudflare/runtime/cloudflare.types';
+} from '../../../packages/mpc-wallet-server/src/hosted-wallet-gateway';
+import type { CfExecutionContext } from '../../../packages/mpc-wallet-server/src/router/cloudflare/runtime/cloudflare.types';
 import { TracedD1Database } from './d1Trace';
 
 type BenchmarkGatewayEnv = CloudflareD1GatewayBaseEnv & {

@@ -118,7 +118,7 @@ function assetFile(pathname: string): string {
     return path.resolve(import.meta.dirname, '../fixtures/audio/aurora/natural/0.wav');
   }
   if (pathname === '/sdk/wallet-ui.css') {
-    return path.resolve(import.meta.dirname, '../../packages/wallet/dist/public/sdk/wallet-ui.css');
+    return path.resolve(import.meta.dirname, '../../packages/mpc-wallet/dist/public/sdk/wallet-ui.css');
   }
   return path.join(sdk, pathname.slice('/sdk/'.length));
 }

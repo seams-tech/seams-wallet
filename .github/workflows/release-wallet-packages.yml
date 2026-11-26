@@ -4,20 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact Wallet, server, and VoiceID package version
+        description: Exact version of @seams/host, @seams/wallet-connect and @seams/mpc-wallet
         required: true
         type: string
       package:
         description: >-
-          Packages to publish, in the order server, wallet, voiceid; wallet and voiceid
-          retry a partial release from that package onward
+          Packages to publish, in the order host, wallet-connect, mpc-wallet; wallet-connect
+          and mpc-wallet retry a partial release from that package onward
         required: true
         default: all
         type: choice
         options:
           - all
-          - wallet
-          - voiceid
+          - wallet-connect
+          - mpc-wallet
 
 permissions:
   actions: read
@@ -53,18 +53,21 @@ jobs:
             echo "reuse=false" >> "$GITHUB_OUTPUT"
             exit 0
           }
-          published="$(npm view @seams/wallet-server version)"
-          source_commit="$(npm view "@seams/wallet-server@$published" gitHead)"
+          # The first @seams/host release has no published package to reuse.
+          if ! published="$(npm view @seams/host version 2>/dev/null)" || [ -z "$published" ]; then
+            build_on_mac "No @seams/host release is published yet"
+          fi
+          source_commit="$(npm view "@seams/host@$published" gitHead)"
           if ! git cat-file -e "$source_commit^{commit}" 2>/dev/null; then
-            build_on_mac "This checkout has no $source_commit, the source of @seams/wallet-server@$published"
+            build_on_mac "This checkout has no $source_commit, the source of @seams/host@$published"
           fi
           inputs_hash() { node scripts/rust-build-inputs.mjs --outputs local-tools --commit "$1"; }
           if [ "$(inputs_hash "$source_commit")" != "$(inputs_hash HEAD)" ]; then
-            build_on_mac "The local-tools inputs changed since @seams/wallet-server@$published"
+            build_on_mac "The local-tools inputs changed since @seams/host@$published"
           fi
           rustc_commit="$(rustc -vV | sed -n 's/^commit-hash: //p')"
           mkdir -p .artifacts/published crates/router-ab-cloudflare/build/local-tools
-          npm pack "@seams/wallet-server@$published" --pack-destination .artifacts/published
+          npm pack "@seams/host@$published" --pack-destination .artifacts/published
           tar -xzf .artifacts/published/*.tgz -C .artifacts/published
           for platform in darwin-arm64 darwin-x64; do
             binary=".artifacts/published/package/cloudflare-router-ab/build/local-tools/$platform/router_ab_local_init"
@@ -78,7 +81,7 @@ jobs:
             cp -R ".artifacts/published/package/cloudflare-router-ab/build/local-tools/$platform" \
               crates/router-ab-cloudflare/build/local-tools/
           done
-          echo "Reusing the Mac local tools of @seams/wallet-server@$published ($source_commit, rustc $rustc_commit)."
+          echo "Reusing the Mac local tools of @seams/host@$published ($source_commit, rustc $rustc_commit)."
           echo "reuse=true" >> "$GITHUB_OUTPUT"
       - if: steps.reuse.outputs.reuse == 'true'
         uses: actions/upload-artifact@v7
@@ -142,9 +145,9 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          test "$(node -p "require('./packages/wallet/package.json').version")" = "$RELEASE_VERSION"
-          test "$(node -p "require('./packages/wallet-server/package.json').version")" = "$RELEASE_VERSION"
-          test "$(node -p "require('./packages/voiceid/package.json').version")" = "$RELEASE_VERSION"
+          test "$(node -p "require('./packages/mpc-wallet/package.json').version")" = "$RELEASE_VERSION"
+          test "$(node -p "require('./packages/mpc-wallet-server/package.json').version")" = "$RELEASE_VERSION"
+          test "$(node -p "require('./packages/wallet-connect/package.json').version")" = "$RELEASE_VERSION"
       # wasm-pack and wasm-bindgen: upstream prebuilt binaries with pinned
       # SHA-256 digests. GH_TOKEN makes their downloads authenticated API
       # calls, because GitHub can answer anonymous release downloads with 504
@@ -153,7 +156,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bash packages/wallet/scripts/build/install-prebuilt-wasm-tools.sh \
+          bash packages/mpc-wallet/scripts/build/install-prebuilt-wasm-tools.sh \
             --wasm-pack-dir "$RUNNER_TEMP/wasm-pack"
           echo "$RUNNER_TEMP/wasm-pack" >> "$GITHUB_PATH"
       # Wallet validation builds and tests dev WASM packages, so the release
@@ -166,9 +169,9 @@ jobs:
             all)
               pnpm run build:wasm
               ;;
-            wallet|voiceid)
-              pnpm -C packages/wallet build:sdk-full
-              pnpm -C packages/voiceid build
+            wallet-connect|mpc-wallet)
+              pnpm -C packages/wallet-connect build
+              pnpm -C packages/mpc-wallet build:sdk-full
               ;;
             *)
               echo "Unsupported release package: $SEAMS_RELEASE_PACKAGE" >&2
@@ -247,26 +250,27 @@ jobs:
         run: |
           mkdir -p .artifacts/npm
           if [ "$SEAMS_RELEASE_PACKAGE" = all ]; then
-            npm pack ./packages/wallet-server --pack-destination .artifacts/npm
+            npm pack ./packages/mpc-wallet-server --pack-destination .artifacts/npm
           fi
-          if [ "$SEAMS_RELEASE_PACKAGE" = all ] || [ "$SEAMS_RELEASE_PACKAGE" = wallet ]; then
-            npm pack ./packages/wallet --pack-destination .artifacts/npm
+          if [ "$SEAMS_RELEASE_PACKAGE" = all ] || [ "$SEAMS_RELEASE_PACKAGE" = wallet-connect ]; then
+            npm pack ./packages/wallet-connect --pack-destination .artifacts/npm
           fi
-          npm pack ./packages/voiceid --pack-destination .artifacts/npm
+          npm pack ./packages/mpc-wallet --pack-destination .artifacts/npm
       - uses: actions/upload-artifact@v7
         with:
           name: wallet-packages-${{ inputs.version }}-${{ github.sha }}
           path: .artifacts/npm/*.tgz
           if-no-files-found: error
           retention-days: 30
-      - name: Publish @seams/wallet-server
+      - name: Publish @seams/host
         if: inputs.package == 'all'
-        working-directory: packages/wallet-server
+        working-directory: packages/mpc-wallet-server
         run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
-      - name: Publish @seams/wallet
-        if: inputs.package == 'all' || inputs.package == 'wallet'
-        working-directory: packages/wallet
+      - name: Publish @seams/wallet-connect
+        if: inputs.package == 'all' || inputs.package == 'wallet-connect'
+        working-directory: packages/wallet-connect
         run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"
-      - name: Publish @seams/voiceid
-        working-directory: packages/voiceid
+      # The MPC wallet names @seams/wallet-connect as a peer, so it publishes last.
+      - name: Publish @seams/mpc-wallet
+        working-directory: packages/mpc-wallet
         run: npm publish --access public --provenance --tag "$NPM_DIST_TAG"

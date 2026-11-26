@@ -150,7 +150,7 @@ function readCss(name: string): string {
   return fs.readFileSync(
     path.resolve(
       import.meta.dirname,
-      `../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/${name}.css`,
+      `../../packages/mpc-wallet/src/core/signingEngine/uiConfirm/ui/preact/${name}.css`,
     ),
     'utf8',
   );

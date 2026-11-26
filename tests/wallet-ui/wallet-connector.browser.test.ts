@@ -46,8 +46,8 @@ const application = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { HostedSeamsAuthMenu } from '/_test-sdk/esm/react/components/HostedSeamsAuthMenu/public.js';
-import { ExternalNearController } from '/_test-sdk/esm/externalNear/index.js';
-import { ExternalEvmController } from '/_test-sdk/esm/externalEvm/index.js';
+import { ExternalNearController } from '/_test-sdk/esm/wallet-connect/client.js';
+import { ExternalEvmController } from '/_test-sdk/esm/wallet-connect/client.js';
 const controller = new ExternalNearController({
   network: 'testnet',
   rpcUrl: location.origin + '/near-rpc',

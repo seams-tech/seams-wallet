@@ -31,8 +31,8 @@ const compilers = [
 ];
 const projects = [
   'packages/shared-ts/tsconfig.json',
-  'packages/wallet-server/tsconfig.json',
-  'packages/wallet/tsconfig.json',
+  'packages/mpc-wallet-server/tsconfig.json',
+  'packages/mpc-wallet/tsconfig.json',
   'apps/docs/tsconfig.json',
   'examples/seams-auth-menu/tsconfig.json',
   'examples/wallet-console-lite/tsconfig.json',
@@ -42,8 +42,8 @@ const projects = [
   'tests/tsconfig.wallet-browser.json',
 ];
 const builds = [
-  'packages/wallet-server/tsconfig.build.json',
-  'packages/wallet/tsconfig.build.json',
+  'packages/mpc-wallet-server/tsconfig.build.json',
+  'packages/mpc-wallet/tsconfig.build.json',
 ];
 
 function digest(contents) {

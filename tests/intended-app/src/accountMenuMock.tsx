@@ -1,8 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
-import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
-import '@seams/wallet/react/styles';
+import { AccountMenuButtonMock } from '@seams/mpc-wallet/react';
+import '@seams/mpc-wallet/styles.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Account menu preview requires a root element.');
