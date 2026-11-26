@@ -1,7 +1,7 @@
 # Refactor 251: Auth, the MPC wallet, wallet connectors and checkout as separate modules
 
-Status: 2026-11-18. Plan only. Nothing is built. Revised on 2026-11-18 after a review of the
-architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
+Status: 2026-11-27. Slices 0 and 2 are done, and Slice 1 (Release A) is built on `dev` and waits
+for the owner's release. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
 plan. The design of [Refactor 233](refactor-233-auth-methods-by-factor.md) (factors, gates, one
 app API for methods) is the design of the new auth core.
 
@@ -684,6 +684,37 @@ Rules for the cleanup:
     names.
   - Tell the other sessions first. Each open branch conflicts with a rename of this size.
   - The names are final (D22, D23). This slice waits for no brand rename.
+
+  Built on 2026-11-27 in `f2f04a133` on `dev`, not pushed or published. The parts:
+  - Folders: `packages/mpc-wallet` (`@seams/mpc-wallet`), `packages/wallet-connect`
+    (`@seams/wallet-connect`), `packages/mpc-wallet-server` (publishes `@seams/host` until
+    Slice 4 creates `packages/host`), `packages/cli` (`@seams/cli`, still 0.29.0, because the
+    launcher downloads the `seams-cli-v0.29.0` release) and `packages/voiceid`, now the
+    internal `@seams-internal/voiceid` that `@seams/host` ships as `/voiceid`.
+  - The exports follow the map of the [Slice 0 inventory](refactor-251-slice-0-inventory.md),
+    with no root path. `/client` holds the old root, `/advanced`, `/threshold` and `/runtime`;
+    `/react` holds the profile, provider and hosted auth menu paths and the VoiceID card. The
+    connectors moved and are no longer in `/client` or `/react`.
+  - `@seams/mpc-wallet` names `@seams/wallet-connect` as a required peer: the hosted auth menu
+    takes the connector controllers as wallet alternatives and reads `nearWalletName`. It
+    depends on `voice-glow` (for `VoiceBeam`) and no longer on `viem` or `borsh`.
+  - The connector cleanup (Section 7): the local `isRecord` copy became `isPlainObject`, a direct
+    `bs58` import became `base58Decode`, the EVM client, the wallet icon parser and the NEAR brand
+    images moved to `shared-ts` (one copy for both packages), and the pickers draw their own
+    theme boundary in place of the wallet `Theme`, which their CSS never read.
+  - Checks: the wallet-connect build refuses a bundled module outside its source, a listed
+    generic shared helper or a third-party package. The packed-package check refuses a root
+    path, server code in `/client` or `/react`, browser code in `/server`, and an old package
+    name in a packed file. `scripts/check-package-names.mjs` (in CI) refuses an old package
+    name in tracked code.
+  - The bundle check of the inventory: Rolldown (Vite 8) and esbuild show no growth for an app
+    that imports only the old root or only one old React path. Bun does not drop the modules
+    that `/client` re-exports, so a Bun bundle of `SeamsWeb` alone grows from 87,665 to
+    102,434 bytes gzip, and a Bun bundle of the auth menu alone keeps the QR libraries. Open
+    for the owner: accept this, or keep `/runtime` as its own path.
+  - Open: the owner's release steps (versions, the first publish of the three new names (U1),
+    the CLI publish, the deprecation messages) and the Console commit, planned in the notes of
+    this session.
 - **Slice 2: the conformance suite.** The journeys, the record fixtures and the route checks of
   Section 2, with the driver for the old API. The suite passes against the old code.
 

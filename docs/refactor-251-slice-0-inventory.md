@@ -266,6 +266,9 @@ Result: Release A publishes 5 paths of `@seams/mpc-wallet` (`/client`, `/react`,
 `/voiceid`, `/styles.css`), 2 of `@seams/wallet-connect`, 16 of `@seams/host` and the CLI.
 Release B removes `/voiceid` from the MPC wallet.
 
+Slice 1 built this map on 2026-11-27. The bundle check: Rolldown and esbuild show no growth for
+an app that does not use a merged entry; Bun does (see Slice 1 in the plan).
+
 Entries with no importer in either repository: the wallet-server root, the two Worker entries,
 `storage/tenant-route`, `external-evm` and its React path, `wallet-iframe-client-html`, and the
 VoiceID root, React and styles entries. Apps reach VoiceID through `@seams/wallet/voiceid-host`
