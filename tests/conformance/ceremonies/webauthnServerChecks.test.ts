@@ -86,7 +86,21 @@ test('a registration with the expected challenge, origin and RP ID gives the COS
       credentialPublicKeyB64u: passkey.publicKeyB64u,
       counter: 0,
     },
+    authenticator: {
+      aaguid: '00000000-0000-0000-0000-000000000000',
+      backedUp: false,
+      transports: ['internal'],
+    },
   });
+});
+
+test('a registration without user verification is refused with its own code', async () => {
+  // The registration is valid in every other way, so the code names the one fault.
+  expect(await settleRegistration({ userVerified: false })).toEqual({
+    ok: false,
+    code: 'user_verification_required',
+  });
+  expect(await settleRegistration({ userVerified: true })).toEqual({ ok: true, code: '' });
 });
 
 test('a registration is refused for a wrong challenge, origin, RP ID hash or ceremony type', async () => {
@@ -218,6 +232,10 @@ for (const check of [storeAssertionCheck, d1AssertionCheck]) {
         [{ signingKey: otherSigningKey() }, 'not_verified'],
         // A counter that does not grow is a cloned or replayed authenticator.
         [{ counter: 1 }, 'invalid_assertion'],
+        // The authenticator did not verify the user, for example a security key with no PIN.
+        [{ userVerified: false }, 'user_verification_required'],
+        // A missing UV flag does not hide a bad signature.
+        [{ userVerified: false, signingKey: otherSigningKey() }, 'not_verified'],
       ];
       for (const [overrides, code] of refusals) {
         expect(await attempt(overrides), JSON.stringify(Object.keys(overrides))).toMatchObject({

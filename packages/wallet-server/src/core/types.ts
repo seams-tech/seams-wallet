@@ -1,9 +1,5 @@
 // Platform-agnostic types for server functionality
-import {
-  AuthenticatorOptions,
-  UserVerificationPolicy,
-  OriginPolicyInput,
-} from '@shared/utils/authenticatorOptions';
+import { AuthenticatorOptions, OriginPolicyInput } from '@shared/utils/authenticatorOptions';
 import type { InitInput } from '../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import type { Ed25519AuthorityScope } from '@shared/threshold/sessionPolicy';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -154,7 +150,7 @@ export interface NearReceiptOutcomeWithId {
 }
 
 // Re-export authenticator types from core
-export type { AuthenticatorOptions, UserVerificationPolicy, OriginPolicyInput };
+export type { AuthenticatorOptions, OriginPolicyInput };
 
 export interface WebAuthnAuthenticationCredential {
   id: string;

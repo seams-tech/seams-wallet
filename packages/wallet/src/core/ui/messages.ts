@@ -26,6 +26,10 @@ const walletMessages = [
   ['That took too long.', '時間がかかりすぎたため、操作を終了しました。'],
   ['Something went wrong.', 'エラーが発生しました。'],
   [
+    'This passkey did not check a PIN or biometric. Use a passkey with a PIN or biometric, or set a PIN on your security key.',
+    'このパスキーでは PIN または生体認証が確認されませんでした。PIN または生体認証を使うパスキーを使用するか、セキュリティキーに PIN を設定してください。',
+  ],
+  [
     'That recovery code can’t be used. Check the code and try again.',
     'このリカバリーコードは使用できません。コードを確認して、もう一度お試しください。',
   ],

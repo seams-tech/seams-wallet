@@ -266,7 +266,7 @@ function buildPasskeyCreationOptionsV1(input: {
     ],
     authenticatorSelection: {
       residentKey: 'required',
-      userVerification: 'preferred',
+      userVerification: 'required',
     },
     timeoutMs: 60_000,
     attestation: 'none',

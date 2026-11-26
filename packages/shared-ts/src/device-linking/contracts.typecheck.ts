@@ -242,7 +242,7 @@ const targetPreparation: LinkedDeviceTargetPreparationV1 = {
       { type: 'public-key', alg: -7 },
       { type: 'public-key', alg: -257 },
     ],
-    authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+    authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
     timeoutMs: 60_000,
     attestation: 'none',
     extensions: {

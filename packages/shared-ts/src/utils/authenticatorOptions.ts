@@ -1,9 +1,3 @@
-export enum UserVerificationPolicy {
-  Required = 'required',
-  Preferred = 'preferred',
-  Discouraged = 'discouraged',
-}
-
 export interface OriginPolicyInput {
   single: boolean | undefined;
   all_subdomains: boolean | undefined;
@@ -11,14 +5,12 @@ export interface OriginPolicyInput {
 }
 
 export interface AuthenticatorOptions {
-  userVerification: UserVerificationPolicy;
   originPolicy: OriginPolicyInput;
 }
 
 type AuthenticatorOptionsLike =
   | AuthenticatorOptions
   | {
-      userVerification: UserVerificationPolicy;
       originPolicy: {
         single: boolean | undefined;
         all_subdomains: boolean | undefined;
@@ -31,7 +23,6 @@ export function cloneAuthenticatorOptions(
 ): AuthenticatorOptions {
   const multiple = options.originPolicy?.multiple;
   return {
-    userVerification: options.userVerification,
     originPolicy: {
       single: options.originPolicy?.single,
       all_subdomains: options.originPolicy?.all_subdomains,

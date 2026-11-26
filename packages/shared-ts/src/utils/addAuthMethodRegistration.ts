@@ -32,7 +32,7 @@ export type WalletAddAuthMethodRegistrationOptions = {
   ];
   readonly authenticatorSelection: {
     readonly residentKey: 'required';
-    readonly userVerification: 'preferred';
+    readonly userVerification: 'required';
   };
   readonly timeoutMs: number;
   readonly attestation: 'none';
@@ -145,7 +145,7 @@ export function parseWalletAddAuthMethodRegistrationOptions(
       ),
       userVerification: literal(
         selection.userVerification,
-        'preferred',
+        'required',
         `${label}.authenticatorSelection.userVerification`,
       ),
     },

@@ -1,4 +1,3 @@
-import { UserVerificationPolicy } from '../types/authenticatorOptions';
 import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '@/core/config/presignatures';
 import {
@@ -148,7 +147,6 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
   },
   webauthn: {
     authenticatorOptions: {
-      userVerification: UserVerificationPolicy.Preferred,
       originPolicy: {
         single: undefined,
         all_subdomains: true,

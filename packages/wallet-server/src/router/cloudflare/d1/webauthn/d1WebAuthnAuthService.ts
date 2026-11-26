@@ -8,20 +8,14 @@ import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { failedVerification, failure } from '@shared/utils/failure';
 import type { RouterApiWebAuthnService } from '../../../framework/authServicePort';
-import { d1HostIsWithinWebAuthnRpId } from '../wallet/d1WalletAuthMethodBoundary';
 import {
   webAuthnCredentialIdB64uFromCredential,
-  webAuthnOriginHostnameOrEmpty,
-  decodeWebAuthnBase64UrlOrBase64,
   parseWebAuthnAuthenticationCredential,
-  parseWebAuthnClientDataJsonBase64url,
 } from '../../../auth/webAuthnCredentialCodecs';
 import {
-  nonNegativeSafeInteger,
   optionalNonNegativeInteger,
   parseD1BoundaryWalletId,
   parseD1BoundaryWalletIdResult,
-  parseJsonObject,
 } from '../auth/d1RouterApiAuthBoundary';
 import { CloudflareD1WebAuthnStore } from './d1WebAuthnStore';
 import {
@@ -38,6 +32,7 @@ import {
   webAuthnLoginEd25519,
   webAuthnSyncCredentialBinding,
 } from '../../../../core/authService/webauthnVerificationOutcomes';
+import { verifyPasskeyAssertion } from '../../../../core/authService/webauthn';
 
 export type D1WebAuthnWalletManifestSource = {
   getEd25519KeyManifestBySlot(input: {
@@ -80,12 +75,6 @@ type VerifyWebAuthnSyncAccountInput = Parameters<
 type VerifyWebAuthnSyncAccountResult = Awaited<
   ReturnType<RouterApiWebAuthnService['verifyWebAuthnSyncAccount']>
 >;
-
-type SimpleWebAuthnVerifier = (args: unknown) => Promise<unknown>;
-
-type SimpleWebAuthnServerModule = {
-  readonly verifyAuthenticationResponse?: SimpleWebAuthnVerifier;
-};
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error || '');
@@ -385,127 +374,18 @@ export class CloudflareD1WebAuthnAuthService {
         };
       }
 
-      try {
-        const clientData = parseWebAuthnClientDataJsonBase64url(
-          toOptionalTrimmedString(parseJsonObject(credential.response)?.clientDataJSON),
-        );
-        if (
-          !d1HostIsWithinWebAuthnRpId(
-            webAuthnOriginHostnameOrEmpty(clientData.origin),
-            String(rpId.value),
-          )
-        ) {
-          return {
-            success: false,
-            verified: false,
-            code: 'invalid_origin',
-            message: 'WebAuthn origin is not within rpId',
-          };
-        }
-      } catch (error: unknown) {
-        return {
-          success: false,
-          verified: false,
-          code: 'invalid_body',
-          message: errorMessage(error) || 'Invalid webauthn_authentication.response.clientDataJSON',
-        };
-      }
-
-      const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
-      if (!credentialId.ok) {
-        return {
-          success: false,
-          verified: false,
-          code: credentialId.code,
-          message: credentialId.message,
-        };
-      }
-      const authenticator = await this.webAuthnStore.readAuthenticator({
-        userId: userId.value,
-        credentialIdB64u: credentialId.credentialIdB64u,
+      const verified = await verifyPasskeyAssertion({
+        credential,
+        rpId: rpId.value,
+        expectedChallenge,
+        expectedOrigin,
+        readAuthenticator: (credentialIdB64u) =>
+          this.webAuthnStore.readAuthenticator({ userId: userId.value, credentialIdB64u }),
       });
-      if (!authenticator) {
-        return {
-          success: false,
-          verified: false,
-          code: 'unknown_credential',
-          message: 'Credential is not registered for user',
-        };
+      if (!verified.ok) {
+        return { success: false, verified: false, code: verified.code, message: verified.message };
       }
-
-      const mod = await loadSimpleWebAuthnServer();
-      const verifyAuthenticationResponse = mod.verifyAuthenticationResponse;
-      if (typeof verifyAuthenticationResponse !== 'function') {
-        return {
-          success: false,
-          verified: false,
-          code: 'unsupported',
-          message: 'WebAuthn verifier is unavailable in this runtime',
-        };
-      }
-
-      let credentialPublicKeyBytes: Uint8Array;
-      try {
-        credentialPublicKeyBytes = decodeWebAuthnBase64UrlOrBase64(
-          authenticator.credentialPublicKeyB64u,
-          'authenticator.credentialPublicKeyB64u',
-        );
-      } catch (error: unknown) {
-        return {
-          success: false,
-          verified: false,
-          code: 'internal',
-          message: `Stored credential public key is invalid: ${
-            errorMessage(error) || 'decode failed'
-          }`,
-        };
-      }
-
-      let verification: unknown;
-      try {
-        verification = await verifyAuthenticationResponse({
-          response: credential,
-          expectedChallenge,
-          expectedOrigin,
-          expectedRPID: rpId.value,
-          credential: {
-            id: credentialId.credentialIdB64u,
-            publicKey: credentialPublicKeyBytes,
-            counter: authenticator.counter,
-          },
-          requireUserVerification: false,
-        });
-      } catch (error: unknown) {
-        return {
-          success: false,
-          verified: false,
-          code: 'invalid_assertion',
-          message: errorMessage(error) || 'Authentication assertion verification threw',
-        };
-      }
-
-      const verificationRecord =
-        verification !== null && typeof verification === 'object' && !Array.isArray(verification)
-          ? (verification as Readonly<Record<string, unknown>>)
-          : null;
-      if (!verificationRecord || verificationRecord.verified !== true) {
-        return {
-          success: false,
-          verified: false,
-          code: 'not_verified',
-          message: 'Authentication verification failed',
-        };
-      }
-      const authenticationInfo = parseJsonObject(verificationRecord.authenticationInfo);
-      const newCounter = nonNegativeSafeInteger(authenticationInfo?.newCounter);
-      if (newCounter === null) {
-        return {
-          success: false,
-          verified: false,
-          code: 'internal',
-          message: 'Verifier omitted the authenticator counter',
-        };
-      }
+      const { authenticator, newCounter } = verified;
       return {
         success: true,
         verified: true,
@@ -750,18 +630,6 @@ export class CloudflareD1WebAuthnAuthService {
     } catch (error: unknown) {
       return failedVerification('internal', errorMessage(error) || 'Sync verification failed');
     }
-  }
-}
-
-async function loadSimpleWebAuthnServer(): Promise<SimpleWebAuthnServerModule> {
-  try {
-    return (await import('@simplewebauthn/server')) as SimpleWebAuthnServerModule;
-  } catch (error: unknown) {
-    throw new Error(
-      `Server WebAuthn route selected but '@simplewebauthn/server' dependency is not available: ${
-        errorMessage(error) || 'import failed'
-      }`,
-    );
   }
 }
 

@@ -19,11 +19,8 @@ import { applicationWalletHandoff } from '../../../examples/seams-auth-menu/src/
 import type {} from '../../intended-app/src/ApplicationAuthPage';
 import { readEnvFile } from '../../scripts/intended-google-oidc-env.mjs';
 import { authenticateApplicationPasskey } from './application-login';
-import {
-  addWebAuthnVirtualAuthenticator,
-  fulfillNearRpcStub,
-  waitForWalletIframeConfirmationSettlement,
-} from './harness';
+import { fulfillNearRpcStub, waitForWalletIframeConfirmationSettlement } from './harness';
+import { VirtualPasskeyAuthenticator } from './virtual-authenticator';
 import { openGatewayDatabase } from './local-gateway-database';
 import { nearTransactionHash } from './near-transaction-hash';
 import {
@@ -370,7 +367,7 @@ export async function verifyApplicationAuth(
   console.info('[application-auth] browser fixture start');
   const authenticator = await context.newCDPSession(page);
   await authenticator.send('WebAuthn.enable');
-  await addWebAuthnVirtualAuthenticator(authenticator);
+  await VirtualPasskeyAuthenticator.add(authenticator);
   const appOrigin = process.env.SEAMS_INTENDED_APP_URL || 'http://localhost:4201';
   const relayerUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100';
   const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);

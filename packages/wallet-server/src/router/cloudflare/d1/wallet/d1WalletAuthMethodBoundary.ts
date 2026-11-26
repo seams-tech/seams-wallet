@@ -428,21 +428,6 @@ export async function resolveD1AddAuthMethodExistingAuth(input: {
   };
 }
 
-export function d1HostIsWithinWebAuthnRpId(host: string, rpId: string): boolean {
-  const normalizedHost = host.toLowerCase();
-  const normalizedRpId = rpId.toLowerCase();
-  if (!normalizedHost || !normalizedRpId) return false;
-  const env = typeof process !== 'undefined' ? process.env : {};
-  if (
-    (env.NO_CADDY === '1' || env.VITE_NO_CADDY === '1') &&
-    (normalizedHost === 'localhost' || normalizedHost === '127.0.0.1') &&
-    normalizedRpId.endsWith('.localhost')
-  ) {
-    return true;
-  }
-  return normalizedHost === normalizedRpId || normalizedHost.endsWith(`.${normalizedRpId}`);
-}
-
 async function resolveD1WebAuthnExistingWalletAuth(input: {
   readonly credential: unknown;
   readonly rpId: WebAuthnRpId;

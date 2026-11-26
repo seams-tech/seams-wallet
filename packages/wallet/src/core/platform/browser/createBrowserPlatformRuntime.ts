@@ -435,7 +435,7 @@ function createBrowserAuthenticatorPort(
                     id: decodeBase64UrlArrayBuffer(operation.credentialIdB64u),
                   },
                 ],
-                userVerification: 'preferred',
+                userVerification: 'required',
                 extensions: prfExtensionInput(),
               },
               credentials,

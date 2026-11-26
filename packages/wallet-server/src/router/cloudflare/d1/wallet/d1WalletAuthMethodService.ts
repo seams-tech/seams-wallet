@@ -89,9 +89,7 @@ import { parseWalletIdForIntent } from '../registration/d1RegistrationCeremonyRe
 import type { GoogleEmailOtpRegistrationAttemptStore } from '../emailOtp/d1GoogleEmailOtpRegistrationAttemptStore';
 import { expiredGoogleEmailOtpRegistrationAttemptRecord } from '../emailOtp/d1GoogleEmailOtpRegistrationRecords';
 import { runtimePolicyScopeKey } from '../../../../core/EmailOtpRecords';
-import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
 import {
-  d1HostIsWithinWebAuthnRpId,
   resolveD1AddAuthMethodExistingAuth,
   resolveD1AddSignerExistingAuth,
   verifyD1LinkedDeviceFreshRevokeProofV1,
@@ -100,10 +98,7 @@ import {
   type D1AddAuthMethodExistingAuthResolution,
   type D1AddSignerExistingAuthResolution,
 } from './d1WalletAuthMethodBoundary';
-import {
-  parseWebAuthnClientDataJsonBase64url,
-  webAuthnOriginHostnameOrEmpty,
-} from '../../../auth/webAuthnCredentialCodecs';
+import { verifyWebAuthnRegistrationCredentialForIntent } from '../../../../core/authService/webauthn';
 import type { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import type { WebAuthnCredentialBindingRecord } from '../../../../core/WebAuthnCredentialBindingStore';
 import type { WalletEd25519SignerRecord } from '../../../../core/WalletStore';
@@ -212,11 +207,6 @@ type WalletAuthMethodAuthorityResult =
       readonly authority: RegistrationAuthority;
     }
   | WalletAuthMethodError;
-
-type SimpleWebAuthnVerifier = (args: unknown) => Promise<unknown>;
-type SimpleWebAuthnServerModule = {
-  readonly verifyRegistrationResponse?: SimpleWebAuthnVerifier;
-};
 
 type Sha256Bytes = (input: Uint8Array) => Promise<Uint8Array>;
 type RegistrationCeremonyStoreProvider = () => CloudflareD1RegistrationCeremonyIntentStore;
@@ -445,18 +435,6 @@ function custodyFactorFromAddAuthMethodAuth(auth: StoredWalletAddAuthMethodCerem
       };
     default:
       return unreachableRegistrationStartAuthority(auth);
-  }
-}
-
-async function loadSimpleWebAuthnServer(): Promise<SimpleWebAuthnServerModule> {
-  try {
-    return (await import('@simplewebauthn/server')) as SimpleWebAuthnServerModule;
-  } catch (error: unknown) {
-    throw new Error(
-      `Server WebAuthn route selected but '@simplewebauthn/server' dependency is not available: ${
-        errorMessage(error) || 'import failed'
-      }`,
-    );
   }
 }
 
@@ -1298,7 +1276,7 @@ export class CloudflareD1WalletAuthMethodService {
           webauthnRegistration: request.webauthnRegistration,
           expectedChallenge: ceremony.passkeyRegistration.challengeB64u,
           expectedOrigin,
-          rpId: ceremony.passkeyRegistration.rpId,
+          rpId: requireStoredRpId(ceremony.passkeyRegistration.rpId),
         });
         if (!verified.ok) return verified;
         const credential = verified.credential;
@@ -2534,7 +2512,7 @@ export class CloudflareD1WalletAuthMethodService {
         { type: 'public-key', alg: -7 },
         { type: 'public-key', alg: -257 },
       ],
-      authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+      authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
       timeoutMs: 60_000,
       attestation: 'none',
       extensions: {
@@ -2764,7 +2742,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly webauthnRegistration: unknown;
     readonly expectedChallenge: string;
     readonly expectedOrigin: string;
-    readonly rpId: string;
+    readonly rpId: WebAuthnRpId;
     readonly userAgent?: string;
   }): Promise<
     | {
@@ -2778,87 +2756,20 @@ export class CloudflareD1WalletAuthMethodService {
       }
     | WalletAuthMethodError
   > {
-    const credential = toRecordValue(input.webauthnRegistration);
-    if (!credential) {
-      return { ok: false, code: 'invalid_body', message: 'Missing webauthn_registration' };
-    }
-    const response = toRecordValue(credential.response);
-    const clientDataJSON = toOptionalTrimmedString(response?.clientDataJSON);
-    const clientData = parseWebAuthnClientDataJsonBase64url(clientDataJSON);
-    if (clientData.type !== 'webauthn.create') {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Invalid webauthn_registration.clientDataJSON.type (expected webauthn.create)',
-      };
-    }
-    if (clientData.challenge !== input.expectedChallenge) {
-      return { ok: false, code: 'challenge_mismatch', message: 'Registration challenge mismatch' };
-    }
-    const expectedOrigin = toOptionalTrimmedString(input.expectedOrigin);
-    if (!expectedOrigin) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'expected_origin is required for WebAuthn registration verification',
-      };
-    }
-    if (!d1HostIsWithinWebAuthnRpId(webAuthnOriginHostnameOrEmpty(clientData.origin), input.rpId)) {
-      return { ok: false, code: 'invalid_origin', message: 'WebAuthn origin is not within rpId' };
-    }
-
-    const mod = await loadSimpleWebAuthnServer();
-    const verifyRegistrationResponse = mod.verifyRegistrationResponse;
-    if (typeof verifyRegistrationResponse !== 'function') {
-      return {
-        ok: false,
-        code: 'unsupported',
-        message: 'WebAuthn registration verifier is unavailable in this runtime',
-      };
-    }
-    const registration = await verifyRegistrationResponse({
-      response: credential,
-      expectedChallenge: input.expectedChallenge,
-      expectedOrigin,
-      expectedRPID: input.rpId,
-      requireUserVerification: false,
-    });
-    const registrationRecord = toRecordValue(registration);
-    if (registrationRecord?.verified !== true) {
-      return { ok: false, code: 'not_verified', message: 'Registration verification failed' };
-    }
-    const registrationInfo = toRecordValue(registrationRecord.registrationInfo);
-    const credentialInfo = toRecordValue(registrationInfo?.credential);
-    const credentialIdB64u = toOptionalTrimmedString(credentialInfo?.id);
-    const publicKey = credentialInfo?.publicKey;
-    if (!credentialInfo || !credentialIdB64u || !(publicKey instanceof Uint8Array)) {
-      return {
-        ok: false,
-        code: 'internal',
-        message: 'Registration verification did not return credential public key material',
-      };
-    }
-    const counter = Number(credentialInfo.counter);
-    /* device facts: UA from the registering request, AAGUID + backup flag from
-       the verified attestation, transports from the credential response */
-    const transports = Array.isArray(credentialInfo.transports)
-      ? credentialInfo.transports.filter((t): t is string => typeof t === 'string')
-      : Array.isArray(response?.transports)
-        ? (response.transports as unknown[]).filter((t): t is string => typeof t === 'string')
-        : [];
-    const device = deriveWebAuthnAuthenticatorDeviceInfo({
-      userAgent: input.userAgent,
-      aaguid: toOptionalTrimmedString(registrationInfo?.aaguid) || '',
-      backedUp: registrationInfo?.credentialBackedUp === true,
-      transports,
-    });
+    const verified = await verifyWebAuthnRegistrationCredentialForIntent(input);
+    if (!verified.ok) return verified;
+    /* device facts: UA from the registering request, AAGUID, backup flag and
+       transports from the verified attestation */
     return {
       ok: true,
       credential: {
-        credentialIdB64u,
-        credentialPublicKeyB64u: base64UrlEncode(publicKey),
-        counter: Number.isFinite(counter) && counter >= 0 ? Math.floor(counter) : 0,
-        device,
+        ...verified.credential,
+        device: deriveWebAuthnAuthenticatorDeviceInfo({
+          userAgent: input.userAgent,
+          aaguid: verified.authenticator.aaguid,
+          backedUp: verified.authenticator.backedUp,
+          transports: verified.authenticator.transports,
+        }),
       },
     };
   }

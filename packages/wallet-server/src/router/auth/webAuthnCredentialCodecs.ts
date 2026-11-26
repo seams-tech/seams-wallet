@@ -1,18 +1,13 @@
 import { errorMessage } from '@shared/utils/errors';
-import { base64Decode, base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
+import { base64UrlEncode } from '@shared/utils/encoders';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
 import type { WebAuthnAuthenticationCredential } from '../../core/types';
+import { decodeBase64UrlOrBase64 } from '../../core/authService/webauthnOidcHelpers';
 
 type WebAuthnCredentialIdParseResult =
   | { readonly ok: true; readonly credentialIdB64u: string }
   | { readonly ok: false; readonly code: string; readonly message: string };
-
-type WebAuthnClientDataJson = {
-  readonly challenge: string;
-  readonly origin: string;
-  readonly type: string;
-};
 
 function containsWebAuthnExtensionOutput(value: unknown): boolean {
   if (value == null) return false;
@@ -38,57 +33,6 @@ export function unredactedWebAuthnExtensionField(input: unknown): string | null 
   return null;
 }
 
-export function decodeWebAuthnBase64UrlOrBase64(
-  input: string,
-  fieldName: string,
-): Uint8Array<ArrayBuffer> {
-  try {
-    return base64UrlDecode(input);
-  } catch {
-    try {
-      return base64Decode(input);
-    } catch (error: unknown) {
-      throw new Error(
-        `Invalid ${fieldName}: expected base64url/base64 string (${errorMessage(error) || 'decode failed'})`,
-      );
-    }
-  }
-}
-
-export function parseWebAuthnClientDataJsonBase64url(
-  clientDataJSONB64u: string,
-): WebAuthnClientDataJson {
-  const bytes = decodeWebAuthnBase64UrlOrBase64(
-    clientDataJSONB64u,
-    'webauthn_authentication.response.clientDataJSON',
-  );
-  const json = new TextDecoder().decode(bytes);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    throw new Error('Invalid clientDataJSON: expected object');
-  }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Invalid clientDataJSON: expected object');
-  }
-  const challenge = toOptionalTrimmedString(Reflect.get(parsed, 'challenge'));
-  const origin = toOptionalTrimmedString(Reflect.get(parsed, 'origin'));
-  const type = toOptionalTrimmedString(Reflect.get(parsed, 'type'));
-  if (!challenge) throw new Error('Invalid clientDataJSON.challenge');
-  if (!origin) throw new Error('Invalid clientDataJSON.origin');
-  if (!type) throw new Error('Invalid clientDataJSON.type');
-  return { challenge, origin, type };
-}
-
-export function webAuthnOriginHostnameOrEmpty(origin: string): string {
-  try {
-    return new URL(origin).hostname.toLowerCase();
-  } catch {
-    return '';
-  }
-}
-
 export function webAuthnCredentialIdB64uFromCredential(
   input: unknown,
 ): WebAuthnCredentialIdParseResult {
@@ -105,7 +49,7 @@ export function webAuthnCredentialIdB64uFromCredential(
     return {
       ok: true,
       credentialIdB64u: base64UrlEncode(
-        decodeWebAuthnBase64UrlOrBase64(selected, 'webauthn_authentication.rawId'),
+        decodeBase64UrlOrBase64(selected, 'webauthn_authentication.rawId'),
       ),
     };
   } catch (error: unknown) {

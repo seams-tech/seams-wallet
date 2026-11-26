@@ -2,84 +2,7 @@ import { base64Decode, base64UrlDecode } from '@shared/utils/encoders';
 import { errorMessage } from '@shared/utils/errors';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 
-type SimpleWebAuthnRegistrationVerification = {
-  verified?: boolean;
-  registrationInfo?: {
-    credential?: {
-      id?: string;
-      publicKey?: Uint8Array;
-      counter?: number;
-    };
-  };
-};
-
-type SimpleWebAuthnAuthenticationVerification = {
-  verified?: boolean;
-  authenticationInfo?: {
-    newCounter?: number;
-  };
-};
-
-type SimpleWebAuthnRegistrationVerifier = (
-  args: SimpleWebAuthnRegistrationVerificationInput,
-) => Promise<SimpleWebAuthnRegistrationVerification>;
-
-type SimpleWebAuthnAuthenticationVerifier = (
-  args: SimpleWebAuthnAuthenticationVerificationInput,
-) => Promise<SimpleWebAuthnAuthenticationVerification>;
-
-type SimpleWebAuthnRegistrationVerificationInput = {
-  response: unknown;
-  expectedChallenge: string;
-  expectedOrigin: string;
-  expectedRPID: string;
-  requireUserVerification: boolean;
-};
-
-type SimpleWebAuthnAuthenticationVerificationInput = {
-  response: unknown;
-  expectedChallenge: string;
-  expectedOrigin: string;
-  expectedRPID: string;
-  credential: unknown;
-  requireUserVerification: boolean;
-};
-
-export type SimpleWebAuthnServerModule = {
-  verifyRegistrationResponse?: SimpleWebAuthnRegistrationVerifier;
-  verifyAuthenticationResponse?: SimpleWebAuthnAuthenticationVerifier;
-};
-
-export async function loadSimpleWebAuthnServer(): Promise<SimpleWebAuthnServerModule> {
-  try {
-    const mod = await import('@simplewebauthn/server');
-    return {
-      verifyRegistrationResponse:
-        typeof mod.verifyRegistrationResponse === 'function'
-          ? async (args) =>
-              await mod.verifyRegistrationResponse(
-                args as Parameters<typeof mod.verifyRegistrationResponse>[0],
-              )
-          : undefined,
-      verifyAuthenticationResponse:
-        typeof mod.verifyAuthenticationResponse === 'function'
-          ? async (args) =>
-              await mod.verifyAuthenticationResponse(
-                args as Parameters<typeof mod.verifyAuthenticationResponse>[0],
-              )
-          : undefined,
-    };
-  } catch (error) {
-    const message = errorMessage(error);
-    throw new Error(
-      `Server WebAuthn route selected but '@simplewebauthn/server' dependency is not available${
-        message ? `: ${message}` : ''
-      }`,
-    );
-  }
-}
-
-export function decodeBase64UrlOrBase64(input: string, fieldName: string): Uint8Array {
+export function decodeBase64UrlOrBase64(input: string, fieldName: string): Uint8Array<ArrayBuffer> {
   try {
     return base64UrlDecode(input);
   } catch {
@@ -103,7 +26,12 @@ export function parseClientDataJsonBase64url(clientDataJSONB64u: string): {
     'webauthn_authentication.response.clientDataJSON',
   );
   const json = new TextDecoder().decode(bytes);
-  const obj = JSON.parse(json) as unknown;
+  let obj: unknown;
+  try {
+    obj = JSON.parse(json);
+  } catch {
+    throw new Error('Invalid clientDataJSON: expected object');
+  }
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
     throw new Error('Invalid clientDataJSON: expected object');
   }
@@ -125,12 +53,13 @@ export function originHostnameOrEmpty(origin: string): string {
   }
 }
 
-export function isHostWithinRpId(host: string, rpId: WebAuthnRpId): boolean {
+export function isHostWithinRpId(host: string, rpId: WebAuthnRpId | string): boolean {
   const h = (host || '').toLowerCase();
   const r = String(rpId).toLowerCase();
   if (!h || !r) return false;
+  const env = typeof process !== 'undefined' ? process.env : {};
   if (
-    (process.env.NO_CADDY === '1' || process.env.VITE_NO_CADDY === '1') &&
+    (env.NO_CADDY === '1' || env.VITE_NO_CADDY === '1') &&
     (h === 'localhost' || h === '127.0.0.1') &&
     r.endsWith('.localhost')
   ) {

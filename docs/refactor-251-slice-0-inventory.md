@@ -107,7 +107,7 @@ breaks a contract has an expected failure there (see "What Slice 2 writes first"
 | Finding | Where | Area |
 | --- | --- | --- |
 | The wallet server alone can open an owner Email OTP wallet, against the public custody docs | See U4 | 2 |
-| The server never requires user verification for a passkey assertion or registration (`requireUserVerification: false` in 4 checks). The browser asks for it as `preferred`. The VoiceID owner check requires it | `packages/wallet-server/src/core/authService/webauthn.ts:261,393`, `d1WebAuthnAuthService.ts:476`, `d1WalletAuthMethodService.ts:2815` | 1 |
+| The server never required user verification for a passkey assertion or registration (`requireUserVerification: false` in 4 checks), and the browser asked for it as `preferred`. Fixed on 2026-11-26: one server verifier refuses a missing UV flag with `user_verification_required` in every passkey check, and the browser asks for `required` | `packages/wallet-server/src/core/authService/webauthn.ts` (`verifyPasskeyAssertion`, `verifyWebAuthnRegistrationCredentialForIntent`) | 1 |
 | Email OTP codes were stored in plaintext. Fixed on 2026-11-18 by Refactor 252 Slice 1: the server stores each code encrypted | `d1EmailOtpChallengeVerifier.ts:346` | 3 |
 | Slice 2: the host event of the auth menu gets nothing from the link view, and nothing from the recovery view before `sign_in_ready` (for example a failed Google step). This breaks the integrator contract of Fact F16. Slice 2 corrected the Slice 0 claim about Google views: they send the raw text today. Their `status.message` branch would send the shown sentence, but no flow reaches it | `auth-menu/session.ts:532-549` | 7, 8 |
 | Slice 2: the passkey button ignores the app's `passkeyCta` copy. It shows a fixed label for each mode, and the passkey view's `ctaLabel` is never rendered | `host/ui/auth-menu/AuthMenuSurface.tsx:1022` | 7 |
@@ -442,7 +442,7 @@ Facts:
 - The server has 2 assertion checks and 2 registration checks. Each one sets
   `requireUserVerification: false`, and the browser asks for user verification as `preferred`.
   The VoiceID owner confirmation is a third assertion check, in the browser, and it requires user
-  verification.
+  verification. (Fixed on 2026-11-26. See "Findings for the owner".)
 - The server parses no COSE key. `@simplewebauthn/server` 13.2.2 does it.
 
 | # | Touch point | Old code | Old test | New owner | Compatibility check | Lines now | Bloat found |

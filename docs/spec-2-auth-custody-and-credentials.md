@@ -41,6 +41,15 @@ registered passkey; an Email OTP flow verifies the appropriate email challenge.
 An application's login cookie or provider session alone does not establish
 Wallet signing permission.
 
+Every passkey check requires user verification: the authenticator must confirm
+the user with a PIN, a biometric or a device passcode (the WebAuthn UV flag).
+The server applies this rule to every passkey registration and every passkey
+assertion, so a security key with no PIN cannot register or sign in. The Wallet
+asks for user verification as `required` in every passkey prompt. If a ceremony
+is valid in every other way but has no UV flag, the server refuses it with the
+code `user_verification_required`, and the Wallet tells the user to use a
+passkey with a PIN or biometric.
+
 An application can exchange a configured Google identity for settings-only access.
 The owner must first authorize an association between that identity and the wallet.
 The SDK represents this as `external_authenticated`, with no requested signing capabilities.

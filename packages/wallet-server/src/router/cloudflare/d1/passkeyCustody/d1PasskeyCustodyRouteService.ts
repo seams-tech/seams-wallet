@@ -614,7 +614,7 @@ export type WalletRecoveryRegistrationOptions = {
   ];
   readonly authenticatorSelection: {
     readonly residentKey: 'required';
-    readonly userVerification: 'preferred';
+    readonly userVerification: 'required';
   };
   readonly timeoutMs: number;
   readonly attestation: 'none';
@@ -1361,7 +1361,7 @@ async function createWalletRecoveryRegistrationOptions(input: {
       ],
       authenticatorSelection: {
         residentKey: 'required',
-        userVerification: 'preferred',
+        userVerification: 'required',
       },
       timeoutMs: 60_000,
       attestation: 'none',

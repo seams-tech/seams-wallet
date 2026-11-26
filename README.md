@@ -27,6 +27,13 @@ changes that npm does not yet publish.
 The hosted Seams Console, the Wallet site, and deployment configuration live
 in the `seams-tech/seams-console` repository.
 
+## Next release (not released yet)
+
+- Passkeys: the server requires user verification (a PIN, a biometric or a device passcode) for every passkey registration and assertion. A ceremony that is valid in every other way but has no user verification fails with the new code `user_verification_required`, and the Wallet tells the user to use a passkey with a PIN or biometric, or to set a PIN on the security key. The Wallet asks for `userVerification: 'required'` in every passkey prompt.
+- Breaking: a security key with no PIN can no longer register a passkey, sign in, unlock, sign or run an owner operation.
+- Breaking: the add-method, device-link and recovery passkey options carry `authenticatorSelection.userVerification: 'required'`, and the Wallet accepts only that value. Deploy the server and the Wallet host together.
+- Breaking: `webauthn.authenticatorOptions.userVerification` and the `UserVerificationPolicy` enum are removed. The field had no effect.
+
 ## Release 0.76.0
 
 - Email OTP: the enrollment of a wallet keeps one factor for each Email OTP method, each with its own nonce, wrapped factor and pinned unlock key. The release picks the factor whose nonce the device sends. A revoke removes the method's factor in the same commit, also when a linked device is revoked, and the enrollment goes with its last factor or method.

@@ -31,6 +31,8 @@ export type CeremonyOverrides = {
   readonly signingKey?: KeyObject;
   /** The counter in the authenticator data; the passkey's counter moves to it. */
   readonly counter?: number;
+  /** False clears the user verified (UV) flag, as a security key with no PIN does. */
+  readonly userVerified?: boolean;
 };
 
 // Authenticator data flags: user present, user verified, attested credential data.
@@ -77,6 +79,10 @@ function counterBytes(counter: number): Buffer {
   return bytes;
 }
 
+function userVerifiedFlag(overrides: CeremonyOverrides): number {
+  return overrides.userVerified === false ? 0 : FLAG_USER_VERIFIED;
+}
+
 function rpIdHash(rpId: string): Buffer {
   return createHash('sha256').update(rpId).digest();
 }
@@ -93,7 +99,7 @@ export function registrationResponse(
   credentialIdLength.writeUInt16BE(credentialId.length);
   const authData = Buffer.concat([
     rpIdHash(overrides.rpIdForHash ?? scope.rpId),
-    Buffer.from([FLAG_USER_PRESENT | FLAG_USER_VERIFIED | FLAG_ATTESTED_CREDENTIAL]),
+    Buffer.from([FLAG_USER_PRESENT | userVerifiedFlag(overrides) | FLAG_ATTESTED_CREDENTIAL]),
     counterBytes(overrides.counter ?? passkey.counter),
     Buffer.alloc(16),
     credentialIdLength,
@@ -149,7 +155,7 @@ export function assertionResponse(
   passkey.counter = counter;
   const authenticatorData = Buffer.concat([
     rpIdHash(overrides.rpIdForHash ?? scope.rpId),
-    Buffer.from([FLAG_USER_PRESENT | FLAG_USER_VERIFIED]),
+    Buffer.from([FLAG_USER_PRESENT | userVerifiedFlag(overrides)]),
     counterBytes(counter),
   ]);
   const clientData = clientDataJson(

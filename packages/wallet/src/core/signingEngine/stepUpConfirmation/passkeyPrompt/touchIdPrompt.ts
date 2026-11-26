@@ -178,7 +178,7 @@ export class TouchIdPrompt {
     const publicKey: PublicKeyCredentialRequestOptions = {
       challenge: challengeBytes,
       rpId,
-      userVerification: 'preferred',
+      userVerification: 'required',
       timeout: 60000,
       extensions: {
         prf: {
@@ -316,7 +316,7 @@ export class TouchIdPrompt {
           ],
           authenticatorSelection: {
             residentKey: 'required',
-            userVerification: 'preferred',
+            userVerification: 'required',
           },
           timeout: 60000,
           attestation: 'none',

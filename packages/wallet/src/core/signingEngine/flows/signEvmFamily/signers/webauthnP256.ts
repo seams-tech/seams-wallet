@@ -126,7 +126,7 @@ export class WebAuthnP256Engine implements Signer {
         challenge,
         allowCredentials: [{ type: 'public-key', id: allowCredentialId }],
         rpId: req.rpId ?? keyRef.rpId,
-        userVerification: 'preferred',
+        userVerification: 'required',
       },
     })) as PublicKeyCredential | null;
 

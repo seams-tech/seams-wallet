@@ -8,6 +8,7 @@ import type {
   SignNEP413MessageResult,
 } from '../../../packages/wallet/src/core/types/sdkPublicResults';
 import { verifyNearMessageSignature } from './near-message-signatures';
+import { VirtualPasskeyAuthenticator } from './virtual-authenticator';
 import { nearTransactionHash } from './near-transaction-hash';
 import { readPendingWalletRecoveryCommitIdentity } from './recovery-journal';
 import {
@@ -162,28 +163,6 @@ type TraceEntry = {
   status?: number;
   walletSessionStatusIdentity?: string;
 };
-
-const WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS = {
-  protocol: 'ctap2',
-  transport: 'internal',
-  hasResidentKey: true,
-  hasUserVerification: true,
-  isUserVerified: true,
-  hasPrf: true,
-  automaticPresenceSimulation: true,
-} as const;
-
-function requireWebAuthnAuthenticatorId(raw: unknown): string {
-  const response = requireRecord(raw, 'WebAuthn virtual authenticator response');
-  return requireString(response.authenticatorId, 'WebAuthn virtual authenticator id');
-}
-
-export async function addWebAuthnVirtualAuthenticator(client: CDPSession): Promise<string> {
-  const response = await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS,
-  });
-  return requireWebAuthnAuthenticatorId(response);
-}
 
 const ROUTER_AB_ED25519_SIGNING_PATHS = [
   '/router-ab/ed25519/sign/prepare',
@@ -1174,7 +1153,11 @@ export class IntendedBehaviourHarness {
 
   private browserSession:
     | { readonly kind: 'uninitialized' }
-    | { readonly kind: 'ready'; readonly session: CDPSession } = { kind: 'uninitialized' };
+    | {
+        readonly kind: 'ready';
+        readonly session: CDPSession;
+        readonly authenticator: VirtualPasskeyAuthenticator;
+      } = { kind: 'uninitialized' };
 
   private passkeyPromptCount = 0;
 
@@ -4331,9 +4314,17 @@ export class IntendedBehaviourHarness {
   private async installWebAuthnVirtualAuthenticator(): Promise<void> {
     const client = await this.context.newCDPSession(this.page);
     await client.send('WebAuthn.enable');
-    await addWebAuthnVirtualAuthenticator(client);
-    this.browserSession = { kind: 'ready', session: client };
+    const authenticator = await VirtualPasskeyAuthenticator.add(client);
+    this.browserSession = { kind: 'ready', session: client, authenticator };
     this.recordService('webauthn virtual authenticator ready');
+  }
+
+  /** The private keys of the virtual passkeys, by base64url credential ID. */
+  async passkeySigningKeys(): Promise<Record<string, string>> {
+    if (this.browserSession.kind !== 'ready') {
+      throw new Error('The virtual passkey requires the initialized browser session');
+    }
+    return await this.browserSession.authenticator.signingKeys();
   }
 
   private async resetBrowserStorage(): Promise<void> {

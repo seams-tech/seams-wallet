@@ -171,14 +171,7 @@ function isSigning(value: unknown): boolean {
 
 function isAuthenticator(value: unknown): boolean {
   if (!isPlainObject(value) || !isPlainObject(value.authenticatorOptions)) return false;
-  const options = value.authenticatorOptions;
-  if (
-    options.userVerification !== 'required' &&
-    options.userVerification !== 'preferred' &&
-    options.userVerification !== 'discouraged'
-  )
-    return false;
-  const policy = options.originPolicy;
+  const policy = value.authenticatorOptions.originPolicy;
   return (
     isPlainObject(policy) &&
     (policy.single === undefined || typeof policy.single === 'boolean') &&

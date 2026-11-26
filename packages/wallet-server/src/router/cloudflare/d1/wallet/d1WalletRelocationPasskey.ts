@@ -1,10 +1,10 @@
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
-import { verifyAuthenticationResponse } from '@simplewebauthn/server';
+import { verifyPasskeyAssertion } from '../../../../core/authService/webauthn';
+import { isHostWithinRpId } from '../../../../core/authService/webauthnOidcHelpers';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
 import {
-  decodeWebAuthnBase64UrlOrBase64,
   parseWebAuthnAuthenticationCredential,
   webAuthnCredentialIdB64uFromCredential,
 } from '../../../auth/webAuthnCredentialCodecs';
@@ -12,7 +12,6 @@ import {
   readWalletRelocationOwner,
   type WalletRelocationFactorVerification,
 } from './d1WalletRelocationOwner';
-import { d1HostIsWithinWebAuthnRpId } from './d1WalletAuthMethodBoundary';
 import {
   D1WalletRelocationChallenges,
   type WalletRelocationChallengeBinding,
@@ -46,7 +45,7 @@ export async function verifyWalletRelocationPasskey(input: {
   const { method, authority } = owner;
   if (
     method.credentialIdB64u !== credentialId.credentialIdB64u ||
-    !d1HostIsWithinWebAuthnRpId(new URL(input.binding.origin).hostname, method.rpId)
+    !isHostWithinRpId(new URL(input.binding.origin).hostname, method.rpId)
   )
     return { kind: 'denied' };
 
@@ -60,41 +59,16 @@ export async function verifyWalletRelocationPasskey(input: {
   });
   if (!authenticator || authenticator.credentialPublicKeyB64u !== method.credentialPublicKeyB64u)
     return { kind: 'denied' };
-  let newCounter: number;
-  try {
-    const verification = await verifyAuthenticationResponse({
-      response: {
-        id: credential.id,
-        rawId: credential.rawId,
-        type: 'public-key',
-        clientExtensionResults: {},
-        response: {
-          clientDataJSON: credential.response.clientDataJSON,
-          authenticatorData: credential.response.authenticatorData,
-          signature: credential.response.signature,
-          ...(credential.response.userHandle === null
-            ? {}
-            : { userHandle: credential.response.userHandle }),
-        },
-      },
-      expectedChallenge: challenge.challengeB64u,
-      expectedOrigin: input.binding.origin,
-      expectedRPID: method.rpId,
-      credential: {
-        id: method.credentialIdB64u,
-        publicKey: decodeWebAuthnBase64UrlOrBase64(
-          method.credentialPublicKeyB64u,
-          'passkey public key',
-        ),
-        counter: authenticator.counter,
-      },
-      requireUserVerification: true,
-    });
-    if (!verification.verified) return { kind: 'denied' };
-    newCounter = verification.authenticationInfo.newCounter;
-  } catch {
-    return { kind: 'denied' };
-  }
+  const verified = await verifyPasskeyAssertion({
+    credential,
+    rpId: method.rpId,
+    expectedChallenge: challenge.challengeB64u,
+    expectedOrigin: input.binding.origin,
+    readAuthenticator: async (credentialIdB64u) =>
+      credentialIdB64u === method.credentialIdB64u ? authenticator : null,
+  });
+  if (!verified.ok) return { kind: 'denied' };
+  const { newCounter } = verified;
   return {
     kind: 'verified',
     authorityDigestB64u: authority.authorityDigestB64u,

@@ -79,7 +79,7 @@ async function createStaleAcknowledgementPasskeyProof(input: {
       rpId: input.rpId,
       challenge: base64UrlDecode(challengeDigest),
       allowCredentials: [{ id: base64UrlDecode(credentialIdB64u), type: 'public-key' }],
-      userVerification: 'preferred',
+      userVerification: 'required',
       timeout: 60_000,
     },
   });

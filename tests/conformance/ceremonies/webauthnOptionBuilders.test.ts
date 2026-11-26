@@ -58,7 +58,7 @@ function expectedCreation(rpName: string, userIdB64u = walletUserHandleB64u(WALL
       ['public-key', -7],
       ['public-key', -257],
     ],
-    authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+    authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
     attestation: 'none',
     timeout: 60_000,
     prf: [hexToBase64Url(PRF_FIRST_SALT_V1_HEX), hexToBase64Url(PRF_SECOND_SALT_V1_HEX)],
@@ -77,7 +77,7 @@ function serverAddAuthMethodOptions(): WalletAddAuthMethodRegistrationOptions {
       { type: 'public-key', alg: -7 },
       { type: 'public-key', alg: -257 },
     ],
-    authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+    authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
     timeoutMs: 60_000,
     attestation: 'none',
     extensions: {
@@ -238,10 +238,10 @@ test('server options: the prompt and the platform runtime keep the server user h
   ).toEqual(expectedCreation(RP_ID));
 });
 
-test('an assertion asks for both PRF salts, the RP ID and preferred user verification', async () => {
+test('an assertion asks for both PRF salts, the RP ID and required user verification', async () => {
   const expected = {
     rpId: RP_ID,
-    userVerification: 'preferred',
+    userVerification: 'required',
     allowCredentialIds: [CREDENTIAL_ID_B64U],
     challengeB64u: CHALLENGE_B64U,
     prf: [hexToBase64Url(PRF_FIRST_SALT_V1_HEX), hexToBase64Url(PRF_SECOND_SALT_V1_HEX)],

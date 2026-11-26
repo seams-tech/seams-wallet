@@ -2,6 +2,11 @@
  * Centralized error handling utilities for the Passkey SDK
  */
 
+import {
+  PASSKEY_USER_VERIFICATION_REQUIRED_CODE,
+  PASSKEY_USER_VERIFICATION_REQUIRED_MESSAGE,
+} from './passkeyUserVerification';
+
 /**
  * Best-effort error message extractor without relying on `any`.
  * Always returns a string (may be empty when nothing usable can be derived).
@@ -167,6 +172,19 @@ export function isWebAuthnBrowserSecurityError(error: unknown): boolean {
   );
 }
 
+/**
+ * The server refused a passkey because the authenticator did not verify the
+ * user. A fetcher that drops the server code still keeps its message, maybe
+ * behind a prefix, so the message counts too.
+ */
+export function isPasskeyUserVerificationRequiredError(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+  return (
+    code === PASSKEY_USER_VERIFICATION_REQUIRED_CODE ||
+    errorMessage(error).includes(PASSKEY_USER_VERIFICATION_REQUIRED_MESSAGE)
+  );
+}
+
 export function isUserCancellationError(error: unknown): boolean {
   if (isWebAuthnRpIdOriginConfigurationError(error) || isWebAuthnBrowserSecurityError(error))
     return false;
@@ -240,6 +258,10 @@ export function getUserFriendlyErrorMessage(
   if (isWebAuthnRpIdOriginConfigurationError(error)) {
     const op = context === 'registration' ? 'Registration' : 'Login';
     return `${op} failed because the configured WebAuthn RP ID is not valid for this app origin. Check VITE_RP_ID_BASE and the /.well-known/webauthn related-origin configuration for this environment.`;
+  }
+
+  if (isPasskeyUserVerificationRequiredError(error)) {
+    return PASSKEY_USER_VERIFICATION_REQUIRED_MESSAGE;
   }
 
   // The app's Seams plan stops new production sign-ups until its owner acts.

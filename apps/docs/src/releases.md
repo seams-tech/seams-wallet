@@ -3,6 +3,19 @@ title: Release 0.76.0
 description: Each device gets its own Email OTP factor, so Google recovery and device linking work on a new device again. Apply migration 0091, then ship the server and the Wallet host together.
 ---
 
+## Next release (not released yet)
+
+Since 0.76.0:
+
+- Passkeys: the server requires user verification (a PIN, a biometric or a device passcode) for every passkey registration and every passkey assertion. Before, it accepted an assertion that showed only user presence. A ceremony that is valid in every other way but has no user verification fails with the new code `user_verification_required`. The Wallet then shows "This passkey did not check a PIN or biometric. Use a passkey with a PIN or biometric, or set a PIN on your security key."
+- The Wallet asks for `userVerification: 'required'` in every passkey prompt, also in the add-method, device-link and recovery options that the server sends.
+
+Breaking changes:
+
+- A security key with no PIN, or another authenticator that cannot verify the user, can no longer register a passkey, sign in, unlock, sign or run an owner operation. Set a PIN on the key, or use another passkey or sign-in method.
+- The server options for an added passkey, a device-link passkey and a recovery passkey carry `authenticatorSelection.userVerification: 'required'`, and the Wallet accepts only that value. Deploy the server and the Wallet host together. A ceremony that starts before the deploy and ends after it fails, and the user starts it again.
+- `webauthn.authenticatorOptions.userVerification` is removed from the SDK config, with the `UserVerificationPolicy` enum. The field had no effect.
+
 # Release 0.76.0
 
 The browser SDK, server SDK and VoiceID plugin use **0.76.0**. Apply the D1 migration `0091_linked_device_email_otp_own_factor.sql`, then deploy the server and the Wallet host together, then the apps.

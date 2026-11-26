@@ -14,7 +14,10 @@ import { WalletSessionStatusEvidence } from './walletSessionStatusEvidence';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { verifyLockWins } from './session-restore-lock';
 import { verifyPassiveWalletLock } from './session-passive-lock';
-import { verifyBrowserSecurityFailureAndRetry } from './passkey-browser-security';
+import {
+  verifyBrowserSecurityFailureAndRetry,
+  verifyUnverifiedPasskeyRefusalAndRetry,
+} from './passkey-browser-security';
 import {
   verifyColdCustodyReissueThenUnlock,
   verifyOlderCustodyCacheRebindsWithoutRecovery,
@@ -26,6 +29,10 @@ test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 test(
   'browser security failures remain visible and a cancelled retry can unlock the same wallet',
   verifyBrowserSecurityFailureAndRetry,
+);
+test(
+  'the server refuses a passkey assertion without user verification, and a verified retry unlocks',
+  verifyUnverifiedPasskeyRefusalAndRetry,
 );
 test(
   'a site with no custody cache reissues the Client share, keeps the authority and signs',

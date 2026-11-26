@@ -247,7 +247,7 @@ export type WalletRecoveryRegistrationOptions = {
   ];
   readonly authenticatorSelection: {
     readonly residentKey: 'required';
-    readonly userVerification: 'preferred';
+    readonly userVerification: 'required';
   };
   readonly timeoutMs: number;
   readonly attestation: 'none';
@@ -528,7 +528,7 @@ function walletRecoveryRegistrationOptions(expectedWalletId: string, expectedRpI
       },
       authenticatorSelection: wireObject({
         residentKey: wireLiteral('required'),
-        userVerification: wireLiteral('preferred'),
+        userVerification: wireLiteral('required'),
       }),
       timeoutMs: (raw, label) => {
         const timeoutMs = Number(raw);

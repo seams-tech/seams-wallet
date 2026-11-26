@@ -3,6 +3,8 @@ import type { ChildToParentEnvelope, ParentToChildEnvelope } from '@/SeamsWeb/wa
 import type { ReceiptProgress, TransactionReceiptModel, TransactionReceiptState, TransactionReceiptView } from './transaction-receipt';
 import { parseOwnerNearOutcome, type OwnerNearOutcome } from '@/SeamsWeb/walletIframe/shared/ownerNearOperation';
 import { nearTransactionRejectionMessage } from '@/core/rpcClients/near/nearTransactionRejection';
+import { isPasskeyUserVerificationRequiredError } from '@shared/utils/errors';
+import { PASSKEY_USER_VERIFICATION_REQUIRED_MESSAGE } from '@shared/utils/passkeyUserVerification';
 
 type ReceiptSurface = {
   readonly element: HTMLElement;
@@ -146,7 +148,10 @@ export function observeTransactionActivity(message: ChildToParentEnvelope): void
 
 export function failTransactionActivity(requestId: string | undefined, error: unknown): void {
   if (!activity || activity.requestId !== requestId) return;
-  settleActivity(activity, { kind: 'failed', message: error instanceof Error ? error.message : 'The operation did not complete.' });
+  const message = isPasskeyUserVerificationRequiredError(error)
+    ? PASSKEY_USER_VERIFICATION_REQUIRED_MESSAGE
+    : error instanceof Error ? error.message : 'The operation did not complete.';
+  settleActivity(activity, { kind: 'failed', message });
   publishActivity();
 }
 

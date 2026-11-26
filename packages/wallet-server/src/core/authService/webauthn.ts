@@ -1,6 +1,11 @@
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { errorMessage } from '@shared/utils/errors';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
+import {
+  PASSKEY_USER_VERIFICATION_REQUIRED_CODE,
+  PASSKEY_USER_VERIFICATION_REQUIRED_MESSAGE,
+} from '@shared/utils/passkeyUserVerification';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
 import type { ThresholdEd25519AuthorityScope } from '../types';
 import type { NormalizedLogger } from '../logger';
@@ -15,21 +20,52 @@ import { failure } from '@shared/utils/failure';
 import {
   decodeBase64UrlOrBase64,
   isHostWithinRpId,
-  loadSimpleWebAuthnServer,
   originHostnameOrEmpty,
   parseClientDataJsonBase64url,
 } from './webauthnOidcHelpers';
+import { webAuthnCredentialIdB64uFromCredential } from '../../router/auth/webAuthnCredentialCodecs';
 
-type WebAuthnCredentialVerificationResult =
-  | {
-      ok: true;
-      credential: {
-        credentialIdB64u: string;
-        credentialPublicKeyB64u: string;
-        counter: number;
-      };
-    }
-  | { ok: false; code: string; message: string };
+/*
+ * This file is the one place the server checks a passkey ceremony with
+ * SimpleWebAuthn. Every registration and every assertion requires user
+ * verification (UV): a PIN, a biometric or a device passcode.
+ *
+ * SimpleWebAuthn can enforce UV itself, but it throws on a missing UV flag
+ * before it checks the signature. So each library call turns its own UV check
+ * off, and the code refuses a missing flag after the rest of the ceremony
+ * verifies. Then `user_verification_required` means that UV was the only fault.
+ */
+
+type WebAuthnCeremonyFailure = { ok: false; code: string; message: string };
+
+type VerifiedPasskeyRegistration = {
+  ok: true;
+  credential: {
+    credentialIdB64u: string;
+    credentialPublicKeyB64u: string;
+    counter: number;
+  };
+  /** What the verified attestation says about the authenticator, for its device record. */
+  authenticator: {
+    aaguid: string;
+    backedUp: boolean;
+    transports: string[];
+  };
+};
+
+/** The key and counter the server stored for a passkey at registration. */
+type StoredPasskeyKey = {
+  readonly credentialPublicKeyB64u: string;
+  readonly counter: number;
+};
+
+type VerifiedPasskeyAssertion<A extends StoredPasskeyKey> = {
+  ok: true;
+  credentialIdB64u: string;
+  authenticator: A;
+  /** The counter the assertion signed. The caller stores it with the rest of its writes. */
+  newCounter: number;
+};
 
 type WebAuthnAuthenticationLiteResult = {
   success: boolean;
@@ -79,41 +115,33 @@ function readRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function readNestedRecord(
-  record: Record<string, unknown>,
-  key: string,
-): Record<string, unknown> | null {
-  return readRecord(record[key]);
-}
-
 function readStringField(record: Record<string, unknown>, key: string): string {
   return typeof record[key] === 'string' ? record[key].trim() : '';
 }
 
-function credentialRawIdB64u(
-  credential: WebAuthnAuthenticationCredential,
-): { ok: true; credentialIdB64u: string } | { ok: false; code: string; message: string } {
-  const credentialId = credential.id.trim();
-  const rawId = credential.rawId.trim();
-  const chosen = rawId || credentialId;
-  if (!chosen) {
-    return failure('invalid_body', 'Missing webauthn_authentication.id/rawId');
-  }
+/* Loaded on first use, so a runtime that never checks a passkey does not load the verifier. */
+async function loadSimpleWebAuthnServer(): Promise<typeof import('@simplewebauthn/server')> {
   try {
-    return {
-      ok: true,
-      credentialIdB64u: base64UrlEncode(
-        decodeBase64UrlOrBase64(chosen, 'webauthn_authentication.rawId'),
-      ),
-    };
+    return await import('@simplewebauthn/server');
   } catch (e: unknown) {
-    return failure('invalid_body', errorMessage(e) || 'Invalid credential rawId');
+    throw new Error(
+      `Server WebAuthn route selected but '@simplewebauthn/server' dependency is not available: ${
+        errorMessage(e) || 'import failed'
+      }`,
+    );
   }
 }
 
+function userVerificationRequired(): WebAuthnCeremonyFailure {
+  return failure(
+    PASSKEY_USER_VERIFICATION_REQUIRED_CODE,
+    PASSKEY_USER_VERIFICATION_REQUIRED_MESSAGE,
+  );
+}
+
 function credentialPublicKeyBytes(
-  record: WebAuthnAuthenticatorRecord,
-): { ok: true; bytes: Uint8Array } | { ok: false; code: string; message: string } {
+  record: StoredPasskeyKey,
+): { ok: true; bytes: Uint8Array<ArrayBuffer> } | WebAuthnCeremonyFailure {
   try {
     return {
       ok: true,
@@ -130,27 +158,101 @@ function credentialPublicKeyBytes(
   }
 }
 
-function credentialVerificationInput(input: {
-  credentialIdB64u: string;
-  credentialPublicKeyBytes: Uint8Array;
-  counter: number;
-}): { id: string; publicKey: Uint8Array | Buffer; counter: number } {
+function authenticationResponseJson(
+  credential: WebAuthnAuthenticationCredential,
+): AuthenticationResponseJSON {
   return {
-    id: input.credentialIdB64u,
-    publicKey:
-      typeof Buffer !== 'undefined'
-        ? Buffer.from(input.credentialPublicKeyBytes)
-        : input.credentialPublicKeyBytes,
-    counter: input.counter,
+    id: credential.id,
+    rawId: credential.rawId,
+    type: 'public-key',
+    clientExtensionResults: {},
+    response: {
+      clientDataJSON: credential.response.clientDataJSON,
+      authenticatorData: credential.response.authenticatorData,
+      signature: credential.response.signature,
+      ...(credential.response.userHandle === null
+        ? {}
+        : { userHandle: credential.response.userHandle }),
+    },
   };
 }
 
-function authenticationNewCounter(verification: unknown): number | null {
-  const record = readRecord(verification);
-  const authenticationInfo = record ? readNestedRecord(record, 'authenticationInfo') : null;
-  const value = authenticationInfo?.newCounter;
-  const numeric = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(numeric) && numeric >= 0 ? Math.floor(numeric) : null;
+/**
+ * Checks a passkey assertion against the key the server stored for it: the
+ * origin, the RP ID, the challenge, the signature, user presence, user
+ * verification and the counter. It writes nothing; the caller stores
+ * `newCounter` together with the rest of its writes.
+ */
+export async function verifyPasskeyAssertion<A extends StoredPasskeyKey>(input: {
+  readonly credential: WebAuthnAuthenticationCredential;
+  readonly rpId: WebAuthnRpId;
+  readonly expectedChallenge: string;
+  readonly expectedOrigin: string;
+  /** The stored key of the asserted credential, or null when the user has no such credential. */
+  readonly readAuthenticator: (credentialIdB64u: string) => Promise<A | null>;
+}): Promise<VerifiedPasskeyAssertion<A> | WebAuthnCeremonyFailure> {
+  const { credential } = input;
+  if (credential.type !== 'public-key') {
+    return failure('invalid_body', 'webauthn_authentication.type must be public-key');
+  }
+  let clientData: { challenge: string; origin: string; type: string };
+  try {
+    clientData = parseClientDataJsonBase64url(credential.response.clientDataJSON);
+  } catch (e: unknown) {
+    return failure(
+      'invalid_body',
+      errorMessage(e) || 'Invalid webauthn_authentication.response.clientDataJSON',
+    );
+  }
+  if (!isHostWithinRpId(originHostnameOrEmpty(clientData.origin), input.rpId)) {
+    return failure('invalid_origin', 'WebAuthn origin is not within rpId');
+  }
+
+  const credentialId = webAuthnCredentialIdB64uFromCredential(credential);
+  if (!credentialId.ok) return credentialId;
+  const authenticator = await input.readAuthenticator(credentialId.credentialIdB64u);
+  if (!authenticator) {
+    return failure('unknown_credential', 'Credential is not registered for user');
+  }
+  const publicKey = credentialPublicKeyBytes(authenticator);
+  if (!publicKey.ok) return publicKey;
+
+  const { verifyAuthenticationResponse } = await loadSimpleWebAuthnServer();
+  let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response: authenticationResponseJson(credential),
+      expectedChallenge: input.expectedChallenge,
+      expectedOrigin: input.expectedOrigin,
+      expectedRPID: input.rpId,
+      credential: {
+        id: credentialId.credentialIdB64u,
+        publicKey: publicKey.bytes,
+        counter: authenticator.counter,
+      },
+      // Refused below, after the signature verifies. See the note at the top of this file.
+      requireUserVerification: false,
+    });
+  } catch (e: unknown) {
+    return failure(
+      'invalid_assertion',
+      errorMessage(e) || 'Authentication assertion verification threw',
+    );
+  }
+  if (!verification.verified) {
+    return failure('not_verified', 'Authentication verification failed');
+  }
+  if (verification.authenticationInfo.userVerified !== true) return userVerificationRequired();
+  const newCounter = verification.authenticationInfo.newCounter;
+  if (!Number.isSafeInteger(newCounter) || newCounter < 0) {
+    return failure('internal', 'Verifier omitted the authenticator counter');
+  }
+  return {
+    ok: true,
+    credentialIdB64u: credentialId.credentialIdB64u,
+    authenticator,
+    newCounter,
+  };
 }
 
 function updatedAuthenticatorRecord(input: {
@@ -175,7 +277,7 @@ async function persistAuthenticatorCounter(input: {
   userId: string;
   credentialIdB64u: string;
   newCounter: number;
-}): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+}): Promise<{ ok: true } | WebAuthnCeremonyFailure> {
   try {
     const latest = await input.store.get(input.userId, input.credentialIdB64u);
     if (latest && input.newCounter > latest.counter) {
@@ -197,8 +299,8 @@ function parseWebAuthnClientDataForRegistration(input: {
   credential: Record<string, unknown>;
   expectedChallenge: string;
   rpId: WebAuthnRpId;
-}): WebAuthnCredentialVerificationResult | { ok: true; originHost: string } {
-  const response = readNestedRecord(input.credential, 'response');
+}): WebAuthnCeremonyFailure | { ok: true } {
+  const response = readRecord(input.credential.response);
   const clientDataJSON = response ? readStringField(response, 'clientDataJSON') : '';
   const clientData = parseClientDataJsonBase64url(clientDataJSON);
   if (clientData.type !== 'webauthn.create') {
@@ -210,24 +312,23 @@ function parseWebAuthnClientDataForRegistration(input: {
   if (clientData.challenge !== input.expectedChallenge) {
     return failure('challenge_mismatch', 'Registration challenge mismatch');
   }
-  const originHost = originHostnameOrEmpty(clientData.origin);
-  if (!isHostWithinRpId(originHost, input.rpId)) {
+  if (!isHostWithinRpId(originHostnameOrEmpty(clientData.origin), input.rpId)) {
     return failure('invalid_origin', 'WebAuthn origin is not within rpId');
   }
-  return { ok: true, originHost };
+  return { ok: true };
 }
 
-function registrationCredentialCounter(counter: unknown): number {
-  const numeric = typeof counter === 'number' ? counter : Number(counter);
-  return Number.isFinite(numeric) && numeric >= 0 ? Math.floor(numeric) : 0;
-}
-
+/**
+ * Checks a passkey registration: the ceremony type, the challenge, the origin,
+ * the RP ID, the attestation, user presence and user verification. A malformed
+ * response makes the WebAuthn library throw.
+ */
 export async function verifyWebAuthnRegistrationCredentialForIntent(input: {
   webauthnRegistration: unknown;
   expectedChallenge: string;
   expectedOrigin: string;
   rpId: WebAuthnRpId;
-}): Promise<WebAuthnCredentialVerificationResult> {
+}): Promise<VerifiedPasskeyRegistration | WebAuthnCeremonyFailure> {
   const credential = readRecord(input.webauthnRegistration);
   if (!credential) {
     return failure('invalid_body', 'Missing webauthn_registration');
@@ -247,38 +348,42 @@ export async function verifyWebAuthnRegistrationCredentialForIntent(input: {
     );
   }
 
-  const mod = await loadSimpleWebAuthnServer();
-  const verifyRegistrationResponse = mod.verifyRegistrationResponse;
-  if (typeof verifyRegistrationResponse !== 'function') {
-    return failure('unsupported', 'WebAuthn registration verifier is unavailable in this runtime');
-  }
-
+  const { verifyRegistrationResponse } = await loadSimpleWebAuthnServer();
   const registration = await verifyRegistrationResponse({
-    response: credential,
+    // The library checks the response shape and throws on a malformed one.
+    response: credential as unknown as RegistrationResponseJSON,
     expectedChallenge: input.expectedChallenge,
     expectedOrigin,
     expectedRPID: input.rpId,
+    // Refused below, after the attestation verifies. See the note at the top of this file.
     requireUserVerification: false,
   });
-  if (!registration.verified) {
+  const registrationInfo = registration.registrationInfo;
+  if (!registration.verified || !registrationInfo) {
     return failure('not_verified', 'Registration verification failed');
   }
+  if (registrationInfo.userVerified !== true) return userVerificationRequired();
 
-  const verifiedCredential = registration.registrationInfo?.credential;
-  const credentialIdB64u = String(verifiedCredential?.id || '').trim();
-  const credentialPublicKey = verifiedCredential?.publicKey;
-  if (!credentialIdB64u || !credentialPublicKey) {
+  const verifiedCredential = registrationInfo.credential;
+  const credentialIdB64u = verifiedCredential.id.trim();
+  if (!credentialIdB64u || verifiedCredential.publicKey.length === 0) {
     return failure(
       'internal',
       'Registration verification did not return credential public key material',
     );
   }
+  const counter = verifiedCredential.counter;
   return {
     ok: true,
     credential: {
       credentialIdB64u,
-      credentialPublicKeyB64u: base64UrlEncode(credentialPublicKey),
-      counter: registrationCredentialCounter(verifiedCredential.counter),
+      credentialPublicKeyB64u: base64UrlEncode(verifiedCredential.publicKey),
+      counter: Number.isSafeInteger(counter) && counter >= 0 ? counter : 0,
+    },
+    authenticator: {
+      aaguid: registrationInfo.aaguid,
+      backedUp: registrationInfo.credentialBackedUp,
+      transports: [...(verifiedCredential.transports ?? [])],
     },
   };
 }
@@ -294,10 +399,8 @@ export async function verifyWebAuthnAuthenticationLiteWithStore(input: {
 }): Promise<WebAuthnAuthenticationLiteResult> {
   try {
     const userId = String(input.userId || '').trim();
-    const rpId = input.rpId;
     const expectedChallenge = String(input.expectedChallenge || '').trim();
     const expectedOrigin = toOptionalTrimmedString(input.expectedOrigin);
-    const credential = input.webauthnAuthentication;
 
     if (!userId)
       return { success: false, verified: false, code: 'invalid_body', message: 'Missing userId' };
@@ -315,118 +418,32 @@ export async function verifyWebAuthnAuthenticationLiteWithStore(input: {
         code: 'invalid_body',
         message: 'expected_origin is required for WebAuthn authentication verification',
       };
-    let clientData: { challenge: string; origin: string; type: string };
-    try {
-      clientData = parseClientDataJsonBase64url(credential.response.clientDataJSON);
-    } catch (e: unknown) {
+
+    const verified = await verifyPasskeyAssertion({
+      credential: input.webauthnAuthentication,
+      rpId: input.rpId,
+      expectedChallenge,
+      expectedOrigin,
+      readAuthenticator: (credentialIdB64u) =>
+        input.authenticatorStore.get(userId, credentialIdB64u),
+    });
+    if (!verified.ok) {
+      return { success: false, verified: false, code: verified.code, message: verified.message };
+    }
+
+    const counterUpdate = await persistAuthenticatorCounter({
+      store: input.authenticatorStore,
+      userId,
+      credentialIdB64u: verified.credentialIdB64u,
+      newCounter: verified.newCounter,
+    });
+    if (!counterUpdate.ok) {
       return {
         success: false,
         verified: false,
-        code: 'invalid_body',
-        message: errorMessage(e) || 'Invalid webauthn_authentication.response.clientDataJSON',
+        code: counterUpdate.code,
+        message: counterUpdate.message,
       };
-    }
-
-    const originHost = originHostnameOrEmpty(clientData.origin);
-    if (!isHostWithinRpId(originHost, rpId)) {
-      return {
-        success: false,
-        verified: false,
-        code: 'invalid_origin',
-        message: 'WebAuthn origin is not within rpId',
-      };
-    }
-
-    const credentialId = credentialRawIdB64u(credential);
-    if (!credentialId.ok) {
-      return {
-        success: false,
-        verified: false,
-        code: credentialId.code,
-        message: credentialId.message,
-      };
-    }
-
-    const matched = await input.authenticatorStore.get(userId, credentialId.credentialIdB64u);
-    if (!matched) {
-      return {
-        success: false,
-        verified: false,
-        code: 'unknown_credential',
-        message: 'Credential is not registered for user',
-      };
-    }
-
-    const mod = await loadSimpleWebAuthnServer();
-    const verifyAuthenticationResponse = mod.verifyAuthenticationResponse;
-    if (typeof verifyAuthenticationResponse !== 'function') {
-      return {
-        success: false,
-        verified: false,
-        code: 'unsupported',
-        message: 'WebAuthn verifier is unavailable in this runtime',
-      };
-    }
-
-    const publicKey = credentialPublicKeyBytes(matched);
-    if (!publicKey.ok) {
-      return {
-        success: false,
-        verified: false,
-        code: publicKey.code,
-        message: publicKey.message,
-      };
-    }
-
-    let verification: unknown;
-    try {
-      verification = await verifyAuthenticationResponse({
-        response: credential,
-        expectedChallenge,
-        expectedOrigin,
-        expectedRPID: rpId,
-        credential: credentialVerificationInput({
-          credentialIdB64u: credentialId.credentialIdB64u,
-          credentialPublicKeyBytes: publicKey.bytes,
-          counter: matched.counter,
-        }),
-        requireUserVerification: false,
-      });
-    } catch (e: unknown) {
-      return {
-        success: false,
-        verified: false,
-        code: 'invalid_assertion',
-        message: errorMessage(e) || 'Authentication assertion verification threw',
-      };
-    }
-
-    const verificationRecord = readRecord(verification);
-    if (verificationRecord?.verified !== true) {
-      return {
-        success: false,
-        verified: false,
-        code: 'not_verified',
-        message: 'Authentication verification failed',
-      };
-    }
-
-    const newCounter = authenticationNewCounter(verification);
-    if (newCounter !== null) {
-      const counterUpdate = await persistAuthenticatorCounter({
-        store: input.authenticatorStore,
-        userId,
-        credentialIdB64u: credentialId.credentialIdB64u,
-        newCounter,
-      });
-      if (!counterUpdate.ok) {
-        return {
-          success: false,
-          verified: false,
-          code: counterUpdate.code,
-          message: counterUpdate.message,
-        };
-      }
     }
 
     return { success: true, verified: true };
