@@ -2,7 +2,7 @@ import { expect, type Request } from '@playwright/test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
-import { TEST_PRF_OUTPUT } from '../../intended-app/src/recoveryAdministrationProbe';
+import { TEST_PRF_OUTPUT } from '../../intended-app/src/recoveryProbePrf';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
 type RecoveryRotationProofObservation = {

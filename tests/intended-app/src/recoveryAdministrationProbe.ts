@@ -2,6 +2,7 @@ import type { SeamsWeb } from '@seams/mpc-wallet/client';
 import { toWalletId } from '@seams/mpc-wallet/client';
 import { computeWalletOwnerAdminChallengeDigest } from '../../../packages/shared-ts/src/authorization/walletOwnerOperation';
 import { base64UrlDecode, base64UrlEncode } from '../../../packages/shared-ts/src/utils/base64';
+import { TEST_PRF_OUTPUT } from './recoveryProbePrf';
 
 type RecoveryProbeResponse = {
   readonly status: number;
@@ -20,8 +21,6 @@ export type RecoveryAdministrationProbe = {
   readonly finalIssuedAtMs: number;
   readonly backupOutstanding: boolean;
 };
-
-export const TEST_PRF_OUTPUT = 'dummy-recovery-prf-output';
 
 async function postRecoveryProbe(
   url: URL,
