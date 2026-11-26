@@ -1,8 +1,10 @@
 # Refactor 253: an OPRF for the signing-session seal
 
-Status: 2026-11-19. D1 to D9 are decided. Slices 0, 1, 2 and 4 are done (Section 8, "What Slice
-2 changed"). Slice 3 is on staging: Wallet 0.75.0 and seams-monorepo `28981072`. Production waits
-for the owner.
+Status: 2026-11-26. Complete. D1 to D9 are decided. Slices 0, 1, 2 and 4 are done (Section 8,
+"What Slice 2 changed"). Slice 3 is on staging and production: seams-monorepo `28981072` (Wallet
+0.75.0) is in `main` `c6f9cf37`, which the Slice 4 deploy of
+[Refactor 252](refactor-252-email-otp-device-factor.md) put on production mainnet and production
+testnet, with migration 0090.
 
 The owner asked: "We use shamir-3-pass to persist signing session material between page
 refreshes. Can it be replaced with the faster OPRF?" This plan answers the question. The OPRF is

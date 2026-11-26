@@ -1,5 +1,11 @@
 # Plan: Implicit State Machine Hardening
 
+Status: 2026-11-26. Only B9 is open; it needs a design decision. The other confirmed items
+were fixed on 2026-11-08, matched to their commits by subject: B1 `fbbb036ac`, B2 `df155e98f`,
+B3 `b7f99a793`, B5 `efefe9ad5`, B6 `c011ce920`, B10 `525589e9b`, B16 `4f36c5ac8`, B19
+`dda732ec9`, B21 `cbb95b93c` and B22 `e5d1eadca`. The B8 and B12 code is gone. The matrix
+below keeps the findings as they were measured.
+
 ## Purpose and Scope
 
 This document records the source-verified audit of implicit state machines across `seams-wallet` and the phased refactor plan to replace ad-hoc boolean flags, parallel `Map`s, nullable field bags, and unguarded transitions with explicit discriminated unions and atomic transition helpers.
