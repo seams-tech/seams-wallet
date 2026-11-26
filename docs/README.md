@@ -92,3 +92,8 @@ links to their full Git records; unfinished plans retain their working detail.
 - [R150–R155: regional wallet homes, custody objects and registration latency](archive/refactor-150-155.md).
 - [R170: client/host separation](refactor-170.md) and [R171: public API](refactor-171.md).
 - [Optimizations 10 and 11: registration, ECDSA presign and NEAR latency](archive/optimization-10-11.md).
+- R225 and R226, retired on 2026-11-26 with nothing built. R225 planned Jev rules that only
+  tighten the deterministic payment rules. R226 (first named "child lock") let an owner write
+  such limits for their own wallet in plain English. The last texts are
+  [R225 at `61bf248cf`](https://github.com/seams-tech/seams-wallet/blob/61bf248cf/docs/refactor-225-jev-policy-engine.md)
+  and [R226 at `90fe27446`](https://github.com/seams-tech/seams-wallet/blob/90fe27446/docs/refactor-226-child-lock.md).

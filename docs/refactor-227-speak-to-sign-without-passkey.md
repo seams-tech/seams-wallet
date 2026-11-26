@@ -7,7 +7,9 @@ check on staging is open. Step 3 shipped in 0.59.0; its staging check is open. S
 shipped in 0.61.0 with verifier 0.5.1; on staging only its backend and verifier run so far.
 Step 5 (records) is done. The plan changed the
 Speak-to-Sign design of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and
-uses the step-up of [Refactor 225](refactor-225-jev-policy-engine.md) (Section 4).
+adds a step-up that Refactor 225 was to fill with Jev rules. The owner retired Refactor 225
+on 2026-11-26 with nothing built (see the [docs index](README.md#implementation-history)),
+so the stub rule of Section 3 is the only rule.
 
 Decisions of the user (2026-11-09):
 
@@ -99,7 +101,7 @@ hash beside the speaker and Whisper calls and sign at once. But it does not fit:
 Option G, the flow:
 
 1. The Wallet starts the signing preparation that needs no transaction input while the verify
-   call runs (Refactor 225, Decision 4 allows it). No signature exists before the verdict.
+   call runs. No signature exists before the verdict.
 2. The verify route returns the verdict (as today).
 3. Wallet core (not the host plugin) checks the verdict: kind, outcome, the request and
    spoken-text digests, the audio digest of the clip that core recorded, the signature, the
@@ -170,8 +172,8 @@ SpokenRequestV1::NoteRating { .. }    // tag 5, Step 3 (Section 4)
 ### 3. Step-up and the stub rule
 
 - The verifier runs a policy step after the words match:
-  `policy::decide(&request) -> Allow | StepUp(rule) | Deny(rule)`. JEV plugs in here later
-  (Refactor 225, Section 3). A policy step can only tighten.
+  `policy::decide(&request) -> Allow | StepUp(rule) | Deny(rule)`. A policy step can only
+  tighten. No other rule is planned: Refactor 225 (Jev rules) was retired unbuilt.
 - The stub rule: "A voice payment above 10 NEAR needs a passkey." A community note or a
   rating moves no value, so the rule never applies to it.
 - A warm session normally signs with "Review transaction" and no passkey. So Wallet core
@@ -359,7 +361,7 @@ until the 0.57.0 rollout session reports done.
    contract `seams-wallet.testnet` (code hash `ecdd703a…ec42`) keeps its withdrawal methods,
    so a testnet owner can still withdraw. Nobody checked that any balance is left.
 5. **Records.** Done on 2026-11-09. Refactor 210 Section 0, Section 11 and Section 12,
-   Refactor 225 Section 4 and open question 9, the verifier README and the `seams-monorepo`
+   Refactor 225 (since retired) Section 4 and open question 9, the verifier README and the `seams-monorepo`
    docs index now say what runs.
 
 6. **Speed.** The analysis is

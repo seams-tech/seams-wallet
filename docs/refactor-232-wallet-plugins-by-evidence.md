@@ -81,9 +81,8 @@ is Slices 1 to 5 only.
   a 30-line adapter (`packages/voiceid/src/capture/phrase.ts`) over `openPhraseCard` of
   `@seams/voice-capture/card`. It adds the Wallet's theme classes, the Back control and the
   size reports. The surface returns the samples to its caller, which is core.
-- **F10. Policy.** [Refactor 225](refactor-225-jev-policy-engine.md) plans the policy engine
-  (nothing built). Its rule is "tighten-only": a semantic rule never allows more than the
-  deterministic rules.
+- **F10. Policy.** No policy engine is planned. Refactor 225 planned one, with nothing built,
+  and the owner retired it on 2026-11-26.
 - **F11. What `@seams/voice-sign` has** (checked on 2026-11-11, speak-to-sign `65b47e9`):
   - `./server` has `callVerifier`. It makes the same OutLayer call as `speakToSignVerify.ts`
     of the Wallet server: the same URL, `version_key`, `secrets_ref`, `resource_limits` and
