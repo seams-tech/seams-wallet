@@ -1362,23 +1362,19 @@ type WalletRegistrationFinalizeResponseAuthority =
       rpId?: never;
     };
 
-type WalletRegistrationFinalizeSignerResult =
+type WalletRegistrationFinalizeSignerResult = ExclusiveUnion<
   | {
       kind: 'near_ed25519';
       authorityScope: Ed25519AuthorityScope;
       accountProvisioning: RegistrationNearAccountProvisioning;
       resolvedAccount: ResolvedRegistrationNearAccount;
       ed25519: WalletRegistrationEd25519YaoPublicResult;
-      ecdsa?: never;
     }
   | {
       kind: 'evm_family_ecdsa';
       ecdsa: { walletKeys: WalletRegistrationEcdsaWalletKey[] };
-      authorityScope?: never;
-      accountProvisioning?: never;
-      resolvedAccount?: never;
-      ed25519?: never;
-    };
+    }
+>;
 
 type EmailOtpWalletRegistrationFinalizeResponse = WalletRegistrationFinalizeResponseBase &
   WalletRegistrationFinalizeManifest &
@@ -1566,6 +1562,7 @@ import {
   parseWalletAddAuthMethodRegistrationOptions,
   type WalletAddAuthMethodRegistrationOptions,
 } from '@shared/utils/addAuthMethodRegistration';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 export type { WalletAddAuthMethodRegistrationOptions };
 
 export type WalletAddAuthMethodStartResponse =

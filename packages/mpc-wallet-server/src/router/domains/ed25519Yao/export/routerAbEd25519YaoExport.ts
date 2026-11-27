@@ -105,6 +105,7 @@ import type {
 import type { RouterAbEd25519YaoExportExecuteAdmissionContextV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 import type { RouterAbEd25519YaoPreparedWriteV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 const EXPORT_AUTH_MAX_TTL_MS = 60_000;
 const EXPORT_AUTH_CLOCK_SKEW_MS = 30_000;
@@ -267,15 +268,10 @@ function resolveTraceContext(request: Request): RouterAbEd25519YaoTraceContextRe
   return { ok: false, message: parsed.message };
 }
 
-type RouterAbEd25519YaoExportAdmissionAuthorization =
+type RouterAbEd25519YaoExportAdmissionAuthorization = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'passkey';
       readonly webauthnAuthentication: WebAuthnAuthenticationCredential;
-      readonly providerSubjectId?: never;
-      readonly walletAuthMethodId?: never;
-      readonly challengeId?: never;
-      readonly otpCode?: never;
-      readonly assertion?: never;
     }
   | {
       readonly kind: 'email_otp_factor';
@@ -286,19 +282,14 @@ type RouterAbEd25519YaoExportAdmissionAuthorization =
       readonly walletAuthMethodId: string;
       readonly challengeId: string;
       readonly otpCode: string;
-      readonly webauthnAuthentication?: never;
-      readonly assertion?: never;
     }
   | {
       readonly kind: 'voiceid_device';
       /* The exact VoiceID method; its enrolled device key signed the statement. */
       readonly walletAuthMethodId: string;
       readonly assertion: VoiceIdOperationAssertion;
-      readonly webauthnAuthentication?: never;
-      readonly providerSubjectId?: never;
-      readonly challengeId?: never;
-      readonly otpCode?: never;
-    };
+    }
+>;
 
 /**
  * The VoiceID seed envelope the admission returns after a voice check. The

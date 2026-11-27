@@ -144,6 +144,7 @@ import {
 import { requiredNearTransactionSignatureUses } from './signatureUses';
 import { requirePositiveSafeInteger } from '@shared/utils/validation';
 import { VoiceIdStepUpRequiredError, isVoiceIdStepUpRequired } from '../../stepUpConfirmation/voiceIdStepUp';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 
 function nearOwnerOperationAuthorizationDecisionFromError(
   error: unknown,
@@ -222,23 +223,19 @@ type SignNep413MessagePayload = {
   voiceVerdict?: NearTransactionWithActionsPayload['voiceVerdict'];
 };
 
-type SignNep413MessageResult =
+type SignNep413MessageResult = ExclusiveUnion<
   | {
       success: true;
       accountId: string;
       publicKey: string;
       signature: string;
       state?: string;
-      error?: never;
     }
   | {
       success: false;
       error: string;
-      accountId?: never;
-      publicKey?: never;
-      signature?: never;
-      state?: never;
-    };
+    }
+>;
 
 type SignTransactionWithActionsInput = {
   commandSubject: NearCommandSubject;
@@ -681,12 +678,10 @@ type NearAdHocSigningAttempt =
       forceFreshAuth: true;
     };
 
-type PreparedNearAdHocSigningSession =
+type PreparedNearAdHocSigningSession = ExclusiveUnion<
   | {
       kind: 'authorized';
       selectedLane: SelectedEd25519Lane;
-      candidate?: never;
-      materialIdentity?: never;
       forceFreshAuth: boolean;
       passkeyEd25519OperationStepUp: NearPasskeyEd25519OperationStepUpHook | null;
       emailOtpEd25519StepUp: NearEmailOtpEd25519StepUpHook | null;
@@ -695,7 +690,6 @@ type PreparedNearAdHocSigningSession =
     }
   | {
       kind: 'authorization_required';
-      selectedLane?: never;
       candidate: AuthorizationRequiredEd25519LaneCandidate;
       materialIdentity: NearEd25519MaterialIdentity;
       forceFreshAuth: true;
@@ -703,7 +697,8 @@ type PreparedNearAdHocSigningSession =
       emailOtpEd25519StepUp: NearEmailOtpEd25519StepUpHook | null;
       yaoSigningPreparation: NearEd25519YaoSigningPreparation;
       yaoMaterialExecutor: NearEd25519YaoMaterialExecutor;
-    };
+    }
+>;
 
 function buildPreparedNearTransactionExecutionState(args: {
   preparedSigningSession: PreparedNearEd25519TransactionSigningSession;

@@ -1,10 +1,11 @@
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export type EcdsaClientPresignAdmissionStorage =
+export type EcdsaClientPresignAdmissionStorage = ReadonlyExclusiveUnion<
   | { readonly kind: 'sealed_indexed_db'; readonly durableRecordId: string }
-  | { readonly kind: 'resident'; readonly durableRecordId?: never }
-  | { readonly kind: 'discarded_capacity'; readonly durableRecordId?: never }
-  | { readonly kind: 'discarded_ambiguous'; readonly durableRecordId?: never };
+  | { readonly kind: 'resident' }
+  | { readonly kind: 'discarded_capacity' }
+  | { readonly kind: 'discarded_ambiguous' }
+>;
 
 export type EcdsaClientPresignUnavailableReason =
   | 'claimed_elsewhere'

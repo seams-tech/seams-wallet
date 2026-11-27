@@ -1,13 +1,15 @@
-export type TransactionReceiptState =
-  | { kind: 'signing'; hash?: never; message?: never }
-  | { kind: 'signed'; hash?: never; message?: never }
-  | { kind: 'broadcasting'; hash?: never; message?: never }
-  | { kind: 'submitted' | 'confirmed'; hash: string | null; message?: never }
+import type { ExclusiveUnion } from '@shared/utils/variant';
+export type TransactionReceiptState = ExclusiveUnion<
+  | { kind: 'signing' }
+  | { kind: 'signed' }
+  | { kind: 'broadcasting' }
+  | { kind: 'submitted' | 'confirmed'; hash: string | null }
   | { kind: 'failed' | 'reverted' | 'unknown'; hash: string | null; message: string }
   // NEAR refused the broadcast for a reason that depends on account state, such as
   // NotEnoughBalance: the transaction is not on chain, but its signed bytes stay valid
   // until they expire, so the outcome is not final.
-  | { kind: 'rejected'; hash: string; message: string };
+  | { kind: 'rejected'; hash: string; message: string }
+>;
 
 // A message signature (NEP-413) is the result itself: nothing is broadcast, so
 // its receipt has no network stages to reach.

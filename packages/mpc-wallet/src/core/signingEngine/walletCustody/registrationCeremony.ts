@@ -16,6 +16,7 @@ import {
   runWalletCustodyKeySetCeremony,
   type WalletCustodyCeremonyStepRunner,
 } from './ceremonyDriver';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 /**
  * One NEAR Ed25519 key set provisioned from the wallet custody seed.
@@ -33,23 +34,21 @@ import {
  * while the run prepares its inputs exists only after the Router round, so
  * the run can take it then instead of at its start.
  */
-export type EstablishNearEd25519CustodyFactor =
+export type EstablishNearEd25519CustodyFactor = ReadonlyExclusiveUnion<
   | {
       /** The passkey or Email OTP factor, as the envelope will name it. */
       readonly factorJson: string;
       /** `PRF.first` or the Email OTP factor key. Owned by the caller. */
       readonly factorSecret: ArrayBuffer;
-      readonly factorAfterRouterRound?: never;
     }
   | {
-      readonly factorJson?: never;
-      readonly factorSecret?: never;
       /** Asked once, after the Router round returned. The caller owns the secret. */
       readonly factorAfterRouterRound: () => Promise<{
         readonly factorJson: string;
         readonly factorSecret: ArrayBuffer;
       }>;
-    };
+    }
+>;
 
 type EstablishNearEd25519CustodyInput = EstablishNearEd25519CustodyFactor &
   NearEd25519CustodyRunInput;

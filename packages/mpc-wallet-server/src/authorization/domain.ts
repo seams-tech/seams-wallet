@@ -1,6 +1,6 @@
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
-import type { Variant } from '@shared/utils/variant';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import type {
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
@@ -972,13 +972,9 @@ export type OwnerOperationAuthorizationDecision<TStepUpPreparation> =
       readonly stepUp?: never;
     };
 
-type AuthorizedOperationLifecycle =
+type AuthorizedOperationLifecycle = ReadonlyExclusiveUnion<
   | {
       readonly lifecycle: 'claimed';
-      readonly result?: never;
-      readonly response?: never;
-      readonly resultDigest?: never;
-      readonly completedAtMs?: never;
     }
   | {
       readonly lifecycle: 'completed';
@@ -986,7 +982,8 @@ type AuthorizedOperationLifecycle =
       readonly response: AuthorizedOperationReplayResponse;
       readonly resultDigest: DigestB64u;
       readonly completedAtMs: number;
-    };
+    }
+>;
 
 export type AuthorizedOperation = AuthorizedOperationLifecycle & {
   readonly kind: 'authorized_operation';

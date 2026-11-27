@@ -23,6 +23,7 @@ import { D1WalletRelocationApprovals } from '../d1/wallet/d1WalletRelocationAppr
 import { WalletRelocationOwnerRequest } from '../d1/wallet/d1WalletRelocationOwnerRequest';
 import { WalletRelocationReadAccess } from '../d1/wallet/d1WalletRelocationReadAccess';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 const BASE_PATH = '/wallet/placement/v1';
 
@@ -434,19 +435,17 @@ function parseRelocationIntent(
     : { ...intent, kind: 'admission', sourceProof: raw.sourceProof };
 }
 
-type SourceProof =
+type SourceProof = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'passkey';
       readonly credential: unknown;
-      readonly challengeId?: never;
-      readonly otpCode?: never;
     }
   | {
       readonly kind: 'email_otp';
-      readonly credential?: never;
       readonly challengeId: string;
       readonly otpCode: string;
-    };
+    }
+>;
 
 function parseSourceProof(raw: unknown): SourceProof | null {
   if (!isPlainObject(raw)) return null;

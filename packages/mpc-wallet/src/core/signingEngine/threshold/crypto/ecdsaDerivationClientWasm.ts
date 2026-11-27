@@ -83,6 +83,7 @@ import type {
   VerifyRouterAbEcdsaRegistrationClientProofsRequestV1,
   VerifyRouterAbEcdsaRegistrationClientProofsResultV1,
 } from '../../routerAb/ecdsaDerivation/clientCeremony';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 const ECDSA_DERIVATION_CLIENT_WORKER_TIMEOUT_MS = 20_000;
 
@@ -446,19 +447,17 @@ function ecdsaRoleLocalWorkerHandleMatchesPersistedRef(
   );
 }
 
-export type OpenEcdsaRoleLocalSigningMaterialWasmResult =
+export type OpenEcdsaRoleLocalSigningMaterialWasmResult = ReadonlyExclusiveUnion<
   | {
       readonly ok: true;
       readonly liveHandle: EcdsaRoleLocalWorkerHandle;
       readonly materialRef: EcdsaRoleLocalPersistedMaterialRef;
-      readonly reason?: never;
     }
   | {
       readonly ok: false;
       readonly reason: 'missing' | 'expired' | 'binding_mismatch' | 'corrupt';
-      readonly liveHandle?: never;
-      readonly materialRef?: never;
-    };
+    }
+>;
 
 export async function openEcdsaRoleLocalSigningMaterialWasm(input: {
   authority: WalletAuthAuthorityRef;

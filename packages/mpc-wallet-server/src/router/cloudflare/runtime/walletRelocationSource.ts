@@ -1,6 +1,7 @@
 import { walletRelocationObjectIdentity, type WalletObjectIdentity } from './walletObjectAddresses';
 import { isPlainObject } from '@shared/utils/validation';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type RuntimeSourceOperation =
   | 'ed25519-settle'
@@ -20,14 +21,13 @@ export type RuntimeSourceDirectory = {
   readonly SEAMS_D1_HOME_DATABASE_ID: string;
 };
 
-type SourceAuthorization =
-  | { readonly ok: true; readonly body: string; readonly identity: WalletObjectIdentity; readonly code?: never }
+type SourceAuthorization = ReadonlyExclusiveUnion<
+  | { readonly ok: true; readonly body: string; readonly identity: WalletObjectIdentity }
   | {
       readonly ok: false;
       readonly code: 'invalid_input' | 'source_command_unavailable' | 'source_command_denied';
-      readonly body?: never;
-      readonly identity?: never;
-    };
+    }
+>;
 
 export async function authorizeRuntimeSource(
   input: unknown,

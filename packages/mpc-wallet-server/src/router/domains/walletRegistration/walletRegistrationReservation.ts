@@ -1,6 +1,6 @@
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { requireRecord } from '@shared/utils/validation';
-import type { Variant } from '@shared/utils/variant';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import type { WalletSessionLocatorPublication } from '../../../authorization/sessionRouting';
 import type { CommittedWalletRegistration } from '../../../authorization/domain';
 import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
@@ -30,24 +30,20 @@ export type WalletRegistrationSetupReservation = {
   readonly reservedAtMs: number;
 };
 
-export type WalletRegistrationSetupReservationResult =
+export type WalletRegistrationSetupReservationResult = ReadonlyExclusiveUnion<
   | {
       readonly ok: true;
       readonly reservation: WalletRegistrationSetupReservation;
       /** The ownership generation the reserved wallet's custody objects are named by. */
       readonly ownershipGeneration: number;
       readonly lifecycle: 'reserved' | 'established';
-      readonly code?: never;
-      readonly message?: never;
     }
   | {
       readonly ok: false;
       readonly code: string;
       readonly message: string;
-      readonly reservation?: never;
-      readonly ownershipGeneration?: never;
-      readonly lifecycle?: never;
-    };
+    }
+>;
 
 /** Persist custody addresses before setup completes, then start the reserved wallet objects. */
 export type RegistrationWalletStartup = {
@@ -77,21 +73,18 @@ type ReservationOutcome =
 
 type RegistrationHomeAdmission<
   Purpose extends 'registration' | 'ordinary' = 'registration' | 'ordinary',
-> =
+> = ReadonlyExclusiveUnion<
   | {
       readonly ok: true;
       readonly ownershipGeneration: number;
       readonly purpose: Purpose;
-      readonly code?: never;
-      readonly message?: never;
     }
   | {
       readonly ok: false;
       readonly code: string;
       readonly message: string;
-      readonly ownershipGeneration?: never;
-      readonly purpose?: never;
-    };
+    }
+>;
 
 export interface WalletExecutionAuthority {
   admitEstablishedHome(input: {

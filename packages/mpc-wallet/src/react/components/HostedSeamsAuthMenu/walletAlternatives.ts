@@ -7,7 +7,7 @@ import {
   type ExternalNearController,
   type ExternalNearWalletId,
 } from '@seams/wallet-connect/client';
-import type { Variant } from '@shared/utils/variant';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import { hotWalletIcon, meteorWalletIcon } from '@shared/near/walletBrandImages';
 import type { SeamsWeb } from '@/SeamsWeb';
 import {
@@ -109,10 +109,11 @@ type ConnectionAttempt =
 
 type PendingConnectionAttempt = Variant<ConnectionAttempt, 'kind', 'pending'>;
 
-type WalletAlternativeConnectionResult =
-  | { readonly kind: 'connected'; readonly notify: () => void; readonly message?: never }
-  | { readonly kind: 'cancelled'; readonly notify?: never; readonly message?: never }
-  | { readonly kind: 'failed'; readonly message: string; readonly notify?: never };
+type WalletAlternativeConnectionResult = ReadonlyExclusiveUnion<
+  | { readonly kind: 'connected'; readonly notify: () => void }
+  | { readonly kind: 'cancelled' }
+  | { readonly kind: 'failed'; readonly message: string }
+>;
 
 /** Owns application-origin requests for exactly one hosted menu session. */
 export class WalletAlternativesBroker {

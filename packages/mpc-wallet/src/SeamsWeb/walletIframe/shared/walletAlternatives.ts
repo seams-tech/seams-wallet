@@ -5,6 +5,7 @@ import {
   walletIframeRequestIdFromBoundary,
   type WalletIframeRequestId,
 } from '@/core/types/walletIframeIdentity';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type WalletAlternativeDescriptor = Readonly<{
   id: string;
@@ -38,14 +39,14 @@ export type WalletConnectionResolution = Readonly<{
 
 export type WalletConnectionResolutionInput = Omit<WalletConnectionResolution, 'requestId'>;
 
-export type WalletConnectionState =
-  | { readonly kind: 'idle'; readonly request?: never; readonly message?: never }
+export type WalletConnectionState = ReadonlyExclusiveUnion<
+  | { readonly kind: 'idle' }
   | {
       readonly kind: 'pending';
       readonly request: WalletConnectionRequest;
-      readonly message?: never;
     }
-  | { readonly kind: 'failed'; readonly message: string; readonly request?: never };
+  | { readonly kind: 'failed'; readonly message: string }
+>;
 
 export function emptyWalletAlternatives(): WalletAlternatives {
   return { primary: [], secondary: [] };

@@ -69,6 +69,7 @@ import {
   type VoiceIdOperationAssertion,
 } from '../authorization/voiceIdDeviceAssertion';
 import { requireRecord } from './validation';
+import type { ReadonlyExclusiveUnion } from './variant';
 
 
 /**
@@ -674,32 +675,25 @@ export type RouterAbOwnerOperationAuthorizationDecisionV1Wire =
       };
     };
 
-type RouterAbEcdsaOperationStepUpProofV1Wire =
+type RouterAbEcdsaOperationStepUpProofV1Wire = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'passkey';
       readonly authority: PasskeyWalletAuthAuthority;
       readonly webauthn_authentication: RouterAbEcdsaOperationStepUpWebAuthnCredentialV1Wire;
-      readonly challenge_id?: never;
-      readonly otp_code?: never;
-      readonly assertion?: never;
     }
   | {
       readonly kind: 'email_otp';
       readonly authority: EmailOtpWalletAuthAuthority;
       readonly challenge_id: string;
       readonly otp_code: string;
-      readonly webauthn_authentication?: never;
-      readonly assertion?: never;
     }
   | {
       /* The enrolled device key signed the step-up challenge after a voice match. */
       readonly kind: 'voiceid';
       readonly authority: VoiceIdWalletAuthAuthority;
       readonly assertion: VoiceIdOperationAssertion;
-      readonly webauthn_authentication?: never;
-      readonly challenge_id?: never;
-      readonly otp_code?: never;
-    };
+    }
+>;
 
 export type RouterAbEcdsaOperationStepUpAuthorizationRequestV1Wire = {
   readonly kind: 'router_ab_ecdsa_operation_step_up_v1';

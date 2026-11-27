@@ -1,4 +1,4 @@
-import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
+import type { ExclusiveUnion, ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import { emitUnlockEvent } from '../unlockCompletion';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
@@ -222,25 +222,22 @@ export type LoginWarmupEd25519MintPlan =
       authorization?: never;
     };
 
-export type LoginWarmupEd25519SessionAuthority =
+export type LoginWarmupEd25519SessionAuthority = ExclusiveUnion<
   | {
       kind: 'not_requested';
-      authority?: never;
-      source?: never;
-      emailOtpAuthContext?: never;
     }
   | {
       kind: 'passkey';
       authority: PasskeyEd25519SessionPolicyAuthority;
       source: 'login';
-      emailOtpAuthContext?: never;
     }
   | {
       kind: 'email_otp';
       authority: EmailOtpEd25519SessionPolicyAuthority;
       source: 'email_otp';
       emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
-    };
+    }
+>;
 
 export function isActiveThresholdLoginSigningSession(
   sessionStatus: SigningSessionStatus | null | undefined,

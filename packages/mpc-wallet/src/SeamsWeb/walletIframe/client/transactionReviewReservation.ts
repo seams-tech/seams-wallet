@@ -12,19 +12,19 @@ import {
   type AnchoredWalletPresentation,
   type WalletSurfacePresentation,
 } from '../shared/walletStep';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export type TransactionDispatch =
-  | { readonly kind: 'ordinary'; readonly reservation?: never; readonly presentation?: never }
+export type TransactionDispatch = ReadonlyExclusiveUnion<
+  | { readonly kind: 'ordinary' }
   | {
       readonly kind: 'reviewed';
       readonly reservation: TransactionReviewReservation;
-      readonly presentation?: never;
     }
   | {
       readonly kind: 'anchored';
       readonly presentation: AnchoredWalletPresentation;
-      readonly reservation?: never;
-    };
+    }
+>;
 
 /** A call that asks for an anchored card replaces an ordinary dispatch for that call. */
 export function dispatchWithPresentation(
@@ -41,16 +41,17 @@ export function dispatchWithPresentation(
   return { kind: 'anchored', presentation: assertAnchoredPresentation(presentation) };
 }
 
-export type TransactionReviewReservationState =
-  | { readonly kind: 'reviewing'; readonly prepared?: never }
-  | { readonly kind: 'reviewing_again'; readonly prepared?: never }
+export type TransactionReviewReservationState = ReadonlyExclusiveUnion<
+  | { readonly kind: 'reviewing' }
+  | { readonly kind: 'reviewing_again' }
   | { readonly kind: 'preparing'; readonly prepared: boolean }
-  | { readonly kind: 'activating'; readonly prepared?: never }
-  | { readonly kind: 'wallet_approval'; readonly prepared?: never }
-  | { readonly kind: 'signing'; readonly prepared?: never }
+  | { readonly kind: 'activating' }
+  | { readonly kind: 'wallet_approval' }
+  | { readonly kind: 'signing' }
   /** The Wallet signed, and the app's after step shows the result in the same modal. */
-  | { readonly kind: 'after'; readonly prepared?: never }
-  | { readonly kind: 'settled'; readonly prepared?: never };
+  | { readonly kind: 'after' }
+  | { readonly kind: 'settled' }
+>;
 
 export class TransactionReviewReservation {
   private currentState: TransactionReviewReservationState = { kind: 'reviewing' };

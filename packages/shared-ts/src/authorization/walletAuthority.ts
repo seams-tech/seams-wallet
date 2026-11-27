@@ -29,6 +29,7 @@ import {
   type WalletRecoveryOperationId,
 } from '../utils/domainIds';
 import { requireRecord } from '../utils/validation';
+import type { ReadonlyExclusiveUnion } from '../utils/variant';
 
 const SIGNER_ACTIVATION_SET_DOMAIN = 'seams/wallet-signer-activation-set/v1';
 const WALLET_AUTHORITY_DOMAIN = 'seams/wallet-authority/v1';
@@ -38,31 +39,22 @@ type WalletAuthorityPrincipalV1 = {
   readonly deviceId: DeviceId;
 };
 
-export type WalletAuthorityProvenanceV1 =
+export type WalletAuthorityProvenanceV1 = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'wallet_registration';
-      readonly enrollmentId?: never;
-      readonly sourceAuthorityId?: never;
-      readonly linkSessionId?: never;
-      readonly recoveryOperationId?: never;
-      readonly continuityAuthorityId?: never;
     }
   | {
       readonly kind: 'device_link';
       readonly enrollmentId: LinkedDeviceEnrollmentId;
       readonly sourceAuthorityId: WalletAuthorityId;
       readonly linkSessionId: LinkDeviceSessionId;
-      readonly recoveryOperationId?: never;
-      readonly continuityAuthorityId?: never;
     }
   | {
       readonly kind: 'wallet_recovery';
       readonly recoveryOperationId: WalletRecoveryOperationId;
       readonly continuityAuthorityId: WalletAuthorityId;
-      readonly enrollmentId?: never;
-      readonly sourceAuthorityId?: never;
-      readonly linkSessionId?: never;
-    };
+    }
+>;
 
 export type WalletEd25519SignerActivationV1 = {
   readonly kind: 'wallet_ed25519_signer_activation_v1';

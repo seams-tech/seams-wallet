@@ -204,6 +204,7 @@ export type WalletAddAuthMethodStartRequest = {
  * preparation carries it to Device 2.
  */
 import type { WalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
+import type { ExclusiveUnion } from '@shared/utils/variant';
 export type { WalletAddAuthMethodRegistrationOptions };
 
 export type WalletAddAuthMethodStartResponse =
@@ -274,18 +275,15 @@ export type {
   WalletEmailOtpEnrollmentMaterialV1,
 } from '@shared/utils/registrationAuthMethodInput';
 
-export type WalletAddAuthMethodFinalizeRequest =
+export type WalletAddAuthMethodFinalizeRequest = ExclusiveUnion<
   | {
       addAuthMethodCeremonyId: string;
       webauthnRegistration: unknown;
       custodyEnvelope: PasskeyCustodyEnvelopeRecord;
-      emailOtpTarget?: never;
     }
   | {
       addAuthMethodCeremonyId: string;
       webauthnRegistration: unknown;
-      custodyEnvelope?: never;
-      emailOtpTarget?: never;
     }
   | {
       /**
@@ -294,16 +292,13 @@ export type WalletAddAuthMethodFinalizeRequest =
        * resealed custody envelope and no WebAuthn registration.
        */
       addAuthMethodCeremonyId: string;
-      webauthnRegistration?: never;
       custodyEnvelope: PasskeyCustodyEnvelopeRecord;
       emailOtpTarget: WalletAddAuthMethodEmailOtpTargetV1;
     }
   | {
       addAuthMethodCeremonyId: string;
-      webauthnRegistration?: never;
-      custodyEnvelope?: never;
-      emailOtpTarget?: never;
-    };
+    }
+>;
 
 type WalletAuthMethodStatusAnnotation<Status extends WalletAuthMethodRecord['status']> = {
   kind: WalletAuthMethodRecord['kind'];
@@ -780,25 +775,21 @@ type WalletRegistrationFinalizeResponseAuthMethod =
       rpId?: never;
     };
 
-type WalletRegistrationFinalizeSignerSuccess =
+type WalletRegistrationFinalizeSignerSuccess = ExclusiveUnion<
   | {
       kind: 'near_ed25519';
       authorityScope: ThresholdEd25519AuthorityScope;
       accountProvisioning: RegistrationNearAccountProvisioning;
       resolvedAccount: ResolvedRegistrationNearAccount;
       ed25519: WalletRegistrationEd25519YaoPublicResult;
-      ecdsa?: never;
     }
   | {
       kind: 'evm_family_ecdsa';
       ecdsa: {
         walletKeys: WalletRegistrationEcdsaWalletKey[];
       };
-      authorityScope?: never;
-      accountProvisioning?: never;
-      resolvedAccount?: never;
-      ed25519?: never;
-    };
+    }
+>;
 
 type WalletRegistrationFinalizeSuccessForAuth<
   AuthMethodBranch extends WalletRegistrationFinalizeResponseAuthMethod,

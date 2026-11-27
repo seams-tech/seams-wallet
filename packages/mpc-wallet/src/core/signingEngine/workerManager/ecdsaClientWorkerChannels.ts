@@ -56,6 +56,7 @@ import {
   type LinkedDeviceEcdsaSourceContributionPackageV1,
   type LinkedDeviceEcdsaSourceContributionPreparationV1,
 } from '@shared/device-linking/sourceContribution';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export const EcdsaClientWorkerControlKind = {
   AttachDerivationToPresign: 'attach_ecdsa_derivation_to_presign_v1',
@@ -261,21 +262,19 @@ export type RehydrateEcdsaRoleLocalSigningMaterialRequestV1 = {
   readonly materialRef?: never;
 };
 
-export type RehydrateEcdsaRoleLocalSigningMaterialResultV1 =
+export type RehydrateEcdsaRoleLocalSigningMaterialResultV1 = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'ecdsa_role_local_signing_material_opened_v1';
       readonly ok: true;
       readonly liveHandle: EcdsaRoleLocalWorkerHandle;
       readonly materialRef: EcdsaRoleLocalPersistedMaterialRef;
-      readonly reason?: never;
     }
   | {
       readonly kind: 'ecdsa_role_local_signing_material_unavailable_v1';
       readonly ok: false;
       readonly reason: 'missing' | 'expired' | 'binding_mismatch' | 'corrupt';
-      readonly liveHandle?: never;
-      readonly materialRef?: never;
-    };
+    }
+>;
 
 export type SignWalletRecoveryEcdsaMaterialPossessionProofRequestV1 = {
   readonly kind: 'sign_wallet_recovery_ecdsa_material_possession_proof_v1';

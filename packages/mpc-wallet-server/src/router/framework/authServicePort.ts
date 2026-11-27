@@ -1529,21 +1529,19 @@ export interface RouterApiIdentityService {
   ): Promise<RouterApiMethodTypes['verifyGithubOAuthCode']['result']>;
 }
 
-export type PreparedWebAuthnAuthentication =
+export type PreparedWebAuthnAuthentication = ReadonlyExclusiveUnion<
   | {
       readonly success: true;
       readonly verified: true;
-      readonly code?: never;
-      readonly message?: never;
       readonly consumeInBatch: readonly import('../../storage/tenantRoute').D1PreparedStatementLike[];
     }
   | {
       readonly success: false;
       readonly verified: false;
-      readonly consumeInBatch?: never;
       readonly code: string;
       readonly message: string;
-    };
+    }
+>;
 
 export interface RouterApiWebAuthnService {
   prepareWebAuthnAuthenticationLite(
@@ -1582,6 +1580,7 @@ interface RouterApiRouterAccountService {
 
 export type { RouterApiPasskeyCustodyService } from '../cloudflare/d1/passkeyCustody/d1PasskeyCustodyRouteService';
 import type { RouterApiPasskeyCustodyService } from '../cloudflare/d1/passkeyCustody/d1PasskeyCustodyRouteService';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export interface RouterApiServiceBag {
   externalAuth?: import('../../auth/externalAuthService').ExternalAuthService;

@@ -1,6 +1,6 @@
 import type { WalletId, WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { AuthMethodActivationResult, AuthMethodUnlockSuccess } from '../hostPlugin';
-import type { Variant } from '@shared/utils/variant';
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import type { ConfirmedVoiceChange } from './ownerConfirmation';
 import type {
   VoiceEnrollmentScope,
@@ -15,14 +15,11 @@ export type VoiceOwnerConfirmation = (
   request: VoiceEnrollmentConfirmationRequest,
 ) => Promise<ConfirmedVoiceChange>;
 
-export type VoiceIdActivationPreparation =
+export type VoiceIdActivationPreparation = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'enroll_existing';
       readonly scope: VoiceEnrollmentScope;
       readonly confirmChange: VoiceOwnerConfirmation;
-      readonly activate?: never;
-      readonly walletId?: never;
-      readonly walletAuthMethodId?: never;
     }
   | {
       readonly kind: 'activate';
@@ -32,9 +29,8 @@ export type VoiceIdActivationPreparation =
         capture: VoiceIdActivationCapture,
         signal: AbortSignal,
       ) => Promise<Variant<AuthMethodActivationResult, 'kind', 'activated'>>;
-      readonly scope?: never;
-      readonly confirmChange?: never;
-    };
+    }
+>;
 
 export type VoiceIdUnlockChallenge = Readonly<{
   expiresAtMs: number;

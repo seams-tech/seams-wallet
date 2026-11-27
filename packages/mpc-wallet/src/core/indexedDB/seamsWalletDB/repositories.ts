@@ -181,6 +181,7 @@ import {
   accountSignerRow,
   parseAccountSignerRow,
 } from './accountSignerRows';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled wallet auth method branch: ${String(value)}`);
@@ -537,8 +538,8 @@ export type StoreWalletRegistrationPublicationInputV1 = Omit<
   };
 };
 
-type WalletRegistrationSessionPublicationV1 =
-  | { readonly kind: 'owner_operations'; readonly walletSession?: never; readonly operationCredential?: never }
+type WalletRegistrationSessionPublicationV1 = ReadonlyExclusiveUnion<
+  | { readonly kind: 'owner_operations' }
   | {
       readonly kind: 'issued';
       readonly walletSession: ActiveWalletSessionV1;
@@ -547,8 +548,8 @@ type WalletRegistrationSessionPublicationV1 =
   | {
       readonly kind: 'credential_free_projection';
       readonly walletSession: ActiveWalletSessionV1;
-      readonly operationCredential?: never;
-    };
+    }
+>;
 
 export type PublishPendingWalletRegistrationCommitInputV1 = {
   readonly pending: PendingWalletRegistrationCommitV1;

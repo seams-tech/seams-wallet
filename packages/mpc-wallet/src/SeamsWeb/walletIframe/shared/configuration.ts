@@ -1,4 +1,4 @@
-import type { Variant } from '@shared/utils/variant';
+import type { ExclusiveUnion, Variant } from '@shared/utils/variant';
 import { parseWalletAuthMethodPlugins } from '@/core/authMethods/plugins';
 import { parseWalletApprovalPlugins } from '@/core/transactionFeatures/plugins';
 import { normalizeWalletLocale } from '@/core/ui/locale';
@@ -233,9 +233,10 @@ export function replaceWalletHostAppearance(
   };
 }
 
-export type WalletConfigurationUpdate =
-  | { kind: 'configure'; config: WalletHostConfig; assetsBaseUrl: string; appearance?: never }
-  | { kind: 'appearance'; appearance: AppearanceConfig; config?: never; assetsBaseUrl?: never };
+export type WalletConfigurationUpdate = ExclusiveUnion<
+  | { kind: 'configure'; config: WalletHostConfig; assetsBaseUrl: string }
+  | { kind: 'appearance'; appearance: AppearanceConfig }
+>;
 
 export type ConfiguredWalletHost = {
   kind: 'configured';

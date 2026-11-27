@@ -9,6 +9,7 @@ import { AuthorizationSnapshotLayout } from './authorizationSnapshotLayout';
 import { AUTHORIZATION_SNAPSHOT_MAX_BYTES, AUTHORIZATION_SNAPSHOT_MAX_CHUNKS } from './d1WalletAuthorizationSnapshot';
 import { D1WalletAuthorizationHistory } from './d1WalletAuthorizationHistory';
 import { WalletRelocationSessionSource } from './d1WalletRelocationSessions';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 const SCOPE =
   'namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_id = ?5';
@@ -19,19 +20,17 @@ type IntakeState = {
   readonly recordCount: number;
   readonly digestHex: string;
 } & ({ readonly state: 'receiving' } | { readonly state: 'verified' });
-type IntakeProgress =
+type IntakeProgress = ReadonlyExclusiveUnion<
   | {
       readonly state: 'receiving';
       readonly nextIndex: number;
       readonly chunkCount: number;
-      readonly digestHex?: never;
     }
   | {
       readonly state: 'verified';
       readonly digestHex: string;
-      readonly nextIndex?: never;
-      readonly chunkCount?: never;
-    };
+    }
+>;
 type Chunk = {
   index: number;
   chunkJson: string;

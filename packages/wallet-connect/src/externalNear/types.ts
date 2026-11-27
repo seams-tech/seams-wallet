@@ -1,5 +1,6 @@
 import type { TransactionInput } from '@shared/near/actions';
 import type { ValidatedNearMessage } from './message';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type ExternalNearWalletId = 'meteor' | 'hot' | 'intear';
 
@@ -10,8 +11,8 @@ export type ExternalNearConfig = Readonly<{
   rpcUrl: string;
   wallets: readonly ExternalNearWalletId[];
 }>;
-export type ExternalNearResult<T> =
-  | { readonly ok: true; readonly value: T; readonly code?: never; readonly message?: never }
+export type ExternalNearResult<T> = ReadonlyExclusiveUnion<
+  | { readonly ok: true; readonly value: T }
   | {
       readonly ok: false;
       readonly code:
@@ -21,8 +22,8 @@ export type ExternalNearResult<T> =
         | 'pending_request'
         | 'submission_unknown';
       readonly message: string;
-      readonly value?: never;
-    };
+    }
+>;
 
 const connectionBrand: unique symbol = Symbol('external NEAR connection');
 

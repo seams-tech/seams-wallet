@@ -24,7 +24,7 @@ export type DeviceLinkingSession = {
   readonly qrData: QrLinkedDeviceSessionPayloadV5;
 };
 
-export type LinkDeviceResult =
+export type LinkDeviceResult = ReadonlyExclusiveUnion<
   | {
       readonly success: true;
       /** Owner approval was durably recorded for the claimed target device. */
@@ -32,16 +32,12 @@ export type LinkDeviceResult =
       readonly walletId: WalletId;
       readonly enrollmentId: LinkedDeviceEnrollmentId;
       readonly deviceId: LinkedDeviceId;
-      readonly error?: never;
     }
   | {
       readonly success: false;
       readonly error: string;
-      readonly kind?: never;
-      readonly walletId?: never;
-      readonly enrollmentId?: never;
-      readonly deviceId?: never;
-    };
+    }
+>;
 
 export class DeviceLinkingError extends Error {
   readonly name = 'DeviceLinkingError';

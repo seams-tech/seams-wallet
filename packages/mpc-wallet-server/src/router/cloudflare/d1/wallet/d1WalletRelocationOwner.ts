@@ -9,8 +9,9 @@ import type { D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import { D1WalletAuthorityStore } from './d1WalletAuthorityStore';
 import type { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export type WalletRelocationFactorVerification =
+export type WalletRelocationFactorVerification = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'verified';
       readonly authorityDigestB64u: DigestB64u;
@@ -19,10 +20,8 @@ export type WalletRelocationFactorVerification =
     }
   | {
       readonly kind: 'denied';
-      readonly authorityDigestB64u?: never;
-      readonly authorityRevocationEpoch?: never;
-      readonly commitPrerequisites?: never;
-    };
+    }
+>;
 
 export async function readWalletRelocationOwner(
   database: D1DatabaseLike,
