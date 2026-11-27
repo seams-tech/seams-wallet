@@ -13,11 +13,7 @@ import type {
   GoogleEmailOtpRegistrationOfferCandidateRecord,
   NonEmptyGoogleEmailOtpRegistrationOfferCandidates,
 } from '../../../../core/EmailOtpStores';
-import type {
-  IdentityStore,
-  LinkIdentityResult,
-  UnlinkIdentityResult,
-} from '../../../../core/IdentityStore';
+import type { IdentityStore, LinkIdentityResult } from '../../../../core/IdentityStore';
 import type {
   RouterApiEmailOtpRouteService,
   RouterApiIdentityService,
@@ -43,26 +39,18 @@ type ResolveGoogleEmailOtpSessionInput =
 type ResolveGoogleEmailOtpSessionResult = Awaited<
   ReturnType<RouterApiIdentityService['resolveGoogleEmailOtpSession']>
 >;
-type CleanupGoogleEmailOtpDevRegistrationStateInput =
-  Parameters<RouterApiEmailOtpRouteService['cleanupGoogleEmailOtpDevRegistrationState']>[0];
-type CleanupGoogleEmailOtpDevRegistrationStateResult =
-  Awaited<ReturnType<RouterApiEmailOtpRouteService['cleanupGoogleEmailOtpDevRegistrationState']>>;
-type ValidateGoogleEmailOtpRegistrationCandidateWalletInput =
-  Parameters<
-    RouterApiEmailOtpRouteService['validateGoogleEmailOtpRegistrationCandidateWallet']
-  >[0];
-type ValidateGoogleEmailOtpRegistrationCandidateWalletResult =
-  Awaited<
-    ReturnType<RouterApiEmailOtpRouteService['validateGoogleEmailOtpRegistrationCandidateWallet']>
-  >;
-type ConsumeGoogleEmailOtpRegistrationAttemptRateLimitInput =
-  Parameters<
-    RouterApiIdentityService['consumeGoogleEmailOtpRegistrationAttemptRateLimit']
-  >[0];
-type ConsumeGoogleEmailOtpRegistrationAttemptRateLimitResult =
-  Awaited<
-    ReturnType<RouterApiIdentityService['consumeGoogleEmailOtpRegistrationAttemptRateLimit']>
-  >;
+type ValidateGoogleEmailOtpRegistrationCandidateWalletInput = Parameters<
+  RouterApiEmailOtpRouteService['validateGoogleEmailOtpRegistrationCandidateWallet']
+>[0];
+type ValidateGoogleEmailOtpRegistrationCandidateWalletResult = Awaited<
+  ReturnType<RouterApiEmailOtpRouteService['validateGoogleEmailOtpRegistrationCandidateWallet']>
+>;
+type ConsumeGoogleEmailOtpRegistrationAttemptRateLimitInput = Parameters<
+  RouterApiIdentityService['consumeGoogleEmailOtpRegistrationAttemptRateLimit']
+>[0];
+type ConsumeGoogleEmailOtpRegistrationAttemptRateLimitResult = Awaited<
+  ReturnType<RouterApiIdentityService['consumeGoogleEmailOtpRegistrationAttemptRateLimit']>
+>;
 
 type GoogleEmailOtpIdentityLinker = (input: {
   readonly userId: string;
@@ -75,7 +63,6 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
   private readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
   private readonly identityStore: IdentityStore;
   private readonly linkIdentity: GoogleEmailOtpIdentityLinker;
-  private readonly production: boolean;
   private readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
 
   constructor(input: {
@@ -83,14 +70,12 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
     readonly emailOtpRateLimits: CloudflareD1EmailOtpRateLimitStore;
     readonly identityStore: IdentityStore;
     readonly linkIdentity: GoogleEmailOtpIdentityLinker;
-    readonly production: boolean;
     readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
   }) {
     this.emailOtpEnrollments = input.emailOtpEnrollments;
     this.emailOtpRateLimits = input.emailOtpRateLimits;
     this.identityStore = input.identityStore;
     this.linkIdentity = input.linkIdentity;
-    this.production = input.production;
     this.registrationAttempts = input.registrationAttempts;
   }
 
@@ -152,79 +137,6 @@ export class CloudflareD1GoogleEmailOtpSessionResolver {
       identitySubject,
       linkedWalletId,
     });
-  }
-
-  async cleanupDevRegistrationState(
-    input: CleanupGoogleEmailOtpDevRegistrationStateInput,
-  ): Promise<CleanupGoogleEmailOtpDevRegistrationStateResult> {
-    if (this.production) {
-      return failure('not_found', 'Google Email OTP dev cleanup is not available');
-    }
-
-    const providerSubject = toOptionalTrimmedString(input.providerSubject);
-    if (!providerSubject || !providerSubject.startsWith('google:')) {
-      return failure('invalid_body', 'Missing Google provider subject');
-    }
-
-    const requestedWalletId = parseD1BoundaryWalletId(input.walletId);
-    const requestedOrgId = toOptionalTrimmedString(input.orgId);
-    const nowMs = cleanupNowMs(input.nowMs);
-    const expiredRegistrationAttemptsDeleted =
-      await this.registrationAttempts.cleanupExpired(nowMs);
-    const subject = `wallet:${providerSubject}`;
-    const linkedWalletId = parseD1BoundaryWalletId(
-      await this.identityStore.getUserIdBySubject(subject),
-    );
-
-    if (!linkedWalletId) {
-      return {
-        ok: true,
-        providerSubject,
-        expiredRegistrationAttemptsDeleted,
-        orphanedWalletMappingRemoved: false,
-        orphanedWalletMappingSkippedReason: 'no_linked_wallet',
-      };
-    }
-    if (requestedWalletId && requestedWalletId !== linkedWalletId) {
-      return {
-        ok: true,
-        providerSubject,
-        expiredRegistrationAttemptsDeleted,
-        linkedWalletId,
-        orphanedWalletMappingRemoved: false,
-        orphanedWalletMappingSkippedReason: 'wallet_id_mismatch',
-      };
-    }
-    const activeEnrollment = await this.emailOtpEnrollments.readEnrollment(linkedWalletId);
-    if (activeEnrollment) {
-      const enrollmentMatchesProvider = activeEnrollment.providerUserId === providerSubject;
-      const enrollmentMatchesOrg = !requestedOrgId || activeEnrollment.orgId === requestedOrgId;
-      if (enrollmentMatchesProvider && enrollmentMatchesOrg) {
-        return {
-          ok: true,
-          providerSubject,
-          expiredRegistrationAttemptsDeleted,
-          linkedWalletId,
-          orphanedWalletMappingRemoved: false,
-          orphanedWalletMappingSkippedReason: 'active_email_otp_enrollment',
-        };
-      }
-    }
-
-    const deleted = await this.identityStore.deleteSubjectLinkForDevCleanup({
-      userId: linkedWalletId,
-      subject,
-    });
-    if (!deleted.ok && deleted.code !== 'not_found') {
-      return devCleanupIdentityDeleteFailure(deleted);
-    }
-    return {
-      ok: true,
-      providerSubject,
-      expiredRegistrationAttemptsDeleted,
-      linkedWalletId,
-      orphanedWalletMappingRemoved: deleted.ok,
-    };
   }
 
   async consumeRegistrationAttemptRateLimit(
@@ -656,11 +568,6 @@ function isTrueFlag(input: unknown): boolean {
   );
 }
 
-function cleanupNowMs(input: unknown): number {
-  const raw = typeof input === 'number' ? input : Number(input);
-  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : Date.now();
-}
-
 function isGoogleEmailOtpEnrollmentLookupMiss(code: string): boolean {
   return (
     code === 'not_found' ||
@@ -673,10 +580,4 @@ function codedError(code: string, message: string): Error & { code: string } {
   const error = new Error(message) as Error & { code: string };
   error.code = code;
   return error;
-}
-
-function devCleanupIdentityDeleteFailure(
-  input: UnlinkIdentityResult & { readonly ok: false },
-): Extract<CleanupGoogleEmailOtpDevRegistrationStateResult, { readonly ok: false }> {
-  return failure(input.code, input.message);
 }

@@ -98,7 +98,6 @@ import {
 
 const ROUTE_ID = 'passkey_custody_envelope_retrieve';
 const CREDENTIALS_LIST_ROUTE_ID = 'wallet_custody_credentials_list';
-const CREDENTIAL_LABEL_ROUTE_ID = 'wallet_custody_credential_label';
 const RECOVERY_PREPARE_ROUTE_ID = 'wallet_recovery_prepare';
 const RECOVERY_GOOGLE_VERIFY_ROUTE_ID = 'wallet_recovery_google_verify';
 const RECOVERY_EMAIL_OTP_VERIFY_ROUTE_ID = 'wallet_recovery_email_otp_verify';
@@ -178,7 +177,6 @@ function parseWalletCustodyEmailOtpChallengeRequest(
   const operation = value.operation;
   if (
     operation !== 'credentials_list' &&
-    operation !== 'credential_label' &&
     operation !== 'recovery_rotate' &&
     operation !== 'recovery_read' &&
     operation !== 'recovery_status' &&
@@ -369,81 +367,6 @@ export async function handleWalletCustodyEnvelopeOwnershipUpgrade(
       return routeErrorResponse(409, 'conflict', result.reason);
     case 'refused':
       return routeErrorResponse(403, 'forbidden', result.reason);
-  }
-}
-
-/** Renames one passkey credential; the label is metadata and never AAD. */
-export async function handleWalletCustodyCredentialLabel(
-  ctx: FetchRouterApiContext,
-): Promise<Response | null> {
-  const route = matchRoute(ctx, CREDENTIAL_LABEL_ROUTE_ID);
-  if (!route) return null;
-  const walletId = walletIdFromPath(route.path, ctx.pathname);
-  const body = await readJsonObject(ctx.request);
-  const envelopeId = toOptionalTrimmedString(body?.envelopeId);
-  const label = body?.label;
-  if (!walletId || !envelopeId || (label !== undefined && typeof label !== 'string')) {
-    return routeErrorResponse(
-      400,
-      'invalid_request',
-      'credential rename needs a wallet, envelope, and optional label',
-    );
-  }
-  const authorized = await authorizeWalletOwnerOperation({
-    ctx,
-    walletId,
-    operation: 'credential_label',
-    payload: { walletId, envelopeId, ...(label === undefined ? {} : { label }) },
-    factorProof: body?.factorProof,
-  });
-  if (!authorized.ok) return authorized.response;
-  const parsedWalletId = parseWalletId(walletId);
-  if (!parsedWalletId.ok) {
-    return routeErrorResponse(400, 'invalid_request', 'wallet id is invalid');
-  }
-  const result = await ctx.service.passkeyCustody.renameWalletCredential({
-    walletId: parsedWalletId.value,
-    envelopeId,
-    ...(label === undefined ? {} : { label }),
-  });
-  switch (result.kind) {
-    case 'updated':
-      return await completeWalletOwnerOperation(ctx, authorized.operation, 200, {
-        ok: true,
-        credential: result.projection,
-      });
-    case 'missing':
-      return await completeWalletOwnerOperation(
-        ctx,
-        authorized.operation,
-        404,
-        { ok: false, code: 'credential_not_found', message: 'credential not found' },
-        'failed_before_side_effect',
-      );
-    case 'conflict':
-      return await completeWalletOwnerOperation(
-        ctx,
-        authorized.operation,
-        409,
-        { ok: false, code: 'credential_activity_conflict', message: 'credential changed; retry' },
-        'failed_before_side_effect',
-      );
-    case 'invalid_envelope_id':
-      return await completeWalletOwnerOperation(
-        ctx,
-        authorized.operation,
-        400,
-        { ok: false, code: 'invalid_envelope_id', message: 'credential envelope id is invalid' },
-        'failed_before_side_effect',
-      );
-    case 'invalid_label':
-      return await completeWalletOwnerOperation(
-        ctx,
-        authorized.operation,
-        400,
-        { ok: false, code: 'invalid_label', message: result.reason },
-        'failed_before_side_effect',
-      );
   }
 }
 

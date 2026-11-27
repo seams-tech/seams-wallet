@@ -23,10 +23,6 @@ export function createD1EmailOtpRouteService(
     enrollEmailOtpFactor: assembly.emailOtpServerSeal.enrollEmailOtpFactor.bind(
       assembly.emailOtpServerSeal,
     ),
-    cleanupGoogleEmailOtpDevRegistrationState:
-      assembly.googleEmailOtpSessions.cleanupDevRegistrationState.bind(
-        assembly.googleEmailOtpSessions,
-      ),
     consumeEmailOtpGrant: assembly.emailOtpRecoveryService.consumeEmailOtpGrant.bind(
       assembly.emailOtpRecoveryService,
     ),

@@ -1269,7 +1269,6 @@ function createCloudflareD1RouterApiAuthAssembly(
     emailOtpRateLimits,
     identityStore,
     linkIdentity,
-    production: options.emailOtp.production,
     registrationAttempts: googleEmailOtpRegistrationAttempts,
   });
   const identityService = new CloudflareD1IdentityService({

@@ -5,7 +5,6 @@ export type WalletOwnerAdminOperation =
   | 'external_identity_associate'
   | 'external_identity_unlink'
   | 'credentials_list'
-  | 'credential_label'
   | 'recovery_rotate'
   | 'recovery_read'
   | 'recovery_status'

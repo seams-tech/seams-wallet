@@ -40,7 +40,6 @@ import {
   type RouterApiWalletSessionAuthorizationV2AdmissionContext,
 } from '../../../framework/authServicePort';
 import {
-  handleEmailOtpDevCleanupGoogleRegistrationRoute,
   handleEmailOtpDevOutboxRoute,
   handleEmailOtpRegistrationFactorRoute,
   evaluateEmailOtpFactorForDevice,
@@ -1446,24 +1445,6 @@ export async function handleWalletUnlockVerify(
         ...(event.walletId ? { walletId: event.walletId } : {}),
       });
     },
-  });
-  return json(response.body, { status: response.status });
-}
-
-export async function handleWalletEmailOtpDevCleanupGoogleRegistration(
-  ctx: FetchRouterApiContext,
-): Promise<Response | null> {
-  if (
-    ctx.method !== 'POST' ||
-    ctx.pathname !== '/wallet/email-otp/dev/cleanup-google-registration'
-  ) {
-    return null;
-  }
-
-  const body = await readJson(ctx.request);
-  const response = await handleEmailOtpDevCleanupGoogleRegistrationRoute({
-    body,
-    service: routerApiEmailOtpRouteService(ctx.service),
   });
   return json(response.body, { status: response.status });
 }

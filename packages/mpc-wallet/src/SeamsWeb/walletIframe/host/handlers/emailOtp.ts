@@ -221,7 +221,6 @@ function parseWalletCustodyEmailOtpChallengePayload(value: unknown): {
   const operation = readRequiredString(record, 'operation');
   if (
     operation !== 'credentials_list' &&
-    operation !== 'credential_label' &&
     operation !== 'recovery_rotate' &&
     operation !== 'recovery_read' &&
     operation !== 'recovery_status' &&

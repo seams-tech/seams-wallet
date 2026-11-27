@@ -544,27 +544,6 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
     return projections;
   }
 
-  async renameWalletCredential(input: {
-    readonly walletId: WalletId;
-    readonly envelopeId: PasskeyEnvelopeId;
-    readonly label?: string;
-    readonly nowMs: number;
-  }): Promise<WalletCredentialActivityMutationResult> {
-    const envelope = await this.findPasskeyEnvelope(input.walletId, input.envelopeId);
-    if (!envelope) return { kind: 'missing' };
-    return await this.mutateActivity(envelope, (record) => {
-      const next = {
-        ...record,
-        ...(input.label === undefined ? { label: undefined } : { label: input.label }),
-        updatedAtMs: input.nowMs,
-      };
-      const parsed = parseWalletCredentialActivityRecordV1(next, {
-        expectedWalletId: String(input.walletId),
-      });
-      return parsed.ok ? parsed.record : parsed;
-    });
-  }
-
   /** Called only after a passkey assertion has successfully opened custody. */
   async recordWalletCredentialUse(input: {
     readonly walletId: WalletId;

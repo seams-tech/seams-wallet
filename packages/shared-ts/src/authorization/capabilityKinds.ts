@@ -105,8 +105,6 @@ export type WalletSessionMintId = DomainId<'WalletSessionMintId'>;
 export type AuthorizationEvidenceId = DomainId<'AuthorizationEvidenceId'>;
 export type AuthorizationEvidenceSetId = DomainId<'AuthorizationEvidenceSetId'>;
 export type AuthorizationAuditEventId = DomainId<'AuthorizationAuditEventId'>;
-export type VaultId = DomainId<'VaultId'>;
-export type VaultItemId = DomainId<'VaultItemId'>;
 
 const CAPABILITY_KIND_VALUES = Object.values(CAPABILITY_KINDS);
 const VAULT_OPERATION_KIND_VALUES = Object.values(VAULT_OPERATION_KINDS);
@@ -317,14 +315,6 @@ export function parseAuthorizationAuditEventId(
   value: unknown,
 ): AuthorizationParseResult<AuthorizationAuditEventId> {
   return parseAuthorizationId(value, 'authorizationAuditEventId');
-}
-
-export function parseVaultId(value: unknown): AuthorizationParseResult<VaultId> {
-  return parseAuthorizationId(value, 'vaultId');
-}
-
-export function parseVaultItemId(value: unknown): AuthorizationParseResult<VaultItemId> {
-  return parseAuthorizationId(value, 'vaultItemId');
 }
 
 function isVaultOperationKind(value: unknown): value is VaultOperationKind {

@@ -7,7 +7,6 @@ export {
 } from './core/keyMaterialBrands';
 export * from './authorization/domain';
 export * from './authorization/service';
-export * from './authorization/vaultProxyUse';
 export { SessionService, parseCsvList, buildCorsOrigins } from './core/SessionService';
 export type { SessionConfig } from './core/SessionService';
 export { RouterAbEcdsaPresignRuntime } from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';

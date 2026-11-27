@@ -79,7 +79,6 @@ export {
   CloudflareD1AuthorizationStore,
   type D1AuthorizationStoreOptions,
 } from './cloudflare/d1/authorization/d1AuthorizationStore';
-export { CloudflareD1VaultProxyStore } from './cloudflare/d1/authorization/d1VaultProxyStore';
 export {
   InMemoryRouterAbEd25519YaoRegistrationService,
   createRouterAbEd25519YaoRegistrationModule,

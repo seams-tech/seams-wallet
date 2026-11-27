@@ -23,7 +23,6 @@ import {
   type WalletRecoveryPreparationResult,
 } from '../../../domains/passkeyCustody/walletRecoveryAttempt';
 import {
-  parsePasskeyEnvelopeId,
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletAuthorityBindingDigest,
@@ -271,18 +270,6 @@ export interface RouterApiPasskeyCustodyService {
   listWalletCredentials(request: {
     readonly walletId: WalletId;
   }): Promise<readonly WalletCredentialActivityProjection[]>;
-
-  renameWalletCredential(request: {
-    readonly walletId: WalletId;
-    readonly envelopeId: string;
-    readonly label?: string;
-  }): Promise<
-    | { readonly kind: 'updated'; readonly projection: WalletCredentialActivityProjection }
-    | { readonly kind: 'missing' }
-    | { readonly kind: 'conflict' }
-    | { readonly kind: 'invalid_label'; readonly reason: string }
-    | { readonly kind: 'invalid_envelope_id' }
-  >;
 
   /** Reserves one recovery code while the replacement Passkey is created. */
   prepareRecovery(request: {
@@ -767,17 +754,6 @@ export function createD1PasskeyCustodyRouteService(assembly: {
     listWalletCredentials: async (request) =>
       await assembly.passkeyCustodyEnvelopes.listWalletCredentialActivity(request.walletId),
 
-    renameWalletCredential: async (request) => {
-      const envelopeId = parsePasskeyEnvelopeId(request.envelopeId);
-      if (!envelopeId.ok) return { kind: 'invalid_envelope_id' };
-      const label = request.label === undefined ? undefined : String(request.label);
-      return await assembly.passkeyCustodyEnvelopes.renameWalletCredential({
-        walletId: request.walletId,
-        envelopeId: envelopeId.value,
-        ...(label === undefined ? {} : { label }),
-        nowMs: (assembly.nowMs ?? Date.now)(),
-      });
-    },
     upgradeEnvelopeOwnership: async (request) => {
       const submitted = request.envelope;
       if (String(submitted.walletId) !== String(request.walletId)) {

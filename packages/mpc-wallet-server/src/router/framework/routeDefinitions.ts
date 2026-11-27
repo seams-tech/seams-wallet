@@ -490,18 +490,6 @@ export function createRouterApiRouteDefinitions(
       },
       ROUTER_API_PASSKEY_CUSTODY_SERVICES,
     ),
-    publicRoute(
-      'wallet_custody_credential_label',
-      'POST',
-      '/wallets/:walletId/custody/credentials/label',
-      'Rename one wallet passkey credential without changing custody',
-      {
-        plane: 'public',
-        proof: 'webauthn',
-        rationale: 'Fresh operation-bound owner proof is required.',
-      },
-      ROUTER_API_PASSKEY_CUSTODY_SERVICES,
-    ),
     apiCredentialRoute(
       'wallet_registration_setup',
       'POST',
@@ -1158,19 +1146,6 @@ export function createRouterApiRouteDefinitions(
         proof: 'threshold_protocol_state',
         rationale:
           'The input and output are opaque ciphertext; wallet authority is verified when registration commits the enrollment.',
-      },
-      ROUTER_API_EMAIL_OTP_PUBLIC_SERVICES,
-    ),
-    publicRoute(
-      'wallet_email_otp_dev_cleanup_google_registration',
-      'POST',
-      '/wallet/email-otp/dev/cleanup-google-registration',
-      'Clean stale Google Email OTP registration state in local development',
-      {
-        plane: 'public',
-        proof: 'signed_payload',
-        rationale:
-          'This development-only cleanup path verifies a Google id token before touching stale local registration state.',
       },
       ROUTER_API_EMAIL_OTP_PUBLIC_SERVICES,
     ),

@@ -574,29 +574,6 @@ type RouterApiMethodTypes = {
     readonly result: EmailOtpFactorEnrollResult;
   };
 
-  cleanupGoogleEmailOtpDevRegistrationState: {
-    readonly input: {
-      readonly providerSubject?: unknown;
-      readonly walletId?: unknown;
-      readonly orgId?: unknown;
-      readonly nowMs?: unknown;
-    };
-    readonly result:
-      | {
-          readonly ok: true;
-          readonly providerSubject: string;
-          readonly expiredRegistrationAttemptsDeleted: number;
-          readonly linkedWalletId?: string;
-          readonly orphanedWalletMappingRemoved: boolean;
-          readonly orphanedWalletMappingSkippedReason?:
-            | 'no_linked_wallet'
-            | 'wallet_id_mismatch'
-            | 'not_relayer_subaccount'
-            | 'active_email_otp_enrollment'
-            | 'mismatched_email_otp_enrollment';
-        }
-      | RouterApiOkFailure;
-  };
   createAddAuthMethodIntent: {
     readonly input: {
       readonly command: CreateAddAuthMethodIntentCommand;
@@ -1465,9 +1442,6 @@ export interface RouterApiEmailOtpRouteService extends RouterApiEmailOtpChalleng
   enrollEmailOtpFactor(
     input: RouterApiMethodTypes['enrollEmailOtpFactor']['input'],
   ): Promise<RouterApiMethodTypes['enrollEmailOtpFactor']['result']>;
-  cleanupGoogleEmailOtpDevRegistrationState(
-    input: RouterApiMethodTypes['cleanupGoogleEmailOtpDevRegistrationState']['input'],
-  ): Promise<RouterApiMethodTypes['cleanupGoogleEmailOtpDevRegistrationState']['result']>;
   consumeEmailOtpGrant(
     input: RouterApiMethodTypes['consumeEmailOtpGrant']['input'],
   ): Promise<RouterApiMethodTypes['consumeEmailOtpGrant']['result']>;

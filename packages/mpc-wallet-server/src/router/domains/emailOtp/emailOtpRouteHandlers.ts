@@ -88,42 +88,6 @@ export async function evaluateEmailOtpFactorForDevice(input: {
   };
 }
 
-export async function handleEmailOtpDevCleanupGoogleRegistrationRoute(input: {
-  body: unknown;
-  service: RouterApiEmailOtpRouteService;
-}): Promise<EmailOtpRouteResponse> {
-  const body = isPlainObject(input.body) ? input.body : {};
-  const verified = await input.service.verifyGoogleLogin({
-    idToken: body.idToken ?? body.id_token,
-  });
-  if (!verified.ok || !verified.verified || !verified.userId) {
-    const code = verified.code || 'not_verified';
-    const status =
-      code === 'internal'
-        ? 500
-        : code === 'not_configured' || code === 'unsupported'
-          ? 501
-          : code === 'invalid_body'
-            ? 400
-            : 401;
-    return {
-      status,
-      body: failure(code, verified.message || 'Google login failed'),
-    };
-  }
-
-  const runtimePolicyScope = isPlainObject(body.runtimePolicyScope)
-    ? body.runtimePolicyScope
-    : null;
-  const result = await input.service.cleanupGoogleEmailOtpDevRegistrationState({
-    providerSubject: verified.providerSubject || verified.userId,
-    walletId: toOptionalTrimmedString(body.walletId),
-    orgId:
-      toOptionalTrimmedString(body.orgId) || toOptionalTrimmedString(runtimePolicyScope?.orgId),
-  });
-  return { status: result.ok ? 200 : emailOtpStatusCode(result.code), body: result };
-}
-
 export async function handleEmailOtpRegistrationFactorRoute(input: {
   body: unknown;
   service: RouterApiEmailOtpRouteService;
