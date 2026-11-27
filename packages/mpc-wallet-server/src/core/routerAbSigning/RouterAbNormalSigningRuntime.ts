@@ -1,11 +1,6 @@
-import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { MpcMaterialActivationId } from '@shared/utils/domainIds';
-import {
-  validateRouterAbNormalSigningServerPolicy,
-  type ParseResult,
-  type RouterAbNormalSigningServerPolicy,
-} from '../ThresholdService/routerAbNormalSigningPolicy';
+import { type RouterAbNormalSigningServerPolicy } from '../ThresholdService/routerAbNormalSigningPolicy';
 import type {
   Ed25519WalletSessionStore,
   EcdsaWalletSessionStore,
@@ -76,21 +71,8 @@ export class RouterAbNormalSigningRuntime {
     this.config = input.config;
   }
 
-  getSigningWorkerId(): string {
-    return this.config.policy.signingWorkerId;
-  }
-
   getSigningWorkerPrivateTransport(): RouterAbSigningWorkerPrivateTransport {
     return this.config.signingWorkerTransport;
-  }
-
-  validateSessionPolicy(
-    requested: RouterAbEd25519NormalSigningState | undefined,
-  ): ParseResult<null> {
-    return validateRouterAbNormalSigningServerPolicy({
-      requested,
-      policy: this.config.policy,
-    });
   }
 
   async reservePrepareReplay(

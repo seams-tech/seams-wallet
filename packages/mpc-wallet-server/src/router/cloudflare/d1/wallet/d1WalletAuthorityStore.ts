@@ -881,32 +881,6 @@ export class D1WalletAuthorityStore {
     };
   }
 
-  async readByWalletAndDevice(input: {
-    readonly walletId: WalletId;
-    readonly deviceId: DeviceId;
-  }): Promise<WalletAuthorityV1 | null> {
-    const row = await this.database
-      .prepare(
-        `SELECT *
-           FROM wallet_authorities
-          WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-            AND wallet_id = ? AND device_id = ?
-            AND lifecycle_state <> 'revoked'
-          LIMIT 1`,
-      )
-      .bind(...scopeValues(this.scope), String(input.walletId), String(input.deviceId))
-      .first<AuthorityRow>();
-    if (!row) return null;
-    return await parseD1WalletAuthorityRow(row);
-  }
-
-  async commitPendingAuthority(input: {
-    readonly authority: PendingWalletAuthorityV1;
-    readonly authMethod: WalletAuthMethodRecordV2;
-  }): Promise<WalletAuthorityCommitResultV1> {
-    return await this.commitPendingAuthorityWithStatements(input, []);
-  }
-
   /**
    * Commits the authority records together with caller-owned D1 statements.
    * Device linking uses this narrow extension for its package row and linear
@@ -974,15 +948,6 @@ export class D1WalletAuthorityStore {
       authority: input.authority,
       authMethod: input.authMethod,
     };
-  }
-
-  async activatePendingAuthority(input: {
-    readonly pendingAuthority: PendingWalletAuthorityV1;
-    readonly activeAuthority: ActiveWalletAuthorityV1;
-    readonly pendingAuthMethod: WalletAuthMethodRecordV2;
-    readonly activeAuthMethod: ActiveWalletAuthMethodRecordV2;
-  }): Promise<WalletAuthorityActivationResultV1> {
-    return await this.activatePendingAuthorityWithStatements(input, []);
   }
 
   /**

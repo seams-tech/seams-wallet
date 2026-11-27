@@ -4,14 +4,10 @@ import {
   type RouterAbEcdsaPresignSigningWorkerTransport,
 } from '../ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
 import {
-  exportRouterAbLinkedDeviceEcdsaShare,
   startRouterAbLinkedDeviceEcdsaPresignSession,
-  stepRouterAbLinkedDeviceEcdsaPresignSession,
-  type RouterAbLinkedDeviceEcdsaExportShareHttpResult,
   type RouterAbEcdsaPresignSessionHttpResult,
   type RouterAbEcdsaPresignAuthorityV1,
 } from '../ThresholdService/routerAb/ecdsaDerivationPresignBridge';
-import type { RouterAbEcdsaSigningWorkerExportShareBindingV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbConfiguredSigningWorkerPrivateTransport } from './RouterAbNormalSigningRuntime';
 
 type RouterAbEcdsaPresignRuntimeConfig = {
@@ -125,48 +121,6 @@ export class RouterAbEcdsaPresignRuntime {
       materialSource: input.materialSource,
       presignSessionId: input.presignSessionId,
       expiresAtMs: input.expiresAtMs,
-      auth: transport.auth,
-      fetchImpl: transport.fetchImpl,
-    });
-  }
-
-  async advanceLinkedDevicePresign(input: {
-    readonly ownershipGeneration: number;
-    readonly walletScope: RouterAbEcdsaPresignAuthorityV1['wallet_scope'];
-    readonly request: Record<string, unknown>;
-    readonly materialSource: Record<string, unknown>;
-    readonly presignSessionId: string;
-    readonly requestedStage: 'triples' | 'presign';
-    readonly outgoingMessagesB64u: string[];
-    readonly expiresAtMs: number;
-  }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
-    const transport = this.signingWorkerTransport;
-    return await stepRouterAbLinkedDeviceEcdsaPresignSession({
-      signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
-      request: input.request,
-      walletScope: input.walletScope,
-      ownershipGeneration: input.ownershipGeneration,
-      materialSource: input.materialSource,
-      presignSessionId: input.presignSessionId,
-      requestedStage: input.requestedStage,
-      outgoingMessagesB64u: input.outgoingMessagesB64u,
-      expiresAtMs: input.expiresAtMs,
-      auth: transport.auth,
-      fetchImpl: transport.fetchImpl,
-    });
-  }
-
-  async exportLinkedDeviceShare(input: {
-    readonly scope: Record<string, unknown>;
-    readonly materialSource: Record<string, unknown>;
-    readonly binding: RouterAbEcdsaSigningWorkerExportShareBindingV1;
-  }): Promise<RouterAbLinkedDeviceEcdsaExportShareHttpResult> {
-    const transport = this.signingWorkerTransport;
-    return await exportRouterAbLinkedDeviceEcdsaShare({
-      signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
-      scope: input.scope,
-      materialSource: input.materialSource,
-      binding: input.binding,
       auth: transport.auth,
       fetchImpl: transport.fetchImpl,
     });

@@ -192,19 +192,6 @@ export type PasskeyCustodyEnvelopeFactorLookupResult =
   | PasskeyCustodyEnvelopeLookupResult
   | { readonly kind: 'conflict' };
 
-/**
- * Whether a browser's cached ciphertext may still be used. A cache is usable
- * only at the exact server revision and digest; anything else must be refetched.
- */
-type PasskeyCustodyEnvelopeCacheValidation =
-  | { readonly kind: 'cache_valid'; readonly envelope: PasskeyCustodyEnvelopeRecord }
-  | {
-      readonly kind: 'cache_stale';
-      readonly serverRevision: number;
-      readonly serverCiphertextDigestB64u: string;
-    }
-  | { readonly kind: 'cache_unusable'; readonly lookup: PasskeyCustodyEnvelopeLookupResult };
-
 type PasskeyCustodyEnvelopePutResult =
   | { readonly kind: 'stored'; readonly storeVersion: string; readonly envelopeRevision: number }
   | { readonly kind: 'version_mismatch' }
@@ -402,35 +389,6 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
     }
 
     return { kind: 'active', envelope, storeVersion: read.version };
-  }
-
-  /**
-   * Confirms a browser cache entry against the active server envelope. A cache
-   * hit requires the exact revision and ciphertext digest, so a cache that
-   * drifted across a rewrap is refetched rather than opened.
-   */
-  async validateCachedEnvelope(args: {
-    readonly locator: PasskeyCustodyEnvelopeLocator;
-    readonly cachedRevision: number;
-    readonly cachedCiphertextDigestB64u: string;
-  }): Promise<PasskeyCustodyEnvelopeCacheValidation> {
-    const lookup = await this.lookupEnvelope(args.locator);
-    if (lookup.kind !== 'active') return { kind: 'cache_unusable', lookup };
-
-    const { envelope } = lookup;
-    const serverRevision = Number(envelope.envelopeRevision);
-    const serverDigest = String(envelope.ciphertextDigestB64u);
-    if (
-      serverRevision !== args.cachedRevision ||
-      serverDigest !== args.cachedCiphertextDigestB64u
-    ) {
-      return {
-        kind: 'cache_stale',
-        serverRevision,
-        serverCiphertextDigestB64u: serverDigest,
-      };
-    }
-    return { kind: 'cache_valid', envelope };
   }
 
   /**
@@ -750,22 +708,6 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
     return await this.lookupEnvelope(envelopeLocator(terminal));
   }
 
-  async createEnvelope(
-    envelope: PasskeyCustodyEnvelopeRecord,
-  ): Promise<PasskeyCustodyEnvelopePutResult> {
-    if (Number(envelope.envelopeRevision) !== 1) {
-      return { kind: 'revision_conflict', expectedRevision: 1 };
-    }
-    const locator = envelopeLocator(envelope);
-    const stored = await this.records.put(this.recordKey(locator), envelope, null);
-    if (stored.kind === 'version_mismatch') return { kind: 'version_mismatch' };
-    return {
-      kind: 'stored',
-      storeVersion: stored.version,
-      envelopeRevision: Number(envelope.envelopeRevision),
-    };
-  }
-
   /**
    * Inserts a new custody envelope together with caller-owned authenticator,
    * credential-binding, and wallet-auth-method statements in one D1 batch.
@@ -884,79 +826,6 @@ export class CloudflareD1PasskeyCustodyEnvelopeStore {
     const stored = await this.records.put(key, envelope, current.version);
     if (stored.kind === 'version_mismatch') return { kind: 'version_mismatch' };
     return { kind: 'stored', storeVersion: stored.version, envelopeRevision: nextRevision };
-  }
-
-  /**
-   * Marks an active envelope superseded. Retired rows stay readable so a
-   * lookup can report `retired` explicitly instead of `missing`.
-   */
-  async retireEnvelope(args: {
-    readonly locator: PasskeyCustodyEnvelopeLocator;
-    readonly retiredAtMs: number;
-  }): Promise<PasskeyCustodyEnvelopePutResult> {
-    return await this.transitionLifecycle(args.locator, (envelope) => {
-      if (envelope.lifecycle.state !== 'active') return null;
-      return {
-        ...envelope,
-        lifecycle: {
-          state: 'retired',
-          activatedAtMs: envelope.lifecycle.activatedAtMs,
-          retiredAtMs: args.retiredAtMs,
-        },
-        updatedAtMs: args.retiredAtMs,
-      };
-    });
-  }
-
-  /**
-   * Revokes an envelope terminally. The row is retained as a credential
-   * tombstone — credential replacement needs the prior credential's record —
-   * but it is excluded from every active retrieval.
-   */
-  async revokeEnvelope(args: {
-    readonly locator: PasskeyCustodyEnvelopeLocator;
-    readonly revokedAtMs: number;
-  }): Promise<PasskeyCustodyEnvelopePutResult> {
-    return await this.transitionLifecycle(args.locator, (envelope) => {
-      if (envelope.lifecycle.state === 'revoked') return null;
-      return {
-        ...envelope,
-        lifecycle: {
-          state: 'revoked',
-          activatedAtMs: envelope.lifecycle.activatedAtMs,
-          revokedAtMs: args.revokedAtMs,
-        },
-        updatedAtMs: args.revokedAtMs,
-      };
-    });
-  }
-
-  /**
-   * Lifecycle transitions never touch ciphertext, so `envelopeRevision` is
-   * carried forward unchanged and the sealed AAD stays valid.
-   */
-  private async transitionLifecycle(
-    locator: PasskeyCustodyEnvelopeLocator,
-    next: (envelope: PasskeyCustodyEnvelopeRecord) => PasskeyCustodyEnvelopeRecord | null,
-  ): Promise<PasskeyCustodyEnvelopePutResult> {
-    const key = this.recordKey(locator);
-    const current = await this.records.read(key);
-    if (current.kind === 'missing') return { kind: 'not_found' };
-
-    const updated = next(current.value);
-    if (updated === null) {
-      return current.value.lifecycle.state === 'revoked'
-        ? { kind: 'terminal_lifecycle', state: 'revoked' }
-        : { kind: 'version_mismatch' };
-    }
-
-    const stored = await this.records.put(key, updated, current.version);
-    if (stored.kind === 'version_mismatch') return { kind: 'version_mismatch' };
-    return {
-      kind: 'stored',
-      storeVersion: stored.version,
-      envelopeRevision: Number(updated.envelopeRevision),
-    };
   }
 }
 

@@ -489,19 +489,6 @@ export class D1LinkedDeviceSessionStoreV1 implements LinkedDeviceSessionStoreV1 
     });
   }
 
-  buildTargetCredentialCasStatementsV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly expectedRevision: number;
-    readonly nextRecord: LinkedDeviceSessionRecordV1;
-    readonly nowMs: number;
-  }): readonly D1PreparedStatementLike[] {
-    const nextRecord = normalizeMutationRecordV1(input);
-    if (nextRecord.revision !== input.expectedRevision + 1) {
-      throw new Error('linked-device mutation revision is invalid');
-    }
-    return [this.updateStatement(input), this.database.prepare(SESSION_CAS_GUARD_SQL)];
-  }
-
   /**
    * Builds the session half of the pending-authority transaction. The caller
    * supplies the already validated next record; the CAS guard keeps the

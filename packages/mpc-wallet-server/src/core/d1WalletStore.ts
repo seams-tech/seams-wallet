@@ -1093,30 +1093,6 @@ export class D1WalletStore implements WalletStore {
     return signer;
   }
 
-  async listEd25519Signers(): Promise<readonly WalletEd25519SignerRecord[]> {
-    await this.ensureSchema();
-    const result = await this.database
-      .prepare(
-        `SELECT record_json
-           FROM wallet_signers
-          WHERE namespace = ?
-            AND org_id = ?
-            AND project_id = ?
-            AND env_id = ?
-            AND signer_family = 'ed25519'
-          ORDER BY wallet_id, signer_id`,
-      )
-      .bind(this.scope.namespace, this.scope.orgId, this.scope.projectId, this.scope.envId)
-      .all<D1WalletRow>();
-    const signers: WalletEd25519SignerRecord[] = [];
-    for (const row of result.results || []) {
-      const signer = parseWalletEd25519SignerRecord(parseD1JsonColumn(row.record_json));
-      if (!signer) throw new Error('Wallet Ed25519 signer record is invalid');
-      signers.push(signer);
-    }
-    return signers;
-  }
-
   async listEd25519SignersForWallet(input: {
     walletId: WalletId;
   }): Promise<readonly WalletEd25519SignerRecord[]> {

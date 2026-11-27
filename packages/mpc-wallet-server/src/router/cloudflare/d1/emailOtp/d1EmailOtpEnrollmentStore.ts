@@ -218,16 +218,6 @@ export class CloudflareD1EmailOtpEnrollmentStore {
     return next;
   }
 
-  async resetAuthStateForEnrollment(input: {
-    readonly enrollment: EmailOtpWalletEnrollmentRecord;
-    readonly existingState: EmailOtpAuthStateRecord | null;
-    readonly updatedAtMs: number;
-  }): Promise<EmailOtpAuthStateRecord> {
-    const prepared = this.prepareResetAuthStateForEnrollment(input);
-    await prepared.statement.run();
-    return prepared.record;
-  }
-
   prepareResetAuthStateForEnrollment(input: {
     readonly enrollment: EmailOtpWalletEnrollmentRecord;
     readonly existingState: EmailOtpAuthStateRecord | null;
