@@ -27,7 +27,8 @@ stops when its credits run out.
   with one shared function for each evidence kind.
 - **SaySo is the backend on every lane, `staging-testnet` first** (Section 8, Q9). SaySo is the
   Cloudflare verifier that runs at `https://sayso.seams.sh` in the same Cloudflare account as
-  the Gateways. The Gateway calls it through a service binding. The browser never gets a SaySo token.
+  the Gateways. The Gateway calls it through a service binding. The browser never gets a SaySo
+  token.
 - **OutLayer becomes a module that is off.** Its code moves without a change of behaviour. Its
   tests stay. A lane setting turns it on again.
 - **Voice is an equal approval method.** The owner decided on 2026-11-27 that voice approves
@@ -36,8 +37,10 @@ stops when its credits run out.
 - **Two changes in SaySo first.** It must not forgive a word in the recipient or the amount of
   a Wallet request, and `@seams/sayso-verdict` must be an exact release.
 - **No D1 migration.** The verdict ledger and its table stay.
-- **The trust claim changes.** The SaySo backend has no TEE. The docs and the card stop saying
-  "TEE receipt", Intel TDX, Phala and NEAR AI for it.
+- **The trust claim changes.** The SaySo backend has no TEE and needs none: one operator runs
+  it. What a TEE attestation proved before now rests on trust in the operator's Cloudflare
+  infrastructure (Section 8, "The trust model"). The docs and the card stop saying "TEE
+  receipt", Intel TDX, Phala and NEAR AI for it.
 
 ## Facts
 
@@ -598,6 +601,8 @@ is Slice 6.
 - Voice approves what a passkey step-up approves. The Wallet and the co-signer set no amount
   rule for it. A voice enrollment needs a fresh passkey or Email OTP approval, never a voice.
 - The browser never holds a SaySo token or key.
+- SaySo evidence has no attestation. The Wallet and the co-signer trust the verdict key that
+  the operator holds in its Cloudflare account, on testnet and on mainnet.
 - A word of the amount or the recipient is never forgiven (S1).
 
 ## 8. Open questions for the owner
@@ -615,7 +620,7 @@ is Slice 6.
 | Q9  | Which lanes get a verifier with no TEE (R2)? seams-console permits only `staging-testnet`  | `staging-testnet` first; a production lane after G1 to G3                   |
 | Q10 | One SaySo deployment and key for each lane, or one for all with the lane in `user_id` (R3) | One for each lane, as the Gateways are. This extends Q4                     |
 | Q11 | May a VoiceID unlock be the fresh approval of an enrollment (R4)?                          | No: a passkey or Email OTP only, because VoiceID is the same voice again    |
-| Q12 | The verdict key, the templates and the co-signer in one Cloudflare account (R3)            | Accept it for testnet with the trust text of R3; decide again for mainnet   |
+| Q12 | The verdict key, the templates and the co-signer in one Cloudflare account (R3)            | Accept it with the trust text of R3. Answered: also for mainnet             |
 | Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
 | Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
 | Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | Answered: A                                                                 |
@@ -644,9 +649,19 @@ is Slice 6.
   - **Q9.** `staging-testnet` gets SaySo first. A production lane follows only after G1 to G3
     pass. The lane rule of seams-console already permits `staging-testnet`, so the first lane
     needs only its `speakToSignVerifier` schema to change (Section 9, R2).
-  - **Q12.** For testnet, the verdict key, the templates and the co-signer stay in one
-    Cloudflare account, with the trust text of R3 in the docs. The owner decides again before
-    mainnet.
+  - **Q12.** The verdict key, the templates and the co-signer stay in one Cloudflare account,
+    with the trust text below in the docs. This holds for mainnet too (see below).
+- **Mainnet follows testnet** (2026-11-27). Each answer here for testnet holds for mainnet: the
+  same backend, the same trust model, and a deployment and a key for each lane. No second
+  decision comes before mainnet. The order of Q9 stays: `staging-testnet` first, then the
+  other lanes after G1 to G3.
+- **The trust model** (2026-11-27). "for sayso, since it's a centralized operator running the
+  infra, we don't need a TEE, and anything that used TEE attestations before will now simply
+  trust the operator's cloudflare infra". So the plan adds no attestation and no quote check
+  for SaySo, and `attestationUrl` is `null`. The limits of R3 on the key in the operator's
+  account are accepted, not faults. The other changes of R3 stay, because they guard one lane
+  from another and the real key from mock results: a key for each lane, no public enroll
+  route, and no mock mode with a key.
 - Q3 was answered by Slice 1. No question is open.
 
 ## 9. Architecture review (2026-11-27)
@@ -719,7 +734,8 @@ setting that turns voice off: the VoiceID switch in Authentication methods is th
   `@seams/sayso-verdict` checks only the type of `verifier`, so a `sayso/0.2.0+mock` verdict passes.
 - The verdict key is a secret in the Cloudflare account that also runs the co-signer. With
   OutLayer the key was bound to a TEE project. With SaySo the co-signer's check guards against
-  a fault of the client, and not against the operator or a stolen deploy token.
+  a fault of the client, and not against the operator or a stolen deploy token. The owner
+  accepts this for testnet and mainnet (Section 8, "The trust model").
 - Not measured: which secrets the deployed Worker holds.
 - Change, in Section 4: a deployment and a key for each lane (Q10). Enroll and verify come
   only through the binding, and the Worker has no HMAC secret. The Worker refuses mock mode
