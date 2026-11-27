@@ -477,41 +477,11 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
     ) -> RoleStoreResult<Vec<u8>> {
-        let import = binding.import_binding();
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
         serde_json::to_vec(&TenantRootRestoreRefreshSeedAadV1 {
             environment: &self.environment,
             worker_role: self.role,
-            tenant_identity_digest_hex: &identity_digest_hex,
-            custody_lineage_b64u: &custody_lineage_b64u,
-            restore_session_id_hex: &restore_session_id_hex,
-            recovery_set_id_b64u: &recovery_set_id_b64u,
-            destination_fingerprint_hex: &destination_fingerprint_hex,
-            manifest_digest_hex: &manifest_digest_hex,
-            stable_root_commitment_b64u: &stable_root_commitment_b64u,
-            share_commitment_b64u: &share_commitment_b64u,
-            role: import.role,
-            generation: import.generation,
-            import_key_id: &import.import_key_id,
-            import_replay_key_digest_hex: &import_replay_key_digest_hex,
-            import_command_digest_hex: &import_command_digest_hex,
-            import_operation_digest_hex: &import_operation_digest_hex,
-            import_public_key_b64u: &import_public_key_b64u,
-            import_issued_at_ms: import.issued_at_ms,
-            import_expires_at_ms: import.expires_at_ms,
-            refresh_command_digest_hex: &refresh_command_digest_hex,
+            attempt: &attempt,
             issued_at_ms: binding.issued_at_ms,
             expires_at_ms: binding.expires_at_ms,
             admitted_at_ms: binding.admitted_at_ms,
@@ -530,41 +500,11 @@ impl TenantRootRoleD1CipherV1 {
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         evidence_digest_hex: &str,
     ) -> RoleStoreResult<Vec<u8>> {
-        let import = binding.import_binding();
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
         serde_json::to_vec(&TenantRootRestoreRefreshShareAadV1 {
             environment: &self.environment,
             worker_role: self.role,
-            tenant_identity_digest_hex: &identity_digest_hex,
-            custody_lineage_b64u: &custody_lineage_b64u,
-            restore_session_id_hex: &restore_session_id_hex,
-            recovery_set_id_b64u: &recovery_set_id_b64u,
-            destination_fingerprint_hex: &destination_fingerprint_hex,
-            manifest_digest_hex: &manifest_digest_hex,
-            stable_root_commitment_b64u: &stable_root_commitment_b64u,
-            share_commitment_b64u: &share_commitment_b64u,
-            role: import.role,
-            generation: import.generation,
-            import_key_id: &import.import_key_id,
-            import_replay_key_digest_hex: &import_replay_key_digest_hex,
-            import_command_digest_hex: &import_command_digest_hex,
-            import_operation_digest_hex: &import_operation_digest_hex,
-            import_public_key_b64u: &import_public_key_b64u,
-            import_issued_at_ms: import.issued_at_ms,
-            import_expires_at_ms: import.expires_at_ms,
-            refresh_command_digest_hex: &refresh_command_digest_hex,
+            attempt: &attempt,
             evidence_digest_hex,
             purpose: TENANT_ROOT_RESTORE_REFRESH_SHARE_D1_PURPOSE,
             schema: TENANT_ROOT_RESTORE_REFRESH_SHARE_D1_SCHEMA,
@@ -581,41 +521,11 @@ impl TenantRootRoleD1CipherV1 {
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         provider_binding_aad_b64u: &str,
     ) -> RoleStoreResult<Vec<u8>> {
-        let import = binding.import_binding();
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
         serde_json::to_vec(&TenantRootRestorePromotionAadV1 {
             environment: &self.environment,
             worker_role: self.role,
-            tenant_identity_digest_hex: &identity_digest_hex,
-            custody_lineage_b64u: &custody_lineage_b64u,
-            restore_session_id_hex: &restore_session_id_hex,
-            recovery_set_id_b64u: &recovery_set_id_b64u,
-            destination_fingerprint_hex: &destination_fingerprint_hex,
-            manifest_digest_hex: &manifest_digest_hex,
-            stable_root_commitment_b64u: &stable_root_commitment_b64u,
-            share_commitment_b64u: &share_commitment_b64u,
-            role: import.role,
-            generation: import.generation,
-            import_key_id: &import.import_key_id,
-            import_replay_key_digest_hex: &import_replay_key_digest_hex,
-            import_command_digest_hex: &import_command_digest_hex,
-            import_operation_digest_hex: &import_operation_digest_hex,
-            import_public_key_b64u: &import_public_key_b64u,
-            import_issued_at_ms: import.issued_at_ms,
-            import_expires_at_ms: import.expires_at_ms,
-            refresh_command_digest_hex: &refresh_command_digest_hex,
+            attempt: &attempt,
             provider_binding_aad_b64u,
             purpose: TENANT_ROOT_RESTORE_PROMOTION_D1_PURPOSE,
             schema: TENANT_ROOT_RESTORE_PROMOTION_D1_SCHEMA,
@@ -671,42 +581,13 @@ impl TenantRootRoleD1CipherV1 {
                 "tenant-root restore refresh promotion ciphertext exceeds its size limit",
             ));
         }
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
-        serde_json::to_string(&TenantRootRestorePromotionRoleCiphertextV1 {
-            key_version: self.key_version.clone(),
-            tenant_identity_digest_hex: identity_digest_hex,
-            custody_lineage_b64u,
-            restore_session_id_hex,
-            recovery_set_id_b64u,
-            destination_fingerprint_hex,
-            manifest_digest_hex,
-            stable_root_commitment_b64u,
-            share_commitment_b64u,
-            role: import.role,
-            generation: import.generation,
-            import_key_id: import.import_key_id.clone(),
-            import_replay_key_digest_hex,
-            import_command_digest_hex,
-            import_operation_digest_hex,
-            import_public_key_b64u,
-            import_issued_at_ms: import.issued_at_ms,
-            import_expires_at_ms: import.expires_at_ms,
-            refresh_command_digest_hex,
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
+        serde_json::to_string(&TenantRootRestorePromotionRoleCiphertextV1::new(
+            self.key_version.clone(),
+            attempt,
             provider_binding_aad_b64u,
-            ciphertext_b64u: encode_base64url_bytes_v1(&payload),
-        })
+            encode_base64url_bytes_v1(&payload),
+        ))
         .map_err(|error| {
             store_error(format!(
                 "tenant-root restore refresh promotion ciphertext encoding failed: {error}"
@@ -726,7 +607,6 @@ impl TenantRootRoleD1CipherV1 {
             ));
         }
         let binding = record.binding();
-        let import = binding.import_binding();
         let encoded = record.encrypted_online_role_share_json()?;
         if encoded.len() > 8 * 1024 {
             return Err(store_error(
@@ -737,39 +617,8 @@ impl TenantRootRoleD1CipherV1 {
             .map_err(|_| {
                 store_error("tenant-root restore refresh promotion ciphertext is malformed")
             })?;
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
-        if envelope.key_version != self.key_version
-            || envelope.tenant_identity_digest_hex != identity_digest_hex
-            || envelope.custody_lineage_b64u != custody_lineage_b64u
-            || envelope.restore_session_id_hex != restore_session_id_hex
-            || envelope.recovery_set_id_b64u != recovery_set_id_b64u
-            || envelope.destination_fingerprint_hex != destination_fingerprint_hex
-            || envelope.manifest_digest_hex != manifest_digest_hex
-            || envelope.stable_root_commitment_b64u != stable_root_commitment_b64u
-            || envelope.share_commitment_b64u != share_commitment_b64u
-            || envelope.role != import.role
-            || envelope.generation != import.generation
-            || envelope.import_key_id != import.import_key_id
-            || envelope.import_replay_key_digest_hex != import_replay_key_digest_hex
-            || envelope.import_command_digest_hex != import_command_digest_hex
-            || envelope.import_operation_digest_hex != import_operation_digest_hex
-            || envelope.import_public_key_b64u != import_public_key_b64u
-            || envelope.import_issued_at_ms != import.issued_at_ms
-            || envelope.import_expires_at_ms != import.expires_at_ms
-            || envelope.refresh_command_digest_hex != refresh_command_digest_hex
-        {
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
+        if envelope.key_version != self.key_version || envelope.attempt() != attempt {
             return Err(store_error(
                 "tenant-root restore refresh promotion ciphertext metadata does not match its row",
             ));
@@ -854,45 +703,15 @@ impl TenantRootRoleD1CipherV1 {
                 "tenant-root restore refresh replay seed ciphertext exceeds its size limit",
             ));
         }
-        let import = binding.import_binding();
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
-        serde_json::to_string(&TenantRootRestoreRefreshSeedCiphertextV1 {
-            key_version: self.key_version.clone(),
-            tenant_identity_digest_hex: identity_digest_hex,
-            custody_lineage_b64u,
-            restore_session_id_hex,
-            recovery_set_id_b64u,
-            destination_fingerprint_hex,
-            manifest_digest_hex,
-            stable_root_commitment_b64u,
-            share_commitment_b64u,
-            role: import.role,
-            generation: import.generation,
-            import_key_id: import.import_key_id.clone(),
-            import_replay_key_digest_hex,
-            import_command_digest_hex,
-            import_operation_digest_hex,
-            import_public_key_b64u,
-            import_issued_at_ms: import.issued_at_ms,
-            import_expires_at_ms: import.expires_at_ms,
-            refresh_command_digest_hex,
-            issued_at_ms: binding.issued_at_ms,
-            expires_at_ms: binding.expires_at_ms,
-            admitted_at_ms: binding.admitted_at_ms,
-            ciphertext_b64u: encode_base64url_bytes_v1(&payload),
-        })
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
+        serde_json::to_string(&TenantRootRestoreRefreshSeedCiphertextV1::new(
+            self.key_version.clone(),
+            attempt,
+            binding.issued_at_ms,
+            binding.expires_at_ms,
+            binding.admitted_at_ms,
+            encode_base64url_bytes_v1(&payload),
+        ))
         .map_err(|error| {
             store_error(format!(
                 "tenant-root restore refresh replay seed ciphertext encoding failed: {error}"
@@ -918,39 +737,9 @@ impl TenantRootRoleD1CipherV1 {
             .map_err(|_| {
                 store_error("tenant-root restore refresh replay seed ciphertext is malformed")
             })?;
-        let import = binding.import_binding();
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
         if envelope.key_version != self.key_version
-            || envelope.tenant_identity_digest_hex != identity_digest_hex
-            || envelope.custody_lineage_b64u != custody_lineage_b64u
-            || envelope.restore_session_id_hex != restore_session_id_hex
-            || envelope.recovery_set_id_b64u != recovery_set_id_b64u
-            || envelope.destination_fingerprint_hex != destination_fingerprint_hex
-            || envelope.manifest_digest_hex != manifest_digest_hex
-            || envelope.stable_root_commitment_b64u != stable_root_commitment_b64u
-            || envelope.share_commitment_b64u != share_commitment_b64u
-            || envelope.role != import.role
-            || envelope.generation != import.generation
-            || envelope.import_key_id != import.import_key_id
-            || envelope.import_replay_key_digest_hex != import_replay_key_digest_hex
-            || envelope.import_command_digest_hex != import_command_digest_hex
-            || envelope.import_operation_digest_hex != import_operation_digest_hex
-            || envelope.import_public_key_b64u != import_public_key_b64u
-            || envelope.import_issued_at_ms != import.issued_at_ms
-            || envelope.import_expires_at_ms != import.expires_at_ms
-            || envelope.refresh_command_digest_hex != refresh_command_digest_hex
+            || envelope.attempt() != attempt
             || envelope.issued_at_ms != binding.issued_at_ms
             || envelope.expires_at_ms != binding.expires_at_ms
             || envelope.admitted_at_ms != binding.admitted_at_ms
@@ -1051,43 +840,13 @@ impl TenantRootRoleD1CipherV1 {
                 "tenant-root restore refreshed share ciphertext exceeds its size limit",
             ));
         }
-        let import = binding.import_binding();
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
-        serde_json::to_string(&TenantRootRestoreRefreshShareCiphertextV1 {
-            key_version: self.key_version.clone(),
-            tenant_identity_digest_hex: identity_digest_hex,
-            custody_lineage_b64u,
-            restore_session_id_hex,
-            recovery_set_id_b64u,
-            destination_fingerprint_hex,
-            manifest_digest_hex,
-            stable_root_commitment_b64u,
-            share_commitment_b64u,
-            role: import.role,
-            generation: import.generation,
-            import_key_id: import.import_key_id.clone(),
-            import_replay_key_digest_hex,
-            import_command_digest_hex,
-            import_operation_digest_hex,
-            import_public_key_b64u,
-            import_issued_at_ms: import.issued_at_ms,
-            import_expires_at_ms: import.expires_at_ms,
-            refresh_command_digest_hex,
-            evidence_digest_hex: encode_hex(evidence_digest),
-            ciphertext_b64u: encode_base64url_bytes_v1(&payload),
-        })
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
+        serde_json::to_string(&TenantRootRestoreRefreshShareCiphertextV1::new(
+            self.key_version.clone(),
+            attempt,
+            encode_hex(evidence_digest),
+            encode_base64url_bytes_v1(&payload),
+        ))
         .map_err(|error| {
             store_error(format!(
                 "tenant-root restore refreshed share ciphertext encoding failed: {error}"
@@ -1122,39 +881,10 @@ impl TenantRootRoleD1CipherV1 {
                 store_error("tenant-root restore refreshed share ciphertext is malformed")
             })?;
         let import = binding.import_binding();
-        let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
-        let custody_lineage_b64u = import.custody_lineage.to_base64url();
-        let restore_session_id_hex = encode_hex(import.restore_session_id.as_bytes());
-        let recovery_set_id_b64u = import.recovery_set_id.to_base64url();
-        let destination_fingerprint_hex = encode_hex(import.destination_fingerprint.as_bytes());
-        let manifest_digest_hex = encode_hex(&import.manifest_digest);
-        let stable_root_commitment_b64u = encode_base64url_bytes_v1(&import.stable_root_commitment);
-        let share_commitment_b64u = encode_base64url_bytes_v1(&import.share_commitment);
-        let import_replay_key_digest_hex = encode_hex(&import.replay_key_digest);
-        let import_command_digest_hex = encode_hex(&import.command_digest);
-        let import_operation_digest_hex = encode_hex(&import.operation_digest);
-        let import_public_key_b64u = encode_base64url_bytes_v1(import.import_public_key.as_bytes());
-        let refresh_command_digest_hex = encode_hex(binding.command_digest());
+        let attempt = TenantRootRestoreRefreshAttemptFieldsV1::from_binding(binding);
         let evidence_digest_hex = encode_hex(&evidence_digest);
         if envelope.key_version != self.key_version
-            || envelope.tenant_identity_digest_hex != identity_digest_hex
-            || envelope.custody_lineage_b64u != custody_lineage_b64u
-            || envelope.restore_session_id_hex != restore_session_id_hex
-            || envelope.recovery_set_id_b64u != recovery_set_id_b64u
-            || envelope.destination_fingerprint_hex != destination_fingerprint_hex
-            || envelope.manifest_digest_hex != manifest_digest_hex
-            || envelope.stable_root_commitment_b64u != stable_root_commitment_b64u
-            || envelope.share_commitment_b64u != share_commitment_b64u
-            || envelope.role != import.role
-            || envelope.generation != import.generation
-            || envelope.import_key_id != import.import_key_id
-            || envelope.import_replay_key_digest_hex != import_replay_key_digest_hex
-            || envelope.import_command_digest_hex != import_command_digest_hex
-            || envelope.import_operation_digest_hex != import_operation_digest_hex
-            || envelope.import_public_key_b64u != import_public_key_b64u
-            || envelope.import_issued_at_ms != import.issued_at_ms
-            || envelope.import_expires_at_ms != import.expires_at_ms
-            || envelope.refresh_command_digest_hex != refresh_command_digest_hex
+            || envelope.attempt() != attempt
             || envelope.evidence_digest_hex != evidence_digest_hex
         {
             return Err(store_error(

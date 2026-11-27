@@ -817,83 +817,179 @@ pub(super) struct TenantRootRestoreImportKeyAadV1<'a> {
     pub(super) schema: &'static str,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct TenantRootRestoreRefreshSeedCiphertextV1 {
-    pub(super) key_version: String,
-    pub(super) tenant_identity_digest_hex: String,
-    pub(super) custody_lineage_b64u: String,
-    pub(super) restore_session_id_hex: String,
-    pub(super) recovery_set_id_b64u: String,
-    pub(super) destination_fingerprint_hex: String,
-    pub(super) manifest_digest_hex: String,
-    pub(super) stable_root_commitment_b64u: String,
-    pub(super) share_commitment_b64u: String,
-    pub(super) role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) generation: u64,
-    pub(super) import_key_id: String,
-    pub(super) import_replay_key_digest_hex: String,
-    pub(super) import_command_digest_hex: String,
-    pub(super) import_operation_digest_hex: String,
-    pub(super) import_public_key_b64u: String,
-    pub(super) import_issued_at_ms: u64,
-    pub(super) import_expires_at_ms: u64,
-    pub(super) refresh_command_digest_hex: String,
-    pub(super) issued_at_ms: u64,
-    pub(super) expires_at_ms: u64,
-    pub(super) admitted_at_ms: u64,
-    pub(super) ciphertext_b64u: String,
+/// The fields of a restore refresh attempt that every refresh ciphertext
+/// header and AAD carries, encoded from the attempt's binding, in the order
+/// they are written.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub(super) struct TenantRootRestoreRefreshAttemptFieldsV1 {
+    tenant_identity_digest_hex: String,
+    custody_lineage_b64u: String,
+    restore_session_id_hex: String,
+    recovery_set_id_b64u: String,
+    destination_fingerprint_hex: String,
+    manifest_digest_hex: String,
+    stable_root_commitment_b64u: String,
+    share_commitment_b64u: String,
+    role: CloudflareTenantRootDeriverRoleV1,
+    generation: u64,
+    import_key_id: String,
+    import_replay_key_digest_hex: String,
+    import_command_digest_hex: String,
+    import_operation_digest_hex: String,
+    import_public_key_b64u: String,
+    import_issued_at_ms: u64,
+    import_expires_at_ms: u64,
+    refresh_command_digest_hex: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct TenantRootRestoreRefreshShareCiphertextV1 {
-    pub(super) key_version: String,
-    pub(super) tenant_identity_digest_hex: String,
-    pub(super) custody_lineage_b64u: String,
-    pub(super) restore_session_id_hex: String,
-    pub(super) recovery_set_id_b64u: String,
-    pub(super) destination_fingerprint_hex: String,
-    pub(super) manifest_digest_hex: String,
-    pub(super) stable_root_commitment_b64u: String,
-    pub(super) share_commitment_b64u: String,
-    pub(super) role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) generation: u64,
-    pub(super) import_key_id: String,
-    pub(super) import_replay_key_digest_hex: String,
-    pub(super) import_command_digest_hex: String,
-    pub(super) import_operation_digest_hex: String,
-    pub(super) import_public_key_b64u: String,
-    pub(super) import_issued_at_ms: u64,
-    pub(super) import_expires_at_ms: u64,
-    pub(super) refresh_command_digest_hex: String,
-    pub(super) evidence_digest_hex: String,
-    pub(super) ciphertext_b64u: String,
+impl TenantRootRestoreRefreshAttemptFieldsV1 {
+    pub(super) fn from_binding(
+        binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
+    ) -> Self {
+        let import = binding.import_binding();
+        Self {
+            tenant_identity_digest_hex: encode_hex(import.identity_digest.as_bytes()),
+            custody_lineage_b64u: import.custody_lineage.to_base64url(),
+            restore_session_id_hex: encode_hex(import.restore_session_id.as_bytes()),
+            recovery_set_id_b64u: import.recovery_set_id.to_base64url(),
+            destination_fingerprint_hex: encode_hex(import.destination_fingerprint.as_bytes()),
+            manifest_digest_hex: encode_hex(&import.manifest_digest),
+            stable_root_commitment_b64u: encode_base64url_bytes_v1(&import.stable_root_commitment),
+            share_commitment_b64u: encode_base64url_bytes_v1(&import.share_commitment),
+            role: import.role,
+            generation: import.generation,
+            import_key_id: import.import_key_id.clone(),
+            import_replay_key_digest_hex: encode_hex(&import.replay_key_digest),
+            import_command_digest_hex: encode_hex(&import.command_digest),
+            import_operation_digest_hex: encode_hex(&import.operation_digest),
+            import_public_key_b64u: encode_base64url_bytes_v1(import.import_public_key.as_bytes()),
+            import_issued_at_ms: import.issued_at_ms,
+            import_expires_at_ms: import.expires_at_ms,
+            refresh_command_digest_hex: encode_hex(binding.command_digest()),
+        }
+    }
 }
+
+/// Declares one restore refresh ciphertext header: the key version, the
+/// attempt fields in the order of `TenantRootRestoreRefreshAttemptFieldsV1`,
+/// the header's own fields, then the ciphertext. The attempt fields are
+/// written out rather than flattened, because serde does not support
+/// `deny_unknown_fields` on a struct with a flattened field.
+macro_rules! restore_refresh_ciphertext_v1 {
+    ($name:ident { $($field:ident: $type:ty),* $(,)? }) => {
+        #[derive(Debug, Serialize, Deserialize)]
+        #[serde(deny_unknown_fields)]
+        pub(super) struct $name {
+            pub(super) key_version: String,
+            pub(super) tenant_identity_digest_hex: String,
+            pub(super) custody_lineage_b64u: String,
+            pub(super) restore_session_id_hex: String,
+            pub(super) recovery_set_id_b64u: String,
+            pub(super) destination_fingerprint_hex: String,
+            pub(super) manifest_digest_hex: String,
+            pub(super) stable_root_commitment_b64u: String,
+            pub(super) share_commitment_b64u: String,
+            pub(super) role: CloudflareTenantRootDeriverRoleV1,
+            pub(super) generation: u64,
+            pub(super) import_key_id: String,
+            pub(super) import_replay_key_digest_hex: String,
+            pub(super) import_command_digest_hex: String,
+            pub(super) import_operation_digest_hex: String,
+            pub(super) import_public_key_b64u: String,
+            pub(super) import_issued_at_ms: u64,
+            pub(super) import_expires_at_ms: u64,
+            pub(super) refresh_command_digest_hex: String,
+            $(pub(super) $field: $type,)*
+            pub(super) ciphertext_b64u: String,
+        }
+
+        // Only the Deriver entries seal and open every header kind.
+        #[cfg_attr(
+            not(any(
+                feature = "strict-worker-deriver-a-entrypoint",
+                feature = "strict-worker-deriver-b-entrypoint"
+            )),
+            allow(dead_code)
+        )]
+        impl $name {
+            pub(super) fn new(
+                key_version: String,
+                attempt: TenantRootRestoreRefreshAttemptFieldsV1,
+                $($field: $type,)*
+                ciphertext_b64u: String,
+            ) -> Self {
+                Self {
+                    key_version,
+                    tenant_identity_digest_hex: attempt.tenant_identity_digest_hex,
+                    custody_lineage_b64u: attempt.custody_lineage_b64u,
+                    restore_session_id_hex: attempt.restore_session_id_hex,
+                    recovery_set_id_b64u: attempt.recovery_set_id_b64u,
+                    destination_fingerprint_hex: attempt.destination_fingerprint_hex,
+                    manifest_digest_hex: attempt.manifest_digest_hex,
+                    stable_root_commitment_b64u: attempt.stable_root_commitment_b64u,
+                    share_commitment_b64u: attempt.share_commitment_b64u,
+                    role: attempt.role,
+                    generation: attempt.generation,
+                    import_key_id: attempt.import_key_id,
+                    import_replay_key_digest_hex: attempt.import_replay_key_digest_hex,
+                    import_command_digest_hex: attempt.import_command_digest_hex,
+                    import_operation_digest_hex: attempt.import_operation_digest_hex,
+                    import_public_key_b64u: attempt.import_public_key_b64u,
+                    import_issued_at_ms: attempt.import_issued_at_ms,
+                    import_expires_at_ms: attempt.import_expires_at_ms,
+                    refresh_command_digest_hex: attempt.refresh_command_digest_hex,
+                    $($field,)*
+                    ciphertext_b64u,
+                }
+            }
+
+            /// The attempt fields this header names.
+            pub(super) fn attempt(&self) -> TenantRootRestoreRefreshAttemptFieldsV1 {
+                TenantRootRestoreRefreshAttemptFieldsV1 {
+                    tenant_identity_digest_hex: self.tenant_identity_digest_hex.clone(),
+                    custody_lineage_b64u: self.custody_lineage_b64u.clone(),
+                    restore_session_id_hex: self.restore_session_id_hex.clone(),
+                    recovery_set_id_b64u: self.recovery_set_id_b64u.clone(),
+                    destination_fingerprint_hex: self.destination_fingerprint_hex.clone(),
+                    manifest_digest_hex: self.manifest_digest_hex.clone(),
+                    stable_root_commitment_b64u: self.stable_root_commitment_b64u.clone(),
+                    share_commitment_b64u: self.share_commitment_b64u.clone(),
+                    role: self.role,
+                    generation: self.generation,
+                    import_key_id: self.import_key_id.clone(),
+                    import_replay_key_digest_hex: self.import_replay_key_digest_hex.clone(),
+                    import_command_digest_hex: self.import_command_digest_hex.clone(),
+                    import_operation_digest_hex: self.import_operation_digest_hex.clone(),
+                    import_public_key_b64u: self.import_public_key_b64u.clone(),
+                    import_issued_at_ms: self.import_issued_at_ms,
+                    import_expires_at_ms: self.import_expires_at_ms,
+                    refresh_command_digest_hex: self.refresh_command_digest_hex.clone(),
+                }
+            }
+        }
+    };
+}
+
+restore_refresh_ciphertext_v1!(TenantRootRestoreRefreshSeedCiphertextV1 {
+    issued_at_ms: u64,
+    expires_at_ms: u64,
+    admitted_at_ms: u64,
+});
+
+restore_refresh_ciphertext_v1!(TenantRootRestoreRefreshShareCiphertextV1 {
+    evidence_digest_hex: String,
+});
+
+restore_refresh_ciphertext_v1!(TenantRootRestorePromotionRoleCiphertextV1 {
+    provider_binding_aad_b64u: String,
+});
 
 #[derive(Debug, Serialize)]
-#[serde(deny_unknown_fields)]
 pub(super) struct TenantRootRestoreRefreshSeedAadV1<'a> {
     pub(super) environment: &'a str,
     pub(super) worker_role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) tenant_identity_digest_hex: &'a str,
-    pub(super) custody_lineage_b64u: &'a str,
-    pub(super) restore_session_id_hex: &'a str,
-    pub(super) recovery_set_id_b64u: &'a str,
-    pub(super) destination_fingerprint_hex: &'a str,
-    pub(super) manifest_digest_hex: &'a str,
-    pub(super) stable_root_commitment_b64u: &'a str,
-    pub(super) share_commitment_b64u: &'a str,
-    pub(super) role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) generation: u64,
-    pub(super) import_key_id: &'a str,
-    pub(super) import_replay_key_digest_hex: &'a str,
-    pub(super) import_command_digest_hex: &'a str,
-    pub(super) import_operation_digest_hex: &'a str,
-    pub(super) import_public_key_b64u: &'a str,
-    pub(super) import_issued_at_ms: u64,
-    pub(super) import_expires_at_ms: u64,
-    pub(super) refresh_command_digest_hex: &'a str,
+    #[serde(flatten)]
+    pub(super) attempt: &'a TenantRootRestoreRefreshAttemptFieldsV1,
     pub(super) issued_at_ms: u64,
     pub(super) expires_at_ms: u64,
     pub(super) admitted_at_ms: u64,
@@ -902,82 +998,22 @@ pub(super) struct TenantRootRestoreRefreshSeedAadV1<'a> {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(deny_unknown_fields)]
 pub(super) struct TenantRootRestoreRefreshShareAadV1<'a> {
     pub(super) environment: &'a str,
     pub(super) worker_role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) tenant_identity_digest_hex: &'a str,
-    pub(super) custody_lineage_b64u: &'a str,
-    pub(super) restore_session_id_hex: &'a str,
-    pub(super) recovery_set_id_b64u: &'a str,
-    pub(super) destination_fingerprint_hex: &'a str,
-    pub(super) manifest_digest_hex: &'a str,
-    pub(super) stable_root_commitment_b64u: &'a str,
-    pub(super) share_commitment_b64u: &'a str,
-    pub(super) role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) generation: u64,
-    pub(super) import_key_id: &'a str,
-    pub(super) import_replay_key_digest_hex: &'a str,
-    pub(super) import_command_digest_hex: &'a str,
-    pub(super) import_operation_digest_hex: &'a str,
-    pub(super) import_public_key_b64u: &'a str,
-    pub(super) import_issued_at_ms: u64,
-    pub(super) import_expires_at_ms: u64,
-    pub(super) refresh_command_digest_hex: &'a str,
+    #[serde(flatten)]
+    pub(super) attempt: &'a TenantRootRestoreRefreshAttemptFieldsV1,
     pub(super) evidence_digest_hex: &'a str,
     pub(super) purpose: &'static str,
     pub(super) schema: &'static str,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct TenantRootRestorePromotionRoleCiphertextV1 {
-    pub(super) key_version: String,
-    pub(super) tenant_identity_digest_hex: String,
-    pub(super) custody_lineage_b64u: String,
-    pub(super) restore_session_id_hex: String,
-    pub(super) recovery_set_id_b64u: String,
-    pub(super) destination_fingerprint_hex: String,
-    pub(super) manifest_digest_hex: String,
-    pub(super) stable_root_commitment_b64u: String,
-    pub(super) share_commitment_b64u: String,
-    pub(super) role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) generation: u64,
-    pub(super) import_key_id: String,
-    pub(super) import_replay_key_digest_hex: String,
-    pub(super) import_command_digest_hex: String,
-    pub(super) import_operation_digest_hex: String,
-    pub(super) import_public_key_b64u: String,
-    pub(super) import_issued_at_ms: u64,
-    pub(super) import_expires_at_ms: u64,
-    pub(super) refresh_command_digest_hex: String,
-    pub(super) provider_binding_aad_b64u: String,
-    pub(super) ciphertext_b64u: String,
-}
-
 #[derive(Debug, Serialize)]
-#[serde(deny_unknown_fields)]
 pub(super) struct TenantRootRestorePromotionAadV1<'a> {
     pub(super) environment: &'a str,
     pub(super) worker_role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) tenant_identity_digest_hex: &'a str,
-    pub(super) custody_lineage_b64u: &'a str,
-    pub(super) restore_session_id_hex: &'a str,
-    pub(super) recovery_set_id_b64u: &'a str,
-    pub(super) destination_fingerprint_hex: &'a str,
-    pub(super) manifest_digest_hex: &'a str,
-    pub(super) stable_root_commitment_b64u: &'a str,
-    pub(super) share_commitment_b64u: &'a str,
-    pub(super) role: CloudflareTenantRootDeriverRoleV1,
-    pub(super) generation: u64,
-    pub(super) import_key_id: &'a str,
-    pub(super) import_replay_key_digest_hex: &'a str,
-    pub(super) import_command_digest_hex: &'a str,
-    pub(super) import_operation_digest_hex: &'a str,
-    pub(super) import_public_key_b64u: &'a str,
-    pub(super) import_issued_at_ms: u64,
-    pub(super) import_expires_at_ms: u64,
-    pub(super) refresh_command_digest_hex: &'a str,
+    #[serde(flatten)]
+    pub(super) attempt: &'a TenantRootRestoreRefreshAttemptFieldsV1,
     pub(super) provider_binding_aad_b64u: &'a str,
     pub(super) purpose: &'static str,
     pub(super) schema: &'static str,
