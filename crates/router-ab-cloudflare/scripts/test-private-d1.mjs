@@ -428,7 +428,6 @@ export function deriverAWorker(fixture) {
     ...strictWorker('deriver-a', 'deriver-a', {
       ...fixture.deriver_a_env,
       ...admissionRecoveryWindowBinding,
-      ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION: 'enabled',
     }),
     d1Databases: { [roleD1Binding]: 'deriver-a-private-d1' },
     r2Buckets: { [managedBackupR2Binding]: 'deriver-a-managed-backup' },
@@ -464,7 +463,6 @@ export function deriverBWorker(fixture) {
   const bindings = {
     ...fixture.deriver_b_env,
     ...admissionRecoveryWindowBinding,
-    ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION: 'enabled',
   };
   if (
     process.argv.includes('--do-pair-b-burn-before-complete') ||
