@@ -12,9 +12,9 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryHostSecretCapabilitiesV1 {
     /// Whether secret pages were locked out of swap.
-    pub memory_locking: bool,
+    pub(crate) memory_locking: bool,
     /// Whether crash dumps of this process were suppressed.
-    pub crash_dump_suppression: bool,
+    pub(crate) crash_dump_suppression: bool,
 }
 
 impl RecoveryHostSecretCapabilitiesV1 {

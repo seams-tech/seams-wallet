@@ -24,7 +24,7 @@ const RELEASE_ROOT_FORMAT_V1: &str = "seams_release_root_v1";
 /// Maximum encoded bytes accepted for one release checksum manifest.
 pub const RELEASE_MANIFEST_MAX_BYTES_V1: usize = 64 * 1024;
 /// Maximum release artifacts one manifest may describe.
-pub const RELEASE_MANIFEST_MAX_ENTRIES_V1: usize = 64;
+pub(crate) const RELEASE_MANIFEST_MAX_ENTRIES_V1: usize = 64;
 
 /// One pinned offline release-signing root.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -23,7 +23,7 @@ use crate::key_file::{RecoveryKeyFileV1, RECOVERY_KEY_FILE_MAX_BYTES};
 use crate::{RecoveryCoreError, RecoveryCoreErrorCode, RecoveryCoreResult};
 
 /// Maximum bytes read for one challenge envelope before allocation.
-pub const RECOVERY_RECIPIENT_CHALLENGE_MAX_BYTES: usize = 4 * 1024;
+pub(crate) const RECOVERY_RECIPIENT_CHALLENGE_MAX_BYTES: usize = 4 * 1024;
 
 /// The public result of proving control of one recipient key.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

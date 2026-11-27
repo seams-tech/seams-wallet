@@ -9,7 +9,7 @@ use router_ab_core::{
 use zeroize::Zeroizing;
 
 /// Magic for a plaintext, role-bound recovery key file.
-pub const RECOVERY_KEY_FILE_MAGIC_V1: &[u8; 8] = b"SEAMSKP1";
+pub(crate) const RECOVERY_KEY_FILE_MAGIC_V1: &[u8; 8] = b"SEAMSKP1";
 /// Magic, role byte, secret material, public key, and fingerprint.
 pub const RECOVERY_KEY_FILE_MAX_BYTES: usize = 105;
 

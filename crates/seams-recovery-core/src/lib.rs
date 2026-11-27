@@ -17,24 +17,18 @@ mod release_trust;
 
 pub use self::artifacts::{
     check_role_backup_decryption_v1, open_and_reseal_role_share_v1, verify_role_package_offline_v1,
-    ResealedRoleImportV1, RestoreDestinationBindingV1, VerifiedRolePackageReportV1,
+    RestoreDestinationBindingV1, VerifiedRolePackageReportV1,
 };
 pub use self::durable_file::{
     read_capped_file_v1, write_new_file_durably_v1, DurableWriteOutcomeV1, RECOVERY_FILE_MODE_V1,
 };
 pub use self::host_capabilities::RecoveryHostSecretCapabilitiesV1;
-pub use self::key_file::{
-    RecoveryKeyFileV1, TenantRootRecoveryKeyMaterialV1, RECOVERY_KEY_FILE_MAGIC_V1,
-    RECOVERY_KEY_FILE_MAX_BYTES,
-};
+pub use self::key_file::{RecoveryKeyFileV1, RECOVERY_KEY_FILE_MAX_BYTES};
 pub use self::pinned_trust::require_trust_bundle_continues_pinned_root_v1;
-pub use self::recipient_proof::{
-    prove_recovery_recipient_control_from_bytes_v1, RecipientProofResultV1,
-    RECOVERY_RECIPIENT_CHALLENGE_MAX_BYTES,
-};
+pub use self::recipient_proof::prove_recovery_recipient_control_from_bytes_v1;
 pub use self::release_trust::{
     ReleaseArtifactEntryV1, ReleaseChecksumManifestV1, ReleaseTrustRootV1,
-    RELEASE_MANIFEST_MAX_BYTES_V1, RELEASE_MANIFEST_MAX_ENTRIES_V1,
+    RELEASE_MANIFEST_MAX_BYTES_V1,
 };
 
 /// Errors raised by the native recovery core.
@@ -104,4 +98,4 @@ impl RecoveryCoreErrorCode {
 }
 
 /// Result alias for the native recovery core.
-pub type RecoveryCoreResult<T> = Result<T, RecoveryCoreError>;
+pub(crate) type RecoveryCoreResult<T> = Result<T, RecoveryCoreError>;
