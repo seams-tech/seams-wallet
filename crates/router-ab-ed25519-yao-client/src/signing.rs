@@ -54,7 +54,7 @@ pub struct ClientSigningRequestV1<'a> {
     /// Router-admitted 32-byte digest to sign.
     pub admitted_digest: &'a [u8; 32],
     /// SigningWorker round-one commitments.
-    pub signing_worker_commitments: &'a CommitmentsWire,
+    pub(crate) signing_worker_commitments: &'a CommitmentsWire,
     /// Public SigningWorker verifying share bound during activation.
     pub signing_worker_verifying_share: &'a [u8; 32],
 }

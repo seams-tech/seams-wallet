@@ -36,13 +36,13 @@ use crate::ActivatedClientV1;
 
 /// Plaintext layout version. Bumping it invalidates every stored record,
 /// which is the intended effect of ever changing the layout.
-pub const ACTIVATED_CLIENT_SEAL_VERSION_V1: u8 = 1;
+pub(crate) const ACTIVATED_CLIENT_SEAL_VERSION_V1: u8 = 1;
 /// Version byte, scalar share, registered public key, big-endian state epoch.
-pub const ACTIVATED_CLIENT_PLAINTEXT_LEN_V1: usize = 1 + 32 + 32 + 8;
+pub(crate) const ACTIVATED_CLIENT_PLAINTEXT_LEN_V1: usize = 1 + 32 + 32 + 8;
 /// ChaCha20-Poly1305 nonce width.
-pub const ACTIVATED_CLIENT_NONCE_LEN_V1: usize = 12;
+pub(crate) const ACTIVATED_CLIENT_NONCE_LEN_V1: usize = 12;
 /// Upper bound on the binding, so a caller cannot force unbounded HKDF input.
-pub const MAX_ACTIVATED_CLIENT_BINDING_LEN_V1: usize = 4096;
+pub(crate) const MAX_ACTIVATED_CLIENT_BINDING_LEN_V1: usize = 4096;
 
 const PASSKEY_SEAL_INFO_V1: &[u8] = b"seams/router-ab/ed25519-yao/activated-client-seal/v1";
 const PASSKEY_SEAL_SALT_V1: &[u8] = b"seams/router-ab/ed25519-yao/activated-client-seal/salt/v1";
@@ -130,7 +130,7 @@ impl fmt::Display for LocalMaterialError {
 impl core::error::Error for LocalMaterialError {}
 
 /// Result alias for the seal and import surface.
-pub type LocalMaterialResult<T> = Result<T, LocalMaterialError>;
+pub(crate) type LocalMaterialResult<T> = Result<T, LocalMaterialError>;
 
 fn require_32(value: &[u8]) -> LocalMaterialResult<[u8; 32]> {
     value

@@ -74,9 +74,9 @@ pub struct Ed25519YaoLaneHolderPackageWireV1 {
     /// Fixed holder package-set discriminator.
     pub kind: String,
     /// Deriver A's opaque holder package JSON.
-    pub deriver_a_encrypted_package_json: String,
+    pub(crate) deriver_a_encrypted_package_json: String,
     /// Deriver B's opaque holder package JSON.
-    pub deriver_b_encrypted_package_json: String,
+    pub(crate) deriver_b_encrypted_package_json: String,
 }
 
 impl Ed25519YaoLaneHolderPackageWireV1 {
