@@ -5,7 +5,7 @@
 
 import type { PhraseReceipt } from '@/core/authMethods/hostPlugin';
 import type { SpeakToSignBackendId } from '@shared/speakToSign/backend';
-import type { SpeakToSignVerifier } from '@shared/speakToSign/evidence/voiceVerdictV2';
+import type { SpeakToSignVerifier } from '@shared/speakToSign/evidence';
 import { OUTLAYER_VERIFIER } from './outlayer/outlayerVerifier';
 
 /** What a receipt shows of one verifier call: the version in its verdict, and its attestation. */

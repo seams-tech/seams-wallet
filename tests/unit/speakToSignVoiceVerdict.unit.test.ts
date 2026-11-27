@@ -252,6 +252,7 @@ function harness(verifier: Verifier, options: { configured?: boolean } = {}): Ha
   let nowMs = NOW_MS;
   const warnings: unknown[][] = [];
   const voiceVerdicts: SpeakToSignVoiceVerdictCheck = {
+    evidenceKind: 'voice_verdict_v2',
     ledger,
     verifiers: {
       testnet: {

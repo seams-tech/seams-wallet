@@ -5,7 +5,7 @@
 // rule of the Wallet's policy engine, as for a normal signature. A normal signing request carries no
 // verdict, and the co-signer does not run this check for it.
 
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
+import { base64UrlDecode } from '@shared/utils/base64';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
 import {
@@ -16,14 +16,12 @@ import {
   type SpeakToSignNetwork,
 } from '@shared/speakToSign/spokenRequest';
 import {
-  checkVerdict,
-  parseVerdict,
+  evidenceChecker,
   SPEAK_TO_SIGN_VERIFIERS,
-  verdictMessage,
-  VOICE_VERDICT_LIFE_MS,
+  type EvidenceRefusal,
   type SpeakToSignVerifier,
-  type VerdictRefusal,
-} from '@shared/speakToSign/evidence/voiceVerdictV2';
+  type SpokenEvidenceKind,
+} from '@shared/speakToSign/evidence';
 import {
   COSIGNER_VOICE_REFUSAL_CODE,
   cosignerVoiceRefusalMessage,
@@ -66,6 +64,8 @@ export type VoiceVerdictLedger = Readonly<{
 }>;
 
 export type SpeakToSignVoiceVerdictCheck = Readonly<{
+  /** The evidence kind of the lane's verifier backend. The co-signer accepts no other kind. */
+  evidenceKind: SpokenEvidenceKind;
   ledger: VoiceVerdictLedger;
   /** Tests pass their own key. The co-signer always uses the pinned verifiers. */
   verifiers?: Readonly<Record<SpeakToSignNetwork, SpeakToSignVerifier | null>>;
@@ -163,24 +163,21 @@ async function admitVoiceVerdict(
   ) {
     return refuse('verdict_invalid');
   }
-  const parsed = parseVerdict(signed.verdict_json);
-  if ('refusal' in parsed || parsed.verdict.outcome === 'refuse') return refuse('verdict_invalid');
+  const checker = evidenceChecker(check.evidenceKind);
+  if (checker.read(signed.verdict_json).kind !== 'approves') return refuse('verdict_invalid');
   const target = readSigningTarget(route.body);
   if (!target) return refuse('request_mismatch');
   const verifier = (check.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[target.network];
   if (!verifier) return refuse('network_unsupported');
   // The request digest is compared below, after the co-signer builds the request from the bytes
   // that it signs. A step-up passes here and needs the fresh approval next.
-  const checked = await checkVerdict({
-    verdictJson: signed.verdict_json,
-    signatureB64: signed.signature_b64,
-    publicKey: verifier.publicKey,
-    nowMs,
-    acceptStepUp: true,
-  });
-  if (!checked.ok) return refuse(cosignerRefusal(checked.refusal));
-  const { verdict } = checked;
-  if (verdict.outcome === 'step_up' && !freshApproval(authorization, verdict.expires_at_ms)) {
+  const opened = await checker.open(
+    { verdictJson: signed.verdict_json, signatureB64: signed.signature_b64 },
+    { publicKey: verifier.publicKey, nowMs },
+  );
+  if (!opened.ok) return refuse(cosignerRefusal(opened.refusal));
+  const { evidence } = opened;
+  if (evidence.stepUp && !freshApproval(authorization, evidence.signedAtMs)) {
     return refuse('step_up_required');
   }
 
@@ -212,8 +209,9 @@ async function admitVoiceVerdict(
     // An amount or id that does not fit its Borsh integer.
     return refuse('request_mismatch');
   }
-  const digest = base64UrlEncode(await spokenRequestDigest(borsh));
-  if (digest !== verdict.request_digest) return refuse('request_mismatch');
+  if (evidence.bindingRefusal({ requestDigest: await spokenRequestDigest(borsh) })) {
+    return refuse('request_mismatch');
+  }
   // A bet, a note and a rating carry their verdict to a contract that checks it. It must be the
   // verdict of this request.
   if (
@@ -238,10 +236,10 @@ async function admitVoiceVerdict(
   try {
     ledger = await check.ledger.admit({
       walletId: target.walletId,
-      verdictId: base64UrlEncode(await verdictMessage(signed.verdict_json)),
+      verdictId: evidence.verdictId,
       requestId: target.requestId,
       acceptedAtMs: nowMs,
-      expiresAtMs: verdict.expires_at_ms,
+      expiresAtMs: evidence.expiresAtMs,
     });
   } catch (error: unknown) {
     return { ok: false, reason: 'unavailable', detail: errorDetail(error, 'ledger') };
@@ -250,25 +248,15 @@ async function admitVoiceVerdict(
   return { ok: true };
 }
 
-/** The co-signer's reason for a verdict that `checkVerdict` refused. */
-function cosignerRefusal(refusal: VerdictRefusal): CosignerVoiceRefusal {
+/** The co-signer's reason for evidence that its checker refused. */
+function cosignerRefusal(refusal: EvidenceRefusal): CosignerVoiceRefusal {
   switch (refusal.code) {
-    case 'bad_public_key':
-    case 'bad_signature_encoding':
-    case 'bad_signature':
-      return 'signature_invalid';
+    case 'signature_invalid':
     case 'expired':
-    case 'not_yet_valid':
-      return 'expired';
-    case 'request_mismatch':
-    case 'spoken_text_mismatch':
-    case 'audio_mismatch':
+      return refusal.code;
+    case 'mismatch':
       return 'request_mismatch';
-    case 'malformed':
-    case 'wrong_kind':
-    case 'wrong_renderer':
-    case 'refused':
-    case 'step_up':
+    case 'invalid':
       return 'verdict_invalid';
   }
 }
@@ -278,11 +266,10 @@ function cosignerRefusal(refusal: VerdictRefusal): CosignerVoiceRefusal {
  * operation, or a new VoiceID unlock issued the Wallet Session after the verifier signed the
  * verdict. A VoiceID session answers a fresh-approval request with that unlock.
  */
-function freshApproval(authorization: SigningAuthorization, verdictExpiresAtMs: number): boolean {
+function freshApproval(authorization: SigningAuthorization, verdictSignedAtMs: number): boolean {
   if (authorization.kind === 'operation_step_up') return true;
   if (authorization.kind !== 'wallet_session_operation_credential_v1') return false;
   const { authorization: issued, authMethod } = authorization.validated.admission.context;
-  const verdictSignedAtMs = verdictExpiresAtMs - VOICE_VERDICT_LIFE_MS;
   return authMethod.kind === 'voiceid' && issued.session.createdAtMs >= verdictSignedAtMs;
 }
 

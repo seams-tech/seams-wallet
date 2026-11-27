@@ -105,6 +105,7 @@ import {
   ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1,
 } from './cloud-host';
 import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './cloud-host';
+import { BACKEND_EVIDENCE_KIND } from '@shared/speakToSign/evidence';
 import { createSpeakToSignBackend } from './router/domains/speakToSign/backends/select';
 import { createSpeakToSignVerifyRouteExtensions } from './router/domains/speakToSign/speakToSignVerify';
 import { readSpeakToSignSummaryConfig } from './router/domains/speakToSign/speakToSignSummary';
@@ -868,6 +869,7 @@ export async function createHostedWalletGatewayCompositionV1(
       // The co-signer checks the verdicts that the verify route returns.
       speakToSignVoiceVerdicts: speakToSign
         ? {
+            evidenceKind: BACKEND_EVIDENCE_KIND[speakToSign.id],
             ledger: createD1VoiceVerdictLedger({
               database: env.SIGNER_DB,
               namespace: scope.namespace,

@@ -2,6 +2,7 @@
 // request of a verdict from the intent, so the caller of the sign path supplies no digest of
 // the request and no sentence.
 
+import type { SpokenEvidenceKind } from '@shared/speakToSign/evidence';
 import {
   renderSpokenFields,
   spokenFieldsRefusal,
@@ -39,9 +40,9 @@ export type SpokenIntent =
   | SpokenNoteAction
   | Readonly<{ kind: 'signed_message'; message: SpokenMessageAction }>;
 
-/** A signed statement that approves one request. The first kind is the voice verdict. */
+/** A signed statement that approves one request, of the evidence kind of the verifier backend. */
 export type SpokenEvidence = Readonly<{
-  kind: 'voice_verdict_v2';
+  kind: SpokenEvidenceKind;
   /** The verifier output, as the verify route returned it. Core checks it. */
   output: unknown;
 }>;

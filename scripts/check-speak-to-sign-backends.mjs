@@ -3,7 +3,8 @@
 // out. This check reads the import graph (with the TypeScript preprocessor, not
 // the source text) and fails when:
 // - a file outside a backend module imports a backend's library;
-// - a file other than the backend selector of its side imports a backend module.
+// - a file other than the backend selector of its side imports a backend module;
+// - a file other than the evidence checker or a backend module imports an evidence kind's module.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,9 @@ const aliases = [
 const serverOutLayer =
   'packages/mpc-wallet-server/src/router/domains/speakToSign/backends/outlayer/';
 const sdkOutLayer = 'packages/mpc-wallet/src/core/transactionFeatures/verifiers/outlayer/';
-const v2Evidence = 'packages/shared-ts/src/speakToSign/evidence/voiceVerdictV2.ts';
+const evidenceKinds = 'packages/shared-ts/src/speakToSign/evidence/';
+const v2Evidence = `${evidenceKinds}voiceVerdictV2.ts`;
+const evidenceChecker = 'packages/shared-ts/src/speakToSign/evidence.ts';
 
 /** The libraries of the OutLayer backend, and the paths that may import them. */
 const libraries = [
@@ -94,6 +97,16 @@ for (const folder of sources) {
       }
       const target = resolveSpecifier(file, specifier);
       if (target === null) continue;
+      if (
+        target.startsWith(evidenceKinds) &&
+        file !== evidenceChecker &&
+        !file.startsWith(evidenceKinds) &&
+        !modules.some((backend) => file.startsWith(backend.folder))
+      ) {
+        offenders.push(
+          `${file}: imports ${specifier}; only ${evidenceChecker} and a backend module may import it`,
+        );
+      }
       for (const backend of modules) {
         if (
           target.startsWith(backend.folder) &&

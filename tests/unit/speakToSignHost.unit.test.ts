@@ -341,6 +341,7 @@ test('the shared signed verdict vectors pass the core check as voice and voice-a
     expect(output, vector.approval).not.toBeNull();
     expect(
       await checkVoiceVerdict({
+        kind: 'voice_verdict_v2',
         output: output!,
         expected: await transferDigests(request),
         verifier: { project: PROJECT, publicKey: SIGNED_VECTORS.publicKey, audioKey: AUDIO_KEY },
@@ -368,6 +369,7 @@ test('the core check refuses a verdict that does not bind this transfer, clip, t
     options: { publicKey?: string; recordedAudio?: Set<string>; nowMs?: number } = {},
   ) =>
     await checkVoiceVerdict({
+      kind: 'voice_verdict_v2',
       output: parseVerifyOutput(output)!,
       expected: await transferDigests(request),
       verifier: {
@@ -445,6 +447,7 @@ test('a verifier refusal passes through with its reason and what was heard', asy
   });
   expect(
     await checkVoiceVerdict({
+      kind: 'voice_verdict_v2',
       output: parseVerifyOutput(await verifyOutput(verifier, refusal))!,
       expected: await transferDigests(request),
       verifier: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY },
@@ -469,6 +472,7 @@ test('a refusal of verifier 0.14.1 that NEAR AI is not attested keeps its reason
   });
   const check = async (verdict: string) =>
     await checkVoiceVerdict({
+      kind: 'voice_verdict_v2',
       output: parseVerifyOutput(await verifyOutput(verifier, verdict))!,
       expected: await transferDigests(request),
       verifier: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY },

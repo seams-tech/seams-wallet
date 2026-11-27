@@ -15,7 +15,7 @@ import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
 import { spokenCallOfFields } from '@shared/speakToSign/spokenKinds';
 import { sha256 } from '@shared/speakToSign/spokenRequest';
-import { SPEAK_TO_SIGN_VERIFIERS } from '@shared/speakToSign/evidence/voiceVerdictV2';
+import { BACKEND_EVIDENCE_KIND, SPEAK_TO_SIGN_VERIFIERS } from '@shared/speakToSign/evidence';
 import { parseCosignerVoiceRefusal } from '@shared/speakToSign/voiceVerdict';
 import type {
   AuthMethodEnrollmentRecording,
@@ -51,6 +51,7 @@ import type { SpokenDigests } from './spokenTransfer';
 import {
   checkVoiceVerdict,
   parseVerifyOutput,
+  verdictStillValid,
   type SignedVoiceVerdict,
   type VoiceApprovedSigning,
 } from './voiceVerdict';
@@ -167,7 +168,7 @@ export type FlowState = {
 };
 
 function voiceVerdict(output: unknown): SpokenEvidence {
-  return { kind: 'voice_verdict_v2', output };
+  return { kind: BACKEND_EVIDENCE_KIND[SPEAK_TO_SIGN_VERIFIER_BACKEND.id], output };
 }
 
 /** Builds the scoped operations for one spoken payment or enrollment. */
@@ -473,7 +474,7 @@ export async function signWithEvidence(
     input,
     state,
     expected,
-    evidence.output,
+    evidence,
     signal,
     hooks,
     STEP_UP[form],
@@ -652,7 +653,7 @@ async function approveVerdict(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
   expected: SpokenDigests,
-  verifierOutput: unknown,
+  evidence: SpokenEvidence,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
   stepUp: 'ask' | 'refuse',
@@ -662,9 +663,10 @@ async function approveVerdict(
   signal.throwIfAborted();
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
   if (!verifier) return { kind: 'unavailable', detail: 'This network has no verifier.' };
-  const output = parseVerifyOutput(verifierOutput);
+  const output = parseVerifyOutput(evidence.output);
   if (!output) return { kind: 'unavailable', detail: 'invalid verifier output' };
   const check = await checkVoiceVerdict({
+    kind: evidence.kind,
     output,
     expected,
     verifier,
@@ -688,7 +690,7 @@ async function approveVerdict(
   }
   signal.throwIfAborted();
   // A verdict that waited for the owner may have expired meanwhile.
-  if (!verdictStillValid(output.verdictJson, (input.now ?? Date.now)())) {
+  if (!verdictStillValid(evidence.kind, output.verdictJson, (input.now ?? Date.now)())) {
     return { kind: 'refused', reason: 'verdict_mismatch', detail: 'verdict expired' };
   }
   if (state.paid) {
@@ -735,14 +737,6 @@ async function authorizeEnrollment(
       nonce_b64: signed.nonce,
     },
   };
-}
-
-/** The checked verdict's expiry, read again after the owner answered a step-up. */
-function verdictStillValid(verdictJson: string, nowMs: number): boolean {
-  const verdict: unknown = JSON.parse(verdictJson);
-  return isPlainObject(verdict) && typeof verdict.expires_at_ms === 'number'
-    ? verdict.expires_at_ms > nowMs
-    : false;
 }
 
 function errorDetail(error: unknown, fallback: string): string {
