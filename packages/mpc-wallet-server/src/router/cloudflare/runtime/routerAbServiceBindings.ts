@@ -16,7 +16,7 @@ export interface RouterAbServiceBindingEnv {
   readonly SIGNING_WORKER: CloudflareServiceBindingFetcher;
 }
 
-export type WalletHomeRegion = 'US' | 'WEUR' | 'APAC' | 'OC';
+type WalletHomeRegion = 'US' | 'WEUR' | 'APAC' | 'OC';
 
 /** Apply only after the host admits this request to the wallet's fixed home. */
 export class WalletHomeCustodyBinding implements CloudflareServiceBindingFetcher {

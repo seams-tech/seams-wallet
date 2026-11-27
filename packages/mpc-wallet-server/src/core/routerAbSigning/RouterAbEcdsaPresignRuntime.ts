@@ -14,7 +14,7 @@ import {
 import type { RouterAbEcdsaSigningWorkerExportShareBindingV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbConfiguredSigningWorkerPrivateTransport } from './RouterAbNormalSigningRuntime';
 
-export type RouterAbEcdsaPresignRuntimeConfig = {
+type RouterAbEcdsaPresignRuntimeConfig = {
   readonly participantIds: {
     readonly clientParticipantId: number;
     readonly relayerParticipantId: number;

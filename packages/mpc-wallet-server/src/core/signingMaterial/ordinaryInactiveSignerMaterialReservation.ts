@@ -36,24 +36,24 @@ import {
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
 
-export type OrdinarySignerFamilyV1 = 'ed25519' | 'ecdsa_secp256k1';
+type OrdinarySignerFamilyV1 = 'ed25519' | 'ecdsa_secp256k1';
 type OrdinarySignerByFamilyV1 = {
   readonly ed25519: ExactAdministeredEd25519SignerV1;
   readonly ecdsa_secp256k1: ExactAdministeredEcdsaSignerV1;
 };
 
-export type OrdinaryEd25519ClientMaterialV1 = {
+type OrdinaryEd25519ClientMaterialV1 = {
   readonly kind: 'ordinary_ed25519_client_material_v1';
   readonly deriver_a_client_package: RouterAbEd25519YaoActivationClientPackageV1<'deriver_a'>;
   readonly deriver_b_client_package: RouterAbEd25519YaoActivationClientPackageV1<'deriver_b'>;
 };
 
-export type OrdinaryEcdsaClientMaterialV1 = {
+type OrdinaryEcdsaClientMaterialV1 = {
   readonly kind: 'ordinary_ecdsa_client_material_v1';
   readonly encryptedTargetClientShare: LinkedDeviceEcdsaEncryptedSourceContributionV1;
 };
 
-export type OrdinaryEcdsaInactiveServerMaterialV1 = {
+type OrdinaryEcdsaInactiveServerMaterialV1 = {
   readonly kind: 'ordinary_ecdsa_inactive_server_material_v1';
   readonly reservationId: OrdinaryInactiveServerMaterialReservationIdV1;
   readonly encryptedTargetServerShare: LinkedDeviceEcdsaEncryptedSourceContributionV1;
@@ -96,11 +96,11 @@ type OrdinaryReservationFieldsV1<F extends OrdinarySignerFamilyV1> = {
       readonly participantIds?: never;
     });
 
-export type OrdinaryInactiveServerMaterialReservationIdV1 = string & {
+type OrdinaryInactiveServerMaterialReservationIdV1 = string & {
   readonly __ordinaryInactiveServerMaterialReservationIdBrand: unique symbol;
 };
 
-export type OrdinaryInactiveServerMaterialV1 = {
+type OrdinaryInactiveServerMaterialV1 = {
   readonly kind: 'ordinary_inactive_server_material_v1';
   readonly reservationId: OrdinaryInactiveServerMaterialReservationIdV1;
 };
@@ -122,7 +122,7 @@ export type OrdinaryEd25519SignerMaterialReservationRequestV1 =
   OrdinarySignerMaterialReservationRequestV1<'ed25519'>;
 export type OrdinaryEcdsaSignerMaterialReservationRequestV1 =
   OrdinarySignerMaterialReservationRequestV1<'ecdsa_secp256k1'>;
-export type OrdinaryInactiveSignerMaterialReservationRequestV1 =
+type OrdinaryInactiveSignerMaterialReservationRequestV1 =
   | OrdinaryEd25519SignerMaterialReservationRequestV1
   | OrdinaryEcdsaSignerMaterialReservationRequestV1;
 
@@ -153,7 +153,7 @@ export type OrdinaryEd25519SignerMaterialReservationV1 =
   OrdinarySignerMaterialReservationV1<'ed25519'>;
 export type OrdinaryEcdsaSignerMaterialReservationV1 =
   OrdinarySignerMaterialReservationV1<'ecdsa_secp256k1'>;
-export type OrdinaryInactiveSignerMaterialReservationV1 =
+type OrdinaryInactiveSignerMaterialReservationV1 =
   | OrdinaryEd25519SignerMaterialReservationV1
   | OrdinaryEcdsaSignerMaterialReservationV1;
 
@@ -210,9 +210,9 @@ type OrdinarySignerMaterialDeactivationResultV1<F extends OrdinarySignerFamilyV1
   readonly revokedAtMs: number;
 };
 
-export type OrdinaryEd25519SignerMaterialDeactivationResultV1 =
+type OrdinaryEd25519SignerMaterialDeactivationResultV1 =
   OrdinarySignerMaterialDeactivationResultV1<'ed25519'>;
-export type OrdinaryEcdsaSignerMaterialDeactivationResultV1 =
+type OrdinaryEcdsaSignerMaterialDeactivationResultV1 =
   OrdinarySignerMaterialDeactivationResultV1<'ecdsa_secp256k1'>;
 export type OrdinaryInactiveSignerMaterialDeactivationResultV1 =
   | OrdinaryEd25519SignerMaterialDeactivationResultV1

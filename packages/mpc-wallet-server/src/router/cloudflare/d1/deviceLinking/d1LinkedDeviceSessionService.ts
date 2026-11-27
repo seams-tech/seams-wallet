@@ -5,12 +5,12 @@ import type {
 import { LinkedDeviceSessionServiceV1 as CoreLinkedDeviceSessionServiceV1 } from '../../../../core/deviceLinking/linkedDeviceSession';
 import type { D1LinkedDeviceSessionStoreV1 } from './d1LinkedDeviceSessionStore';
 
-export type D1LinkedDeviceSessionServiceOptionsV1 = {
+type D1LinkedDeviceSessionServiceOptionsV1 = {
   readonly sessionStore: D1LinkedDeviceSessionStoreV1;
   readonly ownerAuthorization: LinkedDeviceOwnerAuthorizationPortV1;
 };
 
-export type D1LinkedDeviceSessionServiceCompositionV1 = {
+type D1LinkedDeviceSessionServiceCompositionV1 = {
   readonly sessionService: LinkedDeviceSessionServiceV1;
   readonly sessionStore: D1LinkedDeviceSessionStoreV1;
 };

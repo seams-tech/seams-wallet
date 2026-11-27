@@ -64,7 +64,7 @@ export type VerifiedLinkSourceReaderV1 = {
   }): Promise<VerifiedLinkSourceReadV1>;
 };
 
-export type BuildVerifiedLinkInputV1 = {
+type BuildVerifiedLinkInputV1 = {
   readonly session: LinkedDeviceSessionRecordV1;
   readonly approval: LinkedDeviceApprovalV1;
   readonly preparation: LinkedDeviceTargetPreparationV1;
@@ -153,7 +153,7 @@ function targetEmailOtpEnrollmentForRegistration(
   return material;
 }
 
-export async function computeVerifiedTargetFactorVerificationDigestV1(input: {
+async function computeVerifiedTargetFactorVerificationDigestV1(input: {
   readonly registration: LinkedDeviceTargetCredentialRegistrationV1;
   readonly evidence: VerifiedLinkedDeviceTargetFactorEvidenceV1;
   readonly verifiedAtMs: number;
@@ -189,7 +189,7 @@ export async function computeVerifiedTargetFactorVerificationDigestV1(input: {
   );
 }
 
-export type BuildVerifiedTargetFactorV1Input = Pick<
+type BuildVerifiedTargetFactorV1Input = Pick<
   BuildVerifiedLinkInputV1,
   'preparation' | 'registration' | 'evidence' | 'requestedAtMs'
 >;

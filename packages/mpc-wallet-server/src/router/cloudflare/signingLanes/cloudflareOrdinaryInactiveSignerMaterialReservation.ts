@@ -49,19 +49,19 @@ import type {
 } from '../../../core/signingMaterial/ordinaryInactiveSignerMaterialReservation';
 
 /** Source-preserving ordinary material paths implemented by the Cloudflare workers. */
-export const CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PATH_V1 =
+const CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PATH_V1 =
   '/router-ab/router/ed25519-yao/execute-source-preserving' as const;
 /** Marks an execution the Router may already have run as its replay. */
 const ROUTER_AB_YAO_REPLAY_HEADER_V1 = 'x-seams-yao-replay';
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH_V1 =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH_V1 =
   '/router-ab/signing-worker/ecdsa-derivation/reserve-inactive-source-preserving' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH_V1 =
+const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH_V1 =
   '/router-ab/signing-worker/ed25519-yao/activate-reservation' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH_V1 =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH_V1 =
   '/router-ab/signing-worker/ecdsa-derivation/activate-reservation' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH_V1 =
+const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH_V1 =
   '/router-ab/signing-worker/ed25519-yao/deactivate-reservation' as const;
-export const CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH_V1 =
+const CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH_V1 =
   '/router-ab/signing-worker/ecdsa-derivation/deactivate-reservation' as const;
 
 /**
@@ -69,7 +69,7 @@ export const CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH_V1 =
  * SigningWorker wallet object that holds that wallet's material, and the
  * SigningWorker checks the wallet against the source activation it holds.
  */
-export type CloudflareSigningWorkerTenantV1 = {
+type CloudflareSigningWorkerTenantV1 = {
   readonly orgId: string;
   readonly projectId: string;
   readonly envId: string;
@@ -103,7 +103,7 @@ export type CloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1 = {
   ): Promise<unknown>;
 };
 
-export type CloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1 =
+type CloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1 =
   DeviceLinkingEd25519SourcePreservingRouterPortV1;
 
 export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(input: {
@@ -731,7 +731,9 @@ type CachedEcdsaReservationV1 = {
  * durable idempotency; this process-local journal prevents a retry from
  * silently changing the request while preserving the endpoint's exact result.
  */
-export class CloudflareOrdinaryInactiveSignerMaterialReservationWorkerV1 implements OrdinaryInactiveSignerMaterialReservationWorkerPortV1 {
+class CloudflareOrdinaryInactiveSignerMaterialReservationWorkerV1
+  implements OrdinaryInactiveSignerMaterialReservationWorkerPortV1
+{
   private readonly ed25519Reservations = new Map<string, CachedEd25519ReservationV1>();
   private readonly ecdsaReservations = new Map<string, CachedEcdsaReservationV1>();
 
@@ -782,7 +784,9 @@ export function createCloudflareOrdinaryInactiveSignerMaterialReservationService
   });
 }
 
-export class CloudflareOrdinaryInactiveSignerMaterialDeactivationWorkerV1 implements OrdinaryInactiveSignerMaterialDeactivationPortV1 {
+class CloudflareOrdinaryInactiveSignerMaterialDeactivationWorkerV1
+  implements OrdinaryInactiveSignerMaterialDeactivationPortV1
+{
   private readonly terminalOperations = new Map<string, Promise<void>>();
 
   constructor(
@@ -836,41 +840,10 @@ export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationPortV1
   return new CloudflareOrdinaryInactiveSignerMaterialDeactivationWorkerV1(input.endpoint);
 }
 
-export class UnavailableOrdinaryInactiveSignerMaterialDeactivationWorkerV1 implements OrdinaryInactiveSignerMaterialDeactivationPortV1 {
-  async deactivateOrdinarySignerMaterialV1(
-    _input: OrdinaryInactiveSignerMaterialDeactivationRequestV1,
-  ): Promise<void> {
-    throw ordinaryReservationEndpointUnavailableErrorV1();
-  }
-}
-
-export function createUnavailableOrdinaryInactiveSignerMaterialDeactivationPortV1(): OrdinaryInactiveSignerMaterialDeactivationPortV1 {
-  return new UnavailableOrdinaryInactiveSignerMaterialDeactivationWorkerV1();
-}
-
 export function createCloudflareOrdinaryInactiveSignerMaterialActivationPortV1(input: {
   readonly endpoint: CloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1;
 }): OrdinaryInactiveSignerMaterialActivationPortV1 {
   return new CloudflareOrdinaryInactiveSignerMaterialActivationWorkerV1(input.endpoint);
-}
-
-/** Explicit fail-closed port for deployments without a configured endpoint. */
-export class UnavailableOrdinaryInactiveSignerMaterialReservationWorkerV1 implements OrdinaryInactiveSignerMaterialReservationWorkerPortV1 {
-  async reserveInactiveEd25519SignerMaterialV1(
-    _input: OrdinaryEd25519SignerMaterialReservationRequestV1,
-  ): Promise<OrdinaryEd25519SignerMaterialWorkerReservationV1> {
-    throw ordinaryReservationEndpointUnavailableErrorV1();
-  }
-
-  async reserveInactiveEcdsaSignerMaterialV1(
-    _input: OrdinaryEcdsaSignerMaterialReservationRequestV1,
-  ): Promise<OrdinaryEcdsaSignerMaterialWorkerReservationV1> {
-    throw ordinaryReservationEndpointUnavailableErrorV1();
-  }
-}
-
-export function createUnavailableOrdinaryInactiveSignerMaterialReservationWorkerV1(): OrdinaryInactiveSignerMaterialReservationWorkerPortV1 {
-  return new UnavailableOrdinaryInactiveSignerMaterialReservationWorkerV1();
 }
 
 function materialActivationKeyV1(ref: MpcMaterialActivationRef): string {
@@ -921,12 +894,6 @@ function assertSameReservationRequestV1(
   if (expectedFingerprint === actualFingerprint) return;
   throw new Error(
     `ordinary inactive ${family} signer material reservation conflicts for activation ref`,
-  );
-}
-
-function ordinaryReservationEndpointUnavailableErrorV1(): Error {
-  return new Error(
-    'ordinary inactive signer material reservation endpoint is unavailable; refusing activation fallback',
   );
 }
 

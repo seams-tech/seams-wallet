@@ -74,7 +74,7 @@ export type LinkedDeviceOwnerSourceChildResolutionV1 =
   | LinkedDeviceOwnerEd25519SourceChildResolutionV1
   | LinkedDeviceOwnerEcdsaSourceChildResolutionV1;
 
-export type LinkedDeviceTargetPreparationResolutionV1 = LinkedDeviceOwnerSourceChildResolutionV1;
+type LinkedDeviceTargetPreparationResolutionV1 = LinkedDeviceOwnerSourceChildResolutionV1;
 
 export type LinkedDeviceOwnerSourceChildResolutionRequestV1 = {
   readonly kind: 'preparation';

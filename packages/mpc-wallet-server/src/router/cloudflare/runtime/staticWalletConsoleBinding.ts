@@ -15,7 +15,7 @@ import { decodeWalletConsoleTenantRootActiveLineageRequestV1 } from './walletCon
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
 import { failure } from '@shared/utils/failure';
 
-export interface StaticWalletConsoleBindingConfigV1 {
+interface StaticWalletConsoleBindingConfigV1 {
   readonly credential: {
     readonly apiKeyId: string;
     readonly publishableKey: string;
@@ -129,7 +129,7 @@ export function createStaticWalletConsoleBindingV1(
   return { fetch: handleStaticWalletConsoleRequestV1.bind(undefined, config) };
 }
 
-export async function handleStaticWalletConsoleRequestV1(
+async function handleStaticWalletConsoleRequestV1(
   config: StaticWalletConsoleBindingConfigV1,
   input: Request | string,
   init?: RequestInit,

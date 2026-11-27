@@ -22,7 +22,7 @@ import {
   type D1LinkedDeviceSessionScopeV1,
 } from './d1LinkedDeviceSessionStore';
 
-export type D1LinkedDeviceRouteServiceOptionsV1 = {
+type D1LinkedDeviceRouteServiceOptionsV1 = {
   readonly bootstrap?: LinkedDeviceBootstrapStore;
   readonly proofNonces?: LinkedDeviceRequestProofNonceStoreV1;
   readonly database: D1DatabaseLike;

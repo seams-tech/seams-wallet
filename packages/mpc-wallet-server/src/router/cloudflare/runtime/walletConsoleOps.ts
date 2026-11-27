@@ -6,7 +6,6 @@ import type { TenantRootIdentityFieldV1, TenantRootIdentityWireV1 } from '@share
 import type {
   RouterApiCredentialScope,
   RouterApiKeyAuthRequest,
-  RouterApiProjectEnvironment,
   RouterApiPublishableKeyAuthRequest,
   RouterApiUsageMeterEvent,
 } from '../../framework/apiCredentialPorts';
@@ -17,7 +16,7 @@ import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 // environment lookup and tenant-root lineage cross the binding.
 // The Gateway never receives the Console database or a generic query operation.
 
-export const WALLET_CONSOLE_OPS_BASE_PATH_V1 = '/internal/wallet-console/v1';
+const WALLET_CONSOLE_OPS_BASE_PATH_V1 = '/internal/wallet-console/v1';
 export const WALLET_CONSOLE_SERVICE_ORIGIN_V1 = 'https://wallet-console.internal';
 
 export const WALLET_CONSOLE_OP_PATHS_V1 = {
@@ -40,50 +39,12 @@ export interface WalletConsolePrincipalV1 {
   readonly scopes: readonly RouterApiCredentialScope[];
 }
 
-export type WalletConsoleSecretKeyAuthResponseV1 =
-  | { readonly ok: true; readonly principal: WalletConsolePrincipalV1 }
-  | {
-      readonly ok: false;
-      readonly status: 401 | 403;
-      readonly code: string;
-      readonly message: string;
-    };
-
-export interface WalletConsolePublishableKeyAuthRequestV1 extends Readonly<RouterApiPublishableKeyAuthRequest> {}
-
-export type WalletConsolePublishableKeyAuthResponseV1 = WalletConsoleSecretKeyAuthResponseV1;
+export interface WalletConsolePublishableKeyAuthRequestV1
+  extends Readonly<RouterApiPublishableKeyAuthRequest> {}
 
 export interface WalletConsoleUsageEventV1 extends Readonly<RouterApiUsageMeterEvent> {}
 
-export interface WalletConsoleUsageEventsResponseV1 {
-  readonly ok: boolean;
-  readonly code?: string;
-  readonly message?: string;
-}
-
-export interface WalletConsoleProjectEnvironmentsRequestV1 {
-  readonly context: {
-    readonly orgId: string;
-    readonly actorUserId: string;
-    readonly roles: readonly string[];
-    readonly environmentId?: string;
-    readonly projectId?: string;
-  };
-  readonly filters?: { readonly status?: string };
-}
-
-export interface WalletConsoleProjectEnvironmentV1 extends Readonly<RouterApiProjectEnvironment> {}
-
-export interface WalletConsoleProjectEnvironmentsResponseV1 {
-  readonly ok: boolean;
-  readonly environments?: readonly WalletConsoleProjectEnvironmentV1[];
-  readonly code?: string;
-  readonly message?: string;
-}
-
-export type WalletConsoleTenantRootIdentityField = TenantRootIdentityFieldV1;
-
-export type WalletConsoleTenantRootActiveLineageRequestV1 = TenantRootIdentityWireV1;
+type WalletConsoleTenantRootIdentityField = TenantRootIdentityFieldV1;
 
 export interface WalletConsoleTenantRootActiveLineageV1 {
   readonly identityDigestB64u: string;
@@ -99,11 +60,11 @@ export type WalletConsoleTenantRootActiveLineageResponseV1 = ReadonlyExclusiveUn
     }
 >;
 
-export type WalletConsoleDecodeResult<T, E> =
+type WalletConsoleDecodeResult<T, E> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: E };
 
-export type WalletConsoleTenantRootActiveLineageRequestDecodeError =
+type WalletConsoleTenantRootActiveLineageRequestDecodeError =
   | { readonly kind: 'invalid_object' }
   | {
       readonly kind: 'missing_field';
@@ -115,14 +76,14 @@ export type WalletConsoleTenantRootActiveLineageRequestDecodeError =
       readonly field: WalletConsoleTenantRootIdentityField;
     };
 
-export type WalletConsoleTenantRootActiveLineageResponseField =
+type WalletConsoleTenantRootActiveLineageResponseField =
   | 'ok'
   | 'identityDigestB64u'
   | 'custodyLineageB64u'
   | 'code'
   | 'message';
 
-export type WalletConsoleTenantRootActiveLineageResponseDecodeError =
+type WalletConsoleTenantRootActiveLineageResponseDecodeError =
   | { readonly kind: 'invalid_object' }
   | { readonly kind: 'invalid_discriminant'; readonly field: 'ok' }
   | {

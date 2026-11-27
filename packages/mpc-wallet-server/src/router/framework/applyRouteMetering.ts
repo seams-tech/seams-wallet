@@ -1,7 +1,7 @@
 import type { RouteExecutionContext, RouteServices, RouteResponse } from './routeExecutionContext';
 import type { RouteDefinition } from './routeDefinitions';
 
-export interface RouteMeteringHandlers<TServices extends object = RouteServices> {
+interface RouteMeteringHandlers<TServices extends object = RouteServices> {
   event?: (input: {
     action: string;
     context: RouteExecutionContext<TServices>;

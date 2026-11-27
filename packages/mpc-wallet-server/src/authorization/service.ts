@@ -312,7 +312,7 @@ export interface WalletSessionLimitsPort {
   readWalletSessionLimits(): Promise<WalletSessionLimits>;
 }
 
-export type AuthorizationServicePorts = {
+type AuthorizationServicePorts = {
   readonly sessionRouting?: WalletSessionRoutingPublisher;
   readonly policy: CapabilityPolicyPort;
   readonly sessions: AuthorizationSessionPort;

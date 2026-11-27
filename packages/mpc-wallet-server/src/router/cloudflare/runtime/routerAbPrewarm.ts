@@ -8,7 +8,7 @@ import {
 const ROUTER_AB_PREWARM_CRON = '* * * * *';
 const ROUTER_AB_PREWARM_PATH = '/internal/prewarm';
 
-export interface RouterAbPrewarmScheduledEnvV1 {
+interface RouterAbPrewarmScheduledEnvV1 {
   readonly MPC_ROUTER: CloudflareServiceBindingFetcher;
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
   readonly ROUTER_AB_PREWARM_ENABLED: string;

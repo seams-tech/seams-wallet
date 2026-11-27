@@ -103,7 +103,7 @@ type TraceResolution =
   | { readonly ok: true; readonly value: RouterAbTraceContextV1 }
   | { readonly ok: false; readonly message: string };
 
-export type RouterAbEd25519YaoRecoveryRequestScopedCloudflareInputV1 = {
+type RouterAbEd25519YaoRecoveryRequestScopedCloudflareInputV1 = {
   readonly lifecycleRouting?: WalletLifecycleRoutingPublisher;
   readonly request: Request;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;

@@ -33,7 +33,7 @@ export interface WalletConsoleServiceBinding {
   fetch(input: Request | string, init?: RequestInit): Promise<Response>;
 }
 
-export interface WalletConsoleOpsClient {
+interface WalletConsoleOpsClient {
   readonly apiKeyAuth: RouterApiKeyAuthAdapter;
   readonly publishableKeyAuth: RouterApiPublishableKeyAuthAdapter;
   readonly registrationContext: WalletRegistrationContextResolver;

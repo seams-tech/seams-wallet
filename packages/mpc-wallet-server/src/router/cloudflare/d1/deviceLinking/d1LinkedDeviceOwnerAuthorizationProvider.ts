@@ -104,13 +104,13 @@ import type {
 
 const ENROLLMENT_ID_DOMAIN_V1 = 'seams/linked-device/enrollment-identity/v1';
 
-export type D1LinkedDeviceOwnerAuthorizationMetadataV1 = {
+type D1LinkedDeviceOwnerAuthorizationMetadataV1 = {
   readonly walletId: WalletId;
   readonly ownerAuthorization: LinkedDeviceOwnerAuthorizationSourceV1;
   readonly expiresAtMs: number;
 };
 
-export type D1LinkedDeviceVerifiedOwnerSourceFactsV1 = {
+type D1LinkedDeviceVerifiedOwnerSourceFactsV1 = {
   readonly signerManifest: ExactAdministeredSignerManifestV1;
   readonly keyManifestDigestsB64u: LinkedDeviceSourceKeyManifestDigestsV1;
   /** The authority digest at read time - rotation advances it, identity does not. */
@@ -140,12 +140,12 @@ export type D1LinkedDeviceOwnerAuthorizationMetadataSourceV1 = {
   }): Promise<LinkedDeviceOwnerSourceChildResolutionV1 | null>;
 };
 
-export type D1LinkedDeviceOwnerSourceChildReaderV1 = Pick<
+type D1LinkedDeviceOwnerSourceChildReaderV1 = Pick<
   D1LinkedDeviceOwnerAuthorizationMetadataSourceV1,
   'readOwnerSourceChildV1'
 >;
 
-export type D1LinkedDeviceOwnerSourceChildReaderOptionsV1 = {
+type D1LinkedDeviceOwnerSourceChildReaderOptionsV1 = {
   readonly walletAuthMethodStore: Pick<D1WalletAuthMethodStore, 'listForWalletV2'>;
   readonly walletStore: Pick<
     D1WalletStore,
@@ -501,7 +501,7 @@ function assertNeverOwnerCurveV1(value: never): never {
   throw new Error(`unsupported owner curve: ${String(value)}`);
 }
 
-export type D1LinkedDeviceOwnerAuthorizationMetadataSourceOptionsV1 = {
+type D1LinkedDeviceOwnerAuthorizationMetadataSourceOptionsV1 = {
   readonly sessionStore: Pick<D1LinkedDeviceSessionStoreV1, 'getSessionV1'>;
   readonly readVerifiedSourceV1: (input: {
     readonly walletId: WalletId;
@@ -772,7 +772,7 @@ function walletAuthAuthorityFromVerifiedSourceV1(source: VerifiedLinkSourceReadV
   }
 }
 
-export type D1LinkedDeviceOwnerAuthorizationProviderOptionsV1 = {
+type D1LinkedDeviceOwnerAuthorizationProviderOptionsV1 = {
   readonly walletRegistration: Pick<
     RouterApiWalletRegistrationService,
     'resolveActiveOwnerWalletExecutionLane'
@@ -785,7 +785,7 @@ export type D1LinkedDeviceOwnerAuthorizationProviderOptionsV1 = {
   readonly nowV1?: () => number;
 };
 
-export type D1LinkedDeviceOwnerAuthorizationProviderV1 = {
+type D1LinkedDeviceOwnerAuthorizationProviderV1 = {
   readonly ownerAuthorization: LinkedDeviceOwnerAuthorizationPortV1;
   readonly ownerAuthorizationRoute: DeviceLinkingOwnerAuthorizationRouteServiceV1;
   readonly ownerSourceResolver: LinkedDeviceOwnerSourceChildResolverV1;

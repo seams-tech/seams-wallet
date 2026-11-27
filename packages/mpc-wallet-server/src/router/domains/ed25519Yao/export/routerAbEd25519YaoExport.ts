@@ -184,7 +184,7 @@ export interface RouterAbEd25519YaoExportService {
  * caller commits with the export's operation admission, or answered it from
  * an authorization already there.
  */
-export type RouterAbEd25519YaoExportAuthorizationDecisionV1 =
+type RouterAbEd25519YaoExportAuthorizationDecisionV1 =
   | { readonly kind: 'authorized' }
   | {
       readonly kind: 'completed';
@@ -198,7 +198,7 @@ export type RouterAbEd25519YaoExportAdmissionClaimV1 = {
   readonly authorizationFingerprint: string;
 };
 
-export type RouterAbEd25519YaoExportAdmissionPreparationV1 =
+type RouterAbEd25519YaoExportAdmissionPreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoExportAdmissionClaimV1;
@@ -212,7 +212,7 @@ export type RouterAbEd25519YaoExportAdmissionPreparationV1 =
       readonly failure: RouterAbEd25519YaoExportFailure;
     };
 
-export type RouterAbEd25519YaoExportAdmissionCommitInputV1 = {
+type RouterAbEd25519YaoExportAdmissionCommitInputV1 = {
   readonly request: RouterAbEd25519YaoExportAdmissionRequestV1;
   readonly claim: RouterAbEd25519YaoExportAdmissionClaimV1;
   readonly outcome: {
@@ -231,7 +231,7 @@ export type RouterAbEd25519YaoExportExecuteClaimV1 = {
   readonly ownershipGeneration: number;
 };
 
-export type RouterAbEd25519YaoExportExecutePreparationV1 =
+type RouterAbEd25519YaoExportExecutePreparationV1 =
   | {
       readonly kind: 'claimed';
       readonly claim: RouterAbEd25519YaoExportExecuteClaimV1;
@@ -245,7 +245,7 @@ export type RouterAbEd25519YaoExportExecutePreparationV1 =
       readonly failure: RouterAbEd25519YaoExportFailure;
     };
 
-export type RouterAbEd25519YaoExportExecuteCommitInputV1 = {
+type RouterAbEd25519YaoExportExecuteCommitInputV1 = {
   readonly request: RouterAbEd25519YaoExportExecuteRequestV1;
   readonly claim: RouterAbEd25519YaoExportExecuteClaimV1;
   readonly outcome: {
@@ -267,7 +267,7 @@ function resolveTraceContext(request: Request): RouterAbEd25519YaoTraceContextRe
   return { ok: false, message: parsed.message };
 }
 
-export type RouterAbEd25519YaoExportAdmissionAuthorization =
+type RouterAbEd25519YaoExportAdmissionAuthorization =
   | {
       readonly kind: 'passkey';
       readonly webauthnAuthentication: WebAuthnAuthenticationCredential;
@@ -309,14 +309,14 @@ export type RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1 = {
   readonly envelope: VoiceIdSeedEnvelope;
 };
 
-export type RouterAbEd25519YaoExportAdmissionAuthorizationInputV1 = {
+type RouterAbEd25519YaoExportAdmissionAuthorizationInputV1 = {
   readonly request: Request;
   readonly body: RouterAbEd25519YaoExportAdmissionRequestV1;
   readonly authorization: RouterAbEd25519YaoExportAdmissionAuthorization;
   readonly expectedOrigin: string;
 };
 
-export type RouterAbEd25519YaoExportExecutionAuthorizationInputV1 = {
+type RouterAbEd25519YaoExportExecutionAuthorizationInputV1 = {
   readonly request: Request;
   readonly body: RouterAbEd25519YaoExportExecuteRequestV1;
 };
@@ -341,7 +341,7 @@ export type RouterAbEd25519YaoExportAuthorizationResult =
       readonly message: string;
     };
 
-export type RouterAbEd25519YaoExportAuthorizationFailure = Extract<
+type RouterAbEd25519YaoExportAuthorizationFailure = Extract<
   RouterAbEd25519YaoExportAuthorizationResult,
   { readonly ok: false }
 >;
@@ -364,7 +364,7 @@ export interface RouterAbEd25519YaoExportOperationAdmissionV1 {
   admit(): Promise<RouterAbEd25519YaoExportAuthorizationResult>;
 }
 
-export type RouterAbEd25519YaoExportPreparedOperationAdmissionV1 =
+type RouterAbEd25519YaoExportPreparedOperationAdmissionV1 =
   | { readonly kind: 'prepared'; readonly write: RouterAbEd25519YaoPreparedWriteV1 }
   | { readonly kind: 'already_admitted' }
   | { readonly kind: 'rejected'; readonly failure: RouterAbEd25519YaoExportAuthorizationFailure };
@@ -380,14 +380,14 @@ export type RouterAbEd25519YaoExportAdmissionAuthorizationResultV1 =
     }
   | RouterAbEd25519YaoExportAuthorizationFailure;
 
-export type RouterAbEd25519YaoExportVoiceIdCustodyReleaseResultV1 =
+type RouterAbEd25519YaoExportVoiceIdCustodyReleaseResultV1 =
   | {
       readonly ok: true;
       readonly custodyRelease: RouterAbEd25519YaoExportVoiceIdCustodyReleaseV1;
     }
   | RouterAbEd25519YaoExportAuthorizationFailure;
 
-export type RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult =
+type RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult =
   | {
       readonly ok: true;
       readonly authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
@@ -2257,7 +2257,7 @@ export type RouterAbEd25519YaoExportAdmissionEnvelopeParseResultV1 =
     }
   | { readonly ok: false; readonly message: string };
 
-export type RouterAbEd25519YaoExportExecuteEnvelopeParseResultV1 =
+type RouterAbEd25519YaoExportExecuteEnvelopeParseResultV1 =
   | {
       readonly ok: true;
       readonly protocol: RouterAbEd25519YaoExportExecuteRequestV1;

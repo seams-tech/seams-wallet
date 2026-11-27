@@ -4,7 +4,7 @@ type RelayedNearAction = RelayedSignedDelegate['delegateAction']['actions'][numb
 type RelayedNearPublicKey = RelayedSignedDelegate['delegateAction']['publicKey'];
 type RelayedNearSignature = RelayedSignedDelegate['signature'];
 
-export interface WalletRuntimeDelegatePolicy {
+interface WalletRuntimeDelegatePolicy {
   readonly allowedReceivers?: string[];
   readonly allowedMethods?: string[];
   readonly maxTotalDepositYocto?: string;
@@ -268,7 +268,7 @@ export function parseWalletRuntimeExecuteSignedDelegateRequest(
   return policy === null ? null : { hash, signedDelegate, policy };
 }
 
-export function parseWalletRuntimeExecuteSignedDelegateResult(
+function parseWalletRuntimeExecuteSignedDelegateResult(
   value: unknown,
 ): WalletRuntimeExecuteSignedDelegateResult | null {
   const record = inspectRawObject(value);
@@ -328,7 +328,7 @@ export interface WalletRuntimeWalletIdentityRequest {
   }[];
 }
 
-export interface WalletRuntimeWalletIdentity {
+interface WalletRuntimeWalletIdentity {
   readonly walletId: string;
   readonly projectId: string;
   readonly envId: string;

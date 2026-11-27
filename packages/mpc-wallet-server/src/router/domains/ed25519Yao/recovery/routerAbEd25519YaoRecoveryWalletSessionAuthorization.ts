@@ -41,7 +41,7 @@ type RecoveryAuthorizationFailure = Extract<
   { readonly ok: false }
 >;
 
-export interface PreparedEd25519RecoveryAdmissionReaderV1 {
+interface PreparedEd25519RecoveryAdmissionReaderV1 {
   readPreparedEd25519RecoveryAdmission(input: {
     readonly challengeId: string;
     readonly nowMs: number;

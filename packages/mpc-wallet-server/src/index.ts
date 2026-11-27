@@ -1,6 +1,5 @@
 // Server package exports - Core NEAR Account Service
 export * from './core/types';
-export * from './core/config';
 export {
   formatSigningSessionSealKeyVersionForWire,
   parseSigningSessionSealKeyVersion,

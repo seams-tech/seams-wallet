@@ -235,10 +235,11 @@ export type RouterAbEd25519YaoProductRegistrationCompositionV1 = {
   readonly module: RouterApiModule;
 };
 
-export interface RouterAbEd25519YaoProductRegistrationServicePortV1
+interface RouterAbEd25519YaoProductRegistrationServicePortV1
   extends RouterAbEd25519YaoRegistrationService, RouterAbEd25519YaoActivationConsumerV1 {}
 
-export interface RouterAbEd25519YaoProductRegistrationAuthorizationPortV1 extends RouterAbEd25519YaoRegistrationAuthorizationAdapter {
+interface RouterAbEd25519YaoProductRegistrationAuthorizationPortV1
+  extends RouterAbEd25519YaoRegistrationAuthorizationAdapter {
   bindAndAuthorizeAdmission(
     input: RouterAbEd25519YaoVerifiedActivationIntentV1,
   ): Promise<
@@ -250,13 +251,13 @@ export interface RouterAbEd25519YaoProductRegistrationAuthorizationPortV1 extend
   ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult>;
 }
 
-export interface RouterAbEd25519YaoProductRecoveryServicePortV1
+interface RouterAbEd25519YaoProductRecoveryServicePortV1
   extends
     RouterAbEd25519YaoRecoveryService,
     RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
     RouterAbEd25519YaoActiveCapabilityResolverV1 {}
 
-export type RouterAbEd25519YaoProductRegistrationPortsV1 = {
+type RouterAbEd25519YaoProductRegistrationPortsV1 = {
   readonly signingWorkerId: string;
   readonly registrationService: RouterAbEd25519YaoProductRegistrationServicePortV1;
   readonly authorization: RouterAbEd25519YaoProductRegistrationAuthorizationPortV1;
@@ -441,7 +442,7 @@ function hasProductStateCollections(
   );
 }
 
-export type RouterAbEd25519YaoProductRegistrationStateParseResultV1 =
+type RouterAbEd25519YaoProductRegistrationStateParseResultV1 =
   | { readonly ok: true; readonly value: RouterAbEd25519YaoProductRegistrationStateV1 }
   | { readonly ok: false; readonly message: string };
 

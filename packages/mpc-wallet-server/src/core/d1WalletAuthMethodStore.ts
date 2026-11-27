@@ -98,7 +98,7 @@ export interface D1WalletAuthMethodStoreOptions extends D1TenantStoreOptions {}
 export type D1WalletAuthMethodStoreScope = D1TenantScope;
 
 /** Names the wallet auth-method store in D1 scope errors. */
-export const WALLET_AUTH_METHOD_D1_STORE = 'wallet auth-method store';
+const WALLET_AUTH_METHOD_D1_STORE = 'wallet auth-method store';
 
 type D1WalletAuthMethodRow = {
   readonly record_json?: unknown;
@@ -442,7 +442,7 @@ export function walletAuthMethodV2Id(record: WalletAuthMethodRecordV2): WalletAu
   return record.walletAuthMethodId;
 }
 
-export function bindWalletAuthMethodIdentityV2(record: WalletAuthMethodRecordV2): {
+function bindWalletAuthMethodIdentityV2(record: WalletAuthMethodRecordV2): {
   readonly rpId: string;
   readonly authIdentifierKey: string;
   readonly credentialIdB64u: string | null;
@@ -607,7 +607,7 @@ export function prepareD1WalletAuthMethodV2PutStatement(input: {
     );
 }
 
-export function bindWalletAuthMethodIdentity(record: WalletAuthMethodRecord): {
+function bindWalletAuthMethodIdentity(record: WalletAuthMethodRecord): {
   readonly rpId: string;
   readonly authIdentifierKey: string;
   readonly credentialIdB64u: string | null;
@@ -728,7 +728,7 @@ export function prepareD1WalletAuthMethodPutStatement(input: {
 /** Insert-only auth-method write used when a new factor and its envelope are
  * committed together. A credential collision must abort the enclosing D1
  * batch instead of updating an existing factor's identity. */
-export function prepareD1WalletAuthMethodInsertStatement(input: {
+function prepareD1WalletAuthMethodInsertStatement(input: {
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletAuthMethodStoreScope;
   readonly record: WalletAuthMethodRecord;

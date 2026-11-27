@@ -102,7 +102,7 @@ export type RouterAbEd25519YaoProductRegistrationPartitionedStateV1 = {
   };
 };
 
-export type RouterAbEd25519YaoSharedStateCanonicalEncodingV1 = VersionedJsonObject;
+type RouterAbEd25519YaoSharedStateCanonicalEncodingV1 = VersionedJsonObject;
 
 export type RouterAbEd25519YaoProductRegistrationPartitionedStateCommitInputV1 = {
   readonly lifecycleId: string;
@@ -257,7 +257,7 @@ export function encodeRouterAbEd25519YaoProductRegistrationPartitionRecordV1(
   } satisfies EncodedPartitionRecord;
 }
 
-export function sameRouterAbEd25519YaoSharedStateCanonicalEncodingV1(
+function sameRouterAbEd25519YaoSharedStateCanonicalEncodingV1(
   left: RouterAbEd25519YaoSharedStateCanonicalEncodingV1,
   right: RouterAbEd25519YaoSharedStateCanonicalEncodingV1,
 ): boolean {

@@ -120,7 +120,7 @@ export function walletConsoleSponsoredEvmCallRouteDefinitionV1(
   };
 }
 
-export function walletConsoleRelayRouteDefinitionsV1(): readonly RouteDefinition[] {
+function walletConsoleRelayRouteDefinitionsV1(): readonly RouteDefinition[] {
   return Object.freeze([
     walletConsoleApiWalletListRouteDefinitionV1(),
     walletConsoleApiWalletSearchRouteDefinitionV1(),
@@ -160,7 +160,7 @@ type WalletGatewayManagedRouterOption =
   | 'routerAbNormalSigningAdmission'
   | 'routeExtensions';
 
-export interface CloudflareWalletGatewayRouterOptionsV1 {
+interface CloudflareWalletGatewayRouterOptionsV1 {
   readonly service: Parameters<typeof createCloudflareRouter>[0];
   readonly walletConsole: WalletConsoleServiceBinding;
   readonly registrationContext?: WalletRegistrationContextResolver;

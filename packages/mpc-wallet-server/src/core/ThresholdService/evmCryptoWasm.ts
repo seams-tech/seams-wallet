@@ -5,7 +5,6 @@ import {
   init_evm_crypto,
   secp256k1_private_key_32_to_public_key_33,
   secp256k1_public_key_33_to_ethereum_address_20,
-  sha256_bytes,
   sign_secp256k1_recoverable,
   validate_secp256k1_public_key_33,
   verify_secp256k1_bip340_signature_against_public_key_33,
@@ -27,7 +26,6 @@ const EVM_CRYPTO_WASM_PATH_CANDIDATES = [
 ];
 
 let evmCryptoWasmInitPromise: Promise<void> | null = null;
-let evmCryptoWasmReady = false;
 
 function isNodeEnvironment(): boolean {
   const processObj = (globalThis as unknown as { process?: { versions?: { node?: string } } })
@@ -69,7 +67,6 @@ async function initEvmCryptoFromCompiledModule(module: WebAssembly.Module): Prom
     await initEvmCryptoWasm({ module_or_path: module });
   }
   init_evm_crypto();
-  evmCryptoWasmReady = true;
 }
 
 export async function ensureEvmCryptoWasm(): Promise<void> {
@@ -111,12 +108,10 @@ export async function ensureEvmCryptoWasm(): Promise<void> {
       try {
         if (!initEvmCryptoWasm) {
           init_evm_crypto();
-          evmCryptoWasmReady = true;
           return;
         }
         await initEvmCryptoWasm({ module_or_path: url });
         init_evm_crypto();
-        evmCryptoWasmReady = true;
         return;
       } catch (e) {
         lastErr = e;
@@ -127,12 +122,6 @@ export async function ensureEvmCryptoWasm(): Promise<void> {
       : new Error(String(lastErr || 'Failed to initialize evm_crypto WASM'));
   })();
   return evmCryptoWasmInitPromise;
-}
-
-function requireEvmCryptoReady(): void {
-  if (!evmCryptoWasmReady) {
-    throw new Error('[threshold-ecdsa] evm_crypto WASM is not initialized');
-  }
 }
 
 function checkedBytes(label: string, value: Uint8Array, expectedLength: number): Uint8Array {
@@ -192,12 +181,6 @@ function toWasmEip1559Tx(tx: ServerEip1559UnsignedTx): Eip1559TxWasmJson {
       storageKeys: [...entry.storageKeys],
     })),
   };
-}
-
-export function sha256BytesSync(input: Uint8Array): Uint8Array {
-  requireEvmCryptoReady();
-  const out = sha256_bytes(input);
-  return checkedBytes('sha256_bytes output', out, 32);
 }
 
 export async function computeEip1559TxHash(tx: ServerEip1559UnsignedTx): Promise<Uint8Array> {

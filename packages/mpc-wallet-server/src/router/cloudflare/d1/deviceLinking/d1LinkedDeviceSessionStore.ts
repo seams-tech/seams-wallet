@@ -53,7 +53,7 @@ import type { D1TenantScope } from '../../../../core/d1TenantStore';
 
 export type D1LinkedDeviceSessionScopeV1 = D1TenantScope;
 
-export type D1LinkedDeviceSessionStoreOptionsV1 = {
+type D1LinkedDeviceSessionStoreOptionsV1 = {
   readonly bootstrap?: LinkedDeviceBootstrapStore;
   readonly database: D1DatabaseLike;
   readonly scope: D1LinkedDeviceSessionScopeV1;

@@ -28,7 +28,7 @@ type LinkedDeviceRequestProofNonceRecordV1 = {
   readonly consumedAtMs: number;
 };
 
-export type D1LinkedDeviceRequestProofNonceStoreOptionsV1 = {
+type D1LinkedDeviceRequestProofNonceStoreOptionsV1 = {
   readonly database: D1DatabaseLike;
   readonly scope: D1LinkedDeviceSessionScopeV1;
 };

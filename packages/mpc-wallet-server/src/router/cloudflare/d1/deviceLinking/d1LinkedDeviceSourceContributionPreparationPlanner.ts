@@ -38,7 +38,7 @@ import type {
 } from './d1LinkedDeviceTargetCredentialProvider';
 import type { VerifiedLinkSourceReadV1 } from './d1LinkedDeviceVerifiedLinkBuilder';
 
-export type D1LinkedDeviceSourceContributionPreparationPlannerOptionsV1 = {
+type D1LinkedDeviceSourceContributionPreparationPlannerOptionsV1 = {
   readonly resolveOwnerSourceChildV1: LinkedDeviceOwnerSourceChildResolverV1['resolveOwnerSourceChildV1'];
   /** Deriver X25519 input recipients copied from the admitted Router keyset. */
   readonly deriverAInputPublicKeyB64u: string;

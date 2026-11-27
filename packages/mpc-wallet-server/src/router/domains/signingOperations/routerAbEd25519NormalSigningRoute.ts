@@ -560,7 +560,7 @@ function isWalletSessionUnavailableStepUpError(result: RouterAbJsonRouteResult):
   return isPlainObject(result.body) && result.body.code === 'wallet_session_unavailable';
 }
 
-export async function authenticateRouterAbWalletOperationStepUp(input: {
+async function authenticateRouterAbWalletOperationStepUp(input: {
   readonly headers: Record<string, string | string[] | undefined>;
   readonly scope: RouterAbEd25519NormalSigningScopeV2;
   readonly operationKind: Ed25519OperationKind;

@@ -93,14 +93,6 @@ export function withCors(headers: Headers, opts?: RouterApiOptions, request?: Re
   }
 }
 
-export function toResponse(out: {
-  status: number;
-  headers: Record<string, string>;
-  body: string;
-}): Response {
-  return new Response(out.body, { status: out.status, headers: out.headers });
-}
-
 export async function readJson(request: Request): Promise<unknown> {
   try {
     return await request.json();

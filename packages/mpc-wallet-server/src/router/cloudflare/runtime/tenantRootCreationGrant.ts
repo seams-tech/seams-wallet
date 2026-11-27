@@ -19,7 +19,7 @@ const ED25519_PKCS8_SEED_PREFIX = Uint8Array.from([
 ]);
 const MAX_GRANT_LIFETIME_MS = 300_000;
 
-export interface TenantRootCreationGrantSigningInputV1 {
+interface TenantRootCreationGrantSigningInputV1 {
   readonly identity: TenantRootIdentityV1;
   readonly custodyLineage: Uint8Array;
   readonly grantNonce: Uint8Array;
@@ -29,7 +29,7 @@ export interface TenantRootCreationGrantSigningInputV1 {
   readonly signingSeedB64u: string;
 }
 
-export interface SignedTenantRootCreationGrantV1 {
+interface SignedTenantRootCreationGrantV1 {
   readonly identityDigestB64u: string;
   readonly custodyLineageB64u: string;
   readonly grantNonceB64u: string;

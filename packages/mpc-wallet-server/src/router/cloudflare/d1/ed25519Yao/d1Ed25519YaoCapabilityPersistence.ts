@@ -25,7 +25,7 @@ import {
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parsePersistedWalletSessionAuthorizationV2 } from '../authorization/persistedWalletSessionAuthorization';
 
-export const ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1 =
+const ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1 =
   'router_ab_yao_capability_replacements';
 
 const CAPABILITY_REPLACEMENT_SCHEMA_SQL = `
@@ -71,7 +71,7 @@ type CapabilityPersistenceFailure = Extract<
   { readonly ok: false }
 >;
 
-export type CloudflareD1RouterAbEd25519YaoCapabilityPersistenceOptions = {
+type CloudflareD1RouterAbEd25519YaoCapabilityPersistenceOptions = {
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletStoreScope;
   readonly walletStore: D1WalletStore;

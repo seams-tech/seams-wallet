@@ -14,7 +14,7 @@ export interface RoutePolicyResolutionFailure {
   message: string;
 }
 
-export interface RoutePolicyResolutionSuccess {
+interface RoutePolicyResolutionSuccess {
   ok: true;
   principal: RoutePrincipal;
 }
@@ -23,7 +23,7 @@ export type RoutePolicyResolutionResult =
   | RoutePolicyResolutionFailure
   | RoutePolicyResolutionSuccess;
 
-export interface RoutePolicyResolvers<TServices extends object = RouteServices> {
+interface RoutePolicyResolvers<TServices extends object = RouteServices> {
   apiCredentials?: (
     input: RoutePolicyResolverInput<TServices>,
   ) => Promise<RoutePolicyResolutionResult>;
@@ -32,7 +32,7 @@ export interface RoutePolicyResolvers<TServices extends object = RouteServices> 
   ) => Promise<RoutePolicyResolutionResult>;
 }
 
-export interface RoutePolicyResolverInput<TServices extends object = RouteServices> {
+interface RoutePolicyResolverInput<TServices extends object = RouteServices> {
   headers: HeaderRecord;
   request: RouteRequest;
   route: RouteDefinition;

@@ -64,7 +64,7 @@ import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
-export type VerifiedLinkedDeviceWebAuthnCredentialV1 = {
+type VerifiedLinkedDeviceWebAuthnCredentialV1 = {
   readonly credentialIdB64u: string;
   readonly credentialPublicKeyB64u: string;
   readonly counter: number;
@@ -94,7 +94,7 @@ export type VerifiedLinkedDeviceTargetFactorEvidenceV1 = ReadonlyExclusiveUnion<
  * The complete registered-target replay record. It is kept as one payload so
  * a retry can finish the session CAS without rereading mutable source state.
  */
-export type LinkedDeviceRegisteredTargetCredentialRecordV2 = {
+type LinkedDeviceRegisteredTargetCredentialRecordV2 = {
   readonly kind: 'linked_device_registered_target_credential_v2';
   readonly registration: LinkedDeviceTargetCredentialRegistrationV1;
   readonly verifiedTargetFactor: VerifiedTargetFactorV1;
@@ -351,7 +351,7 @@ const TARGET_COMMIT_RESERVATION_TABLE = 'linked_device_target_commit_reservation
 const TARGET_COMMIT_WAIT_ATTEMPTS = 25;
 const TARGET_COMMIT_WAIT_MS = 10;
 
-export class LinkedDeviceRetiredTargetRegistrationShapeErrorV1 extends Error {
+class LinkedDeviceRetiredTargetRegistrationShapeErrorV1 extends Error {
   readonly kind = 'retired_target_registration_shape' as const;
 
   constructor() {

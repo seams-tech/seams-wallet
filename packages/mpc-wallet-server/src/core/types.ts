@@ -3,11 +3,7 @@ import { AuthenticatorOptions, OriginPolicyInput } from '@shared/utils/authentic
 import type { InitInput } from '../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import type { Ed25519AuthorityScope } from '@shared/threshold/sessionPolicy';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import type {
-  EcdsaClientRootPublicKey33B64u,
-  DerivationClientSharePublicKey33B64u,
-  EcdsaDerivationRoleLocalPublicIdentity,
-} from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
+import type { EcdsaDerivationRoleLocalPublicIdentity } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import type {
   RouterAbEcdsaDerivationNormalSigningScopeV1,
@@ -15,28 +11,8 @@ import type {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { RootShareEpoch } from '@shared/utils/domainIds';
-import type { EvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
-import type {
-  MpcWalletSigningQuotaId,
-  WalletSessionId,
-} from '@shared/authorization/capabilityKinds';
-
-/**
- * WASM Bindgen generates a `free` method and a `[Symbol.dispose]` method on all structs.
- * Strip both so we can pass plain objects to the worker.
- */
-export type StripFree<T> = T extends object
-  ? { [K in keyof T as K extends 'free' | symbol ? never : K]: StripFree<T[K]> }
-  : T;
-
-// Standard request/response interfaces that work across all platforms
-export interface ServerRequest {
-  method: string;
-  url: string;
-  headers: Record<string, string>;
-  body?: string;
-}
+import type { WalletSessionId } from '@shared/authorization/capabilityKinds';
 
 export interface ServerResponse {
   status: number;
@@ -101,54 +77,6 @@ export type FundImplicitNearAccountResult =
       message: string;
     };
 
-// Runtime-tested NEAR error types
-export interface NearActionErrorKind {
-  AccountAlreadyExists?: {
-    accountId: string;
-  };
-  AccountDoesNotExist?: {
-    account_id: string;
-  };
-  InsufficientStake?: {
-    account_id: string;
-    stake: string;
-    minimum_stake: string;
-  };
-  LackBalanceForState?: {
-    account_id: string;
-    balance: string;
-  };
-  [key: string]: any;
-}
-
-export interface NearActionError {
-  kind: NearActionErrorKind;
-  index: string;
-}
-
-export interface NearExecutionFailure {
-  ActionError?: NearActionError;
-  [key: string]: any;
-}
-
-export interface NearReceiptStatus {
-  SuccessValue?: string;
-  SuccessReceiptId?: string;
-  Failure?: NearExecutionFailure;
-}
-
-export interface NearReceiptOutcomeWithId {
-  id: string;
-  outcome: {
-    logs: string[];
-    receipt_ids: string[];
-    gas_burnt: number;
-    tokens_burnt: string;
-    executor_id: string;
-    status: NearReceiptStatus;
-  };
-}
-
 // Re-export authenticator types from core
 export type { AuthenticatorOptions, OriginPolicyInput };
 
@@ -164,13 +92,6 @@ export interface WebAuthnAuthenticationCredential {
     userHandle: string | null; // base64url-encoded or null
   };
   clientExtensionResults: any | null;
-}
-
-export interface VerifyAuthenticationResponse {
-  success: boolean;
-  verified?: boolean;
-  code?: string;
-  message?: string;
 }
 
 // ================================
@@ -192,8 +113,6 @@ export type ThresholdRuntimeSnapshotExpectation = {
   checksum?: string;
 };
 
-export type ThresholdEd25519Purpose = 'near_tx' | 'nep461_delegate' | 'nep413' | string;
-
 export type ThresholdEd25519AuthorityScope = Ed25519AuthorityScope;
 
 export type Ed25519SessionPolicy = {
@@ -210,70 +129,6 @@ export type Ed25519SessionPolicy = {
   ttlMs: number;
   remainingUses: number;
 };
-
-export type ThresholdEd25519VerifiedWalletAuth = {
-  kind: 'threshold_ecdsa_session';
-  claims: {
-    sub: string;
-    walletId: string;
-    kind: 'router_ab_ecdsa_derivation_wallet_session_v1';
-    thresholdSessionId: string;
-    walletSessionId: WalletSessionId;
-    quotaId: MpcWalletSigningQuotaId;
-    keyScope: 'evm-family';
-    keyHandle: string;
-    relayerKeyId: string;
-    evmFamilySigningKeySlotId: string;
-    runtimePolicyScope?: ThresholdRuntimePolicyScope;
-    thresholdExpiresAtMs: number;
-    participantIds: number[];
-  };
-};
-
-export type ThresholdEd25519SessionAuth =
-  | {
-      kind: 'verified_wallet';
-      walletAuth: ThresholdEd25519VerifiedWalletAuth;
-    }
-  | {
-      kind: 'passkey';
-      webauthn_authentication: WebAuthnAuthenticationCredential;
-      expected_origin: string;
-    };
-
-export interface ThresholdEd25519SessionRequest {
-  relayerKeyId: string;
-  sessionPolicy: Ed25519SessionPolicy;
-  projectEnvironmentId?: string;
-  auth: ThresholdEd25519SessionAuth;
-}
-
-export interface ThresholdEd25519SessionResponse {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  walletId?: string;
-  nearAccountId?: string;
-  nearEd25519SigningKeyId?: string;
-  authorityScope?: ThresholdEd25519AuthorityScope;
-  thresholdSessionId?: string;
-  walletSessionId?: WalletSessionId;
-  quotaId?: MpcWalletSigningQuotaId;
-  /** Server-enforced expiry (ms since epoch). */
-  expiresAtMs?: number;
-  expiresAt?: string;
-  /** Signer-set binding (sorted unique participant ids) when available. */
-  participantIds?: number[];
-  remainingUses?: number;
-  runtimePolicyScope?: ThresholdRuntimePolicyScope;
-  routerAbNormalSigning?: RouterAbEd25519NormalSigningState;
-}
-
-// ================================
-// Threshold ECDSA (2-party) APIs
-// ================================
-
-export type ThresholdEcdsaPurpose = string;
 export type EcdsaThresholdKeyId = string;
 export type ThresholdEcdsaChainTarget =
   import('./thresholdEcdsaChainTarget').ThresholdEcdsaChainTarget;
@@ -302,110 +157,10 @@ export type WalletKeyFactsInventoryAuth =
       walletSessionId: WalletSessionId;
     };
 
-export interface ThresholdEcdsaDerivationFinalizeResponse {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  keyHandle?: string;
-  ecdsaThresholdKeyId?: EcdsaThresholdKeyId;
-  clientVerifyingShareB64u?: string;
-  clientAdditiveShare32B64u?: string;
-  thresholdEcdsaPublicKeyB64u?: string;
-  ethereumAddress?: string;
-  participantIds?: number[];
-  relayerKeyId?: string;
-  relayerVerifyingShareB64u?: string;
-  chainId?: number;
-  thresholdSessionId?: string;
-  chainTarget?: ThresholdEcdsaChainTarget;
-  expiresAtMs?: number;
-  expiresAt?: string;
-  remainingUses?: number;
-  signingRootId?: string;
-  signingRootVersion?: string;
-  runtimePolicyScope?: ThresholdRuntimePolicyScope;
-  canonicalPublicKeyHex?: string;
-  privateKeyHex?: string;
-  canonicalEthereumAddress?: string;
-}
-
-export type EcdsaDerivationErrorCode =
-  | 'invalid_body'
-  | 'unauthorized'
-  | 'forbidden'
-  | 'not_found'
-  | 'stale_state'
-  | 'relayer_key_mismatch'
-  | 'context_mismatch'
-  | 'public_key_invalid'
-  | 'identity_mismatch'
-  | 'zero_canonical_key'
-  | 'export_authorization_invalid'
-  | 'export_authorization_expired'
-  | 'export_nonce_replay'
-  | 'presign_session_invalid'
-  | 'presign_session_burned'
-  | 'pool_empty'
-  | 'internal';
-
-export type EcdsaDerivationRouteResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; code: EcdsaDerivationErrorCode; message: string; retryAfterMs?: number };
-
 export type EcdsaDerivationRoleLocalFormatVersion = 'ecdsa-derivation-role-local';
 export type EcdsaDerivationKeyScope = 'evm-family';
 
 export interface EcdsaDerivationPublicIdentity extends EcdsaDerivationRoleLocalPublicIdentity {}
-
-export interface EcdsaDerivationClientRootProof {
-  version: 'ecdsa-derivation:role-local:first-bootstrap-root-proof:v2';
-  clientRootPublicKey33B64u: EcdsaClientRootPublicKey33B64u;
-  digest32B64u: string;
-  signature65B64u: string;
-}
-
-export interface EcdsaDerivationPasskeyBootstrapAuthorization {
-  kind: 'passkey_bootstrap';
-  rpId: string;
-  webauthn_authentication: WebAuthnAuthenticationCredential;
-  runtimePolicyScope?: RuntimePolicyScope;
-  projectEnvironmentId?: string;
-}
-
-interface EcdsaDerivationClientBootstrapRequestBase {
-  formatVersion: EcdsaDerivationRoleLocalFormatVersion;
-  walletId: string;
-  evmFamilySigningKeySlotId: EvmFamilySigningKeySlotId;
-  ecdsaThresholdKeyId: EcdsaThresholdKeyId;
-  signingRootId: string;
-  signingRootVersion: string;
-  keyScope: EcdsaDerivationKeyScope;
-  relayerKeyId: string;
-  registrationPreparationId?: RegistrationPreparationId;
-  derivationClientSharePublicKey33B64u: DerivationClientSharePublicKey33B64u;
-  clientShareRetryCounter: number;
-  contextBinding32B64u: string;
-  requestId: string;
-  sessionId: string;
-  ttlMs: number;
-  remainingUses: number;
-  participantIds: number[];
-  runtimePolicyScope?: RuntimePolicyScope;
-}
-
-export type EcdsaDerivationClientBootstrapRequest =
-  | (EcdsaDerivationClientBootstrapRequestBase & {
-      clientRootProof: EcdsaDerivationClientRootProof;
-      passkeyBootstrapAuthorization?: never;
-    })
-  | (EcdsaDerivationClientBootstrapRequestBase & {
-      clientRootProof?: never;
-      passkeyBootstrapAuthorization: EcdsaDerivationPasskeyBootstrapAuthorization;
-    })
-  | (EcdsaDerivationClientBootstrapRequestBase & {
-      clientRootProof?: never;
-      passkeyBootstrapAuthorization?: never;
-    });
 
 export interface EcdsaDerivationServerBootstrapResponse {
   formatVersion: EcdsaDerivationRoleLocalFormatVersion;

@@ -8,7 +8,6 @@ export * from './d1LinkedDeviceVerifiedLinkSourceReader';
 export * from './d1LinkedDeviceSessionService';
 export * from './d1LinkedDeviceEd25519ExportRootStore';
 export * from './d1LinkedDeviceTargetCredentialProvider';
-export * from './d1LinkedDeviceTargetAuthenticatorStore';
 export * from './d1LinkedDeviceOwnerAuthorizationProvider';
 export * from './d1LinkedDeviceTargetPlanner';
 export * from './d1LinkedDeviceSourceContributionPreparationPlanner';

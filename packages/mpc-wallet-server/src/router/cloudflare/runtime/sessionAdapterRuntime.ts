@@ -1,6 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 
-export type ParsedSessionJwt =
+type ParsedSessionJwt =
   | {
       readonly ok: true;
       readonly headerB64u: string;

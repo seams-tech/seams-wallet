@@ -42,49 +42,6 @@ export type SessionClaims = Record<string, unknown>;
 
 export const DEFAULT_SESSION_COOKIE_NAME = 'seams-jwt';
 
-/**
- * Best-effort extraction of JWT `exp` claim as ISO timestamp.
- * Returns `undefined` for opaque/non-JWT tokens or invalid payloads.
- */
-export function deriveJwtExpiresAtIso(jwt: string): string | undefined {
-  const token = String(jwt || '').trim();
-  if (!token) return undefined;
-  const parts = token.split('.');
-  if (parts.length < 2 || !parts[1]) return undefined;
-  const payloadJson = decodeJwtPayloadUtf8(parts[1]);
-  if (!payloadJson) return undefined;
-  let payload: unknown;
-  try {
-    payload = JSON.parse(payloadJson);
-  } catch {
-    return undefined;
-  }
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
-  const exp = Number((payload as { exp?: unknown }).exp);
-  if (!Number.isFinite(exp) || exp <= 0) return undefined;
-  return new Date(exp * 1000).toISOString();
-}
-
-function decodeJwtPayloadUtf8(payloadB64u: string): string | undefined {
-  const normalized = payloadB64u.replace(/-/g, '+').replace(/_/g, '/');
-  const padLength = (4 - (normalized.length % 4)) % 4;
-  const padded = `${normalized}${'='.repeat(padLength)}`;
-  try {
-    const atobFn = (globalThis as { atob?: (input: string) => string }).atob;
-    const bin =
-      typeof atobFn === 'function'
-        ? atobFn(padded)
-        : typeof Buffer !== 'undefined'
-          ? Buffer.from(padded, 'base64').toString('binary')
-          : '';
-    if (!bin) return undefined;
-    const bytes = Uint8Array.from(bin, (char) => char.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
-  } catch {
-    return undefined;
-  }
-}
-
 export interface SessionAdapter {
   signJwt(sub: string, extra?: Record<string, unknown>): Promise<string>;
   /** Local verification against pinned key material; never a JWKS fetch. */
@@ -135,33 +92,33 @@ export interface RouterApiWebhookOptions {
   orgIdClaimKeys?: string[];
 }
 
-export interface RouterApiWebhookContext {
+interface RouterApiWebhookContext {
   orgId: string;
   actorUserId: string;
   roles: string[];
 }
 
-export interface RouterApiWebhookEventRequest {
+interface RouterApiWebhookEventRequest {
   eventId?: string;
   eventType: string;
   payload: Record<string, unknown>;
 }
 
-export interface RouterApiWebhookEventResult {
+interface RouterApiWebhookEventResult {
   eventId: string;
   attempted: number;
   delivered: number;
   failed: number;
 }
 
-export interface RouterApiWebhookEmitter {
+interface RouterApiWebhookEmitter {
   emitEvent(
     ctx: RouterApiWebhookContext,
     request: RouterApiWebhookEventRequest,
   ): Promise<RouterApiWebhookEventResult> | RouterApiWebhookEventResult;
 }
 
-export type RouterApiEmailOtpExportPolicyPhase = 'challenge' | 'verify';
+type RouterApiEmailOtpExportPolicyPhase = 'challenge' | 'verify';
 
 export type RouterApiEmailOtpExportPolicyDecision =
   | {
@@ -194,7 +151,7 @@ export interface RouterApiEmailOtpExportPolicyInput {
   sourceIp?: string;
 }
 
-export interface RouterApiEmailOtpExportPolicyAdapter {
+interface RouterApiEmailOtpExportPolicyAdapter {
   authorize(
     input: RouterApiEmailOtpExportPolicyInput,
   ): Promise<RouterApiEmailOtpExportPolicyDecision> | RouterApiEmailOtpExportPolicyDecision;

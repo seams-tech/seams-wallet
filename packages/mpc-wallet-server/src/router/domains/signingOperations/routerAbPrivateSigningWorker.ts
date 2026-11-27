@@ -13,7 +13,6 @@ import {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import type { AuthorizedOperationReplayResponse } from '../../../authorization/domain';
 import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { MpcMaterialActivationId } from '@shared/utils/domainIds';
 import { isPlainObject, requireExactString } from '@shared/utils/validation';
@@ -301,28 +300,6 @@ async function sha256B64u(bytes: Uint8Array): Promise<string> {
 
 async function sha256Digest32(bytes: Uint8Array): Promise<RouterAbPublicDigest32V1Wire> {
   return digest32FromB64u(await sha256B64u(bytes));
-}
-
-export function replayResponseFromSigningWorkerResult(
-  result: RouterAbSigningWorkerJsonResult,
-): AuthorizedOperationReplayResponse {
-  if (result.ok) return result.replay;
-  return {
-    status: result.status,
-    contentType: 'application/json',
-    bodyText: JSON.stringify(result.body),
-  };
-}
-
-export function isRouterAbEcdsaSigningWorkerOperationInProgress(
-  result: RouterAbSigningWorkerJsonResult,
-): boolean {
-  return (
-    !result.ok &&
-    result.status === 409 &&
-    result.body.message.includes('ReplayedLocalRequest:') &&
-    result.body.message.includes('SigningWorker ECDSA effect is already in progress')
-  );
 }
 
 function privateSigningWorkerUrl(

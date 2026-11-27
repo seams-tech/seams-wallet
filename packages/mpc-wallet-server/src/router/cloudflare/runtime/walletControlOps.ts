@@ -3,8 +3,8 @@ import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../../core/Thresho
 import type { CloudflareServiceBindingFetcher } from './routerAbServiceBindings';
 import type { WalletRuntimeServiceBinding } from './walletRuntimeOps';
 
-export const WALLET_CONTROL_SERVICE_ORIGIN_V1 = 'https://wallet-runtime.internal';
-export const WALLET_CONTROL_BASE_PATH_V1 = '/internal/wallet-runtime/v1/tenant-root-control';
+const WALLET_CONTROL_SERVICE_ORIGIN_V1 = 'https://wallet-runtime.internal';
+const WALLET_CONTROL_BASE_PATH_V1 = '/internal/wallet-runtime/v1/tenant-root-control';
 export const WALLET_CONTROL_AUTH_MARKER_V1 = 'wallet-control-private-binding-v1';
 
 type WalletControlTarget = 'mpc-router' | 'control-plane' | 'deriver-a' | 'deriver-b';
@@ -135,7 +135,7 @@ export interface WalletControlRuntimeBindings extends WalletRelocationRuntimeBin
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
 }
 
-export interface WalletControlClientBindings {
+interface WalletControlClientBindings {
   readonly router: CloudflareServiceBindingFetcher;
   readonly controlPlane: CloudflareServiceBindingFetcher;
   readonly deriverA: CloudflareServiceBindingFetcher;

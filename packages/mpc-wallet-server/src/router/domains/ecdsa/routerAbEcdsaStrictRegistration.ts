@@ -8,8 +8,6 @@ import {
   parseRouterAbEcdsaDerivationActivationRefreshResponseV1,
   parseRouterAbEcdsaRegistrationActivationReceiptV1,
   parseRouterAbEcdsaStrictForwardedRegistrationResponseV1,
-  type RouterAbEcdsaDerivationActivationCommitQueryResultV1,
-  type RouterAbEcdsaDerivationActivationPrepareResultV1,
   type RouterAbEcdsaDerivationActivationRefreshCommitRequestV1,
   type RouterAbEcdsaDerivationActivationRefreshRequestV1,
   type RouterAbEcdsaDerivationActivationRefreshResponseV1,
@@ -50,7 +48,7 @@ export type RouterAbEcdsaPendingActivationV1 = {
   readonly canonicalPayloadJson: RouterAbEcdsaPendingActivationJsonV1;
 };
 
-export type RouterAbEcdsaStrictRegistrationResult =
+type RouterAbEcdsaStrictRegistrationResult =
   | {
       readonly ok: true;
       readonly value: {
@@ -60,24 +58,10 @@ export type RouterAbEcdsaStrictRegistrationResult =
     }
   | RouterAbEcdsaStrictFailure;
 
-export type RouterAbEcdsaStrictActivationResult =
+type RouterAbEcdsaStrictActivationResult =
   | {
       readonly ok: true;
       readonly value: RouterAbEcdsaRegistrationActivationReceiptV1;
-    }
-  | RouterAbEcdsaStrictFailure;
-
-export type RouterAbEcdsaStrictActivationPrepareResult =
-  | {
-      readonly ok: true;
-      readonly value: RouterAbEcdsaDerivationActivationPrepareResultV1;
-    }
-  | RouterAbEcdsaStrictFailure;
-
-export type RouterAbEcdsaStrictActivationQueryResult =
-  | {
-      readonly ok: true;
-      readonly value: RouterAbEcdsaDerivationActivationCommitQueryResultV1;
     }
   | RouterAbEcdsaStrictFailure;
 
@@ -98,7 +82,7 @@ export type RouterAbEcdsaStrictExportAuthority = RouterAbEcdsaStrictRegistration
   readonly normalSigningScope: RouterAbEcdsaDerivationNormalSigningScopeV1;
 };
 
-export type RouterAbEcdsaStrictExportPrivateAuthorization =
+type RouterAbEcdsaStrictExportPrivateAuthorization =
   | {
       readonly kind: 'reusable_wallet_session';
       readonly walletSessionId: string;
@@ -114,12 +98,12 @@ export type RouterAbEcdsaStrictRegistrationTopology = {
   readonly deriverRecipientKeys: RouterAbEcdsaRegistrationRecipientKeysV1;
 };
 
-export type RouterAbEcdsaRegistrationRequestPolicyV1 = {
+type RouterAbEcdsaRegistrationRequestPolicyV1 = {
   readonly policyVersion: string;
   readonly requestDigestB64u: string;
 };
 
-export type RouterAbEcdsaRegistrationTenantRootV1 = {
+type RouterAbEcdsaRegistrationTenantRootV1 = {
   readonly ownershipGeneration: number;
   readonly identityDigestB64u: string;
   readonly custodyLineageB64u: string;
@@ -139,7 +123,7 @@ type RouterAbRequestPolicyClaimsInputV1 = {
  * most once per forwarded request, before the result is parsed, so a failing
  * leg still reports where its time went.
  */
-export type RouterAbEcdsaStrictServerTimingSink = (header: string) => void;
+type RouterAbEcdsaStrictServerTimingSink = (header: string) => void;
 
 /**
  * Reports whether a role leg returned the diagnostics header we expect, and
@@ -152,7 +136,7 @@ export type RouterAbEcdsaStrictServerTimingSink = (header: string) => void;
  * attacker-influencable in principle and identifying in practice, so it is
  * never passed here.
  */
-export type RouterAbEcdsaStrictHeaderPresenceSink = (presence: {
+type RouterAbEcdsaStrictHeaderPresenceSink = (presence: {
   readonly leg: string;
   readonly serverTiming: 'present' | 'absent';
 }) => void;
@@ -211,7 +195,7 @@ export interface RouterAbEcdsaStrictPostRegistrationPort {
   }): Promise<RouterAbEcdsaStrictRefreshResult>;
 }
 
-export type RouterAbEcdsaCeremonyTokenClaims = {
+type RouterAbEcdsaCeremonyTokenClaims = {
   readonly ownershipGeneration: number;
   readonly subjectId: string;
   readonly sessionId: string;
@@ -223,7 +207,7 @@ export type RouterAbEcdsaCeremonyTokenClaims = {
   readonly expiresAtMs: number;
 };
 
-export type RouterAbEcdsaEd25519CeremonyTokenIssuerConfig = {
+type RouterAbEcdsaEd25519CeremonyTokenIssuerConfig = {
   readonly issuer: string;
   readonly audience: string;
   readonly keyId: string;

@@ -49,28 +49,11 @@ export interface ExecuteSignedDelegateResult {
 }
 
 /**
- * Normalize hash input (hex string with or without `0x` prefix) to a 32-byte Uint8Array.
- */
-export function normalizeHashToBytes(hash: string): Uint8Array {
-  const trimmed = (hash || '').trim().toLowerCase();
-  const hex = trimmed.startsWith('0x') ? trimmed.slice(2) : trimmed;
-  if (!hex || hex.length !== 64 || !/^[0-9a-f]+$/i.test(hex)) {
-    throw new Error('invalid_hash_format');
-  }
-  const bytes = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    const byte = hex.slice(i * 2, i * 2 + 2);
-    bytes[i] = parseInt(byte, 16);
-  }
-  return bytes;
-}
-
-/**
  * Validate delegate nonce and expiry against current chain height.
  * The actual SignedDelegate hashing and signature verification is done in the signer worker;
  * this helper only enforces basic replay/expiry constraints expected of a relayer.
  */
-export async function validateDelegateExpiryAndNonce(params: {
+async function validateDelegateExpiryAndNonce(params: {
   nearClient: NearClient;
   signedDelegate: RelayedSignedDelegate;
 }): Promise<void> {
@@ -109,7 +92,7 @@ export async function validateDelegateExpiryAndNonce(params: {
  * - FunctionCall method allowlist
  * - Total attached deposit limit
  */
-export async function enforceDelegatePolicy(input: {
+async function enforceDelegatePolicy(input: {
   hash: string;
   signedDelegate: RelayedSignedDelegate;
   policy?: DelegateActionPolicy;

@@ -12,7 +12,7 @@ import {
   toSessionArrayBufferCopy,
 } from './sessionAdapterRuntime';
 
-export interface Ed25519SessionAdapterOptions {
+interface Ed25519SessionAdapterOptions {
   readonly privateJwk: JsonWebKey & {
     readonly kty: 'OKP';
     readonly crv: 'Ed25519';

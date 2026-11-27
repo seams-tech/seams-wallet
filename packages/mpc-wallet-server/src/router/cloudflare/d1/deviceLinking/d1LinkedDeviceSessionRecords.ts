@@ -23,7 +23,7 @@ export type D1LinkedDeviceSessionRowV1 = {
   readonly updated_at_ms?: unknown;
 };
 
-export type D1LinkedDeviceSessionTranscriptRowV1 = {
+type D1LinkedDeviceSessionTranscriptRowV1 = {
   readonly transcript_kind?: unknown;
   readonly digest_b64u?: unknown;
   readonly transcript_json?: unknown;

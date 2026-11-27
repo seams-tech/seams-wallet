@@ -80,7 +80,7 @@ export type HostedWalletSeamsSessionExchangeCode = DomainId<'HostedWalletSeamsSe
 export type HostedWalletSeamsSessionExchangeNonce =
   DomainId<'HostedWalletSeamsSessionExchangeNonce'>;
 export type HostedWalletSessionCredentialId = DomainId<'HostedWalletSessionCredentialId'>;
-export type PrimaryWalletSessionOperationCredentialToken =
+type PrimaryWalletSessionOperationCredentialToken =
   DomainId<'PrimaryWalletSessionOperationCredentialToken'>;
 export type HostedWalletSessionOperationCredentialToken =
   DomainId<'HostedWalletSessionOperationCredentialToken'>;
@@ -100,7 +100,7 @@ export type OwnerOperationBinding = {
 
 export type VerifiedOwnerProofMethod = AuthFactorIdentity['kind'];
 
-export type VerifiedOwnerProofCommon = {
+type VerifiedOwnerProofCommon = {
   readonly kind: 'verified_owner_proof_v1';
   readonly proofId: VerifiedOwnerProofId;
   readonly method: VerifiedOwnerProofMethod;
@@ -166,7 +166,7 @@ export type HostedWalletSeamsSessionExchangeDeliveryV2 = {
   readonly expiresAtMs: number;
 };
 
-export type HostedWalletSeamsSessionExchangeRejectionV2 = {
+type HostedWalletSeamsSessionExchangeRejectionV2 = {
   readonly kind:
     | 'invalid_code'
     | 'expired'
@@ -926,7 +926,7 @@ export type OwnerOperationStepUpReason =
   | 'wallet_session_ended'
   | 'wallet_session_superseded';
 
-export type OwnerOperationAuthorizationDenial = {
+type OwnerOperationAuthorizationDenial = {
   readonly code:
     | 'invalid_identity'
     | 'invalid_authority'
@@ -937,7 +937,7 @@ export type OwnerOperationAuthorizationDenial = {
   readonly message: string;
 };
 
-export type OwnerOperationAuthorizationSource =
+type OwnerOperationAuthorizationSource =
   | {
       readonly kind: 'authorization_grant';
       readonly authorizationGrantRef: Extract<

@@ -1,6 +1,6 @@
 import { normalizeSessionString } from './sessionAdapterRuntime';
 
-export type CloudflareWorkerEnvironment = Readonly<Record<string, unknown>>;
+type CloudflareWorkerEnvironment = Readonly<Record<string, unknown>>;
 
 export function requireEnvironmentString(
   env: CloudflareWorkerEnvironment,

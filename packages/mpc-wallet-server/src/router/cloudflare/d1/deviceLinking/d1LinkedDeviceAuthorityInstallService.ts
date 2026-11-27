@@ -201,7 +201,7 @@ export type OrdinaryInactiveSignerMaterialActivationPortV1 = {
   }): Promise<void>;
 };
 
-export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
+type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
   readonly credentialClaims?: PasskeyCredentialClaims;
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletAuthorityStoreScope;
@@ -262,7 +262,7 @@ export type D1LinkedDeviceAuthorityInstallServiceOptionsV1 = {
   readonly nowV1?: () => number;
 };
 
-export type CommitPendingAuthorityInputV1 = VerifiedLinkInputV1 & {
+type CommitPendingAuthorityInputV1 = VerifiedLinkInputV1 & {
   readonly nowMs: number;
   readonly ed25519ExportRootPackage: CommittedAuthorityPackagesV1['ed25519ExportRootPackage'];
 };
@@ -281,7 +281,7 @@ export type CommitPendingAuthorityResultV1 =
   | { readonly kind: 'invalid_input'; readonly message: string };
 
 /** The committed Wallet Session of a linked device. Its quota changes with each signature, so it is not here. */
-export type CommittedLinkedDeviceWalletSessionV1 = {
+type CommittedLinkedDeviceWalletSessionV1 = {
   readonly session: WalletSessionAuthorizationV2;
   readonly primaryOperationCredentialDigestB64u: DigestB64u;
 };

@@ -4,12 +4,12 @@ import { failedVerification } from '@shared/utils/failure';
 import { toArrayBufferCopy } from '../../../../core/authService/portableCrypto';
 import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
 
-export type JsonWebKeyCache = {
+type JsonWebKeyCache = {
   readonly keysByKid: Map<string, JsonWebKey>;
   readonly expiresAtMs: number;
 };
 
-export type JwtVerificationFailure = {
+type JwtVerificationFailure = {
   readonly ok: false;
   readonly verified: false;
   readonly code: string;
@@ -24,11 +24,11 @@ export type ParsedRs256Jwt = {
   readonly kid: string;
 };
 
-export type ParsedRs256JwtResult =
+type ParsedRs256JwtResult =
   | { readonly ok: true; readonly jwt: ParsedRs256Jwt }
   | JwtVerificationFailure;
 
-export type GoogleIdTokenClaims = {
+type GoogleIdTokenClaims = {
   readonly ok: true;
   readonly sub: string;
   readonly issuer: 'https://accounts.google.com';
@@ -71,7 +71,7 @@ export function parseCacheControlMaxAgeSec(input: unknown): number | null {
   return null;
 }
 
-export function parseGoogleJwks(input: unknown): Map<string, JsonWebKey> | null {
+function parseGoogleJwks(input: unknown): Map<string, JsonWebKey> | null {
   const record = toRecordValue(input);
   if (!record) return null;
   const rawKeys = record.keys;

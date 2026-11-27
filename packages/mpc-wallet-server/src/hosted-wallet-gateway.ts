@@ -188,7 +188,7 @@ export interface CloudflareD1GatewayBaseEnv
   readonly SPEAK_TO_SIGN_SUMMARY_MODEL?: string;
 }
 
-export function readStagingHostedWalletOrigins(
+function readStagingHostedWalletOrigins(
   env: Pick<CloudflareD1GatewayBaseEnv, 'HOSTED_WALLET_ORIGINS'>,
 ): string[] {
   return readCsvList(requireEnvString(env, 'HOSTED_WALLET_ORIGINS'));
@@ -273,7 +273,7 @@ function emitRefactor93GatewaySpan(span: RouterAbEd25519YaoGatewaySpanV1): void 
   console.log(JSON.stringify(span));
 }
 
-export function createStagingEd25519YaoBackend(
+function createStagingEd25519YaoBackend(
   env: CloudflareD1GatewayBaseEnv,
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1,
 ) {
@@ -783,7 +783,7 @@ function stagingLinkedDeviceSessionComposition(
  * stay on the Wallet Console deployment until policy/sponsorship resolution
  * operations join the binding.
  */
-export async function createHostedWalletGatewayCompositionV1(
+async function createHostedWalletGatewayCompositionV1(
   env: CloudflareD1GatewayEnv,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
   background: CfExecutionContext | null = null,
@@ -881,7 +881,7 @@ export async function createHostedWalletGatewayCompositionV1(
   return { handler, service, session };
 }
 
-export async function createSplitGatewayRouterHandler(
+async function createSplitGatewayRouterHandler(
   env: CloudflareD1GatewayEnv,
   dependencies: HostedWalletGatewayDependenciesV1 = {},
   background: CfExecutionContext | null = null,
@@ -1561,7 +1561,7 @@ async function startRegistrationRouter(
  * is constructed here against request-scoped state instead of runtime-held
  * state, which is the dependency this wiring exists to remove.
  */
-export function createStagingRecoveryRequestScopedDependencies(
+function createStagingRecoveryRequestScopedDependencies(
   env: CloudflareD1GatewayBaseEnv,
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
   dependencies: HostedWalletGatewayDependenciesV1 = {},
@@ -1624,7 +1624,7 @@ export function createStagingRecoveryRequestScopedDependencies(
  * Builds export request-scoped state while reusing the request's authoritative
  * Router API factor and owner-proof services.
  */
-export function createStagingExportRequestScopedDependencies(
+function createStagingExportRequestScopedDependencies(
   env: CloudflareD1GatewayBaseEnv,
   service: ReturnType<typeof createCloudflareD1RouterApiAuthService>,
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],

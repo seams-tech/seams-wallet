@@ -162,7 +162,7 @@ export type CloudflareD1LinkedDeviceCompositionOptionsV1 =
   | CloudflareD1LinkedDeviceCompositionWithManagementV1
   | CloudflareD1LinkedDeviceCompositionWithSessionV1;
 
-export type CloudflareD1GithubOAuthConfig = {
+type CloudflareD1GithubOAuthConfig = {
   readonly clientId: string;
   readonly clientSecret: string;
   readonly callbackUrl: string;
@@ -235,7 +235,7 @@ export type EmailOtpDeliveryMode =
   | 'dev_d1_outbox'
   | 'demo_code_response';
 
-export type EmailOtpRuntimeProfile =
+type EmailOtpRuntimeProfile =
   | 'development'
   | 'testnet_live_demo'
   | 'testnet_service'
@@ -327,7 +327,7 @@ export type NormalizedCloudflareD1RouterApiAuthServiceOptions = Omit<
   readonly routerAbEcdsaPresignRuntime?: RouterAbEcdsaPresignRuntime | null;
 };
 
-export function requireD1RouterApiAuthScopeString(input: unknown, field: string): string {
+function requireD1RouterApiAuthScopeString(input: unknown, field: string): string {
   const value = toOptionalTrimmedString(input);
   if (!value) throw new Error(`${field} is required for Cloudflare D1 Router API auth service`);
   return value;

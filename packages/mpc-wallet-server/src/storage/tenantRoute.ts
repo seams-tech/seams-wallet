@@ -2,10 +2,10 @@ import type { OrgId } from '@shared/utils/domainIds';
 
 export type { OrgId } from '@shared/utils/domainIds';
 
-export type TenantStorageBackendFamily = 'cloudflare_d1_do' | 'postgres';
+type TenantStorageBackendFamily = 'cloudflare_d1_do' | 'postgres';
 export type CloudflareTenantTopology = 'shared' | 'dedicated_tenant';
 export type TenantDataJurisdiction = 'automatic' | 'wnam' | 'enam' | 'weur' | 'eeur' | 'apac' | 'oc';
-export type PostgresMigrationReason =
+type PostgresMigrationReason =
   | 'd1_size_limit'
   | 'd1_throughput_limit'
   | 'logical_database_required';
@@ -65,8 +65,6 @@ export type SignerPostgresStorageTarget = {
   readonly metadataDatabase?: never;
 };
 
-export type SignerStorageTarget = SignerD1DoStorageTarget | SignerPostgresStorageTarget;
-
 export type CloudflareTenantStorageRoute = {
   readonly kind: 'cloudflare_d1_do';
   readonly namespace: NamespaceId;
@@ -118,10 +116,6 @@ export interface StaticCloudflareTenantStorageRouteResolverBindingInput {
   readonly signerMetadataBindingName: D1BindingName;
   readonly signerMetadataDatabaseName: D1DatabaseName;
   readonly signerMetadataDatabase: D1DatabaseLike;
-}
-
-export interface TenantStoreFactory<TStores> {
-  createStores(route: TenantStorageRoute): TStores;
 }
 
 export type TenantStorageRouteDiagnostic = {
@@ -240,9 +234,7 @@ export function createStaticCloudflareTenantStorageRouteResolverFromBindings(
   });
 }
 
-export function tenantStorageRouteBackendFamily(
-  route: TenantStorageRoute,
-): TenantStorageBackendFamily {
+function tenantStorageRouteBackendFamily(route: TenantStorageRoute): TenantStorageBackendFamily {
   switch (route.kind) {
     case 'cloudflare_d1_do':
       return 'cloudflare_d1_do';

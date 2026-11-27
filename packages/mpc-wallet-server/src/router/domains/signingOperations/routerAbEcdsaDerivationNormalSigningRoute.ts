@@ -1,4 +1,3 @@
-import { signingPrepareSessionResponse } from './signingPrepareSession';
 import type { D1EcdsaAdmissionPolicyRead } from '../../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
 import type { EcdsaMaterialRead } from '../../../core/d1EcdsaSignerRead';
 import type { EcdsaMaterialReadSnapshot } from '../../../core/ecdsaMaterialReadSnapshot';
@@ -74,7 +73,6 @@ import {
   routerAbErrorMessage,
   type RouterAbJsonRouteResult,
   type RouterAbNormalSigningAdmissionAdapter,
-  type RouterAbNormalSigningRouteRuntime,
   routerAbOwnerOperationFailureResult,
   routerAbOwnerOperationStepUpDecision,
   routerAbSigningError,
@@ -96,14 +94,7 @@ import {
   walletSessionScopeInvalidFailure,
   walletSessionUnavailableFailure,
 } from './routerAbOperationStepUp';
-import {
-  buildRouterAbEcdsaDerivationPrivateSigningWorkerBody,
-  isRouterAbEcdsaSigningWorkerOperationInProgress,
-  postRouterAbSigningWorkerJson,
-  replayResponseFromSigningWorkerResult,
-  type RouterAbEcdsaDerivationPrivateSigningPath,
-  type RouterAbEcdsaOperationStepUpRequest,
-} from './routerAbPrivateSigningWorker';
+import { type RouterAbEcdsaOperationStepUpRequest } from './routerAbPrivateSigningWorker';
 
 export function routerAbEcdsaAtomicAuthorizationConfigured(
   authorizedOperations: Pick<RouterApiAuthorizedOperationService, 'admitAuthorizedOperation'>,
@@ -269,22 +260,10 @@ export function routerAbEcdsaReplayUnavailableResult(): RouterAbJsonRouteResult 
   );
 }
 
-export function routerAbEcdsaRecordedResponse(
+function routerAbEcdsaRecordedResponse(
   operation: AuthorizedOperation,
 ): AuthorizedOperationReplayResponse | null {
   return operation.lifecycle === 'completed' ? operation.response : null;
-}
-
-export function routerAbEcdsaReplayResult(operation: AuthorizedOperation): RouterAbJsonRouteResult {
-  const response = routerAbEcdsaRecordedResponse(operation);
-  if (!response) return routerAbEcdsaReplayUnavailableResult();
-  let body: unknown = response.bodyText;
-  try {
-    body = JSON.parse(response.bodyText);
-  } catch {
-    // Keep a non-JSON worker response as text for the JSON route adapter.
-  }
-  return { status: response.status, body };
 }
 
 export function routerAbEcdsaReplayHttpResponse(operation: AuthorizedOperation): Response | null {
@@ -294,17 +273,6 @@ export function routerAbEcdsaReplayHttpResponse(operation: AuthorizedOperation):
     status: response.status,
     headers: { 'content-type': response.contentType },
   });
-}
-
-function routerAbEcdsaPrivateSigningWorkerUnavailableResult(): RouterAbJsonRouteResult {
-  return {
-    status: 501,
-    body: {
-      ok: false,
-      code: 'not_configured',
-      message: 'Router A/B SigningWorker private HTTP target is not configured',
-    },
-  };
 }
 
 type RouterAbEcdsaWalletSessionValidationSuccess = Extract<
@@ -1336,133 +1304,4 @@ export async function authorizeRouterAbEcdsaDerivationNormalSigningRoute(input: 
     admission: authorized.admission,
     activeMaterial: authorized.activeMaterial,
   };
-}
-
-export async function handleRouterAbEcdsaDerivationNormalSigningRouteCore(input: {
-  body: Record<string, unknown>;
-  rawBody: unknown;
-  headers: Record<string, string | string[] | undefined>;
-  session: SessionAdapter | null | undefined;
-  runtime: RouterAbNormalSigningRouteRuntime | null | undefined;
-  authorizedOperations: RouterApiAuthorizedOperationService | null | undefined;
-  authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
-  admissionAdapter: RouterAbNormalSigningAdmissionAdapter | null | undefined;
-  resolveEcdsaMaterialActivation: RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation'];
-  privatePath: RouterAbEcdsaDerivationPrivateSigningPath;
-  phase: 'prepare' | 'finalize';
-}): Promise<RouterAbJsonRouteResult> {
-  const authorization = await authorizeRouterAbEcdsaDerivationNormalSigningRoute(input);
-  if (!authorization.ok) return authorization.result;
-  if (authorization.kind === 'operation_step_up') {
-    return routerAbStepUpError(
-      500,
-      'internal',
-      'Operation step-up must execute through the MPC router',
-    );
-  }
-  const walletSession =
-    authorization.kind === 'wallet_session_operation_credential_v1'
-      ? authorization.validated.admission.context.authorization.session
-      : authorization.candidate.status.session;
-  const privateBody = await buildRouterAbEcdsaDerivationPrivateSigningWorkerBody({
-    phase: input.phase,
-    body: input.body,
-    authorization: {
-      kind: 'wallet_session_operation_credential_v1',
-      walletSessionId: String(walletSession.walletSessionId),
-      principalId: String(walletSession.principalId),
-      runtimePolicyScope: authorization.activeMaterial.runtimePolicyScope,
-    },
-    headers: input.headers,
-  });
-  if (!input.authorizedOperations) {
-    return routerAbStepUpError(
-      501,
-      'not_configured',
-      'Reusable Wallet Session authorization is not configured',
-    );
-  }
-  const request = parseRouterAbEcdsaOperationStepUpRequest(input);
-  const claimed = await admitRouterAbEcdsaReusableWalletSessionOperation({
-    phase: input.phase,
-    request,
-    material: authorization.activeMaterial,
-    binding: authorization,
-    authorizedOperations: input.authorizedOperations,
-  });
-  if (!claimed.ok) return claimed.error;
-  if (claimed.admission.kind === 'replayed') {
-    return routerAbEcdsaReplayResult(claimed.admission.operation);
-  }
-  const runtime = input.runtime;
-  if (!runtime) return routerAbEcdsaPrivateSigningWorkerUnavailableResult();
-  const signingWorker = runtime.getSigningWorkerPrivateTransport();
-  if (signingWorker.kind === 'unconfigured') {
-    return routerAbEcdsaPrivateSigningWorkerUnavailableResult();
-  }
-  if (claimed.phase === 'prepare') {
-    if (claimed.admission.kind === 'operation_in_progress') {
-      return routerAbEcdsaOperationInProgressResult();
-    }
-    const operation = claimed.admission.operation;
-    const replay = await runtime.reservePrepareReplay({
-      curve: 'ecdsa',
-      authorizationIdentity: {
-        kind: 'reusable_wallet_session',
-        walletSessionId: String(walletSession.walletSessionId),
-      },
-      requestId: authorization.admission.requestId,
-      expiresAtMs: authorization.admission.expiresAtMs,
-    });
-    if (!replay.ok) {
-      await completeRouterAbEcdsaOperation({
-        authorizedOperations: input.authorizedOperations,
-        operation,
-        result: 'failed_before_side_effect',
-        response: {
-          status: replay.status,
-          contentType: 'application/json',
-          bodyText: JSON.stringify({ ok: false, code: replay.code, message: replay.message }),
-        },
-      });
-      return {
-        status: replay.status,
-        body: { ok: false, code: replay.code, message: replay.message },
-      };
-    }
-    const forwarded = await postRouterAbSigningWorkerJson({
-      config: signingWorker,
-      path: input.privatePath,
-      body: privateBody,
-    });
-    if (!forwarded.ok && !isRouterAbEcdsaSigningWorkerOperationInProgress(forwarded)) {
-      await completeRouterAbEcdsaOperation({
-        authorizedOperations: input.authorizedOperations,
-        operation,
-        result: forwarded.status < 500 ? 'failed_before_side_effect' : 'failed_after_side_effect',
-        response: replayResponseFromSigningWorkerResult(forwarded),
-      });
-    }
-    return forwarded.ok
-      ? { status: 200, body: signingPrepareSessionResponse(forwarded.body, authorization) }
-      : { status: forwarded.status, body: forwarded.body };
-  }
-  const forwarded = await postRouterAbSigningWorkerJson({
-    config: signingWorker,
-    path: input.privatePath,
-    body: privateBody,
-  });
-  await completeRouterAbEcdsaOperation({
-    authorizedOperations: input.authorizedOperations,
-    operation: claimed.admission.operation,
-    result: forwarded.ok
-      ? 'succeeded'
-      : forwarded.status < 500
-        ? 'failed_before_side_effect'
-        : 'failed_after_side_effect',
-    response: replayResponseFromSigningWorkerResult(forwarded),
-  });
-  return forwarded.ok
-    ? { status: 200, body: forwarded.body }
-    : { status: forwarded.status, body: forwarded.body };
 }
