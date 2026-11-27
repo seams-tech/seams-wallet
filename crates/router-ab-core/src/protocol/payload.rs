@@ -83,7 +83,7 @@ impl RouterTranscriptMetadataV1 {
     }
 
     /// Builds the derivation transcript binding from public payload metadata.
-    pub fn to_transcript_binding(
+    pub(crate) fn to_transcript_binding(
         &self,
         context: DerivationContext,
         signer_set: &SignerSetV1,
@@ -133,7 +133,7 @@ impl RouterEnvelopeDigestSetV1 {
     }
 
     /// Returns the expected envelope digest for a signer role.
-    pub fn digest_for_role(&self, role: Role) -> RouterAbProtocolResult<PublicDigest32> {
+    pub(crate) fn digest_for_role(&self, role: Role) -> RouterAbProtocolResult<PublicDigest32> {
         match role {
             Role::SignerA => Ok(self.signer_a_envelope_digest),
             Role::SignerB => Ok(self.signer_b_envelope_digest),
@@ -146,7 +146,7 @@ impl RouterEnvelopeDigestSetV1 {
 }
 
 /// Builds the transcript binding for a Router-to-signer ceremony.
-pub fn router_transcript_binding_v1(
+pub(crate) fn router_transcript_binding_v1(
     lifecycle: &LifecycleScopeV1,
     signer_set: &SignerSetV1,
     transcript_metadata: &RouterTranscriptMetadataV1,
@@ -823,7 +823,7 @@ impl MpcPrfStableProofBundleWireV2 {
     }
 
     /// Converts this public wire into a V2 backend bundle under one expected plan.
-    pub fn into_stable_partial_for_plan(
+    pub(crate) fn into_stable_partial_for_plan(
         self,
         expected_plan: &MpcPrfStablePurposeBindingPlanV2,
     ) -> RouterAbProtocolResult<MpcPrfStablePartialProofBundleV2> {
@@ -945,7 +945,7 @@ impl MpcPrfStableRecipientProofBundlePayloadV2 {
     }
 
     /// Converts the recipient proof bundle under one expected stable plan.
-    pub fn stable_partial_for_plan(
+    pub(crate) fn stable_partial_for_plan(
         &self,
         expected_plan: &MpcPrfStablePurposeBindingPlanV2,
     ) -> RouterAbProtocolResult<MpcPrfStablePartialProofBundleV2> {
@@ -957,7 +957,9 @@ impl MpcPrfStableRecipientProofBundlePayloadV2 {
 }
 
 /// Encodes one stable tenant-root threshold-PRF proof-bundle wire.
-pub fn encode_mpc_prf_stable_proof_bundle_wire_v2(wire: &MpcPrfStableProofBundleWireV2) -> Vec<u8> {
+pub(crate) fn encode_mpc_prf_stable_proof_bundle_wire_v2(
+    wire: &MpcPrfStableProofBundleWireV2,
+) -> Vec<u8> {
     let mut out = Vec::new();
     push_len32(&mut out, MPC_PRF_STABLE_PROOF_BUNDLE_WIRE_VERSION_V2);
     push_tenant_root_protocol_digest(&mut out, wire.stable_context_digest);
@@ -971,7 +973,7 @@ pub fn encode_mpc_prf_stable_proof_bundle_wire_v2(wire: &MpcPrfStableProofBundle
 }
 
 /// Decodes one stable tenant-root threshold-PRF proof-bundle wire.
-pub fn decode_mpc_prf_stable_proof_bundle_wire_v2(
+pub(crate) fn decode_mpc_prf_stable_proof_bundle_wire_v2(
     bytes: &[u8],
 ) -> RouterAbProtocolResult<MpcPrfStableProofBundleWireV2> {
     let mut decoder = PayloadDecoder::new(bytes);
@@ -1019,7 +1021,7 @@ pub fn decode_mpc_prf_stable_proof_bundle_wire_v2(
 }
 
 /// Encodes a stable tenant-root recipient proof-bundle payload.
-pub fn encode_mpc_prf_stable_recipient_proof_bundle_payload_v2(
+pub(crate) fn encode_mpc_prf_stable_recipient_proof_bundle_payload_v2(
     payload: &MpcPrfStableRecipientProofBundlePayloadV2,
 ) -> Vec<u8> {
     let mut out = Vec::new();
@@ -1062,7 +1064,7 @@ pub fn decode_mpc_prf_stable_recipient_proof_bundle_payload_v2(
 }
 
 /// Computes the public digest of a stable tenant-root recipient payload.
-pub fn mpc_prf_stable_recipient_proof_bundle_payload_digest_v2(
+pub(crate) fn mpc_prf_stable_recipient_proof_bundle_payload_digest_v2(
     payload: &MpcPrfStableRecipientProofBundlePayloadV2,
 ) -> PublicDigest32 {
     digest_bytes(&encode_mpc_prf_stable_recipient_proof_bundle_payload_v2(
@@ -1071,7 +1073,7 @@ pub fn mpc_prf_stable_recipient_proof_bundle_payload_digest_v2(
 }
 
 /// Verifies one stable tenant-root recipient payload against its expected plan.
-pub fn verify_mpc_prf_stable_recipient_proof_bundle_payload_v2(
+pub(crate) fn verify_mpc_prf_stable_recipient_proof_bundle_payload_v2(
     payload: &MpcPrfStableRecipientProofBundlePayloadV2,
     expected_plan: &MpcPrfStablePurposeBindingPlanV2,
 ) -> RouterAbProtocolResult<()> {
@@ -1081,7 +1083,7 @@ pub fn verify_mpc_prf_stable_recipient_proof_bundle_payload_v2(
 }
 
 /// Encodes Router-to-signer payload bytes with fixed field order.
-pub fn encode_router_to_signer_payload_v1(payload: &RouterToSignerPayloadV1) -> Vec<u8> {
+pub(crate) fn encode_router_to_signer_payload_v1(payload: &RouterToSignerPayloadV1) -> Vec<u8> {
     let mut out = Vec::new();
     push_len32(&mut out, ROUTER_TO_SIGNER_PAYLOAD_VERSION_V1);
     match payload {
@@ -1163,7 +1165,9 @@ pub fn decode_router_to_signer_payload_v1(
 }
 
 /// Computes the public digest of Router-to-signer canonical bytes.
-pub fn router_to_signer_payload_digest_v1(payload: &RouterToSignerPayloadV1) -> PublicDigest32 {
+pub(crate) fn router_to_signer_payload_digest_v1(
+    payload: &RouterToSignerPayloadV1,
+) -> PublicDigest32 {
     digest_bytes(&encode_router_to_signer_payload_v1(payload))
 }
 

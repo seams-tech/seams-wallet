@@ -160,7 +160,7 @@ pub(crate) struct RouterAbNearSignedDelegateBorsh {
     pub(crate) signature: RouterAbNearSignatureBorsh,
 }
 
-pub fn router_ab_near_transaction_action_fingerprint_from_unsigned_borsh_b64u_v2(
+pub(crate) fn router_ab_near_transaction_action_fingerprint_from_unsigned_borsh_b64u_v2(
     unsigned_transaction_borsh_b64u: &str,
 ) -> RouterAbProtocolResult<String> {
     let transaction = decode_near_transaction_from_b64u(
@@ -170,7 +170,7 @@ pub fn router_ab_near_transaction_action_fingerprint_from_unsigned_borsh_b64u_v2
     router_ab_normal_signing_action_fingerprint_v2(&transaction.actions)
 }
 
-pub fn router_ab_delegate_action_fingerprint_from_canonical_borsh_b64u_v2(
+pub(crate) fn router_ab_delegate_action_fingerprint_from_canonical_borsh_b64u_v2(
     canonical_delegate_borsh_b64u: &str,
 ) -> RouterAbProtocolResult<String> {
     let delegate = decode_delegate_action_from_b64u(
@@ -411,7 +411,7 @@ impl RouterAbEd25519NormalSigningIntentV2 {
     }
 
     /// Returns canonical intent bytes for Router admission.
-    pub fn canonical_intent_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
+    pub(crate) fn canonical_intent_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
         self.validate()?;
         let mut out = Vec::new();
         push_len32(&mut out, ROUTER_AB_ED25519_NORMAL_SIGNING_INTENT_VERSION_V2);
@@ -523,7 +523,7 @@ impl RouterAbEd25519SigningPayloadV2 {
     }
 
     /// Returns canonical signing-payload bytes for Router admission.
-    pub fn canonical_signing_payload_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
+    pub(crate) fn canonical_signing_payload_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
         self.validate()?;
         let mut out = Vec::new();
         push_len32(&mut out, ROUTER_AB_ED25519_SIGNING_PAYLOAD_VERSION_V2);

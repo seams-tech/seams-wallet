@@ -459,7 +459,7 @@ impl TenantRootRefreshCommitmentTranscriptV1 {
 
     /// Creates a restore-only coefficient commitment transcript for the
     /// destination's initial create context.
-    pub fn new_for_restore(
+    pub(crate) fn new_for_restore(
         context: TenantRootCeremonyContextV1,
         commitment: RootShareRefreshCoefficientCommitment,
         recipient_key_id: impl Into<String>,
@@ -549,7 +549,7 @@ impl TenantRootSignedRefreshCommitmentV1 {
     }
 
     /// Decodes a restore-only signed refresh commitment in a create context.
-    pub fn decode_restore_canonical_bytes(bytes: &[u8]) -> RouterAbDerivationResult<Self> {
+    pub(crate) fn decode_restore_canonical_bytes(bytes: &[u8]) -> RouterAbDerivationResult<Self> {
         Self::decode_canonical_bytes_with_mode(bytes, true)
     }
 
@@ -671,7 +671,7 @@ impl TenantRootSignedRefreshCommitmentV1 {
     }
 
     /// Verifies this commitment against one expected restore create context.
-    pub fn verify_restore_strict(
+    pub(crate) fn verify_restore_strict(
         &self,
         expected_context: &TenantRootCeremonyContextV1,
         expected_role: TwoPartyDeriverRole,
@@ -1268,7 +1268,7 @@ where
 }
 
 /// Opens and parses one exact recipient-bound refresh contribution.
-pub fn open_tenant_root_refresh_contribution_v1(
+pub(crate) fn open_tenant_root_refresh_contribution_v1(
     aad: &TenantRootRefreshContributionAadV1,
     envelope: &TenantRootEncryptedRefreshContributionV1,
     recipient: &TenantRootRefreshHpkeKeypairV1,

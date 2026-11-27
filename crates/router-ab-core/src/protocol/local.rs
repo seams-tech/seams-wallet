@@ -105,13 +105,13 @@ impl LocalServiceRoleV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalRouterEndpointV1 {
     /// Public URL clients use in local simulation.
-    pub public_url: String,
+    pub(crate) public_url: String,
     /// Private Deriver A URL.
     pub deriver_a_url: String,
     /// Private Deriver B URL.
     pub deriver_b_url: String,
     /// Private SigningWorker URL.
-    pub signing_worker_url: String,
+    pub(crate) signing_worker_url: String,
 }
 
 impl LocalRouterEndpointV1 {
@@ -145,7 +145,7 @@ impl LocalRouterEndpointV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalDeriverAEndpointV1 {
     /// Private Deriver A URL.
-    pub private_url: String,
+    pub(crate) private_url: String,
     /// Private Deriver B URL used for A/B coordination.
     pub deriver_b_url: String,
 }
@@ -175,7 +175,7 @@ impl LocalDeriverAEndpointV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalDeriverBEndpointV1 {
     /// Private Deriver B URL.
-    pub private_url: String,
+    pub(crate) private_url: String,
     /// Private Deriver A URL used for A/B coordination.
     pub deriver_a_url: String,
 }
@@ -205,7 +205,7 @@ impl LocalDeriverBEndpointV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalSigningWorkerEndpointV1 {
     /// Private SigningWorker URL.
-    pub private_url: String,
+    pub(crate) private_url: String,
     /// Local storage binding name for server output activation.
     pub server_output_storage: String,
 }
@@ -262,7 +262,7 @@ pub struct LocalEnvSnapshotV1 {
     /// Service role the bindings belong to.
     pub role: LocalServiceRoleV1,
     /// Binding names visible to the service.
-    pub binding_keys: Vec<String>,
+    pub(crate) binding_keys: Vec<String>,
 }
 
 impl LocalEnvSnapshotV1 {
@@ -342,9 +342,9 @@ pub struct LocalSealedRootShareRecordV1 {
     /// Local storage key for the sealed share blob.
     pub sealed_share_storage_key: String,
     /// Public commitment digest to the sealed share blob.
-    pub sealed_share_commitment: PublicDigest32,
+    pub(crate) sealed_share_commitment: PublicDigest32,
     /// Sealed share blob length.
-    pub sealed_share_len: u32,
+    pub(crate) sealed_share_len: u32,
 }
 
 impl LocalSealedRootShareRecordV1 {
@@ -389,7 +389,7 @@ impl LocalSealedRootShareRecordV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalPersistenceSeedV1 {
     /// Root metadata row.
-    pub root_metadata: LocalSigningRootMetadataV1,
+    pub(crate) root_metadata: LocalSigningRootMetadataV1,
     /// Signer A sealed-share row.
     pub deriver_a_share: LocalSealedRootShareRecordV1,
     /// Signer B sealed-share row.

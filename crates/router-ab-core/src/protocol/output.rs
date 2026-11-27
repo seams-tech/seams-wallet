@@ -3,8 +3,8 @@ use crate::derivation::{
     combine_mpc_prf_stable_proof_bundles_with_threshold_backend_v2, MpcPrfPartialProofBundleV1,
     MpcPrfStablePurposeBindingPlanV2, MpcPrfStableThresholdCombineInputV2,
     MpcPrfStableThresholdCombinedOutputV2, MpcPrfThresholdCombineInputV1,
-    MpcPrfThresholdCombinedOutputV1, MpcPrfThresholdSignerBatchOutputV1, OpenedShareKind,
-    PublicDigest32, Role, RouterAbDerivationError, SecretMaterial32,
+    MpcPrfThresholdCombinedOutputV1, OpenedShareKind, PublicDigest32, Role,
+    RouterAbDerivationError, SecretMaterial32,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -33,7 +33,7 @@ const RECIPIENT_PROOF_BUNDLE_CIPHERTEXT_AAD_VERSION_V1: &[u8] =
     b"router-ab-protocol/recipient-proof-bundle-ciphertext-aad/v1";
 const FIXED_ECDSA_DERIVATION_SUITE_V1: &[u8] = b"threshold-prf/ristretto255-sha512";
 /// Nonce length used by the recipient-output AEAD envelope.
-pub const RECIPIENT_OUTPUT_CIPHERTEXT_NONCE_LEN_V1: usize = 12;
+pub(crate) const RECIPIENT_OUTPUT_CIPHERTEXT_NONCE_LEN_V1: usize = 12;
 
 /// Recipient-output encryption algorithm identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -453,20 +453,6 @@ pub trait RecipientProofBundleEncryptorV1 {
         &mut self,
         request: RecipientProofBundleEncryptionRequestV1,
     ) -> RouterAbProtocolResult<RecipientProofBundleCiphertextV1>;
-}
-
-/// Converts a validated A/B proof-batch payload into an ECDSA threshold-PRF batch output.
-pub fn mpc_prf_batch_output_from_ab_proof_batch_v1(
-    proof_batch: EcdsaThresholdPrfProofBatchPayloadV1,
-) -> RouterAbProtocolResult<MpcPrfThresholdSignerBatchOutputV1> {
-    proof_batch.validate()?;
-    Ok(MpcPrfThresholdSignerBatchOutputV1 {
-        transcript_digest: proof_batch.transcript_digest,
-        signer_role: proof_batch.from.role,
-        signer_identity: proof_batch.from.signer_id,
-        root_share_epoch: proof_batch.root_share_epoch,
-        proof_bundles: proof_batch.proof_bundles,
-    })
 }
 
 /// Returns a proof-batch view containing only one recipient output binding.
@@ -900,7 +886,7 @@ fn single_proof_bundle_v1(
 }
 
 /// Encodes a recipient output ciphertext envelope with fixed field order.
-pub fn encode_recipient_output_ciphertext_v1(
+pub(crate) fn encode_recipient_output_ciphertext_v1(
     envelope: &RecipientOutputCiphertextV1,
 ) -> RouterAbProtocolResult<Vec<u8>> {
     envelope.validate()?;
@@ -977,7 +963,7 @@ pub fn encode_recipient_proof_bundle_ciphertext_aad_v1(
 }
 
 /// Computes the public digest of recipient proof-bundle ciphertext canonical bytes.
-pub fn recipient_proof_bundle_ciphertext_digest_v1(
+pub(crate) fn recipient_proof_bundle_ciphertext_digest_v1(
     envelope: &RecipientProofBundleCiphertextV1,
 ) -> RouterAbProtocolResult<PublicDigest32> {
     let digest = Sha256::digest(encode_recipient_proof_bundle_ciphertext_v1(envelope)?);

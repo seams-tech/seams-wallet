@@ -39,19 +39,19 @@ pub struct SignerInputPlaintextV1 {
     /// Signer-set id.
     pub signer_set_id: String,
     /// V1 quorum policy.
-    pub quorum_policy: SignerInputQuorumPolicyV1,
+    pub(crate) quorum_policy: SignerInputQuorumPolicyV1,
     /// Recipient signer role.
     pub recipient_role: Role,
     /// Recipient signer identity.
     pub recipient_signer_id: String,
     /// Recipient signer key epoch.
-    pub recipient_key_epoch: String,
+    pub(crate) recipient_key_epoch: String,
     /// Signer-local root-share epoch.
     pub root_share_epoch: RootShareEpoch,
     /// Selected server identity.
     pub selected_server_id: String,
     /// Selected server key epoch.
-    pub selected_server_key_epoch: String,
+    pub(crate) selected_server_key_epoch: String,
     /// Public transcript digest.
     pub transcript_digest: PublicDigest32,
     /// Router public request digest.
@@ -150,7 +150,7 @@ impl SignerInputPlaintextV1 {
 }
 
 /// Encodes signer-input plaintext with fixed field order.
-pub fn encode_signer_input_plaintext_v1(
+pub(crate) fn encode_signer_input_plaintext_v1(
     plaintext: &SignerInputPlaintextV1,
 ) -> RouterAbDerivationResult<Vec<u8>> {
     plaintext.validate()?;

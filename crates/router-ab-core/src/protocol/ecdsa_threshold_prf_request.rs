@@ -255,7 +255,7 @@ impl EcdsaThresholdPrfRequestV1 {
     }
 
     /// Rejects requests whose transcript digest does not match public pre-envelope context.
-    pub fn require_transcript_digest(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn require_transcript_digest(&self) -> RouterAbProtocolResult<()> {
         let expected = self.derivation_transcript_digest()?;
         if self.transcript_digest == expected {
             return Ok(());

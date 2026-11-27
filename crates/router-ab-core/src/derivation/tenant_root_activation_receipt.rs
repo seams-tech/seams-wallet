@@ -44,10 +44,10 @@ pub const TENANT_ROOT_INITIAL_CREATION_ACTIVATION_EXPECTED_REVISION_V1: u64 = 2;
 pub const TENANT_ROOT_INITIAL_CREATION_ACTIVATION_RESULT_REVISION_V1: u64 = 3;
 
 /// Exact operation label for an initial-creation activation receipt.
-pub const TENANT_ROOT_ACTIVATION_INITIAL_CREATION_OPERATION_V1: &str = "initial_creation";
+pub(crate) const TENANT_ROOT_ACTIVATION_INITIAL_CREATION_OPERATION_V1: &str = "initial_creation";
 
 /// Exact operation label for a refresh-swap activation receipt.
-pub const TENANT_ROOT_ACTIVATION_REFRESH_SWAP_OPERATION_V1: &str = "refresh_swap";
+pub(crate) const TENANT_ROOT_ACTIVATION_REFRESH_SWAP_OPERATION_V1: &str = "refresh_swap";
 
 /// Maximum canonical wire size for one signed activation receipt.
 pub const TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1: usize = 16 * 1024;
@@ -288,7 +288,7 @@ pub struct TenantRootInitialCreationActivationReceiptBindingV1 {
 
 impl TenantRootInitialCreationActivationReceiptBindingV1 {
     /// Builds the exact initial-creation binding from verified activation evidence.
-    pub fn from_verified_bundle(
+    pub(crate) fn from_verified_bundle(
         bundle: &VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
         activated_at_ms: u64,
         authority_id: TenantRootControlPlaneAuthorityIdV1,
@@ -393,7 +393,7 @@ pub struct TenantRootRefreshSwapActivationReceiptBindingV1 {
 
 impl TenantRootRefreshSwapActivationReceiptBindingV1 {
     /// Builds the exact refresh-swap binding from verified activation evidence.
-    pub fn from_verified_bundle(
+    pub(crate) fn from_verified_bundle(
         bundle: &VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1,
         activated_at_ms: u64,
         authority_id: TenantRootControlPlaneAuthorityIdV1,

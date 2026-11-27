@@ -247,7 +247,7 @@ impl TenantRootRecoveryReshareContextV1 {
     }
 
     /// Returns one role's final recovery-package recipient fingerprint.
-    pub fn recovery_recipient_fingerprint(
+    pub(crate) fn recovery_recipient_fingerprint(
         &self,
         role: TwoPartyDeriverRole,
     ) -> TenantRootRecoveryRecipientFingerprintV1 {

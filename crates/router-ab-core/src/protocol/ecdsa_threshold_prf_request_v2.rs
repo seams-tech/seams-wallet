@@ -13,7 +13,7 @@ use crate::protocol::error::{
 /// Fixed version for the stable tenant-root ECDSA request boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum EcdsaThresholdPrfRequestVersionV2 {
+pub(crate) enum EcdsaThresholdPrfRequestVersionV2 {
     /// The stable tenant-root request shape.
     V2,
 }

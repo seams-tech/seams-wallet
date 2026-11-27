@@ -38,7 +38,7 @@ const ACCEPTED_LOSS_WIRE: &TenantRootWireMessagesV1 = &naming_fields(tenant_root
 pub const TENANT_ROOT_PROVIDER_CANARY_RECEIPT_MAX_BYTES_V1: usize = 16 * 1024;
 
 /// Maximum canonical wire size for one accepted-loss authorization.
-pub const TENANT_ROOT_ACCEPTED_PERMANENT_LOSS_AUTHORIZATION_MAX_BYTES_V1: usize = 16 * 1024;
+pub(crate) const TENANT_ROOT_ACCEPTED_PERMANENT_LOSS_AUTHORIZATION_MAX_BYTES_V1: usize = 16 * 1024;
 
 /// The two public curve families whose activation canaries are supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -697,12 +697,12 @@ impl TenantRootAcceptedPermanentLossAuthorizationBindingV1 {
     }
 
     /// Returns the first approving key identifier.
-    pub fn first_signing_key_id(&self) -> &str {
+    pub(crate) fn first_signing_key_id(&self) -> &str {
         &self.first_signing_key_id
     }
 
     /// Returns the second approving key identifier.
-    pub fn second_signing_key_id(&self) -> &str {
+    pub(crate) fn second_signing_key_id(&self) -> &str {
         &self.second_signing_key_id
     }
 

@@ -506,7 +506,7 @@ impl ActiveTenantRootEpochV1 {
 /// Signed pre-activation creation failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TenantRootCreationFailureV1 {
+pub(crate) struct TenantRootCreationFailureV1 {
     digest: TenantRootLifecycleReceiptDigestV1,
     failed_at_ms: u64,
 }
@@ -537,7 +537,7 @@ impl TenantRootPendingCleanupReceiptV1 {
     }
 
     /// Returns the cleanup completion time.
-    pub const fn cleaned_at_ms(&self) -> u64 {
+    pub(crate) const fn cleaned_at_ms(&self) -> u64 {
         self.cleaned_at_ms
     }
 }
@@ -917,7 +917,7 @@ impl TenantRootRefreshFailureV1 {
     }
 
     /// Returns the failure time.
-    pub const fn failed_at_ms(&self) -> u64 {
+    pub(crate) const fn failed_at_ms(&self) -> u64 {
         self.failed_at_ms
     }
 }
@@ -956,7 +956,7 @@ impl TenantRootRoleRetirementReceiptsV1 {
 /// Previous active epoch awaiting destruction after a forward activation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RetiringTenantRootEpochV1 {
+pub(crate) struct RetiringTenantRootEpochV1 {
     active: ActiveTenantRootEpochV1,
     retirement_started_at_ms: u64,
 }
@@ -1497,7 +1497,7 @@ impl TenantRootFailedBeforeActivationRefreshV1 {
 /// Blocked refresh branch after incomplete pending cleanup; the old epoch stays active.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TenantRootCleanupIncompleteRefreshV1 {
+pub(crate) struct TenantRootCleanupIncompleteRefreshV1 {
     identity: TenantRootIdentityV1,
     custody_lineage: TenantRootCustodyLineageId,
     current: ActiveTenantRootEpochV1,

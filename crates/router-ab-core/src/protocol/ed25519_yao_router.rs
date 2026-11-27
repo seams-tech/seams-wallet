@@ -11,13 +11,13 @@ use crate::protocol::error::{
 };
 
 /// Stable protocol identity bound into every Ed25519 Yao ceremony digest.
-pub const ED25519_YAO_PROTOCOL_ID_V1: &str = "router_ab_ed25519_yao_v1";
+pub(crate) const ED25519_YAO_PROTOCOL_ID_V1: &str = "router_ab_ed25519_yao_v1";
 /// Activation circuit identity bound into Ed25519 Yao ceremony digests.
-pub const ED25519_YAO_ACTIVATION_CIRCUIT_ID_V1: &str = "ed25519_yao_activation_v1";
+pub(crate) const ED25519_YAO_ACTIVATION_CIRCUIT_ID_V1: &str = "ed25519_yao_activation_v1";
 /// Export circuit identity bound into Ed25519 Yao ceremony digests.
-pub const ED25519_YAO_EXPORT_CIRCUIT_ID_V1: &str = "ed25519_yao_export_v1";
+pub(crate) const ED25519_YAO_EXPORT_CIRCUIT_ID_V1: &str = "ed25519_yao_export_v1";
 /// Lane-materialization circuit identity bound into lane digests.
-pub const ED25519_YAO_LANE_MATERIALIZATION_CIRCUIT_ID_V1: &str =
+pub(crate) const ED25519_YAO_LANE_MATERIALIZATION_CIRCUIT_ID_V1: &str =
     "ed25519_yao_lane_materialization_v1";
 
 const INPUT_DIGEST_DOMAIN_V1: &[u8] = b"router-ab-ed25519-yao/input/v1";
@@ -698,10 +698,22 @@ impl<'de> Deserialize<'de> for RouterEd25519YaoGatewayExecuteTargetV2 {
 impl RouterEd25519YaoGatewayExecuteTargetV2 {
     pub const fn ownership_generation(&self) -> u64 {
         match self {
-            Self::Registration { ownership_generation, .. }
-            | Self::Recovery { ownership_generation, .. }
-            | Self::Export { ownership_generation, .. }
-            | Self::Reissue { ownership_generation, .. } => *ownership_generation,
+            Self::Registration {
+                ownership_generation,
+                ..
+            }
+            | Self::Recovery {
+                ownership_generation,
+                ..
+            }
+            | Self::Export {
+                ownership_generation,
+                ..
+            }
+            | Self::Reissue {
+                ownership_generation,
+                ..
+            } => *ownership_generation,
         }
     }
 
@@ -1468,24 +1480,6 @@ pub fn ed25519_yao_recipient_set_digest_v1(
         bytes.extend_from_slice(&key);
     }
     Ok(digest_bytes(&bytes))
-}
-
-/// Computes the canonical digest from an already validated pair of inputs.
-pub fn ed25519_yao_input_pair_digest_v1(
-    ceremony: &Ed25519YaoCeremonyIdentityV1,
-    deriver_a_input: &Ed25519YaoEncryptedInputV1,
-    deriver_b_input: &Ed25519YaoEncryptedInputV1,
-    recipient_set_digest: PublicDigest32,
-    authorization_digest: PublicDigest32,
-) -> RouterAbProtocolResult<PublicDigest32> {
-    let binding = Ed25519YaoInputPairBindingV1::from_inputs(
-        ceremony.clone(),
-        deriver_a_input,
-        deriver_b_input,
-        recipient_set_digest,
-        authorization_digest,
-    )?;
-    Ok(binding.pair_digest())
 }
 
 fn validate_input_for_ceremony(

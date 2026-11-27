@@ -35,7 +35,9 @@ pub enum MpcPrfOutputPurposeV1 {
 
 impl MpcPrfOutputPurposeV1 {
     /// Derives the purpose from an already validated output request.
-    pub fn from_output_request(request: &MpcPrfOutputRequestV1) -> RouterAbDerivationResult<Self> {
+    pub(crate) fn from_output_request(
+        request: &MpcPrfOutputRequestV1,
+    ) -> RouterAbDerivationResult<Self> {
         request.validate()?;
         match request.opened_share_kind {
             OpenedShareKind::XClientBase => Ok(Self::RouterAbXClientBase),

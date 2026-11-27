@@ -24,7 +24,7 @@ impl QuorumPolicy {
     }
 
     /// Returns the canonical policy string.
-    pub fn as_canonical_string(&self) -> String {
+    pub(crate) fn as_canonical_string(&self) -> String {
         match self {
             Self::All { signer_count } => format!("all({signer_count})"),
         }
@@ -73,7 +73,7 @@ impl IndexedSignerBinding {
     }
 
     /// Stable signer index inside the signer set.
-    pub fn signer_index(&self) -> u16 {
+    pub(crate) fn signer_index(&self) -> u16 {
         self.signer_index
     }
 
@@ -172,7 +172,7 @@ impl SignerSetBinding {
     }
 
     /// Quorum policy.
-    pub fn quorum_policy(&self) -> &QuorumPolicy {
+    pub(crate) fn quorum_policy(&self) -> &QuorumPolicy {
         &self.quorum_policy
     }
 
@@ -182,7 +182,7 @@ impl SignerSetBinding {
     }
 
     /// Validates the v1 strict all(2) signer-set shape.
-    pub fn validate_v1_all2(&self) -> RouterAbDerivationResult<()> {
+    pub(crate) fn validate_v1_all2(&self) -> RouterAbDerivationResult<()> {
         require_non_empty("signer_set_id", &self.signer_set_id)?;
         self.quorum_policy.validate_v1_all2()?;
 
@@ -223,7 +223,7 @@ impl SignerSetBinding {
     }
 
     /// Returns the signer entry for a role.
-    pub fn signer_for_role(&self, role: Role) -> Option<&IndexedSignerBinding> {
+    pub(crate) fn signer_for_role(&self, role: Role) -> Option<&IndexedSignerBinding> {
         self.signers.iter().find(|signer| signer.role() == role)
     }
 }

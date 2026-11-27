@@ -36,7 +36,8 @@ const CLEANUP_GRANT_WIRE: TenantRootRestoreGrantWireV1 = TenantRootRestoreGrantW
 };
 
 /// Exact operation authenticated by a pre-activation restore cleanup grant.
-pub const TENANT_ROOT_RESTORE_CLEANUP_GRANT_OPERATION_V1: &str = "tenant_root_restore_cleanup_v1";
+pub(crate) const TENANT_ROOT_RESTORE_CLEANUP_GRANT_OPERATION_V1: &str =
+    "tenant_root_restore_cleanup_v1";
 
 /// Maximum lifetime accepted for one cleanup grant.
 pub const TENANT_ROOT_RESTORE_CLEANUP_GRANT_MAX_LIFETIME_MS_V1: u64 =

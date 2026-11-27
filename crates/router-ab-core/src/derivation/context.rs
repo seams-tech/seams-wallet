@@ -176,7 +176,7 @@ impl DerivationContext {
     }
 
     /// Account scope.
-    pub fn account_scope(&self) -> &AccountScope {
+    pub(crate) fn account_scope(&self) -> &AccountScope {
         &self.account_scope
     }
 
@@ -199,7 +199,7 @@ impl DerivationContext {
     }
 
     /// Encodes the context with explicit domain tags and length prefixes.
-    pub fn encode_context_v1(&self) -> RouterAbDerivationResult<Vec<u8>> {
+    pub(crate) fn encode_context_v1(&self) -> RouterAbDerivationResult<Vec<u8>> {
         self.validate()?;
 
         let mut out = Vec::new();

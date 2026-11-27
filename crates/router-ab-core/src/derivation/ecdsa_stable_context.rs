@@ -29,7 +29,9 @@ impl StableTenantDerivationContextV2 {
     }
 
     /// Parses the canonical unpadded base64url application-binding digest.
-    pub fn from_application_binding_digest_b64u(value: &str) -> RouterAbDerivationResult<Self> {
+    pub(crate) fn from_application_binding_digest_b64u(
+        value: &str,
+    ) -> RouterAbDerivationResult<Self> {
         let mut bytes = [0_u8; 32];
         let decoded = Base64UrlUnpadded::decode(value, &mut bytes).map_err(|_| {
             malformed("stable tenant derivation context digest is invalid base64url")

@@ -56,14 +56,14 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use sha2::{Digest, Sha256};
 
 /// Wire vector fixture version.
-pub const WIRE_VECTOR_FIXTURE_VERSION_V1: &str = "router_ab_core_wire_vectors_v1";
+pub(crate) const WIRE_VECTOR_FIXTURE_VERSION_V1: &str = "router_ab_core_wire_vectors_v1";
 /// Payload vector fixture version.
-pub const PAYLOAD_VECTOR_FIXTURE_VERSION_V1: &str = "router_ab_core_payload_vectors_v1";
+pub(crate) const PAYLOAD_VECTOR_FIXTURE_VERSION_V1: &str = "router_ab_core_payload_vectors_v1";
 /// Normal-signing v2 vector fixture version.
-pub const NORMAL_SIGNING_VECTOR_FIXTURE_VERSION_V2: &str =
+pub(crate) const NORMAL_SIGNING_VECTOR_FIXTURE_VERSION_V2: &str =
     "router_ab_core_normal_signing_vectors_v2";
 /// Cross-language Ed25519-Yao pair-digest fixture version.
-pub const ED25519_YAO_PAIR_DIGEST_VECTOR_FIXTURE_VERSION_V1: &str =
+pub(crate) const ED25519_YAO_PAIR_DIGEST_VECTOR_FIXTURE_VERSION_V1: &str =
     "router_ab_core_ed25519_yao_pair_digest_vectors_v1";
 
 /// One canonical wire-message vector case.
@@ -122,17 +122,17 @@ pub struct NormalSigningVectorCaseV2 {
     /// Stable vector case id.
     pub case_id: String,
     /// Branch-specific SDK builder input encoded as JSON.
-    pub builder_args_json: Value,
+    pub(crate) builder_args_json: Value,
     /// Typed prepare request encoded as Router wire JSON.
-    pub prepare_request_json: Value,
+    pub(crate) prepare_request_json: Value,
     /// Canonical typed-intent digest as unpadded base64url.
     pub intent_digest_b64u: String,
     /// Canonical typed signing-payload digest as unpadded base64url.
-    pub signing_payload_digest_b64u: String,
+    pub(crate) signing_payload_digest_b64u: String,
     /// Exact admitted Ed25519 signing digest as unpadded base64url.
-    pub admitted_signing_digest_b64u: String,
+    pub(crate) admitted_signing_digest_b64u: String,
     /// Round-1 binding digest as unpadded base64url.
-    pub round1_binding_digest_b64u: String,
+    pub(crate) round1_binding_digest_b64u: String,
 }
 
 /// Committed Router A/B Ed25519 normal-signing v2 vector fixture.
@@ -163,7 +163,7 @@ pub struct Ed25519YaoPairDigestVectorFixtureV1 {
 }
 
 /// Returns the generated v1 wire-vector fixture.
-pub fn generated_wire_vector_fixture_v1() -> WireVectorFixtureV1 {
+pub(crate) fn generated_wire_vector_fixture_v1() -> WireVectorFixtureV1 {
     let cases = [
         (
             WireMessageKindV1::RouterToSignerA,
@@ -197,7 +197,7 @@ pub fn generated_wire_vector_fixture_json_v1() -> String {
 }
 
 /// Returns the generated v1 payload-vector fixture.
-pub fn generated_payload_vector_fixture_v1() -> PayloadVectorFixtureV1 {
+pub(crate) fn generated_payload_vector_fixture_v1() -> PayloadVectorFixtureV1 {
     let cases = [
         payload_vector_case(
             "router_to_signer_a_payload",
@@ -225,7 +225,7 @@ pub fn generated_payload_vector_fixture_json_v1() -> String {
 }
 
 /// Returns the generated normal-signing v2 vector fixture.
-pub fn generated_normal_signing_vector_fixture_v2() -> NormalSigningVectorFixtureV2 {
+pub(crate) fn generated_normal_signing_vector_fixture_v2() -> NormalSigningVectorFixtureV2 {
     NormalSigningVectorFixtureV2 {
         version: NORMAL_SIGNING_VECTOR_FIXTURE_VERSION_V2.to_owned(),
         cases: vec![
@@ -243,8 +243,8 @@ pub fn generated_normal_signing_vector_fixture_json_v2() -> String {
 }
 
 /// Returns the generated cross-language Ed25519-Yao pair-digest fixture.
-pub fn generated_ed25519_yao_pair_digest_vector_fixture_v1() -> Ed25519YaoPairDigestVectorFixtureV1
-{
+pub(crate) fn generated_ed25519_yao_pair_digest_vector_fixture_v1(
+) -> Ed25519YaoPairDigestVectorFixtureV1 {
     let registration = pair_digest_vector_case(
         "registration_v1",
         Ed25519YaoOperationV1::Registration,

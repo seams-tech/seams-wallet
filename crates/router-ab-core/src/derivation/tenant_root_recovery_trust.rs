@@ -53,7 +53,7 @@ const TENANT_ROOT_RECOVERY_REVOCATION_SNAPSHOT_DOMAIN_V1: &[u8] =
     b"seams/tenant-root-recovery-revocation-snapshot/v1";
 
 /// Maximum encoded bytes accepted for one signer certificate.
-pub const TENANT_ROOT_RECOVERY_SIGNER_CERTIFICATE_MAX_BYTES: usize = 2 * 1024;
+pub(crate) const TENANT_ROOT_RECOVERY_SIGNER_CERTIFICATE_MAX_BYTES: usize = 2 * 1024;
 /// Maximum encoded bytes accepted for one pinned trust bundle.
 pub const TENANT_ROOT_RECOVERY_TRUST_BUNDLE_MAX_BYTES: usize = 64 * 1024;
 /// Maximum encoded bytes accepted for one signed revocation snapshot.
@@ -64,7 +64,7 @@ pub const TENANT_ROOT_RECOVERY_REVOCATION_SNAPSHOT_MAX_BYTES: usize = 64 * 1024;
 /// A chain is exactly one certificate issued directly by a pinned recovery
 /// root. Intermediates are a future additive change: admitting them now would
 /// let an artifact widen its own trust path.
-pub const TENANT_ROOT_RECOVERY_SIGNER_CHAIN_LEN_V1: usize = 1;
+pub(crate) const TENANT_ROOT_RECOVERY_SIGNER_CHAIN_LEN_V1: usize = 1;
 
 const TENANT_ROOT_RECOVERY_TRUST_MAX_HISTORICAL_ROOTS_V1: usize = 32;
 const TENANT_ROOT_RECOVERY_TRUST_MAX_BRIDGES_V1: usize = 64;
@@ -580,7 +580,7 @@ impl TenantRootRecoveryTrustBundleV1 {
     }
 
     /// Returns the pinned root that may issue certificates under this key id.
-    pub fn issuing_root(
+    pub(crate) fn issuing_root(
         &self,
         key_id: &str,
     ) -> RouterAbDerivationResult<&TenantRootRecoveryTrustRootV1> {
@@ -775,7 +775,7 @@ fn bridge_from_wire(
 /// The two branches carry different security meaning and must not be collapsed:
 /// retirement is routine key hygiene, compromise invalidates history.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TenantRootRecoveryRevocationKindV1 {
+pub(crate) enum TenantRootRecoveryRevocationKindV1 {
     /// Ordinary retirement. Artifacts signed inside the certificate interval stay valid.
     Retired,
     /// Compromise. Artifacts created before `invalid_before` are explicitly invalid.
@@ -1142,7 +1142,7 @@ impl fmt::Display for TenantRootRecoveryTrustLevelV1 {
 
 /// One recovery signer verified against pinned roots at an artifact's creation time.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VerifiedTenantRootRecoverySignerV1 {
+pub(crate) struct VerifiedTenantRootRecoverySignerV1 {
     role: TenantRootRecoverySignerRoleV1,
     key_id: String,
     verifying_key: [u8; 32],
@@ -1193,7 +1193,7 @@ impl TenantRootRecoveryManifestTrustV1 {
 /// The chain must authorize the exact expected role, and (when the artifact
 /// names one) the exact expected signer key id. Without that binding, chain
 /// verification would prove nothing about the key that actually signed.
-pub fn verify_tenant_root_recovery_signer_chain_v1(
+pub(crate) fn verify_tenant_root_recovery_signer_chain_v1(
     bundle: &TenantRootRecoveryTrustBundleV1,
     evidence: &TenantRootRecoveryTrustEvidenceV1<'_>,
     chain: &[String],

@@ -1215,17 +1215,17 @@ impl TenantRootRecoveryManifestV1 {
     }
 
     /// Returns the public A signer certificate chain without treating it as a trust root.
-    pub fn deriver_a_signer_certificate_chain(&self) -> &[String] {
+    pub(crate) fn deriver_a_signer_certificate_chain(&self) -> &[String] {
         &self.deriver_a_signer_certificate_chain
     }
 
     /// Returns the public B signer certificate chain without treating it as a trust root.
-    pub fn deriver_b_signer_certificate_chain(&self) -> &[String] {
+    pub(crate) fn deriver_b_signer_certificate_chain(&self) -> &[String] {
         &self.deriver_b_signer_certificate_chain
     }
 
     /// Returns the public control-plane signer certificate chain without treating it as a trust root.
-    pub fn control_plane_signer_certificate_chain(&self) -> &[String] {
+    pub(crate) fn control_plane_signer_certificate_chain(&self) -> &[String] {
         &self.control_plane_signer_certificate_chain
     }
 

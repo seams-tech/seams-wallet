@@ -34,7 +34,7 @@ use crate::derivation::{
 use crate::protocol::EcdsaThresholdPrfPrivateRequestV2;
 
 /// Router/A/B signing-root share wire length for the threshold-prf backend.
-pub const MPC_PRF_SIGNING_ROOT_SHARE_WIRE_V1_LEN: usize = 34;
+pub(crate) const MPC_PRF_SIGNING_ROOT_SHARE_WIRE_V1_LEN: usize = 34;
 
 fn fixed_threshold_policy_v1() -> RouterAbDerivationResult<ThresholdPolicy> {
     ThresholdPolicy::from_u16s(2, 2).map_err(map_threshold_error)

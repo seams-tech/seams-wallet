@@ -28,12 +28,13 @@ const TENANT_ROOT_ROLE_CLEANUP_CEREMONY_OPERATION_V1: &[u8] = b"cleanup_abandone
 const TENANT_ROOT_ROLE_CLEANUP_ISSUER_KEY_ID_MAX_BYTES_V1: usize = 256;
 
 /// Exact pending-cleanup operation authenticated by a cleanup command.
-pub const TENANT_ROOT_ROLE_CLEANUP_COMMAND_OPERATION_V1: &str = "cleanup_pending_share";
+pub(crate) const TENANT_ROOT_ROLE_CLEANUP_COMMAND_OPERATION_V1: &str = "cleanup_pending_share";
 
 /// Exact retired-cleanup operation authenticated by a cleanup command.
-pub const TENANT_ROOT_ROLE_CLEANUP_RETIRED_COMMAND_OPERATION_V1: &str = "cleanup_retired_share";
+pub(crate) const TENANT_ROOT_ROLE_CLEANUP_RETIRED_COMMAND_OPERATION_V1: &str =
+    "cleanup_retired_share";
 /// Operation name for an abandoned ceremony's unrecorded pending share.
-pub const TENANT_ROOT_ROLE_CLEANUP_CEREMONY_COMMAND_OPERATION_V1: &str =
+pub(crate) const TENANT_ROOT_ROLE_CLEANUP_CEREMONY_COMMAND_OPERATION_V1: &str =
     "cleanup_abandoned_ceremony_share";
 
 /// Maximum canonical wire size accepted for one cleanup command.

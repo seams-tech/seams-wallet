@@ -146,7 +146,7 @@ impl RouterAbEcdsaDerivationDeriverEnvelopePlaintextV1 {
     }
 
     /// Builds registration plaintext from the public header before role envelopes are sealed.
-    pub fn registration_for_header(
+    pub(crate) fn registration_for_header(
         header: &RouterAbEcdsaDerivationRegistrationHeaderV1,
         recipient_role: Role,
         aad_digest: PublicDigest32,
@@ -365,7 +365,7 @@ pub struct RouterAbEcdsaDerivationDeriverEnvelopeCommonV1 {
     /// Client or operator identity bound into the transcript.
     pub client_id: String,
     /// Recipient public key slot from the originating public request.
-    pub recipient_ephemeral_public_key: String,
+    pub(crate) recipient_ephemeral_public_key: String,
     /// Digest of the originating public request header before role envelopes are sealed.
     pub request_header_digest: PublicDigest32,
     /// Digest of the associated data used to encrypt the outer role envelope.
@@ -742,7 +742,7 @@ impl RouterAbEcdsaDerivationPublicIdentityV1 {
     }
 
     /// Returns canonical public identity bytes.
-    pub fn canonical_public_identity_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
+    pub(crate) fn canonical_public_identity_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
         self.validate()?;
         let mut out = Vec::new();
         push_len32(
@@ -1550,7 +1550,7 @@ impl RouterAbEcdsaDerivationNormalSigningScopeV1 {
     }
 
     /// Returns canonical normal-signing scope bytes.
-    pub fn canonical_scope_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
+    pub(crate) fn canonical_scope_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
         self.validate()?;
         let mut out = Vec::new();
         push_len32(
@@ -2059,7 +2059,7 @@ impl RouterAbEcdsaDerivationLinkedDeviceNormalSigningScopeV1 {
     }
 
     /// Returns canonical linked-device scope bytes for worker binding.
-    pub fn canonical_scope_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
+    pub(crate) fn canonical_scope_bytes(&self) -> RouterAbProtocolResult<Vec<u8>> {
         self.validate()?;
         let mut out = Vec::new();
         push_len32(
@@ -2399,7 +2399,7 @@ impl RouterAbEcdsaDerivationEvmDigestSigningRequestV1 {
     }
 
     /// Returns the Client contribution commitment admitted by prepare.
-    pub fn client_rerandomization_commitment32(&self) -> RouterAbProtocolResult<[u8; 32]> {
+    pub(crate) fn client_rerandomization_commitment32(&self) -> RouterAbProtocolResult<[u8; 32]> {
         decode_base64url_fixed_32(
             "normal_signing.client_rerandomization_commitment32_b64u",
             &self.client_rerandomization_commitment32_b64u,
@@ -2850,7 +2850,7 @@ impl RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1 {
         )?))
     }
 
-    pub fn client_rerandomization_commitment32(&self) -> RouterAbProtocolResult<[u8; 32]> {
+    pub(crate) fn client_rerandomization_commitment32(&self) -> RouterAbProtocolResult<[u8; 32]> {
         decode_base64url_fixed_32(
             "linked_ecdsa_signing.client_rerandomization_commitment32_b64u",
             &self.client_rerandomization_commitment32_b64u,

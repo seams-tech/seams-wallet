@@ -19,10 +19,10 @@ use crate::protocol::error::{
 pub const ED25519_YAO_OUTER_MAX_LIFETIME_MS_V2: u64 = 300_000;
 
 /// Maximum clock skew accepted for an outer preface binding.
-pub const ED25519_YAO_OUTER_MAX_CLOCK_SKEW_MS_V2: u64 = 60_000;
+pub(crate) const ED25519_YAO_OUTER_MAX_CLOCK_SKEW_MS_V2: u64 = 60_000;
 
 /// Number of bytes in the directional transport nonce.
-pub const ED25519_YAO_OUTER_NONCE_LEN_V2: usize = 16;
+pub(crate) const ED25519_YAO_OUTER_NONCE_LEN_V2: usize = 16;
 
 /// Maximum ciphertext length for one directional target-proof payload.
 pub const ED25519_YAO_OUTER_TARGET_PROOF_MAX_BYTES_V2: usize = 4 * 1024;
@@ -38,7 +38,7 @@ const TARGET_PROOF_AAD_LEN_V2: usize = 139;
 /// Wire version for the role-targeted Ed25519 outer protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Ed25519YaoOuterProtocolVersionV2 {
+pub(crate) enum Ed25519YaoOuterProtocolVersionV2 {
     /// The fixed role-targeted outer protocol.
     V2,
 }
@@ -277,7 +277,7 @@ impl Ed25519YaoDeriverAToBTargetProofPayloadV2 {
     }
 
     /// Validates that this payload belongs to one exact outer binding.
-    pub fn validate_for_binding(
+    pub(crate) fn validate_for_binding(
         &self,
         expected: &Ed25519YaoOuterBindingV2,
     ) -> RouterAbProtocolResult<()> {
@@ -404,7 +404,7 @@ impl Ed25519YaoDeriverBToATargetProofPayloadV2 {
     }
 
     /// Validates that this payload belongs to one exact outer binding.
-    pub fn validate_for_binding(
+    pub(crate) fn validate_for_binding(
         &self,
         expected: &Ed25519YaoOuterBindingV2,
     ) -> RouterAbProtocolResult<()> {

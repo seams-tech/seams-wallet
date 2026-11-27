@@ -68,7 +68,7 @@ impl TenantRootRoleUnavailableReceiptV1 {
     }
 
     /// Returns the observation time.
-    pub const fn unavailable_at_ms(&self) -> u64 {
+    pub(crate) const fn unavailable_at_ms(&self) -> u64 {
         self.unavailable_at_ms
     }
 }
@@ -324,7 +324,7 @@ impl TenantRootManagedRestoreFailureV1 {
     }
 
     /// Returns the failure time.
-    pub const fn failed_at_ms(&self) -> u64 {
+    pub(crate) const fn failed_at_ms(&self) -> u64 {
         self.failed_at_ms
     }
 }
@@ -367,7 +367,7 @@ impl TenantRootManagedRestoreCleanupReceiptV1 {
     }
 
     /// Returns the cleanup completion time.
-    pub const fn cleaned_at_ms(&self) -> u64 {
+    pub(crate) const fn cleaned_at_ms(&self) -> u64 {
         self.cleaned_at_ms
     }
 }
@@ -375,7 +375,7 @@ impl TenantRootManagedRestoreCleanupReceiptV1 {
 /// Evidence that failed restore material may still exist in one role store.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TenantRootManagedRestoreCleanupFailureV1 {
+pub(crate) struct TenantRootManagedRestoreCleanupFailureV1 {
     digest: TenantRootLifecycleReceiptDigestV1,
     role: TenantRootManagedRestoreRoleV1,
     observed_at_ms: u64,
@@ -631,7 +631,7 @@ impl TenantRootManagedRestoreRoleUnavailableV1 {
     }
 
     /// Reconstructs the exact role-unavailable state from authenticated public projections.
-    pub fn from_public_projection(
+    pub(crate) fn from_public_projection(
         active: TenantRootActiveRefreshV1,
         unavailable: TenantRootRoleUnavailableReceiptV1,
         cleanup_fence: TenantRootManagedRestorePriorAttemptCleanupFenceV1,
@@ -709,7 +709,7 @@ impl TenantRootManagedRestoreRoleUnavailableV1 {
     }
 
     /// Validates a capability's immutable state binding before signature use.
-    pub fn validate_capability_for_transport(
+    pub(crate) fn validate_capability_for_transport(
         &self,
         capability: &TenantRootManagedRestoreCapabilityV1,
     ) -> RouterAbDerivationResult<()> {
@@ -855,7 +855,7 @@ impl TenantRootManagedRestoreVerifyingV1 {
 /// Public proof that one restored share and its peer matched the active epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TenantRootManagedRestoreVerificationEvidenceV1 {
+pub(crate) struct TenantRootManagedRestoreVerificationEvidenceV1 {
     role: TenantRootManagedRestoreRoleV1,
     epoch: TenantRootShareEpoch,
     capability_digest: TenantRootLifecycleReceiptDigestV1,
