@@ -21,7 +21,7 @@ use crate::transport::{
 };
 
 /// Maximum response bytes accepted before parsing.
-pub const CONSOLE_RESPONSE_MAX_BYTES_V1: usize = 256 * 1024;
+pub(crate) const CONSOLE_RESPONSE_MAX_BYTES_V1: usize = 256 * 1024;
 
 const STATUS_PATH: &str = "/console/tenant-root/security/status";
 /// The sole rotation mutation. The security routes read; they never rotate.
@@ -631,7 +631,7 @@ fn encode_query_component(value: &str) -> String {
 
 /// One proof-of-control challenge the console issued for a recipient key.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RecipientChallengeV1 {
+pub(crate) struct RecipientChallengeV1 {
     /// The challenge the confirmation must answer.
     pub challenge_id_b64u: String,
     /// The sealed challenge envelope bytes.
@@ -647,7 +647,7 @@ struct RecipientChallengeResponseWire {
 }
 
 /// Opens one proof-of-control challenge for a recipient public key.
-pub fn start_recipient_challenge_v1(
+pub(crate) fn start_recipient_challenge_v1(
     transport: &dyn ConsoleTransportV1,
     endpoint: &ConsoleEndpointV1,
     role: &str,
@@ -688,7 +688,7 @@ struct StagedRecipientWire {
 
 /// One recipient the console staged after its proof of control passed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RecipientEnrolmentV1 {
+pub(crate) struct RecipientEnrolmentV1 {
     /// The role enrolled.
     pub role: String,
     /// The fingerprint the console recorded.
@@ -696,7 +696,7 @@ pub struct RecipientEnrolmentV1 {
 }
 
 /// Submits one proof of control; the console stages the recipient.
-pub fn confirm_recipient_v1(
+pub(crate) fn confirm_recipient_v1(
     transport: &dyn ConsoleTransportV1,
     endpoint: &ConsoleEndpointV1,
     role: &str,
@@ -723,7 +723,7 @@ pub fn confirm_recipient_v1(
 
 /// One downloaded artifact, still ciphertext to this tool.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConsoleArtifactV1 {
+pub(crate) struct ConsoleArtifactV1 {
     /// The artifact bytes exactly as the service sent them.
     pub bytes: Vec<u8>,
     /// The digest the service recorded for this response.
@@ -770,7 +770,7 @@ fn require_role(role: &str) -> Result<(), ConsoleErrorV1> {
 /// One invocation downloads one role. The tool never receives both packages,
 /// and cannot decrypt either: the response is ciphertext for a recovery key
 /// this process may not even hold.
-pub fn download_role_package_v1(
+pub(crate) fn download_role_package_v1(
     transport: &dyn ConsoleTransportV1,
     endpoint: &ConsoleEndpointV1,
     role: &str,
@@ -787,7 +787,7 @@ pub fn download_role_package_v1(
 }
 
 /// Downloads the public recovery manifest, without either role package.
-pub fn download_recovery_manifest_v1(
+pub(crate) fn download_recovery_manifest_v1(
     transport: &dyn ConsoleTransportV1,
     endpoint: &ConsoleEndpointV1,
 ) -> Result<ConsoleArtifactV1, ConsoleErrorV1> {
@@ -802,7 +802,7 @@ pub fn download_recovery_manifest_v1(
 
 /// What one durable-verification report states.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DurableVerificationReportV1 {
+pub(crate) struct DurableVerificationReportV1 {
     /// Which artifact was verified.
     pub artifact: String,
     /// The digest read back from disk.
@@ -816,7 +816,7 @@ pub struct DurableVerificationReportV1 {
 /// This is reported only after the bytes are on disk, reopened, and
 /// re-digested. The service records it as durable verification precisely
 /// because a browser response cannot make the same claim.
-pub fn record_durable_verification_v1(
+pub(crate) fn record_durable_verification_v1(
     transport: &dyn ConsoleTransportV1,
     endpoint: &ConsoleEndpointV1,
     input: &DurableVerificationReportV1,
@@ -1051,7 +1051,7 @@ fn restore_session(
 }
 
 /// Starts one restore session on an empty destination.
-pub fn start_restore_session_v1(
+pub(crate) fn start_restore_session_v1(
     transport: &dyn ConsoleTransportV1,
     destination: &DestinationSessionV1,
 ) -> Result<RestoreSessionReportV1, ConsoleErrorV1> {
@@ -1070,7 +1070,7 @@ pub fn read_restore_status_v1(
 }
 
 /// Registers the public recovery manifest with one restore session.
-pub fn register_restore_manifest_v1(
+pub(crate) fn register_restore_manifest_v1(
     transport: &dyn ConsoleTransportV1,
     destination: &DestinationSessionV1,
     manifest_bytes: &[u8],
@@ -1116,7 +1116,7 @@ pub struct RoleImportKeyV1 {
     /// The destination deployment fingerprint.
     pub destination_fingerprint_b64u: String,
     /// The destination's own custody lineage.
-    pub destination_lineage_b64u: String,
+    pub(crate) destination_lineage_b64u: String,
     /// The restore session this key belongs to.
     pub restore_session_id_b64u: String,
     /// The caller's durable restore operation ID.
@@ -1195,7 +1195,7 @@ struct ImportResponseWire {
 
 /// One accepted role import: the session it advanced and the receipt.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RoleImportReportV1 {
+pub(crate) struct RoleImportReportV1 {
     /// The session after the import.
     pub session: RestoreSessionReportV1,
     /// The installation receipt digest proving the installed share commitment.
@@ -1205,7 +1205,7 @@ pub struct RoleImportReportV1 {
 }
 
 /// Uploads one role's destination-encrypted import envelope.
-pub fn import_role_share_v1(
+pub(crate) fn import_role_share_v1(
     transport: &dyn ConsoleTransportV1,
     destination: &DestinationSessionV1,
     role: &str,
@@ -1235,7 +1235,7 @@ pub fn import_role_share_v1(
 /// The trust result is the one the destination established when the manifest
 /// was registered; this request only says whether the operator accepts
 /// activating on offline verification alone.
-pub fn activate_restored_root_v1(
+pub(crate) fn activate_restored_root_v1(
     transport: &dyn ConsoleTransportV1,
     destination: &DestinationSessionV1,
     acknowledge_offline_trust: bool,

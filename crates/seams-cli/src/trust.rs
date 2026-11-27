@@ -41,7 +41,7 @@ pub fn pinned_recovery_trust_bundle_v1(
 ///
 /// The recovery root is passed so the two can be compared: a build that pins
 /// the same key for both has collapsed the separation the design depends on.
-pub fn pinned_release_root_v1() -> Result<ReleaseTrustRootV1, RecoveryCoreError> {
+pub(crate) fn pinned_release_root_v1() -> Result<ReleaseTrustRootV1, RecoveryCoreError> {
     let bundle = pinned_recovery_trust_bundle_v1()?;
     ReleaseTrustRootV1::from_canonical_json(
         PINNED_RELEASE_ROOT_JSON,
@@ -60,7 +60,7 @@ pub fn pinned_release_root_v1() -> Result<ReleaseTrustRootV1, RecoveryCoreError>
 
 /// The trust bundle one verification will use, and where it came from.
 #[derive(Debug, Clone)]
-pub struct ResolvedTrustBundleV1 {
+pub(crate) struct ResolvedTrustBundleV1 {
     bundle: TenantRootRecoveryTrustBundleV1,
     pinned: bool,
 }
@@ -72,7 +72,7 @@ impl ResolvedTrustBundleV1 {
     }
 
     /// Returns true when the bundle is the one compiled into the binary.
-    pub const fn is_pinned(&self) -> bool {
+    pub(crate) const fn is_pinned(&self) -> bool {
         self.pinned
     }
 }
@@ -82,7 +82,7 @@ impl ResolvedTrustBundleV1 {
 /// With no override the pinned bundle is used. An override is read, parsed,
 /// and accepted only when it continues the pinned root; it is never a way to
 /// verify against a root the host did not supply as its authority.
-pub fn resolve_recovery_trust_bundle_v1(
+pub(crate) fn resolve_recovery_trust_bundle_v1(
     pinned: &TenantRootRecoveryTrustBundleV1,
     override_path: Option<&Path>,
 ) -> Result<ResolvedTrustBundleV1, RecoveryCoreError> {

@@ -112,11 +112,11 @@ pub struct TrustBundleSummaryV1 {
     /// The bundle version.
     pub bundle_version: u64,
     /// The current pinned root key identifier.
-    pub current_root_key_id: String,
+    pub(crate) current_root_key_id: String,
     /// Retained historical root key identifiers.
-    pub historical_root_key_ids: Vec<String>,
+    pub(crate) historical_root_key_ids: Vec<String>,
     /// Number of retained rotation bridges.
-    pub bridge_count: usize,
+    pub(crate) bridge_count: usize,
 }
 
 /// The exhaustive result union.

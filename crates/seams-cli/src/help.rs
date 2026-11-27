@@ -1,7 +1,7 @@
 //! Task overview and command-specific terminal help.
 
 /// Default help for the wallet CLI.
-pub const SEAMS_USAGE_V1: &str = "\
+pub(crate) const SEAMS_USAGE_V1: &str = "\
 Seams Wallet CLI
 
 Usage
