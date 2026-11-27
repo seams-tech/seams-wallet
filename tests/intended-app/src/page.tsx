@@ -32,6 +32,37 @@ import {
 } from '@seams/mpc-wallet/react';
 import { resolveEmailOtpRegistrationSession } from './registrationSession';
 import {
+  INTENDED_ACTIONS,
+  INTENDED_ACTION_NAMES,
+  type ArcEvmSigningResultSummary,
+  type EcdsaAddSignerResultSummary,
+  type EcdsaExportResultSummary,
+  type Ed25519AddSignerResultSummary,
+  type Ed25519ExportResultSummary,
+  type EmailOtpRegistrationCoreSummary,
+  type EmailOtpRegistrationResultSummary,
+  type EmailOtpUnlockCoreSummary,
+  type EmailOtpUnlockResultSummary,
+  type IntendedActionName,
+  type IntendedActionResult,
+  type IntendedActionState,
+  type IntendedDeviceLinkState,
+  type IntendedEcdsaSessionSummary,
+  type IntendedEcdsaSummary,
+  type IntendedEcdsaTargetKeySummary,
+  type IntendedEcdsaTargetKeysSummary,
+  type IntendedEcdsaTargetProfileName,
+  type IntendedEmailOtpCodeRequest,
+  type IntendedEmailOtpRecoveryRotationResult,
+  type IntendedNearProvisioningSummary,
+  type IntendedPageState,
+  type NearSigningResultSummary,
+  type PasskeyRegistrationCoreSummary,
+  type PasskeyRegistrationResultSummary,
+  type PasskeyUnlockResultSummary,
+  type TempoSigningResultSummary,
+} from './intendedContract';
+import {
   probeRecoveryAdministration,
   type RecoveryAdministrationProbe,
 } from './recoveryAdministrationProbe';
@@ -40,35 +71,6 @@ import { ReviewedNearTransfer } from './ReviewedNearTransfer';
 import { ReviewedArcTransfer } from './ReviewedArcTransfer';
 import { IntendedNearSigningHelpers, type IntendedNearSigningContext } from './nearSigningHelpers';
 import { IntendedVoiceIdHelpers } from './voiceIdHelpers';
-
-type IntendedActionName =
-  | 'registerPasskeyWallet'
-  | 'registerPasskeyEd25519YaoWallet'
-  | 'registerPasskeyEcdsaOnlyWallet'
-  | 'addPasskeyEd25519YaoWalletSigner'
-  | 'addPasskeyEcdsaWalletSigner'
-  | 'addEmailOtpAuthMethod'
-  | 'unlockWithAddedEmailOtp'
-  | 'revokeSourceAuthMethod'
-  | 'addPasskeyAuthMethod'
-  | 'registerEmailOtpWallet'
-  | 'registerEmailOtpEd25519OnlyWallet'
-  | 'registerEmailOtpEcdsaOnlyWallet'
-  | 'awaitNearReady'
-  | 'syncPasskeyWallet'
-  | 'recoverPasskeyWallet'
-  | 'recoverGoogleEmailOtpWallet'
-  | 'unlockPasskeyWallet'
-  | 'unlockEmailOtpWallet'
-  | 'signNearTransaction'
-  | 'signTempoTransaction'
-  | 'signArcEvmTransaction'
-  | 'exportEd25519Key'
-  | 'exportEcdsaKey'
-  | 'startDeviceLinkingAsTarget'
-  | 'scanAndLinkDevice'
-  | 'revokeLinkedDevice'
-  | 'revokeLinkedDeviceWithEmailOtp';
 
 type IntendedAuthMethodIdentity = {
   readonly kind: 'passkey' | 'email_otp' | 'voiceid';
@@ -97,50 +99,6 @@ function recordNearBenchmarkDuration(
   );
 }
 
-type IntendedLifecycleEvent = {
-  index: number;
-  payload: unknown;
-};
-
-type IntendedActionIdle = {
-  status: 'idle';
-  action?: never;
-  result?: never;
-  error?: never;
-};
-
-type IntendedActionRunning = {
-  status: 'running';
-  action: IntendedActionName;
-  result?: never;
-  error?: never;
-};
-
-type IntendedEcdsaTargetKeySummary = {
-  chain: 'tempo' | 'arc_evm';
-  chainId: number;
-  thresholdOwnerAddress: string;
-};
-
-type IntendedEcdsaTargetProfileName = 'none' | 'tempo' | 'tempo_arc';
-
-type IntendedEcdsaTargetKeysSummary =
-  | {
-      kind: 'none';
-      tempo?: never;
-      arcEvm?: never;
-    }
-  | {
-      kind: 'tempo';
-      tempo: IntendedEcdsaTargetKeySummary;
-      arcEvm?: never;
-    }
-  | {
-      kind: 'tempo_arc';
-      tempo: IntendedEcdsaTargetKeySummary;
-      arcEvm: IntendedEcdsaTargetKeySummary;
-    };
-
 type IntendedEmailOtpEcdsaTargetProfile =
   | {
       kind: 'none';
@@ -162,370 +120,6 @@ type IntendedPasskeyEcdsaTargetProfile =
   | { kind: 'none' }
   | { kind: 'tempo' }
   | { kind: 'tempo_arc' };
-
-type IntendedEcdsaSessionSummary =
-  | {
-      ecdsaTargetProfile: 'none';
-      thresholdEcdsaEthereumAddress?: never;
-      thresholdEcdsaPublicKeyB64u?: never;
-    }
-  | {
-      ecdsaTargetProfile: 'tempo';
-      thresholdEcdsaEthereumAddress: string;
-      thresholdEcdsaPublicKeyB64u: string;
-    }
-  | {
-      ecdsaTargetProfile: 'tempo_arc';
-      thresholdEcdsaEthereumAddress: string;
-      thresholdEcdsaPublicKeyB64u: string;
-    };
-
-type IntendedEcdsaSummary =
-  | (Extract<IntendedEcdsaSessionSummary, { ecdsaTargetProfile: 'none' }> & {
-      ecdsaTargetKeys: Extract<IntendedEcdsaTargetKeysSummary, { kind: 'none' }>;
-    })
-  | (Extract<IntendedEcdsaSessionSummary, { ecdsaTargetProfile: 'tempo' }> & {
-      ecdsaTargetKeys: Extract<IntendedEcdsaTargetKeysSummary, { kind: 'tempo' }>;
-    })
-  | (Extract<IntendedEcdsaSessionSummary, { ecdsaTargetProfile: 'tempo_arc' }> & {
-      ecdsaTargetKeys: Extract<IntendedEcdsaTargetKeysSummary, { kind: 'tempo_arc' }>;
-    });
-
-type IntendedActionSuccess = {
-  status: 'success';
-  action: IntendedActionName;
-  result: IntendedActionResult;
-  error?: never;
-};
-
-type IntendedActionError = {
-  status: 'error';
-  action: IntendedActionName;
-  error: string;
-  result?: never;
-};
-
-type IntendedActionState =
-  | IntendedActionIdle
-  | IntendedActionRunning
-  | IntendedActionSuccess
-  | IntendedActionError;
-
-/**
- * What a passkey registration can assert at return time depends on whether it
- * had a NEAR branch and whether that branch settled.
- * A NEAR-only plan resolves with its identity; a mixed plan resolves
- * ECDSA-ready with NEAR still provisioning, so no NEAR identifier exists yet.
- * Modelled as a closed union so neither branch can borrow the other's fields.
- */
-/* Three readiness states, discriminated explicitly. 'absent' is a wallet whose
-   signer set never included Ed25519: nothing is coming, unlike 'pending'. It
-   forbids the identity and provisioning fields rather than leaving them
-   optional, so a NEAR-less wallet cannot quietly carry a half-filled identity
-   and no caller has to guess which of the three it holds. */
-type PasskeyRegistrationCoreSummary = (
-  | {
-      kind: 'passkey_registration_success';
-      walletId: string;
-      nearReadiness: 'ready';
-      nearAccountId: string;
-      nearEd25519SigningKeyId: string;
-      operationalPublicKey: string;
-      nearProvisioning?: never;
-    }
-  | {
-      kind: 'passkey_registration_success';
-      walletId: string;
-      nearReadiness: 'pending';
-      nearProvisioning: IntendedNearProvisioningSummary;
-      nearAccountId?: never;
-      nearEd25519SigningKeyId?: never;
-      operationalPublicKey?: never;
-    }
-  | {
-      kind: 'passkey_registration_success';
-      walletId: string;
-      nearReadiness: 'absent';
-      nearAccountId?: never;
-      nearEd25519SigningKeyId?: never;
-      operationalPublicKey?: never;
-      nearProvisioning?: never;
-    }
-) &
-  IntendedEcdsaSessionSummary;
-
-type PasskeyRegistrationResultSummary = PasskeyRegistrationCoreSummary & IntendedEcdsaSummary;
-
-type Ed25519AddSignerResultSummary = {
-  kind: 'wallet_signer_added';
-  walletId: string;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  operationalPublicKey: string;
-};
-
-/** The ECDSA signer an existing wallet gained, with its per-target keys. */
-type EcdsaAddSignerResultSummary = {
-  kind: 'ecdsa_signer_added';
-  walletId: string;
-} & IntendedEcdsaSummary;
-
-type AddEmailOtpAuthMethodResultSummary = {
-  kind: 'add_email_otp_success';
-  walletAuthMethodId: string;
-  walletId: string;
-  emailAddress: string;
-  authMethod: { kind: 'email_otp'; status: 'active' };
-};
-
-type AddPasskeyAuthMethodResultSummary = {
-  kind: 'add_passkey_success';
-  walletId: string;
-  rpId: string;
-  walletAuthMethodId: string;
-  authMethod: { kind: 'passkey'; status: 'active' };
-};
-
-/* Same three readiness states as the passkey summary, for the same reason: an
-   Email OTP wallet can own an ECDSA-only signer set too. */
-type EmailOtpRegistrationCoreSummary = (
-  | {
-      kind: 'email_otp_registration_success';
-      initialWalletId: string;
-      walletId: string;
-      nearReadiness: 'ready';
-      nearAccountId: string;
-      operationalPublicKey: string;
-      nearProvisioning?: never;
-      authenticationKind: 'authenticated';
-    }
-  | {
-      kind: 'email_otp_registration_success';
-      initialWalletId: string;
-      walletId: string;
-      nearReadiness: 'pending';
-      nearProvisioning: IntendedNearProvisioningSummary;
-      nearAccountId?: never;
-      operationalPublicKey?: never;
-      authenticationKind: 'authenticated';
-    }
-  | {
-      kind: 'email_otp_registration_success';
-      initialWalletId: string;
-      walletId: string;
-      nearReadiness: 'absent';
-      nearAccountId?: never;
-      operationalPublicKey?: never;
-      nearProvisioning?: never;
-      authenticationKind: 'authenticated';
-    }
-) &
-  IntendedEcdsaSessionSummary;
-
-type EmailOtpRegistrationResultSummary = EmailOtpRegistrationCoreSummary & IntendedEcdsaSummary;
-
-type NearSigningResultSummary = {
-  kind: 'near_sign_success';
-  walletId: string;
-  nearAccountId: string;
-  signedTransactionB64: string;
-  signedTransactionByteLength: number;
-};
-
-type PasskeyUnlockResultSummary =
-  | {
-      kind: 'passkey_unlock_success';
-      walletId: string;
-      nearIdentity: 'ready';
-      nearAccountId: string;
-      operationalPublicKey: string;
-      /** The exact credential selected by the resolved capability projection. */
-      sessionWalletAuthMethodId: string;
-      authenticationKind: 'authenticated';
-    }
-  | {
-      kind: 'passkey_unlock_success';
-      walletId: string;
-      nearIdentity: 'absent';
-      nearAccountId?: never;
-      operationalPublicKey?: never;
-      /** The exact credential selected by the resolved capability projection. */
-      sessionWalletAuthMethodId: string;
-      authenticationKind: 'authenticated';
-    };
-
-type PasskeySyncResultSummary = {
-  kind: 'passkey_sync_success';
-  walletId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
-};
-
-type EmailOtpUnlockCoreSummary = {
-  kind: 'email_otp_unlock_success';
-  walletId: string;
-  sessionWalletAuthMethodId: string;
-  authenticationKind: 'authenticated';
-} & IntendedEcdsaSessionSummary &
-  (
-    | { nearIdentity: 'ready'; nearAccountId: string; operationalPublicKey: string }
-    | { nearIdentity: 'absent'; nearAccountId?: never; operationalPublicKey?: never }
-  );
-
-type EmailOtpUnlockResultSummary = EmailOtpUnlockCoreSummary & IntendedEcdsaSummary;
-
-/**
- * The Email OTP method just added opened its wallet.
- *
- * The hosted Google flow names the selected wallet and returns through its
- * address-backed Email OTP method. This summary keeps the exact method id so
- * the contract proves the added credential issued the active session.
- */
-type RevokeAuthMethodResultSummary = {
-  kind: 'revoke_auth_method_success';
-  walletId: string;
-  walletAuthMethodId: string;
-};
-
-type AddedEmailOtpUnlockResultSummary = {
-  kind: 'added_email_otp_unlock_success';
-  walletId: string;
-  /** The exact credential selected by the resolved capability projection. */
-  sessionWalletAuthMethodId: string;
-  authenticationKind: 'authenticated';
-};
-
-type TempoSigningResultSummary = {
-  kind: 'tempo_sign_success';
-  walletId: string;
-  chainId: number;
-  senderHashHex: `0x${string}`;
-  rawTxHex: `0x${string}`;
-};
-
-type ArcEvmSigningResultSummary = {
-  kind: 'arc_evm_sign_success';
-  walletId: string;
-  chainId: number;
-  txHashHex: `0x${string}`;
-  rawTxHex: `0x${string}`;
-};
-
-type EcdsaExportResultSummary = {
-  kind: 'ecdsa_export_success';
-  walletId: string;
-  chainId: number;
-};
-
-type Ed25519ExportResultSummary = {
-  kind: 'ed25519_export_success';
-  walletId: string;
-  nearAccountId: string;
-};
-
-type NearProvisioningReadySummary = {
-  kind: 'near_provisioning_ready';
-  walletId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
-};
-
-type PasskeyRecoveryResultSummary = {
-  kind: 'passkey_recovery_success';
-  walletId: string;
-  activeRecoveryCodeCount: number;
-  totalRecoveryCodeCount: number;
-};
-
-type GoogleEmailOtpRecoveryResultSummary = {
-  kind: 'google_email_otp_recovery_success';
-  walletId: string;
-  activeRecoveryCodeCount: number;
-  totalRecoveryCodeCount: number;
-};
-
-/**
- * Device 2 is showing its link QR. The payload is what Device 1 scans; the
- * flow keeps running on this page until the link activates or fails.
- */
-type DeviceLinkQrReadySummary = {
-  kind: 'device_link_qr_ready';
-  linkSessionId: string;
-  qrPayloadJson: string;
-};
-
-/** Device 1 approved the scanned device and recorded its source contribution. */
-type DeviceLinkApprovalRecordedSummary = {
-  kind: 'device_link_approval_recorded';
-  walletId: string;
-  enrollmentId: string;
-  deviceId: string;
-};
-
-/**
- * Device 2's side of a link, which outlives the action that showed the QR.
- *
- * `active` means Device 2 created its own passkey, installed its authority,
- * and holds its own Wallet Session. The NEAR identity is read from that
- * session, not from Device 1, so the contract can prove the public signer
- * identity carried over.
- */
-type IntendedDeviceLinkState =
-  | { status: 'none' }
-  | { status: 'awaiting_owner'; linkSessionId: string }
-  | {
-      status: 'active';
-      linkSessionId: string;
-      walletId: string;
-      enrollmentId: string;
-      sessionWalletAuthMethodId: string;
-      /* Null for a wallet whose signer set has no Ed25519. */
-      nearAccountId: string | null;
-      operationalPublicKey: string | null;
-      authenticationKind: 'authenticated';
-    }
-  | { status: 'failed'; linkSessionId: string; error: string };
-
-type LinkedDeviceRevokedSummary = {
-  kind: 'linked_device_revoked';
-  walletId: string;
-  walletAuthMethodId: string;
-  authorityId: string;
-  revocationEpoch: number;
-};
-
-type IntendedActionResult =
-  | DeviceLinkQrReadySummary
-  | DeviceLinkApprovalRecordedSummary
-  | LinkedDeviceRevokedSummary
-  | PasskeyRegistrationResultSummary
-  | Ed25519AddSignerResultSummary
-  | EcdsaAddSignerResultSummary
-  | AddEmailOtpAuthMethodResultSummary
-  | AddPasskeyAuthMethodResultSummary
-  | EmailOtpRegistrationResultSummary
-  | NearProvisioningReadySummary
-  | PasskeyRecoveryResultSummary
-  | GoogleEmailOtpRecoveryResultSummary
-  | NearSigningResultSummary
-  | PasskeySyncResultSummary
-  | PasskeyUnlockResultSummary
-  | EmailOtpUnlockResultSummary
-  | AddedEmailOtpUnlockResultSummary
-  | RevokeAuthMethodResultSummary
-  | TempoSigningResultSummary
-  | ArcEvmSigningResultSummary
-  | Ed25519ExportResultSummary
-  | EcdsaExportResultSummary;
-
-type IntendedPageState = {
-  action: IntendedActionState;
-  events: readonly IntendedLifecycleEvent[];
-  walletId: string;
-  nearAccountId: string | null;
-  nearSignerSlot: number;
-  deviceLink: IntendedDeviceLinkState;
-};
 
 type IntendedPageAction =
   | {
@@ -589,61 +183,12 @@ async function resolveIntendedGoogleExternalAuth(
   });
 }
 
-type IntendedEmailOtpCodeRequest =
-  | {
-      kind: 'challenge';
-      challengeId: string;
-      walletId: string;
-    }
-  | {
-      kind: 'latest_for_wallet';
-      walletId: string;
-      challengeId?: never;
-    };
-
 type IntendedNearProvisioningState = NearProvisioningState;
-
-type IntendedNearProvisioningSummary =
-  | { status: 'pending'; error?: never; errorCode?: never }
-  | { status: 'provisioning'; error?: never; errorCode?: never }
-  | { status: 'retryable'; error: string; errorCode: string };
 
 type IntendedEmailOtpOutboxSuccess = {
   ok: true;
   otpCode: string;
 };
-
-type IntendedEmailOtpRecoveryRotationResult = {
-  readonly kind: 'rotated';
-  readonly issuedAtMs: number;
-  readonly storeVersion: string;
-  readonly recoveryCodeCount: number;
-};
-
-declare global {
-  interface Window {
-    __seamsIntendedE2EReadEmailOtpCode?: (input: IntendedEmailOtpCodeRequest) => Promise<string>;
-    __seamsIntendedE2ELockWallet?: () => Promise<void>;
-    __seamsIntendedE2EMoveWallet?: (request: WalletMoveRequest) => Promise<WalletMoveStatusResult>;
-    __seamsIntendedE2EReadWalletMove?: (moveId: string) => Promise<WalletMoveStatusResult>;
-    __seamsIntendedE2ECancelDeviceLink?: () => Promise<void>;
-    __seamsIntendedE2EReadWalletLockState?: () => Promise<{
-      authenticationKind: WalletSession['authentication']['kind'];
-    }>;
-    __seamsIntendedE2EReadAuthenticationMethods?: () => Promise<{
-      ownerDeviceCount: number;
-      linkedDeviceCount: number;
-    }>;
-    /** The linked-device inventory, parsed strictly by the contract. */
-    __seamsIntendedE2EReadLinkedDevices?: () => Promise<unknown>;
-    __seamsIntendedE2EProbeRecoveryAdministration?: () => Promise<RecoveryAdministrationProbe>;
-    __seamsIntendedE2ERotateEmailOtpRecoveryCodes?: () => Promise<IntendedEmailOtpRecoveryRotationResult>;
-    /** The QR payload Device 1 "scans"; the contract has no camera. */
-    __seamsIntendedE2EDeviceLinkQrPayloadJson?: string;
-    /** The exact revocation Device 1 submits, with its fresh source proof. */
-    __seamsIntendedE2ELinkedDeviceRevocationJson?: string;
-  }
-}
 
 const PENDING_ACTION_LABEL = 'Pending';
 const INTENDED_TEMPO_CHAIN_ID = 42_431;
@@ -780,249 +325,18 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
           <dd>{state.nearAccountId || 'none'}</dd>
         </dl>
         <div style={buttonRowStyle}>
-          <button
-            type="button"
-            data-testid="intended-register-passkey"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRegisterPasskeyWallet}
-            style={buttonStyle}
-          >
-            Register Passkey
-          </button>
-          <button
-            type="button"
-            data-testid="intended-register-passkey-ecdsa-only"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRegisterPasskeyEcdsaOnlyWallet}
-            style={buttonStyle}
-          >
-            Register ECDSA-only Wallet
-          </button>
-          <button
-            type="button"
-            data-testid="intended-register-passkey-ed25519-yao"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRegisterPasskeyEd25519YaoWallet}
-            style={buttonStyle}
-          >
-            Register Passkey Ed25519 Yao
-          </button>
-          <button
-            type="button"
-            data-testid="intended-add-email-otp-auth-method"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runAddEmailOtpAuthMethod}
-            style={buttonStyle}
-          >
-            Add Email Code
-          </button>
-          <button
-            type="button"
-            data-testid="intended-revoke-source-auth-method"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRevokeSourceAuthMethod}
-            style={buttonStyle}
-          >
-            Revoke Source Method
-          </button>
-          <button
-            type="button"
-            data-testid="intended-unlock-added-email-otp"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runUnlockWithAddedEmailOtp}
-            style={buttonStyle}
-          >
-            Unlock With Added Email Code
-          </button>
-          <button
-            type="button"
-            data-testid="intended-add-passkey-auth-method"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runAddPasskeyAuthMethod}
-            style={buttonStyle}
-          >
-            Add Passkey
-          </button>
-          <button
-            type="button"
-            data-testid="intended-add-passkey-ed25519-yao-signer"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runAddPasskeyEd25519YaoWalletSigner}
-            style={buttonStyle}
-          >
-            Add Passkey Ed25519 Yao Signer
-          </button>
-          <button
-            type="button"
-            data-testid="intended-add-passkey-ecdsa-signer"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runAddPasskeyEcdsaWalletSigner}
-            style={buttonStyle}
-          >
-            Add Passkey ECDSA Signer
-          </button>
-          <button
-            type="button"
-            data-testid="intended-register-email-otp-ecdsa-only"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRegisterEmailOtpEcdsaOnlyWallet}
-            style={buttonStyle}
-          >
-            Register ECDSA-only Email Wallet
-          </button>
-          <button
-            type="button"
-            data-testid="intended-register-email-otp-ed25519-only"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRegisterEmailOtpEd25519OnlyWallet}
-            style={buttonStyle}
-          >
-            Register Ed25519-only Email Wallet
-          </button>
-          <button
-            type="button"
-            data-testid="intended-register-email-otp"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRegisterEmailOtpWallet}
-            style={buttonStyle}
-          >
-            Register Email OTP
-          </button>
-          <button
-            type="button"
-            data-testid="intended-await-near-ready"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runAwaitNearReady}
-            style={buttonStyle}
-          >
-            Await NEAR Ready
-          </button>
-          <button
-            type="button"
-            data-testid="intended-sign-near"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runSignNearTransaction}
-            style={buttonStyle}
-          >
-            Sign NEAR
-          </button>
-          <button
-            type="button"
-            data-testid="intended-sync-passkey"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runSyncPasskeyWallet}
-            style={buttonStyle}
-          >
-            Sync Passkey
-          </button>
-          <button
-            type="button"
-            data-testid="intended-recover-passkey"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRecoverPasskeyWallet}
-            style={buttonStyle}
-          >
-            Recover Passkey
-          </button>
-          <button
-            type="button"
-            data-testid="intended-recover-google-email-otp"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRecoverGoogleEmailOtpWallet}
-            style={buttonStyle}
-          >
-            Recover Google Email OTP
-          </button>
-          <button
-            type="button"
-            data-testid="intended-unlock-passkey"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runUnlockPasskeyWallet}
-            style={buttonStyle}
-          >
-            Unlock Passkey
-          </button>
-          <button
-            type="button"
-            data-testid="intended-unlock-email-otp"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runUnlockEmailOtpWallet}
-            style={buttonStyle}
-          >
-            Unlock Email OTP
-          </button>
-          <button
-            type="button"
-            data-testid="intended-sign-tempo"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runSignTempoTransaction}
-            style={buttonStyle}
-          >
-            Sign Tempo
-          </button>
-          <button
-            type="button"
-            data-testid="intended-sign-arc-evm"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runSignArcEvmTransaction}
-            style={buttonStyle}
-          >
-            Sign Arc
-          </button>
-          <button
-            type="button"
-            data-testid="intended-export-ed25519"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runExportEd25519Key}
-            style={buttonStyle}
-          >
-            Export Ed25519
-          </button>
-          <button
-            type="button"
-            data-testid="intended-export-ecdsa"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runExportEcdsaKey}
-            style={buttonStyle}
-          >
-            Export ECDSA
-          </button>
-          <button
-            type="button"
-            data-testid="intended-device-link-start"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runStartDeviceLinkingAsTarget}
-            style={buttonStyle}
-          >
-            Show Link QR
-          </button>
-          <button
-            type="button"
-            data-testid="intended-device-link-scan"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runScanAndLinkDevice}
-            style={buttonStyle}
-          >
-            Scan Link QR
-          </button>
-          <button
-            type="button"
-            data-testid="intended-revoke-linked-device"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRevokeLinkedDevice}
-            style={buttonStyle}
-          >
-            Revoke Linked Device
-          </button>
-          <button
-            type="button"
-            data-testid="intended-revoke-linked-device-email-otp"
-            disabled={state.action.status === 'running'}
-            onClick={controller.runRevokeLinkedDeviceWithEmailOtp}
-            style={buttonStyle}
-          >
-            Revoke Linked Device With Email Code
-          </button>
+          {INTENDED_ACTION_NAMES.map((name) => (
+            <button
+              key={name}
+              type="button"
+              data-testid={INTENDED_ACTIONS[name].button}
+              disabled={state.action.status === 'running'}
+              onClick={controller.runAction[name]}
+              style={buttonStyle}
+            >
+              {INTENDED_ACTIONS[name].label}
+            </button>
+          ))}
         </div>
         <output
           data-testid="intended-action-status"
@@ -1074,8 +388,35 @@ class IntendedPageController {
     this.dispatch = args.dispatch;
   }
 
-  runRegisterPasskeyWallet = (): void => {
-    void this.registerPasskeyWallet();
+  /** Starts each action from its button; the action reports its outcome to the page state. */
+  readonly runAction: Record<IntendedActionName, () => void> = {
+    registerPasskeyWallet: () => void this.registerPasskeyWallet(),
+    registerPasskeyEd25519YaoWallet: () => void this.registerPasskeyEd25519YaoWallet(),
+    addPasskeyEd25519YaoWalletSigner: () => void this.addPasskeyEd25519YaoWalletSigner(),
+    addPasskeyEcdsaWalletSigner: () => void this.addPasskeyEcdsaWalletSigner(),
+    addEmailOtpAuthMethod: () => void this.addEmailOtpAuthMethod(),
+    unlockWithAddedEmailOtp: () => void this.unlockWithAddedEmailOtp(),
+    registerPasskeyEcdsaOnlyWallet: () => void this.registerPasskeyEcdsaOnlyWallet(),
+    revokeSourceAuthMethod: () => void this.revokeSourceAuthMethod(),
+    addPasskeyAuthMethod: () => void this.addPasskeyAuthMethod(),
+    registerEmailOtpWallet: () => void this.registerEmailOtpWallet(),
+    registerEmailOtpEd25519OnlyWallet: () => void this.registerEmailOtpEd25519OnlyWallet(),
+    registerEmailOtpEcdsaOnlyWallet: () => void this.registerEmailOtpEcdsaOnlyWallet(),
+    awaitNearReady: () => void this.awaitNearReady(),
+    signNearTransaction: () => void this.signNearTransaction(),
+    unlockPasskeyWallet: () => void this.unlockPasskeyWallet(),
+    syncPasskeyWallet: () => void this.syncPasskeyWallet(),
+    recoverPasskeyWallet: () => void this.recoverPasskeyWallet(),
+    recoverGoogleEmailOtpWallet: () => void this.recoverGoogleEmailOtpWallet(),
+    unlockEmailOtpWallet: () => void this.unlockEmailOtpWallet(),
+    signTempoTransaction: () => void this.signTempoTransaction(),
+    signArcEvmTransaction: () => void this.signArcEvmTransaction(),
+    exportEcdsaKey: () => void this.exportEcdsaKey(),
+    exportEd25519Key: () => void this.exportEd25519Key(),
+    startDeviceLinkingAsTarget: () => void this.startDeviceLinkingAsTarget(),
+    scanAndLinkDevice: () => void this.scanAndLinkDevice(),
+    revokeLinkedDevice: () => void this.revokeLinkedDevice(),
+    revokeLinkedDeviceWithEmailOtp: () => void this.revokeLinkedDeviceWithEmailOtp(),
   };
 
   readAuthenticationMethodsForIntendedTest = async (): Promise<{
@@ -1094,110 +435,6 @@ class IntendedPageController {
       ownerDeviceCount: inventory.ownerDevices.length,
       linkedDeviceCount: inventory.devices.length,
     };
-  };
-
-  runRegisterPasskeyEd25519YaoWallet = (): void => {
-    void this.registerPasskeyEd25519YaoWallet();
-  };
-
-  runAddPasskeyEd25519YaoWalletSigner = (): void => {
-    void this.addPasskeyEd25519YaoWalletSigner();
-  };
-
-  runAddPasskeyEcdsaWalletSigner = (): void => {
-    void this.addPasskeyEcdsaWalletSigner();
-  };
-
-  runAddEmailOtpAuthMethod = (): void => {
-    void this.addEmailOtpAuthMethod();
-  };
-
-  runUnlockWithAddedEmailOtp = (): void => {
-    void this.unlockWithAddedEmailOtp();
-  };
-
-  runRegisterPasskeyEcdsaOnlyWallet = (): void => {
-    void this.registerPasskeyEcdsaOnlyWallet();
-  };
-
-  runRevokeSourceAuthMethod = (): void => {
-    void this.revokeSourceAuthMethod();
-  };
-
-  runAddPasskeyAuthMethod = (): void => {
-    void this.addPasskeyAuthMethod();
-  };
-
-  runRegisterEmailOtpWallet = (): void => {
-    void this.registerEmailOtpWallet();
-  };
-
-  runRegisterEmailOtpEd25519OnlyWallet = (): void => {
-    void this.registerEmailOtpEd25519OnlyWallet();
-  };
-
-  runRegisterEmailOtpEcdsaOnlyWallet = (): void => {
-    void this.registerEmailOtpEcdsaOnlyWallet();
-  };
-
-  runAwaitNearReady = (): void => {
-    void this.awaitNearReady();
-  };
-
-  runSignNearTransaction = (): void => {
-    void this.signNearTransaction();
-  };
-
-  runUnlockPasskeyWallet = (): void => {
-    void this.unlockPasskeyWallet();
-  };
-
-  runSyncPasskeyWallet = (): void => {
-    void this.syncPasskeyWallet();
-  };
-
-  runRecoverPasskeyWallet = (): void => {
-    void this.recoverPasskeyWallet();
-  };
-
-  runRecoverGoogleEmailOtpWallet = (): void => {
-    void this.recoverGoogleEmailOtpWallet();
-  };
-
-  runUnlockEmailOtpWallet = (): void => {
-    void this.unlockEmailOtpWallet();
-  };
-
-  runSignTempoTransaction = (): void => {
-    void this.signTempoTransaction();
-  };
-
-  runSignArcEvmTransaction = (): void => {
-    void this.signArcEvmTransaction();
-  };
-
-  runExportEcdsaKey = (): void => {
-    void this.exportEcdsaKey();
-  };
-
-  runExportEd25519Key = (): void => {
-    void this.exportEd25519Key();
-  };
-
-  runStartDeviceLinkingAsTarget = (): void => {
-    void this.startDeviceLinkingAsTarget();
-  };
-
-  runScanAndLinkDevice = (): void => {
-    void this.scanAndLinkDevice();
-  };
-
-  runRevokeLinkedDevice = (): void => {
-    void this.revokeLinkedDevice();
-  };
-
-  runRevokeLinkedDeviceWithEmailOtp = (): void => {
-    void this.revokeLinkedDeviceWithEmailOtp();
   };
 
   /**

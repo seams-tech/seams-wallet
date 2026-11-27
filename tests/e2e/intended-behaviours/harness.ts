@@ -58,6 +58,25 @@ import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
+import type { Variant } from '@shared/utils/variant';
+import {
+  INTENDED_ACTIONS,
+  isIntendedActionName,
+  type EmailOtpUnlockNearIdentity,
+  type IntendedActionName,
+  type IntendedActionResult,
+  type IntendedActionState,
+  type IntendedDeviceLinkState,
+  type IntendedEcdsaSummary,
+  type IntendedEcdsaTargetKeySummary,
+  type IntendedEcdsaTargetKeysSummary,
+  type IntendedEcdsaTargetProfileName,
+  type IntendedEmailOtpCodeRequest,
+  type IntendedLifecycleEvent,
+  type IntendedNearProvisioningSummary,
+  type IntendedPageState,
+  type IntendedResult,
+} from '../../intended-app/src/intendedContract';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -112,36 +131,7 @@ type IntendedNearSigningScenario =
       stage: 'after_refresh_recovery';
     };
 
-type IntendedHarnessAction =
-  | 'registerPasskeyWallet'
-  | 'registerPasskeyEd25519YaoWallet'
-  | 'registerPasskeyEcdsaOnlyWallet'
-  | 'addPasskeyEd25519YaoWalletSigner'
-  | 'addPasskeyEcdsaWalletSigner'
-  | 'addEmailOtpAuthMethod'
-  | 'addPasskeyAuthMethod'
-  | 'registerEmailOtpWallet'
-  | 'registerEmailOtpEd25519OnlyWallet'
-  | 'registerEmailOtpEcdsaOnlyWallet'
-  | 'awaitNearReady'
-  | 'syncPasskeyWallet'
-  | 'recoverPasskeyWallet'
-  | 'recoverGoogleEmailOtpWallet'
-  | 'unlockPasskeyWallet'
-  | 'unlockEmailOtpWallet'
-  | 'unlockWithAddedEmailOtp'
-  | 'revokeSourceAuthMethod'
-  | 'signNearTransaction'
-  | 'signTempoTransaction'
-  | 'signArcEvmTransaction'
-  | 'exportEd25519Key'
-  | 'exportEcdsaKey'
-  | 'startDeviceLinkingAsTarget'
-  | 'scanAndLinkDevice'
-  | 'revokeLinkedDevice'
-  | 'revokeLinkedDeviceWithEmailOtp';
-
-const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
+const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedActionName> = new Set([
   'addEmailOtpAuthMethod',
   'registerEmailOtpWallet',
   'registerEmailOtpEd25519OnlyWallet',
@@ -278,44 +268,14 @@ type IntendedHarnessConfig = {
   googleProviderSubjectPrefix: string;
   googleClientId: string;
   googleIdToken: string;
-  passkeyEcdsaTargetProfile: EcdsaTargetProfileName;
-  emailOtpEcdsaTargetProfile: EcdsaTargetProfileName;
+  passkeyEcdsaTargetProfile: IntendedEcdsaTargetProfileName;
+  emailOtpEcdsaTargetProfile: IntendedEcdsaTargetProfileName;
   signingSessionDebug: boolean;
 };
 
-type IntendedEmailOtpCodeRequestForPage =
-  | {
-      kind: 'challenge';
-      challengeId: string;
-      walletId: string;
-    }
-  | {
-      kind: 'latest_for_wallet';
-      walletId: string;
-      challengeId?: never;
-    };
-
 declare global {
   interface Window {
-    __seamsIntendedE2EReadEmailOtpCode?: (
-      input: IntendedEmailOtpCodeRequestForPage,
-    ) => Promise<string>;
     __seamsIntendedConcurrentActionObserver?: IntendedConcurrentActionObserver;
-    __seamsIntendedE2ELockWallet?: () => Promise<void>;
-    __seamsIntendedE2EReadWalletLockState?: () => Promise<{
-      authenticationKind: import('../../../packages/mpc-wallet/src/core/types/seams').WalletSession['authentication']['kind'];
-    }>;
-    __seamsIntendedE2EReadAuthenticationMethods?: () => Promise<{
-      ownerDeviceCount: number;
-      linkedDeviceCount: number;
-    }>;
-    /** The linked-device inventory, parsed strictly by the contract. */
-    __seamsIntendedE2EReadLinkedDevices?: () => Promise<unknown>;
-    __seamsIntendedE2ECancelDeviceLink?: () => Promise<void>;
-    /** The QR payload Device 1 "scans"; the contract has no camera. */
-    __seamsIntendedE2EDeviceLinkQrPayloadJson?: string;
-    /** The exact revocation Device 1 submits, with its fresh source proof. */
-    __seamsIntendedE2ELinkedDeviceRevocationJson?: string;
   }
 }
 
@@ -355,82 +315,6 @@ type LifecycleFailureMatcher = {
   reason: string;
 };
 
-type IntendedPageLifecycleEvent = {
-  index: number;
-  payload: unknown;
-};
-
-type IntendedPageActionSnapshot =
-  | {
-      status: 'idle';
-      action?: never;
-      result?: never;
-      error?: never;
-    }
-  | {
-      status: 'running';
-      action: IntendedHarnessAction;
-      result?: never;
-      error?: never;
-    }
-  | {
-      status: 'success';
-      action: IntendedHarnessAction;
-      result: IntendedActionResultSnapshot;
-      error?: never;
-    }
-  | {
-      status: 'error';
-      action: IntendedHarnessAction;
-      error: string;
-      result?: never;
-    };
-
-type EcdsaTargetKeySnapshot = {
-  chain: 'tempo' | 'arc_evm';
-  chainId: number;
-  thresholdOwnerAddress: string;
-};
-
-type EcdsaTargetProfileName = 'none' | 'tempo' | 'tempo_arc';
-
-type EcdsaTargetKeysSnapshot =
-  | {
-      kind: 'none';
-      tempo?: never;
-      arcEvm?: never;
-    }
-  | {
-      kind: 'tempo';
-      tempo: EcdsaTargetKeySnapshot;
-      arcEvm?: never;
-    }
-  | {
-      kind: 'tempo_arc';
-      tempo: EcdsaTargetKeySnapshot;
-      arcEvm: EcdsaTargetKeySnapshot;
-    };
-
-type EcdsaEnabledSnapshot =
-  | {
-      ecdsaTargetProfile: 'none';
-      thresholdEcdsaEthereumAddress?: never;
-      thresholdEcdsaPublicKeyB64u?: never;
-      ecdsaTargetKeys: Extract<EcdsaTargetKeysSnapshot, { kind: 'none' }>;
-    }
-  | {
-      ecdsaTargetProfile: 'tempo';
-      thresholdEcdsaEthereumAddress: string;
-      thresholdEcdsaPublicKeyB64u: string;
-      ecdsaTargetKeys: Extract<EcdsaTargetKeysSnapshot, { kind: 'tempo' }>;
-    }
-  | {
-      ecdsaTargetProfile: 'tempo_arc';
-      thresholdEcdsaEthereumAddress?: never;
-      thresholdEcdsaPublicKeyB64u?: never;
-      ecdsaTargetKeys: Extract<EcdsaTargetKeysSnapshot, { kind: 'tempo_arc' }>;
-    };
-
 type RegisteredNearStateSnapshot =
   /* A wallet whose signer set never included Ed25519. Distinct from 'pending',
      which is an account on its way: nothing is coming, so asking this wallet to
@@ -445,10 +329,7 @@ type RegisteredNearStateSnapshot =
     }
   | {
       nearReadiness: 'pending';
-      nearProvisioning:
-        | { status: 'pending'; error?: never; errorCode?: never }
-        | { status: 'provisioning'; error?: never; errorCode?: never }
-        | { status: 'retryable'; error: string; errorCode: string };
+      nearProvisioning: IntendedNearProvisioningSummary;
       nearAccountId?: never;
       operationalPublicKey?: never;
     }
@@ -471,200 +352,35 @@ function nearStateLabel(snapshot: RegisteredNearStateSnapshot): string {
     : snapshot.nearReadiness;
 }
 
-type PasskeyRegistrationResultSnapshot = {
-  kind: 'passkey_registration_success';
-  walletId: string;
-} & RegisteredNearStateSnapshot &
-  EcdsaEnabledSnapshot;
-
-type Ed25519AddSignerResultSnapshot = {
-  kind: 'wallet_signer_added';
-  walletId: string;
-  nearAccountId: string;
-  nearEd25519SigningKeyId: string;
-  operationalPublicKey: string;
-};
-
-type EcdsaAddSignerResultSnapshot = {
-  kind: 'ecdsa_signer_added';
-  walletId: string;
-} & EcdsaEnabledSnapshot;
-
-type EmailOtpRegistrationCoreSnapshot = {
-  kind: 'email_otp_registration_success';
-  initialWalletId: string;
-  walletId: string;
-  authenticationKind: 'authenticated';
-} & RegisteredNearStateSnapshot;
-
-type EmailOtpRegistrationResultSnapshot = EmailOtpRegistrationCoreSnapshot & EcdsaEnabledSnapshot;
-
+/**
+ * What the harness knows of the wallet it registered: the registration's result, with the NEAR
+ * identity that a later step reported once provisioning finished.
+ */
 type RegisteredWalletSnapshot =
-  | PasskeyRegistrationResultSnapshot
-  | EmailOtpRegistrationResultSnapshot;
+  | ({ kind: 'passkey_registration_success'; walletId: string } & RegisteredNearStateSnapshot &
+      IntendedEcdsaSummary)
+  | ({
+      kind: 'email_otp_registration_success';
+      initialWalletId: string;
+      walletId: string;
+      authenticationKind: 'authenticated';
+    } & RegisteredNearStateSnapshot &
+      IntendedEcdsaSummary);
+
+type PasskeyRegisteredWallet = Variant<
+  RegisteredWalletSnapshot,
+  'kind',
+  'passkey_registration_success'
+>;
+
+type EmailOtpRegisteredWallet = Variant<
+  RegisteredWalletSnapshot,
+  'kind',
+  'email_otp_registration_success'
+>;
 
 type NearReadyRegisteredWalletSnapshot = RegisteredWalletSnapshot &
-  Extract<RegisteredNearStateSnapshot, { nearReadiness: 'ready' }>;
-
-type NearSigningResultSnapshot = {
-  kind: 'near_sign_success';
-  walletId: string;
-  nearAccountId: string;
-  signedTransactionB64: string;
-  signedTransactionByteLength: number;
-};
-
-type PasskeyUnlockResultSnapshot =
-  | {
-      kind: 'passkey_unlock_success';
-      walletId: string;
-      nearIdentity: 'ready';
-      nearAccountId: string;
-      operationalPublicKey: string;
-      sessionWalletAuthMethodId: string;
-      authenticationKind: 'authenticated';
-    }
-  | {
-      kind: 'passkey_unlock_success';
-      walletId: string;
-      nearIdentity: 'absent';
-      nearAccountId?: never;
-      operationalPublicKey?: never;
-      sessionWalletAuthMethodId: string;
-      authenticationKind: 'authenticated';
-    };
-
-type PasskeySyncResultSnapshot = {
-  kind: 'passkey_sync_success';
-  walletId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
-};
-
-type PasskeyRecoveryResultSnapshot = {
-  kind: 'passkey_recovery_success';
-  walletId: string;
-  activeRecoveryCodeCount: number;
-  totalRecoveryCodeCount: number;
-};
-
-type GoogleEmailOtpRecoveryResultSnapshot = {
-  kind: 'google_email_otp_recovery_success';
-  walletId: string;
-  activeRecoveryCodeCount: number;
-  totalRecoveryCodeCount: number;
-};
-
-type EmailOtpUnlockCoreSnapshot = {
-  kind: 'email_otp_unlock_success';
-  walletId: string;
-  sessionWalletAuthMethodId: string;
-  authenticationKind: 'authenticated';
-} & (
-  | { nearIdentity: 'ready'; nearAccountId: string; operationalPublicKey: string }
-  | { nearIdentity: 'absent'; nearAccountId?: never; operationalPublicKey?: never }
-);
-
-type EmailOtpUnlockResultSnapshot = EmailOtpUnlockCoreSnapshot & EcdsaEnabledSnapshot;
-
-type TempoSigningResultSnapshot = {
-  kind: 'tempo_sign_success';
-  walletId: string;
-  chainId: number;
-  senderHashHex: `0x${string}`;
-  rawTxHex: `0x${string}`;
-};
-
-type ArcEvmSigningResultSnapshot = {
-  kind: 'arc_evm_sign_success';
-  walletId: string;
-  chainId: number;
-  txHashHex: `0x${string}`;
-  rawTxHex: `0x${string}`;
-};
-
-type EcdsaExportResultSnapshot = {
-  kind: 'ecdsa_export_success';
-  walletId: string;
-  chainId: number;
-};
-
-type Ed25519ExportResultSnapshot = {
-  kind: 'ed25519_export_success';
-  walletId: string;
-  nearAccountId: string;
-};
-
-type NearProvisioningReadySnapshot = {
-  kind: 'near_provisioning_ready';
-  walletId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
-};
-
-type AddEmailOtpAuthMethodResultSnapshot = {
-  kind: 'add_email_otp_success';
-  walletId: string;
-  emailAddress: string;
-  walletAuthMethodId: string;
-  authMethod: { kind: 'email_otp'; status: 'active' };
-};
-
-type AddPasskeyAuthMethodResultSnapshot = {
-  kind: 'add_passkey_success';
-  walletId: string;
-  rpId: string;
-  walletAuthMethodId: string;
-  authMethod: { kind: 'passkey'; status: 'active' };
-};
-
-type RevokeAuthMethodResultSnapshot = {
-  kind: 'revoke_auth_method_success';
-  walletId: string;
-  walletAuthMethodId: string;
-};
-
-type AddedEmailOtpUnlockResultSnapshot = {
-  kind: 'added_email_otp_unlock_success';
-  walletId: string;
-  sessionWalletAuthMethodId: string;
-  authenticationKind: 'authenticated';
-};
-
-/* Device 2 does not know the wallet until the link names it. */
-type DeviceLinkQrReadySnapshot = {
-  kind: 'device_link_qr_ready';
-  linkSessionId: string;
-  qrPayloadJson: string;
-  walletId?: never;
-};
-
-type DeviceLinkApprovalRecordedSnapshot = {
-  kind: 'device_link_approval_recorded';
-  walletId: string;
-  enrollmentId: string;
-  deviceId: string;
-};
-
-/** Device 2's settled link, read from page state rather than an action. */
-type DeviceLinkActiveSnapshot = {
-  linkSessionId: string;
-  walletId: string;
-  enrollmentId: string;
-  sessionWalletAuthMethodId: string;
-  /* Null for a wallet whose signer set has no Ed25519. */
-  nearAccountId: string | null;
-  operationalPublicKey: string | null;
-  authenticationKind: 'authenticated';
-};
-
-type LinkedDeviceRevokedSnapshot = {
-  kind: 'linked_device_revoked';
-  walletId: string;
-  walletAuthMethodId: string;
-  authorityId: string;
-  revocationEpoch: number;
-};
+  Variant<RegisteredNearStateSnapshot, 'nearReadiness', 'ready'>;
 
 type LinkedDeviceOwnerMethodSnapshot = {
   readonly walletAuthMethodId: string;
@@ -686,34 +402,11 @@ type LinkedDeviceInventorySnapshot = {
   readonly devices: readonly LinkedDeviceEntrySnapshot[];
 };
 
-type IntendedActionResultSnapshot =
-  | DeviceLinkQrReadySnapshot
-  | DeviceLinkApprovalRecordedSnapshot
-  | LinkedDeviceRevokedSnapshot
-  | PasskeyRegistrationResultSnapshot
-  | Ed25519AddSignerResultSnapshot
-  | EcdsaAddSignerResultSnapshot
-  | AddEmailOtpAuthMethodResultSnapshot
-  | AddedEmailOtpUnlockResultSnapshot
-  | RevokeAuthMethodResultSnapshot
-  | AddPasskeyAuthMethodResultSnapshot
-  | EmailOtpRegistrationResultSnapshot
-  | NearProvisioningReadySnapshot
-  | NearSigningResultSnapshot
-  | PasskeySyncResultSnapshot
-  | PasskeyRecoveryResultSnapshot
-  | GoogleEmailOtpRecoveryResultSnapshot
-  | PasskeyUnlockResultSnapshot
-  | EmailOtpUnlockResultSnapshot
-  | TempoSigningResultSnapshot
-  | ArcEvmSigningResultSnapshot
-  | Ed25519ExportResultSnapshot
-  | EcdsaExportResultSnapshot;
+/** The part of the page state that each action's outcome is read from. */
+type IntendedPageSnapshot = Pick<IntendedPageState, 'action' | 'events'>;
 
-type IntendedPageSnapshot = {
-  action: IntendedPageActionSnapshot;
-  events: readonly IntendedPageLifecycleEvent[];
-};
+/** Device 2's settled link, read from page state rather than an action. */
+type DeviceLinkSettledSnapshot = Variant<IntendedDeviceLinkState, 'status', 'active' | 'failed'>;
 
 type IntendedLifecycleTracePayload = {
   flow: IntendedLifecycleFlow;
@@ -736,7 +429,7 @@ type WalletIframeAutoConfirmDiagnostics = {
   recoveryBackupAcknowledged?: boolean;
   otpFilled?: boolean;
   otpChallengeMissing?: boolean;
-  otpLookupKind?: IntendedEmailOtpCodeRequestForPage['kind'];
+  otpLookupKind?: IntendedEmailOtpCodeRequest['kind'];
   lastOtpError?: string;
   lastConfirmationError?: string;
   firstIframeAttachedMs?: number;
@@ -846,12 +539,10 @@ type IntendedRecoveryAction =
   | {
       readonly target: Extract<IntendedRecoveryTargetKind, 'passkey'>;
       readonly name: 'recoverPasskeyWallet';
-      readonly buttonTestId: 'intended-recover-passkey';
     }
   | {
       readonly target: Extract<IntendedRecoveryTargetKind, 'google_email_otp'>;
       readonly name: 'recoverGoogleEmailOtpWallet';
-      readonly buttonTestId: 'intended-recover-google-email-otp';
     };
 
 type AuthoritativeWalletBudgetReplay =
@@ -1151,7 +842,10 @@ export class IntendedBehaviourHarness {
   private registeredWallet: RegisteredWalletSnapshot | null = null;
 
   /** Sets the app's Wallet Session budget. The app reads it when the page loads next. */
-  useSigningSessionBudget(budget: { readonly ttlMs: number; readonly remainingUses: number }): void {
+  useSigningSessionBudget(budget: {
+    readonly ttlMs: number;
+    readonly remainingUses: number;
+  }): void {
     this.signingSessionBudget = budget;
     this.reloadIntendedPageBeforeNextAction = true;
   }
@@ -1237,11 +931,9 @@ export class IntendedBehaviourHarness {
 
   async registerPasskeyWallet(): Promise<void> {
     this.recordStage('register_passkey_wallet');
-    const snapshot = await this.runIntendedPageAction(
-      'registerPasskeyWallet',
-      'intended-register-passkey',
-      { onRecoveryCodes: this.captureRecoveryCodes },
-    );
+    const snapshot = await this.runIntendedPageAction('registerPasskeyWallet', {
+      onRecoveryCodes: this.captureRecoveryCodes,
+    });
     if (this.recoveryCodes.length === 0) {
       this.captureRecoveryCodes(
         await waitForWalletRecoveryCodeBackup(
@@ -1378,10 +1070,7 @@ export class IntendedBehaviourHarness {
     const qr = await device2.showDeviceLinkQr();
     await this.ensureIntendedPageOpen();
     await this.page.evaluate(presentDeviceLinkQrToIntendedPage, qr.qrPayloadJson);
-    const approvalRun = this.runIntendedPageAction(
-      'scanAndLinkDevice',
-      'intended-device-link-scan',
-    );
+    const approvalRun = this.runIntendedPageAction('scanAndLinkDevice');
     const activationRun = device2.waitForDeviceLinkAsTarget(qr.linkSessionId);
     /* Whichever side fails first names the failure. The other keeps running
        only until teardown closes its page, so its rejection is observed here. */
@@ -1591,10 +1280,7 @@ export class IntendedBehaviourHarness {
       presentLinkedDeviceRevocationToIntendedPage,
       JSON.stringify({ walletAuthMethodId: linked.walletAuthMethodId }),
     );
-    const snapshot = await this.runIntendedPageAction(
-      'revokeLinkedDevice',
-      'intended-revoke-linked-device',
-    );
+    const snapshot = await this.runIntendedPageAction('revokeLinkedDevice');
     if (snapshot.action.status !== 'success') {
       throw new Error(`linked-device revocation ended with ${snapshot.action.status}`);
     }
@@ -1645,10 +1331,7 @@ export class IntendedBehaviourHarness {
       : null;
     let snapshot: IntendedPageSnapshot;
     try {
-      snapshot = await this.runIntendedPageAction(
-        'revokeLinkedDeviceWithEmailOtp',
-        'intended-revoke-linked-device-email-otp',
-      );
+      snapshot = await this.runIntendedPageAction('revokeLinkedDeviceWithEmailOtp');
     } finally {
       await refusedCommit?.release();
     }
@@ -1695,10 +1378,10 @@ export class IntendedBehaviourHarness {
       this.requireRegisteredWalletForSigning(),
       'Revoked-device signing',
     );
-    const tempo = await this.runIntendedPageAction('signTempoTransaction', 'intended-sign-tempo', {
+    const tempo = await this.runIntendedPageAction('signTempoTransaction', {
       expectedOutcome: 'error',
     });
-    const near = await this.runIntendedPageAction('signNearTransaction', 'intended-sign-near', {
+    const near = await this.runIntendedPageAction('signNearTransaction', {
       nearAccountId: registration.nearAccountId,
       expectedOutcome: 'error',
     });
@@ -1727,12 +1410,9 @@ export class IntendedBehaviourHarness {
   }
 
   /** Device 2: show the link QR and hand back its strictly parsed payload. */
-  private async showDeviceLinkQr(): Promise<DeviceLinkQrReadySnapshot> {
+  private async showDeviceLinkQr(): Promise<IntendedResult<'device_link_qr_ready'>> {
     this.recordStage('device_link_show_qr');
-    const snapshot = await this.runIntendedPageAction(
-      'startDeviceLinkingAsTarget',
-      'intended-device-link-start',
-    );
+    const snapshot = await this.runIntendedPageAction('startDeviceLinkingAsTarget');
     if (snapshot.action.status !== 'success') {
       throw new Error(`device-link QR ended with ${snapshot.action.status}`);
     }
@@ -1760,7 +1440,7 @@ export class IntendedBehaviourHarness {
    */
   private async waitForDeviceLinkAsTarget(
     linkSessionId: string,
-  ): Promise<DeviceLinkActiveSnapshot> {
+  ): Promise<Omit<Variant<IntendedDeviceLinkState, 'status', 'active'>, 'status'>> {
     this.recordStage('device_link_target_settle');
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     try {
@@ -1798,10 +1478,7 @@ export class IntendedBehaviourHarness {
 
   async registerPasskeyEd25519YaoWallet(): Promise<void> {
     this.recordStage('register_passkey_ed25519_yao_wallet');
-    const snapshot = await this.runIntendedPageAction(
-      'registerPasskeyEd25519YaoWallet',
-      'intended-register-passkey-ed25519-yao',
-    );
+    const snapshot = await this.runIntendedPageAction('registerPasskeyEd25519YaoWallet');
     const result = requirePasskeyRegistrationResult(snapshot, this.walletId);
     const ready = requireNearReadyRegisteredWallet(result, 'Ed25519 Yao registration');
     if (result.ecdsaTargetProfile !== 'none' || result.ecdsaTargetKeys.kind !== 'none') {
@@ -1854,10 +1531,7 @@ export class IntendedBehaviourHarness {
       requirePasskeyRegisteredWalletSnapshot(this.requireRegisteredWalletForSigning()),
       'Ed25519 signer addition',
     );
-    const snapshot = await this.runIntendedPageAction(
-      'addPasskeyEd25519YaoWalletSigner',
-      'intended-add-passkey-ed25519-yao-signer',
-    );
+    const snapshot = await this.runIntendedPageAction('addPasskeyEd25519YaoWalletSigner');
     const result = requireEd25519AddSignerResult(snapshot, this.walletId);
     if (
       result.nearAccountId === previous.nearAccountId ||
@@ -1905,10 +1579,7 @@ export class IntendedBehaviourHarness {
       : null;
     let snapshot: IntendedPageSnapshot;
     try {
-      snapshot = await this.runIntendedPageAction(
-        'addPasskeyEcdsaWalletSigner',
-        'intended-add-passkey-ecdsa-signer',
-      );
+      snapshot = await this.runIntendedPageAction('addPasskeyEcdsaWalletSigner');
     } finally {
       await lostFinalize?.release();
     }
@@ -1922,7 +1593,9 @@ export class IntendedBehaviourHarness {
     }
     const result = snapshot.action.result;
     if (result.kind !== 'ecdsa_signer_added' || result.walletId !== this.walletId) {
-      throw new Error(`ECDSA add-signer returned ${result.kind} for ${result.walletId}`);
+      throw new Error(
+        `ECDSA add-signer returned ${result.kind} for ${'walletId' in result ? result.walletId : undefined}`,
+      );
     }
     if (result.ecdsaTargetProfile === 'none') {
       throw new Error('ECDSA add-signer provisioned no ECDSA target');
@@ -2068,10 +1741,7 @@ export class IntendedBehaviourHarness {
       : null;
     let snapshot: IntendedPageSnapshot;
     try {
-      snapshot = await this.runIntendedPageAction(
-        'addEmailOtpAuthMethod',
-        'intended-add-email-otp-auth-method',
-      );
+      snapshot = await this.runIntendedPageAction('addEmailOtpAuthMethod');
     } finally {
       await lostFinalize?.release();
     }
@@ -2115,10 +1785,7 @@ export class IntendedBehaviourHarness {
       : null;
     let snapshot: IntendedPageSnapshot;
     try {
-      snapshot = await this.runIntendedPageAction(
-        'revokeSourceAuthMethod',
-        'intended-revoke-source-auth-method',
-      );
+      snapshot = await this.runIntendedPageAction('revokeSourceAuthMethod');
     } finally {
       await refusedCommit?.release();
     }
@@ -2322,13 +1989,7 @@ export class IntendedBehaviourHarness {
     this.recordStage('repeat_addition_already_configured');
     const passkeyPromptsBefore = this.passkeyPromptCount;
     const emailVerificationsBefore = this.emailOtpVerificationCount;
-    const snapshot = await this.runIntendedPageAction(
-      action,
-      action === 'addPasskeyAuthMethod'
-        ? 'intended-add-passkey-auth-method'
-        : 'intended-add-email-otp-auth-method',
-      { expectedOutcome: 'error' },
-    );
+    const snapshot = await this.runIntendedPageAction(action, { expectedOutcome: 'error' });
     if (snapshot.action.status === 'success') {
       throw new Error('repeating an addition succeeded; it must be already_configured');
     }
@@ -2355,11 +2016,9 @@ export class IntendedBehaviourHarness {
    */
   async assertFinalAuthMethodCannotBeRevoked(): Promise<void> {
     this.recordStage('final_auth_method_revocation_refused');
-    const snapshot = await this.runIntendedPageAction(
-      'revokeSourceAuthMethod',
-      'intended-revoke-source-auth-method',
-      { expectedOutcome: 'error' },
-    );
+    const snapshot = await this.runIntendedPageAction('revokeSourceAuthMethod', {
+      expectedOutcome: 'error',
+    });
     if (snapshot.action.status === 'success') {
       throw new Error('revoking the final auth method succeeded; it must be refused');
     }
@@ -2415,7 +2074,7 @@ export class IntendedBehaviourHarness {
           GOOGLE_EMAIL_OTP_VERIFY_PATH_V1,
       { timeout: 60_000 },
     );
-    const action = this.runIntendedPageAction('unlockEmailOtpWallet', 'intended-unlock-email-otp', {
+    const action = this.runIntendedPageAction('unlockEmailOtpWallet', {
       expectedOutcome: 'error',
     });
     /* Settled below, once the menu is closed. */
@@ -2445,11 +2104,9 @@ export class IntendedBehaviourHarness {
 
   /** The wallet's session no longer lists the revoked method. */
   private async refuseRevokedAddedEmailOtpUnlock(): Promise<string> {
-    const snapshot = await this.runIntendedPageAction(
-      'unlockWithAddedEmailOtp',
-      'intended-unlock-added-email-otp',
-      { expectedOutcome: 'error' },
-    );
+    const snapshot = await this.runIntendedPageAction('unlockWithAddedEmailOtp', {
+      expectedOutcome: 'error',
+    });
     const detail = snapshot.action.status === 'error' ? snapshot.action.error : '';
     if (detail !== 'added email-code unlock needs one email method, found 0') {
       throw new Error(`revoked added Email OTP unlock ended for another reason: ${detail}`);
@@ -2493,10 +2150,7 @@ export class IntendedBehaviourHarness {
     this.recordStage('unlock_with_added_passkey');
     const registration = this.requireRegisteredWalletForSigning();
     const traceStartIndex = this.trace.length;
-    const snapshot = await this.runIntendedPageAction(
-      'unlockPasskeyWallet',
-      'intended-unlock-passkey',
-    );
+    const snapshot = await this.runIntendedPageAction('unlockPasskeyWallet');
     if (snapshot.action.status !== 'success') {
       throw new Error(
         `unlock with the added passkey ended with ${snapshot.action.status}: ${
@@ -2553,10 +2207,7 @@ export class IntendedBehaviourHarness {
    */
   async registerPasskeyEcdsaOnlyWallet(): Promise<void> {
     this.recordStage('register_passkey_ecdsa_only_wallet');
-    const snapshot = await this.runIntendedPageAction(
-      'registerPasskeyEcdsaOnlyWallet',
-      'intended-register-passkey-ecdsa-only',
-    );
+    const snapshot = await this.runIntendedPageAction('registerPasskeyEcdsaOnlyWallet');
     const result = requirePasskeyRegistrationResult(snapshot, this.walletId);
     if (result.nearReadiness !== 'absent') {
       throw new Error(`ECDSA-only registration reported NEAR ${result.nearReadiness}`);
@@ -2575,10 +2226,7 @@ export class IntendedBehaviourHarness {
   /** Signer-profile matrix: an Email OTP wallet whose signer set is ECDSA only. */
   async registerEmailOtpEcdsaOnlyWallet(): Promise<void> {
     this.recordStage('register_email_otp_ecdsa_only_wallet');
-    const snapshot = await this.runIntendedPageAction(
-      'registerEmailOtpEcdsaOnlyWallet',
-      'intended-register-email-otp-ecdsa-only',
-    );
+    const snapshot = await this.runIntendedPageAction('registerEmailOtpEcdsaOnlyWallet');
     if (snapshot.action.status !== 'success') {
       throw new Error(
         `ECDSA-only Email OTP registration ended with ${snapshot.action.status}: ${
@@ -2603,10 +2251,7 @@ export class IntendedBehaviourHarness {
   /** Signer-profile matrix: an Email OTP wallet whose signer set is Ed25519 only. */
   async registerEmailOtpEd25519OnlyWallet(): Promise<void> {
     this.recordStage('register_email_otp_ed25519_only_wallet');
-    const snapshot = await this.runIntendedPageAction(
-      'registerEmailOtpEd25519OnlyWallet',
-      'intended-register-email-otp-ed25519-only',
-    );
+    const snapshot = await this.runIntendedPageAction('registerEmailOtpEd25519OnlyWallet');
     if (snapshot.action.status !== 'success') {
       throw new Error(
         `Ed25519-only Email OTP registration ended with ${snapshot.action.status}: ${
@@ -2639,10 +2284,7 @@ export class IntendedBehaviourHarness {
       : null;
     let snapshot: IntendedPageSnapshot;
     try {
-      snapshot = await this.runIntendedPageAction(
-        'addPasskeyAuthMethod',
-        'intended-add-passkey-auth-method',
-      );
+      snapshot = await this.runIntendedPageAction('addPasskeyAuthMethod');
     } finally {
       await lostFinalize?.release();
     }
@@ -2670,11 +2312,9 @@ export class IntendedBehaviourHarness {
 
   async registerEmailOtpWallet(): Promise<void> {
     this.recordStage('register_email_otp_wallet');
-    const snapshot = await this.runIntendedPageAction(
-      'registerEmailOtpWallet',
-      'intended-register-email-otp',
-      { onRecoveryCodes: this.captureRecoveryCodes },
-    );
+    const snapshot = await this.runIntendedPageAction('registerEmailOtpWallet', {
+      onRecoveryCodes: this.captureRecoveryCodes,
+    });
     if (this.recoveryCodes.length === 0) {
       this.captureRecoveryCodes(
         await waitForWalletRecoveryCodeBackup(
@@ -2756,10 +2396,7 @@ export class IntendedBehaviourHarness {
       this.recordService(`NEAR already ready wallet=${registration.walletId}`);
       return;
     }
-    const snapshot = await this.runIntendedPageAction(
-      'awaitNearReady',
-      'intended-await-near-ready',
-    );
+    const snapshot = await this.runIntendedPageAction('awaitNearReady');
     const ready = requireNearProvisioningReadyResult(snapshot, this.walletId);
     this.registeredWallet = registeredWalletWithNearReady(registration, ready);
     this.recordService(
@@ -2779,10 +2416,7 @@ export class IntendedBehaviourHarness {
     const registration = this.requireRegisteredWalletForSigning();
     await this.resetRuntimeOnlyState();
     const traceStartIndex = this.trace.length;
-    const snapshot = await this.runIntendedPageAction(
-      'unlockWithAddedEmailOtp',
-      'intended-unlock-added-email-otp',
-    );
+    const snapshot = await this.runIntendedPageAction('unlockWithAddedEmailOtp');
     if (snapshot.action.status !== 'success') {
       throw new Error(
         `unlock with the added email code ended with ${snapshot.action.status}: ${
@@ -2831,10 +2465,7 @@ export class IntendedBehaviourHarness {
   async unlockPasskeyWithPendingNear(): Promise<void> {
     this.recordStage('unlock_passkey_with_pending_near');
     await this.resetRuntimeOnlyState();
-    const snapshot = await this.runIntendedPageAction(
-      'unlockPasskeyWallet',
-      'intended-unlock-passkey',
-    );
+    const snapshot = await this.runIntendedPageAction('unlockPasskeyWallet');
     if (snapshot.action?.status !== 'success')
       throw new Error('Pending NEAR Passkey unlock failed');
     this.currentWarmSigningStage = 'post_unlock';
@@ -2844,10 +2475,7 @@ export class IntendedBehaviourHarness {
   async unlockEmailOtpWithPendingNear(): Promise<void> {
     this.recordStage('unlock_email_otp_with_pending_near');
     await this.resetRuntimeOnlyState();
-    const snapshot = await this.runIntendedPageAction(
-      'unlockEmailOtpWallet',
-      'intended-unlock-email-otp',
-    );
+    const snapshot = await this.runIntendedPageAction('unlockEmailOtpWallet');
     if (snapshot.action?.status !== 'success') {
       throw new Error('Pending NEAR Email OTP unlock failed');
     }
@@ -2863,11 +2491,7 @@ export class IntendedBehaviourHarness {
     }
     await this.resetRuntimeOnlyState();
     const traceStartIndex = this.trace.length;
-    const snapshot = await this.runIntendedPageAction(
-      'unlockPasskeyWallet',
-      'intended-unlock-passkey',
-      options,
-    );
+    const snapshot = await this.runIntendedPageAction('unlockPasskeyWallet', options);
     const result = requirePasskeyUnlockResult(snapshot, registration);
     const observedPaths = this.trace
       .slice(traceStartIndex)
@@ -2923,7 +2547,7 @@ export class IntendedBehaviourHarness {
     );
     await this.clearBrowserStorageForColdSync();
     const traceStartIndex = this.trace.length;
-    const snapshot = await this.runIntendedPageAction('syncPasskeyWallet', 'intended-sync-passkey');
+    const snapshot = await this.runIntendedPageAction('syncPasskeyWallet');
     const result = requirePasskeySyncResult(snapshot, registration);
     const observedPaths = this.trace
       .slice(traceStartIndex)
@@ -3362,7 +2986,7 @@ export class IntendedBehaviourHarness {
     if (!recoveryCode) throw new Error('Recovery-code reuse requires a captured recovery code');
     await this.assertRecoveryCodeAlreadyUsedServerResponse(recoveryCode, target);
     const action = recoveryActionForTarget(target);
-    await this.page.getByTestId(action.buttonTestId).click();
+    await this.page.getByTestId(INTENDED_ACTIONS[action.name].button).click();
     await this.waitForIntendedPageActionStarted(action.name);
     const frame = await fillHostedRecoveryCode(this.page, recoveryCode, target);
     await expect(frame.locator('.seams-recovery-status')).toHaveText(
@@ -3441,7 +3065,7 @@ export class IntendedBehaviourHarness {
     const pageRoot = this.page.getByTestId('intended-e2e-page');
     await expect(pageRoot).toHaveAttribute('data-login-state', 'logged_out');
     await expect(pageRoot).toHaveAttribute('data-login-wallet-id', '');
-    await this.page.getByTestId(input.action.buttonTestId).click();
+    await this.page.getByTestId(INTENDED_ACTIONS[input.action.name].button).click();
     await this.waitForIntendedPageActionStarted(input.action.name);
     return { registration, recoveryCode };
   }
@@ -3534,7 +3158,8 @@ export class IntendedBehaviourHarness {
 
   private assertRecoveryCodeConsumption(
     result: Pick<
-      PasskeyRecoveryResultSnapshot | GoogleEmailOtpRecoveryResultSnapshot,
+      | IntendedResult<'passkey_recovery_success'>
+      | IntendedResult<'google_email_otp_recovery_success'>,
       'activeRecoveryCodeCount' | 'totalRecoveryCodeCount'
     >,
   ): void {
@@ -3579,10 +3204,7 @@ export class IntendedBehaviourHarness {
     );
     await this.resetRuntimeOnlyState();
     const traceStartIndex = this.trace.length;
-    const snapshot = await this.runIntendedPageAction(
-      'unlockEmailOtpWallet',
-      'intended-unlock-email-otp',
-    );
+    const snapshot = await this.runIntendedPageAction('unlockEmailOtpWallet');
     const result = requireEmailOtpUnlockResult(snapshot, emailOtpRegistration);
     this.assertNoRouterAbEd25519YaoRecoveryRoutes(traceStartIndex, {
       kind: 'email_otp_unlock',
@@ -3658,14 +3280,14 @@ export class IntendedBehaviourHarness {
 
   private async runNearSigningPageAction(nearAccountId: string): Promise<IntendedPageSnapshot> {
     try {
-      return await this.runIntendedPageAction('signNearTransaction', 'intended-sign-near', {
+      return await this.runIntendedPageAction('signNearTransaction', {
         nearAccountId,
       });
     } catch (error) {
       if (!isAutomatedSecureConfirmationCancellation(error)) throw error;
       this.recordService('retrying transient automated NEAR secure-confirm cancellation');
       await this.page.waitForTimeout(250);
-      return await this.runIntendedPageAction('signNearTransaction', 'intended-sign-near', {
+      return await this.runIntendedPageAction('signNearTransaction', {
         nearAccountId,
       });
     }
@@ -3772,10 +3394,7 @@ export class IntendedBehaviourHarness {
   async signTempoTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:tempo.sign`);
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'signTempoTransaction',
-      'intended-sign-tempo',
-    );
+    const snapshot = await this.runIntendedPageAction('signTempoTransaction');
     const result = requireTempoSigningResult(snapshot, {
       walletId: this.walletId,
       chainId: INTENDED_TEMPO_CHAIN_ID,
@@ -3795,10 +3414,7 @@ export class IntendedBehaviourHarness {
   async signArcEvmTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:arc_evm.sign`);
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'signArcEvmTransaction',
-      'intended-sign-arc-evm',
-    );
+    const snapshot = await this.runIntendedPageAction('signArcEvmTransaction');
     const result = requireArcEvmSigningResult(snapshot, {
       walletId: this.walletId,
       chainId: INTENDED_ARC_EVM_CHAIN_ID,
@@ -3935,7 +3551,7 @@ export class IntendedBehaviourHarness {
 
   async exportEcdsaKey(): Promise<void> {
     this.recordStage('ecdsa.export');
-    const snapshot = await this.runIntendedPageAction('exportEcdsaKey', 'intended-export-ecdsa');
+    const snapshot = await this.runIntendedPageAction('exportEcdsaKey');
     const result = requireEcdsaExportResult(snapshot, {
       walletId: this.walletId,
       chainId: INTENDED_ARC_EVM_CHAIN_ID,
@@ -3953,10 +3569,7 @@ export class IntendedBehaviourHarness {
   async exportEd25519Key(): Promise<void> {
     this.recordStage('ed25519.export');
     const traceStartIndex = this.trace.length;
-    const snapshot = await this.runIntendedPageAction(
-      'exportEd25519Key',
-      'intended-export-ed25519',
-    );
+    const snapshot = await this.runIntendedPageAction('exportEd25519Key');
     const registration = requireNearReadyRegisteredWallet(
       this.requireRegisteredWalletForSigning(),
       'Ed25519 export',
@@ -4356,8 +3969,7 @@ export class IntendedBehaviourHarness {
   }
 
   private async runIntendedPageAction(
-    action: IntendedHarnessAction,
-    buttonTestId: string,
+    action: IntendedActionName,
     opts?: {
       nearAccountId?: string;
       expectedOutcome?: 'success' | 'error';
@@ -4374,7 +3986,7 @@ export class IntendedBehaviourHarness {
     const timing = new IntendedActionTiming();
     await this.ensureIntendedPageOpen();
     timing.pageReadyAt = performance.now();
-    await this.page.getByTestId(buttonTestId).click();
+    await this.page.getByTestId(INTENDED_ACTIONS[action].button).click();
     await this.waitForIntendedPageActionStarted(action);
     timing.actionObservedAt = performance.now();
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
@@ -4424,7 +4036,7 @@ export class IntendedBehaviourHarness {
     this.recoveryCodes = [...codes];
   };
 
-  private async waitForIntendedPageActionStarted(action: IntendedHarnessAction): Promise<void> {
+  private async waitForIntendedPageActionStarted(action: IntendedActionName): Promise<void> {
     try {
       await this.page.waitForFunction(intendedPageActionStartedOrCompleted, action, {
         timeout: 5_000,
@@ -4450,7 +4062,7 @@ export class IntendedBehaviourHarness {
   }
 
   private async waitForIntendedPageActionCompletion(
-    action: IntendedHarnessAction,
+    action: IntendedActionName,
     expectedOutcome: 'success' | 'error',
   ): Promise<IntendedPageSnapshot> {
     try {
@@ -5004,14 +4616,14 @@ function noYaoRecoveryAssertionLabel(scenario: IntendedNoYaoRecoveryAssertionSce
 
 function requireEmailOtpRegisteredWalletSnapshot(
   registration: RegisteredWalletSnapshot,
-): EmailOtpRegistrationResultSnapshot {
+): EmailOtpRegisteredWallet {
   if (registration.kind === 'email_otp_registration_success') return registration;
   throw new Error('Email OTP unlock requires an Email OTP registration snapshot');
 }
 
 function requirePasskeyRegisteredWalletSnapshot(
   registration: RegisteredWalletSnapshot,
-): PasskeyRegistrationResultSnapshot {
+): PasskeyRegisteredWallet {
   switch (registration.kind) {
     case 'passkey_registration_success':
       return registration;
@@ -5050,7 +4662,7 @@ function requireNearReadyRegisteredWallet(
 
 function registeredWalletWithNearReady(
   registration: RegisteredWalletSnapshot,
-  ready: NearProvisioningReadySnapshot,
+  ready: IntendedResult<'near_provisioning_ready'>,
 ): NearReadyRegisteredWalletSnapshot {
   switch (registration.kind) {
     case 'passkey_registration_success':
@@ -5063,8 +4675,8 @@ function registeredWalletWithNearReady(
 }
 
 function passkeyWalletWithNearReady(
-  registration: PasskeyRegistrationResultSnapshot,
-  ready: NearProvisioningReadySnapshot,
+  registration: PasskeyRegisteredWallet,
+  ready: IntendedResult<'near_provisioning_ready'>,
 ): NearReadyRegisteredWalletSnapshot {
   const near = {
     kind: registration.kind,
@@ -5088,6 +4700,8 @@ function passkeyWalletWithNearReady(
       return {
         ...near,
         ecdsaTargetProfile: 'tempo_arc',
+        thresholdEcdsaEthereumAddress: registration.thresholdEcdsaEthereumAddress,
+        thresholdEcdsaPublicKeyB64u: registration.thresholdEcdsaPublicKeyB64u,
         ecdsaTargetKeys: registration.ecdsaTargetKeys,
       };
     default:
@@ -5096,8 +4710,8 @@ function passkeyWalletWithNearReady(
 }
 
 function emailOtpWalletWithNearReady(
-  registration: EmailOtpRegistrationResultSnapshot,
-  ready: NearProvisioningReadySnapshot,
+  registration: EmailOtpRegisteredWallet,
+  ready: IntendedResult<'near_provisioning_ready'>,
 ): NearReadyRegisteredWalletSnapshot {
   const core = {
     kind: registration.kind,
@@ -5123,6 +4737,8 @@ function emailOtpWalletWithNearReady(
       return {
         ...core,
         ecdsaTargetProfile: 'tempo_arc',
+        thresholdEcdsaEthereumAddress: registration.thresholdEcdsaEthereumAddress,
+        thresholdEcdsaPublicKeyB64u: registration.thresholdEcdsaPublicKeyB64u,
         ecdsaTargetKeys: registration.ecdsaTargetKeys,
       };
     default:
@@ -5270,7 +4886,9 @@ function requireLocalIntendedRouterBurnBuild(): void {
   );
 }
 
-function emailOtpEcdsaTargetProfileFromEnv(raw: string | undefined): EcdsaTargetProfileName {
+function emailOtpEcdsaTargetProfileFromEnv(
+  raw: string | undefined,
+): IntendedEcdsaTargetProfileName {
   return ecdsaTargetProfileFromEnv({
     raw,
     name: 'SEAMS_INTENDED_EMAIL_OTP_ECDSA_TARGET_PROFILE',
@@ -5280,7 +4898,7 @@ function emailOtpEcdsaTargetProfileFromEnv(raw: string | undefined): EcdsaTarget
 function ecdsaTargetProfileFromEnv(args: {
   raw: string | undefined;
   name: string;
-}): EcdsaTargetProfileName {
+}): IntendedEcdsaTargetProfileName {
   const value = String(args.raw || 'tempo_arc').trim();
   switch (value) {
     case 'none':
@@ -5924,7 +5542,7 @@ function eventAuthMethod(payload: unknown): SigningAuthMethod | null {
 function requirePasskeyRegistrationResult(
   snapshot: IntendedPageSnapshot,
   expectedWalletId: string,
-): PasskeyRegistrationResultSnapshot {
+): IntendedResult<'passkey_registration_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Passkey registration did not succeed: ${snapshot.action.status}`);
   }
@@ -5941,7 +5559,7 @@ function requirePasskeyRegistrationResult(
 function requireEd25519AddSignerResult(
   snapshot: IntendedPageSnapshot,
   expectedWalletId: string,
-): Ed25519AddSignerResultSnapshot {
+): IntendedResult<'wallet_signer_added'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Ed25519 add-signer did not succeed: ${snapshot.action.status}`);
   }
@@ -5960,7 +5578,7 @@ function requireEd25519AddSignerResult(
 
 function requireEmailOtpRegistrationResult(
   snapshot: IntendedPageSnapshot,
-): EmailOtpRegistrationResultSnapshot {
+): IntendedResult<'email_otp_registration_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Email OTP registration did not succeed: ${snapshot.action.status}`);
   }
@@ -5988,7 +5606,7 @@ function requireEmailOtpRegistrationResult(
 function requireNearProvisioningReadyResult(
   snapshot: IntendedPageSnapshot,
   expectedWalletId: string,
-): NearProvisioningReadySnapshot {
+): IntendedResult<'near_provisioning_ready'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`NEAR provisioning did not succeed: ${snapshot.action.status}`);
   }
@@ -6005,7 +5623,7 @@ function requireNearProvisioningReadyResult(
 function requireDeviceLinkApprovalResult(
   snapshot: IntendedPageSnapshot,
   expectedWalletId: string,
-): DeviceLinkApprovalRecordedSnapshot {
+): IntendedResult<'device_link_approval_recorded'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Device 1 link approval ended with ${snapshot.action.status}`);
   }
@@ -6025,10 +5643,6 @@ function intendedDeviceLinkSettled(): boolean {
     ?.getAttribute('data-device-link-state');
   return state === 'active' || state === 'failed';
 }
-
-type DeviceLinkSettledSnapshot =
-  | ({ status: 'active' } & DeviceLinkActiveSnapshot)
-  | { status: 'failed'; linkSessionId: string; error: string };
 
 async function readSettledDeviceLinkState(page: Page): Promise<DeviceLinkSettledSnapshot> {
   const text = await page.getByTestId('intended-result-json').textContent();
@@ -6077,7 +5691,7 @@ export function requireNearSigningResult(
     walletId: string;
     nearAccountId: string;
   },
-): NearSigningResultSnapshot {
+): IntendedResult<'near_sign_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`NEAR signing did not succeed: ${snapshot.action.status}`);
   }
@@ -6103,7 +5717,7 @@ export function requireNearSigningResult(
 function requirePasskeyUnlockResult(
   snapshot: IntendedPageSnapshot,
   expected: RegisteredWalletSnapshot & { nearReadiness: 'ready' | 'absent' },
-): PasskeyUnlockResultSnapshot {
+): IntendedResult<'passkey_unlock_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Passkey unlock did not succeed: ${snapshot.action.status}`);
   }
@@ -6145,7 +5759,7 @@ function requirePasskeySyncResult(
     nearAccountId: string;
     operationalPublicKey: string;
   },
-): PasskeySyncResultSnapshot {
+): IntendedResult<'passkey_sync_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Passkey cold sync did not succeed: ${snapshot.action.status}`);
   }
@@ -6168,7 +5782,7 @@ function requirePasskeySyncResult(
 function requirePasskeyRecoveryResult(
   snapshot: IntendedPageSnapshot,
   expectedWalletId: string,
-): PasskeyRecoveryResultSnapshot {
+): IntendedResult<'passkey_recovery_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Passkey recovery did not succeed: ${snapshot.action.status}`);
   }
@@ -6185,7 +5799,7 @@ function requirePasskeyRecoveryResult(
 function requireGoogleEmailOtpRecoveryResult(
   snapshot: IntendedPageSnapshot,
   expectedWalletId: string,
-): GoogleEmailOtpRecoveryResultSnapshot {
+): IntendedResult<'google_email_otp_recovery_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Google Email OTP recovery did not succeed: ${snapshot.action.status}`);
   }
@@ -6205,8 +5819,8 @@ function requireEmailOtpUnlockResult(
     walletId: string;
     nearAccountId: string;
     operationalPublicKey: string;
-  } & EcdsaEnabledSnapshot,
-): EmailOtpUnlockResultSnapshot {
+  } & IntendedEcdsaSummary,
+): IntendedResult<'email_otp_unlock_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Email OTP unlock did not succeed: ${snapshot.action.status}`);
   }
@@ -6240,8 +5854,8 @@ function requireEmailOtpUnlockResult(
 }
 
 function assertEcdsaEnabledSnapshotsMatch(args: {
-  actual: EcdsaEnabledSnapshot;
-  expected: EcdsaEnabledSnapshot;
+  actual: IntendedEcdsaSummary;
+  expected: IntendedEcdsaSummary;
   label: string;
 }): void {
   if (args.actual.ecdsaTargetProfile !== args.expected.ecdsaTargetProfile) {
@@ -6286,8 +5900,8 @@ function assertEcdsaEnabledSnapshotsMatch(args: {
 }
 
 function assertEcdsaTargetKeysMatch(args: {
-  actual: EcdsaTargetKeysSnapshot;
-  expected: EcdsaTargetKeysSnapshot;
+  actual: IntendedEcdsaTargetKeysSummary;
+  expected: IntendedEcdsaTargetKeysSummary;
   label: string;
 }): void {
   if (args.actual.kind !== args.expected.kind) {
@@ -6327,8 +5941,8 @@ function assertEcdsaTargetKeysMatch(args: {
 }
 
 function assertEcdsaTargetKeyMatch(args: {
-  actual: EcdsaTargetKeySnapshot;
-  expected: EcdsaTargetKeySnapshot;
+  actual: IntendedEcdsaTargetKeySummary;
+  expected: IntendedEcdsaTargetKeySummary;
   label: string;
 }): void {
   if (args.actual.chain !== args.expected.chain) {
@@ -6351,7 +5965,7 @@ function requireTempoSigningResult(
     walletId: string;
     chainId: number;
   },
-): TempoSigningResultSnapshot {
+): IntendedResult<'tempo_sign_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Tempo signing did not succeed: ${snapshot.action.status}`);
   }
@@ -6374,7 +5988,7 @@ function requireArcEvmSigningResult(
     walletId: string;
     chainId: number;
   },
-): ArcEvmSigningResultSnapshot {
+): IntendedResult<'arc_evm_sign_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Arc/EVM signing did not succeed: ${snapshot.action.status}`);
   }
@@ -6397,7 +6011,7 @@ function requireEcdsaExportResult(
     walletId: string;
     chainId: number;
   },
-): EcdsaExportResultSnapshot {
+): IntendedResult<'ecdsa_export_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`ECDSA export did not succeed: ${snapshot.action.status}`);
   }
@@ -6420,7 +6034,7 @@ function requireEd25519ExportResult(
     walletId: string;
     nearAccountId: string;
   },
-): Ed25519ExportResultSnapshot {
+): IntendedResult<'ed25519_export_success'> {
   if (snapshot.action.status !== 'success') {
     throw new Error(`Ed25519 export did not succeed: ${snapshot.action.status}`);
   }
@@ -6439,7 +6053,7 @@ function requireEd25519ExportResult(
 
 export async function verifyNearEd25519Signature(args: {
   registration: Pick<NearReadyRegisteredWalletSnapshot, 'operationalPublicKey'>;
-  result: NearSigningResultSnapshot;
+  result: IntendedResult<'near_sign_success'>;
 }): Promise<void> {
   const registeredPublicKey = parseNearEd25519PublicKey(args.registration.operationalPublicKey);
   const signedTransaction = decodeNearSignedTransactionB64(args.result.signedTransactionB64);
@@ -6481,7 +6095,7 @@ export async function verifyNearEd25519Signature(args: {
 
 async function verifyTempoEcdsaSignature(args: {
   registration: RegisteredWalletSnapshot;
-  result: TempoSigningResultSnapshot;
+  result: IntendedResult<'tempo_sign_success'>;
 }): Promise<void> {
   const targetKey = requireTempoEcdsaTargetKey(args.registration.ecdsaTargetKeys);
   const parts = decodeTempoSignedTransaction(args.result.rawTxHex);
@@ -6501,7 +6115,7 @@ async function verifyTempoEcdsaSignature(args: {
 
 async function verifyArcEvmSignature(args: {
   registration: RegisteredWalletSnapshot;
-  result: ArcEvmSigningResultSnapshot;
+  result: IntendedResult<'arc_evm_sign_success'>;
 }): Promise<void> {
   const targetKey = requireArcEvmEcdsaTargetKey(args.registration.ecdsaTargetKeys);
   const transaction = parseTransaction(args.result.rawTxHex);
@@ -6518,7 +6132,9 @@ async function verifyArcEvmSignature(args: {
   });
 }
 
-function requireTempoEcdsaTargetKey(keys: EcdsaTargetKeysSnapshot): EcdsaTargetKeySnapshot {
+function requireTempoEcdsaTargetKey(
+  keys: IntendedEcdsaTargetKeysSummary,
+): IntendedEcdsaTargetKeySummary {
   switch (keys.kind) {
     case 'tempo':
     case 'tempo_arc':
@@ -6530,7 +6146,9 @@ function requireTempoEcdsaTargetKey(keys: EcdsaTargetKeysSnapshot): EcdsaTargetK
   }
 }
 
-function requireArcEvmEcdsaTargetKey(keys: EcdsaTargetKeysSnapshot): EcdsaTargetKeySnapshot {
+function requireArcEvmEcdsaTargetKey(
+  keys: IntendedEcdsaTargetKeysSummary,
+): IntendedEcdsaTargetKeySummary {
   switch (keys.kind) {
     case 'tempo_arc':
       return keys.arcEvm;
@@ -6834,14 +6452,14 @@ function parseIntendedPageSnapshot(raw: unknown): IntendedPageSnapshot {
   };
 }
 
-function parseIntendedPageLifecycleEvents(raw: unknown): readonly IntendedPageLifecycleEvent[] {
+function parseIntendedPageLifecycleEvents(raw: unknown): readonly IntendedLifecycleEvent[] {
   if (!Array.isArray(raw)) {
     throw new Error('intended page snapshot events must be an array');
   }
   return raw.map(parseIntendedPageLifecycleEvent);
 }
 
-function parseIntendedPageLifecycleEvent(raw: unknown): IntendedPageLifecycleEvent {
+function parseIntendedPageLifecycleEvent(raw: unknown): IntendedLifecycleEvent {
   const record = requireRecord(raw, 'intended page lifecycle event');
   const index = Number(record.index);
   if (!Number.isInteger(index) || index < 0) {
@@ -6853,24 +6471,24 @@ function parseIntendedPageLifecycleEvent(raw: unknown): IntendedPageLifecycleEve
   };
 }
 
-function parseIntendedPageActionSnapshot(raw: unknown): IntendedPageActionSnapshot {
+function parseIntendedPageActionSnapshot(raw: unknown): IntendedActionState {
   const record = requireRecord(raw, 'intended page action');
   const status = requireString(record.status, 'intended page action status');
   switch (status) {
     case 'idle':
       return { status };
     case 'running':
-      return { status, action: parseIntendedHarnessAction(record.action) };
+      return { status, action: parseIntendedActionName(record.action) };
     case 'success':
       return {
         status,
-        action: parseIntendedHarnessAction(record.action),
+        action: parseIntendedActionName(record.action),
         result: parseIntendedActionResultSnapshot(record.result),
       };
     case 'error':
       return {
         status,
-        action: parseIntendedHarnessAction(record.action),
+        action: parseIntendedActionName(record.action),
         error: requireString(record.error, 'intended page action error'),
       };
     default:
@@ -6880,9 +6498,7 @@ function parseIntendedPageActionSnapshot(raw: unknown): IntendedPageActionSnapsh
 
 function parseEmailOtpUnlockNearIdentity(
   record: Record<string, unknown>,
-):
-  | { nearIdentity: 'ready'; nearAccountId: string; operationalPublicKey: string }
-  | { nearIdentity: 'absent'; nearAccountId?: never; operationalPublicKey?: never } {
+): EmailOtpUnlockNearIdentity {
   switch (record.nearIdentity) {
     case 'ready':
       return {
@@ -6905,7 +6521,7 @@ function parseEmailOtpUnlockNearIdentity(
 
 function parsePasskeyUnlockResultSnapshot(
   record: Record<string, unknown>,
-): PasskeyUnlockResultSnapshot {
+): IntendedResult<'passkey_unlock_success'> {
   const nearIdentity = requireString(record.nearIdentity, 'passkey unlock NEAR identity');
   const common = {
     kind: 'passkey_unlock_success' as const,
@@ -6940,17 +6556,28 @@ function parsePasskeyUnlockResultSnapshot(
   }
 }
 
-function parseIntendedActionResultSnapshot(raw: unknown): IntendedActionResultSnapshot {
+function parseIntendedActionResultSnapshot(raw: unknown): IntendedActionResult {
   const record = requireRecord(raw, 'intended action result');
   const kind = requireString(record.kind, 'intended action result kind');
   switch (kind) {
-    case 'passkey_registration_success':
+    case 'passkey_registration_success': {
+      const walletId = requireString(record.walletId, 'passkey registration walletId');
+      const near = parseRegisteredNearState(record, 'passkey registration');
       return {
         kind,
-        walletId: requireString(record.walletId, 'passkey registration walletId'),
-        ...parseRegisteredNearState(record, 'passkey registration'),
+        walletId,
+        ...(near.nearReadiness === 'ready'
+          ? {
+              ...near,
+              nearEd25519SigningKeyId: requireString(
+                record.nearEd25519SigningKeyId,
+                'passkey registration nearEd25519SigningKeyId',
+              ),
+            }
+          : near),
         ...parseEcdsaEnabledSnapshot(record, 'passkey registration'),
       };
+    }
     case 'wallet_signer_added':
       return {
         kind,
@@ -7215,7 +6842,7 @@ function parseRegisteredNearState(
 function parseEcdsaEnabledSnapshot(
   raw: Record<string, unknown>,
   label: string,
-): EcdsaEnabledSnapshot {
+): IntendedEcdsaSummary {
   const profile = parseEcdsaTargetProfileName(recordValue(raw, 'ecdsaTargetProfile'), label);
   const ecdsaTargetKeys = parseEcdsaTargetKeys(raw.ecdsaTargetKeys, label);
   switch (profile) {
@@ -7249,6 +6876,14 @@ function parseEcdsaEnabledSnapshot(
       }
       return {
         ecdsaTargetProfile: 'tempo_arc',
+        thresholdEcdsaEthereumAddress: requireString(
+          raw.thresholdEcdsaEthereumAddress,
+          `${label} thresholdEcdsaEthereumAddress`,
+        ),
+        thresholdEcdsaPublicKeyB64u: requireString(
+          raw.thresholdEcdsaPublicKeyB64u,
+          `${label} thresholdEcdsaPublicKeyB64u`,
+        ),
         ecdsaTargetKeys,
       };
     default:
@@ -7256,7 +6891,7 @@ function parseEcdsaEnabledSnapshot(
   }
 }
 
-function parseEcdsaTargetProfileName(raw: unknown, label: string): EcdsaTargetProfileName {
+function parseEcdsaTargetProfileName(raw: unknown, label: string): IntendedEcdsaTargetProfileName {
   const value = requireString(raw, `${label} ecdsaTargetProfile`);
   switch (value) {
     case 'none':
@@ -7272,7 +6907,7 @@ function recordValue(record: Record<string, unknown>, key: string): unknown {
   return record[key];
 }
 
-function parseEcdsaTargetKeys(raw: unknown, label: string): EcdsaTargetKeysSnapshot {
+function parseEcdsaTargetKeys(raw: unknown, label: string): IntendedEcdsaTargetKeysSummary {
   const record = requireRecord(raw, `${label} ECDSA target keys`);
   const kind = parseEcdsaTargetProfileName(record.kind, `${label} ECDSA target keys`);
   switch (kind) {
@@ -7296,9 +6931,9 @@ function parseEcdsaTargetKeys(raw: unknown, label: string): EcdsaTargetKeysSnaps
 
 function parseEcdsaTargetKey(
   raw: unknown,
-  expectedChain: EcdsaTargetKeySnapshot['chain'],
+  expectedChain: IntendedEcdsaTargetKeySummary['chain'],
   label: string,
-): EcdsaTargetKeySnapshot {
+): IntendedEcdsaTargetKeySummary {
   const record = requireRecord(raw, label);
   const chain = requireString(record.chain, `${label} chain`);
   if (chain !== expectedChain) {
@@ -7313,40 +6948,10 @@ function parseEcdsaTargetKey(
   };
 }
 
-function parseIntendedHarnessAction(raw: unknown): IntendedHarnessAction {
+function parseIntendedActionName(raw: unknown): IntendedActionName {
   const action = requireString(raw, 'intended action');
-  switch (action) {
-    case 'registerPasskeyWallet':
-    case 'registerPasskeyEd25519YaoWallet':
-    case 'registerPasskeyEcdsaOnlyWallet':
-    case 'addPasskeyEd25519YaoWalletSigner':
-    case 'addPasskeyEcdsaWalletSigner':
-    case 'addEmailOtpAuthMethod':
-    case 'addPasskeyAuthMethod':
-    case 'registerEmailOtpWallet':
-    case 'registerEmailOtpEd25519OnlyWallet':
-    case 'registerEmailOtpEcdsaOnlyWallet':
-    case 'awaitNearReady':
-    case 'syncPasskeyWallet':
-    case 'recoverPasskeyWallet':
-    case 'recoverGoogleEmailOtpWallet':
-    case 'unlockPasskeyWallet':
-    case 'unlockEmailOtpWallet':
-    case 'unlockWithAddedEmailOtp':
-    case 'revokeSourceAuthMethod':
-    case 'signNearTransaction':
-    case 'signTempoTransaction':
-    case 'signArcEvmTransaction':
-    case 'exportEd25519Key':
-    case 'exportEcdsaKey':
-    case 'startDeviceLinkingAsTarget':
-    case 'scanAndLinkDevice':
-    case 'revokeLinkedDevice':
-    case 'revokeLinkedDeviceWithEmailOtp':
-      return action;
-    default:
-      throw new Error(`Unknown intended action: ${action}`);
-  }
+  if (isIntendedActionName(action)) return action;
+  throw new Error(`Unknown intended action: ${action}`);
 }
 
 function routerAbEd25519SigningPath(
@@ -7690,13 +7295,11 @@ function recoveryActionForTarget(target: IntendedRecoveryTargetKind): IntendedRe
       return {
         target,
         name: 'recoverPasskeyWallet',
-        buttonTestId: 'intended-recover-passkey',
       };
     case 'google_email_otp':
       return {
         target,
         name: 'recoverGoogleEmailOtpWallet',
-        buttonTestId: 'intended-recover-google-email-otp',
       };
     default:
       return assertNever(target);
@@ -8001,7 +7604,7 @@ async function fillWalletIframeEmailOtpIfAvailable(
   if (!walletId) {
     throw new Error('Email OTP auto-confirm requires current intended wallet id');
   }
-  const otpLookup: IntendedEmailOtpCodeRequestForPage = otpIdentity
+  const otpLookup: IntendedEmailOtpCodeRequest = otpIdentity
     ? {
         kind: 'challenge',
         challengeId: otpIdentity.challengeId,
@@ -8142,7 +7745,7 @@ function walletIframeConfirmationAlreadyDispatched(
 }
 
 async function readIntendedEmailOtpCodeFromPage(
-  input: IntendedEmailOtpCodeRequestForPage,
+  input: IntendedEmailOtpCodeRequest,
 ): Promise<string> {
   const reader = window.__seamsIntendedE2EReadEmailOtpCode;
   if (typeof reader !== 'function') {

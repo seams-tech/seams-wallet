@@ -5,6 +5,7 @@ import type { Frame, Page, Route } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { intendedTest as test } from './harness';
 import { walletFrame } from './session-restore-lock';
+import type {} from '../../intended-app/src/intendedContract';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 
@@ -138,16 +139,6 @@ test('observed relocation blocks both signing curves and export before remote di
     context.off('request', record);
   }
 });
-
-declare global {
-  interface Window {
-    __seamsIntendedE2EReadWalletMove?: (
-      moveId: string,
-    ) => Promise<
-      import('../../../packages/mpc-wallet/src/SeamsWeb/publicApi/placement').WalletMoveStatusResult
-    >;
-  }
-}
 
 class ActivationResponses {
   readonly moveId = `wmove_${'A'.repeat(43)}`;
