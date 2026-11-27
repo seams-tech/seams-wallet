@@ -125,6 +125,9 @@ text at a commit.
   - [R227 at `46871993a`](https://github.com/seams-tech/seams-wallet/blob/46871993a/docs/refactor-227-speak-to-sign-without-passkey.md): Speak-to-Sign
     payments and typed contract calls without a passkey, in 0.59.0 to 0.61.0. Its status
     lists the manual checks on staging that remain for the owner (2026-11-27).
+  - [R232 at `110a67a38`](https://github.com/seams-tech/seams-wallet/blob/110a67a38/docs/refactor-232-wallet-plugins-by-evidence.md): Wallet plugins by
+    evidence, cut by the owner to its Speak-to-Sign part. Released in Wallet SDK 0.68.0
+    (2026-11-12).
   - [R231 at `01d9e4445`](https://github.com/seams-tech/seams-wallet/blob/01d9e4445/docs/refactor-231-near-custody-across-sites.md): NEAR custody material
     across sites and devices. The Router re-issues client material for the current epoch
     (0.62 and 0.63, 2026-11-10).

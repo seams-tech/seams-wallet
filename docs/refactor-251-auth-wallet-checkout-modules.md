@@ -212,7 +212,7 @@ Checked on 2026-11-18. Paths are the paths before the rename.
   factor key or the VoiceID factor key ([Browser workers](browser-workers.md)).
 - **F3.** The Wallet host loads operator plugin code from fixed paths on its own origin, such
   as `/sdk/voiceid/host.js`, and checks `hostApiVersion`
-  ([Refactor 232](refactor-232-wallet-plugins-by-evidence.md), F2).
+  ([Refactor 232](https://github.com/seams-tech/seams-wallet/blob/110a67a38/docs/refactor-232-wallet-plugins-by-evidence.md), F2).
 - **F4.** Refactor 233 designs one factor table on the client (`webauthn`, `email_code`,
   `device_key`), gates such as `voice` and one app API for methods. It leaves the server and the
   stored records out.

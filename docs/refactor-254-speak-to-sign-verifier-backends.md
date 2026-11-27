@@ -60,7 +60,7 @@ Checked on 2026-11-27 in seams-wallet `dev` at `d3255d548`, SaySo at `6e17c4f`
 - **F3. One extension point exists.** `SpokenEvidence` in
   `packages/mpc-wallet/src/core/transactionFeatures/spokenIntent.ts:42-47` has one kind,
   `voice_verdict_v2`. Its comment says "The first kind is the voice verdict".
-  [Refactor 232](refactor-232-wallet-plugins-by-evidence.md) designed it for more kinds.
+  [Refactor 232](https://github.com/seams-tech/seams-wallet/blob/110a67a38/docs/refactor-232-wallet-plugins-by-evidence.md) designed it for more kinds.
 - **F4. Most of the flow does not depend on the verifier.** These parts can stay:
   - the public `seams.near.spoken.*` API and the `approval: { kind: 'spoken' }` option;
   - the iframe flow and the approval card (not its receipt text);

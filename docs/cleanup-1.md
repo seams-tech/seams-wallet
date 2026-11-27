@@ -142,10 +142,6 @@ presignature proof remain outside this batch.
 
 ### Open, with the owner's agreement
 
-- R232's plan stays in `docs/` until
-  `docs/refactor-251-auth-wallet-checkout-modules.md` links its last text; the
-  session that runs Refactor 251 owns that file. R252 stays until its Slice 5
-  is done.
 - The intended-behaviours harness and test page: `harness.ts` is still under
   feature work.
 - Schema: 17 create-if-missing statements in four store files, and the
@@ -326,10 +322,10 @@ change.
   decision. On 2026-11-27 the last 12 finished plans went: R127, R160, R170 with
   its inventory and receipt, R171, R190a, R190b, R220, R227, R231, R253 and the
   Rust warning checklist (2,848 lines). `docs/README.md` gives each one a short
-  summary and a link to its last text. R232 is finished too, but
-  `docs/refactor-251-auth-wallet-checkout-modules.md` links it, and that file
-  belongs to the session that runs Refactor 251; R232 goes when that link moves.
-  R252 stays until its Slice 5 is done.
+  summary and a link to its last text. R232 followed later that day, when the
+  owner asked for the rest of the plan to be done: its three links, one of them
+  in the Refactor 251 plan, now point at its last text. R252 stays until its
+  Slice 5 is done.
 
 **Exit:** no export is named nowhere else, every remaining dead-code
 suppression either hides nothing the compiler can find in any build or waits

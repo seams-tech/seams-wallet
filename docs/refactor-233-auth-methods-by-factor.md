@@ -16,7 +16,7 @@ too many places. Today `case 'passkey'` has 154 arms, `case 'email_otp'` has 161
 `case 'voiceid'` has 77 arms in 103 files. The owner wants the configuration of a method in a
 much smaller number of files. The app API for methods also has three shapes for the same jobs.
 
-This plan follows [Refactor 232](refactor-232-wallet-plugins-by-evidence.md). Refactor 232
+This plan follows [Refactor 232](https://github.com/seams-tech/seams-wallet/blob/110a67a38/docs/refactor-232-wallet-plugins-by-evidence.md). Refactor 232
 made the approvals (Speak-to-Sign) clean. It did not change the authentication methods.
 
 Scope, as the owner chose on 2026-11-12:
