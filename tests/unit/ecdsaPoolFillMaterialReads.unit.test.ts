@@ -5,7 +5,7 @@ import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNo
 import { parseRouterAbEcdsaDerivationNormalSigningScopeV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterApiWalletSessionExactOperationContext } from '../../packages/mpc-wallet-server/src/router/framework/authServicePort';
 import type { FetchRouterApiContext } from '../../packages/mpc-wallet-server/src/router/transport/fetch/fetchRouter.types';
-import { authorizeEcdsaPoolFill } from '../../packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
+import { authorizeEcdsaPoolFill } from '../../packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsaPoolFill';
 import {
   parseRouterAbEcdsaDerivationPoolFillInitRouteRequest,
   parseRouterAbEcdsaDerivationPoolFillStepRouteRequest,

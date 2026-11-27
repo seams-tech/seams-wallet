@@ -46,7 +46,7 @@ import {
 } from '../../../../authorization/domain';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { authorWalletUnlockEcdsaRequest } from './sessions';
-import { handleStrictEcdsaSessionActivation } from './thresholdEcdsa';
+import { handleStrictEcdsaSessionActivation } from './thresholdEcdsaSessionActivation';
 import type { WebAuthnSyncAccountVerificationResult } from '../../../../core/authService/webauthn';
 import type { WalletEcdsaSignerRecord } from '../../../../core/WalletStore';
 import { projectActiveWalletSession } from '../../../../authorization/domain';

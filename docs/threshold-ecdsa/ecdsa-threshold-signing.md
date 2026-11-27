@@ -102,7 +102,12 @@ method for the session that admitted the operation.
 
 The live route and request boundaries are implemented in:
 
-- `packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsa.ts`
+- `packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsa.ts`: signing,
+  operation step-up, export and refresh
+- `packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsaPoolFill.ts`:
+  presignature pool fill
+- `packages/mpc-wallet-server/src/router/transport/fetch/routes/thresholdEcdsaSessionActivation.ts`:
+  Wallet Session activation after registration
 - `packages/shared-ts/src/utils/routerAbEcdsaDerivation.ts`
 - `packages/shared-ts/src/device-linking/contracts.ts`
 

@@ -21,7 +21,7 @@ import {
   type WalletUnlockCapabilityContext,
 } from '../../../domains/walletUnlock/walletUnlockRouteHandlers';
 import type { RouterAbEd25519YaoActiveCapabilityDescriptorV1 } from '../../../domains/ed25519Yao/recovery/routerAbEd25519YaoRecovery';
-import { handleStrictEcdsaSessionActivation } from './thresholdEcdsa';
+import { handleStrictEcdsaSessionActivation } from './thresholdEcdsaSessionActivation';
 import {
   parseRouterAbEcdsaPostRegistrationSessionActivationPolicyV1,
   parseRouterAbEcdsaCredentialFreeSessionActivationResponseV1,

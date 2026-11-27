@@ -1,5 +1,6 @@
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import type { WalletId } from '@shared/utils/domainIds';
+import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from '@shared/utils/routerAbEcdsaDerivation';
+import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import { failure } from '@shared/utils/failure';
 import { isPlainObject } from '@shared/utils/validation';
 import type {
@@ -180,6 +181,51 @@ export async function readPinnedStepUpWalletScope(
     throw new Error('Step-up wallet scope differs from the Wallet Session scope');
   }
   return pinned;
+}
+
+/** Whether material is the key an operation names: its handle, relayer key and both participants. */
+export function ecdsaMaterialNamesOperationKey(
+  material: {
+    readonly keyHandle: string;
+    readonly relayerKeyId: string;
+    readonly participantIds: readonly number[];
+  },
+  operation: Pick<
+    RouterAbEcdsaOperationStepUpPreparationV1Wire,
+    'key_handle' | 'relayer_key_id' | 'participant_ids'
+  >,
+): boolean {
+  return (
+    material.keyHandle === operation.key_handle &&
+    material.relayerKeyId === operation.relayer_key_id &&
+    material.participantIds[0] === operation.participant_ids[0] &&
+    material.participantIds[1] === operation.participant_ids[1]
+  );
+}
+
+export async function readPinnedEcdsaStepUpWalletScope(
+  ctx: FetchRouterApiContext,
+  session: {
+    readonly walletId: string;
+    readonly runtimePolicyScope: RuntimePolicyScope;
+  },
+  operation: AuthorizedOperation,
+): Promise<PinnedOwnerWalletScope & { readonly walletId: string }> {
+  const walletId = parseWalletId(session.walletId);
+  if (!walletId.ok) throw new Error('ECDSA step-up wallet identity is invalid');
+  const pinned = await readPinnedStepUpWalletScope(
+    ctx,
+    walletId.value,
+    session.runtimePolicyScope,
+    operation,
+  );
+  return {
+    orgId: pinned.orgId,
+    projectId: pinned.projectId,
+    projectEnvironmentId: pinned.projectEnvironmentId,
+    ownershipGeneration: pinned.ownershipGeneration,
+    walletId: session.walletId,
+  };
 }
 
 /**
