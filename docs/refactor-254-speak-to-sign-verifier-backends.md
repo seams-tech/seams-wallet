@@ -303,7 +303,14 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
    measurements in a seams-wallet evidence file.
 4. **The SaySo backend.** The server module, the SDK module, `saysoVerdictV1.ts`, the
    `enroll` operation with its step-up, and the card lines. Unit tests use verdicts signed by a test key. A type fixture
-   holds that the co-signer accepts only the active kind.
+   holds that the co-signer accepts only the active kind. Two parts follow from the owner's
+   answers (Section 8, Q13 and Q14):
+   - **The card shows the request.** The spoken card shows what the Wallet's confirm shows for
+     the same bytes: the receiver, the actions and the amounts. The summary of the application
+     stays as the words to say.
+   - **A setting that turns voice off.** The owner turns voice approval on and off in the
+     Wallet. Off deletes the voice template at the verifier, so SaySo gets a delete route (R4).
+     While it is off, the Wallet offers no spoken approval and uses its confirm.
 5. **Docs.** `speak-to-sign.md` in English and Japanese, `hosted-integration.md`,
    `voiceid.md`, `docs/wallet-steps.md` and the release notes in `README.md`. Remove the TEE
    claims for the SaySo backend, and the 10/20 NEAR co-signer limits (F5).
@@ -472,7 +479,9 @@ did not answer its next question, the npm scope: `@sayso`, `@seams` or `@purin-l
 - **Q10.** Agreed: one SaySo deployment and one key for each lane. This also answers Q4.
 - **Q11 and Q2.** Agreed: an enrollment needs a fresh passkey or Email OTP approval. A VoiceID
   unlock does not count.
-- Q1, Q5, Q6, Q7, Q9, Q12, Q13 and Q14 are open. Q3 was answered by Slice 1.
+- **Q13 and Q14.** "agreed, build both in Slice 4". The card shows what the confirm shows, and
+  the Wallet gets a setting that turns voice off and deletes the template (Section 6, Slice 4).
+- Q1, Q5, Q6, Q7, Q9 and Q12 are open. Q3 was answered by Slice 1.
 
 ## 9. Architecture review (2026-11-27)
 
@@ -484,8 +493,8 @@ word limit of SaySo is F8 and Q7. Each item is measured in the code unless it sa
 
 **R1. The step-up rule sees one kind of seven.** The owner answered this with Q8: voice is an
 equal approval method, so the plan has no amount rule and the "Change" below is not built.
-Two parts stay open. The card shows less than the confirm (Q13). The answer relies on a
-setting that turns voice off, and the Wallet has none today (Q14).
+Two parts follow, and Slice 4 builds both. The card shows less than the confirm (Q13). The
+answer relies on a setting that turns voice off, and the Wallet has none today (Q14).
 
 - The OutLayer policy steps up only an `AccountTransfer` above 10 NEAR; every other kind is
   `Allow` (speak-to-sign `dev`, `crates/voice-verifier/src/policy.rs`, `decide`).
@@ -603,7 +612,7 @@ serves, and Slice 4 defines the call of these three kinds on SaySo in one place.
 
 1. Slice 2: the neutral checker of the v2 kind (R5). Built (Section 6, "Slice 2 result").
 2. Slice 3: G1 first, because it decides go or no-go, then the SaySo changes of R3 and R4.
-3. Slices 4 to 6. Q9, Q12, Q13 and Q14 are needed before Slice 4.
+3. Slices 4 to 6. Q9 and Q12 are needed before Slice 4.
 
 If the OutLayer credits end before Slice 6, no lane has a verifier. The Gateway then has no
 verify route and the co-signer refuses each verdict, so the failure is closed.
