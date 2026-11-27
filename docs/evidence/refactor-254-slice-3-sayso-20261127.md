@@ -1,10 +1,13 @@
-# Refactor 254 Slice 3: SaySo guarded words, and the state of the gate data
+# Refactor 254 Slice 3: SaySo S1 to S3, and the gates G1 to G3
 
 Date: 2026-11-27. Plan: [Refactor 254](../refactor-254-speak-to-sign-verifier-backends.md),
 Sections 4 and 5.
 
-S1 is built and measured. The gates G1 to G3 are not run. This file records what each gate
-needs, because two of the three data sets are not where the plan expects them.
+S1, S2 and S3 are done. G2 passes. G1 and G3 do not pass as written (section 2):
+
+- G1: Workers AI reads the STT-1 sentences some points below the NEAR AI baseline.
+- G3: the verify step has p95 4.57 s warm, above 4 s. The Whisper turbo call on Workers AI is
+  the likely cause (inferred).
 
 ## 1. S1: guarded words
 
@@ -95,10 +98,60 @@ image did not change, and the secrets are the same.
 
 Not probed: a verify with real audio, and a transcript-only verdict from the live Worker.
 
+### 1.3 S3: the Worker of the staging-testnet lane
+
+Deployed on 2026-11-27 with the owner's "complete it all": the Wrangler environment
+`staging-testnet` of SaySo, Worker `sayso-verifier-staging-testnet` in the `seamsadmin` account.
+
+- **No public route.** The Worker has no route and no `workers.dev` URL. A Gateway reaches it
+  through a service binding. It has no `SAYSO_ENROLL_SECRET`, so no browser token works.
+- **Its own key.** `VERDICT_SECRET_KEY_HEX` is new. The public key is
+  `3d96c3d21be6b7864cadfe1d5e57366e45774d7513972710e2569aa33a0d6895`. `SAYSO_API_KEY` is new.
+  Both are in `~/.seams/staging-testnet/sayso.env` (mode 0600), the only copy. The Gateway of
+  the lane needs the same `SAYSO_API_KEY` (Slice 6).
+- **Its own state.** Its Durable Objects and its container application
+  (`sayso-verifier-speakercontainer-staging-testnet`) are apart from those of `sayso.seams.sh`.
+- **The image.** The lane runs the speaker image of the default Worker by its registry tag
+  (`sayso-verifier-speakercontainer:2caac3c4`). A local image build was not possible: the Docker
+  Desktop credential helper (`docker-credential-desktop get`) stopped answering on this machine,
+  so the build waited on Docker Hub. With the tag (SaySo `e5d5fc1`), the lane needs no build,
+  and it runs the image that G2 measured.
+- **Versions.** `14addab6` first; `aaa9a9a6` with the fix below; `5ae975d1` with the stream
+  options of section 2 (SaySo `f7aa760`).
+- **Test users.** The G3 runs left the templates of a few `near:testnet:g3-<hex>.testnet` users
+  in the lane's Durable Objects.
+
+Probes through the G3 probe Worker (section 2, G3), which calls the Worker over a service
+binding:
+
+| Request                                      | Answer                                                   |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `GET /healthz`                               | `ok`, `mock: false`, the public key `3d96c3d2…0d6895`    |
+| `POST /v1/verify`, no key or a wrong key     | 401 `unauthorized_verify`                                |
+| `POST /v1/enroll` with a browser token       | 401 `unauthorized_enrollment`                            |
+
+**A fault found and fixed: every enrollment on a cold container failed.** The first enrollment
+refused as `speaker_unavailable` after about 2 s. The Worker log
+(`wrangler tail`) showed "The container is not listening in the TCP address 10.0.0.1:8080" in
+`SpeakerContainer` for two of the three recordings:
+
+- An enrollment sends its three recordings to the speaker container at the same time.
+- The first request started the container and waited for `/healthz`. `running` was true as soon
+  as `start()` returned, so the other two did not wait. They called the port before the service
+  listened.
+- The fix (SaySo `2b74793`): all requests wait for one shared start, and a start that does not
+  end in 8 s answers 503 `container_not_ready`. A new test
+  (`workers/verifier/tests/speaker.test.ts`) fails with the old code and passes with the fix.
+- A verify sends one recording, so it did not have this fault.
+- `sayso.seams.sh` has the same code. It is not deployed with the fix, because its deploy builds
+  the image (see "The image").
+
+After the fix, an enrollment of the `say` voice accepts with an agreement of 814 milli.
+
 ## 2. The gate data
 
 The gates come from Refactor 210, Section 14.5. That document is in the seams-console
-repository (`~/Dev/purin-labs/seams-console/docs/refactor-210-voice-intents.md`).
+repository (`~/Dev/rust/seams-console/docs/refactor-210-voice-intents.md`).
 
 ### G1: words
 
@@ -112,34 +165,82 @@ repository (`~/Dev/purin-labs/seams-console/docs/refactor-210-voice-intents.md`)
   (`reports/stt1-transaction-grammar-whisper-nearai-slots-2026-11-07.md`).
 - **Workers AI was never measured on STT-1.** The report of 2026-10-30 covers the dictation
   and approval sets only.
-- **The run needs:** the audio made again (the grammar crate now reads `spoken-intent` from
-  the speak-to-sign repository, so the corpus can differ from the one of 2026-11-07), a
-  Workers AI token, and a decision on the scorer.
-- **The scorer is an open point.** The 88.4% is a result of the `spoken-intent` slot rules.
-  SaySo does not have these rules: it compares normalized words, with S1. So "at least 88.4%
-  with S1 in place" compares two different text steps. The gate must say which one it means:
-  SaySo's own check (the real path), or the same slot rules on the Workers AI transcripts (a
-  comparison of the two Whisper models only).
+- **The audio is made again** by SaySo `bench/stt1/build-corpus.sh` from the exact versions of
+  the baseline (below).
+- **The scorer.** The 88.4% is a result of the `spoken-intent` slot rules, and SaySo compares
+  normalized words. Design A (plan, Q15) settles it: the Wallet decides the words with
+  `spoken-intent`, so G1 compares the transcribers under the same rules. SaySo's own check is
+  scored too.
 
-### G2: speaker
+### G2: speaker (measured, passes)
 
-- **"Gate 0" is not a speaker set.** It is a list of 10 feasibility checks of OutLayer
-  (Refactor 210, Section 10). Its item 1 compared ReDimNet in WASM with ONNX Runtime Web on "4
-  real recordings" from `voiceId/fixtures`. The four clips are not named.
-- **No list of accept and refuse results of the Phala build exists.** Refactor 210 asks for
-  "the same embeddings as the Phala build (cosine agreement on the Gate 0 set)". Refactor 254
-  asks for the same accept and refuse results at 450 milli. The two texts differ.
-- **What exists:** 30 private clips in `voiceId/fixtures` of seams-console (89.5 s; owner,
-  another speaker, wrong phrase, noise, too short). Its README forbids a commit or an upload
-  of them. The Phala build has no funding since 2026-11-26.
-- **A run that is possible now:** ReDimNet B1 in the SaySo container image on this machine
-  against the same model in ONNX Runtime on this machine, on the 30 clips. It needs no deploy
-  and no upload. It does not use the Phala build.
+"Gate 0" is not a speaker set, and no list of results of the Phala build existed. Refactor 210
+asks for cosine agreement with the Phala build; Refactor 254 asks for the same accept and refuse
+results at 450 milli. The run measures both.
 
-### G3: time
+- **The reference** is the image that Phala ran:
+  `ghcr.io/seams-tech/speaker-service@sha256:2f3475cd…fdfd`, pinned in speak-to-sign
+  `crates/speaker-service/docker-compose.yml` at `8db52c1`. The Phala deployment has no funding,
+  so the run starts that image on this machine, with a development key and no dstack call.
+- **The candidate** is the SaySo image that `sayso.seams.sh` and the staging lane run
+  (`sayso-verifier-speakercontainer:2caac3c4`, image `42cc86c71a49`).
+- **The clips** are the 30 private clips of `voiceId/fixtures` in seams-console. They went only to
+  the two local containers, as their README requires. The decoded audio was deleted after the
+  run.
+- **The math.** The template and score code is the same in both (`embedding.rs` and `audio.rs` of
+  sayso-wasm and of the voice-verifier), so only the embedding can differ. The template is the
+  unit mean of the three `owner_enrollment` clips; their pair agreement is 653 milli in both.
+- The tools are in SaySo `98f8691`, `bench/g2` (`run.sh`, `run.py`). The result file stays out of the
+  repository, because it names the clips.
 
-- It needs the S1 Worker on a lane, `SAYSO_API_KEY` or a verify token, an enrolled test voice
-  and recordings of that voice. The cold start of the container is a part of the gate.
+| Clips                                | Count | SaySo                           | Phala      | Agree |
+| ------------------------------------ | ----- | ------------------------------- | ---------- | ----- |
+| Owner, enrollment                    | 3     | template                        | template   | 3     |
+| Owner, verification                  | 3     | 3 accept                        | the same   | 3     |
+| Owner, wrong phrase (speaker only)   | 5     | 5 accept                        | the same   | 5     |
+| Noise                                | 9     | 1 accept, 3 speaker, 5 quality  | the same   | 9     |
+| Too short                            | 5     | 5 quality                       | the same   | 5     |
+| Owner, changed voice                 | 2     | 2 speaker                       | the same   | 2     |
+| Synthetic other speakers             | 3     | 3 speaker                       | the same   | 3     |
+
+- **The embeddings agree.** The cosine between the two builds' embeddings of the same clip is
+  0.99999999 to 1.00000001 for the 25 clips with an embedding. The largest score difference is 0
+  milli, so no decision differs.
+- **Near the cutoff:** the raspy owner variant scores 449 in both, and refuses by 1 milli. Three
+  noisy owner clips refuse as `speaker` (349, 283 and 201) in both. These are properties of the
+  model, not differences between the builds.
+- Docker ran both linux/amd64 images under emulation (about 172 ms a clip for SaySo), so these
+  times are not G3 numbers.
+
+### G3: time (measured, fails at p95)
+
+The staging-testnet Worker (version `aaa9a9a6`), called through a service binding as the
+Gateway will call it. The lane Worker has no public route, so a short-lived probe Worker
+(`sayso-g3-probe`, SaySo `bench/g3/probe`) holds the binding and times the call. The voice is
+macOS `say`, so no recording of a person left this machine. One enrollment, 40 warm verifies
+(2.1 s apart), then 5 cold verifies, each after 300 s with no request (the container sleeps after
+3 minutes). Each verify is a transcript-only intent with its own sentence. Tools: SaySo
+`bench/g3`.
+
+| Verifies   | Accepted | p50     | p95     | Max     |
+| ---------- | -------- | ------- | ------- | ------- |
+| Warm, 40   | 40       | 1.68 s  | 4.57 s  | 5.70 s  |
+| Cold, 5    | 5        | 2.47 s  | —       | 6.87 s  |
+
+- The times are of the binding call (`bindingMs`), the time that the Gateway waits. The time from
+  this machine through the probe is 20 to 110 ms longer.
+- **The speech-to-text call is the likely slow part (inferred).** Speech to text, the speaker
+  and the Durable Object run in parallel (`critical_parallel`: 0.63 s to 6.79 s for 1.8 to 2.4 s
+  of audio). The Worker does not report the turbo time alone. Two facts point to it: the speaker
+  model takes 125 to 189 ms, and the time grew when the G1 runs loaded Workers AI (below).
+- **The cold container adds about a second.** The cold enrollment, three recordings with the
+  container start, took 2.0 s in the speaker step. The cold verifies have a median 0.8 s above
+  the warm ones. The 6.87 s verify cannot be split: the Worker reports the speaker's model time
+  (134 ms), but not the time of the container start or of the turbo call alone.
+- **Load matters.** A first run overlapped with the G1 transcriptions (12 Workers AI calls at a
+  time from the same account). Its 40 warm verifies had p50 2.06 s, p95 4.33 s and a maximum of
+  8.2 s. That run is not the result.
+- Not in the time: the Gateway's own work and the upload from the browser.
 - The earlier numbers: NEAR AI Whisper p95 1.584 s for one call; Phala verify over HTTPS p95
   5.172 s; ReDimNet in the CVM p95 466 ms.
 
@@ -216,12 +317,71 @@ scored again with the baseline's own scorer (`txg-text rulecrate`, `score_whispe
 - The multisig cases are 588, not 600: 12 are longer than 8 s.
 - Score files: SaySo `3da0c0c`, `bench/stt1/results/2026-11-27-g1-spoken-intent-*.json`.
 
+### G1: Deepgram Nova-3 (measured, fails, and a fault in SaySo's stream fixed)
+
+With the owner's "complete it all": `@cf/deepgram/nova-3` on the same 6,630 clips, two times
+(400.9 audio minutes each, about $2.08 each). The first run used the options of SaySo's stream
+then (`numerals`, `smart_format`); the second used no options. Design A is scored with
+`bench/stt1/score-design-a.sh`, which gives the turbo numbers above again (2,501 and 2,582) on
+the turbo transcripts. "SaySo" is SaySo's own word check with every word guarded.
+
+| Transcriber                           | A, slot rules | A, forgiving rules | False accepts (A) | SaySo  | False accepts (SaySo) |
+| ------------------------------------- | ------------- | ------------------ | ----------------- | ------ | --------------------- |
+| Whisper turbo (above)                 | 83.4%         | 86.1%              | 0 and 0           | 4.2%   | 0                     |
+| Nova-3, `numerals` and `smart_format` | 45.5%         | 60.2%              | 6 and 9           | 25.4%  | 8                     |
+| Nova-3, no options                    | 62.1%         | 80.7%              | 0 and 0           | 33.7%  | 8                     |
+
+- **With `numerals`, Nova-3 drops a spoken "point".** The request "Send 9,621 NEAR to
+  alicia.testnet" spoken wrongly as "nine hundred sixty two point one" becomes "Send 9621 near to
+  alicia dot test net", which pays the request. All the false accepts under design A are such
+  moved decimal points. Turbo writes "962.1".
+- **SaySo's stream had the same options.** `/v1/stream` signs the Nova-3 transcript. SaySo's
+  word check reads "9621" as "nine thousand six hundred twenty one", the words of the request. On
+  this set the account words refused those readings ("test net"), so no false accept shows; a
+  clean account reading would pass. The Wallet does not use the stream (Q5).
+- **The fix:** the stream sends no options since SaySo `f7aa760`, and staging runs it
+  (version `5ae975d1`). Nova-3 with no options is better on every measure above. The stream path
+  itself is not measured end to end: the probe passed no WebSocket.
+- The 8 false accepts of SaySo's word check are sound-alike contacts ("jon" heard as "John"), as
+  with turbo and the punctuation variant.
+- Nova-3 stays below turbo under design A: it writes account names in many ways ("tom. Test
+  net.", "Hannah dot testament").
+
+### G1: turbo with the contacts as `initial_prompt` (measured, worse)
+
+The 60 contacts of the corpus, as a comma list, in Whisper's `initial_prompt`. The run stopped at
+1,816 cases (the transfers of 67 requests), for two reasons:
+
+- **The prompt makes each call slower.** The same clip took 3.06 s with the prompt and 1.27 s
+  without it. G3 already fails on the time of this call.
+- **The prompt damages amounts.** "send eight thousand eight hundred eighty eight near" became
+  "send 88888 near" in most readings of that request.
+
+On the same 803 correct readings, without and with the prompt:
+
+| Rules     | No prompt     | Contacts prompt | False accepts |
+| --------- | ------------- | --------------- | ------------- |
+| Slot      | 716 (89.2%)   | 534 (66.5%)     | 0 and 0       |
+| Forgiving | 750 (93.4%)   | 543 (67.6%)     | 0 and 0       |
+
+So a contact prompt is not a way to close the G1 gap.
+
 ## 3. Open points for the owner
 
-1. G1: answered with design A (plan, Q15). Turbo with `spoken-intent` is about 5 points below
-   NEAR AI large-v3. Accept the gap, or try Nova-3 (about $2.10) or a contact prompt (about
-   $0.21) first?
-2. G2: cosine agreement or accept and refuse results, and against which reference now that
-   the Phala build has no funding.
-3. G2 and G3: whether the private fixture clips can go to the SaySo Worker on Cloudflare. The
-   fixture README forbids an upload.
+1. **G1.** Neither Nova-3 nor a contact prompt closes the gap. The best Workers AI result stays
+   turbo with the forgiving rules: 86.1% (transfers 93.9%) against 91.1% (98.0%) for NEAR AI
+   large-v3, with no false accept in either. Accept the gap for `staging-testnet`, or keep the
+   gate? Most of the rest is multisig wording ("Approved" for "approve", digit strings). STT-1
+   cannot measure a fix for it: today's `spoken-intent` has no challenge words, so the STT-1
+   multisig sentences are old. That needs a new corpus.
+2. **G3.** p95 is 4.57 s warm, above the 4 s target, likely because of the turbo call. Next: have
+   the Worker report the turbo time alone. Then the choices: a second, hedged turbo call when the
+   first takes more than about 1.5 s (it costs about $0.00003 a verify); accept the time (the
+   Phala path had p95 5.17 s); or measure again through the Gateway in Slice 6.
+3. **`sayso.seams.sh` runs neither fix** (the speaker start and the stream options). Its deploy
+   builds the image, and Docker Desktop's credential helper hangs on this machine. A restart of
+   Docker Desktop is the likely fix; then a deploy needs the owner's yes.
+
+G2 needed no decision: the run measured both cosine agreement and the decisions at 450 milli,
+against the image that Phala ran. No private clip left this machine: G2 ran locally, and G3 used
+a `say` voice.

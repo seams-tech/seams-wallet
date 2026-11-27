@@ -468,16 +468,10 @@ did not change.
 - **Checks.** `pnpm test` and `pnpm typecheck` pass in SaySo: 11 Rust tests (8 in
   `sayso-wasm`) and 10 TypeScript tests.
 
-**Not started:** S3 and G1 to G3. Each needs the owner's yes: `SAYSO_API_KEY`, and a gate run
-that costs money. The S1 Worker that G1 and G3 need is deployed.
+The [evidence file](evidence/refactor-254-slice-3-sayso-20261127.md) has the measurements of S1
+to S3 and of each gate.
 
-**The gate data is not ready.** The STT-1 audio is not stored and must be made again. "Gate
-0" is not a speaker set, and no list of results of the Phala build exists. Section 5 states G1
-and G2 in other words than Refactor 210, Section 14.5. The
-[evidence file](evidence/refactor-254-slice-3-sayso-20261127.md) has the S1 measurements, what
-each gate needs and three open points for the owner.
-
-**S2: the repository is moved; the publish waits for one npm step of the owner.**
+**S2: done.** The repository is moved, and both packages are on npm.
 
 - **The names.** The npm scope `@sayso` belongs to another party: the npm user `sayso`, who
   publishes `sayso-mcp-server` for a prediction-market product at sayso.so. The owner chose
@@ -487,9 +481,9 @@ each gate needs and three open points for the owner.
   branch `main`, from SaySo `1610600`. A scan of its 7 commits found no secret.
 - **The release path.** `.github/workflows/release.yml` tests, packs and publishes both
   packages with one exact version and npm provenance. `scripts/npm-trust.sh` makes the workflow
-  their trusted publisher. npm trusts a workflow only for a package that exists, so the script
-  first publishes a placeholder `0.0.0-stage` (dist-tag `stage`), as the voice libraries did on
-  2026-11-10. It needs the owner's npm login and two-factor approval.
+  their trusted publisher. npm trusts a workflow only for a package that exists, and it refused a
+  placeholder version, so the script first publishes the real first release from the owner's
+  terminal. It needs the owner's npm login and two-factor approval.
 - **The first version is 0.2.0**, the version in the workspace. The packed tarballs install in a
   new project and give the pinned digest `a63e63c8…`.
 - **CI.** The first CI run of the new repository passed (run `45934386701`).
@@ -506,9 +500,13 @@ each gate needs and three open points for the owner.
   placeholder `0.0.0-stage` (403), and the owner did not want an npm token, so the first release
   is the real one, with no provenance. Both install from npm; the client depends on exactly
   `@seams/sayso-verdict` 0.2.0, and the package gives the pinned transcript-only digest.
-- **Trusted publishing:** `@seams/sayso-verdict` trusts `release.yml` of `seams-tech/say-so`. For
-  `@seams/sayso-client` the approval expired; the script must run once more. Then every later
-  version comes from the workflow, with provenance.
+- **Trusted publishing:** `@seams/sayso-verdict` trusts `release.yml` of `seams-tech/say-so`
+  (relationship `5d3c10a8`, read in the script output). For `@seams/sayso-client` the first
+  approval expired. The owner ran the script once more and approved the client's relationship on
+  npmjs.com (2026-11-27). I could not read it back: `npm trust list` and the package settings page
+  each need the owner's security key. The next release through the workflow proves both: a
+  package with no trusted publisher refuses the workflow's publish. Every later version comes from
+  the workflow, with provenance.
 - The seams-wallet pin waits for Slice 4, because no code in seams-wallet imports the package
   before it.
 
@@ -578,14 +576,19 @@ baseline's own `spoken-intent` scorer):
 
 So design A has no false accept, but turbo reads about 5 points below large-v3, and G1 as
 written ("at least the NEAR AI result") fails. Most multisig losses are "Approved" for
-"approve" and digit strings, which the forgiving rules do not cover. The next steps, each
-with a cost:
+"approve" and digit strings, which the forgiving rules do not cover.
 
-- Score Deepgram Nova-3 on Workers AI on the same audio: about 401 audio minutes at $0.0052, so
-  about $2.10.
-- Give turbo the contacts as `initial_prompt`: about $0.21 a run.
-- Add multisig rules to `spoken-intent` (in speak-to-sign): no cost, and the transcripts can be
-  scored again for free.
+**G1, the two paid tries** (2026-11-27, with the owner's "complete it all"; about $4.20 in all).
+Neither closes the gap:
+
+- **Deepgram Nova-3** reads 45.5% and 60.2% under design A with the stream's options then
+  (`numerals`, `smart_format`), and 62.1% and 80.7% with no options. With `numerals` it drops a
+  spoken "point", so a moved decimal point pays the request (6 and 9 false accepts). SaySo's
+  stream used those options; it sends none since SaySo `f7aa760` (staging only).
+- **A contact prompt** for turbo made each call 2.4 times slower and wrote "88888" for "eight
+  thousand eight hundred eighty eight": 66.5% against 89.2% on the same 803 readings.
+- A fix of the multisig wording cannot be measured on STT-1: today's `spoken-intent` has no
+  challenge words, so the STT-1 multisig sentences are old (Q16).
 
 What Slice 4 must build for A: the SDK and the Gateway send a transcript-only intent; the
 `saysoVerdictV1` checker reads `heard` with `spoken-intent` and the contacts, and refuses
@@ -593,12 +596,30 @@ unless the parse gives exactly the request; core and the co-signer get the `spok
 build. Open for Slice 4: the co-signer has no contact list, so it can only compare the heard
 receiver with the request's receiver.
 
-**S3, prepared** in SaySo `e9d7a1d` (local, not deployed): a Wrangler environment
-`staging-testnet` (Worker `sayso-verifier-staging-testnet`) with its own Durable Objects and
-container, no route and no `workers.dev` URL. Its secrets would be a new `VERDICT_SECRET_KEY_HEX`
-and `SAYSO_API_KEY`, and no `SAYSO_ENROLL_SECRET`, so only the Gateway's service binding can
-enroll or verify. The Gateway side (the binding, the secret and the lane rule in seams-console)
-is Slice 6.
+**S3: deployed** (2026-11-27, with the owner's "complete it all"). The Wrangler environment
+`staging-testnet` is the Worker `sayso-verifier-staging-testnet`, with its own Durable Objects
+and container, no route and no `workers.dev` URL.
+
+- **Its secrets** are a new `VERDICT_SECRET_KEY_HEX` and `SAYSO_API_KEY`, and no
+  `SAYSO_ENROLL_SECRET`, so only a service binding with the key can enroll or verify. The verdict
+  public key for the Wallet pin is
+  `3d96c3d21be6b7864cadfe1d5e57366e45774d7513972710e2569aa33a0d6895`. The values are in
+  `~/.seams/staging-testnet/sayso.env`.
+- **Its image** is the speaker image of `sayso.seams.sh`, by its registry tag, because a local
+  image build hung in Docker Desktop's credential helper.
+- **A fault fixed:** every enrollment on a cold container failed, because two of its three
+  recordings reached the container before it listened. All requests now wait for one shared
+  start. The staging lane runs the fix; `sayso.seams.sh` does not yet.
+- The Gateway side (the binding, the secret and the lane rule in seams-console) is Slice 6.
+
+**G2: passes.** The SaySo speaker image and the image that Phala ran, both on this machine, on
+the 30 private clips: the same decision for every clip at 450 milli, a score difference of 0
+milli, and an embedding cosine of 0.99999999 or more. No clip left this machine.
+
+**G3: fails at p95.** Through a service binding to the staging Worker, with a `say` voice: 40
+warm verifies at p50 1.68 s and p95 4.57 s; 5 cold verifies at p50 2.47 s and a maximum of 6.87
+s. All 45 accepted. The speaker model takes 125 to 189 ms, so the turbo call is the likely cause
+(inferred: the Worker does not report its time alone) (Q17).
 
 ## 7. Invariants
 
@@ -631,6 +652,8 @@ is Slice 6.
 | Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
 | Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
 | Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | Answered: A                                                                 |
+| Q16 | G1 under A: turbo reads 86.1% against 91.1% for NEAR AI; Nova-3 and a prompt are worse      | Accept the gap for `staging-testnet`; measure multisig on a new corpus      |
+| Q17 | G3: verify p95 is 4.57 s warm, above 4 s; the turbo call is the likely cause                | Time the turbo call alone, try a hedged second call, then measure through the Gateway (Slice 6) |
 
 ### Answers of the owner (2026-11-27)
 
