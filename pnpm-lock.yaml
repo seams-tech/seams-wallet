@@ -116,6 +116,8 @@ importers:
 
   packages/cli: {}
 
+  packages/frame-kit: {}
+
   packages/mpc-wallet:
     dependencies:
       '@levischuck/tiny-cbor':

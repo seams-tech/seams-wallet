@@ -4,6 +4,7 @@ packages:
   - examples/seams-auth-menu
   - examples/wallet-console-lite
   - packages/cli
+  - packages/frame-kit
   - packages/shared-ts
   - packages/mpc-wallet-server
   - packages/mpc-wallet

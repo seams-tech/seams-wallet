@@ -17,6 +17,7 @@ const browserConfig = defineConfig({
     '**/wallet-ui/**/*.test.ts',
     '**/unit/**/*.test.ts',
     '**/conformance/**/*.test.ts',
+    '**/frame-kit/**/*.test.ts',
   ],
   // The conformance journeys need the local Wallet system of the intended config.
   testIgnore: ['**/conformance/journeys/**'],
@@ -34,12 +35,20 @@ const browserConfig = defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     {
       name: 'firefox-ui',
-      testMatch: ['**/wallet-ui/**/*.browser.test.ts', '**/wallet-ui/auth-menu.lifecycle.test.ts'],
+      testMatch: [
+        '**/wallet-ui/**/*.browser.test.ts',
+        '**/wallet-ui/auth-menu.lifecycle.test.ts',
+        '**/frame-kit/**/*.browser.test.ts',
+      ],
       use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit-ui',
-      testMatch: ['**/wallet-ui/**/*.browser.test.ts', '**/wallet-ui/auth-menu.lifecycle.test.ts'],
+      testMatch: [
+        '**/wallet-ui/**/*.browser.test.ts',
+        '**/wallet-ui/auth-menu.lifecycle.test.ts',
+        '**/frame-kit/**/*.browser.test.ts',
+      ],
       use: { ...devices['Desktop Safari'] },
     },
   ],

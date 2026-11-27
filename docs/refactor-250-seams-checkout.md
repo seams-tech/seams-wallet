@@ -1107,8 +1107,9 @@ Each slice ships alone and keeps the invariants of Section 9.
 - **Slice 0: checks and accounts.** U1 to U13 have answers from public documentation
   (2026-11-18). Tasks T1 to T19 remain: the test accounts, the owner's decisions, the legal
   review, the tests and the questions to the providers (Remaining Slice 0 tasks). No code.
-- **Slice 1: the stage dialog.** Built as Refactor 251 Slice 3 (Section 6). The checkout starts
-  after it.
+- **Slice 1: the stage dialog.** Built as Refactor 251 Slice 3 (Section 6) on 2026-11-27, in
+  `packages/frame-kit`. The checkout can start now. The frame transport gives `payment` to the
+  checkout frame's origin when its spec asks for it.
 - **Slice 2: the checkout package and server.** `packages/checkout` with its `/client` and
   `/server` paths, the checkout Worker as a service of `@seams/host`, its D1 database and
   migrations, the order

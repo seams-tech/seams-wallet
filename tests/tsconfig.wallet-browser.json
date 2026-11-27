@@ -18,6 +18,7 @@
     "setup/**/*.ts",
     "wallet-iframe/**/*.ts",
     "wallet-ui/**/*.ts",
+    "frame-kit/**/*.ts",
     "fixtures/ui/**/*.tsx",
     "unit/helpers/ecdsaMaterialRef.fixtures.ts",
     "types/sdk-paths.d.ts"

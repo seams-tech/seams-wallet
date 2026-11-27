@@ -1,7 +1,7 @@
 # Refactor 251: Auth, the MPC wallet, wallet connectors and checkout as separate modules
 
-Status: 2026-11-27. Slices 0 and 2 are done, and Slice 1 (Release A) is built on `dev` and waits
-for the owner's release. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
+Status: 2026-11-27. Slices 0 and 2 are done. Slice 1 (Release A) is built on `dev` and waits
+for the owner's release. Slice 3 (the frame kit) is built on `dev`; nothing uses it until Slice 6. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
 plan. The design of [Refactor 233](refactor-233-auth-methods-by-factor.md) (factors, gates, one
 app API for methods) is the design of the new auth core.
 
@@ -724,6 +724,71 @@ Rules for the cleanup:
   which [Refactor 252](refactor-252-email-otp-device-factor.md) changes.
 - **Slice 3: the frame kit.** New `packages/frame-kit`: the stage dialog, the frame transport
   and the message checks (D17). The checkout of Refactor 250 can start from here.
+
+  The design (2026-11-27):
+  - **The package.** `@seams-internal/frame-kit` is private and has no build step, as
+    `shared-ts`. Each browser package bundles its source. It imports only pure helpers of
+    `shared-ts` (`hasExactKeys`, the validation helpers, `secureRandomId`). It starts no worker.
+  - **`StageHost`, version 1.** The contract that two packages share on one page:
+    - `createFrame(spec)` makes an iframe inside the host. The host never moves it, because a
+      moved iframe loads again.
+    - `show(request)` makes a stage current: a frame or an app element, a title, `modal` or
+      `drawer`, and `onDismiss`. It returns a `Stage`.
+    - A `Stage` has a random `instance`, `isCurrent()`, `resize(size)`, `isUnobstructed()` and
+      `close()`.
+    - `isStageHost(value)` accepts each object with `stageHostVersion: 1` and the two functions,
+      so a host from another package's copy of the kit works.
+  - **The stage dialog** (`createStageDialog`), one `<dialog>` for each page:
+    - A new stage is preparing until it has a size. It lays out at a provisional size, invisible
+      and inert, and the page keeps its focus. An element stage measures itself. A frame stage
+      gets its size from its owner, who checks the frame's message first.
+    - With a size, a modal stage opens with `showModal()` in the centre of the visual viewport,
+      clamped to the viewport less 16 px on each side. If that space is smaller than
+      280 × 280 px, the stage fills the visual viewport. A drawer always fills the visual
+      viewport, and its content draws the sheet.
+    - A move to the next stage keeps one dialog. The old stage stays on screen, inert, until the
+      new one has a size. Then the box eases to the new size in 320 ms and the content
+      crossfades. A resize of the current stage eases in 180 ms with
+      `cubic-bezier(0.2, 0.7, 0.2, 1)`. With reduced motion, each change applies at once.
+    - Escape, and a press that starts and ends outside the box, call `onDismiss` of the current
+      stage only. The owner decides to close.
+    - When the last stage closes, the focus returns to the element that had it before.
+    - `isUnobstructed()` is true only for the current stage after it is revealed, when its whole
+      box is in the visual viewport, opaque and still, under no later top-layer element, and
+      hit at nine points.
+    - The styles are one constructable stylesheet. The geometry of a dialog is one rule that
+      changes through CSSOM, so a strict CSP has no effect on it. The modal shadow and the
+      backdrop are those of today's overlay. The card radius is `var(--seams-shape-card, 16px)`
+      exactly, with no cap (row 7.7 of the inventory).
+  - **The frame transport** (`createFrame`, `connectFrame`):
+    - The `allow` attribute names only the frame's origin, for each permission that the spec
+      asks for: passkeys, clipboard, microphone and payment.
+    - `connectFrame` posts `frame_kit_connect_v1` with a new `MessagePort` to the exact frame
+      origin, never to `*`. It posts again after 200 ms, then 400 ms, then 800 ms, until
+      `frame_kit_ready_v1` arrives or the time runs out. A frame of another version answers
+      `frame_kit_refused_v1`, and the error names both versions.
+    - The connection closes when the frame loads again.
+  - **The frame endpoint** (`acceptFrameConnection`), for the account origin and the checkout
+    origin. It accepts one connection only: from `window.parent`, with exactly one port and an
+    exact message, from an origin that the owner's `isAllowedParent` accepts. An origin that is
+    not allowed gets no answer. Today's wallet host accepts each http or https parent.
+  - **The message checks:** `isMessageFrom(event, { origin, source })` for window messages; a
+    request ledger that accepts one reply for each open request ID; and
+    `isCurrentStageMessage(stage, instance)` for a message that acts on a stage.
+  - **Not in this slice.** Each of these comes with its first user and its tests: the anchored
+    card over an app element and the receipt toast (the auth menu in Slice 6, rows 7.12 and
+    7.13 in Slice 8), minimize, and the theme tokens that an origin reads (row 7.7, Slice 6).
+    Row 7.13 closes in Slice 8, when the wallet's surfaces use the stage dialog and
+    `tests/wallet-iframe/overlay-elevation.browser.test.ts` passes against it.
+
+  Built on 2026-11-27 on `dev`, not released. Nothing uses the kit yet; the auth client of
+  Slice 6 and the checkout of Refactor 250 are its first users.
+  - Lines: the stage dialog part has 986 lines, under the 1,741 of row 7.13. The transport and
+    the checks have 391 lines; today's wallet transport has 760. No file has more than 575.
+  - Tests: `pnpm -C tests test:frame-kit`, 18 cases in `tests/frame-kit`. CI runs them in the
+    browsers job of Validate Wallet. They pass locally in Chromium and WebKit; Firefox was not
+    installed locally, so CI is its first run. One case was checked against a fault: with `*` as
+    the target origin, "a frame that moved to another origin never gets a port" fails.
 - **Slice 4: the project credentials.** Move the ports and checks into `packages/host` (D19),
   as a reviewed move. The Gateway's routes declare their scopes, and `host` checks them.
 - **Slice 5: the Auth Worker.** New code in `packages/auth`, built by `@seams/host`: accounts,
