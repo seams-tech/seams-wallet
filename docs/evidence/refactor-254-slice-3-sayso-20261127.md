@@ -125,9 +125,32 @@ repository (`~/Dev/purin-labs/seams-console/docs/refactor-210-voice-intents.md`)
 - The earlier numbers: NEAR AI Whisper p95 1.584 s for one call; Phala verify over HTTPS p95
   5.172 s; ReDimNet in the CVM p95 466 ms.
 
+### G1 with perfect transcripts (measured)
+
+SaySo `354016f` holds the tools in `bench/stt1`: `build-corpus.sh` rebuilds the corpus and the
+audio from seams-console `78b05bdb` and seams-wallet `dfc9e5179`, `transcribe.ts` calls Workers
+AI as the Worker does, and `score.ts` scores with sayso-wasm. The rebuilt corpus has 250
+requests, 1,871 near-miss texts and 6,742 cases, the same counts as the baseline.
+
+`score.ts --oracle` uses each case text as its transcript:
+
+| Guards     | Correct readings       | Transfers              | Multisig             | False accepts  |
+| ---------- | ---------------------- | ---------------------- | -------------------- | -------------- |
+| The values | 2,664 of 3,000 (88.8%) | 2,160 of 2,400 (90.0%) | 504 of 600 (84.0%)   | 484 of 3,742   |
+| Every word | 2,664 of 3,000 (88.8%) | 2,160 of 2,400 (90.0%) | 504 of 600 (84.0%)   | 0 of 3,742     |
+
+- "The values" guards every word but the template words (`send`, `to`, `approve`, `proposal`,
+  `add`, `remove`, `member`, `set`, `threshold`, `verifier`, `version`). Its false accepts are
+  `changed_verb` 444 of 500 ("lend" for "send") and `add_remove_swapped` 40 of 40.
+- All 336 refused correct readings belong to the 28 requests with more than 16 words. SaySo
+  refuses their intent before it hears anything.
+- Not measured yet: the 8 s audio cap of the Worker, and the transcripts of Whisper
+  large-v3-turbo.
+
 ## 3. Open points for the owner
 
-1. G1: which text step the 88.4% comparison uses (above).
+1. G1: which text step the 88.4% comparison uses (above). SaySo's own check with every word
+   guarded is the real path; its ceiling is 88.8% until the 16-word limit changes.
 2. G2: cosine agreement or accept and refuse results, and against which reference now that
    the Phala build has no funding.
 3. G2 and G3: whether the private fixture clips can go to the SaySo Worker on Cloudflare. The

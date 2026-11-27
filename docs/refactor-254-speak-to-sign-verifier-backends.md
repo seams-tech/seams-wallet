@@ -484,6 +484,33 @@ each gate needs and three open points for the owner.
 **R3, mock mode: fixed** in SaySo `fa13032` (local, not deployed). Mock mode signs only with the
 public mock seed, and a real verdict key with `SAYSO_DEV_MOCK=true` stops the Worker.
 
+**G1 with perfect transcripts** (SaySo `354016f`, `bench/stt1`, free). The corpus is rebuilt from
+the exact versions of the baseline: 250 requests, 6,742 cases. Each case text is scored as its
+own transcript, so only SaySo's word check acts:
+
+| Guards                                     | Correct readings accepted | False accepts                        |
+| ------------------------------------------ | ------------------------- | ------------------------------------ |
+| The values only (the S1 example above)     | 2,664 of 3,000 (88.8%)    | 484 of 3,742: "lend" for "send" (444), "remove" for "add" (40) |
+| Every word                                 | 2,664 of 3,000 (88.8%)    | 0 of 3,742                           |
+
+- **The S1 example is not safe.** The Wallet must guard the verb as well as the values. Then
+  "sent ten near …" refuses, so the plan's test pair holds only for the mechanism, not for a
+  Wallet request. In a Wallet sentence nearly every word is then guarded, so SaySo forgives
+  almost nothing.
+- **The word limit caps G1 below 95%.** SaySo refuses the intent of 28 of the 250 requests (336
+  correct readings), because they have more than 16 words: 20 transfers and 8 multisig
+  transfers. The 8 s audio cap of the Worker may refuse more; the audio is not measured yet.
+  The 95% target of Refactor 210 Q6 needs a higher limit first (Q7).
+- **The paid run.** Whisper large-v3-turbo on Workers AI costs about $0.25 for the 494 audio
+  minutes, and the first 214 audio minutes of each day are free. It waits for the owner's yes.
+
+**S3, prepared** in SaySo `e9d7a1d` (local, not deployed): a Wrangler environment
+`staging-testnet` (Worker `sayso-verifier-staging-testnet`) with its own Durable Objects and
+container, no route and no `workers.dev` URL. Its secrets would be a new `VERDICT_SECRET_KEY_HEX`
+and `SAYSO_API_KEY`, and no `SAYSO_ENROLL_SECRET`, so only the Gateway's service binding can
+enroll or verify. The Gateway side (the binding, the secret and the lane rule in seams-console)
+is Slice 6.
+
 ## 7. Invariants
 
 - Evidence binds the owner, the request digest, the sentence, a recording of this flow and an
