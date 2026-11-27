@@ -41,7 +41,7 @@ const EXECUTION_ID_V1: [u8; 32] = [0x74; 32];
 const SELECTED_MECHANISM_EVIDENCE_V1: [u8; 32] = [0x93; 32];
 
 /// Strict one-case construction-independent refresh evaluator corpus.
-pub type RefreshEvaluatorAdmissionVectorCorpusV1 =
+pub(crate) type RefreshEvaluatorAdmissionVectorCorpusV1 =
     StrictVectorCorpusV1<RefreshEvaluatorAdmissionVectorCaseV1>;
 
 #[derive(Serialize)]

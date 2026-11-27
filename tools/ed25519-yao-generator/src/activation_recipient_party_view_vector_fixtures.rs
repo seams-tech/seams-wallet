@@ -27,7 +27,7 @@ pub const ACTIVATION_RECIPIENT_PARTY_VIEW_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_activation_recipient_party_views_v1";
 
 /// Strict registration/recovery/refresh post-release recipient-view corpus.
-pub type ActivationRecipientPartyViewVectorCorpusV1 =
+pub(crate) type ActivationRecipientPartyViewVectorCorpusV1 =
     StrictVectorCorpusV1<ActivationRecipientPartyViewVectorCaseV1>;
 
 #[derive(Serialize)]

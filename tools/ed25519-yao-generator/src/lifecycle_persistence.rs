@@ -147,7 +147,7 @@ pub struct AttemptRejectedActivationProjectionV1 {
 
 impl AttemptRejectedActivationProjectionV1 {
     /// Projects one retry-preserving rejection without consuming pending artifacts.
-    pub fn from_rejection(rejection: &RejectedActivationControlProposalV1) -> Self {
+    pub(crate) fn from_rejection(rejection: &RejectedActivationControlProposalV1) -> Self {
         Self {
             retained: OutputCommittedActivationProjectionV1::from_pending(rejection.pending()),
             abort: rejection.abort(),
@@ -181,7 +181,7 @@ pub struct MetadataConsumedActivationProjectionV1 {
 
 impl MetadataConsumedActivationProjectionV1 {
     /// Projects one metadata/control consumption into its public durable identity.
-    pub fn from_success(success: &ActivationMetadataConsumptionSuccessV1) -> Self {
+    pub(crate) fn from_success(success: &ActivationMetadataConsumptionSuccessV1) -> Self {
         let state = success.post_state();
         let identity = OutputCommittedArtifactIdentityV1::from_binding(
             state.artifact_binding(),
@@ -342,11 +342,6 @@ impl RefreshEvaluationAbortedProjectionV1 {
     ) -> &crate::refresh_evaluation_admission::TerminalRefreshEvaluationV1 {
         self.retained.terminal()
     }
-
-    /// Recovers terminal audit authority without creating a retry path.
-    pub fn into_terminal(self) -> crate::refresh_evaluation_admission::TerminalRefreshEvaluationV1 {
-        self.retained.into_terminal()
-    }
 }
 
 /// Recovery abort retaining the exact authenticated credential suspension.
@@ -389,7 +384,8 @@ impl RecoveryEvaluationAbortedProjectionV1 {
     }
 
     /// Recovers the terminal admission; the admitted request remains burned.
-    pub fn into_terminal(
+    #[cfg(test)]
+    pub(crate) fn into_terminal(
         self,
     ) -> crate::recovery_evaluation_admission::TerminalRecoveryEvaluationV1 {
         self.retained.into_terminal()

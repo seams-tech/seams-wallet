@@ -42,7 +42,7 @@ pub const PROVENANCE_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_proof_system_neutral_outer_contract_v1";
 
 /// Domain used only to derive reproducible public fixture digest slots.
-pub const PROVENANCE_SYNTHETIC_DIGEST_FIXTURE_DOMAIN_V1: &[u8] =
+pub(crate) const PROVENANCE_SYNTHETIC_DIGEST_FIXTURE_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/provenance/synthetic-digest-fixture/v1";
 
 /// Complete strict version-one provenance vector corpus.

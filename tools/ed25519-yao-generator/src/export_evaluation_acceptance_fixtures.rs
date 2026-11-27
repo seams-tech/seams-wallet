@@ -48,7 +48,7 @@ pub const EXPORT_EVALUATOR_AUTHORIZATION_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_export_evaluator_authorization_v1";
 
 /// Strict one-case authenticated export-evaluator corpus.
-pub type ExportEvaluatorAuthorizationVectorCorpusV1 =
+pub(crate) type ExportEvaluatorAuthorizationVectorCorpusV1 =
     StrictVectorCorpusV1<ExportEvaluatorAuthorizationVectorCaseV1>;
 
 #[derive(Serialize)]

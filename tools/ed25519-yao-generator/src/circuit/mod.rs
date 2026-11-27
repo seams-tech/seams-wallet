@@ -42,18 +42,19 @@ pub use ml_dsa_signing_mask::{
 };
 pub use schedule::ProvisionalScheduleMetricsV1;
 
-pub use families::{
+pub(crate) use families::{
     compile_provisional_activation_core_v1, compile_provisional_export_core_v1,
-    ProvisionalActivationCoreDigest32V1, ProvisionalActivationCoreV1,
-    ProvisionalActivationScheduleDigest32V1, ProvisionalExportCoreDigest32V1,
-    ProvisionalExportCoreV1, ProvisionalExportScheduleDigest32V1,
-    PublicSyntheticActivationCoreInputsV1, PublicSyntheticActivationCoreOutputsV1,
-    PublicSyntheticActivationInputErrorV1, PublicSyntheticDeriverAActivationInputsV1,
-    PublicSyntheticDeriverAExportInputsV1, PublicSyntheticDeriverBActivationInputsV1,
-    PublicSyntheticDeriverBExportInputsV1, PublicSyntheticExportCoreInputsV1,
-    PublicSyntheticExportCoreOutputV1, PublicSyntheticTauFieldV1,
+    PublicSyntheticActivationCoreInputsV1, PublicSyntheticExportCoreInputsV1,
     PROVISIONAL_ACTIVATION_CORE_INPUT_SCHEMA_V1, PROVISIONAL_ACTIVATION_CORE_OUTPUT_SCHEMA_V1,
     PROVISIONAL_EXPORT_CORE_INPUT_SCHEMA_V1, PROVISIONAL_EXPORT_CORE_OUTPUT_SCHEMA_V1,
+};
+#[cfg(test)]
+pub(crate) use families::{ProvisionalActivationCoreV1, ProvisionalExportCoreV1};
+pub use families::{
+    PublicSyntheticActivationCoreOutputsV1, PublicSyntheticActivationInputErrorV1,
+    PublicSyntheticDeriverAActivationInputsV1, PublicSyntheticDeriverAExportInputsV1,
+    PublicSyntheticDeriverBActivationInputsV1, PublicSyntheticDeriverBExportInputsV1,
+    PublicSyntheticExportCoreOutputV1, PublicSyntheticTauFieldV1,
 };
 
 pub use phase4_families::{
@@ -71,6 +72,9 @@ pub use phase4_families::{
     PublicSyntheticPhase4DeriverBExportShareV1,
     PublicSyntheticPhase4DeriverBSigningWorkerScalarCoinV1, PublicSyntheticPhase4ExportInputsV1,
     PublicSyntheticPhase4ExportOutputsV1, PublicSyntheticPhase4ScalarCoinErrorV1,
+};
+#[cfg(test)]
+pub(crate) use phase4_families::{
     PHASE4_PRIVATE_OUTPUT_ACTIVATION_INPUT_SCHEMA_V1,
     PHASE4_PRIVATE_OUTPUT_ACTIVATION_OUTPUT_SCHEMA_V1,
     PHASE4_PRIVATE_OUTPUT_EXPORT_INPUT_SCHEMA_V1, PHASE4_PRIVATE_OUTPUT_EXPORT_OUTPUT_SCHEMA_V1,
@@ -78,20 +82,18 @@ pub use phase4_families::{
 
 pub use lane_materialization::{
     compile_lane_materialization_v1, LaneMaterializationCoreDigest32V1, LaneMaterializationCoreV1,
-    LaneMaterializationScheduleDigest32V1, LANE_MATERIALIZATION_INPUT_SCHEMA_V1,
-    LANE_MATERIALIZATION_OUTPUT_SCHEMA_V1,
+    LaneMaterializationScheduleDigest32V1,
 };
 
-pub use sha512::{
-    FIXED_SHA512_32_BIT_ORDER_V1, FIXED_SHA512_32_INPUT_SCHEMA_V1, FIXED_SHA512_32_OUTPUT_SCHEMA_V1,
-};
+pub use sha512::FIXED_SHA512_32_BIT_ORDER_V1;
+pub(crate) use sha512::{FIXED_SHA512_32_INPUT_SCHEMA_V1, FIXED_SHA512_32_OUTPUT_SCHEMA_V1};
 
 /// Opaque host-only benchmark component for SHA-512 over exactly 32 bytes.
 ///
 /// This component exists to validate circuit lowering, bit order, gate counts,
 /// and deterministic encoding. It is not a production circuit artifact and
 /// cannot be promoted into one through this API.
-pub struct FixedSha512CircuitV1 {
+pub(crate) struct FixedSha512CircuitV1 {
     circuit: CanonicalBooleanCircuitV1,
     schedule: schedule::CanonicalLivenessScheduleV1,
 }
@@ -123,7 +125,8 @@ impl ProvisionalBenchmarkScheduleDigest32V1 {
 
 impl FixedSha512CircuitV1 {
     /// Evaluates the fixed circuit over public synthetic seed bytes.
-    pub fn evaluate_public_synthetic_seed(&self, seed: [u8; 32]) -> [u8; 64] {
+    #[cfg(test)]
+    pub(crate) fn evaluate_public_synthetic_seed(&self, seed: [u8; 32]) -> [u8; 64] {
         sha512::evaluate_fixed_sha512_32(&self.schedule, seed)
     }
 
@@ -159,7 +162,7 @@ impl FixedSha512CircuitV1 {
 }
 
 /// Compiles the deterministic benchmark component for SHA-512 over 32 bytes.
-pub fn compile_fixed_sha512_32_v1() -> FixedSha512CircuitV1 {
+pub(crate) fn compile_fixed_sha512_32_v1() -> FixedSha512CircuitV1 {
     let circuit = sha512::compile_fixed_sha512_32();
     let schedule = schedule::CanonicalLivenessScheduleV1::derive(&circuit);
     FixedSha512CircuitV1 { circuit, schedule }

@@ -22,7 +22,7 @@ pub const UNIFORM_ABORT_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_uniform_abort_envelope_v1";
 
 /// Strict five-case uniform-abort envelope corpus.
-pub type UniformAbortVectorCorpusV1 = StrictVectorCorpusV1<UniformAbortVectorCaseV1>;
+pub(crate) type UniformAbortVectorCorpusV1 = StrictVectorCorpusV1<UniformAbortVectorCaseV1>;
 
 #[derive(Serialize)]
 pub struct UniformAbortVectorCaseV1 {

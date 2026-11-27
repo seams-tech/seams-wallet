@@ -40,7 +40,7 @@ const EXECUTION_ID_V1: [u8; 32] = [0x73; 32];
 const SELECTED_MECHANISM_EVIDENCE_V1: [u8; 32] = [0x92; 32];
 
 /// Strict one-case construction-independent recovery evaluator corpus.
-pub type RecoveryEvaluatorAdmissionVectorCorpusV1 =
+pub(crate) type RecoveryEvaluatorAdmissionVectorCorpusV1 =
     StrictVectorCorpusV1<RecoveryEvaluatorAdmissionVectorCaseV1>;
 
 #[derive(Serialize)]

@@ -87,7 +87,8 @@ const RECOVERY_ACTIVATION_REQUEST_ID_V1: &str = "activation-recovery-valid";
 const REFRESH_ACTIVATION_REQUEST_ID_V1: &str = "activation-refresh-valid";
 
 /// Strict five-branch semantic lifecycle corpus.
-pub type SemanticLifecycleVectorCorpusV1 = StrictVectorCorpusV1<SemanticLifecycleVectorCaseV1>;
+pub(crate) type SemanticLifecycleVectorCorpusV1 =
+    StrictVectorCorpusV1<SemanticLifecycleVectorCaseV1>;
 
 #[derive(Serialize)]
 #[serde(tag = "request_kind", content = "vector", rename_all = "snake_case")]

@@ -1,14 +1,15 @@
 use super::ir::{BuilderBit, CanonicalBooleanCircuitV1, CircuitBuilder};
+#[cfg(test)]
 use super::schedule::CanonicalLivenessScheduleV1;
 
 /// Canonical field, byte, and bit traversal for the fixed component.
 pub const FIXED_SHA512_32_BIT_ORDER_V1: &str =
     "field-order, then byte-index ascending, then bit-index 0..7 (LSB0)";
 /// Canonical input-schema bytes bound into the fixed component encoding.
-pub const FIXED_SHA512_32_INPUT_SCHEMA_V1: &str =
+pub(crate) const FIXED_SHA512_32_INPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/benchmark-component/sha512-fixed32/input/v1:seed[32]:byte-major-lsb0";
 /// Canonical output-schema bytes bound into the fixed component encoding.
-pub const FIXED_SHA512_32_OUTPUT_SCHEMA_V1: &str =
+pub(crate) const FIXED_SHA512_32_OUTPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/benchmark-component/sha512-fixed32/output/v1:digest[64]:byte-major-lsb0";
 
 type Word = [BuilderBit; 64];
@@ -147,6 +148,7 @@ pub(super) fn sha512_fixed_32_bits(
     digest_words_to_byte_major_lsb0(digest_words)
 }
 
+#[cfg(test)]
 pub(super) fn evaluate_fixed_sha512_32(
     schedule: &CanonicalLivenessScheduleV1,
     seed: [u8; 32],
@@ -330,6 +332,7 @@ fn digest_words_to_byte_major_lsb0(words: [Word; 8]) -> [BuilderBit; 512] {
     outputs
 }
 
+#[cfg(test)]
 fn bytes_to_lsb0_bits(bytes: &[u8]) -> Vec<bool> {
     let mut bits = Vec::with_capacity(bytes.len() * 8);
     for byte in bytes {
@@ -340,6 +343,7 @@ fn bytes_to_lsb0_bits(bytes: &[u8]) -> Vec<bool> {
     bits
 }
 
+#[cfg(test)]
 fn lsb0_bits_to_64_bytes(bits: &[bool]) -> [u8; 64] {
     assert_eq!(bits.len(), 512, "SHA-512 output has 512 bits");
     let mut bytes = [0u8; 64];

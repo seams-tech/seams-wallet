@@ -9,16 +9,16 @@ use super::sha512::sha512_fixed_32_bits;
 use super::BooleanCircuitMetricsV1;
 
 /// Canonical provisional activation-core input schema bytes.
-pub const PROVISIONAL_ACTIVATION_CORE_INPUT_SCHEMA_V1: &str =
+pub(crate) const PROVISIONAL_ACTIVATION_CORE_INPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/provisional-benchmark/activation/input/v1:a.y_client[32],a.y_server[32],a.tau_client[32]:canonical-l,a.tau_server[32]:canonical-l,b.y_client[32],b.y_server[32],b.tau_client[32]:canonical-l,b.tau_server[32]:canonical-l:field-byte-bit-lsb0";
 /// Canonical provisional activation-core output schema bytes.
-pub const PROVISIONAL_ACTIVATION_CORE_OUTPUT_SCHEMA_V1: &str =
+pub(crate) const PROVISIONAL_ACTIVATION_CORE_OUTPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/provisional-benchmark/activation/output/v1:x_client_base[32]:canonical-l,x_server_base[32]:canonical-l:field-byte-bit-lsb0:no-seed";
 /// Canonical provisional export-core input schema bytes.
-pub const PROVISIONAL_EXPORT_CORE_INPUT_SCHEMA_V1: &str =
+pub(crate) const PROVISIONAL_EXPORT_CORE_INPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/provisional-benchmark/export/input/v1:a.y_client[32],a.y_server[32],b.y_client[32],b.y_server[32]:field-byte-bit-lsb0:no-tau";
 /// Canonical provisional export-core output schema bytes.
-pub const PROVISIONAL_EXPORT_CORE_OUTPUT_SCHEMA_V1: &str =
+pub(crate) const PROVISIONAL_EXPORT_CORE_OUTPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/provisional-benchmark/export/output/v1:seed[32]:field-byte-bit-lsb0:no-scalar";
 
 const FIELD_BIT_WIDTH: usize = 256;
@@ -112,7 +112,7 @@ impl PublicSyntheticDeriverBActivationInputsV1 {
 }
 
 /// Complete validated public-synthetic activation-core input tuple.
-pub struct PublicSyntheticActivationCoreInputsV1 {
+pub(crate) struct PublicSyntheticActivationCoreInputsV1 {
     deriver_a: PublicSyntheticDeriverAActivationInputsV1,
     deriver_b: PublicSyntheticDeriverBActivationInputsV1,
 }
@@ -181,7 +181,7 @@ impl PublicSyntheticDeriverBExportInputsV1 {
 }
 
 /// Complete public-synthetic export-core input tuple with no scalar fields.
-pub struct PublicSyntheticExportCoreInputsV1 {
+pub(crate) struct PublicSyntheticExportCoreInputsV1 {
     deriver_a: PublicSyntheticDeriverAExportInputsV1,
     deriver_b: PublicSyntheticDeriverBExportInputsV1,
 }
@@ -238,7 +238,7 @@ pub struct PublicSyntheticExportCoreOutputV1 {
 
 /// Provisional activation-core digest with no production conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProvisionalActivationCoreDigest32V1([u8; 32]);
+pub(crate) struct ProvisionalActivationCoreDigest32V1([u8; 32]);
 
 impl ProvisionalActivationCoreDigest32V1 {
     /// Exposes public digest bytes for benchmark reproducibility.
@@ -249,7 +249,7 @@ impl ProvisionalActivationCoreDigest32V1 {
 
 /// Provisional export-core digest with no production conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProvisionalExportCoreDigest32V1([u8; 32]);
+pub(crate) struct ProvisionalExportCoreDigest32V1([u8; 32]);
 
 impl ProvisionalExportCoreDigest32V1 {
     /// Exposes public digest bytes for benchmark reproducibility.
@@ -260,7 +260,7 @@ impl ProvisionalExportCoreDigest32V1 {
 
 /// Provisional activation-core schedule digest with no production conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProvisionalActivationScheduleDigest32V1([u8; 32]);
+pub(crate) struct ProvisionalActivationScheduleDigest32V1([u8; 32]);
 
 impl ProvisionalActivationScheduleDigest32V1 {
     /// Exposes public digest bytes for benchmark reproducibility.
@@ -271,7 +271,7 @@ impl ProvisionalActivationScheduleDigest32V1 {
 
 /// Provisional export-core schedule digest with no production conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProvisionalExportScheduleDigest32V1([u8; 32]);
+pub(crate) struct ProvisionalExportScheduleDigest32V1([u8; 32]);
 
 impl ProvisionalExportScheduleDigest32V1 {
     /// Exposes public digest bytes for benchmark reproducibility.
@@ -288,13 +288,14 @@ impl PublicSyntheticExportCoreOutputV1 {
 }
 
 /// Opaque provisional activation-family benchmark core.
-pub struct ProvisionalActivationCoreV1 {
+pub(crate) struct ProvisionalActivationCoreV1 {
     circuit: CanonicalBooleanCircuitV1,
     schedule: CanonicalLivenessScheduleV1,
 }
 
 impl ProvisionalActivationCoreV1 {
     /// Evaluates joined mathematical outputs over public synthetic inputs.
+    #[cfg(test)]
     pub fn evaluate_public_synthetic(
         &self,
         inputs: &PublicSyntheticActivationCoreInputsV1,
@@ -364,13 +365,14 @@ impl ProvisionalActivationCoreV1 {
 }
 
 /// Opaque provisional export-family benchmark core.
-pub struct ProvisionalExportCoreV1 {
+pub(crate) struct ProvisionalExportCoreV1 {
     circuit: CanonicalBooleanCircuitV1,
     schedule: CanonicalLivenessScheduleV1,
 }
 
 impl ProvisionalExportCoreV1 {
     /// Evaluates the seed projection over public synthetic inputs.
+    #[cfg(test)]
     pub fn evaluate_public_synthetic(
         &self,
         inputs: &PublicSyntheticExportCoreInputsV1,
@@ -494,7 +496,7 @@ pub(super) fn export_seed_bits(
 }
 
 /// Compiles the deterministic provisional activation-family benchmark core.
-pub fn compile_provisional_activation_core_v1() -> ProvisionalActivationCoreV1 {
+pub(crate) fn compile_provisional_activation_core_v1() -> ProvisionalActivationCoreV1 {
     let mut builder = CircuitBuilder::new(ACTIVATION_INPUT_BIT_WIDTH)
         .expect("activation core has fixed nonzero inputs");
     let inputs = builder.input_bits();
@@ -524,7 +526,7 @@ pub fn compile_provisional_activation_core_v1() -> ProvisionalActivationCoreV1 {
 }
 
 /// Compiles the deterministic provisional export-family benchmark core.
-pub fn compile_provisional_export_core_v1() -> ProvisionalExportCoreV1 {
+pub(crate) fn compile_provisional_export_core_v1() -> ProvisionalExportCoreV1 {
     let mut builder =
         CircuitBuilder::new(EXPORT_INPUT_BIT_WIDTH).expect("export core has fixed nonzero inputs");
     let inputs = builder.input_bits();

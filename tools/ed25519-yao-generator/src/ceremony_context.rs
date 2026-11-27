@@ -15,34 +15,34 @@ use crate::{RegisteredEd25519PublicKey32V1, RegisteredEd25519PublicKeyErrorV1};
 pub const PUBLIC_REQUEST_CONTEXT_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/public-request-context/v1";
 /// Domain for registration authorization bytes.
-pub const REGISTRATION_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
+pub(crate) const REGISTRATION_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/authorization/registration/v1";
 /// Domain for activation-control authorization bytes.
-pub const ACTIVATION_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
+pub(crate) const ACTIVATION_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/authorization/activation/v1";
 /// Domain for recovery authorization bytes.
-pub const RECOVERY_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
+pub(crate) const RECOVERY_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/authorization/recovery/v1";
 /// Domain for refresh authorization bytes.
-pub const REFRESH_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
+pub(crate) const REFRESH_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/authorization/refresh/v1";
 /// Domain for export authorization bytes.
-pub const EXPORT_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
+pub(crate) const EXPORT_AUTHORIZATION_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/authorization/export/v1";
 /// Domain for the canonical ceremony-transcript encoding.
 pub const CEREMONY_TRANSCRIPT_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/ceremony-transcript/v1";
 
 /// Registration request tag.
-pub const CEREMONY_REGISTRATION_REQUEST_TAG_V1: u8 = 0x01;
+pub(crate) const CEREMONY_REGISTRATION_REQUEST_TAG_V1: u8 = 0x01;
 /// Activation-control request tag.
-pub const CEREMONY_ACTIVATION_REQUEST_TAG_V1: u8 = 0x02;
+pub(crate) const CEREMONY_ACTIVATION_REQUEST_TAG_V1: u8 = 0x02;
 /// Recovery request tag.
-pub const CEREMONY_RECOVERY_REQUEST_TAG_V1: u8 = 0x03;
+pub(crate) const CEREMONY_RECOVERY_REQUEST_TAG_V1: u8 = 0x03;
 /// Refresh request tag.
-pub const CEREMONY_REFRESH_REQUEST_TAG_V1: u8 = 0x04;
+pub(crate) const CEREMONY_REFRESH_REQUEST_TAG_V1: u8 = 0x04;
 /// Export request tag.
-pub const CEREMONY_EXPORT_REQUEST_TAG_V1: u8 = 0x05;
+pub(crate) const CEREMONY_EXPORT_REQUEST_TAG_V1: u8 = 0x05;
 
 const PROTOCOL_VERSION_LABEL: &[u8] = b"protocolVersion";
 const PROTOCOL_ID_LABEL: &[u8] = b"protocolId";
@@ -92,7 +92,7 @@ const TRANSPORT_BINDING_DIGEST_LABEL: &[u8] = b"transportBindingDigest";
 const ARTIFACT_SUITE_DIGEST_LABEL: &[u8] = b"artifactSuiteDigest";
 
 /// Canonical immutable store-identity scope domain.
-pub const DURABLE_STORE_IDENTITY_SCOPE_ENCODING_DOMAIN_V1: &[u8] =
+pub(crate) const DURABLE_STORE_IDENTITY_SCOPE_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/store-identity-scope/v1";
 
 const ACTIVATION_FAMILY_RECIPIENT_PLAN_TAG_V1: u8 = 0x01;
@@ -519,7 +519,8 @@ impl CeremonyRequestKindV1 {
     }
 
     /// Returns whether this branch performs an evaluation represented in provenance.
-    pub const fn has_evaluation_provenance(self) -> bool {
+    #[cfg(test)]
+    pub(crate) const fn has_evaluation_provenance(self) -> bool {
         !matches!(self, Self::Activation)
     }
 
@@ -542,6 +543,7 @@ impl CeremonyRequestKindV1 {
         }
     }
 
+    #[cfg(test)]
     fn from_tag(tag: u8) -> Result<Self, CeremonyContextErrorV1> {
         match tag {
             CEREMONY_REGISTRATION_REQUEST_TAG_V1 => Ok(Self::Registration),
@@ -609,7 +611,7 @@ impl CeremonyIdentityScopeV1 {
 
 /// Immutable domain identity retained across registered-state ceremonies.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CeremonyDurableStoreIdentityScopeV1 {
+pub(crate) struct CeremonyDurableStoreIdentityScopeV1 {
     wallet_id: CeremonyWalletIdV1,
     organization_id: CeremonyOrganizationIdV1,
     project_id: CeremonyProjectIdV1,
@@ -843,22 +845,22 @@ impl CeremonyPublicRequestContextV1 {
     }
 
     /// Returns the immutable identity subset used by authenticated store state.
-    pub fn durable_store_identity_scope(&self) -> CeremonyDurableStoreIdentityScopeV1 {
+    pub(crate) fn durable_store_identity_scope(&self) -> CeremonyDurableStoreIdentityScopeV1 {
         self.identity_scope.durable_store_identity_scope()
     }
 
     /// Returns the SigningWorker recipient identity and key epoch fixed by this request.
-    pub const fn signing_worker_binding(&self) -> &CeremonySigningWorkerBindingV1 {
+    pub(crate) const fn signing_worker_binding(&self) -> &CeremonySigningWorkerBindingV1 {
         &self.infrastructure.signing_worker
     }
 
     /// Returns the Deriver A identity and key epoch committed by this request.
-    pub const fn deriver_a_binding(&self) -> &CeremonyDeriverABindingV1 {
+    pub(crate) const fn deriver_a_binding(&self) -> &CeremonyDeriverABindingV1 {
         &self.infrastructure.deriver_a
     }
 
     /// Returns the Deriver B identity and key epoch committed by this request.
-    pub const fn deriver_b_binding(&self) -> &CeremonyDeriverBBindingV1 {
+    pub(crate) const fn deriver_b_binding(&self) -> &CeremonyDeriverBBindingV1 {
         &self.infrastructure.deriver_b
     }
 
@@ -1070,7 +1072,7 @@ impl CeremonyRegistrationAuthorizationV1 {
     }
 
     /// Returns the registration intent fixed by the authorization boundary.
-    pub const fn registration_intent_digest(&self) -> CeremonyRegistrationIntentDigest32V1 {
+    pub(crate) const fn registration_intent_digest(&self) -> CeremonyRegistrationIntentDigest32V1 {
         self.registration_intent_digest
     }
 }
@@ -1608,28 +1610,32 @@ impl CeremonyTranscriptV1 {
 }
 
 /// Validates one canonical request-context encoding.
-pub fn validate_canonical_public_request_context_encoding_v1(
+#[cfg(test)]
+pub(crate) fn validate_canonical_public_request_context_encoding_v1(
     encoding: &[u8],
 ) -> Result<(), CeremonyContextErrorV1> {
     decode_public_request_context(encoding).map(|_| ())
 }
 
 /// Validates one canonical branch-specific authorization encoding.
-pub fn validate_canonical_authorization_encoding_v1(
+#[cfg(test)]
+pub(crate) fn validate_canonical_authorization_encoding_v1(
     encoding: &[u8],
 ) -> Result<(), CeremonyContextErrorV1> {
     decode_authorization(encoding).map(|_| ())
 }
 
 /// Validates one canonical ceremony-transcript encoding.
-pub fn validate_canonical_transcript_encoding_v1(
+#[cfg(test)]
+pub(crate) fn validate_canonical_transcript_encoding_v1(
     encoding: &[u8],
 ) -> Result<(), CeremonyContextErrorV1> {
     decode_transcript(encoding).map(|_| ())
 }
 
 /// Validates exact encodings and the two digest edges in the three-layer DAG.
-pub fn validate_canonical_ceremony_bundle_v1(
+#[cfg(test)]
+pub(crate) fn validate_canonical_ceremony_bundle_v1(
     request_context_encoding: &[u8],
     authorization_encoding: &[u8],
     transcript_encoding: &[u8],
@@ -1813,11 +1819,13 @@ fn push_lp32(output: &mut Vec<u8>, value: &[u8]) -> Result<(), CeremonyContextEr
     Ok(())
 }
 
+#[cfg(test)]
 struct Lp32Cursor<'a> {
     bytes: &'a [u8],
     offset: usize,
 }
 
+#[cfg(test)]
 impl<'a> Lp32Cursor<'a> {
     const fn new(bytes: &'a [u8]) -> Self {
         Self { bytes, offset: 0 }
@@ -1861,21 +1869,25 @@ impl<'a> Lp32Cursor<'a> {
     }
 }
 
+#[cfg(test)]
 struct DecodedRequestContextV1 {
     request_kind: CeremonyRequestKindV1,
 }
 
+#[cfg(test)]
 struct DecodedAuthorizationV1 {
     request_kind: CeremonyRequestKindV1,
     request_context_digest: [u8; 32],
 }
 
+#[cfg(test)]
 struct DecodedTranscriptV1 {
     request_kind: CeremonyRequestKindV1,
     request_context_digest: [u8; 32],
     authorization_digest: [u8; 32],
 }
 
+#[cfg(test)]
 fn decode_public_request_context(
     encoding: &[u8],
 ) -> Result<DecodedRequestContextV1, CeremonyContextErrorV1> {
@@ -1920,6 +1932,7 @@ fn decode_public_request_context(
     Ok(DecodedRequestContextV1 { request_kind })
 }
 
+#[cfg(test)]
 fn decode_authorization(encoding: &[u8]) -> Result<DecodedAuthorizationV1, CeremonyContextErrorV1> {
     let mut cursor = Lp32Cursor::new(encoding);
     let domain = cursor.read()?;
@@ -1972,6 +1985,7 @@ fn decode_authorization(encoding: &[u8]) -> Result<DecodedAuthorizationV1, Cerem
     })
 }
 
+#[cfg(test)]
 fn decode_refresh_epochs(cursor: &mut Lp32Cursor<'_>) -> Result<(), CeremonyContextErrorV1> {
     let current_a =
         require_nonzero_be64(cursor.read_labeled(CURRENT_DERIVER_A_INPUT_STATE_EPOCH_LABEL)?)?;
@@ -1987,6 +2001,7 @@ fn decode_refresh_epochs(cursor: &mut Lp32Cursor<'_>) -> Result<(), CeremonyCont
     Ok(())
 }
 
+#[cfg(test)]
 fn decode_transcript(encoding: &[u8]) -> Result<DecodedTranscriptV1, CeremonyContextErrorV1> {
     let mut cursor = Lp32Cursor::new(encoding);
     require_exact(cursor.read()?, CEREMONY_TRANSCRIPT_ENCODING_DOMAIN_V1)?;
@@ -2018,6 +2033,7 @@ fn decode_transcript(encoding: &[u8]) -> Result<DecodedTranscriptV1, CeremonyCon
     })
 }
 
+#[cfg(test)]
 fn decode_request_kind(bytes: &[u8]) -> Result<CeremonyRequestKindV1, CeremonyContextErrorV1> {
     let [tag] = bytes else {
         return Err(CeremonyContextErrorV1::MalformedEncoding);
@@ -2025,6 +2041,7 @@ fn decode_request_kind(bytes: &[u8]) -> Result<CeremonyRequestKindV1, CeremonyCo
     CeremonyRequestKindV1::from_tag(*tag)
 }
 
+#[cfg(test)]
 fn require_exact(actual: &[u8], expected: &[u8]) -> Result<(), CeremonyContextErrorV1> {
     if actual != expected {
         return Err(CeremonyContextErrorV1::MalformedEncoding);
@@ -2032,6 +2049,7 @@ fn require_exact(actual: &[u8], expected: &[u8]) -> Result<(), CeremonyContextEr
     Ok(())
 }
 
+#[cfg(test)]
 fn require_visible_ascii(bytes: &[u8]) -> Result<(), CeremonyContextErrorV1> {
     if bytes.is_empty() || !bytes.iter().all(|byte| (0x21..=0x7e).contains(byte)) {
         return Err(CeremonyContextErrorV1::MalformedEncoding);
@@ -2039,12 +2057,14 @@ fn require_visible_ascii(bytes: &[u8]) -> Result<(), CeremonyContextErrorV1> {
     Ok(())
 }
 
+#[cfg(test)]
 fn require_fixed<const N: usize>(bytes: &[u8]) -> Result<[u8; N], CeremonyContextErrorV1> {
     bytes
         .try_into()
         .map_err(|_| CeremonyContextErrorV1::MalformedEncoding)
 }
 
+#[cfg(test)]
 fn require_nonzero_be64(bytes: &[u8]) -> Result<u64, CeremonyContextErrorV1> {
     let value = u64::from_be_bytes(require_fixed::<8>(bytes)?);
     if value == 0 {
@@ -2053,6 +2073,7 @@ fn require_nonzero_be64(bytes: &[u8]) -> Result<u64, CeremonyContextErrorV1> {
     Ok(value)
 }
 
+#[cfg(test)]
 fn require_nonzero_digest_bytes(bytes: &[u8]) -> Result<[u8; 32], CeremonyContextErrorV1> {
     let digest = require_fixed::<32>(bytes)?;
     if digest == [0; 32] {

@@ -73,7 +73,7 @@ impl SigningWorkerReceiptKeyEpochV1 {
 
 /// Validated non-weak key used to verify SigningWorker activation receipts.
 #[derive(Clone)]
-pub struct SigningWorkerReceiptVerifyingKeyV1 {
+pub(crate) struct SigningWorkerReceiptVerifyingKeyV1 {
     worker: CeremonySigningWorkerBindingV1,
     key_epoch: SigningWorkerReceiptKeyEpochV1,
     verifying_key: VerifyingKey,
@@ -163,7 +163,7 @@ impl fmt::Debug for SigningWorkerActivationReceiptSignature64V1 {
 ///
 /// This host-reference slot does not prove durable storage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SigningWorkerOutputStorageReceiptDigest32V1([u8; 32]);
+pub(crate) struct SigningWorkerOutputStorageReceiptDigest32V1([u8; 32]);
 
 impl SigningWorkerOutputStorageReceiptDigest32V1 {
     /// Validates one nonzero public storage-receipt digest.
@@ -224,12 +224,12 @@ impl<Role> Drop for ProfileVerifiedOpenedSigningWorkerShareCoreV1<Role> {
 }
 
 /// Deriver A SigningWorker share emitted only by the selected authenticated opener.
-pub struct ProfileVerifiedOpenedDeriverASigningWorkerShareV1(
+pub(crate) struct ProfileVerifiedOpenedDeriverASigningWorkerShareV1(
     ProfileVerifiedOpenedSigningWorkerShareCoreV1<DeriverAProvenanceRoleV1>,
 );
 
 /// Deriver B SigningWorker share emitted only by the selected authenticated opener.
-pub struct ProfileVerifiedOpenedDeriverBSigningWorkerShareV1(
+pub(crate) struct ProfileVerifiedOpenedDeriverBSigningWorkerShareV1(
     ProfileVerifiedOpenedSigningWorkerShareCoreV1<DeriverBProvenanceRoleV1>,
 );
 
@@ -319,7 +319,9 @@ impl ActivatedSigningWorkerStateV1 {
     }
 
     /// Returns the durable storage-receipt digest for the activated secret.
-    pub const fn storage_receipt_digest(&self) -> SigningWorkerOutputStorageReceiptDigest32V1 {
+    pub(crate) const fn storage_receipt_digest(
+        &self,
+    ) -> SigningWorkerOutputStorageReceiptDigest32V1 {
         self.storage_receipt_digest
     }
 
@@ -338,7 +340,7 @@ impl ActivatedSigningWorkerStateV1 {
     }
 
     /// Returns the complete atomic-release identity retained through activation.
-    pub const fn release_identity(&self) -> HostOnlyActivationReleaseIdentityV1 {
+    pub(crate) const fn release_identity(&self) -> HostOnlyActivationReleaseIdentityV1 {
         self.release_identity
     }
 
@@ -459,7 +461,7 @@ impl SigningWorkerActivationReceiptDigest32V1 {
 }
 
 /// Activated state awaiting strict verification of its worker receipt signature.
-pub struct PreparedSigningWorkerActivationV1 {
+pub(crate) struct PreparedSigningWorkerActivationV1 {
     state: ActivatedSigningWorkerStateV1,
     receipt_body: SigningWorkerActivationReceiptBodyV1,
 }
@@ -529,7 +531,7 @@ impl fmt::Debug for PreparedSigningWorkerActivationV1 {
 }
 
 /// Failed receipt verification retaining the activated secret for safe retry.
-pub struct RejectedSigningWorkerReceiptV1 {
+pub(crate) struct RejectedSigningWorkerReceiptV1 {
     reason: SigningWorkerActivationErrorV1,
     prepared: Box<PreparedSigningWorkerActivationV1>,
     signature: SigningWorkerActivationReceiptSignature64V1,
@@ -581,7 +583,7 @@ impl SigningWorkerActivationSuccessV1 {
     }
 
     /// Returns the exact trusted authority used for strict receipt verification.
-    pub const fn receipt_authority(&self) -> &SigningWorkerReceiptVerifyingKeyV1 {
+    pub(crate) const fn receipt_authority(&self) -> &SigningWorkerReceiptVerifyingKeyV1 {
         &self.receipt_authority
     }
 }
@@ -623,7 +625,7 @@ impl VerifiedSigningWorkerActivationReceiptV1 {
 }
 
 /// Activation preparation rejected before secret state or receipt creation.
-pub struct RejectedSigningWorkerActivationPreparationV1 {
+pub(crate) struct RejectedSigningWorkerActivationPreparationV1 {
     reason: SigningWorkerActivationErrorV1,
     release_authority: Box<HostOnlySigningWorkerActivationReleaseAuthorityV1>,
 }
@@ -635,7 +637,9 @@ impl RejectedSigningWorkerActivationPreparationV1 {
     }
 
     /// Recovers the unchanged SigningWorker release authority for exact retry.
-    pub fn into_release_authority(self) -> HostOnlySigningWorkerActivationReleaseAuthorityV1 {
+    pub(crate) fn into_release_authority(
+        self,
+    ) -> HostOnlySigningWorkerActivationReleaseAuthorityV1 {
         *self.release_authority
     }
 }

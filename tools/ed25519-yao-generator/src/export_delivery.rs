@@ -28,7 +28,7 @@ pub struct HostOnlyExportClientReleaseEvidenceV1 {
 
 impl HostOnlyExportClientReleaseEvidenceV1 {
     /// Binds release evidence to one output-committed export.
-    pub fn for_output_committed(
+    pub(crate) fn for_output_committed(
         committed: &HostOnlyExportOutputCommittedV1,
         client_delivery_evidence: OpaqueHostReferenceClientDeliveryEvidenceDigest32V1,
         consumed_authorization: OpaqueHostReferenceConsumedExportAuthorizationDigest32V1,
@@ -41,7 +41,8 @@ impl HostOnlyExportClientReleaseEvidenceV1 {
     }
 
     /// Binds retry evidence to one exact delivery-uncertain export.
-    pub fn for_redelivery_pending(
+    #[cfg(test)]
+    pub(crate) fn for_redelivery_pending(
         pending: &HostOnlyExportRedeliveryPendingV1,
         client_delivery_evidence: OpaqueHostReferenceClientDeliveryEvidenceDigest32V1,
         consumed_authorization: OpaqueHostReferenceConsumedExportAuthorizationDigest32V1,
@@ -111,7 +112,8 @@ impl HostOnlyExportRedeliveryPendingV1 {
     }
 
     /// Retries release without reevaluating or replacing shares.
-    pub fn release_v1(
+    #[cfg(test)]
+    pub(crate) fn release_v1(
         self,
         evidence: HostOnlyExportClientReleaseEvidenceV1,
     ) -> Result<HostOnlyExportReleasedV1, RejectedHostOnlyExportReleaseV1> {
@@ -195,7 +197,8 @@ impl HostOnlyExportReleasedV1 {
     }
 
     /// Returns the consumed authorization audit identity.
-    pub const fn consumed_authorization(&self) -> &HostOnlyConsumedExportAuthorizationV1 {
+    #[cfg(test)]
+    pub(crate) const fn consumed_authorization(&self) -> &HostOnlyConsumedExportAuthorizationV1 {
         &self.consumed_authorization
     }
 
@@ -205,7 +208,7 @@ impl HostOnlyExportReleasedV1 {
     }
 
     /// Models exact-identity redelivery as a released-state self-loop.
-    pub fn redeliver_v1(self) -> HostOnlyExportRedeliveryV1 {
+    pub(crate) fn redeliver_v1(self) -> HostOnlyExportRedeliveryV1 {
         let digest = self.artifacts.receipt().digest();
         HostOnlyExportRedeliveryV1 {
             released: self,
@@ -233,7 +236,7 @@ impl HostOnlyExportReleasedV1 {
 }
 
 /// Exact released-state self-loop produced by a redelivery attempt.
-pub struct HostOnlyExportRedeliveryV1 {
+pub(crate) struct HostOnlyExportRedeliveryV1 {
     released: HostOnlyExportReleasedV1,
     before_receipt_digest: ExportReleasedReceiptDigest32V1,
     after_receipt_digest: ExportReleasedReceiptDigest32V1,
@@ -242,12 +245,12 @@ pub struct HostOnlyExportRedeliveryV1 {
 
 impl HostOnlyExportRedeliveryV1 {
     /// Returns the released receipt identity before redelivery.
-    pub const fn before_receipt_digest(&self) -> ExportReleasedReceiptDigest32V1 {
+    pub(crate) const fn before_receipt_digest(&self) -> ExportReleasedReceiptDigest32V1 {
         self.before_receipt_digest
     }
 
     /// Returns the identical released receipt identity after redelivery.
-    pub const fn after_receipt_digest(&self) -> ExportReleasedReceiptDigest32V1 {
+    pub(crate) const fn after_receipt_digest(&self) -> ExportReleasedReceiptDigest32V1 {
         self.after_receipt_digest
     }
 
@@ -257,19 +260,19 @@ impl HostOnlyExportRedeliveryV1 {
     }
 
     /// Recovers the unchanged released state.
-    pub fn into_released(self) -> HostOnlyExportReleasedV1 {
+    pub(crate) fn into_released(self) -> HostOnlyExportReleasedV1 {
         self.released
     }
 }
 
 impl HostOnlyExportOutputCommittedV1 {
     /// Records delivery uncertainty while retaining exact packages, shares, and authorization.
-    pub fn delivery_uncertain_v1(self) -> HostOnlyExportRedeliveryPendingV1 {
+    pub(crate) fn delivery_uncertain_v1(self) -> HostOnlyExportRedeliveryPendingV1 {
         HostOnlyExportRedeliveryPendingV1(HostOnlyExportReleaseReadyV1::from_output_committed(self))
     }
 
     /// Releases the exact retained export output and consumes authorization.
-    pub fn release_v1(
+    pub(crate) fn release_v1(
         self,
         evidence: HostOnlyExportClientReleaseEvidenceV1,
     ) -> Result<HostOnlyExportReleasedV1, RejectedHostOnlyExportReleaseV1> {

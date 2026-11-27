@@ -21,7 +21,7 @@ pub const EXPORT_DELIVERY_VECTOR_CORPUS_SCHEMA_V1: &str =
 pub const EXPORT_DELIVERY_VECTOR_EVIDENCE_SCOPE_V1: &str = "host_only_synthetic_export_delivery_v1";
 
 /// Strict one-case export-delivery lifecycle corpus.
-pub type ExportDeliveryVectorCorpusV1 = StrictVectorCorpusV1<ExportDeliveryVectorCaseV1>;
+pub(crate) type ExportDeliveryVectorCorpusV1 = StrictVectorCorpusV1<ExportDeliveryVectorCaseV1>;
 
 #[derive(Serialize)]
 pub struct ExportDeliveryVectorCaseV1 {

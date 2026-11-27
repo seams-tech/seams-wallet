@@ -23,7 +23,7 @@ pub const RECOVERY_CREDENTIAL_TRANSITION_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_recovery_credential_transition_v1";
 
 /// Strict one-case recovery suspension and promotion corpus.
-pub type RecoveryCredentialTransitionVectorCorpusV1 =
+pub(crate) type RecoveryCredentialTransitionVectorCorpusV1 =
     StrictVectorCorpusV1<RecoveryCredentialTransitionVectorCaseV1>;
 
 #[derive(Serialize)]

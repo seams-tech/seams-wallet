@@ -194,7 +194,7 @@ pub struct HostOnlyPublicAbortViewV1 {
 
 impl HostOnlyPublicAbortViewV1 {
     /// Projects a redacted profile-neutral abort.
-    pub const fn from_abort(abort: UniformLifecycleAbortV1) -> Self {
+    pub(crate) const fn from_abort(abort: UniformLifecycleAbortV1) -> Self {
         Self { abort }
     }
 
@@ -284,21 +284,21 @@ impl HostOnlyEvaluatorAbortPartyViewSetV1 {
     }
 
     /// Consumes the set into the Router's common-only abort view.
-    pub fn observe_router_v1(self) -> HostOnlyRouterEvaluatorAbortPartyViewV1 {
+    pub(crate) fn observe_router_v1(self) -> HostOnlyRouterEvaluatorAbortPartyViewV1 {
         HostOnlyRouterEvaluatorAbortPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the set into the observer's common-only abort view.
-    pub fn observe_observer_v1(self) -> HostOnlyObserverEvaluatorAbortPartyViewV1 {
+    pub(crate) fn observe_observer_v1(self) -> HostOnlyObserverEvaluatorAbortPartyViewV1 {
         HostOnlyObserverEvaluatorAbortPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the set into diagnostics' common-only abort view.
-    pub fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsEvaluatorAbortPartyViewV1 {
+    pub(crate) fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsEvaluatorAbortPartyViewV1 {
         HostOnlyDiagnosticsEvaluatorAbortPartyViewV1 {
             common: self.common,
         }
@@ -316,7 +316,7 @@ pub(crate) fn build_host_only_evaluator_abort_party_view_set_v1(
 
 /// Failure while validating a private host aggregate against committed public artifacts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HostOnlyOutputPartyViewErrorV1 {
+pub(crate) enum HostOnlyOutputPartyViewErrorV1 {
     /// Deriver A's Client share does not match its committed descriptor point.
     ActivationDeriverAClientSharePointMismatch,
     /// Deriver B's Client share does not match its committed descriptor point.
@@ -496,21 +496,25 @@ impl HostOnlyActivationPackagePreparedPartyViewSetV1 {
     }
 
     /// Consumes the validated set into the Router observation.
-    pub fn observe_router_v1(self) -> HostOnlyRouterActivationPackagePreparedPartyViewV1 {
+    pub(crate) fn observe_router_v1(self) -> HostOnlyRouterActivationPackagePreparedPartyViewV1 {
         HostOnlyRouterActivationPackagePreparedPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the validated set into the public observer observation.
-    pub fn observe_observer_v1(self) -> HostOnlyObserverActivationPackagePreparedPartyViewV1 {
+    pub(crate) fn observe_observer_v1(
+        self,
+    ) -> HostOnlyObserverActivationPackagePreparedPartyViewV1 {
         HostOnlyObserverActivationPackagePreparedPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the validated set into the diagnostics observation.
-    pub fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsActivationPackagePreparedPartyViewV1 {
+    pub(crate) fn observe_diagnostics_v1(
+        self,
+    ) -> HostOnlyDiagnosticsActivationPackagePreparedPartyViewV1 {
         HostOnlyDiagnosticsActivationPackagePreparedPartyViewV1 {
             common: self.common,
         }
@@ -547,7 +551,7 @@ define_empty_party_view!(
 );
 
 /// Private validated activation metadata-consumed aggregate.
-pub struct HostOnlyActivationMetadataConsumedPartyViewSetV1 {
+pub(crate) struct HostOnlyActivationMetadataConsumedPartyViewSetV1 {
     common: HostOnlyCommonOutputPublicLeakageV1,
 }
 
@@ -583,21 +587,23 @@ impl HostOnlyActivationMetadataConsumedPartyViewSetV1 {
     }
 
     /// Consumes the validated set into the Router observation.
-    pub fn observe_router_v1(self) -> HostOnlyRouterActivationMetadataConsumedPartyViewV1 {
+    pub(crate) fn observe_router_v1(self) -> HostOnlyRouterActivationMetadataConsumedPartyViewV1 {
         HostOnlyRouterActivationMetadataConsumedPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the validated set into the public observer observation.
-    pub fn observe_observer_v1(self) -> HostOnlyObserverActivationMetadataConsumedPartyViewV1 {
+    pub(crate) fn observe_observer_v1(
+        self,
+    ) -> HostOnlyObserverActivationMetadataConsumedPartyViewV1 {
         HostOnlyObserverActivationMetadataConsumedPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the validated set into the diagnostics observation.
-    pub fn observe_diagnostics_v1(
+    pub(crate) fn observe_diagnostics_v1(
         self,
     ) -> HostOnlyDiagnosticsActivationMetadataConsumedPartyViewV1 {
         HostOnlyDiagnosticsActivationMetadataConsumedPartyViewV1 {
@@ -607,7 +613,7 @@ impl HostOnlyActivationMetadataConsumedPartyViewSetV1 {
 }
 
 /// Deriver A's export-released output view.
-pub struct HostOnlyDeriverAExportOutputPartyViewV1 {
+pub(crate) struct HostOnlyDeriverAExportOutputPartyViewV1 {
     common: HostOnlyCommonOutputPublicLeakageV1,
     seed_share: HostOnlyDeriverASeedExportShareV1,
 }
@@ -625,7 +631,7 @@ impl HostOnlyDeriverAExportOutputPartyViewV1 {
 }
 
 /// Deriver B's export-released output view.
-pub struct HostOnlyDeriverBExportOutputPartyViewV1 {
+pub(crate) struct HostOnlyDeriverBExportOutputPartyViewV1 {
     common: HostOnlyCommonOutputPublicLeakageV1,
     seed_share: HostOnlyDeriverBSeedExportShareV1,
 }
@@ -678,7 +684,7 @@ define_empty_party_view!(
 );
 
 /// Private validated export-released aggregate.
-pub struct HostOnlyExportReleasedPartyViewSetV1 {
+pub(crate) struct HostOnlyExportReleasedPartyViewSetV1 {
     common: HostOnlyCommonOutputPublicLeakageV1,
     deriver_a: HostOnlyDeriverASeedExportShareV1,
     deriver_b: HostOnlyDeriverBSeedExportShareV1,
@@ -718,21 +724,21 @@ impl HostOnlyExportReleasedPartyViewSetV1 {
     }
 
     /// Consumes the validated set into the Router observation.
-    pub fn observe_router_v1(self) -> HostOnlyRouterExportReleasedPartyViewV1 {
+    pub(crate) fn observe_router_v1(self) -> HostOnlyRouterExportReleasedPartyViewV1 {
         HostOnlyRouterExportReleasedPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the validated set into the public observer observation.
-    pub fn observe_observer_v1(self) -> HostOnlyObserverExportReleasedPartyViewV1 {
+    pub(crate) fn observe_observer_v1(self) -> HostOnlyObserverExportReleasedPartyViewV1 {
         HostOnlyObserverExportReleasedPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the validated set into the diagnostics observation.
-    pub fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsExportReleasedPartyViewV1 {
+    pub(crate) fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsExportReleasedPartyViewV1 {
         HostOnlyDiagnosticsExportReleasedPartyViewV1 {
             common: self.common,
         }

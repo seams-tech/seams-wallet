@@ -14,18 +14,18 @@ use crate::signing_worker_activation::{
 };
 
 /// Canonical signed refresh-promotion domain.
-pub const REFRESH_PROMOTION_ENCODING_DOMAIN_V1: &[u8] =
+pub(crate) const REFRESH_PROMOTION_ENCODING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/refresh-promotion/v1";
 /// Domain for the authenticated promotion-receipt digest.
-pub const REFRESH_PROMOTION_RECEIPT_DIGEST_DOMAIN_V1: &[u8] =
+pub(crate) const REFRESH_PROMOTION_RECEIPT_DIGEST_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/refresh-promotion-receipt-digest/v1";
 /// Domain for a complete registered-state promotion projection.
-pub const REFRESH_PROMOTION_STATE_DIGEST_DOMAIN_V1: &[u8] =
+pub(crate) const REFRESH_PROMOTION_STATE_DIGEST_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/refresh-promotion-state-digest/v1";
 
 /// Nonzero digest returned by the durable atomic storage transaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RefreshPromotionTransactionReceiptDigest32V1([u8; 32]);
+pub(crate) struct RefreshPromotionTransactionReceiptDigest32V1([u8; 32]);
 
 impl RefreshPromotionTransactionReceiptDigest32V1 {
     /// Validates one nonzero transaction-receipt digest.
@@ -50,7 +50,7 @@ impl RefreshPromotionTransactionReceiptDigest32V1 {
 
 /// SHA-256 digest of one complete registered-state projection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RefreshPromotionStateDigest32V1([u8; 32]);
+pub(crate) struct RefreshPromotionStateDigest32V1([u8; 32]);
 
 impl RefreshPromotionStateDigest32V1 {
     /// Returns the exact digest bytes.
@@ -61,7 +61,7 @@ impl RefreshPromotionStateDigest32V1 {
 
 /// Deterministic store-authority-signed refresh promotion body.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RefreshPromotionReceiptBodyV1 {
+pub(crate) struct RefreshPromotionReceiptBodyV1 {
     authority_key_epoch: u64,
     authority_key_digest: [u8; 32],
     durable_identity: Vec<u8>,
@@ -130,7 +130,7 @@ impl RefreshPromotionReceiptBodyV1 {
     }
 
     /// Returns the verified worker-activation receipt bound into promotion.
-    pub const fn worker_activation_receipt_digest(
+    pub(crate) const fn worker_activation_receipt_digest(
         &self,
     ) -> SigningWorkerActivationReceiptDigest32V1 {
         self.worker_activation_receipt_digest
@@ -139,10 +139,10 @@ impl RefreshPromotionReceiptBodyV1 {
 
 /// Digest of one exact signed refresh-promotion body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RefreshPromotionReceiptDigest32V1([u8; 32]);
+pub(crate) struct RefreshPromotionReceiptDigest32V1([u8; 32]);
 
 /// Refresh activation and next state awaiting a store-authority signature.
-pub struct PreparedRefreshPromotionV1 {
+pub(crate) struct PreparedRefreshPromotionV1 {
     activation: SigningWorkerActivationSuccessV1,
     next_state: RegisteredLifecyclePreStateV1,
     body: RefreshPromotionReceiptBodyV1,
@@ -203,7 +203,7 @@ impl fmt::Debug for PreparedRefreshPromotionV1 {
 }
 
 /// Authenticated refresh promotion retaining the activated SigningWorker secret.
-pub struct AuthenticatedRefreshPromotionV1 {
+pub(crate) struct AuthenticatedRefreshPromotionV1 {
     activation: SigningWorkerActivationSuccessV1,
     next_state: RegisteredLifecyclePreStateV1,
     receipt: VerifiedRefreshPromotionReceiptV1,
@@ -239,7 +239,7 @@ impl fmt::Debug for AuthenticatedRefreshPromotionV1 {
 
 /// Strictly verified store-authority refresh-promotion receipt.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VerifiedRefreshPromotionReceiptV1 {
+pub(crate) struct VerifiedRefreshPromotionReceiptV1 {
     body: RefreshPromotionReceiptBodyV1,
     digest: RefreshPromotionReceiptDigest32V1,
     signature: StoreAuthoritySignature64V1,
@@ -253,7 +253,7 @@ impl VerifiedRefreshPromotionReceiptV1 {
 }
 
 /// Failed preparation retaining the verified activation for retry.
-pub struct RejectedRefreshPromotionPreparationV1 {
+pub(crate) struct RejectedRefreshPromotionPreparationV1 {
     reason: RefreshPromotionErrorV1,
     activation: Box<SigningWorkerActivationSuccessV1>,
 }
@@ -281,7 +281,7 @@ impl fmt::Debug for RejectedRefreshPromotionPreparationV1 {
 }
 
 /// Failed authority verification retaining the prepared promotion for retry.
-pub struct RejectedRefreshPromotionReceiptV1 {
+pub(crate) struct RejectedRefreshPromotionReceiptV1 {
     reason: RefreshPromotionErrorV1,
     prepared: Box<PreparedRefreshPromotionV1>,
     signature: StoreAuthoritySignature64V1,
@@ -311,7 +311,7 @@ impl fmt::Debug for RejectedRefreshPromotionReceiptV1 {
 
 /// Refresh-promotion validation or signature failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RefreshPromotionErrorV1 {
+pub(crate) enum RefreshPromotionErrorV1 {
     /// The transaction-receipt digest was zero.
     ZeroTransactionReceiptDigest,
     /// The activated origin was registration or recovery.

@@ -63,7 +63,7 @@ const SIGNING_WORKER_SCALAR_OUTPUT_TAG_V1: u8 = 0x02;
 const CLIENT_SEED_OUTPUT_TAG_V1: u8 = 0x03;
 
 /// Strict five-case synthetic output-party-view corpus.
-pub type OutputPartyViewVectorCorpusV1 = StrictVectorCorpusV1<OutputPartyViewVectorCaseV1>;
+pub(crate) type OutputPartyViewVectorCorpusV1 = StrictVectorCorpusV1<OutputPartyViewVectorCaseV1>;
 
 #[derive(Serialize)]
 #[serde(tag = "request_kind", content = "vector", rename_all = "snake_case")]

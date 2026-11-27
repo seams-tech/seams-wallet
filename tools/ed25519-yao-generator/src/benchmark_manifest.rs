@@ -26,7 +26,7 @@ pub const PROVISIONAL_BENCHMARK_COMPILER_CONTRACT_V1: &str =
 pub const PROVISIONAL_BENCHMARK_WIRE_ORDER_V1: &str =
     "inputs-consecutive;gate-output=input-count+gate-index;outputs-ordered;commutative-operands-ascending";
 /// Digest domain for one canonical provisional benchmark manifest.
-pub const PROVISIONAL_BENCHMARK_MANIFEST_DIGEST_DOMAIN_V1: &[u8] =
+pub(crate) const PROVISIONAL_BENCHMARK_MANIFEST_DIGEST_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/provisional-benchmark/manifest-digest/v1";
 /// Frozen byte length of the current Phase 2B candidate manifest.
 pub const PROVISIONAL_BENCHMARK_MANIFEST_CANONICAL_BYTES_V1: usize = 1_973;

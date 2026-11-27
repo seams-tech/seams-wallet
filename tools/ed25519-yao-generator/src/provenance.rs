@@ -15,10 +15,10 @@ use crate::{
     RegisteredEd25519PublicKey32V1, RegisteredEd25519PublicKeyErrorV1, StableKeyDerivationContext,
 };
 
-pub use crate::ceremony_context::{
+pub use crate::ceremony_context::CeremonyTranscriptDigest32V1;
+pub(crate) use crate::ceremony_context::{
     CeremonyAuthorizationDigest32V1 as AuthorizationDigest32V1,
     CeremonyPublicRequestContextDigest32V1 as PublicRequestContextDigest32V1,
-    CeremonyTranscriptDigest32V1,
 };
 use crate::ceremony_context::{
     CeremonyContextErrorV1, CeremonyRequestKindV1, CeremonyValidatedDagV1,
@@ -1323,7 +1323,7 @@ pub struct RoleInputProvenancePairV1 {
 
 /// Role-typed input-state record and epoch resolved by provenance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProvenanceRoleStateBindingV1<Role: ProvenanceRoleV1> {
+pub(crate) struct ProvenanceRoleStateBindingV1<Role: ProvenanceRoleV1> {
     role_root_record_digest: RoleRootRecordDigest32V1<Role>,
     root_binding_artifact_digest: RootBindingArtifactDigest32V1<Role>,
     role_root_epoch: RoleRootEpochV1<Role>,
@@ -1360,7 +1360,7 @@ impl<Role: ProvenanceRoleV1> ProvenanceRoleStateBindingV1<Role> {
 
 /// Store-comparable registered-state authority committed by one provenance pair.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RegisteredStateProvenanceBindingV1 {
+pub(crate) struct RegisteredStateProvenanceBindingV1 {
     stable_scope: StableKdfScopeV1,
     registered_public_key: RegisteredEd25519PublicKey32V1,
     deriver_a: ProvenanceRoleStateBindingV1<DeriverAProvenanceRoleV1>,
@@ -1369,7 +1369,7 @@ pub struct RegisteredStateProvenanceBindingV1 {
 
 /// Construction-independent registration fields accepted before evaluation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RegistrationProvenanceBindingV1 {
+pub(crate) struct RegistrationProvenanceBindingV1 {
     stable_scope: StableKdfScopeV1,
     registration_intent_digest: RegistrationIntentDigest32V1,
     input_selection_evidence_digest: RegistrationAntiBiasArtifactDigest32V1,
@@ -1385,12 +1385,14 @@ impl RegistrationProvenanceBindingV1 {
     }
 
     /// Returns the registration intent shared by both role statements.
-    pub const fn registration_intent_digest(&self) -> RegistrationIntentDigest32V1 {
+    pub(crate) const fn registration_intent_digest(&self) -> RegistrationIntentDigest32V1 {
         self.registration_intent_digest
     }
 
     /// Returns the profile-neutral input-selection evidence slot.
-    pub const fn input_selection_evidence_digest(&self) -> RegistrationAntiBiasArtifactDigest32V1 {
+    pub(crate) const fn input_selection_evidence_digest(
+        &self,
+    ) -> RegistrationAntiBiasArtifactDigest32V1 {
         self.input_selection_evidence_digest
     }
 
@@ -1434,7 +1436,7 @@ impl RegisteredStateProvenanceBindingV1 {
 
 /// Current and next registered-state bindings committed by refresh provenance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RefreshStateProvenanceBindingV1 {
+pub(crate) struct RefreshStateProvenanceBindingV1 {
     current: RegisteredStateProvenanceBindingV1,
     next_deriver_a: ProvenanceRoleStateBindingV1<DeriverAProvenanceRoleV1>,
     next_deriver_b: ProvenanceRoleStateBindingV1<DeriverBProvenanceRoleV1>,

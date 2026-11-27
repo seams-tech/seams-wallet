@@ -98,7 +98,7 @@ impl fmt::Debug for ExportAuthorizationAcceptanceAuthorityCoreV1 {
 
 /// Trusted Deriver A authorization-acceptance verifying authority.
 #[derive(Clone, Copy)]
-pub struct DeriverAExportAuthorizationAcceptanceAuthorityV1(
+pub(crate) struct DeriverAExportAuthorizationAcceptanceAuthorityV1(
     ExportAuthorizationAcceptanceAuthorityCoreV1,
 );
 
@@ -140,7 +140,7 @@ impl fmt::Debug for DeriverAExportAuthorizationAcceptanceAuthorityV1 {
 
 /// Trusted Deriver B authorization-acceptance verifying authority.
 #[derive(Clone, Copy)]
-pub struct DeriverBExportAuthorizationAcceptanceAuthorityV1(
+pub(crate) struct DeriverBExportAuthorizationAcceptanceAuthorityV1(
     ExportAuthorizationAcceptanceAuthorityCoreV1,
 );
 
@@ -182,7 +182,7 @@ impl fmt::Debug for DeriverBExportAuthorizationAcceptanceAuthorityV1 {
 
 /// Trusted, role-distinct A/B authority pair supplied by the host boundary.
 #[derive(Debug, Clone, Copy)]
-pub struct ExportAuthorizationAcceptanceAuthoritiesV1 {
+pub(crate) struct ExportAuthorizationAcceptanceAuthoritiesV1 {
     deriver_a: DeriverAExportAuthorizationAcceptanceAuthorityV1,
     deriver_b: DeriverBExportAuthorizationAcceptanceAuthorityV1,
 }
@@ -215,7 +215,7 @@ impl ExportAuthorizationAcceptanceAuthoritiesV1 {
 
 /// Admission time used to reject an expired export authorization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ExportAuthorizationCheckedAtUnixMsV1(u64);
+pub(crate) struct ExportAuthorizationCheckedAtUnixMsV1(u64);
 
 impl ExportAuthorizationCheckedAtUnixMsV1 {
     /// Validates a nonzero public admission timestamp.
@@ -234,7 +234,7 @@ impl ExportAuthorizationCheckedAtUnixMsV1 {
 
 /// Raw Deriver A acceptance signature.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct DeriverAExportAuthorizationAcceptanceSignature64V1([u8; 64]);
+pub(crate) struct DeriverAExportAuthorizationAcceptanceSignature64V1([u8; 64]);
 
 impl DeriverAExportAuthorizationAcceptanceSignature64V1 {
     /// Wraps exact signature bytes.
@@ -256,7 +256,7 @@ impl fmt::Debug for DeriverAExportAuthorizationAcceptanceSignature64V1 {
 
 /// Raw Deriver B acceptance signature.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct DeriverBExportAuthorizationAcceptanceSignature64V1([u8; 64]);
+pub(crate) struct DeriverBExportAuthorizationAcceptanceSignature64V1([u8; 64]);
 
 impl DeriverBExportAuthorizationAcceptanceSignature64V1 {
     /// Wraps exact signature bytes.
@@ -387,7 +387,7 @@ impl ExportAuthorizationAcceptanceRecordV1 {
 }
 
 /// Prepared Deriver A acceptance statement bound to its pinned authority.
-pub struct PreparedDeriverAExportAuthorizationAcceptanceV1 {
+pub(crate) struct PreparedDeriverAExportAuthorizationAcceptanceV1 {
     record: ExportAuthorizationAcceptanceRecordV1,
     authority: DeriverAExportAuthorizationAcceptanceAuthorityV1,
 }
@@ -421,7 +421,7 @@ impl PreparedDeriverAExportAuthorizationAcceptanceV1 {
 }
 
 /// Prepared Deriver B acceptance statement bound to its pinned authority.
-pub struct PreparedDeriverBExportAuthorizationAcceptanceV1 {
+pub(crate) struct PreparedDeriverBExportAuthorizationAcceptanceV1 {
     record: ExportAuthorizationAcceptanceRecordV1,
     authority: DeriverBExportAuthorizationAcceptanceAuthorityV1,
 }
@@ -455,7 +455,7 @@ impl PreparedDeriverBExportAuthorizationAcceptanceV1 {
 }
 
 /// Strictly verified Deriver A acceptance capability.
-pub struct VerifiedDeriverAExportAuthorizationAcceptanceV1 {
+pub(crate) struct VerifiedDeriverAExportAuthorizationAcceptanceV1 {
     record: ExportAuthorizationAcceptanceRecordV1,
     signature: DeriverAExportAuthorizationAcceptanceSignature64V1,
     authority_verifying_key_bytes: [u8; 32],
@@ -477,13 +477,8 @@ impl VerifiedDeriverAExportAuthorizationAcceptanceV1 {
         self.signature.as_bytes()
     }
 
-    /// Returns the pinned authority-key digest.
-    pub const fn authority_key_digest(&self) -> &[u8; 32] {
-        &self.record.authority_key_digest
-    }
-
     /// Returns the role-specific provenance-statement digest.
-    pub const fn provenance_statement_digest(&self) -> &[u8; 32] {
+    pub(crate) const fn provenance_statement_digest(&self) -> &[u8; 32] {
         &self.record.role_provenance_statement_digest
     }
 
@@ -494,7 +489,7 @@ impl VerifiedDeriverAExportAuthorizationAcceptanceV1 {
 }
 
 /// Strictly verified Deriver B acceptance capability.
-pub struct VerifiedDeriverBExportAuthorizationAcceptanceV1 {
+pub(crate) struct VerifiedDeriverBExportAuthorizationAcceptanceV1 {
     record: ExportAuthorizationAcceptanceRecordV1,
     signature: DeriverBExportAuthorizationAcceptanceSignature64V1,
     authority_verifying_key_bytes: [u8; 32],
@@ -516,13 +511,8 @@ impl VerifiedDeriverBExportAuthorizationAcceptanceV1 {
         self.signature.as_bytes()
     }
 
-    /// Returns the pinned authority-key digest.
-    pub const fn authority_key_digest(&self) -> &[u8; 32] {
-        &self.record.authority_key_digest
-    }
-
     /// Returns the role-specific provenance-statement digest.
-    pub const fn provenance_statement_digest(&self) -> &[u8; 32] {
+    pub(crate) const fn provenance_statement_digest(&self) -> &[u8; 32] {
         &self.record.role_provenance_statement_digest
     }
 
@@ -544,7 +534,7 @@ impl VerifiedDeriverBExportAuthorizationAcceptanceV1 {
 ///     drop(pair);
 /// }
 /// ```
-pub struct VerifiedExportAuthorizationAcceptancePairV1 {
+pub(crate) struct VerifiedExportAuthorizationAcceptancePairV1 {
     deriver_a: VerifiedDeriverAExportAuthorizationAcceptanceV1,
     deriver_b: VerifiedDeriverBExportAuthorizationAcceptanceV1,
     encoding: Vec<u8>,
@@ -642,7 +632,7 @@ impl VerifiedExportAuthorizationAcceptancePairV1 {
 }
 
 /// Prepares Deriver A's statement from sealed request/state/provenance owners.
-pub fn prepare_deriver_a_export_authorization_acceptance_v1(
+pub(crate) fn prepare_deriver_a_export_authorization_acceptance_v1(
     request: &ExportRequestV1,
     state: &AuthenticatedRegisteredStoreResolutionV1,
     provenance: &RoleInputProvenancePairV1,
@@ -676,7 +666,7 @@ pub fn prepare_deriver_a_export_authorization_acceptance_v1(
 }
 
 /// Prepares Deriver B's statement from sealed request/state/provenance owners.
-pub fn prepare_deriver_b_export_authorization_acceptance_v1(
+pub(crate) fn prepare_deriver_b_export_authorization_acceptance_v1(
     request: &ExportRequestV1,
     state: &AuthenticatedRegisteredStoreResolutionV1,
     provenance: &RoleInputProvenancePairV1,

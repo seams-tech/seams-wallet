@@ -39,7 +39,7 @@ const ACCEPTED_RECOVERY_TAG_V1: u8 = 0x01;
 
 /// Opaque evidence that the selected mechanism accepted the same-root artifact.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct OpaqueRecoveryContinuityAcceptanceEvidenceDigest32V1([u8; 32]);
+pub(crate) struct OpaqueRecoveryContinuityAcceptanceEvidenceDigest32V1([u8; 32]);
 
 impl OpaqueRecoveryContinuityAcceptanceEvidenceDigest32V1 {
     /// Records one nonzero selected-mechanism acceptance-evidence digest.
@@ -64,7 +64,7 @@ impl fmt::Debug for OpaqueRecoveryContinuityAcceptanceEvidenceDigest32V1 {
 
 /// Nonzero Unix timestamp used by the ideal recovery admission boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RecoveryAdmissionCheckedAtUnixMsV1(NonZeroU64);
+pub(crate) struct RecoveryAdmissionCheckedAtUnixMsV1(NonZeroU64);
 
 impl RecoveryAdmissionCheckedAtUnixMsV1 {
     /// Validates a nonzero admission timestamp.
@@ -239,17 +239,10 @@ impl TerminalRecoveryEvaluationV1 {
     }
 
     /// Returns the exact old-to-replacement credential binding.
-    pub const fn credential_continuity(
+    pub(crate) const fn credential_continuity(
         &self,
     ) -> AuthenticatedRecoveryCredentialContinuityEvidenceV1 {
         self.suspension.continuity()
-    }
-
-    /// Returns the opaque selected-mechanism acceptance evidence.
-    pub const fn selected_mechanism_acceptance_evidence_digest(
-        &self,
-    ) -> OpaqueRecoveryContinuityAcceptanceEvidenceDigest32V1 {
-        self.common.selected_mechanism_acceptance_evidence_digest
     }
 
     /// Returns the admitted next activation epoch.
@@ -301,7 +294,7 @@ impl fmt::Debug for TerminalRecoveryEvaluationV1 {
 ///     drop(admission);
 /// }
 /// ```
-pub struct AcceptedRecoveryAdmissionV1 {
+pub(crate) struct AcceptedRecoveryAdmissionV1 {
     terminal: TerminalRecoveryEvaluationV1,
     evaluation_evidence_digest: OpaqueHostReferenceEvaluationEvidenceDigest32V1,
 }
@@ -346,7 +339,7 @@ impl AcceptedRecoveryAdmissionV1 {
 }
 
 /// Accepts one signed registered-state resolution into the ideal recovery evaluator.
-pub fn accept_host_only_recovery_admission_v1(
+pub(crate) fn accept_host_only_recovery_admission_v1(
     request: &RecoveryRequestV1,
     provenance: &RoleInputProvenancePairV1,
     state: AuthenticatedRegisteredStoreResolutionV1,

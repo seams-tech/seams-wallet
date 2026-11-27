@@ -37,7 +37,7 @@ const ACCEPTED_REFRESH_TAG_V1: u8 = 0x01;
 
 /// Opaque evidence that the selected mechanism accepted the refresh transition.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct OpaqueRefreshTransitionAcceptanceEvidenceDigest32V1([u8; 32]);
+pub(crate) struct OpaqueRefreshTransitionAcceptanceEvidenceDigest32V1([u8; 32]);
 
 impl OpaqueRefreshTransitionAcceptanceEvidenceDigest32V1 {
     /// Records one nonzero selected-mechanism acceptance-evidence digest.
@@ -62,7 +62,7 @@ impl fmt::Debug for OpaqueRefreshTransitionAcceptanceEvidenceDigest32V1 {
 
 /// Nonzero Unix timestamp used by the ideal refresh admission boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RefreshAdmissionCheckedAtUnixMsV1(NonZeroU64);
+pub(crate) struct RefreshAdmissionCheckedAtUnixMsV1(NonZeroU64);
 
 impl RefreshAdmissionCheckedAtUnixMsV1 {
     /// Validates a nonzero admission timestamp.
@@ -247,24 +247,17 @@ impl TerminalRefreshEvaluationV1 {
     }
 
     /// Returns the proposed Deriver A next-state binding.
-    pub const fn proposed_next_deriver_a(
+    pub(crate) const fn proposed_next_deriver_a(
         &self,
     ) -> ProvenanceRoleStateBindingV1<DeriverAProvenanceRoleV1> {
         self.common.next_deriver_a
     }
 
     /// Returns the proposed Deriver B next-state binding.
-    pub const fn proposed_next_deriver_b(
+    pub(crate) const fn proposed_next_deriver_b(
         &self,
     ) -> ProvenanceRoleStateBindingV1<DeriverBProvenanceRoleV1> {
         self.common.next_deriver_b
-    }
-
-    /// Returns the opaque selected-mechanism acceptance evidence.
-    pub const fn selected_mechanism_acceptance_evidence_digest(
-        &self,
-    ) -> OpaqueRefreshTransitionAcceptanceEvidenceDigest32V1 {
-        self.common.selected_mechanism_acceptance_evidence_digest
     }
 
     /// Returns the admitted next activation epoch.
@@ -316,7 +309,7 @@ impl fmt::Debug for TerminalRefreshEvaluationV1 {
 ///     drop(admission);
 /// }
 /// ```
-pub struct AcceptedRefreshAdmissionV1 {
+pub(crate) struct AcceptedRefreshAdmissionV1 {
     terminal: TerminalRefreshEvaluationV1,
     evaluation_evidence_digest: OpaqueHostReferenceEvaluationEvidenceDigest32V1,
 }
@@ -361,7 +354,7 @@ impl AcceptedRefreshAdmissionV1 {
 }
 
 /// Accepts one signed registered-state resolution into the ideal refresh evaluator.
-pub fn accept_host_only_refresh_admission_v1(
+pub(crate) fn accept_host_only_refresh_admission_v1(
     request: &RefreshRequestV1,
     provenance: &RoleInputProvenancePairV1,
     state: AuthenticatedRegisteredStoreResolutionV1,

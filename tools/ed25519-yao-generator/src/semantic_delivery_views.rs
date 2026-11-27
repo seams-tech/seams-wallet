@@ -282,15 +282,6 @@ pub const HOST_ONLY_SEMANTIC_PRIVATE_VALUE_CLASSES_V1: [HostOnlySemanticPrivateV
     HostOnlySemanticPrivateValueClassV1::RouterReceiptControlKnowledge,
 ];
 
-/// Exact public-or-private label used when a corpus concatenates one role's view.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HostOnlySemanticValueClassV1 {
-    /// One cumulative public-prefix label.
-    Public(HostOnlySemanticPublicEventV1),
-    /// One role-private or role-local label.
-    Private(HostOnlySemanticPrivateValueClassV1),
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EvaluationFamilyV1 {
     Activation,
@@ -368,7 +359,7 @@ impl SemanticStageV1 {
 
 /// One validated trace step with emitted classes separated from cumulative observations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostOnlySemanticTraceStepV1 {
+pub(crate) struct HostOnlySemanticTraceStepV1 {
     stage: SemanticStageV1,
     emitted_frame_classes: &'static [HostOnlySemanticFrameClassV1],
 }
@@ -565,17 +556,17 @@ impl HostOnlySemanticDeliveryViewSetV1 {
     }
 
     /// Consumes the validated state into Router's static view.
-    pub fn observe_router_v1(self) -> HostOnlyRouterSemanticDeliveryViewV1 {
+    pub(crate) fn observe_router_v1(self) -> HostOnlyRouterSemanticDeliveryViewV1 {
         HostOnlyRouterSemanticDeliveryViewV1 { stage: self.stage }
     }
 
     /// Consumes the validated state into the public observer's static view.
-    pub fn observe_observer_v1(self) -> HostOnlyObserverSemanticDeliveryViewV1 {
+    pub(crate) fn observe_observer_v1(self) -> HostOnlyObserverSemanticDeliveryViewV1 {
         HostOnlyObserverSemanticDeliveryViewV1 { stage: self.stage }
     }
 
     /// Consumes the validated state into redacted diagnostics' static view.
-    pub fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsSemanticDeliveryViewV1 {
+    pub(crate) fn observe_diagnostics_v1(self) -> HostOnlyDiagnosticsSemanticDeliveryViewV1 {
         HostOnlyDiagnosticsSemanticDeliveryViewV1 { stage: self.stage }
     }
 }

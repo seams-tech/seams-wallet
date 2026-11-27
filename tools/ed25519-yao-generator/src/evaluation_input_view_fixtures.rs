@@ -76,7 +76,7 @@ const REFRESH_OUTPUT_VIEW_CASE_ID_V1: &str = "refresh_output_party_views_package
 const EXPORT_OUTPUT_VIEW_CASE_ID_V1: &str = "export_output_party_views_released_v1";
 
 /// Strict five-case synthetic evaluation-input party-view corpus.
-pub type EvaluationInputPartyViewVectorCorpusV1 =
+pub(crate) type EvaluationInputPartyViewVectorCorpusV1 =
     StrictVectorCorpusV1<EvaluationInputPartyViewVectorCaseV1>;
 
 #[derive(Serialize)]

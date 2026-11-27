@@ -141,7 +141,7 @@ define_evaluation_request!(
 
 /// Nonzero digest identifying the credential binding active in registered state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ActiveCredentialBindingDigest32V1([u8; 32]);
+pub(crate) struct ActiveCredentialBindingDigest32V1([u8; 32]);
 
 impl ActiveCredentialBindingDigest32V1 {
     /// Validates one nonzero active credential binding digest.
@@ -166,7 +166,7 @@ impl ActiveCredentialBindingDigest32V1 {
 
 /// Invalid active credential binding digest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ActiveCredentialBindingErrorV1 {
+pub(crate) enum ActiveCredentialBindingErrorV1 {
     /// Credential binding digests must not be all zero.
     Zero,
 }
@@ -262,7 +262,9 @@ impl RegisteredLifecyclePreStateV1 {
     }
 
     /// Returns the credential binding currently admitted for this identity.
-    pub const fn active_credential_binding_digest(&self) -> ActiveCredentialBindingDigest32V1 {
+    pub(crate) const fn active_credential_binding_digest(
+        &self,
+    ) -> ActiveCredentialBindingDigest32V1 {
         self.active_credential_binding_digest
     }
 
@@ -478,7 +480,9 @@ impl AuthenticatedRecoveryCredentialContinuityEvidenceV1 {
     }
 
     /// Returns the credential binding that was active before recovery.
-    pub const fn active_credential_binding_digest(&self) -> ActiveCredentialBindingDigest32V1 {
+    pub(crate) const fn active_credential_binding_digest(
+        &self,
+    ) -> ActiveCredentialBindingDigest32V1 {
         self.active_credential_binding_digest
     }
 
@@ -490,7 +494,9 @@ impl AuthenticatedRecoveryCredentialContinuityEvidenceV1 {
     }
 
     /// Returns the same-root artifact fixed by the authenticated provenance pair.
-    pub const fn same_root_evidence_artifact_digest(&self) -> RecoveryContinuityArtifactDigest32V1 {
+    pub(crate) const fn same_root_evidence_artifact_digest(
+        &self,
+    ) -> RecoveryContinuityArtifactDigest32V1 {
         self.same_root_evidence_artifact_digest
     }
 
@@ -835,7 +841,7 @@ define_failed_registered_artifact_attempt!(
 );
 
 /// Suspended recovery state after one admitted recovery attempt is burned.
-pub struct FailedRecoveryArtifactAttemptV1 {
+pub(crate) struct FailedRecoveryArtifactAttemptV1 {
     terminal: TerminalRecoveryEvaluationV1,
     burned: BurnedArtifactAttemptV1,
 }
@@ -856,18 +862,20 @@ impl FailedRecoveryArtifactAttemptV1 {
     }
 
     /// Returns the exact terminal admission retained after evaluator failure.
+    #[cfg(test)]
     pub const fn terminal(&self) -> &TerminalRecoveryEvaluationV1 {
         &self.terminal
     }
 
     /// Recovers the terminal admission; the admitted request remains burned.
-    pub fn into_terminal(self) -> TerminalRecoveryEvaluationV1 {
+    #[cfg(test)]
+    pub(crate) fn into_terminal(self) -> TerminalRecoveryEvaluationV1 {
         self.terminal
     }
 }
 
 /// Terminal refresh admission after one evaluator attempt is burned.
-pub struct FailedRefreshArtifactAttemptV1 {
+pub(crate) struct FailedRefreshArtifactAttemptV1 {
     terminal: TerminalRefreshEvaluationV1,
     burned: BurnedArtifactAttemptV1,
 }
@@ -885,11 +893,6 @@ impl FailedRefreshArtifactAttemptV1 {
     /// Returns the exact terminal admission retained after evaluator failure.
     pub const fn terminal(&self) -> &TerminalRefreshEvaluationV1 {
         &self.terminal
-    }
-
-    /// Recovers the terminal admission; the admitted request remains burned.
-    pub fn into_terminal(self) -> TerminalRefreshEvaluationV1 {
-        self.terminal
     }
 }
 
@@ -913,7 +916,7 @@ impl<Retained> ArtifactEvaluationFailureV1<Retained> {
     }
 
     /// Recovers the branch-specific retained value; admitted requests remain burned.
-    pub fn into_retained(self) -> Retained {
+    pub(crate) fn into_retained(self) -> Retained {
         *self.retained
     }
 }
@@ -1219,7 +1222,8 @@ impl RecoveryPendingActivationV1 {
     }
 
     /// Returns the authenticated old-to-replacement credential binding.
-    pub const fn credential_continuity(
+    #[cfg(test)]
+    pub(crate) const fn credential_continuity(
         &self,
     ) -> AuthenticatedRecoveryCredentialContinuityEvidenceV1 {
         self.terminal.credential_continuity()
@@ -1269,7 +1273,7 @@ impl PendingActivationPreStateV1 {
     }
 
     /// Returns the exact committed artifact binding.
-    pub const fn artifact_binding(&self) -> ActivationArtifactBindingV1 {
+    pub(crate) const fn artifact_binding(&self) -> ActivationArtifactBindingV1 {
         self.artifacts().binding()
     }
 
@@ -1717,7 +1721,7 @@ impl UniformLifecycleAbortV1 {
 }
 
 /// Retry-preserving rejection retaining the exact output-committed metadata.
-pub struct RejectedActivationControlProposalV1 {
+pub(crate) struct RejectedActivationControlProposalV1 {
     abort: UniformLifecycleAbortV1,
     pending: PendingActivationPreStateV1,
 }
@@ -1890,7 +1894,8 @@ impl MetadataConsumedRecoveryActivationV1 {
     }
 
     /// Returns the authenticated old-to-replacement credential binding.
-    pub const fn credential_continuity(
+    #[cfg(test)]
+    pub(crate) const fn credential_continuity(
         &self,
     ) -> AuthenticatedRecoveryCredentialContinuityEvidenceV1 {
         self.terminal.credential_continuity()
@@ -1944,7 +1949,7 @@ define_metadata_consumed_activation!(
 );
 
 /// Origin-preserving metadata/control-consumed state.
-pub enum MetadataConsumedActivationStateV1 {
+pub(crate) enum MetadataConsumedActivationStateV1 {
     /// Registration-origin metadata.
     Registration(Box<MetadataConsumedRegistrationActivationV1>),
     /// Recovery-origin metadata with the old credential still suspended.
@@ -1964,7 +1969,7 @@ impl MetadataConsumedActivationStateV1 {
     }
 
     /// Returns the metadata-consumed artifact binding.
-    pub const fn artifact_binding(&self) -> ActivationArtifactBindingV1 {
+    pub(crate) const fn artifact_binding(&self) -> ActivationArtifactBindingV1 {
         self.artifacts().binding()
     }
 
@@ -1986,7 +1991,7 @@ impl MetadataConsumedActivationStateV1 {
     }
 
     /// Returns the activation-control DAG that consumed metadata authority.
-    pub const fn activation_dag(&self) -> CeremonyValidatedDagV1 {
+    pub(crate) const fn activation_dag(&self) -> CeremonyValidatedDagV1 {
         match self {
             Self::Registration(value) => value.activation.validated_dag,
             Self::Recovery(value) => value.activation.validated_dag,
@@ -2043,14 +2048,14 @@ impl ZeroReevaluationWitnessV1 {
 }
 
 /// Successful metadata/control consumption without a worker-activation claim.
-pub struct ActivationMetadataConsumptionSuccessV1 {
+pub(crate) struct ActivationMetadataConsumptionSuccessV1 {
     post_state: MetadataConsumedActivationStateV1,
     zero_reevaluation: ZeroReevaluationWitnessV1,
 }
 
 impl ActivationMetadataConsumptionSuccessV1 {
     /// Returns the metadata-consumed state.
-    pub const fn post_state(&self) -> &MetadataConsumedActivationStateV1 {
+    pub(crate) const fn post_state(&self) -> &MetadataConsumedActivationStateV1 {
         &self.post_state
     }
 

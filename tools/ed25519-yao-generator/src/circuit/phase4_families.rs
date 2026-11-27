@@ -15,16 +15,16 @@ use super::schedule::{CanonicalLivenessScheduleV1, ProvisionalScheduleMetricsV1}
 use super::BooleanCircuitMetricsV1;
 
 /// Canonical Phase 4 activation input schema for the joint-coin private-output benchmark.
-pub const PHASE4_PRIVATE_OUTPUT_ACTIVATION_INPUT_SCHEMA_V1: &str =
+pub(crate) const PHASE4_PRIVATE_OUTPUT_ACTIVATION_INPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/phase4-p0-private-output-benchmark/activation/input/v1:a.y_client[32],a.y_server[32],a.tau_client[32]:canonical-l,a.tau_server[32]:canonical-l,a.r_client[32]:canonical-l,a.r_signing_worker[32]:canonical-l,b.y_client[32],b.y_server[32],b.tau_client[32]:canonical-l,b.tau_server[32]:canonical-l,b.r_client[32]:canonical-l,b.r_signing_worker[32]:canonical-l:field-byte-bit-lsb0:joint-coins";
 /// Canonical Phase 4 activation output schema in fixed Deriver A then Deriver B order.
-pub const PHASE4_PRIVATE_OUTPUT_ACTIVATION_OUTPUT_SCHEMA_V1: &str =
+pub(crate) const PHASE4_PRIVATE_OUTPUT_ACTIVATION_OUTPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/phase4-p0-private-output-benchmark/activation/output/v1:a.x_client_share[32]:canonical-l,a.x_signing_worker_share[32]:canonical-l,b.x_client_share[32]:canonical-l,b.x_signing_worker_share[32]:canonical-l:field-byte-bit-lsb0:role-separated";
 /// Canonical Phase 4 export input schema for the joint-coin private-output benchmark.
-pub const PHASE4_PRIVATE_OUTPUT_EXPORT_INPUT_SCHEMA_V1: &str =
+pub(crate) const PHASE4_PRIVATE_OUTPUT_EXPORT_INPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/phase4-p0-private-output-benchmark/export/input/v1:a.y_client[32],a.y_server[32],a.u[32],b.y_client[32],b.y_server[32],b.u[32]:field-byte-bit-lsb0:joint-coins:no-tau";
 /// Canonical Phase 4 export output schema in fixed Deriver A then Deriver B order.
-pub const PHASE4_PRIVATE_OUTPUT_EXPORT_OUTPUT_SCHEMA_V1: &str =
+pub(crate) const PHASE4_PRIVATE_OUTPUT_EXPORT_OUTPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/phase4-p0-private-output-benchmark/export/output/v1:a.seed_share[32],b.seed_share[32]:field-byte-bit-lsb0:role-separated:no-scalar";
 
 const FIELD_BYTES: usize = 32;

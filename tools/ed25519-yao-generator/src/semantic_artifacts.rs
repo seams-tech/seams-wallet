@@ -345,7 +345,7 @@ impl SemanticCiphertextLengthV1 {
 
 /// Typed client recipient/key binding derived from the canonical request context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ClientRecipientKeyBindingDigest32V1([u8; 32]);
+pub(crate) struct ClientRecipientKeyBindingDigest32V1([u8; 32]);
 
 impl ClientRecipientKeyBindingDigest32V1 {
     fn derive(request_context_digest: &CeremonyPublicRequestContextDigest32V1) -> Self {
@@ -363,7 +363,7 @@ impl ClientRecipientKeyBindingDigest32V1 {
 
 /// Typed SigningWorker recipient/key binding derived from the canonical request context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SigningWorkerRecipientKeyBindingDigest32V1([u8; 32]);
+pub(crate) struct SigningWorkerRecipientKeyBindingDigest32V1([u8; 32]);
 
 impl SigningWorkerRecipientKeyBindingDigest32V1 {
     pub(crate) fn derive(request_context_digest: &CeremonyPublicRequestContextDigest32V1) -> Self {
@@ -606,13 +606,14 @@ struct ActivationSemanticArtifactContextCoreV1 {
 }
 
 /// Move-owned activation packages retaining the exact shares from one evaluation.
-pub struct HostOnlyPackagedActivationV1 {
+pub(crate) struct HostOnlyPackagedActivationV1 {
     packages: ActivationPackageSetV1,
     shares: HostOnlyActivationOutputSharesV1,
 }
 
 impl HostOnlyPackagedActivationV1 {
     /// Returns the exact ceremony-bound activation package set.
+    #[cfg(test)]
     pub const fn packages(&self) -> &ActivationPackageSetV1 {
         &self.packages
     }
@@ -662,7 +663,9 @@ fn package_activation_output(
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq)]
-pub struct RegistrationActivationSemanticArtifactContextV1(ActivationSemanticArtifactContextCoreV1);
+pub(crate) struct RegistrationActivationSemanticArtifactContextV1(
+    ActivationSemanticArtifactContextCoreV1,
+);
 
 impl RegistrationActivationSemanticArtifactContextV1 {
     /// Ties registration provenance to the exact registration ceremony DAG.
@@ -696,7 +699,7 @@ impl RegistrationActivationSemanticArtifactContextV1 {
     /// The single call prevents a precomputed reference success from being mixed
     /// with another ceremony. Opaque provenance and evidence slots still do not
     /// authenticate the supplied synthetic inputs.
-    pub fn evaluate_and_package_host_reference(
+    pub(crate) fn evaluate_and_package_host_reference(
         self,
         inputs: HostOnlyRegistrationReferenceInputsV1<'_>,
         coins: HostOnlyRegistrationIdealCoinsV1,
@@ -710,7 +713,9 @@ impl RegistrationActivationSemanticArtifactContextV1 {
 
 /// Move-only recovery session for ceremony-bound host-reference packages.
 #[derive(Debug, PartialEq, Eq)]
-pub struct RecoveryActivationSemanticArtifactContextV1(ActivationSemanticArtifactContextCoreV1);
+pub(crate) struct RecoveryActivationSemanticArtifactContextV1(
+    ActivationSemanticArtifactContextCoreV1,
+);
 
 impl RecoveryActivationSemanticArtifactContextV1 {
     /// Ties same-root recovery provenance to the exact recovery ceremony DAG.
@@ -744,7 +749,7 @@ impl RecoveryActivationSemanticArtifactContextV1 {
     }
 
     /// Consumes this ceremony session, validates recovery, and immediately packages its shares.
-    pub fn evaluate_and_package_host_reference(
+    pub(crate) fn evaluate_and_package_host_reference(
         self,
         inputs: HostOnlyRecoveryReferenceInputsV1<'_>,
         coins: HostOnlyRecoveryIdealCoinsV1,
@@ -758,7 +763,9 @@ impl RecoveryActivationSemanticArtifactContextV1 {
 
 /// Move-only refresh session for ceremony-bound host-reference packages.
 #[derive(Debug, PartialEq, Eq)]
-pub struct RefreshActivationSemanticArtifactContextV1(ActivationSemanticArtifactContextCoreV1);
+pub(crate) struct RefreshActivationSemanticArtifactContextV1(
+    ActivationSemanticArtifactContextCoreV1,
+);
 
 impl RefreshActivationSemanticArtifactContextV1 {
     /// Ties opposite-delta refresh provenance to the exact refresh ceremony DAG.
@@ -792,7 +799,7 @@ impl RefreshActivationSemanticArtifactContextV1 {
     }
 
     /// Consumes this ceremony session, validates refresh, and immediately packages its shares.
-    pub fn evaluate_and_package_host_reference(
+    pub(crate) fn evaluate_and_package_host_reference(
         self,
         inputs: HostOnlyRefreshReferenceInputsV1<'_>,
         coins: HostOnlyRefreshIdealCoinsV1,
@@ -812,16 +819,17 @@ struct ExportSemanticArtifactContextCoreV1 {
 
 /// Move-only export session for ceremony-bound host-reference packages.
 #[derive(Debug, PartialEq, Eq)]
-pub struct ExportSemanticArtifactContextV1(ExportSemanticArtifactContextCoreV1);
+pub(crate) struct ExportSemanticArtifactContextV1(ExportSemanticArtifactContextCoreV1);
 
 /// Move-owned export packages retaining the exact shares produced by the same evaluation.
-pub struct HostOnlyPackagedExportV1 {
+pub(crate) struct HostOnlyPackagedExportV1 {
     packages: ExportPackageSetV1,
     shares: HostOnlySeedExportSharesV1,
 }
 
 impl HostOnlyPackagedExportV1 {
     /// Returns the exact ceremony-bound export package set.
+    #[cfg(test)]
     pub const fn packages(&self) -> &ExportPackageSetV1 {
         &self.packages
     }
@@ -866,7 +874,7 @@ impl ExportSemanticArtifactContextV1 {
     ///
     /// The expected registered key comes exclusively from this authorization-
     /// and provenance-bound context.
-    pub fn evaluate_and_package_host_reference(
+    pub(crate) fn evaluate_and_package_host_reference(
         self,
         inputs: HostOnlyExportReferenceInputsV1<'_>,
         coin: HostOnlyExportIdealCoinV1,
@@ -1001,16 +1009,16 @@ pub struct SigningWorkerScalarActivationPackageDescriptorV1<Role: ProvenanceRole
 );
 
 /// Deriver A client-scalar activation descriptor.
-pub type DeriverAClientScalarActivationPackageDescriptorV1 =
+pub(crate) type DeriverAClientScalarActivationPackageDescriptorV1 =
     ClientScalarActivationPackageDescriptorV1<DeriverAProvenanceRoleV1>;
 /// Deriver B client-scalar activation descriptor.
-pub type DeriverBClientScalarActivationPackageDescriptorV1 =
+pub(crate) type DeriverBClientScalarActivationPackageDescriptorV1 =
     ClientScalarActivationPackageDescriptorV1<DeriverBProvenanceRoleV1>;
 /// Deriver A SigningWorker-scalar activation descriptor.
-pub type DeriverASigningWorkerScalarActivationPackageDescriptorV1 =
+pub(crate) type DeriverASigningWorkerScalarActivationPackageDescriptorV1 =
     SigningWorkerScalarActivationPackageDescriptorV1<DeriverAProvenanceRoleV1>;
 /// Deriver B SigningWorker-scalar activation descriptor.
-pub type DeriverBSigningWorkerScalarActivationPackageDescriptorV1 =
+pub(crate) type DeriverBSigningWorkerScalarActivationPackageDescriptorV1 =
     SigningWorkerScalarActivationPackageDescriptorV1<DeriverBProvenanceRoleV1>;
 
 macro_rules! activation_descriptor_api {
@@ -1127,10 +1135,10 @@ pub struct ClientSeedExportPackageDescriptorV1<Role: ProvenanceRoleV1>(
 );
 
 /// Deriver A client-only seed-export descriptor.
-pub type DeriverAClientSeedExportPackageDescriptorV1 =
+pub(crate) type DeriverAClientSeedExportPackageDescriptorV1 =
     ClientSeedExportPackageDescriptorV1<DeriverAProvenanceRoleV1>;
 /// Deriver B client-only seed-export descriptor.
-pub type DeriverBClientSeedExportPackageDescriptorV1 =
+pub(crate) type DeriverBClientSeedExportPackageDescriptorV1 =
     ClientSeedExportPackageDescriptorV1<DeriverBProvenanceRoleV1>;
 
 impl ClientSeedExportPackageDescriptorV1<DeriverAProvenanceRoleV1> {
@@ -1211,7 +1219,7 @@ impl ClientSeedExportPackageDescriptorV1<DeriverBProvenanceRoleV1> {
 /// }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OpaqueHostReferenceActivationPackageBindingsV1 {
+pub(crate) struct OpaqueHostReferenceActivationPackageBindingsV1 {
     deriver_a_client: OpaqueHostReferenceActivationDeriverAClientPackageBindingsV1,
     deriver_b_client: OpaqueHostReferenceActivationDeriverBClientPackageBindingsV1,
     deriver_a_signing_worker: OpaqueHostReferenceDeriverASigningWorkerPackageBindingsV1,
@@ -1273,7 +1281,7 @@ impl OpaqueHostReferenceActivationPackageBindingsV1 {
 /// }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OpaqueHostReferenceExportPackageBindingsV1 {
+pub(crate) struct OpaqueHostReferenceExportPackageBindingsV1 {
     deriver_a_client: OpaqueHostReferenceExportDeriverAClientPackageBindingsV1,
     deriver_b_client: OpaqueHostReferenceExportDeriverBClientPackageBindingsV1,
 }

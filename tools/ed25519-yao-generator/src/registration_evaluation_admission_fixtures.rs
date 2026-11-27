@@ -40,7 +40,7 @@ const SELECTION_ATTEMPT_ID_V1: [u8; 32] = [0x90; 32];
 const SELECTED_MECHANISM_EVIDENCE_V1: [u8; 32] = [0x91; 32];
 
 /// Strict one-case construction-independent registration evaluator corpus.
-pub type RegistrationEvaluatorAdmissionVectorCorpusV1 =
+pub(crate) type RegistrationEvaluatorAdmissionVectorCorpusV1 =
     StrictVectorCorpusV1<RegistrationEvaluatorAdmissionVectorCaseV1>;
 
 #[derive(Serialize)]

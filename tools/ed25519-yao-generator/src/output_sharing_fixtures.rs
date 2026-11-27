@@ -54,7 +54,7 @@ const SCALAR_L_MINUS_TWO_BYTES: [u8; 32] = [
 ];
 
 /// Strict portable corpus for deterministic host-only output-sharing evidence.
-pub type OutputSharingVectorCorpusV1 = StrictVectorCorpusV1<OutputSharingVectorCaseV1>;
+pub(crate) type OutputSharingVectorCorpusV1 = StrictVectorCorpusV1<OutputSharingVectorCaseV1>;
 
 /// Failure returned for any noncanonical output-sharing corpus bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -24,15 +24,15 @@ const ARTIFACT_STAGING_ATTEMPTS: usize = 16;
 compile_error!("Phase 2A artifact filesystem I/O supports only Linux and macOS");
 
 /// Fixed SHA-512/32 canonical IR filename in a provisional bundle.
-pub const PROVISIONAL_ARTIFACT_SHA512_IR_FILE_V1: &str = "sha512-fixed32.ir.bin";
+pub(crate) const PROVISIONAL_ARTIFACT_SHA512_IR_FILE_V1: &str = "sha512-fixed32.ir.bin";
 /// Fixed SHA-512/32 canonical schedule filename in a provisional bundle.
-pub const PROVISIONAL_ARTIFACT_SHA512_SCHEDULE_FILE_V1: &str = "sha512-fixed32.schedule.bin";
+pub(crate) const PROVISIONAL_ARTIFACT_SHA512_SCHEDULE_FILE_V1: &str = "sha512-fixed32.schedule.bin";
 /// Provisional activation-core canonical IR filename.
-pub const PROVISIONAL_ARTIFACT_ACTIVATION_IR_FILE_V1: &str = "activation.ir.bin";
+pub(crate) const PROVISIONAL_ARTIFACT_ACTIVATION_IR_FILE_V1: &str = "activation.ir.bin";
 /// Provisional activation-core canonical schedule filename.
 pub const PROVISIONAL_ARTIFACT_ACTIVATION_SCHEDULE_FILE_V1: &str = "activation.schedule.bin";
 /// Provisional export-core canonical IR filename.
-pub const PROVISIONAL_ARTIFACT_EXPORT_IR_FILE_V1: &str = "export.ir.bin";
+pub(crate) const PROVISIONAL_ARTIFACT_EXPORT_IR_FILE_V1: &str = "export.ir.bin";
 /// Provisional export-core canonical schedule filename.
 pub const PROVISIONAL_ARTIFACT_EXPORT_SCHEDULE_FILE_V1: &str = "export.schedule.bin";
 /// Canonical provisional bundle-index filename.

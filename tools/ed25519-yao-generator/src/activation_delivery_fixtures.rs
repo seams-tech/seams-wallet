@@ -35,7 +35,8 @@ pub const ACTIVATION_DELIVERY_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_activation_delivery_v1";
 
 /// Strict registration/recovery/refresh activation-delivery corpus.
-pub type ActivationDeliveryVectorCorpusV1 = StrictVectorCorpusV1<ActivationDeliveryVectorCaseV1>;
+pub(crate) type ActivationDeliveryVectorCorpusV1 =
+    StrictVectorCorpusV1<ActivationDeliveryVectorCaseV1>;
 
 #[derive(Serialize)]
 pub struct ActivationDeliveryVectorCaseV1 {

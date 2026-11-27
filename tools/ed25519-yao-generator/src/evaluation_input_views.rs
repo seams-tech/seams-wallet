@@ -305,7 +305,7 @@ impl HostOnlyActivationContinuationInputCommonV1 {
     }
 
     /// Returns the all-zero evaluator-window witness.
-    pub const fn evaluation_counts(&self) -> HostOnlyEvaluationWindowCountsV1 {
+    pub(crate) const fn evaluation_counts(&self) -> HostOnlyEvaluationWindowCountsV1 {
         HostOnlyEvaluationWindowCountsV1::ZERO_CONTINUATION
     }
 
@@ -396,7 +396,7 @@ impl HostOnlyDeriverAExportEvaluationInputViewV1 {
 }
 
 /// Deriver B's y-only export evaluation-input observation.
-pub struct HostOnlyDeriverBExportEvaluationInputViewV1 {
+pub(crate) struct HostOnlyDeriverBExportEvaluationInputViewV1 {
     common: HostOnlyExportEvaluationInputCommonV1,
     y_client: DeriverBClientY,
     y_server: DeriverBServerY,
@@ -621,7 +621,7 @@ impl HostOnlyActivationContinuationInputViewSetV1 {
 }
 
 /// Validated y-only export evaluation-input custody set.
-pub struct HostOnlyExportEvaluationInputViewSetV1 {
+pub(crate) struct HostOnlyExportEvaluationInputViewSetV1 {
     common: HostOnlyExportEvaluationInputCommonV1,
     deriver_a_y_client: DeriverAClientY,
     deriver_a_y_server: DeriverAServerY,
@@ -668,7 +668,7 @@ impl HostOnlyExportEvaluationInputViewSetV1 {
     }
 
     /// Consumes the set into the Router's empty observation.
-    pub fn observe_router_v1(
+    pub(crate) fn observe_router_v1(
         self,
     ) -> HostOnlyRouterEmptyEvaluationInputViewV1<HostOnlyExportEvaluationInputCommonV1> {
         HostOnlyRouterEmptyEvaluationInputViewV1 {
@@ -677,7 +677,7 @@ impl HostOnlyExportEvaluationInputViewSetV1 {
     }
 
     /// Consumes the set into the public observer's empty observation.
-    pub fn observe_observer_v1(
+    pub(crate) fn observe_observer_v1(
         self,
     ) -> HostOnlyObserverEmptyEvaluationInputViewV1<HostOnlyExportEvaluationInputCommonV1> {
         HostOnlyObserverEmptyEvaluationInputViewV1 {
@@ -686,7 +686,7 @@ impl HostOnlyExportEvaluationInputViewSetV1 {
     }
 
     /// Consumes the set into diagnostics' empty observation.
-    pub fn observe_diagnostics_v1(
+    pub(crate) fn observe_diagnostics_v1(
         self,
     ) -> HostOnlyDiagnosticsEmptyEvaluationInputViewV1<HostOnlyExportEvaluationInputCommonV1> {
         HostOnlyDiagnosticsEmptyEvaluationInputViewV1 {
@@ -723,7 +723,7 @@ pub fn build_host_only_activation_continuation_input_view_set_v1(
 }
 
 /// Builds a validated recovery input-custody set from public synthetic host inputs.
-pub fn build_host_only_recovery_evaluation_input_view_set_v1(
+pub(crate) fn build_host_only_recovery_evaluation_input_view_set_v1(
     request: &RecoveryRequestV1,
     provenance: &RoleInputProvenancePairV1,
     prepared: &HostOnlyPreparedRecoveryReferenceV1,
@@ -739,7 +739,7 @@ pub fn build_host_only_recovery_evaluation_input_view_set_v1(
 }
 
 /// Builds a validated refresh input-custody set from public synthetic host inputs.
-pub fn build_host_only_refresh_evaluation_input_view_set_v1(
+pub(crate) fn build_host_only_refresh_evaluation_input_view_set_v1(
     request: &RefreshRequestV1,
     provenance: &RoleInputProvenancePairV1,
     prepared: &HostOnlyPreparedRefreshReferenceV1,
@@ -755,7 +755,7 @@ pub fn build_host_only_refresh_evaluation_input_view_set_v1(
 }
 
 /// Builds a validated y-only export input-custody set from public synthetic host inputs.
-pub fn build_host_only_export_evaluation_input_view_set_v1(
+pub(crate) fn build_host_only_export_evaluation_input_view_set_v1(
     request: &ExportRequestV1,
     provenance: &RoleInputProvenancePairV1,
     prepared: &HostOnlyPreparedExportReferenceV1,

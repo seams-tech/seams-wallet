@@ -22,7 +22,8 @@ pub const EVALUATOR_ABORT_VIEW_VECTOR_EVIDENCE_SCOPE_V1: &str =
     "host_only_synthetic_evaluator_abort_state_party_views_v1";
 
 /// Strict four-case evaluator-abort state and party-view corpus.
-pub type EvaluatorAbortViewVectorCorpusV1 = StrictVectorCorpusV1<EvaluatorAbortViewVectorCaseV1>;
+pub(crate) type EvaluatorAbortViewVectorCorpusV1 =
+    StrictVectorCorpusV1<EvaluatorAbortViewVectorCaseV1>;
 
 #[derive(Serialize)]
 pub struct EvaluatorAbortViewVectorCaseV1 {

@@ -59,11 +59,11 @@ use crate::{
 };
 
 /// Schema identifier for the strict Phase 2B core-reconciliation corpus.
-pub const PHASE2B_CORE_RECONCILIATION_CORPUS_SCHEMA_V1: &str =
+pub(crate) const PHASE2B_CORE_RECONCILIATION_CORPUS_SCHEMA_V1: &str =
     "seams:router-ab:ed25519-yao:phase2b-core-reconciliation:v1";
 
 /// Narrow benchmark-only evidence scope for the cross-corpus certificate.
-pub const PHASE2B_CORE_RECONCILIATION_EVIDENCE_SCOPE_V1: &str =
+pub(crate) const PHASE2B_CORE_RECONCILIATION_EVIDENCE_SCOPE_V1: &str =
     "benchmark_only_phase2b_core_cross_corpus_reconciliation_v1";
 
 const FIXED_SHA512_COMPONENT_TAG_V1: u8 = 0x81;

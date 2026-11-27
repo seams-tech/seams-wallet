@@ -46,7 +46,7 @@ impl ActiveStoreStateVersionV1 {
 
 /// Nonzero store-authority signing-key epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct StoreAuthorityKeyEpochV1(NonZeroU64);
+pub(crate) struct StoreAuthorityKeyEpochV1(NonZeroU64);
 
 impl StoreAuthorityKeyEpochV1 {
     /// Validates a nonzero authority key epoch.
@@ -65,7 +65,7 @@ impl StoreAuthorityKeyEpochV1 {
 
 /// Validated non-weak store-authority Ed25519 verifying key.
 #[derive(Clone, Copy)]
-pub struct StoreAuthorityVerifyingKeyV1 {
+pub(crate) struct StoreAuthorityVerifyingKeyV1 {
     key_epoch: StoreAuthorityKeyEpochV1,
     verifying_key: VerifyingKey,
     key_digest: [u8; 32],
@@ -132,7 +132,7 @@ impl fmt::Debug for StoreAuthorityVerifyingKeyV1 {
 
 /// Raw 64-byte store-authority signature.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct StoreAuthoritySignature64V1([u8; 64]);
+pub(crate) struct StoreAuthoritySignature64V1([u8; 64]);
 
 impl StoreAuthoritySignature64V1 {
     /// Wraps signature bytes for strict verification.
@@ -153,7 +153,7 @@ impl fmt::Debug for StoreAuthoritySignature64V1 {
 }
 
 /// Unsigned request-bound store resolution prepared for an external authority signer.
-pub struct UnverifiedRegisteredStoreResolutionV1 {
+pub(crate) struct UnverifiedRegisteredStoreResolutionV1 {
     authority_key_epoch: StoreAuthorityKeyEpochV1,
     authority_key_digest: [u8; 32],
     request_kind: CeremonyRequestKindV1,

@@ -17,10 +17,10 @@ use super::BooleanCircuitMetricsV1;
 
 /// Lane-materialization input schema.  Offset shares are sampled by the
 /// circuit's Yao functionality and are never supplied by a client request.
-pub const LANE_MATERIALIZATION_INPUT_SCHEMA_V1: &str =
+pub(crate) const LANE_MATERIALIZATION_INPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/lane_materialization/input/v1:a.y_client[32],a.y_server[32],a.tau_client[32]:canonical-l,a.tau_server[32]:canonical-l,a.holder_coin[32]:canonical-l,a.signing_worker_coin[32]:canonical-l,a.offset_share[32]:canonical-l,b.y_client[32],b.y_server[32],b.tau_client[32]:canonical-l,b.tau_server[32]:canonical-l,b.holder_coin[32]:canonical-l,b.signing_worker_coin[32]:canonical-l,b.offset_share[32]:canonical-l:field-byte-bit-lsb0:activation-base:role-local-offset";
 /// Lane-materialization output schema in fixed Deriver A then Deriver B order.
-pub const LANE_MATERIALIZATION_OUTPUT_SCHEMA_V1: &str =
+pub(crate) const LANE_MATERIALIZATION_OUTPUT_SCHEMA_V1: &str =
     "seams/router-ab/ed25519-yao/lane_materialization/output/v1:a.target_holder_share[32]:canonical-l,a.target_signing_worker_share[32]:canonical-l,b.target_holder_share[32]:canonical-l,b.target_signing_worker_share[32]:canonical-l:field-byte-bit-lsb0:role-separated:no-seed:no-root:no-base";
 
 const FIELD_BITS: usize = 256;

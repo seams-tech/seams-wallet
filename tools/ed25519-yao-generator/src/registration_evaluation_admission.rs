@@ -39,7 +39,7 @@ const ACCEPTED_SELECTION_TAG_V1: u8 = 0x01;
 
 /// Nonzero identity of one fixed registration input-selection attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RegistrationSelectionAttemptId32V1([u8; 32]);
+pub(crate) struct RegistrationSelectionAttemptId32V1([u8; 32]);
 
 impl RegistrationSelectionAttemptId32V1 {
     /// Validates a nonzero attempt identity.
@@ -58,7 +58,7 @@ impl RegistrationSelectionAttemptId32V1 {
 
 /// Opaque evidence for the Phase 6A-selected input-selection relation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct OpaqueRegistrationInputSelectionEvidenceDigest32V1([u8; 32]);
+pub(crate) struct OpaqueRegistrationInputSelectionEvidenceDigest32V1([u8; 32]);
 
 impl OpaqueRegistrationInputSelectionEvidenceDigest32V1 {
     /// Records a nonzero evidence slot without verifying its production meaning.
@@ -77,7 +77,7 @@ impl OpaqueRegistrationInputSelectionEvidenceDigest32V1 {
 
 /// Nonzero Unix timestamp used by the ideal admission boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RegistrationAdmissionCheckedAtUnixMsV1(NonZeroU64);
+pub(crate) struct RegistrationAdmissionCheckedAtUnixMsV1(NonZeroU64);
 
 impl RegistrationAdmissionCheckedAtUnixMsV1 {
     /// Validates a nonzero admission timestamp.
@@ -213,18 +213,8 @@ impl TerminalRegistrationSelectionV1 {
         &self.admission_digest
     }
 
-    /// Returns the unregistered public identity scope accepted at admission.
-    pub const fn unregistered_public_identity_scope(&self) -> &CeremonyDurableStoreIdentityScopeV1 {
-        &self.common.durable_identity
-    }
-
-    /// Returns the registration intent shared by ceremony and provenance.
-    pub const fn registration_intent_digest(&self) -> &[u8; 32] {
-        &self.common.registration_intent_digest
-    }
-
     /// Returns the frozen registration provenance binding.
-    pub const fn provenance_binding(&self) -> RegistrationProvenanceBindingV1 {
+    pub(crate) const fn provenance_binding(&self) -> RegistrationProvenanceBindingV1 {
         self.common.binding
     }
 
@@ -278,7 +268,7 @@ impl fmt::Debug for TerminalRegistrationSelectionV1 {
 ///     drop(admission);
 /// }
 /// ```
-pub struct AcceptedRegistrationAdmissionV1 {
+pub(crate) struct AcceptedRegistrationAdmissionV1 {
     terminal_selection: TerminalRegistrationSelectionV1,
     encoding: Vec<u8>,
     evaluation_evidence_digest: OpaqueHostReferenceEvaluationEvidenceDigest32V1,
@@ -296,12 +286,14 @@ impl AcceptedRegistrationAdmissionV1 {
     }
 
     /// Returns the frozen registration provenance binding.
-    pub const fn provenance_binding(&self) -> RegistrationProvenanceBindingV1 {
+    pub(crate) const fn provenance_binding(&self) -> RegistrationProvenanceBindingV1 {
         self.terminal_selection.common.binding
     }
 
     /// Returns the exact unregistered durable identity scope.
-    pub const fn unregistered_public_identity_scope(&self) -> &CeremonyDurableStoreIdentityScopeV1 {
+    pub(crate) const fn unregistered_public_identity_scope(
+        &self,
+    ) -> &CeremonyDurableStoreIdentityScopeV1 {
         &self.terminal_selection.common.durable_identity
     }
 
@@ -339,7 +331,7 @@ impl AcceptedRegistrationAdmissionV1 {
 /// Accepts the construction-independent ideal registration admission relation.
 ///
 /// The opaque evidence is interpreted only by the Phase 6B-selected mechanism.
-pub fn accept_host_only_registration_admission_v1(
+pub(crate) fn accept_host_only_registration_admission_v1(
     request: &RegistrationRequestV1,
     provenance: &RoleInputProvenancePairV1,
     activation_epoch: CeremonyActivationEpochV1,
@@ -482,7 +474,7 @@ impl fmt::Debug for RegistrationCandidateStateV1 {
 
 /// Failure while constructing or consuming registration admission.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RegistrationAdmissionErrorV1 {
+pub(crate) enum RegistrationAdmissionErrorV1 {
     /// Selection attempt identities must be nonzero.
     ZeroSelectionAttemptId,
     /// Admission timestamps must be nonzero.

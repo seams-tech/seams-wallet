@@ -21,7 +21,7 @@ use crate::CanonicalScalarBytes;
 
 /// Complete public identity shared by both capabilities from one atomic release.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostOnlyActivationReleaseIdentityV1 {
+pub(crate) struct HostOnlyActivationReleaseIdentityV1 {
     origin: ActivationPackageOriginV1,
     package_set_digest: ActivationPackageSetDigest32V1,
     output_committed_receipt_digest: ActivationOutputCommittedReceiptDigest32V1,
@@ -77,7 +77,7 @@ pub struct HostOnlyActivationRecipientReleaseEvidenceV1 {
 
 impl HostOnlyActivationRecipientReleaseEvidenceV1 {
     /// Binds both recipient acknowledgements to one metadata-consumed output.
-    pub fn for_metadata_consumed(
+    pub(crate) fn for_metadata_consumed(
         metadata: &ActivationMetadataConsumptionSuccessV1,
         client_delivery_evidence: OpaqueHostReferenceActivationClientDeliveryEvidenceDigest32V1,
         signing_worker_delivery_evidence:
@@ -96,7 +96,8 @@ impl HostOnlyActivationRecipientReleaseEvidenceV1 {
     }
 
     /// Binds a retry to the exact delivery-uncertain output.
-    pub fn for_redelivery_pending(
+    #[cfg(test)]
+    pub(crate) fn for_redelivery_pending(
         pending: &HostOnlyActivationRedeliveryPendingV1,
         client_delivery_evidence: OpaqueHostReferenceActivationClientDeliveryEvidenceDigest32V1,
         signing_worker_delivery_evidence:
@@ -178,7 +179,8 @@ impl HostOnlyActivationRedeliveryPendingV1 {
     }
 
     /// Retries the atomic recipient release.
-    pub fn release_recipients_v1(
+    #[cfg(test)]
+    pub(crate) fn release_recipients_v1(
         self,
         evidence: HostOnlyActivationRecipientReleaseEvidenceV1,
     ) -> Result<HostOnlyActivationRecipientsReleasedV1, RejectedHostOnlyActivationReleaseV1> {
@@ -240,12 +242,12 @@ impl HostOnlyActivationClientReleasedV1 {
     }
 
     /// Returns the complete output identity authorized for release.
-    pub const fn release_identity(&self) -> HostOnlyActivationReleaseIdentityV1 {
+    pub(crate) const fn release_identity(&self) -> HostOnlyActivationReleaseIdentityV1 {
         self.release_identity
     }
 
     /// Returns the opaque Client delivery evidence.
-    pub const fn delivery_evidence(
+    pub(crate) const fn delivery_evidence(
         &self,
     ) -> OpaqueHostReferenceActivationClientDeliveryEvidenceDigest32V1 {
         self.delivery_evidence
@@ -253,7 +255,7 @@ impl HostOnlyActivationClientReleasedV1 {
 }
 
 /// Move-only authority required before SigningWorker package opening can activate state.
-pub struct HostOnlySigningWorkerActivationReleaseAuthorityV1 {
+pub(crate) struct HostOnlySigningWorkerActivationReleaseAuthorityV1 {
     metadata: ActivationMetadataConsumptionSuccessV1,
     release_identity: HostOnlyActivationReleaseIdentityV1,
     delivery_evidence: OpaqueHostReferenceActivationSigningWorkerDeliveryEvidenceDigest32V1,
@@ -266,12 +268,12 @@ impl HostOnlySigningWorkerActivationReleaseAuthorityV1 {
     }
 
     /// Returns the complete output identity authorized for worker activation.
-    pub const fn release_identity(&self) -> HostOnlyActivationReleaseIdentityV1 {
+    pub(crate) const fn release_identity(&self) -> HostOnlyActivationReleaseIdentityV1 {
         self.release_identity
     }
 
     /// Returns the opaque SigningWorker delivery evidence.
-    pub const fn delivery_evidence(
+    pub(crate) const fn delivery_evidence(
         &self,
     ) -> OpaqueHostReferenceActivationSigningWorkerDeliveryEvidenceDigest32V1 {
         self.delivery_evidence
@@ -287,7 +289,7 @@ impl HostOnlySigningWorkerActivationReleaseAuthorityV1 {
 }
 
 /// Atomic activation recipient release yielding disjoint Client and worker capabilities.
-pub struct HostOnlyActivationRecipientsReleasedV1 {
+pub(crate) struct HostOnlyActivationRecipientsReleasedV1 {
     client: HostOnlyActivationClientReleasedV1,
     signing_worker: HostOnlySigningWorkerActivationReleaseAuthorityV1,
     zero_private_evaluation_work: ZeroReevaluationWitnessV1,
@@ -300,7 +302,7 @@ impl HostOnlyActivationRecipientsReleasedV1 {
     }
 
     /// Consumes the atomic release into disjoint one-recipient capabilities.
-    pub fn into_capabilities(
+    pub(crate) fn into_capabilities(
         self,
     ) -> (
         HostOnlyActivationClientReleasedV1,
@@ -310,7 +312,7 @@ impl HostOnlyActivationRecipientsReleasedV1 {
     }
 
     /// Models exact-identity recipient redelivery as a released-state self-loop.
-    pub fn redeliver_v1(self) -> HostOnlyActivationRedeliveryV1 {
+    pub(crate) fn redeliver_v1(self) -> HostOnlyActivationRedeliveryV1 {
         let digest = self.client.package_set_digest();
         HostOnlyActivationRedeliveryV1 {
             released: self,
@@ -322,7 +324,7 @@ impl HostOnlyActivationRecipientsReleasedV1 {
 }
 
 /// Exact released-state self-loop produced by a recipient redelivery attempt.
-pub struct HostOnlyActivationRedeliveryV1 {
+pub(crate) struct HostOnlyActivationRedeliveryV1 {
     released: HostOnlyActivationRecipientsReleasedV1,
     before_package_set_digest: ActivationPackageSetDigest32V1,
     after_package_set_digest: ActivationPackageSetDigest32V1,
@@ -331,12 +333,12 @@ pub struct HostOnlyActivationRedeliveryV1 {
 
 impl HostOnlyActivationRedeliveryV1 {
     /// Returns the release identity before redelivery.
-    pub const fn before_package_set_digest(&self) -> ActivationPackageSetDigest32V1 {
+    pub(crate) const fn before_package_set_digest(&self) -> ActivationPackageSetDigest32V1 {
         self.before_package_set_digest
     }
 
     /// Returns the identical release identity after redelivery.
-    pub const fn after_package_set_digest(&self) -> ActivationPackageSetDigest32V1 {
+    pub(crate) const fn after_package_set_digest(&self) -> ActivationPackageSetDigest32V1 {
         self.after_package_set_digest
     }
 
@@ -346,19 +348,19 @@ impl HostOnlyActivationRedeliveryV1 {
     }
 
     /// Recovers the unchanged released state.
-    pub fn into_released(self) -> HostOnlyActivationRecipientsReleasedV1 {
+    pub(crate) fn into_released(self) -> HostOnlyActivationRecipientsReleasedV1 {
         self.released
     }
 }
 
 impl ActivationMetadataConsumptionSuccessV1 {
     /// Records delivery uncertainty without changing output or authorization state.
-    pub fn delivery_uncertain_v1(self) -> HostOnlyActivationRedeliveryPendingV1 {
+    pub(crate) fn delivery_uncertain_v1(self) -> HostOnlyActivationRedeliveryPendingV1 {
         HostOnlyActivationRedeliveryPendingV1(self)
     }
 
     /// Atomically releases the retained output to Client and SigningWorker.
-    pub fn release_recipients_v1(
+    pub(crate) fn release_recipients_v1(
         self,
         evidence: HostOnlyActivationRecipientReleaseEvidenceV1,
     ) -> Result<HostOnlyActivationRecipientsReleasedV1, RejectedHostOnlyActivationReleaseV1> {

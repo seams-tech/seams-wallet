@@ -116,7 +116,7 @@ impl fmt::Debug for AuthenticatedRecoveryCredentialSuspensionV1 {
 
 /// Nonzero digest returned by the production atomic recovery-promotion transaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RecoveryPromotionTransactionReceiptDigest32V1([u8; 32]);
+pub(crate) struct RecoveryPromotionTransactionReceiptDigest32V1([u8; 32]);
 
 impl RecoveryPromotionTransactionReceiptDigest32V1 {
     /// Validates one nonzero opaque transaction-receipt digest.
@@ -141,7 +141,7 @@ impl RecoveryPromotionTransactionReceiptDigest32V1 {
 
 /// SHA-256 digest of one complete registered-state projection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RecoveryPromotionStateDigest32V1([u8; 32]);
+pub(crate) struct RecoveryPromotionStateDigest32V1([u8; 32]);
 
 impl RecoveryPromotionStateDigest32V1 {
     /// Returns the exact digest bytes.
@@ -152,7 +152,7 @@ impl RecoveryPromotionStateDigest32V1 {
 
 /// Old credential retired by one authenticated recovery promotion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RecoveryCredentialTombstoneV1 {
+pub(crate) struct RecoveryCredentialTombstoneV1 {
     credential_binding_digest: ActiveCredentialBindingDigest32V1,
     retired_state_version: ActiveStoreStateVersionV1,
     digest: RecoveryCredentialTombstoneDigest32V1,
@@ -175,7 +175,7 @@ impl RecoveryCredentialTombstoneV1 {
     }
 
     /// Returns the credential binding that is no longer sign-capable.
-    pub const fn credential_binding_digest(&self) -> ActiveCredentialBindingDigest32V1 {
+    pub(crate) const fn credential_binding_digest(&self) -> ActiveCredentialBindingDigest32V1 {
         self.credential_binding_digest
     }
 
@@ -192,7 +192,7 @@ impl RecoveryCredentialTombstoneV1 {
 
 /// Digest of one exact old-credential tombstone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RecoveryCredentialTombstoneDigest32V1([u8; 32]);
+pub(crate) struct RecoveryCredentialTombstoneDigest32V1([u8; 32]);
 
 impl RecoveryCredentialTombstoneDigest32V1 {
     /// Returns the exact digest bytes.
@@ -272,14 +272,14 @@ impl RecoveryPromotionReceiptBodyV1 {
     }
 
     /// Returns the verified worker receipt bound to promotion.
-    pub const fn worker_activation_receipt_digest(
+    pub(crate) const fn worker_activation_receipt_digest(
         &self,
     ) -> SigningWorkerActivationReceiptDigest32V1 {
         self.worker_activation_receipt_digest
     }
 
     /// Returns the old credential binding that must be tombstoned.
-    pub const fn old_credential_binding_digest(&self) -> &[u8; 32] {
+    pub(crate) const fn old_credential_binding_digest(&self) -> &[u8; 32] {
         &self.old_credential_binding_digest
     }
 
@@ -289,14 +289,14 @@ impl RecoveryPromotionReceiptBodyV1 {
     }
 
     /// Returns the tombstone committed by the signed body.
-    pub const fn tombstone_digest(&self) -> RecoveryCredentialTombstoneDigest32V1 {
+    pub(crate) const fn tombstone_digest(&self) -> RecoveryCredentialTombstoneDigest32V1 {
         self.tombstone_digest
     }
 }
 
 /// Digest of one exact signed recovery-promotion body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RecoveryPromotionReceiptDigest32V1([u8; 32]);
+pub(crate) struct RecoveryPromotionReceiptDigest32V1([u8; 32]);
 
 impl RecoveryPromotionReceiptDigest32V1 {
     /// Returns the exact digest bytes.
@@ -306,7 +306,7 @@ impl RecoveryPromotionReceiptDigest32V1 {
 }
 
 /// Recovery activation and promoted state awaiting a store-authority signature.
-pub struct PreparedRecoveryPromotionV1 {
+pub(crate) struct PreparedRecoveryPromotionV1 {
     activation: SigningWorkerActivationSuccessV1,
     next_state: RegisteredLifecyclePreStateV1,
     tombstone: RecoveryCredentialTombstoneV1,
@@ -321,7 +321,7 @@ impl PreparedRecoveryPromotionV1 {
     }
 
     /// Returns the deterministic public promotion body.
-    pub const fn receipt_body(&self) -> &RecoveryPromotionReceiptBodyV1 {
+    pub(crate) const fn receipt_body(&self) -> &RecoveryPromotionReceiptBodyV1 {
         &self.body
     }
 
@@ -374,7 +374,7 @@ impl fmt::Debug for PreparedRecoveryPromotionV1 {
 }
 
 /// Authenticated replacement-credential promotion retaining the activated worker state.
-pub struct AuthenticatedRecoveryPromotionV1 {
+pub(crate) struct AuthenticatedRecoveryPromotionV1 {
     activation: SigningWorkerActivationSuccessV1,
     next_state: RegisteredLifecyclePreStateV1,
     tombstone: RecoveryCredentialTombstoneV1,
@@ -417,7 +417,7 @@ impl fmt::Debug for AuthenticatedRecoveryPromotionV1 {
 
 /// Strictly verified store-authority recovery-promotion receipt.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VerifiedRecoveryPromotionReceiptV1 {
+pub(crate) struct VerifiedRecoveryPromotionReceiptV1 {
     body: RecoveryPromotionReceiptBodyV1,
     digest: RecoveryPromotionReceiptDigest32V1,
     signature: StoreAuthoritySignature64V1,
@@ -441,7 +441,7 @@ impl VerifiedRecoveryPromotionReceiptV1 {
 }
 
 /// Failed promotion preparation retaining the verified activation for retry.
-pub struct RejectedRecoveryPromotionPreparationV1 {
+pub(crate) struct RejectedRecoveryPromotionPreparationV1 {
     reason: RecoveryPromotionErrorV1,
     activation: Box<SigningWorkerActivationSuccessV1>,
 }
@@ -469,7 +469,7 @@ impl fmt::Debug for RejectedRecoveryPromotionPreparationV1 {
 }
 
 /// Failed authority verification retaining the prepared promotion for retry.
-pub struct RejectedRecoveryPromotionReceiptV1 {
+pub(crate) struct RejectedRecoveryPromotionReceiptV1 {
     reason: RecoveryPromotionErrorV1,
     prepared: Box<PreparedRecoveryPromotionV1>,
     signature: StoreAuthoritySignature64V1,

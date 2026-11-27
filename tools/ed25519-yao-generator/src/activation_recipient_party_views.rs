@@ -77,7 +77,7 @@ impl HostOnlyActivationRecipientsReleasedCommonV1 {
     }
 
     /// Returns the exact zero-private-work witness for recipient release.
-    pub const fn zero_private_work(&self) -> ZeroReevaluationWitnessV1 {
+    pub(crate) const fn zero_private_work(&self) -> ZeroReevaluationWitnessV1 {
         self.zero_private_work
     }
 }
@@ -138,12 +138,14 @@ impl HostOnlySigningWorkerActivatedCommonV1 {
     }
 
     /// Returns the opaque worker-output storage evidence digest.
-    pub const fn storage_receipt_digest(&self) -> SigningWorkerOutputStorageReceiptDigest32V1 {
+    pub(crate) const fn storage_receipt_digest(
+        &self,
+    ) -> SigningWorkerOutputStorageReceiptDigest32V1 {
         self.storage_receipt_digest
     }
 
     /// Returns the exact signed activation-receipt body encoding.
-    pub fn activation_receipt_encoding(&self) -> &[u8] {
+    pub(crate) fn activation_receipt_encoding(&self) -> &[u8] {
         &self.activation_receipt_encoding
     }
 
@@ -153,7 +155,7 @@ impl HostOnlySigningWorkerActivatedCommonV1 {
     }
 
     /// Returns the verified activation-receipt signature.
-    pub const fn activation_receipt_signature(
+    pub(crate) const fn activation_receipt_signature(
         &self,
     ) -> SigningWorkerActivationReceiptSignature64V1 {
         self.activation_receipt_signature
@@ -254,23 +256,9 @@ impl fmt::Display for HostOnlyActivationRecipientPartyViewErrorV1 {
 
 impl std::error::Error for HostOnlyActivationRecipientPartyViewErrorV1 {}
 
-/// Rejected release-stage view construction retaining both recipient capabilities.
+/// Rejected release-stage view construction.
 pub struct RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 {
     reason: HostOnlyActivationRecipientPartyViewErrorV1,
-    client: Box<HostOnlyActivationClientReleasedV1>,
-    signing_worker: Box<HostOnlySigningWorkerActivationReleaseAuthorityV1>,
-}
-
-impl RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 {
-    /// Recovers both exact released capabilities.
-    pub fn into_capabilities(
-        self,
-    ) -> (
-        HostOnlyActivationClientReleasedV1,
-        HostOnlySigningWorkerActivationReleaseAuthorityV1,
-    ) {
-        (*self.client, *self.signing_worker)
-    }
 }
 
 impl fmt::Debug for RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 {
@@ -278,8 +266,6 @@ impl fmt::Debug for RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 {
         formatter
             .debug_struct("RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1")
             .field("reason", &self.reason)
-            .field("client", &"retained")
-            .field("signing_worker", &"retained")
             .finish()
     }
 }
@@ -350,7 +336,7 @@ impl HostOnlySigningWorkerActivationRecipientsReleasedPartyViewV1 {
     }
 
     /// Returns the opaque worker-delivery evidence without exposing retained shares.
-    pub const fn delivery_evidence(
+    pub(crate) const fn delivery_evidence(
         &self,
     ) -> OpaqueHostReferenceActivationSigningWorkerDeliveryEvidenceDigest32V1 {
         self.authority.delivery_evidence()
@@ -435,14 +421,17 @@ impl HostOnlyActivationRecipientsReleasedPartyViewSetV1 {
     }
 
     /// Consumes the set into the Router's public-only view.
-    pub fn observe_router_v1(self) -> HostOnlyRouterActivationRecipientsReleasedPartyViewV1 {
+    #[cfg(test)]
+    pub(crate) fn observe_router_v1(self) -> HostOnlyRouterActivationRecipientsReleasedPartyViewV1 {
         HostOnlyRouterActivationRecipientsReleasedPartyViewV1 {
             common: self.common,
         }
     }
 
     /// Consumes the set into the observer's public-only view.
-    pub fn observe_observer_v1(self) -> HostOnlyObserverActivationRecipientsReleasedPartyViewV1 {
+    pub(crate) fn observe_observer_v1(
+        self,
+    ) -> HostOnlyObserverActivationRecipientsReleasedPartyViewV1 {
         HostOnlyObserverActivationRecipientsReleasedPartyViewV1 {
             common: self.common,
         }
@@ -561,7 +550,7 @@ impl HostOnlySigningWorkerActivatedPartyViewSetV1 {
     }
 
     /// Consumes the set into the observer's public-only view.
-    pub fn observe_observer_v1(self) -> HostOnlyObserverSigningWorkerActivatedPartyViewV1 {
+    pub(crate) fn observe_observer_v1(self) -> HostOnlyObserverSigningWorkerActivatedPartyViewV1 {
         HostOnlyObserverSigningWorkerActivatedPartyViewV1 {
             common: self.common,
         }
@@ -602,11 +591,7 @@ pub(crate) fn build_host_only_activation_recipients_released_party_view_set_v1(
         None
     };
     if let Some(reason) = reason {
-        return Err(RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 {
-            reason,
-            client: Box::new(client),
-            signing_worker: Box::new(signing_worker),
-        });
+        return Err(RejectedHostOnlyActivationRecipientsReleasedPartyViewsV1 { reason });
     }
     let common = HostOnlyActivationRecipientsReleasedCommonV1 {
         origin: worker_identity.origin(),
@@ -737,7 +722,7 @@ fn has_private_work(witness: ZeroReevaluationWitnessV1) -> bool {
 }
 
 /// Client delivery evidence is intentionally distinct from worker authority evidence.
-pub const fn activation_client_delivery_evidence_v1(
+pub(crate) const fn activation_client_delivery_evidence_v1(
     client: &HostOnlyActivationClientReleasedV1,
 ) -> OpaqueHostReferenceActivationClientDeliveryEvidenceDigest32V1 {
     client.delivery_evidence()
