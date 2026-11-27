@@ -354,8 +354,9 @@ Where the build differs from Section 1, for Slice 4:
 ### Slice 3 progress (2026-11-27)
 
 **S1 is built** in SaySo `1e02ffb` on `main`. The SaySo repository has no remote, so the commit
-is local. The Worker at `https://sayso.seams.sh` is not deployed again: it still refuses an
-intent that has the new field.
+is local. With the owner's yes, the Worker at `https://sayso.seams.sh` runs it since
+2026-11-27 03:10 UTC (version `2caac3c4`; the version before is `ffef6563`). The verdict key
+did not change.
 
 - **The field.** An intent can carry `guarded_word_indexes`: strictly ascending positions in
   its normalized words. `createIntent` takes `guardedWordIndexes` and sends the field only
@@ -381,8 +382,8 @@ intent that has the new field.
   `sayso-wasm`) and 10 TypeScript tests.
 
 **Not started:** S2, S3 and G1 to G3. Each needs the owner's yes: the `seams-tech` repository,
-a push, a publish, a deploy, `SAYSO_API_KEY`, and a gate run that costs money. G1 and G3 need
-the S1 Worker to be deployed.
+a push, a publish, `SAYSO_API_KEY`, and a gate run that costs money. The S1 Worker that G1 and
+G3 need is deployed.
 
 **The gate data is not ready.** The STT-1 audio is not stored and must be made again. "Gate
 0" is not a speaker set, and no list of results of the Phala build exists. Section 5 states G1

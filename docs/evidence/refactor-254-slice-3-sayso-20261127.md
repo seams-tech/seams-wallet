@@ -9,7 +9,7 @@ needs, because two of the three data sets are not where the plan expects them.
 ## 1. S1: guarded words
 
 SaySo `1e02ffb` (`~/Dev/purin-labs/say-so`, `main`, local; the repository has no remote).
-The Worker at `https://sayso.seams.sh` still runs the build from before S1.
+The Worker at `https://sayso.seams.sh` runs S1 since 2026-11-27 03:10 UTC ("The deploy" below).
 
 ### Measured
 
@@ -41,7 +41,35 @@ Python script that follows the format in the SaySo README.
   (`intent_mismatch`). So a caller cannot remove the guards.
 - A malformed list gives a signed `unsupported` refusal and no model call (a Worker test).
 - `wrangler deploy --dry-run` builds the Worker bundle with the new wasm (190,192 bytes) and
-  the container image. Nothing was deployed.
+  the container image.
+
+### 1.1 The deploy
+
+The owner approved the deploy on 2026-11-27. `wrangler deploy` from SaySo `1e02ffb`, with the
+`seamsadmin` account token from `~/.seams/staging-deployment.env`.
+
+- The first try failed while it pushed the container image (`EOF` from
+  `registry.cloudflare.com`). Wrangler stops before the Worker upload, and a probe showed the
+  old build still live. The second try passed.
+- Worker version `2caac3c4-533e-4851-a7e1-e8126c5c5301`. The version before is
+  `ffef6563-f057-4ea2-965f-306351c9835a`, for a rollback.
+- The container image changed from `sha256:7cd2db85…` to `sha256:42cc86c7…`. The source of
+  `crates/speaker-service` did not change; the image was built again on this machine.
+- The secrets are the same: `SAYSO_ENROLL_SECRET` and `VERDICT_SECRET_KEY_HEX`.
+  `SAYSO_API_KEY` is still not set.
+
+Probes of the live Worker after the deploy:
+
+| Request                                           | Answer                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| `GET /healthz`                                    | `ok`, `mock: false`, the same public key `d3c6773f…4a2551e`               |
+| `POST /v1/render`, the intent without guards      | `UbyNIrKcAiClz7GpDD6-vqV1fH-Ck8AGK-7xPLWWjoY`, the digest from before S1 |
+| `POST /v1/render`, guards `[1, 2, 4, 5, 6]`       | `pj5jyOefHngQFlcxCpte7fFnL9X1XPZ32yvlrM-GpYM` (`a63e63c8…` in hex)        |
+| `POST /v1/render`, guards `[2, 1]`                | `{ "ok": false, "reason": "unsupported" }`                                |
+| `POST /v1/verify` with no token                   | 401                                                                       |
+
+Not probed: a verify with real audio, and the new container image. Both need a token and an
+enrolled voice, and a model call costs money.
 
 ### Not measured
 
