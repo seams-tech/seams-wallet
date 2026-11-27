@@ -9,7 +9,8 @@ import {
   type Route,
   type Page,
 } from '@playwright/test';
-import { intendedTest as test, type IntendedSigningStage } from './harness';
+import { intendedTest as test } from './harness';
+import { type IntendedSigningStage } from './signing-auth-events';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/mpc-wallet/src/core/config/presignatures';

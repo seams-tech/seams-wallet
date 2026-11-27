@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { expect, type BrowserContext, type Page, type Request, type Route } from '@playwright/test';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
-import { verifyNearEd25519Signature } from './harness';
+import { verifyNearEd25519Signature } from './signature-verification';
 
 type NearIdentity = { walletId: string; accountId: string; publicKey: string };
 type CapturedTransfer = {

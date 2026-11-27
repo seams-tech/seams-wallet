@@ -3,9 +3,9 @@ import { ActionType } from '@shared/near/actions';
 import type {} from '../../intended-app/src/nearSigningHelpers';
 import {
   autoConfirmWalletIframeUntil,
-  intendedTest as test,
   waitForWalletIframeConfirmationSettlement,
-} from './harness';
+} from './wallet-iframe-confirm';
+import { intendedTest as test } from './harness';
 import {
   allowBrowserMicrophone,
   voiceIdBrowserAudio,

@@ -17,11 +17,8 @@ import {
 } from '@playwright/test';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { base58Encode } from '@shared/utils/base58';
-import {
-  intendedTest as test,
-  type IntendedBehaviourHarness,
-  waitForWalletIframeConfirmationSettlement,
-} from './harness';
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { waitForWalletIframeConfirmationSettlement } from './wallet-iframe-confirm';
 import { startReviewedTransfer, VoiceIdNearSigningEvidence } from './voiceid-near-signing';
 import { DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES } from '@shared/threshold/sessionPolicy';
 

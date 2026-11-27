@@ -13,11 +13,8 @@ import {
 } from '@playwright/test';
 import { requireNonEmptyString, requireRecord } from '@shared/utils/validation';
 import { openGatewayDatabase } from './local-gateway-database';
-import {
-  autoConfirmWalletIframeUntil,
-  intendedTest as test,
-  type IntendedBehaviourHarness,
-} from './harness';
+import { autoConfirmWalletIframeUntil } from './wallet-iframe-confirm';
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
 async function verifyLocalEd25519YaoRegistration({
   harness,

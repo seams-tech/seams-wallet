@@ -1,8 +1,6 @@
 import type { Browser } from '@playwright/test';
-import type {
-  IntendedBehaviourHarness,
-  IntendedSigningStage,
-} from '../../e2e/intended-behaviours/harness';
+import type { IntendedBehaviourHarness } from '../../e2e/intended-behaviours/harness';
+import type { IntendedSigningStage } from '../../e2e/intended-behaviours/signing-auth-events';
 import type { ConformanceDevice, ConformanceMethod, ConformanceMethodRole } from './driver';
 import type { Journey } from './journeys';
 

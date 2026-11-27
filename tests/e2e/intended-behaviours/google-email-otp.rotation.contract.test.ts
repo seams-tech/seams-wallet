@@ -1,6 +1,7 @@
 import { expect, type Request } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
-import { intendedTest as test, autoConfirmWalletIframeUntil } from './harness';
+import { intendedTest as test } from './harness';
+import { autoConfirmWalletIframeUntil } from './wallet-iframe-confirm';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 

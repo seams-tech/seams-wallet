@@ -3,12 +3,10 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isHex, recoverTransactionAddress } from 'viem';
-import {
-  intendedTest as test,
-  requireNearSigningResult,
-  verifyNearEd25519Signature,
-  waitForWalletIframeConfirmationSettlement,
-} from './harness';
+import { intendedTest as test } from './harness';
+import { requireNearSigningResult } from './intended-page-snapshot';
+import { verifyNearEd25519Signature } from './signature-verification';
+import { waitForWalletIframeConfirmationSettlement } from './wallet-iframe-confirm';
 import { GatewayRequestEvidence } from './gateway-request-evidence';
 
 class LostActivationResponse {

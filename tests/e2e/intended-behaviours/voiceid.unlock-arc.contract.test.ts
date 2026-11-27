@@ -1,9 +1,9 @@
 import { expect, type Page, type TestInfo, type Route } from '@playwright/test';
+import { intendedTest as test } from './harness';
 import {
-  intendedTest as test,
   waitForWalletIframeConfirmationSettlement,
   waitForWalletIframeReviewedConfirm,
-} from './harness';
+} from './wallet-iframe-confirm';
 import {
   allowBrowserMicrophone,
   enrollBrowserMicrophone,

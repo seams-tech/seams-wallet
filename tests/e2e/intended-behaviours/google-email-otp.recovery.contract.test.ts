@@ -1,8 +1,5 @@
-import {
-  intendedTest as test,
-  type IntendedBehaviourHarness,
-  type IntendedRecoveryTargetKind,
-} from './harness';
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { type IntendedRecoveryTargetKind } from './harness-recovery';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 

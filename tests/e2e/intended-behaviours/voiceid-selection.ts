@@ -1,7 +1,7 @@
 import { access, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, type Page, type Request, type TestInfo } from '@playwright/test';
-import { waitForWalletIframeConfirmationSettlement } from './harness';
+import { waitForWalletIframeConfirmationSettlement } from './wallet-iframe-confirm';
 import { startReviewedTransfer } from './voiceid-near-signing';
 import type {} from '../../fixtures/ui/VoiceIdMicrophoneObservation';
 import type {} from '../../intended-app/src/voiceIdHelpers';

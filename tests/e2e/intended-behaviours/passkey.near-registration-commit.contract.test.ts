@@ -9,11 +9,8 @@ import {
   type Route,
   type TestInfo,
 } from '@playwright/test';
-import {
-  intendedTest as test,
-  signAndVerifyNearMessage,
-  type IntendedBehaviourHarness,
-} from './harness';
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { signAndVerifyNearMessage } from './wallet-iframe-confirm';
 
 class NearRegistrationReplay {
   readonly requests: string[] = [];

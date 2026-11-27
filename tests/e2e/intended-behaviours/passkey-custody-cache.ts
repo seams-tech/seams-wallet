@@ -9,7 +9,8 @@ import {
 import { build } from 'esbuild';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { autoConfirmWalletIframeUntil, type IntendedBehaviourHarness } from './harness';
+import { autoConfirmWalletIframeUntil } from './wallet-iframe-confirm';
+import { type IntendedBehaviourHarness } from './harness';
 import { walletFrame } from './session-restore-lock';
 import type { AuthoritySnapshot } from './passkey-custody-cache-probe';
 import { requireRecord } from '../../../packages/shared-ts/src/utils/validation';

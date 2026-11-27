@@ -1,5 +1,6 @@
 import { expect, type Page, type TestInfo, type WebSocketRoute } from '@playwright/test';
-import { intendedTest as test, waitForWalletIframeConfirmationSettlement } from './harness';
+import { intendedTest as test } from './harness';
+import { waitForWalletIframeConfirmationSettlement } from './wallet-iframe-confirm';
 import {
   allowBrowserMicrophone,
   enrollBrowserMicrophone,

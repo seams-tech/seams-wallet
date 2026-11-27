@@ -11,11 +11,8 @@ import {
   type Route,
   type TestInfo,
 } from '@playwright/test';
-import {
-  intendedTest as test,
-  enableSigningSessionDebugInFrame,
-  type IntendedBehaviourHarness,
-} from './harness';
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import { enableSigningSessionDebugInFrame } from './harness-environment';
 import { normalizeRuntimePolicyScope } from '../../../packages/shared-ts/src/threshold/signingRootScope';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';

@@ -19,7 +19,8 @@ import { applicationWalletHandoff } from '../../../examples/seams-auth-menu/src/
 import type {} from '../../intended-app/src/ApplicationAuthPage';
 import { readEnvFile } from '../../scripts/intended-google-oidc-env.mjs';
 import { authenticateApplicationPasskey } from './application-login';
-import { fulfillNearRpcStub, waitForWalletIframeConfirmationSettlement } from './harness';
+import { fulfillNearRpcStub } from './harness-environment';
+import { waitForWalletIframeConfirmationSettlement } from './wallet-iframe-confirm';
 import { VirtualPasskeyAuthenticator } from './virtual-authenticator';
 import { openGatewayDatabase } from './local-gateway-database';
 import { nearTransactionHash } from './near-transaction-hash';
