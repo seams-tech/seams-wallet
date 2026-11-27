@@ -178,10 +178,31 @@ So word matching cannot carry a Wallet request with free names and amounts. The 
 baseline comes from `spoken-intent`, which parses the transcript into the request and compares
 the values, with the contacts.
 
+### G1 under design A (measured, no cost)
+
+The owner chose design A (plan, Q15): SaySo signs the transcript (`transcriptOnly`, SaySo
+`c6235d5`), and the Wallet decides the words with `spoken-intent`. The turbo transcripts above,
+scored again with the baseline's own scorer (`txg-text rulecrate`, `score_whisper_crate.py`):
+
+| Transcriber + `spoken-intent`       | Correct readings       | Transfers | Multisig | False accepts |
+| ----------------------------------- | ---------------------- | --------- | -------- | ------------- |
+| NEAR AI large-v3, slot rules        | 2,652 of 3,000 (88.4%) | 94.6%     | 63.7%    | 0             |
+| Workers AI turbo, slot rules        | 2,501 of 3,000 (83.4%) | 90.5%     | 55.8%    | 0             |
+| NEAR AI large-v3, forgiving rules   | 2,733 of 3,000 (91.1%) | 98.0%     | 63.7%    | 0             |
+| Workers AI turbo, forgiving rules   | 2,582 of 3,000 (86.1%) | 93.9%     | 55.8%    | 0             |
+
+- The slot rules are seams-wallet `3a284a874`, with the grammar tool of seams-console
+  `cc8acf90`. The forgiving rules are seams-wallet `976167297`, with seams-console `679317d5`.
+- The near misses that the rules accept (64 and 107) are homophones of the true receiver. The
+  baseline does not count them as false accepts either.
+- The multisig cases are 588, not 600: 12 are longer than 8 s.
+- Score files: SaySo `3da0c0c`, `bench/stt1/results/2026-11-27-g1-spoken-intent-*.json`.
+
 ## 3. Open points for the owner
 
-1. G1: SaySo's word check fails G1 (4.2%). Which text step decides a Wallet request: SaySo's
-   words, or `spoken-intent` on the transcript (plan, Q15)?
+1. G1: answered with design A (plan, Q15). Turbo with `spoken-intent` is about 5 points below
+   NEAR AI large-v3. Accept the gap, or try Nova-3 (about $2.10) or a contact prompt (about
+   $0.21) first?
 2. G2: cosine agreement or accept and refuse results, and against which reference now that
    the Phala build has no funding.
 3. G2 and G3: whether the private fixture clips can go to the SaySo Worker on Cloudflare. The
