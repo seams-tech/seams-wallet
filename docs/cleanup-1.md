@@ -5,16 +5,15 @@ The [Rust warning checklist and revert log](https://github.com/seams-tech/seams-
 Use that checklist for the next Rust batches. Older survey counts below are
 historical measurements.
 
-**Status:** complete on 2026-11-27. Every phase and survey item is closed,
-apart from four items that stay open with the owner's agreement: R232's plan
-file, the intended-behaviours harness, the schema items for the clean reset,
-and four router-ab-cloudflare repetitions that each need a shared design (see
-"Open, with the owner's agreement"). CI runs `pnpm report:bloat --check`,
-which fails when a ratcheted measure grows past `scripts/bloat-baseline.json`.
-Since the first baseline (`7c8a163`), duplication is down from 5.1% to 2.1% in
-TypeScript and from 5.7% to 4.4% in Rust, and files over 2,000 lines from 82
-to 51. The findings below are the first baseline's; run `pnpm report:bloat`
-for current numbers.
+**Status:** complete on 2026-11-27, with no item left open. The owner asked
+for the last four open items to be done the same day: R232's plan, the
+intended-behaviours harness, the schema items and four router-ab-cloudflare
+repetitions; the progress log lists their commits. CI runs
+`pnpm report:bloat --check`, which fails when a ratcheted measure grows past
+`scripts/bloat-baseline.json`. Since the first baseline (`7c8a163`),
+duplication is down from 5.1% to 2.1% in TypeScript and from 5.7% to 4.1% in
+Rust, and files over 2,000 lines from 82 to 50. The findings below are the
+first baseline's; run `pnpm report:bloat` for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
 without changing behavior. The repository holds about 540k lines of TypeScript
@@ -140,16 +139,17 @@ presignature proof remain outside this batch.
 - [x] The second survey's remaining items, and its decisions.
 - [x] The third survey's decisions.
 
-### Open, with the owner's agreement
+### Closed later on 2026-11-27, at the owner's request
 
-- The intended-behaviours harness and test page: `harness.ts` is still under
-  feature work.
-- Schema: 17 create-if-missing statements in four store files, and the
-  migration squash, wait for the planned clean reset.
-- router-ab-cloudflare's route prologues, the parallel Ed25519 and ECDSA
-  halves of `authorized_operations.rs`, the D1 restore-scope keys and AAD
-  structs, and the Durable Object transaction wrappers: each needs its own
-  shared design (see Phase 4).
+- [x] R232's plan: deleted, and its three links go to its last text
+  (c1706aac9).
+- [x] The intended-behaviours harness: one contract, its repetition and dead
+  code gone, and `harness.ts` split along its flows (f8bb96369 to 9ef6eadf6).
+- [x] Schema: the drifted create-if-missing SQL is gone (8d03363c4), and the
+  91 signer migrations are one baseline that existing databases apply as a
+  no-op (7123e190b). The owner chose no data reset.
+- [x] router-ab-cloudflare's four repetitions: shared (47e450c9e, 5fecd938b,
+  014f645d5, 74dc2b8a8).
 
 ## Findings
 
@@ -610,13 +610,19 @@ conflict with the agents changing them.
   to 1,864, and `tests/bindings.rs` 8,440 to 223. No new module exceeds 1,810
   lines. The repetition the split exposed: d6ea76781 gives 44 inline
   protocol-error responses one helper; two that map the status differently
-  keep their own. Left for a change with its own design, as the owner agreed
-  on 2026-11-27: the route prologues (77 `requires POST` checks), the
-  parallel Ed25519 and ECDSA halves of `authorized_operations.rs`, the D1
-  restore-scope keys and AAD structs, and the 17 Durable Object transaction
-  wrappers in `cloudflare_actor.rs`. Each needs a shared abstraction (a
-  route table, a curve trait, a scope key type, a helper that lends the bound
-  store to an async closure), not a move.
+  keep their own. The other four repetitions each needed a shared design, and
+  the owner asked for them later the same day. 47e450c9e gives 26 Durable
+  Object transactions one outcome helper. 5fecd938b gives about 140 routes
+  shared POST, path and JSON prologues in `worker_route.rs`, each keeping its
+  label text. 014f645d5 builds the three restore-refresh AADs and ciphertext
+  headers from one field set; their bytes and serde error texts are
+  byte-identical over fixtures, and each tree opened the other's sealed seeds.
+  74dc2b8a8 shares the Ed25519 and ECDSA authorized-operation checks
+  (`authorized_operations.rs` 1,584 to 685 lines; 372,768 probe results
+  identical). Rust duplicated lines 13,614 to 12,685. Left as they are, on
+  purpose: prologues that map errors another way, the import-key AAD and D1
+  row structs whose shared fields differ in name or order, and the two curves'
+  public wire enums, whose serde error texts a shared type would change.
 - [x] In R150's crates, resolve the remaining `allow(dead_code)`
   (`router-ab-cloudflare` 51, `router-ab-dev` 2) as Phase 1 did elsewhere, and
   remove their 27 refactor citations. cb9bb38ec rewrote the last 22 citations.
@@ -718,9 +724,15 @@ Waiting for feature work in these files to settle:
   test families, about 550.
 - The intended-behaviours harness and test page: one action and result
   contract for `page.tsx` and `harness.ts` (about 550), the harness's own
-  repetition and dead code (about 450), and a split into flow layers. Still
-  open, with the owner's agreement of 2026-11-27: `harness.ts` (8,687 lines)
-  had 18 commits in the 30 days to that date.
+  repetition and dead code (about 450), and a split into flow layers. Done on
+  2026-11-27 at the owner's request: f8bb96369 deletes what nothing calls,
+  cbb5aeb8e gives page and harness one contract in
+  `tests/intended-app/src/intendedContract.ts`, 5046680a9 merges their repeated
+  blocks (`page.tsx` repeats itself 0 times, down from 19), and 9ef6eadf6 splits
+  `harness.ts` (8,687 lines to 79) into flow classes, each under 1,310 lines.
+  The Playwright case list is unchanged, and 15 cases across every flow layer
+  pass with the same recorded stage order before and after. `page.tsx`
+  (3,169 lines) follows the `AGENTS.md` rule for its own split.
 - Done: the failure literals, `equalBytes` copies and runtime-scope
   comparators in the registration, auth-method and threshold route files
   (6a398ec6b, 7b65fd83a, 8ef1f0be5). The constant-time `equalBytes` copies in
@@ -856,9 +868,15 @@ Decisions, largest first, with their outcome on 2026-11-27:
   health, keyset, ECDSA refresh and recovery-read routes stay: they have
   callers or belong to kept features. a0def848c deleted the
   `ThresholdStoreDurableObject` operations.
-- Schema: four TypeScript store files still hold 17 create-if-missing
-  statements, down from 37 in nine files (a0def848c). They and the migration
-  squash stay open for the planned clean reset, as the owner agreed.
+- Schema: done on 2026-11-27. 8d03363c4 deleted the last 17 create-if-missing
+  statements (37 in nine files before a0def848c): they made again four
+  auth-method indexes that migration 0015 drops. 7123e190b squashes the 91
+  signer migrations into `0001_signer_d1_baseline.sql` (787 to 436 kB). The
+  owner chose no data reset: the baseline uses `IF NOT EXISTS` and
+  `INSERT OR IGNORE`, so a database with all 91 applies it as a no-op, and its
+  first statement refuses a database that has only some of them. All 12
+  hosted signer databases matched it in a read-only check, with all 91
+  recorded. Operators apply every 0.76.0 migration before they upgrade.
 - Shipped bytes: all done on 2026-10-02 and 2026-10-12: the iframe host is
   minified (344faa258), `wallet-ui.css` ships without comments (6a3bd62ca),
   the custody ceremony worker is minified in the production build
@@ -1200,4 +1218,16 @@ Found during the cleanup and left unchanged, for their owners to check:
   291 -> 78; names exported from 2+ files 108 -> 102; validation functions
   3,779 -> 3,763; `?: never` lines 1,969 -> 1,846; Rust `allow(dead_code)`
   39 -> 38; refactor plan docs 72 -> 60; refactor citations 22 -> 0. The
+  baseline was re-recorded at the final commit.
+- 2026-11-27, later: the owner asked for the last open items, and the
+  cleanup closed with none left. R232 retired (c1706aac9); the drifted
+  create-if-missing SQL deleted (8d03363c4); the signer migrations squashed
+  into one baseline with no data reset (7123e190b, c2c3cabaf); the harness
+  consolidated and split (f8bb96369, cbb5aeb8e, 5046680a9, 16d0194f5,
+  9ef6eadf6); router-ab-cloudflare's four repetitions shared (47e450c9e,
+  5fecd938b, 014f645d5, 74dc2b8a8). Measured at `d6ea76781` and at
+  `c2c3cabaf`: TypeScript code 554,694 -> 553,366 lines; Rust code
+  396,580 -> 395,416; JavaScript 44,817 -> 44,406; files over 2,000 lines
+  51 -> 50 (178,204 -> 168,561 lines); duplicated TypeScript lines
+  9,376 -> 9,190; duplicated Rust lines 13,614 (4.4%) -> 12,685 (4.1%). The
   baseline was re-recorded at the final commit.
