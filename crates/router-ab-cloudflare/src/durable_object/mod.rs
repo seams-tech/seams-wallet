@@ -310,9 +310,9 @@ pub struct CloudflareExpiredStateCleanupReportV1 {
     /// Current Worker time used for expiry comparisons.
     pub now_unix_ms: u64,
     /// Primary storage records removed.
-    pub records_removed: u64,
+    pub(crate) records_removed: u64,
     /// Secondary index records removed.
-    pub index_records_removed: u64,
+    pub(crate) index_records_removed: u64,
 }
 
 impl CloudflareExpiredStateCleanupReportV1 {
@@ -525,7 +525,7 @@ impl CloudflareSigningWorkerOutputActivationRecordV1 {
     }
 
     /// Compares the immutable activation input and role-local material, excluding commit time.
-    pub fn matches_activation_and_material(&self, other: &Self) -> bool {
+    pub(crate) fn matches_activation_and_material(&self, other: &Self) -> bool {
         match (self, other) {
             (
                 Self::RecipientProofBundle {
@@ -562,7 +562,7 @@ impl CloudflareSigningWorkerOutputActivationRecordV1 {
     }
 
     /// Consumes the activation record and returns SigningWorker-local material.
-    pub fn into_material(self) -> CloudflareServerOutputMaterialRecordV1 {
+    pub(crate) fn into_material(self) -> CloudflareServerOutputMaterialRecordV1 {
         match self {
             Self::RecipientProofBundle { material, .. } | Self::Ed25519Yao { material, .. } => {
                 material
@@ -674,7 +674,7 @@ impl CloudflareActiveSigningWorkerStateLookupV1 {
     }
 
     /// Creates a lookup from a normal-signing scope.
-    pub fn from_normal_signing_scope(scope: &NormalSigningScopeV1) -> RouterAbProtocolResult<Self> {
+    pub(crate) fn from_normal_signing_scope(scope: &NormalSigningScopeV1) -> RouterAbProtocolResult<Self> {
         scope.validate()?;
         Self::new(
             scope.account_id.clone(),
@@ -756,7 +756,7 @@ impl CloudflareSigningWorkerOutputMaterialLookupV1 {
     }
 
     /// Validates returned material matches the active state used for lookup.
-    pub fn validate_material(
+    pub(crate) fn validate_material(
         &self,
         material: &CloudflareServerOutputMaterialRecordV1,
     ) -> RouterAbProtocolResult<()> {
@@ -886,7 +886,7 @@ pub struct CloudflareSigningWorkerRound1RecordV1 {
     /// Router-admitted digest that this nonce material may sign.
     pub admitted_signing_digest: PublicDigest32,
     /// Persisted round-1 nonce material and public commitments.
-    pub round1_state: CloudflareEd25519Round1StateV1,
+    pub(crate) round1_state: CloudflareEd25519Round1StateV1,
     /// Creation timestamp in Unix milliseconds.
     pub created_at_ms: u64,
     /// Expiry timestamp in Unix milliseconds.
@@ -943,7 +943,7 @@ impl CloudflareSigningWorkerRound1RecordV1 {
     }
 
     /// Validates this record is live and matches the lookup used to load it.
-    pub fn validate_for_lookup(
+    pub(crate) fn validate_for_lookup(
         &self,
         lookup: &CloudflareSigningWorkerRound1LookupV1,
     ) -> RouterAbProtocolResult<()> {
@@ -1024,7 +1024,7 @@ pub struct CloudflareSigningWorkerRound1PutReceiptV1 {
 
 impl CloudflareSigningWorkerRound1PutReceiptV1 {
     /// Creates a validated round-1 put receipt from the stored record.
-    pub fn from_record(
+    pub(crate) fn from_record(
         record: &CloudflareSigningWorkerRound1RecordV1,
         stored: bool,
     ) -> RouterAbProtocolResult<Self> {
@@ -1047,25 +1047,6 @@ impl CloudflareSigningWorkerRound1PutReceiptV1 {
         self.server_commitments.validate()
     }
 
-    /// Validates receipt identity against the record that created it.
-    pub fn validate_for_record(
-        &self,
-        record: &CloudflareSigningWorkerRound1RecordV1,
-    ) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        record.validate()?;
-        if self.active_signing_worker_state == record.active_signing_worker_state
-            && self.server_round1_handle == record.server_round1_handle
-            && self.round1_binding_digest == record.round1_binding_digest
-            && self.server_commitments == record.round1_state.commitments
-        {
-            return Ok(());
-        }
-        Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "SigningWorker round-1 put receipt does not match record",
-        ))
-    }
 }
 
 /// Stored SigningWorker ECDSA presignature material for one Router A/B ECDSA derivation signing request.
@@ -1304,7 +1285,7 @@ impl CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1 {
     }
 
     /// Converts this unbound record into a request-bound one-use presignature record.
-    pub fn to_request_bound_record(
+    pub(crate) fn to_request_bound_record(
         &self,
         request_digest: PublicDigest32,
         admitted_signing_digest: PublicDigest32,
@@ -1355,7 +1336,7 @@ pub struct CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1 {
 
 impl CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1 {
     /// Creates a validated ECDSA pool admission receipt from the stored record.
-    pub fn from_record(
+    pub(crate) fn from_record(
         record: &CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1,
         stored: bool,
     ) -> RouterAbProtocolResult<Self> {
@@ -1380,24 +1361,6 @@ impl CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1 {
         )
     }
 
-    /// Validates receipt identity against the record that created it.
-    pub fn validate_for_record(
-        &self,
-        record: &CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1,
-    ) -> RouterAbProtocolResult<()> {
-        self.validate()?;
-        record.validate()?;
-        if self.active_signing_worker_state == record.active_signing_worker_state
-            && self.server_presignature_id == record.server_presignature_id
-            && self.server_big_r33_b64u == record.server_big_r33_b64u
-        {
-            return Ok(());
-        }
-        Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "SigningWorker ECDSA pool admission receipt does not match record",
-        ))
-    }
 }
 
 /// One transactionally executed operation against SigningWorker-private D1.

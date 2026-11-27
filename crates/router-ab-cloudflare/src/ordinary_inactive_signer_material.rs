@@ -38,18 +38,18 @@ use sha2::{Digest, Sha256};
 use worker::{Env, Request, Response};
 use zeroize::Zeroizing;
 
-pub const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_PATH: &str =
+pub(crate) const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_PATH: &str =
     "/router-ab/signing-worker/ecdsa-derivation/reserve-inactive";
-pub const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH: &str =
+pub(crate) const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH: &str =
     "/router-ab/signing-worker/ecdsa-derivation/reserve-inactive-source-preserving";
-pub const CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH: &str =
+pub(crate) const CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH: &str =
     "/router-ab/signing-worker/ecdsa-derivation/activate-reservation";
-pub const CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH: &str =
+pub(crate) const CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH: &str =
     "/router-ab/signing-worker/ecdsa-derivation/deactivate-reservation";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaInactiveMaterialReservationRequestV1 {
+pub(crate) struct CloudflareEcdsaInactiveMaterialReservationRequestV1 {
     pub registration: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
     pub activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
 }
@@ -86,7 +86,7 @@ impl CloudflareEcdsaInactiveMaterialReservationRequestV1 {
 /// contribution binding and return the committed target packages.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
+pub(crate) struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
     pub ownership_generation: u64,
     /// The wallet whose active material is the source, and which holds the
     /// linked material.
@@ -125,7 +125,7 @@ impl CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaActivateReservationRequestV1 {
+pub(crate) struct CloudflareEcdsaActivateReservationRequestV1 {
     pub ownership_generation: u64,
     /// The wallet that owns the reserved material.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -157,7 +157,7 @@ impl CloudflareEcdsaActivateReservationRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaDeactivateReservationRequestV1 {
+pub(crate) struct CloudflareEcdsaDeactivateReservationRequestV1 {
     pub ownership_generation: u64,
     /// The wallet that owns the reserved material.
     pub scope: CloudflareSigningWorkerWalletScopeV1,
@@ -180,7 +180,7 @@ impl CloudflareEcdsaDeactivateReservationRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaInactiveMaterialReservationResponseV1 {
+pub(crate) struct CloudflareEcdsaInactiveMaterialReservationResponseV1 {
     pub state: &'static str,
     pub reservation_id: String,
     pub material_activation: MpcMaterialActivationRefV1,
@@ -190,7 +190,7 @@ pub struct CloudflareEcdsaInactiveMaterialReservationResponseV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationResponseV1 {
+pub(crate) struct CloudflareEcdsaSourcePreservingInactiveMaterialReservationResponseV1 {
     pub state: &'static str,
     pub reservation_id: String,
     pub material_activation: MpcMaterialActivationRefV1,
@@ -222,16 +222,16 @@ impl EcdsaClientPackagePairV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaReservationActivationResponseV1 {
+pub(crate) struct CloudflareEcdsaReservationActivationResponseV1 {
     pub receipt: CloudflareSigningWorkerOutputActivationReceiptV1,
 }
 
-pub type CloudflareEcdsaSourcePreservingReservationActivationResponseV1 =
+pub(crate) type CloudflareEcdsaSourcePreservingReservationActivationResponseV1 =
     CloudflareEcdsaSourcePreservingInactiveMaterialReservationResponseV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaReservationDeactivationResponseV1 {
+pub(crate) struct CloudflareEcdsaReservationDeactivationResponseV1 {
     pub state: &'static str,
     pub reservation_id: String,
     pub material_activation: MpcMaterialActivationRefV1,
@@ -520,7 +520,7 @@ impl EcdsaReservationStateV1 {
 }
 
 #[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_v1(
+pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
@@ -542,7 +542,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_preserving_v1(
+pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_preserving_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
@@ -573,7 +573,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_pres
 /// On the wallet-object build every ECDSA reservation it activates or
 /// revokes is a linked device's, held with the wallet's material.
 #[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
+pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
     mut request: Request,
     env: &Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
@@ -606,7 +606,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_activate_reservation_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_signing_worker_ecdsa_deactivate_reservation_v1(
+pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_deactivate_reservation_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
@@ -1616,7 +1616,7 @@ pub(crate) fn mpc_material_activation_from_ecdsa_ref_v1(
     )
 }
 
-pub(crate) fn source_preserving_reservation_id_v1(
+pub fn source_preserving_reservation_id_v1(
     target_material_activation: &MpcMaterialActivationRefV1,
     binding_digest: &[u8; 32],
 ) -> RouterAbProtocolResult<String> {

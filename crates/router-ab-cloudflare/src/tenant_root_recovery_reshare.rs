@@ -20,25 +20,25 @@ use crate::tenant_root_role_runtime::{RefreshHpkeReplayRng, TenantRootDeriverHos
 use crate::tenant_root_role_sql::RoleSqlSessionV1;
 
 /// Private Deriver route for the five reshare phases of one recovery set.
-pub const TENANT_ROOT_RECOVERY_RESHARE_PATH_V1: &str =
+pub(crate) const TENANT_ROOT_RECOVERY_RESHARE_PATH_V1: &str =
     "/router-ab/deriver/tenant-root-recovery/reshare";
 /// Private Deriver route for Download and Destroy of a retained package.
-pub const TENANT_ROOT_RECOVERY_ACCESS_PATH_V1: &str =
+pub(crate) const TENANT_ROOT_RECOVERY_ACCESS_PATH_V1: &str =
     "/router-ab/deriver/tenant-root-recovery/access";
 /// The media type of a downloaded recovery package.
-pub const TENANT_ROOT_RECOVERY_PACKAGE_CONTENT_TYPE_V1: &str =
+pub(crate) const TENANT_ROOT_RECOVERY_PACKAGE_CONTENT_TYPE_V1: &str =
     "application/vnd.seams.tenant-root-recovery-package.v1";
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TenantRootRecoveryCommitmentsV1 {
+pub(crate) struct TenantRootRecoveryCommitmentsV1 {
     a: String,
     b: String,
 }
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TenantRootRecoveryRoundV1 {
+pub(crate) struct TenantRootRecoveryRoundV1 {
     commitments: TenantRootRecoveryCommitmentsV1,
     peer_contribution: String,
 }
@@ -46,7 +46,7 @@ pub struct TenantRootRecoveryRoundV1 {
 /// One reshare phase, with the issuer-signed generation command it runs under.
 #[derive(serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum TenantRootRecoveryReshareRequestV1 {
+pub(crate) enum TenantRootRecoveryReshareRequestV1 {
     Prepare {
         command: String,
     },
@@ -86,7 +86,7 @@ impl TenantRootRecoveryReshareRequestV1 {
 /// One reshare phase's result.
 #[derive(serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum TenantRootRecoveryReshareResponseV1 {
+pub(crate) enum TenantRootRecoveryReshareResponseV1 {
     Prepared {
         commitment: String,
     },
@@ -110,13 +110,13 @@ pub enum TenantRootRecoveryReshareResponseV1 {
 /// command that made it and an issuer-signed access grant.
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TenantRootRecoveryAccessRequestV1 {
+pub(crate) struct TenantRootRecoveryAccessRequestV1 {
     generation_command: String,
     access_grant: String,
 }
 
 /// Download's package bytes, or Destroy's outcome.
-pub enum TenantRootRecoveryAccessResponseV1 {
+pub(crate) enum TenantRootRecoveryAccessResponseV1 {
     Package {
         bytes: Zeroizing<Vec<u8>>,
         file_name: String,
@@ -126,7 +126,7 @@ pub enum TenantRootRecoveryAccessResponseV1 {
 
 /// What a retention provider did to one key version.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TenantRootRecoveryRetentionDestructionV1 {
+pub(crate) enum TenantRootRecoveryRetentionDestructionV1 {
     /// The provider scheduled the key version's destruction: its receipt.
     Scheduled { receipt: String },
     /// The key is gone as far as this provider can tell: its receipt.
@@ -135,7 +135,7 @@ pub enum TenantRootRecoveryRetentionDestructionV1 {
 
 /// Where one recovery set's retention key for this role lives.
 #[allow(async_fn_in_trait)]
-pub trait TenantRootRecoveryRetentionProviderV1 {
+pub(crate) trait TenantRootRecoveryRetentionProviderV1 {
     /// Creates the key version if it does not exist; a replay succeeds.
     async fn provision(&self) -> RouterAbDerivationResult<()>;
     /// Seals bytes under the key, with the given authenticated data.
@@ -148,7 +148,7 @@ pub trait TenantRootRecoveryRetentionProviderV1 {
 }
 
 /// A Deriver host that can retain recovery packages.
-pub trait TenantRootDeriverRecoveryHostV1: TenantRootDeriverHostV1 {
+pub(crate) trait TenantRootDeriverRecoveryHostV1: TenantRootDeriverHostV1 {
     type Retention: TenantRootRecoveryRetentionProviderV1;
     /// The retention key for one recovery set and this role.
     fn recovery_retention(
@@ -161,7 +161,7 @@ pub trait TenantRootDeriverRecoveryHostV1: TenantRootDeriverHostV1 {
 /// a host without a destructible key provider. Destroying it deletes that
 /// row, and nothing more can be claimed: a snapshot or backup of the store
 /// may still hold it.
-pub struct TenantRootRoleStoreRecoveryRetentionV1<S: RoleSqlSessionV1> {
+pub(crate) struct TenantRootRoleStoreRecoveryRetentionV1<S: RoleSqlSessionV1> {
     store: TenantRootRoleShareStoreV1<S>,
     id: TenantRootRetentionKeyIdV1,
 }
@@ -488,7 +488,7 @@ fn derive_pending(
 /// the active share it read under the set's retention key; every phase
 /// reopens them, so each is an exact replay of the same attempt. The last
 /// phase wraps the package and keeps it for Download.
-pub async fn tenant_root_deriver_recovery_reshare_v1<Host: TenantRootDeriverRecoveryHostV1>(
+pub(crate) async fn tenant_root_deriver_recovery_reshare_v1<Host: TenantRootDeriverRecoveryHostV1>(
     host: &Host,
     request: TenantRootRecoveryReshareRequestV1,
     now_ms: u64,
@@ -748,7 +748,7 @@ pub async fn tenant_root_deriver_recovery_reshare_v1<Host: TenantRootDeriverReco
 
 /// Downloads or destroys one role's retained package under an issuer-signed
 /// access grant for its generation command.
-pub async fn tenant_root_deriver_recovery_access_v1<Host: TenantRootDeriverRecoveryHostV1>(
+pub(crate) async fn tenant_root_deriver_recovery_access_v1<Host: TenantRootDeriverRecoveryHostV1>(
     host: &Host,
     request: TenantRootRecoveryAccessRequestV1,
     now_ms: u64,

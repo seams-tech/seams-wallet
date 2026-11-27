@@ -1,7 +1,7 @@
 //! Cloudflare Worker adapters for Router-owned custody ceremonies.
 
 mod execute_request;
-pub use execute_request::handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1;
+pub(crate) use execute_request::handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1;
 
 mod ceremony_execution;
 mod package_delivery;
@@ -89,7 +89,7 @@ const ROUTER_AUTHORITY_TTL_MS: u64 = 60_000;
 /// Server-admitted lane envelope with the same tenant-root binding as ceremonies.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
+pub(crate) struct CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
     pub ownership_generation: u64,
     pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -214,7 +214,7 @@ fn emit_span(
 
 /// Consumes one completed registration's activation for one finalization, in
 /// the Router's wallet object.
-pub async fn handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1(
+pub(crate) async fn handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
@@ -256,7 +256,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_registration_consume_private_f
 }
 
 /// Handles one authenticated source-preserving target registration.
-pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_private_fetch_v1(
+pub(crate) async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_private_fetch_v1(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
@@ -369,7 +369,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
 }
 
 /// Executes one authenticated, already-admitted Ed25519 lane command.
-pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
+pub(crate) async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
@@ -532,7 +532,7 @@ fn router_recipient_set_digest_v1(env: &Env) -> RouterAbProtocolResult<PublicDig
 /// SigningWorker scope, derived as the recovery's delivery derived it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
+pub(crate) struct CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
     pub ownership_generation: u64,
     pub binding: router_ab_core::Ed25519YaoCeremonyBindingV1,
     pub public_receipt: router_ab_core::RouterAbEd25519YaoActivationPublicReceiptV1,
@@ -563,7 +563,7 @@ impl CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
 }
 
 /// Handles explicit recovery promotion without exposing the SigningWorker to the Gateway.
-pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch_v1(
+pub(crate) async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch_v1(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {

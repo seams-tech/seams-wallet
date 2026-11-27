@@ -16,11 +16,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Fixed protocol bound into both role-local ECDSA presignature pools.
-pub const CLOUDFLARE_FIXED_ECDSA_PRESIGN_PROTOCOL_ID_V1: &str =
+pub(crate) const CLOUDFLARE_FIXED_ECDSA_PRESIGN_PROTOCOL_ID_V1: &str =
     "seams/router-ab-ecdsa-presign/fixed-2of2/v1";
 
 /// Maximum lifetime of one SigningWorker reservation.
-pub const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVATION_LEASE_MS_V1: u64 = 60_000;
+pub(crate) const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVATION_LEASE_MS_V1: u64 = 60_000;
 
 const WALLET_BINDING_DOMAIN: &[u8] = b"seams/ecdsa-pool/wallet/v1";
 const ACCOUNT_BINDING_DOMAIN: &[u8] = b"seams/ecdsa-pool/account/v1";
@@ -35,7 +35,7 @@ const RESERVATION_BINDING_DOMAIN: &[u8] = b"seams/ecdsa-pool/reservation/v1";
 /// Role-local secret material associated with one persistent lifecycle state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "state")]
-pub enum CloudflareSigningWorkerEcdsaPoolMaterialStateV1 {
+pub(crate) enum CloudflareSigningWorkerEcdsaPoolMaterialStateV1 {
     /// Material is admitted and available for one exact signing request.
     Available {
         /// Unbound SigningWorker presignature material.
@@ -63,7 +63,7 @@ pub struct CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 {
     /// Monotonic storage-independent lifecycle state.
     pub lifecycle: PoolRecord,
     /// Role-local material whose variant must match the lifecycle state.
-    pub material_state: CloudflareSigningWorkerEcdsaPoolMaterialStateV1,
+    pub(crate) material_state: CloudflareSigningWorkerEcdsaPoolMaterialStateV1,
 }
 
 /// Result of consuming an exact SigningWorker reservation.
@@ -871,7 +871,7 @@ impl CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 {
     }
 
     /// Destroys a reserved attempt after cancellation, peer abort, or rejection.
-    pub fn destroy_reserved(
+    pub(crate) fn destroy_reserved(
         self,
         request_digest: PublicDigest32,
         reason: TombstoneReason,

@@ -188,7 +188,7 @@ impl CloudflareRouterAbEcdsaRegistrationForwardV1 {
 /// Admits the second registration phase at the Router: the client has
 /// verified both proof bundles, and the same ceremony session owner asks the
 /// SigningWorker to activate its material.
-pub fn admit_cloudflare_router_ab_ecdsa_derivation_activation_v1<Verifier>(
+pub(crate) fn admit_cloudflare_router_ab_ecdsa_derivation_activation_v1<Verifier>(
     admission: &CloudflareRouterAdmissionBindingsV1,
     now_unix_ms: u64,
     command: CloudflareRouterAbEcdsaDerivationActivationCommandV1,
@@ -235,7 +235,7 @@ where
 }
 
 /// The Deriver runtime facts the ECDSA Deriver handlers read.
-pub trait CloudflareDeriverSignerRuntimeV1 {
+pub(crate) trait CloudflareDeriverSignerRuntimeV1 {
     /// The Deriver role this runtime serves.
     fn worker_role(&self) -> CloudflareWorkerRoleV1;
     /// The role's signer-envelope HPKE decrypt-key descriptors.
@@ -374,7 +374,7 @@ where
 
 /// One Deriver's ECDSA registration after authentication and preload, ready
 /// to execute.
-pub struct CloudflareDeriverEcdsaRegistrationV1 {
+pub(crate) struct CloudflareDeriverEcdsaRegistrationV1 {
     registration_request: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
     signer: CloudflareDeriverPreparedSignerV1,
 }
@@ -438,7 +438,7 @@ impl CloudflareDeriverEcdsaRegistrationV1 {
 }
 
 /// One SigningWorker ECDSA activation with its server-output material opened.
-pub struct CloudflareSigningWorkerEcdsaActivationV1 {
+pub(crate) struct CloudflareSigningWorkerEcdsaActivationV1 {
     activation: CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1,
     generic_activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
     material: CloudflareServerOutputMaterialRecordV1,
@@ -446,7 +446,7 @@ pub struct CloudflareSigningWorkerEcdsaActivationV1 {
 
 /// Opens both Derivers' SigningWorker proof bundles for one activation with
 /// the SigningWorker's server-output key.
-pub fn open_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_v1(
+pub(crate) fn open_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_v1(
     runtime: &CloudflareSigningWorkerRuntimeV1,
     env: &(impl CloudflareEnvReaderV1 + CloudflareSecretReaderV1),
     activation: CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1,
@@ -496,7 +496,7 @@ impl CloudflareSigningWorkerEcdsaActivationV1 {
     }
 
     /// The activation and material the SigningWorker stores.
-    pub fn stored_parts(
+    pub(crate) fn stored_parts(
         &self,
     ) -> (
         &CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
@@ -506,7 +506,7 @@ impl CloudflareSigningWorkerEcdsaActivationV1 {
     }
 
     /// Stores this activation in the wallet store and returns the receipt.
-    pub fn activate_in_wallet_store<Sql: SigningWorkerWalletSqlV1>(
+    pub(crate) fn activate_in_wallet_store<Sql: SigningWorkerWalletSqlV1>(
         self,
         store: &SigningWorkerWalletEcdsaStoreV1<'_, Sql>,
         activated_at_ms: u64,

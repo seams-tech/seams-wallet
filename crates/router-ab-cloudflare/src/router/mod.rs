@@ -115,7 +115,7 @@ impl CloudflareRouterAuthContextV1 {
     }
 
     /// Converts trusted Router auth context into a core gate principal.
-    pub fn to_gate_principal(&self) -> RouterAbProtocolResult<GatePrincipalV1> {
+    pub(crate) fn to_gate_principal(&self) -> RouterAbProtocolResult<GatePrincipalV1> {
         self.validate()?;
         match self {
             Self::OwnerWalletSession {
@@ -258,7 +258,7 @@ impl CloudflareRouterTrustedRequestMetadataV1 {
     }
 
     /// Builds the core gate context from trusted Router metadata.
-    pub fn to_gate_context(&self) -> RouterAbProtocolResult<ExpensiveWorkGateContextV1> {
+    pub(crate) fn to_gate_context(&self) -> RouterAbProtocolResult<ExpensiveWorkGateContextV1> {
         self.validate()?;
         ExpensiveWorkGateContextV1::new(
             self.work_kind,
@@ -335,7 +335,7 @@ impl CloudflareRouterNormalSigningTrustedMetadataV1 {
     }
 
     /// Validates metadata matches a typed v2 normal-signing finalize request.
-    pub fn validate_for_finalize_request_v2(
+    pub(crate) fn validate_for_finalize_request_v2(
         &self,
         request: &RouterAbEd25519NormalSigningFinalizeRequestV2,
     ) -> RouterAbProtocolResult<()> {
@@ -516,7 +516,7 @@ impl CloudflareRouterAdmissionChecksV1 {
     }
 
     /// Converts check results into the core expensive-work gate decision.
-    pub fn to_gate_decision(&self) -> RouterAbProtocolResult<ExpensiveWorkGateDecisionV1> {
+    pub(crate) fn to_gate_decision(&self) -> RouterAbProtocolResult<ExpensiveWorkGateDecisionV1> {
         self.validate()?;
         match &self.project_policy {
             CloudflareRouterProjectPolicyV1::Rejected { retry_after_ms } => {
@@ -623,7 +623,7 @@ pub struct CloudflareRouterVerifiedJwtClaimsV1 {
     /// Deployment environment label authorized by the session.
     pub environment: String,
     /// Canonical Console environment ID when signed by a ceremony issuer.
-    pub project_environment: CloudflareRouterProjectEnvironmentClaimV1,
+    pub(crate) project_environment: CloudflareRouterProjectEnvironmentClaimV1,
     /// Account, wallet, or root resource id authorized by the session.
     pub account_id: String,
     /// Digest of trusted source metadata, such as edge client address.
@@ -673,13 +673,13 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
         require_non_empty("account_id", &self.account_id)
     }
 
-    pub fn with_project_environment_id(mut self, id: String) -> RouterAbProtocolResult<Self> {
+    pub(crate) fn with_project_environment_id(mut self, id: String) -> RouterAbProtocolResult<Self> {
         require_non_empty("project_environment_id", &id)?;
         self.project_environment = CloudflareRouterProjectEnvironmentClaimV1::CanonicalId { id };
         Ok(self)
     }
 
-    pub fn require_project_environment_id(&self) -> RouterAbProtocolResult<&str> {
+    pub(crate) fn require_project_environment_id(&self) -> RouterAbProtocolResult<&str> {
         match &self.project_environment {
             CloudflareRouterProjectEnvironmentClaimV1::CanonicalId { id } => Ok(id),
             CloudflareRouterProjectEnvironmentClaimV1::Unspecified => {
@@ -692,7 +692,7 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
     }
 
     /// Converts verified claims into trusted Router metadata for this request.
-    pub fn to_trusted_metadata(
+    pub(crate) fn to_trusted_metadata(
         &self,
         request: &EcdsaThresholdPrfRequestV1,
     ) -> RouterAbProtocolResult<CloudflareRouterTrustedRequestMetadataV1> {
@@ -715,7 +715,7 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CloudflareRouterProjectEnvironmentClaimV1 {
+pub(crate) enum CloudflareRouterProjectEnvironmentClaimV1 {
     Unspecified,
     CanonicalId { id: String },
 }
@@ -1119,7 +1119,7 @@ impl CloudflareRouterVerifiedPreAuthSessionV1 {
     }
 
     /// Converts verified pre-auth session data into trusted Router metadata.
-    pub fn to_trusted_metadata(
+    pub(crate) fn to_trusted_metadata(
         &self,
         request: &EcdsaThresholdPrfRequestV1,
     ) -> RouterAbProtocolResult<CloudflareRouterTrustedRequestMetadataV1> {
@@ -1170,7 +1170,7 @@ impl CloudflareRouterVerifiedSessionV1 {
     }
 
     /// Converts the verified session branch into trusted Router metadata.
-    pub fn to_trusted_metadata(
+    pub(crate) fn to_trusted_metadata(
         &self,
         request: &EcdsaThresholdPrfRequestV1,
     ) -> RouterAbProtocolResult<CloudflareRouterTrustedRequestMetadataV1> {
@@ -1183,7 +1183,7 @@ impl CloudflareRouterVerifiedSessionV1 {
 }
 
 /// Router auth/session provider used by the admission chain.
-pub trait CloudflareRouterSessionProviderV1 {
+pub(crate) trait CloudflareRouterSessionProviderV1 {
     /// Verifies auth/session state and derives trusted Router metadata.
     fn verify_public_request_session(
         &mut self,
@@ -1706,7 +1706,7 @@ impl<Verifier> CloudflareRouterJwtSessionProviderV1<Verifier> {
         require_positive_ms("jwt session now_unix_ms", self.now_unix_ms)
     }
 
-    pub fn verify_ecdsa_ceremony_session(
+    pub(crate) fn verify_ecdsa_ceremony_session(
         &mut self,
         request: &EcdsaThresholdPrfRequestV1,
     ) -> RouterAbProtocolResult<(CloudflareRouterTrustedRequestMetadataV1, String, u64)>
@@ -1752,7 +1752,7 @@ where
 }
 
 /// Router project policy provider used by the admission chain.
-pub trait CloudflareRouterProjectPolicyProviderV1 {
+pub(crate) trait CloudflareRouterProjectPolicyProviderV1 {
     /// Evaluates whether a project may run this work kind.
     fn evaluate_project_policy(
         &mut self,
@@ -1811,7 +1811,7 @@ impl CloudflareRouterProjectPolicyProviderV1
 }
 
 /// Router abuse-control provider used by the admission chain.
-pub trait CloudflareRouterAbuseProviderV1 {
+pub(crate) trait CloudflareRouterAbuseProviderV1 {
     /// Evaluates source, principal, and request-level abuse controls.
     fn evaluate_abuse(
         &mut self,
@@ -1846,7 +1846,7 @@ impl CloudflareRouterAbuseProviderV1 for CloudflareRouterConfiguredAbuseProvider
 }
 
 /// Router quota provider used by the admission chain.
-pub trait CloudflareRouterQuotaProviderV1 {
+pub(crate) trait CloudflareRouterQuotaProviderV1 {
     /// Evaluates quota, idempotency reuse, and signer queue capacity.
     fn evaluate_quota(
         &mut self,
@@ -2068,17 +2068,6 @@ impl CloudflareRouterTrustedAdmissionV1 {
         ))
     }
 
-    /// Returns the lifecycle state that the Router should persist.
-    pub fn lifecycle_state_for_request(
-        &self,
-        request: &EcdsaThresholdPrfRequestV1,
-    ) -> RouterAbProtocolResult<RouterAbLifecycleStateV1> {
-        self.validate_for_request(request)?;
-        RouterAbLifecycleStateV1::apply_gate_decision(
-            request.lifecycle.clone(),
-            self.decision.clone(),
-        )
-    }
 }
 
 /// Server-derived Router admission data for a normal-signing request.
@@ -2108,7 +2097,7 @@ impl CloudflareRouterNormalSigningTrustedAdmissionV1 {
     }
 
     /// Validates server-derived admission data against a typed v2 finalize request.
-    pub fn validate_for_finalize_request_v2(
+    pub(crate) fn validate_for_finalize_request_v2(
         &self,
         request: &RouterAbEd25519NormalSigningFinalizeRequestV2,
     ) -> RouterAbProtocolResult<()> {
@@ -2919,7 +2908,7 @@ impl CloudflareRouterAbEcdsaDerivationEvmDigestPrepareAdmissionCandidateV1 {
     }
 
     /// Converts the candidate to the shared normal-signing trusted metadata shape.
-    pub fn to_normal_signing_trusted_metadata(
+    pub(crate) fn to_normal_signing_trusted_metadata(
         &self,
     ) -> RouterAbProtocolResult<CloudflareRouterNormalSigningTrustedMetadataV1> {
         self.validate()?;
@@ -3168,7 +3157,7 @@ impl CloudflareRouterAbEcdsaDerivationEvmDigestFinalizeAdmissionCandidateV1 {
     }
 
     /// Converts the candidate to the shared normal-signing trusted metadata shape.
-    pub fn to_normal_signing_trusted_metadata(
+    pub(crate) fn to_normal_signing_trusted_metadata(
         &self,
     ) -> RouterAbProtocolResult<CloudflareRouterNormalSigningTrustedMetadataV1> {
         self.validate()?;

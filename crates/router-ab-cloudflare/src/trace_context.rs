@@ -1,11 +1,11 @@
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 
 #[cfg(feature = "workers-rs")]
-pub const CLOUDFLARE_TRACE_ID_HEADER_V1: &str = "x-seams-trace-id";
+pub(crate) const CLOUDFLARE_TRACE_ID_HEADER_V1: &str = "x-seams-trace-id";
 const CLOUDFLARE_TRACE_ID_HEX_LENGTH: usize = 32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CloudflareTraceIdV1([u8; 16]);
+pub(crate) struct CloudflareTraceIdV1([u8; 16]);
 
 impl CloudflareTraceIdV1 {
     pub fn parse(value: &str) -> RouterAbProtocolResult<Self> {
@@ -29,7 +29,7 @@ impl CloudflareTraceIdV1 {
         Ok(Self(bytes))
     }
 
-    pub fn as_hex(self) -> String {
+    pub(crate) fn as_hex(self) -> String {
         let mut value = String::with_capacity(CLOUDFLARE_TRACE_ID_HEX_LENGTH);
         for byte in self.0 {
             value.push(hex_digit(byte >> 4));
@@ -40,7 +40,7 @@ impl CloudflareTraceIdV1 {
 }
 
 #[cfg(feature = "workers-rs")]
-pub fn parse_cloudflare_trace_id_from_request_v1(
+pub(crate) fn parse_cloudflare_trace_id_from_request_v1(
     request: &worker::Request,
 ) -> RouterAbProtocolResult<Option<CloudflareTraceIdV1>> {
     let value = request
@@ -59,7 +59,7 @@ pub fn parse_cloudflare_trace_id_from_request_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-pub fn set_cloudflare_trace_id_header_v1(
+pub(crate) fn set_cloudflare_trace_id_header_v1(
     headers: &worker::Headers,
     trace_id: CloudflareTraceIdV1,
 ) -> RouterAbProtocolResult<()> {

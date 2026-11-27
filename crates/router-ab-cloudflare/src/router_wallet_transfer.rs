@@ -12,14 +12,14 @@ use crate::router_wallet_relocation::{
 };
 use crate::{RouterWalletFreezeReceiptV1, RouterWalletFreezeRequestV1};
 
-pub const ROUTER_WALLET_TRANSFER_PATH_V1: &str = "/router-ab/router/wallet/transfer";
+pub(crate) const ROUTER_WALLET_TRANSFER_PATH_V1: &str = "/router-ab/router/wallet/transfer";
 const ACTIVATION_KEY: &str = "relocation-activation";
 const CLEANUP_BATCH_SIZE: u32 = 16;
 
 /// The authenticated destination's acknowledgement, forwarded by the move coordinator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RouterWalletActivationReceiptV1 {
+pub(crate) struct RouterWalletActivationReceiptV1 {
     pub source: RouterWalletFreezeReceiptV1,
     pub destination_object: String,
 }
@@ -33,7 +33,7 @@ struct ActivatedDestination {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RouterWalletTransferChunkV1 {
+pub(crate) struct RouterWalletTransferChunkV1 {
     pub receipt: RouterWalletFreezeReceiptV1,
     pub record_index: u64,
     pub segment_index: u32,
@@ -44,7 +44,7 @@ pub struct RouterWalletTransferChunkV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterWalletTransferRequestV1 {
+pub(crate) enum RouterWalletTransferRequestV1 {
     Prepare {
         request: RouterWalletFreezeRequestV1,
         chunk_bytes: u32,
@@ -102,7 +102,7 @@ impl RouterWalletTransferRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterWalletTransferResponseV1 {
+pub(crate) enum RouterWalletTransferResponseV1 {
     Prepared {
         request: RouterWalletFreezeRequestV1,
         chunk_bytes: u32,
@@ -144,7 +144,7 @@ struct StoredChunk {
 }
 
 /// The host commits each command and its acknowledgement in one wallet transaction.
-pub async fn transfer_router_wallet_v1<Store: RouterWalletStoreV1>(
+pub(crate) async fn transfer_router_wallet_v1<Store: RouterWalletStoreV1>(
     store: &Store,
     command: RouterWalletTransferRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletTransferResponseV1> {

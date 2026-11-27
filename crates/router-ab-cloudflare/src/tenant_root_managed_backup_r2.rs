@@ -28,7 +28,7 @@ const TENANT_ROOT_MANAGED_BACKUP_WRAPPING_KEY_GENERATION_METADATA_V1: &str =
 
 /// Where one role's managed backup for one epoch is stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TenantRootManagedBackupObjectCoordinatesV1 {
+pub(crate) struct TenantRootManagedBackupObjectCoordinatesV1 {
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     role: TenantRootManagedRestoreRoleV1,
@@ -65,7 +65,7 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
     }
 
     /// The storage key for these coordinates, the same on every host.
-    pub fn object_key(self) -> String {
+    pub(crate) fn object_key(self) -> String {
         format!(
             "{TENANT_ROOT_MANAGED_BACKUP_OBJECT_PREFIX_V1}/{}/{}/{}/{}.bin",
             role_name(self.role),
@@ -76,7 +76,7 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
     }
 
     /// The storage key of these coordinates' provider canary object.
-    pub fn provider_canary_object_key(self) -> String {
+    pub(crate) fn provider_canary_object_key(self) -> String {
         format!(
             "{TENANT_ROOT_MANAGED_BACKUP_OBJECT_PREFIX_V1}/{}/{}/{}/{}{}",
             role_name(self.role),
@@ -128,19 +128,19 @@ impl TenantRootManagedBackupObjectMetadataV1 {
         })
     }
 
-    pub fn object_key(&self) -> &str {
+    pub(crate) fn object_key(&self) -> &str {
         &self.object_key
     }
 
-    pub const fn canonical_digest(&self) -> &[u8; 32] {
+    pub(crate) const fn canonical_digest(&self) -> &[u8; 32] {
         &self.canonical_digest
     }
 
-    pub fn object_generation(&self) -> &str {
+    pub(crate) fn object_generation(&self) -> &str {
         &self.object_generation
     }
 
-    pub fn wrapping_key_generation_ref(&self) -> &str {
+    pub(crate) fn wrapping_key_generation_ref(&self) -> &str {
         &self.wrapping_key_generation_ref
     }
 }
@@ -165,7 +165,7 @@ impl CloudflareTenantRootManagedBackupPutOutcomeV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
+pub(crate) enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
     /// The object was present before deletion and absent in the verified read after it.
     Removed,
     /// The object was already absent before deletion and absent in the verified read after it.
@@ -187,7 +187,7 @@ pub struct CloudflareTenantRootManagedBackupDeletionReceiptV1 {
 impl CloudflareTenantRootManagedBackupDeletionReceiptV1 {
     /// Evidence that both objects at these coordinates are absent after a
     /// delete, recording whether each was present before it.
-    pub fn from_presence(
+    pub(crate) fn from_presence(
         coordinates: TenantRootManagedBackupObjectCoordinatesV1,
         managed_backup_was_present: bool,
         provider_canary_was_present: bool,
@@ -264,7 +264,7 @@ where
 /// Decodes stored managed-backup bytes and verifies them against their
 /// coordinates and the role's trusted verifying key. Every host reads a
 /// managed backup through this check.
-pub fn verify_tenant_root_managed_backup_object_v1(
+pub(crate) fn verify_tenant_root_managed_backup_object_v1(
     bytes: &[u8],
     coordinates: TenantRootManagedBackupObjectCoordinatesV1,
     trusted_role_verifying_key: &[u8; 32],
@@ -283,7 +283,7 @@ pub fn verify_tenant_root_managed_backup_object_v1(
 /// coordinates and the role's trusted verifying key, under the receipt's own
 /// signed binding. The control plane checks that binding against the rest of
 /// the activation evidence.
-pub fn verify_tenant_root_provider_canary_object_v1(
+pub(crate) fn verify_tenant_root_provider_canary_object_v1(
     bytes: &[u8],
     coordinates: TenantRootManagedBackupObjectCoordinatesV1,
     trusted_role_verifying_key: &[u8; 32],

@@ -102,19 +102,19 @@ use crate::hpke::{
     parse_cloudflare_hpke_x25519_public_key_v1, CloudflareHpkeKemV1, CloudflareHpkeSuiteV1,
 };
 
-pub const CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH: &str =
+pub(crate) const CLOUDFLARE_DERIVER_B_ED25519_YAO_DUPLEX_PATH: &str =
     "/router-ab/deriver-b/ed25519-yao/duplex";
-pub const CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH: &str =
+pub(crate) const CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH: &str =
     "/router-ab/deriver-a/ed25519-yao/execute-pair";
-pub const CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH: &str =
+pub(crate) const CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH: &str =
     "/router-ab/deriver-a/ed25519-yao/read-pair-status";
-pub const CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH: &str =
+pub(crate) const CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH: &str =
     "/router-ab/deriver-a/ed25519-yao/burn-pair";
-pub const CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH: &str =
+pub(crate) const CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH: &str =
     "/router-ab/deriver-b/ed25519-yao/prepare-pair";
-pub const CLOUDFLARE_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH: &str =
+pub(crate) const CLOUDFLARE_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH: &str =
     "/router-ab/deriver-b/ed25519-yao/read-pair-status";
-pub const CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH: &str =
+pub(crate) const CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH: &str =
     "/router-ab/deriver-b/ed25519-yao/burn-pair";
 
 const PAIR_SESSION_RECORD_STORAGE_KEY: &str = "pair-session-record-v1";
@@ -939,7 +939,7 @@ impl From<RouterAbProtocolError> for DeriverAPairRoleFailureV1 {
     }
 }
 
-pub async fn handle_cloudflare_ed25519_yao_deriver_b_prepare_pair_v1(
+pub(crate) async fn handle_cloudflare_ed25519_yao_deriver_b_prepare_pair_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
@@ -1012,7 +1012,7 @@ fn preparation_command_error_v1(error: RouterAbProtocolError) -> RouterAbProtoco
     )
 }
 
-pub async fn handle_cloudflare_ed25519_yao_deriver_b_read_pair_status_v1(
+pub(crate) async fn handle_cloudflare_ed25519_yao_deriver_b_read_pair_status_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
@@ -1077,7 +1077,7 @@ pub async fn handle_cloudflare_ed25519_yao_deriver_b_read_pair_status_v1(
     json_response(&status)
 }
 
-pub async fn handle_cloudflare_ed25519_yao_deriver_b_burn_pair_v1(
+pub(crate) async fn handle_cloudflare_ed25519_yao_deriver_b_burn_pair_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
@@ -1170,7 +1170,7 @@ fn validate_deriver_input(
     Ok(())
 }
 
-pub async fn handle_cloudflare_ed25519_yao_deriver_b_websocket_v1(
+pub(crate) async fn handle_cloudflare_ed25519_yao_deriver_b_websocket_v1(
     request: Request,
     env: Env,
     runtime: CloudflareDeriverBWorkerRuntimeV1,

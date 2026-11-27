@@ -309,13 +309,13 @@ where
     feature = "strict-worker-deriver-b-entrypoint",
     test
 ))]
-pub const DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_REQUEST_MAX_BYTES_V1: usize = 64 * 1024;
+pub(crate) const DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_REQUEST_MAX_BYTES_V1: usize = 64 * 1024;
 #[cfg(any(
     feature = "strict-worker-deriver-a-entrypoint",
     feature = "strict-worker-deriver-b-entrypoint",
     test
 ))]
-pub const DERIVER_TENANT_ROOT_RESTORE_SESSION_CLEANUP_REQUEST_MAX_BYTES_V1: usize = 24 * 1024;
+pub(crate) const DERIVER_TENANT_ROOT_RESTORE_SESSION_CLEANUP_REQUEST_MAX_BYTES_V1: usize = 24 * 1024;
 
 #[cfg(feature = "workers-rs")]
 #[cfg(any(
@@ -668,13 +668,6 @@ fn decode_verified_creation_commitment_v1(
 /// locally from verified bytes, not a value to forward.
 pub(crate) struct VerifiedTenantRootPeerPersistenceAttestationV1 {
     peer_role: TwoPartyDeriverRole,
-}
-
-#[cfg(feature = "workers-rs")]
-impl VerifiedTenantRootPeerPersistenceAttestationV1 {
-    pub(crate) const fn peer_role(&self) -> TwoPartyDeriverRole {
-        self.peer_role
-    }
 }
 
 /// Verifies a peer's terminal receipt using only public expectations.
@@ -1337,7 +1330,7 @@ fn wallet_object_unreachable_error_v1(error: worker::Error) -> RouterAbProtocolE
 /// The Worker env key that sets `W` in milliseconds on a Cloudflare Deriver,
 /// at least one second. Unset, `W` is
 /// [`TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1`].
-pub const TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1: &str =
+pub(crate) const TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1: &str =
     "TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS";
 
 /// `W`: how long after admission an unsettled root-use admission is left

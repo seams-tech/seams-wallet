@@ -7,14 +7,14 @@ use crate::router_wallet::{
     REGISTRATION_KEY_PREFIX,
 };
 
-pub const ROUTER_WALLET_FREEZE_PATH_V1: &str = "/router-ab/router/wallet/freeze";
+pub(crate) const ROUTER_WALLET_FREEZE_PATH_V1: &str = "/router-ab/router/wallet/freeze";
 pub(crate) const FENCE_KEY: &str = "relocation-fence";
 pub(crate) const OWNERSHIP_GENERATION_KEY: &str = "ownership-generation";
 
 /// The admitted move's immutable identity, supplied through the private Router boundary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RouterWalletFreezeRequestV1 {
+pub(crate) struct RouterWalletFreezeRequestV1 {
     pub owner: RouterWalletOwnerV1,
     pub move_id: String,
     pub request_digest_hex: String,
@@ -24,7 +24,7 @@ pub struct RouterWalletFreezeRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RouterWalletFreezeReceiptV1 {
+pub(crate) struct RouterWalletFreezeReceiptV1 {
     pub request: RouterWalletFreezeRequestV1,
     pub records_digest_hex: String,
     pub record_count: u64,
@@ -32,7 +32,7 @@ pub struct RouterWalletFreezeReceiptV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterWalletFreezeResponseV1 {
+pub(crate) enum RouterWalletFreezeResponseV1 {
     Draining {
         unsettled_lifecycles: Vec<String>,
     },
@@ -135,7 +135,7 @@ pub(crate) async fn admit_settlement<Store: RouterWalletStoreV1>(
 
 /// Runs inside the same transaction as ordinary Router wallet commands.
 /// A pending external effect stays unresolved even if its claim lease expired.
-pub async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
+pub(crate) async fn freeze_router_wallet_v1<Store: RouterWalletStoreV1>(
     store: &Store,
     request: RouterWalletFreezeRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletFreezeResponseV1> {

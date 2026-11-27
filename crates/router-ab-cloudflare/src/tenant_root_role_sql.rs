@@ -5,7 +5,7 @@
 #[cfg(feature = "workers-rs")]
 mod d1;
 #[cfg(feature = "workers-rs")]
-pub use d1::D1RoleSqlSessionV1;
+pub(crate) use d1::D1RoleSqlSessionV1;
 
 #[cfg(all(
     feature = "postgres",

@@ -65,9 +65,9 @@ use crate::{
 /// The outcome of re-running an abandoned creation's cleanup.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootCreationSweepResponseV1 {
+pub(crate) struct CloudflareTenantRootCreationSweepResponseV1 {
     /// When the Router fenced the creation.
-    pub abandoned_at_ms: u64,
+    pub(crate) abandoned_at_ms: u64,
     /// The roles whose cleanup ran again, each as an exact replay or, for a
     /// role not yet cleaned, for the first time.
     pub swept_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
@@ -76,7 +76,7 @@ pub struct CloudflareTenantRootCreationSweepResponseV1 {
 /// What the Router's creation coordinator needs from its host. The ceremony,
 /// its partial-creation cleanup included, is the same code on every host.
 #[allow(async_fn_in_trait)]
-pub trait TenantRootRouterCreationHostV1:
+pub(crate) trait TenantRootRouterCreationHostV1:
     TenantRootServiceTransportV1 + TenantRootCreationStateTransportV1
 {
     /// The control-plane issuer keys the Router trusts.
@@ -100,7 +100,7 @@ pub trait TenantRootRouterCreationHostV1:
 
 /// Drives one tenant-root creation to an active root, or reports why it
 /// cannot proceed.
-pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
@@ -409,7 +409,7 @@ async fn clean_abandoned_roles_v1<Host: TenantRootRouterCreationHostV1>(
 /// canary, and the Router replays its checkpoint. It removes the objects a
 /// Deriver leaves if it stops between a late write, refused by its tombstone,
 /// and the compensating delete. A creation that is not abandoned is refused.
-pub async fn tenant_root_router_sweep_abandoned_creation_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_sweep_abandoned_creation_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareTenantRootCreationJournalReadRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationSweepResponseV1> {

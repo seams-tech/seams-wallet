@@ -81,14 +81,14 @@ enum SegmentPosition {
 pub(super) struct RestoreProgress {
     pub next_segment: u32,
     pub next_record: u32,
-    pub record_bytes_b64u: String,
+    pub(crate) record_bytes_b64u: String,
     pub digest_hex: String,
 }
 
 #[derive(Deserialize)]
 pub(super) struct ImportedSegmentRow {
-    pub segment_json: String,
-    pub acknowledgement_json: String,
+    pub(crate) segment_json: String,
+    pub(crate) acknowledgement_json: String,
 }
 
 #[derive(Deserialize)]

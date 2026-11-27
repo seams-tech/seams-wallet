@@ -54,14 +54,14 @@ use crate::{
 /// role-unavailable state and the one-use restore capability.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootManagedRestoreRequestV1 {
+pub(crate) struct CloudflareRouterTenantRootManagedRestoreRequestV1 {
     /// Exact control-plane-signed public role-unavailable state.
     pub public_state_b64u: String,
     /// Exact control-plane-signed one-use restore capability.
     pub restore_capability_b64u: String,
 }
 
-pub const TENANT_ROOT_MANAGED_RESTORE_REQUEST_MAX_BYTES_V1: usize = 128 * 1024;
+pub(crate) const TENANT_ROOT_MANAGED_RESTORE_REQUEST_MAX_BYTES_V1: usize = 128 * 1024;
 
 struct VerifiedTenantRootManagedRestoreRequestV1 {
     public_state_b64u: String,
@@ -80,7 +80,7 @@ struct VerifiedTenantRootManagedRestoreRequestV1 {
 
 /// Drives one managed restore to its committed forward refresh, or returns
 /// the durable outcome of the restore it names once that has committed.
-pub async fn tenant_root_router_coordinate_managed_restore_v1<
+pub(crate) async fn tenant_root_router_coordinate_managed_restore_v1<
     Host: TenantRootRouterCreationHostV1,
 >(
     host: &Host,

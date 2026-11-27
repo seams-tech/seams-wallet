@@ -78,7 +78,7 @@ async fn require_authorization_above_fence<Store: TenantRootCreationStoreV1>(
 }
 
 /// Persists the started journal and its creation capability once.
-pub async fn tenant_root_creation_persist_journal_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_persist_journal_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     request: CloudflareTenantRootCreationJournalRequestV1,

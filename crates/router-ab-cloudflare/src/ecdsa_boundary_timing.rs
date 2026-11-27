@@ -10,7 +10,7 @@ const MERGED_ROLE_METRIC_LIMIT: usize = 12;
 /// Workers clocks advance across I/O, so synchronous CPU work can measure zero.
 #[cfg(feature = "workers-rs")]
 #[derive(Default)]
-pub struct CloudflareEcdsaBoundaryTimingV1 {
+pub(crate) struct CloudflareEcdsaBoundaryTimingV1 {
     entries: Vec<(String, u64)>,
     trace_id: Option<CloudflareTraceIdV1>,
 }
@@ -21,7 +21,7 @@ impl CloudflareEcdsaBoundaryTimingV1 {
         Self::default()
     }
 
-    pub fn with_trace_id(trace_id: Option<CloudflareTraceIdV1>) -> Self {
+    pub(crate) fn with_trace_id(trace_id: Option<CloudflareTraceIdV1>) -> Self {
         Self {
             entries: Vec::new(),
             trace_id,

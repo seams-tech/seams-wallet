@@ -92,7 +92,7 @@ struct VerifiedCloudflareRouterTenantRootRestoreRefreshEvidenceV1 {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct CloudflareRouterTenantRootRestoreRefreshResponseV1 {
+pub(crate) struct CloudflareRouterTenantRootRestoreRefreshResponseV1 {
     refresh_context_b64u: String,
     refresh_context_digest_b64u: String,
     deriver_a_refresh_command_b64u: String,
@@ -108,7 +108,7 @@ pub struct CloudflareRouterTenantRootRestoreRefreshResponseV1 {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CloudflareRouterTenantRootRestoreBootstrapCleanupV1 {
+pub(crate) enum CloudflareRouterTenantRootRestoreBootstrapCleanupV1 {
     Destroyed {
         receipt_digest_b64u: String,
     },
@@ -119,21 +119,21 @@ pub enum CloudflareRouterTenantRootRestoreBootstrapCleanupV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootRestoreOutstandingCleanupV1 {
+pub(crate) struct CloudflareRouterTenantRootRestoreOutstandingCleanupV1 {
     roles: Vec<CloudflareTenantRootCreateRoleV1>,
     description: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootRestoreRoleCleanupReceiptsV1 {
+pub(crate) struct CloudflareRouterTenantRootRestoreRoleCleanupReceiptsV1 {
     deriver_a: String,
     deriver_b: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareRouterTenantRootRestoreRoleCleanupV1 {
+pub(crate) enum CloudflareRouterTenantRootRestoreRoleCleanupV1 {
     BothRolesIncomplete {
         outstanding: CloudflareRouterTenantRootRestoreOutstandingCleanupV1,
     },
@@ -152,13 +152,13 @@ pub enum CloudflareRouterTenantRootRestoreRoleCleanupV1 {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootRestoreCleanupV1 {
+pub(crate) struct CloudflareRouterTenantRootRestoreCleanupV1 {
     bootstrap: CloudflareRouterTenantRootRestoreBootstrapCleanupV1,
     roles: CloudflareRouterTenantRootRestoreRoleCleanupV1,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct CloudflareRouterTenantRootRestoreActivationResponseV1 {
+pub(crate) struct CloudflareRouterTenantRootRestoreActivationResponseV1 {
     activation_receipt_b64u: String,
     destination_lineage_id: String,
     activated_epoch: u64,
@@ -171,7 +171,7 @@ pub struct CloudflareRouterTenantRootRestoreActivationResponseV1 {
 
 #[derive(serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareRouterTenantRootRestoreCleanupRequestV1 {
+pub(crate) enum CloudflareRouterTenantRootRestoreCleanupRequestV1 {
     PreActivation {
         cleanup_grant_b64u: String,
     },
@@ -183,12 +183,12 @@ pub enum CloudflareRouterTenantRootRestoreCleanupRequestV1 {
 
 #[derive(serde::Serialize)]
 #[serde(untagged)]
-pub enum CloudflareRouterTenantRootRestoreCleanupResponseV1 {
+pub(crate) enum CloudflareRouterTenantRootRestoreCleanupResponseV1 {
     PreActivation(CloudflareRouterTenantRootRestoreRoleCleanupV1),
     PostActivation(CloudflareRouterTenantRootRestoreCleanupV1),
 }
 
-pub enum CloudflareRouterTenantRootRestoreRefreshOutcomeV1 {
+pub(crate) enum CloudflareRouterTenantRootRestoreRefreshOutcomeV1 {
     Completed(CloudflareRouterTenantRootRestoreRefreshResponseV1),
     AuthorizationExpiredBeforeCommands {
         grant_digest_b64u: String,
@@ -201,7 +201,7 @@ impl CloudflareRouterTenantRootRestoreRefreshOutcomeV1 {
     /// The body both hosts answer the restore-refresh route with: the
     /// completed refresh, or the durable record that its authorization
     /// expired before commands were issued.
-    pub fn into_response_body(self) -> RouterAbProtocolResult<serde_json::Value> {
+    pub(crate) fn into_response_body(self) -> RouterAbProtocolResult<serde_json::Value> {
         let encoded = match self {
             Self::Completed(response) => serde_json::to_value(&response),
             Self::AuthorizationExpiredBeforeCommands {
@@ -1487,7 +1487,7 @@ async fn cleanup_restore_role_v1<Host: TenantRootRouterCreationHostV1>(
 
 /// Cleans up a restore at both Derivers: before activation under an operator
 /// cleanup grant, or after it under the activation receipt.
-pub async fn tenant_root_router_restore_cleanup_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_restore_cleanup_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareRouterTenantRootRestoreCleanupRequestV1,
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRestoreCleanupResponseV1> {
@@ -1577,7 +1577,7 @@ pub async fn tenant_root_router_restore_cleanup_v1<Host: TenantRootRouterCreatio
 /// Activates a restored root: finishes its restore refresh, obtains the
 /// initial-creation receipt, commits it in the creation state (consuming the
 /// bootstrap authority), and delivers it to both Derivers.
-pub async fn tenant_root_router_restore_activation_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_restore_activation_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1,
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRestoreActivationResponseV1> {
@@ -1689,7 +1689,7 @@ pub async fn tenant_root_router_restore_activation_v1<Host: TenantRootRouterCrea
 /// Drives one restore refresh to its promoted checkpoint: admission, the
 /// control plane's commands, then prepare, contribute, finalize and promote at
 /// both Derivers, each checkpointed in the destination's creation state.
-pub async fn tenant_root_router_restore_refresh_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_restore_refresh_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1,
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRestoreRefreshOutcomeV1> {
@@ -2143,7 +2143,7 @@ async fn request_restore_role_import_command_v1<Host: TenantRootRouterCreationHo
 
 /// Obtains a signed role-import command from the control plane and has the
 /// Deriver it names issue its import key.
-pub async fn tenant_root_router_restore_role_import_key_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_restore_role_import_key_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRoleImportKeyResponseV1> {
@@ -2172,14 +2172,14 @@ pub async fn tenant_root_router_restore_role_import_key_v1<Host: TenantRootRoute
 /// One tenant-resealed import envelope for the Deriver its grant names.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootRestoreRoleImportAcceptRequestV1 {
-    pub restore_grant_b64u: String,
-    pub manifest_b64u: String,
-    pub import_envelope_b64u: String,
+pub(crate) struct CloudflareRouterTenantRootRestoreRoleImportAcceptRequestV1 {
+    pub(crate) restore_grant_b64u: String,
+    pub(crate) manifest_b64u: String,
+    pub(crate) import_envelope_b64u: String,
 }
 
 /// Has the Deriver the grant names open and stage one import envelope.
-pub async fn tenant_root_router_restore_role_import_accept_v1<
+pub(crate) async fn tenant_root_router_restore_role_import_accept_v1<
     Host: TenantRootRouterCreationHostV1,
 >(
     host: &Host,
@@ -2219,7 +2219,7 @@ pub async fn tenant_root_router_restore_role_import_accept_v1<
 
 /// Reads or authenticates the destination's bootstrap authority for the
 /// tenant root the request names, with the credential the caller presented.
-pub async fn tenant_root_router_destination_bootstrap_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_destination_bootstrap_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareTenantRootDestinationBootstrapRequestV1,
     token_b64u: Option<&str>,
@@ -2241,7 +2241,7 @@ pub async fn tenant_root_router_destination_bootstrap_v1<Host: TenantRootRouterC
 }
 
 /// Forwards one recovery manifest to the control plane for verification.
-pub async fn tenant_root_router_register_manifest_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_register_manifest_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRegisterManifestRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRegisterManifestResponseV1> {

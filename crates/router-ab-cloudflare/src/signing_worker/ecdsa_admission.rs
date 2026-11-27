@@ -39,25 +39,6 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningReque
         Ok(request)
     }
 
-    pub fn new_with_material_source(
-        ownership_generation: u64,
-        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
-        request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
-        trusted_admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
-        material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
-    ) -> RouterAbProtocolResult<Self> {
-        let request = Self {
-            request,
-            trusted_admission,
-            material_source,
-            presign_source: CloudflareEcdsaPrepareSourceV1::AvailablePool,
-            wallet_scope,
-            ownership_generation,
-        };
-        request.validate()?;
-        Ok(request)
-    }
-
     /// Validates Router-admitted Router A/B ECDSA derivation normal-signing material.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
@@ -152,28 +133,6 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequ
             CloudflareSigningWorkerNormalSigningMaterialSourceV1::registration_for_ecdsa_scope(
                 &request.scope,
             )?;
-        let request = Self {
-            request,
-            trusted_admission,
-            authorized_operation_identity,
-            effect_claim,
-            material_source,
-            wallet_scope,
-            ownership_generation,
-        };
-        request.validate()?;
-        Ok(request)
-    }
-
-    pub fn new_with_material_source(
-        ownership_generation: u64,
-        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
-        request: RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
-        trusted_admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
-        authorized_operation_identity: CloudflareSigningWorkerAuthorizedOperationIdentityV1,
-        effect_claim: CloudflareSigningWorkerNormalSigningEffectClaimV1,
-        material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
-    ) -> RouterAbProtocolResult<Self> {
         let request = Self {
             request,
             trusted_admission,

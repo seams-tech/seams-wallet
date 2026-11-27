@@ -138,7 +138,7 @@ pub enum CloudflareSigningWorkerTerminalResponseCommitV1 {
 /// Active SigningWorker state and its server-output material for one wallet.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SigningWorkerWalletEcdsaActivationMaterialV1 {
+pub(crate) struct SigningWorkerWalletEcdsaActivationMaterialV1 {
     /// The active SigningWorker state.
     pub active: router_ab_core::ActiveSigningWorkerStateV1,
     /// The server-output material the state names.
@@ -209,7 +209,7 @@ struct WalletLinkedEcdsaV1 {
 /// This SigningWorker's server-output key. A linked device's source
 /// contribution is sealed to it, and so is the share reserved for that
 /// device.
-pub struct SigningWorkerServerOutputKeyV1 {
+pub(crate) struct SigningWorkerServerOutputKeyV1 {
     binding: CloudflareServerOutputHpkeDecryptKeyBindingV1,
     private_key: zeroize::Zeroizing<[u8; 32]>,
 }
@@ -363,7 +363,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
     }
 
     /// Loads one wallet's active SigningWorker state and material.
-    pub fn load_activation(
+    pub(crate) fn load_activation(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
         lookup: &CloudflareActiveSigningWorkerStateLookupV1,
@@ -413,7 +413,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
     }
 
     /// Loads the registration-activated material for one normal-signing scope.
-    pub fn load_activated_material(
+    pub(crate) fn load_activated_material(
         &self,
         wallet_scope: &CloudflareSigningWorkerWalletScopeV1,
         scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
@@ -747,7 +747,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     /// material of a device already linked to it, exactly as the
     /// contribution names it, so a request scoped to one wallet cannot
     /// reserve from another's key. An exact retry answers the same packages.
-    pub fn reserve_linked(
+    pub(crate) fn reserve_linked(
         &self,
         request: &CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
         server_key: &SigningWorkerServerOutputKeyV1,
@@ -841,7 +841,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     /// opened once, here, and kept sealed with the reservation, where
     /// signing loads it like any activation. An active reservation answers
     /// again; a revoked one never activates.
-    pub fn activate_linked(
+    pub(crate) fn activate_linked(
         &self,
         request: &CloudflareEcdsaActivateReservationRequestV1,
         server_key: &SigningWorkerServerOutputKeyV1,
@@ -899,7 +899,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     /// the revoked reservation and drops the activation, so signing no
     /// longer finds it and no presignature is consumed for it again. The
     /// same revocation answers again.
-    pub fn deactivate_linked(
+    pub(crate) fn deactivate_linked(
         &self,
         request: &CloudflareEcdsaDeactivateReservationRequestV1,
         now_unix_ms: u64,

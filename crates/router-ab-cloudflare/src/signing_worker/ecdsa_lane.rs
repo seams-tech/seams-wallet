@@ -67,7 +67,7 @@ fn ct_eq(left: &[u8], right: &[u8]) -> bool {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareEcdsaRegistrationSourceDerivationV1 {
+pub(crate) struct CloudflareEcdsaRegistrationSourceDerivationV1 {
     #[serde(rename = "application_binding_digest_b64u")]
     pub application_binding_digest_b64u: String,
     #[serde(rename = "client_share_retry_counter")]
@@ -136,7 +136,7 @@ pub(crate) fn registration_source_relayer_share_v1(
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
-pub enum CloudflareEcdsaLaneSourceMaterialLookupV1 {
+pub(crate) enum CloudflareEcdsaLaneSourceMaterialLookupV1 {
     LaneMaterial {
         lookup: CloudflareSigningWorkerNormalSigningLaneMaterialLookupV1,
     },
@@ -147,7 +147,7 @@ pub enum CloudflareEcdsaLaneSourceMaterialLookupV1 {
 }
 
 impl CloudflareEcdsaLaneSourceMaterialLookupV1 {
-    pub fn validate_for_job(&self, job: &EcdsaAdditiveLaneJobV1) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate_for_job(&self, job: &EcdsaAdditiveLaneJobV1) -> RouterAbProtocolResult<()> {
         match self {
             Self::LaneMaterial { lookup } => {
                 lookup.validate()?;
@@ -188,12 +188,12 @@ impl CloudflareEcdsaLaneSourceMaterialLookupV1 {
 /// Exact client output admitted to private SigningWorker execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareSigningWorkerEcdsaLaneExecuteRequestV1 {
+pub(crate) struct CloudflareSigningWorkerEcdsaLaneExecuteRequestV1 {
     pub job: EcdsaAdditiveLaneJobV1,
     pub holder_round: EcdsaAdditiveLaneHolderRoundV1,
     pub holder_package: EcdsaLaneEncryptedPayloadV1,
     pub encrypted_delta: EcdsaLaneEncryptedPayloadV1,
-    pub source_material: CloudflareEcdsaLaneSourceMaterialLookupV1,
+    pub(crate) source_material: CloudflareEcdsaLaneSourceMaterialLookupV1,
 }
 
 impl CloudflareSigningWorkerEcdsaLaneExecuteRequestV1 {
@@ -239,7 +239,7 @@ impl CloudflareSigningWorkerEcdsaLaneExecuteRequestV1 {
 /// Canonical receipt returned to the product lifecycle store.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareEcdsaLaneProtocolCommitReceiptV1 {
+pub(crate) struct CloudflareEcdsaLaneProtocolCommitReceiptV1 {
     pub kind: String,
     pub operation_id: String,
     pub enrollment_id: String,
@@ -265,7 +265,7 @@ pub struct CloudflareEcdsaLaneProtocolCommitReceiptV1 {
 }
 
 impl CloudflareEcdsaLaneProtocolCommitReceiptV1 {
-    pub fn validate_for_job(&self, job: &EcdsaAdditiveLaneJobV1) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate_for_job(&self, job: &EcdsaAdditiveLaneJobV1) -> RouterAbProtocolResult<()> {
         let (target_lane_id, target_lane_share_epoch) = target_lane(job);
         if self.kind != "lane_protocol_commit_receipt_v1"
             || self.operation_id != job.operation_id
@@ -347,7 +347,7 @@ impl CloudflareEcdsaLaneProtocolCommitReceiptV1 {
         Ok(bytes)
     }
 
-    pub fn digest_b64u_v1(&self) -> RouterAbProtocolResult<String> {
+    pub(crate) fn digest_b64u_v1(&self) -> RouterAbProtocolResult<String> {
         Ok(b64(&Sha256::digest(self.canonical_bytes_v1()?)))
     }
 }
@@ -383,7 +383,7 @@ fn canonical_activation(out: &mut Vec<u8>, value: &EcdsaMaterialActivationRefV1)
 /// Full committed transcript retained only in private D1 for exact replay.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareEcdsaLaneCommittedTranscriptV1 {
+pub(crate) struct CloudflareEcdsaLaneCommittedTranscriptV1 {
     pub job: EcdsaAdditiveLaneJobV1,
     pub holder_round: EcdsaAdditiveLaneHolderRoundV1,
     pub server_round: EcdsaAdditiveLaneServerRoundV1,
@@ -397,7 +397,7 @@ pub struct CloudflareEcdsaLaneCommittedTranscriptV1 {
     rename_all = "snake_case",
     rename_all_fields = "camelCase"
 )]
-pub enum CloudflareSigningWorkerEcdsaLaneExecuteEffectV1 {
+pub(crate) enum CloudflareSigningWorkerEcdsaLaneExecuteEffectV1 {
     Applied {
         receipt: CloudflareEcdsaLaneProtocolCommitReceiptV1,
     },
@@ -409,7 +409,7 @@ pub enum CloudflareSigningWorkerEcdsaLaneExecuteEffectV1 {
 /// Typed private active material. Serialization is confined to encrypted D1.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareEcdsaLaneActiveServerMaterialV1 {
+pub(crate) struct CloudflareEcdsaLaneActiveServerMaterialV1 {
     #[zeroize(skip)]
     pub kind: String,
     pub relayer_share32_b64u: String,
@@ -423,7 +423,7 @@ impl CloudflareEcdsaLaneActiveServerMaterialV1 {
         }
     }
 
-    pub fn share32(&self) -> RouterAbProtocolResult<[u8; 32]> {
+    pub(crate) fn share32(&self) -> RouterAbProtocolResult<[u8; 32]> {
         if self.kind != ECDSA_ACTIVE_SERVER_MATERIAL_KIND_V1 {
             return Err(invalid("ECDSA active server material kind is invalid"));
         }
@@ -434,7 +434,7 @@ impl CloudflareEcdsaLaneActiveServerMaterialV1 {
 /// Holder acknowledgement passed to private activation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareEcdsaLaneHolderDeliveryReceiptV1 {
+pub(crate) struct CloudflareEcdsaLaneHolderDeliveryReceiptV1 {
     pub kind: String,
     pub operation_id: String,
     pub enrollment_id: String,
@@ -443,8 +443,8 @@ pub struct CloudflareEcdsaLaneHolderDeliveryReceiptV1 {
     pub target_material_activation_id: String,
     pub holder_participant_binding_digest_b64u: String,
     pub holder_recipient_key_digest_b64u: String,
-    pub holder_ciphertext_digest_set_b64u: String,
-    pub sealed_holder_record_digest_b64u: String,
+    pub(crate) holder_ciphertext_digest_set_b64u: String,
+    pub(crate) sealed_holder_record_digest_b64u: String,
     pub transcript_hash_b64u: String,
     pub acknowledged_at_ms: u64,
 }
@@ -452,16 +452,16 @@ pub struct CloudflareEcdsaLaneHolderDeliveryReceiptV1 {
 /// Private activation input. It carries only public receipts and identity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareSigningWorkerEcdsaLaneActivateRequestV1 {
+pub(crate) struct CloudflareSigningWorkerEcdsaLaneActivateRequestV1 {
     pub identity: CloudflareSigningWorkerLaneMaterialIdentityV1,
     pub target_material_activation: EcdsaMaterialActivationRefV1,
-    pub holder_delivery_receipt: CloudflareEcdsaLaneHolderDeliveryReceiptV1,
+    pub(crate) holder_delivery_receipt: CloudflareEcdsaLaneHolderDeliveryReceiptV1,
 }
 
 /// Product activation receipt returned without active material.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareEcdsaLaneServerActivationReceiptV1 {
+pub(crate) struct CloudflareEcdsaLaneServerActivationReceiptV1 {
     pub kind: String,
     pub operation_id: String,
     pub enrollment_id: String,
@@ -469,7 +469,7 @@ pub struct CloudflareEcdsaLaneServerActivationReceiptV1 {
     pub target_lane_share_epoch: String,
     pub target_material_activation: EcdsaMaterialActivationRefV1,
     pub signing_worker_participant_binding_digest_b64u: String,
-    pub server_ciphertext_digest_set_b64u: String,
+    pub(crate) server_ciphertext_digest_set_b64u: String,
     pub transcript_hash_b64u: String,
     pub activated_at_ms: u64,
 }
@@ -480,7 +480,7 @@ pub struct CloudflareEcdsaLaneServerActivationReceiptV1 {
     rename_all = "snake_case",
     rename_all_fields = "camelCase"
 )]
-pub enum CloudflareSigningWorkerEcdsaLaneActivateEffectV1 {
+pub(crate) enum CloudflareSigningWorkerEcdsaLaneActivateEffectV1 {
     Applied {
         receipt: CloudflareEcdsaLaneServerActivationReceiptV1,
     },
@@ -492,7 +492,7 @@ pub enum CloudflareSigningWorkerEcdsaLaneActivateEffectV1 {
 /// Exact public inputs required to retire one ECDSA server activation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareSigningWorkerEcdsaLaneRetireRequestV1 {
+pub(crate) struct CloudflareSigningWorkerEcdsaLaneRetireRequestV1 {
     pub identity: CloudflareSigningWorkerLaneMaterialIdentityV1,
     pub manifest: EcdsaLaneManifestIdentityV1,
     pub material_activation: EcdsaMaterialActivationRefV1,
@@ -500,7 +500,7 @@ pub struct CloudflareSigningWorkerEcdsaLaneRetireRequestV1 {
     pub retirement_reason: String,
     pub retirement_correlation_id: String,
     pub retirement_request_digest_b64u: String,
-    pub retirement_effect_binding_digest_b64u: String,
+    pub(crate) retirement_effect_binding_digest_b64u: String,
     pub server_generation: String,
     pub lifecycle_id: String,
 }
@@ -511,7 +511,7 @@ pub struct CloudflareSigningWorkerEcdsaLaneRetireRequestV1 {
     rename_all = "snake_case",
     rename_all_fields = "camelCase"
 )]
-pub enum CloudflareSigningWorkerEcdsaLaneRetireEffectV1 {
+pub(crate) enum CloudflareSigningWorkerEcdsaLaneRetireEffectV1 {
     Applied {
         receipt: EcdsaServerRetirementReceiptV1,
     },
@@ -930,7 +930,7 @@ mod worker_execution {
         Ok(())
     }
 
-    pub async fn execute_cloudflare_signing_worker_ecdsa_lane_v1(
+    pub(crate) async fn execute_cloudflare_signing_worker_ecdsa_lane_v1(
         env: &Env,
         runtime: &CloudflareSigningWorkerRuntimeV1,
         request: &CloudflareSigningWorkerEcdsaLaneExecuteRequestV1,
@@ -1110,7 +1110,7 @@ mod worker_execution {
         }
     }
 
-    pub async fn activate_cloudflare_signing_worker_ecdsa_lane_v1(
+    pub(crate) async fn activate_cloudflare_signing_worker_ecdsa_lane_v1(
         env: &Env,
         runtime: &CloudflareSigningWorkerRuntimeV1,
         request: &CloudflareSigningWorkerEcdsaLaneActivateRequestV1,
@@ -1339,7 +1339,7 @@ mod worker_execution {
         .map_err(|error| map_protocol_error("ECDSA retirement receipt is invalid", error))
     }
 
-    pub async fn retire_cloudflare_signing_worker_ecdsa_lane_v1(
+    pub(crate) async fn retire_cloudflare_signing_worker_ecdsa_lane_v1(
         env: &Env,
         request: &CloudflareSigningWorkerEcdsaLaneRetireRequestV1,
         retired_at_ms: u64,
@@ -1458,7 +1458,7 @@ mod worker_execution {
         }
     }
 
-    pub async fn handle_cloudflare_signing_worker_ecdsa_lane_execute_private_fetch_v1(
+    pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_lane_execute_private_fetch_v1(
         mut request: Request,
         env: &Env,
         runtime: &CloudflareSigningWorkerRuntimeV1,
@@ -1491,7 +1491,7 @@ mod worker_execution {
         }
     }
 
-    pub async fn handle_cloudflare_signing_worker_ecdsa_lane_activate_private_fetch_v1(
+    pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_lane_activate_private_fetch_v1(
         mut request: Request,
         env: &Env,
         runtime: &CloudflareSigningWorkerRuntimeV1,
@@ -1516,7 +1516,7 @@ mod worker_execution {
         }
     }
 
-    pub async fn handle_cloudflare_signing_worker_ecdsa_lane_retire_private_fetch_v1(
+    pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_lane_retire_private_fetch_v1(
         mut request: Request,
         env: &Env,
     ) -> worker::Result<Response> {
@@ -1542,7 +1542,7 @@ mod worker_execution {
 }
 
 #[cfg(feature = "workers-rs")]
-pub use worker_execution::*;
+pub(crate) use worker_execution::*;
 
 #[cfg(test)]
 mod tests {

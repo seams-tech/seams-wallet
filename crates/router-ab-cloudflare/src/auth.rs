@@ -246,7 +246,7 @@ pub fn cloudflare_private_service_auth_error_response_v1(
 
 /// Constant-time comparison of a presented service credential against the
 /// expected one. Both the Cloudflare adapter and the VM role processes use it.
-pub fn router_ab_service_credential_matches_v1(expected: &str, presented: &str) -> bool {
+pub(crate) fn router_ab_service_credential_matches_v1(expected: &str, presented: &str) -> bool {
     let a = expected.as_bytes();
     let b = presented.as_bytes();
     let mut diff = a.len() ^ b.len();
@@ -257,27 +257,6 @@ pub fn router_ab_service_credential_matches_v1(expected: &str, presented: &str) 
         diff |= (left ^ right) as usize;
     }
     diff == 0 && !a.is_empty()
-}
-
-/// Rejects a deployment that reuses one credential for two service boundaries.
-pub fn require_distinct_router_ab_service_credentials_v1(
-    boundary: &str,
-    dedicated: &str,
-    shared: &str,
-) -> RouterAbProtocolResult<()> {
-    if dedicated.trim().is_empty() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("{boundary} auth secret is required"),
-        ));
-    }
-    if router_ab_service_credential_matches_v1(dedicated, shared) {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("{boundary} auth secret must differ from role-shared service auth"),
-        ));
-    }
-    Ok(())
 }
 
 pub(crate) fn verify_router_ed25519_jwt_signature_v1(

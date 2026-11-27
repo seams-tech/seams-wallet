@@ -394,7 +394,7 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_finalize_service_c
 }
 
 /// Accepts a SigningWorker finalize response only for the admitted request.
-pub fn require_signing_worker_normal_signing_finalize_response_v2(
+pub(crate) fn require_signing_worker_normal_signing_finalize_response_v2(
     request: &CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
     response: NormalSigningResponseV1,
 ) -> RouterAbProtocolResult<NormalSigningResponseV1> {
@@ -445,7 +445,7 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_prepare_service_ca
 /// SigningWorker's owner check for NEAR signing: the Router-pinned wallet
 /// scope must be the scope the wallet was registered under, and must agree
 /// with the trusted admission for the signing wallet.
-pub fn require_signing_worker_normal_signing_wallet_scope_v1(
+pub(crate) fn require_signing_worker_normal_signing_wallet_scope_v1(
     registered: &CloudflareSigningWorkerWalletScopeV1,
     pinned: &CloudflareSigningWorkerWalletScopeV1,
     metadata: &CloudflareRouterNormalSigningTrustedMetadataV1,
@@ -472,7 +472,7 @@ pub fn require_signing_worker_normal_signing_wallet_scope_v1(
 }
 
 /// Accepts a SigningWorker prepare response only for the admitted request.
-pub fn require_signing_worker_normal_signing_prepare_response_v2(
+pub(crate) fn require_signing_worker_normal_signing_prepare_response_v2(
     request: &CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
     response: NormalSigningRound1PrepareResponseV1,
 ) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1> {

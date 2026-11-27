@@ -56,16 +56,16 @@ pub const DERIVER_B_PEER_BINDING_ENV: &str = "DERIVER_B_PEER_BINDING";
 /// SigningWorker peer binding env key.
 pub const SIGNING_WORKER_PEER_BINDING_ENV: &str = "SIGNING_WORKER_PEER_BINDING";
 /// Internal service-auth secret binding-name env key shared by strict private Workers.
-pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV: &str =
+pub(crate) const ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV: &str =
     "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING";
 /// Router-only secret shared with the Gateway for admitted wallet operations.
-pub const ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING: &str =
+pub(crate) const ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING: &str =
     "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET";
 /// SigningWorker-only secret shared with Gateway for owner ECDSA presign admission.
-pub const ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING: &str =
+pub(crate) const ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING: &str =
     "ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET";
 /// Router/SigningWorker credential for admitted owner ECDSA prepare and finalize.
-pub const ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_BINDING: &str =
+pub(crate) const ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_BINDING: &str =
     "ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET";
 /// Internal service-auth header required by strict private Workers.
 pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1: &str = "x-router-ab-internal-service-auth";
@@ -99,7 +99,7 @@ pub const DERIVER_B_PREVIOUS_ENVELOPE_HPKE_KEY_EPOCH_ENV: &str =
 pub const DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PUBLIC_KEY_ENV: &str =
     "DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PUBLIC_KEY";
 /// Previous Deriver B signer-envelope HPKE private-key binding-name env key.
-pub const DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
+pub(crate) const DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
     "DERIVER_B_PREVIOUS_ENVELOPE_HPKE_PRIVATE_KEY_BINDING";
 /// Previous signer-envelope HPKE public-key retirement timestamp.
 pub const ROUTER_AB_PREVIOUS_ENVELOPE_HPKE_RETIRE_AT_MS_ENV: &str =
@@ -127,10 +127,10 @@ pub const TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV: &str =
 /// This is read only by the control-plane manifest-verification route. It is
 /// intentionally separate from the tenant-root issuer and role keysets: a manifest
 /// may name certificates, but it cannot choose the roots that authorize them.
-pub const TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON_ENV: &str =
+pub(crate) const TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON_ENV: &str =
     "TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON";
 /// Optional signed revocation evidence, evaluated as a saved snapshot.
-pub const TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV: &str =
+pub(crate) const TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV: &str =
     "TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON";
 /// Authorities trusted to sign a tenant-root creation grant.
 ///
@@ -151,11 +151,11 @@ pub const DERIVER_A_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX_ENV: &str =
 pub const DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX_ENV: &str =
     "DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX";
 /// Fixed key identifier for the operations-incident verifier.
-pub const OPERATIONS_INCIDENT_KEY_ID_V1: &str = "operations-incident-v1";
+pub(crate) const OPERATIONS_INCIDENT_KEY_ID_V1: &str = "operations-incident-v1";
 /// Fixed key identifier for Deriver A's custody-authority verifier.
-pub const DERIVER_A_CUSTODY_AUTHORITY_KEY_ID_V1: &str = "deriver-a-custody-v1";
+pub(crate) const DERIVER_A_CUSTODY_AUTHORITY_KEY_ID_V1: &str = "deriver-a-custody-v1";
 /// Fixed key identifier for Deriver B's custody-authority verifier.
-pub const DERIVER_B_CUSTODY_AUTHORITY_KEY_ID_V1: &str = "deriver-b-custody-v1";
+pub(crate) const DERIVER_B_CUSTODY_AUTHORITY_KEY_ID_V1: &str = "deriver-b-custody-v1";
 /// Tenant-root control-plane issuer private signing-key Secret binding name.
 ///
 /// Only the dedicated `tenant-root-control-plane` Worker may hold this. It is
@@ -186,67 +186,67 @@ pub const DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV: &str =
 pub const DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV: &str =
     "DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_ID";
 /// Deriver A tenant-root online epoch wrapping-key reference env key.
-pub const DERIVER_A_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF_ENV: &str =
     "DERIVER_A_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF";
 /// Deriver A tenant-root online HPKE public-key env key.
-pub const DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY_ENV: &str =
     "DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY";
 /// Deriver A tenant-root online HPKE private-key Secret binding-name env key.
-pub const DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
     "DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING";
 /// Deriver A tenant-root managed-backup provider identifier env key.
-pub const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID_ENV: &str =
     "DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID";
 /// Provider selector for Deriver A's role-local Google Cloud KMS key.
-pub const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_PROVIDER_ID_V1: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_PROVIDER_ID_V1: &str =
     "google-cloud-kms-deriver-a-v1";
 /// Deriver A tenant-root managed-backup key-version env key.
-pub const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION_ENV: &str =
     "DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION";
 /// Deriver A tenant-root managed-backup HPKE public-key env key.
-pub const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY_ENV: &str =
     "DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY";
 /// Deriver A tenant-root managed-backup HPKE private-key Secret binding-name env key.
-pub const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
     "DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING";
 /// Deriver A Google service-account credentials JSON Secret binding-name env key.
-pub const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_CREDENTIALS_JSON_BINDING_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_CREDENTIALS_JSON_BINDING_ENV: &str =
     "DERIVER_A_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_CREDENTIALS_JSON_BINDING";
 /// Role-local keyring for independently destroyable recovery package keys.
-pub const DERIVER_A_TENANT_ROOT_RECOVERY_KMS_KEY_RING_ENV: &str =
+pub(crate) const DERIVER_A_TENANT_ROOT_RECOVERY_KMS_KEY_RING_ENV: &str =
     "DERIVER_A_TENANT_ROOT_RECOVERY_KMS_KEY_RING";
 /// Deriver B tenant-root online epoch wrapping-key reference env key.
-pub const DERIVER_B_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF_ENV: &str =
     "DERIVER_B_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF";
 /// Deriver B tenant-root online HPKE public-key env key.
-pub const DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY_ENV: &str =
     "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY";
 /// Deriver B tenant-root online HPKE private-key Secret binding-name env key.
 pub const DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
     "DERIVER_B_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING";
 /// Deriver B tenant-root managed-backup provider identifier env key.
-pub const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID_ENV: &str =
     "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_PROVIDER_ID";
 /// Provider selector for Deriver B's role-local Google Cloud KMS key.
-pub const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_PROVIDER_ID_V1: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_PROVIDER_ID_V1: &str =
     "google-cloud-kms-deriver-b-v1";
 /// Deriver B tenant-root managed-backup key-version env key.
-pub const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION_ENV: &str =
     "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_KEY_VERSION";
 /// Deriver B tenant-root managed-backup HPKE public-key env key.
-pub const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY_ENV: &str =
     "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PUBLIC_KEY";
 /// Deriver B tenant-root managed-backup HPKE private-key Secret binding-name env key.
-pub const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING_ENV: &str =
     "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_HPKE_PRIVATE_KEY_BINDING";
 /// Deriver B Google service-account credentials JSON Secret binding-name env key.
-pub const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_CREDENTIALS_JSON_BINDING_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_CREDENTIALS_JSON_BINDING_ENV: &str =
     "DERIVER_B_TENANT_ROOT_MANAGED_BACKUP_GOOGLE_CREDENTIALS_JSON_BINDING";
 /// Role-local keyring for independently destroyable recovery package keys.
-pub const DERIVER_B_TENANT_ROOT_RECOVERY_KMS_KEY_RING_ENV: &str =
+pub(crate) const DERIVER_B_TENANT_ROOT_RECOVERY_KMS_KEY_RING_ENV: &str =
     "DERIVER_B_TENANT_ROOT_RECOVERY_KMS_KEY_RING";
 /// Maximum random bytes a single Deriver-host preload may request.
-pub const CLOUDFLARE_DERIVER_HOST_RANDOM_PRELOAD_MAX_BYTES_V1: usize = 65_536;
+pub(crate) const CLOUDFLARE_DERIVER_HOST_RANDOM_PRELOAD_MAX_BYTES_V1: usize = 65_536;
 /// Versioned text prefix for a role-local signer-envelope HPKE private key.
 pub const CLOUDFLARE_SIGNER_ENVELOPE_HPKE_PRIVATE_KEY_SECRET_PREFIX_V1: &str =
     "hpke-x25519-private-v1:";
@@ -1811,7 +1811,7 @@ struct TenantRootCreationIssuerKeyWireV1 {
 /// Config parsing, so it lives with the other Env decoders rather than in the
 /// Durable Object: the Router, both Derivers, and the control plane all read
 /// this same published anchor.
-pub fn decode_issuer_verifying_keys(
+pub(crate) fn decode_issuer_verifying_keys(
     json: &str,
 ) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>> {
     let wire: TenantRootCreationIssuerKeySetWireV1 =
@@ -1961,7 +1961,7 @@ impl CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1 {
     }
 
     /// Returns the verifying key trusted for one grant authority id.
-    pub fn for_grant_key_id(&self, grant_key_id: &str) -> Option<&[u8; 32]> {
+    pub(crate) fn for_grant_key_id(&self, grant_key_id: &str) -> Option<&[u8; 32]> {
         self.keys.get(grant_key_id)
     }
 
@@ -2056,7 +2056,7 @@ impl CloudflareCustodyAuthorityVerifiersV1 {
     }
 
     /// Derives Deriver A's stable custody-authority identifier.
-    pub fn deriver_a_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
+    pub(crate) fn deriver_a_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
         derive_authority_id(
             DERIVER_A_CUSTODY_AUTHORITY_KEY_ID_V1.as_bytes(),
             &self.deriver_a,
@@ -2064,7 +2064,7 @@ impl CloudflareCustodyAuthorityVerifiersV1 {
     }
 
     /// Derives Deriver B's stable custody-authority identifier.
-    pub fn deriver_b_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
+    pub(crate) fn deriver_b_authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
         derive_authority_id(
             DERIVER_B_CUSTODY_AUTHORITY_KEY_ID_V1.as_bytes(),
             &self.deriver_b,
@@ -2141,7 +2141,7 @@ pub(crate) fn parse_cloudflare_custody_authority_verifiers_v1(
 }
 
 /// Parses the trusted grant-authority set from Env.
-pub fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
+pub(crate) fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1> {
     CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1::decode(&read_required_raw_env_text(
@@ -2154,7 +2154,7 @@ pub fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
 ///
 /// Retired entries remain available for durable receipt verification. The
 /// explicit active IDs select the identities used for new custody bindings.
-pub fn parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
+pub(crate) fn parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1> {
     decode_role_verifying_keys(&read_required_raw_env_text(
@@ -2164,7 +2164,7 @@ pub fn parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
 }
 
 /// Parses the published control-plane issuer verifying key set from Env.
-pub fn parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
+pub(crate) fn parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1> {
     CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1::decode(&read_required_raw_env_text(
@@ -2177,7 +2177,7 @@ pub fn parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
 ///
 /// Same encoding as the Deriver role-signing Secrets: unpadded base64url over
 /// exactly 32 bytes.
-pub fn decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1(
+pub(crate) fn decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1(
     secret_value: &str,
 ) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>> {
     let mut bytes =
@@ -2209,7 +2209,7 @@ pub fn decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1(
 /// retired key ID stays in the published set so previously issued durable
 /// artifacts keep verifying, but it can no longer be the active one, so this
 /// check is what stops a retired private key from continuing to sign.
-pub fn validate_cloudflare_tenant_root_control_plane_issuer_key_provenance_v1(
+pub(crate) fn validate_cloudflare_tenant_root_control_plane_issuer_key_provenance_v1(
     binding: &CloudflareTenantRootControlPlaneIssuerSigningKeyBindingV1,
     published: &CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     secret_value: &str,
@@ -2327,7 +2327,7 @@ pub struct TenantRootCreationRoleVerifyingKeysV1 {
 
 impl TenantRootCreationRoleVerifyingKeysV1 {
     /// The active Deriver A and Deriver B signing identities.
-    pub fn deriver_identities(
+    pub(crate) fn deriver_identities(
         &self,
     ) -> RouterAbProtocolResult<TenantRootDeriverIdentitiesV1> {
         TenantRootDeriverIdentitiesV1::new(
@@ -2557,7 +2557,7 @@ fn read_required_raw_env_text(
 /// control-plane startup: deployments that only run operational rotation can
 /// remain configured without recovery roots, while a recovery request still
 /// fails closed when the roots are absent or malformed.
-pub fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
+pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<TenantRootRecoveryTrustBundleV1> {
     let bundle_json = read_required_raw_env_text(env, TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON_ENV)?;
@@ -2572,7 +2572,7 @@ pub fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
     })
 }
 
-pub fn parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(
+pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<Option<TenantRootRecoveryRevocationSnapshotV1>> {
     let Some(json) = env.get_text(TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV)? else {

@@ -64,25 +64,25 @@ use crate::{
 };
 
 /// Maximum accepted request size for the role creation command operation.
-pub const TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_REQUEST_MAX_BYTES_V1: usize = 2 * 1024;
-pub const TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_REQUEST_MAX_BYTES_V1: usize = 2 * 1024;
-pub const TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1: usize = 2 * 1024;
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_REQUEST_MAX_BYTES_V1: usize = 2 * 1024;
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_REQUEST_MAX_BYTES_V1: usize = 2 * 1024;
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1: usize = 2 * 1024;
 pub const TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_REQUEST_MAX_BYTES_V1: usize =
     8 * 1024;
 pub const TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_REQUEST_MAX_BYTES_V1: usize =
     32 * 1024;
 /// Maximum accepted request size for recovery-manifest registration.
-pub const TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_REQUEST_MAX_BYTES_V1: usize = 256 * 1024;
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_REQUEST_MAX_BYTES_V1: usize = 256 * 1024;
 /// Maximum JSON request size for one restore role-import command issuance.
-pub const TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_REQUEST_MAX_BYTES_V1: usize = 384 * 1024;
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_REQUEST_MAX_BYTES_V1: usize = 384 * 1024;
 /// Maximum JSON request size for one restore refresh command issuance.
-pub const TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1: usize =
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1: usize =
     384 * 1024;
 
 /// Role label on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CloudflareTenantRootControlPlaneRoleV1 {
+pub(crate) enum CloudflareTenantRootControlPlaneRoleV1 {
     DeriverA,
     DeriverB,
 }
@@ -106,18 +106,18 @@ impl CloudflareTenantRootControlPlaneRoleV1 {
 /// One role's authenticated recovery descriptor context.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootRecoveryManifestRoleV1 {
+pub(crate) struct CloudflareTenantRootRecoveryManifestRoleV1 {
     pub share_id: u64,
     pub recipient_public_key_b64u: String,
     pub recipient_fingerprint_b64u: String,
-    pub recovery_share_commitment_b64u: String,
+    pub(crate) recovery_share_commitment_b64u: String,
     pub deriver_signing_key_id: String,
 }
 
 /// The trust result established by the control-plane verifier.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareTenantRootRecoveryTrustLevelV1 {
+pub(crate) enum CloudflareTenantRootRecoveryTrustLevelV1 {
     CryptographicallyValidOffline,
     ValidAtTrustSnapshot {
         snapshot_version: u64,
@@ -137,27 +137,27 @@ pub enum CloudflareTenantRootRecoveryTrustLevelV1 {
 /// request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRegisterManifestRequestV1 {
-    pub manifest_b64u: String,
+pub(crate) struct CloudflareTenantRootControlPlaneRegisterManifestRequestV1 {
+    pub(crate) manifest_b64u: String,
 }
 
 /// Control plane -> Router or console: the exact authenticated manifest
 /// descriptor context needed to authorize later role imports.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRegisterManifestResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneRegisterManifestResponseV1 {
     pub identity_digest_b64u: String,
-    pub source_custody_lineage_b64u: String,
-    pub recovery_set_id_b64u: String,
-    pub stable_root_commitment_b64u: String,
+    pub(crate) source_custody_lineage_b64u: String,
+    pub(crate) recovery_set_id_b64u: String,
+    pub(crate) stable_root_commitment_b64u: String,
     pub deriver_a: CloudflareTenantRootRecoveryManifestRoleV1,
     pub deriver_b: CloudflareTenantRootRecoveryManifestRoleV1,
     pub deriver_a_package_length: u32,
-    pub deriver_a_package_digest_b64u: String,
+    pub(crate) deriver_a_package_digest_b64u: String,
     pub deriver_b_package_length: u32,
-    pub deriver_b_package_digest_b64u: String,
+    pub(crate) deriver_b_package_digest_b64u: String,
     pub manifest_digest_b64u: String,
-    pub artifact_created_at_iso: String,
+    pub(crate) artifact_created_at_iso: String,
     pub trust_level: CloudflareTenantRootRecoveryTrustLevelV1,
 }
 
@@ -169,17 +169,17 @@ pub struct CloudflareTenantRootControlPlaneRegisterManifestResponseV1 {
 /// any role command fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1 {
-    pub restore_grant_b64u: String,
-    pub manifest_b64u: String,
+pub(crate) struct CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1 {
+    pub(crate) restore_grant_b64u: String,
+    pub(crate) manifest_b64u: String,
 }
 
 /// Control plane -> Router: the exact issuer-signed restore role-import command.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1 {
     pub issuer_key_id: String,
-    pub role_import_command_b64u: String,
+    pub(crate) role_import_command_b64u: String,
 }
 
 /// Router or console -> control plane: issue both exact restore refresh commands.
@@ -189,19 +189,19 @@ pub struct CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1 {
 /// and detached-signature verification before deriving command fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1 {
-    pub restore_refresh_grant_b64u: String,
-    pub manifest_b64u: String,
+pub(crate) struct CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1 {
+    pub(crate) restore_refresh_grant_b64u: String,
+    pub(crate) manifest_b64u: String,
 }
 
 /// Control plane -> Router: one deterministic create context and its A/B
 /// issuer-signed restore refresh commands.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1 {
-    pub refresh_context_b64u: String,
-    pub deriver_a_refresh_command_b64u: String,
-    pub deriver_b_refresh_command_b64u: String,
+pub(crate) struct CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1 {
+    pub(crate) refresh_context_b64u: String,
+    pub(crate) deriver_a_refresh_command_b64u: String,
+    pub(crate) deriver_b_refresh_command_b64u: String,
     pub issuer_key_id: String,
 }
 
@@ -211,7 +211,7 @@ pub struct CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1 {
 /// nonce, journal, context, time window, and issuer key are all derived.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1 {
     pub identity_digest_b64u: String,
     pub custody_lineage_b64u: String,
     pub role: CloudflareTenantRootControlPlaneRoleV1,
@@ -223,17 +223,17 @@ pub struct CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1 {
 /// Deriver can verify the command at its own boundary with no Router state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1 {
     pub role: CloudflareTenantRootControlPlaneRoleV1,
     pub issuer_key_id: String,
-    pub role_creation_command_b64u: String,
-    pub role_creation_command_package_b64u: String,
+    pub(crate) role_creation_command_b64u: String,
+    pub(crate) role_creation_command_package_b64u: String,
 }
 
 /// Router -> control plane: mint both role commands for one fresh refresh.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRefreshCommandsRequestV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneRefreshCommandsRequestV1 {
     pub identity_digest_b64u: String,
     pub custody_lineage_b64u: String,
 }
@@ -241,17 +241,17 @@ pub struct CloudflareTenantRootControlPlaneRefreshCommandsRequestV1 {
 /// Control plane -> Router: one exact context and its A/B issuer commands.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRefreshCommandsResponseV1 {
-    pub refresh_context_b64u: String,
-    pub deriver_a_refresh_command_b64u: String,
-    pub deriver_b_refresh_command_b64u: String,
+pub(crate) struct CloudflareTenantRootControlPlaneRefreshCommandsResponseV1 {
+    pub(crate) refresh_context_b64u: String,
+    pub(crate) deriver_a_refresh_command_b64u: String,
+    pub(crate) deriver_b_refresh_command_b64u: String,
     pub issuer_key_id: String,
 }
 
 /// Router -> control plane: issue one exact pending or retired cleanup command.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareTenantRootControlPlaneCleanupCommandRequestV1 {
+pub(crate) enum CloudflareTenantRootControlPlaneCleanupCommandRequestV1 {
     /// Cleans one role an abandoned creation installed.
     PendingCreation {
         identity_digest_b64u: String,
@@ -272,7 +272,7 @@ pub enum CloudflareTenantRootControlPlaneCleanupCommandRequestV1 {
 /// Control plane -> Router: exact issuer-signed cleanup authorization.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
     pub role: CloudflareTenantRootControlPlaneRoleV1,
     pub cleanup_command_b64u: String,
 }
@@ -284,7 +284,7 @@ pub struct CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
 /// window; active epoch and activation receipt are always read from the DO.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1 {
     pub(crate) identity_digest_b64u: String,
     pub(crate) custody_lineage_b64u: String,
     pub(crate) incident_id: String,
@@ -302,7 +302,7 @@ pub struct CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1 {
 /// directly. The `challenge` field remains available to in-crate callers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1 {
     #[serde(flatten)]
     pub(crate) challenge: CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
     pub(crate) authorization_binding_b64u: String,
@@ -311,7 +311,7 @@ pub struct CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1 {
 /// Router -> control plane: authorize the exact challenge with both signatures.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1 {
     pub(crate) identity_digest_b64u: String,
     pub(crate) custody_lineage_b64u: String,
     pub(crate) incident_authorization_b64u: String,
@@ -320,21 +320,21 @@ pub struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1 {
 /// Control plane -> Router: the exact terminal public artifacts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
     pub(crate) public_state_b64u: String,
     pub(crate) capability_b64u: String,
     pub(crate) incident_authorization_b64u: String,
 }
 
 /// Maximum accepted request size for the genesis operation.
-pub const TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1: usize = 32 * 1024;
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1: usize = 32 * 1024;
 
 /// Maximum accepted request size for initial activation evidence.
-pub const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     256 * 1024;
 pub(crate) const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 32 * 1024;
 /// Maximum accepted request size for restore initial activation evidence.
-pub const TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     256 * 1024;
 /// Maximum accepted request size for refresh activation evidence.
 pub(crate) const TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
@@ -344,7 +344,7 @@ pub(crate) const TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_REQUEST_MAX_BYTES_
 /// exact public installation, managed-backup, and provider-canary wires.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
     pub(crate) deriver_a_signed_installation_evidence_b64u: String,
     pub(crate) deriver_b_signed_installation_evidence_b64u: String,
     pub(crate) deriver_a_signed_managed_backup_b64u: String,
@@ -359,7 +359,7 @@ pub struct CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
 /// only the signed authorization and its authenticated recovery manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1 {
     pub(crate) restore_refresh_grant_b64u: String,
     pub(crate) manifest_b64u: String,
 }
@@ -368,13 +368,13 @@ pub struct CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1 {
 /// public installation, managed-backup, and provider-canary wires.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRefreshActivationRequestV1 {
-    pub deriver_a_signed_installation_evidence_b64u: String,
-    pub deriver_b_signed_installation_evidence_b64u: String,
-    pub deriver_a_signed_managed_backup_b64u: String,
-    pub deriver_b_signed_managed_backup_b64u: String,
-    pub ecdsa_provider_canary_receipt_b64u: String,
-    pub ed25519_provider_canary_receipt_b64u: String,
+pub(crate) struct CloudflareTenantRootControlPlaneRefreshActivationRequestV1 {
+    pub(crate) deriver_a_signed_installation_evidence_b64u: String,
+    pub(crate) deriver_b_signed_installation_evidence_b64u: String,
+    pub(crate) deriver_a_signed_managed_backup_b64u: String,
+    pub(crate) deriver_b_signed_managed_backup_b64u: String,
+    pub(crate) ecdsa_provider_canary_receipt_b64u: String,
+    pub(crate) ed25519_provider_canary_receipt_b64u: String,
 }
 
 /// Router -> control plane: open a tenant root under a signed grant.
@@ -384,19 +384,19 @@ pub struct CloudflareTenantRootControlPlaneRefreshActivationRequestV1 {
 /// everything else.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneCreateTenantRootRequestV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneCreateTenantRootRequestV1 {
     pub creation_grant_b64u: String,
 }
 
 /// Control plane -> Router: the persisted creation, public evidence only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneCreateTenantRootResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneCreateTenantRootResponseV1 {
     pub identity_digest_b64u: String,
     pub custody_lineage_b64u: String,
     pub revision: u64,
     pub journal_digest_b64u: String,
-    pub capability_digest_b64u: String,
+    pub(crate) capability_digest_b64u: String,
     pub status: CloudflareTenantRootCreationStatusV1,
     /// True when this exact creation had already been persisted.
     pub replayed: bool,
@@ -409,21 +409,21 @@ pub struct CloudflareTenantRootControlPlaneCreateTenantRootResponseV1 {
 /// shape from becoming an activation authority.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1 {
     pub activation_receipt_b64u: String,
 }
 
 /// Control plane -> Router: the exact signed refresh-swap activation receipt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1 {
+pub(crate) struct CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1 {
     pub activation_receipt_b64u: String,
 }
 
 /// Exhaustive durable state of one tenant-root creation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareTenantRootCreationStatusV1 {
+pub(crate) enum CloudflareTenantRootCreationStatusV1 {
     Pending,
     OneRoleInstalled {
         role: CloudflareTenantRootControlPlaneRoleV1,
@@ -1115,7 +1115,7 @@ fn verify_recovery_manifest_with_trust_v1(
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RecoveryGenerationRequestV1 {
+pub(crate) struct RecoveryGenerationRequestV1 {
     identity_b64u: String,
     custody_lineage_b64u: String,
     expected_lifecycle_revision: u64,
@@ -1126,7 +1126,7 @@ pub struct RecoveryGenerationRequestV1 {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RecoverySourceRetirementRequestV1 {
+pub(crate) struct RecoverySourceRetirementRequestV1 {
     identity_digest_b64u: String,
     custody_lineage_b64u: String,
     expected_lifecycle_revision: u64,
@@ -1136,7 +1136,7 @@ pub struct RecoverySourceRetirementRequestV1 {
 /// Console authorization selects the operation; active root facts come from the Router.
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RecoveryCommandRequestV1 {
+pub(crate) enum RecoveryCommandRequestV1 {
     Generate(RecoveryGenerationRequestV1),
     RetireSource(RecoverySourceRetirementRequestV1),
     Download {
@@ -1152,7 +1152,7 @@ pub enum RecoveryCommandRequestV1 {
 /// Internal console request; confirmation verifiers never enter browser responses.
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RecoveryRecipientProofRequestV1 {
+pub(crate) enum RecoveryRecipientProofRequestV1 {
     Seal {
         identity_digest_b64u: String,
         custody_lineage_b64u: String,
@@ -1171,7 +1171,7 @@ pub enum RecoveryRecipientProofRequestV1 {
 /// Complete role-signed evidence and ciphertexts for one admitted recovery set.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RecoveryManifestAssemblyRequestV1 {
+pub(crate) struct RecoveryManifestAssemblyRequestV1 {
     generation_command_b64u: String,
     evidence_a_b64u: String,
     evidence_b_b64u: String,
@@ -1192,7 +1192,7 @@ pub(crate) use live::{
 };
 
 #[cfg(feature = "workers-rs")]
-pub use live::{
+pub(crate) use live::{
     handle_cloudflare_tenant_root_control_plane_cleanup_command_v1,
     handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1,
     handle_cloudflare_tenant_root_control_plane_refresh_commands_v1,
@@ -1229,7 +1229,7 @@ const TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1: usize = 72 * 1024;
 /// and the VM Router's creation-state endpoints. The issuer logic below is
 /// the same on both hosts.
 #[allow(async_fn_in_trait)]
-pub trait TenantRootControlPlaneHostV1: crate::TenantRootCreationStateTransportV1 {
+pub(crate) trait TenantRootControlPlaneHostV1: crate::TenantRootCreationStateTransportV1 {
     /// Parsed control-plane bindings (issuer key, trusted keys, role keys).
     fn bindings(&self) -> &crate::CloudflareTenantRootControlPlaneBindingsV1;
     /// Current host time in Unix milliseconds.
@@ -1382,7 +1382,7 @@ fn managed_restore_custody_verifying_key_v1(
 
 /// Reserves one authoritative managed-restore challenge in the Router's
 /// creation state and returns the binding both incident authorities sign.
-pub async fn control_plane_managed_restore_challenge_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_managed_restore_challenge_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1>
@@ -1422,7 +1422,7 @@ pub async fn control_plane_managed_restore_challenge_v1<Host: TenantRootControlP
 /// signed role-unavailable state and one-use restore capability, and
 /// checkpoints the exact issuer artifacts in the Router's creation state. A
 /// retry after the checkpoint returns those artifacts.
-pub async fn control_plane_managed_restore_authorize_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_managed_restore_authorize_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1>
@@ -1779,7 +1779,7 @@ fn decode_control_plane_identity_and_lineage_v1(
 
 /// Genesis: verify the creation grant against this issuer's trusted grant
 /// authorities, authorize the ceremony, and persist its started journal.
-pub async fn control_plane_create_tenant_root_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_create_tenant_root_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
@@ -1884,7 +1884,7 @@ pub(crate) fn tenant_root_creation_grant_opened_ceremony_v1(
 }
 
 /// Mints one role creation command from the re-validated creation state.
-pub async fn control_plane_role_creation_command_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_role_creation_command_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1> {
@@ -1940,7 +1940,7 @@ pub async fn control_plane_role_creation_command_v1<Host: TenantRootControlPlane
 
 /// Verifies the six public activation artifacts against the persisted
 /// creation state and issues the exact initial activation receipt.
-pub async fn control_plane_initial_activation_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_initial_activation_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneInitialActivationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1> {
@@ -2035,7 +2035,7 @@ pub async fn control_plane_initial_activation_v1<Host: TenantRootControlPlaneHos
 
 /// Decodes the identity digest and custody lineage a cleanup-command request
 /// names.
-pub fn decode_tenant_root_cleanup_scope_v1(
+pub(crate) fn decode_tenant_root_cleanup_scope_v1(
     identity_digest_b64u: &str,
     custody_lineage_b64u: &str,
 ) -> RouterAbProtocolResult<(
@@ -2062,7 +2062,7 @@ pub fn decode_tenant_root_cleanup_scope_v1(
 /// Mints one fresh A/B refresh command pair from the Router's authoritative
 /// active state: a new ceremony context for the next epoch, with its own
 /// session and nonce, and one issuer-signed command per role.
-pub async fn control_plane_refresh_commands_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_refresh_commands_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRefreshCommandsRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRefreshCommandsResponseV1> {
@@ -2150,7 +2150,7 @@ pub async fn control_plane_refresh_commands_v1<Host: TenantRootControlPlaneHostV
 /// Issues the refresh-swap activation receipt for one prepared refresh, once
 /// both roles' installation evidence, managed backups and provider canaries
 /// verify against the Router's authoritative active state.
-pub async fn control_plane_refresh_activation_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_refresh_activation_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1> {
@@ -2258,7 +2258,7 @@ pub async fn control_plane_refresh_activation_v1<Host: TenantRootControlPlaneHos
 /// managed restore committed over. The role store executes it only once
 /// every root-use admission on the retired epoch is settled or cancelled;
 /// until then it answers that retirement is pending.
-pub async fn control_plane_retired_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_retired_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     identity_digest: router_ab_core::TenantRootIdentityDigestV1,
     custody_lineage: router_ab_core::TenantRootCustodyLineageId,
@@ -2348,7 +2348,7 @@ pub async fn control_plane_retired_cleanup_command_v1<Host: TenantRootControlPla
 /// For any other role it names the abandoned ceremony. It is issued only once
 /// the Router has fenced the creation, and its window starts at the fence, so
 /// the same command is issued on every retry of the abandonment.
-pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     identity_digest: router_ab_core::TenantRootIdentityDigestV1,
     custody_lineage: router_ab_core::TenantRootCustodyLineageId,
@@ -2540,7 +2540,7 @@ pub(crate) fn require_initial_activation_receipt_response_v1(
 
 /// Verifies one public recovery manifest against this control plane's
 /// recovery trust and returns only the authenticated descriptor context.
-pub async fn control_plane_register_manifest_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_register_manifest_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRegisterManifestRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRegisterManifestResponseV1> {
@@ -2550,7 +2550,7 @@ pub async fn control_plane_register_manifest_v1<Host: TenantRootControlPlaneHost
 
 /// Verifies an admitted restore grant and manifest, then signs the exact
 /// role-import command a destination Deriver consumes.
-pub async fn control_plane_restore_role_import_key_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_restore_role_import_key_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1> {
@@ -2610,7 +2610,7 @@ pub async fn control_plane_restore_role_import_key_v1<Host: TenantRootControlPla
 
 /// Verifies an admitted restore-refresh grant and manifest, then signs the
 /// deterministic A/B commands the destination Derivers consume.
-pub async fn control_plane_restore_refresh_commands_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_restore_refresh_commands_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1> {
@@ -2673,7 +2673,7 @@ fn verify_restore_refresh_grant_v1(
 
 /// Issues the initial-creation receipt that activates a restored root, from
 /// both Derivers' promotions in the destination's promoted checkpoint.
-pub async fn control_plane_restore_initial_activation_v1<Host: TenantRootControlPlaneHostV1>(
+pub(crate) async fn control_plane_restore_initial_activation_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     request: CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1> {
@@ -3070,13 +3070,13 @@ fn require_promoted_restore_refresh_read_v1(
 }
 
 /// Private control-plane routes for recovery-package generation, on every host.
-pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_TRUST_PATH_V1: &str =
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_RECOVERY_TRUST_PATH_V1: &str =
     "/router-ab/tenant-root-control-plane/recovery/trust";
-pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1: &str =
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1: &str =
     "/router-ab/tenant-root-control-plane/recovery/command";
-pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_RECIPIENT_PROOF_PATH_V1: &str =
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_RECOVERY_RECIPIENT_PROOF_PATH_V1: &str =
     "/router-ab/tenant-root-control-plane/recovery/recipient-proof";
-pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1: &str =
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1: &str =
     "/router-ab/tenant-root-control-plane/recovery/manifest";
 
 fn recovery_fixed<const N: usize>(field: &'static str, value: &str) -> RouterAbProtocolResult<[u8; N]> {
@@ -3096,7 +3096,7 @@ fn recovery_random<const N: usize>(
 
 /// The recovery trust bundle this control plane verifies manifests against,
 /// as its canonical JSON.
-pub fn control_plane_recovery_trust_bundle_json_v1(
+pub(crate) fn control_plane_recovery_trust_bundle_json_v1(
     host: &impl TenantRootControlPlaneHostV1,
 ) -> RouterAbProtocolResult<Vec<u8>> {
     let (bundle, _) = host.recovery_trust()?;
@@ -3106,7 +3106,7 @@ pub fn control_plane_recovery_trust_bundle_json_v1(
 /// Issues a recovery set's generation commands, or an access grant to
 /// download or destroy one role's retained package. Source retirement moves
 /// authority, and is served only where that is: never here.
-pub async fn control_plane_recovery_command_v1(
+pub(crate) async fn control_plane_recovery_command_v1(
     host: &impl TenantRootControlPlaneHostV1,
     request: RecoveryCommandRequestV1,
 ) -> RouterAbProtocolResult<serde_json::Value> {
@@ -3279,7 +3279,7 @@ async fn control_plane_recovery_generation_v1(
 
 /// Seals a recipient-key challenge for the tenant to answer, or checks its
 /// answer. The confirmation verifier stays with the Console.
-pub fn control_plane_recovery_recipient_proof_v1(
+pub(crate) fn control_plane_recovery_recipient_proof_v1(
     host: &impl TenantRootControlPlaneHostV1,
     request: RecoveryRecipientProofRequestV1,
 ) -> RouterAbProtocolResult<serde_json::Value> {
@@ -3368,7 +3368,7 @@ pub fn control_plane_recovery_recipient_proof_v1(
 
 /// Signs one recovery set's manifest over both roles' evidence and packages,
 /// and proves its chains end at this control plane's recovery trust.
-pub fn control_plane_assemble_recovery_manifest_v1(
+pub(crate) fn control_plane_assemble_recovery_manifest_v1(
     host: &impl TenantRootControlPlaneHostV1,
     request: RecoveryManifestAssemblyRequestV1,
 ) -> RouterAbProtocolResult<serde_json::Value> {
@@ -3573,7 +3573,7 @@ mod live {
         )
     }
 
-    pub async fn handle_cloudflare_tenant_root_control_plane_register_manifest_v1(
+    pub(crate) async fn handle_cloudflare_tenant_root_control_plane_register_manifest_v1(
         request: CloudflareTenantRootControlPlaneRegisterManifestRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
@@ -3585,7 +3585,7 @@ mod live {
         .await
     }
 
-    pub async fn handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1(
+    pub(crate) async fn handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1(
         request: CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
@@ -3646,7 +3646,7 @@ mod live {
 
 
     /// The typed issuer operation: mint one role creation command.
-    pub async fn handle_cloudflare_tenant_root_control_plane_role_creation_command_v1(
+    pub(crate) async fn handle_cloudflare_tenant_root_control_plane_role_creation_command_v1(
         request: CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
@@ -3659,7 +3659,7 @@ mod live {
     }
 
     /// Mints one fresh A/B refresh command pair from authoritative active state.
-    pub async fn handle_cloudflare_tenant_root_control_plane_refresh_commands_v1(
+    pub(crate) async fn handle_cloudflare_tenant_root_control_plane_refresh_commands_v1(
         request: CloudflareTenantRootControlPlaneRefreshCommandsRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
@@ -3700,7 +3700,7 @@ mod live {
     }
 
     /// Issues cleanup for the exact sole role installation recorded by the DO.
-    pub async fn handle_cloudflare_tenant_root_control_plane_cleanup_command_v1(
+    pub(crate) async fn handle_cloudflare_tenant_root_control_plane_cleanup_command_v1(
         request: CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
@@ -4055,7 +4055,7 @@ mod live {
 
     /// Genesis on Cloudflare: the shared issuer operation over Worker secrets
     /// and the Router-owned creation Durable Object.
-    pub async fn handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1(
+    pub(crate) async fn handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1(
         request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,

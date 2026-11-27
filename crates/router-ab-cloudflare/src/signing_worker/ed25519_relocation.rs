@@ -1,25 +1,25 @@
 use super::ed25519_execution::{execution_error, execution_owner};
 use super::*;
 
-pub const SIGNING_WORKER_ED25519_FENCE_PATH_V1: &str =
+pub(crate) const SIGNING_WORKER_ED25519_FENCE_PATH_V1: &str =
     "/router-ab/signing-worker/wallet/ed25519/fence";
 
-pub const SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1: &str =
+pub(crate) const SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1: &str =
     "CREATE TABLE IF NOT EXISTS wallet_ed25519_relocation (
         owner_json TEXT PRIMARY KEY,
         request_json TEXT NOT NULL)";
 
-pub const SIGNING_WORKER_ED25519_SETTLE_PATH_V1: &str =
+pub(crate) const SIGNING_WORKER_ED25519_SETTLE_PATH_V1: &str =
     "/router-ab/signing-worker/wallet/ed25519/settle";
 
-pub const SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1: &str =
+pub(crate) const SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1: &str =
     "CREATE TABLE IF NOT EXISTS wallet_ed25519_settlement (
         owner_json TEXT PRIMARY KEY,
         request_json TEXT NOT NULL)";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-pub enum SigningWorkerEd25519SettlementV1 {
+pub(crate) enum SigningWorkerEd25519SettlementV1 {
     Draining {
         pending_rounds: u64,
     },
@@ -30,7 +30,7 @@ pub enum SigningWorkerEd25519SettlementV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SigningWorkerEd25519FenceCommandV1 {
+pub(crate) struct SigningWorkerEd25519FenceCommandV1 {
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub request: SigningWorkerRelocationRequestV1,
 }
@@ -118,7 +118,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
         Ok(SigningWorkerEd25519SettlementV1::Settled { command })
     }
 
-    pub fn require_settlement(
+    pub(crate) fn require_settlement(
         &self,
         command: &SigningWorkerEd25519FenceCommandV1,
     ) -> RouterAbProtocolResult<()> {
@@ -137,7 +137,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'_, Sql
         Ok(())
     }
 
-    pub fn require_finalization_admission(
+    pub(crate) fn require_finalization_admission(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<()> {

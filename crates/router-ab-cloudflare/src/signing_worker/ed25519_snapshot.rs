@@ -1,11 +1,11 @@
 use super::*;
 
-pub const SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1: &str =
+pub(crate) const SIGNING_WORKER_ED25519_SNAPSHOT_PATH_V1: &str =
     "/router-ab/signing-worker/wallet/ed25519/snapshot";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SigningWorkerEd25519PreparationV1 {
+pub(crate) struct SigningWorkerEd25519PreparationV1 {
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub request: SigningWorkerRelocationIdentityV1,
 }
@@ -26,7 +26,7 @@ impl SigningWorkerEd25519PreparationV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SigningWorkerEd25519SnapshotReceiptV1 {
+pub(crate) struct SigningWorkerEd25519SnapshotReceiptV1 {
     pub source: SigningWorkerEd25519FenceCommandV1,
     pub record_count: u32,
     pub segment_count: u32,
@@ -35,7 +35,7 @@ pub struct SigningWorkerEd25519SnapshotReceiptV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SigningWorkerEd25519SnapshotSegmentV1 {
+pub(crate) struct SigningWorkerEd25519SnapshotSegmentV1 {
     pub segment_index: u32,
     pub record_index: u32,
     pub part_index: u32,
@@ -45,7 +45,7 @@ pub struct SigningWorkerEd25519SnapshotSegmentV1 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
-pub enum SigningWorkerEd25519SnapshotCommandV1 {
+pub(crate) enum SigningWorkerEd25519SnapshotCommandV1 {
     Prepare {
         source: SigningWorkerEd25519PreparationV1,
     },
@@ -116,7 +116,7 @@ impl SigningWorkerEd25519SnapshotCommandV1 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-pub enum SigningWorkerEd25519SnapshotResponseV1 {
+pub(crate) enum SigningWorkerEd25519SnapshotResponseV1 {
     Prepared {
         source: SigningWorkerEd25519PreparationV1,
         destination_object: String,

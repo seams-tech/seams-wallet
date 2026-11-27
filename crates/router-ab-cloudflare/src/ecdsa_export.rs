@@ -208,7 +208,7 @@ impl CloudflareRouterAbEcdsaExportForwardV1 {
 }
 
 /// Checks the SigningWorker's sealed share before the Router returns it.
-pub fn validate_cloudflare_signing_worker_ecdsa_export_share_envelope_v1(
+pub(crate) fn validate_cloudflare_signing_worker_ecdsa_export_share_envelope_v1(
     envelope: EcdsaSigningWorkerExportShareEnvelopeV1,
 ) -> RouterAbProtocolResult<EcdsaSigningWorkerExportShareEnvelopeV1> {
     envelope.validate().map_err(|_| {
@@ -222,7 +222,7 @@ pub fn validate_cloudflare_signing_worker_ecdsa_export_share_envelope_v1(
 
 /// One Deriver's ECDSA export after authentication and preload, ready to
 /// execute.
-pub struct CloudflareDeriverEcdsaExportV1 {
+pub(crate) struct CloudflareDeriverEcdsaExportV1 {
     export_request: RouterAbEcdsaDerivationExplicitExportRequestV1,
     signer: CloudflareDeriverPreparedSignerV1,
 }
@@ -283,42 +283,6 @@ impl CloudflareDeriverEcdsaExportV1 {
             now_unix_ms,
         )
     }
-}
-
-/// Confirms the wallet's active ECDSA material can be exported, without
-/// releasing anything.
-pub fn preflight_signing_worker_wallet_ecdsa_export_v1<Sql: SigningWorkerWalletSqlV1>(
-    store: &SigningWorkerWalletEcdsaStoreV1<'_, Sql>,
-    request: &CloudflareSigningWorkerEcdsaExportShareRequestV1,
-    now_unix_ms: u64,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaExportPreflightResponseV1> {
-    request.validate_at(now_unix_ms)?;
-    store.load_normal_signing_material(
-        &request.wallet_scope,
-        &request.export_authority.normal_signing_scope,
-        &request.material_source,
-    )?;
-    Ok(CloudflareSigningWorkerEcdsaExportPreflightResponseV1 { ready: true })
-}
-
-/// Seals the wallet's active SigningWorker share to the one admitted export
-/// recipient.
-pub fn seal_signing_worker_wallet_ecdsa_export_share_v1<Sql: SigningWorkerWalletSqlV1>(
-    store: &SigningWorkerWalletEcdsaStoreV1<'_, Sql>,
-    request: &CloudflareSigningWorkerEcdsaExportShareRequestV1,
-    now_unix_ms: u64,
-    seal_seed: [u8; 32],
-) -> RouterAbProtocolResult<EcdsaSigningWorkerExportShareEnvelopeV1> {
-    request.validate_at(now_unix_ms)?;
-    let scope = &request.export_authority.normal_signing_scope;
-    let (active_signing_worker, material) =
-        store.load_normal_signing_material(&request.wallet_scope, scope, &request.material_source)?;
-    seal_cloudflare_signing_worker_ecdsa_export_share_v1(
-        request,
-        &active_signing_worker,
-        &material,
-        seal_seed,
-    )
 }
 
 /// Seals the SigningWorker share of loaded active material to the export

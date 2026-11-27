@@ -30,7 +30,6 @@ fn cloudflare_route_boundaries_do_not_decode_signer_plaintext() {
     for function_name in [
         "validate_cloudflare_signer_private_request_v1",
         "decode_and_validate_cloudflare_signer_envelope_hpke_payload_v1",
-        "handle_cloudflare_signer_recipient_proof_bundle_private_fetch_v1",
         "handle_cloudflare_signer_recipient_proof_bundle_private_request_v1",
     ] {
         let body = extract_function_body(&lib_rs, function_name);

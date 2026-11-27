@@ -469,7 +469,7 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
 
     /// The Wallet Session credential the Gateway's owner projection implies.
     /// Only a Gateway-owner binding has one.
-    pub fn gateway_owner_wallet_session_credential(
+    pub(crate) fn gateway_owner_wallet_session_credential(
         &self,
         trusted_source_digest: PublicDigest32,
     ) -> RouterAbProtocolResult<CloudflareRouterWalletSessionCredentialV1> {
@@ -1210,7 +1210,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
     }
 
     /// The owner's Wallet Session credential the Gateway forwarded.
-    pub fn gateway_owner_wallet_session_credential(
+    pub(crate) fn gateway_owner_wallet_session_credential(
         &self,
         trusted_source_digest: PublicDigest32,
     ) -> RouterAbProtocolResult<CloudflareRouterWalletSessionCredentialV1> {

@@ -67,7 +67,7 @@ use crate::{
 /// earlier epoch its swap carries.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootRetirementEvidenceV1 {
+pub(crate) struct CloudflareRouterTenantRootRetirementEvidenceV1 {
     pub deriver_a: CloudflareRouterTenantRootRoleRetirementV1,
     pub deriver_b: CloudflareRouterTenantRootRoleRetirementV1,
     /// Earlier swaps' retirements this swap committed over before both roles
@@ -80,7 +80,7 @@ pub struct CloudflareRouterTenantRootRetirementEvidenceV1 {
 /// An earlier swap's retirement that the latest swap carries, at each role.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootCarriedRetirementEvidenceV1 {
+pub(crate) struct CloudflareRouterTenantRootCarriedRetirementEvidenceV1 {
     /// The earlier swap's committed receipt.
     pub activation_receipt_digest_b64u: String,
     pub retired_epoch: u64,
@@ -102,7 +102,7 @@ impl CloudflareRouterTenantRootRetirementEvidenceV1 {
 /// One role's retirement of a replaced epoch.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareRouterTenantRootRoleRetirementV1 {
+pub(crate) enum CloudflareRouterTenantRootRoleRetirementV1 {
     /// Erased there: the role's signed cleanup receipt, and the admissions
     /// its recovery cancelled on the epoch.
     Erased {
@@ -119,7 +119,7 @@ pub enum CloudflareRouterTenantRootRoleRetirementV1 {
 
 /// A completed refresh: the committed receipt's digest and revision.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct CloudflareRouterTenantRootRefreshResponseV1 {
+pub(crate) struct CloudflareRouterTenantRootRefreshResponseV1 {
     pub activation_receipt_digest_b64u: String,
     pub lifecycle_revision: u64,
     pub retirement: CloudflareRouterTenantRootRetirementEvidenceV1,
@@ -128,7 +128,7 @@ pub struct CloudflareRouterTenantRootRefreshResponseV1 {
 /// One refresh operation. A retry names the same operation.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterTenantRootRefreshRequestV1 {
+pub(crate) struct CloudflareRouterTenantRootRefreshRequestV1 {
     pub operation_id: String,
     pub identity_digest_b64u: String,
     pub custody_lineage_b64u: String,
@@ -139,7 +139,7 @@ pub struct CloudflareRouterTenantRootRefreshRequestV1 {
 
 /// The outcome of one refresh operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CloudflareRouterTenantRootRefreshResultV1 {
+pub(crate) enum CloudflareRouterTenantRootRefreshResultV1 {
     Completed(CloudflareRouterTenantRootRefreshResponseV1),
     /// The operation's attempt missed its ceremony window before the Router
     /// committed it, or its authorization expired while it held no attempt.
@@ -159,7 +159,7 @@ pub enum CloudflareRouterTenantRootRefreshResultV1 {
 
 impl CloudflareRouterTenantRootRefreshResultV1 {
     /// The HTTP status and JSON body every host answers this outcome with.
-    pub fn http_status_and_body(&self) -> (u16, serde_json::Value) {
+    pub(crate) fn http_status_and_body(&self) -> (u16, serde_json::Value) {
         match self {
             Self::Completed(response) => (
                 200,
@@ -207,7 +207,7 @@ impl CloudflareRouterTenantRootRefreshResultV1 {
 
 /// Drives one refresh operation to a committed, delivered receipt, or reports
 /// why it cannot proceed.
-pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: CloudflareRouterTenantRootRefreshRequestV1,
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRefreshResultV1> {
@@ -412,46 +412,6 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
     )
     .await?;
     Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(completed))
-}
-
-/// Offers one root its scheduled refresh. A scheduled operation the Router has
-/// admitted and not finished is resumed under its own id, so a restarted
-/// scheduler continues the refresh it began; otherwise one starts under
-/// `fresh_operation_id`, and the admission answers "not due" until the root's
-/// schedule says otherwise. Each offer also abandons refresh work that can no
-/// longer finish.
-pub async fn tenant_root_router_scheduled_refresh_v1<Host: TenantRootRouterCreationHostV1>(
-    host: &Host,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    fresh_operation_id: String,
-    now_ms: u64,
-) -> RouterAbProtocolResult<CloudflareRouterTenantRootRefreshResultV1> {
-    let active = tenant_root_creation_active_state_with_revision_read_call_v1(
-        host,
-        &host.trusted_issuer_keys()?,
-        identity_digest,
-        custody_lineage,
-    )
-    .await?;
-    let (operation_id, expected_lifecycle_revision) = match &active.refresh_pending {
-        Some(pending) if pending.trigger == CloudflareTenantRootRefreshTriggerV1::Scheduled => {
-            (pending.operation_id.clone(), pending.lifecycle_revision)
-        }
-        _ => (fresh_operation_id, active.lifecycle_revision),
-    };
-    tenant_root_router_coordinate_refresh_v1(
-        host,
-        CloudflareRouterTenantRootRefreshRequestV1 {
-            operation_id,
-            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
-            custody_lineage_b64u: custody_lineage.to_base64url(),
-            expected_lifecycle_revision,
-            expires_at_ms: now_ms.saturating_add(router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1),
-            trigger: CloudflareTenantRootRefreshTriggerV1::Scheduled,
-        },
-    )
-    .await
 }
 
 /// Executes one role's refresh, retrying once. The Deriver's durable
@@ -898,7 +858,7 @@ pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouter
 /// activated is delivered first. If a Deriver cannot be reached, the caller gets
 /// `LifecycleTransitionInProgress` and can retry, so no custody binding is
 /// issued for an epoch a Deriver has not activated.
-pub async fn tenant_root_router_admission_receipt_v1<Host: TenantRootRouterCreationHostV1>(
+pub(crate) async fn tenant_root_router_admission_receipt_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,

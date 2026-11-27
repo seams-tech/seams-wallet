@@ -22,18 +22,18 @@ const RECEIPT_DOMAIN_V1: &str = "seams/rotatable-signing-lanes/ed25519-retiremen
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareSigningWorkerEd25519LaneRetireRequestV1 {
+pub(crate) struct CloudflareSigningWorkerEd25519LaneRetireRequestV1 {
     pub identity: CloudflareSigningWorkerLaneMaterialIdentityV1,
     pub revocation_epoch: u64,
     pub retirement_reason: String,
     pub retirement_correlation_id: String,
     pub retirement_request_digest_b64u: String,
-    pub retirement_effect_binding_digest_b64u: String,
+    pub(crate) retirement_effect_binding_digest_b64u: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Ed25519ServerRetirementReceiptV1 {
+pub(crate) struct Ed25519ServerRetirementReceiptV1 {
     pub kind: String,
     pub identity: CloudflareSigningWorkerLaneMaterialIdentityV1,
     pub revocation_epoch: u64,
@@ -51,7 +51,7 @@ pub struct Ed25519ServerRetirementReceiptV1 {
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
-pub enum CloudflareSigningWorkerEd25519LaneRetireEffectV1 {
+pub(crate) enum CloudflareSigningWorkerEd25519LaneRetireEffectV1 {
     Applied {
         receipt: Ed25519ServerRetirementReceiptV1,
     },
@@ -262,7 +262,7 @@ fn retirement_artifact(
     )
 }
 
-pub async fn retire_cloudflare_signing_worker_ed25519_lane_v1(
+pub(crate) async fn retire_cloudflare_signing_worker_ed25519_lane_v1(
     env: &Env,
     request: &CloudflareSigningWorkerEd25519LaneRetireRequestV1,
     retired_at_ms: u64,

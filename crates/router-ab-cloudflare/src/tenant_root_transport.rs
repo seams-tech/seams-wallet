@@ -73,8 +73,8 @@ pub enum TenantRootServiceTargetV1 {
 /// Size bounds a call enforces on its serialized request and its response.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TenantRootCallBoundsV1 {
-    pub request_max_bytes: usize,
-    pub response_max_bytes: usize,
+    pub(crate) request_max_bytes: usize,
+    pub(crate) response_max_bytes: usize,
 }
 
 /// Sends one tenant-root private call with the role-shared service credential.
@@ -94,7 +94,7 @@ pub trait TenantRootServiceTransportV1 {
 
 /// Asks the control plane to verify a creation grant and start, or report, its
 /// creation journal.
-pub async fn tenant_root_control_plane_create_tenant_root_call_v1(
+pub(crate) async fn tenant_root_control_plane_create_tenant_root_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     request: &CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
@@ -110,7 +110,7 @@ pub async fn tenant_root_control_plane_create_tenant_root_call_v1(
 }
 
 /// Requests one Deriver's issuer-signed role-creation command.
-pub async fn tenant_root_control_plane_role_creation_command_call_v1(
+pub(crate) async fn tenant_root_control_plane_role_creation_command_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     request: &CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1> {
@@ -133,7 +133,7 @@ pub async fn tenant_root_control_plane_role_creation_command_call_v1(
 }
 
 /// Requests the issuer-signed initial activation receipt for one creation.
-pub async fn tenant_root_control_plane_initial_activation_call_v1(
+pub(crate) async fn tenant_root_control_plane_initial_activation_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     request: &CloudflareTenantRootControlPlaneInitialActivationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1> {
@@ -154,7 +154,7 @@ pub async fn tenant_root_control_plane_initial_activation_call_v1(
 }
 
 /// Requests one issuer-signed role cleanup command from the control plane.
-pub async fn tenant_root_control_plane_cleanup_command_call_v1(
+pub(crate) async fn tenant_root_control_plane_cleanup_command_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     request: &CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
@@ -171,7 +171,7 @@ pub async fn tenant_root_control_plane_cleanup_command_call_v1(
 
 /// Sends one authorized role-share cleanup to its owning Deriver and checks
 /// the Deriver's role.
-pub async fn tenant_root_deriver_cleanup_call_v1(
+pub(crate) async fn tenant_root_deriver_cleanup_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootCleanupRequestV1,
@@ -196,7 +196,7 @@ pub async fn tenant_root_deriver_cleanup_call_v1(
 
 /// Reads back one Deriver's stored activation evidence for its pending initial
 /// share.
-pub async fn tenant_root_deriver_creation_evidence_call_v1(
+pub(crate) async fn tenant_root_deriver_creation_evidence_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootCreationEvidenceRequestV1,
@@ -220,7 +220,7 @@ pub async fn tenant_root_deriver_creation_evidence_call_v1(
 }
 
 /// Asks one Deriver to create, or complete, its tenant-root role share.
-pub async fn tenant_root_deriver_create_role_share_call_v1(
+pub(crate) async fn tenant_root_deriver_create_role_share_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootCreateRoleShareRequestV1,
@@ -238,7 +238,7 @@ pub async fn tenant_root_deriver_create_role_share_call_v1(
 
 /// Sends one initial activation receipt to its owning Deriver and checks the
 /// Deriver's role and terminal receipt.
-pub async fn tenant_root_deriver_initial_activation_call_v1(
+pub(crate) async fn tenant_root_deriver_initial_activation_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootInitialActivationRequestV1,
@@ -268,7 +268,7 @@ pub async fn tenant_root_deriver_initial_activation_call_v1(
 }
 
 /// Requests both issuer-signed role commands for one tenant-root refresh.
-pub async fn tenant_root_control_plane_refresh_commands_call_v1(
+pub(crate) async fn tenant_root_control_plane_refresh_commands_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     request: &CloudflareTenantRootControlPlaneRefreshCommandsRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRefreshCommandsResponseV1> {
@@ -285,7 +285,7 @@ pub async fn tenant_root_control_plane_refresh_commands_call_v1(
 
 /// Requests an issuer-signed refresh activation receipt for exact public
 /// artifacts.
-pub async fn tenant_root_control_plane_refresh_activation_call_v1(
+pub(crate) async fn tenant_root_control_plane_refresh_activation_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     request: &CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1> {
@@ -302,7 +302,7 @@ pub async fn tenant_root_control_plane_refresh_activation_call_v1(
 
 /// Executes one role-local tenant-root refresh at its owning Deriver and
 /// checks the Deriver's role.
-pub async fn tenant_root_deriver_refresh_call_v1(
+pub(crate) async fn tenant_root_deriver_refresh_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootRefreshRequestV1,
@@ -328,7 +328,7 @@ pub async fn tenant_root_deriver_refresh_call_v1(
 /// Stages one issuer-authorized managed restore at the unavailable Deriver: its
 /// share comes back from its managed backup as a pending row, not yet active.
 /// Checks the Deriver staged exactly this restore's capability and completed.
-pub async fn tenant_root_deriver_managed_restore_call_v1(
+pub(crate) async fn tenant_root_deriver_managed_restore_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootManagedRestoreRequestV1,
@@ -381,7 +381,7 @@ pub async fn tenant_root_deriver_managed_restore_call_v1(
 
 /// Executes the forward refresh of a restored role share at its Deriver and
 /// checks the Deriver's role.
-pub async fn tenant_root_deriver_managed_restore_forward_refresh_call_v1(
+pub(crate) async fn tenant_root_deriver_managed_restore_forward_refresh_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1,
@@ -405,7 +405,7 @@ pub async fn tenant_root_deriver_managed_restore_forward_refresh_call_v1(
 }
 
 /// Sends one exact committed refresh-swap receipt to its owning Deriver.
-pub async fn tenant_root_deriver_refresh_activation_call_v1(
+pub(crate) async fn tenant_root_deriver_refresh_activation_call_v1(
     transport: &impl TenantRootServiceTransportV1,
     role: TwoPartyDeriverRole,
     request: &CloudflareDeriverTenantRootRefreshActivationRequestV1,

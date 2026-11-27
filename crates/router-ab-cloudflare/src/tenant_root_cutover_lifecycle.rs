@@ -124,7 +124,7 @@ impl TenantRootCutoverPrerequisitesV1 {
     }
 
     /// Returns the verifier-committed Phase 0 `approval_payload_sha256`.
-    pub const fn phase0_selection_record_digest(&self) -> &[u8; 32] {
+    pub(crate) const fn phase0_selection_record_digest(&self) -> &[u8; 32] {
         &self.phase0_selection_record_digest
     }
 }

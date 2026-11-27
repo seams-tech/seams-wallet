@@ -43,7 +43,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
     }
 
     /// Creates a request with the Gateway-admitted source branch.
-    pub fn new_with_material_source(
+    pub(crate) fn new_with_material_source(
         ownership_generation: u64,
         wallet_scope: CloudflareSigningWorkerWalletScopeV1,
         scope: NormalSigningScopeV1,
@@ -183,7 +183,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
     }
 
     /// Creates a finalize request with the Gateway-admitted source branch.
-    pub fn new_with_material_source(
+    pub(crate) fn new_with_material_source(
         ownership_generation: u64,
         wallet_scope: CloudflareSigningWorkerWalletScopeV1,
         request: RouterAbEd25519NormalSigningFinalizeRequestV2,

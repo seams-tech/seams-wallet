@@ -35,7 +35,7 @@ const MAX_SEALED_COMPLETION_BYTES: usize = 1_048_576;
 
 /// Fixed Yao circuit family selected before the WebSocket upgrade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CloudflareEd25519YaoCircuitV1 {
+pub(crate) enum CloudflareEd25519YaoCircuitV1 {
     /// Registration, recovery, and refresh activation circuit.
     Activation,
     /// Explicit Ed25519 seed export circuit.
@@ -65,7 +65,7 @@ impl CloudflareEd25519YaoCircuitV1 {
 
 /// Exact session and circuit identity authenticated by the WebSocket protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CloudflareEd25519YaoWebSocketBindingV1 {
+pub(crate) struct CloudflareEd25519YaoWebSocketBindingV1 {
     /// Fixed circuit selected for this ceremony.
     pub circuit: CloudflareEd25519YaoCircuitV1,
     /// Non-zero Router-admitted ceremony session.
@@ -76,7 +76,7 @@ pub struct CloudflareEd25519YaoWebSocketBindingV1 {
 
 impl CloudflareEd25519YaoWebSocketBindingV1 {
     /// Creates a protocol binding bound to one canonical A/B input pair.
-    pub fn with_pair_digest(
+    pub(crate) fn with_pair_digest(
         circuit: CloudflareEd25519YaoCircuitV1,
         session: [u8; 32],
         pair_digest: [u8; 32],
@@ -102,7 +102,7 @@ impl CloudflareEd25519YaoWebSocketBindingV1 {
     }
 
     /// Parses and validates one WebSocket subprotocol token.
-    pub fn parse_protocol(protocol: &str) -> Result<Self, CloudflareEd25519YaoWebSocketErrorV1> {
+    pub(crate) fn parse_protocol(protocol: &str) -> Result<Self, CloudflareEd25519YaoWebSocketErrorV1> {
         let mut parts = protocol.split('.');
         let prefix = parts
             .next()
@@ -155,7 +155,7 @@ impl fmt::Display for CloudflareEd25519YaoWebSocketErrorV1 {
 /// Clean WebSocket teardown evidence.
 pub struct CloudflareEd25519YaoWebSocketCompletionV1 {
     /// Opaque peer-sealed execution delivered after authenticated protocol EOF.
-    pub peer_sealed_completion: Option<Vec<u8>>,
+    pub(crate) peer_sealed_completion: Option<Vec<u8>>,
 }
 
 impl YaoTransportCompletion for CloudflareEd25519YaoWebSocketCompletionV1 {}
@@ -174,13 +174,13 @@ pub(crate) struct CloudflareDeriverBPairStartScopeV1 {
 /// Pair-bound WebSocket connection. Deriver B upgrades only after it durably
 /// entered Running for the exact execution, so an open connection is B's
 /// claim.
-pub struct CloudflareEd25519YaoPairStartConnectionV1 {
+pub(crate) struct CloudflareEd25519YaoPairStartConnectionV1 {
     /// Upgraded directional socket.
     pub socket: WebSocket,
 }
 
 /// Why a pair connection did not open.
-pub enum CloudflareEd25519YaoPairStartErrorV1 {
+pub(crate) enum CloudflareEd25519YaoPairStartErrorV1 {
     /// Deriver B answered that it holds no claim for this execution.
     Refused(CloudflareEd25519YaoPairStartRefusalV1),
     /// The connection failed without that answer: Deriver B may hold a claim.
@@ -417,7 +417,7 @@ impl<'socket> CloudflareEd25519YaoWebSocketTransportV1<'socket> {
     }
 
     /// Sends A's encrypted target proof and receives B's proof before Yao starts.
-    pub async fn exchange_deriver_a_target_proof_preface_v2(
+    pub(crate) async fn exchange_deriver_a_target_proof_preface_v2(
         &mut self,
         payload: &Ed25519YaoDeriverAToBTargetProofPayloadV2,
     ) -> Result<Ed25519YaoDeriverBToATargetProofPayloadV2, CloudflareEd25519YaoWebSocketErrorV1>
@@ -441,7 +441,7 @@ impl<'socket> CloudflareEd25519YaoWebSocketTransportV1<'socket> {
     }
 
     /// Sends B's encrypted target proof and receives A's proof before Yao starts.
-    pub async fn exchange_deriver_b_target_proof_preface_v2(
+    pub(crate) async fn exchange_deriver_b_target_proof_preface_v2(
         &mut self,
         payload: &Ed25519YaoDeriverBToATargetProofPayloadV2,
     ) -> Result<Ed25519YaoDeriverAToBTargetProofPayloadV2, CloudflareEd25519YaoWebSocketErrorV1>
@@ -488,7 +488,7 @@ impl<'socket> CloudflareEd25519YaoWebSocketTransportV1<'socket> {
     }
 
     /// Delivers B's durably committed sealed result before closing the socket.
-    pub async fn finish_with_local_sealed_completion(
+    pub(crate) async fn finish_with_local_sealed_completion(
         self,
         sealed_completion: &[u8],
     ) -> Result<CloudflareEd25519YaoWebSocketCompletionV1, CloudflareEd25519YaoWebSocketErrorV1>

@@ -21,11 +21,11 @@ use crate::{
 
 /// Header the Gateway sets when it re-dispatches an execution it may already
 /// have sent; only then does the Router reconcile a prior run first.
-pub const ROUTER_ED25519_YAO_REPLAY_HEADER_V1: &str = "x-seams-yao-replay";
+pub(crate) const ROUTER_ED25519_YAO_REPLAY_HEADER_V1: &str = "x-seams-yao-replay";
 
 /// Parses the Gateway replay header: absent or `0` is a first dispatch, `1` a
 /// replay, anything else a malformed request.
-pub fn parse_router_ed25519_yao_replay_header_v1(
+pub(crate) fn parse_router_ed25519_yao_replay_header_v1(
     value: Option<&str>,
 ) -> RouterAbProtocolResult<bool> {
     match value {
@@ -40,7 +40,7 @@ pub fn parse_router_ed25519_yao_replay_header_v1(
 
 /// Checks that one role's execution belongs to the admitted ceremony session
 /// and, when given, carries the other role's transcript.
-pub fn validate_router_ed25519_yao_role_execution_v1(
+pub(crate) fn validate_router_ed25519_yao_role_execution_v1(
     execution: &Ed25519YaoRoleExecutionV1,
     role: Ed25519YaoDeriverRoleV1,
     binding: &Ed25519YaoCeremonyBindingV1,
@@ -74,7 +74,7 @@ pub fn validate_router_ed25519_yao_role_execution_v1(
     Ok(())
 }
 
-pub fn ed25519_yao_role_execution_transcript_v1(execution: &Ed25519YaoRoleExecutionV1) -> [u8; 32] {
+pub(crate) fn ed25519_yao_role_execution_transcript_v1(execution: &Ed25519YaoRoleExecutionV1) -> [u8; 32] {
     match execution {
         Ed25519YaoRoleExecutionV1::Activation(value) => value.transcript,
         Ed25519YaoRoleExecutionV1::Export(value) => value.transcript,
@@ -82,7 +82,7 @@ pub fn ed25519_yao_role_execution_transcript_v1(execution: &Ed25519YaoRoleExecut
     }
 }
 
-pub fn ed25519_yao_activation_role_execution_v1(
+pub(crate) fn ed25519_yao_activation_role_execution_v1(
     execution: &Ed25519YaoRoleExecutionV1,
 ) -> RouterAbProtocolResult<&Ed25519YaoActivationRoleExecutionV1> {
     match execution {
@@ -96,7 +96,7 @@ pub fn ed25519_yao_activation_role_execution_v1(
     }
 }
 
-pub fn ed25519_yao_export_role_execution_v1(
+pub(crate) fn ed25519_yao_export_role_execution_v1(
     execution: &Ed25519YaoRoleExecutionV1,
 ) -> RouterAbProtocolResult<&Ed25519YaoExportRoleExecutionV1> {
     match execution {
@@ -110,7 +110,7 @@ pub fn ed25519_yao_export_role_execution_v1(
     }
 }
 
-pub fn ed25519_yao_lane_role_execution_v1(
+pub(crate) fn ed25519_yao_lane_role_execution_v1(
     execution: &Ed25519YaoRoleExecutionV1,
 ) -> RouterAbProtocolResult<&Ed25519YaoLaneRoleExecutionV1> {
     match execution {
@@ -134,7 +134,7 @@ fn invalid_check(message: &str) -> RouterAbProtocolError {
 /// ceremony or invoking lifecycle activation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1 {
+pub(crate) struct CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1 {
     pub source_binding: Ed25519YaoCeremonyBindingV1,
     pub target: CloudflareRouterEd25519YaoExecuteRequestV2,
 }
@@ -203,7 +203,7 @@ pub(crate) fn validate_source_preserving_participant_ids_v1(
 
 /// Checks a SigningWorker's linked-device reservation against the target
 /// the Router executed: every host's Router accepts the same answers.
-pub fn validate_source_preserving_reservation_response_v1(
+pub(crate) fn validate_source_preserving_reservation_response_v1(
     response: &CloudflareEd25519YaoInactiveReservationResponseV1,
     target_binding: &Ed25519YaoCeremonyBindingV1,
     participant_ids: [u16; 2],

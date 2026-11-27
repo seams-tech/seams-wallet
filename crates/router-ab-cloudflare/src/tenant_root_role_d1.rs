@@ -182,7 +182,7 @@ pub const TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1: &str =
 /// that object reports the pair completed. Bound to the exact object and
 /// attempt; replaying it changes nothing. Parameters: the role, the attempt
 /// kind, the attempt key and the object's name.
-pub const TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1: &str =
+pub(crate) const TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1: &str =
     "UPDATE tenant_root_root_use_admissions \
     SET status = 'settled' WHERE role = $1 AND attempt_kind = $2 AND attempt_key_hex = $3 \
     AND pair_object_id = $4 AND status IN ('admitted', 'claimed')";
@@ -597,7 +597,7 @@ impl CloudflareTenantRootDeriverRoleV1 {
 /// Ciphertext returned by the role's epoch wrapping-key provider.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootSealedRoleShareV1 {
+pub(crate) struct CloudflareTenantRootSealedRoleShareV1 {
     ciphertext_b64u: String,
     ciphertext_digest_hex: String,
 }
@@ -622,7 +622,7 @@ impl CloudflareTenantRootSealedRoleShareV1 {
     }
 
     /// Returns the public digest of the exact sealed ciphertext.
-    pub fn ciphertext_digest_hex(&self) -> &str {
+    pub(crate) fn ciphertext_digest_hex(&self) -> &str {
         &self.ciphertext_digest_hex
     }
 
@@ -675,7 +675,7 @@ enum CloudflareTenantRootPendingShareOriginV1 {
 /// Pending role-local tenant-root installation evidence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootPendingShareV1 {
+pub(crate) struct CloudflareTenantRootPendingShareV1 {
     installation_evidence_digest: TenantRootLifecycleReceiptDigestV1,
     staged_at_ms: u64,
     origin: CloudflareTenantRootPendingShareOriginV1,
@@ -804,7 +804,7 @@ fn require_pending_activation_source(
 
 /// Exact availability evidence accepted before a role share may activate.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CloudflareTenantRootAvailabilityEvidenceV1 {
+pub(crate) enum CloudflareTenantRootAvailabilityEvidenceV1 {
     /// The owning role durably stored its independently encrypted current backup.
     CurrentRoleBackup {
         /// Digest of the role-signed backup receipt.
@@ -1010,7 +1010,7 @@ impl CloudflareTenantRootActivationV1 {
     }
 
     /// Creates one activation backed by a tenant-held external restore set.
-    pub fn with_tenant_held_external(
+    pub(crate) fn with_tenant_held_external(
         record: &CloudflareTenantRootRoleShareRecordV1,
         activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
     ) -> RoleStoreResult<Self> {
@@ -1045,7 +1045,7 @@ impl CloudflareTenantRootActivationV1 {
     }
 
     /// Creates one activation backed by a verified dual-authority loss authorization.
-    pub fn with_accepted_permanent_derivation_loss(
+    pub(crate) fn with_accepted_permanent_derivation_loss(
         record: &CloudflareTenantRootRoleShareRecordV1,
         activation_receipt: VerifiedTenantRootSignedActivationReceiptV1,
     ) -> RoleStoreResult<Self> {
@@ -1333,7 +1333,7 @@ impl CloudflareTenantRootRoleShareLifecycleV1 {
 }
 
 /// Required fields for one role-private tenant-root share record.
-pub struct CloudflareTenantRootRoleShareRecordInputV1 {
+pub(crate) struct CloudflareTenantRootRoleShareRecordInputV1 {
     /// Server-resolved logical root identity.
     pub identity: TenantRootIdentityV1,
     /// Random custody lineage for this physical share pair.
@@ -1343,7 +1343,7 @@ pub struct CloudflareTenantRootRoleShareRecordInputV1 {
     /// Exact Deriver role owning the record.
     pub role: CloudflareTenantRootDeriverRoleV1,
     /// Epoch-provider ciphertext containing one canonical role share.
-    pub sealed_share: CloudflareTenantRootSealedRoleShareV1,
+    pub(crate) sealed_share: CloudflareTenantRootSealedRoleShareV1,
     /// Public commitment to the sealed role share.
     pub share_commitment: MpcPrfShareCommitmentWireV1,
     /// Opaque external key-version reference needed to open the sealed share.
@@ -1412,7 +1412,7 @@ impl CloudflareTenantRootRoleShareRecordV1 {
     }
 
     /// Returns the epoch-provider sealed share ciphertext.
-    pub const fn sealed_share(&self) -> &CloudflareTenantRootSealedRoleShareV1 {
+    pub(crate) const fn sealed_share(&self) -> &CloudflareTenantRootSealedRoleShareV1 {
         &self.sealed_share
     }
 
@@ -1670,7 +1670,7 @@ impl CloudflareStoredTenantRootRoleShareV1 {
     }
 
     /// Reconstructs the opaque provider artifact from one validated active D1 record.
-    pub fn into_online_role_share_artifact(
+    pub(crate) fn into_online_role_share_artifact(
         self,
     ) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
         validate_active_stored_record_shape(&self)?;
@@ -1855,7 +1855,7 @@ impl CloudflareTenantRootActiveRoleShareV1 {
     /// Pair resolution consumes only this. A Deriver never receives its peer's
     /// opened record, so assembling a pair cannot move sealed share material
     /// across the role boundary.
-    pub fn public_resolution(&self) -> RoleStoreResult<TenantRootActiveRoleResolutionV1> {
+    pub(crate) fn public_resolution(&self) -> RoleStoreResult<TenantRootActiveRoleResolutionV1> {
         match self {
             Self::Unprovisioned => Ok(TenantRootActiveRoleResolutionV1::Unprovisioned),
             Self::Active(stored) => Ok(TenantRootActiveRoleResolutionV1::Active(
@@ -1874,7 +1874,7 @@ impl CloudflareTenantRootActiveRoleShareV1 {
 /// halves meet for reconciliation. This intentionally does not authorize
 /// derivation; callers that need a usable pair must supply the authority-derived
 /// custody binding through `cloudflare_resolve_active_tenant_root_pair_v1`.
-pub fn cloudflare_observe_active_tenant_root_pair_v1(
+pub(crate) fn cloudflare_observe_active_tenant_root_pair_v1(
     identity: &TenantRootIdentityV1,
     deriver_a: &CloudflareTenantRootActiveRoleShareV1,
     deriver_b: &CloudflareTenantRootActiveRoleShareV1,
@@ -1893,7 +1893,7 @@ pub fn cloudflare_observe_active_tenant_root_pair_v1(
 /// The custody binding supplies the authenticated identity, lineage, epoch,
 /// commitments, root commitment, and activation receipt expected from both
 /// private stores. An observed pair is never sufficient for derivation.
-pub fn cloudflare_resolve_active_tenant_root_pair_v1(
+pub(crate) fn cloudflare_resolve_active_tenant_root_pair_v1(
     custody_binding: &TenantRootCustodyBindingV1,
     deriver_a: &CloudflareTenantRootActiveRoleShareV1,
     deriver_b: &CloudflareTenantRootActiveRoleShareV1,
@@ -1914,7 +1914,7 @@ pub fn cloudflare_resolve_active_tenant_root_pair_v1(
 ///
 /// Reconciliation calls `cloudflare_observe_active_tenant_root_pair_v1` instead
 /// so it can observe an unsafe state without deriving from it.
-pub fn cloudflare_require_active_tenant_root_pair_v1(
+pub(crate) fn cloudflare_require_active_tenant_root_pair_v1(
     custody_binding: &TenantRootCustodyBindingV1,
     deriver_a: &CloudflareTenantRootActiveRoleShareV1,
     deriver_b: &CloudflareTenantRootActiveRoleShareV1,
@@ -5627,7 +5627,7 @@ impl TenantRootCommandAdmissionV1 {
 
 /// Durable role-local decision for one exact tenant-root command retry.
 #[derive(Debug, PartialEq, Eq)]
-pub enum CloudflareTenantRootCommandReplayDecisionV1 {
+pub(crate) enum CloudflareTenantRootCommandReplayDecisionV1 {
     /// The caller owns the newly persisted reservation and may execute once.
     Execute {
         /// Exact reservation required to commit a terminal receipt.
@@ -5662,7 +5662,7 @@ pub enum CloudflareTenantRootCommandReplayDecisionV1 {
 /// Fields remain private so a caller cannot forge the reserved operation or
 /// substitute a different local row after reservation.
 #[derive(Debug, PartialEq, Eq)]
-pub struct CloudflareTenantRootInsertPendingCommandV1 {
+pub(crate) struct CloudflareTenantRootInsertPendingCommandV1 {
     scope: TenantRootCommandScopeV1,
     reservation: ReservedTenantRootCommandV1,
     record: CloudflareTenantRootRoleShareRecordV1,
@@ -6107,7 +6107,7 @@ pub(crate) enum CloudflareTenantRootInitialCreationPersistenceOutcomeV1 {
 
 /// Executable initial-activation command issued by the role's control plane.
 #[derive(Debug, PartialEq, Eq)]
-pub struct CloudflareTenantRootActivateInitialPendingCommandV1 {
+pub(crate) struct CloudflareTenantRootActivateInitialPendingCommandV1 {
     scope: TenantRootCommandScopeV1,
     reservation: ReservedTenantRootCommandV1,
     pending: CloudflareStoredTenantRootRoleShareV1,
@@ -6132,7 +6132,7 @@ pub struct CloudflareTenantRootSwapActiveEpochCommandV1 {
 
 /// Executable pending-cleanup command issued by the role's control plane.
 #[derive(Debug, PartialEq, Eq)]
-pub struct CloudflareTenantRootCleanupPendingCommandV1 {
+pub(crate) struct CloudflareTenantRootCleanupPendingCommandV1 {
     scope: TenantRootCommandScopeV1,
     reservation: ReservedTenantRootCommandV1,
     pending: CloudflareStoredTenantRootRoleShareV1,
@@ -6249,7 +6249,7 @@ pub enum CloudflareTenantRootSwapActiveEpochDecisionV1 {
 
 /// Durable decision for one pending-cleanup command reservation.
 #[derive(Debug, PartialEq, Eq)]
-pub enum CloudflareTenantRootCleanupPendingDecisionV1 {
+pub(crate) enum CloudflareTenantRootCleanupPendingDecisionV1 {
     /// The caller owns the newly reserved command and may execute it once.
     Execute {
         command: CloudflareTenantRootCleanupPendingCommandV1,
@@ -6324,7 +6324,7 @@ pub(crate) enum CloudflareTenantRootAuthorizedCleanupDecisionV1 {
 
 /// Result of persisting one terminal tenant-root command receipt.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CloudflareTenantRootCommandTerminalCommitV1 {
+pub(crate) enum CloudflareTenantRootCommandTerminalCommitV1 {
     /// This call committed the terminal receipt.
     Committed {
         /// Exact committed signed public receipt bytes.
@@ -6428,7 +6428,7 @@ pub struct TenantRootRoleShareStoreV1<S: RoleSqlSessionV1> {
 
 /// The role store over the Deriver's role-private D1 database.
 #[cfg(feature = "workers-rs")]
-pub type CloudflareTenantRootRoleShareStoreV1 = TenantRootRoleShareStoreV1<D1RoleSqlSessionV1>;
+pub(crate) type CloudflareTenantRootRoleShareStoreV1 = TenantRootRoleShareStoreV1<D1RoleSqlSessionV1>;
 
 /// Role-local restore input that retains only the verified capability and the
 /// pending record metadata. The opened backup share is consumed while the
@@ -6672,17 +6672,6 @@ pub struct TenantRootRoleStoreKeyConfigV1 {
 }
 
 impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
-    /// A store over any role-private SQL session whose record key is read
-    /// from the role's Env and Secret bindings, as a Cloudflare Deriver reads it.
-    pub fn from_env_reader(
-        session: S,
-        env: &(impl crate::CloudflareEnvReaderV1 + crate::CloudflareSecretReaderV1),
-    ) -> RoleStoreResult<Self> {
-        Ok(Self {
-            session,
-            cipher: TenantRootRoleD1CipherV1::from_env_reader(env)?,
-        })
-    }
 
     /// A store over any role-private SQL session, sealing with this role's
     /// record key.
@@ -6701,7 +6690,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
 #[cfg(feature = "workers-rs")]
 impl CloudflareTenantRootRoleShareStoreV1 {
     /// Resolves the private D1 binding and role-local record cipher per request.
-    pub fn from_env(env: &Env) -> RoleStoreResult<Self> {
+    pub(crate) fn from_env(env: &Env) -> RoleStoreResult<Self> {
         let database = env.d1(ROLE_PRIVATE_D1_BINDING).map_err(|error| {
             store_error(format!(
                 "role-private D1 binding {ROLE_PRIVATE_D1_BINDING} is unavailable: {error}"

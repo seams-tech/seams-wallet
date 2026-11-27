@@ -13,12 +13,12 @@ use crate::hpke::{
 use hpke_ng::Kem;
 use serde::de::DeserializeOwned;
 
-pub const SIGNING_WORKER_PRIVATE_D1_KEK_SECRET_V1: &str = "SIGNING_WORKER_PRIVATE_D1_KEK";
-pub const SIGNING_WORKER_PRIVATE_D1_KEK_VERSION_ENV_V1: &str =
+pub(crate) const SIGNING_WORKER_PRIVATE_D1_KEK_SECRET_V1: &str = "SIGNING_WORKER_PRIVATE_D1_KEK";
+pub(crate) const SIGNING_WORKER_PRIVATE_D1_KEK_VERSION_ENV_V1: &str =
     "SIGNING_WORKER_PRIVATE_D1_KEK_VERSION";
-pub const SIGNING_WORKER_PRIVATE_D1_KEK_PUBLIC_KEY_ENV_V1: &str =
+pub(crate) const SIGNING_WORKER_PRIVATE_D1_KEK_PUBLIC_KEY_ENV_V1: &str =
     "SIGNING_WORKER_PRIVATE_D1_KEK_PUBLIC_KEY";
-pub const SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT_ENV_V1: &str =
+pub(crate) const SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT_ENV_V1: &str =
     "SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT";
 const SIGNING_WORKER_PRIVATE_D1_HPKE_INFO_V1: &[u8] = b"seams/signing-worker/private-d1/hpke/v1";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
@@ -235,12 +235,12 @@ fn decode_json<T: DeserializeOwned>(label: &'static str, value: &str) -> RouterA
         .map_err(|error| d1_error(format!("{label} decoding failed: {error}")))
 }
 
-pub const SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1: &str =
+pub(crate) const SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1: &str =
     "/router-ab/signing-worker/wallet/relocation-context";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SigningWorkerRelocationContextRequestV1 {}
+pub(crate) struct SigningWorkerRelocationContextRequestV1 {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -142,7 +142,7 @@ where
 }
 
 /// Admits one Gateway-verified operation step-up ECDSA prepare at the Router.
-pub fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_prepare_v1(
+pub(crate) fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_prepare_v1(
     admission: &CloudflareRouterAdmissionBindingsV1,
     now_unix_ms: u64,
     request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
@@ -184,7 +184,7 @@ pub fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_prepare_v1
 
 /// Admits one Gateway-verified operation step-up ECDSA finalize at the
 /// Router, with the effect claim the SigningWorker records before it signs.
-pub fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_finalize_v1(
+pub(crate) fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_finalize_v1(
     admission: &CloudflareRouterAdmissionBindingsV1,
     now_unix_ms: u64,
     request: RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
@@ -299,22 +299,6 @@ pub fn prepare_signing_worker_wallet_ecdsa_from_pool_v1<Sql: SigningWorkerWallet
     Ok(CloudflareEcdsaPrepareResponseV1::AvailablePool(
         prepared.response,
     ))
-}
-
-/// Decodes one stored terminal response and checks it answers `request`.
-pub fn signing_worker_ecdsa_stored_terminal_response_v1(
-    terminal_json: &str,
-    request: &RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
-) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningResponseV1> {
-    let response: RouterAbEcdsaDerivationEvmDigestSigningResponseV1 =
-        serde_json::from_str(terminal_json).map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("SigningWorker ECDSA terminal response JSON is invalid: {error}"),
-            )
-        })?;
-    response.validate_for_request(request)?;
-    Ok(response)
 }
 
 impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {

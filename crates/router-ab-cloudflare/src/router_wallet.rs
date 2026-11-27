@@ -35,13 +35,13 @@ use crate::CloudflareRouterEd25519YaoExecuteRequestV2;
 /// How long a claim holds a registration's execution before a retry may take
 /// it over and replay the run, unless `ROUTER_YAO_REGISTRATION_LEASE_MS` sets
 /// it.
-pub const ROUTER_WALLET_REGISTRATION_LEASE_MS_V1: u64 = 10_000;
+pub(crate) const ROUTER_WALLET_REGISTRATION_LEASE_MS_V1: u64 = 10_000;
 const ROUTER_YAO_REGISTRATION_LEASE_MS_ENV_V1: &str = "ROUTER_YAO_REGISTRATION_LEASE_MS";
 
 /// The Router's registration lease: `ROUTER_YAO_REGISTRATION_LEASE_MS`, ten
 /// seconds by default and at least one second. A run normally finishes well
 /// within it; it bounds how long a run cut short keeps a retry waiting.
-pub fn parse_router_yao_registration_lease_ms_v1(
+pub(crate) fn parse_router_yao_registration_lease_ms_v1(
     reader: &impl crate::CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<u64> {
     match reader.get_text(ROUTER_YAO_REGISTRATION_LEASE_MS_ENV_V1)? {
@@ -61,7 +61,7 @@ pub fn parse_router_yao_registration_lease_ms_v1(
 
 /// Private Router endpoint: consume one completed registration's activation
 /// for one finalization.
-pub const CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH: &str =
+pub(crate) const CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/router/ed25519-yao/registration/consume";
 
 pub(crate) const OWNER_KEY: &str = "owner";
@@ -70,7 +70,7 @@ pub(crate) const REGISTRATION_KEY_PREFIX: &str = "yao-registration/";
 /// The wallet one Router wallet object belongs to.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RouterWalletOwnerV1 {
+pub(crate) struct RouterWalletOwnerV1 {
     pub org_id: String,
     pub project_id: String,
     pub env_id: String,
@@ -108,7 +108,7 @@ impl RouterWalletOwnerV1 {
 /// wallet, its lifecycle, the digest that makes a retry exact, and the
 /// request itself, which consumption returns.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RouterWalletRegistrationV1 {
+pub(crate) struct RouterWalletRegistrationV1 {
     pub ownership_generation: u64,
     pub owner: RouterWalletOwnerV1,
     pub lifecycle_id: String,
@@ -120,7 +120,7 @@ impl RouterWalletRegistrationV1 {
     /// The registration a Gateway execute request names, or `None` for
     /// another operation. The digest covers the whole request, tenant root
     /// included.
-    pub fn from_request(
+    pub(crate) fn from_request(
         request: &CloudflareRouterEd25519YaoExecuteRequestV2,
     ) -> RouterAbProtocolResult<Option<Self>> {
         let RouterEd25519YaoGatewayExecuteTargetV2::Registration {
@@ -204,7 +204,7 @@ impl RouterWalletRegistrationV1 {
 /// the exact finalization request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
+pub(crate) struct CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
     pub ownership_generation: u64,
     pub tenant_root: crate::CloudflareRouterEd25519YaoTenantRootV1,
     pub wallet_id: String,
@@ -216,7 +216,7 @@ pub struct CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
 impl CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
     /// The wallet object command, for the wallet the registration's own
     /// claim named.
-    pub fn into_wallet_request(self) -> RouterWalletRequestV1 {
+    pub(crate) fn into_wallet_request(self) -> RouterWalletRequestV1 {
         RouterWalletRequestV1 {
             owner: RouterWalletOwnerV1 {
                 org_id: self.tenant_root.identity.org_id().to_owned(),
@@ -237,7 +237,7 @@ impl CloudflareRouterEd25519YaoRegistrationConsumeRequestV1 {
 /// The Router's record of one registration execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterWalletRegistrationRecordV1 {
+pub(crate) enum RouterWalletRegistrationRecordV1 {
     /// The run holding claim `generation` holds the execution until
     /// `lease_until_ms`. A takeover starts the next generation.
     Claimed {
@@ -269,7 +269,7 @@ pub enum RouterWalletRegistrationRecordV1 {
 /// A terminal answer's kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RouterWalletRegistrationOutcomeV1 {
+pub(crate) enum RouterWalletRegistrationOutcomeV1 {
     Completed,
     Failed,
 }
@@ -277,7 +277,7 @@ pub enum RouterWalletRegistrationOutcomeV1 {
 /// One command to a Router wallet object, for the wallet it names.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RouterWalletRequestV1 {
+pub(crate) struct RouterWalletRequestV1 {
     pub ownership_generation: u64,
     pub owner: RouterWalletOwnerV1,
     pub command: RouterWalletCommandV1,
@@ -285,7 +285,7 @@ pub struct RouterWalletRequestV1 {
 
 impl RouterWalletRequestV1 {
     /// Checks admitted recovery, reissue or export against this wallet's local generation and fence.
-    pub fn settlement_admission(
+    pub(crate) fn settlement_admission(
         request: &CloudflareRouterEd25519YaoExecuteRequestV2,
     ) -> Option<Self> {
         let (ownership_generation, binding) = match &request.target {
@@ -321,7 +321,7 @@ impl RouterWalletRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterWalletCommandV1 {
+pub(crate) enum RouterWalletCommandV1 {
     /// Reads one expired registration claim while the source is draining.
     PendingRegistration { now_ms: u64 },
     /// Allows admitted recovery and export work to settle until the source snapshot is sealed.
@@ -354,7 +354,7 @@ pub enum RouterWalletCommandV1 {
 /// A Router wallet object's answer to one command.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RouterWalletResponseV1 {
+pub(crate) enum RouterWalletResponseV1 {
     PendingRegistration {
         request_json: String,
     },
@@ -389,7 +389,7 @@ pub enum RouterWalletResponseV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RouterWalletRefusalCodeV1 {
+pub(crate) enum RouterWalletRefusalCodeV1 {
     UnknownRegistration,
     RegistrationNotActivated,
     ActivationReferenceMismatch,
@@ -399,7 +399,7 @@ pub enum RouterWalletRefusalCodeV1 {
 /// A host's storage for one Router wallet object, used inside one
 /// transaction.
 #[allow(async_fn_in_trait)]
-pub trait RouterWalletStoreV1 {
+pub(crate) trait RouterWalletStoreV1 {
     async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>>;
     async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()>;
     async fn delete_key(&self, key: &str) -> RouterAbProtocolResult<()>;
@@ -411,7 +411,7 @@ pub trait RouterWalletStoreV1 {
 
 /// Runs one command against one wallet object's storage. The first command
 /// pins the object's owner; a command for another wallet is refused.
-pub async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
+pub(crate) async fn router_wallet_serve_v1<Store: RouterWalletStoreV1>(
     store: &Store,
     request: RouterWalletRequestV1,
 ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
@@ -814,7 +814,7 @@ async fn consume_registration<Store: RouterWalletStoreV1>(
 
 /// The refusal of a registration execute that carries the Gateway's replay
 /// marker: the Router decides a registration's replay from its own claim.
-pub fn router_wallet_registration_replay_refused_v1() -> RouterAbProtocolError {
+pub(crate) fn router_wallet_registration_replay_refused_v1() -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
         "a registration's replay is decided by the Router's claim; the replay marker is refused",

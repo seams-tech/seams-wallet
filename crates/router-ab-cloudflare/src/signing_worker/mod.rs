@@ -28,11 +28,11 @@ pub use private_d1::*;
 mod wallet_relocation;
 pub use wallet_relocation::*;
 mod ed25519_snapshot;
-pub use ed25519_snapshot::*;
+pub(crate) use ed25519_snapshot::*;
 mod ed25519_relocation;
-pub use ed25519_relocation::*;
+pub(crate) use ed25519_relocation::*;
 mod ed25519_execution;
-pub use ed25519_execution::*;
+pub(crate) use ed25519_execution::*;
 mod ed25519_admission;
 pub use ed25519_admission::*;
 mod ecdsa_admission;
@@ -44,7 +44,7 @@ pub use wallet_cipher::*;
 mod wallet_ecdsa_store;
 pub use wallet_ecdsa_store::*;
 mod ecdsa_lane;
-pub use ecdsa_lane::*;
+pub(crate) use ecdsa_lane::*;
 #[cfg(feature = "workers-rs")]
 mod ed25519_lane_activation;
 #[cfg(feature = "workers-rs")]
@@ -82,7 +82,7 @@ impl CloudflareSigningWorkerWalletScopeV1 {
         Ok(scope)
     }
 
-    pub fn from_tenant_root(
+    pub(crate) fn from_tenant_root(
         identity: &TenantRootIdentityV1,
         wallet_id: &str,
     ) -> RouterAbProtocolResult<Self> {
@@ -112,10 +112,10 @@ impl CloudflareSigningWorkerWalletScopeV1 {
 /// request's own expiry is checked, so a delayed request for a retired
 /// activation is refused as retired; a signature it already made still
 /// answers.
-pub const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE_V1: &str =
+pub(crate) const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE_V1: &str =
     "SigningWorker activation is retired";
 
-pub fn signing_worker_activation_retired_error_v1() -> RouterAbProtocolError {
+pub(crate) fn signing_worker_activation_retired_error_v1() -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLifecycleState,
         SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE_V1,
@@ -126,10 +126,10 @@ pub fn signing_worker_activation_retired_error_v1() -> RouterAbProtocolError {
 /// retirement and reached its commit after it: its signature never answers.
 /// Only the D1 SigningWorker can meet it; the wallet object and the VM
 /// SigningWorker load, sign and commit in one serialized step.
-pub const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE_V1: &str =
+pub(crate) const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE_V1: &str =
     "SigningWorker activation is retired: retired after this finalize loaded its material, before it committed";
 
-pub fn signing_worker_activation_retired_at_commit_error_v1() -> RouterAbProtocolError {
+pub(crate) fn signing_worker_activation_retired_at_commit_error_v1() -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLifecycleState,
         SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE_V1,
@@ -173,7 +173,7 @@ pub trait CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandler
 }
 
 /// SigningWorker finalize logic for a lane-native linked-device ECDSA request.
-pub trait CloudflareSigningWorkerLinkedDeviceEcdsaFinalizeHandlerV1 {
+pub(crate) trait CloudflareSigningWorkerLinkedDeviceEcdsaFinalizeHandlerV1 {
     fn handle_linked_device_ecdsa_finalize_request_v1(
         &self,
         request: CloudflareSigningWorkerMaterializedLinkedDeviceEcdsaFinalizeRequestV1,
@@ -434,7 +434,7 @@ impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1 {
 /// session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1 {
+pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1 {
     pub ownership_generation: u64,
     pub wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     pub request: RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1,
@@ -481,7 +481,7 @@ impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1 {
 /// Public progress returned by the SigningWorker-owned ECDSA presign session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CloudflareSigningWorkerEcdsaPresignSessionProgressV1 {
+pub(crate) enum CloudflareSigningWorkerEcdsaPresignSessionProgressV1 {
     Continue {
         presign_session_id: String,
         stage: String,
@@ -535,28 +535,6 @@ impl CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1 
             CloudflareSigningWorkerNormalSigningMaterialSourceV1::registration_for_ecdsa_scope(
                 &scope,
             )?;
-        let request = Self {
-            scope,
-            server_presignature_id: server_presignature_id.into(),
-            server_big_r33_b64u: server_big_r33_b64u.into(),
-            server_k_share32_b64u: server_k_share32_b64u.into(),
-            server_sigma_share32_b64u: server_sigma_share32_b64u.into(),
-            expires_at_ms,
-            material_source,
-        };
-        request.validate()?;
-        Ok(request)
-    }
-
-    pub fn new_with_material_source(
-        scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
-        server_presignature_id: impl Into<String>,
-        server_big_r33_b64u: impl Into<String>,
-        server_k_share32_b64u: impl Into<String>,
-        server_sigma_share32_b64u: impl Into<String>,
-        expires_at_ms: u64,
-        material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
-    ) -> RouterAbProtocolResult<Self> {
         let request = Self {
             scope,
             server_presignature_id: server_presignature_id.into(),
@@ -649,13 +627,13 @@ pub enum CloudflareSigningWorkerNormalSigningMaterialSourceV1 {
 }
 
 impl CloudflareSigningWorkerNormalSigningMaterialSourceV1 {
-    pub fn registration_for_scope(scope: &NormalSigningScopeV1) -> RouterAbProtocolResult<Self> {
+    pub(crate) fn registration_for_scope(scope: &NormalSigningScopeV1) -> RouterAbProtocolResult<Self> {
         Ok(Self::RegistrationActivation {
             lookup: CloudflareActiveSigningWorkerStateLookupV1::from_normal_signing_scope(scope)?,
         })
     }
 
-    pub fn registration_for_ecdsa_scope(
+    pub(crate) fn registration_for_ecdsa_scope(
         scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
     ) -> RouterAbProtocolResult<Self> {
         Ok(Self::RegistrationActivation {
@@ -663,7 +641,7 @@ impl CloudflareSigningWorkerNormalSigningMaterialSourceV1 {
         })
     }
 
-    pub fn validate_for_normal_scope(
+    pub(crate) fn validate_for_normal_scope(
         &self,
         scope: &NormalSigningScopeV1,
     ) -> RouterAbProtocolResult<()> {
@@ -698,7 +676,7 @@ impl CloudflareSigningWorkerNormalSigningMaterialSourceV1 {
         ))
     }
 
-    pub fn validate_for_ecdsa_scope(
+    pub(crate) fn validate_for_ecdsa_scope(
         &self,
         scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
     ) -> RouterAbProtocolResult<()> {
@@ -1084,7 +1062,7 @@ impl CloudflareSigningWorkerNormalSigningEffectClaimV1 {
     }
 
     /// Validates the claim against the exact Router-admitted authorization.
-    pub fn validate_for_admission(
+    pub(crate) fn validate_for_admission(
         &self,
         admission: &CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2,
     ) -> RouterAbProtocolResult<()> {
@@ -1141,7 +1119,7 @@ impl CloudflareSigningWorkerNormalSigningEffectClaimV1 {
     }
 
     /// Validates the claim against the exact ECDSA authorization and operation digests.
-    pub fn validate_for_ecdsa_finalize_request(
+    pub(crate) fn validate_for_ecdsa_finalize_request(
         &self,
         request: &RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
     ) -> RouterAbProtocolResult<()> {
@@ -1196,33 +1174,6 @@ impl CloudflareSigningWorkerNormalSigningEffectClaimV1 {
             ));
         }
         Ok(())
-    }
-
-    pub fn validate_for_linked_ecdsa_finalize_request(
-        &self,
-        request: &RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningFinalizeRequestV1,
-    ) -> RouterAbProtocolResult<()> {
-        request.validate()?;
-        let (
-            Self::ReusableWalletSession { claim },
-            NormalSigningAuthorizationV1::ReusableWalletSession { wallet_session_id },
-        ) = (self, &request.authorization)
-        else {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidGateDecision,
-                "linked ECDSA effect claim requires reusable Wallet Session authorization",
-            ));
-        };
-        claim.validate()?;
-        if claim.wallet_session_id == *wallet_session_id
-            && claim.operation_id == request.operation_id
-        {
-            return Ok(());
-        }
-        Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidGateDecision,
-            "linked ECDSA effect claim does not match finalize request",
-        ))
     }
 
     fn claim_operation_id(&self) -> &str {
@@ -1730,7 +1681,7 @@ impl CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionBindingV1 {
 
 /// Materialized linked-device ECDSA finalize request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CloudflareSigningWorkerMaterializedLinkedDeviceEcdsaFinalizeRequestV1 {
+pub(crate) struct CloudflareSigningWorkerMaterializedLinkedDeviceEcdsaFinalizeRequestV1 {
     pub request: CloudflareSigningWorkerAdmittedLinkedDeviceEcdsaFinalizeRequestV1,
     pub active_signing_worker: ActiveSigningWorkerStateV1,
     pub material: CloudflareServerOutputMaterialRecordV1,
@@ -1918,7 +1869,7 @@ where
 }
 
 /// Materializes and handles one Router-admitted linked-device ECDSA finalize request.
-pub fn handle_cloudflare_signing_worker_linked_device_ecdsa_finalize_private_request_v1<Handler>(
+pub(crate) fn handle_cloudflare_signing_worker_linked_device_ecdsa_finalize_private_request_v1<Handler>(
     handler: &Handler,
     now_unix_ms: u64,
     request: CloudflareSigningWorkerAdmittedLinkedDeviceEcdsaFinalizeRequestV1,
@@ -2066,7 +2017,7 @@ pub struct CloudflareSigningWorkerNormalSigningRound1PreparedV1 {
 
 impl CloudflareSigningWorkerNormalSigningRound1PreparedV1 {
     /// Creates a validated prepared v2 round-1 bundle.
-    pub fn new_v2(
+    pub(crate) fn new_v2(
         response: NormalSigningRound1PrepareResponseV1,
         record: CloudflareSigningWorkerRound1RecordV1,
         request: &CloudflareSigningWorkerMaterializedNormalSigningPrepareRequestV2,
@@ -2077,7 +2028,7 @@ impl CloudflareSigningWorkerNormalSigningRound1PreparedV1 {
     }
 
     /// Validates the public response and private record bind to a v2 materialized request.
-    pub fn validate_for_v2_request(
+    pub(crate) fn validate_for_v2_request(
         &self,
         request: &CloudflareSigningWorkerMaterializedNormalSigningPrepareRequestV2,
     ) -> RouterAbProtocolResult<()> {

@@ -616,7 +616,7 @@ impl CloudflareSigningWorkerLaneMaterialRecordV1 {
             .map(|(material, _)| material)
     }
 
-    pub fn active_server_material_with_activation(
+    pub(crate) fn active_server_material_with_activation(
         &self,
     ) -> RouterAbProtocolResult<(CloudflareSigningWorkerLaneArtifactV1, u64)> {
         self.validate()?;

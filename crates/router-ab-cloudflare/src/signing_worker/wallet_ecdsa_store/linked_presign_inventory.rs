@@ -100,7 +100,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     }
 
     // This read does not fence writers. Transfer must enumerate again after admission.
-    pub fn list_preparing_linked_presign_sessions(
+    pub(crate) fn list_preparing_linked_presign_sessions(
         &self,
         request: SigningWorkerLinkedPresignPreparationInventoryRequestV1,
     ) -> RouterAbProtocolResult<SigningWorkerLinkedPresignInventoryPageV1> {
@@ -177,7 +177,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
-    pub fn authorize_linked_presign_fence(
+    pub(crate) fn authorize_linked_presign_fence(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
         presign_session_id: &str,

@@ -89,8 +89,8 @@ pub struct CloudflareDeriverTenantRootCreationEvidenceRequestV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootCreationEvidenceResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
-    pub signed_managed_backup_b64u: String,
-    pub provider_canary_receipt_b64u: String,
+    pub(crate) signed_managed_backup_b64u: String,
+    pub(crate) provider_canary_receipt_b64u: String,
 }
 
 /// Control plane -> Deriver: remove one exact pending or retired role share.
@@ -110,7 +110,7 @@ pub struct CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1 {
     /// The issuer key id selected from this Worker's configured trust anchor.
     pub issuer_key_id: String,
     /// Exact canonical control-plane command, encoded as unpadded base64url.
-    pub role_import_command_b64u: String,
+    pub(crate) role_import_command_b64u: String,
 }
 
 /// Deriver -> Router: public metadata for one role-local import key.
@@ -137,8 +137,8 @@ pub struct CloudflareDeriverTenantRootRestoreRoleImportKeyResponseV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1 {
     pub issuer_key_id: String,
-    pub role_import_command_b64u: String,
-    pub import_envelope_b64u: String,
+    pub(crate) role_import_command_b64u: String,
+    pub(crate) import_envelope_b64u: String,
 }
 
 /// Deriver -> Router: public receipt for one staged imported role share.
@@ -150,7 +150,7 @@ pub struct CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1 {
 pub struct CloudflareDeriverTenantRootRestoreRoleImportAcceptResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
     pub import_key_id: String,
-    pub envelope_digest_b64u: String,
+    pub(crate) envelope_digest_b64u: String,
     pub receipt_digest_b64u: String,
 }
 
@@ -178,7 +178,7 @@ pub struct CloudflareDeriverTenantRootStatusResponseV1 {
     pub custody_lineage_b64u: String,
     pub active_epoch: u64,
     pub role: CloudflareTenantRootCreateRoleV1,
-    pub share_commitment_b64u: String,
+    pub(crate) share_commitment_b64u: String,
     pub activation_receipt_digest_b64u: String,
 }
 
@@ -240,7 +240,7 @@ impl CloudflareDeriverTenantRootCleanupResponseV1 {
         }
     }
 
-    pub fn cleanup_receipt_b64u(&self) -> &str {
+    pub(crate) fn cleanup_receipt_b64u(&self) -> &str {
         match self {
             Self::PendingDeleted {
                 cleanup_receipt_b64u,
@@ -268,21 +268,21 @@ pub struct CloudflareDeriverTenantRootInitialActivationRequestV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootInitialActivationResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
-    pub activation_terminal_receipt_b64u: String,
-    pub restore_cleanup_receipt_b64u: Option<String>,
+    pub(crate) activation_terminal_receipt_b64u: String,
+    pub(crate) restore_cleanup_receipt_b64u: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootPreactivationCleanupRequestV1 {
-    pub cleanup_grant_b64u: String,
+    pub(crate) cleanup_grant_b64u: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootPreactivationCleanupResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
-    pub cleanup_receipt_digest_b64u: String,
+    pub(crate) cleanup_receipt_digest_b64u: String,
 }
 
 /// Router -> Deriver: close one tenant-held restore session after activation.
@@ -298,11 +298,11 @@ pub struct CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootRestoreSessionCleanupResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
-    pub activation_operation: String,
+    pub(crate) activation_operation: String,
     pub activation_receipt_digest_b64u: String,
-    pub cleanup_receipt_b64u: String,
-    pub cleanup_receipt_digest_b64u: String,
-    pub closed_at_ms: u64,
+    pub(crate) cleanup_receipt_b64u: String,
+    pub(crate) cleanup_receipt_digest_b64u: String,
+    pub(crate) closed_at_ms: u64,
 }
 
 /// Control plane -> Deriver: activate one exact pending refresh epoch.
@@ -317,7 +317,7 @@ pub struct CloudflareDeriverTenantRootRefreshActivationRequestV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootRefreshActivationResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
-    pub activation_terminal_receipt_b64u: String,
+    pub(crate) activation_terminal_receipt_b64u: String,
     pub retired_epoch: u64,
     pub retired_revision: i64,
     pub active_epoch: u64,
@@ -328,8 +328,8 @@ pub struct CloudflareDeriverTenantRootRefreshActivationResponseV1 {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootRefreshRequestV1 {
-    pub refresh_context_b64u: String,
-    pub role_refresh_command_b64u: String,
+    pub(crate) refresh_context_b64u: String,
+    pub(crate) role_refresh_command_b64u: String,
 }
 
 /// Router -> Deriver: execute a refresh whose current role share was restored.
@@ -342,8 +342,8 @@ pub struct CloudflareDeriverTenantRootRefreshRequestV1 {
 pub struct CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1 {
     pub public_state_b64u: String,
     pub restore_capability_b64u: String,
-    pub refresh_context_b64u: String,
-    pub role_refresh_command_b64u: String,
+    pub(crate) refresh_context_b64u: String,
+    pub(crate) role_refresh_command_b64u: String,
 }
 
 /// Deriver -> Router: public artifacts from one durably installed refresh share.
@@ -351,10 +351,10 @@ pub struct CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareDeriverTenantRootRefreshResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
-    pub signed_installation_evidence_b64u: String,
-    pub signed_managed_backup_b64u: String,
-    pub provider_canary_receipt_b64u: String,
-    pub terminal_receipt_b64u: String,
+    pub(crate) signed_installation_evidence_b64u: String,
+    pub(crate) signed_managed_backup_b64u: String,
+    pub(crate) provider_canary_receipt_b64u: String,
+    pub(crate) terminal_receipt_b64u: String,
 }
 
 /// Deriver -> Router: exact public artifacts from one restore-refresh
@@ -398,8 +398,8 @@ pub enum CloudflareDeriverTenantRootManagedRestoreStatusV1 {
 pub struct CloudflareDeriverTenantRootManagedRestoreResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
     pub status: CloudflareDeriverTenantRootManagedRestoreStatusV1,
-    pub capability_digest_b64u: String,
-    pub staging_terminal_receipt_b64u: String,
+    pub(crate) capability_digest_b64u: String,
+    pub(crate) staging_terminal_receipt_b64u: String,
 }
 
 /// Role label on the Deriver creation wire.
@@ -418,10 +418,4 @@ impl CloudflareTenantRootCreateRoleV1 {
         }
     }
 
-    pub(crate) const fn to_protocol(self) -> TwoPartyDeriverRole {
-        match self {
-            Self::DeriverA => TwoPartyDeriverRole::DeriverA,
-            Self::DeriverB => TwoPartyDeriverRole::DeriverB,
-        }
-    }
 }

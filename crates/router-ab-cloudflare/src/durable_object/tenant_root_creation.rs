@@ -4,7 +4,7 @@ mod cloudflare_actor;
 pub use cloudflare_actor::RouterAbTenantRootCreationDurableObject;
 
 mod grant_renewal;
-pub use grant_renewal::tenant_root_creation_persist_journal_v1;
+pub(crate) use grant_renewal::tenant_root_creation_persist_journal_v1;
 #[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 pub(crate) use grant_renewal::{renewal_call, RENEWAL_PATH};
 
@@ -276,7 +276,7 @@ impl fmt::Debug for CloudflareTenantRootDestinationBootstrapRecordV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareTenantRootDestinationBootstrapRequestV1 {
+pub(crate) enum CloudflareTenantRootDestinationBootstrapRequestV1 {
     Read {
         identity_b64u: String,
         custody_lineage_b64u: String,
@@ -290,7 +290,7 @@ pub enum CloudflareTenantRootDestinationBootstrapRequestV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
+pub(crate) enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
     Uninitialized,
     CreationInProgress,
     ActiveRootPresent,
@@ -301,7 +301,7 @@ pub enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootDestinationBootstrapScopeV1 {
+pub(crate) struct CloudflareTenantRootDestinationBootstrapScopeV1 {
     pub(crate) identity_b64u: String,
     pub(crate) identity_digest_b64u: String,
     pub(crate) deployment_fingerprint_b64u: String,
@@ -310,7 +310,7 @@ pub struct CloudflareTenantRootDestinationBootstrapScopeV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareTenantRootDestinationBootstrapResponseV1 {
+pub(crate) enum CloudflareTenantRootDestinationBootstrapResponseV1 {
     ReadReady {
         scope: CloudflareTenantRootDestinationBootstrapScopeV1,
     },
@@ -821,8 +821,8 @@ const TENANT_ROOT_MANAGED_RESTORE_ATTEMPT_DOMAIN_V1: &[u8] =
 /// admission and its status report both judge by it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TenantRootRefreshScheduleV1 {
-    pub manual_interval_ms: u64,
-    pub scheduled_interval_ms: u64,
+    pub(crate) manual_interval_ms: u64,
+    pub(crate) scheduled_interval_ms: u64,
 }
 
 impl Default for TenantRootRefreshScheduleV1 {
@@ -1259,9 +1259,9 @@ fn require_tenant_root_creation_authority_object_v1(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootCreationJournalRequestV1 {
-    pub journal_b64u: String,
-    pub creation_capability_b64u: String,
+pub(crate) struct CloudflareTenantRootCreationJournalRequestV1 {
+    pub(crate) journal_b64u: String,
+    pub(crate) creation_capability_b64u: String,
 }
 
 impl CloudflareTenantRootCreationJournalRequestV1 {
@@ -1276,9 +1276,9 @@ impl CloudflareTenantRootCreationJournalRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootCreationJournalRecordV1 {
-    pub journal_b64u: String,
-    pub creation_capability_b64u: String,
+pub(crate) struct CloudflareTenantRootCreationJournalRecordV1 {
+    pub(crate) journal_b64u: String,
+    pub(crate) creation_capability_b64u: String,
 }
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
@@ -1309,7 +1309,7 @@ impl ValidatedTenantRootCreationJournalV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CloudflareTenantRootCreationJournalOutcomeV1 {
+pub(crate) enum CloudflareTenantRootCreationJournalOutcomeV1 {
     Committed,
     Replay,
 }
@@ -1320,7 +1320,7 @@ pub struct CloudflareTenantRootCreationJournalResponseV1 {
     pub outcome: CloudflareTenantRootCreationJournalOutcomeV1,
     pub revision: u64,
     pub journal_digest_b64u: String,
-    pub capability_digest_b64u: String,
+    pub(crate) capability_digest_b64u: String,
 }
 
 /// Asks the Durable Object for its persisted creation state.
@@ -1577,7 +1577,7 @@ enum CloudflareTenantRootRefreshJobPhaseV1 {
 /// Public installation progress from one fully validated checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
+pub(crate) enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
     None,
     OneRoleReady {
         role: CloudflareTenantRootCreationInstallationRoleV1,
@@ -1595,15 +1595,15 @@ pub enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareTenantRootCreationJournalReadResponseV1 {
     /// Exact canonical Started journal bytes as persisted.
-    pub journal_b64u: String,
+    pub(crate) journal_b64u: String,
     /// Exact canonical issuer capability bytes as persisted.
-    pub creation_capability_b64u: String,
+    pub(crate) creation_capability_b64u: String,
     /// Control-plane revision the Started journal authenticates.
     pub revision: u64,
     /// Roles whose signed public commitment has already reached this object.
-    pub committed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    pub(crate) committed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
     /// Validated public installation checkpoint, when one exists.
-    pub installation_checkpoint:
+    pub(crate) installation_checkpoint:
         CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
     /// The abandonment fence, once the creation is abandoned.
     pub abandonment: Option<CloudflareTenantRootCreationAbandonmentReadV1>,
@@ -1613,8 +1613,8 @@ pub struct CloudflareTenantRootCreationJournalReadResponseV1 {
 /// fenced, and those whose cleanup the Router has checkpointed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootCreationAbandonmentReadV1 {
-    pub abandoned_at_ms: u64,
+pub(crate) struct CloudflareTenantRootCreationAbandonmentReadV1 {
+    pub(crate) abandoned_at_ms: u64,
     pub installed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
     pub cleaned_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
 }
@@ -1636,16 +1636,16 @@ struct CloudflareTenantRootCreationAbandonmentV1 {
 /// What the Router's creation state recorded when it abandoned a creation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootCreationAbandonmentResponseV1 {
+pub(crate) struct CloudflareTenantRootCreationAbandonmentResponseV1 {
     pub installed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
-    pub abandoned_at_ms: u64,
+    pub(crate) abandoned_at_ms: u64,
     pub replayed: bool,
 }
 
 /// The Router coordinator's view of one creation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareTenantRootCreationProgressV1 {
+pub(crate) enum CloudflareTenantRootCreationProgressV1 {
     /// No Started journal exists for this identity and lineage.
     NotStarted,
     /// The persisted creation state, the Router's committed activation receipt
@@ -1688,7 +1688,7 @@ pub(crate) enum CloudflareTenantRootCreationCleanupOutcomeV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootCreationCleanupResponseV1 {
+pub(crate) struct CloudflareTenantRootCreationCleanupResponseV1 {
     pub(crate) outcome: CloudflareTenantRootCreationCleanupOutcomeV1,
     pub(crate) role: CloudflareTenantRootCreationInstallationRoleV1,
     pub(crate) cleanup_receipt_digest_b64u: String,
@@ -2007,7 +2007,7 @@ pub(crate) enum CloudflareTenantRootRestoreRefreshCheckpointRequestV1 {
 /// this state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CloudflareTenantRootRestoreRefreshDeriverDispatchV1 {
+pub(crate) enum CloudflareTenantRootRestoreRefreshDeriverDispatchV1 {
     NoneBeforeCommands,
 }
 
@@ -2220,7 +2220,7 @@ pub(crate) enum CloudflareTenantRootManagedRestoreFenceEvaluationV1 {
 /// Whether one Deriver has activated the Router's committed receipt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CloudflareTenantRootRoleDeliveryV1 {
+pub(crate) enum CloudflareTenantRootRoleDeliveryV1 {
     Pending,
     Delivered,
 }
@@ -2231,7 +2231,7 @@ pub enum CloudflareTenantRootRoleDeliveryV1 {
 /// admitted on the committed epoch only once both roles are delivered.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootDeliveryV1 {
+pub(crate) struct CloudflareTenantRootDeliveryV1 {
     pub activation_receipt_digest_b64u: String,
     pub deriver_a: CloudflareTenantRootRoleDeliveryV1,
     pub deriver_b: CloudflareTenantRootRoleDeliveryV1,
@@ -2245,14 +2245,14 @@ pub struct CloudflareTenantRootDeliveryV1 {
     /// that cannot erase. Each is erased like the swap's own, and the next
     /// swap carries it on until both roles have.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub carried_retirements: Vec<CloudflareTenantRootCarriedRetirementV1>,
+    pub(crate) carried_retirements: Vec<CloudflareTenantRootCarriedRetirementV1>,
 }
 
 /// An earlier swap's retirement that a later swap committed over: that
 /// swap's committed receipt, and the retirement recorded with its delivery.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootCarriedRetirementV1 {
+pub(crate) struct CloudflareTenantRootCarriedRetirementV1 {
     pub activation_receipt_digest_b64u: String,
     pub retirement: CloudflareTenantRootSwapRetirementV1,
 }
@@ -2264,7 +2264,7 @@ pub struct CloudflareTenantRootCarriedRetirementV1 {
 /// erased the epoch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootSwapRetirementV1 {
+pub(crate) struct CloudflareTenantRootSwapRetirementV1 {
     pub retired_epoch: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deriver_a: Option<CloudflareTenantRootRoleRetirementV1>,
@@ -2296,10 +2296,10 @@ impl CloudflareTenantRootSwapRetirementV1 {
 /// swap acknowledged, which for a carried retirement is a later swap's.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootRoleRetirementV1 {
+pub(crate) struct CloudflareTenantRootRoleRetirementV1 {
     pub retired_revision: i64,
     pub active_revision: i64,
-    pub swapped_at_ms: u64,
+    pub(crate) swapped_at_ms: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub erasure: Option<CloudflareTenantRootRetiredErasureV1>,
 }
@@ -2308,8 +2308,8 @@ pub struct CloudflareTenantRootRoleRetirementV1 {
 /// admissions recovery cancelled on the epoch there.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootRetiredErasureV1 {
-    pub cleanup_receipt_b64u: String,
+pub(crate) struct CloudflareTenantRootRetiredErasureV1 {
+    pub(crate) cleanup_receipt_b64u: String,
     pub cancelled_admissions: u64,
 }
 
@@ -2317,7 +2317,7 @@ pub struct CloudflareTenantRootRetiredErasureV1 {
 /// and the one it activated, with each row's revision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareTenantRootSwapAcknowledgementV1 {
+pub(crate) struct CloudflareTenantRootSwapAcknowledgementV1 {
     pub retired_epoch: u64,
     pub retired_revision: i64,
     pub active_epoch: u64,
@@ -2385,7 +2385,7 @@ impl CloudflareTenantRootDeliveryV1 {
 
     /// This record's retirement of `retired_epoch`: the swap's own, or one it
     /// carries.
-    pub fn retirement_of(
+    pub(crate) fn retirement_of(
         &self,
         retired_epoch: u64,
     ) -> Option<&CloudflareTenantRootSwapRetirementV1> {
@@ -2394,12 +2394,12 @@ impl CloudflareTenantRootDeliveryV1 {
     }
 
     /// Whether this record holds a retirement of `retired_epoch`.
-    pub fn holds_retirement_of(&self, retired_epoch: u64) -> bool {
+    pub(crate) fn holds_retirement_of(&self, retired_epoch: u64) -> bool {
         self.retirement_of(retired_epoch).is_some()
     }
 
     /// The epochs this record retires that a role has not yet erased.
-    pub fn unerased_retired_epochs(&self) -> Vec<u64> {
+    pub(crate) fn unerased_retired_epochs(&self) -> Vec<u64> {
         self.retirements()
             .filter(|retirement| !retirement.erased())
             .map(|retirement| retirement.retired_epoch)
@@ -2407,7 +2407,7 @@ impl CloudflareTenantRootDeliveryV1 {
     }
 
     /// Whether both roles have erased every epoch this record retires.
-    pub fn retirements_erased(&self) -> bool {
+    pub(crate) fn retirements_erased(&self) -> bool {
         self.retirements()
             .all(CloudflareTenantRootSwapRetirementV1::erased)
     }
@@ -2427,7 +2427,7 @@ impl CloudflareTenantRootDeliveryV1 {
     }
 
     /// The roles still waiting for the committed receipt.
-    pub fn pending_roles(&self) -> Vec<TwoPartyDeriverRole> {
+    pub(crate) fn pending_roles(&self) -> Vec<TwoPartyDeriverRole> {
         let mut roles = Vec::with_capacity(2);
         if self.deriver_a == CloudflareTenantRootRoleDeliveryV1::Pending {
             roles.push(TwoPartyDeriverRole::DeriverA);
@@ -2648,7 +2648,7 @@ pub async fn tenant_root_creation_journal_read_call_v1(
 
 /// Reads the Router's own progress for one creation, on any host. Unlike the
 /// journal read, a creation that has not started is an outcome, not an error.
-pub async fn tenant_root_creation_progress_read_call_v1(
+pub(crate) async fn tenant_root_creation_progress_read_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
@@ -2673,7 +2673,7 @@ pub async fn tenant_root_creation_progress_read_call_v1(
 
 /// Abandons one uncommitted creation in the Router's creation state, on any
 /// host, and returns the installed roles that must then be cleaned.
-pub async fn tenant_root_creation_abandonment_call_v1(
+pub(crate) async fn tenant_root_creation_abandonment_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
@@ -3251,7 +3251,7 @@ fn validate_response_lineage(
 
 /// Submits one role's verified creation commitment to the creation state and
 /// validates the rendezvous outcome, on any host.
-pub async fn tenant_root_creation_commitment_call_v1(
+pub(crate) async fn tenant_root_creation_commitment_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
@@ -3355,7 +3355,7 @@ fn validate_installation_response_v1(
 
 /// Submits one role's verified installation evidence to the creation state
 /// and validates the checkpoint outcome, on any host.
-pub async fn tenant_root_creation_installation_call_v1(
+pub(crate) async fn tenant_root_creation_installation_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
@@ -3446,7 +3446,7 @@ pub async fn tenant_root_creation_cleanup_call_v1(
 
 /// Sends a control-plane initial-activation receipt to the Router-owned
 /// creation state for authoritative persistence, on any host.
-pub async fn tenant_root_creation_initial_activation_call_v1(
+pub(crate) async fn tenant_root_creation_initial_activation_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInitialActivationResponseV1> {
@@ -3547,7 +3547,7 @@ pub(crate) async fn tenant_root_restore_initial_activation_call_v1(
 
 /// Sends a verified refresh-swap activation receipt to the Router-owned
 /// creation object after both role-private swaps have committed.
-pub async fn tenant_root_refresh_activation_call_v1(
+pub(crate) async fn tenant_root_refresh_activation_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshActivationResponseV1> {
@@ -3609,7 +3609,7 @@ pub struct CloudflareVerifiedTenantRootActiveStateV1 {
 impl CloudflareVerifiedTenantRootActiveStateV1 {
     /// The roles still waiting for the committed receipt; empty when both have
     /// it.
-    pub fn pending_delivery(&self) -> Vec<TwoPartyDeriverRole> {
+    pub(crate) fn pending_delivery(&self) -> Vec<TwoPartyDeriverRole> {
         match &self.delivery {
             Some(delivery) => delivery.pending_roles(),
             None => vec![TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB],
@@ -3664,7 +3664,7 @@ pub async fn tenant_root_creation_active_state_with_revision_read_call_v1(
 /// Reads the outcome of one completed managed restore, named by its exact
 /// issuer-signed public state and capability, with the issuer-verified active
 /// state. The outcome is `None` until that restore's forward refresh commits.
-pub async fn tenant_root_managed_restore_completion_read_call_v1(
+pub(crate) async fn tenant_root_managed_restore_completion_read_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
@@ -3729,7 +3729,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_
 /// Reserves one managed-restore authorization against the Router's active
 /// state and returns the exact persisted challenge. A terminal retry returns
 /// the challenge from that terminal fence.
-pub async fn tenant_root_managed_restore_reservation_call_v1(
+pub(crate) async fn tenant_root_managed_restore_reservation_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
@@ -3775,7 +3775,7 @@ pub async fn tenant_root_managed_restore_reservation_call_v1(
 
 /// Checkpoints the exact issuer-signed managed-restore artifacts in the
 /// Router's creation state and returns the issuer-verified active state.
-pub async fn tenant_root_managed_restore_checkpoint_call_v1(
+pub(crate) async fn tenant_root_managed_restore_checkpoint_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
@@ -3812,7 +3812,7 @@ pub async fn tenant_root_managed_restore_checkpoint_call_v1(
 /// Reserves the exact refresh context and both issuer commands before either
 /// Deriver is invoked. A replay returns the already persisted attempt, so a
 /// restarted Router resumes the same session and nonce.
-pub async fn tenant_root_refresh_attempt_reservation_call_v1(
+pub(crate) async fn tenant_root_refresh_attempt_reservation_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
@@ -3853,7 +3853,7 @@ pub async fn tenant_root_refresh_attempt_reservation_call_v1(
 }
 
 /// Atomically admits one manual refresh before command minting or role work.
-pub async fn tenant_root_refresh_admission_call_v1(
+pub(crate) async fn tenant_root_refresh_admission_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
@@ -3983,7 +3983,7 @@ fn decode_verified_active_state_response_v1(
 /// Records that one Deriver has activated the committed receipt with this
 /// digest. An acknowledgement for a receipt that is no longer committed
 /// changes nothing.
-pub async fn tenant_root_record_delivery_call_v1(
+pub(crate) async fn tenant_root_record_delivery_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
@@ -4014,7 +4014,7 @@ pub async fn tenant_root_record_delivery_call_v1(
 /// A report for another receipt, or of an erasure already recorded, changes
 /// nothing.
 #[allow(clippy::too_many_arguments)]
-pub async fn tenant_root_record_retirement_call_v1(
+pub(crate) async fn tenant_root_record_retirement_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
@@ -4199,7 +4199,7 @@ fn evaluate_creation_record(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CloudflareTenantRootCreationInstallationRoleV1 {
+pub(crate) enum CloudflareTenantRootCreationInstallationRoleV1 {
     DeriverA,
     DeriverB,
 }
@@ -10372,7 +10372,7 @@ fn stored_refresh_record_error(error: RouterAbProtocolError) -> RouterAbProtocol
     )
 }
 
-pub async fn tenant_root_refresh_commitment_call_v1(
+pub(crate) async fn tenant_root_refresh_commitment_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     commitment: &VerifiedTenantRootRefreshCommitmentV1,
@@ -10412,7 +10412,7 @@ pub async fn tenant_root_refresh_commitment_call_v1(
 
 /// Sends one role-signed, recipient-bound encrypted refresh contribution to the
 /// Router-owned public rendezvous after both commitments have completed.
-pub async fn tenant_root_refresh_contribution_call_v1(
+pub(crate) async fn tenant_root_refresh_contribution_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -10456,7 +10456,7 @@ pub async fn tenant_root_refresh_contribution_call_v1(
     Ok(response)
 }
 
-pub async fn tenant_root_refresh_installation_call_v1(
+pub(crate) async fn tenant_root_refresh_installation_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
@@ -11205,7 +11205,7 @@ async fn read_refresh_job_v1<Store: TenantRootCreationStoreV1>(
 
 /// Reads the authoritative active state, or reserves a refresh admission, a
 /// refresh attempt or a managed-restore authorization against it.
-pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
@@ -11952,7 +11952,7 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
 /// Makes an issuer-signed refresh-swap receipt the authoritative active
 /// state, once both roles' installations are checkpointed, and clears the
 /// attempt's checkpoints. An exact replay changes nothing.
-pub async fn tenant_root_refresh_persist_activation_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_refresh_persist_activation_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -12251,7 +12251,7 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
 
 /// Checkpoints one role's refresh commitment. The first commitment reserves
 /// the fence for its attempt; an exact replay returns the recorded outcome.
-pub async fn tenant_root_refresh_persist_commitment_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_refresh_persist_commitment_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -12392,7 +12392,7 @@ pub async fn tenant_root_refresh_persist_commitment_v1<Store: TenantRootCreation
 
 /// Checkpoints one role's refresh installation with its successful terminal
 /// receipt. Both roles' installations mark the attempt executed.
-pub async fn tenant_root_refresh_persist_installation_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_refresh_persist_installation_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -12553,7 +12553,7 @@ pub async fn tenant_root_refresh_persist_installation_v1<Store: TenantRootCreati
 
 /// Checkpoints one role's refresh contribution against the complete
 /// commitment pair.
-pub async fn tenant_root_refresh_persist_contribution_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_refresh_persist_contribution_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -12693,7 +12693,7 @@ pub async fn tenant_root_refresh_persist_contribution_v1<Store: TenantRootCreati
 /// abandonment recorded as installed is cleaned by its installation evidence;
 /// any other role by the abandoned ceremony. An exact replay returns the
 /// recorded response.
-pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -12816,7 +12816,7 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
 
 /// Reads the validated creation progress. Every stored record is re-validated
 /// against the started journal; a corrupt record fails the read.
-pub async fn tenant_root_creation_read_journal_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_read_journal_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
@@ -12965,7 +12965,7 @@ async fn load_tenant_root_role_creation_command_v1<Store: TenantRootCreationStor
 }
 
 /// Records one role's signed creation commitment in the rendezvous once.
-pub async fn tenant_root_creation_persist_commitment_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_persist_commitment_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -13008,7 +13008,7 @@ pub async fn tenant_root_creation_persist_commitment_v1<Store: TenantRootCreatio
 }
 
 /// Checkpoints one role's verified installation evidence once.
-pub async fn tenant_root_creation_persist_installation_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_persist_installation_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -13062,7 +13062,7 @@ pub async fn tenant_root_creation_persist_installation_v1<Store: TenantRootCreat
 
 /// Accepts the issuer's initial activation receipt against the completed
 /// creation state and installs the authoritative active state once.
-pub async fn tenant_root_creation_persist_initial_activation_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_persist_initial_activation_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -13264,7 +13264,7 @@ fn read_creation_abandonment_v1(
 /// that stops it from advancing. Only once its ceremony window has closed:
 /// inside the window it may still finish or resume, and an ordinary retry
 /// must not cancel it. A committed creation is never abandoned.
-pub async fn tenant_root_creation_persist_abandonment_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_persist_abandonment_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
@@ -13343,7 +13343,7 @@ pub async fn tenant_root_creation_persist_abandonment_v1<Store: TenantRootCreati
 
 /// Reads one creation's progress for the Router coordinator: whether it has
 /// started, its persisted state, and the committed activation receipt.
-pub async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStoreV1>(
+pub(crate) async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,

@@ -22,7 +22,7 @@ impl From<RoleStoreError> for worker::Error {
 }
 
 /// The role-private D1 driver. Rows retain D1's deserialization.
-pub struct D1RoleSqlSessionV1 {
+pub(crate) struct D1RoleSqlSessionV1 {
     session: worker::D1DatabaseSession,
 }
 

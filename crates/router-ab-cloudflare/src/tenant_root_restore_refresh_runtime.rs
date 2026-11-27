@@ -17,7 +17,7 @@ use crate::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolRe
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
+pub(crate) enum CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
     Prepare {
         role_refresh_command_b64u: String,
     },
@@ -63,7 +63,7 @@ impl CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CloudflareDeriverTenantRootRestoreRefreshResponseV1 {
+pub(crate) enum CloudflareDeriverTenantRootRestoreRefreshResponseV1 {
     Prepared {
         role: CloudflareTenantRootCreateRoleV1,
         command_digest_b64u: String,
@@ -244,7 +244,7 @@ pub(crate) async fn handle_restore_refresh(
 /// Runs one phase of a restore refresh at this Deriver: prepare, contribute
 /// and finalize over the tenant's imported share, or promote the finalized
 /// share into the role's epoch-one provider.
-pub async fn tenant_root_deriver_restore_refresh_v1<
+pub(crate) async fn tenant_root_deriver_restore_refresh_v1<
     Host: crate::tenant_root_role_runtime::TenantRootDeriverHostV1,
 >(
     host: &Host,

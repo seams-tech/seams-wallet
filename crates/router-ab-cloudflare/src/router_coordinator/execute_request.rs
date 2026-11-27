@@ -6,7 +6,7 @@ use super::*;
 const LOCAL_INTENDED_ROUTER_BURN_HEADER_V1: &str = "x-seams-local-intended-router-burn-v1";
 
 /// Handles one authenticated Gateway-to-Router Yao execution request.
-pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
+pub(crate) async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {

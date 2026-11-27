@@ -43,17 +43,17 @@ const ED25519_ACTIVE_SERVER_MATERIAL_KIND_V1: &str = "ed25519_yao_lane_active_se
 /// Public request for one exact Ed25519 Yao lane activation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareSigningWorkerEd25519LaneActivateRequestV1 {
+pub(crate) struct CloudflareSigningWorkerEd25519LaneActivateRequestV1 {
     pub identity: CloudflareSigningWorkerLaneMaterialIdentityV1,
     #[serde(with = "MpcMaterialActivationRefWireV1")]
     pub target_material_activation: MpcMaterialActivationRefV1,
-    pub holder_delivery_receipt: CloudflareSigningWorkerEd25519LaneHolderDeliveryReceiptV1,
+    pub(crate) holder_delivery_receipt: CloudflareSigningWorkerEd25519LaneHolderDeliveryReceiptV1,
 }
 
 /// Holder acknowledgement accepted by the Ed25519 lane activation boundary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareSigningWorkerEd25519LaneHolderDeliveryReceiptV1 {
+pub(crate) struct CloudflareSigningWorkerEd25519LaneHolderDeliveryReceiptV1 {
     pub kind: String,
     pub operation_id: String,
     pub enrollment_id: String,
@@ -62,8 +62,8 @@ pub struct CloudflareSigningWorkerEd25519LaneHolderDeliveryReceiptV1 {
     pub target_material_activation_id: String,
     pub holder_participant_binding_digest_b64u: String,
     pub holder_recipient_key_digest_b64u: String,
-    pub holder_ciphertext_digest_set_b64u: String,
-    pub sealed_holder_record_digest_b64u: String,
+    pub(crate) holder_ciphertext_digest_set_b64u: String,
+    pub(crate) sealed_holder_record_digest_b64u: String,
     pub transcript_hash_b64u: String,
     pub acknowledged_at_ms: u64,
 }
@@ -76,7 +76,7 @@ pub struct CloudflareSigningWorkerEd25519LaneHolderDeliveryReceiptV1 {
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
-pub enum CloudflareSigningWorkerEd25519LaneActivateEffectV1 {
+pub(crate) enum CloudflareSigningWorkerEd25519LaneActivateEffectV1 {
     Applied {
         receipt: CloudflareEd25519LaneServerActivationReceiptV1,
     },
@@ -89,7 +89,7 @@ pub enum CloudflareSigningWorkerEd25519LaneActivateEffectV1 {
 /// this response boundary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareEd25519LaneServerActivationReceiptV1 {
+pub(crate) struct CloudflareEd25519LaneServerActivationReceiptV1 {
     pub kind: String,
     pub operation_id: String,
     pub enrollment_id: String,
@@ -98,7 +98,7 @@ pub struct CloudflareEd25519LaneServerActivationReceiptV1 {
     #[serde(with = "MpcMaterialActivationRefWireV1")]
     pub target_material_activation: MpcMaterialActivationRefV1,
     pub signing_worker_participant_binding_digest_b64u: String,
-    pub server_ciphertext_digest_set_b64u: String,
+    pub(crate) server_ciphertext_digest_set_b64u: String,
     pub transcript_hash_b64u: String,
     pub activated_at_ms: u64,
 }
@@ -122,9 +122,9 @@ struct MpcMaterialActivationRefWireV1 {
 /// Private scalar artifact retained by the generic lane material journal.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CloudflareEd25519LaneActiveServerMaterialV1 {
+pub(crate) struct CloudflareEd25519LaneActiveServerMaterialV1 {
     pub kind: String,
-    pub signing_worker_scalar_b64u: String,
+    pub(crate) signing_worker_scalar_b64u: String,
 }
 
 impl core::fmt::Debug for CloudflareEd25519LaneActiveServerMaterialV1 {
@@ -416,7 +416,7 @@ fn decode_and_combine_server_packages(
 }
 
 /// Activates one committed Ed25519 lane using private D1 state.
-pub async fn activate_cloudflare_signing_worker_ed25519_lane_v1(
+pub(crate) async fn activate_cloudflare_signing_worker_ed25519_lane_v1(
     env: &Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
     request: &CloudflareSigningWorkerEd25519LaneActivateRequestV1,

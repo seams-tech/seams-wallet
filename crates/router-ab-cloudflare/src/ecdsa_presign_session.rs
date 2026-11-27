@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use crate::*;
 
 /// One owner presignature session's in-memory state.
-pub struct CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
+pub(crate) struct CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
     scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
     authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1,
     ceremony_expires_at_ms: u64,
@@ -36,13 +36,13 @@ impl CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
 }
 
 /// Live sessions by presignature-session id.
-pub type CloudflareSigningWorkerEcdsaPresignLiveSessionMapV1 =
+pub(crate) type CloudflareSigningWorkerEcdsaPresignLiveSessionMapV1 =
     BTreeMap<String, CloudflareSigningWorkerEcdsaPresignLiveSessionV1>;
 
 /// A session's first message with the wallet's relayer share.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1 {
+pub(crate) struct CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1 {
     pub request: CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
     pub relayer_share32_b64u: String,
 }
@@ -50,14 +50,14 @@ pub struct CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1 {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 /// Constructed only after the direct Gateway presign credential is verified.
-pub struct CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1 {
+pub(crate) struct CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1 {
     pub request: CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
 }
 
 /// A session's progress after one message batch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 {
+pub(crate) enum CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 {
     Continue {
         presign_session_id: String,
         stage: String,
@@ -120,7 +120,7 @@ pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeR
 }
 
 /// Starts one session from its first client message.
-pub fn create_signing_worker_ecdsa_presign_session_v1(
+pub(crate) fn create_signing_worker_ecdsa_presign_session_v1(
     input: CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1,
     sessions: &mut CloudflareSigningWorkerEcdsaPresignLiveSessionMapV1,
     now_unix_ms: u64,
@@ -180,7 +180,7 @@ pub fn create_signing_worker_ecdsa_presign_session_v1(
 }
 
 /// Advances one session by one Gateway message batch.
-pub fn step_signing_worker_ecdsa_presign_session_v1(
+pub(crate) fn step_signing_worker_ecdsa_presign_session_v1(
     input: CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
     sessions: &mut CloudflareSigningWorkerEcdsaPresignLiveSessionMapV1,
     now_unix_ms: u64,
@@ -316,7 +316,7 @@ pub(crate) fn presign_protocol_error(error: impl std::fmt::Display) -> RouterAbP
 /// The session-start request for one owner presignature session: the
 /// client's first message with the relayer share derived from the wallet's
 /// active material.
-pub fn signing_worker_ecdsa_presign_session_start_v1(
+pub(crate) fn signing_worker_ecdsa_presign_session_start_v1(
     request: CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
     active: &ActiveSigningWorkerStateV1,
     material: &CloudflareServerOutputMaterialRecordV1,
@@ -334,7 +334,7 @@ pub fn signing_worker_ecdsa_presign_session_start_v1(
 }
 
 /// Admits one finished presignature to its wallet's pool.
-pub fn admit_signing_worker_wallet_ecdsa_presignature_v1<Sql: SigningWorkerWalletSqlV1>(
+pub(crate) fn admit_signing_worker_wallet_ecdsa_presignature_v1<Sql: SigningWorkerWalletSqlV1>(
     store: &SigningWorkerWalletEcdsaStoreV1<'_, Sql>,
     wallet_scope: &CloudflareSigningWorkerWalletScopeV1,
     presign_session_id: &str,

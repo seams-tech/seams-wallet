@@ -123,7 +123,7 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
         }
     }
 
-    pub fn pool_admission(
+    pub(crate) fn pool_admission(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
     ) -> RouterAbProtocolResult<SigningWorkerPoolAdmissionV1> {

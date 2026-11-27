@@ -118,7 +118,7 @@ impl CloudflareSecretMaterial32V1 {
     }
 
     /// Creates a serializable record from core secret material.
-    pub fn from_secret_material(secret: &SecretMaterial32) -> Self {
+    pub(crate) fn from_secret_material(secret: &SecretMaterial32) -> Self {
         Self::new(*secret.as_bytes())
     }
 
@@ -127,10 +127,6 @@ impl CloudflareSecretMaterial32V1 {
         &self.bytes
     }
 
-    /// Converts this record back to core secret material.
-    pub fn to_secret_material(&self) -> SecretMaterial32 {
-        SecretMaterial32::new(self.bytes)
-    }
 }
 
 impl core::fmt::Debug for CloudflareSecretMaterial32V1 {
@@ -194,7 +190,7 @@ impl CloudflareServerOutputMaterialRecordV1 {
     }
 
     /// Validates this material record matches the activation request that opened it.
-    pub fn validate_for_activation_request(
+    pub(crate) fn validate_for_activation_request(
         &self,
         request: &CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
     ) -> RouterAbProtocolResult<()> {
@@ -293,7 +289,7 @@ fn open_cloudflare_recipient_proof_bundle_hpke_plaintext_v1(
 }
 
 /// Opens and combines V2 server proof bundles for one tenant-root ECDSA activation.
-pub fn cloudflare_server_output_material_record_from_ecdsa_activation_request_v2(
+pub(crate) fn cloudflare_server_output_material_record_from_ecdsa_activation_request_v2(
     request: &CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1,
     custody_binding: &TenantRootCustodyBindingV1,
     private_key_bytes: &[u8],
@@ -311,7 +307,7 @@ pub fn cloudflare_server_output_material_record_from_ecdsa_activation_request_v2
 
 /// Opens and combines V2 server proof bundles for one tenant-root ECDSA refresh.
 #[cfg(feature = "workers-rs")]
-pub fn cloudflare_server_output_material_record_from_ecdsa_refresh_request_v2(
+pub(crate) fn cloudflare_server_output_material_record_from_ecdsa_refresh_request_v2(
     request: &CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRefreshRequestV1,
     custody_binding: &TenantRootCustodyBindingV1,
     private_key_bytes: &[u8],

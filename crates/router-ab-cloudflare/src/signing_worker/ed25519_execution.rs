@@ -1,12 +1,12 @@
 use super::*;
 
-pub const SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1: &str =
+pub(crate) const SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1: &str =
     "CREATE TABLE IF NOT EXISTS wallet_ed25519_execution (
         owner_json TEXT PRIMARY KEY,
         ownership_generation INTEGER NOT NULL CHECK (ownership_generation > 0))";
 
 /// Local execution authority, committed separately from transferable signing history.
-pub struct SigningWorkerEd25519ExecutionStoreV1<'a, Sql> {
+pub(crate) struct SigningWorkerEd25519ExecutionStoreV1<'a, Sql> {
     pub(super) sql: &'a Sql,
 }
 
@@ -34,7 +34,7 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerEd25519ExecutionStoreV1<'a,
         self.require_generation(scope, 1)
     }
 
-    pub fn require_generation(
+    pub(crate) fn require_generation(
         &self,
         scope: &CloudflareSigningWorkerWalletScopeV1,
         generation: u64,

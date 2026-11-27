@@ -8,66 +8,6 @@ pub(crate) use ecdsa_material::load_cloudflare_signing_worker_ecdsa_active_mater
 
 pub const SIGNING_WORKER_PRIVATE_D1_BINDING_V1: &str = "SIGNING_WORKER_PRIVATE_DB";
 
-pub const SIGNING_WORKER_PRIVATE_D1_SCHEMA_V1: &str = r#"
-CREATE TABLE IF NOT EXISTS signing_worker_activations (
-  material_key TEXT PRIMARY KEY,
-  active_key TEXT NOT NULL UNIQUE,
-  record_json TEXT NOT NULL,
-  active_state_json TEXT NOT NULL,
-  created_at_ms INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS signing_worker_activation_revocation_fences (
-  active_key TEXT PRIMARY KEY
-);
-CREATE TABLE IF NOT EXISTS signing_worker_round1 (
-  record_key TEXT PRIMARY KEY,
-  record_json TEXT NOT NULL,
-  expires_at_ms INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS signing_worker_round1_expiry
-  ON signing_worker_round1(expires_at_ms);
-CREATE TABLE IF NOT EXISTS signing_worker_ecdsa_pool (
-  record_key TEXT PRIMARY KEY,
-  record_json TEXT NOT NULL,
-  version INTEGER NOT NULL,
-  cleanup_deadline_ms INTEGER
-);
-CREATE INDEX IF NOT EXISTS signing_worker_ecdsa_pool_expiry
-  ON signing_worker_ecdsa_pool(cleanup_deadline_ms);
-CREATE TABLE IF NOT EXISTS signing_worker_terminal_responses (
-  operation_key TEXT PRIMARY KEY,
-  request_digest_hex TEXT NOT NULL,
-  response_json TEXT NOT NULL,
-  committed_at_ms INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS signing_worker_effect_claims (
-  operation_key TEXT PRIMARY KEY,
-  authorization_key TEXT NOT NULL UNIQUE,
-  request_digest_hex TEXT NOT NULL,
-  authorization_json TEXT NOT NULL,
-  claimed_at_ms INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS signing_worker_secret_states (
-  purpose TEXT NOT NULL,
-  record_key TEXT NOT NULL,
-  ciphertext_json TEXT NOT NULL,
-  version INTEGER NOT NULL,
-  updated_at_ms INTEGER NOT NULL,
-  PRIMARY KEY(purpose, record_key)
-);
-CREATE TABLE IF NOT EXISTS signing_worker_lane_material (
-  operation_key TEXT PRIMARY KEY,
-  activation_id TEXT NOT NULL UNIQUE,
-  wallet_key_id TEXT NOT NULL,
-  target_lane_id TEXT NOT NULL,
-  target_lane_share_epoch TEXT NOT NULL,
-  identity_digest_b64u TEXT NOT NULL,
-  record_json TEXT NOT NULL,
-  version INTEGER NOT NULL,
-  updated_at_ms INTEGER NOT NULL,
-  UNIQUE(wallet_key_id, target_lane_id, target_lane_share_epoch)
-);"#;
-
 #[derive(Debug, Deserialize)]
 struct ActivationRowV1 {
     record_json: String,
@@ -115,7 +55,7 @@ struct EffectClaimRowV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CloudflareSigningWorkerNearEffectClaimV1 {
+pub(crate) enum CloudflareSigningWorkerNearEffectClaimV1 {
     Claimed,
     InProgress,
     Replay { terminal_json: String },
@@ -192,7 +132,7 @@ fn d1_changes(result: &worker::D1Result) -> RouterAbProtocolResult<usize> {
         .ok_or_else(|| d1_error("SigningWorker private D1 result omitted change metadata"))
 }
 
-pub fn signing_worker_private_d1_from_env_v1(env: &Env) -> RouterAbProtocolResult<D1Database> {
+pub(crate) fn signing_worker_private_d1_from_env_v1(env: &Env) -> RouterAbProtocolResult<D1Database> {
     env.d1(SIGNING_WORKER_PRIVATE_D1_BINDING_V1)
         .map_err(|error| map_d1_error("SigningWorker private D1 binding is missing", error))
 }
@@ -203,7 +143,7 @@ pub fn signing_worker_private_d1_from_env_v1(env: &Env) -> RouterAbProtocolResul
 /// the insert itself. A finalize that loaded its material before a
 /// retirement and reaches its commit after it is refused as retired, and its
 /// signature never answers.
-pub async fn commit_cloudflare_signing_worker_terminal_response_v1(
+pub(crate) async fn commit_cloudflare_signing_worker_terminal_response_v1(
     env: &Env,
     operation_key: &str,
     request_digest: PublicDigest32,
@@ -316,7 +256,7 @@ async fn load_cloudflare_signing_worker_terminal_response_v1(
 }
 
 /// Reads an exact terminal result before applying fresh-request checks.
-pub async fn replay_cloudflare_signing_worker_near_terminal_v1(
+pub(crate) async fn replay_cloudflare_signing_worker_near_terminal_v1(
     env: &Env,
     request: &CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
 ) -> RouterAbProtocolResult<Option<String>> {
@@ -389,7 +329,7 @@ async fn claim_cloudflare_signing_worker_authorization_effect_v1(
 }
 
 /// Claims one NEAR signing effect before any cryptographic state is consumed.
-pub async fn claim_cloudflare_signing_worker_near_effect_v1(
+pub(crate) async fn claim_cloudflare_signing_worker_near_effect_v1(
     env: &Env,
     request: &CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
     claimed_at_ms: u64,
@@ -428,7 +368,7 @@ pub async fn claim_cloudflare_signing_worker_near_effect_v1(
     .await
 }
 
-pub async fn put_cloudflare_signing_worker_output_activation_record_v1(
+pub(crate) async fn put_cloudflare_signing_worker_output_activation_record_v1(
     env: &Env,
     record: &CloudflareSigningWorkerOutputActivationRecordV1,
     created_at_ms: u64,
@@ -807,23 +747,8 @@ async fn load_signing_worker_lane_material_record_v1(
     Ok(record)
 }
 
-/// Loads the exact holder-only redelivery payload for an authenticated claim.
-pub async fn load_cloudflare_signing_worker_lane_holder_redelivery_v1(
-    env: &Env,
-    identity: &CloudflareSigningWorkerLaneMaterialIdentityV1,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerLaneHolderRedeliveryV1> {
-    let database = signing_worker_private_d1_from_env_v1(env)?;
-    let db = database
-        .with_session_constraint(D1SessionConstraint::FirstPrimary)
-        .map_err(|error| map_d1_error("SigningWorker lane primary session failed", error))?;
-    let cipher = SigningWorkerPrivateD1CipherV1::from_env(env)?;
-    load_signing_worker_lane_material_record_v1(&db, &cipher, identity)
-        .await?
-        .holder_redelivery()
-}
-
 /// Loads active server material only while the exact lane is active and unretired.
-pub async fn load_cloudflare_signing_worker_active_lane_material_v1(
+pub(crate) async fn load_cloudflare_signing_worker_active_lane_material_v1(
     env: &Env,
     identity: &CloudflareSigningWorkerLaneMaterialIdentityV1,
 ) -> RouterAbProtocolResult<(CloudflareSigningWorkerLaneArtifactV1, u64)> {
@@ -838,7 +763,7 @@ pub async fn load_cloudflare_signing_worker_active_lane_material_v1(
 }
 
 /// Loads an encrypted lane record by operation before any replayed crypto runs.
-pub async fn load_cloudflare_signing_worker_lane_material_record_by_operation_v1(
+pub(crate) async fn load_cloudflare_signing_worker_lane_material_record_by_operation_v1(
     env: &Env,
     operation_id: &str,
 ) -> RouterAbProtocolResult<Option<CloudflareSigningWorkerLaneMaterialRecordV1>> {
@@ -861,7 +786,7 @@ pub async fn load_cloudflare_signing_worker_lane_material_record_by_operation_v1
 }
 
 /// Resolves one original registration activation into its exact private share.
-pub async fn load_cloudflare_signing_worker_registration_active_material_v1(
+pub(crate) async fn load_cloudflare_signing_worker_registration_active_material_v1(
     env: &Env,
     lookup: &CloudflareActiveSigningWorkerStateLookupV1,
 ) -> RouterAbProtocolResult<CloudflareServerOutputMaterialRecordV1> {
@@ -913,7 +838,7 @@ pub async fn load_cloudflare_signing_worker_registration_active_material_v1(
 }
 
 /// Resolves an admitted normal-signing lookup through the active-lane fence.
-pub async fn load_cloudflare_signing_worker_normal_signing_lane_material_v1(
+pub(crate) async fn load_cloudflare_signing_worker_normal_signing_lane_material_v1(
     env: &Env,
     lookup: &CloudflareSigningWorkerNormalSigningLaneMaterialLookupV1,
 ) -> RouterAbProtocolResult<(CloudflareSigningWorkerLaneArtifactV1, u64)> {
@@ -922,7 +847,7 @@ pub async fn load_cloudflare_signing_worker_normal_signing_lane_material_v1(
 }
 
 /// Applies one exact lane-material command against SigningWorker-private D1.
-pub async fn execute_cloudflare_signing_worker_lane_material_command_v1(
+pub(crate) async fn execute_cloudflare_signing_worker_lane_material_command_v1(
     env: &Env,
     command: &CloudflareSigningWorkerLaneMaterialCommandV1,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerLaneMaterialEffectV1> {
@@ -1019,7 +944,7 @@ pub async fn execute_cloudflare_signing_worker_lane_material_command_v1(
 
 /// Applies one authenticated private lane-material command and returns its
 /// receipt-only effect projection.
-pub async fn handle_cloudflare_signing_worker_lane_material_command_private_fetch_v1(
+pub(crate) async fn handle_cloudflare_signing_worker_lane_material_command_private_fetch_v1(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
