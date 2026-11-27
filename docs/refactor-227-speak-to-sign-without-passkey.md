@@ -1,11 +1,13 @@
 # Refactor 227: Speak-to-Sign without a passkey, with typed contract calls
 
-Status: 2026-11-10. Step 1 (payments without a passkey) and Step 4 (retire the vault) are
-done. Step 1b (the co-signer checks the verdict) and Step 2 (live progress) shipped in 0.60.0
-and run on staging since 2026-11-09 (seams-monorepo b77bf2cf, with verifier 0.4.1); the voice
-check on staging is open. Step 3 shipped in 0.59.0; its staging check is open. Step 6 (speed)
-shipped in 0.61.0 with verifier 0.5.1; on staging only its backend and verifier run so far.
-Step 5 (records) is done. The plan changed the
+Status: 2026-11-27. Complete. Steps 1 to 6 are built and shipped: Step 3 in 0.59.0, Steps 1b
+and 2 in 0.60.0, Step 6 in 0.61.0 with verifier 0.5.1. Steps 1, 4 and 5 were done on
+2026-11-09. Only manual checks remain, and they are the owner's to make: a voice payment on
+staging with its timing read-out, 10 runs of end of speech to settled, a spoken note and a
+spoken rating on staging, a real-voice check of the 200 ms rule, a live check of the VoiceID
+step-up retry, and a check that no balance is left in `seams-wallet.testnet`. Speed option 5
+(a Cloudflare verifier backend) became
+[Refactor 254](refactor-254-speak-to-sign-verifier-backends.md). Option 4 is parked. The plan changed the
 Speak-to-Sign design of `seams-monorepo/docs/refactor-210-voice-intents.md` (Section 0) and
 adds a step-up that Refactor 225 was to fill with Jev rules. The owner retired Refactor 225
 on 2026-11-26 with nothing built (see the [docs index](README.md#implementation-history)),
@@ -352,7 +354,7 @@ until the 0.57.0 rollout session reports done.
 3. **Spoken community notes.** `CommunityNote` and `NoteRating` in the crate and the port,
    the notes contract, verifier 0.4.0, the Wallet and SDK `requestNote` and `requestRating`,
    and the Spoken Notes demo page (`speak-to-sign/demo/frontend`). Check a spoken note and a
-   spoken rating on staging. Open. The code is written (Wallet commits `522c2e8bc`,
+   spoken rating on staging. Built; the staging check is a manual check. The code is written (Wallet commits `522c2e8bc`,
    `bec400807`; notes contract on `notes.seams-v1.testnet`). Verifier 0.4.0 is on OutLayer as
    version `8a0b7ba0…2329ef` and is not active. The staging check is not done.
 4. **Retire the vault.** Done on 2026-11-09. The SDK and Wallet vault code went in Step 1
@@ -382,9 +384,9 @@ until the 0.57.0 rollout session reports done.
      "Verify docs match the installed SDK", because seams-wallet `main` had moved to the
      0.62.0 release. So the staging Wallet host still serves 0.60.0 (host API 7). Production
      stays on 0.57.0 by the user's choice.
-   - Not done: a real-voice check of the 200 ms rule; a staging voice payment and its timing
-     read-out (the owner's to make); options 4 (start OutLayer at "Record") and 5 (a Cloudflare
-     verifier backend).
+   - Not done, manual checks for the owner: a real-voice check of the 200 ms rule; a staging
+     voice payment and its timing read-out. Option 5 (a Cloudflare verifier backend) became
+     [Refactor 254](refactor-254-speak-to-sign-verifier-backends.md). Option 4 is parked.
 
 ## Parked
 
@@ -392,6 +394,9 @@ until the 0.57.0 rollout session reports done.
   would keep on-chain limits. Checked on 2026-11-09: testnet protocol 88, near-sdk 5.21 and
   near-cli-rs 0.23.2 support Global Contracts, and the Wallet knows `UseGlobalContract`.
 - P2 progress: the verifier pushes its inner stages to the route as they end.
+- Speed option 4: start the OutLayer call at "Record", and let the worker fetch the clip at
+  the end (about 1.5 to 3 s faster, [the speed report](evidence/refactor-227-speak-to-sign-speed-20261109.md)).
+  It makes the OutLayer backend faster and keeps the TEE.
 
 ## Coordination
 

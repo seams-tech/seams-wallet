@@ -5,8 +5,12 @@ devices: 3a the factor list of D11, 3b recovery, 3c device linking, 3d the menu)
 0.76.0 (a040adbc7), with its Email OTP behaviour tests passing. Slice 4 is done: seams-monorepo
 d61dc43f is on staging, and main c6f9cf37 is on production mainnet and production testnet. Each
 lane applied migration 0091 in its four regions (production also 0090). Production mainnet had
-58 wallets, all passkey, so the Email OTP reset affected none. The 0.76.0 docs already replace
-the D7 note of Slice 5.
+58 wallets, all passkey, so the Email OTP reset affected none. Slice 5 (the docs) is open,
+checked on 2026-11-27. The 0.76.0 docs replaced the note on the Email OTP pages, but the D7
+note is still on the custody page (`apps/docs/src/concepts/custody/index.md` and its Japanese
+page). [Intended behaviours](intended-behaviours.md) has no device-factor text in its Email
+OTP, recovery and device-linking sections. Refactor 251 Fact F20 still describes the old seal
+enc_s(S).
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
