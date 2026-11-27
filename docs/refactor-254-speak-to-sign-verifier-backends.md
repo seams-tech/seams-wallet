@@ -377,6 +377,12 @@ intent that has the new field.
 a push, a publish, a deploy, `SAYSO_API_KEY`, and a gate run that costs money. G1 and G3 need
 the S1 Worker to be deployed.
 
+**The gate data is not ready.** The STT-1 audio is not stored and must be made again. "Gate
+0" is not a speaker set, and no list of results of the Phala build exists. Section 5 states G1
+and G2 in other words than Refactor 210, Section 14.5. The
+[evidence file](evidence/refactor-254-slice-3-sayso-20261127.md) has the S1 measurements, what
+each gate needs and three open points for the owner.
+
 **For S2.** SaySo has two edits that are not committed: `publishConfig: { access: public }`
 in the `package.json` files of `@sayso/verdict` and `@sayso/client`. An Antigravity session
 made them on 2026-11-24, after the owner chose to publish the two packages to npm. The owner
