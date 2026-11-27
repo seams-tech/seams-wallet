@@ -1,7 +1,8 @@
 # Refactor 254: Speak-to-Sign verifier backends (SaySo first, OutLayer second)
 
-Status: 2026-11-27. Slice 1 is built in `23b08a7d2` (Section 6, "Slice 1 result"). Slices 2
-to 6 are not.
+Status: 2026-11-27. Slice 1 is built in `23b08a7d2` (Section 6, "Slice 1 result"). Of Slice 3,
+S1 is built in SaySo `1e02ffb` (Section 6, "Slice 3 progress"); S2, S3 and the gates wait for
+the owner. Slices 2, 4, 5 and 6 are not built.
 Section 8 lists the open questions.
 
 The owner decided on 2026-11-27: "Cloudflare verifier is now replacing the OutLayer backend as
@@ -89,6 +90,10 @@ Checked on 2026-11-27 in seams-wallet `dev` at `d3255d548`, SaySo at `6e17c4f`
   normalizes a sentence as the Worker does, so the Wallet can compute the same
   `intent_digest`. All 37 sentences in `tests/fixtures/spoken-intent/spoken_intent_vectors_v1.json`
   ("send two point five near to bob dash one dot testnet", ...) normalize to themselves.
+  But SaySo refuses a sentence of more than 16 words or 160 characters, and it keeps 8 s of
+  audio. 3 of the 37 sentences have more words: 17, 18 ("send nine hundred ninety nine
+  thousand nine hundred ninety nine point nine nine near to alice dot testnet") and 40
+  (Section 8, Q7).
 - **F9. SaySo forgives too much for a transfer.** In a sentence of 4 or more words, SaySo
   accepts one changed or dropped word unless that word is a number or a negation word
   (`crates/sayso-wasm/src/words.rs:200-240`). So it accepts "rob" for "bob" in "send ten near
@@ -339,6 +344,44 @@ Where the build differs from Section 1, for Slice 4:
   `readAttestationUrl` (the OutLayer record URL) and the `attestationUrl` fields stay where they
   are. Slice 4 makes the pinned data and the link check a part of each backend.
 
+### Slice 3 progress (2026-11-27)
+
+**S1 is built** in SaySo `1e02ffb` on `main`. The SaySo repository has no remote, so the commit
+is local. The Worker at `https://sayso.seams.sh` is not deployed again: it still refuses an
+intent that has the new field.
+
+- **The field.** An intent can carry `guarded_word_indexes`: strictly ascending positions in
+  its normalized words. `createIntent` takes `guardedWordIndexes` and sends the field only
+  when the list is not empty. `prepare` and `POST /v1/render` return the list.
+- **The check.** A changed word at a guarded position refuses with `words`. A dropped word
+  refuses if any position that it could have is guarded. The number and negation rule stays.
+  With guards `[1, 2, 4, 5, 6]` on "send ten near to bob dot testnet": "... rob ..." and a
+  dropped "bob" refuse, "sent ten near ..." accepts.
+- **The digest.** `intent_digest` appends `u32_le(count) ‖ one byte for each index` after the
+  sentence, only when the list is not empty. The domain stays `sayso:intent:v1`. So an intent
+  with no guards keeps its digest, and the Worker and its clients need not change at the same
+  time. The other choice was a `v2` domain that always has the block; the SaySo README gives
+  the reasons. It can still change before the S2 release.
+- **A vector for Slice 4.** `user_id` `near:testnet:alice.testnet`, `action`
+  `seams.near.transfer`, `payload_sha256_hex` `42` × 32, the sentence above and the guards
+  above give the digest `a63e63c8e79f1e78101657310a9b5eedf1672fd5f55cf677db2be5accf86a583`.
+  Without the guards it is `51bc8d22b29c0220a5cfb1a90c3ebebea5757c7f8293c0062beef13cb5968e86`.
+  The Rust and the TypeScript tests of SaySo pin both values.
+- **A fault fixed on the way.** An intent with an unknown or malformed field made the Worker
+  throw after the speaker and transcriber calls. `verifyBatch` now checks the intent first and
+  answers with a signed `unsupported` refusal before a model call.
+- **Checks.** `pnpm test` and `pnpm typecheck` pass in SaySo: 11 Rust tests (8 in
+  `sayso-wasm`) and 10 TypeScript tests.
+
+**Not started:** S2, S3 and G1 to G3. Each needs the owner's yes: the `seams-tech` repository,
+a push, a publish, a deploy, `SAYSO_API_KEY`, and a gate run that costs money. G1 and G3 need
+the S1 Worker to be deployed.
+
+**For S2.** SaySo has two edits that are not committed: `publishConfig: { access: public }`
+in the `package.json` files of `@sayso/verdict` and `@sayso/client`. An Antigravity session
+made them on 2026-11-24, after the owner chose to publish the two packages to npm. The owner
+did not answer its next question, the npm scope: `@sayso`, `@seams` or `@purin-labs`.
+
 ## 7. Invariants
 
 - Evidence binds the owner, the request digest, the sentence, a recording of this flow and an
@@ -358,3 +401,4 @@ Where the build differs from Section 1, for Slice 4:
 | Q4  | Mainnet: one SaySo Worker with a key for each network, or one Worker for each network      | One Worker for each network, as the Gateways are                            |
 | Q5  | Live words on the card through `/v1/stream` (Nova-3)                                       | Later, after G3                                                             |
 | Q6  | The audio goes to Cloudflare Workers AI. The privacy text (Refactor 210, Q2) is still open | Write it in Slice 5                                                         |
+| Q7  | SaySo refuses a sentence above 16 words; some Wallet amounts make longer sentences (F8)    | The Wallet offers no spoken approval for such a request, and says why       |
