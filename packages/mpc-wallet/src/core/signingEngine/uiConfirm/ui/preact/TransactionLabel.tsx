@@ -2,7 +2,7 @@
 import { WalletText } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import type { ComponentChildren } from 'preact';
 import { ActionType } from '@/core/types/actions';
-import type { TreeNode } from '../transaction-display/tree';
+import { nearActionTitle, type TreeNode } from '../transaction-display/tree';
 import {
   formatCodeSize,
   formatDeposit,
@@ -52,36 +52,7 @@ function assertNever(value: never): never {
 }
 
 export function transactionLabelTitle(node: TreeNode): string {
-  const action = node.action;
-  if (action) {
-    switch (action.type) {
-      case ActionType.FunctionCall:
-        return `Calling ${action.methodName} with ${formatDeposit(action.deposit)} using ${formatGas(action.gas)}`;
-      case ActionType.Transfer:
-        return `Transfer ${formatDeposit(action.amount)}`;
-      case ActionType.CreateAccount:
-        return 'Creating Account';
-      case ActionType.DeleteAccount:
-        return 'Deleting Account';
-      case ActionType.Stake:
-        return `Staking ${formatDeposit(action.stake)}`;
-      case ActionType.AddKey:
-        return 'Adding Key';
-      case ActionType.DeleteKey:
-        return 'Deleting Key';
-      case ActionType.DeployContract:
-        return 'Deploying WASM contract';
-      case ActionType.DeployGlobalContract:
-        return `Deploy global WASM contract (mode: ${action.deployMode}, size ${formatCodeSize(action.code)})`;
-      case ActionType.UseGlobalContract: {
-        if (action.accountId) return `Use global contract by account ${action.accountId}`;
-        if (action.codeHash) return `Use global contract by hash ${action.codeHash}`;
-        return 'Use global contract';
-      }
-      default:
-        return assertNever(action);
-    }
-  }
+  if (node.action) return nearActionTitle(node.action);
   if (node.transaction) {
     const prefix =
       (node.totalTransactions ?? 1) > 1

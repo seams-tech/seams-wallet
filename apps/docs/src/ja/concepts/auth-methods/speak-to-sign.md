@@ -112,6 +112,7 @@ if (result.kind === 'approved') console.log(result.result.transactionHash);
 | `near.signMessage`            | NEP-413の署名とノンス             |
 
 所有者は`summary`(1〜12語の平易な単語)を読み上げます。判定は、Walletが署名する内容(取引の受取先とアクションのバイト列、またはNEP-413メッセージのバイト列)に結び付きます。`summary`はアプリが書きます。音声は、誰が承認し、何を言ったかを証明しますが、`summary`がリクエストを正しく説明していることは証明しません。
+そのため、カードは`summary`の上にリクエストの内容を表示します。取引とデリゲートアクションでは受取先と各アクション、メッセージでは宛先と本文です。この表示は、Walletが署名するリクエストからWalletが書きます。
 `approval`を指定した呼び出しは、拒否のときに例外を投げません。`approvals`に記述子がない場合は例外を投げます。
 
 リクエストの項目から文を作る呼び出し(`transfer`、`note`、`rating`、`mergeApproval`、`bet`)と`enroll`は、`seams.near.spoken`にあります。

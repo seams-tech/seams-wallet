@@ -5,12 +5,12 @@ import type {
   DisplayChain,
   TxDisplayFileContentVariants,
 } from '@/core/signingEngine/interfaces/display';
-import type { ActionArgs, TransactionInput } from '@/core/types/actions';
+import { ActionType, type ActionArgs, type TransactionInput } from '@/core/types/actions';
 import {
   NEAR_TOKEN_TRANSFER_DEPOSIT_YOCTO,
   isNearTokenTransferMethod,
 } from '@/core/signingEngine/chains/near/tokenTransfers';
-import { formatArgs, formatCodeSize, shortenPubkey } from './formatters';
+import { formatArgs, formatCodeSize, formatDeposit, formatGas, shortenPubkey } from './formatters';
 import { isString } from '@shared/utils/validation';
 import { renderFallbackDisplayOperation } from './renderers/fallback';
 
@@ -145,6 +145,37 @@ export function buildDisplayTreeFromModel(model: TxDisplayModel): TreeNode {
     open: true,
     children: rootChildren,
   };
+}
+
+/** The title of a NEAR action, as the review and the spoken card show it. */
+export function nearActionTitle(action: ActionArgs): string {
+  switch (action.type) {
+    case ActionType.FunctionCall:
+      return `Calling ${action.methodName} with ${formatDeposit(action.deposit)} using ${formatGas(action.gas)}`;
+    case ActionType.Transfer:
+      return `Transfer ${formatDeposit(action.amount)}`;
+    case ActionType.CreateAccount:
+      return 'Creating Account';
+    case ActionType.DeleteAccount:
+      return 'Deleting Account';
+    case ActionType.Stake:
+      return `Staking ${formatDeposit(action.stake)}`;
+    case ActionType.AddKey:
+      return 'Adding Key';
+    case ActionType.DeleteKey:
+      return 'Deleting Key';
+    case ActionType.DeployContract:
+      return 'Deploying WASM contract';
+    case ActionType.DeployGlobalContract:
+      return `Deploy global WASM contract (mode: ${action.deployMode}, size ${formatCodeSize(action.code)})`;
+    case ActionType.UseGlobalContract: {
+      if (action.accountId) return `Use global contract by account ${action.accountId}`;
+      if (action.codeHash) return `Use global contract by hash ${action.codeHash}`;
+      return 'Use global contract';
+    }
+    default:
+      return assertNeverAction(action);
+  }
 }
 
 function buildActionNode(action: ActionArgs, idx: number): TreeNode {

@@ -112,6 +112,10 @@ voice in place of the Wallet's confirm, and the call returns a result with a
 - The application writes the summary. The voice proves who approves and which
   words this person said. It does not prove that the summary describes the
   request.
+- The card shows the request above the summary, in the words of the Wallet's
+  confirm: the receiver and each action of a transaction or a delegate action,
+  or the recipient and the text of a message. The Wallet writes these lines
+  from the request that it signs, so the owner reads them before they speak.
 - The Wallet sets the sender of a delegate action and draws the nonce of a
   message.
 - `walletSession` is optional, as for the normal calls. Without it, the call

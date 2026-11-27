@@ -35,6 +35,7 @@ import {
   renderIntent,
   type SpokenIntent,
 } from './spokenIntent';
+import { spokenRequestContext } from './spokenRequestContext';
 import { displayAmount } from './spokenTransfer';
 
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
@@ -158,10 +159,11 @@ export async function runSpeakToSignApproval(
   const rendered = renderIntent(intent);
   const verifyRequest = await intentVerifyRequest(intent);
   signal.throwIfAborted();
+  // Above a sentence that the application or a note's summary wrote, the card shows what it signs.
+  const context = spokenRequestContext(input.network, intent);
   const opened = await operations.openPrompt({
     sentence: rendered.displayText,
-    // A note's card shows the note above its summary, so the author sees what the words sign.
-    ...(intent.kind === 'community_note' ? { context: { label: 'Your note', text: intent.text } } : {}),
+    ...(context ? { context } : {}),
     autoStart: input.autoStart,
     signal,
     surfaceMeasurementBinding: input.surfaceMeasurementBinding,
