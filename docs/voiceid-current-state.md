@@ -112,8 +112,8 @@ cutoff and phrase bounds remain experimental.
    limits in [What the checks establish](#what-the-checks-establish) also apply
    to export: the server verifies the device key, not the recording.
 
-The [Whisper integration plan](refactor-191-voiceid-whisper-turbo-plan.md) is
-deferred by the user as of 2026-10-31. Browser integration will not proceed
-because its roughly 602 MB download is too large for Wallet users. An API-backed
-alternative voice modal remains a possible future option, with no approved
-implementation or schedule.
+The owner stopped the Whisper integration on 2026-10-31 and deleted its plan on
+2026-11-27 ([last text at `3d1f46498`](https://github.com/seams-tech/seams-wallet/blob/3d1f46498/docs/refactor-191-voiceid-whisper-turbo-plan.md)).
+Browser integration will not proceed because its roughly 602 MB download is too
+large for Wallet users. An API-backed alternative voice modal remains a possible
+future option, with no approved implementation or schedule.

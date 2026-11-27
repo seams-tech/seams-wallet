@@ -97,3 +97,10 @@ links to their full Git records; unfinished plans retain their working detail.
   such limits for their own wallet in plain English. The last texts are
   [R225 at `61bf248cf`](https://github.com/seams-tech/seams-wallet/blob/61bf248cf/docs/refactor-225-jev-policy-engine.md)
   and [R226 at `90fe27446`](https://github.com/seams-tech/seams-wallet/blob/90fe27446/docs/refactor-226-child-lock.md).
+- R180, R191 and R230, deleted on 2026-11-27 with nothing built. R180 proposed enterprise OIDC
+  and SAML login for operators. R191 planned Whisper turbo in the browser VoiceID package; its
+  download of about 602 MB was too large. R230 assessed Rivet with regional PostgreSQL as a
+  backend in place of Cloudflare. The last texts are
+  [R180 at `822dfb30f`](https://github.com/seams-tech/seams-wallet/blob/822dfb30f/docs/refactor-180-enterprise-sso.md),
+  [R191 at `3d1f46498`](https://github.com/seams-tech/seams-wallet/blob/3d1f46498/docs/refactor-191-voiceid-whisper-turbo-plan.md)
+  and [R230 at `2afe47d43`](https://github.com/seams-tech/seams-wallet/blob/2afe47d43/docs/refactor-230-rivet.md).
