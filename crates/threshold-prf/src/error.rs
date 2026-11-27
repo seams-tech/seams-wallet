@@ -1,7 +1,7 @@
 use core::fmt;
 
 /// Result type used by the threshold PRF crate.
-pub type ThresholdPrfResult<T> = Result<T, ThresholdPrfError>;
+pub(crate) type ThresholdPrfResult<T> = Result<T, ThresholdPrfError>;
 
 /// Errors returned by threshold PRF operations.
 #[derive(Debug, Clone, PartialEq, Eq)]

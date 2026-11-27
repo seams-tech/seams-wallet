@@ -22,7 +22,7 @@ pub use ed25519_role_targets::{
     Ed25519DeriverBThresholdPrfRootV1, Ed25519DeriverBToATargetProofBundleV1,
     PreparedEd25519DeriverATargetV1, PreparedEd25519DeriverBTargetV1,
 };
-pub use error::{ThresholdPrfError, ThresholdPrfResult};
+pub use error::ThresholdPrfError;
 pub use prf::{
     combine_verified_partials, combine_verified_partials_bound_to_digest, evaluate_partial,
     evaluate_partial_with_dleq_proof, evaluate_partial_with_dleq_proof_bound_to_digest,
