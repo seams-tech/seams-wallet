@@ -77,6 +77,24 @@ enrolled voice, and a model call costs money.
 - The stream path (`/v1/stream`) with guards from end to end. The Rust test covers its word
   check; the Worker test covers the batch path.
 
+### 1.2 The second deploy: transcript-only intents
+
+The owner approved it on 2026-11-27. SaySo `3da0c0c` (the same tree as `origin/main`) is Worker
+version `04760e00-e4b1-4f6b-87d8-f3d7dccab92c`; the version before is `2caac3c4`. The container
+image did not change, and the secrets are the same.
+
+| Request (`POST /v1/render` unless named)            | Answer                                                    |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| `GET /healthz`                                      | `ok`, `mock: false`, the public key `d3c6773f…4a2551e`    |
+| The intent with no guards                           | `UbyNIrKcAiClz7GpDD6-vqV1fH-Ck8AGK-7xPLWWjoY`, unchanged  |
+| Guards `[1, 2, 4, 5, 6]`                            | `pj5jyOefHngQFlcxCpte7fFnL9X1XPZ32yvlrM-GpYM`, unchanged  |
+| `transcript_only: true`                             | `fw0hpoPb_6fdBnhnDbGo0znlEMNlSOuCNAjjzKMQDZ8` (`7f0d21a6…`) |
+| `transcript_only` and guards                        | `{ "ok": false, "reason": "unsupported" }`                |
+| "Pay $5 to acct7 now"                               | `pay five dollars to acct seven now`                      |
+| `POST /v1/verify` with no token                     | 401 `unauthorized_verify`                                 |
+
+Not probed: a verify with real audio, and a transcript-only verdict from the live Worker.
+
 ## 2. The gate data
 
 The gates come from Refactor 210, Section 14.5. That document is in the seams-console

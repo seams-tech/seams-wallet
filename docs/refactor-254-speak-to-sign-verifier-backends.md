@@ -485,7 +485,12 @@ each gate needs and three open points for the owner.
 - **CI.** The first CI run of the new repository passed (run `45934386701`).
 - **Pushed.** With the owner's yes, `main` is at `3da0c0c` since 2026-11-27, with the mock-mode
   fix, the `staging-testnet` environment, the G1 bench and transcript-only intents. CI passed
-  (run `45946768685`). The Worker at `sayso.seams.sh` still runs `1e02ffb`.
+  (run `45946768685`).
+- **Deployed.** With the owner's yes, `sayso.seams.sh` runs `3da0c0c` since 2026-11-27 (Worker
+  version `04760e00`; the version before is `2caac3c4`). The container image and the verdict key
+  did not change. The probes give the pinned digests for an intent with no guards, with guards
+  and transcript-only (`fw0hpoPb…`); an intent with both is refused; "acct7" reads "acct
+  seven"; `/v1/verify` with no token answers 401.
 - **The publish waits** for the owner's `npm login` and `scripts/npm-trust.sh`. Then the
   workflow "Release the SaySo packages" publishes 0.2.0. The seams-wallet pin waits for Slice 4,
   because no code in seams-wallet imports the package before it.
