@@ -10,6 +10,8 @@ use crate::{
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
+use crate::worker_route::{parse_json_v1, BodyRefusalV1};
+
 pub(crate) async fn handle_relocation(
     request: worker::Request,
     storage: &worker::Storage,
@@ -83,11 +85,14 @@ pub(crate) async fn forward_export(
     if request.method() != worker::Method::Post {
         return worker::Response::error("Linked presign export requires POST", 405);
     }
-    let command: ExportRequest = match request.json().await {
+    let command: ExportRequest = match parse_json_v1(
+        &mut request,
+        BodyRefusalV1::Text("Linked presign export request is malformed"),
+    )
+    .await
+    {
         Ok(command) => command,
-        Err(_) => {
-            return worker::Response::error("Linked presign export request is malformed", 400)
-        }
+        Err(response) => return response,
     };
     if let Err(error) = command.validate() {
         return presign_do_error_response(error);
@@ -400,11 +405,14 @@ pub(super) async fn forward_command<Receipt: DeserializeOwned + Serialize>(
     if request.method() != worker::Method::Post {
         return worker::Response::error("Linked presign relocation requires POST", 405);
     }
-    let command: LinkedPresignRelocationRequest = match request.json().await {
+    let command: LinkedPresignRelocationRequest = match parse_json_v1(
+        &mut request,
+        BodyRefusalV1::Text("Linked presign relocation request is malformed"),
+    )
+    .await
+    {
         Ok(command) => command,
-        Err(_) => {
-            return worker::Response::error("Linked presign relocation request is malformed", 400)
-        }
+        Err(response) => return response,
     };
     if let Err(error) = command.validate() {
         return presign_do_error_response(error);

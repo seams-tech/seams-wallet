@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
+use crate::worker_route::{parse_json_v1, BodyRefusalV1};
+
 use router_ab_core::{
     PublicDigest32, RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningPrepareResponseV1,
     RouterAbEcdsaDerivationSignatureSchemeV1,
@@ -93,18 +95,16 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
     };
     let result = match request.path().as_str() {
         CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_INIT_PATH => {
-            let parsed = match request
-                .json::<CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1>()
+            let parsed =
+                match parse_json_v1::<CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1>(
+                    &mut request,
+                    BodyRefusalV1::ParseFailed("SigningWorker ECDSA presign init"),
+                )
                 .await
-            {
-                Ok(value) => value,
-                Err(error) => {
-                    return worker::Response::error(
-                        format!("SigningWorker ECDSA presign init JSON parse failed: {error}"),
-                        400,
-                    );
-                }
-            };
+                {
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
+                };
             if let Err(error) = parsed.request.validate_at(now_unix_ms) {
                 return presign_do_error_response(error);
             }
@@ -152,17 +152,16 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
             )
         }
         CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH => {
-            let parsed = match request
-                .json::<CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1>()
-                .await
+            let parsed = match parse_json_v1::<
+                CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1,
+            >(
+                &mut request,
+                BodyRefusalV1::ParseFailed("SigningWorker ECDSA presign step"),
+            )
+            .await
             {
-                Ok(value) => value,
-                Err(error) => {
-                    return worker::Response::error(
-                        format!("SigningWorker ECDSA presign step JSON parse failed: {error}"),
-                        400,
-                    );
-                }
+                Ok(parsed) => parsed,
+                Err(response) => return response,
             };
             let parsed = parsed.request;
             #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
@@ -329,19 +328,16 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
     if request.path().as_str()
         == CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGNATURE_DO_CONSUME_PATH
     {
-        let parsed = match request
-            .json::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1>()
-            .await
+        let parsed = match parse_json_v1::<
+            CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1,
+        >(
+            &mut request,
+            BodyRefusalV1::ParseFailed("SigningWorker linked ECDSA presign consume"),
+        )
+        .await
         {
-            Ok(value) => value,
-            Err(error) => {
-                return worker::Response::error(
-                    format!(
-                        "SigningWorker linked ECDSA presign consume JSON parse failed: {error}"
-                    ),
-                    400,
-                );
-            }
+            Ok(parsed) => parsed,
+            Err(response) => return response,
         };
         return match consume_linked_presignature(parsed, completed_records, storage, env, wallet_objects).await {
             Ok(response) => worker::Response::from_json(&response),
@@ -350,19 +346,16 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
     }
     let result = match request.path().as_str() {
         CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGN_SESSION_DO_INIT_PATH => {
-            let parsed = match request
-                .json::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1>()
-                .await
+            let parsed = match parse_json_v1::<
+                CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1,
+            >(
+                &mut request,
+                BodyRefusalV1::ParseFailed("SigningWorker linked ECDSA presign init"),
+            )
+            .await
             {
-                Ok(value) => value,
-                Err(error) => {
-                    return worker::Response::error(
-                        format!(
-                            "SigningWorker linked ECDSA presign init JSON parse failed: {error}"
-                        ),
-                        400,
-                    );
-                }
+                Ok(parsed) => parsed,
+                Err(response) => return response,
             };
             if let Err(error) = parsed.request.validate_at(now_unix_ms) {
                 return presign_do_error_response(error);
@@ -377,19 +370,16 @@ pub(super) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
             create_linked_presign_session(parsed, sessions, now_unix_ms)
         }
         CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGN_SESSION_DO_STEP_PATH => {
-            let parsed = match request
-                .json::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1>()
-                .await
+            let parsed = match parse_json_v1::<
+                CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1,
+            >(
+                &mut request,
+                BodyRefusalV1::ParseFailed("SigningWorker linked ECDSA presign step"),
+            )
+            .await
             {
-                Ok(value) => value,
-                Err(error) => {
-                    return worker::Response::error(
-                        format!(
-                            "SigningWorker linked ECDSA presign step JSON parse failed: {error}"
-                        ),
-                        400,
-                    );
-                }
+                Ok(parsed) => parsed,
+                Err(response) => return response,
             };
             step_linked_presign_session(
                 parsed,

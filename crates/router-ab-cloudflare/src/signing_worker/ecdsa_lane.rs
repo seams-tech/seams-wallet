@@ -708,6 +708,8 @@ mod worker_execution {
     use worker::{Env, Method, Request, Response};
     use zeroize::Zeroizing;
 
+    use crate::worker_route::{parse_json_v1, BodyRefusalV1};
+
     fn protocol_error_response(error: RouterAbProtocolError) -> worker::Result<Response> {
         crate::cloudflare_protocol_error_response_v1(&error)
     }
@@ -1496,12 +1498,14 @@ mod worker_execution {
         if request.method() != Method::Post {
             return Response::error("method not allowed", 405);
         }
-        let input = match request
-            .json::<CloudflareSigningWorkerEcdsaLaneActivateRequestV1>()
-            .await
+        let input = match parse_json_v1::<CloudflareSigningWorkerEcdsaLaneActivateRequestV1>(
+            &mut request,
+            BodyRefusalV1::Text("invalid ECDSA lane activation request"),
+        )
+        .await
         {
             Ok(input) => input,
-            Err(_) => return Response::error("invalid ECDSA lane activation request", 400),
+            Err(response) => return response,
         };
         let now = match cloudflare_now_unix_ms_v1() {
             Ok(now) => now,
@@ -1520,12 +1524,14 @@ mod worker_execution {
         if request.method() != Method::Post {
             return Response::error("method not allowed", 405);
         }
-        let input = match request
-            .json::<CloudflareSigningWorkerEcdsaLaneRetireRequestV1>()
-            .await
+        let input = match parse_json_v1::<CloudflareSigningWorkerEcdsaLaneRetireRequestV1>(
+            &mut request,
+            BodyRefusalV1::Text("invalid ECDSA lane retirement request"),
+        )
+        .await
         {
             Ok(input) => input,
-            Err(_) => return Response::error("invalid ECDSA lane retirement request", 400),
+            Err(response) => return response,
         };
         let now = match cloudflare_now_unix_ms_v1() {
             Ok(now) => now,

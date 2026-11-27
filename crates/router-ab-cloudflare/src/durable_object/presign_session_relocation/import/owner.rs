@@ -6,6 +6,8 @@ use crate::durable_object::worker_storage::storage_transaction_value;
 use crate::CloudflareSigningWorkerRuntimeV1;
 use sha2::{Digest, Sha256};
 
+use crate::worker_route::{parse_json_v1, BodyRefusalV1};
+
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 enum ImportState {
@@ -42,11 +44,14 @@ pub(crate) async fn forward(
     if request.method() != worker::Method::Post {
         return worker::Response::error("Linked presign transfer requires POST", 405);
     }
-    let command: Command = match request.json().await {
+    let command: Command = match parse_json_v1(
+        &mut request,
+        BodyRefusalV1::Text("Linked presign transfer request is malformed"),
+    )
+    .await
+    {
         Ok(command) => command,
-        Err(_) => {
-            return worker::Response::error("Linked presign transfer request is malformed", 400)
-        }
+        Err(response) => return response,
     };
     if let Err(error) = command.validate() {
         return presign_do_error_response(error);

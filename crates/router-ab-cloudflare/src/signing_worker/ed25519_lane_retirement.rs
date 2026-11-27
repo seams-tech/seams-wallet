@@ -7,6 +7,8 @@ use sha2::{Digest, Sha256};
 use worker::{Env, Method, Request, Response};
 use zeroize::Zeroizing;
 
+use crate::worker_route::{parse_json_v1, BodyRefusalV1};
+
 use crate::{
     cloudflare_now_unix_ms_v1, cloudflare_router_error_status,
     execute_cloudflare_signing_worker_lane_material_command_v1,
@@ -376,12 +378,14 @@ pub async fn handle_cloudflare_signing_worker_ed25519_lane_retire_private_fetch_
     if request.method() != Method::Post {
         return Response::error("method not allowed", 405);
     }
-    let input = match request
-        .json::<CloudflareSigningWorkerEd25519LaneRetireRequestV1>()
-        .await
+    let input = match parse_json_v1::<CloudflareSigningWorkerEd25519LaneRetireRequestV1>(
+        &mut request,
+        BodyRefusalV1::Text("invalid Ed25519 lane retirement request"),
+    )
+    .await
     {
         Ok(input) => input,
-        Err(_) => return Response::error("invalid Ed25519 lane retirement request", 400),
+        Err(response) => return response,
     };
     let now = match cloudflare_now_unix_ms_v1() {
         Ok(now) => now,

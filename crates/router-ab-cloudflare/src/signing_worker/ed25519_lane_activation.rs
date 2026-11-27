@@ -24,6 +24,8 @@ use sha2::{Digest, Sha256};
 use worker::{Env, Method, Request, Response};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+use crate::worker_route::{parse_json_v1, BodyRefusalV1};
+
 use crate::hpke::cloudflare_hpke_x25519_public_key_bytes_v1;
 use crate::{
     cloudflare_now_unix_ms_v1, cloudflare_router_error_status,
@@ -566,12 +568,14 @@ pub async fn handle_cloudflare_signing_worker_ed25519_lane_activate_private_fetc
     if request.method() != Method::Post {
         return Response::error("method not allowed", 405);
     }
-    let input = match request
-        .json::<CloudflareSigningWorkerEd25519LaneActivateRequestV1>()
-        .await
+    let input = match parse_json_v1::<CloudflareSigningWorkerEd25519LaneActivateRequestV1>(
+        &mut request,
+        BodyRefusalV1::Text("invalid Ed25519 lane activation request"),
+    )
+    .await
     {
         Ok(input) => input,
-        Err(_) => return Response::error("invalid Ed25519 lane activation request", 400),
+        Err(response) => return response,
     };
     let now = match cloudflare_now_unix_ms_v1() {
         Ok(now) => now,

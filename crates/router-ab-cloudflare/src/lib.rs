@@ -488,6 +488,19 @@ mod service_calls;
 pub use self::service_calls::*;
 mod env_parsers;
 pub use self::env_parsers::*;
+// A build without a strict Worker entry serves no route.
+#[cfg(feature = "workers-rs")]
+#[cfg_attr(
+    not(any(
+        feature = "strict-worker-router-entrypoint",
+        feature = "strict-worker-deriver-a-entrypoint",
+        feature = "strict-worker-deriver-b-entrypoint",
+        feature = "strict-worker-signing-worker-entrypoint",
+        feature = "strict-worker-tenant-root-control-plane-entrypoint"
+    )),
+    allow(dead_code)
+)]
+mod worker_route;
 
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub use durable_object::RouterAbDeriverAWalletDurableObject;

@@ -1,5 +1,8 @@
 use crate::*;
 
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
+use crate::worker_route::{BodyRefusalV1, PathRefusalV1, PostRouteV1};
+
 /// Handles SigningWorker's private normal-signing round-1 prepare route.
 #[cfg(feature = "workers-rs")]
 #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
@@ -17,32 +20,18 @@ where
 {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "Router A/B normal-signing round-1 prepare route requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_ROUND1_PREPARE_PATH {
-        return worker::Response::error(
-            format!(
-                "Router A/B normal-signing round-1 prepare must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_ROUND1_PREPARE_PATH
-            ),
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_ROUND1_PREPARE_PATH,
+        method_refusal: "Router A/B normal-signing round-1 prepare route requires POST",
+        path_refusal: PathRefusalV1::ServedAt("Router A/B normal-signing round-1 prepare"),
+        body_refusal: BodyRefusalV1::ParseFailed("Router A/B normal-signing round-1 prepare"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2>(&mut request)
         .await
     {
         Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!("Router A/B normal-signing round-1 prepare JSON parse failed: {err}"),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     if let Err(err) = parsed.validate() {
         return crate::cloudflare_protocol_error_response_v1(&err);
@@ -135,29 +124,18 @@ where
 {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error("Router A/B normal-signing route requires POST", 405);
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH {
-        return worker::Response::error(
-            format!(
-                "Router A/B normal-signing request must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH
-            ),
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH,
+        method_refusal: "Router A/B normal-signing route requires POST",
+        path_refusal: PathRefusalV1::ServedAt("Router A/B normal-signing request"),
+        body_refusal: BodyRefusalV1::ParseFailed("Router A/B normal-signing request"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2>(&mut request)
         .await
     {
         Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!("Router A/B normal-signing request JSON parse failed: {err}"),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     if let Err(err) = parsed.validate() {
         return crate::cloudflare_protocol_error_response_v1(&err);

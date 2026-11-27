@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response};
 
+use crate::worker_route::read_post_json_v1;
+
 pub(crate) const PATH: &str = "/router-ab/internal/custody-target";
 pub(super) const OBSERVE_PATH: &str = "/router-ab/internal/custody-target/location";
 
@@ -63,14 +65,16 @@ pub(crate) async fn inspect(mut request: Request, env: &Env) -> worker::Result<R
     if let Err(error) = auth {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
-    if request.method() != Method::Post {
-        return Response::error("Custody target inspection requires POST", 405);
-    }
-    let target: Target =
-        match super::tenant_root_creation::decode_bounded_json_request(&mut request, 4096).await {
-            Ok(target) => target,
-            Err(error) => return crate::router_coordinator::protocol_error_response(error),
-        };
+    let target: Target = match read_post_json_v1(
+        &mut request,
+        "Custody target inspection requires POST",
+        4096,
+    )
+    .await
+    {
+        Ok(target) => target,
+        Err(response) => return response,
+    };
     if target.object_name.is_empty()
         || target.object_name.len() > 512
         || !target

@@ -14,6 +14,7 @@ use crate::tenant_root_role_runtime::{
     DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_REQUEST_MAX_BYTES_V1,
     DERIVER_TENANT_ROOT_RESTORE_SESSION_CLEANUP_REQUEST_MAX_BYTES_V1,
 };
+use crate::worker_route::{protocol_json_response_v1, read_post_json_v1};
 use crate::{
     build_cloudflare_ecdsa_threshold_prf_outer_request_v2, cloudflare_now_unix_ms_v1,
     cloudflare_random_bytes_v1, load_cloudflare_bound_tenant_root_role_share_v1,
@@ -276,22 +277,33 @@ async fn handle_strict_deriver_fetch_v1(
     };
 
     if path == crate::tenant_root_recovery_runtime::SOURCE_RETIREMENT_PATH {
-        if request.method() != Method::Post { return Response::error("source retirement requires POST", 405); }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_runtime::SourceRetirementRequestV1>(&mut request, 4096).await {
+        let parsed = match read_post_json_v1::<
+            crate::tenant_root_recovery_runtime::SourceRetirementRequestV1,
+        >(&mut request, "source retirement requires POST", 4096)
+        .await
+        {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(&error),
+            Err(response) => return response,
         };
-        return match crate::tenant_root_recovery_runtime::handle_source_retirement(&env, worker_role, parsed, now_unix_ms).await {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_recovery_runtime::handle_source_retirement(
+                &env,
+                worker_role,
+                parsed,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == crate::tenant_root_recovery_reshare::TENANT_ROOT_RECOVERY_ACCESS_PATH_V1 {
-        if request.method() != Method::Post { return Response::error("recovery access requires POST", 405); }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryAccessRequestV1>(&mut request, 32 * 1024).await {
+        let parsed = match read_post_json_v1::<
+            crate::tenant_root_recovery_reshare::TenantRootRecoveryAccessRequestV1,
+        >(&mut request, "recovery access requires POST", 32 * 1024)
+        .await
+        {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(&error),
+            Err(response) => return response,
         };
         return match crate::tenant_root_recovery_runtime::handle_recovery_access(&env, worker_role, parsed, now_unix_ms).await {
             Ok(response) => Ok(response),
@@ -300,15 +312,23 @@ async fn handle_strict_deriver_fetch_v1(
     }
 
     if path == crate::tenant_root_recovery_reshare::TENANT_ROOT_RECOVERY_RESHARE_PATH_V1 {
-        if request.method() != Method::Post { return Response::error("recovery sharing requires POST", 405); }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryReshareRequestV1>(&mut request, 128 * 1024).await {
+        let parsed = match read_post_json_v1::<
+            crate::tenant_root_recovery_reshare::TenantRootRecoveryReshareRequestV1,
+        >(&mut request, "recovery sharing requires POST", 128 * 1024)
+        .await
+        {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(&error),
+            Err(response) => return response,
         };
-        return match crate::tenant_root_recovery_runtime::handle_recovery(&env, worker_role, parsed, now_unix_ms).await {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_recovery_runtime::handle_recovery(
+                &env,
+                worker_role,
+                parsed,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_STATUS_PRIVATE_REQUEST_PATH {
@@ -322,151 +342,125 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_status_v1(
-            &env,
-            worker_role,
-            status_request,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_status_v1(
+                &env,
+                worker_role,
+                status_request,
+            )
+            .await,
+        );
     }
 
     if path == crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH {
-        if request.method() != Method::Post {
-            return Response::error("tenant-root restore refresh requires POST", 405);
-        }
-        let refresh_request = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<
+        let refresh_request = match read_post_json_v1::<
             crate::tenant_root_restore_refresh_runtime::CloudflareDeriverTenantRootRestoreRefreshRequestV1,
-        >(&mut request, 64 * 1024).await {
-            Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(&error),
-        };
-        return match crate::tenant_root_restore_refresh_runtime::handle_restore_refresh(
-            &env,
-            worker_role,
-            refresh_request,
-            now_unix_ms,
-        )
+        >(&mut request, "tenant-root restore refresh requires POST", 64 * 1024)
         .await
         {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
+            Ok(refresh_request) => refresh_request,
+            Err(response) => return response,
         };
+        return protocol_json_response_v1(
+            crate::tenant_root_restore_refresh_runtime::handle_restore_refresh(
+                &env,
+                worker_role,
+                refresh_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path
         == crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PREACTIVATION_CLEANUP_PRIVATE_REQUEST_PATH
     {
-        if request.method() != Method::Post {
-            return Response::error("restore cleanup requires POST", 405);
-        }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<
+        let parsed = match read_post_json_v1::<
             crate::tenant_root_role_runtime::CloudflareDeriverTenantRootPreactivationCleanupRequestV1,
-        >(&mut request, 32 * 1024).await {
-            Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(&error),
-        };
-        return match crate::tenant_root_role_runtime::handle_restore_preactivation_cleanup(
-            &env,
-            worker_role,
-            parsed,
-            now_unix_ms,
-        )
+        >(&mut request, "restore cleanup requires POST", 32 * 1024)
         .await
         {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
+            Ok(parsed) => parsed,
+            Err(response) => return response,
         };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_restore_preactivation_cleanup(
+                &env,
+                worker_role,
+                parsed,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH {
-        if request.method() != Method::Post {
-            return Response::error("tenant-root restore-session cleanup requires POST", 405);
-        }
         let cleanup_request =
-            match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<
-                CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1,
-            >(
+            match read_post_json_v1::<CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1>(
                 &mut request,
+                "tenant-root restore-session cleanup requires POST",
                 DERIVER_TENANT_ROOT_RESTORE_SESSION_CLEANUP_REQUEST_MAX_BYTES_V1,
             )
             .await
             {
-                Ok(parsed) => parsed,
-                Err(error) => return cloudflare_protocol_error_response_v1(&error),
+                Ok(cleanup_request) => cleanup_request,
+                Err(response) => return response,
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_session_cleanup_v1(
-            &env,
-            worker_role,
-            cleanup_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_session_cleanup_v1(
+                &env,
+                worker_role,
+                cleanup_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH {
-        if request.method() != Method::Post {
-            return Response::error("tenant-root restore import-key routes require POST", 405);
-        }
         let issue_request =
-            match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<
-                CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1,
-            >(
+            match read_post_json_v1::<CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1>(
                 &mut request,
+                "tenant-root restore import-key routes require POST",
                 DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_REQUEST_MAX_BYTES_V1,
             )
             .await
             {
-                Ok(parsed) => parsed,
-                Err(error) => return cloudflare_protocol_error_response_v1(&error),
+                Ok(issue_request) => issue_request,
+                Err(response) => return response,
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_role_import_key_v1(
-            &env,
-            worker_role,
-            issue_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_role_import_key_v1(
+                &env,
+                worker_role,
+                issue_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_ACCEPT_PRIVATE_REQUEST_PATH {
-        if request.method() != Method::Post {
-            return Response::error("tenant-root restore import-accept route requires POST", 405);
-        }
         let accept_request =
-            match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<
-                CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1,
-            >(
+            match read_post_json_v1::<CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1>(
                 &mut request,
+                "tenant-root restore import-accept route requires POST",
                 DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_REQUEST_MAX_BYTES_V1,
             )
             .await
             {
-                Ok(parsed) => parsed,
-                Err(error) => return cloudflare_protocol_error_response_v1(&error),
+                Ok(accept_request) => accept_request,
+                Err(response) => return response,
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_role_import_accept_v1(
-            &env,
-            worker_role,
-            accept_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_role_import_accept_v1(
+                &env,
+                worker_role,
+                accept_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH {
@@ -480,18 +474,16 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_create_role_share_v1(
-            &env,
-            worker_role,
-            runtime.tenant_root_peer(),
-            creation_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_create_role_share_v1(
+                &env,
+                worker_role,
+                runtime.tenant_root_peer(),
+                creation_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH {
@@ -505,16 +497,14 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_creation_evidence_v1(
-            &env,
-            worker_role,
-            evidence_request,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_creation_evidence_v1(
+                &env,
+                worker_role,
+                evidence_request,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH {
@@ -528,18 +518,16 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_cleanup_v1(
-            &env,
-            worker_role,
-            runtime.tenant_root_peer(),
-            cleanup_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_cleanup_v1(
+                &env,
+                worker_role,
+                runtime.tenant_root_peer(),
+                cleanup_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH {
@@ -553,17 +541,15 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_peer_pair_fence_v1(
-            &env,
-            worker_role,
-            fence_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_peer_pair_fence_v1(
+                &env,
+                worker_role,
+                fence_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH {
@@ -577,18 +563,15 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::
-            handle_cloudflare_deriver_tenant_root_managed_restore_v1(
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_managed_restore_v1(
                 &env,
                 worker_role,
                 restore_request,
                 now_unix_ms,
             )
-            .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_FORWARD_REFRESH_PRIVATE_REQUEST_PATH {
@@ -603,18 +586,15 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::
-            handle_cloudflare_deriver_tenant_root_managed_restore_forward_refresh_v1(
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_managed_restore_forward_refresh_v1(
                 &env,
                 worker_role,
                 forward_refresh_request,
                 now_unix_ms,
             )
-            .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH {
@@ -628,17 +608,15 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_initial_activation_v1(
-            &env,
-            worker_role,
-            activation_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_initial_activation_v1(
+                &env,
+                worker_role,
+                activation_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH {
@@ -652,17 +630,15 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_refresh_activation_v1(
-            &env,
-            worker_role,
-            activation_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_refresh_activation_v1(
+                &env,
+                worker_role,
+                activation_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     if path == CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH {
@@ -676,17 +652,15 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_refresh_v1(
-            &env,
-            worker_role,
-            refresh_request,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
+        return protocol_json_response_v1(
+            crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_refresh_v1(
+                &env,
+                worker_role,
+                refresh_request,
+                now_unix_ms,
+            )
+            .await,
+        );
     }
 
     #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
@@ -877,14 +851,11 @@ async fn handle_strict_deriver_fetch_v1(
             Ok(export) => export,
             Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
-        return match export.execute_deriver_export(
+        return protocol_json_response_v1(export.execute_deriver_export(
             &crate::CloudflareWorkerEnvReaderV1::new(&env),
             &runtime,
             now_unix_ms,
-        ) {
-            Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(&err),
-        };
+        ));
     }
 
     if path == runtime.refresh_private_path() {

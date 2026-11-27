@@ -122,19 +122,16 @@ pub(crate) async fn handle_role_request(
     env: &Env,
     role: crate::CloudflareWorkerRoleV1,
 ) -> worker::Result<Response> {
-    if request.method() != Method::Post {
-        return Response::error("Wallet startup requires POST", 405);
-    }
-    let request =
-        match super::tenant_root_creation::decode_bounded_json_request::<HomeWalletStartup>(
-            &mut request,
-            3072,
-        )
-        .await
-        {
-            Ok(request) => request,
-            Err(error) => return crate::router_coordinator::protocol_error_response(error),
-        };
+    let request = match crate::worker_route::read_post_json_v1::<HomeWalletStartup>(
+        &mut request,
+        "Wallet startup requires POST",
+        3072,
+    )
+    .await
+    {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
     if let Err(error) = request.wallet.validate() {
         return crate::router_coordinator::protocol_error_response(error);
     }

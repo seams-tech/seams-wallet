@@ -2,6 +2,9 @@
 
 use super::*;
 
+#[cfg(feature = "workers-rs")]
+use crate::worker_route::{BodyRefusalV1, PathRefusalV1, PostRouteV1};
+
 /// Handles SigningWorker's strict SigningWorker proof-bundle activation route.
 #[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_recipient_proof_bundle_activation_fetch_v1(
@@ -9,34 +12,20 @@ pub async fn handle_cloudflare_signing_worker_recipient_proof_bundle_activation_
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
 ) -> worker::Result<worker::Response> {
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "Router A/B SigningWorker proof-bundle activation route requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_PROOF_BUNDLE_ACTIVATION_PATH {
-        return worker::Response::error(
-            format!(
-                "Router A/B SigningWorker proof-bundle activation must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_PROOF_BUNDLE_ACTIVATION_PATH
-            ),
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerRecipientProofBundleActivationRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_PROOF_BUNDLE_ACTIVATION_PATH,
+        method_refusal: "Router A/B SigningWorker proof-bundle activation route requires POST",
+        path_refusal: PathRefusalV1::ServedAt("Router A/B SigningWorker proof-bundle activation"),
+        body_refusal: BodyRefusalV1::ParseFailed(
+            "Router A/B SigningWorker proof-bundle activation",
+        ),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerRecipientProofBundleActivationRequestV1>(&mut request)
         .await
     {
         Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!(
-                    "Router A/B SigningWorker proof-bundle activation JSON parse failed: {err}"
-                ),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(now_unix_ms) => now_unix_ms,
@@ -63,37 +52,28 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "Router A/B ECDSA derivation SigningWorker activation route requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH {
-        return worker::Response::error(
-            format!(
-                "Router A/B ECDSA derivation SigningWorker activation must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH
-            ),
-            404,
-        );
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH,
+        method_refusal: "Router A/B ECDSA derivation SigningWorker activation route requires POST",
+        path_refusal: PathRefusalV1::ServedAt(
+            "Router A/B ECDSA derivation SigningWorker activation",
+        ),
+        body_refusal: BodyRefusalV1::ParseFailed(
+            "Router A/B ECDSA derivation SigningWorker activation",
+        ),
+    };
+    if let Err(response) = ROUTE.require(&request) {
+        return response;
     }
     /* Folded into the Router header under `ecdsa_sw_`. */
     let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
     let total_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let activation = match request
-        .json::<CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1>()
+    let activation = match ROUTE
+        .parse::<CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1>(&mut request)
         .await
     {
         Ok(activation) => activation,
-        Err(err) => {
-            return worker::Response::error(
-                format!(
-                    "Router A/B ECDSA derivation SigningWorker activation JSON parse failed: {err}"
-                ),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     timing.mark("parse", total_started_at_ms);
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
@@ -140,34 +120,25 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
 ) -> worker::Result<worker::Response> {
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PATH,
+        method_refusal:
             "Router A/B ECDSA derivation SigningWorker activation-refresh route requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PATH {
-        return worker::Response::error(
-            format!(
-                "Router A/B ECDSA derivation SigningWorker activation refresh must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_REFRESH_PATH
-            ),
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRefreshRequestV1>()
+        path_refusal: PathRefusalV1::ServedAt(
+            "Router A/B ECDSA derivation SigningWorker activation refresh",
+        ),
+        body_refusal: BodyRefusalV1::ParseFailed(
+            "Router A/B ECDSA derivation SigningWorker activation-refresh",
+        ),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRefreshRequestV1>(
+            &mut request,
+        )
         .await
     {
         Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!(
-                    "Router A/B ECDSA derivation SigningWorker activation-refresh JSON parse failed: {err}"
-                ),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(now_unix_ms) => now_unix_ms,
@@ -566,25 +537,18 @@ pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
     let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
     let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    if request.method() != worker::Method::Post {
-        return worker::Response::error("SigningWorker ECDSA presign init requires POST", 405);
-    }
-    if request.path()
-        != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH
-    {
-        return worker::Response::error("SigningWorker ECDSA presign init route not found", 404);
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH,
+        method_refusal: "SigningWorker ECDSA presign init requires POST",
+        path_refusal: PathRefusalV1::Text("SigningWorker ECDSA presign init route not found"),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker ECDSA presign init"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker ECDSA presign init JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     timing.mark("ecdsa_presign_sw_body", started_at_ms);
     if let Err(error) = parsed.validate_at(now_unix_ms) {
@@ -673,31 +637,18 @@ pub(crate) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "SigningWorker linked ECDSA presign init requires POST",
-            405,
-        );
-    }
-    if request.path()
-        != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_PRESIGNATURE_SESSION_INIT_PATH
-    {
-        return worker::Response::error(
-            "SigningWorker linked ECDSA presign init route not found",
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_PRESIGNATURE_SESSION_INIT_PATH,
+        method_refusal: "SigningWorker linked ECDSA presign init requires POST",
+        path_refusal: PathRefusalV1::Text("SigningWorker linked ECDSA presign init route not found"),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker linked ECDSA presign init"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker linked ECDSA presign init JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
@@ -765,27 +716,18 @@ pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_export_preflight_priv
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error("SigningWorker ECDSA export preflight requires POST", 405);
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PREFLIGHT_PATH
-    {
-        return worker::Response::error(
-            "SigningWorker ECDSA export-preflight route not found",
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerEcdsaExportShareRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PREFLIGHT_PATH,
+        method_refusal: "SigningWorker ECDSA export preflight requires POST",
+        path_refusal: PathRefusalV1::Text("SigningWorker ECDSA export-preflight route not found"),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker ECDSA export-preflight"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerEcdsaExportShareRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker ECDSA export-preflight JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
@@ -817,23 +759,18 @@ pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_export_share_private_
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error("SigningWorker ECDSA export share requires POST", 405);
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_SHARE_PATH {
-        return worker::Response::error("SigningWorker ECDSA export-share route not found", 404);
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerEcdsaExportShareRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_SHARE_PATH,
+        method_refusal: "SigningWorker ECDSA export share requires POST",
+        path_refusal: PathRefusalV1::Text("SigningWorker ECDSA export-share route not found"),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker ECDSA export-share"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerEcdsaExportShareRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker ECDSA export-share JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
@@ -874,29 +811,20 @@ pub(crate) async fn handle_cloudflare_signing_worker_linked_ecdsa_export_share_p
     env: &worker::Env,
     now_unix_ms: u64,
 ) -> worker::Result<worker::Response> {
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "SigningWorker linked ECDSA export share requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_EXPORT_SHARE_PATH {
-        return worker::Response::error(
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_EXPORT_SHARE_PATH,
+        method_refusal: "SigningWorker linked ECDSA export share requires POST",
+        path_refusal: PathRefusalV1::Text(
             "SigningWorker linked ECDSA export-share route not found",
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerLinkedEcdsaExportShareRequestV1>()
+        ),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker linked ECDSA export-share"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerLinkedEcdsaExportShareRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker linked ECDSA export-share JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
@@ -945,25 +873,18 @@ pub(crate) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
     let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
     let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    if request.method() != worker::Method::Post {
-        return worker::Response::error("SigningWorker ECDSA presign step requires POST", 405);
-    }
-    if request.path()
-        != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH
-    {
-        return worker::Response::error("SigningWorker ECDSA presign step route not found", 404);
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH,
+        method_refusal: "SigningWorker ECDSA presign step requires POST",
+        path_refusal: PathRefusalV1::Text("SigningWorker ECDSA presign step route not found"),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker ECDSA presign step"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker ECDSA presign step JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     timing.mark("ecdsa_presign_sw_body", started_at_ms);
     if let Err(error) = parsed.validate_at(now_unix_ms) {
@@ -1069,31 +990,18 @@ pub(crate) async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_sessio
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "SigningWorker linked ECDSA presign step requires POST",
-            405,
-        );
-    }
-    if request.path()
-        != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_PRESIGNATURE_SESSION_STEP_PATH
-    {
-        return worker::Response::error(
-            "SigningWorker linked ECDSA presign step route not found",
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_PRESIGNATURE_SESSION_STEP_PATH,
+        method_refusal: "SigningWorker linked ECDSA presign step requires POST",
+        path_refusal: PathRefusalV1::Text("SigningWorker linked ECDSA presign step route not found"),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker linked ECDSA presign step"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker linked ECDSA presign step JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
@@ -1161,26 +1069,18 @@ where
 {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "SigningWorker linked ECDSA finalize route requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_SIGNING_PATH {
-        return worker::Response::error("SigningWorker linked ECDSA finalize route not found", 404);
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerAdmittedLinkedDeviceEcdsaFinalizeRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_SIGNING_PATH,
+        method_refusal: "SigningWorker linked ECDSA finalize route requires POST",
+        path_refusal: PathRefusalV1::Text("SigningWorker linked ECDSA finalize route not found"),
+        body_refusal: BodyRefusalV1::ParseFailed("SigningWorker linked ECDSA finalize"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerAdmittedLinkedDeviceEcdsaFinalizeRequestV1>(&mut request)
         .await
     {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("SigningWorker linked ECDSA finalize JSON parse failed: {error}"),
-                400,
-            );
-        }
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     if let Err(error) = parsed.validate() {
         return cloudflare_signing_worker_presign_error_response_v1(error);
@@ -1291,36 +1191,22 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presign
     runtime: &CloudflareSigningWorkerRuntimeV1,
     now_unix_ms: u64,
 ) -> worker::Result<worker::Response> {
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "Router A/B ECDSA derivation presignature pool fill route requires POST",
-            405,
-        );
-    }
-    if request.path()
-        != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH
-    {
-        return worker::Response::error(
-            format!(
-                "Router A/B ECDSA derivation presignature pool fill must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH
-            ),
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH,
+        method_refusal: "Router A/B ECDSA derivation presignature pool fill route requires POST",
+        path_refusal: PathRefusalV1::ServedAt("Router A/B ECDSA derivation presignature pool fill"),
+        body_refusal: BodyRefusalV1::ParseFailed(
+            "Router A/B ECDSA derivation presignature pool fill",
+        ),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1>(
+            &mut request,
+        )
         .await
     {
         Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!(
-                    "Router A/B ECDSA derivation presignature pool fill JSON parse failed: {err}"
-                ),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     match admit_cloudflare_signing_worker_ecdsa_presignature_v1(
         parsed,

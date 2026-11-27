@@ -1,8 +1,7 @@
 use super::*;
-use crate::durable_object::tenant_root_creation::{
-    decode_bounded_json_request, renewal_call, RENEWAL_PATH,
-};
+use crate::durable_object::tenant_root_creation::{renewal_call, RENEWAL_PATH};
 use crate::tenant_root_creation_coordinator::CloudflareRouterTenantRootCreationHostV1;
+use crate::worker_route::{protocol_json_response_v1, read_json_v1};
 use crate::{
     CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
     TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1,
@@ -19,29 +18,23 @@ pub(super) async fn handle(mut request: Request, env: Env) -> worker::Result<Res
         Ok(runtime) => runtime,
         Err(error) => return cloudflare_protocol_error_response_v1(&error),
     };
-    let parsed: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1 =
-        match decode_bounded_json_request(
-            &mut request,
-            TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1,
-        )
-        .await
-        {
-            Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(&error),
-        };
-    if request.path() == RENEWAL_PATH {
-        return match renewal_call(&env, &parsed).await {
-            Ok(outcome) => Response::from_json(&outcome),
-            Err(error) => cloudflare_protocol_error_response_v1(&error),
-        };
-    }
-    match crate::tenant_root_router_coordinate_creation_v1(
-        &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
-        parsed,
+    let parsed: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1 = match read_json_v1(
+        &mut request,
+        TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1,
     )
     .await
     {
-        Ok(outcome) => Response::from_json(&outcome),
-        Err(error) => cloudflare_protocol_error_response_v1(&error),
+        Ok(parsed) => parsed,
+        Err(response) => return response,
+    };
+    if request.path() == RENEWAL_PATH {
+        return protocol_json_response_v1(renewal_call(&env, &parsed).await);
     }
+    protocol_json_response_v1(
+        crate::tenant_root_router_coordinate_creation_v1(
+            &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
+            parsed,
+        )
+        .await,
+    )
 }

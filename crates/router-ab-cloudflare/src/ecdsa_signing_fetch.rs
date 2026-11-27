@@ -1,5 +1,7 @@
 use crate::*;
 
+use crate::worker_route::{BodyRefusalV1, PathRefusalV1, PostRouteV1};
+
 /// Handles SigningWorker's production Router A/B ECDSA derivation prepare route using the presignature pool.
 #[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1(
@@ -11,32 +13,20 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
     let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
     let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "Router A/B ECDSA derivation prepare route requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH {
-        return worker::Response::error(
-            format!(
-                "Router A/B ECDSA derivation prepare must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH
-            ),
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
+        method_refusal: "Router A/B ECDSA derivation prepare route requires POST",
+        path_refusal: PathRefusalV1::ServedAt("Router A/B ECDSA derivation prepare"),
+        body_refusal: BodyRefusalV1::ParseFailed("Router A/B ECDSA derivation prepare"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1>(
+            &mut request,
+        )
         .await
     {
         Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!("Router A/B ECDSA derivation prepare JSON parse failed: {err}"),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     timing.mark("worker_prepare_request_body", started_at_ms);
     if let Err(err) = parsed.validate() {
@@ -98,32 +88,20 @@ where
     Handler: CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
 {
     let body_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    if request.method() != worker::Method::Post {
-        return worker::Response::error(
-            "Router A/B ECDSA derivation finalize route requires POST",
-            405,
-        );
-    }
-    if request.path() != CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH {
-        return worker::Response::error(
-            format!(
-                "Router A/B ECDSA derivation finalize must be served at {}",
-                CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH
-            ),
-            404,
-        );
-    }
-    let parsed = match request
-        .json::<CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1>()
+    const ROUTE: PostRouteV1 = PostRouteV1 {
+        path: CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+        method_refusal: "Router A/B ECDSA derivation finalize route requires POST",
+        path_refusal: PathRefusalV1::ServedAt("Router A/B ECDSA derivation finalize"),
+        body_refusal: BodyRefusalV1::ParseFailed("Router A/B ECDSA derivation finalize"),
+    };
+    let parsed = match ROUTE
+        .read::<CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1>(
+            &mut request,
+        )
         .await
     {
         Ok(parsed) => parsed,
-        Err(err) => {
-            return worker::Response::error(
-                format!("Router A/B ECDSA derivation finalize JSON parse failed: {err}"),
-                400,
-            );
-        }
+        Err(response) => return response,
     };
     timing.mark("worker_finalize_request_body", body_started_at_ms);
     if let Err(err) = parsed.validate() {

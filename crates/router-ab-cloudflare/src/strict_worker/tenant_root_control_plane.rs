@@ -1,7 +1,9 @@
 use super::*;
 
+use crate::worker_route::{protocol_json_response_v1, read_post_json_v1};
+
 use crate::durable_object::tenant_root_creation::{
-    decode_bounded_json_request, execute_cloudflare_router_tenant_root_cutover_read_call_v1,
+    execute_cloudflare_router_tenant_root_cutover_read_call_v1,
     execute_cloudflare_router_tenant_root_cutover_write_call_v1,
     CloudflareTenantRootCutoverReadRequestV1, CloudflareTenantRootCutoverWriteRequestV1,
     TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
@@ -62,6 +64,10 @@ use crate::{
     TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_REQUEST_MAX_BYTES_V1,
 };
 
+/// The 405 text of every control-plane POST route.
+#[cfg(feature = "strict-worker-tenant-root-control-plane-entrypoint")]
+const POST_ONLY: &str = "tenant-root control-plane routes require POST";
+
 /// Fetch entrypoint for the internal tenant-root control-plane Worker.
 ///
 /// The control plane is the sole holder of the tenant-root issuer private signing
@@ -108,361 +114,308 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             }
         }
         crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1 => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
-            let parsed = match decode_bounded_json_request::<crate::tenant_root_control_plane::RecoveryCommandRequestV1>(&mut request, 32768).await {
-                Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(&err),
+            let parsed = match read_post_json_v1::<
+                crate::tenant_root_control_plane::RecoveryCommandRequestV1,
+            >(&mut request, POST_ONLY, 32768)
+            .await
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return response,
             };
-            match crate::tenant_root_control_plane::recovery_command_v1(parsed, &env, &runtime).await {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
+            protocol_json_response_v1(
+                crate::tenant_root_control_plane::recovery_command_v1(parsed, &env, &runtime).await,
+            )
         }
 
         crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_RECIPIENT_PROOF_PATH_V1 => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
-            let parsed = match decode_bounded_json_request::<crate::tenant_root_control_plane::RecoveryRecipientProofRequestV1>(
-                &mut request, 8192,
-            ).await {
-                Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(&err),
+            let parsed = match read_post_json_v1::<
+                crate::tenant_root_control_plane::RecoveryRecipientProofRequestV1,
+            >(&mut request, POST_ONLY, 8192)
+            .await
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return response,
             };
-            match crate::tenant_root_control_plane::recovery_recipient_proof_v1(parsed, &env, &runtime) {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
+            protocol_json_response_v1(
+                crate::tenant_root_control_plane::recovery_recipient_proof_v1(
+                    parsed, &env, &runtime,
+                ),
+            )
         }
 
         crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1 => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
-            let parsed = match decode_bounded_json_request::<crate::tenant_root_control_plane::RecoveryManifestAssemblyRequestV1>(
-                &mut request, 256 * 1024,
-            ).await {
-                Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(&err),
+            let parsed = match read_post_json_v1::<
+                crate::tenant_root_control_plane::RecoveryManifestAssemblyRequestV1,
+            >(&mut request, POST_ONLY, 256 * 1024)
+            .await
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return response,
             };
-            match crate::tenant_root_control_plane::assemble_recovery_manifest_v1(parsed, &env, &runtime).await {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
+            protocol_json_response_v1(
+                crate::tenant_root_control_plane::assemble_recovery_manifest_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
+            )
         }
 
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CUTOVER_READ_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
-            if let Err(err) =
-                decode_bounded_json_request::<CloudflareTenantRootCutoverReadRequestV1>(
-                    &mut request,
-                    TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
-                )
-                .await
-            {
-                return cloudflare_protocol_error_response_v1(&err);
-            }
-            match execute_cloudflare_router_tenant_root_cutover_read_call_v1(&env).await {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
-        }
-        CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CUTOVER_WRITE_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
-            let parsed = match decode_bounded_json_request::<
-                CloudflareTenantRootCutoverWriteRequestV1,
-            >(&mut request, TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1)
+            if let Err(response) = read_post_json_v1::<CloudflareTenantRootCutoverReadRequestV1>(
+                &mut request,
+                POST_ONLY,
+                TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
+            )
             .await
             {
-                Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(&err),
-            };
-            match execute_cloudflare_router_tenant_root_cutover_write_call_v1(&env, &parsed).await {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
+                return response;
             }
+            protocol_json_response_v1(
+                execute_cloudflare_router_tenant_root_cutover_read_call_v1(&env).await,
+            )
+        }
+        CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CUTOVER_WRITE_PRIVATE_REQUEST_PATH => {
+            let parsed = match read_post_json_v1::<CloudflareTenantRootCutoverWriteRequestV1>(
+                &mut request,
+                POST_ONLY,
+                TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
+            )
+            .await
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return response,
+            };
+            protocol_json_response_v1(
+                execute_cloudflare_router_tenant_root_cutover_write_call_v1(&env, &parsed).await,
+            )
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_managed_restore_challenge_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_managed_restore_challenge_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_managed_restore_authorize_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_managed_restore_authorize_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneRegisterManifestRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_register_manifest_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_register_manifest_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_restore_refresh_commands_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_restore_refresh_commands_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneCleanupCommandRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_cleanup_command_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_cleanup_command_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_role_creation_command_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_role_creation_command_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneRefreshCommandsRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_refresh_commands_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_refresh_commands_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneRefreshActivationRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_refresh_activation_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_refresh_activation_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneInitialActivationRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_initial_activation_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_initial_activation_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH => {
-            if request.method() != Method::Post {
-                return Response::error("tenant-root control-plane routes require POST", 405);
-            }
             let parsed: CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1 =
-                match decode_bounded_json_request(
+                match read_post_json_v1(
                     &mut request,
+                    POST_ONLY,
                     TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
+                    Ok(parsed) => parsed,
+                    Err(response) => return response,
                 };
-            match handle_cloudflare_tenant_root_control_plane_restore_initial_activation_v1(
-                parsed, &env, &runtime,
+            protocol_json_response_v1(
+                handle_cloudflare_tenant_root_control_plane_restore_initial_activation_v1(
+                    parsed, &env, &runtime,
+                )
+                .await,
             )
-            .await
-            {
-                Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(&err),
-            }
         }
         _ => Response::error("not found", 404),
     }

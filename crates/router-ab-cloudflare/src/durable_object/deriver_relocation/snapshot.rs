@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
+use crate::worker_route::read_post_json_v1;
+
 pub(super) mod cleanup;
 pub(crate) mod import;
 
@@ -143,18 +145,10 @@ pub(crate) async fn forward<Owner: WalletOwner>(
 ) -> worker::Result<Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != Method::Post {
-        return Response::error("Deriver snapshot requires POST", 405);
-    }
     let command: Command<Owner> =
-        match crate::durable_object::tenant_root_creation::decode_bounded_json_request(
-            &mut request,
-            8192,
-        )
-        .await
-        {
+        match read_post_json_v1(&mut request, "Deriver snapshot requires POST", 8192).await {
             Ok(command) => command,
-            Err(error) => return crate::router_coordinator::protocol_error_response(error),
+            Err(response) => return response,
         };
     command.source().validate()?;
     if !command.source().context_matches(env)? {

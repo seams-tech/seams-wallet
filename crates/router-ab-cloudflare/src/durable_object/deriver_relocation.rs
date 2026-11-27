@@ -3,6 +3,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use worker::{Env, Method, Request, Response, SqlStorage, SqlStorageValue};
 
+use crate::worker_route::read_post_json_v1;
+
 pub(crate) mod snapshot;
 
 pub(crate) const SOURCE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_relocation_source (id INTEGER PRIMARY KEY CHECK (id = 1), request_json TEXT NOT NULL)";
@@ -89,19 +91,16 @@ pub(crate) async fn call_preparation<Owner: WalletOwner>(
 ) -> worker::Result<Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    if request.method() != Method::Post {
-        return Response::error("Deriver relocation preparation requires POST", 405);
-    }
-    let command: Preparation<Owner> =
-        match crate::durable_object::tenant_root_creation::decode_bounded_json_request(
-            &mut request,
-            8192,
-        )
-        .await
-        {
-            Ok(command) => command,
-            Err(error) => return crate::router_coordinator::protocol_error_response(error),
-        };
+    let command: Preparation<Owner> = match read_post_json_v1(
+        &mut request,
+        "Deriver relocation preparation requires POST",
+        8192,
+    )
+    .await
+    {
+        Ok(command) => command,
+        Err(response) => return response,
+    };
     command.validate()?;
     if !command.context_matches(env)? {
         return Response::error("Deriver encryption context differs from source", 409);
@@ -253,19 +252,16 @@ pub(crate) async fn read_context<Owner: WalletOwner>(
     mut request: Request,
     env: &Env,
 ) -> worker::Result<Response> {
-    if request.method() != Method::Post {
-        return Response::error("Deriver encryption context requires POST", 405);
-    }
-    let context: ContextRequest<Owner> =
-        match crate::durable_object::tenant_root_creation::decode_bounded_json_request(
-            &mut request,
-            8192,
-        )
-        .await
-        {
-            Ok(command) => command,
-            Err(error) => return crate::router_coordinator::protocol_error_response(error),
-        };
+    let context: ContextRequest<Owner> = match read_post_json_v1(
+        &mut request,
+        "Deriver encryption context requires POST",
+        8192,
+    )
+    .await
+    {
+        Ok(context) => context,
+        Err(response) => return response,
+    };
     let digest_hex = Owner::cipher(env)?.relocation_context_digest()?;
     let response = match context {
         ContextRequest::Cipher => CipherContext::DeriverCipherContext { digest_hex },

@@ -45,459 +45,243 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
         let path = request.path();
         match path.as_str() {
             crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root destination bootstrap request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootDestinationBootstrapCallV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootDestinationBootstrapCallV1>(
                     &mut request,
+                    "tenant-root destination bootstrap",
                     TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root destination bootstrap request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self.destination_bootstrap_v1(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(self.destination_bootstrap_v1(parsed).await),
+                    Err(response) => response,
                 }
             }
             crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root restore-refresh checkpoint request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootRestoreRefreshCheckpointRequestV1>(
                     &mut request,
+                    "tenant-root restore-refresh checkpoint",
                     TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root restore-refresh checkpoint request rejected",
-                            400,
-                        )
+                    Ok(parsed) => {
+                        creation_response(self.persist_restore_refresh_checkpoint_v1(parsed).await)
                     }
-                };
-                match self.persist_restore_refresh_checkpoint_v1(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Err(response) => response,
                 }
             }
             crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ACTIVATION_PRIVATE_REQUEST_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root restore activation request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootRestoreInitialActivationRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootRestoreInitialActivationRequestV1>(
                     &mut request,
+                    "tenant-root restore activation",
                     TENANT_ROOT_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root restore activation request rejected",
-                            400,
-                        )
+                    Ok(parsed) => {
+                        creation_response(self.persist_restore_initial_activation(parsed).await)
                     }
-                };
-                match self.persist_restore_initial_activation(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CUTOVER_READ_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root cutover read request requires JSON",
-                        415,
-                    );
-                }
-                if decode_bounded_json_request::<CloudflareTenantRootCutoverReadRequestV1>(
+                match read_creation_json::<CloudflareTenantRootCutoverReadRequestV1>(
                     &mut request,
+                    "tenant-root cutover read",
                     TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
-                .is_err()
                 {
-                    return worker::Response::error(
-                        "tenant-root cutover read request rejected",
-                        400,
-                    );
-                }
-                match self.read_cutover_record().await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(_) => creation_response(self.read_cutover_record().await),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CUTOVER_WRITE_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root cutover write request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCutoverWriteRequestV1,
-                >(
-                    &mut request, TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1
+                match read_creation_json::<CloudflareTenantRootCutoverWriteRequestV1>(
+                    &mut request,
+                    "tenant-root cutover write",
+                    TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root cutover write request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self.persist_cutover_record(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(self.persist_cutover_record(parsed).await),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root creation read request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationJournalReadRequestV1,
-                >(
-                    &mut request, TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1
+                match read_creation_json::<CloudflareTenantRootCreationJournalReadRequestV1>(
+                    &mut request,
+                    "tenant-root creation read",
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Protocol,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(error) => return tenant_root_creation_do_error_response(error),
-                };
-                match self.read_creation_journal(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(self.read_creation_journal(parsed).await),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root creation progress request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationJournalReadRequestV1,
-                >(
-                    &mut request, TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1
-                )
-                .await
-                {
-                    Ok(value) => value,
-                    Err(error) => return tenant_root_creation_do_error_response(error),
-                };
-                match self.read_creation_progress(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
-                }
-            }
-            CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root creation abandonment request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationJournalReadRequestV1,
-                >(
-                    &mut request, TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1
-                )
-                .await
-                {
-                    Ok(value) => value,
-                    Err(error) => return tenant_root_creation_do_error_response(error),
-                };
-                match self.persist_creation_abandonment(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
-                }
-            }
-            CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root initial activation request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationInitialActivationRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootCreationJournalReadRequestV1>(
                     &mut request,
-                    TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                    "tenant-root creation progress",
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Protocol,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root initial activation request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self.persist_initial_activation(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(self.read_creation_progress(parsed).await),
+                    Err(response) => response,
+                }
+            }
+            CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH => match read_creation_json::<
+                CloudflareTenantRootCreationJournalReadRequestV1,
+            >(
+                &mut request,
+                "tenant-root creation abandonment",
+                TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                BodyRejection::Protocol,
+            )
+            .await
+            {
+                Ok(parsed) => creation_response(self.persist_creation_abandonment(parsed).await),
+                Err(response) => response,
+            },
+            CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH => {
+                match read_creation_json::<CloudflareTenantRootCreationInitialActivationRequestV1>(
+                    &mut request,
+                    "tenant-root initial activation",
+                    TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
+                )
+                .await
+                {
+                    Ok(parsed) => creation_response(self.persist_initial_activation(parsed).await),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root refresh activation request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootRefreshActivationRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootRefreshActivationRequestV1>(
                     &mut request,
+                    "tenant-root refresh activation",
                     TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root refresh activation request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self.persist_refresh_activation(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(self.persist_refresh_activation(parsed).await),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root active-state read request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationActiveStateReadRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootCreationActiveStateReadRequestV1>(
                     &mut request,
+                    "tenant-root active-state read",
                     TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root active-state read request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self
-                    .read_or_reserve_authoritative_active_state(parsed)
-                    .await
-                {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(
+                        self.read_or_reserve_authoritative_active_state(parsed)
+                            .await,
+                    ),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root creation commitment request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationCommitmentRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootCreationCommitmentRequestV1>(
                     &mut request,
+                    "tenant-root creation commitment",
                     TENANT_ROOT_CREATION_COMMITMENT_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root creation commitment request rejected",
-                            400,
-                        )
+                    Ok(parsed) => {
+                        creation_response(self.persist_creation_commitment_rendezvous(parsed).await)
                     }
-                };
-                match self.persist_creation_commitment_rendezvous(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root installation request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationInstallationRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootCreationInstallationRequestV1>(
                     &mut request,
+                    "tenant-root installation",
                     TENANT_ROOT_CREATION_INSTALLATION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root installation request rejected",
-                            400,
-                        )
+                    Ok(parsed) => {
+                        creation_response(self.persist_installation_checkpoint(parsed).await)
                     }
-                };
-                match self.persist_installation_checkpoint(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root creation cleanup request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootCreationCleanupRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootCreationCleanupRequestV1>(
                     &mut request,
+                    "tenant-root creation cleanup",
                     TENANT_ROOT_CREATION_CLEANUP_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root creation cleanup request rejected",
-                            400,
-                        )
+                    Ok(parsed) => {
+                        creation_response(self.persist_creation_cleanup_checkpoint(parsed).await)
                     }
-                };
-                match self.persist_creation_cleanup_checkpoint(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root refresh commitment request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootRefreshCommitmentRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootRefreshCommitmentRequestV1>(
                     &mut request,
+                    "tenant-root refresh commitment",
                     TENANT_ROOT_REFRESH_COMMITMENT_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root refresh commitment request rejected",
-                            400,
-                        )
+                    Ok(parsed) => {
+                        creation_response(self.persist_refresh_commitment_checkpoint(parsed).await)
                     }
-                };
-                match self.persist_refresh_commitment_checkpoint(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root refresh installation request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootRefreshInstallationRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootRefreshInstallationRequestV1>(
                     &mut request,
+                    "tenant-root refresh installation",
                     TENANT_ROOT_REFRESH_INSTALLATION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root refresh installation request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self.persist_refresh_installation_checkpoint(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(
+                        self.persist_refresh_installation_checkpoint(parsed).await,
+                    ),
+                    Err(response) => response,
                 }
             }
             CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH => {
-                if !request_has_json_content_type(&request)? {
-                    return worker::Response::error(
-                        "tenant-root refresh contribution request requires JSON",
-                        415,
-                    );
-                }
-                let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootRefreshContributionRequestV1,
-                >(
+                match read_creation_json::<CloudflareTenantRootRefreshContributionRequestV1>(
                     &mut request,
+                    "tenant-root refresh contribution",
                     TENANT_ROOT_REFRESH_CONTRIBUTION_REQUEST_MAX_BYTES_V1,
+                    BodyRejection::Rejected,
                 )
                 .await
                 {
-                    Ok(value) => value,
-                    Err(_) => {
-                        return worker::Response::error(
-                            "tenant-root refresh contribution request rejected",
-                            400,
-                        )
-                    }
-                };
-                match self.persist_refresh_contribution_rendezvous(parsed).await {
-                    Ok(response) => worker::Response::from_json(&response),
-                    Err(error) => tenant_root_creation_do_error_response(error),
+                    Ok(parsed) => creation_response(
+                        self.persist_refresh_contribution_rendezvous(parsed).await,
+                    ),
+                    Err(response) => response,
                 }
             }
             _ => worker::Response::error("Tenant-root creation private route not found", 404),
@@ -938,4 +722,53 @@ fn transaction_outcome<T>(
                 missing_outcome,
             ))
         })
+}
+
+/// How a creation route answers a body that does not decode.
+#[derive(Clone, Copy)]
+enum BodyRejection {
+    /// 400 with "{subject} request rejected".
+    Rejected,
+    /// The creation Durable Object's response for the protocol error.
+    Protocol,
+}
+
+/// Reads a creation route's JSON body of at most `max_bytes`. A request
+/// without a JSON content type is refused with 415 and "{subject} request
+/// requires JSON".
+async fn read_creation_json<T: DeserializeOwned>(
+    request: &mut worker::Request,
+    subject: &str,
+    max_bytes: usize,
+    rejection: BodyRejection,
+) -> Result<T, worker::Result<worker::Response>> {
+    match request_has_json_content_type(request) {
+        Ok(true) => {}
+        Ok(false) => {
+            return Err(worker::Response::error(
+                format!("{subject} request requires JSON"),
+                415,
+            ))
+        }
+        Err(error) => return Err(Err(error)),
+    }
+    decode_bounded_json_request(request, max_bytes)
+        .await
+        .map_err(|error| match rejection {
+            BodyRejection::Rejected => {
+                worker::Response::error(format!("{subject} request rejected"), 400)
+            }
+            BodyRejection::Protocol => tenant_root_creation_do_error_response(error),
+        })
+}
+
+/// The JSON of a creation operation's value, or the creation Durable
+/// Object's response for its error.
+fn creation_response<T: Serialize>(
+    result: RouterAbProtocolResult<T>,
+) -> worker::Result<worker::Response> {
+    match result {
+        Ok(response) => worker::Response::from_json(&response),
+        Err(error) => tenant_root_creation_do_error_response(error),
+    }
 }
