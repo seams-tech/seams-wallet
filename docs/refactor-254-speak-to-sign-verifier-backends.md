@@ -1,6 +1,8 @@
 # Refactor 254: Speak-to-Sign verifier backends (SaySo first, OutLayer second)
 
-Status: 2026-11-27. Plan. Nothing is built. Section 8 lists the open questions.
+Status: 2026-11-27. Slice 1 is built in `23b08a7d2` (Section 6, "Slice 1 result"). Slices 2
+to 6 are not.
+Section 8 lists the open questions.
 
 The owner decided on 2026-11-27: "Cloudflare verifier is now replacing the OutLayer backend as
 the primary path for voice signing. Ideally, we keep OutLayer as a secondary path (if it's not
@@ -298,6 +300,45 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
    service bindings of each Worker. Then the first staging voice check: enroll, a transfer of
    10 NEAR, and a transfer above 10 NEAR with its step-up.
 
+### Slice 1 result (2026-11-27)
+
+Built on `dev`, with no change of behaviour. The OutLayer code was only a move behind a port,
+so Section 3's condition holds: OutLayer stays as a module.
+
+- **Gateway.** The port is `router/domains/speakToSign/backend.ts`. The verify route takes a
+  `SpeakToSignBackend` and keeps the session check, the owner check and the SSE stream. The
+  OutLayer module `backends/outlayer/` holds the configuration and its env names, the call, the
+  error codes, `attestationUrlOf`, and the moved `attestation.ts` and `transcriber.ts`.
+  `backends/select.ts` builds the backend that `SPEAK_TO_SIGN_BACKEND` names; unset means
+  `outlayer`.
+- **SDK.** The port is `core/transactionFeatures/verifiers/backend.ts`
+  (`SPEAK_TO_SIGN_VERIFIER_BACKEND`). The OutLayer module `verifiers/outlayer/outlayerVerifier.ts`
+  holds the audio sealing, the NEP-413 enrollment statement and `enrollmentDigest`, the card's
+  verifier steps and timeout text, and the TEE receipt.
+- **Shared.** `shared-ts/src/speakToSign/evidence/voiceVerdictV2.ts` is the only shared import
+  of `@seams/voice-verdict` for the verdict (`spokenSummary.ts` keeps its summary limits). It holds
+  `SPEAK_TO_SIGN_VERIFIERS`. `shared-ts/src/speakToSign/backend.ts` holds the backend IDs.
+- **Check.** `pnpm check:speak-to-sign-backends` (`scripts/check-speak-to-sign-backends.mjs`,
+  in `validate-wallet.yml`) reads the import graph with the TypeScript preprocessor. Only a
+  backend module may import a backend's library, apart from three summary imports, and only the
+  selector of its side may import a backend module.
+- **Tests.** The 8 unit files (167 cases), the plugin contract test, the type fixtures and the
+  type checks of both packages pass. Only import paths and the verify harness changed. The two
+  wallet-ui cases did not run.
+
+Where the build differs from Section 1, for Slice 4:
+
+- The Gateway port has one `run` method, not `enroll` and `verify`: the OutLayer call relays both
+  operations in the same way. The SaySo backend reads `op` itself.
+- `SPEAK_TO_SIGN_BACKEND_IDS` holds only `outlayer`. Slice 4 adds `sayso`.
+- The one checker for core and the co-signer (`ExpectedEvidence`, `EvidenceChecker`) is not
+  built. The two checks of a v2 verdict differ: core compares the request and spoken-text
+  digests and the recordings; the co-signer builds the request from the bytes that it signs and
+  checks the step-up and the ledger. Slice 4 builds the checker with the SaySo kind.
+- The SDK port takes the v2 `SpeakToSignVerifier` in `prepareInput` and `enrollmentStatement`.
+  `readAttestationUrl` (the OutLayer record URL) and the `attestationUrl` fields stay where they
+  are. Slice 4 makes the pinned data and the link check a part of each backend.
+
 ## 7. Invariants
 
 - Evidence binds the owner, the request digest, the sentence, a recording of this flow and an
@@ -313,7 +354,7 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
 | --- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
 | Q1  | SaySo `user_id`: the NEAR account (`near:<network>:<accountId>`) or the wallet ID          | The NEAR account: the Gateway already checks that it is the session account |
 | Q2  | Enrollment proof: a Wallet Session only, or a Wallet Session and a fresh step-up           | Both: a voice is a new way to approve payments                              |
-| Q3  | Keep the OutLayer module, or delete it after Slice 1                                       | Keep it if Slice 1 is only a move (Section 3)                               |
+| Q3  | Keep the OutLayer module, or delete it after Slice 1                                       | Keep it: Slice 1 was only a move (Section 6, "Slice 1 result")              |
 | Q4  | Mainnet: one SaySo Worker with a key for each network, or one Worker for each network      | One Worker for each network, as the Gateways are                            |
 | Q5  | Live words on the card through `/v1/stream` (Nova-3)                                       | Later, after G3                                                             |
 | Q6  | The audio goes to Cloudflare Workers AI. The privacy text (Refactor 210, Q2) is still open | Write it in Slice 5                                                         |
