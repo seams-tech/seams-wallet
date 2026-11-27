@@ -1,4 +1,3 @@
-import { recordRegistrationPromiseTiming } from '../../../framework/registrationTiming';
 import type {
   RouterAbEd25519YaoActivationAdmissionReceiptV1,
   RouterAbEd25519YaoActivationExecuteRequestV1,
@@ -6,13 +5,13 @@ import type {
   RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { RouterAbTraceContextV1 } from '@shared/utils/routerAbTraceContext';
+import type { Variant } from '@shared/utils/variant';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
 import {
   describeRouterAbEd25519YaoRegistrationAdmissionV1,
-  InMemoryRouterAbEd25519YaoRegistrationService,
   type RouterAbEd25519YaoActivationConsumptionRequestV1,
   type RouterAbEd25519YaoActivationConsumptionResultV1,
-  type RouterAbEd25519YaoRegistrationBackendResult,
+  type RouterAbEd25519YaoRegistrationAuthorizationFailure,
   type RouterAbEd25519YaoRegistrationServiceResult,
 } from '../registration/routerAbEd25519YaoRegistration';
 import {
@@ -20,7 +19,9 @@ import {
   routerAbEd25519YaoCredentialDigestSha256HexV1,
 } from '../registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 import {
+  admitRouterAbEd25519YaoRegistrationV1,
   executeRouterAbEd25519YaoAdmittedRegistrationV1,
+  MAX_DETERMINISTIC_COMMIT_ATTEMPTS,
   type RouterAbEd25519YaoTimedRegistrationExecutionResultV1,
 } from '../registration/routerAbEd25519YaoRegistrationRequestScopedCloudflare';
 import type {
@@ -55,15 +56,10 @@ import {
 } from '../registration/routerAbEd25519YaoHttpRegistrationBackend';
 import {
   type RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
-  pinRouterAbEd25519YaoRegistrationDispatchRootV1,
   routerAbEd25519YaoRegistrationExecuteRequestFromRouterRequestJsonV1,
   routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
 } from '../registration/routerAbEd25519YaoRegistrationExecutionRecord';
-import {
-  routerAbEd25519YaoRegistrationSigningRootIdV1,
-  type RouterAbEd25519YaoRegistrationSigningRootIdV1,
-  type RouterAbEd25519YaoTenantRootWireV1,
-} from '../routerAbEd25519YaoGatewayEnvelope';
+import type { RouterAbEd25519YaoRegistrationSigningRootIdV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 
 export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
   readonly signingWorkerId: string;
@@ -75,8 +71,6 @@ export type RouterAbEd25519YaoProductRegistrationRequestScopedRuntimeInputV1 = {
     input: RouterAbEd25519YaoActiveCapabilityLookupV1,
   ) => Promise<WalletEd25519YaoActiveCapabilityRecord | null>;
 };
-
-const MAX_DETERMINISTIC_COMMIT_ATTEMPTS = 2;
 
 /**
  * Product-state runtime for wallet start/finalize routes. Each mutation loads
@@ -137,11 +131,15 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
     mintedSessionId: RouterAbEd25519YaoBytes32V1,
     serverTiming: Array<readonly [string, number]> = [],
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
-    return await bindAndAdmitVerifiedRegistration({
-      input,
-      companionWrite,
-      startedDispatchRoot,
+    return await admitRouterAbEd25519YaoRegistrationV1<
+      | Variant<RouterAbEd25519YaoRegistrationIntentBindingResult, 'ok', false>
+      | RouterAbEd25519YaoRegistrationAuthorizationFailure
+    >({
+      lifecycleId: input.admissionRequest.scope.lifecycle_id,
+      authorize: (authorization) => authorization.bindAndAuthorizeAdmission(input),
       mintedSessionId,
+      startedDispatchRoot,
+      companionWrite,
       serverTiming,
       store: this.input.store,
       backend: this.input.registrationBackend,
@@ -320,161 +318,6 @@ class RouterAbEd25519YaoProductRegistrationRequestScopedRuntime implements Route
 
 const NO_CAPABILITIES: Parameters<typeof resolveRouterAbEd25519YaoActiveCapability>[0] =
   new Map();
-
-/**
- * Binds a verified intent and admits its registration. The tenant root the
- * registration dispatches to is resolved once, for a fresh admission, and
- * pinned with the admission in the ceremony record. A companion write commits
- * in that record's batch.
- */
-async function bindAndAdmitVerifiedRegistration(input: {
-  readonly input: RouterAbEd25519YaoVerifiedActivationIntentV1;
-  readonly companionWrite: RouterAbEd25519YaoAdmissionCompanionWriteV1 | null;
-  readonly startedDispatchRoot: RouterAbEd25519YaoStartedDispatchRootV1 | null;
-  readonly mintedSessionId: RouterAbEd25519YaoBytes32V1;
-  readonly serverTiming: Array<readonly [string, number]>;
-  readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
-  readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
-}): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
-  const lifecycleId = input.input.admissionRequest.scope.lifecycle_id;
-  let backendResult: RouterAbEd25519YaoRegistrationBackendResult | null = null;
-  let dispatchRoot: RouterAbEd25519YaoTenantRootWireV1 | null = null;
-  for (let attempt = 0; attempt < MAX_DETERMINISTIC_COMMIT_ATTEMPTS; attempt += 1) {
-    const loaded = await recordRegistrationPromiseTiming({
-      sink: input.serverTiming,
-      name: 'yao_admission_state_read',
-      startedAtMs: Date.now(),
-      promise: input.store.loadRegistration(lifecycleId),
-    });
-    const bound = await recordRegistrationPromiseTiming({
-      sink: input.serverTiming,
-      name: 'yao_admission_authorization',
-      startedAtMs: Date.now(),
-      promise: new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(
-        loaded.state.authorization,
-      ).bindAndAuthorizeAdmission(input.input),
-    });
-    if (!bound.ok) return bound;
-
-    const service = new InMemoryRouterAbEd25519YaoRegistrationService(
-      input.backend,
-      loaded.state.registration,
-    );
-    const preparation = service.prepareAdmit(bound.admissionRequest);
-    if (preparation.kind === 'completed') {
-      return {
-        ok: true,
-        status: 200,
-        admissionRequest: bound.admissionRequest,
-        value: preparation.value,
-        companionWrite: 'not_committed',
-        executionAdmission: {
-          kind: 'snapshot',
-          authority: routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId),
-        },
-      };
-    }
-    if (preparation.kind === 'failed') return preparation.failure;
-
-    if (dispatchRoot === null) {
-      const signingRootId = routerAbEd25519YaoRegistrationSigningRootIdV1(bound.admissionRequest);
-      const started = input.startedDispatchRoot;
-      if (
-        started !== null &&
-        (started.signingRootId.signing_root_id !== signingRootId.signing_root_id ||
-          started.signingRootId.root_share_epoch !== signingRootId.root_share_epoch)
-      ) {
-        return {
-          ok: false,
-          status: 503,
-          code: 'admission_failed',
-          message: 'registration tenant root was read for another signing root ID',
-        };
-      }
-      try {
-        // The root read can start before admission. Measure only its remaining wait.
-        dispatchRoot = await recordRegistrationPromiseTiming({
-          sink: input.serverTiming,
-          name: 'yao_admission_root_wait',
-          startedAtMs: Date.now(),
-          promise: started
-            ? started.dispatchRoot
-            : input.backend.resolveRegistrationDispatchRoot(signingRootId),
-        });
-      } catch (error: unknown) {
-        return {
-          ok: false,
-          status: 503,
-          code: 'admission_failed',
-          message: `registration tenant root is unavailable: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        };
-      }
-    }
-    if (backendResult === null) {
-      try {
-        backendResult = await recordRegistrationPromiseTiming({
-          sink: input.serverTiming,
-          name: 'yao_admission_backend',
-          startedAtMs: Date.now(),
-          promise: input.backend.admit(
-            bound.admissionRequest,
-            undefined,
-            input.mintedSessionId,
-          ),
-        });
-      } catch (error: unknown) {
-        return {
-          ok: false,
-          status: 503,
-          code: 'admission_uncertain',
-          message: error instanceof Error ? error.message : String(error),
-        };
-      }
-    }
-    const admitted = service.commitAdmit({
-      request: bound.admissionRequest,
-      claim: preparation.claim,
-      outcome: { kind: 'backend_response', result: backendResult },
-    });
-    if (!admitted.ok) return admitted;
-    pinRouterAbEd25519YaoRegistrationDispatchRootV1(
-      loaded.state.registration,
-      lifecycleId,
-      dispatchRoot,
-    );
-
-    const committed = await recordRegistrationPromiseTiming({
-      sink: input.serverTiming,
-      name: 'yao_admission_commit',
-      startedAtMs: Date.now(),
-      promise: input.store.commitRegistration(
-        loaded,
-        input.companionWrite?.(bound.admissionRequest) ?? null,
-      ),
-    });
-    if (committed.kind === 'stored') {
-      return {
-        ok: true,
-        status: 200,
-        admissionRequest: bound.admissionRequest,
-        value: admitted.value,
-        companionWrite: input.companionWrite ? 'committed' : 'not_committed',
-        executionAdmission: {
-          kind: 'snapshot',
-          authority: routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId),
-        },
-      };
-    }
-  }
-  return {
-    ok: false,
-    status: 503,
-    code: 'admission_uncertain',
-    message: 'Yao verified registration admission remained contended after one reconciliation',
-  };
-}
 
 function ignoreUnobservedDispatchRoot(): void {}
 

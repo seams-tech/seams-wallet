@@ -9,12 +9,14 @@ Since 0.76.0:
 
 - Passkeys: the server requires user verification (a PIN, a biometric or a device passcode) for every passkey registration and every passkey assertion. Before, it accepted an assertion that showed only user presence. A ceremony that is valid in every other way but has no user verification fails with the new code `user_verification_required`. The Wallet then shows "This passkey did not check a PIN or biometric. Use a passkey with a PIN or biometric, or set a PIN on your security key."
 - The Wallet asks for `userVerification: 'required'` in every passkey prompt, also in the add-method, device-link and recovery options that the server sends.
+- Ed25519 Yao registration: an admission that failed or stopped before its commit left a claim in D1. Each later admission of that lifecycle then failed with `admission_in_progress`, and a relocation of the wallet waited with `ceremonies_unsettled`. The admission now stores nothing before its one commit, and the Gateway drops a claim that an earlier version stored. No migration is needed.
 
 Breaking changes:
 
 - A security key with no PIN, or another authenticator that cannot verify the user, can no longer register a passkey, sign in, unlock, sign or run an owner operation. Set a PIN on the key, or use another passkey or sign-in method.
 - The server options for an added passkey, a device-link passkey and a recovery passkey carry `authenticatorSelection.userVerification: 'required'`, and the Wallet accepts only that value. Deploy the server and the Wallet host together. A ceremony that starts before the deploy and ends after it fails, and the user starts it again.
 - `webauthn.authenticatorOptions.userVerification` is removed from the SDK config, with the `UserVerificationPolicy` enum. The field had no effect.
+- `@seams/host` types: `RouterAbEd25519YaoProductRegistrationCeremonyStateV1` has no `registration.admissionClaims` map, and `InMemoryRouterAbEd25519YaoRegistrationService` keeps its admission claims for itself.
 
 ### New package names
 

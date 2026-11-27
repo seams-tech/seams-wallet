@@ -166,7 +166,7 @@ const bundle = await build({
       export { readWalletSessionSigningCandidate } from './packages/mpc-wallet-server/src/router/cloudflare/d1/auth/walletSessionCredentialReaders';
       export { parseTenantId } from './packages/shared-ts/src/authorization/capabilityKinds';
       export { createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreFromD1V1 } from './packages/mpc-wallet-server/src/router/cloudflare/d1/ed25519Yao/d1Ed25519YaoProductRegistrationPartitionedStateStore';
-      export { buildNearRegistrationAuthorityFixture, buildNearRecoveryAdmissionFixture } from './tests/unit/helpers/nearRegistration.fixtures';
+      export { buildNearRegistrationActivationFixture, buildNearRegistrationAuthorityFixture, buildNearRecoveryAdmissionFixture } from './tests/unit/helpers/nearRegistration.fixtures';
       export { D1RegistrationCeremonyRecordStore } from './packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1RegistrationCeremonyRecordStore';
       export { createRouterAbEd25519YaoProductRegistrationRequestScopedRuntimeV1 } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistrationRequestScopedRuntime';
       export { routerAbEd25519YaoRegistrationSigningRootIdV1 } from './packages/mpc-wallet-server/src/router/domains/ed25519Yao/routerAbEd25519YaoGatewayEnvelope';

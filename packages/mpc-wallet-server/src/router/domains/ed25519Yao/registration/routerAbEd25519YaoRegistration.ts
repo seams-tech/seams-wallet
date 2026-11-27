@@ -281,7 +281,6 @@ type RegistrationLifecycleState =
 export class InMemoryRouterAbEd25519YaoRegistrationStateV1 {
   readonly states = new Map<string, RegistrationLifecycleState>();
   readonly lifecycleSessions = new Map<string, string>();
-  readonly admissionClaims = new Map<string, RouterAbEd25519YaoRegistrationAdmissionClaimV1>();
   /** The tenant root each admitted lifecycle dispatches to, pinned at admission. */
   readonly dispatchRoots = new Map<string, RouterAbEd25519YaoTenantRootWireV1>();
 }
@@ -596,7 +595,15 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
 {
   private readonly states: Map<string, RegistrationLifecycleState>;
   private readonly lifecycleSessions: Map<string, string>;
-  private readonly admissionClaims: Map<string, RouterAbEd25519YaoRegistrationAdmissionClaimV1>;
+  /**
+   * The admissions in flight in this service. A claim is never stored with
+   * the state: a receipt leaves only after its admitted state is stored, so a
+   * claim that outlives its request would guard nothing and block the lifecycle.
+   */
+  private readonly admissionClaims = new Map<
+    string,
+    RouterAbEd25519YaoRegistrationAdmissionClaimV1
+  >();
 
   constructor(
     private readonly backend: RouterAbEd25519YaoRegistrationBackend,
@@ -604,7 +611,6 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
   ) {
     this.states = state.states;
     this.lifecycleSessions = state.lifecycleSessions;
-    this.admissionClaims = state.admissionClaims;
   }
 
   async admit(
@@ -705,6 +711,9 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
         message: 'registration admission claim is no longer current',
       };
     }
+    // Every outcome settles the claim. No receipt of an uncertain admission
+    // left this service, so a retry admits afresh.
+    this.admissionClaims.delete(input.claim.lifecycleId);
     if (input.outcome.kind === 'backend_uncertain') {
       return {
         ok: false,
@@ -714,10 +723,7 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
       };
     }
     const parsed = admissionReceiptFromBackend(input.request, input.outcome.result);
-    if (!parsed.ok) {
-      this.admissionClaims.delete(input.claim.lifecycleId);
-      return parsed;
-    }
+    if (!parsed.ok) return parsed;
     const key = registrationSessionKey(parsed.value);
     if (this.states.has(key)) {
       return {
@@ -733,7 +739,6 @@ export class InMemoryRouterAbEd25519YaoRegistrationService
       admissionReceipt: parsed.value,
     });
     this.lifecycleSessions.set(input.claim.lifecycleId, key);
-    this.admissionClaims.delete(input.claim.lifecycleId);
     return { ok: true, status: 200, value: parsed.value };
   }
 

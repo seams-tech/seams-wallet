@@ -26,7 +26,6 @@ import type {
   RouterAbEd25519YaoActivationConsumerV1,
   RouterAbEd25519YaoActivationConsumptionRequestV1,
   RouterAbEd25519YaoActivationConsumptionResultV1,
-  RouterAbEd25519YaoRegistrationAdmissionClaimV1,
   RouterAbEd25519YaoRegistrationServiceResult,
 } from '../registration/routerAbEd25519YaoRegistration';
 import {
@@ -303,9 +302,6 @@ export function createRouterAbEd25519YaoProductRegistrationStateFromPartsV1(inpu
 }
 
 const REGISTRATION_STATE_KINDS = new Set(['admitted', 'executing', 'activated', 'failed']);
-const REGISTRATION_ADMISSION_CLAIM_KINDS = new Set([
-  'router_ab_ed25519_yao_registration_admission_claim_v1',
-]);
 const INTENT_AUTHORITY_KINDS = new Set(['available', 'admitted']);
 const CAPABILITY_STATE_KINDS = new Set(['active', 'suspended', 'retired']);
 const RECOVERY_STATE_KINDS = new Set([
@@ -430,11 +426,6 @@ function hasProductStateCollections(
   return (
     isStringMapWithStateKinds(registration.states, REGISTRATION_STATE_KINDS) &&
     isStringMap(registration.lifecycleSessions) &&
-    (registration.admissionClaims === undefined ||
-      isStringMapWithStateKinds(
-        registration.admissionClaims,
-        REGISTRATION_ADMISSION_CLAIM_KINDS,
-      )) &&
     isDispatchRootMap(registration.dispatchRoots) &&
     Array.isArray(authorization.authorities) &&
     authorization.authorities.every(hasIntentAuthorityGeneration) &&
@@ -463,11 +454,10 @@ export function parseRouterAbEd25519YaoProductRegistrationStateV1(
       message: 'persisted Ed25519 Yao product state has invalid lifecycle collections',
     };
   }
+  // A record written while admission claims were stored can carry an
+  // `admissionClaims` map. No receipt of a stored claim ever left the Gateway,
+  // so the claim is dropped here and the lifecycle can be admitted again.
   const registration = input.registration;
-  const admissionClaims =
-    registration.admissionClaims === undefined
-      ? new Map<string, RouterAbEd25519YaoRegistrationAdmissionClaimV1>()
-      : registration.admissionClaims;
   return {
     ok: true,
     value: {
@@ -475,7 +465,6 @@ export function parseRouterAbEd25519YaoProductRegistrationStateV1(
       registration: {
         states: registration.states,
         lifecycleSessions: registration.lifecycleSessions,
-        admissionClaims,
         dispatchRoots: registration.dispatchRoots,
       },
       authorization: input.authorization,

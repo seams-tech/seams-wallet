@@ -536,6 +536,35 @@ async function commitCeremony(store, lifecycleId, loaded) {
   });
 }
 
+/**
+ * Stores an activation that wallet finalization has not consumed yet: the
+ * ceremony is unsettled until the consumption commits.
+ */
+function stageUnconsumedActivation(api, state, admission) {
+  const { receipt, result } = api.buildNearRegistrationActivationFixture(
+    admission,
+    new Array(32).fill(9),
+  );
+  const sessionKey = Buffer.from(receipt.binding.session_id).toString('hex');
+  state.registration.states.set(sessionKey, {
+    kind: 'activated',
+    admissionRequest: admission,
+    admissionReceipt: receipt,
+    executeFingerprint: `execute:${admission.scope.lifecycle_id}`,
+    result,
+    activationConsumerBinding: null,
+  });
+  state.registration.lifecycleSessions.set(admission.scope.lifecycle_id, sessionKey);
+  return receipt;
+}
+
+function withLifecycle(admission, lifecycleId) {
+  return {
+    ...admission,
+    scope: { ...admission.scope, lifecycle_id: lifecycleId, threshold_session_id: lifecycleId },
+  };
+}
+
 export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
   const fixture = await api.buildNearRegistrationAuthorityFixture('settlement');
   const lifecycleId = fixture.admission.scope.lifecycle_id;
@@ -543,15 +572,10 @@ export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
     database,
     scope,
   });
-  const admitted = await store.load(lifecycleId);
-  admitted.state.authorization.authorities.push(...fixture.state.authorities);
-  const service = new api.InMemoryRouterAbEd25519YaoRegistrationService(
-    new UnusedRegistrationBackend(),
-    admitted.state.registration,
-  );
-  const preparation = service.prepareAdmit(fixture.admission);
-  assert.equal(preparation.kind, 'claimed');
-  assert.equal((await commitCeremony(store, lifecycleId, admitted)).kind, 'stored');
+  const pendingState = await store.load(lifecycleId);
+  pendingState.state.authorization.authorities.push(...fixture.state.authorities);
+  const receipt = stageUnconsumedActivation(api, pendingState.state, fixture.admission);
+  assert.equal((await commitCeremony(store, lifecycleId, pendingState)).kind, 'stored');
   const identity = api.WalletRelocationSessionSource.parse({
     walletId: fixture.intent.walletId,
     moveId: `wmove_${'s'.repeat(43)}`,
@@ -589,47 +613,31 @@ export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
   );
 
   const settled = await store.load(lifecycleId);
-  const resumed = new api.InMemoryRouterAbEd25519YaoRegistrationService(
+  const consumed = new api.InMemoryRouterAbEd25519YaoRegistrationService(
     new UnusedRegistrationBackend(),
     settled.state.registration,
-  );
-  const rejected = resumed.commitAdmit({
-    request: fixture.admission,
-    claim: preparation.claim,
-    outcome: {
-      kind: 'backend_response',
-      result: {
-        ok: false,
-        status: 409,
-        code: 'admission_rejected',
-        message: 'Admission definitively rejected',
-      },
-    },
+  ).consumeActivated({
+    reference: { lifecycleId, sessionId: receipt.binding.session_id },
+    consumerBinding: 'settlement-finalization',
   });
-  assert.equal(rejected.ok, false);
+  assert.equal(consumed.ok, true);
   assert.equal((await commitCeremony(store, lifecycleId, settled)).kind, 'stored');
   const neighbor = await api.buildNearRegistrationAuthorityFixture('settlement-neighbor');
   const neighborLifecycleId = neighbor.admission.scope.lifecycle_id;
   const neighborLoaded = await store.load(neighborLifecycleId);
   neighborLoaded.state.authorization.authorities.push(...neighbor.state.authorities);
-  const neighborService = new api.InMemoryRouterAbEd25519YaoRegistrationService(
-    new UnusedRegistrationBackend(),
-    neighborLoaded.state.registration,
-  );
-  assert.equal(neighborService.prepareAdmit(neighbor.admission).kind, 'claimed');
+  stageUnconsumedActivation(api, neighborLoaded.state, neighbor.admission);
   assert.equal((await commitCeremony(store, neighborLifecycleId, neighborLoaded)).kind, 'stored');
-  const delayed = await store.load(lifecycleId);
-  const late = new api.InMemoryRouterAbEd25519YaoRegistrationService(
-    new UnusedRegistrationBackend(),
-    delayed.state.registration,
-  );
-  assert.equal(late.prepareAdmit(fixture.admission).kind, 'claimed');
+  const lateAdmission = withLifecycle(fixture.admission, 'ceremony-settlement-late');
+  const lateLifecycleId = lateAdmission.scope.lifecycle_id;
+  const delayed = await store.load(lateLifecycleId);
+  stageUnconsumedActivation(api, delayed.state, lateAdmission);
   await new api.D1WalletRelocationSessions(database, scope).retire(identity, Date.now());
   await assert.rejects(
-    commitCeremony(store, lifecycleId, delayed),
+    commitCeremony(store, lateLifecycleId, delayed),
     /wallet_ceremony_admission_closed/u,
   );
-  assert.equal((await store.load(lifecycleId)).state.registration.admissionClaims.size, 0);
+  assert.equal((await store.load(lateLifecycleId)).state.registration.states.size, 0);
   await new api.D1WalletAuthorizationFreeze(database, scope).freeze(identity, Date.now());
   const completed = await handler.handle(original.clone());
   assert.equal(completed.status, 200, await completed.clone().text());
@@ -639,8 +647,8 @@ export async function verifyPendingCeremonyFreeze({ api, database, scope }) {
     pendingFreezeKeepsSourceUnretired: true,
     restartedPendingReplyMatches: true,
     unsettledSnapshotRejected: true,
-    admittedWorkCanSettle: true,
-    lateAdmissionAfterRetirementRejected: true,
+    consumedActivationSettles: true,
+    lateUnsettledCeremonyAfterRetirementRejected: true,
     sameCommandFreezesAfterSettlement: true,
     unrelatedPendingWorkDoesNotBlockFreeze: true,
     completedGatewayAdmissionDoesNotBlockFreeze: true,

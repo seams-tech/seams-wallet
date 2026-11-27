@@ -41,7 +41,6 @@ export class D1WalletCeremonyActivity {
 }
 
 export function ceremonySettled(ceremony: Ceremony): boolean {
-  if (ceremony.registration.admissionClaims.size > 0) return false;
   for (const registration of ceremony.registration.states.values()) {
     if (!registrationSettled(registration)) return false;
   }

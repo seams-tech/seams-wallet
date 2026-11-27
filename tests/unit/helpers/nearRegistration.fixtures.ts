@@ -9,6 +9,8 @@ import {
 } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
+  parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
+  parseRouterAbEd25519YaoRegistrationActivationResultV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   parseRouterAbEd25519YaoRecoveryAdmissionRequestV1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
@@ -112,6 +114,66 @@ export async function buildNearRegistrationAuthorityFixture(label: string) {
     expiresAtMs,
     ownershipGeneration,
   };
+}
+
+function activationClientPackage(deriver: 'deriver_a' | 'deriver_b') {
+  return {
+    kind: 'activation_client',
+    deriver,
+    session: new Array(32).fill(1),
+    transcript: new Array(32).fill(1),
+    encapsulated_key: new Array(32).fill(1),
+    ciphertext: new Array(16).fill(1),
+  };
+}
+
+/** The admission receipt and the activation result of a registration over `admission`. */
+export function buildNearRegistrationActivationFixture(
+  admission: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  registeredPublicKey: readonly number[],
+) {
+  const scope = admission.scope;
+  const binding = {
+    lifecycle: {
+      lifecycle_id: scope.lifecycle_id,
+      work_kind: 'registration_prepare',
+      primitive_request_kind: 'registration',
+      root_share_epoch: scope.root_share_epoch,
+      account_id: scope.account_id,
+      session_id: scope.threshold_session_id,
+      signer_set_id: scope.signer_set_id,
+      selected_server_id: scope.signing_worker_id,
+    },
+    operation: 'registration',
+    session_id: new Array(32).fill(1),
+    stable_key_context_binding: new Array(32).fill(1),
+    material_activation: scope.material_activation,
+  };
+  const receipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1({
+    binding,
+    keyset: {
+      deriver_a_input_public_key: new Array(32).fill(1),
+      deriver_b_input_public_key: new Array(32).fill(2),
+      signing_worker_recipient_public_key: new Array(32).fill(3),
+    },
+  });
+  if (!receipt.ok) throw new Error(receipt.message);
+  const result = parseRouterAbEd25519YaoRegistrationActivationResultV1({
+    binding,
+    deriver_a_client_package: activationClientPackage('deriver_a'),
+    deriver_b_client_package: activationClientPackage('deriver_b'),
+    public_receipt: {
+      transcript: new Array(32).fill(1),
+      registered_public_key: [...registeredPublicKey],
+      joined_client_commitment: new Array(32).fill(1),
+      joined_signing_worker_commitment: new Array(32).fill(1),
+      signing_worker_verifying_share: new Array(32).fill(1),
+      state_epoch: 1,
+      material_activation: scope.material_activation,
+    },
+  });
+  if (!result.ok) throw new Error(result.message);
+  return { receipt: receipt.value, result: result.value };
 }
 
 export function buildNearRecoveryAdmissionFixture(

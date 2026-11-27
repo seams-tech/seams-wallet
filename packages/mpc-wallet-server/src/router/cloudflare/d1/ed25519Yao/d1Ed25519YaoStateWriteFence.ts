@@ -139,8 +139,7 @@ function collectCeremonyWallets(
   if (
     owners.size > 1 ||
     (owners.size === 0 &&
-      (state.registration.admissionClaims.size > 0 ||
-        state.registration.dispatchRoots.size > 0 ||
+      (state.registration.dispatchRoots.size > 0 ||
         state.registration.lifecycleSessions.size > 0))
   )
     throw new Error('Ceremony mutation has no unique wallet owner');
