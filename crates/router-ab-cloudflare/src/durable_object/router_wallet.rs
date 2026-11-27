@@ -8,6 +8,9 @@
 #[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 use std::{cell::RefCell, rc::Rc};
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
+use super::worker_storage::storage_transaction_value;
+
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use worker::{Env, Method, Request};
@@ -145,27 +148,21 @@ where
         "{}",
         serde_json::json!({"event": "router_wallet_operation", "operation": operation})
     );
-    let outcome = Rc::new(RefCell::new(None));
-    let captured = Rc::clone(&outcome);
-    state
-        .storage()
-        .transaction(move |transaction| async move {
-            let storage_error = Rc::new(RefCell::new(None));
-            let result = action(TransactionStoreV1 {
-                transaction,
-                storage_error: Rc::clone(&storage_error),
-            })
-            .await;
-            if let Some(error) = storage_error.borrow_mut().take() {
-                return Err(worker::Error::RustError(error));
-            }
-            captured.replace(Some(result));
-            Ok(())
+    storage_transaction_value(&state.storage(), async move |transaction| {
+        let storage_error = Rc::new(RefCell::new(None));
+        let result = action(TransactionStoreV1 {
+            transaction,
+            storage_error: Rc::clone(&storage_error),
         })
-        .await
-        .map_err(|error| unavailable(format!("Router wallet transaction failed: {error}")))?;
-    let result = outcome.borrow_mut().take();
-    result.unwrap_or_else(|| {
+        .await;
+        if let Some(error) = storage_error.borrow_mut().take() {
+            return Err(worker::Error::RustError(error));
+        }
+        Ok(result)
+    })
+    .await
+    .map_err(|error| unavailable(format!("Router wallet transaction failed: {error}")))?
+    .unwrap_or_else(|| {
         Err(unavailable(
             "Router wallet transaction produced no outcome".into(),
         ))

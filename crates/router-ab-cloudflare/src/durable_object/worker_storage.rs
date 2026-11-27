@@ -194,3 +194,30 @@ fn presign_object_name(
         ownership_generation,
     )
 }
+
+/// Runs `work` in one storage transaction and returns the value it produced.
+/// An error from `work` aborts the transaction. `None` means that the
+/// transaction committed without running `work`; each caller names that case.
+#[cfg(any(
+    feature = "strict-worker-router-entrypoint",
+    feature = "strict-worker-signing-worker-entrypoint",
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
+pub(crate) async fn storage_transaction_value<T: 'static>(
+    storage: &worker::Storage,
+    work: impl AsyncFnOnce(worker::Transaction) -> worker::Result<T> + 'static,
+) -> worker::Result<Option<T>> {
+    let produced = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let produced_in_transaction = std::rc::Rc::clone(&produced);
+    storage
+        .transaction(move |transaction| async move {
+            let value = work(transaction).await?;
+            produced_in_transaction.replace(Some(value));
+            Ok(())
+        })
+        .await?;
+    let value = produced.borrow_mut().take();
+    Ok(value)
+}

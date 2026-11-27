@@ -1,6 +1,7 @@
 use super::super::ecdsa_presign_live_session::{
     presign_do_error_response, transaction_get_optional,
 };
+use super::super::worker_storage::storage_transaction_value;
 use super::*;
 use crate::{
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
@@ -8,7 +9,6 @@ use crate::{
 };
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
-use std::{cell::RefCell, rc::Rc};
 
 pub(crate) async fn handle_relocation(
     request: worker::Request,
@@ -165,20 +165,12 @@ pub(crate) async fn handle_freeze(
     }
     let command: LinkedPresignRelocationRequest = request.json().await.map_err(storage_error)?;
     command.validate()?;
-    let outcome = Rc::new(RefCell::new(None));
-    let transaction_outcome = Rc::clone(&outcome);
-    storage
-        .transaction(move |transaction| async move {
-            let receipt = freeze_transaction(&transaction, command).await?;
-            transaction_outcome.replace(Some(receipt));
-            Ok(())
-        })
-        .await
-        .map_err(storage_error)?;
-    let receipt = outcome
-        .borrow_mut()
-        .take()
-        .ok_or_else(|| storage_error("Missing freeze outcome"))??;
+    let receipt = storage_transaction_value(storage, async move |transaction| {
+        freeze_transaction(&transaction, command).await
+    })
+    .await
+    .map_err(storage_error)?
+    .ok_or_else(|| storage_error("Missing freeze outcome"))??;
     record_wallet_freeze(env, wallet_objects, &receipt).await?;
     Ok(receipt)
 }
@@ -451,21 +443,12 @@ pub(crate) async fn handle_fence(
     let command: LinkedPresignRelocationRequest = request.json().await.map_err(storage_error)?;
     command.validate()?;
     let initialization = fence_initialization(storage, env, wallet_objects, &command).await?;
-    let outcome = Rc::new(RefCell::new(None));
-    let transaction_outcome = Rc::clone(&outcome);
-    storage
-        .transaction(move |transaction| async move {
-            let result = fence_transaction(&transaction, command, initialization).await?;
-            transaction_outcome.replace(Some(result));
-            Ok(())
-        })
-        .await
-        .map_err(storage_error)?;
-    let result = outcome
-        .borrow_mut()
-        .take()
-        .ok_or_else(|| storage_error("Missing fence outcome"))?;
-    result
+    storage_transaction_value(storage, async move |transaction| {
+        fence_transaction(&transaction, command, initialization).await
+    })
+    .await
+    .map_err(storage_error)?
+    .ok_or_else(|| storage_error("Missing fence outcome"))?
 }
 
 pub(super) async fn fence_transaction(

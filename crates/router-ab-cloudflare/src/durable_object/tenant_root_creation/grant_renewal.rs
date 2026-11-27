@@ -200,28 +200,11 @@ impl RouterAbTenantRootCreationDurableObject {
             .map_err(candidate_authorization_error)?;
         let digest = encode_base64url_bytes_v1(&Sha256::digest(&bytes));
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let captured = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = fence_unused_authorization(&store, &verified, digest, now_ms).await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                captured.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "Authorization fence transaction returned no outcome",
-            )
-        })?;
-        result
+        self.in_store_transaction(
+            "Authorization fence transaction returned no outcome",
+            async move |store| fence_unused_authorization(store, &verified, digest, now_ms).await,
+        )
+        .await
     }
 }
 

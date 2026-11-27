@@ -2,9 +2,9 @@ use super::*;
 use crate::durable_object::ecdsa_presign_live_session::{
     presign_do_error_response, transaction_get_optional,
 };
+use crate::durable_object::worker_storage::storage_transaction_value;
 use crate::CloudflareSigningWorkerRuntimeV1;
 use sha2::{Digest, Sha256};
-use std::{cell::RefCell, rc::Rc};
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
@@ -85,34 +85,26 @@ pub(in super::super) async fn handle(
     }
     let command: Command = request.json().await.map_err(storage_error)?;
     command.validate()?;
-    let outcome = Rc::new(RefCell::new(None));
-    let result = Rc::clone(&outcome);
-    storage
-        .transaction(move |transaction| async move {
-            let receipt = match command {
-                Command::Prepare {
-                    command,
-                    chunk_bytes,
-                } => prepare(&transaction, command, chunk_bytes).await?,
-                Command::Cleanup { receipt } => {
-                    super::super::cleanup::advance(&transaction, receipt).await?
-                }
-                Command::Import { chunk } => import(&transaction, chunk).await?,
-                Command::Verify { receipt } => verify(&transaction, receipt).await?,
-                Command::Status {
-                    receipt,
-                    chunk_bytes,
-                } => status(&transaction, receipt, chunk_bytes).await?,
-            };
-            result.replace(Some(receipt));
-            Ok(())
+    let receipt = storage_transaction_value(storage, async move |transaction| {
+        Ok(match command {
+            Command::Prepare {
+                command,
+                chunk_bytes,
+            } => prepare(&transaction, command, chunk_bytes).await?,
+            Command::Cleanup { receipt } => {
+                super::super::cleanup::advance(&transaction, receipt).await?
+            }
+            Command::Import { chunk } => import(&transaction, chunk).await?,
+            Command::Verify { receipt } => verify(&transaction, receipt).await?,
+            Command::Status {
+                receipt,
+                chunk_bytes,
+            } => status(&transaction, receipt, chunk_bytes).await?,
         })
-        .await
-        .map_err(storage_error)?;
-    let receipt = outcome
-        .borrow_mut()
-        .take()
-        .ok_or_else(|| storage_error("Missing linked presign transfer result"))?;
+    })
+    .await
+    .map_err(storage_error)?
+    .ok_or_else(|| storage_error("Missing linked presign transfer result"))?;
     worker::Response::from_json(&receipt).map_err(storage_error)
 }
 

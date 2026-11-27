@@ -33,7 +33,7 @@ pub(crate) use grant_renewal::{renewal_call, RENEWAL_PATH};
 use std::{collections::BTreeMap, fmt};
 
 #[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
-use std::{cell::RefCell, rc::Rc};
+use std::cell::RefCell;
 
 use router_ab_core::{
     evaluate_tenant_root_refresh_commitment_checkpoint_v1,

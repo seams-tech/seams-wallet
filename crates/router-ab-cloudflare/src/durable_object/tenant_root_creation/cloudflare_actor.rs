@@ -1,5 +1,6 @@
 //! Router-owned Durable Object entrypoint and transactional lifecycle calls.
 
+use super::super::worker_storage::storage_transaction_value;
 use super::*;
 
 #[cfg(all(
@@ -521,36 +522,21 @@ impl RouterAbTenantRootCreationDurableObject {
             .ok()
             .map(|value| value.to_string());
         let env = self.env.clone();
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_destination_bootstrap_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root destination bootstrap transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_destination_bootstrap_v1(
+                    store,
                     &issuer_keys,
                     move || read_tenant_root_creation_role_verifying_keys(&env),
                     configured.as_deref(),
                     call,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root destination bootstrap transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(super) async fn read_cutover_record(
@@ -572,41 +558,49 @@ impl RouterAbTenantRootCreationDurableObject {
         &self,
         request: CloudflareTenantRootCutoverWriteRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCutoverWriteResponseV1> {
-        let outcome: Rc<
-            RefCell<Option<RouterAbProtocolResult<CloudflareTenantRootCutoverWriteResponseV1>>>,
-        > = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let current = transaction_get_optional::<TenantRootCutoverRecordV1>(
-                    &transaction,
-                    TENANT_ROOT_CUTOVER_STORAGE_KEY_V1,
-                )
-                .await?;
-                let response = match evaluate_cutover_write(current.as_ref(), request) {
-                    Ok(response) => response,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                if response.outcome != CloudflareTenantRootCutoverWriteOutcomeV1::ExactReplay {
-                    transaction
-                        .put(TENANT_ROOT_CUTOVER_STORAGE_KEY_V1, &response.record)
-                        .await?;
-                }
-                outcome_for_transaction.replace(Some(Ok(response)));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let response = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root cutover transaction did not produce an outcome",
+        let committed = storage_transaction_value(&self.storage, async move |transaction| {
+            let current = transaction_get_optional::<TenantRootCutoverRecordV1>(
+                &transaction,
+                TENANT_ROOT_CUTOVER_STORAGE_KEY_V1,
             )
-        })?;
-        response
+            .await?;
+            let response = match evaluate_cutover_write(current.as_ref(), request) {
+                Ok(response) => response,
+                Err(error) => return Ok(Err(error)),
+            };
+            if response.outcome != CloudflareTenantRootCutoverWriteOutcomeV1::ExactReplay {
+                transaction
+                    .put(TENANT_ROOT_CUTOVER_STORAGE_KEY_V1, &response.record)
+                    .await?;
+            }
+            Ok(Ok(response))
+        })
+        .await;
+        transaction_outcome(
+            committed,
+            "tenant-root cutover transaction did not produce an outcome",
+        )
+    }
+
+    /// Runs one creation-store operation in one storage transaction. A
+    /// storage failure inside the operation aborts the transaction.
+    pub(super) async fn in_store_transaction<T: 'static>(
+        &self,
+        missing_outcome: &'static str,
+        operation: impl AsyncFnOnce(&OwnedDurableObjectTransactionStoreV1) -> RouterAbProtocolResult<T>
+            + 'static,
+    ) -> RouterAbProtocolResult<T> {
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let committed = storage_transaction_value(&self.storage, async move |transaction| {
+            let store = store.bind(transaction);
+            let result = operation(&store).await;
+            match store.take_storage_error() {
+                Some(error) => Err(error),
+                None => Ok(result),
+            }
+        })
+        .await;
+        transaction_outcome(committed, missing_outcome)
     }
 
     pub(super) async fn persist_restore_refresh_checkpoint_v1(
@@ -614,29 +608,13 @@ impl RouterAbTenantRootCreationDurableObject {
         request: CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result =
-                    tenant_root_restore_refresh_checkpoint_v1(&store, request, now_ms).await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root restore-refresh checkpoint transaction did not produce an outcome",
-            )
-        })?;
-        result
+        self.in_store_transaction(
+            "tenant-root restore-refresh checkpoint transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_restore_refresh_checkpoint_v1(store, request, now_ms).await
+            },
+        )
+        .await
     }
 
     pub(super) async fn persist_creation_abandonment(
@@ -646,35 +624,20 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
         let env = self.env.clone();
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_persist_abandonment_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root creation abandonment transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_persist_abandonment_v1(
+                    store,
                     &issuer_keys,
                     move || read_tenant_root_creation_role_verifying_keys(&env),
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation abandonment transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(super) async fn read_creation_progress(
@@ -684,35 +647,20 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
         let env = self.env.clone();
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_read_progress_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root creation progress transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_read_progress_v1(
+                    store,
                     &issuer_keys,
                     move || read_tenant_root_creation_role_verifying_keys(&env),
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation progress transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn read_creation_journal(
@@ -721,34 +669,19 @@ impl RouterAbTenantRootCreationDurableObject {
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
         let issuer_keys = self.issuer_verifying_keys()?;
         let env = self.env.clone();
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_read_journal_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root creation read transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_read_journal_v1(
+                    store,
                     &issuer_keys,
                     move || read_tenant_root_creation_role_verifying_keys(&env),
                     request,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation read transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(super) async fn read_or_reserve_authoritative_active_state(
@@ -759,36 +692,21 @@ impl RouterAbTenantRootCreationDurableObject {
         let env = self.env.clone();
         let schedule = refresh_schedule_v1(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_active_state_read_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root active-state transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_active_state_read_v1(
+                    store,
                     &issuer_keys,
                     move || read_tenant_root_creation_role_verifying_keys(&env),
                     request,
                     now_ms,
                     schedule,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root active-state transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(super) async fn persist(
@@ -797,30 +715,13 @@ impl RouterAbTenantRootCreationDurableObject {
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
         let issuer_keys = self.issuer_verifying_keys()?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result =
-                    tenant_root_creation_persist_journal_v1(&store, &issuer_keys, request, now_ms)
-                        .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation journal transaction did not produce an outcome",
-            )
-        })?;
-        result
+        self.in_store_transaction(
+            "tenant-root creation journal transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_persist_journal_v1(store, &issuer_keys, request, now_ms).await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_creation_commitment_rendezvous(
@@ -830,35 +731,20 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_persist_commitment_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root creation commitment transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_persist_commitment_v1(
+                    store,
                     &issuer_keys,
                     &role_keys,
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation commitment transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_installation_checkpoint(
@@ -868,35 +754,20 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_persist_installation_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root installation checkpoint transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_persist_installation_v1(
+                    store,
                     &issuer_keys,
                     &role_keys,
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root installation checkpoint transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_creation_cleanup_checkpoint(
@@ -905,34 +776,14 @@ impl RouterAbTenantRootCreationDurableObject {
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_persist_cleanup_v1(
-                    &store,
-                    &issuer_keys,
-                    &role_keys,
-                    request,
-                )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation cleanup transaction did not produce an outcome",
-            )
-        })?;
-        result
+        self.in_store_transaction(
+            "tenant-root creation cleanup transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_persist_cleanup_v1(store, &issuer_keys, &role_keys, request)
+                    .await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_initial_activation(
@@ -941,34 +792,19 @@ impl RouterAbTenantRootCreationDurableObject {
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInitialActivationResponseV1> {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_creation_persist_initial_activation_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root initial activation transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_creation_persist_initial_activation_v1(
+                    store,
                     &issuer_keys,
                     &role_keys,
                     request,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root initial activation transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(super) fn issuer_verifying_keys(
@@ -986,29 +822,13 @@ impl RouterAbTenantRootCreationDurableObject {
         request: CloudflareTenantRootRestoreInitialActivationRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1> {
         let issuer_keys = self.issuer_verifying_keys()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result =
-                    tenant_root_restore_initial_activation_v1(&store, &issuer_keys, request).await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root restore initial activation transaction did not produce an outcome",
-            )
-        })?;
-        result
+        self.in_store_transaction(
+            "tenant-root restore initial activation transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_restore_initial_activation_v1(store, &issuer_keys, request).await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_refresh_activation(
@@ -1018,35 +838,20 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_refresh_persist_activation_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root refresh active-state transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_refresh_persist_activation_v1(
+                    store,
                     &issuer_keys,
                     &role_keys,
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root refresh active-state transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_refresh_commitment_checkpoint(
@@ -1056,35 +861,20 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_refresh_persist_commitment_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root refresh commitment transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_refresh_persist_commitment_v1(
+                    store,
                     &issuer_keys,
                     &role_keys,
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root refresh commitment transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_refresh_installation_checkpoint(
@@ -1094,35 +884,20 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_refresh_persist_installation_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root refresh installation transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_refresh_persist_installation_v1(
+                    store,
                     &issuer_keys,
                     &role_keys,
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root refresh installation transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
 
     pub(crate) async fn persist_refresh_contribution_rendezvous(
@@ -1132,34 +907,35 @@ impl RouterAbTenantRootCreationDurableObject {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
-        let outcome = Rc::new(RefCell::new(None));
-        let outcome_for_transaction = Rc::clone(&outcome);
-        self.storage
-            .transaction(move |transaction| async move {
-                let store = store.bind(transaction);
-                let result = tenant_root_refresh_persist_contribution_v1(
-                    &store,
+        self.in_store_transaction(
+            "tenant-root refresh contribution transaction did not produce an outcome",
+            async move |store| {
+                tenant_root_refresh_persist_contribution_v1(
+                    store,
                     &issuer_keys,
                     &role_keys,
                     request,
                     now_ms,
                 )
-                .await;
-                if let Some(error) = store.take_storage_error() {
-                    return Err(error);
-                }
-                outcome_for_transaction.replace(Some(result));
-                Ok(())
-            })
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let result = outcome.borrow_mut().take().ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root refresh contribution transaction did not produce an outcome",
-            )
-        })?;
-        result
+                .await
+            },
+        )
+        .await
     }
+}
+
+/// The operation's result from a committed transaction, or the failure that
+/// stopped the transaction.
+fn transaction_outcome<T>(
+    committed: worker::Result<Option<RouterAbProtocolResult<T>>>,
+    missing_outcome: &'static str,
+) -> RouterAbProtocolResult<T> {
+    committed
+        .map_err(durable_storage_protocol_error)?
+        .unwrap_or_else(|| {
+            Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                missing_outcome,
+            ))
+        })
 }

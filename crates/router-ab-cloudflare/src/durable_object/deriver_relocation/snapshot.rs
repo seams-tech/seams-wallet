@@ -1,3 +1,4 @@
+use super::super::worker_storage::storage_transaction_value;
 use super::{pair_error, Preparation, ReservationRow, WalletOwner};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -401,23 +402,13 @@ pub(crate) async fn execute<Owner: WalletOwner>(
     env: Env,
     command: Command<Owner>,
 ) -> worker::Result<Response> {
-    let response = std::rc::Rc::new(std::cell::RefCell::new(None));
-    let returned = std::rc::Rc::clone(&response);
-    storage
-        .transaction(move |_| async move {
-            let outcome = match command {
-                Command::Activate { receipt } => import::activate(&sql, receipt),
-                Command::Import { receipt, segment } => {
-                    import::receive(&sql, &env, receipt, segment)
-                }
-                Command::Status { receipt } => import::status(&sql, receipt),
-                Command::Verify { receipt } => import::verify(&sql, receipt),
-                source => execute_source(&sql, source),
-            }?;
-            *returned.borrow_mut() = Some(outcome);
-            Ok(())
-        })
-        .await?;
-    let result = response.borrow_mut().take();
-    result.ok_or_else(|| pair_error("Deriver snapshot transaction returned no response"))
+    storage_transaction_value(storage, async move |_| match command {
+        Command::Activate { receipt } => import::activate(&sql, receipt),
+        Command::Import { receipt, segment } => import::receive(&sql, &env, receipt, segment),
+        Command::Status { receipt } => import::status(&sql, receipt),
+        Command::Verify { receipt } => import::verify(&sql, receipt),
+        source => execute_source(&sql, source),
+    })
+    .await?
+    .ok_or_else(|| pair_error("Deriver snapshot transaction returned no response"))
 }
