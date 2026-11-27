@@ -1,7 +1,5 @@
 //! Bounded blocking-I/O adapters for the passive benchmark table stream.
 
-#![allow(dead_code)]
-
 use core::fmt;
 use std::io::{self, Read};
 
@@ -111,14 +109,17 @@ where
         })
     }
 
+    #[cfg(test)]
     pub(super) const fn body_bytes(&self) -> u64 {
         self.manifest.body_bytes()
     }
 
+    #[cfg(test)]
     pub(super) const fn frame_count(&self) -> u32 {
         self.manifest.frame_count()
     }
 
+    #[cfg(test)]
     pub(super) const fn maximum_frame_payload_bytes(&self) -> usize {
         C::MAX_PAYLOAD_BYTES
     }

@@ -27,7 +27,7 @@ const STREAM_MAGIC: &[u8; 8] = b"MLDSAP01";
 /// Maximum AND-table payload, excluding its eight-byte length/ordinal envelope.
 pub const TABLE_PAYLOAD_BYTES: usize = 65_536;
 /// Largest exact control message among the admitted investigation workloads.
-pub const MAX_MESSAGE_BYTES: usize = 188_464;
+pub(crate) const MAX_MESSAGE_BYTES: usize = 188_464;
 
 /// Recoverable failures at the fixed runtime boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -18,7 +18,7 @@ pub mod phase5_benchmark;
 #[cfg(feature = "passive-benchmark")]
 mod phase5_process;
 #[cfg(feature = "passive-benchmark")]
-pub mod phase5_transport;
+pub(crate) mod phase5_transport;
 #[cfg(any(test, feature = "passive-wasm-benchmark"))]
 pub mod phase5_wasm_benchmark;
 #[cfg(feature = "passive-benchmark")]

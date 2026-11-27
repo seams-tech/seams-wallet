@@ -3,7 +3,7 @@ use core::fmt;
 use crate::{ValidationError, ValidationResult};
 
 /// Required byte length for every manifest digest.
-pub const DIGEST32_LENGTH: usize = 32;
+pub(crate) const DIGEST32_LENGTH: usize = 32;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct NonZeroDigest32([u8; DIGEST32_LENGTH]);

@@ -35,9 +35,9 @@ impl CircuitId {
 }
 
 /// Frozen activation circuit identifier value.
-pub const ACTIVATION_CIRCUIT_ID: CircuitId = CircuitId(ACTIVATION_CIRCUIT_ID_STR);
+pub(crate) const ACTIVATION_CIRCUIT_ID: CircuitId = CircuitId(ACTIVATION_CIRCUIT_ID_STR);
 /// Frozen export circuit identifier value.
-pub const EXPORT_CIRCUIT_ID: CircuitId = CircuitId(EXPORT_CIRCUIT_ID_STR);
+pub(crate) const EXPORT_CIRCUIT_ID: CircuitId = CircuitId(EXPORT_CIRCUIT_ID_STR);
 
 /// Disjoint fixed circuit families in protocol v1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

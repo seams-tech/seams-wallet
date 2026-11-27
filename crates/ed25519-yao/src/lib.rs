@@ -72,22 +72,25 @@ pub mod local_protocol {
 
 pub use digest::{
     ActivationOutputSchemaDigest32, CircuitDigest32, CompilerDigest32, ConstantsDigest32,
-    DraftActivationManifestDigest32, DraftExportManifestDigest32, ExportOutputSchemaDigest32,
-    InputSchemaDigest32, ScheduleDigest32, SourceIrDigest32, DIGEST32_LENGTH,
+    ExportOutputSchemaDigest32, InputSchemaDigest32, ScheduleDigest32, SourceIrDigest32,
 };
-pub use error::{MetricField, ValidationError, ValidationResult};
+pub(crate) use digest::{
+    DraftActivationManifestDigest32, DraftExportManifestDigest32, DIGEST32_LENGTH,
+};
+pub(crate) use error::ValidationResult;
+pub use error::{MetricField, ValidationError};
 pub use ids::{
-    CircuitFamily, CircuitId, ProtocolId, ACTIVATION_CIRCUIT_ID, ACTIVATION_CIRCUIT_ID_STR,
-    ACTIVATION_OUTPUT_SCHEMA_ID_STR, EXPORT_CIRCUIT_ID, EXPORT_CIRCUIT_ID_STR,
-    EXPORT_OUTPUT_SCHEMA_ID_STR, PROTOCOL_ID, PROTOCOL_ID_STR,
+    CircuitFamily, CircuitId, ProtocolId, ACTIVATION_CIRCUIT_ID_STR,
+    ACTIVATION_OUTPUT_SCHEMA_ID_STR, EXPORT_CIRCUIT_ID_STR, EXPORT_OUTPUT_SCHEMA_ID_STR,
+    PROTOCOL_ID, PROTOCOL_ID_STR,
 };
+pub(crate) use ids::{ACTIVATION_CIRCUIT_ID, EXPORT_CIRCUIT_ID};
 pub use manifest::{
     ActivationCircuitArtifactDigests, ActivationOutputSchema, DraftActivationCircuitManifest,
-    DraftActivationManifestPreimage, DraftExportCircuitManifest, DraftExportManifestPreimage,
-    DraftProtocolManifest, ExportCircuitArtifactDigests, ExportOutputSchema,
-    ACTIVATION_DRAFT_MANIFEST_FAMILY_BYTE, ACTIVATION_DRAFT_MANIFEST_PREIMAGE_BYTES,
-    DRAFT_MANIFEST_DIGEST_DOMAIN_V1, EXPORT_DRAFT_MANIFEST_FAMILY_BYTE,
-    EXPORT_DRAFT_MANIFEST_PREIMAGE_BYTES,
+    DraftExportCircuitManifest, DraftProtocolManifest, ExportCircuitArtifactDigests,
+    ExportOutputSchema, ACTIVATION_DRAFT_MANIFEST_FAMILY_BYTE,
+    ACTIVATION_DRAFT_MANIFEST_PREIMAGE_BYTES, DRAFT_MANIFEST_DIGEST_DOMAIN_V1,
+    EXPORT_DRAFT_MANIFEST_FAMILY_BYTE, EXPORT_DRAFT_MANIFEST_PREIMAGE_BYTES,
 };
 pub use metrics::{
     CircuitMetrics, GateMetrics, ScheduleMetrics, PASSIVE_HALF_GATES_TABLE_BYTES_PER_AND_GATE,

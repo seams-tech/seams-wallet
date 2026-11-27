@@ -1948,7 +1948,7 @@ pub mod benchmark {
     const MAXIMUM_WIRE_MESSAGE_BYTES: usize = TABLE_FRAME_HEADER_BYTES + 256 * 1_024;
     const WIRE_ENVELOPE_MAGIC: &[u8; 8] = b"EYAORL01";
     const WIRE_ENVELOPE_VERSION: u8 = 1;
-    pub const WIRE_ENVELOPE_HEADER_BYTES: usize = 16;
+    pub(crate) const WIRE_ENVELOPE_HEADER_BYTES: usize = 16;
 
     #[cfg(feature = "phase9-role-benchmark")]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]

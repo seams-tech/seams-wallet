@@ -3,7 +3,7 @@ use core::fmt;
 use crate::DIGEST32_LENGTH;
 
 /// Result returned by validated manifest constructors.
-pub type ValidationResult<T> = Result<T, ValidationError>;
+pub(crate) type ValidationResult<T> = Result<T, ValidationError>;
 
 /// A required numeric manifest field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
