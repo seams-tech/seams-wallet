@@ -507,8 +507,28 @@ own transcript, so only SaySo's word check acts:
   correct readings), because they have more than 16 words: 20 transfers and 8 multisig
   transfers. The 8 s audio cap of the Worker may refuse more; the audio is not measured yet.
   The 95% target of Refactor 210 Q6 needs a higher limit first (Q7).
-- **The paid run.** Whisper large-v3-turbo on Workers AI costs about $0.25 for the 494 audio
-  minutes, and the first 214 audio minutes of each day are free. It waits for the owner's yes.
+
+**G1 with Whisper large-v3-turbo: fails** (owner's yes on 2026-11-27; 401 audio minutes, about
+$0.21; SaySo `9c78b65`). With every word guarded, SaySo accepts 125 of 3,000 correct readings
+(4.2%; transfers 2.2%) and no near miss. The baseline accepts 88.4%. Whisper writes
+"eric.testnet", which SaySo reads as one word, and it spells sound-alike names in its own way
+("eric" for "erik"). A test variant that spells the punctuation reaches 47.0%, with 5 false
+accepts from sound-alike contacts. The
+[evidence file](evidence/refactor-254-slice-3-sayso-20261127.md) has the causes.
+
+This changes the design of Slice 4 (Q15). SaySo's word check cannot decide a Wallet request.
+The choices:
+
+- **A. The Wallet decides the words.** SaySo signs the transcript in the verdict (today it
+  keeps `heard` only on a refusal), and Wallet core and the co-signer run `spoken-intent` on it
+  with the contacts, as the OutLayer verifier did inside its TEE. SaySo then checks only the
+  speaker and the audio. Recommended: it is the parser that reached 88.4% with 0 false accepts.
+  The cost: `shared-ts` has the request and the words, but no copy of the parser
+  (`normalize_punctuated`, `parse_transfer`, the phonetic key). `spoken-intent` builds for
+  `wasm32-unknown-unknown`, so Slice 4 adds that build to core and the co-signer.
+- **B. SaySo learns the Wallet's grammar.** sayso-wasm gets the punctuation rules and a list of
+  contacts. This breaks SaySo's rule of no chain code, and it repeats `spoken-intent`.
+- **C. Keep OutLayer for transfers.** Its funding is stopped (owner, 2026-11-26).
 
 **S3, prepared** in SaySo `e9d7a1d` (local, not deployed): a Wrangler environment
 `staging-testnet` (Worker `sayso-verifier-staging-testnet`) with its own Durable Objects and
@@ -545,6 +565,7 @@ is Slice 6.
 | Q12 | The verdict key, the templates and the co-signer in one Cloudflare account (R3)            | Accept it for testnet with the trust text of R3; decide again for mainnet   |
 | Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
 | Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
+| Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | A: SaySo signs the transcript; Wallet core and the co-signer run `spoken-intent` |
 
 ### Answers of the owner (2026-11-27)
 

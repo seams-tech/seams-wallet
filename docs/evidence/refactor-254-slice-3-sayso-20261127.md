@@ -144,13 +144,44 @@ requests, 1,871 near-miss texts and 6,742 cases, the same counts as the baseline
   `changed_verb` 444 of 500 ("lend" for "send") and `add_remove_swapped` 40 of 40.
 - All 336 refused correct readings belong to the 28 requests with more than 16 words. SaySo
   refuses their intent before it hears anything.
-- Not measured yet: the 8 s audio cap of the Worker, and the transcripts of Whisper
-  large-v3-turbo.
+
+### G1 with Whisper large-v3-turbo (measured)
+
+The owner approved the run on 2026-11-27. `transcribe.ts` sent 6,630 clips (401 audio minutes,
+about $0.21 before the free daily allowance) to `@cf/openai/whisper-large-v3-turbo` with the
+deploy token of the `seamsadmin` account, as the Worker calls it. 112 clips are longer than the
+Worker's 8 s cap and were not sent; they refuse as `audio_invalid`. The cap refuses no correct
+reading of a request with 16 words or less. The transcripts and score files are in SaySo
+`9c78b65`, `bench/stt1/results`, so the set can be scored again with no cost.
+
+| Text step                                   | Correct readings       | Transfers | Multisig | False accepts |
+| ------------------------------------------- | ---------------------- | --------- | -------- | ------------- |
+| Baseline: NEAR AI Whisper + slot rules      | 2,652 of 3,000 (88.4%) | 94.6%     | 63.7%    | 0 of 3,742    |
+| SaySo, every word guarded                   | 125 of 3,000 (4.2%)    | 2.2%      | 12.0%    | 0 of 3,742    |
+| SaySo, values guarded                       | 180 of 3,000 (6.0%)    | 2.2%      | 21.2%    | 33 of 3,742   |
+| Test variant, every word guarded            | 1,410 of 3,000 (47.0%) | 53.8%     | 19.8%    | 5 of 3,742    |
+
+**G1 fails.** The causes are SaySo's text step, not the hearing of Whisper:
+
+- Whisper writes an account as "eric.testnet". SaySo makes one word of it, "erictestnet". The test
+  variant (`variant.ts`) spells "." as "dot" and "-" as "dash" in an account name before the check.
+- Whisper writes a name that sounds the same in another way: "eric" for "erik". The recipient is
+  guarded, so the reading refuses (816 refused transfers in the variant). `spoken-intent` matches
+  the recipient to a contact by its phonetic key instead.
+- Whisper writes digits as a number ("10374" for "one zero three seven four") and "Approved" for
+  "approve".
+- A SaySo fault: the normalizer drops the digits of a mixed word ("8888net" becomes "net").
+- The 5 false accepts of the variant are sound-alike contacts: the audio says "jon dot testnet",
+  Whisper writes "John", and John is the recipient. Only a contact list can refuse them.
+
+So word matching cannot carry a Wallet request with free names and amounts. The 88.4% of the
+baseline comes from `spoken-intent`, which parses the transcript into the request and compares
+the values, with the contacts.
 
 ## 3. Open points for the owner
 
-1. G1: which text step the 88.4% comparison uses (above). SaySo's own check with every word
-   guarded is the real path; its ceiling is 88.8% until the 16-word limit changes.
+1. G1: SaySo's word check fails G1 (4.2%). Which text step decides a Wallet request: SaySo's
+   words, or `spoken-intent` on the transcript (plan, Q15)?
 2. G2: cosine agreement or accept and refuse results, and against which reference now that
    the Phala build has no funding.
 3. G2 and G3: whether the private fixture clips can go to the SaySo Worker on Cloudflare. The
