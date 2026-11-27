@@ -733,7 +733,8 @@ impl PoolMutation {
     }
 
     /// Returns the exact material operation to apply in the CAS transaction.
-    pub const fn material_disposition(&self) -> MaterialDisposition {
+    #[cfg(test)]
+    pub(crate) const fn material_disposition(&self) -> MaterialDisposition {
         self.material_disposition
     }
 
