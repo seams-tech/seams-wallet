@@ -530,6 +530,44 @@ The choices:
   contacts. This breaks SaySo's rule of no chain code, and it repeats `spoken-intent`.
 - **C. Keep OutLayer for transfers.** Its funding is stopped (owner, 2026-11-26).
 
+**The owner chose A** (2026-11-27). The SaySo side is built in SaySo `c6235d5` (local):
+
+- An intent can set `transcript_only` (`createIntent({ transcriptOnly: true })`). SaySo then
+  checks the speaker, the audio and the single use of the recording, but not the words. An
+  accepted verdict carries the transcript as written in `heard`, with its case and punctuation,
+  cut to 200 bytes. The verdict keeps its 12 fields.
+- Its `intent_digest` uses the domain `sayso:intent:transcript:v1\0`, so such a verdict never
+  matches an intent whose words SaySo checks. It cannot have guarded words, so the Wallet does
+  not use S1. Vector, with the inputs of the S1 vector and no guards:
+  `7f0d21a683dbffa7dd0678670db1a8d339e510c36548eb823408e3cca3100d9f`.
+- The same commit fixes a normalizer fault: it dropped the digits of a mixed word, so "acct7"
+  and "acct9" both read "acct", and a misheard account passed the word check.
+
+**G1 under design A** (SaySo `3da0c0c`, no cost: the turbo transcripts scored again with the
+baseline's own `spoken-intent` scorer):
+
+| Transcriber                  | Slot rules (`3a284a874`) | Forgiving rules (`976167297`) | False accepts |
+| ---------------------------- | ------------------------ | ----------------------------- | ------------- |
+| NEAR AI Whisper large-v3     | 88.4% (transfers 94.6%)  | 91.1% (transfers 98.0%)       | 0             |
+| Workers AI large-v3-turbo    | 83.4% (transfers 90.5%)  | 86.1% (transfers 93.9%)       | 0             |
+
+So design A has no false accept, but turbo reads about 5 points below large-v3, and G1 as
+written ("at least the NEAR AI result") fails. Most multisig losses are "Approved" for
+"approve" and digit strings, which the forgiving rules do not cover. The next steps, each
+with a cost:
+
+- Score Deepgram Nova-3 on Workers AI on the same audio: about 401 audio minutes at $0.0052, so
+  about $2.10.
+- Give turbo the contacts as `initial_prompt`: about $0.21 a run.
+- Add multisig rules to `spoken-intent` (in speak-to-sign): no cost, and the transcripts can be
+  scored again for free.
+
+What Slice 4 must build for A: the SDK and the Gateway send a transcript-only intent; the
+`saysoVerdictV1` checker reads `heard` with `spoken-intent` and the contacts, and refuses
+unless the parse gives exactly the request; core and the co-signer get the `spoken-intent` wasm
+build. Open for Slice 4: the co-signer has no contact list, so it can only compare the heard
+receiver with the request's receiver.
+
 **S3, prepared** in SaySo `e9d7a1d` (local, not deployed): a Wrangler environment
 `staging-testnet` (Worker `sayso-verifier-staging-testnet`) with its own Durable Objects and
 container, no route and no `workers.dev` URL. Its secrets would be a new `VERDICT_SECRET_KEY_HEX`
@@ -565,7 +603,7 @@ is Slice 6.
 | Q12 | The verdict key, the templates and the co-signer in one Cloudflare account (R3)            | Accept it for testnet with the trust text of R3; decide again for mainnet   |
 | Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
 | Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
-| Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | A: SaySo signs the transcript; Wallet core and the co-signer run `spoken-intent` |
+| Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | Answered: A                                                                 |
 
 ### Answers of the owner (2026-11-27)
 
@@ -574,6 +612,8 @@ is Slice 6.
   on/off, theres less of a security issue)". So the plan has no amount rule, and Slice 2 is
   the neutral checker.
 - **Q10.** Agreed: one SaySo deployment and one key for each lane. This also answers Q4.
+- **Q15.** A: SaySo signs the transcript, and Wallet core and the co-signer run `spoken-intent`
+  on it (2026-11-27).
 - **Q11 and Q2.** Agreed: an enrollment needs a fresh passkey or Email OTP approval. A VoiceID
   unlock does not count.
 - **Q13 and Q14.** "agreed, build both in Slice 4". The card shows what the confirm shows, and
