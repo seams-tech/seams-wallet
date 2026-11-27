@@ -450,6 +450,13 @@ each gate needs and three open points for the owner.
   2026-11-10. It needs the owner's npm login and two-factor approval.
 - **The first version is 0.2.0**, the version in the workspace. The packed tarballs install in a
   new project and give the pinned digest `a63e63c8…`.
+- **CI.** The first CI run of the new repository passed (run `45934386701`).
+- **The publish waits** for the owner's `npm login` and `scripts/npm-trust.sh`. Then the
+  workflow "Release the SaySo packages" publishes 0.2.0. The seams-wallet pin waits for Slice 4,
+  because no code in seams-wallet imports the package before it.
+
+**R3, mock mode: fixed** in SaySo `fa13032` (local, not deployed). Mock mode signs only with the
+public mock seed, and a real verdict key with `SAYSO_DEV_MOCK=true` stops the Worker.
 
 ## 7. Invariants
 
