@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "action_type")]
-pub enum ActionParams {
+pub(crate) enum ActionParams {
     CreateAccount,
     DeployContract {
         code: Vec<u8>,
@@ -54,7 +54,7 @@ pub enum ActionParams {
 
 impl ActionParams {
     /// Validate the current params and convert into a concrete NEAR `NearAction`.
-    pub fn to_action(&self) -> Result<NearAction, String> {
+    pub(crate) fn to_action(&self) -> Result<NearAction, String> {
         match self {
             ActionParams::CreateAccount => Ok(NearAction::CreateAccount),
 

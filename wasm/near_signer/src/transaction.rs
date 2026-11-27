@@ -4,7 +4,7 @@ use crate::actions::ActionParams;
 use crate::types::*;
 
 /// Build a transaction with multiple actions
-pub fn build_transaction_with_actions(
+pub(crate) fn build_transaction_with_actions(
     signer_account_id: &str,
     receiver_account_id: &str,
     nonce: u64,
@@ -43,7 +43,7 @@ pub fn build_transaction_with_actions(
 }
 
 /// Build actions from action parameters
-pub fn build_actions_from_params(
+pub(crate) fn build_actions_from_params(
     action_params: Vec<ActionParams>,
 ) -> Result<Vec<NearAction>, String> {
     let mut actions = Vec::new();
@@ -73,7 +73,7 @@ pub fn sign_transaction(
 }
 
 /// Return the base58 SHA-256 hash that NEAR RPC uses to identify a transaction.
-pub fn calculate_transaction_hash(transaction: &Transaction) -> String {
+pub(crate) fn calculate_transaction_hash(transaction: &Transaction) -> String {
     let (hash, _) = transaction.get_hash_and_size();
     bs58::encode(hash.0).into_string()
 }

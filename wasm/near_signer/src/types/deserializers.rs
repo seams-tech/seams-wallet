@@ -5,7 +5,7 @@
 // serde shapes that play nicely with both JSON and serde_wasm_bindgen
 // (e.g. accepting JS arrays and Uint8Array for fixed-size byte arrays).
 
-pub mod serde_array_32 {
+pub(crate) mod serde_array_32 {
     use serde::de::{Error, SeqAccess, Visitor};
     use serde::{Deserializer, Serializer};
 
@@ -64,7 +64,7 @@ pub mod serde_array_32 {
     }
 }
 
-pub mod serde_array_64 {
+pub(crate) mod serde_array_64 {
     use serde::de::{Error, SeqAccess, Visitor};
     use serde::{Deserializer, Serializer};
 

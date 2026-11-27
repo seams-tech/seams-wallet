@@ -35,7 +35,7 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
-    pub fn from_ed25519_bytes(bytes: &[u8; 32]) -> Self {
+    pub(crate) fn from_ed25519_bytes(bytes: &[u8; 32]) -> Self {
         PublicKey {
             key_type: 0, // ED25519
             key_data: *bytes,
@@ -57,7 +57,7 @@ pub struct Signature {
 }
 
 impl Signature {
-    pub fn from_ed25519_bytes(bytes: &[u8; 64]) -> Self {
+    pub(crate) fn from_ed25519_bytes(bytes: &[u8; 64]) -> Self {
         Signature {
             key_type: 0, // ED25519
             signature_data: *bytes,
@@ -72,7 +72,7 @@ impl Signature {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CryptoHash(#[serde(with = "serde_array_32")] pub [u8; 32]); // [u8; 32] for proper borsh serialization
+pub struct CryptoHash(#[serde(with = "serde_array_32")] pub(crate) [u8; 32]); // [u8; 32] for proper borsh serialization
 
 impl CryptoHash {
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
@@ -87,7 +87,7 @@ impl CryptoHash {
 
 pub type Nonce = u64;
 pub type Gas = u64;
-pub type Balance = u128;
+pub(crate) type Balance = u128;
 
 // === SERDE HELPERS FOR BALANCE (u128) ===
 // JSON does not natively support 128-bit integers. To keep JSON round-trips
@@ -351,7 +351,7 @@ pub struct Transaction {
 impl Transaction {
     /// Computes a hash of the transaction for signing
     /// This mirrors the logic from near-primitives Transaction::get_hash_and_size()
-    pub fn get_hash_and_size(&self) -> (CryptoHash, u64) {
+    pub(crate) fn get_hash_and_size(&self) -> (CryptoHash, u64) {
         let bytes = borsh::to_vec(&self).expect("Failed to serialize transaction");
         let hash_bytes = {
             let mut hasher = Sha256::new();

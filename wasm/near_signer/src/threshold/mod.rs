@@ -1,1 +1,1 @@
-pub mod threshold_digests;
+pub(crate) mod threshold_digests;

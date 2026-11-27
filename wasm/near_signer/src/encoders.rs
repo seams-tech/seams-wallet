@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use crate::types::DelegateAction;
 
 /// NEP-461 delegate action prefix (2^30 + 366)
-pub const DELEGATE_ACTION_PREFIX: u32 = 1_073_742_190;
+pub(crate) const DELEGATE_ACTION_PREFIX: u32 = 1_073_742_190;
 
 // === BASE64URL (URL-SAFE, NO PADDING) ===
 
@@ -30,7 +30,7 @@ pub fn base64_url_encode(data: &[u8]) -> String {
 // === NEP-461 DELEGATE ACTION ENCODERS ===
 
 /// Encode DelegateAction with the NEP-461 prefix, mirroring @near-js/transactions encodeDelegateAction.
-pub fn encode_delegate_action(delegate: &DelegateAction) -> Result<Vec<u8>, String> {
+pub(crate) fn encode_delegate_action(delegate: &DelegateAction) -> Result<Vec<u8>, String> {
     let mut encoded = borsh::to_vec(&DELEGATE_ACTION_PREFIX)
         .map_err(|e| format!("Prefix encode error: {}", e))?;
     let mut delegate_bytes =
@@ -40,7 +40,7 @@ pub fn encode_delegate_action(delegate: &DelegateAction) -> Result<Vec<u8>, Stri
 }
 
 /// Compute sha256 over the NEP-461-prefixed delegate action bytes.
-pub fn hash_delegate_action(delegate: &DelegateAction) -> Result<[u8; 32], String> {
+pub(crate) fn hash_delegate_action(delegate: &DelegateAction) -> Result<[u8; 32], String> {
     let encoded = encode_delegate_action(delegate)?;
     let mut hasher = Sha256::new();
     hasher.update(&encoded);

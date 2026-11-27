@@ -1,8 +1,8 @@
 // === TYPES MODULE ===
 
-pub mod deserializers;
+pub(crate) mod deserializers;
 pub mod near;
-pub mod wasm_to_json;
+pub(crate) mod wasm_to_json;
 
 // Re-export commonly used types
 pub use near::*;
