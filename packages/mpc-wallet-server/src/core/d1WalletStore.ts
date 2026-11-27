@@ -53,6 +53,7 @@ import {
   parseWalletEcdsaPendingSessionActivationRecord,
   parseWalletEcdsaSignerRecord,
 } from './WalletStore';
+import { equalBytes } from '@shared/utils/routerAbEd25519YaoDigests';
 
 export type {
   WalletEcdsaSignerRecord,
@@ -273,14 +274,6 @@ function parseWalletRecord(raw: unknown): WalletRecord | null {
     createdAtMs,
     updatedAtMs,
   };
-}
-
-function equalBytes(left: readonly number[], right: readonly number[]): boolean {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
 }
 
 function parseWalletEd25519YaoActiveCapabilityRecord(

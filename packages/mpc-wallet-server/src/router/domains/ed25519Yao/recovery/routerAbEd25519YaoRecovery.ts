@@ -72,6 +72,7 @@ import {
   sameRouterAbMpcMaterialActivationRef,
   type RouterAbMpcMaterialActivationRefWire,
 } from '@shared/utils/routerAbNormalSigningIdentity';
+import { equalBytes } from '@shared/utils/routerAbEd25519YaoDigests';
 
 type RecoveryAdmissionReceipt = RouterAbEd25519YaoActivationAdmissionReceiptV1<'recovery'>;
 type RecoveryExecuteRequest = RouterAbEd25519YaoActivationExecuteRequestV1<'recovery'>;
@@ -925,14 +926,6 @@ function bytesToHex(bytes: readonly number[]): string {
   let encoded = '';
   for (const byte of bytes) encoded += byte.toString(16).padStart(2, '0');
   return encoded;
-}
-
-function equalBytes(left: readonly number[], right: readonly number[]): boolean {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
 }
 
 function sameRecoveryAuthorizationBindingV1(
