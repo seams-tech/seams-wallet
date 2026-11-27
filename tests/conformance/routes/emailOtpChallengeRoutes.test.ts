@@ -2,9 +2,8 @@ import { expect, test } from '@playwright/test';
 import { APP_ORIGIN, recordedCalls, routerWith } from './routeHarness';
 
 // The Email OTP challenge send and the dev outbox. seams-monorepo reads walletId from both
-// bodies to find the wallet's home region. The factor release and the seal routes are left out
-// on purpose: the Email OTP device-factor change (docs/refactor-252-email-otp-device-factor.md)
-// changes their wire.
+// bodies to find the wallet's home region. The factor release and the registration factor
+// routes have no checks here yet.
 
 const WALLET_ID = 'email-otp-wallet-1';
 const CHALLENGE_BODY = {

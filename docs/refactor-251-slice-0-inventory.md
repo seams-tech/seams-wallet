@@ -52,7 +52,10 @@ is not counted. The rows that are not replaced move to their owner. A move does 
 
 ## U4: what a compromised Auth Worker can do to an Email OTP wallet
 
-How the Email OTP factor key works today:
+This section records the code on 2026-11-18. Refactor 252 closed the gap in 0.76.0: the factor
+is now a device factor, and the server cannot open it alone ([Email OTP](otp/email-otp.md)).
+
+How the Email OTP factor key worked then:
 
 1. At enrollment, the Email OTP worker makes a random 32-byte factor key S
    (`packages/wallet/src/core/signingEngine/workerManager/workers/email-otp/enrollment.ts:79-81`).

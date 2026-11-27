@@ -1558,6 +1558,9 @@ Expected behaviour:
   registration purpose match.
 - Registration stores the Email OTP auth method and binds it to the final
   wallet id.
+- Registration gives the registering device its own Email OTP factor. The device
+  keeps a random input. The server keeps only the factor's nonce, wrapped factor
+  and pinned unlock key, and it cannot open the factor without the device input.
 - Registration returns after the wallet, Email OTP auth method, configured ECDSA
   signer inventory, and exact Wallet Session are durable and the primary
   operation credential has been issued. Tempo and Arc/EVM signing may begin
@@ -1679,6 +1682,8 @@ Failure behaviour:
 Expected behaviour:
 
 - Unlock sends one wallet-unlock OTP challenge.
+- Unlock needs this device's Email OTP factor and a fresh code. The server
+  evaluates the factor only for the device input that matches its record.
 - By default, verifying the OTP warms NEAR Ed25519 and configured ECDSA signing
   lanes.
 - Callers may request an explicit subset, such as NEAR-only, ECDSA-only, or
@@ -1698,6 +1703,12 @@ Failure behaviour:
 - A step-up/export OTP challenge must not unlock the wallet.
 - Unlock must fail before reporting success if no usable Email OTP auth method
   exists for the wallet.
+- On a device with no Email OTP factor for the wallet, a Google or email
+  sign-in sends no code. It fails with `email_otp_device_factor_missing`, and
+  the hosted menu offers "Link this device" and "Recover wallet". An email code
+  alone never opens the wallet on that device.
+- With every D1 row and every Worker secret, and no data from the device, the
+  server cannot open an Email OTP factor or its custody envelope.
 
 ### Page Refresh After Unlock
 
@@ -1740,8 +1751,10 @@ Expected behaviour:
   refused code returns the owner to the code step with the code kept.
 - Preparation reserves the code and binds an immutable Passkey or Google/Email
   OTP target. Passkey creation and Google authentication begin from their own
-  user actions; Google recovery also requires the issued Email OTP before
-  factor release.
+  user actions; Google recovery also requires the issued Email OTP.
+- Google recovery releases no Email OTP factor. After the code check, the device
+  enrolls a new factor for the recovered method. The factors of other devices
+  stay.
 - The recovery code is the sole wallet-recovery authorization. The selected
   target still proves its own factor: Passkey registration for Passkey, or a
   server-verified Google identity followed by Email OTP for Email OTP.
@@ -2092,7 +2105,8 @@ Failure behaviour:
 
 Expected behaviour:
 
-- Key export requires fresh export-scoped Email OTP authorization.
+- Key export requires fresh export-scoped Email OTP authorization and this
+  device's Email OTP factor. A live Wallet Session cannot replace the code.
 - A wallet-unlock OTP or transaction step-up OTP is not enough to export keys.
 - Ed25519 export selects an exact Email OTP Ed25519 export lane.
 - ECDSA export selects an exact Email OTP ECDSA export lane for the requested
@@ -2228,6 +2242,11 @@ Expected behaviour:
   unlock. Its exact active Ed25519 binding may come from registration or recovery.
   The target always uses a fresh registration binding and preserves the public key,
   stable context, participant identifiers, and root-share epoch.
+- An Email OTP target enrolls its own Email OTP factor under the grant's
+  identity. The source approves only the target address, and the server
+  releases no factor. If the wallet has no Email OTP enrollment, the install
+  commit creates it with the target's factor. Otherwise the target address must
+  be the enrollment's address, and the commit adds the target's factor.
 - Device 2 never receives the wallet custody seed. An Ed25519 installation
   with `export_keys` receives only the one-use encrypted Yao Client export
   root and seals it under the verified target method.
@@ -2269,6 +2288,8 @@ Expected behaviour:
 - User revocation targets one exact `walletAuthMethodId` and requires fresh
   proof from a different active method under a full-owner authority. Removing
   the wallet's final active method is refused without changing durable state.
+- Revoking an Email OTP method deletes its factor in the same commit. The
+  Email OTP enrollment goes with its last factor.
 - Revoking the final method attached to an authority retires that authority,
   invalidates its sessions, and disables its exact signer activations while
   leaving other methods, authorities, and devices operational.

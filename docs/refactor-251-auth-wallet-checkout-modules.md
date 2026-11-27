@@ -168,10 +168,10 @@ Decided by the owner on 2026-11-18:
   - Decide whether to publish the source maps. They are the largest part of the JavaScript
     packages.
 - **D26. Email OTP custody.** The owner decided on 2026-11-18 that the wallet server alone must not
-  be able to open an owner Email OTP wallet. Today it can ([Slice 0
-  inventory](refactor-251-slice-0-inventory.md), U4). [Refactor
-  252](refactor-252-email-otp-device-factor.md) makes the Email OTP factor key a device factor with
-  a blinded release. A new device then needs device linking or a recovery code.
+  be able to open an owner Email OTP wallet. It could ([Slice 0
+  inventory](refactor-251-slice-0-inventory.md), U4). Refactor 252 made the Email OTP factor a
+  device factor with a blinded POPRF release, on production since 0.76.0
+  ([Email OTP](otp/email-otp.md)). A new device needs device linking or a recovery code.
 - **D11. The repository name.** Changed on 2026-11-19 by the brand split: `seams-wallet` and
   `seams-monorepo` keep their names and stay in `seams-tech`. (On 2026-11-18 the owner chose
   `pay` and `purin`, together with a Purin rename of the wallet.) On 2026-11-20 the owner moved
@@ -274,10 +274,11 @@ Checked on 2026-11-18. Paths are the paths before the rename.
 - **F19.** The largest files of Fact F15 create wallets. They are not login code.
   `registration.ts` holds `registerWallet`, `addSigner` and the hosted passkey registration.
 - **F20.** Email OTP challenges already carry an operation, such as `wallet_unlock`,
-  `transaction_sign` or `export_key`. The server owns the challenge check and the recovery-wrapped
-  escrow records. It also stores the factor key under its own seal, enc_s(S), and removes the seal
-  on each release after a valid code. [Email OTP](otp/email-otp.md) says that enc_s(S) stays in the
-  iframe's IndexedDB. The code differs ([Slice 0 inventory](refactor-251-slice-0-inventory.md), U4).
+  `transaction_sign` or `export_key`. The server owns the challenge check. Since 0.76.0 the factor
+  is a device factor: the device keeps a random input, and the server keeps the factor wrapped
+  under a POPRF output that it cannot compute without that input ([Email OTP](otp/email-otp.md)).
+  Before 0.76.0 the server could open the factor alone
+  ([Slice 0 inventory](refactor-251-slice-0-inventory.md), U4).
 - **F21.** 68 test files name the `SeamsWeb` API, which goes away in Release B.
 - **F22.** An app with its own login provider (Better Auth, Auth0, Okta and others) can connect
   it today with a handoff from a trusted application issuer
@@ -556,16 +557,12 @@ What a compromised Auth Worker can do:
 | --- | --- |
 | Passkey | It can make a login session. It cannot unlock a wallet: the assertion must match the pinned key, and the envelope opens only with the PRF result of the user's authenticator |
 | VoiceID | The same. The device key is pinned, and it cannot leave the device |
-| Email OTP | Today: if the wallet server accepts its email statement, it can open each wallet that has an owner Email OTP method (U4). After [Refactor 252](refactor-252-email-otp-device-factor.md): nothing, because the sealed factor is on the device |
+| Email OTP | Nothing. The factor opens only with the random input on the user's device, which the servers never see (D26) |
 
-Slice 0 showed that a false statement opens the envelope (U4). It also showed that the wallet server
-alone can open an owner Email OTP wallet today. [Refactor
-252](refactor-252-email-otp-device-factor.md) fixes this (D26). Until production has its Slice 4:
-
-- The wallet server keeps its own email code check for the audience `wallet`, with its own
-  email provider key. The Auth Worker checks codes only for the audience `login`.
-- The seal root secret, the enrollment records, the grants and every route that releases the
-  factor key stay in the Wallet Gateway.
+Slice 0 showed that a false statement opened the envelope, and that the wallet server alone could
+open an owner Email OTP wallet (U4). Refactor 252 fixed both (D26), and production has had the fix
+since 0.76.0. So the Email OTP code check can move to the Auth Worker, as the checks of the other
+methods do. The release, its POPRF key and the enrollment records stay in the Wallet Gateway.
 
 ### The lifecycle of a method and its envelope
 
@@ -721,7 +718,9 @@ Rules for the cleanup:
   Done on 2026-11-18 in `tests/conformance` (its README says how to run it). The [Slice 0
   inventory](refactor-251-slice-0-inventory.md) lists the checks, the expected failures and the
   gaps under "What Slice 2 writes first". The suite does not freeze the Email OTP release routes,
-  which [Refactor 252](refactor-252-email-otp-device-factor.md) changes.
+  because Refactor 252 changed them. Their wire is final since 0.76.0. Before Slice 5 moves the
+  Email OTP code check, add route checks for `/wallet/email-otp/factor-release`,
+  `/wallet/email-otp/registration/factor` and the Email OTP export grant.
 - **Slice 3: the frame kit.** New `packages/frame-kit`: the stage dialog, the frame transport
   and the message checks (D17). The checkout of Refactor 250 can start from here.
 
@@ -835,9 +834,8 @@ Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship
   last envelope by a removal in auth.
 - The auth core starts no worker and loads no signing WASM. It does not read the body of a
   plugin's channel messages.
-- The Auth Worker holds no custody material, no signing share and no Email OTP factor seal. The
-  wallet servers hold no login token key. Their only email provider key sends the codes for the
-  audience `wallet` (D26).
+- The Auth Worker holds no custody material, no signing share and no Email OTP factor key. The
+  wallet servers hold no login token key.
 - `@seams/wallet-connect` creates no Seams session and no custody record.
 - A recovered login never recovers a wallet seed.
 - A login from Google or from an application issuer never opens a wallet. Email matching never

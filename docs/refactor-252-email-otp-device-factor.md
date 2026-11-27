@@ -1,16 +1,16 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-19. Slices 0, 1 and 2, with the POPRF of D9, shipped in 0.75.0. Slice 3 (new
-devices: 3a the factor list of D11, 3b recovery, 3c device linking, 3d the menu) shipped in
-0.76.0 (a040adbc7), with its Email OTP behaviour tests passing. Slice 4 is done: seams-monorepo
-d61dc43f is on staging, and main c6f9cf37 is on production mainnet and production testnet. Each
-lane applied migration 0091 in its four regions (production also 0090). Production mainnet had
-58 wallets, all passkey, so the Email OTP reset affected none. Slice 5 (the docs) is open,
-checked on 2026-11-27. The 0.76.0 docs replaced the note on the Email OTP pages, but the D7
-note is still on the custody page (`apps/docs/src/concepts/custody/index.md` and its Japanese
-page). [Intended behaviours](intended-behaviours.md) has no device-factor text in its Email
-OTP, recovery and device-linking sections. Refactor 251 Fact F20 still describes the old seal
-enc_s(S).
+Status: 2026-11-27. Slices 0 to 5 are done. Only the hardening of D5 is open (Section 7).
+
+- Slices 0, 1 and 2, with the POPRF of D9, shipped in 0.75.0.
+- Slice 3 (new devices: 3a the factor list of D11, 3b recovery, 3c device linking, 3d the menu)
+  shipped in 0.76.0 (a040adbc7), with its Email OTP behaviour tests passing.
+- Slice 4: seams-monorepo d61dc43f is on staging, and main c6f9cf37 is on production mainnet
+  and production testnet. Each lane applied migration 0091 in its four regions (production also
+  0090). Production mainnet had 58 wallets, all passkey, so the Email OTP reset affected none.
+- Slice 5, done on 2026-11-27: the custody pages (English and Japanese) replace the D7 note.
+  [Email OTP](otp/email-otp.md), [Intended behaviours](intended-behaviours.md) and Refactor 251
+  (D26, F20, Section 6) describe the device factor.
 
 The owner decided on 2026-11-18 that the wallet server alone must not be able to open an owner
 Email OTP wallet ([Refactor 251](refactor-251-auth-wallet-checkout-modules.md), D26). Today it
@@ -238,7 +238,7 @@ The worker and the Gateway load the same module.
    the wallet. It proves the pinned unlock key, as today.
 
 The Wallet Session release (`wallet_session`) uses the same evaluation, so it now needs the
-device input too. Its operation check and the Ed25519 warm seal of D5 remain open.
+device input too. The rest of D5 is open (Section 7).
 
 ### A new device
 
@@ -391,12 +391,21 @@ the user asks for a new code.
 - **Email-only access on a new device.** It is not possible without trust in the operator (D2).
 - **Sync of methods between devices.** Each device keeps its own methods by design.
 
-## Documents to update when the slices land
+## 7. What remains: D5
 
-- [Email OTP](otp/email-otp.md): remove the warning note and describe the device factor.
-- `apps/docs/src/concepts/custody/index.md`, `apps/docs/src/concepts/auth-methods/email-otp.md`
-  and their Japanese pages: Email OTP on a new device needs device linking or a recovery code.
-- [Intended behaviours](intended-behaviours.md): the Email OTP, recovery and device-linking
-  sections.
-- [Browser workers](browser-workers.md): what the Email OTP worker stores (Slice 2).
-- [Refactor 251](refactor-251-auth-wallet-checkout-modules.md): Fact F20 and Section 6.
+Checked in the code on 2026-11-27. The packages are now `packages/mpc-wallet` and
+`packages/mpc-wallet-server`. Both changes below change the release wire, so the wallet and
+`wallet-server` ship together, as in Slice 4.
+
+- **The Wallet Session release stays.** `/wallet/email-otp/factor-release` still accepts
+  `kind: 'wallet_session'` (`handleWalletEmailOtpFactorRelease` in
+  `mpc-wallet-server/src/router/transport/fetch/routes/sessions.ts`). It needs the device input
+  and a live Email OTP Wallet Session with an Ed25519 signing subject for the same wallet and
+  email. D5 replaces it with an Ed25519 warm seal of S under the signing-session seal (a POPRF
+  since Refactor 253) and a blinded restore. Then delete the `wallet_session` branch.
+- **The grant has no operation.** The `verified_grant` branch consumes a grant whose `action` is
+  `unseal` (`consumeEmailOtpGrant` in
+  `mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecoveryService.ts`). The grant
+  does not keep the operation of its code. The callers are the unlock (`wk/email-otp/unlock.ts`)
+  and the Ed25519 Yao export (`wk/email-otp/ed25519YaoExport.ts`). D5 stores the operation with
+  the grant and checks it at the release.

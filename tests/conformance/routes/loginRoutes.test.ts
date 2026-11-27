@@ -196,8 +196,7 @@ const GOOGLE_LOGIN = {
 };
 
 // Only the request fields that seams-monorepo reads and the key scope are fixed here. What the
-// resolution answers for an Email OTP wallet is not: the Email OTP device-factor change
-// (docs/refactor-252-email-otp-device-factor.md) changes it.
+// resolution answers for an Email OTP wallet is not.
 test('POST /auth/google/verify reads id_token, account_mode and wallet_id inside the key environment', async () => {
   const resolution = { ok: true, answer: 'passed through unchanged' };
   const fake = googleRouter(resolution);

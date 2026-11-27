@@ -149,36 +149,63 @@ Stable flow:
 5. Durable sealed refresh records allow exact restore after page refresh while
    server budget remains valid.
 
-Email OTP enrollment escrow uses split ownership:
+### The device factor
+
+Each Email OTP method of a wallet has its own factor on one device. The factor
+uses the RFC 9497 POPRF (ristretto255-SHA512) from `wasm/oprf_runtime`. The
+Email OTP worker and the Gateway load the same module.
 
 ```text
-wallet iframe IndexedDB:
-  enc_s(S)
+Email OTP worker IndexedDB (seams_email_otp_device_factors):
+  x                      32 random bytes for each wallet and factor nonce
 
-server:
-  C_i = ChaCha20-Poly1305_Encrypt(K_recovery_i, enc_s(S))
+server enrollment record, one factor for each Email OTP method (at most 8):
+  factorNonceB64u
+  wrappedFactorB64u      S under AES-256-GCM, key from HKDF of POPRF(k, x, info)
+  pinned unlock public key
+
+info = (wallet id, enrollment id, factor nonce), read from the server's own record
 ```
 
-> **The code differs (checked on 2026-11-18).** The server stores `enc_s(S)` in its Email OTP
-> enrollment record and removes its seal on each factor release, so the server alone can
-> recover `S`. See U4 in the [Slice 0 inventory](../refactor-251-slice-0-inventory.md) and D26
-> in [Refactor 251](../refactor-251-auth-wallet-checkout-modules.md).
+A release (unlock, step-up or export) goes in this order:
 
-The server must not store direct `enc_s(S)`, plaintext `S`, recovery keys, or
-derived recovery KEKs. App-origin code must not own `enc_s(S)`, `S`, recovery
-keys, recovery KEKs, client root shares, or Email OTP-derived signing shares in
-wallet-iframe mode.
+1. The worker blinds x of each factor that it holds for the wallet and sends
+   the blinded elements with the email code.
+2. The server picks the factor whose nonce matches its record, before it uses
+   the code. If no factor matches, it returns `email_otp_device_factor_missing`.
+3. The server checks the code for its operation. Then it evaluates the blinded
+   element and returns the evaluation, its proof and the wrapped factor.
+4. The worker checks the proof, removes the blind and opens `S`. It then proves
+   the pinned unlock key.
+
+The server cannot compute the POPRF output without x, so it cannot open `S`.
+`tests/unit/emailOtpFactorOprf.unit.test.ts` loads the seal root, the
+enrollment record and every value of the enrollment route, and no tried key
+opens the wrapped factor.
+
+A live Email OTP Wallet Session with an Ed25519 signing subject can replace the
+code on the same device (`kind: 'wallet_session'`). It still needs x. Export
+always needs a fresh email code for `export_key`.
+
+A device with no factor for the wallet gets a sign-in only. It gets its own
+factor by device linking or by Google recovery with a recovery code. In both
+paths the device enrolls a new factor, and the server releases no `S`.
+
+The server must not store `S`, x, or a value that it can turn into `S` without
+x. App-origin code must not own x, `S`, client root shares, or Email
+OTP-derived signing shares in wallet-iframe mode.
 
 ## Storage Ownership
 
-| Store                   | Owns                                                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Email OTP worker memory | unsealed Email OTP secret material and hot signing material                                                   |
-| iframe-origin IndexedDB | encrypted restore material plus non-secret lane identity                                                      |
-| server                  | enrollment identity, challenge verification, session validity, wallet budget, recovery-wrapped escrow records |
-| runtime session store   | concrete current threshold-session records                                                                    |
-| JS memory               | operation-local prepared identity                                                                             |
-| sessionStorage          | optional UI/session marker only                                                                               |
+| Store                      | Owns                                                                                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Email OTP worker memory    | unsealed Email OTP secret material and hot signing material                                                                                     |
+| Email OTP worker IndexedDB | the device factor input x for each wallet and factor nonce                                                                                      |
+| iframe-origin IndexedDB    | encrypted restore material plus non-secret lane identity                                                                                        |
+| server                     | enrollment identity, encrypted email codes, session validity, wallet budget, and the nonce, wrapped factor and pinned unlock key of each factor |
+| runtime session store      | concrete current threshold-session records                                                                                                      |
+| JS memory                  | operation-local prepared identity                                                                                                               |
+| sessionStorage             | optional UI/session marker only                                                                                                                 |
 
 Durable sealed records are restore sources. They become current signing
 authority only after the signing/export state machine selects and validates that
@@ -402,14 +429,15 @@ Valid resend context includes:
 
 ## Recovery Keys
 
-Enrollment creates recovery-wrapped escrow records so a user can recover
-device-local `enc_s(S)` if local storage is lost.
+A recovery code opens the wallet custody seed without Email OTP. If the device
+lost its factor input x, Google recovery with a recovery code gives the device a
+new factor. The factors of other devices stay.
 
 Rules:
 
 1. Recovery resend only resends the recovery-scoped OTP challenge.
-2. Recovery routes do not return recovery-wrapped escrow records until the user
-   verifies a valid recovery challenge.
+2. Google recovery releases no Email OTP factor. After a valid recovery
+   challenge, the device enrolls a new factor for the recovered method.
 3. Successful recovery consumes one recovery key.
 4. The product should prompt replacement rotation when the active recovery-key
    count drops below policy target.

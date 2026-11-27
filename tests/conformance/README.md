@@ -65,8 +65,7 @@ them.
 
 ## What the suite does not freeze
 
-The Email OTP factor release (`/wallet/email-otp/factor-release`,
-`/wallet/email-otp/registration/seal`, the device-link base factor and the Google recovery
-release) is going to change (`docs/refactor-252-email-otp-device-factor.md`). The suite checks
-Email OTP only through the journeys and the stored enrollment rows, and no check requires that
-the server keeps the sealed factor.
+The Email OTP factor release (`/wallet/email-otp/factor-release`) and the registration factor
+route (`/wallet/email-otp/registration/factor`) have no route checks yet. The suite checks Email
+OTP only through the journeys and the stored enrollment rows. The device-factor design is in
+`docs/otp/email-otp.md`.
