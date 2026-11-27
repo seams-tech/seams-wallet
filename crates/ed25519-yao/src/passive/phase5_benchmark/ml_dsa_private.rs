@@ -189,7 +189,8 @@ impl InputBuffers {
             &mut self.control
         };
         if buffer.capacity() < length {
-            buffer.reserve_exact(length.saturating_sub(buffer.len()));
+            let additional = length.saturating_sub(buffer.len());
+            buffer.reserve_exact(additional);
         }
         buffer.resize(length, 0);
         reader.read_exact(buffer)?;
