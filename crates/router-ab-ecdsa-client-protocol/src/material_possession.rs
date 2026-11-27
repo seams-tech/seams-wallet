@@ -1,8 +1,9 @@
 use k256::elliptic_curve::sec1::ToEncodedPoint;
-use k256::schnorr::{Signature, SigningKey, VerifyingKey};
+use k256::schnorr::{Signature, SigningKey};
 use k256::{PublicKey, SecretKey};
 use sha2::{Digest, Sha256};
 
+#[cfg(test)]
 const CLIENT_MATERIAL_POSSESSION_CHALLENGE_DOMAIN_V1: &[u8] =
     b"router-ab-ecdsa/client-material-possession/challenge/v1";
 const WALLET_RECOVERY_MATERIAL_POSSESSION_CHALLENGE_DOMAIN_V1: &[u8] =
@@ -35,45 +36,47 @@ impl EcdsaClientMaterialPossessionProofSchemeV1 {
 
 /// Public activation facts bound into a client-material possession challenge.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EcdsaClientMaterialPossessionChallengeV1 {
+#[cfg(test)]
+pub(crate) struct EcdsaClientMaterialPossessionChallengeV1 {
     /// Digest of the exact registered signer identity.
-    pub registered_signer_digest32: [u8; 32],
+    pub(crate) registered_signer_digest32: [u8; 32],
     /// Digest of the exact registered public capability.
     pub public_capability_digest32: [u8; 32],
     /// Digest of the exact registered authority reference.
     pub authority_ref_digest32: [u8; 32],
     /// Canonical material-owner reference.
-    pub material_owner_ref: String,
+    pub(crate) material_owner_ref: String,
     /// Exact owner or linked-device lane identity.
     pub lane_id: String,
     /// Exact lane share epoch.
-    pub lane_epoch: String,
+    pub(crate) lane_epoch: String,
     /// Compressed client-share public key bound to the active lane epoch.
     pub derivation_client_share_public_key33: [u8; 33],
     /// Active threshold material-session identity.
-    pub threshold_material_session_id: String,
+    pub(crate) threshold_material_session_id: String,
     /// Server generation expected by the active material session.
     pub expected_server_generation: String,
     /// One-time refresh lifecycle identity.
-    pub refresh_lifecycle_id: String,
+    pub(crate) refresh_lifecycle_id: String,
     /// One-time refresh request identity.
-    pub refresh_request_id: String,
+    pub(crate) refresh_request_id: String,
     /// Exact refresh transcript accepted by the SigningWorker.
-    pub refresh_transcript_digest32: [u8; 32],
+    pub(crate) refresh_transcript_digest32: [u8; 32],
     /// Previously active SigningWorker epoch.
     pub previous_activation_epoch: String,
     /// Newly refreshed SigningWorker epoch.
     pub next_activation_epoch: String,
     /// Digest of the normalized runtime policy scope.
-    pub runtime_policy_scope_digest32: [u8; 32],
+    pub(crate) runtime_policy_scope_digest32: [u8; 32],
     /// Gateway-generated one-use activation nonce.
     pub server_nonce32: [u8; 32],
     /// Activation request expiry in Unix milliseconds.
     pub expires_at_ms: u64,
     /// Idempotency correlation shared by activation and commit reconciliation.
-    pub idempotency_correlation_id: String,
+    pub(crate) idempotency_correlation_id: String,
 }
 
+#[cfg(test)]
 impl EcdsaClientMaterialPossessionChallengeV1 {
     /// Validates the complete activation challenge.
     pub fn validate(&self) -> Result<(), EcdsaClientMaterialPossessionError> {
@@ -253,7 +256,8 @@ impl EcdsaClientMaterialPossessionProofV1 {
 }
 
 /// Verifies possession of the active client share for an exact challenge.
-pub fn verify_ecdsa_client_material_possession_proof_v1(
+#[cfg(test)]
+pub(crate) fn verify_ecdsa_client_material_possession_proof_v1(
     challenge: &EcdsaClientMaterialPossessionChallengeV1,
     proof: &EcdsaClientMaterialPossessionProofV1,
 ) -> Result<(), EcdsaClientMaterialPossessionError> {
@@ -267,7 +271,8 @@ pub fn verify_ecdsa_client_material_possession_proof_v1(
 
 /// Verifies a no-refresh wallet-recovery possession proof for its exact
 /// reservation-bound challenge.
-pub fn verify_ecdsa_wallet_recovery_material_possession_proof_v1(
+#[cfg(test)]
+pub(crate) fn verify_ecdsa_wallet_recovery_material_possession_proof_v1(
     challenge: &EcdsaWalletRecoveryMaterialPossessionChallengeV1,
     proof: &EcdsaClientMaterialPossessionProofV1,
 ) -> Result<(), EcdsaClientMaterialPossessionError> {
@@ -304,6 +309,7 @@ pub fn sign_ecdsa_wallet_recovery_material_possession_proof_v1(
     EcdsaClientMaterialPossessionProofV1::new(signature.to_bytes())
 }
 
+#[cfg(test)]
 fn verify_bip340_signature(
     public_key33: &[u8; 33],
     digest32: &[u8; 32],
@@ -314,7 +320,7 @@ fn verify_bip340_signature(
     }
     let signature = Signature::try_from(proof.signature64.as_slice())
         .map_err(|_| EcdsaClientMaterialPossessionError::InvalidProof)?;
-    let verifying_key = VerifyingKey::from_bytes(&public_key33[1..])
+    let verifying_key = k256::schnorr::VerifyingKey::from_bytes(&public_key33[1..])
         .map_err(|_| EcdsaClientMaterialPossessionError::InvalidProof)?;
     verifying_key
         .verify_raw(digest32, &signature)

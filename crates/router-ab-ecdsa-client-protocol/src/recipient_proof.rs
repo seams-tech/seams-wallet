@@ -297,7 +297,7 @@ fn decode_stable_proof_bundle_wire_v2(
 }
 
 /// Builds the exact threshold-PRF context for one opened client proof bundle.
-pub fn ecdsa_client_prf_public_context_v1(
+pub(crate) fn ecdsa_client_prf_public_context_v1(
     transcript_digest: [u8; 32],
     recipient_identity: &str,
 ) -> Result<EcdsaPrfPublicContextV1, EcdsaClientProtocolError> {

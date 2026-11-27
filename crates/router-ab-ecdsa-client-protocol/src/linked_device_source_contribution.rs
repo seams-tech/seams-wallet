@@ -18,10 +18,10 @@ use sha2::{Digest, Sha256};
 use crate::{EcdsaClientProtocolError, EcdsaMaterialActivationRefV1};
 
 /// Canonical digest domain for the linked-device source-contribution binding.
-pub const LINKED_DEVICE_SOURCE_CONTRIBUTION_BINDING_DOMAIN_V1: &str =
+pub(crate) const LINKED_DEVICE_SOURCE_CONTRIBUTION_BINDING_DOMAIN_V1: &str =
     "seams/linked-device/ecdsa-source-contribution-binding/v1";
 /// Canonical envelope domain for linked-device source contributions.
-pub const LINKED_DEVICE_SOURCE_CONTRIBUTION_ENVELOPE_DOMAIN_V1: &str =
+pub(crate) const LINKED_DEVICE_SOURCE_CONTRIBUTION_ENVELOPE_DOMAIN_V1: &str =
     "seams/linked-device/ecdsa-source-contribution-envelope/v1";
 const LINKED_DEVICE_SOURCE_CONTRIBUTION_HPKE_INFO_V1: &[u8] =
     b"seams/linked-device/ecdsa-source-contribution/hpke-x25519-hkdf-sha256-aes256gcm/v1";

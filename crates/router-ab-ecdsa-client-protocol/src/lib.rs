@@ -51,10 +51,6 @@ pub use lane_resharing::{
     EcdsaLaneTargetHolderV1, EcdsaLaneTargetOperationV1, EcdsaLaneTargetSigningWorkerV1,
     EcdsaServerRetirementReceiptV1, EcdsaSourceCapabilityBindingV1, EcdsaTargetCapabilityBindingV1,
     EcdsaTargetThresholdSessionBindingV1, OwnerLaneParticipantContinuityV1,
-    ECDSA_ADDITIVE_LANE_ENVELOPE_DOMAIN_V1, ECDSA_ADDITIVE_LANE_HOLDER_ROUND_DOMAIN_V1,
-    ECDSA_ADDITIVE_LANE_PREAMBLE_DOMAIN_V1, ECDSA_ADDITIVE_LANE_SERVER_ROUND_DOMAIN_V1,
-    ECDSA_ADDITIVE_LANE_TRANSCRIPT_DOMAIN_V1, ECDSA_PUBLIC_IDENTITY_RELATION_DOMAIN_V1,
-    ECDSA_SERVER_RETIREMENT_RECEIPT_DOMAIN_V1, ECDSA_TARGET_THRESHOLD_SESSION_SET_DOMAIN_V1,
 };
 #[cfg(feature = "hpke")]
 pub use lane_resharing::{open_ecdsa_lane_payload_v1, seal_ecdsa_lane_payload_v1};
@@ -65,14 +61,9 @@ pub use linked_device_source_contribution::{
     LinkedDeviceEcdsaEncryptedSourceContributionV1, LinkedDeviceEcdsaSourceContributionBindingV1,
     LinkedDeviceEcdsaSourceContributionPackageV1, LinkedDeviceEcdsaSourceContributionPreparationV1,
     LinkedDeviceEcdsaSourceSignerIdentityV1, LinkedDeviceEcdsaTargetRecipientPreparationV1,
-    LINKED_DEVICE_SOURCE_CONTRIBUTION_BINDING_DOMAIN_V1,
-    LINKED_DEVICE_SOURCE_CONTRIBUTION_ENVELOPE_DOMAIN_V1,
 };
 pub use material_possession::{
-    sign_ecdsa_wallet_recovery_material_possession_proof_v1,
-    verify_ecdsa_client_material_possession_proof_v1,
-    verify_ecdsa_wallet_recovery_material_possession_proof_v1,
-    EcdsaClientMaterialPossessionChallengeV1, EcdsaClientMaterialPossessionError,
+    sign_ecdsa_wallet_recovery_material_possession_proof_v1, EcdsaClientMaterialPossessionError,
     EcdsaClientMaterialPossessionProofSchemeV1, EcdsaClientMaterialPossessionProofV1,
     EcdsaWalletRecoveryMaterialPossessionChallengeV1,
 };
@@ -87,10 +78,10 @@ pub use post_registration::{
 };
 #[cfg(feature = "hpke")]
 pub use recipient_proof::{
-    decode_ecdsa_client_proof_bundle_envelope_v1, ecdsa_client_prf_public_context_v1,
-    open_ecdsa_client_proof_bundle_v1, open_ecdsa_client_proof_bundle_v2,
-    pair_ecdsa_opened_client_proof_bundles_v1, EcdsaClientProofBundleEnvelopeV1,
-    EcdsaOpenedClientProofBundlePairV1, EcdsaOpenedClientProofBundleV1,
+    decode_ecdsa_client_proof_bundle_envelope_v1, open_ecdsa_client_proof_bundle_v1,
+    open_ecdsa_client_proof_bundle_v2, pair_ecdsa_opened_client_proof_bundles_v1,
+    EcdsaClientProofBundleEnvelopeV1, EcdsaOpenedClientProofBundlePairV1,
+    EcdsaOpenedClientProofBundleV1,
 };
 #[cfg(feature = "hpke")]
 pub use registration::{
@@ -611,7 +602,7 @@ pub fn verify_ecdsa_prf_public_dleq_proof_v1(
 
 /// Verifies one stable tenant-root client partial against its bound custody
 /// digest and public root-share commitment.
-pub fn verify_ecdsa_stable_prf_public_dleq_proof_v2(
+pub(crate) fn verify_ecdsa_stable_prf_public_dleq_proof_v2(
     context: &EcdsaStablePrfPublicContextV2,
     bundle: &EcdsaStablePrfPublicProofBundleV2,
 ) -> Result<(), EcdsaClientProtocolError> {

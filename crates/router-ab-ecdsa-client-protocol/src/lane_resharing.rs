@@ -14,28 +14,28 @@ use sha2::{Digest, Sha256};
 use crate::{EcdsaClientProtocolError, EcdsaMaterialActivationRefV1};
 
 /// Canonical transcript domain for the immutable job projection.
-pub const ECDSA_ADDITIVE_LANE_PREAMBLE_DOMAIN_V1: &str =
+pub(crate) const ECDSA_ADDITIVE_LANE_PREAMBLE_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-preamble/v1";
 /// Canonical transcript domain for the holder round.
-pub const ECDSA_ADDITIVE_LANE_HOLDER_ROUND_DOMAIN_V1: &str =
+pub(crate) const ECDSA_ADDITIVE_LANE_HOLDER_ROUND_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-holder-round/v1";
 /// Canonical transcript domain for the SigningWorker round.
-pub const ECDSA_ADDITIVE_LANE_SERVER_ROUND_DOMAIN_V1: &str =
+pub(crate) const ECDSA_ADDITIVE_LANE_SERVER_ROUND_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-server-round/v1";
 /// Canonical transcript domain for the complete transcript.
-pub const ECDSA_ADDITIVE_LANE_TRANSCRIPT_DOMAIN_V1: &str =
+pub(crate) const ECDSA_ADDITIVE_LANE_TRANSCRIPT_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-transcript/v1";
 /// Canonical domain for lane material envelopes.
-pub const ECDSA_ADDITIVE_LANE_ENVELOPE_DOMAIN_V1: &str =
+pub(crate) const ECDSA_ADDITIVE_LANE_ENVELOPE_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-material-envelope/v1";
 /// Canonical domain for server retirement receipts.
-pub const ECDSA_SERVER_RETIREMENT_RECEIPT_DOMAIN_V1: &str =
+pub(crate) const ECDSA_SERVER_RETIREMENT_RECEIPT_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-retirement-receipt/v1";
 /// Canonical digest domain for the ordered target threshold-session set.
-pub const ECDSA_TARGET_THRESHOLD_SESSION_SET_DOMAIN_V1: &str =
+pub(crate) const ECDSA_TARGET_THRESHOLD_SESSION_SET_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-target-threshold-sessions/v1";
 /// Canonical digest domain for the checked target public identity relation.
-pub const ECDSA_PUBLIC_IDENTITY_RELATION_DOMAIN_V1: &str =
+pub(crate) const ECDSA_PUBLIC_IDENTITY_RELATION_DOMAIN_V1: &str =
     "seams/rotatable-signing-lanes/ecdsa-public-identity-relation/v1";
 
 const ECDSA_ADDITIVE_LANE_ENVELOPE_INFO_V1: &[u8] =
@@ -655,11 +655,11 @@ pub struct EcdsaAdditiveLaneServerRoundV1 {
     /// Digest of ciphertext sealed to the target SigningWorker.
     pub sealed_target_server_material_digest_b64u: String,
     /// Digest of the ordered target threshold-session set.
-    pub target_threshold_session_set_digest_b64u: String,
+    pub(crate) target_threshold_session_set_digest_b64u: String,
     /// Digest of the checked public identity relation.
     pub public_identity_relation_digest_b64u: String,
     /// SigningWorker attestation over the exact round.
-    pub server_attestation_b64u: String,
+    pub(crate) server_attestation_b64u: String,
     /// SigningWorker commit timestamp.
     pub server_committed_at_ms: u64,
 }
@@ -842,7 +842,9 @@ pub struct EcdsaServerRetirementReceiptV1 {
 
 impl EcdsaServerRetirementReceiptV1 {
     /// Canonical receipt bytes excluding the self-referential digest field.
-    pub fn canonical_bytes_without_digest(&self) -> Result<Vec<u8>, EcdsaClientProtocolError> {
+    pub(crate) fn canonical_bytes_without_digest(
+        &self,
+    ) -> Result<Vec<u8>, EcdsaClientProtocolError> {
         require_exact(&self.kind, "ecdsa_server_retirement_receipt_v1")?;
         require_non_empty(&self.wallet_key_id)?;
         require_non_empty(&self.lane_id)?;
