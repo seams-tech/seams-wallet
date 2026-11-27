@@ -5,18 +5,16 @@ The [Rust warning checklist and revert log](https://github.com/seams-tech/seams-
 Use that checklist for the next Rust batches. Older survey counts below are
 historical measurements.
 
-**Status:** Phases 0 to 3 are complete, apart from moving finished plans,
-which waits for a decision. Phase 2's follow-ups have consolidated the store,
-worker, route and fixture clusters outside R150's files, and split oversized
-files along their seams. R150 is on `dev`, but feature work still changes
-Phase 4's files. A second survey (below) found more to remove outside them. CI
-runs `pnpm report:bloat --check`, which fails when a ratcheted measure grows
-past `scripts/bloat-baseline.json`, now recorded at `bdfb5f0`. Since the first
-baseline (`7c8a163`), TypeScript code is down 37,634 lines net of new feature
-code, Rust code 27,336 and JavaScript 9,773. Duplication is down from 5.1%
-to 3.0% in TypeScript and from 5.7% to 4.8% in Rust, and files over 2,000
-lines from 82 to 66. The findings below are the
-first baseline's; run `pnpm report:bloat` for current numbers.
+**Status:** complete on 2026-11-27. Every phase and survey item is closed,
+apart from four items that stay open with the owner's agreement: R232's plan
+file, the intended-behaviours harness, the schema items for the clean reset,
+and four router-ab-cloudflare repetitions that each need a shared design (see
+"Open, with the owner's agreement"). CI runs `pnpm report:bloat --check`,
+which fails when a ratcheted measure grows past `scripts/bloat-baseline.json`.
+Since the first baseline (`7c8a163`), duplication is down from 5.1% to 2.1% in
+TypeScript and from 5.7% to 4.4% in Rust, and files over 2,000 lines from 82
+to 51. The findings below are the first baseline's; run `pnpm report:bloat`
+for current numbers.
 
 This plan reduces the code that has to be read, reviewed and kept consistent,
 without changing behavior. The repository holds about 540k lines of TypeScript
@@ -128,18 +126,34 @@ presignature proof remain outside this batch.
 - [x] Phase 3 pilot: `rotationParsers.ts` converted, measured and landed
   (efe17f1).
 
-### Remaining
+### Closed on 2026-11-27
 
 - [x] Phase 1: finished refactor plans are deleted, and the docs index links
-  their last texts (2026-11-27).
+  their last texts.
 - [x] Phase 3: roll the combinators out, one domain at a time (approved
   2026-09-29). Rolled out to device-linking; every other parser module keeps
   its own messages.
-- [ ] Phase 2 follow-ups: the duplicated clusters found after Phase 2's list.
-- [ ] Phase 4: restructure R150's largest files once feature work in them
-  settles.
-- [ ] The second survey's remaining items, and its decisions.
-- [ ] The third survey's decisions.
+- [x] Phase 2 follow-ups: every listed cluster landed; the threshold signing
+  routes followed (6a398ec6b, 9dd7aa7f7).
+- [x] Phase 4: R150's six largest files are split, and the crate's unused
+  `pub` items are narrowed and its dead code deleted.
+- [x] The second survey's remaining items, and its decisions.
+- [x] The third survey's decisions.
+
+### Open, with the owner's agreement
+
+- R232's plan stays in `docs/` until
+  `docs/refactor-251-auth-wallet-checkout-modules.md` links its last text; the
+  session that runs Refactor 251 owns that file. R252 stays until its Slice 5
+  is done.
+- The intended-behaviours harness and test page: `harness.ts` is still under
+  feature work.
+- Schema: 17 create-if-missing statements in four store files, and the
+  migration squash, wait for the planned clean reset.
+- router-ab-cloudflare's route prologues, the parallel Ed25519 and ECDSA
+  halves of `authorized_operations.rs`, the D1 restore-scope keys and AAD
+  structs, and the Durable Object transaction wrappers: each needs its own
+  shared design (see Phase 4).
 
 ## Findings
 
@@ -566,9 +580,11 @@ the file defines its own small parsers such as `parseIso`.
   keep client parsers apart from server-only schemas in modules that workers
   import. Use `ts-rs` only for Rust-owned messages, as the declared type that
   `ParsesExactly` checks the schema against.
-- [ ] Later, in a separate type-only change, infer the declared types from the
+- [x] Later, in a separate type-only change, infer the declared types from the
   schemas. That tightens about 70 digest fields in this module from `string` to
-  `DigestB64u`.
+  `DigestB64u`. Nothing is left to do: d802e933c deleted the module. The
+  device-linking parsers keep their declared types, because `ParsesExactly`
+  ignores `readonly` and `?: never`, so inferred types would differ.
 
 Digest checks, canonicalization and cross-field rules stay hand-written; only
 the field-by-field shape checking moves.
@@ -578,34 +594,81 @@ the field-by-field shape checking moves.
 **Scope:** R150's most-changed files. Working in them before R150 merges would
 conflict with the agents changing them.
 
-- [ ] Roll out Phase 3's approach to the lane files in R150's hot paths.
-- [ ] Split `crates/router-ab-cloudflare`'s largest files along their seams and
+- [x] Roll out Phase 3's approach to the lane files in R150's hot paths.
+  Nothing is left to convert: d802e933c deleted the TypeScript lane lifecycle
+  (12,793 lines) on 2026-10-02, with the rotation parsers that the Phase 3
+  pilot had converted. The modules left in `shared-ts/src/signing-lanes/`
+  (`recordParsers.ts`, `participants.ts`) were assessed in Phase 3 and keep
+  their own messages. The owner keeps the Rust side of the lanes (2026-11-27).
+- [x] Split `crates/router-ab-cloudflare`'s largest files along their seams and
   remove the repetition the split exposes: `lib.rs` (16,489 lines, 66 commits in
   30 days, 210 runs), `tenant_root_role_d1.rs` (22,478 lines, 201 runs),
   `durable_object/tenant_root_creation.rs` (21,297 lines, 114 runs, 48
   `allow(dead_code)`), `tenant_root_role_runtime.rs` (11,134 lines, 125 runs) and
-  `ed25519_yao_lifecycle.rs` (147 runs).
-- [ ] In R150's crates, resolve the remaining `allow(dead_code)`
+  `ed25519_yao_lifecycle.rs` (147 runs). Feature work in them had stopped: the
+  last change before 2026-11-27 was on 2026-10-24, apart from a comment on
+  2026-11-08. On 2026-11-27 each split landed as a verified pure move
+  (274a0e0c7, 9177b29c4, 7f9d225fe, 23743b292, f482518c4, de9c7ca08): `tenant_root_role_d1.rs` 19,352 lines to 446,
+  `tenant_root_creation.rs` 20,036 to 1,097, `lib.rs` 12,655 to 585,
+  `tenant_root_role_runtime.rs` 10,654 to 143, `ed25519_yao_lifecycle.rs` 2,525
+  to 1,864, and `tests/bindings.rs` 8,440 to 223. No new module exceeds 1,810
+  lines. The repetition the split exposed: d6ea76781 gives 44 inline
+  protocol-error responses one helper; two that map the status differently
+  keep their own. Left for a change with its own design, as the owner agreed
+  on 2026-11-27: the route prologues (77 `requires POST` checks), the
+  parallel Ed25519 and ECDSA halves of `authorized_operations.rs`, the D1
+  restore-scope keys and AAD structs, and the 17 Durable Object transaction
+  wrappers in `cloudflare_actor.rs`. Each needs a shared abstraction (a
+  route table, a curve trait, a scope key type, a helper that lends the bound
+  store to an async closure), not a move.
+- [x] In R150's crates, resolve the remaining `allow(dead_code)`
   (`router-ab-cloudflare` 51, `router-ab-dev` 2) as Phase 1 did elsewhere, and
-  remove their 27 refactor citations.
-- [ ] Merge the shared halves of `thresholdEcdsa.ts` and `thresholdEd25519.ts`
-  (89 runs).
+  remove their 27 refactor citations. cb9bb38ec rewrote the last 22 citations.
+  c3eedbe01 narrowed about 810 `pub` items no other crate names to
+  `pub(crate)` and deleted the 35 functions and 3 constants rustc then
+  reported dead in every build. router-ab-dev has no `allow(dead_code)` left.
+  router-ab-cloudflare has one plain `allow`, in `tests/support/mod.rs`, which
+  several test binaries share, and 37 conditional ones: 35
+  `cfg_attr(not(feature = "workers-rs"), ...)` on code only Worker builds use,
+  and 2 that only the SigningWorker build does not use. Each covers code that
+  other builds use, so `expect` would fail there.
+- [x] Merge the shared halves of `thresholdEcdsa.ts` and `thresholdEd25519.ts`
+  (89 runs). 6a398ec6b moved them to `thresholdSigningRouteShared.ts`: the
+  Server-Timing wrapper, the route prologue, the authorize request, both
+  bindings, the owner 403, admission refusals and 77 inline failures.
+  9dd7aa7f7 moved pool fill and session activation into their own modules.
+  The ECDSA route went from 3,040 to 1,894 lines and the Ed25519 route from
+  1,997 to 1,794. 2,811 route scenarios gave identical status, headers, bodies,
+  messages and service calls. The step-up authority switch stays per curve: the
+  curves use different proof unions and Email OTP lookups.
 - [x] `tenant_root_restore_refresh_role_command.rs` repeats the role-command
   encoder that 7fc5eda shared, with its own label and a 24 KiB limit; its
   encoder can use the shared wire, but its decoder's messages differ
   (6fe4ed4).
-- [ ] Replace `?: never` padding (2,684 lines) with a shared exclusive-union helper
+- [x] Replace `?: never` padding (2,684 lines) with a shared exclusive-union helper
   where it shortens definitions without changing the types; prove identity as in
-  the `Variant` pass.
-- [ ] Decide on the public exports that nothing in the repository uses (367 at
+  the `Variant` pass. 18c70a7 converted 118 unions and 777a3f046 the last 32
+  mechanical ones, each with an `Equal` check. The 1,846 lines left are not
+  mechanical: 49 unions pad inexactly, 28 pad keys they do not declare, 28 have
+  intersection or reference members, 156 would save no line, and the rest are
+  outside union type aliases.
+- [x] Decide on the public exports that nothing in the repository uses (367 at
   the baseline, 399 since the report counts every Rolldown input as an entry):
   keep and document them, or deprecate them. The same decision covers the 35
   public class members that nothing calls, on classes such as the D1 stores
-  and `AuthService`, which public entry points return.
-- [ ] `ThresholdStoreDurableObject` still handles `registrationCancelTerminal`
+  and `AuthService`, which public entry points return. The owner decided on
+  2026-11-27 to delete what nothing in this repository, Seams Console or the
+  monorepo names; the next Wallet release ships it. 3bdf02297, 19b89548a and
+  196228afc took the unused public exports from 291 to 78 (167 became
+  module-local, 33 and their dependents were deleted), and 62d3469d0 and
+  708697966 deleted 29 class members nothing calls. The 78 kept: 65 that
+  Console or the monorepo name, 3 in the Yao registration files, and 10 that
+  type-level tests import.
+- [x] `ThresholdStoreDurableObject` still handles `registrationCancelTerminal`
   and `getdelIfRelatedMatches`, which nothing has sent since cbcfceb deleted the
-  unreachable store that sent them. Before removing a Durable Object handler,
-  check that no deployed Worker version still sends it.
+  unreachable store that sent them. a0def848c deleted the Durable Object and its
+  client with the `AuthService` stack on 2026-10-02, and no wrangler file binds
+  it, so no handler is left.
 - [x] Move the wallet's copy of `sameVerifiedActiveWalletAuthorityV1`
   (`SeamsWeb/operations/recovery/walletRecoveryCommit.ts`) into `shared-ts`
   beside the server's (47ad761).
@@ -659,12 +722,20 @@ Waiting for feature work in these files to settle:
   test families, about 550.
 - The intended-behaviours harness and test page: one action and result
   contract for `page.tsx` and `harness.ts` (about 550), the harness's own
-  repetition and dead code (about 450), and a split into flow layers.
-- The failure literals, `equalBytes` copies and runtime-scope comparators
-  in the registration, auth-method and threshold route files;
-  `flows/registration/public.ts`, a 298-line pure forwarder whose callers
-  are both in active files; and client and server registration types that
-  are identical under different names (about 85).
+  repetition and dead code (about 450), and a split into flow layers. Still
+  open, with the owner's agreement of 2026-11-27: `harness.ts` (8,687 lines)
+  had 18 commits in the 30 days to that date.
+- Done: the failure literals, `equalBytes` copies and runtime-scope
+  comparators in the registration, auth-method and threshold route files
+  (6a398ec6b, 7b65fd83a, 8ef1f0be5). The constant-time `equalBytes` copies in
+  the Yao export, `walletRecoveryEd25519` and `yaoClient` stay: they treat
+  non-integer entries differently. e471e8c64 deleted
+  `flows/registration/public.ts` on 2026-10-05. Of the 24 registration type
+  pairs declared on both sides, `Equal` checks found none identical: 0bbe881a6
+  defines once the three wallet types that equal the server's success
+  variant, bee90b709 deletes two that nothing used, and the other 19 differ
+  (brands against `string`, tuple types, `rpId` only in the wallet's
+  requests, different bootstrap types) and look like drift, for their owners.
 
 Decided on 2026-10-01, and done:
 - `crates/ed25519-yao-cloudflare-bench` was to stay only if it could still
@@ -700,28 +771,21 @@ Decided on 2026-10-01, and done:
     role now serves ECDSA pool fill, and a config holding only removed
     settings resolves to no threshold store.
 
-Decisions:
-- `ThresholdStoreDurableObject`'s `getdelIfRelatedMatches` handler: no
-  commit in this repository ever sent it, so only a Worker built before
-  the import could. A 46-line patch removes it once that is ruled out.
-  `registrationCancelTerminal` was sent until cbcfceb and stays.
+Decisions, all settled by 2026-11-27:
+- `ThresholdStoreDurableObject`'s `getdelIfRelatedMatches` and
+  `registrationCancelTerminal` handlers: a0def848c deleted the Durable Object
+  with the `AuthService` stack on 2026-10-02.
 - The MPC-session half of the threshold session stores (`putMpcSession`,
   `readMpcSession`, `claimMpcSession`, `takeMpcSession`, the ECDSA session
-  store and both record parsers) has no caller in any commit, and
-  `createThresholdEd25519SessionStore` is a root export. Three more
-  settings act on nothing: `THRESHOLD_ED25519_SHARE_MODE`,
-  `THRESHOLD_ECDSA_KEYSTORE_PREFIX` and
-  `THRESHOLD_WALLET_SIGNING_BUDGET_SESSION_PREFIX`.
-- `workerTransport.ts` keeps progress-frame and progress/error branches
-  the near-signer worker can no longer reach, and the result tags keep
-  the retired requests' names. Both are in files under feature work.
-- `laneHolderMaterialStore.ts` (421 lines) has no caller, but a published
-  entry re-exports it. The ECDSA lane-holder worker request has a handler
-  and no sender.
-- The NEAR oracle tests compared the presign and online code with NEAR's
-  upstream vectors. They ran nowhere and are deleted; the specs say the
-  evidence was removed. Restore and run them in CI if that evidence is
-  wanted.
+  store, both record parsers and `createThresholdEd25519SessionStore`) and the
+  settings `THRESHOLD_ED25519_SHARE_MODE`, `THRESHOLD_ECDSA_KEYSTORE_PREFIX` and
+  `THRESHOLD_WALLET_SIGNING_BUDGET_SESSION_PREFIX`: a0def848c deleted them.
+- `workerTransport.ts`'s unreachable near-signer progress frames and the
+  result tags with retired request names: a23b4c4b1 deleted them.
+- `laneHolderMaterialStore.ts` and the ECDSA lane-holder worker request:
+  d802e933c deleted them with the TypeScript lane lifecycle.
+- The NEAR oracle tests are deleted; restore and run them in CI if that
+  evidence is wanted.
 
 Found along the way, for their owners:
 - shared-ts has two incompatible `EcdsaRelayerKeyId` brands, and two
@@ -774,57 +838,59 @@ Landed:
   suppressed nothing (bdfb5f0). Narrowing every `pub` nothing else names
   let rustc report what a name-based scan could not.
 
-Decisions, largest first:
-- Features that are built and unreached. Finish or delete each:
-  - Signing lanes: about 28,700 lines across TypeScript, Rust, SQL and the
-    client, and a 2.8 MB lane-materialization schedule.
-    R150 `refactor-150-state-ownership-map.md` (full record) calls them unfinished
-    infrastructure.
-  - ECDSA activation refresh (about 1,850), linked-device ECDSA signing
-    and presign (about 1,960), and the tenant-root cutover store (about
-    1,616 and a 768-line test).
-  - The root-epoch V1 local protocol (about 4,300 and 1,500 of tests),
-    reached only by five router-ab-dev binaries nothing names; the debug
-    role-store probe (1,868), at a path nothing posts to.
-- The `AuthService` class server stack, about 13,400 lines. Every gateway
-  builds the D1 router service; only the self-host example constructs
-  `AuthService`, and that example does not type-check. Retiring it also
-  settles the threshold session stores, the Durable Object handlers and
-  about 25 settings nothing sets, and removes two of the defects below.
-- 22 of 111 public wallet-server routes with no caller (about 2,700), and
-  about 780 lines of `ThresholdStoreDurableObject` operations no commit
-  ever sent.
-- Schema: nine store files hold 37 create-if-missing statements (about
-  800 lines) that have drifted from the migrations and re-create four
-  indexes migration 0015 dropped. Squashing the signer migrations would
-  take 9,211 lines to about 3,100 and breaks local ledgers; it belongs
-  with the planned clean reset.
-- Shipped bytes: minify the iframe host (boot 24.9 to 17.1 kB gzip, first
-  runtime request 1,065 to 735 kB gzip, at the cost of readable stack
-  traces), strip comments from `wallet-ui.css` (9.9 kB gzip), minify the
-  custody ceremony worker (10.6 kB gzip), stop the React build re-emitting
-  the SDK, load `jsqr` on demand (47 kB gzip), and drop name sections from
-  the role Workers' wasm.
-- 147 uncalled methods on public classes (2,156 lines) and 1,968
-  never-read fields on public types (6,153 lines).
-- 19 oversized files nobody is changing come under 2,000 lines by pure
-  moves (66 to 47); the plan's rule is that a split must follow a seam.
-- The 27 "R120" and refactor citations: rename them in prose, or exempt
-  R120 as a protocol name.
-- Rust that only tests reach, about 14,000 lines in files nobody is
-  changing (router-ab-core 8,575, the generator 2,332): delete it with its
-  tests, or move it behind a test-support feature. Some mirrors
-  TypeScript logic for fixture parity.
-- Wasm exports nothing calls in router_ab_ecdsa_client (8 of 47),
-  near_signer, the custody ceremony and the Yao client, and two worker
-  requests with no sender (the ECDSA lane holder, and near_signer's last
-  request, whose only sender nothing reads): the ECDSA client wasm would
-  shrink 14.9% and near_signer 6.8%. The pkg `.d.ts` changes, so two
-  type aliases become hand-written interfaces.
-- 5,175 `pub` items and fields no other crate names. Narrowing them to
-  `pub(crate)` lets rustc report dead Rust from then on. 128 dead items in
-  files under active work, and 13 behind a `pub use` in such a file,
-  wait.
+Decisions, largest first, with their outcome on 2026-11-27:
+- Features that are built and unreached. The owner deleted one and kept the
+  rest:
+  - Signing lanes: kept. d802e933c had already deleted the TypeScript
+    lifecycle (12,793 lines); about 9,500 Rust lines, the SQL tables and the
+    2.8 MB lane schedule stay, and the restored Yao bench uses the schedule.
+  - ECDSA activation refresh, linked-device ECDSA presign and the
+    tenant-root cutover store: kept.
+  - The root-epoch V1 local protocol: 0d2d859f2 and 01c55db43 deleted the five
+    router-ab-dev binaries and the native hosts in October. `local.rs` stays
+    for `LocalServiceRoleV1`, which router-ab-dev uses, and for its tests.
+  - The debug role-store probe: deleted (8bb7ec32f, 2,081 lines), with the
+    store paths only it called.
+- The `AuthService` class server stack: a0def848c deleted it on 2026-10-02
+  (81 files, 16,321 lines), and 6b127c557 the self-host example.
+- Public wallet-server routes with no caller: about 8 were left. The owner
+  deleted the three that nothing calls in this repository, Seams Console or
+  the monorepo (96002c2ce): the credential-label route, the dev-only Google
+  cleanup route and `/vault/proxy-use` with the rest of the vault code. The
+  health, keyset, ECDSA refresh and recovery-read routes stay: they have
+  callers or belong to kept features. a0def848c deleted the
+  `ThresholdStoreDurableObject` operations.
+- Schema: four TypeScript store files still hold 17 create-if-missing
+  statements, down from 37 in nine files (a0def848c). They and the migration
+  squash stay open for the planned clean reset, as the owner agreed.
+- Shipped bytes: all done on 2026-10-02 and 2026-10-12: the iframe host is
+  minified (344faa258), `wallet-ui.css` ships without comments (6a3bd62ca),
+  the custody ceremony worker is minified in the production build
+  (198f21855), the React entries share the SDK's module tree (573ce35ef),
+  `jsqr` loads on demand (90ba095c0), and the role Workers' wasm drops its
+  name and debug sections (3f3800a47).
+- Uncalled methods on public classes and never-read fields on public types:
+  covered by the public-API decision above (62d3469d0, 708697966).
+- Oversized files nobody is changing: the owner limited the splits to R150's
+  six files. Other files follow the `AGENTS.md` rule: split a file along a
+  seam before a change grows it past 2,000 lines.
+- The "R120" and refactor citations: rewritten in prose (cb9bb38ec). R120
+  error strings stay, because they are runtime messages.
+- Rust that only tests reach, and `pub` items no other crate names: the
+  owner chose to narrow them to `pub(crate)` and delete what rustc then
+  reports dead in every build, keeping fixture-parity tests. Done in every
+  crate on 2026-11-27: c3eedbe01 for router-ab-cloudflare (see Phase 4), and
+  18 commits from a3df2f40b to dad63f02a for the others. About 700 items
+  became `pub(crate)` (generator 273, router-ab-ecdsa-presign 148,
+  router-ab-core 110, signer-core 37), the code rustc then reported dead was
+  deleted, and test-only code behind `#[cfg(test)]` (the custody EVM
+  completion, the ECDSA material-possession verifiers, 40 generator helpers)
+  stays for the tests that use it. Every crate's test count is unchanged, the
+  wasm-bindgen glue and `.d.ts` are byte-identical, and `cargo yao-fv all`
+  passes its 14 tracks. router-ab-dev needed no change.
+- Wasm exports nothing calls: the lane classes stay with the lanes; 4e8c89f5a
+  drops the Rust re-export of `EcdsaLaneHolderSessionV1`. Every other export
+  has a caller.
 
 Possible defects, for their owners:
 - `core/authService/oidcVerification.ts` swallows a failed identity-store
@@ -891,6 +957,14 @@ Decided on 2026-11-27:
 
 Found during the cleanup and left unchanged, for their owners to check:
 
+- (2026-11-27) router-ab-core: no code constructs
+  `TenantRootPendingCleanupFailureV1`, so the cleanup-incomplete creation and
+  refresh states cannot occur, and `FailedTenantRootEpochV1::Verified` is never
+  constructed either. Both enums stay public.
+- (2026-11-27) ed25519-yao-cloudflare-bench: two `source_guards` tests fail at
+  HEAD. They expect `zeroize = "1.8"` and 21 wrangler configs; there are 25.
+- (2026-11-27) `docs/refactor-251-slice-0-inventory.md` still lists
+  `/vault/proxy-use`, which 96002c2ce deleted.
 - Three export paths ignore an authorization argument: `exportAuthorizationWire`
   in `flows/recovery/ecdsaDerivationExport.ts` and
   `buildEcdsaExportVerificationRoutePlan` in `session/emailOtp/exportRecovery.ts`
@@ -1107,3 +1181,27 @@ Found during the cleanup and left unchanged, for their owners to check:
 - 2026-10-02: the Rust survey's no-decision part (67d20a6, bdfb5f0). Rust
   code 433,451 -> 406,115 lines against the first baseline; duplicated
   Rust lines 19,427 -> 15,517. The baseline was re-recorded at `bdfb5f0`.
+- 2026-11-27: the owner settled every open decision, and the cleanup
+  finished. Tooling and docs: Prettier pinned (658e20997); 12 finished plans
+  deleted with their last texts linked (7fce616c2). Rust: the debug role-store
+  probe deleted (8bb7ec32f); the last refactor citations rewritten
+  (cb9bb38ec); unused `pub` items narrowed and dead code deleted in every crate
+  (c3eedbe01 and 18 commits from a3df2f40b to dad63f02a); R150's six largest
+  files split as pure moves (274a0e0c7, 9177b29c4, 7f9d225fe, 23743b292,
+  f482518c4, de9c7ca08); one protocol-error helper (d6ea76781). TypeScript:
+  the threshold signing routes share their halves (6a398ec6b, 9dd7aa7f7), the
+  comparators and `equalBytes` copies are shared (7b65fd83a, 8ef1f0be5),
+  unused public exports and class members are deleted (3bdf02297, 19b89548a,
+  196228afc, 62d3469d0, 708697966), the NEAR worker frames are gone
+  (a23b4c4b1, e8e510806), registration types are declared once where they are
+  identical (bee90b709, 0bbe881a6), 32 more unions use `ExclusiveUnion`
+  (777a3f046), and three uncalled routes are deleted (96002c2ce). Measured at
+  `a97b7e7fb` and at `d6ea76781`: TypeScript code 555,779 -> 554,694 lines
+  (the cleanup's own commits removed 3,017; other sessions added feature
+  code); Rust code 399,352 -> 396,580; files over 2,000 lines 58 -> 51
+  (257,291 -> 178,204 lines); duplicated TypeScript lines 9,487 -> 9,376;
+  duplicated Rust lines 13,746 -> 13,614; public exports unused inside
+  291 -> 78; names exported from 2+ files 108 -> 102; validation functions
+  3,779 -> 3,763; `?: never` lines 1,969 -> 1,846; Rust `allow(dead_code)`
+  39 -> 38; refactor plan docs 72 -> 60; refactor citations 22 -> 0. The
+  baseline was re-recorded at the final commit.
