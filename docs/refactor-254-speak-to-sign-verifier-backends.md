@@ -310,9 +310,15 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
      depend on SaySo (Section 6, "The spoken card"). The spoken card shows what the Wallet's
      confirm shows for the same bytes: the receiver, the actions and the amounts. The summary
      of the application stays as the words to say.
-   - **A setting that turns voice off.** The owner turns voice approval on and off in the
-     Wallet. Off deletes the voice template at the verifier, so SaySo gets a delete route (R4).
-     While it is off, the Wallet offers no spoken approval and uses its confirm.
+   - **The setting that turns voice off exists.** It is the VoiceID switch in Authentication
+     methods (`VoiceIdAvailabilityControl.tsx`). With VoiceID off or not set up, the Wallet
+     answers a spoken request with `voiceid_unavailable`
+     (`walletIframe/host/handlers/speakToSign.ts`) and the application uses the confirm. So
+     Slice 4 adds no screen. It adds only the delete of the voice template at SaySo when the
+     owner removes the VoiceID method, through a delete route in SaySo (R4).
+   - **No new UI.** The owner said on 2026-11-27: "you shouldn't really need any new UI (or
+     minimal) to integrate sayso." The SaySo backend changes the text of the card's receipt
+     lines and nothing else that the owner sees.
 5. **Docs.** `speak-to-sign.md` in English and Japanese, `hosted-integration.md`,
    `voiceid.md`, `docs/wallet-steps.md` and the release notes in `README.md`. Remove the TEE
    claims for the SaySo backend, and the 10/20 NEAR co-signer limits (F5).
@@ -538,7 +544,7 @@ is Slice 6.
 | Q11 | May a VoiceID unlock be the fresh approval of an enrollment (R4)?                          | No: a passkey or Email OTP only, because VoiceID is the same voice again    |
 | Q12 | The verdict key, the templates and the co-signer in one Cloudflare account (R3)            | Accept it for testnet with the trust text of R3; decide again for mainnet   |
 | Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
-| Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | Build it in Slice 4: the answer to Q8 relies on it                          |
+| Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
 
 ### Answers of the owner (2026-11-27)
 
@@ -551,7 +557,8 @@ is Slice 6.
   unlock does not count.
 - **Q13 and Q14.** "agreed, build both in Slice 4". The card shows what the confirm shows, and
   the Wallet gets a setting that turns voice off and deletes the template (Section 6, Slice 4).
-  The card is built (Section 6, "The spoken card"). The setting is not.
+  The card is built (Section 6, "The spoken card"). The setting exists already: the review
+  was wrong that the Wallet has none. It is the VoiceID switch (Section 6, Slice 4).
 - Q1, Q5, Q6, Q7, Q9 and Q12 are open. Q3 was answered by Slice 1.
 
 ## 9. Architecture review (2026-11-27)
@@ -564,8 +571,9 @@ word limit of SaySo is F8 and Q7. Each item is measured in the code unless it sa
 
 **R1. The step-up rule sees one kind of seven.** The owner answered this with Q8: voice is an
 equal approval method, so the plan has no amount rule and the "Change" below is not built.
-Two parts follow, and Slice 4 builds both. The card shows less than the confirm (Q13). The
-answer relies on a setting that turns voice off, and the Wallet has none today (Q14).
+Two parts follow. The card showed less than the confirm (Q13, built). The answer relies on a
+setting that turns voice off: the VoiceID switch in Authentication methods is that setting
+(Q14).
 
 - The OutLayer policy steps up only an `AccountTransfer` above 10 NEAR; every other kind is
   `Allow` (speak-to-sign `dev`, `crates/voice-verifier/src/policy.rs`, `decide`).
