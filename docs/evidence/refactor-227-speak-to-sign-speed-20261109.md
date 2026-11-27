@@ -1,7 +1,7 @@
 # Speak-to-Sign speed: from the end of speech to the receipt (2026-11-09)
 
 Status: analysis and proposal only. No code changed, nothing deployed. Each option waits for
-the user's approval. Context: [Refactor 227](../refactor-227-speak-to-sign-without-passkey.md),
+the user's approval. Context: [Refactor 227](https://github.com/seams-tech/seams-wallet/blob/46871993a/docs/refactor-227-speak-to-sign-without-passkey.md),
 release 0.60.0, verifier 0.4.1 (`d078eb11…d54c`).
 
 ## Result

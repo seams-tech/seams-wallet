@@ -84,13 +84,13 @@ steps; the linked references cover the full protocols and record formats.
 Current contracts belong in the numbered specifications, intended behaviors,
 and crate specifications. Public integration instructions belong in `apps/docs`.
 Keep dated measurement evidence separate. Refactor documents retain the problem,
-decisions, rationale, and pending work. Completed scopes use short summaries with
-links to their full Git records; unfinished plans retain their working detail.
+decisions, rationale, and pending work while they are open. When a plan is
+finished, delete it, and add one short summary below with a link to its last
+text at a commit.
 
 ## Implementation history
 
 - [R150–R155: regional wallet homes, custody objects and registration latency](archive/refactor-150-155.md).
-- [R170: client/host separation](refactor-170.md) and [R171: public API](refactor-171.md).
 - [Optimizations 10 and 11: registration, ECDSA presign and NEAR latency](archive/optimization-10-11.md).
 - R225 and R226, retired on 2026-11-26 with nothing built. R225 planned Jev rules that only
   tighten the deterministic payment rules. R226 (first named "child lock") let an owner write
@@ -104,3 +104,31 @@ links to their full Git records; unfinished plans retain their working detail.
   [R180 at `822dfb30f`](https://github.com/seams-tech/seams-wallet/blob/822dfb30f/docs/refactor-180-enterprise-sso.md),
   [R191 at `3d1f46498`](https://github.com/seams-tech/seams-wallet/blob/3d1f46498/docs/refactor-191-voiceid-whisper-turbo-plan.md)
   and [R230 at `2afe47d43`](https://github.com/seams-tech/seams-wallet/blob/2afe47d43/docs/refactor-230-rivet.md).
+- Plans finished and deleted on 2026-11-27. Each link goes to the last text.
+  - [R127 at `f0aa22e87`](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/refactor-127-preact.md): the built-in wallet surfaces render
+    with Preact instead of Lit, and their styles are in `wallet-ui.css`.
+  - [R160 at `f0aa22e87`](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/refactor-160-tla.md): a bounded TLA+ model of Router A/B
+    admission, step-up and presignature use, and a fix for admission expiry (2026-10-02).
+  - [R170 at `f0aa22e87`](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/refactor-170.md), with its
+    [inventory](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/refactor-170-inventory.md) and
+    [completion receipt](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/refactor-170-completion.md): the application
+    client is separate from wallet execution, which runs on the wallet origin (2026-10-05).
+  - [R171 at `f0aa22e87`](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/refactor-171.md): the public Wallet SDK API, grouped by
+    connection, configuration, events, authentication, registration and chain (2026-10-05).
+  - [R190a at `3d1f46498`](https://github.com/seams-tech/seams-wallet/blob/3d1f46498/docs/refactor-190a-voiceid-adaptive-enrollment-plan.md): adaptive
+    VoiceID enrollment as a manual option that the user confirms. Automatic learning stays
+    deferred (2026-10-26).
+  - [R190b at `25470301b`](https://github.com/seams-tech/seams-wallet/blob/25470301b/docs/refactor-190b-voiceid-evm.md): VoiceID unlock and transfers on
+    EVM chains (2026-10-26).
+  - [R220 at `d92fd6415`](https://github.com/seams-tech/seams-wallet/blob/d92fd6415/docs/refactor-220-wallet-assets.md): assets, Receive and Send in
+    Settings, in SDK 0.55.0. The owner decided not to build Phases 2 and 3 (2026-11-08).
+  - [R227 at `46871993a`](https://github.com/seams-tech/seams-wallet/blob/46871993a/docs/refactor-227-speak-to-sign-without-passkey.md): Speak-to-Sign
+    payments and typed contract calls without a passkey, in 0.59.0 to 0.61.0. Its status
+    lists the manual checks on staging that remain for the owner (2026-11-27).
+  - [R231 at `01d9e4445`](https://github.com/seams-tech/seams-wallet/blob/01d9e4445/docs/refactor-231-near-custody-across-sites.md): NEAR custody material
+    across sites and devices. The Router re-issues client material for the current epoch
+    (0.62 and 0.63, 2026-11-10).
+  - [R253 at `17ce51fc5`](https://github.com/seams-tech/seams-wallet/blob/17ce51fc5/docs/refactor-253-signing-session-seal-oprf.md): a POPRF replaces
+    shamir-3-pass for the signing-session seal, on staging and production (2026-11-26).
+  - [The Rust warning cleanup at `cf9710953`](https://github.com/seams-tech/seams-wallet/blob/cf9710953/docs/rust-warning-cleanup.md): the checklist and
+    revert log of the 2026-10-21 review. Backend Wasm shrank by 22.19% across five services.

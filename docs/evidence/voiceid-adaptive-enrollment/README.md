@@ -89,7 +89,7 @@ Use a new output directory when preparing another run.
 Raw audio, embeddings, and model weights stay outside Git. No private Wallet data
 was accessed. The test browser download was developer infrastructure, not a user
 VoiceID dependency. Production download sizes are documented in the
-[implementation plan](../../refactor-190a-voiceid-adaptive-enrollment-plan.md#download-and-storage-cost).
+[implementation plan](https://github.com/seams-tech/seams-wallet/blob/3d1f46498/docs/refactor-190a-voiceid-adaptive-enrollment-plan.md#download-and-storage-cost).
 
 ## Decision
 

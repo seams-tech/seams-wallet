@@ -1,6 +1,6 @@
 # Router A/B bounded signing model
 
-Pilot run: 2026-10-02. Scope follows [the signing pilot plan](../../../../docs/refactor-160-tla.md).
+Pilot run: 2026-10-02. Scope follows [the signing pilot plan](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/refactor-160-tla.md).
 This is a handwritten distributed lifecycle model. It establishes no
 cryptographic privacy theorem or implementation refinement proof.
 

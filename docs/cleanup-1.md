@@ -1,6 +1,6 @@
 # Cleanup 1: dead, duplicated and boilerplate code
 
-The [Rust warning checklist and revert log](rust-warning-cleanup.md) records the
+The [Rust warning checklist and revert log](https://github.com/seams-tech/seams-wallet/blob/cf9710953/docs/rust-warning-cleanup.md) records the
 2026-10-21 review, current build counts, cleanup candidates, and recovery steps.
 Use that checklist for the next Rust batches. Older survey counts below are
 historical measurements.
@@ -130,7 +130,8 @@ presignature proof remain outside this batch.
 
 ### Remaining
 
-- [ ] Phase 1: move finished refactor plans, once decided.
+- [x] Phase 1: finished refactor plans are deleted, and the docs index links
+  their last texts (2026-11-27).
 - [x] Phase 3: roll the combinators out, one domain at a time (approved
   2026-09-29). Rolled out to device-linking; every other parser module keeps
   its own messages.
@@ -225,8 +226,9 @@ formats, public APIs and behavior stay unchanged.
   validation helpers instead of local copies; name a union's variants beside it
   with `Variant`; delete the replaced path in the same change; export only what
   another file uses; do not cite refactor or phase numbers in code comments; do
-  not grow a file past 2,000 lines (d1b55b9). The rule for finished plans waits
-  for the open decision below.
+  not grow a file past 2,000 lines (d1b55b9). The rule for finished plans
+  followed on 2026-11-27: delete the plan and link its last text from the
+  docs index.
 
 **Exit:** CI fails when a ratcheted measure grows, and the compiler reports no
 unused locals or parameters.
@@ -305,8 +307,15 @@ change.
   `AuthService`, and wait for the public API decision in Phase 4. The others
   have a name that appears elsewhere, which this check cannot tell apart from a
   use.
-- [ ] Move finished refactor plans (32 docs, 13,291 lines) out of `docs/`; plans
-  still in progress stay. This waits for the open decision below.
+- [x] Move finished refactor plans (32 docs, 13,291 lines) out of `docs/`; plans
+  still in progress stay. Other work deleted or archived most of them before the
+  decision. On 2026-11-27 the last 12 finished plans went: R127, R160, R170 with
+  its inventory and receipt, R171, R190a, R190b, R220, R227, R231, R253 and the
+  Rust warning checklist (2,848 lines). `docs/README.md` gives each one a short
+  summary and a link to its last text. R232 is finished too, but
+  `docs/refactor-251-auth-wallet-checkout-modules.md` links it, and that file
+  belongs to the session that runs Refactor 251; R232 goes when that link moves.
+  R252 stays until its Slice 5 is done.
 
 **Exit:** no export is named nowhere else, every remaining dead-code
 suppression either hides nothing the compiler can find in any build or waits
@@ -862,11 +871,14 @@ one that extends `tests/tsconfig.wallet-intended.json`. For Rust, run
 `cargo check` and the touched crates' tests. Run the behavior tests that cover a
 consolidated cluster before committing it.
 
-## Open decisions
-
-- Which refactor plans are finished, and where finished plans go.
+## Decisions
 
 Decided on 2026-11-27:
+
+- Finished plans: delete the plan, and give it one short summary in "Implementation
+  history" in `docs/README.md` with a link to its last text at a commit, as the
+  R180, R191 and R230 entries did. `AGENTS.md` has the rule. `docs/archive/`
+  keeps its condensed summaries, and `docs/evidence/` stays.
 
 - Prettier: the root pins `prettier` 3.6.2, the version the owner's editor
   ships, and `pnpm format <paths>` formats files. CI does not check formatting.

@@ -47,6 +47,8 @@ citing refactor numbers, Rust `allow(dead_code)` or duplicated lines grow past
 - Do not cite refactor or phase numbers in code comments; say what the code does
   and why.
 - Do not grow a file past 2,000 lines; split it along a real seam first.
+- When a plan is finished, delete it. Add one short summary to "Implementation
+  history" in `docs/README.md`, with a link to its last text at a commit.
 
 # Formatting
 
