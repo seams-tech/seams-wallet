@@ -501,9 +501,16 @@ each gate needs and three open points for the owner.
   did not change. The probes give the pinned digests for an intent with no guards, with guards
   and transcript-only (`fw0hpoPb…`); an intent with both is refused; "acct7" reads "acct
   seven"; `/v1/verify` with no token answers 401.
-- **The publish waits** for the owner's `npm login` and `scripts/npm-trust.sh`. Then the
-  workflow "Release the SaySo packages" publishes 0.2.0. The seams-wallet pin waits for Slice 4,
-  because no code in seams-wallet imports the package before it.
+- **Published: `@seams/sayso-verdict` and `@seams/sayso-client` 0.2.0** (2026-11-27, about 18:43
+  JST), from the owner's terminal with `scripts/npm-trust.sh` at SaySo `49bf51e`. npm refused the
+  placeholder `0.0.0-stage` (403), and the owner did not want an npm token, so the first release
+  is the real one, with no provenance. Both install from npm; the client depends on exactly
+  `@seams/sayso-verdict` 0.2.0, and the package gives the pinned transcript-only digest.
+- **Trusted publishing:** `@seams/sayso-verdict` trusts `release.yml` of `seams-tech/say-so`. For
+  `@seams/sayso-client` the approval expired; the script must run once more. Then every later
+  version comes from the workflow, with provenance.
+- The seams-wallet pin waits for Slice 4, because no code in seams-wallet imports the package
+  before it.
 
 **R3, mock mode: fixed** in SaySo `fa13032` (local, not deployed). Mock mode signs only with the
 public mock seed, and a real verdict key with `SAYSO_DEV_MOCK=true` stops the Worker.
