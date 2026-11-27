@@ -125,7 +125,7 @@ pub const TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV: &str =
 /// Server-owned recovery-verification roots and rotation bridges.
 ///
 /// This is read only by the control-plane manifest-verification route. It is
-/// intentionally separate from the R120 issuer and role keysets: a manifest
+/// intentionally separate from the tenant-root issuer and role keysets: a manifest
 /// may name certificates, but it cannot choose the roots that authorize them.
 pub const TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON_ENV: &str =
     "TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON";

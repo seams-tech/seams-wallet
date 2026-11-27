@@ -7994,7 +7994,7 @@ fn env_parser_rejects_deriver_b_env_with_server_output_key() {
     assert_eq!(err.code(), RouterAbProtocolErrorCode::ForbiddenLocalBinding);
 }
 
-// --- R120 tenant-root control-plane Worker ---------------------------------
+// --- Tenant-root control-plane Worker --------------------------------------
 //
 // | Material                        | Owner                             |
 // |---------------------------------|-----------------------------------|

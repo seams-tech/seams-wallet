@@ -7,7 +7,7 @@ const REVISION_MANIFEST_DOMAIN_V1: &[u8] = b"seams/r120/revision-manifest/v1";
 const ROLE_PRIVATE_MIGRATION_HEAD_V1: &str = "0011_tenant_root_source_retirement";
 const MAX_TEXT_BYTES: usize = 256;
 
-/// Public digest of one canonical R120 revision manifest.
+/// Public digest of one canonical tenant-root revision manifest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct TenantRootRevisionManifestDigestV1([u8; 32]);
 
@@ -36,7 +36,7 @@ impl<'de> Deserialize<'de> for TenantRootRevisionManifestDigestV1 {
     }
 }
 
-/// The one R120 derivation profile admitted by the first production cutover.
+/// The one derivation profile admitted by the first production cutover.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TenantRootDerivationProfileV1 {
@@ -67,7 +67,7 @@ impl TenantRootProtocolVersionV1 {
     }
 }
 
-/// Fixed participant roles required for one R120 cutover.
+/// Fixed participant roles required for one tenant-root cutover.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TenantRootRevisionParticipantRoleV1 {
@@ -205,7 +205,7 @@ pub struct TenantRootRevisionParticipantInputV1 {
     pub storage: TenantRootParticipantStorageRevisionV1,
 }
 
-/// One exact deployed participant admitted into an R120 revision set.
+/// One exact deployed participant admitted into a revision set.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TenantRootRevisionParticipantV1 {
@@ -314,7 +314,7 @@ impl<'de> Deserialize<'de> for TenantRootRevisionParticipantV1 {
     }
 }
 
-/// Fixed five-participant R120 production revision set.
+/// Fixed five-participant production revision set.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TenantRootRevisionManifestV1 {

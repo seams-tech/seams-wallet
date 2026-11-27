@@ -64,7 +64,7 @@ use crate::{
 
 /// Fetch entrypoint for the internal tenant-root control-plane Worker.
 ///
-/// The control plane is the sole holder of the R120 issuer private signing
+/// The control plane is the sole holder of the tenant-root issuer private signing
 /// key. Every request must carry internal-service authentication, and startup
 /// fails closed on any forbidden key or missing issuer Secret before a single
 /// route is considered.

@@ -1703,7 +1703,7 @@ fn router_json_cors_response_v1<T: serde::Serialize>(
 }
 
 /// As `router_json_cors_response_v1`, but attaches the Router's ECDSA boundary
-/// spans as `Server-Timing` (Refactor 94B Phase 0). The response body is
+/// spans as `Server-Timing`. The response body is
 /// untouched — the Gateway reads the header and drops it before the browser.
 /// A failed leg still carries whatever spans completed before it failed.
 #[cfg(feature = "strict-worker-router-entrypoint")]

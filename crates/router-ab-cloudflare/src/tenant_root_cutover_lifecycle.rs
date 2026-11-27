@@ -281,7 +281,7 @@ impl TenantRootCutoverRevisionVerificationReceiptV1 {
     }
 }
 
-/// Receipt selecting the one R120 profile while the fence remains closed.
+/// Receipt selecting the one cutover profile while the fence remains closed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TenantRootCutoverProfileActivationReceiptV1 {
@@ -563,7 +563,7 @@ impl TenantRootCutoverFencedV1 {
         })
     }
 
-    /// Rolls back before any R120-profile derivation can be admitted.
+    /// Rolls back before any derivation under the cutover profile can be admitted.
     pub fn rollback(
         self,
         receipt: TenantRootCutoverRollbackReceiptV1,
@@ -602,7 +602,7 @@ impl TenantRootCutoverDrainedV1 {
         })
     }
 
-    /// Rolls back while no R120 profile is active.
+    /// Rolls back while no cutover profile is active.
     pub fn rollback(
         self,
         receipt: TenantRootCutoverRollbackReceiptV1,
@@ -625,7 +625,7 @@ pub struct TenantRootCutoverRevisionsVerifiedV1 {
 }
 
 impl TenantRootCutoverRevisionsVerifiedV1 {
-    /// Activates the one selected R120 profile while derivation remains fenced.
+    /// Activates the one selected cutover profile while derivation remains fenced.
     pub fn activate_profile(
         self,
         receipt: TenantRootCutoverProfileActivationReceiptV1,
@@ -656,7 +656,7 @@ impl TenantRootCutoverRevisionsVerifiedV1 {
     }
 }
 
-/// The R120 profile is selected, but no R120-profile derivation was admitted yet.
+/// The cutover profile is selected, but no derivation under it was admitted yet.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TenantRootCutoverProfileActivatedV1 {
@@ -683,7 +683,7 @@ impl TenantRootCutoverProfileActivatedV1 {
         })
     }
 
-    /// Rolls back while no R120-profile derivation has been admitted.
+    /// Rolls back while no derivation under the cutover profile has been admitted.
     pub fn rollback(
         self,
         receipt: TenantRootCutoverRollbackReceiptV1,
@@ -697,7 +697,7 @@ impl TenantRootCutoverProfileActivatedV1 {
     }
 }
 
-/// The first R120-profile derivation was admitted; recovery is forward-only.
+/// The first derivation under the cutover profile was admitted; recovery is forward-only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TenantRootCutoverProfileCommittedV1 {

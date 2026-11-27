@@ -1,6 +1,6 @@
 //! Tenant-root control-plane issuer operations.
 //!
-//! The control plane is the sole holder of the R120 issuer private signing
+//! The control plane is the sole holder of the tenant-root issuer private signing
 //! key. Every operation here constructs a canonical artifact from
 //! authoritative Durable Object state and local key configuration, then
 //! signs it. There is deliberately no raw-payload signing entry point: the

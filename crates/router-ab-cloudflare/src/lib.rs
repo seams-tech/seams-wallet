@@ -736,7 +736,7 @@ pub enum CloudflareWorkerRoleV1 {
     SigningWorker,
     /// Internal tenant-root control-plane Worker.
     ///
-    /// Sole holder of the R120 issuer private signing key. It validates exact
+    /// Sole holder of the tenant-root issuer private signing key. It validates exact
     /// tenant authorization and authoritative Durable Object lifecycle state,
     /// then constructs and signs canonical one-use commands, capabilities and
     /// receipts. It never receives a scalar, a lane holder share, or Router
@@ -9116,7 +9116,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
             404,
         );
     }
-    /* Refactor 94B Phase 0. Folded into the Router header under `ecdsa_sw_`. */
+    /* Folded into the Router header under `ecdsa_sw_`. */
     let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
     let total_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let activation = match request
@@ -10883,8 +10883,8 @@ enum CloudflareServiceAuthModeV1 {
 }
 
 /// As `post_service_json`, but also returns the peer's own `Server-Timing`
-/// header so the Router can fold role-local spans into its own (Refactor 94B
-/// Phase 0). The header is diagnostics only and never affects the response.
+/// header so the Router can fold role-local spans into its own. The header is
+/// diagnostics only and never affects the response.
 #[cfg(feature = "workers-rs")]
 async fn post_service_json_with_server_timing<TReq, TResp>(
     env: &worker::Env,

@@ -98,7 +98,7 @@ function measurementForSize(
 
 /**
  * A measured request surface posts one measurement per change: it announces
- * where its content is going and the parent eases there once (refactor 116).
+ * where its content is going and the parent eases there once.
  * A burst of them is the signature of content animating its own height inside
  * a box that is sized from that height — the parent then chases a moving target
  * and the card is clipped by a box that never catches up. It is worth one

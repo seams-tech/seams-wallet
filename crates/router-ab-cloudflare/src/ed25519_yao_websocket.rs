@@ -75,7 +75,7 @@ pub struct CloudflareEd25519YaoWebSocketBindingV1 {
 }
 
 impl CloudflareEd25519YaoWebSocketBindingV1 {
-    /// Creates a pair-bound protocol binding for the Refactor 93 lifecycle.
+    /// Creates a protocol binding bound to one canonical A/B input pair.
     pub fn with_pair_digest(
         circuit: CloudflareEd25519YaoCircuitV1,
         session: [u8; 32],

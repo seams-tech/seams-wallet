@@ -790,7 +790,7 @@ async fn handle_strict_deriver_fetch_v1(
     }
 
     if path == runtime.registration_private_path() {
-        /* Refactor 94B Phase 0. The Router folds this header into its own under
+        /* The Router folds this header into its own under
         an `ecdsa_a_`/`ecdsa_b_` prefix, so a cold registration shows whether
         the time went to the root-metadata load or to proof generation. */
         let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
