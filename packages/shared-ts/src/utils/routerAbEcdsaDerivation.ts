@@ -327,31 +327,6 @@ export type RouterAbEcdsaRegistrationActivationReceiptV1 = {
   transcript_digest: RouterAbPublicDigest32V1Wire;
 };
 
-export type RouterAbEcdsaDerivationActivationPrepareResultV1 = {
-  activation_correlation_id: CorrelationId;
-  activation_request_digest: RouterAbPublicDigest32V1Wire;
-};
-
-export type RouterAbEcdsaDerivationActivationCommitQueryResultV1 =
-  | {
-      kind: 'committed';
-      receipt: RouterAbEcdsaRegistrationActivationReceiptV1;
-      activation_correlation_id?: never;
-      activation_request_digest?: never;
-    }
-  | {
-      kind: 'not_committed';
-      activation_correlation_id: CorrelationId;
-      activation_request_digest: RouterAbPublicDigest32V1Wire;
-      receipt?: never;
-    }
-  | {
-      kind: 'correlation_conflict';
-      activation_correlation_id: CorrelationId;
-      activation_request_digest: RouterAbPublicDigest32V1Wire;
-      receipt?: never;
-    };
-
 export type RouterAbEcdsaRegistrationPublicActivationReceiptV1 =
   RouterAbEcdsaRegistrationActivationReceiptV1;
 

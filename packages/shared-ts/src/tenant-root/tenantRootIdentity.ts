@@ -19,13 +19,13 @@ export type TenantRootIdentityFieldV1 =
 
 // OrgId and the signing-root brands already carry the same domain meaning.
 // Project and environment identifiers have no existing shared brands.
-export type TenantRootOrganizationIdV1 = OrgId;
-export type TenantRootProjectIdV1 = DomainId<'TenantRootProjectIdV1'>;
-export type TenantRootEnvironmentIdV1 = DomainId<'TenantRootEnvironmentIdV1'>;
-export type TenantRootSigningRootIdV1 = SigningRootId;
-export type TenantRootSigningRootVersionV1 = SigningRootVersion;
+type TenantRootOrganizationIdV1 = OrgId;
+type TenantRootProjectIdV1 = DomainId<'TenantRootProjectIdV1'>;
+type TenantRootEnvironmentIdV1 = DomainId<'TenantRootEnvironmentIdV1'>;
+type TenantRootSigningRootIdV1 = SigningRootId;
+type TenantRootSigningRootVersionV1 = SigningRootVersion;
 
-export type TenantRootIdentityFieldValueV1<F extends TenantRootIdentityFieldV1> = F extends 'orgId'
+type TenantRootIdentityFieldValueV1<F extends TenantRootIdentityFieldV1> = F extends 'orgId'
   ? TenantRootOrganizationIdV1
   : F extends 'projectId'
     ? TenantRootProjectIdV1
@@ -49,7 +49,7 @@ export type TenantRootIdentityDecodeErrorV1 =
   | { readonly kind: 'unexpected_field'; readonly field: string }
   | { readonly kind: 'invalid_field'; readonly field: TenantRootIdentityFieldV1 };
 
-export type TenantRootIdentityDecodeResultV1<T> =
+type TenantRootIdentityDecodeResultV1<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: TenantRootIdentityDecodeErrorV1 };
 

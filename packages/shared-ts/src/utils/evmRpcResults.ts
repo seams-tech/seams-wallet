@@ -138,7 +138,7 @@ export function decodeEvmBlockHeader(value: unknown): EvmBlockHeader | null {
   };
 }
 
-export function decodeEvmTransactionCall(
+function decodeEvmTransactionCall(
   value: unknown,
 ): NonNullable<EvmTransactionByHash['calls']>[number] {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {

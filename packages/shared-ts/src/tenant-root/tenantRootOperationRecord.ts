@@ -22,9 +22,9 @@ const TENANT_ROOT_OPERATION_DOMAIN_V1 = 'seams/tenant-root-operation/v1';
 const TENANT_ROOT_OPERATION_RECORD_FORMAT_V1 = 'tenant_root_operation_record_v1';
 
 /** Maximum authorization lifetime for most operations. */
-export const TENANT_ROOT_OPERATION_MAX_LIFETIME_MS_V1 = 600_000;
+const TENANT_ROOT_OPERATION_MAX_LIFETIME_MS_V1 = 600_000;
 /** Maximum authorization lifetime for a ciphertext download. */
-export const TENANT_ROOT_DOWNLOAD_MAX_LIFETIME_MS_V1 = 300_000;
+const TENANT_ROOT_DOWNLOAD_MAX_LIFETIME_MS_V1 = 300_000;
 
 /** One console operation on a tenant derivation root. */
 export type TenantRootOperationKindV1 = (typeof TENANT_ROOT_OPERATION_KINDS_V1)[number];
@@ -105,7 +105,7 @@ export type TenantRootOperationRecordV1 =
   | TenantRootRestoreRoleImportKeyIssueOperationRecordV1;
 
 /** Why one record could not be built. */
-export type TenantRootOperationRecordErrorV1 =
+type TenantRootOperationRecordErrorV1 =
   | { readonly kind: 'subject_does_not_match_operation' }
   | { readonly kind: 'role_does_not_match_operation' }
   | { readonly kind: 'lifecycle_revision_not_positive' }
