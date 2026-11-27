@@ -133,5 +133,9 @@ text at a commit.
     (0.62 and 0.63, 2026-11-10).
   - [R253 at `17ce51fc5`](https://github.com/seams-tech/seams-wallet/blob/17ce51fc5/docs/refactor-253-signing-session-seal-oprf.md): a POPRF replaces
     shamir-3-pass for the signing-session seal, on staging and production (2026-11-26).
+  - [R252 at `4457c9f24`](https://github.com/seams-tech/seams-wallet/blob/4457c9f24/docs/refactor-252-email-otp-device-factor.md): the Email OTP factor
+    is a device factor. The device keeps the POPRF input, so the server alone cannot open an
+    Email OTP wallet. Slices 0 to 5 are in 0.75.0 and 0.76.0. D5 (no release for a Wallet
+    Session bearer, an operation on each grant) is in the next release (2026-11-27).
   - [The Rust warning cleanup at `cf9710953`](https://github.com/seams-tech/seams-wallet/blob/cf9710953/docs/rust-warning-cleanup.md): the checklist and
     revert log of the 2026-10-21 review. Backend Wasm shrank by 22.19% across five services.
