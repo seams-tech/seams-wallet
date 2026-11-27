@@ -45,10 +45,7 @@ where
         }
     };
     if let Err(err) = parsed.validate() {
-        return worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        );
+        return crate::cloudflare_protocol_error_response_v1(&err);
     }
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if matches!(
@@ -80,10 +77,7 @@ where
         {
             Ok(value) => value,
             Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
+                return crate::cloudflare_protocol_error_response_v1(&err);
             }
         };
     let prepared = match handle_cloudflare_signing_worker_normal_signing_prepare_private_request_v2(
@@ -95,38 +89,26 @@ where
     ) {
         Ok(prepared) => prepared,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     let put_call = match runtime.signing_worker_round1_put_request(prepared.record.clone()) {
         Ok(call) => call,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     let put_response =
         match execute_cloudflare_signing_worker_private_d1_request_v1(env, &put_call).await {
             Ok(response) => response,
             Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
+                return crate::cloudflare_protocol_error_response_v1(&err);
             }
         };
     let put_receipt = match require_signing_worker_round1_put_response_v1(&put_call, put_response) {
         Ok(receipt) => receipt,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     if !put_receipt.stored {
@@ -178,10 +160,7 @@ where
         }
     };
     if let Err(err) = parsed.validate() {
-        return worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        );
+        return crate::cloudflare_protocol_error_response_v1(&err);
     }
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if matches!(
@@ -204,19 +183,13 @@ where
     let effect_operation_key = match parsed.effect_operation_key() {
         Ok(value) => value,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     let effect_request_digest = match parsed.effect_request_digest() {
         Ok(value) => value,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     match replay_cloudflare_signing_worker_near_terminal_v1(env, &parsed).await {
@@ -228,18 +201,12 @@ where
                 Ok(terminal) => {
                     cloudflare_signing_worker_normal_signing_terminal_response_v1(terminal)
                 }
-                Err(error) => worker::Response::error(
-                    format!("{:?}: {}", error.code(), error.message()),
-                    cloudflare_router_error_status(error.code()),
-                ),
+                Err(error) => crate::cloudflare_protocol_error_response_v1(&error),
             };
         }
         Ok(None) => {}
         Err(error) => {
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&error);
         }
     }
     // Before expiry: a delayed request for a retired activation is refused as
@@ -250,17 +217,11 @@ where
         if let Err(error) =
             require_cloudflare_signing_worker_activation_not_retired_v1(env, lookup).await
         {
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&error);
         }
     }
     if let Err(error) = parsed.request.validate_at(now_unix_ms) {
-        return worker::Response::error(
-            format!("{:?}: {}", error.code(), error.message()),
-            cloudflare_router_error_status(error.code()),
-        );
+        return crate::cloudflare_protocol_error_response_v1(&error);
     }
     match claim_cloudflare_signing_worker_near_effect_v1(env, &parsed, now_unix_ms).await {
         Ok(CloudflareSigningWorkerNearEffectClaimV1::Claimed) => {}
@@ -272,10 +233,7 @@ where
                 Ok(terminal) => {
                     cloudflare_signing_worker_normal_signing_terminal_response_v1(terminal)
                 }
-                Err(error) => worker::Response::error(
-                    format!("{:?}: {}", error.code(), error.message()),
-                    cloudflare_router_error_status(error.code()),
-                ),
+                Err(error) => crate::cloudflare_protocol_error_response_v1(&error),
             };
         }
         Ok(CloudflareSigningWorkerNearEffectClaimV1::InProgress) => {
@@ -283,16 +241,10 @@ where
                 RouterAbProtocolErrorCode::ReplayedLocalRequest,
                 "SigningWorker normal-signing effect is already in progress",
             );
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&error);
         }
         Err(error) => {
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&error);
         }
     }
     let terminal = CloudflareSigningWorkerNormalSigningTerminalV1::from_result(
@@ -306,10 +258,7 @@ where
         .await,
     );
     if let Err(error) = terminal.validate_for_request(&parsed) {
-        return worker::Response::error(
-            format!("{:?}: {}", error.code(), error.message()),
-            cloudflare_router_error_status(error.code()),
-        );
+        return crate::cloudflare_protocol_error_response_v1(&error);
     }
     let terminal_json = match serde_json::to_string(&terminal) {
         Ok(value) => value,
@@ -349,16 +298,10 @@ where
                 Ok(terminal) => {
                     cloudflare_signing_worker_normal_signing_terminal_response_v1(terminal)
                 }
-                Err(error) => worker::Response::error(
-                    format!("{:?}: {}", error.code(), error.message()),
-                    cloudflare_router_error_status(error.code()),
-                ),
+                Err(error) => crate::cloudflare_protocol_error_response_v1(&error),
             }
         }
-        Err(err) => worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        ),
+        Err(err) => crate::cloudflare_protocol_error_response_v1(&err),
     }
 }
 

@@ -261,10 +261,7 @@ fn terminal_response(
 ) -> Result<Response, RouterAbProtocolError> {
     match terminal.into_result() {
         Ok(response) => Response::from_json(&response).map_err(sql_error),
-        Err(error) => Response::error(
-            format!("{:?}: {}", error.code(), error.message()),
-            crate::cloudflare_router_error_status(error.code()),
-        )
+        Err(error) => crate::cloudflare_protocol_error_response_v1(&error)
         .map_err(sql_error),
     }
 }

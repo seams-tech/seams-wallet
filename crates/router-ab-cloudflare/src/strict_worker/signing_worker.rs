@@ -48,13 +48,13 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             return cloudflare_prewarm_response_v1(&request);
         }
         if let Err(err) = CloudflareSigningWorkerRuntimeV1::from_worker_env(&env) {
-            return cloudflare_protocol_error_response_v1(err);
+            return cloudflare_protocol_error_response_v1(&err);
         }
         return cloudflare_prewarm_response_v1(&request);
     }
     let runtime = match CloudflareSigningWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => runtime,
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
     match path.as_str() {
         crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1 => {
@@ -63,11 +63,11 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let mut request = request;
             if let Err(error) = crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::SigningWorkerRelocationContextRequestV1>(&mut request, 8192).await {
-                return cloudflare_protocol_error_response_v1(error);
+                return cloudflare_protocol_error_response_v1(&error);
             }
             match crate::signing_worker_relocation_context_v1(&crate::CloudflareWorkerEnvReaderV1::new(&env)) {
                 Ok(context) => Response::from_json(&context),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
@@ -77,19 +77,19 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
                 Ok(route) => route,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             let mut request = request;
             let command = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::SigningWorkerLinkedPresignPreparationInventoryRequestV1>(
                 &mut request, 8192,
             ).await {
                 Ok(command) => command,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
                 crate::durable_object::SigningWorkerWalletDoRequestV1::ListPreparingLinkedPresignSessions(command)).await {
                 Ok(response) => Ok(response),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
@@ -99,7 +99,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
                 Ok(route) => route,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             let mut request = request;
             let command = match request.json::<crate::SigningWorkerLinkedPresignInventoryRequestV1>().await {
@@ -109,7 +109,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
                 crate::durable_object::SigningWorkerWalletDoRequestV1::ListLinkedPresignSessions(command)).await {
                 Ok(response) => Ok(response),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         crate::durable_object::presign_session_relocation::import::PATH => {
@@ -131,7 +131,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
                 Ok(route) => route,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             let mut request = request;
             let command = match request.json::<crate::SigningWorkerEcdsaTransferRequestV1>().await {
@@ -144,7 +144,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 crate::durable_object::SigningWorkerWalletDoRequestV1::TransferEcdsaSnapshot(command),
             ).await {
                 Ok(response) => Ok(response),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
@@ -154,7 +154,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
                 Ok(route) => route,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             let mut request = request;
             let command = match request.json::<crate::SigningWorkerEcdsaExportRequestV1>().await {
@@ -167,7 +167,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 crate::durable_object::SigningWorkerWalletDoRequestV1::ExportEcdsaSnapshot(command),
             ).await {
                 Ok(response) => Ok(response),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
@@ -177,7 +177,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
                 Ok(route) => route,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             let mut request = request;
             let request = match request.json::<crate::SigningWorkerEd25519SnapshotCommandV1>().await {
@@ -187,7 +187,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
                 crate::durable_object::SigningWorkerWalletDoRequestV1::Ed25519Snapshot { request }).await {
                 Ok(response) => Ok(response),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
@@ -197,7 +197,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
                 Ok(route) => route,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             let mut request = request;
             let command = match request.json::<crate::SigningWorkerEd25519FenceCommandV1>().await {
@@ -211,7 +211,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             };
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects, request).await {
                 Ok(response) => Ok(response),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
@@ -221,7 +221,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             }
             let wallet_objects = match crate::WalletObjectRoute::from_gateway_request(&request) {
                 Ok(route) => route,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
             let mut request = request;
             let command = match request.json::<crate::SigningWorkerPoolFreezeCommandV1>().await {
@@ -231,13 +231,13 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
                 crate::durable_object::SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command)).await {
                 Ok(response) => Ok(response),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH => {
             match handle_cloudflare_signing_worker_ed25519_yao_packages_v1(request, &env).await {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH => {
@@ -253,7 +253,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_PATH => {
@@ -261,7 +261,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH => {
@@ -271,7 +271,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH => {
@@ -279,7 +279,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH => {
@@ -289,13 +289,13 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_PATH => {
             match handle_cloudflare_signing_worker_ecdsa_reserve_inactive_v1(request, &env).await {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH => {
@@ -305,7 +305,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH => {
@@ -315,7 +315,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH => {
@@ -323,7 +323,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RECOVERY_PROMOTE_PATH => {
@@ -333,7 +333,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             .await
             {
                 Ok(response) => Ok(response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_SIGNING_WORKER_LANE_MATERIAL_COMMAND_PATH => {
@@ -387,7 +387,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_SHARE_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_ecdsa_export_share_private_fetch_v1(
                 request,
@@ -400,7 +400,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_EXPORT_SHARE_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_linked_ecdsa_export_share_private_fetch_v1(
                 request,
@@ -412,7 +412,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PREFLIGHT_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_ecdsa_export_preflight_private_fetch_v1(
                 request,
@@ -425,7 +425,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_ROUND1_PREPARE_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             let handler = CloudflareEd25519YaoNormalSigningHandlerV1;
             handle_cloudflare_signing_worker_normal_signing_round1_prepare_private_fetch_v1(
@@ -440,7 +440,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             let handler = CloudflareEd25519YaoNormalSigningHandlerV1;
             handle_cloudflare_signing_worker_normal_signing_private_fetch_v1(
@@ -455,7 +455,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presignature_pool_put_private_fetch_v1(
                 request,
@@ -468,7 +468,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_ecdsa_presign_session_init_private_fetch_v1(
                 request,
@@ -481,7 +481,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_ecdsa_presign_session_step_private_fetch_v1(
                 request,
@@ -494,7 +494,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_PRESIGNATURE_SESSION_INIT_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_linked_ecdsa_presign_session_init_private_fetch_v1(
                 request,
@@ -507,7 +507,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_PRESIGNATURE_SESSION_STEP_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_linked_ecdsa_presign_session_step_private_fetch_v1(
                 request,
@@ -520,7 +520,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_LINKED_SIGNING_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             let handler = CloudflareRoleSeparatedRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1;
             handle_cloudflare_signing_worker_linked_ecdsa_finalize_private_fetch_v1(
@@ -535,7 +535,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1(
                 request,
@@ -547,7 +547,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH => {
             let now_unix_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now_unix_ms) => now_unix_ms,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             let handler = CloudflareRoleSeparatedRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1;
             handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_fetch_v1(

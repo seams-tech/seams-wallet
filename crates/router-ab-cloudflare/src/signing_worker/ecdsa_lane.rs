@@ -709,10 +709,7 @@ mod worker_execution {
     use zeroize::Zeroizing;
 
     fn protocol_error_response(error: RouterAbProtocolError) -> worker::Result<Response> {
-        Response::error(
-            format!("{:?}: {}", error.code(), error.message()),
-            cloudflare_router_error_status(error.code()),
-        )
+        crate::cloudflare_protocol_error_response_v1(&error)
     }
 
     fn decode_artifact_bytes(

@@ -249,14 +249,7 @@ pub async fn fetch(request: Request, env: Env, _ctx: Context) -> worker::Result<
     }
 }
 
-pub(super) fn cloudflare_protocol_error_response_v1(
-    err: RouterAbProtocolError,
-) -> worker::Result<Response> {
-    Response::error(
-        format!("{:?}: {}", err.code(), err.message()),
-        cloudflare_router_error_status(err.code()),
-    )
-}
+pub(super) use crate::cloudflare_protocol_error_response_v1;
 
 pub(super) fn cloudflare_prewarm_response_v1(request: &Request) -> worker::Result<Response> {
     if request.method() != Method::Post {

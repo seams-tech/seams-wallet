@@ -988,6 +988,18 @@ pub(crate) fn cloudflare_router_error_status(code: RouterAbProtocolErrorCode) ->
     }
 }
 
+/// The Worker response for a Router A/B protocol error: `"{code:?}: {message}"`
+/// with the status that `cloudflare_router_error_status` maps the code to.
+#[cfg(feature = "workers-rs")]
+pub(crate) fn cloudflare_protocol_error_response_v1(
+    err: &RouterAbProtocolError,
+) -> worker::Result<worker::Response> {
+    worker::Response::error(
+        format!("{:?}: {}", err.code(), err.message()),
+        cloudflare_router_error_status(err.code()),
+    )
+}
+
 #[cfg(feature = "workers-rs")]
 pub(crate) fn cloudflare_now_unix_ms_v1() -> RouterAbProtocolResult<u64> {
     let now = worker::js_sys::Date::now();

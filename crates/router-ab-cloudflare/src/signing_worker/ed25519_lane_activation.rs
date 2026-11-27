@@ -553,10 +553,7 @@ pub(crate) async fn activate_cloudflare_signing_worker_ed25519_lane_v1(
 }
 
 fn protocol_error_response(error: RouterAbProtocolError) -> worker::Result<Response> {
-    Response::error(
-        format!("{:?}: {}", error.code(), error.message()),
-        cloudflare_router_error_status(error.code()),
-    )
+    crate::cloudflare_protocol_error_response_v1(&error)
 }
 
 /// Private authenticated fetch handler. Authentication is enforced by the

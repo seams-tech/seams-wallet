@@ -29,10 +29,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         self.initialize_schema()?;
         match self.execute(command).await {
             Ok(response) => Ok(response),
-            Err(error) => Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                crate::cloudflare_router_error_status(error.code()),
-            ),
+            Err(error) => crate::cloudflare_protocol_error_response_v1(&error),
         }
     }
 

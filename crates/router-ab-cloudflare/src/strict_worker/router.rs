@@ -494,7 +494,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
         {
             Ok(()) => Response::from_json(&true),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
@@ -516,7 +516,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                 )
             }
             Err(err) => {
-                return cloudflare_protocol_error_response_v1(RouterAbProtocolError::new(
+                return cloudflare_protocol_error_response_v1(&RouterAbProtocolError::new(
                     RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
                     format!(
                         "tenant-root destination bootstrap content-type header read failed: {err}"
@@ -539,7 +539,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         let token_header = match &parsed {
             CloudflareTenantRootDestinationBootstrapRequestV1::Read { .. } => None,
@@ -549,7 +549,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             {
                 Ok(value) => value,
                 Err(err) => {
-                    return cloudflare_protocol_error_response_v1(RouterAbProtocolError::new(
+                    return cloudflare_protocol_error_response_v1(&RouterAbProtocolError::new(
                             RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
                             format!(
                                 "tenant-root destination bootstrap credential header read failed: {err}"
@@ -560,7 +560,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         };
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match crate::tenant_root_router_destination_bootstrap_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -570,7 +570,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_PATH {
@@ -591,11 +591,11 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match crate::tenant_root_router_register_manifest_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -604,7 +604,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ROLE_IMPORT_ACCEPT_PRIVATE_REQUEST_PATH
@@ -626,11 +626,11 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match crate::tenant_root_router_restore_role_import_accept_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -639,7 +639,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH {
@@ -660,11 +660,11 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match crate::tenant_root_router_restore_role_import_key_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -673,7 +673,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_PRIVATE_REQUEST_PATH
@@ -691,7 +691,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         }
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let parsed = match decode_bounded_json_request::<
             crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalReadRequestV1,
@@ -699,7 +699,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(value) => value,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match crate::tenant_root_router_sweep_abandoned_creation_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -708,7 +708,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == crate::CLOUDFLARE_ROUTER_TENANT_ROOT_STATUS_PRIVATE_REQUEST_PATH {
@@ -725,11 +725,11 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(value) => value,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match read_cloudflare_router_tenant_root_status_v1(&env, parsed).await {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_ROUTER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH {
@@ -741,7 +741,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         }
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let parsed: CloudflareRouterTenantRootRefreshRequestV1 = match decode_bounded_json_request(
             &mut request,
@@ -750,13 +750,13 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(value) => value,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match coordinate_cloudflare_router_tenant_root_refresh_v1(&env, &runtime, parsed)
             .await
         {
             Ok(response) => refresh_http_response_v1(response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH {
@@ -768,7 +768,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         }
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let parsed: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1 =
             match decode_bounded_json_request(
@@ -778,7 +778,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         return match crate::tenant_root_router_restore_refresh_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -788,7 +788,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .and_then(|outcome| outcome.into_response_body())
         {
             Ok(body) => Response::from_json(&body),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == crate::paths::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH {
@@ -800,7 +800,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         }
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let parsed = match decode_bounded_json_request::<
             crate::CloudflareRouterTenantRootRestoreCleanupRequestV1,
@@ -808,7 +808,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(parsed) => parsed,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match crate::tenant_root_router_restore_cleanup_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -817,7 +817,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ACTIVATION_PRIVATE_REQUEST_PATH {
@@ -829,7 +829,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         }
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let parsed: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1 =
             match decode_bounded_json_request(
@@ -839,7 +839,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         return match crate::tenant_root_router_restore_activation_v1(
             &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
@@ -848,7 +848,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_ROUTER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH {
@@ -860,7 +860,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         }
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let parsed: crate::CloudflareRouterTenantRootManagedRestoreRequestV1 =
             match decode_bounded_json_request(
@@ -870,7 +870,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         return match coordinate_cloudflare_router_tenant_root_managed_restore_v1(
             &env, &runtime, parsed,
@@ -878,7 +878,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if is_cloudflare_router_public_keyset_path(&path) {
@@ -892,7 +892,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         let reader = CloudflareWorkerEnvReaderV1::new(&env);
         let response = match build_cloudflare_router_public_keyset_v2(&reader) {
             Ok(keyset) => Response::from_json(&keyset)?,
-            Err(err) => cloudflare_protocol_error_response_v1(err)?,
+            Err(err) => cloudflare_protocol_error_response_v1(&err)?,
         };
         return cloudflare_router_public_keyset_response_v1(response, &request, &env);
     }
@@ -950,7 +950,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .map_err(|error| worker::Error::RustError(error.to_string()))?;
         let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
             Ok(runtime) => runtime,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let request_body =
             match read_router_public_body_v1(&mut request, &env, "linked ECDSA finalize request")
@@ -964,7 +964,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                 &request_body,
             ) {
                 Ok(parsed) => parsed,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         let response =
             execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_service_call_v1(
@@ -976,7 +976,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             .await;
         return match response {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
     if path == CLOUDFLARE_ROUTER_NORMAL_SIGNING_ROUND1_PREPARE_PUBLIC_REQUEST_PATH
@@ -1032,7 +1032,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
     let authorization_header_present = match request.headers().get("authorization") {
         Ok(value) => value.is_some(),
         Err(err) => {
-            return cloudflare_protocol_error_response_v1(RouterAbProtocolError::new(
+            return cloudflare_protocol_error_response_v1(&RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
                 format!("Router authorization header read failed: {err}"),
             ));
@@ -1045,13 +1045,13 @@ pub(super) async fn handle_strict_router_fetch_v1(
         .as_ref()
         .is_some_and(|parsed| !parsed.is_gateway_wallet_session() && !parsed.is_operation_step_up())
     {
-        return cloudflare_protocol_error_response_v1(RouterAbProtocolError::new(
+        return cloudflare_protocol_error_response_v1(&RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidGateDecision,
             "Normal signing requires Gateway Wallet Session admission or operation step-up",
         ));
     }
     if gateway_wallet_session_request && authorization_header_present {
-        return cloudflare_protocol_error_response_v1(RouterAbProtocolError::new(
+        return cloudflare_protocol_error_response_v1(&RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
             "Gateway Wallet Session requests must omit Authorization",
         ));
@@ -1068,26 +1068,26 @@ pub(super) async fn handle_strict_router_fetch_v1(
             {
                 None
             }
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         }
     };
     let trusted_source_digest = match cloudflare_trusted_source_digest_v1(&request) {
         Ok(digest) => digest,
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
     let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => runtime,
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(now_unix_ms) => now_unix_ms,
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
     let verifier = match build_cloudflare_router_ed25519_jwks_jwt_verifier_v1(
         &runtime.admission_bindings().jwt,
     ) {
         Ok(verifier) => verifier,
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
 
     if let Some(parsed) = parsed_normal_signing {
@@ -1105,7 +1105,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
     let authorization = match authorization {
         Some(authorization) => authorization,
         None => {
-            return cloudflare_protocol_error_response_v1(RouterAbProtocolError::new(
+            return cloudflare_protocol_error_response_v1(&RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
                 "Bearer authorization is required",
             ));
@@ -1187,7 +1187,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                 if let Err(err) =
                     registration_request.validate_for_registration_purpose(registration_purpose)
                 {
-                    let response = cloudflare_protocol_error_response_v1(err)?;
+                    let response = cloudflare_protocol_error_response_v1(&err)?;
                     return cloudflare_router_normal_signing_response_v1(response, &request, &env);
                 }
                 let active_receipt =
@@ -1200,7 +1200,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                     {
                         Ok(receipt) => receipt,
                         Err(err) => {
-                            let response = cloudflare_protocol_error_response_v1(err)?;
+                            let response = cloudflare_protocol_error_response_v1(&err)?;
                             return cloudflare_router_normal_signing_response_v1(
                                 response, &request, &env,
                             );
@@ -1213,7 +1213,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                 ) {
                     Ok(binding) => binding,
                     Err(err) => {
-                        let response = cloudflare_protocol_error_response_v1(err)?;
+                        let response = cloudflare_protocol_error_response_v1(&err)?;
                         return cloudflare_router_normal_signing_response_v1(
                             response, &request, &env,
                         );
@@ -1248,7 +1248,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                 if let Err(err) =
                     registration_request.validate_for_registration_purpose(registration_purpose)
                 {
-                    let response = cloudflare_protocol_error_response_v1(err)?;
+                    let response = cloudflare_protocol_error_response_v1(&err)?;
                     return cloudflare_router_normal_signing_response_v1(response, &request, &env);
                 }
                 let active_receipt =
@@ -1261,7 +1261,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                     {
                         Ok(receipt) => receipt,
                         Err(err) => {
-                            let response = cloudflare_protocol_error_response_v1(err)?;
+                            let response = cloudflare_protocol_error_response_v1(&err)?;
                             return cloudflare_router_normal_signing_response_v1(
                                 response, &request, &env,
                             );
@@ -1274,7 +1274,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                 ) {
                     Ok(binding) => binding,
                     Err(err) => {
-                        let response = cloudflare_protocol_error_response_v1(err)?;
+                        let response = cloudflare_protocol_error_response_v1(&err)?;
                         return cloudflare_router_normal_signing_response_v1(
                             response, &request, &env,
                         );
@@ -1470,11 +1470,11 @@ async fn handle_router_wallet_start(request: &mut Request, env: &Env) -> worker:
     }
     let home = match crate::WalletObjectRoute::from_gateway_request(request) {
         Ok(home) => home,
-        Err(error) => return cloudflare_protocol_error_response_v1(error),
+        Err(error) => return cloudflare_protocol_error_response_v1(&error),
     };
     let startup = match decode_bounded_json_request::<crate::durable_object::wallet_startup::WalletStartup>(request, 2048).await {
         Ok(startup) => startup,
-        Err(error) => return cloudflare_protocol_error_response_v1(error),
+        Err(error) => return cloudflare_protocol_error_response_v1(&error),
     };
     crate::durable_object::start_registration_wallets(env, home, startup).await
 }
@@ -1488,7 +1488,7 @@ async fn handle_router_prewarm_v1(request: &Request, env: &Env) -> worker::Resul
         return cloudflare_prewarm_response_v1(request);
     }
     if let Err(err) = CloudflareRouterWorkerRuntimeV1::from_worker_env(env) {
-        return cloudflare_protocol_error_response_v1(err);
+        return cloudflare_protocol_error_response_v1(&err);
     }
     let result = await_prewarm_fanout_v1(
         prewarm_service_binding_v1(env, "DERIVER_A"),
@@ -1676,7 +1676,7 @@ fn parse_router_public_body_v1<T>(
     match parser(body) {
         Ok(parsed) => Ok(Ok(parsed)),
         Err(err) => {
-            let response = cloudflare_protocol_error_response_v1(err)?;
+            let response = cloudflare_protocol_error_response_v1(&err)?;
             Ok(Err(cloudflare_router_normal_signing_response_v1(
                 response, request, env,
             )?))
@@ -1696,7 +1696,7 @@ fn router_json_cors_response_v1<T: serde::Serialize>(
             cloudflare_router_normal_signing_response_v1(response, request, env)
         }
         Err(err) => {
-            let response = cloudflare_protocol_error_response_v1(err)?;
+            let response = cloudflare_protocol_error_response_v1(&err)?;
             cloudflare_router_normal_signing_response_v1(response, request, env)
         }
     }
@@ -1726,7 +1726,7 @@ fn router_ecdsa_trace_context_v1(
     match parse_cloudflare_trace_id_from_request_v1(request) {
         Ok(trace_id) => Ok(Ok(trace_id)),
         Err(error) => {
-            let response = cloudflare_protocol_error_response_v1(error)?;
+            let response = cloudflare_protocol_error_response_v1(&error)?;
             Ok(Err(cloudflare_router_normal_signing_response_v1(
                 response, request, env,
             )?))

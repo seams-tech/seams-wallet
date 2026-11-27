@@ -89,13 +89,13 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             return cloudflare_prewarm_response_v1(&request);
         }
         if let Err(err) = CloudflareTenantRootControlPlaneRuntimeV1::from_worker_env(&env) {
-            return cloudflare_protocol_error_response_v1(err);
+            return cloudflare_protocol_error_response_v1(&err);
         }
         return cloudflare_prewarm_response_v1(&request);
     }
     let runtime = match CloudflareTenantRootControlPlaneRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => runtime,
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
     match path.as_str() {
         crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_TRUST_PATH_V1 => {
@@ -104,7 +104,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             }
             match crate::tenant_root_control_plane::recovery_trust_bundle_json_v1(&env, &runtime) {
                 Ok(bytes) => Response::from_bytes(bytes),
-                Err(error) => cloudflare_protocol_error_response_v1(error),
+                Err(error) => cloudflare_protocol_error_response_v1(&error),
             }
         }
         crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1 => {
@@ -113,11 +113,11 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             }
             let parsed = match decode_bounded_json_request::<crate::tenant_root_control_plane::RecoveryCommandRequestV1>(&mut request, 32768).await {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             match crate::tenant_root_control_plane::recovery_command_v1(parsed, &env, &runtime).await {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
 
@@ -129,11 +129,11 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 &mut request, 8192,
             ).await {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             match crate::tenant_root_control_plane::recovery_recipient_proof_v1(parsed, &env, &runtime) {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
 
@@ -145,11 +145,11 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 &mut request, 256 * 1024,
             ).await {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             match crate::tenant_root_control_plane::assemble_recovery_manifest_v1(parsed, &env, &runtime).await {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
 
@@ -164,11 +164,11 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 )
                 .await
             {
-                return cloudflare_protocol_error_response_v1(err);
+                return cloudflare_protocol_error_response_v1(&err);
             }
             match execute_cloudflare_router_tenant_root_cutover_read_call_v1(&env).await {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CUTOVER_WRITE_PRIVATE_REQUEST_PATH => {
@@ -181,11 +181,11 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(value) => value,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
             match execute_cloudflare_router_tenant_root_cutover_write_call_v1(&env, &parsed).await {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_PATH => {
@@ -200,7 +200,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_managed_restore_challenge_v1(
                 parsed, &env, &runtime,
@@ -208,7 +208,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_PATH => {
@@ -223,7 +223,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_managed_restore_authorize_v1(
                 parsed, &env, &runtime,
@@ -231,7 +231,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_PATH => {
@@ -246,7 +246,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_register_manifest_v1(
                 parsed, &env, &runtime,
@@ -254,7 +254,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH => {
@@ -269,7 +269,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1(
                 parsed, &env, &runtime,
@@ -277,7 +277,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH => {
@@ -292,7 +292,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_restore_refresh_commands_v1(
                 parsed, &env, &runtime,
@@ -300,7 +300,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH => {
@@ -315,7 +315,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_cleanup_command_v1(
                 parsed, &env, &runtime,
@@ -323,7 +323,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_PRIVATE_REQUEST_PATH => {
@@ -338,7 +338,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_role_creation_command_v1(
                 parsed, &env, &runtime,
@@ -346,7 +346,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH => {
@@ -361,7 +361,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_refresh_commands_v1(
                 parsed, &env, &runtime,
@@ -369,7 +369,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH => {
@@ -384,7 +384,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_refresh_activation_v1(
                 parsed, &env, &runtime,
@@ -392,7 +392,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_PRIVATE_REQUEST_PATH => {
@@ -407,7 +407,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1(
                 parsed, &env, &runtime,
@@ -415,7 +415,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH => {
@@ -430,7 +430,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_initial_activation_v1(
                 parsed, &env, &runtime,
@@ -438,7 +438,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH => {
@@ -453,7 +453,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 .await
                 {
                     Ok(value) => value,
-                    Err(err) => return cloudflare_protocol_error_response_v1(err),
+                    Err(err) => return cloudflare_protocol_error_response_v1(&err),
                 };
             match handle_cloudflare_tenant_root_control_plane_restore_initial_activation_v1(
                 parsed, &env, &runtime,
@@ -461,7 +461,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             .await
             {
                 Ok(response) => Response::from_json(&response),
-                Err(err) => cloudflare_protocol_error_response_v1(err),
+                Err(err) => cloudflare_protocol_error_response_v1(&err),
             }
         }
         _ => Response::error("not found", 404),

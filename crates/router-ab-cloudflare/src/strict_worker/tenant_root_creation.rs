@@ -17,7 +17,7 @@ pub(super) async fn handle(mut request: Request, env: Env) -> worker::Result<Res
     }
     let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => runtime,
-        Err(error) => return cloudflare_protocol_error_response_v1(error),
+        Err(error) => return cloudflare_protocol_error_response_v1(&error),
     };
     let parsed: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1 =
         match decode_bounded_json_request(
@@ -27,12 +27,12 @@ pub(super) async fn handle(mut request: Request, env: Env) -> worker::Result<Res
         .await
         {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(error),
+            Err(error) => return cloudflare_protocol_error_response_v1(&error),
         };
     if request.path() == RENEWAL_PATH {
         return match renewal_call(&env, &parsed).await {
             Ok(outcome) => Response::from_json(&outcome),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
     match crate::tenant_root_router_coordinate_creation_v1(
@@ -42,6 +42,6 @@ pub(super) async fn handle(mut request: Request, env: Env) -> worker::Result<Res
     .await
     {
         Ok(outcome) => Response::from_json(&outcome),
-        Err(error) => cloudflare_protocol_error_response_v1(error),
+        Err(error) => cloudflare_protocol_error_response_v1(&error),
     }
 }

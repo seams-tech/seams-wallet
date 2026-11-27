@@ -41,20 +41,14 @@ pub async fn handle_cloudflare_signing_worker_recipient_proof_bundle_activation_
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(now_unix_ms) => now_unix_ms,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     match activate_cloudflare_signing_worker_server_output_v1(env, runtime, parsed, now_unix_ms)
         .await
     {
         Ok(response) => worker::Response::from_json(&response),
-        Err(err) => worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        ),
+        Err(err) => crate::cloudflare_protocol_error_response_v1(&err),
     }
 }
 
@@ -105,10 +99,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(now_unix_ms) => now_unix_ms,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     let activate_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
@@ -138,10 +129,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
             timing.apply_to(&response)?;
             Ok(response)
         }
-        Err(err) => worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        ),
+        Err(err) => crate::cloudflare_protocol_error_response_v1(&err),
     }
 }
 
@@ -184,10 +172,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(now_unix_ms) => now_unix_ms,
         Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
+            return crate::cloudflare_protocol_error_response_v1(&err);
         }
     };
     match refresh_cloudflare_router_ab_ecdsa_derivation_signing_worker_output_v1(
@@ -199,10 +184,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
     .await
     {
         Ok(response) => worker::Response::from_json(&response),
-        Err(err) => worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        ),
+        Err(err) => crate::cloudflare_protocol_error_response_v1(&err),
     }
 }
 
@@ -569,10 +551,7 @@ pub(super) async fn load_cloudflare_signing_worker_ecdsa_normal_signing_material
 pub(super) fn cloudflare_signing_worker_presign_error_response_v1(
     error: RouterAbProtocolError,
 ) -> worker::Result<worker::Response> {
-    worker::Response::error(
-        format!("{:?}: {}", error.code(), error.message()),
-        cloudflare_router_error_status(error.code()),
-    )
+    crate::cloudflare_protocol_error_response_v1(&error)
 }
 
 /// Handles SigningWorker's private ECDSA presign-session init route.
@@ -1495,10 +1474,7 @@ pub(super) fn cloudflare_signing_worker_normal_signing_terminal_response_v1(
 ) -> worker::Result<worker::Response> {
     match terminal.into_result() {
         Ok(response) => worker::Response::from_json(&response),
-        Err(error) => worker::Response::error(
-            format!("{:?}: {}", error.code(), error.message()),
-            cloudflare_router_error_status(error.code()),
-        ),
+        Err(error) => crate::cloudflare_protocol_error_response_v1(&error),
     }
 }
 

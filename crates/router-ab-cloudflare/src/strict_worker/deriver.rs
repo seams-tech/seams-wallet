@@ -48,13 +48,13 @@ pub(super) async fn handle_strict_deriver_a_fetch_v1(
             return cloudflare_prewarm_response_v1(&request);
         }
         if let Err(err) = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&env) {
-            return cloudflare_protocol_error_response_v1(err);
+            return cloudflare_protocol_error_response_v1(&err);
         }
         return cloudflare_prewarm_response_v1(&request);
     }
     let runtime = match CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => StrictDeriverRuntimeV1::DeriverA(runtime),
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
     handle_strict_deriver_fetch_v1(request, env, runtime, context).await
 }
@@ -272,18 +272,18 @@ async fn handle_strict_deriver_fetch_v1(
     let label = runtime.label();
     let now_unix_ms = match cloudflare_now_unix_ms_v1() {
         Ok(now_unix_ms) => now_unix_ms,
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
 
     if path == crate::tenant_root_recovery_runtime::SOURCE_RETIREMENT_PATH {
         if request.method() != Method::Post { return Response::error("source retirement requires POST", 405); }
         let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_runtime::SourceRetirementRequestV1>(&mut request, 4096).await {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(error),
+            Err(error) => return cloudflare_protocol_error_response_v1(&error),
         };
         return match crate::tenant_root_recovery_runtime::handle_source_retirement(&env, worker_role, parsed, now_unix_ms).await {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -291,11 +291,11 @@ async fn handle_strict_deriver_fetch_v1(
         if request.method() != Method::Post { return Response::error("recovery access requires POST", 405); }
         let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryAccessRequestV1>(&mut request, 32 * 1024).await {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(error),
+            Err(error) => return cloudflare_protocol_error_response_v1(&error),
         };
         return match crate::tenant_root_recovery_runtime::handle_recovery_access(&env, worker_role, parsed, now_unix_ms).await {
             Ok(response) => Ok(response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -303,11 +303,11 @@ async fn handle_strict_deriver_fetch_v1(
         if request.method() != Method::Post { return Response::error("recovery sharing requires POST", 405); }
         let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryReshareRequestV1>(&mut request, 128 * 1024).await {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(error),
+            Err(error) => return cloudflare_protocol_error_response_v1(&error),
         };
         return match crate::tenant_root_recovery_runtime::handle_recovery(&env, worker_role, parsed, now_unix_ms).await {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -330,7 +330,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -342,7 +342,7 @@ async fn handle_strict_deriver_fetch_v1(
             crate::tenant_root_restore_refresh_runtime::CloudflareDeriverTenantRootRestoreRefreshRequestV1,
         >(&mut request, 64 * 1024).await {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(error),
+            Err(error) => return cloudflare_protocol_error_response_v1(&error),
         };
         return match crate::tenant_root_restore_refresh_runtime::handle_restore_refresh(
             &env,
@@ -353,7 +353,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -367,7 +367,7 @@ async fn handle_strict_deriver_fetch_v1(
             crate::tenant_root_role_runtime::CloudflareDeriverTenantRootPreactivationCleanupRequestV1,
         >(&mut request, 32 * 1024).await {
             Ok(parsed) => parsed,
-            Err(error) => return cloudflare_protocol_error_response_v1(error),
+            Err(error) => return cloudflare_protocol_error_response_v1(&error),
         };
         return match crate::tenant_root_role_runtime::handle_restore_preactivation_cleanup(
             &env,
@@ -378,7 +378,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -396,7 +396,7 @@ async fn handle_strict_deriver_fetch_v1(
             .await
             {
                 Ok(parsed) => parsed,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
         return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_session_cleanup_v1(
             &env,
@@ -407,7 +407,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -425,7 +425,7 @@ async fn handle_strict_deriver_fetch_v1(
             .await
             {
                 Ok(parsed) => parsed,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
         return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_role_import_key_v1(
             &env,
@@ -436,7 +436,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -454,7 +454,7 @@ async fn handle_strict_deriver_fetch_v1(
             .await
             {
                 Ok(parsed) => parsed,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
+                Err(error) => return cloudflare_protocol_error_response_v1(&error),
             };
         return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_role_import_accept_v1(
             &env,
@@ -465,7 +465,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -490,7 +490,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -513,7 +513,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -538,7 +538,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -562,7 +562,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -587,7 +587,7 @@ async fn handle_strict_deriver_fetch_v1(
             .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -613,7 +613,7 @@ async fn handle_strict_deriver_fetch_v1(
             .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -637,7 +637,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -661,7 +661,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -685,7 +685,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Response::from_json(&response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -785,7 +785,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => Ok(response),
-            Err(error) => cloudflare_protocol_error_response_v1(error),
+            Err(error) => cloudflare_protocol_error_response_v1(&error),
         };
     }
 
@@ -815,7 +815,7 @@ async fn handle_strict_deriver_fetch_v1(
             );
         let random_bytes = match cloudflare_random_bytes_v1(0) {
             Ok(bytes) => bytes,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let registration = match crate::prepare_cloudflare_deriver_ecdsa_registration_v1(
             &tenant_root_host,
@@ -827,7 +827,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(registration) => registration,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         timing.mark("preload", preload_started_at_ms);
         let execute_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
@@ -837,7 +837,7 @@ async fn handle_strict_deriver_fetch_v1(
             now_unix_ms,
         ) {
             Ok(response) => response,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         timing.mark("execute", execute_started_at_ms);
         timing.mark("total", total_started_at_ms);
@@ -863,7 +863,7 @@ async fn handle_strict_deriver_fetch_v1(
             );
         let random_bytes = match cloudflare_random_bytes_v1(0) {
             Ok(bytes) => bytes,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let export = match crate::prepare_cloudflare_deriver_ecdsa_export_v1(
             &tenant_root_host,
@@ -875,7 +875,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(export) => export,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return match export.execute_deriver_export(
             &crate::CloudflareWorkerEnvReaderV1::new(&env),
@@ -883,7 +883,7 @@ async fn handle_strict_deriver_fetch_v1(
             now_unix_ms,
         ) {
             Ok(response) => Response::from_json(&response),
-            Err(err) => cloudflare_protocol_error_response_v1(err),
+            Err(err) => cloudflare_protocol_error_response_v1(&err),
         };
     }
 
@@ -901,11 +901,11 @@ async fn handle_strict_deriver_fetch_v1(
         let (refresh_request, authenticated, custody_wire) =
             match refresh_request.into_authenticated_parts(&env, worker_role, now_unix_ms) {
                 Ok(parts) => parts,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
+                Err(err) => return cloudflare_protocol_error_response_v1(&err),
             };
         let public_request = match refresh_request.to_threshold_prf_request() {
             Ok(request) => request,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let outer_request = match build_cloudflare_ecdsa_threshold_prf_outer_request_v2(
             &public_request,
@@ -913,7 +913,7 @@ async fn handle_strict_deriver_fetch_v1(
             &custody_wire,
         ) {
             Ok(request) => request,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let preloaded = match preload_strict_deriver_request_with_authenticated_binding_v2(
             &env,
@@ -923,7 +923,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(loaded) => loaded,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         let signer_bootstrap = authenticated.bootstrap;
         let tenant_root_custody_binding = authenticated.tenant_root_custody_binding;
@@ -943,7 +943,7 @@ async fn handle_strict_deriver_fetch_v1(
         .await
         {
             Ok(response) => response,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
+            Err(err) => return cloudflare_protocol_error_response_v1(&err),
         };
         return Response::from_json(&response);
     }
@@ -1049,13 +1049,13 @@ pub(super) async fn handle_strict_deriver_b_fetch_v1(
             return cloudflare_prewarm_response_v1(&request);
         }
         if let Err(err) = CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&env) {
-            return cloudflare_protocol_error_response_v1(err);
+            return cloudflare_protocol_error_response_v1(&err);
         }
         return cloudflare_prewarm_response_v1(&request);
     }
     let runtime = match CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => StrictDeriverRuntimeV1::DeriverB(runtime),
-        Err(err) => return cloudflare_protocol_error_response_v1(err),
+        Err(err) => return cloudflare_protocol_error_response_v1(&err),
     };
     handle_strict_deriver_fetch_v1(request, env, runtime, context).await
 }

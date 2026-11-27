@@ -366,10 +366,7 @@ pub(crate) async fn retire_cloudflare_signing_worker_ed25519_lane_v1(
 }
 
 fn protocol_error_response(error: RouterAbProtocolError) -> worker::Result<Response> {
-    Response::error(
-        format!("{:?}: {}", error.code(), error.message()),
-        cloudflare_router_error_status(error.code()),
-    )
+    crate::cloudflare_protocol_error_response_v1(&error)
 }
 
 pub async fn handle_cloudflare_signing_worker_ed25519_lane_retire_private_fetch_v1(

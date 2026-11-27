@@ -971,10 +971,7 @@ pub(crate) async fn handle_cloudflare_signing_worker_lane_material_command_priva
     };
     match execute_cloudflare_signing_worker_lane_material_command_v1(env, &command).await {
         Ok(effect) => Response::from_json(&effect),
-        Err(error) => Response::error(
-            format!("{:?}: {}", error.code(), error.message()),
-            crate::cloudflare_router_error_status(error.code()),
-        ),
+        Err(error) => crate::cloudflare_protocol_error_response_v1(&error),
     }
 }
 
