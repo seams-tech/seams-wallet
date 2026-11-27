@@ -435,7 +435,7 @@ pub fn derive_relayer_share_for_client_public(
     }
 }
 
-pub fn compose_public_identity(
+pub(crate) fn compose_public_identity(
     context: &RouterAbEcdsaDerivationStableKeyContext,
     derivation_client_share_public_key33: &[u8; 33],
     client_share_retry_counter: u32,

@@ -53,4 +53,4 @@ impl fmt::Display for RouterAbEcdsaDerivationError {
 
 impl std::error::Error for RouterAbEcdsaDerivationError {}
 
-pub type RouterAbEcdsaDerivationResult<T> = Result<T, RouterAbEcdsaDerivationError>;
+pub(crate) type RouterAbEcdsaDerivationResult<T> = Result<T, RouterAbEcdsaDerivationError>;

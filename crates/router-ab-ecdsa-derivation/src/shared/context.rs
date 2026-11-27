@@ -1,10 +1,10 @@
 use crate::error::{RouterAbEcdsaDerivationError, RouterAbEcdsaDerivationResult};
 
-pub const ROUTER_AB_ECDSA_DERIVATION_CONTEXT_DOMAIN_TAG: &[u8] =
+pub(crate) const ROUTER_AB_ECDSA_DERIVATION_CONTEXT_DOMAIN_TAG: &[u8] =
     b"router-ab-ecdsa-derivation/context/v1";
-pub const ROUTER_AB_ECDSA_DERIVATION_SCHEME_ID: &str = "router-ab-ecdsa-derivation-v1";
-pub const ROUTER_AB_ECDSA_DERIVATION_CURVE: &str = "secp256k1";
-pub const ROUTER_AB_ECDSA_DERIVATION_PARTICIPANT_IDS: [u16; 2] = [1, 2];
+pub(crate) const ROUTER_AB_ECDSA_DERIVATION_SCHEME_ID: &str = "router-ab-ecdsa-derivation-v1";
+pub(crate) const ROUTER_AB_ECDSA_DERIVATION_CURVE: &str = "secp256k1";
+pub(crate) const ROUTER_AB_ECDSA_DERIVATION_PARTICIPANT_IDS: [u16; 2] = [1, 2];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouterAbEcdsaDerivationStableKeyContext {
