@@ -33,7 +33,7 @@ stops when its credits run out.
   what a passkey step-up approves (Section 8, Q8). The Wallet adds no amount rule, and SaySo
   has none. The 10 NEAR rule stays only inside the OutLayer verifier.
 - **Two changes in SaySo first.** It must not forgive a word in the recipient or the amount of
-  a Wallet request, and `@sayso/verdict` must be an exact release.
+  a Wallet request, and `@seams/sayso-verdict` must be an exact release.
 - **No D1 migration.** The verdict ledger and its table stay.
 - **The trust claim changes.** The SaySo backend has no TEE. The docs and the card stop saying
   "TEE receipt", Intel TDX, Phala and NEAR AI for it.
@@ -89,8 +89,9 @@ Checked on 2026-11-27 in seams-wallet `dev` at `d3255d548`, SaySo at `6e17c4f`
     `{ verdict_json, signature_b64 }`, the same shape as the Wallet's `voice_verdict` field.
   - Auth: a short-lived HMAC token or `Bearer SAYSO_API_KEY`. `SAYSO_API_KEY` is not set.
   - It has no `step_up` outcome, no TEE, no attestation and no NEAR code.
-  - The repository is local only. Its packages are not published.
-- **F8. SaySo reads the Wallet's sentences as they are.** `@sayso/verdict` `createIntent`
+  - The repository was local only, and its packages were not published. S2 changes both
+    (Section 6, "Slice 3 progress").
+- **F8. SaySo reads the Wallet's sentences as they are.** `@seams/sayso-verdict` `createIntent`
   normalizes a sentence as the Worker does, so the Wallet can compute the same
   `intent_digest`. All 37 sentences in `tests/fixtures/spoken-intent/spoken_intent_vectors_v1.json`
   ("send two point five near to bob dash one dot testnet", ...) normalize to themselves.
@@ -188,7 +189,7 @@ Layout:
 Rules:
 
 - Only a backend module imports `@seams/voice-sign`, `@seams/voice-verdict` or
-  `@sayso/verdict`. The verify route, Wallet core and the co-signer import only the port. The
+  `@seams/sayso-verdict`. The verify route, Wallet core and the co-signer import only the port. The
   repository has no ESLint, so a check of the import graph holds this, as
   `tests/scripts/check-packed-wallet-boundaries.mjs` does for the packed SDK. Do not add a
   check of source text.
@@ -272,7 +273,7 @@ stop and ask the owner whether to delete it instead.
   guarded position. A test pair: "send ten near to bob dot testnet" heard as "... rob ..."
   refuses; heard as "sent ten near to bob dot testnet" accepts.
 - **S2. A release.** The SaySo repository moves to the `seams-tech` GitHub organization, and
-  `@sayso/verdict` is published as an exact version. seams-wallet pins that version.
+  `@seams/sayso-verdict` is published as an exact version. seams-wallet pins that version.
 - **S3. The service caller.** Set `SAYSO_API_KEY` on the Worker and the same value as a
   Gateway secret for each lane.
 - **S4. A key for each network.** One verdict key for testnet now. Mainnet gets its own key
@@ -398,8 +399,7 @@ For Slice 4:
 
 ### Slice 3 progress (2026-11-27)
 
-**S1 is built** in SaySo `1e02ffb` on `main`. The SaySo repository has no remote, so the commit
-is local. With the owner's yes, the Worker at `https://sayso.seams.sh` runs it since
+**S1 is built** in SaySo `1e02ffb` on `main`. With the owner's yes, the Worker at `https://sayso.seams.sh` runs it since
 2026-11-27 03:10 UTC (version `2caac3c4`; the version before is `ffef6563`). The verdict key
 did not change.
 
@@ -426,9 +426,8 @@ did not change.
 - **Checks.** `pnpm test` and `pnpm typecheck` pass in SaySo: 11 Rust tests (8 in
   `sayso-wasm`) and 10 TypeScript tests.
 
-**Not started:** S2, S3 and G1 to G3. Each needs the owner's yes: the `seams-tech` repository,
-a push, a publish, `SAYSO_API_KEY`, and a gate run that costs money. The S1 Worker that G1 and
-G3 need is deployed.
+**Not started:** S3 and G1 to G3. Each needs the owner's yes: `SAYSO_API_KEY`, and a gate run
+that costs money. The S1 Worker that G1 and G3 need is deployed.
 
 **The gate data is not ready.** The STT-1 audio is not stored and must be made again. "Gate
 0" is not a speaker set, and no list of results of the Phala build exists. Section 5 states G1
@@ -436,10 +435,21 @@ and G2 in other words than Refactor 210, Section 14.5. The
 [evidence file](evidence/refactor-254-slice-3-sayso-20261127.md) has the S1 measurements, what
 each gate needs and three open points for the owner.
 
-**For S2.** SaySo has two edits that are not committed: `publishConfig: { access: public }`
-in the `package.json` files of `@sayso/verdict` and `@sayso/client`. An Antigravity session
-made them on 2026-11-24, after the owner chose to publish the two packages to npm. The owner
-did not answer its next question, the npm scope: `@sayso`, `@seams` or `@purin-labs`.
+**S2: the repository is moved; the publish waits for one npm step of the owner.**
+
+- **The names.** The npm scope `@sayso` belongs to another party: the npm user `sayso`, who
+  publishes `sayso-mcp-server` for a prediction-market product at sayso.so. The owner chose
+  `@seams/sayso-verdict` and `@seams/sayso-client` (2026-11-27). The name SaySo itself is also
+  that product's name; nothing else in this plan depends on it.
+- **The repository.** `https://github.com/seams-tech/say-so`, public (the owner's choice), default
+  branch `main`, from SaySo `1610600`. A scan of its 7 commits found no secret.
+- **The release path.** `.github/workflows/release.yml` tests, packs and publishes both
+  packages with one exact version and npm provenance. `scripts/npm-trust.sh` makes the workflow
+  their trusted publisher. npm trusts a workflow only for a package that exists, so the script
+  first publishes a placeholder `0.0.0-stage` (dist-tag `stage`), as the voice libraries did on
+  2026-11-10. It needs the owner's npm login and two-factor approval.
+- **The first version is 0.2.0**, the version in the workspace. The packed tarballs install in a
+  new project and give the pinned digest `a63e63c8…`.
 
 ## 7. Invariants
 
@@ -549,7 +559,7 @@ answer relies on a setting that turns voice off, and the Wallet has none today (
   beside the service binding.
 - With `SAYSO_DEV_MOCK=true` and a configured key, the Worker signs mock results with the real
   key (`workers/verifier/src/index.ts`, `getWarmSigner` and `buildEngine`). `verifyVerdict` of
-  `@sayso/verdict` checks only the type of `verifier`, so a `sayso/0.2.0+mock` verdict passes.
+  `@seams/sayso-verdict` checks only the type of `verifier`, so a `sayso/0.2.0+mock` verdict passes.
 - The verdict key is a secret in the Cloudflare account that also runs the co-signer. With
   OutLayer the key was bound to a TEE project. With SaySo the co-signer's check guards against
   a fault of the client, and not against the operator or a stolen deploy token.

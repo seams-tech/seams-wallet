@@ -8,7 +8,7 @@ needs, because two of the three data sets are not where the plan expects them.
 
 ## 1. S1: guarded words
 
-SaySo `1e02ffb` (`~/Dev/purin-labs/say-so`, `main`, local; the repository has no remote).
+SaySo `1e02ffb` (`~/Dev/purin-labs/say-so`, `main`; since S2 also at `https://github.com/seams-tech/say-so`).
 The Worker at `https://sayso.seams.sh` runs S1 since 2026-11-27 03:10 UTC ("The deploy" below).
 
 ### Measured
