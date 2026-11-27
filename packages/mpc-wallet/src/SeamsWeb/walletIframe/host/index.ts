@@ -77,7 +77,7 @@ const CONFIRM_UI_SURFACES = [
 
 export type WalletHostRuntimeKind = RuntimeWalletHostRoute['kind'];
 
-export type WalletHostEntryOptions = {
+type WalletHostEntryOptions = {
   supportedRuntimeRouteKinds?: ReadonlySet<WalletHostRuntimeKind>;
 };
 
