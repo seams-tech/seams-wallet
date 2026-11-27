@@ -5,13 +5,11 @@ import { activeWalletSessionV1RecordsEqual } from '@shared/device-linking/active
 import { resolveNearNetwork } from '@/core/config/chains';
 import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
-import {
-  WorkerRequestType,
-  WorkerResponseType,
-  type DelegatePayload,
-  type TransactionPayload,
-  type WasmSignedDelegate,
-  type WorkerSuccessResponse,
+import type {
+  DelegatePayload,
+  NearSignedTransactionsResponse,
+  TransactionPayload,
+  WasmSignedDelegate,
 } from '@/core/types/signer-worker';
 import {
   buildThresholdEd25519DelegateSigningPayloadWasm,
@@ -149,13 +147,13 @@ type RouterAbEd25519NearTransactionNormalSigningResult =
       kind: 'router_ab_ed25519_near_transaction_normal_signing_result_v1';
       authorization: 'operation_step_up';
       issuedAuthorization: NearEd25519OperationStepUpAuthorization;
-      okResponse: WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions>;
+      okResponse: NearSignedTransactionsResponse;
     }
   | {
       kind: 'router_ab_ed25519_near_transaction_normal_signing_result_v1';
       authorization: 'reusable_wallet_session';
       issuedAuthorization?: never;
-      okResponse: WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions>;
+      okResponse: NearSignedTransactionsResponse;
     };
 
 type RouterAbEd25519SignatureOnlyNormalSigningResult =
@@ -1626,7 +1624,6 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
   });
   const transactionHash = finalized.transactionHash || decoded.transactionHash;
   const okResponse = {
-    type: WorkerResponseType.SignTransactionsWithActionsSuccess,
     payload: {
       free: () => undefined,
       success: true,
@@ -1635,7 +1632,7 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
       logs: ['NEAR transaction signed through Router A/B normal signing'],
       error: undefined,
     },
-  } satisfies WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions>;
+  } satisfies NearSignedTransactionsResponse;
   if (operationStepUp) {
     if (!issuedAuthorization) {
       throw new Error('[SigningEngine][near] operation step-up authorization was not issued');

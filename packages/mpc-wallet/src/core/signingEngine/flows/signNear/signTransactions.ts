@@ -5,11 +5,7 @@ import {
   type CreateSigningFlowEventInput,
   type SigningFlowEvent,
 } from '@/core/types/sdkSentEvents';
-import {
-  WorkerRequestType,
-  type RpcCallPayload,
-  type WorkerSuccessResponse,
-} from '@/core/types/signer-worker';
+import type { NearSignedTransactionsResponse, RpcCallPayload } from '@/core/types/signer-worker';
 import { AccountId, toAccountId } from '@/core/types/accountIds';
 import type { TransactionContext } from '@/core/types/rpc';
 import type { SignTransactionResult } from '@/core/types/seams';
@@ -1424,7 +1420,7 @@ async function markNearNonceLeasesSigned(
 }
 
 function toSignedTransactionResult(args: {
-  okResponse: WorkerSuccessResponse<typeof WorkerRequestType.SignTransactionsWithActions>;
+  okResponse: NearSignedTransactionsResponse;
   nearAccountId: string;
   transactionContext: Pick<TransactionContext, 'txBlockHash' | 'txBlockHeight'>;
   warnings: string[];

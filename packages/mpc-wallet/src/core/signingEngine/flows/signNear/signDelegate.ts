@@ -8,12 +8,7 @@ import {
   type CreateSigningFlowEventInput,
   type SigningFlowEvent,
 } from '@/core/types/sdkSentEvents';
-import {
-  WorkerRequestType,
-  WorkerResponseType,
-  type WorkerSuccessResponse,
-  WasmSignedDelegate,
-} from '@/core/types/signer-worker';
+import type { NearSignedDelegateResponse, WasmSignedDelegate } from '@/core/types/signer-worker';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
 import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
 import {
@@ -332,7 +327,6 @@ export async function runNearDelegateActionSigning({
       signatureB64u: signed.signatureB64u,
     });
     return {
-      type: WorkerResponseType.SignDelegateActionSuccess,
       payload: {
         success: true,
         hash: delegateResult.hash,
@@ -340,7 +334,7 @@ export async function runNearDelegateActionSigning({
         logs: ['Delegate action signed through Router A/B normal signing'],
         error: undefined,
       },
-    } as WorkerSuccessResponse<typeof WorkerRequestType.SignDelegateAction>;
+    } as NearSignedDelegateResponse;
   });
 
   emitNearSigningEvent(onEvent, nearAccountId, {

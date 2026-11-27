@@ -57,18 +57,6 @@ export interface WasmSignedDelegate {
   borshBytes: Uint8Array;
 }
 
-export enum WorkerRequestType {
-  SignTransactionsWithActions = 0,
-  SignNep413Message = 1,
-  SignDelegateAction = 2,
-}
-
-export enum WorkerResponseType {
-  SignTransactionsWithActionsSuccess = 0,
-  SignNep413MessageSuccess = 1,
-  SignDelegateActionSuccess = 2,
-}
-
 export const NearSignerWorkerCustomRequestType = {
   ThresholdEd25519ComputeNep413SigningDigest: 'thresholdEd25519ComputeNep413SigningDigest',
   ThresholdEd25519ComputeDelegateSigningDigest: 'thresholdEd25519ComputeDelegateSigningDigest',
@@ -81,8 +69,6 @@ export const NearSignerWorkerCustomRequestType = {
 
 export type NearSignerWorkerCustomRequestType =
   (typeof NearSignerWorkerCustomRequestType)[keyof typeof NearSignerWorkerCustomRequestType];
-
-type SignerWorkerResponseType = WorkerResponseType;
 
 export type ThresholdEd25519ComputeNep413SigningDigestRequest = {
   message: string;
@@ -246,41 +232,14 @@ export const DEFAULT_CONFIRMATION_CONFIG: ConfirmationConfig = {
   autoProceedDelay: 0,
 };
 
-type NearWorkerProgressStatus = 'progress' | 'success' | 'error';
+// === NEAR SIGNING RESULTS ===
+// The wallet assembles these from a threshold signature; no worker sends them.
 
-export interface NearWorkerProgressEvent {
-  step: number;
-  phase: string;
-  status: NearWorkerProgressStatus;
-  message: string;
-  data?: Record<string, unknown>;
-  logs?: string[];
-}
+export type NearSignedTransactionsResponse = { readonly payload: NearTransactionSignResult };
 
-// === RESPONSE MESSAGE INTERFACES ===
+export type NearSignedDelegateResponse = { readonly payload: NearDelegateSignResult };
 
-// Base interface for all worker responses
-interface BaseWorkerResponse<TPayload = unknown> {
-  type: SignerWorkerResponseType;
-  payload: TPayload;
-}
-
-// Map request types to their expected success response payloads (WASM types)
-interface RequestResponseMap {
-  [WorkerRequestType.SignTransactionsWithActions]: NearTransactionSignResult;
-  [WorkerRequestType.SignDelegateAction]: NearDelegateSignResult;
-  [WorkerRequestType.SignNep413Message]: NearNep413SignResult;
-}
-
-type RequestTypeKey = keyof RequestResponseMap;
-
-// Generic success response type that uses WASM types
-export interface WorkerSuccessResponse<T extends RequestTypeKey> extends BaseWorkerResponse<
-  RequestResponseMap[T]
-> {
-  type: SignerWorkerResponseType;
-  diagnostics?: WorkerResponseDiagnostics;
-}
+export type NearSignedNep413Response = { readonly payload: NearNep413SignResult };
 
 export type WorkerResponseDiagnostics = {
   kind: 'worker_response_diagnostics_v1';

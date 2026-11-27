@@ -1,6 +1,5 @@
 import type { WalletEmailOtpEnrollmentMaterialV1 } from '@shared/utils/registrationAuthMethodInput';
 import {
-  type NearWorkerProgressEvent,
   NearSignerWorkerCustomRequestType,
   type ThresholdEd25519ComputeNep413SigningDigestRequest,
   type ThresholdEd25519ComputeSigningDigestResult,
@@ -1103,7 +1102,6 @@ type NearWorkerOperationEntry<T extends NearWorkerOperationType> = NearSignerWor
 export type NearWorkerOperationRequest<T extends NearWorkerOperationType> = {
   type: T;
   payload: NearWorkerOperationEntry<T>['payload'];
-  onEvent?: (update: NearWorkerProgressEvent) => void;
   timeoutMs?: number;
   transfer?: Transferable[];
 };
@@ -2081,13 +2079,11 @@ export type SignerWorkerKind = keyof SignerWorkerOperationMapByKind;
 export type SignerWorkerOperationType<K extends SignerWorkerKind> =
   keyof SignerWorkerOperationMapByKind[K];
 
-type SignerWorkerProgressEvent<K extends SignerWorkerKind> = K extends 'nearSigner'
-  ? NearWorkerProgressEvent
-  : K extends 'evmCrypto' | 'tempoSigner'
-    ? RpcSignerWorkerProgressEvent
-    : K extends 'emailOtp'
-      ? EmailOtpWorkerProgressEvent
-      : never;
+type SignerWorkerProgressEvent<K extends SignerWorkerKind> = K extends 'evmCrypto' | 'tempoSigner'
+  ? RpcSignerWorkerProgressEvent
+  : K extends 'emailOtp'
+    ? EmailOtpWorkerProgressEvent
+    : never;
 
 type SignerWorkerOperationEntry<
   K extends SignerWorkerKind,

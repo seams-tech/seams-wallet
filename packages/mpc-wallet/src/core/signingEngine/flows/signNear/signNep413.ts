@@ -1,8 +1,4 @@
-import {
-  WorkerRequestType,
-  WorkerResponseType,
-  type WorkerSuccessResponse,
-} from '@/core/types/signer-worker';
+import type { NearSignedNep413Response } from '@/core/types/signer-worker';
 import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
 import { resolveNearNetwork } from '@/core/config/chains';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
@@ -188,14 +184,13 @@ export async function signNep413Message({
       signingSessionCoordinator,
     );
     return {
-      type: WorkerResponseType.SignNep413MessageSuccess,
       payload: {
         accountId: nearAccountId,
         publicKey: signed.signerPublicKey,
         signature: base64Encode(base64UrlDecode(signed.signatureB64u)),
         state: payload.state ?? undefined,
       },
-    } as WorkerSuccessResponse<typeof WorkerRequestType.SignNep413Message>;
+    } as NearSignedNep413Response;
   });
   emitEd25519SigningTiming(String(operationId), 'confirmed_to_signed', confirmedAt);
 

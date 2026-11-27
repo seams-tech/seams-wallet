@@ -2,7 +2,6 @@ import { errorMessage } from '@shared/utils/errors';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { isObject } from '@shared/utils/validation';
 import { dropUnlockedWalletEd25519ExportRootCapabilityReferenceV1 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
-import type { NearWorkerProgressEvent } from '@/core/types/signer-worker';
 import { SIGNER_WORKER_MANAGER_CONFIG } from '@/config';
 import {
   resolveMultichainWorkerUrl,
@@ -60,12 +59,6 @@ function assertNeverWorkerPrewarmResult(value: never): never {
 function assertNeverWorkerPrewarmRequest(value: never): never {
   throw new Error(`Unsupported Email OTP Yao prewarm request: ${String(value)}`);
 }
-
-type NearRpcProgressFrame = {
-  id: string;
-  progress: true;
-  payload: NearWorkerProgressEvent;
-};
 
 type NearRpcSuccessFrame = {
   id: string;
@@ -167,15 +160,6 @@ function isReadyFrame(value: unknown): boolean {
   return (
     (value as { type?: unknown })?.type === WorkerControlMessage.WORKER_READY ||
     (value as { ready?: unknown })?.ready === true
-  );
-}
-
-function isNearRpcProgressFrame(value: unknown): value is NearRpcProgressFrame {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    typeof (value as { id?: unknown }).id === 'string' &&
-    (value as { progress?: unknown }).progress === true
   );
 }
 
@@ -467,7 +451,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
   private async requestNearOperation<T extends NearWorkerOperationType>({
     type,
     payload,
-    onEvent,
     timeoutMs = SIGNER_WORKER_MANAGER_CONFIG.TIMEOUTS.DEFAULT,
     transfer,
   }: NearWorkerOperationRequest<T>): Promise<NearWorkerOperationResult<T>> {
@@ -499,7 +482,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       this.getPendingMap('nearSigner').set(requestId, {
         resolve: (value) => resolve(value as NearWorkerOperationResult<T>),
         reject,
-        onEvent: onEvent ? (update) => onEvent(update as NearWorkerProgressEvent) : undefined,
         timeoutId,
       });
 
@@ -869,13 +851,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
   }
 
   private handleNearWorkerMessage(data: unknown): void {
-    if (isNearRpcProgressFrame(data)) {
-      const pending = this.getPendingMap('nearSigner').get(data.id);
-      if (!pending) return;
-      pending.onEvent?.(data.payload);
-      return;
-    }
-
     if (isNearRpcSuccessFrame(data)) {
       this.resolveNearResponse(data.id, data.result);
       return;
@@ -888,7 +863,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
         new SignerWorkerOperationError({
           message: data.error,
           code: data.code,
-          coreCode: data.coreCode,
           workerKind: 'nearSigner',
         }),
       );
