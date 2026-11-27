@@ -16,7 +16,7 @@ use crate::{
 
 /// Failure while constructing one Deriver's lane role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LaneMaterializationError {
+pub(crate) enum LaneMaterializationError {
     /// A role-local canonical scalar is malformed.
     NonCanonicalScalar,
     /// The lane job is malformed.
@@ -36,7 +36,7 @@ impl std::error::Error for LaneMaterializationError {}
 
 /// Deriver A's role-local lane contributions.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct Ed25519YaoLaneDeriverAContributionV1 {
+pub(crate) struct Ed25519YaoLaneDeriverAContributionV1 {
     /// Raw Client KDF y contribution for Deriver A.
     pub y_client: [u8; 32],
     /// Raw server KDF y contribution for Deriver A.
@@ -51,7 +51,7 @@ pub struct Ed25519YaoLaneDeriverAContributionV1 {
 
 /// Deriver B's role-local lane contributions.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct Ed25519YaoLaneDeriverBContributionV1 {
+pub(crate) struct Ed25519YaoLaneDeriverBContributionV1 {
     /// Raw Client KDF y contribution for Deriver B.
     pub y_client: [u8; 32],
     /// Raw server KDF y contribution for Deriver B.
@@ -65,7 +65,7 @@ pub struct Ed25519YaoLaneDeriverBContributionV1 {
 }
 
 /// Builds the selected streaming-Yao Deriver A lane role from A-owned shares.
-pub fn build_lane_materialization_deriver_a(
+pub(crate) fn build_lane_materialization_deriver_a(
     job: &Ed25519YaoLaneJobV1,
     contribution: Ed25519YaoLaneDeriverAContributionV1,
 ) -> Result<LaneMaterializationDeriverA, LaneMaterializationError> {
@@ -92,7 +92,7 @@ pub fn build_lane_materialization_deriver_a(
 }
 
 /// Builds the selected streaming-Yao Deriver B lane role from B-owned shares.
-pub fn build_lane_materialization_deriver_b(
+pub(crate) fn build_lane_materialization_deriver_b(
     job: &Ed25519YaoLaneJobV1,
     contribution: Ed25519YaoLaneDeriverBContributionV1,
 ) -> Result<LaneMaterializationDeriverB, LaneMaterializationError> {

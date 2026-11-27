@@ -50,7 +50,7 @@ mod product;
 pub use activation::*;
 pub use crypto::*;
 pub use execution::*;
-pub use lane::*;
+pub(crate) use lane::*;
 pub use product::*;
 
 /// Fixed activation Deriver A engine used by local composition.
@@ -62,9 +62,9 @@ pub type ExportDeriverA = Export128KiBDeriverA;
 /// Fixed export Deriver B engine used by local composition.
 pub type ExportDeriverB = Export128KiBDeriverB;
 /// Fixed lane-materialization Deriver A engine used by local composition.
-pub type LaneMaterializationDeriverA = LaneMaterialization128KiBDeriverA;
+pub(crate) type LaneMaterializationDeriverA = LaneMaterialization128KiBDeriverA;
 /// Fixed lane-materialization Deriver B engine used by local composition.
-pub type LaneMaterializationDeriverB = LaneMaterialization128KiBDeriverB;
+pub(crate) type LaneMaterializationDeriverB = LaneMaterialization128KiBDeriverB;
 
 /// Relay and exact-EOF types consumed by local transport adapters.
 pub mod relay {

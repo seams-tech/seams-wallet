@@ -217,7 +217,7 @@ where
 ///
 /// Lane packages use a dedicated HPKE info string and AAD domain.  This keeps
 /// activation/export ciphertexts from being accepted by a lane recipient.
-pub fn seal_ed25519_yao_lane_package_v1<R>(
+pub(crate) fn seal_ed25519_yao_lane_package_v1<R>(
     rng: &mut R,
     kind: Ed25519YaoPackageKindV1,
     deriver: Ed25519YaoDeriverRoleV1,
