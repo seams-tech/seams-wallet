@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Refactor 254: a Speak-to-Sign verifier backend is one module on each side, so that it can be
-// swapped in and out. This check reads the import graph (with the TypeScript preprocessor, not
+// A Speak-to-Sign verifier backend is one module on each side, so that it can be swapped in and
+// out. This check reads the import graph (with the TypeScript preprocessor, not
 // the source text) and fails when:
 // - a file outside a backend module imports a backend's library;
 // - a file other than the backend selector of its side imports a backend module.
@@ -32,7 +32,7 @@ const libraries = [
 ];
 
 /**
- * The summary of a spoken note is not a part of the verifier (Refactor 254, Section 2). These
+ * The summary of a spoken note is not a part of the verifier. These
  * files use the summary helpers of the same libraries, and only these exact imports.
  */
 const summaryImports = new Map([

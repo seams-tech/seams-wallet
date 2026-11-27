@@ -1,5 +1,5 @@
-// The port between Wallet core and a Speak-to-Sign verifier backend (Refactor 254): what only the
-// device does for a backend. It prepares the verifier input that leaves the device, writes the
+// The port between Wallet core and a Speak-to-Sign verifier backend: what only the device does
+// for a backend. It prepares the verifier input that leaves the device, writes the
 // owner's enrollment statement, and gives the card its text and receipt. Each backend is one
 // module beside this file.
 
@@ -59,5 +59,5 @@ export interface SpeakToSignVerifierBackend {
   ): Promise<EnrollmentStatement>;
 }
 
-/** The verifier backend of Wallet core. OutLayer is the only one before Refactor 254 Slice 4. */
+/** The verifier backend of Wallet core. OutLayer is the only one that is built. */
 export const SPEAK_TO_SIGN_VERIFIER_BACKEND: SpeakToSignVerifierBackend = OUTLAYER_VERIFIER;

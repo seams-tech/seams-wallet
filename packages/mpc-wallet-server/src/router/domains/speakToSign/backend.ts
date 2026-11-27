@@ -1,5 +1,5 @@
-// The port between the Speak-to-Sign verify route and a verifier backend (Refactor 254). The
-// route checks the Wallet Session and the owner, and streams the result. A backend runs the
+// The port between the Speak-to-Sign verify route and a verifier backend. The route checks the
+// Wallet Session and the owner, and streams the result. A backend runs the
 // verifier. Each backend is one module in `backends/`.
 
 import {
@@ -46,7 +46,7 @@ export const SPEAK_TO_SIGN_BACKEND_ENV = 'SPEAK_TO_SIGN_BACKEND';
 
 /**
  * The backend that the lane names in `SPEAK_TO_SIGN_BACKEND`. Unset means `outlayer`, the only
- * backend before Refactor 254 Slice 4. Another value stops the server at start.
+ * backend that is built. Another value stops the server at start.
  */
 export function readSpeakToSignBackendId(
   read: (name: typeof SPEAK_TO_SIGN_BACKEND_ENV) => string | undefined,

@@ -1,7 +1,7 @@
 // The voice verdict v2 (`seams_voice_signed_verdict_v2`) of the OutLayer verifier: the library
 // that reads and checks it, the verdict key and audio key of each network, and its life. Wallet
 // core and the Seams co-signer read the v2 format only through this module, so that another
-// evidence kind is another module beside it (Refactor 254).
+// evidence kind is another module beside it.
 
 import { VERDICT_LIFE_MS } from '@seams/voice-verdict';
 import type { SpeakToSignNetwork } from '../spokenRequest';
