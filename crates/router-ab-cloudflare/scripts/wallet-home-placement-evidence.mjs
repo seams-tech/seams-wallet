@@ -662,8 +662,8 @@ async function verifyRegion(home, WalletHomeCustodyBinding) {
 
 await mkdir(resolve(output, 'migrations'), { recursive: true });
 await copyFile(
-  resolve(root, 'packages/mpc-wallet-server/migrations/d1-signer/0077_wallet_object_addresses.sql'),
-  resolve(output, 'migrations/0077_wallet_object_addresses.sql'),
+  resolve(root, 'packages/mpc-wallet-server/migrations/d1-signer/0001_signer_d1_baseline.sql'),
+  resolve(output, 'migrations/0001_signer_d1_baseline.sql'),
 );
 const bindingModule = resolve(output, 'binding.mjs');
 await build({
