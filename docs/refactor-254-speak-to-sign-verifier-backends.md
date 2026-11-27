@@ -5,7 +5,8 @@ S1 is built in SaySo `1e02ffb` (Section 6, "Slice 3 progress"); S2, S3 and the g
 the owner. Slices 2, 4, 5 and 6 are not built.
 Section 8 lists the open questions. Section 9 holds the architecture review that the owner
 asked for before Slice 2, and Section 8 holds the owner's answers to it. The 10 NEAR rule is
-removed, and Slice 2 is now the neutral evidence checker.
+removed, and Slice 2 is the neutral evidence checker, which is built (Section 6, "Slice 2
+result").
 
 The owner decided on 2026-11-27: "Cloudflare verifier is now replacing the OutLayer backend as
 the primary path for voice signing. Ideally, we keep OutLayer as a secondary path (if it's not
@@ -351,6 +352,43 @@ Where the build differs from Section 1, for Slice 4:
   `readAttestationUrl` (the OutLayer record URL) and the `attestationUrl` fields stay where they
   are. Slice 4 makes the pinned data and the link check a part of each backend.
 
+### Slice 2 result (2026-11-27)
+
+Built on `dev` in `5162cc831`, with no change of behaviour: the order of the refusals of core
+and of the co-signer is the same.
+
+- **The checker.** `shared-ts/src/speakToSign/evidence.ts` holds `EvidenceChecker` and
+  `evidenceChecker(kind)`. A checker has three steps, not the one function of Section 1:
+  `read` the text (a refusal of the verifier, or the expiry), `open` it against the pinned key
+  (signature, kind, outcome, expiry), and `bindingRefusal` of the opened evidence (request
+  digest, spoken-text digest, recording). The steps are apart because the co-signer asks for
+  the fresh approval of a step-up before it decodes the bytes that it signs.
+- **Opened evidence** holds `verdictId`, `stepUp`, `signedAtMs` and `expiresAtMs`. The
+  co-signer's `freshApproval` and its ledger read them, so no shared code reads a constant of
+  the v2 format (R5).
+- **The v2 kind.** `evidence/voiceVerdictV2.ts` holds `VOICE_VERDICT_V2_CHECKER` and is the one
+  reader of the v2 library. Core (`voiceVerdict.ts`, `hostOperations.ts`) and the co-signer
+  (`voiceVerdictAdmission.ts`) import only `evidence.ts`.
+- **The kind of a lane.** `BACKEND_EVIDENCE_KIND` gives the evidence kind of each backend. The
+  Gateway passes the kind of its backend to the co-signer (`evidenceKind`), and core writes it
+  into `SpokenEvidence`.
+- **Check.** `pnpm check:speak-to-sign-backends` also fails when a file other than
+  `evidence.ts`, an evidence kind or a backend module imports a module in `evidence/`. A probe
+  file proved it.
+- **Tests.** The 8 unit files (167 cases), the plugin contract test and the four type checks
+  pass. The tests changed only their harness: the `kind` of four core checks and the
+  `evidenceKind` of the co-signer check.
+
+For Slice 4:
+
+- `ExpectedEvidence` holds the request digest, the spoken-text digest and the recordings. The
+  SaySo checker also needs the owner, the kind of the request and the spoken words for its
+  intent. The co-signer must then render the words from the request.
+- The checker compares a digest as base64url text. Before, core compared the bytes with the v2
+  library and the co-signer compared the text. A verifier writes one text for one digest.
+- `open` takes the pinned key as text. `SPEAK_TO_SIGN_VERIFIERS` still holds only OutLayer
+  data, and core still reads the v2 verify output (`parseVerifyOutput`) outside a backend.
+
 ### Slice 3 progress (2026-11-27)
 
 **S1 is built** in SaySo `1e02ffb` on `main`. The SaySo repository has no remote, so the commit
@@ -563,7 +601,7 @@ serves, and Slice 4 defines the call of these three kinds on SaySo in one place.
 
 **The order after the review.**
 
-1. Slice 2: the neutral checker of the v2 kind (R5). It needs no more answers.
+1. Slice 2: the neutral checker of the v2 kind (R5). Built (Section 6, "Slice 2 result").
 2. Slice 3: G1 first, because it decides go or no-go, then the SaySo changes of R3 and R4.
 3. Slices 4 to 6. Q9, Q12, Q13 and Q14 are needed before Slice 4.
 
