@@ -5,7 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
-import { applySignerD1Migrations, openSignerD1 } from '../fixtures/signer-d1.mjs';
+import { openSignerD1 } from '../fixtures/signer-d1.mjs';
 
 const output = '.artifacts/tla-signing/admission-e2e';
 await mkdir(output, { recursive: true });
@@ -531,7 +531,6 @@ async function verifyStepUpRelocation(database, store, state, operation) {
     /wallet_operation_evidence_immutable/u,
   );
   await store.putVerifiedEvidenceSet(state.evidenceSet);
-  const scopeMigration = await verifyStepUpScopeMigration(database, scope, operation);
   const completed = await store.completeAuthorizedOperation({
     operation,
     result: 'succeeded',
@@ -578,7 +577,6 @@ async function verifyStepUpRelocation(database, store, state, operation) {
     1,
   );
   return {
-    scopeMigration,
     pendingStepUpBlocksRetirement: true,
     storedScopeRejectsOtherEnvironment: true,
     pendingEvidenceCannotDisappearOrChangeOwner: true,
@@ -588,90 +586,8 @@ async function verifyStepUpRelocation(database, store, state, operation) {
   };
 }
 
-async function insertStoredRow(database, table, row) {
-  const columns = Object.keys(row);
-  for (const column of columns) assert.match(column, /^[a-z_]+$/u);
-  await database
-    .prepare(
-      `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${columns.map(sqlParameter).join(', ')})`,
-    )
-    .bind(...Object.values(row))
-    .run();
-}
-
 function sqlParameter() {
   return '?';
-}
-
-async function verifyStepUpScopeMigration(database, scope, operation) {
-  const opened = await openSignerD1('0062_wallet_step_up_operation_settlement.sql');
-  try {
-    const historical = opened.database;
-    const stored = await database
-      .prepare('SELECT * FROM verified_wallet_operation_evidence_sets')
-      .first();
-    const { org_id, project_id, env_id, ...oldEvidence } = stored;
-    assert.deepEqual([org_id, project_id, env_id], [scope.orgId, scope.projectId, scope.envId]);
-    const signer = await database.prepare('SELECT * FROM wallet_signers').first();
-    await insertStoredRow(historical, 'verified_wallet_operation_evidence_sets', oldEvidence);
-    await insertStoredRow(historical, 'wallet_signers', signer);
-    const { ownership_generation, ...oldOperation } = await database
-      .prepare('SELECT * FROM authorized_operations')
-      .first();
-    assert.equal(ownership_generation, 1);
-    await insertStoredRow(historical, 'authorized_operations', oldOperation);
-    await insertStoredRow(historical, 'wallet_signers', { ...signer, env_id: 'ambiguous-scope' });
-    await assert.rejects(
-      applySignerD1Migrations(historical, opened.pendingMigrations),
-      /wallet_operation_evidence_requires_unique_scope/u,
-    );
-    assert.deepEqual(
-      Object.entries(
-        await historical.prepare('SELECT * FROM verified_wallet_operation_evidence_sets').first(),
-      ),
-      Object.entries(oldEvidence),
-    );
-    await historical.prepare("DELETE FROM wallet_signers WHERE env_id = 'ambiguous-scope'").run();
-    await historical.prepare('DELETE FROM verified_wallet_operation_evidence_sets').run();
-    await assert.rejects(
-      applySignerD1Migrations(historical, opened.pendingMigrations),
-      /wallet_operation_evidence_requires_unique_scope/u,
-    );
-    await insertStoredRow(historical, 'verified_wallet_operation_evidence_sets', oldEvidence);
-    await applySignerD1Migrations(historical, opened.pendingMigrations);
-    assert.deepEqual(
-      Object.entries(
-        await historical.prepare('SELECT * FROM verified_wallet_operation_evidence_sets').first(),
-      ),
-      Object.entries(stored),
-    );
-    const reader = new api.CloudflareD1AuthorizationStore({
-      database: historical,
-      namespace: scope.namespace,
-      walletSignerScope: scope,
-    });
-    assert.deepEqual(
-      await reader.readAuthorizedOperation({
-        tenantId: operation.tenantId,
-        operationFingerprintDigest: operation.operationFingerprintDigest,
-      }),
-      operation,
-    );
-    assert.equal(
-      await new api.D1WalletRelocationSessions(historical, scope).hasPendingOperations(
-        stored.wallet_id,
-      ),
-      true,
-    );
-    return {
-      ambiguousScopeRollsBackMigration: true,
-      missingEvidenceRollsBackMigration: true,
-      uniqueScopePreservesEvidenceAndClaim: true,
-      migratedPendingClaimBlocksRetirement: true,
-    };
-  } finally {
-    await opened.close();
-  }
 }
 
 const evidence = [];

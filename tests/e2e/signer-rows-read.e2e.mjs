@@ -5,13 +5,12 @@
 // usable index reads every session or every wallet of the tenant, also inside a
 // trigger, and D1 reports those rows in `meta.rows_read`.
 import assert from 'node:assert/strict';
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
-import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { applySignerD1Migrations } from '../fixtures/signer-d1.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
 // The default tenant maximum: 100 signatures and 30 days.
@@ -61,7 +60,7 @@ const runtime = new Miniflare({
 });
 try {
   const database = await runtime.getD1Database('SIGNER_DB');
-  await migrate(database);
+  await applySignerD1Migrations(database);
   const now = Date.now();
   await useWallet(database, 0, now);
   const small = await useWallet(database, 1, now);
@@ -201,21 +200,4 @@ function authorizationService(database) {
     authorizedOperations: store,
     audit: {},
   });
-}
-
-async function migrate(database) {
-  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
-  for (const name of (await readdir(directory)).filter(isSql).sort()) {
-    let sql = await readFile(`${directory}/${name}`, 'utf8');
-    if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
-      sql = buildWorkerdCompatiblePhase1Bridge(sql);
-    }
-    const statements = [];
-    for (const query of unstable_splitSqlQuery(sql)) statements.push(database.prepare(query));
-    await database.batch(statements);
-  }
-}
-
-function isSql(name) {
-  return name.endsWith('.sql');
 }

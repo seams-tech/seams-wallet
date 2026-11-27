@@ -37,13 +37,12 @@ import {
 import { verifyAuthorizationFreeze } from './authorization-transfer-freeze.scenario.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
-import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { applySignerD1Migrations } from '../fixtures/signer-d1.mjs';
 
 // The default tenant maximum: 100 signatures and 30 days.
 const DEFAULT_TENANT_LIMITS = { maxTtlMs: 30 * 24 * 60 * 60_000, maxRemainingUses: 100 };
@@ -185,7 +184,6 @@ const worker = new Miniflare({
   d1Databases: {
     SOURCE: 'authorization-source',
     DESTINATION: 'authorization-destination',
-    UPGRADE: 'authorization-upgrade',
     CAPACITY: 'authorization-capacity',
   },
   compatibilityDate: '2026-06-12',
@@ -195,13 +193,12 @@ const worker = new Miniflare({
 try {
   const source = await worker.getD1Database('SOURCE');
   const destination = await worker.getD1Database('DESTINATION');
-  const migrations = await migrate(source);
-  assert.deepEqual(await migrate(destination), migrations);
-  await migrate(await worker.getD1Database('UPGRADE'), true);
+  const migrations = await applySignerD1Migrations(source);
+  assert.deepEqual(await applySignerD1Migrations(destination), migrations);
   const sourceService = service(source, scope);
   const issuedAtMs = Date.now();
   const capacityDatabase = await worker.getD1Database('CAPACITY');
-  await migrate(capacityDatabase);
+  await applySignerD1Migrations(capacityDatabase);
   const temporaryWriteBlock = await verifyTemporaryWriteBlock({ api, database: capacityDatabase, scope,
     service: service(capacityDatabase, scope), issueDeviceSession, nowMs: issuedAtMs });
   const atomicEmailOtpGrant = await verifyAtomicEmailOtpGrant(api, capacityDatabase, scope);
@@ -591,7 +588,6 @@ try {
       walletOtpRelocation,
       atomicEmailOtpGrant,
       relocatedEmailAuthentication,
-      migrationUpgrade: { importingRejected: true, closedRejected: true, activatedPreserved: true },
       destinationPreparation,
       relocationChallenges,
       relocationPasskey,
@@ -721,132 +717,6 @@ async function issueDeviceSession(database, authorizationService, fixture, issue
   });
   assert.equal(issued.kind, 'issued');
   return issued;
-}
-
-async function migrate(database, verifyUpgrade = false) {
-  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
-  const migrations = [];
-  for (const name of (await readdir(directory)).filter(isSql).sort()) {
-    if (verifyUpgrade && name > '0071_regional_wallet_otp_counters.sql') break;
-    // Migration 0051 keeps the open challenges. Later code writes another record format,
-    // so this row uses the format of that time.
-    const preservedChallenge = name === '0051_wallet_relocation_email_otp.sql'
-      ? JSON.stringify({
-          version: 'email_otp_challenge_v1', challengeId: 'otp:migration',
-          challengeSubjectId: 'google:migration', walletId: 'wallet:migration', orgId: scope.orgId,
-          otpChannel: 'email_otp', email: 'migration@example.test', otpCode: '135790',
-          ownerProofBindingDigest: 'migration-binding', action: 'wallet_email_otp_login',
-          operation: 'wallet_unlock', createdAtMs: 100, expiresAtMs: 200, attemptCount: 0,
-          maxAttempts: 5,
-        })
-      : null;
-    if (preservedChallenge) await putVersionOneChallenge(database, preservedChallenge);
-    const original = await readFile(`${directory}/${name}`, 'utf8');
-    if (verifyUpgrade && (name.startsWith('0070_') || name.startsWith('0071_'))) {
-      await verifyRetainedImportUpgrade(database, original, name);
-    }
-    let sql = original;
-    if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
-      sql = buildWorkerdCompatiblePhase1Bridge(sql);
-    }
-    const statements = [];
-    for (const query of unstable_splitSqlQuery(sql)) {
-      statements.push(database.prepare(query));
-    }
-    await database.batch(statements);
-    if (preservedChallenge) assert.equal(await readChallengeJson(database, 'otp:migration'), preservedChallenge);
-    migrations.push({ name, sha256: digest(original), ...(preservedChallenge ? { existingOtpChallengePreserved: true } : {}) });
-  }
-  return migrations;
-}
-
-async function putVersionOneChallenge(database, recordJson) {
-  const record = JSON.parse(recordJson);
-  await database
-    .prepare(
-      `INSERT INTO email_otp_challenges (
-        namespace, org_id, project_id, env_id, challenge_id, challenge_subject_id, wallet_id,
-        record_org_id, otp_channel, owner_proof_binding_digest, action, operation, otp_code,
-        record_json, created_at_ms, expires_at_ms
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)`,
-    )
-    .bind(
-      scope.namespace, scope.orgId, scope.projectId, scope.envId, record.challengeId,
-      record.challengeSubjectId, record.walletId, record.orgId, record.otpChannel,
-      record.ownerProofBindingDigest, record.action, record.operation, record.otpCode,
-      recordJson, record.createdAtMs, record.expiresAtMs,
-    )
-    .run();
-}
-
-async function readChallengeJson(database, challengeId) {
-  const row = await database
-    .prepare('SELECT record_json FROM email_otp_challenges WHERE challenge_id = ?1')
-    .bind(challengeId)
-    .first();
-  return row?.record_json ?? null;
-}
-
-async function verifyRetainedImportUpgrade(database, sql, walletId) {
-  await database
-    .prepare(
-      `INSERT INTO wallet_relocation_authorization_imports
-    VALUES ('upgrade', 'org', 'project', 'env', ?1, 'move', ?2, 1, 'importing')`,
-    )
-    .bind(walletId, 'a'.repeat(64))
-    .run();
-  const guardEnd = sql.indexOf(';', sql.indexOf('DROP TABLE')) + 1;
-  const statements = [];
-  for (const query of unstable_splitSqlQuery(sql.slice(0, guardEnd))) {
-    statements.push(database.prepare(query));
-  }
-  await assert.rejects(database.batch(statements), /CHECK constraint failed/);
-  await database
-    .prepare(
-      `UPDATE wallet_relocation_authorization_imports SET state = 'closed'
-    WHERE namespace = 'upgrade' AND wallet_id = ?1`,
-    )
-    .bind(walletId)
-    .run();
-  await assert.rejects(database.batch(statements), /CHECK constraint failed/);
-  await database
-    .prepare(
-      `INSERT INTO wallet_relocation_authorization_intakes
-    (namespace, org_id, project_id, env_id, wallet_id, move_id, request_digest_hex,
-     source_generation, manifest_json, digest_hex, state)
-    VALUES ('upgrade', 'org', 'project', 'env', ?1, 'move', ?2, 1, '{}', ?2, 'verified')`,
-    )
-    .bind(walletId, 'a'.repeat(64))
-    .run();
-  await database
-    .prepare(
-      `INSERT INTO wallet_relocation_authorization_activations
-    VALUES ('upgrade', 'org', 'project', 'env', ?1, 'move', ?2, 1, ?2, '{}', 1)`,
-    )
-    .bind(walletId, 'a'.repeat(64))
-    .run();
-  await database
-    .prepare(
-      `UPDATE wallet_relocation_authorization_imports SET state = 'activated'
-    WHERE namespace = 'upgrade' AND wallet_id = ?1`,
-    )
-    .bind(walletId)
-    .run();
-  await database.batch(statements);
-  await assert.rejects(
-    database
-      .prepare(
-        `DELETE FROM wallet_relocation_authorization_imports
-    WHERE namespace = 'upgrade' AND wallet_id = ?1`,
-      )
-      .bind(walletId)
-      .run(),
-    /history_import_retained/,
-  );
-}
-
-function isSql(name) {
-  return name.endsWith('.sql');
 }
 
 function digest(value) {

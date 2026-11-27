@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
-import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { applySignerD1Migrations } from '../fixtures/signer-d1.mjs';
 import {
   establishRegistrationHome,
   seedRegistrationHome,
@@ -72,7 +71,7 @@ const runtime = new Miniflare({
 });
 try {
   const database = await runtime.getD1Database('SIGNER_DB');
-  await migrate(database);
+  await applySignerD1Migrations(database);
   const now = Date.now();
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'issuance-race',
@@ -287,27 +286,12 @@ function authorizationService(database) {
     audit: {},
   });
 }
-async function migrate(database) {
-  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
-  for (const name of (await readdir(directory)).filter(isSql).sort()) {
-    let sql = await readFile(`${directory}/${name}`, 'utf8');
-    if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
-      sql = buildWorkerdCompatiblePhase1Bridge(sql);
-    }
-    const statements = [];
-    for (const query of unstable_splitSqlQuery(sql)) statements.push(database.prepare(query));
-    await database.batch(statements);
-  }
-}
 async function snapshot(database) {
   const rows = {};
   for (const table of sessionTables) {
     rows[table] = (await database.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()).results;
   }
   return rows;
-}
-function isSql(name) {
-  return name.endsWith('.sql');
 }
 function resultKind(result) {
   return result.kind;

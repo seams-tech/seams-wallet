@@ -48,8 +48,7 @@ the [repository README](../../README.md#packaged-local-runtime).
 
 ## Deployment requirements
 
-- Apply Gateway migration `0081_registration_directory_publications.sql` before
-  serving registration. A custom Gateway must schedule
+- Apply the signer D1 migrations before serving registration. A custom Gateway must schedule
   `resumeRegistrationDirectoryPublicationsV1` from the `cloud-host` entry point.
 - Deploy Router, Deriver A, Deriver B, and Signing Worker together. Their private
   object-address allocation contract uses batches.

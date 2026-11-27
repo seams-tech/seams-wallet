@@ -16,6 +16,7 @@ Breaking changes:
 - A security key with no PIN, or another authenticator that cannot verify the user, can no longer register a passkey, sign in, unlock, sign or run an owner operation. Set a PIN on the key, or use another passkey or sign-in method.
 - The server options for an added passkey, a device-link passkey and a recovery passkey carry `authenticatorSelection.userVerification: 'required'`, and the Wallet accepts only that value. Deploy the server and the Wallet host together. A ceremony that starts before the deploy and ends after it fails, and the user starts it again.
 - `webauthn.authenticatorOptions.userVerification` is removed from the SDK config, with the `UserVerificationPolicy` enum. The field had no effect.
+- `@seams/host` D1: the signer migrations are one baseline, `0001_signer_d1_baseline.sql`, in place of the 91 files `0001` to `0091`. Before a database takes this release, apply every migration up to `0091_linked_device_email_otp_own_factor.sql` with the 0.76.0 release. `wrangler d1 migrations apply` then runs the baseline once on that database as a no-op, and the database keeps its schema and data. The baseline refuses a database that does not have migration 0091, with `CHECK constraint failed: apply_migration_0091_first`.
 - `@seams/host` types: `RouterAbEd25519YaoProductRegistrationCeremonyStateV1` has no `registration.admissionClaims` map, and `InMemoryRouterAbEd25519YaoRegistrationService` keeps its admission claims for itself.
 
 ### New package names

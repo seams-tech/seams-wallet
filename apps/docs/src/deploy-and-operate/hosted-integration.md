@@ -94,6 +94,8 @@ The next release renames the packages and changes no behaviour:
 
 Deploy the server, the Wallet host and the apps of one release together, as for each release. The [release notes](/releases) have a table from each old import to its new import.
 
+The signer D1 migrations of `@seams/host` are one baseline, `0001_signer_d1_baseline.sql`. Before you upgrade, apply every signer migration of the 0.76.0 release, up to `0091_linked_device_email_otp_own_factor.sql`. Then `wrangler d1 migrations apply` runs the baseline once as a no-op: the database keeps its schema and data. The baseline refuses a database that does not have migration 0091. A new database gets the whole schema from the baseline.
+
 ## Release 0.76.0
 
 Pin `@seams/wallet` and `@seams/wallet-server` to **0.76.0**.
@@ -133,9 +135,8 @@ after its response. These changes preserve proof, custody, and replay checks.
 
 ## Registration completion
 
-Apply Gateway D1 migration `0081_registration_directory_publications.sql` before the
-new Gateway serves. It adds the table that holds registration completions that the
-directory has not acknowledged.
+Apply the Gateway's signer D1 migrations before the new Gateway serves. They make the
+table that holds registration completions that the directory has not acknowledged.
 
 A registration response no longer waits for the directory write of its completion.
 The Gateway activates the wallet and records the completion as pending in one local

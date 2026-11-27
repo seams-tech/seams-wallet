@@ -14,6 +14,7 @@ description: 各デバイスが自分のEmail OTPの要素を持つため、新�
 
 - PINのないセキュリティキーや、ユーザーを検証できない認証器では、パスキーの登録、サインイン、アンロック、署名、所有者の操作ができません。キーにPINを設定するか、別のパスキーやサインイン方法を使ってください。
 - 追加するパスキー、デバイス連携のパスキー、復元のパスキーのサーバーのオプションは`authenticatorSelection.userVerification: 'required'`を含み、Walletはこの値だけを受け付けます。サーバーとWalletホストを一緒にデプロイしてください。デプロイの前に始まり、後に終わるセレモニーは失敗します。ユーザーはもう一度始めます。
+- `@seams/host`のD1: 署名用マイグレーションは、`0001`から`0091`までの91個のファイルの代わりに、1つのベースライン`0001_signer_d1_baseline.sql`になります。データベースがこのリリースを受け取る前に、0.76.0のリリースで`0091_linked_device_email_otp_own_factor.sql`までのすべてのマイグレーションを適用してください。その後、`wrangler d1 migrations apply`はそのデータベースでベースラインを1回だけ実行しますが、何も変更しません。データベースのスキーマとデータはそのまま残ります。マイグレーション0091のないデータベースでは、ベースラインは`CHECK constraint failed: apply_migration_0091_first`で失敗します。
 - SDKの設定から`webauthn.authenticatorOptions.userVerification`を削除しました。`UserVerificationPolicy`の列挙型も削除しました。このフィールドに効果はありませんでした。
 
 ### 新しいパッケージ名 {#new-package-names}

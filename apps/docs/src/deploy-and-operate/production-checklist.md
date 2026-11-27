@@ -49,7 +49,7 @@ users.
       placement. Routing and directory outages fail safely.
 - [ ] APAC registration and relocation use `apac-se`. Record actual object
       locations and database primaries. A placement hint alone is insufficient.
-- [ ] Gateway migration `0081_registration_directory_publications.sql` is applied.
+- [ ] The Gateway's signer D1 migrations are applied.
       The scheduled handler resumes pending registration publications, and the
       queue drains after a successful registration.
 - [ ] Router, both Derivers, and Signing Worker use the same private allocation

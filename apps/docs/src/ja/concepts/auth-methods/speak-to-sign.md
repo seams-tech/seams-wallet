@@ -251,7 +251,7 @@ Walletが固定している音声鍵のシークレット`PROTECTED_AUDIO_KEY`�
 失敗は固定のコードを含むJSONのエラーです:`summary_unreachable`、`summary_failed`、`summary_not_speakable`。鍵がないと、Walletは音声によるノートに署名できません。
 
 同じ6つの変数で、共同署名者による判定の確認も有効になります。共同署名者は、受け入れた判定を署名者データベースのテーブル
-`speak_to_sign_voice_verdicts`(D1のマイグレーション`0089_speak_to_sign_voice_verdicts.sql`)に記録します。
+`speak_to_sign_voice_verdicts`(署名用D1マイグレーションが作るテーブル)に記録します。
 新しい記録を追加するたびに、そのウォレットの24時間より古い記録を削除します。サーバーのログには、拒否のたびに理由、ウォレット、署名のリクエストを含む警告が1行出ます。
 これらの変数がないSeamsのサーバーは、判定を含む署名のリクエストをすべて理由`unavailable`で拒否します。
 

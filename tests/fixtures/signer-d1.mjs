@@ -1,16 +1,15 @@
+import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
 
 const migrationsDirectory = fileURLToPath(
   new URL('../../packages/mpc-wallet-server/migrations/d1-signer/', import.meta.url),
 );
 
-/** @param {string | null} beforeMigration */
-export async function openSignerD1(beforeMigration = null) {
+export async function openSignerD1() {
   const runtime = new Miniflare({
     modules: true,
     script: 'export default {};',
@@ -20,25 +19,24 @@ export async function openSignerD1(beforeMigration = null) {
   });
   try {
     const database = await runtime.getD1Database('DB');
-    const names = (await readdir(migrationsDirectory)).filter(isSqlMigration).sort();
-    const migrations = names.filter((name) => beforeMigration === null || name < beforeMigration);
-    const pendingMigrations = names.filter((name) => !migrations.includes(name));
-    await applySignerD1Migrations(database, migrations);
-    return { database, migrations, pendingMigrations, close: runtime.dispose.bind(runtime) };
+    const migrations = await applySignerD1Migrations(database);
+    return { database, migrations, close: runtime.dispose.bind(runtime) };
   } catch (error) {
     await runtime.dispose();
     throw error;
   }
 }
 
-export async function applySignerD1Migrations(database, names) {
-  for (const name of names) {
-    let sql = await readFile(join(migrationsDirectory, name), 'utf8');
-    if (name === '0028_r103f_phase1_additive_schema_bridge.sql') {
-      sql = buildWorkerdCompatiblePhase1Bridge(sql);
-    }
+// Applies every signer migration in name order, as `wrangler d1 migrations apply` does, and
+// returns the name and SHA-256 of each file.
+export async function applySignerD1Migrations(database) {
+  const migrations = [];
+  for (const name of (await readdir(migrationsDirectory)).filter(isSqlMigration).sort()) {
+    const sql = await readFile(join(migrationsDirectory, name), 'utf8');
     await database.batch(unstable_splitSqlQuery(sql).map((query) => database.prepare(query)));
+    migrations.push({ name, sha256: createHash('sha256').update(sql).digest('hex') });
   }
+  return migrations;
 }
 
 function isSqlMigration(name) {

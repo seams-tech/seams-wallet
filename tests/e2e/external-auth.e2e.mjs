@@ -3,15 +3,14 @@ import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
 import { isoCBOR } from '@simplewebauthn/server/helpers';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { chromium } from '@playwright/test';
 import { Miniflare } from 'miniflare';
-import { unstable_splitSqlQuery } from 'wrangler';
 import { emailOtpTestCodeSeal } from './emailOtpTestCodeSeal.mjs';
-import { buildWorkerdCompatiblePhase1Bridge } from '../../packages/mpc-wallet-server/scripts/d1-local-migrate-signer.mjs';
+import { applySignerD1Migrations } from '../fixtures/signer-d1.mjs';
 import { seedExecutionGeneration } from './execution-generation.scenario.mjs';
 
 class InterruptedOwnerWrites {
@@ -291,7 +290,7 @@ class ExchangeGate {
 }
 
 try {
-  await migrate();
+  await applySignerD1Migrations(database);
   const ownerKey = createOwnerPasskey();
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'external-owner',
@@ -813,20 +812,6 @@ async function serve(incoming, outgoing) {
     outgoing.writeHead(500);
     outgoing.end('{"ok":false,"code":"test_server_failure"}');
   }
-}
-async function migrate() {
-  const directory = 'packages/mpc-wallet-server/migrations/d1-signer';
-  for (const name of (await readdir(directory)).filter(isSql).sort()) {
-    let sql = await readFile(`${directory}/${name}`, 'utf8');
-    if (name === '0028_r103f_phase1_additive_schema_bridge.sql')
-      sql = buildWorkerdCompatiblePhase1Bridge(sql);
-    const statements = [];
-    for (const query of unstable_splitSqlQuery(sql)) statements.push(database.prepare(query));
-    await database.batch(statements);
-  }
-}
-function isSql(name) {
-  return name.endsWith('.sql');
 }
 function isBrowserJs(file) {
   return file.path.endsWith('.js');

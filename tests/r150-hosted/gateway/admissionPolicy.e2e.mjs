@@ -1,23 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
-import { unstable_splitSqlQuery } from 'wrangler';
+import { applySignerD1Migrations } from '../../fixtures/signer-d1.mjs';
 
 const root = '.artifacts/r152/admission-ownership';
 await mkdir(root, { recursive: true });
-const migration = await readFile(
-  'packages/mpc-wallet-server/migrations/d1-signer/0001_signer_d1_initial.sql',
-  'utf8',
-);
-const schema = /CREATE TABLE router_ab_normal_signing_admission_records \([\s\S]*?\n\);/u.exec(
-  migration,
-)?.[0];
-assert.ok(schema);
-const ownershipMigration = await readFile(
-  'packages/mpc-wallet-server/migrations/d1-signer/0046_wallet_owned_signing_abuse.sql',
-  'utf8',
-);
 const options = {
   bundle: true,
   format: 'esm',
@@ -40,10 +28,7 @@ const worker = new Miniflare({
 const evidence = [];
 try {
   const d1 = await worker.getD1Database('DB');
-  await d1.prepare(schema).run();
-  for (const statement of unstable_splitSqlQuery(ownershipMigration)) {
-    await d1.prepare(statement).run();
-  }
+  await applySignerD1Migrations(d1);
   for (const host of ['d1', 'memory']) {
     await scenario(host, false);
     await scenario(host, true);
