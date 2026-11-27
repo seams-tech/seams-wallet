@@ -451,8 +451,12 @@ export function createFetchRouter(
 
     try {
       for (const fn of handlers) {
-        const res = await fn(ctx);
-        if (res) {
+        const routed = await fn(ctx);
+        if (routed) {
+          // A route can answer with a Response that it fetched from a service binding. The
+          // runtime does not let code change the headers of one, so the router answers with
+          // its own copy.
+          const res = new Response(routed.body, routed);
           withCors(res.headers, effectiveOpts, request);
           return res;
         }
