@@ -683,12 +683,10 @@ function stagingLinkedDeviceSessionComposition(
   const walletStore = new D1WalletStore({
     database: env.SIGNER_DB,
     ...scope,
-    ensureSchema: false,
   });
   const walletAuthMethodStore = new D1WalletAuthMethodStore({
     database: env.SIGNER_DB,
     ...scope,
-    ensureSchema: false,
   });
   const sourceChildReader = createD1LinkedDeviceOwnerSourceChildReaderV1({
     walletAuthMethodStore,
@@ -1605,7 +1603,6 @@ function createStagingRecoveryRequestScopedDependencies(
       database: env.SIGNER_DB,
       scope,
       walletStore: stagingWalletStore(env),
-      ensureSchema: false,
     }),
     capabilities: yaoRuntime,
     /* Warm bootstraps for device-linked authorities need the installed linked
@@ -1680,6 +1677,5 @@ function stagingWalletStore(env: CloudflareD1GatewayBaseEnv): D1WalletStore {
     orgId: scope.orgId,
     projectId: scope.projectId,
     envId: scope.envId,
-    ensureSchema: false,
   });
 }

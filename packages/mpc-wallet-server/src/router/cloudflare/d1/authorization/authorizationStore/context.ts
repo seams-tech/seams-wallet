@@ -64,7 +64,6 @@ export function createD1AuthorizationContext(
     orgId: walletSignerScope.orgId,
     projectId: walletSignerScope.projectId,
     envId: walletSignerScope.envId,
-    ensureSchema: false,
   });
   return {
     database,

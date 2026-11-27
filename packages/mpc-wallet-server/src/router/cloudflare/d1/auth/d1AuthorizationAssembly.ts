@@ -89,7 +89,6 @@ export function createD1IdentityStore(options: NormalizedCloudflareD1RouterApiAu
     orgId: options.orgId,
     projectId: options.projectId,
     envId: options.envId,
-    ensureSchema: false,
   });
 }
 

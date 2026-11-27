@@ -28,27 +28,6 @@ import { parsePersistedWalletSessionAuthorizationV2 } from '../authorization/per
 const ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1 =
   'router_ab_yao_capability_replacements';
 
-const CAPABILITY_REPLACEMENT_SCHEMA_SQL = `
-  CREATE TABLE IF NOT EXISTS ${ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1} (
-    namespace TEXT NOT NULL,
-    org_id TEXT NOT NULL,
-    project_id TEXT NOT NULL,
-    env_id TEXT NOT NULL,
-    wallet_id TEXT NOT NULL CHECK (length(wallet_id) > 0),
-    operation_id TEXT NOT NULL,
-    operation_fingerprint TEXT NOT NULL,
-    previous_capability_binding_json TEXT NOT NULL,
-    next_capability_binding_json TEXT NOT NULL,
-    created_at_ms INTEGER NOT NULL,
-    PRIMARY KEY (namespace, org_id, project_id, env_id, operation_id),
-    CHECK (length(operation_id) > 0),
-    CHECK (length(operation_fingerprint) > 0),
-    CHECK (json_valid(previous_capability_binding_json)),
-    CHECK (json_valid(next_capability_binding_json)),
-    CHECK (created_at_ms >= 0)
-  )
-`;
-
 type CapabilityReplacementReceiptRow = {
   readonly wallet_id: unknown;
   readonly operation_fingerprint: unknown;
@@ -75,7 +54,6 @@ type CloudflareD1RouterAbEd25519YaoCapabilityPersistenceOptions = {
   readonly database: D1DatabaseLike;
   readonly scope: D1WalletStoreScope;
   readonly walletStore: D1WalletStore;
-  readonly ensureSchema?: boolean;
   readonly now?: () => number;
 };
 
@@ -154,15 +132,12 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
   private readonly database: D1DatabaseLike;
   private readonly scope: D1WalletStoreScope;
   private readonly walletStore: D1WalletStore;
-  private readonly ensureSchemaOnUse: boolean;
   private readonly now: () => number;
-  private schemaReady = false;
 
   constructor(options: CloudflareD1RouterAbEd25519YaoCapabilityPersistenceOptions) {
     this.database = options.database;
     this.scope = options.scope;
     this.walletStore = options.walletStore;
-    this.ensureSchemaOnUse = options.ensureSchema ?? true;
     this.now = options.now ?? Date.now;
   }
 
@@ -184,7 +159,6 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
         'capability replacement crosses wallet ownership',
       );
     }
-    await this.ensureSchema();
     const existingReceipt = await this.readReceipt(operation.value.operationId);
     const receiptMatch = matchReceipt(existingReceipt, operation.value, input);
     if (receiptMatch === 'match') {
@@ -334,12 +308,6 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
       }
     }
     return { ok: true, disposition: 'prepared', write: { statements } };
-  }
-
-  private async ensureSchema(): Promise<void> {
-    if (!this.ensureSchemaOnUse || this.schemaReady) return;
-    await this.database.exec(CAPABILITY_REPLACEMENT_SCHEMA_SQL);
-    this.schemaReady = true;
   }
 
   private async prepareActiveAuthorityReplacements(input: {

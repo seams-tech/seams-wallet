@@ -37,13 +37,8 @@ import {
   thresholdEcdsaChainTargetKey,
 } from './thresholdEcdsaChainTarget';
 
-export {
-  D1WalletStore,
-  WALLET_STORE_D1_SCHEMA_SQL,
-  buildWalletEcdsaSignerRecord,
-  ensureWalletStoreD1Schema,
-} from './d1WalletStore';
-export type { D1WalletStoreOptions, D1WalletStoreSchemaOptions } from './d1WalletStore';
+export { D1WalletStore, buildWalletEcdsaSignerRecord } from './d1WalletStore';
+export type { D1WalletStoreOptions } from './d1WalletStore';
 
 export type WalletRecord = {
   version: 'wallet_v1';

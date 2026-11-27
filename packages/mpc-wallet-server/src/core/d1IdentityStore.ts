@@ -1,20 +1,13 @@
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
 import { d1ChangedRows } from '../storage/d1Sql';
-import {
-  D1TenantTable,
-  ensureD1Schema,
-  type D1SchemaOptions,
-  type D1TenantStoreOptions,
-} from './d1TenantStore';
+import { D1TenantTable, type D1TenantStoreOptions } from './d1TenantStore';
 import type {
   IdentityStore,
   IdentitySubjectRecord,
   LinkIdentityResult,
   UnlinkIdentityResult,
 } from './IdentityStore';
-
-export interface D1IdentityStoreSchemaOptions extends D1SchemaOptions {}
 
 export interface D1IdentityStoreOptions extends D1TenantStoreOptions {
   readonly now?: () => Date;
@@ -38,54 +31,6 @@ const SUBJECT_COUNT_SQL = `SELECT COUNT(*) AS subject_count
           AND project_id = ?
           AND env_id = ?
           AND user_id = ?`;
-
-export const IDENTITY_STORE_D1_SCHEMA_SQL = Object.freeze([
-  `
-    CREATE TABLE IF NOT EXISTS identity_links (
-      namespace TEXT NOT NULL,
-      org_id TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      env_id TEXT NOT NULL,
-      subject TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      record_json TEXT NOT NULL,
-      created_at_ms INTEGER NOT NULL,
-      updated_at_ms INTEGER NOT NULL,
-      PRIMARY KEY (namespace, org_id, project_id, env_id, subject),
-      CHECK (length(namespace) > 0),
-      CHECK (length(org_id) > 0),
-      CHECK (length(project_id) > 0),
-      CHECK (length(env_id) > 0),
-      CHECK (length(subject) > 0),
-      CHECK (length(user_id) > 0),
-      CHECK (json_valid(record_json)),
-      CHECK (created_at_ms > 0),
-      CHECK (updated_at_ms >= created_at_ms),
-      CHECK (COALESCE(json_extract(record_json, '$.version') = 'identity_subject_v1', 0)),
-      CHECK (COALESCE(json_extract(record_json, '$.subject') = subject, 0)),
-      CHECK (COALESCE(json_extract(record_json, '$.userId') = user_id, 0)),
-      CHECK (COALESCE(json_extract(record_json, '$.createdAtMs') = created_at_ms, 0)),
-      CHECK (COALESCE(json_extract(record_json, '$.updatedAtMs') = updated_at_ms, 0))
-    )
-  `,
-  `
-    CREATE INDEX IF NOT EXISTS identity_links_user_idx
-      ON identity_links (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        user_id,
-        created_at_ms
-      )
-  `,
-] as const);
-
-export async function ensureIdentityStoreD1Schema(
-  options: D1IdentityStoreSchemaOptions,
-): Promise<void> {
-  await ensureD1Schema(options.database, IDENTITY_STORE_D1_SCHEMA_SQL);
-}
 
 function defaultNow(): Date {
   return new Date();
@@ -125,12 +70,11 @@ export class D1IdentityStore implements IdentityStore {
   private readonly now: () => Date;
 
   constructor(input: D1IdentityStoreOptions) {
-    this.table = new D1TenantTable(input, IDENTITY_D1_STORE, IDENTITY_STORE_D1_SCHEMA_SQL);
+    this.table = new D1TenantTable(input, IDENTITY_D1_STORE);
     this.now = input.now || defaultNow;
   }
 
   async getUserIdBySubject(subject: string): Promise<string | null> {
-    await this.table.ensureSchema();
     const normalizedSubject = toOptionalTrimmedString(subject);
     if (!normalizedSubject) return null;
     const row = await this.table
@@ -150,7 +94,6 @@ export class D1IdentityStore implements IdentityStore {
   }
 
   async listSubjectsByUserId(userId: string): Promise<string[]> {
-    await this.table.ensureSchema();
     const normalizedUserId = toOptionalTrimmedString(userId);
     if (!normalizedUserId) return [];
     const result = await this.table
@@ -176,7 +119,6 @@ export class D1IdentityStore implements IdentityStore {
     subject: string;
     allowMoveIfSoleIdentity?: boolean;
   }): Promise<LinkIdentityResult> {
-    await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
     if (!userId) return failure('invalid_args', 'Missing userId');
@@ -306,7 +248,6 @@ export class D1IdentityStore implements IdentityStore {
     userId: string;
     subject: string;
   }): Promise<UnlinkIdentityResult> {
-    await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
     if (!userId) return failure('invalid_args', 'Missing userId');
@@ -369,7 +310,6 @@ export class D1IdentityStore implements IdentityStore {
     userId: string;
     subject: string;
   }): Promise<UnlinkIdentityResult> {
-    await this.table.ensureSchema();
     const userId = toOptionalTrimmedString(input.userId);
     const subject = toOptionalTrimmedString(input.subject);
     if (!userId) return failure('invalid_args', 'Missing userId');

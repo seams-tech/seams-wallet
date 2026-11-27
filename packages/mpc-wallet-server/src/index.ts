@@ -26,22 +26,16 @@ export type {
 export * from './core/signingMaterial/ordinaryInactiveSignerMaterialReservation';
 export {
   D1WalletAuthMethodStore,
-  ensureWalletAuthMethodStoreD1Schema,
   normalizeWalletAuthMethod,
-  WALLET_AUTH_METHOD_STORE_D1_SCHEMA_SQL,
   type D1WalletAuthMethodStoreOptions,
-  type D1WalletAuthMethodStoreSchemaOptions,
   type WalletAuthMethodRecord,
   type WalletAuthMethodStore,
 } from './core/WalletAuthMethodStore';
 export {
   D1WalletStore,
-  WALLET_STORE_D1_SCHEMA_SQL,
   buildWalletEcdsaSignerRecord,
   buildWalletEd25519SignerId,
-  ensureWalletStoreD1Schema,
   type D1WalletStoreOptions,
-  type D1WalletStoreSchemaOptions,
   type WalletEcdsaSignerRecord,
   type WalletEd25519SignerRecord,
   type WalletRecord,
@@ -60,10 +54,7 @@ export { type WebAuthnLoginChallengeRecord } from './core/WebAuthnLoginChallenge
 export { type WebAuthnSyncChallengeRecord } from './core/WebAuthnSyncChallengeStore';
 export {
   D1IdentityStore,
-  IDENTITY_STORE_D1_SCHEMA_SQL,
-  ensureIdentityStoreD1Schema,
   type D1IdentityStoreOptions,
-  type D1IdentityStoreSchemaOptions,
   type IdentityStore,
   type IdentitySubjectRecord,
   type LinkIdentityResult,

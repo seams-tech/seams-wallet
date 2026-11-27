@@ -28,7 +28,7 @@ export async function readWalletRelocationOwner(
   scope: D1TenantScope,
   binding: WalletRelocationChallengeBinding,
 ) {
-  const methods = new D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false });
+  const methods = new D1WalletAuthMethodStore({ database, ...scope });
   const method = await methods.readByIdV2({ walletAuthMethodId: binding.walletAuthMethodId });
   if (
     !method ||

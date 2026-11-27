@@ -21,14 +21,7 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../storage/tenantRoute';
-import {
-  D1Schema,
-  D1TenantTable,
-  ensureD1Schema,
-  type D1SchemaOptions,
-  type D1TenantScope,
-  type D1TenantStoreOptions,
-} from './d1TenantStore';
+import { D1TenantTable, type D1TenantScope, type D1TenantStoreOptions } from './d1TenantStore';
 
 export type WalletAuthMethodRecord = SharedWalletAuthMethodRecord;
 
@@ -91,8 +84,6 @@ export interface WalletAuthMethodStore {
   listForWallet(input: { walletId: string; rpId?: string }): Promise<WalletAuthMethodRecord[]>;
 }
 
-export interface D1WalletAuthMethodStoreSchemaOptions extends D1SchemaOptions {}
-
 export interface D1WalletAuthMethodStoreOptions extends D1TenantStoreOptions {}
 
 export type D1WalletAuthMethodStoreScope = D1TenantScope;
@@ -103,271 +94,6 @@ const WALLET_AUTH_METHOD_D1_STORE = 'wallet auth-method store';
 type D1WalletAuthMethodRow = {
   readonly record_json?: unknown;
 };
-
-export const WALLET_AUTH_METHOD_STORE_D1_SCHEMA_SQL = Object.freeze([
-  `
-    CREATE TABLE IF NOT EXISTS wallet_auth_methods (
-      namespace TEXT NOT NULL,
-      org_id TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      env_id TEXT NOT NULL,
-      wallet_id TEXT NOT NULL,
-      rp_id TEXT NOT NULL DEFAULT '',
-      kind TEXT NOT NULL,
-      status TEXT NOT NULL,
-      wallet_auth_method_id TEXT NOT NULL,
-      auth_identifier_key TEXT NOT NULL,
-      credential_id_b64u TEXT,
-      credential_public_key_b64u TEXT,
-      email_hash_hex TEXT,
-      registration_authority_id TEXT,
-      record_json TEXT NOT NULL,
-      created_at_ms INTEGER NOT NULL,
-      updated_at_ms INTEGER NOT NULL,
-      PRIMARY KEY (namespace, org_id, project_id, env_id, wallet_auth_method_id),
-      CHECK (length(wallet_id) > 0),
-      CHECK (kind IN ('passkey', 'email_otp')),
-      CHECK (status IN ('active', 'revoked')),
-      CHECK (length(wallet_auth_method_id) > 0),
-      CHECK (length(auth_identifier_key) > 0),
-      CHECK (json_valid(record_json)),
-      CHECK (created_at_ms >= 0),
-      CHECK (updated_at_ms >= created_at_ms),
-      CHECK (
-        (
-          kind = 'passkey'
-          AND length(rp_id) > 0
-          AND credential_id_b64u IS NOT NULL
-          AND length(credential_id_b64u) > 0
-          AND credential_public_key_b64u IS NOT NULL
-          AND length(credential_public_key_b64u) > 0
-          AND email_hash_hex IS NULL
-          AND registration_authority_id IS NULL
-          AND auth_identifier_key = credential_id_b64u
-          AND wallet_auth_method_id = 'passkey:' || rp_id || ':' || credential_id_b64u
-        )
-        OR
-        (
-          kind = 'email_otp'
-          AND rp_id = ''
-          AND credential_id_b64u IS NULL
-          AND credential_public_key_b64u IS NULL
-          AND email_hash_hex IS NOT NULL
-          AND length(email_hash_hex) > 0
-          AND registration_authority_id IS NOT NULL
-          AND length(registration_authority_id) > 0
-          AND auth_identifier_key = email_hash_hex
-          AND wallet_auth_method_id = 'email_otp:' || wallet_id || ':' || email_hash_hex
-        )
-      )
-    )
-  `,
-  `
-    CREATE INDEX IF NOT EXISTS wallet_auth_methods_wallet_idx
-      ON wallet_auth_methods (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        rp_id,
-        status
-      )
-  `,
-  `
-    CREATE INDEX IF NOT EXISTS wallet_auth_methods_identifier_idx
-      ON wallet_auth_methods (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        kind,
-        auth_identifier_key
-      )
-  `,
-  `
-    CREATE UNIQUE INDEX IF NOT EXISTS wallet_auth_methods_passkey_uidx
-      ON wallet_auth_methods (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        rp_id,
-        credential_id_b64u
-      )
-      WHERE kind = 'passkey' AND credential_id_b64u IS NOT NULL
-  `,
-  `
-    CREATE UNIQUE INDEX IF NOT EXISTS wallet_auth_methods_email_uidx
-      ON wallet_auth_methods (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        email_hash_hex
-      )
-      WHERE kind = 'email_otp' AND email_hash_hex IS NOT NULL
-  `,
-] as const);
-
-/**
- * The authority-owned table shape is kept separate from the historical
- * create-if-missing schema above. Deployments apply 0007 before using these
- * statements; keeping the SQL here lets focused D1 tests provision the V2
- * table without copying migration text into a test.
- */
-export const WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL = Object.freeze([
-  `
-    CREATE TABLE IF NOT EXISTS wallet_auth_methods (
-      namespace TEXT NOT NULL,
-      org_id TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      env_id TEXT NOT NULL,
-      wallet_id TEXT NOT NULL,
-      wallet_authority_id TEXT NOT NULL,
-      rp_id TEXT NOT NULL DEFAULT '',
-      kind TEXT NOT NULL,
-      status TEXT NOT NULL,
-      wallet_auth_method_id TEXT NOT NULL,
-      auth_identifier_key TEXT NOT NULL,
-      credential_id_b64u TEXT,
-      credential_public_key_b64u TEXT,
-      email_hash_hex TEXT,
-      registration_authority_id TEXT,
-      record_json TEXT NOT NULL,
-      created_at_ms INTEGER NOT NULL,
-      updated_at_ms INTEGER NOT NULL,
-      activated_at_ms INTEGER,
-      revoked_at_ms INTEGER,
-      provider TEXT,
-      provider_user_id TEXT,
-      PRIMARY KEY (namespace, org_id, project_id, env_id, wallet_auth_method_id),
-      FOREIGN KEY (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_authority_id
-      ) REFERENCES wallet_authorities(
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        authority_id
-      ),
-      CHECK (length(wallet_id) > 0),
-      CHECK (length(wallet_authority_id) > 0),
-      CHECK (kind IN ('passkey', 'email_otp', 'voiceid')),
-      CHECK (status IN ('pending_local_install', 'active', 'revoked')),
-      CHECK (length(wallet_auth_method_id) > 0),
-      CHECK (length(auth_identifier_key) > 0),
-      CHECK (json_valid(record_json)),
-      CHECK (created_at_ms >= 0),
-      CHECK (updated_at_ms >= created_at_ms),
-      CHECK (
-        (status = 'pending_local_install' AND activated_at_ms IS NULL AND revoked_at_ms IS NULL)
-        OR
-        (status = 'active' AND activated_at_ms IS NOT NULL AND revoked_at_ms IS NULL)
-        OR
-        (status = 'revoked' AND activated_at_ms IS NOT NULL AND revoked_at_ms IS NOT NULL)
-      ),
-      CHECK (
-        (kind = 'passkey'
-          AND length(rp_id) > 0
-          AND credential_id_b64u IS NOT NULL
-          AND length(credential_id_b64u) > 0
-          AND credential_public_key_b64u IS NOT NULL
-          AND length(credential_public_key_b64u) > 0
-          AND email_hash_hex IS NULL
-          AND registration_authority_id IS NULL
-          AND auth_identifier_key = credential_id_b64u)
-        OR
-        (kind = 'email_otp'
-          AND rp_id = ''
-          AND credential_id_b64u IS NULL
-          AND credential_public_key_b64u IS NULL
-          AND email_hash_hex IS NOT NULL
-          AND length(email_hash_hex) > 0
-          AND registration_authority_id IS NOT NULL
-          AND length(registration_authority_id) > 0
-          AND auth_identifier_key = email_hash_hex)
-        OR
-        (kind = 'voiceid'
-          AND rp_id = ''
-          AND credential_id_b64u IS NULL
-          AND credential_public_key_b64u IS NOT NULL
-          AND length(credential_public_key_b64u) = 43
-          AND email_hash_hex IS NULL
-          AND registration_authority_id IS NULL
-          AND provider IS NULL
-          AND provider_user_id IS NULL
-          AND length(auth_identifier_key) = 43
-          AND COALESCE(auth_identifier_key = json_extract(record_json, '$.deviceKeyId'), 0))
-      ),
-      CHECK (json_extract(record_json, '$.version') = 'wallet_auth_method_v2'),
-      CHECK (json_extract(record_json, '$.walletAuthMethodId') = wallet_auth_method_id),
-      CHECK (json_extract(record_json, '$.walletId') = wallet_id),
-      CHECK (json_extract(record_json, '$.walletAuthorityId') = wallet_authority_id),
-      CHECK (json_extract(record_json, '$.kind') = kind),
-      CHECK (json_extract(record_json, '$.status') = status),
-      CHECK (json_extract(record_json, '$.createdAtMs') = created_at_ms),
-      CHECK (json_extract(record_json, '$.updatedAtMs') = updated_at_ms),
-      CHECK (
-        (kind = 'passkey'
-          AND json_extract(record_json, '$.rpId') = rp_id
-          AND json_extract(record_json, '$.credentialIdB64u') = credential_id_b64u
-          AND json_extract(record_json, '$.credentialPublicKeyB64u') = credential_public_key_b64u
-          AND json_extract(record_json, '$.counter') >= 0)
-        OR
-        (kind = 'email_otp'
-          AND json_extract(record_json, '$.emailHashHex') = email_hash_hex
-          AND json_extract(record_json, '$.registrationAuthorityId') = registration_authority_id)
-        OR
-        (kind = 'voiceid'
-          AND COALESCE(json_extract(record_json, '$.deviceKeyId') = auth_identifier_key, 0)
-          AND COALESCE(json_extract(record_json, '$.devicePublicKeyB64u') = credential_public_key_b64u, 0))
-      )
-    )
-  `,
-  `
-    CREATE INDEX IF NOT EXISTS wallet_auth_methods_wallet_authority_status_idx
-      ON wallet_auth_methods (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        wallet_authority_id,
-        status
-      )
-  `,
-  `
-    CREATE UNIQUE INDEX IF NOT EXISTS wallet_auth_methods_v2_voiceid_key_uidx
-      ON wallet_auth_methods (
-        namespace, org_id, project_id, env_id, auth_identifier_key
-      )
-      WHERE kind = 'voiceid'
-  `,
-  `
-    CREATE UNIQUE INDEX IF NOT EXISTS wallet_auth_methods_v2_passkey_uidx
-      ON wallet_auth_methods (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        rp_id,
-        credential_id_b64u
-      )
-      WHERE kind = 'passkey' AND credential_id_b64u IS NOT NULL
-  `,
-] as const);
-
-export async function ensureWalletAuthMethodStoreD1Schema(
-  options: D1WalletAuthMethodStoreSchemaOptions,
-): Promise<void> {
-  await ensureD1Schema(options.database, WALLET_AUTH_METHOD_STORE_D1_SCHEMA_SQL);
-}
 
 function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -770,23 +496,12 @@ function prepareD1InsertCasGuardStatement(database: D1DatabaseLike): D1PreparedS
 export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAuthMethodV2Store {
   readonly adapterKind = 'd1';
   private readonly table: D1TenantTable;
-  private readonly v2Schema: D1Schema;
 
   constructor(input: D1WalletAuthMethodStoreOptions) {
-    this.table = new D1TenantTable(
-      input,
-      WALLET_AUTH_METHOD_D1_STORE,
-      WALLET_AUTH_METHOD_STORE_D1_SCHEMA_SQL,
-    );
-    this.v2Schema = new D1Schema(
-      input.database,
-      WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL,
-      input.ensureSchema !== false,
-    );
+    this.table = new D1TenantTable(input, WALLET_AUTH_METHOD_D1_STORE);
   }
 
   async put(record: WalletAuthMethodRecord): Promise<void> {
-    await this.table.ensureSchema();
     await prepareD1WalletAuthMethodPutStatement({
       database: this.table.database,
       scope: this.table.scope,
@@ -817,7 +532,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     rpId: string;
     credentialIdB64u: string;
   }): Promise<WalletAuthMethodRecord | null> {
-    await this.table.ensureSchema();
     const rpId = toOptionalTrimmedString(input.rpId);
     const credentialIdB64u = toOptionalTrimmedString(input.credentialIdB64u);
     if (!rpId || !credentialIdB64u) return null;
@@ -834,7 +548,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     walletId: string;
     emailHashHex: string;
   }): Promise<WalletAuthMethodRecord | null> {
-    await this.table.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     const emailHashHex = toOptionalTrimmedString(input.emailHashHex);
     if (!walletId || !emailHashHex) return null;
@@ -851,7 +564,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     walletId: string;
     rpId?: string;
   }): Promise<WalletAuthMethodRecord[]> {
-    await this.table.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return [];
     const rpId = toOptionalTrimmedString(input.rpId);
@@ -878,7 +590,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
   }
 
   async putV2(record: WalletAuthMethodRecordV2): Promise<void> {
-    await this.v2Schema.ensure();
     await prepareD1WalletAuthMethodV2PutStatement({
       database: this.table.database,
       scope: this.table.scope,
@@ -890,7 +601,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     readonly record: ActiveWalletAuthMethodRecordV2;
     readonly prerequisiteStatements: readonly D1PreparedStatementLike[];
   }): Promise<boolean> {
-    await this.v2Schema.ensure();
     try {
       const statements = [
         ...input.prerequisiteStatements,
@@ -1024,7 +734,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
   async readByIdV2(input: {
     readonly walletAuthMethodId: WalletAuthMethodId;
   }): Promise<WalletAuthMethodRecordV2 | null> {
-    await this.v2Schema.ensure();
     return normalizeWalletAuthMethodV2(
       await readD1WalletAuthMethodJsonById(
         this.table.database,
@@ -1057,7 +766,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     rpId: string;
     credentialIdB64u: string;
   }): Promise<WalletAuthMethodRecordV2 | null> {
-    await this.v2Schema.ensure();
     const rpId = toOptionalTrimmedString(input.rpId);
     const credentialIdB64u = toOptionalTrimmedString(input.credentialIdB64u);
     if (!rpId || !credentialIdB64u) return null;
@@ -1084,7 +792,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     walletId: string;
     emailHashHex: string;
   }): Promise<WalletAuthMethodRecordV2 | null> {
-    await this.v2Schema.ensure();
     const walletId = toOptionalTrimmedString(input.walletId);
     const emailHashHex = toOptionalTrimmedString(input.emailHashHex);
     if (!walletId || !emailHashHex) return null;
@@ -1112,7 +819,6 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
     walletAuthorityId?: WalletAuthorityId;
     rpId?: string;
   }): Promise<WalletAuthMethodRecordV2[]> {
-    await this.v2Schema.ensure();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return [];
     const authorityId = input.walletAuthorityId ? String(input.walletAuthorityId) : '';

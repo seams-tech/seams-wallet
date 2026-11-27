@@ -54,8 +54,8 @@ export async function verifyLinkSource(
       const reader = createD1LinkedDeviceVerifiedLinkSourceReaderV1({
         authorizationService,
         authorityStore: new D1WalletAuthorityStore({ database, scope }),
-        authMethodStore: new D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false }),
-        walletStore: new D1WalletStore({ database, ...scope, ensureSchema: false }),
+        authMethodStore: new D1WalletAuthMethodStore({ database, ...scope }),
+        walletStore: new D1WalletStore({ database, ...scope }),
         tenantId: tenantId.value,
       });
       for (const keyFamily of ['ed25519', 'ecdsa_secp256k1'] as const) {

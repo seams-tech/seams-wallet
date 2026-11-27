@@ -758,7 +758,6 @@ function getWalletAuthMethodStoreForState(
     orgId: state.options.orgId,
     projectId: state.options.projectId,
     envId: state.options.envId,
-    ensureSchema: false,
   });
   return state.walletAuthMethodStore;
 }
@@ -771,7 +770,6 @@ function getWalletStoreForState(state: CloudflareD1RouterApiLazyStoreState): D1W
     orgId: state.options.orgId,
     projectId: state.options.projectId,
     envId: state.options.envId,
-    ensureSchema: false,
   });
   return state.walletStore;
 }

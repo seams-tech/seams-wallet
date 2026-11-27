@@ -322,7 +322,7 @@ try {
   });
   authenticatorStore = new api.CloudflareD1WebAuthnStore({ database, ...scope });
   await seedOwnerAuthority(fixture, ownerKey);
-  const methodStore = new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false });
+  const methodStore = new api.D1WalletAuthMethodStore({ database, ...scope });
   const authorityStore = new api.D1WalletAuthorityStore({ database, scope });
   const factors = new RegisteredOwnerFactors(methodStore, authorityStore);
   const webAuthn = new api.CloudflareD1WebAuthnAuthService({
@@ -333,8 +333,8 @@ try {
   serverState.service = {
     externalAuth: new api.ExternalAuthService(
       new api.ExternalAuthStore(faultedDatabase, scope),
-      new api.D1WalletStore({ database, ...scope, ensureSchema: false }),
-      new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false }),
+      new api.D1WalletStore({ database, ...scope }),
+      new api.D1WalletAuthMethodStore({ database, ...scope }),
     ),
     authorizedOperations: ownerOperationService(authorization, store, fixture.issuedSession.session.tenantId),
     walletAuthMethods: { resolveActivePasskeyAuthorityForVerifiedCredential: factors.resolvePasskey.bind(factors) },
@@ -992,7 +992,7 @@ function createOwnerPasskey() {
 
 
 async function readOwnerMethod(authority) {
-  const methods = new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false });
+  const methods = new api.D1WalletAuthMethodStore({ database, ...scope });
   for (const method of await methods.listForWalletV2({ walletId: authority.walletId })) {
     if (method.walletAuthorityId === authority.authorityId && method.kind === 'passkey') return method;
   }

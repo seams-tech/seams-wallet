@@ -246,7 +246,7 @@ test('today reads each D1 auth row of the committed fixture', async () => {
     const database = runtime.database;
     await insertAuthTableRows(database, fixture);
     const { authMethod } = await recordsAuthority;
-    const methods = new D1WalletAuthMethodStore({ database, ...SCOPE, ensureSchema: false });
+    const methods = new D1WalletAuthMethodStore({ database, ...SCOPE });
     const expected = await authMethodRecordsV2(authMethod);
     expect(await methods.listForWalletV2({ walletId: WALLET_ID })).toEqual(
       expect.arrayContaining(expected),

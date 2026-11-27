@@ -1,9 +1,5 @@
-export {
-  D1IdentityStore,
-  IDENTITY_STORE_D1_SCHEMA_SQL,
-  ensureIdentityStoreD1Schema,
-} from './d1IdentityStore';
-export type { D1IdentityStoreOptions, D1IdentityStoreSchemaOptions } from './d1IdentityStore';
+export { D1IdentityStore } from './d1IdentityStore';
+export type { D1IdentityStoreOptions } from './d1IdentityStore';
 
 export type IdentitySubjectRecord = {
   version: 'identity_subject_v1';

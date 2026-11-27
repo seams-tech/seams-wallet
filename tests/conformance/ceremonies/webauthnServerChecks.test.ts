@@ -182,7 +182,6 @@ const d1AssertionCheck: AssertionCheck = {
       walletAuthMethodStore: new D1WalletAuthMethodStore({
         database: opened.database,
         ...D1_SCOPE,
-        ensureSchema: false,
       }),
     });
     return {

@@ -7,7 +7,7 @@ import {
 } from './d1EcdsaSignerRead';
 import { toOptionalTrimmedString, isPlainObject } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
-import { D1_BATCH_CAS_GUARD_SQL, formatD1ExecStatement, parseD1JsonColumn } from '../storage/d1Sql';
+import { D1_BATCH_CAS_GUARD_SQL, parseD1JsonColumn } from '../storage/d1Sql';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletId, WalletRegistrationEcdsaWalletKey } from './registrationContracts';
 import {
@@ -54,6 +54,11 @@ import {
   parseWalletEcdsaSignerRecord,
 } from './WalletStore';
 import { equalBytes } from '@shared/utils/routerAbEd25519YaoDigests';
+import {
+  requireD1TenantScope,
+  type D1TenantScope,
+  type D1TenantStoreOptions,
+} from './d1TenantStore';
 
 export type {
   WalletEcdsaSignerRecord,
@@ -62,34 +67,9 @@ export type {
   WalletStore,
 } from './WalletStore';
 
-export interface D1WalletStoreSchemaOptions {
-  readonly database: D1DatabaseLike;
-}
+export interface D1WalletStoreOptions extends D1TenantStoreOptions {}
 
-export interface D1WalletStoreOptions {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema?: boolean;
-}
-
-type NormalizedD1WalletStoreOptions = {
-  readonly database: D1DatabaseLike;
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-  readonly ensureSchema: boolean;
-};
-
-export type D1WalletStoreScope = {
-  readonly namespace: string;
-  readonly orgId: string;
-  readonly projectId: string;
-  readonly envId: string;
-};
+export type D1WalletStoreScope = D1TenantScope;
 
 function sameD1WalletRuntimePolicyScopeV1(
   left: RuntimePolicyScope,
@@ -130,130 +110,6 @@ function walletEcdsaSignerKeyFromRegistration(
 type D1WalletRow = {
   readonly record_json?: unknown;
 };
-
-export const WALLET_STORE_D1_SCHEMA_SQL = Object.freeze([
-  `
-    CREATE TABLE IF NOT EXISTS wallets (
-      namespace TEXT NOT NULL,
-      org_id TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      env_id TEXT NOT NULL,
-      wallet_id TEXT NOT NULL,
-      record_json TEXT NOT NULL,
-      created_at_ms INTEGER NOT NULL,
-      updated_at_ms INTEGER NOT NULL,
-      PRIMARY KEY (namespace, org_id, project_id, env_id, wallet_id),
-      CHECK (length(wallet_id) > 0),
-      CHECK (json_valid(record_json)),
-      CHECK (created_at_ms >= 0),
-      CHECK (updated_at_ms >= created_at_ms),
-      CHECK (COALESCE(json_extract(record_json, '$.version') = 'wallet_v1', 0)),
-      CHECK (COALESCE(json_extract(record_json, '$.walletId') = wallet_id, 0))
-    )
-  `,
-  `
-    CREATE TABLE IF NOT EXISTS wallet_signers (
-      namespace TEXT NOT NULL,
-      org_id TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      env_id TEXT NOT NULL,
-      wallet_id TEXT NOT NULL,
-      signer_family TEXT NOT NULL,
-      signer_id TEXT NOT NULL,
-      chain_target_key TEXT,
-      record_json TEXT NOT NULL,
-      created_at_ms INTEGER NOT NULL,
-      updated_at_ms INTEGER NOT NULL,
-      PRIMARY KEY (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        signer_family,
-        signer_id
-      ),
-      CHECK (length(wallet_id) > 0),
-      CHECK (signer_family IN ('ed25519', 'ecdsa')),
-      CHECK (length(signer_id) > 0),
-      CHECK (json_valid(record_json)),
-      CHECK (created_at_ms >= 0),
-      CHECK (updated_at_ms >= created_at_ms),
-      CHECK (COALESCE(json_extract(record_json, '$.walletId') = wallet_id, 0)),
-      CHECK (COALESCE(json_extract(record_json, '$.signerId') = signer_id, 0)),
-      CHECK (
-        (
-          signer_family = 'ed25519'
-          AND chain_target_key IS NULL
-          AND substr(signer_id, 1, 8) = 'ed25519:'
-          AND COALESCE(
-            json_extract(record_json, '$.version') = 'wallet_signer_ed25519_v1',
-            0
-          )
-        )
-        OR
-        (
-          signer_family = 'ecdsa'
-          AND chain_target_key IS NOT NULL
-          AND length(chain_target_key) > 0
-          AND signer_id = 'ecdsa:' || chain_target_key
-          AND COALESCE(
-            json_extract(record_json, '$.version') = 'wallet_signer_ecdsa_v1',
-            0
-          )
-          AND COALESCE(json_extract(record_json, '$.chainTargetKey') = chain_target_key, 0)
-        )
-      )
-    )
-  `,
-  `
-    CREATE INDEX IF NOT EXISTS wallet_signers_wallet_idx
-      ON wallet_signers (namespace, org_id, project_id, env_id, wallet_id, signer_family)
-  `,
-  `
-    CREATE INDEX IF NOT EXISTS wallet_signers_chain_target_idx
-      ON wallet_signers (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        signer_family,
-        chain_target_key
-      )
-  `,
-  `
-    CREATE TABLE IF NOT EXISTS wallet_ecdsa_pending_session_activations (
-      namespace TEXT NOT NULL,
-      org_id TEXT NOT NULL,
-      project_id TEXT NOT NULL,
-      env_id TEXT NOT NULL,
-      wallet_id TEXT NOT NULL,
-      lifecycle_id TEXT NOT NULL,
-      request_id TEXT NOT NULL,
-      record_json TEXT NOT NULL,
-      expires_at_ms INTEGER NOT NULL,
-      PRIMARY KEY (
-        namespace,
-        org_id,
-        project_id,
-        env_id,
-        wallet_id,
-        lifecycle_id,
-        request_id
-      ),
-      CHECK (json_valid(record_json)),
-      CHECK (expires_at_ms > 0)
-    )
-  `,
-] as const);
-
-export async function ensureWalletStoreD1Schema(
-  options: D1WalletStoreSchemaOptions,
-): Promise<void> {
-  for (const statement of WALLET_STORE_D1_SCHEMA_SQL) {
-    await options.database.exec(formatD1ExecStatement(statement));
-  }
-}
 
 function normalizeTimestampMs(value: unknown): number | null {
   const numberValue = Number(value);
@@ -474,25 +330,6 @@ export function parseWalletEd25519SignerRecord(raw: unknown): WalletEd25519Signe
   };
 }
 
-function requireD1ScopeString(input: unknown, field: string): string {
-  const normalized = toOptionalTrimmedString(input);
-  if (!normalized) throw new Error(`${field} is required for D1 wallet store`);
-  return normalized;
-}
-
-function normalizeD1WalletStoreOptions(
-  input: D1WalletStoreOptions,
-): NormalizedD1WalletStoreOptions {
-  return {
-    database: input.database,
-    namespace: requireD1ScopeString(input.namespace, 'namespace'),
-    orgId: requireD1ScopeString(input.orgId, 'orgId'),
-    projectId: requireD1ScopeString(input.projectId, 'projectId'),
-    envId: requireD1ScopeString(input.envId, 'envId'),
-    ensureSchema: input.ensureSchema !== false,
-  };
-}
-
 function assertNeverWalletSignerRecord(record: never): never {
   throw new Error(`Unexpected wallet signer record: ${JSON.stringify(record)}`);
 }
@@ -638,29 +475,13 @@ export class D1WalletStore implements WalletStore {
   readonly adapterKind = 'd1';
   private readonly database: D1DatabaseLike;
   private readonly scope: D1WalletStoreScope;
-  private readonly ensureSchemaOnUse: boolean;
-  private schemaReady = false;
 
   constructor(input: D1WalletStoreOptions) {
-    const normalized = normalizeD1WalletStoreOptions(input);
-    this.database = normalized.database;
-    this.scope = {
-      namespace: normalized.namespace,
-      orgId: normalized.orgId,
-      projectId: normalized.projectId,
-      envId: normalized.envId,
-    };
-    this.ensureSchemaOnUse = normalized.ensureSchema;
-  }
-
-  private async ensureSchema(): Promise<void> {
-    if (!this.ensureSchemaOnUse || this.schemaReady) return;
-    await ensureWalletStoreD1Schema({ database: this.database });
-    this.schemaReady = true;
+    this.database = input.database;
+    this.scope = requireD1TenantScope(input, 'wallet store');
   }
 
   async getWallet(input: { walletId: WalletId }): Promise<WalletRecord | null> {
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
     const row = await this.database
@@ -690,7 +511,6 @@ export class D1WalletStore implements WalletStore {
     keyHandle: string;
     chainTarget: ThresholdEcdsaChainTarget;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     const keyHandle = toOptionalTrimmedString(input.keyHandle);
     if (!walletId || !keyHandle) return null;
@@ -735,7 +555,6 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
     publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
     const result = await this.database
@@ -804,7 +623,6 @@ export class D1WalletStore implements WalletStore {
     if (input.source.kind === 'credential_snapshot') {
       return input.source.materialRead.resolve(this.scope, input.walletId, input.materialActivation);
     }
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
     const result = await this.database
@@ -840,7 +658,6 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
     request: WalletEcdsaPostRegistrationPublicRequest;
   }): Promise<WalletEcdsaSignerRecord | null> {
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
     const result = await this.database
@@ -889,7 +706,6 @@ export class D1WalletStore implements WalletStore {
   async listEcdsaSignersForWallet(input: {
     walletId: WalletId;
   }): Promise<readonly WalletEcdsaSignerRecord[]> {
-    await this.ensureSchema();
     const result = await prepareWalletEcdsaSignersRead(
       this.database,
       this.scope,
@@ -902,7 +718,6 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
     lifecycleId: string;
   }): Promise<readonly WalletEcdsaPendingSessionActivationRecord[]> {
-    await this.ensureSchema();
     const lifecycleId = toOptionalTrimmedString(input.lifecycleId);
     if (!lifecycleId) return [];
     const result = await this.database
@@ -944,7 +759,6 @@ export class D1WalletStore implements WalletStore {
   async putEcdsaPendingSessionActivation(
     record: WalletEcdsaPendingSessionActivationRecord,
   ): Promise<void> {
-    await this.ensureSchema();
     await this.database
       .prepare(
         `INSERT INTO wallet_ecdsa_pending_session_activations (
@@ -987,7 +801,6 @@ export class D1WalletStore implements WalletStore {
     nearAccountId: string;
     nearEd25519SigningKeyId: string;
   }): Promise<WalletEd25519SignerRecord | null> {
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     const nearAccountId = toOptionalTrimmedString(input.nearAccountId);
     const nearEd25519SigningKeyId = toOptionalTrimmedString(input.nearEd25519SigningKeyId);
@@ -1025,7 +838,6 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
     materialActivation: RouterAbMpcMaterialActivationRefWire;
   }): Promise<WalletEd25519SignerRecord | null> {
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     if (!walletId) return null;
     const result = await this.database
@@ -1057,7 +869,6 @@ export class D1WalletStore implements WalletStore {
     walletId: WalletId;
     signerSlot: number;
   }): Promise<WalletEd25519SignerRecord | null> {
-    await this.ensureSchema();
     const walletId = toOptionalTrimmedString(input.walletId);
     const signerSlot = Math.floor(Number(input.signerSlot));
     if (!walletId || !Number.isSafeInteger(signerSlot) || signerSlot <= 0) return null;
@@ -1096,7 +907,6 @@ export class D1WalletStore implements WalletStore {
   async listEd25519SignersForWallet(input: {
     walletId: WalletId;
   }): Promise<readonly WalletEd25519SignerRecord[]> {
-    await this.ensureSchema();
     const result = await this.database
       .prepare(
         `SELECT record_json
@@ -1129,7 +939,6 @@ export class D1WalletStore implements WalletStore {
   }
 
   async putSubject(record: WalletRecord): Promise<void> {
-    await this.ensureSchema();
     await prepareD1WalletPutSubjectStatement({
       database: this.database,
       scope: this.scope,
@@ -1138,7 +947,6 @@ export class D1WalletStore implements WalletStore {
   }
 
   async putSigner(record: WalletSignerRecord): Promise<void> {
-    await this.ensureSchema();
     await prepareD1WalletPutSignerStatement({
       database: this.database,
       scope: this.scope,
@@ -1154,7 +962,6 @@ export class D1WalletStore implements WalletStore {
   async prepareEd25519SignerIfSlotAvailableStatements(
     record: WalletEd25519SignerRecord,
   ): Promise<readonly D1PreparedStatementLike[]> {
-    await this.ensureSchema();
     const parsed = parseWalletEd25519SignerRecord(record);
     if (!parsed) throw new Error('Invalid Ed25519 wallet signer record');
     const insert = this.database
