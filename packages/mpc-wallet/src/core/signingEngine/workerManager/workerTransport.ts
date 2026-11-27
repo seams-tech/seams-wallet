@@ -60,20 +60,6 @@ function assertNeverWorkerPrewarmRequest(value: never): never {
   throw new Error(`Unsupported Email OTP Yao prewarm request: ${String(value)}`);
 }
 
-type NearRpcSuccessFrame = {
-  id: string;
-  ok: true;
-  result: NearWorkerOperationResult<NearWorkerOperationType>;
-};
-
-type NearRpcErrorFrame = {
-  id: string;
-  ok: false;
-  error: string;
-  code?: string;
-  coreCode?: string;
-};
-
 type PendingEntry = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
@@ -160,26 +146,6 @@ function isReadyFrame(value: unknown): boolean {
   return (
     (value as { type?: unknown })?.type === WorkerControlMessage.WORKER_READY ||
     (value as { ready?: unknown })?.ready === true
-  );
-}
-
-function isNearRpcSuccessFrame(value: unknown): value is NearRpcSuccessFrame {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    typeof (value as { id?: unknown }).id === 'string' &&
-    (value as { ok?: unknown }).ok === true &&
-    'result' in (value as object)
-  );
-}
-
-function isNearRpcErrorFrame(value: unknown): value is NearRpcErrorFrame {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    typeof (value as { id?: unknown }).id === 'string' &&
-    (value as { ok?: unknown }).ok === false &&
-    typeof (value as { error?: unknown }).error === 'string'
   );
 }
 
@@ -786,16 +752,8 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       return;
     }
 
-    if (kind === 'nearSigner') {
-      this.handleNearWorkerMessage(data);
-      return;
-    }
-    if (kind === 'ecdsaDerivationClient') {
-      this.handleEcdsaDerivationWorkerMessage(data);
-      return;
-    }
-
-    if (isRpcProgressFrame(data)) {
+    // The NEAR signer and ECDSA derivation workers report no progress.
+    if (kind !== 'nearSigner' && kind !== 'ecdsaDerivationClient' && isRpcProgressFrame(data)) {
       const pending = this.getPendingMap(kind).get(data.id);
       if (!pending) return;
       pending.onEvent?.(data.payload);
@@ -811,12 +769,17 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       this.rejectRequest(
         kind,
         data.id,
-        new SignerWorkerOperationError({
-          message: data.error || `[${kind}] worker error`,
-          code: data.code,
-          coreCode: data.coreCode,
-          workerKind: kind,
-        }),
+        new SignerWorkerOperationError(
+          // The NEAR signer sends its message as is and no core code.
+          kind === 'nearSigner'
+            ? { message: data.error, code: data.code, workerKind: kind }
+            : {
+                message: data.error || `[${kind}] worker error`,
+                code: data.code,
+                coreCode: data.coreCode,
+                workerKind: kind,
+              },
+        ),
       );
       return;
     }
@@ -848,113 +811,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       }),
     );
     this.resetWorker(kind);
-  }
-
-  private handleNearWorkerMessage(data: unknown): void {
-    if (isNearRpcSuccessFrame(data)) {
-      this.resolveNearResponse(data.id, data.result);
-      return;
-    }
-
-    if (isNearRpcErrorFrame(data)) {
-      this.rejectRequest(
-        'nearSigner',
-        data.id,
-        new SignerWorkerOperationError({
-          message: data.error,
-          code: data.code,
-          workerKind: 'nearSigner',
-        }),
-      );
-      return;
-    }
-
-    const requestId =
-      isObject(data) && typeof (data as { id?: unknown }).id === 'string'
-        ? (data as { id: string }).id
-        : undefined;
-    if (requestId && this.getPendingMap('nearSigner').has(requestId)) {
-      this.rejectRequest(
-        'nearSigner',
-        requestId,
-        new SignerWorkerOperationError({
-          message: `Malformed worker response frame for request ${requestId}`,
-          code: 'WORKER_PROTOCOL_ERROR',
-          workerKind: 'nearSigner',
-        }),
-      );
-      return;
-    }
-
-    if (this.getPendingMap('nearSigner').size === 0) return;
-    this.rejectAllPending(
-      'nearSigner',
-      new SignerWorkerOperationError({
-        message: `Unknown worker response frame: ${JSON.stringify(data)}`,
-        code: 'WORKER_PROTOCOL_ERROR',
-        workerKind: 'nearSigner',
-      }),
-    );
-    this.resetWorker('nearSigner');
-  }
-
-  private handleEcdsaDerivationWorkerMessage(data: unknown): void {
-    if (isRpcSuccessFrame(data)) {
-      this.resolveRequest('ecdsaDerivationClient', data.id, data.result);
-      return;
-    }
-
-    if (isRpcErrorFrame(data)) {
-      this.rejectRequest(
-        'ecdsaDerivationClient',
-        data.id,
-        new SignerWorkerOperationError({
-          message: data.error || '[ecdsaDerivationClient] worker error',
-          code: data.code,
-          coreCode: data.coreCode,
-          workerKind: 'ecdsaDerivationClient',
-        }),
-      );
-      return;
-    }
-
-    const requestId =
-      isObject(data) && typeof (data as { id?: unknown }).id === 'string'
-        ? (data as { id: string }).id
-        : undefined;
-    if (requestId && this.getPendingMap('ecdsaDerivationClient').has(requestId)) {
-      this.rejectRequest(
-        'ecdsaDerivationClient',
-        requestId,
-        new SignerWorkerOperationError({
-          message: `Malformed worker response frame for request ${requestId}`,
-          code: 'WORKER_PROTOCOL_ERROR',
-          workerKind: 'ecdsaDerivationClient',
-        }),
-      );
-      return;
-    }
-
-    if (this.getPendingMap('ecdsaDerivationClient').size === 0) return;
-    this.rejectAllPending(
-      'ecdsaDerivationClient',
-      new SignerWorkerOperationError({
-        message: `Unknown worker response frame: ${JSON.stringify(data)}`,
-        code: 'WORKER_PROTOCOL_ERROR',
-        workerKind: 'ecdsaDerivationClient',
-      }),
-    );
-    this.resetWorker('ecdsaDerivationClient');
-  }
-
-  private resolveNearResponse(
-    requestId: string,
-    response: NearWorkerOperationResult<NearWorkerOperationType>,
-  ): void {
-    const pending = this.getPendingMap('nearSigner').get(requestId);
-    if (!pending) return;
-
-    this.resolveRequest('nearSigner', requestId, response);
   }
 
   private handleWorkerError(kind: SignerWorkerKind, event: ErrorEvent): void {
