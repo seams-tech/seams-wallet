@@ -1,5 +1,4 @@
 import { createSummarySource, type SummaryResult, type SummarySource } from '@seams/voice-sign/summary';
-import { sealAudio } from '@seams/voice-verdict';
 import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { TransactionInput } from '@/core/types/actions';
@@ -11,15 +10,13 @@ import type {
 } from '@/core/types/seams';
 import type { Variant } from '@shared/utils/variant';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';
-import { base64Decode, base64Encode, base64UrlEncode } from '@shared/utils/base64';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
 import { spokenCallOfFields } from '@shared/speakToSign/spokenKinds';
-import { concat, sha256, utf8 } from '@shared/speakToSign/spokenRequest';
-import {
-  parseCosignerVoiceRefusal,
-  SPEAK_TO_SIGN_VERIFIERS,
-} from '@shared/speakToSign/voiceVerdict';
+import { sha256 } from '@shared/speakToSign/spokenRequest';
+import { SPEAK_TO_SIGN_VERIFIERS } from '@shared/speakToSign/evidence/voiceVerdictV2';
+import { parseCosignerVoiceRefusal } from '@shared/speakToSign/voiceVerdict';
 import type {
   AuthMethodEnrollmentRecording,
   AuthMethodPhraseRecording,
@@ -57,6 +54,7 @@ import {
   type SignedVoiceVerdict,
   type VoiceApprovedSigning,
 } from './voiceVerdict';
+import { SPEAK_TO_SIGN_VERIFIER_BACKEND } from './verifiers/backend';
 import { readVerifyStream } from './verifyStream';
 import { pcm16Wav, SAMPLE_RATE } from './wav';
 
@@ -64,8 +62,6 @@ type Verifiers = typeof SPEAK_TO_SIGN_VERIFIERS;
 
 const VERIFY_PATH = '/speak-to-sign/v1/verify';
 const SUMMARY_PATH = '/speak-to-sign/v1/summary';
-const ENROLLMENT_DOMAIN = 'seams:voice-enrollment:v2';
-const ENROLLMENT_MESSAGE_PREFIX = 'Speak-to-Sign voice enrollment ';
 const ENROLLMENT_RECORDINGS = 3;
 
 export type SpeakToSignHostOperationsInput = Readonly<{
@@ -283,7 +279,7 @@ async function verify(
   verifierInput: Readonly<Record<string, unknown>>,
   signal: AbortSignal,
 ): Promise<SpeakToSignVerifyReply> {
-  const sealedInput = await withSealedAudio(input, verifierInput);
+  const sealedInput = await outgoingVerifierInput(input, verifierInput);
   if (sealedInput === null) return { kind: 'failed', code: 'recording_not_sealed' };
   if (verifierInput.op === 'verify') void input.prepareSigning().catch(() => {});
   input.progress({ stage: 'recording_sent' });
@@ -306,36 +302,13 @@ async function verify(
   return reply;
 }
 
-/**
- * The verifier input with its recordings sealed to the pinned audio key (`sealAudio` of
- * `@seams/voice-verdict`): `audio_sealed_b64` in place of `audio_wav_b64`, one clip or a list of
- * clips. An input with no recording goes as it
- * is. Null if a recording cannot be sealed, so that no recording leaves the device in the clear.
- */
-async function withSealedAudio(
+/** The verifier input as it leaves the device, in the form of the lane's verifier backend. */
+async function outgoingVerifierInput(
   input: SpeakToSignHostOperationsInput,
   verifierInput: Readonly<Record<string, unknown>>,
 ): Promise<Readonly<Record<string, unknown>> | null> {
-  const { audio_wav_b64: plain, ...rest } = verifierInput;
-  if (plain === undefined) return verifierInput;
   const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
-  const { op, owner } = rest;
-  const clips = Array.isArray(plain) ? plain : [plain];
-  // The verify route serves only these two operations.
-  if (!verifier || (op !== 'verify' && op !== 'enroll') || typeof owner !== 'string') return null;
-  if (!clips.every((clip) => typeof clip === 'string')) return null;
-  let sealed: string[];
-  try {
-    const audioKey = base64Decode(verifier.audioKey);
-    sealed = await Promise.all(
-      clips.map(async (clip) =>
-        base64Encode(await sealAudio(audioKey, op, owner, base64Decode(clip))),
-      ),
-    );
-  } catch {
-    return null;
-  }
-  return { ...rest, audio_sealed_b64: Array.isArray(plain) ? sealed : sealed[0] };
+  return await SPEAK_TO_SIGN_VERIFIER_BACKEND.prepareInput(verifier, verifierInput);
 }
 
 /**
@@ -741,13 +714,14 @@ async function authorizeEnrollment(
   if (!digests.every((digest) => state.recordedAudio.has(base64UrlEncode(digest)))) {
     return { kind: 'not_signed', error: 'Only recordings of this enrollment can be authorized.' };
   }
-  const digest = await enrollmentDigest(input.ownerAccountId, digests);
+  const statement = await SPEAK_TO_SIGN_VERIFIER_BACKEND.enrollmentStatement(
+    input.ownerAccountId,
+    digests,
+    verifier,
+  );
   let signed: SignNEP413MessageResult;
   try {
-    signed = await input.signMessage(
-      { message: `${ENROLLMENT_MESSAGE_PREFIX}${digest}`, recipient: verifier.project },
-      signal,
-    );
+    signed = await input.signMessage(statement, signal);
   } catch (error) {
     signal.throwIfAborted();
     return { kind: 'not_signed', error: error instanceof Error ? error.message : 'not signed' };
@@ -761,15 +735,6 @@ async function authorizeEnrollment(
       nonce_b64: signed.nonce,
     },
   };
-}
-
-/** base64url SHA-256(domain || owner || 0 || SHA-256 of each WAV, in order). */
-export async function enrollmentDigest(
-  owner: string,
-  clipDigests: readonly Uint8Array<ArrayBuffer>[],
-): Promise<string> {
-  const preimage = concat([utf8(ENROLLMENT_DOMAIN), utf8(owner), new Uint8Array(1), ...clipDigests]);
-  return base64UrlEncode(await sha256(preimage));
 }
 
 /** The checked verdict's expiry, read again after the owner answered a step-up. */

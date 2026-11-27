@@ -5,7 +5,6 @@
 // rule of the Wallet's policy engine, as for a normal signature. A normal signing request carries no
 // verdict, and the co-signer does not run this check for it.
 
-import { checkVerdict, parseVerdict, verdictMessage, type VerdictRefusal } from '@seams/voice-verdict';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
@@ -17,12 +16,18 @@ import {
   type SpeakToSignNetwork,
 } from '@shared/speakToSign/spokenRequest';
 import {
+  checkVerdict,
+  parseVerdict,
+  SPEAK_TO_SIGN_VERIFIERS,
+  verdictMessage,
+  VOICE_VERDICT_LIFE_MS,
+  type SpeakToSignVerifier,
+  type VerdictRefusal,
+} from '@shared/speakToSign/evidence/voiceVerdictV2';
+import {
   COSIGNER_VOICE_REFUSAL_CODE,
   cosignerVoiceRefusalMessage,
-  SPEAK_TO_SIGN_VERIFIERS,
-  VOICE_VERDICT_LIFE_MS,
   type CosignerVoiceRefusal,
-  type SpeakToSignVerifier,
 } from '@shared/speakToSign/voiceVerdict';
 import type { RouterApiWalletRegistrationService } from '../../framework/authServicePort';
 import type { NormalizedRouterLogger } from '../../framework/logger';

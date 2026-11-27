@@ -5,8 +5,8 @@ import type {
   SpeakToSignRequestView,
   SpeakToSignSurface,
 } from '../hostPlugin';
+import { SPEAK_TO_SIGN_VERIFIER_BACKEND, type VerifierProof } from '../verifiers/backend';
 import {
-  cardProof,
   failureView,
   paidView,
   sendingView,
@@ -15,7 +15,6 @@ import {
   stepUpView,
   verifyingView,
   type CardInput,
-  type CardProof,
 } from './card';
 import {
   mapSigning,
@@ -79,7 +78,7 @@ async function signOnce(
     surface,
     card,
     clip.endOfSpeechAt,
-    cardProof(reply.output, reply.attestationUrl),
+    SPEAK_TO_SIGN_VERIFIER_BACKEND.proof(reply.output, reply.attestationUrl),
   );
   const signing = await operations.sign(reply.output, onCard.hooks);
   const result = mapSigning(
@@ -132,7 +131,7 @@ function paymentHooks(
   surface: SpeakToSignSurface,
   card: CardInput,
   endOfSpeechAt: number,
-  proof: CardProof,
+  proof: VerifierProof,
 ): PaymentHooks {
   let approval: Approval = { kind: 'voice' };
   let paidCard: Promise<unknown> | null = null;

@@ -5,16 +5,12 @@ import type {
   PhraseResultView,
   PhraseSegmentState,
 } from '@/core/authMethods/hostPlugin';
-import { isPlainObject } from '@shared/utils/validation';
-import { parseVerifyOutput } from '../voiceVerdict';
+import { SPEAK_TO_SIGN_VERIFIER_BACKEND, type VerifierProof } from '../verifiers/backend';
 import { heardCaption } from './heardWords';
 import { isVerifierTimeout, type FailedResult } from './result';
 
-/** OutLayer did not run the verifier in time. The cause is not the recording, so say so. */
-const OUTLAYER_TIMEOUT = {
-  headline: 'OutLayer timed out',
-  caption: 'The OutLayer verifier did not answer in time.',
-} as const;
+/** The verifier backend gives the card its text: where each check runs, and its timeout. */
+const VERIFIER = SPEAK_TO_SIGN_VERIFIER_BACKEND;
 
 /**
  * The line under the sentence has six segments. A spoken request has one segment for the
@@ -35,14 +31,6 @@ const ENROLL_LINE = [
   'verifier',
   'verifier',
 ] as const;
-
-/** Where each check of the verifier runs. It sends one answer at the end, so its wait names them. */
-const VERIFIER_STEPS = {
-  speaker: 'ReDimNet · Intel TDX CVM on Phala',
-  words: 'Whisper large-v3 · NEAR AI Cloud',
-  policy: 'JEV policy',
-  verdict: 'Signed by the OutLayer TEE verifier',
-} as const;
 
 /** The name and the block explorer of each network. */
 const NETWORKS: Readonly<
@@ -151,10 +139,10 @@ export function verifyingView(): PhraseCheckView {
     label: 'Checking',
     caption: 'Checking what you said',
     details: [
-      VERIFIER_STEPS.speaker,
-      VERIFIER_STEPS.words,
-      VERIFIER_STEPS.policy,
-      VERIFIER_STEPS.verdict,
+      VERIFIER.steps.speaker,
+      VERIFIER.steps.words,
+      VERIFIER.steps.policy,
+      VERIFIER.steps.verdict,
     ],
     // The recording passed, the four checks of the verifier run together, and the payment waits.
     segments: PAYMENT_LINE.map((segment) =>
@@ -201,74 +189,9 @@ export function stepUpView(
   };
 }
 
-/** What a receipt shows of one verifier call: the version in its verdict, and its attestation. */
-export type CardProof = Readonly<{
-  /**
-   * The verifier version in the signed verdict, such as "0.13.0". A build for another
-   * speech-to-text service adds its name: "0.14.0+venice".
-   */
-  verifier: string | null;
-  /** The public OutLayer record of the call, with its TDX quote. */
-  attestationUrl: string | null;
-}>;
-
-/** The proof of one verifier call, from its output and the attestation URL of the call. */
-export function cardProof(output: unknown, attestationUrl: string | null): CardProof {
-  return { verifier: verdictVersion(output), attestationUrl };
-}
-
-function verdictVersion(output: unknown): string | null {
-  const parsed = parseVerifyOutput(output);
-  if (!parsed) return null;
-  try {
-    const verdict: unknown = JSON.parse(parsed.verdictJson);
-    if (!isPlainObject(verdict) || typeof verdict.verifier !== 'string') return null;
-    return /^\d{1,4}\.\d{1,4}\.\d{1,4}(\+[a-z0-9]{1,16})?$/.test(verdict.verifier)
-      ? verdict.verifier
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The receipt of a signed request: the checks of the verifier, which the OutLayer worker signs
- * in an Intel TDX TEE, and the link to the TDX quote of the call. The voice is the owner's
- * account; a note also had its summary checked against the note. The `venice` build sends the
- * clip to Venice AI, which runs in no TEE: the receipt says so.
- */
-export function receiptView(input: CardInput, proof: CardProof): PhraseReceipt {
-  const rows = [
-    { label: 'Voice', value: `matched ${shortAccount(input.owner)}` },
-    {
-      label: 'Words',
-      value: input.noun === 'note' ? 'matched the summary' : 'matched the sentence',
-    },
-    ...(input.noun === 'note' && checksSummary(proof.verifier)
-      ? [{ label: 'Summary', value: 'fits the note (JEV)' }]
-      : []),
-    ...(proof.verifier?.endsWith('+venice')
-      ? [{ label: 'Speech to text', value: 'Venice AI, outside a TEE' }]
-      : []),
-    {
-      label: 'Verdict',
-      value: `signed by the OutLayer verifier${proof.verifier ? ` ${proof.verifier}` : ''}`,
-    },
-  ];
-  return {
-    title: 'TEE receipt',
-    source: 'Intel TDX · OutLayer',
-    rows,
-    ...(proof.attestationUrl
-      ? { link: { text: 'View TDX quote', href: proof.attestationUrl } }
-      : {}),
-  };
-}
-
-/** Verifier 0.13.0 and later check with JEV that a note's summary fits the note. */
-function checksSummary(version: string | null): boolean {
-  const [major = 0, minor = 0] = (version ?? '').split('+')[0].split('.').map(Number);
-  return major > 0 || minor >= 13;
+/** The receipt of a signed request, as the verifier backend writes it. */
+function receiptView(input: CardInput, proof: VerifierProof): PhraseReceipt {
+  return VERIFIER.receipt({ owner: shortAccount(input.owner), note: input.noun === 'note' }, proof);
 }
 
 /**
@@ -285,7 +208,7 @@ export function paidView(
   input: CardInput,
   hash: string,
   seconds: number,
-  proof?: CardProof,
+  proof?: VerifierProof,
 ): PhraseResultView {
   const { explorer } = NETWORKS[input.network];
   return {
@@ -302,7 +225,7 @@ export function paidView(
 }
 
 /** A signed message has no transaction to link to. */
-export function signedView(input: CardInput, seconds: number, proof?: CardProof): PhraseResultView {
+export function signedView(input: CardInput, seconds: number, proof?: VerifierProof): PhraseResultView {
   return {
     kind: 'result',
     label: '',
@@ -331,7 +254,7 @@ export function enrollSavingView(): PhraseCheckView {
     kind: 'check',
     label: 'Enrolling',
     caption: 'Storing your voice template',
-    details: [VERIFIER_STEPS.speaker, VERIFIER_STEPS.verdict],
+    details: [VERIFIER.steps.speaker, VERIFIER.steps.verdict],
     segments: line(ENROLL_LINE, 'verifier', 'run', 'run'),
   };
 }
@@ -363,7 +286,7 @@ export function notEnrolledView(
     return {
       kind: 'result',
       label: 'Not enrolled',
-      ...OUTLAYER_TIMEOUT,
+      ...VERIFIER.timeout,
       detail: 'Your recordings are not the cause. Try again in a minute.',
       action: { label: 'Close' },
       line: line(ENROLL_LINE, 'verifier', 'fail', 'skip'),
@@ -427,7 +350,7 @@ function failureCopy(input: CardInput, result: FailedResult): FailureCopy {
   if (result.kind === 'unavailable') {
     if (isVerifierTimeout(result)) {
       return {
-        ...OUTLAYER_TIMEOUT,
+        ...VERIFIER.timeout,
         detail: 'Your recording is not the cause. Try again in a minute.',
         at: 'speaker',
         retry: true,

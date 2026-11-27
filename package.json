@@ -18,6 +18,7 @@
     "check:cargo-locks": "node ./scripts/check-cargo-locks.mjs",
     "check:packed-wallet": "pnpm license:notices && node ./tests/scripts/check-packed-wallet-boundaries.mjs",
     "check:package-names": "node ./scripts/check-package-names.mjs",
+    "check:speak-to-sign-backends": "node ./scripts/check-speak-to-sign-backends.mjs",
     "license:notices": "node ./scripts/generate-wallet-third-party-notices.mjs",
     "report:bloat": "node ./scripts/bloat-report.mjs",
     "ensure:intended-google-token": "pnpm -C tests ensure:intended-google-token",

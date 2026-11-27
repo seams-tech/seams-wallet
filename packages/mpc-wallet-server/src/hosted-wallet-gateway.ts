@@ -105,10 +105,8 @@ import {
   ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1,
 } from './cloud-host';
 import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './cloud-host';
-import {
-  createSpeakToSignVerifyRouteExtensions,
-  readSpeakToSignVerifyConfig,
-} from './router/domains/speakToSign/speakToSignVerify';
+import { createSpeakToSignBackend } from './router/domains/speakToSign/backends/select';
+import { createSpeakToSignVerifyRouteExtensions } from './router/domains/speakToSign/speakToSignVerify';
 import { readSpeakToSignSummaryConfig } from './router/domains/speakToSign/speakToSignSummary';
 import { createD1VoiceVerdictLedger } from './router/cloudflare/d1/speakToSign/d1VoiceVerdictLedger';
 
@@ -173,6 +171,8 @@ export interface CloudflareD1GatewayBaseEnv
   readonly EMAIL_OTP_LOCKOUT_TTL_MS?: string;
   readonly EMAIL_OTP_GOOGLE_REGISTRATION_ATTEMPT_RATE_LIMIT_MAX?: string;
   readonly EMAIL_OTP_GOOGLE_REGISTRATION_ATTEMPT_RATE_LIMIT_WINDOW_MS?: string;
+  /** The Speak-to-Sign verifier backend of the lane. Unset means `outlayer`. */
+  readonly SPEAK_TO_SIGN_BACKEND?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_BASE_URL?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_PROJECT?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY?: string;
@@ -806,8 +806,12 @@ export async function createHostedWalletGatewayCompositionV1(
   );
   const tenantId = parseTenantId(scope.orgId);
   if (!tenantId.ok) throw new Error('Wallet placement authorization tenant is invalid');
-  const speakToSign = readSpeakToSignVerifyConfig((name) => readEnvString(env, name));
   const noteSummary = readSpeakToSignSummaryConfig((name) => readEnvString(env, name));
+  const speakToSign = createSpeakToSignBackend((name) => readEnvString(env, name), {
+    fetch: globalThis.fetch.bind(globalThis),
+    // The status check of NEAR AI's Whisper uses the key of the summary route.
+    nearAiApiKey: noteSummary?.apiKey ?? null,
+  });
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,

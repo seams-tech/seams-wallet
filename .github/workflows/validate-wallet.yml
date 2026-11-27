@@ -30,6 +30,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - run: pnpm report:bloat --check
       - run: pnpm check:package-names
+      - run: pnpm check:speak-to-sign-backends
       - run: pnpm check:cargo-locks
       # The Rust outputs (WASM packages, release Workers, local tools) are
       # cached as one archive (scripts/rust-build-outputs.sh), keyed by the

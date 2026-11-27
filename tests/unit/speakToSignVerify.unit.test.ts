@@ -8,10 +8,13 @@ import {
   SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES,
   SPEAK_TO_SIGN_VERIFY_PATH,
   createSpeakToSignVerifyRouteExtensions,
-  readSpeakToSignVerifyConfig,
-  type SpeakToSignVerifyConfig,
   type SpeakToSignVerifyDependencies,
 } from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignVerify';
+import {
+  createOutLayerBackend,
+  readOutLayerVerifierConfig,
+  type OutLayerVerifierConfig,
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/backends/outlayer/outlayerBackend';
 import {
   readSpeakToSignSummaryConfig,
   SPEAK_TO_SIGN_SUMMARY_PATH,
@@ -20,14 +23,14 @@ import {
 import type {
   VerifierAttestation,
   VerifierAttestationCall,
-} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignAttestation';
-import type { TranscriberChoice } from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/speakToSignTranscriber';
+} from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/backends/outlayer/attestation';
+import type { TranscriberChoice } from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/backends/outlayer/transcriber';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
 
 const PAYMENT_KEY = 'pk_outlayer_secret_do_not_leak_7f3a';
-const CONFIG: SpeakToSignVerifyConfig = {
+const CONFIG: OutLayerVerifierConfig = {
   outlayerBaseUrl: 'https://outlayer.example.test/',
   project: 'seams-v1.testnet/voice-verifier',
   versionKey: 'a'.repeat(64),
@@ -35,7 +38,7 @@ const CONFIG: SpeakToSignVerifyConfig = {
   secretsRef: { profile: 'default', accountId: 'seams-v1.testnet' },
 };
 const VENICE_KEY = 'b'.repeat(64);
-const VENICE_CONFIG: SpeakToSignVerifyConfig = { ...CONFIG, veniceVersionKey: VENICE_KEY };
+const VENICE_CONFIG: OutLayerVerifierConfig = { ...CONFIG, veniceVersionKey: VENICE_KEY };
 const VERIFIER_OUTPUT = {
   kind: 'seams_voice_verify_output_v2',
   verdict_json: '{"kind":"seams_voice_verdict_v1","outcome":"accept"}',
@@ -65,7 +68,7 @@ async function buildHarness(
     /** `server`: the server's own TDX quote check. Default: a check that passes. */
     readonly attestation?: Pick<VerifierAttestation, 'check'> | 'server';
     /** Default: CONFIG, with no `venice` build. */
-    readonly config?: SpeakToSignVerifyConfig;
+    readonly config?: OutLayerVerifierConfig;
     /** The choice of the speech-to-text service. Default: the server's own choice. */
     readonly transcriber?: Pick<TranscriberChoice, 'choose'>;
   } = {},
@@ -100,7 +103,20 @@ async function buildHarness(
     },
   };
   let allow = true;
-  const extensions = createSpeakToSignVerifyRouteExtensions(options.config ?? CONFIG, {
+  const fakeFetch = (async (url: string, init: RequestInit) => {
+    const call = { url: String(url), init };
+    calls.push(call);
+    return await outlayer(call);
+  }) as typeof fetch;
+  const backend = createOutLayerBackend(options.config ?? CONFIG, {
+    fetch: fakeFetch,
+    nearAiApiKey: options.summary?.apiKey ?? null,
+    ...(options.attestation === 'server'
+      ? {}
+      : { attestation: options.attestation ?? passingAttestation }),
+    ...(options.transcriber ? { transcriber: options.transcriber } : {}),
+  });
+  const extensions = createSpeakToSignVerifyRouteExtensions(backend, {
     authorizationSessions: {
       tenantId: session.tenantId,
       async readWalletSessionExactOperationContextByCredential(input) {
@@ -134,19 +150,11 @@ async function buildHarness(
         >;
       },
     },
-    fetch: (async (url: string, init: RequestInit) => {
-      const call = { url: String(url), init };
-      calls.push(call);
-      return await outlayer(call);
-    }) as typeof fetch,
+    fetch: fakeFetch,
     rateLimit: async ({ walletId }) => {
       rateLimited.push(walletId);
       return { allowed: allow };
     },
-    ...(options.attestation === 'server'
-      ? {}
-      : { attestation: options.attestation ?? passingAttestation }),
-    ...(options.transcriber ? { transcriber: options.transcriber } : {}),
   }, options.summary ?? null);
   expect(extensions).toHaveLength(1);
   const extension = extensions[0] as RouterApiRouteExtension;
@@ -226,7 +234,7 @@ function expectNoKey(harness: { logs: unknown[][] }, ...texts: string[]) {
 }
 
 test('the route set is absent without config and refuses a partial env', () => {
-  expect(readSpeakToSignVerifyConfig(() => undefined)).toBeNull();
+  expect(readOutLayerVerifierConfig(() => undefined)).toBeNull();
   expect(
     createSpeakToSignVerifyRouteExtensions(null, {
       authorizationSessions: {} as never,
@@ -235,7 +243,7 @@ test('the route set is absent without config and refuses a partial env', () => {
     }),
   ).toEqual([]);
   expect(() =>
-    readSpeakToSignVerifyConfig((name) =>
+    readOutLayerVerifierConfig((name) =>
       name === 'SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY' ? PAYMENT_KEY : undefined,
     ),
   ).toThrow(/SPEAK_TO_SIGN_OUTLAYER_BASE_URL/);
@@ -247,20 +255,17 @@ test('the route set is absent without config and refuses a partial env', () => {
     SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE: 'default',
     SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID: 'seams-v1.testnet',
   };
-  expect(readSpeakToSignVerifyConfig((name) => env[name])).toEqual(CONFIG);
+  expect(readOutLayerVerifierConfig((name) => env[name])).toEqual(CONFIG);
   // The `venice` build is optional, apart from the set of six.
   expect(
-    readSpeakToSignVerifyConfig((name) =>
+    readOutLayerVerifierConfig((name) =>
       name === 'SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY' ? VENICE_KEY : env[name],
     ),
   ).toEqual(VENICE_CONFIG);
   // A venice key that is not another WASM hash stops the server at start.
   for (const veniceVersionKey of ['venice', CONFIG.versionKey]) {
     expect(() =>
-      createSpeakToSignVerifyRouteExtensions(
-        { ...CONFIG, veniceVersionKey },
-        { authorizationSessions: {} as never, walletRegistration: {} as never, fetch },
-      ),
+      createOutLayerBackend({ ...CONFIG, veniceVersionKey }, { fetch, nearAiApiKey: null }),
     ).toThrow(/venice version key/);
   }
 });

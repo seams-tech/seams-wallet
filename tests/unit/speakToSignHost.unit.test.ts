@@ -8,10 +8,8 @@ import type {
   SpeakToSignProgress,
 } from '@/core/transactionFeatures/hostPlugin';
 import type { AuthMethodPhraseRecording } from '@/core/authMethods/hostPlugin';
-import {
-  createSpeakToSignHostOperations,
-  enrollmentDigest,
-} from '@/core/transactionFeatures/hostOperations';
+import { createSpeakToSignHostOperations } from '@/core/transactionFeatures/hostOperations';
+import { enrollmentDigest } from '@/core/transactionFeatures/verifiers/outlayer/outlayerVerifier';
 import {
   isSpeakableAccount,
   parseSpeakableNear,

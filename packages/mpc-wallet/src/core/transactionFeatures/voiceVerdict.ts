@@ -1,10 +1,14 @@
 // The signed verdict of the Speak-to-Sign verifier (verdict v2). Wallet core checks it before it
 // signs, because an accepted verdict replaces the confirm click. The Seams co-signer checks it
-// again. Both check it with `checkVerdict` of `@seams/voice-verdict`.
+// again. Both check it with `checkVerdict` of the v2 evidence module.
 
-import { checkVerdict, parseVerdict, type VerdictRefusal } from '@seams/voice-verdict';
+import {
+  checkVerdict,
+  parseVerdict,
+  type SpeakToSignVerifier,
+  type VerdictRefusal,
+} from '@shared/speakToSign/evidence/voiceVerdictV2';
 import { isPlainObject } from '@shared/utils/validation';
-import type { SpeakToSignVerifier } from '@shared/speakToSign/voiceVerdict';
 import type { SpokenDigests } from './spokenTransfer';
 
 const VERIFY_OUTPUT_KIND = 'seams_voice_verify_output_v2';
