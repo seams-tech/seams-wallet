@@ -4,7 +4,7 @@ import type { WalletId } from '@shared/utils/domainIds';
 import type { AuthorizedOperation } from '../../../../authorization/domain';
 import type { PinnedOwnerWalletScope } from '../../../../authorization/ecdsaWalletSessionAdmission';
 import type { AuthorizedOperationAdmissionRejection } from '../../../../authorization/service';
-import { json } from '../../../framework/http';
+import { jsonFailure } from '../../../framework/http';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 
 type Revalidated<Result> = Result | { readonly ok: false; readonly response: Response };
@@ -14,7 +14,7 @@ function rejected(
   message: string,
   status: number,
 ): { ok: false; response: Response } {
-  return { ok: false, response: json({ ok: false, code, message }, { status }) };
+  return { ok: false, response: jsonFailure(status, code, message) };
 }
 
 function rejectedAdmission(kind: AuthorizedOperationAdmissionRejection['kind']) {

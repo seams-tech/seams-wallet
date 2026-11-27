@@ -1,6 +1,6 @@
 import { isPlainObject } from '@shared/utils/validation';
 import { walletObjectIdentity, walletObjectIdentityHeaders } from '../../../cloudflare/runtime/walletObjectAddresses';
-import { json } from '../../../framework/http';
+import { jsonFailure } from '../../../framework/http';
 import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
 import type { RouterApiWalletRegistrationService } from '../../../framework/authServicePort';
 import type { AuthorizedOperation } from '../../../../authorization/domain';
@@ -20,13 +20,10 @@ export async function proxyNormalSigningRequestToMpcRouter(input: {
 }): Promise<Response> {
   const proxy = input.proxy;
   if (!proxy) {
-    return json(
-      {
-        ok: false,
-        code: 'not_configured',
-        message: 'MPC Router normal-signing transport is not configured',
-      },
-      { status: 501 },
+    return jsonFailure(
+      501,
+      'not_configured',
+      'MPC Router normal-signing transport is not configured',
     );
   }
 
@@ -66,13 +63,10 @@ export async function proxyNormalSigningRequestToMpcRouter(input: {
       headers: new Headers(upstream.headers),
     });
   } catch (error: unknown) {
-    return json(
-      {
-        ok: false,
-        code: 'router_unreachable',
-        message: error instanceof Error ? error.message : 'MPC Router request failed',
-      },
-      { status: 502 },
+    return jsonFailure(
+      502,
+      'router_unreachable',
+      error instanceof Error ? error.message : 'MPC Router request failed',
     );
   }
 }
@@ -235,13 +229,10 @@ export async function proxyOwnerLaneAdmittedNormalSigningRequest(input: {
     authorization: input.authorization,
   });
   if (resolved.kind === 'refused') {
-    return json(
-      {
-        ok: false,
-        code: 'wallet_execution_lane_refused',
-        message: `Wallet execution lane is unavailable: ${resolved.reason}`,
-      },
-      { status: 403 },
+    return jsonFailure(
+      403,
+      'wallet_execution_lane_refused',
+      `Wallet execution lane is unavailable: ${resolved.reason}`,
     );
   }
   const admission = await prepareOwnerWalletExecution({
@@ -258,13 +249,10 @@ export async function proxyOwnerLaneAdmittedNormalSigningRequest(input: {
     },
   });
   if (admission.kind === 'refused') {
-    return json(
-      {
-        ok: false,
-        code: 'wallet_execution_lane_refused',
-        message: `Wallet execution lane admission failed: ${admission.reason}`,
-      },
-      { status: 403 },
+    return jsonFailure(
+      403,
+      'wallet_execution_lane_refused',
+      `Wallet execution lane admission failed: ${admission.reason}`,
     );
   }
   return await proxyNormalSigningRequestToMpcRouter({

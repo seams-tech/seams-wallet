@@ -81,37 +81,62 @@ export type OperationStepUpBinding = {
   readonly accountId: string;
 };
 
-type AuthorizedOperationFields = {
-  readonly authorized_operation_id: string;
-  readonly operation_id: string;
-  readonly lane_digest_b64u: string;
-  readonly intent_digest_b64u: string;
-  readonly display_digest_b64u: string;
-  readonly operation_fingerprint_digest: string;
-} & (
+type AuthorizedOperationKinds =
   | {
       readonly capability_kind: 'evm_ecdsa_mpc_signing';
       readonly operation_kind: 'evm.sign_transaction';
     }
-  | Pick<Ed25519ReusableAuthorizedOperationReceipt, 'capability_kind' | 'operation_kind'>
-);
+  | Pick<Ed25519ReusableAuthorizedOperationReceipt, 'capability_kind' | 'operation_kind'>;
 
-type AuthorizedOperationWire<T extends AuthorizedOperationFields> = {
+type OperationDigests = AuthorizedOperation['operation']['digests'];
+
+type AuthorizedOperationFields<K extends AuthorizedOperationKinds> = {
+  readonly authorized_operation_id: AuthorizedOperation['authorizedOperationId'];
+  readonly operation_id: AuthorizedOperation['operation']['operationId'];
+  readonly capability_kind: K['capability_kind'];
+  readonly operation_kind: K['operation_kind'];
+  readonly lane_digest_b64u: OperationDigests['laneDigest'];
+  readonly intent_digest_b64u: OperationDigests['intentDigest'];
+  readonly display_digest_b64u: OperationDigests['displayDigest'];
+  readonly operation_fingerprint_digest: AuthorizedOperation['operationFingerprintDigest'];
+};
+
+/** The fields every authorized operation carries on the wire, in wire order. */
+function authorizedOperationFields<K extends AuthorizedOperationKinds>(
+  operation: AuthorizedOperation,
+  kinds: K,
+): AuthorizedOperationFields<K> {
+  return {
+    authorized_operation_id: operation.authorizedOperationId,
+    operation_id: operation.operation.operationId,
+    capability_kind: kinds.capability_kind,
+    operation_kind: kinds.operation_kind,
+    lane_digest_b64u: operation.operation.digests.laneDigest,
+    intent_digest_b64u: operation.operation.digests.intentDigest,
+    display_digest_b64u: operation.operation.digests.displayDigest,
+    operation_fingerprint_digest: operation.operationFingerprintDigest,
+  };
+}
+
+type AuthorizedOperationWire<K extends AuthorizedOperationKinds> = {
   readonly binding: AuthorizedOperationBindingWire;
   readonly authorized_operation:
-    | (T & { readonly kind: 'reusable_wallet_session_authorized_operation_v1' })
-    | (T & {
+    | (AuthorizedOperationFields<K> & {
+        readonly kind: 'reusable_wallet_session_authorized_operation_v1';
+      })
+    | (AuthorizedOperationFields<K> & {
         readonly kind: 'verified_step_up_authorized_operation_v1';
         readonly authorization_session_id: string;
         readonly evidence_set_digest: string;
       });
 };
 
-export function buildAuthorizedOperationWire<T extends AuthorizedOperationFields>(
+export function buildAuthorizedOperationWire<K extends AuthorizedOperationKinds>(
   input: AuthorizedOperationWireInput,
-  commonAuthorizedOperation: T,
-): AuthorizedOperationWire<T> {
+  kinds: K,
+): AuthorizedOperationWire<K> {
   const operation = input.operation;
+  const commonAuthorizedOperation = authorizedOperationFields(operation, kinds);
   switch (input.binding.kind) {
     case 'reusable_wallet_session':
       if (

@@ -31,7 +31,7 @@ import type {
 } from '../../../framework/authServicePort';
 import { walletAuthAuthoritiesMatch } from '@shared/utils/walletAuthAuthority';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
-import { json } from '../../../framework/http';
+import { json, jsonFailure } from '../../../framework/http';
 import { webAuthnCredentialIdB64uFromCredential } from '../../../auth/webAuthnCredentialCodecs';
 import { operationStepUpFactorExpiredResponse } from '../../../domains/signingOperations/routerAbOperationStepUp';
 
@@ -72,10 +72,7 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
       ) {
         return {
           ok: false,
-          response: json(
-            { ok: false, code: 'scope_mismatch', message: 'Passkey authority changed' },
-            { status: 403 },
-          ),
+          response: jsonFailure(403, 'scope_mismatch', 'Passkey authority changed'),
         };
       }
       const credential = proof.webauthn_authentication;
@@ -83,10 +80,7 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
       if (!credentialId.ok || credentialId.credentialIdB64u !== input.authSource.credentialIdB64u) {
         return {
           ok: false,
-          response: json(
-            { ok: false, code: 'unauthorized', message: 'Passkey credential changed' },
-            { status: 401 },
-          ),
+          response: jsonFailure(401, 'unauthorized', 'Passkey credential changed'),
         };
       }
       const verified = await input.webAuthn.verifyWebAuthnAuthenticationLite({
@@ -99,13 +93,10 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
       if (!verified.success || !verified.verified) {
         return {
           ok: false,
-          response: json(
-            {
-              ok: false,
-              code: verified.code || 'not_verified',
-              message: verified.message || 'WebAuthn authentication verification failed',
-            },
-            { status: 401 },
+          response: jsonFailure(
+            401,
+            verified.code || 'not_verified',
+            verified.message || 'WebAuthn authentication verification failed',
           ),
         };
       }
@@ -244,10 +235,7 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
       ) {
         return {
           ok: false,
-          response: json(
-            { ok: false, code: 'scope_mismatch', message: 'VoiceID authority changed' },
-            { status: 403 },
-          ),
+          response: jsonFailure(403, 'scope_mismatch', 'VoiceID authority changed'),
         };
       }
       const verified = await input.voiceId.verifyVoiceIdOperation({
@@ -262,10 +250,7 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
       if (verified.kind === 'rejected' || !walletAuthAuthoritiesMatch(verified.authority, proof.authority)) {
         return {
           ok: false,
-          response: json(
-            { ok: false, code: 'not_verified', message: 'VoiceID operation proof was not verified' },
-            { status: 401 },
-          ),
+          response: jsonFailure(401, 'not_verified', 'VoiceID operation proof was not verified'),
         };
       }
       const verifiedAtMs = Date.now();

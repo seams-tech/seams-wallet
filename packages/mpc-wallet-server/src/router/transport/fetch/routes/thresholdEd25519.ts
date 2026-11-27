@@ -10,8 +10,23 @@ import {
   type AuthorizedOperationWireInput,
   type OperationStepUpBinding,
 } from '../../../domains/signingOperations/authorizedOperationWire';
+import { requireAuthorizationValue } from '../../../domains/signingOperations/routerAbNormalSigningAdmission';
 import type { FetchRouterApiContext } from '../createFetchRouter';
-import { json, jsonFailure, readJson } from '../../../framework/http';
+import { json, jsonFailure } from '../../../framework/http';
+import {
+  emptySigningGatewayTiming,
+  gatewayOwnerWalletSessionBinding,
+  jsonObjectOrEmpty,
+  normalSigningAuthorizationRequest,
+  operationStepUpAdmissionRefusal,
+  operationStepUpBinding,
+  ownerOperationNotAuthorizedResponse,
+  readPinnedStepUpWalletScope,
+  readThresholdRouteBody,
+  reusableWalletSession,
+  withServerTiming,
+  type SigningGatewayTiming,
+} from './thresholdSigningRouteShared';
 import { webAuthnCredentialIdB64uFromCredential } from '../../../auth/webAuthnCredentialCodecs';
 import { thresholdEd25519StatusCode } from '../../../../threshold/statusCodes';
 import {
@@ -78,7 +93,6 @@ import {
 import {
   authorizedOperationReplayBodyInit,
   type AuthorizedOperation,
-  type AuthorizedOperationReplayResponse,
 } from '../../../../authorization/domain';
 import {
   buildVerifiedWalletOperationEmailOtpFactorResult,
@@ -109,7 +123,10 @@ import {
   WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 import { walletIdFromString } from '@shared/utils/registrationIds';
-import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import {
+  sameRuntimePolicyScope,
+  type RuntimePolicyScope,
+} from '@shared/threshold/signingRootScope';
 import {
   emailOtpStatusCode,
   hashEmailOtpOperationBinding,
@@ -181,16 +198,10 @@ type AcceptedEd25519WalletSessionAuthorization =
       }
     >;
 
-function ed25519ReusableWalletSession(authorization: AcceptedEd25519WalletSessionAuthorization) {
-  return authorization.kind === 'wallet_session_operation_credential_v1'
-    ? authorization.validated.admission.context.authorization.session
-    : authorization.candidate.status.session;
-}
-
 function ed25519ReusableWalletSessionIdentity(
   authorization: AcceptedEd25519WalletSessionAuthorization,
 ) {
-  const session = ed25519ReusableWalletSession(authorization);
+  const session = reusableWalletSession(authorization);
   return {
     tenantId: session.tenantId,
     principalId: session.principalId,
@@ -200,47 +211,27 @@ function ed25519ReusableWalletSessionIdentity(
   };
 }
 
-function buildEd25519GatewayOwnerWalletSessionBinding(
+/** The Router binding for a reusable Wallet Session operation, in the scope its admission pinned. */
+function ed25519GatewayOwnerWalletSessionBinding(
   authorization: AcceptedEd25519WalletSessionAuthorization,
   pinned: PinnedOwnerWalletScope,
 ) {
-  const session = ed25519ReusableWalletSession(authorization);
   const runtimePolicyScope = authorization.activeMaterial.runtimePolicyScope;
-  return {
-    kind: 'gateway_owner_wallet_session' as const,
-    ownershipGeneration: pinned.ownershipGeneration,
-    subjectId: String(session.principalId),
-    accountId: String(session.walletId),
-    authorizationId: String(session.authorizationId),
-    walletSessionId: String(session.walletSessionId),
-    quotaId: String(session.quotaId),
-    thresholdSessionId: authorization.activeMaterial.exportIdentity.scope.threshold_session_id,
-    orgId: runtimePolicyScope.orgId,
-    projectId: runtimePolicyScope.projectId,
-    environment: runtimePolicyScope.envId,
-    projectEnvironmentId: pinned.projectEnvironmentId,
-    signingWorkerId: authorization.activeMaterial.signingWorkerId,
-    expiresAtMs: session.expiresAtMs,
-  };
-}
-
-/** The scope the operation's own admission pinned, checked against the active material. */
-function pinnedEd25519WalletScope(
-  authorization: AcceptedEd25519WalletSessionAuthorization,
-  pinned: PinnedOwnerWalletScope,
-): PinnedOwnerWalletScope {
-  const scope = authorization.activeMaterial.runtimePolicyScope;
-  if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
+  if (
+    pinned.orgId !== runtimePolicyScope.orgId ||
+    pinned.projectId !== runtimePolicyScope.projectId
+  ) {
     throw new Error('Pinned owner Wallet Session scope differs from active material');
   }
-  return pinned;
+  return gatewayOwnerWalletSessionBinding({
+    session: reusableWalletSession(authorization),
+    pinned,
+    runtimePolicyScope,
+    thresholdSessionId: authorization.activeMaterial.exportIdentity.scope.threshold_session_id,
+    signingWorkerId: authorization.activeMaterial.signingWorkerId,
+  });
 }
 
-/**
- * The Router binding for a verified step-up: the wallet it signs for and the
- * Console project environment of the store that claimed the operation, so
- * the SigningWorker reaches the wallet's own storage.
- */
 async function ed25519OperationStepUpBinding(
   ctx: FetchRouterApiContext,
   session: {
@@ -251,25 +242,13 @@ async function ed25519OperationStepUpBinding(
   },
   operation: AuthorizedOperation,
 ): Promise<OperationStepUpBinding> {
-  const scope = session.runtimePolicyScope;
-  const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
+  const pinned = await readPinnedStepUpWalletScope(
+    ctx,
+    requireAuthorizationValue(parseWalletId(session.walletId)),
+    session.runtimePolicyScope,
     operation,
-    walletId: requireAuthorizationValue(parseWalletId(session.walletId)),
-  });
-  if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
-    throw new Error('Step-up wallet scope differs from the Wallet Session scope');
-  }
-  return {
-    kind: 'operation_step_up',
-    ownershipGeneration: pinned.ownershipGeneration,
-    authorizationSessionId: session.sessionId,
-    orgId: scope.orgId,
-    projectId: scope.projectId,
-    environment: scope.envId,
-    projectEnvironmentId: pinned.projectEnvironmentId,
-    subjectId: session.principalId,
-    accountId: session.walletId,
-  };
+  );
+  return operationStepUpBinding(session, pinned);
 }
 
 type RouterAbEd25519AuthorizedOperationWire = {
@@ -290,18 +269,10 @@ function buildRouterAbEd25519AuthorizedOperationWire(
   if (operationRef.capabilityKind !== 'near_ed25519_mpc_signing') {
     throw new Error('Ed25519 authorized operation capability is invalid');
   }
-  const operationKind = requireEd25519OperationKind(operationRef.operationKind);
-  const commonAuthorizedOperation = {
-    authorized_operation_id: operation.authorizedOperationId,
-    operation_id: operation.operation.operationId,
-    capability_kind: 'near_ed25519_mpc_signing' as const,
-    operation_kind: operationKind,
-    lane_digest_b64u: operation.operation.digests.laneDigest,
-    intent_digest_b64u: operation.operation.digests.intentDigest,
-    display_digest_b64u: operation.operation.digests.displayDigest,
-    operation_fingerprint_digest: operation.operationFingerprintDigest,
-  };
-  return buildAuthorizedOperationWire(input, commonAuthorizedOperation);
+  return buildAuthorizedOperationWire(input, {
+    capability_kind: 'near_ed25519_mpc_signing',
+    operation_kind: requireEd25519OperationKind(operationRef.operationKind),
+  });
 }
 
 type EmailOtpFactorEvaluationRequest = {
@@ -342,13 +313,10 @@ async function validatePasskeyEd25519SessionAuthorization(input: {
   ) {
     return {
       ok: false,
-      response: json(
-        {
-          ok: false,
-          code: 'unauthorized',
-          message: 'WebAuthn proof does not match the active Ed25519 Wallet Session authority',
-        },
-        { status: 401 },
+      response: jsonFailure(
+        401,
+        'unauthorized',
+        'WebAuthn proof does not match the active Ed25519 Wallet Session authority',
       ),
     };
   }
@@ -356,13 +324,10 @@ async function validatePasskeyEd25519SessionAuthorization(input: {
   if (!expectedOrigin) {
     return {
       ok: false,
-      response: json(
-        {
-          ok: false,
-          code: 'invalid_body',
-          message: 'expected_origin is required for WebAuthn authentication verification',
-        },
-        { status: 400 },
+      response: jsonFailure(
+        400,
+        'invalid_body',
+        'expected_origin is required for WebAuthn authentication verification',
       ),
     };
   }
@@ -417,24 +382,12 @@ async function validatePasskeyEd25519SessionAuthorization(input: {
   }
   return {
     ok: false,
-    response: json(
-      {
-        ok: false,
-        code: verified.code || 'not_verified',
-        message: verified.message || 'WebAuthn authentication verification failed',
-      },
-      { status: 401 },
+    response: jsonFailure(
+      401,
+      verified.code || 'not_verified',
+      verified.message || 'WebAuthn authentication verification failed',
     ),
   };
-}
-
-function requireAuthorizationValue<T>(
-  result:
-    | { readonly ok: true; readonly value: T }
-    | { readonly ok: false; readonly error: { readonly message: string } },
-): T {
-  if (!result.ok) throw new Error(result.error.message);
-  return result.value;
 }
 
 function digestWireB64u(value: unknown, label: string): string {
@@ -469,7 +422,7 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
     if (!operation.ok) throw new Error(operation.message);
     const intent = isPlainObject(input.body.intent) ? input.body.intent : null;
     if (!intent) throw new Error('Ed25519 normal-signing intent is required');
-    const session = ed25519ReusableWalletSession(input.authorization);
+    const session = reusableWalletSession(input.authorization);
     const privateBody = await buildRouterAbEd25519PrivateSigningWorkerBody({
       phase: 'prepare',
       body: input.body,
@@ -493,10 +446,7 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
     ) {
       return {
         ok: false,
-        response: json(
-          { ok: false, code: 'wallet_session_mismatch', message: 'Wallet Session changed' },
-          { status: 403 },
-        ),
+        response: jsonFailure(403, 'wallet_session_mismatch', 'Wallet Session changed'),
       };
     }
     const capabilityId = requireAuthorizationValue(
@@ -600,14 +550,10 @@ async function authorizeEd25519ReusableWalletSessionOperation(input: {
   } catch (error: unknown) {
     return {
       ok: false,
-      response: json(
-        {
-          ok: false,
-          code: 'invalid_body',
-          message:
-            error instanceof Error ? error.message : 'Ed25519 authorized operation is invalid',
-        },
-        { status: 400 },
+      response: jsonFailure(
+        400,
+        'invalid_body',
+        error instanceof Error ? error.message : 'Ed25519 authorized operation is invalid',
       ),
     };
   }
@@ -680,15 +626,12 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
         tenantId: identity.tenantId,
         authorizedOperationId,
         operationFingerprintDigest: fingerprint,
-        walletId: ed25519ReusableWalletSession(input.authorization).walletId,
+        walletId: reusableWalletSession(input.authorization).walletId,
       });
     } catch {
       return {
         ok: false,
-        response: json(
-          { ok: false, code: 'internal', message: 'Authorized operation lookup failed' },
-          { status: 500 },
-        ),
+        response: jsonFailure(500, 'internal', 'Authorized operation lookup failed'),
       };
     }
     if (!resolved.ok) return resolved;
@@ -710,13 +653,10 @@ async function validateEd25519ReusableAuthorizedOperation(input: {
   } catch (error: unknown) {
     return {
       ok: false,
-      response: json(
-        {
-          ok: false,
-          code: 'invalid_authorized_operation',
-          message: error instanceof Error ? error.message : 'Authorized operation is invalid',
-        },
-        { status: 400 },
+      response: jsonFailure(
+        400,
+        'invalid_authorized_operation',
+        error instanceof Error ? error.message : 'Authorized operation is invalid',
       ),
     };
   }
@@ -821,13 +761,10 @@ async function validateEd25519VerifiedStepUpAuthorizedOperation(input: {
     if (!operationResult) {
       return {
         ok: false,
-        response: json(
-          {
-            ok: false,
-            code: 'authorized_operation_missing',
-            message: 'Authorized operation is unavailable',
-          },
-          { status: 409 },
+        response: jsonFailure(
+          409,
+          'authorized_operation_missing',
+          'Authorized operation is unavailable',
         ),
       };
     }
@@ -853,30 +790,47 @@ async function validateEd25519VerifiedStepUpAuthorizedOperation(input: {
   } catch (error: unknown) {
     return {
       ok: false,
-      response: json(
-        {
-          ok: false,
-          code: 'invalid_authorized_operation',
-          message: error instanceof Error ? error.message : 'Authorized operation is invalid',
-        },
-        { status: 400 },
+      response: jsonFailure(
+        400,
+        'invalid_authorized_operation',
+        error instanceof Error ? error.message : 'Authorized operation is invalid',
       ),
     };
   }
 }
 
+/**
+ * Records the SigningWorker's response as the operation's result and answers
+ * with the stored readback. Completion readback is the authority for a
+ * terminal response: a claimed operation must never fall back to the live
+ * upstream response after the completion write, since that would make
+ * retries non-idempotent.
+ */
 async function completeEd25519Operation(input: {
-  ctx: FetchRouterApiContext;
-  operation: AuthorizedOperation;
-  result: 'succeeded' | 'failed_before_side_effect' | 'failed_after_side_effect';
-  response: AuthorizedOperationReplayResponse;
-}): Promise<AuthorizedOperation> {
-  return await input.ctx.service.authorizedOperations.completeAuthorizedOperation({
-    operation: input.operation,
-    result: input.result,
-    response: input.response,
-    completedAtMs: Date.now(),
-  });
+  readonly ctx: FetchRouterApiContext;
+  readonly timing: SigningGatewayTiming;
+  readonly operation: AuthorizedOperation;
+  readonly result: 'succeeded' | 'failed_before_side_effect' | 'failed_after_side_effect';
+  readonly upstream: Response;
+  readonly bodyText: string;
+}): Promise<Response> {
+  const completed = await timeEd25519SigningStage(
+    input.timing,
+    'complete',
+    input.ctx.service.authorizedOperations.completeAuthorizedOperation({
+      operation: input.operation,
+      result: input.result,
+      response: {
+        status: input.upstream.status,
+        contentType: input.upstream.headers.get('content-type') || 'application/json',
+        bodyText: input.bodyText,
+      },
+      completedAtMs: Date.now(),
+    }),
+  );
+  const replay = replayCompletedEd25519Operation(completed);
+  if (!replay) throw new Error('Ed25519 operation completion readback is not completed');
+  return replay;
 }
 
 function replayCompletedEd25519Operation(operation: AuthorizedOperation): Response | null {
@@ -885,28 +839,6 @@ function replayCompletedEd25519Operation(operation: AuthorizedOperation): Respon
     status: operation.response.status,
     headers: { 'content-type': operation.response.contentType },
   });
-}
-
-/**
- * Completion readback is the authority for a terminal response. A claimed
- * operation must never fall back to the live upstream response after the
- * completion write, since that would make retries non-idempotent.
- */
-function requireCompletedEd25519OperationResponse(operation: AuthorizedOperation): Response {
-  const replay = replayCompletedEd25519Operation(operation);
-  if (!replay) throw new Error('Ed25519 operation completion readback is not completed');
-  return replay;
-}
-
-function buildEd25519ReplayResponse(input: {
-  readonly response: Response;
-  readonly bodyText: string;
-}): AuthorizedOperationReplayResponse {
-  return {
-    status: input.response.status,
-    contentType: input.response.headers.get('content-type') || 'application/json',
-    bodyText: input.bodyText,
-  };
 }
 
 type Ed25519NormalSigningExecutionDecision =
@@ -931,13 +863,10 @@ function decideEd25519NormalSigningExecution(input: {
     case 'operation_in_progress':
       return {
         kind: 'operation_in_progress',
-        response: json(
-          {
-            ok: false,
-            code: 'operation_in_progress',
-            message: 'Ed25519 operation is already in progress',
-          },
-          { status: 409 },
+        response: jsonFailure(
+          409,
+          'operation_in_progress',
+          'Ed25519 operation is already in progress',
         ),
       };
     case 'replayed': {
@@ -981,23 +910,14 @@ async function issueEd25519OperationStepUpGrant(input: {
 }): Promise<Response> {
   const scope = parseRouterAbEd25519OperationStepUpScope(input.request.normalSigningRequest.scope);
   if (scope.authorization.kind !== 'operation_step_up') {
-    return json(
-      { ok: false, code: 'invalid_body', message: 'Operation step-up scope is required' },
-      { status: 400 },
-    );
+    return jsonFailure(400, 'invalid_body', 'Operation step-up scope is required');
   }
   const expiresAtMs = Number(input.request.normalSigningRequest.expires_at_ms);
   if (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= 0) {
-    return json(
-      { ok: false, code: 'invalid_body', message: 'Operation step-up expiry is invalid' },
-      { status: 400 },
-    );
+    return jsonFailure(400, 'invalid_body', 'Operation step-up expiry is invalid');
   }
   if (expiresAtMs <= Date.now()) {
-    return json(
-      { ok: false, code: 'expired_request', message: 'Operation step-up request is expired' },
-      { status: 408 },
-    );
+    return jsonFailure(408, 'expired_request', 'Operation step-up request is expired');
   }
   const proof = input.request.proof;
   const activeAuthority = await resolveActiveEd25519OperationStepUpAuthority(
@@ -1005,17 +925,14 @@ async function issueEd25519OperationStepUpGrant(input: {
     proof,
   );
   if (!activeAuthority.ok) {
-    return json(
-      { ok: false, code: 'scope_mismatch', message: 'Operation step-up authority is not active' },
-      { status: 403 },
-    );
+    return jsonFailure(403, 'scope_mismatch', 'Operation step-up authority is not active');
   }
   const authority = proof.kind === 'passkey' ? proof.authority : activeAuthority.authority;
   const operation = parseRouterAbOperationStepUpOperation(
     input.request.normalSigningRequest.intent,
   );
   if (!operation.ok) {
-    return json({ ok: false, code: 'invalid_body', message: operation.message }, { status: 400 });
+    return jsonFailure(400, 'invalid_body', operation.message);
   }
   const activeMaterial =
     await input.ctx.service.walletRegistration.resolveEd25519MaterialActivation({
@@ -1023,16 +940,12 @@ async function issueEd25519OperationStepUpGrant(input: {
       materialActivation: scope.material_activation,
     });
   if (!activeMaterial.ok) {
-    return json(
-      {
-        ok: false,
-        code: activeMaterial.code === 'internal' ? 'internal' : 'scope_mismatch',
-        message:
-          activeMaterial.code === 'internal'
-            ? activeMaterial.message
-            : 'Operation step-up scope does not name the active material',
-      },
-      { status: activeMaterial.code === 'internal' ? 500 : 403 },
+    return jsonFailure(
+      activeMaterial.code === 'internal' ? 500 : 403,
+      activeMaterial.code === 'internal' ? 'internal' : 'scope_mismatch',
+      activeMaterial.code === 'internal'
+        ? activeMaterial.message
+        : 'Operation step-up scope does not name the active material',
     );
   }
   if (
@@ -1041,13 +954,10 @@ async function issueEd25519OperationStepUpGrant(input: {
       scope.material_activation,
     )
   ) {
-    return json(
-      {
-        ok: false,
-        code: 'scope_mismatch',
-        message: 'Operation step-up scope does not name the active material',
-      },
-      { status: 403 },
+    return jsonFailure(
+      403,
+      'scope_mismatch',
+      'Operation step-up scope does not name the active material',
     );
   }
   const authenticated = await authenticateRouterAbWalletOperationStepUpIdentity({
@@ -1073,27 +983,18 @@ async function issueEd25519OperationStepUpGrant(input: {
       headers: Object.fromEntries(input.ctx.request.headers.entries()),
     });
   } catch (error: unknown) {
-    return json(
-      {
-        ok: false,
-        code: 'invalid_body',
-        message: error instanceof Error ? error.message : 'Operation step-up request is invalid',
-      },
-      { status: 400 },
+    return jsonFailure(
+      400,
+      'invalid_body',
+      error instanceof Error ? error.message : 'Operation step-up request is invalid',
     );
   }
   if (!('admission_candidate' in privateBody)) {
-    return json(
-      { ok: false, code: 'invalid_body', message: 'Operation step-up prepare is required' },
-      { status: 400 },
-    );
+    return jsonFailure(400, 'invalid_body', 'Operation step-up prepare is required');
   }
   const intent = input.request.normalSigningRequest.intent;
   if (!isPlainObject(intent)) {
-    return json(
-      { ok: false, code: 'invalid_body', message: 'Operation step-up intent is invalid' },
-      { status: 400 },
-    );
+    return jsonFailure(400, 'invalid_body', 'Operation step-up intent is invalid');
   }
   const capabilityId = requireAuthorizationValue(
     parseCapabilityId(scope.material_activation.capability),
@@ -1125,10 +1026,7 @@ async function issueEd25519OperationStepUpGrant(input: {
     authorityRef.authorityDigest !== authenticated.authorityRef.authorityDigest ||
     authorityRef.walletId !== authenticated.session.walletId
   ) {
-    return json(
-      { ok: false, code: 'scope_mismatch', message: 'Operation step-up authority changed' },
-      { status: 403 },
-    );
+    return jsonFailure(403, 'scope_mismatch', 'Operation step-up authority changed');
   }
   const requestOrigin = authenticated.requestOrigin;
   const requestId = String(scope.request_id);
@@ -1152,10 +1050,7 @@ async function issueEd25519OperationStepUpGrant(input: {
         !credentialId.ok ||
         credentialId.credentialIdB64u !== proof.authority.factor.credentialIdB64u
       ) {
-        return json(
-          { ok: false, code: 'unauthorized', message: 'Passkey credential changed' },
-          { status: 401 },
-        );
+        return jsonFailure(401, 'unauthorized', 'Passkey credential changed');
       }
       const verified = await input.ctx.service.webAuthn.verifyWebAuthnAuthenticationLite({
         userId: authenticated.session.walletId,
@@ -1165,13 +1060,10 @@ async function issueEd25519OperationStepUpGrant(input: {
         webauthn_authentication: credential,
       });
       if (!verified.success || !verified.verified) {
-        return json(
-          {
-            ok: false,
-            code: verified.code || 'not_verified',
-            message: verified.message || 'WebAuthn authentication verification failed',
-          },
-          { status: 401 },
+        return jsonFailure(
+          401,
+          verified.code || 'not_verified',
+          verified.message || 'WebAuthn authentication verification failed',
         );
       }
       const verifiedAtMs = Date.now();
@@ -1331,41 +1223,8 @@ async function issueEd25519OperationStepUpGrant(input: {
       claimedAtMs: Date.now(),
     },
   });
-  switch (atomicOperation.kind) {
-    case 'claimed':
-    case 'operation_in_progress':
-    case 'replayed':
-      break;
-    case 'authorization_grant_rejected':
-    case 'verified_step_up_rejected':
-      return json(
-        {
-          ok: false,
-          code: atomicOperation.kind,
-          message: 'Ed25519 operation step-up authorization is invalid',
-        },
-        { status: 403 },
-      );
-    case 'billing_credit_exhausted':
-      return json(
-        {
-          ok: false,
-          code: atomicOperation.kind,
-          message: 'The application has no available signing credit',
-        },
-        { status: 402 },
-      );
-    case 'wallet_session_quota_exhausted':
-    case 'material_mismatch':
-      return json(
-        {
-          ok: false,
-          code: atomicOperation.kind,
-          message: 'Ed25519 operation step-up authorization is unavailable',
-        },
-        { status: 409 },
-      );
-  }
+  const admissionRefusal = operationStepUpAdmissionRefusal(atomicOperation.kind, 'Ed25519');
+  if (admissionRefusal) return admissionRefusal;
   if (pendingFactorRelease) {
     if (!factorReleaseChallengeId) {
       throw new Error('Email OTP factor release challenge is missing after grant consumption');
@@ -1389,13 +1248,10 @@ async function issueEd25519OperationStepUpGrant(input: {
           factor.wrappedFactorB64u === pendingFactor.wrappedFactorB64u,
       )
     ) {
-      return json(
-        {
-          ok: false,
-          code: 'scope_mismatch',
-          message: 'Email OTP enrollment changed before factor release',
-        },
-        { status: 409 },
+      return jsonFailure(
+        409,
+        'scope_mismatch',
+        'Email OTP enrollment changed before factor release',
       );
     }
     const evaluated = await evaluateEmailOtpFactorForDevice({
@@ -1450,10 +1306,7 @@ async function proxyEd25519OwnerLaneExecution(input: {
   const scope = parseRouterAbEd25519OperationStepUpScope(input.body.scope);
   const walletId = parseWalletId(scope.account_id);
   if (!walletId.ok) {
-    return json(
-      { ok: false, code: 'invalid_body', message: 'Ed25519 signing wallet is invalid' },
-      { status: 400 },
-    );
+    return jsonFailure(400, 'invalid_body', 'Ed25519 signing wallet is invalid');
   }
   const laneAuthorization = input.authorization.session.laneAuthorization;
   return await proxyOwnerLaneAdmittedNormalSigningRequest({
@@ -1468,48 +1321,20 @@ async function proxyEd25519OwnerLaneExecution(input: {
   });
 }
 
-type Ed25519SigningGatewayTiming = {
-  authorize: number | null;
-  admit: number | null;
-  proxy: number | null;
-  complete: number | null;
-  total: number | null;
-};
-
 async function handleRouterAbEd25519NormalSigningRoute(input: {
   ctx: FetchRouterApiContext;
   body: Record<string, unknown>;
   phase: RouterAbEd25519NormalSigningRoutePhase;
 }): Promise<Response> {
-  const startedAt = performance.now();
-  const timing: Ed25519SigningGatewayTiming = {
-    authorize: null,
-    admit: null,
-    proxy: null,
-    complete: null,
-    total: null,
-  };
-  const response = await executeRouterAbEd25519NormalSigningRoute(splitVoiceVerdict(input), timing);
-  timing.total = performance.now() - startedAt;
-  const headers = new Headers(response.headers);
-  for (const [stage, duration] of Object.entries(timing)) {
-    if (duration !== null) {
-      headers.append(
-        'Server-Timing',
-        `ed25519_sign_${stage};dur=${Math.max(0, duration).toFixed(1)}`,
-      );
-    }
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
+  const timing = emptySigningGatewayTiming();
+  return await withServerTiming('ed25519_sign_', timing, () =>
+    executeRouterAbEd25519NormalSigningRoute(splitVoiceVerdict(input), timing),
+  );
 }
 
 async function timeEd25519SigningStage<T>(
-  timing: Ed25519SigningGatewayTiming,
-  stage: Exclude<keyof Ed25519SigningGatewayTiming, 'total'>,
+  timing: SigningGatewayTiming,
+  stage: Exclude<keyof SigningGatewayTiming, 'total'>,
   pending: Promise<T>,
 ): Promise<T> {
   // Worker clocks move only at I/O, so the call's synchronous start adds nothing.
@@ -1521,6 +1346,127 @@ async function timeEd25519SigningStage<T>(
   }
 }
 
+/** Sends the request on with its authorized operation and binding, timed as the proxy stage. */
+async function proxyEd25519AuthorizedOperation(input: {
+  readonly ctx: FetchRouterApiContext;
+  readonly timing: SigningGatewayTiming;
+  readonly body: Record<string, unknown>;
+  readonly authorization: AcceptedEd25519NormalSigningAuthorization;
+  readonly authorizedOperation: AuthorizedOperationWireInput;
+}): Promise<Response> {
+  return await timeEd25519SigningStage(
+    input.timing,
+    'proxy',
+    proxyEd25519OwnerLaneExecution({
+      ctx: input.ctx,
+      authorization: input.authorization,
+      authorizedOperation: input.authorizedOperation.operation,
+      body: {
+        ...input.body,
+        authorized_operation: buildRouterAbEd25519AuthorizedOperationWire(
+          input.authorizedOperation,
+        ),
+      },
+    }),
+  );
+}
+
+async function readEd25519UpstreamBodyText(upstream: Response): Promise<string> {
+  return await upstream
+    .clone()
+    .text()
+    .catch(() => '');
+}
+
+/**
+ * Answers a prepare with the SigningWorker's response and the operation's
+ * receipt. A refusal, or a body that is not a JSON object, completes the
+ * operation instead, so a retry replays that answer.
+ */
+async function finishEd25519Prepare(input: {
+  readonly ctx: FetchRouterApiContext;
+  readonly timing: SigningGatewayTiming;
+  readonly upstream: Response;
+  readonly operation: AuthorizedOperation;
+  readonly authorization: Parameters<typeof signingPrepareSessionResponse>[1];
+  readonly receipt: () =>
+    | Ed25519ReusableAuthorizedOperationReceipt
+    | Ed25519VerifiedStepUpAuthorizedOperationReceipt;
+}): Promise<Response> {
+  const upstream = input.upstream;
+  const upstreamBodyText = await readEd25519UpstreamBodyText(upstream);
+  let upstreamBody: unknown = null;
+  try {
+    upstreamBody = upstreamBodyText ? JSON.parse(upstreamBodyText) : null;
+  } catch {
+    upstreamBody = null;
+  }
+  if (
+    isRouterAbEd25519OperationInProgressResponse({
+      status: upstream.status,
+      bodyText: upstreamBodyText,
+    })
+  ) {
+    return upstream;
+  }
+  if (!upstream.ok || !isPlainObject(upstreamBody)) {
+    return await completeEd25519Operation({
+      ctx: input.ctx,
+      timing: input.timing,
+      operation: input.operation,
+      result: upstream.status < 500 ? 'failed_before_side_effect' : 'failed_after_side_effect',
+      upstream,
+      bodyText: upstreamBodyText,
+    });
+  }
+  const headers = new Headers(upstream.headers);
+  headers.delete('content-length');
+  return new Response(
+    JSON.stringify(
+      signingPrepareSessionResponse(
+        { ...upstreamBody, authorized_operation: input.receipt() },
+        input.authorization,
+      ),
+    ),
+    {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers,
+    },
+  );
+}
+
+/** Completes a finalized operation with the SigningWorker's response and answers with it. */
+async function finishEd25519Finalize(input: {
+  readonly ctx: FetchRouterApiContext;
+  readonly timing: SigningGatewayTiming;
+  readonly upstream: Response;
+  readonly operation: AuthorizedOperation;
+}): Promise<Response> {
+  const upstream = input.upstream;
+  const upstreamBodyText = await readEd25519UpstreamBodyText(upstream);
+  if (
+    isRouterAbEd25519OperationInProgressResponse({
+      status: upstream.status,
+      bodyText: upstreamBodyText,
+    })
+  ) {
+    return upstream;
+  }
+  return await completeEd25519Operation({
+    ctx: input.ctx,
+    timing: input.timing,
+    operation: input.operation,
+    result: upstream.ok
+      ? 'succeeded'
+      : upstream.status < 500
+        ? 'failed_before_side_effect'
+        : 'failed_after_side_effect',
+    upstream,
+    bodyText: upstreamBodyText,
+  });
+}
+
 async function executeRouterAbEd25519NormalSigningRoute(
   input: {
     ctx: FetchRouterApiContext;
@@ -1528,22 +1474,19 @@ async function executeRouterAbEd25519NormalSigningRoute(
     phase: RouterAbEd25519NormalSigningRoutePhase;
     voiceVerdict: unknown;
   },
-  timing: Ed25519SigningGatewayTiming,
+  timing: SigningGatewayTiming,
 ): Promise<Response> {
-  const authorization = await timeEd25519SigningStage(timing, 'authorize', authorizeRouterAbEd25519NormalSigningRoute({
-    body: input.body,
-    rawBody: input.body,
-    headers: Object.fromEntries(input.ctx.request.headers.entries()),
-    session: input.ctx.opts.session,
-    authorizedOperations: input.ctx.service.authorizedOperations,
-    authorizationSessions: input.ctx.service.authorizationSessions,
-    admissionAdapter: input.ctx.opts.routerAbNormalSigningAdmission,
-    resolveEd25519MaterialActivation:
-      input.ctx.service.walletRegistration.resolveEd25519MaterialActivation.bind(
-        input.ctx.service.walletRegistration,
-      ),
-    phase: input.phase,
-  }));
+  const authorization = await timeEd25519SigningStage(
+    timing,
+    'authorize',
+    authorizeRouterAbEd25519NormalSigningRoute({
+      ...normalSigningAuthorizationRequest(input),
+      resolveEd25519MaterialActivation:
+        input.ctx.service.walletRegistration.resolveEd25519MaterialActivation.bind(
+          input.ctx.service.walletRegistration,
+        ),
+    }),
+  );
   if (!authorization.ok) {
     return json(authorization.result.body, { status: authorization.result.status });
   }
@@ -1559,124 +1502,75 @@ async function executeRouterAbEd25519NormalSigningRoute(
         operation: authorization.operation,
       });
       if (execution.kind !== 'execute') return execution.response;
-      const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
+      const upstream = await proxyEd25519AuthorizedOperation({
         ctx: input.ctx,
+        timing,
+        body: input.body,
         authorization,
-        authorizedOperation: execution.operation,
-        body: {
-          ...input.body,
-          authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
-            operation: execution.operation,
-            binding: await ed25519OperationStepUpBinding(
-              input.ctx,
-              authorization.session,
-              execution.operation,
-            ),
-          }),
-        },
-      }));
-      const upstreamBodyText = await upstream
-        .clone()
-        .text()
-        .catch(() => '');
-      let upstreamBody: unknown = null;
-      try {
-        upstreamBody = upstreamBodyText ? JSON.parse(upstreamBodyText) : null;
-      } catch {
-        upstreamBody = null;
-      }
-      if (
-        isRouterAbEd25519OperationInProgressResponse({
-          status: upstream.status,
-          bodyText: upstreamBodyText,
-        })
-      ) {
-        return upstream;
-      }
-      if (!upstream.ok || !isPlainObject(upstreamBody)) {
-        const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
-          ctx: input.ctx,
+        authorizedOperation: {
           operation: execution.operation,
-          result: upstream.status < 500 ? 'failed_before_side_effect' : 'failed_after_side_effect',
-          response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-        }));
-        return requireCompletedEd25519OperationResponse(completed);
-      }
-      const headers = new Headers(upstream.headers);
-      headers.delete('content-length');
-      return new Response(
-        JSON.stringify(
-          signingPrepareSessionResponse({
-            ...upstreamBody,
-            authorized_operation: buildEd25519VerifiedStepUpAuthorizedOperationReceipt({
-              authorization,
-            }),
-          }, authorization),
-        ),
-        {
-          status: upstream.status,
-          statusText: upstream.statusText,
-          headers,
+          binding: await ed25519OperationStepUpBinding(
+            input.ctx,
+            authorization.session,
+            execution.operation,
+          ),
         },
-      );
+      });
+      return await finishEd25519Prepare({
+        ctx: input.ctx,
+        timing,
+        upstream,
+        operation: execution.operation,
+        authorization,
+        receipt: () => buildEd25519VerifiedStepUpAuthorizedOperationReceipt({ authorization }),
+      });
     }
     if (authorization.phase !== 'finalize') {
       throw new Error('Operation step-up finalize authorization phase changed');
     }
-    const validatedAuthorization = await timeEd25519SigningStage(timing, 'admit', validateEd25519VerifiedStepUpAuthorizedOperation({
-      ctx: input.ctx,
-      body: input.body,
-      authorization,
-    }));
+    const validatedAuthorization = await timeEd25519SigningStage(
+      timing,
+      'admit',
+      validateEd25519VerifiedStepUpAuthorizedOperation({
+        ctx: input.ctx,
+        body: input.body,
+        authorization,
+      }),
+    );
     if (!validatedAuthorization.ok) return validatedAuthorization.response;
     const replay = replayCompletedEd25519Operation(validatedAuthorization.operation);
     if (replay) return replay;
-    const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
+    const upstream = await proxyEd25519AuthorizedOperation({
       ctx: input.ctx,
-      authorization,
-      authorizedOperation: validatedAuthorization.operation,
-      body: {
-        ...input.body,
-        authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
-          operation: validatedAuthorization.operation,
-          binding: await ed25519OperationStepUpBinding(
-            input.ctx,
-            authorization.session,
-            validatedAuthorization.operation,
-          ),
-        }),
-      },
-    }));
-    const upstreamBodyText = await upstream
-      .clone()
-      .text()
-      .catch(() => '');
-    if (
-      isRouterAbEd25519OperationInProgressResponse({
-        status: upstream.status,
-        bodyText: upstreamBodyText,
-      })
-    ) {
-      return upstream;
-    }
-    const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
-      ctx: input.ctx,
-      operation: validatedAuthorization.operation,
-      result: upstream.ok
-        ? 'succeeded'
-        : upstream.status < 500
-          ? 'failed_before_side_effect'
-          : 'failed_after_side_effect',
-      response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-    }));
-    return requireCompletedEd25519OperationResponse(completed);
-  }
-  if (input.phase === 'prepare') {
-    const authorized = await timeEd25519SigningStage(timing, 'admit', authorizeEd25519ReusableWalletSessionOperation({
-      ctx: input.ctx,
+      timing,
       body: input.body,
       authorization,
-    }));
+      authorizedOperation: {
+        operation: validatedAuthorization.operation,
+        binding: await ed25519OperationStepUpBinding(
+          input.ctx,
+          authorization.session,
+          validatedAuthorization.operation,
+        ),
+      },
+    });
+    return await finishEd25519Finalize({
+      ctx: input.ctx,
+      timing,
+      upstream,
+      operation: validatedAuthorization.operation,
+    });
+  }
+  if (input.phase === 'prepare') {
+    const authorized = await timeEd25519SigningStage(
+      timing,
+      'admit',
+      authorizeEd25519ReusableWalletSessionOperation({
+        ctx: input.ctx,
+        body: input.body,
+        authorization,
+      }),
+    );
     if (!authorized.ok) return authorized.response;
     const execution = decideEd25519NormalSigningExecution({
       phase: 'prepare',
@@ -1691,138 +1585,68 @@ async function executeRouterAbEd25519NormalSigningRoute(
       operation: execution.operation,
     });
     if (ownerDecision.kind !== 'authorized') {
-      return json(
-        {
-          ok: false,
-          code:
-            ownerDecision.kind === 'denied'
-              ? ownerDecision.denial.code
-              : 'authorization_unavailable',
-          message:
-            ownerDecision.kind === 'denied'
-              ? ownerDecision.denial.message
-              : 'Ed25519 operation step-up was not admitted',
-          authorization_decision:
-            ownerDecision.kind === 'denied'
-              ? ownerDecision
-              : {
-                  kind: 'denied' as const,
-                  denial: {
-                    code: 'authorization_unavailable' as const,
-                    message: 'Ed25519 operation step-up was not admitted',
-                  },
-                },
-        },
-        { status: 403 },
+      return ownerOperationNotAuthorizedResponse(
+        ownerDecision,
+        'Ed25519 operation step-up was not admitted',
       );
     }
-    const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
+    const receipt = authorized.admission.receipt;
+    const upstream = await proxyEd25519AuthorizedOperation({
       ctx: input.ctx,
+      timing,
+      body: input.body,
       authorization,
-      authorizedOperation: execution.operation,
-      body: {
-        ...input.body,
-        authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
-          operation: execution.operation,
-          binding: buildEd25519GatewayOwnerWalletSessionBinding(
-            authorization,
-            pinnedEd25519WalletScope(authorization, authorized.admission.ownerScope),
-          ),
-        }),
-      },
-    }));
-    const upstreamBodyText = await upstream
-      .clone()
-      .text()
-      .catch(() => '');
-    let upstreamBody: unknown = null;
-    try {
-      upstreamBody = upstreamBodyText ? JSON.parse(upstreamBodyText) : null;
-    } catch {
-      upstreamBody = null;
-    }
-    if (
-      isRouterAbEd25519OperationInProgressResponse({
-        status: upstream.status,
-        bodyText: upstreamBodyText,
-      })
-    ) {
-      return upstream;
-    }
-    if (!upstream.ok || !isPlainObject(upstreamBody)) {
-      const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
-        ctx: input.ctx,
+      authorizedOperation: {
         operation: execution.operation,
-        result: upstream.status < 500 ? 'failed_before_side_effect' : 'failed_after_side_effect',
-        response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-      }));
-      return requireCompletedEd25519OperationResponse(completed);
-    }
-    const headers = new Headers(upstream.headers);
-    headers.delete('content-length');
-    return new Response(
-      JSON.stringify(
-        signingPrepareSessionResponse({
-          ...upstreamBody,
-          authorized_operation: authorized.admission.receipt,
-        }, authorization),
-      ),
-      {
-        status: upstream.status,
-        statusText: upstream.statusText,
-        headers,
+        binding: ed25519GatewayOwnerWalletSessionBinding(
+          authorization,
+          authorized.admission.ownerScope,
+        ),
       },
-    );
+    });
+    return await finishEd25519Prepare({
+      ctx: input.ctx,
+      timing,
+      upstream,
+      operation: execution.operation,
+      authorization,
+      receipt: () => receipt,
+    });
   }
-  const validatedAuthorization = await timeEd25519SigningStage(timing, 'admit', validateEd25519ReusableAuthorizedOperation({
-    ctx: input.ctx,
-    body: input.body,
-    authorization,
-  }));
+  const validatedAuthorization = await timeEd25519SigningStage(
+    timing,
+    'admit',
+    validateEd25519ReusableAuthorizedOperation({
+      ctx: input.ctx,
+      body: input.body,
+      authorization,
+    }),
+  );
   if (!validatedAuthorization.ok) return validatedAuthorization.response;
   const replay = replayCompletedEd25519Operation(validatedAuthorization.operation);
   if (replay) return replay;
   if (!validatedAuthorization.ownerScope) {
     throw new Error('Pinned owner Wallet Session scope is unavailable');
   }
-  const upstream = await timeEd25519SigningStage(timing, 'proxy', proxyEd25519OwnerLaneExecution({
+  const upstream = await proxyEd25519AuthorizedOperation({
     ctx: input.ctx,
+    timing,
+    body: input.body,
     authorization,
-    authorizedOperation: validatedAuthorization.operation,
-    body: {
-      ...input.body,
-      authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
-        operation: validatedAuthorization.operation,
-        binding: buildEd25519GatewayOwnerWalletSessionBinding(
-          authorization,
-          pinnedEd25519WalletScope(authorization, validatedAuthorization.ownerScope),
-        ),
-      }),
+    authorizedOperation: {
+      operation: validatedAuthorization.operation,
+      binding: ed25519GatewayOwnerWalletSessionBinding(
+        authorization,
+        validatedAuthorization.ownerScope,
+      ),
     },
-  }));
-  const upstreamBodyText = await upstream
-    .clone()
-    .text()
-    .catch(() => '');
-  if (
-    isRouterAbEd25519OperationInProgressResponse({
-      status: upstream.status,
-      bodyText: upstreamBodyText,
-    })
-  ) {
-    return upstream;
-  }
-  const completed = await timeEd25519SigningStage(timing, 'complete', completeEd25519Operation({
+  });
+  return await finishEd25519Finalize({
     ctx: input.ctx,
+    timing,
+    upstream,
     operation: validatedAuthorization.operation,
-    result: upstream.ok
-      ? 'succeeded'
-      : upstream.status < 500
-        ? 'failed_before_side_effect'
-        : 'failed_after_side_effect',
-    response: buildEd25519ReplayResponse({ response: upstream, bodyText: upstreamBodyText }),
-  }));
-  return requireCompletedEd25519OperationResponse(completed);
+  });
 }
 
 export async function handleThresholdEd25519(ctx: FetchRouterApiContext): Promise<Response | null> {
@@ -1839,22 +1663,14 @@ export async function handleThresholdEd25519(ctx: FetchRouterApiContext): Promis
     return json({ ok: true, configured: true }, { status: 200 });
   }
 
-  if (ctx.method !== 'POST') return null;
-
-  const pathname = ctx.pathname;
-  if (
-    pathname !== ROUTER_AB_ED25519_WALLET_SESSION_PATH &&
-    pathname !== ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH &&
-    pathname !== ROUTER_AB_ED25519_NORMAL_SIGNING_PATH
-  ) {
-    return null;
-  }
-
-  const bodyUnknown = await readJson(ctx.request.clone());
-  const body =
-    bodyUnknown && typeof bodyUnknown === 'object' && !Array.isArray(bodyUnknown)
-      ? (bodyUnknown as Record<string, unknown>)
-      : {};
+  const routed = await readThresholdRouteBody(ctx, [
+    ROUTER_AB_ED25519_WALLET_SESSION_PATH,
+    ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH,
+    ROUTER_AB_ED25519_NORMAL_SIGNING_PATH,
+  ]);
+  if (!routed) return null;
+  const pathname = routed.pathname;
+  const body = jsonObjectOrEmpty(routed.body);
 
   switch (pathname) {
     case ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH:
@@ -1901,23 +1717,17 @@ export async function handleThresholdEd25519(ctx: FetchRouterApiContext): Promis
 
       const authority = b.sessionPolicy.authority;
       if (!isPasskeyWalletAuthAuthority(authority)) {
-        return json(
-          {
-            ok: false,
-            code: 'invalid_body',
-            message: 'Ed25519 Yao WebAuthn budget refresh requires passkey authority',
-          },
-          { status: 400 },
+        return jsonFailure(
+          400,
+          'invalid_body',
+          'Ed25519 Yao WebAuthn budget refresh requires passkey authority',
         );
       }
       if (b.relayerKeyId !== b.sessionPolicy.relayerKeyId) {
-        return json(
-          {
-            ok: false,
-            code: 'invalid_body',
-            message: 'relayerKeyId must match the Ed25519 Yao session policy',
-          },
-          { status: 400 },
+        return jsonFailure(
+          400,
+          'invalid_body',
+          'relayerKeyId must match the Ed25519 Yao session policy',
         );
       }
 
@@ -1930,30 +1740,21 @@ export async function handleThresholdEd25519(ctx: FetchRouterApiContext): Promis
         orgProjectEnv: ctx.opts.orgProjectEnv || null,
       });
       if (!runtimePolicyScopeResolution.ok) {
-        return json(
-          {
-            ok: false,
-            code: runtimePolicyScopeResolution.code,
-            message: runtimePolicyScopeResolution.message,
-          },
-          { status: runtimePolicyScopeResolution.status },
+        return jsonFailure(
+          runtimePolicyScopeResolution.status,
+          runtimePolicyScopeResolution.code,
+          runtimePolicyScopeResolution.message,
         );
       }
       const runtimePolicyScope = runtimePolicyScopeResolution.scope;
       if (
         !runtimePolicyScope ||
-        !sameThresholdEd25519RuntimePolicyScopeV1(
-          runtimePolicyScope,
-          b.sessionPolicy.runtimePolicyScope,
-        )
+        !sameRuntimePolicyScope(runtimePolicyScope, b.sessionPolicy.runtimePolicyScope)
       ) {
-        return json(
-          {
-            ok: false,
-            code: 'scope_mismatch',
-            message: 'Ed25519 Yao runtime policy scope does not match the active environment',
-          },
-          { status: 403 },
+        return jsonFailure(
+          403,
+          'scope_mismatch',
+          'Ed25519 Yao runtime policy scope does not match the active environment',
         );
       }
       const authorization = await validatePasskeyEd25519SessionAuthorization({
@@ -1982,16 +1783,4 @@ export async function handleThresholdEd25519(ctx: FetchRouterApiContext): Promis
     default:
       return null;
   }
-}
-
-function sameThresholdEd25519RuntimePolicyScopeV1(
-  left: RuntimePolicyScope,
-  right: RuntimePolicyScope,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
 }
