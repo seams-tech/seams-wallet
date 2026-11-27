@@ -191,14 +191,14 @@ pub struct FactorSealInputsV1 {
 /// The recovery key id is absent by construction. It is derived from the
 /// wallet and code bytes inside `recover_with_code`, then used to select the
 /// one wrap the code is allowed to open.
-pub struct RecoveryCustodyOpenInputsV1 {
+pub(crate) struct RecoveryCustodyOpenInputsV1 {
     pub wallet_id: String,
     pub wrap_nonce: Vec<u8>,
-    pub wrapped_manifest_kek: Vec<u8>,
-    pub wrap_aad_hash: [u8; 32],
+    pub(crate) wrapped_manifest_kek: Vec<u8>,
+    pub(crate) wrap_aad_hash: [u8; 32],
     pub entry_nonce: Vec<u8>,
-    pub wrapped_custody_seed: Vec<u8>,
-    pub entry_aad_hash: [u8; 32],
+    pub(crate) wrapped_custody_seed: Vec<u8>,
+    pub(crate) entry_aad_hash: [u8; 32],
 }
 
 /// State 1: a seed is held, and the run knows whether it owns custody.
@@ -244,7 +244,7 @@ fn near_checkpoint_context(
 /// state remains, so the client can send the custody payload with `activate`
 /// and complete its local share from the Router receipt without holding the
 /// seed across the network round.
-pub struct CeremonyEvmActivationPendingV1 {
+pub(crate) struct CeremonyEvmActivationPendingV1 {
     wallet_id: String,
     verified: VerifiedWalletKeySetManifestDigestV1,
     pending_state_blob: Zeroizing<Vec<u8>>,
@@ -304,6 +304,7 @@ enum CompletedProtocolV1 {
         local_material_b64u: String,
         local_material_nonce_b64u: String,
     },
+    #[cfg(test)]
     EvmFamilyEcdsa {
         client_root_public_key33: [u8; 33],
         ready_state_blob: Zeroizing<Vec<u8>>,
@@ -374,7 +375,7 @@ pub struct EstablishedCustodyRecordsV1 {
 /// ciphertext records needed by the server's atomic CAS reach JavaScript.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RotatedRecoverySetV1 {
+pub(crate) struct RotatedRecoverySetV1 {
     pub wallet_id: String,
     pub recovery_manifest_kek_wraps: Vec<SealedRecoveryWrapRecordV1>,
     pub recovery_entry_nonce_b64u: String,
@@ -458,7 +459,7 @@ pub struct EvmFamilyPublicFactsRecordV1 {
 /// Local EVM material produced after the registration activation receipt arrives.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EvmFamilyActivationCompletionV1 {
+pub(crate) struct EvmFamilyActivationCompletionV1 {
     pub wallet_id: String,
     pub key_manifest_digest_b64u: String,
     pub client_root_public_key33_b64u: String,
@@ -571,7 +572,7 @@ impl CeremonySeedHeldV1 {
     /// selects its wrap, so JavaScript cannot point a code at arbitrary
     /// ciphertext or choose a recovery identity. The resulting seed remains
     /// inside the ceremony and can only enter a registered-key continuity run.
-    pub fn recover_with_code(
+    pub(crate) fn recover_with_code(
         recovery_code_bytes: &[u8],
         input: RecoveryCustodyOpenInputsV1,
     ) -> CeremonyResult<Self> {
@@ -624,7 +625,7 @@ impl CeremonySeedHeldV1 {
     /// Reseals the wallet seed under a fresh manifest KEK and ten new recovery
     /// codes. The active factor has already opened the seed into this handle;
     /// no factor material or seed crosses the boundary.
-    pub fn rotate_recovery_set(
+    pub(crate) fn rotate_recovery_set(
         self,
         recovery_codes: Vec<RecoveryCodeInputV1>,
     ) -> CeremonyResult<RotatedRecoverySetV1> {
@@ -932,7 +933,7 @@ impl CeremonyProtocolPreparedV1 {
 
     /// Produces the EVM custody commit before activation and retains only the
     /// opaque pending ECDSA state needed to consume the Router receipt.
-    pub fn prepare_evm_activation(
+    pub(crate) fn prepare_evm_activation(
         self,
         evm_family_signing_key_slot_id: String,
         recorded_key_manifest_digest: Option<&[u8]>,
@@ -949,7 +950,7 @@ impl CeremonyProtocolPreparedV1 {
     /// Prepares EVM recovery activation and reseals the recovered seed under
     /// the replacement passkey before the network round. The seed is dropped
     /// here; only the opaque pending ECDSA state survives until the receipt.
-    pub fn prepare_evm_recovery_activation(
+    pub(crate) fn prepare_evm_recovery_activation(
         self,
         evm_family_signing_key_slot_id: String,
         recorded_key_manifest_digest: &[u8],
@@ -1060,8 +1061,9 @@ impl CeremonyProtocolPreparedV1 {
         })
     }
 
+    #[cfg(test)]
     /// Completes the EVM-family run from the relayer's public identity.
-    pub fn complete_evm_family(
+    pub(crate) fn complete_evm_family(
         self,
         relayer_public_identity: RelayerPublicIdentityInput,
     ) -> CeremonyResult<CeremonyProtocolCompletedV1> {
@@ -1136,6 +1138,7 @@ impl CeremonyProtocolCompletedV1 {
                 near_ed25519_signing_key_id,
                 registered_public_key: *registered_public_key,
             },
+            #[cfg(test)]
             (
                 CompletedProtocolV1::EvmFamilyEcdsa {
                     client_root_public_key33,
@@ -1187,7 +1190,7 @@ impl CeremonyManifestEstablishedV1 {
 
     /// Finishes a verified recovery run and reseals the same seed under the
     /// replacement passkey factor. The recovery set is preserved server-side.
-    pub fn finish_recovery(
+    pub(crate) fn finish_recovery(
         self,
         replacement_factor: FactorSealInputsV1,
     ) -> CeremonyResult<WalletCustodyCommitPayloadV1> {
@@ -1232,6 +1235,7 @@ impl CeremonyManifestEstablishedV1 {
                 None,
                 None,
             ),
+            #[cfg(test)]
             CompletedProtocolV1::EvmFamilyEcdsa {
                 client_root_public_key33,
                 ready_state_blob,
@@ -1244,6 +1248,7 @@ impl CeremonyManifestEstablishedV1 {
             ),
         };
         let ecdsa_public_facts = match &self.completed {
+            #[cfg(test)]
             CompletedProtocolV1::EvmFamilyEcdsa { public_facts, .. } => {
                 Some(ecdsa_public_facts_record(public_facts))
             }
@@ -1260,6 +1265,7 @@ impl CeremonyManifestEstablishedV1 {
                 application_binding_digest,
                 ..
             } => Some(b64u(application_binding_digest)),
+            #[cfg(test)]
             CompletedProtocolV1::EvmFamilyEcdsa { .. } => None,
         };
 
