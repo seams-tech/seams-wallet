@@ -35,7 +35,7 @@ compile_error!("select exactly one benchmark role feature");
         feature = "deriver-b-same-account-websocket",
         feature = "deriver-b-cross-account"
     ),
-    allow(dead_code, unused_imports)
+    allow(dead_code)
 )]
 mod r120_preface;
 
