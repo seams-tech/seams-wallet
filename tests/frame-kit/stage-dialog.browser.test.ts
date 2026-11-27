@@ -135,11 +135,15 @@ test.describe('stage dialog', () => {
       return {
         open: dialog.open,
         state: dialog.dataset.state,
-        focus: document.activeElement?.id,
         frame: dialog.querySelector('iframe')?.dataset.layer,
       };
     });
-    expect(closed).toEqual({ open: false, state: 'hidden', focus: 'opener', frame: 'idle' });
+    expect(closed).toEqual({ open: false, state: 'hidden', frame: 'idle' });
+    // Firefox moves the focus out of a cross-origin frame through its parent process, so the
+    // focus can arrive a moment after the close.
+    await page.waitForFunction(() => document.activeElement?.id === 'opener', undefined, {
+      timeout: 2000,
+    });
   });
 
   test("the card radius is the app's --seams-shape-card value, with no cap", async ({ page }) => {

@@ -394,6 +394,10 @@ class StageDialogHost implements StageDialog {
     this.laterTopLayer.stop();
     this.unwatchViewport();
     if (!dialog) return;
+    // The dialog closes and the focus goes back before anything in it turns inert. Firefox loses
+    // the focus when it is in a cross-origin frame that turns inert first.
+    this.closeQuietly(dialog);
+    if (!this.current) this.returnFocus();
     this.rules?.delete(`#${dialog.id}`);
     for (const frame of this.frames) {
       if (frame !== this.current?.layer) this.setLayerState(frame, 'idle');
@@ -402,8 +406,9 @@ class StageDialogHost implements StageDialog {
     dialog.inert = true;
     dialog.setAttribute('aria-hidden', 'true');
     dialog.removeAttribute('aria-label');
-    this.closeQuietly(dialog);
-    if (this.current) return;
+  }
+
+  private returnFocus(): void {
     const focusTarget = this.restoreFocus;
     this.restoreFocus = null;
     if (focusTarget?.isConnected && !focusTarget.closest('[inert]')) {

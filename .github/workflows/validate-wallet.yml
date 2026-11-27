@@ -205,6 +205,13 @@ jobs:
       - run: pnpm -C tests test:wallet-unit
       - run: pnpm -C tests test:conformance
       - run: pnpm -C tests test:frame-kit
+      - name: Upload frame kit evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frame-kit-browser-${{ github.run_id }}
+          path: tests/test-results/**
+          if-no-files-found: ignore
 
   # Each lifecycle case starts a fresh local Wallet system, which takes about
   # 35 seconds, so the cases run in shards on parallel runners.
