@@ -30,6 +30,7 @@ import {
   type RegistrationResult,
   type RegistrationSignerSetSelection,
 } from '@seams/mpc-wallet/react';
+import type { Variant } from '@shared/utils/variant';
 import { resolveEmailOtpRegistrationSession } from './registrationSession';
 import {
   INTENDED_ACTIONS,
@@ -651,18 +652,7 @@ class IntendedPageController {
       /* The profile follows the configured targets rather than being asserted,
          and the per-target keys are derived from the threshold address the same
          way every other registration derives them. */
-      const session: IntendedEcdsaSessionSummary =
-        sdkTargets.targets.length > 1
-          ? {
-              ecdsaTargetProfile: 'tempo_arc',
-              thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
-              thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
-            }
-          : {
-              ecdsaTargetProfile: 'tempo',
-              thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
-              thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
-            };
+      const session = ecdsaSessionForTargets(sdkTargets.targets.length, ecdsa);
       const summary = {
         kind: 'passkey_registration_success' as const,
         walletId: this.walletId,
@@ -788,18 +778,7 @@ class IntendedPageController {
         source: result.capabilities[0],
         label: 'ECDSA add-signer',
       });
-      const session: IntendedEcdsaSessionSummary =
-        sdkTargets.targets.length > 1
-          ? {
-              ecdsaTargetProfile: 'tempo_arc',
-              thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
-              thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
-            }
-          : {
-              ecdsaTargetProfile: 'tempo',
-              thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
-              thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
-            };
+      const session = ecdsaSessionForTargets(sdkTargets.targets.length, ecdsa);
       const summary = {
         kind: 'ecdsa_signer_added' as const,
         walletId: this.walletId,
@@ -934,7 +913,7 @@ class IntendedPageController {
         );
       }
       await this.seams.auth.lock();
-      await this.unlockEmailOtpWalletWithHostedMenu('intended-unlock-added-email-otp');
+      await this.unlockEmailOtpWalletWithHostedMenu('unlockWithAddedEmailOtp');
       await this.refreshSession(walletId);
       const unlockedSession = await this.seams.auth.getSession(walletId);
       this.dispatch({
@@ -1147,26 +1126,13 @@ class IntendedPageController {
     this.dispatch({ kind: 'action_started', action });
     try {
       await this.seams.auth.lock();
-      const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(
-        `intended-passkey-unlock-${crypto.randomUUID()}`,
-      );
-      if (!authMenuSessionId) throw new Error('Passkey unlock auth-menu identity is invalid');
-      const anchorElement = document.querySelector<HTMLElement>(
-        '[data-testid="intended-unlock-passkey"]',
-      );
-      if (!anchorElement) throw new Error('Passkey unlock anchor is unavailable');
-      const outcome = await this.seams.authMenu.open(
-        buildHostedAuthMenuOpenRequest({
-          authMenuSessionId,
-          initialMode: 'login',
-          loginTarget: { kind: 'wallet', walletId: toWalletId(this.walletId) },
-          registrationAccountInput: 'implicit_wallet',
-          showRegistrationInput: false,
-          showProgress: true,
-          enabledExternalProviders: [],
-        }),
-        anchorElement,
-      );
+      const outcome = await this.openWalletAuthMenu({
+        action: 'unlockPasskeyWallet',
+        label: 'Passkey unlock',
+        sessionBoundary: 'intended-passkey-unlock',
+        loginTarget: 'wallet',
+        google: false,
+      });
       if (outcome.kind !== 'authenticated') {
         throw new Error(`Passkey unlock ended with ${outcome.kind}`);
       }
@@ -1187,26 +1153,13 @@ class IntendedPageController {
     const action: IntendedActionName = 'syncPasskeyWallet';
     this.dispatch({ kind: 'action_started', action });
     try {
-      const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(
-        `intended-passkey-sync-${crypto.randomUUID()}`,
-      );
-      if (!authMenuSessionId) throw new Error('Passkey sync auth-menu identity is invalid');
-      const anchorElement = document.querySelector<HTMLElement>(
-        '[data-testid="intended-sync-passkey"]',
-      );
-      if (!anchorElement) throw new Error('Passkey sync anchor is unavailable');
-      const outcome = await this.seams.authMenu.open(
-        buildHostedAuthMenuOpenRequest({
-          authMenuSessionId,
-          initialMode: 'login',
-          loginTarget: { kind: 'wallet_sync', walletId: toWalletId(this.walletId) },
-          registrationAccountInput: 'implicit_wallet',
-          showRegistrationInput: false,
-          showProgress: true,
-          enabledExternalProviders: [],
-        }),
-        anchorElement,
-      );
+      const outcome = await this.openWalletAuthMenu({
+        action: 'syncPasskeyWallet',
+        label: 'Passkey sync',
+        sessionBoundary: 'intended-passkey-sync',
+        loginTarget: 'wallet_sync',
+        google: false,
+      });
       if (outcome.kind !== 'account_synced') {
         throw new Error(`Passkey sync ended with ${outcome.kind}`);
       }
@@ -1245,26 +1198,13 @@ class IntendedPageController {
     const action: IntendedActionName = 'recoverPasskeyWallet';
     this.dispatch({ kind: 'action_started', action });
     try {
-      const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(
-        `intended-passkey-recovery-${crypto.randomUUID()}`,
-      );
-      if (!authMenuSessionId) throw new Error('Passkey recovery auth-menu identity is invalid');
-      const anchorElement = document.querySelector<HTMLElement>(
-        '[data-testid="intended-recover-passkey"]',
-      );
-      if (!anchorElement) throw new Error('Passkey recovery anchor is unavailable');
-      const outcome = await this.seams.authMenu.open(
-        buildHostedAuthMenuOpenRequest({
-          authMenuSessionId,
-          initialMode: 'login',
-          loginTarget: { kind: 'wallet', walletId: toWalletId(this.walletId) },
-          registrationAccountInput: 'implicit_wallet',
-          showRegistrationInput: false,
-          showProgress: true,
-          enabledExternalProviders: [],
-        }),
-        anchorElement,
-      );
+      const outcome = await this.openWalletAuthMenu({
+        action: 'recoverPasskeyWallet',
+        label: 'Passkey recovery',
+        sessionBoundary: 'intended-passkey-recovery',
+        loginTarget: 'wallet',
+        google: false,
+      });
       if (outcome.kind !== 'authenticated') {
         throw new Error(`Passkey recovery ended with ${outcome.kind}`);
       }
@@ -1298,37 +1238,13 @@ class IntendedPageController {
     const action: IntendedActionName = 'recoverGoogleEmailOtpWallet';
     this.dispatch({ kind: 'action_started', action });
     try {
-      const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(
-        `intended-google-email-otp-recovery-${crypto.randomUUID()}`,
-      );
-      if (!authMenuSessionId) {
-        throw new Error('Google Email OTP recovery auth-menu identity is invalid');
-      }
-      const anchorElement = document.querySelector<HTMLElement>(
-        '[data-testid="intended-recover-google-email-otp"]',
-      );
-      if (!anchorElement) throw new Error('Google Email OTP recovery anchor is unavailable');
-      const idToken = requireGoogleIdToken(this.googleIdToken);
-      const unsubscribeExternalAuth = this.seams.authMenu.onExternalAuthRequest(
-        resolveIntendedGoogleExternalAuth.bind(null, this.seams, idToken),
-      );
-      let outcome: HostedAuthMenuOutcome;
-      try {
-        outcome = await this.seams.authMenu.open(
-          buildHostedAuthMenuOpenRequest({
-            authMenuSessionId,
-            initialMode: 'login',
-            loginTarget: { kind: 'wallet', walletId: toWalletId(this.walletId) },
-            registrationAccountInput: 'implicit_wallet',
-            showRegistrationInput: false,
-            showProgress: true,
-            enabledExternalProviders: ['google'],
-          }),
-          anchorElement,
-        );
-      } finally {
-        unsubscribeExternalAuth();
-      }
+      const outcome = await this.openWalletAuthMenu({
+        action: 'recoverGoogleEmailOtpWallet',
+        label: 'Google Email OTP recovery',
+        sessionBoundary: 'intended-google-email-otp-recovery',
+        loginTarget: 'wallet',
+        google: true,
+      });
       if (outcome.kind !== 'authenticated') {
         throw new Error(`Google Email OTP recovery ended with ${outcome.kind}`);
       }
@@ -1363,7 +1279,7 @@ class IntendedPageController {
     this.dispatch({ kind: 'action_started', action });
     try {
       await this.seams.auth.lock();
-      const unlock = await this.unlockEmailOtpWalletWithHostedMenu('intended-unlock-email-otp');
+      const unlock = await this.unlockEmailOtpWalletWithHostedMenu('unlockEmailOtpWallet');
       await this.refreshSession(unlock.walletId);
       const ecdsaTargetKeys = registrationEcdsaTargetKeys(unlock);
       const ecdsa = assertEcdsaTargetKeysForSession({
@@ -1598,33 +1514,7 @@ class IntendedPageController {
    * different active method. Anything but `revoked` is a failure.
    */
   private async revokeLinkedDevice(): Promise<void> {
-    const action: IntendedActionName = 'revokeLinkedDevice';
-    this.dispatch({ kind: 'action_started', action });
-    try {
-      const rawRevocation = window.__seamsIntendedE2ELinkedDeviceRevocationJson;
-      delete window.__seamsIntendedE2ELinkedDeviceRevocationJson;
-      const revocation = parseIntendedLinkedDeviceRevocation(rawRevocation);
-      const result = await this.seams.devices.remove({
-        walletId: this.walletId,
-        walletAuthMethodId: revocation.walletAuthMethodId,
-      });
-      if (result.kind !== 'revoked') {
-        throw new Error(`Linked-device revocation returned ${result.kind}`);
-      }
-      this.dispatch({
-        kind: 'action_succeeded',
-        action,
-        result: {
-          kind: 'linked_device_revoked',
-          walletId: this.walletId,
-          walletAuthMethodId: String(result.walletAuthMethodId),
-          authorityId: String(result.authorityId),
-          revocationEpoch: result.revocationEpoch,
-        },
-      });
-    } catch (error) {
-      this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });
-    }
+    await this.removeNamedLinkedDevice('revokeLinkedDevice', () => undefined);
   }
 
   /**
@@ -1632,17 +1522,26 @@ class IntendedPageController {
    * bound to the exact device removal; the harness answers the wallet prompt.
    */
   private async revokeLinkedDeviceWithEmailOtp(): Promise<void> {
-    const action: IntendedActionName = 'revokeLinkedDeviceWithEmailOtp';
-    this.dispatch({ kind: 'action_started', action });
-    try {
-      const rawRevocation = window.__seamsIntendedE2ELinkedDeviceRevocationJson;
-      delete window.__seamsIntendedE2ELinkedDeviceRevocationJson;
-      const revocation = parseIntendedLinkedDeviceRevocation(rawRevocation);
+    await this.removeNamedLinkedDevice('revokeLinkedDeviceWithEmailOtp', () => {
       /* The code is sent under the added method's derived address, as for
          the other added-method flows. */
       intendedEmailOtpChallengeSubjectOverride = intendedGoogleEmailAddress(
         requireGoogleIdToken(this.googleIdToken),
       );
+    });
+  }
+
+  /** Removes the linked-device method the harness named, with the proof `action` collects. */
+  private async removeNamedLinkedDevice(
+    action: 'revokeLinkedDevice' | 'revokeLinkedDeviceWithEmailOtp',
+    beforeRemove: () => void,
+  ): Promise<void> {
+    this.dispatch({ kind: 'action_started', action });
+    try {
+      const rawRevocation = window.__seamsIntendedE2ELinkedDeviceRevocationJson;
+      delete window.__seamsIntendedE2ELinkedDeviceRevocationJson;
+      const revocation = parseIntendedLinkedDeviceRevocation(rawRevocation);
+      beforeRemove();
       const result = await this.seams.devices.remove({
         walletId: this.walletId,
         walletAuthMethodId: revocation.walletAuthMethodId,
@@ -1770,38 +1669,60 @@ class IntendedPageController {
     });
   }
 
-  private async unlockEmailOtpWalletWithHostedMenu(
-    anchorTestId: 'intended-unlock-added-email-otp' | 'intended-unlock-email-otp',
-  ): Promise<EmailOtpUnlockCoreSummary> {
+  /**
+   * Opens the hosted auth menu on this wallet, anchored at the button of the action that runs
+   * it. A Google menu answers its external sign-in with the page's Google ID token.
+   */
+  private async openWalletAuthMenu(input: {
+    readonly action: IntendedActionName;
+    readonly label: string;
+    readonly sessionBoundary: string;
+    readonly loginTarget: 'wallet' | 'wallet_sync';
+    readonly google: boolean;
+  }): Promise<HostedAuthMenuOutcome> {
     const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(
-      `intended-google-email-otp-unlock-${crypto.randomUUID()}`,
+      `${input.sessionBoundary}-${crypto.randomUUID()}`,
     );
-    if (!authMenuSessionId) {
-      throw new Error('Google Email OTP unlock auth-menu identity is invalid');
-    }
-    const anchorElement = document.querySelector<HTMLElement>(`[data-testid="${anchorTestId}"]`);
-    if (!anchorElement) throw new Error('Google Email OTP unlock anchor is unavailable');
+    if (!authMenuSessionId) throw new Error(`${input.label} auth-menu identity is invalid`);
+    const anchorElement = document.querySelector<HTMLElement>(
+      `[data-testid="${INTENDED_ACTIONS[input.action].button}"]`,
+    );
+    if (!anchorElement) throw new Error(`${input.label} anchor is unavailable`);
+    const open = () =>
+      this.seams.authMenu.open(
+        buildHostedAuthMenuOpenRequest({
+          authMenuSessionId,
+          initialMode: 'login',
+          loginTarget: { kind: input.loginTarget, walletId: toWalletId(this.walletId) },
+          registrationAccountInput: 'implicit_wallet',
+          showRegistrationInput: false,
+          showProgress: true,
+          enabledExternalProviders: input.google ? ['google'] : [],
+        }),
+        anchorElement,
+      );
+    if (!input.google) return await open();
     const idToken = requireGoogleIdToken(this.googleIdToken);
     const unsubscribeExternalAuth = this.seams.authMenu.onExternalAuthRequest(
       resolveIntendedGoogleExternalAuth.bind(null, this.seams, idToken),
     );
-    let outcome: HostedAuthMenuOutcome;
     try {
-      outcome = await this.seams.authMenu.open(
-        buildHostedAuthMenuOpenRequest({
-          authMenuSessionId,
-          initialMode: 'login',
-          loginTarget: { kind: 'wallet', walletId: toWalletId(this.walletId) },
-          registrationAccountInput: 'implicit_wallet',
-          showRegistrationInput: false,
-          showProgress: true,
-          enabledExternalProviders: ['google'],
-        }),
-        anchorElement,
-      );
+      return await open();
     } finally {
       unsubscribeExternalAuth();
     }
+  }
+
+  private async unlockEmailOtpWalletWithHostedMenu(
+    action: 'unlockWithAddedEmailOtp' | 'unlockEmailOtpWallet',
+  ): Promise<EmailOtpUnlockCoreSummary> {
+    const outcome = await this.openWalletAuthMenu({
+      action,
+      label: 'Google Email OTP unlock',
+      sessionBoundary: 'intended-google-email-otp-unlock',
+      loginTarget: 'wallet',
+      google: true,
+    });
     if (outcome.kind !== 'authenticated') {
       throw new Error(`Google Email OTP unlock ended with ${outcome.kind}`);
     }
@@ -2570,6 +2491,24 @@ function requireThresholdEcdsaSessionFields(args: {
     thresholdEcdsaEthereumAddress,
     thresholdEcdsaPublicKeyB64u,
   };
+}
+
+/** The ECDSA session of a signer with one target (Tempo) or two (Tempo and Arc). */
+function ecdsaSessionForTargets(
+  targetCount: number,
+  ecdsa: Variant<IntendedEcdsaSessionSummary, 'ecdsaTargetProfile', 'tempo'>,
+): IntendedEcdsaSessionSummary {
+  return targetCount > 1
+    ? {
+        ecdsaTargetProfile: 'tempo_arc',
+        thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
+        thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
+      }
+    : {
+        ecdsaTargetProfile: 'tempo',
+        thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
+        thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
+      };
 }
 
 function assertEcdsaTargetKeysForSession(args: {
