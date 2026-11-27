@@ -41,13 +41,7 @@ import { createApplicationEmailOtpCommands } from '@/SeamsWeb/walletIframe/clien
 import { createApplicationRegistrationCommands } from '@/SeamsWeb/walletIframe/client/registrationCommands';
 import { createApplicationSessionCommands } from '@/SeamsWeb/walletIframe/client/sessionCommands';
 import { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
-import {
-  parseWalletIframeExactSessionIdentity,
-  type WalletIframeExactSessionIdentity,
-  type WalletIframeExactSessionIdentityInput,
-  type WalletIframeExactSessionLockResult,
-  type WalletIframeExactSessionState,
-} from '@/SeamsWeb/walletIframe/shared/exactSessionState';
+import { type WalletIframeExactSessionState } from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 import {
   deliverNearProvisioningStateChanged,
   normalizeExportKeypairWithUIInput,
@@ -212,13 +206,6 @@ export class SeamsWeb {
   }
   async getWalletIframeExactSessionState(): Promise<WalletIframeExactSessionState> {
     return await this.walletIframe.getExactSessionState();
-  }
-  async lockWalletIframeExactSession(
-    identity: WalletIframeExactSessionIdentityInput,
-  ): Promise<WalletIframeExactSessionLockResult> {
-    const parsedIdentity: WalletIframeExactSessionIdentity =
-      parseWalletIframeExactSessionIdentity(identity);
-    return await this.walletIframe.lockExactSession(parsedIdentity);
   }
   private disposeClient(): void {
     try {

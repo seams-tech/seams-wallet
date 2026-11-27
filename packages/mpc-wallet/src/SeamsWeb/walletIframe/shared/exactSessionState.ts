@@ -62,14 +62,6 @@ export type WalletIframeExactSessionIdentity = WalletIframeExactSessionIdentityB
   readonly authMethod: WalletAuthMethod;
 };
 
-export type WalletIframeExactSessionIdentityInput = {
-  readonly walletId: string;
-  readonly authorizationId: string;
-  readonly walletSessionId: string;
-  readonly authMethod: WalletAuthMethod;
-  readonly expiresAtMs: number;
-};
-
 type WalletIframeSessionUnavailableReason =
   | 'exhausted'
   | 'absent'

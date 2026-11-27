@@ -199,14 +199,6 @@ export class UserPreferencesManager {
     }
   }
 
-  projectCurrentWallet(walletId: WalletId): void {
-    const previous = this.currentWalletId;
-    this.setCurrentWallet(walletId);
-    if (previous && String(previous) === String(walletId)) {
-      this.notifyCurrentWalletChange(walletId);
-    }
-  }
-
   private assertActive(): void {
     if (this.lifecycle.kind === 'disposed') throw new Error('Wallet preferences are disposed');
   }

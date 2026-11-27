@@ -147,7 +147,6 @@ import {
   type EcdsaActivationJournalReadResult,
   type EcdsaPreparedActivationOpenResult,
   type EcdsaActiveMaterialOpenResult,
-  type EcdsaActiveMaterialRefOpenResult,
   type EcdsaCapabilityMaterialRefLookup,
   type EcdsaCapabilityActivationLookup,
   type EcdsaCapabilityActivationFinalizationResult,
@@ -161,18 +160,9 @@ import {
   readActivationJournalRows,
   readActiveManifestRows,
   activeLookupUsesMaterialActivation,
-  materialRefOpenFailure,
   lookupInTransaction,
 } from './ecdsaCapabilityManifestLookups';
 const MATERIAL_AAD_VERSION = 1;
-
-type EcdsaPreparedActivationCancellationResult =
-  | { readonly kind: 'cancelled' }
-  | { readonly kind: 'missing' }
-  | { readonly kind: 'server_activation_committed' }
-  | { readonly kind: 'exact_record_conflict' }
-  | { readonly kind: 'corrupt' }
-  | { readonly kind: 'persistence_unavailable' };
 
 type FinalizeEcdsaCapabilityActivationInput = {
   readonly committedJournal: ServerCommittedEcdsaActivationJournal;
@@ -551,41 +541,6 @@ function assertExpectedPointer(
     }
   }
   return assertNever(expected);
-}
-
-async function cancelPreparedActivationInTransaction(
-  preparedJournal: PreparedEcdsaActivationJournal,
-  context: SeamsWalletTransactionContext,
-): Promise<
-  Exclude<EcdsaPreparedActivationCancellationResult, { kind: 'persistence_unavailable' }>
-> {
-  const journalStore = context.store(JOURNAL_STORE);
-  const raw = await journalStore.get(preparedJournal.journalId);
-  if (raw === undefined) return { kind: 'missing' };
-
-  let persisted: ReturnType<typeof parseJournalRow>;
-  try {
-    persisted = parseJournalRow(raw);
-  } catch {
-    return { kind: 'corrupt' };
-  }
-  if (persisted.journal.journalId !== preparedJournal.journalId) {
-    return { kind: 'corrupt' };
-  }
-  switch (persisted.journal.kind) {
-    case 'server_activation_committed':
-      return { kind: 'server_activation_committed' };
-    case 'activation_prepared':
-      if (!ecdsaActivationCommitJournalsMatch(persisted.journal, preparedJournal)) {
-        return { kind: 'exact_record_conflict' };
-      }
-      await context
-        .store(SEALING_KEY_STORE)
-        .delete(persisted.journal.candidate.encryptedPending.sealingKeyId);
-      await journalStore.delete(persisted.journal.journalId);
-      return { kind: 'cancelled' };
-  }
-  return assertNever(persisted.journal);
 }
 
 function persistPreparedContinuity(
@@ -1277,20 +1232,6 @@ export class IndexedDbEcdsaCapabilityManifestStore {
     }
   }
 
-  async cancelPreparedActivation(
-    preparedJournal: PreparedEcdsaActivationJournal,
-  ): Promise<EcdsaPreparedActivationCancellationResult> {
-    try {
-      return await this.manager.runTransaction(
-        [SEALING_KEY_STORE, JOURNAL_STORE],
-        'readwrite',
-        cancelPreparedActivationInTransaction.bind(undefined, preparedJournal),
-      );
-    } catch {
-      return { kind: 'persistence_unavailable' };
-    }
-  }
-
   async openPreparedActivation(
     journalIdInput: CorrelationId,
   ): Promise<EcdsaPreparedActivationOpenResult> {
@@ -1449,15 +1390,6 @@ export class IndexedDbEcdsaCapabilityManifestStore {
     return exact[0] ?? { kind: 'exact_binding_mismatch', capability };
   }
 
-  async openActiveMaterial(
-    selectorInput: EcdsaCapabilitySelector,
-  ): Promise<EcdsaActiveMaterialOpenResult> {
-    const selector = normalizeSelector(selectorInput);
-    const lookup = await this.lookup(selector);
-    if (lookup.kind !== 'active') return lookup;
-    return await this.openActiveMaterialLookup(lookup);
-  }
-
   async lookupByMaterialRef(
     materialRefInput: EcdsaRoleLocalPersistedMaterialRef,
   ): Promise<EcdsaCapabilityMaterialRefLookup> {
@@ -1600,20 +1532,6 @@ export class IndexedDbEcdsaCapabilityManifestStore {
     }
   }
 
-  async openActiveMaterialByRef(
-    materialRefInput: EcdsaRoleLocalPersistedMaterialRef,
-  ): Promise<EcdsaActiveMaterialRefOpenResult> {
-    let lookup: EcdsaCapabilityMaterialRefLookup;
-    try {
-      lookup = await this.lookupByMaterialRef(materialRefInput);
-    } catch {
-      return { kind: 'corrupt' };
-    }
-    if (lookup.kind !== 'active') return materialRefOpenFailure(lookup);
-    const opened = await this.openActiveMaterialLookup(lookup);
-    return opened.kind === 'active' ? opened : materialRefOpenFailure(opened);
-  }
-
   async sealAndFinalizeActivation(
     input: SealEcdsaCapabilityActivationInput,
   ): Promise<EcdsaCapabilityActivationFinalizationResult> {
@@ -1665,14 +1583,6 @@ export class IndexedDbEcdsaCapabilityManifestStore {
         ),
       };
     }
-  }
-
-  async importCommittedWalletCustodyActivation(
-    input: ImportCommittedWalletCustodyEcdsaActivationInput,
-  ): Promise<EcdsaCapabilityActivationFinalizationResult> {
-    return await importCommittedActivation(this, input, (prepared) =>
-      persistPreparedContinuity(this.manager, prepared),
-    );
   }
 
   async persistPreparedWalletCustodyEcdsaContinuity(

@@ -682,20 +682,6 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     }
   }
 
-  createLinkedHolderPresignAuthorityPortV1(): MessagePort {
-    const presignWorker = this.getOrCreateWorker('ecdsaPresignClient');
-    clearAllRouterAbEcdsaDerivationClientPresignatures();
-    const channel = new MessageChannel();
-    presignWorker.postMessage(
-      {
-        kind: EcdsaClientWorkerControlKind.AttachLinkedHolderToPresign,
-        port: channel.port1,
-      },
-      [channel.port1],
-    );
-    return channel.port2;
-  }
-
   private connectDerivationPresignChannel(
     presignWorker: Worker,
     authorityKind: 'role_local_derivation_handle' | 'linked_holder_signing_material',

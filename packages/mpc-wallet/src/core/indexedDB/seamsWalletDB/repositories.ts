@@ -5993,27 +5993,6 @@ export class SeamsWalletRepositories {
     );
   }
 
-  async getWalletAuthMethod(args: {
-    kind: LocalWalletAuthMethodRecord['kind'];
-    rpId: string;
-    authIdentifierKey: string;
-  }): Promise<LocalWalletAuthMethodRecord | null> {
-    const kind = args.kind;
-    const rpId = toTrimmedString(args.rpId || '');
-    const authIdentifierKey = toTrimmedString(args.authIdentifierKey || '');
-    if (!rpId || !authIdentifierKey) return null;
-    const db = await this.manager.getDB();
-    const rows = (await db
-      .transaction(SEAMS_WALLET_STORES.walletAuthMethods, 'readonly')
-      .store.index(SEAMS_WALLET_INDEXES.kindRpIdAuthIdentifier)
-      .getAll([kind, rpId, authIdentifierKey])) as unknown[];
-    const parsed = rows.flatMap((row) => {
-      const record = parseWalletAuthMethodRow(row);
-      return record ? [record] : [];
-    });
-    return parsed.length === 1 ? parsed[0] : null;
-  }
-
   async listWalletAuthMethodsForWallet(walletId: string): Promise<LocalWalletAuthMethodRecord[]> {
     const normalizedWalletId = toTrimmedString(walletId || '');
     if (!normalizedWalletId) return [];

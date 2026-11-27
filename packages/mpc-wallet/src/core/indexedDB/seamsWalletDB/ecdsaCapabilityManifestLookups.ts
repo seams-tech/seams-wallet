@@ -42,7 +42,6 @@ import {
   parseMaterialRow,
   materialMatchesManifest,
   parseSealingKeyRow,
-  assertNever,
 } from './ecdsaCapabilityManifestRecords';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
@@ -159,14 +158,6 @@ type OpenedEcdsaActiveMaterial = {
 export type EcdsaActiveMaterialOpenResult =
   | OpenedEcdsaActiveMaterial
   | Exclude<EcdsaCapabilityManifestLookup, { readonly kind: 'active' }>;
-
-export type EcdsaActiveMaterialRefOpenResult =
-  | OpenedEcdsaActiveMaterial
-  | {
-      readonly kind: 'missing' | 'binding_mismatch' | 'corrupt' | 'persistence_unavailable';
-      readonly manifest?: never;
-      readonly readyStateBlobB64u?: never;
-    };
 
 type EcdsaCapabilityMaterialRefLookupFailure =
   | {
@@ -308,26 +299,6 @@ export function activeLookupUsesMaterialActivation(
     ) &&
     mpcMaterialActivationRefsEqual(lookup.material.binding.materialActivation, materialActivation)
   );
-}
-
-export function materialRefOpenFailure(
-  failure:
-    | Exclude<EcdsaCapabilityMaterialRefLookup, { readonly kind: 'active' }>
-    | Exclude<EcdsaActiveMaterialOpenResult, { readonly kind: 'active' }>,
-): EcdsaActiveMaterialRefOpenResult {
-  switch (failure.kind) {
-    case 'missing':
-    case 'retired':
-      return { kind: 'missing' };
-    case 'exact_binding_mismatch':
-      return { kind: 'binding_mismatch' };
-    case 'exact_record_conflict':
-    case 'corrupt':
-      return { kind: 'corrupt' };
-    case 'persistence_unavailable':
-      return { kind: 'persistence_unavailable' };
-  }
-  return assertNever(failure);
 }
 
 export async function lookupInTransaction(

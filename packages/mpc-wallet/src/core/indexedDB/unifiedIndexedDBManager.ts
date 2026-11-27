@@ -3,7 +3,6 @@ import { RegistrationSetupRepository } from './seamsWalletDB/registrationSetup';
 import { toTrimmedString } from '@shared/utils/validation';
 import type { WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { AccountId } from '../types/accountIds';
-import { normalizeLastUserScope } from './normalization';
 import type {
   AccountRef,
   AccountSignerRecord,
@@ -144,13 +143,6 @@ export class UnifiedIndexedDBManager {
     }
   }
 
-  /**
-   * Check if databases have been initialized
-   */
-  get isInitialized(): boolean {
-    return this._initialized;
-  }
-
   isDisabled(): boolean {
     return this.seamsWalletDB.isDisabled();
   }
@@ -253,14 +245,6 @@ export class UnifiedIndexedDBManager {
     recoveryOperationId: PendingWalletRecoveryCommitV1['recoveryOperationId'],
   ): Promise<void> {
     return this.seamsWalletRepositories.deletePendingWalletRecoveryCommit(recoveryOperationId);
-  }
-
-  setLastUserScope(scope: string | null): void {
-    this.lastUserScope = normalizeLastUserScope(scope);
-  }
-
-  getLastUserScope(): string | null {
-    return this.lastUserScope;
   }
 
   async getLastProfileState(): Promise<LastProfileState | null> {

@@ -692,29 +692,6 @@ function walletIframeSessionStatesEqual(
   }
 }
 
-type WalletIframeLoginStatusSnapshot = {
-  isLoggedIn: boolean;
-  walletId: string | null;
-};
-
-function walletIframeLoginStatusFromExactSession(
-  state: WalletIframeExactSessionState,
-): WalletIframeLoginStatusSnapshot {
-  switch (state.kind) {
-    case 'external_read':
-    case 'active_session':
-    case 'expired_session':
-    case 'wallet_authenticated_identity_unresolvable':
-    case 'wallet_unlocked_without_signing_session':
-      return { isLoggedIn: true, walletId: state.walletId };
-    case 'wallet_locked':
-      return { isLoggedIn: false, walletId: null };
-    default:
-      state satisfies never;
-      throw new Error('Wallet iframe exact session state is invalid');
-  }
-}
-
 function parseResolveExactKeyExportLaneResult(
   result: ResolveExactKeyExportLaneResult,
 ): ResolveExactKeyExportLaneResult {
@@ -2508,11 +2485,6 @@ export class WalletIframeRouter {
     );
   }
 
-  async initializeHostedWalletSeamsSession(source: HostedWalletSeamsSessionSource): Promise<void> {
-    await this.init(source);
-    await this.ensureHostedWalletSeamsSession(source);
-  }
-
   private async ensureHostedWalletSeamsSession(
     source: HostedWalletSeamsSessionSource | null,
   ): Promise<void> {
@@ -3475,11 +3447,6 @@ export class WalletIframeRouter {
       { timeoutMs: WALLET_IFRAME_REGISTRATION_TIMEOUT_MS },
     );
     return res.result;
-  }
-
-  async checkLoginStatus(): Promise<PostResult<WalletIframeLoginStatusSnapshot>> {
-    const state = await this.getExactSessionState();
-    return { ok: true, result: walletIframeLoginStatusFromExactSession(state) };
   }
 
   async lock(): Promise<PostResult<void>> {

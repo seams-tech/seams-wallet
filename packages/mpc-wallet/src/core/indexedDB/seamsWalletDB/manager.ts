@@ -199,10 +199,6 @@ export class SeamsWalletDBManager {
     this.config = config;
   }
 
-  getDbName(): string {
-    return this.config.dbName;
-  }
-
   setDbName(dbName: typeof SEAMS_WALLET_DB_NAME | `seams_test_wallet_${string}`): void {
     if (this.config.dbName === dbName) return;
     this.close();
