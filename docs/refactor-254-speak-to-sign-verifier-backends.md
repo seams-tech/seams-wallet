@@ -3,7 +3,9 @@
 Status: 2026-11-27. Slice 1 is built in `23b08a7d2` (Section 6, "Slice 1 result"). Of Slice 3,
 S1 is built in SaySo `1e02ffb` (Section 6, "Slice 3 progress"); S2, S3 and the gates wait for
 the owner. Slices 2, 4, 5 and 6 are not built.
-Section 8 lists the open questions.
+Section 8 lists the open questions. Section 9 holds the architecture review that the owner
+asked for before Slice 2, and Section 8 holds the owner's answers to it. The 10 NEAR rule is
+removed, and Slice 2 is now the neutral evidence checker.
 
 The owner decided on 2026-11-27: "Cloudflare verifier is now replacing the OutLayer backend as
 the primary path for voice signing. Ideally, we keep OutLayer as a secondary path (if it's not
@@ -26,8 +28,9 @@ stops when its credits run out.
   through a service binding. The browser never gets a SaySo token.
 - **OutLayer becomes a module that is off.** Its code moves without a change of behaviour. Its
   tests stay. A lane setting turns it on again.
-- **The 10 NEAR step-up rule moves into the Wallet.** Today the OutLayer verifier decides it.
-  The rule then holds for each backend.
+- **Voice is an equal approval method.** The owner decided on 2026-11-27 that voice approves
+  what a passkey step-up approves (Section 8, Q8). The Wallet adds no amount rule, and SaySo
+  has none. The 10 NEAR rule stays only inside the OutLayer verifier.
 - **Two changes in SaySo first.** It must not forgive a word in the recipient or the amount of
   a Wallet request, and `@sayso/verdict` must be an exact release.
 - **No D1 migration.** The verdict ledger and its table stay.
@@ -189,7 +192,8 @@ Rules:
   `tests/scripts/check-packed-wallet-boundaries.mjs` does for the packed SDK. Do not add a
   check of source text.
 - Each lane names one active backend: `SPEAK_TO_SIGN_BACKEND = sayso | outlayer` in the
-  Gateway env, and the same value in the Wallet host's lane configuration.
+  Gateway env, and the same value in the Wallet host's lane configuration. The Wallet host has
+  no lane configuration today (Section 9, R2), so this rule needs a design first.
 - The co-signer accepts only the evidence kind of the active backend. A client cannot pick
   the other backend.
 - `SPEAK_TO_SIGN_VERIFIERS` holds pinned keys for each backend and network:
@@ -210,7 +214,7 @@ seals it.
 | `user_id`            | `near:<network>:<accountId>`, for example `near:testnet:alice.testnet`                            |
 | `action`             | `seams.near.<kind>`, for example `seams.near.transfer`                                            |
 | `payload_sha256_hex` | The Wallet's request digest, `SHA-256("seams:spoken-intent:request:v1" ‖ borsh(SpokenRequestV1))` |
-| `sentence`           | The sentence that the card shows                                                                  |
+| `sentence`           | The words that the owner says (`spokenText`), not the card's `displayText`                        |
 
 The request digest keeps the binding to the bytes that the Wallet signs (F4). The verdict
 binds the request through `intent_digest`.
@@ -225,10 +229,11 @@ binds the request through `intent_digest`.
   recordings, so only core checks this; the co-signer gets no `audioDigests`;
 - `verdictId` is the SHA-256 of the signed message, for the ledger.
 
-**Step-up.** A function `spokenStepUp(request)` in `shared-ts` decides it: a transfer above
-10 NEAR needs a fresh passkey or Email OTP step-up, or a new VoiceID unlock. Wallet core and
-the co-signer both call it, for both backends. A `step_up` from the OutLayer verifier still
-counts.
+**Step-up.** The SaySo backend has none. Voice is an equal approval method (Section 8, Q8):
+an accepted verdict approves what a passkey step-up approves, with no amount rule in Wallet
+core or in the co-signer. The first plan had a function `spokenStepUp(request)` for a transfer
+above 10 NEAR; it is not built. A `step_up` verdict of the OutLayer verifier still needs its
+fresh approval, because that outcome is in the signed verdict of that backend.
 
 **Enrollment.** The verify route keeps its `op: 'enroll'` with three clips
 (`SERVED_OPERATIONS` in `speakToSignVerify.ts`). On the SaySo backend it needs a Wallet
@@ -289,8 +294,10 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
 1. **The port and the OutLayer module.** A refactor with no change of behaviour: the port,
    the moves, the import check. Every existing Speak-to-Sign test passes without a change to
    its assertions.
-2. **Step-up in the Wallet.** `spokenStepUp` in `shared-ts`, used by core and the co-signer.
-   Tests: 10 NEAR passes, 10.01 NEAR needs a fresh approval, for both evidence kinds.
+2. **The neutral evidence checker.** The `EvidenceChecker` of Section 1 for the v2 kind, with
+   `expiresAtMs` and `signedAtMs` in its result (Section 9, R5). Core and the co-signer reach
+   the verdict only through it. No change of behaviour. The 10 NEAR rule of the first plan is
+   not built (Section 8, Q8).
 3. **SaySo S1 to S3, and the gates G1 to G3.** In the SaySo repository. Record the
    measurements in a seams-wallet evidence file.
 4. **The SaySo backend.** The server module, the SDK module, `saysoVerdictV1.ts`, the
@@ -303,7 +310,7 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
    Wallet host, then the apps. The `SAYSO` binding and the `SAYSO_API_KEY` secret go into the
    Gateway's deployment config in seams-console, whose `scripts/deploy-backend.mjs` checks the
    service bindings of each Worker. Then the first staging voice check: enroll, a transfer of
-   10 NEAR, and a transfer above 10 NEAR with its step-up.
+   10 NEAR, and a transfer above 10 NEAR, which voice alone approves.
 
 ### Slice 1 result (2026-11-27)
 
@@ -393,7 +400,8 @@ did not answer its next question, the npm scope: `@sayso`, `@seams` or `@purin-l
 - Evidence binds the owner, the request digest, the sentence, a recording of this flow and an
   end time. Core and the co-signer check it with the same function.
 - One backend is active on a lane. The co-signer refuses the evidence kind of the other one.
-- The step-up rule does not depend on the verifier.
+- Voice approves what a passkey step-up approves. The Wallet and the co-signer set no amount
+  rule for it. A voice enrollment needs a fresh passkey or Email OTP approval, never a voice.
 - The browser never holds a SaySo token or key.
 - A word of the amount or the recipient is never forgiven (S1).
 
@@ -408,3 +416,155 @@ did not answer its next question, the npm scope: `@sayso`, `@seams` or `@purin-l
 | Q5  | Live words on the card through `/v1/stream` (Nova-3)                                       | Later, after G3                                                             |
 | Q6  | The audio goes to Cloudflare Workers AI. The privacy text (Refactor 210, Q2) is still open | Write it in Slice 5                                                         |
 | Q7  | SaySo refuses a sentence above 16 words; some Wallet amounts make longer sentences (F8)    | The Wallet offers no spoken approval for such a request, and says why       |
+| Q8  | What may voice alone approve, and to what value (R1)? Answered below                       | The typed kinds only; any transaction, delegate action or message steps up  |
+| Q9  | Which lanes get a verifier with no TEE (R2)? seams-console permits only `staging-testnet`  | `staging-testnet` first; a production lane after G1 to G3                   |
+| Q10 | One SaySo deployment and key for each lane, or one for all with the lane in `user_id` (R3) | One for each lane, as the Gateways are. This extends Q4                     |
+| Q11 | May a VoiceID unlock be the fresh approval of an enrollment (R4)?                          | No: a passkey or Email OTP only, because VoiceID is the same voice again    |
+| Q12 | The verdict key, the templates and the co-signer in one Cloudflare account (R3)            | Accept it for testnet with the trust text of R3; decide again for mainnet   |
+| Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
+| Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | Build it in Slice 4: the answer to Q8 relies on it                          |
+
+### Answers of the owner (2026-11-27)
+
+- **Q8.** "It should be able to approve any transaction normal stepup with passkey can
+  approve. It is an equal authorization method (since it's optional, users can toggle it
+  on/off, theres less of a security issue)". So the plan has no amount rule, and Slice 2 is
+  the neutral checker.
+- **Q10.** Agreed: one SaySo deployment and one key for each lane. This also answers Q4.
+- **Q11 and Q2.** Agreed: an enrollment needs a fresh passkey or Email OTP approval. A VoiceID
+  unlock does not count.
+- Q1, Q5, Q6, Q7, Q9, Q12, Q13 and Q14 are open. Q3 was answered by Slice 1.
+
+## 9. Architecture review (2026-11-27)
+
+The owner asked on 2026-11-27: "let's review the plan first, and spot any architectural issues
+first". Two reads made this list: one by the session that wrote the handoff, and one by a
+reviewer that did not see the first list. Both found R1, R2 and R3. Read at seams-wallet
+`5a2c55a38`, SaySo `6e17c4f`, speak-to-sign `dev` `bbb7617` and seams-console `04a18a1d`. The
+word limit of SaySo is F8 and Q7. Each item is measured in the code unless it says otherwise.
+
+**R1. The step-up rule sees one kind of seven.** The owner answered this with Q8: voice is an
+equal approval method, so the plan has no amount rule and the "Change" below is not built.
+Two parts stay open. The card shows less than the confirm (Q13). The answer relies on a
+setting that turns voice off, and the Wallet has none today (Q14).
+
+- The OutLayer policy steps up only an `AccountTransfer` above 10 NEAR; every other kind is
+  `Allow` (speak-to-sign `dev`, `crates/voice-verifier/src/policy.rs`, `decide`).
+- The `transaction` kind is any NEAR transaction. The request holds the receiver, a SHA-256 of
+  the actions and the summary (`shared-ts/src/speakToSign/spokenRequest.ts:86-99`). The
+  application writes the summary (`speak-to-sign.md`, "The application writes the summary"),
+  and the card shows only that sentence (`core/transactionFeatures/hostApproval.ts:162`).
+- So voice alone can sign a transfer of the whole balance or an `AddKey` under the words "Sign
+  the guest book". A delegate action and a NEP-413 message are the same. A bet goes to
+  1,000,000 USDC with no step-up.
+- `spokenStepUp(request)` cannot see this value: the request holds a hash, not the actions.
+- The co-signer checks a verdict only when the signing request carries one
+  (`voiceVerdictAdmission.ts:121`). Its rule binds an honest Wallet core. It is not a limit on
+  the session.
+- Change: the rule reads the decoded actions of the bytes to sign, in Wallet core and in the
+  co-signer, for each kind and each signing form (transaction, delegate action, message). A
+  fresh approval is the default, and the rule lists what voice alone may approve (Q8).
+- This gap is in the OutLayer path today, on `staging-testnet` only. Slice 2 as written keeps
+  it, and "every lane" takes it to production.
+
+**R2. The Wallet host has no lane setting.**
+
+- The application sends the whole configuration of the Wallet host with `PM_SET_CONFIG`
+  (`SeamsWeb/walletIframe/host/index.ts:395`), and a `spoken` descriptor holds only `kind` and
+  `network` (`core/transactionFeatures/plugins.ts:8-24`).
+- The SDK backend is a build constant (`core/transactionFeatures/verifiers/backend.ts:63`).
+  The pinned keys are for each network, not for each lane (`evidence/voiceVerdictV2.ts`).
+  Staging and production testnet are both `testnet`, so they cannot run different backends,
+  and staging cannot try SaySo first.
+- The Gateway and the co-signer are one Worker and read one env
+  (`hosted-wallet-gateway.ts`), so only the Wallet host lacks the setting.
+- seams-console refuses a verifier on a lane other than `staging-testnet`
+  (`scripts/deployment-targets.mjs`, `assertGatewayDeploymentConfigMatchesLane`), and its
+  `speakToSignVerifier` schema holds only OutLayer fields (`gateway-deployment-config.mjs`).
+  "SaySo on every lane" needs both to change (Q9).
+- Change: a setting that the operator builds into the Wallet host of each lane, never from the
+  application, names the backend and its pinned key. Another choice is to pin the backend in
+  the table of each network and make one deployment for each lane (Q10). The Gateway stops at
+  start when its env names another backend. Slice 6 adds the seams-console schema, the lane
+  rule and the local lane, which has no service binding.
+
+**R3. SaySo as deployed is too open to be the trust root.**
+
+- One Worker `sayso-verifier` has one verdict key and one template for each `user_id`
+  (`workers/verifier/wrangler.jsonc`, `accountVoiceDo.ts`). With `near:testnet:<account>`, a
+  staging enrollment replaces the template that production testnet uses. Not measured: whether
+  two lanes can hold the same NEAR account for two people.
+- `SAYSO_API_KEY` authorizes an enrollment for any `user_id` (`workers/verifier/src/auth.ts`,
+  `authorizeEnrollment`). S3 gives the same value to the Gateway of each lane, so a staging
+  Gateway can enroll for a production account.
+- The Worker is public at `sayso.seams.sh` with `SAYSO_ALLOWED_ORIGIN: "*"` and HMAC tokens,
+  beside the service binding.
+- With `SAYSO_DEV_MOCK=true` and a configured key, the Worker signs mock results with the real
+  key (`workers/verifier/src/index.ts`, `getWarmSigner` and `buildEngine`). `verifyVerdict` of
+  `@sayso/verdict` checks only the type of `verifier`, so a `sayso/0.2.0+mock` verdict passes.
+- The verdict key is a secret in the Cloudflare account that also runs the co-signer. With
+  OutLayer the key was bound to a TEE project. With SaySo the co-signer's check guards against
+  a fault of the client, and not against the operator or a stolen deploy token.
+- Not measured: which secrets the deployed Worker holds.
+- Change, in Section 4: a deployment and a key for each lane (Q10). Enroll and verify come
+  only through the binding, and the Worker has no HMAC secret. The Worker refuses mock mode
+  when a key is set. The Wallet's checker refuses a `verifier` that is not `sayso/x.y.z`. The
+  pinned data is a list of keys, so that a rotation needs no forced release. Section 7 and the
+  docs of Slice 5 say what the co-signer's check guards and where the key is (Q12).
+
+**R4. The enrollment proof on SaySo is not defined.**
+
+- The verify route does an identity read and admits an exhausted session
+  (`speakToSignVerify.ts`, the comments at 42 and 206). It has no step-up. The only fresh
+  approval check is on the signing route (`voiceVerdictAdmission.ts:281`, `freshApproval`).
+- An enrollment replaces the template, and SaySo has no route that deletes one
+  (`accountVoiceDo.ts`, `PUT /template`).
+- A VoiceID unlock counts as a fresh approval, and the plan reuses the VoiceID samples. That
+  is the same voice two times (Q11).
+- Change: Q2 is a requirement, not a question. Keep a signed statement over the clip digests,
+  as the OutLayer module has (`verifiers/outlayer/outlayerVerifier.ts`, `enrollmentDigest`),
+  signed after a fresh approval and checked by the Gateway. Add a delete route to SaySo.
+
+**R5. The port still has the shape of OutLayer.**
+
+- Wallet core builds the OutLayer input (`op`, `owner`, `request`, `contacts`) before the
+  port, and the SDK port takes the v2 `SpeakToSignVerifier` with `project` and `audioKey`
+  (`verifiers/backend.ts:51-59`). The verify route reads `op` and `owner` from that input.
+- Core and the co-signer import `evidence/voiceVerdictV2` directly, and the import check
+  allows it. `freshApproval` finds the time of signing with `VOICE_VERDICT_LIFE_MS`, a v2
+  constant (`voiceVerdictAdmission.ts:285`). SaySo also uses 120 s, but only by chance.
+- The `EvidenceCheck` of Section 1 has no `expiresAtMs` and no `signedAtMs`. The ledger and
+  `freshApproval` need them.
+- The Gateway result holds `attestationUrl`, `transcriber` and `timing`
+  (`speakToSign/backend.ts:19-27`). They fit SaySo with `attestationUrl: null`.
+- Change: build the `EvidenceChecker` for the v2 kind before Slice 2, with those two fields.
+  Slice 2 then changes neutral code one time. Slice 4 defines a verify body that names its
+  backend, and the Gateway answers `backend_mismatch`, which also covers the deploy window of
+  Slice 6.
+- No change: the `voice_verdict` field of the signing request needs no kind. The signed JSON
+  holds its `kind`, each kind has its own key and signing domain, and the co-signer picks the
+  checker of the lane.
+
+**R6. The kind table depends on the backend.** A note, a rating and a bet put the verdict into
+the signed call (`shared-ts/src/speakToSign/spokenKinds.ts`, `VERDICT_ARGS`), and the
+co-signer checks that the call carries it (`transactionCarriesVerdict`). F4 says that this file
+stays, and Section 2 changes these calls. Change: each backend declares the kinds that it
+serves, and Slice 4 defines the call of these three kinds on SaySo in one place.
+
+**R7. Small items.**
+
+- An unset `SPEAK_TO_SIGN_BACKEND` means `outlayer` (`speakToSign/backend.ts:54`). Make the
+  value required when two backends exist.
+- The Slice 2 test "for both evidence kinds" is not possible before Slice 4. Slice 2 tests the
+  v2 kind, and Slice 4 adds the SaySo cases.
+- `nearAiApiKey` in `backends/select.ts` is a need of the OutLayer module in the neutral
+  selector.
+
+**The order after the review.**
+
+1. Slice 2: the neutral checker of the v2 kind (R5). It needs no more answers.
+2. Slice 3: G1 first, because it decides go or no-go, then the SaySo changes of R3 and R4.
+3. Slices 4 to 6. Q9, Q12, Q13 and Q14 are needed before Slice 4.
+
+If the OutLayer credits end before Slice 6, no lane has a verifier. The Gateway then has no
+verify route and the co-signer refuses each verdict, so the failure is closed.
