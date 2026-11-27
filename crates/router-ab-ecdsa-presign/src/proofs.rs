@@ -26,7 +26,7 @@ const PROOF_DLOG: u8 = 1;
 const PROOF_DLOG_EQ: u8 = 2;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TripleIndex {
+pub(crate) enum TripleIndex {
     Zero,
     One,
 }
@@ -41,7 +41,7 @@ impl TripleIndex {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DLogProofKind {
+pub(crate) enum DLogProofKind {
     TripleA,
     TripleB,
     ProductShare,
@@ -141,7 +141,7 @@ define_dlog_eq_context!(ClientDLogEqContext);
 define_dlog_eq_context!(SigningWorkerDLogEqContext);
 
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct ProofWitness(Scalar);
+pub(crate) struct ProofWitness(Scalar);
 
 impl ProofWitness {
     pub fn from_bytes(bytes: ScalarBytes) -> Result<Self, ProofError> {
@@ -169,7 +169,7 @@ impl ProofNonce {
 }
 
 #[derive(Clone, Copy)]
-pub struct DLogStatement {
+pub(crate) struct DLogStatement {
     public: AffinePoint,
 }
 
@@ -182,7 +182,7 @@ impl DLogStatement {
 }
 
 #[derive(Clone, Copy)]
-pub struct DLogEqStatement {
+pub(crate) struct DLogEqStatement {
     public0: AffinePoint,
     generator1: AffinePoint,
     public1: AffinePoint,
@@ -202,7 +202,7 @@ impl DLogEqStatement {
     }
 }
 
-pub struct DLogProof {
+pub(crate) struct DLogProof {
     commitment: AffinePoint,
     response: Scalar,
 }
@@ -223,7 +223,7 @@ impl DLogProof {
     }
 }
 
-pub struct DLogEqProof {
+pub(crate) struct DLogEqProof {
     commitment0: AffinePoint,
     commitment1: AffinePoint,
     response: Scalar,
@@ -251,7 +251,7 @@ impl DLogEqProof {
     }
 }
 
-pub fn prove_client_dlog(
+pub(crate) fn prove_client_dlog(
     context: ClientDLogContext,
     statement: DLogStatement,
     witness: ProofWitness,
@@ -266,7 +266,7 @@ pub fn prove_client_dlog(
     )
 }
 
-pub fn prove_signing_worker_dlog(
+pub(crate) fn prove_signing_worker_dlog(
     context: SigningWorkerDLogContext,
     statement: DLogStatement,
     witness: ProofWitness,
@@ -281,7 +281,7 @@ pub fn prove_signing_worker_dlog(
     )
 }
 
-pub fn verify_client_dlog(
+pub(crate) fn verify_client_dlog(
     context: ClientDLogContext,
     statement: DLogStatement,
     proof: DLogProof,
@@ -289,7 +289,7 @@ pub fn verify_client_dlog(
     verify_dlog(ROLE_CLIENT, context.0, statement, proof)
 }
 
-pub fn verify_signing_worker_dlog(
+pub(crate) fn verify_signing_worker_dlog(
     context: SigningWorkerDLogContext,
     statement: DLogStatement,
     proof: DLogProof,
@@ -297,7 +297,7 @@ pub fn verify_signing_worker_dlog(
     verify_dlog(ROLE_SIGNING_WORKER, context.0, statement, proof)
 }
 
-pub fn prove_client_dlog_eq(
+pub(crate) fn prove_client_dlog_eq(
     context: ClientDLogEqContext,
     statement: DLogEqStatement,
     witness: ProofWitness,
@@ -312,7 +312,7 @@ pub fn prove_client_dlog_eq(
     )
 }
 
-pub fn prove_signing_worker_dlog_eq(
+pub(crate) fn prove_signing_worker_dlog_eq(
     context: SigningWorkerDLogEqContext,
     statement: DLogEqStatement,
     witness: ProofWitness,
@@ -327,7 +327,7 @@ pub fn prove_signing_worker_dlog_eq(
     )
 }
 
-pub fn verify_client_dlog_eq(
+pub(crate) fn verify_client_dlog_eq(
     context: ClientDLogEqContext,
     statement: DLogEqStatement,
     proof: DLogEqProof,
@@ -335,7 +335,7 @@ pub fn verify_client_dlog_eq(
     verify_dlog_eq(ROLE_CLIENT, context.0, statement, proof)
 }
 
-pub fn verify_signing_worker_dlog_eq(
+pub(crate) fn verify_signing_worker_dlog_eq(
     context: SigningWorkerDLogEqContext,
     statement: DLogEqStatement,
     proof: DLogEqProof,

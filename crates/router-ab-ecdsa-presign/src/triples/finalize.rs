@@ -89,10 +89,10 @@ struct FinalizationMessage {
     contributions: [TripleContribution; 2],
 }
 
-pub struct ClientTripleFinalizationMessage(FinalizationMessage);
-pub struct SigningWorkerTripleFinalizationMessage(FinalizationMessage);
+pub(crate) struct ClientTripleFinalizationMessage(FinalizationMessage);
+pub(crate) struct SigningWorkerTripleFinalizationMessage(FinalizationMessage);
 
-pub struct TripleContributionParts {
+pub(crate) struct TripleContributionParts {
     big_c_contribution: CompressedPointBytes,
     e_proof_commitment: CompressedPointBytes,
     e_proof_response: ScalarBytes,
@@ -224,27 +224,27 @@ struct FinalizationState {
     triples: [PreparedTriple; 2],
 }
 
-pub struct ClientTripleFinalizationState(FinalizationState);
-pub struct SigningWorkerTripleFinalizationState(FinalizationState);
+pub(crate) struct ClientTripleFinalizationState(FinalizationState);
+pub(crate) struct SigningWorkerTripleFinalizationState(FinalizationState);
 
-pub struct ClientGeneratedTriples([ValidatedTriple; 2]);
-pub struct SigningWorkerGeneratedTriples([ValidatedTriple; 2]);
+pub(crate) struct ClientGeneratedTriples([ValidatedTriple; 2]);
+pub(crate) struct SigningWorkerGeneratedTriples([ValidatedTriple; 2]);
 
 impl ClientGeneratedTriples {
-    pub fn into_triples(self) -> (ValidatedTriple, ValidatedTriple) {
+    pub(crate) fn into_triples(self) -> (ValidatedTriple, ValidatedTriple) {
         let [zero, one] = self.0;
         (zero, one)
     }
 }
 
 impl SigningWorkerGeneratedTriples {
-    pub fn into_triples(self) -> (ValidatedTriple, ValidatedTriple) {
+    pub(crate) fn into_triples(self) -> (ValidatedTriple, ValidatedTriple) {
         let [zero, one] = self.0;
         (zero, one)
     }
 }
 
-pub fn prepare_client_triple_finalization(
+pub(crate) fn prepare_client_triple_finalization(
     opened: [ClientOpenedPolynomials; 2],
     peer_shares: [VerifiedSigningWorkerPrivateShare; 2],
     multiplication: ClientTwoTripleMultiplicationShares,
@@ -271,7 +271,7 @@ pub fn prepare_client_triple_finalization(
     ))
 }
 
-pub fn prepare_signing_worker_triple_finalization(
+pub(crate) fn prepare_signing_worker_triple_finalization(
     opened: [SigningWorkerOpenedPolynomials; 2],
     peer_shares: [VerifiedClientPrivateShare; 2],
     multiplication: SigningWorkerTwoTripleMultiplicationShares,

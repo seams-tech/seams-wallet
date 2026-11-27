@@ -10,7 +10,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use crate::proofs::TripleIndex;
 use crate::{parse_nonidentity_point, point_bytes, scalar_bytes};
 
-pub mod base_rot;
+pub(crate) mod base_rot;
 pub mod finalize;
 
 const OPENING_DOMAIN: &[u8] = b"seams/router-ab-ecdsa-presign/polynomial-opening/v1";
@@ -177,10 +177,10 @@ struct OpenedPolynomialState {
     secrets: SecretPolynomialSet,
 }
 
-pub struct ClientCommittedPolynomials(CommittedPolynomialState);
-pub struct SigningWorkerCommittedPolynomials(CommittedPolynomialState);
-pub struct ClientOpenedPolynomials(OpenedPolynomialState);
-pub struct SigningWorkerOpenedPolynomials(OpenedPolynomialState);
+pub(crate) struct ClientCommittedPolynomials(CommittedPolynomialState);
+pub(crate) struct SigningWorkerCommittedPolynomials(CommittedPolynomialState);
+pub(crate) struct ClientOpenedPolynomials(OpenedPolynomialState);
+pub(crate) struct SigningWorkerOpenedPolynomials(OpenedPolynomialState);
 
 struct PolynomialCommitmentMessage {
     context: PresignPairContext,
@@ -337,8 +337,8 @@ struct VerifiedPolynomialCommitment {
     public: PublicPolynomialSet,
 }
 
-pub struct VerifiedClientPolynomialCommitment(VerifiedPolynomialCommitment);
-pub struct VerifiedSigningWorkerPolynomialCommitment(VerifiedPolynomialCommitment);
+pub(crate) struct VerifiedClientPolynomialCommitment(VerifiedPolynomialCommitment);
+pub(crate) struct VerifiedSigningWorkerPolynomialCommitment(VerifiedPolynomialCommitment);
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct VerifiedPrivatePolynomialShare {
@@ -352,9 +352,9 @@ struct VerifiedPrivatePolynomialShare {
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct VerifiedClientPrivateShare(VerifiedPrivatePolynomialShare);
+pub(crate) struct VerifiedClientPrivateShare(VerifiedPrivatePolynomialShare);
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct VerifiedSigningWorkerPrivateShare(VerifiedPrivatePolynomialShare);
+pub(crate) struct VerifiedSigningWorkerPrivateShare(VerifiedPrivatePolynomialShare);
 
 impl VerifiedClientPrivateShare {
     fn into_finalization(self) -> VerifiedPrivatePolynomialShare {
@@ -384,7 +384,7 @@ impl VerifiedSigningWorkerPrivateShare {
     }
 }
 
-pub fn commit_client_polynomials(
+pub(crate) fn commit_client_polynomials(
     context: PresignPairContext,
     triple_index: TripleIndex,
     rng: &mut impl CryptoRngCore,
@@ -402,7 +402,7 @@ pub fn commit_client_polynomials(
     ))
 }
 
-pub fn commit_signing_worker_polynomials(
+pub(crate) fn commit_signing_worker_polynomials(
     context: PresignPairContext,
     triple_index: TripleIndex,
     rng: &mut impl CryptoRngCore,
@@ -446,7 +446,7 @@ impl SigningWorkerCommittedPolynomials {
 }
 
 impl ClientOpenedPolynomials {
-    pub fn multiplication_operands(
+    pub(crate) fn multiplication_operands(
         &self,
     ) -> base_rot::extension::mta::ClientMultiplicationOperands {
         base_rot::extension::mta::ClientMultiplicationOperands::from_scalars(
@@ -457,7 +457,7 @@ impl ClientOpenedPolynomials {
         )
     }
 
-    pub fn private_share_for_signing_worker(&self) -> ClientPolynomialShareMessage {
+    pub(crate) fn private_share_for_signing_worker(&self) -> ClientPolynomialShareMessage {
         ClientPolynomialShareMessage(private_share_message(
             &self.0,
             Scalar::from(SIGNING_WORKER_COORDINATE),
@@ -466,7 +466,7 @@ impl ClientOpenedPolynomials {
 }
 
 impl SigningWorkerOpenedPolynomials {
-    pub fn multiplication_operands(
+    pub(crate) fn multiplication_operands(
         &self,
     ) -> base_rot::extension::mta::SigningWorkerMultiplicationOperands {
         base_rot::extension::mta::SigningWorkerMultiplicationOperands::from_scalars(
@@ -477,7 +477,7 @@ impl SigningWorkerOpenedPolynomials {
         )
     }
 
-    pub fn private_share_for_client(&self) -> SigningWorkerPolynomialShareMessage {
+    pub(crate) fn private_share_for_client(&self) -> SigningWorkerPolynomialShareMessage {
         SigningWorkerPolynomialShareMessage(private_share_message(
             &self.0,
             Scalar::from(CLIENT_COORDINATE),
@@ -485,7 +485,7 @@ impl SigningWorkerOpenedPolynomials {
     }
 }
 
-pub fn verify_client_polynomial_opening(
+pub(crate) fn verify_client_polynomial_opening(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     commitment: ClientPolynomialCommitmentMessage,
@@ -501,7 +501,7 @@ pub fn verify_client_polynomial_opening(
     .map(VerifiedClientPolynomialCommitment)
 }
 
-pub fn verify_signing_worker_polynomial_opening(
+pub(crate) fn verify_signing_worker_polynomial_opening(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     commitment: SigningWorkerPolynomialCommitmentMessage,
@@ -517,7 +517,7 @@ pub fn verify_signing_worker_polynomial_opening(
     .map(VerifiedSigningWorkerPolynomialCommitment)
 }
 
-pub fn verify_client_private_share_for_signing_worker(
+pub(crate) fn verify_client_private_share_for_signing_worker(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     commitment: &VerifiedClientPolynomialCommitment,
@@ -540,7 +540,7 @@ pub fn verify_client_private_share_for_signing_worker(
     })
 }
 
-pub fn verify_signing_worker_private_share_for_client(
+pub(crate) fn verify_signing_worker_private_share_for_client(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     commitment: &VerifiedSigningWorkerPolynomialCommitment,

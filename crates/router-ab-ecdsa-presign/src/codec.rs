@@ -62,8 +62,8 @@ const ROUND9_PAYLOAD_SIZE: usize = CONTEXT_SIZE + (2 * TRIPLE_CONTRIBUTION_SIZE)
 const ROUND10_PAYLOAD_SIZE: usize = CONTEXT_SIZE + SCALAR_SIZE;
 const ROUND11_PAYLOAD_SIZE: usize = CONTEXT_SIZE + (2 * SCALAR_SIZE);
 
-pub const PRESIGN_PROTOCOL_ID: &str = "seams/router-ab-ecdsa-presign/fixed-2of2/v1";
-pub const MAX_PRESIGN_FRAME_SIZE: usize = HEADER_SIZE + ROUND7_PAYLOAD_SIZE;
+pub(crate) const PRESIGN_PROTOCOL_ID: &str = "seams/router-ab-ecdsa-presign/fixed-2of2/v1";
+pub(crate) const MAX_PRESIGN_FRAME_SIZE: usize = HEADER_SIZE + ROUND7_PAYLOAD_SIZE;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PresignCodecError {
@@ -98,7 +98,7 @@ impl fmt::Display for PresignCodecError {
 
 impl std::error::Error for PresignCodecError {}
 
-pub trait EncodePresignMessage {
+pub(crate) trait EncodePresignMessage {
     fn encode_presign_message(self) -> Result<Vec<u8>, PresignCodecError>;
 }
 

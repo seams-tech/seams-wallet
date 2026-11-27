@@ -18,12 +18,12 @@ use super::{
     BASE_OT_COUNT, BASE_OT_KEY_SIZE, CHOICE_BYTES, CLIENT_ROLE, SIGNING_WORKER_ROLE,
 };
 
-pub mod mta;
+pub(crate) mod mta;
 
-pub const EXTENDED_OT_COUNT: usize = 768;
-pub const PADDED_OT_COUNT: usize = 1024;
-pub const CORRELATION_MESSAGE_SIZE: usize = PADDED_OT_COUNT * 16;
-pub const CONSISTENCY_VECTOR_SIZE: usize = 32;
+pub(crate) const EXTENDED_OT_COUNT: usize = 768;
+pub(crate) const PADDED_OT_COUNT: usize = 1024;
+pub(crate) const CORRELATION_MESSAGE_SIZE: usize = PADDED_OT_COUNT * 16;
+pub(crate) const CONSISTENCY_VECTOR_SIZE: usize = 32;
 const EXTENDED_CHOICE_BYTES: usize = EXTENDED_OT_COUNT / 8;
 const PADDED_CHOICE_BYTES: usize = PADDED_OT_COUNT / 8;
 const CONSISTENCY_CHUNKS: usize = PADDED_OT_COUNT / BASE_OT_COUNT;
@@ -310,25 +310,25 @@ struct ExtensionReceiverOutput {
     values: ReceiverValues,
 }
 
-pub struct ClientExtensionReceiverAwaitingChallenge(ReceiverAwaitingChallenge);
-pub struct SigningWorkerExtensionReceiverAwaitingChallenge(ReceiverAwaitingChallenge);
-pub struct ClientExtensionReceiverAwaitingAcceptance(ReceiverAwaitingAcceptance);
-pub struct SigningWorkerExtensionReceiverAwaitingAcceptance(ReceiverAwaitingAcceptance);
-pub struct ClientExtensionSenderAwaitingProof(SenderAwaitingProof);
-pub struct SigningWorkerExtensionSenderAwaitingProof(SenderAwaitingProof);
+pub(crate) struct ClientExtensionReceiverAwaitingChallenge(ReceiverAwaitingChallenge);
+pub(crate) struct SigningWorkerExtensionReceiverAwaitingChallenge(ReceiverAwaitingChallenge);
+pub(crate) struct ClientExtensionReceiverAwaitingAcceptance(ReceiverAwaitingAcceptance);
+pub(crate) struct SigningWorkerExtensionReceiverAwaitingAcceptance(ReceiverAwaitingAcceptance);
+pub(crate) struct ClientExtensionSenderAwaitingProof(SenderAwaitingProof);
+pub(crate) struct SigningWorkerExtensionSenderAwaitingProof(SenderAwaitingProof);
 
-pub struct ClientExtensionCorrelationMessage(CorrelationMessage);
-pub struct SigningWorkerExtensionCorrelationMessage(CorrelationMessage);
-pub struct ClientExtensionChallengeMessage(ChallengeMessage);
-pub struct SigningWorkerExtensionChallengeMessage(ChallengeMessage);
-pub struct ClientExtensionProofMessage(ConsistencyProof);
-pub struct SigningWorkerExtensionProofMessage(ConsistencyProof);
-pub struct ClientExtensionAcceptanceMessage(AcceptanceMessage);
-pub struct SigningWorkerExtensionAcceptanceMessage(AcceptanceMessage);
-pub struct ClientRandomOtSenderOutput(ExtensionSenderOutput);
-pub struct SigningWorkerRandomOtSenderOutput(ExtensionSenderOutput);
-pub struct ClientRandomOtReceiverOutput(ExtensionReceiverOutput);
-pub struct SigningWorkerRandomOtReceiverOutput(ExtensionReceiverOutput);
+pub(crate) struct ClientExtensionCorrelationMessage(CorrelationMessage);
+pub(crate) struct SigningWorkerExtensionCorrelationMessage(CorrelationMessage);
+pub(crate) struct ClientExtensionChallengeMessage(ChallengeMessage);
+pub(crate) struct SigningWorkerExtensionChallengeMessage(ChallengeMessage);
+pub(crate) struct ClientExtensionProofMessage(ConsistencyProof);
+pub(crate) struct SigningWorkerExtensionProofMessage(ConsistencyProof);
+pub(crate) struct ClientExtensionAcceptanceMessage(AcceptanceMessage);
+pub(crate) struct SigningWorkerExtensionAcceptanceMessage(AcceptanceMessage);
+pub(crate) struct ClientRandomOtSenderOutput(ExtensionSenderOutput);
+pub(crate) struct SigningWorkerRandomOtSenderOutput(ExtensionSenderOutput);
+pub(crate) struct ClientRandomOtReceiverOutput(ExtensionReceiverOutput);
+pub(crate) struct SigningWorkerRandomOtReceiverOutput(ExtensionReceiverOutput);
 
 macro_rules! define_correlation_message {
     ($name:ident) => {
@@ -459,7 +459,7 @@ define_proof_message!(SigningWorkerExtensionProofMessage);
 define_acceptance_message!(ClientExtensionAcceptanceMessage);
 define_acceptance_message!(SigningWorkerExtensionAcceptanceMessage);
 
-pub fn start_client_extension_receiver(
+pub(crate) fn start_client_extension_receiver(
     base_output: ClientBaseRotSenderOutput,
     rng: &mut impl CryptoRngCore,
 ) -> Result<
@@ -476,7 +476,7 @@ pub fn start_client_extension_receiver(
     ))
 }
 
-pub fn start_signing_worker_extension_receiver(
+pub(crate) fn start_signing_worker_extension_receiver(
     base_output: SigningWorkerBaseRotSenderOutput,
     rng: &mut impl CryptoRngCore,
 ) -> Result<
@@ -493,7 +493,7 @@ pub fn start_signing_worker_extension_receiver(
     ))
 }
 
-pub fn start_client_extension_sender(
+pub(crate) fn start_client_extension_sender(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     base_output: ClientBaseRotReceiverOutput,
@@ -520,7 +520,7 @@ pub fn start_client_extension_sender(
     ))
 }
 
-pub fn start_signing_worker_extension_sender(
+pub(crate) fn start_signing_worker_extension_sender(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     base_output: SigningWorkerBaseRotReceiverOutput,

@@ -13,8 +13,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use crate::proofs::TripleIndex;
 use crate::{parse_nonidentity_point, point_bytes, PresignError};
 
-pub const BASE_OT_COUNT: usize = 128;
-pub const BASE_OT_KEY_SIZE: usize = 16;
+pub(crate) const BASE_OT_COUNT: usize = 128;
+pub(crate) const BASE_OT_KEY_SIZE: usize = 16;
 pub mod extension;
 const CHOICE_BYTES: usize = BASE_OT_COUNT / 8;
 const MAX_RANDOM_ATTEMPTS: usize = 256;
@@ -102,17 +102,17 @@ struct ReceiverOutput {
     keys: ReceiverKeys,
 }
 
-pub struct ClientBaseRotSenderState(SenderState);
-pub struct SigningWorkerBaseRotSenderState(SenderState);
-pub struct ClientBaseRotSenderHello(SenderHello);
-pub struct SigningWorkerBaseRotSenderHello(SenderHello);
-pub struct ClientBaseRotReceiverChoices(ReceiverChoices);
-pub struct SigningWorkerBaseRotReceiverChoices(ReceiverChoices);
+pub(crate) struct ClientBaseRotSenderState(SenderState);
+pub(crate) struct SigningWorkerBaseRotSenderState(SenderState);
+pub(crate) struct ClientBaseRotSenderHello(SenderHello);
+pub(crate) struct SigningWorkerBaseRotSenderHello(SenderHello);
+pub(crate) struct ClientBaseRotReceiverChoices(ReceiverChoices);
+pub(crate) struct SigningWorkerBaseRotReceiverChoices(ReceiverChoices);
 // These sealed outputs are consumed by the pending OT-extension state.
-pub struct ClientBaseRotSenderOutput(SenderOutput);
-pub struct SigningWorkerBaseRotSenderOutput(SenderOutput);
-pub struct ClientBaseRotReceiverOutput(ReceiverOutput);
-pub struct SigningWorkerBaseRotReceiverOutput(ReceiverOutput);
+pub(crate) struct ClientBaseRotSenderOutput(SenderOutput);
+pub(crate) struct SigningWorkerBaseRotSenderOutput(SenderOutput);
+pub(crate) struct ClientBaseRotReceiverOutput(ReceiverOutput);
+pub(crate) struct SigningWorkerBaseRotReceiverOutput(ReceiverOutput);
 
 macro_rules! define_hello {
     ($name:ident) => {
@@ -181,7 +181,7 @@ define_hello!(SigningWorkerBaseRotSenderHello);
 define_choices!(ClientBaseRotReceiverChoices);
 define_choices!(SigningWorkerBaseRotReceiverChoices);
 
-pub fn start_client_base_rot_sender(
+pub(crate) fn start_client_base_rot_sender(
     context: PresignPairContext,
     triple_index: TripleIndex,
     rng: &mut impl CryptoRngCore,
@@ -193,7 +193,7 @@ pub fn start_client_base_rot_sender(
     ))
 }
 
-pub fn start_signing_worker_base_rot_sender(
+pub(crate) fn start_signing_worker_base_rot_sender(
     context: PresignPairContext,
     triple_index: TripleIndex,
     rng: &mut impl CryptoRngCore,
@@ -211,7 +211,7 @@ pub fn start_signing_worker_base_rot_sender(
     ))
 }
 
-pub fn receive_client_base_rot_sender_hello(
+pub(crate) fn receive_client_base_rot_sender_hello(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     hello: ClientBaseRotSenderHello,
@@ -236,7 +236,7 @@ pub fn receive_client_base_rot_sender_hello(
     ))
 }
 
-pub fn receive_signing_worker_base_rot_sender_hello(
+pub(crate) fn receive_signing_worker_base_rot_sender_hello(
     expected_context: PresignPairContext,
     expected_triple_index: TripleIndex,
     hello: SigningWorkerBaseRotSenderHello,

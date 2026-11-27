@@ -19,8 +19,8 @@ use super::{
     SigningWorkerRandomOtReceiverOutput, EXTENDED_OT_COUNT,
 };
 
-pub const MTA_INSTANCE_COUNT: usize = 2;
-pub const MTA_OT_COUNT: usize = 384;
+pub(crate) const MTA_INSTANCE_COUNT: usize = 2;
+pub(crate) const MTA_OT_COUNT: usize = 384;
 const MTA_TAIL_COUNT: usize = MTA_OT_COUNT - 1;
 const CLIENT_ROLE: u8 = 1;
 const SIGNING_WORKER_ROLE: u8 = 2;
@@ -72,8 +72,8 @@ struct MultiplicationOperands {
     b: Scalar,
 }
 
-pub struct ClientMultiplicationOperands(MultiplicationOperands);
-pub struct SigningWorkerMultiplicationOperands(MultiplicationOperands);
+pub(crate) struct ClientMultiplicationOperands(MultiplicationOperands);
+pub(crate) struct SigningWorkerMultiplicationOperands(MultiplicationOperands);
 
 macro_rules! define_operands {
     ($name:ident) => {
@@ -140,8 +140,8 @@ struct CiphertextMessage {
     values: CiphertextScalars,
 }
 
-pub struct ClientMtaCiphertextMessage(CiphertextMessage);
-pub struct SigningWorkerMtaCiphertextMessage(CiphertextMessage);
+pub(crate) struct ClientMtaCiphertextMessage(CiphertextMessage);
+pub(crate) struct SigningWorkerMtaCiphertextMessage(CiphertextMessage);
 
 macro_rules! define_ciphertext_message {
     ($name:ident) => {
@@ -198,8 +198,8 @@ struct ResponseMessage {
     seeds: [[u8; 32]; MTA_INSTANCE_COUNT],
 }
 
-pub struct ClientMtaResponseMessage(ResponseMessage);
-pub struct SigningWorkerMtaResponseMessage(ResponseMessage);
+pub(crate) struct ClientMtaResponseMessage(ResponseMessage);
+pub(crate) struct SigningWorkerMtaResponseMessage(ResponseMessage);
 
 macro_rules! define_response_message {
     ($name:ident) => {
@@ -255,8 +255,8 @@ struct SenderAwaitingResponse {
     masks: Masks,
 }
 
-pub struct ClientMtaSenderAwaitingResponse(SenderAwaitingResponse);
-pub struct SigningWorkerMtaSenderAwaitingResponse(SenderAwaitingResponse);
+pub(crate) struct ClientMtaSenderAwaitingResponse(SenderAwaitingResponse);
+pub(crate) struct SigningWorkerMtaSenderAwaitingResponse(SenderAwaitingResponse);
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct MultiplicationShare {
@@ -268,8 +268,8 @@ struct MultiplicationShare {
     owner_role: u8,
     value: Scalar,
 }
-pub struct ClientMultiplicationShare(MultiplicationShare);
-pub struct SigningWorkerMultiplicationShare(MultiplicationShare);
+pub(crate) struct ClientMultiplicationShare(MultiplicationShare);
+pub(crate) struct SigningWorkerMultiplicationShare(MultiplicationShare);
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct TwoTripleMultiplicationShares {
@@ -278,8 +278,8 @@ struct TwoTripleMultiplicationShares {
     triple_zero: MultiplicationShare,
     triple_one: MultiplicationShare,
 }
-pub struct ClientTwoTripleMultiplicationShares(TwoTripleMultiplicationShares);
-pub struct SigningWorkerTwoTripleMultiplicationShares(TwoTripleMultiplicationShares);
+pub(crate) struct ClientTwoTripleMultiplicationShares(TwoTripleMultiplicationShares);
+pub(crate) struct SigningWorkerTwoTripleMultiplicationShares(TwoTripleMultiplicationShares);
 
 impl ClientTwoTripleMultiplicationShares {
     pub(crate) fn into_finalization(self) -> FinalizationMultiplicationShares {
@@ -301,7 +301,7 @@ impl SigningWorkerTwoTripleMultiplicationShares {
     }
 }
 
-pub fn combine_client_multiplication_shares(
+pub(crate) fn combine_client_multiplication_shares(
     triple_zero: ClientMultiplicationShare,
     triple_one: ClientMultiplicationShare,
 ) -> Result<ClientTwoTripleMultiplicationShares, MtaError> {
@@ -309,7 +309,7 @@ pub fn combine_client_multiplication_shares(
         .map(ClientTwoTripleMultiplicationShares)
 }
 
-pub fn combine_signing_worker_multiplication_shares(
+pub(crate) fn combine_signing_worker_multiplication_shares(
     triple_zero: SigningWorkerMultiplicationShare,
     triple_one: SigningWorkerMultiplicationShare,
 ) -> Result<SigningWorkerTwoTripleMultiplicationShares, MtaError> {
@@ -317,7 +317,7 @@ pub fn combine_signing_worker_multiplication_shares(
         .map(SigningWorkerTwoTripleMultiplicationShares)
 }
 
-pub fn start_client_multiplication_sender(
+pub(crate) fn start_client_multiplication_sender(
     random_ot: ClientRandomOtSenderOutput,
     operands: ClientMultiplicationOperands,
     rng: &mut impl CryptoRngCore,
@@ -337,7 +337,7 @@ pub fn start_client_multiplication_sender(
     ))
 }
 
-pub fn start_signing_worker_multiplication_sender(
+pub(crate) fn start_signing_worker_multiplication_sender(
     random_ot: super::SigningWorkerRandomOtSenderOutput,
     operands: SigningWorkerMultiplicationOperands,
     rng: &mut impl CryptoRngCore,
@@ -363,7 +363,7 @@ pub fn start_signing_worker_multiplication_sender(
     ))
 }
 
-pub fn receive_client_mta_ciphertexts(
+pub(crate) fn receive_client_mta_ciphertexts(
     expected_context: PresignPairContext,
     random_ot: SigningWorkerRandomOtReceiverOutput,
     operands: SigningWorkerMultiplicationOperands,
@@ -391,7 +391,7 @@ pub fn receive_client_mta_ciphertexts(
     ))
 }
 
-pub fn receive_signing_worker_mta_ciphertexts(
+pub(crate) fn receive_signing_worker_mta_ciphertexts(
     expected_context: PresignPairContext,
     random_ot: super::ClientRandomOtReceiverOutput,
     operands: ClientMultiplicationOperands,

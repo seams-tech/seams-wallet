@@ -108,23 +108,23 @@ struct PendingPresignInput {
     wallet_public_key: CompressedPointBytes,
 }
 
-pub struct ClientRound1Message {
+pub(crate) struct ClientRound1Message {
     pub(crate) commitments: [ClientPolynomialCommitmentMessage; 2],
     pub(crate) base_hello: ClientBaseRotSenderHello,
 }
 
-pub struct SigningWorkerRound1Message {
+pub(crate) struct SigningWorkerRound1Message {
     pub(crate) commitments: [SigningWorkerPolynomialCommitmentMessage; 2],
     pub(crate) base_hello: SigningWorkerBaseRotSenderHello,
 }
 
-pub struct ClientRound2Message {
+pub(crate) struct ClientRound2Message {
     pub(crate) openings: [ClientPolynomialOpeningMessage; 2],
     pub(crate) private_shares: [ClientPolynomialShareMessage; 2],
     pub(crate) base_choices: ClientBaseRotReceiverChoices,
 }
 
-pub struct SigningWorkerRound2Message {
+pub(crate) struct SigningWorkerRound2Message {
     pub(crate) openings: [SigningWorkerPolynomialOpeningMessage; 2],
     pub(crate) private_shares: [SigningWorkerPolynomialShareMessage; 2],
     pub(crate) base_choices: SigningWorkerBaseRotReceiverChoices,
@@ -137,14 +137,14 @@ pub struct ClientRound1State {
     base_sender: ClientBaseRotSenderState,
 }
 
-pub struct SigningWorkerRound1State {
+pub(crate) struct SigningWorkerRound1State {
     context: PresignPairContext,
     pending: PendingPresignInput,
     polynomials: [SigningWorkerCommittedPolynomials; 2],
     base_sender: SigningWorkerBaseRotSenderState,
 }
 
-pub struct ClientRound2State {
+pub(crate) struct ClientRound2State {
     context: PresignPairContext,
     pending: PendingPresignInput,
     opened: [ClientOpenedPolynomials; 2],
@@ -153,7 +153,7 @@ pub struct ClientRound2State {
     base_receiver: ClientBaseRotReceiverOutput,
 }
 
-pub struct SigningWorkerRound2State {
+pub(crate) struct SigningWorkerRound2State {
     context: PresignPairContext,
     pending: PendingPresignInput,
     opened: [SigningWorkerOpenedPolynomials; 2],
@@ -176,94 +176,94 @@ struct SigningWorkerTripleState {
     peer_shares: [VerifiedClientPrivateShare; 2],
 }
 
-pub struct ClientRound3State {
+pub(crate) struct ClientRound3State {
     triple: ClientTripleState,
     base_receiver: ClientBaseRotReceiverOutput,
     extension_receiver: Box<ClientExtensionReceiverAwaitingChallenge>,
 }
 
-pub struct SigningWorkerRound3State {
+pub(crate) struct SigningWorkerRound3State {
     triple: SigningWorkerTripleState,
     base_receiver: SigningWorkerBaseRotReceiverOutput,
     extension_receiver: Box<SigningWorkerExtensionReceiverAwaitingChallenge>,
 }
 
-pub struct ClientRound4State {
+pub(crate) struct ClientRound4State {
     triple: ClientTripleState,
     extension_receiver: Box<ClientExtensionReceiverAwaitingChallenge>,
     extension_sender: Box<ClientExtensionSenderAwaitingProof>,
 }
 
-pub struct SigningWorkerRound4State {
+pub(crate) struct SigningWorkerRound4State {
     triple: SigningWorkerTripleState,
     extension_receiver: Box<SigningWorkerExtensionReceiverAwaitingChallenge>,
     extension_sender: Box<SigningWorkerExtensionSenderAwaitingProof>,
 }
 
-pub struct ClientRound5State {
+pub(crate) struct ClientRound5State {
     triple: ClientTripleState,
     extension_receiver: Box<ClientExtensionReceiverAwaitingAcceptance>,
     extension_sender: Box<ClientExtensionSenderAwaitingProof>,
 }
 
-pub struct SigningWorkerRound5State {
+pub(crate) struct SigningWorkerRound5State {
     triple: SigningWorkerTripleState,
     extension_receiver: Box<SigningWorkerExtensionReceiverAwaitingAcceptance>,
     extension_sender: Box<SigningWorkerExtensionSenderAwaitingProof>,
 }
 
-pub struct ClientRound6State {
+pub(crate) struct ClientRound6State {
     triple: ClientTripleState,
     extension_receiver: Box<ClientExtensionReceiverAwaitingAcceptance>,
     random_sender: Box<ClientRandomOtSenderOutput>,
 }
 
-pub struct SigningWorkerRound6State {
+pub(crate) struct SigningWorkerRound6State {
     triple: SigningWorkerTripleState,
     extension_receiver: Box<SigningWorkerExtensionReceiverAwaitingAcceptance>,
     random_sender: Box<SigningWorkerRandomOtSenderOutput>,
 }
 
-pub struct ClientRound7State {
+pub(crate) struct ClientRound7State {
     triple: ClientTripleState,
     random_receiver: Box<ClientRandomOtReceiverOutput>,
     mta_sender: Box<ClientMtaSenderAwaitingResponse>,
 }
 
-pub struct SigningWorkerRound7State {
+pub(crate) struct SigningWorkerRound7State {
     triple: SigningWorkerTripleState,
     random_receiver: Box<SigningWorkerRandomOtReceiverOutput>,
     mta_sender: Box<SigningWorkerMtaSenderAwaitingResponse>,
 }
 
-pub struct ClientRound8State {
+pub(crate) struct ClientRound8State {
     triple: ClientTripleState,
     mta_sender: Box<ClientMtaSenderAwaitingResponse>,
     receiver_share: ClientMultiplicationShare,
 }
 
-pub struct SigningWorkerRound8State {
+pub(crate) struct SigningWorkerRound8State {
     triple: SigningWorkerTripleState,
     mta_sender: Box<SigningWorkerMtaSenderAwaitingResponse>,
     receiver_share: SigningWorkerMultiplicationShare,
 }
 
-pub struct ClientRound9State {
+pub(crate) struct ClientRound9State {
     pending: PendingPresignInput,
     triple_finalization: ClientTripleFinalizationState,
 }
 
-pub struct SigningWorkerRound9State {
+pub(crate) struct SigningWorkerRound9State {
     pending: PendingPresignInput,
     triple_finalization: SigningWorkerTripleFinalizationState,
 }
 
-pub struct ClientRound10State(ClientAwaitingPeerE);
-pub struct SigningWorkerRound10State(SigningWorkerAwaitingPeerE);
-pub struct ClientRound11State(ClientAwaitingPeerAlphaBeta);
-pub struct SigningWorkerRound11State(SigningWorkerAwaitingPeerAlphaBeta);
+pub(crate) struct ClientRound10State(ClientAwaitingPeerE);
+pub(crate) struct SigningWorkerRound10State(SigningWorkerAwaitingPeerE);
+pub(crate) struct ClientRound11State(ClientAwaitingPeerAlphaBeta);
+pub(crate) struct SigningWorkerRound11State(SigningWorkerAwaitingPeerAlphaBeta);
 
-pub fn start_client_driver(
+pub(crate) fn start_client_driver(
     context: PresignPairContext,
     key_share: AdditiveKeyShare,
     wallet_public_key: CompressedPointBytes,
@@ -291,7 +291,7 @@ pub fn start_client_driver(
     ))
 }
 
-pub fn start_signing_worker_driver(
+pub(crate) fn start_signing_worker_driver(
     context: PresignPairContext,
     key_share: AdditiveKeyShare,
     wallet_public_key: CompressedPointBytes,

@@ -108,7 +108,7 @@ impl fmt::Display for PresignError {
 impl std::error::Error for PresignError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TriplePublic {
+pub(crate) struct TriplePublic {
     context: PresignPairContext,
     big_a: AffinePoint,
     big_b: AffinePoint,
@@ -116,6 +116,7 @@ pub struct TriplePublic {
 }
 
 impl TriplePublic {
+    #[cfg(test)]
     pub fn from_bytes(
         context: PresignPairContext,
         big_a: CompressedPointBytes,
@@ -130,6 +131,7 @@ impl TriplePublic {
         })
     }
 
+    #[cfg(test)]
     pub fn context(&self) -> PresignPairContext {
         self.context
     }
@@ -159,7 +161,7 @@ impl TripleShare {
 /// use router_ab_ecdsa_presign::ValidatedTriple;
 /// let _ = ValidatedTriple {};
 /// ```
-pub struct ValidatedTriple {
+pub(crate) struct ValidatedTriple {
     share: TripleShare,
     public: TriplePublic,
 }
@@ -214,8 +216,8 @@ impl AdditiveKeyShare {
     }
 }
 
-pub struct ClientPresignInput(PresignInput);
-pub struct SigningWorkerPresignInput(PresignInput);
+pub(crate) struct ClientPresignInput(PresignInput);
+pub(crate) struct SigningWorkerPresignInput(PresignInput);
 
 macro_rules! impl_presign_input {
     ($name:ident) => {
@@ -324,10 +326,10 @@ struct AwaitingPeerAlphaBeta {
     own_beta: Scalar,
 }
 
-pub struct ClientAwaitingPeerE(AwaitingPeerE);
-pub struct SigningWorkerAwaitingPeerE(AwaitingPeerE);
-pub struct ClientAwaitingPeerAlphaBeta(AwaitingPeerAlphaBeta);
-pub struct SigningWorkerAwaitingPeerAlphaBeta(AwaitingPeerAlphaBeta);
+pub(crate) struct ClientAwaitingPeerE(AwaitingPeerE);
+pub(crate) struct SigningWorkerAwaitingPeerE(AwaitingPeerE);
+pub(crate) struct ClientAwaitingPeerAlphaBeta(AwaitingPeerAlphaBeta);
+pub(crate) struct SigningWorkerAwaitingPeerAlphaBeta(AwaitingPeerAlphaBeta);
 
 pub struct PresignOutput {
     big_r: AffinePoint,
@@ -412,7 +414,7 @@ impl Drop for PresignOutput {
     }
 }
 
-pub fn start_client(
+pub(crate) fn start_client(
     input: ClientPresignInput,
 ) -> Result<(ClientAwaitingPeerE, ClientEShareMessage), PresignError> {
     let (state, e_share) = start(FixedRole::Client, input.0)?;
@@ -420,7 +422,7 @@ pub fn start_client(
     Ok((ClientAwaitingPeerE(state), message))
 }
 
-pub fn start_signing_worker(
+pub(crate) fn start_signing_worker(
     input: SigningWorkerPresignInput,
 ) -> Result<(SigningWorkerAwaitingPeerE, SigningWorkerEShareMessage), PresignError> {
     let (state, e_share) = start(FixedRole::SigningWorker, input.0)?;
