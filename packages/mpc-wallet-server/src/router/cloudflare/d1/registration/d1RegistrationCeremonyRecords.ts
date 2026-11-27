@@ -65,7 +65,6 @@ import {
   unknownWebAuthnAuthenticatorDeviceInfo,
 } from '@shared/utils/webauthnDeviceInfo';
 import type {
-  WalletAddAuthMethodFinalizeSuccess,
   WalletAddSignerFinalizeSuccess,
   WalletRegistrationFinalizeSuccess,
 } from '../../../../core/registrationContracts';
@@ -157,6 +156,7 @@ import {
 import type { EcdsaDerivationServerBootstrapResponse } from '../../../../core/types';
 import { parseStoredRouterAbEcdsaPendingActivationV1 } from '../../../domains/ecdsa/routerAbEcdsaStrictRegistration';
 import { toRecordValue } from '../auth/d1RouterApiAuthBoundary';
+import type { WalletAddAuthMethodFinalizeSuccess } from '@shared/utils/registrationContracts';
 
 type PasskeyRegistrationAuthority = Extract<
   RegistrationAuthority,

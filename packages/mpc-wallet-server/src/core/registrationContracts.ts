@@ -16,13 +16,15 @@ import type {
   WalletAuthAuthority,
   WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
-import type { WebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import type { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type { RouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import type {
+  CreateAddAuthMethodIntentSuccess,
+  CreateAddSignerIntentSuccess,
   EmailOtpWalletRegistrationFinalizeAuthMethod,
   PasskeyWalletRegistrationFinalizeAuthMethod,
+  WalletAddAuthMethodFinalizeSuccess,
   WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEd25519YaoActivationReference,
   WalletRegistrationEd25519YaoStart,
@@ -105,13 +107,7 @@ export type CreateAddSignerIntentRequest = {
 };
 
 export type CreateAddSignerIntentResponse =
-  | {
-      ok: true;
-      intent: AddSignerIntentV1;
-      addSignerIntentDigestB64u: string;
-      addSignerIntentGrant: AddSignerIntentGrant;
-      expiresAtMs: number;
-    }
+  | CreateAddSignerIntentSuccess
   | {
       ok: false;
       code: string;
@@ -126,13 +122,7 @@ export type CreateAddAuthMethodIntentRequest = {
 };
 
 export type CreateAddAuthMethodIntentResponse =
-  | {
-      ok: true;
-      intent: AddAuthMethodIntentV1;
-      addAuthMethodIntentDigestB64u: string;
-      addAuthMethodIntentGrant: AddAuthMethodIntentGrant;
-      expiresAtMs: number;
-    }
+  | CreateAddAuthMethodIntentSuccess
   | {
       ok: false;
       code: string;
@@ -319,32 +309,6 @@ type WalletAuthMethodStatusAnnotation<Status extends WalletAuthMethodRecord['sta
   kind: WalletAuthMethodRecord['kind'];
   status: Status;
 };
-
-export type WalletAddAuthMethodFinalizeSuccess =
-  | {
-      ok: true;
-      walletId: WalletId;
-      authority: WalletAuthAuthority;
-      rpId: WebAuthnRpId;
-      authMethod: {
-        kind: 'passkey';
-        status: 'active';
-        credentialIdB64u: string;
-        credentialPublicKeyB64u: string;
-        counter: number;
-        device: WebAuthnAuthenticatorDeviceInfo;
-      };
-    }
-  | {
-      ok: true;
-      walletId: WalletId;
-      authority: WalletAuthAuthority;
-      rpId?: never;
-      authMethod: {
-        kind: 'email_otp';
-        status: 'active';
-      };
-    };
 
 export type WalletAddAuthMethodFinalizeResponse =
   | WalletAddAuthMethodFinalizeSuccess

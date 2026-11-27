@@ -5,7 +5,6 @@ import type {
   AddSignerIntentGrant,
   AddSignerIntentV1,
   RegistrationIntentV1,
-  WalletAddAuthMethodFinalizeSuccess,
   WalletAddSignerEcdsaPreparePayload,
   WalletAddSignerFinalizeRequest,
   WalletAddAuthMethodRegistrationOptions,
@@ -51,6 +50,7 @@ import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerA
 import type { RouterAbEcdsaPendingActivationV1 } from '../router/domains/ecdsa/routerAbEcdsaStrictRegistration';
 import type { WalletEd25519SignerRecord } from './WalletStore';
 import { type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
+import type { WalletAddAuthMethodFinalizeSuccess } from '@shared/utils/registrationContracts';
 
 export type StoredAddSignerIntent = {
   kind: 'add_signer_intent_allocated';

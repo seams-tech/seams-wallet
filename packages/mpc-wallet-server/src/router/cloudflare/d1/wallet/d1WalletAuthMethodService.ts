@@ -62,7 +62,6 @@ import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMetho
 import type { StoredWalletAddAuthMethodCeremony } from '../../../../core/RegistrationCeremonyStore';
 import type {
   WalletAddAuthMethodFinalizeResponse,
-  WalletAddAuthMethodFinalizeSuccess,
   WalletAddAuthMethodStartRequest,
   WalletAddAuthMethodStartResponse,
   WalletAddAuthMethodEmailOtpTargetV1,
@@ -134,6 +133,7 @@ import {
   type D1WalletAuthMethodRevocationReplayStoreV1,
   type WalletAuthMethodRevocationReplayIdentityV1,
 } from './d1WalletAuthMethodRevocationReplayStore';
+import type { WalletAddAuthMethodFinalizeSuccess } from '@shared/utils/registrationContracts';
 
 type StartWalletAddAuthMethodInput = StartWalletAddAuthMethodCommand;
 type StartWalletAddAuthMethodResult = WalletAddAuthMethodStartResponse;

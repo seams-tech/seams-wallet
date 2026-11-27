@@ -6,7 +6,13 @@ import type {
 import type { WalletSessionOperationCredentialV1 } from '../device-linking/contracts';
 import type { Ed25519AuthorityScope } from '../threshold/sessionPolicy';
 import type { RuntimePolicyScope } from '../threshold/signingRootScope';
-import type { WalletId } from './registrationIntent';
+import type {
+  AddAuthMethodIntentGrant,
+  AddAuthMethodIntentV1,
+  AddSignerIntentGrant,
+  AddSignerIntentV1,
+  WalletId,
+} from './registrationIntent';
 import type { RegistrationSignerSetSelection } from './registrationSignerPlan';
 import type {
   RegisterWalletInput,
@@ -18,6 +24,9 @@ import type {
   RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from './routerAbEd25519Yao';
 import type { WALLET_AUTH_METHODS } from './signerDomain';
+import type { WalletAuthAuthority } from './walletAuthAuthority';
+import type { WebAuthnRpId } from './domainIds';
+import type { WebAuthnAuthenticatorDeviceInfo } from './webauthnDeviceInfo';
 import type { RouterAbEd25519NormalSigningState } from './signingSessionSeal';
 import { isPlainObject } from './validation';
 import type { Variant } from './variant';
@@ -158,3 +167,48 @@ export type WalletEd25519YaoSignerPublicResult = {
   recoveryExportCapable: true;
   participantIds: readonly [number, number];
 };
+
+/** A created add-signer intent: the success that the Gateway answers and the wallet reads. */
+export type CreateAddSignerIntentSuccess = {
+  ok: true;
+  intent: AddSignerIntentV1;
+  addSignerIntentDigestB64u: string;
+  addSignerIntentGrant: AddSignerIntentGrant;
+  expiresAtMs: number;
+};
+
+/** A created add-auth-method intent: the success that the Gateway answers and the wallet reads. */
+export type CreateAddAuthMethodIntentSuccess = {
+  ok: true;
+  intent: AddAuthMethodIntentV1;
+  addAuthMethodIntentDigestB64u: string;
+  addAuthMethodIntentGrant: AddAuthMethodIntentGrant;
+  expiresAtMs: number;
+};
+
+/** The method an add-auth-method finalize installed, as the server records it. */
+export type WalletAddAuthMethodFinalizeSuccess =
+  | {
+      ok: true;
+      walletId: WalletId;
+      authority: WalletAuthAuthority;
+      rpId: WebAuthnRpId;
+      authMethod: {
+        kind: 'passkey';
+        status: 'active';
+        credentialIdB64u: string;
+        credentialPublicKeyB64u: string;
+        counter: number;
+        device: WebAuthnAuthenticatorDeviceInfo;
+      };
+    }
+  | {
+      ok: true;
+      walletId: WalletId;
+      authority: WalletAuthAuthority;
+      rpId?: never;
+      authMethod: {
+        kind: 'email_otp';
+        status: 'active';
+      };
+    };

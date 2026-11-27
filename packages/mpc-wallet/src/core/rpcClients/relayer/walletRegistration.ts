@@ -73,10 +73,7 @@ import {
   type ThresholdEd25519SessionId,
   type WalletAuthMethodId,
 } from '@shared/utils/domainIds';
-import {
-  parseWebAuthnAuthenticatorDeviceInfo,
-  type WebAuthnAuthenticatorDeviceInfo,
-} from '@shared/utils/webauthnDeviceInfo';
+import { parseWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import type { EcdsaKeyFactsInventoryWalletSessionCredential } from '@/core/types/sdkSentEvents';
 import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
@@ -89,7 +86,10 @@ import {
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type {
+  CreateAddAuthMethodIntentSuccess,
+  CreateAddSignerIntentSuccess,
   CreateRegistrationIntentRequest,
+  WalletAddAuthMethodFinalizeSuccess,
   WalletEd25519YaoSignerPublicResult,
   WalletRegistrationEd25519YaoActivationReference,
   WalletRegistrationEd25519YaoStart,
@@ -1410,15 +1410,7 @@ export type CreateAddAuthMethodIntentRequest = {
   caller: AddAuthMethodIntentCallerV1;
 };
 
-export type CreateAddAuthMethodIntentResponse = {
-  ok: true;
-  intent: AddAuthMethodIntentV1;
-  addAuthMethodIntentDigestB64u: string;
-  addAuthMethodIntentGrant: AddAuthMethodIntentGrant;
-  expiresAtMs: number;
-};
-
-function parseCreateAddAuthMethodIntentResponse(value: unknown): CreateAddAuthMethodIntentResponse {
+function parseCreateAddAuthMethodIntentResponse(value: unknown): CreateAddAuthMethodIntentSuccess {
   const responseName = 'Wallet add-auth-method intent';
   const response = requireWalletRegistrationResponseObject({
     responseName,
@@ -1472,15 +1464,7 @@ export type CreateAddSignerIntentRequest = {
   signerSelection: AddSignerIntentV1['signerSelection'];
 };
 
-export type CreateAddSignerIntentResponse = {
-  ok: true;
-  intent: AddSignerIntentV1;
-  addSignerIntentDigestB64u: string;
-  addSignerIntentGrant: AddSignerIntentGrant;
-  expiresAtMs: number;
-};
-
-function parseCreateAddSignerIntentResponse(value: unknown): CreateAddSignerIntentResponse {
+function parseCreateAddSignerIntentResponse(value: unknown): CreateAddSignerIntentSuccess {
   const responseName = 'Wallet add-signer intent';
   const response = requireWalletRegistrationResponseObject({
     responseName,
@@ -1606,36 +1590,9 @@ export type WalletAddAuthMethodStartResponse =
       addAuthMethodCeremonyExpiresAtMs: number;
     };
 
-export type WalletAddAuthMethodFinalizeResponse =
-  | {
-      ok: true;
-      walletId: WalletId;
-      rpId: WebAuthnRpId;
-      /** The authority the new method was added to, as the server records it. */
-      authority: WalletAuthAuthority;
-      authMethod: {
-        kind: 'passkey';
-        status: 'active';
-        credentialIdB64u: string;
-        credentialPublicKeyB64u: string;
-        counter: number;
-        device: WebAuthnAuthenticatorDeviceInfo;
-      };
-    }
-  | {
-      ok: true;
-      walletId: WalletId;
-      rpId?: never;
-      authority: WalletAuthAuthority;
-      authMethod: {
-        kind: 'email_otp';
-        status: 'active';
-      };
-    };
-
 function parseWalletAddAuthMethodFinalizeResponse(
   value: unknown,
-): WalletAddAuthMethodFinalizeResponse {
+): WalletAddAuthMethodFinalizeSuccess {
   const responseName = 'Wallet add-auth-method finalize';
   const response = requireWalletRegistrationResponseObject({
     responseName,
@@ -3147,7 +3104,7 @@ export async function createWalletAddSignerIntent(args: {
   walletId: WalletId;
   request: CreateAddSignerIntentRequest;
   auth: { publishableKey: string; environmentId: string };
-}): Promise<CreateAddSignerIntentResponse> {
+}): Promise<CreateAddSignerIntentSuccess> {
   const walletId = String(args.walletId || '').trim();
   if (!walletId) throw new Error('walletId is required for add-signer intent');
   const publishableKey = String(args.auth.publishableKey || '').trim();
@@ -3297,7 +3254,7 @@ export async function createWalletAddAuthMethodIntent(args: {
   walletId: WalletId;
   request: CreateAddAuthMethodIntentRequest;
   auth: { publishableKey: string; environmentId: string };
-}): Promise<CreateAddAuthMethodIntentResponse> {
+}): Promise<CreateAddAuthMethodIntentSuccess> {
   const walletId = String(args.walletId || '').trim();
   if (!walletId) throw new Error('walletId is required for add-auth-method intent');
   const publishableKey = String(args.auth.publishableKey || '').trim();
@@ -4600,7 +4557,7 @@ export async function finalizeWalletAddAuthMethod(
         custodyEnvelope?: never;
         emailOtpTarget?: never;
       },
-): Promise<WalletAddAuthMethodFinalizeResponse> {
+): Promise<WalletAddAuthMethodFinalizeSuccess> {
   const walletId = String(args.walletId || '').trim();
   if (!walletId) throw new Error('walletId is required for add-auth-method finalize');
   const body =
