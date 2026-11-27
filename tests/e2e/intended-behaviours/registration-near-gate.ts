@@ -9,7 +9,7 @@ import {
 import type { IntendedBehaviourHarness } from './harness';
 import { DEFAULT_WALLET_SESSION_REMAINING_USES as SESSION_SIGNATURES } from '@shared/threshold/sessionPolicy';
 
-export class NearRegistrationGate {
+class NearRegistrationGate {
   private releaseGate: () => void = ignoreRelease;
   private readonly released = new Promise<void>(this.saveRelease.bind(this));
   private requests = 0;

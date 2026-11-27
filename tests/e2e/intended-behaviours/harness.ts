@@ -73,7 +73,7 @@ import {
   serializeTransaction,
 } from 'viem';
 
-export type IntendedLifecycleFlow =
+type IntendedLifecycleFlow =
   | 'passkey.registration'
   | 'passkey.unlock'
   | 'passkey.recovery'
@@ -82,8 +82,6 @@ export type IntendedLifecycleFlow =
   | 'email_otp.recovery';
 
 export type IntendedRecoveryTargetKind = WalletRecoveryTargetV1['kind'];
-
-export type IntendedChainTarget = 'near' | 'tempo' | 'arc_evm';
 
 export type IntendedSigningStage =
   | 'post_registration'
@@ -108,12 +106,10 @@ type IntendedNearSigningScenario =
   | {
       kind: 'standard';
       stage: IntendedNearSigningStage;
-      postRefreshMaterialSource?: never;
     }
   | {
       kind: 'post_refresh';
       stage: 'after_refresh_recovery';
-      postRefreshMaterialSource?: never;
     };
 
 type IntendedHarnessAction =
@@ -306,10 +302,6 @@ declare global {
     ) => Promise<string>;
     __seamsIntendedConcurrentActionObserver?: IntendedConcurrentActionObserver;
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
-    __seamsIntendedNearHydrationHold?: {
-      readonly isHeld: () => boolean;
-      readonly release: (spoil: boolean) => void;
-    };
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: import('../../../packages/mpc-wallet/src/core/types/seams').WalletSession['authentication']['kind'];
     }>;
@@ -325,13 +317,6 @@ declare global {
     /** The exact revocation Device 1 submits, with its fresh source proof. */
     __seamsIntendedE2ELinkedDeviceRevocationJson?: string;
   }
-}
-
-async function cancelDeviceLinkFromIntendedPage(): Promise<void> {
-  if (!window.__seamsIntendedE2ECancelDeviceLink) {
-    throw new Error('Device-link cancellation is unavailable');
-  }
-  await window.__seamsIntendedE2ECancelDeviceLink();
 }
 
 async function readLinkedDevicesFromIntendedPage(): Promise<unknown> {
@@ -1093,19 +1078,6 @@ function disconnectIntendedConcurrentActionObserver(): void {
   delete window.__seamsIntendedConcurrentActionObserver;
 }
 
-function nearDemoSignButtonIsActionable(): boolean {
-  const buttons = Array.from(document.querySelectorAll('button'));
-  for (const button of buttons) {
-    if (button.textContent?.trim() !== 'Sign on NEAR') continue;
-    return button instanceof HTMLButtonElement && !button.disabled;
-  }
-  return false;
-}
-
-function ignoreNearDemoStatusReadError(): null {
-  return null;
-}
-
 type IntendedGatewayRequests = {
   get: APIRequestContext['get'];
   post(
@@ -1204,7 +1176,6 @@ export class IntendedBehaviourHarness {
   private intendedYaoFaultInjection: IntendedYaoFaultInjectionStateV1 = { kind: 'idle' };
 
   private readonly intendedYaoFaultProofs: string[] = [];
-  /** Armed once: the next NEAR finalize loses the Gateway's storage after its decision. */
   /** Armed once: the next recovery execution loses every Router reply, or is kept from it. */
   private intendedYaoRecoveryFault: {
     readonly mode: 'lose_router_recovery_replies' | 'withhold_router_recovery_execute';
@@ -1377,16 +1348,6 @@ export class IntendedBehaviourHarness {
     } finally {
       await linked.context.close();
     }
-  }
-
-  async cancelUnclaimedDeviceLink(device: IntendedBehaviourHarness): Promise<void> {
-    const before = await this.readLinkedDeviceInventory();
-    await device.showDeviceLinkQr();
-    await device.page.evaluate(cancelDeviceLinkFromIntendedPage);
-    await expect(device.page.locator('[data-device-link-state="failed"]')).toBeVisible();
-    const after = await this.readLinkedDeviceInventory();
-    expect(after).toEqual(before);
-    this.recordStage('unclaimed_device_link_cancelled_inventory_unchanged');
   }
 
   /**
@@ -2738,7 +2699,6 @@ export class IntendedBehaviourHarness {
     );
   }
 
-  /** Resolves once the trace holds a console message containing `fragment`. */
   /**
    * Holds every Wallet Session status answer until released. The Gateway
    * answers each request when it arrives; only the answer's delivery to the
@@ -3795,37 +3755,6 @@ export class IntendedBehaviourHarness {
     );
   }
 
-  async assertNearDemoSigningActionable(): Promise<void> {
-    this.recordStage('post_registration:near.demo_actionable');
-    await this.page.evaluate(navigateWithinSite, '/wallet');
-    this.intendedPageReady = false;
-    try {
-      // The demo renders only the selected chain's panel, and Tempo is the
-      // default tab, so the NEAR controls must be selected before they exist.
-      await this.page.getByRole('tab', { name: 'NEAR', exact: true }).click({ timeout: 20_000 });
-      await this.page.waitForFunction(nearDemoSignButtonIsActionable, undefined, {
-        timeout: 20_000,
-      });
-    } catch (error) {
-      const statusText = await this.page
-        .locator('.near-funding-status')
-        .textContent({ timeout: 1_000 })
-        .catch(ignoreNearDemoStatusReadError);
-      throw new Error(
-        `NEAR demo signing remained unavailable after registration: ${String(statusText || 'no readiness status')}`,
-        { cause: error },
-      );
-    }
-    this.recordService('public React wallet projection enabled the NEAR demo signing control');
-    await this.page.evaluate(navigateWithinSite, this.intendedPageUrl().href);
-    await this.page.getByTestId('intended-e2e-page').waitFor({
-      state: 'visible',
-      timeout: 15_000,
-    });
-    this.intendedPageReady = true;
-    this.reloadIntendedPageBeforeNextAction = false;
-  }
-
   signingActionTimingEvidence() {
     if (!this.latestActionTiming) throw new Error('Expected action timing evidence');
     const diagnostics = this.latestWalletIframeAutoConfirmDiagnostics;
@@ -4130,10 +4059,7 @@ export class IntendedBehaviourHarness {
   }
 
   /** Sends a finalize the Gateway kept to the Router again, and reads the Router's reply. */
-  private async releaseNearSigningFinalize(
-    token: string,
-    timeoutMs = 30_000,
-  ): Promise<{
+  private async releaseNearSigningFinalize(token: string): Promise<{
     readonly status: number;
     readonly body: string;
     readonly original: { readonly status: number; readonly body: string } | null;
@@ -4146,7 +4072,7 @@ export class IntendedBehaviourHarness {
           [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: token,
         },
         data: {},
-        timeout: timeoutMs,
+        timeout: 30_000,
       },
     );
     if (!response.ok()) {
@@ -5076,17 +5002,6 @@ function noYaoRecoveryAssertionLabel(scenario: IntendedNoYaoRecoveryAssertionSce
   }
 }
 
-function navigateWithinSite(targetHref: string): void {
-  const target = new URL(targetHref, window.location.origin);
-  if (target.origin !== window.location.origin) {
-    throw new Error(`Refusing cross-origin client navigation to ${target.origin}`);
-  }
-  const relativeHref = `${target.pathname}${target.search}${target.hash}`;
-  window.history.pushState({}, '', relativeHref);
-  window.dispatchEvent(new Event('site:navigate'));
-  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-}
-
 function requireEmailOtpRegisteredWalletSnapshot(
   registration: RegisteredWalletSnapshot,
 ): EmailOtpRegistrationResultSnapshot {
@@ -5334,7 +5249,7 @@ function requireUsableIntendedGoogleIdToken(
   );
 }
 
-export function requireLocalIntendedYaoFaultRouterOrigin(routerUrl: string): void {
+function requireLocalIntendedYaoFaultRouterOrigin(routerUrl: string): void {
   const origin = new URL(routerUrl).origin;
   const offset = Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0);
   const expected =
@@ -8534,7 +8449,6 @@ export async function autoConfirmWalletIframeUntil<T>(
   opts?: {
     timeoutMs?: number;
     intervalMs?: number;
-    retryDelayMs?: number;
     stopAfterClick?: boolean;
     diagnostics?: WalletIframeAutoConfirmDiagnostics;
     onRecoveryCodes?: (codes: readonly string[]) => void;
@@ -8542,7 +8456,6 @@ export async function autoConfirmWalletIframeUntil<T>(
 ): Promise<T> {
   const timeoutMs = Math.max(250, Math.floor(opts?.timeoutMs ?? 55_000));
   const intervalMs = Math.max(50, Math.floor(opts?.intervalMs ?? 250));
-  const retryDelayMs = Math.max(0, Math.floor(opts?.retryDelayMs ?? intervalMs));
   const stopAfterClick = opts?.stopAfterClick === true;
   let done = false;
   const startedAtMs = Date.now();
@@ -8556,7 +8469,6 @@ export async function autoConfirmWalletIframeUntil<T>(
     page,
     timeoutMs,
     intervalMs,
-    retryDelayMs,
     stopAfterClick,
     diagnostics,
     onRecoveryCodes: opts?.onRecoveryCodes,
@@ -8582,7 +8494,6 @@ async function runWalletIframeAutoConfirmLoop(args: {
   page: Page;
   timeoutMs: number;
   intervalMs: number;
-  retryDelayMs: number;
   stopAfterClick: boolean;
   diagnostics?: WalletIframeAutoConfirmDiagnostics;
   onRecoveryCodes?: (codes: readonly string[]) => void;
@@ -8596,9 +8507,7 @@ async function runWalletIframeAutoConfirmLoop(args: {
     if (recoveryCodes) {
       args.onRecoveryCodes?.(recoveryCodes);
       if (args.stopAfterClick) return;
-      if (args.retryDelayMs > 0) {
-        await args.page.waitForTimeout(args.retryDelayMs);
-      }
+      await args.page.waitForTimeout(args.intervalMs);
       continue;
     }
     const clicked = await clickWalletIframeConfirm(args.page, dispatchedConfirmations, {
@@ -8611,9 +8520,7 @@ async function runWalletIframeAutoConfirmLoop(args: {
     if (authMenuError) {
       throw new Error(`Wallet auth menu failed: ${authMenuError}`);
     }
-    if (args.retryDelayMs > 0) {
-      await args.page.waitForTimeout(args.retryDelayMs);
-    }
+    await args.page.waitForTimeout(args.intervalMs);
   }
 }
 

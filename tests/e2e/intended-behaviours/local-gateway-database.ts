@@ -34,7 +34,7 @@ export async function openGatewayDatabase(
   });
 }
 
-export async function isolatedGatewayDatabasePath(): Promise<string> {
+async function isolatedGatewayDatabasePath(): Promise<string> {
   const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
   if (!root) throw new Error('Signing evidence requires an isolated local root');
   const DatabaseSync = await loadIsolatedDatabaseSync();
@@ -89,7 +89,7 @@ export async function exhaustWalletSessionQuota(walletId: string): Promise<void>
   }
 }
 
-export async function loadIsolatedDatabaseSync(): Promise<NodeSqliteModule['DatabaseSync']> {
+async function loadIsolatedDatabaseSync(): Promise<NodeSqliteModule['DatabaseSync']> {
   const sqliteModule: string = 'node:sqlite';
   const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
   return DatabaseSync;

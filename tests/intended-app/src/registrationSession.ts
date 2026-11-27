@@ -1,4 +1,4 @@
-export type EmailOtpRegistrationNearProvisioning =
+type EmailOtpRegistrationNearProvisioning =
   | { readonly status: 'near_pending' }
   | { readonly status: 'near_provisioning' }
   | { readonly status: 'near_ready' }
