@@ -1,4 +1,3 @@
-import { openDB } from 'idb';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import {
   EMAIL_OTP_DEVICE_FACTOR_LIMIT,
@@ -13,6 +12,7 @@ import {
   type OprfBlindedInput,
 } from '../oprf/runtime';
 import { unwrapEmailOtpFactorSecret, wrapEmailOtpFactorSecret } from './deviceFactorWrap';
+import { EMAIL_OTP_FACTOR_STORE as STORE, openEmailOtpDeviceStore } from './deviceStore';
 
 /**
  * The Email OTP device factor. The device keeps a random OPRF input x for each
@@ -20,9 +20,6 @@ import { unwrapEmailOtpFactorSecret, wrapEmailOtpFactorSecret } from './deviceFa
  * from the POPRF output F(k, x, info). Neither side alone can compute that key,
  * so neither side alone can open S. Only this worker reads or writes the store.
  */
-
-const DB_NAME = 'seams_email_otp_device_factors';
-const STORE = 'factors';
 
 type DeviceFactorRecord = {
   readonly walletId: string;
@@ -32,20 +29,9 @@ type DeviceFactorRecord = {
   readonly createdAtMs: number;
 };
 
-function openFactorStore() {
-  return openDB(DB_NAME, 1, {
-    upgrade(database) {
-      const store = database.createObjectStore(STORE, {
-        keyPath: ['walletId', 'factorNonceB64u'],
-      });
-      store.createIndex('walletId', 'walletId');
-    },
-  });
-}
-
 /** The factors of a wallet on this device, newest first. */
 async function listFactors(walletId: string): Promise<DeviceFactorRecord[]> {
-  const database = await openFactorStore();
+  const database = await openEmailOtpDeviceStore();
   try {
     const records = (await database.getAllFromIndex(STORE, 'walletId', walletId)) as
       DeviceFactorRecord[] | undefined;
@@ -65,7 +51,7 @@ export async function hasEmailOtpDeviceFactor(walletId: string): Promise<boolean
 
 /** Stores a factor and keeps only the newest `EMAIL_OTP_DEVICE_FACTOR_LIMIT` for the wallet. */
 async function putFactor(record: DeviceFactorRecord): Promise<void> {
-  const database = await openFactorStore();
+  const database = await openEmailOtpDeviceStore();
   try {
     const transaction = database.transaction(STORE, 'readwrite');
     await transaction.store.put(record);
@@ -83,7 +69,7 @@ async function putFactor(record: DeviceFactorRecord): Promise<void> {
 
 /** After a successful open, the other factors of the wallet can never match again. */
 async function deleteOtherFactors(walletId: string, keepNonceB64u: string): Promise<void> {
-  const database = await openFactorStore();
+  const database = await openEmailOtpDeviceStore();
   try {
     const transaction = database.transaction(STORE, 'readwrite');
     const all = ((await transaction.store.index('walletId').getAll(walletId)) ??

@@ -24,6 +24,8 @@ import type {
   EmailOtpEcdsaSessionBootstrapHandleBinding,
   EmailOtpEcdsaSessionBootstrapHandlePayload,
   EmailOtpEd25519YaoRecoveryBootstrapV1,
+  EmailOtpEcdsaWarmMaterialTarget,
+  EmailOtpEd25519WarmMaterialTarget,
   EmailOtpWarmMaterialTarget,
   EmailOtpWorkerOperationMap,
 } from '@/core/signingEngine/workerManager/workerTypes';
@@ -360,7 +362,7 @@ export function deleteEmailOtpWarmMaterial(target: EmailOtpWarmMaterialTarget): 
 }
 
 function putEmailOtpEd25519YaoWarmFactor(args: {
-  target: Extract<EmailOtpWarmMaterialTarget, { kind: 'ed25519_yao' }>;
+  target: EmailOtpEd25519WarmMaterialTarget;
   factorSecret32: Uint8Array;
   expiresAtMs: number;
   remainingUses: number;
@@ -469,15 +471,6 @@ function resolveEmailOtpWarmMaterialEntry(
       }
       return { kind: 'ed25519_yao', entry };
     }
-  }
-}
-
-function emailOtpWarmMaterialSecret32(entry: EmailOtpWarmMaterialEntry): Uint8Array {
-  switch (entry.kind) {
-    case 'ecdsa':
-      return entry.entry.signingSessionSecret32;
-    case 'ed25519_yao':
-      return entry.entry.factorSecret32;
   }
 }
 
@@ -591,21 +584,23 @@ export function consumeEmailOtpWarmSessionUses(args: {
   };
 }
 
+/**
+ * Seals warm ECDSA material for the main thread's sealed-session record. The Ed25519 factor is
+ * sealed and kept by this worker itself (`ed25519WarmSeal.ts`).
+ */
 export async function sealEmailOtpWarmSessionMaterial(args: {
-  target: EmailOtpWarmMaterialTarget;
+  target: EmailOtpEcdsaWarmMaterialTarget;
   transport: SigningSessionSealTransport;
 }): Promise<EmailOtpWarmSessionSealResult> {
   const authorizationThresholdSessionId = args.transport.authorizationThresholdSessionId;
   const usable = readUsableEmailOtpWarmMaterial(args.target);
   if (!usable.ok) return usable;
   const material = usable.material;
+  if (material.kind !== 'ecdsa') return emailOtpWarmMaterialFailure('not_found');
   const singleFlightKey = makeSigningSessionSealSingleFlightKey({
     operation: 'seal',
     thresholdSessionId: authorizationThresholdSessionId,
-    materialIdentity:
-      args.target.kind === 'ecdsa'
-        ? args.target.thresholdSessionId
-        : materialActivationKey(args.target.materialActivation),
+    materialIdentity: args.target.thresholdSessionId,
     relayerUrl: args.transport.relayerUrl,
     keyVersion: args.transport.keyVersion,
   });
@@ -643,7 +638,7 @@ export async function sealEmailOtpWarmSessionMaterial(args: {
             thresholdSessionId: authorizationThresholdSessionId,
           },
           evaluation,
-          secret32: emailOtpWarmMaterialSecret32(material),
+          secret32: material.entry.signingSessionSecret32,
         });
         updateEmailOtpWarmMaterialPolicy({
           target: args.target,
@@ -651,23 +646,13 @@ export async function sealEmailOtpWarmSessionMaterial(args: {
           remainingUses: policy.remainingUses,
           expiresAtMs: policy.expiresAtMs,
         });
-        const common = {
+        return {
           ok: true,
           sealedSecretB64u,
           keyVersion: evaluation.keyVersion,
           remainingUses: policy.remainingUses,
           expiresAtMs: policy.expiresAtMs,
-        } as const;
-        switch (material.kind) {
-          case 'ecdsa':
-            return { ...common, materialKind: 'ecdsa' };
-          case 'ed25519_yao':
-            return {
-              ...common,
-              materialKind: 'ed25519_yao',
-              materialActivation: material.entry.materialActivation,
-            };
-        }
+        };
       } finally {
         if (blindOwned) discardSigningSessionSealBlind(blind);
       }
@@ -683,7 +668,7 @@ export async function sealEmailOtpWarmSessionMaterial(args: {
 }
 
 export async function rehydrateEmailOtpEcdsaWarmSessionMaterial(args: {
-  target: Extract<EmailOtpWarmMaterialTarget, { kind: 'ecdsa' }>;
+  target: EmailOtpEcdsaWarmMaterialTarget;
   sealedSecretB64u: string;
   remainingUses: number;
   expiresAtMs: number;

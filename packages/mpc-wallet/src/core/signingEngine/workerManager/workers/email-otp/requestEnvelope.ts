@@ -430,16 +430,21 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
             : { uses: requirePositiveSafeInteger(payload.uses, `${type}.uses`) }),
         },
       };
-    case 'sealEmailOtpWarmSessionMaterial':
+    case 'sealEmailOtpWarmSessionMaterial': {
       rejectUnknownEmailOtpYaoFields(payload, ['target', 'transport'], type);
+      const target = parseEmailOtpWarmMaterialTarget(payload.target);
+      if (target.kind !== 'ecdsa') {
+        throw new Error('Email OTP warm seal for the main thread requires an ECDSA target');
+      }
       return {
         id,
         type,
         payload: {
-          target: parseEmailOtpWarmMaterialTarget(payload.target),
+          target,
           transport: parseWorkerSealTransport(payload.transport),
         },
       };
+    }
     case 'rehydrateEmailOtpEcdsaWarmSessionMaterial': {
       rejectUnknownEmailOtpYaoFields(
         payload,
@@ -587,8 +592,23 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
     case 'activateEmailOtpEd25519YaoRegistrationMaterial': {
       rejectUnknownEmailOtpYaoFields(
         payload,
-        ['material', 'bootstrap', 'envelope', 'factorSecret32'],
+        [
+          'relayUrl',
+          'material',
+          'bootstrap',
+          'envelope',
+          'enrollment',
+          'operationCredential',
+          'factorSecret32',
+        ],
         type,
+      );
+      const enrollment = asRecord(payload.enrollment);
+      if (!enrollment) throw new Error('Registration activation requires its factor enrollment');
+      rejectUnknownEmailOtpYaoFields(
+        enrollment,
+        ['enrollmentId', 'enrollmentSealKeyVersion'],
+        `${type}.enrollment`,
       );
       const material = parseWalletCustodyEd25519MaterialRequest({
         kind: 'found',
@@ -601,11 +621,20 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
         id,
         type,
         payload: {
+          relayUrl: readString(payload.relayUrl, 'relayUrl'),
           material: material.material,
           bootstrap: parseEmailOtpEd25519YaoRecoveryBootstrap(payload.bootstrap, {
             kind: 'resolved_worker_payload',
           }),
           envelope: parseWalletCustodyCacheEnvelope(payload.envelope),
+          enrollment: {
+            enrollmentId: readString(enrollment.enrollmentId, 'enrollment.enrollmentId'),
+            enrollmentSealKeyVersion: readString(
+              enrollment.enrollmentSealKeyVersion,
+              'enrollment.enrollmentSealKeyVersion',
+            ),
+          },
+          operationCredential: parseWalletSessionOperationCredentialV1(payload.operationCredential),
           factorSecret32: requireFixed32ArrayBuffer(payload.factorSecret32, 'factorSecret32')
             .buffer,
         },

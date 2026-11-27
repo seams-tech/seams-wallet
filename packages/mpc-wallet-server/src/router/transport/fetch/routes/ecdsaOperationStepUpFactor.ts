@@ -174,6 +174,7 @@ export async function verifyEcdsaOperationStepUpFactor(input: {
           },
           loginGrant: verified.loginGrant,
           otpChannel: EMAIL_OTP_CHANNEL,
+          operation: emailOtpOperation,
         });
         if (!consumed.ok) {
           return {

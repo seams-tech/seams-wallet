@@ -23,6 +23,7 @@ import {
 import type { MultichainWorkerKind } from '@/core/walletRuntimePaths/multichainWorkers';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
+import type { Variant } from '@shared/utils/variant';
 import type {
   PasskeyCustodyEnvelopeRecord,
   WalletCustodyCeremonyCommitPayload,
@@ -191,6 +192,12 @@ export type EmailOtpEd25519YaoWorkerActivationResult = {
 export type EmailOtpWalletCustodyEd25519MaterialRequest =
   | { readonly kind: 'found'; readonly material: LoadedWalletCustodyEd25519MaterialV1 }
   | { readonly kind: 'absent' };
+
+/** The enrollment of the Email OTP factor that S belongs to. */
+export type EmailOtpFactorEnrollmentV1 = {
+  readonly enrollmentId: string;
+  readonly enrollmentSealKeyVersion: string;
+};
 
 export type EmailOtpEd25519YaoRecoveryBootstrapV1 = {
   readonly kind: typeof ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1;
@@ -597,6 +604,12 @@ export type EmailOtpWarmMaterialTarget =
       readonly thresholdSessionId: string;
       readonly materialActivation: MpcMaterialActivationRef;
     };
+export type EmailOtpEcdsaWarmMaterialTarget = Variant<EmailOtpWarmMaterialTarget, 'kind', 'ecdsa'>;
+export type EmailOtpEd25519WarmMaterialTarget = Variant<
+  EmailOtpWarmMaterialTarget,
+  'kind',
+  'ed25519_yao'
+>;
 
 export type EmailOtpEd25519YaoOperationMaterialRequest = {
   readonly relayUrl: string;
@@ -852,7 +865,7 @@ export interface EmailOtpWorkerOperationMap {
   };
   sealEmailOtpWarmSessionMaterial: {
     payload: {
-      target: EmailOtpWarmMaterialTarget;
+      target: EmailOtpEcdsaWarmMaterialTarget;
       transport: {
         relayerUrl: string;
         authorizationThresholdSessionId: string;
@@ -862,27 +875,18 @@ export interface EmailOtpWorkerOperationMap {
       };
     };
     result:
-      | ({
+      | {
           ok: true;
           sealedSecretB64u: string;
           keyVersion?: string;
           remainingUses: number;
           expiresAtMs: number;
-        } & (
-          | {
-              materialKind: 'ecdsa';
-              materialActivation?: never;
-            }
-          | {
-              materialKind: 'ed25519_yao';
-              materialActivation: MpcMaterialActivationRef;
-            }
-        ))
+        }
       | { ok: false; code: string; message: string };
   };
   rehydrateEmailOtpEcdsaWarmSessionMaterial: {
     payload: {
-      target: Extract<EmailOtpWarmMaterialTarget, { kind: 'ecdsa' }>;
+      target: EmailOtpEcdsaWarmMaterialTarget;
       sealedSecretB64u: string;
       remainingUses: number;
       expiresAtMs: number;
@@ -965,9 +969,13 @@ export interface EmailOtpWorkerOperationMap {
   };
   activateEmailOtpEd25519YaoRegistrationMaterial: {
     payload: {
+      readonly relayUrl: string;
       readonly material: LoadedWalletCustodyEd25519MaterialV1;
       readonly bootstrap: EmailOtpEd25519YaoRecoveryBootstrapV1;
       readonly envelope: WalletCustodyCacheEnvelopeV1;
+      readonly enrollment: EmailOtpFactorEnrollmentV1;
+      /** The registration's Wallet Session, under which the worker seals S for a re-hydrate. */
+      readonly operationCredential: WalletSessionOperationCredentialV1;
       readonly factorSecret32: ArrayBuffer;
     };
     result: {

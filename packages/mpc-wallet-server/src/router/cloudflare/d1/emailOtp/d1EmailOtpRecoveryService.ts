@@ -1,6 +1,11 @@
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_ACTIONS } from '@shared/utils/emailOtpDomain';
+import {
+  EMAIL_OTP_CHANNEL,
+  WALLET_EMAIL_OTP_ACTIONS,
+  isWalletEmailOtpLoginOperation,
+  type WalletEmailOtpLoginOperation,
+} from '@shared/utils/emailOtpDomain';
 import { failedVerification, failure } from '@shared/utils/failure';
 import {
   validateSecp256k1PublicKey33,
@@ -94,6 +99,7 @@ type NormalizedGrantConsumptionInput = {
   readonly userId: string;
   readonly walletId: string;
   readonly orgId: string;
+  readonly operation: WalletEmailOtpLoginOperation;
   readonly clientIp: string | undefined;
 };
 
@@ -579,6 +585,10 @@ function normalizeGrantConsumptionInput(
   if (otpChannel !== EMAIL_OTP_CHANNEL) {
     return invalidGrantConsumptionBody('otpChannel must be email_otp');
   }
+  const operation: unknown = input.operation;
+  if (typeof operation !== 'string' || !isWalletEmailOtpLoginOperation(operation)) {
+    return invalidGrantConsumptionBody('operation must be an Email OTP login operation');
+  }
   return {
     ok: true,
     value: {
@@ -586,17 +596,20 @@ function normalizeGrantConsumptionInput(
       userId,
       walletId: walletId.value,
       orgId,
+      operation,
       clientIp,
     },
   };
 }
 
+/** A grant serves only its wallet, its subject and the operation of its code. */
 function emailOtpGrantBindingMismatch(
   record: {
     readonly userId: string;
     readonly walletId: string;
     readonly otpChannel: typeof EMAIL_OTP_CHANNEL;
     readonly orgId?: string;
+    readonly operation: WalletEmailOtpLoginOperation;
   },
   input: NormalizedGrantConsumptionInput,
 ): boolean {
@@ -604,7 +617,8 @@ function emailOtpGrantBindingMismatch(
     record.userId !== input.userId ||
     record.walletId !== input.walletId ||
     record.otpChannel !== EMAIL_OTP_CHANNEL ||
-    record.orgId !== input.orgId
+    record.orgId !== input.orgId ||
+    record.operation !== input.operation
   );
 }
 

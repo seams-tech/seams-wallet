@@ -1,6 +1,6 @@
 # Refactor 252: Email OTP as a device factor
 
-Status: 2026-11-27. Slices 0 to 5 are done. Only the hardening of D5 is open (Section 7).
+Status: 2026-11-27. Done. Slices 0 to 5 and D5 are built. D5 ships in the next release (Section 7).
 
 - Slices 0, 1 and 2, with the POPRF of D9, shipped in 0.75.0.
 - Slice 3 (new devices: 3a the factor list of D11, 3b recovery, 3c device linking, 3d the menu)
@@ -23,8 +23,8 @@ factor key a device factor, as passkeys and VoiceID already are.
   and every Worker secret, and no data from the user's device, nobody can get the factor key S
   or open the custody envelope. A test proves this.
 - An owner Email OTP wallet opens only with two things: the sealed factor on the device and a
-  fresh email code. On that device, a live Wallet Session can replace the code within its limits
-  (D5).
+  fresh email code. After a reload, that device opens S again from its Ed25519 warm seal, only
+  under the live Wallet Session of the seal (D5).
 - A new device gets wallet access by device linking or with a recovery code. Google and an
   email code on a new device give a sign-in only.
 - No server copy of a factor remains. No hosted Email OTP wallet exists (U1), so Slice 2
@@ -237,8 +237,7 @@ The worker and the Gateway load the same module.
 4. The worker checks the proof, removes the blind, opens S and deletes its other factors for
    the wallet. It proves the pinned unlock key, as today.
 
-The Wallet Session release (`wallet_session`) uses the same evaluation, so it now needs the
-device input too. The rest of D5 is open (Section 7).
+No release takes a Wallet Session bearer in place of the code (D5, Section 7).
 
 ### A new device
 
@@ -294,7 +293,7 @@ the user asks for a new code.
 - An email code alone never opens a wallet on a device that has no sealed factor.
 - Export still needs a fresh email code for the operation `export_key`.
 - A copy of the device's IndexedDB alone cannot open the wallet. The server removes its seal
-  only after a valid code, or a live Wallet Session within its limits (D5).
+  only after a valid code. The Ed25519 warm seal opens only for its live Wallet Session (D5).
 
 ## 3. Slices
 
@@ -372,8 +371,9 @@ the user asks for a new code.
 - **Device linking** with an Email OTP target that enrolls its own factor.
 - **Google recovery** releases no S and enrolls a new factor.
 - **Email codes:** D1 holds no plain code. A wrong code fails. The lockout limits do not change.
-- **The Wallet Session release (D5)** needs the device's sealed factor. Export needs a fresh
-  code.
+- **D5.** The warm seal opens only for its own Wallet Session and threshold session
+  (`emailOtpEd25519WarmSeal.unit.test.ts`). A grant serves only the operation of its code, and the
+  release refuses a bearer (`emailOtpGrantOperation.unit.test.ts`). Export needs a fresh code.
 
 ## 5. Relation to other plans
 
@@ -391,21 +391,20 @@ the user asks for a new code.
 - **Email-only access on a new device.** It is not possible without trust in the operator (D2).
 - **Sync of methods between devices.** Each device keeps its own methods by design.
 
-## 7. What remains: D5
+## 7. D5, done on 2026-11-27
 
-Checked in the code on 2026-11-27. The packages are now `packages/mpc-wallet` and
-`packages/mpc-wallet-server`. Both changes below change the release wire, so the wallet and
-`wallet-server` ship together, as in Slice 4.
+The wallet and `wallet-server` ship together, as in Slice 4, because both changes change the
+release wire.
 
-- **The Wallet Session release stays.** `/wallet/email-otp/factor-release` still accepts
-  `kind: 'wallet_session'` (`handleWalletEmailOtpFactorRelease` in
-  `mpc-wallet-server/src/router/transport/fetch/routes/sessions.ts`). It needs the device input
-  and a live Email OTP Wallet Session with an Ed25519 signing subject for the same wallet and
-  email. D5 replaces it with an Ed25519 warm seal of S under the signing-session seal (a POPRF
-  since Refactor 253) and a blinded restore. Then delete the `wallet_session` branch.
-- **The grant has no operation.** The `verified_grant` branch consumes a grant whose `action` is
-  `unseal` (`consumeEmailOtpGrant` in
-  `mpc-wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecoveryService.ts`). The grant
-  does not keep the operation of its code. The callers are the unlock (`wk/email-otp/unlock.ts`)
-  and the Ed25519 Yao export (`wk/email-otp/ed25519YaoExport.ts`). D5 stores the operation with
-  the grant and checks it at the release.
+- **The Wallet Session release is gone.** `/wallet/email-otp/factor-release` refuses
+  `kind: 'wallet_session'`. An unlock or a registration that activates a NEAR Ed25519 capability
+  under an Email OTP Wallet Session seals S under the signing-session seal of that session
+  (`wk/email-otp/ed25519WarmSeal.ts`). The Email OTP worker keeps the sealed value in its own
+  store `ed25519_warm_seals`, with its Wallet Session ID, enrollment and expiry. The NEAR re-hydrate
+  after a reload or a worker restart opens S with a blinded restore under the same bearer
+  (`wk/email-otp/recovery.ts`), and zeroes S afterwards. The main-thread seal operation is now
+  ECDSA only.
+- **The grant has an operation.** The grant record keeps the operation of its code.
+  `consumeEmailOtpGrant` takes the operation that its caller serves and refuses a grant for
+  another operation. A `verified_grant` release names its operation: the ECDSA export and the
+  Ed25519 Yao export send `export_key`. The step-up routes send `transaction_sign`.

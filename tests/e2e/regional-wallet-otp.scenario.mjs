@@ -61,7 +61,7 @@ export async function verifyAtomicEmailOtpGrant(api, database, scope) {
     orgId: scope.orgId,
     challengeId: 'challenge-wallet-b',
     ownerProofBindingDigest: 'binding-wallet-b',
-    action: api.WALLET_EMAIL_OTP_ACTIONS.unseal,
+    operation: 'wallet_unlock',
     issuedAtMs,
     expiresAtMs: issuedAtMs + 120_000,
   });
@@ -75,6 +75,7 @@ export async function verifyAtomicEmailOtpGrant(api, database, scope) {
     },
     loginGrant: 'invalid-grant-for-wallet-b',
     otpChannel: api.EMAIL_OTP_CHANNEL,
+    operation: grant.operation,
     clientIp: '192.0.2.20',
   };
   assert.equal((await recovery.consumeEmailOtpGrant(invalidRequest)).code, 'grant_invalid_or_expired');
@@ -96,6 +97,7 @@ export async function verifyAtomicEmailOtpGrant(api, database, scope) {
     },
     loginGrant: grant.grantToken,
     otpChannel: api.EMAIL_OTP_CHANNEL,
+    operation: grant.operation,
     clientIp: invalidRequest.clientIp,
   };
   assert.equal((await recovery.consumeEmailOtpGrant(validRequest)).code, 'rate_limited');

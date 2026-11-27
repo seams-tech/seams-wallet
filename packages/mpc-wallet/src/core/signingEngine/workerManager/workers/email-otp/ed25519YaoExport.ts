@@ -8,6 +8,7 @@ import {
   type PasskeyCustodyEnvelopeRecord,
   custodyEnvelopeBindingJsonV1,
 } from '@shared/passkey-custody';
+import { WALLET_EMAIL_OTP_EXPORT_OPERATION } from '@shared/utils/emailOtpDomain';
 import { parseRouterAbEd25519YaoExportAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
@@ -260,6 +261,7 @@ export async function resolveEmailOtpEd25519ExportCustodyEnvelope(
     kind: 'verified_grant',
     loginGrant: release.loginGrant,
     challengeId: release.challengeId,
+    operation: WALLET_EMAIL_OTP_EXPORT_OPERATION,
     sessionAuth: undefined,
   });
   let factorSecret32: Uint8Array | null = released.factorSecret32;

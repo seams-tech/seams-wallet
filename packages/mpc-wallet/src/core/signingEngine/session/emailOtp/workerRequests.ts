@@ -1,6 +1,7 @@
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import type {
+  EmailOtpEcdsaWarmMaterialTarget,
   EmailOtpWarmMaterialTarget,
   EmailOtpEd25519YaoOperationMaterialRequest,
   SignerWorkerOperationResult,
@@ -27,7 +28,7 @@ type EmailOtpEcdsaWarmSessionRestore = {
 
 export async function requestSealEmailOtpWarmSessionMaterial(args: {
   workerCtx: WorkerOperationContext;
-  target: EmailOtpWarmMaterialTarget;
+  target: EmailOtpEcdsaWarmMaterialTarget;
   authorizationThresholdSessionId: string;
   transport: EmailOtpWarmSessionTransport;
 }): Promise<SignerWorkerOperationResult<'emailOtp', 'sealEmailOtpWarmSessionMaterial'>> {
@@ -95,7 +96,7 @@ export async function requestClearEmailOtpWarmSessionMaterial(args: {
 
 export async function requestRehydrateEmailOtpEcdsaWarmSessionMaterial(args: {
   workerCtx: WorkerOperationContext;
-  target: Extract<EmailOtpWarmMaterialTarget, { kind: 'ecdsa' }>;
+  target: EmailOtpEcdsaWarmMaterialTarget;
   authorizationThresholdSessionId: string;
   sealedSecretB64u: string;
   remainingUses: number;

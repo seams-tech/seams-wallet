@@ -9,6 +9,7 @@ import { toOptionalTrimmedNonEmptyString } from '@shared/utils/validation';
 import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
+  WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 import {
@@ -60,10 +61,10 @@ import {
 } from './otpVerification';
 import {
   bindEmailOtpEcdsaWarmSessionFactor,
-  bindEmailOtpEd25519YaoCapabilityWarmFactor,
   type EmailOtpEd25519YaoWorkerActivationHandle,
   removeEmailOtpEd25519YaoActiveClient,
 } from './sessionState';
+import { emailOtpEd25519WarmSeal, keepEmailOtpEd25519WarmFactor } from './ed25519WarmSeal';
 import {
   type EmailOtpUnlockSecretMaterialRequest,
   type EmailOtpWalletCustodyUnlockProjection,
@@ -311,6 +312,22 @@ export async function unlockEmailOtpAuthorityWallet(
         });
         if (restored.kind !== 'opened') {
           throw new Error(`Email OTP authority Ed25519 runtime is ${restored.kind}`);
+        }
+        try {
+          await emailOtpEd25519WarmSeal.seal({
+            relayUrl,
+            walletId,
+            thresholdSessionId: bootstrap.session.thresholdSessionId,
+            operationCredential,
+            enrollment: {
+              enrollmentId: released.enrollmentId,
+              enrollmentSealKeyVersion: released.enrollmentSealKeyVersion,
+            },
+            factorSecret32,
+          });
+        } catch (error: unknown) {
+          removeEmailOtpEd25519YaoActiveClient(restored.activeClientHandle);
+          throw error;
         }
         ed25519Activation = {
           kind: 'ed25519_activation_ready',
@@ -673,6 +690,10 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
       unlockSignatureB64u,
       verifiedAuthorityProjection,
     };
+    const enrollment = {
+      enrollmentId: args.enrollmentId,
+      enrollmentSealKeyVersion: args.enrollmentSealKeyVersion,
+    };
     switch (args.material.kind) {
       case 'ecdsa': {
         return {
@@ -697,10 +718,13 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
         }
         let ed25519Yao: EmailOtpCompletion<'wallet_unlock_capabilities'>['ed25519Yao'];
         if (openedEd25519Client) {
-          bindEmailOtpEd25519YaoCapabilityWarmFactor({
+          await keepEmailOtpEd25519WarmFactor({
+            relayUrl,
+            walletId,
             bootstrap: ed25519YaoBootstrap,
+            operationCredential: walletSessionAuthorization.operationCredential,
+            enrollment,
             factorSecret32: args.clientSecret32,
-            materialActivation: ed25519YaoBootstrap.capability.materialActivation,
           });
           const opened = openedEd25519Client;
           openedEd25519Client = null;
@@ -735,10 +759,13 @@ export async function completeEmailOtpUnlockFromSecret32(args: {
           if (!walletSessionAuthorization) {
             throw new Error('Email OTP Ed25519 unlock did not return its exact Wallet Session');
           }
-          bindEmailOtpEd25519YaoCapabilityWarmFactor({
+          await keepEmailOtpEd25519WarmFactor({
+            relayUrl,
+            walletId,
             bootstrap: ed25519YaoCapability,
+            operationCredential: walletSessionAuthorization.operationCredential,
+            enrollment,
             factorSecret32: args.clientSecret32,
-            materialActivation: ed25519YaoCapability.capability.materialActivation,
           });
           const opened = openedEd25519Client;
           openedEd25519Client = null;
@@ -867,10 +894,14 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
       }
     }
     const userId = resolveEmailOtpAuthSubjectId({ userId: args.userId });
+    if (args.routePlan.operation === WALLET_EMAIL_OTP_REGISTRATION_OPERATION) {
+      throw new Error('Email OTP factor release requires a login operation');
+    }
     const released = await releaseEmailOtpFactorSecret({
       relayUrl,
       walletId,
       challengeId,
+      operation: args.routePlan.operation,
       sessionAuth: args.factorReleaseSessionAuth || sessionAuth,
       ...(args.verification.kind === 'email_otp_unseal_grant'
         ? { kind: 'verified_grant', loginGrant: args.verification.grant }
@@ -878,7 +909,6 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
             kind: 'email_otp',
             authoritySelector: args.authoritySelector,
             otpCode: readString(args.verification.otpCode, 'otpCode'),
-            operation: args.routePlan.operation,
           }),
     });
     if (args.verification.kind === 'otp') args.onProgress?.('otp.verify.succeeded');

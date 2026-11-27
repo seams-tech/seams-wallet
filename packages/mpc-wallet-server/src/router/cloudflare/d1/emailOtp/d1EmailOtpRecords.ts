@@ -22,7 +22,6 @@ import {
   type EmailOtpChallengeOperation,
   type EmailOtpChallengeRecord,
   type EmailOtpEnrollmentFactorRecord,
-  type EmailOtpGrantAction,
   type EmailOtpGrantRecord,
   type EmailOtpLoginChallengeOperation,
   type EmailOtpUnlockChallengeRecord,
@@ -648,7 +647,7 @@ export function emailOtpGrantRecord(input: {
   readonly orgId: string;
   readonly challengeId: string;
   readonly ownerProofBindingDigest: string;
-  readonly action: EmailOtpGrantAction;
+  readonly operation: EmailOtpGrantRecord['operation'];
   readonly issuedAtMs: number;
   readonly expiresAtMs: number;
 }): EmailOtpGrantRecord {
@@ -661,7 +660,8 @@ export function emailOtpGrantRecord(input: {
     challengeId: input.challengeId,
     otpChannel: EMAIL_OTP_CHANNEL,
     ownerProofBindingDigest: input.ownerProofBindingDigest,
-    action: input.action,
+    action: WALLET_EMAIL_OTP_ACTIONS.unseal,
+    operation: input.operation,
     issuedAtMs: input.issuedAtMs,
     expiresAtMs: input.expiresAtMs,
   };

@@ -34,7 +34,7 @@ import {
   discardEmailOtpDeviceFactorBlinds,
   openEmailOtpFactorEvaluation,
 } from './deviceFactor';
-import { releaseEmailOtpFactorSecret } from './otpVerification';
+import { emailOtpEd25519WarmSeal } from './ed25519WarmSeal';
 import { removeEmailOtpEd25519YaoActiveClient } from './sessionState';
 import type {
   EmailOtpEd25519OperationRecoveryMaterialRequest,
@@ -214,13 +214,15 @@ export async function rehydrateActiveEmailOtpEd25519YaoSessionMaterial(
   const walletId = readString(args.walletId, 'walletId');
   const providerSubjectId = readString(args.providerSubjectId, 'providerSubjectId');
   const sessionAuth = parseWalletSessionOperationCredentialV1(args.operationCredential);
-  const released = await releaseEmailOtpFactorSecret({
+  // S comes from the warm seal of this Wallet Session; no route releases S for a bearer alone.
+  const released = await emailOtpEd25519WarmSeal.open({
     relayUrl,
     walletId,
-    kind: 'wallet_session',
-    sessionAuth,
+    thresholdSessionId: String(args.expectedThresholdSessionId),
+    operationCredential: sessionAuth,
   });
-  let factorSecret32: Uint8Array | null = released.factorSecret32;
+  // The unlock below copies what it keeps, so S is zeroed here on every path.
+  const factorSecret32 = released.factorSecret32;
   try {
     const unlocked = await completeEmailOtpUnlockFromSecret32({
       relayUrl,
@@ -239,7 +241,6 @@ export async function rehydrateActiveEmailOtpEd25519YaoSessionMaterial(
       walletSessionBudget: null,
       sessionAuth,
     });
-    factorSecret32 = null;
     switch (unlocked.kind) {
       case 'ed25519_yao_capability':
         if (args.ecdsa.kind !== 'absent')

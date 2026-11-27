@@ -1152,6 +1152,7 @@ async function issueEd25519OperationStepUpGrant(input: {
         },
         loginGrant: verified.loginGrant,
         otpChannel: EMAIL_OTP_CHANNEL,
+        operation: WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
       });
       if (!consumed.ok) {
         return json(consumed, { status: consumed.code === 'invalid_body' ? 400 : 401 });

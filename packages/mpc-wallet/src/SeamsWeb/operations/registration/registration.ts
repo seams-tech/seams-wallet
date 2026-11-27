@@ -2313,6 +2313,17 @@ type DeferredRegistrationFinalizeAuthMaterial =
       emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
     };
 
+/** The Email OTP enrollment that a registration's NEAR custody envelope is sealed for. */
+function emailOtpCustodyEnvelopeEnrollment(envelope: PasskeyCustodyEnvelopeRecord) {
+  if (envelope.factor.kind !== 'email_otp') {
+    throw new Error('Email OTP registration custody is sealed for another factor');
+  }
+  return {
+    enrollmentId: envelope.factor.enrollmentId,
+    enrollmentSealKeyVersion: envelope.factor.enrollmentSealKeyVersion,
+  };
+}
+
 type DeferredNearCustodyWork = {
   readonly admissionRequest: WalletRegistrationRespondEd25519DeferredWork['admissionRequest'];
   readonly admissionReceipt: Awaited<ReturnType<typeof admitDeferredNearRegistration>>;
@@ -3576,6 +3587,8 @@ async function commitDeferredEd25519Registration(args: {
         bootstrap,
         material: custodyMaterial,
         envelope: walletCustodyCacheEnvelopeFromRecordV1(nearCustody.envelope),
+        enrollment: emailOtpCustodyEnvelopeEnrollment(nearCustody.envelope),
+        operationCredential: registrationSession.operationCredential,
         factorSecret32: retainedFactorSecret32,
       });
       retainedFactorSecret32 = null;

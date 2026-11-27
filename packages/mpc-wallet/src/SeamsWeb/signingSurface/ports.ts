@@ -1,4 +1,5 @@
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type {
   AuthMethodSessionInstaller,
   AuthMethodUnlockSuccess,
@@ -114,7 +115,10 @@ import type { ConnectEd25519SessionArgs } from '@/core/signingEngine/session/pas
 import type { HydrateWarmSigningSessionInput } from '@/core/signingEngine/session/passkey/warmSessionHydration';
 import type { LoginWithEmailOtpWalletCustodyEd25519Args } from '@/core/signingEngine/walletCustody/ed25519Login';
 import type { EstablishNearEd25519CustodyFactor } from '@/core/signingEngine/walletCustody/registrationCeremony';
-import type { EmailOtpEd25519YaoRecoveryBootstrapV1 } from '@/core/signingEngine/workerManager/workerTypes';
+import type {
+  EmailOtpEd25519YaoRecoveryBootstrapV1,
+  EmailOtpFactorEnrollmentV1,
+} from '@/core/signingEngine/workerManager/workerTypes';
 import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { RouterAbEd25519YaoRegistrationAdmissionRequestV1 } from '@shared/utils/routerAbEd25519Yao';
 import type { WalletSessionEd25519ReissueBasisV1 } from '@/core/signingEngine/walletCustody/walletReissueEd25519';
@@ -453,6 +457,8 @@ export interface WalletCustodyCeremonySurface {
     bootstrap: EmailOtpEd25519YaoRecoveryBootstrapV1;
     material: LoadedWalletCustodyEd25519MaterialV1;
     envelope: WalletCustodyCacheEnvelopeV1;
+    enrollment: EmailOtpFactorEnrollmentV1;
+    operationCredential: WalletSessionOperationCredentialV1;
     factorSecret32: ArrayBuffer;
   }): Promise<NearEd25519SignerBinding>;
 

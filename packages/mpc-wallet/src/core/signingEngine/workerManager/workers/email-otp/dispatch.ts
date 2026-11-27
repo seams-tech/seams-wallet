@@ -12,7 +12,6 @@ import type {
 } from '@/core/signingEngine/workerManager/workerTypes';
 import { asWorkerErrorPayload, workerErrorReply } from '../workerErrorPayload';
 import {
-  bindEmailOtpEd25519YaoCapabilityWarmFactor,
   cloneEmailOtpEd25519YaoSigningShare,
   consumeEmailOtpWarmSessionUses,
   deleteEmailOtpEd25519YaoWarmFactor,
@@ -40,6 +39,7 @@ import {
   unlockEmailOtpAuthorityWallet,
 } from './unlock';
 import { walletCustodyActivationFactsFromEmailOtpBootstrap } from './custodyRestore';
+import { keepEmailOtpEd25519WarmFactor } from './ed25519WarmSeal';
 import {
   rehydrateActiveEmailOtpEd25519YaoSessionMaterial,
   rehydrateEmailOtpEd25519YaoOperationMaterial,
@@ -487,10 +487,13 @@ export async function handleEmailOtpWorkerMessage(event: MessageEvent): Promise<
             const stored = storeEmailOtpEd25519YaoActiveClient(activeClient);
             transferred = true;
             activeClientHandle = stored.activeClientHandle;
-            bindEmailOtpEd25519YaoCapabilityWarmFactor({
+            await keepEmailOtpEd25519WarmFactor({
+              relayUrl: msg.payload.relayUrl,
+              walletId: material.binding.walletId,
               bootstrap,
+              operationCredential: msg.payload.operationCredential,
+              enrollment: msg.payload.enrollment,
               factorSecret32,
-              materialActivation: capability.materialActivation,
             });
             postToMainThread({ id: msg.id, ok: true, result: stored });
             activeClientHandle = null;

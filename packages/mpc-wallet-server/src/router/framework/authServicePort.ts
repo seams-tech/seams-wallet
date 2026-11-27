@@ -33,7 +33,10 @@ import type {
   WalletRegistrationRespondInput,
   WalletRegistrationSetupInput,
 } from '../domains/walletRegistration/walletRegistrationInputs';
-import type { WalletEmailOtpAction } from '@shared/utils/emailOtpDomain';
+import type {
+  WalletEmailOtpAction,
+  WalletEmailOtpLoginOperation,
+} from '@shared/utils/emailOtpDomain';
 import type {
   MpcMaterialActivationRef,
   OrgId,
@@ -338,6 +341,8 @@ type ConsumeEmailOtpGrantCommand = Readonly<{
   subject: EmailOtpGrantSubject;
   loginGrant: string;
   otpChannel: EmailOtpChannel;
+  /** The operation the consumer serves. A grant for another operation is refused. */
+  operation: WalletEmailOtpLoginOperation;
   clientIp?: string;
 }>;
 

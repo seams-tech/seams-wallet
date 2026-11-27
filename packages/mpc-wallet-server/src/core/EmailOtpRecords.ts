@@ -144,6 +144,7 @@ function parseCurrentEmailOtpGrantRecord(raw: unknown): EmailOtpGrantRecord | nu
   const otpChannel = toOptionalTrimmedString(obj.otpChannel);
   const ownerProofBindingDigest = toOptionalTrimmedString(obj.ownerProofBindingDigest);
   const action = toOptionalTrimmedString(obj.action);
+  const operation = toOptionalTrimmedString(obj.operation);
   const issuedAtMs = toPositiveSafeInt(obj.issuedAtMs);
   const expiresAtMs = toPositiveSafeInt(obj.expiresAtMs);
   if (
@@ -160,12 +161,8 @@ function parseCurrentEmailOtpGrantRecord(raw: unknown): EmailOtpGrantRecord | nu
     return null;
   }
   if (otpChannel !== EMAIL_OTP_CHANNEL) return null;
-  if (
-    action !== WALLET_EMAIL_OTP_ACTIONS.unseal &&
-    action !== WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap
-  ) {
-    return null;
-  }
+  if (action !== WALLET_EMAIL_OTP_ACTIONS.unseal) return null;
+  if (!operation || !isWalletEmailOtpLoginOperation(operation)) return null;
   return {
     version: 'email_otp_grant_v1',
     grantToken,
@@ -176,6 +173,7 @@ function parseCurrentEmailOtpGrantRecord(raw: unknown): EmailOtpGrantRecord | nu
     otpChannel: EMAIL_OTP_CHANNEL,
     ownerProofBindingDigest,
     action,
+    operation,
     issuedAtMs,
     expiresAtMs,
   };

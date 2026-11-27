@@ -11,7 +11,6 @@ import {
   parseOptionalWalletSessionBudget,
   type WalletSessionBudget,
 } from '@shared/threshold/walletSessionBudget';
-import { sha256HexUtf8 } from '@shared/utils/digests';
 import {
   handleWalletUnlockChallengeRoute,
   handleWalletUnlockVerifyRoute,
@@ -35,10 +34,7 @@ import {
   sameRouterAbMpcMaterialActivationRef,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
-import {
-  routerApiEmailOtpRouteService,
-  type RouterApiWalletSessionAuthorizationV2AdmissionContext,
-} from '../../../framework/authServicePort';
+import { routerApiEmailOtpRouteService } from '../../../framework/authServicePort';
 import {
   handleEmailOtpDevOutboxRoute,
   handleEmailOtpRegistrationFactorRoute,
@@ -58,7 +54,6 @@ import {
   WALLET_EMAIL_OTP_EXPORT_OPERATION,
   parseEmailOtpDeviceFactorBlinds,
   type WalletEmailOtpLoginOperation,
-  type WalletEmailOtpOperation,
 } from '@shared/utils/emailOtpDomain';
 import { parseWalletUnlockRequestedCapabilitiesRequest } from '../../../domains/walletUnlock/walletUnlockRequestedCapabilitiesValidation';
 import { parseWalletEmailOtpLoginOperation } from '../../../domains/emailOtp/emailOtpRequestValidation';
@@ -1081,64 +1076,64 @@ export async function handleWalletEmailOtpChallenge(
   );
 }
 
+/**
+ * A factor release always proves a fresh email code for one operation: the code itself, or the
+ * grant of a code that another route verified for that operation. The device sends its blinded
+ * factor inputs, so the server never holds a value that it can turn into S.
+ */
 type WalletEmailOtpFactorReleaseRequest = {
   readonly walletId: unknown;
   readonly deviceFactors: unknown;
+  readonly operation: WalletEmailOtpLoginOperation;
 } & (
   | { readonly kind: 'verified_grant'; readonly loginGrant: unknown }
-  | { readonly kind: 'wallet_session' }
   | {
       readonly kind: 'email_otp';
       readonly walletAuthMethodId: unknown;
       readonly challengeId: unknown;
       readonly otpCode: unknown;
-      readonly operation: WalletEmailOtpOperation;
     }
 );
+
+const WALLET_EMAIL_OTP_FACTOR_RELEASE_FIELDS = {
+  verified_grant: ['deviceFactors', 'kind', 'loginGrant', 'operation', 'walletId'],
+  email_otp: [
+    'challengeId',
+    'deviceFactors',
+    'kind',
+    'operation',
+    'otpCode',
+    'walletAuthMethodId',
+    'walletId',
+  ],
+} as const;
 
 function parseWalletEmailOtpFactorReleaseRequest(
   value: unknown,
 ): WalletEmailOtpFactorReleaseRequest {
   if (!isPlainObject(value)) throw new Error('Expected JSON object body');
   const kind = value.kind;
-  const expectedFields =
-    kind === 'verified_grant'
-      ? ['deviceFactors', 'kind', 'loginGrant', 'walletId']
-      : kind === 'wallet_session'
-        ? ['deviceFactors', 'kind', 'walletId']
-        : kind === 'email_otp'
-          ? [
-              'challengeId',
-              'deviceFactors',
-              'kind',
-              'operation',
-              'otpCode',
-              'walletId',
-              'walletAuthMethodId',
-            ].sort()
-          : null;
-  if (!expectedFields || Object.keys(value).sort().join(',') !== expectedFields.join(',')) {
+  if (kind !== 'verified_grant' && kind !== 'email_otp') {
+    throw new Error('Email OTP factor release kind is invalid');
+  }
+  if (
+    Object.keys(value).sort().join(',') !== WALLET_EMAIL_OTP_FACTOR_RELEASE_FIELDS[kind].join(',')
+  ) {
     throw new Error('Email OTP factor release body has invalid fields');
   }
+  const operation = parseWalletEmailOtpLoginOperation(value.operation);
+  if (!operation.ok) throw new Error(operation.message);
   if (kind === 'verified_grant') {
     return {
       kind,
       walletId: value.walletId,
       loginGrant: value.loginGrant,
+      operation: operation.operation,
       deviceFactors: value.deviceFactors,
     };
   }
-  if (kind === 'wallet_session') {
-    return {
-      kind,
-      walletId: value.walletId,
-      deviceFactors: value.deviceFactors,
-    };
-  }
-  const operation = parseWalletEmailOtpLoginOperation(value.operation);
-  if (!operation.ok) throw new Error(operation.message);
   return {
-    kind: 'email_otp',
+    kind,
     walletId: value.walletId,
     walletAuthMethodId: value.walletAuthMethodId,
     challengeId: value.challengeId,
@@ -1146,15 +1141,6 @@ function parseWalletEmailOtpFactorReleaseRequest(
     operation: operation.operation,
     deviceFactors: value.deviceFactors,
   };
-}
-
-function hasEd25519SigningSubject(
-  context: RouterApiWalletSessionAuthorizationV2AdmissionContext,
-): boolean {
-  for (const subject of context.authorization.session.capabilitySubjects) {
-    if (subject.kind === 'sign' && subject.keyFamily === 'ed25519') return true;
-  }
-  return false;
 }
 
 export async function handleWalletEmailOtpFactorRelease(
@@ -1205,108 +1191,80 @@ export async function handleWalletEmailOtpFactorRelease(
       { status: 403 },
     );
   }
-  let factorReleaseChallengeId: string;
-  if (body.kind === 'wallet_session') {
-    const token = extractBearerCredential(ctx.request.headers);
-    const exact = token
-      ? await ctx.service.authorizationSessions.readWalletSessionAuthorizationV2ByOperationCredential(
-          {
-            tenantId: ctx.service.authorizationSessions.tenantId,
-            token,
-            nowMs: Date.now(),
-          },
-        )
-      : null;
-    const enrollmentEmailHashHex = await sha256HexUtf8(enrollment.enrollment.verifiedEmail);
-    if (
-      !exact ||
-      exact.authorization.session.walletId !== walletId.value ||
-      exact.authMethod.kind !== 'email_otp' ||
-      exact.authMethod.emailHashHex !== enrollmentEmailHashHex ||
-      !hasEd25519SigningSubject(exact)
-    ) {
-      return json(
-        { ok: false, code: 'unauthorized', message: 'No valid Email OTP Wallet Session' },
-        { status: 401 },
-      );
-    }
-    factorReleaseChallengeId = `wallet-session:${exact.authorization.session.walletSessionId}`;
+  let loginGrant: string;
+  if (body.kind === 'verified_grant') {
+    loginGrant = typeof body.loginGrant === 'string' ? body.loginGrant.trim() : '';
   } else {
-    let loginGrant: string;
-    if (body.kind === 'verified_grant') {
-      loginGrant = typeof body.loginGrant === 'string' ? body.loginGrant.trim() : '';
-    } else {
-      const challengeId = typeof body.challengeId === 'string' ? body.challengeId.trim() : '';
-      const otpCode = typeof body.otpCode === 'string' ? body.otpCode.trim() : '';
-      if (!challengeId || !otpCode) {
-        return json(
-          { ok: false, code: 'invalid_body', message: 'Email OTP verification is invalid' },
-          { status: 400 },
-        );
-      }
-      const origin = requestOrigin(ctx.request);
-      const walletAuthMethodId = parseWalletAuthMethodId(body.walletAuthMethodId);
-      if (!walletAuthMethodId.ok) {
-        return json(
-          { ok: false, code: 'invalid_body', message: 'walletAuthMethodId is invalid' },
-          { status: 400 },
-        );
-      }
-      const authority = await ctx.service.walletUnlock.resolveEmailOtpAuthorityForUnlock({
-        walletId: walletId.value,
-        orgId: orgId.value,
-        walletAuthMethodId: walletAuthMethodId.value,
-        providerUserId: enrollment.enrollment.providerUserId,
-      });
-      if (authority.kind === 'rejected') {
-        return json(
-          { ok: false, code: authority.code, message: authority.message },
-          { status: authority.code === 'internal' ? 500 : 403 },
-        );
-      }
-      const ownerProofBindingDigest = await hashEmailOtpOperationBinding({
-        walletId: walletId.value,
-        providerUserId: enrollment.enrollment.providerUserId,
-        orgId: orgId.value,
-        operation: body.operation,
-        requestOrigin: origin,
-        audience: origin,
-        authorityRef: await walletAuthAuthorityRef({ authority: authority.walletAuthAuthority }),
-      });
-      const verified = await ctx.service.emailOtp.verifyEmailOtpChallenge({
-        userId: enrollment.enrollment.providerUserId,
-        walletId: String(walletId.value),
-        orgId: orgId.value,
-        challengeId,
-        otpCode,
-        otpChannel: EMAIL_OTP_CHANNEL,
-        ownerProofBindingDigest,
-        operation: body.operation,
-      });
-      if (!verified.ok) return json(verified, { status: emailOtpStatusCode(verified.code) });
-      loginGrant = verified.loginGrant;
-    }
-    if (!loginGrant) {
+    const challengeId = typeof body.challengeId === 'string' ? body.challengeId.trim() : '';
+    const otpCode = typeof body.otpCode === 'string' ? body.otpCode.trim() : '';
+    if (!challengeId || !otpCode) {
       return json(
-        { ok: false, code: 'invalid_body', message: 'Email OTP factor release grant is required' },
+        { ok: false, code: 'invalid_body', message: 'Email OTP verification is invalid' },
         { status: 400 },
       );
     }
-    const consumed = await ctx.service.emailOtp.consumeEmailOtpGrant({
-      subject: {
-        kind: 'provider_identity',
-        orgId: orgId.value,
-        providerSubject: providerSubject.value,
-        walletId: walletId.value,
-      },
-      loginGrant,
-      otpChannel: EMAIL_OTP_CHANNEL,
-      clientIp: resolveSourceIpFromFetchHeaders(ctx.request.headers) || undefined,
-    });
-    if (!consumed.ok) {
-      return json(consumed, { status: emailOtpStatusCode(consumed.code) });
+    const origin = requestOrigin(ctx.request);
+    const walletAuthMethodId = parseWalletAuthMethodId(body.walletAuthMethodId);
+    if (!walletAuthMethodId.ok) {
+      return json(
+        { ok: false, code: 'invalid_body', message: 'walletAuthMethodId is invalid' },
+        { status: 400 },
+      );
     }
-    factorReleaseChallengeId = consumed.challengeId;
+    const authority = await ctx.service.walletUnlock.resolveEmailOtpAuthorityForUnlock({
+      walletId: walletId.value,
+      orgId: orgId.value,
+      walletAuthMethodId: walletAuthMethodId.value,
+      providerUserId: enrollment.enrollment.providerUserId,
+    });
+    if (authority.kind === 'rejected') {
+      return json(
+        { ok: false, code: authority.code, message: authority.message },
+        { status: authority.code === 'internal' ? 500 : 403 },
+      );
+    }
+    const ownerProofBindingDigest = await hashEmailOtpOperationBinding({
+      walletId: walletId.value,
+      providerUserId: enrollment.enrollment.providerUserId,
+      orgId: orgId.value,
+      operation: body.operation,
+      requestOrigin: origin,
+      audience: origin,
+      authorityRef: await walletAuthAuthorityRef({ authority: authority.walletAuthAuthority }),
+    });
+    const verified = await ctx.service.emailOtp.verifyEmailOtpChallenge({
+      userId: enrollment.enrollment.providerUserId,
+      walletId: String(walletId.value),
+      orgId: orgId.value,
+      challengeId,
+      otpCode,
+      otpChannel: EMAIL_OTP_CHANNEL,
+      ownerProofBindingDigest,
+      operation: body.operation,
+    });
+    if (!verified.ok) return json(verified, { status: emailOtpStatusCode(verified.code) });
+    loginGrant = verified.loginGrant;
+  }
+  if (!loginGrant) {
+    return json(
+      { ok: false, code: 'invalid_body', message: 'Email OTP factor release grant is required' },
+      { status: 400 },
+    );
+  }
+  const consumed = await ctx.service.emailOtp.consumeEmailOtpGrant({
+    subject: {
+      kind: 'provider_identity',
+      orgId: orgId.value,
+      providerSubject: providerSubject.value,
+      walletId: walletId.value,
+    },
+    loginGrant,
+    otpChannel: EMAIL_OTP_CHANNEL,
+    operation: body.operation,
+    clientIp: resolveSourceIpFromFetchHeaders(ctx.request.headers) || undefined,
+  });
+  if (!consumed.ok) {
+    return json(consumed, { status: emailOtpStatusCode(consumed.code) });
   }
   const evaluated = await evaluateEmailOtpFactorForDevice({
     factorKey: ctx.service.emailOtp,
@@ -1314,7 +1272,7 @@ export async function handleWalletEmailOtpFactorRelease(
     enrollment: enrollment.enrollment,
     factor: deviceFactor.factor,
     blindedElementB64u: deviceFactor.blindedElementB64u,
-    challengeId: factorReleaseChallengeId,
+    challengeId: consumed.challengeId,
   });
   if (!evaluated.ok) {
     return json(evaluated, { status: emailOtpStatusCode(evaluated.code) });

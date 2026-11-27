@@ -98,7 +98,7 @@ Workers that the worker transport creates:
 | `ecdsaOnlineClient` | [`ecdsa-online-client.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/ecdsa-online-client.worker.ts) | None | None. It forwards signature-share requests to the presign worker. |
 | `evmCrypto` | [`evm-crypto.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/evm-crypto.worker.ts) | `evm_crypto` at worker start | None. Hashing, encoding, and verification helpers. |
 | `tempoSigner` | [`tempo-signer.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/tempo-signer.worker.ts) | `tempo_signer` at worker start | None. Tempo sender hash and transaction encoding. |
-| `emailOtp` | [`email-otp.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `oprf_runtime` (the device factor), `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. `oprf_runtime` also seals the warm session. | The device factor inputs, in its own IndexedDB database `seams_email_otp_device_factors` that no other context reads. Factor secrets that a device-factor release opens, and warm session secrets (JavaScript bytes). Active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
+| `emailOtp` | [`email-otp.worker.ts`](../packages/mpc-wallet/src/core/signingEngine/workerManager/workers/email-otp.worker.ts) | All on demand: `evm_crypto`, `email_otp_runtime`, `oprf_runtime` (the device factor), `wallet_custody_ceremony` (ECDSA restore at login, recovery rotation), Yao client. `oprf_runtime` also seals the warm session. | In its own IndexedDB database `seams_email_otp_device_factors`, which no other context reads: the device factor inputs, and the Ed25519 warm seal of the factor secret for each wallet (sealed under the signing-session seal of one Wallet Session). Factor secrets that a device-factor release or a warm seal opens, and warm session secrets (JavaScript bytes). Active Yao clients (WASM). See [Email OTP](otp/email-otp.md). |
 
 Workers that other managers create:
 
@@ -152,7 +152,7 @@ secret-bearing operations out of these workers, not only on the guard.
 | --- | --- |
 | `walletCustodyCeremony` | The wallet custody seed, owner roots, and unlocked export-root capabilities |
 | `ecdsaDerivationClient` | ECDSA client shares, linked-holder material, and presign authority |
-| `emailOtp` | Email OTP device factors, factor secrets and Email OTP warm sessions |
+| `emailOtp` | Email OTP device factors, factor secrets, Email OTP warm sessions and the Ed25519 warm seal |
 | `passkey-mpc-session` | Passkey warm-session PRF material |
 | `device-linking-key` | Device-linking keys for one linking attempt |
 | `passkey-mpc-export` | Material for one export, for one request |
@@ -255,6 +255,11 @@ One separation has no recorded reason:
 - **The three ECDSA workers.** All ECDSA secrets are in `ecdsaDerivationClient`.
   The presign and online workers hold only handles and public bytes. The likely
   reason is rule 1, but no document states it.
+
+The Ed25519 warm seal of the Email OTP factor secret stays in the `emailOtp` worker. That
+worker opens it again for the NEAR re-hydrate, so the sealed value never needs to leave it,
+and no route releases the factor secret for a Wallet Session bearer. It moved no operation
+between workers.
 
 The nested Shamir worker of the old signing-session seal is gone (Refactor 253).
 The OPRF that replaced it runs in the worker that holds the sealed secret,

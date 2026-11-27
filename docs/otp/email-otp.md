@@ -170,7 +170,7 @@ info = (wallet id, enrollment id, factor nonce), read from the server's own reco
 A release (unlock, step-up or export) goes in this order:
 
 1. The worker blinds x of each factor that it holds for the wallet and sends
-   the blinded elements with the email code.
+   the blinded elements with the email code and its operation.
 2. The server picks the factor whose nonce matches its record, before it uses
    the code. If no factor matches, it returns `email_otp_device_factor_missing`.
 3. The server checks the code for its operation. Then it evaluates the blinded
@@ -178,14 +178,20 @@ A release (unlock, step-up or export) goes in this order:
 4. The worker checks the proof, removes the blind and opens `S`. It then proves
    the pinned unlock key.
 
+The release always needs a fresh email code for its operation. It takes the
+code itself (`kind: 'email_otp'`) or the grant of a code that another route
+verified (`kind: 'verified_grant'`). Each grant keeps the operation of its
+code, and the release names the operation that it serves. An unlock grant
+cannot release for export, and an export grant cannot release for an unlock.
+
 The server cannot compute the POPRF output without x, so it cannot open `S`.
 `tests/unit/emailOtpFactorOprf.unit.test.ts` loads the seal root, the
 enrollment record and every value of the enrollment route, and no tried key
 opens the wrapped factor.
 
-A live Email OTP Wallet Session with an Ed25519 signing subject can replace the
-code on the same device (`kind: 'wallet_session'`). It still needs x. Export
-always needs a fresh email code for `export_key`.
+No route releases `S` for a Wallet Session bearer. The NEAR Ed25519 re-hydrate
+after a reload uses the Ed25519 warm seal (see Sealed Refresh). Export always
+needs a fresh email code for `export_key`.
 
 A device with no factor for the wallet gets a sign-in only. It gets its own
 factor by device linking or by Google recovery with a recovery code. In both
@@ -200,7 +206,7 @@ OTP-derived signing shares in wallet-iframe mode.
 | Store                      | Owns                                                                                                                                            |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Email OTP worker memory    | unsealed Email OTP secret material and hot signing material                                                                                     |
-| Email OTP worker IndexedDB | the device factor input x for each wallet and factor nonce                                                                                      |
+| Email OTP worker IndexedDB | the device factor input x for each wallet and factor nonce, and the Ed25519 warm seal of `S` for each wallet                                    |
 | iframe-origin IndexedDB    | encrypted restore material plus non-secret lane identity                                                                                        |
 | server                     | enrollment identity, encrypted email codes, session validity, wallet budget, and the nonce, wrapped factor and pinned unlock key of each factor |
 | runtime session store      | concrete current threshold-session records                                                                                                      |
@@ -342,6 +348,28 @@ Rules:
 6. Restore does not probe auth methods.
 7. Restore does not change curve or chain target.
 8. Status and snapshot reads do not unseal, restore, consume, delete, or prompt.
+
+### The Ed25519 warm seal
+
+A NEAR Ed25519 re-hydrate needs `S`, because it proves the pinned unlock key
+again and opens the wallet custody envelope. The worker keeps `S` for it as
+follows:
+
+1. An unlock or a registration that activates an Ed25519 capability under an
+   Email OTP Wallet Session seals `S` under the signing-session seal (RFC 9497
+   POPRF). The POPRF `info` names the wallet and the Ed25519 threshold session.
+2. The worker keeps the sealed value, its Wallet Session ID, its enrollment and
+   its expiry in its own store `ed25519_warm_seals`, one for each wallet. The
+   main thread never receives it.
+3. After a reload or a worker restart, the re-hydrate sends one blinded element
+   under the Wallet Session bearer. The Gateway evaluates it only while that
+   session is live and admits Ed25519 signing for the same threshold session.
+4. The worker opens `S`, completes the unlock under the same Wallet Session, and
+   zeroes `S`.
+
+A seal of another Wallet Session or another threshold session does not open.
+After its session ends, a sealed value is useless, and the next unlock replaces
+it. `tests/unit/emailOtpEd25519WarmSeal.unit.test.ts` checks these rules.
 
 ## Curve Boundaries
 

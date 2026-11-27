@@ -1,9 +1,9 @@
-/** OTP challenges and the factor release that a verified OTP, grant or Wallet Session unlocks. */
+/** OTP challenges and the factor release that a verified OTP or its grant unlocks. */
 import { asRecord } from '@shared/utils/validation';
 import { normalizeOptionalTrimmedString } from '@shared/utils/normalize';
 import {
   readEmailOtpFactorEvaluation,
-  type WalletEmailOtpOperation,
+  type WalletEmailOtpLoginOperation,
 } from '@shared/utils/emailOtpDomain';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
@@ -103,36 +103,20 @@ export async function requestEmailOtpChallenge(args: Parameters<typeof postEmail
   return { response, challenge, delivery, expiresAtMs: Number(challenge?.expiresAtMs) };
 }
 
+/**
+ * Releases S for one operation. The server needs a fresh email code for that operation, or the
+ * grant of one, and the blinded inputs of this device's factors.
+ */
 export async function releaseEmailOtpFactorSecret(
   args: {
     relayUrl: string;
     walletId: string;
+    challengeId: string;
+    operation: WalletEmailOtpLoginOperation;
+    sessionAuth: WalletSessionOperationCredentialV1 | undefined;
   } & (
-    | {
-        kind: 'verified_grant';
-        challengeId: string;
-        loginGrant: string;
-        sessionAuth: WalletSessionOperationCredentialV1 | undefined;
-        otpCode?: never;
-        operation?: never;
-      }
-    | {
-        kind: 'email_otp';
-        authoritySelector: EmailOtpAuthoritySelector;
-        challengeId: string;
-        otpCode: string;
-        operation: WalletEmailOtpOperation;
-        sessionAuth: WalletSessionOperationCredentialV1 | undefined;
-        loginGrant?: never;
-      }
-    | {
-        kind: 'wallet_session';
-        sessionAuth: WalletSessionOperationCredentialV1;
-        challengeId?: never;
-        loginGrant?: never;
-        otpCode?: never;
-        operation?: never;
-      }
+    | { kind: 'verified_grant'; loginGrant: string }
+    | { kind: 'email_otp'; authoritySelector: EmailOtpAuthoritySelector; otpCode: string }
   ),
 ): Promise<{
   enrollmentId: string;
@@ -149,20 +133,18 @@ export async function releaseEmailOtpFactorSecret(
         walletId: args.walletId,
         ...(args.kind === 'verified_grant'
           ? { kind: 'verified_grant', loginGrant: args.loginGrant }
-          : args.kind === 'email_otp'
-            ? {
-                kind: 'email_otp',
-                ...emailOtpAuthoritySelectorBody(args.authoritySelector),
-                challengeId: args.challengeId,
-                otpCode: args.otpCode,
-                operation: args.operation,
-              }
-            : { kind: 'wallet_session' }),
+          : {
+              kind: 'email_otp',
+              ...emailOtpAuthoritySelectorBody(args.authoritySelector),
+              challengeId: args.challengeId,
+              otpCode: args.otpCode,
+            }),
+        operation: args.operation,
         deviceFactors: blinds.deviceFactors,
       },
     });
     const evaluation = readEmailOtpFactorEvaluation(released);
-    if (args.kind !== 'wallet_session' && evaluation.challengeId !== args.challengeId) {
+    if (evaluation.challengeId !== args.challengeId) {
       throw new Error('Email OTP factor release challenge binding changed');
     }
     return {

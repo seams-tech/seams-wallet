@@ -12,9 +12,7 @@ import {
   WALLET_EMAIL_OTP_RELOCATION_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 export type EmailOtpChannel = WalletEmailOtpChannel;
-export type EmailOtpGrantAction =
-  | typeof WALLET_EMAIL_OTP_ACTIONS.unseal
-  | typeof WALLET_EMAIL_OTP_ACTIONS.recoveryBootstrap;
+export type EmailOtpGrantAction = typeof WALLET_EMAIL_OTP_ACTIONS.unseal;
 export type EmailOtpChallengeAction =
   | typeof WALLET_EMAIL_OTP_ACTIONS.login
   | typeof WALLET_EMAIL_OTP_ACTIONS.registration
@@ -82,6 +80,8 @@ export type EmailOtpGrantRecord = {
   otpChannel: EmailOtpChannel;
   ownerProofBindingDigest: string;
   action: EmailOtpGrantAction;
+  /** The operation of the code that this grant proves. A consumer names the operation it serves. */
+  operation: WalletEmailOtpLoginOperation;
   issuedAtMs: number;
   expiresAtMs: number;
 };

@@ -357,7 +357,7 @@ import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/
 import type { SignerWorkerManager } from '@/core/signingEngine/workerManager/SignerWorkerManager';
 import type { RegistrationCredentialConfirmationPayload } from '@/core/signingEngine/workerManager/validation';
 import type {
-  EmailOtpEd25519YaoActiveCapabilityDescriptorV1, EmailOtpEd25519YaoRecoveryBootstrapV1, EmailOtpWorkerOperationMap, EmailOtpYaoPrewarmOutcome, EmailOtpYaoPrewarmRequest, SignerWorkerKind,
+  EmailOtpEd25519YaoActiveCapabilityDescriptorV1, EmailOtpEd25519YaoRecoveryBootstrapV1, EmailOtpFactorEnrollmentV1, EmailOtpWorkerOperationMap, EmailOtpYaoPrewarmOutcome, EmailOtpYaoPrewarmRequest, SignerWorkerKind,
   SignerWorkerOperationRequest,
   SignerWorkerOperationResult,
   SignerWorkerOperationType, UnlockedWalletEd25519ExportRootCapabilityDestroyScopeV1
@@ -6587,6 +6587,8 @@ export class BrowserSigningSurface {
     bootstrap: EmailOtpEd25519YaoRecoveryBootstrapV1;
     material: LoadedWalletCustodyEd25519MaterialV1;
     envelope: WalletCustodyCacheEnvelopeV1;
+    enrollment: EmailOtpFactorEnrollmentV1;
+    operationCredential: WalletSessionOperationCredentialV1;
     factorSecret32: ArrayBuffer;
   }): Promise<NearEd25519SignerBinding> {
     const activated = await this.signerWorkerManager.requestWorkerOperation({
@@ -6594,9 +6596,12 @@ export class BrowserSigningSurface {
       request: {
         type: 'activateEmailOtpEd25519YaoRegistrationMaterial',
         payload: {
+          relayUrl: String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
           material: args.material,
           bootstrap: args.bootstrap,
           envelope: args.envelope,
+          enrollment: args.enrollment,
+          operationCredential: args.operationCredential,
           factorSecret32: args.factorSecret32,
         },
         transfer: [args.factorSecret32],
