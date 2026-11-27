@@ -76,12 +76,14 @@ import {
   sameRouterAbEcdsaRegistrationActivationReceiptV1,
   type RouterAbEcdsaCredentialFreeSessionActivationResponseV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import {
+  normalizeRuntimePolicyScope,
+  sameRuntimePolicyScope,
+} from '@shared/threshold/signingRootScope';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import type { ThresholdEcdsaChainTarget } from '@/core/platform/types';
 import type { PasskeySessionEcdsaCustodySignerV1 } from '@/core/rpcClients/near/rpcCalls';
 import { thresholdEcdsaChainTargetKey } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { sameRuntimePolicyScope } from '../registration/registrationStrictEcdsa';
 import { replaceActiveWalletAuthorityEd25519MaterialActivationV1 } from '@shared/authorization/walletAuthority';
 import {
   parseMpcWalletSigningQuotaId,

@@ -39,6 +39,7 @@ import { buildRouterAbEd25519SigningWalletSession } from '@/core/signingEngine/s
 import { toAccountId } from '@/core/types/accountIds';
 import {
   normalizeRuntimePolicyScope,
+  sameRuntimePolicyScope,
   signingRootScopeFromRuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
 import type {
@@ -47,7 +48,6 @@ import type {
 } from '@shared/utils/registrationEstablishedSession';
 import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
 import { assertNever } from './registrationTiming';
-import { sameRuntimePolicyScope } from './registrationStrictEcdsa';
 
 export async function prewarmPasskeyNearRegistration(
   auth: RegistrationAuthMethodInput,

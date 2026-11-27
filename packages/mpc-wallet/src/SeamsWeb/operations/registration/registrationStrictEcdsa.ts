@@ -66,7 +66,7 @@ import type {
   FinalizeRouterAbEcdsaRegistrationActivationResultV1,
 } from '@/core/signingEngine/routerAb/ecdsaDerivation/clientCeremony';
 import { type WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
-import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type {
   RegistrationEstablishedEcdsaSessionProjectionV2,
   RegistrationEstablishedSessionProjectionV2,
@@ -603,16 +603,4 @@ export function assertRegistrationEcdsaSessionMatchesWalletKeys(args: {
       throw new Error('ECDSA registration material changed the established session identity');
     }
   }
-}
-
-export function sameRuntimePolicyScope(
-  left: ReturnType<typeof normalizeRuntimePolicyScope>,
-  right: ReturnType<typeof normalizeRuntimePolicyScope>,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
 }

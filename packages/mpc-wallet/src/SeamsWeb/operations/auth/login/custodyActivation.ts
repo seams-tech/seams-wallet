@@ -41,10 +41,10 @@ import type {
 } from './unlockPlanning';
 import type { ResolvedLoginWalletBinding } from './identity';
 import {
-  sameThresholdRuntimePolicyScope,
   ethereumAddressFromEcdsaIdentityB64u,
   assertRejoinedPasskeyEcdsaPublicFacts,
 } from './signerState';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 
 type PasskeyEd25519CustodyLoginInput = {
   signingEngine: LoginUnlockSigningSurface;
@@ -385,7 +385,7 @@ export async function restorePasskeyEcdsaCustodyLogin(input: {
         signer.activationReceipt,
         first.activationReceipt,
       ) ||
-      !sameThresholdRuntimePolicyScope(signer.runtimePolicyScope, first.runtimePolicyScope)
+      !sameRuntimePolicyScope(signer.runtimePolicyScope, first.runtimePolicyScope)
     ) {
       throw new Error('[login] passkey ECDSA custody continuity conflicts across targets');
     }

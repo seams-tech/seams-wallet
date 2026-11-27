@@ -78,12 +78,9 @@ import type {
 } from './identity';
 import type { ThresholdEcdsaAuthorizedEd25519Mint, ThresholdLoginWarmupPlan } from './signerWarmup';
 import { assertNeverLoginState, resolveLoginWalletIdentity } from './identity';
-import {
-  sameEd25519ParticipantIds,
-  sameThresholdRuntimePolicyScope,
-  sameRouterAbEd25519NormalSigningState,
-} from './signerState';
+import { sameEd25519ParticipantIds, sameRouterAbEd25519NormalSigningState } from './signerState';
 import type { ConfiguredThresholdEcdsaPublicationTarget } from './passkeyExchange';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 
 type LoginUnlockAccountSubject =
   | {
@@ -569,10 +566,7 @@ export function passkeyUnlockEd25519Connection(args: {
     }) ||
     !sameEd25519ParticipantIds(session.participantIds, args.provisionScope.participantIds) ||
     !args.provisionScope.runtimePolicyScope ||
-    !sameThresholdRuntimePolicyScope(
-      session.runtimePolicyScope,
-      args.provisionScope.runtimePolicyScope,
-    ) ||
+    !sameRuntimePolicyScope(session.runtimePolicyScope, args.provisionScope.runtimePolicyScope) ||
     !sameRouterAbEd25519NormalSigningState(
       session.routerAbNormalSigning,
       args.provisionScope.routerAbNormalSigning,

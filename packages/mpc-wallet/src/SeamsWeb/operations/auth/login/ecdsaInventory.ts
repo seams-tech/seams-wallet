@@ -40,10 +40,8 @@ import { computeWalletEcdsaKeyFactsInventoryChallengeDigestB64u } from '@shared/
 import { createLocalUnlockChallengeB64u } from '@/SeamsWeb/operations/authMethods/passkey/localUnlock';
 import type { LoginEcdsaKeyFactsInventoryAuthority } from './unlockPlanning';
 import type { ConfiguredThresholdEcdsaPublicationTarget } from './passkeyExchange';
-import {
-  sameThresholdRuntimePolicyScope,
-  mergeThresholdEcdsaWarmSessionContexts,
-} from './signerState';
+import { mergeThresholdEcdsaWarmSessionContexts } from './signerState';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 
 function normalizeEvmOwnerAddress(value: unknown): string {
   const candidate = String(value || '')
@@ -616,7 +614,7 @@ export async function resolveCanonicalThresholdEcdsaWarmSessionContext(
       if (
         availableLaneRuntimePolicyScope &&
         laneRuntimePolicyScope &&
-        !sameThresholdRuntimePolicyScope(availableLaneRuntimePolicyScope, laneRuntimePolicyScope)
+        !sameRuntimePolicyScope(availableLaneRuntimePolicyScope, laneRuntimePolicyScope)
       ) {
         throw new Error(
           '[login] threshold ECDSA durable lanes have conflicting runtime policy scopes',

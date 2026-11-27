@@ -62,7 +62,6 @@ import {
   parseLoginChallengeCredentialIds,
 } from './unlockPlanning';
 import {
-  sameThresholdRuntimePolicyScope,
   createThresholdEcdsaDeviceLinkRequiredError,
   requireThresholdLoginEcdsaSessionId,
   createThresholdLoginWarmSessionId,
@@ -73,6 +72,7 @@ import type { ResolvedLoginWalletIdentity } from './identity';
 import { resolveCanonicalThresholdEcdsaWarmSessionContext } from './ecdsaInventory';
 import { assertNeverLoginState } from './identity';
 import { restorePasskeyEcdsaCustodyLogin } from './custodyActivation';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 
 export type ConfiguredThresholdEcdsaPublicationTarget = ReturnType<
   typeof listConfiguredThresholdEcdsaPublicationTargets
@@ -175,7 +175,7 @@ function assertPasskeyEcdsaExchangeContinuity(args: {
     signer.walletKey.keyHandle !== args.prepared.policy.key_handle ||
     args.response.session.threshold_session_id !==
       args.prepared.policy.session_policy.threshold_session_id ||
-    !sameThresholdRuntimePolicyScope(
+    !sameRuntimePolicyScope(
       signer.runtimePolicyScope,
       args.prepared.policy.session_policy.runtime_policy_scope,
     ) ||

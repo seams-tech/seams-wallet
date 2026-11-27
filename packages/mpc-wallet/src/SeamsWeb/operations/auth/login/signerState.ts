@@ -13,7 +13,6 @@ import {
   isEcdsaCredentialFreeSessionActivationAuthorization,
   type EcdsaPreauthorizedSessionActivation,
 } from '@/core/signingEngine/threshold/ecdsa/postRegistrationSessionActivation';
-import { type ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
 import {
   mergeCanonicalThresholdEcdsaWarmSessionContexts,
   type CanonicalThresholdEcdsaWarmSessionContext,
@@ -21,6 +20,7 @@ import {
 import { base64UrlDecode } from '@shared/utils/base64';
 import type { WalletSessionBudget } from '@shared/threshold/walletSessionBudget';
 import type { UnlockSessionPolicy } from '../unlockSessionPolicy';
+import { sameRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 
 export function thresholdSessionIdFromPasskeyEcdsaActivation(
   activation: EcdsaPreauthorizedSessionActivation,
@@ -79,18 +79,6 @@ export function sameRouterAbEd25519NormalSigningState(
   return left.kind === right.kind && left.signingWorkerId === right.signingWorkerId;
 }
 
-export function sameThresholdRuntimePolicyScope(
-  left: ThresholdRuntimePolicyScope,
-  right: ThresholdRuntimePolicyScope,
-): boolean {
-  return (
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    left.signingRootVersion === right.signingRootVersion
-  );
-}
-
 export function mergeThresholdEcdsaWarmSessionContexts(args: {
   current: CanonicalThresholdEcdsaWarmSessionContext;
   incoming: CanonicalThresholdEcdsaWarmSessionContext;
@@ -99,10 +87,7 @@ export function mergeThresholdEcdsaWarmSessionContexts(args: {
   if (
     args.current.runtimePolicyScope &&
     args.incoming.runtimePolicyScope &&
-    !sameThresholdRuntimePolicyScope(
-      args.current.runtimePolicyScope,
-      args.incoming.runtimePolicyScope,
-    )
+    !sameRuntimePolicyScope(args.current.runtimePolicyScope, args.incoming.runtimePolicyScope)
   ) {
     throw new Error(
       `[login] threshold ECDSA ${args.source} has a conflicting runtime policy scope`,
