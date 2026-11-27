@@ -47,3 +47,10 @@ citing refactor numbers, Rust `allow(dead_code)` or duplicated lines grow past
 - Do not cite refactor or phase numbers in code comments; say what the code does
   and why.
 - Do not grow a file past 2,000 lines; split it along a real seam first.
+
+# Formatting
+
+The root pins Prettier 3.6.2 and `.prettierrc.json` holds its settings. Format a
+new file with `pnpm format <paths>`. Many existing files differ from Prettier's
+output, and CI does not check formatting. In such a file, format only the hunks
+you change; do not reformat the rest of the file.

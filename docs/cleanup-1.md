@@ -864,12 +864,18 @@ consolidated cluster before committing it.
 
 ## Open decisions
 
-- Whether to add Prettier as a dev dependency. `.prettierrc.json` exists, but no
-  package installs Prettier, so formatting depends on each editor's copy.
 - Which refactor plans are finished, and where finished plans go.
-- Whether the Vite plugin factories are public API. `packages/mpc-wallet` builds and
-  ships them, but its `package.json` exports no path to them, so users cannot
-  import them. b74937c restored them after the dead-export pass removed them.
+
+Decided on 2026-11-27:
+
+- Prettier: the root pins `prettier` 3.6.2, the version the owner's editor
+  ships, and `pnpm format <paths>` formats files. CI does not check formatting.
+  504 of 2,119 TypeScript and JavaScript files differ from its output and stay
+  as they are; a change formats only its own hunks (`AGENTS.md`, "Formatting").
+- The Vite plugin factories were not public API: the package exported no
+  `./plugins/*` path, and nothing imported them. 7bba2f2fb deleted them with
+  the Next plugin on 2026-10-18. `plugin-utils.ts` keeps only
+  `buildWalletServiceHtml`, which the static wallet asset build uses.
 
 Found during the cleanup and left unchanged, for their owners to check:
 

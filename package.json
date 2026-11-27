@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
   "devDependencies": {
+    "prettier": "3.6.2",
     "tsrs": "0.18.0-ts7.1.0-dev.20260929",
     "typescript": "5.8.3"
   },
@@ -19,6 +20,7 @@
     "check:packed-wallet": "pnpm license:notices && node ./tests/scripts/check-packed-wallet-boundaries.mjs",
     "check:package-names": "node ./scripts/check-package-names.mjs",
     "check:speak-to-sign-backends": "node ./scripts/check-speak-to-sign-backends.mjs",
+    "format": "prettier --write",
     "license:notices": "node ./scripts/generate-wallet-third-party-notices.mjs",
     "report:bloat": "node ./scripts/bloat-report.mjs",
     "ensure:intended-google-token": "pnpm -C tests ensure:intended-google-token",
