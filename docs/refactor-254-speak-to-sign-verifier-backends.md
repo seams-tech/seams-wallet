@@ -2,11 +2,12 @@
 
 Status: 2026-11-27. Slice 1 is built in `23b08a7d2` (Section 6, "Slice 1 result"). Of Slice 3,
 S1 is built in SaySo `1e02ffb` (Section 6, "Slice 3 progress"); S2, S3 and the gates wait for
-the owner. Slices 2, 4, 5 and 6 are not built.
-Section 8 lists the open questions. Section 9 holds the architecture review that the owner
-asked for before Slice 2, and Section 8 holds the owner's answers to it. The 10 NEAR rule is
-removed, and Slice 2 is the neutral evidence checker, which is built (Section 6, "Slice 2
-result").
+the owner. Slice 2 is built. Of Slice 4, only the spoken card is built. Slices 5 and 6 are not
+built.
+Section 8 lists the questions for the owner and the answers; none is open. Section 9 holds the
+architecture review that the owner asked for before Slice 2, and Section 8 holds the owner's
+answers to it. The 10 NEAR rule is removed, and Slice 2 is the neutral evidence checker
+(Section 6, "Slice 2 result").
 
 The owner decided on 2026-11-27: "Cloudflare verifier is now replacing the OutLayer backend as
 the primary path for voice signing. Ideally, we keep OutLayer as a secondary path (if it's not
@@ -24,9 +25,9 @@ stops when its credits run out.
 - **One verifier port.** Wallet core, the Gateway and the co-signer use a backend through one
   interface. Each backend is one module on each side. Core and the co-signer check evidence
   with one shared function for each evidence kind.
-- **SaySo is the backend on every lane.** SaySo is the Cloudflare verifier that runs at
-  `https://sayso.seams.sh` in the same Cloudflare account as the Gateways. The Gateway calls it
-  through a service binding. The browser never gets a SaySo token.
+- **SaySo is the backend on every lane, `staging-testnet` first** (Section 8, Q9). SaySo is the
+  Cloudflare verifier that runs at `https://sayso.seams.sh` in the same Cloudflare account as
+  the Gateways. The Gateway calls it through a service binding. The browser never gets a SaySo token.
 - **OutLayer becomes a module that is off.** Its code moves without a change of behaviour. Its
   tests stay. A lane setting turns it on again.
 - **Voice is an equal approval method.** The owner decided on 2026-11-27 that voice approves
@@ -319,9 +320,15 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
    - **No new UI.** The owner said on 2026-11-27: "you shouldn't really need any new UI (or
      minimal) to integrate sayso." The SaySo backend changes the text of the card's receipt
      lines and nothing else that the owner sees.
+   - **A request above SaySo's limits gets no spoken approval** (Section 8, Q7). The Wallet
+     answers it as unavailable with the reason, and the application uses the confirm. First
+     measure which limits hold for a transcript-only intent: the plan has only the 8 s of
+     audio and the 200 bytes of `heard` for it, not the 16 words.
 5. **Docs.** `speak-to-sign.md` in English and Japanese, `hosted-integration.md`,
    `voiceid.md`, `docs/wallet-steps.md` and the release notes in `README.md`. Remove the TEE
-   claims for the SaySo backend, and the 10/20 NEAR co-signer limits (F5).
+   claims for the SaySo backend, and the 10/20 NEAR co-signer limits (F5). Write the privacy
+   text for the audio that goes to Cloudflare Workers AI (Section 8, Q6), and where the verdict
+   key is and what the co-signer's check guards (Q12).
 6. **Release and staging.** An SDK and server release. Deploy the server first, then the
    Wallet host, then the apps. The `SAYSO` binding and the `SAYSO_API_KEY` secret go into the
    Gateway's deployment config in seams-console, whose `scripts/deploy-backend.mjs` checks the
@@ -628,7 +635,19 @@ is Slice 6.
   the Wallet gets a setting that turns voice off and deletes the template (Section 6, Slice 4).
   The card is built (Section 6, "The spoken card"). The setting exists already: the review
   was wrong that the Wallet has none. It is the VoiceID switch (Section 6, Slice 4).
-- Q1, Q5, Q6, Q7, Q9 and Q12 are open. Q3 was answered by Slice 1.
+- **Q1, Q5, Q6, Q7, Q9 and Q12.** "Agreed on all six recommendations" (2026-11-27). So:
+  - **Q1.** `user_id` is the NEAR account, `near:<network>:<accountId>`.
+  - **Q5.** Live words on the card come later, after G3. Slice 4 does not build them.
+  - **Q6.** Slice 5 writes the privacy text for the audio.
+  - **Q7.** The Wallet offers no spoken approval for a request above SaySo's limits, and says
+    why (Section 6, Slice 4). The limits are not raised.
+  - **Q9.** `staging-testnet` gets SaySo first. A production lane follows only after G1 to G3
+    pass. The lane rule of seams-console already permits `staging-testnet`, so the first lane
+    needs only its `speakToSignVerifier` schema to change (Section 9, R2).
+  - **Q12.** For testnet, the verdict key, the templates and the co-signer stay in one
+    Cloudflare account, with the trust text of R3 in the docs. The owner decides again before
+    mainnet.
+- Q3 was answered by Slice 1. No question is open.
 
 ## 9. Architecture review (2026-11-27)
 
@@ -760,7 +779,7 @@ serves, and Slice 4 defines the call of these three kinds on SaySo in one place.
 
 1. Slice 2: the neutral checker of the v2 kind (R5). Built (Section 6, "Slice 2 result").
 2. Slice 3: G1 first, because it decides go or no-go, then the SaySo changes of R3 and R4.
-3. Slices 4 to 6. Q9 and Q12 are needed before Slice 4.
+3. Slices 4 to 6. Q9 and Q12 are answered (Section 8), so Slice 4 waits only for Slice 3.
 
 If the OutLayer credits end before Slice 6, no lane has a verifier. The Gateway then has no
 verify route and the co-signer refuses each verdict, so the failure is closed.
