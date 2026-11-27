@@ -1577,7 +1577,7 @@ export function parseRouterAbEcdsaSigningWorkerExportShareEnvelopeV1(
   );
 }
 
-export function parseRouterAbEcdsaSigningWorkerProtocolExportShareEnvelopeV1(
+function parseRouterAbEcdsaSigningWorkerProtocolExportShareEnvelopeV1(
   value: unknown,
 ): RouterAbEcdsaSigningWorkerExportShareEnvelopeV1 {
   return parseRouterAbEcdsaSigningWorkerExportShareEnvelopeWithV1(
