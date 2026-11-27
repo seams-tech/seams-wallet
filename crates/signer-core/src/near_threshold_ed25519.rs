@@ -9,7 +9,8 @@ use std::collections::BTreeMap;
 
 use crate::error::{CoreResult, SignerCoreError};
 
-pub const THRESHOLD_CLIENT_SHARE_SALT_V1: &[u8] = b"seams/lite/threshold-ed25519/client-share:v1";
+pub(crate) const THRESHOLD_CLIENT_SHARE_SALT_V1: &[u8] =
+    b"seams/lite/threshold-ed25519/client-share:v1";
 
 fn decode_wrap_key_seed_b64u(wrap_key_seed_b64u: &str) -> CoreResult<Vec<u8>> {
     Base64UrlUnpadded::decode_vec(wrap_key_seed_b64u)
@@ -219,7 +220,7 @@ pub fn compute_nep413_signing_digest_from_nonce_bytes(
     Ok(out)
 }
 
-pub fn join_participant_ids(ids: &[u16]) -> String {
+pub(crate) fn join_participant_ids(ids: &[u16]) -> String {
     ids.iter()
         .map(|n| n.to_string())
         .collect::<Vec<_>>()
@@ -235,7 +236,7 @@ pub fn normalize_participant_ids(ids: Option<&Vec<u16>>) -> Vec<u16> {
     out
 }
 
-pub fn validate_threshold_ed25519_participant_ids_2p(
+pub(crate) fn validate_threshold_ed25519_participant_ids_2p(
     client_id_opt: Option<u16>,
     relayer_id_opt: Option<u16>,
     participant_ids_norm: &[u16],
@@ -317,7 +318,7 @@ pub fn client_round1_commit(
     })
 }
 
-pub fn commitments_to_wire(
+pub(crate) fn commitments_to_wire(
     commitments: &frost_ed25519::round1::SigningCommitments,
 ) -> CoreResult<CommitmentsWire> {
     let hiding_bytes = commitments.hiding().serialize().map_err(|e| {

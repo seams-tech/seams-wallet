@@ -27,7 +27,7 @@ use zeroize::Zeroizing;
 use crate::error::{CoreResult, SignerCoreError};
 
 pub const WALLET_CUSTODY_SEED_LEN: usize = 32;
-pub const WALLET_SIGNING_ROOT_LEN: usize = 32;
+pub(crate) const WALLET_SIGNING_ROOT_LEN: usize = 32;
 
 const ED25519_CLIENT_ROOT_SALT_V1: &[u8] = b"seams/wallet-custody/seed/ed25519-yao-client-root/v1";
 const ECDSA_CLIENT_ROOT_SHARE_SALT_V1: &[u8] =

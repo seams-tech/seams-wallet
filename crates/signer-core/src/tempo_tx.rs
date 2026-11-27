@@ -7,13 +7,13 @@ use crate::codec::{
 };
 use crate::error::{CoreResult, SignerCoreError};
 
-pub const TYPE_TEMPO_TX: u8 = 0x76;
+pub(crate) const TYPE_TEMPO_TX: u8 = 0x76;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TempoAccessListItem {
     pub address: String,
-    pub storage_keys: Vec<String>,
+    pub(crate) storage_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

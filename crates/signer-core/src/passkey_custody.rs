@@ -20,10 +20,10 @@ use zeroize::Zeroizing;
 
 use crate::error::{CoreResult, SignerCoreError};
 
-pub const PASSKEY_CUSTODY_WRAP_ALG_V1: &str = "chacha20poly1305-hkdf-sha256-v1";
+pub(crate) const PASSKEY_CUSTODY_WRAP_ALG_V1: &str = "chacha20poly1305-hkdf-sha256-v1";
 pub const WALLET_CUSTODY_ENVELOPE_VERSION_V2: &str = "wallet_custody_envelope_v2";
 /// An envelope whose owning auth method is part of its AAD.
-pub const WALLET_CUSTODY_ENVELOPE_VERSION_V3: &str = "wallet_custody_envelope_v3";
+pub(crate) const WALLET_CUSTODY_ENVELOPE_VERSION_V3: &str = "wallet_custody_envelope_v3";
 pub const PASSKEY_CUSTODY_KEK_VERSION_V1: &str = "passkey_prf_kek_hkdf_sha256_v1";
 pub const EMAIL_OTP_FACTOR_KEK_VERSION_V1: &str = "email_otp_factor_kek_hkdf_sha256_v1";
 pub const VOICEID_DEVICE_FACTOR_KEK_VERSION_V1: &str = "voiceid_device_factor_kek_hkdf_sha256_v1";
@@ -35,8 +35,8 @@ const PASSKEY_CUSTODY_AAD_CONTEXT_V1: &[u8] = b"seams/passkey-custody/aad/v1";
 
 pub const PASSKEY_CUSTODY_NONCE_LEN: usize = 12;
 pub const PASSKEY_CUSTODY_KEY_LEN: usize = 32;
-pub const PASSKEY_CUSTODY_TAG_LEN: usize = 16;
-pub const PASSKEY_PRF_LEN: usize = 32;
+pub(crate) const PASSKEY_CUSTODY_TAG_LEN: usize = 16;
+pub(crate) const PASSKEY_PRF_LEN: usize = 32;
 
 /// Largest custody secret this envelope carries. Yao client roots and ECDSA
 /// shares are scalars; anything larger is a caller error, not a big secret.
@@ -187,7 +187,7 @@ pub enum WalletCustodyEnvelopeFactorV1 {
 }
 
 impl WalletCustodyEnvelopeFactorV1 {
-    pub fn kind_str(&self) -> &'static str {
+    pub(crate) fn kind_str(&self) -> &'static str {
         match self {
             Self::Passkey { .. } => "passkey",
             Self::EmailOtp { .. } => "email_otp",
@@ -269,7 +269,7 @@ pub enum PasskeyCustodyEnvelopeOwnershipV1 {
 }
 
 impl PasskeyCustodyEnvelopeOwnershipV1 {
-    pub fn envelope_version(&self) -> &'static str {
+    pub(crate) fn envelope_version(&self) -> &'static str {
         match self {
             Self::Unbound => WALLET_CUSTODY_ENVELOPE_VERSION_V2,
             Self::MethodBound { .. } => WALLET_CUSTODY_ENVELOPE_VERSION_V3,
@@ -426,7 +426,7 @@ fn encode_kek_context(binding: &PasskeyCustodyEnvelopeBindingV1) -> CoreResult<V
 /// Canonical AAD over every public binding fact. Curve-specific fields appear
 /// only on their own branch, so an Ed25519 envelope and an ECDSA envelope can
 /// never produce equal AAD even with identical wallet and lane scope.
-pub fn encode_passkey_custody_aad_v1(
+pub(crate) fn encode_passkey_custody_aad_v1(
     binding: &PasskeyCustodyEnvelopeBindingV1,
 ) -> CoreResult<Vec<u8>> {
     require_field("walletId", &binding.wallet_id)?;
@@ -592,7 +592,7 @@ pub fn sha256_digest(input: &[u8]) -> [u8; 32] {
 /// The PRF result never leaves this crate's callers in the secure worker, and
 /// the KEK is bound to the exact relying party, credential, wallet, envelope,
 /// and custody branch, so one credential's PRF cannot open another envelope.
-pub fn derive_passkey_custody_kek_v1(
+pub(crate) fn derive_passkey_custody_kek_v1(
     prf_first: &[u8],
     binding: &PasskeyCustodyEnvelopeBindingV1,
 ) -> CoreResult<Zeroizing<[u8; PASSKEY_CUSTODY_KEY_LEN]>> {
@@ -781,7 +781,7 @@ pub(crate) fn seal_custody_secret(
 
 /// Opens one custody secret, rejecting any binding that does not reproduce the
 /// exact AAD the ciphertext was sealed under.
-pub fn open_passkey_custody_secret_v1(
+pub(crate) fn open_passkey_custody_secret_v1(
     prf_first: &[u8],
     binding: &PasskeyCustodyEnvelopeBindingV1,
     nonce: &[u8],
@@ -813,7 +813,7 @@ pub fn open_passkey_custody_secret_v1(
 /// Opens an envelope only when the stored digests match what this binding and
 /// ciphertext actually produce. A browser cache row that drifted from the
 /// server revision fails here instead of decrypting into stale material.
-pub fn open_verified_passkey_custody_secret_v1(
+pub(crate) fn open_verified_passkey_custody_secret_v1(
     prf_first: &[u8],
     binding: &PasskeyCustodyEnvelopeBindingV1,
     nonce: &[u8],

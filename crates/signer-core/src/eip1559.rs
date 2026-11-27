@@ -11,7 +11,7 @@ use crate::error::{CoreResult, SignerCoreError};
 #[serde(rename_all = "camelCase")]
 pub struct Eip1559AccessListItem {
     pub address: String,
-    pub storage_keys: Vec<String>,
+    pub(crate) storage_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

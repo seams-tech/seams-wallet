@@ -4,13 +4,13 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::error::{CoreResult, SignerCoreError};
 
-pub const NEAR_ED25519_SEED_EXPORT_ARTIFACT_KIND_V1: &str = "near-ed25519-seed-v1";
+pub(crate) const NEAR_ED25519_SEED_EXPORT_ARTIFACT_KIND_V1: &str = "near-ed25519-seed-v1";
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct ExpandedEd25519SeedMaterial {
     pub seed: [u8; 32],
-    pub signing_scalar_bytes: [u8; 32],
-    pub nonce_prefix: [u8; 32],
+    pub(crate) signing_scalar_bytes: [u8; 32],
+    pub(crate) nonce_prefix: [u8; 32],
     pub public_key_bytes: [u8; 32],
 }
 
@@ -56,7 +56,7 @@ pub fn expand_ed25519_seed(seed: [u8; 32]) -> ExpandedEd25519SeedMaterial {
     }
 }
 
-pub fn encode_near_ed25519_private_key_from_seed(seed: [u8; 32]) -> String {
+pub(crate) fn encode_near_ed25519_private_key_from_seed(seed: [u8; 32]) -> String {
     let material = expand_ed25519_seed(seed);
     let mut encoded = Zeroizing::new([0u8; 64]);
     encoded[..32].copy_from_slice(&material.seed);
@@ -72,7 +72,7 @@ pub fn encode_near_ed25519_public_key_from_seed(seed: [u8; 32]) -> String {
     )
 }
 
-pub fn verify_near_ed25519_seed_matches_public_key(
+pub(crate) fn verify_near_ed25519_seed_matches_public_key(
     seed: [u8; 32],
     expected_public_key: &str,
 ) -> CoreResult<String> {

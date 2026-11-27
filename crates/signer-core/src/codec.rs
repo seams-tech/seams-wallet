@@ -42,7 +42,7 @@ pub fn strip_leading_zeros_slice(bytes: &[u8]) -> &[u8] {
     &bytes[i..]
 }
 
-pub fn rlp_encode_length(len: usize, offset: u8) -> Vec<u8> {
+pub(crate) fn rlp_encode_length(len: usize, offset: u8) -> Vec<u8> {
     if len <= 55 {
         vec![offset + (len as u8)]
     } else {

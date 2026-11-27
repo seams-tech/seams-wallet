@@ -68,4 +68,4 @@ impl fmt::Display for SignerCoreError {
 
 impl std::error::Error for SignerCoreError {}
 
-pub type CoreResult<T> = Result<T, SignerCoreError>;
+pub(crate) type CoreResult<T> = Result<T, SignerCoreError>;

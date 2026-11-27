@@ -218,7 +218,7 @@ pub fn encode_recovery_entry_aad_v1(scope: &WalletRecoveryEntryScopeV1) -> CoreR
 }
 
 /// Derives the KEK one recovery code uses to open the manifest KEK.
-pub fn derive_wallet_recovery_code_kek_v1(
+pub(crate) fn derive_wallet_recovery_code_kek_v1(
     recovery_code_bytes: &[u8],
     scope: &WalletRecoveryCodeScopeV1,
 ) -> CoreResult<Zeroizing<[u8; PASSKEY_CUSTODY_KEY_LEN]>> {

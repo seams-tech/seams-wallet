@@ -1,4 +1,4 @@
-pub mod ecdsa_bootstrap;
+pub(crate) mod ecdsa_bootstrap;
 
 pub use ecdsa_bootstrap::{
     Base64UrlEncodingV1, EcdsaBootstrapSecretSourceV1, EcdsaClientBootstrapAlgorithmV1,

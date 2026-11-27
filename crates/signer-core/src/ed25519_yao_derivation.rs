@@ -15,17 +15,17 @@ pub const ED25519_YAO_APPLICATION_BINDING_SIGNING_KEY_ID_LABEL_V1: &[u8] =
 pub const ED25519_YAO_APPLICATION_BINDING_SIGNING_ROOT_ID_LABEL_V1: &[u8] = b"signingRootId";
 pub const ED25519_YAO_APPLICATION_BINDING_KEY_CREATION_SIGNER_SLOT_LABEL_V1: &[u8] =
     b"keyCreationSignerSlot";
-pub const ED25519_YAO_STABLE_KEY_CONTEXT_DOMAIN_V1: &[u8] =
+pub(crate) const ED25519_YAO_STABLE_KEY_CONTEXT_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/stable-key-context/v1";
-pub const ED25519_YAO_STABLE_KEY_CONTEXT_BINDING_DOMAIN_V1: &[u8] =
+pub(crate) const ED25519_YAO_STABLE_KEY_CONTEXT_BINDING_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/stable-key-context-binding/v1";
-pub const ED25519_YAO_STABLE_KEY_CONTEXT_ENCODED_LEN_V1: usize =
+pub(crate) const ED25519_YAO_STABLE_KEY_CONTEXT_ENCODED_LEN_V1: usize =
     ED25519_YAO_STABLE_KEY_CONTEXT_DOMAIN_V1.len() + 32 + 2 + 2;
-pub const ED25519_YAO_CONTRIBUTION_KDF_EXTRACT_SALT_V1: &[u8] =
+pub(crate) const ED25519_YAO_CONTRIBUTION_KDF_EXTRACT_SALT_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/contribution-kdf/hkdf-sha256/extract/v1";
-pub const ED25519_YAO_CONTRIBUTION_KDF_EXPAND_INFO_DOMAIN_V1: &[u8] =
+pub(crate) const ED25519_YAO_CONTRIBUTION_KDF_EXPAND_INFO_DOMAIN_V1: &[u8] =
     b"seams/router-ab/ed25519-yao/contribution-kdf/hkdf-sha256/expand/v1";
-pub const ED25519_YAO_CONTRIBUTION_KDF_EXPAND_INFO_LEN_V1: usize =
+pub(crate) const ED25519_YAO_CONTRIBUTION_KDF_EXPAND_INFO_LEN_V1: usize =
     ED25519_YAO_CONTRIBUTION_KDF_EXPAND_INFO_DOMAIN_V1.len() + 1 + 1 + 1 + 1 + 32;
 const ROLE_A_TAG: u8 = 0x01;
 const ROLE_B_TAG: u8 = 0x02;
@@ -161,7 +161,7 @@ fn push_length_delimited(output: &mut Vec<u8>, value: &[u8]) {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Ed25519YaoParticipantIdsV1([u16; 2]);
+pub(crate) struct Ed25519YaoParticipantIdsV1([u16; 2]);
 
 impl Ed25519YaoParticipantIdsV1 {
     pub fn new(first: u16, second: u16) -> CoreResult<Self> {

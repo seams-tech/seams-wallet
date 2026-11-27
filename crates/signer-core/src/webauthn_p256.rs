@@ -2,7 +2,7 @@ use crate::error::{CoreResult, SignerCoreError};
 use ciborium::Value as CborValue;
 use p256::PublicKey;
 
-pub const WEBAUTHN_TYPE_ID: u8 = 0x02;
+pub(crate) const WEBAUTHN_TYPE_ID: u8 = 0x02;
 const MAX_COSE_P256_PUBLIC_KEY_BYTES: usize = 256;
 const BASE64URL_TABLE: &[u8; 64] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

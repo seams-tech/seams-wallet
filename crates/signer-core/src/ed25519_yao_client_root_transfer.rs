@@ -33,7 +33,8 @@ use crate::passkey_custody::{
 use crate::wallet_seed_derivation::derive_ed25519_yao_client_root_from_seed_v1;
 
 /// The frozen X25519/HKDF-SHA256/ChaCha20-Poly1305 package algorithm.
-pub const ED25519_YAO_CLIENT_ROOT_TRANSFER_ALG_V1: &str = "x25519-hkdf-sha256-chacha20poly1305-v1";
+pub(crate) const ED25519_YAO_CLIENT_ROOT_TRANSFER_ALG_V1: &str =
+    "x25519-hkdf-sha256-chacha20poly1305-v1";
 
 const TRANSFER_AAD_CONTEXT_V1: &[u8] = b"seams/ed25519-yao-client-root-transfer/aad/v1";
 const TRANSFER_KEK_SALT_V1: &[u8] = b"seams/ed25519-yao-client-root-transfer/kek/salt/v1";
@@ -232,7 +233,7 @@ impl core::fmt::Debug for Ed25519YaoClientRootFromLinkedDeviceTransferV1 {
 /// The seed must already have been opened from a verified local factor
 /// envelope. The proof is checked against the transfer wallet before the root
 /// is derived, and the root is returned only as a zeroizing Rust capability.
-pub fn derive_ed25519_yao_client_root_for_linked_device_v1(
+pub(crate) fn derive_ed25519_yao_client_root_for_linked_device_v1(
     admitted: &WalletCustodySeedFromSealedEnvelopeV1,
     custody_seed: &[u8],
     transfer: &Ed25519YaoClientRootTransferBindingV1,
