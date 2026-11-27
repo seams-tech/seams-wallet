@@ -306,9 +306,10 @@ These are the gates of the monorepo Refactor 210, Section 14.5, for SaySo:
    `enroll` operation with its step-up, and the card lines. Unit tests use verdicts signed by a test key. A type fixture
    holds that the co-signer accepts only the active kind. Two parts follow from the owner's
    answers (Section 8, Q13 and Q14):
-   - **The card shows the request.** The spoken card shows what the Wallet's confirm shows for
-     the same bytes: the receiver, the actions and the amounts. The summary of the application
-     stays as the words to say.
+   - **The card shows the request.** Built before the rest of Slice 4, because it does not
+     depend on SaySo (Section 6, "The spoken card"). The spoken card shows what the Wallet's
+     confirm shows for the same bytes: the receiver, the actions and the amounts. The summary
+     of the application stays as the words to say.
    - **A setting that turns voice off.** The owner turns voice approval on and off in the
      Wallet. Off deletes the voice template at the verifier, so SaySo gets a delete route (R4).
      While it is off, the Wallet offers no spoken approval and uses its confirm.
@@ -396,6 +397,31 @@ For Slice 4:
   library and the co-signer compared the text. A verifier writes one text for one digest.
 - `open` takes the pinned key as text. `SPEAK_TO_SIGN_VERIFIERS` still holds only OutLayer
   data, and core still reads the v2 verify output (`parseVerifyOutput`) outside a backend.
+
+### The spoken card (2026-11-27)
+
+The answer to Q13, built on `dev` in `f40c0e7b5` before the rest of Slice 4.
+
+- **What the card shows.** Above the sentence of a general transaction, a delegate action or
+  a message, the card has a box "This request". For a transaction it holds the receiver and
+  one line for each action with its fields: the key and permissions of a new key, the account
+  that gets the balance of a deleted account, the arguments of a call. For a message it holds
+  the recipient and the text. A typed kind gets no box: the Wallet writes its sentence.
+- **The same words as the confirm.** `core/transactionFeatures/spokenRequestContext.ts` reads
+  the review tree of the confirm (`buildDisplayTreeFromTxPayloads`) and its action titles
+  (`nearActionTitle`, moved out of the Preact label). It builds the lines from the transaction
+  that the signer builds the bytes from, never from text of the application.
+- **Tokens.** A transfer of a token on the Wallet's own list also shows its amount, such as
+  "Token transfer: 12.5 USDC to bob.testnet". Another contract shows only its arguments.
+- **No new card code.** The lines go into the `context` slot of the phrase card of
+  `@seams/voice-capture`, which the note flow uses. So this needs no release of that package.
+  The box is plain text: it has no copy button, and a long request scrolls in it. Arguments
+  above 600 characters are cut, and the line says how many characters are left.
+- **Checks.** 6 new unit cases (`tests/unit/speakToSignRequestContext.unit.test.ts`); the 9
+  unit files have 173 cases, and all pass. The transaction tree and review browser tests pass
+  on Chromium and WebKit; Firefox is not installed for Playwright on this machine. A preview
+  page with the real card of `@seams/voice-capture` showed the box for a transfer with a new
+  key, a token transfer and a message.
 
 ### Slice 3 progress (2026-11-27)
 
@@ -498,6 +524,7 @@ public mock seed, and a real verdict key with `SAYSO_DEV_MOCK=true` stops the Wo
   unlock does not count.
 - **Q13 and Q14.** "agreed, build both in Slice 4". The card shows what the confirm shows, and
   the Wallet gets a setting that turns voice off and deletes the template (Section 6, Slice 4).
+  The card is built (Section 6, "The spoken card"). The setting is not.
 - Q1, Q5, Q6, Q7, Q9 and Q12 are open. Q3 was answered by Slice 1.
 
 ## 9. Architecture review (2026-11-27)
