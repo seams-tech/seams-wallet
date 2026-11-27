@@ -802,25 +802,25 @@ export class IntendedBehaviourHarness {
 
   readonly trace: TraceEntry[] = [];
 
-  private readonly context: BrowserContext;
+  protected readonly context: BrowserContext;
 
-  private readonly page: Page;
+  protected readonly page: Page;
 
-  private readonly request: IntendedGatewayRequests;
+  protected readonly request: IntendedGatewayRequests;
 
-  private readonly networkMode: 'managed_local' | 'external_staging' | 'hosted_product';
+  protected readonly networkMode: 'managed_local' | 'external_staging' | 'hosted_product';
 
-  private readonly config: IntendedHarnessConfig;
+  protected readonly config: IntendedHarnessConfig;
 
   private readonly violations: string[] = [];
 
-  private emailOtpVerificationCount = 0;
+  protected emailOtpVerificationCount = 0;
 
   /** Set by an auth-method addition, which uses one family to add the other. */
-  private crossFamilyAuthMethodAdditionRan = false;
+  protected crossFamilyAuthMethodAdditionRan = false;
 
   /** The exact method the last addition created, to check what unlocks later. */
-  private addedWalletAuthMethodId: string | null = null;
+  protected addedWalletAuthMethodId: string | null = null;
 
   /**
    * The family the wallet is currently operating as.
@@ -830,9 +830,9 @@ export class IntendedBehaviourHarness {
    * through that family instead, and asserting against the registration flow
    * would demand the credential the user just stopped using.
    */
-  private operatingAuthFamily: 'passkey' | 'email_otp' | null = null;
+  protected operatingAuthFamily: 'passkey' | 'email_otp' | null = null;
 
-  private browserSession:
+  protected browserSession:
     | { readonly kind: 'uninitialized' }
     | {
         readonly kind: 'ready';
@@ -840,24 +840,24 @@ export class IntendedBehaviourHarness {
         readonly authenticator: VirtualPasskeyAuthenticator;
       } = { kind: 'uninitialized' };
 
-  private passkeyPromptCount = 0;
+  protected passkeyPromptCount = 0;
 
-  private latestPageSnapshot: IntendedPageSnapshot | null = null;
+  protected latestPageSnapshot: IntendedPageSnapshot | null = null;
 
-  private latestActionTiming: IntendedActionTiming | null = null;
+  protected latestActionTiming: IntendedActionTiming | null = null;
 
-  private latestWalletIframeAutoConfirmDiagnostics: WalletIframeAutoConfirmDiagnostics | null =
+  protected latestWalletIframeAutoConfirmDiagnostics: WalletIframeAutoConfirmDiagnostics | null =
     null;
 
-  private intendedPageReady = false;
+  protected intendedPageReady = false;
 
-  private reloadIntendedPageBeforeNextAction = true;
+  protected reloadIntendedPageBeforeNextAction = true;
 
   /** The app's Wallet Session budget (`signingSessionDefaults`). Null: the app sets none. */
   private signingSessionBudget: { readonly ttlMs: number; readonly remainingUses: number } | null =
     null;
 
-  private registeredWallet: RegisteredWalletSnapshot | null = null;
+  protected registeredWallet: RegisteredWalletSnapshot | null = null;
 
   /** Sets the app's Wallet Session budget. The app reads it when the page loads next. */
   useSigningSessionBudget(budget: {
@@ -868,49 +868,49 @@ export class IntendedBehaviourHarness {
     this.reloadIntendedPageBeforeNextAction = true;
   }
 
-  private recoveryCodes: readonly string[] = [];
+  protected recoveryCodes: readonly string[] = [];
 
-  private nearSignerSlot = 1;
+  protected nearSignerSlot = 1;
 
-  private currentWarmSigningStage: IntendedWarmSessionOriginStage = 'post_registration';
+  protected currentWarmSigningStage: IntendedWarmSessionOriginStage = 'post_registration';
 
-  private latestSigningRemainingUses: number | null = null;
+  protected latestSigningRemainingUses: number | null = null;
 
-  private latestWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
-  private preparedWalletBudgetStatus: Promise<void> | null = null;
+  protected latestWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
+  protected preparedWalletBudgetStatus: Promise<void> | null = null;
 
-  private sourceWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
+  protected sourceWalletBudgetStatusRequest: CapturedWalletBudgetStatusRequest | null = null;
 
-  private recoveryAuthorityProjection: RecoveryAuthorityProjection | null = null;
+  protected recoveryAuthorityProjection: RecoveryAuthorityProjection | null = null;
 
-  private recoveryAuthorityProjectionError: string | null = null;
+  protected recoveryAuthorityProjectionError: string | null = null;
 
-  private intendedYaoFaultInjection: IntendedYaoFaultInjectionStateV1 = { kind: 'idle' };
+  protected intendedYaoFaultInjection: IntendedYaoFaultInjectionStateV1 = { kind: 'idle' };
 
-  private readonly intendedYaoFaultProofs: string[] = [];
+  protected readonly intendedYaoFaultProofs: string[] = [];
   /** Armed once: the next recovery execution loses every Router reply, or is kept from it. */
-  private intendedYaoRecoveryFault: {
+  protected intendedYaoRecoveryFault: {
     readonly mode: 'lose_router_recovery_replies' | 'withhold_router_recovery_execute';
     readonly token: string;
   } | null = null;
 
   /** Armed once: the next export admission loses storage after its authorization commits. */
-  private intendedYaoExportFaultToken: string | null = null;
+  protected intendedYaoExportFaultToken: string | null = null;
 
   /** Armed for one NEAR signature: every finalize of it is kept, run or withheld. */
-  private intendedYaoSigningFault: {
+  protected intendedYaoSigningFault: {
     readonly mode: 'capture_signing_finalize' | 'withhold_signing_finalize';
     readonly token: string;
   } | null = null;
 
   /** The next device of a device-link contract, opened and closed by this one. */
-  private linkedDevice: {
+  protected linkedDevice: {
     readonly harness: IntendedBehaviourHarness;
     readonly context: BrowserContext;
   } | null = null;
 
   /** This device's place in a device-link contract: Device 1 registered the wallet. */
-  private deviceNumber = 1;
+  protected deviceNumber = 1;
   private voiceIdPluginEnabled = false;
 
   constructor(args: {
@@ -1652,7 +1652,7 @@ export class IntendedBehaviourHarness {
    * `retryKey` reads from the request and receive exactly the response that was lost: one
    * committed change, not two.
    */
-  private async loseFirstFinalizeResponse(input: {
+  protected async loseFirstFinalizeResponse(input: {
     readonly path: RegExp;
     readonly routeGlob: string;
     readonly label: string;
@@ -1824,7 +1824,7 @@ export class IntendedBehaviourHarness {
    * only the Gateway's record of the revocation can answer, and the answer
    * must be exactly the one the retry received.
    */
-  private async refuseFirstRevocationCommitOnce(route: 'auth_method' | 'linked_device'): Promise<{
+  protected async refuseFirstRevocationCommitOnce(route: 'auth_method' | 'linked_device'): Promise<{
     readonly release: () => Promise<void>;
     readonly assertRecovered: (sourceFamily: 'passkey' | 'email_otp') => void;
   }> {
@@ -3226,7 +3226,7 @@ export class IntendedBehaviourHarness {
     return summary;
   }
 
-  private async runNearSigningPageAction(nearAccountId: string): Promise<IntendedPageSnapshot> {
+  protected async runNearSigningPageAction(nearAccountId: string): Promise<IntendedPageSnapshot> {
     try {
       return await this.runIntendedPageAction('signNearTransaction', {
         nearAccountId,
@@ -3832,7 +3832,7 @@ export class IntendedBehaviourHarness {
     this.recordService('site and router ready');
   }
 
-  private intendedPageUrl(): URL {
+  protected intendedPageUrl(): URL {
     const url = new URL('/__intended-e2e', this.config.appUrl);
     url.searchParams.set('flow', this.flow);
     if (this.voiceIdPluginEnabled) url.searchParams.set('authMethod', 'voiceid');
@@ -3864,7 +3864,7 @@ export class IntendedBehaviourHarness {
     this.reloadIntendedPageBeforeNextAction = false;
   }
 
-  private async resetRuntimeOnlyState(): Promise<void> {
+  protected async resetRuntimeOnlyState(): Promise<void> {
     this.latestPageSnapshot = null;
     await this.page.goto('about:blank');
     this.intendedPageReady = false;
@@ -3872,7 +3872,7 @@ export class IntendedBehaviourHarness {
     this.recordService('browser runtime reset preserving storage');
   }
 
-  private async clearBrowserStorageForColdSync(): Promise<void> {
+  protected async clearBrowserStorageForColdSync(): Promise<void> {
     await this.context.clearCookies();
     const resetTargets = [
       `${new URL(this.page.url()).origin}/__storage-reset`,
@@ -3889,12 +3889,12 @@ export class IntendedBehaviourHarness {
     this.recordService('browser storage cleared while preserving the synced passkey credential');
   }
 
-  private async ensureIntendedPageOpen(): Promise<void> {
+  protected async ensureIntendedPageOpen(): Promise<void> {
     if (this.intendedPageReady && !this.reloadIntendedPageBeforeNextAction) return;
     await this.openIntendedPage();
   }
 
-  private async runIntendedPageAction(
+  protected async runIntendedPageAction(
     action: IntendedActionName,
     opts?: {
       nearAccountId?: string;
@@ -3958,11 +3958,11 @@ export class IntendedBehaviourHarness {
     }
   }
 
-  private captureRecoveryCodes = (codes: readonly string[]): void => {
+  protected captureRecoveryCodes = (codes: readonly string[]): void => {
     this.recoveryCodes = [...codes];
   };
 
-  private async waitForIntendedPageActionStarted(action: IntendedActionName): Promise<void> {
+  protected async waitForIntendedPageActionStarted(action: IntendedActionName): Promise<void> {
     try {
       await this.page.waitForFunction(intendedPageActionStartedOrCompleted, action, {
         timeout: 5_000,
@@ -3982,7 +3982,7 @@ export class IntendedBehaviourHarness {
     }
   }
 
-  private async waitForIntendedPageActionCompletion(
+  protected async waitForIntendedPageActionCompletion(
     action: IntendedActionName,
     expectedOutcome: 'success' | 'error',
   ): Promise<IntendedPageSnapshot> {
@@ -4034,7 +4034,7 @@ export class IntendedBehaviourHarness {
     }
   }
 
-  private recentTraceForError(): string {
+  protected recentTraceForError(): string {
     const recent = this.trace.slice(-30);
     if (recent.length === 0) return 'Recent intended trace: <empty>';
     return [
@@ -4242,7 +4242,7 @@ export class IntendedBehaviourHarness {
     return status;
   }
 
-  private async replayLatestWalletBudgetStatus(): Promise<AuthoritativeWalletBudgetReplay> {
+  protected async replayLatestWalletBudgetStatus(): Promise<AuthoritativeWalletBudgetReplay> {
     await this.preparedWalletBudgetStatus;
     const captured = this.latestWalletBudgetStatusRequest;
     if (!captured) {
@@ -4251,7 +4251,7 @@ export class IntendedBehaviourHarness {
     return await this.replayWalletBudgetStatus(captured);
   }
 
-  private async replayWalletBudgetStatus(
+  protected async replayWalletBudgetStatus(
     captured: CapturedWalletBudgetStatusRequest,
   ): Promise<AuthoritativeWalletBudgetReplay> {
     const response = await this.requestWalletBudgetStatus(captured);
@@ -4365,14 +4365,14 @@ export class IntendedBehaviourHarness {
   }
 
   /** The Router path of each traced entry since `traceStartIndex`, in trace order. */
-  private routerPathsSince(traceStartIndex: number): string[] {
+  protected routerPathsSince(traceStartIndex: number): string[] {
     return this.trace
       .slice(traceStartIndex)
       .map((entry) => routePathAtRouter(entry.url, this.config.routerUrl))
       .filter((path): path is string => path !== null);
   }
 
-  private recordStage(message: string): void {
+  protected recordStage(message: string): void {
     this.trace.push({ atMs: Date.now(), kind: 'stage', message });
   }
 
@@ -4408,7 +4408,7 @@ export class IntendedBehaviourHarness {
     this.recordService('ordinary NEAR signing made zero Ed25519 Yao activation route calls');
   }
 
-  private assertNoRouterAbEd25519YaoRecoveryRoutes(
+  protected assertNoRouterAbEd25519YaoRecoveryRoutes(
     traceStartIndex: number,
     scenario: IntendedNoYaoRecoveryAssertionScenario,
   ): void {
@@ -4448,7 +4448,7 @@ export class IntendedBehaviourHarness {
     this.recordService('Ed25519 export traversed all strict Router A/B Yao export routes');
   }
 
-  private recordService(message: string): void {
+  protected recordService(message: string): void {
     this.trace.push({ atMs: Date.now(), kind: 'service', message });
   }
 
@@ -4463,7 +4463,7 @@ export class IntendedBehaviourHarness {
     return token;
   }
 
-  private assertIntendedYaoFaultProof(
+  protected assertIntendedYaoFaultProof(
     proofStartIndex: number,
     token: string,
     expected: IntendedYaoFaultProofV1,
@@ -4484,7 +4484,7 @@ export class IntendedBehaviourHarness {
     this.violations.push(`${matched.id}: ${message}`);
   }
 
-  private currentOperatingAuthFamily(): 'passkey' | 'email_otp' {
+  protected currentOperatingAuthFamily(): 'passkey' | 'email_otp' {
     if (this.operatingAuthFamily) return this.operatingAuthFamily;
     return this.flow.startsWith('passkey') ? 'passkey' : 'email_otp';
   }
@@ -4532,7 +4532,7 @@ export class IntendedBehaviourHarness {
     this.latestSigningRemainingUses = remainingUses;
   }
 
-  private requireRegisteredWalletForSigning(): RegisteredWalletSnapshot {
+  protected requireRegisteredWalletForSigning(): RegisteredWalletSnapshot {
     if (this.registeredWallet) return this.registeredWallet;
     throw new Error('Signing requires a registered wallet');
   }
