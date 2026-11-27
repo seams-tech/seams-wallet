@@ -99,34 +99,6 @@ export type {
   WalletId,
 };
 
-export type CreateRegistrationIntentResponse =
-  | {
-      ok: true;
-      intent: RegistrationIntentV1;
-      registrationIntentDigestB64u: string;
-      registrationIntentGrant: RegistrationIntentGrant;
-      expiresAtMs: number;
-    }
-  | {
-      ok: false;
-      code: string;
-      message: string;
-      retryAfterMs?: number;
-    };
-
-export type CancelRegistrationIntentResponse =
-  | {
-      ok: true;
-      cancelled: boolean;
-      releasedServerAllocatedWalletId: boolean;
-    }
-  | {
-      ok: false;
-      code: string;
-      message: string;
-      retryAfterMs?: number;
-    };
-
 export type CreateAddSignerIntentRequest = {
   walletId: WalletId;
   signerSelection: AddSignerSelection;

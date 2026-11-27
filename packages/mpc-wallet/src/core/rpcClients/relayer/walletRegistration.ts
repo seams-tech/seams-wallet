@@ -12,7 +12,6 @@ import type {
   AddAuthMethodIntentV1,
   AddSignerIntentV1,
   AddSignerIntentGrant,
-  RegistrationIntentGrant,
   RegistrationIntentV1,
   WalletId,
   WebAuthnRpId,
@@ -335,20 +334,6 @@ async function postJson(args: {
   }
   return data;
 }
-
-export type CreateRegistrationIntentResponse = {
-  ok: true;
-  intent: RegistrationIntentV1;
-  registrationIntentDigestB64u: string;
-  registrationIntentGrant: RegistrationIntentGrant;
-  expiresAtMs: number;
-};
-
-export type CancelRegistrationIntentResponse = {
-  ok: true;
-  cancelled: boolean;
-  releasedServerAllocatedWalletId: boolean;
-};
 
 type FundImplicitNearAccountForTestingResponse =
   | {
