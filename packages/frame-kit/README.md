@@ -17,7 +17,8 @@ It has three parts:
 
 The design and its open parts are in
 [Refactor 251](../../docs/refactor-251-auth-wallet-checkout-modules.md), Slice 3. The tests are in
-`tests/frame-kit` and run in Chromium, Firefox and WebKit:
+`tests/frame-kit` and run in Chromium, Firefox and WebKit. Firefox skips the case for the focus
+after a frame stage closes:
 
 ```bash
 pnpm -C tests test:frame-kit
