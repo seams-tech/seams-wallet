@@ -2,8 +2,9 @@
 
 Status: 2026-11-28. Slices 1 to 5 are built (Section 6). Of Slice 3, G1 passes on today's
 sentences by 16 readings, and G3 passes on staging with a hedged turbo call (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
-result"), and Slice 5 wrote its docs ("Slice 5 result"); neither is released or deployed.
-Slice 6 is not built.
+result"), and Slice 5 wrote its docs ("Slice 5 result"). Slice 6 released them in 0.77.0 and
+deploys them to staging; the browser checks and the owner's voice check are open (Section 6,
+"Slice 6 result").
 Section 8 lists the questions for the owner and the answers; the owner answered Q16 and Q17 on
 2026-11-28. Section 9 holds the
 architecture review that the owner asked for before Slice 2, and Section 8 holds the owner's
@@ -785,6 +786,62 @@ For Slice 6:
 - The Wallet deletes the template only when the application that turns VoiceID off has the
   `spoken` descriptor. In another application the template stays at SaySo. The Wallet still
   refuses a spoken request while VoiceID is off, so this keeps a template, not a way to sign.
+
+### Slice 6 result (2026-11-28)
+
+Partly done. 0.77.0 is released, and its staging deploy runs. The browser checks, the Gateway
+timing and the owner's voice check are open. Each step below had the owner's yes.
+
+- **The answers.** The owner answered Q16 and Q17, and released all of `dev` as 0.77.0
+  (Section 8). So the release is also Refactor 251 Release A, the passkey user verification, the
+  Email OTP release of Refactor 252 D5 and the D1 baseline.
+- **SaySo.** `sayso-verifier-staging-testnet` runs SaySo `d6ccbea` with the hedge and the
+  template delete: Worker version `43b22fac` (before: `538d0a45`). The speaker image did not
+  change. Another session moved `sayso.seams.sh` to `9f3de86`, the same Worker code.
+- **The release.** The release commit is `2a549990a`. Its first Validate wallet run failed in
+  every job: the static asset check refused `/sdk/backend-*.js`, which references
+  `/sdk/spoken_intent_bg.wasm`. The wasm-bindgen glue keeps its default URL beside its chunk,
+  and the build copied the file only to `sdk/workers/`. `b193a30b8` also copies it beside the
+  chunks, as for the Ed25519 Yao Client WASM. No CI run had covered Slice 4 before, because
+  Validate wallet does not run on a push to `dev`. The second release run (`46123801038`) passed
+  validation, built and checked the packages, and failed at the publish with npm `E404`, as
+  expected for a new name. The owner then published `@seams/host`, `@seams/wallet-connect` and
+  `@seams/mpc-wallet` 0.77.0 from these tarballs in a terminal.
+- **seams-console** `7d04f995`: the Release A rename, the 0.77.0 pins, and the SaySo config.
+  `speakToSignVerifier` names one backend: `sayso` with its Worker, or `outlayer` with its old
+  fields. Each regional Gateway of a SaySo lane gets `SPEAK_TO_SIGN_BACKEND`, the `SAYSO` binding
+  and the secret `SAYSO_API_KEY`; the Wallet Runtime builds no verifier and gets no binding. The
+  lane rule stays: only `staging-testnet` may have a verifier. The owner set the secret in the
+  environment `staging-gateway`. The five `@seams/host` store calls dropped `ensureSchema`.
+- **Two D1 faults, fixed in seams-console.** The migration check refused the baseline, because no
+  applied migration was in the new set; a first migration named `*_baseline.sql` that no
+  database has applied now replaces the applied history (`7d04f995`). Then the first staging
+  deploy stopped with `spawnSync pnpm E2BIG`: the applier passed the 436 KB baseline as one
+  process argument, and Linux limits one argument to 128 KiB. Only a baseline now runs in parts
+  of at most 90,000 bytes (`4229797f`). On SQLite with the 91 migrations of 0.76.0, the 5 parts
+  changed no schema object and added the history row. No database changed in the failed run.
+- **The staging deploy.** Run `46151383571` (seams-console `4229797f`) applied the D1
+  migrations in the four regions. Its Worker, Console and frontend jobs ran at the time of
+  writing.
+- **Also fixed:** three API comments of `seams.near.spoken` that described OutLayer
+  (`b5cdef39a`).
+
+Open:
+
+- **The browser checks and the Gateway timing (Q17).** A runner is ready in the Refactor 254 side
+  notes folder (`slice-6-check/s2s-runner.mjs`): a CDP virtual passkey creates a staging wallet,
+  a `say` voice enrolls through `seams.near.spoken.enroll`, and NEP-413 messages with
+  `approval: { kind: 'spoken' }` time each verify through the Gateway. It sends no transaction.
+  It runs against a copy of speak-to-sign `demo/speak-to-pay` moved to the 0.77.0 names
+  (`slice-6-check/speak-to-pay-0.77-copy.tgz`, with `VITE_SEAMS_RELAYER_URL` set to
+  `https://staging.api.seams.sh`).
+- **The owner's voice check:** enroll, a transfer of 10 NEAR, and a transfer above 10 NEAR. The
+  owner speaks and pays; the staging account needs testnet NEAR first.
+- **The owner's npm steps:** `@seams/cli` 0.29.0 is not on npm (the Console's recovery setup
+  command names it), the trusted publishers of the three new names are not confirmed, and the old
+  names have no deprecation yet.
+- **Not in this slice:** the public docs site, production and `sayso.seams.sh` as a verifier of
+  a lane.
 
 ## 7. Invariants
 
