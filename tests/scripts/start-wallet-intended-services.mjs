@@ -73,8 +73,9 @@ function buildWalletRuntime() {
       `build:${role}`,
     ]);
   }
-  runRequired('Wallet server build', 'pnpm', ['-C', 'packages/mpc-wallet-server', 'run', 'build']);
+  // The server build copies build/local-tools into its Cloudflare runtime, so build them first.
   runRequired('Wallet local initializer build', 'pnpm', ['run', 'build:local-tools']);
+  runRequired('Wallet server build', 'pnpm', ['-C', 'packages/mpc-wallet-server', 'run', 'build']);
 }
 
 /**
