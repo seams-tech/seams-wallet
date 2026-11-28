@@ -1,5 +1,6 @@
 import { CHECKOUT_ROUTES } from '../shared/api';
-import { projectConfig, type CheckoutContext } from './context';
+import { isPlainObject, isString } from '@shared/utils/validation';
+import { connectRail, projectConfig, type CheckoutContext } from './context';
 import { CheckoutError, loadOrder, orderView, settleOrder } from './payments';
 import { refundOrder } from './refunds';
 import {
@@ -75,6 +76,18 @@ export async function operatorAct(
   body: unknown,
 ): Promise<unknown> {
   const [area, orderId, action] = segments;
+  if (area === 'wallet-domains') {
+    const domain = isPlainObject(body) && isString(body.domain) ? body.domain.trim().toLowerCase() : '';
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) throw new CheckoutError('invalid_request', 'domain is a host name');
+    const registered: string[] = [];
+    for (const account of await listRailAccounts(context.db, projectId)) {
+      const rail = await connectRail(context, projectId, account.rail_id);
+      if (!rail?.registerWalletDomain) continue;
+      await rail.registerWalletDomain(domain);
+      registered.push(account.rail_id);
+    }
+    return { domain, rails: registered };
+  }
   if (area !== 'orders' || !orderId) throw new CheckoutError('not_found', 'No such route');
   const order = await projectOrder(context, projectId, orderId);
   if (action === 'refunds') return orderView(await refundOrder(context, order, body));

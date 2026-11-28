@@ -41,7 +41,17 @@ type StripeElement = {
   on(event: 'change', handler: (event: { complete: boolean }) => void): void;
   destroy(): void;
 };
-type StripeElements = { create(type: 'payment', options: object): StripeElement };
+type WalletConfirm = { paymentFailed(payload?: { reason?: string }): void };
+type StripeWalletElement = {
+  mount(element: HTMLElement): void;
+  on(event: 'confirm', handler: (event: WalletConfirm) => void): void;
+  on(event: 'availablepaymentmethodschange', handler: (event: { paymentMethods?: unknown }) => void): void;
+  destroy(): void;
+};
+type StripeElements = {
+  create(type: 'payment', options: object): StripeElement;
+  create(type: 'expressCheckout', options: object): StripeWalletElement;
+};
 type StripeConfirm = { error?: { message?: string } };
 type StripeClient = {
   elements(options: object): StripeElements;
@@ -176,6 +186,56 @@ async function mountKomoju(
     },
     destroy: () => fields.remove(),
   };
+}
+
+type WalletButtonOptions = Pick<CardFieldsOptions, 'container' | 'theme' | 'locale' | 'returnUrl'> & {
+  /** The device has no such wallet, or the merchant's domain is not registered. */
+  readonly onUnavailable: () => void;
+  /** The customer approved or refused the payment in the sheet of the device. */
+  readonly onSubmit: (result: CardSubmit) => void;
+};
+
+/** Mounts Stripe's button of one device wallet. The button opens the sheet of the device. */
+export async function mountWalletButton(
+  start: Variant<RailStart, 'kind', 'wallet_button'>,
+  options: WalletButtonOptions,
+): Promise<Pick<CardFields, 'destroy'>> {
+  await loadScript(PROVIDER_SCRIPTS.stripe, false);
+  if (!window.Stripe) throw new Error('Stripe.js did not start');
+  const stripe = window.Stripe(start.publishableKey, { locale: options.locale });
+  const { clientSecret } = start;
+  const elements = stripe.elements({ clientSecret, appearance: stripeAppearance(options.theme), locale: options.locale });
+  const shown = (wallet: typeof start.wallet): 'always' | 'never' => (start.wallet === wallet ? 'always' : 'never');
+  const element = elements.create('expressCheckout', {
+    paymentMethods: {
+      applePay: shown('apple_pay'),
+      googlePay: shown('google_pay'),
+      link: 'never',
+      paypal: 'never',
+      amazonPay: 'never',
+      klarna: 'never',
+    },
+    buttonHeight: Math.min(55, Math.max(40, options.theme.buttonHeight ?? 48)),
+  });
+  element.on('availablepaymentmethodschange', (event) => {
+    if (!event.paymentMethods) options.onUnavailable();
+  });
+  element.on('confirm', (event) => {
+    void stripe
+      .confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: { return_url: options.returnUrl },
+        redirect: 'if_required',
+      })
+      .then((result) => {
+        if (!result.error) return options.onSubmit({ kind: 'submitted' });
+        event.paymentFailed({ reason: 'fail' });
+        options.onSubmit({ kind: 'refused', message: result.error.message ?? null });
+      });
+  });
+  element.mount(options.container);
+  return { destroy: () => element.destroy() };
 }
 
 export function mountCardFields(

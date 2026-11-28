@@ -4,12 +4,23 @@
     "rootDir": "..",
     "allowJs": true,
     "checkJs": false,
-    "types": ["node"],
-    "typeRoots": ["./node_modules/@types", "../node_modules/@types"],
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "./node_modules/@types",
+      "../node_modules/@types"
+    ],
     "paths": {
-      "@shared/*": ["../packages/shared-ts/src/*"]
+      "@shared/*": [
+        "../packages/shared-ts/src/*"
+      ]
     }
   },
-  "include": ["auth/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "auth/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

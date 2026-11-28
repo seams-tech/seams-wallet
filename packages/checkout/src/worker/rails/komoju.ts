@@ -27,7 +27,7 @@ const KOMOJU_API_VERSION = '2025-01-28';
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60_000;
 
 /** KOMOJU's payment type for each method that the server starts. */
-const TYPES: Readonly<Record<Exclude<CheckoutMethod, 'card'>, string>> = {
+const TYPES: Readonly<Partial<Record<CheckoutMethod, string>>> = {
   konbini: 'konbini',
   bank_transfer: 'bank_transfer',
   pay_easy: 'pay_easy',
@@ -53,7 +53,7 @@ const YEN_LIMITS = {
   d_barai: [1, Number.MAX_SAFE_INTEGER],
   paidy: [1, 1_000_000],
 } as const;
-const FIELDS: Readonly<Record<CheckoutMethod, readonly CustomerField[]>> = {
+const FIELDS: Readonly<Partial<Record<CheckoutMethod, readonly CustomerField[]>>> = {
   card: ['email'],
   konbini: ['konbini_store', 'email'],
   bank_transfer: PAYER,
@@ -159,7 +159,7 @@ function paymentDetails(attempt: RailAttempt): RailBody {
         expiry_days: attempt.offlineDays,
       };
     default:
-      return { type: TYPES[attempt.method] };
+      return { type: TYPES[attempt.method] ?? attempt.method };
   }
 }
 
@@ -329,7 +329,7 @@ export const komojuRail: RailModule = {
   id: 'komoju',
   methods: METHODS,
   accepts: (method, currency, amount) => acceptsOrder(METHODS, YEN_LIMITS, method, currency, amount),
-  fields: (method) => FIELDS[method],
+  fields: (method) => FIELDS[method] ?? [],
   parseAccount(input) {
     if (!hasExactKeys(input, ['publishableKey', 'secretKey', 'webhookSecret'])) {
       throw new Error('A KOMOJU account has a publishableKey, a secretKey and a webhookSecret');

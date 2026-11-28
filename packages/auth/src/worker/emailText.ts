@@ -1,14 +1,9 @@
+import type { AuthLocale } from '../shared/copy';
+
 // The text of the email that carries a code. The purpose line comes from the operator's
 // configuration of the audience, never from the app page.
 
-export const AUTH_LOCALES = ['en', 'ja'] as const;
-export type AuthLocale = (typeof AUTH_LOCALES)[number];
-
 export type PurposeText = { readonly en: string; readonly ja: string };
-
-export function parseAuthLocale(value: unknown): AuthLocale {
-  return value === 'ja' ? 'ja' : 'en';
-}
 
 const SIGN_IN_PURPOSE: PurposeText = { en: 'sign in', ja: 'サインイン' };
 

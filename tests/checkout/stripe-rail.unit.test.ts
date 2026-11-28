@@ -360,3 +360,35 @@ test.describe('the Stripe rail: refunds and disputes', () => {
     });
   });
 });
+
+test.describe('the Stripe rail: Apple Pay and Google Pay', () => {
+  test('a device wallet has the PaymentIntent of a card and the button of its wallet', async () => {
+    const { rail, sent } = fakeStripe([{ body: intent({ metadata: { seams_attempt: 'att-1', seams_method: 'apple_pay' } }) }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'apple_pay', details: {} });
+    expect(started.start).toEqual({
+      kind: 'wallet_button',
+      wallet: 'apple_pay',
+      publishableKey: 'pk_test_123',
+      clientSecret: 'pi_1_secret_abc',
+    });
+    const body = Object.fromEntries(new URLSearchParams(sent[0]!.text));
+    expect(body['allowed_payment_method_types[0]']).toBe('card');
+    expect(body['metadata[seams_method]']).toBe('apple_pay');
+    expect(body.confirm).toBeUndefined();
+  });
+
+  test('a refused wallet payment can be tried again, as a declined card can', async () => {
+    const refused = intent({
+      metadata: { seams_attempt: 'att-1', seams_method: 'google_pay' },
+      last_payment_error: { code: 'card_declined', message: 'Declined' },
+    });
+    expect((await fakeStripe([{ body: refused }]).rail.read('pi_1')).state).toBe('created');
+  });
+
+  test('a wallet domain is registered at the merchant account', async () => {
+    const { rail, sent } = fakeStripe([{ body: { id: 'pmd_1' } }]);
+    await rail.registerWalletDomain?.('checkout.example.com');
+    expect(sent[0]?.url).toBe('https://api.stripe.com/v1/payment_method_domains');
+    expect(sent[0]?.text).toBe('domain_name=checkout.example.com');
+  });
+});

@@ -24,7 +24,7 @@ const WEBHOOK_SECRET = 'fake-webhook-secret';
 const DAY_MS = 24 * 60 * 60_000;
 /** The state of a payment right after its start: a voucher waits, a wallet asks for approval. */
 function startState(method: CheckoutMethod): AttemptState {
-  if (method === 'card') return 'created';
+  if (method === 'card' || method === 'apple_pay' || method === 'google_pay') return 'created';
   return method === 'konbini' || method === 'bank_transfer' ? 'pending_offline' : 'requires_action';
 }
 
@@ -38,6 +38,7 @@ export class FakeProvider {
   startAnswer: 'ok' | 'refused' | 'no_answer' = 'ok';
   cancelAnswer: RailCancel['kind'] | 'no_answer' = 'cancelled';
   refundAnswer: 'succeeded' | 'pending' | 'not_supported' | 'no_answer' | 'refused' = 'succeeded';
+  readonly walletDomains: string[] = [];
   private nextRef = 1;
 
   /** The payment of the newest attempt. */
@@ -169,7 +170,15 @@ export function fakeRail(
         const publishableKey = account.public.publishableKey ?? '';
         const deadlineMs = attempt.createdAtMs + attempt.offlineDays * DAY_MS;
         const redirect: RailStart = { kind: 'redirect', url: `https://provider.example.test/${attempt.method}/${payment.ref}` };
+        const wallet = (name: 'apple_pay' | 'google_pay'): RailStart => ({
+          kind: 'wallet_button',
+          wallet: name,
+          publishableKey,
+          clientSecret: `${payment.ref}_secret`,
+        });
         const starts: Partial<Record<CheckoutMethod, RailStart>> = {
+          apple_pay: wallet('apple_pay'),
+          google_pay: wallet('google_pay'),
           card:
             cardFields === 'stripe'
               ? { kind: 'card_form', fields: 'stripe', publishableKey, clientSecret: `${payment.ref}_secret` }
@@ -202,6 +211,9 @@ export function fakeRail(
       read: async (ref) => provider.read(ref),
       cancel: async (ref) => provider.cancel(ref),
       refund: async (ref, amount, refundId) => provider.refund(ref, amount, refundId),
+      async registerWalletDomain(domain) {
+        provider.walletDomains.push(domain);
+      },
     }),
   };
 }

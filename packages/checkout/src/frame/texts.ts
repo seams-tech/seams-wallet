@@ -27,6 +27,7 @@ type Texts = {
   readonly errorDeclined: string;
   readonly errorField: (field: string) => string;
   readonly retry: string;
+  readonly walletUnavailable: (method: string) => string;
   readonly stores: Readonly<Record<KonbiniStore, string>>;
   readonly voucherTitle: string;
   readonly payEasyTitle: string;
@@ -52,6 +53,8 @@ const en: Texts = {
   methodsLabel: 'Payment method',
   methods: {
     card: 'Card',
+    apple_pay: 'Apple Pay',
+    google_pay: 'Google Pay',
     konbini: 'Convenience store',
     bank_transfer: 'Bank transfer',
     pay_easy: 'Pay-easy',
@@ -92,6 +95,7 @@ const en: Texts = {
   errorDeclined: 'The payment was declined. Check the details or use another method.',
   errorField: (field) => `Enter: ${field}`,
   retry: 'Try again',
+  walletUnavailable: (method) => `${method} is not available in this browser. Use another payment method.`,
   stores: {
     seven_eleven: '7-Eleven',
     lawson: 'Lawson',
@@ -130,6 +134,8 @@ const ja: Texts = {
   methodsLabel: 'お支払い方法',
   methods: {
     card: 'クレジットカード',
+    apple_pay: 'Apple Pay',
+    google_pay: 'Google Pay',
     konbini: 'コンビニ払い',
     bank_transfer: '銀行振込',
     pay_easy: 'ペイジー',
@@ -170,6 +176,7 @@ const ja: Texts = {
   errorDeclined: 'お支払いが承認されませんでした。内容をご確認いただくか、別の方法をお試しください。',
   errorField: (field) => `${field}を入力してください`,
   retry: 'もう一度試す',
+  walletUnavailable: (method) => `このブラウザでは${method}をご利用いただけません。別のお支払い方法をお選びください。`,
   stores: {
     seven_eleven: 'セブン-イレブン',
     lawson: 'ローソン',

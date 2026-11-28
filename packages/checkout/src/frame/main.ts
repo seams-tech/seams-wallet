@@ -17,7 +17,7 @@ import {
   type OpenMessage,
 } from '../shared/protocol';
 import { createFrameApi, FrameApiError, type FrameApi } from './api';
-import { mountCardFields, type CardFields } from './providers';
+import { mountCardFields, mountWalletButton, type CardFields } from './providers';
 import { FRAME_CSS } from './styles';
 import { textsFor, type FrameTexts } from './texts';
 
@@ -36,7 +36,10 @@ const AUTOCOMPLETE: Readonly<Partial<Record<CustomerField, AutoFill>>> = {
   phone: 'tel',
 };
 
-type OfflineStart = Exclude<RailStart, Variant<RailStart, 'kind', 'card_form'>>;
+/** The methods whose provider part opens when the customer selects them. */
+const EAGER_METHODS: readonly CheckoutMethod[] = ['card', 'apple_pay', 'google_pay'];
+
+type OfflineStart = Exclude<RailStart, Variant<RailStart, 'kind', 'card_form' | 'wallet_button'>>;
 
 type Child = Node | string | null;
 
@@ -103,7 +106,8 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
     send({ type: 'size', stage: open.stage, heightCssPx: root.getBoundingClientRect().height });
   }).observe(root);
 
-  let cardFields: CardFields | null = null;
+  let cardFields: Pick<CardFields, 'destroy'> | null = null;
+  let submitFields: CardFields['submit'] | null = null;
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
   const report = (next: CheckoutStatus): void => send({ type: 'status', status: next });
 
@@ -285,6 +289,28 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
 
     async function mount(method: CheckoutMethod, start: RailStart | null): Promise<void> {
       if (!start) throw new Error('The attempt has no next step');
+      if (start.kind === 'wallet_button') {
+        // The wallet's own button replaces the Seams pay button.
+        const mountedButton = await mountWalletButton(start, {
+          container: provider,
+          theme,
+          locale: open.locale,
+          returnUrl: `${location.origin}/return`,
+          onUnavailable() {
+            if (selected === method) error.textContent = texts.walletUnavailable(texts.methods[method]);
+          },
+          onSubmit(result) {
+            if (selected !== method) return;
+            if (result.kind === 'submitted') return showConfirming();
+            error.textContent = result.message ?? texts.errorDeclined;
+          },
+        });
+        if (selected !== method) return mountedButton.destroy();
+        cardFields = mountedButton;
+        button.hidden = true;
+        status.textContent = '';
+        return;
+      }
       if (start.kind !== 'card_form') return showNextStep(method, start, amount);
       let ready = false;
       const mounted = await mountCardFields(start, {
@@ -299,6 +325,7 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
       });
       if (selected !== method) return mounted.destroy();
       cardFields = mounted;
+      submitFields = mounted.submit;
       step = 'fields';
       button.disabled = !ready;
       status.textContent = '';
@@ -328,6 +355,8 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
       selected = method;
       cardFields?.destroy();
       cardFields = null;
+      submitFields = null;
+      button.hidden = false;
       provider.replaceChildren();
       if (!refused) error.textContent = '';
       placePanel(method);
@@ -336,9 +365,10 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
       if (resume) return mount(method, resume).catch(() => startMethod(method));
       // Card fields open at once. Each other method starts when the customer selects the
       // button, because a start issues a voucher or opens a wallet payment.
-      if (missing.length === 0 && method === 'card') return startMethod(method);
+      const eager = EAGER_METHODS.includes(method);
+      if (missing.length === 0 && eager) return startMethod(method);
       step = 'details';
-      button.textContent = method === 'card' ? texts.continue : texts.pay(amount);
+      button.textContent = eager ? texts.continue : texts.pay(amount);
       button.disabled = false;
       inputs.replaceChildren(
         ...missing.map((field) => {
@@ -371,12 +401,12 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
         if (form.reportValidity()) void startMethod(selected);
         return;
       }
-      const fields = cardFields;
-      if (!fields) return;
+      const submit = submitFields;
+      if (!submit) return;
       step = 'busy';
       button.disabled = true;
       error.textContent = '';
-      void fields.submit().then(
+      void submit().then(
         (result) => {
           if (result.kind === 'submitted') return showConfirming();
           error.textContent = result.message ?? texts.errorDeclined;
@@ -394,7 +424,8 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
     const active = session.attempt;
     // Card fields of an open attempt come back after a reload. A voucher does not: the customer
     // came here to choose again.
-    const resume = active?.start?.kind === 'card_form' && rows.has(active.method) ? active : null;
+    const resumable = active?.start?.kind === 'card_form' || active?.start?.kind === 'wallet_button';
+    const resume = active && resumable && rows.has(active.method) ? active : null;
     const first = resume?.method ?? (ordered.length === 1 ? ordered[0]!.method : null);
     if (first) {
       rows.get(first)!.querySelector('input')!.checked = true;
@@ -409,9 +440,10 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
     if (state !== 'open') return showPaid();
     const attempt = session.attempt;
     const start = attempt?.start;
-    if (attempt && start && start.kind !== 'card_form' && !(returned && start.kind === 'redirect')) {
+    const offline = start && start.kind !== 'card_form' && start.kind !== 'wallet_button' ? start : null;
+    if (attempt && offline && !(returned && offline.kind === 'redirect')) {
       const { order } = session;
-      return showNextStep(attempt.method, start, formatAmount(order.amount, order.currency, open.locale));
+      return showNextStep(attempt.method, offline, formatAmount(order.amount, order.currency, open.locale));
     }
     const inFlight = attempt !== null && attempt.state !== 'created';
     if (inFlight || (returned && attempt !== null && !attempt.failure)) {

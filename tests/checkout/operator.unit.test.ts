@@ -74,6 +74,13 @@ test.describe('the operator routes', () => {
     expect(after.body.unexpectedPayments).toHaveLength(1);
   });
 
+  test('the operator registers a domain for the device wallets at each rail that needs it', async () => {
+    const answer = await checkout.operator('POST', `${base}/wallet-domains`, { domain: 'Shop.Example.com' });
+    expect(answer.body).toEqual({ domain: 'shop.example.com', rails: ['fake'] });
+    expect(checkout.provider.walletDomains).toEqual(['shop.example.com']);
+    expect((await checkout.operator('POST', `${base}/wallet-domains`, { domain: 'https://x/y' })).status).toBe(400);
+  });
+
   test('the operator refunds a paid order through its rail', async () => {
     const { body: order } = await checkout.createOrder();
     await checkout.start(order.clientToken);

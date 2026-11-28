@@ -103,7 +103,8 @@ export function createCheckout(config: CheckoutConfig): Checkout {
   const frameSpec = (locale: CheckoutLocale): FrameSpec => ({
     url: `${checkoutOrigin}/`,
     title: locale === 'ja' ? 'お支払い' : 'Checkout',
-    permissions: [],
+    // Apple Pay and Google Pay need the payment permission on each frame of the chain.
+    permissions: ['payment'],
   });
 
   /**

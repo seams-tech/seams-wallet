@@ -58,7 +58,22 @@ export type CallOptions = {
 
 export type SubscriberAnswer = { status: number; body: unknown } | 'unreachable';
 
-export async function openAuthWorker(options: { removalSubscribers?: string[] } = {}) {
+type WorkerOrigins = {
+  readonly issuer: string;
+  readonly accountOrigin: string;
+  readonly appOrigin: string;
+  readonly rpId: string;
+};
+
+export async function openAuthWorker(
+  options: { removalSubscribers?: string[]; origins?: WorkerOrigins } = {},
+) {
+  const origins = options.origins ?? {
+    issuer: ISSUER,
+    accountOrigin: ACCOUNT_ORIGIN,
+    appOrigin: APP_ORIGIN,
+    rpId: RP_ID,
+  };
   const d1 = await openAuthD1();
   const signer = await importTokenSigner(await generateTokenSigningJwk());
   const jwks: AuthJwks = { keys: [signer.publicJwk] };
@@ -75,9 +90,9 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
 
   const handler = createAuthWorkerHandler({
     config: {
-      issuer: ISSUER,
+      issuer: origins.issuer,
       appName: 'Example Shop',
-      passkeys: { rpId: RP_ID, origins: [ACCOUNT_ORIGIN] },
+      passkeys: { rpId: origins.rpId, origins: [origins.accountOrigin] },
       signer,
       jwks,
       codeKey: await importCodeKey('conformance-email-code-secret-0123456789'),
@@ -115,7 +130,7 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
             message: 'another environment',
           };
         }
-        if (input.origin !== ACCOUNT_ORIGIN && input.origin !== APP_ORIGIN) {
+        if (input.origin !== origins.accountOrigin && input.origin !== origins.appOrigin) {
           return {
             ok: false,
             status: 403,
@@ -252,6 +267,7 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
     passkeyProof,
     outbox,
     notices,
+    handler,
     clock,
     subscriber,
     environment,

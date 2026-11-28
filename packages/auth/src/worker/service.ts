@@ -22,7 +22,8 @@ import {
   type Result,
   type SignedIn,
 } from './core';
-import { emailCodeMessage, type AuthLocale, type PurposeText } from './emailText';
+import type { AuthLocale } from '../shared/copy';
+import { emailCodeMessage, type PurposeText } from './emailText';
 import { verifyGoogleIdToken, verifyLoginHandoff, type ExternalIdentity } from './identities';
 import { AuthMethodChanges } from './methodChanges';
 import type { AuthMethodRecord } from './store';
@@ -230,13 +231,18 @@ export class AuthService extends AuthMethodChanges {
     readonly audience: string;
     readonly challenge: string;
     readonly proof: FactorProof;
+    /** With a login session, the method must be a method of the session's account. */
+    readonly sessionToken?: string;
   }): Promise<Result<{ statement: string; expiresAtMs: number }>> {
     const audience = this.config.audiences[input.audience];
     if (!audience?.statementFactors.includes(input.proof.factor)) {
       return authFailure('audience_not_allowed');
     }
+    const session = input.sessionToken ? await this.liveSession(input.sessionToken) : null;
+    if (input.sessionToken && !session) return authFailure('unauthorized');
     const proven = await this.proveMethod(input.audience, input.challenge, input.proof);
     if (!proven.ok) return proven;
+    if (session && proven.method.accountId !== session.accountId) return authFailure('forbidden');
     const nowMs = this.ports.now();
     const statement = await issueProofStatement(this.config.signer, {
       issuer: this.config.issuer,

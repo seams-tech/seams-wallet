@@ -2,7 +2,7 @@ import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
 import { AUTH_CODES, authFailure, isAuthCode } from '../codes';
 import { parseAudience, parseChallenge } from '../proofs/audience';
-import { parseAuthLocale } from './emailText';
+import { parseAuthLocale } from '../shared/copy';
 import { parseFactorProof, parseIdentityProof } from './core';
 import type { AuthService } from './service';
 
@@ -125,7 +125,7 @@ export async function handleAuthRoute(
           email: optionalText(body.email),
           methodId: optionalText(body.methodId),
           sessionToken,
-          locale: parseAuthLocale(body.locale),
+          locale: parseAuthLocale(body.locale) ?? 'en',
           sourceIp: request.sourceIp,
         }),
       );
@@ -138,7 +138,7 @@ export async function handleAuthRoute(
         return INVALID_BODY;
       }
       if (!proof) return INVALID_BODY;
-      return answer(await service.prove({ audience, challenge, proof }));
+      return answer(await service.prove({ audience, challenge, proof, sessionToken }));
     }
     case 'auth_account':
       return answer(await service.account(sessionToken));

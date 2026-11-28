@@ -1,6 +1,8 @@
 /** Each way to pay that the checkout can show. The routing table sends each one to one rail. */
 export const CHECKOUT_METHODS = [
   'card',
+  'apple_pay',
+  'google_pay',
   'konbini',
   'bank_transfer',
   'pay_easy',
@@ -61,6 +63,13 @@ export type RailStart =
       readonly fields: 'komoju';
       readonly publishableKey: string;
       readonly sessionId: string;
+    }
+  /** The provider's own button, which opens the payment sheet of the device. */
+  | {
+      readonly kind: 'wallet_button';
+      readonly wallet: 'apple_pay' | 'google_pay';
+      readonly publishableKey: string;
+      readonly clientSecret: string;
     }
   /** The customer approves the payment at the provider's page or in its app. */
   | { readonly kind: 'redirect'; readonly url: string }

@@ -103,6 +103,8 @@ export type PaymentRail = {
   cancel(ref: RailPaymentRef): Promise<RailCancel>;
   /** Sends `amount` of a paid payment back. `refundId` makes a repeat of the call safe. */
   refund(ref: RailPaymentRef, amount: MinorUnits, refundId: string): Promise<RailRefund>;
+  /** Registers a domain for the device wallets, when the provider needs that. */
+  registerWalletDomain?(domain: string): Promise<void>;
 };
 
 export type RailAccount = {

@@ -354,3 +354,59 @@ test.describe('konbini, bank transfer and PayPay in the frame', () => {
     await expect(page.getByText('You can close this window and go back to the shop.')).toBeVisible();
   });
 });
+
+test.describe('Apple Pay and Google Pay in the frame', () => {
+  test('the frame has the payment permission for its own origin only', async ({ page }) => {
+    const { order } = await shopWithOrder(page);
+    await openCheckoutInPage(page, { clientToken: order.clientToken });
+    await expect(page.locator('iframe[title="Checkout"]')).toHaveAttribute('allow', 'payment https://checkout.example.test');
+    await expect(frameOf(page).getByLabel('Card number')).toBeVisible();
+  });
+
+  test('the button of the wallet replaces the Seams pay button, and the approval pays the order', async ({ page }) => {
+    const cards = new FakeProvider();
+    checkout = await openCheckout({ rails: [fakeRail(cards, 'fake', ['card', 'apple_pay', 'google_pay'])] });
+    await checkout.setUp({ apple_pay: 'fake', google_pay: 'fake', card: 'fake' });
+    await openShop(page, { ...checkout, provider: cards });
+    const { body: order } = await checkout.createOrder();
+    await openCheckoutInPage(page, { clientToken: order.clientToken, options: { theme: { buttonHeight: 60 } } });
+    const frame = frameOf(page);
+    await frame.getByRole('radio', { name: 'Apple Pay' }).check();
+    const applePay = frame.getByRole('button', { name: 'Apple Pay' });
+    await expect(applePay).toBeVisible();
+    await expect(frame.getByRole('button', { name: /^Pay ¥/ })).toBeHidden();
+    const created = await frame.locator('main').evaluate(() => (window as any).fakeStripe.create);
+    expect(created).toEqual({
+      type: 'expressCheckout',
+      createOptions: {
+        paymentMethods: { applePay: 'always', googlePay: 'never', link: 'never', paypal: 'never', amazonPay: 'never', klarna: 'never' },
+        buttonHeight: 55,
+      },
+    });
+    await applePay.click();
+    await expect(frame.getByRole('heading', { name: 'Payment complete' })).toBeVisible();
+    const paid = await checkout.getOrder(order.id);
+    expect(paid.attempts.map((attempt) => [attempt.method, attempt.state])).toEqual([['apple_pay', 'succeeded']]);
+  });
+
+  test('a browser with no such wallet says so, and the card still works', async ({ page }) => {
+    const cards = new FakeProvider();
+    checkout = await openCheckout({ rails: [fakeRail(cards, 'fake', ['card', 'google_pay'])] });
+    await checkout.setUp({ google_pay: 'fake', card: 'fake' });
+    await openShop(page, { ...checkout, provider: cards });
+    const { body: order } = await checkout.createOrder();
+    await openCheckoutInPage(page, { clientToken: order.clientToken });
+    const frame = frameOf(page);
+    await frame.getByRole('radio', { name: 'Card' }).check();
+    await frame.getByLabel('Card number').waitFor();
+    await frame.locator('main').evaluate(() => {
+      (window as any).fakeStripe.noWallet = true;
+    });
+    await frame.getByRole('radio', { name: 'Google Pay' }).check();
+    await expect(frame.getByRole('alert')).toHaveText(/Google Pay is not available in this browser/);
+    await frame.getByRole('radio', { name: 'Card' }).check();
+    await frame.getByLabel('Card number').fill(GOOD_CARD);
+    await frame.getByRole('button', { name: /^Pay ¥/ }).click();
+    await expect(frame.getByRole('heading', { name: 'Payment complete' })).toBeVisible();
+  });
+});

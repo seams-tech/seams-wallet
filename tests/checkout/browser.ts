@@ -58,6 +58,26 @@ window.Stripe = (publishableKey, options) => {
       return {
         create(type, createOptions) {
           window.fakeStripe.create = { type, createOptions };
+          if (type === 'expressCheckout') {
+            // The button of a device wallet. A click is the approval in the sheet of the device.
+            const handlers = {};
+            let walletButton;
+            return {
+              on(event, handler) { handlers[event] = handler; },
+              mount(container) {
+                const wallet = createOptions.paymentMethods.applePay === 'always' ? 'Apple Pay' : 'Google Pay';
+                const available = !window.fakeStripe.noWallet;
+                setTimeout(() => handlers.availablepaymentmethodschange?.({ paymentMethods: available ? { applePay: true } : undefined }));
+                if (!available) return;
+                walletButton = document.createElement('button');
+                walletButton.type = 'button';
+                walletButton.textContent = wallet;
+                walletButton.onclick = () => handlers.confirm?.({ paymentFailed(payload) { window.fakeStripe.walletFailed = payload; } });
+                container.append(walletButton);
+              },
+              destroy() { walletButton?.remove(); },
+            };
+          }
           let onChange = () => {};
           return {
             mount(container) {
@@ -77,7 +97,7 @@ window.Stripe = (publishableKey, options) => {
       window.fakeStripe.confirm = confirmParams;
       const response = await fetch('https://api.stripe.com/fake/confirm', {
         method: 'POST',
-        body: JSON.stringify({ clientSecret: window.fakeStripe.elements.clientSecret, card: input.value }),
+        body: JSON.stringify({ clientSecret: window.fakeStripe.elements.clientSecret, card: input?.value ?? window.fakeStripe.walletCard ?? '4242424242424242' }),
       });
       return response.json();
     },

@@ -32,7 +32,16 @@ const WEBHOOK_TOLERANCE_SECONDS = 300;
 /** The metadata key that marks a PaymentIntent of the checkout, with the attempt ID. */
 const ATTEMPT_METADATA = 'seams_attempt';
 
-const METHODS: ReadonlySet<CheckoutMethod> = new Set(['card', 'konbini', 'bank_transfer', 'paypay']);
+/** A device wallet pays with a card, so it has the PaymentIntent of a card. */
+const CARD_METHODS: readonly unknown[] = ['card', 'apple_pay', 'google_pay'];
+const METHODS: ReadonlySet<CheckoutMethod> = new Set([
+  'card',
+  'apple_pay',
+  'google_pay',
+  'konbini',
+  'bank_transfer',
+  'paypay',
+]);
 /** The metadata key that marks a refund of the checkout, with the refund ID. */
 const REFUND_METADATA = 'seams_refund';
 /** The metadata key with the method of the attempt. */
@@ -66,7 +75,7 @@ function readFailure(body: Record<string, unknown>): RailFailure {
 }
 
 function intentState(intent: Record<string, unknown>): AttemptState {
-  const card = asRecord(intent.metadata)?.[METHOD_METADATA] === 'card';
+  const card = CARD_METHODS.includes(asRecord(intent.metadata)?.[METHOD_METADATA]);
   const nextAction = asRecord(intent.next_action)?.type;
   switch (intent.status) {
     case 'requires_payment_method':
@@ -169,6 +178,8 @@ function connectStripe(account: RailAccount, fetcher: typeof fetch): PaymentRail
     const billing = { name: details.full_name ?? '', email: details.email ?? '' };
     switch (attempt.method) {
       case 'card':
+      case 'apple_pay':
+      case 'google_pay':
         return details.email ? { receipt_email: details.email } : {};
       case 'konbini':
         return {
@@ -247,7 +258,9 @@ function connectStripe(account: RailAccount, fetcher: typeof fetch): PaymentRail
     events: { kind: 'webhook', verify },
     read,
     async start(attempt: RailAttempt): Promise<RailStarted> {
-      const type = attempt.method === 'bank_transfer' ? 'customer_balance' : attempt.method;
+      const { method } = attempt;
+      const wallet = method === 'apple_pay' || method === 'google_pay';
+      const type = method === 'bank_transfer' ? 'customer_balance' : wallet ? 'card' : method;
       const body: RailBody = {
         amount: attempt.amount,
         currency: attempt.currency.toLowerCase(),
@@ -262,17 +275,20 @@ function connectStripe(account: RailAccount, fetcher: typeof fetch): PaymentRail
       const intent = await http.post('/v1/payment_intents', body, attempt.id);
       const ref = requireNonEmptyString(intent.id, 'PaymentIntent id');
       const payment = paymentState(intent);
-      if (attempt.method !== 'card') return { ref, payment, ...nextStep(intent) };
+      if (method !== 'card' && !wallet) return { ref, payment, ...nextStep(intent) };
+      const publishableKey = account.public.publishableKey ?? '';
+      const clientSecret = requireNonEmptyString(intent.client_secret, 'PaymentIntent client secret');
       return {
         ref,
         payment,
-        start: {
-          kind: 'card_form',
-          fields: 'stripe',
-          publishableKey: account.public.publishableKey ?? '',
-          clientSecret: requireNonEmptyString(intent.client_secret, 'PaymentIntent client secret'),
-        },
+        start: wallet
+          ? { kind: 'wallet_button', wallet: method, publishableKey, clientSecret }
+          : { kind: 'card_form', fields: 'stripe', publishableKey, clientSecret },
       };
+    },
+    async registerWalletDomain(domain) {
+      // Apple Pay and Google Pay work only on a domain that the merchant's account names.
+      await http.post('/v1/payment_method_domains', { domain_name: domain });
     },
     async refund(ref, amount, refundId) {
       const refund = await http.post(

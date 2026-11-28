@@ -1,6 +1,7 @@
 # Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
-Status: 2026-11-28. Slices 2 to 4 and 7 are built on `dev`: the checkout Worker, the Stripe and
+Status: 2026-11-28. Slices 2 to 4, 7 and 8, the server part of Slice 9 and the Worker part of
+Slice 10 are built on `dev`: the checkout Worker, the Stripe and
 KOMOJU rails (cards, konbini, bank transfer, PayPay and KOMOJU's other Japanese methods), the
 merchant's server client, the page
 SDK, the checkout frame and an example shop. Section 8 has the result of each slice and what each open slice waits
@@ -1361,6 +1362,26 @@ Each slice ships alone and keeps the invariants of Section 9.
     carrier billing. `GET /payment_methods` in the test account shows the right one.
 - **Slice 8: Apple Pay and Google Pay.** The Stripe Express Checkout Element in the frame,
   domain registration and the `allow="payment"` chain.
+
+  Built on 2026-11-28 on `dev`, not released or deployed:
+  - **The methods `apple_pay` and `google_pay`** on the Stripe rail. Each has a card
+    PaymentIntent. The browser gets a `wallet_button` start, and the frame mounts the Stripe
+    Express Checkout Element with only that wallet. Its button replaces the Seams pay button
+    and opens the sheet of the device. A refused payment can be tried again, as a declined
+    card can.
+  - **The `allow="payment"` chain.** The page SDK makes the checkout frame with the payment
+    permission for the checkout origin only. Stripe's own frames inside it set their own.
+  - **A browser with no such wallet.** The element reports that no button shows, and the
+    frame says that the wallet is not available and keeps the other methods.
+  - **Domain registration.** `POST /checkout/projects/{project}/wallet-domains` registers a
+    domain at each connected rail that needs it (`registerWalletDomain`). The Stripe rail calls
+    `POST /v1/payment_method_domains`. The merchant registers the checkout origin, and Stripe
+    says that a frame needs the domain that the frame loads (Fact F15).
+  - **Tests:** the wallet button, the approval, the hidden pay button, the missing wallet, the
+    `allow` attribute and the registration call.
+  - **Waits for the owner (T1):** a real Apple Pay sheet. It needs Safari 17 or later, a
+    registered domain and a device with a card, so no test here runs it. The restricted key
+    also needs write access to payment method domains.
 - **Slice 9: headless mode, refunds and disputes.** `checkout.methods`, `select`, `pay`,
   `mountCardFrame`, server refunds (full and partial) through the rail of the payment, and the
   dispute event.
