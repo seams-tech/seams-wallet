@@ -17,6 +17,7 @@ import type {
 } from '@/core/transactionFeatures/hostPlugin';
 import { ENROLLMENT_PHRASES } from '@/core/transactionFeatures/hostApproval';
 import { forgetNoteSummaries } from '@/core/transactionFeatures/hostOperations';
+import { OUTLAYER_VERIFIER } from '@/core/transactionFeatures/verifiers/outlayer/outlayerVerifier';
 import type { WalletApprovalPlugin } from '@/core/transactionFeatures/plugins';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { createIframeSpeakToSignCommands } from '@/SeamsWeb/walletIframe/client/speakToSignCommands';
@@ -359,6 +360,8 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
       }
       return Response.json({ ok: true, output: { verdict_json: '{}' } });
     }) as typeof fetch,
+    // The route cases were written for the OutLayer input form: sealed audio.
+    verifierBackend: OUTLAYER_VERIFIER,
   };
   const handlers = createSpeakToSignWalletIframeHandlers(deps, ports);
   const handler = handlers.PM_SPEAK_TO_SIGN_TRANSFER;

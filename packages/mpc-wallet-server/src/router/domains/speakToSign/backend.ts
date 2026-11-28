@@ -28,10 +28,13 @@ export type SpeakToSignBackendResult =
 
 export type SpeakToSignBackendCall = Readonly<{
   /**
-   * The verifier input of Wallet core, unchanged: a spoken request (`op: 'verify'`) or an
-   * enrollment (`op: 'enroll'`). The route already checked that `owner` is the session account.
+   * The verifier input of Wallet core, unchanged: a spoken request (`op: 'verify'`), an
+   * enrollment (`op: 'enroll'`) or, on SaySo, the delete of the owner's voice template
+   * (`op: 'delete'`). The route already checked that `owner` is the session account.
    */
   input: Readonly<Record<string, unknown>>;
+  /** How the owner opened the Wallet Session: its auth method kind and when it was issued. */
+  session: Readonly<{ authMethodKind: string; issuedAtMs: number }>;
   logger: NormalizedRouterLogger;
   /** When the route got the request, for the backend's `serverMs`. */
   startedAtMs: number;
@@ -39,19 +42,22 @@ export type SpeakToSignBackendCall = Readonly<{
 
 export interface SpeakToSignBackend {
   readonly id: SpeakToSignBackendId;
+  /** The `op` values of the verifier input that the backend serves. */
+  readonly operations: ReadonlySet<string>;
   run(call: SpeakToSignBackendCall): Promise<SpeakToSignBackendResult>;
 }
 
 export const SPEAK_TO_SIGN_BACKEND_ENV = 'SPEAK_TO_SIGN_BACKEND';
 
 /**
- * The backend that the lane names in `SPEAK_TO_SIGN_BACKEND`. Unset means `outlayer`, the only
- * backend that is built. Another value stops the server at start.
+ * The backend that the lane names in `SPEAK_TO_SIGN_BACKEND`, or null when it names none. Another
+ * value stops the server at start.
  */
 export function readSpeakToSignBackendId(
   read: (name: typeof SPEAK_TO_SIGN_BACKEND_ENV) => string | undefined,
-): SpeakToSignBackendId {
-  const value = read(SPEAK_TO_SIGN_BACKEND_ENV)?.trim() || 'outlayer';
+): SpeakToSignBackendId | null {
+  const value = read(SPEAK_TO_SIGN_BACKEND_ENV)?.trim() || '';
+  if (value === '') return null;
   if (!isSpeakToSignBackendId(value)) {
     throw new Error(
       `${SPEAK_TO_SIGN_BACKEND_ENV} must be one of ${SPEAK_TO_SIGN_BACKEND_IDS.join(', ')}`,

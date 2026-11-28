@@ -98,6 +98,12 @@ build_oprf_runtime() {
       wasm-pack build --locked --target web --out-dir pkg --out-name oprf_runtime --release
 }
 
+build_spoken_intent() {
+  run_in_dir "$SOURCE_WASM_SPOKEN_INTENT" \
+    with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_SPOKEN_INTENT/Cargo.lock" \
+      wasm-pack build --locked --target web --out-dir pkg --out-name spoken_intent --release
+}
+
 build_ed25519_yao_client() {
   run_in_dir "$SOURCE_ED25519_YAO_CLIENT" \
     with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_ED25519_YAO_CLIENT/Cargo.lock" \
@@ -229,6 +235,7 @@ GATEWAY_WASM_SOURCES=(
   "$SOURCE_WASM_SIGNER"
   "$SOURCE_WASM_EVM_CRYPTO"
   "$SOURCE_WASM_OPRF_RUNTIME"
+  "$SOURCE_WASM_SPOKEN_INTENT"
 )
 FULL_SDK_WASM_SOURCES=(
   "$SOURCE_ED25519_YAO_CLIENT"
@@ -257,6 +264,7 @@ else
   start_job "NEAR signer WASM (release)" build_near_signer
   start_job "EVM crypto WASM ($DEFAULT_WASM_PROFILE_LABEL)" build_profiled_wasm_crate "$SOURCE_WASM_EVM_CRYPTO" evm_crypto
   start_job "OPRF runtime WASM (release)" build_oprf_runtime
+  start_job "Spoken intent WASM (release)" build_spoken_intent
   if [ "$WASM_SDK_BUILD_TARGET" = "all" ]; then
     start_job "Ed25519 Yao Client WASM (release)" build_ed25519_yao_client
     start_job "ECDSA client signer WASM (release)" build_router_ab_ecdsa_client
@@ -288,6 +296,9 @@ require_file "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto_bg.wasm"
 require_file "$SDK_ROOT/$SOURCE_WASM_OPRF_RUNTIME/pkg/oprf_runtime.js"
 require_file "$SDK_ROOT/$SOURCE_WASM_OPRF_RUNTIME/pkg/oprf_runtime.d.ts"
 require_file "$SDK_ROOT/$SOURCE_WASM_OPRF_RUNTIME/pkg/oprf_runtime_bg.wasm"
+require_file "$SDK_ROOT/$SOURCE_WASM_SPOKEN_INTENT/pkg/spoken_intent.js"
+require_file "$SDK_ROOT/$SOURCE_WASM_SPOKEN_INTENT/pkg/spoken_intent.d.ts"
+require_file "$SDK_ROOT/$SOURCE_WASM_SPOKEN_INTENT/pkg/spoken_intent_bg.wasm"
 if [ "$WASM_SDK_BUILD_TARGET" = "all" ]; then
   require_file "$SDK_ROOT/$SOURCE_ED25519_YAO_CLIENT/pkg/router_ab_ed25519_yao_client.js"
   require_file "$SDK_ROOT/$SOURCE_ED25519_YAO_CLIENT/pkg/router_ab_ed25519_yao_client.d.ts"

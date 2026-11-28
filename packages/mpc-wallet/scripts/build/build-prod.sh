@@ -106,6 +106,7 @@ if cp "$SDK_ROOT/$SOURCE_WASM_EMAIL_OTP_RUNTIME/pkg/email_otp_runtime.js" "$BUIL
 if cp "$SDK_ROOT/$SOURCE_WASM_OPRF_RUNTIME/pkg/oprf_runtime.js" "$BUILD_WORKERS/oprf_runtime.js" 2>/dev/null; then print_success "oprf_runtime.js copied"; else print_warning "oprf_runtime.js not found"; fi
 if cp "$SDK_ROOT/$SOURCE_WASM_EMAIL_OTP_RUNTIME/pkg/email_otp_runtime_bg.wasm" "$BUILD_WORKERS/email_otp_runtime_bg.wasm" 2>/dev/null; then print_success "email_otp_runtime_bg.wasm copied"; else print_warning "email_otp_runtime_bg.wasm not found"; fi
 if cp "$SDK_ROOT/$SOURCE_WASM_OPRF_RUNTIME/pkg/oprf_runtime_bg.wasm" "$BUILD_WORKERS/oprf_runtime_bg.wasm" 2>/dev/null; then print_success "oprf_runtime_bg.wasm copied"; else print_warning "oprf_runtime_bg.wasm not found"; fi
+if cp "$SDK_ROOT/$SOURCE_WASM_SPOKEN_INTENT/pkg/spoken_intent_bg.wasm" "$BUILD_WORKERS/spoken_intent_bg.wasm" 2>/dev/null; then print_success "spoken_intent_bg.wasm copied"; else print_warning "spoken_intent_bg.wasm not found"; fi
 if cp "$SDK_ROOT/$SOURCE_WASM_WALLET_CUSTODY_CEREMONY/pkg/wallet_custody_ceremony.js" "$BUILD_WORKERS/wallet_custody_ceremony.js" 2>/dev/null; then print_success "wallet_custody_ceremony.js copied"; else print_warning "wallet_custody_ceremony.js not found"; fi
 if cp "$SDK_ROOT/$SOURCE_WASM_WALLET_CUSTODY_CEREMONY/pkg/wallet_custody_ceremony_bg.wasm" "$BUILD_WORKERS/wallet_custody_ceremony_bg.wasm" 2>/dev/null; then print_success "wallet_custody_ceremony_bg.wasm copied"; else print_warning "wallet_custody_ceremony_bg.wasm not found"; fi
 

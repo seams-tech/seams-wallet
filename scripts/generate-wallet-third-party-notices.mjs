@@ -23,6 +23,7 @@ const cargoManifests = [
   'wasm/near_signer/Cargo.toml',
   'wasm/oprf_runtime/Cargo.toml',
   'wasm/router_ab_ecdsa_client/Cargo.toml',
+  'wasm/spoken_intent/Cargo.toml',
   'wasm/tempo_signer/Cargo.toml',
   'wasm/wallet_custody_ceremony/Cargo.toml',
 ];

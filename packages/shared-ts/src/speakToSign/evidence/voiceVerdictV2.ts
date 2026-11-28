@@ -17,8 +17,10 @@ import type {
   EvidenceRefusal,
   ExpectedEvidence,
   OpenedEvidence,
+  VerdictKeys,
 } from '../evidence';
 import type { SpeakToSignNetwork } from '../spokenRequest';
+import { sharedRefusal } from './verdictRefusals';
 
 /**
  * The verifier of each network: its OutLayer project, its project-bound verdict key and its
@@ -47,12 +49,20 @@ export const SPEAK_TO_SIGN_VERIFIERS: Readonly<
   mainnet: null,
 };
 
+/** The verdict key of each network, as the neutral checker reads it. */
+export const VOICE_VERDICT_V2_KEYS: VerdictKeys = {
+  testnet: SPEAK_TO_SIGN_VERIFIERS.testnet ? [SPEAK_TO_SIGN_VERIFIERS.testnet.publicKey] : [],
+  mainnet: SPEAK_TO_SIGN_VERIFIERS.mainnet ? [SPEAK_TO_SIGN_VERIFIERS.mainnet.publicKey] : [],
+};
+
 /**
  * The checker of a v2 verdict. `open` checks the key, the signature, the shape, the kind, the
  * renderer, the outcome and the expiry, and lets a `step_up` verdict pass as a step-up.
  */
 export const VOICE_VERDICT_V2_CHECKER: EvidenceChecker = {
   kind: 'voice_verdict_v2',
+  // The notes, rating and market contracts of the demo check a v2 verdict in the call.
+  reachesContracts: true,
   read(verdictJson) {
     const parsed = parseVerdict(verdictJson);
     if ('refusal' in parsed) return { kind: 'unreadable', refusal: refusalOf(parsed.refusal) };
@@ -60,14 +70,22 @@ export const VOICE_VERDICT_V2_CHECKER: EvidenceChecker = {
     if (outcome === 'refuse') return { kind: 'refused', reason, heard };
     return { kind: 'approves', expiresAtMs };
   },
-  async open({ verdictJson, signatureB64 }, { publicKey, nowMs }) {
-    const checked = await checkVerdict({
-      verdictJson,
-      signatureB64,
-      publicKey,
-      nowMs,
-      acceptStepUp: true,
-    });
+  async open({ verdictJson, signatureB64 }, { publicKeys, nowMs }) {
+    let checked: Awaited<ReturnType<typeof checkVerdict>> | null = null;
+    for (const publicKey of publicKeys) {
+      checked = await checkVerdict({
+        verdictJson,
+        signatureB64,
+        publicKey,
+        nowMs,
+        acceptStepUp: true,
+      });
+      // Another pinned key may have signed it.
+      if (checked.ok || refusalOf(checked.refusal).code !== 'signature_invalid') break;
+    }
+    if (!checked) {
+      return { ok: false, refusal: { code: 'signature_invalid', detail: 'no pinned verdict key' } };
+    }
     if (!checked.ok) return { ok: false, refusal: refusalOf(checked.refusal) };
     const { verdict } = checked;
     const evidence: OpenedEvidence = {
@@ -76,7 +94,7 @@ export const VOICE_VERDICT_V2_CHECKER: EvidenceChecker = {
       // The verifier signs a verdict with `expires_at_ms` 120 s after its own clock.
       signedAtMs: verdict.expires_at_ms - VERDICT_LIFE_MS,
       expiresAtMs: verdict.expires_at_ms,
-      bindingRefusal: (expected) => bindingRefusal(verdict, expected),
+      bindingRefusal: async (expected) => bindingRefusal(verdict, expected),
     };
     return { ok: true, evidence };
   },
@@ -103,29 +121,20 @@ function bindingRefusal(verdict: VoiceVerdict, expected: ExpectedEvidence): Evid
 }
 
 function refusalOf(refusal: VerdictRefusal): EvidenceRefusal {
+  const shared = sharedRefusal(refusal.code);
+  if (shared) return shared;
   switch (refusal.code) {
-    case 'bad_public_key':
-    case 'bad_signature_encoding':
-    case 'bad_signature':
-      return { code: 'signature_invalid', detail: 'verdict signature is invalid' };
-    case 'malformed':
-      return { code: 'invalid', detail: 'verdict fields are invalid' };
-    case 'wrong_kind':
-      return { code: 'invalid', detail: 'unknown verdict kind' };
     case 'wrong_renderer':
       return { code: 'invalid', detail: 'unknown renderer' };
-    case 'expired':
-    case 'not_yet_valid':
-      return { code: 'expired', detail: 'verdict expired or not yet valid' };
     case 'request_mismatch':
       return { code: 'mismatch', detail: 'request_digest differs' };
     case 'spoken_text_mismatch':
       return { code: 'mismatch', detail: 'spoken_text_digest differs' };
     case 'audio_mismatch':
       return { code: 'mismatch', detail: 'audio_digest is not a recording of this flow' };
-    // The callers read a refusal before they open the verdict, and `open` accepts a step-up.
-    case 'refused':
-    case 'step_up':
+    // The callers read a refusal before they open the verdict, and `open` accepts a step-up:
+    // `refused` and `step_up` do not come here.
+    default:
       return { code: 'invalid', detail: `unexpected ${refusal.code}` };
   }
 }

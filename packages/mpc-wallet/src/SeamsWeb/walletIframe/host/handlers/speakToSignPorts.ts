@@ -58,7 +58,8 @@ function loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]) {
   return loadWalletAuthMethodHostPlugin(methods, 'voiceid');
 }
 
-async function readOperationCredential(walletId: WalletId): Promise<string> {
+/** The Wallet Session's operation credential, which the Seams verify route admits. */
+export async function readOperationCredential(walletId: WalletId): Promise<string> {
   const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);
   if (selected.kind !== 'resolved') throw new Error('Unlock this wallet before a spoken payment.');
   const session = await walletSessionAuthorizations.readExactWithOperationCredential({

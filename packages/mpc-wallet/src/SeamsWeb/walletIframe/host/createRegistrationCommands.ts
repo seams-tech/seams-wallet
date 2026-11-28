@@ -27,6 +27,10 @@ import { readNearProvisioningState } from '@/core/signingEngine/flows/registrati
 import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
+import { findWalletApproval } from '@/core/transactionFeatures/plugins';
+import { deleteVoiceTemplate } from '@/core/transactionFeatures/voiceTemplate';
+import type { WalletId } from '@shared/utils/domainIds';
+import { readOperationCredential } from './handlers/speakToSignPorts';
 
 export function createWalletHostRegistrationCommands(
   getContext: () => RegistrationWebContext,
@@ -40,7 +44,7 @@ export function createWalletHostRegistrationCommands(
     activateAuthMethod: activateAuthMethod.bind(null, getContext),
     getAuthMethodAvailability: getAuthMethodAvailability.bind(null, getContext),
     setAuthMethodEnabled: setAuthMethodEnabled.bind(null, getContext, auth),
-    removeAuthMethod: removeAuthMethod.bind(null, getContext),
+    removeAuthMethod: removeAuthMethod.bind(null, getContext, auth),
     addEmail: addEmail.bind(null, getContext),
   };
 }
@@ -113,8 +117,17 @@ async function activateAuthMethod(
 
 async function removeAuthMethod(
   getContext: () => RegistrationWebContext,
+  auth: Pick<WalletSessionCommands, 'getSession'>,
   args: Parameters<RegistrationCapability['removeAuthMethod']>[0],
 ): Promise<Awaited<ReturnType<RegistrationCapability['removeAuthMethod']>>> {
+  const walletId = toWalletId(args.walletId);
+  const availability = await readVoiceIdAvailability(walletId);
+  if (
+    availability.kind !== 'not_enrolled' &&
+    availability.walletAuthMethodId === args.walletAuthMethodId
+  ) {
+    await deleteSpokenVoiceTemplate(getContext(), auth, walletId);
+  }
   const result = await revokeWalletAuthMethodOperation({
     context: getContext(),
     walletId: args.walletId,
@@ -166,9 +179,42 @@ async function setAuthMethodEnabled(
     throw new Error('Unlock with a passkey or Email OTP before enabling VoiceID.');
   if (!args.enabled && !(await hasOtherActiveAuthMethod(walletId, availability.walletAuthMethodId)))
     throw new Error('Add another authentication method before turning off VoiceID.');
+  if (!args.enabled) await deleteSpokenVoiceTemplate(getContext(), auth, walletId);
   await writeAuthMethodEnabled(walletId, availability.walletAuthMethodId, args.enabled);
   if (!args.enabled && session.authentication.authMethod === 'voiceid') await auth.lock();
   return args.enabled
     ? { kind: 'enabled', walletAuthMethodId: availability.walletAuthMethodId }
     : { kind: 'disabled', walletAuthMethodId: availability.walletAuthMethodId };
+}
+
+/**
+ * Deletes the owner's voice template at the lane's Speak-to-Sign verifier before VoiceID goes
+ * off. The Seams co-signer accepts a verdict whatever the local switch says, so only the delete
+ * stops spoken approvals at the verifier. A failure stops the change, and the owner can try
+ * again. A wallet without Speak-to-Sign, or whose backend keeps no template here, has nothing to
+ * delete.
+ */
+async function deleteSpokenVoiceTemplate(
+  context: RegistrationWebContext,
+  auth: Pick<WalletSessionCommands, 'getSession'>,
+  walletId: WalletId,
+): Promise<void> {
+  const feature = findWalletApproval(context.configs.approvals, 'spoken');
+  const serverUrl = String(context.configs.network.relayer?.url || '').trim();
+  if (!feature || !serverUrl) return;
+  const session = await auth.getSession(walletId);
+  const owner = session.appIdentity.kind === 'resolved' ? session.appIdentity.nearAccountId : null;
+  if (!owner) return;
+  const deletion = await deleteVoiceTemplate({
+    serverUrl,
+    operationCredential: await readOperationCredential(walletId),
+    network: feature.network,
+    owner,
+    fetch: (url, init) => fetch(url, init),
+  });
+  if (deletion.kind === 'failed') {
+    throw new Error(
+      `The verifier did not delete the voice template (${deletion.code}). Try again.`,
+    );
+  }
 }

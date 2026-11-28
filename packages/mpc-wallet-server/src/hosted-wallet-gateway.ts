@@ -106,7 +106,10 @@ import {
 } from './cloud-host';
 import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './cloud-host';
 import { BACKEND_EVIDENCE_KIND } from '@shared/speakToSign/evidence';
-import { createSpeakToSignBackend } from './router/domains/speakToSign/backends/select';
+import {
+  createSpeakToSignBackend,
+  type SaySoServiceBinding,
+} from './router/domains/speakToSign/backends/select';
 import { createSpeakToSignVerifyRouteExtensions } from './router/domains/speakToSign/speakToSignVerify';
 import { readSpeakToSignSummaryConfig } from './router/domains/speakToSign/speakToSignSummary';
 import { createD1VoiceVerdictLedger } from './router/cloudflare/d1/speakToSign/d1VoiceVerdictLedger';
@@ -172,8 +175,15 @@ export interface CloudflareD1GatewayBaseEnv
   readonly EMAIL_OTP_LOCKOUT_TTL_MS?: string;
   readonly EMAIL_OTP_GOOGLE_REGISTRATION_ATTEMPT_RATE_LIMIT_MAX?: string;
   readonly EMAIL_OTP_GOOGLE_REGISTRATION_ATTEMPT_RATE_LIMIT_WINDOW_MS?: string;
-  /** The Speak-to-Sign verifier backend of the lane. Unset means `outlayer`. */
+  /**
+   * The Speak-to-Sign verifier backend of the lane: `sayso` or `outlayer`. Unset with no backend
+   * setting: the lane has no verify route. Unset beside a backend's settings stops the start.
+   */
   readonly SPEAK_TO_SIGN_BACKEND?: string;
+  /** The SaySo Worker of the lane, as a service binding. */
+  readonly SAYSO?: SaySoServiceBinding;
+  /** The `SAYSO_API_KEY` of that Worker. */
+  readonly SAYSO_API_KEY?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_BASE_URL?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_PROJECT?: string;
   readonly SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY?: string;
@@ -810,6 +820,7 @@ async function createHostedWalletGatewayCompositionV1(
     fetch: globalThis.fetch.bind(globalThis),
     // The status check of NEAR AI's Whisper uses the key of the summary route.
     nearAiApiKey: noteSummary?.apiKey ?? null,
+    saysoBinding: env.SAYSO ?? null,
   });
   const handler = createCloudflareWalletGatewayRouterV1({
     service,

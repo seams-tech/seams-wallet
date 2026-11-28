@@ -21,17 +21,36 @@ const aliases = [
   ['@shared/', 'packages/shared-ts/src/'],
 ];
 
-const serverOutLayer =
-  'packages/mpc-wallet-server/src/router/domains/speakToSign/backends/outlayer/';
-const sdkOutLayer = 'packages/mpc-wallet/src/core/transactionFeatures/verifiers/outlayer/';
+const serverBackends = 'packages/mpc-wallet-server/src/router/domains/speakToSign/backends/';
+const sdkBackends = 'packages/mpc-wallet/src/core/transactionFeatures/verifiers/';
 const evidenceKinds = 'packages/shared-ts/src/speakToSign/evidence/';
-const v2Evidence = `${evidenceKinds}voiceVerdictV2.ts`;
 const evidenceChecker = 'packages/shared-ts/src/speakToSign/evidence.ts';
 
-/** The libraries of the OutLayer backend, and the paths that may import them. */
+/** The libraries of each backend, and the paths that may import them. */
 const libraries = [
-  { name: /^@seams\/voice-sign(?:\/|$)/u, owners: [serverOutLayer] },
-  { name: /^@seams\/voice-verdict(?:\/|$)/u, owners: [serverOutLayer, sdkOutLayer, v2Evidence] },
+  {
+    backend: 'OutLayer',
+    name: /^@seams\/voice-sign(?:\/|$)/u,
+    owners: [`${serverBackends}outlayer/`],
+  },
+  {
+    backend: 'OutLayer',
+    name: /^@seams\/voice-verdict(?:\/|$)/u,
+    owners: [
+      `${serverBackends}outlayer/`,
+      `${sdkBackends}outlayer/`,
+      `${evidenceKinds}voiceVerdictV2.ts`,
+    ],
+  },
+  {
+    backend: 'SaySo',
+    name: /^@seams\/sayso-verdict(?:\/|$)/u,
+    owners: [
+      `${serverBackends}sayso/`,
+      `${sdkBackends}sayso/`,
+      `${evidenceKinds}saysoVerdictV1.ts`,
+    ],
+  },
 ];
 
 /**
@@ -51,16 +70,10 @@ const summaryImports = new Map([
 ]);
 
 /** Each backend module, and the one selector of its side that may import it from outside. */
-const modules = [
-  {
-    folder: serverOutLayer,
-    selector: 'packages/mpc-wallet-server/src/router/domains/speakToSign/backends/select.ts',
-  },
-  {
-    folder: sdkOutLayer,
-    selector: 'packages/mpc-wallet/src/core/transactionFeatures/verifiers/backend.ts',
-  },
-];
+const modules = ['outlayer', 'sayso'].flatMap((backend) => [
+  { folder: `${serverBackends}${backend}/`, selector: `${serverBackends}select.ts` },
+  { folder: `${sdkBackends}${backend}/`, selector: `${sdkBackends}backend.ts` },
+]);
 
 function* sourceFiles(folder) {
   for (const entry of fs.readdirSync(path.join(repoRoot, folder), { withFileTypes: true })) {
@@ -92,7 +105,9 @@ for (const folder of sources) {
         if (!library.name.test(specifier)) continue;
         const owned = library.owners.some((owner) => file === owner || file.startsWith(owner));
         if (!owned && summaryImports.get(file) !== specifier) {
-          offenders.push(`${file}: imports ${specifier}, a library of the OutLayer backend`);
+          offenders.push(
+            `${file}: imports ${specifier}, a library of the ${library.backend} backend`,
+          );
         }
       }
       const target = resolveSpecifier(file, specifier);

@@ -2,7 +2,7 @@
 // `SpokenRequestV1::SignedMessage`. The owner says a summary, and the verdict binds the 32 bytes
 // that the key signs. The crate's golden vector checks the Borsh bytes and the digest.
 
-import { spokenRequestBorsh } from '@shared/speakToSign/spokenRequest';
+import { spokenRequestBorsh, type SpokenRequest } from '@shared/speakToSign/spokenRequest';
 import type { SpeakToSignNetwork } from './plugins';
 import { hex, renderSummary, summaryRefusal } from './spokenNote';
 import { spokenDigests, type RenderedTransfer, type SpokenDigests } from './spokenTransfer';
@@ -36,18 +36,27 @@ export function renderMessage(action: SpokenMessageAction): RenderedTransfer {
   return renderSummary(action.summary);
 }
 
-export async function messageDigests(
+/** The request of the message: the 32 bytes that the key signs, and the summary. */
+export function messageRequest(
   network: SpeakToSignNetwork,
   owner: string,
   action: SpokenMessageAction,
-): Promise<SpokenDigests> {
-  const borsh = spokenRequestBorsh({
+): SpokenRequest {
+  return {
     kind: 'signed_message',
     network,
     owner,
     payloadSha256: action.payloadSha256,
     summary: action.summary,
-  });
+  };
+}
+
+export async function messageDigests(
+  network: SpeakToSignNetwork,
+  owner: string,
+  action: SpokenMessageAction,
+): Promise<SpokenDigests> {
+  const borsh = spokenRequestBorsh(messageRequest(network, owner, action));
   return await spokenDigests(borsh, renderMessage(action).spokenText);
 }
 

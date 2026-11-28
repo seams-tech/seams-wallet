@@ -30,6 +30,7 @@ import { isD1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/d
 import type { D1DatabaseLike } from '../../packages/mpc-wallet-server/src/storage/tenantRoute';
 import { prepareRouterAbNormalSigningV2 } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
+import { saysoKey, saysoVerdict, type SaySoKey } from './helpers/saysoVerdict';
 
 const NOW_MS = 1_762_700_000_000;
 const NEAR = 10n ** 24n;
@@ -243,7 +244,11 @@ function database(): D1DatabaseLike {
   return opened;
 }
 
-function harness(verifier: Verifier, options: { configured?: boolean } = {}): Harness {
+/** With `sayso`, the lane's backend is SaySo with that verdict key. */
+function harness(
+  verifier: Verifier,
+  options: { configured?: boolean; sayso?: SaySoKey } = {},
+): Harness {
   namespaceCount += 1;
   const ledger = createD1VoiceVerdictLedger({
     database: database(),
@@ -252,15 +257,11 @@ function harness(verifier: Verifier, options: { configured?: boolean } = {}): Ha
   let nowMs = NOW_MS;
   const warnings: unknown[][] = [];
   const voiceVerdicts: SpeakToSignVoiceVerdictCheck = {
-    evidenceKind: 'voice_verdict_v2',
+    evidenceKind: options.sayso ? 'sayso_verdict_v1' : 'voice_verdict_v2',
     ledger,
-    verifiers: {
-      testnet: {
-        project: 'seams-v1.testnet/voice-verifier',
-        publicKey: verifier.publicKey,
-        audioKey: '',
-      },
-      mainnet: null,
+    verdictKeys: {
+      testnet: [options.sayso ? options.sayso.publicKeyHex : verifier.publicKey],
+      mainnet: [],
     },
     now: () => nowMs,
   };
@@ -1356,4 +1357,125 @@ test('the Wallet sends the verdict beside the prepare request and reads the type
     { ...request, voice_verdict: { verdict_json: '{"kind":"v"}', signature_b64: 'c2ln' } },
     request,
   ]);
+});
+
+// ---------------------------------------------------------------- the SaySo kind
+
+/** A SaySo verdict for `request`, heard as `heard`. */
+async function saysoFor(key: SaySoKey, request: SpokenRequest, heard: string | null) {
+  const digest = await spokenRequestDigest(spokenRequestBorsh(request));
+  return await saysoVerdict(key, request, digest, { heard, expiresAtMs: NOW_MS + 120_000 });
+}
+
+test('on a SaySo lane the co-signer admits a transfer whose transcript reads as the transaction', async () => {
+  const key = await saysoKey();
+  const cosigner = harness(await verifierKey(), { sayso: key });
+  const tx = (yocto: bigint, receiver = 'alice.testnet') =>
+    prepareBody(unsignedTransaction({ receiver, actions: [{ kind: 'transfer', yocto }] }), {
+      requestId: `sayso-${yocto}-${receiver}`,
+    });
+  const heard = 'Send 2 NEAR to alice.testnet.';
+  expect(
+    await cosigner.check(withVerdict(tx(2n * NEAR), await saysoFor(key, transfer(2n), heard))),
+  ).toEqual(ADMITTED);
+  // The co-signer has no contact list: it reads the heard receiver against the transaction's.
+  for (const said of ['Send 3 NEAR to alice.testnet.', 'Send 2 NEAR to mallory.testnet.']) {
+    const verdict = await saysoFor(key, transfer(2n), said);
+    expect(await cosigner.check(withVerdict(tx(2n * NEAR), verdict)), said).toEqual(
+      refused('request_mismatch'),
+    );
+  }
+  // A verdict for another amount signs no transaction of this one.
+  const forTwo = await saysoFor(key, transfer(2n), heard);
+  expect(await cosigner.check(withVerdict(tx(5n * NEAR), forTwo))).toEqual(
+    refused('request_mismatch'),
+  );
+});
+
+test('a SaySo lane refuses a verdict v2, and an OutLayer lane refuses a SaySo verdict', async () => {
+  const verifier = await verifierKey();
+  const key = await saysoKey();
+  const body = prepareBody(
+    unsignedTransaction({
+      receiver: 'alice.testnet',
+      actions: [{ kind: 'transfer', yocto: 2n * NEAR }],
+    }),
+  );
+  const v2 = await signedVerdict(verifier, transfer(2n));
+  const sayso = await saysoFor(key, transfer(2n), 'Send 2 NEAR to alice.testnet.');
+  expect(await harness(verifier, { sayso: key }).check(withVerdict(body, v2))).toEqual(
+    refused('verdict_invalid'),
+  );
+  expect(await harness(verifier).check(withVerdict(body, sayso))).toEqual(
+    refused('verdict_invalid'),
+  );
+});
+
+test('a SaySo verdict of another key, a mock build or a refusal is refused', async () => {
+  const key = await saysoKey();
+  const cosigner = harness(await verifierKey(), { sayso: key });
+  const body = (id: string) =>
+    prepareBody(
+      unsignedTransaction({
+        receiver: 'alice.testnet',
+        actions: [{ kind: 'transfer', yocto: 2n * NEAR }],
+      }),
+      { requestId: id },
+    );
+  const other = await saysoFor(await saysoKey(), transfer(2n), 'Send 2 NEAR to alice.testnet.');
+  expect(await cosigner.check(withVerdict(body('other'), other))).toEqual(
+    refused('signature_invalid'),
+  );
+  const digest = await spokenRequestDigest(spokenRequestBorsh(transfer(2n)));
+  const mock = await saysoVerdict(key, transfer(2n), digest, {
+    heard: 'Send 2 NEAR to alice.testnet.',
+    expiresAtMs: NOW_MS + 120_000,
+    overrides: { verifier: 'sayso/0.2.0+mock' },
+  });
+  expect(await cosigner.check(withVerdict(body('mock'), mock))).toEqual(refused('verdict_invalid'));
+  const refusal = await saysoVerdict(key, transfer(2n), digest, {
+    heard: null,
+    expiresAtMs: NOW_MS + 120_000,
+    overrides: { outcome: 'refuse', reason: 'speaker' },
+  });
+  expect(await cosigner.check(withVerdict(body('refused'), refusal))).toEqual(
+    refused('verdict_invalid'),
+  );
+});
+
+test('on a SaySo lane a bet carries no verdict to its market, and a carried one is refused', async () => {
+  const key = await saysoKey();
+  const cosigner = harness(await verifierKey(), { sayso: key });
+  const usdc = '3e2210e1184b45b64c8a434c0a7e7b23cc04ea7eb7a6c3c32520d03d4afcb8af';
+  const bet: SpokenRequest = {
+    kind: 'market_bet',
+    network: 'testnet',
+    owner: OWNER,
+    market: 'pm-notes.testnet',
+    token: usdc,
+    marketId: 9n,
+    outcome: 'yes',
+    amountUnits: 500_000n,
+  };
+  const verdict = await saysoFor(key, bet, 'Bet 0.5 USDC yes on market 9.');
+  const call = (msg: Record<string, unknown>, id: string) =>
+    prepareBody(
+      unsignedTransaction({
+        receiver: usdc,
+        actions: [
+          {
+            kind: 'call',
+            method: 'ft_transfer_call',
+            args: { receiver_id: 'pm-notes.testnet', amount: '500000', msg: JSON.stringify(msg) },
+            depositYocto: 1n,
+          },
+        ],
+      }),
+      { requestId: id },
+    );
+  const plain = { action: 'bet', market_id: 9, outcome: 'yes' };
+  expect(await cosigner.check(withVerdict(call(plain, 'plain'), verdict))).toEqual(ADMITTED);
+  expect(
+    await cosigner.check(withVerdict(call({ ...plain, ...verdict }, 'carried'), verdict)),
+  ).toEqual(refused('request_mismatch'));
 });

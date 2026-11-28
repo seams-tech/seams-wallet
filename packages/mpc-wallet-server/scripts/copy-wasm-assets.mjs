@@ -18,6 +18,10 @@ const assets = [
     source: 'wasm/oprf_runtime/pkg/oprf_runtime_bg.wasm',
     target: 'dist/esm/wasm/oprf_runtime/pkg/oprf_runtime_bg.wasm',
   },
+  {
+    source: 'wasm/spoken_intent/pkg/spoken_intent_bg.wasm',
+    target: 'dist/esm/wasm/spoken_intent/pkg/spoken_intent_bg.wasm',
+  },
 ];
 
 function copyAsset(asset) {
@@ -46,7 +50,7 @@ function rewriteBuiltWasmImports(esmRoot) {
 
 function rewriteWasmImportsInFile(source, filePath, esmRoot) {
   const pattern =
-    /(?:\.\.\/)+wasm\/(near_signer|evm_crypto|oprf_runtime)\/pkg\/([A-Za-z0-9_]+\.wasm)/gu;
+    /(?:\.\.\/)+wasm\/(near_signer|evm_crypto|oprf_runtime|spoken_intent)\/pkg\/([A-Za-z0-9_]+\.wasm)/gu;
   let rewritten = '';
   let cursor = 0;
   for (const match of source.matchAll(pattern)) {

@@ -59,6 +59,10 @@ import type {
   PMSpeakToSignTransferPayload,
 } from '../../shared/speakToSign';
 import type { SpokenNoteAction } from '@/core/transactionFeatures/spokenNote';
+import type {
+  FreshApproval,
+  SpeakToSignVerifierBackend,
+} from '@/core/transactionFeatures/verifiers/backend';
 import { respondOkResult, withProgress } from './shared';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 
@@ -79,6 +83,8 @@ export type SpeakToSignWalletPorts = Readonly<{
     transaction: TransactionInput,
   ): Promise<Uint8Array<ArrayBuffer>>;
   fetch: typeof fetch;
+  /** Tests pass another verifier backend. The Wallet uses the one of Wallet core. */
+  verifierBackend?: SpeakToSignVerifierBackend;
 }>;
 
 /** The host checks cancellation by request id, so the handler turns it into a signal. */
@@ -265,6 +271,7 @@ async function prepareFlow(
       ownerAccountId,
     ),
     signMessage: signMessage.bind(null, deps, request.requestId, walletId, ownerAccountId),
+    freshApproval: freshApproval.bind(null, deps, request.requestId, walletId),
     openPhrase: openPhrase.bind(null, ports, runtime.configs.authMethods),
     prepareSigning: async () => {
       const context = runtime.getContext();
@@ -279,6 +286,7 @@ async function prepareFlow(
       }),
     fetch: ports.fetch,
     adopted,
+    ...(ports.verifierBackend ? { backend: ports.verifierBackend } : {}),
   });
   // The flow is available: a note's summary starts while the Speak-to-Sign code loads.
   early?.(operations);
@@ -609,6 +617,26 @@ function forwardProgress(
   if ('phase' in payload && payload.phase === SigningEventPhase.STEP_12_BROADCAST_STARTED) {
     onBroadcast();
   }
+}
+
+/**
+ * A fresh passkey unlock of the wallet, which issues a new Wallet Session. The SaySo verify route
+ * enrolls a voice only with such a session. A VoiceID unlock is the voice again, so it never
+ * counts.
+ */
+async function freshApproval(
+  deps: HandlerDeps,
+  requestId: string | undefined,
+  walletId: WalletId,
+  signal: AbortSignal,
+): Promise<FreshApproval> {
+  signal.throwIfAborted();
+  const result = await deps.getWalletRuntime().auth.unlock(String(walletId), {
+    ...withProgress(deps, requestId, {}),
+    unlockSelection: { mode: 'ed25519_only', ed25519: true },
+  });
+  await deps.publishCurrentSession();
+  return result.success ? { kind: 'approved' } : { kind: 'not_approved', error: result.error };
 }
 
 async function signMessage(

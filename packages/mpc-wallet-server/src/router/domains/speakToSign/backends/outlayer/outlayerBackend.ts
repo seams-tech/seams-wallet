@@ -179,6 +179,8 @@ function resolveConfig(
 
 class OutLayerBackend implements SpeakToSignBackend {
   readonly id = 'outlayer' as const;
+  // The verifier keeps its templates in OutLayer storage and has no delete.
+  readonly operations: ReadonlySet<string> = new Set(['verify', 'enroll']);
 
   constructor(
     private readonly verifiers: Verifiers,

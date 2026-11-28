@@ -13,6 +13,8 @@ import type { SpeakToSignNetwork } from './plugins';
 import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
 import type { VerifierRefusal, VoiceApproval } from './voiceVerdict';
+import type { SpokenIntent } from './spokenIntent';
+import type { SpokenVerifyInput } from './verifiers/backend';
 
 export type SpeakToSignUnavailableReason =
   /** The Wallet route supplied no transfer, so the host plugin cannot start one. */
@@ -426,7 +428,11 @@ export type SpeakToSignPaymentHooks = Readonly<{
 export type SpeakToSignEnrollmentAuthorization =
   | Readonly<{
       kind: 'signed';
-      authorization: Readonly<{ public_key: string; signature_b64: string; nonce_b64: string }>;
+      /**
+       * The proof that goes with the clips: the owner's signed statement for OutLayer. Null for
+       * SaySo, where the fresh Wallet Session of the verify call is the proof.
+       */
+      authorization: Readonly<Record<string, string>> | null;
     }>
   | Readonly<{ kind: 'not_signed'; error: string }>;
 
@@ -479,6 +485,11 @@ export type SpeakToSignHostOperations = Readonly<{
   openPrompt(request: SpeakToSignClipRequest): Promise<SpeakToSignPromptResult>;
   /** True if the account exists on the feature's network. */
   receiverExists(accountId: string, signal: AbortSignal): Promise<boolean>;
+  /**
+   * The verify input of the lane's backend for this intent, before its recording, or why the
+   * request is above the verifier's limits. Core asks it before the card opens.
+   */
+  prepareVerify(intent: SpokenIntent): Promise<SpokenVerifyInput>;
   verify(
     input: Readonly<Record<string, unknown>>,
     signal: AbortSignal,

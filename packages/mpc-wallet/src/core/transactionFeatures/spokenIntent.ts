@@ -10,26 +10,23 @@ import {
   type SpokenFieldsRefusal,
   type SpokenTypedFields,
 } from '@shared/speakToSign/spokenKinds';
+import { spokenRequestBorsh, type SpokenRequest } from '@shared/speakToSign/spokenRequest';
 import type { SpeakToSignNetwork } from './plugins';
 import {
   messageActionRefusal,
-  messageDigests,
+  messageRequest,
   messageVerifyRequest,
   renderMessage,
   type SpokenMessageAction,
 } from './spokenMessage';
 import {
-  noteActionDigests,
   noteActionRefusal,
+  noteActionRequest,
   noteVerifyRequest,
   renderNoteAction,
   type SpokenNoteAction,
 } from './spokenNote';
-import {
-  transferDigests,
-  type RenderedTransfer,
-  type SpokenDigests,
-} from './spokenTransfer';
+import { spokenDigests, type RenderedTransfer, type SpokenDigests } from './spokenTransfer';
 
 /**
  * The thing to sign for one spoken request: the fields of a typed kind (`SPOKEN_KINDS`), a
@@ -60,20 +57,27 @@ export function intentRefusal(
   return spokenFieldsRefusal(intent, network);
 }
 
+/** The request that a verdict for this intent names, with its request and spoken-text digests. */
+export async function intentEvidence(
+  network: SpeakToSignNetwork,
+  owner: string,
+  intent: SpokenIntent,
+): Promise<Readonly<{ request: SpokenRequest; digests: SpokenDigests }>> {
+  const request =
+    intent.kind === 'signed_message'
+      ? messageRequest(network, owner, intent.message)
+      : await noteActionRequest(network, owner, intent);
+  const digests = await spokenDigests(spokenRequestBorsh(request), renderIntent(intent).spokenText);
+  return { request, digests };
+}
+
 /** The request digest and the spoken-text digest that a verdict for this intent names. */
 export async function intentDigests(
   network: SpeakToSignNetwork,
   owner: string,
   intent: SpokenIntent,
 ): Promise<SpokenDigests> {
-  if (intent.kind === 'signed_message') return await messageDigests(network, owner, intent.message);
-  if (intent.kind !== 'account_transfer') return await noteActionDigests(network, owner, intent);
-  return await transferDigests({
-    network,
-    owner,
-    receiver: intent.receiver,
-    amountYocto: intent.amountYocto,
-  });
+  return (await intentEvidence(network, owner, intent)).digests;
 }
 
 /** The sentence of the intent: what the card shows and the words that the owner says. */

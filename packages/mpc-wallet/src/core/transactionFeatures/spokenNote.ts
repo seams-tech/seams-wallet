@@ -16,6 +16,7 @@ import {
   spokenRequestOfFields,
   spokenVerifyRequest,
   type SpokenCall,
+  type SpokenCallVerdict,
   type SpokenTypedFields,
 } from '@shared/speakToSign/spokenKinds';
 import {
@@ -24,6 +25,7 @@ import {
   spokenRequestBorsh,
   utf8,
   type NoteRating,
+  type SpokenRequest,
 } from '@shared/speakToSign/spokenRequest';
 import {
   MAX_SUMMARY_BYTES,
@@ -35,7 +37,6 @@ import {
 import { isValidAccountId } from '@shared/utils/near';
 import type { SpeakToSignNetwork } from './plugins';
 import { spokenDigests, type RenderedTransfer, type SpokenDigests } from './spokenTransfer';
-import type { SignedVoiceVerdict } from './voiceVerdict';
 
 export {
   hex,
@@ -117,23 +118,30 @@ export async function noteSha256(text: string): Promise<Uint8Array<ArrayBuffer>>
   return await sha256(utf8(text));
 }
 
-/** Borsh of the request kind of the action, whose explicit tags are 4 to 8. */
-export async function noteActionBorsh(
+/** The request of the action or of a transfer: one transaction that core sends or signs. */
+export async function noteActionRequest(
   network: SpeakToSignNetwork,
   owner: string,
-  action: SpokenNoteAction,
-): Promise<Uint8Array> {
-  if (action.kind !== 'transaction') {
-    return spokenRequestBorsh(await spokenRequestOfFields(action, network, owner));
-  }
-  return spokenRequestBorsh({
+  action: SpokenNoteAction | Extract<SpokenTypedFields, { kind: 'account_transfer' }>,
+): Promise<SpokenRequest> {
+  if (action.kind !== 'transaction') return await spokenRequestOfFields(action, network, owner);
+  return {
     kind: 'transaction',
     network,
     owner,
     receiver: action.transaction.receiverId,
     actionsSha256: action.actionsSha256,
     summary: action.summary,
-  });
+  };
+}
+
+/** Borsh of the request of the action. */
+export async function noteActionBorsh(
+  network: SpeakToSignNetwork,
+  owner: string,
+  action: SpokenNoteAction,
+): Promise<Uint8Array> {
+  return spokenRequestBorsh(await noteActionRequest(network, owner, action));
 }
 
 export async function noteActionDigests(
@@ -167,7 +175,7 @@ export async function noteVerifyRequest(
  */
 export function noteTransaction(
   action: SpokenNoteAction,
-  verdict: SignedVoiceVerdict,
+  verdict: SpokenCallVerdict | null,
 ): TransactionInput {
   if (action.kind === 'transaction') return action.transaction;
   return spokenCallTransaction(spokenCallOfFields(action, verdict));

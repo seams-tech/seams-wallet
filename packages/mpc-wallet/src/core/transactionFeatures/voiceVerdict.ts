@@ -2,15 +2,9 @@
 // an accepted verdict replaces the confirm click. The Seams co-signer checks it again. Both check
 // it with the checker of its evidence kind.
 
-import {
-  evidenceChecker,
-  type SpeakToSignVerifier,
-  type SpokenEvidenceKind,
-} from '@shared/speakToSign/evidence';
-import { isPlainObject } from '@shared/utils/validation';
+import { evidenceChecker, type SpokenEvidenceKind } from '@shared/speakToSign/evidence';
+import type { SpokenRequest } from '@shared/speakToSign/spokenRequest';
 import type { SpokenDigests } from './spokenTransfer';
-
-const VERIFY_OUTPUT_KIND = 'seams_voice_verify_output_v2';
 
 const VERIFIER_REFUSALS = [
   'quality',
@@ -36,7 +30,7 @@ export type VerifierRefusal = (typeof VERIFIER_REFUSALS)[number];
 /** `voice`: the verdict alone approves. `voice_and_passkey`: a policy rule asks for a passkey. */
 export type VoiceApproval = 'voice' | 'voice_and_passkey';
 
-/** The verifier output that the Seams verify route passes through unchanged. */
+/** The verifier output that the Seams verify route passes through, as its backend reads it. */
 export type VerifyOutput = Readonly<{
   verdictJson: string;
   signatureB64: string | null;
@@ -73,35 +67,20 @@ export type VoiceVerdictCheck =
   | Readonly<{ kind: 'refused'; reason: VerifierRefusal; detail?: string }>
   | Readonly<{ kind: 'mismatch'; detail: string }>;
 
-export function parseVerifyOutput(value: unknown): VerifyOutput | null {
-  if (
-    !isPlainObject(value) ||
-    value.kind !== VERIFY_OUTPUT_KIND ||
-    typeof value.verdict_json !== 'string'
-  ) {
-    return null;
-  }
-  return {
-    verdictJson: value.verdict_json,
-    signatureB64: typeof value.signature_b64 === 'string' ? value.signature_b64 : null,
-    publicKey: typeof value.public_key === 'string' ? value.public_key : null,
-    policyText: typeof value.policy_text === 'string' ? value.policy_text.slice(0, 200) : null,
-    ms: isPlainObject(value.ms) ? value.ms : {},
-  };
-}
-
 /**
  * Checks a verdict against the request that core will sign, in the order of its checker: the
  * text, the key and signature, the kind, the outcome, the expiry, the request and spoken-text
- * digests, and then that the audio digest is a clip of this flow. A refusal signs nothing, so it
- * needs no signature check: core only shows its reason and what was heard.
+ * digests, that the audio digest is a clip of this flow, and for a transcript the words. A
+ * refusal signs nothing, so it needs no signature check: core only shows its reason and what
+ * was heard.
  */
 export async function checkVoiceVerdict(input: {
   readonly kind: SpokenEvidenceKind;
   readonly output: VerifyOutput;
-  /** The digests of the request that core built itself. */
-  readonly expected: SpokenDigests;
-  readonly verifier: SpeakToSignVerifier;
+  /** The request that core built itself, and its digests. */
+  readonly expected: Readonly<{ request: SpokenRequest; digests: SpokenDigests }>;
+  /** The pinned verdict keys of the network. */
+  readonly publicKeys: readonly string[];
   /** base64url SHA-256 of each clip that core recorded in this flow. */
   readonly recordedAudio: ReadonlySet<string>;
   readonly nowMs: number;
@@ -116,19 +95,24 @@ export async function checkVoiceVerdict(input: {
       ? { kind: 'refused', reason, ...heardDetail(reading.heard) }
       : { kind: 'mismatch', detail: 'unknown refusal' };
   }
-  if (!signatureB64 || publicKey !== input.verifier.publicKey) {
+  if (!signatureB64 || publicKey === null || !input.publicKeys.includes(publicKey)) {
     return { kind: 'mismatch', detail: 'verdict key is not the pinned verifier key' };
   }
   const opened = await checker.open(
     { verdictJson, signatureB64 },
-    { publicKey: input.verifier.publicKey, nowMs: input.nowMs },
+    { publicKeys: input.publicKeys, nowMs: input.nowMs },
   );
   if (!opened.ok) return { kind: 'mismatch', detail: opened.refusal.detail };
-  const unbound = opened.evidence.bindingRefusal({
-    requestDigest: input.expected.request,
-    spokenTextDigest: input.expected.spokenText,
+  const { request, digests } = input.expected;
+  const unbound = await opened.evidence.bindingRefusal({
+    request,
+    requestDigest: digests.request,
+    spokenTextDigest: digests.spokenText,
     recordedAudio: input.recordedAudio,
   });
+  // A transcript of other words: the owner can say the sentence again.
+  if (unbound?.code === 'words')
+    return { kind: 'refused', reason: 'words', detail: unbound.detail };
   if (unbound) return { kind: 'mismatch', detail: unbound.detail };
   return {
     kind: 'approved',

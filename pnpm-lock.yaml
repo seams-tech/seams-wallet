@@ -129,6 +129,9 @@ importers:
       '@near-js/types':
         specifier: 2.4.0
         version: 2.4.0
+      '@seams/sayso-verdict':
+        specifier: 0.2.0
+        version: 0.2.0
       '@seams/voice-sign':
         specifier: 0.72.0
         version: 0.72.0(@seams/voice-capture@0.72.0)
@@ -184,6 +187,9 @@ importers:
 
   packages/mpc-wallet-server:
     dependencies:
+      '@seams/sayso-verdict':
+        specifier: 0.2.0
+        version: 0.2.0
       '@seams/voice-sign':
         specifier: 0.72.0
         version: 0.72.0(@seams/voice-capture@0.72.0)
@@ -215,6 +221,9 @@ importers:
       '@near-js/types':
         specifier: 2.4.0
         version: 2.4.0
+      '@seams/sayso-verdict':
+        specifier: 0.2.0
+        version: 0.2.0
       '@seams/voice-verdict':
         specifier: 0.72.0
         version: 0.72.0
@@ -1587,6 +1596,9 @@ packages:
 
   '@scure/bip39@1.6.0':
     resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
+
+  '@seams/sayso-verdict@0.2.0':
+    resolution: {integrity: sha512-79Ikz7dTLpJ5Qo8HFwklOanlcWtM9QnVPI950i5vH+wEM4tTYWaAyBQEBh0vMvG1YPX5C/nEnStKsjiaXNV+kA==}
 
   '@seams/voice-capture@0.72.0':
     resolution: {integrity: sha512-wrIL45lS/5rrHgjClPAbjfOOK94YbuwCKMOU3ORXera1igjhB5Ud/WLwF9bmSd2jtg0NIDjSTBt4Qyz+fQgg2A==}
@@ -4267,6 +4279,8 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
+
+  '@seams/sayso-verdict@0.2.0': {}
 
   '@seams/voice-capture@0.72.0':
     dependencies:

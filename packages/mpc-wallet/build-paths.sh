@@ -21,6 +21,7 @@ SOURCE_WASM_EVM_CRYPTO="../../wasm/evm_crypto"
 SOURCE_WASM_TEMPO_SIGNER="../../wasm/tempo_signer"
 SOURCE_WASM_EMAIL_OTP_RUNTIME="../../wasm/email_otp_runtime"
 SOURCE_WASM_OPRF_RUNTIME="../../wasm/oprf_runtime"
+SOURCE_WASM_SPOKEN_INTENT="../../wasm/spoken_intent"
 SOURCE_WASM_WALLET_CUSTODY_CEREMONY="../../wasm/wallet_custody_ceremony"
 
 # Critical directories for build freshness checking
@@ -42,6 +43,7 @@ CRITICAL_DIRS=(
     "../../wasm/tempo_signer"
     "../../wasm/email_otp_runtime"
     "../../wasm/oprf_runtime"
+    "../../wasm/spoken_intent"
     "../../wasm/wallet_custody_ceremony"
 )
 

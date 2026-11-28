@@ -29,12 +29,7 @@ import type {
   SpeakToSignVerifyReply,
 } from './hostPlugin';
 import type { SpeakToSignNetwork } from './plugins';
-import {
-  intentRefusal,
-  intentVerifyRequest,
-  renderIntent,
-  type SpokenIntent,
-} from './spokenIntent';
+import { intentRefusal, renderIntent, type SpokenIntent } from './spokenIntent';
 import { spokenRequestContext } from './spokenRequestContext';
 import { displayAmount } from './spokenTransfer';
 
@@ -157,8 +152,12 @@ export async function runSpeakToSignApproval(
     if (missing) return missing;
   }
   const rendered = renderIntent(intent);
-  const verifyRequest = await intentVerifyRequest(intent);
+  const prepared = await operations.prepareVerify(intent);
   signal.throwIfAborted();
+  // A request above the verifier's limits has no spoken approval: the application confirms it.
+  if (prepared.kind === 'above_limits') {
+    return { kind: 'unavailable', reason: 'verifier_unavailable', detail: prepared.detail };
+  }
   // Above a sentence that the application or a note's summary wrote, the card shows what it signs.
   const context = spokenRequestContext(input.network, intent);
   const opened = await operations.openPrompt({
@@ -196,13 +195,7 @@ export async function runSpeakToSignApproval(
           if (!wav) return { kind: 'failed', code: 'unknown_recording' };
           try {
             return await operations.verify(
-              {
-                op: 'verify',
-                owner: input.ownerAccountId,
-                request: verifyRequest,
-                contacts: [],
-                audio_wav_b64: base64Encode(wav),
-              },
+              { ...prepared.input, audio_wav_b64: base64Encode(wav) },
               signal,
             );
           } finally {
@@ -413,7 +406,7 @@ async function enrollClips(
         op: 'enroll',
         owner: input.ownerAccountId,
         audio_wav_b64: wavs.map(base64Encode),
-        authorization: signed.authorization,
+        ...(signed.authorization ? { authorization: signed.authorization } : {}),
       },
       signal,
     );

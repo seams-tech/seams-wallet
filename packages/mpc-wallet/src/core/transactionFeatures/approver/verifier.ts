@@ -1,10 +1,9 @@
 import { isPlainObject } from '@shared/utils/validation';
 import type { SpeakToSignEnrollmentResult } from '../hostPlugin';
+import { SPEAK_TO_SIGN_VERIFIER_BACKEND } from '../verifiers/backend';
 import { shortDetail, verifierUnavailable } from './result';
 
 type EnrollmentRefusal = Extract<SpeakToSignEnrollmentResult, { kind: 'refused' }>['reason'];
-
-const ENROLLMENT_OUTPUT_KIND = 'seams_voice_enrollment_v3';
 
 /** Each refusal of the verifier's `enroll`. A new reason in the Wallet fails to compile here. */
 const ENROLLMENT_REFUSALS: Readonly<Record<EnrollmentRefusal, true>> = {
@@ -20,9 +19,15 @@ const ENROLLMENT_REFUSALS: Readonly<Record<EnrollmentRefusal, true>> = {
   authorization_unavailable: true,
 };
 
-/** Reads the verifier's `enroll` output that the Seams route passes through unchanged. */
-export function readEnrollmentOutput(output: unknown): SpeakToSignEnrollmentResult {
-  if (!isPlainObject(output) || output.kind !== ENROLLMENT_OUTPUT_KIND) {
+/**
+ * Reads the verifier's `enroll` output that the Seams route passes through unchanged. Both
+ * backends name the same fields; only the `kind` differs.
+ */
+export function readEnrollmentOutput(
+  output: unknown,
+  kind = SPEAK_TO_SIGN_VERIFIER_BACKEND.enrollmentKind,
+): SpeakToSignEnrollmentResult {
+  if (!isPlainObject(output) || output.kind !== kind) {
     return verifierUnavailable('invalid output');
   }
   const detail = typeof output.detail === 'string' ? shortDetail(output.detail) : undefined;

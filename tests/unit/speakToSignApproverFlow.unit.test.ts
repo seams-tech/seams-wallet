@@ -7,6 +7,7 @@ import type {
   SpeakToSignSigning,
 } from '@/core/transactionFeatures/hostPlugin';
 import { runApproval } from '@/core/transactionFeatures/approver/flow';
+import { OUTLAYER_VERIFIER } from '@/core/transactionFeatures/verifiers/outlayer/outlayerVerifier';
 import { heardCaption } from '@/core/transactionFeatures/approver/heardWords';
 import {
   fakeHost,
@@ -166,11 +167,11 @@ test('a failure of the verify route signs nothing', async () => {
   expect(host.signed).toEqual([]);
 });
 
-test('an OutLayer timeout names OutLayer, and another route failure does not', async () => {
+test('a verifier timeout says so, and another route failure does not', async () => {
   const timedOut = fakeHost({ reply: routeFailure('verifier_timeout') });
   await runApproval(timedOut.approval());
-  expect(timedOut.events).toContain('show: OutLayer timed out');
-  expect(timedOut.captions).toEqual(['The OutLayer verifier did not answer in time.']);
+  expect(timedOut.events).toContain('show: The verifier timed out');
+  expect(timedOut.captions).toEqual(['The Seams verifier did not answer in time.']);
 
   const unreachable = fakeHost({ reply: routeFailure('verifier_unreachable') });
   await runApproval(unreachable.approval());
@@ -327,11 +328,52 @@ test('the result caption names a 64-character account in its short form, and a n
   expect(named.captions.at(-1)).toBe('To guest-book.testnet');
 });
 
-test('the paid card has the TEE receipt: the voice, the words, the verdict and the TDX quote', async () => {
-  const host = fakeHost({ reply: verifierOutput(signedOutput('0.13.0'), ATTESTATION) });
-  // The app gets the same link in the result, so it can open the quote itself.
-  expect(await runApproval(host.approval())).toMatchObject({ kind: 'sent', attestationUrl: ATTESTATION });
+/** A SaySo verify output whose signed verdict names verifier `version`. */
+function saysoOutput(version: string): unknown {
+  return {
+    kind: 'sayso_verify_output_v1',
+    verdict_json: JSON.stringify({ verifier: version, outcome: 'accept' }),
+    signature_b64: 'c2ln',
+    public_key_hex: '3d96c3d21be6b7864cadfe1d5e57366e45774d7513972710e2569aa33a0d6895',
+    ms: {},
+    detail: null,
+  };
+}
+
+test('the paid card has the SaySo receipt: the voice, the words, the transcriber and the verdict, with no TEE and no link', async () => {
+  const host = fakeHost({ reply: verifierOutput(saysoOutput('sayso/0.2.0')) });
+  expect(await runApproval(host.approval())).toMatchObject({ kind: 'sent', attestationUrl: null });
   expect(host.receipts.at(-1)).toEqual({
+    title: 'Verifier receipt',
+    source: 'Seams verifier · Cloudflare',
+    rows: [
+      { label: 'Voice', value: 'matched owner.testnet (ReDimNet B1)' },
+      { label: 'Words', value: 'matched the sentence' },
+      { label: 'Speech to text', value: 'Whisper large-v3-turbo on Workers AI' },
+      { label: 'Verdict', value: 'signed by the Seams verifier sayso/0.2.0' },
+    ],
+  });
+  // A mock build of SaySo names no version.
+  const mock = fakeHost({ reply: verifierOutput(saysoOutput('sayso/0.2.0+mock')) });
+  await runApproval(mock.approval(view({ kind: 'community_note', summary: 'Only one lane closes.' })));
+  expect((mock.receipts.at(-1) as { rows: { value: string }[] }).rows.map((row) => row.value)).toEqual([
+    'matched owner.testnet (ReDimNet B1)',
+    'matched the summary',
+    'Whisper large-v3-turbo on Workers AI',
+    'signed by the Seams verifier',
+  ]);
+});
+
+/** The receipt of the OutLayer module, which is off in Wallet core. */
+function outlayerReceipt(version: string, attestationUrl: string | null, note = false) {
+  return OUTLAYER_VERIFIER.receipt(
+    { owner: 'owner.testnet', note },
+    OUTLAYER_VERIFIER.proof(signedOutput(version), attestationUrl),
+  );
+}
+
+test('the OutLayer receipt has the voice, the words, the verdict and the TDX quote', () => {
+  expect(outlayerReceipt('0.13.0', ATTESTATION)).toEqual({
     title: 'TEE receipt',
     source: 'Intel TDX · OutLayer',
     rows: [
@@ -343,11 +385,8 @@ test('the paid card has the TEE receipt: the voice, the words, the verdict and t
   });
 });
 
-test('a verdict of the venice build keeps its version and says that Venice heard the words outside a TEE', async () => {
-  const note = view({ kind: 'community_note', summary: 'Only one lane closes.' });
-  const host = fakeHost({ reply: verifierOutput(signedOutput('0.14.0+venice'), ATTESTATION) });
-  await runApproval(host.approval(note));
-  expect(host.receipts.at(-1)).toEqual({
+test('an OutLayer verdict of the venice build keeps its version and says that Venice heard the words outside a TEE', () => {
+  expect(outlayerReceipt('0.14.0+venice', ATTESTATION, true)).toEqual({
     title: 'TEE receipt',
     source: 'Intel TDX · OutLayer',
     rows: [
@@ -360,25 +399,18 @@ test('a verdict of the venice build keeps its version and says that Venice heard
     link: { text: 'View TDX quote', href: ATTESTATION },
   });
   // The default build names no service, and a version of another form names no version.
-  const usual = fakeHost({ reply: verifierOutput(signedOutput('0.14.0'), ATTESTATION) });
-  await runApproval(usual.approval());
-  expect((usual.receipts.at(-1) as { rows: { label: string }[] }).rows.map((row) => row.label)).toEqual([
+  expect(outlayerReceipt('0.14.0', ATTESTATION).rows.map((row) => row.label)).toEqual([
     'Voice',
     'Words',
     'Verdict',
   ]);
-  const odd = fakeHost({ reply: verifierOutput(signedOutput('0.14.0+Venice AI'), ATTESTATION) });
-  await runApproval(odd.approval());
-  expect((odd.receipts.at(-1) as { rows: { value: string }[] }).rows.at(-1)?.value).toBe(
+  expect(outlayerReceipt('0.14.0+Venice AI', ATTESTATION).rows.at(-1)?.value).toBe(
     'signed by the OutLayer verifier',
   );
 });
 
-test('the receipt of a note has the summary check from verifier 0.13.0, and no link without a quote', async () => {
-  const note = view({ kind: 'community_note', summary: 'Only one lane closes.' });
-  const host = fakeHost({ reply: verifierOutput(signedOutput('0.13.0')) });
-  await runApproval(host.approval(note));
-  expect(host.receipts.at(-1)).toEqual({
+test('the OutLayer receipt of a note has the summary check from verifier 0.13.0, and no link without a quote', () => {
+  expect(outlayerReceipt('0.13.0', null, true)).toEqual({
     title: 'TEE receipt',
     source: 'Intel TDX · OutLayer',
     rows: [
@@ -389,16 +421,13 @@ test('the receipt of a note has the summary check from verifier 0.13.0, and no l
     ],
   });
   // An older verifier did not check the summary, and an output with no version names none.
-  const older = fakeHost({ reply: verifierOutput(signedOutput('0.12.0')) });
-  await runApproval(older.approval(note));
-  expect((older.receipts.at(-1) as { rows: { label: string }[] }).rows.map((row) => row.label)).toEqual([
+  expect(outlayerReceipt('0.12.0', null, true).rows.map((row) => row.label)).toEqual([
     'Voice',
     'Words',
     'Verdict',
   ]);
-  const opaque = fakeHost();
-  await runApproval(opaque.approval());
-  expect((opaque.receipts.at(-1) as { rows: { value: string }[] }).rows.at(-1)?.value).toBe(
-    'signed by the OutLayer verifier',
-  );
+  expect(
+    OUTLAYER_VERIFIER.receipt({ owner: 'owner.testnet', note: false }, { verifier: null, attestationUrl: null })
+      .rows.at(-1)?.value,
+  ).toBe('signed by the OutLayer verifier');
 });

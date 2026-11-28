@@ -1,23 +1,20 @@
-// The OutLayer backend of Wallet core: each recording sealed to the pinned audio key of the
-// verifier, the owner's NEP-413 enrollment statement to the OutLayer project, and the card text
-// and TEE receipt of a verifier that runs in Intel TDX on OutLayer.
+// The OutLayer backend of Wallet core: the verifier's own request form, each recording sealed to
+// the pinned audio key of the verifier, the owner's NEP-413 enrollment statement to the OutLayer
+// project, and the card text and TEE receipt of a verifier that runs in Intel TDX on OutLayer.
 
 import { sealAudio } from '@seams/voice-verdict';
 import type { PhraseReceipt } from '@/core/authMethods/hostPlugin';
-import { concat, sha256, utf8 } from '@shared/speakToSign/spokenRequest';
-import type { SpeakToSignVerifier } from '@shared/speakToSign/evidence/voiceVerdictV2';
+import { concat, sha256, utf8, type SpeakToSignNetwork } from '@shared/speakToSign/spokenRequest';
+import { SPEAK_TO_SIGN_VERIFIERS } from '@shared/speakToSign/evidence/voiceVerdictV2';
 import { base64Decode, base64Encode, base64UrlEncode } from '@shared/utils/base64';
 import { isPlainObject } from '@shared/utils/validation';
-import { parseVerifyOutput } from '../../voiceVerdict';
-import type {
-  EnrollmentStatement,
-  SpeakToSignVerifierBackend,
-  VerifierProof,
-  VerifierReceiptInput,
-} from '../backend';
+import { intentVerifyRequest } from '../../spokenIntent';
+import type { VerifyOutput } from '../../voiceVerdict';
+import type { SpeakToSignVerifierBackend, VerifierProof, VerifierReceiptInput } from '../backend';
 
 const ENROLLMENT_DOMAIN = 'seams:voice-enrollment:v2';
 const ENROLLMENT_MESSAGE_PREFIX = 'Speak-to-Sign voice enrollment ';
+const VERIFY_OUTPUT_KIND = 'seams_voice_verify_output_v2';
 
 export const OUTLAYER_VERIFIER: SpeakToSignVerifierBackend = {
   id: 'outlayer',
@@ -32,14 +29,56 @@ export const OUTLAYER_VERIFIER: SpeakToSignVerifierBackend = {
     headline: 'OutLayer timed out',
     caption: 'The OutLayer verifier did not answer in time.',
   },
+  enrollmentKind: 'seams_voice_enrollment_v3',
+  parseOutput: parseOutLayerOutput,
   proof: (output, attestationUrl) => ({ verifier: verdictVersion(output), attestationUrl }),
   receipt: receiptView,
-  prepareInput: withSealedAudio,
-  enrollmentStatement: async (owner, clipDigests, verifier): Promise<EnrollmentStatement> => ({
-    message: `${ENROLLMENT_MESSAGE_PREFIX}${await enrollmentDigest(owner, clipDigests)}`,
-    recipient: verifier.project,
+  // The verifier parses the request itself and matches the receiver against the contacts.
+  verifyInput: async ({ owner, intent }) => ({
+    kind: 'ready',
+    input: { op: 'verify', owner, request: await intentVerifyRequest(intent), contacts: [] },
   }),
+  prepareInput: (network, verifierInput) =>
+    withSealedAudio(SPEAK_TO_SIGN_VERIFIERS[network], verifierInput),
+  // The verifier checks a NEP-413 message of a full-access key of the owner's account.
+  authorizeEnrollment: async ({ owner, network, clipDigests, signMessage }) => {
+    const verifier = SPEAK_TO_SIGN_VERIFIERS[network];
+    if (!verifier) return { kind: 'not_signed', error: 'This network has no verifier.' };
+    const signed = await signMessage({
+      message: `${ENROLLMENT_MESSAGE_PREFIX}${await enrollmentDigest(owner, clipDigests)}`,
+      recipient: verifier.project,
+    });
+    if (!signed.success) return { kind: 'not_signed', error: signed.error };
+    return {
+      kind: 'signed',
+      authorization: {
+        public_key: signed.publicKey,
+        signature_b64: signed.signature,
+        nonce_b64: signed.nonce,
+      },
+    };
+  },
+  // The templates are in OutLayer storage, which the Wallet cannot reach.
+  templateDeleteInput: () => null,
 };
+
+/** The v2 verify output that the Seams verify route passes through unchanged. */
+export function parseOutLayerOutput(value: unknown): VerifyOutput | null {
+  if (
+    !isPlainObject(value) ||
+    value.kind !== VERIFY_OUTPUT_KIND ||
+    typeof value.verdict_json !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    verdictJson: value.verdict_json,
+    signatureB64: typeof value.signature_b64 === 'string' ? value.signature_b64 : null,
+    publicKey: typeof value.public_key === 'string' ? value.public_key : null,
+    policyText: typeof value.policy_text === 'string' ? value.policy_text.slice(0, 200) : null,
+    ms: isPlainObject(value.ms) ? value.ms : {},
+  };
+}
 
 /**
  * The verifier input with its recordings sealed to the pinned audio key (`sealAudio` of
@@ -48,7 +87,7 @@ export const OUTLAYER_VERIFIER: SpeakToSignVerifierBackend = {
  * is. Null if a recording cannot be sealed, so that no recording leaves the device in the clear.
  */
 async function withSealedAudio(
-  verifier: SpeakToSignVerifier | null,
+  verifier: (typeof SPEAK_TO_SIGN_VERIFIERS)[SpeakToSignNetwork],
   verifierInput: Readonly<Record<string, unknown>>,
 ): Promise<Readonly<Record<string, unknown>> | null> {
   const { audio_wav_b64: plain, ...rest } = verifierInput;
@@ -87,7 +126,7 @@ export async function enrollmentDigest(
 }
 
 function verdictVersion(output: unknown): string | null {
-  const parsed = parseVerifyOutput(output);
+  const parsed = parseOutLayerOutput(output);
   if (!parsed) return null;
   try {
     const verdict: unknown = JSON.parse(parsed.verdictJson);

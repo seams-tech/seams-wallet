@@ -22,10 +22,22 @@ const ACCEPTED_OUTPUT = {
   detail: null,
 };
 const REFUSED_OUTPUT = { ...ACCEPTED_OUTPUT, outcome: 'refuse', reason: 'speaker', detail: 'low' };
+const OUTLAYER_KIND = ACCEPTED_OUTPUT.kind;
 
-/** By default the owner signs the message and the verifier stores the template. */
+/** The enrollment output of SaySo, the backend of Wallet core. */
+const SAYSO_ACCEPTED = {
+  kind: 'sayso_enrollment_v1',
+  outcome: 'accept',
+  reason: null,
+  template_epoch: 1,
+  agreement_milli: 812,
+  verifier_public_key_hex: '3d96c3d21be6b7864cadfe1d5e57366e45774d7513972710e2569aa33a0d6895',
+  ms: { total: 2100 },
+};
+
+/** By default the owner approves and the verifier stores the template. */
 function enrollmentHost(options: FakeHostOptions = {}) {
-  return fakeHost({ reply: verifierOutput(ACCEPTED_OUTPUT), ...options });
+  return fakeHost({ reply: verifierOutput(SAYSO_ACCEPTED), ...options });
 }
 
 test('an enrollment records the three phrases of core, then enrolls exactly their handles', async () => {
@@ -72,7 +84,9 @@ test('a verifier service that did not answer is not a refusal of the recordings'
 });
 
 test('a verifier refusal shows on the card', async () => {
-  const host = enrollmentHost({ reply: verifierOutput({ ...REFUSED_OUTPUT, detail: null }) });
+  const host = enrollmentHost({
+    reply: verifierOutput({ ...SAYSO_ACCEPTED, outcome: 'refuse', reason: 'speaker' }),
+  });
   await runEnrollment(host.enrollmentInput());
   expect(host.events.at(-1)).toBe('show: The verifier refused the recordings');
 });
@@ -116,10 +130,10 @@ test('a failure of the verify route enrolls nothing', async () => {
   });
 });
 
-test('an OutLayer timeout names OutLayer, and another route failure does not', async () => {
+test('a verifier timeout says so, and another route failure does not', async () => {
   const timedOut = enrollmentHost({ reply: routeFailure('verifier_timeout') });
   await runEnrollment(timedOut.enrollmentInput());
-  expect(timedOut.events.at(-1)).toBe('show: OutLayer timed out');
+  expect(timedOut.events.at(-1)).toBe('show: The verifier timed out');
 
   const unreachable = enrollmentHost({ reply: routeFailure('verifier_unreachable') });
   await runEnrollment(unreachable.enrollmentInput());
@@ -127,7 +141,7 @@ test('an OutLayer timeout names OutLayer, and another route failure does not', a
 });
 
 test('a verifier refusal keeps its reason and its detail', () => {
-  expect(readEnrollmentOutput(REFUSED_OUTPUT)).toEqual({
+  expect(readEnrollmentOutput(REFUSED_OUTPUT, OUTLAYER_KIND)).toEqual({
     kind: 'refused',
     reason: 'speaker',
     detail: 'low',
@@ -136,8 +150,23 @@ test('a verifier refusal keeps its reason and its detail', () => {
 
 test('a verifier refusal with no detail has none', () => {
   expect(
-    readEnrollmentOutput({ ...REFUSED_OUTPUT, reason: 'not_authorized', detail: null }),
+    readEnrollmentOutput(
+      { ...REFUSED_OUTPUT, reason: 'not_authorized', detail: null },
+      OUTLAYER_KIND,
+    ),
   ).toEqual({ kind: 'refused', reason: 'not_authorized' });
+});
+
+test('the SaySo enrollment output reads as the OutLayer one, and the kinds are apart', () => {
+  expect(readEnrollmentOutput(SAYSO_ACCEPTED)).toEqual({
+    kind: 'enrolled',
+    templateEpoch: 1,
+    agreementMilli: 812,
+  });
+  expect(readEnrollmentOutput(ACCEPTED_OUTPUT)).toMatchObject({ kind: 'unavailable' });
+  expect(readEnrollmentOutput(SAYSO_ACCEPTED, OUTLAYER_KIND)).toMatchObject({
+    kind: 'unavailable',
+  });
 });
 
 const UNKNOWN_OUTPUTS: Array<[string, unknown]> = [
@@ -149,7 +178,7 @@ const UNKNOWN_OUTPUTS: Array<[string, unknown]> = [
 
 for (const [name, output] of UNKNOWN_OUTPUTS) {
   test(`the enrollment is unavailable for ${name}`, () => {
-    expect(readEnrollmentOutput(output)).toEqual({
+    expect(readEnrollmentOutput(output, OUTLAYER_KIND)).toEqual({
       kind: 'unavailable',
       reason: 'verifier_unavailable',
       detail: 'invalid output',

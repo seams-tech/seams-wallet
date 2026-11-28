@@ -16,7 +16,7 @@ import type {
   RouterApiRouteExtension,
 } from '../../framework/routeExtensions';
 import { resolveWalletSessionAuthorizationV2Admission } from '../signingOperations/walletExecutionAdmission';
-import type { SpeakToSignBackend } from './backend';
+import type { SpeakToSignBackend, SpeakToSignBackendCall } from './backend';
 import {
   parseSummaryBody,
   SPEAK_TO_SIGN_SUMMARY_MAX_BODY_BYTES,
@@ -31,8 +31,6 @@ export const SPEAK_TO_SIGN_VERIFY_PATH = '/speak-to-sign/v1/verify';
  * base64, so three clips are about 1,000 KB, with room for the fields.
  */
 export const SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES = 1_100 * 1024;
-/** The verifier operations that the route runs: a spoken request and an enrollment. */
-const SERVED_OPERATIONS: ReadonlySet<unknown> = new Set(['verify', 'enroll']);
 
 export type SpeakToSignVerifyRateLimit = (input: {
   readonly walletId: WalletId;
@@ -70,6 +68,8 @@ type VerifyStreamEvent = 'verifier_running' | 'verdict' | 'failed';
 type SessionSubject = Readonly<{
   walletId: WalletId;
   ed25519: MpcMaterialActivationRef;
+  /** How the owner opened the session. An enrollment on SaySo needs a fresh passkey or Email OTP one. */
+  session: SpeakToSignBackendCall['session'];
 }>;
 
 type SessionAuthentication =
@@ -133,15 +133,27 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     }
     const body = await readBoundedText(input.request, SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES);
     if (body === 'too_large') return failure(413, 'body_too_large');
-    const verifierInput = parseVerifyBody(body);
-    if (verifierInput === null) return failure(400, 'invalid_body');
-    // The payment key pays for each run. Wallet core needs only these two operations.
-    if (!SERVED_OPERATIONS.has(verifierInput.op)) return failure(400, 'unsupported_operation');
+    const verify = parseVerifyBody(body);
+    if (verify === null) return failure(400, 'invalid_body');
+    // Wallet core names the backend that it prepared the input for: sealed audio for OutLayer,
+    // plain audio for SaySo. During a deploy the two can differ for a moment.
+    if (verify.backend !== this.backend.id) return failure(409, 'backend_mismatch');
+    const verifierInput = verify.input;
+    // Each run costs the lane money. The backend names the operations that Wallet core needs.
+    const { op } = verifierInput;
+    if (typeof op !== 'string' || !this.backend.operations.has(op)) {
+      return failure(400, 'unsupported_operation');
+    }
     // The verifier compares the audio with the voice template of `owner`. Only that owner may ask.
     const owner = await this.sessionNearAccount(subject);
     if (owner === null) return failure(403, 'owner_unavailable');
     if (verifierInput.owner !== owner) return failure(403, 'owner_mismatch');
-    return this.streamVerifier(verifierInput, input.logger, startedAtMs);
+    return this.streamVerifier({
+      input: verifierInput,
+      session: subject.session,
+      logger: input.logger,
+      startedAtMs,
+    });
   }
 
   /**
@@ -168,14 +180,11 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
 
   /**
    * Answers with `text/event-stream`: `verifier_running` at once, then one `verdict` with the
-   * verifier output or one `failed` with a code. OutLayer sends its result only at the end, so
-   * the stream has no event between them. A refusal before the call stays a JSON error.
+   * verifier output or one `failed` with a code. Each backend sends its result only at the end,
+   * so the stream has no event between them. A refusal before the call stays a JSON error.
    */
-  private streamVerifier(
-    verifierInput: Record<string, unknown>,
-    logger: NormalizedRouterLogger,
-    startedAtMs: number,
-  ): Response {
+  private streamVerifier(call: SpeakToSignBackendCall): Response {
+    const { logger } = call;
     const stream = new TransformStream<Uint8Array, Uint8Array>();
     const writer = stream.writable.getWriter();
     const send = async (event: VerifyStreamEvent, data: unknown) =>
@@ -185,7 +194,7 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     const run = async () => {
       try {
         await send('verifier_running', {});
-        const result = await this.backend.run({ input: verifierInput, logger, startedAtMs });
+        const result = await this.backend.run(call);
         await send(result.ok ? 'verdict' : 'failed', result);
       } catch (error: unknown) {
         logger.warn('[speak-to-sign] verify stream failed', {
@@ -246,7 +255,11 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
     if (!admission.ok || admission.keyFamily !== 'ed25519') return { kind: 'unauthorized' };
     return {
       kind: 'admitted',
-      subject: { walletId: session.walletId, ed25519: admission.materialActivation },
+      subject: {
+        walletId: session.walletId,
+        ed25519: admission.materialActivation,
+        session: { authMethodKind: context.authMethod.kind, issuedAtMs: session.createdAtMs },
+      },
     };
   }
 
@@ -260,16 +273,22 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   }
 }
 
-/** Body: `{ input }`, where `input` is the verifier input object. The server does not read it. */
-function parseVerifyBody(text: string): Record<string, unknown> | null {
+/**
+ * Body: `{ backend, input }`, where `backend` names the backend that Wallet core prepared the
+ * input for, and `input` is the verifier input object that the backend reads.
+ */
+function parseVerifyBody(
+  text: string,
+): Readonly<{ backend: string; input: Record<string, unknown> }> | null {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
     return null;
   }
-  if (!hasExactKeys(raw, ['input']) || !isPlainObject(raw.input)) return null;
-  return raw.input;
+  if (!hasExactKeys(raw, ['backend', 'input']) || !isPlainObject(raw.input)) return null;
+  if (typeof raw.backend !== 'string') return null;
+  return { backend: raw.backend, input: raw.input };
 }
 
 async function readBoundedText(request: Request, maximumBytes: number): Promise<string | 'too_large'> {

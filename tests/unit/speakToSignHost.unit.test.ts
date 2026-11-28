@@ -9,7 +9,19 @@ import type {
 } from '@/core/transactionFeatures/hostPlugin';
 import type { AuthMethodPhraseRecording } from '@/core/authMethods/hostPlugin';
 import { createSpeakToSignHostOperations } from '@/core/transactionFeatures/hostOperations';
-import { enrollmentDigest } from '@/core/transactionFeatures/verifiers/outlayer/outlayerVerifier';
+import {
+  enrollmentDigest,
+  OUTLAYER_VERIFIER,
+  parseOutLayerOutput,
+} from '@/core/transactionFeatures/verifiers/outlayer/outlayerVerifier';
+import { SAYSO_VERIFIER } from '@/core/transactionFeatures/verifiers/sayso/saysoVerifier';
+import {
+  NODE_HEARD_WORDS_START,
+  saysoKey,
+  saysoOutput,
+  saysoVerdict,
+  type SaySoKey,
+} from './helpers/saysoVerdict';
 import {
   isSpeakableAccount,
   parseSpeakableNear,
@@ -37,7 +49,6 @@ import {
 } from '@/core/transactionFeatures/spokenMessage';
 import {
   checkVoiceVerdict,
-  parseVerifyOutput,
   type SignedVoiceVerdict,
   type VoiceApproval,
 } from '@/core/transactionFeatures/voiceVerdict';
@@ -86,8 +97,6 @@ const VECTORS = JSON.parse(
 
 // The shared signed verdicts of seams-tech/speak-to-sign (voice-verifier/testdata/
 // signed_verdict_v2.json). Their audio digest is 32 bytes of 7; the key is a test key.
-/** The audio key of the verifier's vector `sealed_audio_v1.json` (X25519, standard base64). */
-const AUDIO_KEY = 'OKtmS9hvd9fma92a4HkpE6lP2LM6EmACfktGwfSITGc=';
 
 const SIGNED_VECTORS = {
   publicKey: 'ed25519:2iXtA8oeZqUU5pofxK971TCEvFGfems2AcDRaZHKD2pQ',
@@ -168,8 +177,12 @@ async function verifierKey(): Promise<Verifier> {
   };
 }
 
-function verifiersFor(verifier: Verifier) {
-  return { testnet: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY }, mainnet: null };
+/** The request and digests that core compares a transfer verdict with. */
+async function transferExpectation(request: SpokenTransferRequest) {
+  return {
+    request: { kind: 'account_transfer' as const, ...request },
+    digests: await transferDigests(request),
+  };
 }
 
 function transferRequest(overrides: Partial<SpokenTransferRequest> = {}): SpokenTransferRequest {
@@ -330,7 +343,7 @@ test('the shared signed verdict vectors pass the core check as voice and voice-a
   for (const vector of SIGNED_VECTORS.verdicts) {
     const request = transferRequest({ receiver: 'alice.testnet', amountYocto: vector.amountYocto });
     expect(hex(transferBorsh(request)), vector.approval).toBe(vector.borshHex);
-    const output = parseVerifyOutput({
+    const output = parseOutLayerOutput({
       kind: 'seams_voice_verify_output_v2',
       verdict_json: vector.verdictJson,
       signature_b64: vector.signatureB64,
@@ -343,8 +356,8 @@ test('the shared signed verdict vectors pass the core check as voice and voice-a
       await checkVoiceVerdict({
         kind: 'voice_verdict_v2',
         output: output!,
-        expected: await transferDigests(request),
-        verifier: { project: PROJECT, publicKey: SIGNED_VECTORS.publicKey, audioKey: AUDIO_KEY },
+        expected: await transferExpectation(request),
+        publicKeys: [SIGNED_VECTORS.publicKey],
         recordedAudio: new Set([SIGNED_VECTORS.audioDigest]),
         nowMs: SIGNED_VECTORS.expiresAtMs - 60_000,
       }),
@@ -370,13 +383,9 @@ test('the core check refuses a verdict that does not bind this transfer, clip, t
   ) =>
     await checkVoiceVerdict({
       kind: 'voice_verdict_v2',
-      output: parseVerifyOutput(output)!,
-      expected: await transferDigests(request),
-      verifier: {
-        project: PROJECT,
-        publicKey: options.publicKey ?? verifier.publicKey,
-        audioKey: AUDIO_KEY,
-      },
+      output: parseOutLayerOutput(output)!,
+      expected: await transferExpectation(request),
+      publicKeys: [options.publicKey ?? verifier.publicKey],
       recordedAudio: options.recordedAudio ?? recorded,
       nowMs: options.nowMs ?? NOW_MS,
     });
@@ -432,7 +441,7 @@ test('the core check refuses a verdict that does not bind this transfer, clip, t
   expect(await check(await verifyOutput(verifier, otherRenderer))).toEqual(
     mismatch('unknown renderer'),
   );
-  expect(parseVerifyOutput({ kind: 'seams_voice_verify_output_v1', verdict_json: valid })).toBe(
+  expect(parseOutLayerOutput({ kind: 'seams_voice_verify_output_v1', verdict_json: valid })).toBe(
     null,
   );
 });
@@ -448,9 +457,9 @@ test('a verifier refusal passes through with its reason and what was heard', asy
   expect(
     await checkVoiceVerdict({
       kind: 'voice_verdict_v2',
-      output: parseVerifyOutput(await verifyOutput(verifier, refusal))!,
-      expected: await transferDigests(request),
-      verifier: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY },
+      output: parseOutLayerOutput(await verifyOutput(verifier, refusal))!,
+      expected: await transferExpectation(request),
+      publicKeys: [verifier.publicKey],
       recordedAudio: new Set(),
       nowMs: NOW_MS,
     }),
@@ -473,9 +482,9 @@ test('a refusal of verifier 0.14.1 that NEAR AI is not attested keeps its reason
   const check = async (verdict: string) =>
     await checkVoiceVerdict({
       kind: 'voice_verdict_v2',
-      output: parseVerifyOutput(await verifyOutput(verifier, verdict))!,
-      expected: await transferDigests(request),
-      verifier: { project: PROJECT, publicKey: verifier.publicKey, audioKey: AUDIO_KEY },
+      output: parseOutLayerOutput(await verifyOutput(verifier, verdict))!,
+      expected: await transferExpectation(request),
+      publicKeys: [verifier.publicKey],
       recordedAudio: new Set(),
       nowMs: NOW_MS,
     });
@@ -527,7 +536,8 @@ function verifyStream(events: ReadonlyArray<readonly [string, unknown]>): Respon
 
 const VERIFIER_OUTPUT = { verdict_json: '{}', ms: { speaker: 1_400, transcribe: 750, note: 'x' } };
 
-function coreHarness(verifier: Verifier): CoreHarness {
+/** With `sayso`, core runs the SaySo backend with that verdict key. */
+function coreHarness(verifier: Verifier, sayso?: SaySoKey): CoreHarness {
   let verifyResponse = () =>
     verifyStream([
       ['verifier_running', {}],
@@ -636,7 +646,10 @@ function coreHarness(verifier: Verifier): CoreHarness {
         return verifyResponse();
       }) as typeof fetch,
       now: () => nowMs,
-      verifiers: verifiersFor(verifier),
+      verdictKeys: { testnet: [sayso ? sayso.publicKeyHex : verifier.publicKey], mainnet: [] },
+      backend: sayso ? SAYSO_VERIFIER : OUTLAYER_VERIFIER,
+      heardWords: NODE_HEARD_WORDS_START,
+      freshApproval: async () => ({ kind: 'approved' }),
     }),
   };
   return harness;
@@ -744,7 +757,7 @@ test('core records clips, checks receivers and calls only the Seams verify route
     attestationUrl: null,
   });
   expect(harness.fetched[0].url).toBe('https://relay.example.test/speak-to-sign/v1/verify');
-  expect(harness.fetched[0].init.body).toBe('{"input":{"op":"verify"}}');
+  expect(harness.fetched[0].init.body).toBe('{"backend":"outlayer","input":{"op":"verify"}}');
   const headers = new Headers(harness.fetched[0].init.headers);
   expect(headers.get('authorization')).toBe('Bearer credential-1');
   expect(headers.get('accept')).toBe('text/event-stream');
@@ -2120,4 +2133,126 @@ test('a verdict that expires while the owner decides on a step-up signs nothing'
     detail: 'verdict expired',
   });
   nothingSigned(harness);
+});
+
+// ---------------------------------------------------------------- the SaySo backend of core
+
+const SAYSO_TRANSFER = { receiver: 'alice.testnet', amountYocto: 25n * 10n ** 24n };
+
+/** A SaySo verify output for the transfer of 25 NEAR to alice.testnet, heard as `heard`. */
+async function saysoTransferOutput(key: SaySoKey, audio: Uint8Array, heard: string | null) {
+  const request = { kind: 'account_transfer' as const, ...transferRequest() };
+  const digest = await spokenRequestDigest(spokenRequestBorsh(request));
+  const signed = await saysoVerdict(key, request, digest, {
+    heard,
+    audioDigest: audio,
+    expiresAtMs: NOW_MS + 120_000,
+  });
+  return { signed, output: saysoOutput(key, signed) };
+}
+
+test('core sends SaySo a transcript-only request with the plain recording, and names the backend', async () => {
+  const harness = coreHarness(await verifierKey(), await saysoKey());
+  const signal = new AbortController().signal;
+  const prepared = await harness.operations.prepareVerify({ kind: 'account_transfer', ...SAYSO_TRANSFER });
+  if (prepared.kind !== 'ready') throw new Error('the transfer is within the limits');
+  const digest = await spokenRequestDigest(
+    spokenRequestBorsh({ kind: 'account_transfer', ...transferRequest() }),
+  );
+  expect(prepared.input).toEqual({
+    op: 'verify',
+    network: 'testnet',
+    owner: 'owner.testnet',
+    intent: {
+      action: 'seams.near.transfer',
+      payload_sha256_hex: hex(digest),
+      sentence: 'send twenty five near to alice dot testnet',
+    },
+  });
+  const wav = Buffer.from(pcm16Wav(samples(1))).toString('base64');
+  await harness.operations.verify({ ...prepared.input, audio_wav_b64: wav }, signal);
+  const body = JSON.parse(String(harness.fetched.at(-1)?.init.body));
+  expect(body).toEqual({ backend: 'sayso', input: { ...prepared.input, audio_wav_b64: wav } });
+  // An enrollment names its network, so the Gateway can name the SaySo user.
+  await harness.operations.verify({ op: 'enroll', owner: 'owner.testnet', audio_wav_b64: [wav] }, signal);
+  expect(JSON.parse(String(harness.fetched.at(-1)?.init.body)).input).toEqual({
+    op: 'enroll',
+    owner: 'owner.testnet',
+    audio_wav_b64: [wav],
+    network: 'testnet',
+  });
+});
+
+test('a request above SaySo limits has no spoken approval, and the Wallet says why', async () => {
+  const harness = coreHarness(await verifierKey(), await saysoKey());
+  // "send nine hundred ninety nine thousand nine hundred ninety nine point nine nine near to
+  // alice dot testnet" has 18 words; SaySo takes 16.
+  const prepared = await harness.operations.prepareVerify({
+    kind: 'account_transfer',
+    receiver: 'alice.testnet',
+    amountYocto: 99_999_999n * 10n ** 22n,
+  });
+  expect(prepared).toEqual({
+    kind: 'above_limits',
+    detail: 'The sentence has 18 words; the verifier takes at most 16.',
+  });
+});
+
+test('core pays a SaySo verdict only when the transcript reads as the request', async () => {
+  const key = await saysoKey();
+  const harness = coreHarness(await verifierKey(), key);
+  const signal = new AbortController().signal;
+  const captured = await capture(harness.operations);
+  if (captured.kind !== 'captured') throw new Error('no clip');
+  const audio = await sha256(captured.wav);
+  const events: string[] = [];
+  const pay = (output: unknown) =>
+    harness.operations.payWithVerdict(SAYSO_TRANSFER, output, signal, paymentHooks(events));
+
+  // Whisper writes numerals and the account id; spoken-intent reads them as the words. A name
+  // that sounds like the receiver reads as the receiver, which the card shows; another does not.
+  for (const heard of ['Send 26 NEAR to alice.testnet.', 'Send 25 NEAR to mallory.testnet.', 'Lend 25 NEAR to alice.testnet.']) {
+    const wrong = await saysoTransferOutput(key, audio, heard);
+    expect(await pay(wrong.output), heard).toMatchObject({ kind: 'refused', reason: 'words' });
+  }
+  expect(harness.signed).toEqual([]);
+  const right = await saysoTransferOutput(key, audio, 'Send 25 NEAR to alice.testnet.');
+  expect(await pay(right.output)).toEqual({ kind: 'executed', transactionHash: 'tx-ok', approval: 'voice' });
+  expect(harness.signed).toEqual([
+    {
+      transaction: {
+        receiverId: 'alice.testnet',
+        actions: [{ type: 'Transfer', amount: '25000000000000000000000000' }],
+      },
+      // SaySo has no step-up: voice approves what a passkey step-up approves.
+      approval: 'voice',
+      policyText: null,
+      verdict: { verdictJson: right.signed.verdict_json, signatureB64: right.signed.signature_b64 },
+    },
+  ]);
+  // A recording of another flow does not pay, nor does a verdict of the OutLayer kind.
+  const elsewhere = await saysoTransferOutput(key, new Uint8Array(32).fill(9), 'Send 25 NEAR to alice.testnet.');
+  expect(await coreHarness(await verifierKey(), key).operations.payWithVerdict(SAYSO_TRANSFER, elsewhere.output, signal, paymentHooks())).toMatchObject({
+    kind: 'refused',
+    reason: 'verdict_mismatch',
+    detail: 'audio_digest is not a recording of this flow',
+  });
+  const v2 = await verifyOutput(await verifierKey(), await verdictJson(transferRequest(), audio));
+  expect(await pay(v2)).toEqual({ kind: 'unavailable', detail: 'invalid verifier output' });
+});
+
+test('a SaySo enrollment needs the fresh approval, and sends no signed statement', async () => {
+  const harness = coreHarness(await verifierKey(), await saysoKey());
+  const signal = new AbortController().signal;
+  const clips: Uint8Array<ArrayBuffer>[] = [];
+  for (let index = 0; index < 3; index += 1) {
+    const captured = await capture(harness.operations);
+    if (captured.kind !== 'captured') throw new Error('no clip');
+    clips.push(captured.wav);
+  }
+  expect(await harness.operations.authorizeEnrollment(clips, signal)).toEqual({
+    kind: 'signed',
+    authorization: null,
+  });
+  expect(harness.messages).toEqual([]);
 });

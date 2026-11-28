@@ -17,11 +17,12 @@ import {
 } from '@shared/speakToSign/spokenRequest';
 import {
   evidenceChecker,
-  SPEAK_TO_SIGN_VERIFIERS,
+  VERDICT_KEYS,
   type EvidenceRefusal,
-  type SpeakToSignVerifier,
   type SpokenEvidenceKind,
+  type VerdictKeys,
 } from '@shared/speakToSign/evidence';
+import { startHeardWords } from '@shared/speakToSign/heardWords';
 import {
   COSIGNER_VOICE_REFUSAL_CODE,
   cosignerVoiceRefusalMessage,
@@ -39,6 +40,7 @@ import {
   spokenRequestOfTransaction,
   spokenTransactionRequest,
 } from './voiceVerdictTransaction';
+import { SERVER_HEARD_WORDS_START } from './spokenIntentWasm';
 
 const YOCTO_PER_HUNDREDTH = 10n ** 22n;
 
@@ -67,8 +69,8 @@ export type SpeakToSignVoiceVerdictCheck = Readonly<{
   /** The evidence kind of the lane's verifier backend. The co-signer accepts no other kind. */
   evidenceKind: SpokenEvidenceKind;
   ledger: VoiceVerdictLedger;
-  /** Tests pass their own key. The co-signer always uses the pinned verifiers. */
-  verifiers?: Readonly<Record<SpeakToSignNetwork, SpeakToSignVerifier | null>>;
+  /** Tests pass their own keys. The co-signer always uses the pinned keys of the kind. */
+  verdictKeys?: VerdictKeys;
   now?: () => number;
 }>;
 
@@ -167,13 +169,13 @@ async function admitVoiceVerdict(
   if (checker.read(signed.verdict_json).kind !== 'approves') return refuse('verdict_invalid');
   const target = readSigningTarget(route.body);
   if (!target) return refuse('request_mismatch');
-  const verifier = (check.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[target.network];
-  if (!verifier) return refuse('network_unsupported');
+  const publicKeys = (check.verdictKeys ?? VERDICT_KEYS[check.evidenceKind])[target.network];
+  if (publicKeys.length === 0) return refuse('network_unsupported');
   // The request digest is compared below, after the co-signer builds the request from the bytes
   // that it signs. A step-up passes here and needs the fresh approval next.
   const opened = await checker.open(
     { verdictJson: signed.verdict_json, signatureB64: signed.signature_b64 },
-    { publicKey: verifier.publicKey, nowMs },
+    { publicKeys, nowMs },
   );
   if (!opened.ok) return refuse(cosignerRefusal(opened.refusal));
   const { evidence } = opened;
@@ -209,18 +211,22 @@ async function admitVoiceVerdict(
     // An amount or id that does not fit its Borsh integer.
     return refuse('request_mismatch');
   }
-  if (evidence.bindingRefusal({ requestDigest: await spokenRequestDigest(borsh) })) {
-    return refuse('request_mismatch');
-  }
+  // A SaySo verdict holds the transcript, which the `spoken-intent` module reads.
+  startHeardWords(SERVER_HEARD_WORDS_START);
+  const unbound = await evidence.bindingRefusal({
+    request: spoken,
+    requestDigest: await spokenRequestDigest(borsh),
+  });
+  if (unbound) return refuse(cosignerRefusal(unbound));
   // A bet, a note and a rating carry their verdict to a contract that checks it. It must be the
-  // verdict of this request.
+  // verdict of this request. A verdict that no contract checks goes into no call.
+  const carried = checker.reachesContracts
+    ? { verdictJson: signed.verdict_json, signatureB64: signed.signature_b64 }
+    : null;
   if (
     summary === undefined &&
     transaction &&
-    !transactionCarriesVerdict(target.network, transaction, {
-      verdictJson: signed.verdict_json,
-      signatureB64: signed.signature_b64,
-    })
+    !transactionCarriesVerdict(target.network, transaction, carried)
   ) {
     return refuse('request_mismatch');
   }
@@ -255,6 +261,7 @@ function cosignerRefusal(refusal: EvidenceRefusal): CosignerVoiceRefusal {
     case 'expired':
       return refusal.code;
     case 'mismatch':
+    case 'words':
       return 'request_mismatch';
     case 'invalid':
       return 'verdict_invalid';

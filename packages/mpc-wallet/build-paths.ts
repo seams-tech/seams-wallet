@@ -23,6 +23,7 @@ export const BUILD_PATHS = {
     WASM_TEMPO_SIGNER: '../../wasm/tempo_signer',
     WASM_EMAIL_OTP_RUNTIME: '../../wasm/email_otp_runtime',
     WASM_OPRF_RUNTIME: '../../wasm/oprf_runtime',
+    WASM_SPOKEN_INTENT: '../../wasm/spoken_intent',
     WASM_WALLET_CUSTODY_CEREMONY: '../../wasm/wallet_custody_ceremony',
     CRITICAL_DIRS: [
       'src/core',
@@ -38,6 +39,7 @@ export const BUILD_PATHS = {
       '../../wasm/tempo_signer',
       '../../wasm/email_otp_runtime',
       '../../wasm/oprf_runtime',
+      '../../wasm/spoken_intent',
       '../../wasm/wallet_custody_ceremony',
     ],
   },

@@ -25,6 +25,7 @@ import type {
   VerifierAttestationCall,
 } from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/backends/outlayer/attestation';
 import type { TranscriberChoice } from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/backends/outlayer/transcriber';
+import { createSaySoBackend } from '../../packages/mpc-wallet-server/src/router/domains/speakToSign/backends/sayso/saysoBackend';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
@@ -71,6 +72,8 @@ async function buildHarness(
     readonly config?: OutLayerVerifierConfig;
     /** The choice of the speech-to-text service. Default: the server's own choice. */
     readonly transcriber?: Pick<TranscriberChoice, 'choose'>;
+    /** A SaySo backend whose binding answers through the same fake fetch. Default: OutLayer. */
+    readonly sayso?: boolean;
   } = {},
 ) {
   const walletId = 'wallet:speak-to-sign';
@@ -108,14 +111,24 @@ async function buildHarness(
     calls.push(call);
     return await outlayer(call);
   }) as typeof fetch;
-  const backend = createOutLayerBackend(options.config ?? CONFIG, {
+  const saysoBinding = {
+    fetch: async (request: Request) =>
+      await fakeFetch(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: await request.text(),
+      }),
+  };
+  const backend = options.sayso
+    ? createSaySoBackend({ binding: saysoBinding, apiKey: 'sk_sayso_route' })
+    : createOutLayerBackend(options.config ?? CONFIG, {
     fetch: fakeFetch,
     nearAiApiKey: options.summary?.apiKey ?? null,
     ...(options.attestation === 'server'
       ? {}
       : { attestation: options.attestation ?? passingAttestation }),
     ...(options.transcriber ? { transcriber: options.transcriber } : {}),
-  });
+      });
   const extensions = createSpeakToSignVerifyRouteExtensions(backend, {
     authorizationSessions: {
       tenantId: session.tenantId,
@@ -275,7 +288,7 @@ test('a Venice call runs the venice build, and its quote must name that build', 
     config: VENICE_CONFIG,
     transcriber: { choose: async () => 'venice' },
   });
-  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
   expect(response.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'verdict']);
   expect(response.json.transcriber).toBe('venice');
   const forwarded = JSON.parse(String(harness.calls[0].init.body)) as Record<string, unknown>;
@@ -289,7 +302,7 @@ test('a Venice call runs the venice build, and its quote must name that build', 
     config: VENICE_CONFIG,
     transcriber: { choose: async () => 'nearai' },
   });
-  const usual = await nearAi.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  const usual = await nearAi.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
   expect(usual.json.transcriber).toBe('nearai');
   expect(JSON.parse(String(nearAi.calls[0].init.body)).version_key).toBe(CONFIG.versionKey);
   expect(nearAi.attested.map((call) => call.versionKey)).toEqual([CONFIG.versionKey]);
@@ -297,7 +310,7 @@ test('a Venice call runs the venice build, and its quote must name that build', 
 
 test('a call without a live Wallet Session never reaches OutLayer', async () => {
   const harness = await buildHarness(okOutlayer);
-  const body = JSON.stringify({ input: VERIFIER_INPUT });
+  const body = JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT });
   for (const token of [null, 'wst_unknown']) {
     const response = await harness.send(body, token);
     expect(response.status).toBe(401);
@@ -310,7 +323,7 @@ test('a call without a live Wallet Session never reaches OutLayer', async () => 
 test('the per-wallet limiter runs after auth and can refuse', async () => {
   const harness = await buildHarness(okOutlayer);
   harness.denyRateLimit();
-  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
   expect(response.status).toBe(429);
   expect(harness.rateLimited).toEqual([harness.walletId]);
   expect(harness.calls).toHaveLength(0);
@@ -325,7 +338,7 @@ test('a verify input for another owner is refused before OutLayer', async () => 
     { ...VERIFIER_INPUT, owner: [OWNER] },
   ];
   for (const input of others) {
-    const response = await harness.send(JSON.stringify({ input }));
+    const response = await harness.send(JSON.stringify({ backend: 'outlayer', input }));
     expect(response.status).toBe(403);
     expect(response.json).toEqual({ ok: false, code: 'owner_mismatch' });
   }
@@ -338,7 +351,7 @@ test('an operation other than verify and enroll is refused before OutLayer', asy
   const harness = await buildHarness(okOutlayer);
   const operations = ['transcribe', 'select', 'detect', 'audio_key', undefined, ['verify']];
   for (const op of operations) {
-    const response = await harness.send(JSON.stringify({ input: { ...VERIFIER_INPUT, op } }));
+    const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: { ...VERIFIER_INPUT, op } }));
     expect(response.status, String(op)).toBe(400);
     expect(response.json).toEqual({ ok: false, code: 'unsupported_operation' });
   }
@@ -348,7 +361,7 @@ test('an operation other than verify and enroll is refused before OutLayer', asy
 
 test('a session without a resolvable NEAR account is refused before OutLayer', async () => {
   const harness = await buildHarness(okOutlayer, { ownerResolvable: false });
-  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
   expect(response.status).toBe(403);
   expect(response.json).toEqual({ ok: false, code: 'owner_unavailable' });
   expect(harness.ownerReads).toHaveLength(1);
@@ -365,7 +378,7 @@ test('an enrollment of three 8 s clips fits the body cap and reaches OutLayer un
     nonce_b64: 'A'.repeat(43) + '=',
   };
   const input = { op: 'enroll', owner: OWNER, audio_wav_b64: [clip, clip, clip], authorization };
-  const response = await harness.send(JSON.stringify({ input }));
+  const response = await harness.send(JSON.stringify({ backend: 'outlayer', input }));
   expect(response.status).toBe(200);
   expect(harness.calls).toHaveLength(1);
   expect(JSON.parse(String(harness.calls[0].init.body)).input).toEqual(input);
@@ -374,9 +387,9 @@ test('an enrollment of three 8 s clips fits the body cap and reaches OutLayer un
 test('a body above the cap or with other fields is refused before OutLayer', async () => {
   const harness = await buildHarness(okOutlayer);
   const padding = 'A'.repeat(SPEAK_TO_SIGN_VERIFY_MAX_BODY_BYTES);
-  const tooLarge = await harness.send(JSON.stringify({ input: { audio_b64: padding } }));
+  const tooLarge = await harness.send(JSON.stringify({ backend: 'outlayer', input: { audio_b64: padding } }));
   expect(tooLarge.status).toBe(413);
-  for (const body of ['not json', '{}', '{"input":"x"}', JSON.stringify({ input: {}, extra: 1 })]) {
+  for (const body of ['not json', '{}', '{"input":"x"}', JSON.stringify({ backend: 'outlayer', input: {}, extra: 1 })]) {
     expect((await harness.send(body)).status).toBe(400);
   }
   expect(harness.calls).toHaveLength(0);
@@ -393,18 +406,18 @@ test('the verdict names the full URL of the OutLayer attestation record of the c
       attestation_url: `/attestations/by-call/${call}`,
     }),
   );
-  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
   expect(response.json.attestationUrl).toBe(`https://outlayer.example.test/attestations/by-call/${call}`);
   // Any other path is not a record of a call.
   const other = await buildHarness(() =>
     Response.json({ status: 'completed', output: VERIFIER_OUTPUT, error: null, attestation_url: 'https://elsewhere.test/x' }),
   );
-  expect((await other.send(JSON.stringify({ input: VERIFIER_INPUT }))).json.attestationUrl).toBeNull();
+  expect((await other.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }))).json.attestationUrl).toBeNull();
 });
 
 test('the call forwards the exact OutLayer shape and returns the output unchanged', async () => {
   const harness = await buildHarness(okOutlayer);
-  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
   expect(response.status).toBe(200);
   expect(response.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'verdict']);
   expect(response.events?.[0].data).toEqual({});
@@ -473,7 +486,7 @@ test('OutLayer failures map to fixed codes without upstream text or the key', as
   ];
   for (const [outlayer, code] of cases) {
     const harness = await buildHarness(outlayer);
-    const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+    const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
     expect(response.status, code).toBe(200);
     expect(response.events?.map((entry) => entry.event), code).toEqual(['verifier_running', 'failed']);
     expect(response.json).toEqual({ ok: false, code });
@@ -498,7 +511,7 @@ test('the server check refuses an output that the TDX quote of the call does not
       ({ url }) => (url.endsWith(ATTESTATION_URL) ? Response.json(record) : reply()),
       { attestation: 'server' },
     );
-    const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+    const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
     expect(response.events?.map((entry) => entry.event), code).toEqual(['verifier_running', 'failed']);
     expect(response.json).toEqual({ ok: false, code });
     expect(response.text).not.toContain('verdict_json');
@@ -529,7 +542,7 @@ test('a refused attestation sends a failed event with its code and no verdict', 
       }),
     },
   });
-  const response = await harness.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  const response = await harness.send(JSON.stringify({ backend: 'outlayer', input: VERIFIER_INPUT }));
   expect(response.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'failed']);
   expect(response.json).toEqual({ ok: false, code: 'attestation_wasm_not_accepted' });
   expect(response.text).not.toContain(VERIFIER_OUTPUT.verdict_json);
@@ -641,4 +654,49 @@ test('the summary route needs a session and one note, and gives fixed codes for 
   expect(
     await unreachable.send(JSON.stringify({ text: NOTE }), undefined, SPEAK_TO_SIGN_SUMMARY_PATH),
   ).toMatchObject({ status: 502, json: { ok: false, code: 'summary_unreachable' } });
+});
+
+test('an input for another backend is refused before any call, as during a deploy', async () => {
+  const outlayer = await buildHarness(okOutlayer);
+  const response = await outlayer.send(JSON.stringify({ backend: 'sayso', input: VERIFIER_INPUT }));
+  expect(response.status).toBe(409);
+  expect(response.json).toEqual({ ok: false, code: 'backend_mismatch' });
+  const missing = await outlayer.send(JSON.stringify({ input: VERIFIER_INPUT }));
+  expect(missing.json).toEqual({ ok: false, code: 'invalid_body' });
+  expect(outlayer.calls).toHaveLength(0);
+});
+
+test('on SaySo the route sends the session owner and the fresh passkey session to the backend', async () => {
+  const output = { kind: 'sayso_verify_output_v1', verdict_json: '{}', signature_b64: 'c2ln', ms: {} };
+  const harness = await buildHarness(() => Response.json(output), { sayso: true });
+  const input = {
+    op: 'verify',
+    network: 'testnet',
+    owner: OWNER,
+    intent: {
+      action: 'seams.near.transfer',
+      payload_sha256_hex: '42'.repeat(32),
+      sentence: 'send ten near to bob dot testnet',
+    },
+    audio_wav_b64: 'UklGRg==',
+  };
+  const verified = await harness.send(JSON.stringify({ backend: 'sayso', input }));
+  expect(verified.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'verdict']);
+  expect(verified.json).toMatchObject({ ok: true, output, attestationUrl: null });
+  expect(harness.calls[0].url).toBe('https://sayso/v1/verify');
+  expect(JSON.parse(String(harness.calls[0].init.body)).intent.user_id).toBe(`near:testnet:${OWNER}`);
+  // Another owner than the session account is refused before SaySo.
+  const other = await harness.send(JSON.stringify({ backend: 'sayso', input: { ...input, owner: 'eve.testnet' } }));
+  expect(other.json).toEqual({ ok: false, code: 'owner_mismatch' });
+  // The route passes the session to the backend: the fixture session was issued long ago, so it
+  // may not enroll a voice, and SaySo gets no call.
+  const enrolled = await harness.send(
+    JSON.stringify({
+      backend: 'sayso',
+      input: { op: 'enroll', network: 'testnet', owner: OWNER, audio_wav_b64: ['a', 'b', 'c'] },
+    }),
+  );
+  expect(enrolled.events?.map((entry) => entry.event)).toEqual(['verifier_running', 'failed']);
+  expect(enrolled.json).toEqual({ ok: false, code: 'fresh_approval_required' });
+  expect(harness.calls.map((call) => call.url)).toEqual(['https://sayso/v1/verify']);
 });

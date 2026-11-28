@@ -23,6 +23,7 @@ allowBuilds:
   utf-8-validate: true
   workerd: true
 minimumReleaseAgeExclude:
+  - '@seams/sayso-verdict@0.2.0'
   - '@seams/voice-capture@0.72.0'
   - '@seams/voice-sign@0.72.0'
   - '@seams/voice-verdict@0.72.0'

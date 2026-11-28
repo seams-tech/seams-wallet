@@ -1,9 +1,8 @@
 # Refactor 254: Speak-to-Sign verifier backends (SaySo first, OutLayer second)
 
-Status: 2026-11-27. Slice 1 is built in `23b08a7d2` (Section 6, "Slice 1 result"). Of Slice 3,
-S1 is built in SaySo `1e02ffb` (Section 6, "Slice 3 progress"); S2, S3 and the gates wait for
-the owner. Slice 2 is built. Of Slice 4, only the spoken card is built. Slices 5 and 6 are not
-built.
+Status: 2026-11-28. Slices 1 to 4 are built (Section 6). Of Slice 3, the gates G1 and G3 do not
+pass as written (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
+result"); it is not released or deployed. Slices 5 and 6 are not built.
 Section 8 lists the questions for the owner and the answers; none is open. Section 9 holds the
 architecture review that the owner asked for before Slice 2, and Section 8 holds the owner's
 answers to it. The 10 NEAR rule is removed, and Slice 2 is the neutral evidence checker
@@ -623,6 +622,83 @@ milli, and an embedding cosine of 0.99999999 or more. No clip left this machine.
 warm verifies at p50 1.68 s and p95 4.57 s; 5 cold verifies at p50 2.47 s and a maximum of 6.87
 s. All 45 accepted. The speaker model takes 125 to 189 ms, so the turbo call is the likely cause
 (inferred: the Worker does not report its time alone) (Q17).
+
+### Slice 4 result (2026-11-28)
+
+Built on `dev` with design A (Q15): SaySo checks the speaker and the audio and signs the
+transcript; Wallet core and the co-signer decide the words with `spoken-intent`. Not released,
+not deployed and not tried on staging; Slice 6 does that.
+
+- **The pin and the kind.** `@seams/sayso-verdict` 0.2.0 is pinned exactly in `shared-ts`, the
+  Wallet and the server. `sayso` is in `SPEAK_TO_SIGN_BACKEND_IDS`, and `BACKEND_EVIDENCE_KIND`
+  maps it to `sayso_verdict_v1`.
+- **The checker** (`shared-ts/src/speakToSign/evidence/saysoVerdictV1.ts`). `open` accepts a
+  signature of any pinned key (a list, for a rotation), refuses a verifier other than
+  `sayso/x.y.z` (so no `+mock` verdict), and has no step-up. `bindingRefusal` builds the
+  transcript-only intent from the request (`user_id` `near:<network>:<owner>`, `action`
+  `seams.near.<kind>`, the request digest, the spoken words) and compares `intent_digest`, then
+  the recording, then the words: `heard` must read with `normalize_punctuated` as exactly the
+  spoken words of the request. The only contact is the request's receiver, on both sides. The
+  pin for testnet is the staging key `3d96c3d2…0d6895`; mainnet has none.
+- **The port changes.** `ExpectedEvidence` holds the `SpokenRequest`, and the co-signer renders
+  its words with `renderSpokenRequest`. `bindingRefusal` is async. A new refusal code `words`
+  lets core answer `refused: words`, so the owner can say the sentence again. `VERDICT_KEYS`
+  holds the keys of each kind and network. `EvidenceChecker.reachesContracts` says whether a
+  note, a rating and a bet carry the verdict to their contract: true for v2, false for SaySo
+  (R6). The co-signer refuses a SaySo verdict inside such a call, and still requires the v2
+  verdict in a bet.
+- **`spoken-intent` for wasm32** (`wasm/spoken_intent`, 56 KB). It links the crate of
+  seams-tech/speak-to-sign at `bbb7617` (`dev`) as a Git dependency, and exports one function,
+  `heard_words`. `shared-ts/src/speakToSign/heardWords.ts` holds the module; each runtime names
+  how it loads it: the server through `initializeServerWasm`, the Wallet from `sdk/workers/`.
+  The build scripts, the server's asset copy and the third-party notices include it.
+- **The Gateway module** (`backends/sayso/`). It calls the `SAYSO` service binding with
+  `Authorization: Bearer SAYSO_API_KEY` and builds the intent with `createIntent({
+  transcriptOnly: true })`, with the owner that the route checked. It serves `verify`, `enroll`
+  and `delete`; OutLayer serves `verify` and `enroll`. SaySo's error text never reaches the
+  answer or the log.
+- **The verify body names its backend:** `{ backend, input }`. Another backend gives 409
+  `backend_mismatch` (R5). `SPEAK_TO_SIGN_BACKEND` is now required beside any backend setting
+  (R7): a lane with OutLayer settings and no `SPEAK_TO_SIGN_BACKEND` stops at start.
+- **The SDK module** (`verifiers/sayso/`) is the backend of Wallet core; OutLayer stays as a
+  module that is off. The port builds the verify input (`verifyInput`), reads the output
+  (`parseOutput`), proves an enrollment (`authorizeEnrollment`) and gives the delete input. The
+  OutLayer request form moved into its module (R5).
+- **Enrollment (Q2, Q11).** The Gateway enrolls on SaySo only with a Wallet Session that a
+  passkey or Email OTP issued in the last 120 s; a VoiceID session never counts. The Wallet gets
+  such a session with a passkey unlock just before it sends the clips.
+- **Limits (Q7).** SaySo refuses a sentence of more than 16 words or 160 characters, also for a
+  transcript-only intent. Core asks the backend before the card opens, and answers
+  `unavailable: verifier_unavailable` with the reason, such as "The sentence has 18 words; the
+  verifier takes at most 16." The audio is cut at 8 s as before.
+- **The card** changes only its receipt lines and step texts: "Verifier receipt", "Seams
+  verifier · Cloudflare", ReDimNet B1, Whisper large-v3-turbo on Workers AI, and no TEE link.
+- **The template delete (R4).** SaySo `d6ccbea` (local, not pushed or deployed) adds
+  `POST /v1/template/delete` with a test. The Gateway serves `op: 'delete'` on SaySo. The Wallet
+  deletes the template before VoiceID goes off or is removed; a failed delete stops the change,
+  because the co-signer accepts a verdict whatever the local switch says. A lane with no verify
+  route (404) or another backend (409) has nothing to delete, so the change goes on.
+- **Checks.** `pnpm check:speak-to-sign-backends` passes and now also covers the SaySo modules
+  and `@seams/sayso-verdict`. The 10 Speak-to-Sign unit files have 200 cases, and all pass:
+  `speakToSignSaySo.unit.test.ts` is new, and the other files test SaySo in core, the co-signer
+  and the route beside their OutLayer cases, which keep the OutLayer module by injection. The
+  type fixture `tests/typecheck/speak-to-sign-backends.typecheck.ts` holds that the co-signer
+  takes one evidence kind. `tsrs` passes for `shared-ts`, the Wallet, the server and the two
+  test configs. SaySo's `pnpm test:ts` (20 tests) and `pnpm typecheck` pass.
+- **Not checked:** the WASM load from `sdk/workers/` in a browser, the passkey unlock of an
+  enrollment, and a call through a real `SAYSO` binding.
+
+For Slice 6:
+
+- seams-console `render-d1-gateway-config.mjs` sets the OutLayer variables and no
+  `SPEAK_TO_SIGN_BACKEND`. It must set `SPEAK_TO_SIGN_BACKEND`, the `SAYSO` binding and
+  `SAYSO_API_KEY` before the lane runs this server.
+- The Wallet asks for the fresh approval with a passkey only. An Email OTP wallet cannot enroll
+  yet; the Gateway already accepts an Email OTP session.
+- A sound-alike of the receiver reads as the receiver (the forgiving rules of `spoken-intent`);
+  the card shows the receiver, and another account does not pass.
+- Deploy SaySo `d6ccbea` before the Wallet: a Gateway delete on an older Worker answers 404,
+  and VoiceID cannot go off.
 
 ## 7. Invariants
 

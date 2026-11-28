@@ -4,6 +4,7 @@
 
 import { base64UrlEncode } from '@shared/utils/base64';
 import {
+  callRequiresVerdict,
   carriedVerdictOfCall,
   spokenRequestOfCall,
   type SignedSpokenCall,
@@ -172,17 +173,20 @@ export async function spokenRequestOfTransaction(
 
 /**
  * True when the transaction carries no verdict to its contract, or carries exactly this one. A
- * bet, a note and a rating carry their verdict, because their contracts check it. A call with
- * another verdict is not the call that core built.
+ * bet, a note and a rating carry a verdict that their contracts check. A call with another
+ * verdict, or with a verdict when `verdict` is null (no contract checks the kind), is not the
+ * call that core built.
  */
 export function transactionCarriesVerdict(
   network: SpeakToSignNetwork,
   transaction: VoiceTransaction,
-  verdict: SpokenCallVerdict,
+  verdict: SpokenCallVerdict | null,
 ): boolean {
   const call = signedCallOfTransaction(transaction);
   const carried = call ? carriedVerdictOfCall(call, network) : null;
-  if (!carried) return true;
+  // A bet whose market checks the verdict must carry it.
+  if (!carried) return verdict === null || !call || !callRequiresVerdict(call, network);
+  if (!verdict) return false;
   return (
     carried.verdictJson === verdict.verdictJson && carried.signatureB64 === verdict.signatureB64
   );

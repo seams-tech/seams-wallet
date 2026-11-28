@@ -22,6 +22,11 @@ non-secret result handling. It also loads the Ed25519 Yao client WASM for
 registration, login, and local session material (see
 [`yaoClient.ts`](../packages/mpc-wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
 
+Speak-to-Sign with the SaySo backend loads the `spoken_intent` WASM module on the iframe main
+thread when Wallet core checks a SaySo verdict
+([`heardWords.ts`](../packages/shared-ts/src/speakToSign/heardWords.ts)). It reads the
+transcript that the verdict signs. It holds no secret, and it moves no operation between workers.
+
 Applications enable VoiceID by configuration, with `voiceIdAuthMethod()` from
 `@seams/mpc-wallet/voiceid`. The Wallet operator explicitly deploys the VoiceID host plugin of
 `@seams/host`. The Wallet iframe loads the plugin on first use through a fixed same-origin

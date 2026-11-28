@@ -15,7 +15,13 @@ import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isPlainObject } from '@shared/utils/validation';
 import { spokenCallOfFields } from '@shared/speakToSign/spokenKinds';
 import { sha256 } from '@shared/speakToSign/spokenRequest';
-import { BACKEND_EVIDENCE_KIND, SPEAK_TO_SIGN_VERIFIERS } from '@shared/speakToSign/evidence';
+import {
+  BACKEND_EVIDENCE_KIND,
+  evidenceChecker,
+  VERDICT_KEYS,
+  type VerdictKeys,
+} from '@shared/speakToSign/evidence';
+import { startHeardWords, type HeardWordsStart } from '@shared/speakToSign/heardWords';
 import { parseCosignerVoiceRefusal } from '@shared/speakToSign/voiceVerdict';
 import type {
   AuthMethodEnrollmentRecording,
@@ -40,26 +46,28 @@ import type {
 } from './hostPlugin';
 import type { SpokenApprovalPlugin } from './plugins';
 import {
-  intentDigests,
+  intentEvidence,
   intentRefusal,
   type SpokenEvidence,
   type SpokenIntent,
 } from './spokenIntent';
+import { WALLET_HEARD_WORDS_START } from './spokenIntentWasm';
 import type { SpokenMessageAction } from './spokenMessage';
 import { noteTransaction, spokenCallTransaction, type SpokenNoteAction } from './spokenNote';
-import type { SpokenDigests } from './spokenTransfer';
 import {
   checkVoiceVerdict,
-  parseVerifyOutput,
   verdictStillValid,
   type SignedVoiceVerdict,
   type VoiceApprovedSigning,
 } from './voiceVerdict';
-import { SPEAK_TO_SIGN_VERIFIER_BACKEND } from './verifiers/backend';
+import {
+  SPEAK_TO_SIGN_VERIFIER_BACKEND,
+  type FreshApproval,
+  type SpeakToSignVerifierBackend,
+  type SpokenVerifyInput,
+} from './verifiers/backend';
 import { readVerifyStream } from './verifyStream';
 import { pcm16Wav, SAMPLE_RATE } from './wav';
-
-type Verifiers = typeof SPEAK_TO_SIGN_VERIFIERS;
 
 const VERIFY_PATH = '/speak-to-sign/v1/verify';
 const SUMMARY_PATH = '/speak-to-sign/v1/summary';
@@ -113,6 +121,11 @@ export type SpeakToSignHostOperationsInput = Readonly<{
     params: Readonly<{ message: string; recipient: string }>,
     signal: AbortSignal,
   ) => Promise<SignNEP413MessageResult>;
+  /**
+   * A fresh approval with a passkey or Email OTP of the wallet, which issues a new Wallet
+   * Session. A SaySo enrollment needs it; a VoiceID unlock never counts, as it is the voice again.
+   */
+  freshApproval: (signal: AbortSignal) => Promise<FreshApproval>;
   /** The VoiceID host plugin's `openPhrase`, loaded on first use. */
   openPhrase: (request: AuthMethodPhraseRequest) => Promise<AuthMethodPhraseSurface>;
   /**
@@ -124,8 +137,12 @@ export type SpeakToSignHostOperationsInput = Readonly<{
   progress: (progress: SpeakToSignProgress) => void;
   fetch: typeof fetch;
   now?: () => number;
-  /** Tests pass their own key. The Wallet always uses the pinned verifiers. */
-  verifiers?: Verifiers;
+  /** Tests pass their own keys. The Wallet always uses the pinned keys of the evidence kind. */
+  verdictKeys?: VerdictKeys;
+  /** Tests pass another backend. The Wallet always uses `SPEAK_TO_SIGN_VERIFIER_BACKEND`. */
+  backend?: SpeakToSignVerifierBackend;
+  /** Tests in Node load the transcript reader from a file. The Wallet fetches it. */
+  heardWords?: HeardWordsStart;
   /** The VoiceID enrollment samples that this flow made, which its enrollment may authorize. */
   adopted?: AdoptedRecordings;
 }>;
@@ -167,8 +184,12 @@ export type FlowState = {
   paid: boolean;
 };
 
-function voiceVerdict(output: unknown): SpokenEvidence {
-  return { kind: BACKEND_EVIDENCE_KIND[SPEAK_TO_SIGN_VERIFIER_BACKEND.id], output };
+function backendOf(input: SpeakToSignHostOperationsInput): SpeakToSignVerifierBackend {
+  return input.backend ?? SPEAK_TO_SIGN_VERIFIER_BACKEND;
+}
+
+function evidenceOf(input: SpeakToSignHostOperationsInput, output: unknown): SpokenEvidence {
+  return { kind: BACKEND_EVIDENCE_KIND[backendOf(input).id], output };
 }
 
 /** Builds the scoped operations for one spoken payment or enrollment. */
@@ -179,6 +200,7 @@ export function createSpeakToSignHostOperations(
   return {
     openPrompt: openPrompt.bind(null, input, state),
     receiverExists: receiverExists.bind(null, input),
+    prepareVerify: prepareVerify.bind(null, input),
     verify: verify.bind(null, input),
     summarizeNote: summarizeNote.bind(null, input),
     prepareNote: (text) => summarySource(input).prepare(text),
@@ -189,18 +211,18 @@ export function createSpeakToSignHostOperations(
         state,
         // The kind is last, so no property of the argument can replace it.
         { ...transferRequest, kind: 'account_transfer' },
-        voiceVerdict(output),
+        evidenceOf(input, output),
         signal,
         hooks,
       ),
     signNoteWithVerdict: (action, output, signal, hooks) =>
-      signWithEvidence(input, state, action, voiceVerdict(output), signal, hooks),
+      signWithEvidence(input, state, action, evidenceOf(input, output), signal, hooks),
     signMessageWithVerdict: (action, output, signal, hooks) =>
       signWithEvidence(
         input,
         state,
         { kind: 'signed_message', message: action },
-        voiceVerdict(output),
+        evidenceOf(input, output),
         signal,
         hooks,
       ),
@@ -275,6 +297,26 @@ async function receiverExists(
   return exists;
 }
 
+/**
+ * The verify input of the lane's backend for this intent, before its recording, or why the
+ * request is above the verifier's limits.
+ */
+async function prepareVerify(
+  input: SpeakToSignHostOperationsInput,
+  intent: SpokenIntent,
+): Promise<SpokenVerifyInput> {
+  const { network } = input.feature;
+  const owner = input.ownerAccountId;
+  const { request, digests } = await intentEvidence(network, owner, intent);
+  return await backendOf(input).verifyInput({
+    network,
+    owner,
+    intent,
+    request,
+    requestDigest: digests.request,
+  });
+}
+
 async function verify(
   input: SpeakToSignHostOperationsInput,
   verifierInput: Readonly<Record<string, unknown>>,
@@ -284,7 +326,8 @@ async function verify(
   if (sealedInput === null) return { kind: 'failed', code: 'recording_not_sealed' };
   if (verifierInput.op === 'verify') void input.prepareSigning().catch(() => {});
   input.progress({ stage: 'recording_sent' });
-  const response = await postToServer(input, VERIFY_PATH, { input: sealedInput }, signal, {
+  const body = { backend: backendOf(input).id, input: sealedInput };
+  const response = await postToServer(input, VERIFY_PATH, body, signal, {
     accept: 'text/event-stream',
   });
   if ('kind' in response) return response;
@@ -308,8 +351,7 @@ async function outgoingVerifierInput(
   input: SpeakToSignHostOperationsInput,
   verifierInput: Readonly<Record<string, unknown>>,
 ): Promise<Readonly<Record<string, unknown>> | null> {
-  const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
-  return await SPEAK_TO_SIGN_VERIFIER_BACKEND.prepareInput(verifier, verifierInput);
+  return await backendOf(input).prepareInput(input.feature.network, verifierInput);
 }
 
 /**
@@ -468,7 +510,7 @@ export async function signWithEvidence(
   const { network } = input.feature;
   const refusal = intentRefusal(network, intent);
   if (refusal) return { kind: 'unavailable', detail: refusal };
-  const expected = await intentDigests(network, input.ownerAccountId, intent);
+  const expected = await intentEvidence(network, input.ownerAccountId, intent);
   const form = signingForm(intent);
   const approved = await approveVerdict(
     input,
@@ -519,11 +561,14 @@ async function sendApproved(
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
 ): Promise<SpeakToSignPayment> {
-  // A bet carries the checked verdict to its contract, so the transaction comes after the check.
+  // A bet carries a verdict that its contract checks, so the transaction comes after the check.
+  const carried = evidenceChecker(BACKEND_EVIDENCE_KIND[backendOf(input).id]).reachesContracts
+    ? approved.verdict
+    : null;
   const transaction =
     intent.kind === 'account_transfer'
-      ? spokenCallTransaction(spokenCallOfFields(intent, approved.verdict))
-      : noteTransaction(intent, approved.verdict);
+      ? spokenCallTransaction(spokenCallOfFields(intent, carried))
+      : noteTransaction(intent, carried);
   // The co-signer needs the spoken summary of a general transaction beside the verdict.
   const verdict =
     intent.kind === 'transaction' ? { ...approved.verdict, summary: intent.summary } : approved.verdict;
@@ -652,7 +697,7 @@ type ApprovedVerdict = Readonly<{ kind: 'approved' }> & VoiceApprovedSigning;
 async function approveVerdict(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
-  expected: SpokenDigests,
+  expected: Awaited<ReturnType<typeof intentEvidence>>,
   evidence: SpokenEvidence,
   signal: AbortSignal,
   hooks: SpeakToSignPaymentHooks,
@@ -661,15 +706,18 @@ async function approveVerdict(
   ApprovedVerdict | Variant<SpeakToSignPayment, 'kind', 'refused' | 'cancelled' | 'unavailable'>
 > {
   signal.throwIfAborted();
-  const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
-  if (!verifier) return { kind: 'unavailable', detail: 'This network has no verifier.' };
-  const output = parseVerifyOutput(evidence.output);
+  const publicKeys = (input.verdictKeys ?? VERDICT_KEYS[evidence.kind])[input.feature.network];
+  if (publicKeys.length === 0)
+    return { kind: 'unavailable', detail: 'This network has no verifier.' };
+  const output = backendOf(input).parseOutput(evidence.output);
   if (!output) return { kind: 'unavailable', detail: 'invalid verifier output' };
+  // A SaySo verdict holds the transcript, which the `spoken-intent` module reads.
+  startHeardWords(input.heardWords ?? WALLET_HEARD_WORDS_START);
   const check = await checkVoiceVerdict({
     kind: evidence.kind,
     output,
     expected,
-    verifier,
+    publicKeys,
     recordedAudio: state.recordedAudio,
     nowMs: (input.now ?? Date.now)(),
   });
@@ -707,8 +755,6 @@ async function authorizeEnrollment(
   signal: AbortSignal,
 ): Promise<SpeakToSignEnrollmentAuthorization> {
   signal.throwIfAborted();
-  const verifier = (input.verifiers ?? SPEAK_TO_SIGN_VERIFIERS)[input.feature.network];
-  if (!verifier) return { kind: 'not_signed', error: 'This network has no verifier.' };
   if (clips.length !== ENROLLMENT_RECORDINGS) {
     return { kind: 'not_signed', error: 'An enrollment needs exactly three recordings.' };
   }
@@ -716,27 +762,28 @@ async function authorizeEnrollment(
   if (!digests.every((digest) => state.recordedAudio.has(base64UrlEncode(digest)))) {
     return { kind: 'not_signed', error: 'Only recordings of this enrollment can be authorized.' };
   }
-  const statement = await SPEAK_TO_SIGN_VERIFIER_BACKEND.enrollmentStatement(
-    input.ownerAccountId,
-    digests,
-    verifier,
-  );
-  let signed: SignNEP413MessageResult;
-  try {
-    signed = await input.signMessage(statement, signal);
-  } catch (error) {
-    signal.throwIfAborted();
-    return { kind: 'not_signed', error: error instanceof Error ? error.message : 'not signed' };
-  }
-  if (!signed.success) return { kind: 'not_signed', error: signed.error };
-  return {
-    kind: 'signed',
-    authorization: {
-      public_key: signed.publicKey,
-      signature_b64: signed.signature,
-      nonce_b64: signed.nonce,
+  // Each path to the owner answers with a failure and never throws, unless the flow ended.
+  return await backendOf(input).authorizeEnrollment({
+    owner: input.ownerAccountId,
+    network: input.feature.network,
+    clipDigests: digests,
+    signMessage: async (statement) => {
+      try {
+        return await input.signMessage(statement, signal);
+      } catch (error) {
+        signal.throwIfAborted();
+        return { success: false, error: errorDetail(error, 'not signed') };
+      }
     },
-  };
+    freshApproval: async () => {
+      try {
+        return await input.freshApproval(signal);
+      } catch (error) {
+        signal.throwIfAborted();
+        return { kind: 'not_approved', error: errorDetail(error, 'not approved') };
+      }
+    },
+  });
 }
 
 function errorDetail(error: unknown, fallback: string): string {
