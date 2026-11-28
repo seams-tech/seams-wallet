@@ -165,6 +165,16 @@ else
   print_warning "Browser SDK Ed25519 Yao Client WASM not found"
 fi
 
+# The wasm-bindgen glue of the transcript reader keeps its default URL beside its chunk. The Wallet
+# loads the module from workers/, but the copy beside the chunks keeps that URL resolvable.
+print_step "Copying the spoken-intent WASM next to browser SDK chunks..."
+if cp "$SDK_ROOT/$SOURCE_WASM_SPOKEN_INTENT/pkg/spoken_intent_bg.wasm" "$BUILD_ESM/sdk/spoken_intent_bg.wasm" 2>/dev/null; then
+  print_success "Browser SDK spoken-intent WASM copied"
+else
+  print_error "Browser SDK spoken-intent WASM not found"
+  exit 1
+fi
+
 print_step "Emitting hosted wallet static asset tree..."
 if node "$SDK_ROOT/scripts/build/emit-static-wallet-assets.mjs"; then print_success "Hosted wallet static asset tree emitted"; else print_error "Hosted wallet static asset emission failed"; exit 1; fi
 
