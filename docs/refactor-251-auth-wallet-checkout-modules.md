@@ -1,7 +1,8 @@
 # Refactor 251: Auth, the MPC wallet, wallet connectors and checkout as separate modules
 
-Status: 2026-11-27. Slices 0 and 2 are done. Slice 1 (Release A) is built on `dev` and waits
-for the owner's release. Slice 3 (the frame kit) is built on `dev`; nothing uses it until Slice 6. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
+Status: 2026-11-28. Slices 0 and 2 are done. Slice 1 (Release A) is released as 0.77.0; four of
+the owner's steps stay open (see Slice 1). Slice 3 (the frame kit) is built on `dev`; nothing
+uses it until Slice 6. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
 plan. The design of [Refactor 233](refactor-233-auth-methods-by-factor.md) (factors, gates, one
 app API for methods) is the design of the new auth core.
 
@@ -304,7 +305,12 @@ Slice 0 answered U2 to U5 on 2026-11-18. The answers are in the [Slice 0
 inventory](refactor-251-slice-0-inventory.md).
 
 - **U1.** Can the release workflow publish a new npm package name with trusted publishing, or
-  does each new name need one first publish with a token? Release A answers this.
+  does each new name need one first publish with a token? Release A answered a part
+  (2026-11-28): the "Release wallet packages" run on `b193a30b8` failed in "Publish @seams/host"
+  with `E404` on `PUT https://registry.npmjs.org/@seams%2fhost`. So the workflow did not make
+  the first publish of a new name. The three names are on npm. Who made that first publish, and
+  how, is not recorded here. `@seams/auth` and `@seams/checkout` are new names in Release B, so
+  the owner must plan their first publish.
 - **U2.** Which IndexedDB stores, D1 tables, routes and server secrets belong to auth, and which
   to the wallet? Slice 0 makes this list.
 - **U3.** Which `seams-monorepo` routes extend wallet-server routes that move to the Auth
@@ -682,7 +688,9 @@ Rules for the cleanup:
   - Tell the other sessions first. Each open branch conflicts with a rename of this size.
   - The names are final (D22, D23). This slice waits for no brand rename.
 
-  Built on 2026-11-27 in `f2f04a133` on `dev`, not pushed or published. The parts:
+  Built on 2026-11-27 in `f2f04a133`. Released as 0.77.0 on 2026-11-28: the release commit is
+  `2a549990a`, `main` is at `b193a30b8`, and `@seams/mpc-wallet`, `@seams/wallet-connect` and
+  `@seams/host` 0.77.0 are on npm (published between 11:12 and 11:21 UTC). The parts:
   - Folders: `packages/mpc-wallet` (`@seams/mpc-wallet`), `packages/wallet-connect`
     (`@seams/wallet-connect`), `packages/mpc-wallet-server` (publishes `@seams/host` until
     Slice 4 creates `packages/host`), `packages/cli` (`@seams/cli`, still 0.29.0, because the
@@ -709,9 +717,14 @@ Rules for the cleanup:
     that `/client` re-exports, so a Bun bundle of `SeamsWeb` alone grows from 87,665 to
     102,434 bytes gzip, and a Bun bundle of the auth menu alone keeps the QR libraries. Open
     for the owner: accept this, or keep `/runtime` as its own path.
-  - Open: the owner's release steps (versions, the first publish of the three new names (U1),
-    the CLI publish, the deprecation messages) and the Console commit, planned in the notes of
-    this session.
+  - Done on 2026-11-28: the versions, the publish of the three new names (U1 says what is
+    known about the first publish) and the Console commit (`7d04f995` in `seams-console` pins
+    the three packages at 0.77.0).
+  - Open for the owner, checked on 2026-11-28:
+    - `@seams/cli` is not on npm. `@seams/wallet-cli` 0.29.0 is.
+    - `@seams/wallet`, `@seams/wallet-server`, `@seams/voiceid` and `@seams/wallet-cli` have no
+      deprecation message.
+    - The Bun bundle question above has no answer.
 - **Slice 2: the conformance suite.** The journeys, the record fixtures and the route checks of
   Section 2, with the driver for the old API. The suite passes against the old code.
 
