@@ -35,7 +35,7 @@ update that document in the same change.
 Run `pnpm report:bloat --check` before committing. It fails when dead exports,
 files over 2,000 lines, local copies of the basic validation helpers, comments
 citing refactor numbers, Rust `allow(dead_code)` or duplicated lines grow past
-`scripts/bloat-baseline.json`. The plan is `docs/cleanup-1.md`.
+`scripts/bloat-baseline.json`. Run `pnpm report:bloat` for the current numbers.
 
 - Use the helpers in `packages/shared-ts/src/utils/validation.ts` instead of
   defining local copies.

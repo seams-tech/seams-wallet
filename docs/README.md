@@ -137,5 +137,12 @@ text at a commit.
     is a device factor. The device keeps the POPRF input, so the server alone cannot open an
     Email OTP wallet. Slices 0 to 5 are in 0.75.0 and 0.76.0. D5 (no release for a Wallet
     Session bearer, an operation on each grant) is in the next release (2026-11-27).
+  - [Cleanup 1 at `68ad7510f`](https://github.com/seams-tech/seams-wallet/blob/68ad7510f/docs/cleanup-1.md): dead,
+    duplicated and boilerplate code. `pnpm report:bloat --check` holds the measures at
+    `scripts/bloat-baseline.json`. Duplication fell from 5.1% to 2.1% in TypeScript and from
+    5.7% to 4.1% in Rust, and files over 2,000 lines from 82 to 50 (2026-11-27).
+  - [The implicit state machine audit at `ab9b60d88`](https://github.com/seams-tech/seams-wallet/blob/ab9b60d88/docs/plan-implicit-state-machines.md):
+    boolean flags, parallel maps and unguarded transitions became explicit unions and atomic
+    transitions. The confirmed items were fixed by 2026-11-08, and B9 on 2026-11-27.
   - [The Rust warning cleanup at `cf9710953`](https://github.com/seams-tech/seams-wallet/blob/cf9710953/docs/rust-warning-cleanup.md): the checklist and
     revert log of the 2026-10-21 review. Backend Wasm shrank by 22.19% across five services.
