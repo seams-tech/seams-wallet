@@ -4,7 +4,8 @@ Status: 2026-11-28. Slices 1 to 5 are built (Section 6). Of Slice 3, G1 passes o
 sentences by 16 readings, and G3 passes on staging with a hedged turbo call (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
 result"), and Slice 5 wrote its docs ("Slice 5 result"); neither is released or deployed.
 Slice 6 is not built.
-Section 8 lists the questions for the owner and the answers; Q16 and Q17 wait for the owner. Section 9 holds the
+Section 8 lists the questions for the owner and the answers; the owner answered Q16 and Q17 on
+2026-11-28. Section 9 holds the
 architecture review that the owner asked for before Slice 2, and Section 8 holds the owner's
 answers to it. The 10 NEAR rule is removed, and Slice 2 is the neutral evidence checker
 (Section 6, "Slice 2 result").
@@ -815,8 +816,8 @@ For Slice 6:
 | Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
 | Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
 | Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | Answered: A                                                                 |
-| Q16 | G1 under A on today's sentences: turbo reads 88.9% (gate 88.4%), 0 false accepts; 77.0% with the 16-word limit | Accept turbo for `staging-testnet`; keep the 95% target open; next, the "ad" alias for member sentences |
-| Q17 | G3: the turbo call sets the verify time; a hedged second call at 1.5 s gives warm p95 3.21 s | Keep the hedge (SaySo `b4481dc`); measure again through the Gateway in Slice 6 |
+| Q16 | G1 under A on today's sentences: turbo reads 88.9% (gate 88.4%), 0 false accepts; 77.0% with the 16-word limit | Answered: accept turbo for `staging-testnet`; keep the 95% target open; next, the "ad" alias for member sentences |
+| Q17 | G3: the turbo call sets the verify time; a hedged second call at 1.5 s gives warm p95 3.21 s | Answered: keep the hedge (SaySo `b4481dc`); measure again through the Gateway in Slice 6 |
 
 ### Answers of the owner (2026-11-27)
 
@@ -855,7 +856,16 @@ For Slice 6:
   account are accepted, not faults. The other changes of R3 stay, because they guard one lane
   from another and the real key from mock results: a key for each lane, no public enroll
   route, and no mock mode with a key.
-- Q3 was answered by Slice 1. No question is open.
+- Q3 was answered by Slice 1.
+- **Q16, Q17 and the release** (2026-11-28, in Slice 6). The owner chose the recommendations:
+  - **Q16.** Accept Whisper large-v3-turbo for `staging-testnet`. The 95% target stays open, and
+    a later task adds the "ad" alias for the member sentences.
+  - **Q17.** Keep the hedged turbo call (SaySo `b4481dc`).
+  - **The release.** Release all of `dev` as 0.77.0: Refactor 251 Release A (the new package
+    names), the passkey user verification, the Email OTP release of Refactor 252 D5, the D1
+    baseline and the SaySo backend. Of Release A, the owner accepts the Bun bundle growth and
+    keeps the three failing VoiceID behaviour cases as a separate task.
+- No question is open.
 
 ## 9. Architecture review (2026-11-27)
 
