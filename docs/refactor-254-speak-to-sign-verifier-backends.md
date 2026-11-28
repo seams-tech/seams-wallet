@@ -1,9 +1,9 @@
 # Refactor 254: Speak-to-Sign verifier backends (SaySo first, OutLayer second)
 
-Status: 2026-11-28. Slices 1 to 4 are built (Section 6). Of Slice 3, the gates G1 and G3 do not
-pass as written (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
+Status: 2026-11-28. Slices 1 to 4 are built (Section 6). Of Slice 3, G3 passes on staging with a
+hedged turbo call, and G1 does not pass as written (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
 result"); it is not released or deployed. Slices 5 and 6 are not built.
-Section 8 lists the questions for the owner and the answers; none is open. Section 9 holds the
+Section 8 lists the questions for the owner and the answers; Q16 and Q17 wait for the owner. Section 9 holds the
 architecture review that the owner asked for before Slice 2, and Section 8 holds the owner's
 answers to it. The 10 NEAR rule is removed, and Slice 2 is the neutral evidence checker
 (Section 6, "Slice 2 result").
@@ -618,10 +618,19 @@ and container, no route and no `workers.dev` URL.
 the 30 private clips: the same decision for every clip at 450 milli, a score difference of 0
 milli, and an embedding cosine of 0.99999999 or more. No clip left this machine.
 
-**G3: fails at p95.** Through a service binding to the staging Worker, with a `say` voice: 40
-warm verifies at p50 1.68 s and p95 4.57 s; 5 cold verifies at p50 2.47 s and a maximum of 6.87
-s. All 45 accepted. The speaker model takes 125 to 189 ms, so the turbo call is the likely cause
-(inferred: the Worker does not report its time alone) (Q17).
+**G3: failed at p95 on 2026-11-27; passes with a hedged turbo call since 2026-11-28.** Through a
+service binding to the staging Worker, with a `say` voice: 40 warm verifies at p50 1.68 s and p95
+4.57 s; 5 cold verifies at p50 2.47 s and a maximum of 6.87 s. All 45 accepted.
+
+- **The cause, measured.** With the time of each part (SaySo `8f93822`), the turbo call was the
+  slowest part in 320 of 320 warm verifies. Two equal turbo calls outside SaySo have a
+  correlation of 0.07, so the tail is inside Workers AI (inferred).
+- **The fix.** A second, equal turbo call starts when the first has not answered in 1.5 s, and
+  the first answer wins (SaySo `b4481dc`, lane version `538d0a45`). 160 warm verifies: p50 1.39
+  s, p95 3.21 s, maximum 4.71 s, against p95 3.85 s without it in the same runs. 5 cold verifies:
+  maximum 2.59 s. The extra cost is about $0.009 for each 1,000 verifies.
+- `sayso.seams.sh` has no hedge yet. The evidence is
+  `docs/evidence/refactor-254-g3-verify-time-20261128.md` (Q17).
 
 ### Slice 4 result (2026-11-28)
 
@@ -732,7 +741,7 @@ For Slice 6:
 | Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
 | Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | Answered: A                                                                 |
 | Q16 | G1 under A: turbo reads 86.1% against 91.1% for NEAR AI; Nova-3 and a prompt are worse      | Accept the gap for `staging-testnet`; measure multisig on a new corpus      |
-| Q17 | G3: verify p95 is 4.57 s warm, above 4 s; the turbo call is the likely cause                | Time the turbo call alone, try a hedged second call, then measure through the Gateway (Slice 6) |
+| Q17 | G3: the turbo call sets the verify time; a hedged second call at 1.5 s gives warm p95 3.21 s | Keep the hedge (SaySo `b4481dc`); measure again through the Gateway in Slice 6 |
 
 ### Answers of the owner (2026-11-27)
 
