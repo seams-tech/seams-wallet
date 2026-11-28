@@ -1,7 +1,7 @@
 # Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
-Status: 2026-11-28. Slices 2 to 4, 7 and 8, the server part of Slice 9 and the Worker part of
-Slice 10 are built on `dev`: the checkout Worker, the Stripe and
+Status: 2026-11-29. Slices 2 to 4 and 7 to 9, and the Worker part of Slice 10, are built on
+`dev`: the checkout Worker, the Stripe and
 KOMOJU rails (cards, konbini, bank transfer, PayPay and KOMOJU's other Japanese methods), the
 merchant's server client, the page
 SDK, the checkout frame and an example shop. Section 8 has the result of each slice and what each open slice waits
@@ -1386,7 +1386,24 @@ Each slice ships alone and keeps the invariants of Section 9.
   `mountCardFrame`, server refunds (full and partial) through the rail of the payment, and the
   dispute event.
 
-  Refunds and disputes are built on 2026-11-28 on `dev`, not released or deployed:
+  Built on 2026-11-28 and 2026-11-29 on `dev`, not released or deployed.
+
+  Headless mode:
+  - **`checkout.headless(element, options)`** in place of the provisional `checkout.methods`,
+    `select`, `pay` and `mountCardFrame`. It returns `ready` (the order and its methods),
+    `select(method, details)`, `pay()`, `on(listener)`, `result` and `unmount()`. The page
+    draws the list, the vouchers and the status from these.
+  - **The frame stays.** The element holds a checkout frame in the presentation `headless`,
+    which shows only the provider's card fields or wallet button and makes each call to the
+    Worker. So the provider's script never runs on the page, and the frame's policy applies.
+  - **Events:** `next_step` (a voucher, bank details or a wallet link, as data), `status`, and
+    `error` with a code (`declined`, `wallet_unavailable`, `no_method` or a Worker code such as
+    `details_required`) and the provider's text. The frame accepts only known customer
+    fields from the page.
+  - **Tests:** a card paid from the page's own button, a declined card and a second card, and
+    konbini with a missing detail and then a voucher.
+
+  Refunds and disputes:
   - **Refunds.** `POST /checkout/orders/{id}/refunds` and `refundOrder` of
     `@seams/checkout/server`: all of a paid order, or `amount`. The refund goes through the
     rail of the payment (`refund` of the rail interface). A refund row is stored before the

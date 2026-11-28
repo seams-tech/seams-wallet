@@ -1,7 +1,14 @@
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { isArray, isFiniteNumber, isPlainObject, isString } from '@shared/utils/validation';
 import type { CheckoutLocale } from './api';
-import { isCheckoutMethod, type CheckoutMethod } from './methods';
+import type { CheckoutSession, MethodOption } from './api';
+import {
+  CUSTOMER_FIELDS,
+  isCheckoutMethod,
+  type CheckoutMethod,
+  type CustomerDetails,
+  type NextStep,
+} from './methods';
 
 /** The protocol between the page SDK and the checkout frame, over the frame kit's port. */
 export const CHECKOUT_PROTOCOL = { name: 'seams-checkout', version: '1' } as const;
@@ -36,7 +43,8 @@ export type OpenMessage = {
   readonly clientToken: string;
   /** The stage that shows the frame. The frame's size messages carry it back. */
   readonly stage: string;
-  readonly presentation: 'modal' | 'inline';
+  /** `headless`: the page draws the list and each next step; the frame holds the provider part. */
+  readonly presentation: 'modal' | 'inline' | 'headless';
   readonly layout: CheckoutLayout;
   /** The order of the methods and a subset of them, or null for the project's own list. */
   readonly methods: readonly CheckoutMethod[] | null;
@@ -48,7 +56,18 @@ export type FrameMessage =
   | { readonly type: 'size'; readonly stage: string; readonly heightCssPx: number }
   | { readonly type: 'status'; readonly status: CheckoutStatus }
   /** The customer selected the close button or the done button. */
-  | { readonly type: 'close' };
+  | { readonly type: 'close' }
+  /** Headless: the order and its methods, after the frame read them. */
+  | { readonly type: 'methods'; readonly order: CheckoutSession['order']; readonly methods: readonly MethodOption[] }
+  /** Headless: a next step that the page draws. */
+  | { readonly type: 'next_step'; readonly method: CheckoutMethod; readonly step: NextStep }
+  /** Headless: the last command did not work. `message` is the provider's text, when one exists. */
+  | { readonly type: 'error'; readonly code: string; readonly message: string | null };
+
+/** What the page asks of a headless frame. */
+export type PageCommand =
+  | { readonly type: 'select'; readonly method: CheckoutMethod; readonly details: CustomerDetails }
+  | { readonly type: 'pay' };
 
 const LAYOUTS: readonly string[] = ['list', 'accordion', 'tabs'];
 const STATUSES: readonly string[] = ['open', 'confirming', 'pending', 'paid', 'failed'];
@@ -91,7 +110,7 @@ export function parseOpenMessage(value: unknown): OpenMessage | null {
   if (!hasExactKeys(value, keys) || value.type !== 'open') return null;
   const { publishableKey, clientToken, stage, presentation, layout, methods, locale } = value;
   if (!isToken(publishableKey) || !isToken(clientToken) || !isToken(stage)) return null;
-  if (presentation !== 'modal' && presentation !== 'inline') return null;
+  if (presentation !== 'modal' && presentation !== 'inline' && presentation !== 'headless') return null;
   if (!isString(layout) || !LAYOUTS.includes(layout)) return null;
   if (locale !== 'en' && locale !== 'ja') return null;
   if (methods !== null && !(isArray(methods) && methods.every(isCheckoutMethod))) return null;
@@ -118,10 +137,40 @@ export function parseFrameMessage(value: unknown): FrameMessage | null {
       ? { type: 'status', status: status as CheckoutStatus }
       : null;
   }
+  if (hasExactKeys(value, ['type', 'order', 'methods']) && value.type === 'methods') {
+    const { order, methods } = value;
+    return isPlainObject(order) && isArray(methods)
+      ? { type: 'methods', order: order as CheckoutSession['order'], methods: methods as MethodOption[] }
+      : null;
+  }
+  if (hasExactKeys(value, ['type', 'method', 'step']) && value.type === 'next_step') {
+    const { method, step } = value;
+    const kinds: readonly unknown[] = ['voucher', 'bank_details', 'redirect'];
+    return isCheckoutMethod(method) && isPlainObject(step) && kinds.includes(step.kind)
+      ? { type: 'next_step', method, step: step as NextStep }
+      : null;
+  }
+  if (hasExactKeys(value, ['type', 'code', 'message']) && value.type === 'error') {
+    const { code, message } = value;
+    return isToken(code) && (message === null || isString(message)) ? { type: 'error', code, message } : null;
+  }
   if (hasExactKeys(value, ['type', 'stage', 'heightCssPx']) && value.type === 'size') {
     const { stage, heightCssPx } = value;
     const valid = isToken(stage) && isFiniteNumber(heightCssPx) && heightCssPx > 0 && heightCssPx < 10_000;
     return valid ? { type: 'size', stage, heightCssPx } : null;
   }
   return null;
+}
+
+/** A command of the page, as a headless frame accepts it. Only known customer fields pass. */
+export function parsePageCommand(value: unknown): PageCommand | null {
+  if (hasExactKeys(value, ['type']) && value.type === 'pay') return { type: 'pay' };
+  if (!hasExactKeys(value, ['type', 'method', 'details']) || value.type !== 'select') return null;
+  const { method, details } = value;
+  if (!isCheckoutMethod(method) || !isPlainObject(details)) return null;
+  const known = CUSTOMER_FIELDS.flatMap((field) => {
+    const text = details[field];
+    return isString(text) && text.length <= MAX_TOKEN ? [[field, text.trim()] as const] : [];
+  });
+  return { type: 'select', method, details: Object.fromEntries(known) };
 }

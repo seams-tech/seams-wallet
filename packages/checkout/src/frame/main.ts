@@ -1,11 +1,11 @@
 import { acceptFrameConnection } from '../../../frame-kit/src/index';
 import type { CheckoutSession } from '../shared/api';
-import type { Variant } from '@shared/utils/variant';
 import {
   KONBINI_STORES,
   type CheckoutMethod,
   type CustomerDetails,
   type CustomerField,
+  type NextStep,
   type RailStart,
 } from '../shared/methods';
 import { formatAmount } from '../shared/money';
@@ -19,7 +19,9 @@ import {
 import { createFrameApi, FrameApiError, type FrameApi } from './api';
 import { mountCardFields, mountWalletButton, type CardFields } from './providers';
 import { FRAME_CSS } from './styles';
+import { runHeadless } from './headless';
 import { textsFor, type FrameTexts } from './texts';
+import { el, offeredMethods, showRoot } from './view';
 
 const POLL_MS = 1500;
 /** How long the frame waits for the rail's event after the provider took the payment. */
@@ -39,21 +41,8 @@ const AUTOCOMPLETE: Readonly<Partial<Record<CustomerField, AutoFill>>> = {
 /** The methods whose provider part opens when the customer selects them. */
 const EAGER_METHODS: readonly CheckoutMethod[] = ['card', 'apple_pay', 'google_pay'];
 
-type OfflineStart = Exclude<RailStart, Variant<RailStart, 'kind', 'card_form' | 'wallet_button'>>;
 
 type Child = Node | string | null;
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: Partial<HTMLElementTagNameMap[K]> & { readonly attrs?: Readonly<Record<string, string>> } = {},
-  ...children: Child[]
-): HTMLElementTagNameMap[K] {
-  const { attrs, ...rest } = props;
-  const element = Object.assign(document.createElement(tag), rest);
-  for (const [name, value] of Object.entries(attrs ?? {})) element.setAttribute(name, value);
-  element.append(...children.filter((child) => child !== null));
-  return element;
-}
 
 /** One checkout in the frame: it reads the order, shows the methods and runs one payment. */
 function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string): void {
@@ -85,26 +74,14 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
   );
 
   const { theme } = open;
-  if (theme.accent) root.style.setProperty('--co-accent', theme.accent);
-  if (theme.radius !== undefined) root.style.setProperty('--co-radius', `${theme.radius}px`);
-  if (theme.buttonHeight !== undefined) {
-    root.style.setProperty('--co-button-height', `${theme.buttonHeight}px`);
-  }
-  if (theme.fontFamily) {
-    root.style.setProperty('--co-font', `${theme.fontFamily}, system-ui, sans-serif`);
-  }
-  document.documentElement.lang = open.locale;
   document.title = texts.title;
-  document.body.replaceChildren(root);
+  showRoot(root, open, send);
   // The focus is inside the frame, so the page's dialog does not see the Escape key.
   if (modal) {
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !event.defaultPrevented) send({ type: 'close' });
     });
   }
-  new ResizeObserver(() => {
-    send({ type: 'size', stage: open.stage, heightCssPx: root.getBoundingClientRect().height });
-  }).observe(root);
 
   let cardFields: Pick<CardFields, 'destroy'> | null = null;
   let submitFields: CardFields['submit'] | null = null;
@@ -190,7 +167,7 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
   }
 
   /** The next step of a payment without card fields: a voucher, bank details or a wallet app. */
-  function showNextStep(method: CheckoutMethod, start: OfflineStart, amount: string): void {
+  function showNextStep(method: CheckoutMethod, start: NextStep, amount: string): void {
     const other = el('button', { className: 'co-link', type: 'button', textContent: texts.otherMethod, onclick: () => void chooseAgain() });
     if (start.kind === 'redirect') {
       report('open');
@@ -229,10 +206,7 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
     report('open');
     const { order } = session;
     const amount = formatAmount(order.amount, order.currency, open.locale);
-    const offered = session.methods.filter((option) => !open.methods || open.methods.includes(option.method));
-    const ordered = open.methods
-      ? [...offered].sort((a, b) => open.methods!.indexOf(a.method) - open.methods!.indexOf(b.method))
-      : offered;
+    const ordered = offeredMethods(session.methods, open);
     const details: { -readonly [K in keyof CustomerDetails]: string } = order.customerEmail ? { email: order.customerEmail } : {};
 
     const summary = el(
@@ -484,7 +458,8 @@ acceptFrameConnection({
       const open = parseOpenMessage(event.data);
       if (!open || started) return;
       started = true;
-      runCheckout(open, port, parentOrigin);
+      if (open.presentation === 'headless') runHeadless(open, port, parentOrigin);
+      else runCheckout(open, port, parentOrigin);
     };
   },
 });

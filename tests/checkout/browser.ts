@@ -12,6 +12,12 @@ declare global {
   var checkoutClient: CheckoutClient;
   var checkoutResult: Promise<{ kind: string }>;
   var checkoutDone: string | undefined;
+  // The headless checkout of a test, and what the page saw of it.
+  var headless: import('../../packages/checkout/src/client/index').HeadlessCheckout;
+  var headlessSeen: {
+    ready: Awaited<import('../../packages/checkout/src/client/index').HeadlessCheckout['ready']> | null;
+    events: unknown[];
+  };
 }
 
 const root = path.resolve(import.meta.dirname, '../..');

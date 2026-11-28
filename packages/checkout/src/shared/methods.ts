@@ -1,3 +1,5 @@
+import type { Variant } from '@shared/utils/variant';
+
 /** Each way to pay that the checkout can show. The routing table sends each one to one rail. */
 export const CHECKOUT_METHODS = [
   'card',
@@ -91,6 +93,9 @@ export type RailStart =
       readonly accountNumber: string;
       readonly accountHolder: string;
     };
+
+/** A next step that the page draws: a voucher, bank details or a link to a wallet app. */
+export type NextStep = Variant<RailStart, 'kind', 'voucher' | 'bank_details' | 'redirect'>;
 
 export type VoucherCode = {
   readonly stores: readonly KonbiniStore[];

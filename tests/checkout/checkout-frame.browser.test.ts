@@ -410,3 +410,80 @@ test.describe('Apple Pay and Google Pay in the frame', () => {
     await expect(frame.getByRole('heading', { name: 'Payment complete' })).toBeVisible();
   });
 });
+
+test.describe('headless mode', () => {
+  async function openHeadless(page: Page, clientToken: string): Promise<void> {
+    await page.evaluate(
+      async ({ clientToken: token }) => {
+        const checkout = globalThis.checkoutClient.createCheckout({
+          checkoutOrigin: 'https://checkout.example.test',
+          publishableKey: 'pk_project_1',
+        });
+        globalThis.headlessSeen = { ready: null, events: [] };
+        globalThis.headless = checkout.headless(document.getElementById('inline')!, { clientToken: token });
+        globalThis.headless.on((event) => globalThis.headlessSeen.events.push(event));
+        globalThis.headlessSeen.ready = await globalThis.headless.ready;
+        globalThis.checkoutDone = undefined;
+        void globalThis.headless.result.then((result) => {
+          globalThis.checkoutDone = result.kind;
+        });
+      },
+      { clientToken },
+    );
+  }
+
+  const events = (page: Page) => page.evaluate(() => globalThis.headlessSeen.events);
+
+  test('the page draws the methods, the frame holds only the card fields, and pay() pays', async ({ page }) => {
+    const { order, violations } = await shopWithOrder(page);
+    await openHeadless(page, order.clientToken);
+    const ready = await page.evaluate(() => globalThis.headlessSeen.ready);
+    expect(ready?.order.amount).toBe(4600);
+    expect(ready?.methods.map((option) => option.method)).toEqual(['card']);
+
+    const frame = frameOf(page);
+    await page.evaluate(() => globalThis.headless.select('card'));
+    await frame.getByLabel('Card number').fill(GOOD_CARD);
+    // No Seams list, no Seams button: the page draws them.
+    await expect(frame.getByRole('radio')).toHaveCount(0);
+    await expect(frame.getByRole('button')).toHaveCount(0);
+    await page.evaluate(() => globalThis.headless.pay());
+    expect(await checkoutResult(page)).toBe('paid');
+    expect(violations).toEqual([]);
+  });
+
+  test('a declined card is an error event, and a second card pays', async ({ page }) => {
+    const { order } = await shopWithOrder(page);
+    await openHeadless(page, order.clientToken);
+    const frame = frameOf(page);
+    await page.evaluate(() => globalThis.headless.select('card'));
+    await frame.getByLabel('Card number').fill(DECLINED_CARD);
+    await page.evaluate(() => globalThis.headless.pay());
+    await expect.poll(() => events(page)).toContainEqual({ kind: 'error', code: 'declined', message: 'Your card was declined.' });
+    await frame.getByLabel('Card number').fill(GOOD_CARD);
+    await page.evaluate(() => globalThis.headless.pay());
+    expect(await checkoutResult(page)).toBe('paid');
+  });
+
+  test('konbini: the details go with select, and pay() gives the voucher to the page', async ({ page }) => {
+    const japan = new FakeProvider();
+    checkout = await openCheckout({ rails: [fakeRail(new FakeProvider()), fakeRail(japan, 'fake2', ['konbini'])] });
+    await checkout.setUp({ card: 'fake', konbini: 'fake2' });
+    await openShop(page, checkout);
+    const { body: order } = await checkout.createOrder();
+    await openHeadless(page, order.clientToken);
+
+    await page.evaluate(() => globalThis.headless.select('konbini'));
+    await page.evaluate(() => globalThis.headless.pay());
+    await expect.poll(() => events(page)).toContainEqual({ kind: 'error', code: 'details_required', message: null });
+    expect(japan.calls).toEqual([]);
+
+    await page.evaluate(() => globalThis.headless.select('konbini', { konbini_store: 'lawson', unknown: 'x' } as never));
+    await page.evaluate(() => globalThis.headless.pay());
+    await expect.poll(() => events(page)).toContainEqual(
+      expect.objectContaining({ kind: 'next_step', method: 'konbini', step: expect.objectContaining({ kind: 'voucher' }) }),
+    );
+    await expect.poll(() => events(page)).toContainEqual({ kind: 'status', status: 'pending' });
+    expect(japan.last.attempt.details).toEqual({ email: 'buyer@example.com', konbini_store: 'lawson' });
+  });
+});

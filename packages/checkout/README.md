@@ -61,6 +61,10 @@ const result = await checkout.open({
 `checkout.open` shows the checkout in the page's stage dialog. `checkout.mount(element, options)`
 puts it into an element of the page. A guest pays with an email address only.
 
+`checkout.headless(element, options)` lets the page draw the list, the vouchers and the
+status. The element holds a small checkout frame with only the provider's card fields or
+wallet button, so the provider's script still never runs on the page.
+
 ## The checkout frame
 
 The frame is a static document of the checkout origin: `CHECKOUT_FRAME_HTML` and one script,
