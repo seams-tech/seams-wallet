@@ -177,6 +177,27 @@ change.
   embeddings, so G2 holds for both. Inferred, not measured: the 30 private clips of G2 give the
   same result on the new image, because only the HTTP library differs.
 
+### 1.5 The fourth deploy: the hedge and the template delete
+
+Deployed on 2026-11-28 07:17 UTC with the owner's yes: `sayso.seams.sh` runs SaySo `9f3de86`
+(Worker version `1cf117c2`; the version before is `2535f751`). It adds the time of each part in
+the `ms` record (`8f93822`), the hedged turbo call (`b4481dc`), the locked speaker build
+(`a0c4318`) and `POST /v1/template/delete` (`d6ccbea`). The deploy ran from a clean
+`git worktree` of `9f3de86`. Its wasm is byte for byte the wasm of the SaySo checkout.
+
+- **The image did not change.** The locked build gave image `ed29844a…` again, so wrangler
+  skipped the push. The container application rolled out its version 4 with that image. So the
+  lock of `a0c4318` describes the image that runs.
+- **Checked live.** `/healthz` gives `mock: false` and the same verdict key (`d3c6773f…`).
+  `POST /v1/template/delete` answers 401 `unauthorized_enrollment` for a user with no token, and
+  400 `invalid_user_id` with no user. An unknown route answers 404.
+- **Not measured on `sayso.seams.sh`:** a verify, and so the hedge itself. A verify needs
+  `SAYSO_ENROLL_SECRET`, and that secret is not on this machine. The Worker code is the code of
+  the staging lane, where G3 measured the hedge.
+- **The lane.** Another session deployed SaySo `d6ccbea` to `staging-testnet` at 07:16 UTC
+  (version `43b22fac`). Its Worker code is the code of `9f3de86`, because `9f3de86` changes only
+  `bench/`.
+
 ## 2. The gate data
 
 The gates come from Refactor 210, Section 14.5. That document is in the seams-console

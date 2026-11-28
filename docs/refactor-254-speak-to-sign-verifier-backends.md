@@ -645,7 +645,8 @@ service binding to the staging Worker, with a `say` voice: 40 warm verifies at p
   the first answer wins (SaySo `b4481dc`, lane version `538d0a45`). 160 warm verifies: p50 1.39
   s, p95 3.21 s, maximum 4.71 s, against p95 3.85 s without it in the same runs. 5 cold verifies:
   maximum 2.59 s. The extra cost is about $0.009 for each 1,000 verifies.
-- `sayso.seams.sh` has no hedge yet. The evidence is
+- `sayso.seams.sh` runs the hedge since 2026-11-28 07:17 UTC (SaySo `9f3de86`, Worker version
+  `1cf117c2`; Slice 3 evidence, section 1.5). The evidence is
   `docs/evidence/refactor-254-g3-verify-time-20261128.md` (Q17).
 
 ### Slice 4 result (2026-11-28)

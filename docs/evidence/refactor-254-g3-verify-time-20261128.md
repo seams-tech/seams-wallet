@@ -215,8 +215,9 @@ the same time.
   `bench/g3/run.ts`.
 - SaySo `b4481dc`: the hedged turbo call, with `stt_calls` and `stt_answer` in the `ms` record.
 - SaySo `554a8c3`: the REST control `bench/g3/pairs.ts`.
-- The staging-testnet Worker runs version `538d0a45` (SaySo `554a8c3`). `sayso.seams.sh` does
-  not have the hedge.
-- The commits are on SaySo `main` and not pushed.
+- The runs used staging-testnet version `538d0a45` (SaySo `554a8c3`). Since 2026-11-28 07:17 UTC
+  the lane runs SaySo `d6ccbea` (version `43b22fac`) and `sayso.seams.sh` runs `9f3de86` (version
+  `1cf117c2`). Both have the hedge and the same Worker code.
+- The commits are on SaySo `main`, pushed on 2026-11-28.
 - The runs left the templates of 6 more `near:testnet:g3-<hex>.testnet` users in the lane's
   Durable Objects.
