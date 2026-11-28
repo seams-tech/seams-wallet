@@ -821,8 +821,15 @@ timing and the owner's voice check are open. Each step below had the owner's yes
   of at most 90,000 bytes (`4229797f`). On SQLite with the 91 migrations of 0.76.0, the 5 parts
   changed no schema object and added the history row. No database changed in the failed run.
 - **The staging deploy.** Run `46151383571` (seams-console `4229797f`) applied the D1
-  migrations in the four regions. Its Worker, Console and frontend jobs ran at the time of
-  writing.
+  migrations in the four regions and deployed every Worker and the Console. The Gateway then
+  answered 500: each regional Gateway still held `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`, because a
+  deploy never deletes a secret, and 0.77.0 stops at start with one backend's setting beside
+  another's. The owner deleted the secret, the tenant activation passed on a rerun, and the
+  Gateway answers 200. seams-console `a874a04f` makes later deploys delete such a secret, and
+  fixes the frontend docs check, which read the old folder `packages/wallet/`. The staging
+  frontend run `46158806516` passed. `staging.sign.seams.sh` serves
+  `sdk/workers/spoken_intent_bg.wasm` and `sdk/spoken_intent_bg.wasm` as `application/wasm`,
+  with the bytes of npm 0.77.0.
 - **Also fixed:** three API comments of `seams.near.spoken` that described OutLayer
   (`b5cdef39a`).
 
