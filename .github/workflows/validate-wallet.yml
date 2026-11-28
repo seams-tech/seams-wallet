@@ -205,11 +205,12 @@ jobs:
       - run: pnpm -C tests test:wallet-unit
       - run: pnpm -C tests test:conformance
       - run: pnpm -C tests test:frame-kit
+      - run: pnpm -C tests test:checkout
       - name: Upload frame kit evidence
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: frame-kit-browser-${{ github.run_id }}
+          name: frame-kit-and-checkout-browser-${{ github.run_id }}
           path: tests/test-results/**
           if-no-files-found: ignore
 

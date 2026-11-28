@@ -1456,6 +1456,26 @@ Each slice ships alone and keeps the invariants of Section 9.
   - **Waits for the owner:** the decision D1, the review T4 before a live merchant, a release
     that has the checkout, and the deploy. Nothing was deployed.
 
+### What the open work waits for (2026-11-29)
+
+Built and committed on `dev`: Slices 2, 3, 4, 7, 8 and 9, and the Worker part of Slice 10. Tests:
+`pnpm -C tests test:checkout`, 175 cases, green in Chromium and WebKit on 2026-11-29. CI runs
+them in the browsers job of Validate Wallet, where Firefox runs too.
+
+| Open item | Waits for |
+| --- | --- |
+| T1 | The owner: a Stripe Japan and a KOMOJU test account |
+| T2 | The owner: D1, D2, D3, D5, D8, D9, D13 and D14. The code follows each recommendation |
+| T3 | The owner: who funds the gas relayer, and the gas cap (D14). Blocks Slice 6 |
+| T4, T5 | The owner: the review by a lawyer and a PCI QSA, and the PCI texts. Block each live merchant |
+| T6 to T10 | T1. Then the provider calls of Slices 2 to 4, 7 and 8 run once in each test account |
+| T14 to T19 | The owner sends the questions of [refactor-250-provider-questions.md](handoffs/refactor-250-provider-questions.md) |
+| Slice 5 | Refactor 251: the login token and its JWKS (Slice 5) and `auth.prove` with the audience `checkout` (Slice 6). Then the identity interface (D4), `signIn: 'offer'`, the JWKS check, order history, saved methods and one-tap payment. The type test that `createSeamsAuth` satisfies `CheckoutIdentity` needs the same |
+| Slice 6 | Refactor 251 Release B (the MPC wallet's public API and `@seams/wallet-connect` against auth), T3, and a paid NEAR indexer plan or another source (T13, T19) |
+| Slice 10, the service | Refactor 251: `packages/host` builds the checkout Worker, its migrations, its schedule and the checkout origin, and gives the operator's credential |
+| Slice 10, the Console | A release of `@seams/host` with the checkout service, because `seams-console` installs the published package. Then the screens call the operator routes. The deploy is the owner's |
+| Section 10, intended behaviours | The journeys run here against fakes. A journey file in [Intended Behaviours](intended-behaviours.md) needs the checkout service in the local Wallet system, so it waits for the service of Slice 10 |
+
 Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no account. Slice
 5 waits for the login token of Refactor 251. Slice 6 waits for Release B of Refactor 251.
 

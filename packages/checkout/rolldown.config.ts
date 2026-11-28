@@ -17,6 +17,7 @@ const SHARED_HELPERS = new Set(
     'utils/base64.ts',
     'utils/digests.ts',
     'utils/exactKeys.ts',
+    'utils/normalize.ts',
     'utils/secureRandomId.ts',
     'utils/validation.ts',
   ].map((helper) => path.join(SHARED_ROOT, helper)),
