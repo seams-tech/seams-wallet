@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:account-origin": "rolldown -c rolldown.account-origin.config.ts",
     "type-check": "tsrs --noEmit"
+  },
+  "devDependencies": {
+    "rolldown": "1.0.0-rc.9"
   }
 }

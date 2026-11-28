@@ -1,0 +1,12 @@
+{
+  "extends": "../../packages/auth/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "paths": {
+      "@shared/*": ["../../packages/shared-ts/src/*"],
+      "@seams/auth/client": ["../../packages/auth/src/client/index.ts"],
+      "@seams/auth/server": ["../../packages/auth/src/server/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

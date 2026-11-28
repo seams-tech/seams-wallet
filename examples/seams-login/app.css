@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light dark;
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 34rem;
+  margin: 12vh auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+button {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid currentColor;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+pre {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 12px;
+  overflow-x: auto;
+}

@@ -4,11 +4,66 @@
   "private": true,
   "type": "module",
   "description": "Seams Auth: sign-in with a passkey, an email code or VoiceID, for an app page, its backend and the operator's Auth Worker",
+  "exports": {
+    "./package.json": "./package.json",
+    "./client": {
+      "types": "./dist/types/auth/src/client/index.d.ts",
+      "import": "./dist/esm/auth/src/client/index.js",
+      "default": "./dist/esm/auth/src/client/index.js"
+    },
+    "./react": {
+      "types": "./dist/types/auth/src/react/index.d.ts",
+      "import": "./dist/esm/auth/src/react/index.js",
+      "default": "./dist/esm/auth/src/react/index.js"
+    },
+    "./server": {
+      "types": "./dist/types/auth/src/server/index.d.ts",
+      "import": "./dist/esm/auth/src/server/index.js",
+      "default": "./dist/esm/auth/src/server/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "client": [
+        "dist/types/auth/src/client/index.d.ts"
+      ],
+      "react": [
+        "dist/types/auth/src/react/index.d.ts"
+      ],
+      "server": [
+        "dist/types/auth/src/server/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "LICENSE.md",
+    "dist/esm/",
+    "dist/types/",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "sideEffects": false,
   "scripts": {
+    "build": "rm -rf dist && pnpm run build:types && rolldown -c rolldown.config.ts",
+    "build:types": "rm -rf dist/types && tsrs -p tsconfig.build.json && node ../../scripts/rewrite-declaration-imports.mjs",
     "type-check": "tsrs --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@simplewebauthn/server": "13.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.13",
+    "@types/react": "19.2.18",
+    "react": "19.2.9",
+    "rolldown": "1.0.0-rc.9"
   },
   "license": "Apache-2.0"
 }

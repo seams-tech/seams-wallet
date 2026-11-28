@@ -2,8 +2,8 @@
 
 Status: 2026-11-28. Slices 0 and 2 are done. Slice 1 (Release A) is released as 0.77.0; four of
 the owner's steps stay open (see Slice 1). Slice 3 (the frame kit) is built on `dev`; nothing
-uses it until Slice 6. Slice 4 (the project credentials in `packages/host`) and Slice 5 (the Auth Worker in
-`packages/auth`) are built on `dev`. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
+uses it until Slice 6. Slices 4 (the project credentials in `packages/host`), 5 (the Auth Worker) and 6 (the auth
+client and the account origin) are built on `dev`. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
 plan. The design of [Refactor 233](refactor-233-auth-methods-by-factor.md) (factors, gates, one
 app API for methods) is the design of the new auth core.
 
@@ -969,6 +969,84 @@ Rules for the cleanup:
   menu, `prove`, `signIn`, the methods API, the plugin contract and the channel (Section 5). A
   login-only example app signs in with a passkey, Email OTP and VoiceID and loads no wallet
   code.
+
+  Built on 2026-11-28 on `dev`, not released. The parts:
+  - **`@seams/auth` has its three paths.** `packages/auth/package.json` exports `/client`,
+    `/react` and `/server`, with no root path, and `pnpm -C packages/auth build` builds them.
+    The build refuses a module that its path must not hold: server code (the Auth Worker) or
+    the account frame in `/client` and `/react`, browser code in `/server`, and each module
+    outside auth, the frame kit and six pure helpers. One check was run against a fault: an
+    import of the Worker from `/client` fails the build. The package is still `private` until
+    Slice 9.
+  - **`/client`:** `createSeamsAuth({ accountOrigin, publishableKey, environmentId, methods,
+    plugins, locale, copy, stageHost })` with `signIn(stage?)`, `token()`, `session()`,
+    `signOut()`, `prove({ audience, challenge })`, `methods.list/add/remove`,
+    `channel(pluginId)` and `onSessionChange`. `passkey()`, `emailCode()` and `voiceId()` are
+    data only. A call that cannot finish gives a result with `kind: 'unavailable'` and a reason;
+    only a frame that cannot be reached throws (`SeamsAuthError`). `signIn` gives the login
+    token, or null when the user closed the menu. The object satisfies `CheckoutIdentity` of
+    Refactor 250 (`token`, `signIn(stage)`, `prove`).
+  - **`/server`:** `verifyLoginToken(token, { projectId, issuer })` loads the key set of the
+    issuer once and gives the user or null. `createLoginHandoff` is the app backend's half of
+    the handoff (Section 3).
+  - **`/react`:** `SeamsAuthProvider` and `useSeamsAuth()`.
+  - **The account origin** (`packages/auth/src/origin`). One frame document
+    (`/account/`) with a strict CSP: scripts only from the account origin. The frame accepts
+    a connection on the frame kit (protocol `seams-auth`, version 1) and then one `init` message
+    with the configuration. It holds the login session in its own storage; the app page holds
+    no secret (a check reads the page's storage). The menu draws its views in the frame, and the
+    page's stage dialog shows the frame. Escape, a press outside and the close button end the
+    request with null.
+  - **The proof (Section 4) and the plugin contract (Section 5).**
+    - The app page can ask for an audience that no plugin registered. A plugin's audience is
+      refused for the page (`audience_not_allowed`), and the page's request has no field for a
+      sink: a request with an unknown field is refused.
+    - A plugin loads from `/sdk/<id>/host.js` on the account origin, only when the app lists it.
+      It gets `host.prove` with an optional `secretSink` (a `MessagePort`) and `prfSalt`. The
+      core then asks the passkey for the PRF result and posts it into the sink, and the result
+      that the plugin's code gets has no secret. A plugin proves only to its own audiences. For
+      a passkey and a device key the plugin gets the raw proof, which its server checks against
+      its pinned key; for an email code it gets the Auth Worker's statement.
+    - `auth.channel(pluginId)` gives a port to the plugin; the core routes it and reads nothing.
+    - A plugin can refuse the removal of a method (`beforeMethodRemoval`).
+  - **VoiceID as a gate.** The device key (Ed25519, not exportable) is in the account origin's
+    IndexedDB, with the store of its gate. The gate loads from `/sdk/voiceid/gate.js` and has
+    the contract of Refactor 233 Section 4 (`enroll`, `check`): it gets a surface and a store,
+    and no key, no challenge and no network. Today's VoiceID plugin is not yet a gate; Slice 8
+    turns it into one (area 7, row 7.19).
+  - **The host event.** Each error of the menu posts `seams:auth-error` on the app page's
+    window with the code, the raw text and the view. This replaces
+    `seams:hosted-auth-menu-error` at the cutover (row 8.2), and each view sends it.
+  - **The copy.** The app can replace six texts (`title`, `subtitle`, `passkeyCta`,
+    `createAccountCta`, `emailCta`, `voiceIdCta`); an unknown key makes the frame refuse the
+    configuration. English and Japanese.
+  - **The services.** `packages/host/src/accountOrigin.ts` gives the document and its CSP, and
+    `pnpm -C packages/host build:account-origin` builds the frame script: 34 KB, 11 KB gzip.
+  - **The example.** `examples/seams-login` (`pnpm -C examples/seams-login dev`) runs the
+    account origin with the Auth Worker over a local D1 database and an app page with a small
+    backend that calls `verifyLoginToken`. Checked by hand in the browser pane on 2026-11-28:
+    an email sign-in, then the backend's `/api/me` with the token. The page loaded only the
+    frame script and called only the Auth Worker.
+  - **Checks.** `pnpm -C tests test:auth` has 44 cases: 11 in Chromium through the real frame
+    and a virtual authenticator, which cover sign-in with a new passkey, an existing passkey,
+    an email code and VoiceID; the proof for the checkout; the plugin audience and the secret
+    sink; method add and remove with a plugin that refuses; the copy and Japanese; a frame of
+    another protocol version; and "a login-only app starts no worker and loads no wallet code"
+    (Section 10), as a browser check and a bundle check. Firefox and WebKit do not run them yet.
+  - **Lines.** `client`, `origin`, `shared`, `react` and `server` have 2,710 lines. No file has
+    more than 791.
+
+  Open, and why:
+  - **The account origin is not the Wallet origin yet (D6).** The wallet iframe still serves
+    the Wallet origin. The account frame serves `/account/` and can share that origin and its
+    relying party ID; Slice 8 puts it there (area 6, row 6.25).
+  - **The anchored card and the receipt toast** of the frame kit (rows 7.12, 7.13) are not in
+    this slice. The auth menu is a modal stage.
+  - **The Google button.** The Auth Worker accepts a Google ID token (Slice 5), but the menu
+    has no Google button yet. It needs the Google client in the account origin, and it comes
+    with the Google flow of the cutover (row 6.2).
+  - **D10** (the public API) is open with the owner. The names above follow its
+    recommendation.
 - **Slice 7: the wallet's account layer.** New code in the wallet packages for wallet creation,
   envelopes, unlock and device linking, against `auth.prove` and the pinned keys. It passes the
   conformance suite with the new driver. It serves no user yet.
