@@ -1,7 +1,7 @@
 # Refactor 254: Speak-to-Sign verifier backends (SaySo first, OutLayer second)
 
-Status: 2026-11-28. Slices 1 to 5 are built (Section 6). Of Slice 3, G3 passes on staging with a
-hedged turbo call, and G1 does not pass as written (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
+Status: 2026-11-28. Slices 1 to 5 are built (Section 6). Of Slice 3, G1 passes on today's
+sentences by 16 readings, and G3 passes on staging with a hedged turbo call (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
 result"), and Slice 5 wrote its docs ("Slice 5 result"); neither is released or deployed.
 Slice 6 is not built.
 Section 8 lists the questions for the owner and the answers; Q16 and Q17 wait for the owner. Section 9 holds the
@@ -590,6 +590,21 @@ Neither closes the gap:
 - A fix of the multisig wording cannot be measured on STT-1: today's `spoken-intent` has no
   challenge words, so the STT-1 multisig sentences are old (Q16).
 
+**G1 on today's grammar: passes as written** (2026-11-28, about $0.20). A new corpus with
+today's sentences (seams-console `e76d5b1c`, SaySo `9f3de86`): the 200 transfers of STT-1 and 50
+multisig approvals in today's words, 3,000 correct readings and 3,642 near misses. Turbo with
+today's `spoken-intent` (speak-to-sign `8db52c1`) reads 2,668 of 3,000 (88.9%; transfers 95.0%,
+multisig 65.2%) with 0 false accepts. The gate is 2,652 (88.4%).
+
+- **The margin is small:** 16 readings. NEAR AI large-v3 was not run on this corpus, so the
+  compare with the baseline is not like for like.
+- **The 16-word limit of SaySo** refuses the intents of 32 requests (384 readings). With it,
+  2,311 of 3,000 pass (77.0%), or 88.3% of the readings that SaySo takes. The Wallet offers no
+  spoken approval for those requests (Q7), and the baseline had no such limit.
+- **Multisig holds the result down.** "Ad member" for "add member" passes 8 of 120; a test that
+  reads "ad" as "add" gives 90.0% with 0 false accepts. The 95% target of Refactor 210 Q6 is not
+  reached. The evidence is `docs/evidence/refactor-254-g1-today-grammar-20261128.md`.
+
 What Slice 4 must build for A: the SDK and the Gateway send a transcript-only intent; the
 `saysoVerdictV1` checker reads `heard` with `spoken-intent` and the contacts, and refuses
 unless the parse gives exactly the request; core and the co-signer get the `spoken-intent` wasm
@@ -799,7 +814,7 @@ For Slice 6:
 | Q13 | The spoken card shows only the application's summary; the confirm shows the request (R1)   | The card shows what the confirm shows, so that the two methods are equal    |
 | Q14 | A Wallet setting that turns voice approval off and deletes the template (R4)               | The VoiceID switch is that setting. Slice 4 adds only the template delete   |
 | Q15 | G1 fails with SaySo's word check (4.2%). Who decides the words of a Wallet request?          | Answered: A                                                                 |
-| Q16 | G1 under A: turbo reads 86.1% against 91.1% for NEAR AI; Nova-3 and a prompt are worse      | Accept the gap for `staging-testnet`; measure multisig on a new corpus      |
+| Q16 | G1 under A on today's sentences: turbo reads 88.9% (gate 88.4%), 0 false accepts; 77.0% with the 16-word limit | Accept turbo for `staging-testnet`; keep the 95% target open; next, the "ad" alias for member sentences |
 | Q17 | G3: the turbo call sets the verify time; a hedged second call at 1.5 s gives warm p95 3.21 s | Keep the hedge (SaySo `b4481dc`); measure again through the Gateway in Slice 6 |
 
 ### Answers of the owner (2026-11-27)
