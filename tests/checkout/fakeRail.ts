@@ -7,6 +7,7 @@ import {
   type RailStarted,
   type RailCancel,
   type RailModule,
+  type RailRefund,
   type RailPaymentState,
 } from '../../packages/checkout/src/worker/rails/rail';
 
@@ -36,6 +37,7 @@ export class FakeProvider {
   readonly calls: string[] = [];
   startAnswer: 'ok' | 'refused' | 'no_answer' = 'ok';
   cancelAnswer: RailCancel['kind'] | 'no_answer' = 'cancelled';
+  refundAnswer: 'succeeded' | 'pending' | 'not_supported' | 'no_answer' | 'refused' = 'succeeded';
   private nextRef = 1;
 
   /** The payment of the newest attempt. */
@@ -82,6 +84,20 @@ export class FakeProvider {
     const payment = this.payments.get(ref);
     if (this.cancelAnswer === 'cancelled' && payment) payment.state = 'cancelled';
     return { kind: this.cancelAnswer };
+  }
+
+  refund(ref: string, amount: number, refundId: string): RailRefund {
+    this.calls.push(`refund:${ref}:${amount}:${refundId}`);
+    if (this.refundAnswer === 'no_answer') throw new RailError('unavailable', 'no_answer', 'No answer');
+    if (this.refundAnswer === 'refused') throw new RailError('refused', 'not_refundable', 'Refused');
+    if (this.refundAnswer === 'not_supported') return { kind: 'not_supported' };
+    return { kind: 'refunded', state: this.refundAnswer };
+  }
+
+  /** A signed webhook with any event of the fake provider. */
+  async sign(event: Record<string, unknown>): Promise<{ body: string; signature: string }> {
+    const body = JSON.stringify(event);
+    return { body, signature: await hmacSha256Hex(WEBHOOK_SECRET, body) };
   }
 
   /** The customer pays. `amount` is the order amount unless the test gives another one. */
@@ -139,6 +155,8 @@ export function fakeRail(
           const expected = await hmacSha256Hex(account.secrets.webhookSecret ?? '', webhook.body);
           if (webhook.header('fake-signature') !== expected) return null;
           const event = JSON.parse(webhook.body);
+          if (event.refund) return { kind: 'refund', ...event.refund };
+          if (event.dispute) return { kind: 'dispute', attemptId: null, ...event.dispute };
           if (event.funds) {
             const { attempt, ref, amount, currency } = event.funds;
             return { kind: 'unmatched_funds', attemptId: attempt, ref, amount, currency };
@@ -183,6 +201,7 @@ export function fakeRail(
       },
       read: async (ref) => provider.read(ref),
       cancel: async (ref) => provider.cancel(ref),
+      refund: async (ref, amount, refundId) => provider.refund(ref, amount, refundId),
     }),
   };
 }

@@ -171,6 +171,11 @@ export async function openCheckout(options: CheckoutOptions = {}) {
         headers: { 'fake-signature': signature },
       });
     },
+    /** Sends any signed event of the fake provider, such as a refund result or a dispute. */
+    async providerEvent(event: Record<string, unknown>) {
+      const { body, signature } = await provider.sign(event);
+      return call('POST', `/checkout/webhooks/fake/${PROJECT}`, { raw: body, headers: { 'fake-signature': signature } });
+    },
     /** One tick of the schedule. */
     async tick() {
       await worker.scheduled();

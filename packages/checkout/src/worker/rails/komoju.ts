@@ -257,6 +257,14 @@ function connectKomoju(account: RailAccount, context: RailContext): PaymentRail 
     if (!timingSafeEqual(webhook.header('x-komoju-signature') ?? '', expected)) return null;
     const event = asRecord(JSON.parse(webhook.body)) ?? {};
     const data = asRecord(event.data) ?? {};
+    if (String(event.type).startsWith('chargeback_request.') && isString(data.payment_id)) {
+      // The event names the payment. The payment names its attempt.
+      const disputed = await http.get(`/payments/${encodeURIComponent(data.payment_id)}`);
+      const disputedAttempt = disputed.external_order_num;
+      if (!isString(disputedAttempt)) return { kind: 'ignored' };
+      const disputeRef = requireNonEmptyString(data.id, 'chargeback id');
+      return { kind: 'dispute', attemptId: disputedAttempt, ref: null, disputeRef };
+    }
     const attemptId = data.external_order_num;
     if (!String(event.type).startsWith('payment.') || !isString(attemptId)) return { kind: 'ignored' };
     // The attempt names its own payment, so the event needs no reference.
@@ -291,6 +299,18 @@ function connectKomoju(account: RailAccount, context: RailContext): PaymentRail 
         payment: sessionState(session),
         start: { kind: 'card_form', fields: 'komoju', publishableKey, sessionId },
       };
+    },
+    async refund(ref, amount, refundId) {
+      const body = await http.get(refPath(ref));
+      const payment = ref.startsWith(PAYMENT_REF) ? body : asRecord(body.payment);
+      // A konbini, bank transfer or Pay-easy refund needs the customer's bank account, and
+      // KOMOJU makes it by hand. The merchant asks for it in KOMOJU's dashboard.
+      if (!payment || OFFLINE_TYPES.includes(asRecord(payment.payment_details)?.type)) {
+        return { kind: 'not_supported' };
+      }
+      const paymentId = encodeURIComponent(requireNonEmptyString(payment.id, 'payment id'));
+      await http.post(`/payments/${paymentId}/refund`, { amount }, refundId);
+      return { kind: 'refunded', state: 'succeeded' };
     },
     async cancel(ref) {
       try {

@@ -33,6 +33,8 @@ const WEBHOOK_TOLERANCE_SECONDS = 300;
 const ATTEMPT_METADATA = 'seams_attempt';
 
 const METHODS: ReadonlySet<CheckoutMethod> = new Set(['card', 'konbini', 'bank_transfer', 'paypay']);
+/** The metadata key that marks a refund of the checkout, with the refund ID. */
+const REFUND_METADATA = 'seams_refund';
 /** The metadata key with the method of the attempt. */
 const METHOD_METADATA = 'seams_method';
 /** Stripe's limits for each method that takes yen only. */
@@ -223,6 +225,16 @@ function connectStripe(account: RailAccount, fetcher: typeof fetch): PaymentRail
         currency: currency.toUpperCase(),
       };
     }
+    const refundId = asRecord(object.metadata)?.[REFUND_METADATA];
+    if (String(event.type).startsWith('refund.') && isString(refundId)) {
+      if (object.status === 'succeeded') return { kind: 'refund', refundId, state: 'succeeded' };
+      const ended = object.status === 'failed' || object.status === 'canceled';
+      return ended ? { kind: 'refund', refundId, state: 'failed' } : { kind: 'ignored' };
+    }
+    if (event.type === 'charge.dispute.created' && isString(object.payment_intent)) {
+      const disputeRef = requireNonEmptyString(object.id, 'dispute id');
+      return { kind: 'dispute', attemptId: null, ref: object.payment_intent, disputeRef };
+    }
     const attemptId = asRecord(object.metadata)?.[ATTEMPT_METADATA];
     // The merchant's Stripe account also has payments that the checkout did not make.
     if (!String(event.type).startsWith('payment_intent.') || !isString(attemptId)) {
@@ -261,6 +273,18 @@ function connectStripe(account: RailAccount, fetcher: typeof fetch): PaymentRail
           clientSecret: requireNonEmptyString(intent.client_secret, 'PaymentIntent client secret'),
         },
       };
+    },
+    async refund(ref, amount, refundId) {
+      const refund = await http.post(
+        '/v1/refunds',
+        { payment_intent: ref, amount, metadata: { [REFUND_METADATA]: refundId } },
+        refundId,
+      );
+      if (refund.status === 'failed' || refund.status === 'canceled') {
+        throw new RailError('refused', 'refund_failed', 'Stripe did not make the refund');
+      }
+      // A konbini or bank transfer refund waits for the customer's bank details.
+      return { kind: 'refunded', state: refund.status === 'succeeded' ? 'succeeded' : 'pending' };
     },
     async cancel(ref) {
       try {

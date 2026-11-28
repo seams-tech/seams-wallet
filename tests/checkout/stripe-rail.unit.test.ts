@@ -322,3 +322,41 @@ test('Stripe does not take the methods that only KOMOJU has', async () => {
     expect(stripeRail.accepts(method, 'JPY', 1000)).toBe(false);
   }
 });
+
+test.describe('the Stripe rail: refunds and disputes', () => {
+  const signed = async (rail: ReturnType<typeof fakeStripe>['rail'], type: string, object: unknown) => {
+    const text = JSON.stringify({ id: 'evt_1', type, data: { object } });
+    const signature = await signTimestamped(KEYS.webhookSecret, text, NOW_MS);
+    return rail.events.verify({ body: text, header: () => signature, nowMs: NOW_MS });
+  };
+
+  test('a refund names the PaymentIntent, and a store refund stays pending', async () => {
+    const done = fakeStripe([{ body: { id: 're_1', status: 'succeeded' } }]);
+    expect(await done.rail.refund('pi_1', 600, 'ref-1')).toEqual({ kind: 'refunded', state: 'succeeded' });
+    expect(done.sent[0]?.url).toBe('https://api.stripe.com/v1/refunds');
+    expect(done.sent[0]?.headers.get('idempotency-key')).toBe('ref-1');
+    expect(Object.fromEntries(new URLSearchParams(done.sent[0]!.text))).toEqual({
+      payment_intent: 'pi_1',
+      amount: '600',
+      'metadata[seams_refund]': 'ref-1',
+    });
+    const waiting = fakeStripe([{ body: { id: 're_2', status: 'requires_action' } }]);
+    expect(await waiting.rail.refund('pi_1', 600, 'ref-2')).toEqual({ kind: 'refunded', state: 'pending' });
+    const failed = fakeStripe([{ body: { id: 're_3', status: 'failed' } }]);
+    await expect(failed.rail.refund('pi_1', 600, 'ref-3')).rejects.toMatchObject({ kind: 'refused' });
+  });
+
+  test('refund events and a dispute event name what they act on', async () => {
+    const { rail } = fakeStripe([]);
+    const refund = (status: string) => ({ id: 're_1', status, metadata: { seams_refund: 'ref-1' } });
+    expect(await signed(rail, 'refund.updated', refund('succeeded'))).toEqual({ kind: 'refund', refundId: 'ref-1', state: 'succeeded' });
+    expect(await signed(rail, 'refund.failed', refund('failed'))).toEqual({ kind: 'refund', refundId: 'ref-1', state: 'failed' });
+    expect(await signed(rail, 'refund.updated', refund('pending'))).toEqual({ kind: 'ignored' });
+    expect(await signed(rail, 'charge.dispute.created', { id: 'dp_1', payment_intent: 'pi_1' })).toEqual({
+      kind: 'dispute',
+      attemptId: null,
+      ref: 'pi_1',
+      disputeRef: 'dp_1',
+    });
+  });
+});

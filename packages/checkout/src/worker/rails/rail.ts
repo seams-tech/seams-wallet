@@ -54,6 +54,12 @@ export type RailCancel =
   /** The payment is past the point where a cancel works, for example because it is paid. */
   | { readonly kind: 'too_late' };
 
+export type RailRefund =
+  /** The rail took the refund. `pending`: the money is not back yet, and an event follows. */
+  | { readonly kind: 'refunded'; readonly state: 'succeeded' | 'pending' }
+  /** The rail cannot refund this payment. The merchant refunds it at the provider. */
+  | { readonly kind: 'not_supported' };
+
 /** What a verified webhook says. The Worker then reads the payment before it changes a state. */
 export type RailEvent =
   | { readonly kind: 'payment'; readonly attemptId: string | null; readonly ref: RailPaymentRef | null }
@@ -65,6 +71,15 @@ export type RailEvent =
       readonly ref: string;
       readonly amount: MinorUnits;
       readonly currency: string;
+    }
+  /** A refund that was pending is complete, or failed. */
+  | { readonly kind: 'refund'; readonly refundId: string; readonly state: 'succeeded' | 'failed' }
+  /** The customer disputes a payment. `attemptId` or `ref` names the payment. */
+  | {
+      readonly kind: 'dispute';
+      readonly attemptId: string | null;
+      readonly ref: RailPaymentRef | null;
+      readonly disputeRef: string;
     }
   | { readonly kind: 'ignored' };
 
@@ -86,6 +101,8 @@ export type PaymentRail = {
   start(attempt: RailAttempt): Promise<RailStarted>;
   read(ref: RailPaymentRef): Promise<RailPaymentState>;
   cancel(ref: RailPaymentRef): Promise<RailCancel>;
+  /** Sends `amount` of a paid payment back. `refundId` makes a repeat of the call safe. */
+  refund(ref: RailPaymentRef, amount: MinorUnits, refundId: string): Promise<RailRefund>;
 };
 
 export type RailAccount = {

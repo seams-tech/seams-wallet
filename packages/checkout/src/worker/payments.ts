@@ -27,9 +27,11 @@ import {
   insertAttempt,
   listAttempts,
   listRailAccountIds,
+  listRefunds,
   recordUnexpectedPayment,
   type AttemptRow,
   type OrderRow,
+  type RefundRow,
 } from './store';
 
 /** A challenge or a redirect in flight gets this long after the order's expiry. */
@@ -49,7 +51,16 @@ export class CheckoutError extends Error {
   }
 }
 
-export type LoadedOrder = { readonly order: OrderRow; readonly attempts: readonly AttemptRow[] };
+export type LoadedOrder = {
+  readonly order: OrderRow;
+  readonly attempts: readonly AttemptRow[];
+  readonly refunds: readonly RefundRow[];
+};
+
+/** The sum of the refunds of an order that have one of `states`. */
+export function refundTotal(refunds: readonly RefundRow[], states: readonly RefundRow['state'][]): number {
+  return refunds.reduce((sum, refund) => sum + (states.includes(refund.state) ? refund.amount : 0), 0);
+}
 
 type OrderEventType = OrderEvent['type'];
 
@@ -69,7 +80,7 @@ function attemptView(attempt: AttemptRow): AttemptView {
   };
 }
 
-export function orderView({ order, attempts }: LoadedOrder): CheckoutOrder {
+export function orderView({ order, attempts, refunds }: LoadedOrder): CheckoutOrder {
   return {
     id: order.order_id,
     reference: order.reference,
@@ -79,6 +90,8 @@ export function orderView({ order, attempts }: LoadedOrder): CheckoutOrder {
     lines: JSON.parse(order.lines_json),
     shippingAmount: order.shipping_amount,
     customerEmail: order.customer_email,
+    refundedAmount: refundTotal(refunds, ['succeeded']),
+    refunds: refunds.map((refund) => ({ id: refund.refund_id, amount: refund.amount, state: refund.state })),
     needsReview: order.needs_review === 1,
     disputed: order.disputed === 1,
     expiresAtMs: order.expires_at_ms,
@@ -87,7 +100,7 @@ export function orderView({ order, attempts }: LoadedOrder): CheckoutOrder {
   };
 }
 
-function eventOf(
+export function eventOf(
   context: CheckoutContext,
   loaded: LoadedOrder,
   type: OrderEventType,
@@ -100,12 +113,14 @@ function eventOf(
   return { eventId, order: loaded.order, type, cause, payloadJson: JSON.stringify(payload), nowMs };
 }
 
-async function loadOrder(context: CheckoutContext, orderId: string): Promise<LoadedOrder | null> {
+export async function loadOrder(context: CheckoutContext, orderId: string): Promise<LoadedOrder | null> {
   const order = await getOrder(context.db, orderId);
-  return order ? { order, attempts: await listAttempts(context.db, orderId) } : null;
+  if (!order) return null;
+  const [attempts, refunds] = await Promise.all([listAttempts(context.db, orderId), listRefunds(context.db, orderId)]);
+  return { order, attempts, refunds };
 }
 
-async function requireRail(
+export async function requireRail(
   context: CheckoutContext,
   projectId: string,
   railId: string,
@@ -157,19 +172,19 @@ export async function settleOrder(context: CheckoutContext, orderId: string): Pr
   }
   if (overdue.length > 0) loaded = (await loadOrder(context, orderId)) ?? loaded;
 
-  const { order, attempts } = loaded;
+  const { order, attempts, refunds } = loaded;
   const state = computeOrderState(
     {
       amount: order.amount,
       expiresAtMs: order.expires_at_ms,
       cancelledAtMs: order.cancelled_at_ms,
       attemptStates: attempts.map((attempt) => attempt.state),
-      refundedAmount: 0,
+      refundedAmount: refundTotal(refunds, ['succeeded']),
     },
     nowMs,
   );
   if (state === order.state) return loaded;
-  const settled = { order: { ...order, state }, attempts };
+  const settled = { order: { ...order, state }, attempts, refunds };
   const type = STATE_EVENTS[state];
   await changeOrderState(context.db, order, state, type ? eventOf(context, settled, type, state) : null);
   return settled;
@@ -186,7 +201,7 @@ async function recordUnexpected(
   money: Money,
   reason: 'attempt_not_active' | 'wrong_amount',
 ): Promise<void> {
-  const marked = { order: { ...loaded.order, needs_review: 1 }, attempts: loaded.attempts };
+  const marked = { ...loaded, order: { ...loaded.order, needs_review: 1 } };
   const payment = { rail: attempt.rail_id, ...money, reason };
   await recordUnexpectedPayment(
     context.db,

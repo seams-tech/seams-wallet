@@ -105,7 +105,7 @@ export async function createOrder(
   input: unknown,
 ): Promise<CreatedOrder> {
   const order = parseOrder(context, projectId, input);
-  let loaded: LoadedOrder = { order, attempts: [] };
+  let loaded: LoadedOrder = { order, attempts: [], refunds: [] };
   try {
     await insertOrder(context.db, order);
   } catch (error) {

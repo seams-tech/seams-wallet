@@ -292,3 +292,27 @@ test.describe('the KOMOJU rail: the other Japanese methods', () => {
     expect(komojuRail.accepts('paidy', 'USD', 100)).toBe(false);
   });
 });
+
+test.describe('the KOMOJU rail: refunds and disputes', () => {
+  test('a card refund finds the payment of the session, and a store payment has no API refund', async () => {
+    const card = { ...payment('captured'), payment_details: { type: 'credit_card' } };
+    const { rail, sent } = fakeKomoju([{ body: session({ status: 'completed', payment: card }) }, { body: card }]);
+    expect(await rail.refund('ses_1', 600, 'ref-1')).toEqual({ kind: 'refunded', state: 'succeeded' });
+    expect(sent[1]?.url).toBe('https://komoju.com/api/v1/payments/pay_1/refund');
+    expect(sent[1]?.headers.get('x-komoju-idempotency')).toBe('ref-1');
+    expect(JSON.parse(sent[1]!.text)).toEqual({ amount: 600 });
+
+    const store = fakeKomoju([{ body: { ...payment('captured'), payment_details: { type: 'konbini' } } }]);
+    expect(await store.rail.refund('payment:pay_1', 600, 'ref-2')).toEqual({ kind: 'not_supported' });
+    expect(store.sent).toHaveLength(1);
+  });
+
+  test('a chargeback event names the attempt of its payment', async () => {
+    const { rail, sent } = fakeKomoju([{ body: payment('captured') }]);
+    const body = JSON.stringify({ id: 'evt_2', type: 'chargeback_request.pending', resource: 'event', data: { id: 'cb_1', payment_id: 'pay_1' } });
+    const signature = await hmacSha256Hex(KEYS.webhookSecret, body);
+    const event = await rail.events.verify({ body, header: () => signature, nowMs: NOW_MS });
+    expect(event).toEqual({ kind: 'dispute', attemptId: 'att-1', ref: null, disputeRef: 'cb_1' });
+    expect(sent[0]?.url).toBe('https://komoju.com/api/v1/payments/pay_1');
+  });
+});

@@ -30,6 +30,7 @@ import {
   startAttempt,
 } from './payments';
 import { RailError, type RailModule } from './rails/rail';
+import { completeRefund, recordDispute, refundOrder } from './refunds';
 import {
   findAttemptByRef,
   getAttempt,
@@ -78,6 +79,7 @@ const STATUS: Readonly<Record<CheckoutErrorCode, number>> = {
   not_found: 404,
   reference_reused: 409,
   order_not_open: 409,
+  refund_not_possible: 409,
   method_not_available: 409,
   details_required: 422,
   rail_refused: 402,
@@ -222,6 +224,16 @@ export function createCheckoutWorker(options: CheckoutWorkerOptions): CheckoutWo
       nowMs: context.now(),
     });
     if (!event) return errorResponse('invalid_signature', 'The signature is not valid');
+    if (event.kind === 'refund') await completeRefund(context, event.refundId, event.state);
+    if (event.kind === 'dispute') {
+      const attempt =
+        (event.attemptId ? await getAttempt(context.db, event.attemptId) : null) ??
+        (event.ref ? await findAttemptByRef(context.db, railId, event.ref) : null);
+      const order = attempt ? await getOrder(context.db, attempt.order_id) : null;
+      if (attempt && attempt.rail_id === railId && order?.project_id === projectId) {
+        await recordDispute(context, attempt, event.disputeRef);
+      }
+    }
     if (event.kind === 'unmatched_funds') {
       const attempt = await getAttempt(context.db, event.attemptId);
       const order = attempt ? await getOrder(context.db, attempt.order_id) : null;
@@ -269,6 +281,10 @@ export function createCheckoutWorker(options: CheckoutWorkerOptions): CheckoutWo
       }
       if (method === 'GET' && first && !second) {
         return json(orderView(await settleOrder(context, await merchantOrderId(request, first))));
+      }
+      if (method === 'POST' && first && second === 'refunds') {
+        const orderId = await merchantOrderId(request, first);
+        return json(orderView(await refundOrder(context, orderId, await readJson(request))), 201);
       }
       if (method === 'POST' && first && second === 'cancel') {
         return json(orderView(await cancelOrder(context, await merchantOrderId(request, first))));

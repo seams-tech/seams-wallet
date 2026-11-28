@@ -1312,6 +1312,29 @@ Each slice ships alone and keeps the invariants of Section 9.
 - **Slice 9: headless mode, refunds and disputes.** `checkout.methods`, `select`, `pay`,
   `mountCardFrame`, server refunds (full and partial) through the rail of the payment, and the
   dispute event.
+
+  Refunds and disputes are built on 2026-11-28 on `dev`, not released or deployed:
+  - **Refunds.** `POST /checkout/orders/{id}/refunds` and `refundOrder` of
+    `@seams/checkout/server`: all of a paid order, or `amount`. The refund goes through the
+    rail of the payment (`refund` of the rail interface). A refund row is stored before the
+    rail call. A pending refund keeps its amount, so two refunds cannot send back more than
+    was paid. When the provider gives no answer, the refund stays pending, and the merchant
+    sends its `refundId` again, which uses the same ID at the provider.
+  - **Order states.** `computeOrderState` moves a paid order to `partially_refunded` and
+    `refunded` from the complete refunds. Each complete refund sends `order.refunded` once.
+  - **What a rail cannot do.** Stripe refunds each method; a konbini or bank transfer refund
+    stays pending until the customer gives bank details, and `refund.updated` or
+    `refund.failed` completes it. KOMOJU refunds cards and wallets. For konbini, bank transfer
+    and Pay-easy, KOMOJU has only a manual refund request with the customer's bank account, so
+    the rail answers `not_supported` and the merchant asks for it in KOMOJU's dashboard.
+  - **Disputes.** Stripe's `charge.dispute.created` and KOMOJU's `chargeback_request.*` set the
+    order's `disputed` mark and send `order.disputed` once for each dispute. KOMOJU sends
+    these events only with its Chargeback Management feature.
+  - **Tests:** refunds (full, partial, too large, pending then complete, failed, no answer and
+    retry, not supported) and disputes, in `tests/checkout/refunds.unit.test.ts` and the rail
+    tests.
+  - **Not built: a refund that is made in the provider's dashboard.** The Worker does not read
+    it, so the order state does not change. The merchant refunds through the checkout.
 - **Slice 10: Console and deployment (seams-monorepo).** Deploy the checkout Worker and origin.
   Connect the provider accounts, set the receiving addresses, edit the routing table and the
   theme, set the merchant webhook URL, view orders, review unexpected payments and refund.

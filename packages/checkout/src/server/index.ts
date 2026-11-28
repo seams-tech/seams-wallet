@@ -43,6 +43,11 @@ export type CheckoutServer = {
   getOrder(orderId: string): Promise<CheckoutOrder>;
   /** Cancels an order that is not paid. */
   cancelOrder(orderId: string): Promise<CheckoutOrder>;
+  /**
+   * Refunds a paid order through the provider of its payment: all of it, or `amount`. A refund
+   * of a store payment can stay `pending`. `order.refunded` comes when the money is back.
+   */
+  refundOrder(orderId: string, refund?: { readonly amount?: number; readonly refundId?: string }): Promise<CheckoutOrder>;
 };
 
 /** The client of the checkout for a merchant's backend. */
@@ -75,6 +80,7 @@ export function createCheckoutServer(options: CheckoutServerOptions): CheckoutSe
     createOrder: (input) => call('POST', CHECKOUT_ROUTES.orders, input),
     getOrder: (orderId) => call('GET', orderPath(orderId)),
     cancelOrder: (orderId) => call('POST', `${orderPath(orderId)}/cancel`),
+    refundOrder: (orderId, refund = {}) => call('POST', `${orderPath(orderId)}/refunds`, refund),
   };
 }
 

@@ -51,6 +51,14 @@ export type AttemptRow = {
   readonly created_at_ms: number;
 };
 
+export type RefundRow = {
+  readonly refund_id: string;
+  readonly order_id: string;
+  readonly attempt_id: string;
+  readonly amount: number;
+  readonly state: 'pending' | 'succeeded' | 'failed';
+};
+
 export type EventRow = {
   readonly event_id: string;
   readonly project_id: string;
@@ -346,6 +354,58 @@ export async function recordUnexpectedPayment(
     db
       .prepare('UPDATE checkout_orders SET needs_review = 1 WHERE order_id = ?')
       .bind(attempt.order_id),
+    insertEventStatement(db, event),
+  ]);
+}
+
+export async function listRefunds(db: D1, orderId: string): Promise<RefundRow[]> {
+  const rows = await db
+    .prepare('SELECT * FROM checkout_refunds WHERE order_id = ? ORDER BY rowid')
+    .bind(orderId)
+    .all<RefundRow>();
+  return rows.results;
+}
+
+export function getRefund(db: D1, refundId: string): Promise<RefundRow | null> {
+  return db
+    .prepare('SELECT * FROM checkout_refunds WHERE refund_id = ?')
+    .bind(refundId)
+    .first<RefundRow>();
+}
+
+/** Stores a refund before the rail call. */
+export async function insertRefund(db: D1, refund: RefundRow, nowMs: number): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO checkout_refunds
+         (refund_id, order_id, attempt_id, amount, state, created_at_ms, updated_at_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(refund.refund_id, refund.order_id, refund.attempt_id, refund.amount, refund.state, nowMs, nowMs)
+    .run();
+}
+
+/** Ends a pending refund. Returns false when it was not pending. */
+export async function endRefund(
+  db: D1,
+  refundId: string,
+  state: 'succeeded' | 'failed',
+  nowMs: number,
+): Promise<boolean> {
+  const run = await db
+    .prepare(
+      `UPDATE checkout_refunds SET state = ?, updated_at_ms = ?
+       WHERE refund_id = ? AND state = 'pending'`,
+    )
+    .bind(state, nowMs, refundId)
+    .run();
+  return changedRows(run) === 1;
+}
+
+/** Marks an order as disputed and adds the event. A repeat of the same dispute adds nothing. */
+export async function markDisputed(db: D1, orderId: string, event: NewEvent): Promise<void> {
+  await db.batch([
+    db.prepare('UPDATE checkout_orders SET disputed = 1 WHERE order_id = ?').bind(orderId),
     insertEventStatement(db, event),
   ]);
 }

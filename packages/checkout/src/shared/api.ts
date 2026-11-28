@@ -40,6 +40,13 @@ export type AttemptView = {
   readonly failure: AttemptFailure | null;
 };
 
+export type RefundView = {
+  readonly id: string;
+  readonly amount: MinorUnits;
+  /** `pending`: the provider has the refund, and the money is not back yet. */
+  readonly state: 'pending' | 'succeeded' | 'failed';
+};
+
 /** An order as the merchant's backend reads it. */
 export type CheckoutOrder = {
   readonly id: string;
@@ -50,6 +57,9 @@ export type CheckoutOrder = {
   readonly lines: readonly OrderLine[];
   readonly shippingAmount: MinorUnits;
   readonly customerEmail: string | null;
+  /** The sum of the refunds that are complete. */
+  readonly refundedAmount: MinorUnits;
+  readonly refunds: readonly RefundView[];
   /** Money arrived that the order did not wait for. The merchant refunds or accepts it. */
   readonly needsReview: boolean;
   readonly disputed: boolean;
@@ -92,6 +102,7 @@ export const CHECKOUT_ERROR_CODES = [
   'not_found',
   'reference_reused',
   'order_not_open',
+  'refund_not_possible',
   'method_not_available',
   'details_required',
   'rail_refused',

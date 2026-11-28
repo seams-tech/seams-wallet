@@ -89,6 +89,7 @@ Rules that the code keeps:
 - An order has one active attempt. A unique index in the database refuses a second one.
 - Only a verified rail webhook moves an attempt to `succeeded`. The Worker checks the signature
   on the raw body, then reads the payment from the provider and applies that state.
+- A refund goes through the rail of its payment, and its row is stored before the rail call.
 - Money that an order did not wait for becomes an unexpected payment. It marks the order for
   review and never changes the order state alone.
 
