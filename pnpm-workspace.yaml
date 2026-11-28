@@ -4,6 +4,7 @@ packages:
   - examples/seams-auth-menu
   - examples/wallet-console-lite
   - packages/checkout
+  - packages/auth
   - packages/cli
   - packages/frame-kit
   - packages/host

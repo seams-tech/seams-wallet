@@ -128,6 +128,12 @@ importers:
 
   packages/cli: {}
 
+  packages/auth:
+    dependencies:
+      '@simplewebauthn/server':
+        specifier: 13.2.2
+        version: 13.2.2
+
   packages/frame-kit: {}
 
   packages/host: {}

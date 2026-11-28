@@ -8,7 +8,7 @@ import {
   type VoiceIdOperationStatement,
   type VoiceIdWalletSessionChallenge,
 } from '@shared/authorization/voiceIdDeviceAssertion';
-import { base64UrlDecode } from '@shared/utils/base64';
+import { verifyDeviceKeySignature } from '../../../auth/src/proofs/deviceKey';
 import { sha256DigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {
   WalletAuthMethodId,
@@ -97,29 +97,18 @@ export async function verifyVoiceIdWalletSessionAssertion(input: {
   return new VerifiedVoiceIdWalletSessionProof(challenge, input.registered.deviceKeyId);
 }
 
+/** The signature check is the device key check of the auth module, against the stored key. */
 async function requireRegisteredDeviceSignature(
   registered: RegisteredVoiceIdDeviceKey,
   signatureB64u: string,
   signedBytes: Uint8Array<ArrayBuffer>,
 ): Promise<void> {
-  const publicKeyBytes = base64UrlDecode(registered.publicKeyB64u);
-  const publicKeyId = await sha256DigestB64u(publicKeyBytes);
-  if (publicKeyId !== registered.deviceKeyId) {
-    throw new Error('VoiceID device key identity is invalid');
-  }
-  const publicKey = await crypto.subtle.importKey(
-    'raw',
-    publicKeyBytes,
-    'Ed25519',
-    false,
-    ['verify'],
-  );
-  const verified = await crypto.subtle.verify(
-    'Ed25519',
-    publicKey,
-    base64UrlDecode(signatureB64u),
+  const verified = await verifyDeviceKeySignature({
+    publicKeyB64u: registered.publicKeyB64u,
+    deviceKeyId: registered.deviceKeyId,
+    signatureB64u,
     signedBytes,
-  );
+  });
   if (!verified) throw new Error('VoiceID device signature is invalid');
 }
 

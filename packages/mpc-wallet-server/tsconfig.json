@@ -37,6 +37,6 @@
       "@server/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "../shared-ts/src/**/*", "../host/src/**/*"],
+  "include": ["src/**/*", "../shared-ts/src/**/*", "../host/src/**/*", "../auth/src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -13,7 +13,10 @@ import { D1WalletExecutionAuthority } from '../../../packages/mpc-wallet-server/
 import { createCloudflareD1VersionedJsonRecordStore } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/versionedJson/d1VersionedJsonRecordStore';
 import { prepareD1WalletAuthorityPutStatement } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
 import { CloudflareD1WebAuthnStore } from '../../../packages/mpc-wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
-import { openSignerD1 } from '../../fixtures/signer-d1.mjs';
+import { openAuthD1, openSignerD1 } from '../../fixtures/signer-d1.mjs';
+import { AuthStore, type AuthDatabase } from '../../../packages/auth/src/worker/store';
+import { copyWalletMethodsToAuth } from '../../../packages/host/src/migration/copyWalletMethodsToAuth';
+import { sha256HexUtf8 } from '@shared/utils/digests';
 import { seedExecutionGeneration } from '../../e2e/execution-generation.scenario.mjs';
 import {
   RECORDS_EMAIL_HASH_HEX,
@@ -336,5 +339,93 @@ test('the D1 method table refuses a V1 method row', async () => {
     ).rejects.toThrow();
   } finally {
     await runtime.close();
+  }
+});
+
+// The copy of the wallet's sign-in records into the database of the Auth Worker (the migration
+// of the plan, Section 6): the account ID is the wallet ID, and each method keeps its ID.
+test('the fixture rows copy into the auth database with the same IDs, and the counts match', async () => {
+  const fixture = await readRecordFixture<AuthTableRows>('d1-auth-rows');
+  const source = await openAuthorityDatabase();
+  const target = await openAuthD1();
+  try {
+    await insertAuthTableRows(source.database, fixture);
+    const copy = () =>
+      copyWalletMethodsToAuth({
+        source: source.database,
+        target: target.database as unknown as AuthDatabase,
+        namespace: SCOPE.namespace,
+      });
+    const report = await copy();
+    // The fixture has an active passkey, an active VoiceID method, a revoked passkey, an email
+    // method whose digest is not that of the enrolled address, and a pending passkey.
+    expect(report).toMatchObject({
+      accounts: 1,
+      sourceMethods: 4,
+      authMethods: 4,
+      pendingMethods: 1,
+      emailMethodsWithoutAddress: ['wallet-auth-method:conformance-email-otp'],
+      complete: true,
+    });
+    expect(await copy()).toEqual(report);
+
+    const store = new AuthStore(target.database as unknown as AuthDatabase, {
+      orgId: SCOPE.orgId,
+      projectId: SCOPE.projectId,
+      envId: SCOPE.envId,
+    });
+    const { authMethod } = await recordsAuthority;
+    const methods = await store.activeMethodsOfAccount(WALLET_ID);
+    expect(methods.map((method) => [method.kind, method.methodId]).sort()).toEqual([
+      ['passkey', authMethod.walletAuthMethodId],
+      ['voiceid', 'wallet-auth-method:conformance-voiceid'],
+    ]);
+    // The auth record holds the key that the wallet's method record holds.
+    const [passkey] = await store.activeMethodsByIdentifier('passkey', authMethod.credentialIdB64u);
+    expect(passkey).toMatchObject({
+      accountId: WALLET_ID,
+      rpId: RP_ID,
+      publicKeyB64u: authMethod.credentialPublicKeyB64u,
+    });
+    expect(await store.recordCounts()).toEqual({ accounts: 1, activeMethods: 2, revokedMethods: 2 });
+  } finally {
+    await source.close();
+    await target.close();
+  }
+});
+
+test('an email method is copied with the enrolled address when the digests agree', async () => {
+  const fixture = await readRecordFixture<AuthTableRows>('d1-auth-rows');
+  const [enrollment] = fixture.email_otp_wallet_enrollments;
+  const email = String(enrollment?.verified_email);
+  const emailHashHex = await sha256HexUtf8(email);
+  // The fixture's method names a placeholder digest. Give it the digest of the address.
+  for (const method of fixture.wallet_auth_methods) {
+    if (method.kind !== 'email_otp') continue;
+    method.email_hash_hex = emailHashHex;
+    method.auth_identifier_key = emailHashHex;
+    method.record_json = JSON.stringify({ ...JSON.parse(String(method.record_json)), emailHashHex });
+  }
+  const source = await openAuthorityDatabase();
+  const target = await openAuthD1();
+  try {
+    await insertAuthTableRows(source.database, fixture);
+    const report = await copyWalletMethodsToAuth({
+      source: source.database,
+      target: target.database as unknown as AuthDatabase,
+      namespace: SCOPE.namespace,
+    });
+    expect(report).toMatchObject({ emailMethodsWithoutAddress: [], complete: true });
+    const store = new AuthStore(target.database as unknown as AuthDatabase, {
+      orgId: SCOPE.orgId,
+      projectId: SCOPE.projectId,
+      envId: SCOPE.envId,
+    });
+    expect(await store.activeMethodsByIdentifier('email_otp', emailHashHex)).toMatchObject([
+      { accountId: WALLET_ID, email, methodId: 'wallet-auth-method:conformance-email-otp' },
+    ]);
+  } finally {
+    await source.close();
+    await target.close();
   }
 });

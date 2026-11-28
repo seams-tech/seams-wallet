@@ -1,0 +1,14 @@
+{
+  "name": "@seams/auth",
+  "version": "0.77.0",
+  "private": true,
+  "type": "module",
+  "description": "Seams Auth: sign-in with a passkey, an email code or VoiceID, for an app page, its backend and the operator's Auth Worker",
+  "scripts": {
+    "type-check": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "13.2.2"
+  },
+  "license": "Apache-2.0"
+}

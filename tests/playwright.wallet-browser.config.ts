@@ -19,6 +19,7 @@ const browserConfig = defineConfig({
     '**/conformance/**/*.test.ts',
     '**/frame-kit/**/*.test.ts',
     '**/checkout/**/*.test.ts',
+    '**/auth/**/*.test.ts',
   ],
   // The conformance journeys need the local Wallet system of the intended config.
   testIgnore: ['**/conformance/journeys/**'],
