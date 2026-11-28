@@ -62,10 +62,3 @@ A check whose contract today's code breaks calls `expectKnownFault(row, fault)` 
 `knownFault.ts`. Playwright reports such a check as failed when it starts to pass, so the change
 that fixes the fault also removes the marker. `grep -rn expectKnownFault tests/conformance` lists
 them.
-
-## What the suite does not freeze
-
-The Email OTP factor release (`/wallet/email-otp/factor-release`) and the registration factor
-route (`/wallet/email-otp/registration/factor`) have no route checks yet. The suite checks Email
-OTP only through the journeys and the stored enrollment rows. The device-factor design is in
-`docs/otp/email-otp.md`.

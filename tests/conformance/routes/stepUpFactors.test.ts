@@ -32,7 +32,7 @@ import { APP_ORIGIN, recordedCalls, webAuthnAssertion } from './routeHarness';
 
 // The fresh proof that each signing or export operation needs (step-up). Each factor keeps its
 // refusal codes and statuses, and a passkey proof is checked against the operation challenge.
-// The Email OTP export grant has no check here yet.
+// emailOtpReleaseRoutes.test.ts checks the Email OTP export grant.
 
 const WALLET_ID = requireParsed(parseWalletId('step-up-wallet-1'), 'test');
 const CREDENTIAL_ID = 'Y3JlZGVudGlhbC0x';
