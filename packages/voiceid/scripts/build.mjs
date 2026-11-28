@@ -23,7 +23,9 @@ await mkdir(assets, { recursive: true });
 
 await build(
   {
-    input: { host: 'src/host.ts' },
+    // The second entry is ONNX Runtime Web at a fixed name, `ort.wasm.bundle.min.js`: the
+    // plugin's chunks import it, and so does the Wallet's own phrase card, which bundles no engine.
+    input: { host: 'src/host.ts', 'ort.wasm.bundle.min': 'onnxruntime-web/wasm' },
     external: ['@seams/mpc-wallet/voiceid'],
     plugins: [{ name: 'production-environment', transform: productionEnvironment }],
     resolve: { alias: { react: 'preact/compat', 'react/jsx-runtime': 'preact/jsx-runtime' } },

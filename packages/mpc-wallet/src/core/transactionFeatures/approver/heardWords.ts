@@ -1,4 +1,4 @@
-import type { PhraseResultView } from '@/core/authMethods/hostPlugin';
+import type { PhraseResultView } from '../phraseSurface';
 
 /**
  * Wallet core (`core/transactionFeatures/voiceVerdict.ts`) writes the words that the verifier

@@ -13,13 +13,13 @@ defines the Wallet flow. [Release notes](../../../apps/docs/src/releases.md) ret
 - [`host.ts`](host.ts) implements the trusted Wallet host plugin.
 - [`browser/`](browser/) owns microphone capture, inference, phrase matching, and enrollment-template normalization. `verification.ts` runs voice verification independently of the enrollment UI.
 - [`activation/`](activation/) presents enrollment and management through scoped core operations.
-- [`capture/`](capture/) owns the trusted prompt, transaction approval surface, and Wallet measurement bindings.
+- [`capture/`](capture/) owns the trusted prompt and Wallet measurement bindings. The phrase card of a spoken request is a part of Wallet core ([`phraseCard.ts`](../../mpc-wallet/src/core/transactionFeatures/approver/phraseCard.ts)), not of this plugin.
 - [`session/`](session/) presents unlock and passes a device assertion to the bound core unlock operation.
 
 SDK core owns authority checks, passkey confirmation, device persistence, guarded enrollment transactions,
 custody resealing, server proof exchanges, session installation, quotas, and NEAR/ECDSA threshold signing.
 The host API exposes scoped operations and data contracts. It exposes no database schemas, signing contexts,
-session credential stores, or worker transports. The Wallet and the VoiceID plugin must use the same host API version (11, `VOICE_ID_HOST_API_VERSION`).
+session credential stores, or worker transports. The Wallet and the VoiceID plugin must use the same host API version (12, `VOICE_ID_HOST_API_VERSION`).
 Enrollment and management use the container supplied by the capture surface. Confirmation, capture,
 and persistence share the same action-specific guard and snapshot types.
 Core constructs enrollment records from these commands. Improvements and resets preserve the stored identity and baseline.
@@ -54,9 +54,13 @@ Speaker model metadata lives in [`browser/model.ts`](browser/model.ts).
 
 The recording itself is the `@seams/voice-capture` package of the speak-to-sign repository: the
 microphone, speech detection, the quality gate, asset loading with integrity checks, the model
-engine, and the phrase card. [`capture/configure.ts`](capture/configure.ts) gives it the Wallet's
-asset folder, microphone store, style nonce and message words. The build copies its speech
-detection model, audio worklet and model engine into the VoiceID asset folder.
+engine, and the phrase card. Wallet core holds the Wallet's settings for it: the asset folder,
+the microphone store, the style nonce and the message words
+([`captureConfig.ts`](../../mpc-wallet/src/core/authMethods/voiceId/captureConfig.ts)).
+[`capture/configure.ts`](capture/configure.ts) gives them to this plugin's copy of the package.
+The build copies its speech detection model, audio worklet and model engine into the VoiceID
+asset folder. It also writes ONNX Runtime Web there as `ort.wasm.bundle.min.js`, a fixed name
+that the Wallet's own phrase card loads too.
 Use the export and evaluation instructions for provenance, licenses, and repeatable measurements:
 
 - [Speaker-model evaluation](../../../tests/scripts/voiceid-model-evaluation/README.md)

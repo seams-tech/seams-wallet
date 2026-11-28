@@ -23,12 +23,8 @@ import {
 } from '@shared/speakToSign/evidence';
 import { startHeardWords, type HeardWordsStart } from '@shared/speakToSign/heardWords';
 import { parseCosignerVoiceRefusal } from '@shared/speakToSign/voiceVerdict';
-import type {
-  AuthMethodEnrollmentRecording,
-  AuthMethodPhraseRecording,
-  AuthMethodPhraseRequest,
-  AuthMethodPhraseSurface,
-} from '@/core/authMethods/hostPlugin';
+import type { AuthMethodEnrollmentRecording } from '@/core/authMethods/hostPlugin';
+import type { PhraseRecording, PhraseRequest, PhraseSurface } from './phraseSurface';
 import type {
   SpeakToSignClip,
   SpeakToSignClipRequest,
@@ -126,8 +122,8 @@ export type SpeakToSignHostOperationsInput = Readonly<{
    * Session. A SaySo enrollment needs it; a VoiceID unlock never counts, as it is the voice again.
    */
   freshApproval: (signal: AbortSignal) => Promise<FreshApproval>;
-  /** The VoiceID host plugin's `openPhrase`, loaded on first use. */
-  openPhrase: (request: AuthMethodPhraseRequest) => Promise<AuthMethodPhraseSurface>;
+  /** Opens the Wallet's phrase card. Its code is a chunk that loads on first use. */
+  openPhrase: (request: PhraseRequest) => Promise<PhraseSurface>;
   /**
    * The signing preparation that needs no verdict, such as the access-key nonce and a recent
    * block hash. It runs while the verifier works and signs nothing. Best effort.
@@ -230,14 +226,14 @@ export function createSpeakToSignHostOperations(
   };
 }
 
-/** Opens the VoiceID surface of one sentence. It stays open until the plugin closes it. */
+/** Opens the phrase card of one sentence. It stays open until the approver closes it. */
 async function openPrompt(
   input: SpeakToSignHostOperationsInput,
   state: FlowState,
   request: SpeakToSignClipRequest,
 ): Promise<SpeakToSignPromptResult> {
   request.signal.throwIfAborted();
-  let surface: AuthMethodPhraseSurface;
+  let surface: PhraseSurface;
   try {
     surface = await input.openPhrase({
       sentence: request.sentence,
@@ -248,7 +244,7 @@ async function openPrompt(
     });
   } catch (error) {
     request.signal.throwIfAborted();
-    return { kind: 'unavailable', detail: errorDetail(error, 'VoiceID did not load') };
+    return { kind: 'unavailable', detail: errorDetail(error, 'the phrase card did not load') };
   }
   return {
     kind: 'opened',
@@ -263,11 +259,11 @@ async function openPrompt(
 /** Records one clip on the open surface and returns it as the verifier's canonical WAV. */
 async function recordClip(
   state: FlowState,
-  surface: AuthMethodPhraseSurface,
+  surface: PhraseSurface,
   signal: AbortSignal,
 ): Promise<SpeakToSignClip> {
   signal.throwIfAborted();
-  let recording: AuthMethodPhraseRecording;
+  let recording: PhraseRecording;
   try {
     recording = await surface.record();
   } catch (error) {

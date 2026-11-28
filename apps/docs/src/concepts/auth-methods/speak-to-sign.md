@@ -344,9 +344,11 @@ void seams.near.spoken?.prepare({ note: { text: noteText } });
 
 ## Prepare the Wallet host
 
-Speak-to-Sign needs no step of its own on the Wallet host. Its flow is in
-`@seams/mpc-wallet`. It records on the VoiceID surface, so the operator of
-`walletOrigin` installs `@seams/host` and composes VoiceID as for a VoiceID host:
+Speak-to-Sign needs no step of its own on the Wallet host. Its flow and its
+card are in `@seams/mpc-wallet`. The card loads the speech detection files and
+the model engine from the VoiceID asset folder (`/sdk/voiceid/`), so the
+operator of `walletOrigin` installs `@seams/host` and composes VoiceID as for a
+VoiceID host:
 
 ```sh
 npx --no-install seams-voiceid-host ./wallet-with-voiceid

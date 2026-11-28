@@ -5,6 +5,7 @@ import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB'
 import { buildThresholdEd25519NearTxUnsignedBorshWasm } from '@/core/signingEngine/chains/near/nearSignerWasm';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import { loadSpeakToSignApprover } from '@/core/transactionFeatures/hostRegistry';
+import type { PhraseRequest, PhraseSurface } from '@/core/transactionFeatures/phraseSurface';
 import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
 import type { TransactionContext } from '@/core/types/rpc';
 import { nearTransactionActionsBorsh } from '@shared/speakToSign/spokenRequest';
@@ -17,6 +18,7 @@ export const browserSpeakToSignPorts: SpeakToSignWalletPorts = {
   readVoiceIdAvailability,
   readOperationCredential,
   loadHost: loadSpeakToSignApprover,
+  openPhrase,
   loadVoiceIdHost,
   nearActionsBorsh,
   fetch: fetchFromWindow,
@@ -52,6 +54,16 @@ async function nearActionsBorsh(
   });
   const actions = nearTransactionActionsBorsh(base64UrlDecode(unsigned.unsignedTransactionBorshB64u));
   return new Uint8Array(actions);
+}
+
+/**
+ * The phrase card and `@seams/voice-capture` are a chunk of the Wallet that loads on the first
+ * spoken card. The card needs no VoiceID plugin on the host and no VoiceID descriptor.
+ */
+async function openPhrase(request: PhraseRequest): Promise<PhraseSurface> {
+  const card = await import('@/core/transactionFeatures/approver/phraseCard');
+  request.signal.throwIfAborted();
+  return card.openPhrase(request);
 }
 
 function loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]) {

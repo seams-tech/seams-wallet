@@ -4,11 +4,7 @@ import { createSpeakToSignCapability } from '@/SeamsWeb/publicApi/speakToSign';
 import { withSpokenApprovals } from '@/SeamsWeb/publicApi/spoken';
 import { expect, test } from '@playwright/test';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
-import type {
-  AuthMethodPhraseRequest,
-  AuthMethodPhraseSurface,
-  WalletAuthMethodHostPlugin,
-} from '@/core/authMethods/hostPlugin';
+import type { WalletAuthMethodHostPlugin } from '@/core/authMethods/hostPlugin';
 import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 import type {
   SpeakToSignEnrollmentResult,
@@ -16,6 +12,7 @@ import type {
   SpeakToSignTransferResult,
 } from '@/core/transactionFeatures/hostPlugin';
 import { ENROLLMENT_PHRASES } from '@/core/transactionFeatures/hostApproval';
+import type { PhraseRequest } from '@/core/transactionFeatures/phraseSurface';
 import { forgetNoteSummaries } from '@/core/transactionFeatures/hostOperations';
 import { OUTLAYER_VERIFIER } from '@/core/transactionFeatures/verifiers/outlayer/outlayerVerifier';
 import type { WalletApprovalPlugin } from '@/core/transactionFeatures/plugins';
@@ -226,6 +223,8 @@ test('the Wallet host routes the message to its NEAR runtime with a parsed paylo
 type HandlerHarnessOptions = {
   readonly features?: readonly WalletApprovalPlugin[];
   readonly voiceId?: AuthMethodAvailability['kind'];
+  /** The auth method descriptors of the app. Default: VoiceID. */
+  readonly authMethods?: readonly WalletAuthMethodPlugin[];
   readonly relayerUrl?: string;
   readonly nearReady?: boolean;
   readonly cancelled?: () => boolean;
@@ -250,9 +249,9 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
   const fetched: { url: string; init: RequestInit }[] = [];
   const binding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' };
   const features = options.features ?? [FEATURE];
-  const authMethods: readonly WalletAuthMethodPlugin[] = [{ kind: 'voiceid' }];
+  const authMethods = options.authMethods ?? [{ kind: 'voiceid' }];
   const recorderLoads: (readonly WalletAuthMethodPlugin[])[] = [];
-  const phrases: AuthMethodPhraseRequest[] = [];
+  const phrases: PhraseRequest[] = [];
   const recorded = new Float32Array([0.5, -0.5, 0.25]);
   let voiceIdKind = options.voiceId ?? 'enabled';
   const enrollmentSamples = [0.1, 0.2, 0.3].map((value) => new Float32Array([value, -value]));
@@ -276,14 +275,6 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
         walletId: WALLET_ID,
         walletAuthMethodId: 'wallet-auth-method:voice',
       } as Awaited<ReturnType<WalletAuthMethodHostPlugin['activate']>>;
-    },
-    async openPhrase(request: AuthMethodPhraseRequest): Promise<AuthMethodPhraseSurface> {
-      phrases.push(request);
-      return {
-        record: async () => ({ kind: 'recorded', samples: recorded, endOfSpeechAt: 7 }),
-        show: async () => 'closed',
-        close: () => undefined,
-      };
     },
   } as WalletAuthMethodHostPlugin;
   const runtime = {
@@ -349,8 +340,20 @@ function buildHandler(options: HandlerHarnessOptions = {}) {
       loads.push(enabled);
       return plugin;
     },
+    async openPhrase(request) {
+      phrases.push(request);
+      return {
+        record: async () => ({ kind: 'recorded', samples: recorded, endOfSpeechAt: 7 }),
+        show: async () => 'closed',
+        close: () => undefined,
+      };
+    },
+    // As the Wallet's loader: an app with no VoiceID descriptor gets no VoiceID plugin.
     async loadVoiceIdHost(methods) {
       recorderLoads.push(methods);
+      if (!methods.some((method) => method.kind === 'voiceid')) {
+        throw new Error('Enable the authentication method plugin before using it.');
+      }
       return voiceId;
     },
     fetch: (async (url: URL, init: RequestInit) => {
@@ -434,7 +437,9 @@ test('the handler gives the plugin the owner, the request texts and bound operat
   const seen: Record<string, unknown> = {};
   const harness = buildHandler({
     async plugin(input) {
-      expect(harness.recorderLoads).toEqual([harness.authMethods]);
+      // The card is open before the approver runs, and it loaded no VoiceID plugin.
+      expect(harness.phrases).toHaveLength(1);
+      expect(harness.recorderLoads).toEqual([]);
       const clip = await input.operations.record();
       if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
       seen.clip = clip;
@@ -776,6 +781,24 @@ test('the enrollment handler records the phrases of core and enrolls only clips 
     ok: true,
     result: { kind: 'unavailable', reason: 'voiceid_unavailable', detail: 'disabled' },
   });
+});
+
+test('a spoken request needs no VoiceID descriptor and loads no VoiceID plugin', async () => {
+  // The wallet has VoiceID, but this app lists only `spoken`. The card is a part of the Wallet.
+  const harness = buildHandler({
+    authMethods: [],
+    async plugin(input) {
+      const clip = await input.operations.record();
+      if (clip.kind !== 'captured') throw new Error(`The clip was ${clip.kind}`);
+      return SENT;
+    },
+  });
+  await harness.run();
+  expect(harness.posted).toEqual([
+    { type: 'PM_RESULT', requestId: 'request-1', payload: { ok: true, result: SENT } },
+  ]);
+  expect(harness.phrases.map((phrase) => phrase.sentence)).toEqual(['Send 2.5 NEAR to bob.testnet']);
+  expect(harness.recorderLoads).toEqual([]);
 });
 
 test('a wallet without VoiceID activates it, and its three samples are the enrollment clips', async () => {

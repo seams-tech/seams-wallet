@@ -3,7 +3,7 @@
 // the owner's approval of an enrollment, and gives the card its text and receipt. Each backend is
 // one module beside this file.
 
-import type { PhraseReceipt } from '@/core/authMethods/hostPlugin';
+import type { PhraseReceipt } from '@/core/transactionFeatures/phraseSurface';
 import type { SpeakToSignBackendId } from '@shared/speakToSign/backend';
 import type { SpeakToSignNetwork, SpokenRequest } from '@shared/speakToSign/spokenRequest';
 import type { SignNEP413MessageResult } from '@/core/types/sdkPublicResults';

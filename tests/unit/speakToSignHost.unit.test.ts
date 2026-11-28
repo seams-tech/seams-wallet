@@ -7,7 +7,7 @@ import type {
   SpeakToSignPaymentHooks,
   SpeakToSignProgress,
 } from '@/core/transactionFeatures/hostPlugin';
-import type { AuthMethodPhraseRecording } from '@/core/authMethods/hostPlugin';
+import type { PhraseRecording } from '@/core/transactionFeatures/phraseSurface';
 import { createSpeakToSignHostOperations } from '@/core/transactionFeatures/hostOperations';
 import {
   enrollmentDigest,
@@ -525,7 +525,7 @@ type CoreHarness = {
   prepared: number;
   setVerifyResponse(response: () => Response): void;
   setOutcome(outcome: ActionResult): void;
-  setRecording(recording: () => Promise<AuthMethodPhraseRecording>): void;
+  setRecording(recording: () => Promise<PhraseRecording>): void;
 };
 
 /** The verify route's answer: `text/event-stream` with these events in order. */
@@ -548,7 +548,7 @@ function coreHarness(verifier: Verifier, sayso?: SaySoKey): CoreHarness {
     transactionId: 'tx-ok',
     result: { status: { SuccessValue: '' }, receipts_outcome: [] } as never,
   };
-  let recording: () => Promise<AuthMethodPhraseRecording> = async () => ({
+  let recording: () => Promise<PhraseRecording> = async () => ({
     kind: 'recorded',
     samples: samples(2),
     endOfSpeechAt: 3,

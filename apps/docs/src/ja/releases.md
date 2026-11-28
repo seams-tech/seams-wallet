@@ -8,6 +8,7 @@ description: パッケージの名前が変わり、パスキーにはユーザ�
 0.77.0からの変更:
 
 - Speak-to-Sign: マルチシグの「add member」の承認で、Wallet coreと共同署名者は、「member」の直前の「ad」または「at」を「add」として読みます。Whisper large-v3-turboは「add member」をよく「Ad Member」と書きます。メンバーの語は変わらず、Walletは引き続きそれをリクエストと比べます。
+- Speak-to-Sign: 音声リクエストのフレーズカードは、Walletの一部になりました。音声リクエストはVoiceIDのプラグインを読み込みません。そのために、アプリケーションが`authMethods`にVoiceIDの記述子を入れる必要もありません。ウォレットでは、これまでどおりVoiceIDを有効にする必要があります。VoiceIDのスイッチは、引き続き音声による承認を無効にします。VoiceIDのホストAPIはバージョン12です。ホストされたWalletと`@seams/host`のVoiceIDのアセットを一緒にデプロイしてください。VoiceIDのアセットフォルダーは、モデルエンジンを`/sdk/voiceid/ort.wasm.bundle.min.js`で提供します。Walletのカードは、そこからモデルエンジンを読み込みます。
 
 # リリース 0.77.0
 

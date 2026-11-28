@@ -1,9 +1,18 @@
 # Refactor 233: Auth methods by factor and gate
 
-Status: 2026-11-28. Slice 0 (the inventory and the ratchet test) is done. Slice 1 (the phrase
-card in core) is the only other slice that this plan builds. Slices 2 to 6 are not built on the
-old code: [Refactor 251](refactor-251-auth-wallet-checkout-modules.md) builds their design as
-new code, and the "Slices" section says where. The owner decided D1 to D4 on 2026-11-12.
+Status: 2026-11-28. Slice 0 (the inventory and the ratchet test) and Slice 1 (the phrase card
+in core) are built on `dev`, not released. They are the only slices that this plan builds.
+Slices 2 to 6 are not built on the old code:
+[Refactor 251](refactor-251-auth-wallet-checkout-modules.md) builds their design as new code,
+and the "Slices" section says where. The owner decided D1 to D4 on 2026-11-12.
+
+What is left in this plan:
+
+- **One decision for the owner** (F13): can a wallet with no VoiceID use `spoken`, and where
+  does its owner turn spoken approval off? Until then, invariant 7 holds only in its second
+  form.
+- **Sections 3 to 5** stay as the design that Refactor 251 reads. Delete this plan when
+  Refactor 251 has built or replaced them (its Slice 8), with the ratchet test.
 
 History: the plan is from 2026-11-12. The owner deferred it until after the NEAR hackathon and
 asked for it on 2026-11-28. The facts were checked against the code on 2026-11-28, after release
@@ -44,8 +53,9 @@ Scope, as the owner chose on 2026-11-12:
   factor to its folder. A test fails if a method or factor literal is outside those files.
 - **A gate gets a surface and a scoped store, never a key.** Core holds the device key, signs
   the challenge and opens the factor secret. The gate only says `passed`.
-- **The Speak-to-Sign card no longer needs VoiceID.** Core opens the phrase card of
-  `@seams/voice-capture/card` itself. A wallet with only a passkey can use `spoken`.
+- **The Speak-to-Sign card no longer needs the VoiceID plugin** (built in Slice 1). Core opens
+  the phrase card of `@seams/voice-capture/card` itself. "A wallet with only a passkey can use
+  `spoken`" is not built: it waits for the owner (F13).
 - **One app API shape for methods.** `authMethods: [passkey(), emailCode(), voiceId()]` in the
   configuration, and `seams.auth.methods.{list, add, remove}` and `seams.auth.unlock`.
 
@@ -67,6 +77,13 @@ Scope, as the owner chose on 2026-11-12:
   Refactor 232 said the Wallet gets no such dependency. Section 2 of this plan changes that. The
   dependency is a chunk that loads on the first spoken request. `@seams/voice-capture` does not depend on the
   Wallet, so the rule of the speak-to-sign repository stays.
+
+  Changed by Release A (0.77.0): the packed-package check
+  (`tests/scripts/check-packed-wallet-boundaries.mjs`) refuses `@seams/voice-capture` and
+  `onnxruntime-web` as a dependency of `@seams/mpc-wallet`, and refuses the model engine in its
+  files. So Slice 1 makes `@seams/voice-capture` a build-time dependency (`devDependencies`).
+  The hosted Wallet bundle holds the card. An application that installs `@seams/mpc-wallet`
+  installs no capture package and no ONNX runtime.
 
 ## Facts this plan builds on
 
@@ -184,6 +201,8 @@ A method maps to one factor and at most one gate:
 
 ### 2. The phrase card in core (item 3)
 
+Built in Slice 1 on 2026-11-28. The text says what the code does.
+
 **The rule of 0.77.0 stays (F13).** A spoken request still needs VoiceID on for the wallet.
 Slice 1 moves the code: the card needs no VoiceID plugin on the host and no VoiceID descriptor
 in the app. It does not open `spoken` to a wallet that has no VoiceID. Such a wallet has no
@@ -192,17 +211,60 @@ verifier, because both are parts of the VoiceID method. The owner must decide th
 first. So invariant 7 is tested in the form "a spoken request loads no VoiceID plugin and
 needs no VoiceID descriptor".
 
-- Move the adapter of F7 into `core/transactionFeatures/approver/phraseCard.ts`. It imports
-  `openPhraseCard` of `@seams/voice-capture/card` as a dynamic import.
-- Move the capture settings of F8 into core. Core calls `configureVoiceCapture` once, with the
-  same values. The asset folder stays `/sdk/voiceid/` in this plan, because the host already
-  serves the speech files there. A later plan can rename it.
-- `speakToSign.ts` calls the core adapter. It does not load the VoiceID plugin.
-- Remove `openPhrase` from `WalletAuthMethodHostPlugin`, from `isHostPlugin` and from
-  `voiceid/src/host.ts`. Move `AuthMethodPhraseRequest`, `AuthMethodPhraseSurface` and the
-  `Phrase...` view types to `core/transactionFeatures/` and rename them `Phrase...`.
-- The hand-over of the enrollment recordings (`keepRecordings`) stays. It is an optional input
-  of the VoiceID activation, and Speak-to-Sign still uses it.
+- **The adapter** is `core/transactionFeatures/approver/phraseCard.ts`. It opens
+  `openPhraseCard` of `@seams/voice-capture/card` in the Wallet's frame: the theme classes, the
+  card controls, Minimize and the size reports. `speakToSignPorts.ts` loads it with a dynamic
+  import, so the card and the capture package are one chunk of the hosted Wallet
+  (`sdk/phraseCard-*.js`, 147 kB, 43 kB gzip) that loads on the first spoken card.
+- **The types** are in `core/transactionFeatures/phraseSurface.ts`: `PhraseRequest`,
+  `PhraseSurface`, `PhraseRecording` and the view types. They are written in core, not imported
+  from the capture package, so the Wallet's declarations name no type of a package that an
+  application does not install.
+- **The capture settings** are in core: `walletVoiceCaptureConfig()` of
+  `core/authMethods/voiceId/captureConfig.ts`, with the same values as before. The settings are
+  the state of one copy of `@seams/voice-capture`. The Wallet's chunk and the VoiceID plugin
+  each bundle a copy, so each copy gets the settings: the adapter on its first card, and the
+  plugin through `@seams/mpc-wallet/voiceid` (`packages/voiceid/src/capture/configure.ts`).
+  One copy for both waits for the gate chunk of Slice 3, which Refactor 251 replaces.
+- **The model engine stays in the asset folder.** The Wallet's bundle holds no ONNX Runtime Web
+  (D4, the packed-package check). The VoiceID build writes the engine at a fixed name,
+  `/sdk/voiceid/ort.wasm.bundle.min.js`, and the Wallet's card and the plugin's chunks both
+  import that file. The asset folder stays `/sdk/voiceid/`, so a Wallet host still composes the
+  VoiceID assets of `@seams/host` for `spoken`. A later plan can rename the folder.
+- **The plugin contract.** `WalletAuthMethodHostPlugin`, `isHostPlugin` and
+  `packages/voiceid/src/host.ts` have no `openPhrase`, and `packages/voiceid/src/capture/phrase.ts`
+  is deleted. The VoiceID host API is version 12. `@seams/mpc-wallet/voiceid` lost 13 names (the
+  phrase types, the card chrome functions and the two microphone functions) and got
+  `walletVoiceCaptureConfig`.
+- **The hand-over of the enrollment recordings** (`keepRecordings`) stays. It is an optional
+  input of the VoiceID activation, and Speak-to-Sign still uses it. An enrollment of a wallet
+  with no VoiceID still loads the VoiceID plugin to turn VoiceID on first.
+
+**Measured on 2026-11-28:**
+
+| Check | Result |
+| --- | --- |
+| Speak-to-Sign unit tests, the ratchet and the whole unit suite (`pnpm -C tests test:wallet-unit`, Chromium) | 544 passed |
+| The approver's card tests (`speakToSignApproverFlow`, `speakToSignApproverEnroll`) | Passed with no change to a case or a file |
+| Invariant 7, unit: a spoken transfer of an app with no VoiceID descriptor (`speakToSignIframeRoute.unit.test.ts`) | Passed; the VoiceID loader is not called |
+| Invariant 7, browser: the real adapter opens the card from its own chunk and asks no `/sdk/voiceid/host.js` (`speak-to-sign-plugin.contract.test.ts`) | Passed |
+| The built VoiceID plugin loads through the Wallet's loader (`auth-method-plugin.contract.test.ts`) | 2 passed |
+| The VoiceID plugin builds with no `openPhrase` | Yes; its JavaScript went from 280,236 to 258,736 bytes, and each of its 30 imports from the bridge is an export of the built bridge |
+| VoiceID capture in a browser (`voiceid-loading`, `voiceid-phrase-tolerance`, `voiceid-microphone`) and `wallet-steps` | Passed in Chromium and WebKit |
+| The packed-package check for `@seams/mpc-wallet` | Passed: no capture package, no ONNX runtime, no engine file |
+| Type checks: the wallet, the two test projects, and the plugin's source against the wallet's source | Passed |
+
+**Not measured:**
+
+- The VoiceID journeys on the local stack (activation, unlock, key export) were not run. The
+  shared checkout held another session's unfinished server changes, and three of these cases
+  already failed before this slice.
+- No spoken request was made against a real verifier. The staging payment is the owner's.
+- Firefox has no local build here; CI runs it.
+
+**For the release:** the hosted Wallet and the VoiceID assets of `@seams/host` must ship
+together, with a new version. The plugin imports the bridge `/sdk/voiceid-host.js` by the
+Wallet's version, and the new plugin needs the new bridge.
 
 ### 3. One app API for methods (item 4)
 
@@ -371,6 +433,9 @@ does not name. "Row" is a row of the audit table in the
   tests of the approver move with no change to their cases, and the VoiceID plugin builds with
   no `openPhrase`. The hosted Wallet and the VoiceID host plugin of `@seams/host` ship
   together, because `isHostPlugin` changes.
+
+  Built on 2026-11-28. Section 2 says what the code does, what was measured and what was not.
+  Invariant 7 holds in its second form only (F13).
 - **Slice 2. The app API for methods** (Section 3). Not built here.
   - **Refactor 251 covers it** in its Slice 6 (the auth client: `passkey()`, `emailCode()` and
     `voiceId()` in `@seams/auth/client`, and `auth.methods.list`, `add` and `remove`) and its

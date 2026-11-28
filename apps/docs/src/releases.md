@@ -8,6 +8,7 @@ description: The packages get new names, passkeys need user verification, Email 
 Since 0.77.0:
 
 - Speak-to-Sign: in a multisig "add member" approval, Wallet core and the co-signer read "ad" or "at" directly before "member" as "add". Whisper large-v3-turbo often writes "Ad Member" for "add member". The words of the member do not change, and the Wallet still compares them with the request.
+- Speak-to-Sign: the phrase card of a spoken request is a part of the Wallet. A spoken request loads no VoiceID plugin, and an application needs no VoiceID descriptor in `authMethods` for it. The wallet still needs VoiceID on: the VoiceID switch turns spoken approval off, as before. The VoiceID host API is version 12, so deploy the hosted Wallet and the VoiceID assets of `@seams/host` together. The VoiceID asset folder now serves the model engine at `/sdk/voiceid/ort.wasm.bundle.min.js`, and the Wallet's card loads it from there.
 
 # Release 0.77.0
 

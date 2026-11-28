@@ -1,14 +1,10 @@
-import type {
-  AuthMethodPhraseRequest,
-  PhraseChoice,
-  PhraseView,
-} from '@/core/authMethods/hostPlugin';
 import type { ActionArgs, TransactionInput } from '@/core/types/actions';
 import type { SignDelegateActionResult, SignTransactionResult } from '@/core/types/seams';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { Variant } from '@shared/utils/variant';
 import type { SpokenMessageAction } from './spokenMessage';
+import type { PhraseChoice, PhraseRequest, PhraseView } from './phraseSurface';
 import type { SpeakToSignNetwork } from './plugins';
 import type { BetOutcome } from './spokenBet';
 import type { NoteRating, SpokenNoteAction } from './spokenNote';
@@ -450,21 +446,21 @@ export type SpeakToSignClip =
       endOfSpeechAt: number;
     }>
   | Readonly<{ kind: 'cancelled' }>
-  /** VoiceID could not load or record on this Wallet host. */
+  /** The phrase card could not load or record on this Wallet host. */
   | Readonly<{ kind: 'unavailable'; detail: string }>;
 
 export type SpeakToSignClipRequest = Readonly<{
-  /** The sentence that the VoiceID surface shows. */
+  /** The sentence that the phrase card shows. */
   sentence: string;
   /** The text that the sentence speaks for, such as a note, shown above it. */
-  context?: AuthMethodPhraseRequest['context'];
+  context?: PhraseRequest['context'];
   /** The first recording starts with no press on Record, where the browser allows it. */
   autoStart: boolean;
   signal: AbortSignal;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 }>;
 
-/** The VoiceID surface of one sentence. It stays open for the check and the result. */
+/** The phrase card of one sentence. It stays open for the check and the result. */
 export type SpeakToSignPrompt = Readonly<{
   /** Records one clip. A later call shows the sentence again and records a new clip. */
   record(): Promise<SpeakToSignClip>;
@@ -474,7 +470,7 @@ export type SpeakToSignPrompt = Readonly<{
 
 export type SpeakToSignPromptResult =
   | Readonly<{ kind: 'opened'; prompt: SpeakToSignPrompt }>
-  /** VoiceID could not load on this Wallet host. */
+  /** The phrase card could not load on this Wallet host. */
   | Readonly<{ kind: 'unavailable'; detail: string }>;
 
 /**

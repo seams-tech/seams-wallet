@@ -38,6 +38,12 @@ samples, and local ONNX Runtime Web inference verifies the speaker. Inference
 uses one WebAssembly thread. A same-origin AudioWorklet supplies 16 kHz frames
 to local Silero speech detection on the iframe main thread. The worklet holds only
 short audio frames and has no signing or custody authority.
+The phrase card of a spoken request is a chunk of Wallet core, not a part of the plugin
+([`phraseCard.ts`](../packages/mpc-wallet/src/core/transactionFeatures/approver/phraseCard.ts)).
+It runs the same AudioWorklet and the same speech detection on the iframe main thread, with
+the Wallet's own copy of `@seams/voice-capture`. It loads the model engine and the speech
+files from the VoiceID asset folder. It runs no speaker model, holds no key, and moves no
+operation between workers.
 Audio is discarded after inference. The Wallet origin stores its template and
 nonextractable WebCrypto device keys in IndexedDB. A separate nonextractable
 AES-GCM key encrypts the random method factor at rest. The factor is decrypted

@@ -3,7 +3,7 @@
 // project, and the card text and TEE receipt of a verifier that runs in Intel TDX on OutLayer.
 
 import { sealAudio } from '@seams/voice-verdict';
-import type { PhraseReceipt } from '@/core/authMethods/hostPlugin';
+import type { PhraseReceipt } from '@/core/transactionFeatures/phraseSurface';
 import { concat, sha256, utf8, type SpeakToSignNetwork } from '@shared/speakToSign/spokenRequest';
 import { SPEAK_TO_SIGN_VERIFIERS } from '@shared/speakToSign/evidence/voiceVerdictV2';
 import { base64Decode, base64Encode, base64UrlEncode } from '@shared/utils/base64';

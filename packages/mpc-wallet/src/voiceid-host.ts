@@ -6,11 +6,6 @@ export {
   type AuthMethodCaptureMount,
   type AuthMethodCaptureSettlement,
   type AuthMethodEnrollmentRecording,
-  type AuthMethodPhraseRecording,
-  type AuthMethodPhraseSurface,
-  type PhraseChoice,
-  type PhraseSegmentState,
-  type PhraseView,
   type AuthMethodUnlockSuccess,
 } from './core/authMethods/hostPlugin';
 export { type Variant } from '@shared/utils/variant';
@@ -48,10 +43,7 @@ export {
   type VoiceIdOperationCapture,
 } from './core/authMethods/voiceId/contracts';
 export { requireRecord, isFiniteNumber, isPlainObject } from '@shared/utils/validation';
-export {
-  readVoiceMicrophonePreference,
-  saveVoiceMicrophonePreference,
-} from './core/authMethods/voiceId/microphonePreference';
+export { walletVoiceCaptureConfig } from './core/authMethods/voiceId/captureConfig';
 export { type WalletId } from '@shared/utils/domainIds';
 export {
   voiceIdWalletSessionChallengeBytes,
@@ -77,19 +69,4 @@ export {
 } from './SeamsWeb/walletIframe/host/surface-measurement-reporter';
 export { SeamsWordmark } from './core/signingEngine/uiConfirm/ui/preact/SeamsWordmark';
 export { backIcon } from './SeamsWeb/walletIframe/host/ui/auth-menu/icons';
-/**
- * `anchoredCardChrome()`: the Back, Close or both that the app asked the card to draw.
- * `pressCardControl()`: tells the app which of them the person pressed, before the card ends.
- * `anchoredCardMinimizes()`: the app asked the card to draw Minimize. `minimizeCard()` tells the
- * app to hide or show the card, and `reportCardProgress()` tells it the card's stage.
- * `onCardPress()`: the card hears the app's presses for the person (a voice command).
- */
-export {
-  anchoredCardChrome,
-  anchoredCardMinimizes,
-  minimizeCard,
-  onCardPress,
-  pressCardControl,
-  reportCardProgress,
-} from './core/signingEngine/uiConfirm/anchoredCard';
 export type { VoiceMicrophonePreference } from './core/authMethods/voiceId/microphonePreference';

@@ -5,7 +5,7 @@
 // names the operator's Cloudflare infrastructure and links no attestation.
 
 import { MAX_SENTENCE_WORDS } from '@seams/sayso-verdict';
-import type { PhraseReceipt } from '@/core/authMethods/hostPlugin';
+import type { PhraseReceipt } from '@/core/transactionFeatures/phraseSurface';
 import { saysoIntent, saysoIntentFields } from '@shared/speakToSign/evidence/saysoVerdictV1';
 import { hex } from '@shared/speakToSign/spokenKinds';
 import { isPlainObject } from '@shared/utils/validation';

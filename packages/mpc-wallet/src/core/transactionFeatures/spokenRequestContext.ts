@@ -3,7 +3,6 @@
 // shows the request itself there, in the words of the Wallet's confirm, from the same input that
 // the signer builds the bytes from. A typed kind needs none: the Wallet writes its sentence.
 
-import type { AuthMethodPhraseRequest } from '@/core/authMethods/hostPlugin';
 import {
   immediateNearTokenMetadata,
   parseNearTokenTransferCall,
@@ -19,10 +18,11 @@ import {
   type ActionArgs,
   type TransactionInput,
 } from '@/core/types/actions';
+import type { PhraseRequest } from './phraseSurface';
 import type { SpeakToSignNetwork } from './plugins';
 import type { SpokenIntent } from './spokenIntent';
 
-type CardContext = NonNullable<AuthMethodPhraseRequest['context']>;
+type CardContext = NonNullable<PhraseRequest['context']>;
 
 const REQUEST_LABEL = 'This request';
 /** The box scrolls, but the arguments of a call can be megabytes. */

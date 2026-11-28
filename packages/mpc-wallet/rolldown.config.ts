@@ -148,9 +148,15 @@ const external = [
   /\.css$/,
 ];
 
+// The model engine of `@seams/voice-capture` (ONNX Runtime Web). The phrase card of a spoken
+// request is a chunk of the Wallet, but the engine is not: the Wallet host serves it from the
+// VoiceID asset folder, beside the speech model and the engine's WASM file.
+export const VOICE_MODEL_ENGINE = 'onnxruntime-web/wasm';
+const VOICE_MODEL_ENGINE_URL = '/sdk/voiceid/ort.wasm.bundle.min.js';
+
 // Embedded bundles are loaded directly in the browser (no bundler/import maps),
 // so do not externalize dependencies. Bundle everything needed.
-const embeddedExternal: (string | RegExp)[] = ['/sdk/voiceid/host.js'];
+const embeddedExternal: (string | RegExp)[] = ['/sdk/voiceid/host.js', VOICE_MODEL_ENGINE];
 
 const aliasConfig = {
   '@build-paths': path.resolve(SDK_ROOT_ABS, 'build-paths.ts'),
@@ -753,6 +759,7 @@ const configs = [
       entryFileNames: 'sdk/[name].js',
       chunkFileNames: 'sdk/[name]-[hash].js',
       minify: true,
+      paths: { [VOICE_MODEL_ENGINE]: VOICE_MODEL_ENGINE_URL },
     },
     external: embeddedExternal,
     resolve: {

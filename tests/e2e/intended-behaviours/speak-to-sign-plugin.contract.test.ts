@@ -23,6 +23,8 @@ const chunks: Chunk[] = JSON.parse(
 
 /** A text of the card of the flow. Only the chunk of the flow holds it. */
 const FLOW_TEXT = 'Checking what you said';
+/** A text of the phrase card of `@seams/voice-capture`. Only the chunk of the card holds it. */
+const CARD_TEXT = 'Say this sentence';
 
 class ProbeServer {
   readonly requested: string[] = [];
@@ -70,6 +72,12 @@ function loadApprover(): ReturnType<Window['speakToSignPluginProbe']['loadHost']
 function startFlow(): ReturnType<Window['speakToSignPluginProbe']['startFlow']> {
   return window.speakToSignPluginProbe.startFlow();
 }
+function openCard(sentence: string): ReturnType<Window['speakToSignPluginProbe']['openCard']> {
+  return window.speakToSignPluginProbe.openCard(sentence);
+}
+function isCardChunkName(name: string): boolean {
+  return chunks.some((chunk) => chunk.fileName === name && chunk.code.includes(CARD_TEXT));
+}
 
 test('the Speak-to-Sign flow is a chunk of the Wallet that loads on the first request', async ({
   page,
@@ -98,4 +106,28 @@ test('the Speak-to-Sign flow is a chunk of the Wallet that loads on the first re
 
   await page.evaluate(disable);
   await expect(page.evaluate(loadApprover)).rejects.toThrow('Enable Speak-to-Sign');
+});
+
+test('the phrase card is a chunk of the Wallet and loads no VoiceID plugin', async ({ page }) => {
+  const server = new ProbeServer();
+  await page.route('**/*', server.serve.bind(server));
+  await page.goto(ORIGIN);
+  await page.waitForFunction(ready);
+
+  // The card and the capture package are in their own chunk, which nothing has loaded yet.
+  const entry = chunks.find(hasName.bind(null, 'probe.js'));
+  expect(entry?.code.includes(CARD_TEXT)).toBe(false);
+  expect(server.requested.filter(isCardChunkName)).toEqual([]);
+
+  // The app enabled no VoiceID, and the Wallet host serves no VoiceID plugin here.
+  await expect(page.evaluate(openCard, 'Send 1 NEAR to bob.testnet')).resolves.toEqual({
+    sentence: 'Send 1 NEAR to bob.testnet.',
+    walletTheme: true,
+    recording: 'cancelled',
+  });
+  expect(server.requested.filter(isCardChunkName).length).toBeGreaterThan(0);
+  expect(server.requested).not.toContain('sdk/voiceid/host.js');
+  // The Wallet's copy of the capture package has the Wallet's settings: it asks the Wallet's
+  // asset folder for the WASM file of the model engine.
+  await expect.poll(() => server.requested).toContain('sdk/voiceid/ort-wasm-simd-threaded.wasm');
 });

@@ -227,7 +227,7 @@ void seams.near.spoken?.prepare({ note: { text: noteText } });
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
-Speak-to-Signのために、Walletホストで行う専用の手順はありません。流れは`@seams/mpc-wallet`の中にあります。録音にはVoiceIDの画面を使うため、`walletOrigin`の運用者は`@seams/host`をインストールし、VoiceIDのホストと同じようにVoiceIDを構成します。
+Speak-to-Signのために、Walletホストで行う専用の手順はありません。流れとカードは`@seams/mpc-wallet`の中にあります。カードは、発話検出のファイルとモデルエンジンをVoiceIDのアセットフォルダー（`/sdk/voiceid/`）から読み込みます。そのため、`walletOrigin`の運用者は`@seams/host`をインストールし、VoiceIDのホストと同じようにVoiceIDを構成します。
 
 ```sh
 npx --no-install seams-voiceid-host ./wallet-with-voiceid

@@ -4,7 +4,7 @@ import type {
   PhraseReceipt,
   PhraseResultView,
   PhraseSegmentState,
-} from '@/core/authMethods/hostPlugin';
+} from '../phraseSurface';
 import { SPEAK_TO_SIGN_VERIFIER_BACKEND, type VerifierProof } from '../verifiers/backend';
 import { heardCaption } from './heardWords';
 import { isVerifierTimeout, type FailedResult } from './result';

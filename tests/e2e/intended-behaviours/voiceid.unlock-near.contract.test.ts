@@ -506,7 +506,7 @@ async function measureColdPreparation(
   expect(requests.verifies).toBe(0);
 
   const runtime = new DelayedPreparationAsset();
-  await context.route('**/ort.wasm.bundle.min-*.js', runtime.serve);
+  await context.route('**/ort.wasm.bundle.min.js', runtime.serve);
   const runtimeStarted = performance.now();
   const retry = page.evaluate(unlock, methodId).then(unexpectedUnlock, rejectedUnlock);
   await expect(dialog).toBeVisible({ timeout: 1_500 });
@@ -549,7 +549,7 @@ async function measureColdPreparation(
   expect(await wallet.locator('body').evaluate(readMicrophoneStates)).toContain('live');
   await wallet.getByRole('button', { name: 'Back', exact: true }).click();
   expect((await retry).kind).toBe('rejected');
-  await context.unroute('**/ort.wasm.bundle.min-*.js', runtime.serve);
+  await context.unroute('**/ort.wasm.bundle.min.js', runtime.serve);
   context.off('request', requests.observe);
   return {
     moduleVisibleMs,

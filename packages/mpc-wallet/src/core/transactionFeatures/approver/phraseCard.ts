@@ -1,25 +1,32 @@
+import { configureVoiceCapture } from '@seams/voice-capture';
+import { openPhraseCard, type PhraseCardControls } from '@seams/voice-capture/card';
+import { walletVoiceCaptureConfig } from '@/core/authMethods/voiceId/captureConfig';
 import {
   anchoredCardChrome,
   anchoredCardMinimizes,
-  createWalletIframeSurfaceMeasurementReporter,
   minimizeCard,
   onCardPress,
   pressCardControl,
   reportCardProgress,
-  type AuthMethodPhraseSurface,
-  type WalletAuthMethodHostPlugin,
-} from '@seams/mpc-wallet/voiceid';
-import { openPhraseCard, type PhraseCardControls } from '@seams/voice-capture/card';
+} from '@/core/signingEngine/uiConfirm/anchoredCard';
+import { createWalletIframeSurfaceMeasurementReporter } from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
+import type { PhraseRequest, PhraseSurface } from '../phraseSurface';
 
-type PhraseInput = Parameters<WalletAuthMethodHostPlugin['openPhrase']>[0];
+/** This chunk holds the Wallet's copy of the capture package, which gets its settings once. */
+let configured = false;
 
 /**
  * Shows the given sentence on the phrase card of `@seams/voice-capture`, in the Wallet's frame:
  * the Wallet's theme classes, the Back, Close and Minimize that the app asked for, and the size
- * reports that the Wallet iframe needs. The card records clips with the quality gate and stays open, so the caller can show its
- * check and the result on the same card.
+ * reports that the Wallet iframe needs. The card records clips with the quality gate and stays
+ * open, so the caller can show its check and the result on the same card. It reads no
+ * enrollment and proves nothing: the caller sends each clip to its own verifier.
  */
-export function openPhrase(input: PhraseInput): AuthMethodPhraseSurface {
+export function openPhrase(input: PhraseRequest): PhraseSurface {
+  if (!configured) {
+    configureVoiceCapture(walletVoiceCaptureConfig());
+    configured = true;
+  }
   const binding = input.surfaceMeasurementBinding;
   return openPhraseCard({
     sentence: input.sentence,

@@ -1,7 +1,6 @@
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type {
   AuthMethodEnrollmentRecording,
-  AuthMethodPhraseRequest,
   WalletAuthMethodHostPlugin,
 } from '@/core/authMethods/hostPlugin';
 import { prepareVoiceIdActivation } from '@/core/authMethods/voiceId/prepareActivation';
@@ -22,6 +21,7 @@ import {
   runSpeakToSignApproval,
   runSpeakToSignEnrollment,
 } from '@/core/transactionFeatures/hostApproval';
+import type { PhraseRequest, PhraseSurface } from '@/core/transactionFeatures/phraseSurface';
 import type { SpokenIntent } from '@/core/transactionFeatures/spokenIntent';
 import { parseSpeakableNear } from '@/core/transactionFeatures/spokenTransfer';
 import {
@@ -71,7 +71,9 @@ export type SpeakToSignWalletPorts = Readonly<{
   readVoiceIdAvailability(walletId: WalletId): Promise<AuthMethodAvailability>;
   readOperationCredential(walletId: WalletId): Promise<string>;
   loadHost(features: readonly WalletApprovalPlugin[]): Promise<SpeakToSignHostPlugin>;
-  /** The VoiceID host plugin shows the sentence and records the clip, so its prompt loads from VoiceID. */
+  /** The Wallet's phrase card, which shows the sentence and records the clip. */
+  openPhrase(request: PhraseRequest): Promise<PhraseSurface>;
+  /** The VoiceID host plugin. Only an enrollment that turns VoiceID on first loads it. */
   loadVoiceIdHost(methods: readonly WalletAuthMethodPlugin[]): Promise<WalletAuthMethodHostPlugin>;
   /**
    * The Borsh of the transaction's actions, as the signer worker writes them into the unsigned
@@ -219,7 +221,8 @@ async function prepareFlow(
   const feature = findWalletApproval(features, 'spoken');
   if (!feature) throw new Error('Enable Speak-to-Sign in the SDK configuration before using it.');
   const walletId = toWalletId(request.payload.walletId);
-  // The owner records on the VoiceID surface, so VoiceID must be active for this wallet.
+  // The VoiceID switch of the wallet is the owner's setting for spoken approval: with VoiceID
+  // off or not set up, a spoken request is unavailable. The card itself needs no VoiceID code.
   const voiceId = await ports.readVoiceIdAvailability(walletId);
   if (voiceId.kind !== 'enabled') {
     return { kind: 'unavailable', reason: 'voiceid_unavailable', detail: voiceId.kind };
@@ -272,7 +275,7 @@ async function prepareFlow(
     ),
     signMessage: signMessage.bind(null, deps, request.requestId, walletId, ownerAccountId),
     freshApproval: freshApproval.bind(null, deps, request.requestId, walletId),
-    openPhrase: openPhrase.bind(null, ports, runtime.configs.authMethods),
+    openPhrase: ports.openPhrase,
     prepareSigning: async () => {
       const context = runtime.getContext();
       await context.signingEngine
@@ -506,16 +509,6 @@ async function readCredential(
 ): Promise<string> {
   signal.throwIfAborted();
   return await ports.readOperationCredential(walletId);
-}
-
-async function openPhrase(
-  ports: SpeakToSignWalletPorts,
-  methods: readonly WalletAuthMethodPlugin[],
-  request: AuthMethodPhraseRequest,
-) {
-  const voiceId = await ports.loadVoiceIdHost(methods);
-  request.signal.throwIfAborted();
-  return await voiceId.openPhrase(request);
 }
 
 async function signVoiceApproved(
