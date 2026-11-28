@@ -26,7 +26,7 @@ import {
   getProject,
   insertAttempt,
   listAttempts,
-  listRailAccountIds,
+  listRailAccounts,
   listRefunds,
   recordUnexpectedPayment,
   type AttemptRow,
@@ -409,7 +409,8 @@ export async function readSession(context: CheckoutContext, orderId: string): Pr
   const view = orderView(loaded);
   const open = order.state === 'open' && context.now() < order.expires_at_ms;
   const project = open ? await getProject(context.db, order.project_id) : null;
-  const connected = new Set(open ? await listRailAccountIds(context.db, order.project_id) : []);
+  const accounts = open ? await listRailAccounts(context.db, order.project_id) : [];
+  const connected = new Set(accounts.map((account) => account.rail_id));
   const routing = project ? projectConfig(project).routing : {};
   const methods = Object.entries(routing)
     .map(([method, railId]) => ({ method: method as keyof typeof routing, railId }))

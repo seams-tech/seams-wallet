@@ -1391,6 +1391,33 @@ Each slice ships alone and keeps the invariants of Section 9.
   Connect the provider accounts, set the receiving addresses, edit the routing table and the
   theme, set the merchant webhook URL, view orders, review unexpected payments and refund.
 
+  The Worker's side is built on 2026-11-28 on `dev`. The Console's side is not built:
+  - **Built: the operator routes** that the Console screens call, in `src/worker/operator.ts`.
+    Each needs the operator's credential.
+
+    | Route | What it does |
+    | --- | --- |
+    | `PUT /checkout/projects/{project}` | Sets the routing table, the event URL and `voucherDays`. The first call returns the event secret, once |
+    | `PUT /checkout/projects/{project}/rails/{rail}` | Connects a provider account. The rail checks the keys |
+    | `GET /checkout/projects/{project}` | The configuration, the loaded rails with their methods, and each connected account with its public key and its webhook URL. No provider key |
+    | `GET /checkout/projects/{project}/orders` | The newest 50 orders; `before` pages, `needsReview=1` filters |
+    | `GET /checkout/projects/{project}/orders/{order}` | One order with its unexpected payments |
+    | `POST /checkout/projects/{project}/orders/{order}/refunds` | A refund through the rail |
+    | `POST /checkout/projects/{project}/orders/{order}/review` | Ends the review of the unexpected payments. The records stay |
+
+  - **Not built: the Console screens in `seams-console`.** That repository installs the
+    published `@seams/host` 0.77.0, which has no checkout service. Code there that calls the
+    checkout cannot be built or run until a release has it. No commit was made in
+    `seams-console`.
+  - **Not built: the receiving addresses** (Slice 6), **the theme editor** (the page gives the
+    theme in `checkout.open` today; a project default needs one more configuration field),
+    **the rotation of the event secret**, and **domain registration for Apple Pay** (Slice 8).
+  - **Waits for Refactor 251:** `packages/host` builds and publishes the checkout Worker, its
+    D1 migrations, its schedule and the checkout origin, and gives the Console a credential for
+    the operator routes.
+  - **Waits for the owner:** the decision D1, the review T4 before a live merchant, a release
+    that has the checkout, and the deploy. Nothing was deployed.
+
 Slices 2 to 4 wait only for the stage dialog, because a guest checkout needs no account. Slice
 5 waits for the login token of Refactor 251. Slice 6 waits for Release B of Refactor 251.
 

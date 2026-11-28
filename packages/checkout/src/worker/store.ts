@@ -113,12 +113,12 @@ export function getRailAccount(
     .first<RailAccountRow>();
 }
 
-export async function listRailAccountIds(db: D1, projectId: string): Promise<string[]> {
+export async function listRailAccounts(db: D1, projectId: string): Promise<RailAccountRow[]> {
   const rows = await db
-    .prepare('SELECT rail_id FROM checkout_rail_accounts WHERE project_id = ?')
+    .prepare('SELECT * FROM checkout_rail_accounts WHERE project_id = ? ORDER BY rail_id')
     .bind(projectId)
-    .all<{ rail_id: string }>();
-  return rows.results.map((row) => row.rail_id);
+    .all<RailAccountRow>();
+  return rows.results;
 }
 
 export async function putRailAccount(db: D1, account: RailAccountRow, nowMs: number): Promise<void> {
@@ -408,6 +408,47 @@ export async function markDisputed(db: D1, orderId: string, event: NewEvent): Pr
     db.prepare('UPDATE checkout_orders SET disputed = 1 WHERE order_id = ?').bind(orderId),
     insertEventStatement(db, event),
   ]);
+}
+
+type OrderFilter = { readonly needsReview: boolean; readonly beforeMs: number; readonly limit: number };
+
+/** The newest orders of a project, before a time, for the operator's list. */
+export async function listProjectOrderIds(db: D1, projectId: string, filter: OrderFilter): Promise<string[]> {
+  const rows = await db
+    .prepare(
+      `SELECT order_id FROM checkout_orders
+       WHERE project_id = ?1 AND created_at_ms < ?2 AND (?3 = 0 OR needs_review = 1)
+       ORDER BY created_at_ms DESC, rowid DESC LIMIT ?4`,
+    )
+    .bind(projectId, filter.beforeMs, filter.needsReview ? 1 : 0, filter.limit)
+    .all<{ order_id: string }>();
+  return rows.results.map((row) => row.order_id);
+}
+
+type UnexpectedPaymentRow = {
+  readonly payment_id: string;
+  readonly rail_id: string;
+  readonly rail_ref: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly reason: string;
+  readonly created_at_ms: number;
+};
+
+export async function listUnexpectedPayments(db: D1, orderId: string): Promise<UnexpectedPaymentRow[]> {
+  const rows = await db
+    .prepare(
+      `SELECT payment_id, rail_id, rail_ref, amount, currency, reason, created_at_ms
+       FROM checkout_unexpected_payments WHERE order_id = ? ORDER BY rowid`,
+    )
+    .bind(orderId)
+    .all<UnexpectedPaymentRow>();
+  return rows.results;
+}
+
+/** Ends the review of an order. Its unexpected payments stay in the database. */
+export async function clearReview(db: D1, orderId: string): Promise<void> {
+  await db.prepare('UPDATE checkout_orders SET needs_review = 0 WHERE order_id = ?').bind(orderId).run();
 }
 
 /** The open orders that are past their expiry, or that have an attempt past its deadline. */

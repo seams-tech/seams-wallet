@@ -19,6 +19,7 @@ import {
 } from './context';
 import type { D1 } from './d1';
 import { deliverDueEvents } from './events';
+import { operatorAct, operatorRead } from './operator';
 import { cancelOrder, createOrder } from './orders';
 import {
   applyRailPayment,
@@ -258,12 +259,17 @@ export function createCheckoutWorker(options: CheckoutWorkerOptions): CheckoutWo
   async function route(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const { method } = request;
-    const [root, area, first, second, third] = url.pathname.split('/').filter(Boolean);
+    const [root, area, first, second, third, ...more] = url.pathname.split('/').filter(Boolean);
     if (root !== 'checkout') return errorResponse('not_found', 'No such route');
     const path = `/${root}/${area}`;
 
-    if (path === CHECKOUT_ROUTES.projects && method === 'PUT' && first) {
+    if (path === CHECKOUT_ROUTES.projects && first) {
       if (!(await credentials.operator(request))) throw unauthorized();
+      const rest = [second, third, ...more].filter((segment) => segment !== undefined);
+      if (method === 'GET') return json(await operatorRead(context, first, rest, url.searchParams));
+      if (method === 'POST') return json(await operatorAct(context, first, rest, await readJson(request)));
+    }
+    if (path === CHECKOUT_ROUTES.projects && method === 'PUT' && first) {
       try {
         if (!second) return await putProjectConfig(first, await readJson(request));
         if (second === 'rails' && third) return await putAccount(first, third, await readJson(request));
