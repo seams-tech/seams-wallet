@@ -208,7 +208,10 @@ function runCheckout(open: OpenMessage, port: MessagePort, parentOrigin: string)
       el(
         'section',
         { className: 'co-screen' },
-        el('h2', { textContent: start.kind === 'voucher' ? texts.voucherTitle : texts.bankTitle }),
+        el('h2', {
+          textContent:
+            start.kind === 'bank_details' ? texts.bankTitle : method === 'pay_easy' ? texts.payEasyTitle : texts.voucherTitle,
+        }),
         deadline(start.deadlineMs),
         el('dl', { className: 'co-facts' }, fact(texts.total, amount), ...facts),
         link(start.instructionsUrl, texts.instructions, 'co-link'),

@@ -22,12 +22,10 @@ const WEBHOOK_SECRET = 'fake-webhook-secret';
 
 const DAY_MS = 24 * 60 * 60_000;
 /** The state of a payment right after its start: a voucher waits, a wallet asks for approval. */
-const START_STATES = {
-  card: 'created',
-  konbini: 'pending_offline',
-  bank_transfer: 'pending_offline',
-  paypay: 'requires_action',
-} as const;
+function startState(method: CheckoutMethod): AttemptState {
+  if (method === 'card') return 'created';
+  return method === 'konbini' || method === 'bank_transfer' ? 'pending_offline' : 'requires_action';
+}
 
 /**
  * A provider in memory. A test moves a payment as a customer or a provider does, and then sends
@@ -57,7 +55,7 @@ export class FakeProvider {
     const payment: FakePayment = {
       ref: `fp_${this.nextRef++}`,
       attempt,
-      state: START_STATES[attempt.method],
+      state: startState(attempt.method),
       paidAmount: null,
       failure: null,
     };
@@ -152,7 +150,8 @@ export function fakeRail(
         const payment = provider.start(attempt);
         const publishableKey = account.public.publishableKey ?? '';
         const deadlineMs = attempt.createdAtMs + attempt.offlineDays * DAY_MS;
-        const starts: Record<CheckoutMethod, RailStart> = {
+        const redirect: RailStart = { kind: 'redirect', url: `https://provider.example.test/${attempt.method}/${payment.ref}` };
+        const starts: Partial<Record<CheckoutMethod, RailStart>> = {
           card:
             cardFields === 'stripe'
               ? { kind: 'card_form', fields: 'stripe', publishableKey, clientSecret: `${payment.ref}_secret` }
@@ -173,13 +172,12 @@ export function fakeRail(
             accountNumber: '1234567',
             accountHolder: 'SEAMS SHOP',
           },
-          paypay: { kind: 'redirect', url: `https://provider.example.test/paypay/${payment.ref}` },
         };
         const offline = attempt.method === 'konbini' || attempt.method === 'bank_transfer';
         return {
           ref: payment.ref,
           payment: provider.read(payment.ref),
-          start: starts[attempt.method],
+          start: starts[attempt.method] ?? redirect,
           ...(offline ? { deadlineMs } : {}),
         };
       },

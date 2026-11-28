@@ -48,7 +48,7 @@ const STORES: Readonly<Record<string, KonbiniStore>> = {
   ministop: 'ministop',
   seicomart: 'seicomart',
 };
-const FIELDS: Readonly<Record<CheckoutMethod, readonly CustomerField[]>> = {
+const FIELDS: Readonly<Partial<Record<CheckoutMethod, readonly CustomerField[]>>> = {
   card: ['email'],
   konbini: ['full_name', 'email'],
   bank_transfer: ['full_name', 'email'],
@@ -193,6 +193,8 @@ function connectStripe(account: RailAccount, fetcher: typeof fetch): PaymentRail
           },
         };
       }
+      default:
+        throw new RailError('refused', 'method_not_supported', `Stripe does not take ${attempt.method}`);
     }
   }
 
@@ -283,7 +285,7 @@ export const stripeRail: RailModule = {
   id: 'stripe',
   methods: METHODS,
   accepts: (method, currency, amount) => acceptsOrder(METHODS, YEN_LIMITS, method, currency, amount),
-  fields: (method) => FIELDS[method],
+  fields: (method) => FIELDS[method] ?? [],
   parseAccount(input) {
     if (!hasExactKeys(input, ['publishableKey', 'restrictedKey', 'webhookSecret'])) {
       throw new Error('A Stripe account has a publishableKey, a restrictedKey and a webhookSecret');

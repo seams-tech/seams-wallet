@@ -316,3 +316,9 @@ test.describe('the Stripe rail: konbini, bank transfer and PayPay', () => {
     expect(stripeRail.fields('konbini')).toEqual(['full_name', 'email']);
   });
 });
+
+test('Stripe does not take the methods that only KOMOJU has', async () => {
+  for (const method of ['rakuten_pay', 'merpay', 'au_pay', 'd_barai', 'paidy', 'pay_easy'] as const) {
+    expect(stripeRail.accepts(method, 'JPY', 1000)).toBe(false);
+  }
+});

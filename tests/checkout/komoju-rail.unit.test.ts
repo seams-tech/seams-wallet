@@ -245,3 +245,50 @@ test.describe('the KOMOJU rail: konbini, bank transfer and PayPay', () => {
     expect(komojuRail.fields('bank_transfer')).toContain('family_name_kana');
   });
 });
+
+test.describe('the KOMOJU rail: the other Japanese methods', () => {
+  test('each wallet is a redirect method that the server starts with only its type', async () => {
+    const types = { rakuten_pay: 'rakutenpay', merpay: 'merpay', au_pay: 'aupay', d_barai: 'docomo' } as const;
+    for (const [method, type] of Object.entries(types)) {
+      const wallet = { ...payment('pending'), payment_details: { type, redirect_url: `https://komoju.com/${type}/x` } };
+      const { rail, sent } = fakeKomoju([{ body: wallet }]);
+      const started = await rail.start({ ...ATTEMPT, method: method as keyof typeof types, details: {} });
+      expect(JSON.parse(sent[0]!.text).payment_details, method).toEqual({ type });
+      expect(started.payment.state).toBe('requires_action');
+      expect(started.start).toEqual({ kind: 'redirect', url: `https://komoju.com/${type}/x` });
+      expect(komojuRail.fields(method as keyof typeof types)).toEqual([]);
+    }
+  });
+
+  test('Paidy also needs the name of the customer', async () => {
+    const paidy = { ...payment('pending'), payment_details: { type: 'paidy', redirect_url: 'https://komoju.com/paidy/x' } };
+    const { rail, sent } = fakeKomoju([{ body: paidy }]);
+    await rail.start({ ...ATTEMPT, method: 'paidy', details: { full_name: '山田 太郎', email: 'b@example.com' } });
+    expect(JSON.parse(sent[0]!.text).payment_details).toEqual({ type: 'paidy', customer_name: '山田 太郎', email: 'b@example.com' });
+    expect(komojuRail.fields('paidy')).toEqual(['full_name', 'email']);
+  });
+
+  test('Pay-easy waits as konbini does, and its voucher is the page of KOMOJU', async () => {
+    const payEasy = {
+      ...payment('authorized'),
+      payment_deadline: '2026-12-01T14:59:59Z',
+      payment_details: { type: 'pay_easy', instructions_url: 'https://komoju.com/en/instructions/pay_1' },
+    };
+    const { rail } = fakeKomoju([{ body: payEasy }]);
+    const started = await rail.start({ ...ATTEMPT, method: 'pay_easy', details: {} });
+    expect(started.payment.state).toBe('pending_offline');
+    expect(started.start).toEqual({
+      kind: 'voucher',
+      deadlineMs: Date.parse('2026-12-01T14:59:59Z'),
+      instructionsUrl: 'https://komoju.com/en/instructions/pay_1',
+      codes: [],
+    });
+  });
+
+  test('the limits of each method', () => {
+    expect(komojuRail.accepts('rakuten_pay', 'JPY', 99)).toBe(false);
+    expect(komojuRail.accepts('rakuten_pay', 'JPY', 100)).toBe(true);
+    expect(komojuRail.accepts('pay_easy', 'JPY', 1_000_000)).toBe(false);
+    expect(komojuRail.accepts('paidy', 'USD', 100)).toBe(false);
+  });
+});

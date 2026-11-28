@@ -26,18 +26,44 @@ const KOMOJU_API_VERSION = '2025-01-28';
 /** KOMOJU keeps an idempotency key for 24 hours. After that, the rail looks the payment up. */
 const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60_000;
 
-const METHODS: ReadonlySet<CheckoutMethod> = new Set(['card', 'konbini', 'bank_transfer', 'paypay']);
+/** KOMOJU's payment type for each method that the server starts. */
+const TYPES: Readonly<Record<Exclude<CheckoutMethod, 'card'>, string>> = {
+  konbini: 'konbini',
+  bank_transfer: 'bank_transfer',
+  pay_easy: 'pay_easy',
+  paypay: 'paypay',
+  rakuten_pay: 'rakutenpay',
+  merpay: 'merpay',
+  au_pay: 'aupay',
+  // The docs do not name d払い. `docomo` is the type that returns a redirect URL.
+  d_barai: 'docomo',
+  paidy: 'paidy',
+};
+const METHODS: ReadonlySet<CheckoutMethod> = new Set(['card', ...(Object.keys(TYPES) as CheckoutMethod[])]);
+const PAYER: readonly CustomerField[] = ['family_name', 'given_name', 'family_name_kana', 'given_name_kana', 'email', 'phone'];
 /** KOMOJU's limits for each method that takes yen only. */
 const YEN_LIMITS = {
   konbini: [1, 300_000],
   bank_transfer: [1, Number.MAX_SAFE_INTEGER],
   paypay: [1, 1_000_000],
+  pay_easy: [1, 999_999],
+  rakuten_pay: [100, 9_999_999],
+  merpay: [1, 1_000_000],
+  au_pay: [1, Number.MAX_SAFE_INTEGER],
+  d_barai: [1, Number.MAX_SAFE_INTEGER],
+  paidy: [1, 1_000_000],
 } as const;
 const FIELDS: Readonly<Record<CheckoutMethod, readonly CustomerField[]>> = {
   card: ['email'],
   konbini: ['konbini_store', 'email'],
-  bank_transfer: ['family_name', 'given_name', 'family_name_kana', 'given_name_kana', 'email', 'phone'],
+  bank_transfer: PAYER,
+  pay_easy: PAYER,
   paypay: [],
+  rakuten_pay: [],
+  merpay: [],
+  au_pay: [],
+  d_barai: [],
+  paidy: ['full_name', 'email'],
 };
 /** KOMOJU's name for each store. */
 const STORES: Readonly<Record<KonbiniStore, string>> = {
@@ -116,9 +142,14 @@ function paymentDetails(attempt: RailAttempt): RailBody {
         email: details.email ?? '',
         expiry_days: attempt.offlineDays,
       };
+    case 'paidy':
+      return { type: 'paidy', customer_name: details.full_name ?? '', email: details.email ?? '' };
+    case 'card':
+      throw new RailError('refused', 'no_card_details', 'A card has no details on the server');
     case 'bank_transfer':
+    case 'pay_easy':
       return {
-        type: 'bank_transfer',
+        type: attempt.method,
         email: details.email ?? '',
         phone: details.phone ?? '',
         family_name: details.family_name ?? '',
@@ -128,7 +159,7 @@ function paymentDetails(attempt: RailAttempt): RailBody {
         expiry_days: attempt.offlineDays,
       };
     default:
-      return { type: attempt.method };
+      return { type: TYPES[attempt.method] };
   }
 }
 
@@ -163,6 +194,10 @@ function nextStep(payment: Record<string, unknown>): Pick<RailStarted, 'start' |
       },
       deadlineMs,
     };
+  }
+  if (details.type === 'pay_easy') {
+    // Pay-easy has no store code. The customer pays at a bank with the numbers of KOMOJU's page.
+    return { start: { kind: 'voucher', deadlineMs, instructionsUrl, codes: [] }, deadlineMs };
   }
   return { start: { kind: 'redirect', url: requireNonEmptyString(details.redirect_url, 'redirect URL') } };
 }

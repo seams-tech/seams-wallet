@@ -19,7 +19,7 @@ test.beforeEach(async () => {
   checkout = await openCheckout({
     rails: [
       fakeRail(cards, 'fake', ['card', 'paypay']),
-      fakeRail(japan, 'fake2', ['konbini', 'bank_transfer', 'paypay']),
+      fakeRail(japan, 'fake2', ['konbini', 'bank_transfer', 'paypay', 'merpay', 'paidy']),
     ],
   });
 });
@@ -223,6 +223,20 @@ test.describe('PayPay', () => {
 });
 
 test.describe('methods and currencies', () => {
+  test('a wallet that one rail has is a redirect method, and no other rail can take its route', async () => {
+    await checkout.setUp({ card: 'fake', merpay: 'fake2', paidy: 'fake2' });
+    const { body: order } = await checkout.createOrder();
+    const methods = (await checkout.session(order.clientToken)).body.methods.map((option) => option.method);
+    expect(methods).toEqual(['card', 'merpay', 'paidy']);
+    const started = await checkout.start(order.clientToken, { method: 'merpay' });
+    expect(started.body).toMatchObject({ rail: 'fake2', state: 'requires_action', start: { kind: 'redirect' } });
+    const wrong = await checkout.operator('PUT', `/checkout/projects/${PROJECT}`, {
+      routing: { merpay: 'fake' },
+      eventUrl: null,
+    });
+    expect(wrong.status).toBe(400);
+  });
+
   test('a USD order shows only the methods that take USD', async () => {
     await checkout.setUp({ card: 'fake', konbini: 'fake2', paypay: 'fake2' });
     const { body: order } = await checkout.createOrder({ currency: 'USD' });

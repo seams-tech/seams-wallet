@@ -29,6 +29,7 @@ type Texts = {
   readonly retry: string;
   readonly stores: Readonly<Record<KonbiniStore, string>>;
   readonly voucherTitle: string;
+  readonly payEasyTitle: string;
   readonly bankTitle: string;
   readonly payBy: (deadline: string) => string;
   readonly paymentCode: string;
@@ -49,7 +50,18 @@ const en: Texts = {
   shipping: 'Shipping',
   total: 'Total',
   methodsLabel: 'Payment method',
-  methods: { card: 'Card', konbini: 'Convenience store', bank_transfer: 'Bank transfer', paypay: 'PayPay' },
+  methods: {
+    card: 'Card',
+    konbini: 'Convenience store',
+    bank_transfer: 'Bank transfer',
+    pay_easy: 'Pay-easy',
+    paypay: 'PayPay',
+    rakuten_pay: 'Rakuten Pay',
+    merpay: 'Merpay',
+    au_pay: 'au PAY',
+    d_barai: 'd Payment',
+    paidy: 'Paidy',
+  },
   fields: {
     email: 'Email address',
     full_name: 'Full name',
@@ -89,6 +101,7 @@ const en: Texts = {
     seicomart: 'Seicomart',
   },
   voucherTitle: 'Pay at the store',
+  payEasyTitle: 'Pay with Pay-easy at your bank',
   bankTitle: 'Send the bank transfer',
   payBy: (deadline) => `Pay by ${deadline}`,
   paymentCode: 'Payment code',
@@ -115,7 +128,18 @@ const ja: Texts = {
   shipping: '送料',
   total: '合計',
   methodsLabel: 'お支払い方法',
-  methods: { card: 'クレジットカード', konbini: 'コンビニ払い', bank_transfer: '銀行振込', paypay: 'PayPay' },
+  methods: {
+    card: 'クレジットカード',
+    konbini: 'コンビニ払い',
+    bank_transfer: '銀行振込',
+    pay_easy: 'ペイジー',
+    paypay: 'PayPay',
+    rakuten_pay: '楽天ペイ',
+    merpay: 'メルペイ',
+    au_pay: 'au PAY',
+    d_barai: 'd払い',
+    paidy: 'ペイディ',
+  },
   fields: {
     email: 'メールアドレス',
     full_name: 'お名前',
@@ -155,6 +179,7 @@ const ja: Texts = {
     seicomart: 'セイコーマート',
   },
   voucherTitle: 'コンビニでお支払いください',
+  payEasyTitle: 'ペイジーでお支払いください',
   bankTitle: '銀行振込でお支払いください',
   payBy: (deadline) => `お支払い期限：${deadline}`,
   paymentCode: 'お支払い番号',

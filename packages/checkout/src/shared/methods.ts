@@ -1,5 +1,16 @@
 /** Each way to pay that the checkout can show. The routing table sends each one to one rail. */
-export const CHECKOUT_METHODS = ['card', 'konbini', 'bank_transfer', 'paypay'] as const;
+export const CHECKOUT_METHODS = [
+  'card',
+  'konbini',
+  'bank_transfer',
+  'pay_easy',
+  'paypay',
+  'rakuten_pay',
+  'merpay',
+  'au_pay',
+  'd_barai',
+  'paidy',
+] as const;
 
 export type CheckoutMethod = (typeof CHECKOUT_METHODS)[number];
 

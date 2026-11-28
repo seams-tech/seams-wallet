@@ -1,7 +1,8 @@
 # Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
-Status: 2026-11-28. Slices 2 to 4 are built on `dev`: the checkout Worker, the Stripe and
-KOMOJU rails (cards, konbini, bank transfer, PayPay), the merchant's server client, the page
+Status: 2026-11-28. Slices 2 to 4 and 7 are built on `dev`: the checkout Worker, the Stripe and
+KOMOJU rails (cards, konbini, bank transfer, PayPay and KOMOJU's other Japanese methods), the
+merchant's server client, the page
 SDK, the checkout frame and an example shop. Section 8 has the result of each slice and what each open slice waits
 for. The plan was revised on 2026-11-18 after a review of the architecture. The Slice 0
 unknowns have answers from public documentation (2026-11-18). With
@@ -1291,6 +1292,21 @@ Each slice ships alone and keeps the invariants of Section 9.
   against the API of Refactor 251 Release B, so that it needs no second change.
 - **Slice 7: the other KOMOJU methods.** Rakuten Pay, Merpay, au PAY, d払い, Paidy and Pay-easy
   as redirect methods (Unknown U2).
+
+  Built on 2026-11-28 on `dev`, not released or deployed. The KOMOJU rail takes six more
+  methods, and the Stripe rail refuses a route for them:
+  - **Rakuten Pay, Merpay, au PAY and d払い** are redirect methods. The server starts each with
+    only its type (`rakutenpay`, `merpay`, `aupay`, `docomo`), and the frame opens the wallet
+    in a tab of its own, as for PayPay.
+  - **Paidy** is a redirect method that also needs the customer's name.
+  - **Pay-easy** waits in `pending_offline`, as konbini does. The API gives no code that a
+    Seams screen can show without a bank's own numbers, so the voucher shows the amount and
+    the deadline and links to KOMOJU's page.
+  - **Limits** follow KOMOJU's table: Rakuten Pay from ¥100, Pay-easy to ¥999,999, Merpay and
+    Paidy to ¥1,000,000.
+  - **Waits for the owner (T1, T7):** the `type` of d払い. The docs do not name it. `docomo` is
+    the type whose answer has a `redirect_url`; `japan_mobile` with the brand `docomo` is
+    carrier billing. `GET /payment_methods` in the test account shows the right one.
 - **Slice 8: Apple Pay and Google Pay.** The Stripe Express Checkout Element in the frame,
   domain registration and the `allow="payment"` chain.
 - **Slice 9: headless mode, refunds and disputes.** `checkout.methods`, `select`, `pay`,
