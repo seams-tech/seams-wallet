@@ -2,7 +2,7 @@ import { sha256HexUtf8 } from '@shared/utils/digests';
 import { parseSessionOrigin, type SessionOrigin } from '../../../../authorization/domain';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
 import type { D1DatabaseLike } from '../../../../storage/tenantRoute';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { D1WalletRelocationApprovals } from './d1WalletRelocationApprovals';
 import type { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
 import { readWalletRelocationOwner } from './d1WalletRelocationOwner';

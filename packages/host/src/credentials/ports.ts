@@ -1,5 +1,6 @@
-import type { RouterApiKeyAuthFailureCode } from '@shared/utils/routerApiKeyAuth';
-import type { WalletRegistrationSetupRequest } from '../domains/walletRegistration/walletRegistrationInputs';
+// The ports to the operator's key store and project records. The operator keeps the keys; a
+// service of this package calls the store only through these adapters.
+
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export const ROUTER_API_CREDENTIAL_SCOPES = [
@@ -11,15 +12,20 @@ export const ROUTER_API_CREDENTIAL_SCOPES = [
 
 export type RouterApiCredentialScope = (typeof ROUTER_API_CREDENTIAL_SCOPES)[number];
 
-export type { RouterApiKeyAuthFailureCode };
+export type RouterApiKeyAuthFailureCode =
+  | 'secret_key_missing'
+  | 'secret_key_invalid'
+  | 'secret_key_revoked'
+  | 'secret_key_forbidden_scope'
+  | 'secret_key_ip_blocked'
+  | 'secret_key_environment_mismatch';
 
-export interface RouterApiKeyAuthRequest {
-  secret: string;
-  endpoint: string;
-  requiredScopes: RouterApiCredentialScope[];
-  sourceIp?: string;
-  environmentId?: string;
-}
+export type RouterApiPublishableKeyAuthFailureCode =
+  | 'publishable_key_missing'
+  | 'publishable_key_invalid'
+  | 'publishable_key_revoked'
+  | 'publishable_key_origin_blocked'
+  | 'publishable_key_environment_mismatch';
 
 export interface RouterApiKeyPrincipal {
   apiKeyId: string;
@@ -30,25 +36,23 @@ export interface RouterApiKeyPrincipal {
   scopes: RouterApiCredentialScope[];
 }
 
-export type RouterApiKeyAuthResult =
+type KeyAuthResult<TCode extends string> =
   | { ok: true; principal: RouterApiKeyPrincipal }
-  | {
-      ok: false;
-      status: 401 | 403;
-      code: RouterApiKeyAuthFailureCode;
-      message: string;
-    };
+  | { ok: false; status: 401 | 403; code: TCode; message: string };
+
+export interface RouterApiKeyAuthRequest {
+  secret: string;
+  endpoint: string;
+  requiredScopes: RouterApiCredentialScope[];
+  sourceIp?: string;
+  environmentId?: string;
+}
+
+export type RouterApiKeyAuthResult = KeyAuthResult<RouterApiKeyAuthFailureCode>;
 
 export interface RouterApiKeyAuthAdapter {
   authenticate(input: RouterApiKeyAuthRequest): Promise<RouterApiKeyAuthResult>;
 }
-
-export type RouterApiPublishableKeyAuthFailureCode =
-  | 'publishable_key_missing'
-  | 'publishable_key_invalid'
-  | 'publishable_key_revoked'
-  | 'publishable_key_origin_blocked'
-  | 'publishable_key_environment_mismatch';
 
 export interface RouterApiPublishableKeyAuthRequest {
   secret: string;
@@ -57,13 +61,7 @@ export interface RouterApiPublishableKeyAuthRequest {
 }
 
 export type RouterApiPublishableKeyAuthResult =
-  | { ok: true; principal: RouterApiKeyPrincipal }
-  | {
-      ok: false;
-      status: 401 | 403;
-      code: RouterApiPublishableKeyAuthFailureCode;
-      message: string;
-    };
+  KeyAuthResult<RouterApiPublishableKeyAuthFailureCode>;
 
 export interface RouterApiPublishableKeyAuthAdapter {
   authenticate(
@@ -71,7 +69,8 @@ export interface RouterApiPublishableKeyAuthAdapter {
   ): Promise<RouterApiPublishableKeyAuthResult>;
 }
 
-export type WalletRegistrationContextResult = ReadonlyExclusiveUnion<
+/** A checked publishable key with the active environment that it belongs to. */
+export type RegistrationContextResult = ReadonlyExclusiveUnion<
   | {
       ok: true;
       principal: RouterApiKeyPrincipal;
@@ -91,12 +90,11 @@ export type WalletRegistrationContextResult = ReadonlyExclusiveUnion<
     }
 >;
 
-export interface WalletRegistrationContextResolver {
+/** `registration` is the module's own request. The operator can read it to place the record. */
+export interface RegistrationContextResolver<TRegistration> {
   resolve(
-    input: RouterApiPublishableKeyAuthRequest & {
-      readonly registration: WalletRegistrationSetupRequest;
-    },
-  ): Promise<WalletRegistrationContextResult>;
+    input: RouterApiPublishableKeyAuthRequest & { readonly registration: TRegistration },
+  ): Promise<RegistrationContextResult>;
 }
 
 export type RouterApiUsageMeterAction = 'wallet_created';

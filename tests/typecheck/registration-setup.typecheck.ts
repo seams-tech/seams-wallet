@@ -188,23 +188,23 @@ const executionFromRegistrationSpread: WalletExecutionAuthority = { ...registrat
 void executionFromRegistration;
 void executionFromRegistrationSpread;
 
-import type { WalletRegistrationContextResult } from '../../packages/mpc-wallet-server/src/router/framework/apiCredentialPorts';
+import type { RegistrationContextResult } from '../../packages/host/src/credentials/ports';
 
-declare const registrationContext: Variant<WalletRegistrationContextResult, 'ok', true>;
+declare const registrationContext: Variant<RegistrationContextResult, 'ok', true>;
 // @ts-expect-error A credential alone cannot authorize setup without an active environment.
-const incompleteRegistrationContext: WalletRegistrationContextResult = {
+const incompleteRegistrationContext: RegistrationContextResult = {
   ok: true,
   principal: registrationContext.principal,
 };
 // @ts-expect-error Failed context resolution cannot retain authority through a spread.
-const failedRegistrationContext: WalletRegistrationContextResult = {
+const failedRegistrationContext: RegistrationContextResult = {
   ...registrationContext,
   ok: false,
   status: 500,
   code: 'registration_environment_unavailable',
   message: 'Unavailable',
 };
-const inactiveRegistrationContext: WalletRegistrationContextResult = {
+const inactiveRegistrationContext: RegistrationContextResult = {
   ...registrationContext,
   // @ts-expect-error An inactive environment cannot authorize setup.
   environment: { ...registrationContext.environment, status: 'DISABLED' },

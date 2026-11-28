@@ -1,0 +1,8 @@
+{
+  "name": "@seams-internal/host",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "type-check": "tsrs --noEmit"
+  }
+}

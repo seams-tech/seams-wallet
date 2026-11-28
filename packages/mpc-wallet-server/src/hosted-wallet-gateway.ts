@@ -1,5 +1,5 @@
 import type { RegistrationWalletStartup, RegistrationPairStartup } from './router/domains/walletRegistration/walletRegistrationReservation';
-import type { WalletRegistrationContextResolver } from './router/framework/apiCredentialPorts';
+import type { WalletRegistrationContextResolver } from './router/framework/routerApi';
 import { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
 import { walletObjectIdentity, walletObjectIdentityHeaders, WALLET_OBJECT_IDENTITY_HEADER, WALLET_OBJECT_ADDRESSES_HEADER, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
 import { admitD1EstablishedWalletHome } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';

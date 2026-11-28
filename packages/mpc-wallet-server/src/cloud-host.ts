@@ -25,12 +25,12 @@ export * from './core/routerAbSigning/RouterAbEcdsaPresignRuntime';
 export * from './core/types';
 export * from './delegateAction';
 export { LocalRegistrationSetupAuthority } from './localRegistrationSetupAuthority';
-export * from './router/framework/apiCredentialPorts';
+export * from '../../host/src/credentials/ports';
 export {
   createWalletRegistrationContextResolver,
   unavailableRegistrationContext,
   walletRegistrationContext,
-} from './router/auth/walletRegistrationContext';
+} from '../../host/src/credentials/registrationContext';
 export { parseWalletRegistrationSetupRequest } from './router/domains/walletRegistration/walletRegistrationRoutes';
 export * from './router/framework/applyRouteMetering';
 export * from './router/cloudflare-adaptor';
@@ -74,8 +74,8 @@ export * from './router/cloudflare/runtime/cloudflareSignerWasm';
 export * from './router/cloudflare/runtime/ed25519SessionAdapter';
 export * from './router/cloudflare/runtime/routerAbServiceBindings';
 export * from './router/cloudflare/runtime/sessionAdapterRuntime';
-export * from './router/cloudflare/runtime/walletConsoleOps';
-export * from './router/cloudflare/runtime/walletConsoleOpsClient';
+export * from '../../host/src/credentials/walletConsoleOps';
+export * from '../../host/src/credentials/walletConsoleOpsClient';
 export * from './router/cloudflare/runtime/walletGateway';
 export { WalletPlacementRoutes } from './router/cloudflare/runtime/walletPlacementRoutes';
 export * from './router/cloudflare/runtime/walletRuntimeOps';
@@ -85,11 +85,10 @@ export * from './router/cloudflare/runtime/walletConsoleTenantRootLineage';
 export * from './router/cloudflare/runtime/routerAbPrewarm';
 export * from './router/cloudflare/runtime/tenantRootCreationGrant';
 export * from './router/cloudflare/runtime/environment';
-export * from './router/cloudflare/runtime/staticWalletConsoleBinding';
+export * from '../../host/src/credentials/staticWalletConsoleBinding';
 export * from './router/framework/http';
-export * from './router/framework/enforceRoutePolicy';
+export * from '../../host/src/credentials/routePolicy';
 export * from './router/framework/logger';
-export * from './router/framework/routeAuthPolicy';
 export * from './router/framework/routeDefinitions';
 export * from './router/framework/routeExecutionContext';
 export * from './router/framework/routeExtensions';
@@ -141,8 +140,8 @@ export {
 export * from './router/domains/signingOperations/routerAbEd25519NormalSigningRoute';
 export * from './router/domains/signingOperations/routerAbEcdsaDerivationNormalSigningRoute';
 export * from './router/framework/routerApi';
-export * from './router/auth/routerApiCredentialAuth';
-export * from './router/auth/routerApiKeyAuth';
+export * from '../../host/src/credentials/keyChecks';
+export * from '@shared/utils/requestHeaders';
 export * from './router/framework/runtimeSnapshotConsumer';
 export * from './storage/d1Sql';
 export * from './storage/tenantRoute';

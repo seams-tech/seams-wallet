@@ -19,7 +19,7 @@ import {
 } from '../d1/wallet/d1WalletRelocationSessions';
 import { D1WalletRelocationWriteBlock } from '../d1/wallet/d1WalletRelocationWriteBlock';
 import { D1WalletAuthorizationSnapshot } from '../d1/wallet/d1WalletAuthorizationSnapshot';
-import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
+import type { WalletConsoleServiceBinding } from '../../../../../host/src/credentials/walletConsoleOpsClient';
 
 const BASE_PATH = '/internal/wallet-relocation/v1/authorization';
 type AuthorizationOperation =

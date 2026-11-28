@@ -21,7 +21,6 @@ import type {
 } from '@shared/utils';
 import type { WalletId } from '@shared/utils/registrationIntent';
 import type { WebAuthnRpId } from '@shared/utils/domainIds';
-import type { RouterApiKeyAuthFailureCode } from '@shared/utils/routerApiKeyAuth';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIds';
 import type {
   RegistrationNearAccountProvisioning,
@@ -582,13 +581,11 @@ export type RegistrationResult =
   | {
       readonly success: false;
       readonly error: string;
-      readonly errorCode?: RegistrationErrorCode;
+      readonly errorCode?: string;
       readonly kind?: never;
       readonly walletId?: never;
       readonly capabilities?: never;
     };
-
-type RegistrationErrorCode = RouterApiKeyAuthFailureCode | string;
 
 export type LoginResult = ExclusiveUnion<
   | {

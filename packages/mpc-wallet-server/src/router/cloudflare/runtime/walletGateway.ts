@@ -1,4 +1,4 @@
-import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
+import type { WalletRegistrationContextResolver } from '../../framework/routerApi';
 import { consumeRegistrationSetupRateLimit } from '../d1/registration/d1RegistrationSetupRateLimit';
 import { ensureLeadingSlash } from '@shared/utils/validation';
 import {
@@ -11,11 +11,11 @@ import type { RouteDefinition } from '../../framework/routeDefinitions';
 import type { RouterApiRouteExtension } from '../../framework/routeExtensions';
 import type { FetchHandler } from './cloudflare.types';
 import { createCloudflareRouter } from './createCloudflareRouter';
-import { WALLET_CONSOLE_SERVICE_ORIGIN_V1 } from './walletConsoleOps';
+import { WALLET_CONSOLE_SERVICE_ORIGIN_V1 } from '../../../../../host/src/credentials/walletConsoleOps';
 import {
   createWalletConsoleOpsClient,
   type WalletConsoleServiceBinding,
-} from './walletConsoleOpsClient';
+} from '../../../../../host/src/credentials/walletConsoleOpsClient';
 
 export const WALLET_CONSOLE_API_WALLET_DETAIL_PREFIX_V1 = '/v1/wallets/';
 export const WALLET_CONSOLE_SIGNED_DELEGATE_ROUTE_ID_V1 = 'signed_delegate';

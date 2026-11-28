@@ -6,7 +6,7 @@ import {
   type Route,
   type TestInfo,
 } from '@playwright/test';
-import { parseStaticWalletConsoleBindingConfigV1 } from '@server/router/cloudflare/runtime/staticWalletConsoleBinding';
+import { parseStaticWalletConsoleBindingConfigV1 } from '../../../packages/host/src/credentials/staticWalletConsoleBinding';
 import { ActionType } from '../../../packages/mpc-wallet/src/core/types/actions';
 import type { PrepareOwnerNearTransaction } from '../../../packages/mpc-wallet/src/SeamsWeb/publicApi/ownerNearOperation';
 import { base58Encode } from '@shared/utils/base58';

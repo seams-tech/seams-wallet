@@ -52,10 +52,7 @@ import {
   isHostWithinRpId,
   originHostnameOrEmpty,
 } from '../../../../core/authService/webauthnOidcHelpers';
-import {
-  extractBearerCredential,
-  resolveSourceIpFromFetchHeaders,
-} from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential, resolveSourceIpFromFetchHeaders } from '@shared/utils/requestHeaders';
 import {
   parseWebAuthnAuthenticationCredential,
   unredactedWebAuthnExtensionField,

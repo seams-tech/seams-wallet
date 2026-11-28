@@ -1,5 +1,5 @@
 import type { RouteResponse } from './routeExecutionContext';
-import type { RoutePolicyFailureCode } from './routeAuthPolicy';
+import type { RoutePolicyFailureCode } from '../../../../host/src/credentials/routePolicy';
 import type { RouteUsageData } from './routeMeteringPolicy';
 
 export interface RouteErrorBody {

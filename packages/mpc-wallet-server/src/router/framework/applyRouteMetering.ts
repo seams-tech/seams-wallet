@@ -1,4 +1,5 @@
-import type { RouteExecutionContext, RouteServices, RouteResponse } from './routeExecutionContext';
+import type { RouteExecutionContext } from '../../../../host/src/credentials/routePolicy';
+import type { RouteServices, RouteResponse } from './routeExecutionContext';
 import type { RouteDefinition } from './routeDefinitions';
 
 interface RouteMeteringHandlers<TServices extends object = RouteServices> {

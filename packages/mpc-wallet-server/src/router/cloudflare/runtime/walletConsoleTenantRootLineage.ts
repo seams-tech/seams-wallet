@@ -1,4 +1,4 @@
-import type { RouterApiProjectEnvironmentResolver } from '../../framework/apiCredentialPorts';
+import type { RouterApiProjectEnvironmentResolver } from '../../../../../host/src/credentials/ports';
 import { deriveSigningRootId, type RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import {
   buildTenantRootIdentityFromAuthenticatedDeploymentV1,
@@ -6,7 +6,7 @@ import {
 } from '@shared/tenant-root';
 import { base64UrlEncode } from '@shared/utils/base64';
 import type { TenantRootRuntimeActiveLineageV1 } from '../../domains/tenantRoot/tenantRootCustodyLineage';
-import type { WalletConsoleTenantRootActiveLineageResolverV1 } from './walletConsoleOps';
+import type { WalletConsoleTenantRootActiveLineageResolverV1 } from '../../../../../host/src/credentials/walletConsoleOps';
 
 export async function resolveRuntimeTenantRootLineage(
   environments: RouterApiProjectEnvironmentResolver,

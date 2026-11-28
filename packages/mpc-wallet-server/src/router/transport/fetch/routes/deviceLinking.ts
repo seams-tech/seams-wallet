@@ -87,9 +87,9 @@ import type { LinkedDeviceSessionRecordV1 } from '../../../../core/deviceLinking
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
-import { resolvePublishableKeyApiCredentialAuth } from '../../../auth/routerApiCredentialAuth';
-import { extractRouterApiEnvironmentId } from '../../../auth/routerApiKeyAuth';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { resolvePublishableKeyApiCredentialAuth } from '../../../../../../host/src/credentials/keyChecks';
+import { extractRouterApiEnvironmentId } from '../../../../../../host/src/credentials/keyChecks';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { findRouteDefinitionById } from '../../../framework/routeDefinitions';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';

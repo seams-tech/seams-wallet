@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createWalletConsoleRelayProxyExtensionV1 } from '../../../packages/mpc-wallet-server/src/router/cloudflare/runtime/walletGateway';
-import { WALLET_CONSOLE_SERVICE_ORIGIN_V1 } from '../../../packages/mpc-wallet-server/src/router/cloudflare/runtime/walletConsoleOps';
+import { WALLET_CONSOLE_SERVICE_ORIGIN_V1 } from '../../../packages/host/src/credentials/walletConsoleOps';
 import { APP_ORIGIN, routerWith } from './routeHarness';
 
 /**

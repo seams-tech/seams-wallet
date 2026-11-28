@@ -8,7 +8,7 @@ import type {
   RouterApiKeyAuthRequest,
   RouterApiPublishableKeyAuthRequest,
   RouterApiUsageMeterEvent,
-} from '../../framework/apiCredentialPorts';
+} from './ports';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 // The exact private service-binding surface between the Wallet Gateway and

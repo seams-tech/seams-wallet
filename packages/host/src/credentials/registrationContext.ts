@@ -4,10 +4,10 @@ import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiPublishableKeyAuthAdapter,
   RouterApiPublishableKeyAuthRequest,
-  WalletRegistrationContextResult,
-} from '../framework/apiCredentialPorts';
+  RegistrationContextResult,
+} from './ports';
 
-export function unavailableRegistrationContext(): WalletRegistrationContextResult {
+export function unavailableRegistrationContext(): RegistrationContextResult {
   return {
     ok: false,
     status: 500,
@@ -21,7 +21,7 @@ export function walletRegistrationContext(
   input: RouterApiPublishableKeyAuthRequest,
   principal: RouterApiKeyPrincipal,
   environment: RouterApiProjectEnvironment,
-): WalletRegistrationContextResult {
+): RegistrationContextResult {
   if (
     principal.environmentId !== input.environmentId ||
     environment.id !== principal.environmentId ||
@@ -51,7 +51,7 @@ async function resolveRegistrationContext(
   auth: RouterApiPublishableKeyAuthAdapter,
   environments: RouterApiProjectEnvironmentResolver,
   input: RouterApiPublishableKeyAuthRequest,
-): Promise<WalletRegistrationContextResult> {
+): Promise<RegistrationContextResult> {
   try {
     const result = await auth.authenticate(input);
     if (!result.ok) return result;

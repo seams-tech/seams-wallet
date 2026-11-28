@@ -17,7 +17,8 @@ import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiPublishableKeyAuthAdapter,
 } from '../framework/routerApi';
-import { extractBearerCredential } from './routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
+import { keyRefusalCode, readPublishableKeyRequest } from '../../../../host/src/credentials/keyChecks';
 import {
   normalizeRuntimePolicyScope,
   normalizeRuntimePolicyScopeFields,
@@ -492,8 +493,13 @@ export async function resolveThresholdRuntimePolicyScope(input: {
   // optional — when a client does send one it is forwarded as a cross-check, so
   // a staging key aimed at a production environment id still fails closed.
   const projectEnvironmentId = String(input.projectEnvironmentIdRaw || '').trim();
-  const publishableKey = extractBearerCredential(input.headers);
-  if (!publishableKey) {
+  const keyRequest = readPublishableKeyRequest({
+    headers: input.headers,
+    origin: input.origin,
+    environmentId: projectEnvironmentId,
+    environment: 'cross_check',
+  });
+  if (!keyRequest.ok && keyRequest.code === 'publishable_key_missing') {
     // No managed credential presented: this is not a managed deployment.
     if (!projectEnvironmentId) return { ok: true };
     return {
@@ -514,8 +520,7 @@ export async function resolveThresholdRuntimePolicyScope(input: {
     };
   }
 
-  const origin = String(input.origin || '').trim();
-  if (!origin) {
+  if (!keyRequest.ok) {
     return {
       ok: false,
       status: 403,
@@ -524,16 +529,12 @@ export async function resolveThresholdRuntimePolicyScope(input: {
     };
   }
 
-  const authResult = await publishableKeyAuth.authenticate({
-    secret: publishableKey,
-    origin,
-    environmentId: projectEnvironmentId,
-  });
+  const authResult = await publishableKeyAuth.authenticate(keyRequest.request);
   if (!authResult.ok) {
     return {
       ok: false,
       status: authResult.status,
-      code: authResult.status === 403 ? 'forbidden' : 'unauthorized',
+      code: keyRefusalCode(authResult.status),
       message: authResult.message,
     };
   }

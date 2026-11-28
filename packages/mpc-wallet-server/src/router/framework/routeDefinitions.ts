@@ -23,12 +23,12 @@ import {
   ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH,
   ROUTER_AB_ED25519_WALLET_SESSION_PATH,
 } from '@shared/utils/signingSessionSeal';
+import { ROUTER_API_CREDENTIAL_SCOPES } from '../../../../host/src/credentials/ports';
 import {
-  API_CREDENTIAL_ROUTE_SCOPES,
   API_CREDENTIAL_TYPES,
   PUBLIC_PROOF_TYPES,
   type RouteAuthPolicy,
-} from './routeAuthPolicy';
+} from '../../../../host/src/credentials/routePolicy';
 import {
   ROUTE_SERVICE_KEYS,
   type CoreRouteServiceKey,
@@ -56,7 +56,7 @@ export interface RouterApiRouteDefinitionOptions {
 }
 
 const API_CREDENTIAL_TYPE_SET = new Set<string>(API_CREDENTIAL_TYPES);
-const API_CREDENTIAL_ROUTE_SCOPE_SET = new Set<string>(API_CREDENTIAL_ROUTE_SCOPES);
+const API_CREDENTIAL_ROUTE_SCOPE_SET = new Set<string>(ROUTER_API_CREDENTIAL_SCOPES);
 const PUBLIC_PROOF_TYPE_SET = new Set<string>(PUBLIC_PROOF_TYPES);
 const ROUTE_SERVICE_KEY_SET = new Set<string>(ROUTE_SERVICE_KEYS);
 

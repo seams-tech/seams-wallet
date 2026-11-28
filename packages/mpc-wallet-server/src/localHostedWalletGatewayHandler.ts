@@ -8,7 +8,7 @@ import { localMaterialAdmissionFault } from './localIntendedMaterialAdmissionFau
 import {
   createStaticWalletConsoleBindingV1,
   parseStaticWalletConsoleBindingConfigV1,
-} from './router/cloudflare/runtime/staticWalletConsoleBinding';
+} from '../../host/src/credentials/staticWalletConsoleBinding';
 import {
   handleSplitGatewayRequest,
   type CloudflareD1GatewayBaseEnv,
@@ -16,8 +16,8 @@ import {
   type HostedWalletGatewayDependenciesV1,
 } from './hosted-wallet-gateway';
 import type { CfExecutionContext } from './router/cloudflare/runtime/cloudflare.types';
-import { WALLET_CONSOLE_OP_PATHS_V1 } from './router/cloudflare/runtime/walletConsoleOps';
-import type { WalletConsoleServiceBinding } from './router/cloudflare/runtime/walletConsoleOpsClient';
+import { WALLET_CONSOLE_OP_PATHS_V1 } from '../../host/src/credentials/walletConsoleOps';
+import type { WalletConsoleServiceBinding } from '../../host/src/credentials/walletConsoleOpsClient';
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1,

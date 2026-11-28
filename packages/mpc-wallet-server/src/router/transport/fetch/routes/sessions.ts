@@ -1,8 +1,5 @@
 import { isBillingCreditFailure } from '../../../../authorization/sessionRouting';
-import {
-  extractBearerCredential,
-  resolveSourceIpFromFetchHeaders,
-} from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential, resolveSourceIpFromFetchHeaders } from '@shared/utils/requestHeaders';
 import { emitRouterApiWebhookEvent } from '../../../framework/routerApiWebhooks';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, readJson } from '../../../framework/http';

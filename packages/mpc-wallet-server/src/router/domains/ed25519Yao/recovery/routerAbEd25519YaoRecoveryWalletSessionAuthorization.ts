@@ -12,7 +12,7 @@ import type {
   RouterApiWalletRegistrationService,
   RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
 } from '../../../framework/authServicePort';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { walletSessionFailureMessage } from '../../../auth/walletSessionFailure';
 import { NEAR_ED25519_MPC_OPERATION_KINDS } from '@shared/authorization/capabilityKinds';
 import {

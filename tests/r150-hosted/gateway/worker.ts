@@ -1,7 +1,7 @@
 import {
   createStaticWalletConsoleBindingV1,
   parseStaticWalletConsoleBindingConfigV1,
-} from '../../../packages/mpc-wallet-server/src/router/cloudflare/runtime/staticWalletConsoleBinding';
+} from '../../../packages/host/src/credentials/staticWalletConsoleBinding';
 import {
   handleSplitGatewayRequest,
   type CloudflareD1GatewayBaseEnv,

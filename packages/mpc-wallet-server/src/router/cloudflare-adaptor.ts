@@ -56,8 +56,8 @@ export type {
 export { getRouterApiRouteExtensionRoutes } from './framework/routeExtensions';
 export { matchesRouteDefinitionRequest } from './framework/routeDefinitions';
 export { coerceRouterLogger } from './framework/logger';
-export * from './cloudflare/runtime/walletConsoleOps';
-export * from './cloudflare/runtime/walletConsoleOpsClient';
+export * from '../../../host/src/credentials/walletConsoleOps';
+export * from '../../../host/src/credentials/walletConsoleOpsClient';
 export * from './cloudflare/runtime/walletGateway';
 export * from './cloudflare/runtime/walletRuntimeOps';
 export * from './cloudflare/runtime/walletRuntimeOpsHandler';
@@ -66,7 +66,7 @@ export * from './cloudflare/runtime/walletConsoleTenantRootLineage';
 export * from './cloudflare/runtime/routerAbPrewarm';
 export * from './cloudflare/runtime/tenantRootCreationGrant';
 export * from './cloudflare/runtime/environment';
-export * from './cloudflare/runtime/staticWalletConsoleBinding';
+export * from '../../../host/src/credentials/staticWalletConsoleBinding';
 export type {
   RouterApiModule,
   RouterApiModuleKind,
@@ -167,11 +167,8 @@ export {
   createInMemoryRouterApiRuntimeSnapshotConsumer,
   validateRuntimeSnapshotExpectation,
 } from './framework/runtimeSnapshotConsumer';
-export {
-  extractBearerCredential,
-  extractRouterApiEnvironmentId,
-  resolveSourceIpFromFetchHeaders,
-} from './auth/routerApiKeyAuth';
+export { extractBearerCredential, resolveSourceIpFromFetchHeaders } from '@shared/utils/requestHeaders';
+export { extractRouterApiEnvironmentId } from '../../../host/src/credentials/keyChecks';
 export { createCloudflareRouter } from './cloudflare/runtime/createCloudflareRouter';
 export {
   CloudflareDurableObjectVersionedJsonRecordStore,

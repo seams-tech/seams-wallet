@@ -2,18 +2,16 @@ import { expect, test } from '@playwright/test';
 import type {
   RouterApiKeyAuthResult,
   RouterApiPublishableKeyAuthResult,
-  WalletRegistrationContextResult,
-} from '../../../packages/mpc-wallet-server/src/router/framework/apiCredentialPorts';
+  RegistrationContextResult,
+} from '../../../packages/host/src/credentials/ports';
 import { resolveThresholdRuntimePolicyScope } from '../../../packages/mpc-wallet-server/src/router/auth/commonRouterUtils';
 import {
   resolvePublishableKeyApiCredentialAuth,
   resolveSecretKeyApiCredentialAuth,
-  resolveWalletRegistrationContext,
-} from '../../../packages/mpc-wallet-server/src/router/auth/routerApiCredentialAuth';
-import {
-  extractBearerCredential,
-  extractRouterApiEnvironmentId,
-} from '../../../packages/mpc-wallet-server/src/router/auth/routerApiKeyAuth';
+  resolveRegistrationContext,
+} from '../../../packages/host/src/credentials/keyChecks';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
+import { extractRouterApiEnvironmentId } from '../../../packages/host/src/credentials/keyChecks';
 import {
   createRouterApiRouteDefinitions,
   defineRoute,
@@ -138,7 +136,7 @@ test('an accepted publishable key becomes the route principal', async () => {
 });
 
 test('registration setup makes the same refusals before it resolves its context', async () => {
-  const resolve = recordedCalls<WalletRegistrationContextResult>({
+  const resolve = recordedCalls<RegistrationContextResult>({
     ok: false,
     status: 403,
     code: 'publishable_key_revoked',
@@ -147,7 +145,7 @@ test('registration setup makes the same refusals before it resolves its context'
   const registrationContext = { resolve: resolve.answer };
   const registration = { kind: 'conformance' } as never;
   expect(
-    await resolveWalletRegistrationContext({
+    await resolveRegistrationContext({
       ...publishableKeyInput({ origin: '' }),
       registrationContext,
       registration,
@@ -159,7 +157,7 @@ test('registration setup makes the same refusals before it resolves its context'
     message: 'publishable_key_origin_blocked: origin missing',
   });
   expect(resolve.calls).toEqual([]);
-  await resolveWalletRegistrationContext({
+  await resolveRegistrationContext({
     ...publishableKeyInput(),
     registrationContext,
     registration,

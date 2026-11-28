@@ -2,7 +2,7 @@
 
 Status: 2026-11-28. Slices 0 and 2 are done. Slice 1 (Release A) is released as 0.77.0; four of
 the owner's steps stay open (see Slice 1). Slice 3 (the frame kit) is built on `dev`; nothing
-uses it until Slice 6. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
+uses it until Slice 6. Slice 4 (the project credentials in `packages/host`) is built on `dev`. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
 plan. The design of [Refactor 233](refactor-233-auth-methods-by-factor.md) (factors, gates, one
 app API for methods) is the design of the new auth core.
 
@@ -693,7 +693,7 @@ Rules for the cleanup:
   `@seams/host` 0.77.0 are on npm (published between 11:12 and 11:21 UTC). The parts:
   - Folders: `packages/mpc-wallet` (`@seams/mpc-wallet`), `packages/wallet-connect`
     (`@seams/wallet-connect`), `packages/mpc-wallet-server` (publishes `@seams/host` until
-    Slice 4 creates `packages/host`), `packages/cli` (`@seams/cli`, still 0.29.0, because the
+    Slice 9 moves the manifest to `packages/host`), `packages/cli` (`@seams/cli`, still 0.29.0, because the
     launcher downloads the `seams-cli-v0.29.0` release) and `packages/voiceid`, now the
     internal `@seams-internal/voiceid` that `@seams/host` ships as `/voiceid`.
   - The exports follow the map of the [Slice 0 inventory](refactor-251-slice-0-inventory.md),
@@ -805,6 +805,50 @@ Rules for the cleanup:
     origin, "a frame that moved to another origin never gets a port" fails.
 - **Slice 4: the project credentials.** Move the ports and checks into `packages/host` (D19),
   as a reviewed move. The Gateway's routes declare their scopes, and `host` checks them.
+
+  Built on 2026-11-28 on `dev`, not released. The parts:
+  - **The folder.** `packages/host/src/credentials` holds the checks
+    (`packages/host/README.md` lists the files): the ports to the operator's key store, what a
+    route declares (`RouteAuthPolicy`) with the one check before a handler
+    (`enforceRoutePolicy`), the publishable key check and the secret key check, the
+    registration context, and the Wallet Console service binding with its client and its
+    static form. The folder imports no module code.
+  - **A reviewed move (Section 2).** Each file moved once, and the Wallet server imports it from
+    its new place. `@seams/host/cloud-host` exports the same names, except these, which the
+    Console commit of Release B changes:
+    - `WalletRegistrationContextResult` is `RegistrationContextResult`, and
+      `resolveWalletRegistrationContext` is `resolveRegistrationContext`. The resolver is
+      generic, and the Wallet server names its own form `WalletRegistrationContextResolver`.
+    - `normalizeSourceIp` and `API_CREDENTIAL_ROUTE_SCOPES` are gone. The Console has its own
+      `normalizeSourceIp`, and the scope list is `ROUTER_API_CREDENTIAL_SCOPES`.
+  - **The merges of the inventory.**
+    - Row 10.8: the two intent routes (add signer, add method) share one key check in place of
+      two equal blocks.
+    - Row 10.10: the login scope reads the key, the origin and the environment with the same
+      function as each other route (`readPublishableKeyRequest`). Its refusals keep their text.
+    - Row 10.11: the application key check of `/wallet/external-auth/*` calls the host checks.
+    - Row 10.4: the header reads (`extractBearerCredential`, the source IP) are pure helpers in
+      `shared-ts/src/utils/requestHeaders.ts`, because the Wallet Session checks use them too.
+      `normalizeSourceIp` is no longer an export.
+    - Row 9.18: the secret key failure codes are in the host ports. The browser package no
+      longer imports them.
+  - **Two changes in behaviour,** both in the application key check (row 10.11):
+    - The secret key check of `backend-exchange` sends the endpoint
+      `POST /wallet/external-auth/backend-exchange` to the key store, as each other secret-key
+      route does. Before, it sent the path only. The Console counts key usage by this text.
+    - The check accepts `x-environment-id` when `x-seams-environment-id` is absent, as each
+      other route does.
+  - **Lines.** The files of area 10 have 1,789 lines, under the budget of 1,839.
+  - **Not in this slice: the package manifest.** `packages/mpc-wallet-server` still builds and
+    publishes `@seams/host`, and it bundles the new folder. Slice 9 moves the manifest to
+    `packages/host`. The move changes each build path and test path of the server package, and
+    other sessions build in this checkout.
+  - **Also not in this slice:** the routes of `/wallet/external-auth/*` still declare the
+    `public` plane, although their handler checks a key. The Auth Worker declares them with
+    the key plane (Slice 5).
+  - **Checks.** `pnpm type-check` for `host`, the Wallet server, the wallet and the tests. 540
+    unit and conformance checks pass in Chromium, with `routes/projectKeys.test.ts` on the new
+    paths. The Wallet server builds, and the host files are in its `dist`.
 - **Slice 5: the Auth Worker.** New code in `packages/auth`, built by `@seams/host`: accounts,
   methods, login sessions, Email OTP delivery, the login token and JWKS (D8), the proof checks
   and the signed email statement (Section 4), and the removal subscribers (Section 6). The

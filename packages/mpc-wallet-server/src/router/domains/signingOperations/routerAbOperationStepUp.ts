@@ -1,7 +1,7 @@
 // Operation step-up authentication: a Wallet Session credential or a verified owner proof becomes
 // a step-up session, and a recorded step-up operation is claimed.
 import { resolveWalletSessionOperationCredentialAdmission } from '../../auth/commonRouterUtils';
-import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { jsonFailure } from '../../framework/http';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';

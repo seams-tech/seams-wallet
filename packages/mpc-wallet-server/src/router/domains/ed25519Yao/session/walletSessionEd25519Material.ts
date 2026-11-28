@@ -5,7 +5,7 @@ import type {
   RouterApiAuthorizationSessionService,
   RouterApiWalletRegistrationService,
 } from '../../../framework/authServicePort';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { resolveWalletSessionOperationCredentialAdmission } from '../../../auth/commonRouterUtils';
 import { walletSessionFailureMessage } from '../../../auth/walletSessionFailure';
 import { NEAR_ED25519_MPC_OPERATION_KINDS } from '@shared/authorization/capabilityKinds';

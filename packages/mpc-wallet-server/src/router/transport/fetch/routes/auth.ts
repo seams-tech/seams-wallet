@@ -5,7 +5,7 @@ import {
   sameDelegatedWalletAuthorityV1,
 } from '@shared/authorization/delegatedAuthority';
 import { json, jsonFailure, readJson } from '../../../framework/http';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { resolveThresholdRuntimePolicyScope } from '../../../auth/commonRouterUtils';
 import type { RouterApiWalletSessionAuthorizationV2AdmissionContext } from '../../../framework/authServicePort';
 import {

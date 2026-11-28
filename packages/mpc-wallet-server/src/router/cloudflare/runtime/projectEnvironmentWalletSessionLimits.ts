@@ -1,5 +1,5 @@
 import type { WalletSessionLimitsPort } from '../../../authorization/service';
-import type { RouterApiProjectEnvironmentResolver } from '../../framework/apiCredentialPorts';
+import type { RouterApiProjectEnvironmentResolver } from '../../../../../host/src/credentials/ports';
 import {
   DEFAULT_TENANT_WALLET_SESSION_LIMITS,
   parseWalletSessionLimits,

@@ -1,4 +1,4 @@
-import type { RouteAuthPolicy, RoutePrincipal } from './routeAuthPolicy';
+import type { RouteAuthPolicy, RoutePrincipal } from '../../../../host/src/credentials/routePolicy';
 import type { RouteDefinition } from './routeDefinitions';
 
 const relayRoute: RouteDefinition = {

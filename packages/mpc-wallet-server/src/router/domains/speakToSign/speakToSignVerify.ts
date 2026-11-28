@@ -3,7 +3,7 @@ import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds
 import { hasExactKeys } from '@shared/utils/exactKeys';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { isPlainObject } from '@shared/utils/validation';
-import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import type {
   RouterApiAuthorizationSessionService,
   RouterApiWalletRegistrationService,

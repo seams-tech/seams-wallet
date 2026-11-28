@@ -55,7 +55,7 @@ import type {
   SigningSessionSealAuthorizeResult,
   SigningSessionSealThresholdSessionRecord,
 } from '../../../threshold/session/signingSessionSeal/signingSessionSeal.types';
-import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import {
   resolveWalletSessionOperationCredentialAdmissionFromContext,
   type WalletSessionOperationCredentialAdmission,

@@ -13,10 +13,14 @@ import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import type { ExternalAuthService } from '../../../../auth/externalAuthService';
+import { resolveSourceIpFromFetchHeaders } from '@shared/utils/requestHeaders';
 import {
-  extractBearerCredential,
-  resolveSourceIpFromFetchHeaders,
-} from '../../../auth/routerApiKeyAuth';
+  extractRouterApiEnvironmentId,
+  readPublishableKeyRequest,
+  resolveSecretKeyApiCredentialAuth,
+} from '../../../../../../host/src/credentials/keyChecks';
+import type { RouterApiKeyPrincipal } from '../../../../../../host/src/credentials/ports';
+import type { PolicyRoute } from '../../../../../../host/src/credentials/routePolicy';
 import { json, readJson } from '../../../framework/http';
 import type { FetchRouterApiContext } from '../fetchRouter.types';
 import type { RouteDefinition } from '../../../framework/routeDefinitions';
@@ -178,49 +182,71 @@ function failure(status: number, code: Parameters<typeof externalAuthFailure>[0]
   return json(externalAuthFailure(code), { status, headers: { 'Cache-Control': 'no-store' } });
 }
 
+// The key that an application sends: a secret key from its backend, a publishable key from its
+// page. The page key must also be valid for the app origin that the command names.
+const BACKEND_EXCHANGE_KEY_ROUTE: PolicyRoute = {
+  method: 'POST',
+  path: `${EXTERNAL_AUTH_PATH}/backend-exchange`,
+  auth: { plane: 'api_credentials', credentials: ['secret_key'], scopes: ['wallets.read'] },
+};
+
+async function resolveApplicationKey(
+  ctx: FetchRouterApiContext,
+  command: Command,
+  environmentId: string,
+): Promise<RouterApiKeyPrincipal | null> {
+  const headers = ctx.request.headers;
+  if (extractRouterApiEnvironmentId(headers) !== environmentId) return null;
+  if (command.action === 'backend-exchange') {
+    const result = await resolveSecretKeyApiCredentialAuth({
+      apiKeyAuth: ctx.opts.apiKeyAuth,
+      headers,
+      route: BACKEND_EXCHANGE_KEY_ROUTE,
+      routeAuthNotConfiguredMessage: 'External authentication requires secret key auth',
+    });
+    return result.ok && result.principal.kind === 'api_credentials'
+      ? result.principal.principal
+      : null;
+  }
+  const publishableKeyAuth = ctx.opts.publishableKeyAuth;
+  const parsed = readPublishableKeyRequest({
+    headers,
+    origin: headers.get('origin'),
+    environmentId,
+    environment: 'required',
+  });
+  if (!publishableKeyAuth || !parsed.ok) return null;
+  const result = await publishableKeyAuth.authenticate(parsed.request);
+  if (!result.ok) return null;
+  const parent = await publishableKeyAuth.authenticate({
+    ...parsed.request,
+    origin: command.appOrigin,
+  });
+  return parent.ok && parent.principal.apiKeyId === result.principal.apiKeyId
+    ? result.principal
+    : null;
+}
+
 async function resolveApplicationTrust(
   ctx: FetchRouterApiContext,
   service: ExternalAuthService,
   command: Command,
 ): Promise<ExternalAuthConfiguration | null> {
-  const credential = extractBearerCredential(ctx.request.headers);
-  if (!credential) return null;
   const scope = service.store.scope;
-  if (ctx.request.headers.get('x-seams-environment-id') !== scope.envId) return null;
-  const result =
-    command.action === 'backend-exchange'
-      ? await ctx.opts.apiKeyAuth?.authenticate({
-          secret: credential,
-          endpoint: ctx.pathname,
-          requiredScopes: ['wallets.read'],
-          environmentId: scope.envId,
-        })
-      : await ctx.opts.publishableKeyAuth?.authenticate({
-          secret: credential,
-          origin: ctx.request.headers.get('origin') || '',
-          environmentId: scope.envId,
-        });
+  const principal = await resolveApplicationKey(ctx, command, scope.envId);
   if (
-    !result?.ok ||
-    result.principal.orgId !== scope.orgId ||
-    result.principal.projectId !== scope.projectId ||
-    result.principal.environmentId !== scope.envId
+    !principal ||
+    principal.orgId !== scope.orgId ||
+    principal.projectId !== scope.projectId ||
+    principal.environmentId !== scope.envId
   )
     return null;
-  if (command.action !== 'backend-exchange') {
-    const parent = await ctx.opts.publishableKeyAuth?.authenticate({
-      secret: credential,
-      origin: command.appOrigin,
-      environmentId: scope.envId,
-    });
-    if (!parent?.ok || parent.principal.apiKeyId !== result.principal.apiKeyId) return null;
-  }
   const environments = await ctx.opts.orgProjectEnv?.listEnvironments(
     {
       orgId: scope.orgId,
       projectId: scope.projectId,
       environmentId: scope.envId,
-      actorUserId: result.principal.apiKeyId,
+      actorUserId: principal.apiKeyId,
       roles: [],
     },
     { status: 'ACTIVE' },

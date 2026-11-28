@@ -10,15 +10,12 @@ import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiUsageMeterAdapter,
   RouterApiPublishableKeyAuthRequest,
-  WalletRegistrationContextResolver,
-  WalletRegistrationContextResult,
-} from '../../framework/apiCredentialPorts';
+  RegistrationContextResolver,
+  RegistrationContextResult,
+} from './ports';
 import { parseExternalAuthConfiguration } from '@shared/auth/externalAuth';
-import {
-  unavailableRegistrationContext,
-  walletRegistrationContext,
-} from '../../auth/walletRegistrationContext';
-import { ROUTER_API_CREDENTIAL_SCOPES } from '../../framework/apiCredentialPorts';
+import { unavailableRegistrationContext, walletRegistrationContext } from './registrationContext';
+import { ROUTER_API_CREDENTIAL_SCOPES } from './ports';
 import {
   decodeWalletConsoleTenantRootActiveLineageResponseV1,
   WALLET_CONSOLE_OP_PATHS_V1,
@@ -36,7 +33,7 @@ export interface WalletConsoleServiceBinding {
 interface WalletConsoleOpsClient {
   readonly apiKeyAuth: RouterApiKeyAuthAdapter;
   readonly publishableKeyAuth: RouterApiPublishableKeyAuthAdapter;
-  readonly registrationContext: WalletRegistrationContextResolver;
+  readonly registrationContext: RegistrationContextResolver<unknown>;
   readonly usageMeter: RouterApiUsageMeterAdapter;
   readonly projectEnvironments: RouterApiProjectEnvironmentResolver;
   readonly tenantRootActiveLineage: WalletConsoleTenantRootActiveLineageResolverV1;
@@ -232,7 +229,7 @@ function parseProjectEnvironmentsResponse(value: unknown): RouterApiProjectEnvir
 async function resolveRegistrationContext(
   service: WalletConsoleServiceBinding,
   input: RouterApiPublishableKeyAuthRequest,
-): Promise<WalletRegistrationContextResult> {
+): Promise<RegistrationContextResult> {
   try {
     const { status, body } = await postJson(
       service,
@@ -249,7 +246,7 @@ export function parseWalletRegistrationContextResponse(
   input: RouterApiPublishableKeyAuthRequest,
   status: number,
   body: unknown,
-): WalletRegistrationContextResult {
+): RegistrationContextResult {
   if (status === 401 || status === 403) {
     const failure = parsePublishableKeyAuthResponse(body, status);
     return failure && !failure.ok ? failure : unavailableRegistrationContext();

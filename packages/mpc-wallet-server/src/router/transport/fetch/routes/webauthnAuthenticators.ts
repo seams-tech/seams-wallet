@@ -1,6 +1,6 @@
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { json, jsonFailure } from '../../../framework/http';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 
 export async function handleWebAuthnAuthenticators(
   ctx: FetchRouterApiContext,

@@ -5,7 +5,7 @@ import {
 import { parseWalletAuthMethodId, type WalletAuthMethodId } from '@shared/utils/domainIds';
 import { rejectUnknownFields } from '@shared/utils/exactRecord';
 import { requireRecord } from '@shared/utils/validation';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import {
   parsePrimaryWalletSessionOperationCredentialToken,
   parseSessionOrigin,

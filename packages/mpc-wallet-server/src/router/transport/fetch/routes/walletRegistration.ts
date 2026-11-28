@@ -19,7 +19,7 @@ import {
   handleRouterApiWalletNearImplicitAccountFund,
 } from '../../../domains/walletRegistration/walletRegistrationRoutes';
 import { routerApiWalletRegistrationRouteService } from '../../../framework/authServicePort';
-import { resolveSourceIpFromFetchHeaders } from '../../../auth/routerApiKeyAuth';
+import { resolveSourceIpFromFetchHeaders } from '@shared/utils/requestHeaders';
 import type { RouteResponse } from '../../../framework/routeExecutionContext';
 import {
   findRouteDefinitionById,

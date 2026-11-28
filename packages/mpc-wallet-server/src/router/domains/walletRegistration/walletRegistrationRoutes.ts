@@ -1,4 +1,3 @@
-import type { WalletRegistrationContextResolver } from '../../framework/apiCredentialPorts';
 import {
   parseOptionalWalletSessionBudget,
   type WalletSessionBudget,
@@ -22,11 +21,11 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import type { WalletRegistrationAuthorityInput } from '../../../core/registrationContracts';
 import {
-  resolvePublishableKeyApiCredentialAuth,
-  resolveWalletRegistrationContext,
+  extractRouterApiEnvironmentId,
   publishableKeyRoutePrincipal,
-} from '../../auth/routerApiCredentialAuth';
-import { extractRouterApiEnvironmentId } from '../../auth/routerApiKeyAuth';
+  resolvePublishableKeyApiCredentialAuth,
+  resolveRegistrationContext,
+} from '../../../../../host/src/credentials/keyChecks';
 import type { RouterApiPublishableKeyAuthAdapter } from '../../framework/routerApi';
 import type {
   RouterApiAuthorizationSessionService,
@@ -76,19 +75,20 @@ import {
   type WalletSessionAdministrationAdmission,
   type WalletSessionOperationCredentialAdmission,
 } from '../../auth/commonRouterUtils';
-import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
-import { enforceRoutePolicy } from '../../framework/enforceRoutePolicy';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
+import {
+  enforceRoutePolicy,
+  type HeaderRecord,
+} from '../../../../../host/src/credentials/routePolicy';
 import type { NormalizedRouterLogger } from '../../framework/logger';
 import type {
   RouterApiKeyAuthAdapter,
   RouterApiProjectEnvironmentResolver,
+  RouterApiRuntimePolicyScope,
   SessionAdapter,
+  WalletRegistrationContextResolver,
 } from '../../framework/routerApi';
-import type {
-  HeaderRecord,
-  RouteResponse,
-  RouteServices,
-} from '../../framework/routeExecutionContext';
+import type { RouteResponse, RouteServices } from '../../framework/routeExecutionContext';
 import type { RouteDefinition } from '../../framework/routeDefinitions';
 import type { SigningSessionSealRoutesOptions } from '../../../threshold/session/signingSessionSeal/signingSessionSeal.types';
 import { parseRegistrationPreparedSessionSeal } from './registrationSessionSeal';
@@ -1880,34 +1880,49 @@ function hasExactObjectKeys(input: Record<string, unknown>, expected: readonly s
   return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
 }
 
-export async function handleRouterApiWalletAddSignerIntent(
+/**
+ * The publishable key check of an intent route, with the origin of the request and the active
+ * signing root of the key's environment.
+ */
+async function resolveIntentCredential(
   input: RouterApiWalletRegistrationInput,
-): Promise<RouteResponse<CreateAddSignerIntentResponse | RouteErrorBody>> {
-  if (!isPlainObject(input.body)) {
-    return routeError(400, 'invalid_body', 'JSON body required');
-  }
-  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
-  if (!walletId) {
-    return routeError(400, 'invalid_body', 'walletId path parameter is required');
-  }
-  const request = parseCreateAddSignerIntentRequest(input.body, walletId);
-  if (!request.ok) return routeError(400, request.code, request.message);
+  intent: 'add-signer' | 'add-auth-method',
+): Promise<
+  | {
+      ok: true;
+      scope: {
+        orgId: string;
+        runtimePolicyScope?: RouterApiRuntimePolicyScope;
+        signingRootId?: string;
+        signingRootVersion?: string;
+        expectedOrigin: string;
+      };
+    }
+  | { ok: false; response: RouteResponse<RouteErrorBody> }
+> {
   const origin = normalizeCorsOrigin(input.origin);
   if (!origin) {
-    return routeError(
-      403,
-      'forbidden',
-      'Origin header is required and must be a valid exact origin',
-    );
+    return {
+      ok: false,
+      response: routeError(
+        403,
+        'forbidden',
+        'Origin header is required and must be a valid exact origin',
+      ),
+    };
   }
   const publishableKeyAuth = input.services.publishableKeyAuth;
   if (!publishableKeyAuth) {
-    return routeError(
-      500,
-      'route_auth_not_configured',
-      'wallet add-signer intent requires publishable key auth on this server',
-    );
+    return {
+      ok: false,
+      response: routeError(
+        500,
+        'route_auth_not_configured',
+        `wallet ${intent} intent requires publishable key auth on this server`,
+      ),
+    };
   }
+  const label = intent === 'add-signer' ? 'Add-signer' : 'Add-auth-method';
   const resolved = await enforceRoutePolicy({
     headers: input.headers,
     logger: input.logger,
@@ -1920,19 +1935,22 @@ export async function handleRouterApiWalletAddSignerIntent(
         await resolvePublishableKeyApiCredentialAuth({
           environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
           headers: input.headers,
-          missingEnvironmentMessage: 'Environment header is required for add-signer intent',
+          missingEnvironmentMessage: `Environment header is required for ${intent} intent`,
           missingOriginMessage: 'Origin header is required and must be a valid exact origin',
           missingPublishableKeyMessage: 'Missing publishable key',
           origin,
           publishableKeyAuth,
           route: input.route,
-          routeAuthNotConfiguredMessage: 'Add-signer intent requires API credential auth policy',
+          routeAuthNotConfiguredMessage: `${label} intent requires API credential auth policy`,
         }),
     },
   });
-  if (!resolved.ok) return routeJson(resolved.status, resolved.body);
+  if (!resolved.ok) return { ok: false, response: routeJson(resolved.status, resolved.body) };
   if (resolved.context.principal.kind !== 'api_credentials') {
-    return routeError(500, 'internal', 'wallet add-signer intent requires API credentials');
+    return {
+      ok: false,
+      response: routeError(500, 'internal', `wallet ${intent} intent requires API credentials`),
+    };
   }
   const principal = resolved.context.principal.principal;
   const runtimePolicyScope = await resolveActiveRuntimePolicyScopeForEnvironment({
@@ -1942,20 +1960,42 @@ export async function handleRouterApiWalletAddSignerIntent(
     projectId: principal.projectId,
     envId: principal.envId,
   });
+  return {
+    ok: true,
+    scope: {
+      orgId: principal.orgId,
+      ...(runtimePolicyScope
+        ? {
+            runtimePolicyScope,
+            signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
+            signingRootVersion: runtimePolicyScope.signingRootVersion,
+          }
+        : {}),
+      expectedOrigin: origin,
+    },
+  };
+}
+
+export async function handleRouterApiWalletAddSignerIntent(
+  input: RouterApiWalletRegistrationInput,
+): Promise<RouteResponse<CreateAddSignerIntentResponse | RouteErrorBody>> {
+  if (!isPlainObject(input.body)) {
+    return routeError(400, 'invalid_body', 'JSON body required');
+  }
+  const walletId = toOptionalTrimmedString(input.pathParams?.walletId);
+  if (!walletId) {
+    return routeError(400, 'invalid_body', 'walletId path parameter is required');
+  }
+  const request = parseCreateAddSignerIntentRequest(input.body, walletId);
+  if (!request.ok) return routeError(400, request.code, request.message);
+  const credential = await resolveIntentCredential(input, 'add-signer');
+  if (!credential.ok) return credential.response;
   const result = await input.services.walletRegistration.createAddSignerIntent({
     command: {
       subject: { kind: 'wallet_signer_management', walletId: request.value.walletId },
       signerSelection: request.value.signerSelection,
     },
-    orgId: principal.orgId,
-    ...(runtimePolicyScope ? { runtimePolicyScope } : {}),
-    ...(runtimePolicyScope
-      ? {
-          signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
-          signingRootVersion: runtimePolicyScope.signingRootVersion,
-        }
-      : {}),
-    expectedOrigin: origin,
+    ...credential.scope,
   });
   return routeJson(result.ok ? 200 : 400, result);
 }
@@ -1986,7 +2026,7 @@ export async function handleRouterApiWalletRegistrationSetup(
   if (!request.ok) return routeError(400, request.code, request.message);
   const serverTiming: Array<readonly [string, number]> = [];
   const contextStartedAtMs = Date.now();
-  const context = await resolveWalletRegistrationContext({
+  const context = await resolveRegistrationContext({
     registration: request.value,
     environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
     headers: input.headers,
@@ -2576,72 +2616,15 @@ export async function handleRouterApiWalletAddAuthMethodIntent(
   }
   const request = parseCreateAddAuthMethodIntentRequest(input.body, walletId);
   if (!request.ok) return routeError(400, request.code, request.message);
-  const origin = normalizeCorsOrigin(input.origin);
-  if (!origin) {
-    return routeError(
-      403,
-      'forbidden',
-      'Origin header is required and must be a valid exact origin',
-    );
-  }
-  const publishableKeyAuth = input.services.publishableKeyAuth;
-  if (!publishableKeyAuth) {
-    return routeError(
-      500,
-      'route_auth_not_configured',
-      'wallet add-auth-method intent requires publishable key auth on this server',
-    );
-  }
-  const resolved = await enforceRoutePolicy({
-    headers: input.headers,
-    logger: input.logger,
-    request: { body: input.body, headers: input.headers },
-    route: input.route,
-    services: walletRegistrationRoutePolicyServices(input),
-    sourceIp: input.sourceIp,
-    resolvers: {
-      apiCredentials: async () =>
-        await resolvePublishableKeyApiCredentialAuth({
-          environmentId: extractRouterApiEnvironmentId(input.headers) || undefined,
-          headers: input.headers,
-          missingEnvironmentMessage: 'Environment header is required for add-auth-method intent',
-          missingOriginMessage: 'Origin header is required and must be a valid exact origin',
-          missingPublishableKeyMessage: 'Missing publishable key',
-          origin,
-          publishableKeyAuth,
-          route: input.route,
-          routeAuthNotConfiguredMessage:
-            'Add-auth-method intent requires API credential auth policy',
-        }),
-    },
-  });
-  if (!resolved.ok) return routeJson(resolved.status, resolved.body);
-  if (resolved.context.principal.kind !== 'api_credentials') {
-    return routeError(500, 'internal', 'wallet add-auth-method intent requires API credentials');
-  }
-  const principal = resolved.context.principal.principal;
-  const runtimePolicyScope = await resolveActiveRuntimePolicyScopeForEnvironment({
-    orgProjectEnv: input.services.orgProjectEnv || null,
-    orgId: principal.orgId,
-    environmentId: principal.environmentId,
-    projectId: principal.projectId,
-    envId: principal.envId,
-  });
+  const credential = await resolveIntentCredential(input, 'add-auth-method');
+  if (!credential.ok) return credential.response;
   const result = await input.services.walletRegistration.createAddAuthMethodIntent({
     command: {
       subject: { kind: 'wallet_auth_method_management', walletId: request.value.walletId },
       authMethod: request.value.authMethod,
       caller: request.value.caller,
     },
-    orgId: principal.orgId,
-    ...(runtimePolicyScope ? { runtimePolicyScope } : {}),
-    ...(runtimePolicyScope
-      ? {
-          signingRootId: `${runtimePolicyScope.projectId}:${runtimePolicyScope.envId}`,
-          signingRootVersion: runtimePolicyScope.signingRootVersion,
-        }
-      : {}),
-    expectedOrigin: origin,
+    ...credential.scope,
   });
   return routeJson(result.ok ? 200 : 400, result);
 }

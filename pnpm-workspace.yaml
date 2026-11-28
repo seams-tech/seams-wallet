@@ -5,6 +5,7 @@ packages:
   - examples/wallet-console-lite
   - packages/cli
   - packages/frame-kit
+  - packages/host
   - packages/shared-ts
   - packages/mpc-wallet-server
   - packages/mpc-wallet

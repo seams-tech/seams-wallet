@@ -9,7 +9,7 @@ import {
   type ThresholdEcdsaSessionInputs,
 } from '../../auth/commonRouterUtils';
 import type { SessionAdapter } from '../../framework/routerApi';
-import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import {
   ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1,
   parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,

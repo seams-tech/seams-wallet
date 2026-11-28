@@ -24,7 +24,7 @@ import { CloudflareD1AuthorizationStore } from '../../packages/mpc-wallet-server
 import { D1WalletExecutionAuthority } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 import { prepareD1WalletAuthorityPutStatement } from '../../packages/mpc-wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
 import { prepareD1WalletAuthMethodV2PutStatement } from '../../packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';
-import { createWalletConsoleOpsClient } from '../../packages/mpc-wallet-server/src/router/cloudflare/runtime/walletConsoleOpsClient';
+import { createWalletConsoleOpsClient } from '../../packages/host/src/credentials/walletConsoleOpsClient';
 import { createProjectEnvironmentWalletSessionLimits } from '../../packages/mpc-wallet-server/src/router/cloudflare/runtime/projectEnvironmentWalletSessionLimits';
 import { buildLinkedDeviceManagementAuthorityFixture } from './helpers/linkedDeviceManagement.fixtures';
 import { openSignerD1 } from '../fixtures/signer-d1.mjs';

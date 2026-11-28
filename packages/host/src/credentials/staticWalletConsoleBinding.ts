@@ -1,7 +1,4 @@
-import {
-  ROUTER_API_CREDENTIAL_SCOPES,
-  type RouterApiCredentialScope,
-} from '../../framework/apiCredentialPorts';
+import { ROUTER_API_CREDENTIAL_SCOPES, type RouterApiCredentialScope } from './ports';
 import {
   parseExternalAuthConfiguration,
   type ExternalAuthConfiguration,

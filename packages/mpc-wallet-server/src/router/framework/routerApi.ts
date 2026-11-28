@@ -15,8 +15,9 @@ import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiPublishableKeyAuthAdapter,
   RouterApiUsageMeterAdapter,
-  WalletRegistrationContextResolver,
-} from './apiCredentialPorts';
+  RegistrationContextResolver,
+} from '../../../../host/src/credentials/ports';
+import type { WalletRegistrationSetupRequest } from '../domains/walletRegistration/walletRegistrationInputs';
 import type { SessionParseResult } from '../../core/sessionValidation';
 
 export type {
@@ -35,7 +36,10 @@ export type {
   RouterApiUsageMeterAction,
   RouterApiUsageMeterAdapter,
   RouterApiUsageMeterEvent,
-} from './apiCredentialPorts';
+} from '../../../../host/src/credentials/ports';
+
+export type WalletRegistrationContextResolver =
+  RegistrationContextResolver<WalletRegistrationSetupRequest>;
 
 // Minimal session adapter interface expected by the routers.
 export type SessionClaims = Record<string, unknown>;

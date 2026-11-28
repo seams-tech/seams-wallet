@@ -17,7 +17,7 @@ import { digestOpaqueValue, type AuthorizationService } from '../../../../author
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { WalletRelocationChallengeBinding } from './d1WalletRelocationChallenges';
 
 export class WalletRelocationOwnerRequest {

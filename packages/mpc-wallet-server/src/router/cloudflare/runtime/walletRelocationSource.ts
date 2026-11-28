@@ -1,6 +1,6 @@
 import { walletRelocationObjectIdentity, type WalletObjectIdentity } from './walletObjectAddresses';
 import { isPlainObject } from '@shared/utils/validation';
-import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
+import type { WalletConsoleServiceBinding } from '../../../../../host/src/credentials/walletConsoleOpsClient';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 export type RuntimeSourceOperation =

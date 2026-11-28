@@ -6,7 +6,7 @@ import {
   type ThresholdEd25519SessionInputs,
 } from '../../auth/commonRouterUtils';
 import type { SessionAdapter } from '../../framework/routerApi';
-import { extractBearerCredential } from '../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import type {

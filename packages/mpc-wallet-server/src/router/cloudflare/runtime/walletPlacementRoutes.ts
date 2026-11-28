@@ -22,7 +22,7 @@ import { D1WalletRelocationChallenges } from '../d1/wallet/d1WalletRelocationCha
 import { D1WalletRelocationApprovals } from '../d1/wallet/d1WalletRelocationApprovals';
 import { WalletRelocationOwnerRequest } from '../d1/wallet/d1WalletRelocationOwnerRequest';
 import { WalletRelocationReadAccess } from '../d1/wallet/d1WalletRelocationReadAccess';
-import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
+import type { WalletConsoleServiceBinding } from '../../../../../host/src/credentials/walletConsoleOpsClient';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 
 const BASE_PATH = '/wallet/placement/v1';

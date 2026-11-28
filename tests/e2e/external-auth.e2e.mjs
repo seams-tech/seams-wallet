@@ -161,7 +161,7 @@ const bundle = await build({
     export { ExternalAuthService } from './packages/mpc-wallet-server/src/auth/externalAuthService';
     export { handleExternalAuth } from './packages/mpc-wallet-server/src/router/transport/fetch/routes/externalAuth';
     export { handleWebAuthnAuthenticators } from './packages/mpc-wallet-server/src/router/transport/fetch/routes/webauthnAuthenticators';
-    export { createStaticWalletConsoleBindingV1 } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/staticWalletConsoleBinding';
+    export { createStaticWalletConsoleBindingV1 } from './packages/host/src/credentials/staticWalletConsoleBinding';
     export { createWalletConsoleOpsClient } from './packages/mpc-wallet-server/src/router/cloudflare/runtime/walletConsoleOpsClient';
     export { D1WalletStore } from './packages/mpc-wallet-server/src/core/d1WalletStore';
     export { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from './packages/mpc-wallet-server/src/core/d1WalletAuthMethodStore';

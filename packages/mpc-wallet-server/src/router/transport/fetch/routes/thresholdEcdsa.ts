@@ -94,7 +94,7 @@ import {
   walletSessionFailureStatus,
   type WalletSessionBoundaryFailure,
 } from '../../../auth/walletSessionFailure';
-import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
+import { extractBearerCredential } from '@shared/utils/requestHeaders';
 import {
   walletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
