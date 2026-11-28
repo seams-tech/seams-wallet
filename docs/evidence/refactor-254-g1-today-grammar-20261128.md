@@ -112,8 +112,8 @@ What today's rules still refuse:
 
 - **The baseline is not like for like.** NEAR AI large-v3 was measured on STT-1 with the slot
   rules. On STT-1 with the forgiving rules it read 5 points above turbo (91.1% and 86.1%). A NEAR AI
-  run on today's corpus would show the same gap with today's rules. It is a paid run, so it waits
-  for the owner.
+  run on today's corpus would show the same gap with today's rules. On 2026-11-28 the owner chose
+  to skip that paid run. Also, no NEAR AI Cloud key is on the bench machine.
 - **The rules know these sentences.** The transfer sentences are those of STT-1, and the forgiving
   rules came from the NEAR AI transcripts of STT-1. A new seed would show how well the rules carry
   to new amounts and names. That costs another turbo run (about $0.25).

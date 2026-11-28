@@ -598,7 +598,8 @@ today's `spoken-intent` (speak-to-sign `8db52c1`) reads 2,668 of 3,000 (88.9%; t
 multisig 65.2%) with 0 false accepts. The gate is 2,652 (88.4%).
 
 - **The margin is small:** 16 readings. NEAR AI large-v3 was not run on this corpus, so the
-  compare with the baseline is not like for like.
+  compare with the baseline is not like for like. The owner chose to skip that paid run
+  (2026-11-28).
 - **The 16-word limit of SaySo** refuses the intents of 32 requests (384 readings). With it,
   2,311 of 3,000 pass (77.0%), or 88.3% of the readings that SaySo takes. The Wallet offers no
   spoken approval for those requests (Q7), and the baseline had no such limit.
