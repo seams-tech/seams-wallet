@@ -96,6 +96,24 @@ Deploy the server, the Wallet host and the apps of one release together, as for 
 
 The signer D1 migrations of `@seams/host` are one baseline, `0001_signer_d1_baseline.sql`. Before you upgrade, apply every signer migration of the 0.76.0 release, up to `0091_linked_device_email_otp_own_factor.sql`. Then `wrangler d1 migrations apply` runs the baseline once as a no-op: the database keeps its schema and data. The baseline refuses a database that does not have migration 0091. A new database gets the whole schema from the baseline.
 
+### Speak-to-Sign verifier
+
+The Speak-to-Sign verifier of the Wallet is SaySo, a Cloudflare Worker. OutLayer is off. A lane with a verifier sets these items on its Gateway Worker:
+
+| Setting                 | Kind            | Value                                    |
+| ----------------------- | --------------- | ---------------------------------------- |
+| `SPEAK_TO_SIGN_BACKEND` | Variable        | `sayso`                                  |
+| `SAYSO`                 | Service binding | The SaySo Worker of the lane             |
+| `SAYSO_API_KEY`         | Secret          | The `SAYSO_API_KEY` of that SaySo Worker |
+
+- Give each lane its own SaySo Worker, with its own verdict key and API key. Today only `staging-testnet` has a verifier. The Wallet pins the verdict key of its SaySo Worker for testnet.
+- Deploy a SaySo Worker that serves `POST /v1/template/delete` before the Gateway and the Wallet host. The Wallet deletes the owner's voice template when VoiceID goes off, and a failed delete keeps VoiceID on.
+- A lane with no verifier sets none of these items and no `SPEAK_TO_SIGN_OUTLAYER_*` variable. Its Gateway has no verify route.
+- A Gateway with the `SPEAK_TO_SIGN_OUTLAYER_*` variables of 0.76.0 and no `SPEAK_TO_SIGN_BACKEND` stops at start. Remove the variables. A Gateway with `SPEAK_TO_SIGN_BACKEND=outlayer` answers each verify request of this Wallet with 409 `backend_mismatch`.
+- Each owner enrolls the voice again: SaySo has no template of the OutLayer verifier.
+
+See [Configure the Seams server](/concepts/auth-methods/speak-to-sign#configure-the-seams-server) for the routes and the co-signer check.
+
 ## Release 0.76.0
 
 Pin `@seams/wallet` and `@seams/wallet-server` to **0.76.0**.

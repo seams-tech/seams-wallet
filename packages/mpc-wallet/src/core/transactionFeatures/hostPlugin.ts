@@ -69,8 +69,9 @@ export type SpeakToSignProof = Readonly<{
   approval: VoiceApproval;
   times: SpeakToSignTransferTimes;
   /**
-   * The public OutLayer record of the verifier call that approved the request, with its TDX
-   * quote: the "View TDX quote" link of the result card. Null when OutLayer gave none.
+   * A public record of the verifier call that approved the request, or null. SaySo has no
+   * attestation, so it is always null with SaySo. The OutLayer verifier gave its record with the
+   * TDX quote: the "View TDX quote" link of the result card.
    */
   attestationUrl: string | null;
 }>;
@@ -345,8 +346,8 @@ export type SpeakToSignEnrollmentResult =
   | Readonly<{ kind: 'unavailable'; reason: SpeakToSignUnavailableReason; detail?: string }>;
 
 /**
- * The verifier's answer through the Seams server. `attestationUrl` is the public OutLayer record
- * of the call, with its TDX quote, or null when OutLayer gave none.
+ * The verifier's answer through the Seams server. `attestationUrl` is a public record of the
+ * call (the OutLayer record with its TDX quote), or null. SaySo gives none.
  */
 export type SpeakToSignVerifyReply =
   | Readonly<{ kind: 'output'; output: unknown; attestationUrl: string | null }>

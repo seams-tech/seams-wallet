@@ -17,6 +17,19 @@ description: 各デバイスが自分のEmail OTPの要素を持つため、新�
 - `@seams/host`のD1: 署名用マイグレーションは、`0001`から`0091`までの91個のファイルの代わりに、1つのベースライン`0001_signer_d1_baseline.sql`になります。データベースがこのリリースを受け取る前に、0.76.0のリリースで`0091_linked_device_email_otp_own_factor.sql`までのすべてのマイグレーションを適用してください。その後、`wrangler d1 migrations apply`はそのデータベースでベースラインを1回だけ実行しますが、何も変更しません。データベースのスキーマとデータはそのまま残ります。マイグレーション0091のないデータベースでは、ベースラインは`CHECK constraint failed: apply_migration_0091_first`で失敗します。
 - SDKの設定から`webauthn.authenticatorOptions.userVerification`を削除しました。`UserVerificationPolicy`の列挙型も削除しました。このフィールドに効果はありませんでした。
 
+### Speak-to-Sign: SaySoの検証者 {#speak-to-sign-the-sayso-verifier}
+
+Seamsの運用者が動かすCloudflare WorkerのSaySoが、OutLayerに代わって検証者になります。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#the-verifier)を参照してください。
+
+- SaySoは話者と録音を確認し、文字起こしに署名します。Walletと共同署名者は`spoken-intent`で文字起こしを読み、リクエストの言葉と完全に同じであることを求めます。
+- SaySoにはTEEがありません。カードには「Seams verifier · Cloudflare」の「Verifier receipt」が表示され、`attestationUrl`は常に`null`です。
+- パスキーのステップアップと同じく、声はどの金額も承認します。OutLayerの検証者の10 NEARのルールはなくなりました。
+- 文が16語または160文字を超えるリクエストには、音声による承認がありません。結果は`verifier_unavailable`の`unavailable`です。確認画面を使ってください。
+- 登録では、NEP-413のメッセージの代わりにパスキーのアンロックを求めます。パスキーのないウォレットは、まだ登録できません。すべての所有者が声をもう一度登録します。
+- VoiceIDを無効にするか削除すると、先にSaySoの所有者の声のテンプレートを削除します。
+- ノート、評価、ベットは、コントラクトに判定を運びません。
+- 運用者への破壊的変更: 検証者のあるGatewayには、`SPEAK_TO_SIGN_BACKEND`、サービスバインディング`SAYSO`、シークレット`SAYSO_API_KEY`が必要です。[ホスト環境への導入](/ja/deploy-and-operate/hosted-integration#speak-to-sign-verifier)を参照してください。
+
 ### 新しいパッケージ名 {#new-package-names}
 
 製品ごとに1つのパッケージにするため、パッケージの名前を変えました。コードの動作は以前と同じです。変わるのは、名前、インポートパス、パッケージの境界です。

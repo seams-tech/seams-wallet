@@ -70,7 +70,7 @@ type SignedMessage = SpeakToSignResult<SpeakToSignSignedMessage, SpeakToSignMess
  * signs. Each one is one fixed call shape.
  */
 export type SpeakToSignTypedCalls = Readonly<{
-  /** A NEAR transfer: "send two near to alice dot testnet". A policy rule can ask for a passkey. */
+  /** A NEAR transfer: "send two near to alice dot testnet". The voice approves any amount. */
   transfer(
     request: SpeakToSignCall<SpeakToSignTransferRequest, Sent<SpeakToSignRefusalReason>>,
   ): Promise<Sent<SpeakToSignRefusalReason>>;

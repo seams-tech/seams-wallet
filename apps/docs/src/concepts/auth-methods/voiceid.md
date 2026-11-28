@@ -162,7 +162,8 @@ One progress indicator covers the engine, speaker model, speech detector, and se
 Verified assets are cached when browser storage permits. Clearing site data or browser eviction can require another download.
 
 Audio stays local and is discarded after processing. The Wallet origin stores the enrollment template and device credentials.
-One exception: when [Speak-to-Sign](/concepts/auth-methods/speak-to-sign) enrollment turns on VoiceID, the three accepted samples also go to the Speak-to-Sign verifier, which enrolls the same voice. The Wallet clears its copies after it sends them.
+One exception: when [Speak-to-Sign](/concepts/auth-methods/speak-to-sign) enrollment turns on VoiceID, the three accepted samples also go through the Seams server to SaySo, the Speak-to-Sign verifier on Cloudflare. SaySo keeps a voice template of them, not the audio. The Wallet clears its copies after it sends them.
+When the application has Speak-to-Sign, turning VoiceID off or removing it first deletes that template at the verifier. If the delete fails, VoiceID stays on. See [The audio and what the verifier keeps](/concepts/auth-methods/speak-to-sign#the-audio-and-what-the-verifier-keeps).
 Saved enrollment and added samples have no time or usage limit.
 Removing the enrollment or clearing Wallet-origin storage requires enrollment again.
 **Manage voice** provides recognition improvements, reset, and re-recording with fresh owner confirmation.

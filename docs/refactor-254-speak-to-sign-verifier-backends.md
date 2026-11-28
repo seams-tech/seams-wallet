@@ -1,8 +1,9 @@
 # Refactor 254: Speak-to-Sign verifier backends (SaySo first, OutLayer second)
 
-Status: 2026-11-28. Slices 1 to 4 are built (Section 6). Of Slice 3, G3 passes on staging with a
+Status: 2026-11-28. Slices 1 to 5 are built (Section 6). Of Slice 3, G3 passes on staging with a
 hedged turbo call, and G1 does not pass as written (Q16, Q17). Slice 4 is built on `dev` with design A (Section 6, "Slice 4
-result"); it is not released or deployed. Slices 5 and 6 are not built.
+result"), and Slice 5 wrote its docs ("Slice 5 result"); neither is released or deployed.
+Slice 6 is not built.
 Section 8 lists the questions for the owner and the answers; Q16 and Q17 wait for the owner. Section 9 holds the
 architecture review that the owner asked for before Slice 2, and Section 8 holds the owner's
 answers to it. The 10 NEAR rule is removed, and Slice 2 is the neutral evidence checker
@@ -708,6 +709,60 @@ For Slice 6:
   the card shows the receiver, and another account does not pass.
 - Deploy SaySo `d6ccbea` before the Wallet: a Gateway delete on an older Worker answers 404,
   and VoiceID cannot go off.
+
+### Slice 5 result (2026-11-28)
+
+Built on `dev`: the docs of the SaySo backend as Slice 4 built it. Not released or deployed.
+The pages hold no gate numbers.
+
+- **Files.** `apps/docs/src/concepts/auth-methods/speak-to-sign.md`, `voiceid.md` and
+  `deploy-and-operate/hosted-integration.md`, each with its `ja` copy; `docs/wallet-steps.md`;
+  the "Next release" section of `README.md`. Also the "Next release" section of
+  `apps/docs/src/releases.md` and its `ja` copy, because the public release notes have their own
+  text. Also four code comments that named only OutLayer: `attestationUrl` in `hostPlugin.ts`
+  (twice), the typed transfer in `publicApi/spoken.ts` and `publicApi/speakToSign.ts`, and the
+  summary route in `speakToSignVerify.ts`.
+- **What the pages say.** SaySo is the backend of the Wallet. `staging-testnet` is its first
+  lane, and the other lanes have no verify route. OutLayer is a module that is off: a short
+  section says that `SPEAK_TO_SIGN_BACKEND=outlayer` answers this Wallet with 409
+  `backend_mismatch`, and links the 0.76.0 text at `7123e190b`. The pages describe design A,
+  the 16-word and 160-character limit, the passkey unlock of an enrollment (a wallet with no
+  passkey cannot enroll yet), the template delete when VoiceID goes off, no amount rule, the
+  verdict key in the operator's Cloudflare account, what the co-signer check guards and what
+  it does not guard, and the audio path and what SaySo stores. The Japanese speak-to-sign page
+  had another order and no table of typed calls; it now has the sections of the English page.
+- **Checked in the code.** No amount rule (`voiceVerdictAdmission.ts`), the pinned keys and
+  the `sayso/x.y.z` rule (`saysoVerdictV1.ts`), the 120 s fresh session
+  (`SAYSO_ENROLLMENT_FRESH_MS`), the passkey unlock (`freshApproval` in
+  `walletIframe/host/handlers/speakToSign.ts` calls the passkey `unlock`), the delete only with
+  the `spoken` descriptor (`createRegistrationCommands.ts`), the route codes and the setting
+  names (`saysoBackend.ts`, `select.ts`, `speakToSignVerify.ts`). The sound-alike and separator
+  rules come from `spoken-intent` at `bbb7617` (`punctuated/mod.rs`, `recipient.rs`) and the
+  Slice 4 unit cases. What SaySo stores comes from SaySo `d6ccbea`: `accountVoiceDo.ts` keeps
+  the template, the used audio digests for 7 days and the rate events, and
+  `workers/verifier/src` logs no audio and no transcript.
+- **Faults fixed on the way.** The pages said that each ledger record deletes the wallet's
+  records older than 24 hours. The ledger deletes the records of expired verdicts
+  (`d1VoiceVerdictLedger.ts`, `PRUNE`). `docs/wallet-steps.md` used
+  `seams.speakToSign.requestNote` with `summary`, which 0.66.0 and 0.69.0 removed.
+- **Not confirmed in the code:**
+  - What Cloudflare itself keeps of the audio in Workers AI. The pages say only that the audio
+    goes to no service outside Cloudflare.
+  - Which secrets the deployed SaySo Workers hold (R3). The pages name the verdict key a Worker
+    secret, from SaySo's code and the S3 evidence.
+  - The browser parts that Slice 4 did not check: the WASM load from `sdk/workers/`, the passkey
+    unlock of an enrollment and a call through a real `SAYSO` binding.
+  - The template delete: SaySo `d6ccbea` serves it, and no Worker runs that commit yet.
+
+For Slice 6:
+
+- When the release has its number, move the Speak-to-Sign items of "Next release" in
+  `README.md`, `releases.md` and `hosted-integration.md` under it.
+- The pages say "only `staging-testnet` has a verifier". Change them when another lane gets
+  SaySo, with its pinned key.
+- The Wallet deletes the template only when the application that turns VoiceID off has the
+  `spoken` descriptor. In another application the template stays at SaySo. The Wallet still
+  refuses a spoken request while VoiceID is off, so this keeps a template, not a way to sign.
 
 ## 7. Invariants
 

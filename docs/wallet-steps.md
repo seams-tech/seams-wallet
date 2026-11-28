@@ -49,7 +49,8 @@ the control, and `step` holds the layer and the events.
 ## The transaction confirm and the VoiceID card
 
 Pass `presentation` to `wallet.near.signAndSendTransaction`, to the EVM and Tempo
-`signTransaction` and `signAndSendTransaction` methods, and to the `speakToSign` requests.
+`signTransaction` and `signAndSendTransaction` methods, and to the Speak-to-Sign requests: a NEAR
+sign call with `approval: { kind: 'spoken', ... }` and the calls of `seams.near.spoken`.
 
 ```ts
 await wallet.near.signAndSendTransaction({
@@ -66,7 +67,7 @@ await wallet.near.signAndSendTransaction({
   },
 });
 
-await seams.speakToSign.requestNote({ walletId, contract, postId, text, summary, presentation });
+await seams.near.spoken?.note({ contract, postId, text, presentation });
 ```
 
 - Without `presentation`, or with `{ kind: 'modal' }`, the card shows in the Wallet's own
@@ -145,12 +146,10 @@ const outcome = await seams.authMenu.open(request, undefined, {
   },
 });
 
-const result = await seams.speakToSign.requestNote({
-  walletId,
+const result = await seams.near.spoken?.note({
   contract,
   postId,
   text,
-  summary,
   steps: { title: 'Add a note', after: (result, { close }) => <NotePosted onDone={close} /> },
 });
 ```

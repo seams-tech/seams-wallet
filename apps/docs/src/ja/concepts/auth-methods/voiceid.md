@@ -160,7 +160,8 @@ VoiceIDの有効化や登録だけでは、パスキーやメールOTPでの署�
 サイトデータの削除やブラウザーによるキャッシュ削除で、再ダウンロードが必要になる場合があります。
 
 音声はローカルに留まり、処理後に破棄します。Walletオリジンは、登録テンプレートとデバイス認証情報を保存します。
-例外が1つあります。[Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)の登録がVoiceIDを有効にするとき、受け入れた3つのサンプルはSpeak-to-Signの検証者にも送られ、同じ声を登録します。Walletは送信後に自分のコピーを消去します。
+例外が1つあります。[Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign)の登録がVoiceIDを有効にするとき、受け入れた3つのサンプルはSeamsのサーバーを通して、Cloudflare上のSpeak-to-Signの検証者であるSaySoにも送られます。SaySoは、音声ではなく、サンプルから作った声のテンプレートを保存します。Walletは送信後に自分のコピーを消去します。
+アプリにSpeak-to-Signがある場合、VoiceIDを無効にするか削除すると、先に検証者のそのテンプレートを削除します。削除が失敗した場合、VoiceIDは有効のままです。[音声と検証者が保存するもの](/ja/concepts/auth-methods/speak-to-sign#the-audio-and-what-the-verifier-keeps)を参照してください。
 登録と追加サンプルには、時間や利用回数の制限がありません。
 登録を削除した場合やWalletオリジンの保存領域を消去した場合は、再登録が必要です。
 **音声の管理**では、所有者の新たな確認後に認識の改善、リセット、再録音を行えます。

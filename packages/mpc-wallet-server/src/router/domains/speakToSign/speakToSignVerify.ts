@@ -157,8 +157,8 @@ class SpeakToSignVerifyRoutes implements RouterApiRouteExtension {
   }
 
   /**
-   * Any owner with a live session may ask: the summary is only a proposal. The verifier checks
-   * that it fits the note, and the owner says it.
+   * Any owner with a live session may ask: the summary is only a proposal. The card shows it
+   * below the note, and the owner says it. SaySo does not check that it fits the note.
    */
   private async writeSummary(
     request: Request,

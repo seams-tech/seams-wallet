@@ -1,6 +1,6 @@
 ---
 title: 'Experimental: Speak-to-Sign'
-description: Experimental spoken NEAR payments from the owner's own account, approved by an attested verifier that checks the owner's voice and words. Testnet only.
+description: Experimental spoken NEAR payments from the owner's own account. A Seams verifier on Cloudflare checks the owner's voice and signs what it heard, and the Wallet checks the words. Testnet only.
 ---
 
 # Experimental: Speak-to-Sign
@@ -12,57 +12,81 @@ change without notice. Do not use it with real funds.
 :::
 
 Speak-to-Sign lets a wallet owner pay by voice. The owner says a sentence such
-as "Send 2 NEAR to alice dot testnet". An attested verifier checks that the
-owner's voice says the exact text of the request, and signs a verdict. The
-Wallet checks the verdict and sends the transfer from the owner's own account.
-The spoken sentence is the confirmation: an accepted payment shows no confirm
-and no passkey.
+as "Send 2 NEAR to alice dot testnet". The Seams verifier checks that the
+voice is the owner's, and signs a verdict with the words that it heard. The
+Wallet checks the verdict and that the heard words are exactly the words of
+the request. Then it sends the transfer from the owner's own account. The
+spoken sentence is the confirmation: an accepted payment shows no confirm and
+no passkey.
 
 Speak-to-Sign is a transaction feature, not an authentication method. It never
 unlocks a wallet or opens a session. It needs a [VoiceID](/concepts/auth-methods/voiceid)
 enrollment and uses the VoiceID capture surface.
 
+## The verifier
+
+The Seams server of each lane calls one verifier backend. The server setting
+`SPEAK_TO_SIGN_BACKEND` names it (see
+[Configure the Seams server](#configure-the-seams-server)).
+
+- **SaySo** is the backend of the Wallet. It is a Cloudflare Worker that the
+  Seams operator runs. It writes the transcript with Whisper large-v3-turbo on
+  Cloudflare Workers AI, checks the speaker with ReDimNet B1 in a Cloudflare
+  Container, and signs an Ed25519 verdict. Each lane has its own SaySo
+  deployment, verdict key and voice templates.
+- `staging-testnet` is the first lane with SaySo. The other lanes have no
+  verifier yet, so their Seams server has no verify route.
+- **OutLayer** was the verifier until 0.76.0. It ran in a TEE (trusted
+  execution environment) on OutLayer. Its code stays as a module that is off,
+  and no lane runs it.
+
+The voice templates of OutLayer do not move to SaySo. Each owner enrolls the
+voice again (see [Set up the owner](#set-up-the-owner)).
+
 ## How a spoken payment works
 
-1. The Wallet shows the expected sentence on the VoiceID surface and records
-   one clip of at most 8 s. The card stays open and shows each next step.
-   The Wallet seals the clip to the verifier's audio key before it sends it,
-   so the Seams server carries only ciphertext. The verifier opens the clip
-   inside its TEE.
-2. The Seams server sends the clip and the typed request to the verifier on
-   OutLayer, a NEAR off-chain compute service that runs code in a TEE (trusted
-   execution environment). While the verifier works, the Wallet reads the
-   access-key nonce and a recent block hash for the payment. It signs nothing
-   before the verdict.
-3. The verifier gets a speaker embedding from a service on Phala Cloud and a
-   transcript from NEAR AI at the same time (from Venice AI while NEAR AI
-   Whisper is down, if the server has the `venice` build; see
-   [Configure the Seams server](#configure-the-seams-server)). It compares the
-   voice with the
-   owner's enrolled template and the words with its own text of the request.
-   The amount must match exactly. A word that holds no value can be a
-   sound-alike: "year" for "NEAR", "sent" for "send" or "testnode" for
-   "testnet". The receiver can be a sound-alike of the account name. The
-   owner can say a separator in other words ("period" for "dot", "hyphen" for
-   "dash"), or leave out the separators and "testnet": "seams v one" is
-   `seams-v1.testnet`.
-   Then a policy step can ask for more approval.
-4. The verifier returns a signed verdict that expires after 120 s. The Wallet
-   checks it against the verifier key that the Wallet pins: the request, the
-   spoken text, the recording, the expiry and the signature.
-5. On `accept`, the Wallet signs the transfer through the owner's Wallet
-   Session with no confirm and sends it. On `step_up`, the card asks the owner
-   to approve again with the session's own method (a passkey on a passkey
-   session). The signing request carries the verdict, and the Seams co-signer
-   checks it again before it adds its part of the signature (see
-   [Trust model](#trust-model)).
-6. The card shows the result: the paid transfer with a link, or the reason
+1. The Wallet shows the request and the sentence on the VoiceID surface and
+   records one clip of at most 8 s. The card stays open and shows each next
+   step.
+2. The Wallet sends the clip as a WAV and the request to the Seams server. The
+   server calls SaySo through a Cloudflare service binding with its own key.
+   The browser never holds a SaySo key. While the verifier works, the Wallet
+   reads the access-key nonce and a recent block hash for the payment. It
+   signs nothing before the verdict.
+3. SaySo gets a transcript of the clip from Workers AI and a speaker embedding
+   from its container. It compares the voice with the owner's enrolled
+   template, and it refuses a recording that it saw before. It does not decide
+   the words.
+4. SaySo returns a signed verdict that expires after 120 s. The verdict names
+   the owner, an intent digest that binds the request digest and the sentence,
+   the digest of the recording and the transcript.
+5. The Wallet checks the verdict against the SaySo key that the Wallet pins:
+   the signature, the expiry, the owner, the request and the recording. Then
+   it reads the transcript with `spoken-intent`, the sentence reader of
+   Speak-to-Sign, and compares it with the words of the request. The amount
+   must match exactly. In a transfer, a word that holds no value can be a
+   sound-alike: "sent" for "send" or "nir" for "NEAR". The receiver can be a
+   sound-alike of the request's receiver. The owner can say a separator in
+   other words ("period" for "dot", "hyphen" for "dash"), or leave out the
+   separators and "testnet": "seams v one" is `seams-v1.testnet`.
+6. The Wallet signs the transfer through the owner's Wallet Session with no
+   confirm and sends it. The signing request carries the verdict, and the
+   Seams co-signer checks it again before it adds its part of the signature
+   (see [Trust model](#trust-model)).
+7. The card shows the result: the paid transfer with a link, or the reason
    for a refusal. After a refusal of the words or the voice, the owner can
    record the sentence again, up to five recordings in all. The call returns
    when the owner closes the card.
 
 A spoken payment needs a warm Wallet Session. If the session is locked or
 expired, the Wallet asks the owner to unlock first.
+
+SaySo takes a sentence of at most 16 words and 160 characters. A request with
+a longer sentence gets no spoken approval: the Wallet opens no card, and the
+result is `unavailable` with the reason `verifier_unavailable`. Its `detail`
+says why, for example "The sentence has 18 words; the verifier takes at most
+16." Ask for the Wallet's confirm for such a request: make the call without
+`approval`.
 
 ## Install
 
@@ -97,12 +121,12 @@ The normal NEAR sign calls take `approval`. With it, the owner approves by
 voice in place of the Wallet's confirm, and the call returns a result with a
 `kind`. Without it, the call is the normal call.
 
-| Call with `approval`          | `result` of an approved call      |
-| ----------------------------- | --------------------------------- |
-| `near.signAndSendTransaction` | `{ transactionHash }`             |
-| `near.signTransaction`        | The signed transaction            |
-| `near.signDelegateAction`     | The signed delegate action        |
-| `near.signMessage`            | The NEP-413 signature and nonce   |
+| Call with `approval`          | `result` of an approved call    |
+| ----------------------------- | ------------------------------- |
+| `near.signAndSendTransaction` | `{ transactionHash }`           |
+| `near.signTransaction`        | The signed transaction          |
+| `near.signDelegateAction`     | The signed delegate action      |
+| `near.signMessage`            | The NEP-413 signature and nonce |
 
 - `summary` is the sentence that the owner reads aloud: 1 to 12 plain words
   (`summaryRefusal`).
@@ -124,11 +148,11 @@ voice in place of the Wallet's confirm, and the call returns a result with a
 
 Every call with `approval` returns one result shape, and it does not throw for
 a refusal. The `kind` is `approved`, `refused`, `cancelled` or `unavailable`.
-An `approved` result holds `result`, `times` and `approval`: `voice` when the
-verdict alone approved the request, and `voice_and_passkey` when a policy rule
-asked for the confirm again. It also holds `attestationUrl`: the public
-OutLayer record of the verifier call, with its TDX quote. This is the link
-"View TDX quote" of the result card. It is `null` when OutLayer gave no record.
+An `approved` result holds `result`, `times`, `approval` and `attestationUrl`.
+With SaySo, `approval` is always `voice`: the verdict alone approved the
+request. `attestationUrl` is always `null`, because SaySo has no attestation.
+The OutLayer verifier set `voice_and_passkey` when a policy rule asked for the
+confirm again, and a link to the TDX quote of its call.
 
 ## Typed calls
 
@@ -143,35 +167,36 @@ const result = await seams.near.spoken?.transfer({
 });
 ```
 
-| Call                   | The owner says                                    |
-| ---------------------- | ------------------------------------------------- |
-| `spoken.transfer`      | "send two near to alice dot testnet"              |
+| Call                   | The owner says                                      |
+| ---------------------- | --------------------------------------------------- |
+| `spoken.transfer`      | "send two near to alice dot testnet"                |
 | `spoken.note`          | The summary of a community note, which Seams writes |
-| `spoken.rating`        | "this note is helpful"                            |
-| `spoken.mergeApproval` | "merge pull request forty two into main"          |
-| `spoken.bet`           | "bet zero point five usdc yes on market nine"     |
+| `spoken.rating`        | "this note is helpful"                              |
+| `spoken.mergeApproval` | "merge pull request forty two into main"            |
+| `spoken.bet`           | "bet zero point five usdc yes on market nine"       |
 
 For `spoken.transfer`, the receiver can be any named NEAR account that the owner
 can say, such as `alice.testnet`. The result is `refused` with
 `receiver_not_speakable` for an implicit (64-hex) or `0x` account, and with
 `receiver_missing` for an account that does not exist. The amount is decimal
-NEAR with at most two decimal places. Today the verifier has one stub rule: a
-voice transfer above 10 NEAR needs a passkey.
+NEAR with at most two decimal places. The voice approves any amount, as a
+passkey step-up does.
 
 `onProgress` is optional: in `approval` for a normal call, and in the request
 of a typed call. It gets each stage of the request, in order:
 
-| `stage`            | When                                                                 |
-| ------------------ | -------------------------------------------------------------------- |
-| `recording_sent`   | The Wallet sent the recording to the Seams verify route.             |
-| `verifier_running` | The Seams server called the verifier.                                |
-| `verdict`          | The verifier answered. `ms` holds its stage times.                   |
-| `step_up`          | A policy rule asks for a fresh approval. `policyText` is the rule.   |
-| `transaction_sent` | The signed transaction left for the network.                         |
-| `settled`          | NEAR returned the final outcome. `transactionHash` names it.         |
+| `stage`            | When                                                               |
+| ------------------ | ------------------------------------------------------------------ |
+| `recording_sent`   | The Wallet sent the recording to the Seams verify route.           |
+| `verifier_running` | The Seams server called the verifier.                              |
+| `verdict`          | The verifier answered. `ms` holds its stage times.                 |
+| `step_up`          | A policy rule asks for a fresh approval. `policyText` is the rule. |
+| `transaction_sent` | The signed transaction left for the network.                       |
+| `settled`          | NEAR returned the final outcome. `transactionHash` names it.       |
 
 The verifier sends its result only at the end, so no event comes between
-`verifier_running` and `verdict`. An error in the listener does not stop the
+`verifier_running` and `verdict`. Only the OutLayer verifier has policy rules,
+so SaySo never sends `step_up`. An error in the listener does not stop the
 request.
 
 `autoStart` is optional, in the same place as `onProgress`. With `true`
@@ -202,11 +227,23 @@ if (enrollment?.kind === 'enrolled') {
 `enroll` shows three short phrases on the VoiceID surface. If the wallet has no
 VoiceID yet, `enroll` turns it on first, and the three samples of that VoiceID
 enrollment are also the verifier's recordings. So the owner reads one set of
-phrases for both. Then the owner approves one signed message (NEP-413) on the
-wallet confirm. The message names the digest of exactly these recordings. The
-verifier checks that a full-access key of the owner signed it, and enrolls only
-that audio. A new enrollment replaces the template. The result `kind` is
-`enrolled`, `refused`, `cancelled` or `unavailable`.
+phrases for both.
+
+Then the Wallet asks the owner to unlock again with a passkey. A voice becomes
+a way to approve payments, so the Seams server enrolls it only with a Wallet
+Session that such an unlock issued in the last 120 s. A VoiceID unlock never
+counts, because it is the same voice again. The Wallet sends only the three
+recordings of this enrollment.
+
+The Wallet asks for this unlock with a passkey only. A wallet with no passkey,
+such as a wallet that signs in only with Email OTP, cannot enroll a voice for
+Speak-to-Sign yet. If the unlock does not complete, `enroll` returns
+`unavailable` with the reason `not_submitted`, and the verifier enrolls
+nothing.
+
+A new enrollment replaces the template. The result `kind` is `enrolled`,
+`refused`, `cancelled` or `unavailable`. A spoken request of an owner with no
+template at the verifier gives `refused` with `template_missing`.
 
 By default, the owner presses Record for each phrase. With
 `enroll({ autoStart: true })`, each phrase card records when it opens. This
@@ -220,11 +257,25 @@ If the owner turned VoiceID off, `enroll` returns `unavailable` with the reason
 The owner's account pays the gas of each transfer, about 0.00005 NEAR on
 testnet.
 
+### Turn spoken approval off
+
+The VoiceID switch in **Authentication methods** turns spoken approval off.
+With VoiceID off or not set up, a spoken request returns `unavailable` with the
+reason `voiceid_unavailable`, and the application uses the confirm.
+
+When the application has the `spoken` descriptor, the Wallet first deletes the
+owner's voice template at the verifier, through the Seams server. It does this
+when the owner turns VoiceID off and when the owner removes the VoiceID method.
+The Seams co-signer accepts a verdict whatever the switch on the device says,
+so only this delete stops spoken approvals at the verifier. If the delete
+fails, VoiceID stays on, and the owner can try again. A lane with no verifier,
+or with another backend, has no template to delete, so the change goes on.
+
 ## Spoken community notes
 
 The same flow can sign a community note or a note rating on a notes contract
-with `add_note({ post_id, text, summary, verdict_json, signature_b64 })` and
-`rate_note({ note_id, rating, verdict_json, signature_b64 })`.
+with `add_note({ post_id, text, summary })` and
+`rate_note({ note_id, rating })`.
 The author types the note and reads aloud only a short summary of it. The
 application gives the note, not the summary:
 
@@ -232,15 +283,14 @@ application gives the note, not the summary:
    (`POST /speak-to-sign/v1/summary`). The server writes it from the note with
    a chat model on NEAR AI.
 2. The card shows the note above the summary. The author says the summary.
-3. The verifier gets the note text. It binds the note by its SHA-256, and it
-   asks JEV (a NEAR AI model that answers yes-or-no questions) if the summary
-   gives the main point of the note. A summary that does not fit gives
-   `summary_mismatch`.
+3. The verdict binds the note by its SHA-256. SaySo does not check that the
+   summary gives the main point of the note: the author approves the summary
+   that the card shows and that they say.
 
 So the application cannot choose the words that the author says. Wallet core
-builds the one call, with no deposit and no confirm. The call carries the
-verdict and its signature, so the notes contract can check the verdict itself.
-A contract that does not check it ignores the two arguments.
+builds the one call, with no deposit and no confirm. No contract checks a
+SaySo verdict, so the call of a note, a rating or a bet carries no verdict.
+The co-signer refuses such a call that carries one.
 
 ```ts [Partial example]
 await seams.near.spoken?.note({
@@ -261,14 +311,11 @@ await seams.near.spoken?.rating({
   server's summary with the rules of `summaryRefusal`: 1 to 12 words of ASCII
   letters, numbers as words. A summary that breaks them gives
   `summary_not_speakable`.
-- Without an answer from JEV, the verifier refuses with
-  `summary_check_unavailable`.
 - A rating is said as "this note is helpful", "this note is somewhat helpful"
   or "this note is not helpful".
-- A summary of 4 or more words also passes with one word heard differently or
-  dropped, but never with an added or dropped "not".
-- Notes need verifier 0.13.0 or later. An older verifier refuses the note text
-  with `unsupported`.
+- The transcript of a summary or a rating must give exactly its words. Case,
+  punctuation and digits in place of number words can differ. The sound-alike
+  rules are only for a transfer.
 
 ### Prepare a spoken request
 
@@ -305,90 +352,66 @@ Speak-to-Sign needs no step of its own on the Wallet host. Its flow is in
 npx --no-install seams-voiceid-host ./wallet-with-voiceid
 ```
 
+The Wallet reads a SaySo transcript with `/sdk/workers/spoken_intent_bg.wasm`.
+The composed assets hold it. Serve it as the other WASM files of `/sdk/*`.
+
 Until 0.67.0 the host also installed the plugin `@seams/wallet-voice-sign` and
 composed it with `seams-speak-to-sign-host`. Remove both.
 
 ## Configure the Seams server
 
-The Seams server adds `POST /speak-to-sign/v1/verify` only when all six
-variables are set:
+The Seams server adds `POST /speak-to-sign/v1/verify` only when its lane names
+a verifier backend. For SaySo, the Gateway Worker of the lane needs:
 
-| Variable                                    | Testnet value                                                      |
-| ------------------------------------------- | ------------------------------------------------------------------ |
-| `SPEAK_TO_SIGN_OUTLAYER_BASE_URL`           | `https://testnet-api.outlayer.ai`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_PROJECT`            | `seams-v1.testnet/voice-verifier`                                  |
-| `SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`        | `bfe81633b9ed596df239201f153a84c860d71ddd8edf713c1c785ef2b7c1c946` |
-| `SPEAK_TO_SIGN_OUTLAYER_PAYMENT_KEY`        | The OutLayer payment key. Keep it in a secret store.               |
-| `SPEAK_TO_SIGN_OUTLAYER_SECRETS_PROFILE`    | `main`                                                             |
-| `SPEAK_TO_SIGN_OUTLAYER_SECRETS_ACCOUNT_ID` | `cyan-loong.testnet`                                               |
+| Setting                 | Value                                                                |
+| ----------------------- | -------------------------------------------------------------------- |
+| `SPEAK_TO_SIGN_BACKEND` | `sayso`                                                              |
+| `SAYSO`                 | A service binding to the SaySo Worker of the lane                    |
+| `SAYSO_API_KEY`         | The `SAYSO_API_KEY` of that SaySo Worker. Keep it in a secret store. |
 
-One more variable is optional: `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY`,
-the WASM hash of the `venice` build of the same verifier (verifier 0.14.0 and
-later, `./build.sh --venice` in the speak-to-sign repository). That build sends
-the clip to Venice AI in place of NEAR AI Whisper, and its verdicts name it,
-for example `0.14.0+venice`. The server chooses the build for each call, and
-the page cannot choose it:
-
-- Without the variable, or without `SPEAK_TO_SIGN_NEAR_AI_API_KEY`, NEAR AI
-  serves each call.
-- With both, the server checks NEAR AI: its model list, and a silent clip of
-  0.5 s to `openai/whisper-large-v3`. One check serves all calls for 60 s.
-  A 5xx answer or no answer in 10 s is down; a 4xx answer is not.
-- Venice serves a call only while NEAR AI or its Whisper is down, or when the
-  check gives no answer in 3 s. Otherwise NEAR AI serves.
-
-Venice AI runs in no TEE, so it can hear each recording that it gets. The
-verdict of such a call says so, and the Wallet's receipt shows "Speech to
-text: Venice AI, outside a TEE".
-
-The Wallet seals each recording, so the version must be verifier 0.12.0 or
-later, and the secrets profile must hold the secret `PROTECTED_AUDIO_KEY` of
-the audio key that the Wallet pins. An older version refuses each spoken
-request with `unsupported`.
+- Without `SPEAK_TO_SIGN_BACKEND` and without the settings of a backend, the
+  server has no verify route.
+- The settings of a backend without `SPEAK_TO_SIGN_BACKEND` stop the server at
+  start: the lane must name its backend. `sayso` without the key or the
+  binding, and a value other than `sayso` or `outlayer`, also stop it.
+- Give each lane its own SaySo deployment. A deployment holds one verdict key
+  and the voice templates of its owners.
+- The SaySo Worker must serve `POST /v1/template/delete`. Without it, the
+  delete answers 404, and VoiceID cannot go off on that lane.
 
 The route reads the caller's Wallet Session as identity. It answers 401
 `unauthorized` without a session and 503 `session_unavailable` when the
-session store fails, and it spends no signing use. It refuses a request for
-another owner's voice. It serves only the verifier's `verify` and `enroll`
-operations (400 `unsupported_operation` for another one) and accepts a body
-of at most 1,100 KB. A refusal before the verifier call is a JSON error.
+session store fails, and it spends no signing use. The body is
+`{ backend, input }` of at most 1,100 KB. Wallet core names the backend that
+it made the input for. A backend other than the lane's gives 409
+`backend_mismatch`. The route refuses a request for another owner's voice
+(403 `owner_mismatch`). On SaySo it serves the operations `verify`, `enroll`
+and `delete` (400 `unsupported_operation` for another one). A refusal before
+the verifier call is a JSON error.
+
 After the checks, the route answers with `text/event-stream`: the event
 `verifier_running` at once, then one `verdict` event with the verifier output
-unchanged, or one `failed` event with a fixed code, such as
-`verifier_timeout`. The route calls the verifier with `relayToVerifier` of
-`@seams/voice-sign/server` (speak-to-sign repository). It cannot read the
-sealed recording, and it forwards only an output of a known kind: an error
-output of the verifier gives `failed` with `verifier_failed`.
+unchanged, or one `failed` event with a fixed code. On SaySo:
 
-Before it sends a `verdict`, the route checks the TDX quote of the call. The
-verdict key is bound to the OutLayer project, so every version of the project
-signs with it; the quote names the WASM that ran. The route reads the
-attestation record of the call from OutLayer. OutLayer stores the record a
-short time after the call, so the route tries once each second for up to
-15 s. Then it checks, with `@seams/voice-verdict`:
-
-- The quote binds the output to the WASM hash of the build that the route
-  called (`SPEAK_TO_SIGN_OUTLAYER_VERSION_KEY`, or
-  `SPEAK_TO_SIGN_OUTLAYER_VENICE_VERSION_KEY` for a Venice call) and to the
-  project (`checkAttestationBinding`).
-- Intel signed the quote, and Intel's collateral at the time of the call
-  does not revoke the platform (`checkQuoteCollateral`, with the collateral of
-  `GET <api>/public/collateral`).
-- The OutLayer worker contract (`worker.outlayer.testnet`) approves the five
-  measurements of the quote (`measurementsApproved`, through
-  `https://rpc.testnet.fastnear.com`).
-
-The server keeps the collateral of each platform in memory until its next
-update, and an approval of the contract for 10 minutes. If a check fails, or
-the record does not come in time, the route sends `failed` with the code
-`attestation_<code>`, for example `attestation_wasm_not_accepted` or
-`attestation_unavailable`. The log has the code and the times only. A
-`verdict` has `attestationUrl`, the full URL of the record, `transcriber`
-(`nearai` or `venice`), and its `timing` has `attestationMs`, the time of the
-check with the wait.
+- The route calls the binding with `Authorization: Bearer SAYSO_API_KEY` and
+  waits at most 20 s (`verifier_timeout`).
+- It builds the SaySo intent from the session's owner: the user
+  `near:<network>:<accountId>`, the action `seams.near.<kind>`, the request
+  digest and the sentence. The intent is transcript-only: SaySo checks the
+  speaker and the recording and signs the transcript, and the Wallet and the
+  co-signer decide the words.
+- An enrollment needs a Wallet Session that a passkey or Email OTP approval
+  issued in the last 120 s. A VoiceID session never counts. Another session
+  gives `failed` with `fresh_approval_required`.
+- The text of a SaySo error never reaches the answer or the log. Its status
+  gives a fixed code: `verifier_unauthorized`, `verifier_busy`,
+  `verifier_rejected_request`, `verifier_failed` or `verifier_unreachable`.
+- A `verdict` has `attestationUrl: null`, `transcriber`
+  (`workers_ai_whisper_large_v3_turbo`), and `timing` with `saysoMs` and
+  `serverMs`.
 
 The route `POST /speak-to-sign/v1/summary` writes the summary of a spoken
-community note. The server adds it only with the six variables above and
+community note. The server adds it only with a verifier backend and
 `SPEAK_TO_SIGN_NEAR_AI_API_KEY`, a NEAR AI key. Keep it in a secret store.
 `SPEAK_TO_SIGN_SUMMARY_MODEL` is optional; the default is `Qwen/Qwen3.8-27B`,
 which the route calls with thinking off. The route reads the Wallet Session
@@ -398,85 +421,134 @@ once more. A failure is a JSON error with a fixed code: `summary_unreachable`,
 `summary_failed` or `summary_not_speakable`. Without the key, the Wallet
 cannot sign a spoken note.
 
-The same six variables turn on the co-signer's verdict check. It records each
-accepted verdict in the signer database table `speak_to_sign_voice_verdicts`
-(made by the signer D1 migrations). Each new record deletes
-the wallet's records that are older than 24 hours. The server log has one
-warning line for each refusal, with the reason, the wallet and the signing
-request. A Seams server without the variables refuses every signing request
-that carries a verdict, with the reason `unavailable`.
+The same backend setting turns on the co-signer's verdict check. The
+co-signer accepts only the verdict kind of the lane's backend:
+`sayso_verdict_v1` on SaySo. It records each accepted verdict in the signer
+database table `speak_to_sign_voice_verdicts` (made by the signer D1
+migrations). Each new record deletes the wallet's records of expired
+verdicts. The server log has one warning line for each refusal, with the
+reason, the wallet and the signing request. A Seams server without a backend
+refuses every signing request that carries a verdict, with the reason
+`unavailable`.
+
+### The OutLayer backend
+
+No lane runs OutLayer, because its funding stopped. Its code stays in
+`@seams/host`: `SPEAK_TO_SIGN_BACKEND=outlayer` and the six
+`SPEAK_TO_SIGN_OUTLAYER_*` variables turn it on. But the Wallet of this
+release makes SaySo input, so such a server answers each verify request with
+409 `backend_mismatch`. A server with the OutLayer variables and no
+`SPEAK_TO_SIGN_BACKEND` stops at start: remove the variables, or set the
+backend. The
+[0.76.0 text of this section](https://github.com/seams-tech/seams-wallet/blob/7123e190b/apps/docs/src/concepts/auth-methods/speak-to-sign.md#configure-the-seams-server)
+has the OutLayer variables and the TDX quote check.
 
 ## The verifier key
 
-The verifier is the OutLayer project `seams-v1.testnet/voice-verifier`. Its
-verdict key `ed25519:E8E53ydtc9LRvVz9xBCRrSzyBa5nh1gK1ts53Aoo751U` is bound to
-the project and stays the same across versions. The Wallet pins that key in its
-own code. It never takes the key from the app, because the app chooses the
-Seams server URL. The Wallet pays at most once in each flow, and only for a
-recording that it made in the same flow.
+Each SaySo deployment signs its verdicts with its own Ed25519 key. The secret
+key is a Worker secret of that deployment in the operator's Cloudflare
+account. The same account runs the Seams server and the co-signer.
+
+The Wallet and the co-signer pin the public keys in their own code. They never
+take a key from the app, because the app chooses the Seams server URL. Each
+network has a list of keys, so that a new key can come before the old key
+goes:
+
+| Network   | Pinned SaySo keys                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------------- |
+| `testnet` | `3d96c3d21be6b7864cadfe1d5e57366e45774d7513972710e2569aa33a0d6895`, the `staging-testnet` deployment |
+| `mainnet` | None. A mainnet request has no verifier.                                                             |
+
+The Wallet and the co-signer also refuse a verdict of a SaySo build other than
+a release (`sayso/x.y.z`), such as a mock build. The Wallet pays at most once
+in each flow, and only for a recording that it made in the same flow.
 
 ## Trust model
 
-- The Wallet signs only after a verdict that the pinned key signed for this
-  exact request: network, owner, receiver and amount, and a recording of this
-  flow. The Wallet Session and the Seams co-signer still take part in every
+- The Wallet signs only after a verdict that a pinned key signed for this
+  exact request: the network, the owner, the request digest, a recording of
+  this flow and an expiry. The transcript in the verdict must give exactly the
+  words of the request. The Wallet Session and the Seams co-signer still take
+  part in every signature.
+- The voice approves what a passkey step-up approves. The Wallet and the
+  co-signer set no amount limit for it, and SaySo has no policy step. A limit
+  on a spoken request is a rule of the Wallet's policy, as for a normal
   signature.
 - The Seams co-signer checks the verdict again before it adds its part of the
   signature. It checks only a signing request that carries a verdict. A
   normal signing request carries none, and the co-signer handles it as before.
   The co-signer checks these items:
-  - The signature, against the same pinned verifier key.
-  - The expiry: at most 120 s after the verifier signed.
-  - The transaction. The co-signer reads the unsigned transaction that it is
-    asked to sign and builds the request again: one transfer to the receiver
-    with the amount, or one `add_note` or `rate_note` call with no deposit. The
-    digest of that request must equal the digest in the verdict.
-  - The carried verdict. A note, a rating and a bet carry the verdict to their
-    contract. It must be the verdict beside the signing request.
+  - The signature, against the same pinned SaySo keys, and a release build.
+  - The expiry: at most 120 s after SaySo signed.
+  - The request. The co-signer reads the unsigned transaction or message that
+    it is asked to sign and builds the request again: one transfer to the
+    receiver with the amount, one call of a typed kind, or the whole
+    transaction or message with its spoken summary. The intent of that request
+    must give the intent digest in the verdict.
+  - The words. The co-signer reads the transcript with `spoken-intent`, with
+    the request's receiver as the only contact. It must give exactly the words
+    of the request.
+  - No carried verdict. The call of a note, a rating or a bet must carry no
+    verdict to its contract.
   - The owner. The transaction signer must be the NEAR account of the Wallet
     Session.
   - Single use. The co-signer records each verdict that it accepts and refuses
     it for another signing request.
-  - The voice limits of each wallet: at most 10 NEAR in one voice payment and
-    20 NEAR in any 24 hours. A refused payment does not count. An admitted
-    payment counts, also when it then fails on chain.
-  - A `step_up` verdict. The co-signer accepts it only with a fresh approval:
-    a passkey or Email OTP step-up of the same operation, or a new VoiceID
-    unlock after the verifier signed the verdict. Such a payment is not
-    voice-only, so the voice limits do not apply to it. On a wallet with only
-    VoiceID, the fresh approval is a second voice check (VoiceID on the
-    device), so the voice approves that payment twice.
 - The co-signer check protects against a fault in the Wallet's Speak-to-Sign
-  path, and it keeps the limits and single use on the server. It does not stop
-  code at `walletOrigin` that leaves the verdict out, because such code can
-  already sign in an open Wallet Session.
-- No contract limits a spoken payment. A payment above the policy rule's
-  amount needs the confirm again.
-- The verifier runs in OutLayer's TEE. The OutLayer project owner can deploy a
-  new version that signs with the same key.
-- The speaker check runs in a Phala dstack CVM with a pinned key. The Phala app
-  owner can change its code and keep that key.
-- NEAR AI makes the transcript. Transcripts carry no signature, so the verifier
-  trusts the NEAR AI gateway.
-- While NEAR AI Whisper is down, a server with the `venice` build sends the
-  clip to Venice AI. Venice runs in no TEE: it can hear the recording, and the
-  verifier trusts its transcript.
-- Code at `walletOrigin` cannot change the request after the owner speaks: the
-  words then do not match.
+  path, and it keeps single use on the server. It does not stop code at
+  `walletOrigin` that leaves the verdict out, because such code can already
+  sign in an open Wallet Session.
+- SaySo has no TEE and no attestation. The Wallet and the co-signer trust the
+  operator's Cloudflare infrastructure: the SaySo Worker, Workers AI and the
+  speaker container. The verdict key is in the same Cloudflare account as the
+  co-signer. So the co-signer check does not protect against the operator, or
+  against a person who holds a deploy token of that account.
+- Workers AI writes the transcript, and SaySo signs it as it is. The
+  transcript has no signature of its own, so SaySo trusts Workers AI.
+- Code at `walletOrigin` cannot change the request after the owner speaks:
+  the request digest then does not match.
 - Any named account can receive a spoken payment. If the voice check accepts a
   clone or a replay of the owner's voice, the payment can go to any named
-  account. Below the step-up amount, the voice alone pays.
-- The verifier accepts a receiver name that sounds alike: the same sound key,
-  or a key one sound apart with the same first two sounds, such as
-  `alicia.testnet` for `alice.testnet`. It also accepts the name without its
-  separators and network suffix. So it cannot tell apart two such accounts,
-  for example `bob.testnet` and `bobb.testnet`, or `bob-1.testnet` and
-  `bob1.testnet`. The owner must read the account on the screen before
-  speaking.
+  account, at any amount. SaySo refuses a recording that it saw before. To stop
+  spoken approvals, turn VoiceID off.
+- The Wallet and the co-signer accept a heard receiver that sounds like the
+  request's receiver: the same sound key, or a key one sound apart with the
+  same first two letters, such as `alicia.testnet` for `alice.testnet`. They
+  also accept the name without its separators and network suffix. So the voice
+  cannot tell apart two such accounts, for example `bob.testnet` and
+  `bobb.testnet`, or `bob-1.testnet` and `bob1.testnet`. The owner must read
+  the account on the card before speaking.
+
+## The audio and what the verifier keeps
 
 Unlike a [VoiceID](/concepts/auth-methods/voiceid) unlock, the audio leaves the
-browser. It goes to OutLayer, Phala and NEAR AI (or Venice AI while NEAR AI
-Whisper is down), and the voice template stays in OutLayer storage.
+browser:
+
+- The Wallet sends each recording as a WAV to the Seams server, which passes
+  it to the SaySo Worker of its lane.
+- SaySo sends the recording to Whisper large-v3-turbo on Cloudflare Workers AI
+  for the transcript, and to its speaker container (ReDimNet B1 in a
+  Cloudflare Container) for the voice check.
+- These services run in the operator's Cloudflare account. The audio goes to
+  no service outside Cloudflare.
+
+SaySo keeps no recording and no transcript. It stores these items for each
+owner:
+
+- The voice template: a speaker embedding of the three enrollment recordings,
+  not the audio. A new enrollment replaces it.
+- The SHA-256 digest of each recording that it checked, for 7 days, so that a
+  recording counts only once.
+- The times of the owner's recent requests, for its rate limit.
+
+The verdict holds the transcript, and the Wallet and the co-signer read it.
+The co-signer records the ID of each accepted verdict, with the wallet and the
+signing request, but not the transcript.
+
+To delete the voice template, the owner turns VoiceID off or removes it (see
+[Turn spoken approval off](#turn-spoken-approval-off)). The digests of used
+recordings stay until their 7 days end, so that a recording still counts only
+once.
 
 Read next:
 

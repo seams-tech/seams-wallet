@@ -109,7 +109,7 @@ export interface SpokenNearSigner {
  */
 export type SpokenCalls = Readonly<{
   network: SpeakToSignNetwork;
-  /** A NEAR transfer: "send two near to alice dot testnet". A policy rule can ask for a passkey. */
+  /** A NEAR transfer: "send two near to alice dot testnet". The voice approves any amount. */
   transfer(
     request: Typed<SpeakToSignTransferRequest, Sent<SpeakToSignRefusalReason>>,
   ): Promise<Sent<SpeakToSignRefusalReason>>;

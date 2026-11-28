@@ -19,6 +19,19 @@ Breaking changes:
 - `@seams/host` D1: the signer migrations are one baseline, `0001_signer_d1_baseline.sql`, in place of the 91 files `0001` to `0091`. Before a database takes this release, apply every migration up to `0091_linked_device_email_otp_own_factor.sql` with the 0.76.0 release. `wrangler d1 migrations apply` then runs the baseline once on that database as a no-op, and the database keeps its schema and data. The baseline refuses a database that does not have migration 0091, with `CHECK constraint failed: apply_migration_0091_first`.
 - `@seams/host` types: `RouterAbEd25519YaoProductRegistrationCeremonyStateV1` has no `registration.admissionClaims` map, and `InMemoryRouterAbEd25519YaoRegistrationService` keeps its admission claims for itself.
 
+### Speak-to-Sign: the SaySo verifier
+
+SaySo, a Cloudflare Worker of the Seams operator, replaces OutLayer as the verifier. See [Experimental: Speak-to-Sign](/concepts/auth-methods/speak-to-sign#the-verifier).
+
+- SaySo checks the speaker and the recording and signs the transcript. The Wallet and the co-signer read the transcript with `spoken-intent` and need exactly the words of the request.
+- SaySo has no TEE. The card shows a "Verifier receipt" of the "Seams verifier · Cloudflare", and `attestationUrl` is always `null`.
+- The voice approves any amount, as a passkey step-up does. The 10 NEAR rule of the OutLayer verifier is gone.
+- A request whose sentence has more than 16 words or 160 characters gets no spoken approval: `unavailable` with `verifier_unavailable`. Use the confirm for it.
+- An enrollment asks for a passkey unlock in place of the NEP-413 message. A wallet with no passkey cannot enroll yet. Every owner enrolls again.
+- Turning VoiceID off or removing it first deletes the owner's voice template at SaySo.
+- A note, a rating and a bet carry no verdict to their contract.
+- Breaking for the operator: a Gateway with a verifier needs `SPEAK_TO_SIGN_BACKEND`, the `SAYSO` service binding and the `SAYSO_API_KEY` secret. See [Hosted integration](/deploy-and-operate/hosted-integration#speak-to-sign-verifier).
+
 ### New package names
 
 The packages have new names, so that each product is its own package. The code works as

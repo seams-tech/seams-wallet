@@ -69,6 +69,24 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 
 `@seams/host`の署名用D1マイグレーションは、1つのベースライン`0001_signer_d1_baseline.sql`になります。アップグレードの前に、0.76.0のリリースの署名用マイグレーションを`0091_linked_device_email_otp_own_factor.sql`まですべて適用してください。その後、`wrangler d1 migrations apply`はベースラインを1回だけ実行しますが、何も変更しません。データベースのスキーマとデータはそのまま残ります。マイグレーション0091のないデータベースでは、ベースラインは失敗します。新しいデータベースは、ベースラインからすべてのスキーマを受け取ります。
 
+### Speak-to-Signの検証者 {#speak-to-sign-verifier}
+
+WalletのSpeak-to-Signの検証者は、Cloudflare WorkerのSaySoです。OutLayerは無効です。検証者のあるレーンは、Gateway Workerに次を設定します。
+
+| 設定                    | 種類                   | 値                                |
+| ----------------------- | ---------------------- | --------------------------------- |
+| `SPEAK_TO_SIGN_BACKEND` | 変数                   | `sayso`                           |
+| `SAYSO`                 | サービスバインディング | レーンのSaySo Worker              |
+| `SAYSO_API_KEY`         | シークレット           | そのSaySo Workerの`SAYSO_API_KEY` |
+
+- レーンごとに、専用の判定の鍵とAPIキーを持つ専用のSaySo Workerを使ってください。現在、検証者があるのは`staging-testnet`だけです。Walletは、テストネットについてそのSaySo Workerの判定の鍵を固定しています。
+- GatewayとWalletホストより先に、`POST /v1/template/delete`を提供するSaySo Workerをデプロイしてください。WalletはVoiceIDが無効になるときに所有者の声のテンプレートを削除し、削除が失敗するとVoiceIDは有効のままです。
+- 検証者のないレーンは、これらの項目も`SPEAK_TO_SIGN_OUTLAYER_*`変数も設定しません。そのGatewayには検証のルートがありません。
+- 0.76.0の`SPEAK_TO_SIGN_OUTLAYER_*`変数があり`SPEAK_TO_SIGN_BACKEND`がないGatewayは、起動時に停止します。変数を削除してください。`SPEAK_TO_SIGN_BACKEND=outlayer`のGatewayは、このWalletのすべての検証のリクエストに409 `backend_mismatch`で応答します。
+- 各所有者は声をもう一度登録します。SaySoには、OutLayerの検証者のテンプレートがありません。
+
+ルートと共同署名者の確認は、[Seamsサーバーの設定](/ja/concepts/auth-methods/speak-to-sign#configure-the-seams-server)を参照してください。
+
 ## リリース 0.76.0 {#release-0-49-0}
 
 `@seams/wallet`と`@seams/wallet-server`を**0.76.0**に固定してください。
