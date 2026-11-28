@@ -146,3 +146,8 @@ text at a commit.
     transitions. The confirmed items were fixed by 2026-11-08, and B9 on 2026-11-27.
   - [The Rust warning cleanup at `cf9710953`](https://github.com/seams-tech/seams-wallet/blob/cf9710953/docs/rust-warning-cleanup.md): the checklist and
     revert log of the 2026-10-21 review. Backend Wasm shrank by 22.19% across five services.
+- [The spec integration plan at `f0aa22e87`](https://github.com/seams-tech/seams-wallet/blob/f0aa22e87/docs/specs/refactor-spec-integration-plan.md),
+  deleted on 2026-11-28: the requirements of the earlier refactor plans became the numbered
+  specifications. Its
+  [full plan, decisions and evidence](https://github.com/seams-tech/seams-wallet/blob/8c8cb24a0b791905697c69ce9defb2ba9d7a52fb/docs/specs/refactor-spec-integration-plan.md)
+  are at `8c8cb24a0`.
