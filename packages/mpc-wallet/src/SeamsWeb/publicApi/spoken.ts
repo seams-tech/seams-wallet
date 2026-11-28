@@ -115,8 +115,8 @@ export type SpokenCalls = Readonly<{
   ): Promise<Sent<SpeakToSignRefusalReason>>;
   /**
    * `add_note` on a notes contract. The Seams server writes a short summary of the note, the card
-   * shows the note above it, and the author says the summary. The verifier checks that the
-   * summary gives the main point of the note.
+   * shows the note above it, and the author says the summary. The SaySo verifier does not check
+   * that the summary fits the note: the author approves the summary that the card shows.
    */
   note(request: Typed<SpeakToSignNoteRequest, Sent>): Promise<Sent>;
   /** `rate_note` on a notes contract: "this note is helpful". */
@@ -125,14 +125,14 @@ export type SpokenCalls = Readonly<{
   mergeApproval(request: Typed<SpeakToSignMergeApprovalRequest, Sent>): Promise<Sent>;
   /**
    * A bet on a prediction market: "bet zero point five usdc yes on market nine". The Wallet
-   * sends the stake with the token's `ft_transfer_call`, with the signed verdict in `msg`.
+   * sends the stake with the token's `ft_transfer_call`. With SaySo, `msg` carries no verdict.
    */
   bet(request: Typed<SpeakToSignBetRequest, Sent>): Promise<Sent>;
   /**
-   * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, signs one
-   * message that authorizes exactly these recordings, and the verifier stores the template. A
-   * new enrollment replaces the template. `autoStart: true` records each phrase when its card
-   * opens (default: false).
+   * Enrolls the owner's voice with the verifier: the owner reads three phrases aloud, unlocks
+   * with a passkey just before the Wallet sends the recordings, and the verifier stores the
+   * template. A new enrollment replaces the template. `autoStart: true` records each phrase when
+   * its card opens (default: false).
    */
   enroll(
     request?: Typed<{ walletId: string }, SpeakToSignEnrollmentResult>,
