@@ -1078,10 +1078,8 @@ Rules for the cleanup:
     Tempo transactions, exports a key, links a device and recovers. This is the rewrite of D13:
     the old code of rows 5.1, 5.3 to 5.9, 5.12 and 5.14 to 5.16 has about 65,900 lines, and the
     Gateway's unlock route (`walletUnlockRouteHandlers.ts`) plans the Ed25519 and ECDSA sessions
-    and the custody resolution in one route. Recommendation for the owner: give the browser
-    half its own plan with its own slices (the plugin and its workers; unlock; creation;
-    method envelopes; device linking; recovery), each one passing its journeys of the suite.
-    Slices 8 and 9 depend on it.
+    and the custody resolution in one route. The owner chose a plan of its own on 2026-11-29:
+    [Refactor 262](refactor-262-mpc-wallet-plugin.md). Slices 8 and 9 depend on it.
 - **Slice 8: the cutover.** Close the rows of the audit table, one area of Section 7 for each
   change: the wallet becomes a plugin of the new auth core, the new account layer replaces the
   old one, the shared contracts move to their owners, and the old auth code in the wallet and
