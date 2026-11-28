@@ -785,9 +785,11 @@ Rules for the cleanup:
   - Lines: the stage dialog part has 986 lines, under the 1,741 of row 7.13. The transport and
     the checks have 391 lines; today's wallet transport has 760. No file has more than 575.
   - Tests: `pnpm -C tests test:frame-kit`, 18 cases in `tests/frame-kit`. CI runs them in the
-    browsers job of Validate Wallet. They pass locally in Chromium and WebKit; Firefox was not
-    installed locally, so CI is its first run. One case was checked against a fault: with `*` as
-    the target origin, "a frame that moved to another origin never gets a port" fails.
+    browsers job of Validate Wallet. All 18 pass in Chromium and WebKit, and 17 pass in Firefox
+    (run `46097233768`, 2026-11-28). In Firefox the focus does not come back from the
+    cross-origin frame after a frame stage closes, and the cause is not known. The owner chose
+    to skip that case in Firefox. One case was checked against a fault: with `*` as the target
+    origin, "a frame that moved to another origin never gets a port" fails.
 - **Slice 4: the project credentials.** Move the ports and checks into `packages/host` (D19),
   as a reviewed move. The Gateway's routes declare their scopes, and `host` checks them.
 - **Slice 5: the Auth Worker.** New code in `packages/auth`, built by `@seams/host`: accounts,
