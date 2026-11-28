@@ -3,6 +3,12 @@ title: リリース 0.77.0
 description: パッケージの名前が変わり、パスキーにはユーザー検証が必要になり、Email OTPの要素の解放には新しいコードが必要になり、SaySoがOutLayerに代わってSpeak-to-Signの検証者になります。サーバーとWalletホストを一緒にデプロイしてください。
 ---
 
+## 次のリリース（未リリース） {#next-release}
+
+0.77.0からの変更:
+
+- Speak-to-Sign: マルチシグの「add member」の承認で、Wallet coreと共同署名者は、「member」の直前の「ad」または「at」を「add」として読みます。Whisper large-v3-turboは「add member」をよく「Ad Member」と書きます。メンバーの語は変わらず、Walletは引き続きそれをリクエストと比べます。
+
 # リリース 0.77.0
 
 アプリは`@seams/mpc-wallet`と`@seams/wallet-connect`の **0.77.0** を、運用者は`@seams/host`の **0.77.0** をインストールします。先に0.76.0の署名用マイグレーションをすべて適用し、次にサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。

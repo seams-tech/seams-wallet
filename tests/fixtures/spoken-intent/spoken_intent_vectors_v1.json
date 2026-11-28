@@ -379,6 +379,18 @@
     },
     {
       "result": {
+        "tokens": "approve proposal seven add member ad dot testnet"
+      },
+      "transcript": "Approve proposal 7 Ad Member ad.testnet."
+    },
+    {
+      "result": {
+        "tokens": "approve proposal seven add member alice dot testnet"
+      },
+      "transcript": "Approve proposal 7 at member alice.testnet"
+    },
+    {
+      "result": {
         "tokens": "send twenty five dollars to alice dot testnet"
       },
       "transcript": "send $25 to alice.testnet"

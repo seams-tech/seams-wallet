@@ -23,5 +23,5 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 # The crate of seams-tech/speak-to-sign `dev`. A new rev is a new reading of transcripts: run the
 # Speak-to-Sign unit tests with it before the change lands.
-spoken-intent = { git = "https://github.com/seams-tech/speak-to-sign", rev = "bbb76174430d51d28689d54c7dacaa58ebfd053f" }
+spoken-intent = { git = "https://github.com/seams-tech/speak-to-sign", rev = "cdfc0cf26a8d679d0edc9a271e173b28419ca9fc" }
 wasm-bindgen = "=0.2.118"

@@ -198,7 +198,7 @@ dependencies = [
 [[package]]
 name = "spoken-intent"
 version = "0.1.0"
-source = "git+https://github.com/seams-tech/speak-to-sign?rev=bbb76174430d51d28689d54c7dacaa58ebfd053f#bbb76174430d51d28689d54c7dacaa58ebfd053f"
+source = "git+https://github.com/seams-tech/speak-to-sign?rev=cdfc0cf26a8d679d0edc9a271e173b28419ca9fc#cdfc0cf26a8d679d0edc9a271e173b28419ca9fc"
 dependencies = [
  "borsh",
  "sha2",

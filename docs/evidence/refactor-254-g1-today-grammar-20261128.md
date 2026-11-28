@@ -23,6 +23,8 @@ large-v3 with the slot rules on STT-1) and 0 false accepts.
 - **The margin is 16 readings (0.5 points).** Turbo noise is smaller than that (section 3).
 - **Multisig still holds the result down:** 65.2% against 95.0% for transfers. "Add member"
   reads 8 of 120 (section 4).
+- **Later the same day,** speak-to-sign `cdfc0cf` reads "ad" or "at" before "member" as "add".
+  On the same transcripts it reads 2,709 of 3,000 (90.3%) with 0 false accepts (section 7).
 - **The 95% target of Refactor 210 Q6 is not reached.**
 - **Not measured:** NEAR AI large-v3 on today's corpus. So the compare with the baseline is not
   like for like (section 5).
@@ -106,7 +108,7 @@ What today's rules still refuse:
   in a send sentence.
 - **A test variant, not today's rules:** with each whole word "ad" written as "add" in the
   transcripts, today's rules read 2,701 of 3,000 (90.0%; add member 41 of 120), with 0 false
-  accepts. In the crate, this would be one more entry in `PUNCTUATED_ALIASES` (not tried).
+  accepts. Section 7 measures the crate rule that came from it.
 
 ## 5. Limits
 
@@ -134,3 +136,31 @@ What today's rules still refuse:
 - seams-console `0e487439` and `e76d5b1c` (`dev`): the grammar tool.
 - The corpus and the audio are in a scratch folder, not in a repository. `build-corpus.sh` makes
   them again.
+
+## 7. The member action rule (speak-to-sign `cdfc0cf`)
+
+Later on 2026-11-28, `spoken-intent` got one more slot rule. In "approve proposal <number>
+<action> member …", the action word "ad" or "at" becomes "add". The member's words do not change.
+The same transcripts and the grammar tool of seams-console `e76d5b1c`, built from
+`git archive cdfc0cf`, give:
+
+| `spoken-intent`                    | Correct readings           | Multisig (of sent) | Add member | False accepts  |
+| ---------------------------------- | -------------------------- | ------------------ | ---------- | -------------- |
+| `bbb7617` (the crate of `8db52c1`) | 2,668 of 3,000 (88.9%)     | 389 of 597 (65.2%) | 8 of 120   | 0 of 3,642     |
+| "ad" only (not committed)          | 2,701 of 3,000 (90.0%)     | 422 of 597 (70.7%) | 41 of 120  | 0 of 3,642     |
+| **"ad" or "at" (`cdfc0cf`)**       | **2,709 of 3,000 (90.3%)** | 430 of 597 (72.0%) | 49 of 120  | **0 of 3,642** |
+
+- The margin over the gate grows from 16 to 57 readings.
+- Only 41 decisions change, and each is a correct add-member reading that is now accepted. The
+  accepted near misses are the same 122 homophones of the true receiver. `add_remove_swapped`
+  accepts 0 of 40.
+- Before "member", turbo wrote "ad" in 76 correct add-member readings and "at" in 15. It wrote
+  neither word in the 211 readings of "remove member".
+- 71 add-member readings stay refused:
+  - 40 have a network sound-alike in the member ("TestNote", "TestNut", "testament"), because a
+    member sentence has no suffix rule.
+  - 14 have a sound-alike member name.
+  - 13 have another proposal number, for example "100 to add member" for "102 add member".
+  - 4 have "AdMember" as one word.
+- seams-wallet `wasm/spoken_intent` pins `cdfc0cf`. The score files are in
+  [`refactor-254-g1-member-action-20261128/`](refactor-254-g1-member-action-20261128/).

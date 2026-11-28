@@ -3,6 +3,12 @@ title: Release 0.77.0
 description: The packages get new names, passkeys need user verification, Email OTP releases need a fresh code, and SaySo replaces OutLayer as the Speak-to-Sign verifier. Ship the server and the Wallet host together.
 ---
 
+## Next release (not released yet)
+
+Since 0.77.0:
+
+- Speak-to-Sign: in a multisig "add member" approval, Wallet core and the co-signer read "ad" or "at" directly before "member" as "add". Whisper large-v3-turbo often writes "Ad Member" for "add member". The words of the member do not change, and the Wallet still compares them with the request.
+
 # Release 0.77.0
 
 The app installs `@seams/mpc-wallet` and `@seams/wallet-connect` **0.77.0**, and the operator installs `@seams/host` **0.77.0**. Apply every signer migration of 0.76.0 first, then deploy the server and the Wallet host together, then the apps.
