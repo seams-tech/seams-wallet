@@ -8,9 +8,8 @@ and the "Slices" section says where. The owner decided D1 to D4 on 2026-11-12.
 
 What is left in this plan:
 
-- **One decision for the owner** (F13): can a wallet with no VoiceID use `spoken`, and where
-  does its owner turn spoken approval off? Until then, invariant 7 holds only in its second
-  form.
+- **Nothing to build.** The owner decided on 2026-11-28 to keep the rule of 0.77.0 (F13): a
+  wallet with no VoiceID gets no spoken approval. Invariant 7 is final in its second form.
 - **Sections 3 to 5** stay as the design that Refactor 251 reads. Delete this plan when
   Refactor 251 has built or replaced them (its Slice 8), with the ratchet test.
 
@@ -55,7 +54,7 @@ Scope, as the owner chose on 2026-11-12:
   the challenge and opens the factor secret. The gate only says `passed`.
 - **The Speak-to-Sign card no longer needs the VoiceID plugin** (built in Slice 1). Core opens
   the phrase card of `@seams/voice-capture/card` itself. "A wallet with only a passkey can use
-  `spoken`" is not built: it waits for the owner (F13).
+  `spoken`" is not built: the owner kept the rule of 0.77.0 (F13).
 - **One app API shape for methods.** `authMethods: [passkey(), emailCode(), voiceId()]` in the
   configuration, and `seams.auth.methods.{list, add, remove}` and `seams.auth.unlock`.
 
@@ -157,7 +156,8 @@ Scope, as the owner chose on 2026-11-12:
   is off or not set up, and the public docs say so
   (`apps/docs/src/concepts/auth-methods/speak-to-sign.md`, "Turn spoken approval off"). This rule
   is later than this plan. It conflicts with "A wallet with only a passkey can use `spoken`" of
-  the Result and with invariant 7. Section 2 says what Slice 1 does about it.
+  the Result and with invariant 7. Section 2 says what Slice 1 does about it. The owner decided
+  on 2026-11-28: the rule of 0.77.0 stays.
 
 ## Terms
 
@@ -207,8 +207,8 @@ Built in Slice 1 on 2026-11-28. The text says what the code does.
 Slice 1 moves the code: the card needs no VoiceID plugin on the host and no VoiceID descriptor
 in the app. It does not open `spoken` to a wallet that has no VoiceID. Such a wallet has no
 setting that turns spoken approval off, and no path that deletes its voice template at the
-verifier, because both are parts of the VoiceID method. The owner must decide that setting
-first. So invariant 7 is tested in the form "a spoken request loads no VoiceID plugin and
+verifier, because both are parts of the VoiceID method. The owner kept this rule on
+2026-11-28. So invariant 7 is tested in the form "a spoken request loads no VoiceID plugin and
 needs no VoiceID descriptor".
 
 - **The adapter** is `core/transactionFeatures/approver/phraseCard.ts`. It opens
@@ -411,7 +411,7 @@ The rule, after Slice 5:
 | 4 | The factor secret is set to zero when the session installation settles | The unit test of `installSession.ts` of today, for the `device_key` runner |
 | 5 | A step-up by a `device_key` lane gives a fresh assertion of the same device key | A step-up with another method's key is refused by the server (existing e2e) |
 | 6 | A method that a wallet already has unlocks, also if the app does not list it (D2) | Config with `[passkey()]` and a wallet with VoiceID: `auth.unlock({ method: 'voiceid' })` works, `methods.add({ method: 'voiceid' })` gives `unavailable` |
-| 7 | `spoken` works with no VoiceID descriptor | A spoken request of an app with `approvals: [spoken()]` and no VoiceID descriptor opens the card and signs, and loads no VoiceID plugin. The first form, "a passkey wallet signs a transfer", waits for the owner (F13) |
+| 7 | `spoken` works with no VoiceID descriptor | A spoken request of an app with `approvals: [spoken()]` and no VoiceID descriptor opens the card and signs, and loads no VoiceID plugin. The first form, "a passkey wallet signs a transfer", is dropped: the owner kept the rule of 0.77.0 (F13) |
 | 8 | No stored record changes its shape | The IndexedDB and D1 fixtures of 0.68 read with no migration |
 
 ## Slices
@@ -435,7 +435,7 @@ does not name. "Row" is a row of the audit table in the
   together, because `isHostPlugin` changes.
 
   Built on 2026-11-28. Section 2 says what the code does, what was measured and what was not.
-  Invariant 7 holds in its second form only (F13).
+  Invariant 7 holds in its second form, which is final (F13).
 - **Slice 2. The app API for methods** (Section 3). Not built here.
   - **Refactor 251 covers it** in its Slice 6 (the auth client: `passkey()`, `emailCode()` and
     `voiceId()` in `@seams/auth/client`, and `auth.methods.list`, `add` and `remove`) and its
