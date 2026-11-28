@@ -60,6 +60,25 @@ CREATE INDEX IF NOT EXISTS auth_methods_by_identifier
 CREATE INDEX IF NOT EXISTS auth_methods_by_account
   ON auth_methods (org_id, project_id, env_id, account_id);
 
+-- An identity of another login provider (Google, or a trusted application issuer) and the
+-- account that it signs in to. An email address never links an identity to an account.
+CREATE TABLE IF NOT EXISTS auth_identities (
+  org_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  env_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  issuer TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  account_id TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (org_id, project_id, env_id, provider, issuer, subject),
+  FOREIGN KEY (org_id, project_id, env_id, account_id)
+    REFERENCES auth_accounts (org_id, project_id, env_id, account_id),
+  CHECK (provider IN ('google', 'application')),
+  CHECK (length(issuer) > 0),
+  CHECK (length(subject) > 0)
+);
+
 -- A challenge of the Auth Worker itself. A row is deleted when it is used, so it is used once.
 -- binding names what the challenge is for: an account for a passkey registration, a method for
 -- a removal.
@@ -111,7 +130,9 @@ CREATE TABLE IF NOT EXISTS auth_email_codes (
 CREATE INDEX IF NOT EXISTS auth_email_codes_by_email
   ON auth_email_codes (org_id, project_id, env_id, email_hash_hex, created_at_ms);
 
--- The Worker stores the SHA-256 digest of a session token, not the token.
+-- The Worker stores the SHA-256 digest of a session token, not the token. A session from
+-- another login provider names the provider and the revision of the operator's trust. A change
+-- of the trust ends the session.
 CREATE TABLE IF NOT EXISTS auth_sessions (
   org_id TEXT NOT NULL,
   project_id TEXT NOT NULL,
@@ -122,6 +143,8 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   method_id TEXT,
   method_kind TEXT,
   email TEXT,
+  identity_provider TEXT,
+  trust_revision INTEGER,
   created_at_ms INTEGER NOT NULL,
   expires_at_ms INTEGER NOT NULL,
   revoked_at_ms INTEGER,
@@ -130,6 +153,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     REFERENCES auth_accounts (org_id, project_id, env_id, account_id),
   CHECK (length(session_id) > 0),
   CHECK (length(token_hash) = 43),
+  CHECK ((identity_provider IS NULL) = (trust_revision IS NULL)),
   CHECK (expires_at_ms > created_at_ms)
 );
 
@@ -137,3 +161,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS auth_sessions_by_token ON auth_sessions (token
 
 CREATE INDEX IF NOT EXISTS auth_sessions_by_account
   ON auth_sessions (org_id, project_id, env_id, account_id);
+
+-- The emails of a local run with AUTH_EMAIL_DELIVERY_MODE = dev_outbox. A deployment that sends
+-- email writes nothing here.
+CREATE TABLE IF NOT EXISTS auth_dev_email_outbox (
+  email TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL
+);

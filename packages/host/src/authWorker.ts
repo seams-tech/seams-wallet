@@ -7,11 +7,8 @@ import {
   handleAuthRoute,
   type AuthRouteDefinition,
 } from '../../auth/src/worker/routes';
-import {
-  AuthService,
-  type AuthServiceConfig,
-  type AuthServicePorts,
-} from '../../auth/src/worker/service';
+import type { AuthServiceConfig, AuthServicePorts } from '../../auth/src/worker/core';
+import { AuthService } from '../../auth/src/worker/service';
 import { extractRouterApiEnvironmentId, resolveRegistrationContext } from './credentials/keyChecks';
 import type {
   RouterApiProjectEnvironmentResolver,
@@ -102,9 +99,13 @@ export function createAuthWorkerHandler(
       );
     }
     const service = new AuthService(config, ports, {
-      orgId: context.principal.orgId,
-      projectId: context.environment.projectId,
-      envId: context.environment.key,
+      scope: {
+        orgId: context.principal.orgId,
+        projectId: context.environment.projectId,
+        envId: context.environment.key,
+      },
+      environmentId: context.environment.id,
+      identityTrust: context.environment.externalAuth ?? { kind: 'disabled', revision: 0 },
     });
     const response = await handleAuthRoute(route.id, service, {
       body: await request.json().catch(() => null),

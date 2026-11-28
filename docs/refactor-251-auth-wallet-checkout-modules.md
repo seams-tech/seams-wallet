@@ -2,7 +2,8 @@
 
 Status: 2026-11-28. Slices 0 and 2 are done. Slice 1 (Release A) is released as 0.77.0; four of
 the owner's steps stay open (see Slice 1). Slice 3 (the frame kit) is built on `dev`; nothing
-uses it until Slice 6. Slice 4 (the project credentials in `packages/host`) is built on `dev`. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
+uses it until Slice 6. Slice 4 (the project credentials in `packages/host`) and Slice 5 (the Auth Worker in
+`packages/auth`) are built on `dev`. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
 plan. The design of [Refactor 233](refactor-233-auth-methods-by-factor.md) (factors, gates, one
 app API for methods) is the design of the new auth core.
 
@@ -856,6 +857,113 @@ Rules for the cleanup:
   old routes. The Console Gateway of `seams-monorepo` forwards auth routes to the wallet's home
   region and injects the identity stores and the email sender (U3). The Auth Worker needs its
   own home-region lookup, agreed with `seams-monorepo`.
+
+  Built on 2026-11-28 on `dev`, not deployed. The design:
+  - **The folders.** `packages/auth/src/proofs` holds the pure checks, and
+    `packages/auth/src/worker` holds the Auth Worker: the store (`store.ts`), the shared checks
+    (`core.ts`), the sign-in and proof operations (`service.ts`), the method changes
+    (`methodChanges.ts`), the other login providers (`identities.ts`) and the route table
+    (`routes.ts`). `packages/host/src/authWorker.ts` is the service shell, and
+    `authWorkerEnv.ts` makes the Worker from its bindings. No file comes from the wallet.
+  - **Its own database.** The Auth Worker has its own D1 database (`AUTH_DB`), with the schema
+    `packages/auth/migrations/d1-auth/0001_auth.sql`: accounts, methods, identities, challenges,
+    email codes and login sessions. It has no binding to the Gateway's database. So the
+    invariant "the Auth Worker holds no custody material" is a property of the bindings.
+  - **The routes.** 13 `POST` routes under `/v1` (sign-in, email codes, proofs, the session, the
+    passkey registration, the method changes) and `GET /.well-known/jwks.json`. Each `/v1`
+    route declares the publishable-key plane. `host` checks the key for the `Origin` header
+    (the account origin) and for the app origin that the account origin names in
+    `x-seams-app-origin`, with the environment. Then it calls the module with the project
+    environment of the key. Only the account origin gets a CORS header.
+  - **The login session and the login token (D8).** A login session is a random secret that
+    stays in the account origin; the Worker stores its SHA-256 digest. The login token is an
+    ES256 JWT with a 10-minute life: `iss` (the Worker's URL), `sub` (the account ID), `aud`
+    (the project ID), `env`, `sid`, `amr` (the method) and `email` when the user signed in with
+    one. Its header has `typ: seams-login+jwt` and a `kid` that is the RFC 7638 thumbprint.
+    `verifyLoginTokenWithJwks` in `proofs/tokens.ts` checks it.
+  - **The proof of a method (Section 4).**
+    - A passkey signs a WebAuthn challenge that is the SHA-256 digest of
+      `seams:auth:webauthn:v1`, the audience name and the challenge of the audience's server.
+    - A device key signs a message that names the audience, the challenge, the method and the
+      key (`seams:auth:device-key:v1`). The wallet keeps its own message for the audience
+      `wallet`, and it checks it with the same function (`verifyDeviceKeySignature`).
+    - An email code is bound to one audience and one challenge. The email names the purpose in
+      the operator's words.
+    - `POST /v1/proofs` returns a **proof statement**: an ES256 JWT with
+      `typ: seams-proof+jwt`, `aud: seams:proof:<audience>`, the challenge, the method and, for
+      an email code, the digest of the address and the purpose. Each audience lists the factors
+      for which the Worker signs a statement. The wallet's audience lists `email_code` only,
+      because the Wallet Gateway checks a passkey and a device key against its pinned key. A
+      login token is refused as a statement, and a statement as a login token.
+  - **Sign-in.** A passkey or a device key answers a challenge that is used once. An email
+    code signs in to the account of the address, and it makes a new account for a new address.
+    An address can be a method of more than one account (the copied records allow this); the
+    sign-in then answers `account_choice_required` with the account IDs, and the same code
+    signs in to the chosen account.
+  - **Email codes.** Six digits, 10 minutes, five wrong codes, five codes for an address in an
+    hour and 20 from one client address. The Worker stores an HMAC of the code, not the code.
+  - **Method changes.** A passkey, an email address or a device key is added with a login
+    session. A removal needs a proof from another method of the account for a challenge that
+    names the removed method. The Worker refuses the removal of the last method.
+  - **Removal subscribers (Section 6).** Before the Worker commits a removal, it posts a
+    signed notice (`typ: seams-method-removal+jwt`, `aud`: the subscriber's URL) to each URL
+    of its configuration. An answer `200` with `ok: true` agrees. `409` refuses
+    (`removal_refused`). Each other answer, and no answer, stops the removal
+    (`removal_unavailable`). `verifyRemovalNotice` is the subscriber's check.
+  - **Other login providers (Section 3).** One provider for each environment, from the project
+    configuration that the Console stores today (`externalAuth`): Google, or a trusted
+    application issuer. A Google ID token or a login handoff (an EdDSA JWT of the app's
+    backend, `createLoginHandoff`) must carry the sign-in challenge as its `nonce`. It gives a
+    login session for the identity, with a new account that has no method. An email address in
+    the credential never selects an account. A change of the trust revision ends the sessions
+    of that provider.
+  - **Result codes.** One table, `packages/auth/src/codes.ts`, with the HTTP status and the
+    text of each code in English and Japanese (row 8.3, the auth part).
+  - **The migration (Section 6).** `packages/host/src/migration/copyWalletMethodsToAuth.ts`
+    copies each wallet to an account with the same ID and each active or revoked wallet method
+    to an auth method with the same ID, then compares the counts. It reads the Gateway's
+    database and writes only the auth database, and it can run again. Two facts change the
+    steps of Section 6:
+    - Steps 3 and 4 need no new column. The account ID is the wallet ID, and the wallet's
+      method table already holds the public key of each passkey and each device key and the
+      digest of each email address. Slice 7 makes that table the wallet's pinned keys.
+    - An email method gets its address from the wallet's Email OTP enrollment. If the digest
+      of that address is not the digest of the method, the Worker cannot send it a code. The
+      copy stores such a method as revoked and lists it in its report.
+  - **The Worker entry.** `packages/host/src/auth-worker.ts` with
+    `wrangler.local-auth-worker.toml`. The key store is the Wallet Console service binding, or
+    the static deployment configuration. An operator's own Worker gives the email sender
+    (`createAuthWorker(env, { sendEmail })`); a local run keeps each email in the database
+    (`AUTH_EMAIL_DELIVERY_MODE = dev_outbox`).
+  - **Lines.** The auth module has 2,822 lines (the proofs 676, the Worker 2,032, the code
+    table 114), the shell and the copy tool have 528, and the schema has 172. The old code of the same work is the
+    Email OTP code check (2,486 lines, row 2.7), the passkey checks and stores (rows 1.2 and
+    3.13) and the auth routes (rows 6.1 to 6.6). Slice 8 compares each row when it deletes the
+    old code.
+  - **Checks.** `pnpm -C tests test:auth`: 29 cases on a real D1 database (Miniflare), through
+    the routes and the credential checks. They cover the Section 10 items "a proof for one
+    audience is refused by the server of each other audience, for each factor", "a method
+    removal fails when the wallet server does not answer" and the three handoff items. Two
+    conformance cases in `records/d1AuthRecords.test.ts` copy the committed D1 fixture rows.
+    One case was checked against a fault: with the audience name left out of the WebAuthn
+    challenge, "a passkey sign-in refuses another audience" fails.
+  - **Stable for Refactor 250:** the login token (claims, header and `verifyLoginTokenWithJwks`)
+    and the proof statement for the audience `checkout` (`verifyProofStatement`). The package
+    path `@seams/auth/server` comes with Slice 6.
+
+  Not built, with the reason:
+  - **The Gateway still serves the old routes,** as this slice says. The Gateway accepts no
+    proof statement yet; Slice 7 adds that with the new account layer.
+  - **The Console part (U3).** The Console must deploy the Auth Worker beside each regional
+    Gateway with its own database, give it the email sender, and send a request to the home
+    region of its account. Open for the owner, with a recommendation: the account ID is the
+    key of the Console's placement lookup, as the wallet ID is today. A discoverable passkey
+    gives the account ID in its user handle, and an email sign-in needs a Console lookup from
+    the address digest to the regions that have it.
+  - **The Google identities of today's wallets.** The copy tool copies no row of
+    `identity_links`. A Google sign-in for a copied account needs that copy; it belongs to
+    Slice 8, with the Google flow of the auth menu.
+  - **D25** (a first method after recovery) waits for the owner.
 - **Slice 6: the auth client and the account origin.** New code in `packages/auth`: the
   `/client`, `/react` and `/server` paths, the account origin document, the auth
   menu, `prove`, `signIn`, the methods API, the plugin contract and the channel (Section 5). A

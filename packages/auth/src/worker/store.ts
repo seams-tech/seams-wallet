@@ -99,6 +99,8 @@ export type AuthSessionRecord = {
   readonly methodId: string | null;
   readonly methodKind: AuthMethodKind | null;
   readonly email: string | null;
+  /** For a sign-in from another login provider: the provider and the trust revision then. */
+  readonly identity: { readonly provider: string; readonly trustRevision: number } | null;
   readonly expiresAtMs: number;
 };
 
@@ -430,14 +432,17 @@ export class AuthStore {
   ): Promise<void> {
     await this.scoped(
       `INSERT INTO auth_sessions (org_id, project_id, env_id, session_id, token_hash, account_id,
-         method_id, method_kind, email, created_at_ms, expires_at_ms)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         method_id, method_kind, email, identity_provider, trust_revision, created_at_ms,
+         expires_at_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       session.sessionId,
       session.tokenHash,
       session.accountId,
       session.methodId,
       session.methodKind,
       session.email,
+      session.identity?.provider ?? null,
+      session.identity?.trustRevision ?? null,
       nowMs,
       session.expiresAtMs,
     ).run();
@@ -446,7 +451,8 @@ export class AuthStore {
   /** The live session of a token digest: not expired and not revoked. */
   async sessionByTokenHash(tokenHash: string, nowMs: number): Promise<AuthSessionRecord | null> {
     const row = await this.scoped(
-      `SELECT session_id, account_id, method_id, method_kind, email, expires_at_ms
+      `SELECT session_id, account_id, method_id, method_kind, email, identity_provider,
+         trust_revision, expires_at_ms
        FROM auth_sessions
        WHERE ${SCOPE} AND token_hash = ? AND revoked_at_ms IS NULL AND expires_at_ms > ?`,
       tokenHash,
@@ -457,6 +463,8 @@ export class AuthStore {
       method_id: string | null;
       method_kind: AuthMethodKind | null;
       email: string | null;
+      identity_provider: string | null;
+      trust_revision: number | null;
       expires_at_ms: number;
     }>();
     if (!row) return null;
@@ -466,8 +474,48 @@ export class AuthStore {
       methodId: row.method_id,
       methodKind: row.method_kind,
       email: row.email,
+      identity:
+        row.identity_provider !== null && row.trust_revision !== null
+          ? { provider: row.identity_provider, trustRevision: row.trust_revision }
+          : null,
       expiresAtMs: row.expires_at_ms,
     };
+  }
+
+  /** The account of an identity of another login provider, or null for a new identity. */
+  async accountOfIdentity(identity: {
+    provider: string;
+    issuer: string;
+    subject: string;
+  }): Promise<string | null> {
+    const row = await this.scoped(
+      `SELECT account_id FROM auth_identities
+       WHERE ${SCOPE} AND provider = ? AND issuer = ? AND subject = ?`,
+      identity.provider,
+      identity.issuer,
+      identity.subject,
+    ).first<{ account_id: string }>();
+    return row?.account_id ?? null;
+  }
+
+  /** Links an identity to an account, and makes the account when it is new. */
+  async linkIdentity(
+    identity: { provider: string; issuer: string; subject: string },
+    accountId: string,
+    nowMs: number,
+  ): Promise<void> {
+    await this.database.batch([
+      this.insertAccount(accountId, nowMs),
+      this.scoped(
+        `INSERT INTO auth_identities (org_id, project_id, env_id, provider, issuer, subject,
+           account_id, created_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+        identity.provider,
+        identity.issuer,
+        identity.subject,
+        accountId,
+        nowMs,
+      ),
+    ]);
   }
 
   async revokeSession(sessionId: string, nowMs: number): Promise<void> {

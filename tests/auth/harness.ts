@@ -9,7 +9,8 @@ import {
   importCodeKey,
   type AuthAudienceConfig,
   type SignedIn,
-} from '../../packages/auth/src/worker/service';
+} from '../../packages/auth/src/worker/core';
+import type { IdentityTrust } from '../../packages/auth/src/worker/identities';
 import type { AuthDatabase } from '../../packages/auth/src/worker/store';
 import { createAuthWorkerHandler } from '../../packages/host/src/authWorker';
 import {
@@ -65,6 +66,12 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
   const notices: { url: string; notice: string }[] = [];
   const clock = { nowMs: Date.now() };
   const subscriber: { answer: SubscriberAnswer } = { answer: { status: 200, body: { ok: true } } };
+  /** The login provider that the operator trusts for the environment. A check can change it. */
+  const environment: { externalAuth: IdentityTrust } = {
+    externalAuth: { kind: 'disabled', revision: 0 },
+  };
+  /** The key set that the fake Google answers with. */
+  const google: { jwks: object } = { jwks: { keys: [] } };
 
   const handler = createAuthWorkerHandler({
     config: {
@@ -83,6 +90,9 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
         outbox.push(message);
       },
       fetch: async (url, init) => {
+        if (url === 'https://www.googleapis.com/oauth2/v3/certs') {
+          return new Response(JSON.stringify(google.jwks));
+        }
         const body: unknown = JSON.parse(String(init.body));
         notices.push({ url, notice: (body as { notice: string }).notice });
         if (subscriber.answer === 'unreachable') throw new Error('The subscriber did not answer');
@@ -132,6 +142,7 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
           key: 'production',
           signingRootVersion: 'v1',
           status: 'ACTIVE',
+          externalAuth: environment.externalAuth as never,
         },
       ],
     },
@@ -170,7 +181,7 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
 
   /** The last code that the email sender got for an address. */
   function emailCode(to: string): string {
-    const message = outbox.findLast((sent) => sent.to === to.toLowerCase());
+    const message = outbox.filter((sent) => sent.to === to.toLowerCase()).at(-1);
     const code = message?.text.match(/\b[0-9]{6}\b/)?.[0];
     if (!code) throw new Error(`No email code was sent to ${to}`);
     return code;
@@ -243,6 +254,8 @@ export async function openAuthWorker(options: { removalSubscribers?: string[] } 
     notices,
     clock,
     subscriber,
+    environment,
+    google,
     jwks,
     database: d1.database,
     close: d1.close,

@@ -1,0 +1,18 @@
+# The Auth Worker of a local run, beside the local Wallet Gateway. The secrets below are for a
+# local run only. `start-local-wallet-system.mjs` gives WALLET_LOCAL_DEPLOYMENT_JSON.
+name = "seams-local-auth-worker"
+main = "src/auth-worker.ts"
+compatibility_date = "2026-04-17"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "seams-auth-local"
+database_id = "00000000-0000-0000-0000-000000000301"
+preview_database_id = "00000000-0000-0000-0000-000000000302"
+migrations_dir = "../auth/migrations/d1-auth"
+
+[vars]
+AUTH_APP_NAME = "Seams local"
+AUTH_RP_ID = "localhost"
+AUTH_EMAIL_DELIVERY_MODE = "dev_outbox"

@@ -43,6 +43,7 @@ export function walletRegistrationContext(
       key: environment.key,
       signingRootVersion: environment.signingRootVersion,
       status: 'ACTIVE',
+      ...(environment.externalAuth ? { externalAuth: environment.externalAuth } : {}),
     },
   };
 }

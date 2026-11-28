@@ -3,7 +3,8 @@ import { isPlainObject } from '@shared/utils/validation';
 import { AUTH_CODES, authFailure, isAuthCode } from '../codes';
 import { parseAudience, parseChallenge } from '../proofs/audience';
 import { parseAuthLocale } from './emailText';
-import { parseFactorProof, type AuthService } from './service';
+import { parseFactorProof, parseIdentityProof } from './core';
+import type { AuthService } from './service';
 
 // The routes of the Auth Worker. Each route declares its plane, and the service shell
 // (`packages/host`) checks the publishable key, the origin and the environment before it calls
@@ -102,7 +103,7 @@ export async function handleAuthRoute(
     case 'auth_sign_in_start':
       return answer(await service.startSignIn());
     case 'auth_sign_in': {
-      const proof = parseFactorProof(body.proof);
+      const proof = parseFactorProof(body.proof) ?? parseIdentityProof(body.proof);
       if (!proof) return INVALID_BODY;
       return answer(
         await service.signIn({

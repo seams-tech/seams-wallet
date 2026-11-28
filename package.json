@@ -31,7 +31,7 @@
     "site": "node ./examples/wallet-console-lite/scripts/start-local.mjs",
     "test:intended": "pnpm -C tests test:intended",
     "test:wallet-browser": "pnpm -C tests test:wallet-browser",
-    "type-check": "pnpm -C packages/frame-kit type-check && pnpm -C packages/checkout type-check && pnpm -C tests type-check:checkout && pnpm -C examples/checkout-shop type-check && pnpm -C packages/auth type-check && pnpm -C packages/host type-check && pnpm -C packages/wallet-connect type-check && pnpm -C packages/mpc-wallet-server type-check && pnpm -C packages/mpc-wallet type-check && pnpm -C apps/docs type-check && pnpm -C examples/wallet-console-lite type-check && pnpm -C tests/intended-app type-check && pnpm -C tests type-check:intended && pnpm -C tests type-check:wallet-state && pnpm -C packages/voiceid type-check",
+    "type-check": "pnpm -C packages/frame-kit type-check && pnpm -C packages/checkout type-check && pnpm -C tests type-check:checkout && pnpm -C examples/checkout-shop type-check && pnpm -C packages/auth type-check && pnpm -C tests type-check:auth && pnpm -C packages/host type-check && pnpm -C packages/wallet-connect type-check && pnpm -C packages/mpc-wallet-server type-check && pnpm -C packages/mpc-wallet type-check && pnpm -C apps/docs type-check && pnpm -C examples/wallet-console-lite type-check && pnpm -C tests/intended-app type-check && pnpm -C tests type-check:intended && pnpm -C tests type-check:wallet-state && pnpm -C packages/voiceid type-check",
     "build:local-tools": "node ./scripts/build-local-tools.mjs"
   }
 }

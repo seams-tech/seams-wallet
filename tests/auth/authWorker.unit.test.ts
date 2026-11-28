@@ -5,7 +5,7 @@ import {
   verifyProofStatement,
   verifyRemovalNotice,
 } from '../../packages/auth/src/proofs/tokens';
-import type { PublicAuthMethod, SignedIn } from '../../packages/auth/src/worker/service';
+import type { PublicAuthMethod, SignedIn } from '../../packages/auth/src/worker/core';
 import {
   ACCOUNT_ORIGIN,
   APP_ORIGIN,
