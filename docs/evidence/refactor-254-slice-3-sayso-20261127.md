@@ -115,7 +115,8 @@ Deployed on 2026-11-27 with the owner's "complete it all": the Wrangler environm
   (`sayso-verifier-speakercontainer:2caac3c4`). A local image build was not possible: the Docker
   Desktop credential helper (`docker-credential-desktop get`) stopped answering on this machine,
   so the build waited on Docker Hub. With the tag (SaySo `e5d5fc1`), the lane needs no build,
-  and it runs the image that G2 measured.
+  and it runs the image that G2 measured. A restart of Docker Desktop fixed the helper on
+  2026-11-28.
 - **Versions.** `14addab6` first; `aaa9a9a6` with the fix below; `5ae975d1` with the stream
   options of section 2 (SaySo `f7aa760`).
 - **Test users.** The G3 runs left the templates of a few `near:testnet:g3-<hex>.testnet` users
@@ -143,10 +144,38 @@ refused as `speaker_unavailable` after about 2 s. The Worker log
   end in 8 s answers 503 `container_not_ready`. A new test
   (`workers/verifier/tests/speaker.test.ts`) fails with the old code and passes with the fix.
 - A verify sends one recording, so it did not have this fault.
-- `sayso.seams.sh` has the same code. It is not deployed with the fix, because its deploy builds
-  the image (see "The image").
+- `sayso.seams.sh` had the same code. It runs the fix since 2026-11-28 (section 1.4).
 
 After the fix, an enrollment of the `say` voice accepts with an agreement of 814 milli.
+
+### 1.4 The third deploy: the speaker start and the stream options
+
+Deployed on 2026-11-28 with the owner's yes: `sayso.seams.sh` runs SaySo `98f8691` (Worker
+version `2535f751`; the version before is `04760e00`). It has the speaker start fix
+(`2b74793`) and the Nova-3 stream with no options (`f7aa760`). The deploy ran from a clean
+`git worktree` of `98f8691`, because other sessions had edits in the SaySo checkout. `/healthz`
+gives `mock: false` and the same verdict key (`d3c6773f…`).
+
+**A fault found and fixed: the speaker image did not build from its lock.** The deploy built a
+new image (digest `ed29844a…`, the one before `42cc86c7…`), although the speaker source did not
+change.
+
+| Measured                                   | Image `2caac3c4` (G2) | Image `2535f751` (now) |
+| ------------------------------------------ | --------------------- | ---------------------- |
+| Model file SHA-256                         | `e04dd7a6…`           | `e04dd7a6…`            |
+| Binary size                                | 28,483,392 bytes      | 28,484,656 bytes       |
+| Crate paths in the binary that differ      | `hyper-1.12.0`        | `hyper-1.13.0`         |
+| Embeddings of 3 `say` clips, byte for byte | equal                 | equal                  |
+
+- The cause: the Dockerfile copied `Cargo.toml` but not `Cargo.lock`, so each build took the
+  newest crate versions. Neither binary matched the tracked lock (both had `anyhow` 1.0.105,
+  the lock 1.0.104).
+- The fix (SaySo `a0c4318`): the build copies the lock and runs `cargo build --locked`, and the
+  lock is regenerated. A local build from it gives the binary of `sayso.seams.sh` exactly (SHA-256
+  `092d33ec…`), so the tracked lock describes what runs.
+- The staging lane still runs image `2caac3c4` by its tag. The two images give the same
+  embeddings, so G2 holds for both. Inferred, not measured: the 30 private clips of G2 give the
+  same result on the new image, because only the HTTP library differs.
 
 ## 2. The gate data
 
@@ -378,9 +407,8 @@ So a contact prompt is not a way to close the G1 gap.
    the Worker report the turbo time alone. Then the choices: a second, hedged turbo call when the
    first takes more than about 1.5 s (it costs about $0.00003 a verify); accept the time (the
    Phala path had p95 5.17 s); or measure again through the Gateway in Slice 6.
-3. **`sayso.seams.sh` runs neither fix** (the speaker start and the stream options). Its deploy
-   builds the image, and Docker Desktop's credential helper hangs on this machine. A restart of
-   Docker Desktop is the likely fix; then a deploy needs the owner's yes.
+
+`sayso.seams.sh` runs both fixes since 2026-11-28 (section 1.4).
 
 G2 needed no decision: the run measured both cosine agreement and the decisions at 450 milli,
 against the image that Phala ran. No private clip left this machine: G2 ran locally, and G3 used

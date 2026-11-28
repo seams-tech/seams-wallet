@@ -609,7 +609,10 @@ and container, no route and no `workers.dev` URL.
   image build hung in Docker Desktop's credential helper.
 - **A fault fixed:** every enrollment on a cold container failed, because two of its three
   recordings reached the container before it listened. All requests now wait for one shared
-  start. The staging lane runs the fix; `sayso.seams.sh` does not yet.
+  start. The staging lane runs the fix, and `sayso.seams.sh` runs it since 2026-11-28 (Worker
+  version `2535f751`, SaySo `98f8691`). That deploy found that the speaker image did not build
+  from its `Cargo.lock`; SaySo `a0c4318` fixes it, and the new image gives the same embeddings
+  (evidence, section 1.4).
 - The Gateway side (the binding, the secret and the lane rule in seams-console) is Slice 6.
 
 **G2: passes.** The SaySo speaker image and the image that Phala ran, both on this machine, on
