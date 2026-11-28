@@ -2,10 +2,7 @@
   "name": "@seams-internal/shared-ts",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
     "./authorization": "./src/authorization/index.ts",
     "./authorization/*": "./src/authorization/*.ts",
     "./near": "./src/near/index.ts",

@@ -7,7 +7,6 @@ export * from './secure-confirm';
 export * from './secure-confirm-worker';
 export * from './webauthn';
 export * from './linkDevice';
-export * from './errors';
 export * from './accountIds';
 export * from './sdkSentEvents';
 export type * from './login.types';

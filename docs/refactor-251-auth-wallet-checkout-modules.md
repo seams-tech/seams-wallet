@@ -3,7 +3,8 @@
 Status: 2026-11-28. Slices 0 and 2 are done. Slice 1 (Release A) is released as 0.77.0; four of
 the owner's steps stay open (see Slice 1). Slice 3 (the frame kit) is built on `dev`; nothing
 uses it until Slice 6. Slices 4 (the project credentials in `packages/host`), 5 (the Auth Worker) and 6 (the auth
-client and the account origin) are built on `dev`. Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
+client and the account origin) are built on `dev`. Slice 7 has its server check of the pinned
+keys; its browser half, Slice 8 and Slice 9 wait for it (see Slice 7). Revised on 2026-11-18 after a review of the architecture. [Refactor 250](refactor-250-seams-checkout.md) (the checkout) builds on this
 plan. The design of [Refactor 233](refactor-233-auth-methods-by-factor.md) (factors, gates, one
 app API for methods) is the design of the new auth core.
 
@@ -1050,16 +1051,78 @@ Rules for the cleanup:
 - **Slice 7: the wallet's account layer.** New code in the wallet packages for wallet creation,
   envelopes, unlock and device linking, against `auth.prove` and the pinned keys. It passes the
   conformance suite with the new driver. It serves no user yet.
+
+  Partly built on 2026-11-28 on `dev`: the server's check of the pinned keys. The browser half
+  and the new driver are not built.
+  - **The pinned key (D7).** `packages/mpc-wallet-server/src/accountLayer/walletFactorProof.ts`
+    checks a proof from `auth.prove` for the audience `wallet` against the wallet's own method
+    record. That record is the pinned key: the wallet's method table already holds the
+    passkey's public key, the device key and the digest of the email address (Slice 5 found
+    that migration steps 3 and 4 need no column). A passkey and a device key are checked with
+    no call to the Auth Worker. An email code comes as the Auth Worker's statement; the wallet
+    checks it with the Worker's public keys from its configuration, and the statement must
+    name the pinned method and address.
+  - **The removal subscriber (Section 6).** `answerMethodRemoval` checks the Auth Worker's
+    notice for its own URL. It refuses the removal of a wallet's last active method (409,
+    `last_envelope`) and otherwise names the envelope to revoke.
+  - **Checks.** `tests/auth/walletFactorProof.unit.test.ts`, 6 cases, with the real Auth Worker:
+    a proof for another audience or another challenge is refused, a login token is refused, a
+    changed method record in auth does not change which key unlocks (Section 10), the check
+    passes after the Auth Worker is gone (Section 10), the email statement must name the
+    pinned address, and the removal answer.
+  - **Not built: the browser half and the new driver.** The account layer in the browser is
+    the code that creates a wallet, adds an envelope, unlocks and links a device through
+    `auth.prove` with a secret sink. It is the MPC wallet plugin of the account origin
+    (`/sdk/mpc-wallet/host.js`, Section 5) and `createMpcWallet({ auth })`. The conformance
+    driver for the new API needs it, because each journey registers a wallet, signs NEAR and
+    Tempo transactions, exports a key, links a device and recovers. This is the rewrite of D13:
+    the old code of rows 5.1, 5.3 to 5.9, 5.12 and 5.14 to 5.16 has about 65,900 lines, and the
+    Gateway's unlock route (`walletUnlockRouteHandlers.ts`) plans the Ed25519 and ECDSA sessions
+    and the custody resolution in one route. Recommendation for the owner: give the browser
+    half its own plan with its own slices (the plugin and its workers; unlock; creation;
+    method envelopes; device linking; recovery), each one passing its journeys of the suite.
+    Slices 8 and 9 depend on it.
 - **Slice 8: the cutover.** Close the rows of the audit table, one area of Section 7 for each
   change: the wallet becomes a plugin of the new auth core, the new account layer replaces the
   old one, the shared contracts move to their owners, and the old auth code in the wallet and
   the Gateway goes away. Update [Browser workers](browser-workers.md). The old and the new code
   never both serve one flow.
+
+  Not started, except two rows of dead code, because each area needs the browser half of
+  Slice 7: a row closes only when its old code is deleted, and the old code serves each user
+  until the new account layer does. Closed on 2026-11-28:
+  - Row 8.8: the old passkey error enum and its public type `PasskeyErrorDetails` are deleted.
+    No code here or in `seams-console` used them. This is a breaking change of Release B.
+  - Row 9.19: `shared-ts/src/index.ts` and the root path of `@seams-internal/shared-ts` are
+    deleted. Nothing imported them.
+  - Area 10 moved in Slice 4.
+
+  [Browser workers](browser-workers.md) needs no change yet: the auth core of Slice 6 starts no
+  worker (a browser check proves this), and each worker still belongs to the wallet.
 - **Slice 9: Release B.**
   - The new API (D10), with no alias for `SeamsWeb`.
   - A new major version of the iframe protocol.
   - `seams-monorepo` in one coordinated commit.
   - The old driver of the conformance suite goes away.
+
+  Not ready, because it ships Slice 8. What is prepared, and what the owner decides first:
+  - **`@seams/auth` builds** (`pnpm -C packages/auth build`) with its three paths, and its build
+    refuses a module that a path must not hold. It is still `private`. To publish it: remove
+    `private`, add it to the release workflow and `scripts/check-package-names.mjs`, and plan
+    its first publish (U1: the workflow could not make the first publish of `@seams/host`).
+  - **The services.** `packages/host` holds the credentials, the Auth Worker entry and the
+    account origin. `packages/mpc-wallet-server` still publishes `@seams/host`; Release B moves
+    the manifest to `packages/host` and the wallet server's code becomes a folder that `host`
+    builds.
+  - **The Console commit of Release B** (in `seams-console`): the renamed exports of Slice 4,
+    the Auth Worker beside each regional Gateway with its own D1 database, its email sender
+    and its home-region lookup (U3), and the removal subscriber route of the Gateway.
+  - **Questions for the owner, with a recommendation:**
+    - D6, D8, D9, D10, D20 and D25 are still open. Slices 5 and 6 follow each recommendation.
+    - The home region of an account (U3): the Console's placement lookup keys by the account
+      ID, which is the wallet ID for a migrated account; an email sign-in needs a lookup from
+      the address digest to its regions.
+    - The browser half of Slice 7 as its own plan (above).
 
 Slices 2 to 7 add new code and change no released behaviour. Slices 8 and 9 ship as Release B.
 

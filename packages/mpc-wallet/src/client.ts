@@ -350,7 +350,6 @@ export type { AmountErrorCode, NearAmount, YoctoNear } from './core/types/amount
 export { logWalletEvents } from './core/types/eventLogging';
 
 // === ERROR TYPES ===
-export type { PasskeyErrorDetails } from './core/types/errors';
 
 // === CONFIRMATION TYPES ===
 export type {
