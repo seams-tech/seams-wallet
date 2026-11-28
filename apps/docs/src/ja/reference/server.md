@@ -5,12 +5,12 @@ description: 対応する@seams/hostのエントリーポイント、同梱ラ�
 
 # HostとCLI {#server-sdk-and-cli}
 
-`@seams/host@0.76.0`は、運用者がデプロイするサービスのパッケージです。再利用可能なWalletサービス、ストレージアダプター、Cloudflare Workers、マイグレーション、署名用WASMバインディング、ウォレットオリジンのドキュメント、VoiceIDのホストプラグインを提供します。`@seams/wallet-server`に代わるパッケージです。
+`@seams/host@0.77.0`は、運用者がデプロイするサービスのパッケージです。再利用可能なWalletサービス、ストレージアダプター、Cloudflare Workers、マイグレーション、署名用WASMバインディング、ウォレットオリジンのドキュメント、VoiceIDのホストプラグインを提供します。`@seams/wallet-server`に代わるパッケージです。
 現在の復元CLIランチャーは、`@seams/cli@0.29.0`です。
 デプロイ用アセットを選ぶ前に、[リリース状況](/ja/releases)を確認してください。
 
 ```sh
-pnpm add @seams/host@0.76.0
+pnpm add @seams/host@0.77.0
 npm install --global @seams/cli@0.29.0
 ```
 

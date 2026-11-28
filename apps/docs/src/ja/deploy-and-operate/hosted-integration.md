@@ -55,49 +55,23 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 公開アセットの`@seams/host/wallet-origin-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
 
-## 次のリリース {#next-release}
+## リリース 0.77.0 {#release-0-77-0}
 
-次のリリースはパッケージの名前を変えます。動作は変わりません。
+`@seams/mpc-wallet`、`@seams/wallet-connect`、`@seams/host`を**0.77.0**に固定してください。`@seams/cli`は**0.29.0**に固定してください。署名済みネイティブアセットは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
+
+0.77.0はパッケージの名前を変えます。
 
 - アプリは`@seams/wallet`の代わりに`@seams/mpc-wallet`をインストールし、`@seams/wallet-connect`も一緒にインストールします。
 - 運用者は`@seams/wallet-server`の代わりに`@seams/host`をインストールします。パスの名前は変わりません。ルートのパスは`@seams/host/server-types`になります。
-- `@seams/voiceid`は公開しません。アプリは`voiceIdAuthMethod`を`@seams/mpc-wallet/voiceid`からインポートします。`@seams/host`にVoiceIDのホストプラグインとモデルが含まれ、`seams-voiceid-host`はこれまでと同じように構成します。
+- `@seams/voiceid`は公開しません。アプリは`voiceIdAuthMethod`を`@seams/mpc-wallet/voiceid`からインポートします。`@seams/host`にVoiceIDのホストプラグインとモデルが含まれ、`npx --no-install seams-voiceid-host ./wallet-with-voiceid`はこれまでと同じように静的デプロイ用のディレクトリーを作成します。VoiceIDのホストAPIはバージョン11です。Walletは別のバージョンのホストプラグインを拒否します。
 - 復元CLIのランチャーは`@seams/cli` **0.29.0**です。`seams-wallet`コマンドと署名済みネイティブアセットは同じです。
 - ウォレットオリジンのドキュメントは`@seams/host/wallet-origin-html`です。
 
-各リリースと同じように、同じリリースのサーバー、Walletホスト、アプリを一緒にデプロイしてください。古いインポートから新しいインポートへの表は[リリースノート](/ja/releases)にあります。
-
 `@seams/host`の署名用D1マイグレーションは、1つのベースライン`0001_signer_d1_baseline.sql`になります。アップグレードの前に、0.76.0のリリースの署名用マイグレーションを`0091_linked_device_email_otp_own_factor.sql`まですべて適用してください。その後、`wrangler d1 migrations apply`はベースラインを1回だけ実行しますが、何も変更しません。データベースのスキーマとデータはそのまま残ります。マイグレーション0091のないデータベースでは、ベースラインは失敗します。新しいデータベースは、ベースラインからすべてのスキーマを受け取ります。
 
-### Speak-to-Signの検証者 {#speak-to-sign-verifier}
+次に0.77.0のサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。パスキーのオプションとEmail OTPの解放の本文が両側で変わったため、0.77.0のWalletホストには0.77.0のサーバーが必要です。逆も同じです。デプロイの時点で開いているEmail OTPの許可は失敗するため、ユーザーは新しいコードを求めます。古いインポートから新しいインポートへの表は[リリースノート](/ja/releases)にあります。
 
-WalletのSpeak-to-Signの検証者は、Cloudflare WorkerのSaySoです。OutLayerは無効です。検証者のあるレーンは、Gateway Workerに次を設定します。
-
-| 設定                    | 種類                   | 値                                |
-| ----------------------- | ---------------------- | --------------------------------- |
-| `SPEAK_TO_SIGN_BACKEND` | 変数                   | `sayso`                           |
-| `SAYSO`                 | サービスバインディング | レーンのSaySo Worker              |
-| `SAYSO_API_KEY`         | シークレット           | そのSaySo Workerの`SAYSO_API_KEY` |
-
-- レーンごとに、専用の判定の鍵とAPIキーを持つ専用のSaySo Workerを使ってください。現在、検証者があるのは`staging-testnet`だけです。Walletは、テストネットについてそのSaySo Workerの判定の鍵を固定しています。
-- GatewayとWalletホストより先に、`POST /v1/template/delete`を提供するSaySo Workerをデプロイしてください。WalletはVoiceIDが無効になるときに所有者の声のテンプレートを削除し、削除が失敗するとVoiceIDは有効のままです。
-- 検証者のないレーンは、これらの項目も`SPEAK_TO_SIGN_OUTLAYER_*`変数も設定しません。そのGatewayには検証のルートがありません。
-- 0.76.0の`SPEAK_TO_SIGN_OUTLAYER_*`変数があり`SPEAK_TO_SIGN_BACKEND`がないGatewayは、起動時に停止します。変数を削除してください。`SPEAK_TO_SIGN_BACKEND=outlayer`のGatewayは、このWalletのすべての検証のリクエストに409 `backend_mismatch`で応答します。
-- 各所有者は声をもう一度登録します。SaySoには、OutLayerの検証者のテンプレートがありません。
-
-ルートと共同署名者の確認は、[Seamsサーバーの設定](/ja/concepts/auth-methods/speak-to-sign#configure-the-seams-server)を参照してください。
-
-## リリース 0.76.0 {#release-0-49-0}
-
-`@seams/wallet`と`@seams/wallet-server`を**0.76.0**に固定してください。
-最初にD1のマイグレーション`0091_linked_device_email_otp_own_factor.sql`を適用してください。次に0.76.0のサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。Email OTPの復元とデバイス連携のルートは両側で変わったため、0.76.0のWalletホストには0.76.0のサーバーが必要です。逆も同じです。0.76.0のアプリには0.76.0のWalletホストが必要です。0.76.0のWalletホストは0.74と0.75のアプリを受け付けます。0.74からアップグレードする場合は、`0091`の前に`0090_email_otp_code_seal.sql`を適用してください。
-`@seams/wallet-cli`も**0.29.0**を使用します。署名済みネイティブアセットは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
-VoiceIDをホストする場合は、`@seams/voiceid` **0.76.0**もインストールします。
-`npx --no-install seams-voiceid-host ./wallet-with-voiceid`で静的デプロイ用のディレクトリーを作成してください。
-VoiceIDのホストAPIはバージョン11です。Walletは別のバージョンのホストプラグインを拒否するため、`@seams/voiceid` 0.76.0を`@seams/wallet` 0.76.0と一緒にインストールしてください。
-Speak-to-Sign(実験的機能、NEARテストネット専用)は、0.68.0から`@seams/wallet`の一部です。`@seams/wallet-voice-sign`を使っていたホストは、そのパッケージと`seams-speak-to-sign-host`の手順を削除してください。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host)を参照してください。
-アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
-対応する導入方法は、[リリース 0.76.0](/ja/releases)を参照してください。
+Speak-to-Sign(実験的機能、NEARテストネット専用)は`@seams/mpc-wallet`の一部です。[実験的機能: Speak-to-Sign](/ja/concepts/auth-methods/speak-to-sign#prepare-the-wallet-host)を参照してください。アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
 
 Gatewayは`/router-ab/ed25519/yao/reissue/admit`と`/router-ab/ed25519/yao/reissue/execute`を提供します。自分で組み立てるGatewayは、これらを`@seams/host/cloud-host`の`handleRouterAbEd25519YaoReissueRequestV1`に渡してください。Routerのプロジェクトポリシーは`reissue`の作業種別を許可する必要があります。
 
@@ -117,6 +91,24 @@ Consoleが代替承認を発行する前に、Routerは永続的なフェンス�
 Bの準備応答を待たず、検証済みのAの完了後に終了できます。
 ホスト環境での有効化は、応答後に不要となった手順のクリーンアップも実行します。
 これらの変更は、証明、鍵管理、リプレイの確認を維持します。
+
+### Speak-to-Signの検証者 {#speak-to-sign-verifier}
+
+WalletのSpeak-to-Signの検証者は、Cloudflare WorkerのSaySoです。OutLayerは無効です。検証者のあるレーンは、Gateway Workerに次を設定します。
+
+| 設定                    | 種類                   | 値                                |
+| ----------------------- | ---------------------- | --------------------------------- |
+| `SPEAK_TO_SIGN_BACKEND` | 変数                   | `sayso`                           |
+| `SAYSO`                 | サービスバインディング | レーンのSaySo Worker              |
+| `SAYSO_API_KEY`         | シークレット           | そのSaySo Workerの`SAYSO_API_KEY` |
+
+- レーンごとに、専用の判定の鍵とAPIキーを持つ専用のSaySo Workerを使ってください。現在、検証者があるのは`staging-testnet`だけです。Walletは、テストネットについてそのSaySo Workerの判定の鍵を固定しています。
+- GatewayとWalletホストより先に、`POST /v1/template/delete`を提供するSaySo Workerをデプロイしてください。WalletはVoiceIDが無効になるときに所有者の声のテンプレートを削除し、削除が失敗するとVoiceIDは有効のままです。
+- 検証者のないレーンは、これらの項目も`SPEAK_TO_SIGN_OUTLAYER_*`変数も設定しません。そのGatewayには検証のルートがありません。
+- 0.76.0の`SPEAK_TO_SIGN_OUTLAYER_*`変数があり`SPEAK_TO_SIGN_BACKEND`がないGatewayは、起動時に停止します。変数を削除してください。`SPEAK_TO_SIGN_BACKEND=outlayer`のGatewayは、このWalletのすべての検証のリクエストに409 `backend_mismatch`で応答します。
+- 各所有者は声をもう一度登録します。SaySoには、OutLayerの検証者のテンプレートがありません。
+
+ルートと共同署名者の確認は、[Seamsサーバーの設定](/ja/concepts/auth-methods/speak-to-sign#configure-the-seams-server)を参照してください。
 
 ## 登録の完了 {#registration-completion}
 

@@ -1,6 +1,6 @@
 {
   "name": "@seams/mpc-wallet",
-  "version": "0.76.0",
+  "version": "0.77.0",
   "type": "module",
   "description": "Seams MPC wallet: embedded NEAR and EVM-family wallets with threshold signing, React components and the VoiceID page code",
   "exports": {
@@ -111,7 +111,7 @@
   },
   "homepage": "https://github.com/seams-tech/seams-wallet#readme",
   "peerDependencies": {
-    "@seams/wallet-connect": "0.76.0",
+    "@seams/wallet-connect": "0.77.0",
     "jsqr": "1.4.0",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"

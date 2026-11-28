@@ -52,7 +52,7 @@ SaySoが受け付ける文は、最大16語、最大160文字です。これよ�
 MPCウォレットのパッケージをインストールします。Speak-to-SignとVoiceIDの記述子は`@seams/mpc-wallet`の一部で、専用のパッケージはありません。
 
 ```sh
-pnpm add @seams/mpc-wallet@0.76.0
+pnpm add @seams/mpc-wallet@0.77.0
 ```
 
 VoiceIDの認証方法と一緒に、`spoken`の記述子を`approvals`に追加します。

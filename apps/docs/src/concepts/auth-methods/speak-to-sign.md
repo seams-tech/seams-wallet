@@ -94,7 +94,7 @@ Install the MPC wallet package. Speak-to-Sign and the VoiceID descriptor are par
 `@seams/mpc-wallet`: they have no package of their own.
 
 ```sh
-pnpm add @seams/mpc-wallet@0.76.0
+pnpm add @seams/mpc-wallet@0.77.0
 ```
 
 Add the `spoken` descriptor to `approvals`, beside the VoiceID auth method:

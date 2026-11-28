@@ -10,7 +10,7 @@ Offer two wallet choices in your application:
 - **Use a Seams wallet:** create or unlock a threshold wallet through the existing Seams authentication flow.
 - **Connect an existing wallet:** choose from the wallets your app enables and approve requests in that wallet.
 
-`@seams/wallet-connect@0.76.0` includes external NEAR connections, transactions, and Meteor's `signMessage` API. It needs no Seams account and no MPC wallet.
+`@seams/wallet-connect@0.77.0` includes external NEAR connections, transactions, and Meteor's `signMessage` API. It needs no Seams account and no MPC wallet.
 
 ## Wallets and networks
 
@@ -175,5 +175,5 @@ Allow Intear's popup for the application origin. The adapter accepts replies onl
 from its fixed wallet origin and the popup opened for that request. It rejects
 redirected wallet origins and native bridge sessions.
 
-If imports cannot be resolved, check that `@seams/wallet-connect` version `0.76.0` is installed. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
+If imports cannot be resolved, check that `@seams/wallet-connect` version `0.77.0` is installed. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
 for the same boundaries in the operational guide.

@@ -1,14 +1,19 @@
 ---
-title: リリース 0.76.0
-description: 各デバイスが自分のEmail OTPの要素を持つため、新しいデバイスでGoogle復元とデバイス連携を再び使えます。マイグレーション0091を適用し、サーバーとWalletホストを一緒にデプロイしてください。
+title: リリース 0.77.0
+description: パッケージの名前が変わり、パスキーにはユーザー検証が必要になり、Email OTPの要素の解放には新しいコードが必要になり、SaySoがOutLayerに代わってSpeak-to-Signの検証者になります。サーバーとWalletホストを一緒にデプロイしてください。
 ---
 
-## 次のリリース（未リリース） {#next-release}
+# リリース 0.77.0
+
+アプリは`@seams/mpc-wallet`と`@seams/wallet-connect`の **0.77.0** を、運用者は`@seams/host`の **0.77.0** をインストールします。先に0.76.0の署名用マイグレーションをすべて適用し、次にサーバーとWalletホストを一緒にデプロイし、最後にアプリをデプロイしてください。
 
 0.76.0からの変更:
 
 - パスキー: サーバーは、すべてのパスキーの登録とアサーションで、ユーザー検証（PIN、生体認証、デバイスのパスコード）を必須にします。以前は、ユーザーの存在だけを示すアサーションも受け付けていました。ほかの点では有効でもユーザー検証のないセレモニーは、新しいコード`user_verification_required`で失敗します。Walletは「このパスキーはPINや生体認証を確認しませんでした。PINや生体認証のあるパスキーを使うか、セキュリティキーにPINを設定してください。」と表示します。
 - Walletは、すべてのパスキーの画面で`userVerification: 'required'`を求めます。サーバーが送る方式の追加、デバイス連携、復元のオプションでも同じです。
+- Ed25519 Yaoの登録: コミットの前に失敗または停止した受け入れは、D1に確保を残していました。そのため、同じライフサイクルの以降の受け入れはすべて`admission_in_progress`で失敗し、ウォレットの移動は`ceremonies_unsettled`で待ち続けました。受け入れは1回のコミットの前に何も保存しなくなり、Gatewayは以前のバージョンが保存した確保を削除します。マイグレーションは不要です。
+- Email OTP: Wallet Sessionのベアラーに要素を解放するルートはなくなりました。要素の解放には、その操作の新しいメールのコード、またはその許可が必要です。再読み込みの後、NEARのEd25519の復元は、ウォームシールから要素を開きます。Email OTPのワーカーは、Wallet Sessionの署名セッションのシールで要素を封印します。封印した値は、そのセッションが有効な間だけ開きます。
+- Consoleが応答するGatewayのルート（`GET /v1/wallets`、`GET /v1/wallets/search`、`GET /v1/wallets/:id`、`POST /signed-delegate`、`POST /sponsorships/evm/call`）は、CORSのオリジンを設定したGatewayで500 `Can't modify immutable headers.`を返していました。これらのルートは、CORSのヘッダーを付けてConsoleの応答を返すようになりました。
 
 破壊的変更:
 
@@ -16,6 +21,9 @@ description: 各デバイスが自分のEmail OTPの要素を持つため、新�
 - 追加するパスキー、デバイス連携のパスキー、復元のパスキーのサーバーのオプションは`authenticatorSelection.userVerification: 'required'`を含み、Walletはこの値だけを受け付けます。サーバーとWalletホストを一緒にデプロイしてください。デプロイの前に始まり、後に終わるセレモニーは失敗します。ユーザーはもう一度始めます。
 - `@seams/host`のD1: 署名用マイグレーションは、`0001`から`0091`までの91個のファイルの代わりに、1つのベースライン`0001_signer_d1_baseline.sql`になります。データベースがこのリリースを受け取る前に、0.76.0のリリースで`0091_linked_device_email_otp_own_factor.sql`までのすべてのマイグレーションを適用してください。その後、`wrangler d1 migrations apply`はそのデータベースでベースラインを1回だけ実行しますが、何も変更しません。データベースのスキーマとデータはそのまま残ります。マイグレーション0091のないデータベースでは、ベースラインは`CHECK constraint failed: apply_migration_0091_first`で失敗します。
 - SDKの設定から`webauthn.authenticatorOptions.userVerification`を削除しました。`UserVerificationPolicy`の列挙型も削除しました。このフィールドに効果はありませんでした。
+- `/wallet/email-otp/factor-release`は`kind: 'wallet_session'`を拒否し、`verified_grant`の解放には`operation`が必要です。解放、ステップアップ、エクスポートは、それぞれ自分の操作の許可だけを受け付けます。デプロイの時点で開いている許可は失敗するため、ユーザーは新しいコードを求めます。デプロイの前に始まったNEARのEmail OTPのセッションにはウォームシールがないため、再読み込みの後はメールのコードで再びアンロックする必要があります。
+- `@seams/host`のD1のストアはテーブルを作りません。`d1-signer`のマイグレーションだけがスキーマです。`D1WalletStore`、`D1WalletAuthMethodStore`、`D1IdentityStore`、`CloudflareD1RouterAbEd25519YaoCapabilityPersistence`は`ensureSchema`のオプションを受け取りません。`ensure*D1Schema`の関数、そのオプションの型、`*_D1_SCHEMA_SQL`の配列を削除しました。
+- `@seams/host`の型: `RouterAbEd25519YaoProductRegistrationCeremonyStateV1`には`registration.admissionClaims`のマップがありません。`InMemoryRouterAbEd25519YaoRegistrationService`は受け入れの確保を自分で持ちます。
 
 ### Speak-to-Sign: SaySoの検証者 {#speak-to-sign-the-sayso-verifier}
 
@@ -77,6 +85,14 @@ Seamsの運用者が動かすCloudflare WorkerのSaySoが、OutLayerに代わっ
 - コネクターのセレクターは自分のテーマ境界を描画し、`@seams/mpc-wallet/react`の`Theme`トークンを読みません。見た目は同じです。境界の要素には`data-seams-theme`、`lang`、トークンの変数がありません。色を変えるには、これまでと同じく`--seams-wallet-picker-*`のCSS変数を設定してください。
 - Walletのアセットマニフェストは`@seams/mpc-wallet`を、ホストの成果物マニフェストは`@seams/host`を記載します。`seams-voiceid-host`と`composeVoiceIdWalletAssets`は`@seams/host`から提供します。ほかの`seams-wallet-server-*`コマンドの名前は変わりません。
 - 古いパッケージ名には、新しいパッケージを示すnpmの非推奨メッセージを付けます。
+
+互換性:
+
+- 0.77.0のサーバーの前に、0.76.0の署名用マイグレーションを`0091_linked_device_email_otp_own_factor.sql`まですべて適用してください。その後、0.77.0のベースラインは何も変更せずに実行されます。
+- Speak-to-Signのあるレーンでは、Gatewayの前に、`POST /v1/template/delete`に応答するSaySoのWorkerをデプロイしてください。
+- 0.77.0のWalletホストには0.77.0のサーバーが必要です。逆も同じです。パスキーのオプションとEmail OTPの解放の本文が両側で変わりました。
+- `@seams/voice-verdict`、`@seams/voice-capture`、`@seams/voice-sign`は **0.72.0** のままです。`@seams/cli`は **0.29.0** のままです。
+- ウォレットのiframeプロトコルは **25.0.0** のままで、VoiceIDのホストAPIは11のままです。`@seams/mpc-wallet`、`@seams/wallet-connect`、`@seams/host`を0.77.0でインストールしてください。
 
 # リリース 0.76.0
 

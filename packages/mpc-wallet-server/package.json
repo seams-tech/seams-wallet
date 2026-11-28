@@ -1,6 +1,6 @@
 {
   "name": "@seams/host",
-  "version": "0.76.0",
+  "version": "0.77.0",
   "type": "module",
   "description": "Seams services for operators: the Wallet Gateway, its router roles, the Cloudflare Workers, migrations, the wallet origin document and the VoiceID host plugin",
   "bin": {
@@ -124,7 +124,7 @@
   },
   "homepage": "https://github.com/seams-tech/seams-wallet#readme",
   "peerDependencies": {
-    "@seams/mpc-wallet": "0.76.0"
+    "@seams/mpc-wallet": "0.77.0"
   },
   "peerDependenciesMeta": {
     "@seams/mpc-wallet": {

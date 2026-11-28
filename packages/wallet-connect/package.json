@@ -1,6 +1,6 @@
 {
   "name": "@seams/wallet-connect",
-  "version": "0.76.0",
+  "version": "0.77.0",
   "type": "module",
   "description": "Connect existing EVM and NEAR browser wallets to a web app, with no Seams account or MPC wallet",
   "exports": {

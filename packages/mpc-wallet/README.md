@@ -1,6 +1,6 @@
 # Seams MPC Wallet
 
-`@seams/mpc-wallet` **0.76.0** provides browser wallet lifecycle, NEAR and EVM-family
+`@seams/mpc-wallet` **0.77.0** provides browser wallet lifecycle, NEAR and EVM-family
 threshold signing, React components, and hosted wallet runtime assets. It replaces
 `@seams/wallet`; the [release notes](https://docs.wallet.seams.sh/releases) map each old import
 to its new import.
@@ -8,7 +8,7 @@ to its new import.
 ## Install
 
 ```sh
-pnpm add @seams/mpc-wallet@0.76.0 @seams/wallet-connect@0.76.0
+pnpm add @seams/mpc-wallet@0.77.0 @seams/wallet-connect@0.77.0
 ```
 
 `@seams/wallet-connect` is a peer dependency: the hosted auth menu can offer its connectors
@@ -19,7 +19,7 @@ SDK development uses exact `react@19.2.9` and `react-dom@19.2.9`.
 Application lockfiles select the installed React version. Import the provider and UI from
 `@seams/mpc-wallet/react` and its stylesheet from `@seams/mpc-wallet/styles.css`.
 Keep the application package, wallet-origin assets, and
-`@seams/host@0.76.0` on the matching release. The wallet iframe protocol
+`@seams/host@0.77.0` on the matching release. The wallet iframe protocol
 is `25.0.0`. The application and wallet host must use the same protocol version.
 
 ## Current API
@@ -55,7 +55,7 @@ the challenge and its expiry. The application receives the typed challenge handl
 
 ## Application sessions and fresh owner approval
 
-SDK 0.76.0 accepts a handoff from an explicitly trusted application backend.
+SDK 0.77.0 accepts a handoff from an explicitly trusted application backend.
 Google and app-passkey login can use the same stable application user ID.
 Use `registration.registerOwnerWallet` for NEAR-only passkey onboarding and `near.prepareOwnerTransaction` for fresh approval of each transaction.
 These operations create no reusable signing authority.
@@ -64,7 +64,7 @@ See the [application-session guide](https://docs.wallet.seams.sh/guides/applicat
 
 ## Bring your own Google authentication
 
-SDK 0.76.0 can reuse an application's Google ID token to open associated wallet settings.
+SDK 0.77.0 can reuse an application's Google ID token to open associated wallet settings.
 Configure the environment's Google client ID and let the owner associate their wallet once.
 Then pass the token after the application's existing Google login:
 

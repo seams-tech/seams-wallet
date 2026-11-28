@@ -5,7 +5,7 @@ description: Choose the supported Seams SDK entrypoint for browser, React, thres
 
 # SDK reference
 
-This reference describes **@seams/mpc-wallet 0.76.0** and the packages that ship with it.
+This reference describes **@seams/mpc-wallet 0.77.0** and the packages that ship with it.
 Each import path says where its code runs: no package has a root import. Start with the
 browser or React API. Use the lower-level exports only when your integration manages the
 corresponding runtime or protocol.
@@ -24,12 +24,12 @@ corresponding runtime or protocol.
 | [`@seams/host`](/reference/server) | Server services, Workers, migrations, local runtime entry points, the wallet origin document, and the VoiceID host plugin. |
 | [`@seams/cli`](/deploy-and-operate/recovery-cli) | Signed native backup verification and tenant-root recovery tooling. |
 
-The browser and server SDKs use **0.76.0**. The recovery CLI uses **0.29.0**.
-See [Release 0.76.0](/releases) for integration and deployment requirements.
+The browser and server SDKs use **0.77.0**. The recovery CLI uses **0.29.0**.
+See [Release 0.77.0](/releases) for integration and deployment requirements.
 
 ## Prepared NEAR connector
 
-Version **0.76.0** includes these entry points. The connector remains a development preview.
+Version **0.77.0** includes these entry points. The connector remains a development preview.
 See [external NEAR wallets](/guides/external-near-wallets) for availability, examples, and result branches.
 
 | Import path                         | Exports                                                                                                 |

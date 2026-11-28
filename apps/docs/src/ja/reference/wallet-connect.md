@@ -10,7 +10,7 @@ description: 既存のEVMとNEARのブラウザーウォレットに接続する
 このパッケージはSeamsのセッションも鍵管理の記録も作らず、MPCウォレットやSeamsの認証をインポートしません。
 
 ```sh
-pnpm add @seams/wallet-connect@0.76.0
+pnpm add @seams/wallet-connect@0.77.0
 ```
 
 ## インポートパス {#import-paths}

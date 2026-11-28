@@ -1,21 +1,27 @@
 ---
-title: Release 0.76.0
-description: Each device gets its own Email OTP factor, so Google recovery and device linking work on a new device again. Apply migration 0091, then ship the server and the Wallet host together.
+title: Release 0.77.0
+description: The packages get new names, passkeys need user verification, Email OTP releases need a fresh code, and SaySo replaces OutLayer as the Speak-to-Sign verifier. Ship the server and the Wallet host together.
 ---
 
-## Next release (not released yet)
+# Release 0.77.0
+
+The app installs `@seams/mpc-wallet` and `@seams/wallet-connect` **0.77.0**, and the operator installs `@seams/host` **0.77.0**. Apply every signer migration of 0.76.0 first, then deploy the server and the Wallet host together, then the apps.
 
 Since 0.76.0:
 
 - Passkeys: the server requires user verification (a PIN, a biometric or a device passcode) for every passkey registration and every passkey assertion. Before, it accepted an assertion that showed only user presence. A ceremony that is valid in every other way but has no user verification fails with the new code `user_verification_required`. The Wallet then shows "This passkey did not check a PIN or biometric. Use a passkey with a PIN or biometric, or set a PIN on your security key."
 - The Wallet asks for `userVerification: 'required'` in every passkey prompt, also in the add-method, device-link and recovery options that the server sends.
 - Ed25519 Yao registration: an admission that failed or stopped before its commit left a claim in D1. Each later admission of that lifecycle then failed with `admission_in_progress`, and a relocation of the wallet waited with `ceremonies_unsettled`. The admission now stores nothing before its one commit, and the Gateway drops a claim that an earlier version stored. No migration is needed.
+- Email OTP: no route releases the factor for a Wallet Session bearer. Each factor release needs a fresh email code for its operation, or the grant of one. After a reload, the NEAR Ed25519 restore opens the factor from its warm seal: the Email OTP worker seals the factor under the signing-session seal of its Wallet Session. The sealed value opens only for that live session.
+- The Gateway routes that the Console answers (`GET /v1/wallets`, `GET /v1/wallets/search`, `GET /v1/wallets/:id`, `POST /signed-delegate` and `POST /sponsorships/evm/call`) returned 500 `Can't modify immutable headers.` on a Gateway with CORS origins. They now return the answer of the Console with the CORS headers.
 
 Breaking changes:
 
 - A security key with no PIN, or another authenticator that cannot verify the user, can no longer register a passkey, sign in, unlock, sign or run an owner operation. Set a PIN on the key, or use another passkey or sign-in method.
 - The server options for an added passkey, a device-link passkey and a recovery passkey carry `authenticatorSelection.userVerification: 'required'`, and the Wallet accepts only that value. Deploy the server and the Wallet host together. A ceremony that starts before the deploy and ends after it fails, and the user starts it again.
 - `webauthn.authenticatorOptions.userVerification` is removed from the SDK config, with the `UserVerificationPolicy` enum. The field had no effect.
+- `/wallet/email-otp/factor-release` refuses `kind: 'wallet_session'`, and a `verified_grant` release requires `operation`. A release, a step-up or an export takes only a grant of its own operation. A grant that is open at the deploy fails, and the user asks for a new code. A NEAR Email OTP session that started before the deploy has no warm seal, so after a reload it needs a new unlock with an email code.
+- `@seams/host` D1 stores do not create tables. The `d1-signer` migrations are the only schema. `D1WalletStore`, `D1WalletAuthMethodStore`, `D1IdentityStore` and `CloudflareD1RouterAbEd25519YaoCapabilityPersistence` take no `ensureSchema` option, and the `ensure*D1Schema` functions, their option types and the `*_D1_SCHEMA_SQL` arrays are removed.
 - `@seams/host` D1: the signer migrations are one baseline, `0001_signer_d1_baseline.sql`, in place of the 91 files `0001` to `0091`. Before a database takes this release, apply every migration up to `0091_linked_device_email_otp_own_factor.sql` with the 0.76.0 release. `wrangler d1 migrations apply` then runs the baseline once on that database as a no-op, and the database keeps its schema and data. The baseline refuses a database that does not have migration 0091, with `CHECK constraint failed: apply_migration_0091_first`.
 - `@seams/host` types: `RouterAbEd25519YaoProductRegistrationCeremonyStateV1` has no `registration.admissionClaims` map, and `InMemoryRouterAbEd25519YaoRegistrationService` keeps its admission claims for itself.
 
@@ -80,6 +86,14 @@ Also changed:
 - The connector pickers draw their own theme boundary and do not read the `Theme` tokens of `@seams/mpc-wallet/react`. They look the same. Their boundary element has no `data-seams-theme`, `lang` or token variables. Set the `--seams-wallet-picker-*` CSS variables to change their colours, as before.
 - The wallet asset manifest names `@seams/mpc-wallet`, and the host artifact manifest names `@seams/host`. `seams-voiceid-host` and `composeVoiceIdWalletAssets` come from `@seams/host`. The other `seams-wallet-server-*` commands keep their names.
 - The old package names get npm deprecation messages that name the new packages.
+
+Compatibility:
+
+- Apply every signer migration of 0.76.0, up to `0091_linked_device_email_otp_own_factor.sql`, before the 0.77.0 server. The 0.77.0 baseline then runs as a no-op.
+- On a lane with Speak-to-Sign, deploy a SaySo Worker that serves `POST /v1/template/delete` before the Gateway.
+- A Wallet host at 0.77.0 needs a server at 0.77.0, and the reverse: the passkey options and the Email OTP release bodies changed on both sides.
+- `@seams/voice-verdict`, `@seams/voice-capture` and `@seams/voice-sign` stay at **0.72.0**. `@seams/cli` stays at **0.29.0**.
+- The Wallet iframe protocol stays **25.0.0**, and the VoiceID host API stays 11. Install `@seams/mpc-wallet`, `@seams/wallet-connect` and `@seams/host` at 0.77.0.
 
 # Release 0.76.0
 

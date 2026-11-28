@@ -5,14 +5,14 @@ description: Supported @seams/host entry points, packaged runtime commands, and 
 
 # Host and CLI
 
-`@seams/host@0.76.0` is the package of the services that an operator deploys: reusable Wallet
+`@seams/host@0.77.0` is the package of the services that an operator deploys: reusable Wallet
 services, storage adapters, Cloudflare Workers, migrations, signer WASM bindings, the wallet
 origin document, and the VoiceID host plugin. It replaces `@seams/wallet-server`.
 The current recovery CLI launcher is `@seams/cli@0.29.0`.
 See [release status](/releases) before selecting deployment artifacts.
 
 ```sh
-pnpm add @seams/host@0.76.0
+pnpm add @seams/host@0.77.0
 npm install --global @seams/cli@0.29.0
 ```
 

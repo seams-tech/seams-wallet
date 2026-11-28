@@ -3,9 +3,9 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-SDK version: **0.76.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.77.0**. [Read the documentation](https://docs.wallet.seams.sh/) or start with the [release notes](./apps/docs/src/releases.md).
 
-From the next release, the packages are:
+The packages are:
 
 - `@seams/mpc-wallet` — the embedded MPC wallet: browser SDK, React components and the VoiceID page code. It includes Speak-to-Sign: experimental, testnet-only NEAR signing by voice, which needs VoiceID.
 - `@seams/wallet-connect` — connectors for existing EVM and NEAR wallets, with no Seams account or custody.
@@ -14,13 +14,13 @@ From the next release, the packages are:
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
 They replace `@seams/wallet`, `@seams/wallet-server`, `@seams/voiceid` and `@seams/wallet-cli`
-(see "Next release" below).
+(see "Release 0.77.0" below).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
 The browser and server SDKs use wallet iframe protocol `25.0.0`. Upgrade the browser
-SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The browser SDK, server SDK and VoiceID plugin use version **0.76.0**.
+SDK, wallet-origin assets and server SDK together.
+The browser SDK and the server SDK use version **0.77.0**.
 The signed recovery CLI remains at **0.29.0**.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
@@ -30,7 +30,7 @@ changes that npm does not yet publish.
 The hosted Seams Console, the Wallet site, and deployment configuration live
 in the `seams-tech/seams-console` repository.
 
-## Next release (not released yet)
+## Release 0.77.0
 
 - Passkeys: the server requires user verification (a PIN, a biometric or a device passcode) for every passkey registration and assertion. A ceremony that is valid in every other way but has no user verification fails with the new code `user_verification_required`, and the Wallet tells the user to use a passkey with a PIN or biometric, or to set a PIN on the security key. The Wallet asks for `userVerification: 'required'` in every passkey prompt.
 - Breaking: a security key with no PIN can no longer register a passkey, sign in, unlock, sign or run an owner operation.
@@ -83,10 +83,12 @@ in the `seams-tech/seams-console` repository.
 | `@seams/wallet-cli` | `@seams/cli` |
 
 - Breaking: the default exports of `@seams/wallet/react/provider` and `@seams/wallet/react/hosted-seams-auth-menu` are gone with those paths. Import `SeamsWebProvider` and `HostedSeamsAuthMenu` by name from `@seams/mpc-wallet/react`. That path also loads the component stylesheets, so import it through a bundler, also for server-side rendering.
-- `@seams/mpc-wallet` names `@seams/wallet-connect` as a peer, because the hosted auth menu takes its controllers as wallet alternatives. It also depends on `voice-glow` for `VoiceBeam`. Install the four packages at one version.
+- `@seams/mpc-wallet` names `@seams/wallet-connect` as a peer, because the hosted auth menu takes its controllers as wallet alternatives. It also depends on `voice-glow` for `VoiceBeam`. Install `@seams/mpc-wallet`, `@seams/wallet-connect` and `@seams/host` at one version.
 - The connector pickers draw their own theme boundary and no longer read the `Theme` tokens of the React package. They look the same; their boundary element has no `data-seams-theme`, `lang` or token variables. Their colours come from the `--seams-wallet-picker-*` CSS variables, as before.
 - The wallet asset manifest names `@seams/mpc-wallet`, and the host artifact manifest names `@seams/host`. `seams-voiceid-host` and `composeVoiceIdWalletAssets` come from `@seams/host`; the other `seams-wallet-server-*` commands keep their names.
 - The old names get npm deprecation messages that name the new packages.
+- Deploy: apply every signer migration of 0.76.0, up to `0091_linked_device_email_otp_own_factor.sql`, before the 0.77.0 server. On a lane with Speak-to-Sign, deploy its SaySo Worker first. Then ship the server and the Wallet host together, because the passkey and the Email OTP release changes need both sides. Then the apps.
+- Compatibility: the Wallet iframe protocol stays **25.0.0**, and the VoiceID host API stays 11. The voice libraries stay at **0.72.0**. Install `@seams/mpc-wallet`, `@seams/wallet-connect` and `@seams/host` at 0.77.0, and `@seams/cli` at 0.29.0.
 
 ## Release 0.76.0
 

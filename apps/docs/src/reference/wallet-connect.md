@@ -11,7 +11,7 @@ keeps its keys and shows every approval. The package creates no Seams session an
 record, and it does not import the MPC wallet or Seams authentication.
 
 ```sh
-pnpm add @seams/wallet-connect@0.76.0
+pnpm add @seams/wallet-connect@0.77.0
 ```
 
 ## Import paths
