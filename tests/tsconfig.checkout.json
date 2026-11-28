@@ -1,0 +1,14 @@
+{
+  "extends": "../packages/checkout/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "declaration": false,
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types", "../node_modules/@types"],
+    "paths": {
+      "@shared/*": ["../packages/shared-ts/src/*"]
+    }
+  },
+  "include": ["checkout/**/*.ts"],
+  "exclude": ["node_modules"]
+}

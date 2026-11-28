@@ -1,7 +1,9 @@
 # Refactor 250: Seams Checkout, with stablecoin payments as a plugin
 
-Status: 2026-11-18. Plan only. Nothing is built. Revised on 2026-11-18 after a review of the
-architecture. The Slice 0 unknowns have answers from public documentation (2026-11-18). With
+Status: 2026-11-28. Slice 2 is built on `dev`: the checkout Worker, both card rails and the
+merchant's server client. Section 8 has the result of each slice and what each open slice waits
+for. The plan was revised on 2026-11-18 after a review of the architecture. The Slice 0
+unknowns have answers from public documentation (2026-11-18). With
 them, D1, D13 and D14 changed, and D2, D3, D5 and D8 got new facts. Tasks T1 to T19 finish
 Slice 0. This plan builds on
 [Refactor 251](refactor-251-auth-wallet-checkout-modules.md), which separates auth, the
@@ -648,7 +650,16 @@ T13 need no provider account. No test moves real money. The handoff
 Accounts, decisions and review (owner):
 
 - **T1.** Open a Stripe (Japan) test account and a KOMOJU test account. T6 to T10 need them.
-- **T2.** Decide D1, D2, D3, D5, D8, D9, D13 and D14. Each has a recommendation.
+- **T2.** Decide D1, D2, D3, D5, D8, D9, D13 and D14. Each has a recommendation. Asked on
+  2026-11-28. The code is built on the recommendations. A different decision changes these
+  slices:
+
+  | Decision | Slice that it blocks |
+  | --- | --- |
+  | D2 (routing on the server), D13 (merchant keys) | 2, and the Console screens of 10 |
+  | D3 (checkout origin), D5 (Stripe card form), D9 (guest checkout) | 3 |
+  | D8 (stablecoin currency), D14 (gas) | 6 |
+  | D1 (account model) | 10, and each live merchant |
 - **T3.** Decide who funds the gas relayer, Seams or the merchant, and the gas cap against the
   order amount (D14).
 - **T4.** Give the U10 duty list to a lawyer and a PCI QSA. Their answer comes before a live
@@ -1014,15 +1025,31 @@ stateDiagram-v2
     created --> awaiting_chain: onchain quote issued
     created --> succeeded
     created --> failed: declined
+    created --> cancelled: customer changed the method
+    created --> expired: deadline passed
     requires_action --> succeeded
     requires_action --> failed
     requires_action --> cancelled
+    requires_action --> expired: deadline passed
     pending_offline --> succeeded: rail event
     pending_offline --> cancelled: customer changed the method
     pending_offline --> expired: deadline passed
     awaiting_chain --> succeeded: transfer confirmed
+    awaiting_chain --> cancelled: customer changed the method
     awaiting_chain --> expired: quote expired
 ```
+
+Slice 2 added four moves to the first diagram: a `created` attempt and an `awaiting_chain`
+attempt can be `cancelled`, and a `created` or a `requires_action` attempt can be `expired`.
+Without them, a change of method or a deadline leaves an attempt active for ever.
+
+- **A declined card does not end a Stripe or KOMOJU card attempt.** Both providers let the
+  customer try again in the same PaymentIntent or session. The attempt stays `created` and
+  keeps the refusal. It becomes `failed` when the rail call itself fails, or when the amount
+  paid is not the order amount.
+- **Each attempt has a deadline.** A card attempt ends 15 minutes after the order's expiry, so
+  a 3-D Secure challenge in flight can still finish. An active attempt keeps its order `open`
+  until then. The order accepts no new attempt after its expiry.
 
 An order:
 
@@ -1116,6 +1143,47 @@ Each slice ships alone and keeps the invariants of Section 9.
   and attempt tables with the one function that computes the order state, the rail interface,
   the Stripe and KOMOJU rails for cards, both webhook routes and the merchant events. Tests use
   rail fakes. A sandbox test runs one real test payment at each provider.
+
+  Built on 2026-11-28 on `dev`, not released or deployed. The parts:
+  - **The package.** `packages/checkout` is `@seams/checkout`, with the path `/server`
+    (`createCheckoutServer`, `verifyOrderEvent`). `/client` comes with the frame in Slice 3.
+    Its build refuses a bundled module that is not its own source or a listed pure helper.
+  - **The Worker.** `createCheckoutWorker` in `src/worker` takes the database, the list of
+    rails, its own keys and the credential checks. Its routes: `POST /checkout/orders`,
+    `GET /checkout/orders/{id}`, `POST /checkout/orders/{id}/cancel` (secret key),
+    `GET /checkout/session` and `POST /checkout/attempts` (client token, publishable key and
+    the embedding origin), `POST /checkout/webhooks/{rail}/{project}` (provider signature),
+    and `PUT /checkout/projects/{project}` with `/rails/{rail}` (operator). The frame document
+    and these routes have one origin, so the frame needs no CORS.
+  - **The database.** `migrations/0001_checkout_orders.sql`: projects, rail accounts, orders,
+    attempts, unexpected payments and events. A unique index allows one active attempt for
+    each order, and one provider payment for each attempt.
+  - **The order state.** `computeOrderState` in `src/shared/orderState.ts`. `settleOrder` calls
+    it before each read and write and stores the result with its event.
+  - **The rails.** `PaymentRail` and `RailModule` in `src/worker/rails/rail.ts`, with the
+    shared HTTP helper. The Stripe rail makes a card-only PaymentIntent and accepts only a
+    restricted key. The KOMOJU rail makes a card-only session. A webhook is a signal: after
+    the signature check, the Worker reads the payment from the provider and applies that
+    state. So duplicates, late events and a replayed KOMOJU event converge.
+  - **The keys.** Each rail has its own encryption key (AES-256-GCM). A sealed value is bound
+    to its project and rail. The client token is the order ID with a MAC, so the Worker stores
+    no token.
+  - **The merchant events:** `order.paid`, `order.expired`, `order.cancelled` and
+    `order.unexpected_payment`, signed as `t=<seconds>,v1=<hex>` in the `seams-signature`
+    header. Each has one cause, so a repeat adds no second event. Delivery repeats until a 2xx
+    answer, with a wait that doubles from 30 seconds to one hour. `order.pending` comes with
+    the vouchers in Slice 4, and `order.refunded` and `order.disputed` in Slice 9.
+  - **Tests:** `pnpm -C tests test:checkout`, 62 cases in `tests/checkout`. They run the Worker
+    over a local D1 database with a fake rail, and each real rail against a fake provider API.
+  - **Stripe API version.** The rail uses `2026-11-18.endive` and
+    `allowed_payment_method_types`, because Stripe's changelog says that
+    `payment_method_types` is refused from `2026-09-30.endive`. Nobody ran this against Stripe.
+  - **Waits for the owner (T1):** the sandbox test with one real test payment at each
+    provider. It checks the Stripe parameter above, KOMOJU's `total` against the order amount
+    (the default tax differs between KOMOJU API versions) and the KOMOJU 3-D Secure dialog.
+  - **Waits for Refactor 251 (`packages/host`):** a service entry that builds the Worker and
+    its schedule, checkout scopes in the project credentials (the `credentials` port of the
+    Worker is the adapter), and the operator's credential for the project routes.
 - **Slice 3: the checkout frame with cards, for guests.** `checkoutOrigin`, the frame document,
   its CSP, `checkout.open` in `modal` and `inline`, the Seams method list, the Stripe Payment
   Element (card only), KOMOJU Fields, the theme mapping, 3-D Secure and the receipt. A new

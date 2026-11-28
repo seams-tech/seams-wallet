@@ -1,0 +1,70 @@
+{
+  "name": "@seams/checkout",
+  "version": "0.77.0",
+  "type": "module",
+  "description": "A checkout for online shops: cards and Japanese payment methods through the shop's own Stripe and KOMOJU accounts",
+  "exports": {
+    "./package.json": "./package.json",
+    "./client": {
+      "types": "./dist/types/checkout/src/client/index.d.ts",
+      "import": "./dist/esm/client/index.js",
+      "default": "./dist/esm/client/index.js"
+    },
+    "./server": {
+      "types": "./dist/types/checkout/src/server/index.d.ts",
+      "import": "./dist/esm/server/index.js",
+      "default": "./dist/esm/server/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "client": [
+        "dist/types/checkout/src/client/index.d.ts"
+      ],
+      "server": [
+        "dist/types/checkout/src/server/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "LICENSE.md",
+    "dist/esm/",
+    "dist/types/",
+    "!dist/**/*.map",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rm -rf dist && pnpm run build:types && rolldown -c rolldown.config.ts",
+    "build:types": "rm -rf dist/types && tsrs -p tsconfig.build.json && node ../../scripts/rewrite-declaration-imports.mjs",
+    "type-check": "tsrs --noEmit",
+    "prepack": "node ../../scripts/package-license.mjs stage",
+    "postpack": "node ../../scripts/package-license.mjs clean"
+  },
+  "keywords": [
+    "seams",
+    "checkout",
+    "payments",
+    "stripe",
+    "komoju",
+    "konbini",
+    "typescript"
+  ],
+  "author": "web3authn.org",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seams-tech/seams-wallet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seams-tech/seams-wallet/issues"
+  },
+  "homepage": "https://github.com/seams-tech/seams-wallet#readme",
+  "devDependencies": {
+    "@types/node": "20.19.13",
+    "rolldown": "1.0.0-rc.9"
+  }
+}

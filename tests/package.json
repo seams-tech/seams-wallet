@@ -16,6 +16,8 @@
     "test:wallet-unit": "playwright test -c playwright.wallet-browser.config.ts unit",
     "test:conformance": "playwright test -c playwright.wallet-browser.config.ts conformance",
     "test:frame-kit": "playwright test -c playwright.wallet-browser.config.ts frame-kit",
+    "test:checkout": "playwright test -c playwright.wallet-browser.config.ts checkout/",
+    "type-check:checkout": "tsrs -p tsconfig.checkout.json",
     "test:conformance:journeys": "pnpm run type-check:intended && node scripts/run-wallet-intended-isolated.mjs --require-google-token -- conformance/journeys"
   },
   "devDependencies": {

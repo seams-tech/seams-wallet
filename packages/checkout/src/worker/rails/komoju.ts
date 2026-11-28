@@ -1,0 +1,174 @@
+import { hasExactKeys } from '@shared/utils/exactKeys';
+import {
+  asRecord,
+  isArray,
+  isString,
+  requireNonEmptyString,
+  toOptionalTrimmedNonEmptyString,
+} from '@shared/utils/validation';
+import type { CheckoutMethod } from '../../shared/methods';
+import type { AttemptState } from '../../shared/orderState';
+import { hmacSha256Hex, timingSafeEqual } from '../../shared/signature';
+import { createRailHttp, type RailHttp } from './http';
+import {
+  RailError,
+  type PaymentRail,
+  type RailAccount,
+  type RailAttempt,
+  type RailContext,
+  type RailEvent,
+  type RailFailure,
+  type RailModule,
+  type RailPaymentState,
+  type RailWebhook,
+} from './rail';
+
+const KOMOJU_API = 'https://komoju.com/api/v1';
+/** The API version that this rail was written against. */
+const KOMOJU_API_VERSION = '2025-01-28';
+/** KOMOJU keeps an idempotency key for 24 hours. After that, the rail looks the payment up. */
+const IDEMPOTENCY_WINDOW_MS = 24 * 60 * 60_000;
+
+const METHODS: ReadonlySet<CheckoutMethod> = new Set(['card']);
+
+/** The state of an attempt for each status of a KOMOJU payment. */
+const PAYMENT_STATES: Readonly<Record<string, AttemptState>> = {
+  // The customer is at a 3-D Secure page or at a wallet app.
+  pending: 'requires_action',
+  authorized: 'requires_action',
+  captured: 'succeeded',
+  // A refund comes only after a capture, so the money did arrive.
+  refunded: 'succeeded',
+  cancelled: 'cancelled',
+  expired: 'expired',
+  // KOMOJU says that a failed payment can be tried again in the same session.
+  failed: 'created',
+};
+
+function readFailure(body: Record<string, unknown>): RailFailure {
+  const error = asRecord(body.error) ?? {};
+  return {
+    code: toOptionalTrimmedNonEmptyString(error.code) ?? 'komoju_error',
+    message: toOptionalTrimmedNonEmptyString(error.message) ?? 'KOMOJU refused the request',
+  };
+}
+
+function sessionState(session: Record<string, unknown>): RailPaymentState {
+  const payment = asRecord(session.payment);
+  if (!payment) {
+    const state = session.status === 'cancelled' ? 'cancelled' : session.expired === true ? 'expired' : 'created';
+    return { state, paid: null, failure: null };
+  }
+  const status = String(payment.status);
+  const state = PAYMENT_STATES[status];
+  if (!state) throw new RailError('unavailable', 'unknown_status', `Unknown payment status ${status}`);
+  return {
+    state,
+    paid: state === 'succeeded' ? { amount: Number(payment.total), currency: String(payment.currency) } : null,
+    failure: status === 'failed' ? { code: 'payment_failed', message: 'The payment failed' } : null,
+  };
+}
+
+function sessionPath(ref: string): string {
+  return `/sessions/${encodeURIComponent(ref)}`;
+}
+
+function connectKomoju(account: RailAccount, context: RailContext): PaymentRail {
+  const http: RailHttp = createRailHttp({
+    fetch: context.fetch,
+    baseUrl: KOMOJU_API,
+    authorization: `Basic ${btoa(`${account.secrets.secretKey}:`)}`,
+    idempotencyHeader: 'x-komoju-idempotency',
+    encoding: 'json',
+    headers: { 'x-komoju-api-version': KOMOJU_API_VERSION },
+    readError: readFailure,
+  });
+
+  async function read(ref: string): Promise<RailPaymentState> {
+    return sessionState(await http.get(sessionPath(ref)));
+  }
+
+  /** The session of an attempt whose idempotency key is too old to use again. */
+  async function findSession(attemptId: string): Promise<string | null> {
+    const list = await http.get(`/payments?external_order_num=${encodeURIComponent(attemptId)}`);
+    const first = isArray(list.data) ? asRecord(list.data[0]) : null;
+    return isString(first?.session) ? first.session : null;
+  }
+
+  async function verify(webhook: RailWebhook): Promise<RailEvent | null> {
+    // KOMOJU signs the raw body and no timestamp. So the Worker reads the payment from the API
+    // after this check, and a replayed event cannot set a state that the payment does not have.
+    const expected = await hmacSha256Hex(account.secrets.webhookSecret ?? '', webhook.body);
+    if (!timingSafeEqual(webhook.header('x-komoju-signature') ?? '', expected)) return null;
+    const event = asRecord(JSON.parse(webhook.body)) ?? {};
+    const data = asRecord(event.data) ?? {};
+    const attemptId = data.external_order_num;
+    if (!String(event.type).startsWith('payment.') || !isString(attemptId)) return { kind: 'ignored' };
+    return { kind: 'payment', attemptId, ref: isString(data.session) ? data.session : null };
+  }
+
+  return {
+    events: { kind: 'webhook', verify },
+    read,
+    async start(attempt: RailAttempt) {
+      const publishableKey = account.public.publishableKey ?? '';
+      const old = context.now() - attempt.createdAtMs > IDEMPOTENCY_WINDOW_MS;
+      const existing = old ? await findSession(attempt.id) : null;
+      const session = existing
+        ? await http.get(sessionPath(existing))
+        : await http.post(
+            '/sessions',
+            {
+              amount: attempt.amount,
+              currency: attempt.currency,
+              return_url: attempt.returnUrl,
+              default_locale: attempt.locale,
+              payment_types: ['credit_card'],
+              payment_data: { external_order_num: attempt.id, capture: 'auto' },
+              ...(attempt.details.email ? { email: attempt.details.email } : {}),
+            },
+            attempt.id,
+          );
+      const sessionId = requireNonEmptyString(session.id, 'session id');
+      return {
+        ref: sessionId,
+        payment: sessionState(session),
+        start: { kind: 'card_form', fields: 'komoju', publishableKey, sessionId },
+      };
+    },
+    async cancel(ref) {
+      try {
+        await http.post(`${sessionPath(ref)}/cancel`, {});
+        return { kind: 'cancelled' };
+      } catch (error) {
+        // KOMOJU refuses the cancel of a session that is completed.
+        if (!(error instanceof RailError) || error.kind !== 'refused') throw error;
+        return { kind: (await read(ref)).state === 'cancelled' ? 'cancelled' : 'too_late' };
+      }
+    },
+  };
+}
+
+export const komojuRail: RailModule = {
+  id: 'komoju',
+  methods: METHODS,
+  fields: () => ['email'],
+  parseAccount(input) {
+    if (!hasExactKeys(input, ['publishableKey', 'secretKey', 'webhookSecret'])) {
+      throw new Error('A KOMOJU account has a publishableKey, a secretKey and a webhookSecret');
+    }
+    const publishableKey = requireNonEmptyString(input.publishableKey, 'publishableKey');
+    const secretKey = requireNonEmptyString(input.secretKey, 'secretKey');
+    const webhookSecret = requireNonEmptyString(input.webhookSecret, 'webhookSecret');
+    if (publishableKey.startsWith('sk_') || secretKey.startsWith('pk_')) {
+      throw new Error('The KOMOJU publishableKey and secretKey are in the wrong fields');
+    }
+    if (publishableKey.includes('_live_') !== secretKey.includes('_live_')) {
+      throw new Error('The KOMOJU keys are not of the same mode: one is live and one is test');
+    }
+    // KOMOJU has no restricted key: this key reaches all of the merchant's API. It is sealed
+    // with the encryption key of this rail only, and only this file reads it.
+    return { public: { publishableKey }, secrets: { secretKey, webhookSecret } };
+  },
+  connect: connectKomoju,
+};

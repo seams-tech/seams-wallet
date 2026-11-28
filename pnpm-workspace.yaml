@@ -3,6 +3,7 @@ packages:
   - crates/router-ab-cloudflare
   - examples/seams-auth-menu
   - examples/wallet-console-lite
+  - packages/checkout
   - packages/cli
   - packages/frame-kit
   - packages/host
