@@ -13,8 +13,8 @@ Slice 0 checks the unknowns before any code. Its research part is done:
 - Commit `ffba1bac3` adds the section "Remaining Slice 0 tasks" with tasks T1 to T19. The
   status line and the Slice 0 entry of Section 8 point to it.
 
-No code exists for the checkout. Slice 0 ends when each of T1 to T19 is done or dropped by the
-owner.
+When this file was written, no code existed for the checkout. Slice 0 ends when each of T1 to
+T19 is done or dropped by the owner.
 
 ## Where to read in the plan
 
@@ -25,23 +25,24 @@ owner.
 - Section 4: the stablecoin rail. It uses the U8, U9 and U13 results.
 - Section 8: the slices and what each waits for.
 
+## What is done since (2026-11-28)
+
+- **T11, T12 and T13** are done. The results are in the plan under U8 and U13.
+- **T14 to T19:** the question texts are in
+  [refactor-250-provider-questions.md](refactor-250-provider-questions.md). The owner sends
+  them.
+- **T2:** the owner was asked once, with the recommendations. The code of Slices 2 to 4, 7 and
+  9 is built on the recommendations. The plan lists the slice that each decision blocks.
+- **The slices:** Section 8 of the plan has the result of each built slice and what each open
+  slice waits for.
+
 ## What the next session can do
-
-Without the owner and without a provider account:
-
-- **T11.** NEAR testnet: send a USDC `ft_transfer` with a memo. Check the memo in the
-  `ft_transfer` event through `EXPERIMENTAL_tx_status`. Use a testnet account and testnet USDC
-  (`3e2210e1…b8af` in `packages/wallet/src/core/assets/assetList.ts`).
-- **T12.** Sign a JPYC and a USDC `transferWithAuthorization` with a secp256k1 key, the key type
-  of the MPC wallet. Run each through `eth_call` on Ethereum and Polygon. Send no transaction.
-- **T13.** Measure one read of a final block from neardata. Estimate the reads for one open quote
-  at one block each 600 ms.
-- **T14 to T19.** Write the question text for each provider. The owner sends it. Do not send it.
 
 After the owner does T1 (the Stripe Japan and KOMOJU test accounts):
 
 - **T6 to T8** in the KOMOJU test account.
 - **T9 and T10** in the Stripe test account.
+- The sandbox checks that Slices 2 to 4 and 7 name under "Waits for the owner".
 
 Only the owner can do T1 to T5: the accounts, the decisions, the relayer funding and gas cap,
 the review by a lawyer and a PCI QSA, and the PCI texts behind a licence page.

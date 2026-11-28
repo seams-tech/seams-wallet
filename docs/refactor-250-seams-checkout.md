@@ -450,6 +450,38 @@ test or the question to the provider that closes what the documentation leaves o
   - **Next check:** on NEAR testnet, send one USDC `ft_transfer` with a memo and read its logs
     with `EXPERIMENTAL_tx_status`. This shows whether Circle's contract logs the memo. A
     receiver also needs a storage deposit at the USDC contract before its first transfer.
+  - **T11 result (2026-11-28, measured on mainnet, no transaction sent).** The check read
+    existing transactions of the mainnet USDC contract (`17208628…33a1`) with
+    `EXPERIMENTAL_tx_status` on `free.rpc.fastnear.com`.
+    - The contract copies the `memo` into the NEP-141 `ft_transfer` event, for `ft_transfer`
+      and for `ft_transfer_call`. Example: transaction
+      `3mEA3iBjiUh5sfa8JqRTzZ7aWi86NW9cGe76E3MZiBFm`, block 226615599, whose event has
+      `"memo":"nekoonnear:swap:v1:ref:t-square.near:site:nearswaps"`.
+    - With no memo, or `memo: null`, the event has no `memo` key.
+    - One receipt can have more than one event. A reader matches each event, not each receipt.
+    - `storage_balance_bounds` is 0.00125 NEAR (minimum and maximum) on mainnet and testnet.
+      So a receiver needs that deposit before its first transfer (inferred from NEP-145; a
+      failed transfer was not read).
+    - Not measured: a testnet transfer, the memo length limit, and a transfer to a receiver
+      with no storage deposit. Circle can upgrade the contract.
+  - **T12 result (2026-11-28, measured with `eth_call`, no transaction sent).** A new
+    secp256k1 key signed `transferWithAuthorization` as EIP-712 typed data (viem 2.46.0). The
+    nonce was `keccak256` of a sample quote ID. RPC: `ethereum-rpc.publicnode.com` and
+    `polygon-bor-rpc.publicnode.com`, one source for each chain.
+    - JPYC and USDC accept the signature on Ethereum and Polygon, with value 0 and with value
+      1,000,000 units under a balance state override.
+    - USDC: the domain `{ "USD Coin", "2", chainId, contract }` hashes to the contract's
+      `DOMAIN_SEPARATOR()` on both chains. USDC on Polygon is `0x3c499c…3359`.
+    - JPYC has no `version()`, `DOMAIN_SEPARATOR()` or `eip712Domain()`. The domain
+      `{ "JPY Coin", "1" }` is confirmed only by behaviour: the contract accepts it and refuses
+      another version. A later upgrade can change it with no getter to show it.
+    - Each control reverts with a clear reason: a wrong domain version and another key give
+      `invalid signature`; a past `validBefore` gives `authorization is expired`; a future
+      `validAfter` gives `authorization is not yet valid`.
+    - `eth_estimateGas` for a transfer to a new holder: JPYC 100,257 (Ethereum) and 129,903
+      (Polygon); USDC 104,893 and 127,675.
+    - Not measured: a real transfer, a second use of a nonce, `cancelAuthorization`, the
+      blocklist and pause, and an ERC-1271 signer.
 - **U9.** On which chains is JPYC issued, and what does a transfer cost on each? The wallet's
   asset list has JPYC only on Ethereum (Fact F7), where the gas can cost more than a small
   order.
@@ -640,6 +672,24 @@ test or the question to the provider that closes what the documentation leaves o
     - https://goldsky.com/chains/near
   - **Next check:** measure the time a Worker takes to read one neardata block. Ask FastNEAR
     about rate limits and Intear about the terms after the beta.
+  - **T13 result (2026-11-28, measured).** 30 consecutive final blocks from
+    `mainnet.neardata.xyz`, with no key.
+    - **The keyless service allows 30 blocks each minute** for one client address (HTTP 429
+      "rate-limit exceeded of 30 blocks per minute"). A read of each block needs 100 each
+      minute. So the NEAR path needs a paid FastNEAR plan or another source (T19).
+    - One block read from Node on the development computer: median 121 ms, p90 258 ms. One
+      block is 85 to 239 kB compressed and 257 to 737 kB of JSON. The parse and the filter of
+      the USDC receipts take less than 5 ms.
+    - In a local `workerd` (Miniflare, not a deployed Worker): median 96 ms for a block, and
+      about 190 ms for `last_block/final`, which redirects.
+    - **Estimate:** 100 reads and 17 MB compressed each minute; 1,500 reads for a 15-minute
+      quote; 144,000 reads and 24.5 GB each day. One reader for all open quotes keeps the
+      reads constant. A cron trigger cannot read each 600 ms, so the reader needs a loop, for
+      example a Durable Object with alarms.
+    - Not measured: a deployed Worker, the delay between finality and neardata, and the
+      limits of a paid plan.
+    - **Effect on the plan (Section 4).** The NEAR transfer search needs one shared block
+      reader and a paid indexer plan. This is one more cost of USDC on NEAR.
 
 ## Remaining Slice 0 tasks
 
@@ -688,16 +738,18 @@ Tests in the Stripe test account:
 
 Chain checks (no real money):
 
-- **T11.** U8: on NEAR testnet, send a USDC `ft_transfer` with a memo from a testnet account.
-  Read its logs through `EXPERIMENTAL_tx_status`, and check that the `ft_transfer` event has
-  the memo.
-- **T12.** U8 and D14: sign a JPYC and a USDC `transferWithAuthorization` with the key type of
-  the MPC wallet. Run each through `eth_call` on Ethereum and Polygon, so that no transaction
-  is sent. Check that the contracts accept the signature and the EIP-712 domain.
-- **T13.** U13: measure the time a Worker takes to read one final block from neardata. Then
-  estimate the reads for one open quote, at one block each 600 ms.
+- **T11.** Done on 2026-11-28, on mainnet and with no transaction (result under U8): the
+  contract puts the memo into the `ft_transfer` event. The check read existing transfers, which
+  answers the question for the contract that the checkout uses. A testnet transfer was not
+  sent.
+- **T12.** Done on 2026-11-28 (result under U8): both tokens accept the signature and the
+  domain on Ethereum and Polygon.
+- **T13.** Done on 2026-11-28 (result under U13): about 120 ms for one block, and the keyless
+  service allows 30 blocks each minute, less than the 100 that a read of each block needs.
 
-Questions to the providers:
+Questions to the providers. The text of each question is in
+[refactor-250-provider-questions.md](handoffs/refactor-250-provider-questions.md), ready for
+the owner to send. Nobody sent one.
 
 - **T14.** KOMOJU (U12, D13): does KOMOJU have, or plan, scoped keys or an IP allowlist?
 - **T15.** KOMOJU (U3): are the events `komoju-invalid` and `komoju-session-change` stable?
